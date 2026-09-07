@@ -97,11 +97,17 @@ should build `group -> string[]` once at load, exactly as `eng.js` does.
 Two consequences worth knowing:
 
 * An empty group does not fail; the pointer simply walks on into the next
-  group's strings. **[V]** `mapl2.exe` asks for group 41 indices 27–29 to get
-  its default map name / title / description, and group 41 is **empty in the
-  shipped `L2.eng`**, so the strings `My map` / `My battle map` /
-  `A short description of the battle map, I have created.` found in `USER.SKR`
-  are not in any shipped file. The battle-map editor was built against a
+  group's strings. **[V]** `mapl2.exe` asks for group 41 indices 27–29 for its
+  default map name, title and description.
+
+  > **Corrected.** An earlier revision claimed group 41 is empty in the shipped
+  > `L2.eng` and that those three strings appear in no shipped file. That is
+  > true only of the **DOS** release. In the **Windows** `L2.eng` group 41 holds
+  > **30 strings**, and indices 27–29 are exactly those three. The claim was
+  > checked against the wrong install and generalised — see `docs/audit.md`.
+  > `tools/audit/eng41.js` reproduces both readings side by side.
+
+  The editor was built against a
   development `l2.eng` that the retail release does not include. A tool that
   wants the editor's default strings must supply them itself.
 * Because the terminator test rejects a NUL preceded by a byte in `1 … 0x1F`,
@@ -147,8 +153,11 @@ all, so the list is 60 long, not 80. **[I]** Group 100's 1,200 county names are
 probably `60 maps x 20 county slots` on the same indexing, but that was not
 checked against the county planes.
 
-There is **no group of battle-map terrain names**, so the `.skr` terrain byte
-values cannot be named from `L2.eng`.
+**[V] Group 41 indices 2–9 are the battle-map terrain names**, in `.skr` terrain
+order. An earlier revision asserted no such group existed; that was the same
+DOS-vs-Windows error as above, and it closed off an answer that was sitting in
+the data. These names bear directly on the open terrain-value questions in
+[`skr.md`](skr.md).
 
 ---
 
@@ -315,5 +324,5 @@ none of the other files.
   it needs; nothing in the file says what a group is for.
 * **The 13 groups that differ between the DOS and Windows files** were not
   diffed in detail.
-* `mapl2.exe`'s group 41 (battle-map editor strings) is absent from every
-  shipped `L2.eng`.
+* ~~`mapl2.exe`'s group 41 is absent from every shipped `L2.eng`.~~
+  **False** — present with 30 strings in the Windows release, empty only in DOS.

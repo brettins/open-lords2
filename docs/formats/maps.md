@@ -154,7 +154,7 @@ Observed combinations: `0x03 = 0x02|0x01`, `0x0a = 0x08|0x02`,
 | `0x40` | **[V]** exact invariant | castle / county seat, always a 2x2 block |
 | `0x20` | **[V]** from `FUN_00467a36` | dwelling / housing site |
 | `0x80` | **[V]** count, **[I]** meaning | settlement (village) tile |
-| `0x08` | **[I]** | tile belongs to a multi-tile object (see plane 3) |
+| `0x08` | **[I]** | tile belongs to a multi-tile object (see plane 3). **Not** a reliable test: 2,604 of 9,877 non-zero plane-3 tiles do not set it, being castle and settlement block members |
 | `0x01,0x02,0x10` | unknown | — |
 
 Two exact invariants, checked over all 180,224 tiles of all 44 used maps:
@@ -187,7 +187,7 @@ if (b4 != 0) {
 ```
 
 * `FUN_0049bbe8(county, n)` writes `table[n] = (county, n)` and increments a
-  counter. **[V]** In 36 of the 44 maps there are exactly **5** settlement tiles
+  counter. **[V]** In 31 of the 44 maps there are exactly **5** settlement tiles
   with a non-zero plane-4 value, carrying the values `1,2,3,4,5` — one each.
   The remaining maps have 2 or 4. This is **[I] the table of player/lord starting
   counties**, and the counter is the number of players the map supports (5 is

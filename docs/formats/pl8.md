@@ -66,7 +66,7 @@ evidence: **`Base2a.pl8` and `Base2b.pl8` differ in exactly one byte** of their
 2,248-byte header and frame table — byte 0, reading `0` against `2` — with identical
 frame records and only a seasonal recolour between their pixels.
 
-So 15 files are ordinary isometric tile sets whose family byte simply reads `0`.
+So 18 files are ordinary isometric tile sets whose family byte simply reads `0`.
 Dispatching on the family byte charged `w*h` for a diamond; the recurring "24 byte"
 and "840 byte" overshoots were just `10*6 − 6²` and `58*30 − 30²`. There was no
 trailing block. An isometric file also routinely holds plain rectangles —
@@ -80,7 +80,7 @@ trailing block. An isometric file also routinely holds plain rectangles —
 | 3 | Diamond + left-half overhang | `height² + rows × height` |
 | 4 | Diamond + right-half overhang | `height² + rows × height` |
 
-**Shape 1 ignores the overhang count**, even when it is non-zero — 24 frames in the
+**Shape 1 ignores the overhang count**, even when it is non-zero — 32 frames in the
 corpus declare rows and still hold exactly `height²`. Honouring the count there
 desynchronises the whole file.
 
@@ -170,7 +170,7 @@ correct but wildly miscoloured sprite. `T32_bat1.256` is the battle-sprite palet
 complete. `KNOWN_FAILING` in `crates/l2-formats/tests/corpus.rs` is empty and kept
 as a mechanism — a new failure breaks the build by name.
 
-**15 files: dispatching on the family byte instead of the shape byte.**
+**18 files: dispatching on the family byte instead of the shape byte.**
 `Base2a`, `Roads2a`, `Castle1a-d`, `Castle2a-d`, `Town1a-d`, `Town2a-d` are ordinary
 isometric tile sets whose family byte reads `0`. The "24 byte" and "840 byte"
 overshoots were `10*6 − 6²` and `58*30 − 30²` — the difference between a rectangle
@@ -179,7 +179,8 @@ and a diamond. There was no trailing block; that hypothesis was wrong.
 **4 files: stored overhang above a rectangle.**
 `Fntl2_14`, `Font_10`, `T16_bat1`, `T32_bat` — 70 frames carrying RLE rows after the
 rectangle, drawn above it. The apparent "undershoots" of 6, 10, 61 and 190 bytes were
-just the largest such block per file.
+just the **first** such block per file — the largest are 18, 18, 74 and 242.
+`Castle2b/c/d` also first fail at −36, a residual an earlier revision omitted.
 
 **1 file: a wrong header byte.**
 `Font_c2` declares RLE but stores raw rectangles. It is the same font as `Fntl2_9`,

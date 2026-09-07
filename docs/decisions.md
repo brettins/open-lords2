@@ -33,6 +33,26 @@ for SDL today.
 Formats are facts and not copyrightable, so their documentation is usable. Their code is
 not. See `CLAUDE.md`.
 
+**D5a — OPEN, and not ours to settle: Smacker decoding forces an LGPL choice.**
+D5 says "MIT" without qualification. That may not survive contact with the 45 `.smk`
+videos.
+
+There is **no permissively licensed Smacker decoder**. `libsmacker` has been LGPL-2.1
+since January 2020; the `smk` Rust crate is a declared port of it and is LGPL-2.1 too;
+FFmpeg's decoder is likewise unavailable to us on permissive terms. The only public-domain
+implementation parses headers and has no codec at all. Transcoding at install time is not
+an escape hatch, because transcoding needs a decoder.
+
+So the options are: accept an LGPL component and the notice obligations that follow;
+write a Smacker decoder from the format description, which is a project in itself; or ship
+without in-game video. **This changes what the project's own licence can claim, so it is
+the user's call, not a technical default.**
+
+If we do adopt one, put it behind our own trait in a leaf crate so swapping it later is a
+one-crate change. Note also that the `smk` crate is unmaintained (single release) and has a
+real bug — one shipped video dies on a spurious overlap guard — so adopting it means
+carrying a patch.
+
 **D6 — Node prototypes are disposable.**
 Node answered "can we read this data at all?" quickly. Rust is the implementation. The
 Node decoders survive only while they're useful as a porting check.
@@ -94,7 +114,9 @@ copy. Three functions happened to match three modes and a plausible story assemb
 itself. *Decompiler output invites exactly this error.*
 
 **C4 — Frame count reported as 16,638.** That was the Node checker counting frames inside
-files that later failed validation. The verified figure is 16,435.
+files that later failed validation. The figure quoted as the correction, 16,435,
+does not reproduce either; an audit could recover neither number. The count that
+matters now is 21,344 frames across all 291 files, which does reproduce.
 
 **C5 — Assumed no prior art existed.** The single largest waste of effort so far. The PL8
 format — including the per-frame tile-type byte that governs the "unknown" storage mode 2 —

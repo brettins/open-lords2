@@ -2,8 +2,15 @@
 
 Companion to [`maps.md`](maps.md), which establishes the **container**: a flat
 array of 32,961-byte slots, `6 * (64*64) + (65*129)`, 80 slots in the Windows
-release, 44 of them used. Nothing here contradicts that document; this one
-resolves the questions it left open.
+release, 44 of them used.
+
+**This document supersedes `maps.md` in four places**, and is the correct
+reading in each: plane 3 is `dx + W*dy` rather than "a 3-tile and a 5-tile
+object"; 31 maps support five players, not 36; bit `0x20` is farmland, not
+dwelling; and the tile→lattice mapping is settled rather than open. An earlier
+revision of this line claimed nothing here contradicts that document, which was
+the most misleading sentence in the knowledge base — it invited a reader to
+trust both everywhere. See `docs/audit.md`.
 
 Status legend: **[V]** verified — an exact invariant over all 44 used maps, or
 read directly out of the shipped binary / the running game's memory. **[I]**

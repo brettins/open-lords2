@@ -28,7 +28,7 @@ verified by differential testing against the original rather than against guessw
 cargo test -p l2-formats                       # unit tests; no game install needed
 $env:LORDS2_DIR = 'F:\games\Lords of the Realm II'
 cargo test -p l2-formats -- --nocapture        # + corpus validation against a real install
-.\tools\pl8diff.ps1                            # + Node vs Rust differential test
+# (the Node/Rust differential harness was retired - see docs/decisions.md D7)
 ```
 
 The corpus tests skip when `LORDS2_DIR` is unset, so a checkout without the game
@@ -49,10 +49,10 @@ own rendering can speak to correctness.
 ## Tools
 
 Format work:
-- `tools/pl8dump.js <file.pl8> <palette.256> <frame> <out.png>` - decode one sprite frame
-- `tools/pl8check.js <dir>` - validate the PL8 decoder across a whole directory
+
+
 - `tools/pl8digest.js <dir>` - per-frame digest of every PL8, for differential testing
-- `tools/pl8diff.ps1` - assert the Node and Rust PL8 decoders agree frame for frame
+
 
 Binary analysis:
 - `tools/peimp.js` / `peexp.js` / `pehdr.js` / `pefun.js` - PE imports, exports, headers
