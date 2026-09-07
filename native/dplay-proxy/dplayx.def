@@ -1,0 +1,32 @@
+; Lords2.exe imports DPLAYX.dll BY ORDINAL, not by name (verified with
+; tools/net/dpimports.js: IAT slots 0x005CF364 = ordinal 1 and 0x005CF368 =
+; ordinal 2). The ordinals are what MUST match; names are exported undecorated
+; as well so the DLL is usable by name too.
+;
+; All eleven exports of the real dplayx.dll are reproduced at their real
+; ordinals, not just the two the game uses. That is not tidiness - it is
+; required. DirectPlay's service providers (dpwsockx.dll for TCP/IP,
+; dpmodemx.dll for modem) each import ONE symbol from "DPLAYX.dll" by name:
+; the data export gdwDPlaySPRefCount. Once our proxy is loaded, the loader
+; resolves that name against us, and a proxy that does not export it makes
+; every service provider fail to bind. Measured: with only ordinals 1 and 2
+; exported, DirectPlayCreate returned 0x887700FA (DPERR_UNAVAILABLE) for every
+; provider.
+;
+; The DllXxx entries are marked PRIVATE so they stay out of the import library,
+; and they keep their ordinals anyway. MSVC warns LNK4222 about ordinals on COM
+; entry points; that advice is right in general and wrong here, because the
+; whole point of this table is to mirror the real dplayx.dll ordinal for ordinal.
+LIBRARY dplayx
+EXPORTS
+    DirectPlayCreate       @1
+    DirectPlayEnumerateA   @2
+    DirectPlayEnumerateW   = Fwd_DirectPlayEnumerateW   @3
+    DirectPlayLobbyCreateA = Fwd_DirectPlayLobbyCreateA @4
+    DirectPlayLobbyCreateW = Fwd_DirectPlayLobbyCreateW @5
+    DllCanUnloadNow        = Fwd_DllCanUnloadNow        @6  PRIVATE
+    DllGetClassObject      = Fwd_DllGetClassObject      @7  PRIVATE
+    DllRegisterServer      = Fwd_DllRegisterServer      @8  PRIVATE
+    DirectPlayEnumerate    = Fwd_DirectPlayEnumerate    @9
+    DllUnregisterServer    = Fwd_DllUnregisterServer    @10 PRIVATE
+    gdwDPlaySPRefCount     @11 DATA

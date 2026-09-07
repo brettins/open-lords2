@@ -24,9 +24,18 @@ subagent, so it stays short. Read the linked document before working in that are
 | run any command | `docs/environment.md` |
 | work on a file format | `docs/formats/` |
 | read or name the binary | `docs/symbols.md` |
+| touch the battle simulation | `docs/battle.md` |
+| write anything that must stay deterministic | `docs/netcode.md` |
+| add or change a rule, or anything a mod overrides | `docs/modding.md` |
 | revisit an architectural choice | `docs/decisions.md` |
 | spawn or coordinate agents | `docs/agents.md` |
 | ask what state the project is in | `docs/status.html` |
+| wonder whether a documented number is true | `docs/audit.md` |
+
+**`docs/netcode.md` binds code you might not think of as networking.** Deterministic
+lockstep means the *simulation* has constraints: no floats where ordering matters, a
+seeded PRNG frozen in-tree, and no iteration whose order depends on hashing. Honouring
+those while the simulation is being written is nearly free; retrofitting them is not.
 
 ## The idea that shapes everything
 
