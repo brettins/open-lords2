@@ -25,11 +25,13 @@ pub mod battle;
 pub mod figure;
 pub mod melee;
 pub mod missile;
+pub mod movement;
 pub mod troop;
 
 pub use battle::Battle;
 pub use figure::{Figure, Role, Side, State, SIDE_A, SIDE_B};
 pub use missile::{MissileStats, WeaponClass};
+pub use movement::{move_delay, ticks_per_cell, CellEntry, Progress};
 pub use troop::{Troop, TroopStats, ALL_TROOPS};
 
 /// The array bound the original allocates nothing beyond. An army that would
