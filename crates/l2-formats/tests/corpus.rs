@@ -7,18 +7,9 @@
 //! Skips (rather than fails) when unset, so the suite still runs on a machine
 //! without the game. No assets live in this repository.
 
-use l2_formats::{Palette, Pl8, Storage};
+use l2_formats::{Palette, Pl8, Shape, Storage};
 use std::{collections::BTreeMap, env, fs, path::Path};
 
-/// Files that use a supported storage mode but still do not decode cleanly.
-/// These are unexplained, not excused - the list exists so that any *new*
-/// failure fails the build, and so that shrinking it is visible progress.
-///
-/// Observed structure, recorded for whoever picks this up:
-///   * overshoot by exactly 24 bytes: Base2a, Roads2a, Castle2a, Town2a, Town2b-d
-///   * overshoot by exactly 840 (24 * 35): Castle1a-d, Town1a-d
-///   * undershoot: Fntl2_14 (6), Font_10 (10), T16_bat1 (61), T32_bat (190)
-///   * row overrun: Font_c2
 /// Files that use a supported encoding but still do not decode cleanly.
 ///
 /// **Empty, and it should stay that way.** All 291 files decode. This list is
@@ -196,4 +187,44 @@ fn decoded_frames_are_not_blank() {
             "{family}: only {painted} of {total} frames paint anything - decoder likely broken"
         );
     }
+}
+
+/// Pins two counts that an audit found had drifted in the documentation.
+///
+/// Both were stated in prose, carried across a scope boundary, and restated
+/// wrongly elsewhere - "24 frames" for what is 32, and "15 files" for what is
+/// 18. Prose cannot defend a number; a test can. If either figure changes, the
+/// documentation quoting it is now wrong and this fails until both are fixed.
+#[test]
+fn counts_that_the_documentation_quotes_still_hold() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+
+    let (mut shape1_with_rows, mut non_iso_family_with_iso_frames) = (0usize, 0usize);
+    for path in files_with_ext(&dir, "pl8") {
+        let bytes = fs::read(&path).expect("read pl8");
+        let Ok(pl8) = Pl8::parse(&bytes) else { continue };
+        let mut has_iso = false;
+        for f in &pl8.frames {
+            if matches!(
+                f.shape,
+                Shape::Diamond | Shape::DiamondFull | Shape::DiamondLeft | Shape::DiamondRight
+            ) {
+                has_iso = true;
+                if f.shape == Shape::Diamond && f.overhang_rows > 0 {
+                    shape1_with_rows += 1;
+                }
+            }
+        }
+        if has_iso && pl8.storage != Storage::Isometric {
+            non_iso_family_with_iso_frames += 1;
+        }
+    }
+
+    println!("shape-1 frames declaring overhang rows: {shape1_with_rows}");
+    println!("files holding iso frames outside family 2: {non_iso_family_with_iso_frames}");
+    assert_eq!(shape1_with_rows, 32, "docs say 32 - Batlfix2 24 plus 2 each in Town1a-d");
+    assert_eq!(non_iso_family_with_iso_frames, 18, "docs say 18 iso files outside family 2");
 }

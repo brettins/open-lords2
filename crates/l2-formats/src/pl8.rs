@@ -740,7 +740,7 @@ mod tests {
 
     #[test]
     fn a_diamond_ignores_its_overhang_row_count() {
-        // 24 frames in the real corpus declare rows on shape 1 and still hold
+        // 32 frames in the real corpus declare rows on shape 1 and still hold
         // exactly h^2 bytes. Honouring the count there desynchronises the file.
         let data: &[u8] = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let bytes = build_iso(0, &[(6, 4, 1, 3, data)]);

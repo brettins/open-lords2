@@ -38,11 +38,20 @@ pub const MAX_COUNTY_ID: u8 = 16;
 pub enum Plane {
     /// Bitfield. See [`flags`]. **Verified.**
     Flags = 0,
-    /// Selects one of five sprite banks. *Inferred.*
+    /// Selects one of five tile banks, as `layerIndex * 4`: Base, Mtns, Roads,
+    /// Town, Castle. The layer order comes from the resource table at
+    /// `0x004DA050`. **Verified.**
     GfxBank = 1,
-    /// Indexes a descriptor within the bank. *Inferred.*
+    /// Frame index within the bank's PL8. **Verified** — every value on disk is
+    /// a valid frame of its bank's file, 180,224/180,224, and `Mtns` saturates
+    /// at exactly its 25 frames.
     GfxIndex = 2,
-    /// Part index within a multi-tile object. *Inferred.*
+    /// Offset within a rectangular multi-tile object: `dx + W * dy` from the
+    /// block's north-west tile. **Verified**, 10,971/10,971.
+    ///
+    /// Not "a 3-tile and a 5-tile object", which an earlier reading inferred
+    /// from the histogram: a 2x2 block gives three equal non-zero counts and a
+    /// 3x3 gives five more, which is the whole histogram.
     ObjectPart = 3,
     /// Marker payload; the five settlement tiles carrying 1..5 are the player
     /// start table. *Partly inferred.*
@@ -57,8 +66,13 @@ pub mod flags {
     /// Tile belongs to no county. Holds for 100% of tiles: `(f & 0x04)` is set
     /// exactly when the county id is 0.
     pub const NO_COUNTY: u8 = 0x04;
-    /// Dwelling. Confirmed against the housing-placement routine.
-    pub const DWELLING: u8 = 0x20;
+    /// Farmland. An earlier reading called this "dwelling"; the engine rewrites
+    /// it to three different values at runtime, which are three crop states in
+    /// the Roads bank.
+    pub const FARMLAND: u8 = 0x20;
+    /// County boundary — set on exactly the tiles 4-adjacent to a different
+    /// county, 7,961/7,961. Not a river, as the bit's position might suggest.
+    pub const COUNTY_BOUNDARY: u8 = 0x02;
     /// Castle. These tiles form complete 2x2 blocks, four per county.
     pub const CASTLE: u8 = 0x40;
     /// Settlement.
