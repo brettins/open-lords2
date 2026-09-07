@@ -7,7 +7,7 @@ pub mod palette;
 pub mod pl8;
 
 pub use palette::Palette;
-pub use pl8::{DecodedFrame, FrameInfo, Pl8, Storage};
+pub use pl8::{DecodedFrame, FrameInfo, Pl8, Shape, Storage};
 
 use std::fmt;
 
@@ -29,6 +29,11 @@ pub enum Error {
     /// An RLE skip run of length zero, which would advance no pixels and
     /// loop forever. No shipped file contains one; a malformed file could.
     ZeroLengthRun { frame: usize, row: u16 },
+    /// A frame's shape byte named an encoding we don't implement.
+    UnsupportedShape { frame: usize, shape: u8 },
+    /// An isometric frame whose dimensions aren't a legal diamond. Every one in
+    /// the corpus satisfies `width == 2*height - 2` with an even height.
+    BadIsoGeometry { frame: usize, width: u16, height: u16 },
     /// Frame index past the end of the frame table.
     FrameOutOfRange { index: usize, count: usize },
     /// A palette file was not exactly 768 bytes.
@@ -50,6 +55,12 @@ impl fmt::Display for Error {
             }
             Error::ZeroLengthRun { frame, row } => {
                 write!(f, "frame {frame} row {row}: zero-length skip run")
+            }
+            Error::UnsupportedShape { frame, shape } => {
+                write!(f, "frame {frame}: unsupported shape {shape}")
+            }
+            Error::BadIsoGeometry { frame, width, height } => {
+                write!(f, "frame {frame}: {width}x{height} is not a legal iso diamond")
             }
             Error::FrameOutOfRange { index, count } => {
                 write!(f, "frame {index} requested, file has {count}")

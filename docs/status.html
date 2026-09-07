@@ -239,7 +239,7 @@
     <div class="gauge">
       <div class="k">Phases complete</div>
       <div class="v">1 / 8</div>
-      <div class="sub">foundations done; formats underway</div>
+      <div class="sub">phases 1, 2, 3 and 5 all partly underway</div>
       <div class="bar"><i style="width:12.5%"></i></div>
     </div>
   </div>
@@ -257,7 +257,7 @@
       <div class="k">Next</div>
       <ul class="checks">
         <li class="todo"><span class="mark">&#9675;</span><span>Name identified functions in the Ghidra database</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Windowed viewer &mdash; first pixels from our own renderer</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Integrate the mode-2 decoder once validated</span></li>
       </ul>
     </div>
     <div class="gauge">
@@ -371,14 +371,16 @@
   <div class="phase">
     <div class="pnum">03</div>
     <div>
-      <div class="phead"><h3>Renderer and container</h3><span class="pill todo">Planned</span></div>
+      <div class="phead"><h3>Renderer and container</h3><span class="pill now">In progress</span></div>
       <p class="pnote">A palettised framebuffer mirrors how a 1996 software renderer thinks, so porting
         drawing code stays close to mechanical.</p>
       <ul class="checks">
-        <li class="todo"><span class="mark">&#9675;</span><span><code>winit</code> window + <code>pixels</code> framebuffer</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Indexed-colour surface with palette application</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Sprite blitting with transparency</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Sprite and animation browser &mdash; the first real app</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>winit</code> 0.30 window + <code>pixels</code> 0.17 framebuffer</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Indexed 640&times;480 canvas expanded through the palette</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Compositing that honours index-0 transparency</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>l2-view</code> &mdash; renders real game screens in our own window</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Render a map slot from <code>L2_maps.dat</code></span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Scaling, and a proper asset browser</span></li>
       </ul>
     </div>
   </div>
@@ -470,6 +472,7 @@
         <tr><th>Tool</th><th>Does</th><th>Verified by</th></tr>
       </thead>
       <tbody>
+        <tr><td class="m">l2-view</td><td class="d">Windowed viewer &mdash; our renderer, real game data</td><td class="d">Renders 640&times;480 screens correctly</td></tr>
         <tr><td class="m">pl8diff.ps1</td><td class="d">Differential harness: Node vs Rust decoders</td><td class="d">21,344 frames, zero divergence</td></tr>
         <tr><td class="m">ghidra_scripts/</td><td class="d">Headless binary analysis &mdash; find loaders, decompile to C</td><td class="d">Found the renderer at 0x0040A21A</td></tr>
         <tr><td class="m">l2-formats</td><td class="d">Rust crate &mdash; PL8 and palette decoders</td><td class="d">236 files, 16,435 frames, 27 palettes</td></tr>

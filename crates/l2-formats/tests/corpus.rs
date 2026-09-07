@@ -72,9 +72,10 @@ fn pl8_corpus_validates() {
         };
 
         let key = match pl8.storage {
-            Storage::Raw => format!("raw:{}", pl8.sub_mode),
-            Storage::Rle => format!("rle:{}", pl8.sub_mode),
-            Storage::Unknown(m) => format!("mode{m}:{}", pl8.sub_mode),
+            Storage::Raw => format!("raw:{}", pl8.zoom),
+            Storage::Rle => format!("rle:{}", pl8.zoom),
+            Storage::Isometric => format!("iso:{}", pl8.zoom),
+            Storage::Unknown(m) => format!("mode{m}:{}", pl8.zoom),
         };
         *by_mode.entry(key).or_default() += 1;
 

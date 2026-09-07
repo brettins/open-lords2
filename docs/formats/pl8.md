@@ -1,223 +1,180 @@
 # PL8 sprite format (Lords of the Realm II)
 
-Status: **236 / 291 files verified** (16,435 frames) by round-trip offset checking,
-and byte-identical between two independent decoders across all 21,344 frames in
-the corpus. Two storage variants remain unidentified (see Open questions).
+Status: **268 / 291 files validated** (18,937 frames), **zero files in an undecoded
+storage family**. The 23 remaining failures are pinned in `KNOWN_FAILING` — see
+[Unexplained files](#unexplained-files).
 
-(`tools/pl8check.js` reports 16,638; that tally includes frames it walked inside
-files that then failed, so it is not the count of *verified* frames.)
+Implemented in `crates/l2-formats/src/pl8.rs`. For the isometric family in depth —
+the Ghidra work, the overhang derivation, and the one unresolved ambiguity — see
+[`pl8-mode2.md`](pl8-mode2.md).
 
-Verified against the GOG Windows release, `F:\games\Lords of the Realm II`.
+## Why the validation counts mean something
 
-## Verification method
-
-The format is self-verifying, which makes automated validation possible with no
-human judgement:
+The format verifies itself, which makes automated validation possible without a
+human looking at pictures:
 
 1. Each frame's decoded data must end **exactly** at the next frame's declared
    `dataOffset` (or EOF for the final frame).
-2. Every decoded row must consume **exactly** `width` pixels.
+2. Every RLE row must consume **exactly** `width` pixels.
 
-`tools/pl8check.js <dir>` runs both checks over a whole directory. Any decoder
-change can be re-validated against the full corpus in one command.
-
-### Cross-implementation differential test
-
-Offset checking proves a decoder consumed the right *number* of bytes. It says
-nothing about the pixels those bytes became. So two independent decoders exist -
-`tools/pl8digest.js` (Node) and `crates/l2-formats/examples/pl8digest.rs` (Rust)
-- and `tools/pl8diff.ps1` requires them to produce identical output:
-
-```powershell
-.\tools\pl8diff.ps1 -Dir 'F:\games\Lords of the Realm II'
-```
-
-Each emits one line per frame, files sorted by name:
-
-    <name> hdr mode=<m> sub=<s> frames=<n> verdict=<ok|err:...>
-    <name> <frameIndex> <w>x<h> <fnv1a64 hex | err:...>
-
-The hash covers the palette indices **and** the per-pixel opaque/transparent
-mask, since transparency is part of the decode: a decoder that got coverage
-right and colour wrong would still diverge. FNV-1a 64 is hand-rolled in both
-languages so that `l2-formats` stays dependency-free.
-
-Frames are digested even for files that fail the end-offset invariant, because
-most of those decode every frame correctly and disagree only about trailing
-bytes. The `verdict` field compares the two implementations' *failure* modes
-too, so they must also agree on which files break and exactly how.
-
-Current result: **291 files, 21,344 frames, zero divergent lines.** 18,717
-frames decode and hash identically; the remaining 2,627 are refused by both
-with the same error token (2,502 storage mode 2, 108 row overrun in `Font_c2`,
-17 running past EOF).
-
-**What this establishes, and what it does not.** Agreement rules out an
-implementation bug in either decoder: two separately written readings of the
-spec are unlikely to fail identically. It says nothing about whether the spec
-is right. A misunderstanding shared by both - the sub-mode byte being ignored,
-say - would agree just as cleanly. Only the self-verifying offset invariant
-above, and eventually comparison against the game's own rendering, speak to
-correctness.
+Thousands of frames landing precisely on their declared byte boundaries cannot
+happen by accident — a wrong reading drifts within a frame or two. `cargo test -p
+l2-formats` runs both checks over a whole install.
 
 ## Header (8 bytes)
 
 | Offset | Type | Meaning |
 |--------|------|---------|
-| 0x00 | u8  | **storage mode**: 0 = raw, 1 = RLE, 2 = unidentified |
-| 0x01 | u8  | sub-mode / flags: 0, 1, or 2. Affects layout (see Open questions) |
-| 0x02 | u16 | frame count |
-| 0x04 | u16 | unknown; varies widely (0..287), 0 in 80 files |
-| 0x06 | u8  | unknown, usually 0 |
-| 0x07 | u8  | unknown, ranges 0..15 |
+| 0x00 | u8 | **Storage family**: 0 = raw, 1 = RLE, 2 = isometric map tiles |
+| 0x01 | u8 | **Map zoom level**: 0 → 58×30 tiles, 1 → 26×14, 2 → 10×6 |
+| 0x02 | u16 | Frame count |
+| 0x04 | u16 | Unknown; varies 0..287 |
+| 0x06 | u8 | Unknown, usually 0 |
+| 0x07 | u8 | Unknown, 0..15 |
 
-Observed (mode:sub) combinations across 291 files:
-
-    1:0 = 138    0:0 = 94    2:0 = 20    0:2 = 23
-    2:2 = 10     0:1 = 3     2:1 = 2     1:1 = 1
+Bytes 0 and 1 are **two independent bytes**, not one `u16`. Reading them as a
+single value was an early mistake here; byte 1 varies independently of byte 0.
 
 ## Frame table
 
-Immediately follows the header: `frameCount` records of 16 bytes each.
+Immediately follows the header: `frameCount` records of 16 bytes.
 
 | Offset | Type | Meaning |
 |--------|------|---------|
-| 0x00 | u16 | width |
-| 0x02 | u16 | height |
-| 0x04 | u32 | absolute file offset of this frame's pixel data |
-| 0x08 | u8[8] | not padding - frequently non-zero. Likely anchor/hotspot + flags. Undecoded. |
+| 0x00 | u16 | Width |
+| 0x02 | u16 | Height |
+| 0x04 | u32 | Absolute file offset of pixel data |
+| 0x08 | i16 | Canvas placement X |
+| 0x0A | i16 | Canvas placement Y |
+| 0x0C | u8 | **Shape** — the per-frame encoding |
+| 0x0D | u8 | Overhang row count |
+| 0x0E | u16 | Padding |
 
 Confirmed invariant: the first frame's `dataOffset` always equals
-`8 + frameCount * 16`, i.e. pixel data begins right after the frame table.
+`8 + frameCount * 16`, so pixel data begins immediately after the frame table.
 
-## Pixel data
+The engine reads bytes 0x0C, 0x0D and 0x0E at `Pl8_DrawFrame` (`0x0040A21A`),
+which independently corroborates this layout.
 
-Pixels are 8-bit indices into a separate `.256` palette.
+## The family byte does not decide the encoding
 
-### Storage mode 0 - raw
+**The `shape` byte at record offset 0x0C does.** An isometric file routinely holds
+plain raw rectangles alongside diamonds — `Backgrnd.pl8` is family 2 but its single
+640×480 frame is stored raw. That is why "storage mode 2" resisted analysis for so
+long: there was never one mode-2 codec to find.
 
-Exactly `width * height` bytes, row-major, no compression, no transparency.
+| Shape | Encoding | Bytes |
+|-------|----------|-------|
+| 0 | Raw rectangle | `width × height` |
+| 1 | Isometric diamond only | `height²` |
+| 2 | Diamond + full-width chevron overhang | `height² + rows × width` |
+| 3 | Diamond + left-half overhang | `height² + rows × height` |
+| 4 | Diamond + right-half overhang | `height² + rows × height` |
 
-### Storage mode 1 - RLE
+**Shape 1 ignores the overhang count**, even when it is non-zero — 24 frames in the
+corpus declare rows and still hold exactly `height²`. Honouring the count there
+desynchronises the whole file.
+
+## Encodings
+
+### Raw
+
+`width × height` bytes of palette indices, row-major.
+
+### RLE
 
 Decoded per row; each row consumes exactly `width` pixels:
 
-    n = next byte
-    if n == 0:  m = next byte; skip m pixels (transparent)
-    if n >  0:  copy the next n bytes as literal palette indices
+```
+n = next byte
+if n == 0:  m = next byte; skip m pixels (transparent)
+if n >  0:  copy the next n bytes as literal palette indices
+```
 
-## Palette files (.256)
+A skip run of `00 00` advances nothing and would loop forever; the decoder rejects
+it. No shipped file contains one.
 
-768 bytes = 256 entries x 3 bytes (R, G, B). Values are **6-bit VGA (0..63)** and
-must be scaled to 8-bit (`v * 255 / 63`).
+### Isometric diamond
 
-Palettes are per-context, not global - using the wrong one yields a structurally
-correct but wildly miscoloured sprite. `T32_bat1.256` is the battle-sprite
-palette; `Lords2.256` is not.
+Every isometric frame satisfies `width == 2 × height − 2` with an even height. With
+`hh = height / 2`, row `r` of the bounding box holds
 
-## Open questions
+```
+rowWidth(r) = (r < hh) ? 2 + 4*r : 2 + 4*(height - 1 - r)
+xStart(r)   = (width - rowWidth(r)) / 2
+```
 
-- **Storage mode 2** (32 files, e.g. `Arm_grid`, `Backgrnd`, `Base01`, `Batlfix2`).
-  Rows overshoot under RLE rules, so it is a third encoding.
-- **Sub-mode 2 with storage 0** (23 files, e.g. `Base2a`). Frame data is *smaller*
-  than `width * height` - `Base2a` frame 0 is 24 bytes short - so byte 0x01
-  changes the raw layout rather than being a pure flag.
-- **Sub-mode 1 with storage 1** (`Font_c2`, the only such file). Its frames are
-  raw, not RLE - see "Font_c2 is stored raw despite declaring RLE" below. So
-  byte 0x01 can override byte 0x00, and neither byte alone names the encoding.
-- Header fields at 0x04, 0x06, 0x07 and the frame record's trailing 8 bytes.
-- Which palette pairs with which sprite file (currently manual).
+so widths run `2, 6, 10, …, width, width, …, 6, 2`, totalling exactly `height²`.
+Only the pixels inside the diamond are stored — contiguously, top row first, with
+no control bytes and no row headers.
 
-## Tools
+### Isometric overhang
 
-- `tools/pl8dump.js <file.pl8> <palette.256> <frame> <out.png>` - decode one frame to PNG
-- `tools/pl8check.js <dir>` - validate the decoder across a whole directory
-- `tools/pl8digest.js <dir>` - per-frame digest stream (Node half of the differential test)
-- `tools/pl8diff.ps1` - assert the Node and Rust decoders agree on every frame
+Shapes 2, 3 and 4 append `rows` extra records after the diamond. Each is **not a
+horizontal row** but a *chevron* tracing the diamond's own upper silhouette, and
+each successive record paints one screen row higher. That is how the engine
+extrudes mountains, cliffs and raised roads upward without storing a bounding
+rectangle. Pair `m` sits at column `2m` on silhouette row `|hh − 1 − m|`.
 
----
+The frame's true canvas is therefore `width × (height + rows)`, with the diamond
+occupying the bottom `height` rows.
 
-## Storage mode 2 - investigation notes
+### Region maps — not artwork
 
-32 files, ~2,400 frames. Not yet decoded. What has been established:
+Four files (`Arm_grid`, `Mercgrid`, `Vill_gd8`, `Villgrid`) declare shape 0 but hold
+only `(width/8) × (height/8)` bytes: mouse hit-test maps at 1/8 resolution, one byte
+per 8×8 screen block, holding region ids rather than palette indices. The engine
+reads them from region code and never blits them.
 
-**It is not run-length encoded.** `Batlfix2.pl8` frame 0 (26x14) is stored as 196
-identical `0x3f` bytes. Any run-length scheme would collapse a solid frame to a
-handful of bytes, so the encoding has no repeat primitive.
+The decoder detects these **structurally** — by the byte span, not the filename —
+and decodes them at 1/8 scale with every pixel marked transparent, since none of
+it is ever painted.
 
-**Bytes-per-row is usually `ceil(width/2) + 1`.** This holds for 1,847 frames -
-the dominant pattern - and initially suggested 4 bits per pixel plus a one-byte
-row prefix.
+## Transparency
 
-**But that theory is refuted by odd-width frames.** `Fntl2_9.pl8` (a font file)
-has frames of `w=7, bpr=7`, `w=5, bpr=5` and `w=9, bpr=9`: bytes-per-row equals
-width exactly, i.e. plain 8-bit raw. Mode 2 is therefore heterogeneous, holding
-both raw and packed frames.
+**Palette index 0 is transparent.** Every blitter in the original copies a byte only
+when it is non-zero (`0x004B43B1`). This is a property of the engine, not something
+recorded in the file, and it applies to raw frames too — our decoder marked raw
+frames fully opaque until the binary corrected us.
 
-**Row length is not always fixed.** 336 mode-2 frames have a total size that is
-not divisible by their height at all.
+## Palette files (`.256`)
 
-**The frame record's trailing bytes are not the discriminator.** Across mode-2
-frames, `t[4]=1` and `t[5..7]=0` are constant, while the u16 at `t[2]` runs in an
-arithmetic sequence (0, 7, 14, 21, 28, ...). That reads as a position or ordering
-key - likely a sprite-sheet coordinate - not an encoding flag.
+768 bytes: 256 entries of R, G, B. Values are **6-bit VGA (0..63)** and must be
+scaled to 8-bit (`v * 255 / 63`, so 63 maps to a true 255 rather than 252).
 
-**High-entropy sample.** `Mtns2a.pl8` frame 3 (10x6) is 36 bytes with 27 distinct
-values. Byte values fall in the same range as the confirmed 8-bit palette indices
-used by mode 1, which argues against packed nibbles - but 36 bytes cannot hold 60
-8-bit pixels, so some pixels are being omitted by a mechanism not yet identified.
+Palettes are per-context, not global. Using the wrong one gives a structurally
+correct but wildly miscoloured sprite. `T32_bat1.256` is the battle-sprite palette;
+`Lords2.256` is not.
 
-### Next step
+## Unexplained files
 
-Statistical inference has plateaued: two readings of the same bytes remain
-consistent with all observations. The reliable route is to read the game's own
-decoder - locate the PL8 loading routine in `Lords2.exe` (Ghidra) and follow the
-branch taken when header byte 0 is 2. This is the oracle principle applied to a
-file format rather than to game logic.
-
----
-
-## Files that still fail under supported storage modes
-
-23 files use storage mode 0 or 1 but do not satisfy the end-offset invariant.
-They are pinned in `KNOWN_FAILING` in `crates/l2-formats/tests/corpus.rs`, so a
-new failure breaks the build and a fix is reported as "now passing".
-
-The residuals are not random - they cluster:
+23 files use a supported encoding but miss the end-offset invariant. They are pinned
+in `KNOWN_FAILING` in `crates/l2-formats/tests/corpus.rs`, so a *new* failure breaks
+the build and fixing one is reported as "now passing".
 
 | Pattern | Files |
 |---------|-------|
-| Frame data overshoots by exactly **24 bytes** | `Base2a`, `Roads2a`, `Castle2a`, `Town2a`, `Town2b-d` |
-| Overshoots by exactly **840** bytes (24 x 35) | `Castle1a-d`, `Town1a-d` |
-| Undershoots | `Fntl2_14` (6), `Font_10` (10), `T16_bat1` (61), `T32_bat` (190) |
-| RLE row overrun | `Font_c2` (13 pixels consumed, width 7) |
+| Overshoot by exactly 24 bytes | `Base2a`, `Roads2a`, `Castle2a`, `Town2a`, `Town2b-d` |
+| Overshoot by exactly 840 (24 × 35) | `Castle1a-d`, `Town1a-d` |
+| Undershoot | `Fntl2_14` (6), `Font_10` (10), `T16_bat1` (61), `T32_bat` (190) |
+| RLE row overrun | `Font_c2` |
 
-The recurring 24 - and 840 being an exact multiple of it - suggests a fixed
-trailing block appended after the pixel data in some files, rather than a
-different pixel encoding. Undershoots are more likely a genuinely different
-encoding, and the font files may be a format of their own.
+`Font_c2` is the corpus's only family-1 file with zoom byte 1, and **all 108 of its
+frames occupy exactly `width × height`** — it declares RLE but is stored raw. One
+file is too little to generalise from, so it stays pinned rather than special-cased.
 
-### `Font_c2` is stored raw despite declaring RLE
+## Also open
 
-Turned up while building the differential harness, which reports the exact
-pixel counts of every failing row. `Font_c2` is the corpus's only `1:1` file
-(storage 1, sub-mode 1), and **all 108 of its frames occupy exactly `width *
-height` bytes** - the signature of raw storage. The "runs" the RLE reader sees
-are palette indices being misread as opcodes; the recurring `13` in its row
-overruns is just the byte `0x0d` appearing first in most glyphs.
+- `Title.pl8` decodes with provably correct geometry, but no shipped `.256` colours
+  it properly. `Title.256` is not its palette.
+- The type-4 apex pair: the stored data and the shipped blitter disagree at columns
+  28–29. We use the natural mapping (the exact mirror of type 3), which discards no
+  data. See `pl8-mode2.md`.
+- Header fields at 0x04, 0x06 and 0x07.
 
-So header byte 0 is not the whole storage discriminator: sub-mode can override
-it. That is one file, though, and the other 22 failures do not fall out of the
-same rule (`Fntl2_14` and `Font_10` are `0:1` and only 61/108 and 101/108 of
-their frames fit `width * height`). Not enough to change the decoder on - the
-route remains reading the game's own loader. `Font_c2` stays in `KNOWN_FAILING`
-until then, and the corpus test will announce it as "now passing" if a future
-change fixes it.
+## History worth keeping
 
-### Correction worth recording
-
-An earlier hypothesis held that all 23 files with header byte 1 == 2 fail. That
-was wrong: it rested on a coincidence, since the count of `raw:2` files and the
-count of failures were both 23. In fact 13 of the `raw:2` files decode correctly
-as plain raw, and the true failure set spans several mode combinations. Sub-mode
-is *not* currently known to affect decoding.
+This format was reverse-engineered from scratch before anyone checked for prior art.
+It was already published: the GPL-3 [`pl8image`](https://github.com/s-ayers/pl8image)
+package documents the header, the frame record and the shape byte. Search first —
+see `docs/decisions.md`, C5.

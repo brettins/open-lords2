@@ -37,6 +37,18 @@ not. See `CLAUDE.md`.
 Node answered "can we read this data at all?" quickly. Rust is the implementation. The
 Node decoders survive only while they're useful as a porting check.
 
+**D7 — The Node decoders and the differential harness are retired.**
+They were built to validate the Node → Rust port, and they did that: 21,344 frames
+byte-identical, plus a mutation test proving the harness could actually fail. Once
+Rust gained isometric support the two implementations diverged on 2,534 lines — not
+a bug, just Rust outgrowing the prototype. Keeping a prototype that silently
+disagrees with the real implementation is a liability, and re-porting isometric
+decoding into throwaway JavaScript would have added no confidence: two
+implementations by the same author on the same day are correlated, so agreement was
+always weaker evidence than it sounded. The end-offset invariant, which is a
+property of the data rather than of our code, is the stronger check and it lives in
+the Rust corpus test.
+
 ## Corrections
 
 **C1 — "The PL8 format is fully decoded."** Claimed after one sprite rendered correctly.
@@ -62,12 +74,23 @@ is documented in the GPL-3 `pl8image` package, and `L2_maps.dat`'s slot structur
 OpenLotR2's docs. Both were found by a five-minute search *after* days of equivalent work
 had been commissioned. **Search for prior art before reverse-engineering anything.**
 
+**C6 — "Header byte 1 is a sub-mode."** It is the **map zoom level**: 0 → 58×30
+tiles, 1 → 26×14, 2 → 10×6, correlating perfectly across all 32 isometric files.
+Related: reading bytes 0x00–0x01 as one `u16` is wrong, since byte 1 varies
+independently of byte 0.
+
+**C7 — Treating the storage family byte as the encoding.** It is not. The per-frame
+`shape` byte at record offset 0x0C decides, which is why no single "mode 2 codec"
+ever fit: one isometric file holds raw rectangles and diamonds side by side.
+
 ## Open questions
 
-- PL8 storage mode 2 decoding across all five per-tile types, plus extra rows.
-- What a map slot's six 64×64 layers and its one 65×129 layer actually contain.
-- 23 files that use supported storage modes but fail the end-offset invariant, pinned in
+- The four map planes whose meaning is inferred rather than proven (graphics bank,
+  descriptor index, multi-tile object part), and the exact tile → lattice mapping,
+  whose best affine fit reaches only 72%.
+- 23 files that use supported encodings but fail the end-offset invariant, pinned in
   `KNOWN_FAILING`.
 - `Font_c2.pl8` declares RLE but its frames occupy exactly `width × height`.
-- Where the storage mode is read from the header at load time — nothing decompiled so far
-  touches header byte 0.
+- `Title.pl8` decodes with correct geometry but no shipped palette colours it.
+- The type-4 apex pair, where the stored data and the shipped blitter disagree.
+- PL8 header fields at 0x04, 0x06, 0x07.
