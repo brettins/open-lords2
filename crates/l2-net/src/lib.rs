@@ -33,40 +33,52 @@
 //! * [`History`], [`Divergence`], [`DesyncDump`] — §6.
 //! * [`Replay`] — the check that pays for the design.
 //!
-//! **The transport seam** is one trait, framing, and an in-process
-//! network to test against.
+//! **The transport seam** is one trait, framing, an in-process network
+//! to test against, and one real implementation of it.
 //!
 //! * [`Transport`], [`frame`], [`FrameReader`], [`Loopback`].
+//! * [`TcpTransport`] — §7's TCP, and the only code here that touches
+//!   the operating system.
 //!
 //! # Testable without a network, deliberately
 //!
-//! The whole crate runs on a bare checkout with no game install, no
-//! sockets and no threads. That is not a convenience: §6's central
-//! claim is that two simulations fed identical commands must produce
-//! identical checksums, and a test for that which needs two machines is
-//! a test that runs once a quarter. `tests/lockstep.rs` runs two
-//! sessions in one process over a [`Loopback`] and checks it every
-//! time, with latency, reordering and a deliberately perturbed peer.
+//! The whole crate runs on a bare checkout with no game install and no
+//! second machine. That is not a convenience: §6's central claim is
+//! that two simulations fed identical commands must produce identical
+//! checksums, and a test for that which needs two machines is a test
+//! that runs once a quarter. `tests/lockstep.rs` runs two sessions in
+//! one process over a [`Loopback`] with no sockets, no clock and no
+//! threads, and checks it every time, with latency, reordering and a
+//! deliberately perturbed peer.
+//!
+//! `tests/tcp.rs` then runs the same claim through real sockets on the
+//! loopback interface, both peers driven by the test, on an
+//! OS-assigned port — so the socket code is exercised on every `cargo
+//! test` rather than skipped by default. **Nothing in it is
+//! `#[ignore]`d and nothing is conditional on an environment
+//! variable.** A transport whose tests do not run is a transport that
+//! has never worked.
 //!
 //! # What is not here
 //!
 //! Every one of these is a decision, not an oversight.
 //!
-//! * **No socket implementation.** Argued at length in
-//!   [`transport`]. Everything a TCP transport needs is here and
-//!   tested; the sockets themselves are not, because a networking layer
-//!   whose tests are skipped by default is code that looks finished and
-//!   has never run.
 //! * **No `std::fs`.** A desync dump becomes bytes here and becomes a
 //!   file in the engine. Keeping I/O out means the tests need no
 //!   temporary directory, and it means nothing in this crate can
 //!   accidentally violate D-11's "no file I/O inside `step()`".
-//! * **No `std::time`.** D-5 forbids the simulation from seeing a
-//!   clock, and the surest way to obey that is to have no clock to
-//!   consult. [`Session`] therefore waits forever; timeouts belong to
-//!   the caller, which has a render loop and a UI.
-//! * **No threads.** The reader thread §7 recommends belongs to the
-//!   transport implementation, not to the session.
+//! * **No clock outside [`tcp`].** D-5 forbids the simulation from
+//!   seeing a clock, and the surest way to obey that is to have no
+//!   clock to consult. [`Session`] therefore waits forever; timeouts
+//!   belong to the caller, which has a render loop and a UI. The one
+//!   `std::time::Duration` in the crate is [`tcp`]'s connect timeout,
+//!   which is the caller's patience handed to the OS rather than a
+//!   clock this code reads.
+//! * **No threads, [`tcp`] included.** §7 recommends a reader thread;
+//!   non-blocking sockets give the same "never block the caller"
+//!   guarantee with no channel, no shutdown protocol, and no
+//!   scheduler-dependent interleaving between a reader and a session.
+//!   Argued in [`tcp`].
 //! * **No rollback, no prediction, no interest management, no
 //!   encryption, no matchmaking.** §8, each for its own reason.
 //! * **No dependencies.** Argued in `Cargo.toml`: every value stream
@@ -142,6 +154,7 @@ pub mod lockstep;
 pub mod packet;
 pub mod replay;
 pub mod rng;
+pub mod tcp;
 pub mod transport;
 
 pub use canonical::{
@@ -163,6 +176,7 @@ pub use packet::{
 };
 pub use replay::{Replay, ReplayMismatch, REPLAY_MAGIC, REPLAY_VERSION};
 pub use rng::{Pcg32, DEFAULT_STREAM};
+pub use tcp::{TcpTransport, MAX_OUTBOX};
 pub use transport::{
     frame, Endpoint, FrameReader, Loopback, PeerId, Transport, TransportError, MAX_FRAME,
 };

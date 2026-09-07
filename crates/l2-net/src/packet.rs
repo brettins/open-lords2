@@ -24,16 +24,25 @@ pub const PROTOCOL_VERSION: u16 = 1;
 
 /// The port this game uses.
 ///
-/// Not chosen yet in any binding sense — nothing in this crate opens a
-/// socket — but recorded here so that when a transport does, it is one
-/// decision in one place. Deliberately **not** DirectPlay's 2300-2400
-/// or 47624: colliding with a service a player may still have enabled
-/// (`docs/netcode.md` §7) produces the worst kind of bug report.
+/// One decision in one place, for
+/// [`TcpTransport`](crate::TcpTransport) and anything that replaces it.
+/// Deliberately **not** DirectPlay's 2300-2400 or 47624: colliding with
+/// a service a player may still have enabled (`docs/netcode.md` §7)
+/// produces the worst kind of bug report.
 ///
-/// 27962 sits in the range conventionally used by games. **Not
-/// verified against the IANA registry** - nobody has looked it up, and
-/// whoever first ships a transport should, because a collision here is
-/// somebody else's service failing rather than ours.
+/// **Checked against the IANA registry**, which `docs/netcode.md` lists
+/// as unverified: in the registry CSV downloaded 2026-09-07, 27962
+/// falls inside the row `27877-27998`, marked *Unassigned*, for both
+/// TCP and UDP. The nearest assignments either side are `tw-auth-key`
+/// on 27999 and `nxlmd` on 28000. Unassigned is not a reservation —
+/// IANA could allocate the range tomorrow, and 27015-27050 nearby is
+/// heavily used by Source-engine games in practice without being
+/// registered — but nothing official sits on it and nothing this crate
+/// can find claims it.
+///
+/// Note that no test binds this port. `tests/tcp.rs` uses port 0 and
+/// lets the OS choose, because a test that binds a fixed port fails
+/// when the developer has the game running.
 pub const DEFAULT_PORT: u16 = 27962;
 
 /// One tick's worth of one peer's intent.

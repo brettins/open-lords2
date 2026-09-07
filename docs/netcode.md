@@ -1,6 +1,7 @@
 # Netcode
 
-**Status: implemented in `crates/l2-net` — 181 tests, zero dependencies.**
+**Status: implemented in `crates/l2-net` — 202 tests, zero dependencies, including a
+TCP transport whose tests open real sockets.**
 
 > ## Corrected by the implementation — read this before the design below
 >
@@ -42,9 +43,34 @@
 >     *commands*, not time, so a caller looping until `Waiting` runs the battle as fast as
 >     the CPU allows — right for replay and catch-up, wrong for live play.
 >
-> Still unverified: no socket has been opened, so §7's transport analysis remains static;
-> hashing cost at 10 Hz is unmeasured; the default port is not checked against the IANA
-> registry.
+> 11. **The crate contradicted itself about where framing lives**, and this document took
+>     the wrong side. §7 and `transport.rs`'s module doc said framing belongs *above* the
+>     trait; the trait's own doc said below. **The trait is right**: framing above the seam
+>     means every caller has to know it is talking to a stream, which is the one thing §7
+>     says nothing above the seam may know.
+> 12. **`Transport::broadcast`'s default silently skipped peers** — errata 7 arriving
+>     through a different door. It used `?`, so the first failing peer aborted the loop and
+>     everyone after it was skipped: a host whose player 2 has just dropped never sends the
+>     turn to players 3, 4 and 5, and the game stops with no error near the cause.
+>     `Loopback` cannot produce that failure at all, since a partitioned peer still returns
+>     `Ok`, so 181 tests passed over it and one real socket plus one ordinary disconnect
+>     found it. **Now fixed in the core**: every peer is attempted, the first error reported
+>     afterwards.
+> 13. **`peers()` is necessary but not sufficient.** The trait cannot say *why* a peer went,
+>     or guarantee that everything it sent was handed over first — and a caller that halts
+>     on disconnect without that ordering discards its peer's final tick packets.
+> 14. **Windows sends RST, not FIN, when a peer closes with unread data** — the ordinary
+>     alt-F4-mid-tick. Classifying `Ok(0)` as goodbye and everything else as an error
+>     reports the most common way a session ends as an unexplained I/O fault.
+>
+> **Now verified:** the default port is Unassigned in the IANA registry for both TCP and
+> UDP, and sockets have been opened — 20 tests drive two real peers on loopback, including
+> one asserting that the same command schedule produces identical per-tick checksums over
+> a socket and over `Loopback`. The network decides *when*, never *what*.
+>
+> **Still unverified:** anything past loopback — real loss, NAT, MTU, cross-machine. TCP's
+> head-of-line blocking under genuine packet loss is §7's central argument for TCP and
+> remains reasoned rather than measured. Hashing cost at 10 Hz is still unmeasured.
 
 This document is written *before* the network layer exists, and deliberately so.
 Almost everything in it is a constraint on the **simulation**, not on the network

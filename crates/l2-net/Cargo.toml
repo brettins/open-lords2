@@ -37,6 +37,16 @@ description = "Deterministic primitives, lockstep session core and transport sea
 #   bug in our transcription is ours to find — which is what the
 #   reference vectors in tests/hash.rs are for.
 #
-# Nothing here uses `std::fs`, `std::net`, `std::time` or `std::thread`.
-# That is deliberate: see the "What is not here" section of src/lib.rs.
+# Nothing here uses `std::fs` or `std::thread`. `std::net` and
+# `std::time::Duration` appear in exactly one module — `src/tcp.rs`,
+# which is docs/netcode.md §7's TCP transport — and in `tests/tcp.rs`.
+# Nowhere else in the crate may touch a socket or a clock: that boundary
+# is what keeps the determinism tests free of the scheduler. See the
+# "What is not here" section of src/lib.rs and the module docs of
+# src/tcp.rs.
+#
+# The transport did not change this section: it is around 500 lines of
+# `std::net` and needed no dependency at all, which is §7 requirement 2
+# (no C compiler, no build script, no crates.io) satisfied by
+# construction rather than by audit.
 [dependencies]
