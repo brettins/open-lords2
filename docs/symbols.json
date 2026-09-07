@@ -22,7 +22,8 @@
     { "id": "text",     "title": "Text (`L2.eng`)" },
     { "id": "fileio",   "title": "File I/O" },
     { "id": "map",      "title": "Map loading and rendering" },
-    { "id": "units",    "title": "Units, merchants and counties" }
+    { "id": "units",    "title": "Units, merchants and counties" },
+    { "id": "battle",   "title": "Battle simulation" }
   ],
 
   "functions": [
@@ -219,6 +220,332 @@
       "addr": "0x00468AE2", "name": "Unit_BurnDwelling", "section": "units", "confidence": "inferred",
       "signature": "void Unit_BurnDwelling(int unit, int tileOffset)",
       "comment": "Burns a dwelling an army passes through in a county it does not own, and cuts that county's population. Same type-3/type-4 exemption."
+    },
+
+    {
+      "addr": "0x004778A0", "name": "Battle_Start", "section": "battle", "confidence": "verified",
+      "signature": "void Battle_Start(void)",
+      "comment": "Brings a battle up: builds the battlefield (Battlefield_BuildRandom, Battlefield_BuildFromSkr or Battlefield_BuildCastle), then Battle_InitArmies, then the first unit/figure update passes. See docs/battle.md."
+    },
+    {
+      "addr": "0x0047EFEE", "name": "Battle_InitArmies", "section": "battle", "confidence": "verified",
+      "signature": "void Battle_InitArmies(void)",
+      "comment": "Chooses the battlefield size class from the two armies, clears the figure and unit arrays, then raises both sides. Also computes each side's autocalc strength as sum(count[t] * g_troopStrengthWeight[t]) over troop types 0..6."
+    },
+    {
+      "addr": "0x0047FEA7", "name": "Battle_RaiseSide", "section": "battle", "confidence": "verified",
+      "signature": "void Battle_RaiseSide(int armyUnit, int outnumbered, int side)",
+      "comment": "Turns one army record into battle units. Walks the 11 troop types in g_raiseOrder, and for each splits the men into units of at most maxFigures*g_menPerFigure. Siege counts are multiplied by g_menPerFigure so that one engine is one figure. `side` is 4 or 0."
+    },
+    {
+      "addr": "0x004801F8", "name": "Battle_RaiseSideSiege", "section": "battle", "confidence": "inferred",
+      "signature": "void Battle_RaiseSideSiege(int armyUnit, int outnumbered, int side)",
+      "comment": "The castle-defender variant of Battle_RaiseSide: uses g_raiseOrderSiege (8 troop types, no catapult/tower/ram), forces archers and crossbowmen to at most 3 figures per unit, and places units by wall slot rather than by deployment marker."
+    },
+    {
+      "addr": "0x00480599", "name": "BattleUnit_LoadTroopStats", "section": "battle", "confidence": "verified",
+      "signature": "void BattleUnit_LoadTroopStats(int troopType)",
+      "comment": "Copies one row of g_troopBattleStats (0x004D96D0, stride 0x14) into scratch globals, then the matching row of g_missileStats (0x004D97B0) selected by the weapon class in field +0x0C."
+    },
+    {
+      "addr": "0x00480662", "name": "BattleUnit_Create", "section": "battle", "confidence": "verified",
+      "signature": "void BattleUnit_Create(int siegePlacement, int troopType, int outnumbered, int side, int men, int owner, int mercenary)",
+      "comment": "Allocates a battle unit and fills it with ceil(men / g_menPerFigure) figures laid out in a rectangle. Sets the unit category from the troop type, and copies the troop and missile stats into every figure."
+    },
+    {
+      "addr": "0x0046E4C8", "name": "BattleMan_Create", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 BattleMan_Create(byte troopType, int x0, int dx, int y0, int dy, int owner, short unit)",
+      "comment": "Allocates the first free slot of the 80-entry figure array g_battleMen (stride 0x1B0), places it on the battlefield, writes its index into cell byte +5 and links it to its unit. Returns 0 when all 80 slots are in use, which silently truncates the army."
+    },
+    {
+      "addr": "0x0046E97A", "name": "BattleUnit_Alloc", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 BattleUnit_Alloc(byte owner, byte humanControlled)",
+      "comment": "Allocates the first free slot of the 80-entry unit array g_battleUnits (stride 0x34); a slot is free when byte +0 (owner) is zero. Leaves the index in g_lastBattleUnit."
+    },
+    {
+      "addr": "0x0046E767", "name": "Missile_Spawn", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 Missile_Spawn(byte owner, int x, int y, int tx, int ty)",
+      "comment": "Allocates one of the 100 slots of g_missiles (stride 0x4C) and sets its start and target positions in 1/32-cell units. Used for arrows, bolts, catapult shot, thrown oil, fire and falling figures."
+    },
+    {
+      "addr": "0x0046EBAE", "name": "BattleUnit_Clear", "section": "battle", "confidence": "verified",
+      "signature": "void BattleUnit_Clear(int rec)",
+      "comment": "Zeroes one 0x34-byte battle unit record."
+    },
+    {
+      "addr": "0x0046EB3F", "name": "BattleMan_Clear", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMan_Clear(int rec)",
+      "comment": "Zeroes one 0x1B0-byte battle figure record."
+    },
+    {
+      "addr": "0x0046F0F0", "name": "BattleMen_ClearAll", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMen_ClearAll(void)",
+      "comment": "Zeroes g_battleMen[1..80]. The loop bound 0x51 is what fixes the figure count at 80."
+    },
+    {
+      "addr": "0x0046F18D", "name": "BattleUnits_ClearAll", "section": "battle", "confidence": "verified",
+      "signature": "void BattleUnits_ClearAll(void)",
+      "comment": "Zeroes g_battleUnits[1..80]."
+    },
+    {
+      "addr": "0x0046EBE4", "name": "BattleMan_Destroy", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMan_Destroy(int man)",
+      "comment": "Clears the figure off its battlefield cell and zeroes its record."
+    },
+    {
+      "addr": "0x004822ED", "name": "Battle_UpdateAllMen", "section": "battle", "confidence": "verified",
+      "signature": "void Battle_UpdateAllMen(void)",
+      "comment": "Per-frame sweep over g_battleMen[1..80]. Applies burning damage on surface 10/17, ages the figure, then dispatches g_troopTickTable[troopType] - which reloads the per-troop stats and tail-calls g_manStateTable[state]."
+    },
+    {
+      "addr": "0x00489401", "name": "Battle_UpdateAllUnits", "section": "battle", "confidence": "verified",
+      "signature": "void Battle_UpdateAllUnits(void)",
+      "comment": "Per-frame sweep over g_battleUnits[1..80]. Recentres each unit on its figures, and runs its order handler unless byte +1 (human controlled) is set. Three dispatch tables: field, siege attacker, siege defender. Counts field +0x14 down from 500 and re-targets at zero."
+    },
+    {
+      "addr": "0x0047EBE8", "name": "Battle_UpdateMissiles", "section": "battle", "confidence": "inferred",
+      "signature": "void Battle_UpdateMissiles(void)",
+      "comment": "Rebuilds the cell -> figure occupancy map for all 80 figures, then steps every missile."
+    },
+    {
+      "addr": "0x00485BB1", "name": "Missile_UpdateAll", "section": "battle", "confidence": "verified",
+      "signature": "void Missile_UpdateAll(void)",
+      "comment": "Steps g_missiles[1..100]."
+    },
+    {
+      "addr": "0x00492C8B", "name": "Missile_Step", "section": "battle", "confidence": "verified",
+      "signature": "void Missile_Step(void)",
+      "comment": "Advances the current missile by its steps-per-tick and, when it enters a cell holding an enemy figure, applies the missile damage formula: elevation scaling, minus the target armour, minus the crossbow-vs-engine reduction, floor 2, accumulated into the target hits pool; every 100 hits kills one man. See docs/battle.md."
+    },
+    {
+      "addr": "0x00494908", "name": "Melee_Tick", "section": "battle", "confidence": "verified",
+      "signature": "void Melee_Tick(void)",
+      "comment": "One tick of a melee duel. The attacker decrements the defender recovery counter; when it expires the defender takes the attacker melee attack value into its hits pool, and once per exchange the attacker heavy-blow bonus as well. 100 hits kills one man; the attacker role swaps when the exchange counter runs out."
+    },
+    {
+      "addr": "0x0049459A", "name": "BattleMan_BurnTick", "section": "battle", "confidence": "inferred",
+      "signature": "void BattleMan_BurnTick(int man)",
+      "comment": "Adds 3/6/9/12 hits per tick (1/3/5/7 for siege engines) by battlefield size class to a figure standing on a burning cell, +1/+2 more if the owner is human-controlled. Threshold 100 (160 for engines) kills one man."
+    },
+    {
+      "addr": "0x00481ABB", "name": "BattleMan_RecomputeStrength", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMan_RecomputeStrength(int man)",
+      "comment": "Sets the figure strength band 0..3 by comparing its remaining men against g_strengthBand1/2/3 (75%, 50%, ~19-25% of a full figure), then loads its melee attack value from g_meleeAttackTable[troopType][band]."
+    },
+    {
+      "addr": "0x0047F42D", "name": "Battle_LoadStrengthBands", "section": "battle", "confidence": "verified",
+      "signature": "void Battle_LoadStrengthBands(void)",
+      "comment": "Loads the three strength-band thresholds for the current battlefield size class from g_strengthBandTable."
+    },
+    {
+      "addr": "0x00483337", "name": "BattleMan_FireMissile", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMan_FireMissile(void)",
+      "comment": "Missile reload and fire. Acquires a target 10 ticks before the reload interval expires, then spawns a missile whose power is the figure missile damage scaled by its strength band (full, 4/5, 3/4, 1/2)."
+    },
+    {
+      "addr": "0x004832EA", "name": "BattleMan_StateIdle", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMan_StateIdle(void)",
+      "comment": "Figure state 5. Advances the animation, and fires if the figure has a missile weapon."
+    },
+    {
+      "addr": "0x00483CE1", "name": "BattleMan_LookForMelee", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMan_LookForMelee(void)",
+      "comment": "Figure state 7. If an adjacent enemy exists, locks both figures into state 4 facing each other, one as attacker and one as defender; otherwise falls back to idle or missile search."
+    },
+    {
+      "addr": "0x004831D8", "name": "BattleMan_StateMelee", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMan_StateMelee(void)",
+      "comment": "Figure state 4. Drops out if the opponent is gone or dead, otherwise runs Melee_Tick."
+    },
+    {
+      "addr": "0x00494E3F", "name": "Melee_FindAdjacentEnemy", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 Melee_FindAdjacentEnemy(void)",
+      "comment": "Tests the eight neighbouring cells in the order N, NW, NE, W, E, SW, SE, S and returns the direction of the first live enemy figure, or 8. Siege engines (troop types 7..10) are never returned."
+    },
+    {
+      "addr": "0x004956CC", "name": "Missile_FindTarget", "section": "battle", "confidence": "verified",
+      "signature": "bool Missile_FindTarget(int range, int man, int unit)",
+      "comment": "Nearest live enemy figure within `range` by Manhattan distance, capped at 160. The unit ordered target is forced to distance 0; siege-engine targets get a +35 distance penalty."
+    },
+    {
+      "addr": "0x00494D08", "name": "Melee_ResetExchange", "section": "battle", "confidence": "inferred",
+      "signature": "void Melee_ResetExchange(int man)",
+      "comment": "Sets how long this figure holds the attacking role in a duel, from its animation class: 0, 40, 80, 80 or 120 ticks."
+    },
+    {
+      "addr": "0x00494DF9", "name": "Melee_ResetRecovery", "section": "battle", "confidence": "inferred",
+      "signature": "void Melee_ResetRecovery(int man)",
+      "comment": "Adds the figure recovery interval (+0x18B) to its recovery counter. That interval is the rate at which the figure can be hit in melee, so it is the real melee defence: peasants and archers 6 ticks, crossbowmen 8, macemen and swordsmen 12, knights 16, pikemen 30."
+    },
+    {
+      "addr": "0x0048F1DD", "name": "BattleMan_Step", "section": "battle", "confidence": "verified",
+      "signature": "int BattleMan_Step(int noInterrupt)",
+      "comment": "Movement. Waits g_troopBattleStats[type].moveDelay ticks per sub-step, accumulates 2 per step until 17, then takes the next path direction and calls BattleMan_TryStepDir. Knights have delay 0 and pikemen 4, which is why knights are fastest and pikemen slowest."
+    },
+    {
+      "addr": "0x00490616", "name": "BattleMan_TryStepDir", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 BattleMan_TryStepDir(undefined4 dir)",
+      "comment": "Turns a direction 0..7 into a neighbouring cell offset, clamps at the map edge and calls Cell_TryEnter."
+    },
+    {
+      "addr": "0x00490A44", "name": "Cell_TryEnter", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 Cell_TryEnter(int cellOffset)",
+      "comment": "Decides whether a figure may enter a battlefield cell: 1 free, 0 blocked by a friendly figure or flag 0x40, 2 impassable (flags 0x10/0x80, or an elevation change of more than 1), 5 flag 0x20 for a non-zero side, 999 enemy figure present."
+    },
+    {
+      "addr": "0x004972F9", "name": "Melee_AdjacentEnemyDir", "section": "battle", "confidence": "verified",
+      "signature": "int Melee_AdjacentEnemyDir(int x, int y, int cellOffset)",
+      "comment": "Scans the eight neighbours via g_cellNeighbourOffsets and returns the direction of an enemy figure standing at the same elevation, or 8."
+    },
+    {
+      "addr": "0x0046F434", "name": "Dir_FromDelta", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 Dir_FromDelta(int x, int y, int tx, int ty)",
+      "comment": "Eight-way direction from (x,y) to (tx,ty): 0 N, 1 NE, 2 E, 3 SE, 4 S, 5 SW, 6 W, 7 NW, 8 same cell. This is the encoding of the figure facing byte."
+    },
+    {
+      "addr": "0x00404EAD", "name": "Dist_Manhattan", "section": "battle", "confidence": "verified",
+      "signature": "int Dist_Manhattan(int x, int y, int tx, int ty)",
+      "comment": "Returns |dx| + |dy| and leaves the two absolute deltas in g_absDx and g_absDy."
+    },
+    {
+      "addr": "0x00404F4C", "name": "Dist_Chebyshev", "section": "battle", "confidence": "verified",
+      "signature": "int Dist_Chebyshev(int x, int y, int tx, int ty)",
+      "comment": "Returns max(|dx|, |dy|) and leaves the two absolute deltas in g_absDx and g_absDy."
+    },
+    {
+      "addr": "0x00404E4B", "name": "Table_Lookup", "section": "battle", "confidence": "verified",
+      "signature": "int Table_Lookup(int x, int * pairs, int count, int dflt)",
+      "comment": "Generic (threshold, value) ladder: returns the value of the first pair whose threshold exceeds x, else the default. Used for the battlefield size class and the men-per-figure scale."
+    },
+    {
+      "addr": "0x0047B8B2", "name": "Battlefield_BuildFromSkr", "section": "battle", "confidence": "verified",
+      "signature": "void Battlefield_BuildFromSkr(void)",
+      "comment": "Loads one 80x80 .skr terrain layer and expands it into the 8-byte-per-cell battlefield, including bridge parts and the two 12-slot deployment marker arrays. See docs/formats/skr.md."
+    },
+    {
+      "addr": "0x0047AAA3", "name": "Battlefield_BuildRandom", "section": "battle", "confidence": "inferred",
+      "signature": "void Battlefield_BuildRandom(void)",
+      "comment": "The open-field battlefield generator: writes the same cell array and the same deployment slot arrays as Battlefield_BuildFromSkr, but from the campaign map rather than a .skr layer."
+    },
+    {
+      "addr": "0x0047C4BA", "name": "Battlefield_BuildCastle", "section": "battle", "confidence": "inferred",
+      "signature": "void Battlefield_BuildCastle(int castle)",
+      "comment": "The siege battlefield builder; the third writer of the cell array."
+    },
+    {
+      "addr": "0x0042D806", "name": "Skr_ReadMap", "section": "battle", "confidence": "verified",
+      "signature": "void Skr_ReadMap(int index, void * dst)",
+      "comment": "Reads one .skr terrain layer: 0x1900 bytes at file offset index * 0x1900 + 0x1674. See docs/formats/skr.md."
+    },
+    {
+      "addr": "0x0048169E", "name": "Deploy_SlotForUnit", "section": "battle", "confidence": "verified",
+      "signature": "void Deploy_SlotForUnit(int unitOrdinal, int side)",
+      "comment": "Picks a deployment cell for the n-th unit of a side from the 12-slot marker array: side 0 uses the 0x04 marker slots at 0x00553150, side 4 the 0x0F marker slots at 0x005531B0. There are only 12 slots, so a side with more than 12 units reads past the end."
+    },
+    {
+      "addr": "0x004816F9", "name": "Deploy_SlotForUnitSiege", "section": "battle", "confidence": "inferred",
+      "signature": "void Deploy_SlotForUnitSiege(undefined4 unitOrdinal, int troopType)",
+      "comment": "The castle-defender placement: maps the troop type to one of the marker slots rather than using the unit ordinal, with a rotating fallback list."
+    },
+    {
+      "addr": "0x00481878", "name": "Formation_OffsetX", "section": "battle", "confidence": "verified",
+      "signature": "int Formation_OffsetX(int footprint, int rows, int i)",
+      "comment": "Column offset of figure i in a units rectangle: (i / rows) * footprint."
+    },
+    {
+      "addr": "0x00481906", "name": "Formation_OffsetY", "section": "battle", "confidence": "verified",
+      "signature": "int Formation_OffsetY(int footprint, int rows, uint i, int side)",
+      "comment": "Row offset of figure i: (i % rows) * footprint, negated for side 0 so both sides face each other."
+    },
+    {
+      "addr": "0x004891AD", "name": "BattleUnit_Recentre", "section": "battle", "confidence": "verified",
+      "signature": "void BattleUnit_Recentre(int unit)",
+      "comment": "Sets the unit position to the centre of the bounding box of its live figures."
+    },
+    {
+      "addr": "0x00479E90", "name": "BattleUnit_Order", "section": "battle", "confidence": "verified",
+      "signature": "void BattleUnit_Order(int unit, int x, int y, int attackTarget, int fromPlayer, int facing)",
+      "comment": "Gives a battle unit a destination. Missile units stop short of the target by (range/8 - 3) cells; a unit that mixes missile and melee figures is split into two units."
+    },
+    {
+      "addr": "0x0048143B", "name": "BattleUnit_Classify", "section": "battle", "confidence": "verified",
+      "signature": "void BattleUnit_Classify(int unit)",
+      "comment": "Recomputes the unit category from the troop types it still contains: catapult 5, tower 6, ram 7, oil 8, any missile figure 1, otherwise 3. The category selects the order handler."
+    },
+    {
+      "addr": "0x00424992", "name": "BattleDebug_Panel", "section": "battle", "confidence": "verified",
+      "signature": "void BattleDebug_Panel(void)",
+      "comment": "The developers' own battle debug overlay. It prints figure and unit fields beside their original labels - FIGURE / map x / map y / tg x / tg y / routed / hold it / state / on route / hits / walking / barred / target / dirc / delay / dly state / targeted / selected / selctd seen / polar dirc / mov straff, and GROUP / re targ / map x / map y / targ x / targ y / orders / firing. This is the primary evidence for the field names in docs/battle.md."
+    },
+    {
+      "addr": "0x0042AC0C", "name": "Troops_Load", "section": "battle", "confidence": "verified",
+      "signature": "uint Troops_Load(void)",
+      "comment": "Parses TROOPS.ENG / TROOPS2.ENG / TROOPS3.ENG into g_troopsTable. The in-memory layout is short[35][2][5][11] - side outer (stride 0x6E), difficulty inner (stride 0x16) - and difficulty groups 0,1,3,4 are then overwritten with Normal at +16%, +8%, -8% and -16% on troop types 0..6 only."
+    },
+    {
+      "addr": "0x0042BF46", "name": "Skirmish_FillArmies", "section": "battle", "confidence": "verified",
+      "signature": "void Skirmish_FillArmies(void)",
+      "comment": "Copies one row of g_troopsTable into the two army records used by the battle, choosing the side by whether the player is the attacker and the difficulty column per player, then recomputes each army total men (+0x168) and autocalc strength."
+    },
+    {
+      "addr": "0x0042B7F7", "name": "Skirmish_Setup", "section": "battle", "confidence": "inferred",
+      "signature": "void Skirmish_Setup(void)",
+      "comment": "Sets up a stand-alone skirmish: army records 1 and 2, loads BATTLES.ENG and the TROOPS table, fills both armies."
+    },
+    {
+      "addr": "0x0049005F", "name": "BattleMen_SwapPlaces", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 BattleMen_SwapPlaces(void)",
+      "comment": "When a figure walks into a friendly figure of the same troop type it swaps places with it, carrying position, cell, hits and men across. Returns 2 on a swap."
+    },
+    {
+      "addr": "0x00497437", "name": "Order_StopShortOfTarget", "section": "battle", "confidence": "verified",
+      "signature": "void Order_StopShortOfTarget(int x, int y, int tx, int ty, int range)",
+      "comment": "Pulls a move destination back so the unit halts (range - 3) cells from its target, leaving the result in g_foundTileX / g_foundTileY. This is how missile units stop at firing range instead of closing."
+    },
+    {
+      "addr": "0x0047095E", "name": "Path_Search", "section": "battle", "confidence": "verified",
+      "signature": "void Path_Search(int mode, int x, int y, int tx, int ty)",
+      "comment": "The battlefield pathfinder. A uniform-cost breadth-first flood fill over the 80x80 grid with a circular queue: g_pathCost[cell] holds cost+1 from the start, a cell is expanded only after being reached g_pathStepCost[cell] times (that is how terrain cost is charged), and a step is only allowed between cells whose elevation differs by at most 1. Skipped entirely when the target is adjacent or the straight line is clear."
+    },
+    {
+      "addr": "0x00471718", "name": "Path_SearchSiege", "section": "battle", "confidence": "inferred",
+      "signature": "void Path_SearchSiege(int x, int y, int tx, int ty)",
+      "comment": "The variant of Path_Search used by figures in state 9 - the siege/wall path."
+    },
+    {
+      "addr": "0x00472392", "name": "Path_Extract", "section": "battle", "confidence": "verified",
+      "signature": "int Path_Extract(int x, int y, int tx, int ty)",
+      "comment": "Walks the g_pathCost field downhill from the destination back to the start, writing the route into g_pathWaypoints as (x,y) byte pairs and returning its length. Ties are broken towards the straight-line direction. Returns 0 for no path and 150 for adjacent or over-long."
+    },
+    {
+      "addr": "0x00472875", "name": "BattleMan_SetPath", "section": "battle", "confidence": "verified",
+      "signature": "void BattleMan_SetPath(int man, int length)",
+      "comment": "Copies `length` waypoints out of g_pathWaypoints into the figure own list at +0x38, sets the count at +0x36 and marks the figure \"on route\"."
+    },
+    {
+      "addr": "0x00491A34", "name": "BattleMan_NextPathDir", "section": "battle", "confidence": "verified",
+      "signature": "uint BattleMan_NextPathDir(int man)",
+      "comment": "Returns the direction towards the figure current waypoint and consumes it. The list is walked from the end, because Path_Extract builds it backwards from the destination."
+    },
+    {
+      "addr": "0x0048A7D9", "name": "Dest_FindReachableNear", "section": "battle", "confidence": "verified",
+      "signature": "undefined4 Dest_FindReachableNear(int fromX, int fromY, int x, int y, int unit)",
+      "comment": "Expanding-ring search of radius 0..19 around (x,y) for a cell with the same surface type and elevation as the source, leaving it in g_foundTileX / g_foundTileY. Used to fix up a move order that lands on unreachable ground."
+    },
+    {
+      "addr": "0x004710F2", "name": "Path_LineIsClear", "section": "battle", "confidence": "inferred",
+      "signature": "bool Path_LineIsClear(int x, int y, int tx, int ty)",
+      "comment": "Straight-line passability test; when it succeeds Path_Search does no work at all and the figure walks directly at its target."
+    },
+    {
+      "addr": "0x00471F45", "name": "Path_BuildBlockedMap", "section": "battle", "confidence": "inferred",
+      "signature": "void Path_BuildBlockedMap(void)",
+      "comment": "Refreshes the per-cell blocking map the flood fill reads, from the live figure positions."
+    },
+    {
+      "addr": "0x0048B9C1", "name": "BattleUnit_OrderToEnemyEnd", "section": "battle", "confidence": "inferred",
+      "signature": "void BattleUnit_OrderToEnemyEnd(int slot)",
+      "comment": "Sends the current unit to a slot of the opposing sides deployment marker - side 0 to the 0x0F marker, side 4 to the 0x04 marker. Together with Deploy_SlotForUnit this establishes that side 0 deploys at the 0x04 marker and side 4 at the 0x0F marker."
     }
   ],
 
@@ -280,6 +607,113 @@
     { "addr": "0x00569584", "name": "g_turnPhase", "section": "units", "confidence": "inferred",
       "comment": "Turn state machine phase, switched on by FUN_0049a010. Phase 6 step 1 is Merchant_AdvanceAll." },
     { "addr": "0x0053F658", "name": "g_turnPhaseStep", "section": "units", "confidence": "inferred",
-      "comment": "Step counter within the current turn phase; incremented on every FUN_0049a010 call." }
+      "comment": "Step counter within the current turn phase; incremented on every FUN_0049a010 call." },
+
+    { "addr": "0x00554480", "name": "g_battleMen", "section": "battle", "confidence": "verified",
+      "comment": "Battle figure array, 80 records of 0x1B0 bytes, index 1..80 (0 unused). A figure is one drawn man representing g_menPerFigure real soldiers. +0x09 selected, +0x12 troop type, +0x13 owner is human, +0x18 facing 0..7, +0x1C cell byte offset, +0x20/+0x22 x,y, +0x24/+0x26 target x,y, +0x2C owner (0 = free slot), +0x31 state, +0x172 armour, +0x174 target figure, +0x178 owning unit, +0x17A side, +0x17E melee opponent, +0x189 move delay, +0x18B melee recovery interval, +0x197 strength band, +0x198 heavy-blow bonus, +0x19A hits, +0x19C melee attack, +0x1A0 men left. Full map in docs/battle.md." },
+    { "addr": "0x00566520", "name": "g_battleUnits", "section": "battle", "confidence": "verified",
+      "comment": "Battle unit array, 80 records of 0x34 bytes, index 1..80 (0 unused). A unit is what the player selects and orders. +0x00 owner (0 = free slot), +0x01 human controlled, +0x02 figure count, +0x03 side (0 or 4), +0x04/+0x06 first and last figure index, +0x08 category, +0x0F firing timer, +0x14 re-target countdown, +0x1A orders, +0x1E/+0x20 position, +0x22/+0x24 target, +0x2C ordered target figure, +0x30 target cell offset." },
+    { "addr": "0x0057A100", "name": "g_missiles", "section": "battle", "confidence": "verified",
+      "comment": "Missile / effect array, 100 records of 0x4C bytes, index 1..100. +0x06 firing figure, +0x08 owner, +0x09 class (1 bow, 2 crossbow, 3 catapult, 5 fire, 7 falling figure), +0x0A/+0x0C position in 1/32 cell, +0x14/+0x16 cell x,y, +0x1C cell byte offset, +0x2F launch elevation, +0x36 distance flown, +0x38 range, +0x40 power." },
+    { "addr": "0x005440E0", "name": "g_battlefield", "section": "battle", "confidence": "verified",
+      "comment": "Battlefield cell array, 80x80 records of 8 bytes, index (y*80 + x)*8. +0 terrain id, +1 flags (0x10 and 0x80 impassable), +2 flags, +3 graphic index, +4 elevation, +5 index of the figure standing here, +6 head of the missile list in this cell, +7 surface type (7 bridge, 10 and 17 burning, 15 woodland)." },
+    { "addr": "0x0053E8F8", "name": "g_curBattleMan", "section": "battle", "confidence": "verified",
+      "comment": "Index of the figure currently being updated. The whole figure state machine reads its subject from this global rather than from a parameter." },
+    { "addr": "0x0052EFF4", "name": "g_otherBattleMan", "section": "battle", "confidence": "verified",
+      "comment": "Index of the other figure in the current interaction: the melee opponent, the missile target, or the figure being swapped with." },
+    { "addr": "0x00568458", "name": "g_curBattleUnit", "section": "battle", "confidence": "verified",
+      "comment": "Index of the unit currently being updated by Battle_UpdateAllUnits." },
+    { "addr": "0x0053F014", "name": "g_lastBattleMan", "section": "battle", "confidence": "verified",
+      "comment": "Index of the figure BattleMan_Create just allocated." },
+    { "addr": "0x005530EC", "name": "g_lastBattleUnit", "section": "battle", "confidence": "verified",
+      "comment": "Index of the unit BattleUnit_Alloc just allocated." },
+    { "addr": "0x00568990", "name": "g_lastMissile", "section": "battle", "confidence": "verified",
+      "comment": "Index of the missile Missile_Spawn just allocated." },
+    { "addr": "0x0056D5B4", "name": "g_curMissile", "section": "battle", "confidence": "verified",
+      "comment": "Index of the missile Missile_Step is advancing." },
+    { "addr": "0x00522F6C", "name": "g_battleSizeClass", "section": "battle", "confidence": "verified",
+      "comment": "Battlefield size class 0..8, from the combined army size. It selects g_menPerFigure, the strength-band thresholds, and the burning-damage rate." },
+    { "addr": "0x004EEA9C", "name": "g_menPerFigure", "section": "battle", "confidence": "verified",
+      "comment": "How many real soldiers one drawn figure stands for: 4, 8, 16, 32, 64, 128, 256, 512 or 1024 by size class. Reduced for a small army so that a side always gets at least 9 figures." },
+    { "addr": "0x0053E8FC", "name": "g_battleIsSiege", "section": "battle", "confidence": "verified",
+      "comment": "Non-zero for a siege: selects the castle battlefield builder, the siege unit-order tables and Battle_RaiseSideSiege." },
+    { "addr": "0x0057C8CC", "name": "g_localPlayer", "section": "battle", "confidence": "verified",
+      "comment": "The player index this machine controls. Compared against a unit owner to decide whose units are on the player side." },
+    { "addr": "0x0053E86C", "name": "g_strengthBand1", "section": "battle", "confidence": "verified",
+      "comment": "Men in a figure below which it drops to strength band 1 - 75% of a full figure." },
+    { "addr": "0x00522F54", "name": "g_strengthBand2", "section": "battle", "confidence": "verified",
+      "comment": "Band 2 threshold - 50% of a full figure." },
+    { "addr": "0x00522F5C", "name": "g_strengthBand3", "section": "battle", "confidence": "verified",
+      "comment": "Band 3 threshold - about 19-25% of a full figure." },
+    { "addr": "0x00591560", "name": "g_absDx", "section": "battle", "confidence": "verified",
+      "comment": "Absolute x distance left by Dist_Manhattan / Dist_Chebyshev." },
+    { "addr": "0x0058FEA0", "name": "g_absDy", "section": "battle", "confidence": "verified",
+      "comment": "Absolute y distance left by Dist_Manhattan / Dist_Chebyshev." },
+    { "addr": "0x004D4B98", "name": "g_troopStrengthWeight", "section": "battle", "confidence": "verified",
+      "comment": "Seven ints, the autocalc strength weight of one soldier by troop type: peasant 2, crossbowman 16, maceman 8, swordsman 13, pikeman 9, archer 13, knight 22. Used only for army strength comparisons, not by the real-time battle." },
+    { "addr": "0x004D96D0", "name": "g_troopBattleStats", "section": "battle", "confidence": "verified",
+      "comment": "Per troop type, 11 rows of 5 ints: max figures per unit, cell footprint, max figures per formation row, weapon class (index into g_missileStats), move delay in ticks." },
+    { "addr": "0x004D97B0", "name": "g_missileStats", "section": "battle", "confidence": "verified",
+      "comment": "Per weapon class, 4 rows of 5 ints: range in 1/8 cells, reload interval in ticks, sub-steps per tick, damage, sprite-bank offset. Class 0 melee (all zero), 1 bow (120, 50, 4, 50, 0), 2 crossbow (64, 100, 4, 200, 8), 3 catapult (160, 100, 4, 200, 16)." },
+    { "addr": "0x004D98F8", "name": "g_meleeAttackTable", "section": "battle", "confidence": "verified",
+      "comment": "Melee attack value by troop type and strength band, 11 rows of 4 shorts. Peasant/crossbow/archer 5,4,3,2; mace and sword 15,12,10,6; pike 10,8,6,5; knight 20,15,11,6; siege engines all zero." },
+    { "addr": "0x004D9658", "name": "g_menPerFigureTable", "section": "battle", "confidence": "verified",
+      "comment": "Nine ints indexed by battlefield size class: 4, 8, 16, 32, 64, 128, 256, 512, 1024 men per drawn figure." },
+    { "addr": "0x004D95D8", "name": "g_sizeClassLadder", "section": "battle", "confidence": "verified",
+      "comment": "Eight (threshold, size class) pairs mapping total men to the battlefield size class: 305, 609, 1217, 2433, 4865, 9729, 19457, 38913, then 8." },
+    { "addr": "0x004D9618", "name": "g_siegeScaleLadder", "section": "battle", "confidence": "verified",
+      "comment": "Eight (threshold, value) pairs giving how many men one siege engine counts as when choosing the size class." },
+    { "addr": "0x004D9800", "name": "g_strengthBandTable", "section": "battle", "confidence": "verified",
+      "comment": "Three ints per battlefield size class: the men-per-figure thresholds for strength bands 1, 2 and 3 - 75%, 50% and about 19-25% of a full figure." },
+    { "addr": "0x004D9870", "name": "g_raiseOrder", "section": "battle", "confidence": "verified",
+      "comment": "The order in which troop types become units in a field battle: ram, oil, knight, sword, mace, pike, crossbow, archer, peasant, tower, catapult." },
+    { "addr": "0x004D98A0", "name": "g_raiseOrderSiege", "section": "battle", "confidence": "verified",
+      "comment": "The castle-defender raise order, eight troop types: oil, archer, crossbow, knight, peasant, sword, mace, pike. Catapults, towers and rams are absent." },
+    { "addr": "0x004D9140", "name": "g_troopTickTable", "section": "battle", "confidence": "verified",
+      "comment": "Eleven function pointers indexed by troop type. Each reloads that troop per-tick constants - animation set, recovery interval, heavy-blow bonus, armour - and then tail-calls g_manStateTable[state]." },
+    { "addr": "0x004D9170", "name": "g_manStateTable", "section": "battle", "confidence": "verified",
+      "comment": "Eighteen figure-state handlers indexed by figure byte +0x31. Known: 2 dead, 4 melee, 5 idle/firing, 6 blocked, 7 look for melee, 12 siege engine attacking, 17 closing to attack." },
+    { "addr": "0x004D91B8", "name": "g_unitOrderTableField", "section": "battle", "confidence": "verified",
+      "comment": "Five unit order handlers for a field battle, indexed by unit category 0..4." },
+    { "addr": "0x004D91D0", "name": "g_unitOrderTableSiegeAtt", "section": "battle", "confidence": "verified",
+      "comment": "Nine unit order handlers for the siege attacker (unit side non-zero), indexed by unit category 0..8." },
+    { "addr": "0x004D91F8", "name": "g_unitOrderTableSiegeDef", "section": "battle", "confidence": "verified",
+      "comment": "Eleven unit order handlers for the siege defender (unit side zero), indexed by unit category 0..10." },
+    { "addr": "0x004D8588", "name": "g_cellNeighbourOffsets", "section": "battle", "confidence": "verified",
+      "comment": "Eight ints, the battlefield cell byte offsets of the neighbours in direction order 0..7: -0x280, -0x278, +8, +0x288, +0x280, +0x278, -8, -0x288." },
+    { "addr": "0x00516AC0", "name": "g_troopsTable", "section": "battle", "confidence": "verified",
+      "comment": "The parsed TROOPS*.ENG table: short[35][2][5][11], row stride 0xDC, side stride 0x6E, difficulty stride 0x16. See docs/formats/eng.md and the correction in docs/battle.md." },
+    { "addr": "0x0051FAE0", "name": "g_troopsAdvantage", "section": "battle", "confidence": "verified",
+      "comment": "The per-battle defensive advantage 0..10, one per TROOPS*.ENG row." },
+    { "addr": "0x004D49B8", "name": "g_troopsRowBase", "section": "battle", "confidence": "inferred",
+      "comment": "Four ints, 0/10/20/35: the first g_troopsTable row for each battle category." },
+    { "addr": "0x00568210", "name": "g_battleArmyA", "section": "battle", "confidence": "verified",
+      "comment": "Index into g_units of the first army in the current battle. It is raised on side 4." },
+    { "addr": "0x00568218", "name": "g_battleArmyB", "section": "battle", "confidence": "verified",
+      "comment": "Index into g_units of the second army. It is raised on side 0, and is the side the castle-defender path is applied to in a siege." },
+    { "addr": "0x0054409C", "name": "g_battleStrengthA", "section": "battle", "confidence": "verified",
+      "comment": "Autocalc strength of army A: sum of count[t] * g_troopStrengthWeight[t] over troop types 0..6." },
+    { "addr": "0x00553FC0", "name": "g_battleStrengthB", "section": "battle", "confidence": "verified",
+      "comment": "Autocalc strength of army B." },
+    { "addr": "0x00553E68", "name": "g_debugSelectedMan", "section": "battle", "confidence": "inferred",
+      "comment": "The figure index BattleDebug_Panel prints." },
+    { "addr": "0x00504030", "name": "g_pathCost", "section": "battle", "confidence": "verified",
+      "comment": "Pathfinder cost field, u16 per battlefield cell, index y*80 + x. 0 means unvisited, 1 the start cell, 998 (0x3E6) blocked." },
+    { "addr": "0x004FA820", "name": "g_pathQueue", "section": "battle", "confidence": "verified",
+      "comment": "Pathfinder frontier, a circular queue of 0x1900 cell indices with head g_pathQueueHead and tail g_pathQueueTail." },
+    { "addr": "0x00503018", "name": "g_pathQueueHead", "section": "battle", "confidence": "verified",
+      "comment": "Read cursor of g_pathQueue." },
+    { "addr": "0x004F981C", "name": "g_pathQueueTail", "section": "battle", "confidence": "verified",
+      "comment": "Write cursor of g_pathQueue; wraps at 0x1900." },
+    { "addr": "0x004F2770", "name": "g_pathStepCost", "section": "battle", "confidence": "inferred",
+      "comment": "Per-cell step cost the flood fill charges: a cell is only expanded once it has been reached this many times." },
+    { "addr": "0x004F6470", "name": "g_pathVisitCount", "section": "battle", "confidence": "verified",
+      "comment": "How many times the flood fill has reached each cell, compared against g_pathStepCost." },
+    { "addr": "0x004F7D80", "name": "g_pathElevation", "section": "battle", "confidence": "inferred",
+      "comment": "Per-cell elevation the flood fill and Path_Extract read; a step is only allowed between cells differing by at most 1." },
+    { "addr": "0x004F9680", "name": "g_pathWaypoints", "section": "battle", "confidence": "verified",
+      "comment": "Scratch route built by Path_Extract: (x, y) byte pairs, at most 150, ordered destination-first. BattleMan_SetPath copies it into the figure." },
+    { "addr": "0x004D6C98", "name": "g_cellIndexNeighbours", "section": "battle", "confidence": "verified",
+      "comment": "Eight ints, the battlefield cell-index (not byte) deltas in direction order 0..7: -0x50, -0x4F, +1, +0x51, +0x50, +0x4F, -1, -0x51." }
   ]
 }

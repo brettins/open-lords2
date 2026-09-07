@@ -236,7 +236,10 @@ for each of 35 rows (battles):
 and exactly 35 `*` markers.** The arithmetic closes with nothing left over in
 every file.
 
-The in-memory table is `short[35][5][2][11]` with a row stride of `0xDC` = 220
+The in-memory table is `short[35][2][5][11]` — side before difficulty, not after
+— with a side stride of `0x6E` and a difficulty stride of `0x16`. **Corrected:**
+an earlier revision gave `[35][5][2][11]`, transposing the middle two dimensions;
+verified twice against the battle code. The row stride is `0xDC` = 220
 bytes, based at `0x00516AC0`; the per-row defensive advantage goes to
 `0x0051FAE0`.
 

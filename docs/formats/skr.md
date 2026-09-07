@@ -178,11 +178,11 @@ ground.** The mapping is taken from both binaries, which agree:
 | Byte | `mapl2` mask | `Lords2` id | Graphics | Appearance in `USER.SKR` map 0 |
 |---:|---:|---:|---|---|
 | `0x00` | — | 1 | 16 random ground variants | open field |
-| `0x02` | `0x002` | 4 | 11-variant set, flags `0x10\|0x80` | large blobs on the map edges — **[I]** hills / high ground |
+| `0x02` | `0x002` | 4 | 11-variant set, flags `0x10\|0x80` | **[V]** an *obstacle*: cell flag `0x10` means impassable. **Not** hills or high ground — nothing on a `.skr` map carries elevation at all, and the high-ground combat modifier is inert here |
 | `0x04` | `0x100` | 20 | — | **[V]** deployment marker, side 1 |
 | `0x09` | `0x001` | 11 | 49-variant set, flag `0x10` | a continuous river — **[I]** water |
 | `0x0A` | `0x020` | 12 | 17-variant set, cell byte 7 = `0x0F` | irregular patches — **[I]** woodland |
-| `0x0F` | `0x080` | 30 | — | **[V]** deployment marker, side 0 |
+| `0x0F` | `0x080` | 30 | — | **[V]** deployment marker, **side 4**. Side **0** deploys at the `0x04` marker; the two sides are numbered 0 and 4, not 0 and 1. Which one is the attacker is still open |
 | `0x10` | `0x004` | 7 | multi-cell structure | first row of a bridge |
 | `0x12` | `0x005` | 8 | multi-cell structure | middle rows of a bridge |
 | `0x14` | `0x004` | 9 | multi-cell structure | last row of a bridge, **written by the game, never by the editor** |
