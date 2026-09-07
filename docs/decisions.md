@@ -43,10 +43,29 @@ FFmpeg's decoder is likewise unavailable to us on permissive terms. The only pub
 implementation parses headers and has no codec at all. Transcoding at install time is not
 an escape hatch, because transcoding needs a decoder.
 
-So the options are: accept an LGPL component and the notice obligations that follow;
-write a Smacker decoder from the format description, which is a project in itself; or ship
-without in-game video. **This changes what the project's own licence can claim, so it is
-the user's call, not a technical default.**
+**Corrected: transcoding *is* an escape hatch, and probably the right one.**
+An earlier revision here said transcoding is no escape because it needs a decoder anyway.
+True, but irrelevant — the distinction is **linking versus invoking**. Copyleft obligations
+attach to a decoder linked into our binary. They do not attach when the *user* runs a
+separate program on their own machine. So a one-time install step that shells out to an
+external FFmpeg leaves our binary permissive, and the transcoded files stay in the user's
+own directory, which also keeps us clear of the game's copyright.
+
+That yields four options, not three:
+
+1. **Transcode at install via external FFmpeg.** Our binary stays MIT. Costs an install
+   step and a dependency on a tool the user supplies.
+2. Link an LGPL decoder — workable, but adds notice obligations and, for the one candidate
+   crate, an unmaintained dependency with a bug to patch around.
+3. Write a Smacker decoder from the format description. A project in itself.
+4. Ship without in-game video.
+
+Option 1 has an especially clean variant: the videos are 8-bit palettized at 12 fps and
+small resolutions, and our engine already works in palette indices. Transcoding to a
+trivial palettized format of our own means **no third-party decoder at runtime at all** —
+only our code. The install-time tool does the hard part once, outside our licence boundary.
+
+**Still the user's call**, because it trades a licence constraint for an install step.
 
 If we do adopt one, put it behind our own trait in a leaf crate so swapping it later is a
 one-crate change. Note also that the `smk` crate is unmaintained (single release) and has a
@@ -151,6 +170,29 @@ and a whole findings document under a commit message about something else. The e
 path rule in `docs/agents.md` was written immediately after and did hold for the next
 commit — but the lesson is that a rule written *after* the damage still leaves misleading
 history behind.
+
+**C10 — The printed manual is not an oracle either.**
+Seven of its rankings have been asserted as tests against tables read out of the
+decompiler, and they were the strongest validation available for numbers of that kind. But
+the kingdom work found the manual **wrong twice**: it says up to 5 sacks per field where
+the constant is 10, and it advises keeping a third of your fields fallow where the rule is
+one fallow per *two* grain fields. In both cases long-standing player measurements were
+right and the manual wrong.
+
+So manual agreement remains good evidence and stays in the tests, but it is corroboration,
+not proof. Where the manual and the binary disagree, **the binary is what the game does**.
+
+**C11 — All kingdom rules live in the executable, not in data files.**
+`TROOPS*.ENG` set an expectation that rules would be reachable as data. They are not: every
+economic constant — tax, happiness, rations, births, deaths, yields, wages — is in
+`Lords2.exe`, clustered in two regions around `0x004D6300` and `0x004D8900`. The only
+non-obvious data file, `castles.dat`, is working state created zeroed at new-game, not
+rules.
+
+Two consequences. Modding the *original* means patching the binary, which is why an open
+engine is worth building at all. And our own engine has to carry these constants as its
+own ruleset data — which is exactly what `crates/l2-mods` is for, so they become editable
+for the first time.
 
 ## Open questions
 
