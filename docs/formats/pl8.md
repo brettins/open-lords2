@@ -86,3 +86,43 @@ palette; `Lords2.256` is not.
 
 - `tools/pl8dump.js <file.pl8> <palette.256> <frame> <out.png>` - decode one frame to PNG
 - `tools/pl8check.js <dir>` - validate the decoder across a whole directory
+
+---
+
+## Storage mode 2 - investigation notes
+
+32 files, ~2,400 frames. Not yet decoded. What has been established:
+
+**It is not run-length encoded.** `Batlfix2.pl8` frame 0 (26x14) is stored as 196
+identical `0x3f` bytes. Any run-length scheme would collapse a solid frame to a
+handful of bytes, so the encoding has no repeat primitive.
+
+**Bytes-per-row is usually `ceil(width/2) + 1`.** This holds for 1,847 frames -
+the dominant pattern - and initially suggested 4 bits per pixel plus a one-byte
+row prefix.
+
+**But that theory is refuted by odd-width frames.** `Fntl2_9.pl8` (a font file)
+has frames of `w=7, bpr=7`, `w=5, bpr=5` and `w=9, bpr=9`: bytes-per-row equals
+width exactly, i.e. plain 8-bit raw. Mode 2 is therefore heterogeneous, holding
+both raw and packed frames.
+
+**Row length is not always fixed.** 336 mode-2 frames have a total size that is
+not divisible by their height at all.
+
+**The frame record's trailing bytes are not the discriminator.** Across mode-2
+frames, `t[4]=1` and `t[5..7]=0` are constant, while the u16 at `t[2]` runs in an
+arithmetic sequence (0, 7, 14, 21, 28, ...). That reads as a position or ordering
+key - likely a sprite-sheet coordinate - not an encoding flag.
+
+**High-entropy sample.** `Mtns2a.pl8` frame 3 (10x6) is 36 bytes with 27 distinct
+values. Byte values fall in the same range as the confirmed 8-bit palette indices
+used by mode 1, which argues against packed nibbles - but 36 bytes cannot hold 60
+8-bit pixels, so some pixels are being omitted by a mechanism not yet identified.
+
+### Next step
+
+Statistical inference has plateaued: two readings of the same bytes remain
+consistent with all observations. The reliable route is to read the game's own
+decoder - locate the PL8 loading routine in `Lords2.exe` (Ghidra) and follow the
+branch taken when header byte 0 is 2. This is the oracle principle applied to a
+file format rather than to game logic.

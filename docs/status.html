@@ -1,0 +1,436 @@
+<title>Lords 2 Rebuild</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:    #E7E6E1;
+    --surface:   #F2F1ED;
+    --raised:    #FBFAF8;
+    --ink:       #1A1C1F;
+    --ink-dim:   #575C63;
+    --ink-faint: #878C93;
+    --rule:      #CECCC4;
+    --rule-soft: #DEDCD5;
+    --gules:     #A32C33;
+    --or:        #966F16;
+    --azure:     #2E5C8A;
+    --vert:      #3B6B45;
+    --shadow:    0 1px 2px rgba(26,28,31,.07), 0 4px 14px rgba(26,28,31,.05);
+
+    --sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:    #15171B;
+      --surface:   #1D2026;
+      --raised:    #262A31;
+      --ink:       #E4E6E9;
+      --ink-dim:   #9AA1AA;
+      --ink-faint: #6B727B;
+      --rule:      #333842;
+      --rule-soft: #272C34;
+      --gules:     #E0666D;
+      --or:        #D8AA4E;
+      --azure:     #6C9FD6;
+      --vert:      #79B183;
+      --shadow:    0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:    #15171B;
+    --surface:   #1D2026;
+    --raised:    #262A31;
+    --ink:       #E4E6E9;
+    --ink-dim:   #9AA1AA;
+    --ink-faint: #6B727B;
+    --rule:      #333842;
+    --rule-soft: #272C34;
+    --gules:     #E0666D;
+    --or:        #D8AA4E;
+    --azure:     #6C9FD6;
+    --vert:      #79B183;
+    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  /* ---- header ---- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(30px, 4.4vw, 44px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.08;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .lede {
+    margin: 12px 0 0;
+    max-width: 62ch;
+    color: var(--ink-dim);
+    font-size: 16px;
+  }
+  .metabar {
+    display: flex; flex-wrap: wrap; gap: 8px 22px;
+    margin-top: 22px; padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 12px; color: var(--ink-faint);
+  }
+  .metabar b { color: var(--ink-dim); font-weight: 500; }
+
+  /* ---- section headings ---- */
+  h2 {
+    font-size: 12px; font-family: var(--mono); font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 52px 0 16px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  /* ---- progress ---- */
+  .gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .gauge {
+    background: var(--surface); border: 1px solid var(--rule-soft);
+    border-radius: 3px; padding: 16px 18px;
+  }
+  .gauge .k { font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+              text-transform: uppercase; color: var(--ink-faint); }
+  .gauge .v {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 26px; font-weight: 600; margin-top: 6px; letter-spacing: -.01em;
+  }
+  .gauge .sub { font-size: 12.5px; color: var(--ink-dim); margin-top: 2px; }
+  .bar { height: 5px; background: var(--rule-soft); border-radius: 99px; margin-top: 12px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 99px; background: var(--or); }
+  .bar > i.done { background: var(--vert); }
+
+  /* ---- facts ---- */
+  .facts {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+    gap: 0; border: 1px solid var(--rule-soft); border-radius: 3px; overflow: hidden;
+    background: var(--surface);
+  }
+  .fact { padding: 14px 18px; border-right: 1px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft); }
+  .fact .k { font-size: 12px; color: var(--ink-dim); }
+  .fact .v {
+    font-family: var(--mono); font-size: 13.5px; font-weight: 500;
+    margin-top: 3px; color: var(--ink); word-break: break-word;
+  }
+  .fact .v em { font-style: normal; color: var(--azure); }
+
+  /* ---- roadmap ---- */
+  .phase {
+    display: grid; grid-template-columns: 44px 1fr; gap: 0 18px;
+    padding: 20px 0; border-bottom: 1px solid var(--rule-soft);
+  }
+  .phase:last-child { border-bottom: 0; }
+  .pnum {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--ink-faint); padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .phead { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
+  .phead h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+  .pnote { margin: 6px 0 0; color: var(--ink-dim); font-size: 13.5px; max-width: 64ch; }
+  ul.checks { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 5px; }
+  ul.checks li {
+    display: grid; grid-template-columns: 18px 1fr; gap: 9px;
+    align-items: start; font-size: 14px;
+  }
+  ul.checks li .mark {
+    font-family: var(--mono); font-size: 12px; line-height: 1.6;
+    text-align: center; font-weight: 600;
+  }
+  li.done  .mark { color: var(--vert); }
+  li.now   .mark { color: var(--or); }
+  li.todo  .mark { color: var(--ink-faint); }
+  li.done  > span:last-child { color: var(--ink-dim); }
+  li.todo  > span:last-child { color: var(--ink-dim); }
+  li.now   > span:last-child { color: var(--ink); font-weight: 500; }
+  .count { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+
+  /* ---- status pills ---- */
+  .pill {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: .09em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 2px; white-space: nowrap;
+  }
+  .pill.done { color: var(--vert);      background: color-mix(in srgb, var(--vert) 14%, transparent); }
+  .pill.now  { color: var(--or);        background: color-mix(in srgb, var(--or) 18%, transparent); }
+  .pill.next { color: var(--azure);     background: color-mix(in srgb, var(--azure) 14%, transparent); }
+  .pill.todo { color: var(--ink-faint); background: color-mix(in srgb, var(--ink-faint) 13%, transparent); }
+
+  /* ---- table ---- */
+  .scroll { overflow-x: auto; border: 1px solid var(--rule-soft); border-radius: 3px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 9px 16px; border-bottom: 1px solid var(--rule-soft); }
+  thead th {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+    background: var(--surface);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.m { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+  td .d { color: var(--ink-dim); }
+
+  .note {
+    margin-top: 44px; padding: 15px 18px;
+    border-left: 2px solid var(--or); background: var(--surface);
+    font-size: 13.5px; color: var(--ink-dim); border-radius: 0 3px 3px 0;
+  }
+  .note b { color: var(--ink); font-weight: 600; }
+  a { color: var(--azure); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">Open reimplementation &middot; in progress</p>
+  <h1>Lords of the Realm II</h1>
+  <p class="lede">
+    An incremental open engine for the 1996 Sierra/Impressions strategy game, built the way
+    OpenXcom was: new code, original data files. The shipped <code>Lords2.exe</code> is kept as an
+    <em>oracle</em> &mdash; ground truth to verify each reimplemented system against, not a thing to patch.
+  </p>
+
+  <div class="metabar">
+    <span><b>Updated</b> 7 Sep 2026</span>
+    <span><b>Repo</b> E:\dev\lords2</span>
+    <span><b>Game</b> GOG build, 21 Jul 2009</span>
+    <span><b>Phase</b> 1 of 8</span>
+  </div>
+
+  <h2>Progress</h2>
+  <div class="gauges">
+    <div class="gauge">
+      <div class="k">PL8 sprite corpus</div>
+      <div class="v">236 / 291</div>
+      <div class="sub">files decoding &amp; self-verifying &middot; 16,638 frames</div>
+      <div class="bar"><i style="width:81%"></i></div>
+    </div>
+    <div class="gauge">
+      <div class="k">Asset formats</div>
+      <div class="v">2 / 7</div>
+      <div class="sub">PL8 (partial) and .256 palettes understood</div>
+      <div class="bar"><i style="width:29%"></i></div>
+    </div>
+    <div class="gauge">
+      <div class="k">Phases complete</div>
+      <div class="v">1 / 8</div>
+      <div class="sub">foundations done; formats underway</div>
+      <div class="bar"><i style="width:12.5%"></i></div>
+    </div>
+  </div>
+
+  <h2>Established facts</h2>
+  <div class="facts">
+    <div class="fact"><div class="k">Image base &middot; ASLR</div>
+      <div class="v">0x00400000 &middot; <em>disabled</em></div></div>
+    <div class="fact"><div class="k">Addresses are therefore</div>
+      <div class="v">stable across every run</div></div>
+    <div class="fact"><div class="k">Code section</div>
+      <div class="v">.text 0x401000&ndash;0x4CFB06</div></div>
+    <div class="fact"><div class="k">Game state (uninitialised globals)</div>
+      <div class="v">~955 KB in .data</div></div>
+    <div class="fact"><div class="k">DirectPlayCreate call site</div>
+      <div class="v">0x004B826E</div></div>
+    <div class="fact"><div class="k">DirectPlayEnumerateA call site</div>
+      <div class="v">0x004B7FCE</div></div>
+    <div class="fact"><div class="k">Sprite storage modes</div>
+      <div class="v">byte 0: 0=raw, 1=RLE, 2=<em>unknown</em></div></div>
+    <div class="fact"><div class="k">Palette format</div>
+      <div class="v">768 B, 256&times;RGB, 6-bit VGA</div></div>
+    <div class="fact"><div class="k">The game logs its own startup</div>
+      <div class="v">status.txt, next to the exe</div></div>
+  </div>
+
+  <h2>Roadmap</h2>
+
+  <div class="phase">
+    <div class="pnum">00</div>
+    <div>
+      <div class="phead"><h3>Foundations</h3><span class="pill done">Done</span></div>
+      <p class="pnote">Know the target, and be able to watch it run.</p>
+      <ul class="checks">
+        <li class="done"><span class="mark">&#10003;</span><span>Locate install; confirm no ASLR, unpacked, fixed base</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>PE tooling &mdash; imports, exports, headers, call-site xrefs</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>MSVC x86 toolchain, verified building 32-bit DLLs</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Observability &mdash; live memory reads, window capture, synthetic input</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Git repository; game assets excluded from version control</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="pnum">01</div>
+    <div>
+      <div class="phead"><h3>Asset formats</h3><span class="pill now">In progress</span></div>
+      <p class="pnote">The gate for everything downstream. Each format is validated across the whole
+        corpus, not one lucky sample &mdash; PL8 self-verifies because every frame must end exactly on
+        the next frame's declared offset.</p>
+      <ul class="checks">
+        <li class="done"><span class="mark">&#10003;</span><span>PL8 header, frame table, RLE and raw storage <span class="count">&mdash; 236/291</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>.256 palettes &mdash; 6-bit VGA, scaled to 8-bit</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>PL8 storage mode 2 <span class="count">&mdash; 32 files</span></span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>PL8 raw sub-mode 2, frames shorter than width&times;height <span class="count">&mdash; 23 files</span></span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Which palette pairs with which sprite set</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>L2_MAPS.DAT &mdash; <code>mapl2.exe</code> ships as a reference implementation</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>CASTLES.DAT, .SAF, and the .ENG text files</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="pnum">02</div>
+    <div>
+      <div class="phead"><h3>Rust foundation</h3><span class="pill next">Next</span></div>
+      <p class="pnote">Where the project proper starts. Everything so far is Node prototyping, kept
+        deliberately disposable until the formats were known.</p>
+      <ul class="checks">
+        <li class="now"><span class="mark">&#9679;</span><span>rustup + MSVC toolchain</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span><code>l2-formats</code> crate &mdash; port the PL8 and palette decoders</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Corpus validation becomes the crate's test suite</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Asset extraction CLI &mdash; sprites to PNG, in bulk</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="pnum">03</div>
+    <div>
+      <div class="phead"><h3>Renderer and container</h3><span class="pill todo">Planned</span></div>
+      <p class="pnote">A palettised framebuffer mirrors how a 1996 software renderer thinks, so porting
+        drawing code stays close to mechanical.</p>
+      <ul class="checks">
+        <li class="todo"><span class="mark">&#9675;</span><span><code>winit</code> window + <code>pixels</code> framebuffer</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Indexed-colour surface with palette application</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Sprite blitting with transparency</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Sprite and animation browser &mdash; the first real app</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="pnum">04</div>
+    <div>
+      <div class="phead"><h3>Battle sandbox</h3><span class="pill todo">Planned</span></div>
+      <p class="pnote">The first milestone that is genuinely a piece of the finished engine rather than
+        scaffolding &mdash; and where the pathing work lives.</p>
+      <ul class="checks">
+        <li class="todo"><span class="mark">&#9675;</span><span>Battlefield terrain rendering</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Unit sprites, facings, animation states</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Unit and formation data structures</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Movement and pathfinding</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Melee and missile combat resolution</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="pnum">05</div>
+    <div>
+      <div class="phead"><h3>Oracle and differential testing</h3><span class="pill todo">Planned</span></div>
+      <p class="pnote">Turns the original binary into a test fixture. This is what makes delegating bulk
+        reimplementation safe &mdash; a wrong answer gets caught by the original, not by a human reading
+        decompiler output.</p>
+      <ul class="checks">
+        <li class="todo"><span class="mark">&#9675;</span><span><code>ddraw.dll</code> proxy for code injection</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Read live battle state from <code>.data</code> globals</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Harness: same inputs to both engines, diff the outputs</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Symbol database shared between Ghidra and the Rust code</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="pnum">06</div>
+    <div>
+      <div class="phead"><h3>Kingdom layer</h3><span class="pill todo">Planned</span></div>
+      <p class="pnote">The turn-based half: the larger and less charted body of rules.</p>
+      <ul class="checks">
+        <li class="todo"><span class="mark">&#9675;</span><span>Counties, population, happiness, taxation</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Seasons, crops, livestock, food stores</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Weapons manufacture and army recruitment</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Castle designer and siege resolution</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Opponent AI</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="pnum">07</div>
+    <div>
+      <div class="phead"><h3>Netcode</h3><span class="pill todo">Planned</span></div>
+      <p class="pnote">Deliberately late. The original's surface is unusually clean &mdash; two imported
+        functions, one call site each &mdash; but there is no point syncing a simulation that doesn't exist yet.</p>
+      <ul class="checks">
+        <li class="todo"><span class="mark">&#9675;</span><span>Modern transport replacing DirectPlay entirely</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Deterministic lockstep for the battle layer</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Lobby, host and join</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="pnum">08</div>
+    <div>
+      <div class="phead"><h3>Modding platform</h3><span class="pill todo">Planned</span></div>
+      <p class="pnote">The actual destination. Designed in from the first crate rather than retrofitted:
+        rules live in data files, and assets load through an overlay filesystem.</p>
+      <ul class="checks">
+        <li class="todo"><span class="mark">&#9675;</span><span>Virtual filesystem with mod-directory overlay</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Data-driven rulesets replacing hardcoded constants</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Mod packaging, load order, conflict reporting</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Format and ruleset documentation for mod authors</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Tooling built so far</h2>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr><th>Tool</th><th>Does</th><th>Verified by</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="m">pl8check.js</td><td class="d">Validates the sprite decoder across a whole directory</td><td class="d">236/291 files, 16,638 frames</td></tr>
+        <tr><td class="m">pl8dump.js</td><td class="d">Decodes one sprite frame to PNG</td><td class="d">Rendered a barded warhorse</td></tr>
+        <tr><td class="m">xref.js</td><td class="d">Finds call sites of imported functions</td><td class="d">Located both DirectPlay calls</td></tr>
+        <tr><td class="m">peimp / peexp / pehdr / pefun</td><td class="d">PE imports, exports, headers, per-DLL functions</td><td class="d">Resolved imports-by-ordinal</td></tr>
+        <tr><td class="m">probe.ps1</td><td class="d">Reads memory from a live process</td><td class="d">Read the game at 0x400000</td></tr>
+        <tr><td class="m">screen.ps1</td><td class="d">Window capture via PrintWindow</td><td class="d">Occlusion-proof</td></tr>
+        <tr><td class="m">input.ps1</td><td class="d">Synthetic mouse and keyboard</td><td class="d">Drove a real GUI</td></tr>
+        <tr><td class="m">windows.ps1</td><td class="d">Enumerates a process's top-level windows</td><td class="d">Found hidden dialogs</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>How this page stays current.</b> It is rewritten whenever a phase changes state, a verified count
+    moves, or a roadmap item is added or dropped &mdash; not on a clock. The roadmap below phase 2 is an
+    assumption and will be wrong in places; that is expected, and revisions get made here rather than
+    argued for. <b>Windowed mode is not on it</b>: the original only needs to be observable, and our own
+    renderer brings its own window.
+  </div>
+
+</div>
