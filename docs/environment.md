@@ -66,3 +66,24 @@ memory from a live process.
 
 Note: taking a screenshot by spawning a process can steal focus, and the game crashes if
 it is deactivated during startup. Don't capture during the first few seconds of a launch.
+
+### Synthetic input needs window focus (verified)
+
+`input.ps1 -Action key` uses `SendKeys`, which goes to whatever window is focused, so it
+needs the target in front. `SetForegroundWindow` also **fails silently** from a background
+process, so a script that assumes it worked will type into the wrong window.
+
+`-Action postkey` posts `WM_KEYDOWN`/`WM_KEYUP` straight to the window handle with a
+correctly formed `lParam` (repeat count, scan code in bits 16-23, extended flag in bit 24 -
+`lParam = 0` is silently dropped). In principle that bypasses focus. **In practice it does
+not work on our `winit` viewer**: minimising the window so it cannot be focused, then
+posting keys, produced no key events at all, while the identical sequence worked the moment
+the window had focus.
+
+Measured, not assumed - and the measurement went the opposite way to the assumption twice
+before it was checked properly. If a test needs the window unfocused, minimise it and read
+the title with `GetWindowTextW` on the handle; `Process.MainWindowTitle` returns empty for
+a minimised window and will look like a failure that isn't one.
+
+The `postkey` path is kept because the original game is a plain Win32/DirectDraw app rather
+than a `winit` one and may well accept posted messages. That is untested.

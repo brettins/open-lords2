@@ -144,3 +144,57 @@ fn palettes_are_768_bytes_of_6bit_vga() {
     println!("validated {count} palette files");
     assert!(count > 0, "no .256 palettes found");
 }
+
+/// The end-offset invariant proves we consume the right *bytes*. It cannot
+/// prove we produce the right *pixels* - a decoder that validates perfectly
+/// while emitting entirely blank frames would pass it. This checks that decoded
+/// frames actually contain something, per storage family.
+#[test]
+fn decoded_frames_are_not_blank() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+
+    let mut stats: BTreeMap<&'static str, (usize, usize)> = BTreeMap::new();
+    for path in files_with_ext(&dir, "pl8") {
+        let bytes = fs::read(&path).expect("read pl8");
+        let Ok(pl8) = Pl8::parse(&bytes) else { continue };
+        if !pl8.is_supported() || pl8.validate().is_err() {
+            continue;
+        }
+        let family = match pl8.storage {
+            Storage::Raw => "raw",
+            Storage::Rle => "rle",
+            Storage::Isometric => "iso",
+            Storage::Unknown(_) => continue,
+        };
+        for i in 0..pl8.frames.len() {
+            // Region maps are never painted, so blankness is correct for them.
+            if pl8.frames[i].shape == l2_formats::Shape::RegionMap {
+                continue;
+            }
+            let Ok(f) = pl8.decode(i) else { continue };
+            let e = stats.entry(family).or_default();
+            e.0 += 1;
+            if f.opaque.iter().any(|&o| o) {
+                e.1 += 1;
+            }
+        }
+    }
+
+    for (family, (total, painted)) in &stats {
+        let pct = 100.0 * *painted as f64 / *total as f64;
+        println!("{family}: {painted}/{total} frames paint at least one pixel ({pct:.1}%)");
+    }
+
+    // Blank frames are legitimate (empty terrain, animation padding), but a
+    // family that is almost entirely blank means the decoder is broken.
+    for (family, (total, painted)) in &stats {
+        assert!(*total > 0, "{family}: no frames decoded");
+        assert!(
+            *painted * 2 > *total,
+            "{family}: only {painted} of {total} frames paint anything - decoder likely broken"
+        );
+    }
+}
