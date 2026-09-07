@@ -111,6 +111,25 @@ independently of byte 0.
 `shape` byte at record offset 0x0C decides, which is why no single "mode 2 codec"
 ever fit: one isometric file holds raw rectangles and diamonds side by side.
 
+**C8 — "Search for prior art first" needs a second half: verify it.**
+C5 was right that not searching cost real effort. But prior art is a *lead*, not an
+authority. OpenLotR2's `.skr` documentation is wrong in three places, each caught only by
+checking bytes: the battlefield layer is 80×80 rather than 64×64, a text record is 183
+bytes rather than 182, and the layers do not begin where it says — an unexplained 328-byte
+pad precedes them. A decoder built on the document alone would have desynchronised
+immediately.
+
+The rule is therefore: **find prior art, then validate every claim against the data before
+building on it.** Its real value is telling you *what to look for*, which is worth a great
+deal even when the specifics are wrong.
+
+**C9 — `git add -A` swept agents' files twice before the rule stuck.**
+Commit `38278d0` took an agent's in-progress `ghidra_scripts_skr/`, `tools/maps/dump.ps1`
+and a whole findings document under a commit message about something else. The explicit-
+path rule in `docs/agents.md` was written immediately after and did hold for the next
+commit — but the lesson is that a rule written *after* the damage still leaves misleading
+history behind.
+
 ## Open questions
 
 - The four map planes whose meaning is inferred rather than proven (graphics bank,
