@@ -1,0 +1,18 @@
+[mod]
+id = "longbows"
+name = "Longbow Rebalance"
+version = "1.0.0"
+author = "an example"
+description = """
+Archers were the one thing England was actually good at, and in the shipped
+skirmish tables they are an afterthought. This gives them numbers worth
+fielding, and makes the difficulty curve bite harder at the top end.
+"""
+
+# Nothing else is needed. Which files this mod replaces and which rules it
+# changes are discovered from what is in the directory - declaring them here
+# as well would be a second source of truth that goes stale.
+
+# requires = ["core >= 1.0"]     # must be enabled, and loads first
+# after    = ["some-other-mod"]  # loads after it, if it happens to be enabled
+# conflicts = ["shortbows"]      # refuses to load alongside it

@@ -6,9 +6,11 @@
 pub mod maps;
 pub mod palette;
 pub mod pl8;
+pub mod skr;
 
 pub use maps::{MapSet, MapSlot, Plane};
 pub use palette::Palette;
+pub use skr::{Army, ScenarioText, Side, Skr, Troop};
 pub use pl8::{DecodedFrame, FrameInfo, Pl8, Shape, Storage};
 
 use std::fmt;
@@ -42,6 +44,9 @@ pub enum Error {
     BadPaletteLength(usize),
     /// A map file's length is not a whole number of map slots.
     PartialMapSlot { len: usize, slot_len: usize },
+    /// A `.skr` file was not exactly 133,748 bytes. The format has no header and
+    /// no length fields, so the size *is* the validation.
+    BadSkrLength { len: usize, expected: usize },
 }
 
 impl fmt::Display for Error {
@@ -72,6 +77,9 @@ impl fmt::Display for Error {
             Error::BadPaletteLength(n) => write!(f, "palette is {n} bytes, expected 768"),
             Error::PartialMapSlot { len, slot_len } => {
                 write!(f, "map file is {len} bytes, not a whole number of {slot_len}-byte slots")
+            }
+            Error::BadSkrLength { len, expected } => {
+                write!(f, "skr file is {len} bytes, expected exactly {expected}")
             }
         }
     }

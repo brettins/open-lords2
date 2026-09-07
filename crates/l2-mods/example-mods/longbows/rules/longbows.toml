@@ -1,0 +1,40 @@
+# Everything this mod changes. Nothing that it does not.
+#
+# These tables are merged over the base ruleset, key by key, so the columns
+# and battles that are not mentioned here keep whatever the base game - or an
+# earlier mod - gave them.
+
+# --- more archers on the field ---------------------------------------------
+# One line per number changed. The other ten troop columns of each row, and
+# the other 33 battles, are untouched.
+
+[battle.three_bridges.attacker]
+archers = 120
+
+[battle.three_bridges.defender]
+archers = 90
+
+[battle.isthmus.attacker]
+archers = 140
+
+[battle.the_arena.attacker]
+archers = 100
+crossbows = 10          # crossbows lose what the longbows gained
+
+# --- a steeper difficulty curve --------------------------------------------
+# In the original these five percentages are instructions in the executable.
+# Here they are rules, so this is all it takes to change them.
+
+[difficulty.hard]
+scale_percent = 80      # was 92
+
+[difficulty.very_hard]
+scale_percent = 65      # was 84
+
+# --- removing something -----------------------------------------------------
+# "$delete" takes the keys out of the table it appears in, before the rest of
+# this document merges. Uncommenting this would drop the siege towers from
+# Three Bridges entirely rather than setting them to zero.
+#
+# [battle.three_bridges.attacker]
+# "$delete" = ["siege_towers"]

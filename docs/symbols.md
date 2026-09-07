@@ -197,7 +197,13 @@ These two are call instructions, not function entry points, which is why they ar
 The exe imports exactly two functions from `DPLAYX.dll`, by ordinals 1 and 2 — the whole
 network entry surface. It also references `sierranw.dll` and `snwvalid.dll` (Sierra's
 online matchmaking), but neither ships with the GOG release and neither appears in the
-import table, so that path is dead code.
+import table.
+
+**That path is reached, not dead.** An earlier revision here called it dead code. In fact
+the multiplayer menu reaches it and fails with a modal: *"SNWValid.dll not found in Windows
+system folder."* The DLL exists nowhere - neither system folder, nor the game directory.
+So the GOG release cannot do its original multiplayer at all, and any attempt to capture a
+live DirectPlay session has to get past that check first. See `docs/netcode.md`.
 
 ## The game logs its own startup
 
