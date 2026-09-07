@@ -1,0 +1,22 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node
+node_modules/
+
+# Extracted game assets and renders - NEVER commit these.
+# They are the publisher's copyrighted art. Like OpenXcom, this project
+# requires the user to own an original copy of the game and supplies
+# code only, never data.
+/data/
+/docs/shots/
+*.pl8
+*.256
+*.smk
+*.wav
+*.saf
+
+# Local scratch
+*.log
