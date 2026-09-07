@@ -1,6 +1,50 @@
 # Netcode
 
-**Status: design. Nothing in `crates/` implements any of this yet.**
+**Status: implemented in `crates/l2-net` — 181 tests, zero dependencies.**
+
+> ## Corrected by the implementation — read this before the design below
+>
+> Building this design found **ten places where it is wrong**. Where the document and the
+> crate disagree, **the crate is right**: it has 181 tests and the document has none. The
+> sections below are left as written; this is the errata.
+>
+> 1. **§4's per-tick hash silently skips ticks.** A peer does not simulate exactly one tick
+>    per packet — it runs `input_delay + 1` at session start and after every stall, and
+>    every packet in that burst repeats the same ack. Measured on a live two-peer session,
+>    acks ran **2, 5, 8, 11, 14: ticks 12 and 13 were never compared by anyone.** §6
+>    promises a hash every tick and §4 cannot deliver one. Fixed with a bounded list of
+>    unreported acks — one entry in steady state, the whole run during a burst.
+> 2. **§4's packet has no sender field.** Fine for a two-peer battle where the connection
+>    identifies the sender, but §5's kingdom layer relays through a host. Most packets are
+>    empty, so "player 3 sent nothing" and "player 4 sent nothing" are the same bytes.
+> 3. **§4 cannot express "I have not simulated anything yet."** Tick 0 is real and hash 0
+>    is real, so the first packet of every session has to lie.
+> 4. **§6's "hash subsystems separately in debug builds" is backwards.** Desyncs are
+>    reported by players, and players run release builds. Sections are now computed in
+>    every build; only *exchanging* them stays conditional.
+> 5. **§6's dump asks for state at both the last agreed and the diverged tick.** A rolling
+>    full-state snapshot is the per-tick whole-world cost §2 chose lockstep to avoid, and
+>    it is unnecessary — the dump carries seed, initial state and commands, so the agreed
+>    state is a replay away. Only the diverged state is unrecoverable.
+> 6. **§5 is not a second protocol.** It is the same session with `input_delay = 0`; the
+>    end-turn button *is* `next_packet()`. Host relaying is transport topology, invisible
+>    above the trait. Verified with five players through the identical code path.
+> 7. **§7's `Transport` trait needs `peers()`.** Otherwise the caller keeps its own
+>    connection list, it drifts from the transport's, and one player silently stops
+>    receiving turns.
+> 8. **D-2 misses an overflow hazard.** Rust's `+` panics in debug and wraps in release, so
+>    a debug peer and a release peer compute different numbers from identical inputs, and
+>    no single-profile test can see it. Fixed-point arithmetic saturates in both.
+> 9. **§7's "reliable, ordered delivery" is load-bearing, not a preference.** A test that
+>    drops packets shows the session never recovers and waits forever — correct behaviour,
+>    and the clearest argument that the transport cannot be a bare UDP socket.
+> 10. **A pacing hazard the design omits.** `advance()` stops when it runs out of
+>     *commands*, not time, so a caller looping until `Waiting` runs the battle as fast as
+>     the CPU allows — right for replay and catch-up, wrong for live play.
+>
+> Still unverified: no socket has been opened, so §7's transport analysis remains static;
+> hashing cost at 10 Hz is unmeasured; the default port is not checked against the IANA
+> registry.
 
 This document is written *before* the network layer exists, and deliberately so.
 Almost everything in it is a constraint on the **simulation**, not on the network

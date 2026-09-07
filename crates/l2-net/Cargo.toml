@@ -1,0 +1,42 @@
+[package]
+name = "l2-net"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Deterministic primitives, lockstep session core and transport seam for the lords2 engine"
+
+
+# Dependency-free, and here that is a correctness property rather than a
+# preference.
+#
+# `l2-formats`, `l2-mods` and `l2-sim` are dependency-free by policy
+# (see their Cargo.toml files and docs/modding.md). This crate has a
+# sharper reason on top of that policy: everything in `rng`, `hash`,
+# `fixed` and `canonical` defines a *value stream that may never change*.
+# A dependency is a value stream owned by somebody else, on somebody
+# else's release schedule.
+#
+# The two crates that were actually considered, and why neither is here:
+#
+# * `rand_pcg` / `rand_xoshiro` — the rust-random project's own
+#   reproducibility policy permits value-breaking changes in *minor*
+#   versions (quoted in docs/netcode.md D-3). A minor bump that changes
+#   the stream is a silent desync between a player who updated and one
+#   who did not, and between a replay and its recording. The algorithm
+#   is thirty lines; the guarantee is the expensive part, and it is the
+#   part they decline to give.
+#
+# * `twox-hash` — MIT, no build script, no mandatory dependencies, and
+#   it does document cross-platform output stability (docs/netcode.md
+#   §6). It is a genuinely good crate and adopting it would have been
+#   defensible. It is not here because the whole of XXH64 is 120 lines
+#   pinned by the reference implementation's own test vectors, so
+#   vendoring costs less than the dependency does: no version pin to
+#   police, no supply chain, and a `cargo build` that cannot break on a
+#   machine with no crates.io access. The cost of vendoring is that a
+#   bug in our transcription is ours to find — which is what the
+#   reference vectors in tests/hash.rs are for.
+#
+# Nothing here uses `std::fs`, `std::net`, `std::time` or `std::thread`.
+# That is deliberate: see the "What is not here" section of src/lib.rs.
+[dependencies]
