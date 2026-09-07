@@ -226,15 +226,15 @@
   <div class="gauges">
     <div class="gauge">
       <div class="k">PL8 sprite corpus</div>
-      <div class="v">268 / 291</div>
-      <div class="sub">self-verifying &middot; 18,937 frames &middot; 23 pinned failing</div>
-      <div class="bar"><i style="width:92%"></i></div>
+      <div class="v">291 / 291</div>
+      <div class="sub">self-verifying &middot; 21,344 frames &middot; nothing pinned</div>
+      <div class="bar"><i class="done" style="width:100%"></i></div>
     </div>
     <div class="gauge">
       <div class="k">Asset formats</div>
-      <div class="v">3 / 7</div>
-      <div class="sub">PL8, .256 palettes, L2_maps.dat &mdash; all implemented in Rust</div>
-      <div class="bar"><i style="width:43%"></i></div>
+      <div class="v">5 / 7</div>
+      <div class="sub">PL8, palettes, maps, .skr battles, .eng text</div>
+      <div class="bar"><i style="width:71%"></i></div>
     </div>
     <div class="gauge">
       <div class="k">Phases complete</div>
@@ -249,14 +249,15 @@
     <div class="gauge">
       <div class="k">In progress</div>
       <ul class="checks">
-        <li class="now"><span class="mark">&#9679;</span><span>The 23 files that miss the end-offset invariant</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span><code>.skr</code> battle scenarios and <code>.eng</code> text</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>Map plane semantics and the tile&rarr;lattice mapping</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Map plane 4 &mdash; the six 16-entry county lists</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span><code>.smk</code> video and <code>.wav</code> audio integration</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Adversarial audit of the docs against code and data</span></li>
       </ul>
     </div>
     <div class="gauge">
       <div class="k">Next</div>
       <ul class="checks">
+        <li class="todo"><span class="mark">&#9675;</span><span>Read live battle state through the proxy</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Name identified functions in the Ghidra database</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Integrate the mode-2 decoder once validated</span></li>
       </ul>
@@ -266,8 +267,8 @@
       <ul class="checks">
         <li class="done"><span class="mark">&#10003;</span><span>Index-0 transparency &mdash; fixed in both decoders</span></li>
         <li class="done"><span class="mark">&#10003;</span><span><code>00 00</code> infinite loop &mdash; now an error, with a test</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>23 files fail the end-offset invariant (pinned)</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span><code>Font_c2</code> declares RLE but is stored raw &mdash; sub-mode may override</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>All 23 pinned failures explained &mdash; list now empty</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>Font_c2</code> &mdash; wrong header byte, detected file-wide</span></li>
       </ul>
     </div>
   </div>
@@ -316,6 +317,18 @@
       <div class="v">80 total &middot; <em>44 used</em>, 36 empty</div></div>
     <div class="fact"><div class="k">Map plane 5 / plane 0</div>
       <div class="v">county id / flag bitfield</div></div>
+    <div class="fact"><div class="k">Injection verified from inside</div>
+      <div class="v">image base <em>00400000</em>, DirectDrawCreate S_OK</div></div>
+    <div class="fact"><div class="k">Driving the game by UI</div>
+      <div class="v"><em>blocked</em> &mdash; needs focus, screen reads black</div></div>
+    <div class="fact"><div class="k">The header family byte</div>
+      <div class="v"><em>vestigial</em> &mdash; the engine never reads it</div></div>
+    <div class="fact"><div class="k">Isometric lattice mapping</div>
+      <div class="v">row = x+y+1, col = (x&minus;y+64)&gt;&gt;1</div></div>
+    <div class="fact"><div class="k">Map tile banks</div>
+      <div class="v">resource table at 0x004DA050</div></div>
+    <div class="fact"><div class="k">Map plane 3</div>
+      <div class="v">dx + W&middot;dy within a tile block</div></div>
     <div class="fact"><div class="k">Map loader</div>
       <div class="v">0x00467770 &middot; lattice 0x0046797D</div></div>
   </div>
@@ -349,11 +362,14 @@
         <li class="done"><span class="mark">&#10003;</span><span>.256 palettes &mdash; 6-bit VGA, scaled to 8-bit</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>PL8 isometric family &mdash; all five per-frame shapes <span class="count">&mdash; 2502/2502 frames</span></span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Hit-test region maps recognised structurally, not by filename</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Every PL8 file decodes <span class="count">&mdash; 291/291, 21,344 frames</span></span></li>
         <li class="now"><span class="mark">&#9679;</span><span>PL8 raw sub-mode 2, frames shorter than width&times;height <span class="count">&mdash; 23 files</span></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Which palette pairs with which sprite set</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>L2_maps.dat container &mdash; 80 slots of 32,961 bytes, 44 used</span></li>
         <li class="now"><span class="mark">&#9679;</span><span>Map tile&rarr;lattice mapping <span class="count">&mdash; best fit only 72%</span></span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>CASTLES.DAT, .SAF, and the .ENG text files</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>.eng</code> text &mdash; three unrelated formats sharing an extension</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>.skr</code> battle scenarios &mdash; arithmetic closes exactly</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>CASTLES.DAT and .SAF</span></li>
       </ul>
     </div>
   </div>
@@ -385,7 +401,7 @@
         <li class="done"><span class="mark">&#10003;</span><span>Indexed 640&times;480 canvas expanded through the palette</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Compositing that honours index-0 transparency</span></li>
         <li class="done"><span class="mark">&#10003;</span><span><code>l2-view</code> &mdash; renders real game screens in our own window</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Render a map slot from <code>L2_maps.dat</code></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Campaign maps render &mdash; slot 0 is a recognisable England</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Scaling, and a proper asset browser</span></li>
       </ul>
     </div>
@@ -419,7 +435,8 @@
         <li class="done"><span class="mark">&#10003;</span><span>Located the PL8 draw routine, its clipper and blitters</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Cross-implementation harness &mdash; 21,344 frames, zero divergence</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Oracle corrected a real decoder bug the tests could not see</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span><code>ddraw.dll</code> proxy for code injection</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>ddraw.dll</code> proxy &mdash; our code runs inside the game</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Hard-link sandbox &mdash; instrumented copy, install untouched</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Read live battle state from <code>.data</code> globals</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Harness: same inputs to both engines, diff the outputs</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Symbol database shared between Ghidra and the Rust code</span></li>
@@ -478,8 +495,9 @@
         <tr><th>Tool</th><th>Does</th><th>Verified by</th></tr>
       </thead>
       <tbody>
+        <tr><td class="m">ddraw-proxy</td><td class="d">Injects our code into the original game</td><td class="d">Verified: attach, forward, S_OK</td></tr>
         <tr><td class="m">l2-formats</td><td class="d">Rust crate &mdash; PL8, palettes, map container</td><td class="d">23 tests; 180,224/180,224 tile invariant</td></tr>
-        <tr><td class="m">l2-view</td><td class="d">Windowed viewer &mdash; our renderer, real game data</td><td class="d">Renders 640&times;480 screens correctly</td></tr>
+        <tr><td class="m">l2-view</td><td class="d">Viewer &mdash; sprite sheets and campaign maps</td><td class="d">Slot 0 renders as England and Wales</td></tr>
         <tr><td class="m">pl8diff.ps1</td><td class="d">Differential harness: Node vs Rust decoders</td><td class="d">21,344 frames, zero divergence</td></tr>
         <tr><td class="m">ghidra_scripts/</td><td class="d">Headless binary analysis &mdash; find loaders, decompile to C</td><td class="d">Found the renderer at 0x0040A21A</td></tr>
         <tr><td class="m">pl8check.js</td><td class="d">Validates the sprite decoder across a whole directory</td><td class="d">236/291 files, 16,638 frames</td></tr>

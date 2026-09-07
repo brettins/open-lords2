@@ -1,0 +1,285 @@
+{
+  "_note": [
+    "Single source of truth for the names we have given addresses in Lords2.exe.",
+    "GOG Windows build, 21 Jul 2009, 1,031,680 bytes, ImageBase 0x400000, no ASLR.",
+    "",
+    "Adding a name is a one-line edit here. Then:",
+    "  node tools/symbols/symbols_md.js            regenerate the tables in docs/symbols.md",
+    "  node tools/symbols/symbols_md.js --check    fail if docs/symbols.md is out of date",
+    "  analyzeHeadless ... -postScript ApplySymbols.java   push the names into Ghidra",
+    "",
+    "confidence: 'verified' = read out of the binary or an exact invariant in the data.",
+    "            'inferred'  = consistent with everything measured, not proven.",
+    "'signature' is optional; when present it is applied to the function in Ghidra and",
+    "its parameter names are what docs/symbols.md shows beside the name.",
+    "'comment' becomes the Ghidra plate comment (functions) or EOL comment (globals)."
+  ],
+  "program": "Lords2.exe",
+  "imageBase": "0x00400000",
+
+  "sections": [
+    { "id": "sprite",   "title": "Sprite rendering" },
+    { "id": "text",     "title": "Text (`L2.eng`)" },
+    { "id": "fileio",   "title": "File I/O" },
+    { "id": "map",      "title": "Map loading and rendering" },
+    { "id": "units",    "title": "Units, merchants and counties" }
+  ],
+
+  "functions": [
+    {
+      "addr": "0x0040A21A", "name": "Pl8_DrawFrame", "section": "sprite", "confidence": "verified",
+      "signature": "undefined4 Pl8_DrawFrame(void * buf, int frame, int x, int y)",
+      "comment": "Reads the frame record at buf + frame*0x10 + 8, range-checks the data offset, calls the clipper, dispatches to a blitter. Independently confirms the 8-byte header / 16-byte record layout inferred from offset arithmetic. Also reads record bytes +12, +13 and +14."
+    },
+    {
+      "addr": "0x0040464C", "name": "Clip_Horizontal", "section": "sprite", "confidence": "verified",
+      "signature": "void Clip_Horizontal(int left, int right)",
+      "comment": "Computes horizontal clipping and sets g_clipState, g_clipVisibleWidth, g_clipSrcSkip, g_clipDstAdvance."
+    },
+    {
+      "addr": "0x0040477B", "name": "Clip_Vertical", "section": "sprite", "confidence": "verified",
+      "signature": "void Clip_Vertical(int top, int bottom)",
+      "comment": "Sets g_blitRowCount to height - rowsClippedAtTop, unconditionally. That is why the byte-0x0D load in Pl8_DrawFrame is dead."
+    },
+    {
+      "addr": "0x004B43B1", "name": "Blit_Unclipped", "section": "sprite", "confidence": "verified",
+      "signature": "void Blit_Unclipped(void * buf)",
+      "comment": "Copies g_spriteWidth bytes per row, skipping zero bytes; 4x unrolled. Loops g_blitRowCount rows - the clipped row count, not the frame height. Palette index 0 is transparent: this is an engine property, not something in the file format."
+    },
+    {
+      "addr": "0x004B446D", "name": "Blit_ClippedLeft", "section": "sprite", "confidence": "inferred",
+      "signature": "void Blit_ClippedLeft(void * buf)",
+      "comment": "Selected when g_clipState is 1."
+    },
+    {
+      "addr": "0x004B44D2", "name": "Blit_ClippedRight", "section": "sprite", "confidence": "verified",
+      "signature": "void Blit_ClippedRight(void * buf)",
+      "comment": "As Blit_Unclipped, but also advances the source pointer by the clipped-off remainder each row."
+    },
+    {
+      "addr": "0x00402A14", "name": "Glyph_Draw", "section": "sprite", "confidence": "verified",
+      "signature": "int Glyph_Draw(undefined * font, byte ch)",
+      "comment": "Text blitter. Shifts the destination down by frame-record byte 0x0D before clipping, reserving rows above the rectangle. The only consumer of that byte."
+    },
+
+    {
+      "addr": "0x0040187A", "name": "Eng_GroupBase", "section": "text", "confidence": "verified",
+      "signature": "int Eng_GroupBase(int group)",
+      "comment": "Returns the byte offset of an L2.eng group, read as the low 24 bits of the u32 at file offset 8 + group*4. See docs/formats/eng.md."
+    },
+    {
+      "addr": "0x00402D37", "name": "Eng_DrawString", "section": "text", "confidence": "verified",
+      "signature": "void Eng_DrawString(int group, int index, int x, int y, undefined * font, undefined4 colour)",
+      "comment": "Draws string `index` of L2.eng group `group`: Eng_GroupBase(group), then skip `index` NUL-terminated strings, then skip any bytes below 0x20. The (group, index) pairs in the callers are the best evidence available for what a subsystem is."
+    },
+
+    {
+      "addr": "0x004AF8D9", "name": "File_ReadChunk", "section": "fileio", "confidence": "verified",
+      "signature": "int File_ReadChunk(char * name, void * buf, uint len, long offset)",
+      "comment": "open / lseek / read / close. Retries twice after chdir on failure - almost certainly the original CD-path lookup."
+    },
+    {
+      "addr": "0x004AF502", "name": "Restore_WorkingDir", "section": "fileio", "confidence": "verified",
+      "signature": "void Restore_WorkingDir(void)",
+      "comment": "chdir back, reporting via getcwd on failure."
+    },
+    {
+      "addr": "0x004184C6", "name": "Armoury_LoadScreen", "section": "fileio", "confidence": "verified",
+      "signature": "void Armoury_LoadScreen(void)",
+      "comment": "A worked example of the load-then-draw path: selects a weapon sprite set from a global, reads it into a 250 KB buffer, then calls Pl8_DrawFrame."
+    },
+
+    {
+      "addr": "0x004676E0", "name": "Map_InitScenario", "section": "map", "confidence": "verified",
+      "signature": "void Map_InitScenario(void)",
+      "comment": "Whole map bring-up for scenario g_scenarioIndex: Map_LoadPlanes, Map_LoadLattice, Map_LoadTileSets, Map_PlaceDwellings, then Merchant_PickStartCounties."
+    },
+    {
+      "addr": "0x00467770", "name": "Map_LoadPlanes", "section": "map", "confidence": "verified",
+      "signature": "undefined4 Map_LoadPlanes(int slot)",
+      "comment": "Reads the six 64x64 byte planes of a map slot, at slot offsets +0x0000 ... +0x5000, in a 64x64 nest (y outer, x inner). Tracks the highest county id below 0x11 into g_countyCount, and dispatches plane 4 to Merchant_RouteAppend (castle tiles) or PlayerStart_Record (settlement tiles). See docs/formats/maps.md."
+    },
+    {
+      "addr": "0x0046797D", "name": "Map_LoadLattice", "section": "map", "confidence": "verified",
+      "signature": "void Map_LoadLattice(int slot)",
+      "comment": "Reads the trailing 65x129 layer - for(row < 0x81) for(col < 0x41) - storing byte + 0x0FFF0000 into a dword array of row stride 0x104."
+    },
+    {
+      "addr": "0x0046A037", "name": "Map_LoadTileSets", "section": "map", "confidence": "verified",
+      "signature": "void Map_LoadTileSets(uint scenario)",
+      "comment": "Selects MAPnn.PL8 from a 16-byte name table indexed by scenario >> 2, and one of four variants per file (the seasons) by scenario & 3."
+    },
+    {
+      "addr": "0x00467A36", "name": "Map_PlaceDwellings", "section": "map", "confidence": "verified",
+      "signature": "void Map_PlaceDwellings(void)",
+      "comment": "Sweeps the 64x64 grid and, for each tile with a county in 1..17 and plane0 bit 0x20 set, increments a per-county counter and rewrites the tile's graphic index to Roads frame 80, 84 or 104 - the three crop states. maps-layers.md 2.4 reads bit 0x20 as farmland on this evidence."
+    },
+    {
+      "addr": "0x0040526E", "name": "Map_RenderIso", "section": "map", "confidence": "verified",
+      "signature": "void Map_RenderIso(void)",
+      "comment": "Walks the 65x129 lattice. Cells below 0x0FFF0000 hold a runtime offset into the tile array; cells still holding 0x0FFF0000 + b are off-map surround, where b is the background tile graphic index from the file."
+    },
+    {
+      "addr": "0x004063C1", "name": "Map_DrawTile", "section": "map", "confidence": "verified",
+      "signature": "uint Map_DrawTile(undefined4 x, undefined4 y, int tileOffset)",
+      "comment": "Draws one map tile. bank = tile[+2] & 0x1c selects one of five sprite tables; tile[+3] is the frame index within it; tile[+1] is the flags and tile[+7] the county."
+    },
+    {
+      "addr": "0x00429800", "name": "Map_LatticeCellForTile", "section": "map", "confidence": "verified",
+      "signature": "void Map_LatticeCellForTile(int tileOffset)",
+      "comment": "Reverse lookup: scans the screen lattice for a given tile-array offset to find its screen cell."
+    },
+
+    {
+      "addr": "0x0046E1B0", "name": "Unit_Spawn", "section": "units", "confidence": "verified",
+      "signature": "undefined4 Unit_Spawn(byte type, int x, int y, byte owner)",
+      "comment": "Allocates the first free slot of the 150-entry unit array g_units (stride 0x1A4) and places it at tile (x, y). Requires the tile to hold no unit and to have plane-0 bits 0xFC clear. Writes the unit index into byte +5 of the runtime tile record and sets bit 0x01 of byte +2. Types seen: 1 = army, 2 = revolting peasants, 3 = merchant, 4 = transport."
+    },
+    {
+      "addr": "0x0046CFBD", "name": "Map_FindFreeRoadTileNear", "section": "units", "confidence": "verified",
+      "signature": "undefined4 Map_FindFreeRoadTileNear(int x, int y, int r)",
+      "comment": "Scans the (2r+1)^2 box around (x, y), clipped to the map, for a tile with no unit on it and plane-0 bit 0x01 (road) set. Returns 1 and leaves the tile in g_foundTileX / g_foundTileY."
+    },
+    {
+      "addr": "0x0046D130", "name": "Map_FindFreeOpenTileNear", "section": "units", "confidence": "verified",
+      "signature": "undefined4 Map_FindFreeOpenTileNear(int x, int y, int r)",
+      "comment": "As Map_FindFreeRoadTileNear but accepts plane0 & 0xFD == 0 - plain grass, with or without the county-boundary bit. The fallback when no free road tile exists."
+    },
+    {
+      "addr": "0x00428007", "name": "County_FindFreeRoadTile", "section": "units", "confidence": "verified",
+      "signature": "undefined4 County_FindFreeRoadTile(int county)",
+      "comment": "Map_FindFreeRoadTileNear around the county's anchor tile for r = 1, 2, 3."
+    },
+    {
+      "addr": "0x00428078", "name": "County_FindFreeOpenTile", "section": "units", "confidence": "verified",
+      "signature": "undefined4 County_FindFreeOpenTile(int county)",
+      "comment": "Map_FindFreeOpenTileNear around the county's anchor tile for r = 1, 2, 3."
+    },
+    {
+      "addr": "0x00429153", "name": "Merchant_RouteAppend", "section": "units", "confidence": "verified",
+      "signature": "void Merchant_RouteAppend(byte county, int route)",
+      "comment": "Appends `county` to the first free cell of row `route - 1` of g_merchantRoutes. Called from Map_LoadPlanes for every castle tile with a non-zero plane 4. See docs/formats/plane4.md."
+    },
+    {
+      "addr": "0x004290D0", "name": "Merchant_ResetRoutes", "section": "units", "confidence": "verified",
+      "signature": "void Merchant_ResetRoutes(void)",
+      "comment": "Zeroes the 6x16 g_merchantRoutes table and the 6-byte g_merchantStartCounty array, at the top of Map_LoadPlanes."
+    },
+    {
+      "addr": "0x004291B3", "name": "Merchant_PickStartCounties", "section": "units", "confidence": "verified",
+      "signature": "void Merchant_PickStartCounties(void)",
+      "comment": "For each of the six routes, picks a start county no earlier route has claimed: entry 0, then entries 2, 4, 6..., then 3, 5, 7... after running off the end; entry 1 is never tried and it gives up after five retries. Because g_merchantStartCounty starts zeroed, a row with no free candidate stores 0 - which stops Merchant_SpawnAll dead. On slot 15 (Rorschach) the dedup fails and two merchants share county 8."
+    },
+    {
+      "addr": "0x0042925E", "name": "Merchant_StartCountyTaken", "section": "units", "confidence": "verified",
+      "signature": "undefined4 Merchant_StartCountyTaken(uint county)",
+      "comment": "1 if `county` already appears in g_merchantStartCounty. Note it also returns 1 for county 0, because unset entries are 0."
+    },
+    {
+      "addr": "0x00427ED0", "name": "Merchant_SpawnAll", "section": "units", "confidence": "verified",
+      "signature": "void Merchant_SpawnAll(void)",
+      "comment": "Spawns one type-3 merchant, owner 6 (nobody), on a free road tile near each start county, stopping at the first zero start county. Sets the unit's route index (its name, L2.eng group 5) and route cursor, and counts them into g_merchantCount. 18 of the 44 shipped maps get all six merchants; one gets a single merchant."
+    },
+    {
+      "addr": "0x004280E9", "name": "Merchant_AdvanceAll", "section": "units", "confidence": "verified",
+      "signature": "void Merchant_AdvanceAll(void)",
+      "comment": "Turn phase 6, step 1. For every type-3 unit awaiting a destination, walks row (unitIndex - 1) of g_merchantRoutes cyclically from the unit's route cursor, skipping entries above g_countyCount, and sends the merchant to the next county on its route. It indexes the table by unit index, not by the unit's stored route number - which only works because the merchants occupy unit slots 1..6."
+    },
+    {
+      "addr": "0x0049BBE8", "name": "PlayerStart_Record", "section": "units", "confidence": "verified",
+      "signature": "void PlayerStart_Record(byte county, int slot)",
+      "comment": "Writes {county, slot} into g_playerStartTable[slot] and counts non-zero slots into g_playerStartCount. Called from Map_LoadPlanes for settlement tiles with a non-zero plane 4: the player start table. See docs/formats/maps-layers.md 5.1."
+    },
+    {
+      "addr": "0x0041B19D", "name": "UnitPanel_Draw", "section": "units", "confidence": "verified",
+      "signature": "void UnitPanel_Draw(void)",
+      "comment": "Draws the info panel for the selected unit. Its Eng_DrawString (group, index) pairs name every unit type: L2.eng group 31 strings 0 'Merchant.', 5 'Revolting peasants.', 2 'Supplies for', 15/16 army; descriptions 12/13/14/15/16. For a merchant it also draws group 5 indexed by the route number - the merchant's name."
+    },
+    {
+      "addr": "0x004296B5", "name": "Transport_Deliver", "section": "units", "confidence": "verified",
+      "signature": "void Transport_Deliver(uint unit, uint county)",
+      "comment": "If the type-4 unit's destination county matches, adds its cargo to that county's stores."
+    },
+    {
+      "addr": "0x004292AF", "name": "Transport_Spawn", "section": "units", "confidence": "inferred",
+      "signature": "void Transport_Spawn(int owner, int county, byte dest)",
+      "comment": "Creates a type-4 transport near `county` and deducts the cargo from that county's stores."
+    },
+    {
+      "addr": "0x004658C1", "name": "Unit_EnterOccupiedTile", "section": "units", "confidence": "inferred",
+      "signature": "undefined4 Unit_EnterOccupiedTile(void)",
+      "comment": "Resolves what happens when the moving unit enters a tile already holding one. Returns immediately for types 3 and 4, so merchants and transports are never attacked; an enemy transport is captured instead."
+    },
+    {
+      "addr": "0x0046873F", "name": "Unit_TrampleTile", "section": "units", "confidence": "inferred",
+      "signature": "void Unit_TrampleTile(int unit, int tileOffset)",
+      "comment": "Damages a crop tile an army passes through in a county it does not own. Begins `if (type != 3 && type != 4)` - merchants and transports do no damage."
+    },
+    {
+      "addr": "0x00468AE2", "name": "Unit_BurnDwelling", "section": "units", "confidence": "inferred",
+      "signature": "void Unit_BurnDwelling(int unit, int tileOffset)",
+      "comment": "Burns a dwelling an army passes through in a county it does not own, and cuts that county's population. Same type-3/type-4 exemption."
+    }
+  ],
+
+  "globals": [
+    { "addr": "0x005CDD20", "name": "g_clipState", "section": "sprite", "confidence": "verified",
+      "comment": "Clip state: 0 unclipped, 1 clipped left, 2 clipped right, 5 fully offscreen." },
+    { "addr": "0x00591514", "name": "g_clipVisibleWidth", "section": "sprite", "confidence": "verified",
+      "comment": "Visible (clipped) sprite width." },
+    { "addr": "0x0059150C", "name": "g_clipSrcSkip", "section": "sprite", "confidence": "verified",
+      "comment": "Source bytes skipped per row = width - visible width." },
+    { "addr": "0x005CD400", "name": "g_clipDstAdvance", "section": "sprite", "confidence": "verified",
+      "comment": "Destination advance per row = screen stride - visible width." },
+    { "addr": "0x005C9258", "name": "g_spriteWidth", "section": "sprite", "confidence": "verified",
+      "comment": "Current sprite width." },
+    { "addr": "0x005AEB70", "name": "g_spriteHeight", "section": "sprite", "confidence": "verified",
+      "comment": "Current sprite height." },
+    { "addr": "0x0058FE04", "name": "g_spriteDataOffset", "section": "sprite", "confidence": "verified",
+      "comment": "Current source data offset within the PL8 buffer." },
+    { "addr": "0x004EB274", "name": "g_screenStride", "section": "sprite", "confidence": "inferred",
+      "comment": "Screen stride, 640." },
+    { "addr": "0x005BB478", "name": "g_blitRowCount", "section": "sprite", "confidence": "verified",
+      "comment": "Blitter row counter. Not frame-record byte 0x0D - Clip_Vertical overwrites it before every blit, so the byte-0x0D load in Pl8_DrawFrame is dead." },
+    { "addr": "0x004EABD0", "name": "g_ddrawInterface", "section": "sprite", "confidence": "verified",
+      "comment": "A DirectDraw interface pointer. It was NULL at the crash at 0x004522B5, which happened when the window was deactivated during startup under DxWnd." },
+
+    { "addr": "0x004DA050", "name": "g_resourceTable", "section": "map", "confidence": "verified",
+      "comment": "The game's resource directory: {char name[16]; u32 size;} records. Entries 0-31 are the map tile sets, eight layers x four seasons; 32-63 the zoom-2 sets; 64+ the battle-map sets. See docs/formats/maps-layers.md 1.1." },
+    { "addr": "0x0053F034", "name": "g_scenarioIndex", "section": "map", "confidence": "verified",
+      "comment": "Current scenario. Its low 2 bits select the season variant of the tile set; the rest selects the map slot and the MAPnn.PL8 file." },
+    { "addr": "0x00522F90", "name": "g_tiles", "section": "map", "confidence": "verified",
+      "comment": "Runtime tile array, 4096 records x 8 bytes, index y*64 + x. +1 plane0 flags, +2 bank, +3 frame, +4 plane3, +5 unit index on this tile, +6 saved terrain frame, +7 county. See docs/formats/maps-layers.md 5.3." },
+    { "addr": "0x0055CEA0", "name": "g_screenLattice", "section": "map", "confidence": "verified",
+      "comment": "Runtime 129x65 dword screen lattice, row stride 0x104. Covered cells hold tileIndex*8; uncovered cells keep 0x0FFF0000 + backgroundFrame." },
+    { "addr": "0x0056D5DC", "name": "g_countyCount", "section": "map", "confidence": "verified",
+      "comment": "Highest county id on the loaded map, i.e. the county count. Set by Map_LoadPlanes as max(plane5) over ids below 0x11." },
+
+    { "addr": "0x0052F0B0", "name": "g_units", "section": "units", "confidence": "verified",
+      "comment": "Unit array, 150 records x 0x1A4 bytes, index 1..149 (0 unused). +0x00 owner, +0x08 type, +0x0A/+0x0B tile x/y, +0x0C tile offset, +0x10 county, +0x14..+0x17 destination x/y, +0x14F merchant route index, +0x150 'needs a destination', +0x151 destination county, +0x164 merchant route cursor, +0x16C.. cargo." },
+    { "addr": "0x0052AFE0", "name": "g_lastUnitIndex", "section": "units", "confidence": "verified",
+      "comment": "Index of the unit Unit_Spawn just allocated. Callers read it straight after the call to fill in the rest of the record." },
+    { "addr": "0x00569570", "name": "g_foundTileX", "section": "units", "confidence": "verified",
+      "comment": "X of the tile the last Map_FindFree*TileNear search settled on." },
+    { "addr": "0x00569578", "name": "g_foundTileY", "section": "units", "confidence": "verified",
+      "comment": "Y of the tile the last Map_FindFree*TileNear search settled on." },
+    { "addr": "0x00567970", "name": "g_merchantRoutes", "section": "units", "confidence": "verified",
+      "comment": "The six merchant trade routes: 6 rows x 16 county ids, built from plane 4 on castle tiles. Row n is the itinerary of the merchant named by L2.eng group 5 string n. See docs/formats/plane4.md." },
+    { "addr": "0x00569518", "name": "g_merchantStartCounty", "section": "units", "confidence": "verified",
+      "comment": "Six bytes: the county each merchant starts in, chosen by Merchant_PickStartCounties. A zero entry stops Merchant_SpawnAll." },
+    { "addr": "0x005530B4", "name": "g_merchantCount", "section": "units", "confidence": "verified",
+      "comment": "Number of merchants Merchant_SpawnAll actually placed, 1..6." },
+    { "addr": "0x00568DB0", "name": "g_playerStartTable", "section": "units", "confidence": "verified",
+      "comment": "Player start table, {county, slot} byte pairs indexed by the plane-4 value on a settlement tile. See docs/formats/maps-layers.md 5.1." },
+    { "addr": "0x0053E8A4", "name": "g_playerStartCount", "section": "units", "confidence": "verified",
+      "comment": "Number of non-zero player start slots on the loaded map: 5, 4 or 2 across the shipped maps." },
+    { "addr": "0x0053FA1C", "name": "g_county0_anchorX", "section": "units", "confidence": "inferred",
+      "comment": "X of county 0's anchor tile in the county record array (stride 0x300); County_FindFreeRoadTile searches around county*0x300 + this." },
+    { "addr": "0x0053FA1D", "name": "g_county0_anchorY", "section": "units", "confidence": "inferred",
+      "comment": "Y of county 0's anchor tile, as above." },
+    { "addr": "0x00569584", "name": "g_turnPhase", "section": "units", "confidence": "inferred",
+      "comment": "Turn state machine phase, switched on by FUN_0049a010. Phase 6 step 1 is Merchant_AdvanceAll." },
+    { "addr": "0x0053F658", "name": "g_turnPhaseStep", "section": "units", "confidence": "inferred",
+      "comment": "Step counter within the current turn phase; incremented on every FUN_0049a010 call." }
+  ]
+}
