@@ -51,6 +51,24 @@ verifier exists — decoder loops, bindings, batch extraction with round-trip ch
 That is where a confident, wrong result costs more than it saves. A cheap model is safe
 exactly where a verifier exists, and dangerous everywhere else.
 
+## Clean up processes you start
+
+**Any agent that launches a process must terminate it before reporting.** The game in
+particular takes over the entire screen, so leaving it running blocks the user from
+seeing their own desktop, and they have no way to tell whether the agent is still using
+it or simply abandoned it.
+
+```powershell
+Stop-Process -Name Lords2,l2-view,dxwnd -Force -ErrorAction SilentlyContinue
+```
+
+Run that at the end of the task whether it succeeded or not. Put the requirement in the
+brief — an agent told it may run the game will not infer that it should also close it.
+
+Prefer short focused sessions with the game over keeping it open across a long
+investigation, and if a task genuinely needs it open for a long stretch, say so in the
+report so the cost is visible.
+
 ## Prior art first
 
 Before commissioning a reverse-engineering task, spend five minutes searching for existing

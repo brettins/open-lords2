@@ -49,6 +49,34 @@ always weaker evidence than it sounded. The end-offset invariant, which is a
 property of the data rather than of our code, is the stronger check and it lives in
 the Rust corpus test.
 
+**D8 — The oracle is driven by code injection, not by synthetic input.**
+Phase 5 originally assumed we could drive the original game through its UI and compare
+what it did. That is blocked, and the block is empirical rather than theoretical:
+
+- Synthetic input needs window focus, and `SetForegroundWindow` fails silently from a
+  background process. Posting `WM_KEYDOWN` directly does not help — verified by minimising
+  a window so it could not be focused, then posting keys: no events arrived.
+- A fullscreen DirectDraw game generally captures as pure black, so the screen cannot be
+  read either.
+- Every process spawned to *attempt* input risks stealing focus from the game, which both
+  blocks input and, during startup, crashes it outright. An agent tasked with visual
+  comparison got the game to its start screen and then stalled; the game's own
+  `status.txt` ended `Minimizing. / Paused. / Not active.`
+
+What does work, and needs no focus at all: **reading the game's memory from another
+process** (`tools/probe.ps1`, verified against a live `Lords2.exe`), and **running our own
+code inside the process** via a `ddraw.dll` proxy. The game imports exactly one function
+from DirectDraw, so the proxy is small.
+
+This makes the proxy loader more important than it looked, not less: it sidesteps input
+entirely. Differential testing should call the original's functions and read its state
+directly rather than pantomiming a player.
+
+**Corollary on the read-only rule:** a proxy DLL has to sit beside the executable, but
+`CLAUDE.md` rule 2 says the installs are read-only. Resolve it with a sibling directory of
+**hard links** to the original files plus our own DLL — no copying, no space, and the
+install stays untouched.
+
 ## Corrections
 
 **C1 — "The PL8 format is fully decoded."** Claimed after one sprite rendered correctly.

@@ -1,0 +1,5 @@
+; Export DirectDrawCreate undecorated. On x86 __stdcall would otherwise be
+; exported as _DirectDrawCreate@12, which the game's import would not match.
+LIBRARY ddraw
+EXPORTS
+    DirectDrawCreate

@@ -226,14 +226,14 @@
   <div class="gauges">
     <div class="gauge">
       <div class="k">PL8 sprite corpus</div>
-      <div class="v">236 / 291</div>
-      <div class="sub">self-verifying &middot; 16,435 frames &middot; 23 pinned failing</div>
-      <div class="bar"><i style="width:81%"></i></div>
+      <div class="v">268 / 291</div>
+      <div class="sub">self-verifying &middot; 18,937 frames &middot; 23 pinned failing</div>
+      <div class="bar"><i style="width:92%"></i></div>
     </div>
     <div class="gauge">
       <div class="k">Asset formats</div>
       <div class="v">3 / 7</div>
-      <div class="sub">PL8 (partial), .256 palettes, L2_maps.dat container</div>
+      <div class="sub">PL8, .256 palettes, L2_maps.dat &mdash; all implemented in Rust</div>
       <div class="bar"><i style="width:43%"></i></div>
     </div>
     <div class="gauge">
@@ -249,8 +249,9 @@
     <div class="gauge">
       <div class="k">In progress</div>
       <ul class="checks">
-        <li class="now"><span class="mark">&#9679;</span><span>PL8 mode 2 &mdash; find the draw path used for terrain sprites</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>Locate where header byte 0 is actually read</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>The 23 files that miss the end-offset invariant</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span><code>.skr</code> battle scenarios and <code>.eng</code> text</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Map plane semantics and the tile&rarr;lattice mapping</span></li>
       </ul>
     </div>
     <div class="gauge">
@@ -301,8 +302,12 @@
       <div class="v"><em>palette index 0</em>, in every blitter</div></div>
     <div class="fact"><div class="k">Clip state set by</div>
       <div class="v">0x0040464C(left, right)</div></div>
-    <div class="fact"><div class="k">Storage mode 2</div>
-      <div class="v"><em>still unidentified</em> &mdash; 32 files</div></div>
+    <div class="fact"><div class="k">Family 2 is isometric map tiles</div>
+      <div class="v">diamond rows 2, 6, 10 &hellip; total h&sup2;</div></div>
+    <div class="fact"><div class="k">Encoding is per <em>frame</em>, not per file</div>
+      <div class="v">record byte 0x0C: 0 rect, 1&ndash;4 diamond</div></div>
+    <div class="fact"><div class="k">Header byte 1</div>
+      <div class="v">map zoom &mdash; 58&times;30 / 26&times;14 / 10&times;6</div></div>
     <div class="fact"><div class="k">Framebuffer stride</div>
       <div class="v">640 (0x280 &minus; width)</div></div>
     <div class="fact"><div class="k">Map slot stride</div>
@@ -342,7 +347,8 @@
       <ul class="checks">
         <li class="done"><span class="mark">&#10003;</span><span>PL8 header, frame table, RLE and raw storage <span class="count">&mdash; 236/291</span></span></li>
         <li class="done"><span class="mark">&#10003;</span><span>.256 palettes &mdash; 6-bit VGA, scaled to 8-bit</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>PL8 storage mode 2 <span class="count">&mdash; 32 files, encoding still unknown</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>PL8 isometric family &mdash; all five per-frame shapes <span class="count">&mdash; 2502/2502 frames</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Hit-test region maps recognised structurally, not by filename</span></li>
         <li class="now"><span class="mark">&#9679;</span><span>PL8 raw sub-mode 2, frames shorter than width&times;height <span class="count">&mdash; 23 files</span></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Which palette pairs with which sprite set</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>L2_maps.dat container &mdash; 80 slots of 32,961 bytes, 44 used</span></li>
@@ -472,10 +478,10 @@
         <tr><th>Tool</th><th>Does</th><th>Verified by</th></tr>
       </thead>
       <tbody>
+        <tr><td class="m">l2-formats</td><td class="d">Rust crate &mdash; PL8, palettes, map container</td><td class="d">23 tests; 180,224/180,224 tile invariant</td></tr>
         <tr><td class="m">l2-view</td><td class="d">Windowed viewer &mdash; our renderer, real game data</td><td class="d">Renders 640&times;480 screens correctly</td></tr>
         <tr><td class="m">pl8diff.ps1</td><td class="d">Differential harness: Node vs Rust decoders</td><td class="d">21,344 frames, zero divergence</td></tr>
         <tr><td class="m">ghidra_scripts/</td><td class="d">Headless binary analysis &mdash; find loaders, decompile to C</td><td class="d">Found the renderer at 0x0040A21A</td></tr>
-        <tr><td class="m">l2-formats</td><td class="d">Rust crate &mdash; PL8 and palette decoders</td><td class="d">236 files, 16,435 frames, 27 palettes</td></tr>
         <tr><td class="m">pl8check.js</td><td class="d">Validates the sprite decoder across a whole directory</td><td class="d">236/291 files, 16,638 frames</td></tr>
         <tr><td class="m">pl8dump.js</td><td class="d">Decodes one sprite frame to PNG</td><td class="d">Rendered a barded warhorse</td></tr>
         <tr><td class="m">xref.js</td><td class="d">Finds call sites of imported functions</td><td class="d">Located both DirectPlay calls</td></tr>
