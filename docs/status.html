@@ -120,6 +120,7 @@
     font-size: 26px; font-weight: 600; margin-top: 6px; letter-spacing: -.01em;
   }
   .gauge .sub { font-size: 12.5px; color: var(--ink-dim); margin-top: 2px; }
+  .gauge ul.checks { margin-top: 10px; }
   .bar { height: 5px; background: var(--rule-soft); border-radius: 99px; margin-top: 12px; overflow: hidden; }
   .bar > i { display: block; height: 100%; border-radius: 99px; background: var(--or); }
   .bar > i.done { background: var(--vert); }
@@ -217,7 +218,8 @@
     <span><b>Updated</b> 7 Sep 2026</span>
     <span><b>Repo</b> E:\dev\lords2</span>
     <span><b>Game</b> GOG build, 21 Jul 2009</span>
-    <span><b>Phase</b> 1 of 8</span>
+    <span><b>Phase</b> 2 of 8</span>
+    <span><b>Oracle</b> Ghidra 12.1.3, analysed</span>
   </div>
 
   <h2>Progress</h2>
@@ -225,7 +227,7 @@
     <div class="gauge">
       <div class="k">PL8 sprite corpus</div>
       <div class="v">236 / 291</div>
-      <div class="sub">files decoding &amp; self-verifying &middot; 16,638 frames</div>
+      <div class="sub">self-verifying &middot; 16,435 frames &middot; 23 pinned failing</div>
       <div class="bar"><i style="width:81%"></i></div>
     </div>
     <div class="gauge">
@@ -239,6 +241,33 @@
       <div class="v">1 / 8</div>
       <div class="sub">foundations done; formats underway</div>
       <div class="bar"><i style="width:12.5%"></i></div>
+    </div>
+  </div>
+
+  <h2>Working set</h2>
+  <div class="gauges">
+    <div class="gauge">
+      <div class="k">In progress</div>
+      <ul class="checks">
+        <li class="now"><span class="mark">&#9679;</span><span>PL8 mode 2 &mdash; find the draw path used for terrain sprites</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Locate where header byte 0 is actually read</span></li>
+      </ul>
+    </div>
+    <div class="gauge">
+      <div class="k">Next</div>
+      <ul class="checks">
+        <li class="todo"><span class="mark">&#9675;</span><span>Name identified functions in the Ghidra database</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Find the map loader to crack L2_maps.dat</span></li>
+      </ul>
+    </div>
+    <div class="gauge">
+      <div class="k">Open defects</div>
+      <ul class="checks">
+        <li class="done"><span class="mark">&#10003;</span><span>Index-0 transparency &mdash; fixed in both decoders</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>00 00</code> infinite loop &mdash; now an error, with a test</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>23 files fail the end-offset invariant (pinned)</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span><code>Font_c2</code> declares RLE but is stored raw &mdash; sub-mode may override</span></li>
+      </ul>
     </div>
   </div>
 
@@ -262,6 +291,22 @@
       <div class="v">768 B, 256&times;RGB, 6-bit VGA</div></div>
     <div class="fact"><div class="k">The game logs its own startup</div>
       <div class="v">status.txt, next to the exe</div></div>
+    <div class="fact"><div class="k">PL8 frame renderer</div>
+      <div class="v">0x0040A21A(buf, frame, x, y)</div></div>
+    <div class="fact"><div class="k">Blitters are <em>clip</em> variants, not modes</div>
+      <div class="v">none 0x004B43B1 &middot; left 0x004B446D &middot; right 0x004B44D2</div></div>
+    <div class="fact"><div class="k">Generic file reader</div>
+      <div class="v">0x004AF8D9(name, buf, len, off)</div></div>
+    <div class="fact"><div class="k">Transparent colour</div>
+      <div class="v"><em>palette index 0</em>, in every blitter</div></div>
+    <div class="fact"><div class="k">Clip state set by</div>
+      <div class="v">0x0040464C(left, right)</div></div>
+    <div class="fact"><div class="k">Storage mode 2</div>
+      <div class="v"><em>still unidentified</em> &mdash; 32 files</div></div>
+    <div class="fact"><div class="k">Framebuffer stride</div>
+      <div class="v">640 (0x280 &minus; width)</div></div>
+    <div class="fact"><div class="k">L2_maps.dat (Windows)</div>
+      <div class="v">DOS file + appended maps, same format</div></div>
   </div>
 
   <h2>Roadmap</h2>
@@ -291,7 +336,7 @@
       <ul class="checks">
         <li class="done"><span class="mark">&#10003;</span><span>PL8 header, frame table, RLE and raw storage <span class="count">&mdash; 236/291</span></span></li>
         <li class="done"><span class="mark">&#10003;</span><span>.256 palettes &mdash; 6-bit VGA, scaled to 8-bit</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>PL8 storage mode 2 <span class="count">&mdash; 32 files</span></span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>PL8 storage mode 2 <span class="count">&mdash; 32 files, encoding still unknown</span></span></li>
         <li class="now"><span class="mark">&#9679;</span><span>PL8 raw sub-mode 2, frames shorter than width&times;height <span class="count">&mdash; 23 files</span></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Which palette pairs with which sprite set</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>L2_MAPS.DAT &mdash; <code>mapl2.exe</code> ships as a reference implementation</span></li>
@@ -303,13 +348,14 @@
   <div class="phase">
     <div class="pnum">02</div>
     <div>
-      <div class="phead"><h3>Rust foundation</h3><span class="pill next">Next</span></div>
+      <div class="phead"><h3>Rust foundation</h3><span class="pill now">In progress</span></div>
       <p class="pnote">Where the project proper starts. Everything so far is Node prototyping, kept
         deliberately disposable until the formats were known.</p>
       <ul class="checks">
-        <li class="now"><span class="mark">&#9679;</span><span>rustup + MSVC toolchain</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span><code>l2-formats</code> crate &mdash; port the PL8 and palette decoders</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Corpus validation becomes the crate's test suite</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>rustup 1.98.1 + MSVC toolchain</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>l2-formats</code> crate &mdash; PL8 and palette decoders ported</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Corpus validation is the crate&rsquo;s test suite &mdash; 236 files, 27 palettes</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>7 unit tests that run without a game install</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Asset extraction CLI &mdash; sprites to PNG, in bulk</span></li>
       </ul>
     </div>
@@ -349,11 +395,15 @@
   <div class="phase">
     <div class="pnum">05</div>
     <div>
-      <div class="phead"><h3>Oracle and differential testing</h3><span class="pill todo">Planned</span></div>
+      <div class="phead"><h3>Oracle and differential testing</h3><span class="pill now">Started early</span></div>
       <p class="pnote">Turns the original binary into a test fixture. This is what makes delegating bulk
         reimplementation safe &mdash; a wrong answer gets caught by the original, not by a human reading
         decompiler output.</p>
       <ul class="checks">
+        <li class="done"><span class="mark">&#10003;</span><span>Ghidra 12.1.3 + headless analysis pipeline</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Located the PL8 draw routine, its clipper and blitters</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Cross-implementation harness &mdash; 21,344 frames, zero divergence</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Oracle corrected a real decoder bug the tests could not see</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span><code>ddraw.dll</code> proxy for code injection</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Read live battle state from <code>.data</code> globals</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Harness: same inputs to both engines, diff the outputs</span></li>
@@ -413,6 +463,9 @@
         <tr><th>Tool</th><th>Does</th><th>Verified by</th></tr>
       </thead>
       <tbody>
+        <tr><td class="m">pl8diff.ps1</td><td class="d">Differential harness: Node vs Rust decoders</td><td class="d">21,344 frames, zero divergence</td></tr>
+        <tr><td class="m">ghidra_scripts/</td><td class="d">Headless binary analysis &mdash; find loaders, decompile to C</td><td class="d">Found the renderer at 0x0040A21A</td></tr>
+        <tr><td class="m">l2-formats</td><td class="d">Rust crate &mdash; PL8 and palette decoders</td><td class="d">236 files, 16,435 frames, 27 palettes</td></tr>
         <tr><td class="m">pl8check.js</td><td class="d">Validates the sprite decoder across a whole directory</td><td class="d">236/291 files, 16,638 frames</td></tr>
         <tr><td class="m">pl8dump.js</td><td class="d">Decodes one sprite frame to PNG</td><td class="d">Rendered a barded warhorse</td></tr>
         <tr><td class="m">xref.js</td><td class="d">Finds call sites of imported functions</td><td class="d">Located both DirectPlay calls</td></tr>
@@ -427,7 +480,7 @@
 
   <div class="note">
     <b>How this page stays current.</b> It is rewritten whenever a phase changes state, a verified count
-    moves, or a roadmap item is added or dropped &mdash; not on a clock. The roadmap below phase 2 is an
+    moves, a defect is found or closed, or a roadmap item is added or dropped &mdash; not on a clock. The roadmap below phase 2 is an
     assumption and will be wrong in places; that is expected, and revisions get made here rather than
     argued for. <b>Windowed mode is not on it</b>: the original only needs to be observable, and our own
     renderer brings its own window.

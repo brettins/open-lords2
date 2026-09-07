@@ -1,7 +1,11 @@
 # PL8 sprite format (Lords of the Realm II)
 
-Status: **236 / 291 files verified** (16,638 frames) by round-trip offset checking.
-Two storage variants remain unidentified (see Open questions).
+Status: **236 / 291 files verified** (16,435 frames) by round-trip offset checking,
+and byte-identical between two independent decoders across all 21,344 frames in
+the corpus. Two storage variants remain unidentified (see Open questions).
+
+(`tools/pl8check.js` reports 16,638; that tally includes frames it walked inside
+files that then failed, so it is not the count of *verified* frames.)
 
 Verified against the GOG Windows release, `F:\games\Lords of the Realm II`.
 
@@ -16,6 +20,45 @@ human judgement:
 
 `tools/pl8check.js <dir>` runs both checks over a whole directory. Any decoder
 change can be re-validated against the full corpus in one command.
+
+### Cross-implementation differential test
+
+Offset checking proves a decoder consumed the right *number* of bytes. It says
+nothing about the pixels those bytes became. So two independent decoders exist -
+`tools/pl8digest.js` (Node) and `crates/l2-formats/examples/pl8digest.rs` (Rust)
+- and `tools/pl8diff.ps1` requires them to produce identical output:
+
+```powershell
+.\tools\pl8diff.ps1 -Dir 'F:\games\Lords of the Realm II'
+```
+
+Each emits one line per frame, files sorted by name:
+
+    <name> hdr mode=<m> sub=<s> frames=<n> verdict=<ok|err:...>
+    <name> <frameIndex> <w>x<h> <fnv1a64 hex | err:...>
+
+The hash covers the palette indices **and** the per-pixel opaque/transparent
+mask, since transparency is part of the decode: a decoder that got coverage
+right and colour wrong would still diverge. FNV-1a 64 is hand-rolled in both
+languages so that `l2-formats` stays dependency-free.
+
+Frames are digested even for files that fail the end-offset invariant, because
+most of those decode every frame correctly and disagree only about trailing
+bytes. The `verdict` field compares the two implementations' *failure* modes
+too, so they must also agree on which files break and exactly how.
+
+Current result: **291 files, 21,344 frames, zero divergent lines.** 18,717
+frames decode and hash identically; the remaining 2,627 are refused by both
+with the same error token (2,502 storage mode 2, 108 row overrun in `Font_c2`,
+17 running past EOF).
+
+**What this establishes, and what it does not.** Agreement rules out an
+implementation bug in either decoder: two separately written readings of the
+spec are unlikely to fail identically. It says nothing about whether the spec
+is right. A misunderstanding shared by both - the sub-mode byte being ignored,
+say - would agree just as cleanly. Only the self-verifying offset invariant
+above, and eventually comparison against the game's own rendering, speak to
+correctness.
 
 ## Header (8 bytes)
 
@@ -79,6 +122,9 @@ palette; `Lords2.256` is not.
 - **Sub-mode 2 with storage 0** (23 files, e.g. `Base2a`). Frame data is *smaller*
   than `width * height` - `Base2a` frame 0 is 24 bytes short - so byte 0x01
   changes the raw layout rather than being a pure flag.
+- **Sub-mode 1 with storage 1** (`Font_c2`, the only such file). Its frames are
+  raw, not RLE - see "Font_c2 is stored raw despite declaring RLE" below. So
+  byte 0x01 can override byte 0x00, and neither byte alone names the encoding.
 - Header fields at 0x04, 0x06, 0x07 and the frame record's trailing 8 bytes.
 - Which palette pairs with which sprite file (currently manual).
 
@@ -86,6 +132,8 @@ palette; `Lords2.256` is not.
 
 - `tools/pl8dump.js <file.pl8> <palette.256> <frame> <out.png>` - decode one frame to PNG
 - `tools/pl8check.js <dir>` - validate the decoder across a whole directory
+- `tools/pl8digest.js <dir>` - per-frame digest stream (Node half of the differential test)
+- `tools/pl8diff.ps1` - assert the Node and Rust decoders agree on every frame
 
 ---
 
@@ -148,6 +196,23 @@ The recurring 24 - and 840 being an exact multiple of it - suggests a fixed
 trailing block appended after the pixel data in some files, rather than a
 different pixel encoding. Undershoots are more likely a genuinely different
 encoding, and the font files may be a format of their own.
+
+### `Font_c2` is stored raw despite declaring RLE
+
+Turned up while building the differential harness, which reports the exact
+pixel counts of every failing row. `Font_c2` is the corpus's only `1:1` file
+(storage 1, sub-mode 1), and **all 108 of its frames occupy exactly `width *
+height` bytes** - the signature of raw storage. The "runs" the RLE reader sees
+are palette indices being misread as opcodes; the recurring `13` in its row
+overruns is just the byte `0x0d` appearing first in most glyphs.
+
+So header byte 0 is not the whole storage discriminator: sub-mode can override
+it. That is one file, though, and the other 22 failures do not fall out of the
+same rule (`Fntl2_14` and `Font_10` are `0:1` and only 61/108 and 101/108 of
+their frames fit `width * height`). Not enough to change the decoder on - the
+route remains reading the game's own loader. `Font_c2` stays in `KNOWN_FAILING`
+until then, and the corpus test will announce it as "now passing" if a future
+change fixes it.
 
 ### Correction worth recording
 

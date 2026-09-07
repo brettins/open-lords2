@@ -26,6 +26,9 @@ pub enum Error {
     /// A frame's data did not end exactly where the next frame begins.
     /// This is the format's self-verifying property; see docs/formats/pl8.md.
     FrameSizeMismatch { frame: usize, ended: usize, expected: usize },
+    /// An RLE skip run of length zero, which would advance no pixels and
+    /// loop forever. No shipped file contains one; a malformed file could.
+    ZeroLengthRun { frame: usize, row: u16 },
     /// Frame index past the end of the frame table.
     FrameOutOfRange { index: usize, count: usize },
     /// A palette file was not exactly 768 bytes.
@@ -44,6 +47,9 @@ impl fmt::Display for Error {
             }
             Error::FrameSizeMismatch { frame, ended, expected } => {
                 write!(f, "frame {frame} ended at {ended:#x}, expected {expected:#x}")
+            }
+            Error::ZeroLengthRun { frame, row } => {
+                write!(f, "frame {frame} row {row}: zero-length skip run")
             }
             Error::FrameOutOfRange { index, count } => {
                 write!(f, "frame {index} requested, file has {count}")

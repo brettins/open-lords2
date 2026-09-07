@@ -30,8 +30,8 @@ const b = fs.readFileSync(file);
 const pal = fs.readFileSync(palFile);
 const frameIdx = parseInt(frameArg || '0', 10);
 
-const version = b.readUInt16LE(0), frames = b.readUInt16LE(2);
-console.log(`${file}: version=${version} frames=${frames} u4=${b.readUInt16LE(4)} u6=0x${b.readUInt16LE(6).toString(16)}`);
+const storage = b[0], subMode = b[1], frames = b.readUInt16LE(2);
+console.log(`${file}: storage=${storage}:${subMode} frames=${frames} u4=${b.readUInt16LE(4)} b6=${b[6]} b7=${b[7]}`);
 if (frameIdx >= frames) { console.error(`frame ${frameIdx} out of range`); process.exit(1); }
 
 const rec = 8 + frameIdx * 16;
@@ -40,19 +40,41 @@ const extra = b.slice(rec + 8, rec + 16).toString('hex');
 console.log(`frame ${frameIdx}: ${w}x${h} dataOffset=0x${off.toString(16)} trailing=${extra}`);
 console.log(`expected first offset = 8 + ${frames}*16 = ${8 + frames * 16} (0x${(8 + frames * 16).toString(16)})`);
 
-// RLE decode into palette indices; 255 sentinel = transparent
+// Decode to palette indices. Palette index 0 is transparent: the game blits
+// only non-zero bytes (verified in the original at 0x004B43B1).
 const idx = new Uint8Array(w * h).fill(0);
 const alpha = new Uint8Array(w * h).fill(0);
 let p = off;
-for (let y = 0; y < h; y++) {
-  let x = 0;
-  while (x < w) {
-    if (p >= b.length) { console.error(`ran off end at row ${y}`); y = h; break; }
-    const n = b[p++];
-    if (n === 0) { x += b[p++]; }
-    else { for (let i = 0; i < n; i++) { idx[y * w + x] = b[p++]; alpha[y * w + x] = 255; x++; } }
+if (storage === 0) {
+  for (let i = 0; i < w * h; i++) {
+    const v = b[off + i];
+    idx[i] = v;
+    alpha[i] = v !== 0 ? 255 : 0;
   }
-  if (x !== w) console.error(`row ${y} width mismatch: got ${x} want ${w}`);
+  p = off + w * h;
+} else if (storage === 1) {
+  for (let y = 0; y < h; y++) {
+    let x = 0;
+    while (x < w) {
+      if (p >= b.length) { console.error(`ran off end at row ${y}`); y = h; break; }
+      const n = b[p++];
+      if (n === 0) {
+        const skip = b[p++];
+        if (skip === 0) { console.error(`row ${y}: zero-length skip run`); break; }
+        x += skip;
+      } else {
+        for (let i = 0; i < n; i++) {
+          const v = b[p++];
+          if (x < w) { idx[y * w + x] = v; alpha[y * w + x] = v !== 0 ? 255 : 0; }
+          x++;
+        }
+      }
+    }
+    if (x !== w) console.error(`row ${y} width mismatch: got ${x} want ${w}`);
+  }
+} else {
+  console.error(`storage mode ${storage} is not decodable yet`);
+  process.exit(1);
 }
 console.log(`decoded ${p - off} bytes; next frame starts at 0x${(frames > frameIdx + 1 ? b.readUInt32LE(rec + 16 + 4) : p).toString(16)}`);
 
