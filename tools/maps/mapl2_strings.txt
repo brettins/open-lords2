@@ -1,0 +1,1066 @@
+00004d  !This program cannot be run in DOS mode.
+000178  .text
+00019f  `.rdata
+0001c7  @.data
+0001f0  .idata
+000218  .rsrc
+00023f  @.reloc
+001512  _^[]
+001578  _^[]
+0015df  _^[]
+00165f  _^[]
+0016be  _^[]
+001700  _^[]
+001750  _^[]
+0017a0  _^[]
+0017cb  _^[]
+0017fc  _^[]
+00183f  _^[]
+001867  _^[]
+00189e  _^[]
+0018f9  _^[]
+001966  _^[]
+001993  _^[]
+0019da  _^[]
+001a2b  _^[]
+001a9e  _^[]
+001af4  =|;L
+001b19  =|;L
+001b21  _^[]
+001b73  =|;L
+001b7b  _^[]
+001bcd  =|;L
+001bd5  _^[]
+001c20  =|;L
+001c41  =|;L
+001c49  _^[]
+001c9f  =|;L
+001cf7  =|;L
+001d03  _^[]
+001d59  =|;L
+001d61  _^[]
+001db7  =|;L
+001dbf  _^[]
+002137  =|;L
+002143  _^[]
+0021dc  _^[]
+00226f  _^[]
+00252a  =|;L
+002536  _^[]
+0025d3  _^[]
+00266a  _^[]
+0026b1  _^[]
+002701  _^[]
+002cb3  _^[]
+0039d9  _^[]
+005173  _^[]
+00517b  QSVW
+0084dd  hP+C
+00853f  hl+C
+008915  h0,C
+00895b  hP,C
+00897a  tjlj
+0089a3  hx,C
+008b1a  h,-C
+008b30  hD-C
+008b76  hx-C
+008d06  h(.C
+008d3f  hP.C
+008d54  h|.C
+008da3  tjlj
+0091f2  t"h@
+009ed8  h`tL
+009f10  h`tL
+009f72  hP2C
+00b8e1  hP2C
+00baed  =t.M
+00bb0b  =x.M
+00de14  =\3L
+00dea0  =\3L
+00e19a  =D3L
+00e36a  =`3L
+00e392  =`3L
+00e3b9  =`3L
+00e3e1  =`3L
+00e48d  =`3L
+00effc  =\3L
+00f0b0  =D3L
+00f17e  =D3L
+00f609  =D3L
+00fc3e  =$7I
+00fc79  =$7I
+00fe4f  =$7I
+00fee1  =$7I
+010222  =d7I
+01023a  =d7I
+011135  =<3L
+011157  =@3L
+0111fd  =X3L
+011222  =d3L
+011247  =\;L
+0118d1  h`M/
+011ca9  h`M/
+011d52  U ;U
+011e4c  U ;U
+0133b7  h@<L
+0133e6  h@<L
+013412  h@<L
+01344a  h@<L
+013460  h@<L
+01347e  h@<L
+0134f8  h ;C
+013517  h$;C
+01356b  h(;C
+01357c  h,;C
+013598  h4;C
+0135a9  h8;C
+0135c2  h@;C
+0135d3  hD;C
+0135ec  hL;C
+01360a  hP;C
+01361e  h\;C
+013644  h 8I
+013656  #jdh 
+01366d  hh;C
+0140bf  XjLj
+01471b  =l:C
+014729  =l:C
+0147a6  =l:C
+0147e1  =l:C
+014b03  h`M/
+016a4e  h,<C
+016ab9  h<<C
+016aec  h`<C
+016cb2  =h:C
+017d92  hl@C
+017df0  h$AC
+017e0c  hdAC
+017e7c  hLBC
+017eb4  jRjR
+019203  h$CC
+019223  h,CC
+019242  h@9I
+019247  h8CC
+01936a  h@CC
+019955  =8zH
+019970  Pj8jI
+019993  =``F
+0199a5  =``F
+019a06  =8zH
+019a21  Rj8jI
+019a44  =``F
+019a56  =``F
+019ab8  =8zH
+019ad3  Qj8jI
+019af6  =``F
+019b08  =``F
+019b6a  =8zH
+019b85  Pj8jI
+019ba8  =``F
+019bba  =``F
+019c1b  =8zH
+019c36  Rj8jI
+019c59  =``F
+019c6b  =``F
+019ccd  =8zH
+019ce8  Qj8jI
+019d0b  =``F
+019d1d  =``F
+019d7f  =8zH
+019d9a  Pj8jI
+019dbd  =``F
+019dcf  =``F
+019e30  =8zH
+019e4b  Rj8jI
+019e6e  =``F
+019e80  =``F
+019ee2  =8zH
+019efd  Qj8jI
+019f20  =``F
+019f32  =``F
+019f94  =8zH
+019faf  Pj8jI
+019fd2  =``F
+019fe4  =``F
+01a045  =``F
+01a0dd  =``F
+01a147  =``F
+01a1b1  =``F
+01a21b  =``F
+01a2a7  hLCC
+01a2cc  RhTCC
+01a2fa  RhXCC
+01a364  Qh\CC
+01a44c  =``F
+01a4b7  =``F
+01a522  =``F
+01a58d  =``F
+01a5f8  =``F
+01a8c0  h`CC
+01ac8a  =8zH
+01aca8  =8zH
+01acc6  =8zH
+01ace4  =8zH
+01ad02  =8zH
+01af0b  =8zH
+01af29  =8zH
+01af47  =8zH
+01af65  =8zH
+01af83  =8zH
+01afa1  =8zH
+01afbc  =8zH
+01afd7  =8zH
+01aff2  =8zH
+01b00d  =8zH
+01b096  jRjR
+01b0ae  jRjR
+01b175  hdCC
+01c856  =\3L
+01c9b6  =\3L
+01d363  u!h<
+01d4a8  t&hx
+01d64b   _^[
+01d799  u!h<
+01d8ae  t&hx
+01d8e4  u!h@
+01db73  t!hl
+01dbc7  t!hP
+01dcc3  QSVW
+01dcda  u!h<
+01dd66  u!h@
+01dee2  t!h@
+01df5a  t!h 
+01e0ec  u!h<
+01e123  u!h@
+01e1d6  t!h 
+01e243  QSVW
+01e2f3  QSVW
+01ea8d  H0_^[
+01eb93  A,+B,
+01eba5  J0+H0
+01ed4c   Qh|
+01edb7   QhT
+01ee14   Qh 
+01ee85  \SVW
+01efa5  4SVW
+01f023  QSVW
+01f092  Q,Rh<
+01f0ba  Q0Rh
+01f108  t&:a
+01f60e  =,rC
+01f9ba  hlJB
+01ff1a  uBhX
+01ff34  t hL
+020a4e  h$)C
+020a53  h (C
+020b37  #h  
+021a05  0SVW
+021ee7  =,rC
+021f25  =,rC
+0226b3  =,rC
+022b2b  jUh<
+022b9d  =tGjah<
+022c7f  juhH
+0231e1  jWhT
+023728  AtsC
+023d77  SVWUj
+023d8c  ]_^[
+023de0  t.;t$$t(
+023e64  VC20XC00U
+023e72  SVWU
+023eac  tEVU
+023ebe  t3x<
+023f21  ]_^[
+0244c5  0SVW
+0245c5  ,SVW
+0245dc  jZh<
+024606  j[h<
+024b34  u]hX
+024be7  tzVS
+024c09  GIt%
+024c2d  t/Ku
+025180  }!hx
+0253b4  u!hP
+026221  jvh`
+026737  j~ht
+026fd3  QSVW
+0276d1  hj=h
+027874  |jyh
+028195  ,SVW
+028981  t[hO
+028d53  j0h 
+028dcd  _^[]
+028e62  ^_[3
+029c36  }!hH
+02e654  Client
+02e65c  Ignore
+02e668  Normal
+02e670  Free
+02e678  Error: memory allocation: bad memory block type.
+02e6ac  Invalid allocation size: %u bytes.
+02e6d4  Client hook allocation failure.
+02e6f8  Client hook allocation failure at file %hs line %d.
+02e730  dbgheap.c
+02e73c  _CrtCheckMemory()
+02e750  _pFirstBlock == pOldBlock
+02e76c  _pLastBlock == pOldBlock
+02e788  fRealloc || (!fRealloc && pNewBlock == pOldBlock)
+02e7bc  _BLOCK_TYPE(pOldBlock->nBlockUse)==_BLOCK_TYPE(nBlockUse)
+02e7f8  pOldBlock->nLine == IGNORE_LINE && pOldBlock->lRequest == IGNORE_REQ
+02e840  _CrtIsValidHeapPointer(pUserData)
+02e864  Allocation too large or negative: %u bytes.
+02e894  Client hook re-allocation failure.
+02e8b8  Client hook re-allocation failure at file %hs line %d.
+02e8f0  _pFirstBlock == pHead
+02e908  _pLastBlock == pHead
+02e920  pHead->nBlockUse == nBlockUse
+02e940  pHead->nLine == IGNORE_LINE && pHead->lRequest == IGNORE_REQ
+02e980  DAMAGE: after %hs block (#%d) at 0x%08X.
+02e9ac  DAMAGE: before %hs block (#%d) at 0x%08X.
+02e9d8  _BLOCK_TYPE_IS_VALID(pHead->nBlockUse)
+02ea00  Client hook free failure.
+02ea1c  memory check error at 0x%08X = 0x%02X, should be 0x%02X.
+02ea58  %hs located at 0x%08X is %u bytes long.
+02ea84  %hs allocated at file %hs(%d).
+02eaa4  DAMAGE: on top of Free block at 0x%08X.
+02ead0  DAMAGED
+02ead8  _heapchk fails with unknown return value!
+02eb04  _heapchk fails with _HEAPBADPTR.
+02eb28  _heapchk fails with _HEAPBADEND.
+02eb4c  _heapchk fails with _HEAPBADNODE.
+02eb70  _heapchk fails with _HEAPBADBEGIN.
+02eb94  Bad memory block found at 0x%08X.
+02ebb8  _CrtMemCheckPoint: NULL state pointer.
+02ebe0  _CrtMemDifference: NULL state pointer.
+02ec08  Object dump complete.
+02ec20  crt block at 0x%08X, subtype %x, %u bytes long.
+02ec54  normal block at 0x%08X, %u bytes long.
+02ec7c  client block at 0x%08X, subtype %x, %u bytes long.
+02ecb0  {%ld} 
+02ecb8  %hs(%d) : 
+02ecc4  #File Error#(%d) : 
+02ecd8  Dumping objects ->
+02ecec   Data: <%s> %s
+02ecfc  %.2X 
+02ed04  Detected memory leaks!
+02ed1c  Total allocations: %ld bytes.
+02ed3c  Largest number used: %ld bytes.
+02ed60  %ld bytes in %ld %hs Blocks.
+02ed8c  Assertion Failed
+02eda0  Error
+02eda8  Warning
+02edb0  %s(%d) : %s
+02edc4  Assertion failed!
+02edd8  Assertion failed: 
+02edec  _CrtDbgReport: String too long or IO Error
+02ee18  Second Chance Assertion Failed: File %s, Line %d
+02ee4c  wsprintfA
+02ee58  user32.dll
+02ee64  Microsoft Visual C++ Debug Library
+02ee88  Debug %s!
+02ee93  Program: %s%s%s%s%s%s%s%s%s%s%s
+02eeb4  (Press Retry to debug the application)
+02eedd  Module: 
+02eee9  File: 
+02eef1  Line: 
+02eefc  Expression: 
+02ef12  For information on how your program can cause an assertion
+02ef4d  failure, see the Visual C++ documentation on asserts.
+02ef88  <program name unknown>
+02efa0  dbgrpt.c
+02efac  szUserMessage != NULL
+02efc4  format != NULL
+02efd4  sprintf.c
+02efe0  string != NULL
+02eff0  SunMonTueWedThuFriSat
+02f008  JanFebMarAprMayJunJulAugSepOctNovDec
+02f030  tzset.c
+02f03c  stdenvp.c
+02f048  stdargv.c
+02f054  aw_env.c
+02f060  ioinit.c
+02f06c  runtime error 
+02f080  TLOSS error
+02f090  SING error
+02f0a0  DOMAIN error
+02f0b0  R6028
+02f0b7  - unable to initialize heap
+02f0d8  R6027
+02f0df  - not enough space for lowio initialization
+02f110  R6026
+02f117  - not enough space for stdio initialization
+02f148  R6025
+02f14f  - pure virtual function call
+02f170  R6024
+02f177  - not enough space for _onexit/atexit table
+02f1a8  R6019
+02f1af  - unable to open console device
+02f1d4  R6018
+02f1db  - unexpected heap error
+02f1f8  R6017
+02f1ff  - unexpected multithread lock error
+02f228  R6016
+02f22f  - not enough space for thread data
+02f256  abnormal program termination
+02f278  R6009
+02f27f  - not enough space for environment
+02f2a4  R6008
+02f2ab  - not enough space for arguments
+02f2d0  R6002
+02f2d7  - floating point not loaded
+02f2f8  Microsoft Visual C++ Runtime Library
+02f320  Runtime Error!
+02f330  Program: 
+02f33c  vsprintf.c
+02f348  GetLastActivePopup
+02f35c  GetActiveWindow
+02f36c  MessageBoxA
+02f378  ("inconsistent IOB fields", stream->_ptr - stream->_base >= 0)
+02f3b8  _flsbuf.c
+02f3c4  str != NULL
+02f3f1   (8PX
+02f3f9  700WP
+02f409  `h````
+02f411  ppxxxx
+02f43c  (null)
+02f444  output.c
+02f450  ch != _T('\0')
+02f460  aw_str.c
+02f474  wcstombs.c
+02f480  pwcs != NULL
+02f490  _getbuf.c
+02f49c  _file.c
+02f4a4  wtombenv.c
+02f4b0  osfinfo.c
+02f4bc  aw_cmp.c
+02f4c8  cchCount1==0 && cchCount2==1 || cchCount1==1 && cchCount2==0
+02f508  setenv.c
+02f514  fclose.c
+02f520  _freebuf.c
+02f52c  stream != NULL
+02f53c  chsize.c
+02f548  size >= 0
+02f554  aw_map.c
+030550  ERR:DD Enable error level:
+03056c  ERR:DD Not setCooperative Level :
+030590  OK :DD SetCooperative Level.
+0305b0  ERR:DD SetMode failed err :
+0305cc  OK :DD Set resolution.
+0305e4  OK :DD Kept resolution.
+0305fc  OK :DD Released.
+030610  ERR:DD Clearing Fill failed no:
+030630  ERR:DD Clearing Fill failed no:
+030650  ERR:DD Clearing(W) Fill failed ddrval:
+030678  OK :DD Creating one Vram only.
+030698  ERR:DD CreateSurface failed2:
+0306b8  OK :DD can lock primary surface - but not going to
+0306ec  ERR:DD surface lock error:
+030708  ERR:DD Cant create(W) backbuffer1.
+03072c  OK :DD Surface created.
+030744  OK :DD Creating one Vram and one system surface.
+030778  ERR:DD CreateSurface failed3:
+030798  OK :DD can lock primary surface - but not going to
+0307cc  ERR:DD surface lock error:
+0307e8  ERR:DD Cant create(W) backbuffer1.
+03080c  ERR:DD Cant create clipper.
+030828  ERR:DD Cant set clipper window handle.
+030850  ERR:DD Cant attach clipper to front buffer.
+03087c  OK :DD Surfaces created and clipper attached.
+0308ac  ERR:DD ExtraSurface failed.
+0308c8  ERR:Palette create failed.
+031337  JCDBFNEOM>56789:;<=HI
+031356   !"#$%&'()*+,-./01234
+031390  eaVTQS
+031397  eXUWY\[
+0313a1  gg`]_dc
+0313b0  R[^bff
+031474  *.bmp
+031484  *.sg2
+031494  *.skr
+0314b4  c:\files\pl8
+0314c8  c:\files\pl8
+0314dc  c:\files\wav
+0314f0  c:\files\smk_high
+031504  c:\files\smk_low
+03152c  \pl8
+031538  \pl8
+031544  \wav
+031550  \smk_low
+03155c  \smk_high
+031568  ERR:CHD  not reserted is now
+031588  status.txt
+031594  status.txt
+0315a0  resaud
+0315ac  BMHD
+0315b4  CMAP
+0315bc  BODY
+0315c8  Debug and status report on 
+0315e4  WinSJBClass
+0315f0  WinSJBClass
+0315fc  OK :Av frame rate = 
+031614  OK :Exited Normally  
+03162c  OK :Paused.  
+03163c  ERR:Can't restore front buffer.  
+031660  ERR:Can't restore back buffer.  
+031684  ERR:GFX DirectDraw not enabled.
+0316a4  OK :GFX DirectDraw enabled.
+0316c0  ERR:GFX could't create flipping surface.
+0316ec  ERR:gfxBegin failed.
+031a6c  ERR:Exited L2 Battlemap editor, couldn't start direct draw.
+031aa8  ERR:Exited L2 Battlemap editor, insufficient memory to run.
+031ae4  ERR:Exited L2 Battlemap editor, Could not find file 'sg2' file.
+031b24  ERR:Exited L2 Battlemap editor, insufficient memory(2) to run.
+031b64  ERR:Exited L2 Battlemap editor, error in bitmap structures.
+031ba0  ERR:Exited L2 Battlemap editor, bmp file not found.
+031bd4  ERR:Exited L2 Battlemap editor, batfiel2.lbm file not found.
+031c14  ERR:Exited L2 Battlemap editor, l2.eng file not found.
+031c4c  ERR:Exited L2 Battlemap editor, battles.txt file not found.
+031c88  ERR:Exited L2 Battlemap editor, troops.txt file not found.
+031cc4  OK :Active.  
+031cd4  OK :Not active.  
+031ce8  ERR:Re-initializing direct draw.  
+031d0c  shot1.bmp
+031d18  shot2.bmp
+031d24  l2.sg2
+031d2c  l2map.inf
+031d38  l2.eng
+031d40  l2map.inf
+031d4c  X,Y =
+031d64  my_maps1.skr
+03650e  FindClose
+03651a  FindNextFileA
+03652a  FindFirstFileA
+03653c  GetLastError
+03654c  GlobalMemoryStatus
+036560  KERNEL32.dll
+036570  GetWindowRect
+036580  SystemParametersInfoA
+036598  SetWindowPos
+0365a8  AdjustWindowRectEx
+0365be  GetMenu
+0365c8  SetRect
+0365d2  SetWindowLongA
+0365e4  GetWindowLongA
+0365f6  GetSystemMetrics
+03660a  ReleaseDC
+036616  GetDC
+03661e  UpdateWindow
+03662e  LoadBitmapA
+03663c  PostMessageA
+03664c  GetCursorPos
+03665c  SetCursor
+036668  SetFocus
+036674  CreateWindowExA
+036686  LoadCursorA
+036694  RegisterClassA
+0366a6  LoadIconA
+0366b2  InvalidateRect
+0366c4  GetForegroundWindow
+0366da  WaitMessage
+0366e8  DispatchMessageA
+0366fc  TranslateMessage
+036710  GetMessageA
+03671e  PeekMessageA
+03672e  DefWindowProcA
+036740  PostQuitMessage
+036752  EndPaint
+03675e  BeginPaint
+03676c  MessageBoxA
+03677a  ClientToScreen
+03678c  GetClientRect
+03679c  IsIconic
+0367a8  EndDialog
+0367b4  GetDlgItemTextA
+0367c6  SetDlgItemTextA
+0367d8  SendDlgItemMessageA
+0367ee  SendMessageA
+0367fe  GetDlgItem
+03680c  DialogBoxParamA
+03681c  USER32.dll
+03682a  GetDeviceCaps
+03683a  SetSystemPaletteUse
+036850  GetDIBits
+03685c  DeleteObject
+03686c  GetObjectA
+03687a  GetStockObject
+03688a  GDI32.dll
+036896  CommDlgExtendedError
+0368ae  GetOpenFileNameA
+0368c2  GetSaveFileNameA
+0368d4  comdlg32.dll
+0368e4  DirectDrawCreate
+0368f6  DDRAW.dll
+036902  timeGetTime
+03690e  WINMM.dll
+03691a  IsBadWritePtr
+03692a  IsBadReadPtr
+03693a  HeapValidate
+03694a  GetCurrentDirectoryA
+036962  GetFullPathNameA
+036976  GetDriveTypeA
+036986  GetTimeZoneInformation
+0369a0  GetSystemTime
+0369b0  GetLocalTime
+0369c0  GetModuleHandleA
+0369d4  GetStartupInfoA
+0369e6  GetCommandLineA
+0369f8  GetVersion
+036a06  HeapAlloc
+036a12  DebugBreak
+036a20  GetStdHandle
+036a30  WriteFile
+036a3c  InterlockedDecrement
+036a54  OutputDebugStringA
+036a6a  GetProcAddress
+036a7c  LoadLibraryA
+036a8c  InterlockedIncrement
+036aa4  GetModuleFileNameA
+036aba  HeapReAlloc
+036ac8  HeapFree
+036ad4  HeapDestroy
+036ae2  HeapCreate
+036af0  VirtualFree
+036afe  ExitProcess
+036b0c  TerminateProcess
+036b20  GetCurrentProcess
+036b34  VirtualAlloc
+036b44  UnhandledExceptionFilter
+036b60  FreeEnvironmentStringsA
+036b7a  MultiByteToWideChar
+036b90  FreeEnvironmentStringsW
+036baa  GetEnvironmentStrings
+036bc2  GetEnvironmentStringsW
+036bdc  WideCharToMultiByte
+036bf2  GetCPInfo
+036bfe  GetACP
+036c08  GetOEMCP
+036c14  SetHandleCount
+036c26  GetFileType
+036c34  RtlUnwind
+036c40  SetConsoleCtrlHandler
+036c58  GetStringTypeA
+036c6a  GetStringTypeW
+036c7c  SetFilePointer
+036c8e  SetStdHandle
+036c9e  CompareStringA
+036cb0  CompareStringW
+036cc2  SetEnvironmentVariableA
+036cdc  FlushFileBuffers
+036cf0  CloseHandle
+036cfe  SetCurrentDirectoryA
+036d16  CreateFileA
+036d24  ReadFile
+036d30  SetEndOfFile
+036d40  LCMapStringA
+036d50  LCMapStringW
+037d9a  30D@
+037df7  3;;;
+037dfd  LDD@
+037e1e  LDD@
+037e7f  LLDD
+037ee0  22" 
+037ef0  """ 
+037eff  """" 
+037f0f  2""" 
+037f1e  ##""" 
+037f2e  222"" 
+037f3c  333#""" 
+037f4c  3222#"" 
+037f5c  3###""" 
+0380d8  3"#"
+039e0b  1o1t1
+039e19  3$3/3<3`3e3n3t3
+039e37  4L4\4t4
+039e4b  5#535C5v5
+039e57  586H6]6e6
+039e79  71767?7E7O7U7[7n7t7
+039ead  8!8,828<8B8Y8^8g8m8w8~8
+039ecb  9!9'91979=9Z9q9v9
+039ef3  :8=b=g=p=v=
+039f0f  > >&>h>
+039f30  +1U1Z1c1i1s1z1
+039f51  292c2z2
+039f9b  ?+?7?[?b?
+039fbb  0!0&020?0K0Y0s0
+039fd7  1A1I1[1b1i1s1~1
+039ffb  2I2S2]2
+03a017  3#3,3
+03a021  3n4x4
+03a039  5j5|5
+03a04b  6#6A6J6S6Y6b6n6
+03a069  9>9S9
+03a06f  9e:q:
+03a075  :8;D;
+03a07d  <F<W<f<x<
+03a093  =">:>P>i>
+03a0a7  >L?c?n?|?
+03a0c1  0F0P0Y0`0g0m0s0{0
+03a0eb  1%10191D1U1e1
+03a11b  2'232=2G2Q2[2
+03a133  3%333W3
+03a145  3"40474A4N4X4e4o4
+03a167  5"5m5x5~5
+03a17b  666B6Y6d6l6
+03a193  6,777C7O7Z7f7v7
+03a1b3  7E8W8i8{8
+03a1e0  +0:0I0W0`0l0r0{0
+03a207  1@1V1d1s1z1
+03a225  2-242f2m2s2y2
+03a24f  3!333:3J3T3[3
+03a279  4&404@4H4O4Z4g4
+03a299  565<5C5\5
+03a2af  5*606G6U6a6g6
+03a2d3  717N7X7^7w7
+03a2ed  8&8-8;8A8M8k8r8
+03a313  9"9)9@9U9|9
+03a327  :5:@:O:[:g:m:
+03a357  ;U;\;k;r;
+03a373  ;/<6<K<R<g<n<x<
+03a393  =*=1=@=G=Q=
+03a3b7  >&>->
+03a3cf  ;#;(;A;U;d;s;
+03a3e3  < <+<=<J<_<l<w<
+03a3fb  =1=>=S=`=k=}=
+03a415  >+>;>N>a>n>{>
+03a437  ?%?-?6?H?N?
+03a467  0+0>0D0J0P0X0
+03a48d  1#1*1>1E1V1k1
+03a4ad  222?2m2
+03a4bd  3/3;3a3n3
+03a4cf  3'4E4Q4w4
+03a4e1  5(5S5c5i5q5{5
+03a4f5  5<6J6Z6`6h6u6
+03a507  6'757E7K7S7`7o7w7
+03a51b  8 80868>8K8Z8b8r8
+03a531  9!9)969E9M9]9
+03a547  :!:0:8:H:
+03a55d  ;#;3;
+03a56b  < <,<4<<<D<L<T<^<f<
+03a58b  = =)=6===I=X=_=g=m=v=
+03a5bb  >)>9>E>M>U>]>e>m>w>
+03a5eb  ?O?]?
+03a617  0(0/070V0n0t0z0
+03a643  1P1^1
+03a665  2)20282W2o2u2{2
+03a693  3"3-353B3R3^3f3n3v3~3
+03a6b3  4#414B4J4R4[4h4o4{4
+03a6e3  5"5*5A5Q5W5_5n5
+03a705  6%6+636B6`6l6
+03a72b  7(70797A7G7f7l7r7{7
+03a753  8*838<8E8L8g8q8z8
+03a775  9"9?9J9{9
+03a78b  9$:3:E:O:X:g:z:
+03a7b5  ;.;<;F;V;d;n;
+03a7db  <.<<<G<N<^<l<v<
+03a801  =%=3===^=m=~=
+03a81f  >.>6>O>W>e>u>
+03a835  ?'?/?H?P?^?n?
+03a857  0$060>0M0^0d0l0}0
+03a875  171E1h1
+03a885  212?2O2
+03a8a7  3)3.363B3G3O3[3`3h3t3y3
+03a8e3  4(4-454A4F4N4Z4f4o4t4z4
+03a927  5"5*565<5E5N5T5]5b5j5v5|5
+03a969  6'6-666<6E6J6R6X6`6l6r6{6
+03a9ab  7%7.7
+03a9c7  9D9M9V9f9p9x9
+03a9ff  :M;u;
+03aa07  ;^<y<
+03aa0d  =:=[=w={=
+03aa31  >,>4>:>>>N>\>k>
+03aa63  ?'?0?k?
+03aa79  0Q1`1h1p1
+03aaa1  2$2,22282=2L2U2Z2b2j2s2x2
+03aacf  3%3-3:3C3O3t3
+03aaef  4P4]4e4
+03ab09  5+5;5
+03ab1d  6f6s6
+03ab37  8A9G9O9X9^9c9h9n9
+03ab59  :!:,:J:Y:^:f:m:
+03ab7d  ;5;=;E;Q;
+03aba5  <-<><L<R<h<u<}<
+03abcd  ="===L=[=_=q=y=
+03abf3  >&>/>
+03abfd  ?.?G?P?
+03ac19  0H0S0
+03ac25  071B1p1
+03ac41  2!2/2>2U2]2e2s2{2
+03ac55  3I3P3[3d3
+03ac71  4*434
+03ac9b  7#707D7Q7W7]7o7x7
+03accf  8"8*8?8G8M8V8]8c8i8r8z8
+03acfb  9Y9b9v9
+03ad13  :B:J:P:Y:b:k:z:
+03ad37  :(;1;E;y;
+03ad5f  >#>/>;>D>P>t>|>
+03ad71  >v?~?
+03ad84  l0t0
+03ad93  1Y2p2|2
+03adb5  4.4@4Q4]4m4
+03add7  525L5X5b5h5{5
+03ae05  6.646J6\6f6l6
+03ae29  7*707C7M7S7d7j7
+03ae4f  8!8(818?8J8[8j8u8{8
+03ae75  9%9+989?9F9Y9f9s9
+03ae9f  :):2:?:L:Y:f:p:
+03aecb  ;*;0;9;?;G;O;X;_;e;k;p;u;~;
+03af0f  <!<,<1<8<B<N<T<]<c<k<s<|<
+03af53  =(=0=6=?=I=R=X=a=k=t=z=
+03af8f  >#>/>9>B>H>T>]>e>k>w>
+03afcd  ?#?(?/?Y?b?r?{?
+03b007  0 0&0/0W0`0p0w0
+03b01f  1 353=3U3k3s3|3
+03b043  4%4:4B4Z4p4x4
+03b067  5'575K5Q5
+03b07d  6$6R6[6k6
+03b099  7+72787?7P7X7g7v7|7
+03b0c5  8'828;8J8R8a8m8|8
+03b0e5  9g9o9x9}9
+03b0fd  9a:i:r:w:
+03b12b  ='=/=8=F=N=]=f=z=
+03b141  >#>8>T>q>
+03b159  ?5?:?T?Y?
+03b185  0'0,0?0K0P0a0f0t0z0
+03b1ab  1Z1`1g1l1}1
+03b1d3  2$212E2Z2i2n2
+03b1e7  2B3V3j3
+03b205  9,9o9
+03b20d  9 :0:6:f:
+03b21d  :&;G;
+03b227  <:>s>
+03b249  3*3F3d3w3
+03b25d  555D5g5
+03b26d  6<6`6o6
+03b289  8'9F9O9s9
+03b2a5  :-:Q:}:
+03b2bb  ;(;3;<;C;J;
+03b2df  >/>N>l>
+03b2f5  >3?C?
+03b30d  0Z1k1u1
+03b325  1 212J2[2m2
+03b335  3&3I3O3U3\3~3
+03b349  4-4<4H4\4
+03b359  4'5@5U5l5
+03b369  5%686N6d6w6
+03b37d  7E7\7r7
+03b38f  888K8f8
+03b3a1  959U9h9w9
+03b3b3  :L:j:q:
+03b3df  ; ;(;2;;;D;I;O;U;[;a;f;k;q;w;
+03b41b  <"<(</<5<;<B<H<O<\<c<o<|<
+03b451  =#=-=3=;=E=Q=W=a=g=s={=
+03b48b  >&>1>;>E>N>X>^>c>h>n>u>
+03b4b7  >(?7?@?O?_?h?
+03b4d7  060E0M0c0o0{0
+03b4fb  2 242J2V2j2
+03b515  3%3+3O3X3_3i3s3}3
+03b551  4$4-44494?4I4O4U4_4e4m4r4z4
+03b57f  5'5,545F5O5^5c5n5s5y5
+03b5b5  6(696O6]6j6q6|6
+03b5dd  7%717:7K7[7a7f7l7v7|7
+03b605  8&8;8J8b8h8t8
+03b62b  9`9s9~9
+03b65f  :):E:a:}:
+03b675  ;*;1;B;I;O;q;{;
+03b6ad  ="=4=C=`=f=r=
+03b6cb  >-><>C>N>W>b>k>u>|>
+03b6f3  ?0?U?\?b?q?
+03b71d  040?0K0U0j0}0
+03b73d  1)1:1@1S1\1r1
+03b76d  1"2&2*2.22262:2>2B2
+03b781  2'3-393I3a3g3s3
+03b7a3  4$4.494I4O4V4f4
+03b7bd  5+5D5\5h5q5
+03b7db  6(6@6L6U6c6r6
+03b7f9  7$70797G7V7e7~7
+03b81b  8+8:8I8b8z8
+03b83b  9-9F9^9j9s9
+03b859  :*:B:N:W:e:t:
+03b877  ;?;Q;Z;o;
+03b895  </<A<J<_<q<z<
+03b8b5  =1=:=O=a=j=
+03b8d7  >$>1>6>C>H>c>t>y>
+03b8fd  ?'?1?;?B?L?f?k?y?
+03b935  0`0f0l0
+03b94d  1'1?1W1o1
+03b969  2 2.2K2R2Z2a2k2q2v2
+03b989  3'3C3_3{3
+03b99f  4#4)4G4S4v4
+03b9bb  5.5P5V5
+03b9cb  6E6W6x6
+03b9d9  7*7S7k7
+03b9e9  8Z8l8
+03b9f7  9?9h9
+03ba05  :1:o:
+03ba11  :!;3;T;};
+03ba21  <.<F<_<v<
+03ba31  =0=H=r=
+03ba41  >F>n>
+03ba5f  ?+?<?N?Z?f?n?
+03ba81  0 0<0G0M0w0
+03ba93  1#1M1v1
+03baa1  1#2L2[2m2
+03bab9  3 3@3K3S3_3g3s3|3
+03badb  4Q4[4d4i4o4u4
+03bafd  565G5T5p5
+03bb1b  6=6E6V6_6e6n6~6
+03bb49  7%707B7Q7[7d7m7
+03bb6f  8"81898?8G8V8^8d8m8w8
+03bb8f  9$90989i9w9
+03bba1  : :1:D:Q:d:p:
+03bbc9  ;*;H;f;
+03bbdb  <+<0<6<B<K<W<`<l<v<
+03bc03  ='=.=B=I=Y=`=q=v=
+03bc1b  =/>6>O>V>
+03bc33  ? ?%?8?=?O?T?f?k?}?
+03bc6b  0)0.0<0F0z0
+03bc91  ?!?*?3?;?H?Y?_?f?l?r?x?~?
+03bcdd  0 0&0+00060F0c0l0u0{0
+03bd0f  1+12181V1]1k1r1
+03bd35  262=2I2P2X2
+03bd55  3#303<3I3\3f3p3z3
+03bd7f  4%4+40484C4O4W4a4k4t4z4
+03bdb5  5!5'5-535<5E5X5^5n5v5|5
+03bdeb  6#61676[6g6m6
+03be11  7$7,727E7V7_7d7j7o7
+03be3d  8P8_8f8l8t8y8
+03be61  959:9I9N9X9
+03be6f  <$<*<0<6<<<B<H<N<T<Z<`<f<l<r<x<~<
+03bec3  = =&=,=2=8=>=D=J=P=V=\=b=h=n=t=j>
+03bee5  >Q?f?r?
+03bf00  40\0
+03bf0b  1U1^1c1k1q1w1
+03bf39  40454g4
+03bf47  4B5N5
+03bf51  6'656=6C6L6T6\6b6k6q6w6~6
+03bf71  7#7l7v7
+03bf93  8"9.939i9u9
+03bfa5  :::@:d:
+03bfb5  ;];i;
+03bfcb  <*<K<]<
+03bfd9  <&=2=
+03bfe5  =%>1>
+03c007  090>0a0f0
+03c017  1'1.1Y1
+03c03d  3"4A4H4
+03c045  4%515P5U5
+03c051  5R6|6
+03c06b  9O9q9
+03c075  :I:N:
+03c07d  :@;m;
+03c087  ;P<l<
+03c0a9  0Q0b0q1
+03c0b3  2+2p2v2
+03c0bb  2/494J4`4u4
+03c0cf  5"5+535<5
+03c0ef  6(6R6W6a6g6p6
+03c0fd  6A7r7
+03c107  8!848E8t8$9O9V9u9
+03c121  : :*:::D:S:e:q:
+03c137  ;#;7;D;I;O;g;t;
+03c151  ;7<C<W<
+03c165  =#=P=W=a=u=
+03c179  >$>0>^>g>
+03c185  ?$?0?O?i?u?
+03c1a9  0$070C0
+03c1c3  2\3c3r3
+03c1cd  3 4'414<4F4~4
+03c1ef  5#5(555:5
+03c205  6'6=6B6O6T6b6|6
+03c21b  7(727@7G7k7
+03c247  9*919Z9a9i9
+03c269  <'=d=q=
+03c273  >"?Q?
+03c287  6%6F6O6
+03c2a3  868<8K8U8^8g8p8y8
+03c2d3  9'9D9W9v9|9
+03c2e5  9J:R:
+03c2fb  ;&;<;J;V;f;s;|;
+03c321  <,<5<?<I<T<^<h<
+03c33d  =#=1=?=T=b=|=
+03c355  >@>O>
+03c361  ?;?_?h?u?
+03c39f  3L3W3j3~3
+03c3b7  4*4A4K4\4~4
+03c3d3  6.7O7U7g7
+03c3e1  7,848:8>8C8P8Z8
+03c3f5  8]9A:4<
+03c3fd  <6=?=N=Z=i=|=
+03c40f  >*>8>K>|>
+03c41d  >'?.?J?
+03c455  2J2u2
+03c465  2)313M3z3
+03c475  4#4)474?4I4p4~4
+03c491  4#5*5P5T5X5\5`5
+03c4ab  6F6L6a6
+03c4b7  7*7<7B7K7`7
+03c4cf  9B9Q9d9
+03c4d9  9*:D:M:U;^;g;};
+03c4f3  <(<1<:<F<Y<o<
+03c50b  =D=]=w=
+03c52f  213;3A3L3X3]3
+03c54f  3.474K4Z4^4b4f4j4
+03c563  4"5)505A5R5c5
+03c57d  6"6?6n6}6
+03c59f  6/777=7K7U7Z7`7l7v7{7
+03c5c5  90979?9D9H9L9u9
+03c5e7  9":(:,:0:4:
+03c603  ;M;T;X;\;`;d;h;l;p;
+03c61f  ;0<9<4===
+03c631  ?3?\?q?
+03c644  h0o0
+03c64b  1!2(2
+03c655  4O5q5
+03c681  ;I;M;Q;U;Y;];a;e;i;m;q;u;y;};
+03c6a3  ;H=V=^=h=y=
+03c6bb  >$>g>
+03c6c5  >X?f?p?z?
+03c6e5  0#080o0
+03c6f1  0A1`1
+03c6fd  213:3`3
+03c70b  4J4u4|4
+03c725  5W6f6
+03c72b  6;8P8b8l8
+03c73d  9.9C9U9_9
+03c753  ;/;J;W;};
+03c77d  =(=6=@=N=T=
+03c793  >5>M>x>
+03c7a7  ?$?(?,?U?{?
+03c7e7  0-14181<1@1D1H1L1P1
+03c803  1O2h2
+03c80f  3H3m3y3
+03c821  4$4X4x4
+03c831  5"5.5W5e5s5
+03c849  5$606<6O6`6j6
+03c861  7'7h7r7
+03c871  8@8U8
+03c87d  :5:K:
+03c89f  ;8<`<x<
+03c8bb  =->N>Y>
+03c8d4  60P0
+03c8ed  2F2S2d2j2z2
+03c903  2F3m3
+03c919  5,656
+03c925  7;7E7b7h7
+03c931  7Z8o8
+03c93f  9M9V9
+03c969  ;$;*;0;6;<;B;H;N;T;Z;`;f;l;r;x;~;
+03c9e1  0!0'0
+03c9f9  2 222<2n2
+03ca09  3-373A3P3\3
+03ca1b  4#4`4
+03ca23  4S5]5g5
+03ca35  6:7L7d7
+03ca3f  8"898E8j9s9
+03ca51  :H:V:c:m:~:
+03ca67  ;0;J;
+03ca77  <X=f=s=}=
+03ca8d  >9>S>
+03caa8  i0~0
+03cab5  1.1:1^1d1j1p1v1|1
+03caf3  >4>8>P>T>l>p>
+03cb17  ?0?4?L?P?h?l?
+03cba5  8 8$8
+03da0c  .\Debug/mapl2.exe
+03dd00  NB10
+03dd10  C:\tools\map_l2\Debug\mapl2.pdb
