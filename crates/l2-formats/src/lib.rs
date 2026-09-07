@@ -3,9 +3,11 @@
 //! Deliberately dependency-free: this crate turns bytes into pixels and
 //! nothing else. No I/O, no rendering, no game logic.
 
+pub mod maps;
 pub mod palette;
 pub mod pl8;
 
+pub use maps::{MapSet, MapSlot, Plane};
 pub use palette::Palette;
 pub use pl8::{DecodedFrame, FrameInfo, Pl8, Shape, Storage};
 
@@ -38,6 +40,8 @@ pub enum Error {
     FrameOutOfRange { index: usize, count: usize },
     /// A palette file was not exactly 768 bytes.
     BadPaletteLength(usize),
+    /// A map file's length is not a whole number of map slots.
+    PartialMapSlot { len: usize, slot_len: usize },
 }
 
 impl fmt::Display for Error {
@@ -66,6 +70,9 @@ impl fmt::Display for Error {
                 write!(f, "frame {index} requested, file has {count}")
             }
             Error::BadPaletteLength(n) => write!(f, "palette is {n} bytes, expected 768"),
+            Error::PartialMapSlot { len, slot_len } => {
+                write!(f, "map file is {len} bytes, not a whole number of {slot_len}-byte slots")
+            }
         }
     }
 }
