@@ -15,6 +15,7 @@
 
 use l2_formats::maps::{Plane, MapSet, PLANE_DIM};
 use l2_formats::{Palette, Pl8};
+use l2_mods::Platform;
 use std::{path::PathBuf, sync::Arc};
 
 use pixels::{Pixels, SurfaceTexture};
@@ -83,16 +84,46 @@ impl Viewer {
         ))
     }
 
-    fn map(dir: PathBuf, slot: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        let maps = std::fs::read(dir.join("L2_maps.dat"))?;
+    /// Loads through the mod overlay rather than straight off disk, so a mod
+    /// that supplies its own `Base2a.pl8` is picked up here with no change to
+    /// the rendering path. Asset names are resolved case-insensitively, which
+    /// matters because the shipped install is inconsistent about casing.
+    fn map(dir: PathBuf, mods: Option<PathBuf>, slot: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut builder = Platform::builder().base(&dir);
+        if let Some(m) = &mods {
+            // Discovery only finds candidates; enabling is a separate, deliberate
+            // step so an overlay never activates something merely by its presence
+            // on disk. A viewer wants everything it was pointed at, so enable the
+            // lot — a game would let the player choose, and the order they give
+            // is the conflict policy.
+            let found = l2_mods::discover(m)?;
+            let ids: Vec<String> = found.iter().map(|f| f.id.clone()).collect();
+            if ids.is_empty() {
+                println!("no mods found in {}", m.display());
+            }
+            builder = builder.mods_dir(m).enable(ids);
+        }
+        let platform = builder.build()?;
+
+        // Say what a mod changed. Silence here means the base install is what
+        // you are looking at.
+        for m in &platform.load_order {
+            println!("mod: {} {}", m.id, m.version);
+        }
+        for (file, layers) in &platform.report().shadowed_assets {
+            println!("overridden: {file} <- {}", layers.join(" < "));
+        }
+
+        let vfs = &platform.vfs;
+        let maps = vfs.read("L2_maps.dat")?;
         let count = MapSet::parse(&maps)?.slot_count();
         let banks = BANKS
             .iter()
-            .map(|b| std::fs::read(dir.join(format!("{b}.pl8"))))
+            .map(|b| vfs.read(&format!("{b}.pl8")))
             .collect::<Result<Vec<_>, _>>()?;
         // The zoom-2 tile sets ship no palette of their own; they share the
         // zoom-0 one.
-        let palette = Palette::from_bytes(&std::fs::read(dir.join("Base1a.256"))?)?;
+        let palette = Palette::from_bytes(&vfs.read("Base1a.256")?)?;
         Ok(Viewer::new(
             Scene::Map {
                 maps,
@@ -301,21 +332,39 @@ impl ApplicationHandler for Viewer {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
-    let mut viewer = if args.first().map(|s| s.as_str()) == Some("--map") {
-        if args.len() < 2 {
-            eprintln!("usage: l2-view --map <game dir> [slot]");
+    // --mods <dir> may appear anywhere; strip it before positional parsing.
+    let mut mods: Option<PathBuf> = None;
+    let mut rest: Vec<String> = Vec::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        if a == "--mods" {
+            match it.next() {
+                Some(d) => mods = Some(PathBuf::from(d)),
+                None => {
+                    eprintln!("--mods needs a directory");
+                    std::process::exit(2);
+                }
+            }
+        } else {
+            rest.push(a.clone());
+        }
+    }
+
+    let mut viewer = if rest.first().map(|s| s.as_str()) == Some("--map") {
+        if rest.len() < 2 {
+            eprintln!("usage: l2-view --map <game dir> [slot] [--mods <dir>]");
             std::process::exit(2);
         }
-        let slot = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
-        Viewer::map(PathBuf::from(&args[1]), slot)?
+        let slot = rest.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+        Viewer::map(PathBuf::from(&rest[1]), mods, slot)?
     } else {
-        if args.len() < 2 {
+        if rest.len() < 2 {
             eprintln!("usage: l2-view <file.pl8> <palette.256> [frame]");
-            eprintln!("       l2-view --map <game dir> [slot]");
+            eprintln!("       l2-view --map <game dir> [slot] [--mods <dir>]");
             std::process::exit(2);
         }
-        let frame = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
-        Viewer::sprite(PathBuf::from(&args[0]), PathBuf::from(&args[1]), frame)?
+        let frame = rest.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+        Viewer::sprite(PathBuf::from(&rest[0]), PathBuf::from(&rest[1]), frame)?
     };
 
     let event_loop = EventLoop::new()?;

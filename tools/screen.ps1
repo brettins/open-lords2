@@ -15,6 +15,11 @@
 param(
   [string]$Name,
   [int]$ProcId = 0,
+  # An explicit window handle. MainWindowHandle picks whichever window Windows
+  # considers primary, which is the console when a process has one - so a
+  # redirected-stdout launch captures the terminal instead of the app. Get the
+  # real handle from windows.ps1 and pass it here.
+  [long]$Hwnd = 0,
   [ValidateSet('printwindow','screen')]
   [string]$Method = 'printwindow',
   [switch]$Full,
@@ -54,8 +59,11 @@ if ($Full) {
   exit 0
 }
 
-if ($ProcId -eq 0) {
-  if (-not $Name) { Write-Host "need -Name or -ProcId (or -Full)"; exit 1 }
+if ($Hwnd -ne 0) {
+  $h = [IntPtr]$Hwnd
+  $p = $null
+} elseif ($ProcId -eq 0) {
+  if (-not $Name) { Write-Host "need -Name, -ProcId, -Hwnd (or -Full)"; exit 1 }
   $p = Get-Process -Name $Name -ErrorAction SilentlyContinue |
        Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
   if (-not $p) { Write-Host "no visible window for process '$Name'"; exit 1 }
@@ -64,8 +72,10 @@ if ($ProcId -eq 0) {
   if (-not $p) { Write-Host "no such pid $ProcId"; exit 1 }
 }
 
-$h = $p.MainWindowHandle
-if ($h -eq 0) { Write-Host "process $($p.ProcessName) has no main window"; exit 1 }
+if ($Hwnd -eq 0) {
+  $h = $p.MainWindowHandle
+  if ($h -eq 0) { Write-Host "process $($p.ProcessName) has no main window"; exit 1 }
+}
 
 if ($Foreground) { [U32]::SetForegroundWindow($h) | Out-Null }
 if ($DelayMs -gt 0) { Start-Sleep -Milliseconds $DelayMs }
@@ -94,6 +104,7 @@ $cr = New-Object RECT
 [U32]::GetClientRect($h, [ref]$cr) | Out-Null
 $pt = New-Object System.Drawing.Point 0, 0
 [U32]::ClientToScreen($h, [ref]$pt) | Out-Null
-Write-Host "pid=$($p.Id) '$($p.ProcessName)' method=$Method window=${w}x${hh} at ($($r.Left),$($r.Top))"
+$who = if ($p) { "pid=$($p.Id) '$($p.ProcessName)'" } else { "hwnd=$Hwnd" }
+Write-Host "$who method=$Method window=${w}x${hh} at ($($r.Left),$($r.Top))"
 Write-Host "client=$($cr.Right)x$($cr.Bottom) screenOrigin=($($pt.X),$($pt.Y))"
 Write-Host "saved -> $Out"
