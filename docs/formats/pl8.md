@@ -126,3 +126,33 @@ consistent with all observations. The reliable route is to read the game's own
 decoder - locate the PL8 loading routine in `Lords2.exe` (Ghidra) and follow the
 branch taken when header byte 0 is 2. This is the oracle principle applied to a
 file format rather than to game logic.
+
+---
+
+## Files that still fail under supported storage modes
+
+23 files use storage mode 0 or 1 but do not satisfy the end-offset invariant.
+They are pinned in `KNOWN_FAILING` in `crates/l2-formats/tests/corpus.rs`, so a
+new failure breaks the build and a fix is reported as "now passing".
+
+The residuals are not random - they cluster:
+
+| Pattern | Files |
+|---------|-------|
+| Frame data overshoots by exactly **24 bytes** | `Base2a`, `Roads2a`, `Castle2a`, `Town2a`, `Town2b-d` |
+| Overshoots by exactly **840** bytes (24 x 35) | `Castle1a-d`, `Town1a-d` |
+| Undershoots | `Fntl2_14` (6), `Font_10` (10), `T16_bat1` (61), `T32_bat` (190) |
+| RLE row overrun | `Font_c2` (13 pixels consumed, width 7) |
+
+The recurring 24 - and 840 being an exact multiple of it - suggests a fixed
+trailing block appended after the pixel data in some files, rather than a
+different pixel encoding. Undershoots are more likely a genuinely different
+encoding, and the font files may be a format of their own.
+
+### Correction worth recording
+
+An earlier hypothesis held that all 23 files with header byte 1 == 2 fail. That
+was wrong: it rested on a coincidence, since the count of `raw:2` files and the
+count of failures were both 23. In fact 13 of the `raw:2` files decode correctly
+as plain raw, and the true failure set spans several mode combinations. Sub-mode
+is *not* currently known to affect decoding.

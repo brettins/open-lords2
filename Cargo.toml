@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["crates/l2-formats"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
