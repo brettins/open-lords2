@@ -1,0 +1,12 @@
+[package]
+name = "l2-sim"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Deterministic battle simulation for Lords of the Realm II"
+
+# Dependency-free by design, like l2-formats. A lockstep simulation must be
+# bit-identical across machines and Rust versions, and every dependency is a
+# place that guarantee can quietly break - see docs/netcode.md D-3.
+[dependencies]
+l2-formats = { path = "../l2-formats" }
