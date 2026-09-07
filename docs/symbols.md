@@ -12,7 +12,9 @@ are ours. Where a name is a guess, the confidence column says so.
 |---------|------|-----------|--------------|
 | `0x0040A21A` | `Pl8_DrawFrame(buf, frame, x, y)` | verified | Reads the frame record at `buf + frame*0x10 + 8`, range-checks the data offset, calls the clipper, dispatches to a blitter. Independently confirms the 8-byte header / 16-byte record layout we had inferred from offset arithmetic. Also reads record bytes +12, +13 and +14. |
 | `0x0040464C` | `Clip_Horizontal(left, right)` | verified | Computes clipping and sets the globals below. |
-| `0x004B43B1` | `Blit_Unclipped(buf)` | verified | Copies `width` bytes per row, skipping zero bytes; 4x unrolled. |
+| `0x004B43B1` | `Blit_Unclipped(buf)` | verified | Copies `width` bytes per row, skipping zero bytes; 4x unrolled. Loops `DAT_005BB478` rows — the **clipped** row count, not the frame height. |
+| `0x0040477B` | `Clip_Vertical(...)` | verified | Sets `DAT_005BB478` to `height − rowsClippedAtTop`, unconditionally. |
+| `0x00402A14` | `Glyph_Draw(...)` | verified | Text blitter. Shifts the destination down by frame-record byte `0x0D` before clipping, reserving rows above the rectangle. The only consumer of that byte. |
 | `0x004B446D` | `Blit_ClippedLeft(buf)` | inferred | Selected when clip state is 1. |
 | `0x004B44D2` | `Blit_ClippedRight(buf)` | verified | As unclipped, but also advances the *source* pointer by the clipped-off remainder each row. |
 
@@ -55,6 +57,7 @@ import table, so that path is dead code.
 | `0x005AEB70` | Current sprite height | verified |
 | `0x0058FE04` | Current source data offset | verified |
 | `0x004EB274` | Screen stride, 640 | inferred |
+| `0x005BB478` | Blitter row counter. **Not** frame-record byte `0x0D` — `Clip_Vertical` overwrites it before every blit, so the byte-`0x0D` load in `Pl8_DrawFrame` is dead. | verified |
 | `0x004EABD0` | A DirectDraw interface pointer. It was NULL at the crash at `0x004522B5`, which happened when the window was deactivated during startup under DxWnd. | verified |
 
 ## The game logs its own startup

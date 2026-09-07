@@ -1,8 +1,8 @@
 # PL8 sprite format (Lords of the Realm II)
 
-Status: **268 / 291 files validated** (18,937 frames), **zero files in an undecoded
-storage family**. The 23 remaining failures are pinned in `KNOWN_FAILING` — see
-[Unexplained files](#unexplained-files).
+Status: **291 / 291 files validated, 21,344 / 21,344 frames.** Nothing is pinned or
+excluded. The same model also validates the older DOS install at 222/222 files and
+14,648/14,648 frames.
 
 Implemented in `crates/l2-formats/src/pl8.rs`. For the isometric family in depth —
 the Ghidra work, the overhang derivation, and the one unresolved ambiguity — see
@@ -56,12 +56,21 @@ Confirmed invariant: the first frame's `dataOffset` always equals
 The engine reads bytes 0x0C, 0x0D and 0x0E at `Pl8_DrawFrame` (`0x0040A21A`),
 which independently corroborates this layout.
 
-## The family byte does not decide the encoding
+## The family byte is vestigial
 
-**The `shape` byte at record offset 0x0C does.** An isometric file routinely holds
-plain raw rectangles alongside diamonds — `Backgrnd.pl8` is family 2 but its single
-640×480 frame is stored raw. That is why "storage mode 2" resisted analysis for so
-long: there was never one mode-2 codec to find.
+**The `shape` byte at record offset 0x0C decides, for every family.**
+
+`Pl8_DrawFrame` (`0x0040A21A`) indexes straight to `buf + frame*0x10 + 8` and never
+reads bytes 0 or 1 — the engine cannot see the family byte at all. The decisive
+evidence: **`Base2a.pl8` and `Base2b.pl8` differ in exactly one byte** of their
+2,248-byte header and frame table — byte 0, reading `0` against `2` — with identical
+frame records and only a seasonal recolour between their pixels.
+
+So 15 files are ordinary isometric tile sets whose family byte simply reads `0`.
+Dispatching on the family byte charged `w*h` for a diamond; the recurring "24 byte"
+and "840 byte" overshoots were just `10*6 − 6²` and `58*30 − 30²`. There was no
+trailing block. An isometric file also routinely holds plain rectangles —
+`Backgrnd.pl8` is family 2 with a single 640×480 raw frame.
 
 | Shape | Encoding | Bytes |
 |-------|----------|-------|
@@ -74,6 +83,15 @@ long: there was never one mode-2 codec to find.
 **Shape 1 ignores the overhang count**, even when it is non-zero — 24 frames in the
 corpus declare rows and still hold exactly `height²`. Honouring the count there
 desynchronises the whole file.
+
+**Shape 0 does not.** A rectangle may store `rows` extra RLE-encoded rows immediately
+after it, drawn *above* it — real artwork continuous with the rectangle, such as the
+accent on a glyph or the sloped top edge of a hill tile. `Glyph_Draw` (`0x00402A14`)
+shifts the destination down by that row count before clipping, reserving exactly those
+rows. 70 frames across four files store them, and all 70 land byte-exact.
+
+Some shape-0 frames declare rows and store nothing, so decide structurally: if the bare
+rectangle lands exactly on the next frame's offset there is no stored overhang.
 
 ## Encodings
 
@@ -146,22 +164,28 @@ Palettes are per-context, not global. Using the wrong one gives a structurally
 correct but wildly miscoloured sprite. `T32_bat1.256` is the battle-sprite palette;
 `Lords2.256` is not.
 
-## Unexplained files
+## Files that used to fail, and why
 
-23 files use a supported encoding but miss the end-offset invariant. They are pinned
-in `KNOWN_FAILING` in `crates/l2-formats/tests/corpus.rs`, so a *new* failure breaks
-the build and fixing one is reported as "now passing".
+23 files once missed the end-offset invariant. All are now explained; the corpus is
+complete. `KNOWN_FAILING` in `crates/l2-formats/tests/corpus.rs` is empty and kept
+as a mechanism — a new failure breaks the build by name.
 
-| Pattern | Files |
-|---------|-------|
-| Overshoot by exactly 24 bytes | `Base2a`, `Roads2a`, `Castle2a`, `Town2a`, `Town2b-d` |
-| Overshoot by exactly 840 (24 × 35) | `Castle1a-d`, `Town1a-d` |
-| Undershoot | `Fntl2_14` (6), `Font_10` (10), `T16_bat1` (61), `T32_bat` (190) |
-| RLE row overrun | `Font_c2` |
+**15 files: dispatching on the family byte instead of the shape byte.**
+`Base2a`, `Roads2a`, `Castle1a-d`, `Castle2a-d`, `Town1a-d`, `Town2a-d` are ordinary
+isometric tile sets whose family byte reads `0`. The "24 byte" and "840 byte"
+overshoots were `10*6 − 6²` and `58*30 − 30²` — the difference between a rectangle
+and a diamond. There was no trailing block; that hypothesis was wrong.
 
-`Font_c2` is the corpus's only family-1 file with zoom byte 1, and **all 108 of its
-frames occupy exactly `width × height`** — it declares RLE but is stored raw. One
-file is too little to generalise from, so it stays pinned rather than special-cased.
+**4 files: stored overhang above a rectangle.**
+`Fntl2_14`, `Font_10`, `T16_bat1`, `T32_bat` — 70 frames carrying RLE rows after the
+rectangle, drawn above it. The apparent "undershoots" of 6, 10, 61 and 190 bytes were
+just the largest such block per file.
+
+**1 file: a wrong header byte.**
+`Font_c2` declares RLE but stores raw rectangles. It is the same font as `Fntl2_9`,
+exported twice, sharing 103 of 108 frame records. Detected file-wide — every frame
+spanning exactly `w*h` — rather than per frame, so one coincidental span cannot
+reinterpret a frame of an otherwise valid RLE file.
 
 ## Also open
 

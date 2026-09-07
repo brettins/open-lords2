@@ -51,6 +51,22 @@ verifier exists — decoder loops, bindings, batch extraction with round-trip ch
 That is where a confident, wrong result costs more than it saves. A cheap model is safe
 exactly where a verifier exists, and dangerous everywhere else.
 
+## Never `git add -A` while agents are running
+
+The lead session commits; agents do not. But `git add -A` sweeps up whatever the agents
+have written *so far*, which means committing half-finished work under an unrelated commit
+message — and, once, fifteen rendered PNGs of game data straight past the first rule of
+the project.
+
+While any agent is running, stage explicit paths:
+
+```bash
+git add crates/ docs/decisions.md native/          # yes
+git add -A                                          # no
+```
+
+Check `git status --short` before committing and confirm every path is yours.
+
 ## Clean up processes you start
 
 **Any agent that launches a process must terminate it before reporting.** The game in

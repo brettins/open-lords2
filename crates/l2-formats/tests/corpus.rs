@@ -19,16 +19,15 @@ use std::{collections::BTreeMap, env, fs, path::Path};
 ///   * overshoot by exactly 840 (24 * 35): Castle1a-d, Town1a-d
 ///   * undershoot: Fntl2_14 (6), Font_10 (10), T16_bat1 (61), T32_bat (190)
 ///   * row overrun: Font_c2
-const KNOWN_FAILING: &[&str] = &[
-    "Base2a.pl8", "Castle1a.pl8", "Castle1b.pl8", "Castle1c.pl8", "Castle1d.pl8",
-    "Castle2a.pl8", "Castle2b.pl8", "Castle2c.pl8", "Castle2d.pl8", "Fntl2_14.pl8",
-    "Font_10.pl8", "Font_c2.pl8", "Roads2a.pl8", "T16_bat1.pl8", "T32_bat.pl8",
-    "Town1a.pl8", "Town1b.pl8", "Town1c.pl8", "Town1d.pl8", "Town2a.pl8",
-    "Town2b.pl8", "Town2c.pl8", "Town2d.pl8",
-];
+/// Files that use a supported encoding but still do not decode cleanly.
+///
+/// **Empty, and it should stay that way.** All 291 files decode. This list is
+/// kept as the mechanism, not as a bucket: any new failure fails the build with
+/// its name, and anything added here needs a reason recorded alongside it.
+const KNOWN_FAILING: &[&str] = &[];
 
 /// Files that validate today. Must not regress.
-const VALIDATED_BASELINE: usize = 236;
+const VALIDATED_BASELINE: usize = 291;
 
 fn asset_dir() -> Option<String> {
     env::var("LORDS2_DIR").ok().filter(|d| Path::new(d).is_dir())

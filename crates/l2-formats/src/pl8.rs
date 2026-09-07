@@ -185,6 +185,30 @@ impl<'a> Pl8<'a> {
             }
         }
 
+        // A file that declares RLE but whose every frame spans exactly w*h is
+        // stored raw: the header byte is simply wrong. `Font_c2.pl8` is the same
+        // font as `Fntl2_9.pl8`, exported twice, and shares 103 of its 108 frame
+        // records. Nothing in the engine reads the family byte, so a wrong one is
+        // invisible to the game.
+        //
+        // Decided over the *whole file*. Deciding per frame would let a single
+        // coincidental span reinterpret one frame of an otherwise valid RLE file
+        // - including a genuinely corrupt frame that should have raised an error.
+        let storage = if storage == Storage::Rle
+            && !frames.is_empty()
+            && frames.iter().enumerate().all(|(i, f)| {
+                let next = frames
+                    .get(i + 1)
+                    .map(|n| n.offset as usize)
+                    .unwrap_or(data.len());
+                next.checked_sub(f.offset as usize)
+                    == Some(f.width as usize * f.height as usize)
+            }) {
+            Storage::Raw
+        } else {
+            storage
+        };
+
         Ok(Pl8 { data, storage, zoom, frames })
     }
 
@@ -210,17 +234,30 @@ impl<'a> Pl8<'a> {
         let (w, h) = (info.width as usize, info.height as usize);
         let start = info.offset as usize;
 
-        // An isometric overhang extrudes *upward*: the real canvas is taller
-        // than the record's height, with the diamond sitting in the bottom rows.
-        // Shape::Diamond ignores the overhang count even when it is non-zero -
-        // 24 frames in the corpus declare rows and still occupy exactly h^2.
-        let overhang = match (self.storage, info.shape) {
-            (
-                Storage::Isometric,
-                Shape::DiamondFull | Shape::DiamondLeft | Shape::DiamondRight,
-            ) => info.overhang_rows as usize,
-            _ => 0,
-        };
+        let boundary = self.frame_boundary(index);
+
+        // Two things extrude a frame *upward*, and both are decided per frame
+        // rather than by the file header:
+        //
+        //   * an isometric diamond of shape 2-4 appends chevron records
+        //   * a plain rectangle may store extra RLE rows above itself
+        //
+        // Shape::Diamond ignores the overhang count even when non-zero - 24
+        // frames in the corpus declare rows and still occupy exactly h^2.
+        let rows = info.overhang_rows as usize;
+        let iso_overhang = matches!(
+            info.shape,
+            Shape::DiamondFull | Shape::DiamondLeft | Shape::DiamondRight
+        );
+        // A rectangle only carries stored overhang when the bytes are really
+        // there; some frames declare rows and store nothing. Decide structurally
+        // - does the bare rectangle land exactly on the next frame's offset?
+        let rect_overhang = info.shape == Shape::Rect
+            && rows > 0
+            && self.storage != Storage::Rle
+            && start + w * h != boundary;
+
+        let overhang = if iso_overhang || rect_overhang { rows } else { 0 };
         // A region map is stored at 1/8 resolution, so its canvas is not the
         // record's width and height.
         let (canvas_w, canvas_h) = if info.shape == Shape::RegionMap {
@@ -251,11 +288,28 @@ impl<'a> Pl8<'a> {
             ));
         }
 
-        let end = match self.storage {
-            Storage::Raw => self.decode_rect(start, w, h, &mut indices, &mut opaque)?,
-            Storage::Rle => self.decode_rle(index, info, &mut indices, &mut opaque)?,
-            Storage::Isometric => match info.shape {
-                Shape::Rect => self.decode_rect(start, w, h, &mut indices, &mut opaque)?,
+        if let Storage::Unknown(m) = self.storage {
+            return Err(Error::UnsupportedStorage(m));
+        }
+
+        // The header family byte is very nearly vestigial: `Pl8_DrawFrame`
+        // (0x0040A21A) indexes straight to `buf + frame*0x10 + 8` and never
+        // reads bytes 0 or 1, so the engine cannot see them. Base2a and Base2b
+        // differ in exactly one byte of their 2,248-byte header and frame table
+        // - byte 0 - with identical frame records. So dispatch on the per-frame
+        // shape byte for every family, not just for isometric files.
+        let end = if self.storage == Storage::Rle {
+            self.decode_rle(index, info, &mut indices, &mut opaque)?
+        } else {
+            match info.shape {
+                Shape::Rect => {
+                    let after = self.decode_rect(start, w, h, overhang, &mut indices, &mut opaque)?;
+                    if overhang > 0 {
+                        self.decode_rle_rows(index, after, w, overhang, &mut indices, &mut opaque)?
+                    } else {
+                        after
+                    }
+                }
                 Shape::Diamond
                 | Shape::DiamondFull
                 | Shape::DiamondLeft
@@ -270,8 +324,7 @@ impl<'a> Pl8<'a> {
                         shape: info.shape_byte,
                     })
                 }
-            },
-            Storage::Unknown(m) => return Err(Error::UnsupportedStorage(m)),
+            }
         };
 
         Ok((
@@ -285,12 +338,14 @@ impl<'a> Pl8<'a> {
         ))
     }
 
-    /// A plain `width * height` rectangle of palette indices.
+    /// A plain `width * height` rectangle of palette indices, written starting
+    /// at canvas row `dest_row` — non-zero when overhang rows sit above it.
     fn decode_rect(
         &self,
         start: usize,
         w: usize,
         h: usize,
+        dest_row: usize,
         indices: &mut [u8],
         opaque: &mut [bool],
     ) -> Result<usize> {
@@ -299,12 +354,70 @@ impl<'a> Pl8<'a> {
         if end > self.data.len() {
             return Err(Error::Truncated { needed: end, have: self.data.len() });
         }
-        indices[..n].copy_from_slice(&self.data[start..end]);
+        let at = dest_row * w;
+        indices[at..at + n].copy_from_slice(&self.data[start..end]);
         for i in 0..n {
-            opaque[i] = indices[i] != 0;
+            opaque[at + i] = indices[at + i] != 0;
         }
         Ok(end)
     }
+
+    /// `rows` RLE-encoded rows stored *after* a rectangle but drawn *above* it.
+    ///
+    /// Real artwork, contiguous with the rectangle — the accent on a glyph, the
+    /// sloped top edge of a hill tile. `FUN_00402A14` shifts the destination
+    /// down by this row count before clipping, reserving exactly these rows.
+    fn decode_rle_rows(
+        &self,
+        index: usize,
+        mut p: usize,
+        w: usize,
+        rows: usize,
+        indices: &mut [u8],
+        opaque: &mut [bool],
+    ) -> Result<usize> {
+        let next = |p: &mut usize| -> Result<u8> {
+            let b = *self.data.get(*p).ok_or(Error::Truncated {
+                needed: *p + 1,
+                have: self.data.len(),
+            })?;
+            *p += 1;
+            Ok(b)
+        };
+        for y in 0..rows {
+            let mut x: u32 = 0;
+            while x < w as u32 {
+                let op = next(&mut p)?;
+                if op == 0 {
+                    let skip = next(&mut p)?;
+                    if skip == 0 {
+                        return Err(Error::ZeroLengthRun { frame: index, row: y as u16 });
+                    }
+                    x += skip as u32;
+                } else {
+                    for k in 0..op as usize {
+                        let v = next(&mut p)?;
+                        let xi = x as usize + k;
+                        if xi < w {
+                            indices[y * w + xi] = v;
+                            opaque[y * w + xi] = v != 0;
+                        }
+                    }
+                    x += op as u32;
+                }
+            }
+            if x != w as u32 {
+                return Err(Error::RowOverrun {
+                    frame: index,
+                    row: y as u16,
+                    got: x,
+                    want: w as u16,
+                });
+            }
+        }
+        Ok(p)
+    }
+
 
     fn decode_rle(
         &self,
@@ -533,7 +646,12 @@ mod tests {
     fn zero_length_skip_run_is_rejected_rather_than_hanging() {
         // "00 00" asks to skip zero pixels: no progress, so a naive decoder
         // spins forever. Must be an error instead.
-        let bytes = build(1, 0, &[(4, 1, &[0x00, 0x00, 0x00, 0x04])]);
+        //
+        // The payload is deliberately 5 bytes for a 4x1 frame. At exactly 4 it
+        // would span w*h, and the whole file would be reclassified as raw - a
+        // real hazard this test caught, since that would quietly rescue a frame
+        // that ought to fail.
+        let bytes = build(1, 0, &[(4, 1, &[0x00, 0x00, 0x00, 0x04, 0x00])]);
         let pl8 = Pl8::parse(&bytes).unwrap();
         assert!(matches!(
             pl8.decode(0),
