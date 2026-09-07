@@ -20,3 +20,11 @@ node_modules/
 
 # Local scratch
 *.log
+
+# Rendered or derived images. Any image in this repo is presumed to be game data
+# until proven otherwise - see CLAUDE.md rule 1. Force-add with justification if
+# a genuinely original diagram is ever needed.
+*.png
+*.bmp
+*.jpg
+**/out/
