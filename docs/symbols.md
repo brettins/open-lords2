@@ -79,3 +79,19 @@ Not known to be fatal.
 
 That `.data` region is why incremental replacement works: the live game state sits at
 fixed addresses and can be read from another process while the game runs.
+
+## Map loading
+
+| Address | Name | Confidence | What it does |
+|---------|------|-----------|--------------|
+| `0x00467770` | `Map_LoadPlanes()` | verified | Reads the six 64x64 byte planes of a map slot, at slot offsets `+0x0000` … `+0x5000`, in a 64x64 nest. |
+| `0x0046797D` | `Map_LoadLattice()` | verified | Reads the trailing 65x129 layer — `for(row < 0x81) for(col < 0x41)`. |
+| `0x0040526E` | `Map_RenderIso()` | verified | Walks the 65x129 lattice. Cells below `0x0FFF0000` hold a runtime pointer into the tile array; cells still holding `0x0FFF0000 + b` are off-map surround, where `b` is the background tile graphic index from the file. |
+
+Map slots are addressed by `File_ReadChunk` with `lseek(index * 0x80C1)` — 0x80C1 is
+32,961, the slot stride. See `docs/formats/maps.md`.
+
+**`mapl2.exe` is a dead end.** Despite shipping in the game folder, its strings identify
+it as the "L2 Battlemap editor" for `.skr` battle scenarios, and it contains no reference
+to `l2_maps.dat` at all. The reference implementation for the campaign map format is
+`Lords2.exe` itself. Recorded here so nobody re-investigates it.

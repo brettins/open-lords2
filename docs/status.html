@@ -232,9 +232,9 @@
     </div>
     <div class="gauge">
       <div class="k">Asset formats</div>
-      <div class="v">2 / 7</div>
-      <div class="sub">PL8 (partial) and .256 palettes understood</div>
-      <div class="bar"><i style="width:29%"></i></div>
+      <div class="v">3 / 7</div>
+      <div class="sub">PL8 (partial), .256 palettes, L2_maps.dat container</div>
+      <div class="bar"><i style="width:43%"></i></div>
     </div>
     <div class="gauge">
       <div class="k">Phases complete</div>
@@ -257,7 +257,7 @@
       <div class="k">Next</div>
       <ul class="checks">
         <li class="todo"><span class="mark">&#9675;</span><span>Name identified functions in the Ghidra database</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Find the map loader to crack L2_maps.dat</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Windowed viewer &mdash; first pixels from our own renderer</span></li>
       </ul>
     </div>
     <div class="gauge">
@@ -305,8 +305,14 @@
       <div class="v"><em>still unidentified</em> &mdash; 32 files</div></div>
     <div class="fact"><div class="k">Framebuffer stride</div>
       <div class="v">640 (0x280 &minus; width)</div></div>
-    <div class="fact"><div class="k">L2_maps.dat (Windows)</div>
-      <div class="v">DOS file + appended maps, same format</div></div>
+    <div class="fact"><div class="k">Map slot stride</div>
+      <div class="v">32,961 B = 6&times;(64&times;64) + 65&times;129</div></div>
+    <div class="fact"><div class="k">Map slots</div>
+      <div class="v">80 total &middot; <em>44 used</em>, 36 empty</div></div>
+    <div class="fact"><div class="k">Map plane 5 / plane 0</div>
+      <div class="v">county id / flag bitfield</div></div>
+    <div class="fact"><div class="k">Map loader</div>
+      <div class="v">0x00467770 &middot; lattice 0x0046797D</div></div>
   </div>
 
   <h2>Roadmap</h2>
@@ -339,7 +345,8 @@
         <li class="now"><span class="mark">&#9679;</span><span>PL8 storage mode 2 <span class="count">&mdash; 32 files, encoding still unknown</span></span></li>
         <li class="now"><span class="mark">&#9679;</span><span>PL8 raw sub-mode 2, frames shorter than width&times;height <span class="count">&mdash; 23 files</span></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Which palette pairs with which sprite set</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>L2_MAPS.DAT &mdash; <code>mapl2.exe</code> ships as a reference implementation</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>L2_maps.dat container &mdash; 80 slots of 32,961 bytes, 44 used</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Map tile&rarr;lattice mapping <span class="count">&mdash; best fit only 72%</span></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>CASTLES.DAT, .SAF, and the .ENG text files</span></li>
       </ul>
     </div>
