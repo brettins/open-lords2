@@ -49,14 +49,17 @@
 //! These are the places this crate could not simply follow it. Each is repeated
 //! at the code that deals with it.
 //!
-//! 1. **§4.1's empire tax term cannot be read literally.** §4.1 gives
-//!    `dHapTax = (5 - taxRate) + realm.taxHapEmpire` and §2 gives
-//!    `taxHapEmpire = sum of every owned county's +0x16`. If `+0x16` were the
-//!    obvious `5 - rate`, the shipped save — four owned counties, every rate 0
-//!    — would give `taxHapEmpire = 20` and `dHapTax = 25`. §9 says
-//!    `shownTax = +5`. Only the **negative part** of `5 - rate` reproduces the
-//!    save, and it is also the only reading that matches the manual's
-//!    description of what the term is for. See [`tax::empire_contribution`].
+//! 1. **§4.1's empire tax term is a table, and inference got it wrong.**
+//!    §4.1 gives `dHapTax = (5 - taxRate) + realm.taxHapEmpire` and §2 gives
+//!    `taxHapEmpire = sum of every owned county's +0x16`. `+0x16` cannot be
+//!    `5 - rate` — the shipped save, four owned counties all at rate 0, would
+//!    then store `dHapTax = 25` where §9 says `+5`. This crate inferred
+//!    `min(5 - rate, 0)` from that, which reproduces the save and matches the
+//!    manual, **and is wrong at 45 of the 51 rates.** `Tax_RecomputePreview`
+//!    (`0x0044B80B`) writes `5 - rate` to a *different* field, `+0x0F`, and
+//!    `+0x16` from [`tables::TAX_HAPPINESS_OTHER`]. The save agrees with both
+//!    readings because every rate in it is 0. See
+//!    [`tax::empire_contribution`] and `docs/kingdom.md` §4.1.
 //!
 //! 2. **§4.3's ration loop cannot start where it says.** *"descends from
 //!    `rationWanted + 1`"* would let §4.3's own worked example be fed at

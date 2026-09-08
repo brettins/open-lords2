@@ -122,7 +122,7 @@ local UI state rather than simulation state. **[V]**
 | `+0x10` | i8 | dHapHealth | [V] | the health term. |
 | `+0x11` | i8 | dHapRation | [V] | the ration term. |
 | `+0x12` … `+0x15` | i8 | shown tax / ration / health / army | [V] | display copies taken at the moment the update ran — group 85 indices 2, 3, 4, 5. |
-| `+0x16` | i8 | taxHapOther | [V] | group 86 index 4, *"Other counties"*; summed across the realm into realm `+0x28`. |
+| `+0x16` | i8 | taxHapOther | [V] | group 86 index 4, *"Other counties"*; summed across the realm into realm `+0x28`. **`g_taxHappinessOther[rate]`, not `5 − rate`** — §4.1. |
 | `+0x17` | i8 | shownEvents | [V] | group 85 index 9, *"From events"*. |
 | `+0x18` | i8 | happinessAvg | [V] | group 85 index 8, *"Average happiness"* = `+0x1C / g_turnCount`. |
 | `+0x1C` | i32 | happinessSum | [V] | running total of `+0x0C` over all turns. |
@@ -408,7 +408,7 @@ take  = Pct(Pct(population, base), taxRate);       /* Pct(x,p) = x*p/100 */
 county.taxCollected = take;
 if (owner == 0) county.f1F4 += take;               /* an unowned county keeps its own */
 else { realm.gold += take; realm.f0F4 += take; realm.f0F8 += take; }
-county.dHapTax = (5 - taxRate) + realm.taxHapEmpire;
+county.dHapTax = (5 - taxRate) + realm.taxHapEmpire;   /* +0x0E; +0x16 is a table, below */
 ```
 
 **[V] `+0x1A8` is the *"Stop thief!"* random event**, and it is no longer an untraced
@@ -438,9 +438,39 @@ term `realm.taxHapEmpire` is the sum of every owned county's `+0x16`, which is t
 mechanism behind the manual's *"if you set taxes outrageously high in one county, this will
 damage the happiness ratings of all your other counties."*
 
+**[V] `+0x16` is a table lookup and *not* `5 − rate`, and this document said otherwise.**
+`Tax_RecomputePreview` (`0x0044B80B`) is the only writer of `+0x16` anywhere in the binary,
+and it writes two different things to two different fields:
+
+```c
+county[+0x0F] = 5 - taxRate;                       /* the local half        */
+county[+0x16] = g_taxHappinessOther[taxRate];      /* the empire half       */
+```
+
+`g_taxHappinessOther` (`0x004D63D8`) is 51 `i32` entries, one per rate `0 … 50`:
+
+| rate | 0 – 19 | 20–23 | 24–27 | 28–31 | 32–34 | 35–37 | 38–39 | 40–41 | 42–43 | 44 | 45 | 46 | 47 | 48 | 49 | **50** |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `+0x16` | 0 | −1 | −2 | −3 | −4 | −5 | −6 | −7 | −8 | −9 | −10 | −11 | −12 | −13 | −14 | **−15** |
+
+So **taxing at 19% costs the rest of the realm nothing whatever**, and even a punitive 50%
+costs it 15 — an order of magnitude gentler than the shape of `5 − rate` suggests. Reading
+`+0x16` as `5 − rate` and then, when the save refused it, as `min(5 − rate, 0)`, gives the
+right answer at six of the 51 rates. One of those six is rate 0, which is every rate in
+`lastturn.sav`, so the whole of `crates/l2-kingdom`'s test suite passed on the wrong rule.
+The table is now `l2_kingdom::tables::TAX_HAPPINESS_OTHER` and
+`tools/oracle/kingdom.ps1` checks all 51 entries against the executable.
+
+**[V] The rate is capped at 50, and the table's length is the second reading of it.**
+`Tax_IncreaseCounty` (`0x0043AA83`) guards `taxRate < 0x32`; `0x004D63D8 + 52 × 4` is
+exactly `0x004D64A8`, where `g_healthDeltaTable` begins, and the 52nd word is a zero no
+rate can index. A rate that could reach 100 would need 101 rows.
+
 > **A caution about the empire term.** `Tax_SumEmpireHappiness` sums signed bytes from up
-> to sixteen counties **into a signed byte**. Nothing clamps it. Whether it actually wraps
-> in play was not tested here. **[D]**
+> to sixteen counties **into a signed byte**. Nothing clamps it. With the real table the
+> worst case is sixteen counties at −15, which is −240 and *does* wrap; under the old
+> reading it was −720 and wrapped much sooner. Whether it wraps in play was not tested
+> here. **[D]**
 
 ### 4.2 Health and rations
 
@@ -1533,12 +1563,12 @@ free.
 powershell -File tools/oracle/kingdom.ps1 -Source File
 ```
 
-It runs **25 checks** straight out of `Lords2.exe` at the addresses named above and
+It runs **26 checks** straight out of `Lords2.exe` at the addresses named above and
 compares them against the values written here. It needs no running process. That is the
 check that caught two of this document's layout errors — `g_healthBandLadder`'s pairs and
 `g_castleWorkforce`'s stride — and it should gain a row whenever a table is added.
 
-Twenty-two of the 25 read initialised `.data`. **Three read `.text`**, because the rule
+Twenty-three of the 26 read initialised `.data`. **Three read `.text`**, because the rule
 they check is not a table at all:
 
 | check | what it reads | why there is no table |

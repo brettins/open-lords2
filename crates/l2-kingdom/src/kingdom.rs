@@ -445,7 +445,12 @@ impl Kingdom {
     }
 
     fn tax_collect(&mut self) {
-        tax::sum_empire_happiness(&mut self.counties, &mut self.realms, self.county_count);
+        tax::sum_empire_happiness(
+            &self.tables,
+            &mut self.counties,
+            &mut self.realms,
+            self.county_count,
+        );
         for id in 1..=self.county_count {
             let owner = self.counties[id].owner as usize;
             let empire = if owner != 0 && owner < MAX_REALMS {

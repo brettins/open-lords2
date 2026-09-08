@@ -617,15 +617,16 @@ Five things, in descending order of how much they matter.
    append at end of turn and one wrap at 400 — but until it exists, the population and
    happiness panels are two-thirds empty. **[V]**
 
-2. **`taxHapOther` comes from a table, not from a formula.** `crates/l2-kingdom`'s
-   `tax::empire_contribution` is `min(5 − rate, 0)`, reasoned from the save. The binary's
-   only writer of `+0x16` is `Tax_RecomputePreview` (`0x0044B80B`), and it reads
-   `g_taxHappinessOther[rate]` (§6.3). The two agree at rate 0 — which is every rate in the
-   shipped save, which is why the inference survived — and **disagree from rate 6 upward**:
-   ours gives −1 at rate 6, the table gives 0 until rate 20 and only reaches −15 at rate 50,
-   where ours would give −45. **This is a rule, and we have the wrong one.** Not changed
-   here: `l2-kingdom` is not this task's file, and the change moves numbers its tests
-   assert. It should be the next thing somebody does. **[V]**
+2. **`taxHapOther` comes from a table, not from a formula.** *Fixed — this entry is kept
+   for the record.* `crates/l2-kingdom`'s `tax::empire_contribution` was
+   `min(5 − rate, 0)`, reasoned from the save. The binary's only writer of `+0x16` is
+   `Tax_RecomputePreview` (`0x0044B80B`), and it reads `g_taxHappinessOther[rate]` (§6.3).
+   The two agree at rate 0 — which is every rate in the shipped save, which is why the
+   inference survived — and **disagree from rate 6 upward**: ours gave −1 at rate 6, the
+   table gives 0 until rate 20 and only reaches −15 at rate 50, where ours would give −45.
+   All 51 entries are now `l2_kingdom::tables::TAX_HAPPINESS_OTHER`, checked against the
+   executable by `tools/oracle/kingdom.ps1`, and `5 − rate` survives as the separate
+   `+0x0F` field it always was. **[V]**
 
 3. **The labour record is three integers a job, not one.** `+0xC4 + slot*0x0C` is what
    `docs/kingdom.md` records and what we store — but the stride is 12 and

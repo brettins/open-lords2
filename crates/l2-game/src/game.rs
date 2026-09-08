@@ -29,17 +29,13 @@ use l2_view::Ink;
 
 /// The highest tax rate the interface will set.
 ///
-/// **50, and it is now a reading rather than our arithmetic bound.** This was
-/// 100 with a comment saying no clamp had been found. There is one, in two
-/// independent places (`docs/screens-county.md` §6.3):
-///
-/// * `Tax_Increase` (`0x0043AA32`) and `Tax_IncreaseCounty` (`0x0043AA83`)
-///   both guard `taxRate < 0x32` before the increment, and `Tax_Decrease`
-///   guards `!= 0`. One point a click, 0 … 50.
-/// * `g_taxHappinessOther` (`0x004D63D8`), the table `Tax_RecomputePreview`
-///   indexes by the rate, has **exactly 51 entries** — the 52nd word is the
-///   start of the next table. A rate that could reach 100 would need 101.
-pub const MAX_TAX_RATE: i32 = 50;
+/// **It lives in `l2-kingdom` now, and this is a re-export.** It was defined
+/// here, in the application crate, which is the wrong side of the seam: 50 is
+/// not a widget's range, it is the length of `g_taxHappinessOther` minus one
+/// (`l2_kingdom::tables::TAX_HAPPINESS_OTHER`), and a ruleset that replaces
+/// that table is entitled to move it. The screens keep importing it under this
+/// name; only its home changed.
+pub use l2_kingdom::tables::MAX_TAX_RATE;
 
 /// The grain-to-livestock split runs the full width of its slider track.
 ///

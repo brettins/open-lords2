@@ -380,6 +380,45 @@ pub const CASTLE_TAX_BASE: [i32; CASTLE_TYPE_COUNT] = [320, 480, 560, 640, 720, 
 /// statement of [`CASTLE_TAX_BASE`]. Six slots, the sixth zero.
 pub const CASTLE_TAX_BONUS_PCT: [i32; 6] = [50, 75, 100, 125, 150, 0];
 
+/// The highest tax rate the player can set. **[V]** twice over: `Tax_Increase`
+/// (`0x0043AA32`) guards `taxRate < 0x32`, and [`TAX_HAPPINESS_OTHER`] holds
+/// exactly 51 entries, one per rate `0 ..= 50`.
+///
+/// It was 100 until it was read - an arithmetic bound standing in for a rule -
+/// and it lived in the *application* crate, where a rule has no business being.
+pub const MAX_TAX_RATE: i32 = 50;
+
+/// `g_taxHappinessOther` (`0x004D63D8`) - what one county's tax rate does to
+/// the happiness of **every other county in the same realm**. **[V]**
+///
+/// 51 `i32` entries indexed by tax rate. `Tax_RecomputePreview` reads
+/// `g_taxHappinessOther[rate * 4]` into county `+0x16`, and
+/// `Tax_SumEmpireHappiness` sums that across the realm into a signed *byte* -
+/// so a large enough empire overflows it, which is a separate reproduced bug.
+///
+/// The shape is the point, because it is nothing like a formula: **flat zero
+/// through rate 19**, then a shallow ramp reaching only −15 at the maximum.
+/// Taxing at 19% costs your other counties nothing whatsoever.
+///
+/// Transcribed by hand from the executable, which is a step that can go wrong
+/// silently - the first attempt was off by one at the start of the ramp. So
+/// `tools/oracle/kingdom.ps1` checks all 51 entries against `Lords2.exe`, and
+/// `the_tax_happiness_table_is_the_one_in_the_binary` asserts the shape here.
+pub const TAX_HAPPINESS_OTHER: [i32; MAX_TAX_RATE as usize + 1] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //     0..9
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //    10..19
+    -1, -1, -1, -1, //                  20..23
+    -2, -2, -2, -2, //                  24..27
+    -3, -3, -3, -3, //                  28..31
+    -4, -4, -4, //                      32..34
+    -5, -5, -5, //                      35..37
+    -6, -6, //                          38..39
+    -7, -7, //                          40..41
+    -8, -8, //                          42..43
+    -9, //                              44
+    -10, -11, -12, -13, -14, -15, //    45..50
+];
+
 /// `0x004D89C0` - `(wood, stone)` to build, by castle type 1..=5.
 pub const CASTLE_COST: [(i32, i32); 5] =
     [(400, 40), (800, 80), (200, 1000), (400, 2000), (800, 3000)];
@@ -1249,6 +1288,8 @@ pub struct Tables {
     /// `(100, 4)` entry rather than an `else`. Verified against the executable
     /// by `tools/oracle/kingdom.ps1`.
     pub health_band_ladder: [(i32, i32); HEALTH_BAND_COUNT],
+    /// [`TAX_HAPPINESS_OTHER`], indexed by tax rate `0 ..= `[`MAX_TAX_RATE`].
+    pub tax_happiness_other: [i32; MAX_TAX_RATE as usize + 1],
     pub population: PopulationTable,
     /// Indexed by [`Weather`].
     pub weather: [WeatherRow; 6],
@@ -1526,6 +1567,7 @@ impl Tables {
                 health_delta: HEALTH_DELTA[5],
             },
         ],
+        tax_happiness_other: TAX_HAPPINESS_OTHER,
         ration_happiness_slope: 3,
         ration_happiness_offset: -8,
         health: [

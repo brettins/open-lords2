@@ -18,7 +18,7 @@
 use crate::county::County;
 use crate::math::pct;
 use crate::realm::Realm;
-use crate::tables::Tables;
+use crate::tables::{Tables, MAX_TAX_RATE};
 
 /// The tax rate that costs nothing. `dHapTax = 5 - rate`.
 pub const FREE_TAX_RATE: i32 = 5;
@@ -50,21 +50,35 @@ pub fn tax_base(t: &Tables, castle_type: u8) -> i32 {
 /// What one county contributes to its realm's empire-wide tax happiness term
 /// (county `+0x16`, *"Other counties"*, summed into realm `+0x28`).
 ///
-/// **This is inferred, and it is the one place in this crate where the document
-/// cannot be taken literally.** `docs/kingdom.md` §4.1 says
-/// `dHapTax = (5 - rate) + realm.taxHapEmpire` and §2 says `taxHapEmpire` is
-/// the sum of every owned county's `+0x16`. If `+0x16` were simply `5 - rate`,
-/// then the shipped `lastturn.sav` — where every rate is 0 and there are four
-/// player-owned counties — would give `taxHapEmpire = 20` and `dHapTax = 25`.
-/// The save stores `shownTax = +5` (§9). So `+0x16` cannot be `5 - rate`.
+/// **It is a table, and it was inferred wrongly until somebody read it.** `[V]`
 ///
-/// Taking only the **negative** part reproduces the save (a rate of 0
-/// contributes nothing) *and* matches the manual's statement of what the term
-/// is for: *"if you set taxes outrageously high in one county, this will damage
-/// the happiness ratings of all your other counties."* A generous county does
-/// not subsidise its neighbours' mood; a punitive one poisons it.
-pub fn empire_contribution(tax_rate: i32) -> i32 {
-    (FREE_TAX_RATE - tax_rate).min(0)
+/// `Tax_RecomputePreview` (`0x0044B80B`) is the only writer of `+0x16` anywhere
+/// in the binary, and its last three statements settle the question:
+///
+/// ```c
+/// county[0x0F] = 5 - taxRate;                        /* a *separate* field  */
+/// county[0x16] = g_taxHappinessOther[taxRate * 4];   /* i32 stride, 51 rows */
+/// Tax_SumEmpireHappiness(county.owner);
+/// ```
+///
+/// `5 - rate` is real, but it is `+0x0F`. `+0x16` is a lookup in
+/// `g_taxHappinessOther` (`0x004D63D8`), 51 entries for rates 0 …
+/// [`MAX_TAX_RATE`]. The 52nd word is a zero no rate can reach, and
+/// `0x004D63D8 + 52 * 4` is exactly `0x004D64A8`, where `g_healthDeltaTable`
+/// begins — which is what fixes the length.
+///
+/// The old reading here was `min(5 - rate, 0)`, arrived at honestly: it
+/// reproduces the shipped save and it matches the manual's *"outrageously high
+/// taxes damage your other counties"*. It is also **wrong at 45 of the 51
+/// rates** — flat until 21 in the binary against biting from 6 in ours, and
+/// −15 against −45 at the top, a factor of three.
+///
+/// It survived because **every county in the only save we test sits at rate 0**,
+/// which is one of the six columns where the two agree. See `docs/decisions.md`
+/// C22.
+pub fn empire_contribution(t: &Tables, tax_rate: i32) -> i32 {
+    let rate = tax_rate.clamp(0, MAX_TAX_RATE) as usize;
+    t.tax_happiness_other[rate]
 }
 
 /// Recompute every owned county's contribution and sum it into its realm.
@@ -72,12 +86,17 @@ pub fn empire_contribution(tax_rate: i32) -> i32 {
 /// Two passes over the counties, in index order: the sum has to be complete
 /// before any county reads it, and a single pass would make a county's tax
 /// happiness depend on its position in the array.
-pub fn sum_empire_happiness(counties: &mut [County], realms: &mut [Realm], county_count: usize) {
+pub fn sum_empire_happiness(
+    t: &Tables,
+    counties: &mut [County],
+    realms: &mut [Realm],
+    county_count: usize,
+) {
     for realm in realms.iter_mut() {
         realm.tax_hap_empire = 0;
     }
     for id in 1..=county_count {
-        let contribution = empire_contribution(counties[id].tax_rate);
+        let contribution = empire_contribution(t, counties[id].tax_rate);
         counties[id].tax_hap_other = contribution;
         let owner = counties[id].owner as usize;
         if owner != 0 && owner < realms.len() {
@@ -189,7 +208,7 @@ mod tests {
             counties[id].owner = 1;
             counties[id].tax_rate = 0;
         }
-        sum_empire_happiness(&mut counties, &mut realms, 4);
+        sum_empire_happiness(T, &mut counties, &mut realms, 4);
         assert_eq!(realms[1].tax_hap_empire, 0);
         for id in 1..=4 {
             assert_eq!(counties[id].tax_hap_other, 0);
@@ -206,15 +225,54 @@ mod tests {
             counties[id].owner = 1;
             counties[id].population = 400;
         }
-        counties[2].tax_rate = 25; // outrageous
-        sum_empire_happiness(&mut counties, &mut realms, 4);
-        assert_eq!(realms[1].tax_hap_empire, -20);
+        counties[2].tax_rate = 25;
+        sum_empire_happiness(T, &mut counties, &mut realms, 4);
+
+        // -2 from the table, not -20 from `min(5 - rate, 0)`. This assertion
+        // read -20 until `g_taxHappinessOther` was actually read: the real
+        // empire term is an order of magnitude gentler than the formula.
+        assert_eq!(realms[1].tax_hap_empire, -2);
 
         let empire = realms[1].tax_hap_empire as i32;
         collect(T, &mut counties[1], empire);
-        assert_eq!(counties[1].d_hap_tax, 5 - 20, "an untaxed county still suffers");
+        assert_eq!(counties[1].d_hap_tax, 5 - 2, "an untaxed county still suffers");
         collect(T, &mut counties[2], empire);
-        assert_eq!(counties[2].d_hap_tax, (5 - 25) - 20, "and the culprit suffers twice");
+        assert_eq!(counties[2].d_hap_tax, (5 - 25) - 2, "and the culprit suffers twice");
+    }
+
+    /// The shape of the real table, which is nothing like the formula it
+    /// replaced: **taxing at 19% costs the rest of the realm nothing at all**,
+    /// and even the maximum rate costs only 15.
+    ///
+    /// Walks every rate rather than sampling, because the rule it replaced was
+    /// wrong at 45 of 51 and survived on the six where they agree — one of
+    /// which is rate 0, the only rate the shipped save contains.
+    #[test]
+    fn the_empire_tax_term_is_flat_until_twenty_and_gentle_after() {
+        for rate in 0..=19 {
+            assert_eq!(empire_contribution(T, rate), 0, "rate {rate} must cost nothing");
+        }
+        assert_eq!(empire_contribution(T, 20), -1, "the ramp starts at 20");
+        assert_eq!(empire_contribution(T, MAX_TAX_RATE), -15, "and ends at -15");
+
+        let mut previous = 0;
+        for rate in 0..=MAX_TAX_RATE {
+            let v = empire_contribution(T, rate);
+            assert!(v <= previous, "rate {rate} must not be kinder than rate {}", rate - 1);
+            assert!(v >= -15, "rate {rate} falls through the table's floor");
+            previous = v;
+        }
+
+        // Out of range clamps rather than panicking. The UI cannot produce
+        // these; a mod or a corrupt save could.
+        assert_eq!(empire_contribution(T, 999), -15);
+        assert_eq!(empire_contribution(T, -5), 0);
+
+        // For the record, and to stop anyone reinstating it: the old rule was
+        // right at six rates out of 51.
+        let agreements =
+            (0..=MAX_TAX_RATE).filter(|&r| empire_contribution(T, r) == (5 - r).min(0)).count();
+        assert_eq!(agreements, 6, "min(5 - rate, 0) agreed six times out of 51");
     }
 
     /// A second realm's rates never touch the first realm's counties.
@@ -225,9 +283,9 @@ mod tests {
         counties[1].owner = 1;
         counties[2].owner = 2;
         counties[2].tax_rate = 30;
-        sum_empire_happiness(&mut counties, &mut realms, 2);
+        sum_empire_happiness(T, &mut counties, &mut realms, 2);
         assert_eq!(realms[1].tax_hap_empire, 0);
-        assert_eq!(realms[2].tax_hap_empire, -25);
+        assert_eq!(realms[2].tax_hap_empire, -3, "rate 30 is -3 in the table, not -25");
     }
 
     /// An unowned county's rate contributes to nobody.
@@ -237,11 +295,71 @@ mod tests {
         let mut realms = vec![Realm::new(); 6];
         counties[1].owner = 0;
         counties[1].tax_rate = 40;
-        sum_empire_happiness(&mut counties, &mut realms, 1);
+        sum_empire_happiness(T, &mut counties, &mut realms, 1);
         for r in realms.iter() {
             assert_eq!(r.tax_hap_empire, 0);
         }
-        assert_eq!(counties[1].tax_hap_other, -35, "the field is still written");
+        assert_eq!(counties[1].tax_hap_other, -7, "rate 40 is -7 in the table, not -35");
+    }
+
+    /// The **local** half of the term, at every rate the interface can set.
+    ///
+    /// `a_rate_of_five_is_free_and_every_point_above_costs_one_happiness`
+    /// stops at 20, which is inside the flat head of the empire table — the
+    /// region where the rule this crate had and the rule the binary has agree.
+    /// A test that never leaves the region where two rules agree cannot tell
+    /// them apart, which is exactly how the old one survived. So walk the lot.
+    #[test]
+    fn the_two_halves_of_the_tax_term_are_different_rules_at_every_legal_rate() {
+        for rate in 0..=MAX_TAX_RATE {
+            let mut counties = vec![County::new(); 2];
+            let mut realms = vec![Realm::new(); 2];
+            counties[1].owner = 1;
+            counties[1].population = 400;
+            counties[1].tax_rate = rate;
+            sum_empire_happiness(T, &mut counties, &mut realms, 1);
+            let empire = realms[1].tax_hap_empire as i32;
+            collect(T, &mut counties[1], empire);
+
+            // `+0x0F` really is `5 - rate`, unbanded and unclamped, at all 51.
+            assert_eq!(counties[1].d_hap_tax_local, FREE_TAX_RATE - rate, "local, rate {rate}");
+            // `+0x16` is the table, and it is *not* `min(5 - rate, 0)`.
+            assert_eq!(counties[1].tax_hap_other, T.tax_happiness_other[rate as usize]);
+            assert_eq!(counties[1].d_hap_tax, (FREE_TAX_RATE - rate) + empire, "sum, rate {rate}");
+        }
+    }
+
+    /// The two independent readings of the ceiling, held against each other.
+    ///
+    /// `Tax_IncreaseCounty` (`0x0043AA83`) guards `taxRate < 0x32`, so the rate
+    /// tops out at 50; and `g_taxHappinessOther` holds one entry per rate. If
+    /// either reading were wrong the other would not fit it.
+    #[test]
+    fn the_tax_table_is_exactly_one_row_per_settable_rate() {
+        assert_eq!(MAX_TAX_RATE, 50);
+        assert_eq!(
+            T.tax_happiness_other.len(),
+            MAX_TAX_RATE as usize + 1,
+            "one row per rate 0..=50, and the 52nd word is g_healthDeltaTable's neighbour"
+        );
+    }
+
+    /// **Collection is not clamped, and that is not an oversight.**
+    ///
+    /// `Tax_CollectAll` reads the rate byte and multiplies; the 0..=50 guard is
+    /// in the *panel*, not in the rule. So a mod or a corrupt save can present
+    /// a rate of 100 and it will be collected — while
+    /// [`empire_contribution`] clamps, because it indexes an array.
+    #[test]
+    fn the_ceiling_is_the_panels_and_the_collection_rule_never_sees_it() {
+        let mut c = county_with(1000, 2 * MAX_TAX_RATE, 0);
+        assert_eq!(collect(T, &mut c, 0), 3200, "rate 100 collects at rate 100");
+        assert_eq!(c.d_hap_tax_local, FREE_TAX_RATE - 100);
+        assert_eq!(
+            empire_contribution(T, 2 * MAX_TAX_RATE),
+            empire_contribution(T, MAX_TAX_RATE),
+            "but the table lookup saturates rather than reading past its end"
+        );
     }
 
     #[test]

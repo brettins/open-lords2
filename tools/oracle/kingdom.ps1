@@ -144,6 +144,23 @@ $CHECKS = @(
   @{ Name = 'g_rationTable'; Addr = 0x004D6738; Width = 4; Ref = 'sec 4.2'
      Expect = @(1,0, 4,1, 2,1, 1,1, 1,2, 1,3) }
 
+  # The "Other counties" happiness term, county +0x16, indexed by tax rate.
+  # kingdom.md sec 4.1 read it as 5 - rate and l2-kingdom then inferred
+  # min(5 - rate, 0) from the save; both are wrong, and this is the table that
+  # says so. Checked at 52 entries rather than 51 so that the trailing zero is
+  # pinned too: 0x004D63D8 + 52 * 4 is exactly 0x004D64A8, where
+  # g_healthDeltaTable above begins, so the two checks bound each other and the
+  # length - which is the second, independent reading of the 0..50 tax ceiling -
+  # cannot drift unnoticed.
+  @{ Name = 'g_taxHappinessOther'; Addr = 0x004D63D8; Width = 4; Ref = 'sec 4.1'
+     Expect = @(0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,
+                -1,-1,-1,-1, -2,-2,-2,-2, -3,-3,-3,-3,
+                -4,-4,-4, -5,-5,-5, -6,-6, -7,-7, -8,-8, -9,
+                -10,-11,-12,-13,-14,-15,
+                # the 52nd word: a zero no rate can reach, because
+                # Tax_IncreaseCounty guards taxRate < 0x32.
+                0) }
+
   # The AI personality records, six ints of each. The base is 0x004D8A58, which
   # is exactly 24 bytes past g_castleFreeArchers, and the stride is 3 x 0x50 =
   # 0xF0. Field +0x00 is the farming style AI_ManageFields dispatches on and

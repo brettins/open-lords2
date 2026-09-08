@@ -26,10 +26,13 @@ Legend:
 
 ### Money and taxes
 - ✅ Tax rate per county, collection, treasury
-- ⚠️ **Tax's effect on happiness.** It is a table lookup (`g_taxHappinessOther`), and we
-  compute `min(5 − rate, 0)`. Agrees at rate 0, diverges from rate 6. Every test passes
-  because the one save we test is all rate 0.
-- ✅ Tax ceiling is **50** (was wrongly 100 until today)
+- ✅ **Tax's effect on happiness — fixed.** It is two separate fields: `+0x0F` is
+  `5 − rate` and the "Other counties" term `+0x16` is a lookup in `g_taxHappinessOther`,
+  now transcribed as `TAX_HAPPINESS_OTHER`. We computed `min(5 − rate, 0)` for both, which
+  agrees with the table at six rates out of 51 — one of them rate 0, which is every rate in
+  the one save we test.
+- ✅ Tax ceiling is **50**, and it lives in `l2-kingdom` beside the table whose length
+  fixes it (was wrongly 100, and was in the application crate)
 - 📖 Merchant buying and selling, 15 goods with prices
 - 🕳 Wages: traced, and no army exists to pay
 - ❓ Bankruptcy: five stages, traced, never exercised
