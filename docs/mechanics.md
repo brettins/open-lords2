@@ -65,11 +65,22 @@ Legend:
   merchant sells. It is easy to miss in play — one line on a breakdown panel — but it ships.
 - ❓ **Sheep, and the food priority order** — both found on the ration screen (`L2.eng`
   group 62) while checking the above, and **neither has ever been looked at**:
-  - *"No sheep eaten." / "Sheep feed" / "Sheep will remain."* are ration-screen strings, so
-    sheep are eaten like cattle. But sheep and wool are the **two goods priced zero** in the
-    merchant table and the two a county cannot produce (`docs/kingdom.md` §12). A cut
-    feature whose strings survived, or something only scenarios grant? Unresolved — and
-    worth resolving before anyone writes the merchant screen.
+  - **Sheep and wool look like a cut subsystem.** The evidence, all `[V]`:
+    - They have names — `L2.eng` group 6 lists all fourteen goods, and 3 is *"Sheep"*,
+      5 is *"Wool"*.
+    - They have ration-screen text: *"No sheep eaten."*, *"Sheep feed"*, *"Sheep will
+      remain."* — sheep are eaten like cattle.
+    - **They are the only two goods priced zero** in the merchant table, and in this
+      binary's idiom a zero is *"not offered"* rather than *"free"* — the same convention
+      that stops the Baron building a royal castle.
+    - **No county can produce either**, and there is no shepherd among the nine peasant jobs.
+    - Group 68 gives ale its own merchant tooltip and gives sheep none.
+    - Two people who have played the game do not remember them.
+
+    Sheep make wool; both were cut; the names, the goods slots and the ration strings were
+    left behind. That is an inference, not a finding — it is marked ❓ because nobody has
+    traced whether a scenario can grant sheep. Worth settling **before** anyone writes the
+    merchant screen, since the answer decides whether two of its fourteen rows exist.
   - *"Click on a food to swap its priority."* **The order food is eaten in is a player
     setting**, not the constant our `ration` pass assumes. Our pass hardcodes dairy → grain
     → slaughter; the original lets you reorder five foods.
