@@ -42,6 +42,27 @@ functions, 1,952 unnamed, and 418 of those directly reference `g_counties`, `g_u
 for it did not, and a right answer resting on a wrong reason is one bad day from becoming a
 wrong answer.
 
+## Revision 3 — priority correction from the user
+
+**Modding goes behind the game.** Direct instruction, and it corrects a real drift: three of
+the last four agents worked on rules and mods while there is still no menu, no screen, no
+input and nothing a person could sit down and play. The mod platform is genuinely good —
+every kingdom rule is now something a `.toml` can change, proved by tests that run the
+season pipeline and get different numbers out — and that is *further ahead than it needed to
+be at this stage*.
+
+Nothing is reverted; the work is done and it is sound. But no further mod work is scheduled
+unless the framework needs it. The ordering rule from here:
+
+> **Framework first. Then playing the game. Then mods.**
+
+The one exception the instruction allows: if building the application spine *requires*
+something from the mod layer — loading the core ruleset at startup, most likely — that is
+framework work and it proceeds.
+
+This also reprioritises what was item 4 below. The 14 siege AI handlers, the missile flight
+path, `Battlefield_BuildCastle` — all real, none of them on the path to a playable turn.
+
 ## Revised order
 
 1. **Import the shipped scenario** from `lastturn.sav`, and **make `reproduction.rs` read

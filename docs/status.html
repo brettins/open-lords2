@@ -226,8 +226,8 @@
   <div class="gauges">
     <div class="gauge">
       <div class="k">Test suite</div>
-      <div class="v">711</div>
-      <div class="sub">41 suites &middot; identical counts in debug <em>and</em> release</div>
+      <div class="v">809</div>
+      <div class="sub">identical counts in debug <em>and</em> release, with and without the install</div>
       <div class="bar"><i class="done" style="width:100%"></i></div>
     </div>
     <div class="gauge">
@@ -255,26 +255,25 @@
     <div class="gauge">
       <div class="k">In progress</div>
       <ul class="checks">
-        <li class="now"><span class="mark">&#9679;</span><span>Wiring the 17 battle AI order handlers into <code>l2-sim</code></span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>Making a modded kingdom ruleset actually <em>take effect</em></span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>Adversarial audit of our own method and &ldquo;blocked&rdquo; claims</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Nothing. Every agent has reported; the tree is clean</span></li>
       </ul>
     </div>
     <div class="gauge">
-      <div class="k">Next</div>
+      <div class="k">Next &mdash; and it is all one thing</div>
       <ul class="checks">
         <li class="todo"><span class="mark">&#9675;</span><span><code>l2-game</code> &mdash; the application spine nothing is plugged into yet</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Campaign map screen, county selection, end turn</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Save and load our own campaign state</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Menus, screens, input &mdash; <em>none of which exist at all</em></span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>A campaign map you can click, and an end-turn button</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Missiles: the rules resolve a hit, nothing fires one</span></li>
       </ul>
     </div>
     <div class="gauge">
       <div class="k">Recently closed</div>
       <ul class="checks">
-        <li class="done"><span class="mark">&#10003;</span><span><strong>A battle runs and draws itself</strong> &mdash; terrain, figures, melee, deaths</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Whole binary decompiled and greppable &mdash; 22s, not per question</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Battle tables verified against the binary &mdash; 11/11 rows</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Lobby, and head-of-line blocking under a real socket</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><strong>The AI drives the battle</strong> &mdash; units, formations, 200-frame thinking</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Simulation state moved out of the renderer into <code>l2-sim</code></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>The shipped save reads &mdash; and the scenario was <em>wrong</em> in our tests</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Every kingdom rule is now something a mod can change</span></li>
       </ul>
     </div>
   </div>
@@ -436,8 +435,9 @@
         <li class="done"><span class="mark">&#10003;</span><span>Melee table checked against the binary <span class="count">&mdash; 11/11 rows exact</span></span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Battlefield terrain, auto-tiling, sprites, facings, animation</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>All 20 shipped battlefields build <span class="count">&mdash; 128,000 cells, every index valid</span></span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>Wiring the 17 order handlers &mdash; until then it is a brawl, not their battle</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Missiles, siege engines, the side panel</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Units, formations, and the AI driving them <span class="count">&mdash; 3 of 17 handlers reachable</span></span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>The other 14 handlers are siege &mdash; and there is no castle to besiege</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Missiles &mdash; a hit resolves, but nothing flies</span></li>
       </ul>
     </div>
   </div>
