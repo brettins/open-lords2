@@ -30,6 +30,7 @@ use std::time::{Duration, Instant};
 use l2_game::game::Assets;
 use l2_game::input::{Event as GameEvent, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
+use l2_game::screens::setup::SetupPage;
 use l2_game::{scenario, Game};
 use l2_mods::Platform;
 use l2_view::Canvas;
@@ -64,7 +65,16 @@ struct App {
 impl App {
     fn present(&mut self) {
         let Some(pixels) = self.pixels.as_mut() else { return };
-        self.canvas.to_rgba(&self.assets.palette, pixels.frame_mut());
+        // Which palette. Most screens run under the campaign's; the front end,
+        // the merchant, the armoury, castle building and the ratings each read
+        // a `.256` of their own, and a canvas of indices means nothing without
+        // knowing which one. The top screen names it.
+        let palette = self
+            .machine
+            .palette_name()
+            .and_then(|n| self.assets.shell.palette(n))
+            .unwrap_or(&self.assets.palette);
+        self.canvas.to_rgba(palette, pixels.frame_mut());
         if let Err(e) = pixels.render() {
             eprintln!("render failed: {e}");
         }
@@ -264,7 +274,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App {
         game,
         assets,
-        machine: Machine::new(ScreenId::Menu),
+        // The front end, as the original has it: `g_screenId` 0x1F, page 1.
+        // `screens::menu` is the two-item placeholder it replaces; it is still
+        // there, and `tests/machine.rs` still drives it, but the application
+        // no longer starts on it.
+        machine: Machine::new(ScreenId::Setup(SetupPage::Title)),
         canvas: Canvas::screen(),
         window: None,
         pixels: None,

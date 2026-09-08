@@ -1,0 +1,530 @@
+//! The screens that are drawn but not yet wired: one table, one painter.
+//!
+//! # What a shell is
+//!
+//! Each entry below names the screen's `g_screenId`, its painter's address,
+//! the `.pl8` that painter loads, the window it opens, and the `L2.eng` group
+//! it draws — every one of them read out of the painter, none of them invented.
+//! [`ShellScreen`] draws exactly that and nothing else, so what appears on
+//! screen is the original's artwork with the original's words on it, sitting in
+//! the original's rectangles, with no logic behind it.
+//!
+//! This is deliberately not a "generic panel". A generic panel would be the
+//! invented interface layer `screens/county.rs` warns about. What makes these
+//! honest is that every number in the table has an address next to it, and that
+//! [`Shell::unfinished`] says in the screen's own words what the painter draws
+//! that the shell does not.
+//!
+//! # Popups are popups
+//!
+//! `docs/screens-county.md` §1: *"Our five-screen model is not the game's. The
+//! game's management surface is a sidebar plus eight popups, not a set of
+//! full-screen pages."* The screens marked [`Shell::overlay`] are drawn over
+//! whatever was underneath rather than clearing to a page of their own, which
+//! is what [`crate::screen::Machine::draw`] walking back to the last
+//! non-overlay screen is for.
+//!
+//! # The three that are whole pictures
+//!
+//! The merchant (`0x08`), the armoury (`0x0A`) and castle building (`0x1B`)
+//! each load a **640 × 480 `.pl8` and a `.256` of their own** and draw their
+//! widgets on top. For those three a shell is very nearly the real screen: the
+//! artwork is the artwork, and what is missing is the grid of prices, the
+//! weapon stocks and the castle plan drawn over it.
+
+use l2_view::Canvas;
+
+use crate::input::{Event, Key};
+use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::shell::{self, font, Pen};
+
+/// One line of `L2.eng` a painter draws at a fixed place: `(index, x, y)`.
+pub type Line = (usize, i32, i32);
+
+/// A screen we can draw and cannot yet drive.
+pub struct Shell {
+    /// `g_screenId`, the byte `Screen_Draw` switches on.
+    pub id: u8,
+    /// Its painter, for anyone going back to the binary.
+    pub painter: u32,
+    /// What this document calls it.
+    pub name: &'static str,
+    /// The full-screen background, if the painter loads one.
+    pub background: Option<&'static str>,
+    /// The `.256` it sets with it.
+    pub palette: Option<&'static str>,
+    /// `Ui_DrawBox`/`FUN_004093E0`: `(x, y, cols, rows, borderSet)` in cells of
+    /// 16 pixels. `FUN_004093E0` is border set 1, `Ui_DrawBox` is set 0.
+    pub window: Option<(i32, i32, i32, i32, usize)>,
+    /// The `L2.eng` group this painter draws.
+    pub group: usize,
+    /// The heading, in the 22-pixel font.
+    pub heading: Option<Line>,
+    /// The body lines, in the 14-pixel font.
+    pub lines: &'static [Line],
+    /// `Ui_OkButton(x, y, mode)` — the tick that closes the panel. Mode 0 is
+    /// button-sheet frame `0x33`, mode 1 is frame `0x10`.
+    pub ok: Option<(i32, i32, usize)>,
+    /// Whether this draws over what was underneath rather than replacing it.
+    pub overlay: bool,
+    /// What the painter does that this shell does not. Shown on the screen, so
+    /// that nobody walking the interface mistakes a shell for a finished one.
+    pub unfinished: &'static str,
+}
+
+/// Every shell, in `g_screenId` order.
+///
+/// `0x00` the campaign map, `0x02` the village and `0x14`/`0x15`/`0x16`/`0x19`
+/// the four county panels are **not** here: those are implemented screens.
+pub const SHELLS: &[Shell] = &[
+    Shell {
+        id: 0x08,
+        painter: 0x0041_5FB7,
+        name: "The merchant",
+        background: Some("Merchant.pl8"),
+        palette: Some("Merchant.256"),
+        window: None,
+        group: 68,
+        heading: None,
+        // `FUN_0041608B` draws the price grid over the picture; the only line
+        // this shell can place without inventing one is the standing caption.
+        lines: &[(0, 0x88, 0x68)],
+        // `Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1)`.
+        ok: Some((640 - 0x1C, 480 - 0x1C, 1)),
+        overlay: false,
+        unfinished: "the price grid (mercgrid.pl8) and the eight commodities",
+    },
+    Shell {
+        id: 0x09,
+        painter: 0x0041_6925,
+        name: "The court",
+        background: None,
+        palette: None,
+        window: Some((0x40, 0x30, 0x18, 0x16, 1)),
+        group: 70,
+        heading: Some((5, 0x50, 0x44)),
+        lines: &[(0, 0x60, 0x72), (2, 0x60, 0x90), (3, 0x60, 0xAE), (4, 0x60, 0xCC), (6, 0x88, 0x15C)],
+        ok: Some((0x198, 0x158, 0)),
+        overlay: true,
+        unfinished: "the realm's stock numbers, the six weapon rows and the wage lines",
+    },
+    Shell {
+        id: 0x0A,
+        painter: 0x0041_7EA7,
+        name: "The armoury",
+        background: Some("Armoury.pl8"),
+        palette: Some("Armoury.256"),
+        window: None,
+        group: 16,
+        heading: None,
+        lines: &[],
+        ok: Some((640 - 0x1C, 480 - 0x70, 1)),
+        overlay: false,
+        unfinished: "the weapon racks, the buy grid (arm_grid.pl8) and the armourer",
+    },
+    Shell {
+        id: 0x0B,
+        painter: 0x0041_6CF3,
+        name: "The other lords",
+        background: None,
+        palette: None,
+        window: Some((0x10, 0x20, 0x1C, 0x1B, 1)),
+        group: 72,
+        heading: None,
+        // `g_diploMenuState == 0`, the no-alliance layout: four actions at
+        // x = 0xE0, 50 apart from y = 0x70.
+        lines: &[(2, 0xE0, 0x70), (3, 0xE0, 0xA2), (4, 0xE0, 0xD4), (5, 0xE0, 0x106)],
+        ok: Some((0x1A8, 0x1A6, 0)),
+        overlay: true,
+        unfinished: "the lord cards from faces.pl8 and the other three menu layouts",
+    },
+    Shell {
+        id: 0x0C,
+        painter: 0x0041_6308,
+        name: "Trade goods",
+        background: Some("Merchant.pl8"),
+        palette: Some("Merchant.256"),
+        window: Some((0x30, 0x40, 0x22, 0x10, 1)),
+        group: 68,
+        heading: Some((2, 0x88, 0x68)),
+        lines: &[(9, 0x50, 0xA0), (10, 0x50, 0xC0), (17, 0x50, 0x100)],
+        ok: Some((0x22C, 0x114, 0)),
+        overlay: false,
+        unfinished: "the commodity icon from icontrad.pl8, the prices and the arrows",
+    },
+    Shell {
+        id: 0x0F,
+        painter: 0x0041_2B33,
+        name: "The job popup",
+        background: None,
+        palette: None,
+        // [I] `Panel_JobDetail`'s own window was not read; the box below is the
+        // county panels' shape and is marked as ours rather than the game's.
+        window: Some((0x40, 0x40, 0x18, 0x12, 1)),
+        group: 74,
+        heading: Some((1, 0x50, 0x54)),
+        lines: &[],
+        ok: None,
+        overlay: true,
+        unfinished: "everything: the worker count, the output and the arrows. The window is ours",
+    },
+    Shell {
+        id: 0x11,
+        painter: 0x0041_92B1,
+        name: "Army division",
+        background: None,
+        palette: None,
+        window: Some((0x08, 0x30, 0x1C, 0x1A, 0)),
+        group: 17,
+        heading: Some((0, 0x68, 0x44)),
+        lines: &[(1, 0x78, 0x1AE)],
+        ok: Some((0x1AC, 0x1B4, 0)),
+        overlay: true,
+        unfinished: "the eight troop rows and the two Total men lines",
+    },
+    Shell {
+        id: 0x17,
+        painter: 0x0041_8653,
+        name: "Hire mercenaries",
+        background: None,
+        palette: None,
+        // `Ui_DrawBox(0x50, y - 0x10, 0x1E, rows)`, where y and rows depend on
+        // whether a band is offering: 0x80 and 17 when one is, 0xA0 and 14
+        // when none is. The larger of the two is drawn.
+        window: Some((0x50, 0x70, 0x1E, 0x11, 0)),
+        group: 69,
+        heading: Some((0x10, 0x70, 0x78)),
+        lines: &[],
+        ok: None,
+        overlay: true,
+        unfinished: "the levy slider, the six weapon stocks and the mercenary offer",
+    },
+    Shell {
+        id: 0x18,
+        painter: 0x0041_AD5D,
+        name: "Send supplies",
+        background: None,
+        palette: None,
+        window: Some((0x40, 0x30, 0x16, 0x16, 1)),
+        group: 33,
+        heading: Some((0, 0x50, 0x44)),
+        lines: &[(7, 0xF0, 0x70), (1, 0xF0, 0x9E), (2, 0xF0, 0xC2), (6, 0x60, 0x160)],
+        ok: None,
+        overlay: true,
+        unfinished: "the county picture, the two county names and the grain/sheep/cattle rows",
+    },
+    Shell {
+        id: 0x1B,
+        painter: 0x0041_9789,
+        name: "Castle building",
+        background: Some("Cas_back.pl8"),
+        palette: Some("Cas_back.256"),
+        window: None,
+        group: 30,
+        heading: None,
+        lines: &[],
+        ok: Some((640 - 0x1C, 480 - 0x1C, 1)),
+        overlay: false,
+        unfinished: "the castle plan from caspics.pl8 and the piece palette from cas_bits.pl8",
+    },
+    Shell {
+        id: 0x1D,
+        painter: 0x0042_1F14,
+        name: "Siege preparations",
+        background: None,
+        palette: None,
+        window: Some((0x10, 0x30, 0x1C, 0x19, 1)),
+        group: 83,
+        heading: Some((0, 0x30, 0x58)),
+        lines: &[(4, 0x40, 0x78), (1, 0x48, 0xC0), (6, 0x48, 0x150), (7, 0x148, 0x150)],
+        ok: None,
+        overlay: true,
+        unfinished: "the three engine rows with their percent bars, and sgeplans.pl8",
+    },
+    Shell {
+        id: 0x25,
+        painter: 0x0041_543F,
+        name: "About",
+        background: None,
+        palette: None,
+        window: Some((0x60, 0xE0, 0x16, 0x09, 1)),
+        group: 59,
+        heading: Some((0, 0x80, 0xF4)),
+        lines: &[(2, 0x80, 0x110), (1, 0x80, 0x148)],
+        ok: Some((0x194, 0x146, 0)),
+        overlay: true,
+        unfinished: "nothing — this is the whole screen",
+    },
+    Shell {
+        id: 0x2E,
+        painter: 0x0042_1707,
+        name: "Battle master ratings",
+        background: Some("Score1.pl8"),
+        palette: Some("Score1.256"),
+        window: None,
+        group: 37,
+        // `Ui_DrawCentred(37, 0, 0x60, 0x44, 0x1BE, heading, 0x3F)`; the shell
+        // draws it left-aligned at the same x, which is close but not it.
+        heading: Some((0, 0x60, 0x44)),
+        lines: &[(2, 0x68, 0xC8), (3, 0x68, 0xDC)],
+        ok: Some((0x204, 0x186, 0)),
+        overlay: false,
+        unfinished: "the seven rating rows per player and the shield sprites",
+    },
+    Shell {
+        id: 0x31,
+        painter: 0x0041_54EA,
+        name: "Help options",
+        background: None,
+        palette: None,
+        window: Some((0x60, 0x80, 0x16, 0x0B, 1)),
+        group: 45,
+        heading: Some((0, 0x80, 0x94)),
+        lines: &[(1, 0x80, 0xC0), (2, 0x80, 0xE0), (3, 0x80, 0x100)],
+        ok: Some((0x194, 0x106, 0)),
+        overlay: true,
+        unfinished: "the On/Off values from group 18, which need the settings",
+    },
+    Shell {
+        id: 0x35,
+        painter: 0x0041_4819,
+        name: "Load a game",
+        background: None,
+        palette: None,
+        window: Some((0x10, 0x90, 0x1C, 0x14, 0)),
+        group: 40,
+        heading: Some((0, 0x20, 0xA0)),
+        lines: &[(8, 0x20, 0x1A8)],
+        ok: None,
+        overlay: true,
+        unfinished: "the file list, which walks the save directory",
+    },
+    Shell {
+        id: 0x36,
+        painter: 0x0041_4819,
+        name: "Save a game",
+        background: None,
+        palette: None,
+        window: Some((0x10, 0x90, 0x1C, 0x14, 0)),
+        group: 40,
+        heading: Some((1, 0x20, 0xA0)),
+        lines: &[(8, 0x20, 0x1A8)],
+        ok: None,
+        overlay: true,
+        unfinished: "the file list, which walks the save directory",
+    },
+    Shell {
+        id: 0x39,
+        painter: 0x0041_4F68,
+        name: "Advanced options",
+        background: None,
+        palette: None,
+        window: Some((0x30, 0x60, 0x18, 0x0D, 1)),
+        group: 50,
+        heading: Some((0, 0x40, 0x74)),
+        lines: &[(1, 0x60, 0xA0), (2, 0x60, 0xC0), (3, 0x60, 0xE0), (4, 0x60, 0x100)],
+        ok: None,
+        overlay: true,
+        unfinished: "the four Yes/No values from group 18 at x = 0x140",
+    },
+    Shell {
+        id: 0x42,
+        painter: 0x0041_515C,
+        name: "Sound options",
+        background: None,
+        palette: None,
+        window: Some((0x30, 0x60, 0x18, 0x0C, 1)),
+        group: 51,
+        heading: Some((0, 0x40, 0x74)),
+        lines: &[(1, 0x60, 0xA0), (2, 0x60, 0xC0), (3, 0x60, 0xE0)],
+        ok: Some((0x188, 0xF0, 0)),
+        overlay: true,
+        unfinished: "the three On/Off values from group 19 at x = 0x140",
+    },
+    Shell {
+        id: 0x43,
+        painter: 0x0041_52EA,
+        name: "Display options",
+        background: None,
+        palette: None,
+        window: Some((0x30, 0x90, 0x18, 0x0A, 1)),
+        group: 52,
+        heading: Some((0, 0x40, 0xA4)),
+        lines: &[(1, 0x60, 0xD0), (2, 0x60, 0xF0), (3, 0x48, 0x108)],
+        ok: Some((0x188, 0x100, 0)),
+        overlay: true,
+        unfinished: "the two values, and the F5 note that only shows in windowed mode",
+    },
+];
+
+/// The shell for a screen id, if there is one.
+pub fn find(id: u8) -> Option<&'static Shell> {
+    SHELLS.iter().find(|s| s.id == id)
+}
+
+/// `System.pl8` frames for `Ui_OkButton`'s two modes.
+const OK_FRAME: [usize; 2] = [l2_view::chrome::system::OK, l2_view::chrome::system::OK_ALT];
+
+pub struct ShellScreen {
+    spec: &'static Shell,
+}
+
+impl ShellScreen {
+    /// `id` is the `g_screenId` byte. An id with no shell falls back to the
+    /// first one rather than panicking, because `ScreenId` is a plain value and
+    /// nothing stops a caller naming a screen that does not exist.
+    pub fn new(id: u8) -> ShellScreen {
+        ShellScreen { spec: find(id).unwrap_or(&SHELLS[0]) }
+    }
+
+    pub fn spec(&self) -> &'static Shell {
+        self.spec
+    }
+}
+
+impl Screen for ShellScreen {
+    fn id(&self) -> ScreenId {
+        ScreenId::Shell(self.spec.id)
+    }
+
+    fn title(&self, _ctx: &Ctx) -> String {
+        format!("{} — screen 0x{:02X} (shell)", self.spec.name, self.spec.id)
+    }
+
+    fn palette(&self) -> Option<&'static str> {
+        self.spec.palette
+    }
+
+    fn is_overlay(&self) -> bool {
+        self.spec.overlay
+    }
+
+    fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
+        match event {
+            // Every one of these closes and nothing else. That is the whole
+            // truth about a shell, and pretending otherwise would be the
+            // invented interface again.
+            Event::KeyDown(Key::Escape)
+            | Event::KeyDown(Key::Enter)
+            | Event::KeyDown(Key::Space)
+            | Event::Click { .. } => Transition::Pop,
+            _ => Transition::Stay,
+        }
+    }
+
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        let a = &ctx.assets.shell;
+        let pen = Pen {
+            assets: a,
+            ink: &ctx.assets.ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            // The management painters set neither text flag, so this is the
+            // ordinary emboss with no drop capitals.
+            shadow: Some(font::SHADOW),
+            caps: None,
+        };
+        let s = self.spec;
+
+        if let Some(bg) = s.background {
+            if !shell::background(canvas, a, bg) {
+                canvas.clear(ctx.assets.ink.background);
+            }
+        } else if !s.overlay {
+            canvas.clear(ctx.assets.ink.background);
+        }
+
+        if let Some((x, y, cols, rows, set)) = s.window {
+            pen.window(canvas, x, y, cols, rows, set);
+        }
+        if let Some((i, x, y)) = s.heading {
+            let t = a.text(s.group, i).to_string();
+            pen.heading(canvas, x, y, &t, font::TEXT);
+        }
+        for &(i, x, y) in s.lines {
+            let t = a.text(s.group, i).to_string();
+            pen.body(canvas, x, y, &t, font::TEXT);
+        }
+        if let Some((x, y, mode)) = s.ok {
+            let drawn = ctx
+                .assets
+                .chrome
+                .as_ref()
+                .is_some_and(|c| c.draw_system(canvas, OK_FRAME[mode], x, y));
+            if !drawn {
+                shell::button_recess(canvas, x, y, 24, 24);
+            }
+        }
+
+        // The mark. A shell says so, in our own font, in the dim colour, at the
+        // bottom of the screen — never in the original's font, so that nobody
+        // can mistake it for something the game said.
+        let note = format!("SHELL 0x{:02X} - NOT WIRED: {}", s.id, s.unfinished.to_uppercase());
+        l2_view::text::draw(canvas, 4, 470, &note, ctx.assets.ink.dim);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_shell_has_a_distinct_screen_id_and_a_painter() {
+        let mut ids: Vec<u8> = SHELLS.iter().map(|s| s.id).collect();
+        let before = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), before, "two shells claim the same g_screenId");
+        for s in SHELLS {
+            assert!(s.painter >= 0x0040_0000, "{} has no painter address", s.name);
+            assert!(!s.unfinished.is_empty(), "{} does not say what it is missing", s.name);
+        }
+    }
+
+    #[test]
+    fn a_background_and_its_palette_come_as_a_pair() {
+        for s in SHELLS {
+            assert_eq!(
+                s.background.is_some(),
+                s.palette.is_some(),
+                "{}: a full-screen background is always read with its own .256",
+                s.name
+            );
+            if let (Some(b), Some(p)) = (s.background, s.palette) {
+                assert_eq!(b.split('.').next(), p.split('.').next(), "{}", s.name);
+            }
+        }
+    }
+
+    #[test]
+    fn a_screen_with_its_own_background_is_a_page_and_not_a_popup() {
+        for s in SHELLS {
+            if s.background.is_some() {
+                assert!(!s.overlay, "{} replaces the screen, so it cannot be an overlay", s.name);
+            }
+        }
+    }
+
+    #[test]
+    fn every_window_and_button_fits_on_a_640_by_480_screen() {
+        for s in SHELLS {
+            if let Some((x, y, cols, rows, _)) = s.window {
+                assert!(x >= 0 && y >= 0, "{}", s.name);
+                assert!(x + cols * 16 <= 640, "{} is {} wide", s.name, x + cols * 16);
+                assert!(y + rows * 16 <= 480, "{} is {} tall", s.name, y + rows * 16);
+            }
+            if let Some((x, y, mode)) = s.ok {
+                assert!(mode < 2, "{}", s.name);
+                assert!(x + 24 <= 640 && y + 24 <= 480, "{}'s tick is off screen", s.name);
+            }
+        }
+    }
+
+    #[test]
+    fn find_answers_for_the_ids_in_the_table_and_nothing_else() {
+        assert_eq!(find(0x09).unwrap().name, "The court");
+        assert_eq!(find(0x2E).unwrap().group, 37);
+        assert!(find(0x00).is_none(), "the campaign map is implemented, not shelled");
+        assert!(find(0x02).is_none(), "the village is somebody else's");
+        assert!(find(0x14).is_none(), "the four county panels are implemented");
+    }
+}

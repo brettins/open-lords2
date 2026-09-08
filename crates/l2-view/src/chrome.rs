@@ -332,12 +332,22 @@ impl Chrome {
     /// `set` picks the border: 0 is frames 0..51, 1 adds `0xCC` for the second
     /// set. The interior is the 12 × 12 texture, tiled from the box's own
     /// origin so two boxes side by side do not seam.
+    ///
+    /// **The offset applies to the border and not to the interior.** `set` is
+    /// `Ui_DrawBoxBorder`'s first argument and `Ui_DrawBoxInterior` has no such
+    /// argument at all — `FUN_004093E0` is literally
+    /// `Ui_DrawBoxBorder(1, …); Ui_DrawBoxInterior(x + 0x10, y + 0x10, …)`.
+    /// Adding 0xCC to an interior index sends `0x34 + n` past 255 and into the
+    /// five 13 × 16 banner frames at the end of the file, which is what it did
+    /// the first time anybody drew a box in set 1: the custom-game screen's
+    /// twelve option boxes came out full of shields.
     pub fn draw_box(&self, canvas: &mut Canvas, x: i32, y: i32, cols: i32, rows: i32, set: usize) {
         let base = if set == 0 { 0 } else { panels::SET_B };
         let cell = panels::CELL;
         for r in 0..rows {
             for c in 0..cols {
                 let (px, py) = (x + c * cell, y + r * cell);
+                let interior = r > 0 && r < rows - 1 && c > 0 && c < cols - 1;
                 let frame = if r == 0 && c == 0 {
                     panels::CORNER_TL
                 } else if r == 0 && c == cols - 1 {
@@ -359,7 +369,8 @@ impl Chrome {
                         + (c as usize - 1) % panels::TEXTURE_DIM
                         + ((r as usize - 1) % panels::TEXTURE_DIM) * panels::TEXTURE_DIM
                 };
-                self.draw_panel_frame(canvas, frame + base, px, py);
+                let frame = if interior { frame } else { frame + base };
+                self.draw_panel_frame(canvas, frame, px, py);
             }
         }
     }
