@@ -4,7 +4,7 @@
 //! are what is drawn and what fights. Combat happens entirely between figures.
 //! See `docs/battle.md` §1 and §2.
 
-use crate::troop::{Troop, TroopStats};
+use crate::troop::{Troop, TroopStats, TroopTable};
 
 /// Which figure of a melee pair is currently swinging. The roles swap when the
 /// attacker's exchange counter runs out.
@@ -57,11 +57,28 @@ pub struct Figure {
     /// Owner is a human player. Only observable effect found is that human-owned
     /// oil gets less armour, which is real in the original but unexplained.
     pub owner_is_human: bool,
+    /// This figure's combat constants, **copied in at construction** from the
+    /// [`TroopTable`] in force.
+    ///
+    /// Carried per figure rather than looked up per blow, and that is the seam
+    /// that makes the numbers data: melee and missile code reads `f.stats`,
+    /// never a constant, so whatever table built the figure is the table the
+    /// whole battle runs on. It also means a table cannot change under a
+    /// running battle, which a lockstep peer very much needs.
+    pub stats: TroopStats,
+    /// Hits absorbed before one man dies, from the same table.
+    pub hits_per_casualty: u16,
 }
 
 impl Figure {
+    /// A figure using [`TroopTable::DEFAULT`].
     pub fn new(troop: Troop, side: Side, men: u16) -> Self {
-        let stats = troop.stats();
+        Figure::with_table(&TroopTable::DEFAULT, troop, side, men)
+    }
+
+    /// A figure using a supplied table — the modded path.
+    pub fn with_table(table: &TroopTable, troop: Troop, side: Side, men: u16) -> Self {
+        let stats = table.stats(troop);
         Figure {
             troop,
             side,
@@ -74,11 +91,13 @@ impl Figure {
             exchange: stats.exchange as i32,
             blow_used: false,
             owner_is_human: false,
+            stats,
+            hits_per_casualty: table.hits_per_casualty(troop),
         }
     }
 
     pub fn stats(&self) -> TroopStats {
-        self.troop.stats()
+        self.stats
     }
 
     pub fn is_alive(&self) -> bool {
@@ -97,7 +116,7 @@ impl Figure {
     /// Apply damage, converting whole multiples of the kill threshold into
     /// casualties. Returns how many men died.
     pub fn take_hits(&mut self, amount: u16) -> u16 {
-        let threshold = self.troop.hits_per_casualty();
+        let threshold = self.hits_per_casualty;
         self.hits = self.hits.saturating_add(amount);
         let mut killed = 0;
         while self.hits >= threshold && self.men > 0 {

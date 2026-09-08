@@ -59,6 +59,25 @@ pub struct Ruleset {
     pub log: MergeLog,
     /// Document names in the order they were applied.
     pub sources: Vec<String>,
+    /// What each applied document actually said: its source name and every
+    /// leaf path it set, in sorted order.
+    ///
+    /// The merge log records *contests*; this records *claims*. Both are
+    /// needed to answer "why did my mod not take effect", because the two
+    /// answers are different: a rule can lose to a later mod (a contest) or it
+    /// can have been a typo that nothing below ever defined (a claim that
+    /// overrode nothing).
+    pub documents: Vec<Document>,
+}
+
+/// One rule document, and the leaf paths it claimed.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct Document {
+    /// `"<layer id>:<relative path>"`.
+    pub source: String,
+    /// Every leaf this document set, sorted. `"$delete"` directives are not
+    /// leaves and are not listed here.
+    pub leaves: Vec<String>,
 }
 
 impl Ruleset {
@@ -70,6 +89,10 @@ impl Ruleset {
     pub fn apply_str(&mut self, text: &str, source: &str) -> Result<(), RuleError> {
         let doc = reader::parse(text, source)?;
         let Value::Table(table) = doc.value else { unreachable!("parse returns a table") };
+        let mut leaves = Vec::new();
+        collect_leaves(&table, &mut Vec::new(), &mut leaves);
+        leaves.sort();
+        self.documents.push(Document { source: source.to_string(), leaves });
         merge(&mut self.root, table, &mut self.log);
         self.sources.push(source.to_string());
         Ok(())
@@ -195,5 +218,151 @@ impl Ruleset {
             found: v.value.type_name(),
             origin: v.origin.clone(),
         }
+    }
+}
+
+impl Ruleset {
+    /// The engine's own rules, before any layer is consulted.
+    ///
+    /// OpenXcom's lesson, and `docs/modding.md` §1: **the base game is itself
+    /// the first mod.** These documents are compiled into the binary rather
+    /// than read from disk, for two reasons. They are our own numbers, not the
+    /// player's game files, so `CLAUDE.md` rule 1 does not stop us shipping
+    /// them. And a rules layer that can go missing is a rules layer that can
+    /// go missing *on one peer only*.
+    ///
+    /// They are still plain, readable `.toml` in the source tree, and
+    /// [`crate::core::write_to`] will drop a copy next to a player's mods so
+    /// the first thing a would-be author can do is read the base rules.
+    pub fn core() -> Ruleset {
+        let mut rs = Ruleset::new();
+        for (name, text) in crate::core::DOCUMENTS {
+            rs.apply_str(text, name).expect("the shipped core ruleset parses");
+        }
+        rs
+    }
+
+    /// Load every layer's rule documents, in layer order, on top of the core
+    /// ruleset.
+    ///
+    /// This is what [`crate::Platform`] uses. [`Ruleset::load`] is the same
+    /// thing without the core layer, kept for callers that want to look at
+    /// exactly one install's documents and nothing else.
+    pub fn load_over_core(vfs: &Vfs) -> Result<Ruleset, RuleError> {
+        let mut rs = Ruleset::core();
+        rs.apply_layers(vfs)?;
+        Ok(rs)
+    }
+
+    /// Apply every layer's rule documents to an existing ruleset.
+    pub fn apply_layers(&mut self, vfs: &Vfs) -> Result<(), RuleError> {
+        for layer in 0..vfs.layers().len() {
+            let id = vfs.layer_id(layer).to_string();
+            for (name, path) in vfs.layer_entries_under(layer, RULES_DIR) {
+                if !name.ends_with(".toml") {
+                    continue;
+                }
+                let source = format!("{id}:{name}");
+                self.apply_file(path, &source)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// An array of integers of a known length.
+    ///
+    /// Arrays replace whole on merge (merge rule 2), so a mod that wants to
+    /// change one element restates all of them. The length check is what turns
+    /// "restated nine of ten" into an error at load rather than a zero in the
+    /// tenth slot at turn forty.
+    pub fn integer_array(&self, path: &str, len: usize) -> Result<Vec<i64>, RuleError> {
+        let v = self.require(path)?;
+        let items = v.value.as_array().ok_or_else(|| self.type_err(path, "array", v))?;
+        if items.len() != len {
+            return Err(RuleError::Range {
+                path: path.to_string(),
+                message: format!("expected {len} numbers, found {}", items.len()),
+                origin: v.origin.clone(),
+            });
+        }
+        let mut out = Vec::with_capacity(len);
+        for (i, item) in items.iter().enumerate() {
+            match item.value.as_integer() {
+                Some(n) => out.push(n),
+                None => {
+                    return Err(RuleError::Type {
+                        path: format!("{path}.{i}"),
+                        expected: "integer",
+                        found: item.value.type_name(),
+                        origin: item.origin.clone(),
+                    })
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    /// How many entries an array of tables has, or an error if it is not one.
+    pub fn array_len(&self, path: &str) -> Result<usize, RuleError> {
+        let v = self.require(path)?;
+        Ok(v.value.as_array().ok_or_else(|| self.type_err(path, "array", v))?.len())
+    }
+
+    /// Every leaf path in the merged tree, sorted.
+    pub fn leaves(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        collect_leaves(&self.root, &mut Vec::new(), &mut out);
+        out.sort();
+        out
+    }
+
+    /// Leaf paths whose value is a float.
+    ///
+    /// Not an error — a mod may legitimately carry a float for something the
+    /// simulation never touches — but every one of them is a place a rule
+    /// could reach the lockstep simulation as a float, which `docs/netcode.md`
+    /// forbids. [`crate::Report`] prints them so the question is asked at load
+    /// rather than at the first desync.
+    pub fn float_rules(&self) -> Vec<(String, Origin)> {
+        let mut out = Vec::new();
+        collect_floats(&self.root, &mut Vec::new(), &mut out);
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
+    }
+}
+
+/// Walk a table, recording the dotted path of every leaf.
+///
+/// A leaf is any non-table value, arrays included: an array replaces whole, so
+/// it is one claim rather than N. `"$delete"` is a directive, not a claim, and
+/// is skipped.
+fn collect_leaves(table: &Table, stack: &mut Vec<String>, out: &mut Vec<String>) {
+    for (key, spanned) in table {
+        if key == crate::value::DELETE_KEY {
+            continue;
+        }
+        stack.push(key.clone());
+        match &spanned.value {
+            Value::Table(t) => collect_leaves(t, stack, out),
+            _ => out.push(crate::value::join_path(stack)),
+        }
+        stack.pop();
+    }
+}
+
+fn collect_floats(table: &Table, stack: &mut Vec<String>, out: &mut Vec<(String, Origin)>) {
+    for (key, spanned) in table {
+        stack.push(key.clone());
+        match &spanned.value {
+            Value::Table(t) => collect_floats(t, stack, out),
+            Value::Float(_) => out.push((crate::value::join_path(stack), spanned.origin.clone())),
+            Value::Array(items) => {
+                if items.iter().any(|i| matches!(i.value, Value::Float(_))) {
+                    out.push((crate::value::join_path(stack), spanned.origin.clone()));
+                }
+            }
+            _ => {}
+        }
+        stack.pop();
     }
 }

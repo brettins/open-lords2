@@ -212,6 +212,19 @@ impl Vfs {
         self.index.keys().filter(|k| k.starts_with(&p)).map(|k| k.as_str()).collect()
     }
 
+    /// Every name a single layer contributes, sorted.
+    ///
+    /// What that layer *offers*, not what it wins — a name here may well
+    /// resolve to a higher layer. Answering "did my mod's file take effect"
+    /// needs the offer and the winner separately.
+    pub fn layer_entries(&self, layer: usize) -> Vec<&str> {
+        self.index
+            .iter()
+            .filter(|(_, providers)| providers.iter().any(|p| p.layer == layer))
+            .map(|(key, _)| key.as_str())
+            .collect()
+    }
+
     /// Files a single layer contributes under a prefix, sorted.
     ///
     /// Rule documents need this rather than [`Self::resolve`]: rules from

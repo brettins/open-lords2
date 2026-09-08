@@ -42,44 +42,102 @@ pub const ALL_TROOPS: [Troop; 11] = [
 ];
 
 impl Troop {
+    /// Position in [`ALL_TROOPS`], and the row this type occupies in a
+    /// [`TroopTable`].
+    pub const fn index(self) -> usize {
+        self as usize
+    }
+
     /// Siege engines are never chosen as melee targets, and deal no melee
     /// damage. The original's target search skips them outright.
-    pub fn is_siege(self) -> bool {
+    ///
+    /// **Deliberately not a table value.** Which of the eleven slots is a siege
+    /// engine decides whether a code path runs at all, not how hard it hits. A
+    /// ruleset that could turn a catapult into a melee unit would be describing
+    /// a different simulation rather than a different balance. The tunable
+    /// numbers are in [`TroopTable`]; this is structure.
+    pub const fn is_siege(self) -> bool {
         matches!(
             self,
             Troop::Catapults | Troop::SiegeTowers | Troop::BatteringRams | Troop::Oil
         )
     }
 
-    /// Hits needed to kill one man. The single constant the whole damage model
-    /// turns on.
+    /// Hits needed to kill one man, taken from [`TroopTable::DEFAULT`].
     pub fn hits_per_casualty(self) -> u16 {
-        if self.is_siege() {
-            160
-        } else {
-            100
-        }
+        TroopTable::DEFAULT.hits_per_casualty(self)
     }
 
+    /// Combat constants, taken from [`TroopTable::DEFAULT`].
+    ///
+    /// Everything that read these numbers still reads them. What changed is
+    /// that they are now one *value* of a type something else can also produce.
     pub fn stats(self) -> TroopStats {
-        use Troop::*;
+        TroopTable::DEFAULT.stats(self)
+    }
+}
+
+/// The eleven rows of combat constants, as one plain value.
+///
+/// This type exists so the numbers can arrive from somewhere other than this
+/// file. `docs/decisions.md` C11 is the reason: every constant the original
+/// turns on lives in `Lords2.exe`, so modding the 1996 game means patching a
+/// binary, and our engine has to carry the same constants as data that can be
+/// handed to it.
+///
+/// Note what this crate deliberately does *not* do. It does not read a file,
+/// parse a document, or know that mods exist. A `TroopTable` is plain data the
+/// simulation already understands, and `l2-mods` is what builds one out of a
+/// ruleset. The dependency points that way and never back: a simulation that
+/// loads its own rules is a simulation that can fail to load, and a lockstep
+/// peer that fails differently from its opposite number desyncs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TroopTable {
+    /// Indexed by [`Troop::index`].
+    pub stats: [TroopStats; ALL_TROOPS.len()],
+    /// Indexed by [`Troop::index`]. Hits absorbed before one man dies.
+    pub hits_per_casualty: [u16; ALL_TROOPS.len()],
+}
+
+impl TroopTable {
+    /// The numbers `docs/battle.md` §6.1 reads out of the original.
+    ///
+    /// `l2-mods` ships a rule document that reproduces this table exactly, and
+    /// a test there asserts the two agree — so neither can drift without the
+    /// other failing.
+    pub const DEFAULT: TroopTable = TroopTable {
         // melee_attack is indexed by strength band 0..=3, best band first.
-        match self {
-            Peasants =>      TroopStats::new([5, 4, 3, 2],    6,   0,  0,  40),
-            Crossbowmen =>   TroopStats::new([5, 4, 3, 2],    8,   0, 12,  40),
-            Macemen =>       TroopStats::new([15, 12, 10, 6], 12, 300, 12,  80),
-            Swordsmen =>     TroopStats::new([15, 12, 10, 6], 12, 100, 35,  80),
-            Pikemen =>       TroopStats::new([10, 8, 6, 5],   30,   0, 35,  80),
-            Archers =>       TroopStats::new([5, 4, 3, 2],     6,   0,  0,  40),
-            Knights =>       TroopStats::new([20, 15, 11, 6], 16, 200, 25, 120),
-            Catapults =>     TroopStats::new([0; 4],          20,   0, 33,   0),
-            SiegeTowers =>   TroopStats::new([0; 4],          15,   0, 35,   0),
-            BatteringRams => TroopStats::new([0; 4],          30,   0, 50,   0),
-            // Armour is 40, or 25 when the owner is human. That asymmetry is
-            // real in the original but its intent was never established, so it
-            // is applied explicitly at the call site rather than hidden here.
-            Oil =>           TroopStats::new([0; 4],           8,   0, 40,   0),
-        }
+        stats: [
+            /* Peasants      */ TroopStats::new([5, 4, 3, 2],     6,   0,  0,  40),
+            /* Crossbowmen   */ TroopStats::new([5, 4, 3, 2],     8,   0, 12,  40),
+            /* Macemen       */ TroopStats::new([15, 12, 10, 6], 12, 300, 12,  80),
+            /* Swordsmen     */ TroopStats::new([15, 12, 10, 6], 12, 100, 35,  80),
+            /* Pikemen       */ TroopStats::new([10, 8, 6, 5],   30,   0, 35,  80),
+            /* Archers       */ TroopStats::new([5, 4, 3, 2],     6,   0,  0,  40),
+            /* Knights       */ TroopStats::new([20, 15, 11, 6], 16, 200, 25, 120),
+            /* Catapults     */ TroopStats::new([0; 4],          20,   0, 33,   0),
+            /* SiegeTowers   */ TroopStats::new([0; 4],          15,   0, 35,   0),
+            /* BatteringRams */ TroopStats::new([0; 4],          30,   0, 50,   0),
+            // Oil's armour is 40, or 25 when the owner is human. That asymmetry
+            // is real in the original but its intent was never established, so
+            // it is applied explicitly at the call site rather than hidden here.
+            /* Oil           */ TroopStats::new([0; 4],           8,   0, 40,   0),
+        ],
+        hits_per_casualty: [100, 100, 100, 100, 100, 100, 100, 160, 160, 160, 160],
+    };
+
+    pub fn stats(&self, troop: Troop) -> TroopStats {
+        self.stats[troop.index()]
+    }
+
+    pub fn hits_per_casualty(&self, troop: Troop) -> u16 {
+        self.hits_per_casualty[troop.index()]
+    }
+}
+
+impl Default for TroopTable {
+    fn default() -> Self {
+        TroopTable::DEFAULT
     }
 }
 
@@ -104,7 +162,7 @@ pub struct TroopStats {
 }
 
 impl TroopStats {
-    const fn new(
+    pub const fn new(
         melee_attack: [u16; 4],
         recovery: u16,
         heavy_blow: u16,

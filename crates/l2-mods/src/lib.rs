@@ -44,22 +44,32 @@
 //! simulation, and making it now would be guessing. The data-driven half is
 //! the half that is expensive to retrofit; the scripting half is not.
 
+pub mod core;
+pub mod digest;
+pub mod effect;
+pub mod kingdom;
 pub mod merge;
 pub mod modmeta;
+pub mod package;
 pub mod reader;
 pub mod ruleset;
 pub mod seed;
 pub mod troops;
+pub mod units;
 pub mod value;
 pub mod vfs;
 
+pub use core::CORE_LAYER;
+pub use digest::{digest, digest_hex};
+pub use effect::{AssetClaim, EffectReport, Fate, LayerEffect, RuleClaim};
 pub use merge::{Deletion, MergeLog, Override};
 pub use modmeta::{
     discover, resolve_load_order, Dependency, LoadOrderError, MetaError, ModMeta, Version,
     VersionReq,
 };
+pub use package::{inspect, inspect_all, ModPackage, PackageError, Warning};
 pub use reader::ParseError;
-pub use ruleset::{RuleError, Ruleset, RULES_DIR};
+pub use ruleset::{Document, RuleError, Ruleset, RULES_DIR};
 pub use troops::{Side, TroopRules};
 pub use value::{Origin, Spanned, Table, Value};
 pub use vfs::{AssetError, CaseCollision, Layer, Vfs, VfsError};
@@ -85,16 +95,73 @@ impl Platform {
         PlatformBuilder::default()
     }
 
+    /// The combat constants this load produced, ready to hand to
+    /// `l2_sim::Battle::with_troops`.
+    pub fn troop_table(&self) -> Result<l2_sim::TroopTable, RuleError> {
+        units::troop_table(&self.rules)
+    }
+
+    /// The kingdom economy this load produced.
+    ///
+    /// Loaded and validated; see [`kingdom`] for what is not yet wired to it.
+    pub fn kingdom_tables(&self) -> Result<l2_kingdom::tables::Tables, RuleError> {
+        kingdom::tables(&self.rules)
+    }
+
+    /// A checksum over the merged rules, independent of where anything is
+    /// installed. Two peers whose digests differ are not playing the same
+    /// game; see [`digest`].
+    pub fn digest(&self) -> u64 {
+        digest::digest(&self.rules)
+    }
+
+    /// What each layer contributed and how much of it survived — the "why is
+    /// my mod not working" view. See [`effect`].
+    pub fn effects(&self) -> Vec<LayerEffect> {
+        effect::analyse(&self.vfs, &self.rules, &self.load_order)
+    }
+
     /// Everything worth telling the player after a load: files one mod took
     /// from another, rules one mod took from another, and anything that looks
     /// like a mistake.
     pub fn report(&self) -> Report {
+        let effects = self.effects();
+        // Rules that overrode nothing, from mod layers only. Every rule the
+        // core and base layers set is new by definition, so flagging theirs
+        // would bury the one case that matters under thousands that do not.
+        let mut added_rules: Vec<(String, String)> = Vec::new();
+        let mut inert_layers: Vec<String> = Vec::new();
+        for e in &effects {
+            if e.id == CORE_LAYER || e.id == BASE_LAYER {
+                continue;
+            }
+            if e.is_inert() && !e.is_empty() {
+                inert_layers.push(e.id.clone());
+            }
+            for claim in e.rules_added() {
+                added_rules.push((claim.path.clone(), e.id.clone()));
+            }
+        }
+
+        let rules_prefix = format!("{RULES_DIR}/");
         Report {
             shadowed_assets: self
                 .vfs
                 .shadowed()
                 .into_iter()
+                // Rule documents do not shadow — every layer's copy is read
+                // and merged — so two mods with a `rules/rules.toml` each are
+                // not in conflict, and saying they are would be backwards.
+                .filter(|(n, _)| !(n.starts_with(&rules_prefix) && n.ends_with(".toml")))
                 .map(|(n, layers)| (n.to_string(), layers.into_iter().map(str::to_string).collect()))
+                .collect(),
+            added_rules,
+            inert_layers,
+            float_rules: self
+                .rules
+                .float_rules()
+                .into_iter()
+                .map(|(p, o)| (p, o.to_string()))
                 .collect(),
             case_collisions: self.vfs.case_collisions().to_vec(),
             overrides: self.rules.log.overrides.clone(),
@@ -130,6 +197,20 @@ pub struct Report {
     pub dangling_deletes: Vec<(String, String)>,
     /// Overrides that changed a value's type. Nearly always a bug.
     pub type_changes: Vec<Override>,
+    /// `(rule path, mod id)` for rules a mod set that overrode nothing.
+    ///
+    /// Not an error: a mod may legitimately introduce a rule. But a misspelt
+    /// battle id looks exactly like this and nothing else catches it, so it is
+    /// worth a line. `docs/modding.md` §7's corpus check is the same idea run
+    /// against the example mod.
+    pub added_rules: Vec<(String, String)>,
+    /// Mods that loaded without error and changed nothing the engine reads.
+    pub inert_layers: Vec<String>,
+    /// `(rule path, origin)` for rules whose value is a decimal.
+    ///
+    /// `docs/netcode.md` is categorical that the simulation is integer-only,
+    /// so a decimal here cannot reach it and is either dead or a mistake.
+    pub float_rules: Vec<(String, String)>,
 }
 
 impl Report {
@@ -140,6 +221,9 @@ impl Report {
             && self.overrides.is_empty()
             && self.deletions.is_empty()
             && self.dangling_deletes.is_empty()
+            && self.added_rules.is_empty()
+            && self.inert_layers.is_empty()
+            && self.float_rules.is_empty()
     }
 }
 
@@ -178,17 +262,46 @@ impl fmt::Display for Report {
         for (path, by) in &self.dangling_deletes {
             writeln!(f, "\"$delete\" named '{path}', which was not defined (at {by})")?;
         }
+        if !self.added_rules.is_empty() {
+            writeln!(f, "rules a mod added rather than overrode (check the spelling):")?;
+            for (path, by) in &self.added_rules {
+                writeln!(f, "  {path} (set by {by}, defined nowhere below)")?;
+            }
+        }
+        if !self.float_rules.is_empty() {
+            writeln!(f, "rules holding a decimal, which the simulation cannot use:")?;
+            for (path, at) in &self.float_rules {
+                writeln!(f, "  {path} at {at}")?;
+            }
+        }
+        for id in &self.inert_layers {
+            writeln!(f, "mod '{id}' loaded but changes nothing: everything it sets is overridden")?;
+        }
         Ok(())
     }
 }
 
 /// Assembles a [`Platform`].
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct PlatformBuilder {
     base: Option<PathBuf>,
     mods_dir: Option<PathBuf>,
     extra: Vec<ModMeta>,
     enabled: Vec<String>,
+    core_rules: bool,
+}
+
+impl Default for PlatformBuilder {
+    fn default() -> Self {
+        PlatformBuilder {
+            base: None,
+            mods_dir: None,
+            extra: Vec::new(),
+            enabled: Vec::new(),
+            // The engine's own rules are the bottom layer of every real load.
+            core_rules: true,
+        }
+    }
 }
 
 impl PlatformBuilder {
@@ -222,6 +335,17 @@ impl PlatformBuilder {
         self
     }
 
+    /// Whether to apply the engine's own ruleset underneath everything else.
+    ///
+    /// On by default, and the only reason to turn it off is to inspect exactly
+    /// one install's documents in isolation — a diagnostic, not a game. A
+    /// running game without the core rules has no combat constants and no
+    /// economy.
+    pub fn core_rules(mut self, on: bool) -> Self {
+        self.core_rules = on;
+        self
+    }
+
     pub fn build(self) -> Result<Platform, Error> {
         let mut available = self.extra;
         if let Some(dir) = &self.mods_dir {
@@ -246,7 +370,11 @@ impl PlatformBuilder {
             vfs.push_layer(m.id.clone(), &m.root)?;
         }
 
-        let rules = Ruleset::load(&vfs)?;
+        let rules = if self.core_rules {
+            Ruleset::load_over_core(&vfs)?
+        } else {
+            Ruleset::load(&vfs)?
+        };
         Ok(Platform { vfs, rules, load_order })
     }
 }

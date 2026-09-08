@@ -15,5 +15,20 @@ description = "Overlay virtual filesystem, ruleset loader and mod load order for
 # hand-written reader lets every scalar carry the mod and line number that set
 # it. That provenance is what turns "two mods touched the same thing" from a
 # silent last-write-wins into a diagnostic naming both files.
+#
+# The four path dependencies are all our own crates, and the direction is the
+# design: this crate depends on the simulation, never the other way round.
+# `l2-sim` and `l2-kingdom` stay unable to read a file or parse a document;
+# they only expose plain table types, and building one out of a ruleset happens
+# here. A simulation that can load its own rules is a simulation that can fail
+# to load, and two lockstep peers that fail differently desync.
+#
+# `l2-net` is here for `xxhash64` and `Canonical` only — the ruleset digest has
+# to be the *same* byte stream and the *same* hash the desync detector uses, or
+# "our rules differ" and "our state differs" would be answered by two encoders
+# that could disagree with each other.
 [dependencies]
 l2-formats = { path = "../l2-formats" }
+l2-kingdom = { path = "../l2-kingdom" }
+l2-net = { path = "../l2-net" }
+l2-sim = { path = "../l2-sim" }

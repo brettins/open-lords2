@@ -2,7 +2,7 @@
 
 use crate::figure::{Figure, Side, State, SIDE_A, SIDE_B};
 use crate::melee;
-use crate::troop::Troop;
+use crate::troop::{Troop, TroopTable};
 use crate::MAX_FIGURES;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -12,11 +12,33 @@ pub struct Battle {
     /// machines walk them identically.
     pub figures: Vec<Figure>,
     pub tick: u32,
+    /// The combat constants this battle runs on.
+    ///
+    /// Fixed for the life of the battle: every figure copies its row in at
+    /// construction, so changing this afterwards affects nothing already
+    /// added. That is on purpose — rules that could change mid-battle are
+    /// rules two lockstep peers can disagree about.
+    pub troops: TroopTable,
 }
 
 impl Battle {
+    /// A battle on [`TroopTable::DEFAULT`].
     pub fn new() -> Self {
-        Battle { figures: Vec::new(), tick: 0 }
+        Battle::with_troops(TroopTable::DEFAULT)
+    }
+
+    /// A battle on a supplied table — how a ruleset reaches the simulation.
+    ///
+    /// ```
+    /// # use l2_sim::{Battle, Troop, TroopTable, SIDE_A};
+    /// let mut table = TroopTable::DEFAULT;
+    /// table.stats[Troop::Archers.index()].melee_attack = [9, 9, 9, 9];
+    /// let mut battle = Battle::with_troops(table);
+    /// let a = battle.add(Troop::Archers, SIDE_A, 4).unwrap();
+    /// assert_eq!(battle.figures[a].stats.melee_attack[0], 9);
+    /// ```
+    pub fn with_troops(troops: TroopTable) -> Self {
+        Battle { figures: Vec::new(), tick: 0, troops }
     }
 
     /// Add a figure. Returns its index, or `None` once the original's ceiling is
@@ -26,7 +48,7 @@ impl Battle {
         if self.figures.len() >= MAX_FIGURES {
             return None;
         }
-        self.figures.push(Figure::new(troop, side, men));
+        self.figures.push(Figure::with_table(&self.troops, troop, side, men));
         Some(self.figures.len() - 1)
     }
 
@@ -85,6 +107,57 @@ mod tests {
         bt.add(b, SIDE_B, men).unwrap();
         bt.engage(0, 1);
         bt
+    }
+
+    /// The point of [`TroopTable`]: a different table is a different battle,
+    /// with no code path in this crate knowing where the numbers came from.
+    ///
+    /// This is the assertion that makes "data-driven" mean something. Both
+    /// halves matter — the default must be unchanged, *and* the override must
+    /// actually bite.
+    #[test]
+    fn a_supplied_troop_table_decides_the_battle_instead_of_the_default() {
+        let stock = {
+            let mut bt = Battle::new();
+            bt.add(Troop::Peasants, SIDE_A, 20).unwrap();
+            bt.add(Troop::Swordsmen, SIDE_B, 20).unwrap();
+            bt.engage(0, 1);
+            bt.run(2000);
+            bt.men(SIDE_A)
+        };
+
+        let mut table = TroopTable::DEFAULT;
+        table.stats[Troop::Peasants.index()].melee_attack = [40, 40, 40, 40];
+        let modded = {
+            let mut bt = Battle::with_troops(table);
+            bt.add(Troop::Peasants, SIDE_A, 20).unwrap();
+            bt.add(Troop::Swordsmen, SIDE_B, 20).unwrap();
+            bt.engage(0, 1);
+            bt.run(2000);
+            bt.men(SIDE_A)
+        };
+
+        assert!(
+            modded > stock,
+            "peasants swinging for 40 should fare better than the stock 5: {modded} vs {stock}"
+        );
+        // And the default really is untouched by the existence of the other.
+        assert_eq!(Battle::new().troops, TroopTable::DEFAULT);
+    }
+
+    /// A figure carries its own numbers, so the table cannot change under it.
+    #[test]
+    fn a_figure_keeps_the_row_it_was_built_from() {
+        let mut table = TroopTable::DEFAULT;
+        table.hits_per_casualty[Troop::Peasants.index()] = 10;
+        let mut bt = Battle::with_troops(table);
+        bt.add(Troop::Peasants, SIDE_A, 4).unwrap();
+        assert_eq!(bt.figures[0].hits_per_casualty, 10);
+        assert_eq!(bt.figures[0].take_hits(10), 1, "ten hits is a casualty under this table");
+
+        // Mutating the battle's table afterwards leaves the figure alone.
+        bt.troops.hits_per_casualty[Troop::Peasants.index()] = 100;
+        assert_eq!(bt.figures[0].hits_per_casualty, 10);
     }
 
     #[test]

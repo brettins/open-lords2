@@ -112,7 +112,7 @@ pub fn resolve_power(
 /// Unlike melee, leftover damage is thrown away, and a single hit can take up
 /// to four men at once.
 pub fn apply_hit(target: &mut Figure, power: u16) -> u16 {
-    let threshold = target.troop.hits_per_casualty();
+    let threshold = target.hits_per_casualty;
     target.hits = target.hits.saturating_add(power);
     if target.hits < threshold {
         return 0;

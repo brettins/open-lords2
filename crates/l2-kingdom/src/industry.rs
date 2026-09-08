@@ -132,8 +132,13 @@ pub fn castle_cost(castle_type: u8) -> (i32, i32) {
     CASTLE_COST[(castle_type.max(1) as usize - 1).min(CASTLE_COST.len() - 1)]
 }
 
+/// The workforce a castle type consumes.
+///
+/// The table holds two ints per level and both carry the same number. What the
+/// second column is for is not established, so this reads the first and the
+/// table keeps the pair rather than pretending it is a flat array.
 pub fn castle_workforce(castle_type: u8) -> i32 {
-    CASTLE_WORKFORCE[(castle_type.max(1) as usize - 1).min(CASTLE_WORKFORCE.len() - 1)]
+    CASTLE_WORKFORCE[(castle_type.max(1) as usize - 1).min(CASTLE_WORKFORCE.len() - 1)].0
 }
 
 /// Order a castle: debit the realm's wood and stone and mark the county as

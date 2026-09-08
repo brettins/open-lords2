@@ -34,7 +34,7 @@ pub use figure::{Figure, Role, Side, State, SIDE_A, SIDE_B};
 pub use missile::{MissileStats, WeaponClass};
 pub use movement::{move_delay, ticks_per_cell, CellEntry, Progress};
 pub use pathfind::{Grid, Outcome, Pos};
-pub use troop::{Troop, TroopStats, ALL_TROOPS};
+pub use troop::{Troop, TroopStats, TroopTable, ALL_TROOPS};
 
 /// The array bound the original allocates nothing beyond. An army that would
 /// produce more figures than this is silently truncated, and the shipped data
