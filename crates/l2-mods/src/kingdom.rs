@@ -20,7 +20,7 @@
 //! were handed. So a modded `kingdom.toml` is loaded, checked and reported —
 //! and then not consumed. Threading `&Tables` through ~30 free functions is a
 //! mechanical change to that crate's public API, deliberately not made here.
-//! `docs/modding.md` says the same thing in the same words; it is stated in
+//! `docs/modding.md` §11 says the same thing in the same words; it is stated in
 //! both places so neither can quietly claim more than is true.
 //!
 //! The battle side, `unit.*` in [`crate::units`], *is* wired all the way

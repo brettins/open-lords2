@@ -88,11 +88,29 @@ pub struct Platform {
     pub rules: Ruleset,
     /// Mods in load order. The base install is not in this list.
     pub load_order: Vec<ModMeta>,
+    /// Each enabled mod inspected on its own, in load order.
+    ///
+    /// Inspection is deliberately separate from loading, because it answers a
+    /// different question. Loading asks what the game will run on once every
+    /// layer has had its turn; inspection asks what *this one mod* says, with
+    /// nothing else in the picture — which is what produces a per-mod rules
+    /// digest and what catches a rule file in the wrong directory.
+    ///
+    /// Best effort: a mod supplied programmatically through
+    /// [`PlatformBuilder::add_mod`] may have no `mod.toml` on disk to inspect,
+    /// and that is not a reason to refuse the load. Anything genuinely wrong
+    /// with its documents still fails in the merge.
+    pub packages: Vec<ModPackage>,
 }
 
 impl Platform {
     pub fn builder() -> PlatformBuilder {
         PlatformBuilder::default()
+    }
+
+    /// The inspected package for one enabled mod.
+    pub fn package(&self, id: &str) -> Option<&ModPackage> {
+        self.packages.iter().find(|p| p.meta.id == id)
     }
 
     /// The combat constants this load produced, ready to hand to
@@ -143,16 +161,15 @@ impl Platform {
             }
         }
 
-        let rules_prefix = format!("{RULES_DIR}/");
         Report {
             shadowed_assets: self
                 .vfs
                 .shadowed()
                 .into_iter()
-                // Rule documents do not shadow — every layer's copy is read
-                // and merged — so two mods with a `rules/rules.toml` each are
-                // not in conflict, and saying they are would be backwards.
-                .filter(|(n, _)| !(n.starts_with(&rules_prefix) && n.ends_with(".toml")))
+                // A manifest and a rule document are not assets: every mod has
+                // a `mod.toml`, and rule documents are merged rather than
+                // shadowed. See `package::is_platform_metadata`.
+                .filter(|(n, _)| !package::is_platform_metadata(n))
                 .map(|(n, layers)| (n.to_string(), layers.into_iter().map(str::to_string).collect()))
                 .collect(),
             added_rules,
@@ -181,7 +198,32 @@ impl Platform {
                 .filter(|o| o.type_changed)
                 .cloned()
                 .collect(),
+            package_warnings: self
+                .packages
+                .iter()
+                .flat_map(|p| {
+                    p.warnings.iter().map(|w| (p.meta.id.clone(), w.to_string()))
+                })
+                .collect(),
         }
+    }
+
+    /// The per-mod view: what each layer supplied and how much of it the
+    /// engine will actually read.
+    ///
+    /// This is the one a mod author wants. [`Platform::report`] is organised
+    /// by conflict — good for "my two mods are fighting" — and this is
+    /// organised by mod, which is the shape of "my mod is not working".
+    ///
+    /// ```text
+    /// 1. core: 401 rule(s) and 0 file(s) in force
+    /// 2. base: 1155 rule(s) and 1196 file(s) in force
+    /// 3. longbows: 5 rule(s) and 1 file(s) in force
+    ///      rule battle.three_bridges.attacker.archers lost to sharpshooters:...
+    /// 4. sharpshooters: HAS NO EFFECT - everything it supplies is overridden below
+    /// ```
+    pub fn effect_report(&self) -> String {
+        EffectReport(&self.effects()).to_string()
     }
 }
 
@@ -201,8 +243,8 @@ pub struct Report {
     ///
     /// Not an error: a mod may legitimately introduce a rule. But a misspelt
     /// battle id looks exactly like this and nothing else catches it, so it is
-    /// worth a line. `docs/modding.md` §7's corpus check is the same idea run
-    /// against the example mod.
+    /// worth a line. `docs/modding.md` §7.3 explains it; the example-mod
+    /// corpus test makes the same check by hand.
     pub added_rules: Vec<(String, String)>,
     /// Mods that loaded without error and changed nothing the engine reads.
     pub inert_layers: Vec<String>,
@@ -211,6 +253,13 @@ pub struct Report {
     /// `docs/netcode.md` is categorical that the simulation is integer-only,
     /// so a decimal here cannot reach it and is either dead or a mistake.
     pub float_rules: Vec<(String, String)>,
+    /// `(mod id, warning)` from inspecting each enabled mod on its own.
+    ///
+    /// These are things a merge cannot see, because they are about the shape
+    /// of the mod rather than about what it collided with — a rule file
+    /// outside `rules/` being the common one, which loads with no error and
+    /// does nothing.
+    pub package_warnings: Vec<(String, String)>,
 }
 
 impl Report {
@@ -224,6 +273,7 @@ impl Report {
             && self.added_rules.is_empty()
             && self.inert_layers.is_empty()
             && self.float_rules.is_empty()
+            && self.package_warnings.is_empty()
     }
 }
 
@@ -272,6 +322,12 @@ impl fmt::Display for Report {
             writeln!(f, "rules holding a decimal, which the simulation cannot use:")?;
             for (path, at) in &self.float_rules {
                 writeln!(f, "  {path} at {at}")?;
+            }
+        }
+        if !self.package_warnings.is_empty() {
+            writeln!(f, "mods worth a second look:")?;
+            for (id, warning) in &self.package_warnings {
+                writeln!(f, "  {id}: {warning}")?;
             }
         }
         for id in &self.inert_layers {
@@ -375,7 +431,18 @@ impl PlatformBuilder {
         } else {
             Ruleset::load(&vfs)?
         };
-        Ok(Platform { vfs, rules, load_order })
+
+        // Inspect each mod on its own, in load order. Best effort: a mod
+        // handed in through `add_mod` need not have a manifest on disk, and a
+        // document that is genuinely broken has already failed the merge
+        // above, so nothing is lost by skipping a mod that cannot be read
+        // here.
+        let packages = load_order
+            .iter()
+            .filter_map(|m| package::inspect(&m.root).ok())
+            .collect();
+
+        Ok(Platform { vfs, rules, load_order, packages })
     }
 }
 

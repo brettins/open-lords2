@@ -18,15 +18,16 @@
 //!    invisible without provenance, which is why the value tree carries it.
 //! 3. **It was deleted.** A later `"$delete"` removed the table it was in.
 //!
-//! Case 2 is the one worth the machinery. `docs/modding.md` §7 already uses it
-//! as a corpus check — the example mod must *override* every leaf it sets,
-//! never add one — and this generalises that check to every mod at runtime.
+//! Case 2 is the one worth the machinery, and it is `docs/modding.md` §7.3.
+//! The example-mod corpus test already makes that check by hand — the example
+//! must *override* every leaf it sets, never add one — and this generalises it
+//! to every mod, at runtime, where the author will actually see it.
 //!
 //! Assets are simpler, because assets shadow: a mod's file either wins or is
 //! covered by a later layer's file of the same name.
 
 use crate::modmeta::ModMeta;
-use crate::ruleset::{Ruleset, RULES_DIR};
+use crate::ruleset::Ruleset;
 use crate::vfs::Vfs;
 use std::fmt;
 
@@ -204,12 +205,12 @@ fn layer_effect(
 
     let mut assets = Vec::new();
     if let Some((vfs, index)) = vfs_layer {
-        let rules_prefix = format!("{RULES_DIR}/");
         for name in vfs.layer_entries(index) {
-            // Rule documents are not assets. They do not shadow — every
-            // layer's copy is read and merged — so listing them as shadowed
-            // would be exactly backwards.
-            if name.starts_with(&rules_prefix) && name.ends_with(".toml") {
+            // A manifest and a rule document belong to the platform, not to
+            // the game. `package::is_platform_metadata` says why each is
+            // excluded; both would otherwise report a conflict every time two
+            // mods are enabled at once.
+            if crate::package::is_platform_metadata(name) {
                 continue;
             }
             let winner = vfs.providers(name).last().map(|p| p.layer);

@@ -38,3 +38,19 @@ scale_percent = 65      # was 84
 #
 # [battle.three_bridges.attacker]
 # "$delete" = ["siege_towers"]
+
+# --- and what the archers do when they get there ----------------------------
+# `battle.*` above says how many archers a skirmish starts with. `unit.*` says
+# what one of them does in the fight, and those are two different namespaces
+# on purpose - see docs/modding.md 8.4. The numbers here were never in a data
+# file at all: in Lords2.exe they are instructions.
+#
+# Note what is NOT being raised. `armour` applies to missiles only and is
+# never read in a melee exchange, and `recovery` IS melee defence - the
+# interval between blows a figure suffers - so lowering it would make these
+# archers easier to kill, not harder.
+
+[unit.archers]
+melee_attack = [7, 5, 4, 2]   # was [5, 4, 3, 2]; an array replaces whole,
+                              # so all four bands are restated
+armour = 4                    # was 0: a little protection from arrows

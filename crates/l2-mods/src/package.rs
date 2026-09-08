@@ -27,7 +27,7 @@
 //! code we would own forever to save the user one right-click.
 //!
 //! Revisit when mods are distributed rather than hand-copied, which is the
-//! same trigger as signing and checksums (`docs/modding.md` §9).
+//! same trigger as signing and checksums (`docs/modding.md` §13).
 //!
 //! # What inspection is for
 //!
@@ -43,6 +43,32 @@ use crate::modmeta::{MetaError, ModMeta, MANIFEST};
 use crate::ruleset::{RuleError, Ruleset, RULES_DIR};
 use std::fmt;
 use std::path::{Path, PathBuf};
+
+/// True for files that belong to the platform rather than to the game.
+///
+/// `name` must already be normalised the way [`crate::Vfs`] keys its index:
+/// lowercase, forward slashes.
+///
+/// Two kinds of file live in a mod directory and are not assets:
+///
+/// * **`mod.toml`.** Every mod has one, so without this every *pair* of
+///   enabled mods reports a conflict over their manifests — noise that would
+///   bury the one real conflict underneath it.
+/// * **`rules/*.toml`.** Rules accumulate rather than shadow. Two mods each
+///   carrying a `rules/rules.toml` are both read and both merged, so calling
+///   the later one the winner would be exactly backwards.
+///
+/// The overlay index still holds both, because it is a faithful index of
+/// what is on disk and it is not its business to decide what a file means.
+/// The decision is made here, once, so the report and the per-mod effect
+/// analysis cannot disagree about it.
+pub fn is_platform_metadata(name: &str) -> bool {
+    name == MANIFEST
+        || (name.len() > RULES_DIR.len()
+            && name.starts_with(RULES_DIR)
+            && name.as_bytes()[RULES_DIR.len()] == b'/'
+            && name.ends_with(".toml"))
+}
 
 /// A mod directory, read and checked.
 #[derive(Debug)]
