@@ -144,7 +144,31 @@ Legend:
   screen), the army-division screen and the siege-preparation screen — `docs/armies.md`.
 - 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
 - ❓ The village screen, where peasants are moved
-- ❓ Sound: 771 `.wav` files, nothing plays
+- 📖 **Sound: 771 `.wav` files, 396 MB. Nothing plays yet, but the shape is known.**
+
+  | | files | size | |
+  |---|---:|---:|---|
+  | `PUMKIN.WAV` / `PUMKIN2.WAV` | 2 | **320 MB** | byte-identical; see below |
+  | Lord voices | 449 | 32 MB | `Kt`/`Bn`/`Ct`/`Bp` × groups 170–197 × 4 takes |
+  | `S`-numbered speech | 197 | 8 MB | |
+  | Music | 10 | 27 MB | `Scroll1‑5` (map and county), `Battle1‑5` |
+  | Troop and combat effects | 70+ | 1 MB | |
+
+  **[V] The two 160 MB files are never played.** `FUN_004AEF7E` opens `pumkin.wav` — or
+  `pumkin2.wav` if it is missing — calls `__filelength`, tests it against **151,000,000**,
+  and closes it. It is a full-install check: the file exists to be *measured*. Its content is
+  the soundtrack at CD quality, 44.1 kHz 16-bit stereo and 15.9 minutes, against every
+  in-game track's 11 kHz 8-bit. That is the CD audio the original played through the drive,
+  left on disk where the game only ever weighs it. A player confirmed by ear that `Scroll1`
+  begins about 8:37 into it, so the tracks really are concatenated — and there is **no index**
+  anywhere: none in the executable, and the WAV carries no `cue ` chunk. None was ever
+  needed, because from the CD the game asked for a *track number*.
+
+  **[V] The check is also inert.** `DAT_005C9A74` is set to 1 before the test, set to 1 again
+  in both success branches, and never set to any other value anywhere in the binary. Its
+  three readers ask `(flag < 1) || (2 < flag)`, which cannot be true. So **81% of this game's
+  audio exists to satisfy a test whose answer is already fixed.** The flag is persisted in
+  saves, so one could in principle carry a failing value; nothing writes one.
 - ❓ Video: 45 `.smk` files, no decoder, blocked on a licence decision (D5a)
 
 ---
