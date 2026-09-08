@@ -1,0 +1,18 @@
+open-lords2 — notice
+====================
+
+This project is an independent reimplementation of the *engine* of Lords of
+the Realm II. It is licensed under the MIT License; see LICENSE.
+
+**It contains no code, art, sound, music, video or data from the original
+game.** None of the publisher's assets are distributed here, and none ever
+will be. To play, you must own and supply your own copy of Lords of the
+Realm II; the engine reads that installation and never writes to it.
+
+Lords of the Realm II is copyright Sierra On-Line / Impressions Games and its
+present rights holders, who are not affiliated with this project and do not
+endorse it. All trademarks are the property of their respective owners.
+
+The documentation in `docs/` describes file formats and game mechanics as
+matters of fact, established by observing the original program's behaviour.
+It contains no copied source code.
