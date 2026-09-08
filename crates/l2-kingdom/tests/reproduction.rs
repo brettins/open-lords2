@@ -25,10 +25,12 @@
 //! a number read out of `lastturn.sav` would say so.
 //!
 //! **No rule was changed to make this pass.** Fourteen counties reproduce
-//! twenty-six stored fields each — see
-//! [`every_county_reproduces_every_stored_field`].
+//! twenty-four stored fields each — see
+//! [`every_county_reproduces_every_stored_field`] — and the herd's own
+//! forecast, four more numbers a county, reproduces with no inversion at all
+//! ([`the_herds_own_forecast_reproduces_for_every_county`]).
 //!
-//! # The one thing the save does not record
+//! # The two things the save does not record
 //!
 //! It stores `popLast` and `happinessLast`, so the previous season's population
 //! and happiness are exact. It stores **no previous herd and no previous
@@ -38,7 +40,16 @@
 //! starves where the real one did not. That is not a rule failing; it is a
 //! missing input, and [`the_food_the_season_ate_is_recoverable_and_unique`]
 //! recovers it: there is **exactly one** pre-season store per county that
-//! reproduces the file, and putting it back makes the whole map land.
+//! reproduces the file, and putting it back makes the map land.
+//!
+//! It also stores **no pre-season labour**. `FUN_0044F6E7` reallocates every
+//! county's workers after the population moves, so what is in the file is where
+//! the peasants went *afterwards* — and the herd's births and deaths were
+//! computed from where they were *before*. That is why [`comparison`] no longer
+//! carries `herd` and `herd_eaten`, and its own documentation is where the
+//! evidence for that is written down. Nothing was relaxed to make a rule pass:
+//! the herd rule is checked directly instead, against the numbers the file
+//! holds for it.
 //!
 //! Recovering it also answers a question `docs/kingdom.md` §4.3 left open.
 //! County 1 holds no grain and its `shownRation` is `+1`, so it was fed at
@@ -80,13 +91,28 @@ fn install() -> Option<PathBuf> {
         })
 }
 
-/// The shipped scenario, or `None` when there is no install to read it from.
-fn scenario() -> Option<Scenario> {
+/// The shipped save, or `None` when there is no install to read it from.
+fn opened() -> Option<Save> {
     let dir = install()?;
     let exe = std::fs::read(dir.join("Lords2.exe")).ok()?;
     let sav = std::fs::read(dir.join("lastturn.sav")).ok()?;
-    let save = Save::open(&exe, &sav).expect("the shipped save must read");
-    Some(Scenario::from_save(&save).expect("the shipped save must import"))
+    Some(Save::open(&exe, &sav).expect("the shipped save must read"))
+}
+
+/// The shipped scenario, or `None` when there is no install to read it from.
+fn scenario() -> Option<Scenario> {
+    Some(Scenario::from_save(&opened()?).expect("the shipped save must import"))
+}
+
+/// One county field straight out of the file, at the offset `docs/kingdom.md`
+/// §1 names it at.
+///
+/// Used for the handful of fields `l2_formats::save::County` does not carry.
+/// That struct belongs to `l2-formats` and is not this test's to change, and
+/// `Save` exposes the addressed read the struct is itself built from — so the
+/// bytes are reachable without either crate growing a field for a test.
+fn county_i32(save: &Save, id: usize, offset: u32) -> i32 {
+    save.i32_at(0x0053_F9B0 + (id as u32) * 0x300 + offset).expect("a saved county address")
 }
 
 macro_rules! shipped {
@@ -106,7 +132,36 @@ macro_rules! shipped {
 const DEAD_END: usize = 1;
 
 /// Everything worth comparing between a county we computed and a county the
-/// file holds. Twenty-six fields, named, so a failure says which one.
+/// file holds. Twenty-four fields, named, so a failure says which one.
+///
+/// # Why `herd` and `herd_eaten` are not two of them any more
+///
+/// They were, and **they reproduced because a rule was missing.** The herd used
+/// to move only with the weather, which is neutral on this map, so "put back
+/// what the ration pass ate" was the whole of it and the inversion in
+/// [`solve_opening`] closed. Now that a herd is born, dies and has to be tended
+/// (`docs/kingdom.md` §13), the season moves it — and the file says outright
+/// that the inversion's answer was never the real one. `+0x254` is the herd as
+/// `Herd_SeasonTick` found it, and it is **95 in every one of the fourteen
+/// counties**: the new-game starting herd from the table at `0x004DC0D0`, not
+/// the 73 the inversion recovers.
+///
+/// Getting from 95 to the stored herd needs the **pre-season** cattle labour,
+/// and the save records only the post-season allocation — `FUN_0044F6E7`
+/// reassigns every county's workers after the population moves. County 4 is the
+/// proof: its stored herd needs a staffing of 86%, about 246 workers, and the
+/// file holds 261. A search over openings settles it — with the file's labour
+/// there are two or three openings that land for each *owned* county and
+/// **none at all** for the nine unowned ones. `herd_eaten` follows the herd
+/// out, because it is the ration *preview*, computed last from the herd the
+/// season ended on.
+///
+/// So this list drops the two fields it was reproducing for the wrong reason,
+/// and [`the_herds_own_forecast_reproduces_for_every_county`] adds four per
+/// county that it reproduces for the right one — read straight out of the file,
+/// no inversion anywhere. Modelling the labour allocator would bring these two
+/// back; that is a separate piece of work, and it is named here so it is not
+/// lost.
 fn comparison(ours: &County, file: &County) -> Vec<(&'static str, i32, i32)> {
     vec![
         ("owner", ours.owner as i32, file.owner as i32),
@@ -131,9 +186,7 @@ fn comparison(ours: &County, file: &County) -> Vec<(&'static str, i32, i32)> {
         ("immigrants", ours.immigrants, file.immigrants),
         ("tax_collected", ours.tax_collected, file.tax_collected),
         ("ration_achieved", ours.ration_achieved, file.ration_achieved),
-        ("herd_eaten", ours.herd_eaten, file.herd_eaten),
         ("grain_eaten", ours.grain_eaten, file.grain_eaten),
-        ("herd", ours.herd, file.herd),
         ("grain", ours.grain, file.grain),
     ]
 }
@@ -501,7 +554,120 @@ fn every_county_reproduces_every_stored_field() {
             checked += 1;
         }
     }
-    assert_eq!(checked, 14 * 26);
+    assert_eq!(checked, 14 * 24);
+}
+
+// ---------------------------------------------------------------------------
+// The herd — `docs/kingdom.md` §13 and §13.1
+// ---------------------------------------------------------------------------
+
+/// **The staffing and crowding rules, against the file, with no inversion.**
+///
+/// `Herd_SeasonTick` ends by writing next season's forecast into `+0x268`,
+/// `+0x26C` and `+0x258` — `L2.eng` group 77's *"Calf births expected"*, *"Cow
+/// deaths expected"* and *"Change due to farming"* — from state the save also
+/// holds: the herd, what the people ate, the pasture, the cattle labour and the
+/// crowding. So the whole of `FUN_0044DA99` can be run against fourteen
+/// counties' worth of stored answers without recovering anything.
+///
+/// Fifty-six numbers, and they are not a soft test: they exercise the
+/// understaffed arm (county 1 at 98% staffing), the capped arm (county 2 at
+/// 199%), three of the four crowding bands, the Spring birth bonus, and the
+/// double subtraction of `herdEaten` that makes "change due to farming" what it
+/// is. Get the `/ 3` truncation, the `199 <` comparison or the `x 3 / 2`
+/// rounding wrong anywhere and a column moves.
+#[test]
+fn the_herds_own_forecast_reproduces_for_every_county() {
+    let save = match opened() {
+        Some(s) => s,
+        None => {
+            eprintln!("LORDS2_DIR not set - skipping");
+            return;
+        }
+    };
+    let s = Scenario::from_save(&save).expect("import");
+    let mut k = s.kingdom(SEED);
+    let next = s.clock.season_next;
+    assert_eq!(next, 1, "the save's g_seasonNext is Spring, which is what calves");
+
+    let mut checked = 0;
+    for id in s.county_ids() {
+        // The crowding the importer derived, against the byte the game stored.
+        assert_eq!(
+            k.counties[id].herd_crowding,
+            county_i32(&save, id, 0x25C),
+            "county {id} crowding"
+        );
+        checked += 1;
+
+        l2_kingdom::land::herd_preview(&Tables::DEFAULT, &mut k.counties[id], next);
+        for (name, ours, offset) in [
+            ("births expected", k.counties[id].herd_births_expected, 0x268u32),
+            ("deaths expected", k.counties[id].herd_deaths_expected, 0x26C),
+            ("change due to farming", k.counties[id].herd_change_expected, 0x258),
+        ] {
+            assert_eq!(ours, county_i32(&save, id, offset), "county {id} {name}");
+            checked += 1;
+        }
+    }
+    assert_eq!(checked, 14 * 4);
+
+    // And the two bands the map actually visits are not the same band, so the
+    // check is not fourteen copies of one arithmetic.
+    let crowdings: std::collections::BTreeSet<i32> =
+        s.county_ids().map(|id| k.counties[id].herd_crowding).collect();
+    assert_eq!(crowdings.into_iter().collect::<Vec<_>>(), vec![10, 20, 40]);
+}
+
+/// **The labour import checks itself.** Nine job records a county, and every
+/// county's nine sum to its population *exactly* — 218 + 217 = 435 in county 1,
+/// 323 + 133 = 456 in county 2, and so on for all fourteen.
+///
+/// That is the evidence the stride is `0x0C` and the worker count is the first
+/// word of the record, and it is the kind of check `docs/method.md` §2 rates
+/// above any amount of reading: a property of the data, not of our code. A
+/// stride of 4, 8 or 16, or a count at word 1 or 2, would not land on the
+/// population once, let alone fourteen times.
+#[test]
+fn every_countys_nine_labour_records_sum_to_its_population() {
+    let s = shipped!();
+    let k = s.kingdom(SEED);
+    for id in s.county_ids() {
+        let c = &k.counties[id];
+        let assigned: i32 = c.labour.iter().sum();
+        assert_eq!(assigned, c.population, "county {id}");
+        assert!(c.labour[Tables::DEFAULT.job.cattle_farming] > 0, "county {id} farms cattle");
+    }
+}
+
+/// **Every county opened the game on the same 95 head**, which is the number
+/// `docs/kingdom.md`'s reproduction could not see while the herd rule was
+/// missing.
+///
+/// `+0x254` is written by `Herd_SeasonTick` at the top of the season, so what
+/// is in the file is the herd as the *first* season found it — and it is the
+/// `herd` column of the new-game table at `0x004DC0D0 + difficulty * 0x14`,
+/// whose row 1 is `{grain 0, herd 95, population 417, health 65, health 65}`.
+/// Every one of those four reappears in the save: `popLast` is 417 in all
+/// fourteen counties, and 65 is [`STARTING_HEALTH_METER`], which
+/// `crates/l2-scenario` had marked as the one number in the reproduction taken
+/// from prior art rather than from the binary. It is in the binary.
+#[test]
+fn every_county_opened_the_game_on_the_same_herd_and_the_same_people() {
+    let save = match opened() {
+        Some(s) => s,
+        None => {
+            eprintln!("LORDS2_DIR not set - skipping");
+            return;
+        }
+    };
+    let s = Scenario::from_save(&save).expect("import");
+    for id in s.county_ids() {
+        assert_eq!(county_i32(&save, id, 0x254), 95, "county {id} herd at the top of season 1");
+        let stored = s.counties[id].as_ref().expect("a county");
+        assert_eq!(stored.population_last, 417, "county {id} popLast");
+    }
+    assert_eq!(STARTING_HEALTH_METER, 65, "and the health meter is the same table's column 3");
 }
 
 /// The five-stage chain — ration → health meter → health band → happiness →
@@ -660,3 +826,4 @@ fn ten_more_seasons_keep_every_value_inside_its_documented_range() {
         assert!((1..=4).contains(&k.season));
     }
 }
+

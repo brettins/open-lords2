@@ -779,17 +779,52 @@ mod tests {
 
     /// *"No bull"* writes 99, and the herd pass reads 99 as a sentinel rather
     /// than as +99%.
+    ///
+    /// **It stops the calves and nothing else.** The branch sets the weather
+    /// swing and the *births* to zero and never touches the deaths, so a
+    /// well-tended, uncrowded herd stands still — and an understaffed one goes
+    /// on dying through it.
     #[test]
     fn no_bull_stops_the_herd_growing_rather_than_doubling_it() {
+        // Fifty head on five fields: the mildest crowding band, fully staffed,
+        // and small enough that 1 death per 10,000 rounds away to nothing. So
+        // the only thing left for the season to do is calve, and it does not.
+        let furnish = |c: &mut County| {
+            c.herd = 50;
+            c.fields_cattle = 5;
+            c.labour[T.job.cattle_farming] = 150; // three a head
+            c.herd_crowding = crate::land::herd_crowding(T, c.herd, c.fields_cattle);
+            c.weather = crate::tables::Weather::Sunny; // +5% if anything grew
+        };
+
+        let mut spared = county(1);
+        furnish(&mut spared);
+        crate::land::herd_season_tick(T, &mut spared, Season::Spring as u8, Season::Summer as u8);
+        assert!(spared.herd > 50, "the same county calves when the bull is alive: {}", spared.herd);
+
         let mut c = county(1);
-        c.herd = 200;
-        c.weather = crate::tables::Weather::Sunny; // +5% if anything grew
+        furnish(&mut c);
         let mut purse = RealmPurse::default();
         assert!(fire(&mut c, 1, &mut purse, EventKind::NoBull, Season::Spring));
         assert_eq!(c.event_herd_pct, HERD_NO_GROWTH);
 
-        crate::land::herd_season_tick(T, &mut c);
-        assert_eq!(c.herd, 200, "no growth, and certainly not +99%");
+        crate::land::herd_season_tick(T, &mut c, Season::Spring as u8, Season::Summer as u8);
+        assert_eq!(c.herd, 50, "no growth, and certainly not +99%");
+    }
+
+    /// The other half of the same branch, and the reason it is worth its own
+    /// test: *"No bull"* silences the births, **not** the losses.
+    #[test]
+    fn no_bull_does_not_stop_an_understaffed_herd_dying() {
+        let mut c = county(1);
+        c.herd = 10_000;
+        c.fields_cattle = 100; // density 100: massive overcrowding
+        c.labour[T.job.cattle_farming] = 0; // and nobody tending it
+        c.herd_crowding = crate::land::herd_crowding(T, c.herd, c.fields_cattle);
+        c.weather = crate::tables::Weather::Sunny;
+        c.event_herd_pct = HERD_NO_GROWTH;
+        crate::land::herd_season_tick(T, &mut c, Season::Summer as u8, Season::Autumn as u8);
+        assert_eq!(c.herd, 10_000 - 4_000, "(7 + 33) per 10,000 of 100x the herd, uncontested");
     }
 
     /// The plague hits the population *and* pins the health meter to 25.

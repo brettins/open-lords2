@@ -45,9 +45,10 @@
 use crate::ruleset::{RuleError, Ruleset};
 use l2_kingdom::tables::{
     AiPersonalityRow, AiTable, AleTable, CastleTable, CommodityRow, EfficiencyTable, EventTable,
-    FieldTable, FoodTable, GoodRow, GrainTable, HealthBandRow, JobTable, PopulationTable,
-    RationRow, ScoreTable, SeasonRow, Tables, TaxLadder, WageTable, WeaponRow, WeatherRow,
-    AI_PERSONALITY_COUNT, AI_TAX_LADDER_COUNT, ARMY_HAPPINESS_COST_LEN, TAX_LADDER_RUNGS,
+    FieldTable, FoodTable, GoodRow, GrainTable, HealthBandRow, HerdCrowdingRow, HerdTable,
+    JobTable, PopulationTable, RationRow, ScoreTable, SeasonRow, Tables, TaxLadder, WageTable,
+    WeaponRow, WeatherRow, AI_PERSONALITY_COUNT, AI_TAX_LADDER_COUNT, ARMY_HAPPINESS_COST_LEN,
+    HERD_CROWDING_COUNT, TAX_LADDER_RUNGS,
 };
 
 /// Season ids, by `g_season` index. Index 0 is the original's `No Season`,
@@ -229,6 +230,62 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             WeatherRow { herd_pct: int(rs, &format!("{base}.herd_pct"), -100, 100)? };
     }
 
+    // The empire tax term, one row per rate. The length is the tax ceiling and
+    // is therefore structure rather than balance: a document with a different
+    // number of rows is describing a game whose tax panel stops somewhere else.
+    let tax = rs.integer_array("kingdom.tax.happiness_other", t.tax_happiness_other.len())?;
+    for (rate, &value) in tax.iter().enumerate() {
+        t.tax_happiness_other[rate] =
+            narrow(rs, "kingdom.tax.happiness_other", value, -100, 100)?;
+    }
+
+    let mut crowding = t.herd.crowding;
+    expect_rows(rs, "kingdom.herd.crowding", HERD_CROWDING_COUNT)?;
+    for (i, row) in crowding.iter_mut().enumerate() {
+        let base = format!("kingdom.herd.crowding.{i}");
+        *row = HerdCrowdingRow {
+            density_max: int(rs, &format!("{base}.density_max"), 0, i32::MAX as i64)?,
+            level: int(rs, &format!("{base}.level"), 0, 1_000_000)?,
+            death_rate: int(rs, &format!("{base}.death_rate"), 0, 10_000)?,
+            birth_rate: int(rs, &format!("{base}.birth_rate"), 0, 1_000_000)?,
+        };
+    }
+    let mut small_bonus = t.herd.small_bonus;
+    expect_rows(rs, "kingdom.herd.small_bonus", small_bonus.len())?;
+    for (i, row) in small_bonus.iter_mut().enumerate() {
+        let base = format!("kingdom.herd.small_bonus.{i}");
+        *row = (
+            int(rs, &format!("{base}.below"), 0, 1_000_000)?,
+            int(rs, &format!("{base}.bonus"), 0, 1_000_000)?,
+        );
+    }
+    t.herd = HerdTable {
+        // Zero is not a division by zero - `PctOf` guards it - but it does mean
+        // "a herd needs no tending at all", which is a rebalance and allowed.
+        labour_per_head: int(rs, "kingdom.herd.labour_per_head", 0, 10_000)?,
+        staffing_max: int(rs, "kingdom.herd.staffing_max", 0, 10_000)?,
+        // The shortfall is divided by this, so zero really would divide by zero.
+        understaffing_divisor: int(rs, "kingdom.herd.understaffing_divisor", 1, 10_000)?,
+        crowding,
+        small_bonus,
+        no_pasture_density: int(rs, "kingdom.herd.no_pasture_density", 0, i32::MAX as i64)?,
+        no_pasture_kill_all_below: int(
+            rs,
+            "kingdom.herd.no_pasture_kill_all_below",
+            0,
+            1_000_000,
+        )?,
+        no_pasture_divisor: int(rs, "kingdom.herd.no_pasture_divisor", 1, 1_000_000)?,
+        // 0 is the original's `No Season` and disables the bonus, which is how
+        // a ruleset says "calves arrive evenly all year".
+        calving_season: int(rs, "kingdom.herd.calving_season", 0, 4)? as u8,
+        culling_season: int(rs, "kingdom.herd.culling_season", 0, 4)? as u8,
+        season_bonus: (
+            int(rs, "kingdom.herd.season_bonus_numerator", 0, 10_000)?,
+            int(rs, "kingdom.herd.season_bonus_denominator", 1, 10_000)?,
+        ),
+    };
+
     let mut castle = CastleTable {
         starting_type: int(rs, "kingdom.castle.starting_type", 0, CASTLE_IDS.len() as i64 - 1)?
             as u8,
@@ -279,6 +336,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         wood_cutting: slot("wood_cutting")?,
         blacksmith: slot("blacksmith")?,
         grain_farming: slot("grain_farming")?,
+        cattle_farming: slot("cattle_farming")?,
         castle_building: slot("castle_building")?,
     };
 
@@ -721,6 +779,80 @@ pub fn render_toml(t: &Tables) -> String {
 
     let _ = write!(
         out,
+        "\n# --- tax -------------------------------------------------------------\n\
+         # happiness_other is county +0x16, the \"Other counties\" term: what one\n\
+         # county's tax rate does to the mood of every OTHER county in the same\n\
+         # realm. One row per tax rate, so the array's length IS the tax\n\
+         # ceiling - 51 rows means 0 to 50, and the panel's up arrow stops\n\
+         # there. Flat zero to rate 19: taxing at 19%% costs the rest of the\n\
+         # realm nothing at all.\n\
+         # The local half of the term, 5 - rate, is arithmetic rather than a\n\
+         # table and is not here.\n\
+         \n[kingdom.tax]\n\
+         happiness_other = [\n{}\n]\n",
+        wrap_i32(&t.tax_happiness_other, 17)
+    );
+
+    let _ = write!(
+        out,
+        "\n# --- the herd --------------------------------------------------------\n\
+         # Cattle need tending. labour_per_head is 3: staffing is\n\
+         # PctOf(labour, herd * 3), capped at staffing_max, and every point\n\
+         # BELOW 100 adds a third of a point to the death rate. A herd nobody\n\
+         # works loses about a third of a percent of its head a season on top\n\
+         # of crowding.\n\
+         # A county with no pasture at all loses half its herd - or all of it\n\
+         # below no_pasture_kill_all_below head - and nothing else applies.\n\
+         # calving_season multiplies births by season_bonus and culling_season\n\
+         # multiplies deaths; 0 is \"No Season\" and turns the bonus off.\n\
+         \n[kingdom.herd]\n\
+         labour_per_head = {}\n\
+         staffing_max = {}\n\
+         understaffing_divisor = {}\n\
+         no_pasture_density = {}\n\
+         no_pasture_kill_all_below = {}\n\
+         no_pasture_divisor = {}\n\
+         calving_season = {}\n\
+         culling_season = {}\n\
+         season_bonus_numerator = {}\n\
+         season_bonus_denominator = {}\n",
+        t.herd.labour_per_head,
+        t.herd.staffing_max,
+        t.herd.understaffing_divisor,
+        t.herd.no_pasture_density,
+        t.herd.no_pasture_kill_all_below,
+        t.herd.no_pasture_divisor,
+        t.herd.calving_season,
+        t.herd.culling_season,
+        t.herd.season_bonus.0,
+        t.herd.season_bonus.1
+    );
+    out.push_str(
+        "\n# Crowding is head per pasture field, banded. level is what the\n\
+         # county stores and what L2.eng group 77 names - \"Low herd crowding.\"\n\
+         # through \"Massive overcrowding!!\" - and the two rates are per ten\n\
+         # thousand head. An overcrowded herd dies seven times as fast AND\n\
+         # breeds a seventh as often, which is why a county cannot simply keep\n\
+         # buying cattle. The last row is the catch-all.\n",
+    );
+    for row in &t.herd.crowding {
+        let _ = write!(
+            out,
+            "\n[[kingdom.herd.crowding]]\ndensity_max = {}\nlevel = {}\n\
+             death_rate = {}\nbirth_rate = {}\n",
+            row.density_max, row.level, row.death_rate, row.birth_rate
+        );
+    }
+    out.push_str(
+        "\n# A small, FULLY STAFFED herd breeds faster, which is what lets a\n\
+         # county that has lost almost everything recover. Tried in order.\n",
+    );
+    for &(below, bonus) in &t.herd.small_bonus {
+        let _ = write!(out, "\n[[kingdom.herd.small_bonus]]\nbelow = {below}\nbonus = {bonus}\n");
+    }
+
+    let _ = write!(
+        out,
         "\n# --- castles ---------------------------------------------------------\n\
          # tax_base is what Tax_CollectAll multiplies the population by. In the\n\
          # original these six are immediates in the instruction stream, not a\n\
@@ -756,10 +888,12 @@ pub fn render_toml(t: &Tables) -> String {
     let _ = write!(
         out,
         "\n# --- jobs and industry -----------------------------------------------\n\
-         # Only four of the ten job slots are established. grain_farming and\n\
-         # castle_building are NOT: docs/kingdom.md never says which slot holds\n\
-         # them, and these two values are this engine's placeholders so the\n\
-         # rules can be written and tested at all.\n\
+         # Six of the nine job slots are established; castle_building is NOT.\n\
+         # docs/kingdom.md never says which slot holds it, and the value is\n\
+         # this engine's placeholder so the rule can be written and tested at\n\
+         # all. cattle_farming IS established: Herd_SeasonTick passes county\n\
+         # +0xD0, which is record 1, and the shipped save's nine labour records\n\
+         # sum to the county's population in all fourteen counties.\n\
          \n[kingdom.job]\n\
          count = {}\n\
          iron_mining = {}\n\
@@ -767,6 +901,7 @@ pub fn render_toml(t: &Tables) -> String {
          wood_cutting = {}\n\
          blacksmith = {}\n\
          grain_farming = {}\n\
+         cattle_farming = {}\n\
          castle_building = {}\n",
         t.job.count,
         t.job.iron_mining,
@@ -774,6 +909,7 @@ pub fn render_toml(t: &Tables) -> String {
         t.job.wood_cutting,
         t.job.blacksmith,
         t.job.grain_farming,
+        t.job.cattle_farming,
         t.job.castle_building
     );
     let _ = write!(

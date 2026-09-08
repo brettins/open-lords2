@@ -27,8 +27,8 @@
 //! **cattle fields do not enter the formula at all**.
 
 use crate::county::{County, MAX_FIELDS};
-use crate::math::{clamp, pct};
-use crate::tables::{Season, Tables, Weather};
+use crate::math::{clamp, pct, pct_of, per_myriad};
+use crate::tables::{HerdCrowdingRow, Season, Tables, Weather, HERD_CROWDING_COUNT};
 
 // ---------------------------------------------------------------------------
 // Fertility
@@ -212,30 +212,271 @@ pub fn grain_season_tick(t: &Tables, county: &mut County, season: Season, advanc
 // Livestock
 // ---------------------------------------------------------------------------
 
-/// `Herd_SeasonTick` (`0x0044D60D`) — the weather's percentage swing on the
-/// herd, plus the random-event modifier.
+/// The labour figure the herd is staffed from — county `+0xD0`, which is
+/// labour record 1 of the nine at `+0xC4 + job * 0x0C`.
+///
+/// **`[V]`, three ways.** `Herd_SeasonTick` passes `+0xD0`; `0xD0 - 0xC4` is
+/// exactly one 12-byte record; and the shipped save's own arithmetic closes —
+/// county 1 holds 218 cattle farmers and 217 wood cutters against a population
+/// of 435, and county 2 holds 323 and 133 against 456. Both sum to the
+/// population exactly.
+pub fn herd_labour(t: &Tables, county: &County) -> i32 {
+    county.labour[t.job.cattle_farming]
+}
+
+/// `herd / fieldsCattle`, head per pasture field — the input to the crowding
+/// bands. `FUN_0044D913`'s first three lines.
+///
+/// A county with cattle but no pasture gets [`crate::tables::HERD_NO_PASTURE_DENSITY`],
+/// which is far above the top band; an empty herd gets 0, which is the bottom
+/// of the bottom band.
+pub fn herd_density(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
+    if herd < 1 {
+        0
+    } else if fields_cattle == 0 {
+        t.herd.no_pasture_density
+    } else {
+        herd / fields_cattle
+    }
+}
+
+/// `FUN_0044D913` — the crowding level stored in county `+0x25C`, one of the
+/// four values `L2.eng` group 77 names (`docs/kingdom.md` §13.1).
+///
+/// **A county with no pasture is at maximum crowding**, which the original
+/// says twice: once through [`herd_density`]'s sentinel and again as an
+/// explicit override after the bands. Both are reproduced, because they are
+/// separable — a ruleset that lowered `no_pasture_density` below the top band
+/// would find the override still holding, exactly as the binary does.
+///
+/// §13.1's pseudocode shows an `if (herd < 1)` arm before the bands, as though
+/// an empty herd had no crowding at all. It does not: that guard is on the map
+/// *graphic*, and the level is written unconditionally. An empty herd on
+/// pasture is at density 0 and therefore in the *lowest* band.
+pub fn herd_crowding(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
+    let last = t.herd.crowding[HERD_CROWDING_COUNT - 1];
+    if fields_cattle == 0 {
+        return last.level;
+    }
+    let density = herd_density(t, herd, fields_cattle);
+    for row in t.herd.crowding.iter() {
+        if density <= row.density_max {
+            return row.level;
+        }
+    }
+    last.level
+}
+
+/// The crowding band a stored level names.
+///
+/// The original matches the level **exactly** — `if (crowding == 10) … else if
+/// (crowding == 20) … else if (crowding == 30) … else 7` — so anything that is
+/// not one of the three named values falls into the harshest band rather than
+/// being interpolated. A save or a mod holding 15 gets the *"Massive
+/// overcrowding!!"* rates, and that is the original's own behaviour rather
+/// than a defensive choice of ours.
+fn crowding_band(t: &Tables, crowding: i32) -> HerdCrowdingRow {
+    let last = t.herd.crowding[HERD_CROWDING_COUNT - 1];
+    for row in t.herd.crowding.iter().take(HERD_CROWDING_COUNT - 1) {
+        if crowding == row.level {
+            return *row;
+        }
+    }
+    last
+}
+
+/// What one season does to a herd, before the weather and any random event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct HerdGrowth {
+    pub births: i32,
+    pub deaths: i32,
+}
+
+impl HerdGrowth {
+    pub fn net(self) -> i32 {
+        self.births - self.deaths
+    }
+}
+
+/// **`FUN_0044DA99` — the rule that a herd has to be tended.**
+/// `docs/kingdom.md` §13.
+///
+/// ```text
+/// staffing  = PctOf(labour, herd * 3), capped at 200
+/// deathRate = crowding.death_rate + (staffing < 100 ? (100 - staffing) / 3 : 0)
+/// birthRate = Pct(crowding.birth_rate, staffing) + smallHerdBonus
+/// deaths    = per_myriad(herd * 100, deathRate)      [x 3/2 in Winter]
+/// births    = per_myriad(herd, birthRate)            [x 3/2 in Spring]
+/// ```
+///
+/// **Three labourers a head is full staffing**, and below it the shortfall is
+/// added to the death rate at a third of a point per point missing — a herd
+/// with nobody at all tending it loses `crowding + 33` per ten thousand a
+/// season on top of everything else. Above 100% the benefit is the birth rate
+/// only, and it stops at 200%.
+///
+/// **A county with no pasture at all loses half its herd, or all of it below
+/// six head**, and nothing else in the function runs. That is the branch that
+/// makes `fieldsCattle` load-bearing rather than decorative.
+///
+/// The two small rounding tells at the end are the original's and are kept:
+/// a herd whose *rate* is non-zero but whose *count* rounds to zero is given
+/// one animal either way, and deaths can never exceed the herd.
+///
+/// `season` is a `g_season` index; 0 is the original's *No Season* and matches
+/// neither bonus.
+pub fn herd_growth(
+    t: &Tables,
+    herd: i32,
+    fields_cattle: i32,
+    labour: i32,
+    crowding: i32,
+    season: u8,
+) -> HerdGrowth {
+    if herd == 0 {
+        return HerdGrowth::default();
+    }
+    if fields_cattle == 0 {
+        let deaths = if herd < t.herd.no_pasture_kill_all_below {
+            herd
+        } else {
+            herd / t.herd.no_pasture_divisor
+        };
+        return HerdGrowth { births: 0, deaths };
+    }
+
+    let mut staffing = pct_of(labour, herd.saturating_mul(t.herd.labour_per_head));
+    if staffing > t.herd.staffing_max - 1 {
+        staffing = t.herd.staffing_max;
+    }
+    let band = crowding_band(t, crowding);
+
+    // Positive, and added to the *deaths*. The binary writes it as
+    // `-((staffing - 100) / 3)`; C truncates towards zero, so negating first
+    // gives the same answer as `(100 - staffing) / 3` and this is not the place
+    // to be clever about it.
+    let understaffed =
+        if staffing < 100 { -((staffing - 100) / t.herd.understaffing_divisor) } else { 0 };
+    let death_rate = band.death_rate + understaffed;
+
+    let mut birth_rate = pct(band.birth_rate, staffing);
+    if staffing >= 100 {
+        for &(below, bonus) in t.herd.small_bonus.iter() {
+            if herd < below {
+                birth_rate += bonus;
+                break;
+            }
+        }
+    }
+
+    let (num, den) = t.herd.season_bonus;
+    let mut deaths = per_myriad(herd.saturating_mul(100), death_rate);
+    if season == t.herd.culling_season {
+        deaths = deaths * num / den;
+    }
+    let mut births = per_myriad(herd, birth_rate);
+    if season == t.herd.calving_season {
+        births = births * num / den;
+    }
+
+    // A rate that rounds away to nothing still moves one animal.
+    if births == 0 {
+        if birth_rate == 0 {
+            if deaths == 0 && death_rate != 0 {
+                deaths = 1;
+            }
+        } else {
+            births = 1;
+        }
+    }
+    if herd < deaths {
+        deaths = herd;
+    }
+    HerdGrowth { births, deaths }
+}
+
+/// `FUN_0044DD4D`'s second call — next season's *"Calf births expected"*,
+/// *"Cow deaths expected"* and *"Change due to farming"* (`L2.eng` group 77).
+///
+/// The herd it forecasts from is `herd - herdEaten`: the ration pass has
+/// already taken this season's animals, and the panel assumes next season will
+/// take as many again. That double subtraction is the original's, and it is
+/// what makes `change` the number a player sees rather than `births - deaths`.
+///
+/// Guarded on `popBand`, which is the original's guard — an empty county
+/// forecasts nothing. The labour search the same function performs, which
+/// fills the two spare words of the labour record with a suggested and a
+/// growth-maximising worker count, is **not** reproduced: `County::labour` is
+/// one integer a job and has nowhere to put them (`docs/screens-county.md` §8).
+pub fn herd_preview(t: &Tables, county: &mut County, season_next: u8) {
+    county.herd_change_expected = 0;
+    if county.pop_band == 0 {
+        return;
+    }
+    let head = county.herd - county.herd_eaten;
+    let g = herd_growth(
+        t,
+        head,
+        county.fields_cattle,
+        herd_labour(t, county),
+        county.herd_crowding,
+        season_next,
+    );
+    county.herd_births_expected = g.births;
+    county.herd_deaths_expected = g.deaths;
+    county.herd_change_expected = g.net() - county.herd_eaten;
+}
+
+/// `Herd_SeasonTick` (`0x0044D60D`) — births and deaths from
+/// [`herd_growth`], then the weather's percentage swing and the random-event
+/// modifier, then a fresh [`herd_crowding`] and next season's forecast.
 ///
 /// The event modifier is tested for the sentinel **before** it is tested for
 /// its sign: `if (mod == 99) { change = 0; births = 0; }`. So 99 is not
 /// "+99%", it is *"Cattle will not reproduce this season"* — the *"No bull"*
 /// event, `L2.eng` group 314. See [`crate::event::HERD_NO_GROWTH`].
 ///
-/// The order matters: the sentinel suppresses the **weather** swing as well as
-/// the event's own, so a sunny season and a dead prize bull cancel out.
-pub fn herd_season_tick(t: &Tables, county: &mut County) {
-    let weather_change =
-        pct(county.herd, t.weather[county.weather.index() as usize].herd_pct);
+/// The order matters twice over. The sentinel suppresses the **weather** swing
+/// as well as the event's own, so a sunny season and a dead prize bull cancel
+/// out — and it zeroes only the *births*, so **an understaffed herd still dies
+/// during a No Bull season.** Both are the binary's.
+///
+/// `season` and `season_next` are `g_season` indices; the herd's own tick is
+/// run on the season now beginning and the forecast on the one after it,
+/// exactly as `Herd_SeasonTick` passes `g_season` and `g_seasonNext`.
+pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next: u8) {
+    let growth = herd_growth(
+        t,
+        county.herd,
+        county.fields_cattle,
+        herd_labour(t, county),
+        county.herd_crowding,
+        season,
+    );
+    let mut births = growth.births;
+    let mut deaths = growth.deaths;
+
+    let mut weather_change = pct(county.herd, t.weather[county.weather.index() as usize].herd_pct);
     if county.event_herd_pct == crate::event::HERD_NO_GROWTH {
-        county.event_herd_pct = 0;
-        county.herd = county.herd.max(0);
-        return;
+        weather_change = 0;
+        births = 0;
+    } else if county.event_herd_pct < 0 {
+        deaths += pct(county.herd, -county.event_herd_pct);
+    } else if county.event_herd_pct > 0 {
+        births += pct(county.herd, county.event_herd_pct);
     }
-    county.herd += weather_change;
-    if county.event_herd_pct != 0 {
-        county.herd += pct(county.herd, county.event_herd_pct);
-        county.event_herd_pct = 0;
+    county.event_herd_pct = 0;
+
+    if weather_change < 0 {
+        deaths -= weather_change;
+    } else {
+        births += weather_change;
     }
+
+    county.herd += births - deaths;
     county.herd = county.herd.max(0);
+    county.herd_crowding = herd_crowding(t, county.herd, county.fields_cattle);
+    herd_preview(t, county, season_next);
 }
 
 #[cfg(test)]
@@ -438,36 +679,348 @@ mod tests {
         assert_eq!(c.grain, 0);
     }
 
-    /// Only *Sunny* grows the herd and only *Cloudy* leaves it alone.
+    // -----------------------------------------------------------------------
+    // The herd
+    //
+    // Every test below has to say what its county's pasture and labour are,
+    // and that is the whole lesson. `County::new()` has no cattle fields and
+    // nobody working, which the old tests took as a neutral background: a
+    // county in that state now loses half its herd a season, and every one of
+    // them was measuring the weather against a slaughterhouse without knowing.
+    // -----------------------------------------------------------------------
+
+    /// A county whose herd is pastured and staffed, so a rule can be measured
+    /// on its own. `labour` is stated rather than derived — three a head is
+    /// full staffing, and a test that wants "well staffed" should have to write
+    /// the number down.
+    fn grazing(herd: i32, fields_cattle: i32, labour: i32) -> County {
+        let mut c = County::new();
+        c.herd = herd;
+        c.fields_cattle = fields_cattle;
+        c.labour[T.job.cattle_farming] = labour;
+        c.herd_crowding = herd_crowding(T, herd, fields_cattle);
+        c.weather = Weather::Cloudy;
+        c
+    }
+
+    const SPRING: u8 = Season::Spring as u8;
+    const SUMMER: u8 = Season::Summer as u8;
+    const AUTUMN: u8 = Season::Autumn as u8;
+    const WINTER: u8 = Season::Winter as u8;
+
+    /// Only *Sunny* grows the herd and only *Cloudy* leaves it alone — and the
+    /// weather is now a term **on top of** the births and deaths rather than
+    /// the only thing that happens.
     #[test]
     fn the_herd_follows_the_weather_table_exactly() {
         for w in Weather::ALL {
-            let mut c = County::new();
-            c.herd = 1000;
+            let mut c = grazing(1000, 100, 3000);
             c.weather = w;
-            herd_season_tick(T, &mut c);
-            assert_eq!(c.herd, 1000 + T.weather[w.index() as usize].herd_pct * 10, "{}", w.name());
+            let farming = herd_growth(T, 1000, 100, 3000, c.herd_crowding, SUMMER);
+            herd_season_tick(T, &mut c, SUMMER, AUTUMN);
+            let weather = pct(1000, T.weather[w.index() as usize].herd_pct);
+            assert_eq!(c.herd, 1000 + farming.net() + weather, "{}", w.name());
         }
+        // ... and the ordering the table encodes is still the ordering.
+        let after = |w: Weather| {
+            let mut c = grazing(1000, 100, 3000);
+            c.weather = w;
+            herd_season_tick(T, &mut c, SUMMER, AUTUMN);
+            c.herd
+        };
+        assert!(after(Weather::Sunny) > after(Weather::Cloudy));
+        assert!(after(Weather::Cloudy) > after(Weather::Frost));
     }
 
     #[test]
     fn wolves_take_their_percentage_and_the_modifier_is_consumed() {
-        let mut c = County::new();
-        c.herd = 200;
-        c.weather = Weather::Cloudy;
+        let mut c = grazing(200, 20, 600);
         c.event_herd_pct = -25; // "taken by wolves"
-        herd_season_tick(T, &mut c);
-        assert_eq!(c.herd, 150);
+        let farming = herd_growth(T, 200, 20, 600, c.herd_crowding, SUMMER);
+        herd_season_tick(T, &mut c, SUMMER, AUTUMN);
+        assert_eq!(c.herd, 200 + farming.net() - 50, "a quarter of the herd, on top of farming");
         assert_eq!(c.event_herd_pct, 0);
     }
 
+    /// **The rule the crate did not have.** `docs/kingdom.md` §13.
+    ///
+    /// Walks the whole labour domain rather than one comfortable value,
+    /// because the rule that was here before — none — passed every test at
+    /// every one of them.
     #[test]
-    fn a_herd_of_one_survives_a_bad_season_because_percentages_round_to_zero() {
-        let mut c = County::new();
-        c.herd = 1;
-        c.weather = Weather::Drought;
-        herd_season_tick(T, &mut c);
-        assert_eq!(c.herd, 1, "Pct(1, -10) truncates to 0");
+    fn three_labourers_a_head_is_full_staffing_and_below_it_cattle_die() {
+        let herd = 100;
+        let fields = 10; // density 10, the mildest crowding band
+        let crowding = herd_crowding(T, herd, fields);
+        assert_eq!(crowding, 10);
+
+        let full = herd * T.herd.labour_per_head;
+        assert_eq!(full, 300, "three a head");
+
+        let mut previous_deaths = i32::MAX;
+        let mut previous_births = -1;
+        for labour in 0..=(full * 3) {
+            let g = herd_growth(T, herd, fields, labour, crowding, SUMMER);
+            assert!(g.deaths <= previous_deaths, "labour {labour} killed more than {}", labour - 1);
+            assert!(g.births >= previous_births, "labour {labour} bred less than {}", labour - 1);
+            previous_deaths = g.deaths;
+            previous_births = g.births;
+        }
+
+        // The boundary itself. Deaths are `herd * rate / 100` because the
+        // per-ten-thousand rate is applied to a hundred times the herd.
+        let staffed = herd_growth(T, herd, fields, full, crowding, SUMMER);
+        let abandoned = herd_growth(T, herd, fields, 0, crowding, SUMMER);
+        assert_eq!(staffed.deaths, 1, "1 per 10,000 of 100 head");
+        assert_eq!(abandoned.deaths, 34, "1 + (100 - 0) / 3 per 10,000, which is a third of it");
+        assert_eq!(staffed.births, 14, "1,400 per 10,000");
+        assert_eq!(abandoned.births, 0, "and a staffing of zero is a birth rate of zero");
+        assert!(staffed.net() > 0 && abandoned.net() < 0, "the sign of the season flips");
+
+        // One worker short of full staffing is not yet a penalty - the
+        // shortfall is divided by three and truncated - and a third of the
+        // workforce missing is.
+        assert_eq!(herd_growth(T, herd, fields, full - 1, crowding, SUMMER).deaths, 1);
+        assert_eq!(herd_growth(T, herd, fields, full / 3, crowding, SUMMER).deaths, 23);
+    }
+
+    /// The cap: staffing stops paying at 200%, and the comparison really is
+    /// against 199 rather than 200.
+    #[test]
+    fn the_staffing_benefit_stops_at_twice_the_workers() {
+        let (herd, fields) = (10_000, 1_000);
+        let crowding = herd_crowding(T, herd, fields);
+        let at = |labour: i32| herd_growth(T, herd, fields, labour, crowding, SUMMER).births;
+        let full = herd * T.herd.labour_per_head;
+        assert!(at(2 * full) > at(full), "twice the workers is worth having");
+        assert_eq!(at(2 * full), at(10 * full), "ten times over is not");
+        // 199% is not rounded up to 200%: the guard is `199 < staffing`.
+        let ninety_nine = full * 199 / 100;
+        assert!(at(ninety_nine) < at(2 * full));
+    }
+
+    /// A small herd breeds faster — **only when it is fully staffed.** The
+    /// bonus sits inside the `staffing >= 100` arm, which is what stops it
+    /// rescuing a herd nobody is looking after.
+    #[test]
+    fn a_small_herd_breeds_faster_but_only_if_somebody_is_tending_it() {
+        for &(below, bonus) in T.herd.small_bonus.iter() {
+            let herd = below - 1;
+            let fields = 10;
+            let crowding = herd_crowding(T, herd, fields);
+            let staffed = herd_growth(T, herd, fields, herd * 3, crowding, SUMMER);
+            let base = pct(T.herd.crowding[0].birth_rate, 100);
+            assert_eq!(
+                staffed.births,
+                per_myriad(herd, base + bonus).max(1),
+                "a herd of {herd} should get the {bonus} bonus"
+            );
+            let idle = herd_growth(T, herd, fields, 0, crowding, SUMMER);
+            assert!(idle.births <= 1, "and an unstaffed herd of {herd} gets none of it");
+        }
+        // Twenty-five head and up is not a small herd.
+        let crowding = herd_crowding(T, 25, 10);
+        let plain = herd_growth(T, 25, 10, 75, crowding, SUMMER);
+        assert_eq!(plain.births, per_myriad(25, 1400).max(1));
+    }
+
+    /// **No pasture is not a small penalty.** `docs/kingdom.md` §13's second
+    /// branch, walked over the whole herd domain it splits.
+    #[test]
+    fn a_county_with_no_pasture_loses_half_its_herd_or_all_of_it() {
+        for herd in 0..=200 {
+            for labour in [0, herd * 3, herd * 30] {
+                let g = herd_growth(T, herd, 0, labour, 40, SUMMER);
+                let expect = if herd == 0 {
+                    0
+                } else if herd < T.herd.no_pasture_kill_all_below {
+                    herd
+                } else {
+                    herd / 2
+                };
+                assert_eq!(g.deaths, expect, "herd {herd}, labour {labour}");
+                assert_eq!(g.births, 0, "and nothing is born");
+            }
+        }
+        assert_eq!(herd_growth(T, 5, 0, 999, 10, SPRING).deaths, 5, "five head, all of them");
+        assert_eq!(herd_growth(T, 6, 0, 999, 10, SPRING).deaths, 3, "six head, half of them");
+    }
+
+    /// `FUN_0044D913`, over the whole density domain — `docs/kingdom.md` §13.1.
+    #[test]
+    fn crowding_bands_break_at_eleven_twentyone_and_thirtyone_head_a_field() {
+        for fields in 1..=20 {
+            for herd in 0..=(fields * 45) {
+                let density = herd / fields;
+                let expect = if density < 11 {
+                    10
+                } else if density < 21 {
+                    20
+                } else if density < 31 {
+                    30
+                } else {
+                    40
+                };
+                assert_eq!(
+                    herd_crowding(T, herd, fields),
+                    expect,
+                    "{herd} head on {fields} fields is {density} a field"
+                );
+            }
+        }
+        // The four bands of `L2.eng` group 77, and no fifth.
+        let seen: Vec<i32> = (0..=200).map(|h| herd_crowding(T, h, 5)).collect();
+        let mut levels: Vec<i32> = seen.clone();
+        levels.dedup();
+        assert_eq!(levels, vec![10, 20, 30, 40], "in that order, and only those");
+    }
+
+    /// A county with no pasture is at maximum crowding whatever its herd —
+    /// which the binary says twice, and which is why the last band's rates are
+    /// what an unpastured county would be judged by if the harsher branch above
+    /// it ever stopped firing.
+    #[test]
+    fn no_pasture_is_maximum_crowding_at_every_herd_size() {
+        for herd in 0..=500 {
+            assert_eq!(herd_crowding(T, herd, 0), 40, "herd {herd} on no pasture");
+        }
+        // An *empty* herd on real pasture is the other extreme.
+        assert_eq!(herd_crowding(T, 0, 8), 10);
+    }
+
+    /// Crowding is a stored field, not a derived one, and the difference shows:
+    /// the season is worked out at the crowding the herd *had*.
+    #[test]
+    fn a_season_is_judged_at_last_seasons_crowding_and_then_recomputed() {
+        let mut c = grazing(300, 10, 900); // density 30 -> band 30
+        assert_eq!(c.herd_crowding, 30);
+        c.fields_cattle = 100; // pasture bought: density would now be 3
+        herd_season_tick(T, &mut c, SUMMER, AUTUMN);
+        assert_eq!(c.herd_crowding, 10, "and the new pasture counts from next season");
+    }
+
+    /// Every crowding band, against every staffing level. Two monotonicities
+    /// that hold across the whole grid, which is the shape of the table rather
+    /// than a sample of it: **more crowding is always worse on both counts.**
+    #[test]
+    fn a_more_crowded_herd_always_dies_faster_and_breeds_slower() {
+        let (herd, fields) = (10_000, 1_000);
+        for labour in (0..=(herd * 6)).step_by(1_000) {
+            let mut last: Option<HerdGrowth> = None;
+            for band in T.herd.crowding.iter() {
+                let g = herd_growth(T, herd, fields, labour, band.level, SUMMER);
+                if let Some(previous) = last {
+                    assert!(g.deaths >= previous.deaths, "band {} at labour {labour}", band.level);
+                    assert!(g.births <= previous.births, "band {} at labour {labour}", band.level);
+                }
+                last = Some(g);
+            }
+        }
+    }
+
+    /// A crowding value the bands do not name falls into the harshest one,
+    /// which is the original's `else` and not a choice of ours.
+    #[test]
+    fn an_unnamed_crowding_value_is_treated_as_the_worst_one() {
+        let (herd, fields, labour) = (10_000, 1_000, 30_000);
+        let worst = herd_growth(T, herd, fields, labour, 40, SUMMER);
+        for odd in [0, 5, 15, 25, 35, 41, 1_000, -7] {
+            assert_eq!(herd_growth(T, herd, fields, labour, odd, SUMMER), worst, "crowding {odd}");
+        }
+    }
+
+    /// Spring brings calves and Winter kills, both by exactly `3 / 2`.
+    #[test]
+    fn spring_is_worth_half_again_in_calves_and_winter_half_again_in_losses() {
+        let (herd, fields) = (10_000, 1_000);
+        let crowding = herd_crowding(T, herd, fields);
+        let plain = herd_growth(T, herd, fields, herd * 3, crowding, SUMMER);
+        let spring = herd_growth(T, herd, fields, herd * 3, crowding, SPRING);
+        let winter = herd_growth(T, herd, fields, herd * 3, crowding, WINTER);
+        assert_eq!(spring.births, plain.births * 3 / 2);
+        assert_eq!(spring.deaths, plain.deaths, "Spring does not kill");
+        assert_eq!(winter.deaths, plain.deaths * 3 / 2);
+        assert_eq!(winter.births, plain.births, "and Winter does not calve");
+        // Autumn and Summer are neither, and so is the original's "No Season".
+        for season in [SUMMER, AUTUMN, 0] {
+            assert_eq!(herd_growth(T, herd, fields, herd * 3, crowding, season), plain);
+        }
+    }
+
+    /// **A rate that rounds away to nothing still moves one animal**, and the
+    /// direction depends on which rate it was. The last cow in a county nobody
+    /// is farming dies; the last cow in a county that is, calves.
+    #[test]
+    fn the_last_cow_calves_if_it_is_tended_and_dies_if_it_is_not() {
+        let mut kept = grazing(1, 1, 3);
+        kept.weather = Weather::Drought;
+        herd_season_tick(T, &mut kept, SUMMER, AUTUMN);
+        assert_eq!(kept.herd, 2, "a doubled birth rate for a tiny herd, and Pct(1, -10) is 0");
+
+        let mut abandoned = grazing(1, 1, 0);
+        abandoned.weather = Weather::Drought;
+        herd_season_tick(T, &mut abandoned, SUMMER, AUTUMN);
+        assert_eq!(abandoned.herd, 0, "a birth rate of zero and a death rate that is not");
+    }
+
+    /// The herd can never go negative, and deaths are capped at the herd.
+    #[test]
+    fn deaths_never_exceed_the_herd_and_the_herd_never_goes_negative() {
+        for herd in 0..=120 {
+            for fields in [0, 1, 4] {
+                let g = herd_growth(T, herd, fields, 0, 40, WINTER);
+                assert!(g.deaths <= herd, "herd {herd} on {fields} fields lost {}", g.deaths);
+            }
+        }
+        let mut c = grazing(4, 1, 0);
+        c.event_herd_pct = -500;
+        herd_season_tick(T, &mut c, WINTER, SPRING);
+        assert_eq!(c.herd, 0);
+    }
+
+    /// The rule as a player meets it: a county that stops assigning cattle
+    /// farmers watches the herd go, and one that keeps them watches it grow.
+    #[test]
+    fn an_untended_herd_dwindles_away_over_a_few_years_and_a_tended_one_does_not() {
+        let seasons = [SPRING, SUMMER, AUTUMN, WINTER];
+        let run = |labour: i32| {
+            let mut c = grazing(200, 20, labour);
+            c.pop_band = 8;
+            for year in 0..8 {
+                for (i, &s) in seasons.iter().enumerate() {
+                    let next = seasons[(i + 1) % 4];
+                    herd_season_tick(T, &mut c, s, next);
+                    let _ = year;
+                }
+            }
+            c.herd
+        };
+        let tended = run(600);
+        let abandoned = run(0);
+        assert!(tended > 200, "a staffed herd grows: {tended}");
+        assert!(abandoned < 200, "an unstaffed one does not: {abandoned}");
+        assert!(abandoned < tended / 4, "{abandoned} against {tended}");
+    }
+
+    /// The forecast the county panel draws — group 77's *"Calf births
+    /// expected"*, *"Cow deaths expected"* and *"Change due to farming"*.
+    #[test]
+    fn the_forecast_is_next_seasons_growth_less_what_the_people_will_eat() {
+        let mut c = grazing(100, 10, 300);
+        c.pop_band = 4;
+        c.herd_eaten = 13;
+        herd_preview(T, &mut c, SPRING);
+        let g = herd_growth(T, 100 - 13, 10, 300, c.herd_crowding, SPRING);
+        assert_eq!(c.herd_births_expected, g.births);
+        assert_eq!(c.herd_deaths_expected, g.deaths);
+        assert_eq!(c.herd_change_expected, g.net() - 13, "and the eating is counted again");
+
+        // An empty county forecasts nothing at all: the original guards on
+        // popBand, which is zero only where there are no people.
+        let mut empty = grazing(100, 10, 300);
+        empty.pop_band = 0;
+        herd_preview(T, &mut empty, SPRING);
+        assert_eq!(empty.herd_change_expected, 0);
     }
 
     #[test]

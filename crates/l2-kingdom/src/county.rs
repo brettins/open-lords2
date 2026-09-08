@@ -298,6 +298,25 @@ pub struct County {
     pub crop: [i32; 3],
     /// `+0x250` — head of livestock.
     pub herd: i32,
+    /// `+0x25C` — how crowded the herd is: 10, 20, 30 or 40, which `L2.eng`
+    /// group 77 names *"Low herd crowding."*, *"Average herd crowding."*,
+    /// *"Herd overcrowded."* and *"Massive overcrowding!!"*
+    /// (`docs/kingdom.md` §13.1).
+    ///
+    /// **Stored rather than derived**, because the original stores it and the
+    /// difference is observable: `FUN_0044D913` recomputes it at the *end* of
+    /// the herd's tick, so a season's births and deaths are worked out at the
+    /// crowding the herd had when the season began. See
+    /// [`crate::land::herd_crowding`].
+    pub herd_crowding: i32,
+    /// `+0x268`, `+0x26C` and `+0x258` — next season's forecast: group 77's
+    /// *"Calf births expected"*, *"Cow deaths expected"* and *"Change due to
+    /// farming"*. Written by [`crate::land::herd_preview`], and the three
+    /// numbers `crates/l2-kingdom/tests/reproduction.rs` holds against the
+    /// shipped save.
+    pub herd_births_expected: i32,
+    pub herd_deaths_expected: i32,
+    pub herd_change_expected: i32,
     /// `+0x290 + c*0x18` — per-commodity production records.
     pub industry: [Industry; 4],
     /// **Engine state.** Which weapon the blacksmith is making.
@@ -393,6 +412,13 @@ impl County {
             grain: 0,
             crop: [0; 3],
             herd: 0,
+            // The lowest band: density 0 is at the bottom of it, and a county
+            // with no pasture is pushed to the top band by `herd_crowding` the
+            // first time the herd ticks.
+            herd_crowding: crate::tables::HERD_CROWDING[0].1,
+            herd_births_expected: 0,
+            herd_deaths_expected: 0,
+            herd_change_expected: 0,
             industry: [
                 Industry::new(Commodity::Wood),
                 Industry::new(Commodity::Iron),

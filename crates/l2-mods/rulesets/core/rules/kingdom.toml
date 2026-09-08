@@ -339,6 +339,92 @@ herd_pct = -5
 index = 5
 herd_pct = -10
 
+# --- tax -------------------------------------------------------------
+# happiness_other is county +0x16, the "Other counties" term: what one
+# county's tax rate does to the mood of every OTHER county in the same
+# realm. One row per tax rate, so the array's length IS the tax
+# ceiling - 51 rows means 0 to 50, and the panel's up arrow stops
+# there. Flat zero to rate 19: taxing at 19%% costs the rest of the
+# realm nothing at all.
+# The local half of the term, 5 - rate, is arithmetic rather than a
+# table and is not here.
+
+[kingdom.tax]
+happiness_other = [
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, -1, -1, -1, -1, -2, -2, -2, -2, -3, -3, -3, -3, -4, -4,
+  -4, -5, -5, -5, -6, -6, -7, -7, -8, -8, -9, -10, -11, -12, -13, -14, -15,
+]
+
+# --- the herd --------------------------------------------------------
+# Cattle need tending. labour_per_head is 3: staffing is
+# PctOf(labour, herd * 3), capped at staffing_max, and every point
+# BELOW 100 adds a third of a point to the death rate. A herd nobody
+# works loses about a third of a percent of its head a season on top
+# of crowding.
+# A county with no pasture at all loses half its herd - or all of it
+# below no_pasture_kill_all_below head - and nothing else applies.
+# calving_season multiplies births by season_bonus and culling_season
+# multiplies deaths; 0 is "No Season" and turns the bonus off.
+
+[kingdom.herd]
+labour_per_head = 3
+staffing_max = 200
+understaffing_divisor = 3
+no_pasture_density = 1000
+no_pasture_kill_all_below = 6
+no_pasture_divisor = 2
+calving_season = 1
+culling_season = 4
+season_bonus_numerator = 3
+season_bonus_denominator = 2
+
+# Crowding is head per pasture field, banded. level is what the
+# county stores and what L2.eng group 77 names - "Low herd crowding."
+# through "Massive overcrowding!!" - and the two rates are per ten
+# thousand head. An overcrowded herd dies seven times as fast AND
+# breeds a seventh as often, which is why a county cannot simply keep
+# buying cattle. The last row is the catch-all.
+
+[[kingdom.herd.crowding]]
+density_max = 10
+level = 10
+death_rate = 1
+birth_rate = 1400
+
+[[kingdom.herd.crowding]]
+density_max = 20
+level = 20
+death_rate = 3
+birth_rate = 900
+
+[[kingdom.herd.crowding]]
+density_max = 30
+level = 30
+death_rate = 5
+birth_rate = 500
+
+[[kingdom.herd.crowding]]
+density_max = 2147483647
+level = 40
+death_rate = 7
+birth_rate = 200
+
+# A small, FULLY STAFFED herd breeds faster, which is what lets a
+# county that has lost almost everything recover. Tried in order.
+
+[[kingdom.herd.small_bonus]]
+below = 5
+bonus = 10000
+
+[[kingdom.herd.small_bonus]]
+below = 10
+bonus = 5000
+
+[[kingdom.herd.small_bonus]]
+below = 25
+bonus = 2000
+
 # --- castles ---------------------------------------------------------
 # tax_base is what Tax_CollectAll multiplies the population by. In the
 # original these six are immediates in the instruction stream, not a
@@ -402,10 +488,12 @@ garrison_cap = 600
 free_archers = 300
 
 # --- jobs and industry -----------------------------------------------
-# Only four of the ten job slots are established. grain_farming and
-# castle_building are NOT: docs/kingdom.md never says which slot holds
-# them, and these two values are this engine's placeholders so the
-# rules can be written and tested at all.
+# Six of the nine job slots are established; castle_building is NOT.
+# docs/kingdom.md never says which slot holds it, and the value is
+# this engine's placeholder so the rule can be written and tested at
+# all. cattle_farming IS established: Herd_SeasonTick passes county
+# +0xD0, which is record 1, and the shipped save's nine labour records
+# sum to the county's population in all fourteen counties.
 
 [kingdom.job]
 count = 9
@@ -414,6 +502,7 @@ stone_quarrying = 5
 wood_cutting = 6
 blacksmith = 7
 grain_farming = 0
+cattle_farming = 1
 castle_building = 3
 
 # The efficiency ramp's two bounds. Efficiency COMPOUNDS season on

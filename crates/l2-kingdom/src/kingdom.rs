@@ -542,7 +542,12 @@ impl Kingdom {
 
     fn herd_season_tick(&mut self) {
         for id in 1..=self.county_count {
-            land::herd_season_tick(&self.tables, &mut self.counties[id]);
+            land::herd_season_tick(
+                &self.tables,
+                &mut self.counties[id],
+                self.season,
+                self.season_next,
+            );
         }
     }
 

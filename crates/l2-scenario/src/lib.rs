@@ -44,11 +44,30 @@
 //! reproduction come out right. `crates/l2-kingdom/tests/reproduction.rs`
 //! measures exactly what that costs: one county of fourteen.
 
-use l2_formats::save::{Save, SaveError};
+use l2_formats::save::{Save, SaveError, COUNTY_BASE, COUNTY_STRIDE};
 use l2_kingdom::county::{County, MAX_COUNTY_ID};
 use l2_kingdom::realm::MAX_REALMS;
-use l2_kingdom::tables::{health_band, Tables, Weather};
-use l2_kingdom::{Kingdom, Options};
+use l2_kingdom::tables::{health_band, Tables, Weather, JOB_COUNT};
+use l2_kingdom::{land, Kingdom, Options};
+
+/// Where the nine labour records begin inside a county record, and how far
+/// apart they are — `+0xC4`, stride `0x0C`, worker count at word 0.
+///
+/// **Read here rather than through [`l2_formats::save::County`]** because that
+/// struct belongs to `l2-formats`, which is not this crate's to change; `Save`
+/// exposes the addressed reads it is itself built from, so the seam can take
+/// the word it needs without either crate learning about the other.
+///
+/// **`[V]`.** The layout is fixed by the labour allocator (`FUN_0044F6E7`),
+/// which clears the block with
+/// `for (c = 0; c < 9; c++) *(int *)(county + 0xC4 + c * 0x0C) = 0;` — nine
+/// records, twelve bytes each, count first. The shipped save then checks
+/// itself: county 1 holds 218 cattle farmers and 217 wood cutters against a
+/// population of 435, county 2 holds 323 and 133 against 456, and **every one
+/// of the fourteen sums to its population exactly**, which no wrong stride
+/// would do fourteen times running. `docs/kingdom.md` §13.
+const LABOUR_BASE: u32 = 0xC4;
+const LABOUR_STRIDE: u32 = 0x0C;
 
 /// The health meter every county starts a new game on.
 ///
@@ -162,6 +181,14 @@ pub struct CountyState {
     pub dryness: i32,
     pub grain: i32,
     pub herd: i32,
+    /// `+0xC4 + job * 0x0C` — the nine job records' worker counts.
+    ///
+    /// They were not imported at all until the herd needed them, and the herd
+    /// needs them badly: `l2_kingdom::land::herd_growth` staffs a herd at three
+    /// labourers a head and kills the shortfall, so a county imported with a
+    /// labour of zero would lose cattle every season for want of a field this
+    /// crate had simply not read. `docs/kingdom.md` §13.
+    pub labour: [i32; JOB_COUNT],
 }
 
 /// One realm's imported state.
@@ -283,6 +310,14 @@ impl Scenario {
                 dryness: c.dryness as i32,
                 grain: c.grain,
                 herd: c.herd,
+                labour: {
+                    let base = COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + LABOUR_BASE;
+                    let mut jobs = [0i32; JOB_COUNT];
+                    for (job, slot) in jobs.iter_mut().enumerate() {
+                        *slot = save.i32_at(base + job as u32 * LABOUR_STRIDE)?;
+                    }
+                    jobs
+                },
             });
         }
 
@@ -467,6 +502,13 @@ impl Scenario {
             c.dryness = s.dryness;
             c.grain = s.grain;
             c.herd = s.herd;
+            c.labour = s.labour;
+            // `FUN_0044D913` is called from everywhere a county's herd or
+            // pasture can change, county setup included, so a county always
+            // arrives with its crowding already computed. Deriving it here
+            // rather than reading `+0x25C` keeps the two consistent — and the
+            // reproduction test checks the derived value against the byte.
+            c.herd_crowding = land::herd_crowding(&tables, c.herd, c.fields_cattle);
         }
         k
     }

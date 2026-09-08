@@ -309,6 +309,10 @@ fn every_part_of_the_state_reaches_the_bytes() {
         ("grain", Box::new(|k: &mut Kingdom| k.counties[2].grain = 5)),
         ("crop", Box::new(|k: &mut Kingdom| k.counties[2].crop[2] = 5)),
         ("herd", Box::new(|k: &mut Kingdom| k.counties[2].herd = 5)),
+        ("herd_crowding", Box::new(|k: &mut Kingdom| k.counties[2].herd_crowding = 30)),
+        ("herd births due", Box::new(|k: &mut Kingdom| k.counties[2].herd_births_expected = 5)),
+        ("herd deaths due", Box::new(|k: &mut Kingdom| k.counties[2].herd_deaths_expected = 5)),
+        ("herd change due", Box::new(|k: &mut Kingdom| k.counties[2].herd_change_expected = -5)),
         ("industry output", Box::new(|k: &mut Kingdom| k.counties[2].industry[3].output = 5)),
         ("industry efficiency", Box::new(|k: &mut Kingdom| k.counties[2].industry[3].efficiency = 5)),
         ("industry capacity", Box::new(|k: &mut Kingdom| k.counties[2].industry[3].capacity = 5)),
@@ -452,7 +456,21 @@ fn every_sub_table_reaches_the_fingerprint() {
         ("health ladder", Box::new(|t: &mut Tables| t.health_band_ladder[2].0 += 1)),
         ("birth ladder", Box::new(|t: &mut Tables| t.population.birth_rate_ladder[19].1 += 1)),
         ("happiness factor", Box::new(|t: &mut Tables| t.population.happiness_factor_ladder[4].1 += 1)),
+        ("tax happiness", Box::new(|t: &mut Tables| t.tax_happiness_other[50] += 1)),
         ("weather", Box::new(|t: &mut Tables| t.weather[5].herd_pct += 1)),
+        ("herd staffing", Box::new(|t: &mut Tables| t.herd.labour_per_head += 1)),
+        ("herd staffing cap", Box::new(|t: &mut Tables| t.herd.staffing_max += 1)),
+        ("herd understaffing", Box::new(|t: &mut Tables| t.herd.understaffing_divisor += 1)),
+        ("herd crowding", Box::new(|t: &mut Tables| t.herd.crowding[3].birth_rate += 1)),
+        ("herd crowding band", Box::new(|t: &mut Tables| t.herd.crowding[0].density_max += 1)),
+        ("herd small bonus", Box::new(|t: &mut Tables| t.herd.small_bonus[2].1 += 1)),
+        ("herd no pasture", Box::new(|t: &mut Tables| t.herd.no_pasture_divisor += 1)),
+        ("herd no pasture floor", Box::new(|t: &mut Tables| t.herd.no_pasture_kill_all_below += 1)),
+        ("herd no pasture density", Box::new(|t: &mut Tables| t.herd.no_pasture_density += 1)),
+        ("herd calving", Box::new(|t: &mut Tables| t.herd.calving_season += 1)),
+        ("herd culling", Box::new(|t: &mut Tables| t.herd.culling_season += 1)),
+        ("herd season bonus", Box::new(|t: &mut Tables| t.herd.season_bonus.1 += 1)),
+        ("cattle job", Box::new(|t: &mut Tables| t.job.cattle_farming += 1)),
         ("castle start", Box::new(|t: &mut Tables| t.castle.starting_type += 1)),
         ("castle tax", Box::new(|t: &mut Tables| t.castle.tax_base[5] += 1)),
         ("castle bonus", Box::new(|t: &mut Tables| t.castle.tax_bonus_pct[5] += 1)),
@@ -496,7 +514,7 @@ fn every_sub_table_reaches_the_fingerprint() {
 fn the_fingerprint_covers_a_fixed_and_known_number_of_bytes() {
     let mut c = l2_net::Canonical::hashing();
     l2_net::Encode::encode(&Tables::DEFAULT, &mut c);
-    assert_eq!(c.finish().len, 1_838, "the ruleset encoding changed - bump VERSION?");
+    assert_eq!(c.finish().len, 2_168, "the ruleset encoding changed - bump VERSION?");
 }
 
 // --- corruption ------------------------------------------------------------

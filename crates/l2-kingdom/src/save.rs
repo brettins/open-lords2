@@ -70,7 +70,13 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 
 /// The format version. **Bump it whenever the byte layout below changes**, and
 /// never reinterpret an unknown one.
-pub const VERSION: u32 = 1;
+///
+/// * 1 — the first layout.
+/// * 2 — the county grew four herd fields (`docs/kingdom.md` §13), and the
+///   ruleset fingerprint grew the tax-happiness table, the herd table and the
+///   cattle-farming job slot. Both halves of the file moved, so a version 1
+///   save is refused rather than misread.
+pub const VERSION: u32 = 2;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -400,6 +406,10 @@ impl Encode for County {
             out.i32(*stage);
         }
         out.i32(self.herd);
+        out.i32(self.herd_crowding);
+        out.i32(self.herd_births_expected);
+        out.i32(self.herd_deaths_expected);
+        out.i32(self.herd_change_expected);
         for industry in &self.industry {
             industry.encode(out);
         }
@@ -501,6 +511,10 @@ impl Decode for County {
             c.crop[stage] = input.i32()?;
         }
         c.herd = input.i32()?;
+        c.herd_crowding = input.i32()?;
+        c.herd_births_expected = input.i32()?;
+        c.herd_deaths_expected = input.i32()?;
+        c.herd_change_expected = input.i32()?;
         for slot in 0..c.industry.len() {
             c.industry[slot] = Industry::decode(input)?;
         }
@@ -721,10 +735,37 @@ impl Encode for Tables {
             out.i32(*percent);
         }
 
+        out.section("tax");
+        for v in &self.tax_happiness_other {
+            out.i32(*v);
+        }
+
         out.section("weather");
         for row in &self.weather {
             out.i32(row.herd_pct);
         }
+
+        out.section("herd");
+        out.i32(self.herd.labour_per_head);
+        out.i32(self.herd.staffing_max);
+        out.i32(self.herd.understaffing_divisor);
+        for row in &self.herd.crowding {
+            out.i32(row.density_max);
+            out.i32(row.level);
+            out.i32(row.death_rate);
+            out.i32(row.birth_rate);
+        }
+        for (below, bonus) in &self.herd.small_bonus {
+            out.i32(*below);
+            out.i32(*bonus);
+        }
+        out.i32(self.herd.no_pasture_density);
+        out.i32(self.herd.no_pasture_kill_all_below);
+        out.i32(self.herd.no_pasture_divisor);
+        out.u8(self.herd.calving_season);
+        out.u8(self.herd.culling_season);
+        out.i32(self.herd.season_bonus.0);
+        out.i32(self.herd.season_bonus.1);
 
         out.section("castle");
         out.u8(self.castle.starting_type);
@@ -763,6 +804,7 @@ impl Encode for Tables {
         out.u32(self.job.wood_cutting as u32);
         out.u32(self.job.blacksmith as u32);
         out.u32(self.job.grain_farming as u32);
+        out.u32(self.job.cattle_farming as u32);
         out.u32(self.job.castle_building as u32);
 
         out.section("weapon");

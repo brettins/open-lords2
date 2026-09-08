@@ -26,6 +26,46 @@ pub fn pct(x: i32, p: i32) -> i32 {
     ((x as i64 * p as i64) / 100) as i32
 }
 
+/// `PctOf(a, b) = a * 100 / b`, and **0 when `b` is 0** — `0x00404DC1`.
+///
+/// The inverse of [`pct`]: what percentage of `b` is `a`. The zero case is the
+/// original's own guard rather than ours, and it is load-bearing — a county
+/// with no cattle asks `PctOf(labour, 0)` for its herd staffing and gets 0
+/// rather than a division by zero (`docs/kingdom.md` §13).
+///
+/// ```
+/// # use l2_kingdom::math::pct_of;
+/// assert_eq!(pct_of(218, 222), 98);   // county 1 of lastturn.sav, understaffed
+/// assert_eq!(pct_of(323, 162), 199);  // county 2, one short of the cap
+/// assert_eq!(pct_of(5, 0), 0);
+/// ```
+#[inline]
+pub fn pct_of(a: i32, b: i32) -> i32 {
+    if b == 0 {
+        0
+    } else {
+        ((a as i64 * 100) / b as i64) as i32
+    }
+}
+
+/// `x * p / 10000` — `0x00404D96`, which is [`pct`] with two more decimal
+/// places.
+///
+/// The herd's births and deaths are the only rules written in it, and they need
+/// it: at the least crowded band a herd breeds at 1,400 per ten thousand a
+/// season, which is 14% and could not survive being said in whole percent once
+/// the staffing multiplier has been through it.
+///
+/// ```
+/// # use l2_kingdom::math::per_myriad;
+/// assert_eq!(per_myriad(74, 196), 1);      // county 1 of lastturn.sav: one calf
+/// assert_eq!(per_myriad(74 * 100, 7), 5);  // ... and five losses
+/// ```
+#[inline]
+pub fn per_myriad(x: i32, p: i32) -> i32 {
+    ((x as i64 * p as i64) / 10_000) as i32
+}
+
 /// `DivCeil(a, b)` — used by the ration requirement and by the two
 /// people-per-animal / people-per-sack conversions in `docs/kingdom.md` §4.3.
 ///

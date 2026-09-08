@@ -1550,6 +1550,10 @@ pub struct JobTable {
     pub blacksmith: usize,
     /// **Not established** - see [`JOB_GRAIN_FARMING`].
     pub grain_farming: usize,
+    /// **`[V]`** - `Herd_SeasonTick` (`0x0044D60D`) passes county `+0xD0` as
+    /// the herd's labour, and `(0xD0 - 0xC4) / 0x0C` is exactly record 1. See
+    /// [`crate::land::herd_labour`].
+    pub cattle_farming: usize,
     /// **Not established** - see [`JOB_CASTLE_BUILDING`].
     pub castle_building: usize,
 }
@@ -1786,6 +1790,7 @@ impl Tables {
             wood_cutting: JOB_WOOD_CUTTING,
             blacksmith: JOB_BLACKSMITH,
             grain_farming: JOB_GRAIN_FARMING,
+            cattle_farming: JOB_CATTLE_FARMING,
             castle_building: JOB_CASTLE_BUILDING,
         },
         weapon: [
