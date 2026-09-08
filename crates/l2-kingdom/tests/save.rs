@@ -112,8 +112,75 @@ fn furnished(seed: u64) -> Kingdom {
                 c.add_neighbour(n);
             }
         }
+        c.mercenary_offer = (id % 12) as u8;
+        c.levy_surcharge = (id as i32 % 4) * 5;
     }
+    furnish_campaign(&mut k);
     k
+}
+
+/// The campaign half of a furnished kingdom: units of all four types, a map
+/// with something in every plane, mercenary bands mid-walk, and name counters
+/// that have been drawn from.
+///
+/// Same reasoning as [`furnished`] itself — a unit array tested only on empty
+/// slots is a unit array tested only on empty slots.
+fn furnish_campaign(k: &mut Kingdom) {
+    use l2_kingdom::unit::{Mercenaries, TroopType, Unit, UnitKind};
+
+    for i in 0..l2_kingdom::MAP_TILES {
+        k.campaign.map.terrain[i] = (i % 24) as u8;
+        k.campaign.map.flags[i] = (i % 7) as u8;
+        k.campaign.map.county[i] = (i % 14) as u8 + 1;
+    }
+
+    let kinds = [UnitKind::Army, UnitKind::PeasantMob, UnitKind::Merchant, UnitKind::Transport];
+    for (n, kind) in kinds.into_iter().enumerate() {
+        let mut u = Unit::new(kind, (n % 5) as u8 + 1, 10 + n as u8, 20 + n as u8);
+        u.owner_is_human = n % 2 == 0;
+        u.shield = n as u8 + 1;
+        u.player_driven = n % 2 == 1;
+        u.facing = (n as u8 * 2) % 8;
+        u.county = n as u8 + 1;
+        u.home_county = n as u8 + 2;
+        u.dest = (n % 2 == 0).then_some((30 + n as u8, 40));
+        u.path = (0..n * 3).map(|s| (s as u8, (s * 2) as u8)).collect();
+        u.moving = n % 2 == 0;
+        u.on_road = n % 2 == 1;
+        u.name_index = n as u8 + 3;
+        u.needs_destination = n % 2 == 1;
+        u.dest_county = n as u8 + 4;
+        u.moves_used = n as i32 + 1;
+        u.move_allowance = 15;
+        u.starvation = (n as i32) % 5;
+        u.wages = 40 + n as i32;
+        u.year_formed = 1268 + n as i32;
+        u.morale = 50 + n as i32;
+        u.troops = core::array::from_fn(|t| (t as i32 + 1) * (n as i32 + 1));
+        u.men = u.troops.iter().sum();
+        if n == 0 {
+            u.mercenaries = Some(Mercenaries { band: 9, troop: TroopType::Maceman, men: 150 });
+            u.men += 150;
+        }
+        u.garrison_county = if n == 1 { 3 } else { 0 };
+        u.besieging_county = if n == 2 { 5 } else { 0 };
+        u.besieged_by = if n == 3 { 2 } else { 0 };
+        // Slot 1 upward, but not contiguously: a gap is state too.
+        k.campaign.units.put(n * 2 + 1, u);
+    }
+
+    k.campaign.mercenaries = l2_kingdom::MercenaryBands::init(14);
+    let mut counties = k.counties.clone();
+    for _ in 0..3 {
+        k.campaign.mercenaries.advance(&mut counties, 14);
+    }
+    k.counties = counties;
+
+    for realm in 1..=5u8 {
+        for _ in 0..realm {
+            k.campaign.names.pick(realm);
+        }
+    }
 }
 
 /// A furnished kingdom with several seasons behind it — a ring with entries in
@@ -238,6 +305,36 @@ fn every_part_of_the_state_reaches_the_bytes() {
         ("advanced_farming", Box::new(|k: &mut Kingdom| k.options.advanced_farming = false)),
         ("armies_eat", Box::new(|k: &mut Kingdom| k.options.armies_eat = false)),
         ("rng", Box::new(|k: &mut Kingdom| { k.rng.next_u32(); })),
+        // --- the campaign layer (docs/armies.md) ---------------------------
+        ("unit men", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().men = 77)),
+        ("unit tile", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().x = 63)),
+        ("unit troops", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().troops[6] = 5)),
+        ("unit path", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(7).unwrap().path.push((1, 2)))),
+        ("unit starvation", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().starvation = 4)),
+        ("unit morale", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().morale = 99)),
+        ("unit wages", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().wages = 1)),
+        ("unit garrison", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().garrison_county = 7)),
+        ("unit mercenaries", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().mercenaries = None)),
+        ("unit slot", Box::new(|k: &mut Kingdom| { k.campaign.units.remove(3); })),
+        ("map terrain", Box::new(|k: &mut Kingdom| k.campaign.map.set_terrain(9, 9, 200))),
+        ("map flags", Box::new(|k: &mut Kingdom| k.campaign.map.set_flags(9, 9, 0x40))),
+        ("map county", Box::new(|k: &mut Kingdom| k.campaign.map.set_county(9, 9, 15))),
+        ("band walk", Box::new(|k: &mut Kingdom| {
+            let mut b = k.campaign.mercenaries.band_raw(4);
+            b.next_county = 12;
+            k.campaign.mercenaries.set_band_raw(4, b);
+        })),
+        ("band hired", Box::new(|k: &mut Kingdom| {
+            let mut b = k.campaign.mercenaries.band_raw(5);
+            b.hired_by = 3;
+            k.campaign.mercenaries.set_band_raw(5, b);
+        })),
+        ("bands in play", Box::new(|k: &mut Kingdom| k.campaign.mercenaries.set_in_play(4))),
+        ("army names", Box::new(|k: &mut Kingdom| { k.campaign.names.pick(2); })),
+        ("mercenary_offer", Box::new(|k: &mut Kingdom| k.counties[2].mercenary_offer = 11)),
+        ("garrison_unit", Box::new(|k: &mut Kingdom| k.counties[2].garrison_unit = 6)),
+        ("levy_surcharge", Box::new(|k: &mut Kingdom| k.counties[2].levy_surcharge = 15)),
+
         ("owner", Box::new(|k: &mut Kingdom| k.counties[2].owner = 4)),
         ("event_fired", Box::new(|k: &mut Kingdom| k.counties[2].event_fired = true)),
         ("event_id", Box::new(|k: &mut Kingdom| k.counties[2].event_id = 999)),

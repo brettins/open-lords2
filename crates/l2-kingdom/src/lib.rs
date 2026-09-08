@@ -192,6 +192,7 @@
 //!     [`ai::begin_realm_turn`].
 
 pub mod ai;
+pub mod conquest;
 pub mod county;
 pub mod event;
 pub mod happiness;
@@ -200,7 +201,11 @@ pub mod industry;
 pub mod kingdom;
 pub mod labour;
 pub mod land;
+pub mod levy;
+pub mod map;
 pub mod math;
+pub mod mercenary;
+pub mod movement;
 pub mod phase;
 pub mod population;
 pub mod ration;
@@ -209,6 +214,7 @@ pub mod report;
 pub mod save;
 pub mod tables;
 pub mod tax;
+pub mod unit;
 pub mod unrest;
 pub mod weather;
 
@@ -216,9 +222,14 @@ pub use county::{ChangeReason, County, Industry, MAX_COUNTIES, MAX_COUNTY_ID, MA
 pub use event::EventKind;
 pub use kingdom::{Kingdom, Options};
 pub use phase::{Pass, Phase, PhaseTick, PhaseWait, TurnMachine, PHASE_ORDER, SEASON_PIPELINE};
+pub use levy::{Levy, LevyBasket, LevyRefusal};
+pub use map::{CampaignMap, CostMap, MAP_DIM, MAP_TILES};
+pub use mercenary::{Band, MercenaryBands, MERCENARY_BANDS};
+pub use movement::Routing;
 pub use realm::{Realm, AI_STEP_DONE, MAX_REALMS};
 pub use report::{Message, SeasonReport};
 pub use tables::{Commodity, Season, Weather};
+pub use unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS};
 
 /// The generator this crate draws from, re-exported so a caller does not have
 /// to depend on `l2-net` to seed a kingdom.

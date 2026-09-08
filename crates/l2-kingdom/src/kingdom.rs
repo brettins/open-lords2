@@ -99,6 +99,15 @@ pub struct Kingdom {
     /// local weather swing, which is the fallback when this season's masked
     /// draw lands outside the map. See [`weather::chosen_county`].
     pub weather_county: usize,
+    /// **Everything that moves on the map** — the units, the ground they stand
+    /// on, the mercenary bands and the realms' army-name counters.
+    ///
+    /// It is *inside* the kingdom rather than beside it because it is
+    /// simulation state in exactly the sense `docs/netcode.md` §5 means: two
+    /// lockstep peers have to agree about where an army stands and which tiles
+    /// it has ruined, the tick checksum has to cover it, and a save that
+    /// dropped it would keep the economy and lose the war. See [`Campaign`].
+    pub campaign: Campaign,
     /// **The ruleset this kingdom runs on.**
     ///
     /// Fixed for the life of the kingdom, like `l2_sim::Battle`'s troop
@@ -233,6 +242,48 @@ impl History {
     }
 }
 
+/// The campaign-map half of the state — `docs/armies.md`.
+///
+/// Four things that only make sense together: the unit array, the map they
+/// stand on, the mercenary bands walking it, and the per-realm army-name
+/// counters. They are one struct because every rule in [`crate::movement`],
+/// [`crate::levy`] and [`crate::conquest`] needs two or three of them at once,
+/// and because grouping them keeps [`Kingdom`] readable as *economy plus war*
+/// rather than as fourteen fields.
+///
+/// A default [`Campaign`] is an empty map with no units and no bands, which is
+/// what a kingdom built without a scenario has. Nothing here is optional: an
+/// empty map is a real value, not a missing one, and a rule that has to ask
+/// whether the map exists is a rule with two behaviours.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Campaign {
+    /// `g_units` — 151 slots, 1..=150 usable.
+    pub units: crate::unit::Units,
+    /// The three tile planes the simulation reads and writes.
+    pub map: crate::map::CampaignMap,
+    /// `g_mercBands` and how many of them this map supports.
+    pub mercenaries: crate::mercenary::MercenaryBands,
+    /// Realm `+0x2D` — twenty-four name counters a lord.
+    pub names: crate::unit::ArmyNames,
+}
+
+impl Default for Campaign {
+    fn default() -> Self {
+        Campaign::new()
+    }
+}
+
+impl Campaign {
+    pub fn new() -> Campaign {
+        Campaign {
+            units: crate::unit::Units::new(),
+            map: crate::map::CampaignMap::empty(),
+            mercenaries: crate::mercenary::MercenaryBands::none(),
+            names: crate::unit::ArmyNames::new(),
+        }
+    }
+}
+
 impl Kingdom {
     /// An empty kingdom on the stock ruleset, before any map is loaded.
     pub fn new(seed: u64) -> Kingdom {
@@ -271,6 +322,7 @@ impl Kingdom {
             rng: Pcg32::from_seed(seed),
             history: History::new(),
             weather_county: 1,
+            campaign: Campaign::new(),
         }
     }
 
@@ -377,6 +429,8 @@ impl Kingdom {
             Pass::ScoreRank => ai::rank_realms(&self.tables, &mut self.realms),
             Pass::History => self.history(),
             Pass::RationPreview => self.ration_apply(true),
+            Pass::MercenaryAdvance => self.mercenary_advance(),
+            Pass::UnitsResetMoves => self.units_reset_moves(),
         }
     }
 
@@ -465,21 +519,102 @@ impl Kingdom {
         }
     }
 
-    /// `Wages_PayAll` pays the bill already in each realm's `wages`.
+    /// `Wages_PayAll` — starve the armies, rebuild the bill, then pay it.
     ///
-    /// The bill itself is [`industry::compute_wages`] over the realm's units,
-    /// and units live in `g_units`, which is not this crate's. So the caller
-    /// sets `realm.wages` before the season advances; this pass spends it.
-    /// The `had_mercenaries` answer `industry::pay` needs comes from the unit
-    /// array, which is not this crate's. A kingdom with no unit model has none,
-    /// so the first unpaid season is the plain *"Unpaid troops"* warning.
+    /// This is the hook `docs/armies.md` §6.4 calls *"the missing half"*, and
+    /// until now it had nothing to attach to: the pass paid a `realm.wages` a
+    /// caller had to set, and told [`industry::pay`] that nobody had
+    /// mercenaries because there were no units to ask. Three things happen here
+    /// now, in the original's order:
+    ///
+    /// 1. **`Army_Starve` runs first**, before anyone is charged — so an army
+    ///    can desert from hunger and be billed the reduced wage in the same
+    ///    season;
+    /// 2. the bill is rebuilt from the realm's surviving armies by
+    ///    [`crate::unit::refresh_wages`], which also writes each army's own
+    ///    share into its record for the panel;
+    /// 3. the realm pays, and bankruptcy escalates against real armies —
+    ///    stage 1 walks the mercenaries out, stages 2 to 4 desert a tenth of
+    ///    every troop count, and stage 5 destroys every army the realm has.
     fn wages_pay(&mut self, report: &mut SeasonReport) {
+        crate::unit::starve(
+            &self.tables,
+            &mut self.campaign.units,
+            &self.counties,
+            self.options.armies_eat,
+            &mut report.messages,
+        );
+
         for id in 1..MAX_REALMS {
             if !self.realms[id].in_play {
                 continue;
             }
-            industry::pay(&mut self.realms[id], id as u8, false, &mut report.messages);
+            crate::unit::refresh_wages(
+                &self.tables,
+                &mut self.campaign.units,
+                &mut self.realms,
+                id as u8,
+                self.options.difficulty,
+            );
+            let had_mercenaries = self
+                .campaign
+                .units
+                .iter()
+                .any(|(_, u)| u.owner == id as u8 && u.mercenaries.is_some());
+            industry::pay(&mut self.realms[id], id as u8, had_mercenaries, &mut report.messages);
+
+            let stage = self.realms[id].bankrupt_stage;
+            self.apply_bankruptcy(id as u8, stage);
         }
+    }
+
+    /// The half of `docs/kingdom.md` §7.4's bankruptcy ladder that acts on
+    /// armies rather than on the counter.
+    ///
+    /// [`industry::pay`] advances the stage and reports it; what the stage
+    /// *does* needs the unit array, so it happens here. The mapping is the one
+    /// [`industry::BankruptcyAction`] already documents — stage 1 is
+    /// `Mercenary_Release` over the whole realm (`L2.eng` 160, *"Mercenaries
+    /// desert!"*), stages 2..=4 are `Army_Desert` per army, and stage 5 is the
+    /// mutiny that destroys every army the realm holds.
+    fn apply_bankruptcy(&mut self, realm: u8, stage: u8) {
+        match stage {
+            1 => {
+                self.campaign.mercenaries.release_realm(&mut self.campaign.units, realm);
+            }
+            2..=4 => {
+                for (_, u) in self.campaign.units.iter_mut() {
+                    if u.owner == realm && u.kind == crate::unit::UnitKind::Army {
+                        u.desert();
+                    }
+                }
+            }
+            // `industry::pay` resets the counter to 0 after the mutiny, so the
+            // mutiny is reported as stage 0 — see `Message::Bankrupt`.
+            0 => {}
+            _ => {}
+        }
+    }
+
+    /// `Units_ResetMoves` (`0x004651B9`) — turn phase 7. Every slot, every
+    /// type: `moveState = 0` and `movesUsed = 0`.
+    fn units_reset_moves(&mut self) {
+        self.campaign.units.reset_moves();
+    }
+
+    /// `Mercenary_AdvanceAll` (`0x004ACA2B`) — turn phase 7, and **before**
+    /// [`Kingdom::units_reset_moves`].
+    ///
+    /// > `docs/armies.md` §2.1 says phase 7 *"calls `Units_ResetMoves` … then
+    /// > `Move_BuildCostMap` and `Mercenary_AdvanceAll`"*. The order is the
+    /// > other way round: the three calls are literally consecutive as
+    /// > `Mercenary_AdvanceAll(); Units_ResetMoves(); Move_BuildCostMap();`.
+    /// > Corrected in the document. It matters because the order two peers run
+    /// > the season's passes in is the specification (`docs/kingdom.md` §3.4),
+    /// > and [`SEASON_PIPELINE`] is where that is written down. `[D]`
+    fn mercenary_advance(&mut self) {
+        let count = self.county_count;
+        self.campaign.mercenaries.advance(&mut self.counties, count);
     }
 
     fn ration_apply(&mut self, preview: bool) {

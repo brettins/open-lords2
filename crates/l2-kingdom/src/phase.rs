@@ -244,6 +244,13 @@ pub enum Pass {
     /// not reproduce for player-owned counties: the stored `rationAchieved` is
     /// **the next season's** level, not the one that was applied.
     RationPreview,
+    /// `Mercenary_AdvanceAll` — every band walks one county and may offer
+    /// itself. **Turn phase 7, not `Season_Advance`**, and it runs *before*
+    /// [`Pass::UnitsResetMoves`]. See [`is_in_season_advance`].
+    MercenaryAdvance,
+    /// `Units_ResetMoves` — every unit's move counter back to zero. Turn phase
+    /// 7, immediately after the mercenary walk.
+    UnitsResetMoves,
 }
 
 /// The end-of-season pipeline, in order.
@@ -281,7 +288,20 @@ pub enum Pass {
 ///    with no turn machine driving it would otherwise never rank at all; it is
 ///    flagged by [`is_in_season_advance`] and asserted in this module's tests
 ///    rather than quietly presented as the original's order.
-pub const SEASON_PIPELINE: [Pass; 23] = [
+/// 3. **The two campaign passes at the end are phase 7's, not
+///    `Season_Advance`'s.** `Turn_Tick`'s seventh phase runs
+///    `Mercenary_AdvanceAll(); Units_ResetMoves(); Move_BuildCostMap();` and
+///    *then* the season. They are carried here, after
+///    [`Pass::RationPreview`], for the same reason [`Pass::ScoreRank`] is: the
+///    work still has to happen somewhere and a pipeline that omitted it would
+///    leave every army permanently out of moves. [`is_in_season_advance`]
+///    keeps them distinguishable. `Move_BuildCostMap` is *not* a pass —
+///    [`crate::map::CampaignMap::cost_map`] is recomputed on demand, which is
+///    what the original does on every move order anyway.
+///
+///    **`docs/armies.md` §2.1 has these two the wrong way round**, giving
+///    `Units_ResetMoves` first. Corrected there.
+pub const SEASON_PIPELINE: [Pass; 25] = [
     Pass::Clock,
     Pass::EventRoll,
     Pass::Weather,
@@ -305,14 +325,18 @@ pub const SEASON_PIPELINE: [Pass; 23] = [
     Pass::ScoreRank,
     Pass::History,
     Pass::RationPreview,
+    Pass::MercenaryAdvance,
+    Pass::UnitsResetMoves,
 ];
 
-/// The passes that are in `Season_Advance`'s call list, as against the one
+/// The passes that are in `Season_Advance`'s call list, as against the ones
 /// this crate runs there for want of anywhere better.
 ///
-/// Only [`Pass::ScoreRank`] is in the second group. See [`SEASON_PIPELINE`].
+/// Three are in the second group: [`Pass::ScoreRank`], which has five callers
+/// and none of them is `Season_Advance`, and the two campaign passes, which
+/// belong to `Turn_Tick`'s seventh phase alongside it. See [`SEASON_PIPELINE`].
 pub fn is_in_season_advance(pass: Pass) -> bool {
-    pass != Pass::ScoreRank
+    !matches!(pass, Pass::ScoreRank | Pass::MercenaryAdvance | Pass::UnitsResetMoves)
 }
 
 impl Pass {
@@ -449,17 +473,29 @@ mod tests {
         assert!(order(Commodity::Weapons) < order(Commodity::Wood));
     }
 
-    /// **`Score_RankRealms` is not one of `Season_Advance`'s calls**, whatever
-    /// `docs/kingdom.md` §3.4 says. Kept in the pipeline because the ranking
-    /// has to happen somewhere, and flagged so nobody reads the array as a
-    /// transcription.
+    /// **Three passes here are not `Season_Advance`'s calls**, whatever
+    /// `docs/kingdom.md` §3.4 says of the first: `Score_RankRealms` has five
+    /// callers and none of them is the season, and the two campaign passes
+    /// belong to `Turn_Tick`'s seventh phase alongside it. All three are kept
+    /// in the pipeline because the work has to happen somewhere, and flagged so
+    /// nobody reads the array as a transcription.
     #[test]
-    fn the_ranking_pass_is_the_one_thing_here_that_season_advance_does_not_call() {
+    fn three_passes_here_are_not_things_season_advance_calls() {
         let extra: Vec<Pass> =
             SEASON_PIPELINE.into_iter().filter(|p| !is_in_season_advance(*p)).collect();
-        assert_eq!(extra, vec![Pass::ScoreRank]);
+        assert_eq!(extra, vec![Pass::ScoreRank, Pass::MercenaryAdvance, Pass::UnitsResetMoves]);
         assert!(is_in_season_advance(Pass::History), "the ring is the real second-to-last");
         assert!(is_in_season_advance(Pass::RationPreview), "and the preview really is last");
+    }
+
+    /// The correction to `docs/armies.md` §2.1, as an ordering assertion: phase
+    /// 7 walks the mercenaries **before** it gives the armies their moves back.
+    #[test]
+    fn the_mercenaries_walk_before_the_armies_get_their_moves_back() {
+        assert!(Pass::MercenaryAdvance.order() < Pass::UnitsResetMoves.order());
+        // …and both are after everything the season itself does, because the
+        // season runs inside the same phase.
+        assert!(Pass::RationPreview.order() < Pass::MercenaryAdvance.order());
     }
 
     #[test]

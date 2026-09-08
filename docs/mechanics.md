@@ -167,11 +167,20 @@ Legend:
   - 🕳 The diplomacy screen — `0x0B`, *"the other lords"*, `faces.pl8`, one of the 29
   - ❓ Whether the Baron favours peasant armies. The per-lord weapon rota is read; what its
     six fields index is **not established**. §8.3
-- 📖 **Armies on the campaign map.** The record, the levy, movement, foraging, sieges and the
-  battle-result return are all traced in `docs/armies.md`. Still nothing implemented.
-- 📖 **Mercenaries.** Twelve fixed bands, one per nationality, walking the map; you hire the
+- ✅ **Armies on the campaign map.** The unit record, the levy and the armoury, the cost map,
+  the flood fill and the path extractor, the stepper with its trampling and field-crossing,
+  and the season hooks — wages, foraging, the starvation ladder, the move reset. In
+  `crates/l2-kingdom`: `unit`, `map`, `movement`, `levy`, `conquest`. `docs/armies.md`
+- ✅ **Taking a county.** Stepping onto a county's castle tile is the attack; a castle *and* a
+  garrison that is not yours is the siege gate; a neutral county below happiness 11 surrenders
+  and anything else raises a defence. `docs/armies.md` §8 — a section that did not exist until
+  it was implemented
+- ✅ **Mercenaries.** Twelve fixed bands, one per nationality, walking the map; you hire the
   one standing in your county when you raise an army there. Sizes, prices, troop types and
   the walk come out of six static tables — `docs/armies.md` §5
+- ❓ **Whether any of it matches the original in play.** There is **no army in
+  `lastturn.sav`** — six units, all merchants — so nothing above has a data-side oracle, and
+  the whole layer is code-only. `docs/armies.md` §9 lists the falsifiable predictions.
 - 📖 Merchants and transports as things that move — `docs/formats/plane4.md` for the routes,
   `docs/armies.md` §2 for the mover, the cost map and the pathfinder they share with armies
 
@@ -194,7 +203,9 @@ Legend:
   on castle type — `docs/armies.md` §4
 - ❓ Moat filling (traced: figures raise the terrain 15 times)
 - ❓ Retreat, capture, what happens after a battle ends
-- 📖 How a battle result returns to the campaign — `Battle_ReturnToCampaign`, `docs/armies.md` §7
+- 📖 How a battle result returns to the campaign — `Battle_ReturnToCampaign`, `docs/armies.md` §7.
+  **`g_battleLoser` holds the winner**; the name is inverted and §7 says so. Implementing it
+  on the name destroys the winner and hands the county to the corpse
 
 ---
 
