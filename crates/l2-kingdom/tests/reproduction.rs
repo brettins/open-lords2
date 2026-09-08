@@ -1,4 +1,5 @@
-//! **The reproduction from the shipped save** — and this time it opens it.
+//! **The reproduction from the England turn-one fixture** — and this time it
+//! opens it.
 //!
 //! # What this file used to be
 //!
@@ -11,18 +12,34 @@
 //!
 //! The file holds **five owned counties, one for each of realms 1 to 5**, at
 //! indices 1, 4, 8, 11 and 13; nine unowned; fourteen counties in seventeen
-//! slots; and the human owning county 8 alone. `crates/l2-formats/tests/save.rs`
-//! asserts all of that against the bytes.
+//! slots. `crates/l2-formats/tests/save_england_turn1.rs` asserts all of that
+//! against the bytes.
+//!
+//! # "Shipped" was the wrong word, and it cost the suite a day
+//!
+//! A clean GOG install ships **no saves at all**. The file this test reads was
+//! produced by somebody in an earlier session of this project starting a
+//! campaign; the game writes `lastturn.sav` when turn one begins and rewrites it
+//! every turn thereafter. Calling it "the shipped save" made a volatile file
+//! look permanent, and resolving it by a hard-coded path inside the game
+//! directory meant ten minutes of play replaced it. That is now a **named
+//! fixture** — `%LORDS2_FIXTURES%\england-turn1.sav`, checked against
+//! `l2_testkit::england_turn1_fingerprint` before a single assertion runs.
+//!
+//! Two things this position does *not* fix, and which are rolled per game:
+//! **which realm gets which of the five starting counties**, and therefore
+//! which county starts short of food. Both were written down here as constants.
+//! See [`hungry_county`].
 //!
 //! # What it is now
 //!
-//! An oracle. `l2-scenario` imports `lastturn.sav` twice — once as the state the
+//! An oracle. `l2-scenario` imports the fixture twice — once as the state the
 //! file holds, once rewound to the position it was taken from — and every
 //! assertion below compares this crate's output against the *file's* numbers.
 //! Nothing here is quoted from a document. If the pipeline's order, the health
 //! ladder's comparison sense, the delta table's indexing, the 1-based season
 //! array, the birth ladder's pairing or the unowned happiness bonus were wrong,
-//! a number read out of `lastturn.sav` would say so.
+//! a number read out of the fixture would say so.
 //!
 //! **No rule was changed to make this pass.** Fourteen counties reproduce
 //! twenty-four stored fields each — see
@@ -36,8 +53,8 @@
 //! and happiness are exact. It stores **no previous herd and no previous
 //! grain**: the ration pass ate some of both and only the remainder survives.
 //! So the starting position `l2-scenario` builds carries the stored stores
-//! forward, and one county of fourteen — county 1, the map's dead end — then
-//! starves where the real one did not. That is not a rule failing; it is a
+//! forward, and one county of fourteen — **realm 5's**, whichever that is —
+//! then starves where the real one did not. That is not a rule failing; it is a
 //! missing input, and [`the_food_the_season_ate_is_recoverable_and_unique`]
 //! recovers it: there is **exactly one** pre-season store per county that
 //! reproduces the file, and putting it back makes the map land.
@@ -52,7 +69,7 @@
 //! holds for it.
 //!
 //! Recovering it also answers a question `docs/kingdom.md` §4.3 left open.
-//! County 1 holds no grain and its `shownRation` is `+1`, so it was fed at
+//! That county holds no grain and its `shownRation` is `+1`, so it was fed at
 //! Normal by the pass that ran *before* happiness — and with an all-grain split
 //! that costs eight sacks. A `Ration_Apply` that did not debit the store would
 //! have left those eight sacks in it. **It debits**, which is the reading
@@ -61,48 +78,24 @@
 //! # Running it
 //!
 //! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-kingdom --test reproduction
+//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-kingdom --test reproduction
 //! ```
 //!
-//! Every test skips cleanly when no install is present, like the rest of the
-//! suite.
+//! Every test skips *visibly* when the fixture is not configured, and **fails**
+//! when something is configured that is not it. Those are different states and
+//! conflating them is how the previous breakage went unnoticed.
 
 use l2_formats::save::Save;
 use l2_kingdom::county::County;
 use l2_kingdom::phase::SEASON_PIPELINE;
 use l2_kingdom::tables::{health_band, Season, Tables, Weather};
 use l2_scenario::{Scenario, STARTING_HEALTH_METER};
-use std::path::{Path, PathBuf};
 
 /// The seed is irrelevant to everything asserted here — with Advanced Farming
 /// off the weather is forced, and no county draws an event in 1268 — but it is
 /// fixed anyway, because a test that *would* notice a different seed is a test
 /// worth having notice.
 const SEED: u64 = 0x10D_52;
-
-fn install() -> Option<PathBuf> {
-    std::env::var("LORDS2_DIR")
-        .ok()
-        .filter(|d| Path::new(d).is_dir())
-        .map(PathBuf::from)
-        .or_else(|| {
-            let fallback = PathBuf::from(r"F:\games\Lords of the Realm II");
-            fallback.is_dir().then_some(fallback)
-        })
-}
-
-/// The shipped save, or `None` when there is no install to read it from.
-fn opened() -> Option<Save> {
-    let dir = install()?;
-    let exe = std::fs::read(dir.join("Lords2.exe")).ok()?;
-    let sav = std::fs::read(dir.join("lastturn.sav")).ok()?;
-    Some(Save::open(&exe, &sav).expect("the shipped save must read"))
-}
-
-/// The shipped scenario, or `None` when there is no install to read it from.
-fn scenario() -> Option<Scenario> {
-    Some(Scenario::from_save(&opened()?).expect("the shipped save must import"))
-}
 
 /// One county field straight out of the file, at the offset `docs/kingdom.md`
 /// §1 names it at.
@@ -115,21 +108,38 @@ fn county_i32(save: &Save, id: usize, offset: u32) -> i32 {
     save.i32_at(0x0053_F9B0 + (id as u32) * 0x300 + offset).expect("a saved county address")
 }
 
-macro_rules! shipped {
-    () => {
-        match scenario() {
-            Some(s) => s,
-            None => {
-                eprintln!("LORDS2_DIR not set - skipping");
-                return;
-            }
-        }
-    };
+/// The England turn-one fixture, imported. Skips when it is not configured and
+/// panics when what is configured is a different game — see
+/// `l2_testkit::england_turn1`.
+macro_rules! england {
+    () => {{
+        let save = l2_testkit::england!();
+        Scenario::from_save(&save).expect("the England turn-one fixture must import")
+    }};
 }
 
+/// County 1 borders one county and nothing else. That **is** a property of the
+/// England map and is stable across every save of it.
+const MAP_DEAD_END: usize = 1;
+
 /// The one county the imported starting position cannot feed, because the save
-/// does not record what it ate. See the module documentation.
-const DEAD_END: usize = 1;
+/// does not record what it ate.
+///
+/// **Corrected.** This was `const DEAD_END: usize = 1`, and it conflated two
+/// facts that happened to coincide in the one save anybody had looked at:
+/// county 1 is the map's dead end, *and* county 1 was the county that starts on
+/// Half rations. A second England turn-one save separates them — there the
+/// hungry county is 8, and county 1 is still the dead end.
+///
+/// What actually predicts it is the **realm**: county 1 belonged to realm 5 in
+/// the first save and county 8 belongs to realm 5 in the second. One lord always
+/// begins short of food, and it is always realm 5. That is a game-design fact
+/// nobody here had noticed while it was written down as a county index.
+fn hungry_county(s: &Scenario) -> usize {
+    s.county_ids()
+        .find(|&id| s.counties[id].as_ref().is_some_and(|c| c.owner == 5))
+        .expect("realm 5 holds a county in an England turn-one save")
+}
 
 /// Everything worth comparing between a county we computed and a county the
 /// file holds. Twenty-four fields, named, so a failure says which one.
@@ -242,12 +252,19 @@ fn kingdom_after_the_first_season(s: &Scenario) -> l2_kingdom::Kingdom {
 // The scenario itself — the correction C12 was hiding
 // ---------------------------------------------------------------------------
 
-/// **The correction, asserted through the importer.** Five owned counties, one
-/// for each of realms 1 to 5, at indices 1, 4, 8, 11 and 13 — not four owned by
-/// one realm. The person holds county 8 and nothing else.
+/// **The correction, asserted through the importer.** Five owned counties, at
+/// indices 1, 4, 8, 11 and 13, one for each of realms 1 to 5 — not four owned
+/// by one realm, which is what C12's version of this file invented.
+///
+/// **Corrected again.** It used to pin the mapping,
+/// `[(1, 5), (4, 4), (8, 1), (11, 3), (13, 2)]`. The *set* is scenario; the
+/// *assignment* is rolled per game, and a second England turn-one save gives
+/// 1→4, 4→2, 8→5, 11→3, 13→1. The importer's job is to carry across whatever
+/// the file says, so what is asserted is that it did: every owner it produced
+/// is the owner byte the save holds.
 #[test]
-fn the_shipped_scenario_is_five_realms_with_one_county_each() {
-    let s = shipped!();
+fn the_england_scenario_is_five_realms_with_one_county_each() {
+    let s = england!();
     assert_eq!(s.county_count, 14, "fourteen counties on the England map");
     assert_eq!(s.local_player, 1);
 
@@ -256,7 +273,14 @@ fn the_shipped_scenario_is_five_realms_with_one_county_each() {
         .filter_map(|id| s.counties[id].as_ref().map(|c| (id, c.owner)))
         .filter(|(_, owner)| *owner != 0)
         .collect();
-    assert_eq!(owned, vec![(1, 5), (4, 4), (8, 1), (11, 3), (13, 2)]);
+    assert_eq!(
+        owned.iter().map(|&(id, _)| id).collect::<Vec<usize>>(),
+        l2_testkit::ENGLAND_TURN1_COUNTIES,
+        "the five starting counties"
+    );
+    let mut realms: Vec<u8> = owned.iter().map(|&(_, r)| r).collect();
+    realms.sort_unstable();
+    assert_eq!(realms, [1, 2, 3, 4, 5], "one county each, in some order");
     assert_eq!(s.county_ids().count() - owned.len(), 9, "nine unowned");
 
     for id in 1..=5 {
@@ -277,7 +301,7 @@ fn the_shipped_scenario_is_five_realms_with_one_county_each() {
 /// clock forward and lands on these.
 #[test]
 fn the_file_is_a_turn_one_winter_1268_autosave() {
-    let s = shipped!();
+    let s = england!();
     assert_eq!(s.clock.season, 4);
     assert_eq!(Season::from_index(s.clock.season), Some(Season::Winter));
     assert_eq!(s.clock.season_next, 1, "Spring is next");
@@ -292,7 +316,7 @@ fn the_file_is_a_turn_one_winter_1268_autosave() {
 /// and 16 import as nothing at all, and 1 … 14 all import.
 #[test]
 fn the_array_holds_seventeen_records_and_only_fourteen_are_a_county() {
-    let s = shipped!();
+    let s = england!();
     let k = s.kingdom(SEED);
     assert_eq!(k.counties.len(), 17);
     assert_eq!(k.county_count, 14);
@@ -314,7 +338,7 @@ fn the_array_holds_seventeen_records_and_only_fourteen_are_a_county() {
 /// is named from both sides.
 #[test]
 fn the_map_the_import_builds_is_the_map_in_the_file() {
-    let s = shipped!();
+    let s = england!();
     let k = s.kingdom(SEED);
     for id in s.county_ids() {
         let c = &k.counties[id];
@@ -323,7 +347,7 @@ fn the_map_the_import_builds_is_the_map_in_the_file() {
             assert!(k.counties[n as usize].neighbours().contains(&(id as u8)), "county {id}");
         }
     }
-    assert_eq!(k.counties[DEAD_END].neighbours(), &[2], "county 1 is the dead end");
+    assert_eq!(k.counties[MAP_DEAD_END].neighbours(), &[2], "county 1 is the dead end");
     assert_eq!(k.counties[10].neighbour_count, 7, "county 10 is the hub");
     assert_eq!(
         s.county_ids().map(|id| k.counties[id].neighbour_count as usize).sum::<usize>(),
@@ -342,7 +366,7 @@ fn the_map_the_import_builds_is_the_map_in_the_file() {
 /// nothing cannot pass by leaving them alone.
 #[test]
 fn the_starting_position_is_the_file_rewound_by_exactly_one_season() {
-    let s = shipped!();
+    let s = england!();
     let start = s.starting_kingdom(SEED);
     let file = s.kingdom(SEED);
 
@@ -366,7 +390,7 @@ fn the_starting_position_is_the_file_rewound_by_exactly_one_season() {
         assert_eq!(a.happiness_sum, 0, "county {id}");
     }
 
-    // Every county in the shipped save started the season on the same two
+    // Every county in the England turn-one fixture started the season on the same two
     // numbers - the file's own claim, checked rather than assumed.
     let starts: Vec<(i32, i32)> = s
         .county_ids()
@@ -383,7 +407,7 @@ fn the_starting_position_is_the_file_rewound_by_exactly_one_season() {
 /// every stored fertility is 0 — and the pipeline leaves them there.
 #[test]
 fn basic_farming_leaves_every_county_cloudy_with_zero_fertility() {
-    let s = shipped!();
+    let s = england!();
     let file = s.kingdom(SEED);
     let mut k = s.starting_kingdom(SEED);
     k.start_new_game();
@@ -403,7 +427,7 @@ fn basic_farming_leaves_every_county_cloudy_with_zero_fertility() {
 /// file's own clock, having run every documented pass in order.
 #[test]
 fn the_pipeline_reaches_the_files_clock() {
-    let s = shipped!();
+    let s = england!();
     let mut k = s.starting_kingdom(SEED);
     let report = k.start_new_game();
     assert_eq!(k.season, s.clock.season);
@@ -424,14 +448,15 @@ fn the_pipeline_reaches_the_files_clock() {
 /// that matters.
 #[test]
 fn every_county_the_save_can_feed_reproduces_every_stored_field() {
-    let s = shipped!();
+    let s = england!();
     let file = s.kingdom(SEED);
     let mut k = s.starting_kingdom(SEED);
     k.start_new_game();
 
+    let hungry = hungry_county(&s);
     let mut checked = 0;
     for id in s.county_ids() {
-        if id == DEAD_END {
+        if id == hungry {
             continue;
         }
         for (name, ours, theirs) in comparison(&k.counties[id], &file.counties[id]) {
@@ -445,8 +470,8 @@ fn every_county_the_save_can_feed_reproduces_every_stored_field() {
     assert_eq!(checked, 13 * 24, "thirteen counties, twenty-four fields each");
 }
 
-/// **County 1 is the divergence, and it is a missing input rather than a broken
-/// rule.**
+/// **Realm 5's county is the divergence, and it is a missing input rather than
+/// a broken rule.**
 ///
 /// It holds no grain, splits its ration entirely onto grain, and keeps a herd of
 /// 74 — which feeds 370 of its 417 people. The file says it ate at Normal
@@ -456,18 +481,25 @@ fn every_county_the_save_can_feed_reproduces_every_stored_field() {
 /// band 2 instead of band 3, and a death rate that costs it twenty-one people.
 ///
 /// Pinned to the exact numbers, so a change to any stage of the chain moves this
-/// test rather than passing quietly.
+/// test rather than passing quietly — but pinned to the county the *file* says
+/// realm 5 holds, not to the index that realm happened to draw once. See
+/// [`hungry_county`].
 #[test]
-fn county_one_diverges_because_the_save_does_not_record_what_it_ate() {
-    let s = shipped!();
+fn realm_fives_county_diverges_because_the_save_does_not_record_what_it_ate() {
+    let s = england!();
     let file = s.kingdom(SEED);
     let mut k = s.starting_kingdom(SEED);
     k.start_new_game();
 
-    let ours = &k.counties[DEAD_END];
-    let theirs = &file.counties[DEAD_END];
+    let hungry = hungry_county(&s);
+    let ours = &k.counties[hungry];
+    let theirs = &file.counties[hungry];
 
-    assert_eq!((theirs.grain, theirs.herd, theirs.ration_split), (0, 74, 0), "the file's county 1");
+    assert_eq!(
+        (theirs.grain, theirs.herd, theirs.ration_split),
+        (0, 74, 0),
+        "the file's county {hungry}"
+    );
     assert_eq!(theirs.shown_ration, 1, "the file says it was fed at Normal");
 
     assert_eq!((ours.ration_achieved, ours.shown_ration), (2, -2), "ours starves");
@@ -502,7 +534,7 @@ fn county_one_diverges_because_the_save_does_not_record_what_it_ate() {
 /// herds from 73 to 67.
 #[test]
 fn the_food_the_season_ate_is_recoverable_and_unique() {
-    let s = shipped!();
+    let s = england!();
     let file = s.kingdom(SEED);
     let t = &Tables::DEFAULT;
 
@@ -519,13 +551,17 @@ fn the_food_the_season_ate_is_recoverable_and_unique() {
         }
     }
 
+    let hungry = hungry_county(&s);
     assert_eq!(
-        solve_opening(&file.counties[DEAD_END], t),
+        solve_opening(&file.counties[hungry], t),
         (74, 8),
-        "county 1 opened on eight sacks and ate all of them"
+        "county {hungry} opened on eight sacks and ate all of them"
     );
-    for id in [4usize, 8, 11, 13] {
+    for id in s.county_ids().filter(|&id| id != hungry) {
         let stored = &file.counties[id];
+        if stored.owner == 0 {
+            continue;
+        }
         assert_eq!(
             solve_opening(stored, t),
             (stored.herd, stored.grain),
@@ -543,7 +579,7 @@ fn the_food_the_season_ate_is_recoverable_and_unique() {
 /// not.
 #[test]
 fn every_county_reproduces_every_stored_field() {
-    let s = shipped!();
+    let s = england!();
     let file = s.kingdom(SEED);
     let k = kingdom_after_the_first_season(&s);
 
@@ -578,14 +614,8 @@ fn every_county_reproduces_every_stored_field() {
 /// rounding wrong anywhere and a column moves.
 #[test]
 fn the_herds_own_forecast_reproduces_for_every_county() {
-    let save = match opened() {
-        Some(s) => s,
-        None => {
-            eprintln!("LORDS2_DIR not set - skipping");
-            return;
-        }
-    };
-    let s = Scenario::from_save(&save).expect("import");
+    let save = l2_testkit::england!();
+    let s = Scenario::from_save(&save).expect("the England turn-one fixture must import");
     let mut k = s.kingdom(SEED);
     let next = s.clock.season_next;
     assert_eq!(next, 1, "the save's g_seasonNext is Spring, which is what calves");
@@ -630,7 +660,7 @@ fn the_herds_own_forecast_reproduces_for_every_county() {
 /// population once, let alone fourteen times.
 #[test]
 fn every_countys_nine_labour_records_sum_to_its_population() {
-    let s = shipped!();
+    let s = england!();
     let k = s.kingdom(SEED);
     for id in s.county_ids() {
         let c = &k.counties[id];
@@ -654,14 +684,8 @@ fn every_countys_nine_labour_records_sum_to_its_population() {
 /// from prior art rather than from the binary. It is in the binary.
 #[test]
 fn every_county_opened_the_game_on_the_same_herd_and_the_same_people() {
-    let save = match opened() {
-        Some(s) => s,
-        None => {
-            eprintln!("LORDS2_DIR not set - skipping");
-            return;
-        }
-    };
-    let s = Scenario::from_save(&save).expect("import");
+    let save = l2_testkit::england!();
+    let s = Scenario::from_save(&save).expect("the England turn-one fixture must import");
     for id in s.county_ids() {
         assert_eq!(county_i32(&save, id, 0x254), 95, "county {id} herd at the top of season 1");
         let stored = s.counties[id].as_ref().expect("a county");
@@ -675,7 +699,7 @@ fn every_county_opened_the_game_on_the_same_herd_and_the_same_people() {
 /// number on both sides read from the file.
 #[test]
 fn the_whole_five_stage_chain_lands_on_both_bands() {
-    let s = shipped!();
+    let s = england!();
     let file = s.kingdom(SEED);
     let k = kingdom_after_the_first_season(&s);
 
@@ -705,7 +729,7 @@ fn the_whole_five_stage_chain_lands_on_both_bands() {
 /// them; county 8 the same on the other split; and county 1 dropping to Half.
 #[test]
 fn the_ration_preview_reproduces_every_stored_food_field() {
-    let s = shipped!();
+    let s = england!();
     let file = s.kingdom(SEED);
     let t = &Tables::DEFAULT;
 
@@ -735,7 +759,7 @@ fn the_ration_preview_reproduces_every_stored_food_field() {
 /// leave no room for a migrant.
 #[test]
 fn migration_runs_on_the_real_adjacency_and_moves_nobody() {
-    let s = shipped!();
+    let s = england!();
     let file = s.kingdom(SEED);
     let k = kingdom_after_the_first_season(&s);
 
@@ -751,7 +775,7 @@ fn migration_runs_on_the_real_adjacency_and_moves_nobody() {
 /// §8.1's gate, against the file: no county drew an event in 1268.
 #[test]
 fn no_county_draws_an_event_in_the_first_year() {
-    let s = shipped!();
+    let s = england!();
     let mut k = s.starting_kingdom(SEED);
     k.start_new_game();
     for id in s.county_ids() {
@@ -766,7 +790,7 @@ fn no_county_draws_an_event_in_the_first_year() {
 /// agree with what the pipeline produces.
 #[test]
 fn the_tax_term_reproduces_across_the_whole_map() {
-    let s = shipped!();
+    let s = england!();
     let file = s.kingdom(SEED);
     let mut k = s.starting_kingdom(SEED);
     k.start_new_game();
@@ -787,7 +811,7 @@ fn the_tax_term_reproduces_across_the_whole_map() {
 /// Lockstep needs this and nothing else needs it more.
 #[test]
 fn the_reproduction_is_bit_identical_run_to_run() {
-    let s = shipped!();
+    let s = england!();
     let run = || {
         let mut k = s.starting_kingdom(SEED);
         k.start_new_game();
@@ -798,7 +822,7 @@ fn the_reproduction_is_bit_identical_run_to_run() {
         assert_eq!(first, run());
     }
     // And the import itself is a pure function of the bytes.
-    let again = shipped!();
+    let again = england!();
     assert_eq!(s, again);
 }
 
@@ -806,24 +830,125 @@ fn the_reproduction_is_bit_identical_run_to_run() {
 /// land on turn 1 and then diverge into nonsense: every county stays inside
 /// every documented bound.
 #[test]
-fn ten_more_seasons_keep_every_value_inside_its_documented_range() {
-    let s = shipped!();
+fn ten_more_seasons_conserve_the_clock_and_the_labour_and_do_not_stand_still() {
+    let s = england!();
     let mut k = kingdom_after_the_first_season(&s);
-    for season in 1..=10 {
-        k.advance_season();
-        for id in s.county_ids() {
-            let c = &k.counties[id];
-            assert!((0..=100).contains(&c.happiness), "county {id} season {season}");
-            assert!((0..=100).contains(&c.health_meter), "county {id} season {season}");
-            assert!(c.health_band <= 4, "county {id} season {season}");
-            assert!(c.unrest <= 4, "county {id} season {season}");
-            assert!(c.population >= 0, "county {id} season {season}");
-            assert!(c.herd >= 0, "county {id} season {season}");
-            assert!(c.grain >= 0, "county {id} season {season}");
-            assert!((-100..=100).contains(&c.fertility), "county {id} season {season}");
-            assert!((0..=5).contains(&c.ration_achieved), "county {id} season {season}");
-        }
-        assert!((1..=4).contains(&k.season));
+    let (season0, year0, turn0) = (k.season, k.year, k.turn_count);
+    let labour0: Vec<i32> =
+        s.county_ids().map(|id| k.counties[id].labour.iter().sum::<i32>()).collect();
+    for (n, id) in s.county_ids().enumerate() {
+        assert_eq!(labour0[n], k.counties[id].population, "county {id} starts fully employed");
     }
+    let before: Vec<(i32, i32, i32)> =
+        s.county_ids().map(|id| {
+            let c = &k.counties[id];
+            (c.population, c.happiness, c.herd)
+        }).collect();
+
+    for step in 1..=10u32 {
+        k.advance_season();
+
+        // The clock is exact arithmetic, and nothing clamps it: four seasons to
+        // the year, one turn per season, the year rolling on the wrap.
+        let elapsed = turn0 + step;
+        assert_eq!(k.turn_count, elapsed, "one turn per season");
+        let expected_season = (season0 as u32 - 1 + step) % 4 + 1;
+        assert_eq!(k.season as u32, expected_season, "season {step}");
+        assert_eq!(k.season_next as u32, expected_season % 4 + 1, "season {step}");
+        // The year rolls in the call that *begins* Winter, so it advances once
+        // for each step that lands on season 4 - not once every four steps from
+        // an arbitrary start.
+        let rolls =
+            (1..=step).filter(|i| (season0 as u32 - 1 + i) % 4 + 1 == 4).count() as i32;
+        assert_eq!(k.year, year0 + rolls, "season {step}");
+        assert_eq!(k.year_next, k.year + 1, "season {step}");
+
+        // **A finding, pinned rather than papered over.** The identity worth
+        // asserting is `sum(labour) == population`. It holds on the imported
+        // kingdom - see
+        // [`every_countys_nine_labour_records_sum_to_its_population`] - and it
+        // **fails from the first `advance_season` on**: after one season county
+        // 1 holds 449 people and 435 assigned jobs, and by season 8 it has
+        // shrunk to fewer people than it has jobs.
+        //
+        // `FUN_0044F6E7` reallocates every county's workers after the
+        // population moves. Our `advance_season` does not, so the allocation
+        // never reruns at all: every county's labour is frozen at the figure
+        // the import produced, ten seasons later, and that is what is asserted
+        // here. Writing the allocator is production work and not this task's;
+        // when somebody does write it, **this assertion goes red and this
+        // comment says why** - change it to `== c.population` and delete the
+        // paragraph.
+        //
+        // The previous version of this test asserted nine ranges that were all
+        // clamps our own code had just applied, and would never have seen this.
+        for (n, id) in s.county_ids().enumerate() {
+            let c = &k.counties[id];
+            let assigned: i32 = c.labour.iter().sum();
+            assert!(c.labour.iter().all(|&j| j >= 0), "county {id} season {step}");
+            assert_eq!(
+                assigned, labour0[n],
+                "county {id} season {step}: labour is frozen at the import's allocation, \
+                 because the allocator does not rerun"
+            );
+        }
+    }
+
+    // And it moved. A model that froze, or that clamped everything to a
+    // constant, would satisfy every bound above and this is what notices.
+    let after: Vec<(i32, i32, i32)> =
+        s.county_ids().map(|id| {
+            let c = &k.counties[id];
+            (c.population, c.happiness, c.herd)
+        }).collect();
+    assert_ne!(before, after, "ten seasons changed nothing anywhere");
+    assert!(
+        s.county_ids().all(|id| k.counties[id].population > 0),
+        "every county still has people in it"
+    );
+}
+
+/// **The check that makes the one above mean something.** Ten seasons under a
+/// changed ruleset must reach a *different* kingdom.
+///
+/// `docs/decisions.md` C12: *a test that passes before and after the change is
+/// not testing the thing its name claims*. The test above used to assert nine
+/// ranges — happiness in `0..=100`, `health_band <= 4`, `unrest <= 4`,
+/// `ration_achieved` in `0..=5`, every store non-negative — and every one of
+/// those is a **clamp our own code applied moments earlier**:
+/// `happiness.rs:74`, `health.rs:40`, `county.rs:476`. It could not fail. It
+/// sat inside the file that *is* the C12 correction, and it survived that
+/// correction because it was reasonable-looking and green.
+///
+/// So the bounds are gone and this pair replaces them: the trajectory is
+/// conserved and non-trivial above, and here it is shown to be *sensitive* —
+/// halve the grain yield and the ten seasons land somewhere else. If the season
+/// pipeline stopped consulting the ruleset, this fails and the other passes.
+#[test]
+fn ten_seasons_under_a_different_ruleset_reach_a_different_kingdom() {
+    let s = england!();
+
+    let run = |tables: Tables| {
+        let mut k = s.starting_kingdom_with_tables(SEED, tables);
+        k.start_new_game();
+        for _ in 0..10 {
+            k.advance_season();
+        }
+        s.county_ids().map(|id| k.counties[id].population).collect::<Vec<i32>>()
+    };
+
+    let stock = run(Tables::DEFAULT);
+    // `g_dairyPerHead` is 5: one head of cattle feeds five people. Halve it and
+    // every county on this map, which lives on its dairy, feels it - which is
+    // why it is the perturbation used rather than the grain yield, whose fields
+    // are unplanted here and which moves nothing on turn one.
+    let mut lean = Tables::DEFAULT;
+    lean.food.dairy_per_head /= 2;
+    let hungry = run(lean);
+
+    assert_ne!(stock, hungry, "halving the dairy yield changed nothing in ten seasons");
+    // The same ruleset twice is the same trajectory, so the difference above is
+    // the ruleset and not the clock.
+    assert_eq!(stock, run(Tables::DEFAULT), "the same rules must give the same run");
 }
 

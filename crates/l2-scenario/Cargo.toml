@@ -19,3 +19,8 @@ description = "The seam that turns a Lords of the Realm II save into a live l2-k
 [dependencies]
 l2-formats = { path = "../l2-formats" }
 l2-kingdom = { path = "../l2-kingdom" }
+
+# `tests/` locate the England turn-one fixture through l2-testkit rather than
+# each guessing at a path inside a directory the game rewrites.
+[dev-dependencies]
+l2-testkit = { path = "../l2-testkit" }
