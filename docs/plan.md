@@ -63,6 +63,58 @@ framework work and it proceeds.
 This also reprioritises what was item 4 below. The 14 siege AI handlers, the missile flight
 path, `Battlefield_BuildCastle` — all real, none of them on the path to a playable turn.
 
+## `l2-game` — the structural calls, settled before anyone builds
+
+These are the decisions that are expensive to reverse, so they are made here rather than
+discovered halfway through.
+
+**The window moves to `l2-game`.** Today `l2-view` owns `winit`, the event loop and a
+`main`. That was right when a viewer was the only application; it is wrong now, because two
+different screens cannot each own the event loop. So:
+
+* `l2-view` becomes a **library of drawing**: the indexed canvas, sprite sheets, scene
+  composition, the campaign map and battlefield painters. It keeps `pixels` for the canvas
+  and loses `main.rs`.
+* `l2-game` owns the **window, the event loop, input, and the screen state machine**, and is
+  the only binary.
+
+**Dependency direction, one way, no exceptions.**
+
+```text
+l2-game ──► l2-view ──► l2-formats
+   │
+   ├──────► l2-sim ─────► l2-formats, l2-net
+   ├──────► l2-kingdom ─► l2-net
+   └──────► l2-mods
+```
+
+Nothing below `l2-game` learns that screens or input exist. `l2-sim` and `l2-kingdom` keep
+their manifests as they are — that constraint just survived a crate move and it is not being
+spent on a UI.
+
+**A screen is a trait, and screens do not know about each other.** Each screen handles
+input, updates, and draws into the canvas; transitions are returned as values to the state
+machine rather than performed by the screen. A screen that can push another screen is a
+screen that will eventually own the whole game.
+
+**Simulation time is not frame time.** The renderer draws when it can; the simulation steps
+on a fixed tick and never reads a clock. This is the one rule that a UI most easily breaks,
+and the whole netcode depends on it: `l2-view`'s battle already had to learn it, pacing with
+`WaitUntil(16 ms)` after a wgpu validation storm, and that pacing decides *when to draw*,
+never what a tick contains.
+
+**State lives in one place.** A `Game` holds the kingdom, the active battle if any, and the
+screen stack. Screens borrow it; they do not each keep a copy of the world.
+
+### What the slice is, and what it refuses
+
+Menu → campaign map → county panel → end turn → the numbers move → save and reload. A
+battle is reachable from the map, and the battle already exists.
+
+Refused, however tempting: the castle designer, sieges, diplomacy, sound, video, the
+multiplayer lobby UI, and any screen not on that list. Scope is what kills a UI layer, and
+the list above is the boundary.
+
 ## Revised order
 
 1. **Import the shipped scenario** from `lastturn.sav`, and **make `reproduction.rs` read
