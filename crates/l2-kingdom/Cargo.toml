@@ -1,0 +1,23 @@
+[package]
+name = "l2-kingdom"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Deterministic kingdom simulation (counties, seasons, economy) for Lords of the Realm II"
+
+# Dependency-free apart from our own crates, for the same reason l2-sim and
+# l2-net are: a lockstep simulation must be bit-identical across machines and
+# Rust versions, and every third-party dependency is a place that guarantee can
+# quietly break - see docs/netcode.md D-3 and l2-net/Cargo.toml.
+#
+# l2-net is here for one thing only: `Pcg32`, the PRNG frozen in-tree. The
+# weather accumulator and the random-event roll are the only two rules in
+# docs/kingdom.md that draw a random number, and inventing a second generator
+# would mean a second value stream to freeze forever.
+#
+# `l2_net::Fixed` is deliberately NOT used. Every formula in docs/kingdom.md is
+# already integer arithmetic over `Pct(x, p) = x * p / 100`, so introducing
+# fixed point would change results rather than preserve them.
+[dependencies]
+l2-net = { path = "../l2-net" }
+

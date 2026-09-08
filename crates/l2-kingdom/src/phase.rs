@@ -1,0 +1,430 @@
+//! The turn machine — `docs/kingdom.md` §3.
+//!
+//! Two ordered things live here, and both are ordered *data* rather than
+//! implicit control flow, because `docs/kingdom.md` §3.4 is explicit that
+//! **the order is the rule**:
+//!
+//! * [`Phase`] and [`TurnMachine`] — the seven per-frame phases `Turn_Tick`
+//!   dispatches on, wrapping 7 back to 1.
+//! * [`Pass`] and [`SEASON_PIPELINE`] — the end-of-season pipeline, as an array
+//!   the season driver walks. A test can therefore assert the order directly
+//!   instead of inferring it from which function calls which.
+//!
+//! Making the pipeline an array is the whole point. Taxation reads the
+//! happiness migration has not yet changed; population growth reads the
+//! happiness this turn's update has already written. Those are properties of
+//! the *sequence*, and a sequence buried in a 300-line function is a sequence
+//! nobody can test.
+
+/// The seven phases `Turn_Tick` (`0x0049A010`) dispatches on `g_turnPhase`.
+/// `docs/kingdom.md` §3.1.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum Phase {
+    /// Realm 0 — the unowned counties — get their tax rates and fields set.
+    NeutralCounties = 1,
+    /// Army movement, including battle resolution.
+    ArmyMovement = 2,
+    /// Supply transports re-target their destination county's anchor and walk.
+    SupplyTransports = 3,
+    /// The players' turn. `AI_RunTurnStep` drives the AI realms; the human
+    /// realm is driven by the UI. Also where the turn timer runs.
+    PlayersTurn = 4,
+    /// Revolting peasants move.
+    PeasantMobs = 5,
+    /// Merchants — already documented in `docs/formats/plane4.md` §2.3.
+    Merchants = 6,
+    /// End of season. Runs once and advances straight to phase 1.
+    SeasonEnd = 7,
+}
+
+/// The phases in dispatch order. `Turn_AdvancePhase` (`0x0049CE51`) walks this
+/// and wraps.
+pub const PHASE_ORDER: [Phase; 7] = [
+    Phase::NeutralCounties,
+    Phase::ArmyMovement,
+    Phase::SupplyTransports,
+    Phase::PlayersTurn,
+    Phase::PeasantMobs,
+    Phase::Merchants,
+    Phase::SeasonEnd,
+];
+
+/// The campaign unit types phases 2, 3, 5 and 6 wait on. The numbering is the
+/// `g_units` record's own type byte (`docs/formats/plane4.md`); the one-word
+/// descriptions of phases 2, 3 and 5 in `docs/kingdom.md` §3.1 are **`[D]`**,
+/// derived from the type each phase waits on rather than from tracing the
+/// handlers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum UnitKind {
+    Army = 1,
+    PeasantMob = 2,
+    Merchant = 3,
+    Transport = 4,
+}
+
+/// What a phase waits for before `Turn_AdvancePhase` moves on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum PhaseWait {
+    /// A fixed number of calls. Phase 1 is the only one, and it waits 3.
+    Steps(u32),
+    /// Every unit of this type has stopped moving.
+    Units(UnitKind),
+    /// Every realm's `aiStep` is [`crate::realm::AI_STEP_DONE`].
+    AllRealmsDone,
+    /// Runs once and advances on the same call.
+    Immediate,
+}
+
+impl Phase {
+    pub fn index(self) -> u8 {
+        self as u8
+    }
+
+    pub fn from_index(i: u8) -> Option<Phase> {
+        PHASE_ORDER.get(i.checked_sub(1)? as usize).copied()
+    }
+
+    /// The next phase, wrapping 7 -> 1.
+    pub fn next(self) -> Phase {
+        match self {
+            Phase::SeasonEnd => Phase::NeutralCounties,
+            other => Phase::from_index(other.index() + 1).expect("phases 1..6 all have a successor"),
+        }
+    }
+
+    pub fn wait(self) -> PhaseWait {
+        match self {
+            Phase::NeutralCounties => PhaseWait::Steps(3),
+            Phase::ArmyMovement => PhaseWait::Units(UnitKind::Army),
+            Phase::SupplyTransports => PhaseWait::Units(UnitKind::Transport),
+            Phase::PlayersTurn => PhaseWait::AllRealmsDone,
+            Phase::PeasantMobs => PhaseWait::Units(UnitKind::PeasantMob),
+            Phase::Merchants => PhaseWait::Units(UnitKind::Merchant),
+            Phase::SeasonEnd => PhaseWait::Immediate,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Phase::NeutralCounties => "Neutral counties",
+            Phase::ArmyMovement => "Army movement",
+            Phase::SupplyTransports => "Supply transports",
+            Phase::PlayersTurn => "Players' turn",
+            Phase::PeasantMobs => "Revolting peasants",
+            Phase::Merchants => "Merchants",
+            Phase::SeasonEnd => "End of season",
+        }
+    }
+}
+
+/// What one call to [`TurnMachine::tick`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PhaseTick {
+    /// The phase that was current for this call.
+    pub phase: Phase,
+    /// True on the first call after entering a phase — the call on which the
+    /// phase "kicks off work".
+    pub started: bool,
+    /// Set when this call ended the phase, naming the phase now current.
+    pub advanced_to: Option<Phase>,
+}
+
+/// `g_turnPhase` and `g_turnPhaseStep`, as a machine.
+///
+/// The machine deliberately does **not** own the units it waits on. `Turn_Tick`
+/// waits for movement to stop, and movement is not this crate's business; the
+/// caller passes `settled` and the machine decides. That keeps the ordering
+/// rule — the part `docs/kingdom.md` §3.1 actually establishes — testable
+/// without a unit simulation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TurnMachine {
+    /// `g_turnPhase` (`0x00569584`).
+    pub phase: Phase,
+    /// `g_turnPhaseStep` (`0x0053F658`), counted up on every call and reset on
+    /// every phase change.
+    pub step: u32,
+}
+
+impl Default for TurnMachine {
+    fn default() -> Self {
+        TurnMachine::new()
+    }
+}
+
+impl TurnMachine {
+    /// A machine sitting at the start of phase 1 — which is where a freshly
+    /// loaded `lastturn.sav` sits: `g_turnPhase = 1` (`docs/kingdom.md` §9).
+    pub fn new() -> TurnMachine {
+        TurnMachine { phase: Phase::NeutralCounties, step: 0 }
+    }
+
+    /// One call of `Turn_Tick`.
+    ///
+    /// `settled` answers the current phase's [`PhaseWait`]: "every unit of the
+    /// type this phase started has stopped moving", or "every realm has
+    /// finished its turn". It is ignored by [`PhaseWait::Steps`] and
+    /// [`PhaseWait::Immediate`], which do not wait on anything external.
+    pub fn tick(&mut self, settled: bool) -> PhaseTick {
+        let phase = self.phase;
+        let started = self.step == 0;
+        let step = self.step;
+        self.step += 1;
+
+        let done = match phase.wait() {
+            PhaseWait::Steps(n) => step + 1 >= n,
+            // Work is kicked off on the first call, so the earliest a phase can
+            // end is the call after it started. Without this a phase whose
+            // units happen to be idle already would be skipped before its
+            // handler ever ran.
+            PhaseWait::Units(_) | PhaseWait::AllRealmsDone => settled && !started,
+            PhaseWait::Immediate => true,
+        };
+
+        if done {
+            self.phase = phase.next();
+            self.step = 0;
+            PhaseTick { phase, started, advanced_to: Some(self.phase) }
+        } else {
+            PhaseTick { phase, started, advanced_to: None }
+        }
+    }
+}
+
+/// One pass of the end-of-season pipeline.
+///
+/// `Season_Advance` (`0x00448440`) calls 28 functions in a fixed order.
+/// `docs/kingdom.md` §3.4 identifies the ones below and abridges the rest; the
+/// **`[V]`** in that section is on the call list and its order, and the
+/// one-line descriptions are **`[D]`/`[I]`**.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Pass {
+    /// season, year, turn counter.
+    Clock,
+    /// `Event_RollAll` — random events per county.
+    EventRoll,
+    /// `Weather_UpdateAll` — dryness -> weather band.
+    Weather,
+    /// `Tax_CollectAll` — gold, and the tax happiness term.
+    TaxCollect,
+    /// `Wages_PayAll` — army wages, bankruptcy.
+    WagesPay,
+    /// The food demand recomputation — `Ration_Apply` per county.
+    RationApply,
+    /// `Health_UpdateAll` — health meter and band.
+    HealthUpdate,
+    /// `Happiness_UpdateAll` — sum the four terms.
+    HappinessUpdate,
+    /// `Unrest_UpdateAll` — revolt counter.
+    UnrestUpdate,
+    /// `Fertility_Update` — fertility.
+    FertilityUpdate,
+    /// `Field_ReclaimTick` — the field reclamation that follows it.
+    FieldReclaim,
+    /// `Grain_SeasonTick` — sow / grow / harvest.
+    GrainSeasonTick,
+    /// `Herd_SeasonTick` — livestock.
+    HerdSeasonTick,
+    /// One of `Industry_Produce`'s four runs.
+    Industry(crate::tables::Commodity),
+    /// `Castle_BuildTick` — castle construction.
+    CastleBuildTick,
+    /// `Migration_UpdateAll` — emigrants and immigrants.
+    MigrationUpdate,
+    /// `Population_UpdateAll` — births, deaths, new population.
+    PopulationUpdate,
+    /// `Score_RankRealms` — scores and the ranking.
+    ScoreRank,
+    /// The history ring.
+    History,
+    /// `Ration_Apply` again, as next season's preview.
+    ///
+    /// This second call is why `docs/kingdom.md` §4.3's food-split fields do
+    /// not reproduce for player-owned counties: the stored `rationAchieved` is
+    /// **the next season's** level, not the one that was applied.
+    RationPreview,
+}
+
+/// The end-of-season pipeline, in order.
+///
+/// The order encodes four dependencies that the formulas silently rely on and
+/// that [`crate::Kingdom`]'s tests assert directly:
+///
+/// 1. [`Pass::RationApply`] before [`Pass::HealthUpdate`] — the health delta is
+///    indexed by the ration level achieved *this* season.
+/// 2. [`Pass::HealthUpdate`] before [`Pass::HappinessUpdate`] — the happiness
+///    health term reads the *new* band. `docs/kingdom.md` §9's chain
+///    `65 -> band 2 -> +2 -> 67 -> band 3` then `shownHealth = +1` only works
+///    this way round.
+/// 3. [`Pass::HappinessUpdate`] before [`Pass::MigrationUpdate`] and
+///    [`Pass::PopulationUpdate`] — migration compares this season's happiness,
+///    and the birth factor reads it.
+/// 4. [`Pass::MigrationUpdate`] before [`Pass::PopulationUpdate`] — population
+///    applies `pop -= emigrants; pop += immigrants` at the end of its own pass.
+///
+/// The four industry runs use the commodity order of `docs/kingdom.md` §7.4's
+/// table (wood, iron, weapons, stone). §3.4's abridged call list writes them as
+/// *"wood, iron, stone, weapons"*; the two disagree, and nothing in the
+/// document resolves it. It does not matter for any documented rule — wood and
+/// iron precede weapons in both readings, and stone interacts with neither.
+pub const SEASON_PIPELINE: [Pass; 23] = [
+    Pass::Clock,
+    Pass::EventRoll,
+    Pass::Weather,
+    Pass::TaxCollect,
+    Pass::WagesPay,
+    Pass::RationApply,
+    Pass::HealthUpdate,
+    Pass::HappinessUpdate,
+    Pass::UnrestUpdate,
+    Pass::FertilityUpdate,
+    Pass::FieldReclaim,
+    Pass::GrainSeasonTick,
+    Pass::HerdSeasonTick,
+    Pass::Industry(crate::tables::Commodity::Wood),
+    Pass::Industry(crate::tables::Commodity::Iron),
+    Pass::Industry(crate::tables::Commodity::Weapons),
+    Pass::Industry(crate::tables::Commodity::Stone),
+    Pass::CastleBuildTick,
+    Pass::MigrationUpdate,
+    Pass::PopulationUpdate,
+    Pass::ScoreRank,
+    Pass::History,
+    Pass::RationPreview,
+];
+
+impl Pass {
+    /// The position of a pass in [`SEASON_PIPELINE`], for ordering assertions.
+    pub fn order(self) -> usize {
+        SEASON_PIPELINE
+            .iter()
+            .position(|p| *p == self)
+            .expect("every Pass appears in SEASON_PIPELINE")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tables::Commodity;
+
+    #[test]
+    fn the_phases_are_numbered_one_to_seven_and_wrap() {
+        for (i, p) in PHASE_ORDER.iter().enumerate() {
+            assert_eq!(p.index() as usize, i + 1);
+            assert_eq!(Phase::from_index(p.index()), Some(*p));
+        }
+        assert_eq!(Phase::from_index(0), None);
+        assert_eq!(Phase::from_index(8), None);
+        assert_eq!(Phase::SeasonEnd.next(), Phase::NeutralCounties, "7 wraps to 1");
+    }
+
+    /// The cycle, walked with everything settling immediately. Seven phases,
+    /// and back to where it started.
+    #[test]
+    fn a_full_cycle_visits_every_phase_in_order_exactly_once() {
+        let mut m = TurnMachine::new();
+        let mut visited = Vec::new();
+        for _ in 0..64 {
+            let t = m.tick(true);
+            if t.started {
+                visited.push(t.phase);
+            }
+            if visited.len() == PHASE_ORDER.len() + 1 {
+                break;
+            }
+        }
+        assert_eq!(&visited[..7], &PHASE_ORDER[..]);
+        assert_eq!(visited[7], Phase::NeutralCounties, "and round again");
+    }
+
+    #[test]
+    fn phase_one_takes_exactly_three_steps_regardless_of_anything_settling() {
+        let mut m = TurnMachine::new();
+        assert_eq!(m.tick(false).advanced_to, None);
+        assert_eq!(m.tick(false).advanced_to, None);
+        assert_eq!(m.tick(false).advanced_to, Some(Phase::ArmyMovement));
+        assert_eq!(m.step, 0, "the step counter resets on a phase change");
+    }
+
+    #[test]
+    fn a_unit_phase_starts_its_work_before_it_can_end() {
+        let mut m = TurnMachine { phase: Phase::ArmyMovement, step: 0 };
+        // Even with the units already settled, the first call is the one that
+        // kicks off the work.
+        let first = m.tick(true);
+        assert!(first.started);
+        assert_eq!(first.advanced_to, None, "must not skip its own handler");
+        assert_eq!(m.tick(true).advanced_to, Some(Phase::SupplyTransports));
+    }
+
+    #[test]
+    fn a_unit_phase_waits_indefinitely_while_units_are_moving() {
+        let mut m = TurnMachine { phase: Phase::Merchants, step: 0 };
+        for _ in 0..1000 {
+            assert_eq!(m.tick(false).advanced_to, None);
+        }
+        assert_eq!(m.tick(true).advanced_to, Some(Phase::SeasonEnd));
+    }
+
+    #[test]
+    fn the_end_of_season_phase_runs_once_and_goes_straight_to_phase_one() {
+        let mut m = TurnMachine { phase: Phase::SeasonEnd, step: 0 };
+        let t = m.tick(false);
+        assert!(t.started);
+        assert_eq!(t.advanced_to, Some(Phase::NeutralCounties));
+    }
+
+    #[test]
+    fn every_phase_waits_on_something_and_only_one_waits_on_a_step_count() {
+        let step_waiters: Vec<Phase> = PHASE_ORDER
+            .into_iter()
+            .filter(|p| matches!(p.wait(), PhaseWait::Steps(_)))
+            .collect();
+        assert_eq!(step_waiters, vec![Phase::NeutralCounties]);
+        assert_eq!(Phase::PlayersTurn.wait(), PhaseWait::AllRealmsDone);
+        assert_eq!(Phase::Merchants.wait(), PhaseWait::Units(UnitKind::Merchant));
+    }
+
+    /// The four ordering dependencies the economy silently relies on.
+    /// `docs/kingdom.md` §3.4: **the order is the rule**.
+    #[test]
+    fn the_pipeline_order_encodes_every_dependency_the_formulas_need() {
+        let before = |a: Pass, b: Pass| a.order() < b.order();
+        assert!(before(Pass::RationApply, Pass::HealthUpdate), "health reads the ration level");
+        assert!(before(Pass::HealthUpdate, Pass::HappinessUpdate), "happiness reads the new band");
+        assert!(before(Pass::TaxCollect, Pass::HappinessUpdate), "happiness sums the tax term");
+        assert!(before(Pass::HappinessUpdate, Pass::MigrationUpdate));
+        assert!(before(Pass::HappinessUpdate, Pass::PopulationUpdate));
+        assert!(before(Pass::MigrationUpdate, Pass::PopulationUpdate), "pop applies the flows");
+        assert!(before(Pass::EventRoll, Pass::PopulationUpdate), "events modify births");
+        assert!(before(Pass::EventRoll, Pass::GrainSeasonTick), "... and the grain store");
+        assert!(before(Pass::EventRoll, Pass::HerdSeasonTick), "... and the herd");
+        assert!(before(Pass::Weather, Pass::GrainSeasonTick), "crops scale by this season's band");
+        assert!(before(Pass::Weather, Pass::HerdSeasonTick));
+        assert!(before(Pass::FertilityUpdate, Pass::FieldReclaim), "fertility, *then* reclamation");
+        assert!(before(Pass::PopulationUpdate, Pass::ScoreRank), "the score is scored last");
+        assert!(before(Pass::RationApply, Pass::RationPreview), "and the preview really is second");
+        assert!(before(Pass::Industry(Commodity::Wood), Pass::Industry(Commodity::Weapons)));
+        assert!(before(Pass::Industry(Commodity::Iron), Pass::Industry(Commodity::Weapons)));
+    }
+
+    #[test]
+    fn the_pipeline_holds_no_duplicates_and_starts_with_the_clock() {
+        assert_eq!(SEASON_PIPELINE[0], Pass::Clock);
+        for (i, p) in SEASON_PIPELINE.iter().enumerate() {
+            assert_eq!(p.order(), i, "{p:?} should be unique and at {i}");
+        }
+    }
+
+    #[test]
+    fn industry_runs_once_per_commodity() {
+        let runs: Vec<Pass> =
+            SEASON_PIPELINE.into_iter().filter(|p| matches!(p, Pass::Industry(_))).collect();
+        assert_eq!(runs.len(), 4);
+        for c in Commodity::ALL {
+            assert!(runs.contains(&Pass::Industry(c)), "{c:?} should have a run");
+        }
+    }
+}
