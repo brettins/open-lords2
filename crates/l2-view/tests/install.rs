@@ -598,3 +598,95 @@ fn the_panels_kit_in_the_file_has_the_shape_the_drawing_code_indexes() {
     assert_eq!(0x250 + 2 * p::STRIP_CELL, 640);
     eprintln!("panels: {} frames, kit boundaries match", pl8.frames.len());
 }
+
+/// **`Misc_cty.pl8` frames 0 … 0x16 are the village's peasant icons**, which
+/// `docs/screens-county.md` §9 guessed, marked `[I]`, were "almost certainly
+/// the top menu bar".
+///
+/// The icon table at `0x004D6808` names nine (normal, highlighted) pairs among
+/// them, plus a shortfall pair and a surplus pair. This checks the shipped file
+/// against that: **every frame the table names is 16 × 32 and decodes, and the
+/// four it never names — 5, 6, 11 and 12 — are exactly the four frames in that
+/// range that are 2 × 2 stubs.** Nineteen icons, nineteen frames, nothing over.
+#[test]
+fn the_peasant_icons_account_for_every_frame_the_icon_table_names() {
+    use l2_view::village as v;
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let Some(bytes) = read(&dir, "Misc_cty.pl8") else {
+        eprintln!("no Misc_cty.pl8 - skipping");
+        return;
+    };
+    let sheet = Sheet::new(bytes.clone()).expect("Misc_cty.pl8 parses");
+    let pl8 = l2_formats::Pl8::parse(&bytes).expect("Misc_cty.pl8 parses");
+
+    // Every frame the drawing code can ask for: value - 1, and value while the
+    // icon is selected.
+    let mut named = std::collections::BTreeSet::new();
+    for value in v::ICON_VALUE.iter().copied().chain([v::ICON_SHORTFALL, v::ICON_SURPLUS]) {
+        named.insert(value as usize - 1);
+        named.insert(value as usize);
+    }
+    assert_eq!(*named.iter().max().unwrap(), 22, "the icons stop at frame 0x16");
+
+    let mut canvas = Canvas::screen();
+    for &f in &named {
+        assert_eq!(
+            (pl8.frames[f].width, pl8.frames[f].height),
+            (16, 32),
+            "frame {f} is named by the icon table and is not an icon"
+        );
+        let decoded = sheet.frame(f).expect("frame {f} decodes");
+        canvas.blit(&decoded, 100, 100);
+    }
+
+    let unnamed: Vec<usize> = (0..=22).filter(|f| !named.contains(f)).collect();
+    assert_eq!(unnamed, vec![5, 6, 11, 12], "four frames in the range go unused");
+    for f in unnamed {
+        assert_eq!(
+            (pl8.frames[f].width, pl8.frames[f].height),
+            (2, 2),
+            "frame {f} is unused and should be a stub"
+        );
+    }
+    eprintln!("Misc_cty: {} named icons, 4 stubs, nothing over", named.len());
+}
+
+/// The village's own three files, and the arithmetic that ties them together.
+#[test]
+fn the_village_files_are_the_size_the_drawing_code_indexes_them_at() {
+    use l2_view::village as v;
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+
+    // The scene: one frame, 363 x 320, drawn at (0x40, g_villageTopY).
+    let scene_bytes = read(&dir, "vill.pl8").expect("vill.pl8");
+    let scene = l2_formats::Pl8::parse(&scene_bytes).unwrap();
+    assert_eq!(scene.frames.len(), 1);
+    assert_eq!((scene.frames[0].width as i32, scene.frames[0].height as i32), (363, v::SCENE_H));
+
+    // The tops: six frames, one per weather, and `L2.eng` group 66 has six
+    // names. Village_Draw indexes both with the same county byte.
+    let tops_bytes = read(&dir, "villtops.pl8").expect("villtops.pl8");
+    let tops = l2_formats::Pl8::parse(&tops_bytes).unwrap();
+    assert_eq!(tops.frames.len(), 6, "six weathers");
+    for f in &tops.frames {
+        assert_eq!((f.width as i32, f.height), (363, 70));
+    }
+
+    // The drop grid: 24 bytes of header and 45 x 40 cells, and nothing else.
+    let grid = read(&dir, "vill_gd8.pl8").expect("vill_gd8.pl8");
+    assert_eq!(grid.len(), 0x18 + v::GRID_LEN, "1,824 bytes: 24 + 45 * 40");
+    assert_eq!(v::GRID_COLS as i32 * v::GRID_CELL, 360, "x 0x40 .. 0x1A8");
+    assert_eq!(v::GRID_ROWS as i32 * v::GRID_CELL, v::SCENE_H, "y top .. top + 0x140");
+    // Every cell names a cluster or nothing; nothing names a ninth cluster.
+    assert!(
+        grid[0x18..].iter().all(|&b| b as usize <= v::CLUSTER_COUNT),
+        "a cell names a cluster the village does not draw"
+    );
+    eprintln!("village: 363x320 scene, 6 weather tops, 45x40 grid");
+}
