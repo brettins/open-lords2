@@ -11,24 +11,30 @@
   confidence - the one situation where the cheap check is actively misleading.
   This launches the game, waits for the writes, and reads the real values.
 
-  KNOWN LIMITATION - read this before trusting a run.
+  THE GAME MUST HOLD THE FOREGROUND, AND THIS SCRIPT GIVES IT.
 
-  Launching the game from a script does not work, and the failure is D8's, seen
-  from a new angle. Started this way Lords2 survives about 2.6 seconds and its
-  own status.txt ends:
+  The first version of this launched the game and read zeros from every address.
+  That was not a fact about the constants: started from a script Lords2 survives
+  about 2.6 seconds and its own status.txt ends
 
       OK :Window moved.
       OK :Not active.
 
-  The launching process holds the foreground, the game sees itself deactivated,
-  and it exits - so every sample taken this way reads zero, because
-  Rules_InitConstants has not run yet. Zeros from a scripted launch are evidence
-  about focus, not about the constants.
+  The launching process keeps the foreground, the game decides it is not active,
+  and it exits before Rules_InitConstants has run.
 
-  So the supported path is ATTACH: the user starts the game themselves, lets it
-  keep focus, and this script reads the running process. It attaches
-  automatically when a Lords2 is already up. -AllowLaunch exists for
-  completeness and is expected to fail.
+  It is fixable, which corrects D8. `SetForegroundWindow` really does fail from
+  a background process - Windows only lets whoever already owns the foreground
+  give it away - but the documented workaround applies: AttachThreadInput joins
+  our input queue to the current foreground thread's, we count as that owner for
+  as long as we stay attached, hand the foreground to the game, and detach. See
+  RuntimeW32.Focus below. The foreground is handed back on every sampling pass,
+  because anything at all can take it away mid-read.
+
+  So this launches by default. Do not click away while it runs, and do not let
+  the machine lock - the secure desktop deactivates the game and it will quit.
+  Nothing is corrupted if that happens; the read simply fails and can be redone.
+  Pass -NoLaunch to attach to a game that is already running instead.
 
   (The "Could not read sierra.ini" line in status.txt is a red herring. That
   file ships with no GOG build and is part of the same dead Sierra online stack
@@ -51,9 +57,9 @@
 [CmdletBinding()]
 param(
   [string]$Exe = 'F:\games\Lords of the Realm II\Lords2.exe',
-  # Launching the game from here makes it deactivate and quit. Off by default so
-  # a run that cannot succeed does not look like a run that failed.
-  [switch]$AllowLaunch
+  # Launch and hand the game the foreground. Pass -NoLaunch to only attach to a
+  # game that is already running.
+  [switch]$NoLaunch
 )
 
 $ErrorActionPreference = 'Stop'
@@ -86,6 +92,37 @@ public static class RuntimeW32 {
   public static extern bool ReadProcessMemory(IntPtr h, IntPtr addr, byte[] buf, int size, out IntPtr read);
   [DllImport("kernel32.dll", SetLastError=true)]
   public static extern bool CloseHandle(IntPtr h);
+
+  // Handing the foreground to the game. D8 recorded that SetForegroundWindow
+  // "fails silently from a background process", and that is true on its own -
+  // Windows only lets the process that already owns the foreground give it
+  // away. The documented way round it is to join our input queue to the
+  // current foreground thread's with AttachThreadInput, which makes us count
+  // as that owner for the duration, hand the foreground over, and detach.
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint attach, uint attachTo, bool fAttach);
+  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+
+  public static bool Focus(IntPtr hWnd) {
+    if (hWnd == IntPtr.Zero) return false;
+    IntPtr fg = GetForegroundWindow();
+    uint dummy;
+    uint fgThread = GetWindowThreadProcessId(fg, out dummy);
+    uint us = GetCurrentThreadId();
+    bool attached = false;
+    if (fgThread != 0 && fgThread != us) attached = AttachThreadInput(us, fgThread, true);
+    try {
+      ShowWindow(hWnd, 5 /* SW_SHOW */);
+      BringWindowToTop(hWnd);
+      return SetForegroundWindow(hWnd);
+    } finally {
+      if (attached) AttachThreadInput(us, fgThread, false);
+    }
+  }
 }
 '@
 
@@ -128,21 +165,30 @@ $existing = Get-Process -Name 'Lords2' -ErrorAction SilentlyContinue
 if ($existing) {
   $targetPid = $existing[0].Id
   Write-Host "attaching to running Lords2 (pid $targetPid)" -ForegroundColor Yellow
-} elseif (-not $AllowLaunch) {
+} elseif ($NoLaunch) {
   Write-Host ""
-  Write-Host "No Lords2 is running, and launching it from here does not work." -ForegroundColor Yellow
-  Write-Host "Started from a script the game loses the foreground, logs 'Not active'" -ForegroundColor Yellow
-  Write-Host "and exits after about 2.6 seconds - before Rules_InitConstants runs." -ForegroundColor Yellow
-  Write-Host ""
+  Write-Host "No Lords2 is running, and -NoLaunch was given." -ForegroundColor Yellow
   Write-Host "Start the game yourself, leave it focused, then run this again:" -ForegroundColor Cyan
   Write-Host "  $Exe" -ForegroundColor Cyan
-  Write-Host ""
-  Write-Host "These constants are written when a game begins, so reach a started" -ForegroundColor Cyan
-  Write-Host "game rather than stopping at the title screen." -ForegroundColor Cyan
   exit 2
 } else {
-  Write-Warning "launching Lords2 - this is expected to fail; see the header"
+  Write-Host "launching Lords2 and handing it the foreground" -ForegroundColor Yellow
+  Write-Host "(do not click away, and do not let the machine lock, until this finishes)" -ForegroundColor DarkGray
   $launched = Start-Process -FilePath $Exe -WorkingDirectory (Split-Path $Exe) -PassThru
+
+  # Give the game the foreground as soon as it has a window, and keep giving it
+  # back. Without this it sees itself deactivated and exits in about 2.6s,
+  # before Rules_InitConstants ever runs.
+  for ($i = 0; $i -lt 40; $i++) {
+    Start-Sleep -Milliseconds 250
+    $p = Get-Process -Id $launched.Id -ErrorAction SilentlyContinue
+    if (-not $p) { break }
+    $p.Refresh()
+    if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
+      [void][RuntimeW32]::Focus($p.MainWindowHandle)
+      break
+    }
+  }
   $deadline = (Get-Date).AddSeconds(40)
   while ((Get-Date) -lt $deadline) {
     Start-Sleep -Milliseconds 500
@@ -177,6 +223,18 @@ while ((Get-Date) -lt $deadline) {
     if (-not ($CONSTS | Where-Object { $attempt[$_.Name] -eq 0 })) { break }
   } elseif ($sample) {
     break   # the process is gone, but we already have a full reading
+  }
+  # Keep handing the foreground back. The game exits the moment it decides it
+  # is not active, and anything at all - a notification, a build finishing, the
+  # machine locking - can take it away mid-sample.
+  if ($launched) {
+    $p = Get-Process -Id $launched.Id -ErrorAction SilentlyContinue
+    if ($p) {
+      $p.Refresh()
+      if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
+        [void][RuntimeW32]::Focus($p.MainWindowHandle)
+      }
+    }
   }
   Start-Sleep -Milliseconds 150
 }

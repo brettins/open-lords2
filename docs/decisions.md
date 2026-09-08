@@ -249,6 +249,43 @@ stay visible.
 The lesson generalises past this project: *"read it from the binary" is two different
 techniques with two different costs*, and conflating them makes the expensive one look done.
 
+**C15 — D8's focus claim is overturned, and the ten runtime constants are verified.**
+D8 said synthetic input is blocked because "`SetForegroundWindow` fails silently from a
+background process". That is true *on its own*, and it is not the whole story: Windows only
+lets the process that already owns the foreground give it away, and the documented way round
+that is `AttachThreadInput`. Joining our input queue to the current foreground thread's makes
+us count as that owner for as long as we stay attached, at which point the foreground can be
+handed over and the attachment dropped. `tools/oracle/runtime.ps1` does exactly this and the
+game now survives being launched from a script.
+
+That immediately paid for itself. All ten constants `Rules_InitConstants` writes are now
+**verified against a live process** — every one reads zero from the file, so nothing but a
+running game could have confirmed them:
+
+| constant | value | why it matters |
+|---|---:|---|
+| `g_aiAggressionThreshold` | 5 | every field handler attacks above this |
+| `g_aiSortieThreshold` | 260 | every siege defender sorties above this |
+| `g_moatFillSteps` | 15 | |
+| `g_grainMaxSacksPerField` | **10** | **the printed manual says 5** |
+| `g_grainYieldPerSack` | 12 | |
+| `g_foodPerHead` / `g_foodPerSack` | 10 / 6 | |
+| `g_dairyPerHead` | 5 | |
+| `g_grainLabourDivisor` / `…Adv` | 2 / 5 | |
+
+`g_grainMaxSacksPerField = 10` is **C10 confirmed at the source**. That correction rested on
+long-standing player measurement contradicting the manual; it now rests on the binary.
+
+What this does *not* establish is that driving the original's UI is viable. Focus was one of
+D8's three blockers; a fullscreen DirectDraw game still captures as black, and a game that
+quits on deactivation is still hostile to automation. But the reason to prefer injection was
+partly that input was impossible, and it is now merely difficult — so the tier-two oracle in
+C14 is no longer closed, and reaching a running battle is worth another attempt.
+
+The general lesson: **"it fails" and "it fails the way I called it" are different claims.**
+D8 recorded a real observation and generalised it one step too far, and that extra step shut
+a door for weeks.
+
 ## Open questions
 
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
