@@ -116,6 +116,43 @@ directly rather than pantomiming a player.
 **hard links** to the original files plus our own DLL — no copying, no space, and the
 install stays untouched.
 
+**D9 — A conversion between two crates that may not know about each other gets its own
+crate.**
+`l2-kingdom` must have no loader, no I/O and no knowledge of a byte layout: it takes plain
+data, which is the property that lets a lockstep peer, a replay, a mod and a test all reach
+the same state by handing it values. `l2-formats` must stay dependency-free and parse
+bytes; teaching it about counties would point the dependency arrow backwards. Importing the
+shipped scenario needs both vocabularies, so it belongs to neither.
+
+`crates/l2-scenario` is the seam, and it is the only crate in the workspace allowed to know
+a file format *and* a simulation. `Scenario` is plain data in between, with two
+constructors that are two different products: `kingdom()` is load-a-save, `starting_kingdom()`
+is new-game-on-this-map. A save it has misread is refused — a bad owner, weather, neighbour,
+county count or local player each has its own error — because the arithmetic in
+`Save::open` having closed is exactly why a surprise at that level should stop.
+
+The cost is one more crate and a **dev-dependency cycle**: `l2-kingdom`'s tests dev-depend
+on `l2-scenario`, which depends on `l2-kingdom`. Cargo permits this precisely because a
+dev-dependency is not part of the library's own graph, and it is what keeps the
+reproduction test where it belongs — next to the rules it is testing — without the library
+gaining a dependency it must not have.
+
+**D10 — Our own save format writes through `l2-net`'s canonical encoder, not its own.**
+`crates/l2-kingdom/src/save.rs` is the format we write, as against the original's memory
+dump that `l2-formats` reads. `docs/netcode.md` §5 and §6 already required a byte-exact
+encoding of simulation state — for the tick checksum, the late-join snapshot and the desync
+dump — so a second encoder here would mean a save whose bytes and a checksum whose bytes
+could disagree, which is the failure `canonical.rs` exists to prevent. The save's trailer
+*is* the state checksum, and a test asserts it. Two of the four determinism rules come free
+with the type: `Canonical` has no method that writes a float and none that writes a
+`usize`.
+
+The header carries a magic, a version and a **ruleset fingerprint**. An unknown version is
+refused rather than reinterpreted. The ruleset is fingerprinted rather than stored, because
+`Tables` is what a mod replaces and a save carrying its own copy would silently override
+whatever mod set the player has enabled: the rules come from the mod layer, and the save
+only checks that they are the same rules.
+
 ## Corrections
 
 **C1 — "The PL8 format is fully decoded."** Claimed after one sprite rendered correctly.
@@ -370,6 +407,45 @@ are the four ladders exactly. This is C16 generalised — there, a constant's va
 the `MOV` that wrote it rather than in the `.data` it wrote to; here, an entire *rule* lives
 in branch structure rather than in data. **"Where is the table?" is the wrong first question
 when the answer may be "there isn't one".**
+
+**C20 — C12 had a second instance, in the test named after the save it never opened.**
+`crates/l2-kingdom/tests/reproduction.rs` was headed *"The reproduction from the shipped
+save"*, declared `const OWNED: usize = 4`, handed counties 1–4 to the human realm, and
+asserted numbers quoted out of `docs/kingdom.md` against rules built from the same
+document. It could not fail, and its scenario was invented: the file holds **five owned
+counties, one for each of realms 1 to 5**, at indices 1, 4, 8, 11 and 13, with nine
+unowned and the person holding county 8 alone. The realm records say the same thing from
+the other side — `+0x29` is 1 apiece. `docs/kingdom.md` §9 carried the same wrong count,
+which is where the test got it.
+
+It now imports the save through `crates/l2-scenario`, rewinds it one season using the
+file's own `popLast` and `happinessLast`, runs `Season_Advance`, and compares twenty-six
+stored fields across all fourteen counties. **No rule had to change.**
+
+Two things fell out of doing it properly.
+
+**§4.3's open question is answered.** It said the food fields reproduced for the unowned
+counties and not the owned ones, and that it *"did not untangle which write survives"*.
+County 1 unties it: it stores `dHapRation = −2` and `shownRation = +1`, which is the two
+`Ration_Apply` calls disagreeing — the display copy is taken while happiness is computed,
+so the *first* call fed it at Normal and the *second*, next season's preview, says Half.
+Feeding it at Normal on an all-grain split costs `DivCeil(417 − 74×5, 6) = 8` sacks and
+the county holds none, so **the first call debits the store and the preview does not**.
+Read that way every county reproduces. §4.3 was also wrong about the number it quoted: the
+owned counties store `+0x17C = 0`, not 3 — the 3 is `rationAchieved`, one field along.
+
+**A save can be inverted, and that turns a fudge into a measurement.** The file records no
+opening food store, so the rewind starts county 1 with the grain it *finished* on and it
+starves where the real one did not. Rather than hand it a number to make the test pass, the
+test searches for every opening `(herd, grain)` that both feeds the county at the level
+`shownRation` records and leaves the stores the file holds — and asserts there is exactly
+**one**. Nine unowned counties opened on 73 head; county 1 on 8 sacks. Uniqueness is what
+makes those numbers evidence: under different rules the solution moves or vanishes.
+
+The general form, and the reason this is worth a numbered entry rather than a bug fix:
+**C12's failure mode is not rare and it is not obvious from the test's name — the name is
+what hides it.** Both instances were caught by asking what the body actually reads, and in
+both cases the answer was "nothing that could disagree with it".
 
 ## Open questions
 
