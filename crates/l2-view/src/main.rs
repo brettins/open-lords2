@@ -203,7 +203,14 @@ impl Viewer {
         // not implemented here.
         let a = battle::army_from_counts(&skr.army(map, l2_formats::Side::Attacker)?.counts, 16);
         let b = battle::army_from_counts(&skr.army(map, l2_formats::Side::Defender)?.counts, 16);
-        let runner = BattleRunner::deploy(field, &a, &b);
+        let mut runner = BattleRunner::deploy(field, &a, &b);
+        // Side 4 is the AI's and decides for itself, on its own 200-frame
+        // cadence. Side 0 is the player's, and a deployed army stands still
+        // until it is ordered — `BattleUnit_Recentre` seeds an un-ordered
+        // unit's destination from its own position — so the viewer plays it:
+        // everybody at the enemy's marker. One click in the original.
+        let enemy = runner.home(l2_sim::SIDE_B);
+        runner.order_side(l2_sim::SIDE_A, enemy.0, enemy.1);
 
         let assets = BattleAssets::load(
             |name| vfs.read(name).map_err(|e| format!("{name}: {e}")),

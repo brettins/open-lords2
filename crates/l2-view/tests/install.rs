@@ -24,7 +24,7 @@ use std::{env, fs, path::{Path, PathBuf}};
 
 use l2_sim::runner::{self as battle, BattleRunner};
 use l2_sim::terrain;
-use l2_sim::Troop;
+use l2_sim::{Troop, SIDE_A, SIDE_B};
 use l2_view::canvas::Canvas;
 use l2_view::figures::{self, Anim, Colour};
 use l2_view::scene::{self, BattleAssets, Camera};
@@ -328,6 +328,15 @@ fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
 
     let mut runner = BattleRunner::deploy(field, &army_a, &army_b);
     assert_eq!(runner.fighters.len(), 74, "USER.SKR map 0 should raise 74 figures");
+    // Both armies are raised into units, which is what the AI dispatches on.
+    assert!(runner.units.live().count() >= 8, "the armies did not become units");
+
+    // Side 0 is the player's. A deployed army stands still until it is ordered
+    // — `BattleUnit_Recentre` seeds an un-ordered unit's destination from its
+    // own position — so send it at the enemy's marker, which is the click a
+    // player would make. Side 4 is the AI's and is left to decide for itself.
+    let enemy = runner.home(SIDE_B);
+    runner.order_side(SIDE_A, enemy.0, enemy.1);
 
     let mut shots: Vec<Canvas> = Vec::new();
     for frame in 0..6 {

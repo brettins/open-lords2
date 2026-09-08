@@ -53,6 +53,7 @@ pub mod ai;
 pub mod battle;
 pub mod facing;
 pub mod figure;
+pub mod formation;
 pub mod melee;
 pub mod missile;
 pub mod movement;

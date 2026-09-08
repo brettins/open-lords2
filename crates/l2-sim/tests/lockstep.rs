@@ -620,3 +620,223 @@ fn one_peer_whose_generator_slipped_is_caught() {
         .expect("no differing tick in the recorded history");
     assert_eq!(peers[0].hashes[split].0, Tick(210));
 }
+
+// ---------------------------------------------------------------------------
+// The battle a player would actually watch
+// ---------------------------------------------------------------------------
+//
+// `NetBattle` synchronises the melee model and `AiNetBattle` synchronises the
+// order handlers, but both drive their own toy mover on a bare grid.
+// `docs/plan-review.md` hole 6 is precisely that: *"the netcode has never
+// synchronised the simulation a player would watch."* This is that simulation —
+// `l2_sim::runner::BattleRunner`, the whole of it: a `.skr`-shaped battlefield,
+// units raised into deployment slots, the seventeen order handlers on their
+// 200-frame cadence, formation reforms, pathfinding and melee.
+
+use l2_sim::runner::{Army, BattleRunner};
+
+/// A player's click, as a command: send unit `u` to `(x, y)`.
+const OP_ORDER: u8 = 2;
+
+struct RunnerNetBattle {
+    runner: BattleRunner,
+    /// Set on one peer only, to prove the seam still goes red on the real
+    /// simulation and not only on the toys.
+    nudge_at: Option<Tick>,
+}
+
+/// Markers twenty cells apart rather than forty, so the whole opening of a
+/// battle - deployment, the player order, the AI's first three thinks and the
+/// march that follows - fits inside seven hundred frames. Everything else is
+/// the blank template.
+fn close_field() -> l2_sim::Battlefield {
+    let mut layer = vec![0u8; l2_sim::terrain::CELLS];
+    layer[30 * l2_sim::terrain::DIM + 40] = 0x04;
+    layer[50 * l2_sim::terrain::DIM + 40] = 0x0F;
+    l2_sim::terrain::build(&layer, 1)
+}
+
+const RUNNER_SEED: u64 = 0x0B47_71E5;
+
+impl RunnerNetBattle {
+    fn new() -> Self {
+        // Peasants are category 2, whose silent opening is two thinks rather
+        // than the melee handler's four, so the AI issues its first march
+        // order on its third think, at frame 600. Twelve of them against four
+        // pikemen is a weighted 48 against 32, so the strength advantage is
+        // +50 before the jitter and the aggressive branch is not a coin toss.
+        let ai = [(Troop::Peasants, 12)];
+        let player = [(Troop::Pikemen, 4)];
+        RunnerNetBattle {
+            runner: BattleRunner::deploy_armies(
+                close_field(),
+                RUNNER_SEED,
+                Army { troops: &ai, owner: 1, human: false },
+                Army { troops: &player, owner: 2, human: true },
+            ),
+            nudge_at: None,
+        }
+    }
+}
+
+impl Simulation for RunnerNetBattle {
+    fn step(&mut self, tick: Tick, commands: &[Command]) {
+        // One cell of movement on one peer: the smallest divergence a position
+        // can express.
+        if self.nudge_at == Some(tick) {
+            self.runner.fighters[0].x = self.runner.fighters[0].x.wrapping_add(1);
+        }
+        for cmd in commands {
+            if let [OP_ORDER, unit, x, y] = cmd.payload[..] {
+                self.runner.order_unit(unit as usize, x, y);
+            }
+        }
+        self.runner.step();
+    }
+
+    fn encode_state(&self, out: &mut Canonical) {
+        out.section("runner");
+        out.u32(self.runner.tick);
+        out.len32(self.runner.fighters.len());
+        for f in &self.runner.fighters {
+            out.u8(f.x);
+            out.u8(f.y);
+            out.u8(f.target.0);
+            out.u8(f.target.1);
+            out.u8(f.facing);
+            out.u8(f.anim as u8);
+            out.u8(f.phase);
+            out.len32(f.path.len());
+            out.u8(f.barred);
+            out.u8(f.hold);
+            out.u16(f.reroutes);
+        }
+        out.end_section();
+
+        out.section("figures");
+        out.len32(self.runner.sim.figures.len());
+        for f in &self.runner.sim.figures {
+            out.u16(f.men);
+            out.u16(f.hits);
+            out.u8(f.state as u8);
+            out.u16(f.unit);
+            out.u8(f.targeted);
+            out.option(f.opponent.as_ref(), |c, i| c.len32(*i));
+        }
+        out.end_section();
+
+        out.section("units");
+        for i in 1..=l2_sim::MAX_UNITS {
+            let u = self.runner.units.get(i);
+            out.u8(u.owner);
+            out.u8(u.figures);
+            out.u8(u.category);
+            out.i32(u.orders as i32);
+            out.i32(u.think as i32);
+            out.i32(u.x as i32);
+            out.i32(u.y as i32);
+            out.i32(u.target_x as i32);
+            out.i32(u.target_y as i32);
+            out.bool(u.halted);
+        }
+        out.end_section();
+
+        out.section("ai");
+        let (state, increment) = self.runner.ai.rng.parts();
+        out.u64(state);
+        out.u64(increment);
+        out.i32(self.runner.ai.strength_advantage);
+        out.i32(self.runner.ai.advantage_timer);
+        out.end_section();
+    }
+}
+
+/// Long enough for the AI's first three thinks — the two silent ones and the
+/// march that follows — plus six recomputations of the strength advantage.
+const RUNNER_TICKS: Tick = Tick(700);
+
+/// The player's one order, crossing the wire from the peer that owns side 0.
+///
+/// Unit 2 is the pikemen: side 4 is raised first, so unit 1 is the AI's.
+fn player_order(slot: u8, at: Tick) -> Option<Vec<u8>> {
+    match (slot, at.0) {
+        (1, 5) => Some(vec![OP_ORDER, 2, 40, 38]),
+        _ => None,
+    }
+}
+
+#[test]
+fn two_peers_running_a_whole_battle_stay_bit_identical() {
+    let mut peers = connected_pair(0x0B47_0001, &RunnerNetBattle::new);
+    run_to(&mut peers, RUNNER_TICKS, player_order);
+
+    let common = peers[0].hashes.len().min(peers[1].hashes.len());
+    assert!(common >= RUNNER_TICKS.0 as usize, "only {common} ticks executed on both");
+    assert_eq!(peers[0].hashes[..common], peers[1].hashes[..common], "the peers diverged");
+    for peer in &peers {
+        assert!(!peer.session.is_halted(), "{:?}", peer.session.halt_reason());
+        assert!(peer.session.divergence().is_none());
+    }
+}
+
+/// A green determinism test proves nothing unless something happened. Both
+/// halves must be visible: the player's order arrived over the socket and moved
+/// his pikemen, and the AI decided for itself and moved its peasants.
+#[test]
+fn both_the_players_order_and_the_ais_decision_reached_the_men() {
+    let mut peers = connected_pair(0x0B47_0002, &RunnerNetBattle::new);
+    run_to(&mut peers, RUNNER_TICKS, player_order);
+    let sim = &peers[0].sim;
+    let fresh = RunnerNetBattle::new();
+
+    let ai_unit = sim.runner.units.live().next().unwrap();
+    let player_unit = sim.runner.units.live().nth(1).unwrap();
+    assert!(!sim.runner.units.get(ai_unit).human);
+    assert!(sim.runner.units.get(player_unit).human);
+
+    // The AI thought on its own cadence and then wrote a destination. A human
+    // unit never thinks, so its `orders` must still be zero — that asymmetry is
+    // `Battle_UpdateAllUnits`'s human guard, and it is what makes this a check
+    // on the AI rather than on the order machinery.
+    assert_eq!(sim.runner.units.get(ai_unit).orders, 3, "three thinks in 700 frames");
+    assert_eq!(sim.runner.units.get(player_unit).orders, 0, "a player's unit never thinks");
+    // Its third think is `BattleUnit_OrderToEnemyEnd`, so its destination is a
+    // slot of the *enemy's* marker at y = 30 - twenty cells from where it
+    // deployed and from where an un-ordered unit's destination is seeded.
+    assert_eq!(fresh.runner.units.get(ai_unit).target_y, 50, "seeded on its own end");
+    assert_eq!(
+        sim.runner.units.get(ai_unit).target_y, 30,
+        "the AI never marched on the enemy's deployment marker"
+    );
+
+    let moved = |r: &BattleRunner, side: l2_sim::Side| -> bool {
+        r.fighters
+            .iter()
+            .zip(fresh.runner.fighters.iter())
+            .any(|(a, b)| a.side == side && (a.x, a.y) != (b.x, b.y))
+    };
+    assert!(moved(&sim.runner, SIDE_B), "the AI's men never advanced");
+    assert!(moved(&sim.runner, SIDE_A), "the ordered pikemen never advanced");
+    // And the generator really is part of the synchronised state.
+    assert_ne!(sim.runner.ai.rng, fresh.runner.ai.rng, "the jitter was never drawn");
+}
+
+/// One cell out of place on one peer, on tick 300, must be caught on tick 300.
+#[test]
+fn a_peer_whose_figure_stepped_wrong_is_caught() {
+    let mut peers = connected_pair(0x0B47_0003, &RunnerNetBattle::new);
+    peers[1].sim.nudge_at = Some(Tick(300));
+    run_to(&mut peers, RUNNER_TICKS, player_order);
+
+    assert!(
+        peers.iter().any(|p| p.session.is_halted()),
+        "a figure standing somewhere else ran to completion undetected"
+    );
+    let split = peers[0]
+        .hashes
+        .iter()
+        .zip(&peers[1].hashes)
+        .position(|(a, b)| a != b)
+        .expect("no differing tick in the recorded history");
+    assert_eq!(peers[0].hashes[split].0, Tick(300));
+}

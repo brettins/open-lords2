@@ -122,6 +122,14 @@ pub struct Figure {
     /// actions that reach past the unit into its figures
     /// (`Order_ChargeNearest`, `Order_ShootAtUnit`).
     pub target: Option<usize>,
+    /// Figure record `+0x175`, the debug panel's own label **`targeted`**: how
+    /// many men are currently running at this one, times two.
+    ///
+    /// `Melee_ChooseChaseTarget` adds it to the distance score and adds 2 to
+    /// the figure it picks; `Battle_UpdateAllMen` counts it back down by one
+    /// each frame. That makes free pursuit a **load balancer** rather than a
+    /// focus-fire rule — `docs/battle-ai.md` §3.3.
+    pub targeted: u8,
     /// This figure's combat constants, **copied in at construction** from the
     /// [`TroopTable`] in force.
     ///
@@ -161,6 +169,7 @@ impl Figure {
             was_hit: false,
             hit_by: None,
             target: None,
+            targeted: 0,
             stats,
             hits_per_casualty: table.hits_per_casualty(troop),
         }

@@ -104,6 +104,12 @@ pub struct Cell {
     pub flags: u8,
     /// Byte `+3` — the PL8 frame index in the tileset.
     pub gfx: u8,
+    /// Byte `+4` — elevation. Read by the missile model, by
+    /// `movement::can_step_elevation` and by `Formation_RectIsClear`, and
+    /// **always zero on a `.skr` field battlefield**: nothing in
+    /// `Battlefield_BuildFromSkr` writes it. It is carried so the field exists
+    /// where the original's does; a castle builder would fill it.
+    pub elevation: u8,
     /// Byte `+7` — surface type. 0x0F marks woodland.
     pub surface: u8,
 }
