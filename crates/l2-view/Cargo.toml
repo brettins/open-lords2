@@ -8,5 +8,6 @@ description = "Windowed viewer for Lords of the Realm II assets"
 [dependencies]
 l2-formats = { path = "../l2-formats" }
 l2-mods = { path = "../l2-mods" }
+l2-sim = { path = "../l2-sim" }
 pixels = "0.17.2"
 winit = "0.30.13"

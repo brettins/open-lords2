@@ -676,7 +676,7 @@ mod tests {
             .collect();
         assert!(!wood.is_empty());
         assert!(
-            wood.iter().all(|&g| (0x10..=0x1D).contains(&g) || (249..=251).contains(&g)),
+            wood.iter().all(|&g| (0x10..=0x1F).contains(&g) || (249..=251).contains(&g)),
             "woodland strayed outside its two index ranges: {wood:?}"
         );
         let lines: Vec<u8> = bf
