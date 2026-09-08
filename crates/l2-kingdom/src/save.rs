@@ -807,6 +807,11 @@ impl Encode for Realm {
         out.u8(self.strength);
         out.bool(self.is_human);
         out.u8(self.lord);
+        // Realm `+0x0A`, the banner. It was missing from this codec until the
+        // campaign layer arrived and `tests/campaign.rs` caught it: no rule in
+        // the economy reads it, so nothing noticed, and `County_ChangeOwner`
+        // reads it now — a captured county draws its new owner's shield.
+        out.u8(self.shield_index);
         out.i8(self.tax_hap_empire);
         out.u8(self.county_count);
         out.u8(self.rank);
@@ -842,6 +847,7 @@ impl Decode for Realm {
         r.strength = input.u8()?;
         r.is_human = input.bool()?;
         r.lord = input.u8()?;
+        r.shield_index = input.u8()?;
         r.tax_hap_empire = input.i8()?;
         r.county_count = input.u8()?;
         r.rank = input.u8()?;
