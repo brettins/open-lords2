@@ -24,6 +24,62 @@ pub const HEIGHT: usize = 480;
 /// drawn here" rather than as a colour.
 pub const TRANSPARENT: u8 = 0;
 
+/// A parallel plane of identifiers the same size as a [`Canvas`]: *what* was
+/// drawn at each pixel, rather than what colour it came out.
+///
+/// This exists because picking a county off an isometric map cannot be done by
+/// inverting the projection. Tiles are diamonds drawn back to front and they
+/// overlap, so which tile a pixel belongs to is decided by the draw order, not
+/// by geometry. Stamping an id while the tile is blitted records exactly that
+/// decision, at one byte per pixel.
+///
+/// Id 0 means "nothing stamped here", which is also why county ids are 1-based
+/// in the original.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Tags {
+    pub width: usize,
+    pub height: usize,
+    pub ids: Vec<u8>,
+}
+
+impl Tags {
+    pub fn new(width: usize, height: usize) -> Self {
+        Tags { width, height, ids: vec![0; width * height] }
+    }
+
+    pub fn screen() -> Self {
+        Tags::new(WIDTH, HEIGHT)
+    }
+
+    pub fn clear(&mut self) {
+        self.ids.fill(0);
+    }
+
+    /// The id at a pixel, or 0 outside the plane.
+    #[inline]
+    pub fn at(&self, x: i32, y: i32) -> u8 {
+        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+            return 0;
+        }
+        self.ids[y as usize * self.width + x as usize]
+    }
+
+    pub fn count(&self, id: u8) -> usize {
+        self.ids.iter().filter(|&&i| i == id).count()
+    }
+
+    /// Every distinct non-zero id present, ascending — ascending because a
+    /// caller that walks it must not depend on hash or insertion order
+    /// (`docs/netcode.md` §3).
+    pub fn ids_present(&self) -> Vec<u8> {
+        let mut seen = [false; 256];
+        for &i in &self.ids {
+            seen[i as usize] = true;
+        }
+        (1..=255u8).filter(|&i| seen[i as usize]).collect()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Canvas {
     pub width: usize,
@@ -80,7 +136,42 @@ impl Canvas {
         self.blit_inner(frame, ox, oy, false)
     }
 
+    /// Blit a sprite and stamp `id` into `tags` at every pixel it actually
+    /// painted. Transparent pixels leave both planes alone, so the tag plane
+    /// records the shape of the sprite rather than of its bounding box.
+    pub fn blit_tagged(&mut self, frame: &DecodedFrame, ox: i32, oy: i32, tags: &mut Tags, id: u8) {
+        self.blit_full(frame, ox, oy, true, Some((tags, id)))
+    }
+
+    /// Expand the indexed canvas through a palette into RGBA. The one place
+    /// colour appears at all.
+    ///
+    /// `rgba` holds four bytes per pixel and is written until either it or the
+    /// canvas runs out. This lives here, rather than in the windowing layer, so
+    /// that the final image can be asserted on without a GPU — and so this
+    /// crate needs no presentation dependency to produce one.
+    pub fn to_rgba(&self, palette: &l2_formats::Palette, rgba: &mut [u8]) {
+        for (px, &idx) in rgba.chunks_exact_mut(4).zip(self.pixels.iter()) {
+            let [r, g, b] = palette.rgb(idx);
+            px[0] = r;
+            px[1] = g;
+            px[2] = b;
+            px[3] = 0xff;
+        }
+    }
+
     fn blit_inner(&mut self, frame: &DecodedFrame, ox: i32, oy: i32, mask: bool) {
+        self.blit_full(frame, ox, oy, mask, None)
+    }
+
+    fn blit_full(
+        &mut self,
+        frame: &DecodedFrame,
+        ox: i32,
+        oy: i32,
+        mask: bool,
+        mut tags: Option<(&mut Tags, u8)>,
+    ) {
         let (fw, fh) = (frame.width as i32, frame.height as i32);
         for y in 0..fh {
             let cy = oy + y;
@@ -97,6 +188,12 @@ impl Canvas {
                     continue;
                 }
                 self.pixels[cy as usize * self.width + cx as usize] = frame.indices[src];
+                if let Some((tags, id)) = tags.as_mut() {
+                    let (tw, th) = (tags.width, tags.height);
+                    if (cx as usize) < tw && (cy as usize) < th {
+                        tags.ids[cy as usize * tw + cx as usize] = *id;
+                    }
+                }
             }
         }
     }
@@ -156,6 +253,42 @@ mod tests {
         c.clear(0);
         c.blit(&frame(4, 4, 3), 100, 100);
         assert_eq!(c.count(3), 0, "entirely off-canvas draws nothing");
+    }
+
+    /// The tag plane must record what was *painted*, not what was *offered*.
+    /// A sprite with a transparent hole in it leaves the id under the hole
+    /// alone, or picking would claim pixels the player can see through.
+    #[test]
+    fn tags_are_stamped_only_where_the_sprite_actually_painted() {
+        let mut c = Canvas::new(4, 4);
+        let mut tags = Tags::new(4, 4);
+
+        // A 2x2 frame with one transparent pixel at its top-left.
+        let mut f = frame(2, 2, 5);
+        f.indices[0] = 0;
+        f.opaque[0] = false;
+
+        c.blit_tagged(&f, 0, 0, &mut tags, 9);
+        assert_eq!(tags.count(9), 3, "the transparent pixel stamps nothing");
+        assert_eq!(tags.at(0, 0), 0);
+        assert_eq!(tags.at(1, 0), 9);
+        assert_eq!(c.count(5), 3);
+
+        // Later draws win, which is what makes back-to-front order the
+        // picking rule.
+        c.blit_tagged(&frame(2, 2, 6), 1, 1, &mut tags, 4);
+        assert_eq!(tags.at(1, 1), 4);
+        assert_eq!(tags.ids_present(), vec![4, 9]);
+    }
+
+    #[test]
+    fn tags_clip_with_the_blit_and_never_stamp_off_plane() {
+        let mut c = Canvas::new(4, 4);
+        let mut tags = Tags::new(4, 4);
+        c.blit_tagged(&frame(4, 4, 3), -2, -2, &mut tags, 7);
+        assert_eq!(tags.count(7), 4);
+        assert_eq!(tags.at(-1, 0), 0, "off-plane reads as nothing");
+        assert_eq!(tags.at(99, 99), 0);
     }
 
     #[test]

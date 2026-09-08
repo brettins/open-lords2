@@ -3,11 +3,19 @@ name = "l2-view"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
-description = "Windowed viewer for Lords of the Realm II assets"
+description = "Drawing for Lords of the Realm II: an indexed canvas and the painters that fill it"
 
+# **No third-party dependencies at all**, which is new and deliberate.
+#
+# This crate used to own the window, so it carried `winit` and `pixels` and
+# their 124 transitive crates - the only crate in the workspace that was not
+# dependency-free. Those moved to `l2-game` with the event loop
+# (`docs/plan.md`), and `l2-mods` went with them, because choosing *which* file
+# to load is not drawing: a painter is handed bytes.
+#
+# What is left reads `l2-formats` for decoded frames and palettes and `l2-sim`
+# for the battle state it paints, and the direction is one-way: `l2-sim` does
+# not know a renderer exists.
 [dependencies]
 l2-formats = { path = "../l2-formats" }
-l2-mods = { path = "../l2-mods" }
 l2-sim = { path = "../l2-sim" }
-pixels = "0.17.2"
-winit = "0.30.13"
