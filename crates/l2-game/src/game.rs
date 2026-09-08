@@ -27,6 +27,8 @@ use l2_view::campaign::{self, MapAssets};
 use l2_view::chrome::{Chrome, Minimap};
 use l2_view::Ink;
 
+use crate::shell::ShellAssets;
+
 /// The highest tax rate the interface will set.
 ///
 /// **It lives in `l2-kingdom` now, and this is a re-export.** It was defined
@@ -56,6 +58,10 @@ pub struct Assets {
     /// That is deliberate — a stub that is visibly ours beats one that looks
     /// finished.
     pub chrome: Option<Chrome>,
+    /// What the shell screens draw with: `L2.eng`, the two panel fonts, and
+    /// the per-screen artwork the front end and the management screens load.
+    /// See [`crate::shell`].
+    pub shell: ShellAssets,
     /// `L2_maps.dat` whole. A `MapSlot` borrows its file, so the bytes are kept
     /// and the slot is re-parsed on demand — which is bounds arithmetic, not
     /// decoding, and costs nothing.
@@ -90,6 +96,7 @@ impl Assets {
             palette,
             map,
             chrome,
+            shell: ShellAssets::load(vfs),
             maps,
             minimap_files,
         })
@@ -139,6 +146,7 @@ impl Assets {
             palette,
             map,
             chrome: None,
+            shell: ShellAssets::empty(),
             maps: vec![0u8; l2_formats::maps::SLOT_LEN],
             minimap_files: vec![None; 16],
         }

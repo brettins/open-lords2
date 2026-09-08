@@ -35,6 +35,7 @@ pub mod input;
 pub mod scenario;
 pub mod screen;
 pub mod screens;
+pub mod shell;
 pub mod turn;
 pub mod widget;
 
