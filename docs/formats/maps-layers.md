@@ -479,3 +479,51 @@ with as few separate process spawns as possible, and take the memory dumps
   frames 88–91 group is confirmed in use (as the player's starting settlement),
   which is an odd place for it and may mean the file's name is historical.
 * **County id `32`** — still unexplained, as in `maps.md`.
+
+---
+
+## 6. The campaign screen is a scrolling viewport, at one of three zooms  **[V]**
+
+§4 gives the lattice geometry. It does **not** say what the game puts on screen, and that
+gap produced a real mistake: `crates/l2-view`'s first campaign painter drew the whole
+64 × 64 map at once, and the result reads as a minimap because that is effectively what it
+is. The user said so on sight. Reading the renderer settles it.
+
+`Map_RenderIso` (`0x0040526E`) does not walk the lattice. It walks a **window** into it:
+
+```c
+DAT_0056d594 = DAT_005651b8;               /* first visible lattice row  */
+DAT_0056d598 = DAT_005651b4;               /* first visible lattice col  */
+for (i = 0; i < DAT_0053e8ac; i++) {       /* visible columns, not 65    */
+    ...
+    DAT_00591524 += DAT_00568220;          /* screen x += tile width     */
+}
+```
+
+Every one of those is a variable. `FUN_00451FCC(zoom)` sets them together:
+
+| zoom | tile width `0x00568220` | visible cols `0x0053E8AC` | visible rows `0x0056D67C` | row step `0x0053F65C` |
+|---:|---:|---:|---:|---:|
+| 0 | **60** | **8** | 30 | 15 |
+| 1 | **28** | **17** | 64 | 7 |
+| 2 | **12** | **40** | 128 | 3 |
+
+**The map is 64 columns wide, and the most zoomed-out view shows 40 of them.** So the
+original never displays the whole map at once, at any zoom. A view that fits all 64 columns
+on screen is not a view this game has.
+
+The scroll origin is clamped to exactly that:
+
+```c
+DAT_005651b4 = 0x40 - DAT_0053e8ac;        /* 64 - visible columns */
+DAT_005651b8 = 0x80 - DAT_0056d67c;        /* 128 - visible rows   */
+```
+
+which is a scroll bound, and is only meaningful if the viewport moves.
+
+**An open discrepancy, flagged rather than resolved.** §4's worked geometry uses a tile
+width of **58** and derives the 3770 × 1935 bounding box from it; the renderer steps by
+**60**. Both are `[V]` against different evidence — §4 against a live lattice dump, this
+against the instruction stream — so one of them is measuring something the other is not
+(frame width versus column pitch is the obvious candidate). It is not resolved here, and
+nothing should be built on the two being interchangeable until it is.
