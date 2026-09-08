@@ -48,7 +48,7 @@ use l2_kingdom::tables::{
     FieldTable, FoodTable, GoodRow, GrainTable, HealthBandRow, HerdCrowdingRow, HerdTable,
     JobTable, PopulationTable, RationRow, ScoreTable, SeasonRow, Tables, TaxLadder, WageTable,
     WeaponRow, WeatherRow, AI_PERSONALITY_COUNT, AI_TAX_LADDER_COUNT, ARMY_HAPPINESS_COST_LEN,
-    HERD_CROWDING_COUNT, TAX_LADDER_RUNGS,
+    CASTLE_TYPE_COUNT, HERD_CROWDING_COUNT, TAX_LADDER_RUNGS,
 };
 
 /// Season ids, by `g_season` index. Index 0 is the original's `No Season`,
@@ -412,7 +412,19 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         *slot = tax_ladder(rs, &format!("kingdom.ai.tax_ladder.{i}"))?;
     }
 
-    let mut personality = [AiPersonalityRow { farm_style: 0, tax_ladder: 0 }; AI_PERSONALITY_COUNT];
+    let mut personality = [AiPersonalityRow {
+        farm_style: 0,
+        tax_ladder: 0,
+        gift_increment: 0,
+        help_price: 0,
+        grudge_tolerance: 0,
+        offer_interval: 0,
+        help_population_floor: 0,
+        muster_pct: 0,
+        castle_concurrent: 0,
+        castle_min_population: 0,
+        castle_gold: [0; CASTLE_TYPE_COUNT - 1],
+    }; AI_PERSONALITY_COUNT];
     expect_rows(rs, "kingdom.ai.personality", AI_PERSONALITY_COUNT)?;
     for (i, slot) in personality.iter_mut().enumerate() {
         let base = format!("kingdom.ai.personality.{i}");
@@ -424,10 +436,31 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
                 format!("row {i} is lord {}; the rows are in lord order", i + 1),
             ));
         }
+        // `castle_gold` is one threshold per castle type 1..=5, and a zero means
+        // that type is never offered to this lord — which is why the Baron and
+        // the Countess never build a royal castle at any treasury.
+        let gold = rs.integer_array(&format!("{base}.castle_gold"), CASTLE_TYPE_COUNT - 1)?;
+        let mut castle_gold = [0i32; CASTLE_TYPE_COUNT - 1];
+        for (t, &v) in gold.iter().enumerate() {
+            castle_gold[t] = narrow(rs, &format!("{base}.castle_gold"), v, 0, 1_000_000)?;
+        }
+
         *slot = AiPersonalityRow {
             farm_style: int(rs, &format!("{base}.farm_style"), 0, 255)? as u8,
             tax_ladder: int(rs, &format!("{base}.tax_ladder"), 0, AI_TAX_LADDER_COUNT as i64 - 1)?
                 as usize,
+            // A zero increment divides by zero in the gift ratchet.
+            gift_increment: int(rs, &format!("{base}.gift_increment"), 1, 1_000_000)?,
+            help_price: int(rs, &format!("{base}.help_price"), 0, 1_000_000)?,
+            grudge_tolerance: int(rs, &format!("{base}.grudge_tolerance"), 0, 10_000)?,
+            // A zero interval would offer every turn, which is a rebalance
+            // rather than a crash, so it is allowed.
+            offer_interval: int(rs, &format!("{base}.offer_interval"), 0, 10_000)?,
+            help_population_floor: int(rs, &format!("{base}.help_population_floor"), 0, 1_000_000)?,
+            muster_pct: int(rs, &format!("{base}.muster_pct"), 0, 100)?,
+            castle_concurrent: int(rs, &format!("{base}.castle_concurrent"), 0, 100)?,
+            castle_min_population: int(rs, &format!("{base}.castle_min_population"), 0, 1_000_000)?,
+            castle_gold,
         };
     }
 
@@ -1060,10 +1093,22 @@ pub fn render_toml(t: &Tables) -> String {
     for (i, row) in t.ai.personality.iter().enumerate() {
         let _ = write!(
             out,
-            "\n[[kingdom.ai.personality]]\nlord = {}\nfarm_style = {}\ntax_ladder = {}\n",
+            "\n[[kingdom.ai.personality]]\nlord = {}\nfarm_style = {}\ntax_ladder = {}\n\
+             gift_increment = {}\nhelp_price = {}\ngrudge_tolerance = {}\n\
+             offer_interval = {}\nhelp_population_floor = {}\nmuster_pct = {}\n\
+             castle_concurrent = {}\ncastle_min_population = {}\ncastle_gold = [{}]\n",
             i + 1,
             row.farm_style,
-            row.tax_ladder
+            row.tax_ladder,
+            row.gift_increment,
+            row.help_price,
+            row.grudge_tolerance,
+            row.offer_interval,
+            row.help_population_floor,
+            row.muster_pct,
+            row.castle_concurrent,
+            row.castle_min_population,
+            join_i32(&row.castle_gold)
         );
     }
 

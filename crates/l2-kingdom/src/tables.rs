@@ -897,6 +897,93 @@ pub const AI_PERSONALITY_TAX_LADDER: [usize; AI_PERSONALITY_COUNT] = [2, 2, 2, 1
 /// reproduced here.
 pub const AI_PERSONALITY_FARM_STYLE: [u8; AI_PERSONALITY_COUNT] = [1, 1, 0, 9];
 
+// --- the diplomacy half of the record, `docs/diplomacy.md` §8.4 -------------
+//
+// Every column below is `[V]`: read out of the four records in the file at
+// 0x004D8A58, 0x004D8B48, 0x004D8C38, 0x004D8D28, and held against the binary
+// by tools/oracle/kingdom.ps1. What each field *means* is `[D]` — one reader
+// each, named in the doc comment.
+
+/// Record `+0x08` — the increment a gift is judged against.
+///
+/// A gift under `bestGift + T/2` **costs** 8 standing and one at or above
+/// `bestGift + T` gains 10, so `T` is both the price of a good gift and the
+/// width of the band that insults. The Bishop's 50 makes him the cheapest lord
+/// to please and the Countess's 200 the dearest.
+/// Read by `Diplo_ReplyGift`. `docs/diplomacy.md` §3.1.
+pub const AI_PERSONALITY_GIFT_INCREMENT: [i32; AI_PERSONALITY_COUNT] = [100, 100, 200, 50];
+
+/// Record `+0x0C` — the base price of military help, multiplied by the pair's
+/// `help_price_multiple`. Read by `Diplo_ReplyHelpRequest` and
+/// `Diplo_ReplyAttackRequest`. §3.5.
+pub const AI_PERSONALITY_HELP_PRICE: [i32; AI_PERSONALITY_COUNT] = [500, 1000, 1600, 1500];
+
+/// Record `+0x10` — how much grudge an alliance survives.
+///
+/// The comparison is `tolerance < grudge`, so the Knight's 5 breaks on the
+/// sixth point and the Bishop's 20 on the twenty-first. Read by `AI_Diplomacy`.
+/// §4.1.
+pub const AI_PERSONALITY_GRUDGE_TOLERANCE: [i32; AI_PERSONALITY_COUNT] = [5, 10, 15, 20];
+
+/// Record `+0x14` — turns of courtship before an alliance is offered. The
+/// Bishop moves in four turns where the Knight takes twelve. §4.1.
+pub const AI_PERSONALITY_OFFER_INTERVAL: [i32; AI_PERSONALITY_COUNT] = [12, 10, 8, 4];
+
+/// Record `+0x30` — the floor below which an ally will not move at all.
+///
+/// **`docs/diplomacy.md` §3.5 calls this a treasury floor and it is not one.**
+/// `Diplo_ReplyHelpRequest` compares it against realm `+0x14`, which
+/// [`crate::Realm::population_mean`] holds — the mean population of the
+/// realm's counties, not its gold. §8.4's own note that the same field is
+/// *"also a county-population floor at step 9"* is the corroboration: it is a
+/// population floor in both places. See [`crate::diplomacy::reply_help_request`].
+pub const AI_PERSONALITY_HELP_POPULATION_FLOOR: [i32; AI_PERSONALITY_COUNT] =
+    [750, 800, 900, 1000];
+
+/// Record `+0x40` — the percentage of a county's population one AI muster
+/// conscripts. `[V]` on the values, `[D]` on the meaning; nothing in this
+/// crate raises an army, so it is carried and not read. §8.2.
+pub const AI_PERSONALITY_MUSTER_PCT: [i32; AI_PERSONALITY_COUNT] = [30, 30, 40, 50];
+
+/// Record `+0x90` — how many castles a lord will have in progress at once.
+///
+/// The Bishop's **1** is half the story of §8.1: his money does not spread, so
+/// whichever county he starts on gets the whole treasury's worth.
+pub const AI_PERSONALITY_CASTLE_CONCURRENT: [i32; AI_PERSONALITY_COUNT] = [4, 3, 2, 1];
+
+/// Record `+0xC8` — the county population a castle project needs before it is
+/// started at all.
+pub const AI_PERSONALITY_CASTLE_MIN_POPULATION: [i32; AI_PERSONALITY_COUNT] =
+    [700, 650, 600, 600];
+
+/// Record `+0xCC` … `+0xDC` — the treasury each castle type needs, by lord.
+///
+/// Columns are castle types 1..=5: palisade, motte & bailey, Norman keep, stone
+/// castle, **royal castle**. `AI_BuildCastles` tests them from the top down and
+/// takes the first the treasury clears.
+///
+/// **A zero is not a threshold of zero; it means the type is not offered to
+/// that lord.** The original guards every rung with `threshold != 0 &&` before
+/// the comparison, which is the only reason a zero row does not make every
+/// lord build a palisade for nothing. See
+/// [`AiPersonalityRow::castle_for_gold`].
+///
+/// The player's remark that *"the bishop always tries to build really big
+/// castles"* is this table's last column: **2,000 crowns for the Bishop and
+/// 10,000 for the Knight**, with the Baron and the Countess never reaching one
+/// at any treasury. §8.1.
+pub const AI_PERSONALITY_CASTLE_GOLD: [[i32; AI_CASTLE_LADDER_LEN]; AI_PERSONALITY_COUNT] = [
+    [200, 0, 1000, 0, 10_000], // Knight
+    [0, 500, 0, 4000, 0],      // Baron
+    [0, 300, 0, 2000, 0],      // Countess
+    [0, 0, 100, 0, 2000],      // Bishop
+];
+
+/// How many buildable castle types an AI chooses between — five, where
+/// [`CASTLE_TYPE_COUNT`] is six because it counts *no castle* as type 0. A
+/// size, not a balance figure.
+pub const AI_CASTLE_LADDER_LEN: usize = 5;
+
 /// The tax ladder an AI lord uses, or `None` when the lord byte names no
 /// record: 0 is the human, 6 is an eliminated realm, and 5 is the value
 /// [`AI_PERSONALITY_COUNT`] explains.
@@ -1012,6 +1099,119 @@ pub fn army_happiness_cost(pct: i32) -> i32 {
     }
     ARMY_HAPPINESS_COST[(pct as usize).min(ARMY_HAPPINESS_COST.len() - 1)]
 }
+
+// ---------------------------------------------------------------------------
+// Units on the campaign map - docs/armies.md
+// ---------------------------------------------------------------------------
+//
+// Every number below was read out of the instruction stream rather than out of
+// `.data`: an army's movement budget, its step costs and its desertion rate are
+// `MOV`/`ADD`/`CMP` immediates, exactly the case `docs/decisions.md` C16
+// describes. `tools/oracle/kingdom.ps1`'s second tier checks each of them
+// against `Lords2.exe`, so "the budget is 15" is held by the executable rather
+// than by this comment.
+
+/// `Army_Tick` (`0x0046521F`) writes this to `+0x154` **every tick**, with no
+/// condition on the army's size, its owner or its terrain. `[V]` — the panel
+/// prints `15 - movesUsed` beside `L2.eng` 31/22 *"moves left."*
+pub const MOVE_ALLOWANCE_ARMY: i32 = 15;
+
+/// The other three tick handlers — `0x00465486` (peasant mob), `0x00465622`
+/// (merchant) and `0x00465761` (transport) — write **10** to the same byte.
+/// `[V]`, three functions agreeing.
+pub const MOVE_ALLOWANCE_OTHER: i32 = 10;
+
+/// A step onto a road tile. `Unit_StepOnce` (`0x0046634D`) reaches it as an
+/// `INC` of `+0x153` rather than an `ADD`, which is why there is no immediate
+/// to read and the oracle check tags the opcode instead of a value.
+pub const STEP_COST_ROAD: i32 = 1;
+
+/// Every step that is not a road step. `Unit_StepOnce`'s `ADD EAX, 3`.
+pub const STEP_COST_OPEN: i32 = 3;
+
+/// `Unit_CrossField` (`0x0046673C`) charges this **before** `Unit_StepOnce`'s
+/// general `+3`, so a standing field costs `3 + 3 = 6` — and
+/// `Move_BuildCostMap` stores a single literal `6` for the same tile. Two
+/// unrelated codings landing on one number is what makes the field cost `[V]`.
+pub const STEP_COST_FIELD_EXTRA: i32 = 3;
+
+/// `Unit_TrampleTile` (`0x0046873F`) charges this for walking over a resource
+/// site, and the move ends there.
+pub const STEP_COST_TRAMPLE: i32 = 7;
+
+/// What `Unit_TrampleTile` writes into the industry record's
+/// `disabledSeasons`. **It always writes 3** — there is no ladder, and no
+/// dependence on the army's size.
+pub const TRAMPLE_DISABLED_SEASONS: i32 = 3;
+
+/// `Move_BuildCostMap` (`0x0046FF43`) stores this for a castle site, an intact
+/// settlement and an occupied dwelling plot: passable in principle, ruinous in
+/// practice, so the pathfinder routes round them.
+pub const MOVE_COST_BLOCKED: i32 = 100;
+
+/// `Move_BuildCostMap`'s impassable marker — sea, mountain, woodland, and any
+/// tile whose county byte is above [`crate::county::MAX_COUNTY_ID`].
+pub const MOVE_COST_IMPASSABLE: i32 = 0;
+
+/// `Army_Combine` (`0x004AA181`) merges when `menA + menB <= 1500`. The
+/// decompiler renders the test as `< 0x5DD`; the instruction is
+/// `CMP EAX, 0x5DC` followed by `JLE`, so the constant to carry is **1500**.
+pub const ARMY_MAX_MEN: i32 = 1500;
+
+/// `FUN_00435B4D` refuses a levy below this with message `0x94` — `L2.eng` 148,
+/// *"impractical to create an army of less than 50 men"*. Bypassed entirely
+/// when a mercenary band is being hired, because the band supplies the men.
+pub const ARMY_MIN_MEN: i32 = 50;
+
+/// The peasant-mob tick (`0x00465486`) destroys a **type-2** unit whose men
+/// fall below this.
+///
+/// **`docs/armies.md` §0 files this under *"minimum army"*, and it is not an
+/// army rule.** `Army_Tick` has no such test; the sub-30 destruction is in the
+/// revolting-peasants handler, which is what `g_unitTickTable` slot 2 points
+/// at. See [`crate::unit::UnitKind::PeasantMob`].
+pub const MOB_DESTROYED_BELOW_MEN: i32 = 30;
+
+/// `Army_Desert` (`0x004AD16C`) takes this percentage off each troop count.
+pub const DESERTION_PCT: i32 = 10;
+
+/// …but only from a troop count that **exceeds** this. A type with ten men or
+/// fewer loses none, so a small army stops shrinking rather than dying out.
+pub const DESERTION_MIN_TROOPS: i32 = 10;
+
+/// `Army_Starve` (`0x004ACE5E`) destroys the army once its starvation counter
+/// reaches this. Below it, counter 1 only warns and 2..=4 desert.
+pub const STARVATION_LIMIT: i32 = 5;
+
+/// `Army_Create` writes this to county `+0x2F4`, the levy surcharge
+/// `Levy_SetPercent` adds to every subsequent levy in the same county.
+/// **Nothing was found that decays it** (`docs/armies.md` §6.1).
+pub const LEVY_SURCHARGE: i32 = 15;
+
+/// `Levy_SetPercent` (`0x00435EBC`) clamps the happiness cost to this before
+/// walking the percentage back.
+pub const LEVY_COST_MAX: i32 = 100;
+
+/// The auto-equip path (`0x004A50AE` with mode 1) moves men into a weapon slot
+/// this many at a time, round-robin over the six weapon types.
+pub const LEVY_AUTO_EQUIP_BATCH: i32 = 10;
+
+/// …for at most this many rounds. At six types and ten men a round that is
+/// 3,000 men, twice [`ARMY_MAX_MEN`], so the bound never bites in play; it is
+/// carried because it is the original's own loop guard.
+pub const LEVY_AUTO_EQUIP_ROUNDS: i32 = 50;
+
+/// The two thresholds `Army_Tick` picks the sprite bank on: under 301 men one
+/// bank, under 601 the next, above that the third. The instructions are
+/// `CMP …, 300` / `CMP …, 600` with `JG`, so the *stored* numbers are 300 and
+/// 600 and the classes break at 301 and 601.
+pub const ARMY_SIZE_CLASS_MAX: [i32; 2] = [300, 600];
+
+/// `g_unitWalkFrames` (`0x004D6A78`) — the walk-cycle ping-pong `Army_Tick`
+/// adds to the sprite bank. **Sixteen entries**, `0,1,2,1` four times over:
+/// `0x004D6A78 + 64` is `0x004D6AB8`, where a different table (0,1,2,3…)
+/// begins, which is what fixes the length.
+pub const UNIT_WALK_FRAMES: [i32; 16] = [0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1];
 
 /// The history ring `Season_Advance`'s second-to-last pass (`FUN_004AE7DD`)
 /// writes: **400 seasons x 16 counties x `{i32 population, i8 happiness}`**.
@@ -1403,6 +1603,9 @@ pub struct Tables {
     /// `g_armyHappinessCost`, indexed by the percentage of the county taken.
     /// [`Tables::army_happiness_cost`] is the bounded read.
     pub army_happiness_cost: [i32; ARMY_HAPPINESS_COST_LEN],
+    /// Movement, supply and desertion for a unit on the campaign map.
+    /// `docs/armies.md`.
+    pub unit: UnitTable,
     pub ai: AiTable,
     pub score: ScoreTable,
 }
@@ -1600,8 +1803,13 @@ pub struct AleTable {
 
 /// One AI lord's personality record, `g_aiPersonality + (lord - 1) * 0xF0`.
 ///
-/// Two of the six ints are identified; the rest are not read by this crate and
-/// are not carried. See [`AI_PERSONALITY_TAX_LADDER`].
+/// The record is 240 bytes and about a third of it is accounted for. What is
+/// carried here is what a rule in this crate reads, plus two fields carried
+/// deliberately without a reader and said so. `docs/diplomacy.md` §8.4 lists
+/// the eleven fields that hold plausible per-lord values and were never traced
+/// (`+0x2C`, `+0x6C`, `+0x70`, `+0x74`, `+0x78`, `+0x7C`, `+0x84`, `+0x88`,
+/// `+0x8C`, `+0x9C`, `+0xA0`); they are **not** invented into fields here, and
+/// §9 is why.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AiPersonalityRow {
     /// Record `+0x00`. **Carried, and nothing reads it.** `AI_ManageFields`
@@ -1612,6 +1820,50 @@ pub struct AiPersonalityRow {
     pub farm_style: u8,
     /// Record `+0x04` — which of [`AiTable::tax_ladders`] the lord taxes on.
     pub tax_ladder: usize,
+    /// Record `+0x08` — [`AI_PERSONALITY_GIFT_INCREMENT`].
+    pub gift_increment: i32,
+    /// Record `+0x0C` — [`AI_PERSONALITY_HELP_PRICE`].
+    pub help_price: i32,
+    /// Record `+0x10` — [`AI_PERSONALITY_GRUDGE_TOLERANCE`].
+    pub grudge_tolerance: i32,
+    /// Record `+0x14` — [`AI_PERSONALITY_OFFER_INTERVAL`].
+    pub offer_interval: i32,
+    /// Record `+0x30` — [`AI_PERSONALITY_HELP_POPULATION_FLOOR`]. A population
+    /// floor, not a treasury one; the constant's own documentation says why.
+    pub help_population_floor: i32,
+    /// Record `+0x40` — **carried, and nothing here reads it.**
+    /// [`AI_PERSONALITY_MUSTER_PCT`]: raising men is not this crate's, and a
+    /// mod that changes this will not change anything until it is.
+    pub muster_pct: i32,
+    /// Record `+0x90` — [`AI_PERSONALITY_CASTLE_CONCURRENT`].
+    pub castle_concurrent: i32,
+    /// Record `+0xC8` — [`AI_PERSONALITY_CASTLE_MIN_POPULATION`].
+    pub castle_min_population: i32,
+    /// Record `+0xCC` … `+0xDC` — [`AI_PERSONALITY_CASTLE_GOLD`], by castle
+    /// type 1..=5. A zero means the type is not offered to this lord.
+    pub castle_gold: [i32; AI_CASTLE_LADDER_LEN],
+}
+
+impl AiPersonalityRow {
+    /// The castle type 1..=5 this lord's treasury reaches, or `None`.
+    ///
+    /// `AI_BuildCastles` (`0x0049EDC7`) walks the ladder **from the top**, so a
+    /// realm that can afford a royal castle never builds a palisade. Each rung
+    /// is guarded `threshold != 0 && gold >= threshold`, and that guard is the
+    /// whole of *"the Baron and the Countess never build a royal castle"*: their
+    /// `+0xDC` is 0 and without the guard every one of them would build one for
+    /// free.
+    pub fn castle_for_gold(&self, gold: i32) -> Option<u8> {
+        let mut type_index = self.castle_gold.len();
+        while type_index > 0 {
+            type_index -= 1;
+            let threshold = self.castle_gold[type_index];
+            if threshold != 0 && gold >= threshold {
+                return Some(type_index as u8 + 1);
+            }
+        }
+        None
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1631,6 +1883,61 @@ pub struct AiTable {
     /// One record per AI lord, indexed `lord - 1`. See
     /// [`AI_PERSONALITY_COUNT`] for why there are four and not five.
     pub personality: [AiPersonalityRow; AI_PERSONALITY_COUNT],
+}
+
+/// Everything a unit on the campaign map costs, moves and loses.
+///
+/// `docs/armies.md` is the source; every field carries the function whose
+/// instruction stream the number came from, and `tools/oracle/kingdom.ps1`
+/// holds each against `Lords2.exe`.
+///
+/// The **array sizes** here are not fields, on the same line
+/// [`ARMY_HAPPINESS_COST_LEN`] and [`WEAPON_TYPE_COUNT`] draw: a ruleset that
+/// gave an army four size classes or eight troop types would be describing a
+/// different simulation rather than a different balance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnitTable {
+    /// [`MOVE_ALLOWANCE_ARMY`] — a season's movement points for a type-1 unit.
+    pub move_allowance_army: i32,
+    /// [`MOVE_ALLOWANCE_OTHER`] — for the other three types.
+    pub move_allowance_other: i32,
+    /// [`STEP_COST_ROAD`].
+    pub step_cost_road: i32,
+    /// [`STEP_COST_OPEN`].
+    pub step_cost_open: i32,
+    /// [`STEP_COST_FIELD_EXTRA`] — charged *in addition to*
+    /// [`UnitTable::step_cost_open`], which is why a field costs six.
+    pub step_cost_field_extra: i32,
+    /// [`STEP_COST_TRAMPLE`].
+    pub step_cost_trample: i32,
+    /// [`MOVE_COST_BLOCKED`] — the pathfinder's "go round this".
+    pub move_cost_blocked: i32,
+    /// [`TRAMPLE_DISABLED_SEASONS`].
+    pub trample_disabled_seasons: i32,
+    /// [`ARMY_MAX_MEN`] — two armies merge only if their men sum to this or
+    /// less.
+    pub army_max_men: i32,
+    /// [`ARMY_MIN_MEN`].
+    pub army_min_men: i32,
+    /// [`MOB_DESTROYED_BELOW_MEN`] — a *peasant mob* rule, not an army one.
+    pub mob_destroyed_below_men: i32,
+    /// [`DESERTION_PCT`].
+    pub desertion_pct: i32,
+    /// [`DESERTION_MIN_TROOPS`].
+    pub desertion_min_troops: i32,
+    /// [`STARVATION_LIMIT`].
+    pub starvation_limit: i32,
+    /// [`LEVY_SURCHARGE`].
+    pub levy_surcharge: i32,
+    /// [`LEVY_COST_MAX`].
+    pub levy_cost_max: i32,
+    /// [`LEVY_AUTO_EQUIP_BATCH`].
+    pub levy_auto_equip_batch: i32,
+    /// [`LEVY_AUTO_EQUIP_ROUNDS`].
+    pub levy_auto_equip_rounds: i32,
+    /// [`ARMY_SIZE_CLASS_MAX`] — inclusive upper bounds of the first two
+    /// classes; anything above the second is the third.
+    pub size_class_max: [i32; 2],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1829,6 +2136,27 @@ impl Tables {
         },
         ale: AleTable { step_pct: ALE_HAPPINESS_STEP_PCT, max: ALE_HAPPINESS_MAX },
         army_happiness_cost: ARMY_HAPPINESS_COST,
+        unit: UnitTable {
+            move_allowance_army: MOVE_ALLOWANCE_ARMY,
+            move_allowance_other: MOVE_ALLOWANCE_OTHER,
+            step_cost_road: STEP_COST_ROAD,
+            step_cost_open: STEP_COST_OPEN,
+            step_cost_field_extra: STEP_COST_FIELD_EXTRA,
+            step_cost_trample: STEP_COST_TRAMPLE,
+            move_cost_blocked: MOVE_COST_BLOCKED,
+            trample_disabled_seasons: TRAMPLE_DISABLED_SEASONS,
+            army_max_men: ARMY_MAX_MEN,
+            army_min_men: ARMY_MIN_MEN,
+            mob_destroyed_below_men: MOB_DESTROYED_BELOW_MEN,
+            desertion_pct: DESERTION_PCT,
+            desertion_min_troops: DESERTION_MIN_TROOPS,
+            starvation_limit: STARVATION_LIMIT,
+            levy_surcharge: LEVY_SURCHARGE,
+            levy_cost_max: LEVY_COST_MAX,
+            levy_auto_equip_batch: LEVY_AUTO_EQUIP_BATCH,
+            levy_auto_equip_rounds: LEVY_AUTO_EQUIP_ROUNDS,
+            size_class_max: ARMY_SIZE_CLASS_MAX,
+        },
         ai: AiTable {
             gold_grant: AI_GOLD_GRANT,
             grant_population_per_difficulty: AI_GRANT_POPULATION_PER_DIFFICULTY,
@@ -1843,18 +2171,54 @@ impl Tables {
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[0],
                     tax_ladder: AI_PERSONALITY_TAX_LADDER[0],
+                    gift_increment: AI_PERSONALITY_GIFT_INCREMENT[0],
+                    help_price: AI_PERSONALITY_HELP_PRICE[0],
+                    grudge_tolerance: AI_PERSONALITY_GRUDGE_TOLERANCE[0],
+                    offer_interval: AI_PERSONALITY_OFFER_INTERVAL[0],
+                    help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[0],
+                    muster_pct: AI_PERSONALITY_MUSTER_PCT[0],
+                    castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[0],
+                    castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[0],
+                    castle_gold: AI_PERSONALITY_CASTLE_GOLD[0],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[1],
                     tax_ladder: AI_PERSONALITY_TAX_LADDER[1],
+                    gift_increment: AI_PERSONALITY_GIFT_INCREMENT[1],
+                    help_price: AI_PERSONALITY_HELP_PRICE[1],
+                    grudge_tolerance: AI_PERSONALITY_GRUDGE_TOLERANCE[1],
+                    offer_interval: AI_PERSONALITY_OFFER_INTERVAL[1],
+                    help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[1],
+                    muster_pct: AI_PERSONALITY_MUSTER_PCT[1],
+                    castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[1],
+                    castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[1],
+                    castle_gold: AI_PERSONALITY_CASTLE_GOLD[1],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[2],
                     tax_ladder: AI_PERSONALITY_TAX_LADDER[2],
+                    gift_increment: AI_PERSONALITY_GIFT_INCREMENT[2],
+                    help_price: AI_PERSONALITY_HELP_PRICE[2],
+                    grudge_tolerance: AI_PERSONALITY_GRUDGE_TOLERANCE[2],
+                    offer_interval: AI_PERSONALITY_OFFER_INTERVAL[2],
+                    help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[2],
+                    muster_pct: AI_PERSONALITY_MUSTER_PCT[2],
+                    castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[2],
+                    castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[2],
+                    castle_gold: AI_PERSONALITY_CASTLE_GOLD[2],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[3],
                     tax_ladder: AI_PERSONALITY_TAX_LADDER[3],
+                    gift_increment: AI_PERSONALITY_GIFT_INCREMENT[3],
+                    help_price: AI_PERSONALITY_HELP_PRICE[3],
+                    grudge_tolerance: AI_PERSONALITY_GRUDGE_TOLERANCE[3],
+                    offer_interval: AI_PERSONALITY_OFFER_INTERVAL[3],
+                    help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[3],
+                    muster_pct: AI_PERSONALITY_MUSTER_PCT[3],
+                    castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[3],
+                    castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[3],
+                    castle_gold: AI_PERSONALITY_CASTLE_GOLD[3],
                 },
             ],
         },
@@ -1929,6 +2293,21 @@ impl Tables {
         let index = (lord as usize).checked_sub(1)?;
         let row = self.ai.personality.get(index)?;
         self.ai.tax_ladders.get(row.tax_ladder)
+    }
+
+    /// The personality record a `lord` byte names, or `None`.
+    ///
+    /// `None` for **0 (the human), 5, and 6 (eliminated)** — see
+    /// [`AI_PERSONALITY_COUNT`] for why there is no fifth record. Every
+    /// diplomacy rule that needs a number out of the record refuses to act
+    /// rather than substituting one, which is the same choice
+    /// [`crate::ai::set_tax_rates`] already makes.
+    ///
+    /// **Indexed by the lord byte and never by the realm id.** The two are
+    /// unrelated except through the new-game draw; `docs/diplomacy.md` §0.1 is
+    /// the trap, and it is the shape of `docs/decisions.md` C3.
+    pub fn ai_personality(&self, lord: u8) -> Option<&AiPersonalityRow> {
+        self.ai.personality.get((lord as usize).checked_sub(1)?)
     }
 
     /// [`score_gold_bracket`], from this table.

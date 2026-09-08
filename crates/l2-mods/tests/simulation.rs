@@ -635,15 +635,33 @@ fn the_ai_tax_ladders_are_rules_a_mod_sets() {
 
 #[test]
 fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
-    // The personality table replaces whole too, so all four lords are
-    // restated. Only lord 1 moves, from the gentlest ladder to the greediest.
-    let ruthless = modded(
-        "ruthless-lord",
-        "[[kingdom.ai.personality]]\nlord = 1\nfarm_style = 1\ntax_ladder = 0\n\n\
-         [[kingdom.ai.personality]]\nlord = 2\nfarm_style = 1\ntax_ladder = 2\n\n\
-         [[kingdom.ai.personality]]\nlord = 3\nfarm_style = 0\ntax_ladder = 2\n\n\
-         [[kingdom.ai.personality]]\nlord = 4\nfarm_style = 9\ntax_ladder = 1\n",
-    );
+    // The personality table replaces whole too, so all four lords are restated
+    // in full. Only lord 1 moves, from the gentlest ladder to the greediest;
+    // every other field is the stock value, so the one thing that changes is
+    // the one thing under test.
+    //
+    // The castle columns are the four lords as the binary has them, which is
+    // where the Bishop's royal castle at 2,000 gold sits — against the Knight's
+    // 10,000, and the Baron and Countess who are never offered one at any
+    // treasury. `docs/diplomacy.md` §8.1.
+    #[allow(clippy::too_many_arguments)]
+    fn lord(
+        n: u8, farm: u8, ladder: u8, gift: i32, help: i32, grudge: i32, offer: i32, floor: i32,
+        muster: i32, concurrent: i32, min_pop: i32, gold: &str,
+    ) -> String {
+        format!(
+            "[[kingdom.ai.personality]]\nlord = {n}\nfarm_style = {farm}\ntax_ladder = {ladder}\n\
+             gift_increment = {gift}\nhelp_price = {help}\ngrudge_tolerance = {grudge}\n\
+             offer_interval = {offer}\nhelp_population_floor = {floor}\nmuster_pct = {muster}\n\
+             castle_concurrent = {concurrent}\ncastle_min_population = {min_pop}\n\
+             castle_gold = [{gold}]\n\n"
+        )
+    }
+    let rows = lord(1, 1, 0, 100, 500, 5, 12, 1000, 30, 4, 700, "200, 0, 1000, 0, 10000")
+        + &lord(2, 1, 2, 100, 1000, 10, 10, 1000, 30, 3, 650, "0, 500, 0, 4000, 0")
+        + &lord(3, 0, 2, 200, 1600, 15, 8, 1000, 40, 2, 600, "0, 300, 0, 2000, 0")
+        + &lord(4, 9, 1, 50, 1500, 20, 4, 1000, 50, 1, 600, "0, 0, 100, 0, 2000");
+    let ruthless = modded("ruthless-lord", &rows);
     assert_eq!(ruthless.ai.personality[0].tax_ladder, 0);
     assert_eq!(
         ruthless.ai.tax_ladders,

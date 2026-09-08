@@ -27,6 +27,119 @@ pub const LORD_ELIMINATED: u8 = 6;
 /// the human's row, and `g_aiGoldGrant`'s row 0 is all zeros.
 pub const LORD_HUMAN: u8 = 0;
 
+/// The `lord` byte of the Bishop.
+///
+/// Named because exactly one rule tests it directly — the reproduced bug in
+/// [`crate::diplomacy::offend`] — and writing `4` there would hide that it is
+/// the same byte every personality table is indexed by.
+/// `docs/diplomacy.md` §0 and §5.
+pub const LORD_BISHOP: u8 = 4;
+
+/// Where the per-pair diplomacy block starts inside the realm record, and how
+/// wide one sub-record is: `realm[me] + 0x84 + them * 0x10`.
+/// `docs/diplomacy.md` §1. `[V]`
+pub const PAIR_BLOCK_OFFSET: usize = 0x84;
+pub const PAIR_RECORD_STRIDE: usize = 0x10;
+
+/// One past the last byte of the block — `0x84 + 6 * 0x10`.
+///
+/// **This closing is the evidence that the block is what it looks like.**
+/// `+0xE4` is referenced nowhere in the binary and `+0xE5` is the AI's chosen
+/// muster county, so six sixteen-byte sub-records fit between two known things
+/// with nothing left over. [`PAIR_FIELDS`] tiles one record and
+/// `the_pair_block_closes_exactly_on_0xe4` asserts both halves.
+pub const PAIR_BLOCK_END: usize = PAIR_BLOCK_OFFSET + MAX_REALMS * PAIR_RECORD_STRIDE;
+
+/// The sixteen bytes of one pair sub-record, as `(name, offset, width)`.
+///
+/// Carried as data so a test can assert that the record tiles exactly rather
+/// than trusting the prose, and so the two runs of bytes that are *not* fields
+/// stay visible. `docs/diplomacy.md` §1 and §9: `+0x06`/`+0x07` are neither
+/// written by `Diplo_Init` nor read anywhere, and `+0x0E`/`+0x0F` are zeroed at
+/// init and read nowhere. Both are left as gaps rather than invented into
+/// fields.
+pub const PAIR_FIELDS: [(&str, usize, usize); 11] = [
+    ("standing", 0x00, 1),
+    ("allied", 0x01, 1),
+    ("grudge", 0x02, 1),
+    ("warningsSent", 0x03, 1),
+    ("atWar", 0x04, 1),
+    ("complimentsFrom", 0x05, 1),
+    ("- never written, never read", 0x06, 2),
+    ("bestGift", 0x08, 4),
+    ("hasMail", 0x0C, 1),
+    ("helpPriceMultiple", 0x0D, 1),
+    ("- zeroed at init, read nowhere", 0x0E, 2),
+];
+
+/// How `me` feels about `them`, and what has passed between them — the
+/// sixteen-byte sub-record at `realm[me] + 0x84 + them * 0x10`.
+///
+/// **The relationship is asymmetric.** `realms[a].pair(b)` is a's view of b and
+/// `realms[b].pair(a)` is b's view of a, and nearly every rule moves only one
+/// of them. `docs/diplomacy.md` §1.
+///
+/// As everywhere else in this crate the *semantics* are reproduced and the byte
+/// layout is not; [`PAIR_FIELDS`] is what carries the layout, for the oracle
+/// and for a reader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Pair {
+    /// `+0x00` — [`crate::diplomacy::STANDING_MIN`] ..=
+    /// [`crate::diplomacy::STANDING_MAX`]. Every write site clamps.
+    pub standing: i8,
+    /// `+0x01` — set and cleared in pairs by
+    /// [`crate::diplomacy::form_alliance`] and
+    /// [`crate::diplomacy::break_alliance`].
+    pub allied: bool,
+    /// `+0x02` — accumulates while allied; past the lord's tolerance the
+    /// alliance breaks. `docs/diplomacy.md` §4.1.
+    pub grudge: u8,
+    /// `+0x03` — 0 → 1 → 2 → 3, the *Warning / Warning / Notice of revenge*
+    /// ladder. §5.
+    pub warnings_sent: u8,
+    /// `+0x04` — permanently blocks alliance offers once set.
+    pub at_war: bool,
+    /// `+0x05` — how many compliments `them` has sent `me`. **Never reset**,
+    /// which is what turns the third compliment into a permanent −4. §3.2.
+    pub compliments_from: u8,
+    /// `+0x08` — the largest single gift `me` has ever had from `them`.
+    /// Ratchets up, never down, and it is what the next gift is judged
+    /// against. §3.1.
+    pub best_gift: i32,
+    /// `+0x0C` — a letter from `them` is waiting in my inbox. Cleared for
+    /// every sender when the inbox is answered.
+    pub has_mail: bool,
+    /// `+0x0D` — starts at **1** and rises by one every time `me` is paid to
+    /// help `them`, so the price of help doubles, trebles, quadruples. §3.5.
+    pub help_price_multiple: u8,
+}
+
+impl Default for Pair {
+    fn default() -> Pair {
+        Pair::new()
+    }
+}
+
+impl Pair {
+    /// A cleared record. `Diplo_Init` writes **1** into `help_price_multiple`
+    /// and 0 into every other field, so the multiple is the one whose zero
+    /// would be wrong — a never-initialised record would price help at nothing.
+    /// [`crate::diplomacy::init`] is what puts the opening standing in.
+    pub const fn new() -> Pair {
+        Pair {
+            standing: 0,
+            allied: false,
+            grudge: 0,
+            warnings_sent: 0,
+            at_war: false,
+            compliments_from: 0,
+            best_gift: 0,
+            has_mail: false,
+            help_price_multiple: 1,
+        }
+    }
+}
+
 /// A realm — one player, human or AI.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Realm {
@@ -52,7 +165,16 @@ pub struct Realm {
     pub is_human: bool,
     /// `+0x07` — 0 for the human, 1..=5 for an AI lord, [`LORD_ELIMINATED`]
     /// when knocked out. Indexes `g_aiPersonality` and `g_aiGoldGrant`.
+    ///
+    /// **The lord is not the realm and it is not the colour.** Setup draws a
+    /// lord for each realm out of `g_lordChoice`, so nothing may be indexed by
+    /// realm id or by [`Realm::shield_index`] that the original indexes by
+    /// this. `docs/diplomacy.md` §0.1.
     pub lord: u8,
+    /// `+0x0A` — 1..=5, the realm's banner colour. Carried because the lord
+    /// card and the map draw it and because §0.1's trap is easier to walk into
+    /// when the field is absent; no rule in this crate reads it.
+    pub shield_index: u8,
     /// `+0x28` — the sum of every owned county's `tax_hap_other`, added to
     /// every county's tax happiness term.
     ///
@@ -118,6 +240,45 @@ pub struct Realm {
     /// naming it would be exactly the failure mode `docs/decisions.md` C3
     /// records.
     pub score_inputs: [i32; 6],
+
+    // --- diplomacy: `docs/diplomacy.md` §1.2 -------------------------------
+    /// `+0x1C` — an alliance offer to a human is outstanding. Cleared at the
+    /// top of this realm's own turn, and read by
+    /// [`crate::diplomacy::pick_ally_candidate`] so two AIs do not court the
+    /// same realm at once.
+    pub offer_pending: bool,
+    /// `+0x80` — who [`crate::diplomacy::ai_diplomacy`] has decided to court.
+    pub ally_candidate: u8,
+    /// `+0x81` — **one byte, so one ally.** 0 for none. Exclusivity is not a
+    /// rule written anywhere; it is the width of this field.
+    pub ally: u8,
+    /// `+0x84 + other * 0x10` — this realm's view of each other realm.
+    /// Index 0 is never used, matching the realm array itself.
+    pub pairs: [Pair; MAX_REALMS],
+    /// `+0xE8` — the county an ally has been asked to march on.
+    ///
+    /// **`docs/diplomacy.md` §3.5 calls this the ally's `warTarget`; it is a
+    /// different field.** `Diplo_PayForHelp` writes `+0xE8` and the army code
+    /// reads it as a county id, while [`Realm::war_target`] at `+0xEB` is a
+    /// *realm* id that `Diplo_Offend` writes. Two fields three bytes apart,
+    /// and conflating them would have an ally march on a realm number.
+    pub target_county: u8,
+    /// `+0xE9` — counts to 8 before a taunt is sent. §6.
+    pub taunt_timer: u8,
+    /// `+0xEA` — 0 → *"How are you doing?"*, 1 → *"Helpful advice."*
+    pub taunt_stage: u8,
+    /// `+0xEB` — the realm this one has resolved to attack, 0 for none. Only
+    /// ever written when it is already 0, so the first grievance sticks.
+    pub war_target: u8,
+    /// `+0xEC` — counts up to the lord's `offer_interval` between alliance
+    /// offers. Signed: the original compares it as a `char`.
+    pub offer_timer: i8,
+    /// `+0xED` — the one-shot guard on *"Just call me king."*
+    pub crowned_once: bool,
+    /// `+0x159` — 0..=3, advanced after **every** message this realm sends.
+    /// It picks which of the lord's four recorded takes plays, and it is half
+    /// of the `lord * 4 + rot - 4` variant index. `docs/diplomacy.md` §0.
+    pub voice_rotation: u8,
 }
 
 impl Default for Realm {
@@ -134,6 +295,7 @@ impl Realm {
             strength: 0,
             is_human: false,
             lord: LORD_HUMAN,
+            shield_index: 0,
             tax_hap_empire: 0,
             county_count: 0,
             rank: 0,
@@ -154,11 +316,57 @@ impl Realm {
             army_count: 0,
             total_men: 0,
             score_inputs: [0; 6],
+            offer_pending: false,
+            ally_candidate: 0,
+            ally: 0,
+            pairs: [Pair::new(); MAX_REALMS],
+            target_county: 0,
+            taunt_timer: 0,
+            taunt_stage: 0,
+            war_target: 0,
+            offer_timer: 0,
+            crowned_once: false,
+            voice_rotation: 0,
         }
     }
 
     pub fn is_eliminated(&self) -> bool {
         self.lord == LORD_ELIMINATED
+    }
+
+    /// This realm's view of `other`. Out-of-range ids read slot 0, which
+    /// nothing else uses — the original would index off the end of the block
+    /// and into the muster county, and a panic here would be a worse
+    /// reproduction than a harmless slot.
+    pub fn pair(&self, other: u8) -> &Pair {
+        &self.pairs[(other as usize).min(MAX_REALMS - 1)]
+    }
+
+    pub fn pair_mut(&mut self, other: u8) -> &mut Pair {
+        &mut self.pairs[(other as usize).min(MAX_REALMS - 1)]
+    }
+
+    /// The variant index a message from this realm carries:
+    /// `lord * 4 + rot - 4`, which for lords 1..=4 is exactly 0..=15 in four
+    /// contiguous blocks of four. `docs/diplomacy.md` §0.
+    ///
+    /// A human's lord byte is 0, so a human's variant would be `rot - 4` —
+    /// negative. Nothing in the original sends a letter *from* a human through
+    /// this path (the player's letter is drawn from a text buffer instead), and
+    /// the arithmetic is reproduced with a wrapping subtraction rather than
+    /// guarded, so the shape of the expression stays visible.
+    pub fn message_variant(&self) -> u8 {
+        (self.lord.wrapping_mul(4)).wrapping_add(self.voice_rotation).wrapping_sub(4)
+    }
+
+    /// Advance the voice rotation, wrapping 3 → 0. Every message send does
+    /// this, which is why two consecutive letters from one lord never use the
+    /// same recorded take.
+    pub fn advance_voice(&mut self) {
+        self.voice_rotation += 1;
+        if self.voice_rotation > 3 {
+            self.voice_rotation = 0;
+        }
     }
 
     /// True once this realm's AI turn has finished, or immediately when a
@@ -314,6 +522,60 @@ mod tests {
             r.gold = gold;
             assert_eq!(r.compute_score(T), bonus, "gold {gold}");
         }
+    }
+
+    /// `docs/diplomacy.md` §1's headline claim, as arithmetic rather than as
+    /// prose: sixteen bytes per sub-record, six sub-records, and the block
+    /// finishing exactly on `+0xE4` where the next named field begins.
+    ///
+    /// Both halves are asserted, because either alone is satisfiable by a
+    /// wrong layout: fields that tile 16 bytes prove nothing about the block,
+    /// and a block that ends on `0xE4` proves nothing about the fields.
+    #[test]
+    fn the_pair_block_closes_exactly_on_0xe4() {
+        assert_eq!(PAIR_BLOCK_END, 0xE4, "0x84 + 6 * 0x10");
+
+        let mut next = 0;
+        for (name, offset, width) in PAIR_FIELDS {
+            assert_eq!(offset, next, "{name} does not start where the last field ended");
+            next += width;
+        }
+        assert_eq!(next, PAIR_RECORD_STRIDE, "the fields do not fill sixteen bytes");
+
+        // And the two runs that are gaps rather than fields are still gaps: a
+        // future reading that named them would have to change this count.
+        let named = PAIR_FIELDS.iter().filter(|(n, _, _)| !n.starts_with('-')).count();
+        assert_eq!(named, 9, "nine fields and two untraced gaps");
+    }
+
+    /// §0's arithmetic: `lord * 4 + rot - 4` runs 0..=15 over lords 1..=4 and
+    /// rotations 0..=3, in four contiguous blocks, with no value repeated.
+    #[test]
+    fn the_message_variant_covers_zero_to_fifteen_once_each() {
+        let mut seen = [false; 16];
+        for lord in 1..=4u8 {
+            for rot in 0..=3u8 {
+                let mut r = Realm::new();
+                r.lord = lord;
+                r.voice_rotation = rot;
+                let v = r.message_variant();
+                assert_eq!(v as usize, (lord as usize - 1) * 4 + rot as usize);
+                assert!(!seen[v as usize], "variant {v} twice");
+                seen[v as usize] = true;
+            }
+        }
+        assert!(seen.iter().all(|s| *s));
+    }
+
+    #[test]
+    fn the_voice_rotation_cycles_through_four_takes() {
+        let mut r = Realm::new();
+        let mut seen = Vec::new();
+        for _ in 0..9 {
+            seen.push(r.voice_rotation);
+            r.advance_voice();
+        }
+        assert_eq!(seen, vec![0, 1, 2, 3, 0, 1, 2, 3, 0]);
     }
 
     #[test]
