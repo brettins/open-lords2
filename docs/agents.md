@@ -76,6 +76,19 @@ name. Check `git status --short` first and confirm every path is yours; when sev
 are live, that check is necessary and not sufficient, and the `--` form is what closes the
 gap.
 
+**One catch, and it bites on the first commit of anything new.** `git commit -- <paths>`
+only accepts paths git already knows, so a brand-new file fails with
+`pathspec … did not match any file(s) known to git`. A new file must be `git add`-ed first,
+and *then* committed with the `--` form:
+
+```bash
+git add tools/oracle/xref.js
+git commit -F msg.txt -- tools/oracle/xref.js    # add makes it known, -- keeps it alone
+```
+
+The `git add` is safe here because it names one path; it is the bare `git commit` afterwards
+that would sweep the index, and the `--` prevents exactly that.
+
 ## Clean up processes you start
 
 **Any agent that launches a process must terminate it before reporting.** The game in
