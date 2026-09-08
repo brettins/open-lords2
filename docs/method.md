@@ -131,6 +131,24 @@ Not on a schedule. On these triggers:
 
 ---
 
+## 6a. Before building anything, ask whether the original already answers it
+
+The rule that would have prevented C21, stated as a check rather than a virtue:
+
+> **Is there code in `Lords2.exe` that does the thing I am about to write? Have I read it?**
+
+For a format, a rule or an algorithm this is second nature here. It was never applied to a
+*screen*, because no phase was named after screens, and a whole layer got invented while
+every layer beneath it was verified to four decimal places.
+
+It costs one `rg` over `tools/oracle/decomp/`. If the answer is "yes and no", the task is not
+"build X" — it is "read the original's X, then build it", and those are different tasks that
+produce different work.
+
+The corollary for delegation: **a task worded "build a screen" will get you a built screen.**
+Word it "decompile the screen, then build what the decompilation says" and say which is the
+deliverable if the two run out of time.
+
 ## 7. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why

@@ -447,6 +447,45 @@ The general form, and the reason this is worth a numbered entry rather than a bu
 what hides it.** Both instances were caught by asking what the body actually reads, and in
 both cases the answer was "nothing that could disagree with it".
 
+**C21 — An entire layer went un-analysed because no phase was named after it.**
+The roadmap has eight phases: foundations, formats, the Rust base, the renderer, the battle
+sandbox, the oracle, the kingdom, netcode, modding. Every one of them got the treatment this
+project is careful about — decompile, verify against the binary, corpus-test, mark [V]
+versus [I]. The result is 899 tests and an economy checked table by table.
+
+**None of them is the user interface**, and so nobody ever decompiled a screen.
+`docs/symbols.json` reached 394 named symbols across battle, battleai, kingdom, units,
+sprite, map, fileio and text with **no `ui` section at all** — 2,452 functions decompiled and
+not one screen among them.
+
+The bill arrived in a single sentence. Shown one screenshot of the campaign map, the user
+said *"the map looks nothing like the original game… this looks like a minimap maybe?"*
+Reading `Map_RenderIso` took minutes and proved them right: the original walks a **window**
+into the lattice, at one of three zooms — tile width 60/28/12, visible columns 8/17/40 — and
+**never shows the whole 64-column map at any zoom.** Ours showed all of it. See
+`docs/formats/maps-layers.md` §6.
+
+Nobody was careless. The agent that built it had verified map *data*, a blank where the
+screen layout should be, and a task that said "build a campaign map screen" rather than
+"decompile the campaign map screen, then build it". It filled the blank reasonably and
+wrote down that it had — the giveaway is sitting in its own comment, *"fits on one 640 × 480
+screen with no scrolling viewport to build."*
+
+Three things worth keeping:
+
+**A plan's categories decide what gets rigour.** Work outside every named phase gets none,
+and its absence is invisible precisely because nothing tracks it. The roadmap did not have a
+gap labelled "unknown"; it had no label at all.
+
+**"Verified" attaches to a layer, not to a screen.** Every factual claim under that map was
+sound — the tile→lattice mapping is checked 4,096/4,096 against a live process. The *data*
+was verified and the *presentation* was invented, and a screenshot showing both makes them
+look equally finished.
+
+**The cheapest oracle in this project turned out to be a person glancing at a picture.** It
+cost one sentence and beat 899 tests, because none of those tests could ask "is this what
+the game looks like". Show screens early, to someone who knows the game.
+
 ## Open questions
 
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
