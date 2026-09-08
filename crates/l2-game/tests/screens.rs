@@ -14,7 +14,6 @@
 //! ink. It is paired every time with a near-miss that must *not* be found, so
 //! "the panel shows 435" cannot pass by finding some other number.
 
-use std::env;
 use std::path::PathBuf;
 
 use l2_game::game::{Assets, MAX_TAX_RATE};
@@ -30,19 +29,22 @@ use l2_view::chrome;
 use l2_view::{text, Canvas};
 
 fn install() -> Option<PathBuf> {
-    env::var("LORDS2_DIR").ok().map(PathBuf::from).filter(|d| d.is_dir())
+    l2_testkit::install_dir()
 }
 
 macro_rules! world {
     () => {{
         let Some(dir) = install() else {
-            eprintln!("LORDS2_DIR not set - skipping");
-            return;
+            l2_testkit::skip!("no game install, so there are no assets to draw with");
         };
         let platform = Platform::builder().base(&dir).build().expect("the install mounts");
         let assets = Assets::load(&platform.vfs).expect("assets load");
-        let game =
-            scenario::load(&platform.vfs, Tables::DEFAULT).expect("the shipped scenario loads");
+        // The **assets** come from the install and the **position** comes from
+        // the named fixture. They used to come from the same place, and every
+        // number below - fourteen counties, the treasury, the selected county -
+        // is the England turn-one position's rather than any save's.
+        let save = l2_testkit::england!();
+        let game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
         (game, assets)
     }};
 }

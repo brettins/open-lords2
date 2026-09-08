@@ -78,6 +78,13 @@ pub const DEFAULT_INSTALL: &str = r"F:\games\Lords of the Realm II";
 /// the install is read-only and its own saves are overwritten by play.
 pub const DEFAULT_FIXTURES: &str = r"E:\dev\lords2-fixtures";
 
+/// Environment variable naming the older DOS install, which a couple of tests
+/// diff the Windows files against.
+pub const DOS_INSTALL_VAR: &str = "LORDS2_DOS_DIR";
+
+/// Where the DOS install is on this machine. Also read-only.
+pub const DEFAULT_DOS_INSTALL: &str = r"F:\games\LORDS2";
+
 /// The game install, or `None`.
 pub fn install_dir() -> Option<PathBuf> {
     dir(INSTALL_VAR, DEFAULT_INSTALL)
@@ -86,6 +93,11 @@ pub fn install_dir() -> Option<PathBuf> {
 /// The fixture directory, or `None`.
 pub fn fixtures_dir() -> Option<PathBuf> {
     dir(FIXTURES_VAR, DEFAULT_FIXTURES)
+}
+
+/// The older DOS install, or `None`.
+pub fn dos_install_dir() -> Option<PathBuf> {
+    dir(DOS_INSTALL_VAR, DEFAULT_DOS_INSTALL)
 }
 
 fn dir(var: &str, default: &str) -> Option<PathBuf> {

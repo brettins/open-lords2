@@ -15,10 +15,9 @@ use common::TempDir;
 use l2_mods::seed::{battle_names, parse_troops_eng, to_rules_toml, ROWS};
 use l2_mods::{Platform, Ruleset, Side, TroopRules, Vfs};
 use std::env;
-use std::path::Path;
 
 fn install() -> Option<String> {
-    env::var("LORDS2_DIR").ok().filter(|d| Path::new(d).is_dir())
+    l2_testkit::install_dir().map(|d| d.display().to_string())
 }
 
 macro_rules! skip_without_install {
@@ -26,8 +25,7 @@ macro_rules! skip_without_install {
         match install() {
             Some(d) => d,
             None => {
-                eprintln!("LORDS2_DIR not set or not a directory - skipping corpus test");
-                return;
+                l2_testkit::skip!("LORDS2_DIR not set or not a directory - skipping corpus test");
             }
         }
     };
@@ -76,8 +74,7 @@ fn the_installs_inconsistent_casing_resolves_the_way_the_executable_asks() {
     if smks.is_empty() {
         // The 1996 DOS release ships no video at all; eng.md records the same
         // split for BATTLES.ENG. Pointing LORDS2_DIR at it is legitimate.
-        eprintln!("no .smk in this install - skipping the casing check");
-        return;
+        l2_testkit::skip!("no .smk in this install - skipping the casing check");
     }
     for name in &smks {
         assert!(vfs.exists(&name.to_ascii_uppercase()), "{name} uppercased");
@@ -137,7 +134,7 @@ fn every_shipped_troops_file_seeds_a_ruleset_that_reads_back() {
     }
     if seeded == 0 {
         // Only the Windows release shipped these; see docs/formats/eng.md.
-        eprintln!("no TROOPS*.ENG in {dir} - skipping");
+        l2_testkit::skip!("no TROOPS*.ENG in {dir} - skipping");
     }
 }
 
@@ -151,8 +148,7 @@ fn a_mod_layered_on_the_real_install_changes_one_number_and_nothing_else() {
     let mut vfs = Vfs::new();
     vfs.push_layer("scan", &dir).unwrap();
     let Ok(troops) = vfs.read("TROOPS2.ENG").or_else(|_| vfs.read("TROOPS.ENG")) else {
-        eprintln!("no TROOPS*.ENG in this install - skipping");
-        return;
+        l2_testkit::skip!("no TROOPS*.ENG in this install");
     };
     let names = vfs.read("BATTLES.ENG").map(|b| battle_names(&b)).unwrap_or_default();
     let table = parse_troops_eng(&troops).expect("seed");
@@ -203,8 +199,7 @@ fn the_example_mod_only_changes_rules_that_the_real_game_actually_has() {
     let mut scan = Vfs::new();
     scan.push_layer("scan", &dir).unwrap();
     let Ok(troops) = scan.read("TROOPS2.ENG") else {
-        eprintln!("no TROOPS2.ENG in this install - skipping");
-        return;
+        l2_testkit::skip!("no TROOPS2.ENG in this install - skipping");
     };
     let names = scan.read("BATTLES.ENG").map(|b| battle_names(&b)).unwrap_or_default();
     let table = parse_troops_eng(&troops).expect("seed");

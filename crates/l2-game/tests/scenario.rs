@@ -1,19 +1,26 @@
-//! Reading the shipped scenario, against a real install.
+//! Reading the England turn-one fixture, against a real install.
 //!
 //! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game
+//! LORDS2_DIR="F:\games\Lords of the Realm II" LORDS2_FIXTURES="E:\dev\lords2-fixtures" \
+//!     cargo test -p l2-game --test scenario
 //! ```
 //!
-//! Skips rather than fails when unset, like `l2-view`'s install tests. **No
-//! window is opened and no process is started**; every check reads bytes.
+//! **No window is opened and no process is started**; every check reads bytes.
+//!
+//! # Two gates, not one
+//!
+//! The save comes from `l2_testkit::england_turn1` — a *named* fixture with a
+//! fingerprint — and the map, the tile sets and `Lords2.exe` come from the
+//! install. They are different things and were being fetched from the same
+//! place: this file used to mount the install and read its `lastturn.sav`,
+//! which is the rolling autosave the game rewrites every turn somebody plays.
 //!
 //! The numbers asserted here are `docs/kingdom.md` §9's — the eight independent
-//! predictions it landed against this file — plus the correction
-//! `docs/plan.md`'s review made to §9's own county count: the save holds
-//! **five** owned counties, one for each of realms 1 to 5, and the human realm
-//! owns county 8 alone.
+//! predictions it landed against this position — with the county count
+//! corrected to **five** owned, one for each of realms 1 to 5. Which realm gets
+//! which county is rolled per game and is no longer asserted; see
+//! `l2_testkit::ENGLAND_TURN1_COUNTIES`.
 
-use std::env;
 use std::path::PathBuf;
 
 use l2_game::game::Assets;
@@ -21,34 +28,37 @@ use l2_game::scenario;
 use l2_kingdom::tables::{Tables, Weather};
 use l2_mods::Platform;
 
-fn install() -> Option<PathBuf> {
-    env::var("LORDS2_DIR").ok().map(PathBuf::from).filter(|d| d.is_dir())
-}
-
 fn platform(dir: &PathBuf) -> Platform {
     Platform::builder().base(dir).build().expect("the install mounts")
 }
 
-macro_rules! skip_without_install {
+/// The England turn-one fixture, loaded as a `Game`.
+macro_rules! game {
+    () => {{
+        let save = l2_testkit::england!();
+        scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads")
+    }};
+}
+
+/// The install, for the assets that are not the save.
+macro_rules! install {
     () => {
-        match install() {
-            Some(d) => d,
-            None => {
-                eprintln!("LORDS2_DIR not set - skipping");
-                return;
-            }
-        }
+        l2_testkit::install!()
     };
 }
 
 /// The correction. `docs/kingdom.md` §9 and `l2-kingdom`'s reproduction test
-/// both say four counties owned by one realm; the bytes say five owned by five
-/// different realms, at indices 1, 4, 8, 11 and 13, with owners 5, 4, 1, 3 and
-/// 2. Nine are unowned and there are fourteen in all.
+/// both said four counties owned by one realm; the bytes say five owned by five
+/// different realms, at indices 1, 4, 8, 11 and 13.
+///
+/// **Corrected again.** This used to pin the owners as well —
+/// `[(1, 5), (4, 4), (8, 1), (11, 3), (13, 2)]` — and to say the human owns
+/// county 8. Both are rolled per game: a second England turn-one save gives
+/// 1→4, 4→2, 8→5, 11→3, 13→1 and puts the person on county 13. The county set
+/// is scenario, the assignment is not.
 #[test]
-fn the_shipped_save_holds_five_owned_counties_one_for_each_realm() {
-    let dir = skip_without_install!();
-    let game = scenario::load(&platform(&dir).vfs, Tables::DEFAULT).expect("the save loads");
+fn the_england_fixture_holds_five_owned_counties_one_for_each_realm() {
+    let game = game!();
 
     assert_eq!(game.kingdom.county_count, 14);
     let owners: Vec<(usize, u8)> = game
@@ -57,20 +67,30 @@ fn the_shipped_save_holds_five_owned_counties_one_for_each_realm() {
         .map(|id| (id, game.kingdom.counties[id].owner))
         .filter(|(_, owner)| *owner != 0)
         .collect();
-    assert_eq!(owners, vec![(1, 5), (4, 4), (8, 1), (11, 3), (13, 2)]);
+    assert_eq!(
+        owners.iter().map(|&(id, _)| id).collect::<Vec<usize>>(),
+        l2_testkit::ENGLAND_TURN1_COUNTIES
+    );
+    let mut realms: Vec<u8> = owners.iter().map(|&(_, r)| r).collect();
+    realms.sort_unstable();
+    assert_eq!(realms, [1, 2, 3, 4, 5], "one county each, in some order");
 
     assert_eq!(game.player, 1, "g_localPlayer");
-    assert_eq!(game.owned_by(game.player), 1, "the human realm owns county 8 alone");
+    assert_eq!(game.owned_by(game.player), 1, "the human realm owns one county");
     assert_eq!(game.owned_by(0), 9, "and nine counties are unclaimed");
-    assert_eq!(game.selected, 8, "so the game opens on the player's one county");
+    let selected = game.selected as usize;
+    assert_eq!(
+        game.kingdom.counties[selected].owner, game.player as u8,
+        "the game opens on the player's one county, wherever it is"
+    );
+    assert!(l2_testkit::ENGLAND_TURN1_COUNTIES.contains(&selected));
 }
 
 /// §9 points 1, 2 and 3: the clock, the county count and the two options that
 /// force every county to Cloudy with zero fertility.
 #[test]
 fn the_clock_and_the_options_are_read_out_of_the_save() {
-    let dir = skip_without_install!();
-    let game = scenario::load(&platform(&dir).vfs, Tables::DEFAULT).expect("the save loads");
+    let game = game!();
     let k = &game.kingdom;
 
     assert_eq!((k.season, k.season_next, k.year, k.turn_count), (4, 1, 1268, 1));
@@ -91,8 +111,7 @@ fn the_clock_and_the_options_are_read_out_of_the_save() {
 /// 77 with a `+5` from the unowned bonus, and both are at health 67, band 3.
 #[test]
 fn the_happiness_and_health_the_save_stores_are_the_ones_the_rules_predict() {
-    let dir = skip_without_install!();
-    let game = scenario::load(&platform(&dir).vfs, Tables::DEFAULT).expect("the save loads");
+    let game = game!();
     let k = &game.kingdom;
 
     for id in k.county_ids() {
@@ -115,11 +134,16 @@ fn the_happiness_and_health_the_save_stores_are_the_ones_the_rules_predict() {
 /// `g_realms`.
 #[test]
 fn the_five_realms_are_in_play_with_a_thousand_crowns_each() {
-    let dir = skip_without_install!();
-    let game = scenario::load(&platform(&dir).vfs, Tables::DEFAULT).expect("the save loads");
+    let game = game!();
 
+    // **Corrected.** This pinned `[0, 1, 2, 4, 3]`. Which lord sits behind
+    // which realm is rolled with the county assignment; what holds is that
+    // realm 1 is the person, lord row 0, and the other four are distinct.
     let lords: Vec<u8> = (1..=5).map(|r| game.kingdom.realms[r].lord).collect();
-    assert_eq!(lords, vec![0, 1, 2, 4, 3], "lord 0 is the human; the AI lords are 1, 2, 4, 3");
+    assert_eq!(lords[0], 0, "row 0 of every lord-indexed table is the person's");
+    let mut sorted = lords.clone();
+    sorted.sort_unstable();
+    assert_eq!(sorted, vec![0, 1, 2, 3, 4], "five distinct lords, one apiece");
     for r in 1..=5usize {
         assert!(game.kingdom.realms[r].in_play, "realm {r}");
         assert_eq!(game.kingdom.realms[r].gold, 1000, "realm {r}");
@@ -147,10 +171,9 @@ fn the_five_realms_are_in_play_with_a_thousand_crowns_each() {
 /// of the adjacency rule.
 #[test]
 fn adjacency_derived_from_the_map_matches_the_list_stored_in_the_save() {
-    let dir = skip_without_install!();
-    let platform = platform(&dir);
-    let assets = Assets::load(&platform.vfs).expect("assets load");
-    let game = scenario::load(&platform.vfs, Tables::DEFAULT).expect("the save loads");
+    let dir = install!();
+    let assets = Assets::load(&platform(&dir).vfs).expect("assets load");
+    let game = game!();
 
     let stored: Vec<Vec<u8>> = game
         .kingdom
@@ -202,16 +225,13 @@ fn adjacency_derived_from_the_map_matches_the_list_stored_in_the_save() {
 /// the first.
 #[test]
 fn the_map_slot_the_save_names_is_the_fourteen_county_england() {
-    let dir = skip_without_install!();
-    let platform = platform(&dir);
-    let assets = Assets::load(&platform.vfs).expect("assets load");
-    let game = scenario::load(&platform.vfs, Tables::DEFAULT).expect("the save loads");
+    let dir = install!();
+    let assets = Assets::load(&platform(&dir).vfs).expect("assets load");
+    let save = l2_testkit::england!();
+    let game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
 
-    let exe = platform.vfs.read("Lords2.exe").expect("Lords2.exe");
-    let bytes = platform.vfs.read("lastturn.sav").expect("lastturn.sav");
-    let save = l2_formats::Save::open(&exe, &bytes).expect("the save opens");
     let index = save.globals().expect("the globals block").scenario_index;
-    assert_eq!(index, 0, "the shipped save is England, slot 0");
+    assert_eq!(index, 0, "the England fixture is slot 0");
     assert_eq!(game.map_slot as i32, index, "the slot is the index, not the index >> 2");
 
     let slot = assets.slot(game.map_slot).expect("slot 0");
@@ -227,8 +247,7 @@ fn the_map_slot_the_save_names_is_the_fourteen_county_england() {
 /// 24-pixel menu bar, while 1..=5 land on the five 13 x 16 frames that fit.
 #[test]
 fn every_realm_in_the_save_flies_a_colour_the_banner_frames_have() {
-    let dir = skip_without_install!();
-    let game = scenario::load(&platform(&dir).vfs, Tables::DEFAULT).expect("the save loads");
+    let game = game!();
     for id in 1..game.kingdom.realms.len() {
         let c = game.realm_colour[id];
         assert!((1..=5).contains(&c), "realm {id} flies colour {c}");

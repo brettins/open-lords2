@@ -727,6 +727,7 @@ dependencies = [
  "l2-mods",
  "l2-scenario",
  "l2-sim",
+ "l2-testkit",
  "l2-view",
  "pixels",
  "winit",
@@ -750,6 +751,7 @@ dependencies = [
  "l2-kingdom",
  "l2-net",
  "l2-sim",
+ "l2-testkit",
 ]
 
 [[package]]
@@ -786,6 +788,7 @@ version = "0.1.0"
 dependencies = [
  "l2-formats",
  "l2-sim",
+ "l2-testkit",
 ]
 
 [[package]]
