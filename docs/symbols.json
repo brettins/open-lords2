@@ -2204,6 +2204,463 @@
       "confidence": "verified",
       "signature": "void Map_InitMode(void)",
       "comment": "Campaign map bring-up: scroll origin row 0x4A col 0x14, zoom 0, battle phase 0, overview panel rect (480, 48, 160, 160), map 64x64 with an 8-byte runtime tile record, then Map_BuildLattice(0) and Map_SetZoom(0)."
+    },
+    {
+      "addr": "0x0040F1A0",
+      "name": "Screen_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Screen_Draw(int firstFrame)",
+      "comment": "The interface's master switch: 39 cases on g_screenId, each calling one screen's painter. With Screen_DrawWidgets and Screen_HandleInput these are the only three places the screen id is dispatched. docs/screens-county.md section 1."
+    },
+    {
+      "addr": "0x004BA26E",
+      "name": "Screen_DrawWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Per-screen overlay pass: draws each screen's widget table through Widget_Draw and steps its animations. Same case order as Screen_Draw."
+    },
+    {
+      "addr": "0x004BA9C8",
+      "name": "Screen_HandleInput",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Per-screen input pass: hit-tests each screen's widget or hotspot table. Returns non-zero when a widget consumed the click."
+    },
+    {
+      "addr": "0x0040CFD2",
+      "name": "Widget_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Widget_Draw(int xOffset, int yOffset, short * table, int count)",
+      "comment": "Draws a table of 24-byte widget records. Frame is record +0x04, plus 1 while the press timer at +0x0D runs. The size at +0x06 selects the sheet: below 24 from g_miscCtySheet, otherwise from g_systemSheet."
+    },
+    {
+      "addr": "0x0040DA1E",
+      "name": "Widget_Test",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Widget_Test(int xOffset, int yOffset, short * table, int count)",
+      "comment": "Hit-tests the same table Widget_Draw draws, and runs the press timer and the auto-repeat counter. The hit box is a square of side record +0x06. Publishes record +0x10 and +0x14 into g_uiHotspotId and g_uiHotspotArg, then calls record +0x08."
+    },
+    {
+      "addr": "0x0040E3EE",
+      "name": "Hotspot_Test",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Hotspot_Test(int xOffset, int yOffset, short * table, int count)",
+      "comment": "The invisible variant: the same 24-byte record read as {x0, y0, x1, y1, callback, ...} with nothing drawn. The map sidebar's buttons are these."
+    },
+    {
+      "addr": "0x0040D1BC",
+      "name": "Ui_OkButton",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_OkButton(int x, int y, int mode)",
+      "comment": "The tick that closes a panel: g_systemSheet frame 0x33 for mode 0, 0x10 for mode 1."
+    },
+    {
+      "addr": "0x00403DEB",
+      "name": "Ui_DrawInsetRect",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawInsetRect(int x, int y, int w, int h)",
+      "comment": "A recessed rectangle: colour 0x10 along the top and right edges, 0x1F along the bottom and left."
+    },
+    {
+      "addr": "0x00402637",
+      "name": "Ui_DrawText",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawText(byte * str, int x, int y, void * font, int colour)",
+      "comment": "Draws a plain string, each glyph three times - at y-1 and y+1 in two shadow colours, then at y in the real one. Advances g_penAdvance, plus four pixels of trailing space."
+    },
+    {
+      "addr": "0x00402C5E",
+      "name": "Ui_DrawCentred",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawCentred(int group, int index, int x, int y, int width, void * font, int colour)",
+      "comment": "One L2.eng string, centred inside width."
+    },
+    {
+      "addr": "0x00402F64",
+      "name": "Ui_DrawNumber",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawNumber(int value, char lead, char * suffix, int x, int y, void * font, int colour)",
+      "comment": "A number with a leading character and a suffix. lead overwrites buffer index 0, which Ui_NumberToBuffer leaves free for a sign; '@' is the blank glyph that keeps a zero aligned with its neighbours."
+    },
+    {
+      "addr": "0x004030C6",
+      "name": "Ui_DrawNumberRight",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawNumberRight(int value, char lead, char * suffix, int x, int y, int width, void * font, int colour)",
+      "comment": "Ui_DrawNumber, right-aligned inside width."
+    },
+    {
+      "addr": "0x00402E0C",
+      "name": "Ui_DrawDelta",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawDelta(int value, int mode, byte * prefix, char * suffix, int x, int y, void * font, int colourPos, int colourNeg)",
+      "comment": "A signed number with a prefix and a suffix - and nothing at all when the value is zero and mode is 0, which is why the happiness and population panels have blank rows in a quiet season."
+    },
+    {
+      "addr": "0x004022BD",
+      "name": "Ui_NumberToBuffer",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_NumberToBuffer(int value, int start, int forceSign)",
+      "comment": "Formats value into g_numberBuffer starting at index start, writing '-' or '+' at start and shifting when it does. Callers pass start = 1 so index 0 stays free for a sign character."
+    },
+    {
+      "addr": "0x0041AB67",
+      "name": "Ui_DrawCount",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawCount(int value, int unitIndex, int x, int y, void * font, int colour)",
+      "comment": "A number followed by a noun from L2.eng group 8: index unitIndex when the value is 1 or -1, unitIndex + 1 otherwise. Group 8 is singular at even indices and plural at odd."
+    },
+    {
+      "addr": "0x0041AC95",
+      "name": "Ui_DrawHappinessDelta",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawHappinessDelta(int value, int x, int y, void * font, int colourPos, int colourNeg)",
+      "comment": "Draws a bracketed signed number with the happiness face after it: a bracket, Ui_DrawDelta, g_miscCtySheet frame 0x17, a closing bracket."
+    },
+    {
+      "addr": "0x0041AC3E",
+      "name": "Ui_DrawUnitNoun",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawUnitNoun(int value, int unitIndex, int x, int y, void * font, int colour)",
+      "comment": "Just the group 8 noun, singular when the value is 1."
+    },
+    {
+      "addr": "0x0041A900",
+      "name": "Ui_DrawYear",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_DrawYear(int year, int x, int y, int style)",
+      "comment": "A year with BC or AD from L2.eng group 26. style 3 prints the number alone, which is what the graph axes use."
+    },
+    {
+      "addr": "0x004156A7",
+      "name": "Ui_HistoryGraph",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "uint Ui_HistoryGraph(int x, int y, int mode)",
+      "comment": "The 402x155 history graph on the population and happiness panels. mode 0 reads g_countyHistory +0x00 (population, u32), mode 1 reads +0x04 (happiness, u8), walking g_historyLength turns from g_historyHead and wrapping at 400. Returns the peak, which the caller prints. Background from graphs.pl8."
+    },
+    {
+      "addr": "0x00499859",
+      "name": "Res_LoadStatic",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Loads the thirteen records of g_preloadTable into their fixed .data buffers - three palettes, five fonts, mouse.pl8, System2.pl8, Panels.pl8, l2.eng and vill_gd8.pl8. That table is the whole interface asset list."
+    },
+    {
+      "addr": "0x00499A1C",
+      "name": "Res_LoadButtons",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "undefined4 Res_LoadButtons(int skin)",
+      "comment": "Loads System2.pl8 (skin 0) or System.pl8 (skin 1) into g_systemSheet. Two button skins, same 84-frame layout."
+    },
+    {
+      "addr": "0x0040F7D3",
+      "name": "CountyStrip_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The selected county's strip in the map sidebar: name, population, happiness, tax rate, ration achieved and the health thermometer for an owned county; frame 0x3A and the owner's name for one you do not hold. docs/screens-county.md section 2."
+    },
+    {
+      "addr": "0x00438CEB",
+      "name": "CountyStrip_Click",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The 2x2 hotspot over the county strip, and the only way to any of the four county panels: x 488..547 / y 182..211 population, x 568..629 / y 182..211 happiness, and the same two columns below y 212 for tax and rations. The dead band 548..567 is where the health thermometer is drawn."
+    },
+    {
+      "addr": "0x00438E3B",
+      "name": "CountyStrip_JobClick",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The sidebar's lower plate: farm jobs left of x 560, industry right of it. Sets g_jobPanelJob and opens screen 0x0F."
+    },
+    {
+      "addr": "0x00411B72",
+      "name": "Panel_Ration",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The ration panel (screen 0x19). Draws L2.eng group 87 against county +0x15E (wanted), +0x15D (achieved, red when they differ), +0x09 (health band), +0x11 and +0x10 as happiness deltas, and the Fed / Eaten rows from +0x16C, +0x170, +0x174, +0x178 and +0x17C."
+    },
+    {
+      "addr": "0x00411FDE",
+      "name": "Panel_RationSlider",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The grain-to-livestock slider: caps from g_systemSheet frames 0x4A and 0x4B at x 200 and 324, a 100-pixel track from x 224 to 323, and the knob (frame 0x4C, 10 wide) at 220 + county +0x15F."
+    },
+    {
+      "addr": "0x00412B33",
+      "name": "Panel_JobDetail",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The job popup (screen 0x0F) for g_jobPanelJob, 1..9 into L2.eng group 74. Draws the worker count with the group 8 noun for job*2 + 30, red when labour +0x00 is below +0x04 and a second colour when it is above +0x08 - which is what shows the labour record to be three integers a job, not one."
+    },
+    {
+      "addr": "0x00412E6B",
+      "name": "Panel_JobIndustry",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The mining, quarrying, wood and blacksmith bodies of the job popup. Maps jobs 5, 6, 7 and 8 to industry records 1, 3, 0 and 2, the same order the village artwork implies."
+    },
+    {
+      "addr": "0x00413590",
+      "name": "Panel_JobGrain",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The grain body of the job popup: store, fertility band, the event and weather effects on the store, and either what will be sown in spring or what is growing and when it is harvested. Nothing on it is clickable - the player never chooses how much to sow."
+    },
+    {
+      "addr": "0x00413B30",
+      "name": "Panel_JobCattle",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "The cattle body of the job popup: L2.eng group 77 calf births, cow deaths and the herd-crowding bands."
+    },
+    {
+      "addr": "0x004140F3",
+      "name": "Panel_JobReclamation",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The field-reclamation body of the job popup: how many fields are being reclaimed and how many seasons to the next one."
+    },
+    {
+      "addr": "0x00413155",
+      "name": "Panel_JobBlacksmith",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The blacksmith body of the job popup, with smithy.pl8 and hearth.pl8 and the weapon's cost from g_weaponCost."
+    },
+    {
+      "addr": "0x00412143",
+      "name": "Village_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Village_Draw(int reload)",
+      "comment": "The village screen (screen 0x02): villani1/villani2/vill.pl8, villtops.pl8, and the weather and fertility lines when Advanced Farming is on. The scene starts at y = g_villageTopY."
+    },
+    {
+      "addr": "0x00412666",
+      "name": "Village_DrawPeasants",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Draws the eight peasant clusters at g_jobClusterOrigins + (0x40, g_villageTopY)."
+    },
+    {
+      "addr": "0x004126C9",
+      "name": "Village_DrawCluster",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Village_DrawCluster(int cluster, int x, int y)",
+      "comment": "One cluster: up to 25 icons from g_peasantIcons at the offsets in g_peasantIconOffsets, each frame bumped by one while the cluster is the drag source."
+    },
+    {
+      "addr": "0x00412421",
+      "name": "Village_Animate",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Steps the village's animation counters and draws the animated overlays."
+    },
+    {
+      "addr": "0x0043958A",
+      "name": "Village_BoxSelect",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Marks every peasant icon inside the rubber-band box, and abandons the whole selection if the box reaches into a second cluster. Leaves the cluster in g_villageDragCluster and the count in g_villageDragCount."
+    },
+    {
+      "addr": "0x0043982C",
+      "name": "Village_ClusterAt",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Which of the eight clusters the pointer is over, 1-based, or 0."
+    },
+    {
+      "addr": "0x00439B52",
+      "name": "Labour_Move",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Labour_Move(int county, int fromCluster, int toCluster, int workers)",
+      "comment": "Moves workers between two labour slots of one county and re-runs the county's food and industry passes twice. The caller's count is selected icons times county +0xB8 (popBand), clamped to what the source slot holds - so one icon is one twenty-fifth of the population, rounded up."
+    },
+    {
+      "addr": "0x004517CA",
+      "name": "Job_SlotForCluster",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "undefined4 Job_SlotForCluster(int county, int cluster)",
+      "comment": "Cluster to labour slot through g_jobClusterToSlot, with cluster 0 overridden from stone (5) to iron (4) when the county has industry 1's resource and not industry 3's. That single case pins industry 1 = iron and industry 3 = stone."
+    },
+    {
+      "addr": "0x0045161E",
+      "name": "Village_RebuildIcons",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Village_RebuildIcons(int county)",
+      "comment": "Rebuilds g_peasantIcons for one county: workers divided by popBand icons per cluster, with the surplus or shortfall against the slot's +0x04 and +0x08 drawn in a different frame."
+    },
+    {
+      "addr": "0x0043AA32",
+      "name": "Tax_Increase",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The tax panel's up arrow. Guards taxRate < 0x32 - the player's tax ceiling is 50, and this is where it lives."
+    },
+    {
+      "addr": "0x0043AA83",
+      "name": "Tax_IncreaseCounty",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Tax_IncreaseCounty(int county)",
+      "comment": "Raises one county's tax rate by one, capped at 50, then Tax_RecomputePreview and a redraw."
+    },
+    {
+      "addr": "0x0043AAD5",
+      "name": "Tax_Decrease",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The tax panel's down arrow. Guards taxRate != 0."
+    },
+    {
+      "addr": "0x0043AB25",
+      "name": "Tax_DecreaseCounty",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Tax_DecreaseCounty(int county)",
+      "comment": "Lowers one county's tax rate by one, floored at 0."
+    },
+    {
+      "addr": "0x0044B80B",
+      "name": "Tax_RecomputePreview",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Tax_RecomputePreview(int county)",
+      "comment": "Recomputes one county's tax display: +0xC0 taxShown from population, the castle multiplier and the rate; +0x0F = 5 - rate; and +0x16 from g_taxHappinessOther[rate]. It is the only writer of +0x16 anywhere in the binary, so the empire tax happiness term is a table lookup rather than 5 - rate."
+    },
+    {
+      "addr": "0x00448545",
+      "name": "Panels_RefreshAll",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "End of the season pipeline: Ration_Apply, the next-season preview and Tax_RecomputePreview for every county. This is the second Ration_Apply call docs/decisions.md C20 identified from the save."
+    },
+    {
+      "addr": "0x0043A1E9",
+      "name": "Ration_Increase",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The ration panel's up arrow. Guards rationWanted < 5."
+    },
+    {
+      "addr": "0x0043A23F",
+      "name": "Ration_IncreaseCounty",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ration_IncreaseCounty(int county)",
+      "comment": "Raises one county's wanted ration by one, capped at 5, then re-applies rations and redraws."
+    },
+    {
+      "addr": "0x0043A2B2",
+      "name": "Ration_Decrease",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The ration panel's down arrow. Guards rationWanted > 0."
+    },
+    {
+      "addr": "0x0043A307",
+      "name": "Ration_DecreaseCounty",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ration_DecreaseCounty(int county)",
+      "comment": "Lowers one county's wanted ration by one, floored at 0."
+    },
+    {
+      "addr": "0x0043A379",
+      "name": "Ration_SliderClick",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The grain-to-livestock slider's hit test: (200,220,24,24) steps down, (325,220,24,24) steps up, and (224,220,102,24) jumps to mouseX - 224. Clamped 0..100, and refused outright unless the county's owner is g_localPlayer."
+    },
+    {
+      "addr": "0x0043A5A9",
+      "name": "Ration_SetSplit",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ration_SetSplit(int county, int split, int sweep)",
+      "comment": "Sets county +0x15F and re-runs the food pass; if the new split changes nothing it walks back towards the old value looking for one that does."
+    },
+    {
+      "addr": "0x0043A846",
+      "name": "Panel_OpenRation",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Opens the ration panel (screen 0x19)."
+    },
+    {
+      "addr": "0x0043A8F2",
+      "name": "Panel_OpenPopulation",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Opens the population panel (screen 0x14)."
+    },
+    {
+      "addr": "0x0043A922",
+      "name": "Panel_OpenHappiness",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Opens the happiness panel (screen 0x16)."
+    },
+    {
+      "addr": "0x0043A939",
+      "name": "Panel_OpenTax",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Opens the tax panel (screen 0x15)."
+    },
+    {
+      "addr": "0x0043AC23",
+      "name": "Turn_End",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The sidebar's full-width bottom button: ends the local player's turn by writing 999 into the realm record's +0x00."
+    },
+    {
+      "addr": "0x0043AE30",
+      "name": "Sidebar_Button",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The five buttons in the 162x30 strip at y 430, on g_uiHotspotId 1..5: the county's army (screen 0x17), the court (screen 0x09), send supplies (screen 0x18), and two more."
+    },
+    {
+      "addr": "0x00416925",
+      "name": "Court_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The court screen (0x09): L2.eng group 70 against the realm record - gold +0x118, iron +0x120, stone +0x128, wood +0x130, six weapon stocks from +0x140, army wages +0xFC and expected tax +0x15C."
+    },
+    {
+      "addr": "0x00438BEC",
+      "name": "Field_SetType",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Field_SetType(uint county, int tile, int brush)",
+      "comment": "Repaints one map tile's field type for a county and re-runs its food passes. Called from a map click with the brush in g_uiHotspotId; this, not any county panel, is how fields are assigned."
     }
   ],
   "globals": [
@@ -3697,6 +4154,230 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "480. The vertical companion to g_screenStride, used as the bottom clip by every general blit."
+    },
+    {
+      "addr": "0x004EAC50",
+      "name": "g_screenId",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Which screen the interface is on. Screen_Draw, Screen_DrawWidgets and Screen_HandleInput all switch on it and nothing else does. The ids are listed in docs/screens-county.md section 1."
+    },
+    {
+      "addr": "0x005530F0",
+      "name": "g_setupPage",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Sub-page within the game-setup screen (g_screenId 0x1F), 1..13."
+    },
+    {
+      "addr": "0x00553F54",
+      "name": "g_jobPanelJob",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Which job the job popup is showing, 1..9 - the same index as L2.eng group 74, and one more than the labour slot."
+    },
+    {
+      "addr": "0x005CD404",
+      "name": "g_penAdvance",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Width of the text drawn since the last reset, in pixels. Every panel zeroes it, draws a label, and adds it to the x of the value - which is how a label and its value are laid out without either knowing the other's width."
+    },
+    {
+      "addr": "0x00591550",
+      "name": "g_uiHotspotArg",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Widget record +0x14, published for the callback alongside g_uiHotspotId."
+    },
+    {
+      "addr": "0x0053E9A0",
+      "name": "g_villageDragCluster",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The peasant cluster the rubber-band selection came from, 1-based; 0 for none."
+    },
+    {
+      "addr": "0x0057C988",
+      "name": "g_villageDragCount",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "How many peasant icons the rubber-band box selected. Multiplied by county +0xB8 to get workers."
+    },
+    {
+      "addr": "0x0053E9EC",
+      "name": "g_villageDropCluster",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The cluster the drag was dropped on, 1-based."
+    },
+    {
+      "addr": "0x005540A0",
+      "name": "g_peasantIcons",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Eight clusters of 25 bytes: the sprite frame plus one for each peasant icon on the village screen, or 0 for an empty slot. Rebuilt by Village_RebuildIcons."
+    },
+    {
+      "addr": "0x00553040",
+      "name": "g_peasantIconSelected",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "25 bytes, one per icon slot of the dragged cluster: 0 unselected, 1 or 2 for the two selected states."
+    },
+    {
+      "addr": "0x004D85A8",
+      "name": "g_jobClusterOrigins",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Eight {i32 x, i32 y} pairs - where each peasant cluster sits on the village, before the (0x40, g_villageTopY) offset: (22,50) (147,30) (271,26) (268,188) (117,200) (15,245) (146,120) (19,122)."
+    },
+    {
+      "addr": "0x004D85E8",
+      "name": "g_peasantIconOffsets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "25 {u8 x, u8 y} pairs - a 5x5 grid 16 pixels apart in x and 12 in y, with the rows staggered 0, 4, 8, 0, 4. Twenty-five slots because one icon is one twenty-fifth of the county."
+    },
+    {
+      "addr": "0x004D6780",
+      "name": "g_jobClusterToSlot",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Eight i32: which labour slot each village cluster is. [5, 0, 1, 3, 6, 7, 8, 2], with cluster 0 overridden to 4 by Job_SlotForCluster."
+    },
+    {
+      "addr": "0x004D63D8",
+      "name": "g_taxHappinessOther",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "i32 by tax rate: the \"Other counties\" happiness term (county +0x16) that Tax_RecomputePreview writes. 0 up to rate 19, then -1 at 20 falling to -15 at 50. Exactly 51 entries, which is a second reading of the 0..50 tax ceiling."
+    },
+    {
+      "addr": "0x0056D8C0",
+      "name": "g_countyHistory",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "400 turns x 16 counties x 8 bytes: population as u32 at +0x00 and happiness as u8 at +0x04, indexed by county - 1. What both graph panels draw. g_saveBlocks block 10 is exactly {0x0056D8C0, 51200}, and the shipped lastturn.sav reads back all fourteen counties' stored population and happiness at turn 0."
+    },
+    {
+      "addr": "0x00568DA8",
+      "name": "g_historyHead",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Write cursor into g_countyHistory, wrapping at 400."
+    },
+    {
+      "addr": "0x00553F30",
+      "name": "g_historyLength",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "How many turns of g_countyHistory are filled, and how many bars Ui_HistoryGraph draws."
+    },
+    {
+      "addr": "0x004DD790",
+      "name": "g_taxWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Two 24-byte widget records: the tax panel's up arrow at (192,162) frame 0x15 and its down arrow at (224,162) frame 0x17, both 24x24, kind 4."
+    },
+    {
+      "addr": "0x004DD7C0",
+      "name": "g_rationWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Two 24-byte widget records: the ration panel's arrows at (344,130) and (368,130), frames 0x15 and 0x17."
+    },
+    {
+      "addr": "0x004DC680",
+      "name": "g_sidebarButtons",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Six hotspot records for the map sidebar, offset by (478, 430): five 32-pixel buttons across the 162x30 strip, then the full-width end-turn button below it."
+    },
+    {
+      "addr": "0x004DC620",
+      "name": "g_minimapModeButtons",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Four hotspot records at (610, 32), a vertical column inside the sidebar's top plate."
+    },
+    {
+      "addr": "0x005B2FA0",
+      "name": "g_fontHeading",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Fntl2_22.pl8 - every panel heading."
+    },
+    {
+      "addr": "0x005AF8F0",
+      "name": "g_fontBody",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Fntl2_14.pl8 - every panel body line."
+    },
+    {
+      "addr": "0x005C9A90",
+      "name": "g_fontSmall",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Fntl2_9.pl8 - the county strip, and nothing else."
+    },
+    {
+      "addr": "0x005AEBA0",
+      "name": "g_font10",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Font_10.pl8."
+    },
+    {
+      "addr": "0x005CBFB0",
+      "name": "g_font8",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Fnt_8.pl8 - the battle overlay."
+    },
+    {
+      "addr": "0x0058FEC0",
+      "name": "g_mouseSheet",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "mouse.pl8 - the pointer."
+    },
+    {
+      "addr": "0x00591580",
+      "name": "g_engText",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "l2.eng, whole. Eng_GroupBase indexes the group table from here."
+    },
+    {
+      "addr": "0x0058FDA0",
+      "name": "g_numberBuffer",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "100-byte scratch that Ui_NumberToBuffer formats into and Ui_DrawNumber draws from."
+    },
+    {
+      "addr": "0x00553D54",
+      "name": "g_playerNames",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Six 0x2C-byte player names. g_saveBlocks entry 2 is {0x00553D50, 264}, which is 6 x 0x2C."
+    },
+    {
+      "addr": "0x0057C908",
+      "name": "g_villageTopY",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Where the village scene starts: 64 normally, 132 with Advanced Farming, which is the strip the fertility and weather lines occupy."
+    },
+    {
+      "addr": "0x004D71F0",
+      "name": "g_glyphWidths",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "One byte per printable character; zero means a four-pixel blank, which is what makes '@' an invisible sign column."
     }
   ]
 }

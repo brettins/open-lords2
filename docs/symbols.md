@@ -642,6 +642,67 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x00406673` | `Map_DrawTileApex(a, b, mode)` | verified | Draws the chevron ("overhang") records that sit above a diamond tile. Reaches them by adding a fixed body size to the frame data pointer: 900 at zoom 0, 0xC4 at zoom 1, 0x24 at zoom 2, which are h*h/2 for h = 30, 14 and 6 and so pin the three tile sizes from the instruction stream alone. |
 | `0x0040C5B0` | `Ui_DrawMenuTitles(items, count)` | verified | Lays the menu-bar titles out left to right from a 16-byte-per-item table, writing each measured x back into the table so the drop-downs know where to open. The campaign table is g_menuBarItems, three items, L2.eng groups 1, 2 and 3. |
 | `0x00498270` | `Map_InitMode()` | verified | Campaign map bring-up: scroll origin row 0x4A col 0x14, zoom 0, battle phase 0, overview panel rect (480, 48, 160, 160), map 64x64 with an 8-byte runtime tile record, then Map_BuildLattice(0) and Map_SetZoom(0). |
+| `0x0040F1A0` | `Screen_Draw(firstFrame)` | verified | The interface's master switch: 39 cases on g_screenId, each calling one screen's painter. With Screen_DrawWidgets and Screen_HandleInput these are the only three places the screen id is dispatched. docs/screens-county.md section 1. |
+| `0x004BA26E` | `Screen_DrawWidgets` | verified | Per-screen overlay pass: draws each screen's widget table through Widget_Draw and steps its animations. Same case order as Screen_Draw. |
+| `0x004BA9C8` | `Screen_HandleInput` | verified | Per-screen input pass: hit-tests each screen's widget or hotspot table. Returns non-zero when a widget consumed the click. |
+| `0x0040CFD2` | `Widget_Draw(xOffset, yOffset, table, count)` | verified | Draws a table of 24-byte widget records. Frame is record +0x04, plus 1 while the press timer at +0x0D runs. The size at +0x06 selects the sheet: below 24 from g_miscCtySheet, otherwise from g_systemSheet. |
+| `0x0040DA1E` | `Widget_Test(xOffset, yOffset, table, count)` | verified | Hit-tests the same table Widget_Draw draws, and runs the press timer and the auto-repeat counter. The hit box is a square of side record +0x06. Publishes record +0x10 and +0x14 into g_uiHotspotId and g_uiHotspotArg, then calls record +0x08. |
+| `0x0040E3EE` | `Hotspot_Test(xOffset, yOffset, table, count)` | verified | The invisible variant: the same 24-byte record read as {x0, y0, x1, y1, callback, ...} with nothing drawn. The map sidebar's buttons are these. |
+| `0x0040D1BC` | `Ui_OkButton(x, y, mode)` | verified | The tick that closes a panel: g_systemSheet frame 0x33 for mode 0, 0x10 for mode 1. |
+| `0x00403DEB` | `Ui_DrawInsetRect(x, y, w, h)` | verified | A recessed rectangle: colour 0x10 along the top and right edges, 0x1F along the bottom and left. |
+| `0x00402637` | `Ui_DrawText(str, x, y, font, colour)` | verified | Draws a plain string, each glyph three times - at y-1 and y+1 in two shadow colours, then at y in the real one. Advances g_penAdvance, plus four pixels of trailing space. |
+| `0x00402C5E` | `Ui_DrawCentred(group, index, x, y, width, font, colour)` | verified | One L2.eng string, centred inside width. |
+| `0x00402F64` | `Ui_DrawNumber(value, lead, suffix, x, y, font, colour)` | verified | A number with a leading character and a suffix. lead overwrites buffer index 0, which Ui_NumberToBuffer leaves free for a sign; '@' is the blank glyph that keeps a zero aligned with its neighbours. |
+| `0x004030C6` | `Ui_DrawNumberRight(value, lead, suffix, x, y, width, font, colour)` | verified | Ui_DrawNumber, right-aligned inside width. |
+| `0x00402E0C` | `Ui_DrawDelta(value, mode, prefix, suffix, x, y, font, colourPos, colourNeg)` | verified | A signed number with a prefix and a suffix - and nothing at all when the value is zero and mode is 0, which is why the happiness and population panels have blank rows in a quiet season. |
+| `0x004022BD` | `Ui_NumberToBuffer(value, start, forceSign)` | verified | Formats value into g_numberBuffer starting at index start, writing '-' or '+' at start and shifting when it does. Callers pass start = 1 so index 0 stays free for a sign character. |
+| `0x0041AB67` | `Ui_DrawCount(value, unitIndex, x, y, font, colour)` | verified | A number followed by a noun from L2.eng group 8: index unitIndex when the value is 1 or -1, unitIndex + 1 otherwise. Group 8 is singular at even indices and plural at odd. |
+| `0x0041AC95` | `Ui_DrawHappinessDelta(value, x, y, font, colourPos, colourNeg)` | verified | Draws a bracketed signed number with the happiness face after it: a bracket, Ui_DrawDelta, g_miscCtySheet frame 0x17, a closing bracket. |
+| `0x0041AC3E` | `Ui_DrawUnitNoun(value, unitIndex, x, y, font, colour)` | verified | Just the group 8 noun, singular when the value is 1. |
+| `0x0041A900` | `Ui_DrawYear(year, x, y, style)` | verified | A year with BC or AD from L2.eng group 26. style 3 prints the number alone, which is what the graph axes use. |
+| `0x004156A7` | `Ui_HistoryGraph(x, y, mode)` | verified | The 402x155 history graph on the population and happiness panels. mode 0 reads g_countyHistory +0x00 (population, u32), mode 1 reads +0x04 (happiness, u8), walking g_historyLength turns from g_historyHead and wrapping at 400. Returns the peak, which the caller prints. Background from graphs.pl8. |
+| `0x00499859` | `Res_LoadStatic` | verified | Loads the thirteen records of g_preloadTable into their fixed .data buffers - three palettes, five fonts, mouse.pl8, System2.pl8, Panels.pl8, l2.eng and vill_gd8.pl8. That table is the whole interface asset list. |
+| `0x00499A1C` | `Res_LoadButtons(skin)` | verified | Loads System2.pl8 (skin 0) or System.pl8 (skin 1) into g_systemSheet. Two button skins, same 84-frame layout. |
+| `0x0040F7D3` | `CountyStrip_Draw` | verified | The selected county's strip in the map sidebar: name, population, happiness, tax rate, ration achieved and the health thermometer for an owned county; frame 0x3A and the owner's name for one you do not hold. docs/screens-county.md section 2. |
+| `0x00438CEB` | `CountyStrip_Click` | verified | The 2x2 hotspot over the county strip, and the only way to any of the four county panels: x 488..547 / y 182..211 population, x 568..629 / y 182..211 happiness, and the same two columns below y 212 for tax and rations. The dead band 548..567 is where the health thermometer is drawn. |
+| `0x00438E3B` | `CountyStrip_JobClick` | verified | The sidebar's lower plate: farm jobs left of x 560, industry right of it. Sets g_jobPanelJob and opens screen 0x0F. |
+| `0x00411B72` | `Panel_Ration` | verified | The ration panel (screen 0x19). Draws L2.eng group 87 against county +0x15E (wanted), +0x15D (achieved, red when they differ), +0x09 (health band), +0x11 and +0x10 as happiness deltas, and the Fed / Eaten rows from +0x16C, +0x170, +0x174, +0x178 and +0x17C. |
+| `0x00411FDE` | `Panel_RationSlider` | verified | The grain-to-livestock slider: caps from g_systemSheet frames 0x4A and 0x4B at x 200 and 324, a 100-pixel track from x 224 to 323, and the knob (frame 0x4C, 10 wide) at 220 + county +0x15F. |
+| `0x00412B33` | `Panel_JobDetail` | verified | The job popup (screen 0x0F) for g_jobPanelJob, 1..9 into L2.eng group 74. Draws the worker count with the group 8 noun for job*2 + 30, red when labour +0x00 is below +0x04 and a second colour when it is above +0x08 - which is what shows the labour record to be three integers a job, not one. |
+| `0x00412E6B` | `Panel_JobIndustry` | verified | The mining, quarrying, wood and blacksmith bodies of the job popup. Maps jobs 5, 6, 7 and 8 to industry records 1, 3, 0 and 2, the same order the village artwork implies. |
+| `0x00413590` | `Panel_JobGrain` | verified | The grain body of the job popup: store, fertility band, the event and weather effects on the store, and either what will be sown in spring or what is growing and when it is harvested. Nothing on it is clickable - the player never chooses how much to sow. |
+| `0x00413B30` | `Panel_JobCattle` | inferred | The cattle body of the job popup: L2.eng group 77 calf births, cow deaths and the herd-crowding bands. |
+| `0x004140F3` | `Panel_JobReclamation` | verified | The field-reclamation body of the job popup: how many fields are being reclaimed and how many seasons to the next one. |
+| `0x00413155` | `Panel_JobBlacksmith` | verified | The blacksmith body of the job popup, with smithy.pl8 and hearth.pl8 and the weapon's cost from g_weaponCost. |
+| `0x00412143` | `Village_Draw(reload)` | verified | The village screen (screen 0x02): villani1/villani2/vill.pl8, villtops.pl8, and the weather and fertility lines when Advanced Farming is on. The scene starts at y = g_villageTopY. |
+| `0x00412666` | `Village_DrawPeasants` | verified | Draws the eight peasant clusters at g_jobClusterOrigins + (0x40, g_villageTopY). |
+| `0x004126C9` | `Village_DrawCluster(cluster, x, y)` | verified | One cluster: up to 25 icons from g_peasantIcons at the offsets in g_peasantIconOffsets, each frame bumped by one while the cluster is the drag source. |
+| `0x00412421` | `Village_Animate` | inferred | Steps the village's animation counters and draws the animated overlays. |
+| `0x0043958A` | `Village_BoxSelect` | verified | Marks every peasant icon inside the rubber-band box, and abandons the whole selection if the box reaches into a second cluster. Leaves the cluster in g_villageDragCluster and the count in g_villageDragCount. |
+| `0x0043982C` | `Village_ClusterAt` | verified | Which of the eight clusters the pointer is over, 1-based, or 0. |
+| `0x00439B52` | `Labour_Move(county, fromCluster, toCluster, workers)` | verified | Moves workers between two labour slots of one county and re-runs the county's food and industry passes twice. The caller's count is selected icons times county +0xB8 (popBand), clamped to what the source slot holds - so one icon is one twenty-fifth of the population, rounded up. |
+| `0x004517CA` | `Job_SlotForCluster(county, cluster)` | verified | Cluster to labour slot through g_jobClusterToSlot, with cluster 0 overridden from stone (5) to iron (4) when the county has industry 1's resource and not industry 3's. That single case pins industry 1 = iron and industry 3 = stone. |
+| `0x0045161E` | `Village_RebuildIcons(county)` | verified | Rebuilds g_peasantIcons for one county: workers divided by popBand icons per cluster, with the surplus or shortfall against the slot's +0x04 and +0x08 drawn in a different frame. |
+| `0x0043AA32` | `Tax_Increase` | verified | The tax panel's up arrow. Guards taxRate < 0x32 - the player's tax ceiling is 50, and this is where it lives. |
+| `0x0043AA83` | `Tax_IncreaseCounty(county)` | verified | Raises one county's tax rate by one, capped at 50, then Tax_RecomputePreview and a redraw. |
+| `0x0043AAD5` | `Tax_Decrease` | verified | The tax panel's down arrow. Guards taxRate != 0. |
+| `0x0043AB25` | `Tax_DecreaseCounty(county)` | verified | Lowers one county's tax rate by one, floored at 0. |
+| `0x0044B80B` | `Tax_RecomputePreview(county)` | verified | Recomputes one county's tax display: +0xC0 taxShown from population, the castle multiplier and the rate; +0x0F = 5 - rate; and +0x16 from g_taxHappinessOther[rate]. It is the only writer of +0x16 anywhere in the binary, so the empire tax happiness term is a table lookup rather than 5 - rate. |
+| `0x00448545` | `Panels_RefreshAll` | verified | End of the season pipeline: Ration_Apply, the next-season preview and Tax_RecomputePreview for every county. This is the second Ration_Apply call docs/decisions.md C20 identified from the save. |
+| `0x0043A1E9` | `Ration_Increase` | verified | The ration panel's up arrow. Guards rationWanted < 5. |
+| `0x0043A23F` | `Ration_IncreaseCounty(county)` | verified | Raises one county's wanted ration by one, capped at 5, then re-applies rations and redraws. |
+| `0x0043A2B2` | `Ration_Decrease` | verified | The ration panel's down arrow. Guards rationWanted > 0. |
+| `0x0043A307` | `Ration_DecreaseCounty(county)` | verified | Lowers one county's wanted ration by one, floored at 0. |
+| `0x0043A379` | `Ration_SliderClick` | verified | The grain-to-livestock slider's hit test: (200,220,24,24) steps down, (325,220,24,24) steps up, and (224,220,102,24) jumps to mouseX - 224. Clamped 0..100, and refused outright unless the county's owner is g_localPlayer. |
+| `0x0043A5A9` | `Ration_SetSplit(county, split, sweep)` | verified | Sets county +0x15F and re-runs the food pass; if the new split changes nothing it walks back towards the old value looking for one that does. |
+| `0x0043A846` | `Panel_OpenRation` | verified | Opens the ration panel (screen 0x19). |
+| `0x0043A8F2` | `Panel_OpenPopulation` | verified | Opens the population panel (screen 0x14). |
+| `0x0043A922` | `Panel_OpenHappiness` | verified | Opens the happiness panel (screen 0x16). |
+| `0x0043A939` | `Panel_OpenTax` | verified | Opens the tax panel (screen 0x15). |
+| `0x0043AC23` | `Turn_End` | verified | The sidebar's full-width bottom button: ends the local player's turn by writing 999 into the realm record's +0x00. |
+| `0x0043AE30` | `Sidebar_Button` | verified | The five buttons in the 162x30 strip at y 430, on g_uiHotspotId 1..5: the county's army (screen 0x17), the court (screen 0x09), send supplies (screen 0x18), and two more. |
+| `0x00416925` | `Court_Draw` | verified | The court screen (0x09): L2.eng group 70 against the realm record - gold +0x118, iron +0x120, stone +0x128, wood +0x130, six weapon stocks from +0x140, army wages +0xFC and expected tax +0x15C. |
+| `0x00438BEC` | `Field_SetType(county, tile, brush)` | verified | Repaints one map tile's field type for a county and re-runs its food passes. Called from a map click with the brush in g_uiHotspotId; this, not any county panel, is how fields are assigned. |
 
 **Globals**
 
@@ -695,6 +756,38 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x0056D674` | `g_overviewH` | verified | Height of the overview panel: 160. |
 | `0x0059154C` | `g_uiHotspotId` | verified | Id of the widget the pointer last acted on. For the minimap buttons 1..3 pick an overlay mode and 4 toggles the map zoom. |
 | `0x004EAC4C` | `g_screenHeight` | verified | 480. The vertical companion to g_screenStride, used as the bottom clip by every general blit. |
+| `0x004EAC50` | `g_screenId` | verified | Which screen the interface is on. Screen_Draw, Screen_DrawWidgets and Screen_HandleInput all switch on it and nothing else does. The ids are listed in docs/screens-county.md section 1. |
+| `0x005530F0` | `g_setupPage` | inferred | Sub-page within the game-setup screen (g_screenId 0x1F), 1..13. |
+| `0x00553F54` | `g_jobPanelJob` | verified | Which job the job popup is showing, 1..9 - the same index as L2.eng group 74, and one more than the labour slot. |
+| `0x005CD404` | `g_penAdvance` | verified | Width of the text drawn since the last reset, in pixels. Every panel zeroes it, draws a label, and adds it to the x of the value - which is how a label and its value are laid out without either knowing the other's width. |
+| `0x00591550` | `g_uiHotspotArg` | verified | Widget record +0x14, published for the callback alongside g_uiHotspotId. |
+| `0x0053E9A0` | `g_villageDragCluster` | verified | The peasant cluster the rubber-band selection came from, 1-based; 0 for none. |
+| `0x0057C988` | `g_villageDragCount` | verified | How many peasant icons the rubber-band box selected. Multiplied by county +0xB8 to get workers. |
+| `0x0053E9EC` | `g_villageDropCluster` | verified | The cluster the drag was dropped on, 1-based. |
+| `0x005540A0` | `g_peasantIcons` | verified | Eight clusters of 25 bytes: the sprite frame plus one for each peasant icon on the village screen, or 0 for an empty slot. Rebuilt by Village_RebuildIcons. |
+| `0x00553040` | `g_peasantIconSelected` | verified | 25 bytes, one per icon slot of the dragged cluster: 0 unselected, 1 or 2 for the two selected states. |
+| `0x004D85A8` | `g_jobClusterOrigins` | verified | Eight {i32 x, i32 y} pairs - where each peasant cluster sits on the village, before the (0x40, g_villageTopY) offset: (22,50) (147,30) (271,26) (268,188) (117,200) (15,245) (146,120) (19,122). |
+| `0x004D85E8` | `g_peasantIconOffsets` | verified | 25 {u8 x, u8 y} pairs - a 5x5 grid 16 pixels apart in x and 12 in y, with the rows staggered 0, 4, 8, 0, 4. Twenty-five slots because one icon is one twenty-fifth of the county. |
+| `0x004D6780` | `g_jobClusterToSlot` | verified | Eight i32: which labour slot each village cluster is. [5, 0, 1, 3, 6, 7, 8, 2], with cluster 0 overridden to 4 by Job_SlotForCluster. |
+| `0x004D63D8` | `g_taxHappinessOther` | verified | i32 by tax rate: the "Other counties" happiness term (county +0x16) that Tax_RecomputePreview writes. 0 up to rate 19, then -1 at 20 falling to -15 at 50. Exactly 51 entries, which is a second reading of the 0..50 tax ceiling. |
+| `0x0056D8C0` | `g_countyHistory` | verified | 400 turns x 16 counties x 8 bytes: population as u32 at +0x00 and happiness as u8 at +0x04, indexed by county - 1. What both graph panels draw. g_saveBlocks block 10 is exactly {0x0056D8C0, 51200}, and the shipped lastturn.sav reads back all fourteen counties' stored population and happiness at turn 0. |
+| `0x00568DA8` | `g_historyHead` | verified | Write cursor into g_countyHistory, wrapping at 400. |
+| `0x00553F30` | `g_historyLength` | verified | How many turns of g_countyHistory are filled, and how many bars Ui_HistoryGraph draws. |
+| `0x004DD790` | `g_taxWidgets` | verified | Two 24-byte widget records: the tax panel's up arrow at (192,162) frame 0x15 and its down arrow at (224,162) frame 0x17, both 24x24, kind 4. |
+| `0x004DD7C0` | `g_rationWidgets` | verified | Two 24-byte widget records: the ration panel's arrows at (344,130) and (368,130), frames 0x15 and 0x17. |
+| `0x004DC680` | `g_sidebarButtons` | verified | Six hotspot records for the map sidebar, offset by (478, 430): five 32-pixel buttons across the 162x30 strip, then the full-width end-turn button below it. |
+| `0x004DC620` | `g_minimapModeButtons` | verified | Four hotspot records at (610, 32), a vertical column inside the sidebar's top plate. |
+| `0x005B2FA0` | `g_fontHeading` | verified | Fntl2_22.pl8 - every panel heading. |
+| `0x005AF8F0` | `g_fontBody` | verified | Fntl2_14.pl8 - every panel body line. |
+| `0x005C9A90` | `g_fontSmall` | verified | Fntl2_9.pl8 - the county strip, and nothing else. |
+| `0x005AEBA0` | `g_font10` | verified | Font_10.pl8. |
+| `0x005CBFB0` | `g_font8` | verified | Fnt_8.pl8 - the battle overlay. |
+| `0x0058FEC0` | `g_mouseSheet` | verified | mouse.pl8 - the pointer. |
+| `0x00591580` | `g_engText` | verified | l2.eng, whole. Eng_GroupBase indexes the group table from here. |
+| `0x0058FDA0` | `g_numberBuffer` | verified | 100-byte scratch that Ui_NumberToBuffer formats into and Ui_DrawNumber draws from. |
+| `0x00553D54` | `g_playerNames` | verified | Six 0x2C-byte player names. g_saveBlocks entry 2 is {0x00553D50, 264}, which is 6 x 0x2C. |
+| `0x0057C908` | `g_villageTopY` | verified | Where the village scene starts: 64 normally, 132 with Advanced Farming, which is the strip the fertility and weather lines occupy. |
+| `0x004D71F0` | `g_glyphWidths` | inferred | One byte per printable character; zero means a four-pixel blank, which is what makes '@' an invisible sign column. |
 
 <!-- END symbols.json: ui -->
 
