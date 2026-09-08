@@ -251,9 +251,34 @@ pub struct County {
     pub grain_available: i32,
     pub herd_available: i32,
     /// `+0x198`, `+0x19C` — troops standing in the county; added to the food
-    /// requirement when *Armies Eat* is on.
+    /// requirement when *Armies Eat* is on. Rebuilt from the unit array by
+    /// [`crate::unit::Units::recount_county_troops`].
     pub friendly_troops: i32,
     pub enemy_troops: i32,
+    /// `+0x1AD` — **the mercenary band on offer here**, 1..=12, or 0 for none.
+    ///
+    /// A one-slot cache rather than a list: `Mercenary_AdvanceAll` rewrites it
+    /// every season with the lowest-numbered unhired band standing in the
+    /// county, so if two land together the higher-numbered one is invisible.
+    /// See [`crate::mercenary`].
+    pub mercenary_offer: u8,
+    /// `+0x1BC` — the unit slot of the army **garrisoning this county's
+    /// castle**, or 0.
+    ///
+    /// Half of the pair that decides whether a county can simply be walked
+    /// into: `Army_AttackCounty`'s guard passes when the county has no castle,
+    /// **or** no garrison, or a garrison belonging to the attacker. See
+    /// [`crate::conquest::can_be_entered`].
+    pub garrison_unit: usize,
+    /// `+0x2F4` — the levy surcharge, added to the happiness cost of every
+    /// subsequent levy raised in this county.
+    ///
+    /// [`crate::levy::create_army`] writes [`crate::tables::LEVY_SURCHARGE`] and
+    /// [`crate::happiness::decay_levy_surcharge`] takes 5 off it a season, so
+    /// raising a second army out of the same county inside three seasons costs
+    /// noticeably more than the first. `docs/armies.md` §6.1 records the write
+    /// and says the decay *"was not traced"*; it is traced now.
+    pub levy_surcharge: i32,
     /// `+0x1C0` — 0 none, 1 palisade, 2 motte and bailey, 3 Norman keep,
     /// 4 stone castle, 5 royal castle.
     pub castle_type: u8,
@@ -396,6 +421,9 @@ impl County {
             herd_available: 0,
             friendly_troops: 0,
             enemy_troops: 0,
+            mercenary_offer: 0,
+            garrison_unit: 0,
+            levy_surcharge: 0,
             castle_type: 0,
             castle_building: 0,
             castle_degraded: false,

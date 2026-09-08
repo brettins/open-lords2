@@ -76,7 +76,11 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   ruleset fingerprint grew the tax-happiness table, the herd table and the
 ///   cattle-farming job slot. Both halves of the file moved, so a version 1
 ///   save is refused rather than misread.
-pub const VERSION: u32 = 2;
+/// * 3 — the **campaign layer** (`docs/armies.md`): the 151-slot unit array,
+///   the map's three tile planes, the twelve mercenary bands and the realms'
+///   army-name counters, plus three new county fields. A version 2 save has no
+///   armies in it and no way to say so.
+pub const VERSION: u32 = 3;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -101,6 +105,12 @@ pub enum LoadError {
     CorruptHistory { head: usize, tail: usize, len: usize },
     /// A county count larger than the array.
     CountyCount(u32),
+    /// The unit array is not [`crate::unit::MAX_UNITS`] slots.
+    UnitCount(u32),
+    /// The map's planes are not [`crate::map::MAP_TILES`] bytes each.
+    MapSize(u32),
+    /// More mercenary bands in play than there are bands.
+    BandCount(u32),
 }
 
 impl core::fmt::Display for LoadError {
@@ -128,6 +138,17 @@ impl core::fmt::Display for LoadError {
                 write!(f, "history ring head {head}, tail {tail}, len {len}")
             }
             LoadError::CountyCount(n) => write!(f, "{n} counties, and the array holds 16"),
+            LoadError::UnitCount(n) => {
+                write!(f, "{n} unit slots, and the array holds {}", crate::unit::MAX_UNITS)
+            }
+            LoadError::MapSize(n) => {
+                write!(f, "a map plane of {n} tiles, and the map is {}", crate::map::MAP_TILES)
+            }
+            LoadError::BandCount(n) => write!(
+                f,
+                "{n} mercenary bands in play, and there are {}",
+                crate::mercenary::MERCENARY_BANDS
+            ),
         }
     }
 }
@@ -267,7 +288,106 @@ impl Encode for Kingdom {
 
         out.section("history");
         self.history.encode(out);
+
+        out.section("campaign");
+        encode_campaign(&self.campaign, out);
     }
+}
+
+/// The campaign layer — `docs/armies.md`.
+///
+/// Written last so that a reader of a hex dump meets the economy in the order
+/// `docs/kingdom.md` describes it and the war after. Everything is
+/// fixed-width and index-ordered like the rest of the file: the unit array is
+/// 151 slots with a presence byte apiece rather than a count and a list,
+/// because "slot 7 is empty" is state a lockstep peer has to agree about and a
+/// compacted list would renumber every unit above a casualty.
+fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
+    out.section("units");
+    out.u32(crate::unit::MAX_UNITS as u32);
+    for slot in 0..crate::unit::MAX_UNITS {
+        match campaign.units.get(slot) {
+            None => out.bool(false),
+            Some(u) => {
+                out.bool(true);
+                u.encode(out);
+            }
+        }
+    }
+
+    out.section("map");
+    out.u32(crate::map::MAP_TILES as u32);
+    out.raw(&campaign.map.terrain);
+    out.raw(&campaign.map.flags);
+    out.raw(&campaign.map.county);
+
+    out.section("mercenaries");
+    out.u32(campaign.mercenaries.in_play() as u32);
+    for band in 1..crate::mercenary::BAND_SLOTS {
+        let b = campaign.mercenaries.band_raw(band);
+        out.u16(b.hired_by);
+        out.u8(b.offered_in);
+        out.u8(b.next_county);
+        out.i8(b.countdown);
+        out.i8(b.reload);
+    }
+
+    out.section("army_names");
+    for realm in 0..MAX_REALMS {
+        out.raw(campaign.names.counters(realm as u8));
+    }
+}
+
+fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, LoadError> {
+    let mut campaign = crate::kingdom::Campaign::new();
+
+    let slots = input.u32()? as usize;
+    if slots != crate::unit::MAX_UNITS {
+        return Err(LoadError::UnitCount(slots as u32));
+    }
+    for slot in 0..crate::unit::MAX_UNITS {
+        if input.bool()? {
+            campaign.units.put(slot, crate::unit::Unit::decode(input)?);
+        }
+    }
+
+    let tiles = input.u32()? as usize;
+    if tiles != crate::map::MAP_TILES {
+        return Err(LoadError::MapSize(tiles as u32));
+    }
+    for plane in [0usize, 1, 2] {
+        let bytes = input.raw(crate::map::MAP_TILES)?;
+        let target = match plane {
+            0 => &mut campaign.map.terrain,
+            1 => &mut campaign.map.flags,
+            _ => &mut campaign.map.county,
+        };
+        target.copy_from_slice(bytes);
+    }
+
+    let in_play = input.u32()? as usize;
+    if in_play > crate::mercenary::MERCENARY_BANDS {
+        return Err(LoadError::BandCount(in_play as u32));
+    }
+    campaign.mercenaries.set_in_play(in_play);
+    for band in 1..crate::mercenary::BAND_SLOTS {
+        let b = crate::mercenary::Band {
+            hired_by: input.u16()?,
+            offered_in: input.u8()?,
+            next_county: input.u8()?,
+            countdown: input.i8()?,
+            reload: input.i8()?,
+        };
+        campaign.mercenaries.set_band_raw(band, b);
+    }
+
+    for realm in 0..MAX_REALMS {
+        let bytes = input.raw(crate::unit::ARMY_NAME_SLOTS)?;
+        let mut row = [0u8; crate::unit::ARMY_NAME_SLOTS];
+        row.copy_from_slice(bytes);
+        campaign.names.set_counters(realm as u8, row);
+    }
+    Ok(campaign)
 }
 
 fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, LoadError> {
@@ -322,7 +442,131 @@ fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, Loa
     }
 
     k.history = decode_history(input)?;
+    k.campaign = decode_campaign(input)?;
     Ok(k)
+}
+
+impl Encode for crate::unit::Unit {
+    fn encode(&self, out: &mut Canonical) {
+        out.u8(self.owner);
+        out.bool(self.owner_is_human);
+        out.u8(self.shield);
+        out.bool(self.player_driven);
+        out.u8(self.kind.byte());
+        out.u8(self.facing);
+        out.u8(self.x);
+        out.u8(self.y);
+        out.u8(self.county);
+        out.u8(self.home_county);
+        match self.dest {
+            None => out.bool(false),
+            Some((x, y)) => {
+                out.bool(true);
+                out.u8(x);
+                out.u8(y);
+            }
+        }
+        out.u32(self.path.len() as u32);
+        for (x, y) in &self.path {
+            out.u8(*x);
+            out.u8(*y);
+        }
+        out.bool(self.moving);
+        out.bool(self.on_road);
+        out.u8(self.name_index);
+        out.bool(self.needs_destination);
+        out.u8(self.dest_county);
+        out.i32(self.moves_used);
+        out.i32(self.move_allowance);
+        out.i32(self.starvation);
+        out.i32(self.wages);
+        out.i32(self.year_formed);
+        out.i32(self.morale);
+        out.i32(self.men);
+        for count in &self.troops {
+            out.i32(*count);
+        }
+        match self.mercenaries {
+            None => out.bool(false),
+            Some(m) => {
+                out.bool(true);
+                out.u8(m.band);
+                out.u8(m.troop as u8);
+                out.u8(m.men);
+            }
+        }
+        out.u8(self.garrison_county);
+        out.u8(self.besieging_county);
+        out.u8(self.besieged_by);
+    }
+}
+
+impl Decode for crate::unit::Unit {
+    fn decode(input: &mut Reader<'_>) -> Result<crate::unit::Unit, CodecError> {
+        let owner = input.u8()?;
+        let owner_is_human = input.bool()?;
+        let shield = input.u8()?;
+        let player_driven = input.bool()?;
+        let tag = input.u8()?;
+        let kind = crate::unit::UnitKind::from_byte(tag).ok_or(CodecError::BadTag {
+            tag,
+            expected: "unit type 1..=4",
+            at: input.position() - 1,
+        })?;
+        let mut u = crate::unit::Unit::new(kind, owner, 0, 0);
+        u.owner_is_human = owner_is_human;
+        u.shield = shield;
+        u.player_driven = player_driven;
+        u.facing = input.u8()?;
+        u.x = input.u8()?;
+        u.y = input.u8()?;
+        u.county = input.u8()?;
+        u.home_county = input.u8()?;
+        u.dest = if input.bool()? { Some((input.u8()?, input.u8()?)) } else { None };
+        let steps = input.u32()? as usize;
+        if steps > crate::unit::MAX_PATH {
+            return Err(CodecError::BadTag {
+                tag: steps.min(255) as u8,
+                expected: "a path of at most 150 steps",
+                at: input.position(),
+            });
+        }
+        u.path = Vec::with_capacity(steps);
+        for _ in 0..steps {
+            u.path.push((input.u8()?, input.u8()?));
+        }
+        u.moving = input.bool()?;
+        u.on_road = input.bool()?;
+        u.name_index = input.u8()?;
+        u.needs_destination = input.bool()?;
+        u.dest_county = input.u8()?;
+        u.moves_used = input.i32()?;
+        u.move_allowance = input.i32()?;
+        u.starvation = input.i32()?;
+        u.wages = input.i32()?;
+        u.year_formed = input.i32()?;
+        u.morale = input.i32()?;
+        u.men = input.i32()?;
+        for slot in 0..crate::unit::TROOP_TYPES {
+            u.troops[slot] = input.i32()?;
+        }
+        u.mercenaries = if input.bool()? {
+            let band = input.u8()?;
+            let tag = input.u8()?;
+            let troop = crate::unit::TroopType::from_index(tag as usize).ok_or(CodecError::BadTag {
+                tag,
+                expected: "troop type 0..=6",
+                at: input.position() - 1,
+            })?;
+            Some(crate::unit::Mercenaries { band, troop, men: input.u8()? })
+        } else {
+            None
+        };
+        u.garrison_county = input.u8()?;
+        u.besieging_county = input.u8()?;
+        u.besieged_by = input.u8()?;
+        Ok(u)
+    }
 }
 
 impl Encode for County {
@@ -388,6 +632,9 @@ impl Encode for County {
         out.i32(self.herd_available);
         out.i32(self.friendly_troops);
         out.i32(self.enemy_troops);
+        out.u8(self.mercenary_offer);
+        out.u32(self.garrison_unit as u32);
+        out.i32(self.levy_surcharge);
         out.u8(self.castle_type);
         out.u8(self.castle_building);
         out.bool(self.castle_degraded);
@@ -490,6 +737,9 @@ impl Decode for County {
         c.herd_available = input.i32()?;
         c.friendly_troops = input.i32()?;
         c.enemy_troops = input.i32()?;
+        c.mercenary_offer = input.u8()?;
+        c.garrison_unit = input.u32()? as usize;
+        c.levy_surcharge = input.i32()?;
         c.castle_type = input.u8()?;
         c.castle_building = input.u8()?;
         c.castle_degraded = input.bool()?;

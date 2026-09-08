@@ -17,6 +17,16 @@ pub const MSG_UNREST_WARNING: u16 = 0x92;
 /// 1, 2, 3 and 4.
 pub const MSG_UNREST_LEVEL: [u16; 4] = [0x96, 0x97, 0x98, 0x99];
 
+/// The three messages `Army_Starve` (`0x004ACE5E`) raises, by starvation stage.
+///
+/// `0x116` = `L2.eng` group 278 *"Unfed troops."*, `0x117` = 279 *"Starving
+/// troops."*, `0x118` = 280 *"Army perishes."* — and the group number equalling
+/// the message id is the rule three subsystems have already established.
+/// `docs/armies.md` §3.3b.
+pub const MSG_ARMY_UNFED: u16 = 0x116;
+pub const MSG_ARMY_STARVING: u16 = 0x117;
+pub const MSG_ARMY_PERISHES: u16 = 0x118;
+
 /// Something the season did that a player would be told about.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Message {
@@ -34,6 +44,10 @@ pub enum Message {
     Event { county: u8, kind: crate::event::EventKind },
     /// A castle finished building.
     CastleBuilt { county: u8, castle_type: u8 },
+    /// An army could not be fed. `stage` is the starvation counter *after* the
+    /// step, 1..=5, and it selects the message: 1 warns, 2..=4 desert, 5 is the
+    /// army perishing. `docs/armies.md` §3.3b. See [`crate::unit::starve`].
+    ArmyStarving { realm: u8, unit: usize, county: u8, stage: i32 },
 }
 
 impl Message {
@@ -48,6 +62,11 @@ impl Message {
             // up: see `crate::event`.
             Message::Event { kind, .. } => Some(kind.id()),
             Message::Bankrupt { action, .. } => action.message_id(),
+            Message::ArmyStarving { stage, .. } => Some(match stage {
+                1 => MSG_ARMY_UNFED,
+                2..=4 => MSG_ARMY_STARVING,
+                _ => MSG_ARMY_PERISHES,
+            }),
             _ => None,
         }
     }
@@ -87,7 +106,8 @@ impl SeasonReport {
             | Message::UnrestRising { county: c, .. }
             | Message::Revolt { county: c }
             | Message::Event { county: c, .. }
-            | Message::CastleBuilt { county: c, .. } => *c == county,
+            | Message::CastleBuilt { county: c, .. }
+            | Message::ArmyStarving { county: c, .. } => *c == county,
             Message::Bankrupt { .. } => false,
         })
     }
