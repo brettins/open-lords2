@@ -306,6 +306,38 @@ pub struct County {
     /// away. [`LABOUR_UNSET`] means the estimate has never run and the
     /// allocator reads it as 0.
     pub labour_useful: [i32; JOB_COUNT],
+    /// `+0x130 + job*0x04` — **eight percentages, one per job**, and the
+    /// allocator's only instruction about where people should go.
+    ///
+    /// **`[V]`.** `FUN_00450000` recomputes them from the worker counts and
+    /// indexes them as `(&DAT_0053FAE0)[i * 4]` for `i` in 0..3 and again for
+    /// `i` in 3..8, which is the array written out. They are **two groups that
+    /// each sum to 100**, not one that sums to 100:
+    ///
+    /// * jobs 0, 1, 2 — grain, cattle, reclamation — share the *farm*
+    ///   workforce;
+    /// * jobs 3 … 7 — castle, iron, stone, wood, blacksmith — share the
+    ///   *industry* workforce;
+    /// * job 8, *Idle townsfolk*, has no share and takes whatever is left.
+    ///
+    /// Both defaults close: `FUN_004514F8` sets 33 / 50 / 17 and 0 / 0 / 0 /
+    /// 100 / 0, and `FUN_0045158B` sets 33 / 50 / 17 and 40 / 15 / 15 / 15 / 15.
+    /// Each half is exactly 100 in both.
+    ///
+    /// `docs/screens-county.md` §9 listed `+0x130`, `+0x134` and `+0x138` as
+    /// "seen, not understood" and guessed they belonged to the field-painting
+    /// brush. They are the first three of these eight.
+    pub labour_share: [i32; JOB_COUNT - 1],
+    /// `+0x08` — the percentage of the county's people the allocator gives to
+    /// **industry** rather than to the farm.
+    ///
+    /// **`[D]`.** `FUN_0044F6E7` opens `industry = Pct(population, +0x08);
+    /// farm = population - industry` and fills the two halves from their own
+    /// percentages. `FUN_0044FF4A` writes it back from what was actually
+    /// assigned, counting **half** the idle as industry:
+    /// `PctOf(pop - grain - cattle - reclamation - idle + idle/2, pop)`.
+    /// A fresh county starts on 25 (`FUN_00451150`).
+    pub industry_share: i32,
     /// `+0x90 + i*2` — reclamation progress of each field, 0..=800.
     pub field_progress: [u16; MAX_FIELDS],
     /// `+0x15D` — 0..=5, the level `Ration_Apply` actually managed to feed.
@@ -462,6 +494,10 @@ impl County {
             // nine records, and only then runs the estimates.
             labour_wanted: [0; JOB_COUNT],
             labour_useful: [0; JOB_COUNT],
+            // `FUN_004514F8`'s defaults: 33 / 50 / 17 across the farm and all
+            // of the industry share on wood, each half summing to 100.
+            labour_share: [33, 50, 17, 0, 0, 0, 100, 0],
+            industry_share: 25,
             field_progress: [0; MAX_FIELDS],
             // Normal rations, all of it from livestock: the values every county
             // in the shipped lastturn.sav carries (docs/kingdom.md §4.3).

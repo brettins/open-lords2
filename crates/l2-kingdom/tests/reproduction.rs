@@ -802,6 +802,68 @@ fn the_reproduction_is_bit_identical_run_to_run() {
     assert_eq!(s, again);
 }
 
+/// **The labour allocator, reproduced.**
+///
+/// `FUN_0044F6E7` is 2,147 bytes and it is the writer of all nine job records:
+/// it splits the population into a farm half and an industry half by county
+/// `+0x08`, gives each job `Pct(half, share[job])` people or as many as its
+/// useful ceiling allows, walks the leftovers round the jobs that still have
+/// room in an uneven rota, and drops whatever nobody could take into *Idle
+/// townsfolk*.
+///
+/// The shipped save is the state immediately after that pass ran, so its own
+/// worker counts are the answer. Rebuilding them from the population, the
+/// industry share, the eight percentages and the eight ceilings —
+/// **and getting all fourteen counties exactly right, including the 133 idle
+/// in every unowned one and the nought idle in every owned one** — is not
+/// something a wrong rota or a wrong quota order could do.
+#[test]
+fn the_labour_allocator_rebuilds_every_countys_own_worker_counts() {
+    let s = shipped!();
+    let k = s.kingdom(SEED);
+    let mut checked = 0;
+    for id in s.county_ids() {
+        let mut c = k.counties[id].clone();
+        let stored = c.labour;
+        let idle = l2_kingdom::labour::allocate(&mut c);
+        assert_eq!(
+            c.labour, stored,
+            "county {id}: pop {} at {}% industry, shares {:?}, ceilings {:?}",
+            c.population,
+            c.industry_share,
+            c.labour_share,
+            l2_kingdom::labour::ceilings(&c)
+        );
+        assert_eq!(c.labour.iter().sum::<i32>(), c.population, "county {id}");
+        // An owned county's wood ceiling is unbounded and takes everyone left;
+        // an unowned county's is zero and they stand idle. It is the same pass
+        // producing both.
+        assert_eq!(idle > 0, c.owner == 0, "county {id} owner {}", c.owner);
+        checked += 1;
+    }
+    assert_eq!(checked, 14);
+}
+
+/// And the two functions that write the allocator's own inputs back from what
+/// it did: each half of the eight percentages comes out summing to exactly 100,
+/// which is the invariant both of the binary's default setters satisfy.
+#[test]
+fn recomputing_the_shares_from_the_shipped_counties_keeps_both_halves_at_a_hundred() {
+    let s = shipped!();
+    let k = s.kingdom(SEED);
+    for id in s.county_ids() {
+        let mut c = k.counties[id].clone();
+        l2_kingdom::labour::recompute_shares(&mut c);
+        assert_eq!(c.labour_share[0..3].iter().sum::<i32>(), 100, "county {id} farm");
+        assert_eq!(c.labour_share[3..8].iter().sum::<i32>(), 100, "county {id} industry");
+        l2_kingdom::labour::recompute_industry_share(&mut c);
+        assert!((0..=100).contains(&c.industry_share), "county {id}: {}", c.industry_share);
+        // Reallocating on the recomputed inputs still spends everybody.
+        l2_kingdom::labour::allocate(&mut c);
+        assert_eq!(c.labour.iter().sum::<i32>(), c.population, "county {id}");
+    }
+}
+
 /// Ten more seasons past the reproduction, to show the model does not merely
 /// land on turn 1 and then diverge into nonsense: every county stays inside
 /// every documented bound.
