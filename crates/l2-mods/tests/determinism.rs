@@ -317,3 +317,68 @@ fn no_hash_ordered_container_appears_anywhere_in_this_crate() {
         offenders.join("\n")
     );
 }
+
+/// The handshake digest is stricter than the rules digest, and the difference
+/// is deliberate. `docs/netcode.md` D-12 says peers must agree on the mod set
+/// and load order, and `l2_net::Hello::ruleset_hash` documents exactly that —
+/// so `session_digest` is what fills it, not `digest`.
+#[test]
+fn the_handshake_digest_sees_a_mod_list_the_rules_digest_cannot() {
+    let base = TempDir::new("det-sess-install");
+    let mods = TempDir::new("det-sess-mods");
+    install(&base);
+    // Two mods that set no rules at all: only a file each. Nothing they do
+    // reaches the merged rule tree.
+    for id in ["aaa", "zzz"] {
+        mods.write(&format!("{id}/mod.toml"), &format!("[mod]\nid = \"{id}\"\n"));
+        mods.write(&format!("{id}/Base1a.pl8"), &format!("a sprite from {id}"));
+    }
+
+    let load = |enabled: &[&str]| {
+        Platform::builder()
+            .base(base.path())
+            .mods_dir(mods.path())
+            .enable(enabled.to_vec())
+            .build()
+            .unwrap()
+    };
+    let none = load(&[]);
+    let one = load(&["aaa"]);
+    let both = load(&["aaa", "zzz"]);
+    let reversed = load(&["zzz", "aaa"]);
+
+    // The rules are identical in all four: no mod set a rule.
+    assert_eq!(none.digest(), one.digest());
+    assert_eq!(none.digest(), both.digest());
+    assert_eq!(none.digest(), reversed.digest());
+
+    // The handshake still refuses every pairing, because an asset a mod
+    // replaces can be simulation input — a .skr battlefield is terrain — and
+    // the rule tree would never show it.
+    assert_ne!(none.session_digest(), one.session_digest());
+    assert_ne!(one.session_digest(), both.session_digest());
+    assert_ne!(both.session_digest(), reversed.session_digest(), "order counts too");
+
+    // And it is still reproducible, which is the whole point of it existing.
+    assert_eq!(both.session_digest(), load(&["aaa", "zzz"]).session_digest());
+}
+
+/// The handshake digest must not move when nothing about the game moved.
+#[test]
+fn the_handshake_digest_still_ignores_where_the_files_live() {
+    let one_base = TempDir::new("det-sess-p1");
+    let one_mods = TempDir::new("det-sess-p1m");
+    let two_base = TempDir::new("det-sess-p2");
+    let two_mods = TempDir::new("det-sess-p2m");
+    for (b, m) in [(&one_base, &one_mods), (&two_base, &two_mods)] {
+        install(b);
+        write_mod(m, "aaa", "[battle.three_bridges.attacker]\narchers = 300\n");
+    }
+    let load = |b: &TempDir, m: &TempDir| {
+        Platform::builder().base(b.path()).mods_dir(m.path()).enable(["aaa"]).build().unwrap()
+    };
+    assert_eq!(
+        load(&one_base, &one_mods).session_digest(),
+        load(&two_base, &two_mods).session_digest()
+    );
+}

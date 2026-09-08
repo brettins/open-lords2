@@ -60,7 +60,7 @@ pub mod value;
 pub mod vfs;
 
 pub use core::CORE_LAYER;
-pub use digest::{digest, digest_hex};
+pub use digest::{digest, digest_hex, session_digest};
 pub use effect::{AssetClaim, EffectReport, Fate, LayerEffect, LayerKind, RuleClaim};
 pub use merge::{Deletion, MergeLog, Override};
 pub use modmeta::{
@@ -127,10 +127,22 @@ impl Platform {
     }
 
     /// A checksum over the merged rules, independent of where anything is
-    /// installed. Two peers whose digests differ are not playing the same
-    /// game; see [`digest`].
+    /// installed and of how the load order arrived at them.
+    ///
+    /// The right answer to "do our rules agree". For the handshake, which asks
+    /// a stricter question, use [`Platform::session_digest`].
     pub fn digest(&self) -> u64 {
         digest::digest(&self.rules)
+    }
+
+    /// The value for `l2_net::Hello::ruleset_hash`: the merged rules plus the
+    /// mod ids in load order.
+    ///
+    /// Stricter than [`Platform::digest`] on purpose — see
+    /// [`digest::session_digest`] for what it catches that the rules alone do
+    /// not, and for the one thing neither of them catches yet.
+    pub fn session_digest(&self) -> u64 {
+        digest::session_digest(&self.rules, &self.load_order)
     }
 
     /// What each layer contributed and how much of it survived — the "why is

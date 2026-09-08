@@ -82,6 +82,50 @@ pub fn digest_hex(rules: &Ruleset) -> String {
     format!("{:016x}", digest(rules))
 }
 
+/// The digest that goes in `l2_net::Hello::ruleset_hash`: the merged rules
+/// **plus the mod ids in load order**.
+///
+/// # Why this is stricter than [`digest`], and why both exist
+///
+/// [`digest`] answers "do our rules agree", which is the right question for a
+/// diagnostic and the wrong one for a handshake. `docs/netcode.md` D-12 says
+/// two peers must agree on *the mod set and load order*, and `l2_net::Hello`
+/// documents `ruleset_hash` as covering the mod that set each value. The
+/// difference matters because the merged rule tree is not everything a mod can
+/// change:
+///
+/// * **A mod can replace an asset that is simulation input.** A `.skr`
+///   battlefield is terrain, and terrain decides pathfinding. Nothing in the
+///   rule tree would move, and the two peers would desync on the first unit to
+///   walk. Hashing 1,196 files at load would cover it properly and is not done
+///   here; hashing the mod list is the cheap proxy that at least catches "you
+///   have a mod I do not". **This is a real gap and it is not closed** —
+///   `docs/modding.md` §12 says so in the same words.
+/// * **A mod can set rules a future build will read.** Values the current
+///   engine ignores are still a difference between the two installs, and one
+///   of them may be running the build that reads them.
+///
+/// So the handshake takes the strict answer and a false refusal — two peers
+/// with harmlessly different mod lists being told to fix it — is the cheap
+/// failure. The expensive one is letting them in and desyncing an hour later
+/// with a symptom that points nowhere.
+///
+/// Ids and order only. Versions are deliberately out: a mod that changed its
+/// version without changing a rule is the same simulation, and the rules
+/// digest already catches one that changed a rule without changing its
+/// version, which is the dangerous direction.
+pub fn session_digest(rules: &Ruleset, load_order: &[crate::ModMeta]) -> u64 {
+    let mut c = Canonical::hashing();
+    c.section("rules");
+    encode_table(&mut c, rules.root());
+    c.section("mods");
+    c.len32(load_order.len());
+    for m in load_order {
+        c.str(&m.id);
+    }
+    c.finish().hash
+}
+
 fn encode_table(c: &mut Canonical, table: &Table) {
     c.u8(TAG_TABLE);
     c.len32(table.len());

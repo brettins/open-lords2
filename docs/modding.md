@@ -763,23 +763,46 @@ Three things could break it, and there is a test for each in
   `aa-first.toml` no matter when either was written.
 - **Floats.** See §5.
 
-### The digest
+### The two digests
 
-`Platform::digest()` is a 64-bit checksum over the merged rules, produced by
-`l2_net::Canonical` — the same encoder and the same seed the per-tick desync
-checksum uses, so there is one byte stream rather than two that could disagree
-with each other.
+Both are 64-bit checksums produced by `l2_net::Canonical` — the same encoder
+and the same seed the per-tick desync checksum uses, so there is one byte
+stream rather than two that could disagree with each other.
 
-What it deliberately does **not** include:
+| | Covers | For |
+|---|---|---|
+| `Platform::digest()` | the merged rule values | "do our rules agree" — a diagnostic, and the per-mod identity in §7.4 |
+| `Platform::session_digest()` | the merged rule values **plus the mod ids in load order** | `l2_net::Hello::ruleset_hash` — the handshake |
 
-- **Origins.** A mod installed at a different path is the same *rules*, and a
-  digest that said otherwise would refuse sessions that would have run
-  perfectly. The digest answers "are we playing the same game", not "do we have
-  the same files".
-- **Load order, and which mod set what.** Two different orders that merge to
-  the same numbers are the same rules, and the simulation cannot tell them
-  apart, so neither does this. Reordering two mods that never touch each other
-  leaves the digest alone; reordering two that disagree changes it.
+Neither includes **origins**. A mod installed at a different path is the same
+*rules*, and a digest that said otherwise would refuse sessions that would have
+run perfectly.
+
+They differ on the **mod list**, and the reason is the interesting part.
+`Platform::digest()` hashes what survived, so two load orders that merge to the
+same numbers give the same answer — reordering two mods that never touch each
+other leaves it alone, and reordering two that disagree changes it. That is the
+right shape for "do our rules agree" and the wrong shape for a handshake,
+because **the merged rule tree is not everything a mod can change**:
+
+- A mod can replace an asset that is *simulation input*. A `.skr` battlefield
+  is terrain, and terrain decides pathfinding. Not one value in the rule tree
+  would move, and the two peers would desync on the first unit to walk.
+- A mod can set rules a *future* build will read. Values this engine ignores
+  are still a difference between the two installs, and one of the peers may be
+  running the build that reads them.
+
+So the handshake takes the strict answer. `docs/netcode.md` D-12 asks for
+exactly that — agreement on the mod set and load order — and a false refusal,
+two players with harmlessly different mod lists being told to fix it, is the
+cheap failure. The expensive one is letting them in and desyncing an hour later
+with a symptom that points nowhere.
+
+**The asset gap is real and is not closed.** Hashing all 1,196 files at load
+would cover it properly; hashing the mod list is the cheap proxy that catches
+"you have a mod I do not" and misses "we have the same mod list but your copy
+of one mod has a different `.skr` in it". Worth doing when mods are distributed
+rather than hand-copied — the same trigger as signing (§13).
 
 A known-answer test pins the byte stream over a document that will never
 change. If that value ever moves, every previously recorded digest is wrong and
