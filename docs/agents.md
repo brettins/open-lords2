@@ -89,6 +89,24 @@ git commit -F msg.txt -- tools/oracle/xref.js    # add makes it known, -- keeps 
 The `git add` is safe here because it names one path; it is the bare `git commit` afterwards
 that would sweep the index, and the `--` prevents exactly that.
 
+**And a second catch, sharper than the first: `--` is wrong for removals.**
+`git commit -- <paths>` commits the **working tree** at those paths and ignores the index.
+That is exactly what makes it safe for edits — and it silently *reverses* a deletion you
+staged with `git rm --cached`, because the file is still on disk. Untracking 1,891 build
+artefacts this way put all 1,891 straight back, and the commit looked like it had worked.
+
+So the honest rule is not "always use `--`". It is:
+
+| what you are doing | form |
+|---|---|
+| adding or editing files, agents live | `git commit -F msg -- <paths>` |
+| a **removal** (`git rm --cached`) | stage it, check `git status`, plain `git commit` |
+| a brand-new file | `git add <path>` first, then the `--` form |
+
+A removal cannot be isolated by `--`, so it has to be done when the index is otherwise
+empty — which means **when no other agent is mid-edit.** If you need to untrack something
+while agents are running, wait.
+
 ## Clean up processes you start
 
 **Any agent that launches a process must terminate it before reporting.** The game in
