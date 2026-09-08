@@ -18,11 +18,17 @@
 //! # Popups are popups
 //!
 //! `docs/screens-county.md` §1: *"Our five-screen model is not the game's. The
-//! game's management surface is a sidebar plus eight popups, not a set of
-//! full-screen pages."* The screens marked [`Shell::overlay`] are drawn over
-//! whatever was underneath rather than clearing to a page of their own, which
-//! is what [`crate::screen::Machine::draw`] walking back to the last
-//! non-overlay screen is for.
+//! management surface is a campaign map plus insets."* The screens marked
+//! [`Shell::overlay`] are drawn over whatever was underneath rather than
+//! clearing to a page of their own, which is what
+//! [`crate::screen::Machine::draw`] walking back to the last non-overlay screen
+//! is for.
+//!
+//! **The word in that quotation moved from "popups" to "insets" for a reason.**
+//! An inset need not look like a window: the village is a raw 363 × 320 blit at
+//! (64, 64) with no frame and no clear at all, and was modelled as a page until
+//! a player said he could see the map around it (`docs/decisions.md` C22). A
+//! shell that loads a `.pl8` is not thereby a page either — read its rectangle.
 //!
 //! # The three that are whole pictures
 //!

@@ -4,19 +4,39 @@
 //! # What the original does
 //!
 //! `Village_Draw` (`0x00412143`) is screen `0x02`, one of the thirty-nine cases
-//! in `Screen_Draw`. It is a **full screen**, not a window over the county
-//! panels: it has its own painter, loads `villani1`, `villani2`, `vill.pl8` and
-//! `villtops.pl8` into its own buffers, and neither draws the campaign sidebar
-//! nor calls `CountyStrip_Draw`. What floats is the **job popup** (screen
-//! `0x0F`), which is where the numbers are.
+//! in `Screen_Draw`, and it is **an inset over the campaign map** — a picture
+//! painted into a rectangle, with the map, the menu bar and the county sidebar
+//! left showing around it.
 //!
-//! The picture is `vill.pl8` frame 0, 363 x 320, drawn at `(0x40,
-//! g_villageTopY)`. Standing on it are **eight clusters** of up to twenty-five
-//! peasant icons each — seven jobs and *Idle townsfolk*, with iron and stone
-//! sharing cluster 0 because a county's mine and its quarry are painted at the
-//! same spot. One icon is `ceil(population / 25)` people, which is why a
-//! cluster has twenty-five slots: `+0xB8` and the grid are the same fact seen
-//! twice.
+//! This module said the opposite until a player opened the game, clicked the
+//! town square and reported *"it opened up a dialog… still being able to see
+//! the map around it and the rest of the screen"*. He was right and the
+//! inference was wrong; `docs/decisions.md` C22 records how. The code says so
+//! three ways:
+//!
+//! * **`Village_Draw` never clears.** Its first act on a reload is
+//!   `FUN_004050C0`, which is an animation counter and then `FUN_004CFB08` —
+//!   and `FUN_004CFB08` calls **`Map_DrawFrame`**. The village *repaints the
+//!   campaign map* and then blits itself on top of it.
+//! * **The picture is 363 x 320 at (64, `g_villageTopY`)**, and
+//!   `g_villageTopY` is 64, or 132 with *Advanced Farming*. Nothing paints
+//!   above it, beside it or below it.
+//! * **The band it manages is 480 x 320 at (0, `g_villageTopY`).**
+//!   `Village_Draw` ends by saving that rectangle and `FUN_004120E0` restores
+//!   it, which is how the peasants are redrawn during a drag without repainting
+//!   the map. The arithmetic is [`l2_view::village::BAND_W`]'s: the copy moves
+//!   `g_spriteWidth` **dwords** a row — 0x78 x 4 = 480 bytes — and then skips
+//!   `0xA0` = 160 more, and 480 + 160 is exactly the 640-byte screen stride.
+//!
+//! **The county sidebar starts at x = 478 and the menu bar ends at y = 23.**
+//! Neither is inside anything the village touches, which is precisely what the
+//! player saw.
+//!
+//! Standing on the picture are **eight clusters** of up to twenty-five peasant
+//! icons each — seven jobs and *Idle townsfolk*, with iron and stone sharing
+//! cluster 0 because a county's mine and its quarry are painted at the same
+//! spot. One icon is `ceil(population / 25)` people, which is why a cluster has
+//! twenty-five slots: `+0xB8` and the grid are the same fact seen twice.
 //!
 //! # The gesture, which is three screens in the original
 //!
@@ -56,12 +76,16 @@
 //!   `Fntl2_22.pl8` and we draw our own 5 x 7.
 //! * **The caption and the keyboard.** The original's village has no text on it
 //!   at all beyond the two *Advanced Farming* lines, and no keyboard route into
-//!   anything. A caption naming the county, and Tab/Enter as a keyboard
-//!   equivalent of the drag, are ours — a headless test cannot hold a mouse
-//!   button down across three events without them being worth having.
+//!   anything. A caption naming the county and Escape as a way out are ours —
+//!   and they are drawn **inside the picture**, because everything outside it
+//!   belongs to whatever is underneath.
 //! * **The animations.** `Village_Animate` steps six counters and redraws
 //!   overlays from `villani1`/`villani2` — smoke, water, a cart. None of it is
 //!   here; the scene is still.
+//! * **`Map_DrawFrame`.** The original repaints the map itself, from inside the
+//!   village's own painter. Here the map is the screen underneath on the stack
+//!   and [`crate::screen::Machine::draw`] paints it first, because a screen that
+//!   drew another screen would be the one thing `screens/mod.rs` forbids.
 
 use l2_kingdom::county::County;
 use l2_kingdom::tables::{JOB_IDLE_TOWNSFOLK, JOB_NAMES};
@@ -384,10 +408,20 @@ impl Screen for VillageScreen {
         Transition::Stay
     }
 
+    /// **The village is an inset.** `Village_Draw` never clears — it repaints
+    /// the campaign map and blits over it — so the map screen underneath is
+    /// painted first by [`crate::screen::Machine::draw`].
+    fn is_overlay(&self) -> bool {
+        true
+    }
+
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let top = VillageScreen::top_y(ctx);
-        canvas.clear(ink.background);
+        // **No clear.** Everything below paints inside the picture at
+        // (64, top) or inside the 480 x 320 band the original saves and
+        // restores around it; the menu bar, the county sidebar and the map
+        // either side belong to whatever is underneath.
 
         let art = ctx.assets.village.as_ref();
         let drew = art.is_some_and(|a| a.draw_scene(canvas, top));
@@ -415,24 +449,39 @@ impl Screen for VillageScreen {
             widget::button(canvas, ink, ok, "OK", false);
         }
 
+        // OURS. `Village_BandStart`'s hit region is read out of the binary and
+        // is wider than the picture — x 0 … 0x1FF, y top … top + 0x178 — but
+        // nothing in the decompiled corpus was found *drawing* the band, so the
+        // outline is ours and so is its colour. It can therefore reach outside
+        // the 480 x 320 region the original saves and restores; that costs
+        // nothing here because the map underneath is repainted every frame,
+        // where the original would have had to restore it.
         if let Some((x0, y0, x1, y1)) = self.band().filter(|_| self.phase == Phase::Band) {
             widget::frame(canvas, Rect::new(x0, y0, x1 - x0 + 1, y1 - y0 + 1), ink.highlight);
         }
 
-        // OURS: the original's village carries no text at all.
+        // OURS: the original's village carries no text at all. Ours goes
+        // **inside the picture**, in the two rows at the top and bottom of it,
+        // because everything outside belongs to the screen underneath.
+        let mid = vill::SCENE_X + vill::SCENE_W / 2;
         let caption = match self.phase {
             Phase::Carry => format!("CARRYING {} - CLICK A JOB", self.drag_count),
             _ => format!("VILLAGE OF COUNTY {}", self.county),
         };
-        text::draw_centred(canvas, 320, 24, &caption, ink.text);
-        if !self.status.is_empty() {
-            text::draw_centred(canvas, 320, 400, &self.status, ink.dim);
+        text::draw_centred(canvas, mid, top + 4, &caption, ink.text);
+        let mut line = top + vill::SCENE_H - 12;
+        let mut say = |canvas: &mut Canvas, s: &str, colour: u8| {
+            text::draw_centred(canvas, mid, line, s, colour);
+            line -= 12;
+        };
+        if ctx.assets.village.as_ref().is_none_or(|a| !a.has_grid()) {
+            say(canvas, "NO DROP GRID - VILL_GD8.PL8 MISSING", ink.bad);
         }
         if !ctx.game.is_players(self.county) {
-            text::draw_centred(canvas, 320, 412, "NOT YOURS", ink.bad);
+            say(canvas, "NOT YOURS", ink.bad);
         }
-        if ctx.assets.village.as_ref().is_none_or(|a| !a.has_grid()) {
-            text::draw_centred(canvas, 320, 424, "NO DROP GRID - VILL_GD8.PL8 MISSING", ink.bad);
+        if !self.status.is_empty() {
+            say(canvas, &self.status, ink.dim);
         }
     }
 }

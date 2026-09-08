@@ -31,8 +31,12 @@
 //!   16 counties × 8 bytes, and part of the save. `l2-kingdom` keeps no
 //!   history, so that rectangle is an empty recess that says so. It is a stub
 //!   and it is meant to look like one.
-//! * **What is behind the panels.** The original has the campaign map there.
-//!   The map screen is another file; this one paints a flat ground.
+//! *(**Fixed.** This list used to carry a fourth entry: "what is behind the
+//! panels — the original has the campaign map there; the map screen is another
+//! file, so this one paints a flat ground." It no longer does. The panels are
+//! [overlays](crate::screen::Screen::is_overlay) and the machine paints the map
+//! screen beneath them, which is the same correction the village needed —
+//! `docs/decisions.md` C22.)*
 //! * **The strings.** Ours, transcribed from the `L2.eng` group each row names.
 //!   Nothing here reads `L2.eng`; the workspace has no decoder for it.
 //! * **The bottom strip** reads BACK TO MAP. The original's is End Turn, which
@@ -398,10 +402,19 @@ impl Screen for CountyScreen {
         Transition::Stay
     }
 
+    /// **These are four windows over the campaign map**, which is what this
+    /// module's own header has said all along — *"each is a floating
+    /// `Ui_DrawBox` window over whatever was underneath"* — while `draw` went
+    /// on clearing the screen and painting a flat ground where the map should
+    /// be. The village's correction (`docs/decisions.md` C22) is the same
+    /// mistake one screen along, and this is the other half of it.
+    fn is_overlay(&self) -> bool {
+        true
+    }
+
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
-        // OURS: the original has the campaign map here.
-        canvas.clear(ink.background);
+        // **No clear.** The campaign map is the screen underneath on the stack.
 
         let mine = ctx.game.is_players(self.county);
         draw_right_column(canvas, ctx.assets, mine);

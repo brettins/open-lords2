@@ -108,16 +108,29 @@ pub trait Screen {
         None
     }
 
-    /// Whether this screen is a **popup over what was underneath** rather than
+    /// Whether this screen is an **inset over what was underneath** rather than
     /// a page of its own.
     ///
     /// `docs/screens-county.md` §1: *"The game's management surface is a
-    /// sidebar plus eight popups, not a set of full-screen pages."* An overlay
+    /// campaign map plus insets, not a set of full-screen pages."* An overlay
     /// does not clear the canvas, and [`Machine::draw`] paints the screens
     /// beneath it first, back to the last one that is not an overlay.
     ///
     /// It changes nothing about input: only the top screen is ever offered an
     /// event, which is what makes a popup modal.
+    ///
+    /// **There are two kinds of inset and both answer true**, which matters
+    /// because only one of them looks like a window:
+    ///
+    /// * a framed `Ui_DrawBox` window — the four county panels, the job popup;
+    /// * a raw blit with no frame and no clear — **the village**, which is
+    ///   `vill.pl8` frame 0, 363 × 320, dropped at (64, `g_villageTopY`) over a
+    ///   campaign map it repaints itself (`FUN_004050C0` → `FUN_004CFB08` →
+    ///   `Map_DrawFrame`).
+    ///
+    /// The village was modelled as a page until a player opened one and said it
+    /// was a dialogue with the map still showing round it. He was right;
+    /// `docs/decisions.md` C22 records why the decompiled reasoning was not.
     fn is_overlay(&self) -> bool {
         false
     }
@@ -218,10 +231,16 @@ impl Machine {
 
     /// Paint the stack from the last screen that is not an overlay upwards.
     ///
-    /// A popup is drawn over what was underneath, which is what the original's
-    /// management surface actually is; a page clears and replaces. The common
-    /// case — a stack whose top is a page — draws exactly one screen, as it
-    /// always did.
+    /// An overlay is drawn over what was underneath, which is what the
+    /// original's management surface actually is; a page clears and replaces.
+    /// The common case — a stack whose top is a page — draws exactly one
+    /// screen, as it always did.
+    ///
+    /// This is not a convenience. **The original has no screen clear anywhere**:
+    /// `Screen_Draw` picks a painter and the painter fills a rectangle, so
+    /// whatever is outside it is still there from the last frame.
+    /// `Village_Draw` repaints the campaign map itself and blits its picture on
+    /// top of it; `Panel_JobDetail` draws a window over the village.
     pub fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let from = self.base();
         for screen in &mut self.stack[from..] {

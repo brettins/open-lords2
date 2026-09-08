@@ -1,7 +1,26 @@
 //! The job popup — one of nine jobs, and the workers on it.
 //!
-//! `Panel_JobDetail` (`0x00412B33`), screen `0x0F`. It is a floating
-//! `Ui_DrawBox` over whatever opened it, and it can be opened from two places:
+//! `Panel_JobDetail` (`0x00412B33`), screen `0x0F`.
+//!
+//! # This game has two overlay mechanisms, and this is the one with a frame
+//!
+//! Worth stating outright, because the absence of the other one reads as
+//! evidence and is not. A screen here can float over what is beneath it in two
+//! quite different ways:
+//!
+//! * **A framed window** — `Ui_DrawBox` (`0x00409397`) with `Ui_DrawBoxBorder`
+//!   and `Ui_DrawBoxInterior`, a kit of 16-pixel cells out of `Panels.pl8`.
+//!   The four county panels and this one are drawn that way.
+//! * **A raw blit** — a single sprite straight into the framebuffer at a fixed
+//!   origin, with no frame and no clear. **The village is that**, at (64, 64).
+//!
+//! So *"`Village_Draw` contains no `Ui_DrawBox` call"* says nothing about
+//! whether the village is a page: it says only that the village is the other
+//! kind. Reading it as evidence for a full screen is exactly the mistake
+//! `docs/decisions.md` C22 records.
+//!
+//! This one is a floating `Ui_DrawBox` over whatever opened it, and it can be
+//! opened from two places:
 //! a click on a village cluster (`FUN_0043A123`) or a click on a job row in the
 //! campaign sidebar (`0x00438E3B`). It returns to whichever it was —
 //! `DAT_005533F4` remembers — which is why this is a screen the machine pushes
@@ -143,6 +162,13 @@ impl Screen for JobScreen {
 
     fn title(&self, _ctx: &Ctx) -> String {
         format!("{} - county {}", JOB_NAMES[self.job], self.county)
+    }
+
+    /// **A window over whatever opened it.** This is the game's *other* overlay
+    /// mechanism — a `Ui_DrawBox` frame kit — where the village is a raw blit;
+    /// see the module docs. Either way nothing clears the screen.
+    fn is_overlay(&self) -> bool {
+        true
     }
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {

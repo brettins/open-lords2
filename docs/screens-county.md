@@ -84,8 +84,8 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | id | painter | screen | evidence |
 |---:|---|---|---|
 | 0x00 | `Screen_DrawCampaign` `0x0040F5FD` | the campaign map | group 34 — season and year |
-| 0x02 | `Village_Draw` `0x00412143` | **the village** — the county's own picture, and where peasants are moved | groups 22 (fertility), 66 (weather); `villani1/villani2/vill/villtops.pl8` |
-| 0x04 | `0x0041B032` | — | not identified |
+| 0x02 | `Village_Draw` `0x00412143` | **the village** — the county's own picture, and where peasants are moved. **An inset over the campaign map**, 363 × 320 at (64, 64) — §3.1 | groups 22 (fertility), 66 (weather); `villani1/villani2/vill/villtops.pl8` |
+| 0x04 | `0x0041B032` | the map information panel: `UnitPanel_Draw` when a unit is picked, `FUN_0041BEFE` otherwise, and that branches on the same `g_pickedTileFlags` bits `Map_Click` does. **[D]**, and what it draws is not read | |
 | 0x05 | *(no painter)* | **the village's rubber band** — §6.4 | `Village_BandStart` / `Village_BandRelease` |
 | 0x06 | *(no painter)* | **the village carrying a selection** — §6.4 | `Village_Drop` |
 | 0x08 | `0x00415FB7` | the merchant | `merchant.256` + `merchant.pl8`, `mercgrid.pl8` |
@@ -115,9 +115,18 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x42 | `0x0041515C` | sound options | group 51 |
 | 0x43 | `0x004152EA` | display options | group 52 |
 
-**Our five-screen model is not the game's.** The game's management surface is a *sidebar
-plus eight popups*, not a set of full-screen pages, and the four county panels are windows
-floating over whatever was underneath.
+**Our five-screen model is not the game's, and the gap is wider than this section first
+said.** The management surface is a *campaign map plus insets*: the four county panels are
+windows floating over whatever was underneath — and so, it turns out, is the **village**,
+which this document called a full screen until a player looked at it (`docs/decisions.md`
+C22, and §3.1 below).
+
+**There is no screen clear anywhere in this engine.** `Screen_Draw` dispatches on
+`g_screenId` and the painter it picks fills a rectangle; everything outside that rectangle
+is still there from the last frame. So "screen" in the table above means *"a value of
+`g_screenId`"* and nothing at all about how much of the display it owns. To learn that, read
+the painter's **rectangle** — and read the site that *sets* `g_screenId`, which is usually
+one grep and is the only place the question is actually answered.
 
 **Every screen with a full-screen `.pl8` also reads a `.256` of its own.** The management
 popups run under the campaign palette; `0x08`, `0x0A`, `0x1B`, `0x1C`, `0x1F` and `0x2E`
@@ -318,6 +327,37 @@ Four details worth carrying into any reimplementation:
   *"Forester"*, *"Blacksmith"* and *"Peasant"* — nine jobs, in order. **[V]**
 * **Every string is drawn three times**, at y−1 and y+1 in two shadow colours and then at y
   in the real colour. Text on these panels is embossed, not flat.
+
+### 3.1 There are **two** ways to float something over the screen  **[V]**
+
+Written down because the absence of one of them actively points the wrong way, and did.
+
+| | how it is drawn | who uses it |
+|---|---|---|
+| **a framed window** | `Ui_DrawBox` (`0x00409397`) → `Ui_DrawBoxBorder` + `Ui_DrawBoxInterior`, a kit of 16-pixel cells out of `Panels.pl8` (§4.1) | the four county panels, the job popup (`Ui_DrawBox(0x30, 0x60, 0x19, rows)`), the merchant, the court |
+| **a raw blit** | one sprite straight into the framebuffer at a fixed origin — no border, no interior, no clear | **the village**: `vill.pl8` frame 0, 363 × 320, at (`0x40`, `g_villageTopY`) |
+
+Neither clears the screen, so both leave whatever was underneath showing around them. The
+trap is that only the first is *recognisable* as a window: reading *"`Village_Draw` contains
+no `Ui_DrawBox` call"* as evidence that the village is a full-screen page is exactly the
+false step `docs/decisions.md` C22 records. It means only that the village is the other kind.
+
+**How to tell what a painter actually covers**, when it is the second kind and there is no
+box call to read:
+
+1. the sprite blit's origin and the frame's own width and height — `FUN_0040A682(frame, x, y)`
+   takes them from the PL8's frame table;
+2. any **save/restore band** the painter manages. `Village_Draw` ends with
+   `g_drawX`, `g_drawY`, `g_spriteWidth`, `g_spriteHeight` and `FUN_004B3F0A(buffer, 0xA0)`,
+   whose twin `FUN_004B3EC0` restores it — that pair bounds everything the screen may dirty;
+3. and, decisively, the site that sets `g_screenId`.
+
+**`FUN_004B3F0A` copies dwords, which is the one number here that does not read at face
+value.** `g_spriteWidth` is `0x78` and the copy advances an `undefined4 *` that many times a
+row — 0x78 × 4 = **480 bytes**, one byte a pixel — then adds the argument `0xA0` = 160 to
+reach the next row. `480 + 160 = 640`, the screen stride, exactly. So the village's band is
+**480 × 320 at (0, `g_villageTopY`)** and not 120 wide; the picture inside it is narrower
+still, and the county sidebar (x ≥ 478) and the menu bar (y ≤ 23) are outside it.
 
 ---
 
@@ -669,8 +709,8 @@ reading.
 ### 6.4 Moving peasants — the village, not a panel
 
 **[D]** There is no "assign labour" control anywhere in the four panels. Peasants are moved
-on the **village screen** (0x02), which is a *full screen* — its own case in `Screen_Draw`,
-its own painter, its own files — and not a window over the county panels.
+on the **village screen** (0x02), which is **an inset over the campaign map** — see §6.4.4,
+where a paragraph that used to say the opposite is kept and corrected.
 
 1. `Village_DrawPeasants` (`0x00412666`) draws **eight clusters** of up to **25 icons**, at
    offsets from `g_jobClusterOrigins` (`0x004D85A8` — eight `{i32 x, i32 y}` pairs:
@@ -767,6 +807,65 @@ confirmed from the artwork rather than from the production code.
 
 Labour slot 0 is grain: `Grain_Sow(county, county[+0xC4], …)` passes slot 0 directly, so
 `JOB_GRAIN_FARMING = 0` is right.
+
+### 6.4.4 The village is an **inset**, and this document said otherwise  **[V]**
+
+Kept rather than quietly edited, because the wrong version was in three documents and a
+module header and it is worth knowing how it got there. `docs/decisions.md` C22 is the full
+entry; this is what the section now claims.
+
+> ~~It is a full screen, not a window over the county panels: it has its own painter, loads
+> its own artwork, and neither draws the campaign sidebar nor calls `CountyStrip_Draw`.~~
+
+Every clause of that is true and the conclusion does not follow, because **nothing in this
+engine clears the screen** (§3.1). Not redrawing the sidebar means the sidebar is still
+there. A player opened the game, clicked the town square and reported *"a dialog… still
+being able to see the map around it and the rest of the screen"*, and he was right.
+
+What the village actually covers:
+
+| | rectangle |
+|---|---|
+| the picture — `vill.pl8` frame 0 | 363 × 320 at (64, `g_villageTopY`) |
+| `villtops.pl8`, *Advanced Farming* only | 363 × 70 at (64, 64) |
+| the band it saves and restores | **480 × 320 at (0, `g_villageTopY`)** — §3.1 |
+| the tick | `Ui_OkButton(0x180, g_villageTopY + 0x118, 1)` |
+
+`g_villageTopY` is 64, or 132 with *Advanced Farming*. The menu bar (y 0 … 23) and the
+county sidebar (x 478 … 639) are outside all of it, and so is a strip of campaign map on
+either side of the picture even inside the band.
+
+**And the caller settles it without any of the above.** `g_screenId = 2` occurs **exactly
+once in the binary**, in `Map_Click` (`0x0043CE1A`): the town-square branch does
+`Map_CentreOnTile(county[+0x70])` and one `FUN_004050C0` — which is `Map_DrawFrame` —
+*before* setting the screen. **The game recentres the campaign map on the town in order to
+open the village over it.** `Village_Draw` then repaints the map itself, by the same route,
+every time it is called with `reload != 0`.
+
+### 6.4.5 Clicking the map is the whole of this navigation  **[V]**
+
+`Map_Click` (`0x0043CE1A`) is 1,263 bytes and dispatches every left click on the campaign
+map. `Map_ResolvePick` (`0x0046D5FE`) gives it four values — the picked county, that
+county's owner, `g_pickedTileFlags` (the attribute plane at `0x00522F91`) and
+`g_pickedTileGraphic` (`g_tiles[tile]`) — and then, in order:
+
+| what was clicked | what happens |
+|---|---|
+| a unit of type 1 (an army) that is yours | its orders, or siege preparation (screen `0x1D`) |
+| a unit of type 3 (a merchant) that is yours | the merchant (screen `0x08`), after centring on the town |
+| flags bit **0x80** — an industry building | `Industry_ToggleFromMap` **switches that industry on or off** |
+| flags bit **0x40** — the town square | **the village** (screen `0x02`) |
+| flags bit **0x20** | screen `0x04` |
+| any of those, in a county that is not yours | `Msg_Enqueue(…, 0x70, …)` |
+
+The industry branch is worth its own line, because it is the writer of a byte this project
+already depended on and could not place: `Industry_ToggleFromMap` (`0x0043D309`) XORs
+`+0x297 + industry*0x18`, **the enable flag `Labour_Allocate` gates each mining job on**
+(§14 of `docs/kingdom.md`). Which industry is decided by a ladder on the tile's *graphic*:
+0 … 3 iron, 4 … 6 stone, 7 … 9 weapons, 10 … 12 wood, 13 … 20 nothing at all, 21 and up
+castle building — and castle building toggles `+0x1B0` instead, the other gate in the same
+allocator. So **a county's industries are switched on and off by clicking their buildings on
+the campaign map**, and nothing on any county panel does it.
 
 ### 6.5 There is no sow control, and no harvest control
 

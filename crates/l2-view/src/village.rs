@@ -1,25 +1,36 @@
 //! The village — the county's own picture, and where peasants are moved.
 //!
 //! Screen `0x02`. `Village_Draw` (`0x00412143`) is one of the thirty-nine cases
-//! in `Screen_Draw`, so **the village is a full screen and not a floating
-//! window**: it has its own painter, loads its own artwork, and neither draws
-//! the campaign sidebar nor calls `CountyStrip_Draw`. The thing that floats
-//! over it is the *job popup* (screen `0x0F`), which is what makes the numbers
-//! visible.
+//! in `Screen_Draw`, and it is **an inset over the campaign map**, not a page:
+//! it repaints the map — `FUN_004050C0` → `FUN_004CFB08` → `Map_DrawFrame` —
+//! and then blits a 363 x 320 picture over it. Nothing clears the screen, so
+//! the menu bar, the county sidebar and a band of map either side of the
+//! picture stay visible, which is how a player describes it as a dialogue.
+//! Floating over *that* is the job popup (screen `0x0F`).
+//!
+//! This module said the opposite until a player opened the game and looked.
+//! `docs/decisions.md` C22 records the inference and why it was wrong.
 //!
 //! Everything in this module is layout and artwork. The county's state stays in
 //! `l2-kingdom` and the state machine in `l2-game`; what is here is the
 //! geometry, which is the part read out of `Lords2.exe` and its files.
 //!
-//! # The picture
+//! # The picture, and what stays visible around it
 //!
 //! ```text
-//!  x=64                                       427
-//!  y=64  ┌──────────────────────────────────────┐   vill.pl8 frame 0,
-//!        │                                      │   363 x 320, at
-//!        │   eight clusters of up to 25 icons   │   (0x40, g_villageTopY)
-//!        │                                      │
-//!  y=384 └──────────────────────────────────────┘
+//!  x=0                                                478       640
+//!  y=0   ┌──────────────────────────────────────────────┬─────────┐
+//!        │                  menu bar                    │         │  none of this
+//!  y=24  ├────────┬───────────────────────────┬─────────┤ county  │  is touched
+//!        │        │                           │         │ sidebar │
+//!  y=64  │  map   │      vill.pl8 frame 0     │   map   │         │
+//!        │        │   363 x 320 at (64, 64)   │         │         │
+//!        │        │  eight clusters of icons  │         │         │
+//!  y=384 ├────────┴───────────────────────────┴─────────┤         │
+//!        │                    map                       │         │
+//!  y=480 └──────────────────────────────────────────────┴─────────┘
+//!          |<------------- the 480 x 320 band ---------->|
+//!                     saved and restored at (0, 64)
 //! ```
 //!
 //! `g_villageTopY` is **64**, or **132** with *Advanced Farming* on, which is
@@ -128,6 +139,34 @@ pub const TOPS_Y: i32 = 64;
 /// `vill.pl8` frame 0, out of the shipped file's own frame table.
 pub const SCENE_W: i32 = 363;
 pub const SCENE_H: i32 = 320;
+
+/// The band `Village_Draw` saves and `FUN_004120E0` restores: **480 x 320 at
+/// (0, `g_villageTopY`)**, and the outer bound of everything the village may
+/// dirty.
+///
+/// **`[V]`, and the numbers do not read at face value.** `Village_Draw` sets
+/// `g_drawX = 0`, `g_drawY = g_villageTopY`, `g_spriteWidth = 0x78` and
+/// `g_spriteHeight = 0x140`, then calls `FUN_004B3F0A(buffer, 0xA0)`. That
+/// function copies **dwords**: it advances the framebuffer pointer
+/// `g_spriteWidth` times as an `undefined4 *` — 0x78 x 4 = **480 bytes**, one
+/// byte a pixel — and then adds `0xA0` = 160 more to reach the next row.
+/// `480 + 160 = 640`, which is the screen stride exactly, so the width is 480
+/// pixels and not 120. Its twin `FUN_004B3EC0` copies the other way.
+///
+/// So the village's reach stops at **x = 480** and at
+/// `g_villageTopY + 320`. The menu bar (y 0 … 23) and all but the first two
+/// columns of the county sidebar (x 478 … 639) are outside it — 480 is a dword
+/// boundary and 478 is not, which is the whole of why it overshoots by two.
+/// The picture itself is narrower still — 363 wide from x = 64 — so a strip of
+/// campaign map shows on both sides of it even inside the band.
+pub const BAND_X: i32 = 0;
+pub const BAND_W: i32 = 480;
+/// `g_spriteHeight`, which is a plain row count.
+pub const BAND_H_SAVED: i32 = 320;
+/// What `FUN_004B3F0A`'s second argument leaves for the rest of the row.
+pub const BAND_ROW_REMAINDER: i32 = 0xA0;
+/// The screen stride the two must add up to.
+pub const SCREEN_STRIDE: i32 = 640;
 
 /// `vill_gd8.pl8`: 45 columns and 40 rows of 8 x 8 pixels, covering
 /// x `0x40 … 0x1A8` and y `top … top + 0x140`.
