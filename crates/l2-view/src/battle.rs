@@ -30,10 +30,18 @@
 //!   original's animation handlers.
 //! * Deployment slots: the twelve `(dx, dy)` offsets the original expands each
 //!   marker into. **[V]**
-//! * **Orders are ours.** Every figure is told to advance on the enemy's
-//!   deployment marker. The original has twenty-five unit order handlers
-//!   (`docs/battle-ai.md`) and none of them is wired up here, so this is a
-//!   melee that happens, not the battle the original would fight.
+//! * **Orders are ours, and that is the remaining gap.** Every figure here is
+//!   told to advance on the enemy's deployment marker. The original's
+//!   seventeen order handlers now exist — `l2_sim::ai`, dispatched through the
+//!   three tables `docs/battle-ai.md` §1.1 reads out of the binary — but this
+//!   driver has no *units* to run them on: it deploys figures four to a marker
+//!   slot and has no `l2_sim::unit::Units` array. Until it does, this is a
+//!   melee that happens rather than the battle the original would fight.
+//!
+//!   What connecting it needs is a unit per raised troop group, `Units`
+//!   rebuilt from the figures each tick, and `ai::update_all_units` between
+//!   the rebuild and the mover — the shape `crates/l2-sim/tests/lockstep.rs`'s
+//!   `AiNetBattle` already runs, on positions rather than a `.skr` map.
 
 use l2_sim::movement::Progress;
 use l2_sim::pathfind::{self, Grid, Outcome, Pos};
