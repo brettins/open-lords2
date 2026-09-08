@@ -1621,3 +1621,40 @@ we have wrong, in a region the one scenario we test never visits.*
 Also confirmed from the same description, and already correct: sowing debits the store
 (`Grain_Sow`'s `store -= sown`), dairy feeds people at `g_dairyPerHead`, cattle are eaten,
 and a population icon stands for `popBand` people rather than one.
+
+### 13.1 Crowding is `herd / fieldsCattle`, in four bands  **[V]**
+
+The untraced `+0x25C` above is the crowding level, and a player naming four levels is what
+found it. `FUN_0044D913(county)`:
+
+```c
+density = (fieldsCattle == 0) ? 1000 : herd / fieldsCattle;   /* head per pasture field */
+if      (herd < 1)     /* no herd     */
+else if (density < 11) crowding = 10;
+else if (density < 21) crowding = 20;
+else if (density < 31) crowding = 30;
+else                   crowding = 40;
+if (fieldsCattle == 0) crowding = 40;      /* no pasture is maximum crowding */
+```
+
+and `L2.eng` group **77** names them in the game's own words — the panel draws slots 8…11
+from exactly these four values:
+
+| density (head per field) | `+0x25C` | `L2.eng` 77 | into `FUN_0044DA99` |
+|---|---:|---|---:|
+| 1 … 10 | 10 | *"Low herd crowding."* | 1 |
+| 11 … 20 | 20 | *"Average herd crowding."* | 3 |
+| 21 … 30 | 30 | *"Herd overcrowded."* | 5 |
+| 31 + , or no pasture | 40 | *"Massive overcrowding!!"* | 7 |
+
+The same function also selects a map graphic (`0x13`…`0x16`) from the same bands, so
+**crowding is visible on the field art**, which is how a player sees it without opening a
+panel. Group 77 also carries *"Calf births expected"*, *"Cow deaths expected"* and *"Change
+due to farming"*, which is the panel this whole calculation feeds.
+
+**How this was found is the point.** A player said cattle are affected by crowding, in about
+four levels. The binary had a four-way branch on an argument nobody had traced, `L2.eng` had
+four strings, and the bands closed. None of the three would have been conclusive alone:
+recollection does not give `herd / fieldsCattle` or the boundary at 11, and no amount of
+reading `FUN_0044DA99` volunteers that the four constants are *crowding* rather than a
+ration level — which is what the earlier `[I]` in §13 guessed, wrongly.
