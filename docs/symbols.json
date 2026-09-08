@@ -1054,7 +1054,23 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Herd_SeasonTick(void)",
-      "comment": "Herd (+0x250) growth: births/deaths from FUN_0044DA99, plus Pct(herd, g_herdWeatherPct[weather]) and the disease/wolves random-event modifier at +0x1FD."
+      "comment": "Herd (+0x250) growth: births/deaths from Herd_BirthsAndDeaths, plus Pct(herd, g_herdWeatherPct[weather]) and the disease/wolves random-event modifier at +0x1FD."
+    },
+    {
+      "addr": "0x0044DA99",
+      "name": "Herd_BirthsAndDeaths",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Herd_BirthsAndDeaths(int county, int herd, int labour, int crowding, int season)",
+      "comment": "Calf births and cow deaths. Staffing is PctOf(labour, herd * 3) capped at 200, so three labourers a head is full tending, and below 100 the term goes negative and cattle die. The labour argument comes from county +0xD0, inside the +0xC4 job records. Crowding (+0x25C, from Herd_UpdateCrowding) selects 1/3/5/7 from the values 10/20/30/40. The branch above all of it tests fieldsCattle (+0x200): with no pasture the county loses half its herd, or all of it below six head. Found because a player said cattle need tending. docs/kingdom.md 13."
+    },
+    {
+      "addr": "0x0044D913",
+      "name": "Herd_UpdateCrowding",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Herd_UpdateCrowding(uint county)",
+      "comment": "Sets county +0x25C from herd / fieldsCattle, banded at 11/21/31 into 10/20/30/40, with no pasture forced to 40. L2.eng group 77 slots 8-11 name the four bands: Low herd crowding, Average herd crowding, Herd overcrowded, Massive overcrowding. The same bands pick a map graphic 0x13..0x16, so crowding is visible on the field art. docs/kingdom.md 13.1."
     },
     {
       "addr": "0x0044DF5F",
