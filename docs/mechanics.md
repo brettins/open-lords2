@@ -215,14 +215,24 @@ Legend:
 - ✅ The minimap is a *picture* in `MAPnn.PL8`, tinted per county
 - ✅ Four county panels — population, tax, happiness, rations
 - ✅ **The village** (screen `0x02`) — the county's picture, its eight peasant clusters, and
-  the rubber-band drag that moves people between jobs. It is a **full screen**, not a window
-  over the county panels: its own case in `Screen_Draw`, its own painter, its own files.
+  the rubber-band drag that moves people between jobs.
+
+  ⚠️ **This entry said "a full screen" and was wrong.** The village is an **inset over the
+  campaign map** — a 363 × 320 picture at (64, 64), with the menu bar, the county sidebar
+  and a band of map showing around it. A player opened the game, clicked the town square and
+  said he saw a dialogue with the map still around it; he was right and the decompiled
+  reasoning was not. `docs/decisions.md` C22, and `docs/screens-county.md` §6.4.4.
 
   The drag is three screen ids in the original — `0x02` idle, `0x05` while the band is
   drawn, `0x06` while the selection is carried — so the gesture is **press, drag nine
   pixels, release, then a second click**, not drag-and-drop. Where a drop lands is a
   *painted file*: `vill_gd8.pl8` is a 45 × 40 grid of 8-pixel cells naming the cluster under
   every part of the picture.
+- ✅ **Clicking the campaign map** — `Map_Click` (`0x0043CE1A`) dispatches every left click
+  on it: your army, your merchant, the town square (the village), and **an industry
+  building, which toggles that industry on or off**. That last one is the writer of the
+  enable byte the labour allocator gates each mining job on, and nothing on any county panel
+  does it. `docs/screens-county.md` §6.4.5
 - ✅ **The job popup** (screen `0x0F`) — the window and the head of it: the job's name, its
   worker count, and the three-colour rule that reads the record's other two words. Its nine
   per-job bodies are not drawn and say so.

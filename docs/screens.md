@@ -510,6 +510,25 @@ half-pitch modulo and a diagonal tie-break, then reads `g_screenLattice[startRow
 and fails if that cell is off-map. Our engine picks off a tag plane instead — exact by
 construction for "which tile can the player see here", and *not* the same algorithm.
 
+**What is then done with the tile is `Map_Click` (`0x0043CE1A`)**, 1,263 bytes, and it is
+where most of this interface is actually reached from. `Map_ResolvePick` (`0x0046D5FE`)
+hands it the picked county, that county's owner, `g_pickedTileFlags` — the attribute plane
+at `0x00522F91` — and `g_pickedTileGraphic`, which is just `g_tiles[tile]`. Then:
+
+| what was clicked | what happens |
+|---|---|
+| your army (unit type 1) | its orders, or siege preparation (screen `0x1D`) |
+| your merchant (unit type 3) | the merchant (screen `0x08`) |
+| flags bit **0x80** — an industry building | that industry is **toggled on or off** (`Industry_ToggleFromMap`), the industry chosen by a ladder on the tile *graphic*: 0 … 3 iron, 4 … 6 stone, 7 … 9 weapons, 10 … 12 wood, 21+ castle |
+| flags bit **0x40** — the town square | the **village** (screen `0x02`) |
+| flags bit **0x20** | screen `0x04` |
+| a county that is not yours | `Msg_Enqueue(…, 0x70, …)` |
+
+`g_screenId = 2` appears **exactly once in the binary** and it is in that table's fourth
+row — and the branch centres the map on the town and repaints one map frame *before*
+opening the village, because the village is drawn over the map rather than instead of it.
+`docs/screens-county.md` §6.4.4 and `docs/decisions.md` C22.
+
 ---
 
 ## 7. What our engine does, and what it does not

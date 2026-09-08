@@ -3529,6 +3529,30 @@
       "confidence": "verified",
       "signature": "void Village_FillCluster(int county, int cluster, int normal, int other)",
       "comment": "Turns one cluster's two icon counts into g_peasantIcons values. `other` is negative for a shortfall against the job's wanted floor and positive for a surplus past its useful ceiling; cluster 6, Idle townsfolk, is always drawn in the surplus icon."
+    },
+    {
+      "addr": "0x0043CE1A",
+      "name": "Map_Click",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Map_Click(void)",
+      "comment": "The campaign map's left-click dispatcher, and the only writer of g_screenId = 2 in the whole binary. Map_PickTile then Map_ResolvePick, then: a picked unit of type 1 that is yours opens its orders or siege preparation (screen 0x1D); one of type 3 that is yours opens the merchant (screen 0x08); otherwise the tile's own flags decide - g_pickedTileFlags bit 0x80 toggles the industry the building belongs to (Industry_ToggleFromMap), bit 0x40 opens the VILLAGE (screen 0x02), bit 0x20 opens screen 0x04. A county that is not yours gets Msg_Enqueue group 0x70 instead. The village branch centres the map on the county's town tile (+0x70) and runs one Map_DrawFrame before setting the screen - which is only worth doing because the map stays visible behind the village. docs/decisions.md C22."
+    },
+    {
+      "addr": "0x0046D5FE",
+      "name": "Map_ResolvePick",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Map_ResolvePick(void)",
+      "comment": "Turns the picked tile into the four things Map_Click branches on: g_pickedTileCounty from the county plane, g_pickedCountyOwner from that county's +0x05, g_pickedTileFlags from the attribute plane at 0x00522F91, and g_pickedTileGraphic from g_tiles. Then masks off three flag/graphic combinations that would otherwise be hotspots."
+    },
+    {
+      "addr": "0x0043D309",
+      "name": "Industry_ToggleFromMap",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Industry_ToggleFromMap(int county, int industry)",
+      "comment": "Clicking an industry building on the campaign map switches that industry on or off: it XORs the enable byte at +0x297 + industry*0x18 - the byte Labour_Allocate gates each mining job on - and maps the industry to its labour slot (0 wood -> 6, 1 iron -> 4, 2 weapons -> 7, 3 stone -> 5). Argument 4 is castle building instead, and toggles +0x1B0. Map_Click picks the argument from a ladder on g_pickedTileGraphic: 0..3 iron, 4..6 stone, 7..9 weapons, 10..12 wood, 13..20 nothing, 21+ castle."
     }
   ],
   "globals": [
@@ -5659,6 +5683,34 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "The job popup's height in 16-pixel cells, by 1-based job: 13 for grain and cattle, 11 for castle building, 9 for the rest. Ui_DrawBox(0x30, 0x60, 0x19, rows)."
+    },
+    {
+      "addr": "0x005440B0",
+      "name": "g_pickedTileFlags",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The clicked tile's attribute byte, out of the plane at 0x00522F91. Map_Click reads bit 0x80 as an industry building, bit 0x40 as the town square - the village - and bit 0x20 as screen 0x04; FUN_0041BEFE reads 0x20, 0x10, 0x08, 0x04, 0x40 and 0x80 for the map info panel."
+    },
+    {
+      "addr": "0x0057CB2C",
+      "name": "g_pickedTileGraphic",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "g_tiles[picked tile] - the clicked tile's graphic index, which is how Map_Click tells a mine from a quarry from a smithy from a forest from a castle without a second plane."
+    },
+    {
+      "addr": "0x005681E0",
+      "name": "g_pickedTileCounty",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The county the clicked tile belongs to, from the county plane at 0x00522F97. 0x20 is read back as 0, so a tile in no county picks nothing."
+    },
+    {
+      "addr": "0x005681D0",
+      "name": "g_pickedCountyOwner",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "That county's owner (+0x05), compared against g_localPlayer by every branch of Map_Click."
     }
   ]
 }

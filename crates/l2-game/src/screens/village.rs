@@ -408,10 +408,20 @@ impl Screen for VillageScreen {
         Transition::Stay
     }
 
+    /// **The village is an inset.** `Village_Draw` never clears — it repaints
+    /// the campaign map and blits over it — so the map screen underneath is
+    /// painted first by [`crate::screen::Machine::draw`].
+    fn overlay(&self) -> bool {
+        true
+    }
+
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let top = VillageScreen::top_y(ctx);
-        canvas.clear(ink.background);
+        // **No clear.** Everything below paints inside the picture at
+        // (64, top) or inside the 480 x 320 band the original saves and
+        // restores around it; the menu bar, the county sidebar and the map
+        // either side belong to whatever is underneath.
 
         let art = ctx.assets.village.as_ref();
         let drew = art.is_some_and(|a| a.draw_scene(canvas, top));
@@ -439,24 +449,39 @@ impl Screen for VillageScreen {
             widget::button(canvas, ink, ok, "OK", false);
         }
 
+        // OURS. `Village_BandStart`'s hit region is read out of the binary and
+        // is wider than the picture — x 0 … 0x1FF, y top … top + 0x178 — but
+        // nothing in the decompiled corpus was found *drawing* the band, so the
+        // outline is ours and so is its colour. It can therefore reach outside
+        // the 480 x 320 region the original saves and restores; that costs
+        // nothing here because the map underneath is repainted every frame,
+        // where the original would have had to restore it.
         if let Some((x0, y0, x1, y1)) = self.band().filter(|_| self.phase == Phase::Band) {
             widget::frame(canvas, Rect::new(x0, y0, x1 - x0 + 1, y1 - y0 + 1), ink.highlight);
         }
 
-        // OURS: the original's village carries no text at all.
+        // OURS: the original's village carries no text at all. Ours goes
+        // **inside the picture**, in the two rows at the top and bottom of it,
+        // because everything outside belongs to the screen underneath.
+        let mid = vill::SCENE_X + vill::SCENE_W / 2;
         let caption = match self.phase {
             Phase::Carry => format!("CARRYING {} - CLICK A JOB", self.drag_count),
             _ => format!("VILLAGE OF COUNTY {}", self.county),
         };
-        text::draw_centred(canvas, 320, 24, &caption, ink.text);
-        if !self.status.is_empty() {
-            text::draw_centred(canvas, 320, 400, &self.status, ink.dim);
+        text::draw_centred(canvas, mid, top + 4, &caption, ink.text);
+        let mut line = top + vill::SCENE_H - 12;
+        let mut say = |canvas: &mut Canvas, s: &str, colour: u8| {
+            text::draw_centred(canvas, mid, line, s, colour);
+            line -= 12;
+        };
+        if ctx.assets.village.as_ref().is_none_or(|a| !a.has_grid()) {
+            say(canvas, "NO DROP GRID - VILL_GD8.PL8 MISSING", ink.bad);
         }
         if !ctx.game.is_players(self.county) {
-            text::draw_centred(canvas, 320, 412, "NOT YOURS", ink.bad);
+            say(canvas, "NOT YOURS", ink.bad);
         }
-        if ctx.assets.village.as_ref().is_none_or(|a| !a.has_grid()) {
-            text::draw_centred(canvas, 320, 424, "NO DROP GRID - VILL_GD8.PL8 MISSING", ink.bad);
+        if !self.status.is_empty() {
+            say(canvas, &self.status, ink.dim);
         }
     }
 }

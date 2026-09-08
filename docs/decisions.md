@@ -492,6 +492,69 @@ look equally finished.
 cost one sentence and beat 899 tests, because none of those tests could ask "is this what
 the game looks like". Show screens early, to someone who knows the game.
 
+**C22 — "What does the painter paint?" is not "what does the player see?", and only the
+caller answers the second.**
+
+The village screen was built and documented as a **full screen** — a page that owns the
+framebuffer. It is not. It is a picture blitted into a rectangle over the campaign map,
+with the menu bar, the county sidebar and a band of map showing around it.
+
+The false inference, in one line: *"`Village_Draw` is its own case in `Screen_Draw`, and it
+calls neither the sidebar nor `CountyStrip_Draw`, therefore it is a full screen."* Every
+clause of that is true and the conclusion does not follow. **This engine has no screen clear
+anywhere.** Not redrawing the sidebar does not mean the sidebar is not there; it means the
+sidebar is still there from the previous frame. The evidence was in the same function all
+along — `Village_Draw` blits at (64, 64) and never touches a pixel above or beside it.
+
+It was overturned by a player. He opened a game, clicked the town square, and said *"it
+opened up a dialog or however you describe still being able to see the map around it and the
+rest of the screen."* His first instinct had been "dialogue"; the decompiled reasoning
+talked us out of it, and he was right.
+
+Three things worth keeping.
+
+**Read the site that sets `g_screenId`, not only the painter it dispatches to.** `g_screenId
+= 2` appears **exactly once in the whole binary**, in `Map_Click` (`0x0043CE1A`), and that
+one site settles the question on its own:
+
+```c
+if (county.townTile != 0) {
+    g_selectedCounty = clickedCounty;
+    Map_CentreOnTile(county.townTile);      /* recentre the campaign map */
+    FUN_004050C0();                         /* ... and repaint one frame of it */
+}
+g_screenId = 2;
+Village_Draw(1);
+```
+
+**The game centres the map on the town immediately before opening the village.** That is
+only worth doing if the map remains visible behind it. One grep, one hit, and it needed no
+knowledge of the blit at all.
+
+*(`FUN_004050C0` turns out to be the second half of the same proof: it steps an animation
+counter and calls `FUN_004CFB08`, which calls **`Map_DrawFrame`**. The village's own painter
+repaints the campaign map and then draws over it.)*
+
+**The absence of the window primitive is not evidence of a page.** This engine has *two*
+overlay mechanisms and only one had been characterised:
+
+| | how | who uses it |
+|---|---|---|
+| a framed window | `Ui_DrawBox` (`0x00409397`) and the `Panels.pl8` 16-pixel kit | the four county panels, the job popup, the merchant, the court |
+| a raw blit | one sprite straight to the framebuffer at a fixed origin, no frame, no clear | **the village**, at (64, 64) |
+
+So *"`Village_Draw` contains no `Ui_DrawBox` call"* reads as evidence **for** a full screen
+and actually means only that the village is the other kind. A reader who knows one mechanism
+and not the other will get this wrong every time, which is why both are now written down in
+`docs/screens-county.md` §3.1.
+
+**This is C21's shape at one screen's scale.** There too the *data* was verified and the
+*presentation* was invented on top of it; there too a player looking at a picture beat the
+test suite. The difference is that C21 had a blank where the layout should be, and this had
+something worse — a confident paragraph, `[V]`-adjacent, in three documents and a module
+header. A wrong answer written down is more expensive than no answer, and it survives longer
+because it stops anyone looking.
+
 ## Open questions
 
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3

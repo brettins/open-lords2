@@ -648,18 +648,16 @@ fn the_village_draws_the_picture_and_the_people_on_it() {
     let mut screen = VillageScreen::new(county);
     let canvas = draw(&mut screen, &mut game, &assets);
 
-    // The scene fills its own rectangle rather than leaving the ground showing.
+    // The scene is a *picture*, not a fill: it uses many palette indices.
     let top = village::SCENE_Y;
-    let mut painted = 0;
+    let mut seen = [false; 256];
     for y in top..top + village::SCENE_H {
         for x in village::SCENE_X..village::SCENE_X + village::SCENE_W {
-            if canvas.at(x as usize, y as usize) != assets.ink.background {
-                painted += 1;
-            }
+            seen[canvas.at(x as usize, y as usize) as usize] = true;
         }
     }
-    let area = village::SCENE_W * village::SCENE_H;
-    assert!(painted > area * 9 / 10, "{painted} of {area} pixels of vill.pl8 frame 0");
+    let colours = seen.iter().filter(|&&s| s).count();
+    assert!(colours > 32, "vill.pl8 frame 0 drew in {colours} palette indices");
 
     // And every cluster the county actually staffs has ink where its icons go.
     let c = &game.kingdom.counties[county as usize];
@@ -675,6 +673,127 @@ fn the_village_draws_the_picture_and_the_people_on_it() {
         clusters_with_people >= 2,
         "county {county} staffs {clusters_with_people} clusters; the save has cattle and wood"
     );
+}
+
+/// **The village is an inset, and this is the test that says so.**
+///
+/// A player opened the game, clicked the town square, and reported a dialogue
+/// with the map still visible around it. He was right; this file's earlier
+/// reading — "its own case in `Screen_Draw`, therefore a full screen" — was
+/// wrong (`docs/decisions.md` C22).
+///
+/// Painted onto a canvas of a marker colour, the village must leave the marker
+/// showing everywhere outside the 480 × 320 band `Village_Draw` saves at
+/// (0, `g_villageTopY`) — and in particular across the whole menu bar and all
+/// but the first two columns of the county sidebar.
+#[test]
+fn the_village_paints_an_inset_and_leaves_the_rest_of_the_screen_alone() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let mut screen = VillageScreen::new(county);
+
+    const MARKER: u8 = 0xAB;
+    let mut canvas = Canvas::screen();
+    canvas.clear(MARKER);
+    {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        screen.draw(&ctx, &mut canvas);
+    }
+
+    let top = village::SCENE_Y;
+    let band = |x: i32, y: i32| {
+        (village::BAND_X..village::BAND_X + village::BAND_W).contains(&x)
+            && (top..top + village::BAND_H_SAVED).contains(&y)
+    };
+    let mut escaped = Vec::new();
+    for y in 0..480 {
+        for x in 0..640 {
+            if !band(x, y) && canvas.at(x as usize, y as usize) != MARKER {
+                escaped.push((x, y));
+            }
+        }
+    }
+    assert!(
+        escaped.is_empty(),
+        "{} pixels painted outside the band, first at {:?}",
+        escaped.len(),
+        escaped.first()
+    );
+
+    // Said the other way round, on the two things the player could actually
+    // see: the menu bar and the sidebar are untouched.
+    for x in 0..640 {
+        for y in 0..chrome::PANEL_TOP_Y {
+            assert_eq!(canvas.at(x as usize, y as usize), MARKER, "menu bar at ({x}, {y})");
+        }
+    }
+    for x in village::BAND_X + village::BAND_W..640 {
+        for y in 0..480 {
+            assert_eq!(canvas.at(x as usize, y as usize), MARKER, "sidebar at ({x}, {y})");
+        }
+    }
+    // And the picture itself did get painted, so this is not passing by drawing
+    // nothing at all.
+    let mid = (village::SCENE_X + village::SCENE_W / 2) as usize;
+    let painted = (top..top + village::SCENE_H)
+        .filter(|&y| canvas.at(mid, y as usize) != MARKER)
+        .count();
+    assert!(painted > 200, "only {painted} of 320 rows of the picture were painted");
+}
+
+/// And the machine paints what is underneath first, which is what
+/// `Village_Draw` does for itself by calling `Map_DrawFrame`.
+///
+/// With the campaign map on the stack and the village pushed on top, the
+/// sidebar — which the village never touches — comes from the map screen.
+#[test]
+fn the_machine_paints_the_campaign_map_under_the_village() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+
+    let mut machine = Machine::new(ScreenId::Campaign);
+    let mut canvas = Canvas::screen();
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.handle(Event::KeyDown(Key::letter('v')), &mut ctx);
+    }
+    assert_eq!(
+        machine.ids(),
+        vec![ScreenId::Campaign, ScreenId::Village(county)],
+        "V on an owned county opens its village"
+    );
+    {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        machine.draw(&ctx, &mut canvas);
+    }
+
+    // The end-turn strip is the map screen's, at the bottom of the sidebar, and
+    // the village cannot reach it.
+    let mut sidebar = [false; 256];
+    for y in chrome::PANEL_TOP_Y..480 {
+        for x in 490..639 {
+            sidebar[canvas.at(x as usize, y as usize) as usize] = true;
+        }
+    }
+    let colours = sidebar.iter().filter(|&&s| s).count();
+    assert!(colours > 8, "the sidebar under the village drew in {colours} indices");
+
+    // And the village really is on top of it in the middle.
+    let mid = (village::SCENE_X + village::SCENE_W / 2) as usize;
+    let row = (village::SCENE_Y + village::SCENE_H / 2) as usize;
+    let with_village = canvas.at(mid, row);
+    let mut bare = Canvas::screen();
+    {
+        let mut only_map = Machine::new(ScreenId::Campaign);
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        only_map.draw(&ctx, &mut bare);
+    }
+    assert_ne!(with_village, bare.at(mid, row), "the picture is over the map, not beside it");
 }
 
 /// The whole gesture against the real grid: band a cluster, release, drop on
