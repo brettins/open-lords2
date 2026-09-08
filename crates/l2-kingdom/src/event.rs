@@ -76,7 +76,7 @@
 
 use crate::county::County;
 use crate::report::Message;
-use crate::tables::{Season, EVENT_FIRST_YEAR};
+use crate::tables::{Season, Tables};
 use l2_net::Pcg32;
 
 /// The `i8` sentinel `Herd_SeasonTick` tests for before it tests the sign:
@@ -562,8 +562,8 @@ fn apply(county: &mut County, id: usize, purse: &mut RealmPurse, effect: Effect)
 
 /// Whether a county is eligible to draw at all. **The AI never draws random
 /// events**, and nothing is drawn until the year passes 1268.
-pub fn eligible(county: &County, owner_is_human: bool, year: i32) -> bool {
-    year > EVENT_FIRST_YEAR && !county.is_unowned() && owner_is_human
+pub fn eligible(t: &Tables, county: &County, owner_is_human: bool, year: i32) -> bool {
+    year > t.event.first_year && !county.is_unowned() && owner_is_human
 }
 
 /// `Event_RollAll` — clear last season's modifiers, then walk the deck.
@@ -577,6 +577,7 @@ pub fn eligible(county: &County, owner_is_human: bool, year: i32) -> bool {
 /// (`docs/netcode.md` §3).
 #[allow(clippy::too_many_arguments)]
 pub fn roll_all(
+    t: &Tables,
     counties: &mut [County],
     county_count: usize,
     human_owner: &dyn Fn(u8) -> bool,
@@ -602,7 +603,7 @@ pub fn roll_all(
             index = 0;
         }
         let Some(kind) = deck_slot(index) else { continue };
-        if !eligible(&counties[id], human_owner(counties[id].owner), year) {
+        if !eligible(t, &counties[id], human_owner(counties[id].owner), year) {
             continue;
         }
         let owner = counties[id].owner as usize;
@@ -619,6 +620,9 @@ pub fn roll_all(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
     use std::collections::BTreeSet;
 
     fn county(owner: u8) -> County {
@@ -693,10 +697,10 @@ mod tests {
     #[test]
     fn only_a_human_county_after_1268_is_eligible() {
         let c = county(1);
-        assert!(!eligible(&c, true, 1268), "the first year is excluded");
-        assert!(eligible(&c, true, 1269));
-        assert!(!eligible(&c, false, 1269), "an AI county never draws");
-        assert!(!eligible(&county(0), true, 1269), "nor an unowned one");
+        assert!(!eligible(T, &c, true, 1268), "the first year is excluded");
+        assert!(eligible(T, &c, true, 1269));
+        assert!(!eligible(T, &c, false, 1269), "an AI county never draws");
+        assert!(!eligible(T, &county(0), true, 1269), "nor an unowned one");
     }
 
     /// Four handlers read the season. A plague in Winter costs twice what a
@@ -770,7 +774,7 @@ mod tests {
         c.population = 1000;
         c.tax_rate = 10;
         c.castle_type = 0;
-        assert_eq!(crate::tax::collect(&mut c, 0), 0, "the collectors were waylaid");
+        assert_eq!(crate::tax::collect(T, &mut c, 0), 0, "the collectors were waylaid");
     }
 
     /// *"No bull"* writes 99, and the herd pass reads 99 as a sentinel rather
@@ -784,7 +788,7 @@ mod tests {
         assert!(fire(&mut c, 1, &mut purse, EventKind::NoBull, Season::Spring));
         assert_eq!(c.event_herd_pct, HERD_NO_GROWTH);
 
-        crate::land::herd_season_tick(&mut c);
+        crate::land::herd_season_tick(T, &mut c);
         assert_eq!(c.herd, 200, "no growth, and certainly not +99%");
     }
 
@@ -881,7 +885,7 @@ mod tests {
             }
             let mut out = Vec::new();
             for _ in 0..40 {
-                roll_all(
+                roll_all(T, 
                     &mut c,
                     14,
                     &|_| human,
@@ -910,7 +914,7 @@ mod tests {
             let mut c = vec![County::new(); 17];
             let mut purses = vec![RealmPurse::default(); 6];
             let mut out = Vec::new();
-            roll_all(&mut c, n, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, &mut out);
+            roll_all(T, &mut c, n, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, &mut out);
             let mut reference = Pcg32::from_seed(9);
             reference.below(EVENT_SEED_BOUND);
             assert_eq!(rng, reference, "kingdom of {n}");
@@ -931,7 +935,7 @@ mod tests {
             }
             let mut out = Vec::new();
             for _ in 0..10 {
-                roll_all(
+                roll_all(T, 
                     &mut c,
                     14,
                     &|_| true,
@@ -1005,7 +1009,7 @@ mod tests {
         }
         let mut out = Vec::new();
         for _ in 0..500 {
-            roll_all(&mut c, 16, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, &mut out);
+            roll_all(T, &mut c, 16, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, &mut out);
         }
         assert!(out.is_empty(), "five hundred seasons and not one event");
     }
@@ -1017,7 +1021,7 @@ mod tests {
         c.weather = crate::tables::Weather::Cloudy;
         let mut purse = RealmPurse::default();
         assert!(fire(&mut c, 1, &mut purse, EventKind::Rats, Season::Winter));
-        crate::land::grain_season_tick(&mut c, Season::Winter, true);
+        crate::land::grain_season_tick(T, &mut c, Season::Winter, true);
         assert_eq!(c.grain, 600, "a 40% winter loss");
         assert_eq!(c.event_grain_pct, 0);
     }

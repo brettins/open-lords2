@@ -28,11 +28,7 @@
 
 use crate::county::{County, MAX_FIELDS};
 use crate::math::{clamp, pct};
-use crate::tables::{
-    Season, Weather, FIELD_PROGRESS_MAX, FIELD_RECLAIM_PER_SEASON, GRAIN_LABOUR_DIVISOR_ADVANCED,
-    GRAIN_LABOUR_DIVISOR_BASIC, GRAIN_MAX_SACKS_PER_FIELD, GRAIN_YIELD_PER_SACK, HERD_WEATHER_PCT,
-    JOB_GRAIN_FARMING,
-};
+use crate::tables::{Season, Tables, Weather};
 
 // ---------------------------------------------------------------------------
 // Fertility
@@ -74,11 +70,11 @@ pub fn update_fertility(county: &mut County, advanced_farming: bool) {
 /// cap, and does not say what marks a field as in progress. A field with
 /// progress strictly between 0 and 800 is taken to be under way; a field at 0
 /// has not been started and a field at 800 is done.
-pub fn reclaim_fields(county: &mut County) {
+pub fn reclaim_fields(t: &Tables, county: &mut County) {
     for field in 0..MAX_FIELDS {
         let p = county.field_progress[field] as i32;
-        if p > 0 && p < FIELD_PROGRESS_MAX {
-            county.reclaim_field(field, FIELD_RECLAIM_PER_SEASON);
+        if p > 0 && p < t.field.progress_max {
+            county.reclaim_field(field, t.field.reclaim_per_season);
         }
     }
 }
@@ -138,16 +134,22 @@ pub fn harvest_factor(weather: Weather) -> Factor {
 /// and `labour >= 12 * fields * sacks / divisor` hold.
 ///
 /// Returns 0 when even one sack a field cannot be afforded or worked.
-pub fn sacks_per_field(fields: i32, grain_store: i32, labour: i32, advanced_farming: bool) -> i32 {
+pub fn sacks_per_field(
+    t: &Tables,
+    fields: i32,
+    grain_store: i32,
+    labour: i32,
+    advanced_farming: bool,
+) -> i32 {
     if fields <= 0 {
         return 0;
     }
     let divisor =
-        if advanced_farming { GRAIN_LABOUR_DIVISOR_ADVANCED } else { GRAIN_LABOUR_DIVISOR_BASIC };
-    let mut sacks = GRAIN_MAX_SACKS_PER_FIELD;
+        if advanced_farming { t.grain.labour_divisor_advanced } else { t.grain.labour_divisor_basic };
+    let mut sacks = t.grain.max_sacks_per_field;
     while sacks >= 1 {
         let seed = fields * sacks;
-        let work = GRAIN_YIELD_PER_SACK * seed / divisor;
+        let work = t.grain.yield_per_sack * seed / divisor;
         if grain_store >= seed && labour >= work {
             return sacks;
         }
@@ -161,17 +163,17 @@ pub fn sacks_per_field(fields: i32, grain_store: i32, labour: i32, advanced_farm
 /// **Not established** — see [`JOB_GRAIN_FARMING`]. `docs/kingdom.md` §7.1
 /// gives the inequality and never says which of the ten job slots supplies the
 /// left-hand side.
-pub fn grain_labour(county: &County) -> i32 {
-    county.labour[JOB_GRAIN_FARMING]
+pub fn grain_labour(t: &Tables, county: &County) -> i32 {
+    county.labour[t.job.grain_farming]
 }
 
 /// Sow: spend the seed, and put this year's crop into stage 0.
-pub fn sow(county: &mut County, advanced_farming: bool) {
+pub fn sow(t: &Tables, county: &mut County, advanced_farming: bool) {
     let sacks =
-        sacks_per_field(county.fields_grain, county.grain, grain_labour(county), advanced_farming);
+        sacks_per_field(t, county.fields_grain, county.grain, grain_labour(t, county), advanced_farming);
     let seed = county.fields_grain * sacks;
     county.grain -= seed;
-    let crop = seed * GRAIN_YIELD_PER_SACK;
+    let crop = seed * t.grain.yield_per_sack;
     county.crop = [sow_factor(county.weather).apply(crop), 0, 0];
 }
 
@@ -192,9 +194,9 @@ pub fn harvest(county: &mut County) {
 /// modifier on the store.
 ///
 /// `season` is `g_season`, the season now *beginning*.
-pub fn grain_season_tick(county: &mut County, season: Season, advanced_farming: bool) {
+pub fn grain_season_tick(t: &Tables, county: &mut County, season: Season, advanced_farming: bool) {
     match season {
-        Season::Spring => sow(county, advanced_farming),
+        Season::Spring => sow(t, county, advanced_farming),
         Season::Summer => grow(county, 1),
         Season::Autumn => grow(county, 2),
         Season::Winter => harvest(county),
@@ -220,8 +222,9 @@ pub fn grain_season_tick(county: &mut County, season: Season, advanced_farming: 
 ///
 /// The order matters: the sentinel suppresses the **weather** swing as well as
 /// the event's own, so a sunny season and a dead prize bull cancel out.
-pub fn herd_season_tick(county: &mut County) {
-    let weather_change = pct(county.herd, HERD_WEATHER_PCT[county.weather.index() as usize]);
+pub fn herd_season_tick(t: &Tables, county: &mut County) {
+    let weather_change =
+        pct(county.herd, t.weather[county.weather.index() as usize].herd_pct);
     if county.event_herd_pct == crate::event::HERD_NO_GROWTH {
         county.event_herd_pct = 0;
         county.herd = county.herd.max(0);
@@ -238,6 +241,9 @@ pub fn herd_season_tick(county: &mut County) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
 
     /// **One fallow field per two grain fields is exactly break-even**, and
     /// **cattle fields do not enter the formula at all.** Both contradict the
@@ -305,7 +311,7 @@ mod tests {
         c.field_progress[0] = 0; // never started
         c.field_progress[1] = 100; // under way
         c.field_progress[2] = 800; // done
-        reclaim_fields(&mut c);
+        reclaim_fields(T, &mut c);
         assert_eq!(c.field_progress[0], 0);
         assert_eq!(c.field_progress[1], 300);
         assert_eq!(c.field_progress[2], 800);
@@ -316,9 +322,9 @@ mod tests {
         let mut c = County::new();
         c.field_progress[5] = 1;
         for _ in 0..4 {
-            reclaim_fields(&mut c);
+            reclaim_fields(T, &mut c);
         }
-        assert_eq!(c.field_progress[5], FIELD_PROGRESS_MAX as u16);
+        assert_eq!(c.field_progress[5], T.field.progress_max as u16);
     }
 
     /// **The manual says 5 sacks a field, twice, and it is wrong.** Two
@@ -327,18 +333,18 @@ mod tests {
     #[test]
     fn a_well_supplied_county_sows_ten_sacks_a_field_not_five() {
         // Plenty of everything.
-        assert_eq!(sacks_per_field(6, 10_000, 10_000, true), 10);
-        assert_eq!(sacks_per_field(9, 10_000, 10_000, true), 10);
-        assert_eq!(6 * sacks_per_field(6, 10_000, 10_000, true), 60);
-        assert_eq!(9 * sacks_per_field(9, 10_000, 10_000, true), 90);
+        assert_eq!(sacks_per_field(T, 6, 10_000, 10_000, true), 10);
+        assert_eq!(sacks_per_field(T, 9, 10_000, 10_000, true), 10);
+        assert_eq!(6 * sacks_per_field(T, 6, 10_000, 10_000, true), 60);
+        assert_eq!(9 * sacks_per_field(T, 9, 10_000, 10_000, true), 90);
     }
 
     #[test]
     fn the_seed_store_is_the_binding_constraint_when_labour_is_plentiful() {
         // 6 fields, 30 sacks in store: 5 a field fits, 6 does not.
-        assert_eq!(sacks_per_field(6, 30, 100_000, true), 5);
-        assert_eq!(sacks_per_field(6, 29, 100_000, true), 4);
-        assert_eq!(sacks_per_field(6, 5, 100_000, true), 0, "not even one a field");
+        assert_eq!(sacks_per_field(T, 6, 30, 100_000, true), 5);
+        assert_eq!(sacks_per_field(T, 6, 29, 100_000, true), 4);
+        assert_eq!(sacks_per_field(T, 6, 5, 100_000, true), 0, "not even one a field");
     }
 
     /// The labour test is `labour >= 12 * fields * sacks / divisor`, and the
@@ -347,22 +353,22 @@ mod tests {
     #[test]
     fn advanced_farming_needs_less_labour_for_the_same_sowing() {
         for fields in 1..=16 {
-            let advanced = sacks_per_field(fields, 10_000, 200, true);
-            let basic = sacks_per_field(fields, 10_000, 200, false);
+            let advanced = sacks_per_field(T, fields, 10_000, 200, true);
+            let basic = sacks_per_field(T, fields, 10_000, 200, false);
             assert!(advanced >= basic, "{fields} fields: {advanced} vs {basic}");
         }
         // 8 fields x 10 sacks needs 12*80/5 = 192 workers advanced, 480 basic.
-        assert_eq!(sacks_per_field(8, 10_000, 192, true), 10);
-        assert_eq!(sacks_per_field(8, 10_000, 191, true), 9);
-        assert_eq!(sacks_per_field(8, 10_000, 192, false), 4);
+        assert_eq!(sacks_per_field(T, 8, 10_000, 192, true), 10);
+        assert_eq!(sacks_per_field(T, 8, 10_000, 191, true), 9);
+        assert_eq!(sacks_per_field(T, 8, 10_000, 192, false), 4);
     }
 
     #[test]
     fn a_county_with_no_grain_fields_sows_nothing() {
-        assert_eq!(sacks_per_field(0, 10_000, 10_000, true), 0);
+        assert_eq!(sacks_per_field(T, 0, 10_000, 10_000, true), 0);
         let mut c = County::new();
         c.grain = 500;
-        sow(&mut c, true);
+        sow(T, &mut c, true);
         assert_eq!(c.grain, 500);
         assert_eq!(c.crop, [0; 3]);
     }
@@ -374,18 +380,18 @@ mod tests {
         let mut c = County::new();
         c.fields_grain = 6;
         c.grain = 200;
-        c.labour[JOB_GRAIN_FARMING] = 10_000;
+        c.labour[T.job.grain_farming] = 10_000;
         c.weather = Weather::Cloudy;
 
-        grain_season_tick(&mut c, Season::Spring, true);
+        grain_season_tick(T, &mut c, Season::Spring, true);
         assert_eq!(c.grain, 140, "60 sacks of seed spent");
         assert_eq!(c.crop[0], 720);
 
-        grain_season_tick(&mut c, Season::Summer, true);
+        grain_season_tick(T, &mut c, Season::Summer, true);
         assert_eq!(c.crop[1], 720);
-        grain_season_tick(&mut c, Season::Autumn, true);
+        grain_season_tick(T, &mut c, Season::Autumn, true);
         assert_eq!(c.crop[2], 720);
-        grain_season_tick(&mut c, Season::Winter, true);
+        grain_season_tick(T, &mut c, Season::Winter, true);
         assert_eq!(c.grain, 860, "140 + 720");
         assert_eq!(c.crop, [0; 3]);
     }
@@ -396,10 +402,10 @@ mod tests {
             let mut c = County::new();
             c.fields_grain = 6;
             c.grain = 200;
-            c.labour[JOB_GRAIN_FARMING] = 10_000;
+            c.labour[T.job.grain_farming] = 10_000;
             c.weather = weather;
             for season in Season::ALL {
-                grain_season_tick(&mut c, season, true);
+                grain_season_tick(T, &mut c, season, true);
             }
             c.grain
         };
@@ -418,7 +424,7 @@ mod tests {
         c.grain = 1000;
         c.weather = Weather::Cloudy;
         c.event_grain_pct = -30; // "eaten by rats"
-        grain_season_tick(&mut c, Season::Winter, true);
+        grain_season_tick(T, &mut c, Season::Winter, true);
         assert_eq!(c.grain, 700);
         assert_eq!(c.event_grain_pct, 0);
     }
@@ -428,7 +434,7 @@ mod tests {
         let mut c = County::new();
         c.grain = 10;
         c.event_grain_pct = -200;
-        grain_season_tick(&mut c, Season::Winter, true);
+        grain_season_tick(T, &mut c, Season::Winter, true);
         assert_eq!(c.grain, 0);
     }
 
@@ -439,8 +445,8 @@ mod tests {
             let mut c = County::new();
             c.herd = 1000;
             c.weather = w;
-            herd_season_tick(&mut c);
-            assert_eq!(c.herd, 1000 + HERD_WEATHER_PCT[w.index() as usize] * 10, "{}", w.name());
+            herd_season_tick(T, &mut c);
+            assert_eq!(c.herd, 1000 + T.weather[w.index() as usize].herd_pct * 10, "{}", w.name());
         }
     }
 
@@ -450,7 +456,7 @@ mod tests {
         c.herd = 200;
         c.weather = Weather::Cloudy;
         c.event_herd_pct = -25; // "taken by wolves"
-        herd_season_tick(&mut c);
+        herd_season_tick(T, &mut c);
         assert_eq!(c.herd, 150);
         assert_eq!(c.event_herd_pct, 0);
     }
@@ -460,7 +466,7 @@ mod tests {
         let mut c = County::new();
         c.herd = 1;
         c.weather = Weather::Drought;
-        herd_season_tick(&mut c);
+        herd_season_tick(T, &mut c);
         assert_eq!(c.herd, 1, "Pct(1, -10) truncates to 0");
     }
 

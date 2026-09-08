@@ -31,7 +31,7 @@
 
 use crate::county::County;
 use crate::math::clamp;
-use crate::tables::{army_happiness_cost, ALE_HAPPINESS_MAX, ALE_HAPPINESS_STEP_PCT};
+use crate::tables::{army_happiness_cost, Tables, ALE_HAPPINESS_MAX, ALE_HAPPINESS_STEP_PCT};
 
 pub const HAPPINESS_MIN: i32 = 0;
 pub const HAPPINESS_MAX: i32 = 100;
@@ -188,15 +188,18 @@ pub fn raise_army(county: &mut County, men: i32) -> i32 {
 /// This is not a rule of its own — it is the sum [`update`] adds — but it is
 /// the number every player-facing statement about the game is really about, so
 /// it is worth being able to ask for directly.
-pub fn steady_state(tax_rate: i32, health_band: u8, ration_level: i32) -> i32 {
+pub fn steady_state(t: &Tables, tax_rate: i32, health_band: u8, ration_level: i32) -> i32 {
     (crate::tax::FREE_TAX_RATE - tax_rate)
-        + crate::health::happiness(health_band)
-        + crate::tables::ration_happiness(ration_level)
+        + crate::health::happiness(t, health_band)
+        + t.ration_happiness(ration_level)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
 
     fn county_at(happiness: i32, tax: i32, health: i32, ration: i32) -> County {
         let mut c = County::new();
@@ -321,19 +324,19 @@ mod tests {
     #[test]
     fn a_county_holds_its_happiness_at_the_break_even_rate_forever() {
         for (band, rate) in [(3u8, 7), (4u8, 8)] {
-            assert_eq!(steady_state(rate, band, 3), 0);
+            assert_eq!(steady_state(T, rate, band, 3), 0);
             let mut c = County::new();
             c.owner = 1;
             c.happiness = 100;
             for turn in 1..=40u32 {
                 c.d_hap_tax = crate::tax::FREE_TAX_RATE - rate;
-                c.d_hap_health = crate::health::happiness(band);
+                c.d_hap_health = crate::health::happiness(T, band);
                 c.d_hap_ration = crate::tables::ration_happiness(3);
                 update(&mut c, true, turn);
                 assert_eq!(c.happiness, 100, "band {band} rate {rate} turn {turn}");
             }
         }
-        assert!(steady_state(8, 3, 3) < 0, "one point too many at Good health");
+        assert!(steady_state(T, 8, 3, 3) < 0, "one point too many at Good health");
     }
 
     // --- the two terms this pass zeroes ------------------------------------

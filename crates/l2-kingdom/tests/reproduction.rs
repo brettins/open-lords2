@@ -21,7 +21,7 @@
 
 use l2_kingdom::county::County;
 use l2_kingdom::phase::SEASON_PIPELINE;
-use l2_kingdom::tables::{health_band, Season, Weather, CASTLE_STARTING_TYPE};
+use l2_kingdom::tables::{health_band, Season, Tables, Weather, CASTLE_STARTING_TYPE};
 use l2_kingdom::{Kingdom, Options};
 
 /// The England map: fourteen counties, four owned by the human realm and ten
@@ -248,7 +248,7 @@ fn the_documented_food_split_reproduces_from_its_stated_inputs() {
     c.ration_wanted = 3;
     c.ration_split = 100;
 
-    let plan = l2_kingdom::ration::choose(&c, false);
+    let plan = l2_kingdom::ration::choose(&Tables::DEFAULT, &c, false);
     assert_eq!(plan.dairy, 335, "67 head feeding five people each");
     assert_eq!(plan.requirement - plan.dairy, 121, "people left to feed");
     assert_eq!(plan.heads, 13, "the stored +0x17C");

@@ -30,10 +30,7 @@
 
 use crate::county::County;
 use crate::math::{div_ceil, pct};
-use crate::tables::{
-    ration_happiness, DAIRY_PER_HEAD, FOOD_PER_HEAD, FOOD_PER_SACK, RATION_LEVEL_COUNT,
-    RATION_TABLE,
-};
+use crate::tables::{Tables, RATION_LEVEL_COUNT};
 
 /// What feeding a county at one ration level would take.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,23 +60,24 @@ impl Plan {
 /// **`[V]`**, and unusually well corroborated: a strategy guide states *"each
 /// portion of cheese being enough to feed 5 people"*, and a player measuring a
 /// save reported 80 cows feeding 400 people.
-pub fn food_from_dairy(herd: i32) -> i32 {
-    herd.max(0).saturating_mul(DAIRY_PER_HEAD)
+pub fn food_from_dairy(t: &Tables, herd: i32) -> i32 {
+    herd.max(0).saturating_mul(t.food.dairy_per_head)
 }
 
 /// `Food_HeadsForPeople` — one slaughtered animal feeds ten.
-pub fn heads_for_people(people: i32) -> i32 {
-    div_ceil(people, FOOD_PER_HEAD)
+pub fn heads_for_people(t: &Tables, people: i32) -> i32 {
+    div_ceil(people, t.food.food_per_head)
 }
 
 /// `Food_SacksForPeople` — one sack of grain feeds six.
-pub fn sacks_for_people(people: i32) -> i32 {
-    div_ceil(people, FOOD_PER_SACK)
+pub fn sacks_for_people(t: &Tables, people: i32) -> i32 {
+    div_ceil(people, t.food.food_per_sack)
 }
 
 /// The food requirement at a ration level, `DivCeil(people, divisor) * mult`.
-pub fn requirement(people: i32, level: i32) -> i32 {
-    let (divisor, multiplier) = RATION_TABLE[clamp_level(level) as usize];
+pub fn requirement(t: &Tables, people: i32, level: i32) -> i32 {
+    let row = t.ration[clamp_level(level) as usize];
+    let (divisor, multiplier) = (row.divisor, row.multiplier);
     div_ceil(people, divisor) * multiplier
 }
 
@@ -93,10 +91,10 @@ fn clamp_level(level: i32) -> i32 {
 /// from livestock rather than grain. The grain side is the *remainder* rather
 /// than `Pct(remainder, 100 - split)`, so the two sides always sum back to the
 /// whole and a split of 33% does not silently lose a person.
-pub fn plan(people: i32, level: i32, herd: i32, split: i32) -> Plan {
+pub fn plan(t: &Tables, people: i32, level: i32, herd: i32, split: i32) -> Plan {
     let level = clamp_level(level);
-    let requirement = requirement(people, level);
-    let dairy = food_from_dairy(herd);
+    let requirement = requirement(t, people, level);
+    let dairy = food_from_dairy(t, herd);
     let remainder = (requirement - dairy).max(0);
     let from_livestock = pct(remainder, split.clamp(0, 100));
     let from_grain = remainder - from_livestock;
@@ -104,8 +102,8 @@ pub fn plan(people: i32, level: i32, herd: i32, split: i32) -> Plan {
         level,
         requirement,
         dairy: dairy.min(requirement),
-        heads: heads_for_people(from_livestock),
-        sacks: sacks_for_people(from_grain),
+        heads: heads_for_people(t, from_livestock),
+        sacks: sacks_for_people(t, from_grain),
     }
 }
 
@@ -129,11 +127,11 @@ pub fn people_to_feed(county: &County, armies_eat: bool) -> i32 {
 ///
 /// Level 0 costs nothing and therefore always fits, so this always terminates
 /// with a plan.
-pub fn choose(county: &County, armies_eat: bool) -> Plan {
+pub fn choose(t: &Tables, county: &County, armies_eat: bool) -> Plan {
     let people = people_to_feed(county, armies_eat);
     let mut level = clamp_level(county.ration_wanted);
     loop {
-        let p = plan(people, level, county.herd, county.ration_split);
+        let p = plan(t, people, level, county.herd, county.ration_split);
         if level == 0 || p.fits(county.herd, county.grain) {
             return p;
         }
@@ -144,20 +142,20 @@ pub fn choose(county: &County, armies_eat: bool) -> Plan {
 /// Write the outcome's display fields onto the county. Shared by [`apply`] and
 /// [`preview`]; the only difference between them is whether the store is
 /// debited.
-fn record(county: &mut County, p: Plan) {
+fn record(t: &Tables, county: &mut County, p: Plan) {
     county.ration_achieved = p.level;
     county.herd_eaten = p.heads;
     county.grain_eaten = p.sacks;
     county.herd_available = county.herd;
     county.grain_available = county.grain;
-    county.d_hap_ration = ration_happiness(p.level);
+    county.d_hap_ration = t.ration_happiness(p.level);
 }
 
 /// The real pass: choose a level, spend the food, and set the ration happiness
 /// term.
-pub fn apply(county: &mut County, armies_eat: bool) -> Plan {
-    let p = choose(county, armies_eat);
-    record(county, p);
+pub fn apply(t: &Tables, county: &mut County, armies_eat: bool) -> Plan {
+    let p = choose(t, county, armies_eat);
+    record(t, county, p);
     // Each side is capped at what is actually in store. At the chosen level the
     // plan already fits, so the cap only bites at level 0 with a negative store,
     // which cannot happen - but the original applies it and so does this.
@@ -170,15 +168,18 @@ pub fn apply(county: &mut County, armies_eat: bool) -> Plan {
 
 /// The second call: next season's preview. Writes the same display fields and
 /// spends nothing.
-pub fn preview(county: &mut County, armies_eat: bool) -> Plan {
-    let p = choose(county, armies_eat);
-    record(county, p);
+pub fn preview(t: &Tables, county: &mut County, armies_eat: bool) -> Plan {
+    let p = choose(t, county, armies_eat);
+    record(t, county, p);
     p
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
 
     /// **`docs/kingdom.md` §4.3's reproduction, exactly.** In the shipped
     /// `lastturn.sav` an unowned county has population 456, herd 67, ration
@@ -194,14 +195,14 @@ mod tests {
         c.ration_split = 100;
         c.grain = 0;
 
-        let p = choose(&c, false);
+        let p = choose(T, &c, false);
         assert_eq!(p.level, 3, "Normal");
         assert_eq!(p.requirement, 456);
         assert_eq!(p.dairy, 335, "67 head x 5 people");
         assert_eq!(p.heads, 13, "the stored +0x17C");
         assert_eq!(p.sacks, 0);
 
-        apply(&mut c, false);
+        apply(T, &mut c, false);
         assert_eq!(c.herd_eaten, 13);
         assert_eq!(c.herd, 54);
         assert_eq!(c.ration_achieved, 3);
@@ -214,7 +215,7 @@ mod tests {
     fn starting_one_level_above_wanted_would_contradict_the_save() {
         let people = 456;
         let herd = 67;
-        let double = plan(people, 4, herd, 100);
+        let double = plan(T, people, 4, herd, 100);
         assert!(double.fits(herd, 0), "Double is affordable for this county");
         assert_eq!(double.heads, 58, "and would slaughter 58 head, not 13");
 
@@ -223,7 +224,7 @@ mod tests {
         c.herd = herd;
         c.ration_wanted = 3;
         c.ration_split = 100;
-        assert_eq!(choose(&c, false).level, 3, "so the loop must begin at wanted");
+        assert_eq!(choose(T, &c, false).level, 3, "so the loop must begin at wanted");
     }
 
     #[test]
@@ -235,10 +236,10 @@ mod tests {
         c.ration_wanted = 5;
         c.ration_split = 0; // all grain
 
-        let p = choose(&c, false);
+        let p = choose(T, &c, false);
         // Triple needs 1200, Double 800, Normal 400, Half 200 -> 34 sacks.
         assert_eq!(p.level, 2, "Half is the first level 40 sacks covers");
-        assert_eq!(p.sacks, sacks_for_people(200));
+        assert_eq!(p.sacks, sacks_for_people(T, 200));
         assert!(p.sacks <= c.grain);
     }
 
@@ -249,7 +250,7 @@ mod tests {
         c.herd = 0;
         c.grain = 0;
         c.ration_wanted = 3;
-        let p = apply(&mut c, false);
+        let p = apply(T, &mut c, false);
         assert_eq!(p.level, 0);
         assert_eq!(c.d_hap_ration, -8);
         assert_eq!(c.herd_eaten, 0);
@@ -260,13 +261,13 @@ mod tests {
     /// `docs/kingdom.md` §4.3 cites.
     #[test]
     fn eighty_cows_feed_four_hundred_people_for_free() {
-        assert_eq!(food_from_dairy(80), 400);
+        assert_eq!(food_from_dairy(T, 80), 400);
         let mut c = County::new();
         c.population = 400;
         c.herd = 80;
         c.ration_wanted = 3;
         c.ration_split = 100;
-        let p = choose(&c, false);
+        let p = choose(T, &c, false);
         assert_eq!(p.heads, 0, "the dairy alone covers Normal rations");
         assert_eq!(p.sacks, 0);
     }
@@ -274,11 +275,11 @@ mod tests {
     #[test]
     fn the_two_sides_of_the_split_always_sum_back_to_the_whole() {
         for split in 0..=100 {
-            let p = plan(1000, 3, 0, split);
+            let p = plan(T, 1000, 3, 0, split);
             let from_livestock = pct(1000, split);
             let from_grain = 1000 - from_livestock;
-            assert_eq!(p.heads, heads_for_people(from_livestock), "split {split}");
-            assert_eq!(p.sacks, sacks_for_people(from_grain), "split {split}");
+            assert_eq!(p.heads, heads_for_people(T, from_livestock), "split {split}");
+            assert_eq!(p.sacks, sacks_for_people(T, from_grain), "split {split}");
         }
     }
 
@@ -300,7 +301,7 @@ mod tests {
         c.ration_wanted = 3;
         c.ration_split = 100;
 
-        preview(&mut c, false);
+        preview(T, &mut c, false);
         assert_eq!(c.herd, 67, "a preview must not slaughter anything");
         assert_eq!(c.herd_eaten, 13, "but it does write the display field");
         assert_eq!(c.ration_achieved, 3);
@@ -310,7 +311,7 @@ mod tests {
     fn every_ration_level_costs_more_than_the_one_below_it() {
         let mut last = -1;
         for level in 0..RATION_LEVEL_COUNT as i32 {
-            let r = requirement(1000, level);
+            let r = requirement(T, 1000, level);
             assert!(r > last, "level {level} should cost more");
             last = r;
         }
@@ -318,11 +319,11 @@ mod tests {
 
     #[test]
     fn an_out_of_range_ration_level_clamps_rather_than_panicking() {
-        assert_eq!(requirement(1000, -5), requirement(1000, 0));
-        assert_eq!(requirement(1000, 99), requirement(1000, 5));
+        assert_eq!(requirement(T, 1000, -5), requirement(T, 1000, 0));
+        assert_eq!(requirement(T, 1000, 99), requirement(T, 1000, 5));
         let mut c = County::new();
         c.population = 100;
         c.ration_wanted = 99;
-        assert!(choose(&c, false).level <= 5);
+        assert!(choose(T, &c, false).level <= 5);
     }
 }

@@ -12,7 +12,7 @@
 
 use crate::county::County;
 use crate::math::clamp;
-use crate::tables::{health_band, HEALTH_DELTA, HEALTH_HAPPINESS};
+use crate::tables::Tables;
 
 /// The meter's range.
 pub const HEALTH_METER_MIN: i32 = 0;
@@ -20,14 +20,14 @@ pub const HEALTH_METER_MAX: i32 = 100;
 
 /// The seasonal move for a ration level and the band the county is currently
 /// in.
-pub fn delta(ration_level: usize, band: u8) -> i32 {
-    HEALTH_DELTA[ration_level.min(HEALTH_DELTA.len() - 1)]
-        [(band as usize).min(HEALTH_DELTA[0].len() - 1)]
+pub fn delta(t: &Tables, ration_level: usize, band: u8) -> i32 {
+    let row = &t.ration[ration_level.min(t.ration.len() - 1)].health_delta;
+    row[(band as usize).min(row.len() - 1)]
 }
 
 /// The happiness a band is worth per season.
-pub fn happiness(band: u8) -> i32 {
-    HEALTH_HAPPINESS[(band as usize).min(HEALTH_HAPPINESS.len() - 1)]
+pub fn happiness(t: &Tables, band: u8) -> i32 {
+    t.health[(band as usize).min(t.health.len() - 1)].happiness
 }
 
 /// One county's health pass.
@@ -35,16 +35,19 @@ pub fn happiness(band: u8) -> i32 {
 /// Reads [`County::ration_achieved`] — so [`crate::ration::apply`] must already
 /// have run this season — and writes the meter, the band and the health
 /// happiness term.
-pub fn update(county: &mut County) {
-    let d = delta(county.ration_index(), county.health_band);
+pub fn update(t: &Tables, county: &mut County) {
+    let d = delta(t, county.ration_index(), county.health_band);
     county.health_meter = clamp(county.health_meter + d, HEALTH_METER_MIN, HEALTH_METER_MAX);
-    county.health_band = health_band(county.health_meter);
-    county.d_hap_health = happiness(county.health_band);
+    county.health_band = t.health_band(county.health_meter);
+    county.d_hap_health = happiness(t, county.health_band);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
 
     /// **`docs/kingdom.md` §9 point 7, the whole chain.** A published dump of
     /// the new-game presets gives a starting health of 65 for a medium county,
@@ -59,7 +62,7 @@ mod tests {
         assert_eq!(c.health_band, 2, "65 is Average");
         c.ration_achieved = 3; // Normal
 
-        update(&mut c);
+        update(T, &mut c);
 
         assert_eq!(c.health_meter, 67, "65 + 2");
         assert_eq!(c.health_band, 3, "Good");
@@ -72,7 +75,7 @@ mod tests {
         c.health_meter = 2;
         c.health_band = 0;
         c.ration_achieved = 0; // None: -8 at band 0
-        update(&mut c);
+        update(T, &mut c);
         assert_eq!(c.health_meter, 0);
         assert_eq!(c.health_band, 0);
 
@@ -80,7 +83,7 @@ mod tests {
         c.health_meter = 99;
         c.health_band = 4;
         c.ration_achieved = 5; // Triple: +1 at band 4
-        update(&mut c);
+        update(T, &mut c);
         assert_eq!(c.health_meter, 100);
         assert_eq!(c.d_hap_health, 2, "Perfect health is worth +2");
     }
@@ -94,7 +97,7 @@ mod tests {
             c.health_meter = 100;
             c.health_band = 4;
             c.ration_achieved = ration;
-            update(&mut c);
+            update(T, &mut c);
             c.health_meter
         };
         assert_eq!(run(3), 99, "Normal is -1 at Perfect");
@@ -112,12 +115,12 @@ mod tests {
         c.health_band = 0;
         c.ration_achieved = 5;
 
-        update(&mut c);
+        update(T, &mut c);
         assert_eq!(c.health_meter, 20, "the first season is worth 20");
 
         let mut seasons = 1;
         while c.health_band < 4 && seasons < 100 {
-            update(&mut c);
+            update(T, &mut c);
             seasons += 1;
         }
         assert_eq!(c.health_band, 4);
@@ -132,7 +135,7 @@ mod tests {
         c.health_band = 4;
         c.ration_achieved = 0;
         for _ in 0..40 {
-            update(&mut c);
+            update(T, &mut c);
         }
         assert_eq!(c.health_meter, 0);
         assert_eq!(c.health_band, 0);
@@ -152,7 +155,7 @@ mod tests {
             c.health_band = crate::tables::health_band(start);
             c.ration_achieved = 3;
             for _ in 0..500 {
-                update(&mut c);
+                update(T, &mut c);
             }
             assert!(
                 (90..=91).contains(&c.health_meter),
@@ -165,7 +168,7 @@ mod tests {
 
     #[test]
     fn an_out_of_range_band_or_ration_clamps_rather_than_panicking() {
-        assert_eq!(delta(99, 99), HEALTH_DELTA[5][4]);
-        assert_eq!(happiness(99), HEALTH_HAPPINESS[4]);
+        assert_eq!(delta(T, 99, 99), crate::tables::HEALTH_DELTA[5][4]);
+        assert_eq!(happiness(T, 99), crate::tables::HEALTH_HAPPINESS[4]);
     }
 }

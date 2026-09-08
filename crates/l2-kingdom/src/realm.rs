@@ -4,10 +4,7 @@
 //! the players. As with [`crate::county`], the semantics are reproduced and the
 //! byte layout is not.
 
-use crate::tables::{
-    score_gold_bracket, AI_GOLD_GRANT, AI_GOLD_GRANT_SMALL, SCORE_WEIGHTS, WAGE_DIVISOR_AI,
-    WAGE_DIVISOR_HUMAN, WEAPON_TYPE_COUNT,
-};
+use crate::tables::{Tables, WEAPON_TYPE_COUNT};
 
 /// `g_realms` is 6 records and **index 0 is unused** (`docs/kingdom.md` §2), so
 /// the usable realm ids are 1..=5 — which is also `g_playerStartCount`'s
@@ -200,11 +197,11 @@ impl Realm {
     /// `difficulty` is `g_optDifficulty`, 0..=2 (and anything above clamps into
     /// the table). Troop type does not enter it: a knight and a peasant cost
     /// the same.
-    pub fn wage_for_unit(&self, men: i32, difficulty: u8) -> i32 {
+    pub fn wage_for_unit(&self, t: &Tables, men: i32, difficulty: u8) -> i32 {
         let divisor = if self.is_human {
-            WAGE_DIVISOR_HUMAN
+            t.wages.divisor_human
         } else {
-            WAGE_DIVISOR_AI[(difficulty as usize).min(WAGE_DIVISOR_AI.len() - 1)]
+            t.wages.divisor_ai[(difficulty as usize).min(t.wages.divisor_ai.len() - 1)]
         };
         men / divisor
     }
@@ -216,11 +213,11 @@ impl Realm {
     /// reward a realm that is winning rather than propping up one that is
     /// losing. The human's lord byte is 0 and row 0 of both tables is all
     /// zeros, so the human gets nothing either way. `docs/kingdom.md` §8.2.
-    pub fn gold_grant(&self, difficulty: u8) -> i32 {
+    pub fn gold_grant(&self, t: &Tables, difficulty: u8) -> i32 {
         let table = if crate::ai::uses_small_gold_table(self.county_count) {
-            &AI_GOLD_GRANT_SMALL
+            &crate::tables::AI_GOLD_GRANT_SMALL
         } else {
-            &AI_GOLD_GRANT
+            &t.ai.gold_grant
         };
         let lord = (self.lord as usize).min(table.len() - 1);
         let diff = (difficulty as usize).min(table[0].len() - 1);
@@ -230,13 +227,13 @@ impl Realm {
     /// `Score_RankRealms`' score expression. The six weighted inputs are
     /// unidentified; the gold bracket is the one term whose meaning is
     /// unambiguous. `docs/kingdom.md` §8.3.
-    pub fn compute_score(&self) -> i32 {
+    pub fn compute_score(&self, t: &Tables) -> i32 {
         let mut score: i64 = 0;
-        for i in 0..SCORE_WEIGHTS.len() {
-            let (num, den) = SCORE_WEIGHTS[i];
+        for i in 0..t.score.weights.len() {
+            let (num, den) = t.score.weights[i];
             score += (self.score_inputs[i] as i64 * num as i64) / den as i64;
         }
-        score += score_gold_bracket(self.gold) as i64;
+        score += t.score_gold_bracket(self.gold) as i64;
         score as i32
     }
 }
@@ -245,18 +242,21 @@ impl Realm {
 mod tests {
     use super::*;
 
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
+
     /// A player measured 250 men -> 62 crowns, 252 -> 63, 254 -> 63.
     /// `docs/kingdom.md` §7.4.
     #[test]
     fn a_human_pays_a_quarter_of_a_crown_a_man() {
         let mut r = Realm::new();
         r.is_human = true;
-        assert_eq!(r.wage_for_unit(250, 0), 62);
-        assert_eq!(r.wage_for_unit(252, 0), 63);
-        assert_eq!(r.wage_for_unit(254, 0), 63);
+        assert_eq!(r.wage_for_unit(T, 250, 0), 62);
+        assert_eq!(r.wage_for_unit(T, 252, 0), 63);
+        assert_eq!(r.wage_for_unit(T, 254, 0), 63);
         // Difficulty does not touch the human divisor.
         for d in 0..=2 {
-            assert_eq!(r.wage_for_unit(1000, d), 250);
+            assert_eq!(r.wage_for_unit(T, 1000, d), 250);
         }
     }
 
@@ -264,11 +264,11 @@ mod tests {
     fn an_ai_pays_less_the_harder_the_game_is() {
         let mut r = Realm::new();
         r.is_human = false;
-        assert_eq!(r.wage_for_unit(300, 0), 100);
-        assert_eq!(r.wage_for_unit(300, 1), 60);
-        assert_eq!(r.wage_for_unit(300, 2), 30);
+        assert_eq!(r.wage_for_unit(T, 300, 0), 100);
+        assert_eq!(r.wage_for_unit(T, 300, 1), 60);
+        assert_eq!(r.wage_for_unit(T, 300, 2), 30);
         // Out-of-range difficulty clamps rather than panicking.
-        assert_eq!(r.wage_for_unit(300, 9), 30);
+        assert_eq!(r.wage_for_unit(T, 300, 9), 30);
     }
 
     #[test]
@@ -276,7 +276,7 @@ mod tests {
         let mut r = Realm::new();
         r.lord = LORD_HUMAN;
         for d in 0..=3 {
-            assert_eq!(r.gold_grant(d), 0);
+            assert_eq!(r.gold_grant(T, d), 0);
         }
     }
 
@@ -304,7 +304,7 @@ mod tests {
     fn score_applies_each_weight_to_its_own_input() {
         let mut r = Realm::new();
         r.score_inputs = [1, 100, 1, 1, 100, 1];
-        assert_eq!(r.compute_score(), 10 + 10 + 2 + 2 + 20 + 50);
+        assert_eq!(r.compute_score(T), 10 + 10 + 2 + 2 + 20 + 50);
     }
 
     #[test]
@@ -312,7 +312,7 @@ mod tests {
         let mut r = Realm::new();
         for (gold, bonus) in [(0, 0), (2000, 0), (2001, 50), (5000, 50), (5001, 100), (10_000, 100), (10_001, 200)] {
             r.gold = gold;
-            assert_eq!(r.compute_score(), bonus, "gold {gold}");
+            assert_eq!(r.compute_score(T), bonus, "gold {gold}");
         }
     }
 

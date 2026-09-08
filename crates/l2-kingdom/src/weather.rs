@@ -59,7 +59,7 @@
 
 use crate::county::County;
 use crate::math::clamp;
-use crate::tables::{Season, Weather, DRYNESS_BY_SEASON};
+use crate::tables::{Season, Tables, Weather};
 use l2_net::Pcg32;
 
 /// The dryness accumulator is a signed byte in the original (county `+0x21D`),
@@ -108,9 +108,9 @@ pub fn local_modifier(_county: &County) -> i32 {
 ///
 /// The jitter is `draw >> 3` of a 0..=127 draw, which is 0..=15 — enough to
 /// cancel Spring and Autumn outright and to take two thirds off Summer.
-pub fn seasonal_delta(season: Season, rng: &mut Pcg32) -> i32 {
+pub fn seasonal_delta(t: &Tables, season: Season, rng: &mut Pcg32) -> i32 {
     let jitter = (rng.below(WEATHER_JITTER_BOUND) >> WEATHER_JITTER_SHIFT) as i32;
-    DRYNESS_BY_SEASON[season.index() as usize] - jitter
+    t.season[season.index() as usize].dryness - jitter
 }
 
 /// Which county gets the local swing.
@@ -183,6 +183,7 @@ pub fn apply_frost(band: Weather, dryness: i32, season: Season) -> Weather {
 /// (`docs/netcode.md` §3: the stream must not depend on how much work there was
 /// to do).
 pub fn update_all(
+    t: &Tables,
     counties: &mut [County],
     county_count: usize,
     season: Season,
@@ -194,7 +195,7 @@ pub fn update_all(
         return;
     }
 
-    let delta = seasonal_delta(season, rng);
+    let delta = seasonal_delta(t, season, rng);
     // The original draws from its *other* LFSR here; one draw either way, so
     // the stream's length is unchanged.
     let chosen = chosen_county(rng.below(WEATHER_JITTER_BOUND), county_count, *previous_county);
@@ -235,6 +236,9 @@ fn push(county: &mut County, by: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
 
     fn kingdom(n: usize, dryness: i32) -> Vec<County> {
         let mut c = vec![County::new(); n + 1];
@@ -316,7 +320,7 @@ mod tests {
     fn basic_farming_forces_cloudy_everywhere_whatever_the_accumulator_says() {
         let mut rng = Pcg32::from_seed(1);
         let mut c = kingdom(14, 200);
-        update_all(&mut c, 14, Season::Winter, false, &mut rng, &mut 1);
+        update_all(T, &mut c, 14, Season::Winter, false, &mut rng, &mut 1);
         for id in 1..=14 {
             assert_eq!(c[id].weather, Weather::Cloudy, "county {id}");
         }
@@ -330,7 +334,7 @@ mod tests {
         let mut rng = Pcg32::from_seed(7);
         let mut c = kingdom(6, 50);
         // No adjacency, so only the chosen county diverges.
-        update_all(&mut c, 6, Season::Summer, true, &mut rng, &mut 1);
+        update_all(T, &mut c, 6, Season::Summer, true, &mut rng, &mut 1);
         let mut readings: Vec<i32> = (1..=6).map(|i| c[i].dryness).collect();
         readings.sort_unstable();
         readings.dedup();
@@ -352,10 +356,10 @@ mod tests {
             }
         }
         // Recover the delta this pass will use without disturbing the stream.
-        let delta = seasonal_delta(Season::Summer, &mut rng.clone());
+        let delta = seasonal_delta(T, Season::Summer, &mut rng.clone());
         assert!(delta > 0);
 
-        update_all(&mut c, 3, Season::Summer, true, &mut rng, &mut 1);
+        update_all(T, &mut c, 3, Season::Summer, true, &mut rng, &mut 1);
 
         let readings: Vec<i32> = (1..=3).map(|i| c[i].dryness).collect();
         let chosen = 20 + 2 * delta;
@@ -373,7 +377,7 @@ mod tests {
         let mut totals = [0i64; 5];
         for _ in 0..2000 {
             for season in Season::ALL {
-                totals[season.index() as usize] += seasonal_delta(season, &mut rng) as i64;
+                totals[season.index() as usize] += seasonal_delta(T, season, &mut rng) as i64;
             }
         }
         assert!(totals[Season::Winter as usize] < 0, "Winter should wet the land");
@@ -394,10 +398,10 @@ mod tests {
         let mut spring_flipped = false;
         let mut autumn_flipped = false;
         for _ in 0..4000 {
-            let spring = seasonal_delta(Season::Spring, &mut rng);
-            let summer = seasonal_delta(Season::Summer, &mut rng);
-            let autumn = seasonal_delta(Season::Autumn, &mut rng);
-            let winter = seasonal_delta(Season::Winter, &mut rng);
+            let spring = seasonal_delta(T, Season::Spring, &mut rng);
+            let summer = seasonal_delta(T, Season::Summer, &mut rng);
+            let autumn = seasonal_delta(T, Season::Autumn, &mut rng);
+            let winter = seasonal_delta(T, Season::Winter, &mut rng);
             // The exact bounds: push - 15 .. push.
             assert!((-7..=8).contains(&spring), "spring {spring}");
             assert!((9..=24).contains(&summer), "summer {summer}");
@@ -443,7 +447,7 @@ mod tests {
                 c[id].add_neighbour((id % 8 + 1) as u8);
             }
             for season in [Season::Spring, Season::Summer, Season::Autumn, Season::Winter] {
-                update_all(&mut c, 8, season, true, &mut rng, &mut 1);
+                update_all(T, &mut c, 8, season, true, &mut rng, &mut 1);
             }
             c
         };
@@ -457,7 +461,7 @@ mod tests {
         for n in [1usize, 5, 16] {
             let mut rng = Pcg32::from_seed(42);
             let mut c = kingdom(n, 50);
-            update_all(&mut c, n, Season::Summer, true, &mut rng, &mut 1);
+            update_all(T, &mut c, n, Season::Summer, true, &mut rng, &mut 1);
             let mut reference = Pcg32::from_seed(42);
             reference.advance(2);
             assert_eq!(rng, reference, "kingdom of {n} should have drawn twice");
@@ -469,7 +473,7 @@ mod tests {
         let mut rng = Pcg32::from_seed(5);
         let before = rng.clone();
         let mut c = kingdom(0, 0);
-        update_all(&mut c, 0, Season::Spring, true, &mut rng, &mut 1);
+        update_all(T, &mut c, 0, Season::Spring, true, &mut rng, &mut 1);
         assert_eq!(rng, before);
     }
 }

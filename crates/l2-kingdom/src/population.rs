@@ -28,10 +28,7 @@
 
 use crate::county::{ChangeReason, County, CHANGE_REASON_MIN_PCT, MAX_INFLOW_SOURCES};
 use crate::math::{clamp, pct};
-use crate::tables::{
-    birth_rate, happiness_birth_factor, Season, DEATH_RATE_BY_HEALTH, DEATH_RATE_BY_SEASON,
-    EVENT_POPULATION_CAP_PCT,
-};
+use crate::tables::{Season, Tables};
 
 /// Migration is capped at this many people per county per season, before the
 /// unowned halving. `docs/kingdom.md` §5.3.
@@ -147,14 +144,14 @@ fn record_inflow_source(dest: &mut County, source: u8) {
 ///
 /// `season` is `g_season` — the season now *beginning*, which is what makes
 /// `g_deathRateBySeason[4] = 8` the Winter figure.
-pub fn update_one(county: &mut County, season: Season) {
+pub fn update_one(t: &Tables, county: &mut County, season: Season) {
     county.pop_last = county.population;
 
-    let cap = pct(county.population, EVENT_POPULATION_CAP_PCT);
-    let base = birth_rate(county.population);
-    let death = DEATH_RATE_BY_HEALTH[(county.health_band as usize).min(4)]
-        + DEATH_RATE_BY_SEASON[season.index() as usize];
-    let factor = happiness_birth_factor(county.happiness);
+    let cap = pct(county.population, t.event.population_cap_pct);
+    let base = t.birth_rate(county.population);
+    let death = t.health[(county.health_band as usize).min(t.health.len() - 1)].death_rate
+        + t.season[season.index() as usize].death_rate;
+    let factor = t.happiness_birth_factor(county.happiness);
 
     let mut births = pct(county.population, pct(base, factor));
     let mut deaths = pct(county.population, death);
@@ -243,15 +240,18 @@ fn change_reason(county: &County) -> ChangeReason {
 }
 
 /// `Population_UpdateAll` over the whole kingdom, in index order.
-pub fn update_all(counties: &mut [County], county_count: usize, season: Season) {
+pub fn update_all(t: &Tables, counties: &mut [County], county_count: usize, season: Season) {
     for id in 1..=county_count {
-        update_one(&mut counties[id], season);
+        update_one(t, &mut counties[id], season);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
 
     /// **`docs/kingdom.md` §9 point 8, both rows.** Every county in the shipped
     /// save started at `popLast = 417`, giving a 20% base birth rate:
@@ -274,7 +274,7 @@ mod tests {
         };
 
         let mut owned = build(72);
-        update_one(&mut owned, Season::Winter);
+        update_one(T, &mut owned, Season::Winter);
         assert_eq!(owned.pop_last, 417);
         assert_eq!(owned.births, 63, "Pct(417, Pct(20, 75)) + 1");
         assert_eq!(owned.deaths, 45, "Pct(417, 3 + 8)");
@@ -282,7 +282,7 @@ mod tests {
         assert_eq!(owned.pop_band, 18);
 
         let mut unowned = build(77);
-        update_one(&mut unowned, Season::Winter);
+        update_one(T, &mut unowned, Season::Winter);
         assert_eq!(unowned.births, 84, "Pct(417, 20) + 1");
         assert_eq!(unowned.deaths, 45);
         assert_eq!(unowned.population, 456);
@@ -292,15 +292,15 @@ mod tests {
     /// The happiness factor bands, at every boundary.
     #[test]
     fn the_birth_factor_steps_at_twenty_six_fifty_one_seventy_six_and_a_hundred() {
-        assert_eq!(happiness_birth_factor(0), 25);
-        assert_eq!(happiness_birth_factor(25), 25);
-        assert_eq!(happiness_birth_factor(26), 50);
-        assert_eq!(happiness_birth_factor(50), 50);
-        assert_eq!(happiness_birth_factor(51), 75);
-        assert_eq!(happiness_birth_factor(75), 75);
-        assert_eq!(happiness_birth_factor(76), 100);
-        assert_eq!(happiness_birth_factor(99), 100);
-        assert_eq!(happiness_birth_factor(100), 120);
+        assert_eq!(T.happiness_birth_factor(0), 25);
+        assert_eq!(T.happiness_birth_factor(25), 25);
+        assert_eq!(T.happiness_birth_factor(26), 50);
+        assert_eq!(T.happiness_birth_factor(50), 50);
+        assert_eq!(T.happiness_birth_factor(51), 75);
+        assert_eq!(T.happiness_birth_factor(75), 75);
+        assert_eq!(T.happiness_birth_factor(76), 100);
+        assert_eq!(T.happiness_birth_factor(99), 100);
+        assert_eq!(T.happiness_birth_factor(100), 120);
     }
 
     /// A Diseased county in winter loses 43% of its people in one season, plus
@@ -311,7 +311,7 @@ mod tests {
         c.population = 1000;
         c.happiness = 50;
         c.health_band = 0;
-        update_one(&mut c, Season::Winter);
+        update_one(T, &mut c, Season::Winter);
         // 35 + 8 = 43%, +2 for Diseased, +1 because base (12) < death (43).
         assert_eq!(c.deaths, 430 + 2 + 1);
     }
@@ -323,7 +323,7 @@ mod tests {
             c.population = 1000;
             c.happiness = 50;
             c.health_band = 2;
-            update_one(&mut c, season);
+            update_one(T, &mut c, season);
             c.deaths
         };
         assert!(deaths_in(Season::Winter) > deaths_in(Season::Spring));
@@ -339,14 +339,14 @@ mod tests {
         c.population = 1;
         c.happiness = 50;
         c.health_band = 2; // 8% death rate, 0 in summer
-        update_one(&mut c, Season::Summer);
+        update_one(T, &mut c, Season::Summer);
         assert!(c.births >= 1);
 
         let mut c = County::new();
         c.population = 1;
         c.happiness = 0;
         c.health_band = 4;
-        update_one(&mut c, Season::Winter); // 0 + 8 = 8%, Pct(1, 8) = 0
+        update_one(T, &mut c, Season::Winter); // 0 + 8 = 8%, Pct(1, 8) = 0
         assert!(c.deaths >= 1, "8% of one person still kills someone eventually");
     }
 
@@ -357,7 +357,7 @@ mod tests {
         c.population = 1;
         c.happiness = 0;
         c.health_band = 0;
-        update_one(&mut c, Season::Winter);
+        update_one(T, &mut c, Season::Winter);
         assert_eq!(c.population, 0);
         assert_eq!(c.births, 0);
         // docs/kingdom.md §5 stores the (negative) leftover here. See the
@@ -373,7 +373,7 @@ mod tests {
             c.population = pop;
             c.happiness = 100;
             c.health_band = 4;
-            update_one(&mut c, Season::Winter);
+            update_one(T, &mut c, Season::Winter);
             c.population - pop
         };
         assert!(grow(400) > 0, "a small county grows");
@@ -387,7 +387,7 @@ mod tests {
         c.happiness = 50;
         c.health_band = 4;
         c.event_population_pct = 90; // a 90% baby boom, capped to 20%
-        update_one(&mut c, Season::Summer);
+        update_one(T, &mut c, Season::Summer);
         // Pct(1000, Pct(12, 50)) = 60 natural births, +1, +200 from the capped
         // event - not the 900 the event asked for.
         assert_eq!(c.births, 60 + 1 + 200, "capped at Pct(1000, 20)");
@@ -398,7 +398,7 @@ mod tests {
         c.happiness = 50;
         c.health_band = 4;
         c.event_population_pct = -90;
-        update_one(&mut c, Season::Summer);
+        update_one(T, &mut c, Season::Summer);
         assert_eq!(c.deaths, 200, "a plague is capped the same way");
     }
 
@@ -407,7 +407,7 @@ mod tests {
         let mut c = County::new();
         c.population = 400;
         c.army = 250;
-        update_one(&mut c, Season::Spring);
+        update_one(T, &mut c, Season::Spring);
         assert_eq!(c.army, 0);
     }
 
@@ -503,7 +503,7 @@ mod tests {
         let mut c = linked([20, 90, 90], false);
         migrate_all(&mut c, 3);
         assert_eq!(c[1].population, 1000, "still there");
-        update_all(&mut c, 3, Season::Summer);
+        update_all(T, &mut c, 3, Season::Summer);
         assert!(c[1].population < 1000 + c[1].births);
         assert_eq!(c[2].population, 1000 + c[2].births - c[2].deaths + MIGRATION_CAP);
     }

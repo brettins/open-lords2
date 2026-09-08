@@ -18,7 +18,7 @@
 use crate::county::County;
 use crate::math::pct;
 use crate::realm::Realm;
-use crate::tables::CASTLE_TAX_BASE;
+use crate::tables::Tables;
 
 /// The tax rate that costs nothing. `dHapTax = 5 - rate`.
 pub const FREE_TAX_RATE: i32 = 5;
@@ -42,8 +42,9 @@ pub fn effective_castle_type(county: &County) -> u8 {
 }
 
 /// The population multiplier for a castle type, clamped into the table.
-pub fn tax_base(castle_type: u8) -> i32 {
-    CASTLE_TAX_BASE[(castle_type as usize).min(CASTLE_TAX_BASE.len() - 1)]
+pub fn tax_base(t: &Tables, castle_type: u8) -> i32 {
+    let table = &t.castle.tax_base;
+    table[(castle_type as usize).min(table.len() - 1)]
 }
 
 /// What one county contributes to its realm's empire-wide tax happiness term
@@ -92,8 +93,8 @@ pub fn sum_empire_happiness(counties: &mut [County], realms: &mut [Realm], count
 ///
 /// Returns what the treasury banks, which the caller credits — an unowned
 /// county's take goes nowhere, because realm 0 is not a realm.
-pub fn collect(county: &mut County, empire: i32) -> i32 {
-    let base = if county.tax_suppressed { 0 } else { tax_base(effective_castle_type(county)) };
+pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
+    let base = if county.tax_suppressed { 0 } else { tax_base(t, effective_castle_type(county)) };
     let take = pct(pct(county.population, base), county.tax_rate);
     county.tax_collected = take;
     // `taxShown` is L2.eng group 86 index 2, *"People pay"*. docs/kingdom.md
@@ -108,7 +109,12 @@ pub fn collect(county: &mut County, empire: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::tables::{CASTLE_TAX_BONUS_PCT, CASTLE_TYPE_COUNT};
+
+    /// The stock ruleset. Every test here runs on it explicitly, which is the
+    /// point: the rules arrive as an argument rather than as a constant.
+    const T: &Tables = &Tables::DEFAULT;
 
     fn county_with(pop: i32, rate: i32, castle: u8) -> County {
         let mut c = County::new();
@@ -123,9 +129,9 @@ mod tests {
     #[test]
     fn a_castleless_county_yields_three_point_two_crowns_a_head_at_full_rate() {
         let mut c = county_with(1000, 100, 0);
-        assert_eq!(collect(&mut c, 0), 3200);
+        assert_eq!(collect(T, &mut c, 0), 3200);
         let mut c = county_with(1000, 10, 0);
-        assert_eq!(collect(&mut c, 0), 320);
+        assert_eq!(collect(T, &mut c, 0), 320);
     }
 
     /// A royal castle yields two and a half times a castle-less county.
@@ -133,8 +139,8 @@ mod tests {
     fn a_royal_castle_yields_two_and_a_half_times_nothing_at_all() {
         let mut none = county_with(1000, 100, 0);
         let mut royal = county_with(1000, 100, 5);
-        let a = collect(&mut none, 0);
-        let b = collect(&mut royal, 0);
+        let a = collect(T, &mut none, 0);
+        let b = collect(T, &mut royal, 0);
         assert_eq!(b * 2, a * 5, "{b} should be 2.5x {a}");
     }
 
@@ -142,12 +148,12 @@ mod tests {
     #[test]
     fn every_castle_multiplier_matches_its_published_bonus() {
         let mut base = county_with(10_000, 100, 0);
-        let base_take = collect(&mut base, 0);
-        for t in 1..CASTLE_TYPE_COUNT as u8 {
-            let mut c = county_with(10_000, 100, t);
-            let take = collect(&mut c, 0);
-            let expected = base_take + base_take * CASTLE_TAX_BONUS_PCT[t as usize - 1] / 100;
-            assert_eq!(take, expected, "castle type {t}");
+        let base_take = collect(T, &mut base, 0);
+        for castle in 1..CASTLE_TYPE_COUNT as u8 {
+            let mut c = county_with(10_000, 100, castle);
+            let take = collect(T, &mut c, 0);
+            let expected = base_take + base_take * CASTLE_TAX_BONUS_PCT[castle as usize - 1] / 100;
+            assert_eq!(take, expected, "castle type {castle}");
         }
     }
 
@@ -155,11 +161,11 @@ mod tests {
     fn a_rate_of_five_is_free_and_every_point_above_costs_one_happiness() {
         for rate in 0..=20 {
             let mut c = county_with(400, rate, 3);
-            collect(&mut c, 0);
+            collect(T, &mut c, 0);
             assert_eq!(c.d_hap_tax, 5 - rate);
         }
         let mut c = county_with(400, 5, 3);
-        collect(&mut c, 0);
+        collect(T, &mut c, 0);
         assert_eq!(c.d_hap_tax, 0, "rate 5 is the free rate");
     }
 
@@ -168,7 +174,7 @@ mod tests {
     #[test]
     fn the_shipped_save_s_tax_term_reproduces() {
         let mut c = county_with(417, 0, 3);
-        collect(&mut c, 0);
+        collect(T, &mut c, 0);
         assert_eq!(c.d_hap_tax, 5);
         assert_eq!(c.tax_collected, 0, "a rate of 0 banks nothing");
     }
@@ -205,9 +211,9 @@ mod tests {
         assert_eq!(realms[1].tax_hap_empire, -20);
 
         let empire = realms[1].tax_hap_empire as i32;
-        collect(&mut counties[1], empire);
+        collect(T, &mut counties[1], empire);
         assert_eq!(counties[1].d_hap_tax, 5 - 20, "an untaxed county still suffers");
-        collect(&mut counties[2], empire);
+        collect(T, &mut counties[2], empire);
         assert_eq!(counties[2].d_hap_tax, (5 - 25) - 20, "and the culprit suffers twice");
     }
 
@@ -242,7 +248,7 @@ mod tests {
     fn the_untraced_gate_at_1a8_stops_collection_dead() {
         let mut c = county_with(1000, 100, 5);
         c.tax_suppressed = true;
-        assert_eq!(collect(&mut c, 0), 0);
+        assert_eq!(collect(T, &mut c, 0), 0);
         assert_eq!(c.d_hap_tax, 5 - 100, "but the happiness cost still lands");
     }
 
@@ -251,12 +257,12 @@ mod tests {
         let mut c = county_with(1000, 100, 5);
         c.castle_degraded = true;
         c.castle_building = 2;
-        assert_eq!(collect(&mut c, 0), pct(pct(1000, 560), 100));
+        assert_eq!(collect(T, &mut c, 0), pct(pct(1000, 560), 100));
 
         // A zero castle_building forces type 0 outright.
         let mut c = county_with(1000, 100, 5);
         c.castle_degraded = true;
         c.castle_building = 0;
-        assert_eq!(collect(&mut c, 0), pct(pct(1000, 320), 100));
+        assert_eq!(collect(T, &mut c, 0), pct(pct(1000, 320), 100));
     }
 }

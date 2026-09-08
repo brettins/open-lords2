@@ -77,8 +77,8 @@
 use crate::county::County;
 use crate::realm::{Realm, AI_STEP_DONE};
 use crate::tables::{
-    ai_grant_tier, ai_tax_ladder, tax_rate_for, AI_FIELD_LADDER, AI_GOLD_GRANT_SMALL_COUNTIES,
-    AI_GRANT_MIN_GRAIN, AI_GRANT_MIN_HERD, AI_GRANT_MIN_POPULATION, AI_TAX_LADDER_NEUTRAL,
+    ai_grant_tier, ai_tax_ladder, tax_rate_for, Tables, AI_FIELD_LADDER,
+    AI_GOLD_GRANT_SMALL_COUNTIES, AI_TAX_LADDER_NEUTRAL,
 };
 
 /// The number of handlers `AI_RunTurnStep` dispatches into: `aiStep` 1..=14.
@@ -458,6 +458,7 @@ pub fn update_realm_totals(
 /// The realm's `county_count` must be current: [`update_realm_totals`] is what
 /// sets it, and it is step 14 of the *previous* turn.
 pub fn grant_resources(
+    t: &Tables,
     counties: &mut [County],
     realms: &mut [Realm],
     county_count: usize,
@@ -474,22 +475,23 @@ pub fn grant_resources(
             continue;
         }
         let (people_per, herd_per, grain_per) = ai_grant_tier(realm.county_count);
+        let _ = t;
         let c = &mut counties[id];
-        if c.population > AI_GRANT_MIN_POPULATION {
+        if c.population > t.ai.grant_min_population {
             let people = d * people_per;
             c.population += people;
             c.births += people;
         }
-        if c.herd > AI_GRANT_MIN_HERD {
+        if c.herd > t.ai.grant_min_herd {
             c.herd += d * herd_per;
         }
-        if c.grain > AI_GRANT_MIN_GRAIN {
+        if c.grain > t.ai.grant_min_grain {
             c.grain += d * grain_per;
         }
     }
     for realm in realms.iter_mut().skip(1) {
         if realm.in_play && !realm.is_human && realm.county_count != 0 {
-            realm.gold += realm.gold_grant(difficulty);
+            realm.gold += realm.gold_grant(t, difficulty);
         }
     }
 }
@@ -508,9 +510,9 @@ pub fn uses_small_gold_table(county_count: u8) -> bool {
 /// strictly higher score or an equal score at a lower realm index. That is the
 /// same ordering a stable bubble sort produces and it cannot depend on the
 /// starting arrangement, which a sort can.
-pub fn rank_realms(realms: &mut [Realm]) {
+pub fn rank_realms(t: &Tables, realms: &mut [Realm]) {
     for realm in realms.iter_mut() {
-        realm.score = realm.compute_score();
+        realm.score = realm.compute_score(t);
     }
     let scores: Vec<(bool, i32)> = realms.iter().map(|r| (r.in_play, r.score)).collect();
     for i in 1..realms.len() {
@@ -536,6 +538,9 @@ pub fn rank_realms(realms: &mut [Realm]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
     use crate::realm::MAX_REALMS;
     use crate::tables::{AI_GOLD_GRANT, AI_GOLD_GRANT_SMALL, AI_TAX_LADDERS};
 
@@ -811,7 +816,7 @@ mod tests {
             counties[id].herd = 100;
             counties[id].grain = 500;
         }
-        grant_resources(&mut counties, &mut realms, 3, 2);
+        grant_resources(T, &mut counties, &mut realms, 3, 2);
         assert_eq!(realms[1].gold, 0);
         for id in 1..=3 {
             assert_eq!(counties[id].population, 400);
@@ -830,7 +835,7 @@ mod tests {
         counties[1].population = 400;
         counties[1].herd = 100;
         counties[1].grain = 500;
-        grant_resources(&mut counties, &mut realms, 1, difficulty);
+        grant_resources(T, &mut counties, &mut realms, 1, difficulty);
         (counties[1].clone(), realms[2].clone())
     }
 
@@ -909,14 +914,14 @@ mod tests {
         realms[2].lord = 4;
         realms[2].county_count = 1;
         counties[1].owner = 2;
-        counties[1].population = AI_GRANT_MIN_POPULATION;
-        counties[1].herd = AI_GRANT_MIN_HERD;
-        counties[1].grain = AI_GRANT_MIN_GRAIN;
+        counties[1].population = T.ai.grant_min_population;
+        counties[1].herd = T.ai.grant_min_herd;
+        counties[1].grain = T.ai.grant_min_grain;
 
-        grant_resources(&mut counties, &mut realms, 1, 3);
-        assert_eq!(counties[1].population, AI_GRANT_MIN_POPULATION);
-        assert_eq!(counties[1].herd, AI_GRANT_MIN_HERD);
-        assert_eq!(counties[1].grain, AI_GRANT_MIN_GRAIN);
+        grant_resources(T, &mut counties, &mut realms, 1, 3);
+        assert_eq!(counties[1].population, T.ai.grant_min_population);
+        assert_eq!(counties[1].herd, T.ai.grant_min_herd);
+        assert_eq!(counties[1].grain, T.ai.grant_min_grain);
     }
 
     #[test]
@@ -1000,7 +1005,7 @@ mod tests {
         assert_eq!(realm.score_inputs[5], 0, "the sixth is still unidentified");
 
         // And those feed the score with the documented weights.
-        assert_eq!(realm.compute_score(), 50 * 10 + 1000 / 10 + 65 * 2 + 52 * 2 + 600 / 5);
+        assert_eq!(realm.compute_score(T), 50 * 10 + 1000 / 10 + 65 * 2 + 52 * 2 + 600 / 5);
     }
 
     /// Every division is guarded, so a realm losing its last county does not
@@ -1048,7 +1053,7 @@ mod tests {
         realms[3].score_inputs[0] = 5; // 50, ties with 2
         realms[4].score_inputs[0] = 0; // 0
 
-        rank_realms(&mut realms);
+        rank_realms(T, &mut realms);
         assert_eq!(realms[2].rank, 1, "equal scores: the lower index wins");
         assert_eq!(realms[3].rank, 2);
         assert_eq!(realms[1].rank, 3);
@@ -1064,7 +1069,7 @@ mod tests {
                 realms[i + 1].in_play = true;
                 realms[i + 1].score_inputs[0] = *s;
             }
-            rank_realms(&mut realms);
+            rank_realms(T, &mut realms);
             (1..=4).map(|i| realms[i].rank).collect::<Vec<u8>>()
         };
         assert_eq!(build([4, 3, 2, 1]), vec![1, 2, 3, 4]);
@@ -1079,7 +1084,7 @@ mod tests {
             realms[i].in_play = true;
             realms[i].gold = (i as i32) * 3000;
         }
-        rank_realms(&mut realms);
+        rank_realms(T, &mut realms);
         let mut ranks: Vec<u8> = (1..=5).map(|i| realms[i].rank).collect();
         ranks.sort_unstable();
         assert_eq!(ranks, vec![1, 2, 3, 4, 5]);

@@ -42,9 +42,8 @@ use crate::math::pct;
 use crate::realm::Realm;
 use crate::report::Message;
 use crate::tables::{
-    Commodity, CASTLE_COST, CASTLE_FREE_ARCHERS, CASTLE_GARRISON_CAP, CASTLE_WORKFORCE,
-    EFFICIENCY_MAX, EFFICIENCY_WITHOUT_ADVANCED_FARMING, JOB_CASTLE_BUILDING,
-    RESOURCE_LIMIT_UNLIMITED, WEAPON_COST, WEAPON_TYPE_COUNT,
+    Commodity, Tables, EFFICIENCY_MAX, EFFICIENCY_WITHOUT_ADVANCED_FARMING,
+    RESOURCE_LIMIT_UNLIMITED, WEAPON_TYPE_COUNT,
 };
 
 /// `PctOf(a, b) = a * 100 / b` — `FUN_00404DC1`, the companion to
@@ -128,14 +127,20 @@ pub fn efficiency_ramp(
 /// `0x0056D628`, written by `FUN_0044F15B`, which was not traced); this crate
 /// takes the caller's `weapon_share` for that and defaults it to 1, which is
 /// the single-county case.
-pub fn resource_limit(county: &County, c: Commodity, realm: &Realm, weapon_share: i32) -> i32 {
+pub fn resource_limit(
+    t: &Tables,
+    county: &County,
+    c: Commodity,
+    realm: &Realm,
+    weapon_share: i32,
+) -> i32 {
     let record = &county.industry[c.index()];
     if !record.enabled {
         return 0;
     }
     if c == Commodity::Weapons {
         let weapon = county.weapon_type.min(WEAPON_TYPE_COUNT - 1);
-        let (wood, iron) = WEAPON_COST[weapon];
+        let (wood, iron) = (t.weapon[weapon].wood, t.weapon[weapon].iron);
         let share = weapon_share.max(1);
         // Written the way the original writes it — `(stock * cost / share) /
         // cost`, multiplying by the cost and dividing by it again. That is not
@@ -160,11 +165,11 @@ pub fn resource_limit(county: &County, c: Commodity, realm: &Realm, weapon_share
 }
 
 /// What one commodity's pass would produce, before it is credited anywhere.
-pub fn output(county: &County, c: Commodity, realm: &Realm, weapon_share: i32) -> i32 {
+pub fn output(t: &Tables, county: &County, c: Commodity, realm: &Realm, weapon_share: i32) -> i32 {
     let record = &county.industry[c.index()];
-    let workers = county.labour[c.job()].max(0);
-    let raw = pct(workers / c.divisor(), record.efficiency);
-    raw.min(resource_limit(county, c, realm, weapon_share)).max(0)
+    let workers = county.labour[t.commodity[c.index()].job].max(0);
+    let raw = pct(workers / t.commodity[c.index()].divisor, record.efficiency);
+    raw.min(resource_limit(t, county, c, realm, weapon_share)).max(0)
 }
 
 /// One `Industry_Produce` pass: ramp the efficiency, produce, credit the realm,
@@ -186,12 +191,19 @@ pub fn output(county: &County, c: Commodity, realm: &Realm, weapon_share: i32) -
 /// actually binds. It is kept because a negative stockpile is worse than a
 /// small divergence, and it is flagged here rather than presented as the
 /// original's rule.
-pub fn produce(county: &mut County, realm: &mut Realm, c: Commodity, advanced_farming: bool) {
-    produce_with_share(county, realm, c, advanced_farming, 1)
+pub fn produce(
+    t: &Tables,
+    county: &mut County,
+    realm: &mut Realm,
+    c: Commodity,
+    advanced_farming: bool,
+) {
+    produce_with_share(t, county, realm, c, advanced_farming, 1)
 }
 
 /// [`produce`], with the realm-wide weapon share [`resource_limit`] describes.
 pub fn produce_with_share(
+    t: &Tables,
     county: &mut County,
     realm: &mut Realm,
     c: Commodity,
@@ -213,23 +225,23 @@ pub fn produce_with_share(
         return;
     }
 
-    let workers = county.labour[c.job()].max(0);
+    let workers = county.labour[t.commodity[c.index()].job].max(0);
     county.industry[index].efficiency = efficiency_ramp(
         county.industry[index].efficiency,
         workers,
         county.industry[index].capacity,
-        c.base_efficiency(),
+        t.commodity[c.index()].base_efficiency,
         advanced_farming,
     );
 
-    let mut made = output(county, c, realm, weapon_share);
+    let mut made = output(t, county, c, realm, weapon_share);
     match c {
         Commodity::Wood => realm.wood += made,
         Commodity::Iron => realm.iron += made,
         Commodity::Stone => realm.stone += made,
         Commodity::Weapons => {
             let weapon = county.weapon_type.min(WEAPON_TYPE_COUNT - 1);
-            let (wood, iron) = WEAPON_COST[weapon];
+            let (wood, iron) = (t.weapon[weapon].wood, t.weapon[weapon].iron);
             if wood > 0 {
                 made = made.min(realm.wood / wood);
             }
@@ -252,10 +264,10 @@ pub fn produce_with_share(
 /// `men` is campaign unit `+0x168`, the field `docs/battle.md` §4.1 identified
 /// as the total over troop types 0..=6. Units live in `g_units`, which is not
 /// this crate's, so the caller supplies the per-unit totals in a stable order.
-pub fn compute_wages(realm: &Realm, unit_men: &[i32], difficulty: u8) -> i32 {
+pub fn compute_wages(t: &Tables, realm: &Realm, unit_men: &[i32], difficulty: u8) -> i32 {
     let mut total: i64 = 0;
     for &men in unit_men {
-        total += realm.wage_for_unit(men, difficulty) as i64;
+        total += realm.wage_for_unit(t, men, difficulty) as i64;
     }
     total as i32
 }
@@ -392,28 +404,28 @@ pub fn pay(
 // ---------------------------------------------------------------------------
 
 /// The garrison a completed castle can hold.
-pub fn garrison_cap(castle_type: u8) -> i32 {
+pub fn garrison_cap(t: &Tables, castle_type: u8) -> i32 {
     if castle_type == 0 {
         0
     } else {
-        CASTLE_GARRISON_CAP[(castle_type as usize - 1).min(CASTLE_GARRISON_CAP.len() - 1)]
+        t.castle.garrison_cap[(castle_type as usize - 1).min(t.castle.garrison_cap.len() - 1)]
     }
 }
 
 /// The archers a new castle comes with. The manual: *"A new castle will
 /// automatically include a garrison. Its size will vary according to the size
 /// of the castle."*
-pub fn free_archers(castle_type: u8) -> i32 {
+pub fn free_archers(t: &Tables, castle_type: u8) -> i32 {
     if castle_type == 0 {
         0
     } else {
-        CASTLE_FREE_ARCHERS[(castle_type as usize - 1).min(CASTLE_FREE_ARCHERS.len() - 1)]
+        t.castle.free_archers[(castle_type as usize - 1).min(t.castle.free_archers.len() - 1)]
     }
 }
 
 /// `(wood, stone)` to build a castle type, and the workforce it consumes.
-pub fn castle_cost(castle_type: u8) -> (i32, i32) {
-    CASTLE_COST[(castle_type.max(1) as usize - 1).min(CASTLE_COST.len() - 1)]
+pub fn castle_cost(t: &Tables, castle_type: u8) -> (i32, i32) {
+    t.castle.cost[(castle_type.max(1) as usize - 1).min(t.castle.cost.len() - 1)]
 }
 
 /// The workforce a castle type consumes.
@@ -421,8 +433,8 @@ pub fn castle_cost(castle_type: u8) -> (i32, i32) {
 /// The table holds two ints per level and both carry the same number. What the
 /// second column is for is not established, so this reads the first and the
 /// table keeps the pair rather than pretending it is a flat array.
-pub fn castle_workforce(castle_type: u8) -> i32 {
-    CASTLE_WORKFORCE[(castle_type.max(1) as usize - 1).min(CASTLE_WORKFORCE.len() - 1)].0
+pub fn castle_workforce(t: &Tables, castle_type: u8) -> i32 {
+    t.castle.workforce[(castle_type.max(1) as usize - 1).min(t.castle.workforce.len() - 1)].0
 }
 
 /// Order a castle: debit the realm's wood and stone and mark the county as
@@ -433,11 +445,11 @@ pub fn castle_workforce(castle_type: u8) -> i32 {
 /// `Castle_BuildTick` as a pass, and nothing says whether the cost is taken up
 /// front or drawn down each season. Up front is the reading that cannot leave a
 /// half-built castle owing resources a realm has since spent.
-pub fn order_castle(county: &mut County, realm: &mut Realm, castle_type: u8) -> bool {
-    if castle_type == 0 || castle_type as usize > CASTLE_COST.len() {
+pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_type: u8) -> bool {
+    if castle_type == 0 || castle_type as usize > t.castle.cost.len() {
         return false;
     }
-    let (wood, stone) = castle_cost(castle_type);
+    let (wood, stone) = castle_cost(t, castle_type);
     if realm.wood < wood || realm.stone < stone {
         return false;
     }
@@ -456,12 +468,12 @@ pub fn order_castle(county: &mut County, realm: &mut Realm, castle_type: u8) -> 
 /// is a per-season requirement or a cumulative one — is not in the document.
 /// Cumulative is the reading that makes a 2,500-workforce royal castle a
 /// multi-season project rather than an impossible one.
-pub fn build_tick(county: &mut County, id: u8, out: &mut Vec<Message>) -> bool {
+pub fn build_tick(t: &Tables, county: &mut County, id: u8, out: &mut Vec<Message>) -> bool {
     if county.castle_building == 0 {
         return false;
     }
-    county.castle_progress += county.labour[JOB_CASTLE_BUILDING].max(0);
-    if county.castle_progress < castle_workforce(county.castle_building) {
+    county.castle_progress += county.labour[t.job.castle_building].max(0);
+    if county.castle_progress < castle_workforce(t, county.castle_building) {
         return false;
     }
     county.castle_type = county.castle_building;
@@ -475,6 +487,9 @@ pub fn build_tick(county: &mut County, id: u8, out: &mut Vec<Message>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The stock ruleset. Every rule below takes it as an argument now.
+    const T: &Tables = &Tables::DEFAULT;
     use crate::tables::{INDUSTRY_ORDER, JOB_BLACKSMITH, JOB_NAMES};
 
     fn worker_county(job: usize, workers: i32) -> County {
@@ -615,17 +630,17 @@ mod tests {
         let realm = Realm::new();
         let mut c = County::new();
         for cm in [Commodity::Wood, Commodity::Iron, Commodity::Stone] {
-            assert_eq!(resource_limit(&c, cm, &realm, 1), 999);
+            assert_eq!(resource_limit(T, &c, cm, &realm, 1), 999);
         }
 
         c.industry[Commodity::Iron.index()].has_resource = false;
-        assert_eq!(resource_limit(&c, Commodity::Iron, &realm, 1), 0, "no ore in the ground");
+        assert_eq!(resource_limit(T, &c, Commodity::Iron, &realm, 1), 0, "no ore in the ground");
 
         c.industry[Commodity::Wood.index()].enabled = false;
-        assert_eq!(resource_limit(&c, Commodity::Wood, &realm, 1), 0, "switched off");
+        assert_eq!(resource_limit(T, &c, Commodity::Wood, &realm, 1), 0, "switched off");
 
         c.industry[Commodity::Stone.index()].disabled_seasons = 2;
-        assert_eq!(resource_limit(&c, Commodity::Stone, &realm, 1), 0, "counting down");
+        assert_eq!(resource_limit(T, &c, Commodity::Stone, &realm, 1), 0, "counting down");
     }
 
     /// 999 is a literal, not a saturating value: a county with enough workers
@@ -635,7 +650,7 @@ mod tests {
         let realm = Realm::new();
         let mut c = advanced_county(0);
         c.labour[Commodity::Wood.job()] = 100_000;
-        assert_eq!(output(&c, Commodity::Wood, &realm, 1), 999);
+        assert_eq!(output(T, &c, Commodity::Wood, &realm, 1), 999);
     }
 
     /// The blacksmith's limit is the realm's stock of what the weapon costs,
@@ -647,13 +662,13 @@ mod tests {
         let mut realm = Realm::new();
         realm.wood = 600;
         realm.iron = 300;
-        assert_eq!(resource_limit(&c, Commodity::Weapons, &realm, 1), 300, "the iron is scarcer");
-        assert_eq!(resource_limit(&c, Commodity::Weapons, &realm, 3), 100, "three counties share");
+        assert_eq!(resource_limit(T, &c, Commodity::Weapons, &realm, 1), 300, "the iron is scarcer");
+        assert_eq!(resource_limit(T, &c, Commodity::Weapons, &realm, 3), 100, "three counties share");
 
         // A bow costs no iron, so an ironless realm is not limited by it.
         c.weapon_type = 4;
         realm.iron = 0;
-        assert_eq!(resource_limit(&c, Commodity::Weapons, &realm, 1), 600);
+        assert_eq!(resource_limit(T, &c, Commodity::Weapons, &realm, 1), 600);
     }
 
     // --- production --------------------------------------------------------
@@ -665,7 +680,7 @@ mod tests {
         let mut c = worker_county(Commodity::Iron.job(), 30);
         c.industry[Commodity::Iron.index()].efficiency = 15;
         let realm = Realm::new();
-        assert_eq!(output(&c, Commodity::Iron, &realm, 1), 4, "Pct(30 / 1, 15)");
+        assert_eq!(output(T, &c, Commodity::Iron, &realm, 1), 4, "Pct(30 / 1, 15)");
     }
 
     /// *"Iron and wood harvest at twice the quantity of stone"* — the divisor
@@ -675,9 +690,9 @@ mod tests {
         let mut c = advanced_county(200);
         c.industry[Commodity::Wood.index()].efficiency = 15; // level the bases
         let realm = Realm::new();
-        let iron = output(&c, Commodity::Iron, &realm, 1);
-        let stone = output(&c, Commodity::Stone, &realm, 1);
-        let wood = output(&c, Commodity::Wood, &realm, 1);
+        let iron = output(T, &c, Commodity::Iron, &realm, 1);
+        let stone = output(T, &c, Commodity::Stone, &realm, 1);
+        let wood = output(T, &c, Commodity::Wood, &realm, 1);
         assert_eq!(iron, 30);
         assert_eq!(stone, 15);
         assert_eq!(iron, stone * 2);
@@ -699,7 +714,7 @@ mod tests {
         let mut c = advanced_county(400);
         let mut r = Realm::new();
         for cm in [Commodity::Wood, Commodity::Iron, Commodity::Stone] {
-            produce(&mut c, &mut r, cm, true);
+            produce(T, &mut c, &mut r, cm, true);
         }
         assert_eq!(r.wood, 160, "Pct(400, 20 + 20) after one ramp step");
         assert_eq!(r.iron, 120, "Pct(400, 15 + 15)");
@@ -715,8 +730,8 @@ mod tests {
         let mut advanced = advanced_county(100);
         let mut r1 = Realm::new();
         let mut r2 = Realm::new();
-        produce(&mut basic, &mut r1, Commodity::Iron, false);
-        produce(&mut advanced, &mut r2, Commodity::Iron, true);
+        produce(T, &mut basic, &mut r1, Commodity::Iron, false);
+        produce(T, &mut advanced, &mut r2, Commodity::Iron, true);
         assert_eq!(r1.iron, 80, "flat 80%");
         assert_eq!(r2.iron, 30, "15% base, ramped once");
     }
@@ -731,9 +746,9 @@ mod tests {
         let mut r = Realm::new();
         r.wood = 1000;
         r.iron = 40;
-        assert_eq!(output(&c, Commodity::Weapons, &r, 1), 15, "the workers allow 15");
+        assert_eq!(output(T, &c, Commodity::Weapons, &r, 1), 15, "the workers allow 15");
 
-        produce(&mut c, &mut r, Commodity::Weapons, true);
+        produce(T, &mut c, &mut r, Commodity::Weapons, true);
         assert_eq!(r.weapons[0], 4);
         assert_eq!(r.iron, 0);
         assert_eq!(r.wood, 1000 - 4 * 6);
@@ -748,7 +763,7 @@ mod tests {
         let mut r = Realm::new();
         r.wood = 1000;
         r.iron = 0;
-        produce(&mut c, &mut r, Commodity::Weapons, true);
+        produce(T, &mut c, &mut r, Commodity::Weapons, true);
         assert_eq!(r.weapons[4], 15);
         assert_eq!(r.wood, 1000 - 15 * 13);
     }
@@ -757,7 +772,7 @@ mod tests {
     fn a_realm_with_nothing_in_stock_makes_no_weapons_and_owes_nothing() {
         let mut c = worker_county(JOB_BLACKSMITH, 4000);
         let mut r = Realm::new();
-        produce(&mut c, &mut r, Commodity::Weapons, true);
+        produce(T, &mut c, &mut r, Commodity::Weapons, true);
         assert_eq!(r.weapons[0], 0);
         assert_eq!(r.wood, 0);
         assert_eq!(r.iron, 0, "and no negative stockpile");
@@ -773,17 +788,17 @@ mod tests {
         c.industry[Commodity::Iron.index()].enabled = false;
         let mut r = Realm::new();
 
-        produce(&mut c, &mut r, Commodity::Iron, true);
+        produce(T, &mut c, &mut r, Commodity::Iron, true);
         assert_eq!(r.iron, 0);
         assert_eq!(c.industry[Commodity::Iron.index()].total, 0, "the total is forgotten");
         assert_eq!(c.industry[Commodity::Iron.index()].disabled_seasons, 1);
         assert!(!c.industry[Commodity::Iron.index()].enabled);
 
-        produce(&mut c, &mut r, Commodity::Iron, true);
+        produce(T, &mut c, &mut r, Commodity::Iron, true);
         assert_eq!(c.industry[Commodity::Iron.index()].disabled_seasons, 0);
         assert!(c.industry[Commodity::Iron.index()].enabled, "reinstated");
 
-        produce(&mut c, &mut r, Commodity::Iron, true);
+        produce(T, &mut c, &mut r, Commodity::Iron, true);
         assert!(r.iron > 0, "and producing again");
     }
 
@@ -795,7 +810,7 @@ mod tests {
         let mut r = Realm::new();
         let mut totals = Vec::new();
         for _ in 0..3 {
-            produce(&mut c, &mut r, Commodity::Stone, true);
+            produce(T, &mut c, &mut r, Commodity::Stone, true);
             totals.push(c.industry[Commodity::Stone.index()].total);
         }
         assert_eq!(totals, vec![15, 37, 67]);
@@ -808,8 +823,8 @@ mod tests {
     fn the_wage_bill_is_the_sum_over_units_and_ignores_troop_type() {
         let mut r = Realm::new();
         r.is_human = true;
-        assert_eq!(compute_wages(&r, &[250, 252, 254], 0), 62 + 63 + 63);
-        assert_eq!(compute_wages(&r, &[], 0), 0);
+        assert_eq!(compute_wages(T, &r, &[250, 252, 254], 0), 62 + 63 + 63);
+        assert_eq!(compute_wages(T, &r, &[], 0), 0);
     }
 
     #[test]
@@ -920,12 +935,12 @@ mod tests {
         let mut r = Realm::new();
         r.wood = 199;
         r.stone = 1000;
-        assert!(!order_castle(&mut c, &mut r, 3), "a keep needs 200 wood");
+        assert!(!order_castle(T, &mut c, &mut r, 3), "a keep needs 200 wood");
         assert_eq!(c.castle_building, 0);
         assert_eq!(r.wood, 199, "and nothing is spent on a refused order");
 
         r.wood = 200;
-        assert!(order_castle(&mut c, &mut r, 3));
+        assert!(order_castle(T, &mut c, &mut r, 3));
         assert_eq!(c.castle_building, 3);
         assert_eq!((r.wood, r.stone), (0, 0));
     }
@@ -936,14 +951,14 @@ mod tests {
         let mut r = Realm::new();
         r.wood = 10_000;
         r.stone = 10_000;
-        assert!(order_castle(&mut c, &mut r, 5));
-        c.labour[JOB_CASTLE_BUILDING] = 500;
+        assert!(order_castle(T, &mut c, &mut r, 5));
+        c.labour[T.job.castle_building] = 500;
 
         let mut out = Vec::new();
         for season in 1..5 {
-            assert!(!build_tick(&mut c, 1, &mut out), "season {season} is too early");
+            assert!(!build_tick(T, &mut c, 1, &mut out), "season {season} is too early");
         }
-        assert!(build_tick(&mut c, 1, &mut out), "2500 workforce, 500 a season");
+        assert!(build_tick(T, &mut c, 1, &mut out), "2500 workforce, 500 a season");
         assert_eq!(c.castle_type, 5);
         assert_eq!(c.castle_building, 0);
         assert_eq!(out, vec![Message::CastleBuilt { county: 1, castle_type: 5 }]);
@@ -954,7 +969,7 @@ mod tests {
         let mut c = County::new();
         let mut out = Vec::new();
         for _ in 0..10 {
-            assert!(!build_tick(&mut c, 1, &mut out));
+            assert!(!build_tick(T, &mut c, 1, &mut out));
         }
         assert!(out.is_empty());
         assert_eq!(c.castle_progress, 0);
@@ -962,14 +977,14 @@ mod tests {
 
     #[test]
     fn a_bigger_castle_holds_more_men_and_comes_with_more_archers() {
-        assert_eq!(garrison_cap(0), 0);
-        assert_eq!(free_archers(0), 0);
+        assert_eq!(garrison_cap(T, 0), 0);
+        assert_eq!(free_archers(T, 0), 0);
         for t in 1..5u8 {
-            assert!(garrison_cap(t + 1) >= garrison_cap(t), "castle {t}");
-            assert!(free_archers(t + 1) >= free_archers(t), "castle {t}");
+            assert!(garrison_cap(T, t + 1) >= garrison_cap(T, t), "castle {t}");
+            assert!(free_archers(T, t + 1) >= free_archers(T, t), "castle {t}");
         }
-        assert_eq!(garrison_cap(5), 600);
-        assert_eq!(free_archers(5), 300);
+        assert_eq!(garrison_cap(T, 5), 600);
+        assert_eq!(free_archers(T, 5), 300);
     }
 
     /// The default starting castle is the Norman keep, and it is the cheapest
@@ -978,9 +993,9 @@ mod tests {
     #[test]
     fn the_norman_keep_is_the_cheapest_castle_in_wood() {
         assert_eq!(crate::tables::CASTLE_STARTING_TYPE, 3);
-        let (wood, _) = castle_cost(3);
+        let (wood, _) = castle_cost(T, 3);
         for t in 1..=5u8 {
-            assert!(castle_cost(t).0 >= wood, "castle {t}");
+            assert!(castle_cost(T, t).0 >= wood, "castle {t}");
         }
     }
 

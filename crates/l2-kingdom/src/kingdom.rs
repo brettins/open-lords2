@@ -36,7 +36,7 @@ use crate::population;
 use crate::ration;
 use crate::realm::{Realm, MAX_REALMS};
 use crate::report::SeasonReport;
-use crate::tables::{Commodity, Season};
+use crate::tables::{Commodity, Season, Tables};
 use crate::tax;
 use crate::unrest;
 use crate::weather;
@@ -99,6 +99,17 @@ pub struct Kingdom {
     /// local weather swing, which is the fallback when this season's masked
     /// draw lands outside the map. See [`weather::chosen_county`].
     pub weather_county: usize,
+    /// **The ruleset this kingdom runs on.**
+    ///
+    /// Fixed for the life of the kingdom, like `l2_sim::Battle`'s troop
+    /// table: every rule function in this crate takes `&Tables` and reads it
+    /// rather than a module constant, so whatever table built this kingdom is
+    /// the table its whole economy runs on.
+    ///
+    /// [`Tables::DEFAULT`] is what the original ships with. Anything else
+    /// arrives from `l2-mods`, which this crate knows nothing about — it takes
+    /// plain data and never learns where the data came from.
+    pub tables: Tables,
 }
 
 /// `FUN_004AE7DD` — the history ring `docs/kingdom.md` §3.4 names and nothing
@@ -218,9 +229,29 @@ impl History {
 }
 
 impl Kingdom {
-    /// An empty kingdom, before any map is loaded.
+    /// An empty kingdom on the stock ruleset, before any map is loaded.
     pub fn new(seed: u64) -> Kingdom {
+        Kingdom::with_tables(seed, Tables::DEFAULT)
+    }
+
+    /// An empty kingdom on a supplied ruleset — how a mod reaches the economy.
+    ///
+    /// The same shape `l2_sim::Battle::with_troops` uses for the battle side,
+    /// and for the same reason: the rules are a *value* the simulation is
+    /// handed, so nothing in this crate can tell whether they came from
+    /// [`Tables::DEFAULT`] or out of somebody's `kingdom.toml`.
+    ///
+    /// ```
+    /// # use l2_kingdom::{Kingdom, tables::Tables};
+    /// let mut rules = Tables::DEFAULT;
+    /// rules.grain.yield_per_sack = 24;   // twice the harvest
+    /// let kingdom = Kingdom::with_tables(1, rules);
+    /// assert_eq!(kingdom.tables.grain.yield_per_sack, 24);
+    /// assert_eq!(Kingdom::new(1).tables, Tables::DEFAULT);
+    /// ```
+    pub fn with_tables(seed: u64, tables: Tables) -> Kingdom {
         Kingdom {
+            tables,
             counties: core::array::from_fn(|_| County::new()),
             realms: core::array::from_fn(|_| Realm::new()),
             county_count: 0,
@@ -338,7 +369,7 @@ impl Kingdom {
             Pass::CastleBuildTick => self.castle_build_tick(report),
             Pass::MigrationUpdate => self.migration_update(),
             Pass::PopulationUpdate => self.population_update(),
-            Pass::ScoreRank => ai::rank_realms(&mut self.realms),
+            Pass::ScoreRank => ai::rank_realms(&self.tables, &mut self.realms),
             Pass::History => self.history(),
             Pass::RationPreview => self.ration_apply(true),
         }
@@ -377,6 +408,7 @@ impl Kingdom {
             })
             .collect();
         event::roll_all(
+            &self.tables,
             &mut self.counties,
             self.county_count,
             &owner_is_human,
@@ -397,6 +429,7 @@ impl Kingdom {
     fn weather(&mut self) {
         let Some(season) = self.season() else { return };
         weather::update_all(
+            &self.tables,
             &mut self.counties,
             self.county_count,
             season,
@@ -415,7 +448,7 @@ impl Kingdom {
             } else {
                 0
             };
-            let take = tax::collect(&mut self.counties[id], empire);
+            let take = tax::collect(&self.tables, &mut self.counties[id], empire);
             if owner != 0 && owner < MAX_REALMS {
                 self.realms[owner].gold += take;
             }
@@ -442,16 +475,16 @@ impl Kingdom {
     fn ration_apply(&mut self, preview: bool) {
         for id in 1..=self.county_count {
             if preview {
-                ration::preview(&mut self.counties[id], self.options.armies_eat);
+                ration::preview(&self.tables, &mut self.counties[id], self.options.armies_eat);
             } else {
-                ration::apply(&mut self.counties[id], self.options.armies_eat);
+                ration::apply(&self.tables, &mut self.counties[id], self.options.armies_eat);
             }
         }
     }
 
     fn health_update(&mut self) {
         for id in 1..=self.county_count {
-            health::update(&mut self.counties[id]);
+            health::update(&self.tables, &mut self.counties[id]);
         }
     }
 
@@ -481,7 +514,7 @@ impl Kingdom {
 
     fn field_reclaim(&mut self) {
         for id in 1..=self.county_count {
-            land::reclaim_fields(&mut self.counties[id]);
+            land::reclaim_fields(&self.tables, &mut self.counties[id]);
         }
     }
 
@@ -489,6 +522,7 @@ impl Kingdom {
         let Some(season) = self.season() else { return };
         for id in 1..=self.county_count {
             land::grain_season_tick(
+                &self.tables,
                 &mut self.counties[id],
                 season,
                 self.options.advanced_farming,
@@ -498,12 +532,12 @@ impl Kingdom {
 
     fn herd_season_tick(&mut self) {
         for id in 1..=self.county_count {
-            land::herd_season_tick(&mut self.counties[id]);
+            land::herd_season_tick(&self.tables, &mut self.counties[id]);
         }
     }
 
     fn industry(&mut self, commodity: Commodity) {
-        let (counties, realms) = (&mut self.counties, &mut self.realms);
+        let (counties, realms, tables) = (&mut self.counties, &mut self.realms, &self.tables);
         for id in 1..=self.county_count {
             let owner = counties[id].owner as usize;
             // An unowned county has no realm to credit, so it produces nothing.
@@ -511,6 +545,7 @@ impl Kingdom {
                 continue;
             }
             industry::produce(
+                tables,
                 &mut counties[id],
                 &mut realms[owner],
                 commodity,
@@ -522,7 +557,7 @@ impl Kingdom {
     fn castle_build_tick(&mut self, report: &mut SeasonReport) {
         for id in 1..=self.county_count {
             let mut messages = Vec::new();
-            industry::build_tick(&mut self.counties[id], id as u8, &mut messages);
+            industry::build_tick(&self.tables, &mut self.counties[id], id as u8, &mut messages);
             for m in messages {
                 report.message(m);
             }
@@ -535,7 +570,7 @@ impl Kingdom {
 
     fn population_update(&mut self) {
         let Some(season) = self.season() else { return };
-        population::update_all(&mut self.counties, self.county_count, season);
+        population::update_all(&self.tables, &mut self.counties, self.county_count, season);
     }
 
     /// The history ring — `FUN_004AE7DD`. See [`History`].
@@ -547,6 +582,7 @@ impl Kingdom {
     /// than in `Season_Advance`. Exposed separately for that reason.
     pub fn run_ai_grants(&mut self) {
         ai::grant_resources(
+            &self.tables,
             &mut self.counties,
             &mut self.realms,
             self.county_count,
