@@ -264,11 +264,34 @@ and it does that only for **troop types 0–6**; the siege columns 7–10 keep t
 Normal value at every difficulty. The other four groups as written in the file
 are dead data.
 
-`TROOPS2.ENG` and `TROOPS3.ENG` reflect this: **only their `Normal` rows are
-populated**, every other difficulty row is all zeros, and the files still parse
-to exactly 3,885 numbers. `TROOPS.ENG` (the oldest, 30 Apr 1997) still has all
-five groups filled in — a leftover from before the layout change its own header
-announces.
+`TROOPS2.ENG` and `TROOPS3.ENG` reflect this: their `Normal` rows are populated
+throughout and the other four groups are **almost** empty, and the files still
+parse to exactly 3,885 numbers. `TROOPS.ENG` (the oldest, 30 Apr 1997) carries
+more — a leftover from before the layout change its own header announces.
+
+**Corrected, and measured.** An earlier revision of this section said the other
+four groups were "all zeros", and they are not. Counting them
+(`crates/l2-mods/tests/corpus.rs`,
+`the_shipped_difficulty_rows_are_dead_data_and_not_the_engines_curve`):
+
+| file | non-Normal entries populated | in rows |
+|---|---:|---|
+| `TROOPS.ENG` | 402 of 3,080 | 0–4, 20–23 |
+| `TROOPS2.ENG` | 169 of 3,080 | 15–20 |
+| `TROOPS3.ENG` | 160 of 3,080 | 15–19 |
+
+The conclusion is unchanged and is now better supported: these are scattered
+leftovers in a handful of battles, not a filled-in table, and the engine
+overwrites all of them.
+
+**They are also not the curve.** Deriving the five percentages from the file
+was tried and does not work: of `TROOPS.ENG`'s 402 populated entries only 43
+equal `Normal × p / 100` for our `p`, and the ratios that are there run 1.20,
+1.222, 1.225, 1.233, 1.25, 1.266, 1.30, 1.33, 1.40, 1.50, 1.60 and 2.00 in
+group 0 alone — hand-authored per battle, with 116 % nowhere in them. So
+**116/108/100/92/84 rests on the decompilation alone**; the corpus corroborates
+that the rows are dead but cannot corroborate the numbers. That gap is real and
+is recorded rather than closed.
 
 ### 3.3 Which file is used
 

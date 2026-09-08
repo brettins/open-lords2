@@ -563,25 +563,34 @@ what the county can feed, then spends, in order:
 > | | population | herd | grain | split | achieved | `+0x178` | `+0x17C` |
 > |---|---:|---:|---:|---:|---:|---:|---:|
 > | nine unowned | 456 | 67 | 100 | 100 % | Normal | 0 | **13** |
-> | counties 4, 8, 11, 13 | 435 | 93 … 110 | 0 | 0 or 100 % | Normal | 0 | **0** |
-> | county 1 | 435 | 74 | 0 | 0 % | **Half** | 0 | **0** |
+> | four of the five owned | 435 | 93 … 110 | 0 | 0 or 100 % | Normal | 0 | **0** |
+> | **realm 5's county** | 435 | 74 | 0 | 0 % | **Half** | 0 | **0** |
 >
 > The unowned row is the worked example: `456 − 67×5 = 121` people left to feed and
 > `DivCeil(121, 10) = 13` head. The middle row keeps a herd large enough that five people
-> per head covers the whole county, so nothing is slaughtered and nothing is sown. County 1
-> splits its ration entirely onto grain and has none, so it drops a level — which is why
-> its `dHapRation` is **−2** while its `shownRation` is **+1**.
+> per head covers the whole county, so nothing is slaughtered and nothing is sown. The last
+> county splits its ration entirely onto grain and has none, so it drops a level — which is
+> why its `dHapRation` is **−2** while its `shownRation` is **+1**.
 >
-> **That disagreement settles which write survives.** `shownRation` is the copy taken while
-> happiness was computed, so the *first* call fed county 1 at Normal; `dHapRation` is the
-> *second* call, next season's preview, and it says Half. And the first call must have
-> **debited the store**: feeding county 1 at Normal on an all-grain split costs
-> `DivCeil(417 − 74×5, 6) = 8` sacks, and the county holds none. A call that did not spend
-> would have left those eight sacks behind.
+> **Which county that is, is rolled per game; which realm it is, is not.** This table used
+> to name the last two rows "counties 4, 8, 11, 13" and "county 1", read off one saved
+> game. Two independently created England turn-one saves put the five starting counties at
+> the same five indices — 1, 4, 8, 11, 13 — and hand them to realms 1 to 5 in a **different
+> order each time**. In the first save realm 5 held county 1; in the second it holds county
+> 8. The hungry county is realm 5's in both. **One lord always begins short of food, and it
+> is always realm 5** — a piece of scenario design that had been written down here, and
+> asserted in three test files, as a fact about county 1.
+>
+> **The `shownRation`/`dHapRation` disagreement settles which write survives.**
+> `shownRation` is the copy taken while happiness was computed, so the *first* call fed
+> that county at Normal; `dHapRation` is the *second* call, next season's preview, and it
+> says Half. And the first call must have **debited the store**: feeding it at Normal on an
+> all-grain split costs `DivCeil(417 − 74×5, 6) = 8` sacks, and the county holds none. A
+> call that did not spend would have left those eight sacks behind.
 >
 > The same inversion recovers the opening stores the file does not record, uniquely: the
-> unowned counties began the season on **73 head** and closed on 67, and county 1 began on
-> **8 sacks**. Put those back and the whole map reproduces every stored field.
+> unowned counties began the season on **73 head** and closed on 67, and realm 5's county
+> began on **8 sacks**. Put those back and the whole map reproduces every stored field.
 
 ### 4.4 Putting happiness together
 
@@ -1435,7 +1444,7 @@ Three published claims are **wrong**, and the binary says so:
 
 | claim | source | what the binary says |
 |---|---|---|
-| "the county array holds counties 1..14" | RE write-up | 17 records; 14 is the county count *of the England map*, which is what `g_countyCount` reads in the shipped save |
+| "the county array holds counties 1..14" | RE write-up | 17 records; 14 is the county count *of the England map*, which is what `g_countyCount` reads in the England turn-one fixture |
 | "up to 5 sacks of grain per field" | **the printed manual**, twice | `g_grainMaxSacksPerField` = 10 (§7.1) |
 | "keep at least a third of your fields fallow" | the printed manual | the rule is one fallow per **two** grain fields, and cattle fields are excluded (§7.2) |
 
@@ -1684,7 +1693,7 @@ every season for want of a field nobody had read.
 
 **The labour import checks itself.** The nine records are `+0xC4 + job * 0x0C`, worker count
 at word 0 — fixed by the allocator `FUN_0044F6E7`, which clears them with
-`for (c = 0; c < 9; c++) *(int *)(county + 0xC4 + c * 0x0C) = 0;` — and in the shipped save
+`for (c = 0; c < 9; c++) *(int *)(county + 0xC4 + c * 0x0C) = 0;` — and in the England turn-one fixture
 **every county's nine records sum to its population exactly**: 218 + 217 = 435 in county 1,
 323 + 133 = 456 in county 2, and so on for all fourteen. No wrong stride does that
 fourteen times running.
@@ -1784,7 +1793,7 @@ worth its own heading because of what it settles. `FUN_0049BD99` sets a new game
 | 2 | 500 | 330 | 1181 | 85 | 85 |
 
 Both the live field and its `…Last` twin are written from the same column, which is why the
-shipped save still carries row 1 in three places: `popLast` is 417 in all fourteen counties,
+England turn-one save still carries row 1 in three places: `popLast` is 417 in all fourteen counties,
 `+0x254` is 95 in all fourteen, and **65 is the health meter** `crates/l2-scenario` carried
 as `STARTING_HEALTH_METER` with an `[I]` saying it was *the one number in the whole
 reproduction that comes from prior art rather than from the binary.* It is in the binary,

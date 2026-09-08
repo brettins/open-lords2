@@ -385,7 +385,9 @@ fn no_game_data_is_checked_in() {
             let p = e.path();
             let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
             if p.is_dir() {
-                if name == "target" || name == ".git" || name == "node_modules" {
+                // `.claude/worktrees` holds other agents' checkouts of this same
+                // repository; walking into them would report their files as ours.
+                if name == "target" || name == "node_modules" || name.starts_with('.') {
                     continue;
                 }
                 walk(&p, out);

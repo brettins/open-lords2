@@ -621,7 +621,7 @@ Five things, in descending order of how much they matter.
    for the record.* `crates/l2-kingdom`'s `tax::empire_contribution` was
    `min(5 − rate, 0)`, reasoned from the save. The binary's only writer of `+0x16` is
    `Tax_RecomputePreview` (`0x0044B80B`), and it reads `g_taxHappinessOther[rate]` (§6.3).
-   The two agree at rate 0 — which is every rate in the shipped save, which is why the
+   The two agree at rate 0 — which is every rate in the England turn-one fixture, which is why the
    inference survived — and **disagree from rate 6 upward**: ours gave −1 at rate 6, the
    table gives 0 until rate 20 and only reaches −15 at rate 50, where ours would give −45.
    All 51 entries are now `l2_kingdom::tables::TAX_HAPPINESS_OTHER`, checked against the
