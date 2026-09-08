@@ -1562,3 +1562,62 @@ over all 102 entries rather than the first 32; the AI personality records for lo
 3 are checked rather than only 1 and 4; and `0x004D8E18` — where a fifth record would
 begin — is pinned at `17, 0, 5000, …`, which is the evidence that the table holds four
 lords and not the five §2 implies.
+
+---
+
+## 13. The herd needs tending, and ours does not know it  **[D]**
+
+A player's description of the game named three cattle mechanics. Two we had; one we did
+not, and it is not small. Recorded here because it is a **gap in `crates/l2-kingdom`**, not
+just a documentation hole.
+
+`Herd_SeasonTick` (`0x0044D60D`) calls `FUN_0044DA99` with five arguments, and the third is
+the giveaway:
+
+```c
+FUN_0044DA99(county,
+             county[0x250],      /* herd                        */
+             county[0x0D0],      /* labour, inside the +0xC4 job records */
+             county[0x25C],      /* not traced                  */
+             g_season);
+```
+
+`0x0D0` sits inside the labour block at `+0xC4`, so **the herd's births and deaths take a
+labour argument.** Inside:
+
+```c
+staffing = PctOf(labour, herd * 3);          /* = labour * 100 / (herd * 3) */
+if (staffing > 199) staffing = 200;          /* capped at twice */
+...
+if (staffing < 100) delta = -((staffing - 100) / 3);   /* understaffed: negative */
+```
+
+**Three labourers per head is full staffing.** Below it the term goes negative and cattle
+die; above it the benefit is capped at 200%. That is exactly the reported behaviour — *"cows
+require more peasants to tend them depending on how many cows there are"* and *"some cows
+die by being unattended"* — arrived at independently from play and from the instruction
+stream.
+
+There is a second, harsher path. The branch above all of it tests `county[0x200]`, which is
+`fieldsCattle`:
+
+```c
+if (fieldsCattle == 0) {
+    deaths = (herd < 6) ? herd : herd / 2;   /* no pasture: half the herd, or all of it */
+}
+```
+
+**[I]** `param_4` (`+0x25C`) selects 1/3/5/7 from the values 10/20/30/other and is not
+traced; it has the shape of a ration or breeding level, and is deliberately not named.
+
+### What this means for us
+
+`land::herd_season_tick(t, county)` takes **no labour argument at all**. Our herd grows and
+shrinks on weather and the event modifier alone, so a county can keep cattle with nobody
+tending them and lose nothing. Every existing test still passes, because the shipped save's
+counties are not short-staffed — the same shape as the `taxHapOther` error in §8.2: *a rule
+we have wrong, in a region the one scenario we test never visits.*
+
+Also confirmed from the same description, and already correct: sowing debits the store
+(`Grain_Sow`'s `store -= sown`), dairy feeds people at `g_dairyPerHead`, cattle are eaten,
+and a population icon stands for `popBand` people rather than one.
