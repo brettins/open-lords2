@@ -77,10 +77,15 @@ Legend:
     - Group 68 gives ale its own merchant tooltip and gives sheep none.
     - Two people who have played the game do not remember them.
 
-    Sheep make wool; both were cut; the names, the goods slots and the ration strings were
-    left behind. That is an inference, not a finding — it is marked ❓ because nobody has
-    traced whether a scenario can grant sheep. Worth settling **before** anyone writes the
-    merchant screen, since the answer decides whether two of its fourteen rows exist.
+    Sheep make wool; both look cut; the names, the goods slots and the ration strings were
+    left behind. That is an inference, not a finding — nobody has traced whether a scenario
+    can grant sheep.
+
+    **Reproduce them anyway.** The decision is to carry whatever the original carries,
+    vestigial or not: keep sheep and wool as goods, keep their price of zero, and keep their
+    ration lines. At parity the game itself demonstrates you cannot buy them, which is a
+    better answer than our deciding in advance that they do not exist — and it costs two
+    rows in a table. **Do not prune content on a judgement that it looks dead.**
   - *"Click on a food to swap its priority."* **The order food is eaten in is a player
     setting**, not the constant our `ration` pass assumes. Our pass hardcodes dairy → grain
     → slaughter; the original lets you reorder five foods.
