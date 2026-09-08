@@ -43,6 +43,16 @@ pub enum Event {
     Pointer { x: i32, y: i32 },
     /// The left button went down at a canvas pixel.
     Click { x: i32, y: i32 },
+    /// The left button came **up** at a canvas pixel.
+    ///
+    /// Added for the village, and it is not a convenience. The original's
+    /// peasant drag is a three-state machine on `g_screenId` — 0x02 idle, 0x05
+    /// while the band is being drawn, 0x06 while the selection is being carried
+    /// — and the transition out of 0x05 is `FUN_00439541`, which fires **when
+    /// the button is released**, not when it is next pressed. A screen that
+    /// only ever hears about presses cannot tell a drag from two clicks, and
+    /// would have had to invent a gesture the original does not have.
+    Release { x: i32, y: i32 },
 }
 
 /// A rectangle in canvas coordinates, and the hit test that goes with it.

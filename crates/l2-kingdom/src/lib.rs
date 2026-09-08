@@ -198,6 +198,7 @@ pub mod happiness;
 pub mod health;
 pub mod industry;
 pub mod kingdom;
+pub mod labour;
 pub mod land;
 pub mod math;
 pub mod phase;

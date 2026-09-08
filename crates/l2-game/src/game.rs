@@ -25,6 +25,7 @@ use l2_kingdom::{Kingdom, SeasonReport};
 use l2_mods::vfs::Vfs;
 use l2_view::campaign::{self, MapAssets};
 use l2_view::chrome::{Chrome, Minimap};
+use l2_view::village::VillageArt;
 use l2_view::Ink;
 
 /// The highest tax rate the interface will set.
@@ -56,6 +57,13 @@ pub struct Assets {
     /// That is deliberate — a stub that is visibly ours beats one that looks
     /// finished.
     pub chrome: Option<Chrome>,
+    /// `vill.pl8`, `villtops.pl8` and `vill_gd8.pl8` — the village screen's own
+    /// files, which no other screen loads.
+    ///
+    /// `None` on an install without them, and the village then draws its own
+    /// ground and refuses to move anybody, because the grid that decides where
+    /// a drop lands *is* one of those files.
+    pub village: Option<VillageArt>,
     /// `L2_maps.dat` whole. A `MapSlot` borrows its file, so the bytes are kept
     /// and the slot is re-parsed on demand — which is bounds arithmetic, not
     /// decoding, and costs nothing.
@@ -80,6 +88,8 @@ impl Assets {
         // panels instead of the original's.
         let chrome =
             Chrome::load(|name| vfs.read(name).map_err(|e| format!("{name}: {e}"))).ok();
+        let village =
+            VillageArt::load(|name| vfs.read(name).map_err(|e| format!("{name}: {e}"))).ok();
         // The game ships 11 of the 15 `MAPnn.PL8` names; the four it does not
         // are exactly the empty map slots 24..39 (`docs/screens.md` §3.1).
         let minimap_files = (0..16)
@@ -90,6 +100,7 @@ impl Assets {
             palette,
             map,
             chrome,
+            village,
             maps,
             minimap_files,
         })
@@ -139,6 +150,7 @@ impl Assets {
             palette,
             map,
             chrome: None,
+            village: None,
             maps: vec![0u8; l2_formats::maps::SLOT_LEN],
             minimap_files: vec![None; 16],
         }
@@ -288,6 +300,41 @@ impl Game {
         }
         self.kingdom.counties[id as usize].ration_split = split.clamp(0, MAX_RATION_SPLIT);
         true
+    }
+
+    /// Move peasants from one job to another — the village screen's only order.
+    ///
+    /// `Labour_Move` (`0x00439B52`), and its caller `FUN_004399B0` which is
+    /// where the arithmetic actually is:
+    ///
+    /// ```c
+    /// workers = selectedIcons * county[+0xB8];
+    /// if (labour[from] < workers) workers = labour[from];
+    /// labour[to] += workers; labour[from] -= workers;
+    /// ```
+    ///
+    /// So **an icon is `popBand` people**, and dragging every icon out of a job
+    /// takes every worker out of it even when `icons * popBand` overshoots.
+    /// Returns how many people actually moved.
+    ///
+    /// **What this does not do**, and the original does: `Labour_Move` re-runs
+    /// the county's food pass, its industry estimates and its labour-share
+    /// recompute *twice* before returning, so the whole panel is live the
+    /// instant you let go. Ours runs those at end of turn, so the numbers a
+    /// drag changes are the worker counts and nothing else. That is the same
+    /// choice [`Game::set_ration_split`] already documents.
+    pub fn move_labour(&mut self, id: u8, from: usize, to: usize, icons: i32) -> i32 {
+        if !self.is_players(id) || from == to || icons <= 0 {
+            return 0;
+        }
+        let c = &mut self.kingdom.counties[id as usize];
+        let (Some(&held), true) = (c.labour.get(from), to < c.labour.len()) else {
+            return 0;
+        };
+        let workers = (icons * c.pop_band).min(held).max(0);
+        c.labour[to] += workers;
+        c.labour[from] -= workers;
+        workers
     }
 }
 

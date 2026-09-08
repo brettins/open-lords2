@@ -31,7 +31,7 @@ Each turn has seven phases in a fixed order:
 ## 2. What happens between seasons
 
 **The order is the rule.** Taxation reads the happiness that migration has not yet changed;
-population growth reads the happiness this turn already wrote. Twenty-three passes, in this
+population growth reads the happiness this turn already wrote. Twenty-five passes, in this
 sequence:
 
 | # | pass | what it does |
@@ -51,14 +51,20 @@ sequence:
 | 13 | **Herd** | cattle births and deaths |
 | 14–17 | Industry | weapons, then iron, then stone, then wood — **in that order** |
 | 18 | Castle building | advance anything under construction |
-| 19 | Migration | move people between neighbouring counties |
-| 20 | **Population** | births and deaths |
-| 21 | Score | rank the realms |
-| 22 | History | write this season's line into the 400-season ring |
-| 23 | Ration preview | compute what next season *would* cost |
+| 19 | **Labour** | reassign every county's peasants to jobs, from scratch |
+| 20 | Migration | move people between neighbouring counties |
+| 21 | **Population** | births and deaths |
+| 22 | Score | rank the realms |
+| 23 | **Labour, again** | and once more, now that the newborns and the levies are counted |
+| 24 | History | write this season's line into the 400-season ring |
+| 25 | Ration preview | recompute each job's thresholds and what next season *would* cost |
 
 Weapons are made **first**, before the ore is mined — so the blacksmith always spends last
 season's iron.
+
+**The labour pass runs twice**, and both times immediately after something changed how many
+people there are. That is what keeps a county's nine job records summing to its population
+exactly, every season, which is the invariant the whole record layout was proved from.
 
 ---
 
@@ -163,12 +169,48 @@ Winter loses **43%** of its people in a single season.
 formula makes small gaps produce *nothing*: a county at 72 next to one at 77 moves nobody at
 all, which is why the shipped save's numbers work out with no migration in them.
 
-Peasants are assigned to **nine jobs** — eight activities in a ring with **Idle Townsfolk** in
-the middle: grain farming, cattle farming, field reclamation, castle building, iron mining,
-stone quarrying, wood cutting, blacksmith. A county without a mine still shows the slot; it
-just produces nothing.
+Peasants are assigned to **nine jobs**: grain farming, cattle farming, field reclamation,
+castle building, iron mining, stone quarrying, wood cutting, blacksmith, and **Idle
+Townsfolk**. A county without a mine still shows the slot; it just produces nothing.
 
-One icon on screen stands for `ceil(population ÷ 25)` people.
+The village draws them as **eight** clusters of people standing around the picture, not
+nine, because **iron and stone share one** — a county's mine and its quarry are painted at
+the same spot, and which one you see is which one the county has. Idle Townsfolk is the
+cluster in the middle.
+
+One icon on screen stands for `ceil(population ÷ 25)` people, which is why a cluster has
+twenty-five slots.
+
+### Nobody chooses their own job
+
+You *can* move people, by dragging a box round some icons and clicking another cluster. But
+between seasons the game **reassigns everybody from scratch**, twice, and your drag only
+lasts as long as the numbers it was based on:
+
+1. Each county keeps a percentage split — three numbers across the farm jobs and five across
+   the industry jobs, each set summing to 100 — and a single percentage saying how much of
+   the county is industry at all. Dragging peasants rewrites all of them from where people
+   actually ended up.
+2. Each job also carries **two thresholds** the game works out for itself: how many workers
+   it *wants* before it stops going backwards, and how many it can *usefully* take. Grain
+   and cattle get real numbers by trying every possible staffing and seeing which pays;
+   mines, quarries and forests are told "as many as you like"; a job whose resource the
+   county has not got is told **nought**.
+3. Then everyone is dealt out: each job gets its percentage of its half, or as much of it as
+   its ceiling allows, and the leftovers are walked round the jobs that still have room —
+   grain and cattle get five turns of the wheel to reclamation's one.
+4. Whoever nobody can use becomes an **idle townsman**.
+
+That last rule is the whole difference between a county you own and one you do not. An owned
+county's forestry has no ceiling, so its spare people cut wood; an unowned county has no
+forestry at all, so the same people stand in the square doing nothing. In the shipped save
+that is 217 foresters and nobody idle, against nought foresters and 133 idle, from
+identical populations.
+
+**A job that is short is drawn short.** The workers it wants and has not got appear as extra
+figures in the cluster that cannot be picked up, and the job's own panel prints its worker
+count in red. Past the useful ceiling the surplus is drawn in the idle figure instead. Both
+are how the interface says "you have this wrong" without a word of text.
 
 ---
 

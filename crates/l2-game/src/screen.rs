@@ -36,6 +36,12 @@ pub enum ScreenId {
     Campaign,
     /// The county panel, for one county id.
     County(u8),
+    /// The village, for one county id — the original's screen `0x02`.
+    Village(u8),
+    /// The job popup, for one county and one of its nine labour slots — the
+    /// original's screen `0x0F`. It floats over whatever opened it, which is
+    /// either the village or the campaign sidebar.
+    Job(u8, usize),
 }
 
 /// What a screen asks the machine to do next.
@@ -92,6 +98,8 @@ impl ScreenId {
             ScreenId::Menu => Box::new(crate::screens::menu::MenuScreen::new()),
             ScreenId::Campaign => Box::new(crate::screens::map::MapScreen::new()),
             ScreenId::County(id) => Box::new(crate::screens::county::CountyScreen::new(id)),
+            ScreenId::Village(id) => Box::new(crate::screens::village::VillageScreen::new(id)),
+            ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
         }
     }
 }

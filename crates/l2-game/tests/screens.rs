@@ -23,10 +23,12 @@ use l2_game::scenario;
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
 use l2_game::screens::county::{self as county, CountyScreen, Panel};
 use l2_game::screens::map::{self, MapScreen};
+use l2_game::screens::village::{self as village_screen, VillageScreen};
 use l2_game::Game;
 use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::chrome;
+use l2_view::village;
 use l2_view::{text, Canvas};
 
 fn install() -> Option<PathBuf> {
@@ -587,6 +589,163 @@ fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
             || find_text(&canvas, &shown, assets.ink.bad).is_some(),
         "the panel shows the population it now has ({shown})"
     );
+}
+
+// ---------------------------------------------------------------- the village
+
+/// **Two independent sources agreeing.** `g_jobClusterOrigins` is eight pairs
+/// of integers in `Lords2.exe`'s `.data`; `vill_gd8.pl8` is a painted 45 x 40
+/// mask in a file. Nothing connects them but the screen they describe — and
+/// every cluster's own origin lands in that cluster's painted region, and all
+/// eight regions are painted.
+///
+/// A misread origin, a misread grid stride, or the wrong 24-byte header offset
+/// would each break this, and none of them could break it in a way that still
+/// named all eight clusters correctly.
+#[test]
+fn the_painted_drop_grid_agrees_with_the_cluster_origins_in_the_executable() {
+    let (_game, assets) = world!();
+    let art = assets.village.as_ref().expect("vill.pl8 and vill_gd8.pl8");
+    assert!(art.has_grid(), "vill_gd8.pl8 is 1,824 bytes: 24 of header and 45 x 40 of grid");
+    let top = village::SCENE_Y;
+
+    let mut seen = [0usize; village::CLUSTER_COUNT + 1];
+    for row in 0..village::GRID_ROWS as i32 {
+        for col in 0..village::GRID_COLS as i32 {
+            let x = village::SCENE_X + col * village::GRID_CELL;
+            let y = top + row * village::GRID_CELL;
+            seen[art.cluster_at(x, y, top)] += 1;
+        }
+    }
+    for cluster in 1..=village::CLUSTER_COUNT {
+        assert!(seen[cluster] > 0, "cluster {cluster} has no painted region at all");
+    }
+    assert!(seen[0] > 0, "and there is ground that belongs to nobody");
+
+    for cluster in 0..village::CLUSTER_COUNT {
+        let (ox, oy) = village::cluster_origin(cluster, top);
+        // The origin is the grid's top-left corner; the cluster's own middle is
+        // two icons right and two rows down, which is where the artwork puts
+        // the building the peasants stand at.
+        let (mx, my) = (ox + 36, oy + 24);
+        assert_eq!(
+            art.cluster_at(mx, my, top),
+            cluster + 1,
+            "cluster {cluster}'s own middle ({mx}, {my}) is painted as {}",
+            art.cluster_at(mx, my, top)
+        );
+    }
+}
+
+/// The village drawn against the shipped save: the picture is there, and so are
+/// the icons standing on it.
+#[test]
+fn the_village_draws_the_picture_and_the_people_on_it() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let mut screen = VillageScreen::new(county);
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    // The scene fills its own rectangle rather than leaving the ground showing.
+    let top = village::SCENE_Y;
+    let mut painted = 0;
+    for y in top..top + village::SCENE_H {
+        for x in village::SCENE_X..village::SCENE_X + village::SCENE_W {
+            if canvas.at(x as usize, y as usize) != assets.ink.background {
+                painted += 1;
+            }
+        }
+    }
+    let area = village::SCENE_W * village::SCENE_H;
+    assert!(painted > area * 9 / 10, "{painted} of {area} pixels of vill.pl8 frame 0");
+
+    // And every cluster the county actually staffs has ink where its icons go.
+    let c = &game.kingdom.counties[county as usize];
+    let icons = VillageScreen::icons(c);
+    let mut clusters_with_people = 0;
+    for cluster in 0..village::CLUSTER_COUNT {
+        if icons[cluster].iter().all(|&v| v == 0) {
+            continue;
+        }
+        clusters_with_people += 1;
+    }
+    assert!(
+        clusters_with_people >= 2,
+        "county {county} staffs {clusters_with_people} clusters; the save has cattle and wood"
+    );
+}
+
+/// The whole gesture against the real grid: band a cluster, release, drop on
+/// another, and the workers land in the other cluster's job.
+#[test]
+fn a_drag_across_the_real_drop_grid_moves_the_county_s_peasants() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let mut screen = VillageScreen::new(county);
+
+    let c = &game.kingdom.counties[county as usize];
+    let slots = VillageScreen::slots(c);
+    let icons = VillageScreen::icons(c);
+    // The fullest cluster is the one worth emptying.
+    let from = (0..village::CLUSTER_COUNT)
+        .max_by_key(|&i| icons[i].iter().filter(|&&v| v != 0).count())
+        .unwrap();
+    let to = (0..village::CLUSTER_COUNT).find(|&i| slots[i] != slots[from]).unwrap();
+    let (before_from, before_to) = (c.labour[slots[from]], c.labour[slots[to]]);
+    assert!(before_from > 0, "cluster {from} has people in it");
+
+    let (bx0, by0, bx1, by1) = village::cluster_band_box(from, village::SCENE_Y);
+    send(&mut screen, &mut game, &assets, Event::Click { x: bx0, y: by0 });
+    send(&mut screen, &mut game, &assets, Event::Pointer { x: bx1, y: by1 });
+    send(&mut screen, &mut game, &assets, Event::Release { x: bx1, y: by1 });
+    assert_eq!(screen.phase(), village_screen::Phase::Carry, "released holding a selection");
+    let carried = screen.drag_count();
+    assert!(carried > 0);
+
+    let (ox, oy) = village::cluster_origin(to, village::SCENE_Y);
+    send(&mut screen, &mut game, &assets, Event::Click { x: ox + 36, y: oy + 24 });
+    assert_eq!(screen.phase(), village_screen::Phase::Idle, "and put it down");
+
+    let c = &game.kingdom.counties[county as usize];
+    let moved = before_from - c.labour[slots[from]];
+    assert!(moved > 0, "somebody moved");
+    assert_eq!(c.labour[slots[to]] - before_to, moved, "and they arrived");
+    assert_eq!(
+        moved,
+        (carried * c.pop_band).min(before_from),
+        "an icon is popBand people, clamped to what the job held"
+    );
+    assert_eq!(
+        c.labour.iter().sum::<i32>(),
+        game.kingdom.counties[county as usize].population,
+        "and the nine still sum to the population"
+    );
+}
+
+/// A click that never travels nine pixels is a click, and a click opens the job
+/// popup for the cluster it landed on — the fifth screen, and the only place
+/// the labour record's other two words are shown as a number.
+#[test]
+fn a_click_on_a_cluster_opens_its_job_popup() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let mut screen = VillageScreen::new(county);
+    let c = &game.kingdom.counties[county as usize];
+    let slots = VillageScreen::slots(c);
+
+    // Cluster 2 is cattle farming, which is the job the shipped save staffs.
+    let (ox, oy) = village::cluster_origin(2, village::SCENE_Y);
+    let (x, y) = (ox + 36, oy + 24);
+    send(&mut screen, &mut game, &assets, Event::Click { x, y });
+    assert_eq!(screen.phase(), village_screen::Phase::Idle, "one press is not a drag");
+    let t = send(&mut screen, &mut game, &assets, Event::Release { x, y });
+    assert_eq!(t, Transition::Push(ScreenId::Job(county, slots[2])));
 }
 
 /// Not a test: a way to look at the screen. `cargo test -p l2-game --test

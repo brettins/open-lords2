@@ -35,6 +35,28 @@ pub const MAX_FIELDS: usize = 20;
 /// §1.2).
 pub const MAX_INFLOW_SOURCES: usize = 16;
 
+/// [`County::labour_wanted`] for a job that asks for nobody in particular.
+///
+/// **`[D]`.** Every writer but grain's and cattle's stores −1, and the two
+/// readers both compare `labour < wanted`, which −1 can never satisfy.
+pub const LABOUR_NO_FLOOR: i32 = -1;
+
+/// [`County::labour_useful`] for a job that can always use one more.
+///
+/// **`[D]`.** `FUN_0044F318` writes 100,000 for iron, stone and wood — every
+/// industry except the blacksmith, whose output is capped by the iron store.
+/// It is a real number rather than a sentinel: the allocator compares against
+/// it directly, and a county would have to hold a hundred thousand people
+/// before it bound anything.
+pub const LABOUR_UNBOUNDED: i32 = 100_000;
+
+/// [`County::labour_useful`] for a job whose estimate has never run.
+///
+/// **`[D]`.** The allocator (`FUN_0044F6E7`) opens by reading all eight
+/// ceilings and rewriting this value to **0** — so an unset ceiling allocates
+/// nobody, rather than everybody.
+pub const LABOUR_UNSET: i32 = 999_999;
+
 /// A county cannot neighbour more counties than there are counties. The
 /// original stores the count at `+0x5A` and the ids from `+0x5C`; the array
 /// length is not stated, so this is the tightest bound the county array itself
@@ -231,8 +253,91 @@ pub struct County {
     pub tax_collected: i32,
     /// `+0xC0` — group 86 index 2, *"People pay"*.
     pub tax_shown: i32,
-    /// `+0xC4 + job*0x0C` — workers assigned to each of ten jobs.
+    /// `+0xC4 + job*0x0C` — workers assigned to each of nine jobs.
     pub labour: [i32; JOB_COUNT],
+    /// `+0xC4 + job*0x0C + 0x04` — **the wanted floor**: how many workers this
+    /// job needs before it stops going backwards.
+    ///
+    /// **`[D]`.** The second word of the twelve-byte labour record, and the
+    /// first of the two this project imported as nothing at all. Three
+    /// different passes write it, and all three mean the same thing:
+    ///
+    /// * **Grain** (`FUN_0044D374`, `0x0044D374`) walks `workers = 0 … population`, calls
+    ///   `Grain_Sow` / `Grain_Grow` / `Grain_Harvest` at each, and stores the
+    ///   *first* count that reaches the best result. Grain's floor and ceiling
+    ///   come out of the same search and are therefore equal.
+    /// * **Cattle** (`FUN_0044DD4D`) walks the same range through
+    ///   `Herd_BirthsAndDeaths` and stores the **first count at which births
+    ///   less deaths stops being negative** — break-even — or, if the herd
+    ///   cannot break even at any staffing, the least-bad count.
+    /// * **Every other job** writes [`LABOUR_NO_FLOOR`]: reclamation
+    ///   (`Field_ReclaimEstimate`, `0x0044C278`), castle building
+    ///   (`Castle_BuildEstimate`, `0x00450E46`) and the four industries
+    ///   (`FUN_0044F318`) all set it to −1, meaning *no requirement*.
+    ///
+    /// Two things read it, and both are interface: `Panel_JobDetail` colours
+    /// the worker count **red** when `labour < labour_wanted`, and
+    /// `Village_RebuildIcons` draws the shortfall as extra, unselectable icons
+    /// in the cluster. Nothing in the season pipeline reads it — it is a
+    /// *recommendation*, computed by the passes that know, for the player and
+    /// for the auto-allocator to act on.
+    pub labour_wanted: [i32; JOB_COUNT],
+    /// `+0xC4 + job*0x0C + 0x08` — **the useful ceiling**: the worker count
+    /// past which more workers do the job no good.
+    ///
+    /// **`[D]`**, and unlike [`County::labour_wanted`] this one is not only a
+    /// display hint: the labour allocator (`FUN_0044F6E7`) fills each of slots
+    /// 0..=7 **up to this number and no further**, and drops what is left over
+    /// into [`crate::tables::JOB_IDLE_TOWNSFOLK`].
+    ///
+    /// Its writers, and their sentinels:
+    ///
+    /// | job | value |
+    /// |---|---|
+    /// | grain | the fewest farmers that reach the best yield |
+    /// | cattle | the staffing that **maximises** births less deaths |
+    /// | reclamation | the work left in all reclaimable fields, capped 200 each |
+    /// | castle building | the work the current build still needs |
+    /// | iron, stone, wood | [`LABOUR_UNBOUNDED`] — more miners always help |
+    /// | blacksmith | the smiths that turn the most iron into weapons |
+    ///
+    /// and **0 whenever the county has no such resource**, which is how a
+    /// county with no mine ends up with no miners without the slot ever going
+    /// away. [`LABOUR_UNSET`] means the estimate has never run and the
+    /// allocator reads it as 0.
+    pub labour_useful: [i32; JOB_COUNT],
+    /// `+0x130 + job*0x04` — **eight percentages, one per job**, and the
+    /// allocator's only instruction about where people should go.
+    ///
+    /// **`[V]`.** `FUN_00450000` recomputes them from the worker counts and
+    /// indexes them as `(&DAT_0053FAE0)[i * 4]` for `i` in 0..3 and again for
+    /// `i` in 3..8, which is the array written out. They are **two groups that
+    /// each sum to 100**, not one that sums to 100:
+    ///
+    /// * jobs 0, 1, 2 — grain, cattle, reclamation — share the *farm*
+    ///   workforce;
+    /// * jobs 3 … 7 — castle, iron, stone, wood, blacksmith — share the
+    ///   *industry* workforce;
+    /// * job 8, *Idle townsfolk*, has no share and takes whatever is left.
+    ///
+    /// Both defaults close: `FUN_004514F8` sets 33 / 50 / 17 and 0 / 0 / 0 /
+    /// 100 / 0, and `FUN_0045158B` sets 33 / 50 / 17 and 40 / 15 / 15 / 15 / 15.
+    /// Each half is exactly 100 in both.
+    ///
+    /// `docs/screens-county.md` §9 listed `+0x130`, `+0x134` and `+0x138` as
+    /// "seen, not understood" and guessed they belonged to the field-painting
+    /// brush. They are the first three of these eight.
+    pub labour_share: [i32; JOB_COUNT - 1],
+    /// `+0x08` — the percentage of the county's people the allocator gives to
+    /// **industry** rather than to the farm.
+    ///
+    /// **`[D]`.** `FUN_0044F6E7` opens `industry = Pct(population, +0x08);
+    /// farm = population - industry` and fills the two halves from their own
+    /// percentages. `FUN_0044FF4A` writes it back from what was actually
+    /// assigned, counting **half** the idle as industry:
+    /// `PctOf(pop - grain - cattle - reclamation - idle + idle/2, pop)`.
+    /// A fresh county starts on 25 (`FUN_00451150`).
+    pub industry_share: i32,
     /// `+0x90 + i*2` — reclamation progress of each field, 0..=800.
     pub field_progress: [u16; MAX_FIELDS],
     /// `+0x15D` — 0..=5, the level `Ration_Apply` actually managed to feed.
@@ -384,6 +489,15 @@ impl County {
             tax_collected: 0,
             tax_shown: 0,
             labour: [0; JOB_COUNT],
+            // Zero, not the sentinels: `FUN_00451150` sets up a fresh county
+            // with `useful = 0; wanted = useful; workers = wanted;` for all
+            // nine records, and only then runs the estimates.
+            labour_wanted: [0; JOB_COUNT],
+            labour_useful: [0; JOB_COUNT],
+            // `FUN_004514F8`'s defaults: 33 / 50 / 17 across the farm and all
+            // of the industry share on wood, each half summing to 100.
+            labour_share: [33, 50, 17, 0, 0, 0, 100, 0],
+            industry_share: 25,
             field_progress: [0; MAX_FIELDS],
             // Normal rations, all of it from livestock: the values every county
             // in the shipped lastturn.sav carries (docs/kingdom.md §4.3).

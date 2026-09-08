@@ -284,6 +284,18 @@ impl Screen for MapScreen {
             Event::KeyDown(Key::Right) => {
                 self.scroll(Dir::E);
             }
+            // **Ours, and only the key is.** The original opens the village by
+            // clicking the county's *town* on the map: `FUN_0043CE1A` tests bit
+            // 0x20 of the clicked cell's attribute byte, checks the county is
+            // the local player's, centres on `+0x70` and sets `g_screenId = 2`.
+            // We do not read that attribute plane yet, so the destination is
+            // the original's and the way in is not.
+            Event::KeyDown(Key::Char('V')) => {
+                if ctx.game.is_players(ctx.game.selected) {
+                    return Transition::Push(ScreenId::Village(ctx.game.selected));
+                }
+                self.status = "NOT YOUR COUNTY".into();
+            }
             Event::KeyDown(Key::Char('Z')) => self.toggle_zoom(),
             Event::KeyDown(Key::Char('E')) | Event::KeyDown(Key::Space) => self.end_turn(ctx),
             Event::Pointer { x, y } => {

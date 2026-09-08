@@ -162,7 +162,11 @@ the battle debug overlay.
 | `+0xB9` | u8 | **taxRate** | [V] | group 86 index 1, *"Tax rate"*. |
 | `+0xBC` | i32 | taxCollected | [V] | what the treasury actually banks. |
 | `+0xC0` | i32 | taxShown | [V] | group 86 index 2, *"People pay"*. |
-| `+0xC4 + job*0x0C` | i32 | labour | [V] | workers assigned to each of ten jobs. §7. |
+| `+0xC4 + job*0x0C` | i32 | labour | [V] | workers assigned to each of **nine** jobs. §7, §14. |
+| `+0xC4 + job*0x0C + 4` | i32 | labourWanted | [V] | the job's **wanted floor** — below it the count is drawn red and the shortfall appears as unselectable icons. −1 means no floor. §14. |
+| `+0xC4 + job*0x0C + 8` | i32 | labourUseful | [V] | its **useful ceiling** — the allocator fills the job to it and no further. 100,000 means none; 0 means the county has no such resource. §14. |
+| `+0x130 + job*4` | i32×8 | labourShare | [V] | eight percentages, jobs 0 … 7, in **two groups that each sum to 100**: farm (0 … 2) and industry (3 … 7). §14. |
+| `+0x08` | i8 | industryShare | [D] | the percentage of the county given to industry rather than to the farm. Starts at 25. §14. |
 | `+0x90 + i*2` | u16×20 | fieldProgress | [V] | reclamation progress of each field, 0 … 800. §7.2. |
 | `+0x15D` | i8 | **rationAchieved** | [V] | 0 … 5 = *None, Quarter, Half, Normal, Double, Triple* — `L2.eng` group 21, six strings. |
 | `+0x15E` | i8 | rationWanted | [V] | what the player asked for; group 87, *"Wanted:" / "Achieved:"*. |
@@ -1792,3 +1796,79 @@ and this is where. The same function then hands an unowned county +100 grain, wh
 100 sacks the nine unowned counties still hold.
 
 A fourth row of zeros follows, so there are three starting-wealth settings and not four.
+
+---
+
+## 14. Labour — the record is three integers, and there is an allocator  **[V]**
+
+`docs/screens-county.md` §8.3 said the labour record was three integers a job and that only
+the first was imported. All three are now read, and the pass that writes the other two and
+then acts on them is reproduced.
+
+### 14.1 The record
+
+`+0xC4 + job*0x0C`, nine records of twelve bytes:
+
+| word | off | meaning |
+|---|---|---|
+| 0 | `+0x00` | workers assigned. The nine sum to the population, exactly, always |
+| 1 | `+0x04` | the **wanted floor** — `-1` for "no floor" |
+| 2 | `+0x08` | the **useful ceiling** — `100000` for "none", `999999` for "never computed" |
+
+Only two passes ever write a real floor, and both find it the same way — by trying every
+staffing from nobody to everybody and taking the first that works:
+
+* `Grain_LabourEstimate` (`0x0044D374`) runs `Grain_Sow` / `Grain_Grow` / `Grain_Harvest`
+  for `workers = 0 … population` and stores the **first count that reaches the best result**
+  in *both* words. Grain's floor and ceiling are therefore equal.
+* `Herd_LabourEstimate` (`0x0044DD4D`) runs `Herd_BirthsAndDeaths` over the same range and
+  stores the **first staffing at which births less deaths stops being negative** as the
+  floor, and the staffing that **maximises** it as the ceiling. If the herd cannot break
+  even at any staffing it stores the least-bad count instead.
+
+Everything else writes `-1` and a ceiling: `Field_ReclaimEstimate` the work left in the
+county's reclaimable fields, `Castle_BuildEstimate` the work the current build still needs,
+and `Industry_LabourEstimate` (`0x0044F318`) either the output-maximising smith count, or
+**100,000** for iron, stone and wood, or **0** where the county has no such resource.
+
+### 14.2 The allocator
+
+`Labour_Allocate` (`0x0044F6E7`), 2,147 bytes, and the only writer of word 0:
+
+1. `industry = Pct(population, +0x08)`, `farm = population - industry`.
+2. Each farm job takes `Pct(farm, +0x130 + job*4)` people, or as many as its ceiling allows,
+   **cattle first**, then grain, then reclamation.
+3. The leftover farm people are walked round the three in an uneven rota — grain gets two
+   places and cattle three before reclamation gets one — until the pool empties or every job
+   is full.
+4. Farm leftovers **smaller than one peasant icon** (`+0xB8`) are handed to industry.
+5. The industry half repeats it: wood, stone, iron, blacksmith, castle by quota, then one
+   place each for the first four before castle building gets one.
+6. Whatever neither half could spend becomes **Idle townsfolk** (record 8).
+
+`Labour_RecomputeShares` (`0x00450000`) then rewrites the eight percentages from what
+actually happened, in two groups each renormalised to exactly 100, and
+`Labour_RecomputeIndustryShare` (`0x0044FF4A`) rewrites `+0x08` counting **half the idle
+count as industry**. `Labour_Move` — the village screen's drag — calls both.
+
+`Season_Advance` calls the allocator for every county **twice**: after `Castle_BuildTick`
+and before migration, and again after the armies are recounted. Both are immediately after
+something changed how many people there are, which is what keeps the nine records summing to
+the population every season.
+
+### 14.3 What checks it
+
+The shipped save is the state right after the pass ran, so its own worker counts are the
+answer. `l2_kingdom::labour::allocate` rebuilds them from the population, `+0x08`, the eight
+percentages and the eight ceilings, and **all fourteen counties come back exactly** —
+county 1's 218 dairy maids and 217 foresters, county 8's 327 and 108, and 323 with 133 idle
+in each of the nine unowned ones.
+
+That last contrast is the ceiling doing all the work: an owned county's wood ceiling is
+100,000 and an unowned one's is 0, so identical populations end up as a county full of
+foresters or a county full of idlers.
+
+**Not wired into `phase.rs`.** The allocator's inputs are the seven estimate passes
+`County_RefreshEstimates` (`0x004485A5`) runs, and this crate has none of them. Running the
+allocator every season against a stale ceiling would move people on evidence that had
+stopped being true. `l2_kingdom::labour::SEASON_CALL_SITES` records where it belongs.

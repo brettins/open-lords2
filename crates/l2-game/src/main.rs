@@ -197,6 +197,14 @@ impl ApplicationHandler for App {
                 let (x, y) = self.last_cursor;
                 self.deliver(GameEvent::Click { x, y });
             }
+            WindowEvent::MouseInput {
+                state: ElementState::Released,
+                button: MouseButton::Left,
+                ..
+            } => {
+                let (x, y) = self.last_cursor;
+                self.deliver(GameEvent::Release { x, y });
+            }
             _ => {}
         }
         if self.machine.should_quit() {

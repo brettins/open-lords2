@@ -86,6 +86,8 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x00 | `Screen_DrawCampaign` `0x0040F5FD` | the campaign map | group 34 — season and year |
 | 0x02 | `Village_Draw` `0x00412143` | **the village** — the county's own picture, and where peasants are moved | groups 22 (fertility), 66 (weather); `villani1/villani2/vill/villtops.pl8` |
 | 0x04 | `0x0041B032` | — | not identified |
+| 0x05 | *(no painter)* | **the village's rubber band** — §6.4 | `Village_BandStart` / `Village_BandRelease` |
+| 0x06 | *(no painter)* | **the village carrying a selection** — §6.4 | `Village_Drop` |
 | 0x08 | `0x00415FB7` | the merchant | `merchant.pl8`, `mercgrid.pl8` |
 | 0x09 | `Court_Draw` `0x00416925` | **the court** — the realm's treasury and stores | group 70 |
 | 0x0A | `0x00417EA7` | the armoury | `armoury.pl8`, `arm_grid.pl8` |
@@ -252,7 +254,7 @@ records at `g_preloadTable` (`0x004D9F48`), each into a fixed `.data` buffer. Th
 | 9 | `System2.pl8` | `0x005BB540` | the button sheet — but see §4.2, where the kingdom screens swap `System.pl8` into the same buffer |
 | 10 | `Panels.pl8` | `0x0057D3D0` | **every window frame** |
 | 11 | `l2.eng` | `0x00591580` | the strings |
-| 12 | `vill_gd8.pl8` | `0x00542CE0` | |
+| 12 | `vill_gd8.pl8` | `0x00542CE0` | **the village's drop grid** — 45 × 40 cells of 8 px naming the cluster under each part of the picture. §6.4 |
 
 `System.pl8` is the same size and frame layout and is swapped into the same buffer by
 `Res_LoadButtons` (`0x00499A1C`) with a different index. §4.2 is why that matters.
@@ -513,7 +515,8 @@ reading.
 ### 6.4 Moving peasants — the village, not a panel
 
 **[D]** There is no "assign labour" control anywhere in the four panels. Peasants are moved
-on the **village screen** (0x02):
+on the **village screen** (0x02), which is a *full screen* — its own case in `Screen_Draw`,
+its own painter, its own files — and not a window over the county panels.
 
 1. `Village_DrawPeasants` (`0x00412666`) draws **eight clusters** of up to **25 icons**, at
    offsets from `g_jobClusterOrigins` (`0x004D85A8` — eight `{i32 x, i32 y}` pairs:
@@ -532,6 +535,74 @@ the field are the same fact seen twice.
 `g_jobClusterToSlot` (`0x004D6780`) maps cluster → labour slot: `[5, 0, 1, 3, 6, 7, 8, 2]`,
 and `Job_SlotForCluster` (`0x004517CA`) overrides cluster 0 to slot **4** when the county
 has industry 1's resource but not industry 3's.
+
+**There are eight clusters and nine jobs.** Iron and stone *share* cluster 0, because the
+mine (`Misc_cty` frame 0x2B) and the quarry (frame 0x28) are painted at the same spot,
+`(0x4C, top + 0x0C)`. `Village_ClusterHasJob` (`0x0045183A`) refuses that one cluster, and
+only when the county has neither — the other seven never refuse, and
+**`Village_DrawPeasants` loops 0 … 7 with no test at all**, so a county with no mine still
+shows the slot. It simply has nobody in it.
+
+### 6.4.1 The gesture is three screen ids **[V]**
+
+`Screen_HandleInput` gives the drag its own screens, and reading them settles what the
+gesture actually is rather than leaving it to be guessed:
+
+| id | what | leaves when |
+|---|---|---|
+| `0x02` | the village, idle | `Village_BandStart` (`0x004393EB`) sees the pointer **9 pixels** from where the button went down → `0x05` |
+| `0x05` | the band | `Village_BandRelease` (`0x00439541`) sees the button **released**: `0x06` if anything is selected, back to `0x02` if not |
+| `0x06` | carrying | `Village_Drop` (`0x004399B0`) sees the next **press**, and drops there |
+
+So: **press, drag, release, then a second click** — not drag-and-drop. A press that never
+travels nine pixels is a *click*, and `Village_ClickJob` (`0x0043A123`) turns that into the
+job popup for whatever cluster it landed on.
+
+Two rules inside the band that are not obvious from the outside: a band reaching into a
+second cluster **abandons the whole selection**, and **shortfall icons cannot be picked up**
+— `Village_BoxSelect` skips icon value 1 explicitly, because those figures stand for
+workers the job wants and has not got.
+
+### 6.4.2 Where a drop lands is a **painted file** **[V]**
+
+Not a rectangle. `Village_GridAt` (`0x004398F5`) reads
+
+```c
+(&DAT_00542CF8)[((x - 0x40) >> 3) + ((y - g_villageTopY) >> 3) * 0x2D]
+```
+
+and `0x00542CF8` is `0x00542CE0 + 0x18` — preload entry 12, **`vill_gd8.pl8`**, past its
+24-byte header. It closes three ways:
+
+* `0x2D` is 45, and the tested x range `0x40 … 0x1A8` is 360 pixels — 45 cells of 8;
+* the y range is 320 pixels — 40 cells of 8;
+* **the shipped file is 1,824 bytes**, which is 24 + 45 × 40 exactly.
+
+The byte is the cluster, 1-based, clamped to 8, and 0 is ground that belongs to nobody.
+`vill.pl8` is one frame of 363 × 320 at `(0x40, g_villageTopY)`, and `g_villageTopY` is
+**64**, or **132** with *Advanced Farming* — which is what makes room for `villtops.pl8`,
+whose **six** 363 × 70 frames are the six weathers of `L2.eng` group 66, indexed by the same
+county byte.
+
+### 6.4.3 The icons are `Misc_cty` frames 0 … 0x16 **[V]**
+
+`g_jobIconValue` (`0x004D6808`) is nine `i32` by labour slot: `4 8 10 14 16 18 20 22 2`. The
+stored value is the frame **plus one**, and a selected icon adds one more, so each entry
+names a *(normal, highlighted)* pair — and value 1 is the **shortfall** icon (frame 0, never
+selectable) while value 2 is the **surplus** icon, which is also what every idle townsman is
+drawn as.
+
+That accounts for §9's guess that `Misc_cty` frames 0 … 0x16 were "almost certainly the top
+menu bar". They are not. Nineteen of those twenty-three frames are 16 × 32 icons; the four
+the table never names — **5, 6, 11 and 12** — are exactly the four frames in that range of
+the shipped file that are **2 × 2 stubs**. Nothing is left over.
+
+`Village_RebuildIcons` (`0x0045161E`) decides how many of each: `ceil(workers / popBand)`
+normally, plus `ceil((wanted − workers) / popBand)` shortfall icons below the job's floor,
+or `(workers − useful) / popBand` surplus icons above its ceiling **split off** the normal
+count rather than added to it. The fill orders are three permutations in `.data` —
+`g_iconFillOrder` (25 slots), and `g_iconFillOrderMain` + `g_iconFillOrderOther` for a
+cluster showing both states, which partition the 25 slots as 13 + 12 with nothing over.
 
 That single special case pins the industry order **[V]**: the village draws frame 0x2B (a
 mine) on `+0x2AD` = industry **1** and frame 0x28 (a quarry) on `+0x2DD` = industry **3**,
@@ -637,13 +708,20 @@ Five things, in descending order of how much they matter.
    same three to decide how many icons to draw in the "wrong" state. `l2-kingdom` has
    `labour: [i32; 9]` and no room for them. **[D]**
 
-   *Since written:* the **first** word of each record now imports —
-   `crates/l2-scenario` reads all nine, and every county's nine sum to its population
-   exactly, which is the check that fixes the stride at 12 (`docs/kingdom.md` §13). The
-   other two words are still unmodelled, and one of them is now known to be more than a
-   display hint: `FUN_0044DD4D` searches `labour = 0 … population` for the worker count
-   that best suits the herd and writes it to `+0xD4`, and the labour allocator fills the
-   slot up to `+0xD8`. So the "useful ceiling" is a rule's output, not a panel's. **[V]**
+   *Fixed — this entry is kept for the record.* **All three words now import**, and the
+   two that did not are a **wanted floor** (`+0x04`) and a **useful ceiling** (`+0x08`).
+   Their writers are `Grain_LabourEstimate` (`0x0044D374`) and `Herd_LabourEstimate`
+   (`0x0044DD4D`), which each walk `workers = 0 … population` and store the first count
+   that stops the job going backwards; every other job writes −1 for the floor, and for the
+   ceiling **100,000** where more workers always help (iron, stone, wood) or **0** where the
+   county has no such resource.
+
+   The ceiling is a rule's output rather than a panel's hint: `Labour_Allocate`
+   (`0x0044F6E7`) fills each of slots 0 … 7 **up to it and no further**. The shipped save
+   proves the reading — seven of the nine floors are −1 in all fourteen counties, wood's
+   ceiling is exactly 100,000 in every owned county and exactly 0 in every unowned one, and
+   `l2_kingdom::labour` rebuilds all fourteen counties' worker counts from those numbers
+   alone. **[V]**
 
 4. **Three "Fed" fields with no name.** `+0x16C`, `+0x170` and `+0x174` are drawn on the
    ration panel next to the sheep, grain and cattle icons, beside the two "Eaten" fields we
@@ -672,14 +750,27 @@ Named here so nobody mistakes silence for coverage.
   `0xFC` for a second warning state. Which actual colours those are depends on
   `base01.256`, which this document does not decode.
 * **Screens 0x04 and 0x1A**, and the two sidebar buttons at `0x00436A88` and `0x0043611B`.
-* **The field-painting brush** on the campaign map: `Field_SetType` and the three
-  percentages at `+0x130`, `+0x134`, `+0x138` are seen, not understood. That is the map
-  agent's territory.
-* **The village's own layout.** The eight cluster origins are read, and so is the village
-  artwork's y offset (64, or 132 with Advanced Farming), and the animation counters at
-  `0x004D2930 …`. None of it is reproduced.
-* **`Misc_cty.pl8` frames 0 … 0x16** — 23 frames of 16 × 32 at a 17-pixel pitch in the
-  artwork sheet. Almost certainly the top menu bar. **[I]**, and not checked.
+* **The field-painting brush** on the campaign map: `Field_SetType` is seen, not understood.
+  That is the map agent's territory.
+
+  The three percentages at `+0x130`, `+0x134` and `+0x138` that used to be listed here with
+  it **are not the brush's**, and they are not three. They are the first three of **eight
+  job percentages** at `+0x130 + job*4` — the labour allocator's only instruction about
+  where a county's people should go. `Labour_RecomputeShares` (`0x00450000`) rewrites them
+  in two groups, jobs 0 … 2 and jobs 3 … 7, each renormalised to exactly 100, and both of
+  the binary's own default setters close on both halves: 33 / 50 / 17 with 0 / 0 / 0 / 100 /
+  0, and 33 / 50 / 17 with 40 / 15 / 15 / 15 / 15. **[V]**
+
+  `Field_SetType` reads them because repainting a field changes what the county can grow and
+  therefore how it should staff itself: it calls `Labour_Allocate` straight afterwards.
+* ~~**The village's own layout.**~~ *Done — §6.4. The clusters, the icons, the drop grid and
+  the three-state drag are read and reproduced. What is still not is
+  **`Village_Animate`** (`0x00412421`) and its six counters at `0x004D2930 …`, which redraw
+  smoke, water and a cart from `villani1`/`villani2` over the still scene.*
+* ~~**`Misc_cty.pl8` frames 0 … 0x16.**~~ *Wrong — they are the **peasant icons**, not the
+  menu bar. §6.4.3, and the four 2 × 2 stubs among them are exactly the four the icon table
+  never names. This was the only **[I]** in this document that turned out to be false, and
+  it was false because nobody had looked at the one screen that draws them.*
 * **Groups 62 and 63** — *"Click on a food to swap its priority."*, *"Barrels swilled."*,
   *"A new field will be ready next season."* — describe a richer ration and field panel
   than the one that shipped, and **no call site in the decompiled corpus passes 62 or 63 as
