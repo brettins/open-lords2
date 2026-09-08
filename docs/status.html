@@ -218,7 +218,7 @@
     <span><b>Updated</b> 7 Sep 2026</span>
     <span><b>Repo</b> E:\dev\lords2</span>
     <span><b>Game</b> GOG build, 21 Jul 2009</span>
-    <span><b>Simulation</b> battle + kingdom, in Rust</span>
+    <span><b>Battle</b> runs and draws itself</span>
     <span><b>Oracle</b> Ghidra 12.1.3 &middot; 230 functions named</span>
   </div>
 
@@ -226,27 +226,27 @@
   <div class="gauges">
     <div class="gauge">
       <div class="k">Test suite</div>
-      <div class="v">542</div>
-      <div class="sub">31 suites &middot; identical counts in debug <em>and</em> release</div>
+      <div class="v">711</div>
+      <div class="sub">41 suites &middot; identical counts in debug <em>and</em> release</div>
       <div class="bar"><i class="done" style="width:100%"></i></div>
     </div>
     <div class="gauge">
-      <div class="k">PL8 sprite corpus</div>
-      <div class="v">291 / 291</div>
-      <div class="sub">self-verifying &middot; 21,344 frames &middot; nothing pinned</div>
+      <div class="k">Binary decompiled</div>
+      <div class="v">2,452</div>
+      <div class="sub">every function, greppable &middot; rebuilt in <em>22 seconds</em></div>
       <div class="bar"><i class="done" style="width:100%"></i></div>
+    </div>
+    <div class="gauge">
+      <div class="k">Functions named</div>
+      <div class="v">230</div>
+      <div class="sub">of 2,452 &middot; the rest is mostly CRT and DirectDraw glue</div>
+      <div class="bar"><i style="width:10%"></i></div>
     </div>
     <div class="gauge">
       <div class="k">Asset formats</div>
       <div class="v">5 / 7</div>
-      <div class="sub">PL8, palettes, maps, .skr battles, .eng text</div>
+      <div class="sub">PL8 (291/291), palettes, maps, .skr battles, .eng text</div>
       <div class="bar"><i style="width:71%"></i></div>
-    </div>
-    <div class="gauge">
-      <div class="k">Simulation crates</div>
-      <div class="v">6</div>
-      <div class="sub">formats &middot; sim &middot; kingdom &middot; net &middot; mods &middot; view</div>
-      <div class="bar"><i style="width:75%"></i></div>
     </div>
   </div>
 
@@ -255,26 +255,26 @@
     <div class="gauge">
       <div class="k">In progress</div>
       <ul class="checks">
-        <li class="now"><span class="mark">&#9679;</span><span>Battle AI order handlers into <code>l2-sim</code> &mdash; 17 decompiled</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>Map plane 4 &mdash; the six 16-entry county lists</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span><code>.smk</code> video &mdash; blocked on a licensing decision</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Wiring the 17 battle AI order handlers into <code>l2-sim</code></span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Making a modded kingdom ruleset actually <em>take effect</em></span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Adversarial audit of our own method and &ldquo;blocked&rdquo; claims</span></li>
       </ul>
     </div>
     <div class="gauge">
       <div class="k">Next</div>
       <ul class="checks">
-        <li class="todo"><span class="mark">&#9675;</span><span>Read live battle state through the proxy &mdash; the oracle comparison</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Draw a battle: terrain, figures, facings</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Kingdom stubs &mdash; AI handlers, bankruptcy, the event table</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span><code>l2-game</code> &mdash; the application spine nothing is plugged into yet</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Campaign map screen, county selection, end turn</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Save and load our own campaign state</span></li>
       </ul>
     </div>
     <div class="gauge">
       <div class="k">Recently closed</div>
       <ul class="checks">
-        <li class="done"><span class="mark">&#10003;</span><span>Pathfinder charged no terrain cost &mdash; the doc it followed was wrong</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span><code>broadcast</code> skipped peers after the first failure</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>All 23 pinned PL8 failures explained &mdash; list now empty</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>A test whose name asserted more than its body checked</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><strong>A battle runs and draws itself</strong> &mdash; terrain, figures, melee, deaths</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Whole binary decompiled and greppable &mdash; 22s, not per question</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Battle tables verified against the binary &mdash; 11/11 rows</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Lobby, and head-of-line blocking under a real socket</span></li>
       </ul>
     </div>
   </div>
@@ -425,17 +425,19 @@
     <div>
       <div class="phead"><h3>Battle sandbox</h3><span class="pill now">In progress</span></div>
       <p class="pnote">The first milestone that is genuinely a piece of the finished engine rather than
-        scaffolding &mdash; and where the pathing work lives. The rules are in
-        <code>l2-sim</code> and tested; what is missing is a picture of them.</p>
+        scaffolding &mdash; and where the pathing work lives. <strong>A battle now runs and draws
+        itself</strong>: real <code>.skr</code> terrain, auto-tiled river banks, a bridge, and both
+        liveries of men walking, fighting and falling, stepping the simulation tick by tick.</p>
       <ul class="checks">
         <li class="done"><span class="mark">&#10003;</span><span>Unit and figure data structures &mdash; 80-figure ceiling, stable indices</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Movement, elevation rules, cell swapping</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Pathfinding &mdash; weighted <em>and</em> deferred, deliberately not Dijkstra</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Melee and missile resolution <span class="count">&mdash; every ranking the manual states, asserted</span></span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Battle AI decompiled <span class="count">&mdash; 17 handlers, one global drives all of them</span></span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>Porting the order handlers into <code>l2-sim</code></span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Battlefield terrain rendering</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Unit sprites, facings, animation states</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Melee table checked against the binary <span class="count">&mdash; 11/11 rows exact</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Battlefield terrain, auto-tiling, sprites, facings, animation</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>All 20 shipped battlefields build <span class="count">&mdash; 128,000 cells, every index valid</span></span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Wiring the 17 order handlers &mdash; until then it is a brawl, not their battle</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Missiles, siege engines, the side panel</span></li>
       </ul>
     </div>
   </div>
@@ -444,19 +446,19 @@
     <div class="pnum">05</div>
     <div>
       <div class="phead"><h3>Oracle and differential testing</h3><span class="pill now">Started early</span></div>
-      <p class="pnote">Turns the original binary into a test fixture. This is what makes delegating bulk
-        reimplementation safe &mdash; a wrong answer gets caught by the original, not by a human reading
-        decompiler output.</p>
+      <p class="pnote">Turns the original binary into a test fixture &mdash; and the big lesson of this phase
+        is that <em>the binary is the fixture, not the running game</em>. Reading the executable answers
+        nearly everything, instantly and with no window to steal focus. Launching the original turned out
+        to be the last resort, not the second.</p>
       <ul class="checks">
         <li class="done"><span class="mark">&#10003;</span><span>Ghidra 12.1.3 + headless analysis pipeline</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Located the PL8 draw routine, its clipper and blitters</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Cross-implementation harness &mdash; 21,344 frames, zero divergence</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Oracle corrected a real decoder bug the tests could not see</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span><code>ddraw.dll</code> proxy &mdash; our code runs inside the game</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Hard-link sandbox &mdash; instrumented copy, install untouched</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Read live battle state from <code>.data</code> globals</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Harness: same inputs to both engines, diff the outputs</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Symbol database shared between Ghidra and the Rust code</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><strong>Whole binary decompiled and greppable</strong> <span class="count">&mdash; 2,452 functions in 22 seconds</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Symbol database shared between Ghidra and the docs <span class="count">&mdash; 230 functions, 164 globals</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Battle tables read from the executable &mdash; disk and live memory identical</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Runtime constants recovered from the <code>MOV</code> immediates that write them</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Kingdom economy tables checked &mdash; every value right, two layouts wrong</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>ddraw.dll</code> proxy and hard-link sandbox &mdash; install untouched</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Pixel diff against the original's framebuffer &mdash; never yet attempted</span></li>
       </ul>
     </div>
   </div>
