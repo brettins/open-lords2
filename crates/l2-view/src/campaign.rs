@@ -13,8 +13,9 @@
 //! ```
 //!
 //! written there for zoom 0's 58 x 30 tiles. It is used here with the zoom-2
-//! tile size, 10 x 6, because a whole 64 x 64 map is then 650 x 390 and fits on
-//! one 640 x 480 screen with no scrolling viewport to build.
+//! tile size, 10 x 6, because a whole 64 x 64 map is then exactly 640 x 384 and
+//! fits on one 640 x 480 screen with no scrolling viewport to build. See
+//! `MapView::fit` for why the width comes out on the nose.
 //!
 //! The column term needs coefficients of plus and minus one half, which is why
 //! the affine search that `docs/decisions.md` and `docs/formats/maps.md` still
@@ -199,7 +200,12 @@ mod tests {
         // row = 0+0+1 = 1 (odd), col = (0-0+64)>>1 = 32.
         let (row, col) = (1i32, 32i32);
         let (w, h) = (58i32, 30i32);
-        assert_eq!(col * w + 0 - w / 2, 1827);
+        // The `+ 0` is §4's "row odd -> 0" term, written out rather than
+        // folded away, so the two cases can be read side by side.
+        #[allow(clippy::identity_op)]
+        {
+            assert_eq!(col * w + 0 - w / 2, 1827);
+        }
         assert_eq!(row * (h / 2), 15);
     }
 

@@ -189,11 +189,13 @@ impl ApplicationHandler for App {
                 self.last_cursor = (x, y);
                 self.deliver(GameEvent::Pointer { x, y });
             }
-            WindowEvent::MouseInput { state: ElementState::Pressed, button, .. } => {
-                if button == MouseButton::Left {
-                    let (x, y) = self.last_cursor;
-                    self.deliver(GameEvent::Click { x, y });
-                }
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                ..
+            } => {
+                let (x, y) = self.last_cursor;
+                self.deliver(GameEvent::Click { x, y });
             }
             _ => {}
         }

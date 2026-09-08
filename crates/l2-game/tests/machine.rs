@@ -184,6 +184,28 @@ fn every_screen_paints_the_whole_canvas_rather_than_leaving_it_blank() {
     }
 }
 
+/// The window's title is the top screen's, and it follows the clock. Pinned
+/// here because the alternative is reading it off a real window, and a thing
+/// that needs a window to be checked is a thing that stops being checked.
+#[test]
+fn the_window_title_is_the_top_screens_and_follows_the_clock() {
+    let (mut game, assets) = world();
+    game.kingdom.season = 4;
+    game.kingdom.year = 1268;
+    let mut m = Machine::new(ScreenId::Menu);
+
+    let title = {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        let t = m.title(&ctx);
+        m.handle(Event::KeyDown(Key::Enter), &mut ctx);
+        t
+    };
+    assert_eq!(title, "Lords of the Realm II", "the menu names the game and nothing else");
+
+    let ctx = Ctx { game: &mut game, assets: &assets };
+    assert_eq!(m.title(&ctx), "Lords of the Realm II - Winter 1268");
+}
+
 /// A repaint is asked for when something happened and not otherwise. This is
 /// what keeps a still menu from submitting a frame sixty times a second, which
 /// is the failure the battle viewer's `WaitUntil` pacing was added to stop.
@@ -197,8 +219,9 @@ fn the_machine_reports_dirty_after_input_and_clean_after_a_quiet_tick() {
     send(&mut m, &mut game, &assets, Event::Pointer { x: 1, y: 1 });
     assert!(m.take_dirty());
 
-    let mut ctx = Ctx { game: &mut game, assets: &assets };
-    m.update(&mut ctx);
-    drop(ctx);
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.update(&mut ctx);
+    }
     assert!(!m.take_dirty(), "a tick in which no screen asked for anything is not a repaint");
 }

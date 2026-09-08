@@ -51,7 +51,7 @@ const SCENARIO_INDEX: u32 = 0x0053_F034;
 /// is a different generator with a different value stream. So the weather and
 /// the event deck will not follow the original's from this save; everything
 /// that does not draw a random number will.
-pub const SEED: u64 = 0x10D_52;
+pub const SEED: u64 = 0x0001_0D52;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {

@@ -45,6 +45,9 @@ pub fn stat(canvas: &mut Canvas, ink: &Ink, x: i32, y: i32, right: i32, label: &
 }
 
 /// The same, with the value coloured by which way it moved.
+/// Eight arguments, and each one is a different thing to draw: this is a
+/// drawing call, not an abstraction.
+#[allow(clippy::too_many_arguments)]
 pub fn stat_delta(
     canvas: &mut Canvas,
     ink: &Ink,
