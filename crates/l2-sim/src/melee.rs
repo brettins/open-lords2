@@ -70,7 +70,7 @@ pub fn tick(figs: &mut [Figure], idx: usize) {
     if me.recovery_counter <= 0 {
         let band = 0; // strength band; single-band until unit strength lands
         let incoming = other.stats().attack(band);
-        me.take_hits(incoming);
+        me.take_hits_from(incoming, opp);
         me.recovery_counter += me.stats().recovery as i32;
     } else {
         me.recovery_counter -= 1;
@@ -88,7 +88,7 @@ pub fn tick(figs: &mut [Figure], idx: usize) {
         if !me.blow_used {
             let heavy = me.stats().heavy_blow;
             if heavy > 0 {
-                other.take_hits(heavy);
+                other.take_hits_from(heavy, idx);
             }
             // Set and never cleared, exactly as the original appears to behave.
             me.blow_used = true;

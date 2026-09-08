@@ -5,16 +5,24 @@ edition.workspace = true
 license.workspace = true
 description = "Deterministic battle simulation for Lords of the Realm II"
 
-# Dependency-free by design, like l2-formats. A lockstep simulation must be
-# bit-identical across machines and Rust versions, and every dependency is a
-# place that guarantee can quietly break - see docs/netcode.md D-3.
+# Dependency-free apart from our own crates, like l2-formats and l2-kingdom. A
+# lockstep simulation must be bit-identical across machines and Rust versions,
+# and every third-party dependency is a place that guarantee can quietly break -
+# see docs/netcode.md D-3.
+#
+# l2-net is here for one thing only: `Pcg32`, the PRNG frozen in-tree. The
+# battle AI's strength advantage carries a -10..+21 jitter (docs/battle-ai.md
+# 8), and it is the only place the battle model draws a random number at all. It
+# has to come from the frozen generator rather than a system source, and
+# inventing a second generator would mean a second value stream to freeze
+# forever - which is exactly the argument l2-kingdom's Cargo.toml makes for the
+# same dependency.
+#
+# Nothing else from l2-net is used, and nothing here may reach for the session,
+# the transport or the sockets: a simulation that knows about the network is one
+# that can branch on it. tests/lockstep.rs is the one place the two crates meet
+# properly - it runs this simulation on two peers over a real socket and checks
+# they stay bit-identical.
 [dependencies]
 l2-formats = { path = "../l2-formats" }
-
-# Tests only, and deliberately not a real dependency. l2-net is where the
-# lockstep session lives, and tests/lockstep.rs is the one place the two crates
-# meet: it runs this simulation on two peers over a real socket and checks they
-# stay bit-identical. Shipping code must not reach for it - a simulation that
-# knows about the network is one that can branch on it.
-[dev-dependencies]
 l2-net = { path = "../l2-net" }
