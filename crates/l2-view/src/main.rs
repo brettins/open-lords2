@@ -25,11 +25,11 @@ use l2_formats::{Palette, Pl8, Skr};
 use l2_mods::Platform;
 use std::{path::PathBuf, sync::Arc, time::{Duration, Instant}};
 
-use l2_view::battle::{self, BattleRunner};
+use l2_sim::runner::{self as battle, BattleRunner};
+use l2_sim::terrain;
 use l2_view::canvas::{Canvas, TRANSPARENT};
 use l2_view::figures::Colour;
 use l2_view::scene::{self, BattleAssets, Camera};
-use l2_view::terrain;
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;

@@ -26,8 +26,8 @@
 //! * Pathfinding, including the 998/999 distinction and the unrelaxed cost
 //!   field: `l2_sim::pathfind`. **[V]** in that crate.
 //! * Melee: `l2_sim::melee`, through `Battle::engage` and `Battle::step`.
-//! * Facings and animation frames: `crate::figures`. **[V]** from the
-//!   original's animation handlers.
+//! * Facings: `crate::facing`; the sprite frames they pick are the
+//!   renderer's. **[V]** from the original's animation handlers.
 //! * Deployment slots: the twelve `(dx, dy)` offsets the original expands each
 //!   marker into. **[V]**
 //! * **Orders are ours, and that is the remaining gap.** Every figure here is
@@ -43,12 +43,11 @@
 //!   the rebuild and the mover — the shape `crates/l2-sim/tests/lockstep.rs`'s
 //!   `AiNetBattle` already runs, on positions rather than a `.skr` map.
 
-use l2_sim::movement::Progress;
-use l2_sim::pathfind::{self, Grid, Outcome, Pos};
-use l2_sim::{Battle, Side, State, Troop, SIDE_A, SIDE_B};
-
-use crate::figures::{self, Anim};
+use crate::facing::{facing_from_delta, FACING_DELTA};
+use crate::movement::Progress;
+use crate::pathfind::{self, Grid, Outcome, Pos};
 use crate::terrain::{self, Battlefield, DIM};
+use crate::{Battle, Motion, Side, State, Troop, SIDE_A, SIDE_B};
 
 /// One drawn man: an `l2-sim` figure plus everywhere it is.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,7 +63,7 @@ pub struct Fighter {
     pub facing: u8,
     /// Sub-cell progress, 0 … 16 in twos, from `l2_sim::movement`.
     pub progress: Progress,
-    pub anim: Anim,
+    pub anim: Motion,
     /// The figure's own animation counter. Seeded per figure so that identical
     /// men do not march in lockstep — the original seeds `+0x0E` the same way.
     pub phase: u8,
@@ -172,7 +171,7 @@ impl BattleRunner {
                     target: (x, y),
                     facing,
                     progress: Progress::default(),
-                    anim: Anim::Idle,
+                    anim: Motion::Idle,
                     // The original's seed is `(index * 9 + x * 16) & 0x3F`.
                     phase: ((sim as u32 * 9 + x as u32 * 16) & 0x3F) as u8,
                     path: Vec::new(),
@@ -252,13 +251,13 @@ impl BattleRunner {
         self.sim.step();
         // A figure that died this tick lets go of its cell and starts falling.
         for i in 0..self.fighters.len() {
-            if !self.is_alive(i) && self.fighters[i].anim != Anim::Dying {
+            if !self.is_alive(i) && self.fighters[i].anim != Motion::Dying {
                 let f = &self.fighters[i];
                 let cell = f.y as usize * DIM + f.x as usize;
                 if self.occupant[cell] == Some(i as u16) {
                     self.occupant[cell] = None;
                 }
-                self.fighters[i].anim = Anim::Dying;
+                self.fighters[i].anim = Motion::Dying;
                 self.fighters[i].phase = 0;
                 self.fighters[i].path.clear();
             }
@@ -292,10 +291,10 @@ impl BattleRunner {
             if let Some(op) = self.opponent_of(i) {
                 let (ox, oy) = (self.fighters[op].x as i32, self.fighters[op].y as i32);
                 let f = &mut self.fighters[i];
-                if let Some(fc) = figures::facing_from_delta(ox - f.x as i32, oy - f.y as i32) {
+                if let Some(fc) = facing_from_delta(ox - f.x as i32, oy - f.y as i32) {
                     f.facing = fc;
                 }
-                f.anim = Anim::Attacking;
+                f.anim = Motion::Attacking;
                 f.progress = Progress::default();
             }
             return;
@@ -307,10 +306,10 @@ impl BattleRunner {
             let (ex, ey) = (self.fighters[enemy].x as i32, self.fighters[enemy].y as i32);
             {
                 let f = &mut self.fighters[i];
-                if let Some(fc) = figures::facing_from_delta(ex - f.x as i32, ey - f.y as i32) {
+                if let Some(fc) = facing_from_delta(ex - f.x as i32, ey - f.y as i32) {
                     f.facing = fc;
                 }
-                f.anim = Anim::Attacking;
+                f.anim = Motion::Attacking;
                 f.progress = Progress::default();
             }
             let (a, b) = (self.fighters[i].sim, self.fighters[enemy].sim);
@@ -319,19 +318,19 @@ impl BattleRunner {
         }
 
         if self.fighters[i].at_target() {
-            self.fighters[i].anim = Anim::Idle;
+            self.fighters[i].anim = Motion::Idle;
             self.fighters[i].progress = Progress::default();
             return;
         }
 
-        self.fighters[i].anim = Anim::Walking;
+        self.fighters[i].anim = Motion::Walking;
         let Some(next) = self.next_step(i) else {
-            self.fighters[i].anim = Anim::Idle;
+            self.fighters[i].anim = Motion::Idle;
             return;
         };
         {
             let f = &mut self.fighters[i];
-            let d = figures::facing_from_delta(
+            let d = facing_from_delta(
                 next.x as i32 - f.x as i32,
                 next.y as i32 - f.y as i32,
             );
@@ -386,7 +385,7 @@ impl BattleRunner {
                 } else if self.is_alive(other) {
                     let (a, b) = (self.fighters[i].sim, self.fighters[other].sim);
                     self.sim.engage(a, b);
-                    self.fighters[i].anim = Anim::Attacking;
+                    self.fighters[i].anim = Motion::Attacking;
                 } else {
                     self.occupant[dst] = None;
                 }
@@ -427,8 +426,8 @@ impl BattleRunner {
         }
         let dx = f.target.0 as i32 - f.x as i32;
         let dy = f.target.1 as i32 - f.y as i32;
-        let facing = figures::facing_from_delta(dx, dy)?;
-        let (sx, sy) = figures::FACING_DELTA[facing as usize];
+        let facing = facing_from_delta(dx, dy)?;
+        let (sx, sy) = FACING_DELTA[facing as usize];
         let nx = f.x as i32 + sx;
         let ny = f.y as i32 + sy;
         if !(0..DIM as i32).contains(&nx) || !(0..DIM as i32).contains(&ny) {
@@ -575,7 +574,7 @@ pub fn army_from_counts(counts: &[u32; 11], men_per_figure: u32) -> Vec<(Troop, 
             if men == 0 {
                 return None;
             }
-            Some((*t, men.div_ceil(per).min(l2_sim::MAX_FIGURES as u32) as u16))
+            Some((*t, men.div_ceil(per).min(crate::MAX_FIGURES as u32) as u16))
         })
         .collect()
 }
@@ -672,7 +671,7 @@ mod tests {
         let after = gap(&r);
         assert!(after < before, "the armies did not close: {before} -> {after}");
         assert!(
-            r.fighters.iter().any(|f| f.anim == Anim::Attacking),
+            r.fighters.iter().any(|f| f.anim == Motion::Attacking),
             "nobody ever engaged"
         );
     }
@@ -696,7 +695,7 @@ mod tests {
         // Everybody who died is drawn falling, and has released their cell.
         for (i, f) in r.fighters.iter().enumerate() {
             if !r.is_alive(i) {
-                assert_eq!(f.anim, Anim::Dying);
+                assert_eq!(f.anim, Motion::Dying);
             }
         }
     }

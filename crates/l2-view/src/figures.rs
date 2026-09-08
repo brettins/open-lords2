@@ -47,10 +47,15 @@
 
 use l2_sim::Troop;
 
-/// The eight facings, in the original's numbering. Confirmed independently by
-/// `docs/battle.md` §2.1 and by the sub-cell offset table below, whose signs
-/// only make sense under this order.
-pub const FACINGS: usize = 8;
+/// Facings, the eight-way delta table and `Dir_FromDelta` live in `l2-sim`: a
+/// facing decides where a figure *walks*, so it is simulation state and not
+/// artwork. Re-exported because everything in this module indexes by it.
+pub use l2_sim::facing::{facing_from_delta, FACINGS, FACING_DELTA};
+
+/// What a figure is doing, as far as the artwork is concerned — the
+/// simulation's [`l2_sim::Motion`], under the name this module has always used
+/// for it.
+pub use l2_sim::Motion as Anim;
 
 /// Player colours, in the order `Lords2.exe`'s battle asset table lists them
 /// (`0x004DA6B8` onward: `a2w_`, `a2r_`, `a2y_`, `a2k_`, `a2p_`, `a2b_`).
@@ -166,17 +171,6 @@ const KNIGHT_FRAMES: [[u8; 8]; 8] = [
     [50, 53, 0, 0, 0, 44, 47, 0],
 ];
 
-/// What a figure is doing, as far as the artwork is concerned. These are the
-/// three animation handlers that were read; the original has more (firing,
-/// siege engines, siege walls) and they are not modelled here.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Anim {
-    Idle,
-    Walking,
-    Attacking,
-    Dying,
-}
-
 /// Pick the frame index for a figure.
 ///
 /// `facing` is 0..7 and `phase` is the figure's own animation counter — the
@@ -271,32 +265,6 @@ pub fn walk_offset(facing: u8, walking: u8) -> (i32, i32) {
     (sx * d, sy * d)
 }
 
-/// The eight facing deltas, in facing order. Used to turn a step into a facing
-/// and back.
-pub const FACING_DELTA: [(i32, i32); 8] =
-    [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)];
-
-/// The facing that best matches a movement delta. `None` when the delta is
-/// zero, which the original represents as facing 8, "same cell".
-pub fn facing_from_delta(dx: i32, dy: i32) -> Option<u8> {
-    if dx == 0 && dy == 0 {
-        return None;
-    }
-    let sx = dx.signum();
-    let sy = dy.signum();
-    // Reduce to one of the eight compass directions by dominance: an axis is
-    // dropped when it is less than half the other, which is the same partition
-    // the original's `Dir_FromDelta` branch structure produces.
-    let (ux, uy) = if dx.abs() > 2 * dy.abs() {
-        (sx, 0)
-    } else if dy.abs() > 2 * dx.abs() {
-        (0, sy)
-    } else {
-        (sx, sy)
-    };
-    FACING_DELTA.iter().position(|&d| d == (ux, uy)).map(|i| i as u8)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -309,18 +277,6 @@ mod tests {
         Troop::Pikemen,
         Troop::Archers,
     ];
-
-    #[test]
-    fn facings_and_deltas_are_inverse() {
-        for (i, (dx, dy)) in FACING_DELTA.iter().enumerate() {
-            assert_eq!(facing_from_delta(*dx, *dy), Some(i as u8), "facing {i}");
-        }
-        assert_eq!(facing_from_delta(0, 0), None);
-        // Long runs still resolve to the nearest compass point.
-        assert_eq!(facing_from_delta(10, 1), Some(2), "mostly east");
-        assert_eq!(facing_from_delta(10, 9), Some(3), "south-east");
-        assert_eq!(facing_from_delta(-1, -10), Some(0), "mostly north");
-    }
 
     #[test]
     fn the_walk_offset_trails_the_cell_being_entered() {

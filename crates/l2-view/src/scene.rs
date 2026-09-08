@@ -19,13 +19,13 @@
 //! **[V]**
 
 use l2_formats::Palette;
+use l2_sim::runner::BattleRunner;
+use l2_sim::terrain::{Battlefield, DIM};
 use l2_sim::{Troop, SIDE_A};
 
-use crate::battle::BattleRunner;
 use crate::canvas::Canvas;
 use crate::figures::{self, Anim, Colour};
 use crate::sheet::Sheet;
-use crate::terrain::{Battlefield, DIM};
 
 pub const TILE: i32 = 32;
 pub const VIEW_COLS: usize = 15;

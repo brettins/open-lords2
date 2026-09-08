@@ -22,13 +22,13 @@
 
 use std::{env, fs, path::{Path, PathBuf}};
 
-use l2_view::battle::{self, BattleRunner};
+use l2_sim::runner::{self as battle, BattleRunner};
+use l2_sim::terrain;
+use l2_sim::Troop;
 use l2_view::canvas::Canvas;
 use l2_view::figures::{self, Anim, Colour};
 use l2_view::scene::{self, BattleAssets, Camera};
 use l2_view::sheet::Sheet;
-use l2_view::terrain;
-use l2_sim::Troop;
 
 fn asset_dir() -> Option<PathBuf> {
     env::var("LORDS2_DIR").ok().map(PathBuf::from).filter(|d| d.is_dir())

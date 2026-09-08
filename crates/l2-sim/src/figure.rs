@@ -38,6 +38,27 @@ pub enum State {
     FillingMoat,
 }
 
+/// What a figure is *visibly* doing this tick: standing, walking, swinging, or
+/// falling.
+///
+/// [`State`] is the original's state byte and decides what the figure will do
+/// next; this is the four-way reduction of it that the original's animation
+/// handlers key off (`0x00486249` idle/walk, `0x00486D83` attacking,
+/// `0x00487908` dying). It lives here rather than in the renderer because the
+/// simulation is what *chooses* it — the renderer only turns it into a frame
+/// index, and two peers that disagree about it would draw different battles
+/// from the same state.
+///
+/// The original has more animation handlers than these four — firing, siege
+/// engines, siege walls — and they are not modelled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Motion {
+    Idle,
+    Walking,
+    Attacking,
+    Dying,
+}
+
 /// Sides are numbered 0 and 4 in the original, not 0 and 1 — side 0 deploys at
 /// the `0x04` terrain marker and side 4 at `0x0F`. Kept as the original's
 /// numbering so state read out of a live game compares directly.

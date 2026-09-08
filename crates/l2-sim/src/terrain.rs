@@ -1,10 +1,21 @@
-//! Turning a `.skr` terrain layer into the battlefield the original draws.
+//! Turning a `.skr` terrain layer into the battlefield the simulation fights on.
 //!
 //! `docs/formats/skr.md` stops at "terrain byte 0x09 is water". That is not
-//! enough to draw anything: the byte says *what* a cell is, and the picture
-//! needs *which of forty-nine water tiles*. This module reproduces the rest of
-//! `Battlefield_BuildFromSkr` (`0x0047B8B2`), which is where the graphic index
-//! is decided.
+//! enough to build a battlefield: the byte says *what* a cell is, and the cell
+//! record needs a terrain id, passability flags, a surface and *which of
+//! forty-nine water tiles*. This module reproduces `Battlefield_BuildFromSkr`
+//! (`0x0047B8B2`), which decides all four.
+//!
+//! # Why this is simulation and not rendering
+//!
+//! The cell array is what the mover and the pathfinder read: byte `+1` is the
+//! mask `Cell_TryEnter` rejects on, byte `+7` is the surface the moat fill and
+//! the siege orders search for, and byte `+0` is the terrain id. The graphic
+//! index at byte `+3` is decided here too because the *original* decides it
+//! here, in the same pass, from rotating counters whose sequence depends on
+//! every earlier cell — splitting that half out would mean walking the map
+//! twice and keeping two counter sets in step. `l2-view` reads byte `+3` and
+//! turns it into a PL8 frame; nothing in this module knows that it will.
 //!
 //! # What the original does, in four passes
 //!

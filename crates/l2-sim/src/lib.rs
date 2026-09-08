@@ -26,11 +26,20 @@
 //!
 //! # Where positions live
 //!
-//! Not here. A [`Figure`] has men, hits and a recovery counter and no
-//! coordinates, because none of the rules this crate implements need them. The
-//! two places that genuinely do — the pathfinder and the AI — take positions as
-//! *arguments*: [`pathfind`] takes a [`Grid`], and [`ai`] takes a slice of
-//! per-figure positions. Whoever owns the battlefield supplies them.
+//! In [`runner`], and nowhere else. A [`Figure`] still has men, hits and a
+//! recovery counter and no coordinates — the *rules* modules ([`melee`],
+//! [`missile`], [`troop`]) do not need them, and the two that genuinely do take
+//! them as arguments: [`pathfind`] takes a [`Grid`] and [`ai`] takes a slice of
+//! per-figure positions. What changed is who supplies that slice. It used to be
+//! the renderer.
+//!
+//! [`runner::BattleRunner`] owns the battlefield ([`terrain`]), the figures'
+//! cells, the occupancy array and the tick loop, and it is the composition of
+//! every rule in this crate into a battle that runs. It lives here because it
+//! is *simulation state*: two lockstep peers must agree about where a man
+//! stands to the cell, and `docs/netcode.md` D-3 is why a crate that has to be
+//! bit-identical carries no third-party dependency. `l2-view` reads this;
+//! nothing here knows a renderer exists.
 //!
 //! # Data in, no loaders
 //!
@@ -42,20 +51,26 @@
 
 pub mod ai;
 pub mod battle;
+pub mod facing;
 pub mod figure;
 pub mod melee;
 pub mod missile;
 pub mod movement;
 pub mod pathfind;
+pub mod runner;
+pub mod terrain;
 pub mod troop;
 pub mod unit;
 
 pub use ai::{Ai, AiField, Action, World};
 pub use battle::Battle;
-pub use figure::{Figure, Role, Side, State, SIDE_A, SIDE_B};
+pub use facing::{facing_from_delta, FACINGS, FACING_DELTA};
+pub use figure::{Figure, Motion, Role, Side, State, SIDE_A, SIDE_B};
 pub use missile::{MissileStats, WeaponClass};
 pub use movement::{move_delay, ticks_per_cell, CellEntry, Progress};
 pub use pathfind::{Grid, Outcome, Pos};
+pub use runner::{BattleRunner, Fighter};
+pub use terrain::Battlefield;
 pub use troop::{Troop, TroopStats, TroopTable, ALL_TROOPS};
 pub use unit::{BattleUnit, Units, MAX_UNITS};
 
