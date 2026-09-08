@@ -1,0 +1,72 @@
+name: A mechanic we have missed
+description: You remember something about how the game works. That is the most valuable thing you can give this project.
+title: "[mechanic] "
+labels: ["mechanic", "needs tracing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **You do not need to know anything about the code to file this.**
+
+        Four subsystems in this project exist only because someone mentioned them in
+        passing — cattle needing peasants to tend them, herd crowding, diplomacy, and
+        armies. None was in any document. All are now traced in the original binary and
+        implemented.
+
+        [`docs/mechanics.md`](../blob/main/docs/mechanics.md) is the inventory of what has
+        been looked at. **If you remember a mechanic that has no row in it, nobody has ever
+        looked at it.** That is what this form is for.
+
+        Vague memories are welcome. "I think there was something about…" has been enough
+        before — we can go and check the binary, and that is far easier than knowing what
+        to check in the first place.
+
+  - type: textarea
+    id: mechanic
+    attributes:
+      label: What do you remember?
+      description: In your own words. No need for precision.
+      placeholder: |
+        e.g. "Cows died if you didn't have enough peasants working the fields"
+             "There was a screen showing the other lords as portraits"
+             "Armies moved slower through forest"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: confidence
+    attributes:
+      label: How sure are you?
+      options:
+        - Certain — I remember this clearly
+        - Fairly sure
+        - Vague memory, might be wrong
+        - Might be from a different game
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Which version did you play?
+      description: Base game, the Siege Pack expansion, GOG, a demo — if you know.
+      placeholder: e.g. GOG, base game
+
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Any numbers, names or exact wording you recall
+      description: >
+        Text the game displayed is especially useful — the strings live in `L2.eng` and
+        finding one there often leads straight to the code that uses it.
+      placeholder: |
+        e.g. "It said 'Massive overcrowding!!' with two exclamation marks"
+             "I think the maximum army size was 1500"
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before filing
+      options:
+        - label: I checked `docs/mechanics.md` and this has no row, or its row is wrong
+          required: false
