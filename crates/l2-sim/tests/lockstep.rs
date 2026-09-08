@@ -105,10 +105,10 @@ impl Simulation for NetBattle {
     }
 }
 
-struct Peer {
+struct Peer<S: Simulation> {
     slot: PlayerSlot,
     session: Session,
-    sim: NetBattle,
+    sim: S,
     endpoint: TcpTransport,
     reader: FrameReader,
     other: PeerId,
@@ -135,7 +135,7 @@ fn schedule(slot: u8, at: Tick) -> Option<Vec<u8>> {
 /// `take_joined`; the client names the host when it connects.
 const HOST_ID: PeerId = PeerId(0);
 
-fn connected_pair(seed: u64) -> [Peer; 2] {
+fn connected_pair<S: Simulation>(seed: u64, build: &dyn Fn() -> S) -> [Peer<S>; 2] {
     let mut host = TcpTransport::listen("127.0.0.1:0").expect("binding a loopback port");
     let addr = host.local_addr().expect("a bound address");
     let client = TcpTransport::connect(addr, HOST_ID).expect("connecting");
@@ -153,7 +153,7 @@ fn connected_pair(seed: u64) -> [Peer; 2] {
 
     let slots = [PlayerSlot::new(0), PlayerSlot::new(1)];
     let make = |slot: PlayerSlot, endpoint: TcpTransport, other: PeerId| {
-        let sim = NetBattle::new();
+        let sim = build();
         let session = Session::new(Config::battle(), slot, &slots, seed, &sim);
         Peer {
             slot,
@@ -176,7 +176,11 @@ fn connected_pair(seed: u64) -> [Peer; 2] {
 ///
 /// The loop is the same shape a real frame loop has — issue, seal, send, poll,
 /// receive, advance — so what passes here is what the engine will do.
-fn run_to(peers: &mut [Peer; 2], target: Tick) {
+fn run_to<S: Simulation>(
+    peers: &mut [Peer<S>; 2],
+    target: Tick,
+    schedule: fn(u8, Tick) -> Option<Vec<u8>>,
+) {
     for _ in 0..100_000 {
         if peers.iter().all(|p| p.session.tick() >= target) {
             return;
@@ -229,8 +233,8 @@ const TICKS: Tick = Tick(120);
 
 #[test]
 fn two_peers_simulate_the_same_battle_over_a_real_socket() {
-    let mut peers = connected_pair(0x1025_1796);
-    run_to(&mut peers, TICKS);
+    let mut peers = connected_pair(0x1025_1796, &NetBattle::new);
+    run_to(&mut peers, TICKS, schedule);
 
     let common = peers[0].hashes.len().min(peers[1].hashes.len());
     assert!(
@@ -256,8 +260,8 @@ fn two_peers_simulate_the_same_battle_over_a_real_socket() {
 
 #[test]
 fn the_commands_actually_reached_the_simulation() {
-    let mut peers = connected_pair(0x00ab_cdef);
-    run_to(&mut peers, TICKS);
+    let mut peers = connected_pair(0x00ab_cdef, &NetBattle::new);
+    run_to(&mut peers, TICKS, schedule);
 
     // A test that passes on two idle simulations proves nothing, so check that
     // the orders had an effect: someone must be fighting, and someone hurt.
@@ -278,8 +282,8 @@ fn the_commands_actually_reached_the_simulation() {
 
 #[test]
 fn a_rule_refusal_is_identical_on_both_peers() {
-    let mut peers = connected_pair(0x0000_5ca7);
-    run_to(&mut peers, TICKS);
+    let mut peers = connected_pair(0x0000_5ca7, &NetBattle::new);
+    run_to(&mut peers, TICKS, schedule);
 
     // The order at tick 9 tries to pair figure 6 (a catapult) with figure 7.
     // Siege engines are never drawn into melee, so both peers must refuse it the
@@ -301,9 +305,9 @@ fn a_rule_refusal_is_identical_on_both_peers() {
 /// the checksum catches that, it catches anything coarser.
 #[test]
 fn a_peer_running_different_rules_is_caught() {
-    let mut peers = connected_pair(0x0000_dead);
+    let mut peers = connected_pair(0x0000_dead, &NetBattle::new);
     peers[1].sim.perturb_at = Some(Tick(30));
-    run_to(&mut peers, TICKS);
+    run_to(&mut peers, TICKS, schedule);
 
     assert!(
         peers.iter().any(|p| p.session.is_halted()),
@@ -332,4 +336,281 @@ fn a_peer_running_different_rules_is_caught() {
         Tick(30),
         "the first differing tick should be the perturbed one"
     );
+}
+
+// ---------------------------------------------------------------------------
+// The same seam, with the battle AI running
+// ---------------------------------------------------------------------------
+//
+// The AI is the only part of the battle model that draws a random number: the
+// strength advantage carries a -10..+21 jitter, re-rolled every 101 frames, and
+// with the aggression threshold at 5 that jitter alone decides whether the field
+// AI attacks in most battles. So it is exactly the kind of thing that desyncs
+// two peers if it is ever taken from a system source, and exactly the kind of
+// thing a checksum over positions alone would notice only long after the fact.
+//
+// Everything below runs the real dispatch - `ai::update_all_units`, the three
+// tables, the seventeen handlers - on both peers over the same socket the tests
+// above use.
+
+use l2_sim::ai::{self, Ai, AiField};
+use l2_sim::unit::{Units, CATEGORY_OF_TROOP};
+use l2_sim::{Figure, State};
+
+/// A battle with units, positions and an AI, wearing the `Simulation` trait.
+///
+/// The mover is deliberately crude - one cell per nine ticks, straight at the
+/// unit's destination - because what is under test is the AI's decisions and
+/// the determinism of its draw, not the mover. `l2-view` owns the real one.
+struct AiNetBattle {
+    units: Units,
+    figures: Vec<Figure>,
+    positions: Vec<(u8, u8)>,
+    field: AiField,
+    ai: Ai,
+    /// Set on one peer only, to prove the seam can still go red with the AI in
+    /// the loop.
+    slip_at: Option<Tick>,
+}
+
+/// Two units a side, twenty cells apart, chosen so that every non-stub entry of
+/// the field table gets exercised: archers (category 1), peasants (2) and
+/// swordsmen (3).
+const AI_LINEUP: [(Troop, u8, u8, u8); 4] = [
+    // troop, owner, side, y
+    (Troop::Archers, 1, SIDE_B, 52),
+    (Troop::Swordsmen, 1, SIDE_B, 50),
+    (Troop::Peasants, 2, SIDE_A, 30),
+    (Troop::Swordsmen, 2, SIDE_A, 28),
+];
+
+impl AiNetBattle {
+    fn new() -> Self {
+        let mut units = Units::new();
+        let mut figures = Vec::new();
+        let mut positions = Vec::new();
+        for (troop, owner, side, y) in AI_LINEUP {
+            let unit = units
+                .create(owner, false, side, CATEGORY_OF_TROOP[troop.index()])
+                .expect("a free unit slot");
+            for i in 0..4u8 {
+                let mut f = Figure::new(troop, side, 8);
+                f.unit = unit as u16;
+                f.owner = owner;
+                figures.push(f);
+                positions.push((38 + i, y));
+            }
+        }
+        let mut sim = AiNetBattle {
+            units,
+            figures,
+            positions,
+            field: AiField::field((40, 20), (40, 60)),
+            ai: Ai::new(AI_SEED),
+            slip_at: None,
+        };
+        sim.units.rebuild_from_figures(&mut sim.figures);
+        sim
+    }
+
+    /// One cell toward the unit's destination, every ninth tick.
+    fn move_everyone(&mut self) {
+        for i in 0..self.figures.len() {
+            if !self.figures[i].is_alive() || self.figures[i].state == State::Melee {
+                continue;
+            }
+            let u = self.units.get(self.figures[i].unit as usize);
+            let (tx, ty) = (u.target_x, u.target_y);
+            let (x, y) = self.positions[i];
+            let step = |from: u8, to: i16| -> u8 {
+                match to.cmp(&(from as i16)) {
+                    core::cmp::Ordering::Less => from.saturating_sub(1),
+                    core::cmp::Ordering::Greater => (from + 1).min(79),
+                    core::cmp::Ordering::Equal => from,
+                }
+            };
+            self.positions[i] = (step(x, tx), step(y, ty));
+        }
+    }
+
+    /// Melee where two enemy figures share a cell. Enough that men die, so the
+    /// strength advantage genuinely moves over the run.
+    fn engage_touching(&mut self) {
+        for a in 0..self.figures.len() {
+            if !self.figures[a].is_alive() || self.figures[a].state == State::Melee {
+                continue;
+            }
+            for b in (a + 1)..self.figures.len() {
+                if !self.figures[b].is_alive()
+                    || self.figures[b].state == State::Melee
+                    || self.figures[b].owner == self.figures[a].owner
+                    || self.positions[a] != self.positions[b]
+                {
+                    continue;
+                }
+                l2_sim::melee::engage(&mut self.figures, a, b);
+                break;
+            }
+        }
+    }
+}
+
+const AI_SEED: u64 = 0x0B0A_71E5;
+
+impl Simulation for AiNetBattle {
+    fn step(&mut self, tick: Tick, commands: &[Command]) {
+        // The smallest divergence the AI can express: one peer's generator one
+        // step out. If the jitter ever escaped the lockstep state, this is what
+        // it would look like.
+        if self.slip_at == Some(tick) {
+            self.ai.rng.next_u32();
+        }
+        for cmd in commands {
+            if let [OP_ENGAGE, a, b] = cmd.payload[..] {
+                let (a, b) = (a as usize, b as usize);
+                if a != b && a < self.figures.len() && b < self.figures.len() {
+                    l2_sim::melee::engage(&mut self.figures, a, b);
+                }
+            }
+        }
+        self.units.rebuild_from_figures(&mut self.figures);
+        ai::update_all_units(
+            &mut self.units,
+            &mut self.figures,
+            &self.positions,
+            &self.field,
+            &mut self.ai,
+        );
+        if tick.0.is_multiple_of(9) {
+            self.move_everyone();
+        }
+        self.engage_touching();
+        for i in 0..self.figures.len() {
+            if self.figures[i].state == State::Melee {
+                l2_sim::melee::tick(&mut self.figures, i);
+            }
+        }
+    }
+
+    fn encode_state(&self, out: &mut Canonical) {
+        out.section("ai");
+        // The generator itself, so a divergence in the draw is caught on the
+        // tick it happens rather than whenever it next changes a decision.
+        let (state, increment) = self.ai.rng.parts();
+        out.u64(state);
+        out.u64(increment);
+        out.i32(self.ai.strength_advantage);
+        out.i32(self.ai.advantage_timer);
+        out.i32(self.ai.commit_counter);
+        out.i32(self.ai.engagement_count);
+        out.bool(self.ai.rally_request);
+        out.i32(self.ai.rally_x);
+        out.i32(self.ai.rally_y);
+        out.end_section();
+
+        out.section("units");
+        for i in 1..=l2_sim::MAX_UNITS {
+            let u = self.units.get(i);
+            out.u8(u.owner);
+            out.u8(u.figures);
+            out.u8(u.category);
+            out.u16(u.last_attacker);
+            out.u8(u.hit_memory);
+            out.u8(u.times_hit);
+            out.i32(u.orders as i32);
+            out.i32(u.think as i32);
+            out.i32(u.x as i32);
+            out.i32(u.y as i32);
+            out.i32(u.target_x as i32);
+            out.i32(u.target_y as i32);
+            out.bool(u.halted);
+            out.u8(u.withdrawals);
+        }
+        out.end_section();
+
+        out.section("figures");
+        out.len32(self.figures.len());
+        for (i, f) in self.figures.iter().enumerate() {
+            out.u8(f.troop as u8);
+            out.u16(f.men);
+            out.u16(f.hits);
+            out.u8(f.state as u8);
+            out.u16(f.unit);
+            out.u8(self.positions[i].0);
+            out.u8(self.positions[i].1);
+        }
+        out.end_section();
+    }
+}
+
+/// Nothing to issue: the whole point is that the AI, not a player, is driving.
+fn no_orders(_slot: u8, _at: Tick) -> Option<Vec<u8>> {
+    None
+}
+
+/// Long enough for two thinks (200 frames each) and four recomputations of the
+/// strength advantage (101 frames each).
+const AI_TICKS: Tick = Tick(420);
+
+#[test]
+fn two_peers_running_the_battle_ai_stay_bit_identical() {
+    let mut peers = connected_pair(0x0A17_0001, &AiNetBattle::new);
+    run_to(&mut peers, AI_TICKS, no_orders);
+
+    let common = peers[0].hashes.len().min(peers[1].hashes.len());
+    assert!(common >= AI_TICKS.0 as usize, "only {common} ticks executed on both");
+    assert_eq!(peers[0].hashes[..common], peers[1].hashes[..common], "the peers diverged");
+    for peer in &peers {
+        assert!(!peer.session.is_halted(), "{:?}", peer.session.halt_reason());
+        assert!(peer.session.divergence().is_none());
+    }
+}
+
+/// A green determinism test proves nothing unless the AI was actually running,
+/// so check that it drew, decided and moved somebody.
+#[test]
+fn the_ai_really_ran_and_the_jitter_really_moved() {
+    let mut peers = connected_pair(0x0A17_0002, &AiNetBattle::new);
+    run_to(&mut peers, AI_TICKS, no_orders);
+    let sim = &peers[0].sim;
+
+    assert_ne!(
+        sim.ai.rng,
+        Ai::new(AI_SEED).rng,
+        "the generator never advanced - the jitter was not in play"
+    );
+    assert!(
+        sim.units.live().all(|u| sim.units.get(u).orders >= 2),
+        "every unit should have thought twice in 420 frames"
+    );
+    let fresh = AiNetBattle::new();
+    assert_ne!(sim.positions, fresh.positions, "nobody moved");
+    assert!(
+        sim.units
+            .live()
+            .any(|u| sim.units.get(u).target_y != fresh.units.get(u).target_y),
+        "no handler ever wrote a destination"
+    );
+}
+
+/// The seam can still go red with the AI in it. One peer's generator is
+/// advanced one extra step on tick 210 - the smallest divergence the jitter can
+/// express - and the checksum must catch it on that tick.
+#[test]
+fn one_peer_whose_generator_slipped_is_caught() {
+    let mut peers = connected_pair(0x0A17_0003, &AiNetBattle::new);
+    peers[1].sim.slip_at = Some(Tick(210));
+    run_to(&mut peers, AI_TICKS, no_orders);
+
+    assert!(
+        peers.iter().any(|p| p.session.is_halted()),
+        "a divergent generator ran to completion undetected"
+    );
+    let split = peers[0]
+        .hashes
+        .iter()
+        .zip(&peers[1].hashes)
+        .position(|(a, b)| a != b)
+        .expect("no differing tick in the recorded history");
+    assert_eq!(peers[0].hashes[split].0, Tick(210));
 }
