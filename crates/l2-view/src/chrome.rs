@@ -221,6 +221,16 @@ pub const MINIMAP_SELECTED: u8 = 0x20;
 pub const MINIMAP_SHADE_LO: u8 = 10;
 pub const MINIMAP_SHADE_HI: u8 = 13;
 
+/// Clamp a realm's raw colour byte the way `FUN_004171EE` does before using it
+/// as a frame index: 0 becomes 1, anything above 5 becomes 5.
+///
+/// The clamp belongs here and **not** on the load path. Realm `+0x0A` is stored
+/// raw so that a misread offset reads back as zero and fails a test; clamping
+/// on load would turn every realm into a plausible-looking colour 1.
+pub fn realm_colour(raw: u8) -> u8 {
+    raw.clamp(1, 5)
+}
+
 // -------------------------------------------------------------------- Chrome
 
 /// The interface sheets, loaded once.
@@ -545,6 +555,25 @@ mod tests {
         draw_minimap(&mut c, &m, 3, &|_| 2);
         assert_eq!(at(&c, 0), MINIMAP_SELECTED);
         assert_eq!(at(&c, 1), MINIMAP_REALM_RAMP[2][1], "the other three are untouched");
+    }
+
+    /// `FUN_004171EE`'s clamp, and the reason it lives here rather than on the
+    /// load path: colour 0 would index `Misc_cty` frame 85, which is 13 x 37
+    /// and does not fit the 24-pixel menu bar, while 1..=5 land on the five
+    /// 13 x 16 frames that do.
+    #[test]
+    fn a_realm_colour_is_clamped_to_the_five_frames_that_fit_the_bar() {
+        assert_eq!(realm_colour(0), 1, "0 is not a colour");
+        for c in 1..=5u8 {
+            assert_eq!(realm_colour(c), c);
+        }
+        assert_eq!(realm_colour(6), 5);
+        assert_eq!(realm_colour(255), 5);
+        // Every clamped value indexes one of the banner frames 86..=90.
+        for raw in 0..=255u8 {
+            let f = misc_cty::BANNER + realm_colour(raw) as usize;
+            assert!((86..=90).contains(&f), "raw {raw} -> frame {f}");
+        }
     }
 
     #[test]

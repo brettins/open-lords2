@@ -38,10 +38,22 @@ use crate::game::Game;
 pub const EXECUTABLE: &str = "Lords2.exe";
 pub const SAVE: &str = "lastturn.sav";
 
-/// `g_scenarioIndex` (`0x0053F034`, **verified** in `docs/symbols.md`): *"its
-/// low 2 bits select the season variant of the tile set; the rest selects the
-/// map slot"*.
+/// `g_scenarioIndex` (`0x0053F034`), and it **is the map slot**, 0..=59.
+///
+/// `docs/formats/maps.md` says its low two bits select the tile set's season
+/// variant and the rest selects the slot, and that is wrong — see
+/// `docs/screens.md` §3.1. Three readings settle it: `Map_LoadLattice(slot)`
+/// seeks `slot * 0x80C1`, which is the whole slot stride; `Gfx_LoadCountyMode`
+/// takes the season from `g_season`, a separate global; and
+/// `Eng_DrawString(101, g_scenarioIndex, …)` indexes `L2.eng` group 101, whose
+/// 60 strings name slots 0..=59 one for one.
 const SCENARIO_INDEX: u32 = 0x0053_F034;
+
+/// `g_realms` and its record stride, so the realm colour byte at `+0x0A` can be
+/// read without teaching `l2-formats::save::Realm` about presentation.
+const REALM_BASE: u32 = l2_formats::save::REALM_BASE;
+const REALM_STRIDE: u32 = l2_formats::save::REALM_STRIDE as u32;
+const REALM_COLOUR: u32 = 0x0A;
 
 /// The seed the kingdom's generator starts on.
 ///
@@ -110,7 +122,20 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
     let mut game = Game::new(SEED);
     game.kingdom = scenario.kingdom_with_tables(SEED, tables);
     game.player = scenario.local_player;
-    game.map_slot = (save.i32_at(SCENARIO_INDEX)? >> 2).max(0) as usize;
+    game.map_slot = save.i32_at(SCENARIO_INDEX)?.max(0) as usize;
+
+    // Realm `+0x0A`, the colour byte, stored **raw**.
+    //
+    // It is not clamped here on purpose. `FUN_004171EE` clamps 0 up to 1 and
+    // anything above 5 down to 5 at the point of use, and doing the same thing
+    // here would hide a misread: if this offset were wrong the bytes would come
+    // back zero and a clamp would quietly turn them into a plausible-looking
+    // colour 1 for every realm. Raw, a wrong offset reads as zero and the test
+    // that checks the five realms fly five different colours fails.
+    for (id, slot) in game.realm_colour.iter_mut().enumerate() {
+        let va = REALM_BASE + id as u32 * REALM_STRIDE + REALM_COLOUR;
+        *slot = save.u8_at(va).unwrap_or(0);
+    }
 
     for id in scenario.county_ids() {
         if let Some(c) = &scenario.counties[id] {

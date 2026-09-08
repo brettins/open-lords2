@@ -163,8 +163,14 @@ pub struct Game {
     /// not — the season is its own global, and the low two bits pick which of
     /// four map slots inside a `MAPnn.PL8` the minimap comes from.
     pub map_slot: usize,
-    /// Realm `+0x0A`, clamped 1..=5: which colour a realm flies. It picks the
-    /// banner in the menu bar and the ramp the minimap tints a county with.
+    /// Realm `+0x0A`, **raw**: which colour a realm flies. It picks the banner
+    /// in the menu bar and the ramp the minimap tints a county with.
+    ///
+    /// Stored as the save holds it and clamped only at the point of use, by
+    /// [`l2_view::chrome::realm_colour`] — the same 1..=5 clamp `FUN_004171EE`
+    /// applies before using it as a frame index. Clamping on load would turn a
+    /// misread offset into a plausible colour 1 for every realm, which is
+    /// exactly the failure a test cannot see.
     pub realm_colour: [u8; MAX_REALMS],
     /// The county under the cursor's last click, or 0 for none. County ids are
     /// 1-based in the original, so 0 is a usable "nothing".
@@ -193,10 +199,7 @@ impl Game {
             kingdom: Kingdom::new(seed),
             player: 1,
             map_slot: 0,
-            // 0 is not a legal colour — the original clamps to 1..=5 — so an
-            // unloaded realm falls back to its own index, which is what the
-            // shipped save happens to hold anyway.
-            realm_colour: [0, 1, 2, 3, 4, 5],
+            realm_colour: [0; MAX_REALMS],
             selected: 0,
             anchor_x: [0; MAX_COUNTIES],
             anchor_y: [0; MAX_COUNTIES],

@@ -188,8 +188,18 @@ fn adjacency_derived_from_the_map_matches_the_list_stored_in_the_save() {
     }
 }
 
-/// The map the save names decodes, holds fourteen counties, and its tile planes
-/// only ask for banks that exist.
+/// The map the save names decodes, holds fourteen counties, and the slot is
+/// `g_scenarioIndex` **unshifted**.
+///
+/// **This test cannot, on its own, distinguish the two readings**, and saying
+/// so is the point: the shipped index is 0, and `0 >> 2` is also 0. An earlier
+/// revision shifted it right by two on the belief that the low bits named a
+/// season variant of the tile set. What settles it is elsewhere —
+/// `Map_LoadLattice(slot)` seeks `slot * 0x80C1`, the whole slot stride, and
+/// `L2.eng` group 101's sixty strings name slots 0..=59 one for one
+/// (`docs/screens.md` §3.1). The identity is asserted here so that a
+/// re-introduced shift fails the moment anyone loads a save from any map but
+/// the first.
 #[test]
 fn the_map_slot_the_save_names_is_the_fourteen_county_england() {
     let dir = skip_without_install!();
@@ -197,7 +207,38 @@ fn the_map_slot_the_save_names_is_the_fourteen_county_england() {
     let assets = Assets::load(&platform.vfs).expect("assets load");
     let game = scenario::load(&platform.vfs, Tables::DEFAULT).expect("the save loads");
 
+    let exe = platform.vfs.read("Lords2.exe").expect("Lords2.exe");
+    let bytes = platform.vfs.read("lastturn.sav").expect("lastturn.sav");
+    let save = l2_formats::Save::open(&exe, &bytes).expect("the save opens");
+    let index = save.globals().expect("the globals block").scenario_index;
+    assert_eq!(index, 0, "the shipped save is England, slot 0");
+    assert_eq!(game.map_slot as i32, index, "the slot is the index, not the index >> 2");
+
     let slot = assets.slot(game.map_slot).expect("slot 0");
     assert!(!slot.is_empty());
     assert_eq!(slot.county_count(), game.kingdom.county_count);
+}
+
+/// The realm colour byte at `+0x0A`, which picks a realm's banner in the menu
+/// bar and its ramp on the minimap.
+///
+/// `FUN_004171EE` clamps it to 1..=5 before using it as a frame index, and the
+/// clamp matters: `Misc_cty` frame `0x55 + 0` is 13 x 37 and would overflow the
+/// 24-pixel menu bar, while 1..=5 land on the five 13 x 16 frames that fit.
+#[test]
+fn every_realm_in_the_save_flies_a_colour_the_banner_frames_have() {
+    let dir = skip_without_install!();
+    let game = scenario::load(&platform(&dir).vfs, Tables::DEFAULT).expect("the save loads");
+    for id in 1..game.kingdom.realms.len() {
+        let c = game.realm_colour[id];
+        assert!((1..=5).contains(&c), "realm {id} flies colour {c}");
+    }
+    // Realm 0 is never a realm and keeps the sentinel `Game::new` seeded.
+    assert_eq!(game.realm_colour[0], 0);
+    // Five realms, five colours, no two the same — which is what makes the
+    // banners in the menu bar tell them apart.
+    let mut seen = game.realm_colour[1..].to_vec();
+    seen.sort_unstable();
+    seen.dedup();
+    assert_eq!(seen.len(), 5, "the five realms fly five different colours");
 }

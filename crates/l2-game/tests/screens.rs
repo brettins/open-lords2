@@ -150,8 +150,8 @@ fn the_near_view_is_a_window_of_england_and_not_the_whole_map() {
     // counties are on screen when the game opens.
     let counts = pick_counts(&screen);
     assert_eq!(visible_counties(&screen), 2, "eight lattice columns hold two counties, not 14");
-    for id in 15..17usize {
-        assert_eq!(counts[id], 0, "there is no county {id} on this map");
+    for (id, n) in counts.iter().enumerate().skip(15) {
+        assert_eq!(*n, 0, "there is no county {id} on this map");
     }
 
     // Nothing outside the viewport is pickable, whatever the tag plane holds.
@@ -589,3 +589,24 @@ fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
     );
 }
 
+/// Not a test: a way to look at the screen. `cargo test -p l2-game --test
+/// screens shoot -- --ignored` writes raw RGBA into `out/`, which `.gitignore`
+/// excludes. Renders of the game's own artwork are derived assets and must
+/// never be committed (CLAUDE.md rule 1).
+#[test]
+#[ignore]
+fn shoot() {
+    let (mut game, assets) = world!();
+    std::fs::create_dir_all("out").unwrap();
+    let mut screen = MapScreen::new();
+    for (name, zoomed) in [("near", false), ("far", true)] {
+        if zoomed {
+            send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+        }
+        let canvas = draw(&mut screen, &mut game, &assets);
+        let mut rgba = vec![0u8; 640 * 480 * 4];
+        canvas.to_rgba(&assets.palette, &mut rgba);
+        let rgb: Vec<u8> = rgba.chunks_exact(4).flat_map(|p| [p[0], p[1], p[2]]).collect();
+        std::fs::write(format!("out/campaign_{name}.rgb"), &rgb).unwrap();
+    }
+}
