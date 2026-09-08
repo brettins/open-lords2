@@ -651,6 +651,50 @@ order handlers (`0x0048A9C7`, `0x0048ACD2`, `0x0048B02B` and the twenty siege on
 requested cell for one with the same surface and elevation, so an order onto impassable
 ground lands beside it rather than failing. **[V]**
 
+### 8.2a The tables, checked against the oracle
+
+Every number in `crates/l2-sim` came out of a decompiler *listing* — a reading of the
+binary, not the binary. `tools/oracle/tables.ps1` closes that gap by reading the tables
+straight out of `Lords2.exe`, and the result is the first genuine oracle verification in the
+project. **[V]**
+
+| table | address | verdict |
+|---|---|---|
+| `g_meleeAttackTable` | `0x004D98F8` | **11/11 rows identical** to `TroopTable::DEFAULT`'s `melee_attack` |
+| `g_troopBattleStats` moveDelay | `0x004D96D0` | **11/11 identical** to `movement::move_delay` |
+| `g_missileStats` | `0x004D97B0` | identical to the values recorded in `docs/symbols.json` |
+
+Three things came out of it beyond the confirmation.
+
+**A reading-comprehension failure worth recording, because it was mine and not the
+document's.** The first version of the tool read `g_meleeAttackTable` as 32-bit and produced
+`262149`, `131075`, `387389207` — numbers that look like data rather than obvious garbage,
+which is C3's failure mode exactly. The giveaway is that `262149` is `0x00040005`: two small
+numbers in a trenchcoat. The table is 11 rows × 4 **`u16`** = 88 bytes, and the 176 bytes a
+32-bit reading consumes run past its end into an unrelated array. `docs/symbols.json`
+already said "11 rows of 4 shorts", and had the tool been written from the symbol entry
+rather than around it, the error would never have happened. C8 says to verify prior art
+against the data; the converse also holds — **verify your reading against the notes you
+already wrote.**
+
+**The binary's troop order is confirmed, not assumed**, and it is exactly the order of the
+`Troop` enum in `crates/l2-sim`. The `weaponClass` column of `g_troopBattleStats` is 2 at row
+1, 1 at row 5 and 3 at row 7, which pins crossbow, bow and catapult to those rows and admits
+only one ordering: Peasants, Crossbowmen, Macemen, Swordsmen, Pikemen, Archers, Knights,
+Catapults, SiegeTowers, BatteringRams, Oil.
+
+**The file is authoritative for these three tables, so the game need not be launched again
+for them.** Running `-Source Both` launches the game, confirms the image base is still
+`0x00400000` in a live process, and compares disk against memory: all three tables are
+byte-identical. `Rules_InitConstants` does not touch them. That matters because reading the
+file needs no process, no window and no focus — the cheap check is now known to be the
+sufficient one.
+
+`g_troopBattleStats` also carries three columns the simulation does not yet model: maximum
+figures per unit (12 peasants or archers, 8 crossbowmen, macemen and swordsmen, 10 pikemen,
+6 knights, 2 per siege engine, 1 oil), the cell footprint (1 for infantry, 3 for siege
+engines, 2 for oil), and maximum figures per formation row. **[V]**
+
 ### 8.3 The pathfinder
 
 This is what "routed" means, and it is the part of the system the project most wants to
