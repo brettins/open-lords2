@@ -25,6 +25,10 @@ subagent, so it stays short. Read the linked document before working in that are
 | work on a file format | `docs/formats/` |
 | read or name the binary | `docs/symbols.md` |
 | touch the battle simulation | `docs/battle.md` |
+| touch the kingdom economy | `docs/kingdom.md` |
+| touch anything that moves on the campaign map | `docs/armies.md` — armies, merchants and transports are one array, `g_units`, told apart by a type byte |
+| touch the AI lords, alliances or messages | `docs/diplomacy.md` |
+| wonder whether a mechanic has been looked at **at all** | `docs/mechanics.md` — the inventory, written to be read by someone who has played the game |
 | draw a screen, or wonder what the original showed | `docs/screens.md` (campaign map), `docs/screens-county.md` |
 | write anything that must stay deterministic | `docs/netcode.md` |
 | add or change a rule, or anything a mod overrides | `docs/modding.md` |
