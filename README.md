@@ -1,65 +1,116 @@
-# lords2
+# open-lords2
 
-Tooling and an incremental reimplementation of **Lords of the Realm II** (Sierra/Impressions, 1996),
-in the spirit of OpenXcom: an open engine that loads the original game's data files.
+An open reimplementation of the **Lords of the Realm II** engine (Sierra/Impressions, 1996),
+in the spirit of OpenXcom: our own engine, reading the original game's data files.
 
-**You must own an original copy of the game.** No game assets are distributed here,
-and none are ever committed to this repository - see `.gitignore`.
+**You must own a copy of the game.** No assets are distributed here and none ever will be —
+see [NOTICE](NOTICE). The engine reads an installation you supply and never writes to it.
+
+```
+l2-game <game dir> [--mods <dir>]
+```
+
+---
+
+## Where this actually is
+
+Early. It runs, and it is nowhere near the whole game. The honest inventory:
+
+| | state |
+|---|---|
+| **Screens** | **3 of 29** — the main menu, the campaign map, the county panel |
+| Kingdom economy | the full end-of-season pipeline: tax, rations, health, happiness, grain, herds, industry, migration, population, scoring |
+| Battle | figures, units, formations, movement, pathfinding, melee, missile resolution, the battle AI |
+| Campaign map | scrolling viewport, two zooms, the minimap, county tinting |
+| Scenarios | the shipped `lastturn.sav` imports and reproduces |
+| Mods | rules are data; a mod can override the tables |
+| Multiplayer | deterministic lockstep, tested — no matchmaking or UI |
+| **Castle designer** | **not started.** One of the game's signature features |
+| **Sieges** | traced end to end, built nowhere. 14 of 17 battle AI handlers are siege-only and unreachable |
+| Merchants, diplomacy, armies | documented in detail, implemented barely or not at all |
+
+**958 tests pass**, and roughly a third of them assert things read out of the original
+binary rather than out of our own heads.
+
+Two honest caveats. The one shipped save we test against exercises a narrow slice of the
+rules — every county in it sits at tax rate 0 with a well-staffed herd — and that is exactly
+how two wrong rules once survived 932 passing tests. And of the executable's 2,452
+functions, we have identified **422**, plus 298 globals; most of the program is still dark.
+
+## The idea that shapes everything
+
+`Lords2.exe` is an **oracle, not a target.** We do not patch it or link against it — we ask
+it questions. It has no ASLR and a fixed image base of `0x400000`, so its state lives at
+stable addresses and can be read from a live process while it runs.
+
+This matters because two of our own implementations agreeing proves only that we ported our
+own misunderstanding faithfully. Evidence comes from the original binary and from
+self-verifying invariants in the data. Where they disagree with us, they are right.
+
+Every claim in `docs/` is marked **verified**, **decompiled** or **inferred**, and
+[`docs/decisions.md`](docs/decisions.md) keeps a numbered log of the times we got it wrong —
+including the several where a player's offhand memory of the game overturned a confident
+reading of the disassembly.
+
+## Documentation
+
+The `docs/` tree is the real substance of this project; the code is downstream of it.
+
+| | |
+|---|---|
+| [`docs/rules.md`](docs/rules.md) | **How the game works, in plain language, with the real numbers.** Start here |
+| [`docs/mechanics.md`](docs/mechanics.md) | What has been looked at and what has not — written to be read by someone who has *played* the game, so they can point at what is missing |
+| [`docs/formats/`](docs/formats/) | The file formats: PL8 sprites, maps, saves, strings |
+| [`docs/symbols.md`](docs/symbols.md) | Named functions and globals in the executable |
+| [`docs/kingdom.md`](docs/kingdom.md) · [`docs/battle.md`](docs/battle.md) · [`docs/armies.md`](docs/armies.md) · [`docs/diplomacy.md`](docs/diplomacy.md) | Subsystems, traced |
+| [`docs/decisions.md`](docs/decisions.md) | Architecture decisions, and the correction log |
+| [`docs/netcode.md`](docs/netcode.md) | Why the simulation has no floats and a frozen PRNG |
 
 ## Layout
 
-| Path | Purpose |
-|------|---------|
-| `crates/l2-formats/` | Dependency-free decoders for the game's asset formats |
-| `tools/` | Analysis tooling: PE inspection, format decoders, live-process probes |
-| `docs/formats/` | Reverse-engineered file format documentation |
-| `docs/` | Project notes and roadmap |
+| Path | |
+|---|---|
+| `crates/l2-formats/` | dependency-free decoders for the game's file formats |
+| `crates/l2-sim/` | the battle simulation |
+| `crates/l2-kingdom/` | the turn-based economy |
+| `crates/l2-scenario/` | scenario and save loading |
+| `crates/l2-mods/` | the rule-override layer |
+| `crates/l2-net/` | deterministic lockstep networking |
+| `crates/l2-view/` | rendering and windowing |
+| `crates/l2-game/` | the application: screens, input, the turn loop |
+| `tools/` | PE inspection, format decoders, live-process probes, the Ghidra oracle |
 
-## Approach
+Everything below `l2-view` is dependency-free and deterministic on purpose: no floats where
+ordering matters, a seeded PRNG frozen in-tree, and no iteration whose order depends on
+hashing. See [`docs/netcode.md`](docs/netcode.md) — it binds code you would not think of as
+networking.
 
-The original `Lords2.exe` is used as an **oracle**, not a target. It has no ASLR and a
-fixed image base of `0x400000`, so its game state lives at stable addresses in `.data`
-and can be read from a live process. That lets each reimplemented subsystem be
-verified by differential testing against the original rather than against guesswork.
-
-## Testing
+## Building and testing
 
 ```powershell
-cargo test -p l2-formats                       # unit tests; no game install needed
+cargo test                                     # 958 tests; no game install needed
+
 $env:LORDS2_DIR = 'F:\games\Lords of the Realm II'
-cargo test -p l2-formats -- --nocapture        # + corpus validation against a real install
-# (the Node/Rust differential harness was retired - see docs/decisions.md D7)
+cargo test -- --nocapture                      # + corpus validation against a real install
 ```
 
-The corpus tests skip when `LORDS2_DIR` is unset, so a checkout without the game
-still has real tests to run.
+The corpus tests **skip** when `LORDS2_DIR` is unset, so a checkout without the game still
+has a real suite to run.
 
-`pl8diff.ps1` runs two independently written PL8 decoders - `tools/pl8digest.js`
-and `crates/l2-formats/examples/pl8digest.rs` - over the same corpus and requires
-their per-frame digests to be identical. Both hash the palette indices *and* the
-transparency mask with a hand-rolled FNV-1a 64, so a decoder that got coverage
-right and colour wrong (or the reverse) still diverges. Nothing is written to
-disk; the streams are compared in memory.
+## Contributing
 
-Agreement between the two rules out implementation bugs, not misunderstanding:
-a shared misreading of the format would agree just as cleanly. Only the
-end-offset invariant in `docs/formats/pl8.md` and comparison against the game's
-own rendering can speak to correctness.
+The most valuable thing anyone can offer is not code — it is **memory of playing the game**.
+[`docs/mechanics.md`](docs/mechanics.md) exists to be read by a player and contradicted. Four
+subsystems in this project were found only because someone mentioned them in passing, and a
+remark that ale seemed unfamiliar turned up two mechanics nothing here had recorded.
 
-## Tools
+If you remember a mechanic that has no row in that document, it has never been looked at.
+Please open an issue and say so.
 
-Format work:
+## Licence
 
+MIT — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-- `tools/pl8digest.js <dir>` - per-frame digest of every PL8, for differential testing
-
-
-Binary analysis:
-- `tools/peimp.js` / `peexp.js` / `pehdr.js` / `pefun.js` - PE imports, exports, headers
-- `tools/xref.js <exe> [filter]` - find call sites of imported functions
-
-Live process (PowerShell):
-- `tools/probe.ps1` - read memory from a running process
-- `tools/screen.ps1` - capture a window (PrintWindow, occlusion-proof)
-- `tools/input.ps1` - synthetic mouse/keyboard input
-- `tools/windows.ps1` - enumerate a process's top-level windows
+This is an independent reimplementation containing no code, art, sound or data from the
+original. Lords of the Realm II is copyright Sierra On-Line / Impressions Games and its
+present rights holders, who are not affiliated with this project and do not endorse it.
