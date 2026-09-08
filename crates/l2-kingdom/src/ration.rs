@@ -123,6 +123,48 @@ pub fn people_to_feed(county: &County, armies_eat: bool) -> i32 {
     }
 }
 
+/// `Food_Available` (`0x0044E7B4`) — the number [`crate::unit::starve`] tests
+/// an army's size against.
+///
+/// ```c
+/// f = 0;
+/// if (county.herd           > 0) f  = county.herd           * g_dairyPerHead;  /* x5  */
+/// if (county.herdAvailable  > 0) f += county.herdAvailable  * g_foodPerHead;   /* x10 */
+/// if (county.grainAvailable > 0) f += county.grainAvailable * g_foodPerSack;   /* x6  */
+/// ```
+///
+/// > **`docs/armies.md` §3.3b calls this *"`herd*5 + slaughterable*10 +
+/// > grain*6` — the county's whole feeding capacity"*, and the shorthand hides
+/// > the part that matters: only the first term is a stock.**
+/// > [`County::herd_available`] and [`County::grain_available`] are the
+/// > *per-season caps* [`apply`] writes — what this season's ration pass
+/// > released — not the larder. Two consequences a reimplementation following
+/// > the shorthand would get wrong: **the herd is counted twice**, once as
+/// > cheese at five people a head and again as meat at ten; and **the value
+/// > moves when the ration slider moves**, which is exactly why `Army_Create`
+/// > re-runs the county's food passes before it charges anything.
+/// >
+/// > Each term is guarded independently, so a negative field contributes
+/// > nothing rather than subtracting, and nothing clamps the sum. `[D]`
+///
+/// There are two sibling functions computing superficially similar sums from
+/// *different* county fields (`+0x178`/`+0x17C`, the food actually eaten). Any
+/// reading that pattern-matches on "the food function" is `docs/decisions.md`
+/// C3 waiting to happen.
+pub fn food_available(t: &Tables, county: &County) -> i32 {
+    let mut food = 0i64;
+    if county.herd > 0 {
+        food += county.herd as i64 * t.food.dairy_per_head as i64;
+    }
+    if county.herd_available > 0 {
+        food += county.herd_available as i64 * t.food.food_per_head as i64;
+    }
+    if county.grain_available > 0 {
+        food += county.grain_available as i64 * t.food.food_per_sack as i64;
+    }
+    food.clamp(i32::MIN as i64, i32::MAX as i64) as i32
+}
+
 /// Descend from `rationWanted` to the first level the county can afford.
 ///
 /// Level 0 costs nothing and therefore always fits, so this always terminates

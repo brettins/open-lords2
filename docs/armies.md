@@ -166,8 +166,23 @@ chased.
   stale garrison/besieger links, then `Siege_BuildTick` runs for each besieging army until
   one reports its engines finished, at which point the assault launches. The existing symbol
   comment on `Turn_Tick` calls phase 2 "army movement"; that is too generous. [D]
-* **Phase 7, end of season**, calls `Units_ResetMoves` (`0x004651B9`) — `+0x14C = 0` and
-  `+0x153 = 0` for all 150 slots — then `Move_BuildCostMap` and `Mercenary_AdvanceAll`. [V]
+* **Phase 7, end of season**, calls three things, and **the order is
+  `Mercenary_AdvanceAll(); Units_ResetMoves(); Move_BuildCostMap();`** — three consecutive
+  statements at `00490000.c:4644`. `Units_ResetMoves` (`0x004651B9`) writes `+0x14C = 0` and
+  `+0x153 = 0` for all 150 slots, unconditionally: it does not skip garrisons, besiegers or
+  free slots, and it does not touch the allowance. [V]
+
+  > **Corrected.** An earlier revision of this line gave the order as *"`Units_ResetMoves`
+  > … then `Move_BuildCostMap` and `Mercenary_AdvanceAll`"*, which is backwards. The
+  > mercenaries walk **before** the armies get their moves back. It matters because the
+  > order the season's passes run in is the specification (`docs/kingdom.md` §3.4) and two
+  > lockstep peers have to agree on it; `crates/l2-kingdom`'s `SEASON_PIPELINE` now carries
+  > both, flagged as phase-7 work rather than `Season_Advance`'s.
+  >
+  > `Move_BuildCostMap` is **not** once a season either. It has four callers, and one of
+  > them is `Unit_OrderMove` — so the cost map is rebuilt on *every move order*, which is
+  > why a tile trampled two steps ago is already impassable to the next one. The "once a
+  > season" note on it in `symbols.json` should go. [D]
 
 Player-ordered movement happens during phase 4 (the players' turn); `Units_Tick`
 (`0x004650B0`) is driven from the frame loop and dispatches each unit through
@@ -200,10 +215,33 @@ independently:
 | road (`0x01`) | 3, sets `onRoad` | **+1** | **1** |
 | open ground | 1 | **+3** | **3** |
 | farm field (`0x20`) | 8 → `Unit_CrossField` adds 3, then the general +3 | **+6** | **6** |
-| castle (`0x40`) | 5 → `Transport_Deliver`, move ends | — | 100 |
-| settlement (`0x80`) | 6 → `Unit_TrampleTile` adds 7, move ends | **+7** | 100 |
-| dwelling plot (`0x10`) | 7 → `Unit_BurnDwelling`, move ends | — | 100 |
+| castle (`0x40`) | 5 → `Transport_Deliver` **and `Army_AttackCounty`**, move ends | — (the attack charges +8) | 100 |
+| settlement (`0x80`) | 6 → `Unit_TrampleTile` adds 7, move ends | **+7, conditionally** | 100 |
+| dwelling plot (`0x10`) | 7 → `Unit_BurnDwelling`, move ends | **+7, conditionally** | 100 |
 | occupied | `Unit_EnterOccupiedTile` — §2.7 | varies | — |
+
+> **Three corrections to this table.**
+>
+> 1. **The castle row is the important one, and it was half the story.** The mover's code-5
+>    branch calls `Transport_Deliver` *and* `FUN_004A6C68` — see §9 — so a castle tile is
+>    not expensive terrain the pathfinder routes around, it is **the objective**. Stepping
+>    onto a county's castle site is how a county is taken.
+> 2. **The dwelling-plot row is not free.** `Unit_BurnDwelling` (`0x00468AE2`) charges
+>    `+0x153 += 7`, exactly like trampling. It fires only when the unit is not a merchant or
+>    transport, the county's owner differs from the unit's, **and** the terrain byte is
+>    `0x10`.
+> 3. **The settlement `+7` is conditional twice over.** It is charged *inside* each of
+>    `Unit_TrampleTile`'s four ruin branches, so an already-ruined site costs nothing and a
+>    site in your own county costs nothing; and `Unit_Step` only calls the trampler at all
+>    when the terrain byte is below `0x10`. Terrain `0x15`…`0x19` routes to `FUN_004686A0`
+>    instead, which is garrison-if-yours / begin-siege-if-not, and costs nothing. [D]
+>
+> Also worth stating because a reader will assume otherwise: `Unit_StepOnce` **clears the
+> road flag at the top of every step** and sets it again only if the tile just classified as
+> a road. It is per-step, not sticky, so an army that walks off a road pays 3 on the very
+> next tile. And codes 5, 6, 7 and 10 return *before* both the charge and the position
+> update, so the unit never enters those tiles — anything it is charged comes from the
+> handler. [D]
 
 **[V] Road 1, ground 3, field 6 agree exactly between two unrelated functions**, and the
 field's 6 is assembled in the stepper from two separate `+3`s that land on a single literal
@@ -220,17 +258,114 @@ would walk into the sea if a path led there.
 ```c
 Move_BuildCostMap();                       /* 0x0046FF43 */
 Move_FloodFill(0, unit.x, unit.y, 0);      /* 0x0046F700 -> a distance field */
-if (Path_Extract(0, destX, destY))         /* 0x004701AC */
+if (Move_ExtractPath(0, destX, destY)) {   /* 0x004701AC */
     Path_CopyToUnit(0, unit);              /* 0x004707BE */
-unit.destX = destX; unit.destY = destY; unit.moveState = 2;
+    unit.stepTargetX = unit.destX = destX;
+    unit.stepTargetY = unit.destY = destY;
+    unit.moveState = 2;
+    unit.orderMode  = mode;
+    unit.orderFlags = 1, 1, 1;             /* +0x156, +0x157, +0x158 */
+}
 ```
 
+> **Corrected: every write is inside the `if`.** An earlier revision of this block put the
+> destination and `moveState = 2` after it as unconditional statements. A failed extraction
+> leaves the unit exactly as it was — no destination, not moving, its previous path intact.
+>
+> That is *not* the same as "an unreachable destination does nothing": `Move_ExtractPath`
+> returns **success with a zero-length path** when the destination was never reached, so
+> that order is accepted, `moveState` becomes 2, and the army stands still. Only a dead end
+> in the descent returns 0. [D]
+
 There are **two distance fields**: `g_moveDistLocal` (`0x00500C30`) for the local player and
-`g_moveDistOther` (`0x004F0380`) for everyone else, each 64×64 `i16`. `Path_Extract` is a
-greedy descent down whichever it is given, appending `(x, y)` pairs into `g_pathBuf`
-(`0x00553550`, stride 300) with the length in `g_pathLen` (`0x0053F070`). On a road tile
-(cost 1) it steps the direction index by 2 — orthogonals only — and falls back to all eight
-only when that finds nothing. [D]
+`g_moveDistOther` (`0x004F0380`) for everyone else, each 64×64 `i16`. The first argument is
+not an index — it is a realm id compared against `g_localPlayer`, and every call site but one
+passes the literal 0, so when the human is realm 0 the AI's searches land in the local field
+too. `Move_ExtractPath` is a greedy descent down whichever it is given, appending `(x, y)`
+pairs into `g_pathBuf` (`0x00553550`, stride 300) with the length in `g_pathLen`
+(`0x0053F070`). On a road tile (cost 1) it steps the direction index by 2 — orthogonals only
+— and falls back to all eight only when that finds nothing: **confirmed**, verbatim. [D]
+
+Three further facts about the extractor, none of them previously recorded:
+
+* its direction order is **clockwise from north** — N, NE, E, SE, S, SW, W, NW — which is
+  *not* the fill's order, and it is the extractor's that decides ties;
+* the running best is seeded with `dist[cur]` itself and the test is a strict `<`, so only a
+  strictly cheaper neighbour is a candidate and **the lowest direction index wins a tie**;
+* the buffer is stored **destination-first** and the source is never appended, while
+  `Unit_Step` decrements the length before reading — storage reversed, consumption reversed,
+  net forward.
+
+**`Move_ExtractPath` has no length cap and `Unit_OrderMove` does not check one.** The AI
+tests `g_pathLen < 0x96` before copying; the player's path does not, so a path over 150 steps
+writes past `g_pathBuf`'s 300-byte slot and stores a length the unit's array cannot hold.
+That is a buffer overrun rather than a rule and `crates/l2-kingdom` clamps it. [D]
+
+#### `Move_FloodFill` — read, and it is not a breadth-first search
+
+§8 listed this function as *"not read"* and its behaviour as **[I]**. It has been read
+(`00460000.c`, `0x0046F700`), and the inference was wrong in the detail that matters.
+
+**It is SPFA — a FIFO-queue Bellman–Ford with full relaxation.**
+
+```text
+dist[] = 0;  dist[start] = 1;  queue = [start]
+while queue not empty:
+    cur  = pop
+    dirs = N, E, S, W   and, only if cost[cur] != 1,  NE, SE, SW, NW
+    for nbr in dirs:
+        c = cost[nbr];  if (mode != 0 && c > 1) c = 100
+        if (c == 0) continue                            /* impassable */
+        if (dist[nbr] == 0 || dist[cur] + c < dist[nbr]):
+            dist[nbr] = dist[cur] + c;  push nbr
+```
+
+Six things follow, and every one of them is a place a reasonable reimplementation goes
+wrong. All **[D]**.
+
+* **The start cell is seeded with 1, not 0**, because 0 is the unvisited sentinel. Every
+  stored distance is therefore `true cost + 1` — which is what `Map_DrawPathMarker`'s
+  `distance - 1` is undoing. It is not an off-by-one correction.
+* **The cost charged is the cost of the tile being *entered*.** The start tile's own terrain
+  is never paid for.
+* **A cell is re-relaxed and re-queued when a cheaper route arrives later.** This is not an
+  optimisation: a FIFO queue over weights of 1, 3, 6 and 100 does not produce distances in
+  sorted order, so without the relaxation branch the field would simply be wrong and the
+  greedy descent in §2.3 would be unsound. It is also the sharpest contrast with the
+  *battlefield* pathfinder, where the first cost written to a cell stands forever
+  (`docs/decisions.md` C12).
+* **Cost 0 is impassable and there is no separate blocked mask.** An impassable cell keeps
+  `dist == 0`, which is indistinguishable from unreached — deliberately, since neither can
+  be walked to.
+* **A road tile expands orthogonally only.** `if (cost[cur] != 1)` gates the four diagonals,
+  reading the *raw* cost so it holds in both modes. §2.3 records the extractor's half of
+  this rule; this is the fill's half, and it is why a tile diagonally off the end of a road
+  costs 13 rather than 11. Off a road a diagonal costs **exactly** what an orthogonal step
+  costs — no √2, no scaling — so armies prefer diagonals everywhere they are allowed.
+* **There is no goal test and no budget.** The fill always covers the whole reachable
+  component, however near the destination is.
+
+The queue is a **circular buffer of 1,024 `int` entries that wraps**, so a fill that
+outgrows it silently overwrites its own queue and stops with a half-filled field. Its head
+and tail cursors are *globals shared by both distance fields* even though the buffers are
+per-field. `crates/l2-kingdom` reproduces the capacity and the wrap for the same reason
+`l2-sim` reproduces the battle queue's: a search that would have overrun must produce the
+original's result.
+
+**The fourth argument is a road preference, and only the AI uses it.** `mode != 0` rewrites
+every cost above 1 to 100, so roads become a hundred times cheaper than anything else. The
+AI tries `mode = 1` first and falls back to `mode = 0` when the road route comes back at 150
+steps or more; `Unit_OrderMove` — every human-ordered move — always passes 0. **AI armies
+road-hug and the player's do not**, which is a visible behavioural difference nothing had
+recorded.
+
+**There is no bounds checking anywhere in the fill or the extractor.** It is flat index
+arithmetic on 4,096 cells, so stepping east from `x = 63` wraps into the next row, and
+expanding a tile in row 0 writes *before* the array — into, among other things, the fill's
+own queue head cursor. It survives only because every shipped map has an impassable sea
+border. `crates/l2-kingdom` rejects out-of-grid neighbours instead and says so: reproducing
+the wrap would let a path teleport across the map edge, and reproducing the underflow is not
+reproducible behaviour at all. **[I]** that the border is always impassable in practice.
 
 **The preview is that same data read twice.** `Path_MarkPreviewTiles` (`0x004A91BA`) walks the
 local player's path buffer and sets **bit `0x40` of byte `+2` of each runtime tile record**.
@@ -355,8 +490,22 @@ if (menA + menB < 0x5DD) {                       /* 1501 -> a merged army is at 
 **[V] 1500 is exact**, and it is the player's *"maximum army size is about 1500"*. Two armies
 that both carry mercenaries refuse to merge: `L2.eng` **167** *"Cannot combine armies. The
 mercenaries in these armies will not fight together."* The merge sums `+0x168`, the seven
-troop counts and the three siege-engine records, takes the **lower** of the two `movesUsed`,
+troop counts and the three siege-engine records, takes the **higher** of the two `movesUsed`,
 and destroys the absorbed unit.
+
+> **Corrected, and it reversed a rule.** An earlier revision of this line said *"the lower of
+> the two `movesUsed`"*, which reads as a refund. The body is
+>
+> ```c
+> if ((char)movesUsed[from] < (char)movesUsed[into]) v = movesUsed[into];
+> else                                               v = movesUsed[from];
+> movesUsed[into] = v;
+> ```
+>
+> — **both arms select the maximum.** Merging a fresh army into a spent one leaves the
+> result spent, so a reinforcement can never buy back movement. That is the opposite
+> tactical rule from the one the document gave, and it was found by reading the branch
+> rather than the summary of it. `docs/decisions.md` C13, again. [D]
 
 ---
 
@@ -669,9 +818,23 @@ hand-authored. [D]
 | `+0x0C` | i32 | price |
 | `+0x10` | i32 | the unread `g_mercWage` value |
 
-**How many bands a map gets** is `g_mercBandCount[g_countyCount]`, clamped to 1 … 12:
-`0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, …`. England has 14 counties, so **all twelve
-bands exist there**. [V]
+**How many bands a map gets** is `g_mercBandCount[g_countyCount]`:
+`0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, …`, **twenty entries** — the length is held
+by address arithmetic, `0x004DE820 + 20 × 4 = 0x004DE870`, where the string table begins.
+England has 14 counties, so **all twelve bands exist there**. [V]
+
+> **Corrected: "clamped to 1 … 12" is wrong at both ends.**
+>
+> ```c
+> n = g_mercBandCount[g_countyCount];
+> if (0xc < n) n = 1;      /* above twelve collapses to ONE, not to twelve */
+> if (n < 0)   n = 1;      /* and zero is not < 0, so zero stays zero      */
+> ```
+>
+> With the shipped table neither branch can fire, so nothing in the original behaves
+> differently — but a modded county-count table hits both, and "clamped" is exactly the
+> plausible-sounding description that hides what the code does. `symbols.json` says the same
+> thing and should be corrected with it. [D]
 
 `Mercenary_AdvanceAll` (`0x004ACA2B`), once a season at end of turn:
 
@@ -739,24 +902,57 @@ walk depend on the map. [V]
 `Levy_SetPercent` (`0x00435EBC`), driven by a 0 … 100 slider (`0x0056D65C`):
 
 ```c
-g_levyMen       = Pct(county.population, pct);
+g_levyMen       = Pct(county.population, pct);         /* Pct(x,p) = (p*x)/100, truncating */
 g_levyHappiness = g_armyHappinessCost[pct];
 if (pct != 0) g_levyHappiness += county[+0x2F4];       /* a per-county surcharge */
-clamp 0 .. 100;
-while (county.happiness - g_levyHappiness < 1) { pct--; recompute; }
+if (100 < g_levyHappiness) g_levyHappiness = 100;      /* the COST is clamped, after the  */
+if (g_levyHappiness < 0)   g_levyHappiness = 0;        /* surcharge - not the percentage  */
+if ((char)county.happiness < 1) { g_levyMen = 0; g_levyHappiness = 0; }
+else while ((char)county.happiness - g_levyHappiness < 1) { pct--; recompute; }
 ```
+
+> **Three corrections, all [V].**
+>
+> 1. An earlier revision wrote the clamp as a bare `clamp 0 .. 100;`, which reads as if the
+>    *percentage* were clamped. **It is the happiness cost, and it is clamped after the
+>    surcharge is added.** The percentage is clamped 0…100 by the slider handler
+>    `FUN_00435CEF`, never here.
+> 2. It **omitted the `happiness < 1` early-out**, which is the walk-back's only termination
+>    guard. Without it a county at zero happiness walks `pct` negative and indexes
+>    `g_armyHappinessCost[-1]` forever.
+> 3. `pct` is a **by-value parameter**: the walk-back does not write back to `g_levyPercent`.
+>    The slider stays where the player put it while the two globals hold the reduced figures,
+>    so the screen can read 80% while the county is giving up 59%.
+>
+> It writes exactly two globals and nothing else: `g_levyMen` (`0x00543FD8`) and
+> `g_levyHappinessCost` (`0x00565400`). The slider is `g_levyPercent` (`0x0056D65C`), an
+> `int` clamped 0…100, drawn at pixel `x = pct + 196` on a 101-pixel track — which closes
+> exactly, and is [V].
 
 **This is the link `kingdom.md` was missing: `g_armyHappinessCost` (`0x004D8778`) is indexed by
 the percentage of the county's population being levied.** 102 entries for 0 … 101; the slider
-can only reach 100. The curve is gentle to about 20 % (cost 9), steepens through the 30s and
-40s, hits 100 at 60 % and **saturates at 101 from 61 % upward** — which, after the `>100`
-clamp, exceeds any possible happiness, so the walk-back loop always fires. In a county at
-happiness 100 with no surcharge the largest levy is **59 %** (cost 98). **[V]** — the table was
-already verified over all 102 entries; what is new is what indexes it.
+can only reach 100. The curve is gentle to 19 % (cost 9), steepens through the 20s, 30s and
+early 40s, hits 100 at 60 % and **saturates at 101 from 61 % upward**. In a county at
+happiness 100 with no surcharge the largest levy is **59 %**, and it costs **99**. **[V]** —
+the table was already verified over all 102 entries; what is new is what indexes it.
+
+> **Two small corrections.** An earlier revision said *"gentle to about 20 % (cost 9)"* —
+> index 18 and 19 are 9 and index 20 is 10 — and gave the largest levy's cost as **98**; the
+> table's index 58 is 98 and index 59 is **99**, and the loop needs `happiness − cost ≥ 1`,
+> so 99 is exactly affordable at happiness 100 and 100 is not.
+>
+> Its *reasoning* about the saturation was also wrong even though the conclusion survives.
+> It said 101 *"exceeds any possible happiness, so the walk-back loop always fires"*. 101 is
+> clamped to 100 first; what fires the loop is `100 − 100 = 0 < 1`.
 
 County `+0x2F4` is set to **15** by `Army_Create` and added to every subsequent levy in that
 county, so raising two armies from one county in quick succession costs far more than one.
-Where it decays was not traced. [D]
+
+> **Where it decays is now traced.** `Happiness_UpdateAll` (`0x0044BAEA`) runs
+> `if (county[+0x2F4] != 0) county[+0x2F4] -= 5;` over counties 1…`g_countyCount` at the top
+> of its own pass, so the 15 is **gone after three seasons**. The same function is what
+> zeroes `+0x15` (`shownArmy`) each season, which is why §6.3's write to it is a
+> single-season display value. [D]
 
 The player's account is what the code does: **you recruit men, full stop.** There is no
 per-troop-type recruitment price anywhere on this path.
@@ -774,10 +970,52 @@ stride `0x80`, **8 slots of `0x10` bytes**):
 
 with `slot[t].+0x00` = chosen, `+0x04` = available, `+0x08` = remaining; slots 1 … 6 are
 seeded from realm `+0x140 + (t−1)*4`, the weapon stockpiles. The `+`/`−` buttons on the
-armoury screen move one man at a time between slot 0 and slot `t`; the auto-equip path fills
-ten at a time round-robin until either the men or a weapon type runs out. The same buffer is
+armoury screen move one man at a time between slot 0 and slot `t`, and **never touch slot 7**,
+which is why the levy total is what `Army_Create` writes into `+0x168`. The same buffer is
 reused, with different field meanings, by the army-split screen (`L2.eng` group 17 *"Army
 Division. / Split the army?"*), where row 7 is the mercenary band.
+
+> **`Levy_Init` is the AI's function, and the player's screen uses a different one.** Its
+> only callers are the three AI army-raising helpers (`FUN_004A5003`, `FUN_004A50AE`,
+> `FUN_004A5389`). The **player** path is `FUN_004AA90A` (`0x004AA90A`), called from
+> `Sidebar_Button` as `FUN_004aa90a(g_selectedCounty, g_levyMen)` — byte-for-byte the same
+> seeding plus three UI resets. The seeding is identical, so nothing in the *rules* changes;
+> what changes is that a mod hook attached to one of them would apply to only half the
+> armies in the game. Both read the realm index out of **`county[+0x05]`, the county's
+> owner**, rather than taking a realm argument — which is how a neutral county's militia
+> ends up seeded from realm 0. [V]
+>
+> There is a **fourth field at `+0x0C`** that neither seeding function clears: a "chosen
+> count when this slot was last selected" latch that `FUN_004AABD8` tests to fire the
+> troop-portrait animation. Presentation, not a rule. [D]
+
+**The auto-equip, corrected.** §6.2 said it fills *"ten at a time round-robin until either
+the men or a weapon type runs out"*. The second half is wrong:
+
+```c
+men = slot[7].chosen;  pass = 0;  changed = true;
+while (pass < 50 && changed) {
+    changed = false;
+    for (t = 1; t < 7; t++) {
+        if (men < 10) goto done;                 /* the floor is 10, not 0 */
+        if (slot[t].remaining >= 10) {
+            slot[t].chosen += 10;  slot[t].remaining -= 10;
+            slot[0].chosen -= 10;  men -= 10;  changed = true;
+        }
+    }
+    pass++;
+}
+```
+
+A weapon type that runs out is **skipped on every later pass** and the round-robin continues
+with the others, so an army is armed from whatever the armoury still has rather than stopping
+at the first empty rack. There is a **50-pass ceiling** — six types × ten men × fifty passes
+is 3,000, twice `ARMY_MAX_MEN`, so it never bites in play — and the floor is `men < 10`, so
+**up to nine men are always left as peasants**. [V]
+
+A second, unrelated helper exists: `FUN_004A545F(realm, t)` fills one type to the maximum in
+a single move, called by `FUN_004A5389` in the fixed order **5, 1, 3, 2, 6** — archers,
+crossbows, swords, maces, armour, with pikes skipped. [D]
 
 **The alignment is exact, and it cross-checks both tables.** `kingdom.md` §7.4's
 `g_weaponCost` order — crossbow, mace, sword, pike, bow, armour, itself verified against two
@@ -821,6 +1059,36 @@ realm.wages = Wages_ForRealm(realm);                            /* realm +0xFC *
 happiness, the cost is `g_armyHappinessCost[levyPercent]` plus the county surcharge, and it
 appears on the happiness panel's army row. [V]
 
+> **Four corrections to the pseudocode above, all [V].**
+>
+> 1. **`morale` is the county's happiness *before* the levy cost is deducted.** It is the
+>    fifth write after the spawn; the debit is nearly last. A county at 80 that pays 30 for
+>    its army still gives it morale 80. The listing above had them the other way round.
+> 2. **The happiness debit is clamped**, and the panel is debited what was actually taken:
+>
+>    ```c
+>    if ((char)county.happiness < happinessCost) { county[+0x15] -= county.happiness;
+>                                                  county.happiness = 0; }
+>    else                                        { county.happiness -= happinessCost;
+>                                                  county[+0x15]   -= happinessCost; }
+>    ```
+>
+>    This is reachable, because the cost is a **parameter**, not a global: the AI paths pass
+>    an unclamped, surcharge-free figure straight out of the table.
+> 3. **The two refusals are not in `Army_Create`.** They are in the confirm handler
+>    `FUN_00435B4D`, and **there is a third**: message `0xDD` = group 221, raised when
+>    `Army_Create` returns 0 because the county has no free road tile *and* no free open
+>    tile to stand the army on. Only the first two are bypassed by a mercenary hire.
+> 4. **`Army_Create` sets neither `moveAllowance` nor `movesUsed`.** `Unit_Spawn` memsets
+>    the whole `0x1A4`-byte record, so a fresh army carries an allowance of **0** until
+>    `Army_Tick` writes 15 on the next frame.
+>
+> Two omissions rather than errors: the `realm == 0` branch writes `u.owner = 6` and
+> `u.shield = 0` — which is where §1.1's *"6 marks an ownerless unit"* comes from, and it is
+> how a **neutral county's militia** is created; and `Levy_DebitPopulation` (`0x004A9F18`),
+> which is where the `+0x24` / `+0x38` debit actually lives, indexes the basket by
+> `county[+0x05]` while `Army_Create` itself uses its `realm` argument. They agree in play.
+
 `Army_PickName` (`0x004A9F72`) picks the least-used of **24 name slots** at realm `+0x2D` and
 adds 2 to its counter, so a name repeats only after every other has been used twice. The names
 are `L2.eng` groups **94 … 98**, 24 per lord: *"The Lions." "The Dragons." …* for lord 1, *"The
@@ -858,12 +1126,40 @@ mail was bought once, at the blacksmith.
 
 ## 7. How a battle result returns
 
-`docs/mechanics.md` lists this as ❓. It is `Battle_ReturnToCampaign` (`0x004AB383`), with
-`g_battleLoser` (`0x0057C924`) naming the defeated side. For whichever of `g_battleArmyA` /
-`g_battleArmyB` lost:
+`docs/mechanics.md` lists this as ❓. It is `Battle_ReturnToCampaign` (`0x004AB383`).
 
-* the winner is charged movement — **+8**, or set to `moveAllowance − 1` (one point left) if
-  it is human-owned;
+> ### ⚠ `g_battleLoser` (`0x0057C924`) holds the **winner**. The name is inverted.
+>
+> This is the single most dangerous error in this document, because everything below was
+> written on the name and the name is wrong. Two independent sites agree against it:
+>
+> * **The autocalc** (`004a0000.c:4305`). When `Army_StrengthScore(A) < Army_StrengthScore(B)`
+>   — A is the weaker side, so A loses — it sets **`g_battleLoser = g_battleArmyB`** and
+>   applies the survival percentage to **B**'s seven troop counts.
+> * **`Battle_ReturnToCampaign`** (`:4439`). The `g_battleLoser == g_battleArmyA` branch
+>   hands the county to **A** via `FUN_004A72FE(A.owner, county)`, charges **A** the winner's
+>   movement, and calls `Army_Destroy(g_battleArmyB)`. It also runs
+>   `Diplo_Offend(B.owner, A.owner, 20)` — the *loser's* owner resenting the *winner*.
+>
+> Both only make sense if the variable names the side that **won**. Implementing §7 on the
+> name as written destroys the winner and hands the county to the corpse. `docs/symbols.md`
+> carries the same inverted name and needs the same correction. [D]
+
+For whichever of `g_battleArmyA` / `g_battleArmyB` lost:
+
+* the winner is charged movement — and **the two branches are not symmetric, and the
+  human/AI test is the other way round from what this document said**:
+
+  ```c
+  /* A wins */                             /* B wins */
+  movesUsed[A] += 8;                       if (B.ownerIsHuman == 0)
+  if (A.ownerIsHuman == 0)                     movesUsed[B] += 7;
+      movesUsed[A] = moveAllowance[A] - 1;
+  ```
+
+  `+0x01` is a copy of realm `+0x05` = `isHuman`, so `== 0` is **the AI**. A winning AI is
+  left with one move; a winning human keeps everything but the 8. And when B wins, an AI
+  pays 7 and **a human pays nothing at all**. [D]
 * if the loser was a garrison, county `+0x1BC` is cleared and the county changes hands
   (`0x004A72FE`);
 * garrison and besieger links (`+0x199`, `+0x19A`) are cleared, and if it was not a siege,
@@ -881,23 +1177,141 @@ that path was not traced here.
 
 ---
 
-## 8. What could not be established
+## 8. Taking a county — the hole in the middle of this document
+
+Everything above traces the record, the levy, movement, supply, sieges and how a battle
+*result* comes back, and never names the thing they exist for: **what makes an army take a
+county.** Three functions, none of them mentioned anywhere else here.
+
+### 8.1 `Army_AttackCounty` (`FUN_004A6C68`, `0x004A6C68`)
+
+Called from the mover's **code-5 branch** — see §2.2 — with `g_movingUnit` and the tile's
+county. So a county is attacked **by stepping onto its castle tile**.
+
+```c
+if (unit.type == 1 && unit.owner != 0 && county.owner != unit.owner
+    && (county[+0x1C0] == 0                       /* no castle          */
+        || county[+0x1BC] == 0                    /* no garrison        */
+        || garrison.owner == unit.owner)) {       /* or it is yours     */
+    unit.movesUsed += 8;
+    unit.needsDestination = 1;
+    g_battleCounty = county;  g_battleIsSiege = 0;
+
+    if (county.owner == 0) {                                  /* neutral  */
+        if (county.happiness < 11) defender = 0;               /* surrender */
+        else defender = County_RaiseDefence(county, 25|40|50|60 by difficulty, 40, mode 2);
+    } else if (!realm[county.owner].isHuman) {                /* AI       */
+        defender = FindDefender(county) or County_RaiseDefence(county, 40, 40, mode 1);
+    } else {                                                  /* human    */
+        defender = FindDefender(county) or County_RaiseDefence(county, 40, 40, mode 0);
+    }
+    if (defender) defender[+0x167] = (raised ? 1 : 2);
+    if (defender == 0) County_ChangeOwner(unit.owner, county);
+    else               ...set up the battle...
+}
+```
+
+**That single `if` is the siege gate.** A county with *both* a castle and a garrison that is
+not yours cannot be walked into at all; everything else is a battle or an outright capture.
+It is one condition, not a subsystem.
+
+**`+0x167` is the county-defence marker**, which §1.5 lists among the offsets *"not traced"*.
+It is written here — 1 for a defence raised on the spot, 2 for an existing army pressed into
+the role — and read by `Battle_ReturnToCampaign`, whose A-wins branch captures the county when
+`B[+0x167] != 0`. Two sites, written by one and read by the other. [D]
+
+*(Six merchant records in `lastturn.sav` carry their own county in `+0x167`. That is a
+different meaning for a different unit type, like `+0x14F` and `+0x164`, not a contradiction —
+but it is **[I]** which of the two is the field's "real" purpose.)*
+
+### 8.2 `County_RaiseDefence` (`FUN_004A50AE`)
+
+Levies a percentage of the county's population and equips it by **who owns the county**:
+
+| mode | county | equipped |
+|---:|---|---|
+| 0 | a **human**'s | **nothing at all** — the defence is entirely peasants |
+| 1 | an **AI**'s | the auto-equip round-robin, out of that realm's real stockpiles |
+| 2 | **neutral** | 500 each of pikes, bows and maces are granted to realm 0, then a size ladder |
+
+The neutral ladder, from its nested `if`: **≥ 480 men → 150 archers, 100 pikemen, 50 macemen;
+≥ 360 → 100, 70; ≥ 240 → 80, 40; ≥ 120 → 60; below 120 → all peasants.** The happiness cost is
+forced to zero — nobody owns the county to be angry at — and `Army_Create(0, …)` gives the
+result owner byte 6.
+
+**A county with fewer than 40 people raises nothing**, and is then captured outright. [D]
+
+### 8.3 `County_ChangeOwner` (`FUN_004A72FE`)
+
+```c
+realm[new].countyCount++;
+...one of nine messages, 0x72..0x7E, by how many counties the taker now holds...
+county.owner = new;
+penalty = realm[new].isHuman ? (difficulty * 20 + 10) : 30;
+if (county.happiness < penalty) { county[+0x17] -= happiness; happiness = 0; }
+else                            { happiness -= penalty; county[+0x17] -= penalty; }
+county[+0x07] = realm[new].shield;
+realm[new].peakCounties = max(peakCounties, countyCount);
+```
+
+Two things worth naming. **The conquest penalty is drawn on the *"From events"* line**
+(`+0x17`, `L2.eng` group 85 index 9) rather than on the army row, so a newly taken county
+shows its resentment where a plague would. And **an AI conqueror always costs 30 while a
+human's cost tracks the difficulty** — 10 at Easy, 30 at Normal, 50 at Hard — so the setting
+decides whether conquest is cheaper for the player than for the AI, and at Normal they are
+equal. [D]
+
+### 8.4 What the shipped position means for all of this
+
+In `lastturn.sav` **every county has `garrisonUnit = 0`**, so at turn one nothing on the map
+is behind the siege gate; and **every neutral county sits at happiness 77**, well above the
+surrender threshold of 11, so **every neutral capture is a battle and none is a walk-in**.
+The surrender path only opens once a county has been taxed or starved into misery — which is
+the *"the people are wretched, my liege"* county of §2.5's greeting table, and the same
+threshold band.
+
+---
+
+## 9. What could not be established
 
 * **Whether an army can destroy its own realm's fields.** §2.6 shows one path where it cannot.
   A negative result from a single `if`; battles fought on farmland were not looked at.
-* **`Move_FloodFill` (`0x0046F700`, 2,115 bytes) was not read.** The cost map it consumes and
-  the path extraction that follows are both traced; that the fill itself is a cost-weighted
-  breadth-first search is **[I]**.
+* ~~**`Move_FloodFill` was not read.**~~ **Closed** — it is read, in §2.3, and the guess it
+  was a cost-weighted breadth-first search was wrong: it is SPFA, with full relaxation.
 * **The "lift siege" handler.** The button and the confirmation string exist; what they do to
   `+0x199`, `+0x19A` and the engine records was not traced.
 * **The AI personality field at `0x004D8AF8`** that chooses siege engines.
 * **Realm `+0x81` as an alliance flag** — read that way by the troop recount and nowhere else
   here.
-* **County `+0x2F4`**, the levy surcharge: written as 15, never seen to decay.
-* **Unit `+0x152`, `+0x19B`, `+0x1A`,** and the untraced offsets in §1.5.
+* ~~**County `+0x2F4`**, the levy surcharge: never seen to decay.~~ **Closed** — it decays by
+  5 a season in `Happiness_UpdateAll`; see §6.1.
+* ~~**Unit `+0x167`**, in §1.5's untraced list.~~ **Closed** — it is the county-defence
+  marker; see §8.1.
+* **Unit `+0x152`, `+0x19B`, `+0x1A`,** and the rest of the untraced offsets in §1.5.
+* **`FUN_0046D42C`**, the existing-defender search §8.1 calls. Modelled as *"the
+  lowest-numbered army of the county's owner standing in the county"*, which is what a scan
+  of `g_units` in slot order gives. The function itself was not read: **[I]**.
+* **`+0x12`/`+0x13` are truncated `u8`, not `i8`** as §1.2 types them —
+  `((x << 4) & 0xFF, (y << 4) & 0xFF)` on all six merchant records in the shipped save. Not a
+  rule anything reads, but the typing is wrong and a reader would infer a sign that is not
+  there.
 * **`L2.eng` 31/26** *"Foraging in your county."* has no reachable caller in the panel.
 * **The fourth write in each `Unit_TrampleTile` branch**, `industryRecord + 0x18`, which is the
   *next* record's first field. That is what the code does and it is not explained.
+* **There is no oracle for an army, and there cannot be one from the shipped save.**
+  `lastturn.sav`'s `g_units` block holds **six occupied slots and all six are merchants**
+  (type 3, owner 6). Not one army. So every army-only offset — `+0x16C` the troop counts,
+  `+0x15C` the wage, `+0x166` the morale, `+0x154` the allowance, `+0x182…` the siege
+  records, `+0x195…` the mercenary triple — has **no data-side verification available at
+  all**, and this whole document is code-only in exactly the region a conquest slice depends
+  on. The merchants do verify the shared half: `+0x0C = (y*64 + x) * 8` reproduces on all
+  six, and so does the `+0x12`/`+0x13` pixel pair.
+
+  That is why the corrections above matter more than they would elsewhere. With no second
+  source, a plausible reading of decompiler output has nothing to fail against, which is
+  `docs/decisions.md` C3's exact shape — and three of the corrections in this revision
+  (`Army_Combine`'s maximum, `g_battleLoser`'s inversion, the post-battle human/AI test)
+  were errors of that kind that had survived precisely because nothing could contradict them.
 * **Nothing here was observed in a running game.** Every claim comes from the binary, its
   static tables and `L2.eng`. The falsifiable predictions worth checking in play: *moves left*
   starts at 15 and a road step costs 1 while open ground costs 3; the army sprite changes at

@@ -45,6 +45,27 @@ pub const EMPTY_AI_COUNTY_HAPPINESS: i32 = 50;
 pub const UNOWNED_BONUS_THRESHOLD: i32 = 75;
 pub const UNOWNED_BONUS: i32 = 5;
 
+/// How much of the levy surcharge `Happiness_UpdateAll` gives back each season.
+///
+/// **This closes an open question in `docs/armies.md` §6.1**, which records
+/// `Army_Create` writing 15 into county `+0x2F4` and says *"where it decays was
+/// not traced"*. It decays here: `Happiness_UpdateAll` (`0x0044BAEA`) runs
+/// `if (county[+0x2F4] != 0) county[+0x2F4] -= 5;` over counties
+/// 1…`g_countyCount` at the top of its own pass, so a county that has just
+/// raised an army is back to no surcharge after **three seasons**. `[D]`
+pub const LEVY_SURCHARGE_DECAY: i32 = 5;
+
+/// Give back one season of [`crate::county::County::levy_surcharge`].
+///
+/// Guarded on non-zero exactly as the original is, which is why it stops at 0
+/// rather than going negative — the surcharge is a `!= 0` test, not a `> 0`
+/// one, so a negative value would decay forever.
+pub fn decay_levy_surcharge(county: &mut County) {
+    if county.levy_surcharge != 0 {
+        county.levy_surcharge -= LEVY_SURCHARGE_DECAY;
+    }
+}
+
 /// One county's happiness pass.
 ///
 /// `owner_is_human` distinguishes the two owned cases; an unowned county
@@ -53,6 +74,7 @@ pub const UNOWNED_BONUS: i32 = 5;
 /// `turn_count` is `g_turnCount`, which is 1 on the first season — the average
 /// is a plain division by it, so this must never be handed 0.
 pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
+    decay_levy_surcharge(county);
     county.happiness_last = county.happiness;
     county.happiness += county.d_hap_tax + county.d_hap_health + county.d_hap_ration;
 
