@@ -5,8 +5,8 @@
 //! byte layout is not.
 
 use crate::tables::{
-    score_gold_bracket, AI_GOLD_GRANT, SCORE_WEIGHTS, WAGE_DIVISOR_AI, WAGE_DIVISOR_HUMAN,
-    WEAPON_TYPE_COUNT,
+    score_gold_bracket, AI_GOLD_GRANT, AI_GOLD_GRANT_SMALL, SCORE_WEIGHTS, WAGE_DIVISOR_AI,
+    WAGE_DIVISOR_HUMAN, WEAPON_TYPE_COUNT,
 };
 
 /// `g_realms` is 6 records and **index 0 is unused** (`docs/kingdom.md` §2), so
@@ -36,8 +36,19 @@ pub struct Realm {
     /// `+0x00` — 0..=14 program counter through the AI's turn;
     /// [`AI_STEP_DONE`] when finished.
     pub ai_step: i32,
-    /// `+0x04` — the realm exists.
+    /// `+0x04` — the realm exists. Kept as a bool because that is how every
+    /// reader in the binary uses it, but the byte itself is
+    /// [`Realm::strength`], and this is `strength != 0`.
     pub in_play: bool,
+    /// `+0x04` again — the number the byte actually holds.
+    ///
+    /// **`docs/kingdom.md` §2 calls `+0x04` `inPlay` and marks it `[V]`; it is a
+    /// weighted strength count.** `FUN_0049B42B` rebuilds it at the top of
+    /// every AI turn as `3 * ownedCounties + 1 * armies`, and a realm is
+    /// eliminated when it comes out zero. Every other site only tests it
+    /// against zero, which is why "inPlay" fits everything but the write.
+    /// See [`crate::ai::begin_realm_turn`].
+    pub strength: u8,
     /// `+0x05` — when set, the AI turn machine is skipped entirely. This is the
     /// byte `docs/battle.md` §6.2 could not explain; it means "a person is
     /// driving this realm".
@@ -72,15 +83,43 @@ pub struct Realm {
     pub wood: i32,
     /// `+0x140 + t*4` — one counter per weapon type.
     pub weapons: [i32; WEAPON_TYPE_COUNT],
-    /// `+0x158` — 0..=5, the escalation in `Wages_PayAll`.
+    /// `+0x158` — 0..=5, the escalation in `Wages_PayAll`. Stage 5 is the
+    /// mutiny and it resets to 0 afterwards; it does not saturate.
     pub bankrupt_stage: u8,
-    /// The six score inputs `docs/kingdom.md` §8.3 could **not** identify,
-    /// in the order the weights apply: realm `+0x60, +0x10, +0x0C, +0x58,
-    /// +0x54, +0x4C`.
+
+    // --- the totals AI step 14 rebuilds (`FUN_0049D1E0`) --------------------
+    /// `+0x10` — the realm's total population, summed over its counties.
+    /// Score input, weighted `/10`.
+    pub population_total: i32,
+    /// `+0x18` — the previous turn's [`Realm::population_total`], snapshotted
+    /// before the recount.
+    pub population_last: i32,
+    /// `+0x14` — the mean population per owned county, 0 when there are none.
+    pub population_mean: i32,
+    /// `+0x0C` — the mean happiness over the realm's counties. Score input,
+    /// weighted `x2`.
+    pub mean_happiness: i32,
+    /// `+0x58` — the mean health meter over the realm's counties. Score input,
+    /// weighted `x2`.
+    pub mean_health: i32,
+    /// `+0x60` — `PctOf(ownedCounties, g_countyCount)`: the share of the map
+    /// this realm holds, 0..=100. Score input, and the **heaviest identified
+    /// one** at `x10`.
+    pub share_of_map_pct: i32,
+    /// `+0x2C` — the realm's armies.
+    pub army_count: u8,
+    /// `+0x54` — the total men over those armies. Score input, weighted `/5`.
+    pub total_men: i32,
+
+    /// The six score inputs in the order [`crate::tables::SCORE_WEIGHTS`]
+    /// applies: realm `+0x60, +0x10, +0x0C, +0x58, +0x54, +0x4C`.
     ///
-    /// Deliberately unnamed. Naming them would be exactly the failure mode
-    /// `docs/decisions.md` C3 records — a plausible story assembled from
-    /// decompiler output.
+    /// **Five of the six are identified now** — see
+    /// [`crate::tables::SCORE_INPUT_OFFSETS`] — and
+    /// [`Realm::sync_score_inputs`] copies them out of the named fields above.
+    /// Index 5, `+0x4C`, is still unknown and is left for a caller to set;
+    /// naming it would be exactly the failure mode `docs/decisions.md` C3
+    /// records.
     pub score_inputs: [i32; 6],
 }
 
@@ -95,6 +134,7 @@ impl Realm {
         Realm {
             ai_step: 0,
             in_play: false,
+            strength: 0,
             is_human: false,
             lord: LORD_HUMAN,
             tax_hap_empire: 0,
@@ -108,6 +148,14 @@ impl Realm {
             wood: 0,
             weapons: [0; WEAPON_TYPE_COUNT],
             bankrupt_stage: 0,
+            population_total: 0,
+            population_last: 0,
+            population_mean: 0,
+            mean_happiness: 0,
+            mean_health: 0,
+            share_of_map_pct: 0,
+            army_count: 0,
+            total_men: 0,
             score_inputs: [0; 6],
         }
     }
@@ -119,8 +167,22 @@ impl Realm {
     /// True once this realm's AI turn has finished, or immediately when a
     /// person is driving it — `docs/kingdom.md` §3.1 phase 4 waits on this for
     /// every realm.
+    /// The test is `>=`, not `==`: the original writes 999 and then falls
+    /// through an increment that leaves 1000 in the record. See
+    /// [`crate::ai::run_step`].
     pub fn turn_done(&self) -> bool {
-        !self.in_play || self.is_human || self.ai_step == AI_STEP_DONE
+        !self.in_play || self.is_human || self.ai_step >= AI_STEP_DONE
+    }
+
+    /// Copy the five identified score inputs out of the fields
+    /// [`crate::ai::update_realm_totals`] rebuilds. Index 5 (`+0x4C`) is left
+    /// alone, because nothing here knows what it is.
+    pub fn sync_score_inputs(&mut self) {
+        self.score_inputs[0] = self.share_of_map_pct;
+        self.score_inputs[1] = self.population_total;
+        self.score_inputs[2] = self.mean_happiness;
+        self.score_inputs[3] = self.mean_health;
+        self.score_inputs[4] = self.total_men;
     }
 
     /// Accumulate one county's contribution to the empire tax term.
@@ -148,12 +210,21 @@ impl Realm {
     }
 
     /// The per-season gold grant this realm's lord draws, by difficulty.
-    /// The human's lord byte is 0 and row 0 is all zeros, so the human gets
-    /// nothing. `docs/kingdom.md` §8.2.
+    ///
+    /// **Two tables**: a realm holding fewer than three counties draws from the
+    /// smaller [`AI_GOLD_GRANT_SMALL`], which is uniformly *less* — the grants
+    /// reward a realm that is winning rather than propping up one that is
+    /// losing. The human's lord byte is 0 and row 0 of both tables is all
+    /// zeros, so the human gets nothing either way. `docs/kingdom.md` §8.2.
     pub fn gold_grant(&self, difficulty: u8) -> i32 {
-        let lord = (self.lord as usize).min(AI_GOLD_GRANT.len() - 1);
-        let diff = (difficulty as usize).min(AI_GOLD_GRANT[0].len() - 1);
-        AI_GOLD_GRANT[lord][diff]
+        let table = if crate::ai::uses_small_gold_table(self.county_count) {
+            &AI_GOLD_GRANT_SMALL
+        } else {
+            &AI_GOLD_GRANT
+        };
+        let lord = (self.lord as usize).min(table.len() - 1);
+        let diff = (difficulty as usize).min(table[0].len() - 1);
+        table[lord][diff]
     }
 
     /// `Score_RankRealms`' score expression. The six weighted inputs are

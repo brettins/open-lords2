@@ -15,12 +15,23 @@
 //! county holds its happiness when `(5 - taxRate) + healthHappiness +
 //! (3 x ration - 8) = 0`.
 //!
-//! The *army* and *ale* terms exist as fields and as `L2.eng` group 85 labels
-//! but are written elsewhere; `docs/kingdom.md` §12 records that neither writer
-//! was found, so this pass zeroes them exactly as the original does.
+//! # The two terms this pass does not compute
+//!
+//! The *army* and *ale* terms exist as fields (`+0x15` and `+0x194`) and as
+//! `L2.eng` group 85 labels, and this pass **zeroes them**, exactly as the
+//! original does — they are written when the player acts, not once a season.
+//! `docs/kingdom.md` §12 records both writers as not found. Both are found now,
+//! and they are [`buy_ale`] and [`raise_army`].
+//!
+//! The ordering consequence is worth stating, because it is the whole reason
+//! both terms are "shown" fields rather than deltas: a season's
+//! `Happiness_UpdateAll` **wipes** whatever ale and army did during the turn
+//! before it, so their contribution to happiness is permanent but their
+//! contribution to the *panel* lasts exactly one turn.
 
 use crate::county::County;
 use crate::math::clamp;
+use crate::tables::{army_happiness_cost, ALE_HAPPINESS_MAX, ALE_HAPPINESS_STEP_PCT};
 
 pub const HAPPINESS_MIN: i32 = 0;
 pub const HAPPINESS_MAX: i32 = 100;
@@ -67,6 +78,107 @@ pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
     } else {
         county.happiness_sum / turn_count as i32
     };
+}
+
+/// `FUN_00428C42` — buy ale for a county, in crowns' worth.
+///
+/// ```c
+/// if (crowns <= 0) return;
+/// tenth = population / 10;
+/// bonus = crowns >= 5*tenth ? 5 : crowns >= 4*tenth ? 4 : ... : crowns >= tenth ? 1 : 0;
+/// if (bonus > 5 - alreadyGiven) bonus = 5 - alreadyGiven;
+/// if (bonus < 0)                bonus = 0;
+/// alreadyGiven += bonus;  happiness += bonus;  shownAle += bonus;
+/// if (happiness > 99) happiness = 100;
+/// ```
+///
+/// **This settles the published claim `docs/kingdom.md` §12 lists as
+/// unverified.** The guides say *"+1 per 20% of the population, cap +5"*; the
+/// step is `population / 10`, so it is **+1 per 10%** and the cap is right. The
+/// panel's own preview (`FUN_00435673`) computes the identical ladder, which is
+/// the second source.
+///
+/// The cap is **cumulative and never reset** — see
+/// [`crate::county::County::ale_happiness_given`]. Returns the happiness
+/// actually gained, which is 0 once the county has had its five.
+///
+/// `crowns` is `price x quantity` at the call site. Ale's base price is 1
+/// (`docs/kingdom.md` §10), so in the shipped game a barrel is a crown and the
+/// two are the same number.
+pub fn buy_ale(county: &mut County, crowns: i32) -> i32 {
+    if crowns <= 0 {
+        return 0;
+    }
+    let step = county.population / ALE_HAPPINESS_STEP_PCT;
+    let mut bonus = 0;
+    // Counted upward rather than as the original's nested `if`s; the ladder is
+    // the same. A county of fewer than ten people has `step == 0`, and the
+    // original's `crowns >= 5 * 0` is then true at the top rung — so any ale at
+    // all buys the full five. Reproduced: `0 * n` is 0 for every rung.
+    let mut rung = ALE_HAPPINESS_MAX;
+    while rung >= 1 {
+        if crowns >= rung * step {
+            bonus = rung;
+            break;
+        }
+        rung -= 1;
+    }
+    let remaining = ALE_HAPPINESS_MAX - county.ale_happiness_given;
+    if bonus > remaining {
+        bonus = remaining;
+    }
+    if bonus < 0 {
+        bonus = 0;
+    }
+    county.ale_happiness_given += bonus;
+    county.happiness += bonus;
+    county.shown_ale += bonus;
+    // The original's clamp is `if (happiness > 99) happiness = 100`, which is
+    // the same as clamping to 100 for any integer.
+    if county.happiness > HAPPINESS_MAX {
+        county.happiness = HAPPINESS_MAX;
+    }
+    bonus
+}
+
+/// The `L2.eng` group 85 *"From army"* term — `FUN_004A9A9A`'s tail, the writer
+/// `docs/kingdom.md` §12 records as not found.
+///
+/// Raising men costs the county happiness, and the cost is a table lookup on
+/// **the share of the county being taken**, not on the number of men:
+///
+/// ```c
+/// share = PctOf(men, population);                 /* 50 men of 500 is 10 */
+/// cost  = g_armyHappinessCost[share];             /* 10 -> 5 */
+/// if (happiness < cost) { shownArmy -= happiness; happiness = 0; }
+/// else                  { happiness -= cost;      shownArmy -= cost; }
+/// ```
+///
+/// So it is progressive and steeply so: a twentieth of a county costs 2, a
+/// tenth costs 5, a quarter costs 19 and a half costs 90. See
+/// [`crate::tables::ARMY_HAPPINESS_COST`].
+///
+/// Note the asymmetry in the clamp, reproduced as written: when the county
+/// cannot afford the full cost, `shownArmy` is debited only what was actually
+/// taken, so the panel and the happiness always agree.
+///
+/// Returns the happiness actually lost.
+pub fn raise_army(county: &mut County, men: i32) -> i32 {
+    if men <= 0 {
+        return 0;
+    }
+    let share = crate::industry::pct_of(men, county.population);
+    let cost = army_happiness_cost(share);
+    let taken = if county.happiness < cost {
+        let taken = county.happiness;
+        county.happiness = 0;
+        taken
+    } else {
+        county.happiness -= cost;
+        cost
+    };
+    county.shown_army -= taken;
+    taken
 }
 
 /// The happiness a county holds steady at, given its three terms. Zero means

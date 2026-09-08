@@ -1,9 +1,11 @@
 //! What a season did — the messages and the pass log.
 //!
-//! The original raises these through its message system by numeric id;
-//! `docs/kingdom.md` §6 names five of them and the rest are unidentified. The
-//! ids are carried here rather than discarded because they are the only
-//! evidence linking a rule to the `L2.eng` string a player actually sees.
+//! The original raises these through its message system by numeric id, and
+//! **the id is the `L2.eng` group number** — message `0x92` is group 146,
+//! *"Uncertain times."*. The ids are carried here rather than discarded because
+//! that correspondence is the only thing linking a rule to the string a player
+//! actually sees, and it is how the event table and the bankruptcy escalation
+//! were both cross-checked: the prose says what the code does.
 
 use crate::phase::Pass;
 
@@ -26,7 +28,8 @@ pub enum Message {
     /// counter resets.
     Revolt { county: u8 },
     /// The treasury could not cover the wage bill; the escalation advanced.
-    Bankrupt { realm: u8, stage: u8 },
+    /// `stage` is the counter *after* the step, so a mutiny reports 0.
+    Bankrupt { realm: u8, stage: u8, action: crate::industry::BankruptcyAction },
     /// A random event fired in a county.
     Event { county: u8, kind: crate::event::EventKind },
     /// A castle finished building.
@@ -41,6 +44,10 @@ impl Message {
             Message::UnrestRising { level, .. } => {
                 MSG_UNREST_LEVEL.get(level.saturating_sub(1) as usize).copied()
             }
+            // The event id *is* the `L2.eng` group, so there is nothing to look
+            // up: see `crate::event`.
+            Message::Event { kind, .. } => Some(kind.id()),
+            Message::Bankrupt { action, .. } => action.message_id(),
             _ => None,
         }
     }

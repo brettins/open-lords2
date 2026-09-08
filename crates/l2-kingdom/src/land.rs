@@ -212,8 +212,22 @@ pub fn grain_season_tick(county: &mut County, season: Season, advanced_farming: 
 
 /// `Herd_SeasonTick` (`0x0044D60D`) — the weather's percentage swing on the
 /// herd, plus the random-event modifier.
+///
+/// The event modifier is tested for the sentinel **before** it is tested for
+/// its sign: `if (mod == 99) { change = 0; births = 0; }`. So 99 is not
+/// "+99%", it is *"Cattle will not reproduce this season"* — the *"No bull"*
+/// event, `L2.eng` group 314. See [`crate::event::HERD_NO_GROWTH`].
+///
+/// The order matters: the sentinel suppresses the **weather** swing as well as
+/// the event's own, so a sunny season and a dead prize bull cancel out.
 pub fn herd_season_tick(county: &mut County) {
-    county.herd += pct(county.herd, HERD_WEATHER_PCT[county.weather.index() as usize]);
+    let weather_change = pct(county.herd, HERD_WEATHER_PCT[county.weather.index() as usize]);
+    if county.event_herd_pct == crate::event::HERD_NO_GROWTH {
+        county.event_herd_pct = 0;
+        county.herd = county.herd.max(0);
+        return;
+    }
+    county.herd += weather_change;
     if county.event_herd_pct != 0 {
         county.herd += pct(county.herd, county.event_herd_pct);
         county.event_herd_pct = 0;

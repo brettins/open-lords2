@@ -733,26 +733,48 @@ pub fn tax_rate_for(ladder: &TaxLadder, happiness: i32) -> i32 {
     ladder[ladder.len() - 1].1
 }
 
-/// `g_aiPersonality` (`0x004D8A58`) is five records of this many bytes, one per
-/// AI lord 1..=5. `[I]` on the base and the stride: the code addresses it as
+/// `g_aiPersonality` (`0x004D8A58`) is records of this many bytes, one per AI
+/// lord. `[I]` on the base and the stride: the code addresses it as
 /// `base + (lord * 3 - 3) * 0x50`, i.e. three 0x50-byte rows per lord, and only
 /// ever uses the first row. The arithmetic closes on the low side -
 /// `0x004D8A40 + 24` (the free-archer table) is exactly `0x004D8A58`.
 pub const AI_PERSONALITY_STRIDE: usize = 0xF0;
 
+/// **Four** personality records, for lords 1..=4, indexed `lord - 1`.
+///
+/// `docs/kingdom.md` §2 says the lord byte runs *"1 … 5 for an AI lord"*, but
+/// the table stops at four. A fifth record would begin at `0x004D8E18`, and
+/// what is there does not fit the shape: the two fields below read 17 and 0
+/// where every real record reads a farm style of 0, 1 or 9, and the field after
+/// them reads 5000 where the four records read 100, 100, 200 and 50. So
+/// `0x004D8E18` is taken to be **past the end of the table**, and this crate
+/// refuses to answer for lord 5 rather than reproduce an out-of-bounds read of
+/// bytes whose meaning is unknown. `[I]`, and it is the one thing about
+/// `AI_SetTaxRates` still not settled.
+pub const AI_PERSONALITY_COUNT: usize = 4;
+
 /// The personality field at record `+0x04` that selects an [`AI_TAX_LADDERS`]
-/// row, indexed by lord 1..=5 with index 0 unused. `[V]` on the four values
-/// read; **lord 5's is not established** - the record would sit at
-/// `0x004D8E1C`, which was not dumped, so it is left as ladder 2 (what lords
-/// 1..3 use) and marked here rather than silently defaulted.
-pub const AI_PERSONALITY_TAX_LADDER: [usize; 6] = [2, 2, 2, 2, 1, 2];
+/// row. `[V]` for lords 1..=4 - three of the four AI lords tax on the same,
+/// gentlest ladder and only lord 4 uses a different one.
+pub const AI_PERSONALITY_TAX_LADDER: [usize; AI_PERSONALITY_COUNT] = [2, 2, 2, 1];
 
 /// The personality field at record `+0x00` that `AI_ManageFields` copies into
-/// county `+0x1FE` and dispatches on, indexed by lord 1..=5. `[V]` for lords
-/// 1..=4; the values seen are 1, 1, 0 and 9, and 0/1/9 are the three the
-/// dispatch tests. **Lord 5's is not established**, for the same reason as
-/// above. What each style *does* was not traced.
-pub const AI_PERSONALITY_FARM_STYLE: [u8; 6] = [0, 1, 1, 0, 9, 1];
+/// county `+0x1FE` and dispatches on. `[V]` for lords 1..=4; 0, 1 and 9 are
+/// exactly the three values the dispatch tests, which is a check on the field's
+/// identity. **What each style does was not traced** - the three handlers
+/// (`FUN_004A4052`, `FUN_004A42E3`, `FUN_004A440F`) allocate labour and are not
+/// reproduced here.
+pub const AI_PERSONALITY_FARM_STYLE: [u8; AI_PERSONALITY_COUNT] = [1, 1, 0, 9];
+
+/// The tax ladder an AI lord uses, or `None` when the lord byte names no
+/// record: 0 is the human, 6 is an eliminated realm, and 5 is the value
+/// [`AI_PERSONALITY_COUNT`] explains.
+#[inline]
+pub fn ai_tax_ladder(lord: u8) -> Option<&'static TaxLadder> {
+    let index = (lord as usize).checked_sub(1)?;
+    let row = *AI_PERSONALITY_TAX_LADDER.get(index)?;
+    AI_TAX_LADDERS.get(row)
+}
 
 /// `AI_ManageFields` (`FUN_0049DD01`, AI step 5) adds a field to a county whose
 /// field total is below the first threshold its population clears.
@@ -767,6 +789,96 @@ pub const AI_FIELD_LADDER: [(i32, i32, i32); 6] = [
     (9, 1000, 1),
     (i32::MAX, 1200, 2), // a big county adds two at once
 ];
+
+// ---------------------------------------------------------------------------
+// Ale, army and the history ring
+// ---------------------------------------------------------------------------
+
+/// Buying ale is worth one happiness per this percentage of the county's
+/// population, up to [`ALE_HAPPINESS_MAX`].
+///
+/// **`[V]`, and it settles the claim `docs/kingdom.md` §12 records as
+/// unverified.** The published figure is *"+1 per 20% of the population, cap
+/// +5"*; `FUN_00428C42` computes `tenth = population / 10` and then compares
+/// the crowns spent against `tenth`, `2*tenth` … `5*tenth`. So it is **+1 per
+/// 10%**, and the cap of +5 is reached at half the population. The published
+/// cap is right and the published step is twice too big.
+///
+/// Two functions in the binary compute this same ladder - the purchase
+/// (`FUN_00428C42`) and the panel's preview (`FUN_00435673`) - and they agree
+/// line for line, which is the second source.
+pub const ALE_HAPPINESS_STEP_PCT: i32 = 10;
+
+/// The most happiness ale can ever be worth in one county.
+///
+/// **The cap is cumulative and nothing resets it.** County `+0x219` holds the
+/// total already granted and the bonus is clamped to `5 - that`; no write to
+/// `+0x219` other than this `+=` was found anywhere in the binary. So a county
+/// can be given at most **five happiness from ale for the whole game**, not
+/// five per season. `[D]` - a negative, and negatives are hard to prove; the
+/// search was a cross-reference of every instruction touching the offset.
+pub const ALE_HAPPINESS_MAX: i32 = 5;
+
+/// `g_armyHappinessCost` (`0x004D8778`) - the happiness raising an army costs
+/// the county it is raised in, indexed by **the percentage of the county's
+/// population being taken**.
+///
+/// `[V]` on the table and on the indexing: `FUN_004A5003` computes
+/// `pct = PctOf(50, population)` — the share of the county fifty men are — and
+/// then reads `g_armyHappinessCost[pct]`, raises `Pct(population, pct)` men,
+/// and subtracts the cost from both `happiness` (`+0x0C`) and `shownArmy`
+/// (`+0x15`, `L2.eng` group 85 *"From army"*). That is the writer
+/// `docs/kingdom.md` §12 records as not found.
+///
+/// The shape is the rule: taking a twentieth of a county costs 2 happiness and
+/// taking half of it costs 90. The last 41 entries are all 101, so beyond 60%
+/// the cost is flat and ruinous.
+///
+/// 102 entries, `0x004D8778 … 0x004D8910`, which is exactly where the merchant
+/// price table begins.
+pub const ARMY_HAPPINESS_COST: [i32; 102] = [
+    0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 11, 13, 15, 17, 19, 21, 23, 25,
+    27, 29, 31, 34, 37, 40, 44, 48, 52, 56, 60, 64, 68, 72, 75, 78, 80, 82, 84, 86, 88, 90, 91, 92,
+    93, 94, 95, 96, 97, 98, 99, 100, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101,
+    101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101,
+    101, 101, 101, 101, 101, 101, 101, 101, 101, 101,
+];
+
+/// The happiness cost of taking `pct` percent of a county into an army.
+///
+/// **The original does not bound the index.** `PctOf(50, population)` exceeds
+/// 101 for any county under 50 people, and the read then lands on the first
+/// entry of the merchant price table, which is 0 — a free army. This clamps
+/// instead, because reproducing a read of a *different table* would mean
+/// hard-coding that the two happen to be adjacent, and a mod that resizes
+/// either would make the reproduction meaningless. Flagged rather than
+/// silently smoothed: see [`ARMY_HAPPINESS_COST`].
+#[inline]
+pub fn army_happiness_cost(pct: i32) -> i32 {
+    if pct <= 0 {
+        return ARMY_HAPPINESS_COST[0];
+    }
+    ARMY_HAPPINESS_COST[(pct as usize).min(ARMY_HAPPINESS_COST.len() - 1)]
+}
+
+/// The history ring `Season_Advance`'s second-to-last pass (`FUN_004AE7DD`)
+/// writes: **400 seasons x 16 counties x `{i32 population, i8 happiness}`**.
+///
+/// **`[V]`, and the length invariant closes it.** Save block 10 is
+/// `0x0056D8C0` for **51,200** bytes, and `400 * 16 * 8` is exactly 51,200.
+/// The write is `[head << 7 + county * 8 + 0x0056D8B8]`, so county `k` lands at
+/// slot `k - 1` of the entry — the eight-byte offset between the block's base
+/// and the instruction's is what makes the 1-based county array fit a 0-based
+/// ring without spilling.
+///
+/// `docs/kingdom.md` §3.4 names this pass and nothing more.
+pub const HISTORY_SEASONS: usize = 400;
+
+/// The ring stores 16 county slots per season, which is [`MAX_COUNTY_ID`]
+/// counties — the loop runs `for (c = 1; c < 0x11; c++)`.
+///
+/// [`MAX_COUNTY_ID`]: crate::county::MAX_COUNTY_ID
+pub const HISTORY_COUNTIES: usize = 16;
 
 // ---------------------------------------------------------------------------
 // Score
@@ -796,9 +908,36 @@ pub fn score_gold_bracket(gold: i32) -> i32 {
 /// +0x54, +0x4C` in that order.
 pub const SCORE_WEIGHTS: [(i32, i32); 6] = [(10, 1), (1, 10), (2, 1), (2, 1), (1, 5), (50, 1)];
 
-/// The bare offsets of the six unidentified score inputs, kept so the
-/// unknowns stay visibly unknown rather than being given invented names.
+/// The offsets of the six score inputs, in the order [`SCORE_WEIGHTS`] applies.
+///
+/// `docs/kingdom.md` §8.3 says **none** of the six was identified. Five now
+/// are, from `FUN_0049D1E0` — the AI turn's fourteenth step, which recomputes
+/// exactly these realm fields once a turn:
+///
+/// | offset | weight | what `FUN_0049D1E0` writes there |
+/// |---|---|---|
+/// | `+0x60` | x10 | `PctOf(ownedCounties, g_countyCount)` — **share of the map**, 0..100 |
+/// | `+0x10` | /10 | total population over the realm's counties |
+/// | `+0x0C` | x2 | mean happiness over the realm's counties |
+/// | `+0x58` | x2 | mean health meter over the realm's counties |
+/// | `+0x54` | /5 | total men over the realm's armies |
+/// | `+0x4C` | x50 | **still unidentified** |
+///
+/// `[V]` on the five, which is what makes the score readable: it is
+/// *territory x 10, then people, then how well they are doing, then the army*.
+/// `+0x4C` carries the heaviest weight of the six and is not written by that
+/// pass; it is left unnamed rather than guessed at (`docs/decisions.md` C3).
 pub const SCORE_INPUT_OFFSETS: [u16; 6] = [0x60, 0x10, 0x0C, 0x58, 0x54, 0x4C];
+
+/// Names for the five score inputs that are identified, `None` for `+0x4C`.
+pub const SCORE_INPUT_NAMES: [Option<&str>; 6] = [
+    Some("share of the map, percent"),
+    Some("total population"),
+    Some("mean county happiness"),
+    Some("mean county health"),
+    Some("total men under arms"),
+    None,
+];
 
 #[cfg(test)]
 mod tests {
@@ -1024,7 +1163,7 @@ mod tests {
 /// the source of truth and keep their addresses and their evidence in their
 /// own doc comments. The simulation modules in this crate still read those
 /// constants directly. Handing them a `Tables` instead is a mechanical change
-/// that has not been made yet - `docs/modding.md` says so in the same words.
+/// that has not been made yet - `docs/modding.md` §11 says so in the same words.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Tables {
     pub food: FoodTable,

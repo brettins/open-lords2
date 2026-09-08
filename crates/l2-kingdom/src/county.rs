@@ -74,21 +74,47 @@ pub const CHANGE_REASON_MIN_PCT: i32 = 6;
 /// `docs/kingdom.md` §1.3 and §7.4.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Industry {
-    /// What the last `Industry_Produce` pass produced.
+    /// What the last `Industry_Produce` pass produced — the difference between
+    /// the running total at `+0x2A0` and its snapshot at `+0x2A4`.
     pub output: i32,
-    /// County `+0x294`, the efficiency percentage. Its *ramp* (`FUN_0044F248`)
-    /// was never traced, so nothing in this crate moves it off the base value.
+    /// County `+0x294`, the efficiency percentage. It **ramps**: see
+    /// [`crate::industry::efficiency_ramp`], which is `FUN_0044F248`.
     pub efficiency: i32,
-    /// The `resourceLimit` term of `min(resourceLimit, Pct(workers / divisor,
-    /// efficiency))`. **Not traced**: `docs/kingdom.md` §7.4 names it in the
-    /// formula and nowhere says where it comes from, so it defaults to "no
-    /// limit" and is left for the caller to set.
-    pub limit: i32,
+    /// County `+0x29E` — the worker count this industry can absorb at full
+    /// value. Above it the ramp's increment is scaled down by
+    /// `capacity / workers`, so piling on more serfs raises the output but
+    /// slows the improvement. `[D]` — the field is read by the ramp and
+    /// written by the industry driver from county `+0x108`, whose meaning was
+    /// not traced.
+    pub capacity: i32,
+    /// County `+0x295` — the county has this resource in the ground at all
+    /// (ore, stone, forest). Weapons ignore it.
+    pub has_resource: bool,
+    /// County `+0x297` — this industry is switched on. Both this and
+    /// [`Industry::has_resource`] gate the `resourceLimit`, so an industry
+    /// missing either produces nothing however many workers it is given.
+    pub enabled: bool,
+    /// County `+0x296` — a countdown. While non-zero the pass produces nothing
+    /// at all, zeroes the running total and decrements; at zero the industry is
+    /// reinstated. `[D]` — a depleted seam or a razed workshop would both fit
+    /// and neither is established.
+    pub disabled_seasons: i32,
+    /// The running total at `+0x2A0`, which the pass adds this season's output
+    /// to rather than replacing.
+    pub total: i32,
 }
 
 impl Industry {
     pub fn new(c: Commodity) -> Industry {
-        Industry { output: 0, efficiency: c.base_efficiency(), limit: i32::MAX }
+        Industry {
+            output: 0,
+            efficiency: c.base_efficiency(),
+            capacity: 0,
+            has_resource: true,
+            enabled: true,
+            disabled_seasons: 0,
+            total: 0,
+        }
     }
 }
 
@@ -104,6 +130,10 @@ pub struct County {
     // --- identity, happiness and health (docs/kingdom.md §1.1) -------------
     /// `+0x00` — set by `Event_RollAll` when this county drew a random event.
     pub event_fired: bool,
+    /// `+0x1AA` — the id of the event that fired, which is also its `L2.eng`
+    /// group. Cleared to 0 by `Event_RollAll` before it draws, and cleared
+    /// again by any handler whose guard fails. See [`crate::event`].
+    pub event_id: u16,
     /// `+0x05` — realm index 1..=5; **0 = unowned**. The first byte the
     /// desync comparator checks.
     pub owner: u8,
@@ -138,9 +168,15 @@ pub struct County {
     pub happiness_avg: i32,
     /// `+0x1C` — running total of `happiness` over all turns.
     pub happiness_sum: i32,
-    /// `+0x194` — group 85 index 6, *"From ale"*. Never written by this crate:
-    /// `docs/kingdom.md` §12 records that the ale purchase path was not traced.
+    /// `+0x194` — group 85 index 6, *"From ale"*. Written by
+    /// [`crate::happiness::buy_ale`]; `docs/kingdom.md` §12 records the ale
+    /// purchase path as untraced, and it is traced now.
     pub shown_ale: i32,
+    /// `+0x219` — the total happiness this county has **ever** been given by
+    /// ale, which is what caps the bonus at five. Nothing in the binary resets
+    /// it, so the cap is for the whole game rather than per season. See
+    /// [`crate::tables::ALE_HAPPINESS_MAX`].
+    pub ale_happiness_given: i32,
     /// `+0x20` — 0..=4. At 4 the county revolts (§6).
     pub unrest: u8,
     /// **Engine state.** The "warned" flag `Unrest_UpdateAll` clears at
@@ -285,6 +321,7 @@ impl County {
     pub fn new() -> County {
         County {
             event_fired: false,
+            event_id: 0,
             owner: 0,
             health_band: 0,
             health_meter: 0,
@@ -303,6 +340,7 @@ impl County {
             happiness_avg: 0,
             happiness_sum: 0,
             shown_ale: 0,
+            ale_happiness_given: 0,
             unrest: 0,
             unrest_warned: false,
             population: 0,

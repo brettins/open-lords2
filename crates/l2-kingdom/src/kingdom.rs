@@ -89,9 +89,128 @@ pub struct Kingdom {
     /// `g_turnPhase` and `g_turnPhaseStep`.
     pub turn: TurnMachine,
     pub options: Options,
-    /// The simulation's generator. Frozen in-tree in `l2-net`; two draws a
-    /// season for the weather, two per county for the event roll.
+    /// The simulation's generator. Frozen in-tree in `l2-net`; three draws a
+    /// season — one for the event deck's starting slot and two for the weather.
     pub rng: Pcg32,
+    /// The history ring `Season_Advance`'s second-to-last pass writes.
+    /// See [`History`].
+    pub history: History,
+}
+
+/// `FUN_004AE7DD` — the history ring `docs/kingdom.md` §3.4 names and nothing
+/// more.
+///
+/// **400 seasons x 16 counties x `{population, happiness}`.** The length is not
+/// inferred: save block 10 is `0x0056D8C0` for 51,200 bytes and
+/// `400 * 16 * 8` is exactly 51,200. Three globals go with it — the write head
+/// (`0x0055300C`), the oldest entry (`0x00568DA8`) and the number of entries
+/// held (`0x00553F30`, saturating at 400) — and each is its own four-byte save
+/// block, so the whole structure is confirmed by the save layout rather than
+/// only by the code.
+///
+/// Once the ring is full the head keeps advancing and the tail follows it, so a
+/// game longer than 400 seasons — a hundred years — silently forgets its
+/// beginning.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct History {
+    /// `[season][county - 1]`, oldest at [`History::tail`].
+    entries: Vec<[HistoryEntry; crate::tables::HISTORY_COUNTIES]>,
+    head: usize,
+    tail: usize,
+    len: usize,
+}
+
+/// One county's line in one season of the ring: `{i32 population, i8
+/// happiness}` in eight bytes, four of them padding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct HistoryEntry {
+    pub population: i32,
+    pub happiness: i8,
+}
+
+impl Default for History {
+    fn default() -> Self {
+        History::new()
+    }
+}
+
+impl History {
+    pub fn new() -> History {
+        History {
+            entries: vec![
+                [HistoryEntry::default(); crate::tables::HISTORY_COUNTIES];
+                crate::tables::HISTORY_SEASONS
+            ],
+            head: 0,
+            tail: 0,
+            len: 0,
+        }
+    }
+
+    /// How many seasons are held, up to [`crate::tables::HISTORY_SEASONS`].
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Write this season's line for counties 1..=16 and advance the ring.
+    ///
+    /// The original's loop is `for (c = 1; c < 0x11; c++)` — **counties 1..=16
+    /// unconditionally**, not `1..=g_countyCount` — so the slots above the map's
+    /// county count are filled with whatever the unused records hold, which is
+    /// zero. Reproduced, because it is what a reader of the ring has to expect.
+    pub fn record(&mut self, counties: &[County]) {
+        let slot = &mut self.entries[self.head];
+        for c in 1..=crate::tables::HISTORY_COUNTIES {
+            let county = &counties[c];
+            slot[c - 1] = HistoryEntry {
+                population: county.population,
+                // The original stores a signed byte. Happiness is clamped
+                // 0..=100 by `Happiness_UpdateAll`, so the narrowing is safe
+                // here, but it is done rather than widened so a caller cannot
+                // come to depend on a range the original does not have.
+                happiness: county.happiness as i8,
+            };
+        }
+        self.len += 1;
+        if self.len > crate::tables::HISTORY_SEASONS {
+            self.len = crate::tables::HISTORY_SEASONS;
+            self.tail += 1;
+            if self.tail >= crate::tables::HISTORY_SEASONS {
+                self.tail = 0;
+            }
+        }
+        self.head += 1;
+        if self.head >= crate::tables::HISTORY_SEASONS {
+            self.head = 0;
+        }
+    }
+
+    /// One county's history, oldest season first. `county` is 1-based.
+    pub fn county(&self, county: usize) -> Vec<HistoryEntry> {
+        if county < 1 || county > crate::tables::HISTORY_COUNTIES {
+            return Vec::new();
+        }
+        (0..self.len)
+            .map(|i| {
+                let slot = (self.tail + i) % crate::tables::HISTORY_SEASONS;
+                self.entries[slot][county - 1]
+            })
+            .collect()
+    }
+
+    /// The most recent season recorded, or `None` before the first.
+    pub fn latest(&self) -> Option<&[HistoryEntry; crate::tables::HISTORY_COUNTIES]> {
+        if self.len == 0 {
+            return None;
+        }
+        let slot =
+            (self.head + crate::tables::HISTORY_SEASONS - 1) % crate::tables::HISTORY_SEASONS;
+        Some(&self.entries[slot])
+    }
 }
 
 impl Kingdom {
@@ -110,6 +229,7 @@ impl Kingdom {
             turn: TurnMachine::new(),
             options: Options::default(),
             rng: Pcg32::from_seed(seed),
+            history: History::new(),
         }
     }
 
@@ -234,18 +354,39 @@ impl Kingdom {
     }
 
     fn event_roll(&mut self, report: &mut SeasonReport) {
+        let Some(season) = self.season() else { return };
         let humans: [bool; MAX_REALMS] = core::array::from_fn(|i| self.realms[i].is_human);
         let owner_is_human = move |owner: u8| {
             owner != 0 && (owner as usize) < MAX_REALMS && humans[owner as usize]
         };
+        // The seven events that touch a treasury or a stockpile read and write
+        // the realm record, which `event` deliberately does not depend on.
+        let mut purses: Vec<event::RealmPurse> = self
+            .realms
+            .iter()
+            .map(|r| event::RealmPurse {
+                gold: r.gold,
+                wood: r.wood,
+                stone: r.stone,
+                weapons: r.weapons,
+            })
+            .collect();
         event::roll_all(
             &mut self.counties,
             self.county_count,
             &owner_is_human,
+            &mut purses,
             self.year,
+            season,
             &mut self.rng,
             &mut report.messages,
         );
+        for (realm, purse) in self.realms.iter_mut().zip(purses) {
+            realm.gold = purse.gold;
+            realm.wood = purse.wood;
+            realm.stone = purse.stone;
+            realm.weapons = purse.weapons;
+        }
     }
 
     fn weather(&mut self) {
@@ -280,12 +421,15 @@ impl Kingdom {
     /// The bill itself is [`industry::compute_wages`] over the realm's units,
     /// and units live in `g_units`, which is not this crate's. So the caller
     /// sets `realm.wages` before the season advances; this pass spends it.
+    /// The `had_mercenaries` answer `industry::pay` needs comes from the unit
+    /// array, which is not this crate's. A kingdom with no unit model has none,
+    /// so the first unpaid season is the plain *"Unpaid troops"* warning.
     fn wages_pay(&mut self, report: &mut SeasonReport) {
         for id in 1..MAX_REALMS {
             if !self.realms[id].in_play {
                 continue;
             }
-            industry::pay(&mut self.realms[id], id as u8, &mut report.messages);
+            industry::pay(&mut self.realms[id], id as u8, false, &mut report.messages);
         }
     }
 
@@ -360,7 +504,12 @@ impl Kingdom {
             if owner == 0 || owner >= MAX_REALMS {
                 continue;
             }
-            industry::produce(&mut counties[id], &mut realms[owner], commodity);
+            industry::produce(
+                &mut counties[id],
+                &mut realms[owner],
+                commodity,
+                self.options.advanced_farming,
+            );
         }
     }
 
@@ -383,9 +532,10 @@ impl Kingdom {
         population::update_all(&mut self.counties, self.county_count, season);
     }
 
-    /// The history ring. `docs/kingdom.md` §3.4 names it and nothing more —
-    /// neither its length nor what it stores was traced, so nothing is stored.
-    fn history(&mut self) {}
+    /// The history ring — `FUN_004AE7DD`. See [`History`].
+    fn history(&mut self) {
+        self.history.record(&self.counties);
+    }
 
     /// `AI_SetTaxRates`' resource grants, which run in the AI's turn rather
     /// than in `Season_Advance`. Exposed separately for that reason.
