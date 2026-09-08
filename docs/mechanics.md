@@ -71,8 +71,32 @@ Legend:
 ### The wider game
 - ✅ Random events: a 256-slot deck, 24 distinct, and the bug that exempts even-numbered counties
 - 📖 The AI's fourteen-step turn, its four personalities and tax ladders
+- 📖 **The four lords are the Knight, the Baron, the Countess and the Bishop** — `L2.eng`
+  group 7, and the `Kt`/`Bn`/`Ct`/`Bp` prefixes on 448 shipped voice files. Four
+  personality records, not five. `docs/diplomacy.md` §0
+- 📖 **The Bishop builds royal castles at 2,000 gold** where the Knight needs 10,000 and the
+  Baron and Countess never build one — and he is also the lord handed the most free gold
+  every turn. It is the same byte, `lord == 4`, in both tables. §8.1–8.2
 - ✅ Scoring
-- 🕳 Diplomacy
+- 📖 **Diplomacy — traced end to end, implemented nowhere.** `docs/diplomacy.md`
+  - 📖 **A standing per pair of realms**, −30 … +30, in the realm record at `+0x84 + n*0x10`.
+    It heals +1 a turn towards other AIs and **never towards a human player**
+  - 📖 **Seven messages you can send**: gift, compliment, insult, offer alliance, terminate
+    alliance, ask an ally for help, ask an ally to attack. Five inbox slots per realm; the AI
+    answers on its next turn, so a reply lags one turn
+  - 📖 **Gold gifts ratchet.** Each gift is judged against the largest you have ever sent, and
+    one under half the increment costs 8 standing — more than the best gift gains
+  - 📖 **Compliments sour.** +15, +8, then −4 for every one after the third, forever
+  - 📖 **Alliances are exclusive** — one ally at a time, one byte. They gate asking for help
+    and they gate the offence hook. An AI's grudge against its own ally grows every turn and
+    breaks the alliance at a per-lord threshold
+  - 📖 **Two warnings then war.** Once an AI's standing bottoms out it sends *"Warning."*
+    twice and then *"Notice of revenge."*, after which it will never ally with you again
+  - 📖 **A message is an `L2.eng` group id**, and its voice file is
+    `<Kt|Bn|Ct|Bp><group>_<1..4>.wav` — all 448 are in the install
+  - 🕳 The diplomacy screen — `0x0B`, *"the other lords"*, `faces.pl8`, one of the 29
+  - ❓ Whether the Baron favours peasant armies. The per-lord weapon rota is read; what its
+    six fields index is **not established**. §8.3
 - ❓ Armies on the campaign map: raising, moving, supplying. **Nothing exists.**
 - ❓ Merchants and transports as things that move
 

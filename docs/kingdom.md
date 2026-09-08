@@ -205,7 +205,7 @@ this array's `+0x05` without naming the array.
 | `+0x00` | i32 | aiStep | [V] | program counter through the AI's turn: 0 is the initialisation, 1 … 14 the handlers, then idle steps up to `15 + 2×realm`; **999 is written when it finishes and 1000 is what lands in the record**. §3.2. |
 | `+0x04` | u8 | **strength** | [V] | **not a flag.** `3 × ownedCounties + 1 × armies`, rebuilt by AI step 0; the realm is eliminated when it is zero, and every other site only tests it against zero. §8.3. |
 | `+0x05` | u8 | **isHuman** | [V] | when set, the AI turn machine is skipped entirely. This is the same byte `battle.md` §6.2 could not explain the meaning of; it means "a person is driving this realm". |
-| `+0x07` | u8 | lord | [V] | 0 for the human, 1 … 5 for an AI lord, **6 when eliminated**. Indexes `g_aiPersonality` (which has four records — §8.2) and `g_aiGoldGrant`. |
+| `+0x07` | u8 | **lord** | [V] | 0 for the human and **1 … 4 for the four AI lords — the Knight, the Baron, the Countess and the Bishop**, which is `L2.eng` group 7 exactly; **6 when eliminated**. Indexes `g_aiPersonality` (four records) and `g_aiGoldGrant` (five rows, row 0 being the human). **This is not the realm index**: setup draws the lord from `g_lordChoice` and the realm's colour from `+0x0A` separately. [`diplomacy.md`](diplomacy.md) §0. |
 | `+0x0C` | i32 | meanHappiness | [V] | mean over the realm's counties, rebuilt by AI step 14. Score input ×2. |
 | `+0x10` `+0x14` `+0x18` | i32 | population total, mean, previous total | [V] | rebuilt by AI step 14. `+0x10` is a score input ÷10. |
 | `+0x28` | i8 | taxHapEmpire | [V] | sum of every owned county's `+0x16`; added to every county's tax happiness term. **A signed byte summed over up to 16 counties — it can overflow.** |
@@ -258,24 +258,29 @@ that realm's `+0x00`. All fourteen handlers have now been decompiled:
 | step | address | what it does |
 |---:|---|---|
 | *0* | `0x0049B42B` | **not a handler** — recount realm strength, eliminate the realm if it is zero, `Score_RankRealms`, then set the counter to 1 |
-| 1 | `0x004A277D` | answer the five pending messages in the realm's diplomatic inbox (`0x0053F0F0`, 5 × 8 bytes per realm) |
-| 2 | `0x004A0C1D` | age each rival's grudge counter, add to it for a rival who is winning or holds a coveted county, declare war when it passes the lord's threshold |
+| 1 | `Diplo_AnswerInbox` `0x004A277D` | answer the five pending messages in the realm's inbox (`g_diploInbox`, `0x0053F0F0`), then empty it. [`diplomacy.md`](diplomacy.md) §2.1 |
+| 2 | `AI_Diplomacy` `0x004A0C1D` | **the whole diplomacy driver.** Heal standing +1 a turn towards every non-human realm, age the alliance grudge and break it past the lord's threshold, and court an ally. [`diplomacy.md`](diplomacy.md) §4.1 |
 | 3 | `0x0049D638` | `AI_SetTaxRates` — §8.2 |
 | 4 | `0x0049E1BF` | total what the realm can sell and what it needs to buy, into realm `+0x70 … +0x7C` |
 | 5 | `0x0049DD01` | `AI_ManageFields` — add fields as the county grows, then apply the lord's farming style |
-| 6 | `0x0049EDC7` | order the largest castle the treasury clears, from five per-lord gold thresholds at personality `+0xCC … +0xDC` |
+| 6 | `AI_BuildCastles` `0x0049EDC7` | order the largest castle the treasury clears, from five per-lord gold thresholds at personality `+0xCC … +0xDC`, capped at personality `+0x90` concurrent builds. [`diplomacy.md`](diplomacy.md) §8.1 |
 | 7 | `0x0049F93D` | three army-management sub-passes |
 | 8 | `0x0049F96C` | **nothing — the function is empty** |
 | 9 | `0x0049F977` | raise men in the realm's chosen county and march them |
 | 10 | `0x004A0015` | create a type-7 unit and send it out |
 | 11 | `0x004A5667` | walk every army towards its target tile |
 | 12 | `0x0049E77D` | set every county's weapon type from a ten-step per-lord rota, switch the four industries on or off, reallocate labour |
-| 13 | `0x004A13A6` | offer an alliance, or break one |
+| 13 | `AI_Taunt` `0x004A13A6` | **not alliances** — a taunt timer. A realm ranked better than 2nd sends *"How are you doing?"* above 39 % of the map and *"Helpful advice."* to the last-placed human above 27 %. [`diplomacy.md`](diplomacy.md) §6 |
 | 14 | `0x0049D1E0` | recompute the realm's totals — §8.3 |
 
 **[V]** on the fourteen addresses and the dispatch. **[D]** on the one-line descriptions
-of 1, 2, 4, 6, 7, 9, 10, 11, 12 and 13, which are read off decompiled C with no second
-source. Steps 3, 5 and 14 are **[V]** and are written out in §8.2 and §8.3.
+of 4, 7, 9, 10, 11 and 12, which are read off decompiled C with no second source. Steps 3, 5
+and 14 are **[V]** and are written out in §8.2 and §8.3; steps 1, 2, 6 and 13 are written out
+in [`diplomacy.md`](diplomacy.md).
+
+**Steps 2 and 13 were the wrong way round here until the diplomacy work.** This section had
+step 2 as a grudge counter and step 13 as *"offer an alliance, or break one"*. Step 2 does
+both of those; step 13 does neither and is a taunt timer. The rows are corrected above.
 
 Three corrections to what this section used to say:
 
@@ -1188,8 +1193,12 @@ records hold, at `+0x00` and `+0x04`:
 **There are four records, not five.** §2 says the lord byte runs 1 … 5; a fifth record
 would begin at `0x004D8E18`, and what is there fits no pattern — 17 and 0 where every real
 record has a farming style of 0, 1 or 9, and 5000 where the four records hold 100, 100,
-200 and 50. So `0x004D8E18` is taken to be past the end. **[I]**, and it is the one thing
-about this function still open. The farming style is copied into county `+0x1FE` by step 5
+200 and 50. So `0x004D8E18` is taken to be past the end. **This is now [V] and closed**: it is the
+campaign-progression table `FUN_00499E5D` reads with a `0x20` stride, and the four lords are
+independently named by `L2.eng` group 7 — the Knight, the Baron, the Countess and the Bishop.
+See [`diplomacy.md`](diplomacy.md) §0. Note also that both this table and `g_aiGoldGrant` are
+indexed by the **lord byte** (realm `+0x07`), not by the realm index; row 0 of the gold tables
+is lord 0, the human. The farming style is copied into county `+0x1FE` by step 5
 and dispatched on; 0, 1 and 9 are exactly the three values the dispatch tests, which is a
 check on the field's identity. **What each style does was not traced.**
 

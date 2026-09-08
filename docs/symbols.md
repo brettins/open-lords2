@@ -78,6 +78,13 @@ clip state and are presumably variants for other pixel paths. Not yet examined.
 |---|---|---|---|
 | `0x0040187A` | `Eng_GroupBase(group)` | verified | Returns the byte offset of an L2.eng group, read as the low 24 bits of the u32 at file offset 8 + group*4. See docs/formats/eng.md. |
 | `0x00402D37` | `Eng_DrawString(group, index, x, y, font, colour)` | verified | Draws string `index` of L2.eng group `group`: Eng_GroupBase(group), then skip `index` NUL-terminated strings, then skip any bytes below 0x20. The (group, index) pairs in the callers are the best evidence available for what a subsystem is. |
+| `0x004018D7` | `Eng_Seek(group, index)` | verified | Walks L2.eng to the (group, index) string and leaves the pointer in g_engCursor, exactly as docs/formats/eng.md 1.3 describes. New-game setup calls Eng_Seek(7, realm[+0x07]) and copies 16 bytes into g_playerNames - the game naming its own lords out of group 7, which is what fixes 1 = The Knight, 2 = The Baron, 3 = The Countess, 4 = The Bishop. |
+
+**Globals**
+
+| Address | Name | Confidence | Meaning |
+|---|---|---|---|
+| `0x005C9270` | `g_engCursor` | verified | Where Eng_Seek leaves its pointer; the caller reads or copies the string from here. |
 
 <!-- END symbols.json: text -->
 
@@ -583,7 +590,7 @@ ways - and the block list sums to the exact byte size of a shipped `lastturn.sav
 | `0x004D8A10` | `g_castleGarrisonCap` | verified | Troops a castle can hold: 150, 200, 200, 400, 600. |
 | `0x004D8A28` | `g_castleTaxBonus` | verified | Percent tax bonus by castle type: 50, 75, 100, 125, 150 - the same ratios as Tax_CollectAll's 480/560/640/720/800 over the castle-less 320. |
 | `0x004D8A40` | `g_castleFreeArchers` | verified | Archers a newly finished castle is given: 50, 150, 150, 200, 300. |
-| `0x004D8A5C` | `g_aiPersonality` | inferred | Per-AI-lord behaviour parameters, three 0x50-byte rows per lord and only the first row used, so the stride is 0xF0. THIS ADDRESS IS THE RECORD'S +0x04 FIELD, not its start: AI_SetTaxRates reads *(int *)(&g_aiPersonality + (lord * 3 - 3) * 0x50) as the tax-ladder selector, and the record itself begins four bytes earlier at 0x004D8A58 with the farming style AI_ManageFields dispatches on. Four records, lords 1..4: farming style 1/1/0/9, tax ladder 2/2/2/1. A fifth would begin at 0x004D8E18 and what is there fits no pattern. |
+| `0x004D8A58` | `g_aiPersonality` | verified | Per-AI-lord behaviour parameters: FOUR records of 240 bytes (0x50 x 3, only the first row used), lords 1..4 = the Knight, the Baron, the Countess and the Bishop (L2.eng group 7). Addressed as base + (lord * 3 - 3) * 0x50. The record's +0x00 is the farming style AI_ManageFields dispatches on and +0x04 the AI_SetTaxRates ladder selector; an earlier revision gave this address as the +0x04 field. There is no fifth record: 0x004D8A58 + 4 * 240 = 0x004D8E18, and what begins there is the campaign-progression table FUN_00499E5D reads with a 0x20 stride. Traced fields are in docs/diplomacy.md 8.4. |
 | `0x004DC1E0` | `g_aiGoldGrant` | verified | int[5][4] free gold per turn by AI lord and difficulty for a realm holding three or more counties: 0/0/0/0, 0/400/700/1200, 100/500/800/1400, 0/400/700/1200, 250/600/1100/1800. |
 | `0x004DC230` | `g_aiGoldGrantSmall` | verified | The same shape, used when the realm holds fewer than three counties. |
 
@@ -792,6 +799,97 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x004D71F0` | `g_glyphWidths` | inferred | One byte per printable character; zero means a four-pixel blank, which is what makes '@' an invisible sign column. |
 
 <!-- END symbols.json: ui -->
+
+## Diplomacy, messages and the AI lords
+
+The four AI lords, the per-pair standing between realms, the seven letters a player can send,
+and the message window that shows the replies. Written up in full in
+[`diplomacy.md`](diplomacy.md).
+
+`docs/mechanics.md` carried diplomacy as a one-line gap until a player mentioned in passing
+that you can message the nobles, ally with them and send them gold. All of it is here, and so
+is the answer to *"the bishop always builds really big castles"*: lord 4 has both the cheapest
+royal-castle threshold and the largest free-gold row, and it is the same byte in both tables.
+
+A message **is** an `L2.eng` group id, and for the 28 groups 170 … 197 the variant index is
+`lord × 4 + rot − 4` — which is also the index into a table of 448 shipped `.wav` filenames
+prefixed `Kt`, `Bn`, `Ct`, `Bp`, one set per lord.
+
+<!-- BEGIN symbols.json: diplomacy -->
+
+| Address | Name | Confidence | What it does |
+|---|---|---|---|
+| `0x004A1C53` | `Diplo_Init()` | verified | Clears every inbox and every realm-pair record at new game. The one place each field of the 16-byte pair record at realm +0x84 + other*0x10 is written, which is what makes the field map in docs/diplomacy.md a reading rather than a guess: standing = 5 for an in-play AI realm and 0 otherwise, allied/grudge/warningsSent/atWar/complimentsFrom/hasMail = 0, bestGift = 0, helpPriceMultiple = 1. |
+| `0x004A2621` | `Diplo_Post(from, to, kind, gold, county)` | verified | The only writer of g_diploInbox. Fills the first free of five slots; bumps the recipient pair record's complimentsFrom when kind == 1; sets hasMail; and moves the gold immediately, clamped to what the sender holds - a gift is spent when it is posted, not when it is answered. |
+| `0x004A277D` | `Diplo_AnswerInbox(realm)` | verified | AI turn step 1. Walks the realm's five inbox slots, dispatching kind 0..6 to the seven reply handlers, then zeroes all five slots and all six hasMail bytes. An inbox is emptied every turn whether or not it was full, and a human realm never runs this because the AI turn machine is skipped for it. |
+| `0x004A2584` | `Diplo_ClearInboxes()` | verified | Zeroes all 6 x 5 inbox slots. Called by Diplo_Init. |
+| `0x004A29B2` | `Diplo_ReplyGift(me, them, gold)` | inferred | Kind 0. Three tiers against best + T/2 and best + T, where T = personality +0x08 and best = pair.bestGift: L2.eng group 173 and standing -8, group 172 and +5, group 171 and +10. Then bestGift = max(bestGift, gold), so the bar ratchets and each gift must beat the last. |
+| `0x004A2CD6` | `Diplo_ReplyCompliment(me, them)` | inferred | Kind 1. On pair.complimentsFrom, which Diplo_Post incremented and nothing ever resets: 1 -> group 174 and standing +15, 2 -> group 175 and +8, 3 or more -> group 176 and -4. Group 176 is 'You are boring me now with your groveling letters.' |
+| `0x004A2F61` | `Diplo_ReplyInsult(me, them)` | inferred | Kind 2. Breaks any alliance between the two, standing -20, replies with L2.eng group 177. |
+| `0x004A30F6` | `Diplo_ReplyAllianceOffer(me, them)` | inferred | Kind 3. Refuses with group 196 if already at war, 197 if I already have an ally, 178 otherwise; accepts with 179 and Diplo_FormAlliance. Accepts outright at standing >= 11, refuses outright below -10, and in between rolls g_rand7B < standing*3 + 45 out of 128. Accept +4, plain refusal -2, 'cannot' refusal -1. |
+| `0x004A3475` | `Diplo_ReplyAllianceEnd(me, them)` | inferred | Kind 4. Breaks the alliance and takes standing -15. Sends no message at all - terminating an alliance from the diplomacy screen is silent. Group 182 'Broken alliance.' comes from Diplo_Offend instead, when an act rather than a letter breaks one. |
+| `0x004A3551` | `Diplo_ReplyHelpRequest(me, them, county)` | inferred | Kind 5. Refuses with group 183 (+1 grudge) unless they are my ally, my gold is at least personality +0x30, and standing is at least 10; then g_rand7B < standing*4 accepts with group 184 and marches for free, otherwise group 185 demands personality[+0x0C] * pair.helpPriceMultiple gold. |
+| `0x004A38DB` | `Diplo_ReplyAttackRequest(me, them, county)` | inferred | Kind 6, identical in shape to Diplo_ReplyHelpRequest but with groups 186/187/188, a +2 grudge on refusal and half the acceptance odds (g_rand7B < standing*2). |
+| `0x004A1774` | `Diplo_FormAlliance(a, b)` | verified | Sets pair.allied = 1 and pair.grudge = 0 both ways and realm +0x81 on both sides. Six bytes; that is the whole of what an alliance is. realm +0x81 is a single byte, so a realm has at most one ally. |
+| `0x004A1A54` | `Diplo_BreakAlliance(a, b)` | verified | Clears pair.allied and realm +0x81 on whichever sides point at the other. Does not touch standing - the caller applies that. |
+| `0x004A1847` | `Diplo_ReconcileAlliances()` | inferred | Called from Turn_Tick. Rebuilds the allied matrix from the realms' ally bytes and drops any pairing that is one-sided or whose partner has been eliminated. |
+| `0x004A16F7` | `Diplo_ActionAllowed(actor, target)` | inferred | Returns 0 when target is actor's ally - adding 1 to the ally's grudge instead - or when the two are the same realm; 1 otherwise. Gates the offence hook, which is why hostile acts against an ally cost grudge rather than standing. |
+| `0x004A1B29` | `Diplo_PayForHelp(ally, payer, county, price)` | inferred | Moves price gold from payer to ally if they can afford it, increments pair.helpPriceMultiple so the next purchase costs more, takes standing -4, and sets the ally's warTarget (realm +0xE8) to the county. Called with price 0 when the ally agreed for free, and from the pay prompt otherwise. |
+| `0x004A1EE1` | `Diplo_Offend(offended, offender, amount)` | inferred | The single hook every relationship-damaging act goes through. If the offender was an ally: break it, set pair.atWar unless the offended lord is 4 (the Bishop), set warTarget, Diplo_OffendAll(offender, 15), send group 182, and add 15 to the penalty. Then standing -= amount, clamped to [-30,+30]. Once standing bottoms out at -30 against a human it walks pair.warningsSent: group 189, then 190, then 191 and war. |
+| `0x004A24D1` | `Diplo_OffendAll(realm, amount)` | inferred | Lowers every other realm's standing towards this one. Only reached from Diplo_Offend when an alliance is betrayed - the one act in the game that costs reputation with third parties. |
+| `0x004A1241` | `Diplo_PickAllyCandidate(realm)` | inferred | Picks the best-ranked realm that is in play, not ranked 1st, unallied, not already being courted, not at war with this one, and above standing -10. Returns 0 for none. |
+| `0x004A1E6C` | `Diplo_DefaultTarget()` | inferred | Sets g_diploTarget to the first in-play realm that is not the local player, or 0. |
+| `0x004A0C1D` | `AI_Diplomacy(realm)` | inferred | AI turn step 2, and the real diplomacy driver. Heals standing by +1 a turn towards every NON-HUMAN realm, so an AI's opinion of a human player never recovers. Then ages the alliance grudge and breaks the alliance past personality +0x10; then, from year 1269 and if not ranked 1st, courts Diplo_PickAllyCandidate's pick every personality +0x14 turns - silently against an AI, with group 180 against a human. Its ally-is-winning tier ladder has its comparisons inverted, so two of its three tiers are unreachable. |
+| `0x004A13A6` | `AI_Taunt(realm)` | inferred | AI turn step 13. Not 'offer an alliance or break one' as docs/kingdom.md 3.2 said: a taunt timer. A realm ranked better than 2nd and holding more than 39 percent of the map sends group 193 'How are you doing?' to every human after 8 turns; afterwards, above 27 percent, it sends group 192 'Helpful advice.' to the last-placed realm if that realm is human and not its ally. |
+| `0x0049EDC7` | `AI_BuildCastles(realm)` | inferred | AI turn step 6. For each owned, castle-less county above personality +0xC8 population, and while the realm has fewer than personality +0x90 builds in progress, orders the largest castle type whose gold threshold at personality +0xCC..+0xDC the treasury clears. A zero threshold means that type is not offered to that lord. The Bishop reaches the royal castle at 2,000 gold where the Knight needs 10,000, and the Baron and Countess never build one. |
+| `0x0049FCC5` | `AI_EmergencyWeapons(realm)` | inferred | An AI down to one county before year 1273 is handed 100 each of weapon types 3 and 4 if its lord is 4 (the Bishop), or 100 of weapon type 0 if its lord is 3 (the Countess). The Knight and the Baron get nothing. Returns 1 if it granted anything. |
+| `0x00472BC5` | `Msg_Enqueue(from, to, group, variant, category, county, spare, payload)` | verified | The general notification path, 144 call sites. Builds a 24-byte record at g_messageCompose and copies it into the 50-slot ring g_messageQueue. The group is an L2.eng group id and the variant selects the string within it (drawn as variant + 1, past the group's label at index 0). Enqueues only when the recipient is realm 0 or the local player - the three isHuman branches all compute that same predicate. |
+| `0x00472DF5` | `Msg_EnqueueCurrent()` | inferred | Pushes whatever is already in g_messageCompose onto the ring. The tail half of Msg_Enqueue, reached directly by callers that filled the compose record themselves. |
+| `0x00472AE0` | `Msg_Reset()` | inferred | Clears the message ring, its head and tail and the pending flag. |
+| `0x00472E46` | `Msg_Pump()` | inferred | Pulls one record from g_messageQueueTail, unpacks it into g_messageGroup, g_messageVariant and friends, starts the 2000-tick g_messageTimer and calls Msg_DrawWindow. Runs only on screens 0x00, 0x27, 0x29 and 0x0F with job panel 8. |
+| `0x0047309E` | `Msg_DrawWindow()` | inferred | Draws the message window. The layout is chosen by the record's category byte; the text is Eng_DrawString(group, 0) for the heading and (group, variant + 1) for the body, and Msg_PlayVoice is called with the same (group, variant). 10,915 bytes, read here only for its text and voice lookups. |
+| `0x004B35C1` | `Msg_PlayVoice(group, variant)` | verified | Maps an L2.eng group to a .wav filename in one of three tables. Groups 170..197 - the diplomatic letters - index g_msgVoiceLord by (group - 170) * 0x100 + variant * 0x10, giving Kt/Bn/Ct/Bp <group>_<1..4>.wav for the Knight, Baron, Countess and Bishop. Groups 100..169 and 200..284 have one system file each. All 448 lord files exist in the install. |
+| `0x00416CF3` | `Diplo_DrawScreen()` | inferred | Screen 0x0B, 'the other lords'. Loads faces.pl8, draws one lord card per rival, and draws L2.eng group 72 as the action menu in one of four layouts held in g_diploMenuState: no ally (items 2-5), allied to this lord (2,3,4,6,7,8), allied elsewhere (2,3,4), or a message already pending from them (item 24 alone). |
+| `0x004171EE` | `Diplo_DrawLordCard(realm, slot)` | inferred | One rival's card: portrait from faces.pl8 frame lord*3-3 (frame 12 for a human), shield, name from g_playerNames, allied / at-war / mail icons, and a 10 x 63 standing thermometer whose three colours break at standing >= +11 and <= -11 - exactly the two thresholds Diplo_ReplyAllianceOffer decides on. |
+| `0x00436408` | `Diplo_SendClicked()` | inferred | The diplomacy screen's Send button. Validates the county for kinds 5 and 6 (refusals are L2.eng groups 240-244) and the target's existing alliance for kind 3 (group 219), copies the drafted letter into the player's g_diploLetter slot, then calls Diplo_Post - or, in multiplayer, issues net command 0x48 or 0x49 instead. |
+| `0x004367FF` | `Diplo_PayHelpClicked()` | inferred | The pay-for-help prompt's accept button: Diplo_PayForHelp(myAlly, me, g_diploHelpCounty, g_diploHelpPrice). |
+| `0x00448308` | `Net_DiploPost()` | inferred | Network command handler - it has no callers in the decompilation, so it is dispatched from a command table. Calls Diplo_Post from the arguments the net layer unpacked; FUN_00448339 is the gold-transfer half. |
+
+**Globals**
+
+| Address | Name | Confidence | Meaning |
+|---|---|---|---|
+| `0x0053F0F0` | `g_diploInbox` | verified | Six realms x five message slots x 8 bytes. Slot: +0x00 sender realm (0 terminates), +0x01 kind 0..6, +0x02 a county id for kinds 5 and 6, +0x04 gold for kind 0. Written only by Diplo_Post and drained by Diplo_AnswerInbox at AI step 1, so a message takes one turn to be answered. |
+| `0x00568480` | `g_messageQueue` | verified | The message ring: 50 records of 0x18 bytes. +0x00 to, +0x04 from, +0x08 L2.eng group, +0x0C variant, +0x11 category (window layout), +0x12 county, +0x14 payload. Head g_messageQueueHead, tail g_messageQueueTail, both wrapping at 50. |
+| `0x00543FD0` | `g_messageQueueHead` | verified | Write index into g_messageQueue, wrapping at 50. |
+| `0x00553EC4` | `g_messageQueueTail` | inferred | Read index into g_messageQueue, wrapping at 50. Msg_Pump advances it. |
+| `0x00553510` | `g_messageCompose` | verified | The 0x18-byte staging record Msg_Enqueue fills before copying it into g_messageQueue. |
+| `0x0053E910` | `g_messageGroup` | inferred | The L2.eng group of the message currently on screen; 0 means none. |
+| `0x005440AC` | `g_messageVariant` | inferred | The variant index of the message on screen. Drawn as string variant + 1 and passed straight to Msg_PlayVoice. |
+| `0x005440A4` | `g_messageCategory` | inferred | The category byte of the message on screen; selects the window layout in Msg_DrawWindow and the timing rules in Msg_Pump. |
+| `0x0057C954` | `g_messageTimer` | inferred | Countdown while a message window is up; Msg_Pump sets it to 2000. |
+| `0x00565484` | `g_messagePending` | inferred | Set by Msg_Enqueue when something has been queued, cleared by Msg_Reset. |
+| `0x004E0458` | `g_msgVoiceLord` | verified | 16-byte .wav filenames for the 28 diplomatic message groups 170..197, indexed (group - 170) * 0x100 + variant * 0x10. Sixteen per group: Kt<g>_1..4, Bn<g>_1..4, Ct<g>_1..4, Bp<g>_1..4 - Knight, Baron, Countess, Bishop, four takes each. 0x004E0458 + 28 * 0x100 = 0x004E2058, where the next filename table begins, so the extent is exact and all 448 files are present in the install. |
+| `0x004DF9B8` | `g_msgVoice100` | verified | 16-byte .wav filenames S100_01 .. S169_01, one per L2.eng group 100..169, indexed (group - 100) * 0x10. Seventy entries, ending exactly at g_msgVoice200. |
+| `0x004DFE18` | `g_msgVoice200` | verified | 16-byte .wav filenames S200_01 .. S284_01, one per L2.eng group 200..284, indexed (group - 200) * 0x10. |
+| `0x004DF7B8` | `g_msgVoiceS010` | inferred | 16-byte .wav filenames S010_01 .. S010_16, indexed 0..15 by a caller-supplied number rather than by group. |
+| `0x005651CC` | `g_diploKind` | inferred | The message kind picked on the diplomacy screen, 0..6. It is the L2.eng group 72 menu index minus 2: 0 gift, 1 compliment, 2 insult, 3 offer alliance, 4 terminate alliance, 5 ask for help, 6 ask for an attack. |
+| `0x00553FBC` | `g_diploTarget` | inferred | The rival realm selected on the diplomacy screen. |
+| `0x0057A0F8` | `g_diploGold` | inferred | The gold amount typed on the gift page; forced to 0 for every kind other than 0. |
+| `0x00553F38` | `g_diploMenuState` | inferred | Which of the four group 72 menu layouts the diplomacy screen draws: 0 no ally, 1 allied to this realm, 2 allied to another, 3 a message from this realm is already waiting. |
+| `0x0053F2B8` | `g_diploLetterDraft` | inferred | Four 200-byte free-text letter buffers, one per message kind 1..4, typed by the player on screen 0x1A. |
+| `0x00567D10` | `g_diploLetter` | inferred | One 0xCA-byte outgoing letter per realm. Diplo_SendClicked copies the draft here and Msg_DrawWindow draws it for the recipient; it is saved and loaded with the game. |
+| `0x00567958` | `g_diploHelpPrice` | inferred | The gold an ally is demanding for help or an attack: personality +0x0C times the pair record's helpPriceMultiple, so it rises with every purchase. |
+| `0x0055CE50` | `g_diploHelpCounty` | inferred | The county the pay-for-help prompt refers to. |
+| `0x005530B0` | `g_pickedCounty` | inferred | The county last picked on the minimap; the diplomacy screen reads it for message kinds 5 and 6. |
+| `0x00553D24` | `g_rankLeader` | inferred | The top-ranked realm, the first non-zero entry of the table Score_RankRealms sorts. An AI envies an ally that holds this slot. |
+| `0x00522D90` | `g_rankTrailer` | inferred | The bottom-ranked in-play realm, the last non-zero entry of the same table. AI step 13 sends it 'Helpful advice.' When it equals g_rankLeader one realm is left and the winner sends 'Just call me king.' |
+| `0x00554004` | `g_realmsActive` | inferred | A realm counter with TWO writers and two meanings: FUN_0049B6D3 sets it to the number of in-play realms and Turn_AllRealmsDone to the number that have not yet finished their turn. The diplomacy code tests it against 3 and reads whichever wrote last. Both readings mean 'the game is nearly over' and the branch refuses either way, but which was intended is not established. |
+| `0x0058FD60` | `g_rand7B` | verified | randStateB & 0x7F, so 0..127. The die the alliance and help/attack decisions roll. |
+| `0x004DC17C` | `g_lordChoice` | verified | Which of the four lords each colour slot may be given at new game: 4 scenario groups x 5 colour slots x 4 candidate lord ids, indexed 0x004DC17C + (g_scenarioIndex & 3) * 0x14 + realm[+0x0A] * 4 + n. Setup walks the four candidates and takes the first lord not already used, so THE LORD IS NOT THE REALM INDEX AND NOT THE COLOUR - every row except one is a permutation of 1..4, and 4 x 0x14 = 80 bytes ends at 0x004DC1CC. g_aiPersonality and g_aiGoldGrant are both indexed by realm +0x07, the lord, not by the realm slot. |
+| `0x004DC1CE` | `g_realmColour` | inferred | Two palette bytes per colour slot, indexed by realm +0x0A (1..5), copied into realm +0x08 and +0x09 at new game: (14,15) (251,13) (58,32) (5,253) (4,240). The colour slot is handed out in realm order and is independent of which lord the realm gets. |
+
+<!-- END symbols.json: diplomacy -->
 
 ## Networking
 
