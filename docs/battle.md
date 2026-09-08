@@ -660,12 +660,12 @@ Figures normally walk **straight at their target** — `Dir_FromDelta`, no searc
 pathfinder only runs when a figure is blocked, and then only if it has not already failed
 four times (`barred`) and its `hold it` timer has expired.
 
-`Path_Search` (`0x0047095E`) is a **uniform-cost breadth-first flood fill** over the whole
-80 × 80 grid:
+`Path_Search` (`0x0047095E`) is a **weighted breadth-first flood fill** over the whole
+80 × 80 grid. It is not a Dijkstra, and not uniform-cost either — see the correction below.
 
 | structure | address | what |
 |---|---|---|
-| `g_pathCost` | `0x00504030` | `u16` per cell: 0 unvisited, 1 the start, 998 blocked |
+| `g_pathCost` | `0x00504030` | `u16` per cell: 0 unvisited, 1 the start, **998 a friendly figure, 999 impassable** |
 | `g_pathQueue` | `0x004FA820` | circular frontier queue of `0x1900` cell indices |
 | `g_pathStepCost` | `0x004F2770` | `u8` per cell, the terrain cost |
 | `g_pathVisitCount` | `0x004F6470` | `u8` per cell, times reached so far |
@@ -678,13 +678,39 @@ four times (`barred`) and its `hold it` timer has expired.
 * the cost field is seeded from a blocked-cell template and the visit counters zeroed;
 * the start cell is set to cost 1 and pushed; the loop runs until the destination has a
   cost or the queue empties;
-* **terrain cost is charged by deferral, not by a priority queue**: a cell is only expanded
-  once `g_pathVisitCount[cell]` has reached `g_pathStepCost[cell]`, so expensive ground is
-  re-queued rather than weighted;
+* **terrain cost is charged twice over, by weighting *and* by deferral.** An earlier
+  revision of this section said "by deferral, not by a priority queue", and that was wrong
+  on the first half. Both mechanisms are present in the same loop:
+
+  ```c
+  /* deferral: an expensive cell is re-queued rather than expanded */
+  if (g_pathStepCost[cur] == 0 || g_pathVisitCount[cur]++ >= g_pathStepCost[cur]) {
+      sVar3 = g_pathCost[cur] + 1;
+      ...
+      /* weighting: the recorded cost carries the neighbour's surcharge */
+      g_pathCost[nb] = g_pathStepCost[nb] + sVar3;
+  ```
+
+  so a cell of cost *k* expands on its (*k*+1)-th pop, and what is written down is
+  accumulated cost rather than hop count. See correction **C12** in `docs/decisions.md`;
+* **the cost field is never relaxed.** A neighbour is considered only while
+  `g_pathCost[nb] == 0`, so the first cost written to a cell stands even when a cheaper
+  route reaches it later. The field is therefore not a metric, and this is not Dijkstra;
+* **[D] on a `.skr` battlefield every step costs zero.** `Path_BuildStepCost`
+  (`0x00471DA6`) only charges cells flagged `0x20` or `0x40`, and `Battlefield_BuildFromSkr`
+  sets neither. Field pathfinding is a plain breadth-first search; the weighting exists for
+  castles;
 * all eight neighbours are expanded, each only if its elevation is within 1 of the current
   cell's;
 * the queue index wraps at `0x1900`, so a search that outgrows 6,400 frontier entries
   silently overwrites its own queue.
+
+**998 and 999 are not interchangeable.** `Path_BuildBlockedMap` (`0x00471F45`) writes 998
+where a *friendly* figure stands; `Path_BuildTerrainTemplate` (`0x00471C1F`) writes 999 for
+terrain and the map border. They part company at the destination: 998 is cleared to 0 and
+the search proceeds — the figure paths onto the occupied cell and the mover swaps or waits —
+while ≥ 999 abandons the search before the first pop. Enemy figures are never marked at all,
+so the pathfinder routes straight through them and leaves contact to the mover.
 
 `Path_Extract` (`0x00472392`) then walks the cost field **downhill from the destination
 back to the start**, writing up to 150 `(x, y)` byte pairs into `g_pathWaypoints`

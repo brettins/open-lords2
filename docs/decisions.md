@@ -194,8 +194,43 @@ engine is worth building at all. And our own engine has to carry these constants
 own ruleset data — which is exactly what `crates/l2-mods` is for, so they become editable
 for the first time.
 
+**C12 — "Terrain cost is charged by deferral, not by weighting."** Wrong, and it reached
+shipped code. `docs/battle.md` §8.3 said it, `crates/l2-sim/src/pathfind.rs` repeated it in
+a module doc comment, and the implementation weighted nothing — it recorded plain hop count.
+The decompiled `Path_Search` does **both**: `cost[nb] = stepCost[nb] + (cost[cur] + 1)`, and
+separately re-queues an expensive cell until it has been popped `stepCost` extra times.
+
+Two things made this survive longer than it should have. The claim was load-bearing enough
+to be written into a module doc as the file's headline fact, which made it feel settled. And
+the test guarding it, `expensive_ground_is_deferred_rather_than_weighted`, asserted only that
+the path still ran through the expensive gap — which is true under either reading, because
+the gap was the only way through. **A test that passes before and after the change is not
+testing the thing its name claims.** It has been replaced by a differential one that measures
+the recorded cost with and without the surcharge, and reads 0 under the old code.
+
+Also corrected at the same time, from the same function: 998 and 999 are different blocked
+values (a friendly figure versus terrain) and the destination treats them differently, and
+the cost field is never relaxed, so the first cost written to a cell stands.
+
+**C13 — An agent's summary is a lead, not a finding.** C12 arrived as a line in an agent's
+report. The right response was neither to take it (it contradicted tested code) nor to
+dismiss it (it was specific and gave addresses), but to open the raw decompiler output the
+agent had left in `tools/battleai/out/path.c` and read the loop. It said something slightly
+*stronger* than the summary did — the summary omitted that the cost field is never relaxed.
+Extending C8 to our own agents: **the artefact an agent leaves behind is evidence; its prose
+is a claim.**
+
 ## Open questions
 
+- `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
+  gives the weather jitter as `random/8` with no stated range, which is not implementable —
+  the constant is the one number in that crate with no evidence behind it, and it is marked
+  as such at its definition. It needs tracing before any weather behaviour is trusted.
+- Whether `Path_Search`'s visit counters are fully cleared between searches. The clear is
+  `FUN_004b3e51(&g_pathVisitCount, 0x1000)` against a 6,400-cell grid; if that count is
+  bytes rather than dwords, the last 2,304 cells keep stale counts from the previous search
+  and deferral behaves differently on the bottom third of the map. Not resolvable from the
+  decompilation alone — it needs the callee's signature.
 - The four map planes whose meaning is inferred rather than proven (graphics bank,
   descriptor index, multi-tile object part), and the exact tile → lattice mapping,
   whose best affine fit reaches only 72%.

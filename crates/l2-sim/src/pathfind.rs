@@ -5,11 +5,31 @@
 //! blocked, and only if it has not already failed four times.
 //!
 //! The distinctive part, and the reason a textbook Dijkstra would produce
-//! different paths: **terrain cost is charged by deferral, not by weighting.** A
-//! cell is expanded only once it has been *reached* as many times as its step
-//! cost, so expensive ground is re-queued rather than ordered. Cheap ground
-//! therefore spreads first, but a cell's recorded distance is still hop count,
-//! not accumulated cost.
+//! different paths: **terrain cost is charged twice over, by weighting *and* by
+//! deferral.** The recorded cost is `cost[cur] + 1 + step_cost[neighbour]`, and
+//! separately an expensive cell must be popped `step_cost` extra times before it
+//! expands. Cheap ground therefore spreads first, and the number written down is
+//! accumulated cost, not hop count.
+//!
+//! An earlier revision of this file asserted the opposite — "deferral, not
+//! weighting" — and weighted nothing. That was wrong. The correction comes from
+//! the decompiled `Path_Search` at `0x0047095E`:
+//!
+//! ```text
+//! sVar3    = cost[cur] + 1;
+//! cost[nb] = stepCost[nb] + sVar3;
+//! ```
+//!
+//! **The cost field is not a metric.** A neighbour is considered only while
+//! `cost[neighbour] == 0`, so the first cost written to a cell stands even when a
+//! cheaper route reaches it later; there is no relaxation step. Reproduced
+//! deliberately — the original's paths are the specification, and "fixing" this
+//! changes where armies walk.
+//!
+//! On a `.skr` battlefield every step costs zero, because
+//! `Battlefield_BuildFromSkr` never sets the flags `Path_BuildStepCost` looks
+//! for. Field pathfinding is therefore a plain breadth-first search, and the
+//! weighting only ever bites inside castles.
 //!
 //! Integer arithmetic, fixed neighbour order, no iteration over a hash. Two
 //! machines searching the same grid produce the same path.
@@ -17,8 +37,16 @@
 pub const DIM: usize = 80;
 pub const CELLS: usize = DIM * DIM;
 
-/// Cost value marking a cell that can never be entered.
-pub const BLOCKED: u16 = 998;
+/// A **friendly figure** stands here (`Path_BuildBlockedMap`, `0x3E6`).
+///
+/// Not the same as impassable, and the difference is load-bearing: if the
+/// *destination* is merely occupied the original clears it to 0 and paths onto
+/// it anyway, leaving the mover to swap or wait.
+pub const OCCUPIED: u16 = 998;
+/// Terrain that can never be entered (`Path_BuildTerrainTemplate`): flags `0x10`
+/// or `0x40`, or the one-cell map border. A destination at this value aborts the
+/// search before it starts.
+pub const IMPASSABLE: u16 = 999;
 /// The original's frontier queue holds this many entries and **wraps**, so a
 /// search that outgrows it silently overwrites its own queue. Reproduced rather
 /// than fixed: a search that would have overrun produces the original's result.
@@ -57,18 +85,25 @@ pub fn chebyshev(a: Pos, b: Pos) -> u32 {
 /// The battlefield as the pathfinder sees it.
 #[derive(Debug, Clone)]
 pub struct Grid {
-    /// Times a cell must be reached before it is expanded. 1 is ordinary ground.
+    /// Extra pops a cell must take before it expands, *and* the surcharge added
+    /// to its recorded cost. **0 is ordinary ground** — the original's scale,
+    /// where a `.skr` battlefield is zero everywhere.
     pub step_cost: Vec<u8>,
     pub elevation: Vec<u8>,
+    /// Impassable terrain.
     pub blocked: Vec<bool>,
+    /// A friendly figure is standing here. Blocks routing *through*, but not
+    /// arrival at, the cell.
+    pub occupied: Vec<bool>,
 }
 
 impl Grid {
     pub fn open() -> Self {
         Grid {
-            step_cost: vec![1; CELLS],
+            step_cost: vec![0; CELLS],
             elevation: vec![0; CELLS],
             blocked: vec![false; CELLS],
+            occupied: vec![false; CELLS],
         }
     }
 
@@ -76,8 +111,14 @@ impl Grid {
         self.blocked[p.index()] = true;
     }
 
+    /// Mark a friendly figure. Enemy figures are deliberately *never* marked:
+    /// the original routes straight through them and leaves contact to the mover.
+    pub fn occupy(&mut self, p: Pos) {
+        self.occupied[p.index()] = true;
+    }
+
     pub fn set_cost(&mut self, p: Pos, cost: u8) {
-        self.step_cost[p.index()] = cost.max(1);
+        self.step_cost[p.index()] = cost;
     }
 
     pub fn set_elevation(&mut self, p: Pos, e: u8) {
@@ -152,13 +193,20 @@ pub fn search(grid: &Grid, start: Pos, dest: Pos) -> Search {
     let mut cost = vec![0u16; CELLS];
     for (i, c) in cost.iter_mut().enumerate() {
         if grid.blocked[i] {
-            *c = BLOCKED;
+            *c = IMPASSABLE;
+        } else if grid.occupied[i] {
+            *c = OCCUPIED;
         }
     }
     let mut visits = vec![0u8; CELLS];
 
     let (si, di) = (start.index(), dest.index());
-    if cost[di] == BLOCKED {
+    // The two blocked values part company here, and only here. A destination
+    // held by a friendly figure is cleared and searched for normally; impassable
+    // terrain abandons the search before the first pop.
+    if cost[di] == OCCUPIED {
+        cost[di] = 0;
+    } else if cost[di] > OCCUPIED {
         return Search { outcome: Outcome::Unreachable, cost };
     }
     cost[si] = 1;
@@ -173,25 +221,33 @@ pub fn search(grid: &Grid, start: Pos, dest: Pos) -> Search {
         let cur = queue[head] as usize;
         head = (head + 1) % QUEUE_CAP;
 
-        if cost[di] != 0 && cost[di] != BLOCKED {
+        if cost[di] != 0 {
             break;
         }
 
-        // Deferral, not weighting. A cell's distance is recorded the moment it
-        // is reached, but it does not *expand* until it has been popped as many
-        // times as its step cost — each re-queue earning it one more visit. So
-        // expensive ground still gets a cost and can still be walked through;
-        // it simply holds the frontier up rather than being ordered behind
-        // cheap ground, which is what makes this not a Dijkstra.
+        // Deferral, the second half of the cost charge. A cell's cost is
+        // recorded the moment it is reached, but it does not *expand* until it
+        // has been popped `step_cost` extra times, each re-queue earning it one
+        // more visit. Expensive ground therefore holds the frontier up as well
+        // as being priced higher.
         //
-        // Deferring the cost as well as the expansion looks equivalent and is
-        // not: the cell stays marked unvisited, the frontier leaks past it, and
-        // the extraction walk can then never route back through it.
-        visits[cur] = visits[cur].saturating_add(1);
-        if visits[cur] < grid.step_cost[cur] {
-            queue[tail] = cur as u16;
-            tail = (tail + 1) % QUEUE_CAP;
-            continue;
+        // Deferring the *cost* as well as the expansion looks equivalent and is
+        // not: the cell would stay marked unvisited, the frontier would leak
+        // past it, and the extraction walk could then never route back through
+        // it. That bug was written once already; the shape of the original's
+        // test is what rules it out.
+        //
+        // Reading the original's condition exactly, `stepCost == 0` short
+        // circuits and the comparison is against the count *before* the
+        // increment, so a cell of cost k expands on its (k+1)-th pop.
+        if grid.step_cost[cur] != 0 {
+            let seen = visits[cur];
+            visits[cur] = visits[cur].saturating_add(1);
+            if seen < grid.step_cost[cur] {
+                queue[tail] = cur as u16;
+                tail = (tail + 1) % QUEUE_CAP;
+                continue;
+            }
         }
 
         for (dx, dy) in NEIGHBOURS {
@@ -201,16 +257,21 @@ pub fn search(grid: &Grid, start: Pos, dest: Pos) -> Search {
                 continue;
             }
             let n = ny as usize * DIM + nx as usize;
-            if cost[n] == BLOCKED || cost[n] != 0 || !grid.step_allowed(cur, n) {
+            // One test covers unvisited, occupied and impassable alike: all
+            // three are "not zero". No relaxation - the first cost written to a
+            // cell is the one that stands.
+            if cost[n] != 0 || !grid.step_allowed(cur, n) {
                 continue;
             }
-            cost[n] = cost[cur].saturating_add(1);
+            cost[n] = cost[cur]
+                .saturating_add(1)
+                .saturating_add(grid.step_cost[n] as u16);
             queue[tail] = n as u16;
             tail = (tail + 1) % QUEUE_CAP;
         }
     }
 
-    let outcome = if cost[di] != 0 && cost[di] != BLOCKED {
+    let outcome = if cost[di] != 0 && cost[di] < OCCUPIED {
         Outcome::Found
     } else {
         Outcome::Unreachable
@@ -240,7 +301,7 @@ pub fn extract(grid: &Grid, s: &Search, start: Pos, dest: Pos) -> Vec<Pos> {
                 continue;
             }
             let n = ny as usize * DIM + nx as usize;
-            if cost_of(s, n) == 0 || cost_of(s, n) == BLOCKED || !grid.step_allowed(cur, n) {
+            if cost_of(s, n) == 0 || cost_of(s, n) >= OCCUPIED || !grid.step_allowed(cur, n) {
                 continue;
             }
             if best.is_none() || cost_of(s, n) < cost_of(s, best.unwrap()) {
@@ -330,10 +391,11 @@ mod tests {
     /// Expensive ground is re-queued rather than weighted, so it is expanded
     /// later than cheap ground — the behaviour that makes this not a Dijkstra.
     #[test]
-    fn expensive_ground_is_deferred_rather_than_weighted() {
+    fn expensive_ground_is_still_walked_when_it_is_the_only_way_through() {
         let mut g = wall_at(20);
         // Make the gap expensive. It is still the only way through, so the path
-        // must still use it - deferral delays expansion, it does not forbid it.
+        // must still use it - the charge delays and prices the cell, it does not
+        // forbid it.
         g.set_cost(Pos::new(20, 40), 8);
 
         let (start, dest) = (Pos::new(5, 10), Pos::new(35, 10));
@@ -341,6 +403,97 @@ mod tests {
         assert_eq!(s.outcome, Outcome::Found);
         let path = extract(&g, &s, start, dest);
         assert!(path.iter().any(|p| p.x == 20 && p.y == 40));
+    }
+
+    /// The correction that cost this file a rewrite: the recorded cost really is
+    /// weighted, `cost[cur] + 1 + step_cost[neighbour]`.
+    ///
+    /// Measured as a difference rather than an absolute, because the absolute
+    /// depends on the route and the difference does not: the wall has exactly
+    /// one gap, so every route crosses it, and a surcharge there is inherited by
+    /// everything downstream of it.
+    #[test]
+    fn the_step_cost_surcharge_lands_in_the_recorded_cost() {
+        let (start, dest) = (Pos::new(5, 10), Pos::new(35, 10));
+        let gap = Pos::new(20, 40);
+
+        let free = search(&wall_at(20), start, dest);
+        let mut g = wall_at(20);
+        g.set_cost(gap, 8);
+        let dear = search(&g, start, dest);
+
+        assert_eq!(free.outcome, Outcome::Found);
+        assert_eq!(dear.outcome, Outcome::Found);
+        assert_eq!(
+            dear.cost[gap.index()] - free.cost[gap.index()],
+            8,
+            "the gap itself should carry its own surcharge"
+        );
+        assert_eq!(
+            dear.cost[dest.index()] - free.cost[dest.index()],
+            8,
+            "and everything downstream should inherit it exactly once"
+        );
+    }
+
+    /// A cell is priced once, on first arrival, and never re-priced. Not
+    /// Dijkstra: a cheaper route arriving later is ignored.
+    #[test]
+    fn a_cost_is_never_relaxed_by_a_cheaper_later_route() {
+        let mut g = Grid::open();
+        // A pocket reachable the long way round cheaply, and directly across
+        // expensive ground. The direct arrival happens first and stands.
+        for y in 0..DIM as u8 {
+            if y != 40 {
+                g.block(Pos::new(20, y));
+            }
+        }
+        g.set_cost(Pos::new(20, 40), 50);
+        let (start, dest) = (Pos::new(5, 10), Pos::new(35, 10));
+        let s = search(&g, start, dest);
+        assert_eq!(s.outcome, Outcome::Found);
+        // Every step out of the gap is +1 and nothing re-prices the gap itself,
+        // so the surcharge survives all the way to the destination.
+        assert!(
+            s.cost[dest.index()] > 50,
+            "the surcharge was relaxed away: {}",
+            s.cost[dest.index()]
+        );
+    }
+
+    /// 998 and 999 are different things. A destination held by a friendly figure
+    /// is cleared and pathed onto; impassable terrain is not.
+    #[test]
+    fn an_occupied_destination_is_reachable_but_blocked_terrain_is_not() {
+        let (start, dest) = (Pos::new(5, 10), Pos::new(35, 10));
+
+        let mut occupied = wall_at(20);
+        occupied.occupy(dest);
+        let s = search(&occupied, start, dest);
+        assert_eq!(
+            s.outcome,
+            Outcome::Found,
+            "a friendly figure on the target cell must not make it unreachable"
+        );
+        assert!(!extract(&occupied, &s, start, dest).is_empty());
+
+        let mut walled = wall_at(20);
+        walled.block(dest);
+        assert_eq!(search(&walled, start, dest).outcome, Outcome::Unreachable);
+    }
+
+    /// Occupied cells still block routing *through*, which is what separates
+    /// them from ordinary ground.
+    #[test]
+    fn a_friendly_figure_is_routed_around_not_through() {
+        let mut g = wall_at(20);
+        g.occupy(Pos::new(20, 40));
+        let (start, dest) = (Pos::new(5, 10), Pos::new(35, 10));
+        assert_eq!(
+            search(&g, start, dest).outcome,
+            Outcome::Unreachable,
+            "a figure standing in the only gap seals it"
+        );
     }
 
     #[test]

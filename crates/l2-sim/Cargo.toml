@@ -10,3 +10,11 @@ description = "Deterministic battle simulation for Lords of the Realm II"
 # place that guarantee can quietly break - see docs/netcode.md D-3.
 [dependencies]
 l2-formats = { path = "../l2-formats" }
+
+# Tests only, and deliberately not a real dependency. l2-net is where the
+# lockstep session lives, and tests/lockstep.rs is the one place the two crates
+# meet: it runs this simulation on two peers over a real socket and checks they
+# stay bit-identical. Shipping code must not reach for it - a simulation that
+# knows about the network is one that can branch on it.
+[dev-dependencies]
+l2-net = { path = "../l2-net" }
