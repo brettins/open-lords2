@@ -2681,6 +2681,13 @@
       "comment": "The random-event id ring Event_RollAll draws from; 0 means no event."
     },
     {
+      "addr": "0x004D8778",
+      "name": "g_armyHappinessCost",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "int[102] happiness cost of raising an army, indexed by the PERCENTAGE of the county's population taken rather than by the number of men: 0, 1, 1, 1, 2 ... 90 at half the county, then a flat 101 from index 61 up. FUN_004A5003 reads it unbounded, so a county under 50 people indexes past the end into g_goodsPrice and gets a free army. 0x004D8778 + 102 * 4 is exactly 0x004D8910, which is what fixes the length."
+    },
+    {
       "addr": "0x004D8910",
       "name": "g_goodsPrice",
       "section": "kingdom",
@@ -2741,7 +2748,7 @@
       "name": "g_aiPersonality",
       "section": "kingdom",
       "confidence": "inferred",
-      "comment": "Per-AI-lord behaviour parameters, three 0x50-byte rows per lord; the first int of each row selects the tax ladder in AI_SetTaxRates."
+      "comment": "Per-AI-lord behaviour parameters, three 0x50-byte rows per lord and only the first row used, so the stride is 0xF0. THIS ADDRESS IS THE RECORD'S +0x04 FIELD, not its start: AI_SetTaxRates reads *(int *)(&g_aiPersonality + (lord * 3 - 3) * 0x50) as the tax-ladder selector, and the record itself begins four bytes earlier at 0x004D8A58 with the farming style AI_ManageFields dispatches on. Four records, lords 1..4: farming style 1/1/0/9, tax ladder 2/2/2/1. A fifth would begin at 0x004D8E18 and what is there fits no pattern."
     },
     {
       "addr": "0x004DC1E0",

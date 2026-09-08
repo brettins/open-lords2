@@ -572,6 +572,7 @@ ways - and the block list sums to the exact byte size of a shipped `lastturn.sav
 | `0x004D6560` | `g_herdWeatherPct` | verified | Percent change to the herd by weather 0..5: Frost -2, Drought -10, Sunny +5, Cloudy 0, Storms -5, Flooding -10. |
 | `0x004D6738` | `g_rationTable` | verified | Six {divisor, multiplier} pairs: (1,0) None, (4,1) Quarter, (2,1) Half, (1,1) Normal, (1,2) Double, (1,3) Triple - exactly L2.eng group 21. |
 | `0x004D6108` | `g_eventTable` | verified | The random-event id ring Event_RollAll draws from; 0 means no event. |
+| `0x004D8778` | `g_armyHappinessCost` | verified | int[102] happiness cost of raising an army, indexed by the PERCENTAGE of the county's population taken rather than by the number of men: 0, 1, 1, 1, 2 ... 90 at half the county, then a flat 101 from index 61 up. FUN_004A5003 reads it unbounded, so a county under 50 people indexes past the end into g_goodsPrice and gets a free army. 0x004D8778 + 102 * 4 is exactly 0x004D8910, which is what fixes the length. |
 | `0x004D8910` | `g_goodsPrice` | verified | Merchant base price per good id, 15 entries in L2.eng group 6 order: -, grain 2, cattle 12, sheep 0, ale 1, wool 0, iron 1, stone 2, timber 1, pikes 13, bows 16, maces 10, crossbows 24, swords 23, mail 44. |
 | `0x004D8950` | `g_goodsStock` | inferred | A second 15-entry table on the same good ids: 1000 grain, 100 cattle, 200 sheep, 100 ale, 500 wool, 100 iron, 100 stone, 200 timber, 500 each weapon. Reads like the quantity a merchant carries. |
 | `0x004D8990` | `g_weaponCost` | verified | Six {wood, iron} pairs: crossbow 6/10, mace 4/4, sword 3/10, pike 6/3, bow 13/0, armour 4/18. Debited by Industry_Produce. |
@@ -580,7 +581,7 @@ ways - and the block list sums to the exact byte size of a shipped `lastturn.sav
 | `0x004D8A10` | `g_castleGarrisonCap` | verified | Troops a castle can hold: 150, 200, 200, 400, 600. |
 | `0x004D8A28` | `g_castleTaxBonus` | verified | Percent tax bonus by castle type: 50, 75, 100, 125, 150 - the same ratios as Tax_CollectAll's 480/560/640/720/800 over the castle-less 320. |
 | `0x004D8A40` | `g_castleFreeArchers` | verified | Archers a newly finished castle is given: 50, 150, 150, 200, 300. |
-| `0x004D8A5C` | `g_aiPersonality` | inferred | Per-AI-lord behaviour parameters, three 0x50-byte rows per lord; the first int of each row selects the tax ladder in AI_SetTaxRates. |
+| `0x004D8A5C` | `g_aiPersonality` | inferred | Per-AI-lord behaviour parameters, three 0x50-byte rows per lord and only the first row used, so the stride is 0xF0. THIS ADDRESS IS THE RECORD'S +0x04 FIELD, not its start: AI_SetTaxRates reads *(int *)(&g_aiPersonality + (lord * 3 - 3) * 0x50) as the tax-ladder selector, and the record itself begins four bytes earlier at 0x004D8A58 with the farming style AI_ManageFields dispatches on. Four records, lords 1..4: farming style 1/1/0/9, tax ladder 2/2/2/1. A fifth would begin at 0x004D8E18 and what is there fits no pattern. |
 | `0x004DC1E0` | `g_aiGoldGrant` | verified | int[5][4] free gold per turn by AI lord and difficulty for a realm holding three or more counties: 0/0/0/0, 0/400/700/1200, 100/500/800/1400, 0/400/700/1200, 250/600/1100/1800. |
 | `0x004DC230` | `g_aiGoldGrantSmall` | verified | The same shape, used when the realm holds fewer than three counties. |
 
