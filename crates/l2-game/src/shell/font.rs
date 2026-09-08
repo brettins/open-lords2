@@ -30,7 +30,7 @@
 //! frames in that file that are four pixels taller than their neighbours.
 //! Descenders land on the descending letters. Nothing else would.
 //!
-//! # Every string is drawn three times
+//! # Every string is drawn three times — except when it is drawn once
 //!
 //! `Ui_DrawText` (`0x00402637`) draws each glyph at `y - 1` in one shadow
 //! colour, at `y + 1` in another, and then at `y` in the real one. Text on
@@ -43,6 +43,22 @@
 //! `gateway.256` rather than the campaign palette, so the indices that read as
 //! shadow are different ones. That branch is at the top of `Ui_DrawText` and is
 //! the only thing in it that knows which screen it is on.
+//!
+//! **[D]** and then two globals switch it off again:
+//!
+//! * `DAT_005AEA40` — when non-zero the whole emboss is skipped and the glyph
+//!   is drawn once, at `y`, in its own colour. The front end sets it around
+//!   every menu item, every button caption and every body line, and clears it
+//!   for the heading. So on those pages **the heading is embossed and nothing
+//!   else is**, which is not what a reimplementation would guess.
+//! * `DAT_0058FE2C` — when non-zero, characters `0x41 … 0x5A`, which is `A`
+//!   through `Z` and nothing else, are drawn in **colour 1** instead of the
+//!   caller's. The setup pages set it around their heading and the conquest
+//!   screen sets it around everything it draws. It is a drop-capital effect
+//!   applied to every capital in the line.
+//!
+//! [`Style`] carries both, because a font that cannot say "flat, capitals in
+//! colour 1" cannot draw the game's own title screen.
 
 use l2_formats::{DecodedFrame, Pl8};
 use l2_view::sheet::Sheet;
@@ -92,6 +108,33 @@ pub const TEXT: u8 = 0x3F;
 pub const HIGHLIGHT: u8 = 0xF9;
 /// The colour they pass for an item that is present but not available.
 pub const DISABLED: u8 = 0x20;
+
+/// How a string is drawn: the colour, whether it is embossed, and whether its
+/// capitals get `Ui_DrawText`'s drop-capital colour.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Style {
+    pub colour: u8,
+    /// The emboss pair, or `None` for flat — `DAT_005AEA40 != 0`.
+    pub shadow: Option<(u8, u8)>,
+    /// The colour `A` … `Z` are drawn in instead — `DAT_0058FE2C != 0`, which
+    /// always means colour 1.
+    pub caps: Option<u8>,
+}
+
+impl Style {
+    /// Embossed the ordinary way, no drop capitals.
+    pub fn new(colour: u8) -> Style {
+        Style { colour, shadow: Some(SHADOW), caps: None }
+    }
+
+    /// The colour one character is actually drawn in.
+    fn colour_of(&self, c: char) -> u8 {
+        match self.caps {
+            Some(k) if c.is_ascii_uppercase() => k,
+            _ => self.colour,
+        }
+    }
+}
 
 /// One of the original's fonts.
 pub struct Font {
@@ -185,18 +228,9 @@ impl Font {
         }
     }
 
-    /// Draw `s` at `(x, y)` in `colour`, embossed with `shadow`. Returns the
-    /// pen advance, which is how the original lays a value out after a label
-    /// without either knowing the other's width.
-    pub fn draw(
-        &self,
-        canvas: &mut Canvas,
-        x: i32,
-        y: i32,
-        s: &str,
-        colour: u8,
-        shadow: (u8, u8),
-    ) -> i32 {
+    /// Draw `s` at `(x, y)`. Returns the pen advance, which is how the original
+    /// lays a value out after a label without either knowing the other's width.
+    pub fn draw(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, style: &Style) -> i32 {
         let mut pen = x;
         for c in s.chars() {
             let Some((frame, over)) = self.glyph(c) else {
@@ -204,10 +238,13 @@ impl Font {
                 continue;
             };
             // The order the original draws in: above, below, then the real one
-            // on top of both.
-            Font::blit_mask(canvas, &frame, pen, y - 1 + over, shadow.0);
-            Font::blit_mask(canvas, &frame, pen, y + 1 + over, shadow.1);
-            Font::blit_mask(canvas, &frame, pen, y + over, colour);
+            // on top of both. `over` is the glyph's own offset and applies to
+            // all three, because `Glyph_Draw` adds it every time it is called.
+            if let Some((up, down)) = style.shadow {
+                Font::blit_mask(canvas, &frame, pen, y - 1 + over, up);
+                Font::blit_mask(canvas, &frame, pen, y + 1 + over, down);
+            }
+            Font::blit_mask(canvas, &frame, pen, y + over, style.colour_of(c));
             pen += frame.width as i32 + 1;
         }
         pen - x
@@ -218,9 +255,6 @@ impl Font {
     /// starts at the box's left edge and runs out of it rather than being
     /// centred off the other side.
     ///
-    /// Seven arguments, and each one is a different thing about the draw —
-    /// the same reason `widget::stat_delta` carries eight.
-    #[allow(clippy::too_many_arguments)]
     pub fn draw_centred(
         &self,
         canvas: &mut Canvas,
@@ -228,11 +262,10 @@ impl Font {
         y: i32,
         width: i32,
         s: &str,
-        colour: u8,
-        shadow: (u8, u8),
+        style: &Style,
     ) -> i32 {
         let offset = ((width - self.width(s)) / 2).max(0);
-        self.draw(canvas, x + offset, y, s, colour, shadow)
+        self.draw(canvas, x + offset, y, s, style)
     }
 
     /// Right-aligned so the last pixel lands on `right`.
@@ -242,10 +275,9 @@ impl Font {
         right: i32,
         y: i32,
         s: &str,
-        colour: u8,
-        shadow: (u8, u8),
+        style: &Style,
     ) -> i32 {
-        self.draw(canvas, right - self.width(s), y, s, colour, shadow)
+        self.draw(canvas, right - self.width(s), y, s, style)
     }
 }
 

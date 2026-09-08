@@ -257,6 +257,7 @@ pub fn button_recess(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
 /// fonts present it is the original's text, embossed the original's way; with
 /// them absent it is `l2_view::text`'s 5 × 7 font in the palette-resolved
 /// interface colours, which lays out in the same places and is obviously ours.
+#[derive(Clone, Copy)]
 pub struct Pen<'a> {
     pub assets: &'a ShellAssets,
     pub ink: &'a l2_view::Ink,
@@ -264,11 +265,29 @@ pub struct Pen<'a> {
     /// shells draw a `Ui_DrawBox` from that kit over their own background.
     pub chrome: Option<&'a l2_view::chrome::Chrome>,
     /// `Ui_DrawText`'s two shadow colours — [`font::SHADOW`] on most screens,
-    /// [`font::SHADOW_GATEWAY`] on the setup and conquest pages.
-    pub shadow: (u8, u8),
+    /// [`font::SHADOW_GATEWAY`] on the setup and conquest pages — or `None`
+    /// for flat text, which is `DAT_005AEA40 != 0`.
+    pub shadow: Option<(u8, u8)>,
+    /// `DAT_0058FE2C`: the colour `A` … `Z` are drawn in instead of the
+    /// caller's. Always 1 where the original sets it.
+    pub caps: Option<u8>,
 }
 
-impl Pen<'_> {
+impl<'a> Pen<'a> {
+    /// The same pen with the emboss switched off — `DAT_005AEA40 = 1`, which
+    /// is what the front end sets around every menu item and body line.
+    pub fn flat(&self) -> Pen<'a> {
+        Pen { shadow: None, caps: None, ..*self }
+    }
+
+    /// The same pen with the drop-capital colour on — `DAT_0058FE2C = 1`.
+    pub fn drop_caps(&self) -> Pen<'a> {
+        Pen { caps: Some(1), ..*self }
+    }
+
+    fn style(&self, colour: u8) -> font::Style {
+        font::Style { colour, shadow: self.shadow, caps: self.caps }
+    }
     /// What the fallback font uses when there is no `Fntl2_*.pl8` to draw with.
     /// The original's colour indices mean nothing under our own palette, so
     /// they are mapped to the three named interface colours instead.
@@ -282,14 +301,14 @@ impl Pen<'_> {
 
     pub fn body(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
         match &self.assets.body {
-            Some(f) => f.draw(canvas, x, y, s, colour, self.shadow),
+            Some(f) => f.draw(canvas, x, y, s, &self.style(colour)),
             None => l2_view::text::draw(canvas, x, y, s, self.fallback(colour)),
         }
     }
 
     pub fn heading(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
         match &self.assets.heading {
-            Some(f) => f.draw(canvas, x, y, s, colour, self.shadow),
+            Some(f) => f.draw(canvas, x, y, s, &self.style(colour)),
             None => l2_view::text::draw(canvas, x, y, s, self.fallback(colour)),
         }
     }
@@ -304,7 +323,7 @@ impl Pen<'_> {
         colour: u8,
     ) -> i32 {
         match &self.assets.body {
-            Some(f) => f.draw_centred(canvas, x, y, width, s, colour, self.shadow),
+            Some(f) => f.draw_centred(canvas, x, y, width, s, &self.style(colour)),
             None => {
                 let w = l2_view::text::width(s);
                 let off = ((width - w) / 2).max(0);
@@ -323,7 +342,7 @@ impl Pen<'_> {
         colour: u8,
     ) -> i32 {
         match &self.assets.heading {
-            Some(f) => f.draw_centred(canvas, x, y, width, s, colour, self.shadow),
+            Some(f) => f.draw_centred(canvas, x, y, width, s, &self.style(colour)),
             None => {
                 let w = l2_view::text::width(s);
                 let off = ((width - w) / 2).max(0);
