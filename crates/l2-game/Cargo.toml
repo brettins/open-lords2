@@ -1,0 +1,46 @@
+[package]
+name = "l2-game"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "The application spine: the window, the input, the screens and the turn"
+
+# **The only crate in the workspace with a window, and the only binary.**
+#
+# `docs/plan.md` settles the direction and it is one way:
+#
+#     l2-game -> l2-view    -> l2-formats
+#            |-> l2-sim     -> l2-formats, l2-net
+#            |-> l2-kingdom -> l2-net
+#            +-> l2-mods
+#
+# Nothing below this crate learns that screens or input exist. `l2-sim` and
+# `l2-kingdom` keep their manifests exactly as they are - that constraint
+# survived a crate move and is not being spent on a user interface.
+#
+# `winit` and `pixels` are here and nowhere else. They came up from `l2-view`
+# when it became a library of drawing: a canvas is a `Vec<u8>` and needs no GPU,
+# while a window needs 124 transitive crates, and the crates that must stay
+# bit-identical across machines may not be downstream of any of them.
+#
+# `l2-mods` is here because deciding *which* file to load is an application
+# decision, not a drawing one, and because the core ruleset is loaded at start
+# up - the one piece of mod work `docs/plan.md` revision 3 leaves in front of
+# the game rather than behind it.
+[dependencies]
+l2-formats = { path = "../l2-formats" }
+l2-kingdom = { path = "../l2-kingdom" }
+l2-mods = { path = "../l2-mods" }
+l2-scenario = { path = "../l2-scenario" }
+l2-sim = { path = "../l2-sim" }
+l2-view = { path = "../l2-view" }
+pixels = "0.17.2"
+winit = "0.30.13"
+
+[lib]
+name = "l2_game"
+path = "src/lib.rs"
+
+[[bin]]
+name = "l2-game"
+path = "src/main.rs"

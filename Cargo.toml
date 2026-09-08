@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/l2-formats",
+    "crates/l2-game",
     "crates/l2-kingdom",
     "crates/l2-mods",
     "crates/l2-net",
