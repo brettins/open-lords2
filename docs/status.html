@@ -218,12 +218,18 @@
     <span><b>Updated</b> 7 Sep 2026</span>
     <span><b>Repo</b> E:\dev\lords2</span>
     <span><b>Game</b> GOG build, 21 Jul 2009</span>
-    <span><b>Phase</b> 2 of 8</span>
-    <span><b>Oracle</b> Ghidra 12.1.3, analysed</span>
+    <span><b>Simulation</b> battle + kingdom, in Rust</span>
+    <span><b>Oracle</b> Ghidra 12.1.3 &middot; 230 functions named</span>
   </div>
 
   <h2>Progress</h2>
   <div class="gauges">
+    <div class="gauge">
+      <div class="k">Test suite</div>
+      <div class="v">542</div>
+      <div class="sub">31 suites &middot; identical counts in debug <em>and</em> release</div>
+      <div class="bar"><i class="done" style="width:100%"></i></div>
+    </div>
     <div class="gauge">
       <div class="k">PL8 sprite corpus</div>
       <div class="v">291 / 291</div>
@@ -237,10 +243,10 @@
       <div class="bar"><i style="width:71%"></i></div>
     </div>
     <div class="gauge">
-      <div class="k">Phases complete</div>
-      <div class="v">1 / 8</div>
-      <div class="sub">phases 1, 2, 3 and 5 all partly underway</div>
-      <div class="bar"><i style="width:12.5%"></i></div>
+      <div class="k">Simulation crates</div>
+      <div class="v">6</div>
+      <div class="sub">formats &middot; sim &middot; kingdom &middot; net &middot; mods &middot; view</div>
+      <div class="bar"><i style="width:75%"></i></div>
     </div>
   </div>
 
@@ -249,26 +255,26 @@
     <div class="gauge">
       <div class="k">In progress</div>
       <ul class="checks">
+        <li class="now"><span class="mark">&#9679;</span><span>Battle AI order handlers into <code>l2-sim</code> &mdash; 17 decompiled</span></li>
         <li class="now"><span class="mark">&#9679;</span><span>Map plane 4 &mdash; the six 16-entry county lists</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span><code>.smk</code> video and <code>.wav</code> audio integration</span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>Adversarial audit of the docs against code and data</span></li>
+        <li class="now"><span class="mark">&#9679;</span><span><code>.smk</code> video &mdash; blocked on a licensing decision</span></li>
       </ul>
     </div>
     <div class="gauge">
       <div class="k">Next</div>
       <ul class="checks">
-        <li class="todo"><span class="mark">&#9675;</span><span>Read live battle state through the proxy</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Name identified functions in the Ghidra database</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Integrate the mode-2 decoder once validated</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Read live battle state through the proxy &mdash; the oracle comparison</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Draw a battle: terrain, figures, facings</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Kingdom stubs &mdash; AI handlers, bankruptcy, the event table</span></li>
       </ul>
     </div>
     <div class="gauge">
-      <div class="k">Open defects</div>
+      <div class="k">Recently closed</div>
       <ul class="checks">
-        <li class="done"><span class="mark">&#10003;</span><span>Index-0 transparency &mdash; fixed in both decoders</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span><code>00 00</code> infinite loop &mdash; now an error, with a test</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>All 23 pinned failures explained &mdash; list now empty</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span><code>Font_c2</code> &mdash; wrong header byte, detected file-wide</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Pathfinder charged no terrain cost &mdash; the doc it followed was wrong</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><code>broadcast</code> skipped peers after the first failure</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>All 23 pinned PL8 failures explained &mdash; list now empty</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>A test whose name asserted more than its body checked</span></li>
       </ul>
     </div>
   </div>
@@ -287,8 +293,14 @@
       <div class="v">0x004B826E</div></div>
     <div class="fact"><div class="k">DirectPlayEnumerateA call site</div>
       <div class="v">0x004B7FCE</div></div>
-    <div class="fact"><div class="k">Sprite storage modes</div>
-      <div class="v">byte 0: 0=raw, 1=RLE, 2=<em>unknown</em></div></div>
+    <div class="fact"><div class="k">Pathfinding charges terrain</div>
+      <div class="v">by weight <em>and</em> deferral &mdash; never relaxed</div></div>
+    <div class="fact"><div class="k">The whole battle AI turns on</div>
+      <div class="v"><em>one</em> global: strength advantage &plusmn; jitter</div></div>
+    <div class="fact"><div class="k">Blocked cells are two values</div>
+      <div class="v">998 friendly figure &middot; 999 <em>impassable</em></div></div>
+    <div class="fact"><div class="k">Kingdom rules live in</div>
+      <div class="v">the .exe, not data &mdash; 0x4D6300, 0x4D8900</div></div>
     <div class="fact"><div class="k">Palette format</div>
       <div class="v">768 B, 256&times;RGB, 6-bit VGA</div></div>
     <div class="fact"><div class="k">The game logs its own startup</div>
@@ -358,12 +370,12 @@
         corpus, not one lucky sample &mdash; PL8 self-verifies because every frame must end exactly on
         the next frame's declared offset.</p>
       <ul class="checks">
-        <li class="done"><span class="mark">&#10003;</span><span>PL8 header, frame table, RLE and raw storage <span class="count">&mdash; 236/291</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>PL8 header, frame table, RLE and raw storage <span class="count">&mdash; 291/291</span></span></li>
         <li class="done"><span class="mark">&#10003;</span><span>.256 palettes &mdash; 6-bit VGA, scaled to 8-bit</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>PL8 isometric family &mdash; all five per-frame shapes <span class="count">&mdash; 2502/2502 frames</span></span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Hit-test region maps recognised structurally, not by filename</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Every PL8 file decodes <span class="count">&mdash; 291/291, 21,344 frames</span></span></li>
-        <li class="now"><span class="mark">&#9679;</span><span>PL8 raw sub-mode 2, frames shorter than width&times;height <span class="count">&mdash; 23 files</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>&ldquo;Raw sub-mode 2&rdquo; dissolved &mdash; the per-frame shape byte decides, not the header</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Which palette pairs with which sprite set</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>L2_maps.dat container &mdash; 80 slots of 32,961 bytes, 44 used</span></li>
         <li class="now"><span class="mark">&#9679;</span><span>Map tile&rarr;lattice mapping <span class="count">&mdash; best fit only 72%</span></span></li>
@@ -383,8 +395,9 @@
       <ul class="checks">
         <li class="done"><span class="mark">&#10003;</span><span>rustup 1.98.1 + MSVC toolchain</span></li>
         <li class="done"><span class="mark">&#10003;</span><span><code>l2-formats</code> crate &mdash; PL8 and palette decoders ported</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Corpus validation is the crate&rsquo;s test suite &mdash; 236 files, 27 palettes</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>7 unit tests that run without a game install</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Corpus validation is the crate&rsquo;s test suite &mdash; 291 files, 27 palettes</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>A workspace of six crates, each testable on a bare checkout</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>542 tests, and the same 542 in release &mdash; a debug-only pass is a desync waiting to happen</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Asset extraction CLI &mdash; sprites to PNG, in bulk</span></li>
       </ul>
     </div>
@@ -410,15 +423,19 @@
   <div class="phase">
     <div class="pnum">04</div>
     <div>
-      <div class="phead"><h3>Battle sandbox</h3><span class="pill todo">Planned</span></div>
+      <div class="phead"><h3>Battle sandbox</h3><span class="pill now">In progress</span></div>
       <p class="pnote">The first milestone that is genuinely a piece of the finished engine rather than
-        scaffolding &mdash; and where the pathing work lives.</p>
+        scaffolding &mdash; and where the pathing work lives. The rules are in
+        <code>l2-sim</code> and tested; what is missing is a picture of them.</p>
       <ul class="checks">
+        <li class="done"><span class="mark">&#10003;</span><span>Unit and figure data structures &mdash; 80-figure ceiling, stable indices</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Movement, elevation rules, cell swapping</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Pathfinding &mdash; weighted <em>and</em> deferred, deliberately not Dijkstra</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Melee and missile resolution <span class="count">&mdash; every ranking the manual states, asserted</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Battle AI decompiled <span class="count">&mdash; 17 handlers, one global drives all of them</span></span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Porting the order handlers into <code>l2-sim</code></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Battlefield terrain rendering</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Unit sprites, facings, animation states</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Unit and formation data structures</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Movement and pathfinding</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Melee and missile combat resolution</span></li>
       </ul>
     </div>
   </div>
@@ -447,14 +464,18 @@
   <div class="phase">
     <div class="pnum">06</div>
     <div>
-      <div class="phead"><h3>Kingdom layer</h3><span class="pill todo">Planned</span></div>
-      <p class="pnote">The turn-based half: the larger and less charted body of rules.</p>
+      <div class="phead"><h3>Kingdom layer</h3><span class="pill now">In progress</span></div>
+      <p class="pnote">The turn-based half: the larger and less charted body of rules, and the one
+        place the printed manual has been caught wrong twice. Every economic constant lives in the
+        executable rather than a data file, which is much of the reason to build an open engine at all.</p>
       <ul class="checks">
-        <li class="todo"><span class="mark">&#9675;</span><span>Counties, population, happiness, taxation</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Seasons, crops, livestock, food stores</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Weapons manufacture and army recruitment</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Counties, population, happiness, taxation</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Seasons, weather, crops, livestock, food stores</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Weapons manufacture, wages, industry</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>The seven-phase turn machine &mdash; a 23-entry pipeline the driver walks</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Shipped save reproduced end to end <span class="count">&mdash; five stages, nothing adjusted</span></span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Stubs left honest: AI handlers, bankruptcy stages, the event table</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Castle designer and siege resolution</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Opponent AI</span></li>
       </ul>
     </div>
   </div>
@@ -462,13 +483,17 @@
   <div class="phase">
     <div class="pnum">07</div>
     <div>
-      <div class="phead"><h3>Netcode</h3><span class="pill todo">Planned</span></div>
-      <p class="pnote">Deliberately late. The original's surface is unusually clean &mdash; two imported
-        functions, one call site each &mdash; but there is no point syncing a simulation that doesn't exist yet.</p>
+      <div class="phead"><h3>Netcode</h3><span class="pill now">In progress</span></div>
+      <p class="pnote">The original's networking is abandoned rather than studied &mdash; it is replaced
+        outright, not reimplemented. What matters is determinism, which is a property of the
+        simulation and was designed in from its first line.</p>
       <ul class="checks">
-        <li class="todo"><span class="mark">&#9675;</span><span>Modern transport replacing DirectPlay entirely</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Deterministic lockstep for the battle layer</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Deterministic primitives &mdash; frozen PRNG, Q16.16 fixed point, one canonical encoding</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Lockstep session &mdash; command ordering, checksums, desync dumps, replay</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>TCP transport, non-blocking, no threads and no clock</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>The battle simulation run over a real socket <span class="count">&mdash; two peers, identical every tick</span></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Lobby, host and join</span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>Beyond loopback &mdash; real loss, NAT, MTU, head-of-line blocking</span></li>
       </ul>
     </div>
   </div>
@@ -476,12 +501,13 @@
   <div class="phase">
     <div class="pnum">08</div>
     <div>
-      <div class="phead"><h3>Modding platform</h3><span class="pill todo">Planned</span></div>
+      <div class="phead"><h3>Modding platform</h3><span class="pill now">Started</span></div>
       <p class="pnote">The actual destination. Designed in from the first crate rather than retrofitted:
-        rules live in data files, and assets load through an overlay filesystem.</p>
+        rules live in data files, and assets load through an overlay filesystem. Assets shadow;
+        rules accumulate &mdash; the asymmetry is deliberate.</p>
       <ul class="checks">
-        <li class="todo"><span class="mark">&#9675;</span><span>Virtual filesystem with mod-directory overlay</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Data-driven rulesets replacing hardcoded constants</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Virtual filesystem with mod-directory overlay <span class="count">&mdash; proven with synthetic art</span></span></li>
+        <li class="now"><span class="mark">&#9679;</span><span>Data-driven rulesets replacing hardcoded constants</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Mod packaging, load order, conflict reporting</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Format and ruleset documentation for mod authors</span></li>
       </ul>
@@ -496,12 +522,14 @@
       </thead>
       <tbody>
         <tr><td class="m">ddraw-proxy</td><td class="d">Injects our code into the original game</td><td class="d">Verified: attach, forward, S_OK</td></tr>
-        <tr><td class="m">l2-formats</td><td class="d">Rust crate &mdash; PL8, palettes, map container</td><td class="d">23 tests; 180,224/180,224 tile invariant</td></tr>
+        <tr><td class="m">l2-formats</td><td class="d">Rust crate &mdash; PL8, palettes, maps, .skr</td><td class="d">291/291 files; 180,224/180,224 tile invariant</td></tr>
+        <tr><td class="m">l2-sim</td><td class="d">Battle rules &mdash; figures, melee, missiles, movement, pathing</td><td class="d">Every ranking the manual states, asserted</td></tr>
+        <tr><td class="m">l2-kingdom</td><td class="d">The turn-based economy &mdash; 7 phases, 23-pass pipeline</td><td class="d">197 tests; the shipped save reproduced</td></tr>
+        <tr><td class="m">l2-net</td><td class="d">Lockstep, canonical encoding, TCP transport</td><td class="d">Two peers bit-identical over a real socket</td></tr>
+        <tr><td class="m">l2-mods</td><td class="d">Overlay filesystem &mdash; assets shadow, rules accumulate</td><td class="d">Override proven with synthetic art</td></tr>
         <tr><td class="m">l2-view</td><td class="d">Viewer &mdash; sprite sheets and campaign maps</td><td class="d">Slot 0 renders as England and Wales</td></tr>
-        <tr><td class="m">pl8diff.ps1</td><td class="d">Differential harness: Node vs Rust decoders</td><td class="d">21,344 frames, zero divergence</td></tr>
         <tr><td class="m">ghidra_scripts/</td><td class="d">Headless binary analysis &mdash; find loaders, decompile to C</td><td class="d">Found the renderer at 0x0040A21A</td></tr>
-        <tr><td class="m">pl8check.js</td><td class="d">Validates the sprite decoder across a whole directory</td><td class="d">236/291 files, 16,638 frames</td></tr>
-        <tr><td class="m">pl8dump.js</td><td class="d">Decodes one sprite frame to PNG</td><td class="d">Rendered a barded warhorse</td></tr>
+        <tr><td class="m">symbols.json</td><td class="d">One symbol database, applied to Ghidra and rendered to docs</td><td class="d">230 functions, 164 globals, 0 failures</td></tr>
         <tr><td class="m">xref.js</td><td class="d">Finds call sites of imported functions</td><td class="d">Located both DirectPlay calls</td></tr>
         <tr><td class="m">peimp / peexp / pehdr / pefun</td><td class="d">PE imports, exports, headers, per-DLL functions</td><td class="d">Resolved imports-by-ordinal</td></tr>
         <tr><td class="m">probe.ps1</td><td class="d">Reads memory from a live process</td><td class="d">Read the game at 0x400000</td></tr>
