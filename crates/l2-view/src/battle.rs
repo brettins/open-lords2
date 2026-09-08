@@ -142,7 +142,6 @@ impl BattleRunner {
 
     fn raise(&mut self, army: &[(Troop, u16)], side: Side) {
         let slots = self.slots(side);
-        let total: usize = army.iter().map(|(_, n)| *n as usize).sum();
         let mut ordinal = 0usize;
         for (troop, count) in army {
             for _ in 0..*count {
@@ -174,7 +173,6 @@ impl BattleRunner {
                     reroutes: 0,
                 });
                 ordinal += 1;
-                let _ = total;
             }
         }
     }

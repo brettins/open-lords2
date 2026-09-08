@@ -23,7 +23,7 @@
 use l2_formats::maps::{MapSet, Plane, PLANE_DIM};
 use l2_formats::{Palette, Pl8, Skr};
 use l2_mods::Platform;
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::{Duration, Instant}};
 
 use l2_view::battle::{self, BattleRunner};
 use l2_view::canvas::{Canvas, TRANSPARENT};
@@ -59,6 +59,15 @@ const BANKS: [&str; 5] = ["Base2a", "Mtns2a", "Roads2a", "Town2a", "Castle2a"];
 /// how a tick turns out.
 const TICKS_PER_FRAME: u32 = 3;
 
+/// How often the window is repainted while a battle runs.
+///
+/// This is the only place the clock is consulted, and it decides *when to
+/// draw*, never what a tick contains. Without it the loop repaints as fast as
+/// the machine can manage - about ten thousand frames a second here - which is
+/// more than the surface can present and makes wgpu reject the submission
+/// outright. The picture was a blank white window until this was throttled.
+const FRAME_INTERVAL: Duration = Duration::from_millis(16);
+
 enum Scene {
     Sprite {
         bytes: Vec<u8>,
@@ -90,6 +99,8 @@ struct Viewer {
     canvas: Canvas,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
+    /// When the next battle frame is due. Paces drawing only.
+    next_frame: Instant,
 }
 
 /// Build the mod overlay for a game directory. Loading through it rather than
@@ -236,6 +247,7 @@ impl Viewer {
             canvas: Canvas::screen(),
             window: None,
             pixels: None,
+            next_frame: Instant::now(),
         }
     }
 
@@ -444,7 +456,14 @@ impl ApplicationHandler for Viewer {
             event_loop.set_control_flow(ControlFlow::Wait);
             return;
         }
-        event_loop.set_control_flow(ControlFlow::Poll);
+        let now = Instant::now();
+        if now < self.next_frame {
+            event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_frame));
+            return;
+        }
+        self.next_frame = now + FRAME_INTERVAL;
+        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_frame));
+
         if let Scene::Battle(b) = &mut self.scene {
             for _ in 0..TICKS_PER_FRAME {
                 if b.runner.is_decided() {

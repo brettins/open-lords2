@@ -36,8 +36,7 @@
 //! exactly `8 * poses_per_facing + 18`, and the dying handler's base index is
 //! exactly `8 * poses_per_facing + 6` in all four of its groups. Getting
 //! `poses_per_facing` wrong for any troop breaks both identities at once.
-//! `tests::the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet`
-//! asserts it over the install.
+//! `tests/install.rs` asserts both identities over the install.
 //!
 //! Knights are different and are handled separately: they are drawn on a horse
 //! and their frame comes from an 8 x 8 `(body facing, target facing)` table at
