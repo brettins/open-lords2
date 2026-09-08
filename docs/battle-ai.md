@@ -869,3 +869,80 @@ Ghidra scripts live in `ghidra_scripts_battleai/` (`BDecomp`, `BRefs`, `BDump`, 
 so parallel agents never edit the same files. `BTable` and `BClosure` are new here; the
 rest are copies. Names go into the database with
 `ghidra_scripts/ApplySymbols.java` as described in [`symbols.md`](symbols.md).
+
+---
+
+## 12. Corrections to this document
+
+Found by implementing it in `crates/l2-sim/src/ai.rs` and re-reading the
+seventeen decompiled bodies against each claim. Implementing a document is the
+only way to find out whether it is true; these are the places it was not.
+
+* **§2.3, "for the first ten (thirteen) thinks the unit marches".** There is a
+  silent phase before the march. `UnitOrder_FieldFoot` calls `Order_DoNothing`
+  while `orders < 2` and `UnitOrder_FieldMelee` while `orders < 4`; only then
+  does the `BattleUnit_OrderToEnemyEnd` ladder start, and it still ends at 10
+  and 13. So an aggressive foot unit stands still for two thinks — four hundred
+  frames — before it moves at all.
+
+* **§2.3's pseudocode gives `Order_ToRallyWaypoint(2)` for both handlers.**
+  `UnitOrder_FieldFoot` uses waypoint **2**; `UnitOrder_FieldMelee` uses
+  waypoint **1**. The two functions differ in five constants, not four.
+
+* **§2.3's cautious branch is two decisions, and the second overwrites the
+  first.** The disengage-and-mark block and the charge/rally block both run, and
+  both write the unit's destination, so the rally wins when it fires. It usually
+  does not, for `UnitOrder_FieldFoot`: its rally is gated on `withdrawals == 0`
+  and `Order_StepAwayFromUnit` has just incremented that field to 1.
+  `UnitOrder_FieldMelee` allows two withdrawals, so there the rally *does* fire
+  and the withdrawal it just ordered is discarded on the same think. Both are
+  the original.
+
+* **§2.1's cautious skeleton omits a write.** Both melee handlers clear the
+  unit's halted flag (`+0x2A`) whenever `g_aiCommitCounter < 1`, which is how a
+  unit that charged earlier becomes eligible for the every-500-frame reform
+  again.
+
+* **§6.2's catapult ladder is missing a rung.** Between the castle approach at
+  think 21 and the surface-4 search at think 31 there is an
+  `orders % 100 == 0 -> Order_ToCastleApproach(5)` branch, which fires again at
+  think 100 and every hundredth after it.
+
+* **`Order_ToBreachOrStaging` is not looking for a breach.** Below approach
+  score 16 it calls `FUN_00496768`, which searches radii 12…19 for the nearest
+  cell of **surface 2** — water — and walks the unit onto it. Surface 2 is what
+  `Formation_SendFigure` sends figures to state 9 for (§5), and state 9 is the
+  moat fill. So the opening phase of a siege attack is an order to go and fill
+  the moat in, and the name reads it backwards. The 16…400 fallback to the
+  secondary staging table, and the silence above 400, are as §6.2 describes.
+
+* **`Siege_FindCellSurface5` measures its distance from the wrong point, and it
+  is an original bug.** It saves the query cell into two locals, then overwrites
+  the *parameters* with the clipped top-left corner of its search box, and then
+  calls `Dist_Manhattan` with the **parameters** rather than the saved locals.
+  Its sibling `Siege_FindCellSurface4` saves the query point and uses it, and
+  does not have the fault. So `Order_ToSurface5Near` puts a defending unit on
+  the rampart cell nearest the corner of the search box rather than the one
+  nearest the post it was reserving. Reproduced in `l2-sim` with a comment
+  saying why: the original's choice of cell is the specification. The same
+  overwrite pattern appears in `FUN_00496768`, where it is harmless, because
+  there the saved locals *are* what the distance call uses.
+
+* **§3.1, "nearest enemy unit".** `Enemy_NearestUnit` compares the two units'
+  **owner bytes** (`+0x00`), not their sides. Two AI realms fighting each other
+  on the same side of a battle are enemies to it; a unit is never its own
+  owner's enemy. The distinction only matters in a multi-realm battle, which is
+  exactly where a side-based reading would be wrong.
+
+* **`Order_ToWallSlot`'s groups are sixteen entries wide,** not the nine and
+  four §6.3 gives. Nine and four are how far the two *cursors* count before
+  wrapping; the routine itself scans forward from the requested slot, skips
+  empty `(0, 0)` entries, wraps, and then offsets the destination one cell west
+  and two north of the recorded position. A reimplementation that stored nine
+  slots would still be right about behaviour and wrong about the table.
+
+* **What could not be checked.** Everything positional in §6 still rests on
+  `Battlefield_BuildCastle`, which is still not decompiled, so `l2-sim` takes
+  those tables as data supplied by the caller rather than asserting their
+  contents. And §9's first bullet stands unchanged: **nothing here has been
+  observed running.**
