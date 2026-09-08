@@ -286,6 +286,40 @@ The general lesson: **"it fails" and "it fails the way I called it" are differen
 D8 recorded a real observation and generalised it one step too far, and that extra step shut
 a door for weeks.
 
+**C16 — C14's second tier was mostly imaginary. Read the code, not the data.**
+C14 divided the oracle into "stored data, free to read from the file" and "runtime-written
+data, which needs a live process". The second half was wrong, and the error was a failure of
+imagination rather than of fact.
+
+The reasoning went: `Rules_InitConstants` writes into uninitialised `.data`, the file has no
+bytes at those addresses, therefore only a running process can supply the values. Every step
+is true and the conclusion does not follow. **The values are not in `.data`, but they are in
+`.text`** — the function writes them with `MOV dword ptr [addr], imm32`, and the immediate
+sits in the instruction stream:
+
+```text
+C7 05 <addr:u32> <imm:u32>      MOV dword ptr [addr], imm32
+```
+
+`tools/oracle/initconsts.ps1` disassembles those writes. It recovers all ten constants with
+**the same values the live read returned**, with no process, no window, no focus and nothing
+a screen lock can spoil — and it finds **five more** that nobody had named
+(`0x00553004`=25, `0x00553538`=10, `0x00553218`=3, `0x0052AFC4`=500, `0x00568950`=200),
+because a memory read only answers about addresses you already knew to ask about, while the
+function tells you everything it writes.
+
+So the live-memory path is not the way to get constants, and `tools/oracle/runtime.ps1` is
+kept only as the cross-check that proved the static reading correct. The focus work in C15
+stands as a fact about Windows, and its conclusion — "reaching a running battle is worth
+another attempt" — is now much weaker: static reading reaches further than assumed, and
+running the game should be the last resort rather than the second.
+
+**The general form, and the one worth remembering:** when a value is absent from the data,
+look at the code that produces it. "The bytes aren't there" is a statement about where you
+looked. This is C3's failure inverted — there, a plausible story was fitted to the
+decompiler's output; here, a true observation about the data was allowed to settle a
+question the code answers better.
+
 ## Open questions
 
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
