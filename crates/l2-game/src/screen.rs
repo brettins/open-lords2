@@ -36,6 +36,14 @@ pub enum ScreenId {
     Campaign,
     /// The county panel, for one county id.
     County(u8),
+    /// `g_screenId` `0x1F` — the front end and game setup, by sub-page.
+    Setup(crate::screens::setup::SetupPage),
+    /// `g_screenId` `0x1C` — the campaign interstitial.
+    Conquest,
+    /// A screen that is drawn and not yet driven, named by its `g_screenId`.
+    Shell(u8),
+    /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
+    Index,
 }
 
 /// What a screen asks the machine to do next.
@@ -82,6 +90,32 @@ pub trait Screen {
         Transition::Stay
     }
 
+    /// The `.256` this screen runs under, if it is not the campaign palette.
+    ///
+    /// A [`Canvas`] is a plane of palette *indices* and means nothing without
+    /// one. Most screens use the campaign palette and answer `None`; the front
+    /// end, the merchant, the armoury, castle building and the ratings each
+    /// read a palette of their own (`File_ReadChunk("gateway.256", …)` then
+    /// `Palette_Set`), and the presenter asks the top screen rather than
+    /// assuming there is only one.
+    fn palette(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// Whether this screen is a **popup over what was underneath** rather than
+    /// a page of its own.
+    ///
+    /// `docs/screens-county.md` §1: *"The game's management surface is a
+    /// sidebar plus eight popups, not a set of full-screen pages."* An overlay
+    /// does not clear the canvas, and [`Machine::draw`] paints the screens
+    /// beneath it first, back to the last one that is not an overlay.
+    ///
+    /// It changes nothing about input: only the top screen is ever offered an
+    /// event, which is what makes a popup modal.
+    fn is_overlay(&self) -> bool {
+        false
+    }
+
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas);
 }
 
@@ -92,6 +126,10 @@ impl ScreenId {
             ScreenId::Menu => Box::new(crate::screens::menu::MenuScreen::new()),
             ScreenId::Campaign => Box::new(crate::screens::map::MapScreen::new()),
             ScreenId::County(id) => Box::new(crate::screens::county::CountyScreen::new(id)),
+            ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
+            ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),
+            ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
+            ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }
     }
 }
@@ -138,6 +176,17 @@ impl Machine {
         self.dirty = true;
     }
 
+    /// Put a screen on the stack from outside.
+    ///
+    /// This does not weaken the invariant at the top of this file. A *screen*
+    /// still cannot reach the stack — it has no `&mut Machine` and never will.
+    /// The application owns the machine, and so does a test that wants to open
+    /// a screen the interface can only reach through three clicks.
+    pub fn push(&mut self, id: ScreenId) {
+        self.stack.push(id.build());
+        self.dirty = true;
+    }
+
     /// Deliver one event to the top screen only.
     ///
     /// Only the top screen is offered input. A stack where every layer gets a
@@ -159,10 +208,34 @@ impl Machine {
         }
     }
 
+    /// Paint the stack from the last screen that is not an overlay upwards.
+    ///
+    /// A popup is drawn over what was underneath, which is what the original's
+    /// management surface actually is; a page clears and replaces. The common
+    /// case — a stack whose top is a page — draws exactly one screen, as it
+    /// always did.
     pub fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
-        if let Some(top) = self.stack.last_mut() {
-            top.draw(ctx, canvas);
+        let from = self.base();
+        for screen in &mut self.stack[from..] {
+            screen.draw(ctx, canvas);
         }
+    }
+
+    /// The lowest screen that has to be painted for the top one to make sense.
+    fn base(&self) -> usize {
+        for i in (0..self.stack.len()).rev() {
+            if !self.stack[i].is_overlay() {
+                return i;
+            }
+        }
+        0
+    }
+
+    /// The `.256` the top screen runs under, or `None` for the campaign
+    /// palette. The presenter is the only caller: it is the one place that
+    /// turns indices into colour.
+    pub fn palette_name(&self) -> Option<&'static str> {
+        self.stack.last().and_then(|s| s.palette())
     }
 
     pub fn title(&self, ctx: &Ctx) -> String {
