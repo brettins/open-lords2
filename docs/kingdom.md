@@ -1010,7 +1010,9 @@ word for the "Starting Castle" option — is `keep`.
 
 **`g_eventTable` is not a 24-entry table.** It is a **256-slot deck of `i16` ids, 230 of
 them zero**, and a zero slot means "no event this season". The 26 non-zero slots hold the
-24 distinct ids, two of them twice. Every non-zero slot sits at an index `≡ 7 (mod 8)`, so
+24 distinct ids, two of them twice — **`0x8A` and `0x8B`, which are therefore twice as
+likely to fire as any other event.** The deck is weighted, not uniform, which is precisely
+what calling it "a 24-entry table" hides. Every non-zero slot sits at an index `≡ 7 (mod 8)`, so
 the deck is 32 groups of eight with at most one event in each group's last slot. **[V]**,
 and three things close it: 256 `i16` is 512 bytes and `0x004D6108 + 512` is exactly
 `0x004D6308`, where `g_birthRateLadder` begins; the 24 distinct ids are exactly the 24 the
