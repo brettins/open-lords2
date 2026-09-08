@@ -118,7 +118,7 @@ itself. That is how unit type 3 was identified as the merchant — see
 | Address | Name | Confidence | Meaning |
 |---|---|---|---|
 | `0x004DA050` | `g_resourceTable` | verified | The game's resource directory: {char name[16]; u32 size;} records. Entries 0-31 are the map tile sets, eight layers x four seasons; 32-63 the zoom-2 sets; 64+ the battle-map sets. See docs/formats/maps-layers.md 1.1. |
-| `0x0053F034` | `g_scenarioIndex` | verified | Current scenario. Its low 2 bits select the season variant of the tile set; the rest selects the map slot and the MAPnn.PL8 file. |
+| `0x0053F034` | `g_scenarioIndex` | verified | The map slot, 0..59, used unshifted. Map_LoadLattice seeks slot * 0x80C1 (the whole slot stride), Eng_DrawString(101, g_scenarioIndex) indexes the 60 slot names in L2.eng group 101, and Minimap_Load takes the MAPnn.PL8 file from slot >> 2 and one of its four slots from slot & 3. An earlier note here said the low 2 bits select the season variant of the tile set: they do not - Gfx_LoadCountyMode takes the season from g_season. |
 | `0x00522F90` | `g_tiles` | verified | Runtime tile array, 4096 records x 8 bytes, index y*64 + x. +1 plane0 flags, +2 bank, +3 frame, +4 plane3, +5 unit index on this tile, +6 saved terrain frame, +7 county. See docs/formats/maps-layers.md 5.3. |
 | `0x0055CEA0` | `g_screenLattice` | verified | Runtime 129x65 dword screen lattice, row stride 0x104. Covered cells hold tileIndex*8; uncovered cells keep 0x0FFF0000 + backgroundFrame. |
 | `0x0056D5DC` | `g_countyCount` | verified | Highest county id on the loaded map, i.e. the county count. Set by Map_LoadPlanes as max(plane5) over ids below 0x11. |

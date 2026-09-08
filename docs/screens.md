@@ -514,22 +514,64 @@ construction for "which tile can the player see here", and *not* the same algori
 
 ## 7. What our engine does, and what it does not
 
-Implemented in `crates/l2-view/src/campaign.rs` and `crates/l2-view/src/chrome.rs`:
+Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs` and
+`crates/l2-game/src/screens/map.rs`:
 
-* both real zooms, the real tile art, the real pitches, the scrolling window, the clamp,
-  the eight scroll directions and the `−4 / −12` centring;
-* the 24-pixel menu bar tiled from `Panels.pl8` 196…203, the framed-box kit, the
-  `Misc_cty.pl8` right panel, the `MAPnn.PL8` minimap with its owner tint;
-* the clip rectangle derivation of §1.4, asserted rather than assumed.
+* both real zooms and their tile art, the real pitches, the scrolling window, `Map_ClampScroll`'s
+  bounds, `Map_ScrollStep`'s eight directions and one-tile step, `Map_ToggleZoom`'s
+  save-and-restore of the near origin, and `Map_CentreOnTile`'s `−4 / −12`;
+* `Map_InitMode`'s opening state — near zoom, row `0x4A`, column `0x14`;
+* the 24-pixel menu bar tiled from `Panels.pl8` 196…203 with the realm banners at
+  `270 + 16i`, the framed-box kit, the `Misc_cty.pl8` right column, the far zoom's
+  `Ui_DrawBox(0, 412, 30, 4)` strip, the End Turn rectangle;
+* the `MAPnn.PL8` minimap, its click rectangle, and its owner tint through the realm ramp
+  read out of `Lords2.exe` at `0x004D2900`;
+* the clip-rectangle derivation of §1.4, asserted rather than assumed —
+  `campaign::tests::the_clip_rectangle_swallows_exactly_the_columns_the_half_blitters_drop`
+  goes red if the clip is moved to 480.
+
+Five oracle tests in `crates/l2-view/tests/install.rs` read the shipped files and the user's
+own binary back: all 830 tile frames against the pitch, the 48-byte realm ramp byte for
+byte, the 44-slot minimap census, the right column's heights, and `Panels.pl8`'s kit
+boundaries. `cargo test -p l2-game --test screens shoot -- --ignored` renders the screen
+into the gitignored `out/` so it can be looked at.
 
 **Left as ours, and labelled as such in the code:**
 
-* the map **rotation** (only rotation 0);
+* the map **rotation** — only rotation 0 is built, and `Map_BuildLattice`'s other three are
+  not;
 * the load-time **randomisation of background tile variants** (`maps-layers.md` §4.1) — we
-  draw the stored index, so the surround repeats where the original varies it;
-* the **auto-selection of the county filling the viewport** (§2.3);
-* the county **outline** and the county **markers** — invented, no original equivalent;
-* everything the right panel puts *inside* frames 55/66/56/58 (that is the other agent's
-  county panel), and the four minimap overlay modes' contents;
-* armies, flags and settlement state on the map;
-* our own 5 × 7 font, wherever text is drawn.
+  draw the stored index, so the off-map surround repeats where the original varies it over
+  16 grass and 8 water frames;
+* the **auto-selection of the county filling the viewport** (§2.3) — our selection changes
+  only on a click;
+* **edge scrolling**: the original scrolls when the *desktop* cursor is on the outermost
+  pixel of the screen, throttled by the Scroll Speed option. We bind the arrow keys instead,
+  and `Z` for the zoom the original gives a minimap button;
+* one measured pixel difference: **4,600 of 436,176 diamond body pixels** across the ten
+  tile banks hold palette index 0, which the original writes as black and we skip, because
+  `DecodedFrame::opaque` cannot tell those from the transparent corners;
+* the county **outline** and the county **marker squares** — invented, no original
+  equivalent; the original draws a `Flags1a.pl8` county flag over the castle tile, which we
+  do not place;
+* **armies** (`Map_DrawArmies`), **flags** (`Map_DrawCountyFlag`) and settlement state on
+  the map;
+* the File / Options / Help menus, their drop-downs, and everything the right column puts
+  *inside* frames 55 / 66 / 56 / 58 — our own numbers go on a dark backing over frame 56,
+  which is the one plain part of the column, so they read as an overlay;
+* the four minimap **overlay modes** (`g_minimapMode` 1…3) and their side strip;
+* our own 5 × 7 font, wherever text is drawn — the original uses `Fntl2_9`, `Fntl2_14` and
+  `Fntl2_22`, which are decoded but not wired up.
+
+## 8. What this corrected elsewhere
+
+* **`maps-layers.md` §6's "three zooms" is wrong** — there are two, and the third case of
+  `Map_SetZoom` is unreachable (§2.2). That section now points here.
+* **Its open 58-versus-60 discrepancy is closed** (§1.2): 58 is the artwork and 60 is the
+  pitch, and `pitch = frameWidth + 2` at every zoom.
+* **`maps.md`'s "the low 2 bits of the scenario select the season"** is wrong (§2.1, §3.1).
+  The season is `g_season`; those bits pick one of four map slots inside a `MAPnn.PL8`.
+* **`symbols.json`'s `Map_LoadTileSets` was misnamed** — it loads minimaps, not tile sets.
+  Renamed `Minimap_Load`.
+* **`g_scenarioIndex` is the map slot unshifted**, and `crates/l2-game` was shifting it
+  right by two. Unobservable on the shipped save, whose index is 0.

@@ -461,9 +461,15 @@ not one screen among them.
 The bill arrived in a single sentence. Shown one screenshot of the campaign map, the user
 said *"the map looks nothing like the original game… this looks like a minimap maybe?"*
 Reading `Map_RenderIso` took minutes and proved them right: the original walks a **window**
-into the lattice, at one of three zooms — tile width 60/28/12, visible columns 8/17/40 — and
-**never shows the whole 64-column map at any zoom.** Ours showed all of it. See
-`docs/formats/maps-layers.md` §6.
+into the lattice and **never shows the whole 64-column map at any zoom.** Ours showed all of
+it. See `docs/screens.md`, which is the whole screen written up.
+
+*(One thing that first reading got wrong, corrected while fixing it: it said "three zooms —
+tile width 60/28/12, visible columns 8/17/40", taken from `Map_SetZoom`'s three cases. The
+campaign screen has **two**. `g_mapZoom` has three writers in the whole binary and none of
+them can make it 1; no shipped PL8 holds 26 × 14 map tiles; and `Map_DrawTile` has no zoom-1
+branch. Reading one function's cases as the set of reachable states is C3's shape again — a
+tidy count believed before its callers were checked.)*
 
 Nobody was careless. The agent that built it had verified map *data*, a blank where the
 screen layout should be, and a task that said "build a campaign map screen" rather than

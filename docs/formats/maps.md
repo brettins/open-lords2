@@ -221,17 +221,28 @@ shipped data only ever uses banks `0x00, 0x04, 0x08, 0x0c`; the fifth bank
 `0x20` of the runtime field are set at run time, not loaded from the file — which
 is why plane 1's on-disk alphabet is only `{0, 4, 8, 12}`.
 
-The actual pixels come from `MAPnn.PL8`. `FUN_0046a037` selects them:
+The tile pixels come from the eight `g_resourceTable` entries `Gfx_LoadCountyMode`
+loads — `maps-layers.md` §1.1 and `screens.md` §2.1. `MAPnn.PL8` is a different
+thing. `Minimap_Load` (`0x0046A037`) selects it:
 
 ```c
-name = "map01.pl8" + (scenario >> 2) * 0x10;      /* 16-byte name table */
-read(name, dst0, 0x4000, dirEntry[(scenario & 3) * 5    ]);
-read(name, dst1, 0x4000, dirEntry[(scenario & 3) * 5 + 1]);
+name = "map01.pl8" + (slot >> 2) * 0x10;          /* 16-byte name table */
+read(name, dst0, 0x4000, dirEntry[(slot & 3) * 5    ]);
+read(name, dst1, 0x4000, dirEntry[(slot & 3) * 5 + 1]);
 ```
 
-i.e. the low 2 bits of the scenario select one of **four variants per tileset
-file** (**[I]** the four seasons — Lords of the Realm II renders spring / summer
-/ autumn / winter), and the rest selects among `MAP01..MAP06` / `MAP11..MAP15`.
+**Corrected: neither of those reads is a tile set, and the low two bits are not
+the season.** They are the two **128 × 128 minimap rasters** for one map slot — a
+county id per pixel, and a shading mask — and each `MAPnn.PL8` carries **four map
+slots**, which is what `slot & 3` picks. See `docs/screens.md` §3.1. Three things
+settle it: the frames are 128 × 128 and hold county ids 0…14 and shades
+{0, 10…13, 63}; `Gfx_LoadCountyMode` takes the season from `g_season`, a separate
+global; and 11 shipped `MAPnn.PL8` files × 4 slots = **44**, exactly the used-slot
+count, with the missing `map07…map10` covering exactly the empty slots 24…39.
+
+So `g_scenarioIndex` is the map slot 0…59 used **unshifted** — `Map_LoadLattice`
+seeks `slot * 0x80C1`, the whole slot stride, and `L2.eng` group 101's sixty
+strings name slots 0…59 one for one (`maps-layers.md` §6).
 
 ### Plane 3 — multi-tile object part index  **[I], strongly supported**
 

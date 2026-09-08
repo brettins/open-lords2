@@ -2746,7 +2746,7 @@
       "name": "g_scenarioIndex",
       "section": "map",
       "confidence": "verified",
-      "comment": "Current scenario. Its low 2 bits select the season variant of the tile set; the rest selects the map slot and the MAPnn.PL8 file."
+      "comment": "The map slot, 0..59, used unshifted. Map_LoadLattice seeks slot * 0x80C1 (the whole slot stride), Eng_DrawString(101, g_scenarioIndex) indexes the 60 slot names in L2.eng group 101, and Minimap_Load takes the MAPnn.PL8 file from slot >> 2 and one of its four slots from slot & 3. An earlier note here said the low 2 bits select the season variant of the tile set: they do not - Gfx_LoadCountyMode takes the season from g_season."
     },
     {
       "addr": "0x00522F90",

@@ -94,10 +94,21 @@ four:
    2×2 groups of `Town1a.pl8`/`Castle1a.pl8` byte-for-byte.
 4. **It renders.** See §0.
 
-**[I]** The season letter is `a`/`b`/`c`/`d`. `maps.md` reads the low 2 bits of
-the scenario as the season selector; the four `*1a/b/c/d` variants of every layer
-are consistent with that, and the game's own status bar says "Winter" while
-holding a season's tile set.
+**[V]** The season letter is `a`/`b`/`c`/`d`, and the selector is **`g_season`**,
+not the scenario index. `Gfx_LoadCountyMode` (`0x004984DC`) computes the base
+resource entry as
+
+```c
+base = (g_mapZoom == 2) ? 0x20 : 0;
+if (0 < g_season && g_season < 5) base += g_season * 8 - 8;
+```
+
+and then loads eight consecutive entries into the five tile banks plus
+`sprite1a`, `sprite1b` and `flags1a` — which is this section's bank order,
+confirmed from the loader rather than from the frame counts. An earlier revision
+here, and `maps.md`, read the low 2 bits of `g_scenarioIndex` as the season
+selector. That is wrong: those bits pick which of four map slots inside a
+`MAPnn.PL8` the **minimap** comes from. See `docs/screens.md` §2.1 and §3.1.
 
 ### 1.2 Plane 2 — the frame index  **[V]**
 
@@ -415,6 +426,13 @@ and there is nothing to name them with.
 This is a genuinely independent corroboration of the census: two unrelated files
 agree on used = 0–23 and 40–59, empty = 24–39.
 
+**And a third, from a completely different direction.** `Minimap_Load` reads a
+slot's minimap out of `"map01.pl8" + (slot >> 2) * 0x10` — four map slots per
+file — and the install ships **11** of those 15 names. 11 × 4 = **44**, exactly
+the used-slot count, and the four names it does not ship, `map07…map10`, cover
+exactly slots 24…39. `crates/l2-view/tests/install.rs` asserts both halves over
+all 60 slots. See `docs/screens.md` §3.1.
+
 As a smoke test, the names match the geometry: "Australia" (slot 52) renders as
 Australia with Tasmania; "England" (slot 0) renders as England and Wales;
 "Ireland" (slot 2) and "Japan" (slot 43) are islands; the abstract names
@@ -482,48 +500,29 @@ with as few separate process spawns as possible, and take the memory dumps
 
 ---
 
-## 6. The campaign screen is a scrolling viewport, at one of three zooms  **[V]**
+## 9. The campaign screen is a scrolling viewport — moved to `screens.md`
 
 §4 gives the lattice geometry. It does **not** say what the game puts on screen, and that
 gap produced a real mistake: `crates/l2-view`'s first campaign painter drew the whole
 64 × 64 map at once, and the result reads as a minimap because that is effectively what it
-is. The user said so on sight. Reading the renderer settles it.
+is. The user said so on sight.
 
-`Map_RenderIso` (`0x0040526E`) does not walk the lattice. It walks a **window** into it:
+`Map_RenderIso` (`0x0040526E`) does not walk the lattice, it walks a **window** into it, and
+**neither zoom shows the whole map**. The full treatment — the viewport, the scrolling, the
+chrome, the minimap, the layout rectangles — is now [`docs/screens.md`](../screens.md), with
+its own `ui` section in `symbols.json`. Two things it corrects about the first reading of
+this, which lived here:
 
-```c
-DAT_0056d594 = DAT_005651b8;               /* first visible lattice row  */
-DAT_0056d598 = DAT_005651b4;               /* first visible lattice col  */
-for (i = 0; i < DAT_0053e8ac; i++) {       /* visible columns, not 65    */
-    ...
-    DAT_00591524 += DAT_00568220;          /* screen x += tile width     */
-}
-```
+**There are two campaign zooms, not three.** `Map_SetZoom` (`0x00451FCC`) has three cases,
+and case 1 is unreachable: `g_mapZoom` has three writers in the binary and none can make it
+1, no shipped PL8 holds 26 × 14 map tiles, and `Map_DrawTile` has no zoom-1 branch. Near is
+58 × 30 tiles at a pitch of 60 showing 8 lattice columns; far is 10 × 6 at 12 showing 40.
 
-Every one of those is a variable. `FUN_00451FCC(zoom)` sets them together:
-
-| zoom | tile width `0x00568220` | visible cols `0x0053E8AC` | visible rows `0x0056D67C` | row step `0x0053F65C` |
-|---:|---:|---:|---:|---:|
-| 0 | **60** | **8** | 30 | 15 |
-| 1 | **28** | **17** | 64 | 7 |
-| 2 | **12** | **40** | 128 | 3 |
-
-**The map is 64 columns wide, and the most zoomed-out view shows 40 of them.** So the
-original never displays the whole map at once, at any zoom. A view that fits all 64 columns
-on screen is not a view this game has.
-
-The scroll origin is clamped to exactly that:
-
-```c
-DAT_005651b4 = 0x40 - DAT_0053e8ac;        /* 64 - visible columns */
-DAT_005651b8 = 0x80 - DAT_0056d67c;        /* 128 - visible rows   */
-```
-
-which is a scroll bound, and is only meaningful if the viewport moves.
-
-**An open discrepancy, flagged rather than resolved.** §4's worked geometry uses a tile
-width of **58** and derives the 3770 × 1935 bounding box from it; the renderer steps by
-**60**. Both are `[V]` against different evidence — §4 against a live lattice dump, this
-against the instruction stream — so one of them is measuring something the other is not
-(frame width versus column pitch is the obvious candidate). It is not resolved here, and
-nothing should be built on the two being interchangeable until it is.
+**The 58-versus-60 discrepancy is resolved, and both numbers were right.** §4's 58 is the
+*artwork*; the renderer's 60 is the *column pitch*, and **pitch = frame width + 2** at every
+zoom, with **row step = frame height / 2**. The two extra pixels are the columns the
+half-tile blitters drop at the vertical seam; they fall outside the viewport at both ends.
+So §4's derived 3770 × 1935 bounding box is the artwork's and not the renderer's, and the
+two numbers are still not interchangeable — but they are no longer in conflict. See
+`screens.md` §1.2, checked over all 830 tile frames in
+`crates/l2-view/tests/install.rs`.
