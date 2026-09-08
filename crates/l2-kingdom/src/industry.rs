@@ -41,10 +41,7 @@ use crate::county::County;
 use crate::math::pct;
 use crate::realm::Realm;
 use crate::report::Message;
-use crate::tables::{
-    Commodity, Tables, EFFICIENCY_MAX, EFFICIENCY_WITHOUT_ADVANCED_FARMING,
-    RESOURCE_LIMIT_UNLIMITED, WEAPON_TYPE_COUNT,
-};
+use crate::tables::{Commodity, Tables, RESOURCE_LIMIT_UNLIMITED, WEAPON_TYPE_COUNT};
 
 /// `PctOf(a, b) = a * 100 / b` — `FUN_00404DC1`, the companion to
 /// [`crate::math::pct`]. Zero denominator gives zero, exactly as the original
@@ -85,6 +82,7 @@ pub fn pct_of(a: i32, b: i32) -> i32 {
 /// `[V]` on all of it; the `advanced_farming` global is `0x0053F25C`, the same
 /// one `Grain_Sow` and `Fertility_Update` branch on.
 pub fn efficiency_ramp(
+    t: &Tables,
     last_efficiency: i32,
     workers: i32,
     capacity: i32,
@@ -92,7 +90,7 @@ pub fn efficiency_ramp(
     advanced_farming: bool,
 ) -> i32 {
     if !advanced_farming {
-        return EFFICIENCY_WITHOUT_ADVANCED_FARMING;
+        return t.efficiency.without_advanced_farming;
     }
     if workers == 0 {
         return 0;
@@ -102,8 +100,8 @@ pub fn efficiency_ramp(
         increment = pct(base, pct_of(capacity, workers));
     }
     let mut efficiency = last_efficiency + increment;
-    if efficiency > EFFICIENCY_MAX {
-        efficiency = EFFICIENCY_MAX;
+    if efficiency > t.efficiency.max {
+        efficiency = t.efficiency.max;
     }
     if efficiency < base {
         efficiency = base;
@@ -227,6 +225,7 @@ pub fn produce_with_share(
 
     let workers = county.labour[t.commodity[c.index()].job].max(0);
     county.industry[index].efficiency = efficiency_ramp(
+        t,
         county.industry[index].efficiency,
         workers,
         county.industry[index].capacity,
@@ -560,8 +559,8 @@ mod tests {
     fn a_basic_game_runs_every_industry_at_eighty_percent() {
         for base in [15, 20] {
             for workers in [0, 1, 30, 10_000] {
-                assert_eq!(efficiency_ramp(0, workers, 50, base, false), 80);
-                assert_eq!(efficiency_ramp(100, workers, 50, base, false), 80);
+                assert_eq!(efficiency_ramp(T, 0, workers, 50, base, false), 80);
+                assert_eq!(efficiency_ramp(T, 100, workers, 50, base, false), 80);
             }
         }
     }
@@ -573,7 +572,7 @@ mod tests {
         let mut e = 0;
         let mut seen = Vec::new();
         for _ in 0..9 {
-            e = efficiency_ramp(e, 30, 1_000, 15, true);
+            e = efficiency_ramp(T, e, 30, 1_000, 15, true);
             seen.push(e);
         }
         assert_eq!(seen, vec![15, 30, 45, 60, 75, 90, 100, 100, 100]);
@@ -583,15 +582,15 @@ mod tests {
     /// than a fresh one.
     #[test]
     fn the_ramp_never_falls_below_the_base() {
-        assert_eq!(efficiency_ramp(-50, 10, 1_000, 20, true), 20);
-        assert_eq!(efficiency_ramp(0, 10, 1_000, 20, true), 20);
+        assert_eq!(efficiency_ramp(T, -50, 10, 1_000, 20, true), 20);
+        assert_eq!(efficiency_ramp(T, 0, 10, 1_000, 20, true), 20);
     }
 
     /// A workless industry ramps to nothing at all, which is the one case that
     /// returns below the base.
     #[test]
     fn an_industry_with_no_workers_has_no_efficiency() {
-        assert_eq!(efficiency_ramp(90, 0, 100, 15, true), 0);
+        assert_eq!(efficiency_ramp(T, 90, 0, 100, 15, true), 0);
     }
 
     /// **Overstaffing slows the ramp.** Past the capacity the increment is
@@ -600,14 +599,14 @@ mod tests {
     #[test]
     fn working_more_serfs_than_the_capacity_slows_the_improvement() {
         // 100 workers against a capacity of 100: the full 15 points.
-        assert_eq!(efficiency_ramp(0, 100, 100, 15, true), 15);
+        assert_eq!(efficiency_ramp(T, 0, 100, 100, 15, true), 15);
         // 200 workers against the same capacity: PctOf(100,200) = 50, so
         // Pct(15, 50) = 7.
-        assert_eq!(efficiency_ramp(0, 200, 100, 15, true), 15, "but never below the base");
+        assert_eq!(efficiency_ramp(T, 0, 200, 100, 15, true), 15, "but never below the base");
         // Above the base the scaling shows.
-        assert_eq!(efficiency_ramp(50, 100, 100, 15, true), 65);
-        assert_eq!(efficiency_ramp(50, 200, 100, 15, true), 57, "50 + Pct(15, 50)");
-        assert_eq!(efficiency_ramp(50, 400, 100, 15, true), 53, "50 + Pct(15, 25)");
+        assert_eq!(efficiency_ramp(T, 50, 100, 100, 15, true), 65);
+        assert_eq!(efficiency_ramp(T, 50, 200, 100, 15, true), 57, "50 + Pct(15, 50)");
+        assert_eq!(efficiency_ramp(T, 50, 400, 100, 15, true), 53, "50 + Pct(15, 25)");
     }
 
     /// A capacity of zero scales the increment to nothing, so the efficiency
@@ -616,7 +615,7 @@ mod tests {
     fn an_industry_with_no_capacity_is_pinned_at_its_base() {
         let mut e = 15;
         for _ in 0..20 {
-            e = efficiency_ramp(e, 30, 0, 15, true);
+            e = efficiency_ramp(T, e, 30, 0, 15, true);
         }
         assert_eq!(e, 15);
     }

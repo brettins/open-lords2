@@ -31,7 +31,7 @@
 
 use crate::county::County;
 use crate::math::clamp;
-use crate::tables::{army_happiness_cost, Tables, ALE_HAPPINESS_MAX, ALE_HAPPINESS_STEP_PCT};
+use crate::tables::Tables;
 
 pub const HAPPINESS_MIN: i32 = 0;
 pub const HAPPINESS_MAX: i32 = 100;
@@ -105,17 +105,17 @@ pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
 /// `crowns` is `price x quantity` at the call site. Ale's base price is 1
 /// (`docs/kingdom.md` §10), so in the shipped game a barrel is a crown and the
 /// two are the same number.
-pub fn buy_ale(county: &mut County, crowns: i32) -> i32 {
+pub fn buy_ale(t: &Tables, county: &mut County, crowns: i32) -> i32 {
     if crowns <= 0 {
         return 0;
     }
-    let step = county.population / ALE_HAPPINESS_STEP_PCT;
+    let step = county.population / t.ale.step_pct;
     let mut bonus = 0;
     // Counted upward rather than as the original's nested `if`s; the ladder is
     // the same. A county of fewer than ten people has `step == 0`, and the
     // original's `crowns >= 5 * 0` is then true at the top rung — so any ale at
     // all buys the full five. Reproduced: `0 * n` is 0 for every rung.
-    let mut rung = ALE_HAPPINESS_MAX;
+    let mut rung = t.ale.max;
     while rung >= 1 {
         if crowns >= rung * step {
             bonus = rung;
@@ -123,7 +123,7 @@ pub fn buy_ale(county: &mut County, crowns: i32) -> i32 {
         }
         rung -= 1;
     }
-    let remaining = ALE_HAPPINESS_MAX - county.ale_happiness_given;
+    let remaining = t.ale.max - county.ale_happiness_given;
     if bonus > remaining {
         bonus = remaining;
     }
@@ -164,12 +164,12 @@ pub fn buy_ale(county: &mut County, crowns: i32) -> i32 {
 /// taken, so the panel and the happiness always agree.
 ///
 /// Returns the happiness actually lost.
-pub fn raise_army(county: &mut County, men: i32) -> i32 {
+pub fn raise_army(t: &Tables, county: &mut County, men: i32) -> i32 {
     if men <= 0 {
         return 0;
     }
     let share = crate::industry::pct_of(men, county.population);
-    let cost = army_happiness_cost(share);
+    let cost = t.army_happiness_cost(share);
     let taken = if county.happiness < cost {
         let taken = county.happiness;
         county.happiness = 0;
@@ -348,7 +348,7 @@ mod tests {
         let bought = |crowns: i32| {
             let mut c = County::new();
             c.population = 500;
-            buy_ale(&mut c, crowns)
+            buy_ale(T, &mut c, crowns)
         };
         assert_eq!(bought(0), 0, "and nothing at all for nothing");
         assert_eq!(bought(49), 0, "just under a tenth");
@@ -371,12 +371,12 @@ mod tests {
         c.population = 500;
         let mut total = 0;
         for _ in 0..20 {
-            total += buy_ale(&mut c, 250);
+            total += buy_ale(T, &mut c, 250);
         }
-        assert_eq!(total, ALE_HAPPINESS_MAX);
-        assert_eq!(c.ale_happiness_given, ALE_HAPPINESS_MAX);
-        assert_eq!(c.happiness, ALE_HAPPINESS_MAX);
-        assert_eq!(c.shown_ale, ALE_HAPPINESS_MAX);
+        assert_eq!(total, T.ale.max);
+        assert_eq!(c.ale_happiness_given, T.ale.max);
+        assert_eq!(c.happiness, T.ale.max);
+        assert_eq!(c.shown_ale, T.ale.max);
     }
 
     /// A county too small to have a tenth: `population / 10` is zero, every
@@ -386,7 +386,7 @@ mod tests {
     fn a_county_of_nine_people_gets_the_whole_bonus_for_one_crown() {
         let mut c = County::new();
         c.population = 9;
-        assert_eq!(buy_ale(&mut c, 1), 5);
+        assert_eq!(buy_ale(T, &mut c, 1), 5);
     }
 
     #[test]
@@ -394,7 +394,7 @@ mod tests {
         let mut c = County::new();
         c.population = 100;
         c.happiness = 98;
-        assert_eq!(buy_ale(&mut c, 1000), 5);
+        assert_eq!(buy_ale(T, &mut c, 1000), 5);
         assert_eq!(c.happiness, HAPPINESS_MAX);
     }
 
@@ -406,7 +406,7 @@ mod tests {
             let mut c = County::new();
             c.population = population;
             c.happiness = 100;
-            let taken = raise_army(&mut c, men);
+            let taken = raise_army(T, &mut c, men);
             assert_eq!(c.happiness, 100 - taken);
             assert_eq!(c.shown_army, -taken, "the panel shows the same number, negated");
             taken
@@ -426,13 +426,13 @@ mod tests {
     fn the_army_cost_never_falls_as_the_share_rises() {
         let mut last = -1;
         for share in 0..=101 {
-            let c = army_happiness_cost(share);
+            let c = T.army_happiness_cost(share);
             assert!(c >= last, "cost fell at {share}");
             last = c;
         }
-        assert_eq!(army_happiness_cost(0), 0);
-        assert_eq!(army_happiness_cost(101), 101);
-        assert_eq!(army_happiness_cost(200), 101, "clamped, not read past the end");
+        assert_eq!(T.army_happiness_cost(0), 0);
+        assert_eq!(T.army_happiness_cost(101), 101);
+        assert_eq!(T.army_happiness_cost(200), 101, "clamped, not read past the end");
     }
 
     /// A county that cannot afford the cost is taken to zero and the panel
@@ -442,7 +442,7 @@ mod tests {
         let mut c = County::new();
         c.population = 200;
         c.happiness = 10;
-        let taken = raise_army(&mut c, 50);
+        let taken = raise_army(T, &mut c, 50);
         assert_eq!(taken, 10, "19 was the price, 10 was all there was");
         assert_eq!(c.happiness, 0);
         assert_eq!(c.shown_army, -10);
@@ -456,8 +456,8 @@ mod tests {
         c.owner = 1;
         c.population = 500;
         c.happiness = 50;
-        buy_ale(&mut c, 250);
-        raise_army(&mut c, 50);
+        buy_ale(T, &mut c, 250);
+        raise_army(T, &mut c, 50);
         assert_eq!(c.shown_ale, 5);
         assert_eq!(c.shown_army, -5);
         let carried = c.happiness;

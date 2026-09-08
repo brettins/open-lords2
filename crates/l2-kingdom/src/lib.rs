@@ -111,8 +111,8 @@
 //!      armies, merchants, diplomacy and map tiles, which this crate does not
 //!      own. One of the fourteen (step 8) is an *empty function* in the
 //!      shipped binary;
-//!    * the four `AI_SetTaxRates` ladders — [`tables::AI_TAX_LADDER_NEUTRAL`]
-//!      and [`tables::AI_TAX_LADDERS`];
+//!    * the four `AI_SetTaxRates` ladders — [`tables::AiTable::tax_ladder_neutral`]
+//!      and [`tables::AiTable::tax_ladders`];
 //!    * the five bankruptcy stages — [`industry::BankruptcyAction`], each
 //!      cross-checked against the `L2.eng` group its handler raises;
 //!    * the efficiency ramp — [`industry::efficiency_ramp`] — and the

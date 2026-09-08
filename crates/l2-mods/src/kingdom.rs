@@ -22,18 +22,32 @@
 //! `l2_sim::Battle::with_troops`, and for a long time this half did not meet
 //! it: the rules were loaded, checked, reported and then ignored.
 //!
-//! What is *not* covered is worth naming rather than leaving to be discovered.
-//! The ale and army-raising happiness terms, the efficiency ramp's ceiling, and
-//! the AI's tax ladders and personality table are still `const` items in
-//! `l2-kingdom`, because [`Tables`] has no field for them. Array sizes — nine
-//! job slots, six ration levels — are structure rather than balance and are
-//! meant to stay constants. `docs/modding.md` §11 has the full division.
+//! The ale ladder, the army-raising cost table, the efficiency ramp's bounds
+//! and the AI's four tax ladders and personality table were the last rules with
+//! no field in [`Tables`], and they have one now. `tests/simulation.rs` proves
+//! each of them by running the rule and reading a different answer out of the
+//! simulation, not by reading the field back.
+//!
+//! What is *not* covered is worth naming rather than leaving to be discovered:
+//!
+//! * **`kingdom.ai.personality.*.farm_style` loads and does nothing.**
+//!   `AI_ManageFields` dispatches on it into three labour allocators that were
+//!   never traced, so `l2-kingdom` has no behaviour to attach to it. It is in
+//!   the schema because it is half of the personality record, and it is
+//!   labelled in the rendered document so an author is not left guessing.
+//! * **Array sizes are structure, not balance**: nine job slots, six ration
+//!   levels, six weapon types, 102 army-cost rows, eight tax-ladder rungs, four
+//!   personality records. A ruleset that changed one would be describing a
+//!   different simulation.
+//!
+//! `docs/modding.md` §11 has the full division.
 
 use crate::ruleset::{RuleError, Ruleset};
 use l2_kingdom::tables::{
-    AiTable, CastleTable, CommodityRow, EventTable, FieldTable, FoodTable, GoodRow, GrainTable,
-    HealthBandRow, JobTable, PopulationTable, RationRow, ScoreTable, SeasonRow, Tables, WageTable,
-    WeaponRow, WeatherRow,
+    AiPersonalityRow, AiTable, AleTable, CastleTable, CommodityRow, EfficiencyTable, EventTable,
+    FieldTable, FoodTable, GoodRow, GrainTable, HealthBandRow, JobTable, PopulationTable,
+    RationRow, ScoreTable, SeasonRow, Tables, TaxLadder, WageTable, WeaponRow, WeatherRow,
+    AI_PERSONALITY_COUNT, AI_TAX_LADDER_COUNT, ARMY_HAPPINESS_COST_LEN, TAX_LADDER_RUNGS,
 };
 
 /// Season ids, by `g_season` index. Index 0 is the original's `No Season`,
@@ -120,6 +134,22 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
 
     t.ration_happiness_slope = int(rs, "kingdom.happiness.ration_slope", -100, 100)?;
     t.ration_happiness_offset = int(rs, "kingdom.happiness.ration_offset", -100, 100)?;
+
+    t.ale = AleTable {
+        // `buy_ale` divides the population by this, so zero is a division by
+        // zero rather than "ale is free".
+        step_pct: int(rs, "kingdom.happiness.ale_step_pct", 1, 10_000)?,
+        // The rung count and the cumulative cap are one number, as they are in
+        // the original. Zero means ale buys nothing, which is a rebalance and
+        // not a crash, so it is allowed.
+        max: int(rs, "kingdom.happiness.ale_max", 0, 100)?,
+    };
+
+    let army = rs.integer_array("kingdom.happiness.army_cost", ARMY_HAPPINESS_COST_LEN)?;
+    for (pct, &value) in army.iter().enumerate() {
+        t.army_happiness_cost[pct] =
+            narrow(rs, "kingdom.happiness.army_cost", value, 0, 10_000)?;
+    }
 
     for (index, id) in RATION_IDS.iter().enumerate() {
         let base = format!("kingdom.ration.{id}");
@@ -252,6 +282,16 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         castle_building: slot("castle_building")?,
     };
 
+    t.efficiency = EfficiencyTable {
+        max: int(rs, "kingdom.efficiency.max", 0, 10_000)?,
+        without_advanced_farming: int(
+            rs,
+            "kingdom.efficiency.without_advanced_farming",
+            0,
+            10_000,
+        )?,
+    };
+
     for (index, id) in COMMODITY_IDS.iter().enumerate() {
         let base = format!("kingdom.commodity.{id}");
         check_index(rs, &base, index)?;
@@ -308,6 +348,31 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             row[d] = narrow(rs, &format!("{base}.by_difficulty"), v, 0, 1_000_000)?;
         }
     }
+    let tax_ladder_neutral = tax_ladder(rs, "kingdom.ai.tax_ladder_neutral")?;
+    let mut tax_ladders = [tax_ladder_neutral; AI_TAX_LADDER_COUNT];
+    for (i, slot) in tax_ladders.iter_mut().enumerate() {
+        *slot = tax_ladder(rs, &format!("kingdom.ai.tax_ladder.{i}"))?;
+    }
+
+    let mut personality = [AiPersonalityRow { farm_style: 0, tax_ladder: 0 }; AI_PERSONALITY_COUNT];
+    expect_rows(rs, "kingdom.ai.personality", AI_PERSONALITY_COUNT)?;
+    for (i, slot) in personality.iter_mut().enumerate() {
+        let base = format!("kingdom.ai.personality.{i}");
+        let declared = int(rs, &format!("{base}.lord"), 1, AI_PERSONALITY_COUNT as i64)?;
+        if declared as usize != i + 1 {
+            return Err(range(
+                rs,
+                &format!("{base}.lord"),
+                format!("row {i} is lord {}; the rows are in lord order", i + 1),
+            ));
+        }
+        *slot = AiPersonalityRow {
+            farm_style: int(rs, &format!("{base}.farm_style"), 0, 255)? as u8,
+            tax_ladder: int(rs, &format!("{base}.tax_ladder"), 0, AI_TAX_LADDER_COUNT as i64 - 1)?
+                as usize,
+        };
+    }
+
     t.ai = AiTable {
         gold_grant,
         grant_population_per_difficulty: int(
@@ -321,6 +386,9 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         grant_min_population: int(rs, "kingdom.ai.grant_min_population", 0, 1_000_000)?,
         grant_min_herd: int(rs, "kingdom.ai.grant_min_herd", 0, 1_000_000)?,
         grant_min_grain: int(rs, "kingdom.ai.grant_min_grain", 0, 1_000_000)?,
+        tax_ladder_neutral,
+        tax_ladders,
+        personality,
     };
 
     let mut gold_brackets = [(0i32, 0i32); GOLD_BRACKETS];
@@ -351,6 +419,50 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
 
 fn int(rs: &Ruleset, path: &str, lo: i64, hi: i64) -> Result<i32, RuleError> {
     Ok(rs.integer_in(path, lo, hi)? as i32)
+}
+
+/// One `AI_SetTaxRates` ladder: `{below, rate}` rows, walked in order, taking
+/// the first row the county's happiness is strictly below.
+///
+/// The simulation's ladder is a fixed [`TAX_LADDER_RUNGS`]-row array because
+/// the neutral ladder needs all eight, but the three personality ladders use
+/// five, five and six. Rather than make an author write three padding rows of
+/// `below = 2147483647`, a document may give **1 to 8** rows and the last one
+/// is repeated to fill. That is lossless in both directions: a fall-through
+/// returns the last row's rate whether the padding is there or not, and
+/// [`render_toml`] trims exactly the rows this adds back.
+fn tax_ladder(rs: &Ruleset, path: &str) -> Result<TaxLadder, RuleError> {
+    let rows = rs.array_len(path)?;
+    if rows == 0 || rows > TAX_LADDER_RUNGS {
+        return Err(range(
+            rs,
+            path,
+            format!("a tax ladder has 1 to {TAX_LADDER_RUNGS} rungs, found {rows}"),
+        ));
+    }
+    let mut ladder = [(0i32, 0i32); TAX_LADDER_RUNGS];
+    for i in 0..rows {
+        let base = format!("{path}.{i}");
+        ladder[i] = (
+            int(rs, &format!("{base}.below"), i32::MIN as i64, i32::MAX as i64)?,
+            int(rs, &format!("{base}.rate"), 0, 100)?,
+        );
+    }
+    for i in rows..TAX_LADDER_RUNGS {
+        ladder[i] = ladder[rows - 1];
+    }
+    Ok(ladder)
+}
+
+/// The rows of a ladder that a document has to state: everything up to the
+/// last one that differs from its predecessor. The inverse of the padding
+/// [`tax_ladder`] applies.
+fn tax_ladder_rows(ladder: &TaxLadder) -> &[(i32, i32)] {
+    let mut len = ladder.len();
+    while len > 1 && ladder[len - 1] == ladder[len - 2] {
+        len -= 1;
+    }
+    &ladder[..len]
 }
 
 /// Range-check one element of an array against the array's own origin, since
@@ -432,10 +544,12 @@ pub fn render_toml(t: &Tables) -> String {
          #     is the catch-all. Arrays replace whole on merge, so a mod that\n\
          #     changes one rung restates the ladder.\n\
          #\n\
-         # HONEST SCOPE: l2-mods loads and validates this file, and reports\n\
-         # what a mod changed in it. The l2-kingdom simulation still reads its\n\
-         # own constants rather than the table built from here. See\n\
-         # docs/modding.md.\n",
+         # HONEST SCOPE: every rule in this file is read by the simulation. A\n\
+         # mod that changes one changes what a county harvests, mines, pays or\n\
+         # feels, and crates/l2-mods/tests/simulation.rs proves that rule by\n\
+         # rule by running the season pipeline twice. The one exception is\n\
+         # named where it appears: kingdom.ai.personality.*.farm_style loads\n\
+         # and nothing reads it. See docs/modding.md sec 11.\n",
     );
 
     let _ = write!(
@@ -510,10 +624,29 @@ pub fn render_toml(t: &Tables) -> String {
          # worth, as slope * level + offset. In the original this is not a\n\
          # table at all - it is the expression 3L - 8 at the end of\n\
          # Ration_Apply.\n\
+         #\n\
+         # ale_step_pct and ale_max are the ale ladder: one happiness per that\n\
+         # percentage of the county's population in crowns, up to ale_max. The\n\
+         # published figure is +1 per 20%; the binary divides by 10, so it is\n\
+         # +1 per 10%. ale_max is BOTH the top rung and a cumulative cap that\n\
+         # nothing ever resets - five happiness from ale per county for the\n\
+         # whole game, not five a season.\n\
+         #\n\
+         # army_cost is what raising men costs the county, indexed by the\n\
+         # PERCENTAGE of its population taken, not by the number of men. 102\n\
+         # rows, 0..=101, and the count is fixed: in the original the row after\n\
+         # the last is the first merchant price.\n\
          \n[kingdom.happiness]\n\
          ration_slope = {}\n\
-         ration_offset = {}\n",
-        t.ration_happiness_slope, t.ration_happiness_offset
+         ration_offset = {}\n\
+         ale_step_pct = {}\n\
+         ale_max = {}\n\
+         army_cost = [\n{}\n]\n",
+        t.ration_happiness_slope,
+        t.ration_happiness_offset,
+        t.ale.step_pct,
+        t.ale.max,
+        wrap_i32(&t.army_happiness_cost, 16)
     );
     for (index, id) in RATION_IDS.iter().enumerate() {
         let row = t.ration[index];
@@ -643,6 +776,20 @@ pub fn render_toml(t: &Tables) -> String {
         t.job.grain_farming,
         t.job.castle_building
     );
+    let _ = write!(
+        out,
+        "\n# The efficiency ramp's two bounds. Efficiency COMPOUNDS season on\n\
+         # season towards max, so an industry is worth more the longer it has\n\
+         # run and a county that is conquered and restarted is not. With\n\
+         # Advanced Farming off none of that happens and every industry sits\n\
+         # flat at without_advanced_farming - which is the shipped save's\n\
+         # setting, so it is the ramp most games actually see.\n\
+         \n[kingdom.efficiency]\n\
+         max = {}\n\
+         without_advanced_farming = {}\n",
+        t.efficiency.max, t.efficiency.without_advanced_farming
+    );
+
     out.push_str(
         "\n# The four passes Industry_Produce makes per county per season, in\n\
          # the order it makes them. divisor is applied to the worker count\n\
@@ -731,6 +878,60 @@ pub fn render_toml(t: &Tables) -> String {
     }
 
     out.push_str(
+        "\n# The four tax ladders. In the original these are not tables at all -\n\
+         # they are four if/else-if chains inside AI_SetTaxRates, which is why\n\
+         # docs/kingdom.md sec 8.2 says the ladders exist and does not give\n\
+         # them. Each row is `happiness below this -> tax this rate`, walked in\n\
+         # order; the last row is the catch-all and its threshold is never\n\
+         # read. A ladder may state 1 to 8 rows and the last is repeated to\n\
+         # fill, so only the neutral ladder writes all eight.\n\
+         #\n\
+         # tax_ladder_neutral is what unowned counties pay, set once a turn in\n\
+         # phase 1. Note it charges 1% at 20 happiness where every lord's own\n\
+         # ladder charges nothing below 30 - nobody collects it, though:\n\
+         # Tax_CollectAll banks an unowned county's take into the county.\n",
+    );
+    for &(below, rate) in tax_ladder_rows(&t.ai.tax_ladder_neutral) {
+        let _ = write!(out, "\n[[kingdom.ai.tax_ladder_neutral]]\nbelow = {below}\nrate = {rate}\n");
+    }
+    out.push_str(
+        "\n# The three an AI realm picks between, by its lord's personality.\n\
+         # 0 is the greediest - 15% on a happy county. 2 is the gentlest, the\n\
+         # only one charging nothing below 60, and the one three lords use.\n",
+    );
+    for (i, ladder) in t.ai.tax_ladders.iter().enumerate() {
+        for &(below, rate) in tax_ladder_rows(ladder) {
+            let _ =
+                write!(out, "\n[[kingdom.ai.tax_ladder.{i}]]\nbelow = {below}\nrate = {rate}\n");
+        }
+    }
+
+    out.push_str(
+        "\n# One personality record per AI lord, in lord order. Two of the six\n\
+         # ints in each record are identified and those two are here.\n\
+         #\n\
+         # farm_style LOADS AND DOES NOTHING. AI_ManageFields copies it into\n\
+         # county +0x1FE and dispatches into one of three labour allocators\n\
+         # that were never traced, so this engine has no behaviour to attach\n\
+         # to it. It is here because it is half of the record, not because\n\
+         # changing it will change a game. tax_ladder does take effect.\n\
+         #\n\
+         # There are four records and not five: docs/kingdom.md sec 2 says the\n\
+         # lord byte runs 1..5, but a fifth record's bytes read a farm style of\n\
+         # 17 where every real one reads 0, 1 or 9. A realm whose lord names no\n\
+         # record sets no tax rates at all.\n",
+    );
+    for (i, row) in t.ai.personality.iter().enumerate() {
+        let _ = write!(
+            out,
+            "\n[[kingdom.ai.personality]]\nlord = {}\nfarm_style = {}\ntax_ladder = {}\n",
+            i + 1,
+            row.farm_style,
+            row.tax_ladder
+        );
+    }
+
+    out.push_str(
         "\n# --- score -----------------------------------------------------------\n\
          # The gold brackets are the one term of the score whose meaning is\n\
          # unambiguous. The six weights apply to six realm fields NONE of which\n\
@@ -758,4 +959,14 @@ pub fn render_toml(t: &Tables) -> String {
 
 fn join_i32(values: &[i32]) -> String {
     values.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ")
+}
+
+/// A long integer array, wrapped at `per_line` values and indented, so a
+/// hundred-entry table is readable rather than one enormous line.
+fn wrap_i32(values: &[i32], per_line: usize) -> String {
+    values
+        .chunks(per_line)
+        .map(|chunk| format!("  {},", join_i32(chunk)))
+        .collect::<Vec<_>>()
+        .join("\n")
 }

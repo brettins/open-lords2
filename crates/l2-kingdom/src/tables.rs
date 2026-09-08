@@ -545,6 +545,13 @@ pub const JOB_IDLE_TOWNSFOLK: usize = 8;
 pub const EFFICIENCY_WITHOUT_ADVANCED_FARMING: i32 = 80;
 
 /// The efficiency ceiling in `FUN_0044F248`.
+///
+/// **`[V]`, and in the instruction stream rather than in `.data`**: the ramp
+/// ends `CMP dword ptr [ebp-0x0C], 0x64` / `MOV dword ptr [ebp-0x0C], 0x64` at
+/// `0x0044F2E8`, and the flat 80 above is the `MOV EAX, 0x50` at `0x0044F278`.
+/// `tools/oracle/kingdom.ps1` recovers both immediates out of `.text` — the
+/// technique `docs/decisions.md` C16 established, applied to a rule rather
+/// than to a `Rules_InitConstants` global.
 pub const EFFICIENCY_MAX: i32 = 100;
 
 /// What `FUN_0044EF4E` returns as "no limit" for an enabled non-weapon
@@ -693,10 +700,24 @@ pub const AI_GRANT_MIN_GRAIN: i32 = 50;
 // The AI's tax ladders
 // ---------------------------------------------------------------------------
 
+/// How many rungs a tax ladder has room for. The neutral ladder uses all
+/// eight; the three personality ladders use five, five and six and pad the
+/// rest. A size, not a balance figure.
+pub const TAX_LADDER_RUNGS: usize = 8;
+
+/// How many ladders the personality table chooses between.
+pub const AI_TAX_LADDER_COUNT: usize = 3;
+
 /// A tax ladder: `(happiness_below, rate)` rows, walked in order, taking the
 /// first row the county's happiness is strictly below. The last row is the
 /// fallback and its threshold is never tested.
-pub type TaxLadder = [(i32, i32); 8];
+///
+/// **These are `if`/`else if` chains in the original, not a table** — there is
+/// no address to read them from, and `tools/oracle/kingdom.ps1` recovers all
+/// four out of `AI_SetTaxRates`' instruction stream instead: the thresholds
+/// are the `CMP EAX, imm8` immediates and the rates are the
+/// `MOV byte ptr [county+0xB9], imm8` stores, interleaved in source order.
+pub type TaxLadder = [(i32, i32); TAX_LADDER_RUNGS];
 
 /// The ladder `AI_SetTaxRates(0)` applies to **unowned** counties, which phase
 /// 1 (`docs/kingdom.md` §3.1) runs every turn. `[V]`
@@ -713,7 +734,7 @@ pub const AI_TAX_LADDER_NEUTRAL: TaxLadder =
 ///
 /// Ladder 0 is the greediest - 15% on a happy county. Ladder 2 is the gentlest
 /// and the only one that charges nothing below 60 happiness.
-pub const AI_TAX_LADDERS: [TaxLadder; 3] = [
+pub const AI_TAX_LADDERS: [TaxLadder; AI_TAX_LADDER_COUNT] = [
     [(30, 0), (50, 2), (65, 4), (80, 10), (i32::MAX, 15), (i32::MAX, 15), (i32::MAX, 15), (i32::MAX, 15)],
     [(30, 0), (50, 1), (65, 3), (80, 7), (i32::MAX, 12), (i32::MAX, 12), (i32::MAX, 12), (i32::MAX, 12)],
     [(60, 0), (70, 1), (80, 2), (90, 3), (95, 8), (i32::MAX, 10), (i32::MAX, 10), (i32::MAX, 10)],
@@ -807,6 +828,10 @@ pub const AI_FIELD_LADDER: [(i32, i32, i32); 6] = [
 /// Two functions in the binary compute this same ladder - the purchase
 /// (`FUN_00428C42`) and the panel's preview (`FUN_00435673`) - and they agree
 /// line for line, which is the second source.
+///
+/// Like the efficiency ceiling this is an immediate and not a table:
+/// `MOV ECX, 0x0A` at `0x00428C79`, feeding the `IDIV` that makes the step.
+/// `tools/oracle/kingdom.ps1` reads it out of `.text`.
 pub const ALE_HAPPINESS_STEP_PCT: i32 = 10;
 
 /// The most happiness ale can ever be worth in one county.
@@ -817,7 +842,20 @@ pub const ALE_HAPPINESS_STEP_PCT: i32 = 10;
 /// can be given at most **five happiness from ale for the whole game**, not
 /// five per season. `[D]` - a negative, and negatives are hard to prove; the
 /// search was a cross-reference of every instruction touching the offset.
+///
+/// The 5 is `MOV EAX, 5` at `0x00428C5A` — the `5 - given` clamp — and the
+/// ladder above it stores its rungs as `MOV dword ptr [ebp-8], 5 … 0`. Both
+/// are checked out of `.text` by `tools/oracle/kingdom.ps1`, which is what
+/// pins the rung *count* to the cap: one number does both jobs in the
+/// original, and it is one field here.
 pub const ALE_HAPPINESS_MAX: i32 = 5;
+
+/// The number of rows `g_armyHappinessCost` has, which is the percentage
+/// domain 0..=101 rather than a balance figure: index 101 is the last slot
+/// before the merchant price table at `0x004D8910` begins. A ruleset may
+/// change every cost in the table and may not change how many there are — the
+/// same line [`JOB_COUNT`] and [`WEAPON_TYPE_COUNT`] are on.
+pub const ARMY_HAPPINESS_COST_LEN: usize = 102;
 
 /// `g_armyHappinessCost` (`0x004D8778`) - the happiness raising an army costs
 /// the county it is raised in, indexed by **the percentage of the county's
@@ -836,7 +874,11 @@ pub const ALE_HAPPINESS_MAX: i32 = 5;
 ///
 /// 102 entries, `0x004D8778 … 0x004D8910`, which is exactly where the merchant
 /// price table begins.
-pub const ARMY_HAPPINESS_COST: [i32; 102] = [
+///
+/// All 102 are checked against the executable by `tools/oracle/kingdom.ps1`,
+/// together with the merchant table that bounds them — so the length is held
+/// by address arithmetic rather than by this comment.
+pub const ARMY_HAPPINESS_COST: [i32; ARMY_HAPPINESS_COST_LEN] = [
     0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 11, 13, 15, 17, 19, 21, 23, 25,
     27, 29, 31, 34, 37, 40, 44, 48, 52, 56, 60, 64, 68, 72, 75, 78, 80, 82, 84, 86, 88, 90, 91, 92,
     93, 94, 95, 96, 97, 98, 99, 100, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101,
@@ -1167,12 +1209,20 @@ mod tests {
 /// `&Tables` rather than a constant. `gathered_tests` holds the two readings
 /// equal over their whole domain, so they cannot drift apart.
 ///
-/// Not everything is here. The **ale** and **army-raising** happiness terms,
-/// the efficiency ramp's ceiling, and the AI's tax ladders and personality
-/// table are still read as constants because this type has no field for them;
-/// the functions that use them are the ones that still take no `&Tables`.
+/// The ale ladder, the army-raising cost table, the efficiency ramp's bounds,
+/// the AI's four tax ladders and its personality table were the last five
+/// rules with no field here, and they now have one. **Every rule function in
+/// this crate takes `&Tables`.**
+///
+/// One field is carried without being read: [`AiPersonalityRow::farm_style`].
+/// `AI_ManageFields` dispatches on it into three labour allocators that were
+/// never traced, so a ruleset can set it and nothing in this crate will
+/// behave differently — which is said here, in the field's own doc comment and
+/// in `docs/modding.md` §11 rather than left to be discovered.
+///
 /// Array *sizes* — [`JOB_COUNT`], [`RATION_LEVEL_COUNT`],
-/// [`WEAPON_TYPE_COUNT`] — are deliberately not here at all: a ruleset that
+/// [`WEAPON_TYPE_COUNT`], [`ARMY_HAPPINESS_COST_LEN`], [`TAX_LADDER_RUNGS`],
+/// [`AI_PERSONALITY_COUNT`] — are deliberately not fields: a ruleset that
 /// changed one would be describing a different simulation rather than a
 /// different balance, which is the same line `l2_sim::Troop::is_siege` draws on
 /// the battle side. `docs/modding.md` §11 has the full division.
@@ -1211,6 +1261,13 @@ pub struct Tables {
     /// Indexed by `L2.eng` group 6 good id 0..=14; index 0 is unused.
     pub good: [GoodRow; 15],
     pub wages: WageTable,
+    /// The efficiency ramp's two bounds — the ceiling it clamps to and the
+    /// flat figure it returns with *Advanced Farming* off.
+    pub efficiency: EfficiencyTable,
+    pub ale: AleTable,
+    /// `g_armyHappinessCost`, indexed by the percentage of the county taken.
+    /// [`Tables::army_happiness_cost`] is the bounded read.
+    pub army_happiness_cost: [i32; ARMY_HAPPINESS_COST_LEN],
     pub ai: AiTable,
     pub score: ScoreTable,
 }
@@ -1342,6 +1399,43 @@ pub struct WageTable {
     pub bankrupt_stage_max: u8,
 }
 
+/// The efficiency ramp's two bounds. See [`crate::industry::efficiency_ramp`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EfficiencyTable {
+    /// [`EFFICIENCY_MAX`] — the ceiling the compounding ramp clamps to.
+    pub max: i32,
+    /// [`EFFICIENCY_WITHOUT_ADVANCED_FARMING`] — the flat figure returned when
+    /// the option is off, which is the whole ramp in the shipped game.
+    pub without_advanced_farming: i32,
+}
+
+/// What a barrel of ale is worth. See [`crate::happiness::buy_ale`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AleTable {
+    /// [`ALE_HAPPINESS_STEP_PCT`] — one happiness per this percentage of the
+    /// county's population, in crowns.
+    pub step_pct: i32,
+    /// [`ALE_HAPPINESS_MAX`] — the top rung *and* the cumulative cap, which
+    /// are one constant in the original and so are one field here.
+    pub max: i32,
+}
+
+/// One AI lord's personality record, `g_aiPersonality + (lord - 1) * 0xF0`.
+///
+/// Two of the six ints are identified; the rest are not read by this crate and
+/// are not carried. See [`AI_PERSONALITY_TAX_LADDER`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AiPersonalityRow {
+    /// Record `+0x00`. **Carried, and nothing reads it.** `AI_ManageFields`
+    /// copies it into county `+0x1FE` and dispatches into one of three labour
+    /// allocators that were never traced, so this crate has no behaviour to
+    /// attach to it. It is here because it is half of the table, not because
+    /// changing it does anything yet — see [`AI_PERSONALITY_FARM_STYLE`].
+    pub farm_style: u8,
+    /// Record `+0x04` — which of [`AiTable::tax_ladders`] the lord taxes on.
+    pub tax_ladder: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AiTable {
     /// `[lord][difficulty]`. Rows 1..=3 are zeroed rather than invented.
@@ -1352,6 +1446,13 @@ pub struct AiTable {
     pub grant_min_population: i32,
     pub grant_min_herd: i32,
     pub grant_min_grain: i32,
+    /// The ladder unowned counties are taxed on — [`AI_TAX_LADDER_NEUTRAL`].
+    pub tax_ladder_neutral: TaxLadder,
+    /// The three an AI realm picks between — [`AI_TAX_LADDERS`].
+    pub tax_ladders: [TaxLadder; AI_TAX_LADDER_COUNT],
+    /// One record per AI lord, indexed `lord - 1`. See
+    /// [`AI_PERSONALITY_COUNT`] for why there are four and not five.
+    pub personality: [AiPersonalityRow; AI_PERSONALITY_COUNT],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1504,6 +1605,12 @@ impl Tables {
             divisor_ai: WAGE_DIVISOR_AI,
             bankrupt_stage_max: BANKRUPT_STAGE_MAX,
         },
+        efficiency: EfficiencyTable {
+            max: EFFICIENCY_MAX,
+            without_advanced_farming: EFFICIENCY_WITHOUT_ADVANCED_FARMING,
+        },
+        ale: AleTable { step_pct: ALE_HAPPINESS_STEP_PCT, max: ALE_HAPPINESS_MAX },
+        army_happiness_cost: ARMY_HAPPINESS_COST,
         ai: AiTable {
             gold_grant: AI_GOLD_GRANT,
             grant_population_per_difficulty: AI_GRANT_POPULATION_PER_DIFFICULTY,
@@ -1512,6 +1619,26 @@ impl Tables {
             grant_min_population: AI_GRANT_MIN_POPULATION,
             grant_min_herd: AI_GRANT_MIN_HERD,
             grant_min_grain: AI_GRANT_MIN_GRAIN,
+            tax_ladder_neutral: AI_TAX_LADDER_NEUTRAL,
+            tax_ladders: AI_TAX_LADDERS,
+            personality: [
+                AiPersonalityRow {
+                    farm_style: AI_PERSONALITY_FARM_STYLE[0],
+                    tax_ladder: AI_PERSONALITY_TAX_LADDER[0],
+                },
+                AiPersonalityRow {
+                    farm_style: AI_PERSONALITY_FARM_STYLE[1],
+                    tax_ladder: AI_PERSONALITY_TAX_LADDER[1],
+                },
+                AiPersonalityRow {
+                    farm_style: AI_PERSONALITY_FARM_STYLE[2],
+                    tax_ladder: AI_PERSONALITY_TAX_LADDER[2],
+                },
+                AiPersonalityRow {
+                    farm_style: AI_PERSONALITY_FARM_STYLE[3],
+                    tax_ladder: AI_PERSONALITY_TAX_LADDER[3],
+                },
+            ],
         },
         score: ScoreTable {
             // `score_gold_bracket` is written as `> 10_000`, `>= 5_001`,
@@ -1565,6 +1692,27 @@ impl Tables {
         ladder[ladder.len() - 1].1
     }
 
+    /// [`army_happiness_cost`], from this table.
+    ///
+    /// Clamps rather than reading past the end, for the reason the free
+    /// function gives: the original walks off into the merchant price table,
+    /// and reproducing that would hard-code that the two are adjacent — which
+    /// a ruleset that rebalances either has already made untrue.
+    pub fn army_happiness_cost(&self, pct: i32) -> i32 {
+        if pct <= 0 {
+            return self.army_happiness_cost[0];
+        }
+        self.army_happiness_cost[(pct as usize).min(self.army_happiness_cost.len() - 1)]
+    }
+
+    /// [`ai_tax_ladder`], from this table: the ladder an AI lord taxes on, or
+    /// `None` when the lord byte names no personality record.
+    pub fn ai_tax_ladder(&self, lord: u8) -> Option<&TaxLadder> {
+        let index = (lord as usize).checked_sub(1)?;
+        let row = self.ai.personality.get(index)?;
+        self.ai.tax_ladders.get(row.tax_ladder)
+    }
+
     /// [`score_gold_bracket`], from this table.
     pub fn score_gold_bracket(&self, gold: i32) -> i32 {
         for &(at_least, points) in &self.score.gold_brackets {
@@ -1607,6 +1755,29 @@ mod gathered_tests {
         }
         for gold in [0, 2000, 2001, 5000, 5001, 10_000, 10_001, 1_000_000] {
             assert_eq!(t.score_gold_bracket(gold), score_gold_bracket(gold), "gold {gold}");
+        }
+        for pct in -10..=200 {
+            assert_eq!(t.army_happiness_cost(pct), army_happiness_cost(pct), "pct {pct}");
+        }
+        for lord in 0..=8u8 {
+            assert_eq!(t.ai_tax_ladder(lord), ai_tax_ladder(lord), "lord {lord}");
+        }
+    }
+
+    /// The two scalars that were the last constants the industry and ale rules
+    /// read directly.
+    #[test]
+    fn the_gathered_tables_carry_the_ramp_and_ale_bounds() {
+        let t = Tables::DEFAULT;
+        assert_eq!(t.efficiency.max, EFFICIENCY_MAX);
+        assert_eq!(t.efficiency.without_advanced_farming, EFFICIENCY_WITHOUT_ADVANCED_FARMING);
+        assert_eq!(t.ale.step_pct, ALE_HAPPINESS_STEP_PCT);
+        assert_eq!(t.ale.max, ALE_HAPPINESS_MAX);
+        assert_eq!(t.ai.tax_ladder_neutral, AI_TAX_LADDER_NEUTRAL);
+        assert_eq!(t.ai.tax_ladders, AI_TAX_LADDERS);
+        for (i, row) in t.ai.personality.iter().enumerate() {
+            assert_eq!(row.farm_style, AI_PERSONALITY_FARM_STYLE[i], "lord {}", i + 1);
+            assert_eq!(row.tax_ladder, AI_PERSONALITY_TAX_LADDER[i], "lord {}", i + 1);
         }
     }
 

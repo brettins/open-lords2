@@ -578,6 +578,21 @@ impl Kingdom {
         self.history.record(&self.counties);
     }
 
+    /// `AI_SetTaxRates`' first half — set every county `realm` owns to the
+    /// rate its happiness earns on that realm's ladder.
+    ///
+    /// Like [`Kingdom::run_ai_grants`] this runs in the AI's turn rather than
+    /// in `Season_Advance`, so it is exposed rather than being a `Pass`.
+    /// **Realm 0 is the unowned counties**, which the original taxes once a
+    /// turn in phase 1 on the neutral ladder. An out-of-range realm index does
+    /// nothing rather than panicking, because the caller is a turn machine and
+    /// not a rule.
+    pub fn run_ai_tax_rates(&mut self, realm: u8) {
+        let Some(r) = self.realms.get(realm as usize) else { return };
+        let lord = r.lord;
+        ai::set_tax_rates(&self.tables, &mut self.counties, self.county_count, realm, lord);
+    }
+
     /// `AI_SetTaxRates`' resource grants, which run in the AI's turn rather
     /// than in `Season_Advance`. Exposed separately for that reason.
     pub fn run_ai_grants(&mut self) {

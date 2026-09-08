@@ -23,10 +23,12 @@
 #     is the catch-all. Arrays replace whole on merge, so a mod that
 #     changes one rung restates the ladder.
 #
-# HONEST SCOPE: l2-mods loads and validates this file, and reports
-# what a mod changed in it. The l2-kingdom simulation still reads its
-# own constants rather than the table built from here. See
-# docs/modding.md.
+# HONEST SCOPE: every rule in this file is read by the simulation. A
+# mod that changes one changes what a county harvests, mines, pays or
+# feels, and crates/l2-mods/tests/simulation.rs proves that rule by
+# rule by running the season pipeline twice. The one exception is
+# named where it appears: kingdom.ai.personality.*.farm_style loads
+# and nothing reads it. See docs/modding.md sec 11.
 
 # --- food ------------------------------------------------------------
 # A standing herd feeds five per head per season without being
@@ -100,10 +102,33 @@ dryness = -12
 # worth, as slope * level + offset. In the original this is not a
 # table at all - it is the expression 3L - 8 at the end of
 # Ration_Apply.
+#
+# ale_step_pct and ale_max are the ale ladder: one happiness per that
+# percentage of the county's population in crowns, up to ale_max. The
+# published figure is +1 per 20%; the binary divides by 10, so it is
+# +1 per 10%. ale_max is BOTH the top rung and a cumulative cap that
+# nothing ever resets - five happiness from ale per county for the
+# whole game, not five a season.
+#
+# army_cost is what raising men costs the county, indexed by the
+# PERCENTAGE of its population taken, not by the number of men. 102
+# rows, 0..=101, and the count is fixed: in the original the row after
+# the last is the first merchant price.
 
 [kingdom.happiness]
 ration_slope = 3
 ration_offset = -8
+ale_step_pct = 10
+ale_max = 5
+army_cost = [
+  0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7,
+  8, 8, 9, 9, 10, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31,
+  34, 37, 40, 44, 48, 52, 56, 60, 64, 68, 72, 75, 78, 80, 82, 84,
+  86, 88, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 101, 101,
+  101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101,
+  101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101, 101,
+  101, 101, 101, 101, 101, 101,
+]
 
 [kingdom.ration.none]
 index = 0
@@ -391,6 +416,17 @@ blacksmith = 7
 grain_farming = 0
 castle_building = 3
 
+# The efficiency ramp's two bounds. Efficiency COMPOUNDS season on
+# season towards max, so an industry is worth more the longer it has
+# run and a county that is conquered and restarted is not. With
+# Advanced Farming off none of that happens and every industry sits
+# flat at without_advanced_farming - which is the shipped save's
+# setting, so it is the ramp most games actually see.
+
+[kingdom.efficiency]
+max = 100
+without_advanced_farming = 80
+
 # The four passes Industry_Produce makes per county per season, in
 # the order it makes them. divisor is applied to the worker count
 # before the efficiency percentage - iron and wood harvest at twice
@@ -561,6 +597,153 @@ by_difficulty = [0, 400, 700, 1200]
 [[kingdom.ai.gold_grant]]
 lord = 4
 by_difficulty = [250, 600, 1100, 1800]
+
+# The four tax ladders. In the original these are not tables at all -
+# they are four if/else-if chains inside AI_SetTaxRates, which is why
+# docs/kingdom.md sec 8.2 says the ladders exist and does not give
+# them. Each row is `happiness below this -> tax this rate`, walked in
+# order; the last row is the catch-all and its threshold is never
+# read. A ladder may state 1 to 8 rows and the last is repeated to
+# fill, so only the neutral ladder writes all eight.
+#
+# tax_ladder_neutral is what unowned counties pay, set once a turn in
+# phase 1. Note it charges 1% at 20 happiness where every lord's own
+# ladder charges nothing below 30 - nobody collects it, though:
+# Tax_CollectAll banks an unowned county's take into the county.
+
+[[kingdom.ai.tax_ladder_neutral]]
+below = 20
+rate = 0
+
+[[kingdom.ai.tax_ladder_neutral]]
+below = 40
+rate = 1
+
+[[kingdom.ai.tax_ladder_neutral]]
+below = 50
+rate = 2
+
+[[kingdom.ai.tax_ladder_neutral]]
+below = 60
+rate = 3
+
+[[kingdom.ai.tax_ladder_neutral]]
+below = 70
+rate = 4
+
+[[kingdom.ai.tax_ladder_neutral]]
+below = 80
+rate = 6
+
+[[kingdom.ai.tax_ladder_neutral]]
+below = 90
+rate = 8
+
+[[kingdom.ai.tax_ladder_neutral]]
+below = 2147483647
+rate = 12
+
+# The three an AI realm picks between, by its lord's personality.
+# 0 is the greediest - 15% on a happy county. 2 is the gentlest, the
+# only one charging nothing below 60, and the one three lords use.
+
+[[kingdom.ai.tax_ladder.0]]
+below = 30
+rate = 0
+
+[[kingdom.ai.tax_ladder.0]]
+below = 50
+rate = 2
+
+[[kingdom.ai.tax_ladder.0]]
+below = 65
+rate = 4
+
+[[kingdom.ai.tax_ladder.0]]
+below = 80
+rate = 10
+
+[[kingdom.ai.tax_ladder.0]]
+below = 2147483647
+rate = 15
+
+[[kingdom.ai.tax_ladder.1]]
+below = 30
+rate = 0
+
+[[kingdom.ai.tax_ladder.1]]
+below = 50
+rate = 1
+
+[[kingdom.ai.tax_ladder.1]]
+below = 65
+rate = 3
+
+[[kingdom.ai.tax_ladder.1]]
+below = 80
+rate = 7
+
+[[kingdom.ai.tax_ladder.1]]
+below = 2147483647
+rate = 12
+
+[[kingdom.ai.tax_ladder.2]]
+below = 60
+rate = 0
+
+[[kingdom.ai.tax_ladder.2]]
+below = 70
+rate = 1
+
+[[kingdom.ai.tax_ladder.2]]
+below = 80
+rate = 2
+
+[[kingdom.ai.tax_ladder.2]]
+below = 90
+rate = 3
+
+[[kingdom.ai.tax_ladder.2]]
+below = 95
+rate = 8
+
+[[kingdom.ai.tax_ladder.2]]
+below = 2147483647
+rate = 10
+
+# One personality record per AI lord, in lord order. Two of the six
+# ints in each record are identified and those two are here.
+#
+# farm_style LOADS AND DOES NOTHING. AI_ManageFields copies it into
+# county +0x1FE and dispatches into one of three labour allocators
+# that were never traced, so this engine has no behaviour to attach
+# to it. It is here because it is half of the record, not because
+# changing it will change a game. tax_ladder does take effect.
+#
+# There are four records and not five: docs/kingdom.md sec 2 says the
+# lord byte runs 1..5, but a fifth record's bytes read a farm style of
+# 17 where every real one reads 0, 1 or 9. A realm whose lord names no
+# record sets no tax rates at all.
+
+[[kingdom.ai.personality]]
+lord = 1
+farm_style = 1
+tax_ladder = 2
+
+[[kingdom.ai.personality]]
+lord = 2
+farm_style = 1
+tax_ladder = 2
+
+[[kingdom.ai.personality]]
+lord = 3
+farm_style = 0
+tax_ladder = 2
+
+[[kingdom.ai.personality]]
+lord = 4
+farm_style = 9
+tax_ladder = 1
 
 # --- score -----------------------------------------------------------
 # The gold brackets are the one term of the score whose meaning is

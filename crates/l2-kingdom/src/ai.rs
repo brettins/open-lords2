@@ -69,16 +69,17 @@
 //!
 //! `AI_SetTaxRates` (`0x0049D638`) does two things and `docs/kingdom.md` §8.2
 //! gives neither in full. Its **four tax ladders** are
-//! [`crate::tables::AI_TAX_LADDER_NEUTRAL`] and
-//! [`crate::tables::AI_TAX_LADDERS`]; its **resource grants** are tiered by the
-//! realm's county count, which the document does not mention. Both are
-//! implemented.
+//! [`crate::tables::AiTable::tax_ladder_neutral`] and
+//! [`crate::tables::AiTable::tax_ladders`]; its **resource grants** are tiered
+//! by the realm's county count, which the document does not mention. Both are
+//! implemented, and both are read out of the [`Tables`] the caller hands in
+//! rather than out of a constant — the ladders are `if`/`else if` chains in the
+//! original, so a ruleset is the first time they have been data at all.
 
 use crate::county::County;
 use crate::realm::{Realm, AI_STEP_DONE};
 use crate::tables::{
-    ai_grant_tier, ai_tax_ladder, tax_rate_for, Tables, AI_FIELD_LADDER,
-    AI_GOLD_GRANT_SMALL_COUNTIES, AI_TAX_LADDER_NEUTRAL,
+    ai_grant_tier, tax_rate_for, Tables, AI_FIELD_LADDER, AI_GOLD_GRANT_SMALL_COUNTIES,
 };
 
 /// The number of handlers `AI_RunTurnStep` dispatches into: `aiStep` 1..=14.
@@ -287,8 +288,8 @@ pub fn begin_realm_turn(realm: &mut Realm, owned_counties: u8, armies: u8) {
 ///
 /// `realm_lord` is the owning realm's `lord` byte, and `realm` **0 means the
 /// unowned counties**, which phase 1 (`docs/kingdom.md` §3.1) runs once a turn
-/// with [`AI_TAX_LADDER_NEUTRAL`]. An AI realm uses the ladder its lord's
-/// personality names — see [`crate::tables::ai_tax_ladder`].
+/// with [`crate::tables::AiTable::tax_ladder_neutral`]. An AI realm uses the
+/// ladder its lord's personality names — see [`Tables::ai_tax_ladder`].
 ///
 /// The four ladders are the piece `docs/kingdom.md` §8.2 says exists and does
 /// not give. What they say, in one line each:
@@ -303,11 +304,17 @@ pub fn begin_realm_turn(realm: &mut Realm, owned_counties: u8, armies: u8) {
 /// taxes its own — 1% at 20 happiness where every lord's ladder charges
 /// nothing below 30. Nobody is collecting it, though: `Tax_CollectAll` banks an
 /// unowned county's take into the county itself rather than into a treasury.
-pub fn set_tax_rates(counties: &mut [County], county_count: usize, realm: u8, realm_lord: u8) {
+pub fn set_tax_rates(
+    t: &Tables,
+    counties: &mut [County],
+    county_count: usize,
+    realm: u8,
+    realm_lord: u8,
+) {
     let ladder = if realm == 0 {
-        Some(&AI_TAX_LADDER_NEUTRAL)
+        Some(&t.ai.tax_ladder_neutral)
     } else {
-        ai_tax_ladder(realm_lord)
+        t.ai_tax_ladder(realm_lord)
     };
     // A lord with no personality record sets no rates at all, rather than
     // falling back to a ladder that was never established. See
@@ -542,7 +549,7 @@ mod tests {
     /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
     use crate::realm::MAX_REALMS;
-    use crate::tables::{AI_GOLD_GRANT, AI_GOLD_GRANT_SMALL, AI_TAX_LADDERS};
+    use crate::tables::{AI_GOLD_GRANT, AI_GOLD_GRANT_SMALL};
 
     fn ai_realms() -> Vec<Realm> {
         let mut realms = vec![Realm::new(); MAX_REALMS];
@@ -708,7 +715,7 @@ mod tests {
     /// The neutral ladder, every rung, as `AI_SetTaxRates(0)` walks it.
     #[test]
     fn the_neutral_ladder_taxes_an_unowned_county_by_its_happiness() {
-        let rate = |h: i32| tax_rate_for(&AI_TAX_LADDER_NEUTRAL, h);
+        let rate = |h: i32| tax_rate_for(&T.ai.tax_ladder_neutral, h);
         assert_eq!(rate(0), 0);
         assert_eq!(rate(19), 0);
         assert_eq!(rate(20), 1, "the first rung is at 20");
@@ -727,7 +734,7 @@ mod tests {
     /// four lords use.
     #[test]
     fn the_three_ai_ladders_run_from_greedy_to_gentle() {
-        let rate = |l: usize, h: i32| tax_rate_for(&AI_TAX_LADDERS[l], h);
+        let rate = |l: usize, h: i32| tax_rate_for(&T.ai.tax_ladders[l], h);
         // Ladder 0: 0 / 2 / 4 / 10 / 15
         assert_eq!(
             [rate(0, 29), rate(0, 30), rate(0, 50), rate(0, 65), rate(0, 80)],
@@ -753,11 +760,11 @@ mod tests {
     #[test]
     fn only_the_four_ai_lords_have_a_personality_record() {
         for lord in 1..=crate::tables::AI_PERSONALITY_COUNT as u8 {
-            assert!(ai_tax_ladder(lord).is_some(), "lord {lord}");
+            assert!(T.ai_tax_ladder(lord).is_some(), "lord {lord}");
         }
-        assert!(ai_tax_ladder(crate::realm::LORD_HUMAN).is_none(), "the human");
-        assert!(ai_tax_ladder(5).is_none(), "lord 5 is not established");
-        assert!(ai_tax_ladder(crate::realm::LORD_ELIMINATED).is_none());
+        assert!(T.ai_tax_ladder(crate::realm::LORD_HUMAN).is_none(), "the human");
+        assert!(T.ai_tax_ladder(5).is_none(), "lord 5 is not established");
+        assert!(T.ai_tax_ladder(crate::realm::LORD_ELIMINATED).is_none());
     }
 
     /// The unowned counties get their rates in phase 1, and nothing else does.
@@ -768,7 +775,7 @@ mod tests {
         counties[2].owner = 1;
         counties[2].happiness = 95;
         counties[2].tax_rate = 3;
-        set_tax_rates(&mut counties, 4, 0, 0);
+        set_tax_rates(T, &mut counties, 4, 0, 0);
         assert_eq!(counties[1].tax_rate, 12);
         assert_eq!(counties[2].tax_rate, 3, "realm 1 county untouched");
     }
@@ -781,10 +788,10 @@ mod tests {
             counties[id].happiness = 70;
         }
         // Lord 4 uses ladder 1: 70 happiness -> 7%.
-        set_tax_rates(&mut counties, 3, 2, 4);
+        set_tax_rates(T, &mut counties, 3, 2, 4);
         assert_eq!(counties[1].tax_rate, 7);
         // Lord 1 uses ladder 2: 70 happiness -> 2%.
-        set_tax_rates(&mut counties, 3, 2, 1);
+        set_tax_rates(T, &mut counties, 3, 2, 1);
         assert_eq!(counties[1].tax_rate, 2);
     }
 
@@ -796,7 +803,7 @@ mod tests {
         counties[1].owner = 2;
         counties[1].happiness = 90;
         counties[1].tax_rate = 6;
-        set_tax_rates(&mut counties, 2, 2, 5);
+        set_tax_rates(T, &mut counties, 2, 2, 5);
         assert_eq!(counties[1].tax_rate, 6);
     }
 
