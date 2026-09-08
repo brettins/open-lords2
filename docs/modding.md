@@ -216,7 +216,10 @@ author must hold in their head to predict what two mods will do together.
    element an override refers to. So a mod that changes one rung of a ladder
    restates the ladder, and a mod that changes one strength band restates all
    four. Anything meant for partial override is a table keyed by name instead,
-   and the rulesets are written that way wherever it makes sense.
+   and the rulesets are written that way wherever it makes sense. One
+   consequence to know when reading the counts in §7.3: a whole array is **one**
+   rule, so the twenty-row birth-rate ladder counts as a single overridable
+   thing and not as forty.
 3. **`"$delete"` removes.** `"$delete" = ["knight"]` inside a table removes
    those keys before the rest of that table merges — so a mod can delete a
    sub-table and then define a fresh one in the same document, replacing rather
@@ -262,14 +265,34 @@ The resolved layer stack, bottom first:
 
 ### 7.2 `report()` — organised by conflict
 
-This is the "my two mods are fighting" view.
+This is the "my two mods are fighting" view. Here it is for the example mod
+over a ruleset seeded from a real Windows install — the exact output of
+`LORDS2_DIR=... cargo test -p l2-mods --test corpus -- --nocapture`, which is
+also how to check that this document still matches the code:
+
+```
+rules overridden:
+  battle.isthmus.attacker.archers : base:rules/troops.toml:148:11 -> longbows:rules/longbows.toml:18:11
+  battle.the_arena.attacker.archers : base:rules/troops.toml:334:11 -> longbows:rules/longbows.toml:21:11
+  battle.the_arena.attacker.crossbows : base:rules/troops.toml:330:13 -> longbows:rules/longbows.toml:22:13
+  battle.three_bridges.attacker.archers : base:rules/troops.toml:117:11 -> longbows:rules/longbows.toml:12:11
+  battle.three_bridges.defender.archers : base:rules/troops.toml:130:11 -> longbows:rules/longbows.toml:15:11
+  difficulty.hard.scale_percent : base:rules/troops.toml:98:17 -> longbows:rules/longbows.toml:29:17
+  difficulty.very_hard.scale_percent : base:rules/troops.toml:102:17 -> longbows:rules/longbows.toml:32:17
+  unit.archers.armour : core:rules/units.toml:92:10 -> longbows:rules/longbows.toml:56:10
+  unit.archers.melee_attack : core:rules/units.toml:89:16 -> longbows:rules/longbows.toml:54:16
+```
+
+A corpus test asserts that **every** line of that is an *override* rather than
+an addition. A mod that misspelt a battle id would otherwise merge silently,
+creating a rule nothing reads; insisting the count matches the mod's leaf count
+catches it.
+
+The other sections appear when something is wrong:
 
 ```
 assets provided by more than one layer:
   base1a.pl8: base -> longbows -> prettier (last wins)
-rules overridden:
-  battle.three_bridges.attacker.archers : base:rules/troops.toml:117:11 -> longbows:rules/longbows.toml:12:11
-  difficulty.hard.scale_percent : base:rules/troops.toml:98:17 -> longbows:rules/longbows.toml:29:17
 rules a mod added rather than overrode (check the spelling):
   battle.three_brdiges.attacker.archers (set by typo, defined nowhere below)
 rules holding a decimal, which the simulation cannot use:
@@ -284,11 +307,28 @@ mod 'aaa' loaded but changes nothing: everything it sets is overridden
 ### 7.3 `effect_report()` — organised by mod
 
 This is the "my mod is not working" view, and it is the one to reach for first,
-because that is the question people actually ask.
+because that is the question people actually ask. The same load as above:
 
 ```
-1. core: 401 rule(s) and 0 file(s) in force
-2. base: 1155 rule(s) and 1196 file(s) in force
+1. core: 283 rule(s) and 0 file(s) in force
+     rule unit.archers.armour lost to longbows:rules/longbows.toml:56:10
+     rule unit.archers.melee_attack lost to longbows:rules/longbows.toml:54:16
+2. base: 922 rule(s) and 0 file(s) in force
+     rule battle.isthmus.attacker.archers lost to longbows:rules/longbows.toml:18:11
+     rule battle.the_arena.attacker.archers lost to longbows:rules/longbows.toml:21:11
+     rule battle.the_arena.attacker.crossbows lost to longbows:rules/longbows.toml:22:13
+     rule battle.three_bridges.attacker.archers lost to longbows:rules/longbows.toml:12:11
+     rule battle.three_bridges.defender.archers lost to longbows:rules/longbows.toml:15:11
+     rule difficulty.hard.scale_percent lost to longbows:rules/longbows.toml:29:17
+     rule difficulty.very_hard.scale_percent lost to longbows:rules/longbows.toml:32:17
+3. longbows: 9 rule(s) and 0 file(s) in force
+```
+
+That is a healthy load: the mod set nine rules and all nine are in force, and
+the two layers below it each lost exactly what the mod took. An unhealthy one
+looks like this instead:
+
+```
 3. aaa: HAS NO EFFECT - everything it supplies is overridden below
      rule battle.three_bridges.attacker.archers lost to zzz:rules/zzz.toml:2:11
 4. zzz: 1 rule(s) and 0 file(s) in force
@@ -309,6 +349,10 @@ The second row is the one nothing else catches. A misspelt battle id merges
 perfectly: the value is set, no conflict is reported, and the engine goes on
 reading the rule it was always going to read. It is invisible without
 per-value provenance, which is the main reason the value tree carries it.
+
+It is reported for mods only. The `core` and `base` layers are the bottom of
+the stack, so *every* rule they set is an addition and none of them is a typo;
+printing a thousand of those would bury the handful that mean something.
 
 ### 7.4 Inspection — organised by mod, before loading
 

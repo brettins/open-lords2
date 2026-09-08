@@ -61,7 +61,7 @@ pub mod vfs;
 
 pub use core::CORE_LAYER;
 pub use digest::{digest, digest_hex};
-pub use effect::{AssetClaim, EffectReport, Fate, LayerEffect, RuleClaim};
+pub use effect::{AssetClaim, EffectReport, Fate, LayerEffect, LayerKind, RuleClaim};
 pub use merge::{Deletion, MergeLog, Override};
 pub use modmeta::{
     discover, resolve_load_order, Dependency, LoadOrderError, MetaError, ModMeta, Version,
@@ -150,7 +150,7 @@ impl Platform {
         let mut added_rules: Vec<(String, String)> = Vec::new();
         let mut inert_layers: Vec<String> = Vec::new();
         for e in &effects {
-            if e.id == CORE_LAYER || e.id == BASE_LAYER {
+            if e.kind != effect::LayerKind::Mod {
                 continue;
             }
             if e.is_inert() && !e.is_empty() {

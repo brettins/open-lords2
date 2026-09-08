@@ -241,6 +241,17 @@ fn the_example_mod_only_changes_rules_that_the_real_game_actually_has() {
     let rules = TroopRules::from_ruleset(&p.rules).expect("still valid");
     assert_eq!(rules.battle("three_bridges").unwrap().attacker[5], 120);
     assert_eq!(rules.difficulty("very_hard").unwrap().scale_percent, 65);
+
+    // Its `unit.*` half reaches the simulation table, over a ruleset seeded
+    // from a real install rather than a fixture.
+    assert_eq!(p.troop_table().unwrap().stats(l2_sim::Troop::Archers).armour, 4);
+
+    // The two reports, printed against real data. `docs/modding.md` §7 quotes
+    // this output, so `-- --nocapture` is how to check the document still
+    // matches what the code says.
+    println!("--- report ---\n{}", p.report());
+    println!("--- effects ---\n{}", p.effect_report());
+    println!("--- digest --- {}", l2_mods::digest_hex(&p.rules));
 }
 
 fn count_leaves(v: &l2_mods::Value) -> usize {

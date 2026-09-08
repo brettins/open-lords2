@@ -74,10 +74,29 @@ pub struct AssetClaim {
     pub shadowed_by: Option<String>,
 }
 
+/// Which of the three kinds of layer this is.
+///
+/// It matters for exactly one thing, and that thing is worth a type: **every
+/// rule the core and base layers set is an addition by definition.** They are
+/// the bottom of the stack; there is nothing below them to override. Applying
+/// the "added, not overridden — check the spelling" advice to them would bury
+/// the handful of cases that are real typos under about fifteen hundred that
+/// are not, which is how a useful diagnostic gets ignored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayerKind {
+    /// The engine's own rules, compiled in.
+    Core,
+    /// The player's data directory: assets and the seeded base ruleset.
+    Base,
+    /// A mod.
+    Mod,
+}
+
 /// Everything one layer contributed, and how much of it survived.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LayerEffect {
     pub id: String,
+    pub kind: LayerKind,
     /// Position in the resolved load order. The base install and the core
     /// ruleset are layers too and come first.
     pub position: usize,
@@ -143,12 +162,13 @@ pub fn analyse(vfs: &Vfs, rules: &Ruleset, mods: &[ModMeta]) -> Vec<LayerEffect>
     // accounted for first and separately, and only for rules.
     let core = crate::core::CORE_LAYER;
     if rules.documents.iter().any(|d| layer_of(&d.source) == core) {
-        out.push(layer_effect(core, 0, None, rules));
+        out.push(layer_effect(core, LayerKind::Core, 0, None, rules));
     }
 
     for (i, layer) in vfs.layers().iter().enumerate() {
         let position = out.len();
-        out.push(layer_effect(&layer.id, position, Some((vfs, i)), rules));
+        let kind = if layer.id == crate::BASE_LAYER { LayerKind::Base } else { LayerKind::Mod };
+        out.push(layer_effect(&layer.id, kind, position, Some((vfs, i)), rules));
     }
 
     // A mod that resolved into the load order but mounted no layer cannot
@@ -158,6 +178,7 @@ pub fn analyse(vfs: &Vfs, rules: &Ruleset, mods: &[ModMeta]) -> Vec<LayerEffect>
             let position = out.len();
             out.push(LayerEffect {
                 id: m.id.clone(),
+                kind: LayerKind::Mod,
                 position,
                 documents: Vec::new(),
                 rules: Vec::new(),
@@ -174,6 +195,7 @@ fn layer_of(source: &str) -> &str {
 
 fn layer_effect(
     id: &str,
+    kind: LayerKind,
     position: usize,
     vfs_layer: Option<(&Vfs, usize)>,
     rules: &Ruleset,
@@ -224,7 +246,7 @@ fn layer_effect(
         }
     }
 
-    LayerEffect { id: id.to_string(), position, documents, rules: claims, assets }
+    LayerEffect { id: id.to_string(), kind, position, documents, rules: claims, assets }
 }
 
 fn fate_of(rules: &Ruleset, source: &str, path: &str) -> Fate {
@@ -278,12 +300,18 @@ impl fmt::Display for EffectReport<'_> {
             for claim in e.rules_lost() {
                 writeln!(f, "     rule {} {}", claim.path, claim.fate)?;
             }
-            for claim in e.rules_added() {
-                writeln!(
-                    f,
-                    "     rule {} was added, not overridden - check the spelling",
-                    claim.path
-                )?;
+            // Only for mods. The core and base layers are the bottom of the
+            // stack, so every rule they set is an addition and none of them is
+            // a typo — printing fifteen hundred of those would bury the
+            // handful that mean something.
+            if e.kind == LayerKind::Mod {
+                for claim in e.rules_added() {
+                    writeln!(
+                        f,
+                        "     rule {} was added, not overridden - check the spelling",
+                        claim.path
+                    )?;
+                }
             }
             for asset in &e.assets {
                 if let Some(who) = &asset.shadowed_by {
