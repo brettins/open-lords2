@@ -388,7 +388,7 @@ player's own copy of the game.
 | Namespace | Contents | Where it comes from | Consumed by |
 |---|---|---|---|
 | `unit.<id>` | battle combat constants | shipped: `rulesets/core/rules/units.toml` | `l2_sim::TroopTable` — **live** |
-| `kingdom.*` | the economy | shipped: `rulesets/core/rules/kingdom.toml` | `l2_kingdom::tables::Tables` — **loaded, not yet wired**; see §11 |
+| `kingdom.*` | the economy | shipped: `rulesets/core/rules/kingdom.toml` | `l2_kingdom::tables::Tables` — **live for the economic core**; see §11 |
 | `troop.<id>`, `difficulty.<id>`, `battle.<id>` | the skirmish army table | generated from `TROOPS*.ENG` and `BATTLES.ENG` | `l2_mods::TroopRules` |
 
 Read the shipped documents. They are plain, commented and human-readable, they
@@ -720,21 +720,36 @@ exactly the kind of thing a modding document is tempted to blur.
 | `unit.*` → `l2_sim::TroopTable` | **Live.** `Battle::with_troops` runs the simulation on the loaded table, and a test asserts a modded table changes the outcome of a duel |
 | `troop.*`, `difficulty.*`, `battle.*` → `l2_mods::TroopRules` | **Live.** Typed, range-checked, and the difficulty curve reproduces the original's arithmetic |
 | Assets, through the overlay | **Live**, and proven against a real install's 291 sprite files |
-| `kingdom.*` → `l2_kingdom::tables::Tables` | **Loaded, validated, round-tripped — and not yet consumed.** The kingdom simulation still reads the module-level constants directly |
+| `kingdom.*` → `l2_kingdom::tables::Tables` | **Live for the economic core.** `Kingdom::with_tables` runs the season pipeline on the loaded table, and a test starts at a `.toml` and ends at a different number of sacks in a barn |
 
-The kingdom gap is real and worth being precise about. `Tables::DEFAULT` is
-assembled *from* the constants in `crates/l2-kingdom/src/tables.rs`, which
-remain the source of truth and keep their addresses and their evidence in their
-own doc comments. Loading `kingdom.toml` produces a `Tables` value that a test
-checks against `Tables::DEFAULT`, so the document and the constants cannot
-drift. What has **not** happened is threading `&Tables` through the roughly
-thirty free functions in that crate, which is a mechanical change to its public
-API and to every call site. Until that lands, a modded `kingdom.toml` is
-loaded, range-checked and reported — and then not used by the economy.
+The kingdom half was, for a long time, loaded and validated and then ignored,
+and this section said so. It no longer is: `Kingdom` carries a `Tables` and
+around thirty rule functions take `&Tables` and read it. What a mod now
+genuinely reaches:
 
-The same statement appears in `crates/l2-mods/src/kingdom.rs` and in
-`l2-kingdom`'s `Tables` doc comment. It is in three places so that none of them
-can quietly start claiming more than is true.
+food and dairy; the whole ration ladder and its happiness slope; the health
+delta grid and the band ladder; the birth ladder and the happiness factor;
+deaths by health band and by season; the random-event population cap and first
+year; grain yield per sack, sacks per field and the sowing labour divisors;
+field reclamation; the herd's weather swing; castle tax bases, costs,
+workforce, garrison caps and free archers; weapon costs; the industry job and
+divisor columns; wage divisors; the AI's gold grants and resource floors; and
+the score weights and gold brackets.
+
+**What is still a constant, and honestly so.** Array *sizes* are structure, not
+balance — the nine job slots, the six ration levels, the eleven troop types —
+and a ruleset that changed one would be describing a different simulation
+rather than a different game. Three real rules are also still compiled in
+because `Tables` does not carry them yet: the **ale** happiness ladder, the
+**army-raising** happiness cost, and the efficiency ramp's ceiling. So are the
+AI's four tax ladders and its personality table. Each is a `const` in
+`crates/l2-kingdom/src/tables.rs` with its address and its evidence beside it;
+adding one to `Tables` and to `kingdom.toml` is now a small change rather than
+a structural one, because the seam it would arrive through already exists.
+
+`Tables::DEFAULT` is assembled *from* those constants, which remain the source
+of truth, and a test checks the gathered value against the free functions over
+their whole domain — so the document and the constants cannot drift.
 
 Also still hardcoded, deliberately: which troop types are siege engines
 (§8.1), the eleven-slot order itself, and the mapping from a rule id to a

@@ -13,18 +13,21 @@
 //!
 //! # What is and is not wired up
 //!
-//! Loading works, is validated, and round-trips against
-//! [`Tables::DEFAULT`](l2_kingdom::tables::Tables::DEFAULT) in a test. What has
-//! *not* happened is the other half: the simulation modules in `l2-kingdom`
-//! still read the module-level constants directly rather than a `Tables` they
-//! were handed. So a modded `kingdom.toml` is loaded, checked and reported —
-//! and then not consumed. Threading `&Tables` through ~30 free functions is a
-//! mechanical change to that crate's public API, deliberately not made here.
-//! `docs/modding.md` §11 says the same thing in the same words; it is stated in
-//! both places so neither can quietly claim more than is true.
+//! Loading works, is validated, round-trips against
+//! [`Tables::DEFAULT`](l2_kingdom::tables::Tables::DEFAULT) in a test — **and
+//! is consumed.** `l2_kingdom::Kingdom::with_tables` runs the season pipeline
+//! on the table it is handed, and `tests/simulation.rs` asserts that a `.toml`
+//! in a mod directory changes how many sacks a county brings in over a year.
+//! That is the same standard the battle side is held to by
+//! `l2_sim::Battle::with_troops`, and for a long time this half did not meet
+//! it: the rules were loaded, checked, reported and then ignored.
 //!
-//! The battle side, `unit.*` in [`crate::units`], *is* wired all the way
-//! through — see `l2_sim::Battle::with_troops`.
+//! What is *not* covered is worth naming rather than leaving to be discovered.
+//! The ale and army-raising happiness terms, the efficiency ramp's ceiling, and
+//! the AI's tax ladders and personality table are still `const` items in
+//! `l2-kingdom`, because [`Tables`] has no field for them. Array sizes — nine
+//! job slots, six ration levels — are structure rather than balance and are
+//! meant to stay constants. `docs/modding.md` §11 has the full division.
 
 use crate::ruleset::{RuleError, Ruleset};
 use l2_kingdom::tables::{

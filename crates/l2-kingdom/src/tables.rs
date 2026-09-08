@@ -1160,10 +1160,22 @@ mod tests {
 /// # Honest scope
 ///
 /// [`Tables::DEFAULT`] is assembled *from the constants above*, which remain
-/// the source of truth and keep their addresses and their evidence in their
-/// own doc comments. The simulation modules in this crate still read those
-/// constants directly. Handing them a `Tables` instead is a mechanical change
-/// that has not been made yet - `docs/modding.md` §11 says so in the same words.
+/// the source of truth and keep their addresses and their evidence in their own
+/// doc comments. What changed is that the simulation now reads the **table**:
+/// [`crate::Kingdom`] carries one, [`crate::Kingdom::with_tables`] is how a
+/// ruleset reaches it, and around thirty rule functions in this crate take
+/// `&Tables` rather than a constant. `gathered_tests` holds the two readings
+/// equal over their whole domain, so they cannot drift apart.
+///
+/// Not everything is here. The **ale** and **army-raising** happiness terms,
+/// the efficiency ramp's ceiling, and the AI's tax ladders and personality
+/// table are still read as constants because this type has no field for them;
+/// the functions that use them are the ones that still take no `&Tables`.
+/// Array *sizes* — [`JOB_COUNT`], [`RATION_LEVEL_COUNT`],
+/// [`WEAPON_TYPE_COUNT`] — are deliberately not here at all: a ruleset that
+/// changed one would be describing a different simulation rather than a
+/// different balance, which is the same line `l2_sim::Troop::is_siege` draws on
+/// the battle side. `docs/modding.md` §11 has the full division.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Tables {
     pub food: FoodTable,
