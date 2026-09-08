@@ -29,6 +29,11 @@ node_modules/
 *.jpg
 **/out/
 
+# The whole-binary decompilation. Derived from the shipped executable, so it is
+# the publisher's code however it is spelled - never committed. Regenerated in
+# about twenty seconds by tools/oracle/decompile-all.ps1.
+/tools/oracle/decomp/
+
 # Native build output. The proxy DLL is a build artifact, not source.
 native/**/*.dll
 native/**/*.obj
