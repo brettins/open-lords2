@@ -220,6 +220,35 @@ agent had left in `tools/battleai/out/path.c` and read the loop. It said somethi
 Extending C8 to our own agents: **the artefact an agent leaves behind is evidence; its prose
 is a claim.**
 
+**C14 — The oracle splits into two tiers, and only one of them is cheap.**
+Reading the binary is now a routine check rather than an aspiration — `tools/oracle/`
+verifies `l2-sim`'s battle tables and `docs/kingdom.md`'s economy tables straight out of
+`Lords2.exe`. But the attempt to extend it to the constants `Rules_InitConstants` writes
+found a hard line through the middle of the idea.
+
+**Tier one: stored data.** Anything initialised in the image can be read from the file with
+no process, no window and no focus. `-Source Both` proved the file is authoritative here:
+`g_troopBattleStats`, `g_missileStats` and `g_meleeAttackTable` are byte-identical on disk
+and in a live process. This tier is free, repeatable, and needs nothing from the user.
+
+**Tier two: anything written at runtime.** These addresses are uninitialised `.data` — the
+file has no bytes for them at all — so the file read is not merely unhelpful but
+*confidently wrong*, returning zero for every one. And they cannot be sampled from a
+scripted launch, because of D8 seen from a new angle: started from a script, `Lords2`
+survives about **2.6 seconds** and its own `status.txt` ends `Window moved. / Not active.`
+The launching process holds the foreground, the game sees itself deactivated and exits —
+before `Rules_InitConstants` has run. Every constant reads 0, which is evidence about focus
+and not about the constants.
+
+So `tools/oracle/runtime.ps1` refuses to launch by default and tells the user to start the
+game themselves; it attaches to a running instance. Ten constants remain **unverified**,
+including `g_grainMaxSacksPerField`, which is C10's evidence that the printed manual is
+wrong. They are not in doubt, but they are not confirmed either, and the difference should
+stay visible.
+
+The lesson generalises past this project: *"read it from the binary" is two different
+techniques with two different costs*, and conflating them makes the expensive one look done.
+
 ## Open questions
 
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
