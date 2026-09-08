@@ -7,3 +7,11 @@ description = "Decoders for Lords of the Realm II asset formats"
 
 # Deliberately dependency-free: a format crate should parse bytes and nothing else.
 [dependencies]
+
+# Test-only, and deliberately a cycle Cargo permits: `l2-testkit` knows where a
+# save fixture lives and what makes it the right one, which is knowledge a
+# format crate must not carry in `src/`. See docs/decisions.md D9 for the same
+# argument applied to `l2-scenario`.
+[dev-dependencies]
+l2-testkit = { path = "../l2-testkit" }
+
