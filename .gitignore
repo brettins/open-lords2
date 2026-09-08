@@ -41,6 +41,7 @@ node_modules/
 *.smk
 *.wav
 *.saf
+*.sav
 
 # Local scratch
 *.log
