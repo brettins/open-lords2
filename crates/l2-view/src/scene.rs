@@ -23,7 +23,7 @@ use l2_sim::{Troop, SIDE_A};
 
 use crate::battle::BattleRunner;
 use crate::canvas::Canvas;
-use crate::figures::{self, Colour};
+use crate::figures::{self, Anim, Colour};
 use crate::sheet::Sheet;
 use crate::terrain::{Battlefield, DIM};
 
@@ -204,22 +204,30 @@ pub fn draw(canvas: &mut Canvas, runner: &BattleRunner, assets: &BattleAssets, c
     draw_figures(canvas, runner, assets, cam)
 }
 
-/// Where the camera should sit to watch the fighting: the mean position of the
-/// living, in integers.
+/// Where the camera should sit to watch the fighting.
+///
+/// Not the mean of everybody: the two armies deploy forty cells apart and their
+/// midpoint is empty ground that neither of them is on. So it centres on the
+/// men who are *fighting* when anybody is, and otherwise on side 0 — the side
+/// the player would be driving. Integer arithmetic throughout; the camera reads
+/// simulation state and never writes it.
 pub fn follow(runner: &BattleRunner) -> Camera {
-    let mut n = 0i32;
-    let (mut sx, mut sy) = (0i32, 0i32);
-    for (i, f) in runner.fighters.iter().enumerate() {
-        if runner.is_alive(i) {
-            sx += f.x as i32;
-            sy += f.y as i32;
-            n += 1;
+    let centre_of = |pick: &dyn Fn(usize) -> bool| -> Option<Camera> {
+        let (mut sx, mut sy, mut n) = (0i32, 0i32, 0i32);
+        for (i, f) in runner.fighters.iter().enumerate() {
+            if runner.is_alive(i) && pick(i) {
+                sx += f.x as i32;
+                sy += f.y as i32;
+                n += 1;
+            }
         }
-    }
-    if n == 0 {
-        return Camera::centred_on(DIM / 2, DIM / 2);
-    }
-    Camera::centred_on((sx / n) as usize, (sy / n) as usize)
+        (n > 0).then(|| Camera::centred_on((sx / n) as usize, (sy / n) as usize))
+    };
+
+    centre_of(&|i| runner.fighters[i].anim == Anim::Attacking)
+        .or_else(|| centre_of(&|i| runner.fighters[i].side == SIDE_A))
+        .or_else(|| centre_of(&|_| true))
+        .unwrap_or_else(|| Camera::centred_on(DIM / 2, DIM / 2))
 }
 
 #[cfg(test)]

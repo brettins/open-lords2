@@ -536,6 +536,44 @@ fn other_side(side: Side) -> Side {
     }
 }
 
+/// The order `Battle_RaiseSide` walks the eleven troop types in
+/// (`g_raiseOrder`, `0x004D9870`): ram, oil, knight, sword, mace, pike,
+/// crossbow, archer, peasant, tower, catapult. **[V]** It matters because the
+/// tail is what gets truncated when an army would overflow the 80-figure array.
+pub const RAISE_ORDER: [Troop; 11] = [
+    Troop::BatteringRams,
+    Troop::Oil,
+    Troop::Knights,
+    Troop::Swordsmen,
+    Troop::Macemen,
+    Troop::Pikemen,
+    Troop::Crossbowmen,
+    Troop::Archers,
+    Troop::Peasants,
+    Troop::SiegeTowers,
+    Troop::Catapults,
+];
+
+/// Turn eleven troop counts — the layout of a `.skr` army record and of a
+/// `TROOPS*.ENG` row alike — into figures, in the order the original raises
+/// them.
+///
+/// The size ladder that picks `men_per_figure` from the two armies' totals
+/// (`docs/battle.md` §5.1) is not implemented here; the caller supplies it.
+pub fn army_from_counts(counts: &[u32; 11], men_per_figure: u32) -> Vec<(Troop, u16)> {
+    let per = men_per_figure.max(1);
+    RAISE_ORDER
+        .iter()
+        .filter_map(|t| {
+            let men = counts[t.index()];
+            if men == 0 {
+                return None;
+            }
+            Some((*t, men.div_ceil(per).min(l2_sim::MAX_FIGURES as u32) as u16))
+        })
+        .collect()
+}
+
 /// A battlefield with nothing on it but the two markers — the editor's blank
 /// template, which is what nineteen of `USER.SKR`'s twenty maps are.
 pub fn blank_field() -> Battlefield {

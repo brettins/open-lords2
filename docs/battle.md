@@ -877,3 +877,267 @@ Ghidra scripts live in `ghidra_scripts_battle/` (`BDecomp`, `BRefs`, `BDump`, `B
 kept separate from `ghidra_scripts/` so parallel agents do not edit the same files. The
 names are pushed into the database with `ghidra_scripts/ApplySymbols.java` as described in
 [`symbols.md`](symbols.md).
+
+---
+
+## 13. Drawing a battle
+
+Everything above is state. This section is how it becomes a picture, which is
+what `crates/l2-view` implements. Same status legend: **[V]** verified against a
+second independent source, **[D]** a straightforward reading of decompiled C,
+**[I]** inferred.
+
+### 13.1 The screen
+
+**[V]** `Battle_LoadAssets` (`0x004987B7`) hands the tile renderer its geometry
+in one call:
+
+```c
+FUN_004bc020(tileset, tileset2, &g_battlefield, 0x50, 0x50, 8, 0, 0x18, 0xf, 0xe, 0x20);
+//                                               80    80   8  0    24   15   14    32
+```
+
+so a **15 x 14 viewport of 32-pixel tiles at screen `(0, 24)`**, over the 80 x 80
+array of 8-byte cells. The consumer (`0x004BCBDC`) steps the destination by
+`0x20` in both axes: the battlefield is a **plain square grid seen from above**,
+not isometric like the campaign map. 15 x 32 = 480 wide leaves 160 pixels for the
+panel; 24 + 14 x 32 = 472 leaves 8 at the bottom.
+
+`0x004BC142` is the whole frame, `(cameraTileX, cameraTileY)` its only
+arguments, and it dispatches on the tile size: **16 and 32 are the two zoom
+levels**, with a parallel renderer for each. **[V]**
+
+### 13.2 Cell byte `+3` is a PL8 frame index
+
+Section 3 lists byte `+3` as "graphic index" **[D]**. It is now **[V]**, and it
+indexes `T32_bat1.pl8` specifically on a field battlefield.
+
+The renderer reads `tileset + cell[+3] * 0x10 + 8` — literally the address of
+that frame's record in the PL8 frame table (`pl8.md`: 8-byte header, 16-byte
+records). No other interpretation of the byte is possible.
+
+Which tileset is fixed two ways. `Battle_LoadAssets` passes slot 0 of the battle
+asset table, which is `t32_bat1.pl8` for a field battle and `t32_stn1.pl8` /
+`t32_wod1.pl8` for the two siege variants. And two pieces of arithmetic in
+`Battlefield_BuildFromSkr` only fit a 252-frame file:
+
+* woodland's high branch computes `base - 0x17` **as a signed char**, and its
+  three highest bases (`0x10`, `0x11`, `0x12`) wrap to **249, 250, 251** — the
+  last three frames of `T32_bat1.pl8`, which has exactly 252;
+* the `0x15` lines compute `base - 0x1A`, giving **230 … 248**, which is exactly
+  the gap between the highest water index (229) and those three.
+
+The index space closes with no overlap and no overflow:
+
+| range | terrain |
+|---|---|
+| 0 … 15 | open ground, 16 random variants |
+| 16 … 31 | woodland |
+| 32 … 39 | rocks (`0x20`) |
+| 64 … 111, 159 | hills / obstacles (`0x02`) |
+| 112 … 123 | ground bordering an obstacle |
+| 124 … 131 | terrain id 6, the unused one |
+| 140 … 159 | bridge parts |
+| 160 … 229 | water |
+| 230 … 248 | the `0x15` lines |
+| 249 … 251 | woodland, three interior tiles |
+
+**[V]** as arithmetic over the tables; the *appearance* of each range is
+**[I]** and has not been checked against a screenshot of the original.
+
+### 13.3 The variants are an auto-tiler, not a random pick
+
+`skr.md` records "49-variant set" and similar without saying what picks the
+variant. `Battlefield_BuildFromSkr` does, and it is **[V]**:
+
+1. `0x0047D816` builds an eight-entry mask of "is this neighbour the same
+   terrain id", in the order **N, NE, E, SE, S, SW, W, NW** — derived from the
+   cell offsets it indexes (`-80, -79, +1, +81, +80, +79, -1, -81` cells).
+   Off-map neighbours take a caller-supplied value: `1` for hills, water,
+   woodland and lines, `0` when open ground is asking about hills.
+2. `0x0046C2DE` matches that mask against a table of 12-byte entries: eight
+   pattern bytes where `0` means "must not", `1` means "must" and `2` means
+   "don't care", then a base graphic index, an untraced byte, a variant count,
+   and a **rotating counter**.
+3. The graphic is `base + counter`, where the counter is post-incremented and
+   wrapped on every match. So the variants cycle deterministically; they are not
+   drawn at random.
+
+Four tables, all in `.data`:
+
+| Address | Entries | Used by |
+|---|---:|---|
+| `0x004D7550` | 11 | hills / obstacles, id 4 |
+| `0x004D75C8` | 6 | open ground bordering an obstacle |
+| `0x004D7610` | 49 | water, id 11 |
+| `0x004D7860` | 17 | woodland (id 12) and the `0x15` lines (id 13) |
+
+The first table's declared 11 entries physically overlap the second's first
+entry, but its tenth is a catch-all, so the eleventh is unreachable. Likewise
+the water table's last two entries sit behind its own catch-all. Reproduced as
+found rather than tidied.
+
+The genuinely random cases are open ground with no obstacle neighbour
+(`rand & 0x0F`), rocks (`(rand & 7) + 0x20`) and id 6 (`(rand & 7) + 0x7C`).
+`rand` is `0x00404B2C`, **a 31-bit LFSR with taps at bits 0 and 4, stepped 31
+times per call and returning the low seven bits** — and it is stepped **once per
+cell** whether the result is used or not, so the sequence depends only on the
+seed. **[V]** as a reading of the code. **The seed a battle starts from was not
+traced**, so our build takes it as a parameter; the choice only moves which of
+sixteen grass tiles a cell gets.
+
+### 13.4 Sprite banks
+
+**[V]** `0x004DA550` holds a table of 120 twenty-byte filenames in two parallel
+sets of 60. Set A is `t32_*` tiles, `a2_miss`, `a2_horse`, `engine`,
+`catarm1/2`, `t2_*` minimap tiles, `t2_spri`, then **six colours of seven troop
+sheets**; set B is identical but with `a3_horse` and the `a3` sheets.
+
+* Colour order is `w, r, y, k, p, b` — white, red, yellow, black, purple, blue —
+  indexed by the owning realm's colour byte (campaign unit `+0x02`). `a2g_*`
+  files exist on disk and are **not** in the table.
+* Troop order within a colour is `psnt, cros, mace, swor, pike, arch, knig`, the
+  `TROOPS*.ENG` column order and troop types 0 … 6. **[V]**
+* `Battle_Start` loads set A (`a2`); the skirmish and roster screens load set B
+  (`a3`). Both sets have their own animation handlers, and the `a3` handlers
+  give different poses-per-facing, so **which set the battlefield uses at which
+  zoom is not settled** — `crates/l2-view` draws `a2` at 32 pixels.
+
+`0x00480F8B` then writes a sprite-sheet pointer into each figure at `+0x00`,
+choosing by troop type and by figure byte `+0x2E` — **`+0x2E` is what selects
+army A's bank from army B's**. Knights also get a horse sheet pointer at `+0x04`.
+**[V]**
+
+### 13.5 The figure frame layout
+
+**[V]** A sheet is **eight facings of N poses, then eighteen shared frames**:
+
+```
+frame = facing * N + pose
+  pose 0 … 5            attacking, one pose every 4 ticks over a 24-tick loop
+  pose 6 …              walking, from a per-troop cycle table
+  pose <idle>           standing
+
+8 * N + 0 … 5           six further shared frames
+8 * N + 6 …             dying: 4 half-facings of 3 frames
+```
+
+| troop | N | idle pose | walk cycle | dying base |
+|---|---:|---:|---|---:|
+| peasants | 10 | 9 | `0,0,1,1,2,2,1,1,0,0` | 86 |
+| crossbowmen | 13 | 9 | `0,0,1,1,2,2,1,1,0,0` | 110 |
+| macemen | 12 | 11 | `0,1,2,3,4,4,3,2,1,0` | 102 |
+| swordsmen | 12 | 11 | `0,1,2,3,4,4,3,2,1,0` | 102 |
+| pikemen | 8 | 7 | `0,0,1,1,1,1,1,0,0,0` | 70 |
+| archers | 13 | 9 | `0,0,1,1,2,2,1,1,0,0` | 110 |
+
+from `0x00486249` (idle and walking), `0x00486D83` (attacking) and `0x00487908`
+(dying), which all write the frame index to figure `+0x10`. Walk cycles are at
+`0x004D9A00`, `0x004D9A28` and `0x004D9A50`, stepped every fourth tick of a
+forty-tick loop; dying is `base + (facing & 6) / 2 * 3 + phase / 32`.
+
+**Why this is more than a decompiler reading.** Every one of the **36** shipped
+`a2` sheets that is not a knight — six colours by six troop types — has exactly
+`8 * N + 18` frames, and in all four handler groups the dying base is exactly
+`8 * N + 6`. Getting N wrong for any troop breaks both identities at once. The
+corpus check is `crates/l2-view/tests/install.rs`.
+
+Knights are the exception: their frame comes from an **8 x 8 `(body facing,
+target facing)` table at `0x004D9C30`**, and the engine rotates the body facing
+outward until it finds a non-zero entry. The sixteen live entries are spaced
+three apart and top out at 53, which with the walk cycle's maximum of 2 reaches
+frame 55 — and `A2*_knig.pl8` holds exactly 56 real frames plus four 2 x 2
+stubs. `A2_horse.pl8` is 48 frames, eight facings of six, indexed from figure
+`+0x11`. **[V]**
+
+### 13.6 Where a figure is drawn
+
+**[V]** `BattleFigure_Draw` (`0x004BDC31`):
+
+```
+screen = (mapXY - cameraXY) * tileSize + origin
+       + g_walkOffset[facing][walking]
+       + (tileSize/2 - spriteWidth/2,  8 - spriteWidth/2)
+```
+
+`g_walkOffset` is an 8 x 17 table of `(i32, i32)` at `0x004E4030` for 32-pixel
+tiles and `0x004E3BF0` for 16, indexed by facing (`+0x18`) and sub-cell progress
+(`+0x32`). Every entry is `(±(32 - 2*step), ±(32 - 2*step))` on the axes the
+facing moves along, so all 136 entries collapse to one expression — asserted
+against the bytes in `tests/install.rs`.
+
+**This independently confirms the facing numbering.** Facing 0 is north, and its
+offset is *positive* y: a figure walking north is drawn trailing to the south of
+the cell it is entering. All eight signs are the negation of the facing's own
+delta. That is a second source for section 2.1's `dirc` table.
+
+Note the height term uses the sprite **width** for both axes, which is why a
+48-pixel man sits 8 pixels left of and 16 above his cell's corner. Reproduced
+rather than corrected.
+
+### 13.7 Draw order
+
+**[V]** Per frame: terrain pass, then figures, then a second terrain pass for
+cells flagged `0x04` on byte `+1` (tiles that overlap the men), then missiles.
+
+Figures are collected if they lie within one cell of the viewport
+(`0x004BD938`), **bubble-sorted by map y ascending** (`0x004BDA92`) and drawn in
+that order, so a man lower on the field overlaps one behind him. A stable sort
+by y reproduces it.
+
+### 13.8 Figure and cell fields this section adds
+
+New, and not in section 2 or section 3:
+
+| Off | Ev | Meaning |
+|---|---|---|
+| figure `+0x00` | [V] | pointer to this figure's sprite sheet, set by `0x00480F8B` |
+| figure `+0x04` | [V] | pointer to the horse sheet, knights only |
+| figure `+0x0E` | [V] | **animation phase**. Counts up and wraps at a bound the state handler chooses: `0x27` walking, `0x17` attacking, `0x5F` dying |
+| figure `+0x10` | [V] | **sprite frame index**, what the renderer draws |
+| figure `+0x11` | [V] | horse frame index, knights only |
+| figure `+0x19` | [D] | a **second** facing byte. `+0x18` drives the sub-cell offset and the attack animation; `+0x19` drives the idle and walking frame and is the column of the knight table. `+0x0D` is a copy of it, written at the end of every animation handler |
+| cell `+2` bit `0x01` | [V] | dirty; the renderer clears it after drawing |
+| cell `+2` bit `0x02` | [V] | set on the viewport border |
+| cell `+2` bits `0x1C` | [V] | tileset selector: 0 picks `t32_bat1`, 4 picks `t32_bat2`. `Battlefield_BuildFromSkr` clears them, so a field battle only ever uses the first |
+| cell `+2` bit `0x80` | [D] | something is drawn on this cell this frame |
+
+Section 2.1's `+0x0C` — "animation phase, seeded as `(index*9 + x*16) & 0x3F +
+0xB4`" — is **not** the counter the animation handlers step; they step `+0x0E`.
+What `+0x0C` is for was not established.
+
+### 13.9 What is not established here
+
+* **The frame rate.** Still open, as section 11 says. Poses advance every four
+  ticks and a walk cycle is forty ticks, but nothing converts a tick to a second.
+* **Which sprite set (`a2` or `a3`) the battlefield uses at which zoom.**
+* **The LFSR seed** a battle starts from, and therefore which grass tile any
+  particular cell gets.
+* **Missiles, siege engines and the panel.** `A2_miss.pl8`, `Engine.pl8`,
+  `Catarm1/2.pl8`, `Misc_bat.pl8` and the 2-pixel minimap tiles are all located
+  and none is drawn by us.
+* **Nothing has been compared against the original's framebuffer.** Every claim
+  here is arithmetic over the binary and the shipped art. The renderer produces
+  an indexed 640 x 480 buffer precisely so that comparison stays possible, but
+  it has not been made — D8 blocks driving the original's UI, and the proxy-DLL
+  route has not been taken this far.
+
+### 13.10 Reproduction
+
+```powershell
+# decompile and dump, into tools/view/out/ (gitignored)
+powershell -File tools/view/ghraw.ps1 -postScript VBDecomp out.c 0047b8b2 004bdc31
+powershell -File tools/view/ghraw.ps1 -postScript VBDump   t.txt bytes 4d7540 1024
+```
+
+```bash
+# every check in 13.2 - 13.6, headless, no window and no process
+LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-view
+
+# watch one
+cargo run -p l2-view -- --battle "F:\games\Lords of the Realm II" 1
+```
+
+Ghidra scripts live in `ghidra_scripts_view/` (`VBDecomp`, `VBRefs`, `VBDump`,
+`VBCallArg`), kept separate from `ghidra_scripts_battle/` so parallel agents do
+not edit the same files.

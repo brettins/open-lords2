@@ -1,22 +1,35 @@
 //! Viewer for Lords of the Realm II assets.
 //!
 //! ```text
-//! l2-view <file.pl8> <palette.256> [frame]   # sprite sheet
-//! l2-view --map <game dir> [slot]            # campaign map
+//! l2-view <file.pl8> <palette.256> [frame]      # sprite sheet
+//! l2-view --map <game dir> [slot]               # campaign map
+//! l2-view --battle <game dir> [map]             # a .skr battle, running
 //! ```
 //!
-//! Left/Right step through frames or map slots, Escape quits.
+//! Sprite and map modes: Left/Right step through frames or slots.
+//! Battle mode: Space pauses, Right single-steps while paused, the arrow keys
+//! and A/D scroll, F follows the fighting. Escape quits in all of them.
 //!
 //! The canvas is a plain 640x480 buffer of palette indices - the same model the
 //! original engine uses - which is then expanded through the palette to RGBA.
 //! Keeping an indexed buffer rather than drawing RGBA directly matters: the
 //! endgame is diffing our output against the original's framebuffer, and the
 //! original thinks in palette indices.
+//!
+//! **The window is a convenience, not the verification.** Everything drawn here
+//! can be produced and asserted on with no window at all, which is what
+//! `tests/install.rs` does.
 
-use l2_formats::maps::{Plane, MapSet, PLANE_DIM};
-use l2_formats::{Palette, Pl8};
+use l2_formats::maps::{MapSet, Plane, PLANE_DIM};
+use l2_formats::{Palette, Pl8, Skr};
 use l2_mods::Platform;
 use std::{path::PathBuf, sync::Arc};
+
+use l2_view::battle::{self, BattleRunner};
+use l2_view::canvas::{Canvas, TRANSPARENT};
+use l2_view::figures::Colour;
+use l2_view::scene::{self, BattleAssets, Camera};
+use l2_view::terrain;
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
@@ -25,12 +38,8 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
 
-const CANVAS_W: usize = 640;
-const CANVAS_H: usize = 480;
-
-/// Palette index the canvas is cleared to. 0 is the game's transparent index,
-/// so an unpainted canvas reads as "nothing drawn here" rather than a colour.
-const CLEAR_INDEX: u8 = 0;
+const CANVAS_W: usize = l2_view::canvas::WIDTH;
+const CANVAS_H: usize = l2_view::canvas::HEIGHT;
 
 /// The zoom-2 tile sets are 10x6, so a whole 64x64 map spans 630x378 and fits
 /// on one screen. Zoom 0 (58x30) would need 3654x1890 and a scrolling viewport.
@@ -40,6 +49,15 @@ const TILE_H: usize = 6;
 /// Map plane 1 selects a bank; the value is the layer index times four.
 /// Layer order comes from the resource table at 0x004DA050.
 const BANKS: [&str; 5] = ["Base2a", "Mtns2a", "Roads2a", "Town2a", "Castle2a"];
+
+/// Simulation ticks advanced per drawn frame.
+///
+/// A *fixed* number, deliberately. Deriving it from elapsed wall-clock time
+/// would make the state at a given moment depend on how fast the machine
+/// happens to be, and `docs/netcode.md` does not allow the simulation to learn
+/// anything from the clock. The viewer decides when to draw; it never decides
+/// how a tick turns out.
+const TICKS_PER_FRAME: u32 = 3;
 
 enum Scene {
     Sprite {
@@ -53,15 +71,56 @@ enum Scene {
         slot: usize,
         count: usize,
     },
+    Battle(Box<BattleScene>),
+}
+
+struct BattleScene {
+    runner: BattleRunner,
+    assets: BattleAssets,
+    camera: Camera,
+    follow: bool,
+    running: bool,
+    map: usize,
 }
 
 struct Viewer {
     scene: Scene,
     palette: Palette,
     title: String,
-    canvas: Vec<u8>,
+    canvas: Canvas,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
+}
+
+/// Build the mod overlay for a game directory. Loading through it rather than
+/// straight off disk means a mod that supplies its own `T32_bat1.pl8` is picked
+/// up with no change to the rendering path, and asset names resolve
+/// case-insensitively - which matters because the shipped install is
+/// inconsistent about casing.
+fn platform(dir: &PathBuf, mods: Option<&PathBuf>) -> Result<Platform, Box<dyn std::error::Error>> {
+    let mut builder = Platform::builder().base(dir);
+    if let Some(m) = mods {
+        // Discovery only finds candidates; enabling is a separate, deliberate
+        // step so an overlay never activates something merely by its presence
+        // on disk. A viewer wants everything it was pointed at - a game would
+        // let the player choose, and the order they give is the conflict policy.
+        let found = l2_mods::discover(m)?;
+        let ids: Vec<String> = found.iter().map(|f| f.id.clone()).collect();
+        if ids.is_empty() {
+            println!("no mods found in {}", m.display());
+        }
+        builder = builder.mods_dir(m).enable(ids);
+    }
+    let platform = builder.build()?;
+    // Say what a mod changed. Silence here means the base install is what you
+    // are looking at.
+    for m in &platform.load_order {
+        println!("mod: {} {}", m.id, m.version);
+    }
+    for (file, layers) in &platform.report().shadowed_assets {
+        println!("overridden: {file} <- {}", layers.join(" < "));
+    }
+    Ok(platform)
 }
 
 impl Viewer {
@@ -84,36 +143,12 @@ impl Viewer {
         ))
     }
 
-    /// Loads through the mod overlay rather than straight off disk, so a mod
-    /// that supplies its own `Base2a.pl8` is picked up here with no change to
-    /// the rendering path. Asset names are resolved case-insensitively, which
-    /// matters because the shipped install is inconsistent about casing.
-    fn map(dir: PathBuf, mods: Option<PathBuf>, slot: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut builder = Platform::builder().base(&dir);
-        if let Some(m) = &mods {
-            // Discovery only finds candidates; enabling is a separate, deliberate
-            // step so an overlay never activates something merely by its presence
-            // on disk. A viewer wants everything it was pointed at, so enable the
-            // lot — a game would let the player choose, and the order they give
-            // is the conflict policy.
-            let found = l2_mods::discover(m)?;
-            let ids: Vec<String> = found.iter().map(|f| f.id.clone()).collect();
-            if ids.is_empty() {
-                println!("no mods found in {}", m.display());
-            }
-            builder = builder.mods_dir(m).enable(ids);
-        }
-        let platform = builder.build()?;
-
-        // Say what a mod changed. Silence here means the base install is what
-        // you are looking at.
-        for m in &platform.load_order {
-            println!("mod: {} {}", m.id, m.version);
-        }
-        for (file, layers) in &platform.report().shadowed_assets {
-            println!("overridden: {file} <- {}", layers.join(" < "));
-        }
-
+    fn map(
+        dir: PathBuf,
+        mods: Option<PathBuf>,
+        slot: usize,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let platform = platform(&dir, mods.as_ref())?;
         let vfs = &platform.vfs;
         let maps = vfs.read("L2_maps.dat")?;
         let count = MapSet::parse(&maps)?.slot_count();
@@ -136,47 +171,88 @@ impl Viewer {
         ))
     }
 
+    /// A running battle on one of a `.skr`'s twenty maps.
+    fn battle(
+        dir: PathBuf,
+        mods: Option<PathBuf>,
+        map: usize,
+        skr_name: &str,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let platform = platform(&dir, mods.as_ref())?;
+        let vfs = &platform.vfs;
+
+        let bytes = vfs.read(skr_name)?;
+        let skr = Skr::parse(&bytes)?;
+        let map = map.min(skr.map_count() - 1);
+        let text = skr.text(map)?;
+        let field = terrain::build(skr.terrain(map)?, 1);
+
+        // Sixteen men per figure is what docs/battle.md derives for USER.SKR
+        // map 0. The size ladder that would compute it from the two armies is
+        // not implemented here.
+        let a = battle::army_from_counts(&skr.army(map, l2_formats::Side::Attacker)?.counts, 16);
+        let b = battle::army_from_counts(&skr.army(map, l2_formats::Side::Defender)?.counts, 16);
+        let runner = BattleRunner::deploy(field, &a, &b);
+
+        let assets = BattleAssets::load(
+            |name| vfs.read(name).map_err(|e| format!("{name}: {e}")),
+            Colour::Red,
+            Colour::Blue,
+        )
+        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+        let palette = Palette::from_bytes(&vfs.read(scene::TILE_PALETTE)?)?;
+
+        let camera = scene::follow(&runner);
+        let title = if text.title.is_empty() {
+            format!("{skr_name} map {}", map + 1)
+        } else {
+            format!("{skr_name} - {}", text.title)
+        };
+        println!(
+            "{title}: {} figures ({} vs {})",
+            runner.fighters.len(),
+            runner.living(l2_sim::SIDE_B),
+            runner.living(l2_sim::SIDE_A)
+        );
+        Ok(Viewer::new(
+            Scene::Battle(Box::new(BattleScene {
+                runner,
+                assets,
+                camera,
+                follow: true,
+                running: true,
+                map,
+            })),
+            palette,
+            title,
+        ))
+    }
+
     fn new(scene: Scene, palette: Palette, title: String) -> Self {
         Viewer {
             scene,
             palette,
             title,
-            canvas: vec![CLEAR_INDEX; CANVAS_W * CANVAS_H],
+            canvas: Canvas::screen(),
             window: None,
             pixels: None,
         }
     }
 
-    /// Blit one decoded frame into the canvas at (ox, oy), honouring the
-    /// decoded opacity mask so index 0 leaves the canvas showing through - the
-    /// same rule the original blitters use.
-    fn blit(&mut self, pl8_bytes: &[u8], frame: usize, ox: isize, oy: isize) {
+    /// Blit one decoded frame into the canvas, honouring index-0 transparency -
+    /// the same rule the original blitters use.
+    fn blit(&mut self, pl8_bytes: &[u8], frame: usize, ox: i32, oy: i32) {
         let Ok(pl8) = Pl8::parse(pl8_bytes) else { return };
         let Ok(d) = pl8.decode(frame) else { return };
-        let (fw, fh) = (d.width as usize, d.height as usize);
-        for y in 0..fh {
-            let cy = oy + y as isize;
-            if cy < 0 || cy >= CANVAS_H as isize {
-                continue;
-            }
-            for x in 0..fw {
-                let cx = ox + x as isize;
-                if cx < 0 || cx >= CANVAS_W as isize {
-                    continue;
-                }
-                let src = y * fw + x;
-                if d.opaque[src] {
-                    self.canvas[cy as usize * CANVAS_W + cx as usize] = d.indices[src];
-                }
-            }
-        }
+        self.canvas.blit(&d, ox, oy);
     }
 
     fn compose(&mut self) {
-        self.canvas.fill(CLEAR_INDEX);
+        self.canvas.clear(TRANSPARENT);
         let subtitle = match &self.scene {
             Scene::Sprite { .. } => self.compose_sprite(),
             Scene::Map { .. } => self.compose_map(),
+            Scene::Battle(_) => self.compose_battle(),
         };
         if let Some(w) = &self.window {
             w.set_title(&format!("{} - {}", self.title, subtitle));
@@ -192,8 +268,8 @@ impl Viewer {
             Ok(d) => (d.width as usize, d.height as usize),
             Err(e) => return format!("frame {}: {e}", frame + 1),
         };
-        let ox = (CANVAS_W.saturating_sub(fw) / 2) as isize;
-        let oy = (CANVAS_H.saturating_sub(fh) / 2) as isize;
+        let ox = (CANVAS_W.saturating_sub(fw) / 2) as i32;
+        let oy = (CANVAS_H.saturating_sub(fh) / 2) as i32;
         self.blit(&bytes, frame, ox, oy);
         format!("frame {}/{} - {}x{}", frame + 1, count, fw, fh)
     }
@@ -202,7 +278,7 @@ impl Viewer {
     ///
     /// Standard isometric projection: screen x follows `x - y`, screen y follows
     /// `x + y`. Tiles are painted back to front in order of `x + y`, so nearer
-    /// tiles overlap further ones — which is what makes the diamonds tessellate
+    /// tiles overlap further ones - which is what makes the diamonds tessellate
     /// into a continuous landscape.
     fn compose_map(&mut self) -> String {
         let Scene::Map { maps, banks, slot, count } = &self.scene else {
@@ -220,8 +296,8 @@ impl Viewer {
             return format!("slot {}/{} - empty", slot + 1, count);
         }
 
-        let origin_x = (CANVAS_W / 2) as isize - (TILE_W / 2) as isize;
-        let origin_y = 48isize;
+        let origin_x = (CANVAS_W / 2) as i32 - (TILE_W / 2) as i32;
+        let origin_y = 48i32;
 
         // Back to front. Within a diagonal the order does not matter, since
         // those tiles never overlap each other.
@@ -235,8 +311,8 @@ impl Viewer {
                 let bank = (map.at(Plane::GfxBank, x, y) / 4) as usize;
                 let frame = map.at(Plane::GfxIndex, x, y) as usize;
                 let Some(bytes) = banks.get(bank) else { continue };
-                let sx = origin_x + (x as isize - y as isize) * (TILE_W / 2) as isize;
-                let sy = origin_y + (x as isize + y as isize) * (TILE_H / 2) as isize;
+                let sx = origin_x + (x as i32 - y as i32) * (TILE_W / 2) as i32;
+                let sy = origin_y + (x as i32 + y as i32) * (TILE_H / 2) as i32;
                 self.blit(bytes, frame, sx, sy);
                 drawn += 1;
             }
@@ -250,9 +326,32 @@ impl Viewer {
         )
     }
 
+    fn compose_battle(&mut self) -> String {
+        let Scene::Battle(b) = &mut self.scene else {
+            return String::new();
+        };
+        if b.follow {
+            b.camera = scene::follow(&b.runner);
+        }
+        let drawn = scene::draw(&mut self.canvas, &b.runner, &b.assets, b.camera);
+        let alive = (0..b.runner.fighters.len()).filter(|i| b.runner.is_alive(*i)).count();
+        format!(
+            "map {} - tick {} - {} v {} figures, {alive} alive, {drawn} drawn{}",
+            b.map + 1,
+            b.runner.tick,
+            b.runner.living(l2_sim::SIDE_B),
+            b.runner.living(l2_sim::SIDE_A),
+            if b.running { "" } else { " [paused]" }
+        )
+    }
+
     fn present(&mut self) {
         let Some(pixels) = self.pixels.as_mut() else { return };
-        for (px, &idx) in pixels.frame_mut().chunks_exact_mut(4).zip(self.canvas.iter()) {
+        for (px, &idx) in pixels
+            .frame_mut()
+            .chunks_exact_mut(4)
+            .zip(self.canvas.pixels.iter())
+        {
             let [r, g, b] = self.palette.rgb(idx);
             px[0] = r;
             px[1] = g;
@@ -264,24 +363,57 @@ impl Viewer {
         }
     }
 
-    fn step(&mut self, delta: isize) {
-        let (cur, count) = match &self.scene {
+    fn step(&mut self, delta: i32) {
+        let (cur, count) = match &mut self.scene {
             Scene::Sprite { frame, count, .. } => (*frame, *count),
             Scene::Map { slot, count, .. } => (*slot, *count),
+            Scene::Battle(b) => {
+                // Right single-steps the simulation, which is how a disputed
+                // tick gets looked at.
+                if delta > 0 {
+                    b.runner.step();
+                }
+                self.compose();
+                if let Some(w) = &self.window {
+                    w.request_redraw();
+                }
+                return;
+            }
         };
         if count == 0 {
             return;
         }
-        let n = count as isize;
-        let next = (((cur as isize + delta) % n + n) % n) as usize;
+        let n = count as i32;
+        let next = (((cur as i32 + delta) % n + n) % n) as usize;
         match &mut self.scene {
             Scene::Sprite { frame, .. } => *frame = next,
             Scene::Map { slot, .. } => *slot = next,
+            Scene::Battle(_) => {}
         }
         self.compose();
         if let Some(w) = &self.window {
             w.request_redraw();
         }
+    }
+
+    fn scroll(&mut self, dx: i32, dy: i32) {
+        let moved = if let Scene::Battle(b) = &mut self.scene {
+            b.follow = false;
+            b.camera = Camera::clamped(b.camera.x as i32 + dx, b.camera.y as i32 + dy);
+            true
+        } else {
+            false
+        };
+        if moved {
+            self.compose();
+            if let Some(w) = &self.window {
+                w.request_redraw();
+            }
+        }
+    }
+
+    fn is_running_battle(&self) -> bool {
+        matches!(&self.scene, Scene::Battle(b) if b.running)
     }
 }
 
@@ -305,6 +437,29 @@ impl ApplicationHandler for Viewer {
         self.compose();
     }
 
+    /// A running battle advances a fixed number of ticks per frame and asks for
+    /// a redraw; everything else waits for input.
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if !self.is_running_battle() {
+            event_loop.set_control_flow(ControlFlow::Wait);
+            return;
+        }
+        event_loop.set_control_flow(ControlFlow::Poll);
+        if let Scene::Battle(b) = &mut self.scene {
+            for _ in 0..TICKS_PER_FRAME {
+                if b.runner.is_decided() {
+                    b.running = false;
+                    break;
+                }
+                b.runner.step();
+            }
+        }
+        self.compose();
+        if let Some(w) = &self.window {
+            w.request_redraw();
+        }
+    }
+
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -321,6 +476,25 @@ impl ApplicationHandler for Viewer {
                     PhysicalKey::Code(KeyCode::Escape) => event_loop.exit(),
                     PhysicalKey::Code(KeyCode::ArrowRight) => self.step(1),
                     PhysicalKey::Code(KeyCode::ArrowLeft) => self.step(-1),
+                    PhysicalKey::Code(KeyCode::ArrowUp) => self.scroll(0, -2),
+                    PhysicalKey::Code(KeyCode::ArrowDown) => self.scroll(0, 2),
+                    PhysicalKey::Code(KeyCode::KeyA) => self.scroll(-2, 0),
+                    PhysicalKey::Code(KeyCode::KeyD) => self.scroll(2, 0),
+                    PhysicalKey::Code(KeyCode::KeyF) => {
+                        if let Scene::Battle(b) = &mut self.scene {
+                            b.follow = !b.follow;
+                        }
+                        self.compose();
+                    }
+                    PhysicalKey::Code(KeyCode::Space) => {
+                        if let Scene::Battle(b) = &mut self.scene {
+                            b.running = !b.running;
+                        }
+                        self.compose();
+                        if let Some(w) = &self.window {
+                            w.request_redraw();
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -329,42 +503,58 @@ impl ApplicationHandler for Viewer {
     }
 }
 
+fn usage() -> ! {
+    eprintln!("usage: l2-view <file.pl8> <palette.256> [frame]");
+    eprintln!("       l2-view --map <game dir> [slot] [--mods <dir>]");
+    eprintln!("       l2-view --battle <game dir> [map] [--skr <name>] [--mods <dir>]");
+    std::process::exit(2)
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
-    // --mods <dir> may appear anywhere; strip it before positional parsing.
+    // --mods <dir> and --skr <name> may appear anywhere; strip them before
+    // positional parsing.
     let mut mods: Option<PathBuf> = None;
+    let mut skr_name = "USER.SKR".to_string();
     let mut rest: Vec<String> = Vec::new();
     let mut it = args.iter();
     while let Some(a) = it.next() {
-        if a == "--mods" {
-            match it.next() {
+        match a.as_str() {
+            "--mods" => match it.next() {
                 Some(d) => mods = Some(PathBuf::from(d)),
-                None => {
-                    eprintln!("--mods needs a directory");
-                    std::process::exit(2);
-                }
-            }
-        } else {
-            rest.push(a.clone());
+                None => usage(),
+            },
+            "--skr" => match it.next() {
+                Some(n) => skr_name = n.clone(),
+                None => usage(),
+            },
+            _ => rest.push(a.clone()),
         }
     }
 
-    let mut viewer = if rest.first().map(|s| s.as_str()) == Some("--map") {
-        if rest.len() < 2 {
-            eprintln!("usage: l2-view --map <game dir> [slot] [--mods <dir>]");
-            std::process::exit(2);
+    let mut viewer = match rest.first().map(|s| s.as_str()) {
+        Some("--map") => {
+            if rest.len() < 2 {
+                usage();
+            }
+            let slot = rest.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+            Viewer::map(PathBuf::from(&rest[1]), mods, slot)?
         }
-        let slot = rest.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
-        Viewer::map(PathBuf::from(&rest[1]), mods, slot)?
-    } else {
-        if rest.len() < 2 {
-            eprintln!("usage: l2-view <file.pl8> <palette.256> [frame]");
-            eprintln!("       l2-view --map <game dir> [slot] [--mods <dir>]");
-            std::process::exit(2);
+        Some("--battle") => {
+            if rest.len() < 2 {
+                usage();
+            }
+            let map = rest.get(2).and_then(|s| s.parse::<usize>().ok()).unwrap_or(1);
+            Viewer::battle(PathBuf::from(&rest[1]), mods, map.saturating_sub(1), &skr_name)?
         }
-        let frame = rest.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
-        Viewer::sprite(PathBuf::from(&rest[0]), PathBuf::from(&rest[1]), frame)?
+        _ => {
+            if rest.len() < 2 {
+                usage();
+            }
+            let frame = rest.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+            Viewer::sprite(PathBuf::from(&rest[0]), PathBuf::from(&rest[1]), frame)?
+        }
     };
 
     let event_loop = EventLoop::new()?;
