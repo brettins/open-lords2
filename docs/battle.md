@@ -439,7 +439,20 @@ Three things fall out of that, and all three match the manual's prose:
 * **The interval between blows is the *defender's* `recovery`.** A figure that recovers
   slowly is hit rarely. This is the only melee defence in the game: `armour` (`+0x172`) is
   never read by `Melee_Tick`.
-* **The heavy blow lands once per exchange**, and is large.
+* **The heavy blow lands once per figure, for the whole battle** — not once per exchange, as
+  this line read until a player said macemen felt like steady high damage rather than one
+  spike. Checking settled it: `blowUsed` (`+0x18C`, `0x0055460C`) has exactly three
+  references in the binary — set in `Melee_Tick`, read in `Melee_Tick`, and zeroed in
+  `BattleUnit_Create`, which is figure *initialisation* beside a dozen other fields. Nothing
+  resets it per exchange. **[V]**, with one caveat: this is an absolute-reference search, so
+  code reaching the field through a computed pointer would not appear in it.
+
+  The player's impression is still right, and the design is sharper than "one big hit".
+  Macemen and swordsmen have **identical** base attack; they differ only in the heavy blow
+  (300 against 100) and armour (12 against 35). At 100 hits per casualty a maceman's opening
+  swing kills **three men outright**, from every figure in the unit — which reads as high
+  damage output without ever presenting itself as a separate mechanic. It is also exactly
+  the manual's *"macemen are good attackers but weak defenders."*
 
 | troop | melee attack (band 0/1/2/3) | recovery | heavy blow | armour | exchange |
 |---|---|---|---|---|---|

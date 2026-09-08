@@ -344,6 +344,77 @@ impl Weather {
 pub const HERD_WEATHER_PCT: [i32; 6] = [-2, -10, 5, 0, -5, -10];
 
 // ---------------------------------------------------------------------------
+// The herd's own births and deaths - `docs/kingdom.md` §13 and §13.1
+// ---------------------------------------------------------------------------
+
+/// **Three labourers a head is full staffing.** `[V]` - `FUN_0044DA99`
+/// (`0x0044DA99`) opens with `PctOf(labour, herd * 3)`, which is the staffing
+/// percentage every other term in the function is scaled by.
+///
+/// This is the rule a player describes as *"cows require more peasants to tend
+/// them depending on how many cows there are"*, and `crates/l2-kingdom` did not
+/// have it at all until `docs/kingdom.md` §13 was written.
+pub const HERD_LABOUR_PER_HEAD: i32 = 3;
+
+/// Staffing above this buys nothing. `if (199 < staffing) staffing = 200;` -
+/// twice-staffed is the ceiling, and the comparison is against 199 rather than
+/// 200, so a staffing of exactly 199 is *not* rounded up.
+pub const HERD_STAFFING_MAX: i32 = 200;
+
+/// Understaffing adds `(100 - staffing) / 3` to the death rate.
+///
+/// The binary writes it as `-((staffing - 100) / 3)`, which is **not** the same
+/// as `(100 - staffing) / 3` in C - both truncate towards zero and the operand
+/// is negated first, so the two agree. `[V]` and worth stating, because
+/// `docs/kingdom.md` §13 annotates the expression as *"understaffed: negative"*
+/// and it is positive: it is added to the **deaths**, not to the growth.
+pub const HERD_UNDERSTAFFING_DIVISOR: i32 = 3;
+
+/// The four crowding bands of `docs/kingdom.md` §13.1.
+pub const HERD_CROWDING_COUNT: usize = 4;
+
+/// The density `FUN_0044D913` substitutes when a county has no pasture at all,
+/// which lands it in the top band by a wide margin before the explicit
+/// no-pasture override does the same thing again.
+pub const HERD_NO_PASTURE_DENSITY: i32 = 1000;
+
+/// With no pasture the herd loses half its head - or **all** of them below six.
+/// `deaths = (herd < 6) ? herd : herd / 2;`
+pub const HERD_NO_PASTURE_KILL_ALL_BELOW: i32 = 6;
+pub const HERD_NO_PASTURE_DIVISOR: i32 = 2;
+
+/// `(density_max, level, death_rate, birth_rate)` for the four crowding bands.
+///
+/// * `density_max` - the highest `herd / fieldsCattle` in the band. The binary
+///   tests `density < 11`, `< 21`, `< 31`, so the inclusive bounds are 10, 20,
+///   30 and everything above.
+/// * `level` - what `FUN_0044D913` stores in county `+0x25C`, and what
+///   `L2.eng` group 77 names *"Low herd crowding."*, *"Average herd
+///   crowding."*, *"Herd overcrowded."* and *"Massive overcrowding!!"*.
+/// * `death_rate` - per ten thousand head a season, before understaffing.
+/// * `birth_rate` - per ten thousand head at 100% staffing, scaled by the
+///   staffing percentage.
+///
+/// The two rate columns are the point of the whole table: an overcrowded herd
+/// dies seven times as fast **and** breeds a seventh as often.
+pub const HERD_CROWDING: [(i32, i32, i32, i32); HERD_CROWDING_COUNT] =
+    [(10, 10, 1, 1400), (20, 20, 3, 900), (30, 30, 5, 500), (i32::MAX, 40, 7, 200)];
+
+/// `(below, bonus)` added to the birth rate of a **small, fully staffed** herd.
+///
+/// Only when staffing has reached 100. A herd of four gets `+10000` per ten
+/// thousand - a doubled birth rate - which is what stops a county that has lost
+/// almost everything from being unable to recover.
+pub const HERD_SMALL_BONUS: [(i32, i32); 3] = [(5, 10_000), (10, 5_000), (25, 2_000)];
+
+/// The season whose calves arrive: `if (season == 1) births = births * 3 / 2;`
+pub const HERD_CALVING_SEASON: u8 = Season::Spring as u8;
+/// And the season that kills: `if (season == 4) deaths = deaths * 3 / 2;`
+pub const HERD_CULLING_SEASON: u8 = Season::Winter as u8;
+/// Both are exactly `* 3 / 2`, kept as a ratio rather than as 150%.
+pub const HERD_SEASON_BONUS: (i32, i32) = (3, 2);
+
+// ---------------------------------------------------------------------------
 // Castles
 // ---------------------------------------------------------------------------
 
@@ -1002,22 +1073,43 @@ pub const SCORE_WEIGHTS: [(i32, i32); 6] = [(10, 1), (1, 10), (2, 1), (2, 1), (1
 /// | `+0x0C` | x2 | mean happiness over the realm's counties |
 /// | `+0x58` | x2 | mean health meter over the realm's counties |
 /// | `+0x54` | /5 | total men over the realm's armies |
-/// | `+0x4C` | x50 | **still unidentified** |
+/// | `+0x4C` | x50 | **castles held** — see below |
 ///
-/// `[V]` on the five, which is what makes the score readable: it is
-/// *territory x 10, then people, then how well they are doing, then the army*.
-/// `+0x4C` carries the heaviest weight of the six and is not written by that
-/// pass; it is left unnamed rather than guessed at (`docs/decisions.md` C3).
+/// All six are identified, and the score reads as *castles above everything
+/// else, then territory, then people, then how well they are doing, then the
+/// army*. `[V]`
+///
+/// `+0x4C` was the last, and was found from the other end. A player described
+/// the standings screen — swords and flags at differing heights, each with a
+/// voice-over — and `L2.eng` group 35 is exactly that list: *Most counties,
+/// Most castles, Most troops, Most crowns, Happiest people, Most people,
+/// Greatest noble, undecided.* Five already had an input; **Most castles** did
+/// not, and `+0x4C` had no name.
+///
+/// The coincidence is not the evidence; this is:
+///
+/// ```c
+/// for (realm = 1; realm < 6; realm++) realm[0x4C] = 0;
+/// for each county:
+///     if (county[0x1C3] == 0)          /* not degraded  */
+///         if (county[0x1C0] != 0)      /* castleType    */
+///             realm[owner][0x4C]++;    /* count castles */
+/// ```
+///
+/// `0x0053FB70 - 0x0053F9B0 = 0x1C0`, which is `castleType`. So it counts the
+/// realm's counties holding a castle, and it carries **more weight than the
+/// other five combined** — a real statement about what this game thinks winning
+/// is.
 pub const SCORE_INPUT_OFFSETS: [u16; 6] = [0x60, 0x10, 0x0C, 0x58, 0x54, 0x4C];
 
-/// Names for the five score inputs that are identified, `None` for `+0x4C`.
-pub const SCORE_INPUT_NAMES: [Option<&str>; 6] = [
-    Some("share of the map, percent"),
-    Some("total population"),
-    Some("mean county happiness"),
-    Some("mean county health"),
-    Some("total men under arms"),
-    None,
+/// Names for the six score inputs, in the order [`SCORE_WEIGHTS`] applies.
+pub const SCORE_INPUT_NAMES: [&str; 6] = [
+    "share of the map, percent",
+    "total population",
+    "mean county happiness",
+    "mean county health",
+    "total men under arms",
+    "castles held",
 ];
 
 #[cfg(test)]
@@ -1293,6 +1385,8 @@ pub struct Tables {
     pub population: PopulationTable,
     /// Indexed by [`Weather`].
     pub weather: [WeatherRow; 6],
+    /// Staffing, crowding, and the births and deaths they produce.
+    pub herd: HerdTable,
     pub castle: CastleTable,
     /// Indexed by [`Commodity`].
     pub commodity: [CommodityRow; 4],
@@ -1375,6 +1469,45 @@ pub struct PopulationTable {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WeatherRow {
     pub herd_pct: i32,
+}
+
+/// One crowding band. See [`HERD_CROWDING`] for what each column is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HerdCrowdingRow {
+    /// The highest `herd / fieldsCattle` that lands in this band, inclusive.
+    /// The last row is the catch-all and its bound is never consulted.
+    pub density_max: i32,
+    /// The value stored in county `+0x25C` and shown by `L2.eng` group 77.
+    pub level: i32,
+    /// Deaths per ten thousand head, before understaffing is added.
+    pub death_rate: i32,
+    /// Births per ten thousand head at 100% staffing.
+    pub birth_rate: i32,
+}
+
+/// Everything `FUN_0044DA99` and `FUN_0044D913` read — the rule that a herd
+/// needs tending, and the rule that says how crowded it is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HerdTable {
+    /// [`HERD_LABOUR_PER_HEAD`]. Zero would divide by zero in `PctOf`'s
+    /// caller's arithmetic sense — `PctOf` itself returns 0 — so it is treated
+    /// as "no staffing requirement" rather than refused.
+    pub labour_per_head: i32,
+    pub staffing_max: i32,
+    /// [`HERD_UNDERSTAFFING_DIVISOR`].
+    pub understaffing_divisor: i32,
+    pub crowding: [HerdCrowdingRow; HERD_CROWDING_COUNT],
+    /// [`HERD_SMALL_BONUS`], `(below, bonus)`, tried in order.
+    pub small_bonus: [(i32, i32); 3],
+    pub no_pasture_density: i32,
+    pub no_pasture_kill_all_below: i32,
+    pub no_pasture_divisor: i32,
+    /// [`HERD_CALVING_SEASON`] and [`HERD_CULLING_SEASON`], as `g_season`
+    /// indices. 0 — the original's *No Season* — disables the bonus.
+    pub calving_season: u8,
+    pub culling_season: u8,
+    /// `(numerator, denominator)`, `3 / 2` in the original.
+    pub season_bonus: (i32, i32),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1593,6 +1726,44 @@ impl Tables {
             WeatherRow { herd_pct: HERD_WEATHER_PCT[4] },
             WeatherRow { herd_pct: HERD_WEATHER_PCT[5] },
         ],
+        herd: HerdTable {
+            labour_per_head: HERD_LABOUR_PER_HEAD,
+            staffing_max: HERD_STAFFING_MAX,
+            understaffing_divisor: HERD_UNDERSTAFFING_DIVISOR,
+            crowding: [
+                HerdCrowdingRow {
+                    density_max: HERD_CROWDING[0].0,
+                    level: HERD_CROWDING[0].1,
+                    death_rate: HERD_CROWDING[0].2,
+                    birth_rate: HERD_CROWDING[0].3,
+                },
+                HerdCrowdingRow {
+                    density_max: HERD_CROWDING[1].0,
+                    level: HERD_CROWDING[1].1,
+                    death_rate: HERD_CROWDING[1].2,
+                    birth_rate: HERD_CROWDING[1].3,
+                },
+                HerdCrowdingRow {
+                    density_max: HERD_CROWDING[2].0,
+                    level: HERD_CROWDING[2].1,
+                    death_rate: HERD_CROWDING[2].2,
+                    birth_rate: HERD_CROWDING[2].3,
+                },
+                HerdCrowdingRow {
+                    density_max: HERD_CROWDING[3].0,
+                    level: HERD_CROWDING[3].1,
+                    death_rate: HERD_CROWDING[3].2,
+                    birth_rate: HERD_CROWDING[3].3,
+                },
+            ],
+            small_bonus: HERD_SMALL_BONUS,
+            no_pasture_density: HERD_NO_PASTURE_DENSITY,
+            no_pasture_kill_all_below: HERD_NO_PASTURE_KILL_ALL_BELOW,
+            no_pasture_divisor: HERD_NO_PASTURE_DIVISOR,
+            calving_season: HERD_CALVING_SEASON,
+            culling_season: HERD_CULLING_SEASON,
+            season_bonus: HERD_SEASON_BONUS,
+        },
         castle: CastleTable {
             starting_type: CASTLE_STARTING_TYPE,
             tax_base: CASTLE_TAX_BASE,
