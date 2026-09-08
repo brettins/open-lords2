@@ -86,14 +86,14 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x00 | `Screen_DrawCampaign` `0x0040F5FD` | the campaign map | group 34 — season and year |
 | 0x02 | `Village_Draw` `0x00412143` | **the village** — the county's own picture, and where peasants are moved | groups 22 (fertility), 66 (weather); `villani1/villani2/vill/villtops.pl8` |
 | 0x04 | `0x0041B032` | — | not identified |
-| 0x08 | `0x00415FB7` | the merchant | `merchant.pl8`, `mercgrid.pl8` |
+| 0x08 | `0x00415FB7` | the merchant | `merchant.256` + `merchant.pl8`, `mercgrid.pl8` |
 | 0x09 | `Court_Draw` `0x00416925` | **the court** — the realm's treasury and stores | group 70 |
-| 0x0A | `0x00417EA7` | the armoury | `armoury.pl8`, `arm_grid.pl8` |
+| 0x0A | `0x00417EA7` | the armoury | `armoury.256` + `armoury.pl8`, `arm_grid.pl8` |
 | 0x0B | `0x00416CF3` | the other lords | `faces.pl8` |
-| 0x0C | `0x00416308` | trade goods | `icontrad.pl8` |
+| 0x0C | `0x00416308` | trade goods | group 68; `merchant.pl8` **again** as the background, then `icontrad.pl8` |
 | 0x0D | `0x00417EA7` + a list | the armoury, buying | |
 | 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output | group 74 |
-| 0x11 | `0x004192B1` | army division | group 17 |
+| 0x11 | `0x004192B1` | army division | group 17; `icon_tmp.pl8` |
 | 0x14 | `Panel_Population` `0x004110B1` | **population** | group 73 |
 | 0x15 | `Panel_Tax` `0x0041152F` | **tax** | group 86 |
 | 0x16 | `Panel_Happiness` `0x004116FB` | **happiness** | group 85 |
@@ -101,12 +101,12 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x18 | `0x0041AD5D` | send supplies to another county | group 33 |
 | 0x19 | `Panel_Ration` `0x00411B72` | **rations** | groups 20, 21, 87 |
 | 0x1A | `0x0041789B` | — | not identified |
-| 0x1B | `0x00419789` | castle building | `cas_back.pl8`, `caspics.pl8`, `cas_bits.pl8` |
-| 0x1C | `0x0041E1DD` | the front end | `gateway.pl8`, `panels2.pl8` |
-| 0x1D | `0x00421F14` | siege preparations | group 83 |
-| 0x1F | `0x0041E7E1` | game setup, thirteen sub-pages on `0x005530F0` | |
+| 0x1B | `0x00419789` | castle building | `cas_back.256` + `cas_back.pl8`, `caspics.pl8`, `cas_bits.pl8` |
+| 0x1C | `0x0041E1DD` | **the campaign interstitial** — *not* the front end; §1.1 | group 36, group 101; `gateway.pl8`, `panels2.pl8` |
+| 0x1D | `0x00421F14` | siege preparations | group 83; `sgeplans.pl8` |
+| 0x1F | `0x0041E7E1` | **the front end**, and game setup: thirteen sub-pages on `g_setupPage` (`0x005530F0`) — §1.2 | groups 11, 39, 40, 101, 102, 103 |
 | 0x25 | `0x0041543F` | about | group 59 |
-| 0x2E | `0x00421707` | battle-master ratings | group 37 |
+| 0x2E | `0x00421707` | battle-master ratings | group 37; `score1.256` + `score1.pl8` |
 | 0x31 | `0x004154EA` | help options | group 45 |
 | 0x35 / 0x36 | `0x00414819` | load / save | group 40 |
 | 0x39 | `0x00414F68` | advanced options | group 50 |
@@ -116,6 +116,91 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 **Our five-screen model is not the game's.** The game's management surface is a *sidebar
 plus eight popups*, not a set of full-screen pages, and the four county panels are windows
 floating over whatever was underneath.
+
+**Every screen with a full-screen `.pl8` also reads a `.256` of its own.** The management
+popups run under the campaign palette; `0x08`, `0x0A`, `0x1B`, `0x1C`, `0x1F` and `0x2E`
+each do `File_ReadChunk("<name>.256", 0x004EA8A0, 0x300)` and then `Palette_Set`. A canvas
+of palette *indices* means nothing without knowing which one — which is why
+`l2_game::screen::Screen::palette` exists and the presenter asks the top screen.
+
+### 1.1 `0x1C` is not the front end. It is the campaign interstitial.
+
+**Corrected.** The row above used to read *"the front end"*, inferred from the two files
+`FUN_0041E1DD` loads — `gateway.pl8` and `panels2.pl8`, which really are the front end's
+artwork. The strings settle it the other way. The painter draws **group 36**:
+
+```text
+ 0  "Congratulations!!"          4  "You have lost."
+ 1  "You have conquered"         5  "You have failed to conquer"
+ 2  "Events move on apace…"      6  "Until this country falls under your"
+ 3  "…now awaits you in"         7  "rule there can be no thought"
+                                 8  "of further conquests, my lord."
+```
+
+with a map name from group 101 between the halves of each sentence: the map just fought
+over (`DAT_00553E78`), and on a win the next one (`g_scenarioIndex`). A third branch fires
+when the campaign counter `DAT_0053F258` reaches **8** — eight campaign maps — and drops
+indices 2 and 3 for 9 … 15, *"The whole of Christendom … now lies firmly within your iron
+fist."* **[V]**: three branches, each of which reads as one whole sentence, and the
+`g_scenarioIndex` lookup happens only in the branch that mentions a *next* country.
+
+The window is `FUN_00409346(panels2, 0x70, 8, 0x1A, h)` — 416 pixels wide from x = 112,
+which is centred on 640 — 14 cells tall for the two short outcomes and 18 for the long one.
+
+### 1.2 `0x1F`, and its thirteen sub-pages
+
+`FUN_0041E7E1` is one `if`/`else if` chain on `g_setupPage` (`0x005530F0`) with thirteen
+arms; `FUN_0041E61D` in front of it loads the background. **[D]**, with **[V]** wherever a
+row names a group.
+
+| page | painter | background | what it is |
+|---:|---|---|---|
+| 1 | `0x0041EA14` | `gateway` + `panels2` | **the title menu** — 11.0 *"Lords of the Realm 2"*, 11.1 *"The siege is on"*, items 11.2, 11.3, 11.47, 11.4 |
+| 2 | `0x0041EC8A` | `gateway` + `panels2` | 11.5 *"Your options"* — items 11.6, 11.7, 11.19, 11.8, 11.9 |
+| 3 | `0x0041EF42` → `FUN_004148E4(5)` | `gateway` + `panels2` | load a game — group 40.5 |
+| 4 | `0x0041EF57` | `gateway` + `panels2` | 11.10 *"Choose your title and your shield."* |
+| 5 | `0x0041F592` | `gateway` + `panels2` | 39.0, then 39.4 / 39.5 — the original campaign or the expansion's |
+| 6 | `0x0041F3E9` | `gateway` + `panels2` | 39.0, then 39.1 / 39.2 — full game or skirmish |
+| 7 | `0x0041F6C7` | `custom.256` + `custom.pl8` | **the custom game**, single player |
+| 8 | `0x0041F77A` | `custom` | the custom game, multiplayer: page 7 plus five player cards, a chat log and a fourth button |
+| 9 | `0x0041FDD6` | *the page underneath* | one open drop-down over page 7, 8, 11 or 12 |
+| 10 | `0x00420428` | `gateway` + `panels2` | 11.16 *"No Lords of the Realm CD"* — 11.17, 11.18, 11.48, 11.49 |
+| 11 | `0x00420630` | `skirmish.256` + `skirmish.pl8` / `skircust.pl8` | skirmish setup, multiplayer |
+| 12 | `0x0042051C` | `skirmish` | skirmish setup, single player |
+| 13 | `0x0042150B` | `skirmish` | the skirmish file box, over page 12 |
+
+**The menu geometry.** Pages 1, 2 and 4 put every item in `FUN_00403EE4(x, y, 0xC0, 0x18)`
+— a 192 × 24 recess whose top and right edges are colour `0x35` and bottom and left `0x28`,
+the *opposite* lighting to `Ui_DrawInsetRect` — with the caption centred in the same 192
+pixels five below the top. Pages 1 and 2 step them 36 apart from y = 0x5B at x = 0xE0.
+
+**Page 4's shields come from `Panels2.pl8`, not from `Misc_cty`/`Misc_sel`.** `FUN_0041F1DD`
+blits from `DAT_004EABEC`, the general scratch buffer, which on this page holds
+`panels2.pl8`. `Misc_sel.pl8` has seventeen frames and the indices run to 215;
+`Panels2.pl8` has 216. The file confirms it: frames 205 … 214 are five pairs of ~60 × 65
+shields, 204 is a 224 × 32 name plate and 215 is a 54 × 27 plaque. **[V]** — nothing else
+in either file is that shape, and the reimplementation draws them and they are shields.
+
+**The custom game's twelve options close exactly.** **[V]** Three `.data` tables:
+
+| table | shape | what |
+|---|---|---|
+| `0x004D3098` | 12 × `(x, boxY, labelY)` | four columns of three; the value box is `FUN_004093E0(x, boxY, 6, 3)` and the label is the wrapped group 102 string at `(x, labelY)`, width 100 |
+| `0x004D3128` | 12 × `i32` | each option's base index into group 103 |
+| `0x004D3158` | 12 × `(x, y, rows)` | the open list; `rows` is the item count **plus two** |
+
+Bases `0, 2, 5, 9, 11, 15, 19, 25, 29, 34, 37, 44`; counts from the third table
+`2, 2, 4, 2, 4, 4, 6, 4, 5, 3, 7, 2`. Every run ends exactly where the next begins, the
+twelve runs use **45 of group 103's 46 strings**, and the one left over is index 4,
+*"one"* — because *Nobles* starts at *"two"*. Twelve labels in group 102, twelve bases,
+twelve counts, no remainder. None of it was chosen by us.
+
+**One thing is unresolved.** `FUN_00432B05` and `FUN_00432CC8` are the two click handlers,
+and they branch on `g_uiHotspotId` in an order that does not match the order the painters
+draw the items: on page 1, id 3 sets the quit flag while id 4 plays `lom.smk`, and the
+painter draws *"Lords of Magic?"* third and *"Exit game"* fourth. Either the widget table
+is not in drawing order or one of the two readings is wrong. `crates/l2-game`'s front end
+keys its destinations to the **captions**, which are [V], and says so at the call site.
 
 ---
 
@@ -279,6 +364,18 @@ Alongside those, one mode-dependent sheet lives in `g_miscCtySheet` (`0x005530C8
 | 256 … 260 | 5 | 13 × 16 | |
 | 261 | 1 | 48 × 48 | |
 
+**The `0xCC` belongs to the border and not to the interior.** `FUN_004093E0` — the box
+every management popup opens — is literally `Ui_DrawBoxBorder(1, x, y, w, h)` followed by
+`Ui_DrawBoxInterior(x + 0x10, y + 0x10, w - 2, h - 2)`, and the interior function takes no
+style argument at all. Adding 0xCC to an interior index sends `0x34 + n` past 255 and into
+the five 13 × 16 banner frames at the end of the file. Ours did, the first time anything
+asked for set 1, and the custom-game screen's twelve option boxes came out full of shields.
+
+`Panels2.pl8` has the same layout for its first 204 frames and then diverges: 196 … 203 are
+the 24 × 24 strip, 204 is a 224 × 32 name plate, 205 … 214 are the five shield pairs and
+215 is a 54 × 27 plaque. It has no second border set, which is why the setup pages only
+ever draw boxes from it in set 0.
+
 4 + 48 = 52 border frames; 144 interior frames; 52 + 144 = 196, and frame 196 is the first
 frame in the file that is not 16 × 16. The size histogram of the shipped file is 248 frames
 of 16 × 16, 8 of 24 × 24, 5 of 13 × 16 and one 48 × 48, and 52 + 144 + 52 = 248.
@@ -333,6 +430,63 @@ bytes said why.
 | 0x3E | 60 × 77 | the tax vignette | `Panel_Tax` draws it at (320, 160) |
 | 0x42 | 162 × 52 | sidebar middle plate | §0 |
 | 0x46 … 0x4A | 14 × 59 | health thermometer, five levels | `frame = 0x46 + healthBand` |
+
+### 4.4 The fonts, and the one table that makes them readable
+
+**[V]** A font is a `.pl8` plus ninety-six bytes of `.data`. `Glyph_Draw` (`0x00402A14`) is
+four lines of arithmetic:
+
+```text
+frame   = g_glyphWidths[c - 0x20] - 1      // 0 means no glyph at all
+y      += frameRecord[0x0D]                // the glyph's own vertical offset
+advance = frame.width + 1
+```
+
+and `FUN_004014F0`, which measures a string for `Ui_DrawCentred`, indexes **the same
+bytes** from `0x004D71D0` with the raw character — `0x004D71F0 - 0x20`. A space is never
+looked up: it advances 4 and draws nothing, which is also what makes `'@'` the invisible
+sign column `Ui_NumberToBuffer` relies on.
+
+`g_glyphWidths` is therefore a **character-to-frame map**, not the widths its name
+suggests; the widths are in the file's own frame records. The name is kept because it is
+the one in `symbols.json`.
+
+The mapping is self-checking, which is what makes it [V] rather than [D]. It sends `'a'` to
+frame 0 and `'A'` to frame 26 of `Fntl2_14.pl8`, and the frames it sends `'g'`, `'j'`,
+`'p'`, `'q'` and `'y'` to are exactly the frames in that file that are four pixels taller
+than their neighbours. Descenders land on the descending letters. Nothing else would.
+
+Four more details a reimplementation needs:
+
+* **Every string is drawn three times** — `Ui_DrawText` blits each glyph at `y - 1` in one
+  shadow colour, at `y + 1` in another, then at `y` in the real one. The pair is `0x10` and
+  `0x1F` everywhere **except** when `g_screenId` is `0x1C` or `0x1F`, where the same
+  function uses `0x36` and `0x2C` instead — those two screens run under `gateway.256` and
+  different indices read as shadow. That branch is the first thing in the function and the
+  only thing in it that knows which screen it is on.
+* **`DAT_005AEA40` switches the emboss off.** When it is non-zero the glyph is drawn once,
+  at `y`, in its own colour. The front end sets it around every menu item, every button
+  caption and every body line and clears it for the heading, so on those pages **the
+  heading is embossed and nothing else is** — which is not what a reimplementation would
+  guess, and looks wrong on every page at once if it guesses.
+* **`DAT_0058FE2C` picks the capitals out.** When it is non-zero, characters `0x41 … 0x5A`
+  — `A` through `Z`, nothing else — are drawn in **colour 1** rather than the caller's. The
+  setup pages set it around their heading and `0x1C` sets it around everything it draws. On
+  the title screen that is what makes the `L` and the `R` of *"Lords of the Realm 2"* red
+  and the rest of the line black.
+* **Wrapped text steps by the font.** `FUN_0040328E(group, index, x, y, width, …)` wraps to
+  `width` and ends `if (font == &g_fontHeading) y += 0x18; else y += 0x10;` — 24 pixels for
+  the 22-pixel font, 16 for the 14-pixel one — stripping a leading space from every line
+  but the first.
+
+**The capitals hang below the baseline, and that is the font.** Rendering `Fntl2_14.pl8`
+through the formula above puts every lowercase letter's last ink row on `y + 11` —
+`'l'`, `'t'`, `'i'`, `'d'` and `'f'` (12-row frames, overhang 0) land there and so do
+`'a'`, `'o'`, `'c'` and `'n'` (9-row frames, overhang 3) — while `'A'` runs to `y + 13`.
+The two extra rows are `..#######....###.` and `##...##.....###.#`: a blackletter swash
+foot. `Fnt_8.pl8` and `Fntl2_9.pl8` align capitals and lowercase exactly under the same
+formula, and `Fntl2_22.pl8` bottoms its capitals with its ascenders. Nothing is off by two;
+one of the five fonts has decorated capitals.
 
 ---
 
