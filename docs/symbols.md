@@ -617,6 +617,17 @@ ways - and the block list sums to the exact byte size of a shipped `lastturn.sav
 | `0x00404D6B` | `Pct(x, p)` | verified | x * p / 100. The whole economy is written in this. |
 | `0x00404DC1` | `PctOf(a, b)` | verified | a * 100 / b, 0 when b is 0. |
 | `0x00404E03` | `DivCeil(a, b)` | verified | (a + b - 1) / b, 0 when b is 0. |
+| `0x0044F6E7` | `Labour_Allocate(county)` | verified | The labour allocator, and the only writer of the nine job records. Splits the population into a farm half and an industry half by county +0x08, gives each job Pct(half, +0x130 + job*4) people or as many as its useful ceiling (+0xC4 + job*12 + 8) allows, walks the leftovers round the jobs with room - grain twice and cattle three times before reclamation once; wood, stone, iron and blacksmith once each before castle building - and drops the remainder into Idle townsfolk. Reproduced in l2-kingdom::labour; all fourteen counties of lastturn.sav come back exactly. |
+| `0x0044F699` | `Labour_AllocateAll()` | verified | Labour_Allocate for counties 1..g_countyCount. Season_Advance calls it twice: after Castle_BuildTick and before Migration_UpdateAll, and again after FUN_00448D16 before Panels_RefreshAll. |
+| `0x0044FF4A` | `Labour_RecomputeIndustryShare(county)` | verified | Rewrites county +0x08 from what was actually assigned: PctOf(pop - grain - cattle - reclamation - idle + idle/2, pop). Half the idle count is treated as industry. |
+| `0x00450000` | `Labour_RecomputeShares(county)` | verified | Rewrites the eight percentages at +0x130 + job*4 from the worker counts, in two groups - jobs 0..2 and jobs 3..7 - each renormalised to exactly 100 by giving the rounding remainder to the group's largest share. Its two indexed loops are what fix the array layout. |
+| `0x004514F8` | `Labour_DefaultShares(county)` | verified | Farm 33/50/17 and all of the industry share on wood. Both halves sum to 100, which is the invariant that identifies the array. |
+| `0x0045158B` | `Labour_DefaultSharesBuilt(county)` | inferred | The same farm 33/50/17, with industry 40/15/15/15/15 - castle building favoured. Also sums to 100 in both halves. Which of the two setters a county gets is not traced. |
+| `0x00451150` | `County_Reset()` | inferred | Sets every county up for a new game: population 150, popBand, ration 3, split 100, tax 50, industry share 25, then Labour_DefaultShares, clears all nine labour records to {0,0,0}, and runs the estimates and Labour_Allocate. |
+| `0x0044D374` | `Grain_LabourEstimate(county, season)` | verified | Walks workers = 0..population calling Grain_Sow / Grain_Grow / Grain_Harvest, and stores the first count that reaches the best result in both the wanted floor (+0xC8) and the useful ceiling (+0xCC) of labour record 0. Also fills the grain panel's forecast fields. |
+| `0x0044DD4D` | `Herd_LabourEstimate(county, season)` | verified | Walks workers = 0..population through Herd_BirthsAndDeaths. Writes the first staffing at which births less deaths stops being negative - or the least-bad one if it never does - to the cattle record's wanted floor (+0xD4), and the staffing that maximises it to the useful ceiling (+0xD8). |
+| `0x0044F318` | `Industry_LabourEstimate(county, industry, slot, baseEfficiency, divisor)` | verified | Fills one industry's labour record: wanted floor -1 always, useful ceiling 0 when the county has no such resource, the output-maximising worker count for weapons, and 100,000 - effectively unbounded - for iron, stone and wood. Called four times from FUN_004485A5 as (1,4,15,1) (3,5,15,2) (0,6,20,1) (2,7,15,4), which is the same job-and-divisor mapping l2-kingdom::tables holds. |
+| `0x004485A5` | `County_RefreshEstimates(county, seasonNext)` | verified | The seven estimate passes that fill every labour record's floor and ceiling: crowding, Field_ReclaimEstimate, Grain_LabourEstimate, Herd_LabourEstimate, four Industry_LabourEstimate calls and Castle_BuildEstimate. |
 
 **Globals**
 
@@ -787,6 +798,13 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x0043AE30` | `Sidebar_Button` | verified | The five buttons in the 162x30 strip at y 430, on g_uiHotspotId 1..5: the county's army (screen 0x17), the court (screen 0x09), send supplies (screen 0x18), and two more. |
 | `0x00416925` | `Court_Draw` | verified | The court screen (0x09): L2.eng group 70 against the realm record - gold +0x118, iron +0x120, stone +0x128, wood +0x130, six weapon stocks from +0x140, army wages +0xFC and expected tax +0x15C. |
 | `0x00438BEC` | `Field_SetType(county, tile, brush)` | verified | Repaints one map tile's field type for a county and re-runs its food passes. Called from a map click with the brush in g_uiHotspotId; this, not any county panel, is how fields are assigned. |
+| `0x004398F5` | `Village_GridAt(x, y)` | verified | Which peasant cluster a point on the village is over, 1-based and clamped to 8, from an 8-pixel grid: (&DAT_00542CF8)[((x-0x40)>>3) + ((y-g_villageTopY)>>3) * 0x2D]. That is vill_gd8.pl8 plus its 24-byte header - 45 x 40 cells covering x 0x40..0x1A8 and y top..top+0x140, and the shipped file is 1,824 bytes exactly. |
+| `0x004393EB` | `Village_BandStart()` | verified | Arms the rubber band on a press inside x 0..0x1FF, y top..top+0x178, and returns 1 - moving the interface to screen 0x05 - once the pointer is 9 or more pixels from where it went down. Below nine it is still a click. |
+| `0x00439541` | `Village_BandRelease()` | verified | Screen 0x05 leaves on the button being released: 2 to screen 0x06 when the band caught somebody, 1 back to the village when it did not. |
+| `0x004399B0` | `Village_Drop()` | verified | Screen 0x06's drop. Village_GridAt names the target cluster, the carried icon count is multiplied by county +0xB8 and clamped to what the source job holds, and Labour_Move does the rest. Dropping on the source cluster puts them back. |
+| `0x0043A123` | `Village_ClickJob()` | verified | A click that never became a drag: Village_GridAt names the cluster and g_jobPanelJob becomes its labour slot plus one, which opens the job popup (screen 0x0F). FUN_0045183A refuses only cluster 0, and only for a county with neither a quarry nor a mine. |
+| `0x0045183A` | `Village_ClusterHasJob(county, cluster)` | verified | Whether a cluster has a job to open. Only cluster 0 can say no, and only when the county has neither industry 3's stone nor industry 1's ore. |
+| `0x004518A5` | `Village_FillCluster(county, cluster, normal, other)` | verified | Turns one cluster's two icon counts into g_peasantIcons values. `other` is negative for a shortfall against the job's wanted floor and positive for a surplus past its useful ceiling; cluster 6, Idle townsfolk, is always drawn in the surplus icon. |
 
 **Globals**
 
@@ -872,6 +890,12 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x00553D54` | `g_playerNames` | verified | Six 0x2C-byte player names. g_saveBlocks entry 2 is {0x00553D50, 264}, which is 6 x 0x2C. |
 | `0x0057C908` | `g_villageTopY` | verified | Where the village scene starts: 64 normally, 132 with Advanced Farming, which is the strip the fertility and weather lines occupy. |
 | `0x004D71F0` | `g_glyphWidths` | inferred | One byte per printable character; zero means a four-pixel blank, which is what makes '@' an invisible sign column. |
+| `0x00542CE0` | `g_villageGrid` | verified | vill_gd8.pl8, preload entry 12: a 45 x 40 grid of 8-pixel cells naming which peasant cluster each part of the village picture belongs to. The pixels start at +0x18 and Village_GridAt indexes them there. |
+| `0x004D6808` | `g_jobIconValue` | verified | Nine i32, by labour slot: the g_peasantIcons value each job's peasants are drawn with. The value is the Misc_cty frame plus one and a selected icon adds one more, so each entry names a (normal, highlighted) pair: 4 8 10 14 16 18 20 22 2. Misc_cty frames 0..0x16 are these icons - 19 of 16x32 plus frame 0 for a shortfall - and the four the table never names, 5, 6, 11 and 12, are exactly the four 2x2 stubs in that range of the shipped file. |
+| `0x004D6830` | `g_iconFillOrder` | verified | Twenty-five bytes, a permutation of 1..25: the order a single-state cluster's icon slots light up as its worker count rises. |
+| `0x004D6850` | `g_iconFillOrderMain` | verified | Fifteen bytes for a cluster showing two states at once: thirteen real thresholds landing in slots 0..12, then two 99s no count reaches. |
+| `0x004D6860` | `g_iconFillOrderOther` | verified | The other half, written through g_peasantIcons + 10: three 99s then twelve real thresholds landing in slots 13..24. 13 + 12 = 25 with no slot claimed twice. |
+| `0x004D29A0` | `g_jobPanelRows` | verified | The job popup's height in 16-pixel cells, by 1-based job: 13 for grain and cattle, 11 for castle building, 9 for the rest. Ui_DrawBox(0x30, 0x60, 0x19, rows). |
 
 <!-- END symbols.json: ui -->
 

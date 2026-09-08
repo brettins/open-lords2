@@ -3385,6 +3385,150 @@
       "confidence": "verified",
       "signature": "int Move_ExtractPath(int who, int x, int y)",
       "comment": "The campaign path extractor (distinct from the battle's Path_Extract at 0x00472392). Greedy descent down a campaign distance field from (x, y) back to the source, appending (x, y) pairs into g_pathBuf[who] with the count in g_pathLen[who]. On a cost-1 road tile it steps the direction index by 2, orthogonals only, and falls back to all eight when that finds nothing."
+    },
+    {
+      "addr": "0x0044F6E7",
+      "name": "Labour_Allocate",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Labour_Allocate(int county)",
+      "comment": "The labour allocator, and the only writer of the nine job records. Splits the population into a farm half and an industry half by county +0x08, gives each job Pct(half, +0x130 + job*4) people or as many as its useful ceiling (+0xC4 + job*12 + 8) allows, walks the leftovers round the jobs with room - grain twice and cattle three times before reclamation once; wood, stone, iron and blacksmith once each before castle building - and drops the remainder into Idle townsfolk. Reproduced in l2-kingdom::labour; all fourteen counties of lastturn.sav come back exactly."
+    },
+    {
+      "addr": "0x0044F699",
+      "name": "Labour_AllocateAll",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Labour_AllocateAll(void)",
+      "comment": "Labour_Allocate for counties 1..g_countyCount. Season_Advance calls it twice: after Castle_BuildTick and before Migration_UpdateAll, and again after FUN_00448D16 before Panels_RefreshAll."
+    },
+    {
+      "addr": "0x0044FF4A",
+      "name": "Labour_RecomputeIndustryShare",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Labour_RecomputeIndustryShare(int county)",
+      "comment": "Rewrites county +0x08 from what was actually assigned: PctOf(pop - grain - cattle - reclamation - idle + idle/2, pop). Half the idle count is treated as industry."
+    },
+    {
+      "addr": "0x00450000",
+      "name": "Labour_RecomputeShares",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Labour_RecomputeShares(int county)",
+      "comment": "Rewrites the eight percentages at +0x130 + job*4 from the worker counts, in two groups - jobs 0..2 and jobs 3..7 - each renormalised to exactly 100 by giving the rounding remainder to the group's largest share. Its two indexed loops are what fix the array layout."
+    },
+    {
+      "addr": "0x004514F8",
+      "name": "Labour_DefaultShares",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Labour_DefaultShares(int county)",
+      "comment": "Farm 33/50/17 and all of the industry share on wood. Both halves sum to 100, which is the invariant that identifies the array."
+    },
+    {
+      "addr": "0x0045158B",
+      "name": "Labour_DefaultSharesBuilt",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "signature": "void Labour_DefaultSharesBuilt(int county)",
+      "comment": "The same farm 33/50/17, with industry 40/15/15/15/15 - castle building favoured. Also sums to 100 in both halves. Which of the two setters a county gets is not traced."
+    },
+    {
+      "addr": "0x00451150",
+      "name": "County_Reset",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "signature": "void County_Reset(void)",
+      "comment": "Sets every county up for a new game: population 150, popBand, ration 3, split 100, tax 50, industry share 25, then Labour_DefaultShares, clears all nine labour records to {0,0,0}, and runs the estimates and Labour_Allocate."
+    },
+    {
+      "addr": "0x0044D374",
+      "name": "Grain_LabourEstimate",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Grain_LabourEstimate(int county, int season)",
+      "comment": "Walks workers = 0..population calling Grain_Sow / Grain_Grow / Grain_Harvest, and stores the first count that reaches the best result in both the wanted floor (+0xC8) and the useful ceiling (+0xCC) of labour record 0. Also fills the grain panel's forecast fields."
+    },
+    {
+      "addr": "0x0044DD4D",
+      "name": "Herd_LabourEstimate",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Herd_LabourEstimate(int county, int season)",
+      "comment": "Walks workers = 0..population through Herd_BirthsAndDeaths. Writes the first staffing at which births less deaths stops being negative - or the least-bad one if it never does - to the cattle record's wanted floor (+0xD4), and the staffing that maximises it to the useful ceiling (+0xD8)."
+    },
+    {
+      "addr": "0x0044F318",
+      "name": "Industry_LabourEstimate",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Industry_LabourEstimate(int county, int industry, int slot, int baseEfficiency, int divisor)",
+      "comment": "Fills one industry's labour record: wanted floor -1 always, useful ceiling 0 when the county has no such resource, the output-maximising worker count for weapons, and 100,000 - effectively unbounded - for iron, stone and wood. Called four times from FUN_004485A5 as (1,4,15,1) (3,5,15,2) (0,6,20,1) (2,7,15,4), which is the same job-and-divisor mapping l2-kingdom::tables holds."
+    },
+    {
+      "addr": "0x004485A5",
+      "name": "County_RefreshEstimates",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void County_RefreshEstimates(int county, int seasonNext)",
+      "comment": "The seven estimate passes that fill every labour record's floor and ceiling: crowding, Field_ReclaimEstimate, Grain_LabourEstimate, Herd_LabourEstimate, four Industry_LabourEstimate calls and Castle_BuildEstimate."
+    },
+    {
+      "addr": "0x004398F5",
+      "name": "Village_GridAt",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "byte Village_GridAt(int x, int y)",
+      "comment": "Which peasant cluster a point on the village is over, 1-based and clamped to 8, from an 8-pixel grid: (&DAT_00542CF8)[((x-0x40)>>3) + ((y-g_villageTopY)>>3) * 0x2D]. That is vill_gd8.pl8 plus its 24-byte header - 45 x 40 cells covering x 0x40..0x1A8 and y top..top+0x140, and the shipped file is 1,824 bytes exactly."
+    },
+    {
+      "addr": "0x004393EB",
+      "name": "Village_BandStart",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Village_BandStart(void)",
+      "comment": "Arms the rubber band on a press inside x 0..0x1FF, y top..top+0x178, and returns 1 - moving the interface to screen 0x05 - once the pointer is 9 or more pixels from where it went down. Below nine it is still a click."
+    },
+    {
+      "addr": "0x00439541",
+      "name": "Village_BandRelease",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Village_BandRelease(void)",
+      "comment": "Screen 0x05 leaves on the button being released: 2 to screen 0x06 when the band caught somebody, 1 back to the village when it did not."
+    },
+    {
+      "addr": "0x004399B0",
+      "name": "Village_Drop",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Village_Drop(void)",
+      "comment": "Screen 0x06's drop. Village_GridAt names the target cluster, the carried icon count is multiplied by county +0xB8 and clamped to what the source job holds, and Labour_Move does the rest. Dropping on the source cluster puts them back."
+    },
+    {
+      "addr": "0x0043A123",
+      "name": "Village_ClickJob",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Village_ClickJob(void)",
+      "comment": "A click that never became a drag: Village_GridAt names the cluster and g_jobPanelJob becomes its labour slot plus one, which opens the job popup (screen 0x0F). FUN_0045183A refuses only cluster 0, and only for a county with neither a quarry nor a mine."
+    },
+    {
+      "addr": "0x0045183A",
+      "name": "Village_ClusterHasJob",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Village_ClusterHasJob(int county, int cluster)",
+      "comment": "Whether a cluster has a job to open. Only cluster 0 can say no, and only when the county has neither industry 3's stone nor industry 1's ore."
+    },
+    {
+      "addr": "0x004518A5",
+      "name": "Village_FillCluster",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Village_FillCluster(int county, int cluster, int normal, int other)",
+      "comment": "Turns one cluster's two icon counts into g_peasantIcons values. `other` is negative for a shortfall against the job's wanted floor and positive for a surplus past its useful ceiling; cluster 6, Idle townsfolk, is always drawn in the surplus icon."
     }
   ],
   "globals": [
@@ -5473,6 +5617,48 @@
       "section": "units",
       "confidence": "verified",
       "comment": "g_armyHappinessCost[g_levyPercent] plus county +0x2F4, clamped to 0..100. Subtracted from county happiness and from county +0x15 (shownArmy) when the army is created."
+    },
+    {
+      "addr": "0x00542CE0",
+      "name": "g_villageGrid",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "vill_gd8.pl8, preload entry 12: a 45 x 40 grid of 8-pixel cells naming which peasant cluster each part of the village picture belongs to. The pixels start at +0x18 and Village_GridAt indexes them there."
+    },
+    {
+      "addr": "0x004D6808",
+      "name": "g_jobIconValue",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Nine i32, by labour slot: the g_peasantIcons value each job's peasants are drawn with. The value is the Misc_cty frame plus one and a selected icon adds one more, so each entry names a (normal, highlighted) pair: 4 8 10 14 16 18 20 22 2. Misc_cty frames 0..0x16 are these icons - 19 of 16x32 plus frame 0 for a shortfall - and the four the table never names, 5, 6, 11 and 12, are exactly the four 2x2 stubs in that range of the shipped file."
+    },
+    {
+      "addr": "0x004D6830",
+      "name": "g_iconFillOrder",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Twenty-five bytes, a permutation of 1..25: the order a single-state cluster's icon slots light up as its worker count rises."
+    },
+    {
+      "addr": "0x004D6850",
+      "name": "g_iconFillOrderMain",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Fifteen bytes for a cluster showing two states at once: thirteen real thresholds landing in slots 0..12, then two 99s no count reaches."
+    },
+    {
+      "addr": "0x004D6860",
+      "name": "g_iconFillOrderOther",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The other half, written through g_peasantIcons + 10: three 99s then twelve real thresholds landing in slots 13..24. 13 + 12 = 25 with no slot claimed twice."
+    },
+    {
+      "addr": "0x004D29A0",
+      "name": "g_jobPanelRows",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The job popup's height in 16-pixel cells, by 1-based job: 13 for grain and cattle, 11 for castle building, 9 for the rest. Ui_DrawBox(0x30, 0x60, 0x19, rows)."
     }
   ]
 }

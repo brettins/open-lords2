@@ -96,12 +96,36 @@ Legend:
 - ✅ Happiness: the sum of tax, health, ration, events, ale and army terms
 - ✅ Migration between neighbouring counties
 - ✅ Population bands — one icon on screen stands for `ceil(pop/25)` people
-- ⚠️ **Peasant jobs: nine of them, and the worker counts now import.** Every county's nine
-  records sum to its population exactly, which is what proves the `0x0C` stride. The other
-  **two** ints of each record — a wanted floor and a useful ceiling — are not imported, and
-  neither is the allocator (`FUN_0044F6E7`) that fills them, which is why the herd's
-  pre-season labour cannot be recovered from a save
-- 🕳 Moving peasants between jobs (a rubber-band drag on the village screen)
+- ✅ **Peasant jobs: nine of them, and all three ints of every record import.** The worker
+  count is word 0; word 1 is a **wanted floor** and word 2 a **useful ceiling**, and the
+  `0x0C` stride is three `i32`s rather than one and eight bytes of slack.
+
+  Their writers are traced and named: `Grain_LabourEstimate` (`0x0044D374`) and
+  `Herd_LabourEstimate` (`0x0044DD4D`) each walk `workers = 0 … population` and store the
+  first count that stops the job going backwards; every other job writes −1. The ceiling is
+  the count past which more workers do no good — **100,000 for iron, stone and wood**,
+  because more miners always help, and **0 for a resource the county has not got**.
+
+  The shipped save checks it: seven of the nine floors are −1 in all fourteen counties, and
+  wood's ceiling is exactly 100,000 in every owned county and exactly 0 in every unowned
+  one. That one byte is the whole explanation of the save's labour split.
+- ✅ **The labour allocator** — `Labour_Allocate` (`0x0044F6E7`), 2,147 bytes, the only
+  writer of the nine records. It splits the population into a farm half and an industry half
+  by county `+0x08`, gives each job `Pct(half, share)` people or as many as its ceiling
+  allows, walks the leftovers round the jobs with room, and drops the remainder into *Idle
+  townsfolk*. `l2_kingdom::labour` reproduces it and **all fourteen of the save's counties
+  come back exactly**.
+
+  On the way it named three fields `docs/screens-county.md` §9 had given up on: `+0x130`,
+  `+0x134` and `+0x138` are the first three of **eight job percentages** at
+  `+0x130 + job*4`, in two groups that each sum to 100.
+
+  🕳 **It is not wired into the season pipeline yet**, because its inputs are seven estimate
+  passes (`County_RefreshEstimates`, `0x004485A5`) this tree does not have. Until it is, a
+  county's nine records stop summing to its population as soon as anybody is born.
+  `l2_kingdom::labour::SEASON_CALL_SITES` records where the original calls it — twice a
+  season.
+- ✅ Moving peasants between jobs: a rubber-band drag on the village screen — see below
 - 📖 Unrest and revolt
 
 ### Land and building
@@ -179,13 +203,26 @@ Legend:
 - ✅ Campaign map: a scrolling viewport, two zooms, edge-scroll
 - ✅ The minimap is a *picture* in `MAPnn.PL8`, tinted per county
 - ✅ Four county panels — population, tax, happiness, rations
-- 📖 **29 screens exist.** We have three. Merchant, court, armoury, mercenaries,
+- ✅ **The village** (screen `0x02`) — the county's picture, its eight peasant clusters, and
+  the rubber-band drag that moves people between jobs. It is a **full screen**, not a window
+  over the county panels: its own case in `Screen_Draw`, its own painter, its own files.
+
+  The drag is three screen ids in the original — `0x02` idle, `0x05` while the band is
+  drawn, `0x06` while the selection is carried — so the gesture is **press, drag nine
+  pixels, release, then a second click**, not drag-and-drop. Where a drop lands is a
+  *painted file*: `vill_gd8.pl8` is a 45 × 40 grid of 8-pixel cells naming the cluster under
+  every part of the picture.
+- ✅ **The job popup** (screen `0x0F`) — the window and the head of it: the job's name, its
+  worker count, and the three-colour rule that reads the record's other two words. Its nine
+  per-job bodies are not drawn and say so.
+- 🕳 The village's animations — `Village_Animate` steps six counters over
+  `villani1`/`villani2`. The scene here is still.
+- 📖 **29 screens exist.** We have five. Merchant, court, armoury, mercenaries,
   send-supplies, castle-building, siege prep and twenty more are enumerated and unbuilt.
   Three of them are now decompiled rather than merely enumerated: the raise-army screen
   (`0x00418653`, and the mercenary offer lives on it — there is no separate mercenaries
   screen), the army-division screen and the siege-preparation screen — `docs/armies.md`.
 - 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
-- ❓ The village screen, where peasants are moved
 - 📖 **Sound: 771 `.wav` files, 396 MB. Nothing plays yet, but the shape is known.**
 
   | | files | size | |
