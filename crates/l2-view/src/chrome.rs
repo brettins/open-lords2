@@ -83,11 +83,20 @@ pub mod misc_cty {
 
 // -------------------------------------------------------------- System2.pl8
 
-/// Frame indices inside `System2.pl8`, the button sheet — preload entry 9.
+/// Frame indices inside the button sheet — **`System.pl8`, not `System2.pl8`**.
 ///
-/// Every button in the game is a **normal/pressed pair**: `Widget_Draw` adds 1
-/// to the frame while the record's press timer at `+0x0D` is running, so the
-/// odd frame of each pair is the pressed state. `docs/screens-county.md` §4.2.
+/// `Res_LoadButtons` (`0x00499A1C`) loads `system2.pl8` for index 0 and
+/// `system.pl8` for index 1 into the same 56,600-byte buffer, and the kingdom
+/// screens ask for index 1 (`0x004BA3xx`, guarded on the in-game state being
+/// 3). The two files are the same size and the same 84-frame layout, and the
+/// difference is not cosmetic: **69 of `System2.pl8`'s 84 frames are entirely
+/// index 0**, including every frame named below except [`OK`], while none of
+/// `System.pl8`'s are. Loading `System2.pl8` draws the panels' arrows and
+/// slider as nothing at all, which is how this was found.
+///
+/// Every button is a **normal/pressed pair**: `Widget_Draw` adds 1 to the frame
+/// while the record's press timer at `+0x0D` is running, so the odd frame of
+/// each pair is the pressed state. `docs/screens-county.md` §4.2.
 pub mod system {
     /// The tax panel's up arrow, from `g_taxWidgets` (`0x004DD790`) record 0.
     pub const ARROW_UP: usize = 0x15;

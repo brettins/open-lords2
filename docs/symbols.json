@@ -2368,7 +2368,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "undefined4 Res_LoadButtons(int skin)",
-      "comment": "Loads System2.pl8 (skin 0) or System.pl8 (skin 1) into g_systemSheet. Two button skins, same 84-frame layout."
+      "comment": "Loads system2.pl8 (skin 0) or system.pl8 (skin 1) into g_systemSheet. Same size and same 84-frame layout, but 69 of System2.pl8s frames are entirely index 0 and none of System.pl8s are, and the kingdom screens ask for skin 1 - so the county panels button art is System.pl8. docs/screens-county.md section 4.2."
     },
     {
       "addr": "0x0040F7D3",

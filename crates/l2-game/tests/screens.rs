@@ -17,15 +17,16 @@
 use std::env;
 use std::path::PathBuf;
 
-use l2_game::game::Assets;
+use l2_game::game::{Assets, MAX_TAX_RATE};
 use l2_game::input::{Event, Key};
 use l2_game::scenario;
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
-use l2_game::screens::county::CountyScreen;
+use l2_game::screens::county::{self as county, CountyScreen, Panel};
 use l2_game::screens::map::{self, MapScreen};
 use l2_game::Game;
 use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
+use l2_view::chrome;
 use l2_view::{text, Canvas};
 
 fn install() -> Option<PathBuf> {
@@ -93,11 +94,15 @@ fn find_text(canvas: &Canvas, s: &str, colour: u8) -> Option<(i32, i32)> {
     None
 }
 
-/// Every pixel of the map area, and which county it belongs to.
+/// Every pixel of the map **viewport**, and which county it belongs to.
+///
+/// The viewport is the zoom's, not the screen's: `docs/screens.md` §1.4 — x
+/// stops at 478 where the right panel starts, and y at 474 (near) or 408 (far).
 fn pick_counts(screen: &MapScreen) -> [usize; 17] {
     let mut counts = [0usize; 17];
-    for y in map::TOP_BAR..map::BOTTOM_BAR_Y {
-        for x in 0..640 {
+    let clip = screen.map_clip();
+    for y in clip.y0..clip.y1 {
+        for x in clip.x0..clip.x1 {
             let id = screen.county_at(x, y) as usize;
             if id < 17 {
                 counts[id] += 1;
@@ -107,10 +112,27 @@ fn pick_counts(screen: &MapScreen) -> [usize; 17] {
     counts
 }
 
-/// The map is drawn from the shipped tile sets and every one of the fourteen
-/// counties ends up pickable, with a sane share of the screen each.
+/// Find a pixel belonging to a county, by scanning the pick plane rather than
+/// hard-coding a coordinate a layout change would invalidate.
+fn pixel_of(screen: &MapScreen, county: u8) -> Option<(i32, i32)> {
+    let clip = screen.map_clip();
+    (clip.y0..clip.y1)
+        .flat_map(|y| (clip.x0..clip.x1).map(move |x| (x, y)))
+        .find(|&(x, y)| screen.county_at(x, y) == county)
+}
+
+fn visible_counties(screen: &MapScreen) -> usize {
+    pick_counts(screen)[1..=14].iter().filter(|&&c| c > 0).count()
+}
+
+/// **The screen the original draws is a window, not the whole map.**
+///
+/// This is the test the previous painter could not have passed: it drew all
+/// 4,096 tiles at once, so every one of the fourteen counties was on screen at
+/// once. `Map_SetZoom` gives the near view eight of the lattice's 65 columns,
+/// so only a few counties can be — and the ones that are fill it.
 #[test]
-fn the_campaign_map_draws_england_and_all_fourteen_counties_can_be_picked() {
+fn the_near_view_is_a_window_of_england_and_not_the_whole_map() {
     let (mut game, assets) = world!();
     let mut screen = MapScreen::new();
     let canvas = draw(&mut screen, &mut game, &assets);
@@ -123,22 +145,52 @@ fn the_campaign_map_draws_england_and_all_fourteen_counties_can_be_picked() {
     let distinct = used.iter().filter(|u| **u).count();
     assert!(distinct > 32, "only {distinct} palette entries in the whole frame");
 
+    // `Map_InitMode` pins the opening viewport at row 0x4A, col 0x14, so this
+    // is a fixed number rather than a range: **two** of England's fourteen
+    // counties are on screen when the game opens.
     let counts = pick_counts(&screen);
-    for id in 1..=14usize {
-        // The smallest county on the England map holds 91 tiles, and a 10 x 6
-        // diamond is about 30 pixels, so nothing real can come out under 1,500
-        // even after the tiles drawn in front of it take their bites.
-        assert!(counts[id] > 1_500, "county {id} covers only {} pixels", counts[id]);
-    }
+    assert_eq!(visible_counties(&screen), 2, "eight lattice columns hold two counties, not 14");
     for id in 15..17usize {
         assert_eq!(counts[id], 0, "there is no county {id} on this map");
     }
-    // 1,675 of the map's 4,096 tiles carry a county id, so the counties cannot
-    // cover more than about 1,675 x 30 = 50,250 pixels, and should not fall far
-    // short of it: what is missing is the overlap of the tiles drawn in front.
-    let land: usize = counts[1..=14].iter().sum();
-    assert!((40_000..=50_250).contains(&land), "the counties cover {land} pixels");
-    assert!(counts[0] > 100_000, "and most of the screen belongs to no county");
+
+    // Nothing outside the viewport is pickable, whatever the tag plane holds.
+    assert_eq!(screen.county_at(map::PANEL.x, 200), 0, "the panel is not the map");
+    assert_eq!(screen.county_at(200, map::TOP_BAR - 1), 0, "nor is the menu bar");
+    assert_eq!(screen.county_at(200, 474), 0, "nor below the near viewport");
+}
+
+/// Zooming out reaches the rest of the map, and scrolling moves the near view.
+/// Both halves matter: a viewport that could not move would be the minimap the
+/// user complained about, in a smaller rectangle.
+#[test]
+fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
+    let (mut game, assets) = world!();
+    let mut screen = MapScreen::new();
+    let before = draw(&mut screen, &mut game, &assets);
+    let near_visible = visible_counties(&screen);
+
+    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+    let far = draw(&mut screen, &mut game, &assets);
+    let far_visible = visible_counties(&screen);
+    assert!(
+        far_visible > near_visible,
+        "the far view shows {far_visible} counties and the near one {near_visible}"
+    );
+    // At the far zoom's pinned origin all fourteen are reachable, which is why
+    // the original disables scrolling there rather than leaving it stranded.
+    assert_eq!(far_visible, 14);
+    assert!(before.diff_count(&far) > 10_000, "and it is a different picture");
+
+    // Back in, and now scroll. One step is one map tile, so the origin moves by
+    // exactly one lattice column and the picture must change.
+    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+    let home = screen.viewport();
+    let a = draw(&mut screen, &mut game, &assets);
+    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
+    assert_eq!(screen.viewport().col, home.col + 1);
+    let b = draw(&mut screen, &mut game, &assets);
+    assert!(a.diff_count(&b) > 10_000, "scrolling one column must repaint the map");
 }
 
 /// A click picks the county the player can actually see at that pixel, and a
@@ -150,13 +202,11 @@ fn clicking_a_county_selects_it_and_clicking_it_again_opens_its_panel() {
     let mut screen = MapScreen::new();
     draw(&mut screen, &mut game, &assets);
 
-    // A pixel belonging to county 11, chosen by scanning rather than by
-    // hard-coding a coordinate that a change in layout would invalidate.
-    let target = 11u8;
-    let (px, py) = (map::TOP_BAR..map::BOTTOM_BAR_Y)
-        .flat_map(|y| (0..640).map(move |x| (x, y)))
-        .find(|&(x, y)| screen.county_at(x, y) == target)
-        .expect("county 11 is somewhere on the map");
+    // Whichever county the opening viewport happens to show most of.
+    let counts = pick_counts(&screen);
+    let target = (1..=14u8).max_by_key(|&id| counts[id as usize]).expect("a county is visible");
+    assert!(counts[target as usize] > 0, "the opening view shows at least one county");
+    let (px, py) = pixel_of(&screen, target).expect("and it has a pixel");
 
     game.select(0);
     let t = send(&mut screen, &mut game, &assets, Event::Click { x: px, y: py });
@@ -168,12 +218,46 @@ fn clicking_a_county_selects_it_and_clicking_it_again_opens_its_panel() {
 
     // A click on the sea clears the selection rather than picking a county at
     // random.
-    let (sx, sy) = (map::TOP_BAR..map::BOTTOM_BAR_Y)
-        .flat_map(|y| (0..640).map(move |x| (x, y)))
-        .find(|&(x, y)| screen.county_at(x, y) == 0)
-        .expect("there is sea");
+    let (sx, sy) = pixel_of(&screen, 0).expect("there is sea");
     send(&mut screen, &mut game, &assets, Event::Click { x: sx, y: sy });
     assert_eq!(game.selected, 0);
+}
+
+/// The minimap is the original's own raster out of `MAPnn.PL8`, and clicking it
+/// selects the county under the pixel *and* moves the viewport onto it.
+///
+/// This is the one place we use the original's algorithm and not just reach its
+/// answer: `Minimap_Click` reads the same county byte out of the same file.
+#[test]
+fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
+    let (mut game, assets) = world!();
+    let minimap = assets.minimap(game.map_slot).expect("Map01.pl8 holds slot 0");
+
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+    let visible = pick_counts(&screen);
+
+    // A minimap pixel of a county that is *not* in the opening view, so "the
+    // map moved onto it" cannot pass by accident.
+    let (mx, my) = (0..128)
+        .flat_map(|y| (0..128).map(move |x| (x, y)))
+        .map(|(x, y)| (x + chrome::MINIMAP_HIT_X, y + chrome::MINIMAP_HIT_Y))
+        .find(|&(x, y)| {
+            let c = minimap.county_at(x, y);
+            c != 0 && (c as usize) < 17 && visible[c as usize] == 0
+        })
+        .expect("some county is off screen at the opening viewport");
+    let county = minimap.county_at(mx, my);
+
+    let before = screen.viewport();
+    send(&mut screen, &mut game, &assets, Event::Click { x: mx, y: my });
+    assert_eq!(game.selected, county, "the raster decides which county");
+    assert_ne!(screen.viewport(), before, "and the map moves");
+
+    // Having moved, that county is now on screen — which is what "centred"
+    // means, and is not implied by the origin merely changing.
+    draw(&mut screen, &mut game, &assets);
+    assert!(pick_counts(&screen)[county as usize] > 0, "county {county} is now in view");
 }
 
 /// The selection is visible: outlining a county changes the picture, and
@@ -198,55 +282,137 @@ fn the_selected_county_is_outlined_on_the_map() {
     );
 }
 
-/// The top bar reads the clock and the treasury out of the world, and the
-/// bottom bar reads the selected county. Checked by finding the actual digits.
+/// The menu bar reads the clock and the treasury out of the world, and the
+/// right column reads the selected county. Checked by finding the actual
+/// digits, at the coordinates `Screen_DrawMenuBar` puts them.
 #[test]
-fn the_map_bars_show_the_clock_the_treasury_and_the_selected_county() {
+fn the_map_chrome_shows_the_clock_the_treasury_and_the_selected_county() {
     let (mut game, assets) = world!();
     let mut screen = MapScreen::new();
     game.select(8);
     let canvas = draw(&mut screen, &mut game, &assets);
     let ink = &assets.ink;
 
-    assert!(find_text(&canvas, "WINTER 1268", ink.text).is_some(), "the season and the year");
-    assert!(find_text(&canvas, "TURN 1", ink.text).is_some());
-    assert!(find_text(&canvas, "GOLD 1000", ink.text).is_some());
+    let clock = find_text(&canvas, "WINTER 1268", ink.text).expect("the season and the year");
+    assert_eq!(clock, (360, 6), "the original draws the clock at x 360, y 6");
+    let gold = find_text(&canvas, "GOLD 1000", ink.text).expect("the treasury");
+    assert_eq!(gold, (500, 6), "and the treasury at x 500");
+    assert!(find_text(&canvas, "TURN 1", ink.dim).is_some());
     assert!(find_text(&canvas, "COUNTIES 1/14", ink.dim).is_some());
-    assert!(find_text(&canvas, "COUNTY 8", ink.text).is_some());
-    assert!(find_text(&canvas, "POP 435", ink.text).is_some());
+
+    // The right column, inside Misc_cty frame 55.
+    let county = find_text(&canvas, "COUNTY 8", ink.highlight).expect("the selected county");
+    assert!(county.0 >= map::PANEL.x, "it is drawn in the right column, not on the map");
+    assert!(find_text(&canvas, "435", ink.text).is_some(), "the population");
 
     // The near-misses. If the search could match anything it would match these.
     assert!(find_text(&canvas, "WINTER 1269", ink.text).is_none());
     assert!(find_text(&canvas, "GOLD 1001", ink.text).is_none());
-    assert!(find_text(&canvas, "POP 436", ink.text).is_none());
+    assert!(find_text(&canvas, "436", ink.text).is_none());
 }
 
-/// The county panel shows the county's own numbers — the ones the season
-/// pipeline will read next turn, off the same record.
+/// The county strip shows what `CountyStrip_Draw` puts in the 162 × 94 plate,
+/// at the coordinates it puts them: population at (508, 189), happiness ending
+/// at 602 on the same line, and the tax rate at (506, 226).
+///
+/// The exact coordinates are the point. A panel that merely *contained* the
+/// right digits somewhere would pass a looser test and still be laid out
+/// wrongly, which is the mistake this whole task exists to correct.
 #[test]
-fn the_county_panel_shows_the_numbers_the_save_holds() {
+fn the_county_strip_shows_the_saves_numbers_where_the_original_puts_them() {
     let (mut game, assets) = world!();
     let mut screen = CountyScreen::new(8);
     let canvas = draw(&mut screen, &mut game, &assets);
     let ink = &assets.ink;
 
     let c = &game.kingdom.counties[8];
-    assert_eq!((c.population, c.happiness, c.herd), (435, 72, 101));
+    assert_eq!((c.population, c.happiness, c.ration_achieved), (435, 72, 3));
 
-    assert!(find_text(&canvas, "COUNTY 8", ink.highlight).is_some());
-    assert!(find_text(&canvas, "YOUR COUNTY", ink.text).is_some());
-    // The population is up 18 on last season, so it is drawn in the "moved the
-    // right way" colour rather than the plain one — which is itself part of
-    // what the panel is for.
-    assert!(find_text(&canvas, "435", ink.good).is_some(), "the population, and it rose");
-    assert!(find_text(&canvas, "435", ink.text).is_none(), "so it is not the plain colour");
-    assert!(find_text(&canvas, "417", ink.text).is_some(), "last season's population");
-    assert!(find_text(&canvas, "101", ink.text).is_some(), "the herd");
-    assert!(find_text(&canvas, "NORMAL", ink.text).is_some(), "the ration level");
-    assert!(find_text(&canvas, "0%", ink.highlight).is_some(), "the focused tax row");
+    assert_eq!(
+        find_text(&canvas, "435", ink.text),
+        Some((508, 189)),
+        "the population, at Ui_DrawNumber(pop, ' ', ..., 0x1FC, 0xBD)"
+    );
+    assert_eq!(
+        find_text(&canvas, "72", ink.text),
+        Some((602 - text::width("72"), 189)),
+        "the happiness, right-anchored at 0x25A on the same line"
+    );
+    assert_eq!(find_text(&canvas, "0%", ink.text), Some((506, 226)), "the tax rate at 0x1FA");
+    assert!(find_text(&canvas, "COUNTY 8", ink.text).is_some());
+    assert!(find_text(&canvas, "TAX", ink.dim).is_some(), "L2.eng group 61 index 0");
+    assert!(find_text(&canvas, "RATION", ink.dim).is_some(), "and index 1");
+    // rationAchieved == rationWanted, so it is drawn plain rather than red.
+    assert!(find_text(&canvas, "NORMAL", ink.text).is_some());
+    assert!(find_text(&canvas, "NORMAL", ink.bad).is_none());
 
-    assert!(find_text(&canvas, "436", ink.good).is_none(), "a near miss must not match");
+    // Near misses, one per number, so none of the three can match by accident.
+    assert!(find_text(&canvas, "436", ink.text).is_none());
+    assert!(find_text(&canvas, "73", ink.text).is_none());
     assert!(find_text(&canvas, "DOUBLE", ink.text).is_none());
+}
+
+/// The population panel is `Ui_DrawBox(0x10, 0x30, 0x1C, 0x17)` with its rows
+/// at the y coordinates `Panel_Population` draws them, and it is reached from
+/// the strip's top-left quadrant and from nowhere else.
+#[test]
+fn the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should() {
+    let (mut game, assets) = world!();
+    let mut screen = CountyScreen::new(8);
+    let ink = &assets.ink;
+
+    let hot = Panel::Population.strip_hotspot();
+    send(&mut screen, &mut game, &assets, Event::Click { x: hot.centre_x(), y: hot.y + 4 });
+    assert_eq!(screen.panel(), Panel::Population);
+
+    let canvas = draw(&mut screen, &mut game, &assets);
+    assert_eq!(
+        find_text(&canvas, "LAST SEASON", ink.text),
+        Some((48, 266)),
+        "group 73 index 1, at Eng_DrawString(0x49, 1, 0x30, 0x10A)"
+    );
+    assert_eq!(
+        find_text(&canvas, "417", ink.text),
+        Some((336 - text::width("417"), 266)),
+        "and its value right-anchored at 0x150"
+    );
+    assert_eq!(find_text(&canvas, "BIRTHS", ink.dim), Some((48, 298)), "0x12A");
+    assert_eq!(find_text(&canvas, "DEATHS", ink.dim), Some((48, 314)), "0x13A");
+    assert_eq!(find_text(&canvas, "ARMY", ink.dim), Some((48, 330)), "0x14A");
+    assert_eq!(find_text(&canvas, "THIS SEASON", ink.highlight), Some((48, 386)), "0x182");
+    assert!(find_text(&canvas, "435", ink.highlight).is_some(), "this season's population");
+
+    // The graph is a labelled stub, because g_countyHistory is not simulated.
+    assert!(find_text(&canvas, "NOT SIMULATED", ink.bad).is_some());
+
+    // And the tax panel is gone, which is what "one panel at a time" means.
+    assert!(find_text(&canvas, "TAX RATE", ink.dim).is_none());
+}
+
+/// A zero row draws **no number at all** — `Ui_DrawDelta(value, 0, ...)`
+/// returns before it formats anything. This is the detail a reimplementation
+/// gets wrong by printing `0`, so it is asserted both ways round.
+#[test]
+fn a_zero_delta_row_draws_its_label_and_no_number() {
+    let (mut game, assets) = world!();
+    let ink = &assets.ink;
+    let mut screen = CountyScreen::new(8);
+    screen.open(Panel::Population);
+
+    game.kingdom.counties[8].births = 0;
+    let blank = draw(&mut screen, &mut game, &assets);
+    assert!(find_text(&blank, "BIRTHS", ink.dim).is_some(), "the label is still drawn");
+    assert!(find_text(&blank, "+0", ink.good).is_none(), "and nothing beside it");
+    assert!(find_text(&blank, "0", ink.good).is_none());
+
+    game.kingdom.counties[8].births = 63;
+    let filled = draw(&mut screen, &mut game, &assets);
+    assert_eq!(
+        find_text(&filled, "+63", ink.good),
+        Some((336 - text::width("+63"), 298)),
+        "a non-zero row draws a signed number in the value column"
+    );
+    assert!(blank.diff_count(&filled) > 0, "and the two frames differ");
 }
 
 /// Setting the tax rate changes the record *and* what is on the screen. Both
@@ -268,15 +434,70 @@ fn setting_the_tax_rate_changes_the_county_and_the_picture() {
     assert!(find_text(&after, "7%", assets.ink.highlight).is_some());
     assert!(find_text(&after, "0%", assets.ink.highlight).is_none());
 
-    // Down moves to the rations row, and Right there does not touch the tax.
+    // Down moves to the ration panel, and Right there does not touch the tax.
     send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Down));
+    assert_eq!(screen.panel(), Panel::Ration);
     send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
     assert_eq!(game.kingdom.counties[8].tax_rate, 7);
     assert_eq!(game.kingdom.counties[8].ration_wanted, 4);
 }
 
-/// County 1 belongs to realm 5. The panel opens, shows its numbers, and refuses
-/// every order — by the mouse as well as by the keyboard.
+/// **The tax ceiling is 50, and it is the original's.**
+///
+/// `Tax_Increase` guards `taxRate < 0x32`; `g_taxHappinessOther` has exactly
+/// 51 entries. `docs/screens-county.md` §6.3. The screen stops there and the
+/// number on it stops there too — a clamp that the picture disagreed with
+/// would be a clamp the player cannot see.
+#[test]
+fn the_tax_rate_stops_at_the_originals_own_ceiling_of_fifty() {
+    let (mut game, assets) = world!();
+    let mut screen = CountyScreen::new(8);
+    let up = Panel::Tax.increase_button().expect("the tax panel has an up arrow");
+
+    for _ in 0..60 {
+        send(&mut screen, &mut game, &assets, Event::Click { x: up.centre_x(), y: up.y + 4 });
+    }
+    assert_eq!(game.kingdom.counties[8].tax_rate, MAX_TAX_RATE);
+    assert_eq!(MAX_TAX_RATE, 50, "and the constant is the reading, not a round number");
+
+    let canvas = draw(&mut screen, &mut game, &assets);
+    assert!(find_text(&canvas, "50%", assets.ink.highlight).is_some());
+    assert!(find_text(&canvas, "51%", assets.ink.highlight).is_none(), "a near miss");
+    assert!(find_text(&canvas, "60%", assets.ink.highlight).is_none());
+}
+
+/// The ration panel's slider is the third order the original's county panels
+/// give, and the one we never had: `Ration_SliderClick` jumps the split to
+/// `mouseX - 224`, and the two caps step it by one.
+#[test]
+fn the_ration_split_slider_sets_the_field_the_original_sets() {
+    let (mut game, assets) = world!();
+    let mut screen = CountyScreen::new(8);
+    screen.open(Panel::Ration);
+
+    let track = county::split_track();
+    send(&mut screen, &mut game, &assets, Event::Click { x: track.x + 37, y: track.y + 8 });
+    assert_eq!(game.kingdom.counties[8].ration_split, 37, "the track jumps to mouseX - 224");
+
+    let down = county::split_down_button();
+    send(&mut screen, &mut game, &assets, Event::Click { x: down.centre_x(), y: down.y + 8 });
+    assert_eq!(game.kingdom.counties[8].ration_split, 36, "the left cap steps down one");
+
+    let up = county::split_up_button();
+    for _ in 0..3 {
+        send(&mut screen, &mut game, &assets, Event::Click { x: up.centre_x(), y: up.y + 8 });
+    }
+    assert_eq!(game.kingdom.counties[8].ration_split, 39);
+
+    // The knob follows: two different splits must not draw the same picture.
+    let a = draw(&mut screen, &mut game, &assets);
+    game.kingdom.counties[8].ration_split = 90;
+    let b = draw(&mut screen, &mut game, &assets);
+    assert!(a.diff_count(&b) > 0, "the knob moves with the value");
+}
+
+/// County 1 belongs to realm 5. The strip says so, all four panels still open,
+/// and every order is refused — by the mouse as well as by the keyboard.
 #[test]
 fn another_realms_county_can_be_looked_at_and_not_ordered() {
     let (mut game, assets) = world!();
@@ -286,11 +507,17 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     let canvas = draw(&mut screen, &mut game, &assets);
     assert!(find_text(&canvas, "REALM 5", assets.ink.text).is_some());
     assert!(find_text(&canvas, "NOT YOURS", assets.ink.bad).is_some());
+    assert!(find_text(&canvas, "REALM 4", assets.ink.text).is_none(), "a near miss");
 
     send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
-    let more = CountyScreen::more_button(0);
-    send(&mut screen, &mut game, &assets, Event::Click { x: more.centre_x(), y: more.y + 4 });
+    let up = Panel::Tax.increase_button().expect("the arrows are still drawn");
+    send(&mut screen, &mut game, &assets, Event::Click { x: up.centre_x(), y: up.y + 4 });
     assert_eq!(game.kingdom.counties[1].tax_rate, 0, "no order lands on another realm's county");
+
+    screen.open(Panel::Ration);
+    let track = county::split_track();
+    send(&mut screen, &mut game, &assets, Event::Click { x: track.x + 40, y: track.y + 8 });
+    assert_eq!(game.kingdom.counties[1].ration_split, 0, "and neither does the slider");
 }
 
 /// End turn, from the map, with the mouse — and the numbers move on screen.
@@ -305,7 +532,7 @@ fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
     game.select(8);
     let before = draw(&mut screen, &mut game, &assets);
     assert!(find_text(&before, "WINTER 1268", assets.ink.text).is_some());
-    assert!(find_text(&before, "TURN 1", assets.ink.text).is_some());
+    assert!(find_text(&before, "TURN 1", assets.ink.dim).is_some());
 
     let population = game.kingdom.counties[8].population;
     let gold = game.gold();
@@ -321,12 +548,19 @@ fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
 
     let after = draw(&mut screen, &mut game, &assets);
     assert!(find_text(&after, "SPRING 1268", assets.ink.text).is_some(), "the clock moved");
-    assert!(find_text(&after, "TURN 2", assets.ink.text).is_some());
+    assert!(find_text(&after, "TURN 2", assets.ink.dim).is_some());
     assert!(find_text(&after, "WINTER 1268", assets.ink.text).is_none());
     assert!(before.diff_count(&after) > 0);
 
-    let shown = format!("POP {}", game.kingdom.counties[8].population);
-    assert!(find_text(&after, &shown, assets.ink.text).is_some(), "the bottom bar shows {shown}");
+    let shown = game.kingdom.counties[8].population.to_string();
+    assert!(
+        find_text(&after, &shown, assets.ink.text).is_some(),
+        "the right column shows the new population, {shown}"
+    );
+    assert!(
+        find_text(&after, &population.to_string(), assets.ink.text).is_none(),
+        "and not the old one"
+    );
 }
 
 /// The turn also runs through the machine, from the keyboard, with the county
@@ -354,3 +588,4 @@ fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
         "the panel shows the population it now has ({shown})"
     );
 }
+

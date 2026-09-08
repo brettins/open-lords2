@@ -24,26 +24,50 @@ use l2_kingdom::tables::RATION_LEVEL_COUNT;
 use l2_kingdom::{Kingdom, SeasonReport};
 use l2_mods::vfs::Vfs;
 use l2_view::campaign::{self, MapAssets};
+use l2_view::chrome::{Chrome, Minimap};
 use l2_view::Ink;
 
 /// The highest tax rate the interface will set.
 ///
-/// **The original's own limit is not established.** The rate is a percentage
-/// (`take = Pct(Pct(population, base), taxRate)`), the AI's four ladders top
-/// out at 15, and no clamp on the player's slider has been found in the
-/// binary. So this is the arithmetic bound, not a reading of `Lords2.exe`, and
-/// it is marked as such rather than being quietly asserted as the game's rule.
-pub const MAX_TAX_RATE: i32 = 100;
+/// **50, and it is now a reading rather than our arithmetic bound.** This was
+/// 100 with a comment saying no clamp had been found. There is one, in two
+/// independent places (`docs/screens-county.md` §6.3):
+///
+/// * `Tax_Increase` (`0x0043AA32`) and `Tax_IncreaseCounty` (`0x0043AA83`)
+///   both guard `taxRate < 0x32` before the increment, and `Tax_Decrease`
+///   guards `!= 0`. One point a click, 0 … 50.
+/// * `g_taxHappinessOther` (`0x004D63D8`), the table `Tax_RecomputePreview`
+///   indexes by the rate, has **exactly 51 entries** — the 52nd word is the
+///   start of the next table. A rate that could reach 100 would need 101.
+pub const MAX_TAX_RATE: i32 = 50;
+
+/// The grain-to-livestock split runs the full width of its slider track.
+///
+/// `Ration_SliderClick` (`0x0043A379`) clamps `mouseX - 224` to `0 … 100` and
+/// the track is exactly 100 pixels wide, so the field's range and the widget's
+/// geometry are the same number.
+pub const MAX_RATION_SPLIT: i32 = 100;
 
 /// Everything the screens draw with. Not part of the world.
 pub struct Assets {
     pub palette: Palette,
     pub ink: Ink,
     pub map: MapAssets,
+    /// The original's interface artwork — `Panels.pl8` and `Misc_cty.pl8`.
+    ///
+    /// `None` when the install does not supply them, which is the placeholder
+    /// case: every screen then falls back to its own flat panels, and looks it.
+    /// That is deliberate — a stub that is visibly ours beats one that looks
+    /// finished.
+    pub chrome: Option<Chrome>,
     /// `L2_maps.dat` whole. A `MapSlot` borrows its file, so the bytes are kept
     /// and the slot is re-parsed on demand — which is bounds arithmetic, not
     /// decoding, and costs nothing.
     maps: Vec<u8>,
+    /// The `MAPnn.PL8` files, by file number 1..=15, unparsed. Four map slots
+    /// live in each and only one is ever wanted at a time, so they are decoded
+    /// on demand by [`Assets::minimap`] and cached by the screen.
+    minimap_files: Vec<Option<Vec<u8>>>,
 }
 
 impl Assets {
@@ -56,11 +80,34 @@ impl Assets {
             .palette(campaign::PALETTE)
             .map_err(|e| format!("{}: {e}", campaign::PALETTE))?;
         let map = MapAssets::load(|name| vfs.read(name).map_err(|e| format!("{name}: {e}")))?;
-        Ok(Assets { ink: Ink::for_palette(&palette), palette, map, maps })
+        // The chrome is optional: a partial install still starts, with our own
+        // panels instead of the original's.
+        let chrome =
+            Chrome::load(|name| vfs.read(name).map_err(|e| format!("{name}: {e}"))).ok();
+        // The game ships 11 of the 15 `MAPnn.PL8` names; the four it does not
+        // are exactly the empty map slots 24..39 (`docs/screens.md` §3.1).
+        let minimap_files = (0..16)
+            .map(|n| vfs.read(&Minimap::file_for_slot(n * 4)).ok())
+            .collect();
+        Ok(Assets {
+            ink: Ink::for_palette(&palette),
+            palette,
+            map,
+            chrome,
+            maps,
+            minimap_files,
+        })
     }
 
     pub fn slot(&self, index: usize) -> Option<MapSlot<'_>> {
         MapSet::parse(&self.maps).ok()?.slot(index).ok()
+    }
+
+    /// The two 128 x 128 minimap rasters for a map slot, or `None` when the
+    /// install has no `MAPnn.PL8` for it.
+    pub fn minimap(&self, slot: usize) -> Option<Minimap> {
+        let bytes = self.minimap_files.get(slot >> 2)?.as_ref()?;
+        Minimap::load(bytes, slot).ok()
     }
 
     /// Assets with nothing in them: a grey ramp for a palette, one blank map
@@ -95,7 +142,9 @@ impl Assets {
             ink: Ink::for_palette(&palette),
             palette,
             map,
+            chrome: None,
             maps: vec![0u8; l2_formats::maps::SLOT_LEN],
+            minimap_files: vec![None; 16],
         }
     }
 }
@@ -106,9 +155,17 @@ pub struct Game {
     pub kingdom: Kingdom,
     /// `g_localPlayer` — the realm this machine drives.
     pub player: u8,
-    /// The map slot the scenario runs on: `g_scenarioIndex >> 2`, since the
-    /// low two bits pick the tile-set's season variant.
+    /// The map slot the scenario runs on. **`g_scenarioIndex` *is* the slot**,
+    /// 0..=59, used unshifted: `Map_LoadLattice` seeks `slot * 0x80C1`, the
+    /// slot stride, and `Eng_DrawString(101, g_scenarioIndex, …)` indexes the
+    /// 60 slot names in `L2.eng` group 101. An earlier revision shifted it
+    /// right by two on the belief that the low bits selected a season; they do
+    /// not — the season is its own global, and the low two bits pick which of
+    /// four map slots inside a `MAPnn.PL8` the minimap comes from.
     pub map_slot: usize,
+    /// Realm `+0x0A`, clamped 1..=5: which colour a realm flies. It picks the
+    /// banner in the menu bar and the ramp the minimap tints a county with.
+    pub realm_colour: [u8; MAX_REALMS],
     /// The county under the cursor's last click, or 0 for none. County ids are
     /// 1-based in the original, so 0 is a usable "nothing".
     pub selected: u8,
@@ -136,6 +193,10 @@ impl Game {
             kingdom: Kingdom::new(seed),
             player: 1,
             map_slot: 0,
+            // 0 is not a legal colour — the original clamps to 1..=5 — so an
+            // unloaded realm falls back to its own index, which is what the
+            // shipped save happens to hold anyway.
+            realm_colour: [0, 1, 2, 3, 4, 5],
             selected: 0,
             anchor_x: [0; MAX_COUNTIES],
             anchor_y: [0; MAX_COUNTIES],
@@ -210,6 +271,23 @@ impl Game {
         }
         self.kingdom.counties[id as usize].ration_wanted =
             level.clamp(0, RATION_LEVEL_COUNT as i32 - 1);
+        true
+    }
+
+    /// Set a county's grain-to-livestock split (`+0x15F`), clamped 0 … 100.
+    ///
+    /// The third order the original's ration panel gives, and the only one of
+    /// the three that is a slider rather than a pair of arrows.
+    ///
+    /// **What this does not reproduce:** `Ration_SetSplit` (`0x0043A5A9`) also
+    /// re-runs the county's food pass and, when the new split changes nothing,
+    /// walks back towards the old value hunting for one that does. We write the
+    /// field and stop, because our food pass only runs at end of turn.
+    pub fn set_ration_split(&mut self, id: u8, split: i32) -> bool {
+        if !self.is_players(id) {
+            return false;
+        }
+        self.kingdom.counties[id as usize].ration_split = split.clamp(0, MAX_RATION_SPLIT);
         true
     }
 }

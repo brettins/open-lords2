@@ -209,7 +209,7 @@ their own bodies.
 | `Ui_DrawCount` `0x0041AB67` | `(value, unitIndex, x, y, font, colour)` | a number plus a **singular/plural noun** |
 | `Ui_DrawHappinessDelta` `0x0041AC95` | `(value, x, y, font, colPos, colNeg)` | `( ±n ☺ )` — a signed number wrapped in brackets with the happiness face after it |
 | `Ui_DrawYear` `0x0041A900` | `(year, x, y, style)` | a year with **BC / AD** from group 26 |
-| `Ui_OkButton` `0x0040D1BC` | `(x, y, mode)` | the tick that closes a panel: `System2.pl8` frame 0x33 (mode 0) or 0x10 (mode 1) |
+| `Ui_OkButton` `0x0040D1BC` | `(x, y, mode)` | the tick that closes a panel: the button sheet's frame 0x33 (mode 0) or 0x10 (mode 1) |
 
 `Ui_DrawText` advances a pen width in `g_penAdvance` (`0x005CD404`), which every caller
 resets to 0 and then adds to the next x — that is how a label and its value are laid out
@@ -249,13 +249,13 @@ records at `g_preloadTable` (`0x004D9F48`), each into a fixed `.data` buffer. Th
 | 6 | `Fntl2_14.pl8` | `0x005AF8F0` | **14 px font — every panel body line** |
 | 7 | `Fntl2_22.pl8` | `0x005B2FA0` | **22 px font — every panel heading** |
 | 8 | `mouse.pl8` | `0x0058FEC0` | the pointer |
-| 9 | `System2.pl8` | `0x005BB540` | **every button** |
+| 9 | `System2.pl8` | `0x005BB540` | the button sheet — but see §4.2, where the kingdom screens swap `System.pl8` into the same buffer |
 | 10 | `Panels.pl8` | `0x0057D3D0` | **every window frame** |
 | 11 | `l2.eng` | `0x00591580` | the strings |
 | 12 | `vill_gd8.pl8` | `0x00542CE0` | |
 
-`System.pl8` is the same size and frame layout as `System2.pl8` and is swapped in by
-`Res_LoadButtons` (`0x00499A1C`) with a different index — a second button skin.
+`System.pl8` is the same size and frame layout and is swapped into the same buffer by
+`Res_LoadButtons` (`0x00499A1C`) with a different index. §4.2 is why that matters.
 
 Alongside those, one mode-dependent sheet lives in `g_miscCtySheet` (`0x005530C8`):
 **`Misc_cty.pl8`** for the kingdom, `Misc_ske.PL8` / `Misc_bat.PL8` for battle,
@@ -284,11 +284,22 @@ frame in the file that is not 16 × 16. The size histogram of the shipped file i
 of 16 × 16, 8 of 24 × 24, 5 of 13 × 16 and one 48 × 48, and 52 + 144 + 52 = 248.
 **Nothing is left over and nothing is missing.**
 
-### 4.2 `System2.pl8` — the buttons
+### 4.2 The buttons are `System.pl8`, not `System2.pl8`
 
-**[V]** 84 frames, 56,518 bytes, read into a 56,600-byte buffer. Every button is a
-**normal/pressed pair**: `Widget_Draw` adds 1 to the frame while the widget's press timer
-is running.
+**[V]** `Res_LoadButtons` (`0x00499A1C`) loads `system2.pl8` for skin 0 and `system.pl8`
+for skin 1 into the same buffer, and **the kingdom screens ask for skin 1** — the call in
+`0x004BA000`'s frame loop is guarded on the in-game state being 3.
+
+The two files are byte for byte the same size, 56,518, with the same 84-frame table, so it
+looks like a cosmetic skin. It is not. **69 of `System2.pl8`'s 84 frames are entirely
+index 0** — every frame in the table below except the tick — while **none of
+`System.pl8`'s are**. Drawing a panel from `System2.pl8` draws its arrows and its slider as
+nothing at all, which is exactly how this was found: the reimplementation loaded
+`System2.pl8`, its slider test could not tell two knob positions apart, and the files' own
+bytes said why.
+
+84 frames into a 56,600-byte buffer. Every button is a **normal/pressed pair**:
+`Widget_Draw` adds 1 to the frame while the widget's press timer is running.
 
 | frames | size | what |
 |---|---|---|
@@ -441,7 +452,7 @@ is a plain array of them in `.data`:
 | 0x14 | u32 | argument 2, published in `g_uiHotspotArg` (`0x00591550`) |
 
 `Widget_Draw` (`0x0040CFD2`) takes the sprite from `g_miscCtySheet` when the size is below 24
-and from the `System2.pl8` buffer otherwise — so **the size field decides both the hit box
+and from the button-sheet buffer otherwise — so **the size field decides both the hit box
 and the sheet**, which is why every button in this document is 24 or 32 pixels square.
 `Widget_Test` (`0x0040DA1E`) is the hit test and the auto-repeat clock.
 
