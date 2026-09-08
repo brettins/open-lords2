@@ -1118,6 +1118,11 @@ on one of four ladders, and, for AI realms only, it hands out free resources.
 happiness. Note that a *neutral* county is taxed harder at low happiness than any AI taxes
 its own, though nobody collects it: an unowned county banks its take into itself (§4.1).
 
+All four ladders are now checked against the executable by `tools/oracle/kingdom.ps1` —
+not by reading a table, because there is no table. The chains compile to 20 `CMP EAX,
+imm8` thresholds interleaved with 24 `MOV byte ptr [county+0xB9], imm8` rate stores, and
+the oracle reads that ordered sequence out of the instruction stream. See §13.
+
 The ladder is chosen by the first `int` of the AI lord's **`g_aiPersonality`** record
 (`0x004D8A58`, stride `3 × 0x50` = 240; the code addresses it as
 `base + (lord × 3 − 3) × 0x50` and only ever uses the first of the three rows). The
@@ -1291,12 +1296,23 @@ health, ration and weather tables, and `0x004D8900 … 0x004D8A60` holds prices,
 costs and the five castle tables. Both regions are contiguous, aligned int arrays with no
 code interleaved.
 
-Two exceptions worth naming for a reimplementation:
+Several exceptions are worth naming for a reimplementation, because they are the rules a
+reader looking for a table will never find one for:
 
 * the **castle tax multipliers** in `Tax_CollectAll` are immediates in the instruction
   stream, not a table — the parallel `g_castleTaxBonus` table is used only by the UI;
 * the **grain sow ladder** (10 down to 1) and the **ration happiness formula** (`3L − 8`)
-  are likewise arithmetic, not data.
+  are likewise arithmetic, not data;
+* the **four AI tax ladders** of §8.2 are four `if`/`else if` chains inside
+  `AI_SetTaxRates` — 20 threshold `CMP`s and 24 rate stores, and no table anywhere;
+* the **ale ladder** of §12 is `population / 10` against five rungs, with the divisor and
+  the cap as `MOV` immediates in `FUN_00428C42`;
+* the **efficiency ramp's** flat 80 and ceiling of 100 are immediates in `FUN_0044F248`.
+
+The last three were exactly the rules `crates/l2-mods` was last to reach, which is not a
+coincidence: there is nothing to transcribe, so nobody transcribed anything. Those three
+are now checked against the binary by reading the instruction stream — see §13. The first
+two are not yet, and that is a gap rather than a decision.
 
 `0x004D8910` is worth one more note: it is the merchant base-price table, and indexing it
 by `L2.eng` group 6's fifteen good ids explains two slots that a published dump listed as
@@ -1373,9 +1389,13 @@ Each of those is now written out in the section it belongs to.
   a bounded one: ten named functions rather than an unexplored region.
 * **The three AI farming styles.** `AI_ManageFields` copies the lord's style into county
   `+0x1FE` and dispatches on 0, 1 or 9 into `FUN_004A4052`, `FUN_004A42E3` and
-  `FUN_004A440F`. None was traced.
+  `FUN_004A440F`. None was traced. This is why `kingdom.ai.personality.*.farm_style` in
+  `crates/l2-mods` loads and changes nothing: the value is carried and there is no
+  behaviour to attach to it. `docs/modding.md` §11 says so in those words.
 * **A fifth AI lord's personality record.** §8.2 finds four; `0x004D8E18` is where a fifth
-  would be and what is there fits no pattern. **[I]**
+  would be and what is there fits no pattern. **[I]**, and now held by the oracle: it reads
+  those six ints and expects `17, 0, 5000, 1, 1, 1`, so if the reading is ever wrong the
+  check is where it shows.
 * **The sixth score input**, realm `+0x4C` (§8.3), which carries the heaviest weight of the
   six and is not written by the pass that writes the other five.
 * **The two denominators the weapons `resourceLimit` divides by** — `0x0057C904` and
@@ -1471,7 +1491,32 @@ free.
 powershell -File tools/oracle/kingdom.ps1 -Source File
 ```
 
-It reads nineteen tables straight out of `Lords2.exe` at the addresses named above and
+It runs **25 checks** straight out of `Lords2.exe` at the addresses named above and
 compares them against the values written here. It needs no running process. That is the
 check that caught two of this document's layout errors — `g_healthBandLadder`'s pairs and
 `g_castleWorkforce`'s stride — and it should gain a row whenever a table is added.
+
+Twenty-two of the 25 read initialised `.data`. **Three read `.text`**, because the rule
+they check is not a table at all:
+
+| check | what it reads | why there is no table |
+|---|---|---|
+| `AI_SetTaxRates ladders` | 20 `CMP EAX, imm8` thresholds interleaved with 24 `MOV byte ptr [county+0xB9], imm8` rates | the four ladders of §8.2 are four `if`/`else if` chains |
+| `ale ladder` | `MOV EAX, 5` (the cap), `MOV ECX, 10` (the step divisor), and the `MOV dword ptr [ebp-8], imm32` rungs | §12's ale term is arithmetic |
+| `efficiency ramp` | `MOV EAX, 0x50` and the `CMP`/`MOV` pair holding 100 | §7.4's ramp bounds are immediates |
+
+This is `decisions.md` **C16** applied to rules rather than to `Rules_InitConstants`'
+globals: *when a value is absent from the data, read the code that produces it.* These
+three were the last rules `crates/l2-mods` could not reach, and that is not a
+coincidence — there was no table to transcribe, so nobody had transcribed one.
+
+The scan is a byte-pattern walk and not a disassembler, so it cannot tell an instruction
+boundary from a byte inside an operand. That is safe here because each check compares the
+**whole ordered list** of tagged immediates: a stray match fails the check loudly rather
+than passing it quietly.
+
+Three data checks were also widened at the same time. `g_armyHappinessCost` is checked
+over all 102 entries rather than the first 32; the AI personality records for lords 2 and
+3 are checked rather than only 1 and 4; and `0x004D8E18` — where a fifth record would
+begin — is pinned at `17, 0, 5000, …`, which is the evidence that the table holds four
+lords and not the five §2 implies.

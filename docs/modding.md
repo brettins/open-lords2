@@ -438,7 +438,7 @@ rather than balance and stays in the engine.
 | `kingdom.field` | — | `progress_max`, `reclaim_per_season` |
 | `kingdom.event` | — | `population_cap_pct`, `first_year` |
 | `kingdom.season.<id>` | `none`, `spring`, `summer`, `autumn`, `winter` | `index`, `death_rate`, `dryness` |
-| `kingdom.happiness` | — | `ration_slope`, `ration_offset` |
+| `kingdom.happiness` | — | `ration_slope`, `ration_offset`, `ale_step_pct`, `ale_max`, `army_cost` (102 numbers) |
 | `kingdom.ration.<id>` | `none`, `quarter`, `half`, `normal`, `double`, `triple` | `index`, `divisor`, `multiplier`, `health_delta` (5 numbers) |
 | `kingdom.health` | — | `band_ladder` (5 numbers) |
 | `kingdom.health.band.<id>` | `diseased`, `sick`, `average`, `good`, `perfect` | `index`, `happiness`, `death_rate` |
@@ -448,12 +448,16 @@ rather than balance and stays in the engine.
 | `kingdom.castle` | — | `starting_type` |
 | `kingdom.castle.type.<id>` | `none` … `royal_castle` | `index`, `tax_base`; and for types 1–5 `tax_bonus_pct`, `cost_wood`, `cost_stone`, `workforce`, `garrison_cap`, `free_archers` |
 | `kingdom.job` | — | `count`, `iron_mining`, `stone_quarrying`, `wood_cutting`, `blacksmith`, `grain_farming`, `castle_building` |
+| `kingdom.efficiency` | — | `max`, `without_advanced_farming` |
 | `kingdom.commodity.<id>` | `wood`, `iron`, `weapons`, `stone` | `index`, `job`, `divisor`, `base_efficiency` |
 | `kingdom.weapon.<id>` | `crossbow`, `mace`, `sword`, `pike`, `bow`, `armour` | `index`, `wood`, `iron` |
 | `kingdom.good.<id>` | `none`, `grain` … `mail` | `index`, `sell_price` |
 | `kingdom.wages` | — | `divisor_human`, `divisor_ai` (3 numbers), `bankrupt_stage_max` |
 | `kingdom.ai` | — | `grant_*_per_difficulty`, `grant_min_*` |
 | `[[kingdom.ai.gold_grant]]` | 5 | `lord`, `by_difficulty` (4 numbers) |
+| `[[kingdom.ai.tax_ladder_neutral]]` | 1–8 | `below`, `rate` |
+| `[[kingdom.ai.tax_ladder.<n>]]` | 1–8, for `n` in 0–2 | `below`, `rate` |
+| `[[kingdom.ai.personality]]` | 4 | `lord`, `farm_style`, `tax_ladder` |
 | `[[kingdom.score.gold_bracket]]` | 4 | `at_least`, `points` |
 | `[[kingdom.score.weight]]` | 6 | `offset`, `numerator`, `denominator` |
 
@@ -471,7 +475,14 @@ Two conventions run through it:
 Several values are refused at zero because they are divisors in the original's
 arithmetic: `kingdom.ration.*.divisor`, the two grain labour divisors,
 `kingdom.commodity.*.divisor`, `kingdom.wages.divisor_human` and `divisor_ai`,
-and `kingdom.score.weight.*.denominator`.
+`kingdom.happiness.ale_step_pct`, and `kingdom.score.weight.*.denominator`.
+
+The four **tax ladders** are the one place a document may state fewer rows than
+the simulation holds: a ladder has room for eight rungs and may declare 1 to 8,
+with the last repeated to fill. That is why only `tax_ladder_neutral` writes
+eight. It changes nothing about the walk — a fall-through takes the last row's
+rate either way — and it saves an author writing `below = 2147483647` three
+times. Nine rows is refused rather than truncated.
 
 Three things worth knowing before you rebalance:
 
@@ -484,6 +495,14 @@ Three things worth knowing before you rebalance:
 - **`kingdom.ai.gold_grant` rows 1–3 are all zeros and that is a gap, not a
   rule.** Only the endpoints are documented. Row 0 being zeros *is* a rule: the
   human's lord byte is 0, so the human gets nothing.
+- **`kingdom.happiness.army_cost` is indexed by the *percentage* of the county
+  taken, not by the number of men.** Fifty men out of a thousand is index 5.
+  The shipped table is brutal past a third: index 50 — half the county — costs
+  90 happiness, and everything from 61 up is a flat 101.
+- **`kingdom.ai.personality.*.farm_style` loads and does nothing.** The three
+  labour allocators `AI_ManageFields` dispatches on it into were never traced,
+  so this engine has no behaviour to attach to it. It is in the schema because
+  it is half of the record. `tax_ladder`, in the same row, does take effect.
 
 `kingdom.castle.type.*.workforce` is one number in the ruleset and a pair in
 the binary — the table at `0x004D89E8` holds two ints per castle level and both
@@ -720,12 +739,12 @@ exactly the kind of thing a modding document is tempted to blur.
 | `unit.*` → `l2_sim::TroopTable` | **Live.** `Battle::with_troops` runs the simulation on the loaded table, and a test asserts a modded table changes the outcome of a duel |
 | `troop.*`, `difficulty.*`, `battle.*` → `l2_mods::TroopRules` | **Live.** Typed, range-checked, and the difficulty curve reproduces the original's arithmetic |
 | Assets, through the overlay | **Live**, and proven against a real install's 291 sprite files |
-| `kingdom.*` → `l2_kingdom::tables::Tables` | **Live for the economic core.** `Kingdom::with_tables` runs the season pipeline on the loaded table, and a test starts at a `.toml` and ends at a different number of sacks in a barn |
+| `kingdom.*` → `l2_kingdom::tables::Tables` | **Live.** `Kingdom::with_tables` runs the season pipeline on the loaded table, and six tests start at a `.toml` and end at a different number of sacks, crowns, loads of timber or people. One field — `ai.personality.*.farm_style` — loads and is read by nothing; see below |
 
 The kingdom half was, for a long time, loaded and validated and then ignored,
 and this section said so. It no longer is: `Kingdom` carries a `Tables` and
-around thirty rule functions take `&Tables` and read it. What a mod now
-genuinely reaches:
+every rule function in `l2-kingdom` takes `&Tables` and reads it. What a mod
+now genuinely reaches:
 
 food and dairy; the whole ration ladder and its happiness slope; the health
 delta grid and the band ladder; the birth ladder and the happiness factor;
@@ -733,23 +752,50 @@ deaths by health band and by season; the random-event population cap and first
 year; grain yield per sack, sacks per field and the sowing labour divisors;
 field reclamation; the herd's weather swing; castle tax bases, costs,
 workforce, garrison caps and free archers; weapon costs; the industry job and
-divisor columns; wage divisors; the AI's gold grants and resource floors; and
-the score weights and gold brackets.
+divisor columns and **the efficiency ramp's ceiling and its flat
+Advanced-Farming-off figure**; wage divisors; the **ale** ladder and the
+**army-raising** cost table; the AI's gold grants and resource floors, **its
+four tax ladders and which of them each lord walks**; and the score weights and
+gold brackets.
+
+The five in bold were the last rules with no field in `Tables` at all, and this
+section used to list them as unreachable. They are reachable now, and each is
+proved by a test in `crates/l2-mods/tests/simulation.rs` that starts at a
+`.toml` and ends at a different number out of the season pipeline — not at a
+field read back:
+
+| rule | what the test measures |
+|---|---|
+| `happiness.ale_*` | 100 crowns buys +2 happiness stock and +20 modded, and the modded county ends the year with more people in it |
+| `happiness.army_cost` | a levy of 50 from 500 costs 5 happiness stock and 60 modded, and the modded county ends the year with fewer people |
+| `efficiency.max` | a ceiling of 30 stops the ramp at 30 rather than 100, and the realm fells 350 loads of timber instead of 1,000 |
+| `ai.tax_ladder.*` | a flat 40% ladder takes an AI's county of 50 happiness from paying nothing at all to filling a treasury |
+| `ai.personality.*.tax_ladder` | moving lord 1 to the greedy ladder is 15% where it was 3%, and five times the take |
 
 **What is still a constant, and honestly so.** Array *sizes* are structure, not
-balance — the nine job slots, the six ration levels, the eleven troop types —
-and a ruleset that changed one would be describing a different simulation
-rather than a different game. Three real rules are also still compiled in
-because `Tables` does not carry them yet: the **ale** happiness ladder, the
-**army-raising** happiness cost, and the efficiency ramp's ceiling. So are the
-AI's four tax ladders and its personality table. Each is a `const` in
-`crates/l2-kingdom/src/tables.rs` with its address and its evidence beside it;
-adding one to `Tables` and to `kingdom.toml` is now a small change rather than
-a structural one, because the seam it would arrive through already exists.
+balance — the nine job slots, the six ration levels, the eleven troop types,
+the 102 rows of `army_cost`, the eight rungs a tax ladder has room for, the
+four AI personality records — and a ruleset that changed one would be
+describing a different simulation rather than a different game.
 
-`Tables::DEFAULT` is assembled *from* those constants, which remain the source
-of truth, and a test checks the gathered value against the free functions over
-their whole domain — so the document and the constants cannot drift.
+**One rule loads and does nothing**, which is a different claim and worth
+keeping separate: `kingdom.ai.personality.*.farm_style`. `AI_ManageFields`
+copies it into county `+0x1FE` and dispatches into one of three labour
+allocators that were never traced, so `l2-kingdom` has no behaviour to attach
+to it. There is deliberately no test naming it, because a test that asserted
+the value round-tripped would be claiming more than it checks —
+`docs/decisions.md` C12.
+
+`Tables::DEFAULT` is assembled *from* the constants in
+`crates/l2-kingdom/src/tables.rs`, which remain the source of truth and keep
+their addresses and their evidence beside them, and a test checks the gathered
+value against the free functions over their whole domain — so the document and
+the constants cannot drift. `tools/oracle/kingdom.ps1` then checks 25 of those
+constants against `Lords2.exe` itself, including three that have **no address
+in `.data`**: the tax ladders are `if`/`else if` chains and the ale and
+efficiency bounds are `MOV` immediates, so the oracle reads them out of the
+instruction stream instead. That is why they were the last ones hardcoded —
+there was no table to transcribe.
 
 Also still hardcoded, deliberately: which troop types are siege engines
 (§8.1), the eleven-slot order itself, and the mapping from a rule id to a
