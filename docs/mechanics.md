@@ -1,5 +1,9 @@
 # Game mechanics — what is mapped, and what is not
 
+> **Looking for how the game works, rather than how much of it we have?**
+> That is [`rules.md`](rules.md) — the same mechanics in plain language with the real
+> numbers. This document is the *inventory*: what has been looked at, and what has not.
+
 **This document exists to be read by someone who has played the game**, so that they can
 point at what is missing. That is a check nothing else here can perform: you cannot grep for
 an absence, and every other document in `docs/` describes what we found rather than what we
@@ -52,6 +56,23 @@ Legend:
   deaths
 - 🕳 **Ale.** Brewing and its happiness effect are a rule a mod can set — but ale is *bought
   at the merchant*, and no merchant screen exists.
+
+  **[V] Ale is base game, not the expansion.** A player doubted it was ever in the shipped
+  product. `L2.eng` in the stock GOG install settles it: group 68 index 19 is the merchant
+  tooltip *"Buy ale for your county, as a gift for its people."*, group 85 index 6 is the
+  happiness line *"From ale"*, group 6 index 4 is the goods entry, group 62 has the ration
+  readout *"No Ale quaffed"* / *"Barrels swilled."*, and group 295 lists it among what a
+  merchant sells. It is easy to miss in play — one line on a breakdown panel — but it ships.
+- ❓ **Sheep, and the food priority order** — both found on the ration screen (`L2.eng`
+  group 62) while checking the above, and **neither has ever been looked at**:
+  - *"No sheep eaten." / "Sheep feed" / "Sheep will remain."* are ration-screen strings, so
+    sheep are eaten like cattle. But sheep and wool are the **two goods priced zero** in the
+    merchant table and the two a county cannot produce (`docs/kingdom.md` §12). A cut
+    feature whose strings survived, or something only scenarios grant? Unresolved — and
+    worth resolving before anyone writes the merchant screen.
+  - *"Click on a food to swap its priority."* **The order food is eaten in is a player
+    setting**, not the constant our `ration` pass assumes. Our pass hardcodes dairy → grain
+    → slaughter; the original lets you reorder five foods.
 
 ### People
 - ✅ Population, births by happiness, deaths by health and season

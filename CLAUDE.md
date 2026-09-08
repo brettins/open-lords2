@@ -21,6 +21,7 @@ subagent, so it stays short. Read the linked document before working in that are
 
 | Before you… | Read |
 |---|---|
+| **need to know what the game actually does** | **`docs/rules.md` — the mechanics in plain language, with the real numbers. Start here; everything else is written to help you *find* things in the binary rather than to explain them.** |
 | run any command | `docs/environment.md` |
 | work on a file format | `docs/formats/` |
 | read or name the binary | `docs/symbols.md` |
