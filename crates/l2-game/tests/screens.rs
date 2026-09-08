@@ -524,7 +524,7 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
 
 /// End turn, from the map, with the mouse — and the numbers move on screen.
 ///
-/// This is the whole slice in one test: a shipped scenario, a real map, a click
+/// This is the whole slice in one test: a England turn-one scenario, a real map, a click
 /// on a button, `l2-kingdom`'s season pipeline, and the changed numbers read
 /// back off the canvas.
 #[test]

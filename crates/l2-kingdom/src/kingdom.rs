@@ -42,17 +42,17 @@ use crate::unrest;
 use crate::weather;
 use l2_net::Pcg32;
 
-/// The three game options `docs/kingdom.md` §9 reads out of the shipped save,
+/// The three game options `docs/kingdom.md` §9 reads out of the England turn-one fixture,
 /// and the only ones any rule in this crate branches on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Options {
-    /// `g_optDifficulty`, 0..=2 in the shipped save (0), and 0..=3 in the
+    /// `g_optDifficulty`, 0..=2 in the England turn-one fixture (0), and 0..=3 in the
     /// AI grant tables. Only the AI's wages and grants read it.
     pub difficulty: u8,
-    /// `g_optAdvancedFarming`. Off in the shipped save, which is why every
+    /// `g_optAdvancedFarming`. Off in the England turn-one fixture, which is why every
     /// county there is Cloudy with zero fertility.
     pub advanced_farming: bool,
-    /// `g_optArmiesEat`. Off in the shipped save.
+    /// `g_optArmiesEat`. Off in the England turn-one fixture.
     pub armies_eat: bool,
 }
 

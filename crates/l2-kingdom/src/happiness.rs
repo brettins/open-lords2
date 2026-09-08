@@ -210,7 +210,7 @@ mod tests {
         c
     }
 
-    /// **`docs/kingdom.md` §9 point 5.** Every county in the shipped save has
+    /// **`docs/kingdom.md` §9 point 5.** Every county in the England turn-one fixture has
     /// `happinessLast = 65`, `shownTax = +5`, `shownHealth = +1`,
     /// `shownRation = +1`. Player-owned counties store **72 = 65 + 5 + 1 + 1**;
     /// unowned counties store **77**, with `shownEvents = +5`.

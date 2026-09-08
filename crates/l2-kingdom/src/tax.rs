@@ -68,7 +68,7 @@ pub fn tax_base(t: &Tables, castle_type: u8) -> i32 {
 /// begins — which is what fixes the length.
 ///
 /// The old reading here was `min(5 - rate, 0)`, arrived at honestly: it
-/// reproduces the shipped save and it matches the manual's *"outrageously high
+/// reproduces the England turn-one fixture and it matches the manual's *"outrageously high
 /// taxes damage your other counties"*. It is also **wrong at 45 of the 51
 /// rates** — flat until 21 in the binary against biting from 6 in ours, and
 /// −15 against −45 at the top, a factor of three.
@@ -246,7 +246,7 @@ mod tests {
     ///
     /// Walks every rate rather than sampling, because the rule it replaced was
     /// wrong at 45 of 51 and survived on the six where they agree — one of
-    /// which is rate 0, the only rate the shipped save contains.
+    /// which is rate 0, the only rate the England turn-one fixture contains.
     #[test]
     fn the_empire_tax_term_is_flat_until_twenty_and_gentle_after() {
         for rate in 0..=19 {

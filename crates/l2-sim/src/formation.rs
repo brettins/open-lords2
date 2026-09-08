@@ -25,6 +25,14 @@
 //! The fourth, [`TYPE_PRIORITY`], is `g_formationTypePriority` (`0x004D98C8`),
 //! read the same way.
 //!
+//! **They are also *checked* against those bytes**, which they were not until
+//! recently: `crates/l2-sim/tests/oracle.rs` maps both addresses through the PE
+//! section headers and compares all 66 entries. Until then the only guard was a
+//! unit test that recited the same literals a second time, under a name that
+//! said "oracle" — `docs/decisions.md` C12's shape, three years of transcribed
+//! numbers behind it, and the script that could have caught it printing to a
+//! console nobody read.
+//!
 //! # Determinism
 //!
 //! Integer arithmetic and fixed-size tables only. Every division here is the
@@ -165,13 +173,28 @@ mod tests {
     use super::*;
     use crate::figure::{SIDE_A, SIDE_B};
 
-    /// The three columns of `g_troopBattleStats` this module carries, against
-    /// the prose `docs/battle.md` §8.2a records from the oracle run: "12
-    /// peasants or archers, 8 crossbowmen, macemen and swordsmen, 10 pikemen, 6
-    /// knights, 2 per siege engine, 1 oil", footprint "1 for infantry, 3 for
-    /// siege engines, 2 for oil".
+    /// The shape of the three `g_troopBattleStats` columns this module carries:
+    /// which troops share a unit size, which occupy more than one cell, and
+    /// which carry a weapon.
+    ///
+    /// # This is not the oracle, and it used to say it was
+    ///
+    /// It was called `the_unit_size_and_footprint_tables_match_the_oracle_reading`
+    /// and its doc comment cited "the prose `docs/battle.md` §8.2a records from
+    /// the oracle run". It opens nothing. Every literal below was copied out of
+    /// the same paragraph the constants were copied from, so a transcription
+    /// error would have had to be made twice on the same afternoon to be caught
+    /// — and `assert_eq!(MAX_FIGURES_PER_UNIT[Peasants], 12)` compares a
+    /// constant to a second spelling of itself in any case.
+    ///
+    /// **The oracle is `crates/l2-sim/tests/oracle.rs`**, which reads all 55
+    /// entries out of `Lords2.exe` at `0x004D96D0` through the PE section
+    /// headers. What is left here is the part that is worth stating in prose:
+    /// the *relations* between the rows, which are what a reader needs and what
+    /// a reordering of `Troop` would break while the byte-for-byte comparison
+    /// still passed.
     #[test]
-    fn the_unit_size_and_footprint_tables_match_the_oracle_reading() {
+    fn the_unit_size_and_footprint_tables_have_the_shape_the_module_documents() {
         assert_eq!(MAX_FIGURES_PER_UNIT[Troop::Peasants.index()], 12);
         assert_eq!(MAX_FIGURES_PER_UNIT[Troop::Archers.index()], 12);
         assert_eq!(MAX_FIGURES_PER_UNIT[Troop::Crossbowmen.index()], 8);
@@ -201,6 +224,13 @@ mod tests {
         assert_eq!(WEAPON_CLASS[Troop::Archers.index()], 1);
         assert_eq!(WEAPON_CLASS[Troop::Catapults.index()], 3);
         assert_eq!(WEAPON_CLASS[Troop::Swordsmen.index()], 0);
+
+        // Relations rather than values: exactly three troop types carry a
+        // weapon, exactly four take more than one cell, and no unit is empty.
+        assert_eq!(WEAPON_CLASS.iter().filter(|&&c| c != 0).count(), 3);
+        assert_eq!(FOOTPRINT.iter().filter(|&&f| f > 1).count(), 4);
+        assert!(MAX_FIGURES_PER_UNIT.iter().all(|&n| n >= 1));
+        assert!(ROW_MAX.iter().zip(MAX_FIGURES_PER_UNIT).all(|(&r, n)| r as u16 <= n));
     }
 
     /// Siege engines dictate a mixed unit's shape, and peasants never do.

@@ -216,7 +216,7 @@ pub fn grain_season_tick(t: &Tables, county: &mut County, season: Season, advanc
 /// labour record 1 of the nine at `+0xC4 + job * 0x0C`.
 ///
 /// **`[V]`, three ways.** `Herd_SeasonTick` passes `+0xD0`; `0xD0 - 0xC4` is
-/// exactly one 12-byte record; and the shipped save's own arithmetic closes —
+/// exactly one 12-byte record; and the England turn-one fixture's own arithmetic closes —
 /// county 1 holds 218 cattle farmers and 217 wood cutters against a population
 /// of 435, and county 2 holds 323 and 133 against 456. Both sum to the
 /// population exactly.
@@ -536,7 +536,7 @@ mod tests {
     }
 
     /// **`docs/kingdom.md` §9 point 3.** With Advanced Farming off, every
-    /// county's fertility in the shipped save is 0.
+    /// county's fertility in the England turn-one fixture is 0.
     #[test]
     fn basic_farming_pins_fertility_at_zero() {
         let mut c = County::new();

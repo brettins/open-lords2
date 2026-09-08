@@ -253,18 +253,28 @@ mod tests {
     /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
 
-    /// **`docs/kingdom.md` §9 point 8, both rows.** Every county in the shipped
-    /// save started at `popLast = 417`, giving a 20% base birth rate:
+    /// **`docs/kingdom.md` §9 point 8, both rows.** Every county in the England
+    /// turn-one position started at `popLast = 417`, giving a 20% base birth
+    /// rate:
     ///
     /// | | happiness | factor | births | deaths | population |
     /// |---|---:|---:|---:|---:|---:|
-    /// | owned (4 counties) | 72 | 75% | 63 | 45 | 435 |
-    /// | unowned (10 counties) | 77 | 100% | 84 | 45 | 456 |
+    /// | owned (5 counties) | 72 | 75% | 63 | 45 | 435 |
+    /// | unowned (9 counties) | 77 | 100% | 84 | 45 | 456 |
     ///
     /// The deaths figure needs `g_deathRateByHealth[3] = 3` **and**
     /// `g_deathRateBySeason[4] = 8`, so it confirms the season index too.
+    ///
+    /// **Corrected.** This table read "owned (4 counties)" and "unowned (10
+    /// counties)" — the invented split that `docs/decisions.md` C20 retracted,
+    /// still sitting here in a doc comment after the correction. The file holds
+    /// **five owned, one per realm, and nine unowned**; the *numbers* were
+    /// always right, which is exactly why the wrong count survived a correction
+    /// aimed at them. The word "shipped" is wrong too: a clean install ships no
+    /// saves at all, and calling a rolling autosave "shipped" is what let it be
+    /// treated as a fixture until somebody played the game.
     #[test]
-    fn both_population_rows_from_the_shipped_save_reproduce() {
+    fn both_population_rows_from_the_england_fixture_reproduce() {
         let build = |happiness: i32| {
             let mut c = County::new();
             c.population = 417;

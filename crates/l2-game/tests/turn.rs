@@ -3,7 +3,7 @@
 //!
 //! No install and no window. The kingdoms here are built by hand so that each
 //! assertion is about *one* thing the spine does — the tests that run the
-//! shipped scenario are in `tests/scenario.rs`.
+//! England turn-one scenario are in `tests/scenario.rs`.
 
 use l2_kingdom::phase::Phase;
 use l2_kingdom::realm::AI_STEP_DONE;
@@ -12,7 +12,7 @@ use l2_game::turn;
 use l2_game::Game;
 
 /// One human realm holding county 1, four AI realms holding one each, and nine
-/// unowned — the shape of the shipped scenario, without needing the file.
+/// unowned — the shape of the England turn-one scenario, without needing the file.
 fn five_realms() -> Game {
     let mut g = Game::new(0x51EED);
     g.player = 1;
@@ -157,7 +157,7 @@ fn the_same_kingdom_ended_twice_lands_on_the_same_numbers() {
 /// the prose does.
 ///
 /// `Season_Advance` rolls the year when the season that *ended* was 4, and
-/// `ended` is the old `g_seasonNext` — so starting from the shipped save's
+/// `ended` is the old `g_seasonNext` — so starting from the England turn-one fixture's
 /// Winter 1268 the year does not move until the turn that brings Winter round
 /// again. The year label therefore runs **Winter, Spring, Summer, Autumn**,
 /// which `l2-kingdom`'s errata note 3 records and §3.3's prose contradicts.

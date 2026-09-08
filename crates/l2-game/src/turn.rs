@@ -143,7 +143,7 @@ fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut boo
             // Running it once, at the first step 3 of the turn, puts it where
             // the original puts it and produces the original's totals.
             //
-            // On the shipped scenario the difficulty is 0 and every grant
+            // On the England turn-one scenario the difficulty is 0 and every grant
             // multiplies by it, so nothing moves either way; the distinction
             // matters the moment somebody starts a harder game.
             if !*granted {

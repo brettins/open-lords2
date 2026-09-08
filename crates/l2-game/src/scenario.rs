@@ -1,4 +1,4 @@
-//! Starting from the shipped scenario, rather than from a made-up one.
+//! Starting from the England turn-one scenario, rather than from a made-up one.
 //!
 //! `lastturn.sav` in a real install is a turn-1 autosave of the England map,
 //! and `l2_formats::save` reads it by walking the block table out of the user's
@@ -100,7 +100,7 @@ impl From<l2_formats::SaveError> for Error {
     }
 }
 
-/// Read the shipped scenario into a playable [`Game`].
+/// Read the England turn-one scenario into a playable [`Game`].
 ///
 /// `tables` is the ruleset the kingdom will run on for the rest of its life —
 /// `Tables::DEFAULT`, or whatever `l2-mods` built from the core ruleset and any

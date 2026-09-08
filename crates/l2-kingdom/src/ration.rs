@@ -25,7 +25,7 @@
 //! than the one that was applied. [`apply`] spends; [`preview`] writes the same
 //! display fields and leaves the store alone. That is a choice, not a finding:
 //! §4.3 explicitly says it *"did not untangle which write survives"*, and it is
-//! the reason the four player-owned counties in the shipped save do not
+//! the reason the four player-owned counties in the England turn-one fixture do not
 //! reproduce.
 
 use crate::county::County;

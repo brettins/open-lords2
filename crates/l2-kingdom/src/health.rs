@@ -53,7 +53,7 @@ mod tests {
     /// the new-game presets gives a starting health of 65 for a medium county,
     /// which is band 2 on the ladder since `65 <= 65`;
     /// `g_healthDeltaTable[Normal][band 2]` is +2, giving 67; and 67 bands as 3
-    /// since `67 <= 90`. The shipped save stores meter **67** and band **3**.
+    /// since `67 <= 90`. The England turn-one fixture stores meter **67** and band **3**.
     #[test]
     fn the_health_chain_from_the_shipped_save_reproduces() {
         let mut c = County::new();
