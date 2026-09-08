@@ -445,9 +445,13 @@ rather than balance and stays in the engine.
 | `[[kingdom.population.birth_rate]]` | 20 | `up_to`, `percent` |
 | `[[kingdom.population.happiness_factor]]` | 5 | `below`, `percent` |
 | `kingdom.weather.<id>` | `frost`, `drought`, `sunny`, `cloudy`, `storms`, `flooding` | `index`, `herd_pct` |
+| `kingdom.tax` | — | `happiness_other` (51 numbers, one per tax rate — **the array's length is the tax ceiling**) |
+| `kingdom.herd` | — | `labour_per_head`, `staffing_max`, `understaffing_divisor`, `no_pasture_density`, `no_pasture_kill_all_below`, `no_pasture_divisor`, `calving_season`, `culling_season`, `season_bonus_numerator`, `season_bonus_denominator` |
+| `[[kingdom.herd.crowding]]` | 4 | `density_max`, `level`, `death_rate`, `birth_rate` |
+| `[[kingdom.herd.small_bonus]]` | 3 | `below`, `bonus` |
 | `kingdom.castle` | — | `starting_type` |
 | `kingdom.castle.type.<id>` | `none` … `royal_castle` | `index`, `tax_base`; and for types 1–5 `tax_bonus_pct`, `cost_wood`, `cost_stone`, `workforce`, `garrison_cap`, `free_archers` |
-| `kingdom.job` | — | `count`, `iron_mining`, `stone_quarrying`, `wood_cutting`, `blacksmith`, `grain_farming`, `castle_building` |
+| `kingdom.job` | — | `count`, `iron_mining`, `stone_quarrying`, `wood_cutting`, `blacksmith`, `grain_farming`, `cattle_farming`, `castle_building` |
 | `kingdom.efficiency` | — | `max`, `without_advanced_farming` |
 | `kingdom.commodity.<id>` | `wood`, `iron`, `weapons`, `stone` | `index`, `job`, `divisor`, `base_efficiency` |
 | `kingdom.weapon.<id>` | `crossbow`, `mace`, `sword`, `pike`, `bow`, `armour` | `index`, `wood`, `iron` |
@@ -771,6 +775,20 @@ field read back:
 | `efficiency.max` | a ceiling of 30 stops the ramp at 30 rather than 100, and the realm fells 350 loads of timber instead of 1,000 |
 | `ai.tax_ladder.*` | a flat 40% ladder takes an AI's county of 50 happiness from paying nothing at all to filling a treasury |
 | `ai.personality.*.tax_ladder` | moving lord 1 to the greedy ladder is 15% where it was 3%, and five times the take |
+
+**Two more rules arrived after that list was written**, and they arrived as
+tables because they always were ones:
+
+* `kingdom.tax.happiness_other` — the *"Other counties"* happiness term, 51
+  rows, one per tax rate. `l2-kingdom` computed `min(5 − rate, 0)` for it and
+  was wrong at 45 of the 51; the array's length is also where the tax panel's
+  up arrow stops, which is why `MAX_TAX_RATE` moved into `l2-kingdom` beside
+  it. `docs/kingdom.md` §4.1.
+* `kingdom.herd.*` — staffing at three labourers a head, the four crowding
+  bands with their birth and death rates, the small-herd bonus, the no-pasture
+  penalty, and which season calves and which culls. None of it existed in the
+  crate at all until it was implemented; a herd could be kept with nobody
+  tending it. `docs/kingdom.md` §13.
 
 **What is still a constant, and honestly so.** Array *sizes* are structure, not
 balance — the nine job slots, the six ration levels, the eleven troop types,
