@@ -1,10 +1,16 @@
 //! The battle simulation driven through the lockstep session, over real sockets.
 //!
-//! `l2-sim` and `l2-net` are built to be independent: the simulation knows
-//! nothing about networking, and `l2-net` never depends on `l2-sim`. Nothing in
-//! either crate's own tests can therefore check the one claim both exist to
-//! support. This file is that seam, and it is a dev-dependency only — the
-//! production `l2-sim` stays dependency-free.
+//! `l2-sim` knows nothing about networking, and `l2-net` never depends on
+//! `l2-sim`. Nothing in either crate's own tests can therefore check the one
+//! claim both exist to support. This file is that seam.
+//!
+//! It said "a dev-dependency only" until the battle AI needed `Pcg32` for its
+//! strength-advantage jitter, which made `l2-net` a real dependency of
+//! `l2-sim` — for that one frozen generator and nothing else, on the same
+//! argument `l2-kingdom` already makes. The load-bearing rule is unchanged and
+//! narrower than "no dependency": **nothing in `l2-sim` may reach for the
+//! session, the transport or the sockets.** A simulation that knows about the
+//! network is one that can branch on it.
 //!
 //! What it proves: two peers exchanging commands over a genuine TCP connection
 //! produce **bit-identical battle state on every tick**. If a determinism rule
