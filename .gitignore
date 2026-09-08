@@ -1,5 +1,10 @@
 # Rust
-/target/
+#
+# Unanchored on purpose. `/target/` matches only the workspace root, and an agent
+# that ran `cargo` inside a crate directory produced `crates/l2-net/target/`,
+# which the anchored rule sailed straight past - 1,891 files and 35 MB of
+# compiled output, committed and never noticed.
+target/
 **/*.rs.bk
 Cargo.lock
 
