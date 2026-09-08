@@ -59,6 +59,12 @@
 //!    `aiStep < 999`; but a reader comparing `== 999` against a save would find
 //!    nothing. Reproduced — see [`run_step`].
 //!
+//! Points 2 and 3 are read off the **disassembly**, not the decompiler:
+//! `0049A933 CMP [aiStep],ECX / JL` with `ECX = 2*realm + 15`, then
+//! `CALL 0x004A4E3D / TEST EAX,EAX / JNZ`, then `MOV [aiStep],0x3E7` — and
+//! `0049A985 INC dword ptr [aiStep]` sits at the target both jumps skip to, so
+//! it runs either way. `docs/decisions.md` C13: the artefact is the evidence.
+//!
 //! # `AI_SetTaxRates`
 //!
 //! `AI_SetTaxRates` (`0x0049D638`) does two things and `docs/kingdom.md` §8.2

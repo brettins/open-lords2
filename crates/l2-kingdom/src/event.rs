@@ -54,8 +54,11 @@
 //! `index ≡ 7 (mod 8)`, which is **odd**. So counties 2, 4, 6 … 16 are
 //! permanently exempt from the random-event table, and no amount of play will
 //! reveal it, because the counties that do draw look exactly as they should.
-//! Reproduced rather than corrected, and asserted exhaustively over all 128
-//! seeds by `only_odd_numbered_counties_can_ever_draw_an_event`.
+//! The seed is `00448822 MOV EAX,[0x0058FD60] / ADD EAX,EAX` in the
+//! disassembly, so the doubling is not a decompiler artefact
+//! (`docs/decisions.md` C13). Reproduced rather than corrected, and asserted
+//! exhaustively over all 128 seeds by
+//! `only_odd_numbered_counties_can_ever_draw_an_event`.
 //!
 //! # What the handlers do
 //!
