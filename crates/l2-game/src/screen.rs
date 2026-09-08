@@ -72,6 +72,23 @@ pub trait Screen {
     /// What the window is called while this screen is on top.
     fn title(&self, ctx: &Ctx) -> String;
 
+    /// Whether this screen is an **inset over whatever is beneath it** rather
+    /// than a page that owns the framebuffer.
+    ///
+    /// The original has no screen clear anywhere. `Screen_Draw` dispatches on
+    /// `g_screenId` and the painter it picks blits into a rectangle; everything
+    /// outside that rectangle is simply *still there from the last frame*.
+    /// `Village_Draw` is the plainest case — it repaints the campaign map
+    /// (`FUN_004050C0` → `FUN_004CFB08` → `Map_DrawFrame`) and then blits a
+    /// 363 x 320 picture over it at (64, 64), so the menu bar, the county
+    /// sidebar and a band of map around the picture stay on screen.
+    ///
+    /// A screen that answers true is drawn **after** whatever is under it on
+    /// the stack, by [`Machine::draw`], and must not clear the canvas.
+    fn overlay(&self) -> bool {
+        false
+    }
+
     /// One input event. The default ignores everything, so a screen only writes
     /// down what it actually responds to.
     fn handle(&mut self, _event: Event, _ctx: &mut Ctx) -> Transition {
@@ -167,9 +184,26 @@ impl Machine {
         }
     }
 
+    /// Paint the stack, bottom-most **page** first.
+    ///
+    /// Only the top screen gets input, and only the top screen is drawn — until
+    /// it says it is an [overlay](Screen::overlay), in which case whatever is
+    /// under it is drawn first. That is the original's own arrangement and not
+    /// a convenience: it has no screen clear, so a painter that fills a
+    /// rectangle leaves the rest of the frame showing. `Village_Draw` repaints
+    /// the campaign map and blits its picture on top of it; `Panel_JobDetail`
+    /// draws a window over the village.
+    ///
+    /// The search stops at the first screen from the top that is not an
+    /// overlay, so an overlay at the bottom of the stack draws alone.
     pub fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
-        if let Some(top) = self.stack.last_mut() {
-            top.draw(ctx, canvas);
+        let first = self
+            .stack
+            .iter()
+            .rposition(|s| !s.overlay())
+            .unwrap_or(0);
+        for screen in self.stack[first..].iter_mut() {
+            screen.draw(ctx, canvas);
         }
     }
 

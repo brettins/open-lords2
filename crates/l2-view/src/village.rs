@@ -129,6 +129,32 @@ pub const TOPS_Y: i32 = 64;
 pub const SCENE_W: i32 = 363;
 pub const SCENE_H: i32 = 320;
 
+/// The band `Village_Draw` saves and `FUN_004120E0` restores: **480 x 320 at
+/// (0, `g_villageTopY`)**, and the outer bound of everything the village may
+/// dirty.
+///
+/// **`[V]`, and the numbers do not read at face value.** `Village_Draw` sets
+/// `g_drawX = 0`, `g_drawY = g_villageTopY`, `g_spriteWidth = 0x78` and
+/// `g_spriteHeight = 0x140`, then calls `FUN_004B3F0A(buffer, 0xA0)`. That
+/// function copies **dwords**: it advances the framebuffer pointer
+/// `g_spriteWidth` times as an `undefined4 *` — 0x78 x 4 = **480 bytes**, one
+/// byte a pixel — and then adds `0xA0` = 160 more to reach the next row.
+/// `480 + 160 = 640`, which is the screen stride exactly, so the width is 480
+/// pixels and not 120. Its twin `FUN_004B3EC0` copies the other way.
+///
+/// So the village's reach stops at **x = 480**, and the county sidebar at
+/// x = 478 … 639 and the menu bar at y = 0 … 23 are outside it. The picture
+/// itself is narrower still — 363 wide from x = 64 — so a strip of campaign map
+/// shows on both sides of it even inside the band.
+pub const BAND_X: i32 = 0;
+pub const BAND_W: i32 = 480;
+/// `g_spriteHeight`, which is a plain row count.
+pub const BAND_H_SAVED: i32 = 320;
+/// What `FUN_004B3F0A`'s second argument leaves for the rest of the row.
+pub const BAND_ROW_REMAINDER: i32 = 0xA0;
+/// The screen stride the two must add up to.
+pub const SCREEN_STRIDE: i32 = 640;
+
 /// `vill_gd8.pl8`: 45 columns and 40 rows of 8 x 8 pixels, covering
 /// x `0x40 … 0x1A8` and y `top … top + 0x140`.
 pub const GRID_COLS: usize = 45;
