@@ -540,8 +540,8 @@ invariant's name is indistinguishable from a broken invariant until somebody sep
 them.
 
 **3. A silent skip is worse than a red test, and the suite was full of them.**
-`cargo test --workspace` printed `986 passed; 0 failed` with the game present and
-`986 passed; 0 failed` with it absent. **113 tests** — the reproduction against a real
+`cargo test --workspace` printed `989 passed; 0 failed` with the game present and
+`989 passed; 0 failed` with it absent. **116 tests** — the reproduction against a real
 save, the renderer against real sprites, every screen test — did not exist on CI, and
 nothing said so. Two of those files used `env::var` with no fall back, so all 22 of their
 tests had never run on any machine that did not export `LORDS2_DIR`; twelve of them failed

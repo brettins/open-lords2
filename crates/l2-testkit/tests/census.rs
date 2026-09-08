@@ -3,13 +3,13 @@
 //!
 //! # The problem
 //!
-//! `cargo test --workspace` on this machine prints `986 passed; 0 failed`. With
+//! `cargo test --workspace` on this machine prints `989 passed; 0 failed`. With
 //! `LORDS2_DIR` and `LORDS2_FIXTURES` pointing nowhere — which is what CI does —
-//! it prints `986 passed; 0 failed` as well. The two runs assert wildly
+//! it prints `989 passed; 0 failed` as well. The two runs assert wildly
 //! different amounts and are indistinguishable from their output, because a
 //! gated test that finds no game prints a line to stderr and returns green.
 //!
-//! The gap is 113 tests, which this file names.
+//! The gap is 116 tests, which this file names.
 //!
 //! Nobody notices a test that stops existing. The reproduction against a real
 //! save, the renderer against real sprites, the scenario against the England
@@ -93,6 +93,7 @@ impl Gate {
 /// a statement that this many tests in this file do not run without that
 /// input.
 const INVENTORY: &[(&str, &str, usize)] = &[
+    ("crates/l2-formats/tests/battle_fixtures.rs", "fixture", 3),
     ("crates/l2-formats/tests/corpus.rs", "install", 4),
     ("crates/l2-formats/tests/maps.rs", "install", 5),
     ("crates/l2-formats/tests/save.rs", "executable", 1),
@@ -112,7 +113,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 113;
+const GATED_TOTAL: usize = 116;
 
 /// The workspace root, from this crate's manifest.
 fn repo_root() -> PathBuf {

@@ -74,7 +74,7 @@ the working tree.
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 
-# What CI runs: no install, no fixtures. 112 tests skip, and say so.
+# What CI runs: no install, no fixtures. 116 tests skip, and say so.
 cargo test --workspace
 
 # Everything, including the corpus and the fixture-gated suites.
