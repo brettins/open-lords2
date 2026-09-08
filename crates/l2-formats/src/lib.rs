@@ -6,9 +6,11 @@
 pub mod maps;
 pub mod palette;
 pub mod pl8;
+pub mod save;
 pub mod skr;
 
 pub use maps::{MapSet, MapSlot, Plane};
+pub use save::{County, Layout, Save, SaveError};
 pub use palette::Palette;
 pub use skr::{Army, ScenarioText, Side, Skr, Troop};
 pub use pl8::{DecodedFrame, FrameInfo, Pl8, Shape, Storage};
