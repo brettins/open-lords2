@@ -320,17 +320,35 @@ looked. This is C3's failure inverted — there, a plausible story was fitted to
 decompiler's output; here, a true observation about the data was allowed to settle a
 question the code answers better.
 
+**C17 — "Not resolvable from the decompilation alone" was C16 again, and I wrote it.**
+An open question here read: *whether `Path_Search`'s visit counters are fully cleared between
+searches … not resolvable from the decompilation alone — it needs the callee's signature.*
+
+The callee's **body** was on disk, in `tools/oracle/decomp/004b0000.c`. `FUN_004B3E51` counts
+**bytes**: its tail loop stores one `undefined1` and decrements by one. The call site is
+`push 0x1000; push 0x004F6470`, so it clears **4,096 bytes of a 6,400-byte array** — one
+counter per cell. Three things fix the extent: the sibling call passes `0x3200` for
+`g_pathCost`, exactly 6,400 × `u16`; `docs/battle.md` already recorded the counters as one
+byte per cell; and `0x004F6470 + 6400` lands precisely on the next global `Path_Search` uses.
+
+**So cells 4,096 and above — rows 51 to 79, the bottom 36% of the battlefield — begin each
+search holding the previous search's counts.** `crates/l2-sim` zeroed all 6,400 and therefore
+diverged from the original on every castle map, where step costs are non-zero. Now
+reproduced: `Scratch` carries the counters between searches and clears only
+`CLEARED_COUNTERS`, with a test that fails if the array is fully cleared.
+
+Two things worth keeping. The question said what it *needed* rather than what had been
+*tried*, and "needs the callee's signature" was false — it needed the callee's body, which
+cost one `rg`. And this is C16 restated: the answer was in the code, and I looked at the
+data. **A claim about what is unknowable should name the technique that was tried and
+failed.** Ours named a technique nobody had attempted.
+
 ## Open questions
 
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
   gives the weather jitter as `random/8` with no stated range, which is not implementable —
   the constant is the one number in that crate with no evidence behind it, and it is marked
   as such at its definition. It needs tracing before any weather behaviour is trusted.
-- Whether `Path_Search`'s visit counters are fully cleared between searches. The clear is
-  `FUN_004b3e51(&g_pathVisitCount, 0x1000)` against a 6,400-cell grid; if that count is
-  bytes rather than dwords, the last 2,304 cells keep stale counts from the previous search
-  and deferral behaves differently on the bottom third of the map. Not resolvable from the
-  decompilation alone — it needs the callee's signature.
 - The four map planes whose meaning is inferred rather than proven (graphics bank,
   descriptor index, multi-tile object part), and the exact tile → lattice mapping,
   whose best affine fit reaches only 72%.

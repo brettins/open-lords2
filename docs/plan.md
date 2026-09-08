@@ -1,8 +1,62 @@
 # Plan — the next stretch
 
-Written to be attacked. `docs/method.md` §7 argues the current gap is **integration, not
-knowledge**, and this is the plan that follows from it. An adversarial review of this
-document is commissioned alongside it; where the review wins, this file changes.
+Written to be attacked. The review landed in `docs/plan-review.md` and won on the substance,
+so this file has changed. **Revision 2**; the original reasoning is kept below where it
+survived, and marked where it did not.
+
+## What the review changed
+
+Its verdict was that the central claim is *half* true and the false half was load-bearing:
+five crates do work and nothing is joined up, but **"the gap is integration, not knowledge"
+fails for three of the five slice items**. I verified its four sharpest findings myself
+rather than take them:
+
+1. **Persistence is the cheapest unblock and I had it last.** `tools/kingdom/savedump.js`
+   already reads `lastturn.sav` and prints a complete turn-1 England — fourteen counties
+   with ownership, population, happiness, health, neighbours, castles, grain and herd. It
+   runs instantly, today. Importing the shipped scenario is not a stretch goal; it is the
+   cheapest item on the list and it unblocks real verification.
+2. **`crates/l2-kingdom/tests/reproduction.rs` is correction C12 again — a test that cannot
+   fail.** It is headed "the reproduction from the shipped save" and never reads the save.
+   It hardcodes `OWNED = 4`, gives counties 1–4 to the human realm, and asserts those store
+   happiness 72. The save's owner bytes are `5` at index 1, `4` at 4, `1` at 8, `3` at 11
+   and `2` at 13: **five owned counties, one per realm, nine unowned**, and the human owns
+   county 8 alone. The *rules* reproduce exactly — 72 = 65+5+1+1 is right, and matches real
+   stored values. The *scenario* is fiction, and `docs/kingdom.md` §9 carries the same wrong
+   count. Verified with `node tools/kingdom/savedump.js county`.
+3. **Workstream B is not mechanical.** There was no unit layer in `l2-sim` at all —
+   `Battle` is a flat `Vec<Figure>` — and `crates/l2-sim/src/unit.rs` is being written as
+   this is revised. Worse for the slice: `docs/battle-ai.md` §6 says **fourteen of the
+   seventeen handlers are siege-only**, and the slice excludes sieges. Wiring them is still
+   correct work; it is not what unblocks a playable turn.
+4. **A structural call I missed.** `BattleRunner` and `Battlefield` — positions, occupancy,
+   deployment, the drive loop, all simulation state — live in `l2-view`, behind `winit` and
+   `pixels`. Every other crate is dependency-free for determinism and says so at length.
+   Moving them into `l2-sim` is a file move today and a spine-wide change once `l2-game`
+   depends on them.
+
+It also killed a claim in `method.md` §7: **"the remaining 90% is mostly CRT and glue" is
+false.** Ghidra's FID has already named the CRT; below `0x004C0000` there are 2,206
+functions, 1,952 unnamed, and 418 of those directly reference `g_counties`, `g_units` or
+`g_tiles`. The conclusion — don't go and name them — probably still holds. The reason given
+for it did not, and a right answer resting on a wrong reason is one bad day from becoming a
+wrong answer.
+
+## Revised order
+
+1. **Import the shipped scenario** from `lastturn.sav`, and **make `reproduction.rs` read
+   it.** Turns the project's central kingdom test from self-consistent into a real oracle,
+   and hands the slice a real starting position for free.
+2. **Move `BattleRunner` and `Battlefield` into `l2-sim`.** Cheap now, structural later.
+3. **`l2-game`, the application spine** — unchanged in substance, but it now starts from a
+   real scenario rather than a synthetic one.
+4. **Workstream B**, rescoped: `Tables` threading is real and larger than stated (21 of the
+   consts are not fields of `Tables` at all, so threading alone does not make `kingdom.toml`
+   take effect). The order handlers are worth doing and are not on the slice's path.
+
+The original plan follows, unchanged except where the review struck it.
+
+---
 
 ## The claim this plan rests on
 

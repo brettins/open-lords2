@@ -180,12 +180,87 @@ pub struct Search {
     pub cost: Vec<u16>,
 }
 
-/// Uniform-cost breadth-first flood fill.
+/// How many of the 6,400 visit counters `Path_Search` actually clears.
+///
+/// **4,096, not 6,400 — and this is a bug in the original that we reproduce.**
+///
+/// `Path_Search` clears its counters with `FUN_004B3E51(0x004F6470, 0x1000)`,
+/// and that helper counts **bytes**: its tail loop stores one byte and
+/// decrements by one. `0x1000` is therefore 4,096 bytes against an array of
+/// 6,400 `u8`, one per cell. Three things confirm the extent: the sibling call
+/// passes `0x3200` for `g_pathCost`, which is exactly 6,400 × `u16`;
+/// `docs/battle.md` records the counters as one byte per cell; and
+/// `0x004F6470 + 6400` lands precisely on the next global the same function
+/// uses.
+///
+/// So cells 4,096 and above — **rows 51 to 79, the bottom 36% of the
+/// battlefield** — begin each search holding whatever counts the *previous*
+/// search left there. An expensive cell down there may expand immediately
+/// because it is already "visited enough", instead of being deferred.
+///
+/// This only bites where step costs are non-zero, which is castles: a `.skr`
+/// field is uniformly zero-cost (see the module docs). It is reproduced rather
+/// than fixed because the original's paths are the specification.
+///
+/// **It also makes pathfinding order-dependent**, which is a determinism
+/// concern rather than a bug: the result of a search depends on which searches
+/// ran before it. Lockstep peers run the same searches in the same order, so
+/// they stay identical — but a caller that reorders searches changes the paths.
+pub const CLEARED_COUNTERS: usize = 0x1000;
+
+/// The scratch space `Path_Search` keeps between calls.
+///
+/// In the original these are globals, and that is not an implementation detail
+/// to tidy away: the visit counters survive from one search to the next, and
+/// only the first [`CLEARED_COUNTERS`] of them are reset. Modelling them as a
+/// local would quietly fix the original's bug.
+#[derive(Debug, Clone)]
+pub struct Scratch {
+    visits: Vec<u8>,
+}
+
+impl Scratch {
+    pub fn new() -> Scratch {
+        Scratch { visits: vec![0u8; CELLS] }
+    }
+
+    /// Clear exactly what the original clears, and no more.
+    fn begin(&mut self) {
+        for v in &mut self.visits[..CLEARED_COUNTERS] {
+            *v = 0;
+        }
+    }
+
+    /// The raw counters. Exposed because the carry-over above
+    /// [`CLEARED_COUNTERS`] is a behaviour to be tested, not an accident to be
+    /// hidden.
+    pub fn visits(&self) -> &[u8] {
+        &self.visits
+    }
+}
+
+impl Default for Scratch {
+    fn default() -> Self {
+        Scratch::new()
+    }
+}
+
+/// A single search with fresh scratch space.
+///
+/// Convenient, and **not** what the original does across a battle: a fresh
+/// [`Scratch`] has every counter zero, which is only true of the very first
+/// search. Use [`search_with`] and keep one `Scratch` for the whole battle to
+/// reproduce the original's behaviour.
+pub fn search(grid: &Grid, start: Pos, dest: Pos) -> Search {
+    search_with(&mut Scratch::new(), grid, start, dest)
+}
+
+/// Weighted breadth-first flood fill, carrying the original's scratch space.
 ///
 /// Returns `NoSearchNeeded` without touching the cost field when the target is
 /// adjacent or in clear line of sight, exactly as the original does — most
 /// movement in a battle never runs a search at all.
-pub fn search(grid: &Grid, start: Pos, dest: Pos) -> Search {
+pub fn search_with(scratch: &mut Scratch, grid: &Grid, start: Pos, dest: Pos) -> Search {
     if chebyshev(start, dest) < 2 || grid.line_is_clear(start, dest) {
         return Search { outcome: Outcome::NoSearchNeeded, cost: Vec::new() };
     }
@@ -198,7 +273,8 @@ pub fn search(grid: &Grid, start: Pos, dest: Pos) -> Search {
             *c = OCCUPIED;
         }
     }
-    let mut visits = vec![0u8; CELLS];
+    scratch.begin();
+    let visits = &mut scratch.visits;
 
     let (si, di) = (start.index(), dest.index());
     // The two blocked values part company here, and only here. A destination
@@ -340,6 +416,95 @@ mod tests {
         let g = Grid::open();
         let s = search(&g, Pos::new(5, 5), Pos::new(40, 40));
         assert_eq!(s.outcome, Outcome::NoSearchNeeded);
+    }
+
+    /// A wall down `x` with its only gap at `gap_y`.
+    fn wall_with_gap(x: u8, gap_y: u8) -> Grid {
+        let mut g = Grid::open();
+        for y in 0..DIM as u8 {
+            if y != gap_y {
+                g.block(Pos::new(x, y));
+            }
+        }
+        g
+    }
+
+    /// The original clears 4,096 of its 6,400 visit counters, so the bottom
+    /// 36% of the battlefield carries counts from the previous search into the
+    /// next one. Reproduced deliberately; this is the test that says so.
+    ///
+    /// Driven through real searches rather than by poking the array, because
+    /// the claim is about what `Path_Search` does, not about what `begin` does.
+    #[test]
+    fn counters_above_the_cleared_region_survive_into_the_next_search() {
+        assert_eq!(CLEARED_COUNTERS, 4096);
+        assert!(CLEARED_COUNTERS < CELLS, "there would be nothing to carry over");
+
+        // Every cell costs something, because the counter is only touched when
+        // `step_cost != 0` - the original short-circuits before the increment,
+        // so on a free grid nothing is ever counted. This is why the bug bites
+        // in castles and not on a `.skr` field.
+        let costly = |x: u8, gap_y: u8| {
+            let mut g = wall_with_gap(x, gap_y);
+            for i in 0..CELLS {
+                g.step_cost[i] = 1;
+            }
+            g
+        };
+
+        // A search driven the length of the map, through a gap at row 60 - cell
+        // 4820, well above the cleared region.
+        let high_gap = Pos::new(20, 60);
+        assert!(high_gap.index() >= CLEARED_COUNTERS);
+        let long = costly(20, 60);
+        let (lo_start, lo_dest) = (Pos::new(5, 10), Pos::new(35, 10));
+
+        // A second search confined to the top of the map, which terminates long
+        // before it reaches row 60.
+        let top = costly(60, 5);
+        let (hi_start, hi_dest) = (Pos::new(50, 2), Pos::new(70, 2));
+
+        let mut scratch = Scratch::new();
+        assert_eq!(search_with(&mut scratch, &long, lo_start, lo_dest).outcome, Outcome::Found);
+
+        let marked_high = scratch.visits()[high_gap.index()];
+        let marked_low = scratch.visits()[..CLEARED_COUNTERS].iter().filter(|&&v| v > 0).count();
+        assert!(marked_high > 0, "the first search never counted the low gap");
+        assert!(marked_low > 0, "the first search never touched the cleared region");
+
+        // The second search clears only the first 4,096 counters.
+        assert_eq!(search_with(&mut scratch, &top, hi_start, hi_dest).outcome, Outcome::Found);
+
+        assert_eq!(
+            scratch.visits()[high_gap.index()],
+            marked_high,
+            "cell {} is above the cleared region and must keep its count",
+            high_gap.index()
+        );
+        // And something inside the cleared region that the first search counted
+        // and the second never reaches must be back to zero.
+        let cleared_and_untouched = (0..CLEARED_COUNTERS)
+            .find(|&i| i / DIM > 20 && i / DIM < 45)
+            .expect("a row between the two searches");
+        assert_eq!(
+            scratch.visits()[cleared_and_untouched],
+            0,
+            "cell {cleared_and_untouched} is inside the cleared region and must have been reset"
+        );
+    }
+
+    /// A fresh `Scratch` is the *first* search of a battle and nothing else.
+    /// Two searches on separate scratches must agree; that is what makes the
+    /// carry-over above observable rather than noise.
+    #[test]
+    fn a_fresh_scratch_gives_a_repeatable_search() {
+        let g = wall_with_gap(20, 60);
+        let (start, dest) = (Pos::new(5, 55), Pos::new(35, 55));
+        let a = search_with(&mut Scratch::new(), &g, start, dest);
+        let b = search_with(&mut Scratch::new(), &g, start, dest);
+        assert_eq!(a.outcome, b.outcome);
+        assert_eq!(a.cost, b.cost);
+        assert_eq!(search(&g, start, dest).cost, a.cost, "the convenience wrapper agrees");
     }
 
     fn wall_at(x: u8) -> Grid {
