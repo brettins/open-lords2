@@ -247,6 +247,43 @@ function unnamed(fns, near) {
   }
 }
 
+function leverage(fns) {
+  // Which *unnamed* global, if someone worked out what it is, would light up the
+  // most currently-dark functions?
+  //
+  // "Dark" means the function touches no named global at all, so nothing anchors
+  // it and no cluster lists it. Naming a global those functions share turns all
+  // of them from unreachable into a group with a subject - which is why naming
+  // compounds rather than adding up. This ranks that leverage.
+  const dark = Object.entries(fns).filter(([, f]) => !f.named && !f.globals.some(g => !/^_?DAT_/.test(g)));
+  const score = new Map();
+  for (const [, f] of dark) {
+    for (const g of f.globals) {
+      if (!/^_?DAT_/.test(g)) continue;
+      if (!score.has(g)) score.set(g, { dark: 0, total: 0, bytes: 0 });
+      const s = score.get(g);
+      s.dark++;
+      s.bytes += f.bytes;
+    }
+  }
+  for (const [, f] of Object.entries(fns)) {
+    for (const g of f.globals) if (score.has(g)) score.get(g).total++;
+  }
+  const ranked = [...score].sort((a, b) => b[1].dark - a[1].dark);
+  console.log(`${dark.length} functions are dark: they touch no named global, so nothing anchors them.`);
+  console.log('Naming one of these globals would give each of them a subject:\n');
+  console.log('  dark  total  global            avg size');
+  for (const [g, s] of ranked.slice(0, 30)) {
+    console.log(`  ${String(s.dark).padStart(4)}  ${String(s.total).padStart(5)}  ${g.padEnd(18)} ${Math.round(s.bytes / s.dark)}b`);
+  }
+  const top20 = ranked.slice(0, 20);
+  const lit = new Set();
+  for (const [name, f] of dark) {
+    if (f.globals.some(g => top20.some(([t]) => t === g))) lit.add(name);
+  }
+  console.log(`\nNaming just the top 20 would anchor ${lit.count || lit.size} of the ${dark.length} dark functions.`);
+}
+
 const [cmd, arg, flag, flagVal] = process.argv.slice(2);
 switch (cmd) {
   case 'build': build(); break;
@@ -255,6 +292,7 @@ switch (cmd) {
   case 'calls': calls(load(), arg); break;
   case 'reach': reach(load(), arg, +(flagVal || 3)); break;
   case 'clusters': clusters(load()); break;
+  case 'leverage': leverage(load()); break;
   case 'unnamed': unnamed(load(), flag === '--near' ? flagVal : arg); break;
   default:
     console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(2, 26).join('\n').replace(/^\/\/ ?/gm, ''));
