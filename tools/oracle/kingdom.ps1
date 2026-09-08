@@ -20,6 +20,17 @@
   tables.ps1 established that the file and live memory agree for the battle
   tables, so this reads the file by default - no process, no window, no focus
   taken. Pass -Source Live to check that claim here too.
+
+  TWO TIERS, and the second is C16's lesson rather than C14's.
+
+  $CHECKS reads initialised .data: a table has an address, and its bytes are
+  the rule. $CODE_CHECKS reads .text, because three of the rules l2-kingdom
+  takes from a ruleset are not tables at all - the four AI tax ladders are
+  if/else-if chains, and the ale and efficiency bounds are MOV immediates.
+  There is no address to point at, which is exactly why they were the last
+  constants left hardcoded: there was nothing to transcribe. Reading the
+  instruction stream is what makes them checkable, and it needs no more than
+  the file does.
 #>
 [CmdletBinding()]
 param(
@@ -85,11 +96,25 @@ $CHECKS = @(
                 0,0,0,0,0,0,0,0x8C,  0,0,0,0,0,0,0,0x8D) }
 
   # The happiness cost of raising an army, indexed by the percentage of the
-  # county taken. 102 entries ending exactly where the merchant price table
-  # begins; the first 32 are listed. This is the L2.eng group 85 "From army"
-  # term, which kingdom.md sec 12 records as having no writer found.
-  @{ Name = 'g_armyHappinessCost[0..31]'; Addr = 0x004D8778; Width = 4; Ref = 'sec 12'
-     Expect = @(0,1,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,11,13,15,17,19,21,23,25,27,29,31) }
+  # county taken. This is the L2.eng group 85 "From army" term, which
+  # kingdom.md sec 12 records as having no writer found.
+  #
+  # All 102 entries, not the first 32 as before: a ruleset can now replace every
+  # row of this table, so every row is worth holding against the binary. The
+  # length is fixed by arithmetic and not by this comment - 0x004D8778 + 102 * 4
+  # is exactly 0x004D8910, where g_goodSellPrice below begins, which is also why
+  # the original's unbounded read lands on a merchant price and gives a free
+  # army.
+  @{ Name = 'g_armyHappinessCost'; Addr = 0x004D8778; Width = 4; Ref = 'sec 12'
+     Expect = @(0,1,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,
+                10,11,13,15,17,19,21,23,25,27,29,31,34,37,40,44,48,52,56,60,
+                64,68,72,75,78,80,82,84,86,88,90,91,92,93,94,95,96,97,98,99,
+                # index 60 is the last rising entry; 61..101 are all 101, so the
+                # cost is flat and ruinous past three fifths of a county.
+                100,
+                101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,
+                101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,101,
+                101) }
 
   # The merchant base sell price, kingdom.md sec 10 - included because it is
   # what bounds g_armyHappinessCost above, so a change to either is caught.
@@ -119,16 +144,105 @@ $CHECKS = @(
   @{ Name = 'g_rationTable'; Addr = 0x004D6738; Width = 4; Ref = 'sec 4.2'
      Expect = @(1,0, 4,1, 2,1, 1,1, 1,2, 1,3) }
 
-  # The AI personality records, six ints of each of two. The base is
-  # 0x004D8A58, which is exactly 24 bytes past g_castleFreeArchers, and the
-  # stride is 3 x 0x50. Field +0x00 is the farming style AI_ManageFields
-  # dispatches on and +0x04 selects one of the three AI tax ladders; the rest
-  # are not identified and are pinned only so a change is noticed.
+  # The AI personality records, six ints of each. The base is 0x004D8A58, which
+  # is exactly 24 bytes past g_castleFreeArchers, and the stride is 3 x 0x50 =
+  # 0xF0. Field +0x00 is the farming style AI_ManageFields dispatches on and
+  # +0x04 selects one of the three AI tax ladders; the rest are not identified
+  # and are pinned only so a change is noticed.
+  #
+  # Widths are int32, from the decompiler's own reads: AI_SetTaxRates loads the
+  # ladder selector as *(int *)(&g_aiPersonality + (lord * 3 - 3) * 0x50). Note
+  # docs/symbols.json names 0x004D8A5C rather than 0x004D8A58, because Ghidra's
+  # symbol sits on the selector rather than on the start of the record.
+  #
+  # All four records now, not lords 1 and 4 alone: crates/l2-kingdom carries the
+  # whole table and a ruleset can replace it, so the two middle rows are no
+  # longer unchecked. Lords 1..3 all select ladder 2; only lord 4 differs.
   @{ Name = 'g_aiPersonality[lord 1]'; Addr = 0x004D8A58; Width = 4; Ref = 'sec 8.2'
      Expect = @(1, 2, 100, 500, 5, 12) }
+  @{ Name = 'g_aiPersonality[lord 2]'; Addr = 0x004D8B48; Width = 4; Ref = 'sec 8.2'
+     Expect = @(1, 2, 100, 1000, 10, 10) }
+  @{ Name = 'g_aiPersonality[lord 3]'; Addr = 0x004D8C38; Width = 4; Ref = 'sec 8.2'
+     Expect = @(0, 2, 200, 1600, 15, 8) }
   # Lord 4, three 0x50-byte rows on, and the only lord using a different ladder.
   @{ Name = 'g_aiPersonality[lord 4]'; Addr = 0x004D8D28; Width = 4; Ref = 'sec 8.2'
      Expect = @(9, 1, 50, 1500, 20, 4) }
+  # Where a fifth record would begin, and the evidence that there is not one.
+  # kingdom.md sec 2 says the lord byte runs 1..5, but these bytes do not fit
+  # the shape: a farm style of 17 where every real record reads 0, 1 or 9, and
+  # 5000 in the field the four records read 100, 100, 200 and 50 in. So
+  # l2-kingdom stops at four and refuses to answer for lord 5, and this check is
+  # what would notice if that reading were ever wrong.
+  @{ Name = 'g_aiPersonality[past end]'; Addr = 0x004D8E18; Width = 4; Ref = 'sec 8.2'
+     Expect = @(17, 0, 5000, 1, 1, 1) }
+)
+
+# ---------------------------------------------------------------------------
+# Tier two: rules that are instructions rather than data
+# ---------------------------------------------------------------------------
+#
+# docs/decisions.md C16, applied to rules instead of to Rules_InitConstants'
+# globals: when a value is absent from .data, read the code that produces it.
+# Three of the rules crates/l2-kingdom now takes from a ruleset have no address
+# to read at all - they are immediates in the instruction stream:
+#
+#   * the four AI tax ladders are four if/else-if chains, which is exactly why
+#     kingdom.md sec 8.2 says the ladders exist and does not give them;
+#   * the ale step and cap are a MOV ECX / MOV EAX pair;
+#   * the efficiency ramp's ceiling is a CMP/MOV pair on a stack slot.
+#
+# Each check names byte patterns to scan for inside one function and the exact
+# ordered list of tagged immediates it must find. An exact list is what makes a
+# stray match safe: a false positive fails loudly rather than passing quietly.
+$CODE_CHECKS = @(
+  # AI_SetTaxRates. The happiness thresholds are CMP EAX, imm8 and the rates are
+  # MOV byte ptr [eax + eax*2 + 0x53FA69], imm8 - county +0xB9, the tax rate.
+  # The personality comparisons in between use a different encoding, so nothing
+  # but the ladders matches.
+  @{ Name = 'AI_SetTaxRates ladders'; Addr = 0x0049D638; Len = 1737; Ref = 'sec 8.2'
+     Patterns = @(
+       @{ Op = @(0x83,0xF8); Imm = 1; Tag = 'below' }
+       @{ Op = @(0xC6,0x84,0x40,0x69,0xFA,0x53,0x00); Imm = 1; Tag = 'rate' }
+     )
+     Expect = @(
+       # neutral - unowned counties, eight rungs, the only ladder above 12
+       'below 20','rate 0','below 40','rate 1','below 50','rate 2',
+       'below 60','rate 3','below 70','rate 4','below 80','rate 6',
+       'below 90','rate 8','rate 12',
+       # ladder 0 - the greediest
+       'below 30','rate 0','below 50','rate 2','below 65','rate 4',
+       'below 80','rate 10','rate 15',
+       # ladder 1 - the same thresholds, softer rates
+       'below 30','rate 0','below 50','rate 1','below 65','rate 3',
+       'below 80','rate 7','rate 12',
+       # ladder 2 - the gentlest, and the one three of the four lords use
+       'below 60','rate 0','below 70','rate 1','below 80','rate 2',
+       'below 90','rate 3','below 95','rate 8','rate 10'
+     ) }
+
+  # FUN_00428C42, buying ale. MOV EAX, 5 is the "5 - alreadyGiven" clamp; MOV
+  # ECX, 10 feeds the IDIV that makes the step, so the step is a tenth of the
+  # population and the published "+1 per 20%" is twice too coarse. The rung
+  # stores fix the ladder's length at five, which is the same 5 again - one
+  # number doing both jobs, which is why l2-kingdom carries one field.
+  @{ Name = 'ale ladder'; Addr = 0x00428C42; Len = 365; Ref = 'sec 12'
+     Patterns = @(
+       @{ Op = @(0xB8); Imm = 4; Tag = 'cap' }
+       @{ Op = @(0xB9); Imm = 4; Tag = 'step_divisor' }
+       @{ Op = @(0xC7,0x45,0xF8); Imm = 4; Tag = 'rung' }
+     )
+     Expect = @('cap 5','step_divisor 10',
+                'rung 5','rung 4','rung 3','rung 2','rung 1','rung 0','rung 0') }
+
+  # FUN_0044F248, the efficiency ramp. MOV EAX, 0x50 is the flat 80 returned
+  # with Advanced Farming off; the CMP/MOV pair on [ebp-0x0C] is the ceiling.
+  @{ Name = 'efficiency ramp'; Addr = 0x0044F248; Len = 208; Ref = 'sec 7.4'
+     Patterns = @(
+       @{ Op = @(0xB8); Imm = 4; Tag = 'flat' }
+       @{ Op = @(0x83,0x7D,0xF4); Imm = 1; Tag = 'ceiling_cmp' }
+       @{ Op = @(0xC7,0x45,0xF4); Imm = 4; Tag = 'ceiling' }
+     )
+     Expect = @('flat 80','ceiling_cmp 100','ceiling 100') }
 )
 
 Add-Type @'
@@ -171,6 +285,35 @@ function Read-Bytes($image, [uint32]$va, [int]$len) {
     }
   }
   throw "0x$($va.ToString('x8')) is in no section"
+}
+
+# Walk a function's bytes once, in address order, emitting "<tag> <value>" for
+# every immediate whose opcode prefix matches one of $patterns.
+#
+# Deliberately a scan and not a disassembler: it cannot tell an instruction
+# boundary from a byte inside an operand, so a stray match is possible - and
+# harmless, because the caller compares the whole ordered list. A false positive
+# fails the check rather than passing it quietly, which is the failure mode to
+# have.
+function Read-Immediates($bytes, $patterns) {
+  $out = @()
+  for ($i = 0; $i -lt $bytes.Length; $i++) {
+    foreach ($p in $patterns) {
+      $n = $p.Op.Count
+      if ($i + $n + $p.Imm -gt $bytes.Length) { continue }
+      $hit = $true
+      for ($j = 0; $j -lt $n; $j++) {
+        if ($bytes[$i + $j] -ne $p.Op[$j]) { $hit = $false; break }
+      }
+      if (-not $hit) { continue }
+      $value = if ($p.Imm -eq 1) { [int][sbyte]$bytes[$i + $n] }
+               else { [BitConverter]::ToInt32($bytes, $i + $n) }
+      $out += "$($p.Tag) $value"
+      $i += $n + $p.Imm - 1
+      break
+    }
+  }
+  return ,$out
 }
 
 function Read-Live([int]$targetPid, [uint32]$va, [int]$len) {
@@ -225,6 +368,22 @@ try {
       $fail++
       Write-Host ("  FAIL  {0,-22} {1}" -f $c.Name, $c.Ref) -ForegroundColor Red
       Write-Host ("        kingdom.md says: " + ($c.Expect -join ', ')) -ForegroundColor DarkGray
+      Write-Host ("        binary says:     " + ($got -join ', ')) -ForegroundColor Yellow
+    }
+  }
+
+  foreach ($c in $CODE_CHECKS) {
+    $bytes = if ($Source -eq 'Live') { Read-Live $targetPid ([uint32]$c.Addr) $c.Len }
+             else { Read-Bytes $image ([uint32]$c.Addr) $c.Len }
+    $got = Read-Immediates $bytes $c.Patterns
+    $same = -not (Compare-Object $got $c.Expect -SyncWindow 0)
+    if ($same) {
+      $pass++
+      Write-Host ("  PASS  {0,-24} {1}  {2}" -f $c.Name, $c.Ref, ($got -join ', ')) -ForegroundColor Green
+    } else {
+      $fail++
+      Write-Host ("  FAIL  {0,-24} {1}" -f $c.Name, $c.Ref) -ForegroundColor Red
+      Write-Host ("        l2-kingdom says: " + ($c.Expect -join ', ')) -ForegroundColor DarkGray
       Write-Host ("        binary says:     " + ($got -join ', ')) -ForegroundColor Yellow
     }
   }
