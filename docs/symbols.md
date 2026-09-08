@@ -104,10 +104,10 @@ itself. That is how unit type 3 was identified as the merchant — see
 
 | Address | Name | Confidence | What it does |
 |---|---|---|---|
-| `0x004676E0` | `Map_InitScenario()` | verified | Whole map bring-up for scenario g_scenarioIndex: Map_LoadPlanes, Map_LoadLattice, Map_LoadTileSets, Map_PlaceDwellings, then Merchant_PickStartCounties. |
+| `0x004676E0` | `Map_InitScenario()` | verified | Whole map bring-up for scenario g_scenarioIndex: Map_LoadPlanes, Map_LoadLattice, Minimap_Load, Map_PlaceDwellings, then Merchant_PickStartCounties. |
 | `0x00467770` | `Map_LoadPlanes(slot)` | verified | Reads the six 64x64 byte planes of a map slot, at slot offsets +0x0000 ... +0x5000, in a 64x64 nest (y outer, x inner). Tracks the highest county id below 0x11 into g_countyCount, and dispatches plane 4 to Merchant_RouteAppend (castle tiles) or PlayerStart_Record (settlement tiles). See docs/formats/maps.md. |
 | `0x0046797D` | `Map_LoadLattice(slot)` | verified | Reads the trailing 65x129 layer - for(row < 0x81) for(col < 0x41) - storing byte + 0x0FFF0000 into a dword array of row stride 0x104. |
-| `0x0046A037` | `Map_LoadTileSets(scenario)` | verified | Selects MAPnn.PL8 from a 16-byte name table indexed by scenario >> 2, and one of four variants per file (the seasons) by scenario & 3. |
+| `0x0046A037` | `Minimap_Load(slot)` | verified | Loads the two 128x128 minimap rasters for map slot 0..59 out of MAPnn.PL8: name = "map01.pl8" + (slot>>2)*0x10, frame (slot&3)*5 -> g_minimapCounty (county id per pixel) and frame (slot&3)*5+1 -> g_minimapPixels (the picture). Each MAPnn.PL8 therefore carries four slots, and the 11 shipped files cover exactly the 44 used slots. It was named Map_LoadTileSets and described as picking a season variant; it does neither - the tile sets are loaded by Gfx_LoadCountyMode and the season is a separate global. |
 | `0x00467A36` | `Map_PlaceDwellings()` | verified | Sweeps the 64x64 grid and, for each tile with a county in 1..17 and plane0 bit 0x20 set, increments a per-county counter and rewrites the tile's graphic index to Roads frame 80, 84 or 104 - the three crop states. maps-layers.md 2.4 reads bit 0x20 as farmland on this evidence. |
 | `0x0040526E` | `Map_RenderIso()` | verified | Walks the 65x129 lattice. Cells below 0x0FFF0000 hold a runtime offset into the tile array; cells still holding 0x0FFF0000 + b are off-map surround, where b is the background tile graphic index from the file. |
 | `0x004063C1` | `Map_DrawTile(x, y, tileOffset)` | verified | Draws one map tile. bank = tile[+2] & 0x1c selects one of five sprite tables; tile[+3] is the frame index within it; tile[+1] is the flags and tile[+7] the county. |
@@ -586,6 +586,117 @@ ways - and the block list sums to the exact byte size of a shipped `lastturn.sav
 | `0x004DC230` | `g_aiGoldGrantSmall` | verified | The same shape, used when the realm holds fewer than three counties. |
 
 <!-- END symbols.json: kingdom -->
+
+## Interface and screen layout
+
+The presentation layer: the campaign screen's viewport, its two zooms, its chrome and its
+minimap. Written up in full in [`screens.md`](screens.md).
+
+This section did not exist until this work, and its absence caused a real error:
+`crates/l2-view` drew the whole 64 × 64 map at once, which is a view the original does not
+have. `Map_SetZoom` is the anchor — ten globals per zoom, and its derived width comes out
+at 480 in every case, which is what fixes the 160-pixel right column.
+
+<!-- BEGIN symbols.json: ui -->
+
+| Address | Name | Confidence | What it does |
+|---|---|---|---|
+| `0x00451FCC` | `Map_SetZoom(zoom)` | verified | The only writer of the campaign map geometry. Sets ten globals per zoom: g_mapZoom, g_mapScrollStep 1/2/4, g_mapViewCols 8/17/40, g_mapViewRows 30/64/128, g_mapViewX 0/4/0, g_mapViewY 9/17/21, g_mapTilePitch 60/28/12, g_mapHalfPitch and g_mapTileHalfStep 30/14/6, g_mapRowStep 15/7/3; then derives g_mapViewRight = pitch*cols + viewX (480 at all three) and g_mapViewBottom = (rows+1)*rowStep + viewY (474/472/408). Case 1 is unreachable: nothing in the binary ever passes 1, and g_mapZoom has no other writer than 0. |
+| `0x00429B1D` | `Map_ClampScroll()` | verified | Clamps g_mapStartCol to 0..0x40-g_mapViewCols and g_mapStartRow to 0..0x80-g_mapViewRows. At the far zoom that is col <= 24 and row <= 0, i.e. no vertical scroll at all. |
+| `0x00429BA4` | `Map_PickTile(mode)` | verified | Screen -> lattice hit test for the campaign map. Rejects x outside [g_mapViewX, g_mapViewX + pitch*cols) and y outside [viewY + rowStep, viewY + rowStep*(rows+1)), then divides by g_mapTileHalfStep and g_mapRowStep and resolves the diamond with a parity and remainder test. Returns 0 when the cell is off-map. |
+| `0x004298C1` | `Map_BuildLattice(rotation)` | verified | Clears g_screenLattice, reloads the tail with Map_LoadLattice, then projects all 64x64 tiles into it for rotation 0/2/4/6. Rotation 0 is row = 1+y+x, col = (64-y+x)/2, value = (64*y+x)*8 - exactly the mapping docs/formats/maps-layers.md section 4 verifies against a live process. |
+| `0x00429F12` | `Map_RotateCW()` | verified | g_mapRotation += 2 (mod 8), rebuilds the lattice and re-projects the scroll origin into the new orientation. |
+| `0x0042A01B` | `Map_RotateCCW()` | verified | g_mapRotation -= 2 (mod 8), the inverse of Map_RotateCW. |
+| `0x0043278B` | `Map_CentreOnTile(tileOffset)` | verified | Scans the 129x65 lattice for the cell holding tileOffset and, only at zoom 0, sets g_mapStartCol = col-4 and g_mapStartRow = (row & ~1) - 12. The row is forced even because the render walk alternates aligned and half-offset lattice rows from the origin. |
+| `0x00434FA1` | `Map_ToggleZoom()` | verified | The campaign zoom button: 0 -> Map_ZoomOut, 2 -> Map_ZoomIn. There are only two campaign zooms. |
+| `0x00434FD5` | `Map_ZoomOut()` | verified | Saves the scroll origin, sets col 0x0E row 0x0C, Map_SetZoom(2), clamps, reloads the 10x6 tile sets through Gfx_LoadCountyMode and plays S033_02.wav. |
+| `0x0043505A` | `Map_ZoomIn()` | verified | Restores the saved scroll origin, Map_SetZoom(0), clamps and reloads the 58x30 tile sets. |
+| `0x004350A1` | `Map_ZoomInAtTile()` | verified | Zooms in centred on the last picked tile, using the same col-4 / (row & ~1)-12 centring as Map_CentreOnTile. |
+| `0x00431F59` | `Map_ScrollStep()` | verified | Applies g_mapScrollDir 0..7 (N, NE, E, SE, S, SW, W, NW) to the scroll origin: row moves by +/-2*g_mapScrollStep and col by +/-g_mapScrollStep, which is one map tile per step. Reverts the move when Map_ScrollThrottle says it is too soon. In battle it moves the battle view origin instead. |
+| `0x00432221` | `Map_EdgeScroll()` | verified | Turns the desktop cursor position into g_mapScrollDir: an edge is the outermost pixel of the desktop (x == 0, x == GetSystemMetrics(0)-1, likewise for y), and 8 means no edge. Returns 0 without scrolling when the campaign map is at the far zoom, so the far view never moves. |
+| `0x004BBBE3` | `Map_ScrollThrottle()` | verified | Rate limit for Map_ScrollStep from the Scroll Speed option: one step every ((100 - g_optScrollSpeed)/10)*12 + 2 ms, and never when that quotient reaches 10 - so a speed of 0 disables scrolling. |
+| `0x0043253A` | `Minimap_Click()` | verified | Campaign minimap click. Accepts x in 480..607 and y in 25..152, reads g_minimapCounty[(x-480) + (y-25)*128] and, for a non-zero county, selects it and calls Map_CentreOnTile. That 128x128 rectangle is exactly the raster Minimap_Load filled. |
+| `0x00432443` | `BattleMap_Click()` | verified | Battle overview click. Accepts x in 480..639 and y in 24..183 and maps it to a battlefield cell by (x-480)/2, (y-24)/2 - a 160x160 panel at 2 pixels per cell over an 80x80 battlefield. |
+| `0x00432640` | `Screen_HitRegion()` | verified | Classifies the cursor: region 1 is y < 24 (the menu bar), region 2 is the overview panel rectangle g_overviewX/W by g_overviewY/H, whose top is raised by 24 in campaign mode - so campaign region 2 is x 480..639, y 24..207. |
+| `0x0040F5FD` | `Screen_DrawCampaign(full)` | verified | Draws the whole campaign screen: Misc_cty frames 54, 57 and 59 at x 478 (y 24, 430, 460), the map through Map_DrawFrame, the menu bar, the county panel, the minimap at (480, 25), and finally Palette_Set(g_paletteBase01). |
+| `0x00419C78` | `Screen_DrawMenuBar()` | verified | The 640x24 bar at y 0: background tiled from Panels.pl8 frames 196+(c mod 8) at 24px steps (25 cells from x 0 plus 2 from x 592 = 640 exactly), a bevel outline, the File/Options/Help titles from L2.eng groups 1/2/3, one 13x16 Misc_cty banner per live realm at x 270+16i y 4, the year and season at x 360 and the local realm treasury at x 500. |
+| `0x00410AA9` | `Minimap_Draw(x, y)` | verified | Called as Minimap_Draw(0x1E0, 0x19). Blits the 128x128 g_minimapPixels raster at (x-2, y+3) = (478, 28), tints it through Minimap_DrawOverlay, draws a 29x123 Misc_cty strip at (x+0x83, y+7) and a mode badge at (x+5, y+5). The picture is drawn at (478,28) while Minimap_Click hit-tests (480,25): that 2/3 pixel disagreement is the original. |
+| `0x00410CBD` | `Minimap_DrawOverlay(selected, x, y, mode)` | verified | Recolours the minimap raster per county. Source pixels 10..13 are land inside a county and are replaced from an 8-byte-per-realm ramp at g_minimapRealmRamp indexed realmColour*8 + (v-10); shade 10 of the selected county becomes index 0x20. Modes 1..3 instead colour the local players own counties from a 6-entry ramp at g_minimapRatingRamp by county fields +0xB3, +0xB2 and +0xB1. Everything else is left as the picture drew it. |
+| `0x0043AB76` | `Minimap_ModeButton()` | verified | Acts on g_uiHotspotId: 1..3 set g_minimapMode, 4 calls Map_ToggleZoom. Pressing the active one again returns to mode 0. |
+| `0x0041A734` | `Screen_DrawEndTurn(force)` | verified | Draws Misc_cty frame 59 (162x20) at (478, 460) and centres L2.eng group 4, "End turn", in it at (478, 462) in the 9-point font. That strip is the End Turn button. |
+| `0x00409934` | `Ui_DrawBoxBorder(style, x, y, cols, rows)` | verified | Draws a 16-pixel-cell border from Panels.pl8: frames 0/1/2/3 are the TL/TR/BR/BL corners, 4..15 the top edge, 16..27 the bottom, 28..39 the left and 40..51 the right, each cycled (n-1) mod 12. A style above 0 adds 0xCC to reach the second complete border set at 204..255; style 2 also replaces the two top corners with edge pieces and omits the top edge. |
+| `0x00409C93` | `Ui_DrawBoxInterior(x, y, cols, rows)` | verified | Fills a 16-pixel-cell area with Panels.pl8 frames 52 + (c mod 12) + (r mod 12)*12 - a 144-frame texture that the file lays out as a 12x12 grid on the artists sheet. |
+| `0x00409397` | `Ui_DrawBox(x, y, cols, rows)` | verified | Ui_DrawBoxBorder(0, ...) plus Ui_DrawBoxInterior inset by one cell. Sizes are in 16-pixel cells: the strip under the far-zoom map is Ui_DrawBox(0, 412, 30, 4) = 480x64. |
+| `0x00409E09` | `Ui_DrawTileStrip(x, y, cols, rows)` | verified | Tiles Panels.pl8 frames 196 + (c mod 8) - the eight 24x24 frames - at 24-pixel steps. The menu bar background. |
+| `0x0040A567` | `Pl8_DrawFrameHere(sheet, frame, x, y)` | verified | Pl8_DrawFrame without the inline range diagnostics: reads the 16-byte frame record, sets g_drawX/g_drawY and g_clipDstAdvance = 0x280 - width. That 0x280 is where the 640-byte screen stride is visible. |
+| `0x0040A01D` | `Blit_Raster(src, x, y, w, h)` | verified | Blits a bare w*h raster with no PL8 record through the standard clipper. Used for the 128x128 minimap picture. |
+| `0x00403FDD` | `Ui_DrawBevelRect(x, y, w, h)` | verified | Four clipped lines: top and right in palette index 0x1F, bottom and left in 0x10. |
+| `0x004B0AB5` | `Palette_Set(pal)` | verified | Copies 256 six-bit RGB triples into the display palette, widening by multiplying by 4, then forces entry 0 to black. |
+| `0x004984DC` | `Gfx_LoadCountyMode()` | verified | Loads the campaign map artwork. base = (g_mapZoom == 2) ? 0x20 : 0, plus (g_season-1)*8; then eight consecutive g_resourceTable entries go to g_bankBase, g_bankMtns, g_bankRoads, g_bankTown, g_bankCastle, g_spriteSheetA, g_spriteSheetB and g_flagsSheet in that order - independent confirmation of the bank order in maps-layers.md section 1.1. Misc_cty.pl8 follows into g_miscCtySheet. |
+| `0x004050F6` | `Map_DrawFrame()` | verified | One campaign map frame. Zeroes g_countyTileTally, gives the current selection a 30-tile head start, runs Map_RenderIso (which tallies +1 per tile drawn and +5 for a castle tile), then the flag and army passes, and finally - only at zoom 0 - moves g_selectedCounty to whichever county filled most of the viewport. Scrolling therefore changes which county the right panel describes. |
+| `0x00405C2F` | `Map_RenderOffsetRow()` | verified | One half-offset lattice row: the first tile with clip mode 3 (right half, origin x - halfPitch), then cols-1 tiles a half pitch to the right, then one with mode 4 (left half). Consumes cols+1 lattice columns. |
+| `0x00405AE9` | `Map_RenderAlignedRow()` | verified | One aligned lattice row: cols tiles at x = g_mapViewX + c*pitch, clip mode 0, tallying each into g_countyTileTally. |
+| `0x0042A7F1` | `Map_DrawSurroundTile(x, y, mode)` | verified | Draws an off-map surround cell: base bank, frame = the lattice cell value minus 0x0FFF0000, which is the background byte the map file stores in its 65x129 tail. |
+| `0x004081A6` | `Map_DrawCountyFlag(mode)` | verified | Draws the county flag over a castle tile from g_flagsSheet, offset (+0x14, +6) from the tile, clipped by Clip_Horizontal(g_mapViewX, 0x1DE) and Clip_Vertical(0x18, 0x1DA) - i.e. the map viewport is x < 478 and y in 24..473. |
+| `0x00408438` | `Map_DrawArmies(mode)` | verified | Walks the unit list hanging off a tile and draws each from g_spriteSheetA or g_spriteSheetB, offset by an 8-orientation by 16-frame table per zoom at 0x004D8108/0x004D8188 (zoom 0), 0x004D8208/0x004D8288 (zoom 1) and 0x004D8308/0x004D8388 (zoom 2). The sprite direction is the unit facing minus g_mapRotation, mod 8. |
+| `0x00406673` | `Map_DrawTileApex(a, b, mode)` | verified | Draws the chevron ("overhang") records that sit above a diamond tile. Reaches them by adding a fixed body size to the frame data pointer: 900 at zoom 0, 0xC4 at zoom 1, 0x24 at zoom 2, which are h*h/2 for h = 30, 14 and 6 and so pin the three tile sizes from the instruction stream alone. |
+| `0x0040C5B0` | `Ui_DrawMenuTitles(items, count)` | verified | Lays the menu-bar titles out left to right from a 16-byte-per-item table, writing each measured x back into the table so the drop-downs know where to open. The campaign table is g_menuBarItems, three items, L2.eng groups 1, 2 and 3. |
+| `0x00498270` | `Map_InitMode()` | verified | Campaign map bring-up: scroll origin row 0x4A col 0x14, zoom 0, battle phase 0, overview panel rect (480, 48, 160, 160), map 64x64 with an 8-byte runtime tile record, then Map_BuildLattice(0) and Map_SetZoom(0). |
+
+**Globals**
+
+| Address | Name | Confidence | Meaning |
+|---|---|---|---|
+| `0x0057CB18` | `g_mapZoom` | verified | Campaign map zoom: 0 near (58x30 tiles) or 2 far (10x6). Written only by Map_SetZoom and Map_InitMode, and no caller ever passes 1, so the middle zoom is unreachable. |
+| `0x0055CD48` | `g_mapScrollStep` | verified | Lattice columns per scroll step: 1 near, 4 far. Rows move by twice this, which keeps the origins parity. |
+| `0x0053E8AC` | `g_mapViewCols` | verified | Lattice columns visible: 8 near, 40 far. The lattice is 65 wide, so neither zoom shows the whole map. |
+| `0x0056D67C` | `g_mapViewRows` | verified | Lattice rows visible: 30 near, 128 far. Map_RenderIso draws this many plus one, the first and last half-height. |
+| `0x0052AFDC` | `g_mapViewX` | verified | Left edge of the map viewport in screen pixels: 0 at both live zooms (4 at the dead middle one). |
+| `0x00553244` | `g_mapViewY` | verified | Y of the first drawn lattice row: 9 near, 21 far. That row is top-clipped, so the visible band starts at viewY + rowStep = 24 at both zooms. |
+| `0x00568220` | `g_mapTilePitch` | verified | Screen pixels between lattice columns: 60 near, 12 far - the tile frame width plus two. |
+| `0x0057C97C` | `g_mapHalfPitch` | verified | Half the tile pitch: 30 near, 6 far. |
+| `0x00567950` | `g_mapTileHalfStep` | verified | The same half pitch again, used as the x step for the half-offset lattice rows and as the divisor in Map_PickTile. |
+| `0x0053F65C` | `g_mapRowStep` | verified | Screen pixels between lattice rows: 15 near, 3 far - half the tile frame height. |
+| `0x0055CD60` | `g_mapViewRight` | verified | g_mapTilePitch * g_mapViewCols + g_mapViewX. 480 at all three zooms, which is what leaves 160 pixels for the right column. |
+| `0x00553254` | `g_mapViewBottom` | verified | (g_mapViewRows + 1) * g_mapRowStep + g_mapViewY: 474 near, 408 far. Agrees with Map_PickTile s own bound and with Clip_Vertical(0x18, 0x1DA) in Map_DrawCountyFlag. |
+| `0x005651B4` | `g_mapStartCol` | verified | First visible lattice column, 0..64. Clamped by Map_ClampScroll. |
+| `0x005651B8` | `g_mapStartRow` | verified | First visible lattice row, 0..128, and always even - every setter uses an even literal, row & ~1, or steps of two. |
+| `0x00522F7C` | `g_mapRotation` | verified | Map orientation, 0/2/4/6. Selects which of four projections Map_BuildLattice writes into g_screenLattice, and is subtracted from a unit facing to pick its sprite. |
+| `0x005533A4` | `g_mapScrollDir` | verified | Scroll direction 0..7 clockwise from north, 8 for none. |
+| `0x0053F234` | `g_optScrollSpeed` | verified | The Scroll Speed option, 0..100. Map_ScrollThrottle turns it into a minimum interval; 0 disables scrolling. |
+| `0x00591524` | `g_drawX` | verified | Destination x for the next blit. The map render walk advances it by g_mapTilePitch per tile. |
+| `0x00591528` | `g_drawY` | verified | Destination y for the next blit. The map render walk advances it by g_mapRowStep per lattice row. |
+| `0x00567954` | `g_tileCursor` | verified | Byte offset into g_tiles of the tile the render walk is on, i.e. the lattice cell value. Values below 0x0FFF0000 are on-map. |
+| `0x0056D594` | `g_latticeRow` | verified | Lattice row cursor inside the render walk. |
+| `0x0056D598` | `g_latticeCol` | verified | Lattice column cursor inside the render walk. |
+| `0x00569590` | `g_minimapPixels` | verified | The 128x128 minimap picture for the loaded slot, read straight out of MAPnn.PL8 by Minimap_Load. 0x4000 bytes, and 0x569590 + 0x4000 = 0x56D590, just below the render walks cursors. |
+| `0x0052AFF0` | `g_minimapCounty` | verified | The 128x128 county id per minimap pixel, the companion raster in MAPnn.PL8. Minimap_Click indexes it as g_minimapCounty[(x-480) + (y-25)*128]. |
+| `0x0057A0C4` | `g_minimapMode` | verified | Minimap overlay: 0 owner colours, 1..3 three per-county ratings of the local players own counties. |
+| `0x005530C8` | `g_miscCtySheet` | verified | Misc_cty.pl8, loaded by Gfx_LoadCountyMode. Frames 54/55/56/57/58/59/66 are the 162-pixel-wide campaign right panel, 86..90 the realm banners, 91..95 the minimap furniture. |
+| `0x0057D3D0` | `g_panelsSheet` | verified | Panels.pl8, entry 10 of the startup preload table. 262 frames: two 52-frame 16x16 border sets at 0 and 204, a 144-frame 12x12 interior texture at 52, and eight 24x24 strip frames at 196. |
+| `0x005BB540` | `g_systemSheet` | verified | System2.pl8 or System.pl8, entry 9 of the preload table; swapped by name from the pair of strings at 0x004DBBD0. |
+| `0x00568208` | `g_bankBase` | verified | Tile bank 0x00: Base1?.pl8 near, Base2?.pl8 far. Also the sheet the off-map surround is drawn from. |
+| `0x0053E914` | `g_bankMtns` | verified | Tile bank 0x04: Mtns1?.pl8 / Mtns2?.pl8. |
+| `0x0057D344` | `g_bankRoads` | verified | Tile bank 0x08: Roads1?.pl8 / Roads2?.pl8 - roads, woodland, fields and the county boundary frames. |
+| `0x0055409C` | `g_bankTown` | verified | Tile bank 0x0C: Town1?.pl8 / Town2?.pl8. |
+| `0x0056898C` | `g_bankCastle` | verified | Tile bank 0x10: Castle1?.pl8 / Castle2?.pl8. Never referenced by the stored map data, only by tiles the loader rewrites. |
+| `0x00553224` | `g_spriteSheetA` | verified | Sprite1a.pl8 / Sprite2a.pl8 - armies on the campaign map. |
+| `0x0056D8BC` | `g_spriteSheetB` | verified | Sprite1b.pl8 / Sprite2b.pl8 - the second army sheet, selected by a unit type byte of 4. |
+| `0x0055CE5C` | `g_flagsSheet` | verified | Flags1a.pl8 / Flags2a.pl8 - the county flags drawn over castle tiles. |
+| `0x004D9F48` | `g_preloadTable` | verified | 13 twenty-byte {char name[16]; u32 size;} records loaded once at startup: base01.256, t32_stn1.256, t32_bat1.256, fnt_8, fntl2_9, font_10, fntl2_14, fntl2_22, mouse, system2, panels, l2.eng, vill_gd8. It runs straight into g_resourceTable at 0x004DA050. |
+| `0x005691F0` | `g_paletteBase01` | verified | Base01.256, preload entry 0. Screen_DrawCampaign installs it, so this is the campaign screens palette. |
+| `0x004D2900` | `g_minimapRealmRamp` | inferred | Eight bytes per realm colour; Minimap_DrawOverlay indexes realmColour*8 + (sourcePixel - 10) to shade county land on the minimap. The stride comes out of the index expression; the tables full extent is not otherwise pinned. |
+| `0x004D28F8` | `g_minimapRatingRamp` | inferred | Six bytes indexed by a 0..5 county rating for minimap overlay modes 1..3. Six because the code rejects values above 5. |
+| `0x004DC428` | `g_menuBarItems` | verified | Three 16-byte menu-bar records {x, measuredX, y, engGroup, ...}: (10, 6, group 1 File), (group 2 Options), (group 3 Help), each with its drop-down item count. |
+| `0x0052F020` | `g_countyTileTally` | verified | 32 dwords, one per county: how much of the viewport that county filled this frame. Map_DrawFrame seeds the current selection with 30 and then takes the maximum. |
+| `0x0056D698` | `g_overviewX` | verified | Left edge of the right-hand overview panel: 480. |
+| `0x0056D69C` | `g_overviewY` | verified | Top of the overview panel: 48. Screen_HitRegion raises it to 24 in campaign mode. |
+| `0x0056D694` | `g_overviewW` | verified | Width of the overview panel: 160. |
+| `0x0056D674` | `g_overviewH` | verified | Height of the overview panel: 160. |
+| `0x0059154C` | `g_uiHotspotId` | verified | Id of the widget the pointer last acted on. For the minimap buttons 1..3 pick an overlay mode and 4 toggles the map zoom. |
+| `0x004EAC4C` | `g_screenHeight` | verified | 480. The vertical companion to g_screenStride, used as the bottom clip by every general blit. |
+
+<!-- END symbols.json: ui -->
 
 ## Networking
 
