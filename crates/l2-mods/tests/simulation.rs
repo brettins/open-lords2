@@ -412,3 +412,288 @@ fn a_mod_can_postpone_the_first_year_random_events_are_drawn() {
         "and the modded one is not"
     );
 }
+
+// ---------------------------------------------------------------------------
+// The five rules that had no field until now
+// ---------------------------------------------------------------------------
+//
+// `docs/modding.md` §11 used to end with a list of rules a document could not
+// reach at all: the ale ladder, the army-raising cost, the efficiency ramp's
+// ceiling, and the AI's tax ladders and personality table. Each has a field
+// now, and each test below is the same shape as
+// `a_mod_file_changes_what_a_county_harvests` — a `.toml` in a mod directory
+// in, a different number out of the real simulation.
+//
+// The one that is *not* here is `kingdom.ai.personality.*.farm_style`. It
+// loads and validates, and nothing in `l2-kingdom` reads it, because the three
+// labour allocators `AI_ManageFields` dispatches into were never traced. There
+// is no observable effect to assert, so there is no test claiming one —
+// `docs/decisions.md` C12.
+
+use l2_kingdom::tables::{Commodity, JOB_COUNT};
+
+/// Build a platform over one mod whose single rule file is `rules`, and take
+/// the economy table out of it.
+fn modded(name: &'static str, rules: &str) -> Tables {
+    let base = TempDir::new(&format!("{name}-base"));
+    let mods = TempDir::new(&format!("{name}-mods"));
+    empty_base(&base);
+    mods.write(&format!("{name}/mod.toml"), &format!("[mod]\nid = \"{name}\"\n"));
+    mods.write(&format!("{name}/rules/{name}.toml"), rules);
+    Platform::builder()
+        .base(base.path())
+        .mods_dir(mods.path())
+        .enable([name])
+        .build()
+        .expect("the mod loads")
+        .kingdom_tables()
+        .expect("and its kingdom rules validate")
+}
+
+/// One human-owned county of five hundred people, already through its first
+/// season, on whatever rules it is handed.
+fn one_county(tables: Tables) -> Kingdom {
+    let mut k = Kingdom::with_tables(0xBEEF_0001, tables);
+    k.options = Options { difficulty: 0, advanced_farming: false, armies_eat: false };
+    assert!(k.set_county_count(1));
+    k.realms[1].in_play = true;
+    k.realms[1].is_human = true;
+    k.realms[1].county_count = 1;
+
+    let c = &mut k.counties[1];
+    c.owner = 1;
+    c.population = 500;
+    c.happiness = 60;
+    c.health_meter = 65;
+    c.health_band = health_band(65);
+    c.herd = 500;
+    c.grain = 400;
+    c.fields_grain = 5;
+    c.ration_wanted = 3;
+    c.ration_split = 100;
+    c.labour = [100_000; JOB_COUNT];
+    k.start_new_game();
+    k
+}
+
+/// A hundred crowns of ale, then a full year through `Season_Advance`.
+/// Returns the happiness the ale itself bought and the county's population a
+/// year later.
+fn ale_then_a_year(tables: Tables) -> (i32, i32) {
+    let mut k = one_county(tables);
+    // The setup season moved the population; pin it back so the ladder's step
+    // is a round tenth and the two runs differ only in the rule.
+    k.counties[1].population = 500;
+    k.counties[1].happiness = 55;
+    let gained = l2_kingdom::happiness::buy_ale(&k.tables, &mut k.counties[1], 100);
+    for _ in 0..4 {
+        k.advance_season();
+    }
+    (gained, k.counties[1].population)
+}
+
+#[test]
+fn what_a_barrel_of_ale_buys_is_a_rule_a_mod_sets() {
+    let cheap = modded("cheap-ale", "[kingdom.happiness]\nale_step_pct = 100\nale_max = 20\n");
+    assert_eq!(cheap.ale.step_pct, 100);
+    assert_eq!(cheap.ale.max, 20);
+
+    let (stock_gain, stock_pop) = ale_then_a_year(Tables::DEFAULT);
+    let (mod_gain, mod_pop) = ale_then_a_year(cheap);
+
+    // A hundred crowns in a county of 500 is two rungs of the stock ladder
+    // (one per fifty crowns) and twenty of the modded one (one per five,
+    // stopped by ale_max).
+    assert_eq!(stock_gain, 2);
+    assert_eq!(mod_gain, 20);
+    // And a happier county breeds: the year ends with more people in it.
+    assert!(
+        mod_pop > stock_pop,
+        "cheap ale should leave more people alive: {mod_pop} vs {stock_pop}"
+    );
+}
+
+/// Raising fifty men out of five hundred, then a year.
+fn army_then_a_year(tables: Tables) -> (i32, i32, i32) {
+    let mut k = one_county(tables);
+    k.counties[1].population = 500;
+    k.counties[1].happiness = 95;
+    let cost = l2_kingdom::happiness::raise_army(&k.tables, &mut k.counties[1], 50);
+    let after = k.counties[1].happiness;
+    for _ in 0..4 {
+        k.advance_season();
+    }
+    (cost, after, k.counties[1].population)
+}
+
+#[test]
+fn what_raising_an_army_costs_a_county_is_a_rule_a_mod_sets() {
+    // The table is indexed by the percentage of the county taken, so a mod
+    // restates all 102 rows. This one is flat: any army at all costs 60.
+    let mut rows = String::from("[kingdom.happiness]\narmy_cost = [0");
+    for _ in 1..102 {
+        rows.push_str(", 60");
+    }
+    rows.push_str("]\n");
+    let brutal = modded("brutal-levy", &rows);
+    assert_eq!(brutal.army_happiness_cost[10], 60);
+
+    let (stock_cost, stock_happy, stock_pop) = army_then_a_year(Tables::DEFAULT);
+    let (mod_cost, mod_happy, mod_pop) = army_then_a_year(brutal);
+
+    // Fifty men is a tenth of five hundred, which the stock table prices at 5.
+    assert_eq!(stock_cost, 5);
+    assert_eq!(mod_cost, 60);
+    assert_eq!((stock_happy, mod_happy), (90, 35));
+    assert!(
+        mod_pop < stock_pop,
+        "a levy that costs sixty happiness should cost people too: {mod_pop} vs {stock_pop}"
+    );
+}
+
+/// Three years of wood-cutting with *Advanced Farming* on, so the efficiency
+/// ramp actually runs. Returns the realm's timber and the county's final
+/// efficiency.
+fn three_years_of_timber(tables: Tables) -> (i32, i32) {
+    let mut k = one_county(tables);
+    k.options.advanced_farming = true;
+    let wood = Commodity::Wood.index();
+    let job = k.tables.commodity[wood].job;
+    let c = &mut k.counties[1];
+    c.industry[wood].enabled = true;
+    c.industry[wood].has_resource = true;
+    c.industry[wood].capacity = 100_000;
+    // The ramp compounds from wherever it left off, and the setup season ran
+    // on the flat Advanced-Farming-off figure. Start it at zero so the twelve
+    // seasons below are the whole ramp and nothing else.
+    c.industry[wood].efficiency = 0;
+    c.labour = [0; JOB_COUNT];
+    c.labour[job] = 100;
+    k.realms[1].wood = 0;
+    for _ in 0..12 {
+        k.advance_season();
+    }
+    (k.realms[1].wood, k.counties[1].industry[wood].efficiency)
+}
+
+#[test]
+fn the_efficiency_ramps_ceiling_is_a_rule_a_mod_sets() {
+    let capped = modded("low-ceiling", "[kingdom.efficiency]\nmax = 30\n");
+    assert_eq!(capped.efficiency.max, 30);
+    assert_eq!(
+        capped.efficiency.without_advanced_farming,
+        Tables::DEFAULT.efficiency.without_advanced_farming,
+        "and nothing else in the ramp moved"
+    );
+
+    let (stock_wood, stock_eff) = three_years_of_timber(Tables::DEFAULT);
+    let (mod_wood, mod_eff) = three_years_of_timber(capped);
+
+    // Wood's base is 20, so the stock ramp reaches its ceiling in five seasons
+    // and the modded one is stopped at its own after two.
+    assert_eq!(stock_eff, 100);
+    assert_eq!(mod_eff, 30);
+    // A hundred wood-cutters at e percent efficiency fell e loads a season, so
+    // the totals are the ramps summed: 20+40+60+80 then eight seasons at 100,
+    // against 20 then eleven at 30.
+    assert_eq!((stock_wood, mod_wood), (1_000, 350));
+}
+
+/// An AI realm taxing one county for a season. Returns the rate its ladder
+/// chose and the gold that rate collected.
+fn an_ai_seasons_tax(tables: Tables, happiness: i32) -> (i32, i32) {
+    let mut k = one_county(tables);
+    k.realms[1].is_human = false;
+    k.realms[1].lord = 1;
+    k.realms[1].gold = 0;
+    k.counties[1].happiness = happiness;
+    k.run_ai_tax_rates(1);
+    let rate = k.counties[1].tax_rate;
+    k.advance_season();
+    (rate, k.realms[1].gold)
+}
+
+#[test]
+fn the_ai_tax_ladders_are_rules_a_mod_sets() {
+    // Ladder 2 is the one three of the four lords use, and it charges nothing
+    // below 60 happiness. Arrays replace whole on merge, so restating it means
+    // restating every rung; this one has a single rung and a flat 40%.
+    let greedy =
+        modded("tax-farmers", "[[kingdom.ai.tax_ladder.2]]\nbelow = 2147483647\nrate = 40\n");
+    assert_eq!(greedy.ai.tax_ladders[2][0], (i32::MAX, 40));
+    assert_eq!(greedy.ai.tax_ladders[0], Tables::DEFAULT.ai.tax_ladders[0], "0 untouched");
+    assert_eq!(greedy.ai.tax_ladder_neutral, Tables::DEFAULT.ai.tax_ladder_neutral);
+
+    let (stock_rate, stock_gold) = an_ai_seasons_tax(Tables::DEFAULT, 50);
+    let (mod_rate, mod_gold) = an_ai_seasons_tax(greedy, 50);
+
+    assert_eq!(stock_rate, 0, "the stock ladder taxes a county of 50 happiness nothing");
+    assert_eq!(mod_rate, 40);
+    assert_eq!(stock_gold, 0, "and so banks nothing");
+    assert!(mod_gold > 0, "where the modded one banks {mod_gold}");
+}
+
+#[test]
+fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
+    // The personality table replaces whole too, so all four lords are
+    // restated. Only lord 1 moves, from the gentlest ladder to the greediest.
+    let ruthless = modded(
+        "ruthless-lord",
+        "[[kingdom.ai.personality]]\nlord = 1\nfarm_style = 1\ntax_ladder = 0\n\n\
+         [[kingdom.ai.personality]]\nlord = 2\nfarm_style = 1\ntax_ladder = 2\n\n\
+         [[kingdom.ai.personality]]\nlord = 3\nfarm_style = 0\ntax_ladder = 2\n\n\
+         [[kingdom.ai.personality]]\nlord = 4\nfarm_style = 9\ntax_ladder = 1\n",
+    );
+    assert_eq!(ruthless.ai.personality[0].tax_ladder, 0);
+    assert_eq!(
+        ruthless.ai.tax_ladders,
+        Tables::DEFAULT.ai.tax_ladders,
+        "the ladders themselves are untouched: only which one lord 1 walks changed"
+    );
+
+    // At 85 happiness the gentle ladder charges 3% and the greedy one 15%.
+    let (stock_rate, stock_gold) = an_ai_seasons_tax(Tables::DEFAULT, 85);
+    let (mod_rate, mod_gold) = an_ai_seasons_tax(ruthless, 85);
+    assert_eq!((stock_rate, mod_rate), (3, 15));
+    assert_eq!(mod_gold, stock_gold * 5, "five times the rate, five times the take");
+}
+
+/// The two ways one of these new rules can be impossible rather than merely
+/// unbalanced, both refused at load with the file and line that wrote them.
+///
+/// `ale_step_pct` divides the population, so zero is a division by zero in
+/// `buy_ale` rather than "ale is free"; a ninth rung is a ladder the
+/// simulation's array cannot hold. Neither is clamped, because a clamped rule
+/// is one a mod author cannot see failed.
+#[test]
+fn an_impossible_new_kingdom_rule_is_refused_with_the_line_that_wrote_it() {
+    let refusal = |name: &'static str, rules: &str| -> String {
+        let base = TempDir::new(&format!("{name}-base"));
+        let mods = TempDir::new(&format!("{name}-mods"));
+        empty_base(&base);
+        mods.write(&format!("{name}/mod.toml"), &format!("[mod]\nid = \"{name}\"\n"));
+        mods.write(&format!("{name}/rules/{name}.toml"), rules);
+        Platform::builder()
+            .base(base.path())
+            .mods_dir(mods.path())
+            .enable([name])
+            .build()
+            .expect("the document is well formed, so the load itself succeeds")
+            .kingdom_tables()
+            .expect_err("but the rule cannot be run")
+            .to_string()
+    };
+
+    let err = refusal("free-ale", "[kingdom.happiness]\nale_step_pct = 0\n");
+    assert!(err.contains("free-ale:rules/free-ale.toml:2:16"), "{err}");
+    assert!(err.contains("kingdom.happiness.ale_step_pct"), "{err}");
+    assert!(err.contains("0 is outside 1..=10000"), "{err}");
+
+    let mut ninth = String::new();
+    for rung in 0..9 {
+        ninth.push_str(&format!("[[kingdom.ai.tax_ladder.0]]\nbelow = {}\nrate = 1\n\n", rung * 10));
+    }
+    let err = refusal("long-ladder", &ninth);
+    assert!(err.contains("kingdom.ai.tax_ladder.0"), "{err}");
+    assert!(err.contains("1 to 8 rungs, found 9"), "{err}");
+}
