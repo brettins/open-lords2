@@ -1,0 +1,39 @@
+# Line endings are load-bearing in this repository.
+#
+# `crates/l2-mods/rulesets/core/rules/*.toml` are *generated* documents, and
+# `crates/l2-mods/tests/core.rs` compares them byte for byte against the
+# renderer that produced them. The renderer emits "\n".
+#
+# GitHub's Windows runners default to `core.autocrlf=true`, so a fresh checkout
+# there rewrote those files with CRLF and the comparison failed - green on
+# Linux, red on Windows, and passing on every developer machine configured with
+# `autocrlf=input`. Normalising here fixes it for every checkout on every
+# platform, which a per-test workaround would not: a test that shrugged off
+# line endings would also stop noticing real drift in the generated files.
+#
+# `eol=lf` (not just `text=auto`) is the part that matters - it pins the
+# *working tree*, overriding whatever core.autocrlf the machine has.
+* text=auto eol=lf
+
+# Windows-only scripts that people may open in tools which insist on CRLF.
+# Nothing compares these byte-for-byte.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Never touch these, whatever heuristics would otherwise guess.
+# The asset types are gitignored and must never be committed (CLAUDE.md rule 1);
+# they are listed anyway so that a force-add cannot silently corrupt one.
+*.pl8  binary
+*.256  binary
+*.smk  binary
+*.wav  binary
+*.saf  binary
+*.sav  binary
+*.dat  binary
+*.exe  binary
+*.dll  binary
+*.png  binary
+*.bmp  binary
+*.jpg  binary
+*.bundle binary

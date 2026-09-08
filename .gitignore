@@ -6,7 +6,26 @@
 # compiled output, committed and never noticed.
 target/
 **/*.rs.bk
-Cargo.lock
+
+# Cargo.lock is COMMITTED and deliberately not ignored. This workspace ships a
+# binary, and the lock file is what makes CI build the same dependency versions
+# a developer does. Without it every CI run re-resolved from scratch, so a
+# semver-compatible upstream release could turn the build red with nothing in
+# this repository having changed.
+#
+# It matters more than usual here: deterministic lockstep means the simulation
+# must produce identical results across machines and across time
+# (docs/netcode.md), and an unpinned dependency graph is at odds with that.
+#
+# Only the workspace root's lock file is real. A `Cargo.lock` inside a member
+# crate is a stray left by running cargo from that directory - the same slip
+# that produced crates/l2-net/target/ and put 35 MB of build output in the
+# history.
+/crates/*/Cargo.lock
+
+# Agent worktrees. Subagents run in their own git worktrees under here; the
+# work is committed on their branches, never through this directory.
+/.claude/worktrees/
 
 # Node
 node_modules/
