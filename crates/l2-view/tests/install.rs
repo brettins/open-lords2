@@ -25,7 +25,9 @@ use std::{env, fs, path::{Path, PathBuf}};
 use l2_sim::runner::{self as battle, BattleRunner};
 use l2_sim::terrain;
 use l2_sim::{Troop, SIDE_A, SIDE_B};
+use l2_view::campaign;
 use l2_view::canvas::Canvas;
+use l2_view::chrome;
 use l2_view::figures::{self, Anim, Colour};
 use l2_view::scene::{self, BattleAssets, Camera};
 use l2_view::sheet::Sheet;
@@ -399,4 +401,200 @@ fn figures_are_visible_against_the_terrain_behind_them() {
     let changed = terrain_only.diff_count(&with_men);
     assert!(changed > 500, "figures only changed {changed} pixels");
     eprintln!("figures: {drawn} drawn, {changed} pixels over the terrain");
+}
+
+// ---------------------------------------------------------- the campaign map
+
+/// The tile artwork's own dimensions, read out of the shipped PL8 frame tables,
+/// must agree with the pitch `Map_SetZoom` steps by.
+///
+/// This is `docs/screens.md` §1.2, and it is the resolution of the 58-versus-60
+/// discrepancy `maps-layers.md` §6 left open: **pitch = frame width + 2** and
+/// **row step = frame height / 2**, at both zooms, over all ten banks. The
+/// constants in `campaign` come from the instruction stream; the widths come
+/// from the files; nothing here is written down twice.
+#[test]
+fn every_campaign_tile_bank_matches_the_pitch_the_binary_steps_by() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let mut checked = 0;
+    for zoom in campaign::ZOOMS {
+        for name in zoom.banks {
+            let Some(bytes) = read(&dir, name) else {
+                panic!("{name} is not in the install");
+            };
+            let pl8 = l2_formats::Pl8::parse(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert!(!pl8.frames.is_empty(), "{name} has no frames");
+            for (i, f) in pl8.frames.iter().enumerate() {
+                assert_eq!(
+                    f.width as i32, zoom.tile_w,
+                    "{name} frame {i} is {} wide, but zoom {} steps by {}",
+                    f.width, zoom.id, zoom.pitch
+                );
+                assert_eq!(f.height as i32, zoom.tile_h, "{name} frame {i}");
+                checked += 1;
+            }
+            assert_eq!(zoom.pitch, zoom.tile_w + 2);
+            assert_eq!(zoom.row_step, zoom.tile_h / 2);
+        }
+    }
+    assert_eq!(checked, 2 * (140 + 25 + 140 + 61 + 100), "all ten banks, every frame");
+    eprintln!("campaign tiles: {checked} frames match the renderer's pitch");
+}
+
+/// The minimap's realm colour ramp is `Lords2.exe`'s own data, transcribed into
+/// `chrome::MINIMAP_REALM_RAMP`. This reads the 48 bytes back out of the user's
+/// binary and fails if a single one differs.
+///
+/// The stride matters and is not guessable from the values: `Minimap_DrawOverlay`
+/// indexes `realmColour * 8 + (shade - 10)`, so the records are **eight** bytes
+/// of which four are used. The unused half of each record is the same four
+/// bytes with the first replaced by 0x20 — which is exactly the substitution
+/// the function makes by hand for the selected county, and is the corroboration
+/// that the stride is right.
+#[test]
+fn the_minimap_realm_ramp_matches_the_table_in_the_binary() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let Some(exe) = read(&dir, "Lords2.exe") else {
+        eprintln!("Lords2.exe not present - skipping");
+        return;
+    };
+    let Some(base) = va_to_offset(&exe, chrome::MINIMAP_REALM_RAMP_VA) else {
+        panic!("0x{:08X} is not inside any initialised section", chrome::MINIMAP_REALM_RAMP_VA);
+    };
+    for (colour, want) in chrome::MINIMAP_REALM_RAMP.iter().enumerate() {
+        let rec = &exe[base + colour * 8..base + colour * 8 + 8];
+        assert_eq!(&rec[..4], want, "realm colour {colour}");
+        // The second half of the record is the first with the selected-county
+        // substitution already applied.
+        assert_eq!(rec[4], chrome::MINIMAP_SELECTED, "realm colour {colour} selected entry");
+        assert_eq!(&rec[5..], &want[1..], "realm colour {colour} tail");
+    }
+    eprintln!("minimap ramp: 6 realm colours match the binary");
+}
+
+/// `Minimap_Load`'s file and frame arithmetic, checked against the install:
+/// every used map slot must resolve to a `MAPnn.PL8` that exists and holds two
+/// 128 x 128 frames where the formula says, and every *empty* slot must resolve
+/// to one of the four files the game does not ship.
+///
+/// The second half is what makes this evidence rather than a smoke test: 11
+/// files x 4 slots = 44 is exactly the used-slot census in
+/// `docs/formats/maps-layers.md` §6, arrived at from a completely different
+/// direction.
+#[test]
+fn every_used_map_slot_has_a_minimap_and_every_empty_one_does_not() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let Some(maps) = read(&dir, "L2_maps.dat") else {
+        eprintln!("L2_maps.dat not present - skipping");
+        return;
+    };
+    let set = l2_formats::MapSet::parse(&maps).expect("L2_maps.dat parses");
+    let used = set.used_slots();
+
+    let mut with_minimap = 0;
+    for slot in 0..60usize {
+        let name = chrome::Minimap::file_for_slot(slot);
+        match read(&dir, &name) {
+            Some(bytes) => {
+                let m = chrome::Minimap::load(&bytes, slot)
+                    .unwrap_or_else(|e| panic!("slot {slot} in {name}: {e}"));
+                assert_eq!(m.counties.len(), 128 * 128);
+                assert!(used.contains(&slot), "slot {slot} has a minimap but no map");
+                with_minimap += 1;
+            }
+            None => assert!(!used.contains(&slot), "slot {slot} is used but {name} is missing"),
+        }
+    }
+    assert_eq!(with_minimap, 44, "11 shipped MAPnn.PL8 files times 4 slots");
+    assert_eq!(with_minimap, used.iter().filter(|&&s| s < 60).count());
+    eprintln!("minimaps: {with_minimap} slots, matching the used-slot census");
+}
+
+/// The right column's frames are 162 wide and their heights tile y 24..480
+/// exactly. `chrome`'s constants say where each one goes; this reads how tall
+/// each one actually is and checks the column closes.
+#[test]
+fn the_right_panel_frames_in_the_file_tile_the_column_exactly() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let Some(bytes) = read(&dir, "Misc_cty.pl8") else {
+        eprintln!("Misc_cty.pl8 not present - skipping");
+        return;
+    };
+    let pl8 = l2_formats::Pl8::parse(&bytes).expect("Misc_cty.pl8 parses");
+    let h = |i: usize| {
+        let f = &pl8.frames[i];
+        assert_eq!(f.width, 162, "frame {i} is {} wide, not 162", f.width);
+        f.height as i32
+    };
+    use l2_view::chrome::misc_cty as f;
+    let mut y = chrome::PANEL_TOP_Y;
+    y += h(f::PANEL_TOP);
+    assert_eq!(y, chrome::PANEL_MIDDLE_Y);
+    // The foreign layout: one frame covers the whole middle.
+    assert_eq!(y + h(f::PANEL_FOREIGN), chrome::PANEL_STATUS_Y);
+    // The owned layout: three frames cover the same span.
+    y += h(f::PANEL_OWN_A);
+    assert_eq!(y, chrome::PANEL_OWN_B_Y);
+    y += h(f::PANEL_OWN_B);
+    assert_eq!(y, chrome::PANEL_OWN_C_Y);
+    y += h(f::PANEL_OWN_C);
+    assert_eq!(y, chrome::PANEL_STATUS_Y);
+    y += h(f::PANEL_STATUS);
+    assert_eq!(y, chrome::PANEL_END_TURN_Y);
+    y += h(f::PANEL_END_TURN);
+    assert_eq!(y, 480, "the column reaches the bottom of the screen");
+
+    // The five realm banners are the 13 x 16 frames, and 16 is what fits the
+    // 24-pixel menu bar at y 4.
+    for colour in 1..=5usize {
+        let b = &pl8.frames[f::BANNER + colour];
+        assert_eq!((b.width, b.height), (13, 16), "banner for realm colour {colour}");
+        assert!(4 + b.height as i32 <= campaign::TOP_BAR_H);
+    }
+    eprintln!("right panel: 7 frames tile y 24..480, 5 banners fit the bar");
+}
+
+/// `Panels.pl8`'s framed-box kit, checked against the file rather than against
+/// `chrome`'s own constants: 52 border frames of 16 x 16, 144 texture frames of
+/// 16 x 16, then eight of 24 x 24, then a second border set.
+#[test]
+fn the_panels_kit_in_the_file_has_the_shape_the_drawing_code_indexes() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let Some(bytes) = read(&dir, "Panels.pl8") else {
+        eprintln!("Panels.pl8 not present - skipping");
+        return;
+    };
+    let pl8 = l2_formats::Pl8::parse(&bytes).expect("Panels.pl8 parses");
+    use l2_view::chrome::panels as p;
+
+    // Border set A, the interior texture and border set B are all 16 x 16.
+    for i in (0..p::STRIP).chain(p::SET_B..p::SET_B + 52) {
+        assert_eq!((pl8.frames[i].width, pl8.frames[i].height), (16, 16), "frame {i}");
+    }
+    // The eight strip frames between them are 24 x 24, and nothing else is.
+    for i in p::STRIP..p::STRIP + p::STRIP_LEN {
+        assert_eq!((pl8.frames[i].width, pl8.frames[i].height), (24, 24), "frame {i}");
+    }
+    assert_ne!(pl8.frames[p::STRIP - 1].height, 24);
+    assert_ne!(pl8.frames[p::SET_B].height, 24);
+
+    // 25 strip cells from x 0 plus 2 from x 592 covers the screen exactly.
+    assert_eq!(25 * p::STRIP_CELL, 600);
+    assert_eq!(0x250 + 2 * p::STRIP_CELL, 640);
+    eprintln!("panels: {} frames, kit boundaries match", pl8.frames.len());
 }

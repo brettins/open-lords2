@@ -18,8 +18,11 @@
 //!   two blitters. Colour appears only in [`Canvas::to_rgba`].
 //! * [`canvas::Tags`] — a parallel plane recording *what* was drawn at each
 //!   pixel, which is how the campaign map is picked.
-//! * [`campaign`] — a map slot of `L2_maps.dat`, drawn with the settled
-//!   tile-to-lattice mapping.
+//! * [`campaign`] — the campaign map: a **scrolling viewport** into
+//!   `L2_maps.dat`'s lattice at one of the original's two zooms. See
+//!   `docs/screens.md`.
+//! * [`chrome`] — the original's interface artwork: the `Panels.pl8` framed-box
+//!   kit, the `Misc_cty.pl8` right column, and the `MAPnn.PL8` minimap.
 //! * [`scene`] — the battlefield viewport and the men on it.
 //! * [`figures`] — sprite-frame arithmetic; [`sheet`] — cached PL8 decoding.
 //! * [`text`] and [`ink`] — our own 5 x 7 font and the palette-resolved
@@ -42,11 +45,12 @@
 
 pub mod campaign;
 pub mod canvas;
+pub mod chrome;
 pub mod figures;
 pub mod ink;
 pub mod scene;
 pub mod sheet;
 pub mod text;
 
-pub use canvas::{Canvas, Tags};
+pub use canvas::{Canvas, Clip, Tags};
 pub use ink::Ink;

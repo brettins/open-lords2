@@ -24,6 +24,41 @@ pub const HEIGHT: usize = 480;
 /// drawn here" rather than as a colour.
 pub const TRANSPARENT: u8 = 0;
 
+/// A half-open destination rectangle a blit may write inside.
+///
+/// The original does not have this: it has a `Clip_Horizontal` / `Clip_Vertical`
+/// pair that computes skips and row advances into globals, plus — for map tiles
+/// specifically — five fully unrolled blitters whose *shape* is the clipping
+/// (`docs/screens.md` §1.4). A rectangle is the same thing said once.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Clip {
+    pub x0: i32,
+    pub y0: i32,
+    pub x1: i32,
+    pub y1: i32,
+}
+
+impl Clip {
+    /// No clipping beyond the canvas's own edges.
+    pub const WHOLE: Clip = Clip { x0: i32::MIN, y0: i32::MIN, x1: i32::MAX, y1: i32::MAX };
+
+    pub const fn new(x0: i32, y0: i32, x1: i32, y1: i32) -> Clip {
+        Clip { x0, y0, x1, y1 }
+    }
+
+    pub const fn contains(&self, x: i32, y: i32) -> bool {
+        x >= self.x0 && x < self.x1 && y >= self.y0 && y < self.y1
+    }
+
+    pub const fn width(&self) -> i32 {
+        self.x1 - self.x0
+    }
+
+    pub const fn height(&self) -> i32 {
+        self.y1 - self.y0
+    }
+}
+
 /// A parallel plane of identifiers the same size as a [`Canvas`]: *what* was
 /// drawn at each pixel, rather than what colour it came out.
 ///
@@ -140,7 +175,32 @@ impl Canvas {
     /// painted. Transparent pixels leave both planes alone, so the tag plane
     /// records the shape of the sprite rather than of its bounding box.
     pub fn blit_tagged(&mut self, frame: &DecodedFrame, ox: i32, oy: i32, tags: &mut Tags, id: u8) {
-        self.blit_full(frame, ox, oy, true, Some((tags, id)))
+        self.blit_full(frame, ox, oy, true, Some((tags, id)), Clip::WHOLE)
+    }
+
+    /// Blit honouring index-0 transparency, confined to `clip`.
+    pub fn blit_clipped(&mut self, frame: &DecodedFrame, ox: i32, oy: i32, clip: Clip) {
+        self.blit_full(frame, ox, oy, true, None, clip)
+    }
+
+    /// [`Canvas::blit_tagged`], confined to `clip`.
+    ///
+    /// This is what draws a map tile. `docs/screens.md` §1.4: the original has
+    /// five unrolled blitters for a map tile — whole, top half, bottom half,
+    /// left half, right half — and the halves exist purely so that a tile at
+    /// the edge of the viewport writes nothing outside it. Working out where
+    /// their dropped columns land shows a plain clip does the same job, so
+    /// there is one blitter here and a rectangle, rather than five.
+    pub fn blit_clipped_tagged(
+        &mut self,
+        frame: &DecodedFrame,
+        ox: i32,
+        oy: i32,
+        clip: Clip,
+        tags: &mut Tags,
+        id: u8,
+    ) {
+        self.blit_full(frame, ox, oy, true, Some((tags, id)), clip)
     }
 
     /// Expand the indexed canvas through a palette into RGBA. The one place
@@ -161,7 +221,7 @@ impl Canvas {
     }
 
     fn blit_inner(&mut self, frame: &DecodedFrame, ox: i32, oy: i32, mask: bool) {
-        self.blit_full(frame, ox, oy, mask, None)
+        self.blit_full(frame, ox, oy, mask, None, Clip::WHOLE)
     }
 
     fn blit_full(
@@ -171,16 +231,17 @@ impl Canvas {
         oy: i32,
         mask: bool,
         mut tags: Option<(&mut Tags, u8)>,
+        clip: Clip,
     ) {
         let (fw, fh) = (frame.width as i32, frame.height as i32);
         for y in 0..fh {
             let cy = oy + y;
-            if cy < 0 || cy >= self.height as i32 {
+            if cy < 0 || cy >= self.height as i32 || cy < clip.y0 || cy >= clip.y1 {
                 continue;
             }
             for x in 0..fw {
                 let cx = ox + x;
-                if cx < 0 || cx >= self.width as i32 {
+                if cx < 0 || cx >= self.width as i32 || cx < clip.x0 || cx >= clip.x1 {
                     continue;
                 }
                 let src = (y * fw + x) as usize;
