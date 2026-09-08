@@ -34,7 +34,7 @@ Legend:
 - ✅ Tax ceiling is **50**, and it lives in `l2-kingdom` beside the table whose length
   fixes it (was wrongly 100, and was in the application crate)
 - 📖 Merchant buying and selling, 15 goods with prices
-- 🕳 Wages: traced, and no army exists to pay
+- 📖 Wages: traced, and now joined to the army records that pay them — `docs/armies.md` §6.4
 - ❓ Bankruptcy: five stages, traced, never exercised
 
 ### Food and farming
@@ -66,6 +66,10 @@ Legend:
 - ✅ Castle types, costs, workforce, garrison caps, free archers
 - 🕳 **The castle designer.** One of the game's signature features. Untouched.
 - 📖 Industry: wood, iron, stone, weapons, with an efficiency ramp that compounds seasonally
+- 📖 **A county's resources come from the map**, not from the county record —
+  `County_PlaceResourceSites` reads plane 2 on `Town`-bank tiles at load. And an enemy army
+  marching over a site disables it for three seasons, which is the writer of
+  `disabled_seasons` we could not find — `docs/armies.md` §3.5
 - ❓ Field painting — choosing what a field grows, by brush, on the map
 
 ### The wider game
@@ -97,8 +101,13 @@ Legend:
   - 🕳 The diplomacy screen — `0x0B`, *"the other lords"*, `faces.pl8`, one of the 29
   - ❓ Whether the Baron favours peasant armies. The per-lord weapon rota is read; what its
     six fields index is **not established**. §8.3
-- ❓ Armies on the campaign map: raising, moving, supplying. **Nothing exists.**
-- ❓ Merchants and transports as things that move
+- 📖 **Armies on the campaign map.** The record, the levy, movement, foraging, sieges and the
+  battle-result return are all traced in `docs/armies.md`. Still nothing implemented.
+- 📖 **Mercenaries.** Twelve fixed bands, one per nationality, walking the map; you hire the
+  one standing in your county when you raise an army there. Sizes, prices, troop types and
+  the walk come out of six static tables — `docs/armies.md` §5
+- 📖 Merchants and transports as things that move — `docs/formats/plane4.md` for the routes,
+  `docs/armies.md` §2 for the mover, the cost map and the pathfinder they share with armies
 
 ---
 
@@ -110,12 +119,16 @@ Legend:
 - ✅ Melee: attack bands, recovery as the only defence, the heavy blow
 - ✅ Missiles: three weapon classes, range, reload, armour
 - ✅ Battle AI: the strength advantage, the 200-frame think, 3 of 17 order handlers reachable
-- 🕳 **The other 14 handlers are siege**, and there is no castle to besiege
+- 🕳 **The other 14 handlers are siege**, and there is no castle to besiege. The campaign half
+  is traced now: engines are *built on the spot* over several seasons with the army pinned in
+  place, and only then does the assault start — `docs/armies.md` §4
 - 🕳 **Missiles are computed and never fired** — a hit resolves, nothing flies
-- ❓ Siege engines: catapults, towers, rams, boiling oil as things that act
+- ❓ Siege engines: catapults, towers, rams, boiling oil as things that act. Where they come
+  from is traced — 200 / 200 / 400 man-seasons each, and the defender's oil count is a switch
+  on castle type — `docs/armies.md` §4
 - ❓ Moat filling (traced: figures raise the terrain 15 times)
 - ❓ Retreat, capture, what happens after a battle ends
-- ❓ How a battle result returns to the campaign
+- 📖 How a battle result returns to the campaign — `Battle_ReturnToCampaign`, `docs/armies.md` §7
 
 ---
 
@@ -126,6 +139,9 @@ Legend:
 - ✅ Four county panels — population, tax, happiness, rations
 - 📖 **29 screens exist.** We have three. Merchant, court, armoury, mercenaries,
   send-supplies, castle-building, siege prep and twenty more are enumerated and unbuilt.
+  Three of them are now decompiled rather than merely enumerated: the raise-army screen
+  (`0x00418653`, and the mercenary offer lives on it — there is no separate mercenaries
+  screen), the army-division screen and the siege-preparation screen — `docs/armies.md`.
 - 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
 - ❓ The village screen, where peasants are moved
 - ❓ Sound: 771 `.wav` files, nothing plays

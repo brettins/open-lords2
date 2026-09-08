@@ -2969,6 +2969,422 @@
       "confidence": "verified",
       "signature": "void Eng_Seek(int group, int index)",
       "comment": "Walks L2.eng to the (group, index) string and leaves the pointer in g_engCursor, exactly as docs/formats/eng.md 1.3 describes. New-game setup calls Eng_Seek(7, realm[+0x07]) and copies 16 bytes into g_playerNames - the game naming its own lords out of group 7, which is what fixes 1 = The Knight, 2 = The Baron, 3 = The Countess, 4 = The Bishop."
+    },
+    {
+      "addr": "0x004650B0",
+      "name": "Units_Tick",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Per-frame unit driver: walks slots 1..150 of g_units and dispatches each through g_unitTickTable[type]. Type 0 or above 5 clears the record. Slot 5 of that table is NULL while the dispatcher accepts type 5, so a type-5 unit would call address 0; nothing spawns one.",
+      "signature": "void Units_Tick(void)"
+    },
+    {
+      "addr": "0x004651B9",
+      "name": "Units_ResetMoves",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Start of season: clears moveState (+0x14C) and movesUsed (+0x153) on all 150 unit slots. Called from turn phase 7.",
+      "signature": "void Units_ResetMoves(void)"
+    },
+    {
+      "addr": "0x0046521F",
+      "name": "Army_Tick",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The type-1 (army) tick. Writes moveAllowance (+0x154) = 15 unconditionally, picks the sprite bank by men (<301 -> 0x48, <601 -> 0x60, else 0x78) plus 3*facing plus the walk frame, calls Unit_EnterCounty when the tile county differs from +0x10, and steps the mover.",
+      "signature": "void Army_Tick(void)"
+    },
+    {
+      "addr": "0x00465D28",
+      "name": "Unit_Step",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Walks one unit along its stored path. Stops when movesUsed reaches moveAllowance. Dispatches Transport_Deliver, Unit_TrampleTile and Unit_BurnDwelling from Unit_TryEnterTile's return code.",
+      "signature": "void Unit_Step(void)"
+    },
+    {
+      "addr": "0x0046634D",
+      "name": "Unit_StepOnce",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "One animation tick of a move: accumulates +0x149 to 16, then calls Unit_NeighbourTile and charges movesUsed +1 on a road (+0x14D set) or +3 otherwise.",
+      "signature": "int Unit_StepOnce(int dir)"
+    },
+    {
+      "addr": "0x00466893",
+      "name": "Unit_NeighbourTile",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Maps a direction 0..7 to the neighbouring tile offset with edge-of-map guards and hands it to Unit_TryEnterTile.",
+      "signature": "int Unit_NeighbourTile(int dir)"
+    },
+    {
+      "addr": "0x00466C3C",
+      "name": "Unit_TryEnterTile",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Classifies the target tile and returns a code: occupied -> Unit_EnterOccupiedTile; road (plane0 0x01) -> 3; castle (0x40) -> 5; settlement (0x80) -> 6; dwelling plot (0x10) -> 7; farm field (0x20) -> 8; otherwise 1.",
+      "signature": "int Unit_TryEnterTile(int tileOffset)"
+    },
+    {
+      "addr": "0x0046673C",
+      "name": "Unit_CrossField",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "A step onto a farm field: charges 3 extra moves and, when the tile's county is not the unit's own, worsens diplomacy by 10 (human owners only) and calls County_DestroyField. Total cost 6, which is what g_moveCost holds for a field.",
+      "signature": "void Unit_CrossField(void)"
+    },
+    {
+      "addr": "0x00469E5B",
+      "name": "County_DestroyField",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Removes one field: a grain field takes crop * (100/fieldsSown) percent off county +0x244 and decrements +0x201; a pasture takes the same fraction off the herd and decrements +0x200. The tile is repainted bare.",
+      "signature": "void County_DestroyField(int tileOffset)"
+    },
+    {
+      "addr": "0x00469E0E",
+      "name": "County_TileIsField",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "True when the tile terrain is in 2..0x16, the range County_DestroyField will act on.",
+      "signature": "int County_TileIsField(int tileOffset)"
+    },
+    {
+      "addr": "0x0046FF43",
+      "name": "Move_BuildCostMap",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Rebuilds the 64x64 i16 campaign movement cost map g_moveCost from the map planes: 1 road, 3 open ground, 6 a standing field, 100 castle/settlement/plot, 0 impassable. Run once a season from turn phase 7.",
+      "signature": "void Move_BuildCostMap(void)"
+    },
+    {
+      "addr": "0x0046F700",
+      "name": "Move_FloodFill",
+      "section": "units",
+      "confidence": "inferred",
+      "comment": "Fills the campaign distance field (g_moveDistLocal for the local player, g_moveDistOther otherwise) outward from a tile using g_moveCost. Assumed cost-weighted breadth-first; the body was not read.",
+      "signature": "void Move_FloodFill(int who, int x, int y, int mode)"
+    },
+    {
+      "addr": "0x004707BE",
+      "name": "Path_CopyToUnit",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Copies g_pathBuf[slot] into the unit record: length to +0x1C and up to 150 (x, y) pairs to +0x1D. 150 * 2 = 300 bytes, ending exactly at +0x149.",
+      "signature": "void Path_CopyToUnit(int slot, int unit)"
+    },
+    {
+      "addr": "0x004708D0",
+      "name": "Path_ClearBuf",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Zeroes one of the shared campaign path buffers and its length.",
+      "signature": "void Path_ClearBuf(int slot)"
+    },
+    {
+      "addr": "0x004A98FE",
+      "name": "Unit_OrderMove",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Gives a unit a destination: rebuild the cost map, flood-fill from the unit, extract the path, copy it into the record, set moveState = 2 and the destination x/y.",
+      "signature": "void Unit_OrderMove(int who, int unit, int x, int y, char mode)"
+    },
+    {
+      "addr": "0x004A91BA",
+      "name": "Path_MarkPreviewTiles",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Sets bit 0x40 of byte +2 of every runtime tile record along the local player's path buffer. Map_DrawPathMarker draws the gold path balls on exactly those tiles.",
+      "signature": "void Path_MarkPreviewTiles(void)"
+    },
+    {
+      "addr": "0x004A8E0B",
+      "name": "Map_HoverUnitTarget",
+      "section": "units",
+      "confidence": "inferred",
+      "comment": "Runs the campaign pathfinder to the tile under the cursor and collects what a click there would do. When moveAllowance minus movesUsed is less than the path distance it zeroes every collected target, so an out-of-range click does nothing.",
+      "signature": "void Map_HoverUnitTarget(void)"
+    },
+    {
+      "addr": "0x004ABB36",
+      "name": "Unit_EnterCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Called when a unit crosses a county border: sets +0x10, fires County_GreetArmy for a neutral county, and for an owned one sends message 0xAA (L2.eng group 170, the sixteen invasion taunts) when that county is the unit's declared destination.",
+      "signature": "void Unit_EnterCounty(int unit, uint county)"
+    },
+    {
+      "addr": "0x004ABF77",
+      "name": "County_GreetArmy",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Picks a neutral county's reaction to an army entering: happiness below 10 -> msg 0x82, below 30 -> 0x83, otherwise by the army as a percentage of the county population - 100 or more -> 0x83, 50..99 -> 0x84, 20..49 -> 0x85, under 20 -> 0x86 (L2.eng group 134, the border-violation message). The bigger the army the politer the reply.",
+      "signature": "void County_GreetArmy(int unit, int county)"
+    },
+    {
+      "addr": "0x004AD6C0",
+      "name": "Army_RecountCountyTroops",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Zeroes county +0x198 and +0x19C for all 16 counties, then adds every non-garrisoned type-1 or type-2 unit's men to the friendly or enemy total of the county it stands in (an ally, by realm +0x81, counts friendly), and re-runs Ration_Apply for every county.",
+      "signature": "void Army_RecountCountyTroops(void)"
+    },
+    {
+      "addr": "0x004ACE5E",
+      "name": "Army_Starve",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Once a season from Wages_PayAll, and only when Army foraging is on. An army is fed when its men are fewer than Food_Available(county), or when it is garrisoned; otherwise +0x155 counts up, raising messages 0x116/0x117/0x118 (L2.eng 278/279/280), deserting 10 percent a season from the second, and destroying the army at 5.",
+      "signature": "void Army_Starve(void)"
+    },
+    {
+      "addr": "0x004AD16C",
+      "name": "Army_Desert",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Takes 10 percent off each of the seven troop counts (only where the count exceeds 10) and subtracts the same total from +0x168. Used by starvation and by bankruptcy stages 2..4.",
+      "signature": "void Army_Desert(int unit)"
+    },
+    {
+      "addr": "0x00435EBC",
+      "name": "Levy_SetPercent",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The raise-army slider: men = Pct(population, pct), happiness cost = g_armyHappinessCost[pct] plus county +0x2F4, clamped 0..100, then the percentage is walked back until county happiness minus the cost is at least 1. This is what indexes g_armyHappinessCost.",
+      "signature": "void Levy_SetPercent(int county, int pct)"
+    },
+    {
+      "addr": "0x004AAA80",
+      "name": "Levy_Init",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Zeroes the realm's 8-slot levy basket, seeds slots 1..6 with the realm's weapon stockpiles (realm +0x140 + (t-1)*4) and puts the levied headcount in slot 0 (unequipped peasants) and slot 7 (the total).",
+      "signature": "void Levy_Init(int county, int men)"
+    },
+    {
+      "addr": "0x004A9EB1",
+      "name": "Levy_ConsumeWeapons",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Subtracts each levy basket slot 1..6 from the realm's matching weapon stock, then re-runs the labour allocator.",
+      "signature": "void Levy_ConsumeWeapons(int realm)"
+    },
+    {
+      "addr": "0x004A9F18",
+      "name": "Levy_DebitPopulation",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Subtracts the levy total from county +0x24 (population) and +0x38 (the army line on the population panel).",
+      "signature": "void Levy_DebitPopulation(int county)"
+    },
+    {
+      "addr": "0x004A9A9A",
+      "name": "Army_Create",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Spawns a type-1 unit on a free road or open tile of the county and fills it from the levy basket: men to +0x168, slots 0..6 to +0x16C, the year to +0x164, the county's happiness to +0x166 as morale, a name from Army_PickName, optionally a mercenary band; then debits happiness and county +0x15 and sets the county levy surcharge +0x2F4 to 15.",
+      "signature": "int Army_Create(int realm, int county, int hireMercs, int happinessCost)"
+    },
+    {
+      "addr": "0x004A9F72",
+      "name": "Army_PickName",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Picks the least-used of the realm's 24 army-name slots at realm +0x2D and adds 2 to its counter. The names are L2.eng groups 94..98, 24 per lord.",
+      "signature": "int Army_PickName(int realm)"
+    },
+    {
+      "addr": "0x004AA039",
+      "name": "Army_Destroy",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Frees an army: releases its garrison or siege link, decrements its name-slot counter, clears the unit record and recomputes the realm's wage bill.",
+      "signature": "void Army_Destroy(uint unit)"
+    },
+    {
+      "addr": "0x004AA181",
+      "name": "Army_Combine",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Merges one army into another when the combined men are under 1501 and at most one of them carries mercenaries (otherwise message 0xA7, L2.eng 167). Sums men, the seven troop counts and the three siege-engine records, and keeps the lower movesUsed.",
+      "signature": "void Army_Combine(int into, uint from)"
+    },
+    {
+      "addr": "0x004AB2AA",
+      "name": "Army_StrengthScore",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Sum of troops[t] times g_troopStrengthWeight[t] over the seven campaign troop types plus the mercenary band, plus 20 when non-zero.",
+      "signature": "int Army_StrengthScore(int unit)"
+    },
+    {
+      "addr": "0x004A78EA",
+      "name": "Army_Garrison",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Puts an army inside a county's castle: checks the combined men against the garrison cap for the castle type, writes county +0x1BC and unit +0x198, moves the unit onto the castle tile and charges 5 moves. Over the cap it sets unit +0x1A to 2 and refuses.",
+      "signature": "void Army_Garrison(int unit, int county)"
+    },
+    {
+      "addr": "0x004A7CA2",
+      "name": "Army_BeginSiege",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Starts a siege if the county has a garrison, its castle is not under construction and it is not already besieged. Opens screen 0x1D for a human owner.",
+      "signature": "void Army_BeginSiege(int unit, int county)"
+    },
+    {
+      "addr": "0x004A7E0A",
+      "name": "Siege_Link",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Sets unit +0x199 to the besieged county and the garrison's +0x19A back to the besieger, then runs Siege_Prepare.",
+      "signature": "void Siege_Link(int unit, int county)"
+    },
+    {
+      "addr": "0x004A7EB5",
+      "name": "Siege_Prepare",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Clears the three siege-engine build records at +0x182. For an AI owner it also hard-codes the order from the lord's personality record at 0x004D8AF8: two towers by default, or four towers, one ram, or three catapults plus a late ram against a large castle.",
+      "signature": "void Siege_Prepare(int unit)"
+    },
+    {
+      "addr": "0x004A80DB",
+      "name": "Siege_RecomputeBuildTime",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Recomputes each engine record's percent complete from work done over g_siegeEngineWork[e] times the count, and writes ceil(remaining work / men) into +0x19C - the seasons the siege preparation screen prints.",
+      "signature": "int Siege_RecomputeBuildTime(int unit)"
+    },
+    {
+      "addr": "0x004A8507",
+      "name": "Siege_BuildTick",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "One season of siege-engine construction: spreads the army's men evenly over the incomplete engine types, spills the remainder onto whichever is still short, and returns 1 when +0x19C reaches 0.",
+      "signature": "int Siege_BuildTick(int unit)"
+    },
+    {
+      "addr": "0x004A82B9",
+      "name": "Siege_StartPhase",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Start of turn phase 2: breaks garrison and besieger links that no longer agree, then re-prepares every besieging army.",
+      "signature": "void Siege_StartPhase(void)"
+    },
+    {
+      "addr": "0x004AA6CA",
+      "name": "Army_PrepareForBattle",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Fills the battle-only troop slots just before a battle: mode 4 copies the three siege-engine counts into +0x17A/+0x17C/+0x17E (troop types 7, 8, 9); mode 0 sets +0x180 (oil, type 10) to 1, 2, 3, 4 or 6 by castle type 1..5.",
+      "signature": "void Army_PrepareForBattle(int unit, int mode)"
+    },
+    {
+      "addr": "0x004AA89F",
+      "name": "Army_ClearBattleSlots",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Zeroes the battle-only troop slots +0x17A, +0x17C, +0x17E and +0x180 after a battle.",
+      "signature": "void Army_ClearBattleSlots(int unit)"
+    },
+    {
+      "addr": "0x004AB383",
+      "name": "Battle_ReturnToCampaign",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Applies a battle result to the campaign: charges the winner moves (+8, or all but one for a human owner), clears garrison and siege links, flips a captured county, and destroys the loser - except under autocalc, where an army left with 50 or more men only has its siege lifted. Diplomacy takes a 20-point hit.",
+      "signature": "void Battle_ReturnToCampaign(int resume)"
+    },
+    {
+      "addr": "0x004AC904",
+      "name": "Mercenary_Init",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Once at new game: sets the band count from g_mercBandCountByCounties[g_countyCount] clamped to 1..12 and copies g_mercMen, g_mercTroopType, g_mercStartCounty, g_mercPeriod, g_mercPrice and g_mercWage into g_mercBands.",
+      "signature": "void Mercenary_Init(void)"
+    },
+    {
+      "addr": "0x004ACA2B",
+      "name": "Mercenary_AdvanceAll",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Once a season: every unhired band clears its offer, counts its timer down and steps one county along, wrapping at g_countyCount; at zero it offers itself in that county and reloads. Then each county's +0x1AD caches the first band offered there.",
+      "signature": "void Mercenary_AdvanceAll(void)"
+    },
+    {
+      "addr": "0x004ACB54",
+      "name": "Mercenary_OfferInCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Returns the first unhired band whose offered-county field equals this county, or 0.",
+      "signature": "int Mercenary_OfferInCounty(uint county)"
+    },
+    {
+      "addr": "0x004AC7F3",
+      "name": "Mercenary_Hire",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Attaches a band to a newly created army: writes +0x195, +0x196 and +0x197, adds the men to +0x168, marks the band hired, debits the realm's gold by the band price and clears the county offer.",
+      "signature": "void Mercenary_Hire(int unit, int band)"
+    },
+    {
+      "addr": "0x004AC6FE",
+      "name": "Mercenary_Release",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Removes an army's mercenary band: subtracts its men from +0x168, clears the three fields and frees the band for hire again. Used on disband and by bankruptcy stage 1.",
+      "signature": "void Mercenary_Release(int unit)"
+    },
+    {
+      "addr": "0x00418653",
+      "name": "Screen_RaiseArmy",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The raise-army screen: L2.eng group 69 over the levy slider, the six weapon stocks from realm +0x140, the happiness cost, and the mercenary offer for county +0x1AD - count and nationality from g_mercBands, the hire price, and men/2 as the seasonal wage.",
+      "signature": "void Screen_RaiseArmy(void)"
+    },
+    {
+      "addr": "0x00419354",
+      "name": "Screen_SplitArmyRows",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The eight rows of the army-division screen (L2.eng group 17): troop types 0..6 from the levy basket in two columns, then row 7 as the mercenary band, then the two Total men lines.",
+      "signature": "void Screen_SplitArmyRows(void)"
+    },
+    {
+      "addr": "0x00421F14",
+      "name": "Screen_SiegePrep",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The siege preparation screen (0x1D): L2.eng group 83, the seasons remaining from +0x19C, and a count plus a percent-complete bar for each of the three siege-engine records at +0x182, +0x188 and +0x18E.",
+      "signature": "void Screen_SiegePrep(void)"
+    },
+    {
+      "addr": "0x00468E61",
+      "name": "County_PlaceResourceSites",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "At load, scans the county for Town-bank tiles (runtime byte +2 masked with 0x1C equals 0x0C) and turns plane-2 descriptor 30, 0 and 20 into the iron, stone and wood industry sites: sets has_resource at +0x295 + c*0x18, stores the tile, and writes terrain 1, 4 and 10. This is where a county's resources come from - the map, not the county record.",
+      "signature": "void County_PlaceResourceSites(uint county)"
+    },
+    {
+      "addr": "0x0046902A",
+      "name": "County_PlaceBlacksmith",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Places the weapons industry site (record 2) on the plain tile of the county nearest one of its farm fields. The blacksmith is derived rather than authored, which is why every county has one.",
+      "signature": "void County_PlaceBlacksmith(uint county)"
+    },
+    {
+      "addr": "0x004701AC",
+      "name": "Move_ExtractPath",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int Move_ExtractPath(int who, int x, int y)",
+      "comment": "The campaign path extractor (distinct from the battle's Path_Extract at 0x00472392). Greedy descent down a campaign distance field from (x, y) back to the source, appending (x, y) pairs into g_pathBuf[who] with the count in g_pathLen[who]. On a cost-1 road tile it steps the direction index by 2, orthogonals only, and falls back to all eight when that finds nothing."
     }
   ],
   "globals": [
@@ -3082,7 +3498,7 @@
       "name": "g_units",
       "section": "units",
       "confidence": "verified",
-      "comment": "Unit array, 150 records x 0x1A4 bytes, index 1..149 (0 unused). +0x00 owner, +0x08 type, +0x0A/+0x0B tile x/y, +0x0C tile offset, +0x10 county, +0x14..+0x17 destination x/y, +0x14F merchant route index, +0x150 'needs a destination', +0x151 destination county, +0x164 merchant route cursor, +0x16C.. cargo."
+      "comment": "Unit array, 151 records x 0x1A4 bytes, index 1..150 (0 unused); save block 5 is 63,420 bytes. Type at +0x08: 1 army, 2 revolting peasants, 3 merchant, 4 transport. Common: +0x00 owner, +0x07 sprite frame, +0x09 facing, +0x0A/+0x0B tile x/y, +0x0C tile offset, +0x10 county, +0x1C path length, +0x1D..+0x148 a 150-step (x,y) path, +0x14C move state, +0x14D on a road, +0x150 needs a destination, +0x151 destination county, +0x153 moves used, +0x154 move allowance (15 for an army, 10 otherwise). Army only: +0x11 home county, +0x14F army-name index into L2.eng group 93+owner, +0x155 starvation 0..5, +0x15C wages, +0x164 year formed, +0x166 morale, +0x168 total men, +0x16C+t*2 eleven i16 troop counts (0..6 campaign, 7..10 filled just before a battle), +0x182 three 6-byte siege-engine build records, +0x195/+0x196/+0x197 mercenary type/men/band, +0x198 garrison county, +0x199 besieged county, +0x19C siege seasons left. See docs/armies.md."
     },
     {
       "addr": "0x0052AFE0",
@@ -4896,6 +5312,167 @@
       "section": "text",
       "confidence": "verified",
       "comment": "Where Eng_Seek leaves its pointer; the caller reads or copies the string from here."
+    },
+    {
+      "addr": "0x004D6A50",
+      "name": "g_unitTickTable",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Six function pointers indexed by unit type: 0 empty, 1 Army_Tick, 2 peasant mob, 3 merchant, 4 transport, 5 NULL. Units_Tick accepts type 5, so a type-5 unit would call address 0."
+    },
+    {
+      "addr": "0x004D6A78",
+      "name": "g_unitWalkFrames",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Eight i32 walk-cycle frame offsets, 0,1,2,1,0,1,2,1 - a ping-pong over three frames, added to the unit sprite base."
+    },
+    {
+      "addr": "0x004F4080",
+      "name": "g_moveCost",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "64x64 i16 campaign movement cost map rebuilt each season by Move_BuildCostMap: 1 road, 3 open ground, 6 a standing field, 100 castle/settlement/plot, 0 impassable."
+    },
+    {
+      "addr": "0x00500C30",
+      "name": "g_moveDistLocal",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "64x64 i16 distance field for the local player, filled by Move_FloodFill and descended by Path_Extract. Map_DrawPathMarker uses its values as the path-ball sprite index."
+    },
+    {
+      "addr": "0x004F0380",
+      "name": "g_moveDistOther",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The same 64x64 i16 distance field, used for every realm that is not the local player."
+    },
+    {
+      "addr": "0x00553550",
+      "name": "g_pathBuf",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Campaign path buffers, stride 300 = 150 (x, y) byte pairs, one per realm slot. Path_CopyToUnit copies one into a unit record."
+    },
+    {
+      "addr": "0x0053F070",
+      "name": "g_pathLen",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Length in steps of each g_pathBuf entry, one byte per realm slot."
+    },
+    {
+      "addr": "0x0053F6A0",
+      "name": "g_levyBasket",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Per-realm army composition scratch, stride 0x80, eight slots of 0x10 bytes. While raising: slot 0 unequipped peasants, 1..6 the six weapon types in g_weaponCost order, 7 the total, with +0x00 chosen, +0x04 available and +0x08 remaining. The army-split screen reuses the same buffer with +0x00 and +0x04 as the two halves and slot 7 as the mercenary band."
+    },
+    {
+      "addr": "0x00568DC0",
+      "name": "g_mercBands",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Twelve mercenary bands, stride 0x14, index 1..12 = the L2.eng group 16 nationality. +0x00 hiring unit (0 = free), +0x02 start county, +0x03 the county it is currently offered in, +0x04 the next county in its walk, +0x05 troop type, +0x06 countdown, +0x07 reload, +0x08 men, +0x0C price, +0x10 an unread wage figure."
+    },
+    {
+      "addr": "0x00554030",
+      "name": "g_mercBandsInPlay",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "How many of the twelve mercenary bands this map uses, from g_mercBandCountByCounties, clamped to 1..12. England has 14 counties and gets all twelve."
+    },
+    {
+      "addr": "0x004DE760",
+      "name": "g_mercMen",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Twelve i32, the size of each mercenary band: 100, 200, 150, 200, 200, 100, 100, 200, 150, 250, 50, 100. Ends exactly where g_mercTroopType begins."
+    },
+    {
+      "addr": "0x004DE790",
+      "name": "g_mercTroopType",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Twelve u8, the troop type of each band: 4, 4, 5, 5, 3, 3, 1, 1, 2, 2, 6, 6 - pikemen, archers, swordsmen, crossbowmen, macemen and knights, each as a small and a large band."
+    },
+    {
+      "addr": "0x004DE7A0",
+      "name": "g_mercStartCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Twelve u8, the county each band starts its walk in: 1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17."
+    },
+    {
+      "addr": "0x004DE7B0",
+      "name": "g_mercPeriod",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Twelve u8, how many seasons pass between one band's offers: 5, 3, 6, 4, 2, 7, 5, 2, 1, 3, 6, 7."
+    },
+    {
+      "addr": "0x004DE7C0",
+      "name": "g_mercPrice",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Twelve i32, the crowns to hire each band: 1800, 3500, 3000, 4000, 5500, 2700, 3000, 6000, 1900, 3100, 2700, 5500. Ends exactly where g_mercWage begins."
+    },
+    {
+      "addr": "0x004DE7F0",
+      "name": "g_mercWage",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Twelve i32, exactly g_mercPrice / 10. Copied into g_mercBands +0x10 and never read anywhere - the raise-army screen prints men/2 instead, and Wages_ForUnit charges nothing extra for a mercenary."
+    },
+    {
+      "addr": "0x004DE820",
+      "name": "g_mercBandCountByCounties",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "i32 indexed by g_countyCount giving how many mercenary bands are in play: 0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, then 12 for every larger map."
+    },
+    {
+      "addr": "0x004DE440",
+      "name": "g_siegeEngineWork",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Three i32 man-seasons to build one engine: catapult 200, siege tower 200, battering ram 400. A besieging army contributes its men each season."
+    },
+    {
+      "addr": "0x0057C924",
+      "name": "g_battleLoser",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The unit index of the defeated side, read by Battle_ReturnToCampaign to decide which army is destroyed and which is charged movement."
+    },
+    {
+      "addr": "0x005533E8",
+      "name": "g_movingUnit",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The unit slot Units_Tick is currently driving; the whole campaign mover reads it rather than taking a parameter."
+    },
+    {
+      "addr": "0x0056D65C",
+      "name": "g_levyPercent",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The raise-army slider, 0..100 - the percentage of the county population being levied, and what indexes g_armyHappinessCost."
+    },
+    {
+      "addr": "0x00543FD8",
+      "name": "g_levyMen",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Pct(county population, g_levyPercent): the headcount the slider currently proposes."
+    },
+    {
+      "addr": "0x00565400",
+      "name": "g_levyHappinessCost",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "g_armyHappinessCost[g_levyPercent] plus county +0x2F4, clamped to 0..100. Subtracted from county happiness and from county +0x15 (shownArmy) when the army is created."
     }
   ]
 }
