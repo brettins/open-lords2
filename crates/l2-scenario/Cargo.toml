@@ -1,0 +1,21 @@
+[package]
+name = "l2-scenario"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "The seam that turns a Lords of the Realm II save into a live l2-kingdom"
+
+# The only crate in the workspace that is allowed to know both a file format and
+# the simulation. That is the whole reason it exists:
+#
+# * `l2-kingdom` must never learn what a file is. It takes plain data and has no
+#   loader, no `std::fs` and no knowledge of the original's byte layout - see its
+#   own Cargo.toml and docs/netcode.md D-3.
+# * `l2-formats` must never learn what a kingdom is. It parses bytes and stops,
+#   and it is deliberately dependency-free.
+#
+# A conversion needs both vocabularies, so it lives in neither and depends on
+# both. Nothing depends on this crate except the application spine and tests.
+[dependencies]
+l2-formats = { path = "../l2-formats" }
+l2-kingdom = { path = "../l2-kingdom" }

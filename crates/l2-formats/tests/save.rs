@@ -200,3 +200,160 @@ fn the_documented_food_split_is_what_the_file_stores() {
         assert_eq!(c.ration_wanted, 3, "normal rations");
     }
 }
+
+/// The realm records say the same thing the county owner bytes do, from a
+/// different field: **five realms in play, one county each.** `+0x29` is the
+/// realm's own count of what it owns, and it is 1 for every one of them — so
+/// the "four counties owned by the human realm" scenario is contradicted twice
+/// over by the file.
+#[test]
+fn five_realms_are_in_play_and_each_owns_exactly_one_county() {
+    let Some(save) = open() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let realms = save.realms().unwrap();
+    assert_eq!(realms.len(), 6, "six records, index 0 unused");
+    assert!(!realms[0].in_play(), "realm 0 is an array slot");
+
+    for r in realms.iter().skip(1) {
+        assert!(r.in_play(), "realm {} is in play", r.index);
+        assert_eq!(r.county_count, 1, "realm {} owns one county", r.index);
+        assert_eq!(r.gold, 1000, "realm {} starts on a thousand crowns", r.index);
+        assert_eq!((r.iron, r.stone), (50, 50), "realm {}", r.index);
+        assert_eq!(r.ai_step, 0, "realm {} has not begun a turn", r.index);
+        assert_eq!(r.rank, 0, "nothing has been ranked yet");
+        assert_eq!(r.tax_hap_empire, 0, "every rate is zero");
+        assert_eq!(r.wages, 0);
+    }
+
+    // Realm 1 is the person; the other four are lords 1, 2, 4 and 3.
+    let human: Vec<usize> = realms.iter().filter(|r| r.is_human).map(|r| r.index).collect();
+    assert_eq!(human, vec![1], "one human realm");
+    assert_eq!(realms[1].lord, 0, "row 0 of every lord-indexed table is the person's");
+    assert_eq!(
+        realms.iter().skip(2).map(|r| r.lord).collect::<Vec<u8>>(),
+        vec![1, 2, 4, 3],
+        "four AI lords, and not in realm order"
+    );
+}
+
+/// The clock, the options and who is playing — the scalars outside the two
+/// arrays. `g_localPlayer` is **1**, and realm 1 owns county 8.
+#[test]
+fn the_globals_are_a_turn_one_winter_game_driven_by_realm_one() {
+    let Some(save) = open() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let g = save.globals().unwrap();
+    assert_eq!(g.county_count, 14);
+    assert_eq!(g.scenario_index, 0, "the England map");
+    assert_eq!(g.local_player, 1);
+    assert_eq!((g.season, g.season_next, g.year, g.turn_count), (4, 1, 1268, 1));
+    assert_eq!((g.turn_phase, g.turn_phase_step), (1, 0), "parked at the start of phase 1");
+    assert_eq!((g.opt_difficulty, g.opt_advanced_farming, g.opt_armies_eat), (0, 0, 0));
+    assert_eq!(g.merchant_count, 6);
+    assert_eq!(g.weather_county, 2);
+
+    let counties = save.counties().unwrap();
+    assert_eq!(counties[8].owner as i32, g.local_player, "the person holds county 8");
+}
+
+/// Adjacency is real, and it is **symmetric**: every neighbour list names a
+/// county that names it back. That is a property of the data rather than of
+/// this reader, so it fails if the ids are being read from the wrong offset.
+#[test]
+fn the_neighbour_lists_are_symmetric_and_name_only_real_counties() {
+    let Some(save) = open() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let counties = save.counties().unwrap();
+    let real: Vec<&l2_formats::save::County> =
+        counties.iter().filter(|c| c.is_county()).collect();
+    assert_eq!(real.len(), 14);
+
+    for c in &real {
+        assert!(!c.neighbours().is_empty(), "county {} borders somebody", c.index);
+        for &n in c.neighbours() {
+            let n = n as usize;
+            assert!((1..=14).contains(&n), "county {} names {n}", c.index);
+            assert_ne!(n, c.index, "county {} cannot border itself", c.index);
+            assert!(
+                counties[n].neighbours().contains(&(c.index as u8)),
+                "county {} names {n}, which does not name it back",
+                c.index
+            );
+        }
+    }
+    // The map is one piece, and the trailing slots really are empty.
+    for c in &real {
+        for &spare in &c.neighbours[c.neighbour_count as usize..] {
+            assert_eq!(spare, 0, "county {} has a stale id past its count", c.index);
+        }
+    }
+    // County 1 is the map's dead end - one neighbour - and it matters later:
+    // it is the one county whose ration term does not reproduce.
+    assert_eq!(counties[1].neighbours(), &[2]);
+}
+
+/// The food configuration, which is where the shipped scenario stops being
+/// uniform. Three shapes, and the third is one county on its own:
+///
+/// * the nine unowned counties: 100 sacks, 67 head, split **100** (all
+///   livestock) — and 13 head slaughtered;
+/// * four of the five owned counties: no grain at all, a herd big enough that
+///   five people per head covers the whole population, and nothing eaten;
+/// * **county 1**: no grain, a split of **0** (all grain), and a stored
+///   `rationAchieved` of **2** — the only county on the map not on Normal.
+///
+/// County 1 is also the only county whose `dHapRation` (−2) disagrees with its
+/// `shownRation` (+1), which is the fingerprint of the ration pass running
+/// twice per season.
+#[test]
+fn the_food_configuration_has_three_shapes_and_county_one_is_alone_in_the_third() {
+    let Some(save) = open() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    let counties = save.counties().unwrap();
+
+    for c in counties.iter().filter(|c| c.is_county() && !c.is_owned()) {
+        assert_eq!((c.grain, c.herd, c.ration_split), (100, 67, 100), "county {}", c.index);
+        assert_eq!((c.grain_eaten, c.herd_eaten), (0, 13), "county {}", c.index);
+        assert_eq!(c.ration_achieved, 3, "county {}", c.index);
+        assert_eq!(c.d_hap_ration, 1, "county {}", c.index);
+    }
+
+    for c in counties.iter().filter(|c| c.is_owned() && c.index != 1) {
+        assert_eq!(c.grain, 0, "owned county {} holds no grain", c.index);
+        assert!(c.herd * 5 >= c.population, "owned county {} lives on cheese", c.index);
+        assert_eq!((c.grain_eaten, c.herd_eaten), (0, 0), "county {}", c.index);
+        assert_eq!(c.ration_achieved, 3, "county {}", c.index);
+        assert_eq!(c.d_hap_ration, 1, "county {}", c.index);
+    }
+
+    let one = counties[1];
+    assert_eq!((one.owner, one.grain, one.herd, one.ration_split), (5, 0, 74, 0));
+    assert_eq!(one.ration_wanted, 3, "it asked for Normal");
+    assert_eq!(one.ration_achieved, 2, "and the preview says it will get Half");
+    assert_eq!(one.d_hap_ration, -2, "3L - 8 at L = 2");
+    assert_eq!(one.shown_ration, 1, "but the happiness it stores was built on +1");
+    assert_eq!(one.happiness, 72, "65 + 5 + 1 + 1");
+}
+
+/// `+0x180` and `+0x184` equal the stores themselves, in every county. The pass
+/// that wrote them therefore spent nothing — which is the ration *preview*, and
+/// is the file's own evidence for the two-call reading of `Ration_Apply`.
+#[test]
+fn the_recorded_available_food_is_the_food_still_in_store() {
+    let Some(save) = open() else {
+        eprintln!("LORDS2_DIR not set - skipping");
+        return;
+    };
+    for c in save.counties().unwrap().iter().filter(|c| c.is_county()) {
+        assert_eq!(c.grain_available, c.grain, "county {}", c.index);
+        assert_eq!(c.herd_available, c.herd, "county {}", c.index);
+    }
+}

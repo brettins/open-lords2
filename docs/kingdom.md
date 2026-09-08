@@ -516,15 +516,37 @@ what the county can feed, then spends, in order:
 3. Each side is capped at what is actually in store, and the loop drops a ration level and
    retries if the total will not fit.
 
-> **What reproduces and what does not.** In the shipped `lastturn.sav`, an unowned county
-> has population 456, herd 67, ration *Normal*, split 100 %. The model gives
-> `456 − 67×5 = 121` people left to feed and `DivCeil(121, 10) = 13` head — and the stored
-> `+0x17C` is **13**, for all ten unowned counties. The four player-owned counties do
-> **not** reproduce: they store `+0x17C = 3` where the model gives 0. Those fields are
-> written several times per turn from different call sites (the last write is a preview for
-> the *next* season — the stored `rationAchieved` is likewise the next season's level, not
-> the one that was applied), and this document did not untangle which write survives.
-> Flagged rather than smoothed over.
+> **What reproduces — all of it, now. Corrected twice.** An earlier revision of this box
+> said the nine unowned counties reproduced, the *"four player-owned"* ones did not, and
+> that they stored `+0x17C = 3` where the model gives 0. Two things were wrong with that.
+> There are **five** owned counties, not four (§9). And they store `+0x17C = 0`, not 3 —
+> the 3 is `rationAchieved` at `+0x15D`, one field along.
+>
+> Read correctly, **every county in the file reproduces**, and
+> `crates/l2-kingdom/tests/reproduction.rs` asserts it for all fourteen:
+>
+> | | population | herd | grain | split | achieved | `+0x178` | `+0x17C` |
+> |---|---:|---:|---:|---:|---:|---:|---:|
+> | nine unowned | 456 | 67 | 100 | 100 % | Normal | 0 | **13** |
+> | counties 4, 8, 11, 13 | 435 | 93 … 110 | 0 | 0 or 100 % | Normal | 0 | **0** |
+> | county 1 | 435 | 74 | 0 | 0 % | **Half** | 0 | **0** |
+>
+> The unowned row is the worked example: `456 − 67×5 = 121` people left to feed and
+> `DivCeil(121, 10) = 13` head. The middle row keeps a herd large enough that five people
+> per head covers the whole county, so nothing is slaughtered and nothing is sown. County 1
+> splits its ration entirely onto grain and has none, so it drops a level — which is why
+> its `dHapRation` is **−2** while its `shownRation` is **+1**.
+>
+> **That disagreement settles which write survives.** `shownRation` is the copy taken while
+> happiness was computed, so the *first* call fed county 1 at Normal; `dHapRation` is the
+> *second* call, next season's preview, and it says Half. And the first call must have
+> **debited the store**: feeding county 1 at Normal on an all-grain split costs
+> `DivCeil(417 − 74×5, 6) = 8` sacks, and the county holds none. A call that did not spend
+> would have left those eight sacks behind.
+>
+> The same inversion recovers the opening stores the file does not record, uniquely: the
+> unowned counties began the season on **73 head** and closed on 67, and county 1 began on
+> **8 sacks**. Put those back and the whole map reproduces every stored field.
 
 ### 4.4 Putting happiness together
 
@@ -1242,9 +1264,19 @@ Eight independent predictions land:
 4. **`g_merchantCount` = 6.** [`plane4.md`](formats/plane4.md) §5 lists "six merchants on
    England" as a falsifiable, unobserved prediction. **It is now observed.**
 5. **Happiness reproduces exactly.** Every county has `happinessLast = 65`,
-   `shownTax = +5`, `shownHealth = +1`, `shownRation = +1`. Player-owned counties store
+   `shownTax = +5`, `shownHealth = +1`, `shownRation = +1`. Owned counties store
    happiness **72 = 65 + 5 + 1 + 1**; unowned counties store **77**, with
    `shownEvents = +5` — the unowned bonus in §4.4. Fourteen counties, two cases.
+
+   **Corrected: there are five owned counties, not four, and they belong to five different
+   realms.** The owner bytes are `5` at index 1, `4` at 4, `1` at 8, `3` at 11 and `2` at
+   13 — one county for each of realms 1 … 5, nine unowned, and the realm records agree
+   from the other side with `+0x29 = 1` apiece. The person is realm 1 and holds county 8
+   alone. An earlier revision of this section said *"four counties owned by the human
+   realm, ten unowned"*, and `crates/l2-kingdom/tests/reproduction.rs` was built on that
+   invented scenario rather than on the file — `docs/decisions.md` C12 a second time. Both
+   are fixed: the test now imports the save through `crates/l2-scenario` and compares
+   against the stored bytes.
 6. **The tax term reproduces.** `taxRate` is 0 everywhere, and `dHapTax = 5 − 0 = 5`.
 7. **The health chain reproduces.** `healthMeter` is 67 and `healthBand` is 3, which is the
    ladder's `≤ 90 → 3`. A published dump of the new-game presets gives a starting health of
@@ -1257,8 +1289,8 @@ Eight independent predictions land:
 
    | | happiness | factor | births | deaths | population |
    |---|---:|---:|---:|---:|---:|
-   | owned (4 counties) | 72 | 75 % | `Pct(417, Pct(20,75)) + 1` = **63** | `Pct(417, 3+8)` = **45** | `417+63−45` = **435** |
-   | unowned (10 counties) | 77 | 100 % | `Pct(417, 20) + 1` = **84** | **45** | **456** |
+   | owned (5 counties) | 72 | 75 % | `Pct(417, Pct(20,75)) + 1` = **63** | `Pct(417, 3+8)` = **45** | `417+63−45` = **435** |
+   | unowned (9 counties) | 77 | 100 % | `Pct(417, 20) + 1` = **84** | **45** | **456** |
 
    and the stored values are 63/45/435 and 84/45/456. The deaths figure needs
    `g_deathRateByHealth[3] = 3` **and** `g_deathRateBySeason[4] = 8`, so it also confirms
@@ -1267,6 +1299,16 @@ Eight independent predictions land:
 That is a five-stage chain — ration → health meter → health band → happiness → birth rate →
 population — reproducing on live data from a real game, with no free parameters. It is the
 strongest evidence in this document and the reason most of §4 and §5 is marked **[V]**.
+
+**And it is now a test rather than a paragraph.** `crates/l2-scenario` imports
+`lastturn.sav` into a live `l2_kingdom::Kingdom` — the seam exists because `l2-kingdom` may
+not know what a file is and `l2-formats` may not know what a county is — and
+`crates/l2-kingdom/tests/reproduction.rs` rewinds it one season, runs `Season_Advance`, and
+compares **twenty-six stored fields across all fourteen counties**. Nothing in that file is
+quoted from this document any more.
+
+The rewind needs one input the save does not hold: the herd and grain the ration pass ate,
+since only the remainder survives. §4.3 shows it is recoverable and unique.
 
 `popBand` (`+0xB8`) also checks: `(435−1)/25 + 1 = 18` and `(456−1)/25 + 1 = 19`, which are
 the stored values.

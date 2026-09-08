@@ -21,3 +21,11 @@ description = "Deterministic kingdom simulation (counties, seasons, economy) for
 [dependencies]
 l2-net = { path = "../l2-net" }
 
+
+# `tests/reproduction.rs` drives this crate from the shipped save, which needs
+# the save reader and the seam that converts it. Both are dev-only: nothing in
+# `src/` may reach a file, and Cargo permits the cycle precisely because a
+# dev-dependency is not part of the library's own dependency graph.
+[dev-dependencies]
+l2-formats = { path = "../l2-formats" }
+l2-scenario = { path = "../l2-scenario" }

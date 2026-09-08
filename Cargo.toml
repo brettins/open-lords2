@@ -5,6 +5,7 @@ members = [
     "crates/l2-kingdom",
     "crates/l2-mods",
     "crates/l2-net",
+    "crates/l2-scenario",
     "crates/l2-sim",
     "crates/l2-view",
 ]

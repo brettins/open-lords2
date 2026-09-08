@@ -95,12 +95,25 @@
 //!    the *previous* season's ore, because this season's has not been mined
 //!    yet. See [`tables::INDUSTRY_ORDER`].
 //!
-//! 8. **§4.3's own admission stands.** The food-split fields reproduce for the
-//!    ten unowned counties and not for the four owned ones, because
-//!    `Ration_Apply` runs twice and the surviving write is next season's
-//!    preview. This crate models that as [`ration::apply`] (spends) and
-//!    [`ration::preview`] (does not), which reproduces the unowned case
-//!    exactly and leaves the owned case exactly as unexplained as §4.3 left it.
+//! 8. **§4.3's admission is discharged, and this crate's guess was right.**
+//!    §4.3 said the food-split fields reproduced for the unowned counties and
+//!    not for the owned ones, and that it *"did not untangle which write
+//!    survives"*. Reading the save through `l2-scenario` untangles it, and
+//!    **all fourteen counties reproduce** — see
+//!    `tests/reproduction.rs::the_ration_preview_reproduces_every_stored_food_field`.
+//!
+//!    County 1 is what settles it. It stores `dHapRation = -2` and
+//!    `shownRation = +1`, which are the two calls disagreeing: the display copy
+//!    is taken while happiness is computed, so the *first* call fed it at
+//!    Normal, and the *second* — next season's preview — says Half. Feeding it
+//!    at Normal on an all-grain split costs `DivCeil(417 - 74*5, 6) = 8` sacks,
+//!    and the county stores none, so **the first call debits the store**. That
+//!    is [`ration::apply`] spending and [`ration::preview`] not, exactly as
+//!    written here.
+//!
+//!    §4.3 was also wrong about the numbers: it said the owned counties store
+//!    `+0x17C = 3`. They store 0; the 3 is `rationAchieved` at `+0x15D`. And
+//!    there are five of them, not four.
 //!
 //! 9. **The rules §12 lists as unknown have been traced**, and are no longer
 //!    stubs. Each is documented where it is implemented, with the address it
@@ -144,10 +157,18 @@
 //!       [`tables::AI_PERSONALITY_COUNT`], which is four;
 //!     * the ten AI handlers whose state lives outside this crate.
 //!
-//! 11. **§9's five-stage chain reproduces exactly**, and is asserted in
-//!     `tests/reproduction.rs`: ration → health meter → health band →
-//!     happiness → birth rate → population, on live data from a real game with
-//!     no free parameters. Nothing had to be adjusted to make it land.
+//! 11. **§9's five-stage chain reproduces exactly**, and `tests/reproduction.rs`
+//!     now asserts it against `lastturn.sav` rather than against §9's prose:
+//!     ration → health meter → health band → happiness → birth rate →
+//!     population, twenty-six stored fields across all fourteen counties.
+//!     Nothing had to be adjusted to make it land.
+//!
+//!     The save reaches this crate through `l2-scenario`, which is the only
+//!     crate allowed to know both a file format and a simulation. **Nothing in
+//!     `src/` opens a file or knows one exists**, and `l2-formats` is a
+//!     dev-dependency of the tests alone. §9 itself carried the same invented
+//!     scenario the old test did — four counties owned by one realm — and both
+//!     have been corrected to the five the file holds.
 //!
 //! 12. **Two more layout errors, found by reading the bytes.**
 //!     `g_healthBandLadder` is five `{threshold, band}` pairs and §4.2's
