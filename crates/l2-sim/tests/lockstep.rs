@@ -367,7 +367,8 @@ use l2_sim::{Figure, State};
 ///
 /// The mover is deliberately crude - one cell per nine ticks, straight at the
 /// unit's destination - because what is under test is the AI's decisions and
-/// the determinism of its draw, not the mover. `l2-view` owns the real one.
+/// the determinism of its draw, not the mover. `l2_sim::runner` owns the real
+/// one, and `two_peers_running_a_whole_battle_stay_bit_identical` below runs it.
 struct AiNetBattle {
     units: Units,
     figures: Vec<Figure>,
