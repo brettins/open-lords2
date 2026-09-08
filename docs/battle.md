@@ -690,10 +690,13 @@ byte-identical. `Rules_InitConstants` does not touch them. That matters because 
 file needs no process, no window and no focus — the cheap check is now known to be the
 sufficient one.
 
-`g_troopBattleStats` also carries three columns the simulation does not yet model: maximum
-figures per unit (12 peasants or archers, 8 crossbowmen, macemen and swordsmen, 10 pikemen,
-6 knights, 2 per siege engine, 1 oil), the cell footprint (1 for infantry, 3 for siege
-engines, 2 for oil), and maximum figures per formation row. **[V]**
+`g_troopBattleStats` carries three further columns: maximum figures per unit (12 peasants or
+archers, 8 crossbowmen, macemen and swordsmen, 10 pikemen, 6 knights, 2 per siege engine, 1
+oil), the cell footprint (1 for infantry, 3 for siege engines, 2 for oil), and maximum
+figures per formation row. **[V]** All three are now modelled, in
+`crates/l2-sim/src/formation.rs`: the first decides where one unit ends and the next begins
+when an army is raised, and the other two decide the shape of the rectangle its figures form
+up in, both at deployment and at every reform.
 
 ### 8.3 The pathfinder
 

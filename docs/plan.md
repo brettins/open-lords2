@@ -48,11 +48,20 @@ wrong answer.
    it.** Turns the project's central kingdom test from self-consistent into a real oracle,
    and hands the slice a real starting position for free.
 2. **Move `BattleRunner` and `Battlefield` into `l2-sim`.** Cheap now, structural later.
+   **Done** — with `Dir_FromDelta` and the figure's motion, which are simulation state for
+   the same reason. `l2-view` is now a reader with no state of its own, and `l2-sim` still
+   depends on nothing but `l2-formats` and `l2-net`.
 3. **`l2-game`, the application spine** — unchanged in substance, but it now starts from a
    real scenario rather than a synthetic one.
 4. **Workstream B**, rescoped: `Tables` threading is real and larger than stated (21 of the
    consts are not fields of `Tables` at all, so threading alone does not make `kingdom.toml`
    take effect). The order handlers are worth doing and are not on the slice's path.
+   **B2 is done**, and the review was right that it was not mechanical: it needed the unit
+   layer first. `crates/l2-sim/src/runner.rs` raises units the way `Battle_RaiseSide` does,
+   dispatches `Battle_UpdateAllUnits` every frame and reforms what it orders, and
+   `tests/lockstep.rs` runs the whole thing over a socket. What that bought is the three
+   *field* handlers actually driving a battle; the fourteen siege ones are still called by
+   nothing, because there is still no castle — see `docs/battle-ai.md` §13.
 
 The original plan follows, unchanged except where the review struck it.
 

@@ -946,3 +946,82 @@ only way to find out whether it is true; these are the places it was not.
   those tables as data supplied by the caller rather than asserting their
   contents. And §9's first bullet stands unchanged: **nothing here has been
   observed running.**
+
+---
+
+## 13. What wiring it into a running battle found
+
+§12 came from implementing the seventeen handlers. This comes from *calling*
+them: `crates/l2-sim/src/runner.rs` now raises units, dispatches
+`Battle_UpdateAllUnits` every frame and reforms what it orders. Running a
+battle exercises the parts a unit test of a handler cannot.
+
+* **A unit is not a troop group; it is a slot.** `Battle_RaiseSide`
+  (`0x0047FEA7`) splits each troop type into units of at most
+  `g_troopBattleStats[t].maxFigures` figures and gives each one the next of its
+  side's twelve marker slots. **[V]** — the column reads
+  `12, 8, 8, 8, 10, 12, 6, 2, 2, 2, 1` straight out of `Lords2.exe`
+  (`tools/oracle/tables.ps1`), so twenty peasants are two units and not one,
+  and eighty oil pots would be eighty units.
+
+* **`Deploy_SlotForUnit` (`0x0048169E`) does not bound-check the ordinal**, and
+  the two twelve-slot tables are adjacent — side 0's at `0x00553150`, side 4's
+  at `0x005531B0`. So **a side-0 army of more than twelve units deploys its
+  thirteenth on the enemy's first slot**, which is reachable, because oil holds
+  one figure per unit. Reproduced. Past the twenty-fourth entry the original
+  reads bytes we have not identified, and there `l2-sim` clamps rather than
+  inventing them.
+
+* **A figure's deployment facing comes from its row, not from its side.**
+  `BattleMan_Create` (`0x0046E4C8`): `y < 0x29` faces 4, otherwise 0. On a
+  `.skr` map that agrees with the side, which is why reading it as the side
+  worked; on a map whose markers are not north and south it would not.
+
+* **The deployment placement search is not a spiral.** `FUN_0046E70E` scans the
+  whole `(2r+1)²` box clipped to the map, rows top to bottom and columns left
+  to right, and returns the first free passable cell. Since radius `r − 1` has
+  already been scanned and rejected, the answer is the topmost-then-leftmost
+  free cell in the box — not the nearest one.
+
+* **`Formation_SendFigure`'s `+0x13` gate is a *force* flag, not a state.**
+  §5's table lists what state a figure enters; what it does not say is that the
+  whole routine is skipped when the figure is already filling the moat (state
+  9) *unless* unit `+0x13` is set, and skipped for a **human-owned siege
+  engine** under the same condition. `BattleUnit_Reform` clears `+0x13` on the
+  way out. `docs/battle.md` and `l2-sim` both had `+0x13` as read-only and
+  unexplained.
+
+* **An un-ordered unit stands still, and that is `BattleUnit_Recentre`'s tail.**
+  A unit whose destination is still `(0, 0)` has it seeded from its own
+  position, so a freshly deployed army does not walk anywhere until a handler
+  or a player's click writes one. Combined with §12's silent opening —
+  `UnitOrder_FieldFoot` does nothing for its first two thinks and
+  `UnitOrder_FieldMelee` for its first four — **an AI foot unit's first
+  movement order comes at frame 600 and a melee unit's at frame 1000.** A
+  battle's first ten seconds are two armies looking at each other.
+
+* **A battle with no human side never leaves the cautious branch.**
+  `Battle_UpdateStrengthAdvantage` is `PctOf(aiMen, humanMen) - 100`, and
+  `PctOf` answers 0 when its divisor is 0 (§8), so an AI-versus-AI field battle
+  reads a permanent **−100** and every handler that has a mood takes the timid
+  half of it. Consistent with the strategic layer auto-calculating battles
+  between two computer lords rather than fighting them on the field, but it
+  means "both sides AI" is not a configuration the original ever runs, and a
+  reimplementation that defaults to it will conclude the AI does nothing.
+
+* **A correction to us, not to the original: a duel is a mutual lock and
+  something has to break it.** `melee::tick` released only the pair it was
+  resolving, so when a third figure landed the killing blow the survivor stayed
+  in state 4 opposite a corpse. That is not cosmetic: `BattleUnits_RebuildFromFigures`
+  raises `+0x0D` from state 4 and **thirteen of the seventeen handlers refuse to
+  run while it is set**, so one stuck figure silently stopped its whole unit
+  thinking for the rest of the battle. It surfaced as a knights-versus-peasants
+  battle that had not resolved after sixty thousand frames with two peasants
+  standing untouched two cells away. The original's state-4 handler drops back
+  to state 0 when its opponent is gone; `runner.rs` now does the same.
+
+* **Still not driven.** `l2-sim::missile` resolves a hit and nothing calls it —
+  no reload counter, no flight, no arrow. A unit ordered to shoot enters state
+  17 and stands still, which is what the original does, except that in the
+  original it is also shooting. Everything in §6 remains untested for the same
+  reason §12 gives: there is no castle to fight over.
