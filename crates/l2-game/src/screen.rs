@@ -42,6 +42,14 @@ pub enum ScreenId {
     /// original's screen `0x0F`. It floats over whatever opened it, which is
     /// either the village or the campaign sidebar.
     Job(u8, usize),
+    /// `g_screenId` `0x1F` — the front end and game setup, by sub-page.
+    Setup(crate::screens::setup::SetupPage),
+    /// `g_screenId` `0x1C` — the campaign interstitial.
+    Conquest,
+    /// A screen that is drawn and not yet driven, named by its `g_screenId`.
+    Shell(u8),
+    /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
+    Index,
 }
 
 /// What a screen asks the machine to do next.
@@ -72,23 +80,6 @@ pub trait Screen {
     /// What the window is called while this screen is on top.
     fn title(&self, ctx: &Ctx) -> String;
 
-    /// Whether this screen is an **inset over whatever is beneath it** rather
-    /// than a page that owns the framebuffer.
-    ///
-    /// The original has no screen clear anywhere. `Screen_Draw` dispatches on
-    /// `g_screenId` and the painter it picks blits into a rectangle; everything
-    /// outside that rectangle is simply *still there from the last frame*.
-    /// `Village_Draw` is the plainest case — it repaints the campaign map
-    /// (`FUN_004050C0` → `FUN_004CFB08` → `Map_DrawFrame`) and then blits a
-    /// 363 x 320 picture over it at (64, 64), so the menu bar, the county
-    /// sidebar and a band of map around the picture stay on screen.
-    ///
-    /// A screen that answers true is drawn **after** whatever is under it on
-    /// the stack, by [`Machine::draw`], and must not clear the canvas.
-    fn overlay(&self) -> bool {
-        false
-    }
-
     /// One input event. The default ignores everything, so a screen only writes
     /// down what it actually responds to.
     fn handle(&mut self, _event: Event, _ctx: &mut Ctx) -> Transition {
@@ -105,6 +96,45 @@ pub trait Screen {
         Transition::Stay
     }
 
+    /// The `.256` this screen runs under, if it is not the campaign palette.
+    ///
+    /// A [`Canvas`] is a plane of palette *indices* and means nothing without
+    /// one. Most screens use the campaign palette and answer `None`; the front
+    /// end, the merchant, the armoury, castle building and the ratings each
+    /// read a palette of their own (`File_ReadChunk("gateway.256", …)` then
+    /// `Palette_Set`), and the presenter asks the top screen rather than
+    /// assuming there is only one.
+    fn palette(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// Whether this screen is an **inset over what was underneath** rather than
+    /// a page of its own.
+    ///
+    /// `docs/screens-county.md` §1: *"The game's management surface is a
+    /// campaign map plus insets, not a set of full-screen pages."* An overlay
+    /// does not clear the canvas, and [`Machine::draw`] paints the screens
+    /// beneath it first, back to the last one that is not an overlay.
+    ///
+    /// It changes nothing about input: only the top screen is ever offered an
+    /// event, which is what makes a popup modal.
+    ///
+    /// **There are two kinds of inset and both answer true**, which matters
+    /// because only one of them looks like a window:
+    ///
+    /// * a framed `Ui_DrawBox` window — the four county panels, the job popup;
+    /// * a raw blit with no frame and no clear — **the village**, which is
+    ///   `vill.pl8` frame 0, 363 × 320, dropped at (64, `g_villageTopY`) over a
+    ///   campaign map it repaints itself (`FUN_004050C0` → `FUN_004CFB08` →
+    ///   `Map_DrawFrame`).
+    ///
+    /// The village was modelled as a page until a player opened one and said it
+    /// was a dialogue with the map still showing round it. He was right;
+    /// `docs/decisions.md` C22 records why the decompiled reasoning was not.
+    fn is_overlay(&self) -> bool {
+        false
+    }
+
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas);
 }
 
@@ -117,6 +147,10 @@ impl ScreenId {
             ScreenId::County(id) => Box::new(crate::screens::county::CountyScreen::new(id)),
             ScreenId::Village(id) => Box::new(crate::screens::village::VillageScreen::new(id)),
             ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
+            ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
+            ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),
+            ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
+            ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }
     }
 }
@@ -163,6 +197,17 @@ impl Machine {
         self.dirty = true;
     }
 
+    /// Put a screen on the stack from outside.
+    ///
+    /// This does not weaken the invariant at the top of this file. A *screen*
+    /// still cannot reach the stack — it has no `&mut Machine` and never will.
+    /// The application owns the machine, and so does a test that wants to open
+    /// a screen the interface can only reach through three clicks.
+    pub fn push(&mut self, id: ScreenId) {
+        self.stack.push(id.build());
+        self.dirty = true;
+    }
+
     /// Deliver one event to the top screen only.
     ///
     /// Only the top screen is offered input. A stack where every layer gets a
@@ -184,27 +229,40 @@ impl Machine {
         }
     }
 
-    /// Paint the stack, bottom-most **page** first.
+    /// Paint the stack from the last screen that is not an overlay upwards.
     ///
-    /// Only the top screen gets input, and only the top screen is drawn — until
-    /// it says it is an [overlay](Screen::overlay), in which case whatever is
-    /// under it is drawn first. That is the original's own arrangement and not
-    /// a convenience: it has no screen clear, so a painter that fills a
-    /// rectangle leaves the rest of the frame showing. `Village_Draw` repaints
-    /// the campaign map and blits its picture on top of it; `Panel_JobDetail`
-    /// draws a window over the village.
+    /// An overlay is drawn over what was underneath, which is what the
+    /// original's management surface actually is; a page clears and replaces.
+    /// The common case — a stack whose top is a page — draws exactly one
+    /// screen, as it always did.
     ///
-    /// The search stops at the first screen from the top that is not an
-    /// overlay, so an overlay at the bottom of the stack draws alone.
+    /// This is not a convenience. **The original has no screen clear anywhere**:
+    /// `Screen_Draw` picks a painter and the painter fills a rectangle, so
+    /// whatever is outside it is still there from the last frame.
+    /// `Village_Draw` repaints the campaign map itself and blits its picture on
+    /// top of it; `Panel_JobDetail` draws a window over the village.
     pub fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
-        let first = self
-            .stack
-            .iter()
-            .rposition(|s| !s.overlay())
-            .unwrap_or(0);
-        for screen in self.stack[first..].iter_mut() {
+        let from = self.base();
+        for screen in &mut self.stack[from..] {
             screen.draw(ctx, canvas);
         }
+    }
+
+    /// The lowest screen that has to be painted for the top one to make sense.
+    fn base(&self) -> usize {
+        for i in (0..self.stack.len()).rev() {
+            if !self.stack[i].is_overlay() {
+                return i;
+            }
+        }
+        0
+    }
+
+    /// The `.256` the top screen runs under, or `None` for the campaign
+    /// palette. The presenter is the only caller: it is the one place that
+    /// turns indices into colour.
+    pub fn palette_name(&self) -> Option<&'static str> {
+        self.stack.last().and_then(|s| s.palette())
     }
 
     pub fn title(&self, ctx: &Ctx) -> String {

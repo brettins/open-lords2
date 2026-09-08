@@ -296,6 +296,10 @@ impl Screen for MapScreen {
                 }
                 self.status = "NOT YOUR COUNTY".into();
             }
+            // Ours, and marked as such where it lands: the demo's index of
+            // every screen, so the ones the game logic cannot yet open can
+            // still be walked. `screens::index`.
+            Event::KeyDown(Key::Char('I')) => return Transition::Push(ScreenId::Index),
             Event::KeyDown(Key::Char('Z')) => self.toggle_zoom(),
             Event::KeyDown(Key::Char('E')) | Event::KeyDown(Key::Space) => self.end_turn(ctx),
             Event::Pointer { x, y } => {

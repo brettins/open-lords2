@@ -167,7 +167,7 @@ impl Screen for JobScreen {
     /// **A window over whatever opened it.** This is the game's *other* overlay
     /// mechanism — a `Ui_DrawBox` frame kit — where the village is a raw blit;
     /// see the module docs. Either way nothing clears the screen.
-    fn overlay(&self) -> bool {
+    fn is_overlay(&self) -> bool {
         true
     }
 

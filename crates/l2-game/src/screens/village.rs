@@ -411,7 +411,7 @@ impl Screen for VillageScreen {
     /// **The village is an inset.** `Village_Draw` never clears — it repaints
     /// the campaign map and blits over it — so the map screen underneath is
     /// painted first by [`crate::screen::Machine::draw`].
-    fn overlay(&self) -> bool {
+    fn is_overlay(&self) -> bool {
         true
     }
 
