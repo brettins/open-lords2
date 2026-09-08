@@ -203,3 +203,79 @@ fn a_local_player_that_is_not_a_realm_is_refused() {
     let save = Save::open(&exe, &poked).unwrap();
     assert_eq!(Scenario::from_save(&save), Err(ImportError::LocalPlayer(7)));
 }
+
+/// **The other two words of the labour record**, which this crate read as
+/// nothing until the village screen needed them.
+///
+/// The worker count is word 0 of a twelve-byte record; words 1 and 2 are a
+/// *wanted floor* and a *useful ceiling*. Nothing but the right offsets
+/// produces the pattern below, and the pattern is the whole argument:
+///
+/// * **Seven of the nine floors are −1 in all fourteen counties.** Only the
+///   cattle estimate (`FUN_0044DD4D`) and the grain estimate (`FUN_0044D374`)
+///   ever write a real floor, and the shipped save is a Winter save with no
+///   grain sown, so cattle is the only one with a number in it. A misread
+///   offset does not produce ninety-eight −1s.
+/// * **Wood's ceiling is exactly 100,000 in every owned county and exactly 0
+///   in every unowned one** — `FUN_0044F318` writes `LABOUR_UNBOUNDED` for an
+///   industry the county has and 0 for one it does not.
+/// * And that single byte explains the save's whole labour split: the
+///   allocator fills each job up to its ceiling and drops the remainder into
+///   *Idle townsfolk*, so an owned county has 217 foresters and nobody idle
+///   while an unowned one has no forester and 133 idle.
+#[test]
+fn the_labour_records_other_two_words_are_a_wanted_floor_and_a_useful_ceiling() {
+    use l2_kingdom::county::{LABOUR_NO_FLOOR, LABOUR_UNBOUNDED};
+    use l2_kingdom::tables::{
+        JOB_CATTLE_FARMING, JOB_COUNT, JOB_IDLE_TOWNSFOLK, JOB_WOOD_CUTTING,
+    };
+
+    let (exe, sav) = shipped!();
+    let save = Save::open(&exe, &sav).unwrap();
+    let s = Scenario::from_save(&save).unwrap();
+
+    let mut floors = 0;
+    for id in s.county_ids() {
+        let Some(c) = s.counties[id].as_ref() else { continue };
+
+        for job in 0..JOB_COUNT {
+            if job == JOB_CATTLE_FARMING || job == JOB_IDLE_TOWNSFOLK {
+                continue;
+            }
+            assert_eq!(
+                c.labour_wanted[job], LABOUR_NO_FLOOR,
+                "county {id} job {job}: only grain and cattle ever ask for a floor"
+            );
+            floors += 1;
+        }
+        // Idle townsfolk is the one slot no estimate ever touches, so both its
+        // spare words are still the zero `FUN_00451150` cleared them to.
+        assert_eq!(c.labour_wanted[JOB_IDLE_TOWNSFOLK], 0, "county {id}");
+        assert_eq!(c.labour_useful[JOB_IDLE_TOWNSFOLK], 0, "county {id}");
+
+        // Break-even staffing is never above growth-maximising staffing, and
+        // both are real counts a county could actually field.
+        let (want, useful) = (c.labour_wanted[JOB_CATTLE_FARMING], c.labour_useful[1]);
+        assert!(want > 0 && want <= useful, "county {id}: cattle {want} .. {useful}");
+        assert!(useful <= c.population, "county {id}: {useful} tenders of {} people", c.population);
+
+        // The ceiling is what decides whether the county's spare people work.
+        let owned = c.owner != 0;
+        assert_eq!(
+            c.labour_useful[JOB_WOOD_CUTTING],
+            if owned { LABOUR_UNBOUNDED } else { 0 },
+            "county {id} owner {}", c.owner
+        );
+        assert_eq!(
+            c.labour[JOB_WOOD_CUTTING] > 0,
+            owned,
+            "county {id}: an unbounded ceiling is why anyone cuts wood"
+        );
+        assert_eq!(
+            c.labour[JOB_IDLE_TOWNSFOLK] > 0,
+            !owned,
+            "county {id}: and a ceiling of zero is why the rest stand idle"
+        );
+    }
+    assert_eq!(floors, 14 * 7, "fourteen counties, seven floorless jobs each");
+}

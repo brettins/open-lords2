@@ -69,6 +69,21 @@ use l2_kingdom::{land, Kingdom, Options};
 const LABOUR_BASE: u32 = 0xC4;
 const LABOUR_STRIDE: u32 = 0x0C;
 
+/// One word out of each of a county's nine labour records.
+///
+/// `word` is the byte offset inside the twelve-byte record: 0 is the workers
+/// actually assigned, 4 the wanted floor, 8 the useful ceiling. All three are
+/// read the same way because the record really is three plain `i32`s — which
+/// is the whole reason the stride is twelve and not four.
+fn read_labour(save: &Save, county: usize, word: u32) -> Result<[i32; JOB_COUNT], SaveError> {
+    let base = COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + LABOUR_BASE + word;
+    let mut jobs = [0i32; JOB_COUNT];
+    for (job, slot) in jobs.iter_mut().enumerate() {
+        *slot = save.i32_at(base + job as u32 * LABOUR_STRIDE)?;
+    }
+    Ok(jobs)
+}
+
 /// The health meter every county starts a new game on.
 ///
 /// **`[V]`, and it used to be `[I]`.** It was the one number in the whole
@@ -197,6 +212,16 @@ pub struct CountyState {
     /// labour of zero would lose cattle every season for want of a field this
     /// crate had simply not read. `docs/kingdom.md` §13.
     pub labour: [i32; JOB_COUNT],
+    /// `+0xC4 + job * 0x0C + 0x04` and `+ 0x08` — the wanted floor and the
+    /// useful ceiling of each record.
+    ///
+    /// The two words that were read as nothing until now. They are what the
+    /// village screen draws its shortfall and surplus icons from, what the job
+    /// popup colours its worker count by, and — for the ceiling — what the
+    /// original's own labour allocator fills each job up to. See
+    /// [`l2_kingdom::county::County::labour_wanted`].
+    pub labour_wanted: [i32; JOB_COUNT],
+    pub labour_useful: [i32; JOB_COUNT],
 }
 
 /// One realm's imported state.
@@ -318,14 +343,9 @@ impl Scenario {
                 dryness: c.dryness as i32,
                 grain: c.grain,
                 herd: c.herd,
-                labour: {
-                    let base = COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + LABOUR_BASE;
-                    let mut jobs = [0i32; JOB_COUNT];
-                    for (job, slot) in jobs.iter_mut().enumerate() {
-                        *slot = save.i32_at(base + job as u32 * LABOUR_STRIDE)?;
-                    }
-                    jobs
-                },
+                labour: read_labour(&save, c.index, 0)?,
+                labour_wanted: read_labour(&save, c.index, 4)?,
+                labour_useful: read_labour(&save, c.index, 8)?,
             });
         }
 
@@ -511,6 +531,8 @@ impl Scenario {
             c.grain = s.grain;
             c.herd = s.herd;
             c.labour = s.labour;
+            c.labour_wanted = s.labour_wanted;
+            c.labour_useful = s.labour_useful;
             // `FUN_0044D913` is called from everywhere a county's herd or
             // pasture can change, county setup included, so a county always
             // arrives with its crowding already computed. Deriving it here
