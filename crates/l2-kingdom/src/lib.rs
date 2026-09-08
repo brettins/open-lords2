@@ -14,6 +14,12 @@
 //! * [`phase::SEASON_PIPELINE`] is the end-of-season order, as data.
 //!   `docs/kingdom.md` §3.4 is explicit that **the order is the rule**, so it
 //!   is an array a test can assert against rather than a sequence of calls.
+//! * [`save`] is **our own** save format: a whole campaign as deterministic,
+//!   versioned bytes, so a player can quit and resume. It writes through
+//!   `l2_net::Canonical` rather than inventing a second encoder, and it refuses
+//!   an unknown version rather than guessing at the layout. It takes and
+//!   returns a `Vec<u8>` and never touches a file — reading the *original's*
+//!   `.sav` is `l2-formats`' job, and importing one is `l2-scenario`'s.
 //! * [`tables`] holds every constant, each carrying the address it was read
 //!   from. `docs/decisions.md` C11: no kingdom rule is loaded from a game data
 //!   file, so our engine has to carry the whole ruleset itself.
@@ -196,6 +202,7 @@ pub mod population;
 pub mod ration;
 pub mod realm;
 pub mod report;
+pub mod save;
 pub mod tables;
 pub mod tax;
 pub mod unrest;

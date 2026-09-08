@@ -128,11 +128,16 @@ pub struct Kingdom {
 /// beginning.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct History {
-    /// `[season][county - 1]`, oldest at [`History::tail`].
-    entries: Vec<[HistoryEntry; crate::tables::HISTORY_COUNTIES]>,
-    head: usize,
-    tail: usize,
-    len: usize,
+    /// `[season][county - 1]`, oldest at the tail.
+    ///
+    /// Crate-visible rather than private so [`crate::save`] can write the ring
+    /// out and read it back. Still not `pub`: the invariant tying `head`,
+    /// `tail` and `len` together belongs to this module, and
+    /// `save::LoadError::CorruptHistory` is what enforces it on the way in.
+    pub(crate) entries: Vec<[HistoryEntry; crate::tables::HISTORY_COUNTIES]>,
+    pub(crate) head: usize,
+    pub(crate) tail: usize,
+    pub(crate) len: usize,
 }
 
 /// One county's line in one season of the ring: `{i32 population, i8
