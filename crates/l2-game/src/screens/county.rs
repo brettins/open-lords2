@@ -684,6 +684,20 @@ fn happiness_delta(canvas: &mut Canvas, ink: &Ink, x: i32, y: i32, value: i32) {
     text::draw(canvas, x, y, &format!("({})", widget::signed(value)), colour);
 }
 
+/// Geometry tests. The canvas tests that read numbers back off the pixels live
+/// in `tests/screens.rs`, because they need the shipped install.
+///
+/// **Six mutations were checked against these and those**, each turning exactly
+/// one test red and no others:
+///
+/// | mutation | test that went red |
+/// |---|---|
+/// | `MAX_TAX_RATE` 50 → 51 | `the_tax_rate_stops_at_the_originals_own_ceiling_of_fifty` |
+/// | `delta_row`'s zero guard removed | `a_zero_delta_row_draws_its_label_and_no_number` |
+/// | `HOT_X_LEFT_END` 548 → 560 | `the_strip_quadrants_fit_the_plate_and_leave_the_thermometer_unclickable` |
+/// | `Chrome::load` preferring `System2.pl8` | `the_ration_split_slider_sets_the_field_the_original_sets` |
+/// | the population panel's first row y 266 → 267 | `the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should` |
+/// | the strip's population x 508 → 509 | `the_county_strip_shows_the_saves_numbers_where_the_original_puts_them` |
 #[cfg(test)]
 mod tests {
     use super::*;
