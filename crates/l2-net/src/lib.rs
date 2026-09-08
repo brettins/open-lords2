@@ -150,6 +150,7 @@ pub mod command;
 pub mod desync;
 pub mod fixed;
 pub mod hash;
+pub mod lobby;
 pub mod lockstep;
 pub mod packet;
 pub mod replay;
@@ -167,6 +168,9 @@ pub use command::{
 pub use desync::{DesyncDump, Divergence, DumpComparison, History, HISTORY};
 pub use fixed::{Fixed, FRAC_BITS};
 pub use hash::{xxhash64, XxHash64};
+pub use lobby::{
+    Join, Lobby, LobbyError, LobbyEvent, Outgoing, Player, Role, Roster, Start, MAX_NAME,
+};
 pub use lockstep::{
     state_digest, state_hash, state_snapshot, Advance, Config, Session, SessionError, Simulation,
 };

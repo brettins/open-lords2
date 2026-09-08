@@ -322,6 +322,18 @@ pub enum Message {
     Hello(Hello),
     Tick(TickPacket),
     Halt(HaltReason),
+    /// Lobby, client to host: a request to sit down.
+    Join(crate::lobby::Join),
+    /// Lobby, client to host: ready, or no longer ready.
+    Ready(bool),
+    /// Lobby, host to clients: who is here. The host's view is the only one.
+    Roster(crate::lobby::Roster),
+    /// Lobby, host to clients: the game begins, with this seed and this roster.
+    Start(crate::lobby::Start),
+    /// Lobby, host to one client: you cannot play, with every reason at once
+    /// rather than one per reconnect. Empty means a reason that is not a
+    /// [`Mismatch`] — a name already taken, or a full game.
+    Refused(Vec<Mismatch>),
 }
 
 impl Encode for Message {
@@ -334,6 +346,26 @@ impl Encode for Message {
             Message::Tick(t) => {
                 out.u8(TAG_TICK);
                 t.encode(out);
+            }
+            Message::Join(j) => {
+                out.u8(TAG_JOIN);
+                j.encode(out);
+            }
+            Message::Ready(r) => {
+                out.u8(TAG_READY);
+                out.bool(*r);
+            }
+            Message::Roster(r) => {
+                out.u8(TAG_ROSTER);
+                r.encode(out);
+            }
+            Message::Start(s) => {
+                out.u8(TAG_START);
+                s.encode(out);
+            }
+            Message::Refused(reasons) => {
+                out.u8(TAG_REFUSED);
+                out.seq(reasons, |c, m| m.encode(c));
             }
             Message::Halt(reason) => {
                 out.u8(TAG_HALT);
@@ -360,6 +392,11 @@ impl Decode for Message {
         match input.u8()? {
             TAG_HELLO => Ok(Message::Hello(Hello::decode(input)?)),
             TAG_TICK => Ok(Message::Tick(TickPacket::decode(input)?)),
+            TAG_JOIN => Ok(Message::Join(crate::lobby::Join::decode(input)?)),
+            TAG_READY => Ok(Message::Ready(input.bool()?)),
+            TAG_ROSTER => Ok(Message::Roster(crate::lobby::Roster::decode(input)?)),
+            TAG_START => Ok(Message::Start(crate::lobby::Start::decode(input)?)),
+            TAG_REFUSED => Ok(Message::Refused(input.seq(Mismatch::decode)?)),
             TAG_HALT => {
                 let at = input.position();
                 let reason = match input.u8()? {
@@ -381,3 +418,64 @@ impl Decode for Message {
 const TAG_HELLO: u8 = 1;
 const TAG_TICK: u8 = 2;
 const TAG_HALT: u8 = 3;
+const TAG_JOIN: u8 = 4;
+const TAG_READY: u8 = 5;
+const TAG_ROSTER: u8 = 6;
+const TAG_START: u8 = 7;
+const TAG_REFUSED: u8 = 8;
+
+/// A `Mismatch` on the wire, so a refused peer is told every reason at once.
+///
+/// The strings are the *host's* view of its own build and rules; a client
+/// displays them beside its own, which is why both halves travel.
+impl Encode for Mismatch {
+    fn encode(&self, out: &mut Canonical) {
+        match self {
+            Mismatch::Protocol { ours, theirs } => {
+                out.u8(0);
+                out.u16(*ours);
+                out.u16(*theirs);
+            }
+            Mismatch::Engine { ours, theirs } => {
+                out.u8(1);
+                out.str(ours);
+                out.str(theirs);
+            }
+            Mismatch::Ruleset { ours, theirs } => {
+                out.u8(2);
+                out.u64(*ours);
+                out.u64(*theirs);
+            }
+            Mismatch::Seed { ours, theirs } => {
+                out.u8(3);
+                out.u64(*ours);
+                out.u64(*theirs);
+            }
+            Mismatch::SameSlot(slot) => {
+                out.u8(4);
+                out.u8(slot.index());
+            }
+        }
+    }
+}
+
+impl Decode for Mismatch {
+    fn decode(input: &mut Reader<'_>) -> Result<Self, CodecError> {
+        let at = input.position();
+        match input.u8()? {
+            0 => Ok(Mismatch::Protocol { ours: input.u16()?, theirs: input.u16()? }),
+            1 => Ok(Mismatch::Engine {
+                ours: input.str()?.to_string(),
+                theirs: input.str()?.to_string(),
+            }),
+            2 => Ok(Mismatch::Ruleset { ours: input.u64()?, theirs: input.u64()? }),
+            3 => Ok(Mismatch::Seed { ours: input.u64()?, theirs: input.u64()? }),
+            4 => {
+                let slot = PlayerSlot::from_wire(input.u8()?)
+                    .ok_or(CodecError::BadTag { tag: 0, expected: "player slot", at })?;
+                Ok(Mismatch::SameSlot(slot))
+            }
+            tag => Err(CodecError::BadTag { tag, expected: "mismatch kind", at }),
+        }
+    }
+}

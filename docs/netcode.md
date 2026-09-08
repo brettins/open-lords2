@@ -5,6 +5,42 @@ TCP transport whose tests open real sockets.** The battle simulation now runs th
 `crates/l2-sim/tests/lockstep.rs` drives two peers over a real socket and asserts identical
 state on every tick.
 
+## The lobby, and an honest account of what "beyond loopback" is worth
+
+`crates/l2-net/src/lobby.rs` handles everything before tick 0: host, join, roster, readiness,
+start. The host is authoritative — clients never invent a slot, choose the seed, or decide
+who else is present.
+
+**The roster is sorted by slot, always, and that is a correctness requirement rather than
+tidiness.** `Session::new` takes the slot list, and `order_commands` breaks ties by slot, so
+the list's order reaches the simulation. A lobby that returned players in arrival order would
+look perfectly correct on screen and desync on the first tick where two players acted at
+once. `tests/lobby.rs` pins it by joining in the order 4, 3, 1 and asserting the resulting
+list, and closes the loop end to end: a lobby over a real socket produces a `Start`, the
+`Start` produces two `Session`s, and the sessions agree on every tick. The decoder also
+*refuses* an out-of-order or duplicate-slot roster, so a hostile peer cannot hand one machine
+a different slot list.
+
+One design correction came out of building it. `Hello::check` reports `Mismatch::SameSlot`,
+which is right for a direct two-peer handshake where nobody may reassign anyone. In a lobby
+it is wrong: the host has that authority. The first version forwarded it through, so a client
+whose remembered slot happened to be the host's was told it was "incompatible" with a game it
+could play — while two clients colliding on any other slot were reseated silently. Same
+situation, opposite answer, decided by who happened to open the game. The lobby now filters
+`SameSlot` and reseats.
+
+### What "real loss, NAT, MTU, head-of-line blocking" actually amounts to
+
+That list sat on the status page as untested. Taken one at a time, it deserves a reckoning
+rather than four tests named after it:
+
+| claim | status |
+|---|---|
+| **Head-of-line blocking** | **Tested.** One peer stalls for hundreds of iterations while its packets are held; the other reports `Waiting` naming the absent slot, does not advance a single tick, and both reach identical checksums once it resumes. This is the one that could actually corrupt a game. |
+| **MTU / fragmentation** | **Tested**, in the only form this layer can see: framing must not care where the stream was cut. A frame is delivered **one byte at a time**, 64 frames arrive glued into a single read, and a message at `MAX_FRAME` crosses a real socket intact. |
+| **Loss and reordering** | **Not testable here, because TCP has already handled them.** A byte stream does not lose or reorder; it delivers in order or it fails. A test that "drops packets" through `TcpTransport` would be theatre — the code under test never sees it. The failure that replaces them, the connection breaking, is covered in `tests/tcp.rs`; reordering at the *session* layer, where packets from different peers genuinely arrive in any order, is covered in `tests/lockstep.rs`. |
+| **NAT** | **Not tested, and not testable on one machine.** Two peers on loopback traverse nothing. This is a real gap and nothing in `tests/resilience.rs` should be read as covering it. It needs two machines on different networks, and until that happens the honest status is "unknown". |
+
 ## The original's multiplayer is not merely bad, it is absent
 
 Worth stating plainly, because it settles how much of the original's networking is worth
