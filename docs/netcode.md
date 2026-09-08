@@ -1,7 +1,40 @@
 # Netcode
 
 **Status: implemented in `crates/l2-net` — 202 tests, zero dependencies, including a
-TCP transport whose tests open real sockets.**
+TCP transport whose tests open real sockets.** The battle simulation now runs through it:
+`crates/l2-sim/tests/lockstep.rs` drives two peers over a real socket and asserts identical
+state on every tick.
+
+## The original's multiplayer is not merely bad, it is absent
+
+Worth stating plainly, because it settles how much of the original's networking is worth
+studying: **none of it, and not as a matter of taste.**
+
+The GOG build cannot start Internet play at all. `Lords2.exe` loads its network stack
+dynamically, and the strings sit together in the data section at file offset 919,340:
+
+```
+Failure has occured with Internet play.
+XXX.XXX.XXX.XXX
+SNWValid.dll     SNWValidate
+Initialization Error / File load error
+SierraNW.dll     InitializeDLL / CloseDLL
+```
+
+**Neither DLL ships with the game, and neither is present in Windows.** Verified: no
+`SNWValid.*` or `SierraNW.*` anywhere on the install drive, nor in `System32`, nor in
+`SysWOW64`. Choosing Internet play therefore reaches the "not found in Windows system
+folder" dialog and stops.
+
+That dialog is **not** a symptom of our hard-link sandbox, which was the obvious suspicion
+when it first appeared. The sandbox is a faithful link of the install; these files were
+never there to link.
+
+Two consequences. The original's Internet path cannot serve as an oracle even in principle,
+so there is nothing to compare a protocol against and no reason to want one — the design
+below owes the original nothing. And the DirectPlay call sites found earlier
+(`0x004B826E`, `0x004B7FCE`) belong to the *other* multiplayer path, LAN, which is the only
+one that could ever have run on this build.
 
 > ## Corrected by the implementation — read this before the design below
 >
