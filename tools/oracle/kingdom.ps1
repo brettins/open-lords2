@@ -184,6 +184,23 @@ $CHECKS = @(
   # Lord 4, three 0x50-byte rows on, and the only lord using a different ladder.
   @{ Name = 'g_aiPersonality[lord 4]'; Addr = 0x004D8D28; Width = 4; Ref = 'sec 8.2'
      Expect = @(9, 1, 50, 1500, 20, 4) }
+  # The new-game starting position, {grain, herd, population, health, health}
+  # by starting-wealth setting, stride 0x14. Three rows and a zero fourth.
+  #
+  # Read because of the herd work in kingdom.md sec 13: row 1 is the row the
+  # shipped scenario uses, and three of its five columns turn up in
+  # lastturn.sav unchanged - popLast is 417 in all fourteen counties and
+  # county +0x254, the herd as Herd_SeasonTick found it, is 95 in all
+  # fourteen. The fourth is 65, which crates/l2-scenario carried as
+  # STARTING_HEALTH_METER with an [I] saying it was the one number in the
+  # reproduction that came from prior art rather than from the binary. It is
+  # in the binary, and this is where.
+  @{ Name = 'g_startingPosition'; Addr = 0x004DC0D0; Width = 4; Ref = 'sec 13'
+     Expect = @(10, 40, 167, 45, 41,
+                0, 95, 417, 65, 65,
+                500, 330, 1181, 85, 85,
+                0, 0, 0, 0, 0) }
+
   # Where a fifth record would begin, and the evidence that there is not one.
   # kingdom.md sec 2 says the lord byte runs 1..5, but these bytes do not fit
   # the shape: a farm style of 17 where every real record reads 0, 1 or 9, and
@@ -260,6 +277,79 @@ $CODE_CHECKS = @(
        @{ Op = @(0xC7,0x45,0xF4); Imm = 4; Tag = 'ceiling' }
      )
      Expect = @('flat 80','ceiling_cmp 100','ceiling 100') }
+
+  # FUN_0044D913, the crowding bands of kingdom.md sec 13.1. Two if/else-if
+  # chains on the same density in [ebp-8]: the first picks a map graphic
+  # 0x13..0x16 into [ebp-4] - so crowding is visible on the field art - and the
+  # second writes the level itself to county +0x25C, which is the
+  # `MOV dword ptr [eax + 0x53FC0C], imm32` store. The `crowding 40` appears
+  # twice because a county with no pasture is pushed to the top band a second
+  # time after the chain.
+  @{ Name = 'herd crowding bands'; Addr = 0x0044D913; Len = 390; Ref = 'sec 13.1'
+     Patterns = @(
+       @{ Op = @(0xC7,0x84,0x40,0x0C,0xFC,0x53,0x00); Imm = 4; Tag = 'crowding' }
+       @{ Op = @(0x83,0x7D,0xF8); Imm = 1; Tag = 'density_below' }
+       @{ Op = @(0xC7,0x45,0xF8); Imm = 4; Tag = 'density' }
+       @{ Op = @(0xC7,0x45,0xFC); Imm = 4; Tag = 'graphic' }
+     )
+     Expect = @(
+       'crowding 0',
+       'density 0', 'density 1000',
+       'graphic 19', 'density_below 10', 'graphic 20', 'density_below 20',
+       'graphic 21', 'graphic 22',
+       'density_below 10', 'crowding 10',
+       'density_below 20', 'crowding 20',
+       'density_below 30', 'crowding 30',
+       'crowding 40',
+       'crowding 40'
+     ) }
+
+  # FUN_0044DA99, the rule that a herd has to be tended - kingdom.md sec 13.
+  # Six immediate families, in address order:
+  #
+  #   herd            CMP [ebp+0x0C], imm8  - the herd argument. 0 twice (the
+  #                   "any cattle at all" guard and the divide-by-zero guard),
+  #                   6 for the no-pasture floor, then 5/10/25 for the small
+  #                   herd birth bonus.
+  #   staffing_cap    CMP/MOV [ebp-0x14], 200 - twice staffed is the ceiling,
+  #                   and the comparison is >= 200 rather than > 199.
+  #   full_staffing   CMP [ebp-0x14], 100 - three times: the understaffing
+  #                   arm, the small-herd bonus arm, and the birth-rate arm.
+  #   crowding        CMP [ebp+0x14], imm8 - 10/20/30 twice over, once for the
+  #                   death rate and once for the birth rate.
+  #   death_rate      MOV [ebp-0x10], imm32 - 1, 3, 5, 7 per ten thousand.
+  #   birth_rate      MOV [ebp-0x0C], imm32 - 1400, 900, 500, 200, and the
+  #                   ADD form is the 10000/5000/2000 small-herd bonus.
+  #   season          CMP [ebp+0x18], imm8 - 4 kills, 1 calves.
+  @{ Name = 'herd births and deaths'; Addr = 0x0044DA99; Len = 692; Ref = 'sec 13'
+     Patterns = @(
+       @{ Op = @(0x83,0x7D,0x0C); Imm = 1; Tag = 'herd' }
+       @{ Op = @(0x81,0x7D,0xEC); Imm = 4; Tag = 'staffing_cap_cmp' }
+       @{ Op = @(0xC7,0x45,0xEC); Imm = 4; Tag = 'staffing_cap' }
+       @{ Op = @(0x83,0x7D,0xEC); Imm = 1; Tag = 'full_staffing' }
+       @{ Op = @(0x83,0x7D,0x14); Imm = 1; Tag = 'crowding' }
+       @{ Op = @(0xC7,0x45,0xF0); Imm = 4; Tag = 'death_rate' }
+       @{ Op = @(0xC7,0x45,0xF4); Imm = 4; Tag = 'birth_rate' }
+       @{ Op = @(0x81,0x45,0xF4); Imm = 4; Tag = 'small_herd_bonus' }
+       @{ Op = @(0xB9); Imm = 4; Tag = 'understaffing_divisor' }
+       @{ Op = @(0x83,0x7D,0x18); Imm = 1; Tag = 'season' }
+     )
+     Expect = @(
+       'herd 0', 'herd 6', 'herd 0',
+       'staffing_cap_cmp 200', 'staffing_cap 200',
+       'crowding 10', 'death_rate 1', 'crowding 20', 'death_rate 3',
+       'crowding 30', 'death_rate 5', 'death_rate 7',
+       'full_staffing 100', 'understaffing_divisor 3',
+       'crowding 10', 'birth_rate 1400', 'crowding 20', 'birth_rate 900',
+       'crowding 30', 'birth_rate 500', 'birth_rate 200',
+       'full_staffing 100',
+       'full_staffing 100',
+       'herd 5', 'small_herd_bonus 10000',
+       'herd 10', 'small_herd_bonus 5000',
+       'herd 25', 'small_herd_bonus 2000',
+       'season 4',
+       'season 1'
+     ) }
 )
 
 Add-Type @'

@@ -1321,8 +1321,10 @@ Eight independent predictions land:
    ladder's `≤ 90 → 3`. A published dump of the new-game presets gives a starting health of
    **65** for a medium county — which is band **2** on the same ladder, since `65 ≤ 65` —
    and `g_healthDeltaTable[Normal][band 2]` is **+2**, giving `65 + 2 = 67`. One number
-   pins the ladder's comparison sense and the delta table's indexing at once. **[I]** on
-   the starting value, which comes from the prior art rather than from this binary.
+   pins the ladder's comparison sense and the delta table's indexing at once. It was
+   **[I]**, taken from prior art rather than from this binary; it is **[V]** now — the
+   starting-position table of §13.2 holds `65` in the health column of the row whose herd
+   and population the save also carries.
 8. **Births and deaths reproduce exactly, on two different happiness bands.** Every county
    started at `popLast = 417`, so `g_birthRateLadder` gives 20 %:
 
@@ -1572,12 +1574,12 @@ free.
 powershell -File tools/oracle/kingdom.ps1 -Source File
 ```
 
-It runs **26 checks** straight out of `Lords2.exe` at the addresses named above and
+It runs **29 checks** straight out of `Lords2.exe` at the addresses named above and
 compares them against the values written here. It needs no running process. That is the
 check that caught two of this document's layout errors — `g_healthBandLadder`'s pairs and
 `g_castleWorkforce`'s stride — and it should gain a row whenever a table is added.
 
-Twenty-three of the 26 read initialised `.data`. **Three read `.text`**, because the rule
+Twenty-four of the 29 read initialised `.data`. **Five read `.text`**, because the rule
 they check is not a table at all:
 
 | check | what it reads | why there is no table |
@@ -1585,6 +1587,8 @@ they check is not a table at all:
 | `AI_SetTaxRates ladders` | 20 `CMP EAX, imm8` thresholds interleaved with 24 `MOV byte ptr [county+0xB9], imm8` rates | the four ladders of §8.2 are four `if`/`else if` chains |
 | `ale ladder` | `MOV EAX, 5` (the cap), `MOV ECX, 10` (the step divisor), and the `MOV dword ptr [ebp-8], imm32` rungs | §12's ale term is arithmetic |
 | `efficiency ramp` | `MOV EAX, 0x50` and the `CMP`/`MOV` pair holding 100 | §7.4's ramp bounds are immediates |
+| `herd crowding bands` | the `MOV dword ptr [county+0x25C], imm32` stores and the `CMP [ebp-8], imm8` densities they hang off | §13.1's four bands are an `if`/`else if` chain, twice over — once for the level and once for the map graphic |
+| `herd births and deaths` | 31 tagged immediates: the staffing cap, the `/ 3` shortfall divisor, the four death rates, the four birth rates, the three small-herd bonuses and the two season codes | §13's whole rule is `FUN_0044DA99`'s instruction stream and there is no table anywhere in it |
 
 This is `decisions.md` **C16** applied to rules rather than to `Rules_InitConstants`'
 globals: *when a value is absent from the data, read the code that produces it.* These
@@ -1604,58 +1608,118 @@ lords and not the five §2 implies.
 
 ---
 
-## 13. The herd needs tending, and ours does not know it  **[D]**
+## 13. The herd needs tending  **[V]**
 
 A player's description of the game named three cattle mechanics. Two we had; one we did
-not, and it is not small. Recorded here because it is a **gap in `crates/l2-kingdom`**, not
-just a documentation hole.
+not, and it is not small. This section was first written as a **gap in `crates/l2-kingdom`**;
+it is now the rule the crate implements.
 
 `Herd_SeasonTick` (`0x0044D60D`) calls `FUN_0044DA99` with five arguments, and the third is
 the giveaway:
 
 ```c
 FUN_0044DA99(county,
-             county[0x250],      /* herd                        */
-             county[0x0D0],      /* labour, inside the +0xC4 job records */
-             county[0x25C],      /* not traced                  */
+             county[0x250],      /* herd, less what the ration pass ate  */
+             county[0x0D0],      /* labour: record 1 of the +0xC4 block  */
+             county[0x25C],      /* crowding - §13.1                     */
              g_season);
 ```
 
-`0x0D0` sits inside the labour block at `+0xC4`, so **the herd's births and deaths take a
-labour argument.** Inside:
+`+0xD0` sits inside the labour block at `+0xC4`, so **the herd's births and deaths take a
+labour argument.** The whole of it:
 
 ```c
-staffing = PctOf(labour, herd * 3);          /* = labour * 100 / (herd * 3) */
-if (staffing > 199) staffing = 200;          /* capped at twice */
-...
-if (staffing < 100) delta = -((staffing - 100) / 3);   /* understaffed: negative */
-```
-
-**Three labourers per head is full staffing.** Below it the term goes negative and cattle
-die; above it the benefit is capped at 200%. That is exactly the reported behaviour — *"cows
-require more peasants to tend them depending on how many cows there are"* and *"some cows
-die by being unattended"* — arrived at independently from play and from the instruction
-stream.
-
-There is a second, harsher path. The branch above all of it tests `county[0x200]`, which is
-`fieldsCattle`:
-
-```c
-if (fieldsCattle == 0) {
-    deaths = (herd < 6) ? herd : herd / 2;   /* no pasture: half the herd, or all of it */
+if (herd == 0) return;                                 /* nothing to do        */
+if (fieldsCattle == 0) {                               /* +0x200 - no pasture  */
+    deaths = (herd < 6) ? herd : herd / 2;             /* half, or all of it   */
+    return;                                            /* and nothing else     */
 }
+staffing = PctOf(labour, herd * 3);                    /* labour*100/(herd*3)  */
+if (staffing >= 200) staffing = 200;                   /* twice is the ceiling */
+
+deathRate = {10:1, 20:3, 30:5, else:7}[crowding];
+if (staffing < 100) deathRate += -((staffing - 100) / 3);
+
+birthRate = Pct({10:1400, 20:900, 30:500, else:200}[crowding], staffing);
+if (staffing >= 100) {                                 /* a small herd breeds  */
+    if      (herd <  5) birthRate += 10000;            /* faster - but only if */
+    else if (herd < 10) birthRate +=  5000;            /* somebody is tending  */
+    else if (herd < 25) birthRate +=  2000;            /* it                   */
+}
+
+deaths = (herd * 100) * deathRate / 10000;             /* FUN_00404D96         */
+if (season == 4) deaths = deaths * 3 / 2;              /* Winter kills         */
+births = herd * birthRate / 10000;
+if (season == 1) births = births * 3 / 2;              /* Spring calves        */
+
+if (births == 0) {                                     /* a rate that rounds   */
+    if (birthRate != 0)                 births = 1;    /* away still moves one */
+    else if (deaths == 0 && deathRate)  deaths = 1;    /* animal               */
+}
+if (deaths > herd) deaths = herd;
 ```
 
-**[I]** `param_4` (`+0x25C`) selects 1/3/5/7 from the values 10/20/30/other and is not
-traced; it has the shape of a ration or breeding level, and is deliberately not named.
+**Three labourers per head is full staffing.** Below it the shortfall is divided by three
+and **added to the death rate**, so a herd nobody is working loses `crowding + 33` per ten
+thousand a season; above it the benefit is the birth rate only, and it stops at 200%. That
+is exactly the reported behaviour — *"cows require more peasants to tend them depending on
+how many cows there are"* and *"some cows die by being unattended"* — arrived at
+independently from play and from the instruction stream.
 
-### What this means for us
+> An earlier revision of this section annotated `-((staffing - 100) / 3)` as
+> *"understaffed: negative"*. It is **positive**: the operand is negated after a truncating
+> division, and the result is added to the deaths rather than to the growth.
 
-`land::herd_season_tick(t, county)` takes **no labour argument at all**. Our herd grows and
-shrinks on weather and the event modifier alone, so a county can keep cattle with nobody
-tending them and lose nothing. Every existing test still passes, because the shipped save's
-counties are not short-staffed — the same shape as the `taxHapOther` error in §8.2: *a rule
-we have wrong, in a region the one scenario we test never visits.*
+**A county with no pasture is not lightly penalised.** The `fieldsCattle == 0` branch above
+everything else halves the herd — or kills all of it below six head — and no other term
+runs. It is what makes `+0x200` load-bearing rather than decorative.
+
+### What this means for us — **done**
+
+`land::herd_growth` is the function above, `land::herd_crowding` is §13.1, and
+`land::herd_season_tick` takes the season and next season as `Herd_SeasonTick` does.
+The labour comes from `County::labour[JOB_CATTLE_FARMING]`, which `l2-scenario` now
+imports; it did not before, and a county with no imported labour would have lost cattle
+every season for want of a field nobody had read.
+
+**The labour import checks itself.** The nine records are `+0xC4 + job * 0x0C`, worker count
+at word 0 — fixed by the allocator `FUN_0044F6E7`, which clears them with
+`for (c = 0; c < 9; c++) *(int *)(county + 0xC4 + c * 0x0C) = 0;` — and in the shipped save
+**every county's nine records sum to its population exactly**: 218 + 217 = 435 in county 1,
+323 + 133 = 456 in county 2, and so on for all fourteen. No wrong stride does that
+fourteen times running.
+
+### How the rule was checked, and what it cost the reproduction
+
+`Herd_SeasonTick` ends by calling `FUN_0044DD4D`, which writes next season's forecast into
+`+0x268`, `+0x26C` and `+0x258` — group 77's *"Calf births expected"*, *"Cow deaths
+expected"* and *"Change due to farming"* — from state the save also holds. So the whole
+function can be run against fourteen counties' worth of stored answers with **no inversion
+at all**, and all fifty-six numbers reproduce: county 1 through the understaffed arm at 98%
+staffing, county 2 through the capped arm at 199%, three of the four crowding bands, the
+Spring bonus, and the second subtraction of `herdEaten` that makes *"change due to
+farming"* what it is.
+
+`change = (births - deaths) - herdEaten` really does count the eating twice: the ration pass
+has already taken this season's animals, and the panel assumes next season takes as many
+again.
+
+The same function also searches `labour = 0 … population` for the worker count that best
+suits the herd, writing a suggestion to `+0xD4` and the growth-maximising figure to `+0xD8`
+— the second and third words of labour record 1, which the labour allocator then fills up
+to. `crates/l2-kingdom` does not reproduce the search (its labour is one integer a job), but
+the search is a full sweep of `FUN_0044DA99` over the labour domain and it lands on the
+stored bytes: 302 and 302 for county 1, **106 and 323** for county 2.
+
+**What it cost.** `crates/l2-kingdom/tests/reproduction.rs` used to reproduce `herd` and
+`herd_eaten` and no longer does, and the reason is worth stating plainly: *they reproduced
+because the rule was missing.* With the herd moving only on this map's neutral weather,
+"put back what the ration pass ate" was the whole of it. The file disagrees — `+0x254` is
+the herd as `Herd_SeasonTick` found it, and it is **95 in every one of the fourteen
+counties**, against the 73 the inversion recovers. Getting from 95 to the stored herd needs
+the *pre-season* cattle labour, and the save holds only the post-season allocation; a search
+over openings finds two or three for each owned county and **none at all** for the nine
+unowned ones. Modelling `FUN_0044F6E7` would bring both fields back.
 
 Also confirmed from the same description, and already correct: sowing debits the store
 (`Grain_Sow`'s `store -= sown`), dairy feeds people at `g_dairyPerHead`, cattle are eaten,
@@ -1667,14 +1731,23 @@ The untraced `+0x25C` above is the crowding level, and a player naming four leve
 found it. `FUN_0044D913(county)`:
 
 ```c
-density = (fieldsCattle == 0) ? 1000 : herd / fieldsCattle;   /* head per pasture field */
-if      (herd < 1)     /* no herd     */
-else if (density < 11) crowding = 10;
+density = (herd < 1) ? 0 : (fieldsCattle == 0) ? 1000 : herd / fieldsCattle;
+if      (density < 11) crowding = 10;
 else if (density < 21) crowding = 20;
 else if (density < 31) crowding = 30;
 else                   crowding = 40;
 if (fieldsCattle == 0) crowding = 40;      /* no pasture is maximum crowding */
 ```
+
+> An earlier revision of this listing put the `herd < 1` test on the *bands* rather than on
+> the density. It is on the density (and on the map graphic); the level is written
+> unconditionally, so an empty herd on real pasture sits at density 0 and therefore in the
+> **lowest** band, not in none of them.
+
+**The level is a stored field, not a derived one**, and the difference is observable:
+`FUN_0044D913` runs at the *end* of `Herd_SeasonTick`, so a season's births and deaths are
+worked out at the crowding the herd had when the season began. `crates/l2-kingdom` stores it
+for the same reason.
 
 and `L2.eng` group **77** names them in the game's own words — the panel draws slots 8…11
 from exactly these four values:
@@ -1697,3 +1770,25 @@ four strings, and the bands closed. None of the three would have been conclusive
 recollection does not give `herd / fieldsCattle` or the boundary at 11, and no amount of
 reading `FUN_0044DA99` volunteers that the four constants are *crowding* rather than a
 ration level — which is what the earlier `[I]` in §13 guessed, wrongly.
+
+### 13.2 The new-game starting position is a table  **[V]**
+
+Found while working out why §13's rule stopped the reproduction reproducing the herd, and
+worth its own heading because of what it settles. `FUN_0049BD99` sets a new game up from
+`0x004DC0D0 + startingWealth * 0x14`, five `i32` a row:
+
+| row | grain | herd | population | health | health |
+|---|---:|---:|---:|---:|---:|
+| 0 | 10 | 40 | 167 | 45 | 41 |
+| **1** | **0** | **95** | **417** | **65** | **65** |
+| 2 | 500 | 330 | 1181 | 85 | 85 |
+
+Both the live field and its `…Last` twin are written from the same column, which is why the
+shipped save still carries row 1 in three places: `popLast` is 417 in all fourteen counties,
+`+0x254` is 95 in all fourteen, and **65 is the health meter** `crates/l2-scenario` carried
+as `STARTING_HEALTH_METER` with an `[I]` saying it was *the one number in the whole
+reproduction that comes from prior art rather than from the binary.* It is in the binary,
+and this is where. The same function then hands an unowned county +100 grain, which is the
+100 sacks the nine unowned counties still hold.
+
+A fourth row of zeros follows, so there are three starting-wealth settings and not four.

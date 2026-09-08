@@ -7,8 +7,8 @@ failed to look for.
 
 Two mechanics were added to this project in a single conversation because a player mentioned
 them in passing — cattle needing peasants to tend them, and herd crowding in four bands.
-Neither was in any document. Both are real, both are now traced to the instruction stream,
-and one of them (`docs/kingdom.md` §13) is a **rule our simulation still gets wrong**.
+Neither was in any document. Both are real, both are traced to the instruction stream, and
+both are now implemented and checked against the shipped save (`docs/kingdom.md` §13).
 
 Legend:
 
@@ -44,9 +44,12 @@ Legend:
 - ✅ Field types: fallow, grain, pasture — and reclamation
 - ✅ Fertility, and the *Advanced Farming* option that changes how it works
 - ✅ Weather: six kinds, and their effect on sowing, growth, harvest and the herd
-- ⚠️ **Cattle tending.** Three labourers per head is full staffing; below it cattle die. We
-  model none of it, so our herds survive unattended.
-- ✅ Herd crowding, `herd / fieldsCattle`, four bands
+- ✅ **Cattle tending.** Three labourers per head is full staffing; below it the shortfall
+  is added to the death rate, and a county with no pasture at all loses half its herd. Our
+  herds no longer survive unattended, and all fifty-six of the save's own herd forecasts
+  reproduce.
+- ✅ Herd crowding, `herd / fieldsCattle`, four bands, stored and fed back into births and
+  deaths
 - 🕳 **Ale.** Brewing and its happiness effect are a rule a mod can set — but ale is *bought
   at the merchant*, and no merchant screen exists.
 
@@ -56,9 +59,11 @@ Legend:
 - ✅ Happiness: the sum of tax, health, ration, events, ale and army terms
 - ✅ Migration between neighbouring counties
 - ✅ Population bands — one icon on screen stands for `ceil(pop/25)` people
-- 📖 Peasant jobs: nine or ten of them. The labour record is **three** ints a job — a wanted
-  floor and a useful ceiling — and we import none of it, so industry and sowing produce
-  nothing
+- ⚠️ **Peasant jobs: nine of them, and the worker counts now import.** Every county's nine
+  records sum to its population exactly, which is what proves the `0x0C` stride. The other
+  **two** ints of each record — a wanted floor and a useful ceiling — are not imported, and
+  neither is the allocator (`FUN_0044F6E7`) that fills them, which is why the herd's
+  pre-season labour cannot be recovered from a save
 - 🕳 Moving peasants between jobs (a rubber-band drag on the village screen)
 - 📖 Unrest and revolt
 

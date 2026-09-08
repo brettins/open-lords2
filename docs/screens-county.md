@@ -637,6 +637,14 @@ Five things, in descending order of how much they matter.
    same three to decide how many icons to draw in the "wrong" state. `l2-kingdom` has
    `labour: [i32; 9]` and no room for them. **[D]**
 
+   *Since written:* the **first** word of each record now imports —
+   `crates/l2-scenario` reads all nine, and every county's nine sum to its population
+   exactly, which is the check that fixes the stride at 12 (`docs/kingdom.md` §13). The
+   other two words are still unmodelled, and one of them is now known to be more than a
+   display hint: `FUN_0044DD4D` searches `labour = 0 … population` for the worker count
+   that best suits the herd and writes it to `+0xD4`, and the labour allocator fills the
+   slot up to `+0xD8`. So the "useful ceiling" is a rule's output, not a panel's. **[V]**
+
 4. **Three "Fed" fields with no name.** `+0x16C`, `+0x170` and `+0x174` are drawn on the
    ration panel next to the sheep, grain and cattle icons, beside the two "Eaten" fields we
    do have (`+0x178`, `+0x17C`). They are how many people each food source fed. **[D]**

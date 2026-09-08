@@ -71,10 +71,18 @@ const LABOUR_STRIDE: u32 = 0x0C;
 
 /// The health meter every county starts a new game on.
 ///
-/// **`[I]`** — `docs/kingdom.md` §9 point 7. It is the one number in the whole
-/// reproduction that comes from prior art rather than from the binary or the
-/// file, and the chain then pins it from both ends: 65 bands as 2, the Normal
+/// **`[V]`, and it used to be `[I]`.** It was the one number in the whole
+/// reproduction that came from prior art rather than from the binary or the
+/// file, held in place only by the chain around it: 65 bands as 2, the Normal
 /// ration delta for band 2 is +2, and the save stores a meter of 67 in band 3.
+///
+/// It is in the binary. `FUN_0049BD99` sets up a new game from a five-column
+/// table at `0x004DC0D0 + startingWealth * 0x14`, and row 1 is
+/// `{grain 0, herd 95, population 417, health 65, health 65}`. Two more of
+/// those five turn up in `lastturn.sav` unchanged — `popLast` is 417 in all
+/// fourteen counties and `+0x254` is 95 in all fourteen — so the row the
+/// shipped scenario used is not in doubt. `tools/oracle/kingdom.ps1` checks the
+/// table; `crates/l2-kingdom/tests/reproduction.rs` checks the save against it.
 pub const STARTING_HEALTH_METER: i32 = 65;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
