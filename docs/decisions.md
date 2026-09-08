@@ -343,6 +343,34 @@ cost one `rg`. And this is C16 restated: the answer was in the code, and I looke
 data. **A claim about what is unknowable should name the technique that was tried and
 failed.** Ours named a technique nobody had attempted.
 
+**C18 — C9's rule was necessary and not sufficient: `git commit` commits the index.**
+C9 said never `git add -A` while agents are running, and stage explicit paths instead. An
+agent followed that exactly and still swept another agent's staged file renames into its
+commit, because **`git add <paths>` controls what you add and `git commit` commits the whole
+index** — including whatever somebody else staged before you got there.
+
+The form that holds names the paths on the commit: `git commit -F msg -- <paths>`, which
+bypasses the index for those paths and takes exactly what you name. `docs/agents.md` now
+says so.
+
+The general shape is worth more than the git detail: **a rule aimed at the tool you noticed
+can leave the actual mechanism untouched.** C9 blamed `-A` because `-A` was what did the
+damage that day; the real hazard was a shared index, and `-A` was only the loudest way to
+walk into it.
+
+**C19 — Some rules have no address at all, and the oracle now reads control flow.**
+Every oracle check so far has read a *table*: an address, a stride, a count. The last five
+mod-controllable rules had no table to read, which is exactly why they were the leftovers —
+the AI's four tax ladders are `if`/`else if` chains in `AI_SetTaxRates` (`0x0049D638`), and
+the ale bounds and efficiency ceiling are immediates inside their own functions.
+
+`tools/oracle/kingdom.ps1` now recovers them from the instruction stream: 20
+`CMP EAX, imm8` thresholds interleaved with 24 `MOV byte ptr [...], imm8` rate stores, which
+are the four ladders exactly. This is C16 generalised — there, a constant's value lived in
+the `MOV` that wrote it rather than in the `.data` it wrote to; here, an entire *rule* lives
+in branch structure rather than in data. **"Where is the table?" is the wrong first question
+when the answer may be "there isn't one".**
+
 ## Open questions
 
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3

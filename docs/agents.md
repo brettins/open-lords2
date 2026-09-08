@@ -51,21 +51,30 @@ verifier exists — decoder loops, bindings, batch extraction with round-trip ch
 That is where a confident, wrong result costs more than it saves. A cheap model is safe
 exactly where a verifier exists, and dangerous everywhere else.
 
-## Never `git add -A` while agents are running
+## Commit *your own* paths, and know that `git add` is not enough
 
-The lead session commits; agents do not. But `git add -A` sweeps up whatever the agents
-have written *so far*, which means committing half-finished work under an unrelated commit
-message — and, once, fifteen rendered PNGs of game data straight past the first rule of
-the project.
+`git add -A` sweeps up whatever every other agent has written so far, which means
+committing half-finished work under an unrelated message — and, once, fifteen rendered PNGs
+of game data straight past the first rule of the project.
 
-While any agent is running, stage explicit paths:
+So stage explicit paths. **But staging explicitly does not make the commit safe**, and this
+cost us a second time: `git commit` commits **the whole index**, not the paths you happened
+to add. If another agent has already staged something — a file rename, say — your commit
+takes it too, however careful your `git add` was. One agent swept another's staged renames
+this way while following the explicit-path rule to the letter.
+
+The form that actually holds names the paths on the **commit**:
 
 ```bash
-git add crates/ docs/decisions.md native/          # yes
-git add -A                                          # no
+git commit -F msg.txt -- crates/l2-mods docs/modding.md   # yes: only these, whatever the index holds
+git add crates/ && git commit -F msg.txt                  # no: commits the whole index
+git add -A                                                 # never
 ```
 
-Check `git status --short` before committing and confirm every path is yours.
+`git commit -- <paths>` bypasses the index for those paths and commits exactly what you
+name. Check `git status --short` first and confirm every path is yours; when several agents
+are live, that check is necessary and not sufficient, and the `--` form is what closes the
+gap.
 
 ## Clean up processes you start
 
