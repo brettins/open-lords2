@@ -155,7 +155,8 @@ pub fn buy_ale(county: &mut County, crowns: i32) -> i32 {
 /// ```
 ///
 /// So it is progressive and steeply so: a twentieth of a county costs 2, a
-/// tenth costs 5, a quarter costs 19 and a half costs 90. See
+/// tenth costs 5, a fifth costs 10, a quarter costs 19 and a half costs 90.
+/// See
 /// [`crate::tables::ARMY_HAPPINESS_COST`].
 ///
 /// Note the asymmetry in the clamp, reproduced as written: when the county
@@ -333,5 +334,134 @@ mod tests {
             }
         }
         assert!(steady_state(8, 3, 3) < 0, "one point too many at Good health");
+    }
+
+    // --- the two terms this pass zeroes ------------------------------------
+
+    /// **`+1 per 10% of the population, cap +5`** — and the published claim of
+    /// *"+1 per 20%"* is twice too coarse.
+    #[test]
+    fn ale_is_worth_one_happiness_per_tenth_of_the_county() {
+        let bought = |crowns: i32| {
+            let mut c = County::new();
+            c.population = 500;
+            buy_ale(&mut c, crowns)
+        };
+        assert_eq!(bought(0), 0, "and nothing at all for nothing");
+        assert_eq!(bought(49), 0, "just under a tenth");
+        assert_eq!(bought(50), 1, "a tenth of 500");
+        assert_eq!(bought(99), 1);
+        assert_eq!(bought(100), 2);
+        assert_eq!(bought(150), 3);
+        assert_eq!(bought(200), 4);
+        assert_eq!(bought(250), 5, "half the county, and the cap");
+        assert_eq!(bought(10_000), 5, "no more however much is bought");
+        // The published "+1 per 20%" would put +1 at 100 crowns, not 50.
+        assert_eq!(bought(100), 2, "which the binary says is +2");
+    }
+
+    /// **The cap is cumulative and nothing ever resets it.** A county gets five
+    /// happiness from ale for the whole game, not five a season.
+    #[test]
+    fn a_county_can_be_given_five_happiness_from_ale_in_its_whole_history() {
+        let mut c = County::new();
+        c.population = 500;
+        let mut total = 0;
+        for _ in 0..20 {
+            total += buy_ale(&mut c, 250);
+        }
+        assert_eq!(total, ALE_HAPPINESS_MAX);
+        assert_eq!(c.ale_happiness_given, ALE_HAPPINESS_MAX);
+        assert_eq!(c.happiness, ALE_HAPPINESS_MAX);
+        assert_eq!(c.shown_ale, ALE_HAPPINESS_MAX);
+    }
+
+    /// A county too small to have a tenth: `population / 10` is zero, every
+    /// rung's threshold is zero, and any ale at all buys the full five.
+    /// Reproduced rather than guarded, because the guard would be ours.
+    #[test]
+    fn a_county_of_nine_people_gets_the_whole_bonus_for_one_crown() {
+        let mut c = County::new();
+        c.population = 9;
+        assert_eq!(buy_ale(&mut c, 1), 5);
+    }
+
+    #[test]
+    fn ale_cannot_push_happiness_past_a_hundred() {
+        let mut c = County::new();
+        c.population = 100;
+        c.happiness = 98;
+        assert_eq!(buy_ale(&mut c, 1000), 5);
+        assert_eq!(c.happiness, HAPPINESS_MAX);
+    }
+
+    /// **The army term** — `L2.eng` group 85 *"From army"*, whose writer
+    /// `docs/kingdom.md` §12 records as not found.
+    #[test]
+    fn raising_men_costs_happiness_by_the_share_of_the_county_taken() {
+        let cost = |population: i32, men: i32| {
+            let mut c = County::new();
+            c.population = population;
+            c.happiness = 100;
+            let taken = raise_army(&mut c, men);
+            assert_eq!(c.happiness, 100 - taken);
+            assert_eq!(c.shown_army, -taken, "the panel shows the same number, negated");
+            taken
+        };
+        // 50 men is a twentieth of 1000 and a tenth of 500.
+        assert_eq!(cost(1000, 50), 2);
+        assert_eq!(cost(500, 50), 5);
+        assert_eq!(cost(250, 50), 10, "a fifth of the county");
+        assert_eq!(cost(200, 50), 19, "a quarter");
+        assert_eq!(cost(100, 50), 90, "half a county is ruinous");
+        assert_eq!(cost(1000, 0), 0, "and nobody is free");
+    }
+
+    /// The cost is progressive and steeply so — the whole reason a player
+    /// raises men from a big county.
+    #[test]
+    fn the_army_cost_never_falls_as_the_share_rises() {
+        let mut last = -1;
+        for share in 0..=101 {
+            let c = army_happiness_cost(share);
+            assert!(c >= last, "cost fell at {share}");
+            last = c;
+        }
+        assert_eq!(army_happiness_cost(0), 0);
+        assert_eq!(army_happiness_cost(101), 101);
+        assert_eq!(army_happiness_cost(200), 101, "clamped, not read past the end");
+    }
+
+    /// A county that cannot afford the cost is taken to zero and the panel
+    /// debits only what was actually taken.
+    #[test]
+    fn a_poor_county_pays_what_it_has_and_the_panel_agrees() {
+        let mut c = County::new();
+        c.population = 200;
+        c.happiness = 10;
+        let taken = raise_army(&mut c, 50);
+        assert_eq!(taken, 10, "19 was the price, 10 was all there was");
+        assert_eq!(c.happiness, 0);
+        assert_eq!(c.shown_army, -10);
+    }
+
+    /// The season's pass wipes both, so their effect on happiness is permanent
+    /// and their effect on the panel lasts one turn.
+    #[test]
+    fn the_seasons_pass_wipes_what_ale_and_the_army_wrote() {
+        let mut c = County::new();
+        c.owner = 1;
+        c.population = 500;
+        c.happiness = 50;
+        buy_ale(&mut c, 250);
+        raise_army(&mut c, 50);
+        assert_eq!(c.shown_ale, 5);
+        assert_eq!(c.shown_army, -5);
+        let carried = c.happiness;
+
+        update(&mut c, true, 1);
+        assert_eq!(c.shown_ale, 0);
+        assert_eq!(c.shown_army, 0);
+        assert_eq!(c.happiness, carried, "but the happiness itself is kept");
     }
 }

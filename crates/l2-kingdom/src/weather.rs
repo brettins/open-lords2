@@ -28,17 +28,34 @@
 //! Summer and falls only in Winter, and Drought is rewritten to Frost in Winter
 //! and Spring so it cannot be *seen* in those two seasons at all.
 //!
-//! # Two things in this pass are not implementable as documented
+//! # `random/8`, resolved
 //!
-//! **`random/8` has no stated range**, and without one the term is meaningless:
-//! if `random` were C's `rand()` the jitter would be 0..4095 and would swamp a
-//! seasonal push of 8..24 entirely. [`WEATHER_JITTER_BOUND`] is therefore
-//! *ours*, chosen to make the jitter comparable to the smallest seasonal push,
-//! and it is the one number in this crate that is an invention rather than a
-//! transcription.
+//! `docs/kingdom.md` §7.3 writes the jitter as `random/8` and gives no range,
+//! which `docs/decisions.md` lists as an open question and which made
+//! [`WEATHER_JITTER_BOUND`] the one invented constant in this crate. It is not
+//! invented any more.
 //!
-//! **`localModifier(c)` was never traced.** It is zero here. Both gaps are
-//! isolated in named functions so that a later trace changes one line.
+//! The original's generator is `FUN_00404A46`, called once at the top of
+//! `Season_Advance`. It steps **two 31-bit LFSRs** — taps at bits 0 and 4,
+//! feeding bit 30, thirty-one iterations a call — and then publishes six masked
+//! values from them. `Weather_UpdateAll` reads two:
+//!
+//! * the jitter is `(LFSR_B & 0x7F) >> 3`, so **`random` is 0..=127 and the
+//!   jitter is 0..=15**;
+//! * the county that gets the local swing is `(LFSR_A & 0x7F) & 0xF`, i.e.
+//!   0..=15, with three fallbacks when that misses — see [`chosen_county`].
+//!
+//! So the jitter really can cancel Spring's +8 and Autumn's +12 outright, and
+//! bites two thirds of the way into Summer's +24. `[V]`
+//!
+//! **This crate keeps `l2_net::Pcg32` rather than porting the two LFSRs.** The
+//! *range* is what a rule turns on and it is the original's now; the exact bit
+//! sequence is not, and it would only matter for a save-state-level
+//! differential test, which would need the LFSR seeds out of a running game
+//! anyway.
+//!
+//! **`localModifier(c)` is still not traced.** It is `FUN_00449D6E`, called for
+//! the chosen county and for each of its neighbours, and it is zero here.
 
 use crate::county::County;
 use crate::math::clamp;
@@ -62,27 +79,68 @@ pub const DRYNESS_LADDER: [i32; 4] = [5, 20, 70, 95];
 /// *Frost*.
 pub const FROST_SUNNY_THRESHOLD: i32 = 74;
 
-/// **Ours, not the original's.** `docs/kingdom.md` §7.3 writes the seasonal
-/// jitter as `random/8` and never says what `random` ranges over. 64 gives a
-/// jitter of 0..=7 — the same order as the smallest seasonal push (Spring's
-/// +8), which is the only property that makes the term behave like jitter
-/// rather than like noise.
+/// The range `random` in `random/8` actually has: `LFSR & 0x7F`, so 0..=127.
 ///
-/// If the original's generator is ever traced, this is the single constant to
-/// change.
-pub const WEATHER_JITTER_BOUND: u32 = 64;
+/// **No longer an invention.** This was the one constant in the crate with no
+/// evidence behind it — `docs/decisions.md` records it as an open question — and
+/// it was 64. The generator (`FUN_00404A46`) masks its two LFSRs with `0x7F`,
+/// and `Weather_UpdateAll` shifts the result right by three, so the jitter is
+/// **0..=15**, twice the range this crate had guessed.
+pub const WEATHER_JITTER_BOUND: u32 = 128;
+
+/// The shift the original applies to the draw: `>> 3`, spelled out because it
+/// is the `/8` in `docs/kingdom.md` §7.3's `random/8`.
+pub const WEATHER_JITTER_SHIFT: u32 = 3;
+
+/// The mask the original applies to the *other* LFSR to pick the county that
+/// gets the local swing: `& 0xF`, so 0..=15.
+pub const WEATHER_COUNTY_MASK: u32 = 0xF;
 
 /// **Never traced.** `Weather_UpdateAll` adds a per-county modifier to the
-/// chosen county and to each of its neighbours; `docs/kingdom.md` §7.3 names it
-/// and nothing more. Zero until somebody reads it out of the binary.
+/// chosen county and to each of its neighbours; it is `FUN_00449D6E`, and
+/// `docs/kingdom.md` §7.3 names it and nothing more. Zero until somebody reads
+/// it out of the binary.
 pub fn local_modifier(_county: &County) -> i32 {
     0
 }
 
 /// The season's push on every county's dryness, jitter included.
+///
+/// The jitter is `draw >> 3` of a 0..=127 draw, which is 0..=15 — enough to
+/// cancel Spring and Autumn outright and to take two thirds off Summer.
 pub fn seasonal_delta(season: Season, rng: &mut Pcg32) -> i32 {
-    let jitter = (rng.below(WEATHER_JITTER_BOUND) / 8) as i32;
+    let jitter = (rng.below(WEATHER_JITTER_BOUND) >> WEATHER_JITTER_SHIFT) as i32;
     DRYNESS_BY_SEASON[season.index() as usize] - jitter
+}
+
+/// Which county gets the local swing.
+///
+/// ```c
+/// c = g_seasonRandomA & 0xF;              /* 0 .. 15 */
+/// if (c > g_countyCount) c = g_weatherCounty + 1;   /* last season's, plus one */
+/// if (c > g_countyCount) c = 1;
+/// if (c < 1)             c = 1;
+/// g_weatherCounty = c;
+/// ```
+///
+/// **`[V]`, and it is not a uniform draw over the counties.** The mask is a
+/// flat 0..=15 whatever the map's county count is, so on a 14-county map the
+/// two out-of-range values fall through to *"the county after last season's"* —
+/// which makes the local swing walk steadily around the map about an eighth of
+/// the time, rather than jumping. `previous` is `g_weatherCounty`
+/// (`0x00554020`), which is its own four-byte save block.
+pub fn chosen_county(draw: u32, county_count: usize, previous: usize) -> usize {
+    let mut c = (draw & WEATHER_COUNTY_MASK) as usize;
+    if c > county_count {
+        c = previous + 1;
+    }
+    if c > county_count {
+        c = 1;
+    }
+    if c < 1 {
+        c = 1;
+    }
+    c
 }
 
 /// Band a dryness reading, applying the two mean-reversion clamps in place.
@@ -130,13 +188,17 @@ pub fn update_all(
     season: Season,
     advanced_farming: bool,
     rng: &mut Pcg32,
+    previous_county: &mut usize,
 ) {
     if county_count == 0 {
         return;
     }
 
     let delta = seasonal_delta(season, rng);
-    let chosen = 1 + rng.below(county_count as u32) as usize;
+    // The original draws from its *other* LFSR here; one draw either way, so
+    // the stream's length is unchanged.
+    let chosen = chosen_county(rng.below(WEATHER_JITTER_BOUND), county_count, *previous_county);
+    *previous_county = chosen;
 
     for id in 1..=county_count {
         push(&mut counties[id], delta);
@@ -254,7 +316,7 @@ mod tests {
     fn basic_farming_forces_cloudy_everywhere_whatever_the_accumulator_says() {
         let mut rng = Pcg32::from_seed(1);
         let mut c = kingdom(14, 200);
-        update_all(&mut c, 14, Season::Winter, false, &mut rng);
+        update_all(&mut c, 14, Season::Winter, false, &mut rng, &mut 1);
         for id in 1..=14 {
             assert_eq!(c[id].weather, Weather::Cloudy, "county {id}");
         }
@@ -268,7 +330,7 @@ mod tests {
         let mut rng = Pcg32::from_seed(7);
         let mut c = kingdom(6, 50);
         // No adjacency, so only the chosen county diverges.
-        update_all(&mut c, 6, Season::Summer, true, &mut rng);
+        update_all(&mut c, 6, Season::Summer, true, &mut rng, &mut 1);
         let mut readings: Vec<i32> = (1..=6).map(|i| c[i].dryness).collect();
         readings.sort_unstable();
         readings.dedup();
@@ -293,7 +355,7 @@ mod tests {
         let delta = seasonal_delta(Season::Summer, &mut rng.clone());
         assert!(delta > 0);
 
-        update_all(&mut c, 3, Season::Summer, true, &mut rng);
+        update_all(&mut c, 3, Season::Summer, true, &mut rng, &mut 1);
 
         let readings: Vec<i32> = (1..=3).map(|i| c[i].dryness).collect();
         let chosen = 20 + 2 * delta;
@@ -306,27 +368,67 @@ mod tests {
     /// wets it — the shape behind *"floods in winter and spring, droughts in
     /// summer"*.
     #[test]
-    fn only_winter_pushes_the_accumulator_downwards() {
+    fn only_winter_pushes_the_accumulator_downwards_on_average() {
         let mut rng = Pcg32::from_seed(11);
-        for season in Season::ALL {
-            let d = seasonal_delta(season, &mut rng);
-            match season {
-                Season::Winter => assert!(d < 0, "{} should wet the land", season.name()),
-                _ => assert!(d >= 0, "{} should dry it", season.name()),
+        let mut totals = [0i64; 5];
+        for _ in 0..2000 {
+            for season in Season::ALL {
+                totals[season.index() as usize] += seasonal_delta(season, &mut rng) as i64;
             }
+        }
+        assert!(totals[Season::Winter as usize] < 0, "Winter should wet the land");
+        for season in [Season::Spring, Season::Summer, Season::Autumn] {
+            assert!(totals[season.index() as usize] > 0, "{} should dry it", season.name());
         }
     }
 
-    /// The jitter never turns a drying season into a wetting one — the
-    /// property [`WEATHER_JITTER_BOUND`] was chosen for.
+    /// **The jitter is 0..=15 and it really can flip Spring and Autumn.**
+    ///
+    /// The previous version of this test asserted that it could not — the
+    /// property [`WEATHER_JITTER_BOUND`] was *invented* to have. The binary
+    /// says otherwise: `(LFSR & 0x7F) >> 3` is 0..=15, so Spring's +8 can come
+    /// out at −7 and Autumn's +12 at −3. Only Summer's +24 is safe.
     #[test]
-    fn the_jitter_never_flips_the_sign_of_a_season() {
+    fn the_jitter_can_flip_spring_and_autumn_but_never_summer() {
         let mut rng = Pcg32::from_seed(99);
-        for _ in 0..2000 {
-            assert!(seasonal_delta(Season::Spring, &mut rng) >= 1);
-            assert!(seasonal_delta(Season::Summer, &mut rng) >= 17);
-            assert!(seasonal_delta(Season::Autumn, &mut rng) >= 5);
-            assert!(seasonal_delta(Season::Winter, &mut rng) <= -12);
+        let mut spring_flipped = false;
+        let mut autumn_flipped = false;
+        for _ in 0..4000 {
+            let spring = seasonal_delta(Season::Spring, &mut rng);
+            let summer = seasonal_delta(Season::Summer, &mut rng);
+            let autumn = seasonal_delta(Season::Autumn, &mut rng);
+            let winter = seasonal_delta(Season::Winter, &mut rng);
+            // The exact bounds: push - 15 .. push.
+            assert!((-7..=8).contains(&spring), "spring {spring}");
+            assert!((9..=24).contains(&summer), "summer {summer}");
+            assert!((-3..=12).contains(&autumn), "autumn {autumn}");
+            assert!((-27..=-12).contains(&winter), "winter {winter}");
+            spring_flipped |= spring < 0;
+            autumn_flipped |= autumn < 0;
+        }
+        assert!(spring_flipped, "a wet spring is reachable");
+        assert!(autumn_flipped, "so is a wet autumn");
+    }
+
+    /// The county picked for the local swing is masked to 0..=15 whatever the
+    /// map holds, and the two fallbacks walk it on from last season's.
+    #[test]
+    fn an_out_of_range_draw_walks_the_local_swing_on_from_last_season() {
+        // In range: the draw wins.
+        assert_eq!(chosen_county(0x0A, 14, 3), 10);
+        // 15 is beyond a 14-county map, so it takes last season's plus one.
+        assert_eq!(chosen_county(0x0F, 14, 3), 4);
+        // ... and if that is beyond the map too, county 1.
+        assert_eq!(chosen_county(0x0F, 14, 14), 1);
+        // A masked zero is pulled up to 1 rather than indexing the unused
+        // record.
+        assert_eq!(chosen_county(0x10, 14, 3), 1, "0x10 & 0xF is 0");
+        // Every possible draw lands inside the map.
+        for count in 1..=16usize {
+            for draw in 0..128u32 {
+                let c = chosen_county(draw, count, count);
+                assert!((1..=count).contains(&c), "count {count} draw {draw} gave {c}");
+            }
         }
     }
 
@@ -341,7 +443,7 @@ mod tests {
                 c[id].add_neighbour((id % 8 + 1) as u8);
             }
             for season in [Season::Spring, Season::Summer, Season::Autumn, Season::Winter] {
-                update_all(&mut c, 8, season, true, &mut rng);
+                update_all(&mut c, 8, season, true, &mut rng, &mut 1);
             }
             c
         };
@@ -355,7 +457,7 @@ mod tests {
         for n in [1usize, 5, 16] {
             let mut rng = Pcg32::from_seed(42);
             let mut c = kingdom(n, 50);
-            update_all(&mut c, n, Season::Summer, true, &mut rng);
+            update_all(&mut c, n, Season::Summer, true, &mut rng, &mut 1);
             let mut reference = Pcg32::from_seed(42);
             reference.advance(2);
             assert_eq!(rng, reference, "kingdom of {n} should have drawn twice");
@@ -367,7 +469,7 @@ mod tests {
         let mut rng = Pcg32::from_seed(5);
         let before = rng.clone();
         let mut c = kingdom(0, 0);
-        update_all(&mut c, 0, Season::Spring, true, &mut rng);
+        update_all(&mut c, 0, Season::Spring, true, &mut rng, &mut 1);
         assert_eq!(rng, before);
     }
 }

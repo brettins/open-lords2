@@ -263,11 +263,24 @@ pub enum Pass {
 /// 4. [`Pass::MigrationUpdate`] before [`Pass::PopulationUpdate`] — population
 ///    applies `pop -= emigrants; pop += immigrants` at the end of its own pass.
 ///
-/// The four industry runs use the commodity order of `docs/kingdom.md` §7.4's
-/// table (wood, iron, weapons, stone). §3.4's abridged call list writes them as
-/// *"wood, iron, stone, weapons"*; the two disagree, and nothing in the
-/// document resolves it. It does not matter for any documented rule — wood and
-/// iron precede weapons in both readings, and stone interacts with neither.
+/// **Two corrections against `docs/kingdom.md` §3.4, both from the call list
+/// itself.**
+///
+/// 1. **The industry order is weapons, iron, stone, wood** — the driver
+///    (`FUN_0044E852`) runs the blacksmith over every county in its own loop
+///    and only then mines per county. §3.4 says *"wood, iron, stone,
+///    weapons"*; §7.4's table indexes them wood, iron, weapons, stone; the
+///    binary is neither, and it is [`crate::tables::INDUSTRY_ORDER`]. It
+///    matters: the blacksmith spends the *previous* season's ore, because this
+///    season's has not been mined yet.
+/// 2. **`Score_RankRealms` is not in the pipeline at all.** §3.4 lists it;
+///    `Season_Advance`'s twenty-eight calls do not include it. Its callers are
+///    `Turn_Tick`, `Game_NewGame`, `Turn_AdvancePhase`, the AI turn's step 0
+///    ([`crate::ai::begin_realm_turn`]) and one UI path. [`Pass::ScoreRank`] is
+///    kept, because the ranking still has to happen somewhere and a kingdom
+///    with no turn machine driving it would otherwise never rank at all; it is
+///    flagged by [`is_in_season_advance`] and asserted in this module's tests
+///    rather than quietly presented as the original's order.
 pub const SEASON_PIPELINE: [Pass; 23] = [
     Pass::Clock,
     Pass::EventRoll,
@@ -282,10 +295,10 @@ pub const SEASON_PIPELINE: [Pass; 23] = [
     Pass::FieldReclaim,
     Pass::GrainSeasonTick,
     Pass::HerdSeasonTick,
-    Pass::Industry(crate::tables::Commodity::Wood),
-    Pass::Industry(crate::tables::Commodity::Iron),
     Pass::Industry(crate::tables::Commodity::Weapons),
+    Pass::Industry(crate::tables::Commodity::Iron),
     Pass::Industry(crate::tables::Commodity::Stone),
+    Pass::Industry(crate::tables::Commodity::Wood),
     Pass::CastleBuildTick,
     Pass::MigrationUpdate,
     Pass::PopulationUpdate,
@@ -293,6 +306,14 @@ pub const SEASON_PIPELINE: [Pass; 23] = [
     Pass::History,
     Pass::RationPreview,
 ];
+
+/// The passes that are in `Season_Advance`'s call list, as against the one
+/// this crate runs there for want of anywhere better.
+///
+/// Only [`Pass::ScoreRank`] is in the second group. See [`SEASON_PIPELINE`].
+pub fn is_in_season_advance(pass: Pass) -> bool {
+    pass != Pass::ScoreRank
+}
 
 impl Pass {
     /// The position of a pass in [`SEASON_PIPELINE`], for ordering assertions.
@@ -406,8 +427,39 @@ mod tests {
         assert!(before(Pass::FertilityUpdate, Pass::FieldReclaim), "fertility, *then* reclamation");
         assert!(before(Pass::PopulationUpdate, Pass::ScoreRank), "the score is scored last");
         assert!(before(Pass::RationApply, Pass::RationPreview), "and the preview really is second");
-        assert!(before(Pass::Industry(Commodity::Wood), Pass::Industry(Commodity::Weapons)));
-        assert!(before(Pass::Industry(Commodity::Iron), Pass::Industry(Commodity::Weapons)));
+    }
+
+    /// **The blacksmith runs before the mines.** The obvious reading — mine the
+    /// ore, then forge it — is wrong, and the pipeline now says so: the driver
+    /// runs weapons over every county first, so a season's weapons are paid for
+    /// out of the *previous* season's ore.
+    #[test]
+    fn the_industry_passes_run_in_the_order_the_driver_calls_them() {
+        let runs: Vec<Commodity> = SEASON_PIPELINE
+            .into_iter()
+            .filter_map(|p| match p {
+                Pass::Industry(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(runs, crate::tables::INDUSTRY_ORDER.to_vec());
+        assert_eq!(runs[0], Commodity::Weapons);
+        let order = |c: Commodity| runs.iter().position(|x| *x == c).unwrap();
+        assert!(order(Commodity::Weapons) < order(Commodity::Iron), "forge, then mine");
+        assert!(order(Commodity::Weapons) < order(Commodity::Wood));
+    }
+
+    /// **`Score_RankRealms` is not one of `Season_Advance`'s calls**, whatever
+    /// `docs/kingdom.md` §3.4 says. Kept in the pipeline because the ranking
+    /// has to happen somewhere, and flagged so nobody reads the array as a
+    /// transcription.
+    #[test]
+    fn the_ranking_pass_is_the_one_thing_here_that_season_advance_does_not_call() {
+        let extra: Vec<Pass> =
+            SEASON_PIPELINE.into_iter().filter(|p| !is_in_season_advance(*p)).collect();
+        assert_eq!(extra, vec![Pass::ScoreRank]);
+        assert!(is_in_season_advance(Pass::History), "the ring is the real second-to-last");
+        assert!(is_in_season_advance(Pass::RationPreview), "and the preview really is last");
     }
 
     #[test]

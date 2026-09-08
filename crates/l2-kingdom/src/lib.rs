@@ -66,11 +66,17 @@
 //!    shipped save's `season 4, year 1268, turn 1`; the prose does not follow
 //!    from it. See [`Kingdom::start_new_game`].
 //!
-//! 4. **§7.3's `random/8` has no stated range**, and the term is meaningless
-//!    without one — C's `rand()` would give a jitter of 0..4095 against a
-//!    seasonal push of 8..24. [`weather::WEATHER_JITTER_BOUND`] is this
-//!    crate's own choice and the one constant here that is an invention.
-//!    §7.3's `localModifier` is likewise named and never traced.
+//! 4. **§7.3's `random/8` has no stated range** — *resolved, and this crate's
+//!    guess was wrong.* It was the one constant here with no evidence behind
+//!    it. The original's generator (`FUN_00404A46`) steps two 31-bit LFSRs and
+//!    masks their output with `0x7F`, so `random` is 0..=127 and the jitter is
+//!    **0..=15** — twice this crate's guess, and enough to cancel Spring's `+8`
+//!    and Autumn's `+12` outright, which the guess was chosen to prevent. The
+//!    same call also picks the county that gets the local swing, by a flat
+//!    `& 0xF` that ignores the map's size and falls through to *"the county
+//!    after last season's"* when it overshoots. See
+//!    [`weather::WEATHER_JITTER_BOUND`] and [`weather::chosen_county`]. §7.3's
+//!    `localModifier` (`FUN_00449D6E`) is still named and never traced.
 //!
 //! 5. **§6's AI unrest ladder has a hole.** *"happiness >= 41 resets it to 0;
 //!    11 … 40 walks it down; below 1 walks it up"* says nothing about 1..=10.
@@ -81,11 +87,13 @@
 //!    certainly a lost negation or a `popLast`; it is reproduced as written and
 //!    flagged rather than silently corrected. See [`population::update_one`].
 //!
-//! 7. **§3.4 and §7.4 disagree on the industry order.** §3.4's call list says
-//!    *"wood, iron, stone, weapons"*; §7.4's table indexes them wood, iron,
-//!    weapons, stone. Nothing resolves it. It changes no documented outcome —
-//!    wood and iron precede weapons either way — and this crate uses §7.4's
-//!    order.
+//! 7. **§3.4 and §7.4 disagree on the industry order, and both are wrong.**
+//!    §3.4's call list says *"wood, iron, stone, weapons"* and §7.4's table
+//!    indexes them wood, iron, weapons, stone. The driver (`FUN_0044E852`)
+//!    runs **weapons over every county first**, in its own loop, and then iron,
+//!    stone and wood per county. That is not cosmetic: the blacksmith spends
+//!    the *previous* season's ore, because this season's has not been mined
+//!    yet. See [`tables::INDUSTRY_ORDER`].
 //!
 //! 8. **§4.3's own admission stands.** The food-split fields reproduce for the
 //!    ten unowned counties and not for the four owned ones, because
@@ -94,19 +102,64 @@
 //!    [`ration::preview`] (does not), which reproduces the unowned case
 //!    exactly and leaves the owned case exactly as unexplained as §4.3 left it.
 //!
-//! 9. **Several rules are named but not specified**, and are implemented as
-//!    honest stubs rather than invented: the fourteen AI turn handlers (§3.2,
-//!    §12), the four `AI_SetTaxRates` ladders (§8.2), the five bankruptcy
-//!    stages (§2, `+0x158`), the `Industry_Produce` efficiency ramp (§7.4,
-//!    §12), the `resourceLimit` term of the industry formula (§7.4), rows 1..3
-//!    of `g_aiGoldGrant` (§8.2), the contents of the 24-entry event table
-//!    (§8.1), the history ring (§3.4), the ale and army happiness terms (§12),
-//!    and the job slot that supplies `Grain_Sow`'s labour (§7.1).
+//! 9. **The rules §12 lists as unknown have been traced**, and are no longer
+//!    stubs. Each is documented where it is implemented, with the address it
+//!    came from and what second source confirms it:
 //!
-//! 10. **§9's five-stage chain reproduces exactly**, and is asserted in
+//!    * the fourteen AI turn handlers — all named with their addresses in
+//!      [`ai::AiStep`]; **four are implemented here** and the other ten drive
+//!      armies, merchants, diplomacy and map tiles, which this crate does not
+//!      own. One of the fourteen (step 8) is an *empty function* in the
+//!      shipped binary;
+//!    * the four `AI_SetTaxRates` ladders — [`tables::AI_TAX_LADDER_NEUTRAL`]
+//!      and [`tables::AI_TAX_LADDERS`];
+//!    * the five bankruptcy stages — [`industry::BankruptcyAction`], each
+//!      cross-checked against the `L2.eng` group its handler raises;
+//!    * the efficiency ramp — [`industry::efficiency_ramp`] — and the
+//!      `resourceLimit` term — [`industry::resource_limit`];
+//!    * rows 1..3 of `g_aiGoldGrant`, and the second, smaller table
+//!      [`tables::AI_GOLD_GRANT_SMALL`];
+//!    * the event table — [`event::EVENT_DECK`], which is a 256-slot deck
+//!      rather than a 24-entry table, with all 24 handlers in [`event`];
+//!    * the history ring — [`kingdom::History`];
+//!    * the ale and army happiness terms — [`happiness::buy_ale`] and
+//!      [`happiness::raise_army`];
+//!    * the job slot supplying `Grain_Sow`'s labour — slot 0, which is
+//!      *"Grain farming"*, because the nine labour records are `L2.eng` group
+//!      74's strings **1..9** and §7.4's whole job column is one too high.
+//!      See [`tables::JOB_COUNT`].
+//!
+//! 10. **What is still a stub, and why.** These are named in the binary and
+//!     not reproduced, rather than invented:
+//!
+//!     * `localModifier` (`FUN_00449D6E`), the per-county weather swing;
+//!     * the sixth score input, realm `+0x4C` — the other five are identified
+//!       in [`tables::SCORE_INPUT_OFFSETS`], and it carries the heaviest weight
+//!       of the six;
+//!     * the two denominators the weapons `resourceLimit` divides by
+//!       (`FUN_0044F15B`);
+//!     * the three AI farming styles `AI_ManageFields` dispatches into, and the
+//!       per-lord castle and weapon ladders steps 6 and 12 read;
+//!     * a fifth AI lord's personality record — see
+//!       [`tables::AI_PERSONALITY_COUNT`], which is four;
+//!     * the ten AI handlers whose state lives outside this crate.
+//!
+//! 11. **§9's five-stage chain reproduces exactly**, and is asserted in
 //!     `tests/reproduction.rs`: ration → health meter → health band →
 //!     happiness → birth rate → population, on live data from a real game with
 //!     no free parameters. Nothing had to be adjusted to make it land.
+//!
+//! 12. **Two more layout errors, found by reading the bytes.**
+//!     `g_healthBandLadder` is five `{threshold, band}` pairs and §4.2's
+//!     *"else 4"* is an explicit `(100, 4)` row; `g_castleWorkforce` is two
+//!     ints per castle level rather than one. Both are confirmed by the
+//!     addresses either side of them closing exactly. See
+//!     [`tables::HEALTH_BAND_LADDER`] and [`tables::CASTLE_WORKFORCE`].
+//!
+//! 13. **`Score_RankRealms` is not in the `Season_Advance` pipeline** that
+//!     §3.4 lists it in, and realm `+0x04` is a strength count rather than the
+//!     `inPlay` flag §2 calls it. See [`phase::SEASON_PIPELINE`] and
+//!     [`ai::begin_realm_turn`].
 
 pub mod ai;
 pub mod county;

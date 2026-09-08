@@ -60,6 +60,75 @@ $CHECKS = @(
   # Twenty {population, percent} pairs; kingdom.md prints the first ten pairs.
   @{ Name = 'g_birthRateLadder'; Addr = 0x004D6308; Width = 4; Ref = 'sec 5.1'
      Expect = @(40,100, 80,70, 100,50, 250,30, 500,20, 700,15, 800,14, 900,13, 1000,12, 1100,11) }
+
+  # --- added with the crate work that replaced l2-kingdom's honest stubs ----
+  # Every one of these was read out of the binary rather than out of
+  # kingdom.md, so a failure here means the crate is wrong rather than that the
+  # document is. Widths come from what the instruction stream loads: the event
+  # deck is read with a 16-bit load and everything else with a 32-bit one.
+
+  # int[5][4] by AI lord and difficulty, for a realm holding three or more
+  # counties. kingdom.md sec 8.2 gave only the first and last rows.
+  @{ Name = 'g_aiGoldGrant'; Addr = 0x004DC1E0; Width = 4; Ref = 'sec 8.2'
+     Expect = @(0,0,0,0,  0,400,700,1200,  100,500,800,1400,  0,400,700,1200,  250,600,1100,1800) }
+  # The same shape, for a realm below three counties. Uniformly smaller.
+  @{ Name = 'g_aiGoldGrantSmall'; Addr = 0x004DC230; Width = 4; Ref = 'sec 8.2'
+     Expect = @(0,0,0,0,  0,160,250,400,  40,180,300,500,  0,160,250,400,  100,240,400,600) }
+
+  # The event deck. Not a 24-entry table: 256 i16 slots, 230 of them zero,
+  # spanning 0x004D6108 .. 0x004D6308 - which is exactly where
+  # g_birthRateLadder above begins, so the two checks pin each other. Only the
+  # first 32 slots are listed; the shape - at most one id in every eighth slot,
+  # always the last of the eight - is what matters and it holds throughout.
+  @{ Name = 'g_eventTable[0..31]'; Addr = 0x004D6108; Width = 2; Ref = 'sec 8.1'
+     Expect = @(0,0,0,0,0,0,0,0x87,  0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0x8C,  0,0,0,0,0,0,0,0x8D) }
+
+  # The happiness cost of raising an army, indexed by the percentage of the
+  # county taken. 102 entries ending exactly where the merchant price table
+  # begins; the first 32 are listed. This is the L2.eng group 85 "From army"
+  # term, which kingdom.md sec 12 records as having no writer found.
+  @{ Name = 'g_armyHappinessCost[0..31]'; Addr = 0x004D8778; Width = 4; Ref = 'sec 12'
+     Expect = @(0,1,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,11,13,15,17,19,21,23,25,27,29,31) }
+
+  # The merchant base sell price, kingdom.md sec 10 - included because it is
+  # what bounds g_armyHappinessCost above, so a change to either is caught.
+  @{ Name = 'g_goodSellPrice'; Addr = 0x004D8910; Width = 4; Ref = 'sec 10'
+     Expect = @(0, 2, 12, 0, 1, 0, 1, 2, 1, 13, 16, 10, 24, 23, 44) }
+
+  # Six {wood, iron} pairs, kingdom.md sec 7.4 - the table Industry_Produce
+  # debits when the blacksmith runs.
+  @{ Name = 'g_weaponCost'; Addr = 0x004D8990; Width = 4; Ref = 'sec 7.4'
+     Expect = @(6,10, 4,4, 3,10, 6,3, 13,0, 4,18) }
+
+  # int[6][5] [rationLevel][healthBand], added to the health meter each season.
+  # Thirty ints is 120 bytes and 0x004D64A8 + 120 is 0x004D6520, where
+  # g_healthBandLadder begins.
+  @{ Name = 'g_healthDeltaTable'; Addr = 0x004D64A8; Width = 4; Ref = 'sec 4.2'
+     Expect = @(-8,-10,-13,-16,-20,  -4,-6,-9,-12,-15,  -2,-4,-6,-8,-12,
+                8,4,2,1,-1,  12,8,4,2,0,  20,12,6,3,1) }
+
+  # Six percentages by weather band. Six slots, and g_rationTable is not the
+  # next thing along - but 0x004D6560 + 24 is where the following table starts,
+  # which is what fixes the count at six rather than five.
+  @{ Name = 'g_herdWeatherPct'; Addr = 0x004D6560; Width = 4; Ref = 'sec 7.1'
+     Expect = @(-2, -10, 5, 0, -5, -10) }
+
+  # Six {divisor, multiplier} pairs: the ration requirement is
+  # DivCeil(people, divisor) * multiplier.
+  @{ Name = 'g_rationTable'; Addr = 0x004D6738; Width = 4; Ref = 'sec 4.2'
+     Expect = @(1,0, 4,1, 2,1, 1,1, 1,2, 1,3) }
+
+  # The AI personality records, six ints of each of two. The base is
+  # 0x004D8A58, which is exactly 24 bytes past g_castleFreeArchers, and the
+  # stride is 3 x 0x50. Field +0x00 is the farming style AI_ManageFields
+  # dispatches on and +0x04 selects one of the three AI tax ladders; the rest
+  # are not identified and are pinned only so a change is noticed.
+  @{ Name = 'g_aiPersonality[lord 1]'; Addr = 0x004D8A58; Width = 4; Ref = 'sec 8.2'
+     Expect = @(1, 2, 100, 500, 5, 12) }
+  # Lord 4, three 0x50-byte rows on, and the only lord using a different ladder.
+  @{ Name = 'g_aiPersonality[lord 4]'; Addr = 0x004D8D28; Width = 4; Ref = 'sec 8.2'
+     Expect = @(9, 1, 50, 1500, 20, 4) }
 )
 
 Add-Type @'

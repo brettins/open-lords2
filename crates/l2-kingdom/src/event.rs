@@ -54,8 +54,8 @@
 //! `index ≡ 7 (mod 8)`, which is **odd**. So counties 2, 4, 6 … 16 are
 //! permanently exempt from the random-event table, and no amount of play will
 //! reveal it, because the counties that do draw look exactly as they should.
-//! Reproduced rather than corrected — see
-//! [`tests::only_odd_numbered_counties_can_ever_draw_an_event`].
+//! Reproduced rather than corrected, and asserted exhaustively over all 128
+//! seeds by `only_odd_numbered_counties_can_ever_draw_an_event`.
 //!
 //! # What the handlers do
 //!

@@ -95,6 +95,10 @@ pub struct Kingdom {
     /// The history ring `Season_Advance`'s second-to-last pass writes.
     /// See [`History`].
     pub history: History,
+    /// `g_weatherCounty` (`0x00554020`) — the county that got last season's
+    /// local weather swing, which is the fallback when this season's masked
+    /// draw lands outside the map. See [`weather::chosen_county`].
+    pub weather_county: usize,
 }
 
 /// `FUN_004AE7DD` — the history ring `docs/kingdom.md` §3.4 names and nothing
@@ -230,6 +234,7 @@ impl Kingdom {
             options: Options::default(),
             rng: Pcg32::from_seed(seed),
             history: History::new(),
+            weather_county: 1,
         }
     }
 
@@ -397,6 +402,7 @@ impl Kingdom {
             season,
             self.options.advanced_farming,
             &mut self.rng,
+            &mut self.weather_county,
         );
     }
 
@@ -751,5 +757,107 @@ mod tests {
         assert_eq!(k.realms[1].gold, 320);
         assert_eq!(k.counties[2].tax_collected, 320, "computed but banked nowhere");
         assert_eq!(k.realms[0].gold, 0, "realm 0 is not a realm");
+    }
+
+    // --- the history ring --------------------------------------------------
+
+    /// The ring's shape, and the arithmetic that pins it: save block 10 is
+    /// 51,200 bytes, and `400 * 16 * 8` is 51,200.
+    #[test]
+    fn the_history_ring_is_four_hundred_seasons_of_sixteen_counties() {
+        assert_eq!(crate::tables::HISTORY_SEASONS, 400);
+        assert_eq!(crate::tables::HISTORY_COUNTIES, 16);
+        assert_eq!(
+            crate::tables::HISTORY_SEASONS * crate::tables::HISTORY_COUNTIES * 8,
+            51_200,
+            "save block 10 at 0x0056D8C0"
+        );
+        assert_eq!(
+            crate::tables::HISTORY_COUNTIES,
+            crate::county::MAX_COUNTY_ID as usize,
+            "one slot per addressable county"
+        );
+    }
+
+    #[test]
+    fn a_season_writes_one_line_per_county_and_the_ring_reads_back_in_order() {
+        let mut k = Kingdom::new(1);
+        k.set_county_count(3);
+        assert!(k.history.is_empty());
+        for season in 1..=5i32 {
+            for id in 1..=3 {
+                k.counties[id].population = 100 * season + id as i32;
+                k.counties[id].happiness = 40 + season;
+            }
+            k.history.record(&k.counties.clone());
+        }
+        assert_eq!(k.history.len(), 5);
+
+        let county_two = k.history.county(2);
+        assert_eq!(county_two.len(), 5);
+        assert_eq!(
+            county_two.iter().map(|e| e.population).collect::<Vec<i32>>(),
+            vec![102, 202, 302, 402, 502],
+            "oldest first"
+        );
+        assert_eq!(county_two[4].happiness, 45);
+
+        let latest = k.history.latest().expect("five seasons recorded");
+        assert_eq!(latest[1].population, 502, "county 2 is slot 1");
+    }
+
+    /// **Counties 1..=16 unconditionally**, not `1..=g_countyCount`. A map with
+    /// four counties still writes sixteen lines, twelve of them zero.
+    #[test]
+    fn the_ring_writes_every_slot_whatever_the_map_holds() {
+        let mut k = Kingdom::new(2);
+        k.set_county_count(4);
+        for id in 1..=4 {
+            k.counties[id].population = 500;
+        }
+        k.history.record(&k.counties.clone());
+        let latest = *k.history.latest().expect("one season");
+        for slot in 0..4 {
+            assert_eq!(latest[slot].population, 500);
+        }
+        for slot in 4..crate::tables::HISTORY_COUNTIES {
+            assert_eq!(latest[slot].population, 0, "slot {slot} is an empty record");
+        }
+    }
+
+    /// A hundred years in, the ring is full and starts forgetting.
+    #[test]
+    fn the_ring_forgets_its_beginning_after_four_hundred_seasons() {
+        let mut k = Kingdom::new(3);
+        k.set_county_count(1);
+        for season in 1..=(crate::tables::HISTORY_SEASONS as i32 + 50) {
+            k.counties[1].population = season;
+            k.history.record(&k.counties.clone());
+        }
+        assert_eq!(k.history.len(), crate::tables::HISTORY_SEASONS);
+        let held = k.history.county(1);
+        assert_eq!(held.len(), crate::tables::HISTORY_SEASONS);
+        assert_eq!(held[0].population, 51, "the first fifty seasons are gone");
+        assert_eq!(held[held.len() - 1].population, 450);
+    }
+
+    #[test]
+    fn asking_the_ring_for_a_county_it_does_not_hold_gives_nothing() {
+        let k = Kingdom::new(4);
+        assert!(k.history.county(0).is_empty());
+        assert!(k.history.county(crate::tables::HISTORY_COUNTIES + 1).is_empty());
+        assert!(k.history.latest().is_none(), "and nothing before the first season");
+    }
+
+    /// The ring is written by the season driver, not only by hand.
+    #[test]
+    fn advancing_a_season_records_a_line_in_the_ring() {
+        let mut k = Kingdom::new(5);
+        k.set_county_count(2);
+        k.counties[1].population = 400;
+        k.start_new_game();
+        assert_eq!(k.history.len(), 1, "one season, one line");
+        k.advance_season();
+        assert_eq!(k.history.len(), 2);
     }
 }
