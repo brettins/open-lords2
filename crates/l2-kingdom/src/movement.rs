@@ -503,6 +503,55 @@ pub fn try_enter(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Entry {
     }
 }
 
+/// The three cases in which an occupied tile is **not** an obstacle —
+/// `Unit_EnterOccupiedTile` (`0x004658C1`), read to the end.
+///
+/// The function opens by computing its return value from one bit:
+///
+/// ```c
+/// local_8 = (flags & 1) ? 3 : 1;                     /* road or open */
+/// if (mover.kind == 3) return local_8;               /* a merchant  walks through */
+/// if (mover.kind == 4) return local_8;               /* a transport walks through */
+/// if (occupant.kind == 3) return local_8;            /* and through a merchant */
+/// ...the merge / battle / capture ladder...
+/// ```
+///
+/// **3 and 1 are ordinary Road and Open**, not stop codes: `Unit_StepOnce`
+/// returns early only above 4. So a merchant walks *onto and past* whatever is
+/// standing in its way, and anything walks past a merchant, at the ordinary
+/// cost of the tile — and, because the occupancy test happens first in
+/// `Unit_TryEnterTile`, without the field surcharge, the trample, or the castle
+/// capture that tile's other bits would otherwise have earned.
+///
+/// > **Corrected, and this is what the correction was worth.** [`step`] treated
+/// > every [`Entry::Occupied`] as the end of the move. Six merchants imported
+/// > onto the England map jam within two seasons: three of them meet on the road
+/// > junction between counties 11 and 12, each stops in front of the next, and
+/// > none of them ever reaches a county again. In the original they walk through
+/// > each other. `docs/armies.md` §2.7 described the ladder below the guards and
+/// > did not mention them; correction **C38** in `docs/decisions.md`. `[V]` —
+/// > four `if`s at the top of one function.
+fn pass_through(
+    map: &CampaignMap,
+    units: &Units,
+    kind: UnitKind,
+    entry: Entry,
+    x: u8,
+    y: u8,
+) -> Entry {
+    let Entry::Occupied(other) = entry else { return entry };
+    let mover_ignores = matches!(kind, UnitKind::Merchant | UnitKind::Transport);
+    let occupant_is_merchant = units.get(other).map(|u| u.kind) == Some(UnitKind::Merchant);
+    if !mover_ignores && !occupant_is_merchant {
+        return entry;
+    }
+    if map.flags_at(x, y) & crate::map::flags::ROAD != 0 {
+        Entry::Road
+    } else {
+        Entry::Open
+    }
+}
+
 /// A diplomatic hit a step earned, for a caller that has a diplomacy layer to
 /// apply it to.
 ///
@@ -600,7 +649,7 @@ pub fn step(
         (u.path[0], u.kind, u.owner, u.owner_is_human)
     };
     let (nx, ny) = next;
-    let entry = try_enter(map, units, nx, ny);
+    let entry = pass_through(map, units, kind, try_enter(map, units, nx, ny), nx, ny);
     let tile_county = map.county_at(nx, ny);
     let mut out = Step::nothing(entry);
 
@@ -1426,6 +1475,76 @@ mod tests {
         assert_eq!(s.charged, 0);
         assert!(!s.moved);
         assert_eq!(units.get(mover).unwrap().tile(), (10, 10));
+    }
+
+    /// `Unit_EnterOccupiedTile`'s three guards, each of which turns a blocked
+    /// tile back into an ordinary one. See [`pass_through`].
+    #[test]
+    fn a_merchant_walks_through_whatever_is_standing_in_its_way() {
+        for (kind, blocker_kind, through) in [
+            (UnitKind::Merchant, UnitKind::Army, true),
+            (UnitKind::Transport, UnitKind::Army, true),
+            (UnitKind::Army, UnitKind::Merchant, true),
+            (UnitKind::PeasantMob, UnitKind::Merchant, true),
+            (UnitKind::Army, UnitKind::Army, false),
+            (UnitKind::Army, UnitKind::PeasantMob, false),
+        ] {
+            let mut m = open_map();
+            let (mut counties, realms) = blank();
+            let mut units = Units::new();
+            let mover = units.spawn(Unit::new(kind, 1, 10, 10)).unwrap();
+            units.spawn(Unit::new(blocker_kind, 2, 11, 10)).unwrap();
+            units.get_mut(mover).unwrap().path = vec![(11, 10), (12, 10)];
+            let s = step(&mut m, &mut counties, &realms, &mut units, mover).unwrap();
+            assert_eq!(
+                s.moved, through,
+                "{kind:?} meeting {blocker_kind:?}: entry was {:?}",
+                s.entry
+            );
+            if through {
+                // Code 1: the ordinary open-ground charge, and none of the
+                // bits the tile might otherwise have carried.
+                assert_eq!(s.entry, Entry::Open);
+                assert_eq!(s.charged, crate::tables::STEP_COST_OPEN);
+                assert_eq!(units.get(mover).unwrap().tile(), (11, 10));
+            }
+        }
+    }
+
+    /// Code **3** rather than 1 when the shared tile is a road, which is the
+    /// one bit `Unit_EnterOccupiedTile` looks at before it decides.
+    #[test]
+    fn passing_through_on_a_road_costs_a_road_step() {
+        let mut m = open_map();
+        m.set_flags(11, 10, flags::ROAD);
+        let (mut counties, realms) = blank();
+        let mut units = Units::new();
+        let mover = units.spawn(Unit::new(UnitKind::Merchant, 1, 10, 10)).unwrap();
+        units.spawn(Unit::new(UnitKind::Merchant, 6, 11, 10)).unwrap();
+        units.get_mut(mover).unwrap().path = vec![(11, 10)];
+        let s = step(&mut m, &mut counties, &realms, &mut units, mover).unwrap();
+        assert_eq!(s.entry, Entry::Road);
+        assert_eq!(s.charged, crate::tables::STEP_COST_ROAD);
+        assert!(units.get(mover).unwrap().on_road);
+    }
+
+    /// **Occupancy is tested first**, so a merchant standing on a castle tile
+    /// hides it: the mover walks on at open-ground cost and no capture is
+    /// reported. A consequence of the order in `Unit_TryEnterTile` rather than
+    /// a rule anybody wrote, and the kind of thing that only shows up once
+    /// units exist.
+    #[test]
+    fn a_unit_on_a_castle_tile_hides_it_from_a_merchant() {
+        let mut m = open_map();
+        m.set_flags(11, 10, flags::CASTLE);
+        let (mut counties, realms) = blank();
+        let mut units = Units::new();
+        let mover = units.spawn(Unit::new(UnitKind::Merchant, 1, 10, 10)).unwrap();
+        units.spawn(Unit::new(UnitKind::Army, 2, 11, 10)).unwrap();
+        units.get_mut(mover).unwrap().path = vec![(11, 10)];
+        let s = step(&mut m, &mut counties, &realms, &mut units, mover).unwrap();
+        assert_eq!(s.entry, Entry::Open);
+        assert_eq!(s.reached_castle, None);
     }
 
     #[test]

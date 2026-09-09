@@ -64,6 +64,36 @@ pub const NEIGHBOUR_SLOTS: usize = 16;
 /// One weapon counter per type, realm `+0x140 + t*4`.
 pub const WEAPON_TYPES: usize = 6;
 
+/// `g_units` — **one array for four kinds of thing**: armies, revolting
+/// peasants, merchants and transports, told apart by the type byte at `+0x08`.
+///
+/// **[V]** — save block 5 is exactly `151 × 0x1A4 = 63,420` bytes, which is the
+/// arithmetic that pins both the stride and the count. `docs/armies.md` §0.
+pub const UNIT_BASE: u32 = 0x0052_F0B0;
+pub const UNIT_STRIDE: usize = 0x1A4;
+/// Record 0 is never a unit; the array is `1 ..= 150`.
+pub const UNIT_RECORDS: usize = 151;
+
+/// `+0x16C` is **one eleven-entry `i16` array**, not two. The campaign writes
+/// types 0…6; `Army_PrepareForBattle` fills 7…10 from the siege build records
+/// at `+0x182` immediately before a battle. `docs/armies.md` §1.3.
+pub const UNIT_TROOP_SLOTS: usize = 11;
+
+/// `+0x1D … +0x148` — 150 `(x, y)` pairs, and `+0x1D + 150 × 2 = +0x149`, the
+/// next offset anything in the binary references.
+pub const UNIT_PATH_STEPS: usize = 150;
+
+/// `g_merchantRoutes` — six rows of sixteen county ids, built from plane 4 of
+/// the map's castle tiles by `Map_LoadPlanes`. `docs/formats/plane4.md` §1.
+pub const MERCHANT_ROUTES: u32 = 0x0056_7970;
+pub const MERCHANT_ROUTE_ROWS: usize = 6;
+pub const MERCHANT_ROUTE_LEN: usize = 16;
+
+/// `g_merchantStartCounty` — six bytes, the county each route's merchant is
+/// spawned in. A zero entry stops `Merchant_SpawnAll` dead rather than being
+/// skipped. `docs/formats/plane4.md` §2.1.
+pub const MERCHANT_START_COUNTIES: u32 = 0x0056_9518;
+
 /// The scalars `Save_Write` stores outside the two arrays.
 ///
 /// Each is its own four-byte entry in the block table, so their addresses are
@@ -268,6 +298,16 @@ impl Save {
         Ok(self.u8_at(va)? as i8)
     }
 
+    pub fn u16_at(&self, va: u32) -> Result<u16, SaveError> {
+        let o = self.at(va)?;
+        let s = self.bytes.get(o..o + 2).ok_or(SaveError::NotSaved { va })?;
+        Ok(u16::from_le_bytes([s[0], s[1]]))
+    }
+
+    pub fn i16_at(&self, va: u32) -> Result<i16, SaveError> {
+        Ok(self.u16_at(va)? as i16)
+    }
+
     pub fn i32_at(&self, va: u32) -> Result<i32, SaveError> {
         let o = self.at(va)?;
         let s = self.bytes.get(o..o + 4).ok_or(SaveError::NotSaved { va })?;
@@ -378,6 +418,107 @@ impl Save {
         (0..REALM_RECORDS).map(|i| self.realm(i)).collect()
     }
 
+    /// One `g_units` record, by slot. Slot 0 is never a unit.
+    ///
+    /// **Everything is read, including the fields whose meaning depends on the
+    /// type byte.** `+0x14F`, `+0x164` and `+0x167` are each two fields sharing
+    /// one offset (`docs/armies.md` §1), so this layer reads the bytes and
+    /// leaves the naming to whoever knows the type — which is the same division
+    /// the rest of this module keeps.
+    pub fn unit(&self, index: usize) -> Result<Unit, SaveError> {
+        if index >= UNIT_RECORDS {
+            return Err(SaveError::OutOfRange { index, count: UNIT_RECORDS });
+        }
+        let base = UNIT_BASE + (index * UNIT_STRIDE) as u32;
+        Ok(Unit {
+            index,
+            owner: self.u8_at(base)?,
+            owner_is_human: self.u8_at(base + 0x01)? != 0,
+            shield: self.u8_at(base + 0x02)?,
+            player_driven: self.u8_at(base + 0x06)? != 0,
+            sprite_frame: self.u8_at(base + 0x07)?,
+            kind: self.u8_at(base + 0x08)?,
+            facing: self.u8_at(base + 0x09)?,
+            x: self.u8_at(base + 0x0A)?,
+            y: self.u8_at(base + 0x0B)?,
+            tile_offset: self.i32_at(base + 0x0C)?,
+            county: self.u8_at(base + 0x10)?,
+            home_county: self.u8_at(base + 0x11)?,
+            step_target_x: self.u8_at(base + 0x14)?,
+            step_target_y: self.u8_at(base + 0x15)?,
+            dest_x: self.u8_at(base + 0x16)?,
+            dest_y: self.u8_at(base + 0x17)?,
+            walk_phase: self.u8_at(base + 0x1B)?,
+            path_len: self.u8_at(base + 0x1C)?,
+            path: {
+                let mut steps = [(0u8, 0u8); UNIT_PATH_STEPS];
+                for (n, step) in steps.iter_mut().enumerate() {
+                    let at = base + 0x1D + (n * 2) as u32;
+                    *step = (self.u8_at(at)?, self.u8_at(at + 1)?);
+                }
+                steps
+            },
+            move_state: self.u8_at(base + 0x14C)?,
+            on_road: self.u8_at(base + 0x14D)? != 0,
+            ignore_settlements: self.u8_at(base + 0x14E)? != 0,
+            name_index: self.u8_at(base + 0x14F)?,
+            needs_destination: self.u8_at(base + 0x150)? != 0,
+            dest_county: self.u8_at(base + 0x151)?,
+            merge_target: self.u8_at(base + 0x152)?,
+            moves_used: self.i8_at(base + 0x153)?,
+            move_allowance: self.i8_at(base + 0x154)?,
+            starvation: self.i8_at(base + 0x155)?,
+            wages: self.i32_at(base + 0x15C)?,
+            year_formed: self.u16_at(base + 0x164)?,
+            morale: self.u8_at(base + 0x166)?,
+            role: self.u8_at(base + 0x167)?,
+            men: self.i32_at(base + 0x168)?,
+            troops: {
+                let mut t = [0i16; UNIT_TROOP_SLOTS];
+                for (n, slot) in t.iter_mut().enumerate() {
+                    *slot = self.i16_at(base + 0x16C + (n * 2) as u32)?;
+                }
+                t
+            },
+            merc_troop: self.u8_at(base + 0x195)?,
+            merc_men: self.u8_at(base + 0x196)?,
+            merc_band: self.u8_at(base + 0x197)?,
+            garrison_county: self.u8_at(base + 0x198)?,
+            besieging_county: self.u8_at(base + 0x199)?,
+            besieged_by: self.u8_at(base + 0x19A)?,
+            siege_seasons_left: self.u8_at(base + 0x19C)?,
+        })
+    }
+
+    /// Every unit record, including slot 0 and the free ones. Callers that want
+    /// only the live units filter on [`Unit::is_live`].
+    pub fn units(&self) -> Result<Vec<Unit>, SaveError> {
+        (0..UNIT_RECORDS).map(|i| self.unit(i)).collect()
+    }
+
+    /// `g_merchantRoutes` — six rows of sixteen county ids, zero-padded.
+    pub fn merchant_routes(
+        &self,
+    ) -> Result<[[u8; MERCHANT_ROUTE_LEN]; MERCHANT_ROUTE_ROWS], SaveError> {
+        let mut rows = [[0u8; MERCHANT_ROUTE_LEN]; MERCHANT_ROUTE_ROWS];
+        for (r, row) in rows.iter_mut().enumerate() {
+            for (n, cell) in row.iter_mut().enumerate() {
+                *cell = self.u8_at(MERCHANT_ROUTES + (r * MERCHANT_ROUTE_LEN + n) as u32)?;
+            }
+        }
+        Ok(rows)
+    }
+
+    /// `g_merchantStartCounty` — the county each route's merchant was spawned
+    /// in.
+    pub fn merchant_start_counties(&self) -> Result<[u8; MERCHANT_ROUTE_ROWS], SaveError> {
+        let mut out = [0u8; MERCHANT_ROUTE_ROWS];
+        for (r, slot) in out.iter_mut().enumerate() {
+            *slot = self.u8_at(MERCHANT_START_COUNTIES + r as u32)?;
+        }
+        Ok(out)
+    }
+
     /// The scalars outside the two arrays — the clock, the options and who is
     /// playing.
     pub fn globals(&self) -> Result<Globals, SaveError> {
@@ -431,6 +572,138 @@ impl Realm {
     /// A realm somebody is playing. Realm 0 is an array slot.
     pub fn in_play(&self) -> bool {
         self.index != 0 && self.strength != 0
+    }
+}
+
+/// One `g_units` record: an army, a peasant mob, a merchant or a transport.
+///
+/// **They are one array on purpose.** The type byte at `+0x08` is the only
+/// thing that tells them apart, and three offsets carry a different field per
+/// type — `+0x14F` is an army's name index and a merchant's route number,
+/// `+0x164` is an army's year of formation and a merchant's route cursor, and
+/// `+0x167` is an army's county-defence mark and a merchant's or transport's
+/// county. This struct reads the bytes and names them after the offset where
+/// the two meanings would fight; [`Unit::route`] and [`Unit::route_cursor`]
+/// are the merchant-side readings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Unit {
+    pub index: usize,
+    /// `+0x00` — realm 1…5, **0 means the slot is free**, 6 an ownerless unit
+    /// (a merchant, or a defence levied by a county).
+    pub owner: u8,
+    pub owner_is_human: bool,
+    pub shield: u8,
+    pub player_driven: bool,
+    pub sprite_frame: u8,
+    /// `+0x08` — 1 army, 2 revolting peasants, 3 merchant, 4 transport.
+    pub kind: u8,
+    pub facing: u8,
+    pub x: u8,
+    pub y: u8,
+    /// `+0x0C` — `(y * 64 + x) * 8`, a byte offset into `g_tiles`. It is a
+    /// **self-checking invariant**: it has to agree with `x` and `y`, and
+    /// nothing but a correct stride makes it agree 151 records running.
+    pub tile_offset: i32,
+    pub county: u8,
+    pub home_county: u8,
+    pub step_target_x: u8,
+    pub step_target_y: u8,
+    pub dest_x: u8,
+    pub dest_y: u8,
+    pub walk_phase: u8,
+    /// `+0x1C` — steps remaining in [`Unit::path`].
+    pub path_len: u8,
+    /// `+0x1D …` — 150 `(x, y)` pairs. The original walks them from
+    /// `path_len − 1` downwards, so the *next* step is the last live entry.
+    pub path: [(u8, u8); UNIT_PATH_STEPS],
+    /// `+0x14C` — 0 idle, 2 moving.
+    pub move_state: u8,
+    pub on_road: bool,
+    pub ignore_settlements: bool,
+    /// `+0x14F` — an army's name index, a merchant's route number.
+    pub name_index: u8,
+    pub needs_destination: bool,
+    pub dest_county: u8,
+    pub merge_target: u8,
+    pub moves_used: i8,
+    /// `+0x154` — 15 for an army and 10 for the other three, **but rewritten
+    /// unconditionally at the top of each type's tick handler**. A unit created
+    /// mid-turn carries 0 until it is next ticked, which is what the six
+    /// merchants of the England turn-one fixture and the raised defence of
+    /// `battle-during.sav` both show. It is a tick-maintained invariant, not an
+    /// initial value. `docs/armies.md` §8b.4.
+    pub move_allowance: i8,
+    pub starvation: i8,
+    pub wages: i32,
+    /// `+0x164` — an army's year of formation, a merchant's route cursor in the
+    /// low byte.
+    pub year_formed: u16,
+    /// `+0x166` — an army's morale. `Merchant_SpawnAll` writes **100** here for
+    /// a merchant and nothing reads it back. `docs/formats/plane4.md` §5.
+    pub morale: u8,
+    /// `+0x167` — **two fields at one offset**: an army's county-defence mark
+    /// (1 levied on the spot, 2 an existing army pressed into the role), and a
+    /// merchant's or transport's county. `docs/armies.md` §1.5, §8.1.
+    pub role: u8,
+    pub men: i32,
+    /// `+0x16C + t*2` — eleven `i16`s; the campaign writes 0…6.
+    pub troops: [i16; UNIT_TROOP_SLOTS],
+    pub merc_troop: u8,
+    pub merc_men: u8,
+    pub merc_band: u8,
+    /// `+0x198` — non-zero: garrisoned in that county's castle. Excluded from
+    /// the county troop count and never starves.
+    pub garrison_county: u8,
+    pub besieging_county: u8,
+    pub besieged_by: u8,
+    pub siege_seasons_left: u8,
+}
+
+impl Unit {
+    /// A slot that holds a unit. `Unit_Spawn` marks a free slot with owner 0,
+    /// and the type byte is 0 there too; both are tested so a record that is
+    /// half-cleared reads as free rather than as a type-0 unit the dispatcher
+    /// would send to `Unit_TickNone`.
+    pub fn is_live(&self) -> bool {
+        self.index != 0 && self.owner != 0 && self.kind != 0
+    }
+
+    /// The path steps that are live, **in travel order**.
+    ///
+    /// The original stores them backwards and counts `path_len` down to zero,
+    /// so entry `path_len − 1` is the next tile. Reversed here because that is
+    /// the order anything walking them wants, and the reversal is the whole of
+    /// the difference.
+    pub fn path(&self) -> Vec<(u8, u8)> {
+        let n = (self.path_len as usize).min(UNIT_PATH_STEPS);
+        self.path[..n].iter().rev().copied().collect()
+    }
+
+    /// The tile `+0x0C` names, or `None` if it is not a well-formed offset.
+    pub fn tile_of_offset(&self) -> Option<(u8, u8)> {
+        if self.tile_offset < 0 || self.tile_offset % 8 != 0 {
+            return None;
+        }
+        let index = self.tile_offset / 8;
+        if index >= 64 * 64 {
+            return None;
+        }
+        Some(((index % 64) as u8, (index / 64) as u8))
+    }
+
+    /// Whether `+0x0C` agrees with `x` and `y`.
+    pub fn tile_offset_agrees(&self) -> bool {
+        self.tile_of_offset() == Some((self.x, self.y))
+    }
+
+    /// A merchant's route number — the same byte an army uses for its name.
+    pub fn route(&self) -> u8 {
+        self.name_index
+    }
+
+    /// A merchant's route cursor — the low byte of `+0x164`.
+    pub fn route_cursor(&self) -> u8 {
+        self.year_formed as u8
     }
 }
 

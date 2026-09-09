@@ -158,7 +158,24 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   integrator reading a doc comment. A merge that takes one branch's `VERSION`
 ///   and both branches' changelog entries now goes red rather than shipping a
 ///   number that means two different layouts.
-pub const VERSION: u32 = 9;
+/// * 10 — **`Unit::defence_mark` (`+0x167`) was in no save and in no checksum.**
+///   Version 5's defect again, and version 8 walked past it: that entry added
+///   `cargo_county`, the *other* meaning of the same byte, and the field beside
+///   it stayed unwritten. It decides whether winning a battle also wins the
+///   county (`crate::conquest`) and whether a levied defence walks home
+///   (`crate::battle::disband_defence`), so a reloaded game could keep a county
+///   it had not taken.
+///
+///   Invisible until now for the reason version 5's four fields were: every unit
+///   that had ever existed was one a test built by hand, and a hand-built unit
+///   carries 0 in it. It surfaced the moment `crates/l2-scenario` began
+///   importing `g_units` from a save — `battle-during.sav`'s slot 6 carries a 1
+///   — and it surfaced the same way, as a round trip that compared equal on the
+///   checksum and unequal on `PartialEq`.
+///
+///   **The changelog check above did its job on the way in**: this was written
+///   as 8, then as 9, and read off this comment both times.
+pub const VERSION: u32 = 10;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -593,6 +610,11 @@ impl Encode for crate::unit::Unit {
         out.u8(self.besieging_county);
         out.u8(self.besieged_by);
         out.u8(self.cargo_county);
+        // The **other** meaning of `+0x167`, and it was missing while its twin
+        // on the line above was being added. See [`VERSION`] 10: it decides
+        // whether a won battle also wins the county, so its absence was a hole
+        // in the lockstep checksum as well as in the save.
+        out.u8(self.defence_mark);
     }
 }
 
@@ -661,6 +683,7 @@ impl Decode for crate::unit::Unit {
         u.besieging_county = input.u8()?;
         u.besieged_by = input.u8()?;
         u.cargo_county = input.u8()?;
+        u.defence_mark = input.u8()?;
         Ok(u)
     }
 }

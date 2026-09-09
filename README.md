@@ -29,7 +29,7 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 | **Sieges** | traced end to end, built nowhere. 14 of 17 battle AI handlers are siege-only and unreachable |
 | Merchants, diplomacy, armies | documented in detail, implemented barely or not at all |
 
-**<!--fig:tests-->1,446<!--/fig--> tests pass**, and roughly a third of them assert things
+**<!--fig:tests-->1,463<!--/fig--> tests pass**, and roughly a third of them assert things
 read out of the original binary rather than out of our own heads.
 
 Two honest caveats. The one shipped save we test against exercises a narrow slice of the

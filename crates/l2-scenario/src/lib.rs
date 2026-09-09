@@ -47,8 +47,10 @@
 use l2_formats::save::{Save, SaveError, COUNTY_BASE, COUNTY_STRIDE};
 use l2_kingdom::county::{County, MAX_COUNTY_ID, MAX_FIELDS};
 use l2_kingdom::map::MAP_TILES;
+use l2_kingdom::merchant::{MerchantRoutes, ROUTES, ROUTE_SLOTS};
 use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::{health_band, Tables, Weather, JOB_COUNT};
+use l2_kingdom::unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS, TROOP_TYPES};
 use l2_kingdom::{field, land, CampaignMap, Kingdom, Options};
 
 /// Where the nine labour records begin inside a county record, and how far
@@ -190,6 +192,20 @@ pub enum ImportError {
     Clock { season: i32, season_next: i32 },
     /// A neighbour id that is not a county on this map.
     Neighbour { county: usize, id: u8 },
+    /// A unit whose type byte names none of the four handlers in
+    /// `g_unitTickTable`. Slot 5 of that table is NULL and nothing spawns a
+    /// type-5 unit, so a fifth value is a misread rather than a unit this code
+    /// does not model yet.
+    UnitKind { unit: usize, byte: u8 },
+    /// A unit standing on no tile, or whose `+0x0C` tile offset disagrees with
+    /// its `x`/`y`. **The offset is redundant on purpose** — it is
+    /// `(y * 64 + x) * 8` — so a disagreement means the stride is wrong and
+    /// every unit above this one is being read from the middle of its
+    /// neighbour.
+    UnitTile { unit: usize, x: u8, y: u8, offset: i32 },
+    /// A unit owned by a realm that does not exist. Owner 6 is legal — it is
+    /// what merchants and a county's own levied defence carry.
+    UnitOwner { unit: usize, owner: u8 },
 }
 
 impl core::fmt::Display for ImportError {
@@ -211,6 +227,18 @@ impl core::fmt::Display for ImportError {
             }
             ImportError::Neighbour { county, id } => {
                 write!(f, "county {county} borders {id}, which is not on this map")
+            }
+            ImportError::UnitKind { unit, byte } => {
+                write!(f, "unit {unit} has type byte {byte}, which names no unit handler")
+            }
+            ImportError::UnitTile { unit, x, y, offset } => write!(
+                f,
+                "unit {unit} stands at ({x}, {y}) but its tile offset is {offset:#x}, \
+                 and ({x}, {y}) is {:#x}",
+                (*y as i32 * 64 + *x as i32) * 8
+            ),
+            ImportError::UnitOwner { unit, owner } => {
+                write!(f, "unit {unit} is owned by realm {owner}, which is not a realm")
             }
         }
     }
@@ -364,6 +392,134 @@ pub struct Scenario {
     /// against 4,096 blank tiles. The planes are in the save — `g_tiles` is
     /// block 0 — and they are read here.
     pub map: CampaignMap,
+    /// `g_units` — **armies, revolting peasants, merchants and transports**, as
+    /// `(slot, unit)` pairs in ascending slot order.
+    ///
+    /// **The whole block used to be dropped on the floor.** Every other layer
+    /// was ready for it — `l2_kingdom::unit` models the record, `movement` walks
+    /// it, `conquest` fights with it — and the only units that had ever existed
+    /// were the ones tests built by hand. So a loaded England position had a
+    /// working economy and an empty map.
+    ///
+    /// Slots are carried rather than compacted because they are *referenced*:
+    /// county `garrison_unit`, a garrison's `besieged_by` and a mercenary band's
+    /// `hired_by` all name a slot, and `Merchant_AdvanceAll` indexes the route
+    /// table by slot. Renumber on import and the six merchants walk each other's
+    /// routes.
+    ///
+    /// Stored as [`l2_kingdom::unit::Unit`] rather than as a plain mirror of it,
+    /// on the same grounds as [`Scenario::map`]: the record has forty fields and
+    /// a second copy of it here would be forty more places to drop one.
+    pub units: Vec<(usize, Unit)>,
+    /// `g_merchantRoutes` (`0x00567970`) — the six trade itineraries, which are
+    /// what makes a merchant walk anywhere at all.
+    ///
+    /// `l2-kingdom` has had [`MerchantRoutes`] and `Merchant_AdvanceAll` since
+    /// the turn movers landed, and nothing but a test had ever filled the table:
+    /// a game loaded from a save arrived with six empty rows and six merchants
+    /// that could never work out where to go. It is in the save, inside a block,
+    /// and it is read here.
+    pub routes: MerchantRoutes,
+    /// `g_merchantStartCounty` (`0x00569518`) — the county each route's merchant
+    /// was **spawned** in, which is not where it is now.
+    ///
+    /// Carried on the scenario rather than in [`MerchantRoutes`] because nothing
+    /// in the simulation reads it: `Merchant_PickStartCounties` and
+    /// `Merchant_SpawnAll` both ran before the save was written, and their
+    /// output is already in the unit array. What it is good for is *checking*
+    /// that reading — every merchant's `+0x167` is its own entry here, on every
+    /// save the fixture set holds — which is a test's business and not a rule's.
+    pub merchant_start: [u8; ROUTES],
+}
+
+/// One `g_units` record, checked and converted.
+///
+/// Three refusals, and each of them means "the array is being read wrong"
+/// rather than "this save is unusual":
+///
+/// * a type byte outside 1…4 — `g_unitTickTable`'s fifth slot is NULL and
+///   nothing spawns a type-5 unit;
+/// * an owner above 6 — 1…5 are realms and **6 is nobody**, which is what a
+///   merchant and a county's own levied defence carry;
+/// * a `+0x0C` that disagrees with `x`/`y`. That one is the **self-checking
+///   invariant**: the field is `(y * 64 + x) * 8`, and nothing but the right
+///   stride makes it agree on every occupied slot of every save.
+fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
+    let kind =
+        UnitKind::from_byte(u.kind).ok_or(ImportError::UnitKind { unit: u.index, byte: u.kind })?;
+    if u.owner as usize > MAX_REALMS {
+        return Err(ImportError::UnitOwner { unit: u.index, owner: u.owner });
+    }
+    if !u.tile_offset_agrees() {
+        return Err(ImportError::UnitTile { unit: u.index, x: u.x, y: u.y, offset: u.tile_offset });
+    }
+    let mut troops = [0i32; TROOP_TYPES];
+    for (t, slot) in troops.iter_mut().enumerate() {
+        *slot = u.troops[t] as i32;
+    }
+    Ok(Unit {
+        owner: u.owner,
+        owner_is_human: u.owner_is_human,
+        shield: u.shield,
+        player_driven: u.player_driven,
+        kind,
+        facing: u.facing,
+        x: u.x,
+        y: u.y,
+        county: u.county,
+        home_county: u.home_county,
+        // The original has no "no destination" encoding for `+0x16`/`+0x17` —
+        // the pair is always a tile, and `needs_destination` is the bit that
+        // says whether it means anything. Carried as `Some` for that reason:
+        // dropping it while the unit is idle would lose the tile the info panel
+        // still draws.
+        dest: Some((u.dest_x, u.dest_y)),
+        path: u.path(),
+        moving: u.move_state != 0,
+        on_road: u.on_road,
+        name_index: u.name_index,
+        needs_destination: u.needs_destination,
+        dest_county: u.dest_county,
+        moves_used: u.moves_used as i32,
+        // **Taken from the file, not from the type.** Each type's tick handler
+        // rewrites this unconditionally, so the six shipped merchants carry 0
+        // and a defence raised mid-turn carries 0; an importer that wrote 15 or
+        // 10 here would be inventing a number the game had not got round to.
+        // `docs/armies.md` §8b.4.
+        move_allowance: u.move_allowance as i32,
+        starvation: u.starvation as i32,
+        wages: u.wages,
+        // `+0x164`. A merchant keeps its **route cursor** in the low byte of the
+        // same field; `l2_kingdom::merchant::cursor_of` is the reading that
+        // knows which is which.
+        year_formed: u.year_formed as i32,
+        morale: u.morale as i32,
+        men: u.men,
+        troops,
+        // `+0x195…+0x197`. A band id of 0 is no band, and the men and the troop
+        // type mean nothing without it.
+        mercenaries: (u.merc_band != 0)
+            .then(|| {
+                TroopType::from_index(u.merc_troop as usize)
+                    .map(|troop| Mercenaries { band: u.merc_band, troop, men: u.merc_men })
+            })
+            .flatten(),
+        garrison_county: u.garrison_county,
+        besieging_county: u.besieging_county,
+        besieged_by: u.besieged_by,
+        // **`+0x167` is one byte and `Unit` models it as two fields**, because
+        // the meanings have nothing to do with each other: the county-defence
+        // mark on an army or a mob, the cargo county on a transport, and — this
+        // one is neither — the county a *merchant* was spawned in, which
+        // `Merchant_SpawnAll` writes once and nothing ever updates.
+        //
+        // So the byte goes to the field its type gives it, and the merchant's
+        // birthplace lands in `cargo_county` beside the transport's destination
+        // because that is the non-army half of the alias. Nothing reads it back
+        // for a merchant; `Scenario::merchant_start` is what checks it.
+        defence_mark: if kind.is_combatant() { u.role } else { 0 },
+        cargo_county: if kind.is_combatant() { 0 } else { u.role },
+    })
 }
 
 impl Scenario {
@@ -518,6 +674,24 @@ impl Scenario {
             counties,
             realms,
             map: read_map(save)?,
+            units: {
+                let mut units = Vec::new();
+                for u in save.units()?.iter().filter(|u| u.is_live()) {
+                    units.push((u.index, read_unit(u)?));
+                }
+                units
+            },
+            routes: {
+                let rows = save.merchant_routes()?;
+                let mut routes = MerchantRoutes::none();
+                for (row, cells) in rows.iter().enumerate().take(ROUTES) {
+                    let mut slots = [0u8; ROUTE_SLOTS];
+                    slots.copy_from_slice(&cells[..ROUTE_SLOTS]);
+                    routes.set_row(row, slots);
+                }
+                routes
+            },
+            merchant_start: save.merchant_start_counties()?,
         })
     }
 
@@ -611,6 +785,17 @@ impl Scenario {
     fn skeleton(&self, seed: u64, tables: Tables) -> Kingdom {
         let mut k = Kingdom::with_tables(seed, tables);
         k.campaign.map = self.map.clone();
+        k.campaign.routes = self.routes.clone();
+        // **Slots, not order.** `Units::put` writes the slot the save recorded;
+        // `Units::spawn` would take the lowest free one and quietly renumber
+        // everything the moment a save had a hole in its array.
+        let mut units = Units::new();
+        for (slot, unit) in &self.units {
+            if *slot < MAX_UNITS {
+                units.put(*slot, unit.clone());
+            }
+        }
+        k.campaign.units = units;
         k.options = self.options;
         k.weather_county = self.weather_county;
         assert!(

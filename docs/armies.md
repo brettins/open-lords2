@@ -64,8 +64,16 @@ fields **[V]** rather than **[D]**.
 
 ## 1. The army record
 
-`g_units + unit * 0x1A4`. Offsets shared with merchants and transports are marked *sh*; two
-of those (`+0x14F`, `+0x164`) carry a different meaning per unit type.
+`g_units + unit * 0x1A4`. Offsets shared with merchants and transports are marked *sh*; three
+of those (`+0x14F`, `+0x164`, `+0x167`) carry a different meaning per unit type — see §1.5 for
+the third, which used to be on the untraced list.
+
+**The whole array is now imported.** `crates/l2-scenario` reads all 151 slots out of a save
+into `l2_kingdom::Campaign::units`, slot for slot, and `crates/l2-formats` exposes the record
+field by field. Every offset in the tables below is therefore checkable against bytes the game
+wrote, over every save the machine can reach, rather than only against the one somebody looked
+at — and `+0x0C` is checked on every one of them, because `(y * 64 + x) * 8` is redundant with
+`+0x0A`/`+0x0B` and only the right base and stride make it agree.
 
 ### 1.1 Identity and position
 
@@ -103,7 +111,7 @@ offset anything in the binary references. The 150 is the loop bound in `Path_Cop
 | `+0x14C` | u8 | **moveState** | [V] | 0 idle, **2 = moving**. |
 | `+0x14D` | u8 | onRoad | [V] | set when the tile just entered was a road; makes the step cost 1 instead of 3. |
 | `+0x14E` | u8 | ignoreSettlements | [D] | when set, a settlement tile stops blocking. |
-| `+0x14F` | u8 | **nameIndex** *sh* | [V] | index into `L2.eng` group `93 + owner` — 24 army names a lord. For a merchant this same byte is the route number. |
+| `+0x14F` | u8 | **nameIndex** *sh* | [V] | index into `L2.eng` group `93 + owner` — 24 army names a lord. For a merchant this same byte is the route number, **zero-based**: `L2.eng` group 5's route 1 is `nameIndex` 0. §8b.5. |
 | `+0x150` | u8 | needsDestination *sh* | [V] | 1 = idle, no orders. |
 | `+0x151` | u8 | destCounty *sh* | [V] | the county the current order leads to. |
 | `+0x152` | u8 | **mergeTarget** | [V] | the unit to merge into on arrival — §8.5. Not an "order mode". |
@@ -151,9 +159,15 @@ and draws a different icon set. [V]
 ### 1.5 What is not traced
 
 `+0x03`–`+0x05`, `+0x0D`–`+0x0F`, `+0x18`–`+0x1A`, `+0x159`–`+0x15B`, `+0x15D`–`+0x15F`,
-`+0x161`–`+0x163`, `+0x167`, `+0x193`, `+0x194`, `+0x19D`–`+0x1A3`. `+0x1A` takes small
-enumerated values (2, 5) on the garrison path and looks like a UI feedback code. None were
-chased.
+`+0x161`–`+0x163`, `+0x193`, `+0x194`, `+0x19D`–`+0x1A3`. `+0x1A` takes small enumerated
+values (2, 5) on the garrison path and looks like a UI feedback code. None were chased.
+
+**`+0x167` has come off this list** and is a third *sh* offset with a per-type meaning, which
+is why it read as untraced: it is the **county-defence mark** on an army (§8.1) and the county
+a **merchant** was spawned in (`Merchant_SpawnAll` writes `g_merchantStartCounty[i]` and never
+updates it). Both are `[V]` — the army half from `battle-during.sav` slot 6, the merchant half
+from every save the fixture set holds. So the aliased offsets are `+0x14F`, `+0x164` **and**
+`+0x167`.
 
 ---
 
@@ -557,11 +571,33 @@ costs **+7 moves**. See §3.5: this is the writer of the industry disablement co
 ### 2.7 Entering an occupied tile
 
 `Unit_EnterOccupiedTile` (`0x004658C1`) decides what happens when the next tile holds another
-unit. Types 3 and 4 return immediately — merchants and transports are non-combatants, already
-in `plane4.md` §3c. For armies: same owner or an ally → `Army_Combine`; otherwise the battle
-is set up and both sides are charged moves before control leaves the campaign map. Charges of
-**+5** (garrisoning, merging) and **+7** (losing) appear along these paths. The full branch
-structure was not traced.
+unit. For armies: same owner or an ally → `Army_Combine`; otherwise the battle is set up and
+both sides are charged moves before control leaves the campaign map. Charges of **+5**
+(garrisoning, merging) and **+7** (losing) appear along these paths. The full branch structure
+was not traced.
+
+> **Corrected, and "return immediately" was doing a lot of work.** This line used to say
+> *"types 3 and 4 return immediately — merchants and transports are non-combatants"*, which is
+> true and is not the whole of it. The function opens by computing a **return value**, and
+> three guards hand it back:
+>
+> ```c
+> local_8 = (flags & 1) ? 3 : 1;               /* an ordinary road or open step */
+> if (mover.kind    == 3) return local_8;      /* a merchant  walks through */
+> if (mover.kind    == 4) return local_8;      /* a transport walks through */
+> if (occupant.kind == 3) return local_8;      /* and anything walks through a merchant */
+> ```
+>
+> **3 and 1 are the ordinary Road and Open codes**, not a refusal: `Unit_StepOnce` returns
+> early only above 4, so all three of these *enter the tile* and keep going. So a merchant
+> is not merely un-attackable — it is not an obstacle either, in either direction, and two
+> units legitimately share a tile. And because occupancy is tested first in
+> `Unit_TryEnterTile`, the step is charged as plain ground whatever else the tile carries:
+> **a unit standing on a castle tile hides it**, and a merchant crossing a standing field
+> pays no surcharge because it never learns there is one.
+>
+> Found the day `g_units` was first imported, and not before, because nothing had ever put
+> two units on the same map. `docs/decisions.md` C38. **[V]**
 
 `Army_Combine` (`0x004AA181`) is where the size cap lives:
 
@@ -1913,6 +1949,41 @@ the formula gives 81. The difference is exactly one, and `1` is a value `g_unitW
 calls `Unit_Step`, which advances `+0x1B`, so the saved sprite is one phase behind the saved
 phase. That is a fit, not a finding, and it is **[I]** in `hypotheses.json` (H3).
 
+### 8b.5 What the block held that this document had not written down
+
+§8b read the three battle saves by hand. The array is now **imported field by field, over
+every save the machine can reach** (`crates/l2-scenario`, and the invariants in
+`crates/l2-formats/tests/save.rs`), and five things came out of it that were not here.
+
+1. **`+0x167` on a merchant is the county it was spawned in.** §1.5 had the offset on the
+   untraced list; `plane4.md` §5 guessed that transports use it as a destination and that
+   merchants never read it. `Merchant_SpawnAll` writes `g_merchantStartCounty[i]` and nothing
+   updates it, so it is a birthplace: in `siege-sieging.sav` the three merchants carry **3, 4,
+   2** — the start-county array exactly — while standing in counties 4, 3 and 3. So it is a
+   third *sh* offset with a per-type meaning, beside `+0x14F` and `+0x164`. **[V]**
+2. **A merchant's `nameIndex` is zero-based** where the merchant *names* are numbered from 1.
+   §1.2 says "for a merchant this same byte is the route number", which is true and reads as
+   1…6; on disk England's six merchants carry **0…5**, and route *n* of `plane4.md`'s table is
+   `nameIndex == n − 1`. An off-by-one that would have given every merchant the wrong name and
+   sent it down the wrong row. **[V]**
+3. **`moveAllowance = 0` on a second, independent set of units.** §8b.4 established the field
+   is tick-maintained from one raised defence. All six England merchants carry 0 as well, on a
+   different map in a different save at turn one — the position is written before anything has
+   been ticked. **[V]**, and it is the reason an importer must take the field from the file.
+4. **The merchants occupy slots 1 … n, contiguously, in every save the fixture set holds.**
+   `Merchant_AdvanceAll` indexes the route table by *slot minus one* rather than by the route
+   number the unit stores, so this is not a curiosity: it is the invariant that coupling rests
+   on, and `the_merchants_are_the_first_slots_and_there_are_as_many_as_the_counter_says`
+   checks it against `g_merchantCount` as well.
+5. **`+0x0C` agrees with `x`/`y` on every occupied slot of every save.** The offset is
+   `(y * 64 + x) * 8` and therefore redundant, which makes it the record's self-check: only
+   the right base and the right `0x1A4` stride make it agree on all of them at once. It is the
+   evidence that the whole reading below is at the right addresses, and it is asserted rather
+   than assumed.
+
+And one thing the import **refuted**, which is §2.7 and `docs/decisions.md` C38: a unit in the
+way is not an obstacle to a merchant, nor a merchant an obstacle to anything else.
+
 ---
 
 ## 9. What could not be established
@@ -1968,3 +2039,9 @@ phase. That is a fit, not a finding, and it is **[I]** in `hypotheses.json` (H3)
   301 and 601 men; two armies totalling 1501 refuse to merge; a Spanish band is 50 knights for
   2700 crowns and a Saxon band is 150 macemen for 1900; marching an army over an enemy county's
   mine shuts it down for three seasons.
+* ~~**No unit in this document has ever been in our own simulation.**~~ **Closed.**
+  `crates/l2-scenario` imports `g_units` and the merchant route table, so the England
+  position now loads with the six merchants the game shipped and one ended turn sends each of
+  them to the next county on its own route. The first thing that found was a rule this
+  document had got wrong — §2.7's occupancy guards, `docs/decisions.md` C38 — which is what a
+  second source is for and what nine hundred hand-built test units had not managed.
