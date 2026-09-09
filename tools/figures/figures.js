@@ -121,7 +121,16 @@ function figures() {
 
 // ---- rewriting -------------------------------------------------------------
 
-const TARGETS = ['README.md', path.join('docs', 'status.html'), path.join('docs', 'method.md')];
+const TARGETS = [
+  'README.md',
+  path.join('docs', 'status.html'),
+  path.join('docs', 'method.md'),
+  // docs/plan.md quotes the test count and the naming coverage as *present-tense*
+  // claims about the tree, so they belong here. Everything else in that file is a
+  // frozen measurement and says so - plan-review.md's numbers especially, which
+  // are the evidence for a dated review and must never be rewritten.
+  path.join('docs', 'plan.md'),
+];
 const MARKER = /<!--fig:([a-z0-9-]+)-->([\s\S]*?)<!--\/fig-->/g;
 
 const values = figures();
