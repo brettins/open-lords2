@@ -286,6 +286,11 @@ pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
         // already in `handle` — and otherwise sets `g_screenId = 0x1B` for
         // `g_selectedCounty`.
         0x1B => ScreenId::Castle(county),
+        // `FUN_0043611B` — the LORDS button — is a bare `g_screenId = 0x0B`
+        // with no county in it at all, because the diplomacy screen is about
+        // realms rather than counties. `Diplo_DrawScreen` picks its own target
+        // through `Diplo_DefaultTarget`.
+        0x0B => ScreenId::Diplomacy,
         _ => ScreenId::Shell(id),
     }
 }

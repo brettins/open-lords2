@@ -245,46 +245,132 @@ fn forty_turns_of_the_ai_at_war_is_deterministic() {
 /// **The audit C27 asks for, turned into an assertion: for every field these
 /// handlers read, what writes it in a real game?**
 ///
-/// Four of `l2_kingdom::ai_army`'s inputs are written by
-/// `l2_kingdom::diplomacy`, and there is no such module — `crate::realm`'s doc
-/// comments link to seven of its functions and every link is dangling. So:
+/// Four of `l2_kingdom::ai_army`'s inputs are written by `l2_kingdom::diplomacy`
+/// and by nothing else:
 ///
-/// | field | its only writer | what is unreachable without it |
+/// | field | its only writer | what was unreachable without it |
 /// |---|---|---|
 /// | `Realm::pairs[].standing` | `Diplo_Init`, `Diplo_Offend`, the seven reply handlers | **AI step 10 entirely** — `pick_raid_victim` wants a standing below −10 |
 /// | `Realm::war_target` | `Diplo_Offend` | the same, and step 9's halved population floor |
 /// | `Realm::ally` | `Diplo_FormAlliance` | `Mission::ASSIST_ALLY`, and `action_allowed`'s grudge bump |
 /// | `Realm::target_county` | `Diplo_PayForHelp` | step 9's ally-request branch |
 ///
-/// **This is C27's exact shape and it is worth naming before somebody finds it
-/// the expensive way**: the handlers are written, dispatched and tested, and in
-/// a played game two of them can never fire. The test below proves *both*
-/// halves — that nothing writes a standing over forty turns, and that the
-/// handler works the moment something does — so the day diplomacy lands, the
-/// first assertion goes red and says why.
+/// > **This test used to assert the opposite**, and it asked in its own message
+/// > to be replaced the day the module landed:
+/// >
+/// > > *"realm N has an opinion of realm M — has `diplomacy` landed? If so this
+/// > > test has done its job and should be replaced by one that asserts the
+/// > > raid fires on its own."*
+/// >
+/// > It has, and this is that test. What it asserts now is the thing that was
+/// > missing: **not that the handler returns the right answer when a test hands
+/// > it a standing, but that a played game produces one.** That is
+/// > `docs/agents.md`'s rule — *a field is only tested if something a test
+/// > reads was written by something the game runs* — read forwards instead of
+/// > backwards.
 #[test]
-fn the_raid_cannot_fire_until_something_writes_a_standing() {
+fn a_played_game_writes_the_four_fields_the_war_handlers_read() {
     let mut game = six_county_world();
+    // Turn one, before anything has run: `Diplo_Init`'s opening position.
+    // A person's row is all zeros and an AI's is all fives — including its own
+    // slot, because the original's loop has no `other != me` guard.
+    assert_eq!(game.kingdom.realms[1].pair(2).standing, 0, "realm 1 is the person");
+    assert_eq!(game.kingdom.realms[2].pair(1).standing, 5);
+    assert_eq!(game.kingdom.realms[2].pair(2).standing, 5);
+
     for _turn in 1..=TURNS {
         l2_game::turn::end_turn(&mut game).expect("the machine comes round");
     }
-    // Half one: nothing in a played game moves a standing off zero.
+
+    let mut opinions = 0;
+    let mut hostile = 0;
+    let mut at_war = 0;
+    let mut war_targets = 0;
+    let mut allies = 0;
     for realm in 1..=5 {
-        for other in 0..l2_kingdom::MAX_REALMS {
-            assert_eq!(
-                game.kingdom.realms[realm].pair(other as u8).standing,
-                0,
-                "realm {realm} has an opinion of realm {other} — has `diplomacy` landed? \
-                 If so this test has done its job and should be replaced by one that \
-                 asserts the raid fires on its own."
-            );
+        let r = &game.kingdom.realms[realm];
+        if r.war_target != 0 {
+            war_targets += 1;
         }
-        assert_eq!(game.kingdom.realms[realm].war_target, 0);
-        assert_eq!(game.kingdom.realms[realm].ally, 0);
+        if r.ally != 0 {
+            allies += 1;
+        }
+        for other in 1..l2_kingdom::MAX_REALMS {
+            let p = r.pair(other as u8);
+            if p.standing != 0 {
+                opinions += 1;
+            }
+            if p.standing < -10 {
+                hostile += 1;
+            }
+            if p.at_war {
+                at_war += 1;
+            }
+        }
+    }
+    eprintln!(
+        "after {TURNS} turns: {opinions} non-zero standings, {hostile} below −10, \
+         {at_war} at war, {war_targets} war targets, {allies} realms allied"
+    );
+    for realm in 1..=5 {
+        let r = &game.kingdom.realms[realm];
+        let row: Vec<String> = (1..l2_kingdom::MAX_REALMS)
+            .map(|o| {
+                let p = r.pair(o as u8);
+                format!(
+                    "{:>4}{}{}",
+                    p.standing,
+                    if p.allied { "A" } else { " " },
+                    if p.at_war { "W" } else { " " }
+                )
+            })
+            .collect();
+        eprintln!(
+            "  realm {realm} ally={} warTarget={} | {}",
+            r.ally,
+            r.war_target,
+            row.join(" ")
+        );
     }
 
-    // Half two: the handler is not broken, it is starved. Give realm 2 an
-    // opinion of realm 3 and the raid goes out on the next step 10.
+    assert!(opinions > 0, "forty turns and nobody has an opinion of anybody");
+
+    // **These two assertions are about step 2 specifically, and the weaker ones
+    // they replaced were not.** The first draft asserted "somebody has a war
+    // target, an ally, or an opinion below −10" — and it **passed with the step
+    // 2 dispatch deleted**, because the battle hook writes standings on its
+    // own. `docs/agents.md`: *ablate the thing the test is about, and watch it
+    // go red.* This version does.
+    //
+    // Only `AI_Diplomacy`'s heal can put a standing **above** `Diplo_Init`'s
+    // opening 5 — every other writer in the subsystem subtracts, and the three
+    // that add arrive through the inbox, which nothing fills in an AI-only
+    // game. And only its courtship can produce an ally, for the same reason:
+    // the other route to one is a person accepting an offer.
+    let healed = (1..l2_kingdom::MAX_REALMS).any(|r| {
+        (1..l2_kingdom::MAX_REALMS)
+            .any(|o| game.kingdom.realms[r].pair(o as u8).standing > 5)
+    });
+    assert!(
+        healed,
+        "no standing anywhere is above `Diplo_Init`'s opening 5 — `AI_Diplomacy`'s \
+         heal is the only thing that can raise one without a letter, so step 2 is \
+         not being dispatched"
+    );
+    assert!(
+        allies > 0,
+        "forty turns and not one alliance — `AI_Diplomacy`'s courtship is the only \
+         way two AI realms can reach one, so step 2 is not being dispatched"
+    );
+    // And the war half, which is the offence hook rather than step 2: it is
+    // asserted separately so that a failure says which of the two broke.
+    assert!(
+        hostile > 0 || war_targets > 0,
+        "forty turns of war and nobody resents anybody — `Diplo_Offend` is not \
+         reaching the battle and trample seams"
+    );
+
+    // And the raid still fires on the input the AI now supplies for itself.
     let mut game = six_county_world();
     l2_game::turn::end_turn(&mut game).expect("one turn to settle the muster county");
     game.kingdom.realms[2].pair_mut(3).standing = -20;
@@ -301,6 +387,153 @@ fn the_raid_cannot_fire_until_something_writes_a_standing() {
     );
     // `FUN_004A5003` opens no armoury: a raiding party carries nothing.
     assert_eq!(u.troops.iter().sum::<i32>(), u.troops[0], "peasants and nothing else");
+}
+
+/// **AI step 1, driven through the dispatch rather than called.**
+///
+/// The forty-turn test above cannot see step 1 at all, and that is a fact about
+/// the game rather than a hole in the test: `Diplo_AnswerInbox` answers letters,
+/// only `Diplo_Post` writes one, and in single player only a person ever posts.
+/// An AI-only game therefore runs step 1 forty times over an empty inbox.
+///
+/// So the letter is posted the way the diplomacy screen posts it, a turn is
+/// played, and what is asserted is the round trip: the gold left when it was
+/// **posted**, the reply came back on the AI's next turn, the standing moved by
+/// the amount the tier says, and the inbox was emptied.
+#[test]
+fn a_letter_posted_by_a_person_is_answered_on_the_ai_s_next_turn() {
+    let mut game = six_county_world();
+    // Realm 2 is the Knight: gift increment 100, so 100 crowns against an
+    // opening `best_gift` of 0 is the top tier and worth +10.
+    assert_eq!(game.kingdom.realms[2].lord, 1, "realm 2 is the Knight");
+    let purse = game.kingdom.realms[1].gold;
+    let theirs = game.kingdom.realms[2].gold;
+
+    game.kingdom.post_letter(1, 2, l2_kingdom::DiploKind::Gift, 100, 0);
+    assert_eq!(game.kingdom.realms[1].gold, purse - 100, "spent at the post office");
+    assert_eq!(game.kingdom.realms[2].gold, theirs + 100);
+    assert!(game.kingdom.realms[2].pair(1).has_mail);
+    assert_eq!(game.kingdom.diplomacy.pending(2).count(), 1);
+
+    let before = game.kingdom.realms[2].pair(1).standing;
+    l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+
+    assert_eq!(game.kingdom.diplomacy.pending(2).count(), 0, "the inbox is emptied every turn");
+    assert!(!game.kingdom.realms[2].pair(1).has_mail);
+    assert_eq!(game.kingdom.realms[2].pair(1).best_gift, 100, "and the bar has ratcheted");
+    // +10 for the gift and +1 for step 2's heal — except that the heal's guard
+    // is on the *other* realm being non-human and realm 1 is a person, so the
+    // heal does not run on this pair at all.
+    assert_eq!(
+        game.kingdom.realms[2].pair(1).standing,
+        before + 10,
+        "ten for a top-tier gift, and not eleven: `AI_Diplomacy` never heals \
+         towards a person"
+    );
+}
+
+/// **Forty turns of England, with the diplomatic state printed.**
+///
+/// The companion to [`the_ai_realms_are_competing_after_forty_turns_of_england`]
+/// and gated the same way. It exists because `docs/decisions.md` C26 is exactly
+/// about this subsystem: **every shipped fixture is turn one with every realm
+/// holding exactly one county**, so every diplomatic state above *"everyone is
+/// neutral and equal"* has no oracle at all. Playing the position out is the
+/// only way this project can look at one.
+///
+/// It asserts the invariants that hold whatever the numbers are, and prints the
+/// numbers — which is the right division, because nothing can say what realm
+/// 3's opinion of realm 5 *should* be in 1278.
+#[test]
+fn forty_turns_of_england_leaves_a_diplomatic_position() {
+    let save = l2_testkit::england!();
+    let mut game =
+        l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+    for _turn in 1..=TURNS {
+        l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+    }
+    eprintln!("--- England, diplomacy after {TURNS} turns (year {}) ---", game.kingdom.year);
+    for realm in 1..=5 {
+        let r = &game.kingdom.realms[realm];
+        if !r.in_play {
+            eprintln!("  realm {realm} is out of play");
+            continue;
+        }
+        let row: Vec<String> = (1..l2_kingdom::MAX_REALMS)
+            .map(|o| {
+                let p = r.pair(o as u8);
+                format!(
+                    "{:>4}{}{}",
+                    p.standing,
+                    if p.allied { "A" } else { " " },
+                    if p.at_war { "W" } else { " " }
+                )
+            })
+            .collect();
+        eprintln!(
+            "  realm {realm} lord={} human={} ally={} warTarget={} | {}",
+            r.lord,
+            r.is_human,
+            r.ally,
+            r.war_target,
+            row.join(" ")
+        );
+    }
+
+    // The invariants, and they are the ones the original's own functions
+    // maintain rather than any number this position happens to produce.
+    for realm in 1..l2_kingdom::MAX_REALMS {
+        let r = &game.kingdom.realms[realm];
+        for other in 1..l2_kingdom::MAX_REALMS {
+            let p = r.pair(other as u8);
+            assert!(
+                (l2_kingdom::diplomacy::STANDING_MIN..=l2_kingdom::diplomacy::STANDING_MAX)
+                    .contains(&p.standing),
+                "realm {realm}'s standing towards {other} is {} — a write site did not clamp",
+                p.standing
+            );
+            assert!(p.help_price_multiple >= 1, "the multiple never falls below its opening 1");
+            // An alliance is symmetric and exclusive: `Realm::ally` is one byte
+            // and `Diplo_ReconcileAlliances` runs every turn.
+            if p.allied {
+                assert_eq!(r.ally, other as u8, "realm {realm} is allied to {other} and to nobody");
+                assert_eq!(game.kingdom.realms[other].ally, realm as u8, "and it is mutual");
+            }
+        }
+        if r.ally != 0 {
+            assert!(r.ally as usize != realm, "no realm allies itself");
+            assert!(
+                game.kingdom.realms[r.ally as usize].in_play,
+                "realm {realm} is allied to a realm that is out of play"
+            );
+        }
+        // **A person's row can only ever go down**, and it takes one very
+        // specific act to move it at all.
+        //
+        // `Diplo_Offend`'s entry guard refuses outright when the offended realm
+        // is human, and `AI_Diplomacy` — the only writer that runs without a
+        // letter — never runs for a human realm, because the AI turn machine is
+        // skipped for one. So a person's row has no source of *gain* whatever.
+        // The one writer that reaches it is `Diplo_OffendAll`, which walks
+        // realms 1..5 with **no `isHuman` test**, and which is reached from one
+        // place only: somebody betraying an ally. So a person's opinion of a
+        // rival is 0 until that rival breaks a treaty, and −15 a betrayal
+        // thereafter, for ever.
+        //
+        // Stated as an assertion because it is easy to write it the other way
+        // round — *"the human keeps no standing at all"* — and that is wrong by
+        // exactly one function.
+        if r.is_human {
+            for other in 1..l2_kingdom::MAX_REALMS {
+                let s = r.pair(other as u8).standing;
+                assert!(
+                    s <= 0 && s % 15 == 0,
+                    "a person's realm holds {s} towards realm {other}; the only writer \
+                     that reaches a human's row is `Diplo_OffendAll` at −15 a betrayal"
+                );
+            }
+        }
+    }
 }
 
 /// **An AI realm's farming never reads the county's stored style byte**, and
@@ -433,5 +666,9 @@ fn six_county_world() -> Game {
     }
     game.kingdom.realms[1].is_human = true;
     game.kingdom.realms[1].lord = 0;
+    // `Diplo_Init`, last, for the reason `setup::Settings::apply_to` runs it
+    // last: the opening standing depends on which realms are in play and which
+    // are people, and both are decided in the loop above.
+    game.kingdom.init_diplomacy();
     game
 }

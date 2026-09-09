@@ -316,7 +316,22 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   that had no quirks and so was faithful. It is refused anyway, because *"the
 ///   default happens to be correct this time"* is the reasoning that makes the
 ///   next widening wrong.
-pub const VERSION: u32 = 14;
+/// * 15 — **the diplomatic inbox** ([`crate::diplomacy`]): six realms of five
+///   `g_diploInbox` slots, the outstanding pay-for-help price and county, and
+///   the generator the three bargaining replies roll.
+///
+///   The eleven fields entry 11 added are a realm's *opinions*; these are the
+///   letters in flight. `Diplo_Post` moves a gift's gold the moment it is
+///   posted and the reply arrives a turn later, so a save taken between the two
+///   that dropped the slot would take the money and never answer — and a
+///   pay-for-help prompt reloaded without its price would ask for nothing.
+///
+///   **Refusal rather than default**, and here for a reason none of the earlier
+///   entries had: the pair block *is* carried by a version 14 save, so a
+///   defaulted inbox would produce a kingdom that looks entirely coherent — the
+///   standings, alliances and grudges all present and correct — with the mail
+///   silently thrown away. A wrong load that looks right is the one to refuse.
+pub const VERSION: u32 = 15;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -534,7 +549,67 @@ impl Encode for Kingdom {
 
         out.section("campaign");
         encode_campaign(&self.campaign, out);
+
+        out.section("diplomacy");
+        encode_diplomacy(&self.diplomacy, out);
     }
+}
+
+/// The diplomatic state that is not inside a realm record — `VERSION` 15.
+///
+/// Fixed-width and index-ordered like everything else: six realms of five
+/// slots, written whether or not they hold a letter, because *"realm 3's inbox
+/// is empty"* is state a lockstep peer has to agree about.
+///
+/// The dice go out as their two `u64` parts for the reason
+/// [`crate::Kingdom::rng`] does: a generator that reloaded at its seed would
+/// give a reloaded game different answers to the same alliance offer, which is
+/// the divergence `docs/netcode.md` D-3 is about.
+fn encode_diplomacy(d: &crate::diplomacy::Diplomacy, out: &mut Canonical) {
+    out.u32(MAX_REALMS as u32);
+    out.u32(crate::diplomacy::INBOX_SLOTS as u32);
+    for realm in &d.inbox {
+        for slot in realm {
+            out.u8(slot.from);
+            out.u8(slot.kind);
+            out.u8(slot.county);
+            out.i32(slot.gold);
+        }
+    }
+    out.i32(d.help_price);
+    out.u8(d.help_county);
+    let (state, increment) = d.dice.parts();
+    out.u64(state);
+    out.u64(increment);
+}
+
+fn decode_diplomacy(input: &mut Reader<'_>) -> Result<crate::diplomacy::Diplomacy, LoadError> {
+    let realms = input.u32()? as usize;
+    let slots = input.u32()? as usize;
+    if realms != MAX_REALMS || slots != crate::diplomacy::INBOX_SLOTS {
+        return Err(LoadError::Malformed(CodecError::BadTag {
+            tag: realms.min(255) as u8,
+            expected: "diplomacy inbox shape",
+            at: input.position(),
+        }));
+    }
+    let mut d = crate::diplomacy::Diplomacy::new(0);
+    for realm in 0..MAX_REALMS {
+        for slot in 0..crate::diplomacy::INBOX_SLOTS {
+            d.inbox[realm][slot] = crate::diplomacy::InboxSlot {
+                from: input.u8()?,
+                kind: input.u8()?,
+                county: input.u8()?,
+                gold: input.i32()?,
+            };
+        }
+    }
+    d.help_price = input.i32()?;
+    d.help_county = input.u8()?;
+    let state = input.u64()?;
+    let increment = input.u64()?;
+    d.dice = crate::diplomacy::Dice::from_parts(state, increment);
+    Ok(d)
 }
 
 /// The campaign layer — `docs/armies.md`.
@@ -704,6 +779,7 @@ fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, Loa
 
     k.history = decode_history(input)?;
     k.campaign = decode_campaign(input)?;
+    k.diplomacy = decode_diplomacy(input)?;
     Ok(k)
 }
 

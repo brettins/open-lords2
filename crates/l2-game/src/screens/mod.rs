@@ -68,6 +68,7 @@ pub mod battlefield;
 pub mod castle;
 pub mod conquest;
 pub mod county;
+pub mod diplomacy;
 pub mod divide;
 pub mod index;
 pub mod job;

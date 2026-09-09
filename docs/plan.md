@@ -455,7 +455,7 @@ sidebar screens**, and **the last seven shells plus the pasture cattle**.
 
 ```text
   DONE ─┬─ victory & defeat            in flight ─┬─ A  keyboard text entry
-        ├─ the battle's end                       ├─ B  diplomacy  ← now blocking
+        ├─ the battle's end                       ├─ B  diplomacy  ← built, see below
         ├─ a turn moves things                    ├─ C  the siege battle screen
         ├─ raise army                             ├─ D  battle casualty write-back
         ├─ the merchant                           ├─ E  the naming campaign
@@ -483,6 +483,18 @@ is diplomacy.** So AI step 10, the raid, is implemented, dispatched, tested and 
 a played game** (`docs/decisions.md` C68). That is C27's seventh instance and the first where the
 missing writer is an unbuilt *subsystem* rather than a missing line. A test holds both halves and
 goes red the day it changes.
+
+**And diplomacy is built** — `crates/l2-kingdom/src/diplomacy.rs`, AI turn steps 1 and 2, and
+the player's side on screens `0x0B` and `0x1A`. **The measurement above was right and
+incomplete**, which is the part worth carrying: with the module built and nothing else, forty
+turns of England still produced *no standing below −10 anywhere on the map*, because
+`Diplo_Offend`'s four call sites are not in the diplomacy code at all — they are in the mover
+and in the battle return, two of them already sitting here as reported values with doc comments
+saying *"for a caller that has a diplomacy layer to drive"*. C68's test went red exactly as
+designed **and would have stayed green with the step 2 dispatch deleted.** A test written to
+fire when a gap closes inherits the gap's framing, which is always *"is the field non-zero"*;
+it should be replaced rather than merely satisfied. `docs/decisions.md` CNEW-diplomacy, and
+`docs/diplomacy.md` §10 is the nine things implementing the document corrected in it.
 
 **The siege battle screen is a one-way door, and it arrived in the place nobody was watching.**
 §2.3 warned about exactly this for the campaign–battle seam and it was settled there. It was not

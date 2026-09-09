@@ -99,6 +99,17 @@
       "evidence": "V"
     },
     {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0040E7E4/diplo-ok",
+      "status": "reproduced",
+      "screen": "0x0B",
+      "gesture": "left-release",
+      "addr": "0x0040E7E4",
+      "what": "Ui_OkButtonClicked over the corner picture Ui_OkButton(0x1A8, 0x1A6) drew -- a 24x24 box tested on the LEFT button's RELEASE -- closes the screen back to the campaign map.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
       "id": "0x0042FF10/cancel-drag",
       "status": "reproduced",
       "group": "battlefield",
@@ -110,6 +121,28 @@
       "evidence": "V"
     },
     {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0042FF10/compose-letter-text",
+      "status": "missing",
+      "screen": "0x1A",
+      "gesture": "type",
+      "addr": "0x0042FF10",
+      "what": "Screen_HandleInput's 0x1A arm, when the widget test declines and g_diploKind is 1..4, sets DAT_005AEB78 = 1 and calls FUN_0040210C(g_diploLetterDraft + (kind - 1) * 200, 199) -- the keyboard entry field for the 199-character letter. Four 200-byte buffers at 0x0053F2B8, one per letter kind; Diplo_SendClicked copies the finished one into g_diploLetter + localPlayer * 0xCA, which is saved with the game and drawn to the recipient by Msg_DrawWindow.",
+      "note": "Not built here: text entry is a separate branch's. ComposeScreen carries the draft as a String so that branch has somewhere to write, and the send already copies it."
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0042FF10/compose-right-exit",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "The 0x1A arm's right release: g_screenId = 0, the campaign map -- NOT back to 0x0B. Tested after the county picker, so a right click over the map still leaves.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
       "id": "0x0042FF10/dead-0x28-right-to-field",
       "status": "dead",
       "group": "battlefield",
@@ -119,6 +152,17 @@
       "what": "g_screenId = 0x29; DAT_0053F238 = 0; DAT_0053E9AC = 1.",
       "why": "See 0x00432221/dead-0x28-edge-scroll. Note it would UNPAUSE the battle, which is the only place other than the pause button that writes DAT_0053F238 to zero -- so whatever 0x28 was, leaving it started the fighting.",
       "evidence": "V"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0042FF10/diplo-right-exit",
+      "status": "reproduced",
+      "screen": "0x0B",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "Screen_FrameInput's 0x0B arm: a right release sets g_screenId = 0 without consulting the corner button at all. Right-click exits -- the gesture docs/agents.md records this project as systematically missing.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
     },
     {
       "id": "0x0042FF10/dismiss-report",
@@ -207,6 +251,94 @@
       "what": "Hotspot_Test(0x1E0, 0x1C0, &DAT_004DC710, 5) -- the five 32x32 buttons in a row at (480, 448). This record is the hit test; the five actions are five records of their own.",
       "ours": "crates/l2-game/src/screens/battlefield.rs",
       "evidence": "V"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436141/diplo-open-compose",
+      "status": "reproduced",
+      "screen": "0x0B",
+      "gesture": "left-press",
+      "addr": "0x00436141",
+      "what": "The six g_diploWidgets handlers -- Diplo_OpenGift 0x00436141, OpenCompliment 0x0043618B, OpenInsult 0x004361DA, OpenAlliance 0x00436229, OpenAskHelp 0x004362CA, OpenAskAttack 0x0043631E. One record because they differ only in the g_diploKind they set and the draft buffer they clear. Diplo_OpenAlliance is the one with a decision in it: it picks kind 4 over kind 3 exactly when the target is already this realm's ally, so ONE widget serves group 72 rows 5 and 6.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436372/diplo-gift-step",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "left-press",
+      "addr": "0x00436372",
+      "what": "The gift dialog's plus and minus at (184, 240) and (216, 240), hotspots 1 and 0 of one handler: ten crowns a click, clamped to [0, my gold] on EVERY click -- so an amount already set follows the treasury down when something else spends it.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436408/diplo-cancel",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "left-press",
+      "addr": "0x00436408",
+      "what": "The same handler's hotspot 0, the cross, and it is the function's first statement: g_screenId = 0x0B, back to the lord cards. It lands somewhere DIFFERENT from the corner button and the right release on the same screen, both of which go to the campaign map.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436408/diplo-send",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "left-press",
+      "addr": "0x00436408",
+      "what": "Diplo_SendClicked hotspot 1, the tick. It closes the screen and copies the draft into the player's g_diploLetter slot BEFORE it validates, so all six of its refusals -- L2.eng 240, 241, 242, 243, 244 and 219 -- are messages on the map rather than a red light on the dialog. Then Diplo_Post, or net command 0x48/0x49 in multiplayer.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x004367FF/pay-for-help-prompt",
+      "status": "missing",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x004367FF",
+      "what": "Diplo_PayHelpClicked -- the accept button on the category-10 message window an ally raises when it answers a help or attack request with Pay -. It calls Diplo_PayForHelp(myAlly, me, g_diploHelpCounty, g_diploHelpPrice), which moves the gold, increments the multiple and points the ally's targetCounty at the county.",
+      "note": "The RULE is built -- l2_kingdom::diplomacy::pay_for_help, with the price and county on Kingdom::diplomacy -- and the PROMPT is not: Msg_DrawWindow is 10,915 bytes and only its text and voice lookups have ever been read, so there is no window on screen to click. This and 0x00436872 are the only two places a person answers a lord rather than writing to one, and both are unreachable."
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436872/accept-alliance-prompt",
+      "status": "missing",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x00436872",
+      "what": "The Accept alliance ? prompt's two buttons (L2.eng group 180, message category 0x0B). Hotspot 1 calls Diplo_FormAlliance(g_localPlayer, DAT_0057C8B8); hotspot 0 declines. Note the guard is (offerer is human) || (hotspot != 0), so declining an AI's offer in single player runs NOTHING at all -- not even a refusal message. The offer simply lapses when the offering realm clears offerPending at the top of its next turn.",
+      "note": "Blocked on the same unread Msg_DrawWindow as 0x004367FF."
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x004369BD/diplo-pick-lord",
+      "status": "reproduced",
+      "screen": "0x0B",
+      "gesture": "left-press",
+      "addr": "0x004369BD",
+      "what": "Diplo_PickLordCard walks the same rivals the painter stacked and hit-tests each 82x78 card at (0x30, slot*100 + 0x31); the first hit becomes g_diploTarget. It runs AFTER the widget test, and the two can never both hit because the cards end at x = 130 and the menu starts at x = 400.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0043B4CB/compose-pick-county",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "left-press",
+      "addr": "0x0043B4CB",
+      "what": "Diplo_PickCountyFromMap(0x60, 0xB0) -- the 128x128 county raster on the ask-for-help and ask-for-attack dialogs, indexed straight out of g_minimapCounty. Guarded by g_diploKind >= 5, and a pixel whose county is 0 is NOT a hit, so a click on the sea inside the map falls through to the corner button behind it.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
     },
     {
       "id": "0x0043B9A1/pause",

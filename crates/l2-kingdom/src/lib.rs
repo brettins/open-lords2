@@ -210,6 +210,7 @@ pub mod ai_farm;
 pub mod battle;
 pub mod conquest;
 pub mod county;
+pub mod diplomacy;
 pub mod divide;
 pub mod event;
 pub mod field;
@@ -243,6 +244,7 @@ pub mod victory;
 pub mod weather;
 
 pub use county::{ChangeReason, County, Industry, MAX_COUNTIES, MAX_COUNTY_ID, MAX_FIELDS};
+pub use diplomacy::{Diplomacy, InboxSlot, Kind as DiploKind, Letter, INBOX_SLOTS};
 pub use divide::{DisbandRefusal, SplitBasket, SplitInto, SplitRefusal};
 pub use event::EventKind;
 pub use kingdom::{Kingdom, Options};

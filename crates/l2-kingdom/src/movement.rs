@@ -730,6 +730,15 @@ pub fn step(
                 let u = units.get_mut(id)?;
                 u.moves_used += crate::tables::STEP_COST_TRAMPLE;
                 out.charged = crate::tables::STEP_COST_TRAMPLE;
+                // `Diplo_Offend(countyOwner, mover, 20)`, and note there is
+                // **no `isHuman` guard here** — unlike `Unit_CrossField`, an AI
+                // that burns somebody's houses is resented for it. It is the
+                // single most expensive act on the map bar losing a battle.
+                out.offence = Some(Offence {
+                    against: counties.get(tile_county as usize).map_or(0, |c| c.owner),
+                    by: owner,
+                    amount: DWELLING_BURN_OFFENCE,
+                });
             }
             units.get_mut(id)?.moving = false;
             return Some(out);
@@ -864,6 +873,16 @@ fn cross_field(
 /// one's and left this constant bare. It compiles, it reads plausibly, and
 /// nothing catches it.
 pub const FIELD_TRAMPLE_OFFENCE: i32 = 10;
+
+/// What burning a dwelling costs — `Unit_BurnDwelling` (`0x00468AE2`) passes
+/// `'\x14'` = 20, and unlike the trample it does so whoever the burner is.
+///
+/// **The other half of `Unit_BurnDwelling` is not reproduced**, and it is worth
+/// saying at the constant rather than only in a document: the original also
+/// rewrites the tile (content `0x10` → `0x13`, frame `0x3C`) and takes **a
+/// quarter of the county's population** with it. This crate charges the seven
+/// moves and now the twenty standing; the burnt plot and the dead are a gap.
+pub const DWELLING_BURN_OFFENCE: i32 = 20;
 
 /// `County_DestroyField` (`0x00469E5B`) — remove one field and its share of
 /// what it was carrying.

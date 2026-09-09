@@ -142,22 +142,13 @@ pub const SHELLS: &[Shell] = &[
     // made it look like a mercenary panel with nothing behind it rather than
     // the screen the whole levy is confirmed on. And `arm_grid.pl8` is not a
     // "buy grid": nothing here is bought. See `screens/armoury.rs`.
-    Shell {
-        id: 0x0B,
-        painter: 0x0041_6CF3,
-        name: "The other lords",
-        background: None,
-        palette: None,
-        window: Some((0x10, 0x20, 0x1C, 0x1B, 1)),
-        group: 72,
-        heading: None,
-        // `g_diploMenuState == 0`, the no-alliance layout: four actions at
-        // x = 0xE0, 50 apart from y = 0x70.
-        lines: &[(2, 0xE0, 0x70), (3, 0xE0, 0xA2), (4, 0xE0, 0xD4), (5, 0xE0, 0x106)],
-        ok: Some((0x1A8, 0x1A6, 0)),
-        overlay: true,
-        unfinished: "the lord cards from faces.pl8 and the other three menu layouts",
-    },
+    // `0x0B` **graduated**. It was the row that said *"the lord cards from
+    // faces.pl8 and the other three menu layouts"*; all four layouts are drawn
+    // now, out of a real [`l2_kingdom::diplomacy`], the cards carry the
+    // standing thermometer and the three status icons, and the menu opens the
+    // compose dialog `0x1A` — which was never in this table at all, because
+    // `docs/screens-county.md` could not identify it. See
+    // `screens/diplomacy.rs`.
     Shell {
         id: 0x0F,
         painter: 0x0041_2B33,

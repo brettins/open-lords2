@@ -3547,6 +3547,58 @@ something other than the thing being bounded. Here it was a neighbouring symbol'
 
 `g_netCmdHandlers` is now in `symbols.json` and both counts are corrected.
 
+**CNEW-diplomacy — Building the missing writer closed C68's gap and then a *second* one
+opened underneath it, and the test written to catch the first could not see the second.**
+
+C68 named four fields with one writer each and no writer, and predicted that the day
+`l2_kingdom::diplomacy` landed, `tests/ai_war.rs`'s first assertion would go red and say so.
+It did, exactly as designed. **And the raid still could not fire**, because forty turns of
+England then produced *no standing below −10 anywhere on the map* — every AI-to-AI pair
+saturated at **+30**, `AI_Diplomacy`'s heal of one a turn having nothing to work against.
+
+The reason is that the module was only half of what was missing. `Diplo_Offend` is the single
+hook every relationship-damaging act goes through, and its four call sites are **not in the
+diplomacy code at all** — they are in the mover (`Unit_CrossField` `0x0046673C`,
+`Unit_BurnDwelling` `0x00468AE2`), in the transport collision, and in
+`Battle_ReturnToCampaign` (`0x004AB383`). Two of them already existed here as *reported
+values* — `movement::Offence` and `battle::Aftermath::offence`, both with doc comments saying
+*"for a caller that has a diplomacy layer to drive"* — and nothing was driving them. Wiring
+those three lines is what turned the numbers from *20 standings, 0 below −10, 0 wars* into
+*21 standings, 4 below −10, 1 war, 1 war target* on the same forty turns.
+
+**The lesson is about the shape of the test, not about the wiring.** C68's test asked *"has
+anything written a standing?"* — and the answer became yes the moment `Diplo_Init` ran, which
+happens before turn one and proves nothing about play. The replacement asks two questions
+that each name a mechanism: *is any standing above `Diplo_Init`'s opening 5* (only the heal
+can do that) and *is any realm allied* (only the courtship can). Both were run as ablations:
+deleting the step-2 dispatch turns them red, and — the point — **the original assertion stayed
+green with step 2 deleted**, because the battle hook alone satisfied it. A gap-closed test
+inherits the gap's own framing, and that framing is *"is the field non-zero"*, which is the
+weakest question in the family.
+
+The general form, which is worth more than the instance: **a test written to go red when a
+gap closes should be replaced, not merely satisfied.** Its job ends the moment it fires, and
+what it leaves behind is an assertion tuned to the absence rather than to the behaviour.
+
+**CNEW-selfmerge — An army was allowed to reinforce itself, and it took a use-after-free to
+find out.**
+
+`Army_GarrisonApply` reaches `Army_Combine(sitting, army)` with **no test that the two are
+different slots**, and `Army_Combine` has none either: it would sum a garrison's men with its
+own and then free the record it had just doubled. It is unreachable from the original's map,
+because an army already sitting in a castle has no orders to give.
+
+It became reachable here the moment diplomacy started aiming armies, and it arrived as a
+panic in `unit::combine` — `units.remove(from)` followed by `get_mut(into)` on the slot just
+emptied. **Refused rather than reproduced**, in `conquest::reach_castle_building` and
+`Kingdom::garrison_army`: reproducing this one means reproducing a use-after-free, and the
+behaviour it would produce in the original is not a rule anybody could have observed.
+
+Worth recording for one reason beyond the fix: **it was found by a behaviour change three
+subsystems away.** Nothing about diplomacy touches garrisons. What diplomacy changed was
+which county an AI marches on, and one of those marches happened to end on a castle its own
+army was already in. A latent guard is only latent until something upstream of it moves.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

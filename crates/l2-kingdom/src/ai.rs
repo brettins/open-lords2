@@ -12,8 +12,8 @@
 //! | step | address | what it does | here? |
 //! |---:|---|---|---|
 //! | *0* | `0x0049B42B` | recount realm strength, check elimination, rank realms | [`begin_realm_turn`] |
-//! | 1 | `0x004A277D` | `Diplo_AnswerInbox` — answer the five pending diplomatic messages | no — **blocked**: there is no inbox and no reply handlers |
-//! | 2 | `0x004A0C1D` | `AI_Diplomacy` — accumulate grudges; break or offer an alliance | no — **blocked**: needs `form_alliance` / `break_alliance` / `offend` |
+//! | 1 | `0x004A277D` | `Diplo_AnswerInbox` — answer the five pending diplomatic messages | [`crate::diplomacy::answer_inbox`] |
+//! | 2 | `0x004A0C1D` | `AI_Diplomacy` — heal standing, age the grudge, court an ally | [`crate::diplomacy::ai_diplomacy`] |
 //! | 3 | `0x0049D638` | **`AI_SetTaxRates`** — set tax rates, grant resources | [`set_tax_rates`], [`grant_resources`] |
 //! | 4 | `0x0049E1BF` | work out what the realm wants to buy | [`crate::ai_army::resource_wants`] |
 //! | 5 | `0x0049DD01` | **`Ai_ManageCountyFarms`** — order fields, then the lord's farming style | [`crate::ai_farm::manage_county_farms`] |
@@ -41,9 +41,12 @@
 //! reads as a decision is the most expensive kind** — `docs/plan.md` §2.4 —
 //! and [`crate::ai_army`] is the five steps it was holding shut.
 //!
-//! Two of the fourteen are still not run, and both are diplomacy. That is the
-//! ordering `docs/plan.md` §3 item 7 argues for: *"a game can be finished
-//! without diplomacy and cannot be finished without opponents that attack."*
+//! **All fourteen run now.** The two that were left were the diplomacy pair,
+//! and `docs/plan.md` §3 item 7's ordering — *"a game can be finished without
+//! diplomacy and cannot be finished without opponents that attack"* — held
+//! right up until the war steps landed and turned out to *read* four fields
+//! only diplomacy writes. [`crate::diplomacy`] is the answer, and the module
+//! documentation there records what was unreachable while it was missing.
 //!
 //! # The two names that were one name
 //!
@@ -208,10 +211,14 @@ impl AiStep {
         self == AiStep::Nothing
     }
 
-    /// True where this crate actually runs the step. The two that are not are
-    /// the diplomacy pair, which needs an inbox and the seven reply handlers.
+    /// True where this crate actually runs the step — **all fourteen**, and
+    /// the one that does nothing does nothing because the original's does.
+    ///
+    /// > This used to exempt the diplomacy pair, *"which needs an inbox and the
+    /// > seven reply handlers"*. [`crate::diplomacy`] is that inbox and those
+    /// > seven handlers.
     pub fn is_implemented(self) -> bool {
-        !matches!(self, AiStep::Diplomacy | AiStep::ConsiderWar)
+        true
     }
 }
 
@@ -777,6 +784,25 @@ pub struct Taunt {
 /// from the ranks [`rank_realms`] just wrote is the same answer with one fewer
 /// thing to keep in step. Ties go to the lower index, which is the ordering
 /// [`rank_realms`] already guarantees is unique among in-play realms.
+/// `g_rankLeader` (`0x00553D24`) — the in-play realm with the **best** rank, or
+/// 0.
+///
+/// The mirror of [`rank_trailer`], derived the same way and for the same
+/// reason. `AI_Diplomacy`'s envy rung reads it: an alliance with the realm that
+/// is winning accumulates grudge, so the leader's friend eventually stops being
+/// one.
+pub fn rank_leader(realms: &[Realm]) -> u8 {
+    let mut best = 0u8;
+    let mut best_rank = u8::MAX;
+    for (id, realm) in realms.iter().enumerate().take(6).skip(1) {
+        if realm.in_play && realm.rank != 0 && realm.rank < best_rank {
+            best_rank = realm.rank;
+            best = id as u8;
+        }
+    }
+    best
+}
+
 pub fn rank_trailer(realms: &[Realm]) -> u8 {
     let mut worst = 0u8;
     let mut worst_rank = 0u8;
@@ -875,28 +901,32 @@ mod tests {
         assert_eq!(AiStep::Nothing.address(), 0x0049_F96C);
     }
 
-    /// **Twelve of the fourteen run, and the two that do not are both
-    /// diplomacy.** This test used to assert the other way round — seven and
-    /// seven, with the army steps listed as blocked — and the list it asserted
-    /// was a list of reasons that had all expired. See the module
-    /// documentation.
+    /// **All fourteen run.** This test has now asserted three different
+    /// numbers: seven, then twelve, then fourteen — and each time the list it
+    /// asserted was a list of reasons that had expired. The two diplomatic
+    /// steps were the last, and [`crate::diplomacy`] is what discharged them.
     #[test]
-    fn the_only_unimplemented_steps_are_the_two_diplomatic_ones() {
+    fn every_one_of_the_fourteen_handlers_runs() {
         let blocked: Vec<AiStep> =
             AiStep::ALL.iter().copied().filter(|s| !s.is_implemented()).collect();
-        assert_eq!(
-            blocked,
-            vec![AiStep::Diplomacy, AiStep::ConsiderWar],
-            "the inbox and the grudge model, and nothing else"
-        );
-        assert_eq!(AiStep::ALL.iter().filter(|s| s.is_implemented()).count(), 12);
-        // The four steps the expired comment was holding shut.
-        for step in
-            [AiStep::ResourceWants, AiStep::ManageArmies, AiStep::RaiseArmy, AiStep::SendUnit]
-        {
+        assert_eq!(blocked, Vec::<AiStep>::new(), "nothing is blocked any more");
+        assert_eq!(AiStep::ALL.iter().filter(|s| s.is_implemented()).count(), 14);
+        // The two the diplomacy module discharged, and the four the expired
+        // army comment was holding shut before them.
+        for step in [
+            AiStep::Diplomacy,
+            AiStep::ConsiderWar,
+            AiStep::ResourceWants,
+            AiStep::ManageArmies,
+            AiStep::RaiseArmy,
+            AiStep::SendUnit,
+            AiStep::MoveArmies,
+        ] {
             assert!(step.is_implemented(), "{step:?}");
         }
-        assert!(AiStep::MoveArmies.is_implemented());
+        // And the one that is empty is *implemented* — it is a handler that
+        // does nothing, not a handler nobody wrote.
+        assert!(AiStep::Nothing.is_implemented() && AiStep::Nothing.is_empty());
     }
 
     #[test]

@@ -22,6 +22,12 @@ Evidence legend, as everywhere here:
 Nothing in this document was obtained by running the game. Every claim is static: the file,
 the instruction stream, and the shipped `.eng` and `.wav` inventories.
 
+> **§10 is what happened when it was implemented**, and it corrects nine things in the
+> sections below. Read it before trusting a `[D]` here: implementing a document is the only
+> way to find out whether it is true, and this one was 90 % right and wrong in nine places
+> that each change behaviour. Every correction is marked at the section it belongs to as
+> well, so a reader who never reaches §10 is not misled.
+
 ---
 
 ## 0. The headline
@@ -294,10 +300,17 @@ that names it — *"Reply to gift."*, *"Reply to compliment."*, *"Reply to Insul
 alliance offer."*, *"Help in"*, *"Pay -"*, *"Attack of"*. Each handler's *arithmetic* is
 **[D]**.
 
-Two facts shared by all of them. A reply is produced **only if the sender is human**
-(`realms[sender].isHuman != 0`), so AI-to-AI diplomacy is entirely silent — which is right,
-since nobody would see it. And every reply advances the sender's `voiceRotation`, so the four
-recorded takes cycle rather than repeat. **[V]**
+> **Correction (§10.1): only three of the seven have the `isHuman` guard.** This paragraph
+> used to say *"a reply is produced **only if the sender is human**, so AI-to-AI diplomacy is
+> entirely silent"*. `Diplo_ReplyGift`, `Diplo_ReplyCompliment` and `Diplo_ReplyInsult` open
+> with `if (g_realms[them].isHuman != 0)`; **`Diplo_ReplyAllianceOffer`,
+> `Diplo_ReplyAllianceEnd`, `Diplo_ReplyHelpRequest` and `Diplo_ReplyAttackRequest` have no
+> such test**, so all four would act on an AI's letter — form the alliance, break it, march.
+> Nothing posts one in single player, so the *consequence* stands; the *reason* was wrong,
+> and it is the reason a netcode seam would have relied on.
+
+One fact shared by all of them: every reply advances the sender's `voiceRotation`, so the
+four recorded takes cycle rather than repeat. **[V]**
 
 ### 3.1 Gold — and the ratchet nobody would guess
 
@@ -384,8 +397,15 @@ else                                           reply "pay me"
 | help (kind 5) | **4** | 183 | 184 | 185 | +1 |
 | attack (kind 6) | **2** | 186 | 187 | 188 | +2 |
 
-**[D]**. `personality[+0x30]` is a **treasury floor** — 750 / 800 / 900 / 1000 by lord — below
-which an ally will not move at all.
+**[D]**. `personality[+0x30]` is 750 / 800 / 900 / 1000 by lord, below which an ally will not
+move at all.
+
+> **Correction (§10.2): it is a *population* floor, not a treasury one.** The comparison is
+> `g_realms[me].populationMean < personality[+0x30]` — realm `+0x14`, the mean population of
+> the realm's counties. §8.4's own note that the same field is *"also a county-population
+> floor at step 9"* is the corroboration: it is a population floor in both places. So the
+> pseudo-code's second line reads `realm[me].populationMean`, not `realm[me].gold`, and an
+> ally with a full treasury and empty villages refuses.
 
 *Accept* calls `Diplo_PayForHelp` with a price of **zero**: the ally's `warTarget` becomes your
 county and it marches. *Pay me* puts `personality[+0x0C] × pair.helpPriceMultiple` into
@@ -468,8 +488,18 @@ alliance with no message; against a human it sets `offerPending` and sends group
 *"Accept alliance ?"*, with category `0x0B`, the prompt layout. **[D]**
 
 `Diplo_ReconcileAlliances` (`0x004A1847`), called from `Turn_Tick`, rebuilds the `allied`
-matrix from the `ally` bytes and drops any pairing that is one-sided or whose partner has been
-eliminated. **[D]**
+matrix from the `ally` bytes. **[D]**
+
+> **Correction (§10.3): it *repairs* a one-sided pairing rather than dropping it.** This
+> paragraph used to say it *"drops any pairing that is one-sided or whose partner has been
+> eliminated"*. The test is
+> `if (handled[partner] || (ally[partner] != 0 && ally[partner] != me))` — so a partner that
+> points at **nobody** falls into the `else`, where the function **writes `ally` back onto
+> the partner** and sets `allied` in both directions. Only a partner already pointing at a
+> *third* realm, or one already marked dead by this pass, drops it. And "already marked dead
+> by this pass" is an ascending walk over an array it is filling, so it can only see realms
+> *below* the one being examined: **an alliance with a higher-indexed eliminated realm
+> survives reconciliation.** `docs/bugs.md`.
 
 ---
 
@@ -498,6 +528,21 @@ if not already at war, standing has bottomed out at -30, and the offender is HUM
 **Two warnings, then war.** The war flag is what `Diplo_ReplyAllianceOffer` reads to send group
 196, so once an AI is at war with you it will never accept an alliance again, at any standing.
 
+> **Correction (§10.4): the whole function is a no-op when the offended realm is human.** The
+> entry guard is `0 < offended < 6 && 0 < offender < 6 && offender != offended &&
+> realms[offended].strength != 0 && **realms[offended].isHuman == 0**`. A person's realm
+> therefore keeps **no standing towards anybody**, which is why `Diplo_Init` opens a human's
+> row at 0 and why nothing ever moves it. Everything in this document that reads a standing
+> is reading an AI's. The one exception is `Diplo_OffendAll`, which walks 1..5 with no
+> `isHuman` test at all — so a person's row *can* move, downward only, by 15 a betrayal, and
+> by nothing else in the game.
+>
+> **Correction (§10.5): the Bishop's guard covers `warTarget` as well as `atWar`.** §5's note
+> below says the test *"guards only the `atWar` write"*. The `atWar` store is a
+> comma-expression **inside the same `&&` chain** as the `warTarget == 0` test:
+> `if ((lord != 4) && (pair.atWar = 1, warTarget == 0)) warTarget = offender;` — so a
+> betrayed Bishop sets neither. He does not even name the realm he was betrayed by.
+
 `Diplo_OffendAll` (`0x004A24D1`) lowers **every other realm's** standing towards the offender.
 Betraying an ally is the only thing in the game that costs reputation with third parties.
 **[D]**
@@ -507,7 +552,7 @@ The offences and their sites:
 | what | amount | site |
 |---|---:|---|
 | destroying an enemy supply transport | **5** | `Unit_EnterOccupiedTile` `0x004658C1`; also sends group 161 *"Supplies lost."* to the owner and 162 *"Supplies destroyed."* to the attacker |
-| a unit destroying something in another realm's county | **10** | `FUN_0046673C`, only when the victim is human |
+| trampling a field in another realm's county | **10** | `Unit_CrossField` `0x0046673C` — **only when the *trampling realm* is human**, not the victim; see §10.6 |
 | burning a dwelling | **20** | `Unit_BurnDwelling` `0x00468AE2`; also costs the county 25 % of its population |
 | winning a battle | **20** | `FUN_004AB383` — the loser's realm is offended by the winner's |
 
@@ -572,7 +617,19 @@ except where marked.
 | 0 | I have no ally | 2 3 4 5 — gift, compliment, insult, **offer alliance** |
 | 1 | this realm is my ally | 2 3 4 6 7 8 — gift, compliment, insult, **terminate**, **ask help**, **ask attack** |
 | 2 | I am allied to someone else | 2 3 4 only |
-| 3 | this realm has already written to me this turn | index 24 alone — *"A message has been dispatched, my Lord."* |
+| 3 | **I have already written to *them*** this turn | index 24 alone — *"A message has been dispatched, my Lord."* |
+
+> **Correction (§10.7): state 3's condition is the other way round, and so is the mail
+> icon.** This table used to read *"this realm has already written to me"*. The test is
+> `pair[target][localPlayer].hasMail` — the **target's** record, indexed by **me** — and
+> `Diplo_Post` sets `pair[to][from].hasMail`, so the flag means *my* letter is sitting in
+> *their* inbox. Group 72 index 24 says the same in words. The lord card's mail icon reads
+> the same byte the same way, so it marks a rival you have written to, **not** one who has
+> written to you. A person's own inbox is never read by anything at all: `Diplo_AnswerInbox`
+> is AI turn step 1, and a human realm's AI turn is skipped.
+>
+> One consequence worth stating because it *is* the rule: **one letter per rival per turn.**
+> The menu is gone until they answer.
 
 Picking an item sets `g_diploKind` (`0x005651CC`) and opens screen `0x1A`, the compose page:
 kind 0 takes a gold amount into `g_diploGold` (`0x0057A0F8`); kinds 1–4 open a **199-character
@@ -775,7 +832,7 @@ half of it is accounted for.
 Stated plainly, because a wrong map is worse than a small one.
 
 * ~~**The baron / peasant-army claim.**~~ **Settled against it** — §8.3. The rota fields are `g_weaponCost` indices, pinned by `FUN_0049ED13`, and the Baron makes no crossbows at all.
-* **The six untraced personality fields.** §8.4. Five more were closed by `Ai_TradeForCounty`.
+* ~~**The six untraced personality fields.**~~ **Closed, and the last two are dead.** Five were closed by `Ai_TradeForCounty` and three more by `crates/l2-kingdom`'s army and industry passes. The two that were left, **`+0x2C` (a flat 100 in all four records) and `+0x6C` (2, 3, 4, 5)**, have **no reader anywhere in `Lords2.exe`** — §10.9.
 * **`g_realmsActive` (`0x00554004`) has two writers with two meanings**, and the diplomacy code
   reads whichever wrote last. §3.4.
 * **`pair +0x06` and `+0x07`** are neither initialised nor read anywhere. Probably padding, not
@@ -786,6 +843,123 @@ Stated plainly, because a wrong map is worse than a small one.
 * **`Msg_DrawWindow` is 10,915 bytes and was read only for its text and voice lookups.** The
   per-category window layouts — where the portrait sits, which buttons exist, how the alliance
   and pay prompts are answered — are not written down.
-* **The AI-to-AI half is unobservable and untested.** Both silent paths (AI allies with AI, AI
-  gifts an AI) are read off the code and produce no message anyone could ever have seen.
-* **Nothing here has been run.** `docs/method.md` §3.
+* ~~**The AI-to-AI half is unobservable and untested.**~~ It is observable now, in *our*
+  engine — §10.8 is forty turns of it — but that is our arithmetic agreeing with itself and
+  not evidence about the original. It remains unobserved **in the game**.
+* ~~**Nothing here has been run.**~~ Nothing here has been run *in the original*, which is
+  still true and still the limit on everything above. `crates/l2-kingdom/src/diplomacy.rs`
+  runs all of it in ours; §10 is what that produced.
+
+---
+
+## 10. What happened when it was implemented
+
+`crates/l2-kingdom/src/diplomacy.rs`, `crates/l2-game/src/screens/diplomacy.rs`. Implementing
+a document is the only way to find out whether it is true, and this one was right about
+almost everything and wrong in nine places that each change behaviour. Seven are corrections
+to sections above and are marked there; two are new.
+
+Every finding below is `[D]` from the same corpus this document was written from — a second
+reading of the same functions, asking a different question — except §10.8, which is `[V]` on
+our own engine's output and says nothing about the original's.
+
+| | correction | where |
+|---|---|---|
+| 10.1 | only **three** of the seven replies have the `isHuman` guard, not all seven | §3 |
+| 10.2 | `personality[+0x30]` is a **population** floor, not a treasury one | §3.5 |
+| 10.3 | `Diplo_ReconcileAlliances` **repairs** a one-sided alliance rather than dropping it | §4.1 |
+| 10.4 | `Diplo_Offend` is a **no-op when the offended realm is human** | §5 |
+| 10.5 | the Bishop's guard covers **`warTarget` as well as `atWar`** | §5 |
+| 10.6 | the field trample fires when the **trampler** is human, not the victim | §5 |
+| 10.7 | menu state 3 and the mail icon mean *"I have written to them"* | §7 |
+| 10.8 | what forty turns of it actually produces | new |
+| 10.9 | the last two personality fields are **dead**, not untraced | §8.4, §9 |
+
+### 10.8 Forty turns of England, with diplomacy running
+
+The only oracle this subsystem can have. `docs/decisions.md` C26: **every shipped fixture is
+turn one with every realm holding exactly one county**, so every diplomatic state above
+*"everyone is neutral and equal"* has no oracle at all — playing the position out is the only
+way to look at one, and what follows is *our* engine, not the game's.
+
+The first run was the interesting one, because it produced **nothing**:
+
+```
+realm 1 (human)  ally=0 warTarget=0 |   0    0    0    0    0
+realm 2 (Knight) ally=0 warTarget=0 |   5   30   30   30   30
+realm 3 (Baron)  ally=4 warTarget=0 |   5   30   30   30A  30
+realm 4 (Bishop) ally=3 warTarget=0 |   5   30   30A  30   30
+realm 5 (Countess) ally=0 warTarget=0 | 5   30   30   30   30
+```
+
+Every AI-to-AI pair saturated at **+30** — `AI_Diplomacy`'s heal of one a turn, from
+`Diplo_Init`'s opening 5, reaching the ceiling on turn 25 and staying there. Two alliances
+formed; **no realm came to think ill of anybody, and none picked a war target.** The raid
+rule wants a rival below −10 and there was not one on the map.
+
+The reason is the sentence at the top of §5 read forwards: `Diplo_Offend`'s **four call sites
+are not in the diplomacy code**. They are in the mover and in the battle return, and until
+those three lines were wired the heal had nothing to push against. With them:
+
+```
+after 40 turns: 21 non-zero standings, 4 below −10, 1 at war, 1 war target, 2 realms allied
+realm 4 ally=5 warTarget=5 |   5   30    1   30  -26 A W
+```
+
+Two things in that line are the subsystem showing its own shape.
+
+**Realm 4 is allied to realm 5 and at war with it at the same time**, and that is faithful.
+`Diplo_PickAllyCandidate` refuses a candidate the *courter* is at war with —
+`pair[me][cand].atWar` — and says nothing about `pair[cand][me]`. Realm 5's own war flag was
+never set, so realm 5 courted realm 4 and `Diplo_FormAlliance` wrote both bytes. The war is
+one-directional because the *standing* is one-directional (§1), and the alliance is not.
+
+**And the human's row moved by exactly −15 in one place**, which is §10.4's exception doing
+the only thing it can: somebody betrayed an ally, `Diplo_OffendAll` walked realms 1..5 with no
+`isHuman` test, and the person's opinion of the betrayer dropped 15 and will never recover,
+because nothing that could raise it will ever run for a human realm.
+
+**The asymmetry that follows is worth stating as a rule for a player**: an AI's opinion of
+*you* only ever goes down, and its opinion of *another AI* heals a point a turn. So the raid
+rule fires against a person far more readily than against a rival — on the England position
+in forty turns, **only** against a person. That is not a balance decision anybody made; it is
+one `isHuman` in a loop guard.
+
+### 10.9 The last two personality fields have no reader at all
+
+§8.4 left `+0x2C` (a flat 100 in all four records) and `+0x6C` (2, 3, 4, 5) as *"plausible
+per-lord values and still not traced"*. They are **dead**.
+
+The method is an exhaustive scan rather than a failure to find, which is the standard
+`docs/arms.json` sets for a `dead` verdict: `tools/oracle/decomp` holds every one of the
+2,452 functions in `Lords2.exe`'s text section, decompiled with the `AiPersonality` struct
+from `docs/records.json` applied, so every access to an offset the struct does not name
+renders as `field_0xNN`. Across the whole corpus the personality struct is touched at
+`+0x00`, `+0x04`, `+0x08`, `+0x0C`, `+0x10`, `+0x14`, `+0x28`, `+0x30`, `+0x40`, `+0x50`,
+`+0x54`, `+0x58`, `+0x5C`, `+0x60`, `+0x64`, `+0x68`, `+0x70`, `+0x74`, `+0x78`, `+0x7C`,
+`+0x84`, `+0x88`, `+0x8C`, `+0x90`, `+0x9C`, `+0xA0`, `+0xC8` and `+0xCC…+0xDC`.
+**`field_0x2c` does not occur anywhere in the corpus**, and `field_0x6c` occurs fourteen
+times and every one is a different struct.
+
+So the 240-byte record has two four-byte slots the shipped game never reads. Nothing may be
+built on them, and — the reason this is worth a paragraph rather than a line — nothing should
+be *inferred* from them either: a per-lord value with no reader is exactly the shape of a
+finding that is not one.
+
+### 10.10 What is still missing on the player's side
+
+Two arms, and they are the same blocker: **`Msg_DrawWindow` (`0x0047309E`, 10,915 bytes) has
+only ever been read for its text and voice lookups**, so its per-category window layouts do
+not exist here.
+
+* **`Diplo_PayHelpClicked` (`0x004367FF`)** — the accept button on the category-10 *"Pay -"*
+  prompt. The rule behind it is built; there is no window to click.
+* **`FUN_00436872`** — the *"Accept alliance ?"* prompt's two buttons, category `0x0B`.
+  Its guard is `(realms[offerer].isHuman != 0) || (hotspot != 0)`, so in single player
+  **declining an AI's offer runs nothing at all** — not even a refusal message. The offer
+  simply lapses when the offering realm clears `offerPending`.
+
+Those two are **the only places a person answers a lord rather than writing to one**, and
+both are unreachable. Everything a person can *initiate* is built: `docs/arms.json`'s
+`diplomacy` group is nine reproduced arms and three missing ones, the third being the
+199-character free-text letter, which is keyboard entry and another branch's.

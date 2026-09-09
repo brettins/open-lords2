@@ -152,6 +152,21 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
         game.gold_last[id] = realm.gold;
     }
 
+    // **`Diplo_Init`, and it is an approximation that only holds for a turn-one
+    // save.** `l2_formats::save::Realm` reads eleven fields of the realm record
+    // and the pair block at `+0x84 … +0xE3` is not among them, so the standings,
+    // alliances, grudges and gift history a mid-game `.sav` carries are not
+    // imported — they are not even read off the bytes. What this line does is
+    // put a *new game's* diplomatic state in, which is exactly right for the
+    // England turn-one fixture (`Game_NewGame` runs `Diplo_Init` and nothing
+    // has moved by turn 1) and wrong for anything later.
+    //
+    // The honest alternative would be to refuse a save whose pair block is not
+    // at its initial values, and that cannot be written until `l2-formats`
+    // reads the block at all. Reported rather than papered over: `l2-formats`
+    // is the lead session's and this crate does not open files.
+    game.kingdom.init_diplomacy();
+
     // Open on a county the player holds, if any. Ascending, so two peers with
     // the same save open on the same county.
     game.selected = game

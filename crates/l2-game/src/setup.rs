@@ -467,6 +467,17 @@ impl Settings {
             }
         }
 
+        // `Diplo_Init` (`0x004A1C53`), and **it has to be here rather than in
+        // the world builder**: the opening standing it writes is 5 for an
+        // in-play AI realm and 0 for a person or a dropped one, so it has to
+        // run *after* the loop above has decided which realms exist. Run it
+        // before and every dropped realm would open with an opinion.
+        //
+        // This is the whole answer to *"what writes `Pair::standing` in a real
+        // game?"* — `docs/agents.md`'s rule that a field is only tested if
+        // something a test reads was written by something the game runs.
+        game.kingdom.init_diplomacy();
+
         for (id, realm) in game.kingdom.realms.iter().enumerate() {
             game.gold_last[id] = realm.gold;
         }

@@ -392,7 +392,9 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   `docs/kingdom.md` §8.4, `crates/l2-kingdom/src/victory.rs`
 - ✅ **The campaign** — eight maps, both tables read out of the executable, and **nothing
   carries between them**: the next map is a whole new game. `docs/kingdom.md` §8.5
-- 📖 **Diplomacy — traced end to end, implemented nowhere.** `docs/diplomacy.md`
+- ✅ **Diplomacy — traced end to end and implemented.** `l2_kingdom::diplomacy` and
+  `l2_game::screens::diplomacy`; `docs/diplomacy.md`, whose §10 is the nine things
+  implementing it corrected
   - 📖 **A standing per pair of realms**, −30 … +30, in the realm record at `+0x84 + n*0x10`.
     It heals +1 a turn towards other AIs and **never towards a human player**
   - 📖 **Seven messages you can send**: gift, compliment, insult, offer alliance, terminate
@@ -408,9 +410,16 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
     twice and then *"Notice of revenge."*, after which it will never ally with you again
   - 📖 **A message is an `L2.eng` group id**, and its voice file is
     `<Kt|Bn|Ct|Bp><group>_<1..4>.wav` — all 448 are in the install
-  - 🕳 The diplomacy screen — `0x0B`, *"the other lords"*, `faces.pl8`, one of the 29
-  - ❓ Whether the Baron favours peasant armies. The per-lord weapon rota is read; what its
-    six fields index is **not established**. §8.3
+  - ✅ The diplomacy screen — `0x0B`, *"the other lords"*: a card per rival with the
+    standing thermometer and the allied/at-war/mail icons, all four menu layouts, and the
+    compose dialog `0x1A` behind it in its three shapes
+  - 🕳 **Answering a lord.** The two prompts a lord raises — *"Accept alliance ?"* and
+    *"Pay -"* — are the only places a person answers rather than writes, and both are
+    blocked on `Msg_DrawWindow`'s per-category window layouts, which nobody has read.
+    `docs/diplomacy.md` §10.10
+  - ✅ ~~Whether the Baron favours peasant armies.~~ **Settled against it**: the rota fields
+    are `g_weaponCost` indices, pinned by the lookup the rota loop makes next, and the
+    Baron's ten-step rota contains no crossbows at all. §8.3
 - ✅ **Armies on the campaign map.** The unit record, the levy and the armoury, the cost map,
   the flood fill and the path extractor, the stepper with its trampling and field-crossing,
   and the season hooks — wages, foraging, the starvation ladder, the move reset. In

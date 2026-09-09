@@ -469,6 +469,27 @@ fn furnish_campaign(k: &mut Kingdom) {
         k.campaign.routes.set_row(route, row);
     }
     k.campaign.mob_cursor = 7;
+
+    // The diplomatic state that is not inside a realm record — the five-slot
+    // inbox, the outstanding pay-for-help price, and the dice. One letter of
+    // every kind, spread across realms so the walk over the array is exercised
+    // rather than one row of it.
+    k.diplomacy.help_price = 3400;
+    k.diplomacy.help_county = 9;
+    for (n, kind) in l2_kingdom::DiploKind::ALL.iter().enumerate() {
+        let to = (n % 5 + 1) as u8;
+        k.diplomacy.inbox[to as usize][n % l2_kingdom::INBOX_SLOTS] = l2_kingdom::InboxSlot {
+            from: (n % 4 + 1) as u8,
+            kind: kind.byte(),
+            county: (n + 2) as u8,
+            gold: 100 * n as i32 + 7,
+        };
+    }
+    // And step the dice off their seed, so a reload that restarted them would
+    // be visible rather than accidentally right.
+    for _ in 0..5 {
+        k.diplomacy.dice.rand7b();
+    }
 }
 // --- the fixture: end -----------------------------------------------------
 
@@ -598,7 +619,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // sure it does.
     // and +8 at the same version for `Options::quirks`, a u64 bitfield on the
     // kingdom. THREE branches bumped to 14 on the same day; every delta applies.
-    assert_eq!(c.finish().len, 57_232, "the state encoding changed - bump VERSION?");
+    // +239 at 15 for the diplomatic inbox: two `u32`s of shape (8), thirty
+    // slots of seven bytes apiece (210), the pay-for-help price and county (5),
+    // and the dice as two `u64`s (16).
+    assert_eq!(c.finish().len, 57_471, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

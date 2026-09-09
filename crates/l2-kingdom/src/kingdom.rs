@@ -186,6 +186,15 @@ pub struct Kingdom {
     /// it has ruined, the tick checksum has to cover it, and a save that
     /// dropped it would keep the economy and lose the war. See [`Campaign`].
     pub campaign: Campaign,
+    /// **The diplomatic state that does not live in a realm record** — the
+    /// five-slot inbox per realm, the outstanding pay-for-help price, and the
+    /// dice the three bargaining replies roll.
+    ///
+    /// It is inside the kingdom for the reason [`Campaign`] is: two lockstep
+    /// peers have to agree about who has written to whom, and a save that
+    /// dropped an unanswered letter would resume a different game. See
+    /// [`crate::diplomacy`].
+    pub diplomacy: crate::diplomacy::Diplomacy,
     /// **The ruleset this kingdom runs on.**
     ///
     /// Fixed for the life of the kingdom, like `l2_sim::Battle`'s troop
@@ -413,6 +422,7 @@ impl Kingdom {
             history: History::new(),
             weather_county: 1,
             campaign: Campaign::new(),
+            diplomacy: crate::diplomacy::Diplomacy::new(seed),
         }
     }
 
@@ -1282,6 +1292,70 @@ impl Kingdom {
                 share,
             );
         }
+    }
+
+    /// `Diplo_Init` (`0x004A1C53`) — clear every inbox and open every realm's
+    /// view of every other. **Call it once, after the realms are set up and
+    /// before the first turn**, because the opening standing it writes depends
+    /// on which realms are in play and which are people.
+    ///
+    /// `Game_NewGame` calls it in exactly that position, and this is the whole
+    /// of the *"what writes it in a real game?"* answer for
+    /// [`crate::realm::Pair::standing`]: nothing else puts an opening value in.
+    pub fn init_diplomacy(&mut self) {
+        crate::diplomacy::init(&mut self.realms, &mut self.diplomacy);
+    }
+
+    /// **AI step 1** — `Diplo_AnswerInbox`. Returns the replies.
+    pub fn run_ai_inbox(&mut self, realm_id: u8) -> Vec<crate::diplomacy::Letter> {
+        crate::diplomacy::answer_inbox(
+            &mut self.realms,
+            &mut self.diplomacy,
+            &self.tables,
+            realm_id,
+        )
+    }
+
+    /// **AI step 2** — `AI_Diplomacy`. Returns the letters the realm sent.
+    ///
+    /// `g_rankLeader` is derived from the ranks [`ai::rank_realms`] wrote, the
+    /// same way [`ai::rank_trailer`] is: the original keeps both as globals and
+    /// deriving them is the same answer with one fewer thing to keep in step.
+    pub fn run_ai_diplomacy(&mut self, realm_id: u8) -> Vec<crate::diplomacy::Letter> {
+        let leader = ai::rank_leader(&self.realms);
+        crate::diplomacy::ai_diplomacy(
+            &mut self.realms,
+            &self.tables,
+            realm_id,
+            self.year,
+            leader,
+        )
+    }
+
+    /// `Diplo_ReconcileAlliances` (`0x004A1847`) — called from `Turn_Tick`, and
+    /// what keeps the `allied` matrix and the `ally` bytes agreeing.
+    pub fn reconcile_alliances(&mut self) {
+        crate::diplomacy::reconcile_alliances(&mut self.realms);
+    }
+
+    /// `Diplo_Post` — a person's letter into an AI's inbox. The player's whole
+    /// outgoing side in single player, and the seam multiplayer would replace.
+    pub fn post_letter(
+        &mut self,
+        from: u8,
+        to: u8,
+        kind: crate::diplomacy::Kind,
+        gold: i32,
+        county: u8,
+    ) {
+        crate::diplomacy::post(&mut self.realms, &mut self.diplomacy, from, to, kind, gold, county);
+    }
+
+    /// `Diplo_Offend` — apply one act's diplomatic damage. The four call sites
+    /// are in [`crate::diplomacy::offence`]; this is where a caller holding a
+    /// [`crate::movement::Offence`] or a [`crate::battle::Aftermath`] brings it.
+    pub fn offend(&mut self, offended: u8, offender: u8, amount: i8) -> Vec<crate::diplomacy::Letter> {
+        crate::diplomacy::offend(&mut self.realms, offended, offender, amount)
     }
 
     /// AI step 13 — `AI_Taunt`. Returns the letters the realm sent.
