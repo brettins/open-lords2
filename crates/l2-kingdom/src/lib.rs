@@ -262,3 +262,16 @@ pub use unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS};
 /// The generator this crate draws from, re-exported so a caller does not have
 /// to depend on `l2-net` to seed a kingdom.
 pub use l2_net::Pcg32;
+
+/// **Which of the original's defects a kingdom reproduces**, re-exported for
+/// the same reason [`Pcg32`] is: [`Options::quirks`] is a field of this crate's
+/// public type, so a caller that has to name a value for it should not have to
+/// take a dependency on the netcode crate to do so.
+///
+/// They live in `l2-net` because a quirk is part of the *agreed configuration*
+/// — the same category as the ruleset hash and the seed — and because that is
+/// the one crate `l2-kingdom`, `l2-sim`, `l2-view` and `l2-game` can all see.
+/// `docs/decisions.md` C62.
+///
+/// [`Options::quirks`]: crate::kingdom::Options::quirks
+pub use l2_net::{Quirk, Quirks};

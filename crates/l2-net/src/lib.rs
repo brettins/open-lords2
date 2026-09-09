@@ -153,6 +153,7 @@ pub mod hash;
 pub mod lobby;
 pub mod lockstep;
 pub mod packet;
+pub mod quirks;
 pub mod replay;
 pub mod rng;
 pub mod tcp;
@@ -178,6 +179,7 @@ pub use packet::{
     Ack, HaltReason, Hello, Message, Mismatch, TickPacket, DEFAULT_PORT, MAX_ACKS,
     PROTOCOL_VERSION,
 };
+pub use quirks::{Group, Quirk, Quirks};
 pub use replay::{Replay, ReplayMismatch, REPLAY_MAGIC, REPLAY_VERSION};
 pub use rng::{Pcg32, DEFAULT_STREAM};
 pub use tcp::{TcpTransport, MAX_OUTBOX};

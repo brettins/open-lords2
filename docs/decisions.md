@@ -3166,6 +3166,122 @@ green either way.
 zero in forty turns, *and* the raid goes out the moment something does. The first assertion is
 designed to **go red when diplomacy lands**, which is the only way a gap like this announces
 that it has closed.
+
+**C69 — The options screen is four screens, the group switch spans two homes, and the
+toggle list is generated from `docs/bugs.md` rather than kept beside it.**
+
+The brief was *"build the options screen, and give it a group switch for the original's
+bugs"*. Three things came out of it that the brief could not have known, and one of them
+changed the design after it was half built.
+
+**There is no options screen.** The Options drop-down (`L2.eng` group 2) opens **three**
+separate modal panels, a fourth hangs off the Help menu, and two more entries open the shared
+value spinner — six controls behind one menu with three `g_screenId` values between them:
+`0x39` Advanced (`Screen_AdvancedOptions` `0x00414F68`, group 50), `0x42` Sounds
+(`0x0041515C`, group 51), `0x43` Display (`0x004152EA`, group 52), `0x31` Help
+(`0x004154EA`, group 45), and `0x21` for both speed spinners (`Screen_SliderBox`
+`0x0040CD58`). All four panels were already rows of `screens/shells.rs`, and **each row's
+`unfinished` string said exactly what was missing** — *"the four Yes/No values from group 18
+at x = 0x140"*, *"the two values, and the F5 note that only shows in windowed mode"*. Those
+four sentences are what `screens/options.rs` answers; the shells are gone. That is the second
+time the shell table has paid for itself as a to-do list written by the binary rather than by
+us (C22 was the first).
+
+**Group 50 has four rows and this document said three.** `docs/bugs.md` §6.4 named
+*"three behaviour switches"* — Advanced Farming, Foraging, Exploration — as *"group 50 indices
+1 … 3"*. The group holds **five** strings and `g_advancedOptWidgets` (`0x004DDC10`) holds
+**four** widget records; the fourth is *"Fight humans only?"*, and it changes a rule
+(`FUN_004A6A30` auto-resolves a battle the local player is not in when the byte is 0). **[V]**
+both ways — the string count out of `L2.eng`, the record count out of `.data`. B55a had been
+discussing that same option's *save* behaviour two sections earlier without either half
+noticing the other. Nothing turned on the number; it was simply wrong.
+
+**Where a quirk lives, and the two homes.** The rule going in was *`Options`' `Quirks`, never
+`Tables`*, and the reason is exact: `save::ruleset_fingerprint(tables)` is hashed into the
+save **header** and `decode` refuses a mismatch, so a quirk on `Tables` invalidates every
+existing save the day it is added — and frames a quirk as a *rule*, which it is not.
+`Options` is in the save **body**, and the save body *is* the per-tick lockstep digest
+(`save::checksum` is `Canonical::hash_of(kingdom)`), which is exactly where something that
+changes what the simulation computes belongs.
+
+Half way through, another agent argued that a *presentation* defect fails every part of that
+argument — a text shadow cannot change a turn, and `netcode.md` D-12 forbids display state
+reaching the simulation at all, so the hashed options are the **wrong** home rather than the
+expensive one. That is right, it is now §6.3a, and the test is one line: *if flipping it can
+change a number in a saved game it is behavioural; if it can only change which pixels are
+painted from the same numbers it is presentation.*
+
+So there are two homes at very different prices — a behavioural quirk costs a `save::VERSION`
+bump, a handshake field and a replay stamp; a presentation quirk costs one `bool` — and **the
+asymmetry is the hazard the split creates**. A rule variation filed on `Assets` because it is
+cheaper there would be invisible until a multiplayer desync.
+`crates/l2-testkit/tests/quirks_catalogue.rs` therefore asserts the home, both ways, and fails
+outright on a quirk implemented in both. That assertion is worth more than any of the switches
+it guards.
+
+**A set bit means *fixed*, so faithful is zero.** `l2_net::Quirks` is a `u64` bitfield and the
+sense is inverted deliberately. It looks backwards for about ten seconds and then pays twice:
+the default is byte-stable, so adding a quirk next month changes no byte a faithful game
+writes and costs no version bump; and an unknown bit read by an older build is 0, which is the
+original's behaviour — the answer that cannot be wrong, because it is the answer the original
+gives. `docs/bugs.md` §6.3 asked that the bump be paid once rather than once per bug; that is
+how it is paid once.
+
+**Faithful by default**, on §6.5's argument rather than on taste: the original is the oracle,
+the bugs are load-bearing on a balance nobody has measured, and the default becomes the value
+the whole corpus of saves and replays is recorded under.
+
+**The part that will still be true in a month is the generated list.** A hand-kept list of
+toggles beside a catalogue of ninety entries drifts within a week, and the drift is invisible
+because the code compiles either way — this project has watched thirty-four documented figures
+go stale at once, and watched a comment in `ai.rs` state an expired constraint and set the
+AI's priority for weeks. So `quirks_catalogue.rs` reads `docs/bugs.md` §2 and both switch
+lists **as text** — not by linking them, because code that merely compiles is not evidence
+that two documents agree — and asserts five things: every catalogue entry has a disposition;
+`Switchable(home)` means a switch in that home and no other; a `Quirk` variant that no
+simulation file calls `reproduces(` on fails as **inert**; nothing on `Tables` names a quirk;
+and the presentation table and its struct are the same list. It prints the corrected inventory
+on failure, which is `census.rs`'s habit and the one worth copying. All five were ablated —
+broken deliberately, confirmed red, restored.
+
+**The count, honestly.** Of the **68** behavioural entries in §2 (one retracted), **14 are
+switchable and wired**, all behavioural; **38 are unwired** — reproduced, switchable at a
+reasonable price, nobody has done it, and the row says which file to open; **15 are
+unswitchable**, each with a written reason. Three of those reasons are worth reading: the
+pathfinder group (B5, B36, B37, B38) cannot be exposed per-entry because B5 makes one search's
+result depend on which searches ran before it; B56, the silenced sync-digest block, is settled
+by `CLAUDE.md` — reproducing a defect in the mechanism that *detects* divergence buys nothing
+a player can see; and B21, B22, B23 and B55 are invisible, and belong in the model rather than
+in a settings page.
+
+**A correction found by testing rather than by reading.** B16 says *"a county that dies out
+records a negative death count"*. On the season a county **loses its last person** the
+arithmetic lands on exactly 0, so the recorded figure is 0 — wrong, but not negative. The
+negative number appears on the **next** season, when the pass runs again over a county that is
+already empty and drives it to −1. Established by walking population 0…400 × five health bands
+× five happiness values × four seasons × four event modifiers: every negative case has
+`population == 0` going in. Both faces are switched by the same flag and both are asserted, and
+the survey is in the test rather than in a sentence here, because *"we could not make it go
+negative"* and *"it cannot go negative"* are different claims — the first draft of that test
+made the first claim, from a search too narrow, and was wrong.
+
+**One thing the architecture would not allow, and what it cost.** A screen is handed
+`Ctx { game: &mut Game, assets: &Assets }`, and that asymmetry is load-bearing: it is what
+makes `draw` unable to change anything. So the quirks page **cannot write `Assets`**, which is
+where §6.3a puts the presentation half. The setting therefore lives on
+`Game::presentation_quirks`, where the page can write it, and `main.rs` pushes it into
+`Assets::quirks` before each frame — one authority, one projection, with a test asserting the
+projection line exists so it cannot become a field the drawing code never sees. The
+alternative is `Ctx { assets: &mut Assets }`, which is 97 construction sites and would let
+`draw` mutate; it is not obviously wrong and it is not this branch's to take.
+
+**And a third category, named because two of them were already being confused.** A *rule* is
+what the game was started with and is in the digest; a *quirk* is one of the original's
+defects, switched; a *preference* — sound, animations, scroll speed — is what **this machine**
+is like and reaches neither the save nor the digest. `l2_game::game::Prefs` is that third
+category, and a debug overlay toggle belongs there: not on `Options::quirks`, not on `Tables`,
+because it is not a rule variation at all.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

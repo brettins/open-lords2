@@ -29,6 +29,7 @@
 use crate::county::{County, MAX_FIELDS};
 use crate::math::{clamp, pct, pct_of, per_myriad};
 use crate::tables::{HerdCrowdingRow, Season, Tables, Weather, HERD_CROWDING_COUNT};
+use l2_net::{Quirk, Quirks};
 
 // ---------------------------------------------------------------------------
 // Fertility
@@ -492,12 +493,24 @@ pub fn grow(t: &Tables, county: &mut County, advanced_farming: bool) {
 /// because it is what the game does. **`[V]`** on the reading — the four
 /// assignments are `crop[1]`-sourced in the decompilation and the surrounding
 /// two branches at sowing and growing are self-sourced.
-pub fn harvest(t: &Tables, county: &mut County, advanced_farming: bool) {
+///
+/// **Switchable** — [`Quirk::HarvestIgnoresLabourCap`], `docs/bugs.md` B1. With
+/// the quirk fixed the weather *scales what the reapers brought in*, which is
+/// what the labour cap was computed for and what the two neighbouring branches
+/// already do. The switch is inside the one expression, so the bug and the fix
+/// are readable together.
+pub fn harvest(t: &Tables, county: &mut County, advanced_farming: bool, quirks: Quirks) {
     let labour = grain_labour(t, county);
     let reaped = harvest_step(t, county, labour, county.crop[1], advanced_farming);
     let factor = harvest_factor(county.weather);
-    county.crop[2] =
-        if factor == Factor::NONE { reaped } else { factor.apply(county.crop[1]) };
+    // The base the band multiplies: the *standing* crop as the original reads
+    // it, or what the reapers could actually carry.
+    let base = if quirks.reproduces(Quirk::HarvestIgnoresLabourCap) {
+        county.crop[1]
+    } else {
+        reaped
+    };
+    county.crop[2] = if factor == Factor::NONE { reaped } else { factor.apply(base) };
     county.grain += county.crop[2];
 }
 
@@ -511,7 +524,13 @@ pub fn harvest(t: &Tables, county: &mut County, advanced_farming: bool) {
 /// before anything else, and the event percentage is applied to the store
 /// *before* the seed comes out of it, so a *"rats in the granary"* season eats
 /// the seed corn too.
-pub fn grain_season_tick(t: &Tables, county: &mut County, season: Season, advanced_farming: bool) {
+pub fn grain_season_tick(
+    t: &Tables,
+    county: &mut County,
+    season: Season,
+    advanced_farming: bool,
+    quirks: Quirks,
+) {
     county.crop[2] = 0;
     if county.event_grain_pct != 0 {
         county.grain += pct(county.grain, county.event_grain_pct);
@@ -521,7 +540,7 @@ pub fn grain_season_tick(t: &Tables, county: &mut County, season: Season, advanc
     match season {
         Season::Spring => sow(t, county, advanced_farming),
         Season::Summer | Season::Autumn => grow(t, county, advanced_farming),
-        Season::Winter => harvest(t, county, advanced_farming),
+        Season::Winter => harvest(t, county, advanced_farming, quirks),
     }
 }
 
@@ -984,6 +1003,10 @@ pub fn reclaim_labour_estimate(
 mod tests {
     use super::*;
 
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
+
     /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
 
@@ -1193,18 +1216,18 @@ mod tests {
         c.labour[T.job.grain_farming] = 10_000;
         c.weather = Weather::Cloudy;
 
-        grain_season_tick(T, &mut c, Season::Spring, true);
+        grain_season_tick(T, &mut c, Season::Spring, true, Q);
         assert_eq!(c.grain, 140, "60 sacks of seed spent");
         assert_eq!(c.crop[0], 60, "the seed, not the crop");
         assert_eq!(c.crop[1], 720, "and the crop is the seed times twelve");
         assert_eq!(c.fields_grain_sown, 6);
 
-        grain_season_tick(T, &mut c, Season::Summer, true);
+        grain_season_tick(T, &mut c, Season::Summer, true, Q);
         assert_eq!(c.crop[1], 720);
         assert_eq!(c.crop[2], 0, "nothing is harvested in summer");
-        grain_season_tick(T, &mut c, Season::Autumn, true);
+        grain_season_tick(T, &mut c, Season::Autumn, true, Q);
         assert_eq!(c.crop[1], 720);
-        grain_season_tick(T, &mut c, Season::Winter, true);
+        grain_season_tick(T, &mut c, Season::Winter, true, Q);
         assert_eq!(c.crop[2], 720, "and this is the harvest");
         assert_eq!(c.grain, 860, "140 + 720");
     }
@@ -1220,11 +1243,11 @@ mod tests {
             c.grain = 200;
             c.weather = Weather::Cloudy;
             c.labour[T.job.grain_farming] = 10_000;
-            grain_season_tick(T, &mut c, Season::Spring, true);
+            grain_season_tick(T, &mut c, Season::Spring, true, Q);
             assert_eq!(c.crop[1], 720);
             c.labour[T.job.grain_farming] = grow_hands;
             for season in [Season::Summer, Season::Autumn, Season::Winter] {
-                grain_season_tick(T, &mut c, season, true);
+                grain_season_tick(T, &mut c, season, true, Q);
             }
             c.crop[2]
         };
@@ -1247,10 +1270,10 @@ mod tests {
             c.grain = 200;
             c.weather = Weather::Cloudy;
             c.labour[T.job.grain_farming] = 10_000;
-            grain_season_tick(T, &mut c, Season::Spring, true);
+            grain_season_tick(T, &mut c, Season::Spring, true, Q);
             c.fertility = fertility;
             for season in [Season::Summer, Season::Autumn, Season::Winter] {
-                grain_season_tick(T, &mut c, season, true);
+                grain_season_tick(T, &mut c, season, true, Q);
             }
             c.crop[2]
         };
@@ -1273,17 +1296,17 @@ mod tests {
         c.grain = 200;
         c.weather = Weather::Cloudy;
         c.labour[T.job.grain_farming] = 10_000;
-        grain_season_tick(T, &mut c, Season::Spring, true);
+        grain_season_tick(T, &mut c, Season::Spring, true, Q);
         assert_eq!(c.crop[1], 720);
 
         c.fields_grain = 3; // half the fields turned over to pasture
-        grain_season_tick(T, &mut c, Season::Summer, true);
+        grain_season_tick(T, &mut c, Season::Summer, true, Q);
         assert_eq!(c.crop[1], 360);
 
         // And back the other way: twelve fields on a crop sown on six is still
         // a crop sown on six.
         c.fields_grain = 12;
-        grain_season_tick(T, &mut c, Season::Autumn, true);
+        grain_season_tick(T, &mut c, Season::Autumn, true, Q);
         assert_eq!(c.crop[1], 360);
     }
 
@@ -1296,7 +1319,7 @@ mod tests {
             c.labour[T.job.grain_farming] = 10_000;
             c.weather = weather;
             for season in Season::ALL {
-                grain_season_tick(T, &mut c, season, true);
+                grain_season_tick(T, &mut c, season, true, Q);
             }
             c.grain
         };
@@ -1315,7 +1338,7 @@ mod tests {
         c.grain = 1000;
         c.weather = Weather::Cloudy;
         c.event_grain_pct = -30; // "eaten by rats"
-        grain_season_tick(T, &mut c, Season::Winter, true);
+        grain_season_tick(T, &mut c, Season::Winter, true, Q);
         assert_eq!(c.grain, 700);
         assert_eq!(c.event_grain_pct, 0);
     }
@@ -1325,7 +1348,7 @@ mod tests {
         let mut c = County::new();
         c.grain = 10;
         c.event_grain_pct = -200;
-        grain_season_tick(T, &mut c, Season::Winter, true);
+        grain_season_tick(T, &mut c, Season::Winter, true, Q);
         assert_eq!(c.grain, 0);
     }
 

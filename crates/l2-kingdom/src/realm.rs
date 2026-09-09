@@ -5,6 +5,7 @@
 //! byte layout is not.
 
 use crate::tables::{Tables, WEAPON_TYPE_COUNT};
+use l2_net::{Quirk, Quirks};
 
 /// `g_realms` is 6 records and **index 0 is unused** (`docs/kingdom.md` §2), so
 /// the usable realm ids are 1..=5 — which is also `g_playerStartCount`'s
@@ -512,8 +513,37 @@ impl Realm {
     /// field's own documentation; `docs/kingdom.md` §4.1 says the original
     /// sums into a signed byte with nothing clamping it, and marks whether it
     /// wraps in play as untested. Reproducing it keeps that question askable.
-    pub fn add_empire_tax_happiness(&mut self, contribution: i32) {
+    ///
+    /// **Switchable** — [`Quirk::EmpireTaxHappinessWraps`], `docs/bugs.md` B4.
+    /// With the quirk fixed the running total is accumulated in `i32` and
+    /// *saturated* into the byte, so sixteen counties at −15 land on −128 and
+    /// stay there instead of coming back round as +16. The field stays an `i8`
+    /// either way — widening it would change the *save*, and the bug is the
+    /// missing clamp rather than the width.
+    ///
+    /// **The fixed path is not `saturating_add` on the byte**, and the
+    /// difference is not pedantic: contributions can be either sign, so a walk
+    /// that dips past −128 and climbs back would saturate to a *third* answer
+    /// that is neither the original's nor the intended one. [`crate::tax`]
+    /// therefore accumulates the realm's whole total in `i32` and calls
+    /// [`Realm::set_empire_tax_happiness`] once, and this method is the
+    /// original's per-county step.
+    pub fn add_empire_tax_happiness(&mut self, contribution: i32, quirks: Quirks) {
+        debug_assert!(
+            quirks.reproduces(Quirk::EmpireTaxHappinessWraps),
+            "the fixed path totals in i32 and calls set_empire_tax_happiness"
+        );
+        let _ = quirks;
         self.tax_hap_empire = self.tax_hap_empire.wrapping_add(contribution as i8);
+    }
+
+    /// Store a realm's empire tax term, clamped into the byte it lives in.
+    ///
+    /// The fixed half of [`Quirk::EmpireTaxHappinessWraps`]. The field stays an
+    /// `i8` — widening it would change the *save*, and the defect is the
+    /// missing clamp rather than the width.
+    pub fn set_empire_tax_happiness(&mut self, total: i32) {
+        self.tax_hap_empire = total.clamp(i8::MIN as i32, i8::MAX as i32) as i8;
     }
 
     /// `Wages_ForUnit` (`0x004AD52B`) — the whole army upkeep rule.
@@ -566,6 +596,10 @@ impl Realm {
 mod tests {
     use super::*;
 
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
+
     /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
 
@@ -611,7 +645,7 @@ mod tests {
         let mut r = Realm::new();
         // Sixteen counties each contributing -10 is -160, which does not fit.
         for _ in 0..16 {
-            r.add_empire_tax_happiness(-10);
+            r.add_empire_tax_happiness(-10, Q);
         }
         assert_eq!(r.tax_hap_empire, (-160i32 as i8), "expected the i8 wrap");
         assert_eq!(r.tax_hap_empire, 96, "and -160 wraps to +96 - a *bonus*");
@@ -619,7 +653,7 @@ mod tests {
         // Below the ceiling nothing surprising happens.
         let mut ok = Realm::new();
         for _ in 0..12 {
-            ok.add_empire_tax_happiness(-10);
+            ok.add_empire_tax_happiness(-10, Q);
         }
         assert_eq!(ok.tax_hap_empire, -120);
     }

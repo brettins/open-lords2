@@ -493,6 +493,7 @@ fn the_handshake_crosses_the_same_socket_and_binds_a_slot_to_a_peer() {
 
     let mine = Hello {
         protocol: l2_net::PROTOCOL_VERSION,
+        quirks: 0,
         engine: "l2-net test build".to_string(),
         ruleset_hash: 0x1111_2222_3333_4444,
         seed: 0xfeed_beef,

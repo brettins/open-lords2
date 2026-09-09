@@ -255,7 +255,7 @@ impl Campaign {
     /// rather than immediately.
     ///
     /// Returns the outcome, which is also left in [`Campaign::outcome`].
-    pub fn settle(&mut self, local_player: u8) -> Outcome {
+    pub fn settle(&mut self, local_player: u8, quirks: l2_kingdom::Quirks) -> Outcome {
         let mut i = 0;
         while i < self.pending.len() {
             let msg = self.pending[i];
@@ -263,7 +263,7 @@ impl Campaign {
             if !msg.sets_outcome() {
                 continue;
             }
-            match victory::outcome_of(msg, local_player, self.ranking) {
+            match victory::outcome_of(msg, local_player, self.ranking, quirks) {
                 OutcomeStep::Set(o) => {
                     self.outcome = o;
                     if o.is_over() {
@@ -441,7 +441,7 @@ mod tests {
         let mut c = Campaign::new(Track::First);
         c.ranking = Ranking { opponents_remaining: 2, ..Ranking::default() };
         c.raise(ending(MSG_AI_ELIMINATED, 3));
-        assert_eq!(c.settle(1), Outcome::InPlay);
+        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::InPlay);
         assert!(c.pending.is_empty(), "a message that ends nothing is still shown and discarded");
     }
 
@@ -450,7 +450,7 @@ mod tests {
         let mut c = Campaign::new(Track::First);
         c.ranking = Ranking { opponents_remaining: 2, ..Ranking::default() };
         c.raise(ending(MSG_DEFEAT, 1));
-        assert_eq!(c.settle(1), Outcome::Lost);
+        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::Lost);
         assert_eq!(c.outcome, Outcome::Lost);
         assert_eq!(c.outcome.value(), 11);
     }
@@ -462,7 +462,7 @@ mod tests {
         let mut c = Campaign::new(Track::First);
         c.ranking = Ranking { opponents_remaining: 0, ..Ranking::default() };
         c.raise(ending(MSG_AI_ELIMINATED, 3));
-        assert_eq!(c.settle(1), Outcome::Won);
+        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::Won);
         assert_eq!(c.outcome.value(), 10);
     }
 
@@ -472,7 +472,7 @@ mod tests {
         c.ranking = Ranking { opponents_remaining: 1, ..Ranking::default() };
         c.raise(ending(MSG_VICTORY, 0));
         c.raise(ending(MSG_DEFEAT, 1));
-        assert_eq!(c.settle(1), Outcome::Won);
+        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::Won);
         assert_eq!(c.pending.len(), 1, "the message behind it is never shown");
         assert_eq!(c.pending[0].group, MSG_DEFEAT);
     }
@@ -488,6 +488,6 @@ mod tests {
             to: 0,
             category: 1,
         });
-        assert_eq!(c.settle(1), Outcome::InPlay);
+        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::InPlay);
     }
 }

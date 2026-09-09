@@ -96,6 +96,14 @@ fn furnished(seed: u64) -> Kingdom {
         fight_humans_only_byte: 1,
         exploration: true,
         time_limit: 120,
+        // Not the default, so the save has to carry it: a round trip that
+        // dropped the field would come back FAITHFUL and pass anyway.
+        quirks: {
+            let mut q = l2_kingdom::Quirks::FAITHFUL;
+            q.set_reproduced(l2_kingdom::Quirk::AnyAleFillsATinyVillage, false);
+            q.set_reproduced(l2_kingdom::Quirk::MercenaryBandOvershoots, false);
+            q
+        },
     };
     assert!(k.set_county_count(14));
 
@@ -433,7 +441,7 @@ fn furnish_campaign(k: &mut Kingdom) {
     k.campaign.mercenaries = l2_kingdom::MercenaryBands::init(14);
     let mut counties = k.counties.clone();
     for _ in 0..3 {
-        k.campaign.mercenaries.advance(&mut counties, 14);
+        k.campaign.mercenaries.advance(&mut counties, 14, k.options.quirks);
     }
     k.counties = counties;
     for band in 1..l2_kingdom::mercenary::BAND_SLOTS {
@@ -588,7 +596,9 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // number is blind to every field a unit has. The saturated fixture is what
     // covers those, and `every_field_of_the_state_is_furnished` is what makes
     // sure it does.
-    assert_eq!(c.finish().len, 57_224, "the state encoding changed - bump VERSION?");
+    // and +8 at the same version for `Options::quirks`, a u64 bitfield on the
+    // kingdom. THREE branches bumped to 14 on the same day; every delta applies.
+    assert_eq!(c.finish().len, 57_232, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

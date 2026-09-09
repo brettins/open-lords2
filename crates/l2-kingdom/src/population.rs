@@ -29,6 +29,7 @@
 use crate::county::{ChangeReason, County, CHANGE_REASON_MIN_PCT, MAX_INFLOW_SOURCES};
 use crate::math::{clamp, pct};
 use crate::tables::{Season, Tables};
+use l2_net::{Quirk, Quirks};
 
 /// Migration is capped at this many people per county per season, before the
 /// unowned halving. `docs/kingdom.md` §5.3.
@@ -69,7 +70,7 @@ pub fn movers(population: i32, happiness: i32, best_neighbour: i32, unowned: boo
 /// original walks the array in index order and so does this, which is the same
 /// thing said twice — but only one of the two is still true if somebody later
 /// parallelises the loop (`docs/netcode.md` §3).
-pub fn migrate_all(counties: &mut [County], county_count: usize) {
+pub fn migrate_all(counties: &mut [County], county_count: usize, quirks: Quirks) {
     for id in 1..=county_count {
         counties[id].emigrants = 0;
         counties[id].immigrants = 0;
@@ -115,7 +116,7 @@ pub fn migrate_all(counties: &mut [County], county_count: usize) {
             counties[d].largest_inflow = leaving;
             counties[d].largest_inflow_source = id as u8;
         }
-        record_inflow_source(&mut counties[d], id as u8);
+        record_inflow_source(&mut counties[d], id as u8, quirks);
     }
 }
 
@@ -132,10 +133,17 @@ pub fn migrate_all(counties: &mut [County], county_count: usize) {
 /// the wrong county. It is reproduced rather than fixed because a
 /// reimplementation that quietly corrects the original's bugs cannot be
 /// differentially tested against it.
-fn record_inflow_source(dest: &mut County, source: u8) {
+///
+/// **Switchable** — [`Quirk::InflowListHasNoBreak`], `docs/bugs.md` B15. The
+/// fixed path stops at the first free slot, which turns the sixteen bytes back
+/// into the list they are named for.
+fn record_inflow_source(dest: &mut County, source: u8, quirks: Quirks) {
     for slot in 0..MAX_INFLOW_SOURCES {
         if dest.inflow_sources[slot] == 0 {
             dest.inflow_sources[slot] = source;
+            if !quirks.reproduces(Quirk::InflowListHasNoBreak) {
+                return;
+            }
         }
     }
 }
@@ -144,7 +152,7 @@ fn record_inflow_source(dest: &mut County, source: u8) {
 ///
 /// `season` is `g_season` — the season now *beginning*, which is what makes
 /// `g_deathRateBySeason[4] = 8` the Winter figure.
-pub fn update_one(t: &Tables, county: &mut County, season: Season) {
+pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirks) {
     county.pop_last = county.population;
 
     let cap = pct(county.population, t.event.population_cap_pct);
@@ -190,7 +198,17 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season) {
         // Written exactly as docs/kingdom.md §5 states it. `pop` is negative
         // here, so a county that dies out stores a *negative* death count -
         // see the errata note in the crate documentation.
-        deaths = county.population;
+        //
+        // **Switchable** - [`Quirk::ExtinctCountyRecordsNegativeDeaths`],
+        // `docs/bugs.md` B16. The fixed path records the people who actually
+        // died, which is what the county had before the pass: the negation
+        // that reading suggests was lost is put back rather than the whole
+        // statement rewritten, so the shape of the original stays visible.
+        deaths = if quirks.reproduces(Quirk::ExtinctCountyRecordsNegativeDeaths) {
+            county.population
+        } else {
+            county.pop_last
+        };
         county.population = 0;
     }
 
@@ -240,15 +258,25 @@ fn change_reason(county: &County) -> ChangeReason {
 }
 
 /// `Population_UpdateAll` over the whole kingdom, in index order.
-pub fn update_all(t: &Tables, counties: &mut [County], county_count: usize, season: Season) {
+pub fn update_all(
+    t: &Tables,
+    counties: &mut [County],
+    county_count: usize,
+    season: Season,
+    quirks: Quirks,
+) {
     for id in 1..=county_count {
-        update_one(t, &mut counties[id], season);
+        update_one(t, &mut counties[id], season, quirks);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
 
     /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
@@ -284,7 +312,7 @@ mod tests {
         };
 
         let mut owned = build(72);
-        update_one(T, &mut owned, Season::Winter);
+        update_one(T, &mut owned, Season::Winter, Q);
         assert_eq!(owned.pop_last, 417);
         assert_eq!(owned.births, 63, "Pct(417, Pct(20, 75)) + 1");
         assert_eq!(owned.deaths, 45, "Pct(417, 3 + 8)");
@@ -292,7 +320,7 @@ mod tests {
         assert_eq!(owned.pop_band, 18);
 
         let mut unowned = build(77);
-        update_one(T, &mut unowned, Season::Winter);
+        update_one(T, &mut unowned, Season::Winter, Q);
         assert_eq!(unowned.births, 84, "Pct(417, 20) + 1");
         assert_eq!(unowned.deaths, 45);
         assert_eq!(unowned.population, 456);
@@ -321,7 +349,7 @@ mod tests {
         c.population = 1000;
         c.happiness = 50;
         c.health_band = 0;
-        update_one(T, &mut c, Season::Winter);
+        update_one(T, &mut c, Season::Winter, Q);
         // 35 + 8 = 43%, +2 for Diseased, +1 because base (12) < death (43).
         assert_eq!(c.deaths, 430 + 2 + 1);
     }
@@ -333,7 +361,7 @@ mod tests {
             c.population = 1000;
             c.happiness = 50;
             c.health_band = 2;
-            update_one(T, &mut c, season);
+            update_one(T, &mut c, season, Q);
             c.deaths
         };
         assert!(deaths_in(Season::Winter) > deaths_in(Season::Spring));
@@ -349,14 +377,14 @@ mod tests {
         c.population = 1;
         c.happiness = 50;
         c.health_band = 2; // 8% death rate, 0 in summer
-        update_one(T, &mut c, Season::Summer);
+        update_one(T, &mut c, Season::Summer, Q);
         assert!(c.births >= 1);
 
         let mut c = County::new();
         c.population = 1;
         c.happiness = 0;
         c.health_band = 4;
-        update_one(T, &mut c, Season::Winter); // 0 + 8 = 8%, Pct(1, 8) = 0
+        update_one(T, &mut c, Season::Winter, Q); // 0 + 8 = 8%, Pct(1, 8) = 0
         assert!(c.deaths >= 1, "8% of one person still kills someone eventually");
     }
 
@@ -367,7 +395,7 @@ mod tests {
         c.population = 1;
         c.happiness = 0;
         c.health_band = 0;
-        update_one(T, &mut c, Season::Winter);
+        update_one(T, &mut c, Season::Winter, Q);
         assert_eq!(c.population, 0);
         assert_eq!(c.births, 0);
         // docs/kingdom.md §5 stores the (negative) leftover here. See the
@@ -383,7 +411,7 @@ mod tests {
             c.population = pop;
             c.happiness = 100;
             c.health_band = 4;
-            update_one(T, &mut c, Season::Winter);
+            update_one(T, &mut c, Season::Winter, Q);
             c.population - pop
         };
         assert!(grow(400) > 0, "a small county grows");
@@ -397,7 +425,7 @@ mod tests {
         c.happiness = 50;
         c.health_band = 4;
         c.event_population_pct = 90; // a 90% baby boom, capped to 20%
-        update_one(T, &mut c, Season::Summer);
+        update_one(T, &mut c, Season::Summer, Q);
         // Pct(1000, Pct(12, 50)) = 60 natural births, +1, +200 from the capped
         // event - not the 900 the event asked for.
         assert_eq!(c.births, 60 + 1 + 200, "capped at Pct(1000, 20)");
@@ -408,7 +436,7 @@ mod tests {
         c.happiness = 50;
         c.health_band = 4;
         c.event_population_pct = -90;
-        update_one(T, &mut c, Season::Summer);
+        update_one(T, &mut c, Season::Summer, Q);
         assert_eq!(c.deaths, 200, "a plague is capped the same way");
     }
 
@@ -417,7 +445,7 @@ mod tests {
         let mut c = County::new();
         c.population = 400;
         c.army = 250;
-        update_one(T, &mut c, Season::Spring);
+        update_one(T, &mut c, Season::Spring, Q);
         assert_eq!(c.army, 0);
     }
 
@@ -441,7 +469,7 @@ mod tests {
     #[test]
     fn people_move_towards_the_happier_neighbour_and_the_cap_bites() {
         let mut c = linked([20, 90, 90], false);
-        migrate_all(&mut c, 3);
+        migrate_all(&mut c, 3, Q);
         // Pct(90 - 20, (100 - 20) / 3 = 26) = 18; Pct(1000, 18) = 180 -> capped.
         assert_eq!(c[1].emigrants, MIGRATION_CAP);
         assert_eq!(c[1].emigrant_destination, 2);
@@ -455,7 +483,7 @@ mod tests {
     fn a_perfectly_happy_county_never_loses_anyone() {
         assert_eq!(movers(10_000, 100, 100, false), 0);
         let mut c = linked([100, 100, 100], false);
-        migrate_all(&mut c, 3);
+        migrate_all(&mut c, 3, Q);
         for id in 1..=3 {
             assert_eq!(c[id].emigrants, 0);
         }
@@ -472,7 +500,7 @@ mod tests {
     fn nobody_moves_towards_an_unhappier_neighbour() {
         // A line 1 - 2 - 3 at happiness 90, 20, 20.
         let mut c = linked([90, 20, 20], false);
-        migrate_all(&mut c, 3);
+        migrate_all(&mut c, 3, Q);
         assert_eq!(c[1].emigrants, 0, "the happiest county loses nobody");
         assert_eq!(c[3].emigrants, 0, "3's only neighbour is no happier than it is");
         assert_eq!(c[2].emigrants, MIGRATION_CAP, "2 empties towards 1");
@@ -485,7 +513,7 @@ mod tests {
     #[test]
     fn the_inflow_list_repeats_one_source_into_every_free_slot() {
         let mut c = linked([20, 90, 90], false);
-        migrate_all(&mut c, 3);
+        migrate_all(&mut c, 3, Q);
         assert_eq!(c[2].inflow_sources, [1u8; MAX_INFLOW_SOURCES]);
         assert_eq!(c[2].largest_inflow, MIGRATION_CAP);
         assert_eq!(c[2].largest_inflow_source, 1);
@@ -497,12 +525,12 @@ mod tests {
     fn migration_gives_the_same_answer_every_time() {
         let a = {
             let mut c = linked([10, 40, 90], false);
-            migrate_all(&mut c, 3);
+            migrate_all(&mut c, 3, Q);
             c
         };
         for _ in 0..8 {
             let mut b = linked([10, 40, 90], false);
-            migrate_all(&mut b, 3);
+            migrate_all(&mut b, 3, Q);
             assert_eq!(a, b);
         }
     }
@@ -511,9 +539,9 @@ mod tests {
     #[test]
     fn migration_moves_nobody_until_the_population_pass_runs() {
         let mut c = linked([20, 90, 90], false);
-        migrate_all(&mut c, 3);
+        migrate_all(&mut c, 3, Q);
         assert_eq!(c[1].population, 1000, "still there");
-        update_all(T, &mut c, 3, Season::Summer);
+        update_all(T, &mut c, 3, Season::Summer, Q);
         assert!(c[1].population < 1000 + c[1].births);
         assert_eq!(c[2].population, 1000 + c[2].births - c[2].deaths + MIGRATION_CAP);
     }

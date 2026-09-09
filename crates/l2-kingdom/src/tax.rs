@@ -19,6 +19,7 @@ use crate::county::County;
 use crate::math::pct;
 use crate::realm::Realm;
 use crate::tables::{Tables, MAX_TAX_RATE};
+use l2_net::{Quirk, Quirks};
 
 /// The tax rate that costs nothing. `dHapTax = 5 - rate`.
 pub const FREE_TAX_RATE: i32 = 5;
@@ -86,12 +87,29 @@ pub fn empire_contribution(t: &Tables, tax_rate: i32) -> i32 {
 /// Two passes over the counties, in index order: the sum has to be complete
 /// before any county reads it, and a single pass would make a county's tax
 /// happiness depend on its position in the array.
+///
+/// **Switchable** — [`Quirk::EmpireTaxHappinessWraps`], `docs/bugs.md` B4.
+/// `Tax_SumEmpireHappiness` (`0x0044B99A`) sums signed bytes into a signed byte
+/// with nothing clamping it, and sixteen counties at −15 is −240, which wraps
+/// to +16 — so taxing a large empire hard enough can make its people happier.
+///
+/// The fixed path totals in `i32` and clamps **once at the end** rather than
+/// saturating each step, because the contributions are not all one sign: a walk
+/// that dipped below −128 and climbed back would otherwise land on a third
+/// answer belonging to neither setting. Both paths make exactly the same two
+/// passes over the counties in the same order, so nothing else about the tick
+/// moves.
 pub fn sum_empire_happiness(
     t: &Tables,
     counties: &mut [County],
     realms: &mut [Realm],
     county_count: usize,
+    quirks: Quirks,
 ) {
+    let faithful = quirks.reproduces(Quirk::EmpireTaxHappinessWraps);
+    // Index-ordered and fixed length: no map, nothing iterated in hash order
+    // (`docs/netcode.md` D-4).
+    let mut totals = [0i32; crate::realm::MAX_REALMS];
     for realm in realms.iter_mut() {
         realm.tax_hap_empire = 0;
     }
@@ -100,7 +118,18 @@ pub fn sum_empire_happiness(
         counties[id].tax_hap_other = contribution;
         let owner = counties[id].owner as usize;
         if owner != 0 && owner < realms.len() {
-            realms[owner].add_empire_tax_happiness(contribution);
+            if faithful {
+                realms[owner].add_empire_tax_happiness(contribution, quirks);
+            } else if owner < totals.len() {
+                totals[owner] += contribution;
+            }
+        }
+    }
+    if !faithful {
+        for (owner, realm) in realms.iter_mut().enumerate() {
+            if let Some(total) = totals.get(owner) {
+                realm.set_empire_tax_happiness(*total);
+            }
         }
     }
 }
@@ -144,6 +173,10 @@ pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
 
     use crate::tables::{CASTLE_TAX_BONUS_PCT, CASTLE_TYPE_COUNT};
 
@@ -224,7 +257,7 @@ mod tests {
             counties[id].owner = 1;
             counties[id].tax_rate = 0;
         }
-        sum_empire_happiness(T, &mut counties, &mut realms, 4);
+        sum_empire_happiness(T, &mut counties, &mut realms, 4, Q);
         assert_eq!(realms[1].tax_hap_empire, 0);
         for id in 1..=4 {
             assert_eq!(counties[id].tax_hap_other, 0);
@@ -242,7 +275,7 @@ mod tests {
             counties[id].population = 400;
         }
         counties[2].tax_rate = 25;
-        sum_empire_happiness(T, &mut counties, &mut realms, 4);
+        sum_empire_happiness(T, &mut counties, &mut realms, 4, Q);
 
         // -2 from the table, not -20 from `min(5 - rate, 0)`. This assertion
         // read -20 until `g_taxHappinessOther` was actually read: the real
@@ -299,7 +332,7 @@ mod tests {
         counties[1].owner = 1;
         counties[2].owner = 2;
         counties[2].tax_rate = 30;
-        sum_empire_happiness(T, &mut counties, &mut realms, 2);
+        sum_empire_happiness(T, &mut counties, &mut realms, 2, Q);
         assert_eq!(realms[1].tax_hap_empire, 0);
         assert_eq!(realms[2].tax_hap_empire, -3, "rate 30 is -3 in the table, not -25");
     }
@@ -311,7 +344,7 @@ mod tests {
         let mut realms = vec![Realm::new(); 6];
         counties[1].owner = 0;
         counties[1].tax_rate = 40;
-        sum_empire_happiness(T, &mut counties, &mut realms, 1);
+        sum_empire_happiness(T, &mut counties, &mut realms, 1, Q);
         for r in realms.iter() {
             assert_eq!(r.tax_hap_empire, 0);
         }
@@ -333,7 +366,7 @@ mod tests {
             counties[1].owner = 1;
             counties[1].population = 400;
             counties[1].tax_rate = rate;
-            sum_empire_happiness(T, &mut counties, &mut realms, 1);
+            sum_empire_happiness(T, &mut counties, &mut realms, 1, Q);
             let empire = realms[1].tax_hap_empire as i32;
             collect(T, &mut counties[1], empire);
 

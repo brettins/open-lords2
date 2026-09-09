@@ -42,6 +42,7 @@ use crate::math::pct;
 use crate::realm::Realm;
 use crate::report::Message;
 use crate::tables::{Commodity, Tables, RESOURCE_LIMIT_UNLIMITED, WEAPON_TYPE_COUNT};
+use l2_net::{Quirk, Quirks};
 
 /// `PctOf(a, b) = a * 100 / b` — `FUN_00404DC1`, the companion to
 /// [`crate::math::pct`]. Zero denominator gives zero, exactly as the original
@@ -966,7 +967,7 @@ pub fn map_toggle_for_graphic(graphic: u8) -> Option<MapToggle> {
 /// The caller supplies the allocation and the estimates it can run, as
 /// [`crate::field::set_type`] does and for the same reasons —
 /// [`crate::Kingdom::toggle_industry`] is the whole thing assembled.
-pub fn toggle_from_map(county: &mut County, what: MapToggle) -> bool {
+pub fn toggle_from_map(county: &mut County, what: MapToggle, quirks: Quirks) -> bool {
     match what {
         MapToggle::Industry(c) => {
             let slot = c.index();
@@ -980,9 +981,19 @@ pub fn toggle_from_map(county: &mut County, what: MapToggle) -> bool {
         }
         MapToggle::Castle => {
             // `local_c = (castleSwitch != 0)` is taken **before** the flip, and
-            // that stale value is what reaches the share toggle. Reproduced.
+            // that stale value is what reaches the share toggle.
+            //
+            // **Switchable** — [`Quirk::CastleSwitchMovesShareBackwards`],
+            // `docs/bugs.md` B12. The fixed path passes the value the switch
+            // has *after* the flip, which is what the industry arm one match
+            // limb above already does.
             let was = county.castle_switch;
-            crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, was);
+            let told = if quirks.reproduces(Quirk::CastleSwitchMovesShareBackwards) {
+                was
+            } else {
+                !was
+            };
+            crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, told);
             county.castle_switch = !was;
             county.castle_switch
         }
@@ -993,6 +1004,10 @@ pub fn toggle_from_map(county: &mut County, what: MapToggle) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
 
     /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;

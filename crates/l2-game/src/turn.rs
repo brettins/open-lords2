@@ -584,7 +584,7 @@ fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
     // deliberately does not own, because the pass does not know who the local
     // player is.
     game.rank_realms();
-    let outcome = game.campaign.settle(game.player);
+    let outcome = game.campaign.settle(game.player, game.kingdom.options.quirks);
     // **The turn is over, so the progress goes.** Every scrap of it moves into
     // the outcome — nothing is left on the `Game`, because a `Game` carrying a
     // finished turn's leavings is a `Game` that no longer round-trips through a

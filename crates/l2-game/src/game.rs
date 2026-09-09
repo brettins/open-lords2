@@ -47,6 +47,140 @@ pub use l2_kingdom::tables::MAX_TAX_RATE;
 /// geometry are the same number.
 pub const MAX_RATION_SPLIT: i32 = 100;
 
+/// **The machine's preferences** — the original's `g_options` block, minus the
+/// parts that are the world's.
+///
+/// # The third category, and it is a category
+///
+/// There are three kinds of switch in this engine and conflating any two of
+/// them is a real fault rather than an untidiness:
+///
+/// | | where | reaches the simulation? | in the save? |
+/// |---|---|---|---|
+/// | a **rule** the game was started with | [`l2_kingdom::kingdom::Options`] | yes, and the lockstep digest | the world's save |
+/// | a **quirk** — one of the original's defects, switched | `Options::quirks` if behavioural, [`Quirks`] if presentation | behavioural: yes. presentation: never | behavioural only |
+/// | a **preference** — sound, animation, scroll speed | here | **never** | not the world's save |
+///
+/// A preference is what *this machine* is like, not what *this game* is. Two
+/// players in a lockstep session may disagree about every field here and compute
+/// identical turns, which is exactly why none of it may reach `l2-kingdom` or
+/// `l2-sim` (`docs/netcode.md` D-12) and why none of it is in
+/// `l2_kingdom::save`. **A debug overlay toggle belongs here too**, not on
+/// `Options::quirks` and not on `Tables`: it is not a rule variation at all.
+///
+/// # The original keeps these in a file, and we do not yet
+///
+/// `Options_Save` (`0x004AE15F`) writes the whole `g_options` block —
+/// **0x468 bytes, and the shipped `lords2.inf` is exactly that long** — from a
+/// single call site on the shutdown path, so the original loses every setting
+/// changed that session if it crashes. `Options_Load` (`0x004AE1B8`) reads it
+/// back and `Options_Validate` (`0x004AE2BD`) checks `g_optionsMagic`
+/// (`0x0053F204`) against **0x7EC** *after* the read, defaulting the whole block
+/// when it does not match. `[V]` on all of it.
+///
+/// **We do not write a preferences file yet, and that is a gap rather than a
+/// decision.** Saying so here is the point: a reader who finds no persistence
+/// should meet the fact rather than assume it was considered. What a file would
+/// need is settled — `docs/environment.md` already says where our own files go —
+/// and it is not this branch's job.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Prefs {
+    /// `g_optMusic` (`0x0053F218`). Default 1 — `FUN_004AF35E` sets all three
+    /// sound flags at start-up.
+    pub music: bool,
+    /// `g_optSoundEffects` (`0x0053F214`).
+    pub effects: bool,
+    /// `g_optSpeech` (`0x0053F20C`). **Defaulted twice** by
+    /// `Options_SetDefaults` — `0x004AE369` and `0x004AE389` both store 1 into
+    /// `0x0053F20C` — which is harmless as shipped and means one of that
+    /// function's five sound lines lost its target. `docs/bugs.md` B66.
+    pub speech: bool,
+    /// `g_optAnimations` (`0x0053F248`). Read by `Screen_BattleOutcome`
+    /// (`0x00423241`), `Msg_DrawWindow` (`0x0047309E`) and `Map_ClampScroll`
+    /// (`0x00429B1D`).
+    pub animations: bool,
+    /// `g_optTipScreens` (`0x0053F24C`), read by `Tip_Update` (`0x00476AA7`).
+    pub tip_screens: bool,
+    /// `g_optToolTips` (`0x0053F250`).
+    pub tool_tips: bool,
+    /// `g_optScrollSpeed` (`0x0053F234`) — **0, 10, 20 … 100, eleven settings**,
+    /// because `Ui_OpenSlider` is opened with step 10, minimum 0 and maximum
+    /// 100 and the two arrows are the only writers. Shown as 0…10, because the
+    /// spinner's format 1 divides by ten.
+    ///
+    /// `Map_ScrollThrottle` (`0x004BBBE3`) turns it into a delay:
+    /// `((100 - speed) / 10) * 12 + 2` milliseconds, integer division
+    /// throughout, plus 24 ms on the army-movement screen — and `q >= 10`
+    /// returns early, so **only speed 0 disables scrolling**. Default 60, which
+    /// is 50 ms. `[V]`
+    pub scroll_speed: i32,
+    /// `g_optGameSpeed` (`0x0053F230`) — the same eleven settings and the same
+    /// spinner, default **90**. Its consumer is `0x004BBAC3`, whose arithmetic
+    /// is the parallel of the scroll throttle's; that it is the main loop's tick
+    /// budget is **`[I]` and untraced**, so nothing here acts on it.
+    pub game_speed: i32,
+}
+
+impl Default for Prefs {
+    /// `Options_SetDefaults` (`0x004AE310`), for the fields we carry.
+    fn default() -> Prefs {
+        Prefs {
+            music: true,
+            effects: true,
+            speech: true,
+            animations: true,
+            tip_screens: true,
+            tool_tips: true,
+            scroll_speed: 60,
+            game_speed: 90,
+        }
+    }
+}
+
+impl Prefs {
+    /// The eleven settings both speed spinners step through.
+    pub const SPEED_STEP: i32 = 10;
+    pub const SPEED_MIN: i32 = 0;
+    pub const SPEED_MAX: i32 = 100;
+
+    /// `Map_ScrollThrottle`'s delay in milliseconds, or `None` when scrolling is
+    /// off altogether.
+    ///
+    /// **The early return is the whole reason this returns an `Option`.** The
+    /// original tests `q >= 10` and returns 0 — *"do not scroll this frame"* —
+    /// rather than computing a very long delay, so speed 0 is not "very slow",
+    /// it is "never". A reimplementation that only computed the delay would
+    /// creep instead of stopping.
+    pub fn scroll_delay_ms(&self) -> Option<i32> {
+        let q = (Prefs::SPEED_MAX - self.scroll_speed) / Prefs::SPEED_STEP;
+        if q >= 10 {
+            return None;
+        }
+        Some(q * 12 + 2)
+    }
+
+    /// Step a speed the way `Ui_SliderUp` / `Ui_SliderDown` do.
+    ///
+    /// **Not a clamp, a gate**: the original's arrows are
+    /// `if (*v < max) *v += step` and `if (min < *v) *v -= step`, so a value
+    /// already at the end simply does not move. That is the same shape as
+    /// `l2_kingdom::mercenary::bands_in_play`'s "clamped" that turned out not to
+    /// be a clamp, and it is written the original's way for the same reason.
+    pub fn step_speed(value: i32, up: bool) -> i32 {
+        if up {
+            if value < Prefs::SPEED_MAX {
+                value + Prefs::SPEED_STEP
+            } else {
+                value
+            }
+        } else if Prefs::SPEED_MIN < value {
+            value - Prefs::SPEED_STEP
+        } else {
+            value
+        }
+    }
+}
+
 /// **Switches that turn one of the original's *presentation* defects off.**
 ///
 /// Every field defaults to `false`, which is the original's behaviour, and
@@ -69,19 +203,90 @@ pub const MAX_RATION_SPLIT: i32 = 100;
 /// whose whole definition is *"everything the screens draw with, not part of
 /// the world."*
 ///
-/// A behavioural quirk still belongs on `Options` and still costs the bump.
-/// The two sets are different things; `docs/bugs.md` §6.3a has the test that
-/// tells them apart, and `docs/decisions.md` C61 the argument.
+/// A behavioural quirk still belongs on [`l2_kingdom::kingdom::Options`] and
+/// still costs the bump. `docs/bugs.md` §6.3a has the one-line test that tells
+/// them apart — *if flipping it can change a number in a saved game it is
+/// behavioural; if it can only change which pixels are painted from the same
+/// numbers it is presentation* — and `docs/decisions.md` C62 the argument for
+/// the group switch that spans both.
+///
+/// # The table is how the group switch reaches this half
+///
+/// [`PRESENTATION`] names every field and the `docs/bugs.md` entry it undoes,
+/// and [`Quirks::get`] / [`Quirks::set`] go through it. Rust cannot enumerate a
+/// struct's fields, and the quirks page must be able to walk *both* sets to show
+/// one tri-state parent — a parent that spoke for only half of them would be a
+/// parent a player could not trust. `crates/l2-testkit/tests/quirks_catalogue.rs`
+/// asserts the table names every field and no others.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Quirks {
     /// Draw a county's **name** on the cloudy plate with the grey emboss the
     /// *Sovereign land* lines beneath it use, instead of the parchment emboss
     /// the original uses everywhere.
     ///
-    /// Off by default: the original's behaviour is what ships. `docs/bugs.md`
-    /// V9 has the defect and
-    /// [`crate::shell::font::SHADOW_GREY`] has the two palette indices.
+    /// Off by default, and that is the whole design: **a set bit means *fixed*,
+    /// so faithful is zero.** `docs/bugs.md` B64 has the defect and
+    /// [`crate::shell::font::SHADOW_GREY`] the two palette indices.
+    ///
+    /// This field and the table around it were built on two branches that never
+    /// met, which is why the comment standing in this space said *"no
+    /// presentation quirk has landed yet"* and named this one as the first.
     pub grey_county_name: bool,
+}
+
+/// `(field, docs/bugs.md entry)` for every field of [`Quirks`], in declaration
+/// order.
+///
+/// **The join between this half of the switch list and the catalogue.** It is
+/// prose that a machine reads, which is the only kind of prose that cannot go
+/// stale: `quirks_catalogue.rs` fails if a field is missing from it, if a row
+/// names a field that does not exist, or if a row cites an entry `docs/bugs.md`
+/// does not have.
+pub const PRESENTATION: &[(&str, &str)] = &[("grey_county_name", "B64")];
+
+impl Quirks {
+    /// Whether this defect is **fixed** — the field's own sense, and the
+    /// opposite of `l2_net::Quirks::reproduces`, which is the sense the
+    /// behavioural half is stored in.
+    ///
+    /// Named by string because the group switch walks [`PRESENTATION`]; every
+    /// drawing site reads its own field directly and never comes through here.
+    pub fn is_fixed(&self, field: &str) -> bool {
+        // One arm per field, and then the fall-through. A field that reached
+        // [`PRESENTATION`] without an arm here would read as *"the original's
+        // behaviour"* for ever, silently, which is the one failure this method
+        // can have — so it is asserted rather than left to be noticed.
+        match field {
+            "grey_county_name" => self.grey_county_name,
+            other => {
+                debug_assert!(
+                    !PRESENTATION.iter().any(|(f, _)| *f == other),
+                    "{other} is in PRESENTATION and has no arm in Quirks::is_fixed"
+                );
+                false
+            }
+        }
+    }
+
+    /// Set one field. Unknown names are ignored rather than panicking: the
+    /// caller is a click on a checkbox, and a page that could crash the game by
+    /// naming a field that has been renamed is worse than one that does
+    /// nothing.
+    pub fn set_fixed(&mut self, field: &str, fixed: bool) {
+        match field {
+            "grey_county_name" => self.grey_county_name = fixed,
+            other => debug_assert!(
+                !PRESENTATION.iter().any(|(f, _)| *f == other),
+                "{other} is in PRESENTATION and has no arm in Quirks::set_fixed"
+            ),
+        }
+    }
+
+    /// How many presentation defects are reproduced, of how many there are.
+    pub fn tally(&self) -> (usize, usize) {
+        let fixed = PRESENTATION.iter().filter(|(f, _)| self.is_fixed(f)).count();
+        (PRESENTATION.len() - fixed, PRESENTATION.len())
+    }
 }
 
 /// Everything the screens draw with. Not part of the world.
@@ -273,6 +478,27 @@ pub struct Game {
     /// describes — two armies on one tile with the battle unresolved — and the
     /// only safe thing to do with it is finish it. See [`crate::turn`].
     pub(crate) turn: Option<crate::turn::TurnProgress>,
+    /// **What this machine is like**, as against what this game is. Never in
+    /// the save, never in the digest, never below this crate. See [`Prefs`].
+    pub prefs: Prefs,
+    /// **The presentation quirks, as the person set them.**
+    ///
+    /// [`Assets::quirks`] is where the *drawing* code reads them, and it is a
+    /// per-frame copy of this. The split is forced, and it is worth naming: a
+    /// screen is handed `Ctx { game: &mut Game, assets: &Assets }`, so it can
+    /// write the world and only read the assets — which is the property that
+    /// makes `draw` unable to change anything (see [`crate::screen`]). A quirks
+    /// page that wrote `Assets` directly would need `Ctx` to carry
+    /// `&mut Assets`, and then `draw` could mutate too.
+    ///
+    /// So the setting lives here, where the page can write it, and `main.rs`
+    /// pushes it into [`Assets`] before each frame. **One authority, one
+    /// projection** — and `crates/l2-game/tests/options.rs` asserts the
+    /// projection happens, so this cannot become a field the drawing code never
+    /// sees, which is the failure `docs/decisions.md` C30 records five of.
+    ///
+    /// Never in the save and never in the digest, exactly like [`Prefs`].
+    pub presentation_quirks: Quirks,
     /// **The levy in progress** — the original's five globals, which three
     /// screens share and none of them owns.
     ///
@@ -341,6 +567,8 @@ impl Game {
             campaign: crate::victory::Campaign::new(crate::victory::Track::First),
             field_policy: crate::engagement::Answer::Decline,
             turn: None,
+            prefs: Prefs::default(),
+            presentation_quirks: Quirks::default(),
             levy: LevyOrder::default(),
         }
     }
@@ -432,6 +660,7 @@ impl Game {
             &self.kingdom.tables,
             &mut self.kingdom.realms,
             self.player,
+            self.kingdom.options.quirks,
             &mut out,
         );
         for msg in out {

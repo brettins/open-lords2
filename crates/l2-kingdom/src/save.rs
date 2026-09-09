@@ -297,6 +297,25 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 14 with `VERSION` at 13 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
+///
+///   **And a third branch, same day, same version:** **`Options::quirks`**, the bitfield saying which of the original's
+///   defects this game reproduces (`docs/bugs.md`, `docs/decisions.md` C62).
+///   It changes what the simulation computes, so it is state: a save that did
+///   not carry it would resume a fixed game as a faithful one, and a lockstep
+///   peer that never exchanged it would desync.
+///
+///   **This is the only version bump the quirk set will ever cost**, which is
+///   why the field is a `u64` bitfield rather than a run of `bool`s, and why a
+///   set bit means *fixed* rather than *reproduced*: adding a quirk next month
+///   sets a bit that is already being written as zero, and zero already means
+///   the original's behaviour. `docs/bugs.md` §6.3 asked that the bump be paid
+///   once rather than once per bug; this is how it is paid once.
+///
+///   **Refusal rather than default**, as for 12 and 13 — and here the default
+///   would even have been right, since a version 13 save was written by a build
+///   that had no quirks and so was faithful. It is refused anyway, because *"the
+///   default happens to be correct this time"* is the reasoning that makes the
+///   next widening wrong.
 pub const VERSION: u32 = 14;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
@@ -486,6 +505,10 @@ impl Encode for Kingdom {
         out.u8(self.options.fight_humans_only_byte);
         out.bool(self.options.exploration);
         out.i32(self.options.time_limit);
+        // One `u64`, inside the `options` section, which is inside the per-tick
+        // digest. That placement *is* the design: see `Options::quirks` and
+        // entry 14 of `VERSION` above.
+        out.encode(&self.options.quirks);
 
         // The generator is part of the state (docs/netcode.md D-3), so it is
         // part of the save and part of the checksum.
@@ -655,6 +678,7 @@ fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, Loa
         fight_humans_only_byte: input.u8()?,
         exploration: input.bool()?,
         time_limit: input.i32()?,
+        quirks: input.decode()?,
     };
     k.rng = input.decode()?;
 

@@ -231,7 +231,7 @@ fn every_shipped_map_starts_and_takes_a_turn() {
         let seats = set.slot(slot).unwrap().player_start_count();
         let mut game = Game::new(scenario::SEED);
         let settings =
-            l2_game::setup::SetupOptions::new().commit(1);
+            l2_game::setup::SetupOptions::new().commit(1, l2_kingdom::Quirks::default());
         // Fewer lords than the map seats, so the seat guard never fires; the
         // screen's own drop-down does this for a person.
         let lords = seats.min(5).max(1);

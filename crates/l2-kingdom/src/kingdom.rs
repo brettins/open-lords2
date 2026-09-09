@@ -93,6 +93,32 @@ pub struct Options {
     /// is a setting the game was started with. `Setup_StartGame` copies it into
     /// the turn timer as the game begins.
     pub time_limit: i32,
+    /// **Which of the original's defects this game reproduces — ours.**
+    ///
+    /// There is **no `g_optQuirks`**; the original has no such setting and
+    /// could not, because to it these are not settings at all. This field is a
+    /// declared divergence, and it is here on [`Options`] rather than on
+    /// [`Tables`] for the reason `docs/bugs.md` §6.3 works out and
+    /// `docs/decisions.md` C62 records:
+    ///
+    /// * **not on [`Tables`]** — `save::ruleset_fingerprint` is hashed into the
+    ///   save *header* and `save::decode` refuses a mismatch, so a quirk there
+    ///   would invalidate every existing save on the day it was added, and
+    ///   would frame a quirk as a *rule*, which it is not;
+    /// * **on `Options`** — `Options` is already in the save *body* and
+    ///   therefore already inside the per-tick lockstep digest, since
+    ///   [`save::checksum`] is `Canonical::hash_of(kingdom)`. That is exactly
+    ///   where something that changes what the simulation computes belongs: two
+    ///   peers whose quirk sets differ disagree at the first tick a quirk
+    ///   touches, and the desync detector names the `options` section.
+    ///
+    /// **A quirk is not a local preference.** Sound, animations and the scroll
+    /// speed are — they live in `l2_game::prefs`, are never encoded here and
+    /// never reach the digest. These change the world.
+    ///
+    /// [`Tables`]: crate::tables::Tables
+    /// [`save::checksum`]: crate::save::checksum
+    pub quirks: l2_net::Quirks,
 }
 
 impl Default for Options {
@@ -105,6 +131,12 @@ impl Default for Options {
             fight_humans_only_byte: crate::battle::FIGHT_HUMANS_ONLY_DEFAULT,
             exploration: false,
             time_limit: 0,
+            // **Faithful by default**, and the argument is `docs/bugs.md` §6.5's:
+            // the original is the oracle, the bugs are load-bearing on a balance
+            // nobody has measured, and the default becomes the value the whole
+            // corpus of saves and replays is recorded under. It is also the
+            // integer zero, so this line costs nothing.
+            quirks: l2_net::Quirks::FAITHFUL,
         }
     }
 }
@@ -515,6 +547,7 @@ impl Kingdom {
     }
 
     fn event_roll(&mut self, report: &mut SeasonReport) {
+        let quirks = self.options.quirks;
         let Some(season) = self.season() else { return };
         let humans: [bool; MAX_REALMS] = core::array::from_fn(|i| self.realms[i].is_human);
         let owner_is_human = move |owner: u8| {
@@ -541,6 +574,7 @@ impl Kingdom {
             self.year,
             season,
             &mut self.rng,
+            quirks,
             &mut report.messages,
         );
         for (realm, purse) in self.realms.iter_mut().zip(purses) {
@@ -570,6 +604,7 @@ impl Kingdom {
             &mut self.counties,
             &mut self.realms,
             self.county_count,
+            self.options.quirks,
         );
         for id in 1..=self.county_count {
             let owner = self.counties[id].owner as usize;
@@ -680,7 +715,8 @@ impl Kingdom {
     /// > and [`SEASON_PIPELINE`] is where that is written down. `[D]`
     fn mercenary_advance(&mut self) {
         let count = self.county_count;
-        self.campaign.mercenaries.advance(&mut self.counties, count);
+        let quirks = self.options.quirks;
+        self.campaign.mercenaries.advance(&mut self.counties, count, quirks);
     }
 
     fn ration_apply(&mut self, preview: bool) {
@@ -707,10 +743,11 @@ impl Kingdom {
     }
 
     fn unrest_update(&mut self, report: &mut SeasonReport) {
+        let quirks = self.options.quirks;
         for id in 1..=self.county_count {
             let human = self.owner_is_human(self.counties[id].owner);
             let mut messages = Vec::new();
-            unrest::update(&mut self.counties[id], id as u8, human, &mut messages);
+            unrest::update(&mut self.counties[id], id as u8, human, quirks, &mut messages);
             for m in messages {
                 report.message(m);
             }
@@ -742,8 +779,9 @@ impl Kingdom {
         let Some(season) = self.season() else { return };
         let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
         let advanced = self.options.advanced_farming;
+        let quirks = self.options.quirks;
         for id in 1..=self.county_count {
-            land::grain_season_tick(&self.tables, &mut self.counties[id], season, advanced);
+            land::grain_season_tick(&self.tables, &mut self.counties[id], season, advanced, quirks);
             if let Some(grain) = land::grain_labour_estimate(
                 &self.tables,
                 &self.counties[id],
@@ -982,12 +1020,18 @@ impl Kingdom {
     }
 
     fn migration_update(&mut self) {
-        population::migrate_all(&mut self.counties, self.county_count);
+        population::migrate_all(&mut self.counties, self.county_count, self.options.quirks);
     }
 
     fn population_update(&mut self) {
         let Some(season) = self.season() else { return };
-        population::update_all(&self.tables, &mut self.counties, self.county_count, season);
+        population::update_all(
+            &self.tables,
+            &mut self.counties,
+            self.county_count,
+            season,
+            self.options.quirks,
+        );
     }
 
     /// The history ring — `FUN_004AE7DD`. See [`History`].
@@ -1083,7 +1127,8 @@ impl Kingdom {
         if county == 0 || county > self.county_count {
             return false;
         }
-        let on = crate::industry::toggle_from_map(&mut self.counties[county], what);
+        let quirks = self.options.quirks;
+        let on = crate::industry::toggle_from_map(&mut self.counties[county], what, quirks);
         for _ in 0..2 {
             crate::labour::allocate(&mut self.counties[county]);
             self.refresh_estimates(county);

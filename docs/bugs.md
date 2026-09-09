@@ -273,12 +273,12 @@ is a real behaviour."*
 | **B32** | **Siege engines fall off the end of the strength-weight ladder and count 1** — a missing `else` in the original. | [D] | `l2-sim/src/ai.rs:114` — *"reproduced rather than 'corrected' to 0"* |
 | **B33** | **A shooter on surface 1 will not take a target on surface 5.** An exclusion with no evident reason. | — | `l2-sim/src/ai.rs:686` |
 | **B34** | **A failed wall search leaves the destination changed but unordered.** `Order_ToWallBelowKeep` writes the offset destination *before* the search and only re-issues the order when the search succeeds. | — | `l2-sim/src/ai.rs:899` |
-| **B62** | **An eliminated realm below the leader's index switches off the gang-up rule for the rest of the game.** `FUN_004A01EA` picks the realm each AI treats as *the* threat, and its loop is `for i in 1..6 { if (realms[i].rank < 2) { … } }` with **`return`** inside, not `continue`. [`crate::ai::rank_realms`](../crates/l2-kingdom/src/ai.rs) leaves rank **0** on a realm that is out of play, and 0 is `< 2` — so the loop stops at the first eliminated realm and the searcher ends with no threat at all. On a map where realm 1 is knocked out early, **nobody ever concentrates on the leader again.** | [D], and the early `return`s are in the disassembly | `ai_army.rs::pick_threat` — reproduced, and the doc comment says why it is not a transcription slip |
-| **B63** | **`FUN_004A6270` returns 1 after disbanding its own army.** Mission 4 disbands an army that can find no castle with room for it, and then returns the "re-path me" value — so `Ai_AdvanceArmies` flood-fills from and writes `moving = 1` into a record `Army_Destroy` has already cleared. | [D] | `ai_army.rs::mission_join_garrison` — the slot is simply empty here, which is the same observable outcome by a route that cannot read freed memory |
-| **B64** | **Mission 2's "attack where you stand" arm never updates `destCounty`.** `FUN_004A5B1F`'s last branch walks the army at the county it is standing in while unit `+0x151` still names the county the branch above it rejected. In the same arm, an *ally*-owned county with no alternative target aims the army at **county 0**, whose anchor is `g_counties[0]`'s. | [D] | `ai_army.rs::mission_seek_enemy` — both reproduced, both named |
-| **B65** | **A dead call with two identical arms.** `FUN_004A5B1F` calls `FUN_00467F2E(county)` — *"does this county border a foreign-owned one?"* — between two branches and **discards the result**; the two arms it was written to choose between are the same code. Not reproduced, because a call with no side effect and an unread result is nothing to reproduce. | [D] | `ai_army.rs::mission_seek_enemy`, stated in the doc comment |
-| **B66** | **`Diplo_ActionAllowed` is not a predicate, and the AI's own map search corrodes its alliances.** Every time it is asked about a county or a unit belonging to the asker's **ally** it increments the asker's own grudge against that ally. Both AI county choosers call it once per county, and the mission-3 and mission-6 enemy searches call it once per unit slot — so an AI hemmed in by its ally accumulates grudge purely by looking at the map, and the Knight's tolerance of 5 is reached in a handful of turns. | [D]; `symbols.json` already marks the function `[inferred]`, this is the per-turn volume | `ai_army.rs::action_allowed` — reproduced; whether it is *intended* is not established |
-| **B67** | **Tile (0, 0) can never be a destination.** All three of the AI's destination finders keep their best candidate as a byte *offset* into the tile array and use **0** as the "nothing found" sentinel, so offset 0 is indistinguishable from failure and the county's fallback tile is used instead. Harmless on every shipped map. | [D], three functions with identical bodies | `ai_army.rs::aim_tile` — reproduced, because the alternative is a difference nobody would ever find |
+| **B70** | **An eliminated realm below the leader's index switches off the gang-up rule for the rest of the game.** `FUN_004A01EA` picks the realm each AI treats as *the* threat, and its loop is `for i in 1..6 { if (realms[i].rank < 2) { … } }` with **`return`** inside, not `continue`. [`crate::ai::rank_realms`](../crates/l2-kingdom/src/ai.rs) leaves rank **0** on a realm that is out of play, and 0 is `< 2` — so the loop stops at the first eliminated realm and the searcher ends with no threat at all. On a map where realm 1 is knocked out early, **nobody ever concentrates on the leader again.** | [D], and the early `return`s are in the disassembly | `ai_army.rs::pick_threat` — reproduced, and the doc comment says why it is not a transcription slip |
+| **B71** | **`FUN_004A6270` returns 1 after disbanding its own army.** Mission 4 disbands an army that can find no castle with room for it, and then returns the "re-path me" value — so `Ai_AdvanceArmies` flood-fills from and writes `moving = 1` into a record `Army_Destroy` has already cleared. | [D] | `ai_army.rs::mission_join_garrison` — the slot is simply empty here, which is the same observable outcome by a route that cannot read freed memory |
+| **B72** | **Mission 2's "attack where you stand" arm never updates `destCounty`.** `FUN_004A5B1F`'s last branch walks the army at the county it is standing in while unit `+0x151` still names the county the branch above it rejected. In the same arm, an *ally*-owned county with no alternative target aims the army at **county 0**, whose anchor is `g_counties[0]`'s. | [D] | `ai_army.rs::mission_seek_enemy` — both reproduced, both named |
+| **B73** | **A dead call with two identical arms.** `FUN_004A5B1F` calls `FUN_00467F2E(county)` — *"does this county border a foreign-owned one?"* — between two branches and **discards the result**; the two arms it was written to choose between are the same code. Not reproduced, because a call with no side effect and an unread result is nothing to reproduce. | [D] | `ai_army.rs::mission_seek_enemy`, stated in the doc comment |
+| **B74** | **`Diplo_ActionAllowed` is not a predicate, and the AI's own map search corrodes its alliances.** Every time it is asked about a county or a unit belonging to the asker's **ally** it increments the asker's own grudge against that ally. Both AI county choosers call it once per county, and the mission-3 and mission-6 enemy searches call it once per unit slot — so an AI hemmed in by its ally accumulates grudge purely by looking at the map, and the Knight's tolerance of 5 is reached in a handful of turns. | [D]; `symbols.json` already marks the function `[inferred]`, this is the per-turn volume | `ai_army.rs::action_allowed` — reproduced; whether it is *intended* is not established |
+| **B75** | **Tile (0, 0) can never be a destination.** All three of the AI's destination finders keep their best candidate as a byte *offset* into the tile array and use **0** as the "nothing found" sentinel, so offset 0 is indistinguishable from failure and the county's fallback tile is used instead. Harmless on every shipped map. | [D], three functions with identical bodies | `ai_army.rs::aim_tile` — reproduced, because the alternative is a difference nobody would ever find |
 | **B35** | **Siege attack scripts stall the unit that is doing its job.** `UnitOrder_SiegeAttCatapult` and `UnitOrder_SiegeAttTower` `return` before the `orders` increment on their wall-found path, so a unit successfully doing its job stops advancing its script. | [D] | `battle-ai.md` §1.3 |
 
 ## 2.4 Things that move
@@ -354,6 +354,37 @@ field that the file does not answer the question — the honest reproduction, si
 cannot answer it either. `l2_kingdom::save` (**our** format, version 12) stores it, along with
 `exploration` and `time_limit`, so a game saved by this engine does not lose them. That is a
 divergence and a deliberate one: it is our save format, and D11 already separates the two.
+
+### B66 — `Options_SetDefaults` defaults one sound flag twice and, apparently, another not at all
+
+**[V]** on the duplicate; **[I]**, and no more than that, on what was meant.
+
+`Options_SetDefaults` (`0x004AE310`) stores 1 into `g_optSpeech` (`0x0053F20C`) **twice**, at
+`0x004AE369` and again at `0x004AE389`, with `g_optMusic` and `g_optSoundEffects` between them:
+
+```text
+004ae369  MOV dword ptr [0x0053f20c],0x1     ; g_optSpeech
+004ae373  MOV dword ptr [0x0053f218],0x1     ; g_optMusic
+004ae37d  MOV dword ptr [0x0053f214],0x1     ; g_optSoundEffects
+004ae387  MOV dword ptr [0x0053f20c],0x1     ; g_optSpeech AGAIN
+```
+
+Read out of the instruction bytes and confirmed independently by a 32-bit scan of the image
+for absolute references: `0x0053F20C` has exactly two inside this function and no others.
+
+**Why it is a bug.** Four consecutive stores where one target is repeated is what a
+copy-and-paste with a missed edit looks like. It is **completely harmless as shipped** —
+storing the same constant twice is storing it once — so it changes no behaviour and there is
+nothing to switch.
+
+**What it does not establish.** `g_options+0x30` (`0x0053F210`) sits in the sound block, is
+defaulted to 1, and is read by nothing; it is the obvious candidate for the store that lost
+its target. **That is a guess and it stays one.** `CLAUDE.md` rule 4 is why this paragraph
+stops here: the shape is suggestive and there is no second source, so it is not a finding.
+
+**Reproduced?** There is nothing to reproduce. `l2_game::game::Prefs::default()` sets the
+three sound flags once each, and the note lives on `Prefs::speech` so that whoever writes a
+preferences file meets the fact rather than the assumption.
 
 ## 2.7 Multiplayer — catalogue only
 
@@ -615,7 +646,7 @@ allow — is invisible to a player and harmless. `the_castle_ceiling_is_shut_unt
 in `crates/l2-kingdom/tests/labour_gap.rs` asserts both sides of the boundary: one stick
 short opens it, four sticks short (`Pct(4, 400) == 1`) shuts it.
 
-### B66 — A siege bills the repair in the material the castle is made of
+### B69 — A siege bills the repair in the material the castle is made of
 
 **Identified and not yet reproduced.** **[V].**
 
@@ -914,8 +945,27 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 
 # 6. The mechanism — what switching these off would actually take
 
-**Recommendation only.** The owner said *"make a call later"*; this is the material for that
-call, not an implementation.
+> **Built, as of `docs/decisions.md` C62.** This section was written as material for a
+> decision and the decision has been taken; it is kept as the *argument*, because the
+> argument is what a later reader needs in order to change the answer. What actually
+> shipped, and where it differs from the recommendation below:
+>
+> | | recommended here | built |
+> |---|---|---|
+> | home | `Options` | `Options::quirks` for a **behavioural** quirk; `Assets` for a **presentation** one — §6.3a, which §6.3 did not anticipate |
+> | shape | *"a struct of named `bool`s, or a bitfield"* | a `u64` bitfield, `l2_net::Quirks`, with the sense **inverted** so that faithful is zero |
+> | version bumps | *"pay the bump once"* | paid once, and the inversion is what makes it once rather than once per bug: a new quirk sets a bit that was already written as zero |
+> | default | faithful | faithful (§6.5) |
+> | scope | *"roughly a dozen worth exposing"* | fourteen wired |
+>
+> **The switch list is generated from this document**, not written beside it:
+> `crates/l2-testkit/tests/quirks_catalogue.rs` reads §2 and both switch lists as text and
+> fails if they disagree — including if a quirk is filed in the wrong home, which §6.3a's
+> price asymmetry makes the likely drift. §2 is now load-bearing: **adding an entry here
+> turns the suite red until somebody says what its switch is.**
+
+**The argument, as it was written.** The owner said *"make a call later"*; this was the
+material for that call.
 
 ## 6.1 What is already switchable through the ruleset: one entry
 
@@ -1046,10 +1096,25 @@ nowhere to travel to.
 
 ## 6.4 A coherent option group — and the game's own precedent for one
 
-**The original ships three behaviour switches, and a player has confirmed using all three.**
-They are `g_optAdvancedFarming`, `g_optArmiesEat` and `g_optExploration` — `L2.eng` group 50
-indices 1 … 3, toggled by `Opt_ToggleExploration` (`0x00434693`) and its siblings. They change
-*rules*, not presentation:
+**The original ships four behaviour switches on one panel, and a player has confirmed using
+three of them.**
+
+> **Corrected: four, not three.** This paragraph said *"three behaviour switches"* and named
+> `g_optAdvancedFarming`, `g_optArmiesEat` and `g_optExploration` as *"`L2.eng` group 50
+> indices 1 … 3"*. **Group 50 has five strings** — a heading and four rows — and
+> `g_advancedOptWidgets` (`0x004DDC10`) holds **four** 24-byte widget records whose callbacks
+> are `Opt_ToggleAdvancedFarming`, `Opt_ToggleArmyForaging`, `Opt_ToggleExploration` and
+> `Opt_ToggleFightHumansOnly`. Index 4 is *"Fight humans only?"*, it is on the same panel, and
+> it changes a rule: `FUN_004A6A30` auto-resolves a battle the local player is not in when
+> `g_optFightHumansOnly` (`0x0053F284`) is 0. **[V]** on both counts — the string count out of
+> `L2.eng` and the record count out of `.data`. `crates/l2-game/src/screens/options.rs` draws
+> all four. Nothing turned on the number; it was simply wrong, and B55a two sections up had
+> been discussing that fourth option's *save* behaviour for weeks without either half noticing
+> the other.
+
+They are `g_optAdvancedFarming`, `g_optArmiesEat`, `g_optExploration` and
+`g_optFightHumansOnly` — `L2.eng` group 50 indices 1 … 4, toggled by `Opt_ToggleExploration`
+(`0x00434693`) and its siblings. They change *rules*, not presentation:
 
 * **Advanced Farming** turns on weather, fertility and crop rotation — S1 above, and *"fallow
   fields"* in the player's own words;

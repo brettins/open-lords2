@@ -73,6 +73,7 @@ pub mod job;
 pub mod map;
 pub mod menu;
 pub mod merchant;
+pub mod options;
 pub mod saveload;
 pub mod setup;
 pub mod shells;

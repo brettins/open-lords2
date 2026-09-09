@@ -541,7 +541,7 @@ impl TradeScreen {
         }
         let k = &ctx.game.kingdom;
         let mut county = k.counties[self.county(ctx)].clone();
-        l2_kingdom::happiness::buy_ale(&k.tables, &mut county, self.crowns(ctx))
+        l2_kingdom::happiness::buy_ale(&k.tables, &mut county, self.crowns(ctx), k.options.quirks)
     }
 
     /// Which paragraph the advice well shows.

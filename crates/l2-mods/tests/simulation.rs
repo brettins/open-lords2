@@ -504,7 +504,7 @@ fn ale_then_a_year(tables: Tables) -> (i32, i32) {
     // is a round tenth and the two runs differ only in the rule.
     k.counties[1].population = 500;
     k.counties[1].happiness = 55;
-    let gained = l2_kingdom::happiness::buy_ale(&k.tables, &mut k.counties[1], 100);
+    let gained = l2_kingdom::happiness::buy_ale(&k.tables, &mut k.counties[1], 100, k.options.quirks);
     for _ in 0..4 {
         k.advance_season();
     }

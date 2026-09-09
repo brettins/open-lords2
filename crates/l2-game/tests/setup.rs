@@ -302,7 +302,7 @@ fn the_defaults_button_restores_the_originals_defaults() {
     // *Defaults* is the third caption on the row.
     click(&mut screen, &mut game, &assets, 0x141 + 20, 0xC6);
     assert_eq!(screen.options(), &SetupOptions::new());
-    let s = screen.options().commit(1);
+    let s = screen.options().commit(1, l2_kingdom::Quirks::FAITHFUL);
     assert_eq!(s.gold, 1000, "the default purse, not 100 and not zero");
     assert_eq!(s.castle_type, 3, "a keep");
 }

@@ -77,7 +77,7 @@
 use crate::county::County;
 use crate::report::Message;
 use crate::tables::{Season, Tables};
-use l2_net::Pcg32;
+use l2_net::{Pcg32, Quirk, Quirks};
 
 /// The `i8` sentinel `Herd_SeasonTick` tests for before it tests the sign:
 /// *"No bull"* writes 99 into the herd modifier and the herd pass reads it as
@@ -323,8 +323,17 @@ pub enum Effect {
 /// crossbow, can never be found or embezzled at all. `FUN_00449688`, the
 /// *"Corruption"* handler, computes the same index the same way, which is what
 /// makes it a shared idiom rather than a one-off typo.
-pub fn weapon_slot(county_id: usize) -> usize {
-    (county_id & 3) + 1
+///
+/// **Switchable** — [`Quirk::FoundWeaponFollowsCountyId`], `docs/bugs.md` B3.
+/// With the quirk fixed the county's own `weapon_type` (`+0x290`) is used, which
+/// is the field both handlers were plainly reaching for, and the crossbow —
+/// weapon slot 0, which `(id & 3) + 1` can never produce — becomes findable.
+pub fn weapon_slot(county_id: usize, county_weapon_type: usize, quirks: Quirks) -> usize {
+    if quirks.reproduces(Quirk::FoundWeaponFollowsCountyId) {
+        (county_id & 3) + 1
+    } else {
+        county_weapon_type.min(crate::tables::WEAPON_TYPE_COUNT - 1)
+    }
 }
 
 /// The units of weapons a find or an embezzlement moves. `[V]` — both handlers
@@ -471,7 +480,13 @@ pub struct RealmPurse {
 }
 
 /// Whether a county and its realm satisfy an event's guard.
-pub fn guard_passes(guard: &Guard, county: &County, id: usize, purse: &RealmPurse) -> bool {
+pub fn guard_passes(
+    guard: &Guard,
+    county: &County,
+    id: usize,
+    purse: &RealmPurse,
+    quirks: Quirks,
+) -> bool {
     match guard {
         Guard::Always => true,
         Guard::Grain(n) => county.grain >= *n,
@@ -483,10 +498,11 @@ pub fn guard_passes(guard: &Guard, county: &County, id: usize, purse: &RealmPurs
         Guard::HappinessBelow(n) => county.happiness < *n,
         Guard::Gold(n) => purse.gold >= *n,
         Guard::Wood(n) => purse.wood >= *n,
-        Guard::Weapons(n) => purse.weapons[weapon_slot(id)] >= *n,
+        Guard::Weapons(n) => purse.weapons[weapon_slot(id, county.weapon_type, quirks)] >= *n,
         Guard::TaxShown(n) => county.tax_shown >= *n,
         Guard::Both(a, b) => {
-            guard_passes(a, county, id, purse) && guard_passes(b, county, id, purse)
+            guard_passes(a, county, id, purse, quirks)
+                && guard_passes(b, county, id, purse, quirks)
         }
         // `Mother nature` needs a field slot free to turn fallow; `Locusts`
         // needs a grain field to ruin. **`[I]` on the mapping**: the original
@@ -509,16 +525,17 @@ pub fn fire(
     purse: &mut RealmPurse,
     kind: EventKind,
     season: Season,
+    quirks: Quirks,
 ) -> bool {
-    if !guard_passes(&kind.guard(), county, id, purse) {
+    if !guard_passes(&kind.guard(), county, id, purse, quirks) {
         return false;
     }
     let effect = kind.effect(season);
-    if !apply(county, id, purse, effect) {
+    if !apply(county, id, purse, effect, quirks) {
         return false;
     }
     if let Some(extra) = kind.health_side_effect() {
-        apply(county, id, purse, extra);
+        apply(county, id, purse, extra, quirks);
     }
     county.event_fired = true;
     county.event_id = kind.id();
@@ -527,7 +544,13 @@ pub fn fire(
 
 /// One [`Effect`]. Returns `false` when the effect could not happen at all,
 /// which only the two field events can report.
-fn apply(county: &mut County, id: usize, purse: &mut RealmPurse, effect: Effect) -> bool {
+fn apply(
+    county: &mut County,
+    id: usize,
+    purse: &mut RealmPurse,
+    effect: Effect,
+    quirks: Quirks,
+) -> bool {
     match effect {
         Effect::PopulationPct(p) => county.event_population_pct = p,
         Effect::GrainPct(p) => county.event_grain_pct = p,
@@ -542,7 +565,7 @@ fn apply(county: &mut County, id: usize, purse: &mut RealmPurse, effect: Effect)
         Effect::Gold(d) => purse.gold += d,
         Effect::Stone(d) => purse.stone += d,
         Effect::Wood(d) => purse.wood += d,
-        Effect::Weapons(d) => purse.weapons[weapon_slot(id)] += d,
+        Effect::Weapons(d) => purse.weapons[weapon_slot(id, county.weapon_type, quirks)] += d,
         Effect::SuppressTax => county.tax_suppressed = true,
         Effect::FieldGained => {
             if county.field_total() >= crate::county::MAX_FIELDS as i32 {
@@ -585,9 +608,26 @@ pub fn roll_all(
     year: i32,
     season: Season,
     rng: &mut Pcg32,
+    quirks: Quirks,
     out: &mut Vec<Message>,
 ) {
-    let mut index = (rng.below(EVENT_SEED_BOUND) * 2) as usize;
+    // **Switchable** — [`Quirk::EventDeckParityLocksOutEvenCounties`],
+    // `docs/bugs.md` B2. `00448822 MOV EAX,[0x0058FD60] / ADD EAX,EAX`: the
+    // doubling is what makes the starting slot always even, and every filled
+    // slot is odd, so county `k` can only ever land on a slot of parity `k`.
+    //
+    // The fix draws the starting slot over the whole deck instead of over half
+    // of it doubled. **One `next_u32()` either way** — both bounds are powers
+    // of two, so `Pcg32::below`'s rejection loop never turns, and the number of
+    // values taken from the generator does not depend on the setting. That
+    // property is not decoration: a quirk that changed how often the simulation
+    // drew would desync a peer at the *next* draw rather than at this one, and
+    // the desync dump would name the wrong subsystem (`docs/netcode.md` §3).
+    let mut index = if quirks.reproduces(Quirk::EventDeckParityLocksOutEvenCounties) {
+        (rng.below(EVENT_SEED_BOUND) * 2) as usize
+    } else {
+        rng.below(EVENT_DECK_SLOTS as u32) as usize
+    };
     for id in 1..=county_count {
         // The original clears all four every season, whether or not this county
         // draws — which is what stops a modifier being applied twice.
@@ -608,7 +648,7 @@ pub fn roll_all(
         }
         let owner = counties[id].owner as usize;
         let mut purse = purses.get(owner).copied().unwrap_or_default();
-        if fire(&mut counties[id], id, &mut purse, kind, season) {
+        if fire(&mut counties[id], id, &mut purse, kind, season, quirks) {
             if let Some(slot) = purses.get_mut(owner) {
                 *slot = purse;
             }
@@ -620,6 +660,10 @@ pub fn roll_all(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful: every test here asserts the original.s answer unless it says
+    /// otherwise. The switched-off answers live in `tests/quirks.rs`.
+    const Q: Quirks = Quirks::FAITHFUL;
 
     /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
@@ -745,12 +789,12 @@ mod tests {
         c.herd = 39; // one short of Wolves' guard
         let before = c.clone();
         let mut purse = RealmPurse::default();
-        assert!(!fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring));
+        assert!(!fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring, Q));
         assert_eq!(c, before);
         assert!(!c.event_fired);
 
         c.herd = 40;
-        assert!(fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring));
+        assert!(fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring, Q));
         assert_eq!(c.event_herd_pct, -40);
         assert!(c.event_fired);
         assert_eq!(c.event_id, 0x89);
@@ -763,11 +807,11 @@ mod tests {
         let mut c = county(1);
         c.tax_shown = 9;
         let mut purse = RealmPurse::default();
-        assert!(!fire(&mut c, 1, &mut purse, EventKind::StopThief, Season::Spring));
+        assert!(!fire(&mut c, 1, &mut purse, EventKind::StopThief, Season::Spring, Q));
         assert!(!c.tax_suppressed, "not worth robbing");
 
         c.tax_shown = 10;
-        assert!(fire(&mut c, 1, &mut purse, EventKind::StopThief, Season::Spring));
+        assert!(fire(&mut c, 1, &mut purse, EventKind::StopThief, Season::Spring, Q));
         assert!(c.tax_suppressed);
 
         // And the gate is what Tax_CollectAll reads.
@@ -805,7 +849,7 @@ mod tests {
         let mut c = county(1);
         furnish(&mut c);
         let mut purse = RealmPurse::default();
-        assert!(fire(&mut c, 1, &mut purse, EventKind::NoBull, Season::Spring));
+        assert!(fire(&mut c, 1, &mut purse, EventKind::NoBull, Season::Spring, Q));
         assert_eq!(c.event_herd_pct, HERD_NO_GROWTH);
 
         crate::land::herd_season_tick(T, &mut c, Season::Spring as u8, Season::Summer as u8);
@@ -835,7 +879,7 @@ mod tests {
         c.health_meter = 100;
         c.health_band = 4;
         let mut purse = RealmPurse::default();
-        assert!(fire(&mut c, 1, &mut purse, EventKind::Plague, Season::Winter));
+        assert!(fire(&mut c, 1, &mut purse, EventKind::Plague, Season::Winter, Q));
         assert_eq!(c.event_population_pct, -40);
         assert_eq!(c.health_meter, 25, "clamped down to 25, not 100 - 20");
         assert_eq!(c.health_band, 1, "Sick");
@@ -850,8 +894,8 @@ mod tests {
             let mut c = county(1);
             c.weapon_type = 5; // armour: what the county actually makes
             let mut purse = RealmPurse::default();
-            assert!(fire(&mut c, id, &mut purse, EventKind::WeaponsFound, Season::Spring));
-            let slot = weapon_slot(id);
+            assert!(fire(&mut c, id, &mut purse, EventKind::WeaponsFound, Season::Spring, Q));
+            let slot = weapon_slot(id, c.weapon_type, Q);
             assert_eq!(purse.weapons[slot], 25, "county {id}");
             assert_ne!(slot, 0, "slot 0, the crossbow, is unreachable");
             assert_ne!(slot, 5, "and it is never what the county makes here");
@@ -864,19 +908,19 @@ mod tests {
     fn the_three_thefts_are_guarded_on_there_being_something_to_take() {
         let mut c = county(1);
         let mut purse = RealmPurse { gold: 499, wood: 299, ..RealmPurse::default() };
-        purse.weapons[weapon_slot(1)] = 24;
-        assert!(!fire(&mut c, 1, &mut purse, EventKind::Fraud, Season::Spring));
-        assert!(!fire(&mut c, 1, &mut purse, EventKind::Termites, Season::Spring));
-        assert!(!fire(&mut c, 1, &mut purse, EventKind::Corruption, Season::Spring));
+        purse.weapons[weapon_slot(1, c.weapon_type, Q)] = 24;
+        assert!(!fire(&mut c, 1, &mut purse, EventKind::Fraud, Season::Spring, Q));
+        assert!(!fire(&mut c, 1, &mut purse, EventKind::Termites, Season::Spring, Q));
+        assert!(!fire(&mut c, 1, &mut purse, EventKind::Corruption, Season::Spring, Q));
         assert_eq!((purse.gold, purse.wood), (499, 299));
 
         purse = RealmPurse { gold: 500, wood: 300, ..RealmPurse::default() };
-        purse.weapons[weapon_slot(1)] = 25;
-        assert!(fire(&mut c, 1, &mut purse, EventKind::Fraud, Season::Spring));
-        assert!(fire(&mut c, 1, &mut purse, EventKind::Termites, Season::Spring));
-        assert!(fire(&mut c, 1, &mut purse, EventKind::Corruption, Season::Spring));
+        purse.weapons[weapon_slot(1, c.weapon_type, Q)] = 25;
+        assert!(fire(&mut c, 1, &mut purse, EventKind::Fraud, Season::Spring, Q));
+        assert!(fire(&mut c, 1, &mut purse, EventKind::Termites, Season::Spring, Q));
+        assert!(fire(&mut c, 1, &mut purse, EventKind::Corruption, Season::Spring, Q));
         assert_eq!((purse.gold, purse.wood), (0, 0));
-        assert_eq!(purse.weapons[weapon_slot(1)], 0);
+        assert_eq!(purse.weapons[weapon_slot(1, c.weapon_type, Q)], 0);
     }
 
     /// The two field events, on the crate's county-count model of fields.
@@ -885,17 +929,17 @@ mod tests {
         let mut full = county(1);
         full.fields_fallow = crate::county::MAX_FIELDS as i32;
         let mut purse = RealmPurse::default();
-        assert!(!fire(&mut full, 1, &mut purse, EventKind::MotherNature, Season::Spring));
+        assert!(!fire(&mut full, 1, &mut purse, EventKind::MotherNature, Season::Spring, Q));
 
         let mut room = county(1);
         room.fields_grain = 4;
-        assert!(fire(&mut room, 1, &mut purse, EventKind::MotherNature, Season::Spring));
+        assert!(fire(&mut room, 1, &mut purse, EventKind::MotherNature, Season::Spring, Q));
         assert_eq!(room.fields_fallow, 1);
-        assert!(fire(&mut room, 1, &mut purse, EventKind::Locusts, Season::Spring));
+        assert!(fire(&mut room, 1, &mut purse, EventKind::Locusts, Season::Spring, Q));
         assert_eq!(room.fields_grain, 3);
 
         let mut none = county(1);
-        assert!(!fire(&mut none, 1, &mut purse, EventKind::Locusts, Season::Spring));
+        assert!(!fire(&mut none, 1, &mut purse, EventKind::Locusts, Season::Spring, Q));
     }
 
     /// The draw count must not depend on ownership, or two peers that disagree
@@ -928,6 +972,7 @@ mod tests {
                     1300,
                     Season::Spring,
                     &mut rng,
+                    Q,
                     &mut out,
                 );
             }
@@ -949,7 +994,7 @@ mod tests {
             let mut c = vec![County::new(); 17];
             let mut purses = vec![RealmPurse::default(); 6];
             let mut out = Vec::new();
-            roll_all(T, &mut c, n, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, &mut out);
+            roll_all(T, &mut c, n, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, Q, &mut out);
             let mut reference = Pcg32::from_seed(9);
             reference.below(EVENT_SEED_BOUND);
             assert_eq!(rng, reference, "kingdom of {n}");
@@ -978,6 +1023,7 @@ mod tests {
                     1300,
                     Season::Autumn,
                     &mut rng,
+                    Q,
                     &mut out,
                 );
             }
@@ -1044,7 +1090,7 @@ mod tests {
         }
         let mut out = Vec::new();
         for _ in 0..500 {
-            roll_all(T, &mut c, 16, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, &mut out);
+            roll_all(T, &mut c, 16, &|_| true, &mut purses, 1300, Season::Spring, &mut rng, Q, &mut out);
         }
         assert!(out.is_empty(), "five hundred seasons and not one event");
     }
@@ -1055,8 +1101,8 @@ mod tests {
         c.grain = 1000;
         c.weather = crate::tables::Weather::Cloudy;
         let mut purse = RealmPurse::default();
-        assert!(fire(&mut c, 1, &mut purse, EventKind::Rats, Season::Winter));
-        crate::land::grain_season_tick(T, &mut c, Season::Winter, true);
+        assert!(fire(&mut c, 1, &mut purse, EventKind::Rats, Season::Winter, Q));
+        crate::land::grain_season_tick(T, &mut c, Season::Winter, true, Q);
         assert_eq!(c.grain, 600, "a 40% winter loss");
         assert_eq!(c.event_grain_pct, 0);
     }

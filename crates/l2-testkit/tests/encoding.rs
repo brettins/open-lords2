@@ -51,7 +51,10 @@
 //! # The escape hatch is deliberate, explicit and countable
 //!
 //! A field genuinely outside the encoding carries `not-encoded:` and a reason in
-//! its doc comment. That is the same principle as an invention being a countable
+//! its doc comment. A field that crosses the codec through a *constructor*
+//! rather than by name — `Quirks::from_bits` — carries `codec-via:`, because
+//! this check matches names and cannot see one. Both are excuses, both are
+//! counted, and neither is a silence. That is the same principle as an invention being a countable
 //! status rather than an absence: a decision nothing counts is a decision nobody
 //! revisits.
 
@@ -190,7 +193,13 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
             let mut pending_excuse = false;
             for line in body.lines() {
                 let t = line.trim();
-                if t.contains("not-encoded:") {
+                // Two markers, and they mean different things. `not-encoded:`
+                // is a field outside the codec. `codec-via:` is a field that
+                // crosses it through a constructor rather than by name —
+                // `Quirks::from_bits` is the first — which this check cannot
+                // see, because it matches names. Both are excuses and both are
+                // counted; neither is a silence.
+                if t.contains("not-encoded:") || t.contains("codec-via:") {
                     pending_excuse = true;
                 }
                 depth += t.matches('{').count();

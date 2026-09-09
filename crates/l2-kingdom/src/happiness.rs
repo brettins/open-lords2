@@ -32,6 +32,7 @@
 use crate::county::County;
 use crate::math::clamp;
 use crate::tables::Tables;
+use l2_net::{Quirk, Quirks};
 
 pub const HAPPINESS_MIN: i32 = 0;
 pub const HAPPINESS_MAX: i32 = 100;
@@ -136,11 +137,25 @@ pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
 /// `crowns` is `price x quantity` at the call site. Ale's base price is 1
 /// (`docs/kingdom.md` §10), so in the shipped game a barrel is a crown and the
 /// two are the same number.
-pub fn buy_ale(t: &Tables, county: &mut County, crowns: i32) -> i32 {
+///
+/// **Switchable** — [`Quirk::AnyAleFillsATinyVillage`], `docs/bugs.md` B10.
+/// With the quirk fixed a county whose `population / step_pct` is 0 buys one
+/// rung per crown instead of all five for one, which is the ladder the rest of
+/// the function is written to walk. The county's *own* ale allowance
+/// (`ale_happiness_given`) still caps it, so the fix cannot make ale worth more
+/// than five a season either way.
+pub fn buy_ale(t: &Tables, county: &mut County, crowns: i32, quirks: Quirks) -> i32 {
     if crowns <= 0 {
         return 0;
     }
     let step = county.population / t.ale.step_pct;
+    // A village under ten people has `step == 0`, and then `crowns >= rung * 0`
+    // is true at the top rung for any ale at all.
+    let step = if step == 0 && !quirks.reproduces(Quirk::AnyAleFillsATinyVillage) {
+        1
+    } else {
+        step
+    };
     let mut bonus = 0;
     // Counted upward rather than as the original's nested `if`s; the ladder is
     // the same. A county of fewer than ten people has `step == 0`, and the
@@ -228,6 +243,9 @@ pub fn steady_state(t: &Tables, tax_rate: i32, health_band: u8, ration_level: i3
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    const Q: Quirks = Quirks::FAITHFUL;
 
     /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
@@ -379,7 +397,7 @@ mod tests {
         let bought = |crowns: i32| {
             let mut c = County::new();
             c.population = 500;
-            buy_ale(T, &mut c, crowns)
+            buy_ale(T, &mut c, crowns, Q)
         };
         assert_eq!(bought(0), 0, "and nothing at all for nothing");
         assert_eq!(bought(49), 0, "just under a tenth");
@@ -402,7 +420,7 @@ mod tests {
         c.population = 500;
         let mut total = 0;
         for _ in 0..20 {
-            total += buy_ale(T, &mut c, 250);
+            total += buy_ale(T, &mut c, 250, Q);
         }
         assert_eq!(total, T.ale.max);
         assert_eq!(c.ale_happiness_given, T.ale.max);
@@ -417,7 +435,7 @@ mod tests {
     fn a_county_of_nine_people_gets_the_whole_bonus_for_one_crown() {
         let mut c = County::new();
         c.population = 9;
-        assert_eq!(buy_ale(T, &mut c, 1), 5);
+        assert_eq!(buy_ale(T, &mut c, 1, Q), 5);
     }
 
     #[test]
@@ -425,7 +443,7 @@ mod tests {
         let mut c = County::new();
         c.population = 100;
         c.happiness = 98;
-        assert_eq!(buy_ale(T, &mut c, 1000), 5);
+        assert_eq!(buy_ale(T, &mut c, 1000, Q), 5);
         assert_eq!(c.happiness, HAPPINESS_MAX);
     }
 
@@ -487,7 +505,7 @@ mod tests {
         c.owner = 1;
         c.population = 500;
         c.happiness = 50;
-        buy_ale(T, &mut c, 250);
+        buy_ale(T, &mut c, 250, Q);
         raise_army(T, &mut c, 50);
         assert_eq!(c.shown_ale, 5);
         assert_eq!(c.shown_army, -5);

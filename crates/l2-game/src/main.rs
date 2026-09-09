@@ -121,6 +121,14 @@ impl App {
     }
 
     fn redraw(&mut self) {
+        // **The one place the presentation quirks cross from the session into
+        // the assets.** `Ctx` hands a screen `&Assets`, so the quirks page
+        // cannot write them where the drawing code reads them; the authority
+        // is `Game::presentation_quirks` and this is its projection. Done here
+        // rather than in `deliver`, so that a change made by anything at all -
+        // a click, a key, a future command replay - is on screen the next
+        // frame without every writer having to remember.
+        self.assets.quirks = self.game.presentation_quirks;
         let App { game, assets, machine, canvas, window, .. } = self;
         let ctx = Ctx { game, assets };
         machine.draw(&ctx, canvas);
