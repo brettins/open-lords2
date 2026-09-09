@@ -413,6 +413,57 @@ failure mode there is a citation quietly renumbered to point at the wrong correc
 pointer into the log the project trusts most, which is the failure mode recorded above under
 *The correction log can be wrong*.
 
+## A check that passes for an accidental reason looks exactly like one that passes
+
+Three of these in two days, and the third was found while writing this section, which is the
+best evidence that it is a class rather than a run of bad luck.
+
+> **A check that passes for an accidental reason is indistinguishable from one that passes for
+> the right reason, until the accident stops holding.**
+
+It is the sibling of the near-miss rule above. That one is about a check firing outside its
+remit; this one is about a check *not* firing, correctly, for a reason nobody chose.
+
+**One.** `JSON.parse` threw on a hand-merged `symbols.json` and that throw is the only reason
+the nine misaligned hunks were ever looked at. The check was for syntax. What it caught was a
+semantic disaster, and only because the misalignment happened to produce unbalanced braces.
+
+**Two.** `docs/arms.json`'s marker rule was `status == "reproduced"` — and it was correct, and
+it was correct *by accident*. Every invention on file happens to have been **removed**, so no
+invention needed a marker, so filtering on `reproduced` alone lost nothing. An invention we
+chose to **keep** — which the file explicitly supports, with a `removed` field to say so —
+would have needed a marker and slipped straight through. The check was right about today's data
+for a reason unrelated to what it was written to guarantee.
+
+**Three, found while writing this.** A new test asserted the title screen's build stamp was
+painted by counting non-background pixels in its band. It passed. **It also passed with the
+line that draws the stamp deleted**, because the title page carries a full-screen
+`gateway.pl8` and no pixel down there is background. It was measuring the artwork. The
+threshold was chosen by looking at what the passing case produced, which is how a test comes
+to describe the status quo rather than the claim.
+
+### The defence
+
+**State the predicate the check *means*, then implement that** — rather than implementing
+something that happens to agree with it on the data in front of you.
+
+* The marker rule now reads `Record::in_the_tree()`, and that method is the sentence *"is
+  there code to mark?"* written out: reproduced, dead-reproduced, or an invention not yet
+  removed. `status == "reproduced"` was a proxy that agreed with it on today's rows.
+* The stamp test now draws the page, copies it, draws the stamp **again** on the copy, and
+  requires the two to be identical. Text is an opaque blit, so a second draw over itself
+  changes nothing — but only if it was there the first time. That is the claim exactly, with
+  no threshold and no knowledge of what else is on the page. Deleting the draw call moves
+  1,234 pixels.
+
+And the operational half, which is cheap and caught the third instance:
+
+**Ablate the thing the test is about, and watch it go red.** Not the code near it — the exact
+line the assertion claims to be about. A test written against a passing tree has never been
+observed failing, and until it has, "it passes" is a statement about the tree and not about the
+test. Two of the three above were written by someone careful and neither would have survived
+thirty seconds of this.
+
 ## A file that looks like data is usually a claim, and claims cannot be merged positionally
 
 Six branches landed in one evening. Nine merge defects came with them and **all nine are the same
@@ -545,6 +596,12 @@ is most of them, because the compiler cannot read `L2.eng` or a decompilation.
 
 The general form: **ask whether the mistake can be made unrepresentable before asking what would
 notice it.** A check is what you build when the answer is no.
+
+And a corollary about naming, learned from `docs/arms.json`'s `dead-reproduced`: when a value
+names something that should not happen, make it **awkward and assert it stays empty**. A
+category that quietly acquires members is how a finding becomes a bucket — the first entry is a
+discovery, the tenth is a fact of life nobody reads any more. The status exists so the case
+cannot hide inside a neighbouring one; the assertion exists so that using it costs a decision.
 
 ## A correct experiment can produce a wrong inference, and twice today one did
 

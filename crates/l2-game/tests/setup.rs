@@ -27,6 +27,8 @@ use l2_game::screens::setup::{
 };
 use l2_game::setup::{self, option, SetupOptions, COUNTY_STATUS, STARTING_GOLD, START_ARMOURY};
 use l2_game::Game;
+use l2_game::shell::{font, Pen};
+use l2_view::Canvas;
 use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
@@ -360,4 +362,63 @@ fn the_build_stamp_names_a_commit_rather_than_a_version() {
     // The point of the whole exercise: two different builds must be able to
     // disagree. A constant cannot, and this is the shape a constant has.
     assert_ne!(id, env!("CARGO_PKG_VERSION"), "a version is not an identity");
+}
+
+/// **The build stamp is actually painted, not merely computed.**
+///
+/// The test above asserts the shape of the string. This one asserts a player can
+/// see it, which is a different claim and the one that matters: the whole point
+/// is that somebody looking at a screenshot can say which binary it is.
+///
+/// It is separate rather than folded in because the two fail for unrelated
+/// reasons — a wrong string and an unpainted one need different fixes — and
+/// because this one is the fragile half. `crate::build_id::draw` is one line at
+/// the end of the title page's painter, in a file three branches touched
+/// tonight, and a line like that is exactly what a merge drops without anything
+/// noticing.
+///
+/// **How it asserts, and the first attempt was wrong.** The obvious test — count
+/// non-background pixels in the stamp's band — *passed with the draw line
+/// deleted*, because the title page carries a full-screen `gateway.pl8` and no
+/// pixel down there is background. It measured the artwork.
+///
+/// So: draw the page, copy it, draw the stamp again onto the copy, and require
+/// the two to be **identical**. Text is an opaque blit, so drawing it a second
+/// time over itself changes nothing — but only if it was there the first time.
+/// Deleting the line makes the second draw *add* the stamp, and the canvases
+/// differ. That is an exact test rather than a threshold, and it needs no
+/// knowledge of what else is on the page.
+#[test]
+fn the_build_stamp_is_painted_on_the_title_page() {
+    let (mut game, assets) = world!();
+    let mut screen = SetupScreen::new(SetupPage::Title);
+
+    let mut page = Canvas::screen();
+    {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        screen.draw(&ctx, &mut page);
+    }
+
+    let mut twice = page.clone();
+    let pen = Pen {
+        assets: &assets.shell,
+        ink: &assets.ink,
+        chrome: assets.chrome.as_ref(),
+        shadow: Some(font::SHADOW_GATEWAY),
+        caps: Some(1),
+    };
+    l2_game::build_id::draw(&mut twice, &pen);
+
+    let differing = (0..l2_view::canvas::HEIGHT)
+        .flat_map(|y| (0..l2_view::canvas::WIDTH).map(move |x| (x, y)))
+        .filter(|&(x, y)| page.at(x, y) != twice.at(x, y))
+        .count();
+
+    assert_eq!(
+        differing, 0,
+        "drawing the build stamp again changed {differing} pixels, so it was not on the page \
+         to begin with. `crate::build_id::draw` is one line at the end of the title painter \
+         in screens/setup.rs, and a line like that is what a merge drops silently — which is \
+         the whole reason the stamp exists.",
+    );
 }
