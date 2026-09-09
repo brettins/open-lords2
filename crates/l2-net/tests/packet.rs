@@ -107,6 +107,7 @@ fn a_truncated_packet_is_an_error_not_a_panic() {
 fn sample_hello() -> Hello {
     Hello {
         protocol: PROTOCOL_VERSION,
+        quirks: 0,
         engine: "l2 0.1.0-abc1234".to_string(),
         ruleset_hash: 0xfeed_face_cafe_beef,
         seed: 0x1234_5678_9abc_def0,

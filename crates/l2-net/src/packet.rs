@@ -20,7 +20,7 @@ use crate::command::{Command, PlayerSlot, Tick};
 ///
 /// Compared before anything else in [`Hello::check`], because a version
 /// mismatch makes every later field's interpretation a guess.
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 2;
 
 /// The port this game uses.
 ///
@@ -192,6 +192,32 @@ pub struct Hello {
     /// A hash over the *resolved* ruleset: every value, and the mod
     /// that set it, in load order.
     pub ruleset_hash: u64,
+    /// **Which of the original's defects this session reproduces** —
+    /// [`Quirks::bits`](crate::Quirks::bits).
+    ///
+    /// A quirk changes what the simulation computes, so two peers who
+    /// disagree about one compute different games from identical
+    /// commands. That makes it part of the *agreed configuration*, in
+    /// exactly the sense `docs/netcode.md` D-12 means when it says the
+    /// ruleset is part of the version — and D-12's argument is about a
+    /// mod set only because a quirk set did not exist when it was
+    /// written.
+    ///
+    /// **It is a separate field rather than folded into
+    /// [`Hello::ruleset_hash`]**, and the reason is the error message.
+    /// A quirk set is a thing a player chose on a settings page and can
+    /// change in one click; a ruleset is a mod list. Hashing them
+    /// together would report *"your rules differ"* to somebody whose
+    /// mods match perfectly and whose only difference is a check box,
+    /// and would send them looking in the wrong place. See
+    /// [`Mismatch::Quirks`].
+    ///
+    /// **Not a substitute for the per-tick digest, and not made
+    /// redundant by it.** The digest catches a quirk difference at the
+    /// first tick that a quirk actually touches, which for a harvest
+    /// rule is the end of the first Winter — a quarter of an hour into
+    /// a game that was already wrong. This catches it in the lobby.
+    pub quirks: u64,
     /// The session seed, from which every [`Pcg32`](crate::Pcg32) in
     /// the simulation is derived.
     pub seed: u64,
@@ -205,6 +231,10 @@ pub enum Mismatch {
     Protocol { ours: u16, theirs: u16 },
     Engine { ours: String, theirs: String },
     Ruleset { ours: u64, theirs: u64 },
+    /// The two peers reproduce different sets of the original's bugs.
+    /// Its own variant rather than a `Ruleset` mismatch, because the
+    /// fix is a check box and not a mod list.
+    Quirks { ours: u64, theirs: u64 },
     Seed { ours: u64, theirs: u64 },
     SameSlot(PlayerSlot),
 }
@@ -221,6 +251,10 @@ impl core::fmt::Display for Mismatch {
             Mismatch::Ruleset { ours, theirs } => write!(
                 f,
                 "the mod set differs: their rules hash to {theirs:016x}, ours to {ours:016x}"
+            ),
+            Mismatch::Quirks { ours, theirs } => write!(
+                f,
+                "you reproduce a different set of the original's bugs: theirs {theirs:016x}, \n                 ours {ours:016x} (zero is faithful - every bug reproduced)"
             ),
             Mismatch::Seed { ours, theirs } => {
                 write!(f, "session seed {theirs:016x} does not match ours ({ours:016x})")
@@ -256,6 +290,9 @@ impl Hello {
         if self.ruleset_hash != theirs.ruleset_hash {
             out.push(Mismatch::Ruleset { ours: self.ruleset_hash, theirs: theirs.ruleset_hash });
         }
+        if self.quirks != theirs.quirks {
+            out.push(Mismatch::Quirks { ours: self.quirks, theirs: theirs.quirks });
+        }
         if self.seed != theirs.seed {
             out.push(Mismatch::Seed { ours: self.seed, theirs: theirs.seed });
         }
@@ -271,6 +308,7 @@ impl Encode for Hello {
         out.u16(self.protocol);
         out.str(&self.engine);
         out.u64(self.ruleset_hash);
+        out.u64(self.quirks);
         out.u64(self.seed);
         out.u8(self.slot.index());
     }
@@ -281,11 +319,12 @@ impl Decode for Hello {
         let protocol = input.u16()?;
         let engine = input.str()?.to_string();
         let ruleset_hash = input.u64()?;
+        let quirks = input.u64()?;
         let seed = input.u64()?;
         let at = input.position();
         let slot = PlayerSlot::from_wire(input.u8()?)
             .ok_or(CodecError::BadTag { tag: 0, expected: "player slot", at })?;
-        Ok(Hello { protocol, engine, ruleset_hash, seed, slot })
+        Ok(Hello { protocol, engine, ruleset_hash, quirks, seed, slot })
     }
 }
 
@@ -446,6 +485,11 @@ impl Encode for Mismatch {
                 out.u64(*ours);
                 out.u64(*theirs);
             }
+            Mismatch::Quirks { ours, theirs } => {
+                out.u8(5);
+                out.u64(*ours);
+                out.u64(*theirs);
+            }
             Mismatch::Seed { ours, theirs } => {
                 out.u8(3);
                 out.u64(*ours);
@@ -475,6 +519,7 @@ impl Decode for Mismatch {
                     .ok_or(CodecError::BadTag { tag: 0, expected: "player slot", at })?;
                 Ok(Mismatch::SameSlot(slot))
             }
+            5 => Ok(Mismatch::Quirks { ours: input.u64()?, theirs: input.u64()? }),
             tag => Err(CodecError::BadTag { tag, expected: "mismatch kind", at }),
         }
     }

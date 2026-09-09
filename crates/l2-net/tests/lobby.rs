@@ -28,6 +28,7 @@ const SEED: u64 = 0x10_2517_9600;
 fn hello(slot: u8) -> Hello {
     Hello {
         protocol: PROTOCOL_VERSION,
+        quirks: 0,
         engine: "lords2 0.1.0-test".to_string(),
         ruleset_hash: 0xABCD_EF01_2345_6789,
         seed: SEED,
@@ -482,4 +483,57 @@ fn a_lobby_over_a_real_socket_starts_a_session_that_agrees() {
     assert_eq!(hashes[0][..common], hashes[1][..common], "the sessions diverged");
     assert!(sessions.iter().all(|s| !s.is_halted()));
     assert_eq!(sims[0].units, sims[1].units, "state differs despite equal hashes");
+}
+
+/// **A peer who has turned the original's bugs off cannot join a faithful
+/// game**, and is told which thing differs rather than being told his mods are
+/// wrong.
+///
+/// A quirk changes what the simulation computes, so it is part of the agreed
+/// configuration, not a local preference — `docs/netcode.md` D-12 with a
+/// different noun, and `docs/decisions.md` C62.
+///
+/// **The per-tick digest would catch this too, and much too late.**
+/// `l2_kingdom::save::checksum` covers `Options::quirks`, so two peers who
+/// disagreed would eventually halt — but only at the first tick a quirk
+/// actually touches, which for the harvest rule is the end of the first Winter.
+/// This refuses in the lobby, before a seed is chosen.
+#[test]
+fn a_peer_with_a_different_quirk_set_is_refused_in_the_lobby() {
+    let faithful = hello(1);
+    let fixed = Hello { quirks: 0x3FFF, slot: PlayerSlot::new(2), ..hello(2) };
+
+    let reasons = faithful.check(&fixed);
+    assert_eq!(
+        reasons,
+        vec![Mismatch::Quirks { ours: 0, theirs: 0x3FFF }],
+        "the quirk set is the only thing that differs, and it must be reported as itself"
+    );
+
+    // Named as itself, not folded into the ruleset — a player whose mods match
+    // perfectly should not be sent looking at his mod list.
+    let text = reasons[0].to_string();
+    assert!(text.contains("bugs"), "{text}");
+    assert!(!text.contains("mod set"), "{text}");
+
+    // And the same quirk set on both sides is no obstacle at all.
+    let same = Hello { quirks: 0x3FFF, slot: PlayerSlot::new(2), ..hello(2) };
+    let mine = Hello { quirks: 0x3FFF, ..hello(1) };
+    assert_eq!(mine.check(&same), vec![]);
+}
+
+/// The quirk set survives the wire, and a `Hello` that lost it would report
+/// agreement between two peers playing different games.
+#[test]
+fn the_quirk_set_round_trips_through_a_hello() {
+    for bits in [0u64, 1, 0x3FFF, u64::MAX] {
+        let h = Hello { quirks: bits, ..hello(1) };
+        let mut c = l2_net::Canonical::recording();
+        l2_net::canonical::Encode::encode(&h, &mut c);
+        let bytes = c.finish().bytes.expect("recording");
+        let mut r = l2_net::canonical::Reader::new(&bytes);
+        let back = <Hello as l2_net::canonical::Decode>::decode(&mut r).expect("round trip");
+        assert_eq!(back.quirks, bits);
+        assert_eq!(back, h);
+    }
 }

@@ -452,6 +452,33 @@ mismatch is a guaranteed desync with a confusing symptom. The session handshake
 must exchange a hash over the resolved ruleset — `l2-mods` already tracks which
 mod and line set each value, so the material for that hash exists.
 
+**And the quirk set, which this rule did not anticipate because it did not
+exist.** `l2_kingdom::kingdom::Options::quirks` says which of the original's
+defects this game reproduces (`docs/bugs.md` §6, `decisions.md` C62). It changes
+what the simulation computes, so it is the same argument with a different noun:
+two peers who disagree about one compute different games from identical
+commands. `Hello::quirks` carries it and `Mismatch::Quirks` reports it.
+
+Three things about that placement are worth stating, because each is a decision
+somebody could reasonably make the other way:
+
+* **It is its own field, not folded into `ruleset_hash`.** A quirk set is a thing
+  a player chose on a settings page and can change in one click; a ruleset is a
+  mod list. Hashing them together would tell somebody whose mods match perfectly
+  that his *rules* differ, and send him looking in the wrong place.
+* **The per-tick digest is not a substitute for it**, though it does cover the
+  same value: `Options` is in the save body and the save body is what
+  `Canonical::hash_of(kingdom)` hashes, so a mismatch does eventually halt the
+  session. But only at the first tick a quirk actually *touches* — for the
+  harvest rule, the end of the first Winter. The handshake refuses before a seed
+  is chosen. **Both, and neither alone.**
+* **A *presentation* quirk is not here and must not be** (`docs/bugs.md` §6.3a).
+  It cannot change a turn, so putting it in the agreed configuration would make
+  two peers who compute identical states refuse to play — which is D-12's own
+  failure mode inverted. Presentation quirks live on `Assets`, above every crate
+  that computes anything, and `crates/l2-testkit/tests/quirks_catalogue.rs`
+  fails if one is filed in the other home.
+
 ### Enforcing this
 
 Rust cannot `#![forbid(float)]`, so enforcement is structural plus mechanical:
