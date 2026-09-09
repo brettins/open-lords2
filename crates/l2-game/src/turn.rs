@@ -333,6 +333,32 @@ pub fn take_the_field(game: &mut Game) -> bool {
 ///   every man killed so far is unkilled, and the result is computed from the
 ///   armies as they walked on. Reproduced by dropping the runner on the floor
 ///   and answering [`Answer::Decline`], which is the same autocalc.
+///
+/// # The discard is deliberate, it is single-player-only, and it is not a hole
+///
+/// Re-read at the instruction level rather than assumed, because this is the
+/// line that reads like the seam being broken. `Battle_WriteBackCasualties`
+/// (`0x0047F474`) has **five call sites in the whole binary**: two in
+/// `Battle_CheckOutcome`'s post-banner arm, two in `FUN_004782C5`'s, and one in
+/// `FUN_0043BDCD` — and that last one is inside `if (g_multiplayer != 0)`. The
+/// single-player arm of the same `if` calls `FUN_0043BE65` and writes nothing
+/// back. So **the same Autocalc button keeps the casualties in a network game
+/// and throws them away in a solo one**; the Retreat confirms have no such arm
+/// at all and discard in both. `docs/bugs.md` BNEW-mp-autocalc.
+///
+/// It is worth stating what this does *not* mean, because the inference is easy
+/// and wrong. A battle fought to its conclusion writes back — that is
+/// [`engagement::conclude_fight`], asserted by three tests that go red if the
+/// write-back is ablated. A battle between two AI realms never reaches the
+/// simulation at all and is settled by the autocalc, which writes the survivors
+/// into the campaign records as its whole purpose. **Only the early exit
+/// discards**, and only here. `docs/decisions.md` CNEW-withdrawal.
+///
+/// And note what `Battle_AutoResolve` does *first*: it clears
+/// `g_battleWithdrawal`. Pressing Retreat therefore does not perform a retreat
+/// — it auto-resolves, so a player who loses the ladder has his army destroyed
+/// rather than withdrawn with half of it. `l2_kingdom::battle`'s withdrawal
+/// rules are reachable only from `UnitOrder_SiegeAttKnight`.
 pub fn finish_battle(game: &mut Game) -> TurnStep {
     let Some(live) = game.battle.take() else { return TurnStep::Stuck };
     if live.autocalc {
@@ -357,7 +383,7 @@ pub fn finish_battle(game: &mut Game) -> TurnStep {
         // a second time.
         p.pending_assault = None;
     }
-    record(p, report);
+    record(game, report);
     advance(game, Resume::Start, true)
 }
 
@@ -409,7 +435,12 @@ pub fn tick_units_only(game: &mut Game) -> usize {
         let answer = game.field_policy;
         let attack = Attack::Battle { attacker: e.mover, defender: e.occupant };
         let seed = battle_seed(&game.kingdom, e);
-        let _ = engagement::resolve(&mut game.kingdom, attack, e.county, answer, seed);
+        // Through [`record`] like every other battle, so the losing realm is
+        // recounted here too. There is no [`TurnProgress`] on this path, so the
+        // report itself has nowhere to go and `record` drops it — the recount
+        // is the half that must not be dropped with it.
+        let report = engagement::resolve(&mut game.kingdom, attack, e.county, answer, seed);
+        record(game, report);
     }
     stepped
 }
@@ -715,15 +746,31 @@ fn pump_siege(game: &mut Game) {
             let report = phase.settle(&mut game.kingdom, assault, game.field_policy, seed);
             let p = game.turn.as_mut().expect("pump runs inside a turn");
             p.siege = Some(phase);
-            record(p, report);
+            record(game, report);
         }
     }
 }
 
-/// File a settled battle: onto the turn's list, and onto the one screen `0x13`
-/// has still to show.
-fn record(p: &mut TurnProgress, report: Option<BattleReport>) {
-    if let Some(report) = report {
+/// File a settled battle: recount the losing realm, then onto the turn's list
+/// and onto the one screen `0x13` has still to show.
+///
+/// **The recount is `Realm_RecountStrength` (`0x0049B42B`), the last statement
+/// of both of `Battle_ReturnToCampaign`'s branches**, and it is one of only
+/// four places in the original where a realm can be eliminated — the only one
+/// that fires the instant a realm's last army dies rather than waiting for its
+/// own turn to come round. [`crate::engagement`] cannot make the call, because
+/// it needs the county count and the local player and neither is a battle rule;
+/// [`l2_kingdom::battle::Aftermath::loser_owner`] carries the argument here,
+/// where there is a [`Game`] to raise the *"Defeat!"* letter on and to rank
+/// with.
+///
+/// `l2_kingdom::victory::recount_strength`'s own doc comment has listed the two
+/// post-battle sites among its four callers since it was written, and nothing
+/// called it from either. `docs/decisions.md` CNEW-withdrawal.
+fn record(game: &mut Game, report: Option<BattleReport>) {
+    let Some(report) = report else { return };
+    game.recount_realm(report.aftermath.loser_owner);
+    if let Some(p) = game.turn.as_mut() {
         p.unseen = Some(report.clone());
         p.reports.push(report);
     }
@@ -808,7 +855,7 @@ fn settle_question(game: &mut Game, q: Question, answer: Answer) {
         let report = phase.settle(&mut game.kingdom, assault, answer, seed);
         let p = game.turn.as_mut().expect("settling inside a turn");
         p.siege = Some(phase);
-        record(p, report);
+        record(game, report);
         return;
     }
     let attack = Attack::Battle { attacker: q.attacker, defender: q.defender };
@@ -817,11 +864,7 @@ fn settle_question(game: &mut Game, q: Question, answer: Answer) {
         Encounter { mover: q.attacker, occupant: q.defender, county: q.county },
     );
     match engagement::resolve(&mut game.kingdom, attack, q.county, answer, seed) {
-        Some(report) => {
-            if let Some(p) = game.turn.as_mut() {
-                record(p, Some(report));
-            }
-        }
+        Some(report) => record(game, Some(report)),
         None => {
             // Not resolvable — a slot is no longer a unit. Reported rather than
             // swallowed, exactly as it always was.

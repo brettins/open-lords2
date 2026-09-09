@@ -6366,6 +6366,14 @@
       "signature": "void Army_RecountCountyTroops(void)"
     },
     {
+      "addr": "0x004AD8CC",
+      "name": "Army_WithdrawCasualties",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_WithdrawCasualties(int unit)",
+      "comment": "What leaving the field costs, and the missing half of the withdrawal rule. Halves each of the seven troop counts, WIPING any line under 11 outright, rebuilds +0x168 by summing and then adds mercMen - so the mercenary band is NOT scaled and walks off whole. Then clears pathLen (+0x1C) and moving (+0x14C) so the retreat cancels the order that walked into the battle, and calls Wages_ForUnit. Battle_ReturnToCampaign calls it on the LOSER, gated on g_battleWithdrawal, ABOVE the whole loser branch - so the 'menTotal < 50 and the army is eliminated' test reads the HALVED total, which is the shipped Readme's 'any army that would have less than 50 men AFTER retreating'. An army therefore needs a hundred men to walk off with fifty, and one whose every line is under eleven is annihilated by retreating. docs/armies.md section 7.4."
+    },
+    {
       "addr": "0x004ADE93",
       "name": "Save_Write",
       "section": "kingdom",

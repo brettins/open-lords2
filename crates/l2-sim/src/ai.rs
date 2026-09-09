@@ -330,6 +330,29 @@ pub struct Ai {
     pub siege_engine_count: i32,
     /// `0x00569588` — whether the drawbridge patch has been laid. **[I]**
     pub drawbridge_down: bool,
+    /// **`g_battleWithdrawal` (`0x0056D5C8`) and `DAT_005656F8`** — a side has
+    /// given up and left the field, and which side it was.
+    ///
+    /// The pair has **exactly one writer in the whole binary**, and it is
+    /// [`siege_att_knight`]: an AI besieger whose entire remaining force is
+    /// knights, facing a wall nothing has breached. `Battle_CheckOutcome` tests
+    /// the flag *before* either men counter, so a withdrawal outranks
+    /// annihilation.
+    ///
+    /// It lives on the AI state rather than on the runner because the AI is
+    /// what raises it. [`crate::runner::BattleRunner::step`] copies it into the
+    /// runner's own flag each tick; [`crate::runner::BattleRunner::withdraw`]
+    /// is the same lever pulled from outside, for a caller that has a retreat
+    /// of its own.
+    ///
+    /// The original stores the withdrawing unit's **owner** in `DAT_005656F8`
+    /// and `Battle_CheckOutcome` turns it back into a side by comparing it with
+    /// `g_units[g_battleArmyA].owner`; this keeps the side, which is the same
+    /// answer with the round trip left out.
+    ///
+    /// **[V]** — one write, in one handler, against the exhaustive search for
+    /// the global.
+    pub withdrawal: Option<crate::figure::Side>,
 
     // --- per-handler rotations. Module statics in the original, so they are
     // shared by every unit that runs that handler, not per unit. ---
@@ -378,6 +401,7 @@ impl Ai {
             attackers_on_wall: 0,
             siege_engine_count: 0,
             drawbridge_down: false,
+            withdrawal: None,
             rot_missile3: 0,
             rot_missile16: 0,
             rot_missile_objective: 0,
@@ -1490,12 +1514,42 @@ fn siege_att_melee(w: &mut World, cur: usize) {
 }
 
 /// `UnitOrder_SiegeAttKnight` (`0x0048D9CE`).
+///
+/// # It is also **the only thing in the binary that ends a battle by giving up**
+///
+/// ```c
+/// if ((g_aiMenTotal <= g_aiMenKnight) && (g_siegeBreachScore == 0)) {
+///     g_battleWithdrawal = 1;
+///     DAT_005656f8 = g_battleUnits[g_curBattleUnit].owner;
+/// }
+/// ```
+///
+/// — three statements at the top of the think, above the movement ladder and
+/// **not** in an `else`, so the unit raises the flag and then goes on issuing
+/// its order for the frame. `g_aiMenTotal` and `g_aiMenKnight` are
+/// [`Ai::count_men`]'s totals over the AI's own living troops of type 0…6, so
+/// `total <= knights` is *"every man I have left is a knight"* — an all-cavalry
+/// besieger in front of an unbreached wall, which is a siege it cannot win.
+///
+/// `Battle_CheckOutcome` tests [`Ai::withdrawal`] **before** either men
+/// counter, so this outranks annihilation; and `Battle_ReturnToCampaign` then
+/// charges the loser [`Army_WithdrawCasualties`](../../l2_kingdom/battle/fn.withdraw_casualties.html)
+/// — half of every troop line — before deciding whether fifty men are left.
+///
+/// **This clause was missing, and its absence was load-bearing.** Nothing else
+/// raises the flag, so with it absent `End::Withdrawal` could not arise in a
+/// played game, the whole withdrawal half of the campaign seam was unreachable,
+/// and the campaign's own missing `Army_WithdrawCasualties` could not be
+/// noticed. `docs/decisions.md` CNEW-withdrawal.
 fn siege_att_knight(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
         return;
     }
     w.ai.record(cur, Action::DoNothing);
+    if w.ai.men_total <= w.ai.men_knight && w.ai.breach_score == 0 {
+        w.ai.withdrawal = Some(w.units.get(cur).side);
+    }
     w.ai.rot_knight3 = (w.ai.rot_knight3 + 1) % 3;
 
     if w.ai.approach_score < 3 || w.ai.breach_score == 0 {
@@ -2548,6 +2602,41 @@ mod tests {
     }
 
     // --- the siege handlers ------------------------------------------------
+
+    /// **The one thing in `Lords2.exe` that ends a battle by giving up.**
+    ///
+    /// `UnitOrder_SiegeAttKnight` is the only writer of `g_battleWithdrawal`
+    /// (`0x0056D5C8`) in the whole binary, and the clause was missing here —
+    /// which made [`crate::End::Withdrawal`] unreachable in a played game and
+    /// with it the whole withdrawal half of the campaign seam, including
+    /// `Army_WithdrawCasualties`, which `l2-kingdom` had never implemented
+    /// because nothing could reach it. `docs/decisions.md` CNEW-withdrawal.
+    ///
+    /// Three cases, and the third is the one the two conditions are for:
+    /// `g_aiMenTotal <= g_aiMenKnight` is *"every AI man still standing is a
+    /// knight"*, over `Battle_CountMenByType`'s census of **both** sides'
+    /// non-human figures.
+    #[test]
+    fn an_all_knight_besieger_at_an_unbreached_wall_leaves_the_field() {
+        let raised = |breach: i32, dismount: bool| {
+            let mut fx = Fixture::new(Troop::Knights, Troop::Peasants, 4);
+            fx.ai.is_siege = true;
+            if dismount {
+                // One man of the besieging force who is not a knight, which is
+                // the whole of what `total <= knights` asks about.
+                fx.figures[0].troop = Troop::Peasants;
+            }
+            fx.ai.count_men(&fx.figures);
+            assert!(fx.ai.men_total > 0, "the census sees the AI's own men");
+            fx.ai.breach_score = breach;
+            assert_eq!(fx.ai.withdrawal, None, "nothing before the unit has thought");
+            fx.think_at(0);
+            fx.ai.withdrawal
+        };
+        assert_eq!(raised(0, false), Some(SIDE_B), "all knights, nothing breached");
+        assert_eq!(raised(4, false), None, "a breach is a reason to stay");
+        assert_eq!(raised(0, true), None, "and so is one man who can climb");
+    }
 
     /// The three defender stubs at categories 5, 6 and 7 are the catapult, the
     /// siege tower and the ram — precisely the three troop types

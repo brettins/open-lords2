@@ -386,6 +386,23 @@ pub struct Aftermath {
     pub offence: Option<(u8, u8)>,
     /// The moves the winner was charged.
     pub winner_moves_used: i32,
+    /// Men [`withdraw_casualties`] took off the loser on its way out, or `None`
+    /// when this battle was not ended by a withdrawal.
+    ///
+    /// It is reported rather than merely done because it is charged **before**
+    /// the loser is destroyed, so a caller diffing the unit array afterwards
+    /// cannot tell a retreat's losses from the whole army's.
+    pub withdrawal_casualties: Option<i32>,
+    /// The realm that lost, **captured before its record was emptied** — the
+    /// argument `Realm_RecountStrength` (`0x0049B42B`) takes at the bottom of
+    /// both of `Battle_ReturnToCampaign`'s branches.
+    ///
+    /// That call is one of only four places a realm can be eliminated, and it
+    /// is the one that fires the instant a realm's last army dies rather than
+    /// waiting for its own turn to come round. It is reported here rather than
+    /// made here because [`crate::victory::recount_strength`] needs the county
+    /// count and the local player, and neither is a battle rule.
+    pub loser_owner: u8,
 }
 
 /// The diplomatic hit the loser's realm takes against the winner's.
@@ -561,10 +578,27 @@ pub fn return_to_campaign(
     if loser_unit.owner != 0 && (loser_unit.owner as usize) < MAX_REALMS {
         out.offence = Some((loser_unit.owner, winner_unit.owner));
     }
+    out.loser_owner = loser_unit.owner;
+
+    // **`Army_WithdrawCasualties` (`0x004AD8CC`) — the price of leaving the
+    // field, and it is charged *before* anything reads the loser's total.**
+    //
+    // `if (g_battleWithdrawal == 1) Army_WithdrawCasualties(loser);` sits above
+    // the whole loser branch in both arms of the original. Half of every troop
+    // count, and a count under eleven is wiped outright; the total is rebuilt
+    // by summing, so the two tests below read the *withdrawn* army and not the
+    // one that walked on.
+    let withdrawn_men = if withdrawal {
+        Some(withdraw_casualties(t, units, realms, loser, difficulty))
+    } else {
+        None
+    };
+    out.withdrawal_casualties = withdrawn_men.map(|left| loser_unit.men - left);
+    let loser_men = withdrawn_men.unwrap_or(loser_unit.men);
 
     // **The loser branch, both rules.** See the correction above the function.
-    let still_besieging = loser_unit.besieging_county != 0 && loser_unit.men != 0;
-    let survives = still_besieging || (withdrawal && loser_unit.men >= WITHDRAWAL_SURVIVAL_MEN);
+    let still_besieging = loser_unit.besieging_county != 0 && loser_men != 0;
+    let survives = still_besieging || (withdrawal && loser_men >= WITHDRAWAL_SURVIVAL_MEN);
     if survives {
         if let Some(l) = units.get_mut(loser) {
             l.besieging_county = 0;
@@ -590,7 +624,89 @@ pub fn return_to_campaign(
 /// Readme's *Retreats (pg82)* number, and `Battle_ReturnToCampaign`'s
 /// `menTotal < 0x32`. Under it, message `0x120` (`L2.eng` group 288) and the
 /// army is destroyed.
+///
+/// **It is measured after [`withdraw_casualties`] has run**, which is what the
+/// Readme's *"any army that would have less than 50 men **after** retreating"*
+/// says and what this crate used to get wrong: the test read the total the army
+/// walked onto the field with, so an army of 80 survived at 80 where the
+/// original halves it to 40 and destroys it.
 pub const WITHDRAWAL_SURVIVAL_MEN: i32 = 50;
+
+/// The count below which a troop line is wiped outright rather than halved —
+/// `Army_WithdrawCasualties`' `if (n < 0xB) n = 0;`.
+///
+/// Ten men do not retreat in good order; eleven lose five. It is the same shape
+/// as [`crate::unit::desert`]'s *"only where the count exceeds ten"* guard, and
+/// the two are the only places in the campaign that treat a small troop line
+/// differently from a large one.
+pub const WITHDRAWAL_WIPE_BELOW: i32 = 11;
+
+/// **`Army_WithdrawCasualties` (`FUN_004AD8CC`, `0x004AD8CC`) — what leaving the
+/// field costs.**
+///
+/// ```c
+/// total = 0;
+/// for (t = 0; t < 7; t++) {
+///     n = troops[t];
+///     if (n < 0xB) n = 0; else n = n / 2;
+///     troops[t] = n;  total += n;
+/// }
+/// menTotal = total;
+/// menTotal += mercMen;          /* the band is NOT halved */
+/// pathLen  = 0;                 /* +0x1C  */
+/// moving   = 0;                 /* +0x14C */
+/// Wages_ForUnit(unit);
+/// ```
+///
+/// Four things a reimplementation gets wrong by default, and all four are in
+/// those nine lines:
+///
+/// * **The mercenary band does not lose a man.** It is added to the rebuilt
+///   total and never scaled — unlike the autocalc, which scales it with
+///   everything else. A retreating army of hirelings retreats intact.
+/// * **A line under eleven is wiped, not halved.** Six knights become none; six
+///   knights and six peasants become nobody at all.
+/// * **The total is rebuilt by summing**, so it cannot drift from the counts
+///   however the integer division falls — the same discipline
+///   [`auto_resolve`] uses.
+/// * **The army stops where it stands.** The path is thrown away and the move
+///   state cleared, so a retreat cancels the order that walked into the battle
+///   rather than resuming it. That is the half of this function that is not a
+///   casualty rule at all, and it is why the army is not carried on into a
+///   second fight on the same turn.
+///
+/// Returns the men left, which is the number
+/// [`WITHDRAWAL_SURVIVAL_MEN`] is tested against.
+///
+/// > **The only thing in `Lords2.exe` that reaches this is a siege.**
+/// > `g_battleWithdrawal` (`0x0056D5C8`) has exactly one writer —
+/// > `UnitOrder_SiegeAttKnight` (`0x0048D9CE`), an AI besieger whose whole
+/// > force is knights facing an unbreached wall — and three clearers, one of
+/// > which is [`auto_resolve`]'s first statement. **The Retreat button is not
+/// > one of them**: `FUN_0043BA29`'s confirm reaches `FUN_0043BE65`, which is
+/// > the autocalc and the return, so a player who "retreats" has auto-resolved
+/// > the battle and, if the ladder says he lost, watched his army destroyed
+/// > rather than withdrawn. See this module's `retreat` note.
+pub fn withdraw_casualties(
+    t: &Tables,
+    units: &mut Units,
+    realms: &mut [Realm; MAX_REALMS],
+    id: usize,
+    difficulty: u8,
+) -> i32 {
+    let Some(unit) = units.get_mut(id) else { return 0 };
+    let mut total = 0;
+    for slot in unit.troops.iter_mut() {
+        *slot = if *slot < WITHDRAWAL_WIPE_BELOW { 0 } else { *slot / 2 };
+        total += *slot;
+    }
+    unit.men = total + unit.mercenary_men();
+    unit.path.clear();
+    unit.moving = false;
+    let (owner, left) = (unit.owner, unit.men);
+    crate::unit::refresh_wages(t, units, realms, owner, difficulty);
+    left
+}
 
 // ------------------------------------------------------ §4 the levy goes home
 
@@ -987,11 +1103,22 @@ mod tests {
 
     /// The **withdrawal** rule, which is a different rule at the same site —
     /// the Readme's *Retreats (pg82)* and `menTotal < 50`.
+    ///
+    /// > **Corrected, and it moved the threshold by a factor of two.** This
+    /// > test used to read `[(50, true), (49, false)]` — fifty men walked off
+    /// > the field and fifty men arrived. They do not:
+    /// > `Army_WithdrawCasualties` runs *above* the whole loser branch and
+    /// > halves every troop line first, so the fifty the original tests is the
+    /// > fifty *left*, and an army needs a **hundred** to make it. That is the
+    /// > Readme's own wording — *"any army that would have less than 50 men
+    /// > **after** retreating is eliminated instead"* — and this file had the
+    /// > constant right and the order wrong. `docs/decisions.md`
+    /// > CNEW-withdrawal.
     #[test]
-    fn a_withdrawing_army_survives_at_fifty_men_and_is_eliminated_below_it() {
+    fn a_withdrawing_army_needs_a_hundred_men_to_walk_off_with_fifty() {
         let (mut counties, mut realms) = world();
         let mut names = ArmyNames::new();
-        for (men, survives) in [(50, true), (49, false)] {
+        for (men, survives, left) in [(100, true, 50), (99, false, 49), (50, false, 25)] {
             let mut units = Units::new();
             let a = army(&mut units, 1, true, &[(TroopType::Peasant, men)]);
             let d = army(&mut units, 2, false, &[(TroopType::Archer, 100)]);
@@ -1002,7 +1129,76 @@ mod tests {
             );
             assert_eq!(units.get(a).is_some(), survives, "{men} men");
             assert_eq!(after.loser_siege_lifted, survives);
+            // Charged either way: the casualties are taken before the army is
+            // told whether it is going to live.
+            assert_eq!(after.withdrawal_casualties, Some(men - left), "{men} men");
+            if survives {
+                assert_eq!(units.get(a).unwrap().men, left);
+            }
         }
+    }
+
+    /// **`Army_WithdrawCasualties` on its own**, and the three details a
+    /// reimplementation gets wrong.
+    #[test]
+    fn a_retreat_halves_every_line_wipes_the_small_ones_and_spares_the_band() {
+        let (_counties, mut realms) = world();
+        let mut units = Units::new();
+        let a = army(
+            &mut units,
+            1,
+            true,
+            &[
+                (TroopType::Peasant, 101),
+                (TroopType::Knight, 11),
+                (TroopType::Archer, 10),
+                (TroopType::Pikeman, 1),
+            ],
+        );
+        units.get_mut(a).unwrap().mercenaries = Some(crate::unit::Mercenaries {
+            troop: TroopType::Swordsman,
+            men: 40,
+            band: 1,
+        });
+        let before = units.get(a).unwrap().men;
+        assert_eq!(before, 123, "the band is not part of `troops`");
+
+        let left = withdraw_casualties(T, &mut units, &mut realms, a, 1);
+        let u = units.get(a).unwrap();
+        assert_eq!(u.troops[TroopType::Peasant.index()], 50, "101 / 2, truncating");
+        assert_eq!(u.troops[TroopType::Knight.index()], 5, "eleven is the first line that halves");
+        assert_eq!(u.troops[TroopType::Archer.index()], 0, "ten is wiped outright");
+        assert_eq!(u.troops[TroopType::Pikeman.index()], 0);
+        assert_eq!(u.mercenary_men(), 40, "the band walks off whole");
+        assert_eq!(left, 55 + 40);
+        assert_eq!(u.men, u.troops.iter().sum::<i32>() + u.mercenary_men(), "summed, not scaled");
+        assert!(!u.moving, "and it stops where it stands rather than resuming its order");
+        assert!(u.path.is_empty());
+    }
+
+    /// An army every one of whose lines is under eleven is **annihilated by
+    /// retreating** — the outer test then reads zero men and the inner one
+    /// never gets a chance to spare it.
+    #[test]
+    fn an_army_of_small_lines_does_not_survive_a_retreat_at_all() {
+        let (mut counties, mut realms) = world();
+        let mut names = ArmyNames::new();
+        let mut units = Units::new();
+        let a = army(
+            &mut units,
+            1,
+            true,
+            &[(TroopType::Knight, 10), (TroopType::Swordsman, 10), (TroopType::Maceman, 10)],
+        );
+        let d = army(&mut units, 2, false, &[(TroopType::Archer, 100)]);
+        units.get_mut(a).unwrap().besieging_county = 2;
+        let after = return_to_campaign(
+            T, &mut counties, &mut realms, &mut units, &mut names,
+            Verdict::b_won(a, d), 2, true, true, 1,
+        );
+        assert_eq!(after.withdrawal_casualties, Some(30));
+        assert!(after.loser_destroyed, "thirty men, none of them in a line of eleven");
+        assert!(units.get(a).is_none());
     }
 
     /// And without the flag, fifty men buys nothing — which is the half of

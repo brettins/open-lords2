@@ -1591,6 +1591,36 @@ battle" toggle on this path. The mid-battle *"Autocalc battle?"* button (`0x0043
 `Battle_AutoResolve` on the counts as they stand, which the battle layer has not yet
 written back. `[V]`
 
+> ### The two buttons that leave a battle early **throw the battle away**, and only in single player  **[V]**
+>
+> Retreat (`0x0043BA29`) and Autocalc (`0x0043BD67`) both open a confirm box, and every
+> confirmation reaches the same 129 bytes at `FUN_0043BE65`:
+>
+> ```c
+> void FUN_0043be65(void) {
+>     Battle_AutoResolve();                 /* reads g_units, NOT g_battleMen */
+>     g_screenId = 0x13;  Battle_ReturnToCampaign(1);  ...
+> }
+> ```
+>
+> **`Battle_WriteBackCasualties` is not in it.** `Battle_AutoResolve` reads the *campaign*
+> records at `+0x16C`, and nothing has written those since the battle started, so half an
+> hour of fighting is discarded and the ladder is applied to the two armies as they marched
+> on. Every man killed so far is unkilled.
+>
+> **Except in a network game, where it is not.** `FUN_0043BDCD`, the autocalc confirm's own
+> callback, splits on `g_multiplayer`: the single-player arm calls `FUN_0043BE65`, and the
+> multiplayer arm calls **`Battle_WriteBackCasualties()` first** and then goes out over the
+> wire. So the same button means two different things depending on whether anyone else is
+> playing — reproduced as `docs/bugs.md` BNEW-mp-autocalc rather than tidied, and the
+> single-player arm is the one `crates/l2-game`'s `finish_battle` takes.
+>
+> This is *not* a hole in the campaign–battle seam, and it reads like one. A battle fought
+> to its end goes through `Battle_CheckOutcome`, which calls `Battle_WriteBackCasualties`
+> and then `Battle_ReturnToCampaign(1)` (§7.3), and an AI-versus-AI battle never enters the
+> simulation at all — it is settled by §7.2, which writes the survivors into the records as
+> its whole purpose. Only the *early exit* discards.
+
 **And declining the prompt is exactly the autocalc.** `Battle_Decline` (`0x0043B622`) runs
 `Battle_AutoResolve`, `Battle_ReturnToCampaign(0)` and raises the report screen. Saying no
 to *"Will you take the field?"* is a way out of *watching* the battle, not out of fighting
@@ -1719,10 +1749,64 @@ The rest:
 * garrison and besieger links (`+0x199`, `+0x19A`) are cleared, and if it was not a siege,
   `Siege_RecomputeBuildTime` runs again for the winner;
 * the battle scratch fields `+0x17A … +0x180` are zeroed on both sides (`0x004AA89F`);
+* **`Army_WithdrawCasualties` (`0x004AD8CC`) is charged on the loser, above the whole loser
+  branch, whenever `g_battleWithdrawal` is set** — §7.4a;
 * the loser is destroyed;
+* **`Realm_RecountStrength` (`0x0049B42B`) runs on the loser's realm**, after the destroy.
+  It is one of only four sites at which a realm can be eliminated, and the only one that
+  fires the moment a realm's last army dies rather than waiting for its own turn's step 0;
 * diplomacy takes a **−20** hit against the winner — but the guard is `loser.owner != 0`,
   which an **ownerless militia's 6 passes**, so the original then indexes a five-realm table
   with 6. `crates/l2-kingdom` refuses instead of reproducing that write.
+
+### 7.4a `Army_WithdrawCasualties` (`0x004AD8CC`) — the price of leaving  **[V]**
+
+Neither this document nor `symbols.json` had this function, and it is the missing half of
+the rule §7.4's two warning boxes are both about. `Battle_ReturnToCampaign` calls it on the
+**loser**, gated on `g_battleWithdrawal`, and — this is the part that changes an answer —
+**above the whole loser branch**, so every test below it reads the withdrawn army:
+
+```c
+if (g_battleWithdrawal == 1) Army_WithdrawCasualties(loser);
+if (loser.besiegingCounty == 0 || loser.menTotal == 0) { ... menTotal < 0x32 ... }
+```
+
+```c
+total = 0;
+for (t = 0; t < 7; t++) {
+    n = troops[t];
+    if (n < 0xB) n = 0; else n = n / 2;      /* a line under eleven is WIPED */
+    troops[t] = n;  total += n;
+}
+menTotal  = total;
+menTotal += mercMen;                         /* the band is NOT halved       */
+pathLen = 0;  moving = 0;                    /* +0x1C, +0x14C                */
+Wages_ForUnit(unit);
+```
+
+Four consequences, and the first was wrong in this document, in `symbols.md` and in
+`crates/l2-kingdom` alike:
+
+* **An army needs a hundred men to walk off with fifty.** The `< 50` test reads the
+  *halved* total. That is exactly the shipped `Readme.txt`'s *Retreats (pg82)* — *"any army
+  that would have less than 50 men **after** retreating is eliminated instead"* — and this
+  project had the constant right and the order wrong, so an 80-man army survived at 80 where
+  the original halves it to 40 and destroys it.
+* **An army every one of whose lines is under eleven is annihilated by retreating.** The
+  halving takes `menTotal` to 0, which passes the *outer* test as well, and message `0x120`
+  (group 288) goes out.
+* **The mercenary band does not lose a man**, unlike the autocalc, which scales it with
+  everything else. A retreating army of hirelings retreats intact.
+* **The army stops where it stands.** The path is thrown away and `moving` cleared, so a
+  retreat cancels the order that walked into the battle rather than resuming it.
+
+> **And the Retreat button does not reach any of it.** `FUN_0043BA29`'s confirm — either
+> confirm, *"Retreat from field?"* or *"Surrender castle?"* — lands on `FUN_0043BE65`, which
+> is `Battle_AutoResolve` followed by `Battle_ReturnToCampaign(1)`; and `Battle_AutoResolve`
+> **clears `g_battleWithdrawal` as its first statement**. A player who presses Retreat has
+> auto-resolved the battle from the counts his army walked onto the field with, and if the
+> ladder says he lost, his army is *destroyed* rather than withdrawn. The only route into
+> this section is `UnitOrder_SiegeAttKnight` giving up on an AI's behalf. `[V]`
 
 > ### ⚠ The ≥ 50-men rule is **not** an autocalc rule, and this document said it was.
 >
