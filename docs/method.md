@@ -365,6 +365,60 @@ Promotion is a deletion plus an addition: remove the entry here, add it to `symb
 and put the check that promoted it into its `comment`. A name that cannot be given such a
 sentence has not been promoted — it has been relabelled.
 
+**Two additions to that file, made when a second subsystem started using it.**
+
+* A **`promotion`** field beside `basis`: the check that would move the entry into
+  `symbols.json`, *named in advance*. That is the whole point of it — a promotion
+  criterion invented after the evidence arrives is not a criterion, it is a
+  rationalisation, and this is the same discipline §4's *"a test that cannot fail is not
+  a test"* asks of code. "Read it" is a perfectly good promotion criterion; "it will
+  become clear" is not.
+* A **`claims`** array, for the readings that are not about one address — a field's
+  meaning, an off-by-one, a rule. Those are exactly the ones that previously had nowhere
+  to live, so they went into prose and were re-derived later by someone who did not know
+  they had been derived.
+
+And one rule the file did not state and now does: **an address verified in `symbols.json`
+must not also appear here.** Two subsystems reached `g_screenIdSaved` from opposite
+directions within a day, one filing it as a hypothesis and one as verified. The verified
+entry wins and the hypothesis is deleted, which is what "promotion is a deletion plus an
+addition" already meant — but nothing had said what to do when the two happen
+concurrently.
+
+## 7.7 Constraint propagation, and where it stops being cheap
+
+Naming functions one at a time and checking each independently is the safe technique and the
+slow one. The alternative is to treat a guess as **a set of predictions about its
+neighbours** — if X steps a unit, its caller is the mover and its callees are the cost map
+and the path array — and to test the predictions rather than the guess. Survivors anchor
+their neighbours, and the cost per function falls as the picture tightens.
+
+It works, and it has a specific failure mode: **coherence is not correctness.** C3 is a
+self-consistent and entirely false model that assembled itself out of plausible parts, and a
+propagating network can lock one in that feels *more* convincing the larger it gets. The
+discipline that makes the technique safe is to pin the network, repeatedly, to things that
+cannot lie:
+
+* **`L2.eng` strings the game displays.** Index 0 of a group is a descriptive label, so a
+  function that draws group 281 is drawing *"Cannot siege castle"*. This is the highest-yield
+  anchor in the binary and it is nearly free — §7.2.
+* **Arithmetic that closes.** A 4×4 scan whose row stride is `512 − 4×8`; a `memset` of
+  `0x2000` over a 64×64 `i16` grid; a serialiser that emits `1+4+1+2+2` bytes beside a length
+  table that says 10. Each of those could have come out wrong.
+* **The save fixtures.** A number the code computes, found in a file the game wrote.
+
+**A cluster that touches none of the three is where C3 lives.** Flag it and leave it in
+`hypotheses.json`; do not commit it to `symbols.json` because the rest of the cluster agrees
+with it.
+
+Measured on one campaign-map pass: **21 role predictions made, 15 held, 6 refuted.** Three of
+the six refutations were the most valuable results of the pass, because a refuted prediction
+in a propagating network invalidates its neighbours too and stops the error spreading. The
+subject filter (§7) was right far more often than the role guess — as calibrated — so treat
+"this function is about sieges" as nearly free and "this function lifts a siege" as a claim
+that still needs its own check.
+
+
 ## 8. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
