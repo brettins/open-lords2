@@ -136,7 +136,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 268;
+const GATED_TOTAL: usize = 269;
 
 /// The workspace root, from this crate's manifest.
 fn repo_root() -> PathBuf {

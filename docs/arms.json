@@ -128,8 +128,8 @@
       "screen": "0x1A",
       "gesture": "type",
       "addr": "0x0042FF10",
-      "what": "Screen_HandleInput's 0x1A arm, when the widget test declines and g_diploKind is 1..4, sets DAT_005AEB78 = 1 and calls FUN_0040210C(g_diploLetterDraft + (kind - 1) * 200, 199) -- the keyboard entry field for the 199-character letter. Four 200-byte buffers at 0x0053F2B8, one per letter kind; Diplo_SendClicked copies the finished one into g_diploLetter + localPlayer * 0xCA, which is saved with the game and drawn to the recipient by Msg_DrawWindow.",
-      "note": "Not built here: text entry is a separate branch's. ComposeScreen carries the draft as a String so that branch has somewhere to write, and the send already copies it."
+      "what": "Screen_HandleInput's 0x1A arm, when the widget test declines and g_diploKind is 1..4, sets DAT_005AEB78 = 1 and calls FUN_0040210C(g_diploLetterDraft + (kind - 1) * 200, 199). FUN_0040210C is a bounded copy OUT OF DAT_005CD550, the game's one shared text-edit buffer that FUN_00401D26(ch) inserts typed characters into at cursor DAT_005BB4A8 -- so the four 200-byte buffers at 0x0053F2B8 are snapshots harvested from a single editor once a frame, not four independent fields. Diplo_OpenCompliment and its three siblings run the copy the other way (FUN_00402009) when the dialog opens, and Diplo_SendClicked copies the finished one into g_diploLetter + localPlayer * 0xCA, which is saved with the game and drawn to the recipient by Msg_DrawWindow.",
+      "note": "Not built here: text entry is a separate branch's. ComposeScreen carries the draft as a String so that branch has somewhere to write, and the send already copies it. The `what` above was corrected after the decompilation corpus was rebuilt with 211 more names: the first reading called FUN_0040210C 'the keyboard entry field', which is the harvest rather than the entry."
     },
     {
       "group": "diplomacy",
@@ -315,7 +315,7 @@
       "screen": "0x00",
       "gesture": "left-press",
       "addr": "0x00436872",
-      "what": "The Accept alliance ? prompt's two buttons (L2.eng group 180, message category 0x0B). Hotspot 1 calls Diplo_FormAlliance(g_localPlayer, DAT_0057C8B8); hotspot 0 declines. Note the guard is (offerer is human) || (hotspot != 0), so declining an AI's offer in single player runs NOTHING at all -- not even a refusal message. The offer simply lapses when the offering realm clears offerPending at the top of its next turn.",
+      "what": "The Accept alliance ? prompt's two buttons (L2.eng group 180, message category 0x0B). Hotspot 1 calls Diplo_FormAlliance(g_localPlayer, DAT_0057C8B8) -- and DAT_0057C8B8 is not a diplomacy global: Msg_DrawWindow writes it to whichever realm's letter is currently on screen, beside its portrait and name, so for this prompt it is the offering lord. Hotspot 0 declines. Note the guard is (offerer is human) || (hotspot != 0), so declining an AI's offer in single player runs NOTHING at all -- not even a refusal message. The offer simply lapses when the offering realm clears offerPending at the top of its next turn.",
       "note": "Blocked on the same unread Msg_DrawWindow as 0x004367FF."
     },
     {

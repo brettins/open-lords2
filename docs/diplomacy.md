@@ -962,4 +962,19 @@ not exist here.
 Those two are **the only places a person answers a lord rather than writing to one**, and
 both are unreachable. Everything a person can *initiate* is built: `docs/arms.json`'s
 `diplomacy` group is nine reproduced arms and three missing ones, the third being the
-199-character free-text letter, which is keyboard entry and another branch's.
+199-character free-text letter, which is another branch's.
+
+**And one thing §7 implies that is not true: the four letter buffers are not four fields.**
+`FUN_0040210C(g_diploLetterDraft + (kind − 1) × 200, 199)` is a bounded copy *out of*
+`DAT_005CD550`, the game's **one shared text-edit buffer** — `FUN_00401D26(ch)` inserts a
+typed character into it at cursor `DAT_005BB4A8`. So there is a single editor and the four
+200-byte slots are snapshots harvested from it once a frame, with `FUN_00402009` copying the
+other way when a dialog opens. A letter half-written to the Knight and abandoned is still in
+the editor when you open the Baron's.
+
+> This paragraph is here because the first reading of it was wrong in the way `CLAUDE.md`
+> rule 4 is about: `FUN_0040210C` was called *"the keyboard entry field"* on the strength of
+> where it is called from, and it is the *harvest*. It was caught by re-reading after the
+> decompilation corpus was rebuilt with 211 more function names — not because any of the new
+> names is in this function, but because re-reading is the only thing that has ever caught
+> this class of error. `docs/agents.md`.

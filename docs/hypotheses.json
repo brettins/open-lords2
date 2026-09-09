@@ -136,7 +136,7 @@
       "addr": "0x004369BD",
       "name": "Diplo_PickLordCard",
       "section": "diplomacy",
-      "confidence": "body",
+      "confidence": "both",
       "basis": "Screen_FrameInput calls it for g_screenId 0x0B immediately after Widget_Test over g_diploWidgets. It walks realms 1..5, skipping g_localPlayer and any realm with strength 0, and hit-tests FUN_004B1DEB(0x30, slot*100 + 0x31, 0x52, 0x4E) -- the same rectangle Diplo_DrawLordCard draws its inset in, with the same slot counter. On a hit it writes g_diploTarget and returns 1.",
       "comment": "Selecting which rival the diplomacy screen is about. One reading of the body; the corroboration is that its rectangle is literally the painter's."
     },
@@ -168,7 +168,7 @@
       "addr": "0x0043B4CB",
       "name": "Diplo_PickCountyFromMap",
       "section": "diplomacy",
-      "confidence": "body",
+      "confidence": "both",
       "basis": "Screen_FrameInput calls it as FUN_0043B4CB(0x60, 0xB0) for g_screenId 0x1A, before the corner button. It returns 0 immediately when g_diploKind < 5 -- the five dialogs with no map on them -- and otherwise indexes g_minimapCounty at (mouseX - x) + (mouseY - y)*0x80 for a left press inside a 0x80 square, writing g_pickedCounty. A pixel whose county is 0 returns 0, i.e. not consumed.",
       "comment": "The county picker on the ask-for-help and ask-for-attack dialogs. Diplo_DrawCountyRequest draws the same map at the same (0x60, 0xB0) through FUN_00410C71, which is what ties the hit rectangle to the picture."
     },

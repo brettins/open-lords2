@@ -31,9 +31,9 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->27<!--/fig--> of
-   <!--fig:arms-live-->35<!--/fig--> live arms (<!--fig:arms-pct-->77<!--/fig-->%)** — so
-   **<!--fig:arms-missing-->8<!--/fig-->** gestures a player can make get no answer — with
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->36<!--/fig--> of
+   <!--fig:arms-live-->47<!--/fig--> live arms (<!--fig:arms-pct-->77<!--/fig-->%)** — so
+   **<!--fig:arms-missing-->11<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->2<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
    counting: **<!--fig:arms-inventions-->5<!--/fig-->** inventions are on file. An invention is
@@ -363,7 +363,7 @@ Two findings in one evening say that gap is not theoretical, and they are the sa
 nothing is clicked to make a cow appear. No field is wrong — the herd count is right, and
 `docs/kingdom.md` has the arithmetic. No test could fail, because no test enumerated what the
 pasture tile is supposed to have on it. **Nothing is missing that anyone wrote down.** It is
-visible content in a dimension we have never counted, and the <!--fig:shells-->7<!--/fig-->
+visible content in a dimension we have never counted, and the <!--fig:shells-->6<!--/fig-->
 remaining shells — which the same player summarised as *"placeholder everywhere"* without being
 told which screens were shells — are the same gap at a coarser grain. That his count and the
 shell table's agree is the only corroboration either has.
@@ -656,7 +656,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,886<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,928<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

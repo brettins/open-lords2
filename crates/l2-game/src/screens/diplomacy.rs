@@ -67,12 +67,21 @@
 //! (216, 240), handled by `FUN_00436372`, which clamps the amount to
 //! `[0, my gold]` on every click.
 //!
-//! **The free-text letter is not written here.** Screen `0x1A`'s arm calls
-//! `FUN_0040210C(g_diploLetterDraft + (kind - 1) * 200, 199)` on every frame the
-//! widget test declines, which is the keyboard entry field — four 200-byte
-//! buffers, one per letter kind, saved with the game and drawn to the recipient
-//! by `Msg_DrawWindow`. Text entry is another branch's; this screen carries the
-//! draft as a `String` and lets that branch fill it.
+//! **The free-text letter is not written here, and the four buffers are not
+//! what you type into.** Screen `0x1A`'s arm calls
+//! `FUN_0040210C(g_diploLetterDraft + (kind - 1) * 200, 199)` on every frame
+//! the widget test declines — and `FUN_0040210C` is a bounded copy **out of
+//! `DAT_005CD550`**, the game's one shared text-edit buffer, which
+//! `FUN_00401D26(ch)` inserts typed characters into at cursor `DAT_005BB4A8`.
+//! So there is a single editor, and the four 200-byte buffers at
+//! `g_diploLetterDraft` are snapshots harvested from it once a frame;
+//! `Diplo_OpenCompliment` and its three siblings run the copy the other way
+//! (`FUN_00402009`) when the dialog opens.
+//!
+//! That matters for whoever builds text entry: the letter is not four
+//! independent fields, it is one field with four save slots. Text entry is
+//! another branch's; this screen carries the draft as a `String` and lets that
+//! branch fill it.
 //!
 //! # `Diplo_SendClicked`'s six refusals, and the order they are tested in
 //!
@@ -527,8 +536,16 @@ pub fn refusal(ctx: &Ctx, target: u8, kind: Kind, county: u8) -> Option<Refusal>
     None
 }
 
-/// `FUN_00410C71(county, 0x60, 0xB0)` — where the county picker's map is
-/// drawn, and the rectangle `FUN_0043B4CB` hit-tests. 128 × 128 at (96, 176).
+/// The rectangle `FUN_0043B4CB` hit-tests: 128 × 128 at (96, 176).
+///
+/// **The picture is two pixels left and three down of it.**
+/// `FUN_00410C71(county, x, y)` blits the raster at `(x - 2, y + 3)` and then
+/// `Minimap_DrawOverlay(county, x - 2, y + 3, 0)` on top, while the hit test
+/// uses `(x, y)` unadjusted. That is the same disagreement the sidebar minimap
+/// has between `Minimap_Draw` and `Minimap_Click` — `l2_view::chrome`'s
+/// `MINIMAP_X` against `MINIMAP_HIT_X` — and it is the original's in both
+/// places. The hit rectangle is what is reproduced here, because it is what
+/// decides which county you picked.
 pub const PICKER: Rect =
     Rect::new(0x60, 0xB0, l2_view::chrome::MINIMAP_DIM, l2_view::chrome::MINIMAP_DIM);
 
