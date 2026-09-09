@@ -845,6 +845,44 @@ by `tools/symbols/symbols_md.js`, which CI already runs: a non-enum `confidence`
 does an address that sits in `symbols.json` *and* `hypotheses.json` at once. The tier
 discipline was written down for a year and enforced by nothing.
 
+**C29 — `Map_PlaceDwellings` placed no dwelling. It is the starting-field allocator, and it
+is scaled by difficulty.**
+
+Found while typing the campaign tile grid, and it is C25's shape in miniature: the evidence
+was already written down beside the wrong name. The function's own `symbols.json` comment
+said it sweeps for **plane-0 bit `0x20`** and writes "Roads frame 80, 84 or 104 — the three
+crop states", and `maps-layers.md` §2.4 had *already* corrected `maps.md`'s reading of bit
+`0x20` from "dwelling / housing site" to **farmland**. The name kept the superseded reading;
+nobody re-read it against the sentence underneath it.
+
+Renamed to **`Map_PlaceStartingFields`** (`0x00467A36`). Retyped, it says more than the old
+comment did: for each of a county's farm tiles, in scan order, it writes `content` and
+`frame` by **difficulty**, so the harder settings start you with fewer improved fields —
+
+| difficulty | pasture (`content` `0x14`) | fallow (`1`) | wild (`0`) |
+|---|---|---|---|
+| 0, easiest | first 8 | the rest | — |
+| 1 | first 6 | next 2 | 8th on |
+| 2 | first 4 | next 2 | 6th on |
+| 3, hardest | first 4 | — | 5th on |
+
+— with `frame` = base + `((storedFrame + 0xB0) & 3)`, a four-variant pick, and the three
+bases 104 / 84 / 80 being exactly the crop frames §2.4 identifies farmland by. That the
+three `content` values line up with `County_RecountFields`'s pasture / fallow / wild bands is
+the check that could have failed.
+
+**The real dwellings were two unnamed functions all along**, and naming them closes
+`maps-layers.md` §8's "what gets built on the four `0x10` plots": `County_FindDwellingPlots`
+(`0x00468C41`) records the four plots, `County_UpdateDwellings` (`0x004684C6`) raises or
+razes a dwelling on each once a season from the county's population.
+
+**What this costs, and what it does not.** No behaviour changes and no other document
+depended on the name; `Map_InitScenario`'s call-order comment is the only other place it
+appeared. The lesson is the one C25 already paid for once — **a name is not evidence, and a
+`verified` mark attaches to the measurement, not to the label on top of it.** Two documents
+in this tree had the correct reading of bit `0x20` while a third named a function after the
+wrong one, for long enough that the function was cited by name in the scenario bring-up.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

@@ -143,6 +143,27 @@ Two rules follow, and they are cheap:
   appended to by several agents at once. A count that moves by the wrong amount is the only
   cheap signal that something arrived that you did not write, and it is how this was found.
 
+### Correction numbers: take the next one, and say which you took
+
+`docs/decisions.md` runs C1, C2, C3 … and an agent that finds something worth recording
+takes the next free number. With several agents running, they all read the same log and all
+reach for the same number: **this has now happened four times in one day** — three agents on
+C22, and two each on C25, C28 and C29.
+
+It is not worth serialising the log to prevent, and the integrator can renumber safely. What
+makes that cheap rather than archaeological is one line:
+
+> **Say in your report which correction number you took**, and grep the tree for
+> cross-references to it before you finish — `symbols.json` comments, Rust doc comments and
+> other documents all cite corrections by number.
+
+The integrator then renumbers the later arrival deterministically instead of discovering the
+collision by reading two entries with the same heading. Renumbering is a rewrite of the
+heading **plus every citation**; a correction whose number moved and whose citations did not
+is worse than the collision, because the reference now silently points at somebody else's
+correction. That is exactly what happened to the C22/C23 pair, and `crates/l2-kingdom`
+carried a citation to a correction that had never been written at all for weeks — see C26.
+
 The integrator repeats the check at merge time — union-merging by address, then scanning for
 an address or a name that appears twice — but that is a second line of defence. The agent
 doing the edit is the one who can still tell what it meant to write.

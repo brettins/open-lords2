@@ -294,16 +294,24 @@ were field offsets of three arrays that were already named.**
 
 Measured on the same 2,452 functions, before and after:
 
-| | before | county/unit/realm/lord | + the two battle arrays |
-|---|---:|---:|---:|
-| `DAT_` occurrences in the corpus | 24,608 | 19,661 | **17,192** |
-| distinct `DAT_` names | 2,977 | 2,575 | **2,461** |
-| distinct globals the corpus sees | 3,302 | 2,898 | **2,782** |
-| `anchor.js fields` — synthetic labels that are really record fields | 334 | 0 | **0** |
-| stride-adjacent `DAT_`s that resolve to nothing | 12 | 5 | **5** |
-| functions carrying a record stride | 692 | 303 | **115** |
-| functions touching *only* unnamed globals | 545 | 478 | **471** |
-| functions touching a *named* global | 902 | 968 | **974** |
+| | before | county/unit/realm/lord | + the two battle arrays | + the two grids |
+|---|---:|---:|---:|---:|
+| `DAT_` occurrences in the corpus | 24,608 | 19,661 | 17,192 | **15,308** |
+| distinct `DAT_` names | 2,977 | 2,575 | 2,461 | **2,309** |
+| distinct globals the corpus sees | 3,302 | 2,898 | 2,782 | **2,701** |
+| `anchor.js fields` — synthetic labels that are really record fields | 334 | 0 | 0 | **0** |
+| stride-adjacent `DAT_`s that resolve to nothing | 12 | 5 | 5 | **3** |
+| functions carrying a record stride | 692 | 303 | 115 | **115** |
+| functions touching *only* unnamed globals | 545 | 478 | 471 | **397** |
+| functions touching a *named* global | 902 | 968 | 974 | **878** |
+
+The last column is a **later measurement**, not only a later typing: `symbols.json` grew
+between the two, so re-measuring the third column's tree today gives 16,209 / 2,388 / 2,780
+rather than 17,192 / 2,461 / 2,782. The two grids' own contribution, measured against that
+same-day baseline, is **−901 `DAT_` occurrences and −79 `DAT_` names, of which 79 were the
+grids' synthetic field labels and 7 were a folded base that resolved elsewhere once the
+range was typed**. The last two rows count only *unnamed* functions, so naming two of them
+in the same pass moves them out of both.
 
 Seventy-two functions crossed from "unanchored" to "in a cluster" without anybody looking at
 one of them, and 520 synthetic globals stopped existing. A step function that used to read
@@ -320,11 +328,43 @@ if (g_units[g_movingUnit].kind == 3) { ... }
 g_units[g_movingUnit].y = g_units[g_movingUnit].y - 1;
 ```
 
+**A grid indexed by byte offset needs no special shape.** The two 8-byte grids — `g_tiles`
+(4,096 tiles, 64 × 64) and `g_battlefield` (6,400 cells, 80 × 80) — are not indexed like the
+other six arrays. The game keeps a *pre-scaled* byte offset, `(y * 64 + x) * 8`, in a
+variable and adds `±8` for a column and `±0x200` for a row, so there is no `i * stride` for
+`anchor.js stride` to find and no obvious way to tell Ghidra "divide by eight". The move that
+was expected to be needed — naming the eight plane bases as separate globals — turned out to
+be unnecessary. **A plain `Tile[4096]` array handles both idioms**, because the decompiler
+picks the reading that fits each site:
+
+```c
+g_tiles[local_1c * 0x40 + local_18].flags     /* the loader, which indexes by tile */
+(&g_tiles[0].unit)[tileOffset]                /* everyone else, who carries the byte offset */
+(&g_battlefield[0x50].terrain)[cellOffset]    /* ... and one row south */
+```
+
+The second form is the interesting one: it names the *plane* and leaves the byte offset
+visible, which is exactly the game's own model. The third shows the payoff on neighbour
+arithmetic — `[0x50]` is 80 cells, one row down, and used to be a bare `DAT_00544360`.
+Nothing about the shape had to be invented; the only decision was to give the record its
+true 8-byte size and let the offsets fall where they fall.
+
+Two things this shape does for free. Both grids come out **100% named with no padding**,
+where the six stride-indexed records are 23–92%; and one long-standing decompiler artefact
+fixed itself — `Minimap_Click` read `(&DAT_0052ae10)[x + (y-0x19)*0x80]`, a base folded
+0x180 bytes *inside* `g_tiles`, and once the range was typed Ghidra re-folded it onto
+`g_minimapCounty`, where it belongs.
+
 **The widths are measured, not assumed.** `ghidra_scripts/RecordProbe.java` walks every
 instruction, folds each address that lands in a record array to an offset within the record,
 and reports the p-code `LOAD`/`STORE` width used there. `docs/records.json` carries a field
 only where the documented meaning and the observed width agree; everything else stays
-undefined padding, which is why the structs are 23–86% named rather than 100%. The check the
+undefined padding, which is why the six stride-indexed structs are 23–92% named rather than
+100%. On the two grids the probe is unanimous: **441 references to `g_tiles` and 566 to
+`g_battlefield`, spread over all sixteen planes, and every one of them one byte wide but
+two** — and those two are `PUSH 0x5440e0`, the array's own address handed to the renderer,
+not a read of a cell. That is what makes an all-`u8` layout a measurement rather than a
+reading of the documents. The check the
 retyping then passes is that **no widening cast straddles a named field anywhere in the
 corpus** — if a field were typed one byte too narrow, some function would be reading across
 its boundary, and none is.
@@ -347,6 +387,39 @@ its boundary, and none is.
   running total and there is no room — and the other two are single bytes at `+0x04` and
   `+0x06`. Nothing overflows, so this is a widening rather than a bug, but the record is not
   four `i32`s and reading it as one would misplace every field after the first.
+
+**The two grids produced three more, and one of them is the biggest.**
+
+* `docs/battle.md` §3 gives the battlefield `terrain` byte as `skr.md`'s "Lords2 id" column —
+  1 open, 3 rocks, 4 hills, 6 **unused**, 7/8/9 bridge, 11 water, 12 woodland, 13. Retyped,
+  `Battlefield_BuildRandom` (`0x0047AAA3`) is legible for the first time, and that list is
+  the **output of a translation, and incomplete**. The builder maps each source raster byte
+  to a runtime id — `0→1, 2→4, 4→0x14, 7→0x28, 8→0x29, 9→0x0B, 0x0A→0x0C, 0x0F→0x1E,
+  0x10→7, 0x12→8, 0x14→9, 0x15→0x0D` — writes **6** (the "unused" id) for every source byte
+  in `0x50..0x5F`, with the frame set to `source + 0x2C` and the impassable bit set, and
+  passes anything else through **verbatim**. So `0x14`, `0x1E`, `0x28` and `0x29` are live
+  terrain ids that appear nowhere in the document, and the pass that follows pairs `0x14`
+  with the cell one row south and `0x28` with `0x29` in runs of up to four — they are
+  multi-cell structures.
+* `docs/battle.md` §3 calls cell `+4` **elevation**, and after the build it is. During
+  `Battlefield_BuildCastle` (`0x0047C4BA`) it is not: the builder seeds it from a 256-entry
+  2-byte table (`0x004D7D80`, or `0x004D7B80` for the other tile set) whose second byte is
+  the passability flag, and then **re-dispatches on values 5…12 as structure codes**,
+  consuming each one and replacing it with a real elevation 0…4 plus a `surface` and a
+  `flags` assignment. `+4` is an escape-encoded field mid-build and a height only afterwards.
+  Both builders were listed in §3 as "neither was traced"; both now read.
+* `docs/formats/maps-layers.md` §5.3 lists the run-time-only bits of the `bank` byte as
+  `0x01`, `0x20` and `0x80`. Bit `0x40` is missing and is not idle: it has nine clears and
+  six tests, and in `Map_RenderIso`'s two half-row loops `bank & 0x40` is the sole condition
+  for calling **`Map_DrawCountyFlag`**, exactly as `bank & 0x80` is for the building overlay.
+
+**And a negative result about the method, which cost a wrong claim.** A census of the bit
+masks applied to each plane in the corpus is a **lower bound only**. It said the tile `flags`
+bit `0x08` — `maps-layers.md`'s **[I]** "rough terrain" — is never read anywhere, which would
+have been a good finding and is false: `Move_BuildCostMap` copies the byte into a local first
+and tests `(bVar1 & 0xC) == 0`, so both `0x04` and `0x08` are read there, as
+`docs/armies.md` §2.2 already said. Never conclude "nothing reads this" from a pattern that
+requires the field expression and the mask to be adjacent.
 
 The same run found `g_battleMen` and `g_battleUnits` are **81** records, not the 80 their
 `symbols.json` comments say: every sweep is `for (i = 1; i < 0x51; i++)`, so index 80 is
@@ -539,7 +612,7 @@ that still needs its own check.
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — <!--fig:functions-->646<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->26<!--/fig-->%.
+always more of the binary to name — <!--fig:functions-->648<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->26<!--/fig-->%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the

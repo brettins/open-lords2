@@ -184,6 +184,15 @@ reaches zero the figure enters the dead state and is removed.
 
 ## 3. The battlefield cell — `g_battlefield`, `0x005440E0`, 8 bytes, index `(y*80 + x)*8`
 
+The record is typed as `BattleCell` in [`docs/records.json`](records.json) and applied to the
+Ghidra database before every corpus rebuild, so the decompiled corpus reads
+`g_battlefield[y * 0x50 + x].surface` and `(&g_battlefield[0].figure)[cellOffset]` rather
+than a synthetic global per plane. All eight bytes are named, and `RecordProbe` finds all
+566 references to it in the binary are one byte wide but two, and those two are
+`PUSH 0x5440e0` — the array's own address, not a read of a cell. The 80 × 80 × 8 shape is confirmed from the game's
+own side: both callers of the isometric grid renderer pass
+`FUN_004bc020(bank, bank2, g_battlefield, 0x50, 0x50, 8, 0, …)`.
+
 | Off | Ev | Meaning |
 |---|---|---|
 | `+0` | [V] | terrain id (`skr.md`'s "Lords2 id" column: 1 open, 3 rocks, 4 hills, 6 unused, 7/8/9 bridge parts, 11 water, 12 woodland, 13 the `0x15` lines). |
@@ -198,8 +207,71 @@ reaches zero the figure enters the dead state and is removed.
 **[V] `Battlefield_BuildFromSkr` never writes byte `+4`.** On a `.skr` battlefield every
 cell is at elevation 0, so the elevation rules in §6.2 and §7 are inert there. Elevation
 must come from the two other builders, `Battlefield_BuildRandom` (`0x0047AAA3`) and
-`Battlefield_BuildCastle` (`0x0047C4BA`), which also write this array — neither was
-traced.
+`Battlefield_BuildCastle` (`0x0047C4BA`), which also write this array.
+
+**Both of those builders are now traced.** They were opaque because every access to this
+array was a synthetic global; giving the record a struct type (`BattleCell` in
+`docs/records.json`) made them read. Two corrections follow, and they matter for anyone
+implementing against the table above.
+
+### 3.0 The `terrain` column above is a translation's output, and it is incomplete  **[V]**
+
+`Battlefield_BuildRandom` reads a byte per cell out of `batfield.pl8`'s raster and
+*translates* it into the runtime `terrain` id:
+
+| source byte | → terrain | | source byte | → terrain |
+|---:|---:|---|---:|---:|
+| `0` | 1 | | `0x0F` | **0x1E** |
+| `2` | 4 | | `0x10` | 7 |
+| `4` | **0x14** | | `0x12` | 8 |
+| `7` | **0x28** | | `0x14` | 9 |
+| `8` | **0x29** | | `0x15` | 0x0D |
+| `9` | 0x0B | | `0x20…0x3F` | 3, `frame` = source, `flags \|= 0x10` |
+| `0x0A` | 0x0C | | `0x50…0x5F` | **6**, `frame` = source + 0x2C, `flags \|= 0x10` |
+| | | | anything else | passed through **verbatim** |
+
+Three things the §3 table gets wrong as a result:
+
+* **`6` is not "unused".** It is written for every source byte in `0x50…0x5F` — sixteen
+  variants of an impassable object, distinguished by the frame.
+* **`0x14`, `0x1E`, `0x28` and `0x29` are live ids that the table does not list at all.**
+  The sweep immediately after the translation pairs a `0x14` with the cell one row south
+  (`+0x280`) and a `0x28` with a `0x29` at `+8`, `+0x10` or `+0x18` — they are multi-cell
+  structures, matched the way the campaign map's 2×2 blocks are.
+* The pass-through case means the id space is **open**: a source byte outside every arm
+  lands in `terrain` unchanged.
+
+`Battlefield_BuildCastle` uses the byte differently again: its first sweep writes `terrain`
+= 11 (water — the moat) where the source byte is `0xEE` and 1 (open) everywhere else, so on
+a castle battlefield `terrain` only ever holds those two values and the structure lives in
+the other planes.
+
+### 3.0.1 Byte `+4` is escape-encoded during a castle build  **[V]**
+
+`Battlefield_BuildCastle` seeds `elevation` from a 256-entry, 2-byte-per-frame table —
+`0x004D7D80`, or `0x004D7B80` when the other tile set is selected — indexed by the cell's
+own frame byte. The table's **second** byte is the passability flag: zero sets `flags |= 0x10`.
+
+The first byte is *not* always a height. Values 5…12 are structure codes, and the builder
+consumes each one immediately, replacing it with a real elevation and writing `surface` and
+`flags` as it goes:
+
+| code | `surface` ← | `elevation` ← | `flags` |
+|---:|---:|---:|---|
+| 5 | — | 3 | `= 0`, then `\| 0x04` |
+| 6 | 6 | 1, or 4 on the other tile set | `= 0`, `\| 0x08`; `flags2 \| 0x80` |
+| 7 | 7 (bridge) | 2 | — |
+| 8 | 8 | 1 | `= 0`, `\| 0x20`, `\| 0x04` |
+| 9 | 0x0B | 0 | `= 0`, `\| 0x40` |
+| 10 | 0x0E | 0 | `\| 0x04` |
+| 11 | — | 1 | `= 0`, `\| 0x04` |
+| 12 | — | 2 | `= 0`, `\| 0x04` |
+
+So `+4` is only an elevation once the build has finished, the `surface` values `8`, `0x0B`
+and `0x0E` are written here and appear nowhere in §3's list, and `flags` bits `0x04` and
+`0x08` — undocumented above — are set on six of the eight codes. Each code also records a
+landmark: code 6 remembers the first such cell in `DAT_00553274` (offset by one row for a
+human attacker), code 8 the first in `DAT_00553EE4` and the fifth in `DAT_0053E9D4`.
 
 ### 3.1 This settles two open questions in `skr.md`
 

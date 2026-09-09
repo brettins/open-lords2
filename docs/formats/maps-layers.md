@@ -370,18 +370,45 @@ determine what the six lists mean.** Settling it needs the *consumer* of the
 ### 5.3 The runtime tile record  **[V], one live run**
 
 Read from `0x00522F90` (4096 × 8 bytes) with slot 0 loaded, and matched against
-the file:
+the file. The record is typed as `Tile` in [`docs/records.json`](../records.json)
+and applied before every corpus rebuild, so the field names below are the ones
+the decompiled corpus uses:
 
-| byte | contents | agreement with file |
-|---|---|---|
-| +0 | object/state class, values 0,1,4,7,10,11,20,21,22,23 | runtime-only |
-| +1 | plane 0 flags | 4026/4096 (see below) |
-| +2 | `plane1` in bits `0x1c`; bits `0x01`, `0x20`, `0x80` set at run time | 4062/4096 |
-| +3 | plane 2 frame index | 1872/4096 (variant randomisation, §4.1) |
-| +4 | **plane 3, verbatim** | **4096/4096** |
-| +5 | **plane 4**, then consumed | 4043/4096 |
-| +6 | saved terrain frame index for tiles that get a building | runtime-only |
-| +7 | **plane 5 county, verbatim** | **4096/4096** |
+| byte | field | contents | agreement with file |
+|---|---|---|---|
+| +0 | `content` | what stands on the tile — see §5.4 | runtime-only |
+| +1 | `flags` | plane 0 flags | 4026/4096 (see below) |
+| +2 | `bank` | `plane1` in bits `0x1c`; bits `0x01`, `0x20`, `0x40`, `0x80` set at run time | 4062/4096 |
+| +3 | `frame` | plane 2 frame index | 1872/4096 (variant randomisation, §4.1) |
+| +4 | `part` | **plane 3, verbatim** (read as `& 0xF`) | **4096/4096** |
+| +5 | `unit` | **plane 4**, then consumed and reused as the unit-occupancy plane | 4043/4096 |
+| +6 | `savedFrame` | saved terrain frame index for tiles that get a building | runtime-only |
+| +7 | `county` | **plane 5 county, verbatim** | **4096/4096** |
+
+`RecordProbe` finds all 441 dereferences of this array in the binary are **one
+byte wide**, at all eight offsets — so the eight-plane reading has no exception
+anywhere in the code, not just in the one live dump.
+
+**Bit `0x40` of `bank` was missing from this table.** It is a run-time draw bit
+like `0x80`, and `Map_RenderIso`'s two half-row loops make its meaning exact:
+`bank & 0x80` calls the building-overlay blitter and `bank & 0x40` calls
+`Map_DrawCountyFlag`. **[V]**
+
+### 5.4 Byte +0, `content` — the tile's occupant  **[V]**
+
+Not one enumeration. The value is read under a mode chosen by the `flags` byte,
+which is why the ranges overlap:
+
+| on a tile with | `content` means |
+|---|---|
+| `flags & 0x80` (industry site or castle) | `1/2/3` iron, `4/5/6` stone, `7/8/9` weapons, `10/11/12` wood, as **idle / working / wrecked** (`Unit_TrampleTile` steps each triple to its wrecked value and disables that county's industry); `0x14` the castle plot, `0x15…0x19` a castle |
+| `flags & 0x10` (dwelling plot) | `0x10…0x13`, largest to smallest — see §8 |
+| `flags & 0x20` (farm field) | `0` wild, `1` fallow, `2…14` grain, `15…22` pasture, `23/24` neither, `25+` being reclaimed (`County_RecountFields`) |
+
+`Unit_Step` is where the discrimination is visible: `Unit_TryEnterTile` returns
+one code per flag bit, and only the `0x80` arm (code 6) then splits on
+`content < 0x10` for an industry site versus `0x14 < content < 0x1A` for a
+castle.
 
 The 70 plane-0 differences are all load-time edits: `0x10 → 0x00` on 55 tiles
 (the reserved plots, whose terrain index was copied to +6), `0x12 → 0x02` on 1,
@@ -488,7 +515,23 @@ with as few separate process spawns as possible, and take the memory dumps
 * **Plane 0 bit `0x01` = road, `0x08` = rough terrain, `0x10` = reserved plot,
   `0x20` = farmland** are all **[I]**. They are pinned to exact graphic ranges
   and to run-time behaviour, but nothing in the data *names* them.
-* **What gets built on the four `0x10` plots per county**, and why exactly four.
+* ~~**What gets built on the four `0x10` plots per county**, and why exactly four.~~
+  **Settled: dwellings, and four because the array holds four.** `County_FindDwellingPlots`
+  (`0x00468C41`), called once per county from `Counties_PlaceSites`, sweeps the grid for this
+  county's `0x10` tiles and stores each one's byte offset in `county.dwellingPlots` — four
+  `i32` slots at county `+0x80` — copying the tile's `frame` into `savedFrame` and zeroing
+  `content`. `County_UpdateDwellings` (`0x004684C6`) is then called once per county per
+  season from `Population_UpdateAll` with a count banded on population: **0 dwellings below
+  601, 1 below 1001, 2 below 1401, 3 below 1601, 4 above**. Each of the first *n* plots steps
+  `content` one size up the ladder `0x13 → 0x12 → 0x11 → 0x10` (frame `0x3C` for the two
+  small sizes, `0x3B` for the two large), moves the tile to the Town bank with the overlay
+  bit, and sets `flags` bit `0x10`; every plot beyond *n* is razed — `frame` restored from
+  `savedFrame`, bank cleared back to base, `flags` bit `0x10` cleared, `content` zeroed.
+  `Unit_BurnDwelling` is the inverse, driving one plot from `0x10` straight back to `0x13`.
+  **The count is not a rule, it is the storage:** the loop has no bound check and the four
+  slots end exactly on `county.fieldProgress` at `+0x90`, so a fifth `0x10` tile in one
+  county would overwrite a field's reclamation progress. §2.3's exactly-four-per-county
+  invariant over all 434 counties is what keeps that from happening.
 * **The six tiles per map with plane 0 == `0x01`** that the loader numbers 1…6
   (§5.3) — observed on one map only, and not distinguishable in the file from
   the other 12,000-odd road tiles.
