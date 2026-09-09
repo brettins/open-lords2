@@ -198,10 +198,42 @@ chased.
   > why a tile trampled two steps ago is already impassable to the next one. The "once a
   > season" note on it in `symbols.json` should go. [D]
 
-Player-ordered movement happens during phase 4 (the players' turn); `Units_Tick`
-(`0x004650B0`) is driven from the frame loop and dispatches each unit through
+`Units_Tick` (`0x004650B0`) is driven from the frame loop and dispatches each unit through
 `g_unitTickTable[type]` (`0x004D6A50`). **Slot 5 of that table is NULL** while the dispatcher
 accepts types up to 5, so a type-5 unit would call address 0. Nothing spawns one. [D]
+
+> **Corrected, and it settles where movement lives.** This line used to open *"player-ordered
+> movement happens during phase 4 (the players' turn)"*, which ties movement to a phase.
+> Nothing ties movement to a phase. `Units_Tick` has **exactly one call site** — the frame
+> loop, immediately after `Turn_Tick` —
+>
+> ```c
+> if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490D(); Turn_Tick(); Units_Tick(); }
+> ```
+>
+> — and it never reads `g_turnPhase`. Every unit with `moving == 2` steps on **every tick of
+> the turn**, in any phase. A player order does not wait for phase 4; it is simply that
+> phase 4 is where the player is given the chance to give one. **[V]**, one call site in the
+> whole corpus.
+>
+> Three more things from reading the handlers end to end, each of which a reimplementation
+> gets wrong by default:
+>
+> * **`moving` (`+0x14C`) is three states**: 0 idle, 1 ordered but not started, 2 stepping.
+>   The phase wait predicates are not read-only queries — `FUN_004A4F5B(type)` and
+>   `FUN_004A4E3D(type, owner)` promote every 1 to a 2 *and* report the phase still busy.
+>   One call both starts a phase's units and waits on them. The phase-start functions write
+>   1; `Unit_OrderMove` writes 2 directly, which is why a player's army moves at once.
+> * **A tick enters at most one tile.** `Unit_Step` (`0x00465D28`) loops only on the
+>   sub-tile animation return code and returns as soon as a tile is committed. An army's 15
+>   points is therefore five open-ground tiles or fifteen road tiles a season, taken one a
+>   tick.
+> * **The sweep aborts on a battle.** `Unit_EnterOccupiedTile` sets `DAT_0050A49E` when it
+>   opens an interactive battle and `Units_Tick` returns immediately, so units in higher
+>   slots do not move on that tick at all. It also puts back the waypoint the step consumed,
+>   so the army resumes on the same tile afterwards.
+>
+> `docs/kingdom.md` §3.1's phase-2 row is corrected with this; `docs/decisions.md` C35.
 
 ### 2.1a One array, four things — which handler is whose
 

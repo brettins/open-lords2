@@ -242,17 +242,52 @@ kicks off work on its first step and then waits for the units it started to stop
 | Phase | First step | Waits for | What it is |
 |---:|---|---|---|
 | 1 | `AI_SetTaxRates(0)`, then `AI_ManageFields(0)` | 3 steps | **Neutral counties.** Realm 0 — the unowned counties — get their tax rates and fields set. |
-| 2 | `FUN_004A82B9` | armies (unit type 1) | **Army movement**, including battle resolution. |
-| 3 | `FUN_00429418` | transports (type 4) | **Supply transports** are re-targeted at their destination county's anchor and walk. |
+| 2 | `Siege_StartPhase` `0x004A82B9` | `Siege_TickPhase() == 0` | **Sieges** — validate the garrison/besieger links, build engines, launch the assault. **Not army movement.** |
+| 3 | `FUN_00429418` | transports (type 4) | **Supply transports** are re-targeted at their **cargo** county's anchor and walk. |
 | 4 | — | every realm's `aiStep` = 999 | **The players' turn.** `AI_RunTurnStep` drives the AI realms; the human realm is driven by the UI. Also where the turn timer runs. |
-| 5 | `FUN_004AC499` | peasant mobs (type 2) | **Revolting peasants** move. |
-| 6 | `Merchant_AdvanceAll` | merchants (type 3) | **Merchants**, already documented in [`plane4.md`](formats/plane4.md) §2.3. |
+| 5 | `FUN_004AC499` | peasant mobs (type 2) | **Revolting peasants** are given a destination off a shared county cursor and walk. |
+| 6 | `Merchant_AdvanceAll` | merchants (type 3) | **Merchants** take the next leg of their route, already documented in [`plane4.md`](formats/plane4.md) §2.3. |
 | 7 | `Season_Advance` | — | **End of season.** Runs once and advances straight to phase 1. |
 
-**[V]** on the phase numbering and dispatch; **[V]** on phase 6, which is where
-`plane4.md` independently found `Merchant_AdvanceAll`; **[D]** on the one-word
-descriptions of phases 2, 3 and 5, which come from the unit type each phase waits on
-rather than from tracing the handlers.
+**[V]** on the phase numbering and dispatch, and now **[V]** on every row: all four
+handlers and all four wait predicates have been read.
+
+> ### ⚠ Nothing moves *inside* a phase. `Units_Tick` is a sibling of `Turn_Tick`.
+>
+> **Phase 2's row used to say "army movement, including battle resolution", waiting on
+> unit type 1.** It was **[D]**, derived from "the unit type each phase waits on" — a
+> derivation that is right for 3, 5 and 6 and wrong here, because phase 2 does not wait on
+> units at all:
+>
+> ```c
+> if (g_turnPhaseStep % 100 == 2) {
+>     if (Siege_TickPhase() == 0) Turn_AdvancePhase();
+>     else { DAT_0055403C = 0; Siege_LaunchAssault(g_siegeCursor); }
+> }
+> ```
+>
+> [`armies.md`](armies.md) §2.1 has had phase 2 right for some time — *"phase 2 is sieges,
+> not general movement"* — and this table was never reconciled with it.
+>
+> **So where is army movement?** `Units_Tick` (`0x004650B0`) has exactly one call site and
+> it is the frame loop, called immediately after `Turn_Tick` and never reading
+> `g_turnPhase`:
+>
+> ```c
+> if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490D(); Turn_Tick(); Units_Tick(); }
+> ```
+>
+> Every unit with `moving == 2` steps on **every tick of the whole turn**, whatever phase is
+> current, one tile at a time. Phases 3, 5 and 6 *originate* the game's own move orders and
+> then wait for them to finish; a player's order involves no phase, because `Unit_OrderMove`
+> sets the unit walking directly. `docs/decisions.md` C35.
+>
+> **`moving` (`+0x14C`) is three states, not two**: 0 idle, 1 ordered, 2 stepping. The wait
+> predicates are not read-only — `FUN_004A4F5B(type)` and `FUN_004A4E3D(type, owner)` promote
+> every 1 to a 2 *and* report that the phase is still busy, which is how one call both
+> starts a phase's units and waits for them. `FUN_004A4E3D` additionally requires
+> `owner == param_2` and `ownerIsHuman == 0`, so **phase 5 waits only on realm 6's mobs**,
+> and it calls `Siege_Break` on any type-1 unit it starts.
 
 ### 3.2 The AI realm's turn is a fourteen-step program
 

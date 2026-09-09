@@ -5161,6 +5161,54 @@
       "signature": "int Battle_ChooseSettlement(void)"
     },
     {
+      "addr": "0x00429418",
+      "name": "Transport_RetargetAll",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Transport_RetargetAll(void)",
+      "comment": "Turn phase 3, step 1. For every type-4 unit, unconditionally: destX/destY = the anchor of the unit's cargo county (+0x167), destCounty = that county, hasNoDestination = 0, then the two-pass path (Move_FloodFill mode 1, retried at mode 0 if the road route needs 150 or more waypoints) and moving = 1. It does not test hasNoDestination, which is what lets a transport resume a journey it could not finish last season. The destination is the anchor itself, not a free tile near it - that is the merchant's rule and the two differ."
+    },
+    {
+      "addr": "0x004AC499",
+      "name": "PeasantMob_AdvanceAll",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void PeasantMob_AdvanceAll(void)",
+      "comment": "Turn phase 5, step 1. For every type-2 unit, calls PeasantMob_PickDestination and, if it succeeds, flood-fills (mode 0, no road preference), extracts the path and sets moving = 1."
+    },
+    {
+      "addr": "0x004AC5BA",
+      "name": "PeasantMob_PickDestination",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int PeasantMob_PickDestination(int unit)",
+      "comment": "Picks a mob's destination from g_mobCountyCursor, a single counter shared by every mob: bump it, wrap past g_countyCount back to 1, and bump once more if it names the county the mob is standing in - so consecutive mobs go to consecutive counties and a mob is never sent where it already is. Re-targets only when g_season == 2 or destCounty == 0. Note the destination coordinates are read from the cursor's county while destCounty is the unit's own field, so outside season 2 a mob that kept its old destCounty walks to a different county's anchor than the one it believes it is going to."
+    },
+    {
+      "addr": "0x004A4F5B",
+      "name": "Units_AnyMovingOfKind",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int Units_AnyMovingOfKind(uint kind)",
+      "comment": "The wait predicate for turn phases 3 and 6. Walks slots 1..150 and, for every unit of this kind with moving != 0, sets moving = 2 and returns 1. It is not a read-only query: it promotes 'ordered' (1) to 'stepping' (2) as well as reporting that the phase is still busy, so one call both starts a phase's units and waits on them."
+    },
+    {
+      "addr": "0x004A4E3D",
+      "name": "Units_AnyMovingOfKindForRealm",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int Units_AnyMovingOfKindForRealm(uint kind, char realm)",
+      "comment": "As Units_AnyMovingOfKind but also requires owner == realm and ownerIsHuman == 0, and calls Siege_Break on any type-1 unit it starts. Two callers: turn phase 5's wait, as (2, 6) - so the phase waits only on realm 6's ownerless mobs - and the AI turn's finish test, as (1, realm), which is why a realm with armies still walking keeps stepping past its aiStep threshold. Promoted from the hypothesis Unit_AbandonOrders, whose name had it backwards: it starts orders, it does not abandon them."
+    },
+    {
+      "addr": "0x004A7158",
+      "name": "Battle_BeginFromCampaign",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int Battle_BeginFromCampaign(int mover, int occupant)",
+      "comment": "The army-versus-army battle entry, and the third caller of Battle_ChooseSettlement. Reached from Unit_EnterOccupiedTile when an army steps onto a tile held by a realm Diplo_ActionAllowed permits attacking. Sets g_battleIsSiege = 0, g_battleCounty from the OCCUPANT's county, g_battleArmyA = mover, g_battleArmyB = occupant, and clears both sides' battle scratch fields. Returns 1 only when an interactive battle screen was opened (g_screenId = 0x12); the caller then sets g_battleStartedLatch and puts back the waypoint the step consumed. Otherwise it auto-resolves through Battle_AutoResolve and Battle_ReturnToCampaign and returns 0. This is the campaign side of the seam: Army_AttackCounty and Siege_LaunchAssault are the other two ways into the same machinery."
+    },
+    {
       "addr": "0x00477DFC",
       "name": "Battle_CheckOutcome",
       "section": "battle",
@@ -8093,6 +8141,20 @@
       "section": "units",
       "confidence": "verified",
       "comment": "The county a battle is being fought over. Written by Army_AttackCounty (the county attacked), by the army-versus-army path (the defender's county byte) and by Siege_LaunchAssault (the besieged county); read by Battle_ReturnToCampaign to decide which county changes hands, and by both battle screens for its name."
+    },
+    {
+      "addr": "0x004E59DC",
+      "name": "g_mobCountyCursor",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The peasant mobs' shared destination cursor - one counter for the whole map, not one per mob. See PeasantMob_PickDestination."
+    },
+    {
+      "addr": "0x0050A49E",
+      "name": "g_battleStartedLatch",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Set by Unit_EnterOccupiedTile when Battle_BeginFromCampaign opens an interactive battle. Units_Tick returns as soon as it is set, so units in higher slots do not move on that tick at all, and Unit_StepOnce returns 10 so no tile is entered and no movement is charged."
     },
     {
       "addr": "0x005440CC",

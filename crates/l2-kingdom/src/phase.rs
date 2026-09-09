@@ -23,9 +23,14 @@
 pub enum Phase {
     /// Realm 0 — the unowned counties — get their tax rates and fields set.
     NeutralCounties = 1,
-    /// Army movement, including battle resolution.
+    /// **Sieges** — validate, build, assault. *Not* army movement.
+    ///
+    /// The variant keeps its name because five files spell it and renaming it
+    /// is a separate change; what it does has been corrected. See
+    /// [`Phase::wait`] and `crate::units_tick`.
     ArmyMovement = 2,
-    /// Supply transports re-target their destination county's anchor and walk.
+    /// Supply transports re-target their **cargo** county's anchor and walk.
+    /// Not their `dest_county`, which is where the current path ends.
     SupplyTransports = 3,
     /// The players' turn. `AI_RunTurnStep` drives the AI realms; the human
     /// realm is driven by the UI. Also where the turn timer runs.
@@ -50,19 +55,16 @@ pub const PHASE_ORDER: [Phase; 7] = [
     Phase::SeasonEnd,
 ];
 
-/// The campaign unit types phases 2, 3, 5 and 6 wait on. The numbering is the
-/// `g_units` record's own type byte (`docs/formats/plane4.md`); the one-word
-/// descriptions of phases 2, 3 and 5 in `docs/kingdom.md` §3.1 are **`[D]`**,
-/// derived from the type each phase waits on rather than from tracing the
-/// handlers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(u8)]
-pub enum UnitKind {
-    Army = 1,
-    PeasantMob = 2,
-    Merchant = 3,
-    Transport = 4,
-}
+/// The campaign unit types phases 2, 3, 5 and 6 wait on.
+///
+/// **This used to be a second enum with the same name and the same four
+/// values.** It was declared here while `crate::unit` did not exist; it does
+/// now, and two identical `UnitKind`s in one crate is a trap rather than a
+/// separation — a phase that waits on `phase::UnitKind::Merchant` and a unit
+/// that is a `unit::UnitKind::Merchant` would not have compared equal, and the
+/// compiler would have said nothing useful about why. There is one, and it is
+/// the unit record's own.
+pub use crate::unit::UnitKind;
 
 /// What a phase waits for before `Turn_AdvancePhase` moves on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -73,6 +75,19 @@ pub enum PhaseWait {
     Units(UnitKind),
     /// Every realm's `aiStep` is [`crate::realm::AI_STEP_DONE`].
     AllRealmsDone,
+    /// **The siege cursor sweep has come up empty** — phase 2, and only phase
+    /// 2.
+    ///
+    /// `Siege_TickPhase` (`0x004A84BA`) walks `g_siegeCursor` from 1 to 150
+    /// calling `Siege_BuildTick` and returns as soon as one army's engines are
+    /// ready, *leaving the cursor where it is*; `Turn_Tick` then runs
+    /// `Siege_LaunchAssault` and comes back to the same cursor next call.
+    /// Nothing left to build is a return of 0, and that is what advances the
+    /// phase.
+    ///
+    /// With no sieges in play — which is every game this crate can currently
+    /// produce — the first sweep is empty and the phase advances immediately.
+    Sieges,
     /// Runs once and advances on the same call.
     Immediate,
 }
@@ -94,10 +109,30 @@ impl Phase {
         }
     }
 
+    /// What has to be true before `Turn_AdvancePhase` fires.
+    ///
+    /// > **Phase 2 does not wait on armies, and this said it did.** The row was
+    /// > taken from `docs/kingdom.md` §3.1, which derives every unit phase from
+    /// > "the type each phase waits on" — a derivation that is right for 3, 5
+    /// > and 6 and wrong for 2. `Turn_Tick`'s phase-2 arm is
+    /// >
+    /// > ```c
+    /// > if (g_turnPhaseStep % 100 == 2) {
+    /// >     if (Siege_TickPhase() == 0) Turn_AdvancePhase();
+    /// >     else { DAT_0055403C = 0; Siege_LaunchAssault(g_siegeCursor); }
+    /// > }
+    /// > ```
+    /// >
+    /// > — no unit sweep, no type-1 predicate, nothing that reads `moving`. The
+    /// > three phases that *do* wait on units call `FUN_004A4F5B(type)` (3 and
+    /// > 6) or `FUN_004A4E3D(2, 6)` (5), and phase 2 calls neither. Armies move
+    /// > outside the phase machine entirely — `crate::units_tick` has the
+    /// > reading. `docs/decisions.md` C35, and `docs/kingdom.md` §3.1's phase-2
+    /// > row is corrected with it. `[V]`
     pub fn wait(self) -> PhaseWait {
         match self {
             Phase::NeutralCounties => PhaseWait::Steps(3),
-            Phase::ArmyMovement => PhaseWait::Units(UnitKind::Army),
+            Phase::ArmyMovement => PhaseWait::Sieges,
             Phase::SupplyTransports => PhaseWait::Units(UnitKind::Transport),
             Phase::PlayersTurn => PhaseWait::AllRealmsDone,
             Phase::PeasantMobs => PhaseWait::Units(UnitKind::PeasantMob),
@@ -178,7 +213,9 @@ impl TurnMachine {
             // end is the call after it started. Without this a phase whose
             // units happen to be idle already would be skipped before its
             // handler ever ran.
-            PhaseWait::Units(_) | PhaseWait::AllRealmsDone => settled && !started,
+            PhaseWait::Units(_) | PhaseWait::AllRealmsDone | PhaseWait::Sieges => {
+                settled && !started
+            }
             PhaseWait::Immediate => true,
         };
 

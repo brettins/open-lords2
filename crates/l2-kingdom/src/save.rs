@@ -119,7 +119,23 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   together. Nothing checks for this collision the way
 ///   `tools/decisions/corrections.js` checks correction numbers; the changelog
 ///   above is the only thing that catches it, and only if it is read.
-pub const VERSION: u32 = 7;
+/// * 8 — **the things that move now move** (`crate::units_tick`): the six
+///   merchant trade routes `g_merchantRoutes`, the peasant mobs' shared
+///   destination cursor, and a transport's cargo county on the unit record.
+///   All three are state a turn *reads and writes* — a version 7 save would
+///   load with six empty routes and every merchant would stand still for ever,
+///   which is a silently different game rather than a missing feature.
+///
+///   **And it happened again, exactly as the entry above predicted.** This
+///   arrived as its own version 7 from a third parallel branch, was read off
+///   the changelog on merge, and moved to 8. That is now twice in one day, so
+///   the note above should be taken as a standing hazard rather than an
+///   anecdote: **the version number is the one field in this file that two
+///   branches will always collide on**, because every branch that changes the
+///   layout has to touch it and none of them can see the others. A check like
+///   `tools/decisions/corrections.js` — which catches exactly this for
+///   correction numbers — is the fix, and it does not exist for this constant.
+pub const VERSION: u32 = 8;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -376,6 +392,12 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     for realm in 0..MAX_REALMS {
         out.raw(campaign.names.counters(realm as u8));
     }
+
+    out.section("routes");
+    for route in 0..crate::merchant::ROUTES {
+        out.raw(campaign.routes.row(route));
+    }
+    out.u32(campaign.mob_cursor as u32);
 }
 
 fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, LoadError> {
@@ -427,6 +449,14 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, L
         row.copy_from_slice(bytes);
         campaign.names.set_counters(realm as u8, row);
     }
+
+    for route in 0..crate::merchant::ROUTES {
+        let bytes = input.raw(crate::merchant::ROUTE_SLOTS)?;
+        let mut row = [0u8; crate::merchant::ROUTE_SLOTS];
+        row.copy_from_slice(bytes);
+        campaign.routes.set_row(route, row);
+    }
+    campaign.mob_cursor = input.u32()? as usize;
     Ok(campaign)
 }
 
@@ -539,6 +569,7 @@ impl Encode for crate::unit::Unit {
         out.u8(self.garrison_county);
         out.u8(self.besieging_county);
         out.u8(self.besieged_by);
+        out.u8(self.cargo_county);
     }
 }
 
@@ -606,6 +637,7 @@ impl Decode for crate::unit::Unit {
         u.garrison_county = input.u8()?;
         u.besieging_county = input.u8()?;
         u.besieged_by = input.u8()?;
+        u.cargo_county = input.u8()?;
         Ok(u)
     }
 }

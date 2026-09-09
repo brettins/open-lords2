@@ -277,6 +277,16 @@ pub struct Campaign {
     pub mercenaries: crate::mercenary::MercenaryBands,
     /// Realm `+0x2D` — twenty-four name counters a lord.
     pub names: crate::unit::ArmyNames,
+    /// `g_merchantRoutes` — the six trade routes the merchants walk.
+    /// See [`crate::merchant`].
+    pub routes: crate::merchant::MerchantRoutes,
+    /// `DAT_004E59DC` — the peasant mobs' **shared** destination cursor.
+    ///
+    /// One counter for the whole map, not one per mob: `FUN_004AC5BA` bumps it
+    /// and hands the result to whichever mob asked. Simulation state, and a
+    /// small one that would be easy to leave out of a save and never notice
+    /// until two lockstep peers sent their mobs to different counties.
+    pub mob_cursor: usize,
 }
 
 impl Default for Campaign {
@@ -292,6 +302,8 @@ impl Campaign {
             map: crate::map::CampaignMap::empty(),
             mercenaries: crate::mercenary::MercenaryBands::none(),
             names: crate::unit::ArmyNames::new(),
+            routes: crate::merchant::MerchantRoutes::none(),
+            mob_cursor: 0,
         }
     }
 }
