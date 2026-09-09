@@ -1565,6 +1565,54 @@ The lesson is C25's and C29's again in a third shape: **a global's name tells yo
 somebody thought it was, and the function that writes it tells you what it is.** Every one
 of the twelve had a plausible destination one block away.
 
+**C45 — The shell table called screen `0x17` "Hire mercenaries". It is the raise-army screen,
+it is the only door to `Army_Create` a player has, and there is no mercenaries screen in the
+game at all. The name set the priority.**
+
+`docs/symbols.json` has called `0x00418653` **`Screen_RaiseArmy`** since it was read, with the
+comment *"the levy slider, the six weapon stocks from realm `+0x140`, the happiness cost, and
+the mercenary offer for county `+0x1AD`"*. `crates/l2-game/src/screens/shells.rs` called the
+same screen **"Hire mercenaries"**, and `docs/armies.md` §5.3 says plainly that the offer
+appears *on the raise-army screen*, **not on a screen of its own**.
+
+Two names for one address, and the wrong one was the one an agent picking work would read.
+`docs/plan.md` §2.2 diagnosed it before it was fixed: *"a game started from the fixture has no
+army, no way to make one, and the door to making one is filed under a name that reads as
+optional content"*. Mercenaries are optional content. Raising an army is the game.
+
+This is the fifth correction of the same shape — C25 (bit `0x40` is the county town, not the
+castle), C28, C29 and C41 — and the first where the cost was **not** a wrong belief about a
+rule.
+Nothing anybody wrote about `0x17` was false: the shell drew the right window, the right
+`L2.eng` group and the right heading, and its `unfinished` line said exactly what was missing.
+The cost was priority. A shell called *"the levy slider, the six weapon stocks and the
+mercenary offer"* was a small piece of a subsystem nobody had started; the same shell called
+*"you cannot raise an army"* is the last large gap between the engine and the goal, and it sat
+in the table for weeks with the other thirteen.
+
+So the class has an extra clause now. **A name is a claim, and a name is also an estimate.**
+Correcting one of these has always meant re-reading the code; correcting this one meant
+re-reading the *plan*. Where a name understates what a thing is for, nothing downstream is
+wrong — it is simply never picked up.
+
+Two things changed with it, both of which the name had been hiding:
+
+* **`engagement::run_siege_phase` was turn phase 2 end to end and nothing called it.**
+  `turn::settled` answered the phase-2 wait `true` with the comment *"sieges are out of scope"*
+  — true when it was written, and stale from the moment the siege branch landed. A besieging
+  army in a played turn built no engines and never assaulted. Same shape as C40: a thing
+  everybody described and nobody executed, standing because no test had ever put a besieger in
+  a *played turn* rather than in the phase's own harness.
+* **`Army_Split` (`0x00437FD7`) charges both halves five movement points**, which nothing had
+  recorded. The shipped `Readme.txt` states it in words — *"Splitting does not use all the
+  movement for a turn, but cannot be done if the army has used any movement points that
+  turn"* — and both halves of that sentence are in the code: the gate is `movesUsed < 1` in
+  `Panel_SplitButton` and the *"does not use all"* is `movesUsed += 5` on the parent and the
+  daughter. The Readme also states the two rules the code alone reads as arbitrary locals: a
+  split *into* a castle has **no** fifty-man minimum and is capped by the garrison's remaining
+  room, and a disband goes to the county of origin or, if that has changed hands, to whatever
+  friendly county the army is standing in.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

@@ -43,8 +43,10 @@
 //! [`Screen::overlay`]: crate::screen::Screen::overlay
 //! [`Machine::draw`]: crate::screen::Machine::draw
 
+pub mod army;
 pub mod conquest;
 pub mod county;
+pub mod divide;
 pub mod index;
 pub mod job;
 pub mod map;

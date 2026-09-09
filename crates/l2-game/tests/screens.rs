@@ -549,7 +549,15 @@ fn the_five_sidebar_buttons_each_open_the_screen_the_original_opens() {
             &assets,
             Event::Click { x: r.x + r.w / 2, y: r.y + r.h / 2 },
         );
-        assert_eq!(t, Transition::Push(ScreenId::Shell(id)), "{} opens {id:#04X}", b.name);
+        // `map::sidebar_destination` is the one place a graduated screen is
+        // named, so this asks it rather than assuming every button is a shell:
+        // `0x17` is the raise-army screen now, and it takes the county.
+        assert_eq!(
+            t,
+            Transition::Push(map::sidebar_destination(id, 8)),
+            "{} opens {id:#04X}",
+            b.name
+        );
     }
 
     // Three of the five are gated on the county being yours, exactly as

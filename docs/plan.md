@@ -146,6 +146,17 @@ is filed under a name that reads as optional content. **A name is a claim** (C25
 three corrections about exactly this), and this one has been quietly setting the priority of
 the most gameplay-critical shell in the table.
 
+> **Closed.** Screen `0x17` is `crates/l2-game/src/screens/army.rs` and screen `0x11` is
+> `screens/divide.rs`; both have left the shell table, and the name is corrected in it, in
+> `docs/screens-county.md` and in `docs/mechanics.md`. `Map_Click`'s army branch is
+> `screens/map.rs` — a click on your own army selects it and the next click on the map is the
+> march order, a click on your own *besieging* army opens `0x1D` — and turn phase 2 calls
+> `engagement::run_siege_phase`, which nothing outside its own tests had ever called.
+> `crates/l2-game/tests/military.rs` drives all three verbs as `Event` values through
+> `Machine::handle`: levy, equip, raise, march, take a county, split, disband, assault.
+> `docs/decisions.md` C45 is the correction, and it names the two stale things the name was
+> hiding.
+
 ### 2.3 A battle has no end
 
 This is the sharpest of the eight, because work is in flight on the seam *into* a battle.
@@ -455,7 +466,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,545<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,577<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -549,7 +560,7 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->708<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->716<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->29<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and

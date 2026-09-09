@@ -362,6 +362,121 @@ impl Game {
             .collect()
     }
 
+    /// The unit standing on a tile, if any. `Map_ResolvePick`'s
+    /// `g_pickedTileUnit`, which is what every branch of [`Map_Click`] tests
+    /// first.
+    ///
+    /// [`Map_Click`]: crate::screens::map
+    pub fn unit_at(&self, x: u8, y: u8) -> Option<usize> {
+        self.kingdom.campaign.units.at(x, y)
+    }
+
+    /// **Raise an army** — `FUN_00435B4D`, the raise-army screen's yes-button,
+    /// end to end.
+    ///
+    /// ```c
+    /// if (levyTotal == 0   && !hireMercs) message 0xA8;   /* group 168 */
+    /// else if (levyTotal < 0x32 && !hireMercs) message 0x94;   /* group 148 */
+    /// else if (Army_Create(localPlayer, county, hireMercs, g_levyHappinessCost) == 0)
+    ///     message 0xDD;                                   /* group 221 */
+    /// ```
+    ///
+    /// The two size guards are `&&`-ed with `hireMercs`, so **hiring a band
+    /// bypasses both**: the band supplies the men and a levy of nothing is a
+    /// legal army. [`l2_kingdom::levy::refuse_levy`] is that pair of guards and
+    /// this is its only caller.
+    ///
+    /// `hire` is the county's standing offer, `county +0x1AD`, or `None` for a
+    /// pure levy. The price is **not** checked inside
+    /// [`l2_kingdom::MercenaryBands::hire`] — the screen refuses first, with
+    /// `L2.eng` 69/3 — so this checks it here rather than taking the treasury
+    /// negative.
+    ///
+    /// Returns the new army's slot.
+    pub fn raise_army(
+        &mut self,
+        county: u8,
+        basket: &l2_kingdom::LevyBasket,
+        happiness_cost: i32,
+        hire: Option<u8>,
+    ) -> Result<usize, l2_kingdom::LevyRefusal> {
+        if !self.is_players(county) {
+            return Err(l2_kingdom::LevyRefusal::NowhereToStand);
+        }
+        if let Some(no) = l2_kingdom::levy::refuse_levy(basket.total(), hire.is_some()) {
+            return Err(no);
+        }
+        let k = &mut self.kingdom;
+        let muster = l2_kingdom::levy::Muster {
+            realm: self.player,
+            county,
+            happiness_cost,
+            year: k.year,
+        };
+        let id = l2_kingdom::levy::create_army(
+            &k.tables,
+            &k.campaign.map,
+            &mut k.counties,
+            &mut k.realms,
+            &mut k.campaign.units,
+            &mut k.campaign.names,
+            basket,
+            muster,
+        )?;
+        // `Mercenary_Hire` runs from **inside** `Army_Create`, after the men
+        // and the troop counts are written and before the wage recount. Ours
+        // runs immediately after, which lands the same numbers because nothing
+        // between the two reads `men`.
+        if let Some(band) = hire {
+            let k = &mut self.kingdom;
+            let l2_kingdom::Kingdom { counties, realms, campaign, .. } = k;
+            campaign.mercenaries.hire(&mut campaign.units, counties, realms, id, band);
+            l2_kingdom::unit::refresh_wages(
+                &k.tables,
+                &mut k.campaign.units,
+                &mut k.realms,
+                self.player,
+                0,
+            );
+        }
+        Ok(id)
+    }
+
+    /// **Split an army** — `FUN_00437AFB` then `Army_Split` (`0x00437FD7`).
+    /// See [`l2_kingdom::divide`].
+    pub fn split_army(
+        &mut self,
+        army: usize,
+        basket: &l2_kingdom::SplitBasket,
+        into: l2_kingdom::SplitInto,
+    ) -> Result<usize, l2_kingdom::SplitRefusal> {
+        if !self.is_players_unit(army) {
+            return Err(l2_kingdom::SplitRefusal::NotAnArmy);
+        }
+        let k = &mut self.kingdom;
+        let l2_kingdom::Kingdom { tables, counties, realms, campaign, year, .. } = k;
+        let l2_kingdom::kingdom::Campaign { units, map, mercenaries, names, .. } = campaign;
+        l2_kingdom::divide::split(
+            tables, map, counties, realms, units, names, mercenaries, army, basket, into, *year,
+        )
+    }
+
+    /// **Disband an army** — `Panel_DisbandButton` (`0x0043733A`) then
+    /// `Army_Disband` (`0x00438681`). Returns the county the men joined and how
+    /// many joined it.
+    pub fn disband_army(&mut self, army: usize) -> Result<(u8, i32), l2_kingdom::DisbandRefusal> {
+        if !self.is_players_unit(army) {
+            return Err(l2_kingdom::DisbandRefusal::NotAnArmy);
+        }
+        let k = &mut self.kingdom;
+        let difficulty = k.options.difficulty;
+        let l2_kingdom::Kingdom { tables, counties, realms, campaign, .. } = k;
+        let l2_kingdom::kingdom::Campaign { units, mercenaries, names, .. } = campaign;
+        l2_kingdom::divide::disband(
+            tables, counties, realms, units, names, mercenaries, army, difficulty,
+        )
+    }
+
     /// Select a county, or clear the selection with 0. An id that is not a
     /// county on this map is refused rather than stored.
     pub fn select(&mut self, id: u8) -> bool {

@@ -197,19 +197,39 @@ pub fn end_turn(game: &mut Game) -> Option<TurnOutcome> {
 
 /// Answer the current phase's wait.
 ///
-/// Three of the four unit phases ask the unit array directly. Phase 2 asks
-/// about **sieges**, which nothing in this build can create, so it is answered
-/// `true` — and that is a real "there are none", not the old "none of this
-/// exists". Phase 4's wait is the AI's and `Kingdom::tick` overrides whatever
-/// is passed for it.
+/// Three of the four unit phases ask the unit array directly. Phase 4's wait is
+/// the AI's and `Kingdom::tick` overrides whatever is passed for it.
+///
+/// **Phase 2 is answered `true` here because [`begin_phase`] has already run
+/// the whole of it.** `Turn_Tick`'s phase-2 arm is a pump — validate, build,
+/// assault, repeat until the cursor comes up empty — and
+/// [`crate::engagement::run_siege_phase`] runs that pump to exhaustion in one
+/// call rather than one assault a tick. The two agree on every number because
+/// the cursor only ever advances and no other phase runs between its steps; the
+/// difference is that ours does not spread the sieges over as many `Turn_Tick`
+/// calls, which nothing outside the phase can observe. See the comment on
+/// [`begin_phase`]'s `ArmyMovement` arm.
 fn settled(kingdom: &Kingdom, phase: Phase) -> bool {
     match phase.wait() {
         PhaseWait::Units(kind) => !kingdom.units_moving(kind),
-        // Sieges are out of scope. When they land this is the line that asks
-        // `Siege_TickPhase` whether the cursor sweep came up empty.
         PhaseWait::Sieges => true,
         PhaseWait::Steps(_) | PhaseWait::AllRealmsDone | PhaseWait::Immediate => true,
     }
+}
+
+/// The seed for the siege phase's assaults, from state both peers agree on.
+///
+/// The same rule as [`battle_seed`]: the turn counter and nothing that is a
+/// clock, an address or an iteration order. `run_siege_phase` adds the round
+/// number to it, so two assaults in one phase fight different battles and the
+/// same phase run twice fights the same two.
+fn siege_seed(kingdom: &Kingdom) -> u64 {
+    let mut z = (kingdom.turn_count as u64)
+        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        ^ 0x5165_6765_0000_0002;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
 }
 
 /// **The battle seam.** Two enemy armies have met, and somebody has to fight
@@ -325,6 +345,25 @@ fn hand_off_battles(game: &mut Game, moved: &UnitsTick, pending: &mut Vec<Encoun
 fn begin_phase(game: &mut Game, phase: Phase) {
     game.kingdom.begin_unit_phase(phase);
     match phase {
+        // **Phase 2 is sieges, and this is where they run.** The variant keeps
+        // the name `ArmyMovement` because five files spell it; what it does was
+        // corrected in `docs/decisions.md` C35 and it is `Siege_StartPhase`, a
+        // cursor over `Siege_BuildTick`, and `Siege_LaunchAssault` for every
+        // army whose engines came ready.
+        //
+        // `engagement::run_siege_phase` has been that pump end to end since it
+        // was written and **nothing called it outside its own tests** — a
+        // besieging army in a played turn built nothing and never assaulted.
+        // This is the call.
+        //
+        // The player is answered [`Answer::Decline`] here for the same reason
+        // [`resolve_battle`] answers it: `end_turn` has no screen to raise
+        // *"will you take the field?"* on. Declining runs the autocalc and is a
+        // real branch of the original, not a stub.
+        Phase::ArmyMovement => {
+            let seed = siege_seed(&game.kingdom);
+            engagement::run_siege_phase(&mut game.kingdom, Answer::Decline, seed);
+        }
         Phase::NeutralCounties => {
             game.kingdom.run_ai_tax_rates(0);
             // The unowned counties farm too, by whichever lord held them last.

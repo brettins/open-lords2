@@ -477,15 +477,16 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   `villani1`/`villani2`. The scene here is still.
 - 📖 **`Screen_Draw` has 39 arms**, 35 of them with a named painter. Drawn with real
   contents: the front end and its setup pages, the campaign map, the county panels, the
-  village, the job popup, the conquest screen, **and the siege-preparation screen**, which
-  graduated out of the shell table: the three engine rows with their counts and percent
-  bars, the seasons countdown, the six order buttons at the widget table's own coordinates,
-  and *Lift siege* / *Proceed* both doing what the original's do. Merchant, court, armoury,
-  send-supplies, castle-building and twelve more remain shells — right artwork and hotspots,
+  village, the job popup, the conquest screen, and **three military screens that graduated
+  out of the shell table**: siege preparation (`0x1D`), **the raise-army screen (`0x17`)** and
+  **army division (`0x11`)**. Between them a player can now levy an army, equip it, hire the
+  county's mercenary band, march it from the map, split it, disband it and lay or lift a
+  siege — the three verbs `docs/decisions.md` C45 is about. Merchant, court, armoury,
+  send-supplies, castle-building and eleven more remain shells — right artwork and hotspots,
   contents unbuilt.
-  Three of them are now decompiled rather than merely enumerated: the raise-army screen
-  (`0x00418653`, and the mercenary offer lives on it — there is no separate mercenaries
-  screen), the army-division screen and the siege-preparation screen — `docs/armies.md`.
+  The raise-army screen's name was the finding: the shell table called it *"hire
+  mercenaries"* and **there is no mercenaries screen** — the offer is a block on the only
+  door to `Army_Create` a player has. C45.
 - 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
 - 📖 **Sound: 771 `.wav` files, 396 MB. Nothing plays yet, but the shape is known.**
 

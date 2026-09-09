@@ -98,6 +98,16 @@ const citations = [];
     if (!EXT.test(e.name)) continue;
     let s;
     try { s = fs.readFileSync(p, 'utf8'); } catch { continue; }
+    // **Normalise line endings before anything measures an offset.**
+    // `.gitattributes` pins `*.ps1` to CRLF and everything else to LF, so the
+    // same citation has different byte offsets in a `.ps1` than in a `.md` —
+    // and the fingerprint below slices a fixed *character* window, so a stray
+    // `\r` shifts which words fall inside it. Two agents relocking the same
+    // unchanged tree produced four different fingerprints in `tools/oracle/*.ps1`
+    // because of this, twice. A fingerprint must be a property of the text, not
+    // of the checkout. This repository has been bitten by line endings before —
+    // see the comment at the top of `.gitattributes`.
+    s = s.replace(/\r\n/g, '\n');
     const rel = path.relative(repo, p).replace(/\\/g, '/');
     const isLog = rel === 'docs/decisions.md';
     for (const m of s.matchAll(/\bC(\d{1,3})\b/g)) {

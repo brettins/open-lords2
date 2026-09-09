@@ -100,11 +100,11 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x0C | `Screen_TradeGoods` `0x00416308` | trade goods | group 68; `merchant.pl8` **again** as the background, then `icontrad.pl8` |
 | 0x0D | `Screen_Armoury` + a list | the armoury, buying — `Screen_Draw` has **no** arm for it; only the widget and input passes do | `g_armouryBuyWidgets` |
 | 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output | group 74 |
-| 0x11 | `0x004192B1` | army division | group 17; `icon_tmp.pl8` |
+| 0x11 | `Screen_ArmyDivision` `0x004192B1` | **army division** — the levy basket reused, parent from `slot.chosen` and daughter from `slot.available`, row 7 the mercenary band | group 17; `icon_tmp.pl8` |
 | 0x14 | `Panel_Population` `0x004110B1` | **population** | group 73 |
 | 0x15 | `Panel_Tax` `0x0041152F` | **tax** | group 86 |
 | 0x16 | `Panel_Happiness` `0x004116FB` | **happiness** | group 85 |
-| 0x17 | `Screen_Armoury` then `Screen_RaiseArmy` | hire mercenaries / raise an army | groups 16, 69 |
+| 0x17 | `Screen_RaiseArmy` `0x00418653` | **raise an army** — the levy slider, the six weapon stocks and the mercenary offer. There is no separate mercenaries screen; `docs/decisions.md` C45 | groups 16, 18, 69, 100 |
 | 0x18 | `Screen_SendSupplies` `0x0041AD5D` | send supplies to another county | group 33 |
 | 0x19 | `Panel_Ration` `0x00411B72` | **rations** | groups 20, 21, 87 |
 | 0x1A | `Screen_DiploDialog` `0x0041789B` | **the seven diplomacy dialogs**, on `g_diploKind` — §10.4 | group 72 |
