@@ -37,9 +37,14 @@ Legend:
   the one save we test.
 - ✅ Tax ceiling is **50**, and it lives in `l2-kingdom` beside the table whose length
   fixes it (was wrongly 100, and was in the application crate)
-- 📖 Merchant buying and selling, 15 goods with prices
+- 📖 **Merchant buying and selling, 15 goods with prices — now traced to one function.**
+  `Merchant_Trade` (`0x004284CE`) is the only thing that moves a good. Positive quantity
+  buys, negative sells, no partial fills, and an unowned county trades out of a purse of its
+  own at `+0x1F4`. Which good goes where, and what that says about the armoury and about
+  sheep, is `docs/kingdom.md` §7.6. Still implemented nowhere.
 - 📖 Wages: traced, and now joined to the army records that pay them — `docs/armies.md` §6.4
-- ❓ Bankruptcy: five stages, traced, never exercised
+- 📖 **Bankruptcy: six seasons, not five stages.** Named end to end and pinned to the
+  messages that announce each rung — `docs/kingdom.md` §7.7. Still never exercised.
 
 ### Food and farming
 - ✅ Grain: sowing (which debits the store for seed), growing, harvest, four-season cycle
@@ -57,14 +62,45 @@ Legend:
 - 🕳 **Ale.** Brewing and its happiness effect are a rule a mod can set — but ale is *bought
   at the merchant*, and no merchant screen exists.
 
+  **[V] There is no brewing, and no ale to store.** `Merchant_Trade` hands `Ale_Apply`
+  (`0x00428C42`) the **crowns spent** and the happiness lands immediately; ale has no county
+  field and no production. The ladder is one point per tenth of the population's worth of
+  crowns, capped at five, then capped again at `5 − aleHappinessGiven` — and nothing resets
+  that byte, so five points is a county's lifetime allowance. `Ale_PreviewGain`
+  (`0x00435673`) is the same ladder copied out for the panel, which matters for modding:
+  **two places, not one.** `docs/kingdom.md` §7.6.
+
   **[V] Ale is base game, not the expansion.** A player doubted it was ever in the shipped
   product. `L2.eng` in the stock GOG install settles it: group 68 index 19 is the merchant
   tooltip *"Buy ale for your county, as a gift for its people."*, group 85 index 6 is the
   happiness line *"From ale"*, group 6 index 4 is the goods entry, group 62 has the ration
   readout *"No Ale quaffed"* / *"Barrels swilled."*, and group 295 lists it among what a
   merchant sells. It is easy to miss in play — one line on a breakdown panel — but it ships.
-- ❓ **Sheep, and the food priority order** — both found on the ration screen (`L2.eng`
-  group 62) while checking the above, and **neither has ever been looked at**:
+- 📖 **Sheep, and the food priority order** — both found on the ration screen (`L2.eng`
+  group 62) while checking the above. **Both are now traced, and group 62 is the answer to
+  both:**
+
+  > **[V] The shipped ration panel is group 87, and it has three foods.** `Panel_Ration`
+  > (`0x00411B72`) draws dairy, grain and cattle out of county `+0x16C`, `+0x170` and
+  > `+0x174`. There is no county field for sheep, none for ale, and `Ration_Apply` has no
+  > priority array in it — dairy is unconditional and the rest is one percentage. **That is
+  > the evidence**, and it is about code and record layout rather than about text.
+  >
+  > **[I] Group 62 is corroboration, and weaker than it first looked.** Every string quoted
+  > below — *"swap its priority"*, *"Sheep feed"*, *"Barrels swilled."*, *"Dairy produce
+  > feeds"* — occurs in group 62 and nowhere else in `L2.eng`, and no literal anywhere in
+  > the corpus passes 62 to any of the six primitives that take a group. But **135 of the
+  > 317 groups are unreached by a literal**, and some of those are certainly live: 94…98 are
+  > the army names, and the event and help texts are indexed by a computed id through the
+  > 70 call sites whose group argument is a variable. So "nothing references group 62" is
+  > one fact in a set of 135, not a proof of death. It is consistent with a cut screen; it
+  > does not establish one on its own.
+  >
+  > *This paragraph was first written the other way round, claiming the silence as the
+  > finding. Re-deriving it without `anchor.js` — after the `litNum` escape bug — produced
+  > the denominator that made the claim ordinary. The conclusion survives because it never
+  > actually rested on the strings.*
+
   - **Sheep and wool look like a cut subsystem.** The evidence, all `[V]`:
     - They have names — `L2.eng` group 6 lists all fourteen goods, and 3 is *"Sheep"*,
       5 is *"Wool"*.
@@ -76,19 +112,34 @@ Legend:
     - **No county can produce either**, and there is no shepherd among the nine peasant jobs.
     - Group 68 gives ale its own merchant tooltip and gives sheep none.
     - Two people who have played the game do not remember them.
+    - **`Merchant_Trade` has no branch for good 3 or good 5, in either direction.** This is
+      the one that upgrades the case from strong to closed, because it answers the obvious
+      objection to the price of zero: *a zero price would still let you sell them for
+      nothing, if the code could move them.* It cannot. Twelve goods have a branch; these
+      two have none, buying or selling. `docs/kingdom.md` §7.6.
+    - **The game's own tutorial text lists the goods and omits them.** Group 295 index 4:
+      *"Visit a merchant … and buy cows, grain, weapons, ale, wood, iron, or stone."*
 
-    Sheep make wool; both look cut; the names, the goods slots and the ration strings were
-    left behind. That is an inference, not a finding — nobody has traced whether a scenario
-    can grant sheep.
+    Sheep make wool; both are cut; the names, the goods slots and the ration strings were
+    left behind. **Whether a scenario can grant sheep is still untraced** — but even if one
+    could, nothing would eat them and nothing could sell them.
 
     **Reproduce them anyway.** The decision is to carry whatever the original carries,
     vestigial or not: keep sheep and wool as goods, keep their price of zero, and keep their
     ration lines. At parity the game itself demonstrates you cannot buy them, which is a
     better answer than our deciding in advance that they do not exist — and it costs two
     rows in a table. **Do not prune content on a judgement that it looks dead.**
-  - *"Click on a food to swap its priority."* **The order food is eaten in is a player
-    setting**, not the constant our `ration` pass assumes. Our pass hardcodes dairy → grain
-    → slaughter; the original lets you reorder five foods.
+  - ✅ *"Click on a food to swap its priority."* — **and it is not a shipped setting.** The
+    string is group 62's, and nothing reads group 62. What ships is `Ration_Apply`: dairy is
+    subtracted first and free, and the remainder is divided between slaughter and grain by
+    **one percentage**, county `+0x15F`, which the player moves with `Ration_SetSplit`. A
+    dial, not a queue, and there is no third food in it to reorder.
+
+    So the earlier note here was wrong in both halves: the original does *not* let you
+    reorder five foods, and our pass's *"dairy → grain → slaughter"* is not the shipped rule
+    either — grain and slaughter are simultaneous, weighted, and per county. `l2-kingdom`
+    already carries the split (`docs/kingdom.md` §4.3 reproduces all fourteen counties with
+    it); it was this inventory and `docs/rules.md` §4 that had the sequential story.
 
 ### People
 - ✅ Population, births by happiness, deaths by health and season
@@ -143,7 +194,24 @@ Legend:
   exhaustion over its 2,147 bytes, which read `+0xCC + slot*0x0C` eight times and
   `+0xC8 + slot*0x0C` not once. The floors are a display value.
 - ✅ Moving peasants between jobs: a rubber-band drag on the village screen — see below
-- 📖 Unrest and revolt
+- 📖 **Unrest and revolt — traced to the end now.** The ladder was known; what it *does* was
+  not. `County_RaiseRevolt` (`0x004AC185`) puts 30% of the population on a free road tile as
+  a kind-2 mob at morale 50, all of them in `troops[0]` — unarmed peasants — takes them out
+  of the population, and hands the county to `County_MakeIndependent`. If there is no free
+  tile it returns 0, the counter stays at 4, and the county never revolts. There is also a
+  **dead branch**: the "happiness 0 revolts instantly" arm is guarded by a test identical to
+  its own parent and can never run. `docs/kingdom.md` §6.
+- 🕳 **Territorial contiguity — a mechanic that was in none of these documents.** Every
+  season, a realm keeps only its **largest connected block of counties** and everything cut
+  off from it declares independence. `Realm_SecedeIsolatedCounties` (`0x0044AE3C`), and the
+  game names it itself: `L2.eng` 127 *"Deeming itself too far from the heart of your empire
+  …"* and 128 *"Your lands divide."* Implemented nowhere, and it changes what conquest is
+  worth: a county taken behind an enemy's lines cannot be held. `docs/kingdom.md` §6.1.
+
+  **It has no data-side oracle.** Every realm in every fixture holds exactly one county, so
+  the invariant the pass maintains is trivially true in all six saves. This is the one claim
+  in this pass that rests on the code and two strings alone — worth an early test when a
+  multi-county save exists.
 
 ### Land and building
 - ✅ Castle types, costs, workforce, garrison caps, free archers

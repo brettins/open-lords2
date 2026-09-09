@@ -89,6 +89,25 @@ this. If N things match N other things, that is not evidence.
 three places, the printed manual wrong twice. Prior art tells you *what to look for*, which
 is valuable, and it is never the authority. This includes our own docs.
 
+**An absence quoted without its denominator.** "No function in the binary references `L2.eng`
+group 62" was written here as a finding. Re-deriving it turned up the number that mattered:
+**135 of the 317 groups are unreached by a literal**, several of them demonstrably live text
+reached through a computed id. The observation was true and it was ordinary. An absence is
+only evidence in proportion to how surprising it is, so **a negative result must be reported
+with the size of the set it came from** — and a control helps: asking the same query for the
+group that *does* ship named its function immediately, which is what showed the query worked
+at all.
+
+**A tool that is wrong is worse than an analysis that is wrong**, because every agent
+inherits it and their agreement then looks like corroboration. `anchor.js`'s `litNum` parsed
+`'\b'` as the letter *b*, and produced six screen ids that did not exist, self-consistently,
+joined across three dispatchers. It was caught by an existing document, not by the work
+using it. Two consequences worth keeping: **re-derive anything load-bearing that came out of
+a tool, by a route that does not use the tool**; and when you write a parser for the
+decompiler's output, make the unhandled case *report itself* rather than silently returning
+nothing — the re-derivation above prints its count of unparsed literals precisely so that a
+missed escape form shows up as a loud zero-or-not rather than as a quiet absence.
+
 **A test whose name claims more than its body checks.** C12 —
 `expensive_ground_is_deferred_rather_than_weighted` asserted only that a path crossed a gap,
 which was true under either reading, so it passed before and after a semantic change. **A

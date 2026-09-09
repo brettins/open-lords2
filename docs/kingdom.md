@@ -346,36 +346,61 @@ Two more consequences fall out and both check:
 
 ### 3.4 The end-of-season pipeline
 
-`Season_Advance` calls 28 functions in a fixed order. **The order is the rule**: taxation
-reads the happiness that migration has not yet changed, population growth reads the
-happiness that this turn's update has already written, and so on. Abridged to the passes
-this document identifies:
+`Season_Advance` (`0x00448440`) calls 29 functions in a fixed order. **The order is the
+rule**: taxation reads the happiness that migration has not yet changed, population growth
+reads the happiness that this turn's update has already written, and so on. Every call now
+has a name, so here is the whole list rather than an abridgement:
 
 ```
-Season_Advance
+Season_Advance                                                     0x00448440
+├── Ai_ManageFarmsAll         AI fields and labour, before anything  §3.2
+├── Rand_Advance              one PRNG step
 ├── clock: season, year, turn counter
-├── Event_RollAll               random events per county          §8.1
-├── Weather_UpdateAll           dryness -> weather band           §7.3
-├── Tax_CollectAll              gold, and the tax happiness term  §4.1
-├── Wages_PayAll                army wages, bankruptcy            §7.4
-├── (food demand recomputed)    Ration_Apply per county           §4.3
-├── Health_UpdateAll            health meter and band             §4.2
-├── Happiness_UpdateAll         sum the four terms                §4.4
-├── Unrest_UpdateAll            revolt counter                    §6
-├── Fertility_Update            fertility, then field reclamation §7.2
-├── Grain_SeasonTick            sow / grow / harvest              §7.1
-├── Herd_SeasonTick             livestock                         §7.1
-├── Industry_Produce x4         weapons, then iron, stone, wood   §7.4
-├── Castle_BuildTick            castle construction               §7.5
-├── Migration_UpdateAll         emigrants and immigrants          §5.3
-├── Population_UpdateAll        births, deaths, new population    §5
-├── (clear the event modifiers a second time)                     §8.1
-├── history ring                400 seasons x 16 counties         below
-└── Ration_Apply again, as next season's preview                  §4.3
+├── Mp_DropDepartedPlayers    realms whose player left the game
+├── Realm_SnapshotLedger      gold/iron/stone/wood/weapons shadows    §2
+├── Event_RollAll             random events per county              §8.1
+├── Weather_UpdateAll         dryness -> weather band               §7.3
+├── Tax_CollectAll            gold, and the tax happiness term      §4.1
+├── Wages_PayAll              army wages, bankruptcy                §7.4
+├── Ration_ApplyAll           the food is actually spent here       §4.3
+├── Health_UpdateAll          health meter and band                 §4.2
+├── Happiness_UpdateAll       sum the terms                         §4.4
+├── Unrest_UpdateAll          revolt counter                          §6
+├── Realm_SecedeIsolatedCounties   disconnected counties go free    §6.1
+├── County_RecountFieldsAll   field tallies, from the map           §7.2
+├── Fields_SeasonTick         fertility, reclamation, its estimate  §7.2
+├── Grain_SeasonTick          sow / grow / harvest                  §7.1
+├── Herd_SeasonTick           livestock                             §7.1
+├── Industry_ProduceAll       weapons, then iron, stone, wood       §7.4
+├── Castle_BuildTick          castle construction                   §7.5
+├── Labour_AllocateAll        reassign every peasant, from scratch   §14
+├── Migration_UpdateAll       emigrants and immigrants              §5.3
+├── Population_UpdateAll      births, deaths, new population          §5
+├── County_RecountMerchants   which merchant is standing where
+├── FUN_00428471              an empty function. See below
+├── Army_RecountCountyTroops  county +0x38, the men under arms
+├── Event_ClearCountyModifiers  this season's event swings expire   §8.1
+├── Labour_AllocateAll        again, now the newborns are counted     §14
+├── History_Record            400 seasons x 16 counties             below
+└── Panels_RefreshAll         Ration_Apply / County_RefreshEstimates /
+                              Tax_RecomputePreview, per county      §4.3
 ```
 
 **[V]** the call list and its order; **[D]/[I]** the one-line descriptions, per the
 sections they point at.
+
+**`County_RefreshEstimates` does run every season, once per county** — not as a call of
+`Season_Advance` but as the middle statement of `Panels_RefreshAll`, which is
+`Season_Advance`'s last call. It is worth stating plainly because "`Season_Advance` never
+calls it" is true of the direct call list and false of the pipeline, and the difference
+decides whether `Labour_Allocate` can be wired in. Its other 24 call sites are all the
+same shape: every function that invalidates an estimate calls it before returning.
+
+**One pass is an empty function.** `FUN_00428471` is eleven bytes and returns. It sits in
+the address space between `Merchant_AdvanceAll` and `Merchant_ResetStall`, so the guess is
+a merchant season hook that was compiled out — but an empty function contains no evidence,
+so that is `docs/hypotheses.json` material and nothing more. The slot is deliberately
+empty rather than missing, which is the only thing worth knowing about it.
 
 **Two corrections to an earlier revision of this list.**
 
@@ -760,13 +785,83 @@ happiness, on two different ladders depending on whether the owner is human:
   below 25 walks the counter up and fires messages `0x96`, `0x97`, `0x98`, `0x99` as it
   passes 1, 2, 3 and 4.
 
-At 4 it calls `FUN_004AC185`, which raises the revolting-peasant army (unit type 2, the one
-phase 5 moves), and resets the counter.
+At 4 it calls `County_RaiseRevolt` (`0x004AC185`), and resets the counter **only if that
+returned 1**.
 
 **[V] against the manual**, which is unusually specific here: *"When any county's happiness
 rating drops below 25 and stays there for more than four seasons, its population will
 revolt."* The threshold is 25 for a human-owned county and the counter needs four seasons
 below it. Both halves of the sentence are in the code.
+
+**What a revolt actually does.** `County_RaiseRevolt` finds a free road tile in the county,
+or failing that a free open tile; spawns a **kind-2 unit** — revolting peasants, the ones
+turn phase 5 moves — of `Pct(population, 30)` men at morale 50 with no shield; takes those
+people out of the county's population; and calls `County_MakeIndependent`. All 30% land in
+`troops[0]`, the peasant slot, so a revolt is an unarmed mob. **[V]**
+
+If there is nowhere to put the mob it returns 0 and the unrest counter is left at 4, so a
+county with no free tile sits at maximum unrest indefinitely rather than revolting.
+
+**And a dead branch worth reproducing.** The human ladder reads
+
+```c
+if (happiness < 0x19) {
+  if (happiness < 0x19)      { if (unrest < 4) unrest++; }
+  else if (happiness < 1)    { unrest = 4; }      // unreachable
+}
+```
+
+The outer and inner tests are identical, so "happiness 0 means instant revolt" never fires.
+A county at happiness 0 climbs the counter one season at a time like any other. **[V]**
+
+### 6.1 Your realm must stay in one piece  **[V]**
+
+A mechanic that was in none of these documents, and it runs every season between the unrest
+pass and the field recount.
+
+`Realm_SecedeIsolatedCounties` (`0x0044AE3C`) is two functions:
+
+1. **`Territory_BuildBlocks`** partitions every owned county into contiguous same-owner
+   blocks. It clears seventeen slots of `g_territoryBlocks` (`0x00568240`, stride `0x1C`:
+   population, owner, twenty member ids), then sweeps — at most a hundred times — trying
+   `Territory_ExtendBlock` on each unplaced county and, when a whole sweep placed nothing,
+   opening a fresh block with `Territory_NewBlock`. Adjacency is `County_IsNeighbour`, which
+   walks the county's own neighbour list at `+0x5C`.
+
+   It never merges two blocks that a newly placed county would join, which is exactly why it
+   sweeps repeatedly instead of once.
+
+2. **`Territory_SecedeMinorBlocks`** then finds, for each realm, its **most populous** block
+   — ties to the lowest index — and calls `County_MakeIndependent` on every county in each
+   of its other blocks.
+
+So a realm keeps one contiguous empire and loses everything cut off from it, at the end of
+the very season it was cut off. The game says so itself, which is what names the pass:
+
+> **`L2.eng` 127** *"Deeming itself too far from the heart of your empire, this county has
+> declared independence and thrown out your officials."*
+> **`L2.eng` 128, "Your lands divide."** *"Many of your people, concerned that they are not
+> part of your main empire, have cast off your yoke of tyranny and decided to manage their
+> lands themselves."*
+
+Only the local player is told, and only when the realm had more than one block: message
+`0x7F` for a single county, `0x80` for several. **An AI loses its outlying counties in
+silence.**
+
+`County_MakeIndependent` (`0x004AC3C6`) is the common ending of every way a county stops
+being owned — secession, revolt, and the elimination of a realm all call it. It sets
+`owner = 0` and `+0x07 = 0`, switches **all four industries off** (`+0x07` of each industry
+record), clears `+0x1B0`, and then re-runs `Labour_Allocate`, `Ration_Apply`,
+`County_RefreshEstimates` and `Tax_RecomputePreview` so the county is immediately consistent
+as a neutral one. Any garrison is handed to `FUN_00437535`.
+
+**This has no data-side oracle and that is worth saying.** Every realm in every fixture in
+`E:\dev\lords2-fixtures` owns exactly **one** county, so the connectivity invariant the pass
+maintains — each realm's counties form one connected component of the neighbour graph —
+holds trivially in all six saves and proves nothing. What the fixtures *did* establish is
+that the neighbour lists this pass runs on are read correctly: the England turn-one
+adjacency is perfectly symmetric across all fourteen counties, 39 undirected edges with no
+half-edges. The mechanic itself rests on the two strings and on the code.
 
 ---
 
@@ -1143,6 +1238,72 @@ stride is what puts the tax bonus at `0x004D8A28`, the free archers at `0x004D8A
 **[V] The default starting castle is the Norman keep.** Every player-owned county in the
 shipped `lastturn.sav` has `castleType = 3`, and `L2.eng` group 103 index 22 — the value
 word for the "Starting Castle" option — is `keep`.
+
+### 7.6 The merchant, and what he will not sell you  **[V]**
+
+One function moves every good: `Merchant_Trade` (`0x004284CE`), taking a quantity, a good
+id, a buying price, a selling price, a realm and a county. Positive quantity buys and pays
+`buyPrice × qty` out of the realm's treasury; negative sells and banks `sellPrice × |qty|`.
+Either way the trade is refused outright if the stock or the treasury will not cover it —
+there is no partial fill. A realm argument of **0** — an unowned county trading on its own
+account — pays out of county `+0x1F4` instead of any realm's gold.
+
+The good ids are `L2.eng` group 6, and where each one lands is the interesting part:
+
+| id | good | where it goes |
+|---:|---|---|
+| 1 | Grain | `county.grain` |
+| 2 | Cattle | `county.herd` |
+| **3** | **Sheep** | **nowhere — there is no branch** |
+| 4 | Ale | straight into `Ale_Apply`; never stored |
+| **5** | **Wool** | **nowhere — there is no branch** |
+| 6, 7, 8 | Iron, Stone, Timber | `realm.iron` / `.stone` / `.wood` |
+| 9 … 14 | Pikes, Bows, Maces, Crossbows, Swords, Mail | `realm.weapons[3]`, `[4]`, `[1]`, `[0]`, `[2]`, `[5]` |
+
+**The weapon column names the armoury slots, and it agrees with a derivation that shares no
+step with it.** Reading `weapons[]` through group 6 gives the order **crossbow, mace, sword,
+pike, bow, mail** — which is exactly the order `docs/armies.md` §6 derived from
+`g_weaponCost`, from the other end. Two independent routes, same answer. Applying it to the
+new-game table `g_startArmoury` (`0x004DC070`) reads row 2 as *50 swords, 50 pikes, 50 bows
+and nothing else*, and that is the England turn-one fixture's armoury in all five realms.
+`g_startTroops` (`0x004DC110`) carries the same three fifties one slot to the right, which
+is the `troops[t] = weapons[t−1]` correspondence falling out for free.
+
+**Sheep and wool: the case is now closed from a third direction.** `docs/mechanics.md`
+already had them priced zero in `g_goodsPrice` and produced by nobody. Add this: **a price
+of zero would still let a good be *sold* for nothing, if a branch existed.** None does, in
+either direction, for good 3 or good 5. `Merchant_ResetStall` still copies their rows into
+the live stall, and the tutorial text the game itself shows — group 295 index 4, *"buy cows,
+grain, weapons, ale, wood, iron, or stone"* — lists seven goods and neither of them.
+The decision recorded in `mechanics.md` stands: **reproduce them anyway**, price and all,
+and let the game demonstrate its own dead end.
+
+**Ale is bought and drunk in the same instruction.** There is no ale field on the county
+because ale is never stored: `Merchant_Trade` hands `Ale_Apply` (`0x00428C42`) the **crowns
+spent**, not the barrels, and the happiness ladder is on money against `population / 10` —
+one point per tenth of the population's worth of crowns, five at most. Then it is clamped
+again to `5 − county +0x219`, the total ale has ever given this county. **Nothing in the
+binary resets `+0x219`**, so the five points are for the life of the game and a county that
+has had them will never gain from ale again. `Ale_PreviewGain` (`0x00435673`) is the same
+ladder copied out for the trade panel's preview — *copied*, not shared, so a mod that
+changes the rule must change both.
+
+### 7.7 Bankruptcy is a six-season ladder  **[V]**
+
+`Wages_PayAll` counts the misses in `realm.bankruptStage` (`+0x158`) and the messages say
+what each rung is:
+
+| stage | what happens | `L2.eng` |
+|---:|---|---|
+| 0 | `Realm_ReleaseMercenaries`. If it released any: *"Mercenaries desert!"*; if not, only a warning, *"Unpaid troops."* | 160 / 270 |
+| 1 – 3 | `Realm_DesertArmies` — every army loses men | 287 *"Angry troops."* |
+| 4 | `Realm_DesertArmies` again | 271 *"Mutinous troops."* |
+| 5 | `Realm_DestroyArmies` — **every army disbands**, and the counter resets to 0 | 272 *"Mutiny!!!."* / 273 to everyone else |
+
+Paying in full at any point resets the stage to 0, so the ladder only climbs on consecutive
+misses. **The arithmetic closes against the game's own words:** group 271 at stage 4 says
+*"it has been over a year since your men received any wages"*, and stages 1 to 4 are exactly
+four seasons.
 
 ---
 
