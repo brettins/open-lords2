@@ -58,6 +58,12 @@ impl IndexScreen {
         // draws an empty order and a zero countdown, which is what the original
         // shows the instant a siege is laid.
         push("0x1D SIEGE PREPARATIONS".into(), Some(ScreenId::Siege(1)));
+        // The same stand-in argument as the siege screen's, for the same
+        // reason: from the index there is no selected county and no selected
+        // army to take one from. `0x17` on county 1 draws the no-offer layout
+        // with a zero levy; `0x11` on a slot with no army in it says so.
+        push("0x17 RAISE AN ARMY".into(), Some(ScreenId::RaiseArmy(1)));
+        push("0x11 ARMY DIVISION".into(), Some(ScreenId::Divide(1)));
         push("0x35 LOAD A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Load)));
         push("0x36 SAVE A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Save)));
 

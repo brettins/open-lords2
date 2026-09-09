@@ -1362,6 +1362,42 @@ mattering: **a unit is men, and the weapon is a separate stock item already paid
 and wood.** A knight costs the same wage as a peasant because the wage is for the man; the
 mail was bought once, at the blacksmith.
 
+### 6.5 Splitting an army, and disbanding one
+
+The other two ends of §6.3, both now read end to end. `crates/l2-kingdom/src/divide.rs` is the
+implementation and carries the pseudocode; this is what the two functions establish.
+
+**The shipped `Readme.txt` is a first-class source here and in three places it is the better
+one** — it states each of these rules in words, and each is one that reads as an arbitrary
+local in the instruction stream.
+
+| | Rule | Where | Ev |
+|---|---|---|---|
+| when | an army can be split only **before it has moved this season** | `Panel_SplitButton` `0x004378B3`: `movesUsed < 1`, else message `0x95` = group 149 | [V] the Readme states it |
+| cost | **both halves pay `movesUsed += 5`** on a plain split | `Army_Split` `0x00437FD7`, the `destCounty == 0` arm | [V] the Readme's *"splitting does not use all the movement for a turn"* |
+| minimum | **50 a side** normally; **none at all** splitting into a castle | `Army_SplitConfirm` `0x00437AFB`: the local is `0x32` or `0` | [V] the Readme's *"you may split off less than 50 men"* |
+| cap | into a castle, **the garrison limit less whoever is inside**; message `0x11A` = group 282 | same | [V] |
+| where | the daughter stands on a **free tile within five**, road preferred, found row-major | `Map_FindFreeTileNear` `0x0046733C` | [D] |
+| band | the mercenaries cross **whole** and `g_mercBands[band].hiredBy` follows | `Army_Split`'s tail | [D] |
+| home | the daughter's `homeCounty` is **never written**, so it is 0 | `Army_Split` writes `county` and not `homeCounty` | [D] |
+| disband | to the **county of origin**, or the county it is standing in when that has changed hands, or refused with message `0x91` = group 145 | `Panel_DisbandButton` `0x0043733A` | [V] group 145 states the two-step rule clause for clause |
+| disband | **weapons back to the treasury**: `weapons[t-1] += troops[t]`, so a peasant returns nothing | `Army_Disband` `0x00438681` | [V] the Readme's *"Any weapons they are carrying are returned to your treasury"* |
+| disband | the men join the county's **population, `labour[8]` (idle townsfolk) and its army display line** | same | [D] |
+
+**The screen reuses the levy basket with different field meanings**, which §6.2 asserts and
+`Screen_SplitArmyRows` confirms: the **parent**'s counts are `g_levyBasket[t].chosen` and the
+**daughter**'s are `g_levyBasket[t].available` — the second word of the same sixteen-byte slot,
+which on the raise-army screen is the armoury's stock. **Slot 7 is the mercenary band's men,
+not the total**; the two totals are separate globals, `DAT_00554468` and `DAT_00554040`, each
+resummed over all eight slots after every button. That is why `menTotal` comes out right for an
+army whose whole strength is its band.
+
+**The `homeCounty` row is worth a second look and is not a lost-men bug.** A split army's
+county of origin is 0, county 0's owner is never the unit's owner, so `Panel_DisbandButton`
+falls through to its second clause every time. The visible effect is that **a daughter army
+always disbands where it stands** rather than to the county her parent was raised in.
+Reproduced rather than tidied.
+
 ---
 
 ## 7. How a battle result returns

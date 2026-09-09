@@ -99,8 +99,12 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
     // g_screenId = 0x17`, and the mercenary band is loaded on top of it when
     // the county has an offer. `L2.eng` group 69 index 0x10 is "Raising an
     // army in", so 0x17 is the **raise-army** screen and the mercenary offer is
-    // an optional half of it — `shells.rs` calls the whole screen "Hire
-    // mercenaries", which is the smaller half naming the larger.
+    // an optional half of it. The shell table called the whole screen "Hire
+    // mercenaries" — the smaller half naming the larger — and this button and
+    // that name were corrected in the same afternoon by two agents who had not
+    // spoken. `docs/decisions.md` C45; the screen is `crate::screens::army` and
+    // is not a shell any more, which is why this goes through
+    // [`sidebar_destination`].
     SidebarButton { x: 0, w: 33, action: SidebarAction::Screen(0x17), name: "ARMY" },
     SidebarButton { x: 34, w: 31, action: SidebarAction::Screen(0x09), name: "COURT" },
     SidebarButton { x: 66, w: 31, action: SidebarAction::Screen(0x18), name: "SUPPLY" },
@@ -158,10 +162,32 @@ impl SidebarButton {
 /// What one of them does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SidebarAction {
-    /// The `g_screenId` the table's handler sets. Every one is a
-    /// [`crate::screens::shells`] entry, so the button reaches the original's
-    /// own artwork and the shell says for itself what it does not yet do.
+    /// The `g_screenId` the table's handler sets. Four of the five are still
+    /// [`crate::screens::shells`] entries, so the button reaches the original's
+    /// own artwork and the shell says for itself what it does not yet do; the
+    /// fifth is the raise-army screen, which is built. See
+    /// [`sidebar_destination`].
     Screen(u8),
+}
+
+/// **Which of our screens a sidebar button opens.**
+///
+/// The table stores a `g_screenId` because that is what `Sidebar_Button`
+/// writes, and for four of the five that is a shell. `0x17` is not a shell any
+/// more — it is [`crate::screens::army`], the raise-army screen — and it needs
+/// the county, because in the original the whole strip is *about*
+/// `g_selectedCounty`: `Sidebar_Button`'s own arm is
+/// `Levy_SetPercent(g_selectedCounty, g_levyPercent); FUN_004AA90A(g_selectedCounty, g_levyMen)`.
+///
+/// **This is the function to change when a shell graduates**, and the test
+/// below is what makes forgetting it a failure rather than a silently dead
+/// button: every id in the table must resolve either to a shell or to a screen
+/// this function names.
+pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
+    match id {
+        0x17 => ScreenId::RaiseArmy(county),
+        _ => ScreenId::Shell(id),
+    }
 }
 
 /// **`FUN_00439122` — the farm/industry labour split slider**, on the 162 × 52
@@ -283,6 +309,20 @@ pub struct MapScreen {
     /// Set when `update` moved the map, so [`Machine`](crate::screen::Machine)
     /// knows to repaint without an event having arrived.
     scrolled: bool,
+    /// **`g_selectedUnit`, and the map is in move-order mode while it is set.**
+    ///
+    /// `Map_Click`'s army branch is three lines: a picked unit of type 1 that is
+    /// the local player's either opens the siege screen (`+0x199` set, after
+    /// `Siege_ValidateLink` has had a chance to clear it) or goes to
+    /// `Panel_MoveButton`, which is `g_screenId = 0x10` — the campaign map
+    /// *in move-order mode* — with `g_selectedUnit` set and a flood fill run
+    /// from the unit. The next click on the map is
+    /// `Map_ConfirmMoveOrder`, which places the order.
+    ///
+    /// So the original does not have a separate move screen; it has the map
+    /// with a selection. This is that selection, and it is why a click on a
+    /// tile means *march there* while it is `Some`.
+    selected_unit: Option<usize>,
 }
 
 /// A field tile the player has clicked, and the menu its terrain opens.
@@ -314,6 +354,7 @@ impl MapScreen {
             pointer: (CANVAS_W / 2, CANVAS_H / 2),
             pointer_in: false,
             scrolled: false,
+            selected_unit: None,
         }
     }
 
@@ -511,6 +552,164 @@ impl MapScreen {
         self.minimap_slot = Some(ctx.game.map_slot);
     }
 
+    /// **`Map_PickTile` — which map tile a pixel is in.**
+    ///
+    /// The original inverts its own projection; we test the pixel against every
+    /// tile's diamond instead, which is 4,096 integer comparisons on a click and
+    /// exact by construction: a lattice cell is a `tile_w × tile_h` rhombus
+    /// centred on [`campaign::tile_centre`], the diamonds tile the plane without
+    /// gaps, and `|dx| / hw + |dy| / hh <= 1` — multiplied out to stay in
+    /// integers — is inside it. Ties on a shared edge go to the lower tile
+    /// index, which makes the answer reproducible; `docs/netcode.md` §3.
+    ///
+    /// It is *not* the same algorithm as the original's and it does not have to
+    /// be: nothing in the simulation depends on how a pixel became a tile, only
+    /// on which tile the order named.
+    pub fn pick_tile(&self, x: i32, y: i32) -> Option<(u8, u8)> {
+        if !self.map_clip().contains(x, y) {
+            return None;
+        }
+        let (hw, hh) = (self.zoom.tile_w / 2, self.zoom.tile_h / 2);
+        let dim = l2_kingdom::MAP_DIM;
+        for ty in 0..dim {
+            for tx in 0..dim {
+                let Some((cx, cy)) = campaign::tile_centre(self.view, &self.zoom, tx, ty) else {
+                    continue;
+                };
+                if (x - cx).abs() * hh + (y - cy).abs() * hw <= hw * hh {
+                    return Some((tx as u8, ty as u8));
+                }
+            }
+        }
+        None
+    }
+
+    /// The unit whose marker covers a pixel — `g_pickedTileUnit`.
+    ///
+    /// It asks the *marker*, not the tile, so that a click on a drawn army is
+    /// the army whatever the projection thinks of the pixel. Walked in ascending
+    /// slot order, so two units on adjacent tiles resolve the same way twice.
+    pub fn unit_at(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
+        if !self.map_clip().contains(x, y) {
+            return None;
+        }
+        ctx.game.kingdom.campaign.units.iter().find_map(|(id, u)| {
+            let (cx, cy) = campaign::tile_centre(
+                self.view,
+                &self.zoom,
+                u.x as usize,
+                u.y as usize,
+            )?;
+            let r = unit_marker_half(&self.zoom, u) + 1;
+            ((x - cx).abs() <= r && (y - cy).abs() <= r).then_some(id)
+        })
+    }
+
+    /// The army the map is currently giving orders to, if it is still an army.
+    pub fn selected_unit(&self) -> Option<usize> {
+        self.selected_unit
+    }
+
+    /// **`Map_Click`'s army branch**, verbatim:
+    ///
+    /// ```c
+    /// if (unit.owner == g_localPlayer) {
+    ///     if (unit.besiegingCounty) Siege_ValidateLink(unit);
+    ///     if (unit.besiegingCounty == 0) Panel_MoveButton();
+    ///     else { g_siegeScreenUnit = unit; g_screenId = 0x1D; }
+    /// }
+    /// ```
+    ///
+    /// Three things worth stating because each is a decision the original made
+    /// and a reimplementation would not:
+    ///
+    /// * **An enemy unit does nothing at all.** There is no `else`: clicking
+    ///   another lord's army is a click that falls off the end of the branch.
+    /// * **The validate runs first**, so a besieger whose target garrison has
+    ///   gone gets its link cleared *by the click* and lands on the move branch
+    ///   in the same call. `Siege_ValidateLink` is the whole of that.
+    /// * **From the map a besieging army never sees the "Lift the siege?"
+    ///   prompt.** `Panel_MoveButton` raises `L2.eng` 10/13 when its unit is
+    ///   besieging; the map does not reach `Panel_MoveButton` in that case at
+    ///   all, it opens the siege screen instead. Two routes to one decision, and
+    ///   only one of them asks.
+    fn click_unit(&mut self, ctx: &mut Ctx, unit: usize) -> Transition {
+        if !ctx.game.is_players_unit(unit) {
+            self.status = "NOT YOUR UNIT".into();
+            return Transition::Stay;
+        }
+        let besieging = {
+            let l2_kingdom::Kingdom { counties, campaign, .. } = &mut ctx.game.kingdom;
+            if campaign.units.get(unit).is_some_and(|u| u.besieging_county != 0) {
+                l2_kingdom::siege::validate_link(counties, &mut campaign.units, unit);
+            }
+            ctx.game.kingdom.campaign.units.get(unit).is_some_and(|u| u.besieging_county != 0)
+        };
+        if besieging {
+            self.selected_unit = None;
+            return Transition::Push(ScreenId::Siege(unit));
+        }
+        // `Panel_MoveButton` -> `Map_BeginMoveSelection`: the map stays up and
+        // the next click is the order.
+        if self.selected_unit == Some(unit) {
+            self.selected_unit = None;
+            self.status = "ORDERS CANCELLED".into();
+            return Transition::Stay;
+        }
+        self.selected_unit = Some(unit);
+        let (men, left) = ctx
+            .game
+            .kingdom
+            .campaign
+            .units
+            .get(unit)
+            .map_or((0, 0), |u| (u.men, u.moves_left()));
+        self.status = format!("{men} MEN, {left} MOVES - CLICK A TILE TO MARCH");
+        Transition::Stay
+    }
+
+    /// **`Map_ConfirmMoveOrder`** — the second click, the one that places the
+    /// order.
+    ///
+    /// The original picks at most one confirmation out of the targets
+    /// `Map_HoverUnitTarget` collected, in a fixed priority — slaughter
+    /// villagers, destroy field, combine armies, garrison castle, besiege castle
+    /// — and otherwise lets the order through. Those are `L2.eng` group 10
+    /// indices 4, 10, 5, 7 and 8, and the confirm dialog is not built here; the
+    /// order goes through and the consequence happens when the army arrives,
+    /// which is where [`l2_kingdom::movement::try_enter`] already puts it.
+    ///
+    /// The refusal is the whole rule: `Unit_OrderMove` writes **nothing at all**
+    /// when no path is extracted, so a refused order leaves the army exactly as
+    /// it was — not half-ordered, not stopped. `docs/armies.md` §2.3.
+    fn order_march(&mut self, ctx: &mut Ctx, unit: usize, dest: (u8, u8)) -> Transition {
+        match ctx.game.order_unit_move(unit, dest) {
+            // **A zero-length path is an accepted order, not a refusal.**
+            // `Move_ExtractPath` returns success with nothing in the buffer
+            // when the descent never reached the destination, so the order
+            // stands, `moveState` becomes 2, and the army stays where it is.
+            // Only a dead end in the descent returns 0. `docs/armies.md` §2.3 —
+            // and saying so is the difference between a player thinking the
+            // click missed and knowing the tile is out of reach.
+            Some(0) => self.status = "THAT TILE CANNOT BE REACHED - THE ARMY STANDS".into(),
+            Some(steps) => {
+                let left = ctx
+                    .game
+                    .kingdom
+                    .campaign
+                    .units
+                    .get(unit)
+                    .map_or(0, |u| u.moves_left());
+                self.status = format!(
+                    "MARCHING TO {},{} - {steps} STEPS, {left} MOVES LEFT",
+                    dest.0, dest.1
+                );
+            }
+            None => self.status = "NO ROAD THAT WAY - NOTHING ORDERED".into(),
+        }
+        Transition::Stay
+    }
+
     /// The county at a canvas pixel, or 0.
     pub fn county_at(&self, x: i32, y: i32) -> u8 {
         if !self.map_clip().contains(x, y) {
@@ -593,6 +792,30 @@ impl MapScreen {
 
     fn centre_on_county(&mut self, anchor: (usize, usize)) {
         self.centre_on_tile(anchor.0, anchor.1);
+    }
+
+    /// **Ours.** Select the player's next unit in ascending slot order and
+    /// centre the map on it, so an army the viewport is nowhere near can still
+    /// be given an order. Ascending slot order rather than nearest-first,
+    /// because a selection that depends on where the viewport happens to be is
+    /// a selection two peers could disagree about.
+    fn cycle_unit(&mut self, ctx: &mut Ctx) {
+        let mine = ctx.game.player_units();
+        if mine.is_empty() {
+            self.selected_unit = None;
+            self.status = "YOU HAVE NOTHING ON THE MAP".into();
+            return;
+        }
+        let next = match self.selected_unit {
+            Some(cur) => mine.iter().copied().find(|&id| id > cur).unwrap_or(mine[0]),
+            None => mine[0],
+        };
+        self.selected_unit = Some(next);
+        if let Some(u) = ctx.game.kingdom.campaign.units.get(next) {
+            let (x, y, men, left, kind) = (u.x, u.y, u.men, u.moves_left(), u.kind);
+            self.centre_on_tile(x as usize, y as usize);
+            self.status = format!("{} #{next}: {men} MEN, {left} MOVES", kind.name().to_uppercase());
+        }
     }
 
     /// End the turn, and leave for screen `0x1C` if that ended the game.
@@ -697,6 +920,34 @@ impl Screen for MapScreen {
                 }
                 self.status = "NOT YOUR COUNTY".into();
             }
+            // **Ours, and only the key is.** The original reaches the
+            // raise-army screen from the county strip's first button —
+            // `Sidebar_Button` (`0x0043AE30`), hotspot 1, *"the county's
+            // army"*, which sets `g_screenId = 0x17`. That strip is another
+            // agent's, so the destination is the original's and the way in is
+            // not. See `screens::army`.
+            Event::KeyDown(Key::Char('R')) => {
+                if ctx.game.is_players(ctx.game.selected) {
+                    return Transition::Push(ScreenId::RaiseArmy(ctx.game.selected));
+                }
+                self.status = "SELECT ONE OF YOUR COUNTIES FIRST".into();
+            }
+            // **Ours, and only the key is.** The original reaches screen `0x11`
+            // from the *unit panel*'s split button, which is one of the three
+            // hotspots `FUN_00437002` tests over an army. We have no unit
+            // panel — our map click goes straight to move-order mode, which is
+            // what `Panel_MoveButton` does with two of its three siblings
+            // unbuilt — so this is the door to it. See `screens::divide`.
+            Event::KeyDown(Key::Char('A')) => match self.selected_unit {
+                Some(unit) if ctx.game.is_players_unit(unit) => {
+                    return Transition::Push(ScreenId::Divide(unit))
+                }
+                _ => self.status = "CLICK ONE OF YOUR ARMIES FIRST".into(),
+            },
+            // **Ours entirely.** The original has no cycle key; it has a map
+            // you can see the whole of at zoom 2. Ours is here because an army
+            // three screens away is otherwise unreachable without scrolling.
+            Event::KeyDown(Key::Char('N')) => self.cycle_unit(ctx),
             // Ours, and marked as such where it lands: the demo's index of
             // every screen, so the ones the game logic cannot yet open can
             // still be walked. `screens::index`.
@@ -788,7 +1039,7 @@ impl Screen for MapScreen {
                         self.status = "NOT YOUR COUNTY".into();
                         return Transition::Stay;
                     }
-                    return Transition::Push(ScreenId::Shell(id));
+                    return Transition::Push(sidebar_destination(id, ctx.game.selected));
                 } else if let Some(i) =
                     MINIMAP_MODE_BUTTONS.iter().position(|r| r.contains(x, y))
                 {
@@ -835,6 +1086,25 @@ impl Screen for MapScreen {
                     }
                 } else if self.map_clip().contains(x, y) {
                     self.ensure(ctx);
+                    // **`Map_Click` tests the picked *unit* before it tests any
+                    // tile flag**, and both of its unit branches return without
+                    // ever reaching the terrain dispatch below. That order is
+                    // the rule: an army standing on your own farmland is an
+                    // army, not a field.
+                    if let Some(unit) = self.unit_at(&Ctx { game: ctx.game, assets: ctx.assets }, x, y)
+                    {
+                        return self.click_unit(ctx, unit);
+                    }
+                    // With an army selected the map is in move-order mode
+                    // (`g_screenId == 0x10`) and a click on the ground is
+                    // `Map_ConfirmMoveOrder`, not a selection.
+                    if let Some(unit) = self.selected_unit {
+                        if !ctx.game.is_players_unit(unit) {
+                            self.selected_unit = None;
+                        } else if let Some(dest) = self.pick_tile(x, y) {
+                            return self.order_march(ctx, unit, dest);
+                        }
+                    }
                     let county = self.county_at(x, y);
                     // **A click on one of your own buildings or fields takes
                     // precedence over selecting the county**, and in that
@@ -1025,8 +1295,12 @@ impl Screen for MapScreen {
             }
         }
 
+        draw_path_preview(self, canvas, ctx, clip);
+        draw_units(self, canvas, ctx, clip);
+
         draw_menu_bar(canvas, ctx);
         draw_right_panel(self, canvas, ctx);
+        draw_unit_banner(self, canvas, ctx);
 
         // Last, so it sits over everything: the brush popup.
         if let Some(picked) = &self.picked_field {
@@ -1065,6 +1339,149 @@ impl Screen for MapScreen {
             }
         }
     }
+}
+
+/// Half the side of a unit's marker, in pixels.
+///
+/// **The three size classes are the original's** — `Army_Tick` picks sprite
+/// bank `0x48`, `0x60` or `0x78` at **301 and 601 men**, which the player
+/// described as one, two or three figures (`docs/armies.md` §2.4) — and the
+/// marker grows with them so that the same thing is legible. **The square is
+/// ours**: `Sprite1a.pl8` holds the actual figures and we do not place them.
+fn unit_marker_half(zoom: &Zoom, unit: &l2_kingdom::Unit) -> i32 {
+    let base = if zoom.id == FAR.id { 1 } else { 3 };
+    base + unit.size_class() as i32
+}
+
+/// **Ours.** Every unit on the map, as a square in its owner's colour.
+///
+/// The original draws a walking figure from one of five colour-coded sheets
+/// (`Sprite1a.pl8` and friends, `spriteFrame = bank + 3*facing + walkPhase`),
+/// and we do not have those placed. A square in the realm colour says *there is
+/// something of that lord's here and it is this big*, which is all a march order
+/// needs, and it cannot be mistaken for the game's art. `docs/decisions.md` C21.
+///
+/// A **garrisoned** unit is drawn hollow: it is inside the castle, excluded from
+/// the county's troop count and cannot be given a move order, and a solid marker
+/// would say it was standing on the tile.
+fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+    let ink = &ctx.assets.ink;
+    for (id, unit) in ctx.game.kingdom.campaign.units.iter() {
+        let Some((cx, cy)) =
+            campaign::tile_centre(screen.view, &screen.zoom, unit.x as usize, unit.y as usize)
+        else {
+            continue;
+        };
+        let h = unit_marker_half(&screen.zoom, unit);
+        let colour = ink
+            .realm
+            .get(unit.owner as usize)
+            .copied()
+            .unwrap_or(ink.dim);
+        fill_clipped(canvas, cx - h - 1, cy - h - 1, h * 2 + 3, ink.background, clip);
+        if unit.is_garrisoned() {
+            // Hollow: the ring only.
+            fill_clipped(canvas, cx - h, cy - h, h * 2 + 1, colour, clip);
+            fill_clipped(canvas, cx - h + 1, cy - h + 1, (h * 2 - 1).max(1), ink.background, clip);
+        } else {
+            fill_clipped(canvas, cx - h, cy - h, h * 2 + 1, colour, clip);
+        }
+        // The selection ring: `g_selectedUnit`, and the map is taking orders
+        // for it.
+        if screen.selected_unit == Some(id) {
+            let r = h + 3;
+            widget::frame(canvas, Rect::new(cx - r, cy - r, r * 2 + 1, r * 2 + 1), ink.highlight);
+        }
+        // A besieger carries a second, smaller mark: it is camped rather than
+        // standing, and clicking it opens the siege screen rather than ordering
+        // a march.
+        if unit.besieging_county != 0 {
+            fill_clipped(canvas, cx - 1, cy - h - 4, 3, ink.bad, clip);
+        }
+    }
+}
+
+/// **`Path_MarkPreviewTiles` (`0x004A91BA`) and `Map_DrawPathMarker`** — the
+/// gold balls along an ordered path.
+///
+/// The original sets bit `0x40` of each path tile's runtime record and then
+/// draws `g_flagsSheet` frame `0x38 + cost` on every tile carrying it, so the
+/// frame index *is* the accumulated cost and everything past the remaining
+/// budget collapses to frame `0x38`. `docs/armies.md` §2.3.
+///
+/// **The mechanism is the original's and the mark is ours.** We have no
+/// `Flags1a.pl8` frame placed, so a path tile is a small dot — bright while the
+/// army can still reach it this season, dim beyond that — and the transition
+/// between the two is at exactly the same step the original greys at.
+fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+    let ink = &ctx.assets.ink;
+    let Some(unit) = screen.selected_unit.and_then(|id| ctx.game.kingdom.campaign.units.get(id))
+    else {
+        return;
+    };
+    let mut left = unit.moves_left();
+    for &(x, y) in &unit.path {
+        let Some((cx, cy)) = campaign::tile_centre(screen.view, &screen.zoom, x as usize, y as usize)
+        else {
+            continue;
+        };
+        // The step's own cost is what the stepper charges; a road is 1 and open
+        // ground 3, and the preview greys where the budget runs out.
+        let cost = if ctx.game.kingdom.campaign.map.has(x, y, l2_kingdom::map::flags::ROAD) {
+            1
+        } else {
+            3
+        };
+        left -= cost;
+        let colour = if left >= 0 { ink.highlight } else { ink.dim };
+        fill_clipped(canvas, cx - 1, cy - 1, 3, colour, clip);
+    }
+}
+
+/// **Ours, and it is deliberately not in the right column.**
+///
+/// The original's army panel is `UnitPanel_Draw` (`0x0041B19D`) with `L2.eng`
+/// group 31's own field labels beside the record's offsets — *Wages*, *Formed*,
+/// *Morale*, *N moves left.*, the supply line and the health line. It is screen
+/// `0x04`, it is a **shell**, and a right-click is how the original opens it —
+/// which is a different gesture on a different screen from this one.
+///
+/// This is one line of the same numbers, drawn in our font at the bottom-left
+/// of the viewport while an army is selected, so that a player *placing a march
+/// order* can see what he is ordering without leaving move-order mode. The
+/// right column belongs to the county strip. When `0x04` graduates, this stays:
+/// they answer different questions.
+fn draw_unit_banner(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
+    let Some(id) = screen.selected_unit else { return };
+    let Some(unit) = ctx.game.kingdom.campaign.units.get(id) else { return };
+    let ink = &ctx.assets.ink;
+    let bar = Rect::new(0, NEAR.bottom() - 26, PANEL_X, 26);
+    widget::panel(canvas, ink, bar);
+    // `L2.eng` 31/22 prints `moveAllowance - movesUsed` as "moves left."
+    let home = unit.home_county;
+    text::draw(
+        canvas,
+        4,
+        bar.y + 4,
+        &format!(
+            "#{id} {} - {} MEN, {} MOVES LEFT, MORALE {}",
+            unit.kind.name().to_uppercase(),
+            unit.men,
+            unit.moves_left(),
+            unit.morale,
+        ),
+        ink.text,
+    );
+    let where_to = if unit.besieging_county != 0 {
+        format!("BESIEGING COUNTY {}", unit.besieging_county)
+    } else if unit.garrison_county != 0 {
+        format!("GARRISONING COUNTY {}", unit.garrison_county)
+    } else if !unit.path.is_empty() {
+        format!("{} STEPS TO GO", unit.path.len())
+    } else {
+        "IDLE - CLICK A TILE TO MARCH, A FOR ORDERS".into()
+    };
+    text::draw(canvas, 4, bar.y + 14, &format!("FROM COUNTY {home}. {where_to}"), ink.dim);
 }
 
 /// What a settlement click switched, in words. **Ours** — the original enqueues
@@ -1309,14 +1726,26 @@ mod tests {
                 assert!(ra.x + ra.w <= rb.x || rb.x + rb.w <= ra.x, "{a:?} overlaps {b:?}");
             }
         }
-        // And every destination is a screen we can actually draw.
+        // And every destination is a screen we can actually draw: either a
+        // shell, or a screen that has graduated out of the table and is named
+        // by `sidebar_destination`. A shell graduating without that second half
+        // is a button that opens the first shell in the table, which is why
+        // this asserts both halves rather than just the first.
         for b in SIDEBAR_BUTTONS {
             let SidebarAction::Screen(id) = b.action;
+            let shelled = crate::screens::shells::SHELLS.iter().any(|s| s.id == id);
+            let built = sidebar_destination(id, 1) != ScreenId::Shell(id);
             assert!(
-                crate::screens::shells::SHELLS.iter().any(|s| s.id == id),
-                "{b:?} names screen {id:#04X}, which has no shell"
+                shelled || built,
+                "{b:?} names screen {id:#04X}, which has neither a shell nor a screen"
             );
+            assert!(!(shelled && built), "{b:?} is both a shell and a screen");
         }
+        assert_eq!(
+            sidebar_destination(0x17, 4),
+            ScreenId::RaiseArmy(4),
+            "the ARMY button opens the raise-army screen for the selected county",
+        );
     }
 
     /// The minimap's four mode buttons, including the record whose `y1` is

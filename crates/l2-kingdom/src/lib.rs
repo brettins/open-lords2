@@ -196,6 +196,7 @@ pub mod ai_farm;
 pub mod battle;
 pub mod conquest;
 pub mod county;
+pub mod divide;
 pub mod event;
 pub mod field;
 pub mod happiness;
@@ -227,6 +228,7 @@ pub mod victory;
 pub mod weather;
 
 pub use county::{ChangeReason, County, Industry, MAX_COUNTIES, MAX_COUNTY_ID, MAX_FIELDS};
+pub use divide::{DisbandRefusal, SplitBasket, SplitInto, SplitRefusal};
 pub use event::EventKind;
 pub use kingdom::{Kingdom, Options};
 pub use phase::{Pass, Phase, PhaseTick, PhaseWait, TurnMachine, PHASE_ORDER, SEASON_PIPELINE};

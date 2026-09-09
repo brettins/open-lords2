@@ -62,6 +62,14 @@ pub enum ScreenId {
     /// `g_screenId` `0x1D` — the siege-preparation screen, for one besieging
     /// army. See [`crate::screens::siege`].
     Siege(usize),
+    /// `g_screenId` `0x17` — **the raise-army screen**, for one county. The
+    /// shell table called it *"Hire mercenaries"*; there is no mercenaries
+    /// screen, and the offer is a block on this one. See
+    /// [`crate::screens::army`].
+    RaiseArmy(u8),
+    /// `g_screenId` `0x11` — the army-division screen, for one army. See
+    /// [`crate::screens::divide`].
+    Divide(usize),
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -181,6 +189,10 @@ impl ScreenId {
                 Box::new(crate::screens::saveload::SaveLoadScreen::new(mode))
             }
             ScreenId::Siege(unit) => Box::new(crate::screens::siege::SiegeScreen::new(unit)),
+            ScreenId::RaiseArmy(county) => {
+                Box::new(crate::screens::army::RaiseArmyScreen::new(county))
+            }
+            ScreenId::Divide(unit) => Box::new(crate::screens::divide::DivideScreen::new(unit)),
             ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }

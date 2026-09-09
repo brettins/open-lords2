@@ -5065,6 +5065,70 @@
       "comment": "Releases any mercenary band, returns troops[1..6] to the realm's weapons[0..5] - troop type t maps to weapon slot t-1, the same off-by-one Levy_Init uses in the other direction - and returns the men to the county's population, its labour[8].workers and its popArmy. Then Army_Destroy, clear the garrison link, recompute the realm wage bill and re-run the labour allocator and Ration_Apply three times over. The county is the home county, or the current one when the home county has changed hands."
     },
     {
+      "addr": "0x00437FD7",
+      "name": "Army_Split",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_Split(int realm, int army, int destCounty, int destTileOffset)",
+      "comment": "The army-division screen's yes-arm. Finds a free tile within five of the parent (FUN_0046733C), spawns a daughter army there and gives it the parent's morale, shield and county but NOT its homeCounty - Unit_Spawn has just zeroed that, so a split army's county of origin is 0 and Army_Disband falls through to wherever it is standing. Each side's troops come from one half of the levy basket: parent from slot[t].chosen, daughter from slot[t].available, and menTotal is the sum of all EIGHT slots so the mercenary band is counted. Both halves get moving = 2. With no destination county both pay movesUsed += 5 - the Readme's 'splitting does not use all the movement for a turn' - and with one, the daughter is given the destination tile and a flood-filled path instead. A band the daughter's column holds moves whole, g_mercBands[band].hiredBy included."
+    },
+    {
+      "addr": "0x004378B3",
+      "name": "Panel_SplitButton",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Panel_SplitButton(void)",
+      "comment": "The unit panel's split button, and the gate the Readme states: 'An army normally can only be split only at the start of its movement in a turn.' Refuses with message 0x95 = L2.eng group 149 when movesUsed >= 1 and the screen never opens. Otherwise it seeds the levy basket from the army - slot[t].chosen = troops[t], slot[t].available = 0, slot 7 = mercMen with its available at 0 - sums the two totals into DAT_00554468 and DAT_00554040, and sets g_screenId = 0x11. FUN_004376BB is the same seeding reached from the move-order confirm, for a split INTO a castle."
+    },
+    {
+      "addr": "0x00437AFB",
+      "name": "Army_SplitConfirm",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_SplitConfirm(void)",
+      "comment": "The army-division screen's OK. Recomputes both totals, then: with no destination county the minimum a side is 0x32 and the cap 5000; with one, the minimum is ZERO and the cap is that castle's garrison limit less the garrison already inside - which is the Readme's 'When splitting into castles, you may split off less than 50 men.' An empty column cancels silently, a side under the minimum raises message 0x94 (group 148) and a daughter over the cap raises 0x11A (group 282). Then Army_Split, or network command 0x2D."
+    },
+    {
+      "addr": "0x00437D65",
+      "name": "SplitScreen_ToParent",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void SplitScreen_ToParent(void)",
+      "comment": "Moves one man from the daughter's column back to the parent's on the army-division screen: slot[hotspot].available -= 1, slot[hotspot].chosen += 1, then both totals are resummed over all eight slots. Hotspot 7 is the mercenary band and swaps it whole rather than by one. SplitScreen_ToDaughter (0x00437E9E) is the same function the other way."
+    },
+    {
+      "addr": "0x00437E9E",
+      "name": "SplitScreen_ToDaughter",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void SplitScreen_ToDaughter(void)",
+      "comment": "The twin of SplitScreen_ToParent: one man from the parent's column into the daughter's, and hotspot 7 moves the whole mercenary band."
+    },
+    {
+      "addr": "0x0046733C",
+      "name": "Map_FindFreeTileNear",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "int Map_FindFreeTileNear(int x, int y)",
+      "comment": "For r = 1..5, Map_FindFreeRoadTileNear(x, y, r + 1) then Map_FindFreeOpenTileNear(x, y, r) - so at every radius a road one ring wider beats open ground one ring narrower. Leaves the answer in g_foundTileX / g_foundTileY and returns the radius, or 0. Its one caller is Army_Split."
+    },
+    {
+      "addr": "0x00435B4D",
+      "name": "Army_RaiseConfirm",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_RaiseConfirm(void)",
+      "comment": "The raise-army screen's yes-callback, and the only door to Army_Create a player has. Two size guards, both &&-ed with the hire flag DAT_0055446C so that hiring a mercenary band bypasses BOTH: a levy total of zero raises message 0xA8 (group 168) and a total under 0x32 raises 0x94 (group 148). Then Army_Create(g_localPlayer, g_selectedCounty, hireMercs, g_levyHappinessCost), with message 0xDD (group 221) when it returns 0 because there was nowhere in the county to stand."
+    },
+    {
+      "addr": "0x00435CEF",
+      "name": "Levy_SliderClick",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int Levy_SliderClick(void)",
+      "comment": "The levy slider on screen 0x17. Its hit band is x in [0x80, 0x176) and y in [base + 0x10, base + 0x40), where base is 0x80 with a mercenary offer in the county and 0xA0 without - the same local Screen_RaiseArmy lays the whole screen out from. Inside it: x < 0xC4 decrements, x < 0x129 sets g_levyPercent = x - 0xC4, and beyond that increments. Clamps 0..100 and calls Levy_SetPercent. The track's 0xC4 is the exact inverse of the knob's own x, g_levyPercent + 0xC4, over 101 pixels."
+    },
+    {
       "addr": "0x004A7948",
       "name": "Army_GarrisonConfirm",
       "section": "units",

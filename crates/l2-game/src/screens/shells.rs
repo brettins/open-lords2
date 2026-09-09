@@ -198,37 +198,17 @@ pub const SHELLS: &[Shell] = &[
         overlay: true,
         unfinished: "everything: the worker count, the output and the arrows. The window is ours",
     },
-    Shell {
-        id: 0x11,
-        painter: 0x0041_92B1,
-        name: "Army division",
-        background: None,
-        palette: None,
-        window: Some((0x08, 0x30, 0x1C, 0x1A, 0)),
-        group: 17,
-        heading: Some((0, 0x68, 0x44)),
-        lines: &[(1, 0x78, 0x1AE)],
-        ok: Some((0x1AC, 0x1B4, 0)),
-        overlay: true,
-        unfinished: "the eight troop rows and the two Total men lines",
-    },
-    Shell {
-        id: 0x17,
-        painter: 0x0041_8653,
-        name: "Hire mercenaries",
-        background: None,
-        palette: None,
-        // `Ui_DrawBox(0x50, y - 0x10, 0x1E, rows)`, where y and rows depend on
-        // whether a band is offering: 0x80 and 17 when one is, 0xA0 and 14
-        // when none is. The larger of the two is drawn.
-        window: Some((0x50, 0x70, 0x1E, 0x11, 0)),
-        group: 69,
-        heading: Some((0x10, 0x70, 0x78)),
-        lines: &[],
-        ok: None,
-        overlay: true,
-        unfinished: "the levy slider, the six weapon stocks and the mercenary offer",
-    },
+    // `0x11` **graduated**. It was the row that said *"the eight troop rows and
+    // the two Total men lines"*; both columns of both are drawn now, out of a
+    // real [`l2_kingdom::SplitBasket`], and the buttons split and disband. See
+    // `screens/divide.rs`.
+    // `0x17` **graduated, and its name was the finding.** This table called it
+    // *"Hire mercenaries"* while `docs/symbols.json` called its painter
+    // `Screen_RaiseArmy` — and there is no mercenaries screen in the game at
+    // all: the offer is a block on the raise-army screen, which is the only
+    // door to `Army_Create` a player has. A name is a claim, and this one set
+    // the priority of the most gameplay-critical shell in the table for weeks.
+    // `docs/decisions.md` C45. See `screens/army.rs`.
     Shell {
         id: 0x18,
         painter: 0x0041_AD5D,
@@ -531,5 +511,11 @@ mod tests {
         assert!(find(0x14).is_none(), "the four county panels are implemented");
         assert!(find(0x35).is_none(), "loading a game is implemented");
         assert!(find(0x36).is_none(), "saving a game is implemented");
+        assert!(find(0x11).is_none(), "army division is implemented");
+        assert!(
+            find(0x17).is_none(),
+            "raising an army is implemented - and it is not a mercenaries screen"
+        );
+        assert!(find(0x1D).is_none(), "siege preparation is implemented");
     }
 }
