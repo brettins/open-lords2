@@ -1994,6 +1994,71 @@ a single message. The pattern from C46 holds exactly: every one of these was a *
 a measurement — "castle job" beside a slot number, "tick" beside a frame index, `ink.text`
 beside `0x3F` — and in every case the measurement was already in the file.
 
+**C53 — Ale's five happiness are a *seasonal* allowance, not a lifetime one. Four documents
+said "nothing in the binary resets it", and the reset is eleven lines away from a function
+all four of them cite.**
+
+`Ale_Apply` (`0x00428C42`) caps its gain at `5 - county[+0x219]`, the happiness ale has
+already given this county. `docs/kingdom.md` §7.6, `docs/mechanics.md`,
+`docs/symbols.json`'s `Ale_Apply` entry and `l2_kingdom::county::County`'s own doc comment
+all drew the same conclusion from the same search: *nothing writes `+0x219` except
+`Ale_Apply`, so the five points are for the life of the game and a county that has had them
+will never gain from ale again.*
+
+`Happiness_UpdateAll` (`0x0044BAEA`) writes it, every season, for every county:
+
+```c
+g_counties[i].shownArmy   = 0;
+g_counties[i].shownEvents = 0;
+g_counties[i].aleHappinessGiven = 0;      /* +0x219 */
+g_counties[i].shownAle    = 0;
+```
+
+It sits **between two fields all four documents had already described**, in the middle of the
+display-field reset every one of them quotes. The search that missed it was for writers of
+`+0x219` in the *ale* code; the write is in the *happiness* code, one line above a field
+(`shownAle`) that our own crate was already resetting correctly on that very line. The
+crate reset the display and left the allowance, so our ale was strictly meaner than the
+original's for the whole game.
+
+**`Readme.txt` had said so, and it was read as being about something else.** Its *"Ale
+Limitations"* section — *"Ale can only be purchased once per county per season. Its benefit
+is also limited to +3 happiness per purchase"* — was on file and cited for the *purchase*
+limit. Its plain claim that the benefit is **per season** is the correction, and it went
+past because the sentence people quoted from it was the other one. The errata is a
+first-class oracle (`CLAUDE.md`), and here it was right about the horizon and this binary
+disagrees with it about the number: the ladder's cap is **5**, as `MOV` immediates in
+`Ale_Apply` and again in `Ale_PreviewGain`, not 3. Both are recorded rather than reconciled,
+because "the Royal Edition readme describes a +3 that this executable does not implement" is
+a finding and averaging them would not be.
+
+The shape is C42's and C52's for the third time: **the fact was inside a function the
+document already cited, on a line beside one it already quoted.** What is different is that
+here a *fifth* source — the game's own errata — had stated the conclusion in English, and
+the search that would have found it was a search of the same file for a different phrase.
+
+**C54 — The four merchant accumulators are not "this season" and "the total". Nothing
+resets them and nothing reads them, and the hypothesis said so itself.**
+
+`docs/hypotheses.json` named realm `+0x104`/`+0x108` `spentThisSeason`/`spentTotal` and
+`+0x10C`/`+0x110` `receivedThisSeason`/`receivedTotal`, with the caveat *"nothing in the
+corpus resets either, and if neither is ever reset the pair is something else entirely."*
+The check the caveat asks for now runs: across the whole binary the only writers are
+`Merchant_Trade`, which adds to both of a pair, and `Game_SetupRealmsAndCounties`, which
+zeroes all four at new game. **There are no readers at all.**
+
+So the subject half of each name is verified — two accumulate purchases, two accumulate
+sales — and the role half is refuted. They are promoted to `docs/symbols.json` as
+`trade_spent_a`/`_b` and `trade_received_a`/`_b`, deliberately unhelpful names, because a
+name that says *when* would be a claim about a horizon this executable does not have. The
+entries are deleted from `hypotheses.json` rather than softened, per that file's own rule.
+
+The general point is worth keeping: **an unread accumulator is evidence about a feature that
+was cut, not about one that exists.** `g_goodsStock` at `0x004D8950` is the same finding on
+the other side of the same screen — fifteen entries that read exactly like a merchant's
+stock, and no instruction anywhere reads them. Two cut mechanics, both visible only as data
+nobody consumes, both on the merchant.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

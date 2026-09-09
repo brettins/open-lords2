@@ -466,9 +466,10 @@ fn a_merchant_is_drawn_and_opens_the_merchant_screen_from_the_county_it_is_in() 
     assert!(with.diff_count(&without) > 0, "the merchant painted nothing");
     game.kingdom.campaign.units.put(merchant, put_back);
 
-    // And clicking it opens screen 0x08.
+    // And clicking it opens screen 0x08 **carrying the unit**, because the
+    // price is that merchant's own morale — `DAT_00553C64`.
     let t = send(&mut screen, &mut game, &assets, Event::Click { x: cx, y: cy });
-    assert_eq!(t, Transition::Push(ScreenId::Shell(0x08)), "the merchant screen");
+    assert_eq!(t, Transition::Push(ScreenId::Merchant(merchant)), "the merchant screen");
 
     // The same merchant in somebody else's county is a refusal, not a trade.
     let theirs = (1..=game.kingdom.county_count as u8)

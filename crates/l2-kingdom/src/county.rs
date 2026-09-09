@@ -205,10 +205,17 @@ pub struct County {
     /// [`crate::happiness::buy_ale`]; `docs/kingdom.md` §12 records the ale
     /// purchase path as untraced, and it is traced now.
     pub shown_ale: i32,
-    /// `+0x219` — the total happiness this county has **ever** been given by
-    /// ale, which is what caps the bonus at five. Nothing in the binary resets
-    /// it, so the cap is for the whole game rather than per season. See
-    /// [`crate::tables::ALE_HAPPINESS_MAX`].
+    /// `+0x219` — the happiness ale has given this county **this season**,
+    /// which is what caps the bonus at five.
+    ///
+    /// **Corrected.** This field, `docs/kingdom.md` §7.6, `docs/mechanics.md`
+    /// and `docs/symbols.json` all said *"nothing in the binary resets it, so
+    /// the cap is for the life of the game"*. `Happiness_UpdateAll`
+    /// (`0x0044BAEA`) resets it, in the same statement that clears
+    /// [`County::shown_ale`] and the other five display terms, every season for
+    /// every county. So the five points are a **seasonal** allowance, which is
+    /// also what `Readme.txt`'s *"Ale Limitations"* describes. See
+    /// [`crate::tables::ALE_HAPPINESS_MAX`] and `docs/decisions.md` C53.
     pub ale_happiness_given: i32,
     /// `+0x20` — 0..=4. At 4 the county revolts (§6).
     pub unrest: u8,
@@ -264,6 +271,17 @@ pub struct County {
     pub tax_collected: i32,
     /// `+0xC0` — group 86 index 2, *"People pay"*.
     pub tax_shown: i32,
+    /// `+0x1F4` — **an unowned county's own treasury.**
+    ///
+    /// A county with no lord still farms, still taxes and still trades. Its tax
+    /// is banked here rather than in any realm's gold (`FUN_0044B4F3`), the AI
+    /// grants it 100 crowns a season (`FUN_004A15xx`), and
+    /// [`crate::trade::trade`] pays out of it whenever the realm argument is 0 —
+    /// which is every trade `Ai_BuyGood` makes on behalf of an unowned county.
+    ///
+    /// It is 0 in every fixture, because no fixture has an unowned county that
+    /// has traded yet. `docs/hypotheses.json`.
+    pub purse: i32,
     /// `+0xC4 + job*0x0C` — workers assigned to each of nine jobs.
     pub labour: [i32; JOB_COUNT],
     /// `+0xC4 + job*0x0C + 0x04` — **the wanted floor**: how many workers this
@@ -635,6 +653,7 @@ impl County {
             anchor_y: 0,
             tax_rate: 0,
             tax_collected: 0,
+            purse: 0,
             tax_shown: 0,
             labour: [0; JOB_COUNT],
             // Zero, not the sentinels: `FUN_00451150` sets up a fresh county

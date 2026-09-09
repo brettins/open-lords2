@@ -653,8 +653,13 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
 * **the unit sprites and the two flags**, from `Sprite1a/1b.pl8` and `Flags1a.pl8`, with the
   original's frame arithmetic, its anchor and its 16 ms wave counter (§5.1, §5.2);
 * **`Map_Click`'s merchant arm**, guarded on the *county's* owner as the original guards it,
-  centring on that county's town and opening screen `0x08` — which is still a shell that
-  draws and does not trade;
+  centring on that county's town and opening screen `0x08` — **which trades now**, carrying
+  the clicked unit with it because `DAT_00553C64` is what the price is computed from. See
+  `crates/l2-game/src/screens/merchant.rs`; the stall's hit test is `mercgrid.pl8` read as
+  an 80 × 60 map of good ids, and the mouseover is the price plaque of
+  `Merchant_HoverPlaque` rather than any generic tooltip — **this engine has no generic
+  tooltip mechanism**, and `0x00553ECC`, the only candidate on file, turned out to be a
+  click guard on move-order mode (`docs/decisions.md` C54's neighbours in `symbols.md`);
 * the map opening on the player's own town, which is `Game_SetupRealmsAndCounties`'s tail
   call `FUN_00432746(g_playerStartTable[g_localPlayer * 2])` and not `Map_InitMode`
   (`docs/decisions.md` C48);

@@ -84,22 +84,6 @@
       "comment": "docs/screens-county.md calls this 'the map information panel'; nothing has read what it draws."
     },
     {
-      "addr": "0x0041608B",
-      "name": "Merchant_DrawPanel",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "The widget-pass companion Screen_DrawWidgets calls for screen 0x08, immediately before Widget_Draw on the merchant's own table.",
-      "comment": "The merchant screen's per-frame overlay. Subject is anchored by the screen id; what it draws is unread."
-    },
-    {
-      "addr": "0x004357A6",
-      "name": "Merchant_HandleInput",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "The input-pass companion Screen_HandleInput calls for screen 0x08, before Widget_Test on the merchant's table.",
-      "comment": "The merchant screen's non-widget hit-testing."
-    },
-    {
       "addr": "0x00418FC5",
       "name": "Armoury_DrawPanel",
       "section": "ui",
@@ -409,8 +393,8 @@
       "type": "i32",
       "name": "purse",
       "confidence": "role",
-      "basis": "Merchant_Trade credits and debits it instead of realm gold when the realm argument is 0.",
-      "caveat": "Readable but never exercised: 0 in every fixture, because no unowned county has traded. The claim that an unowned county has a treasury of its own is a real one and it is untested."
+      "basis": "Three unrelated writers all treat it as money belonging to a county with no lord: Merchant_Trade credits and debits it instead of realm gold whenever the realm argument is 0, the tax pass banks an unowned county's taxCollected into it (FUN_0044B4F3), and the AI grants an unowned county a flat 100 a season (FUN_004A15xx). Ai_BuyGood then tests it as the purse for every unowned county's trade.",
+      "caveat": "Still 0 in every fixture, because no unowned county in any saved position has traded yet - so nothing has ever OBSERVED a non-zero value, only code that would produce one. crates/l2-kingdom's trade module exercises it and l2-game can now produce it, but our own engine agreeing with our own reading is not the check. Promote on a .sav taken after an AI season in which an unowned county traded: the offset should be non-zero and should equal tax banked plus grants minus purchases."
     },
     {
       "record": "County",
@@ -429,42 +413,6 @@
       "confidence": "role",
       "basis": "Ration_Apply adds +0x198 + +0x19C to the county's food requirement when g_optArmiesEat is on, and Panel_Ration draws that same sum against L2.eng 87/8 'men foraging in the county.'. The orphaned ration group 62 has 'Soldiers', 'Foragers', 'take' and 'steal' as four separate strings, which is where the split into two fields comes from.",
       "caveat": "That the pair exists and sums into the food bill is certain. Which of the two is soldiers and which is foragers is a guess off the dead string group, and is a coin flip. Both are 0 in every fixture - no fixture has an army standing in a county with Armies Eat on."
-    },
-    {
-      "record": "Realm",
-      "off": "0x104",
-      "type": "i32",
-      "name": "spentThisSeason",
-      "confidence": "subject",
-      "basis": "One of the four Merchant_Trade accumulators; the evidence is written out on +0x110.",
-      "caveat": "Shares the caveat of +0x110: that two accumulators run on spending is certain, which of the pair is the season figure is not, and all four are 0 in every fixture."
-    },
-    {
-      "record": "Realm",
-      "off": "0x108",
-      "type": "i32",
-      "name": "spentTotal",
-      "confidence": "subject",
-      "basis": "One of the four Merchant_Trade accumulators; the evidence is written out on +0x110.",
-      "caveat": "Shares the caveat of +0x110: that two accumulators run on spending is certain, which of the pair is the running total is not, and all four are 0 in every fixture."
-    },
-    {
-      "record": "Realm",
-      "off": "0x10C",
-      "type": "i32",
-      "name": "receivedThisSeason",
-      "confidence": "subject",
-      "basis": "One of the four Merchant_Trade accumulators; the evidence is written out on +0x110.",
-      "caveat": "Shares the caveat of +0x110: that two accumulators run on income is certain, which of the pair is the season figure is not, and all four are 0 in every fixture."
-    },
-    {
-      "record": "Realm",
-      "off": "0x110",
-      "type": "i32",
-      "name": "receivedTotal",
-      "confidence": "subject",
-      "basis": "Merchant_Trade adds the crown amount to +0x104 and +0x108 on a purchase and to +0x10C and +0x110 on a sale.",
-      "caveat": "That two accumulators run on spending and two on income is certain. Which of each pair is the season figure and which the running total is not: nothing in the corpus resets either, and all four are 0 in every fixture because no fixture has traded. If neither is ever reset, the pair is something else entirely - two panels rather than two horizons."
     }
   ],
   "globals": [
@@ -543,15 +491,6 @@
       "comment": "Whatever NetCmd_WriteMoveOrder passes to Net_ResolveDest to make the packet's second field.",
       "basis": "One call site. Nothing else traced reads it.",
       "promotion": "Read Net_ResolveDest."
-    },
-    {
-      "addr": "0x00553ECC",
-      "name": "g_hoverDamper",
-      "section": "units",
-      "confidence": "both",
-      "comment": "Set to 40 when a move selection begins and decremented once per Map_HoverUnitTarget call while positive. Never read anywhere else in the traced corpus.",
-      "basis": "Two sites, both writes. A counter nothing reads is exactly the shape a reader should distrust: 'damper' is a guess at intent, not a finding.",
-      "promotion": "Find a reader. If there is none, say so and drop the name - an unread counter deserves a number, not a noun."
     },
     {
       "addr": "0x00504020",

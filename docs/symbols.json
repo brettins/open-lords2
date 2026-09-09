@@ -974,7 +974,7 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Happiness_UpdateAll(void)",
-      "comment": "happiness(+0x0C) = last(+0x0D) + tax(+0x0E) + health(+0x10) + ration(+0x11), copied to the display fields +0x12..+0x14, clamped 0..100, accumulated into +0x1C and averaged into +0x18. Unowned counties below 75 get a flat +5 recorded as \"From events\"."
+      "comment": "happiness(+0x0C) = last(+0x0D) + tax(+0x0E) + health(+0x10) + ration(+0x11), copied to the display fields +0x12..+0x14, clamped 0..100, accumulated into +0x1C and averaged into +0x18. Unowned counties below 75 get a flat +5 recorded as \"From events\". [V] It is also THE RESETTER OF +0x219, the ale allowance, which it zeroes beside shownAle in the same run of display-field clears - so Ale_Apply's cap of five is per season and per county, not for the life of the game as four documents said. docs/decisions.md C53."
     },
     {
       "addr": "0x0044BD9F",
@@ -4528,7 +4528,7 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Ale_Apply(int crowns, int county)",
-      "comment": "The ale happiness rule, and the only writer of county +0x219. Its ladder is on crowns spent against population/10: one point per tenth of the population's worth of crowns, five at most, then clamped again to 5 minus +0x219 - the total ale has ever given this county. The gain is added to happiness, to +0x219, and to the shownAle display field. Nothing in the binary resets +0x219, so the cap is for the life of the game. Note the argument is the money, not the barrels: Merchant_Trade passes buyPrice * qty."
+      "comment": "The ale happiness rule, and the only writer of county +0x219 that ADDS to it. Its ladder is on crowns spent against population/10: one point per tenth of the population's worth of crowns, five at most, then clamped again to 5 minus +0x219 - the happiness ale has already given this county. The gain is added to happiness, to +0x219, and to the shownAle display field. CORRECTED: this entry said \"nothing in the binary resets +0x219, so the cap is for the life of the game\". Happiness_UpdateAll (0x0044BAEA) zeroes it every season for every county, beside shownAle, so the five points are a SEASONAL allowance - which is also what Readme.txt's \"Ale Limitations\" says. docs/decisions.md C53. Note the argument is the money, not the barrels: Merchant_Trade passes buyPrice * qty."
     },
     {
       "addr": "0x00435673",
@@ -4544,7 +4544,47 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Merchant_ResetStall(void)",
-      "comment": "Reloads the live stall at 0x005532A0 - 16 goods of 16 bytes - with the base prices from g_goodsPrice and zeroes each good's second word. Sheep and wool are copied in with their price of zero like everything else, so the stall carries rows for two goods Merchant_Trade has no branch for."
+      "comment": "Reloads the live stall at 0x005532A0 - 16 goods of 16 bytes - with the base prices from g_goodsPrice and zeroes each good's second word. Sheep and wool are copied in with their price of zero like everything else, so the stall carries rows for two goods Merchant_Trade has no branch for. [V] IT IS CALLED EXACTLY ONCE IN THE BINARY, from Game_New's setup, and nothing else writes either word of any row - so the stall price of every good is the g_goodsPrice entry for the whole game, and the second word stays 0. The only thing that moves a merchant's price is the markup in Trade_BeginGood."
+    },
+    {
+      "addr": "0x00428DAF",
+      "name": "Trade_BeginGood",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Trade_BeginGood(void)",
+      "comment": "HOW A MERCHANT'S PRICE IS SET, and the whole of it. Runs when a good is picked on the stall. Zeroes the pending quantity (0x00554170), the crown total (0x00553F64) and the ale preview; picks the icon page from the good id (<6, <9, else); sets the arrows' floor (0x0053E9E4) to MINUS what the seller holds - county grain or herd for goods 1 and 2, the local player's realm iron/stone/wood or weapons[3],[4],[1],[0],[2],[5] for 6..14, and an explicit 0 for ale, which is why ale cannot be sold; then sellPrice(0x0057C8C0) = g_merchantStall[good], markup = max(1, Pct(sellPrice, g_units[DAT_00553C64].morale)), markup = 0 if the good is ale, buyPrice(0x0055CD70) = sellPrice + markup, and the arrows' ceiling (0x0057A0FC) = buyPrice == 0 ? 0 : realm gold / buyPrice. [V] So THE SELL PRICE NEVER MOVES - Merchant_ResetStall runs once a game - and the buy price is the base plus the CLICKED MERCHANT'S OWN MORALE as a percentage of it. Merchant_SpawnAll writes morale 100 into every merchant and nothing in the binary ever writes a merchant's morale again, so in the shipped game the buy price is exactly twice the sell price - which is the manual's \"such as 30/60\" and the published guides' doubled table, both, as the morale=100 case of one formula. Ai_BuyGood and Ai_SellGood apply the identical markup off the county's own stall slot, so this is the price for everybody."
+    },
+    {
+      "addr": "0x004357A6",
+      "name": "Merchant_StallHit",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Merchant_StallHit(void)",
+      "comment": "Screen 0x08's hit test, and the reason the merchant screen has no rectangles anywhere: good = grid[(mouseX>>3) + (mouseY>>3) * 0x50] out of mercgrid.pl8, which Screen_Merchant read whole into the village's grid buffer. 0 means the pointer is on no ware; otherwise a left press opens screen 0x0C on that good. [V] mercgrid.pl8 is 4,824 bytes = a 24-byte .pl8 header plus an 80 x 60 byte map of 8-pixel cells over the whole 640x480 screen, and the SHIPPED FILE HOLDS EXACTLY TWELVE IDS - 1,2,4,6,7,8,9,10,11,12,13,14. Sheep (3) and wool (5) are on no cell, so there is nowhere on the stall to click for either: the artwork's own statement of what Merchant_Trade's missing branches and g_goodsPrice's two zeros already said."
+    },
+    {
+      "addr": "0x0041608B",
+      "name": "Merchant_HoverPlaque",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Merchant_HoverPlaque(void)",
+      "comment": "Screen 0x08's widget pass. Draws one price plaque for the good under the pointer, at that good's own position out of g_goodsStall, and erases the last one first - so at most one is ever on screen and two goods may claim the same 128x64 box (grain's and stone's do). The plaque is a 8x4-cell box, the group 6 name centred in it, and BOTH PRICES side by side at (x+0x24, y+0x22): the stall price, then stall + max(1, Pct(stall, merchant morale)), the same arithmetic as Trade_BeginGood written out a second time. It is throttled by a countdown at 0x0053EF54 that is set to 500 on entry and after every change, so the plaque does not chase a moving pointer."
+    },
+    {
+      "addr": "0x004D2B70",
+      "name": "g_goodsStall",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int g_goodsStall[14][5]",
+      "comment": "Where each good sits on the merchant's stall: 14 rows of {x, y, goodId, unread, iconFrame} indexed as base + (good-1)*20. The third column holds the row's own good id, which makes the reading self-checking - fourteen for fourteen. Column 4 is the icon frame Trade_DrawPanel draws after \"and N ...\" and 0 suppresses that whole clause; it is 0 for exactly sheep, ale and wool, the three goods you never hold. Column 3 is 0/1/2 on the same three-way split and NOTHING IN THE BINARY READS IT. [V] SHEEP AND WOOL ARE AT (0,0) - they have no place on the stall at all, which with the missing Merchant_Trade branch, the price of zero and their absence from mercgrid.pl8 makes four independent statements that the two goods are not in the game."
+    },
+    {
+      "addr": "0x0046921D",
+      "name": "County_EnsurePasture",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "signature": "void County_EnsurePasture(int county)",
+      "comment": "[I] on the name, [V] on the behaviour. Called from Merchant_Trade's tail only when cattle were BOUGHT: recounts the fields and, if fieldsCattle is 0, turns one field into pasture - a fallow one through FUN_0046958F, or failing that a grain one through FUN_0046965A, which also docks the standing crop by one field's share and steps +0x206 down. Both walk a per-county round-robin cursor at +0x15A bounded by +0x205 and give up after 20 tries. So buying cows into a county with no pasture creates the pasture, at the cost of a grain field if that is all there is. NOT REPRODUCED in crates/l2-kingdom: it needs the tile map, the cursor field and a save entry, and it is a rule of its own rather than part of the transaction."
     },
     {
       "addr": "0x004AD230",
@@ -6800,11 +6840,25 @@
       "comment": "Merchant base price per good id, 15 entries in L2.eng group 6 order: -, grain 2, cattle 12, sheep 0, ale 1, wool 0, iron 1, stone 2, timber 1, pikes 13, bows 16, maces 10, crossbows 24, swords 23, mail 44."
     },
     {
+      "addr": "0x00553ECC",
+      "name": "g_moveOrderClickGuard",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "How long a just-opened move order ignores the mouse button. Map_BeginMoveSelection sets it to 40 and Map_HoverUnitTarget decrements it once a frame while positive; the READER is Screen_FrameInput's screen-0x10 arm, 'if (g_mouseLeftPressed && this < 1) { g_screenId = 0; Map_ConfirmMoveOrder(); }'. So it exists to stop the same press that opened move-order mode being taken as the press that confirms the destination - 40 frames of deadness after the mode begins. [V] docs/hypotheses.json called it g_hoverDamper, said it was written twice and read never, and asked for the name to be DROPPED if no reader turned up. The reader turned up and it is not about hover at all: the entry is deleted and this is the promotion. Looked for while chasing a merchant tooltip, which it has nothing to do with."
+    },
+    {
+      "addr": "0x0053EF54",
+      "name": "g_merchantHoverDamper",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The merchant stall's hover throttle, and THIS is the damper a tooltip needs. Screen_Merchant sets it to 500 on entry; Merchant_HoverPlaque decrements it once per widget pass and swaps the price plaque only at zero, then sets it back to 500. So the plaque does not chase a moving pointer. It is screen 0x08's alone - there is no generic tooltip mechanism in this engine, and the merchant's mouseover is one function with one counter."
+    },
+    {
       "addr": "0x004D8950",
       "name": "g_goodsStock",
       "section": "kingdom",
-      "confidence": "inferred",
-      "comment": "A second 15-entry table on the same good ids: 1000 grain, 100 cattle, 200 sheep, 100 ale, 500 wool, 100 iron, 100 stone, 200 timber, 500 each weapon. Reads like the quantity a merchant carries."
+      "confidence": "verified",
+      "comment": "A second 15-entry table on the same good ids: 1000 grain, 100 cattle, 200 sheep, 100 ale, 500 wool, 100 iron, 100 stone, 200 timber, 500 each weapon. Reads like the quantity a merchant carries - and [V] NOTHING IN THE BINARY READS IT. The only references anywhere near it are to 0x004D8994 and above, past its end. The live stall's per-good second word (0x005532A4 + good*0x10) is the obvious place for a stock and Merchant_ResetStall zeroes it and nothing writes it again, so a merchant's stock is infinite: the only limit on buying is the treasury and on selling what you hold. This is what docs/kingdom.md 12 asked about; the answer is that it is data for a mechanic the shipped game does not have. docs/decisions.md C54."
     },
     {
       "addr": "0x004D8990",

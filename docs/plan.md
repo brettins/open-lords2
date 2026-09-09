@@ -402,16 +402,27 @@ In order of yield:
 1. **A late-game save — turn 40 or later, one realm holding several counties.** The largest
    gap in the project's evidence (§2.5), and the only thing that can test empire happiness,
    secession and contiguity, bankruptcy, revolt, alliances, or any tax rate above zero.
-2. **A merchant transaction, before and after.** Buy something, sell something, end the turn.
-   Promotes the seven fields that are zero in every save we hold: `Realm.spentThisSeason`
-   (`+0x104`), `spentTotal` (`+0x108`), `receivedThisSeason` (`+0x10C`), `receivedTotal`
-   (`+0x110`), `County.purse` (`+0x1F4`), `County.merchantFlag` (`+0x15C`), and — this one an
-   addition rather than a quotation — `County.aleHappinessGiven` (`+0x219`), which only a
-   purchase writes. **None of these entries carries a `promotion` field**, which
-   `docs/method.md` §7.6 requires; writing these asks into that field is the half of this item
-   that needs no save at all. Four more fields wait on different witnesses and should not be
-   folded in here: `fieldsOther`, `fieldsReclaimable`, `farmStyle` and the `armyFood` pair need
-   wasteland, an AI-owned county and an army in the field respectively.
+2. **Several seasons on England with the AI running, and at least one unowned county on a
+   merchant route.** Note what this asks for and what it does *not*: it needs no trading skill
+   and no particular action, only that the game be **left to run**. A human transaction adds
+   nothing the tests do not already assert.
+
+   What it settles: `County.purse` (`+0x1F4`) on an unowned county should be non-zero and
+   equal `tax banked + 100 per season − purchases`, which promotes it; and the same save gives
+   the first non-zero trade accumulators **from the original**, confirming our arithmetic
+   writes the same numbers rather than merely writing consistent ones.
+
+   **This item was four fields longer until C54 settled them without a save.** It used to ask
+   for a merchant transaction to promote seven fields; `Realm +0x104…+0x110` turned out to
+   have only two writers and no readers at all, which refuted the `thisSeason`/`total`
+   reading and promoted all four from the code. `County.aleHappinessGiven` (`+0x219`) went
+   the same way with C53. **A save is the witness of last resort, not the first** — three of
+   the four fields this list has asked for longest were settled by reading, and asking for a
+   save is worth doing only once the reading has been tried and has stopped.
+
+   Still waiting on a different witness, and not to be folded in here: `fieldsOther`,
+   `fieldsReclaimable`, `farmStyle` and the `armyFood` pair need wasteland, an AI-owned
+   county and an army in the field respectively.
 3. **A castle standing with an enemy army beside it**, and ideally one mid-siege with engines
    under construction. Sieges are on the critical path and nothing about them can be checked
    against data today.
@@ -466,7 +477,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,635<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,663<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -569,9 +580,9 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->746<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->751<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
-  <!--fig:functions-pct-->30<!--/fig-->%. The review measured that *"the rest is mostly CRT and
+  <!--fig:functions-pct-->31<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and
   the conclusion survives for a different reason: we are inventing our interface rather than
   cloning the original's. Name what a plan item needs, when it needs it.

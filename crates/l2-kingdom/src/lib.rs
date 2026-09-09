@@ -221,6 +221,7 @@ pub mod siege;
 pub mod tables;
 pub mod tax;
 pub mod territory;
+pub mod trade;
 pub mod unit;
 pub mod units_tick;
 pub mod unrest;

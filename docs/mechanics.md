@@ -69,11 +69,25 @@ Legend:
   the one save we test.
 - ✅ Tax ceiling is **50**, and it lives in `l2-kingdom` beside the table whose length
   fixes it (was wrongly 100, and was in the application crate)
-- 📖 **Merchant buying and selling, 15 goods with prices — now traced to one function.**
-  `Merchant_Trade` (`0x004284CE`) is the only thing that moves a good. Positive quantity
-  buys, negative sells, no partial fills, and an unowned county trades out of a purse of its
-  own at `+0x1F4`. Which good goes where, and what that says about the armoury and about
-  sheep, is `docs/kingdom.md` §7.6. Still implemented nowhere.
+- ✅ **Merchant buying and selling, 14 goods with prices.** `Merchant_Trade` (`0x004284CE`)
+  is the only thing that moves a good: positive quantity buys, negative sells, no partial
+  fills, and an unowned county trades out of a purse of its own at `+0x1F4`. Which good goes
+  where, and what that says about the armoury and about sheep, is `docs/kingdom.md` §7.6.
+  `crates/l2-kingdom/src/trade.rs` is the rule and `crates/l2-game/src/screens/merchant.rs`
+  the two screens; a player reaches it by clicking a merchant standing in a county he owns.
+
+  **[V] The price is the base table plus the clicked merchant's own morale as a percentage
+  of it**, floored at one crown, and ale is exempt. Every merchant the game creates carries
+  morale 100 and nothing ever changes it, so the buy price is exactly twice the sell price —
+  which is the manual's *"30/60"* and the guides' doubled table, both. **A merchant's stock
+  is infinite**: the fifteen-entry table at `0x004D8950` that looks like one is read by
+  nothing, and the live stall's per-good counter is zeroed once and never written.
+  `docs/kingdom.md` §7.6, `docs/decisions.md` C54.
+
+  **Not reproduced, and named:** `County_EnsurePasture` (`0x0046921D`), the tail call that
+  turns a fallow — or failing that a grain — field into pasture when cattle are bought into
+  a county that has none. It walks a per-county round-robin cursor at `+0x15A` we do not
+  model.
 - 📖 Wages: traced, and now joined to the army records that pay them — `docs/armies.md` §6.4
 - 📖 **Bankruptcy: six seasons, not five stages.** Named end to end and pinned to the
   messages that announce each rung — `docs/kingdom.md` §7.7. Still never exercised.
@@ -91,16 +105,21 @@ Legend:
   reproduce.
 - ✅ Herd crowding, `herd / fieldsCattle`, four bands, stored and fed back into births and
   deaths
-- 🕳 **Ale.** Brewing and its happiness effect are a rule a mod can set — but ale is *bought
-  at the merchant*, and no merchant screen exists.
+- ✅ **Ale.** Bought at the merchant, and the merchant screen exists now.
 
   **[V] There is no brewing, and no ale to store.** `Merchant_Trade` hands `Ale_Apply`
   (`0x00428C42`) the **crowns spent** and the happiness lands immediately; ale has no county
   field and no production. The ladder is one point per tenth of the population's worth of
-  crowns, capped at five, then capped again at `5 − aleHappinessGiven` — and nothing resets
-  that byte, so five points is a county's lifetime allowance. `Ale_PreviewGain`
+  crowns, capped at five, then capped again at `5 − aleHappinessGiven`. `Ale_PreviewGain`
   (`0x00435673`) is the same ladder copied out for the panel, which matters for modding:
   **two places, not one.** `docs/kingdom.md` §7.6.
+
+  **Corrected: the allowance is per season.** This entry said *"nothing resets that byte, so
+  five points is a county's lifetime allowance"*. `Happiness_UpdateAll` (`0x0044BAEA`) zeroes
+  `+0x219` every season, one line above the `shownAle` reset this document already described
+  — and `Readme.txt`'s *"Ale Limitations"* says the benefit is per season in English. The
+  errata also says *"+3 happiness per purchase"* and this binary's ladder caps at **5**; both
+  are recorded rather than reconciled. `docs/decisions.md` C53.
 
   **[V] Ale is base game, not the expansion.** A player doubted it was ever in the shipped
   product. `L2.eng` in the stock GOG install settles it: group 68 index 19 is the merchant
@@ -151,6 +170,12 @@ Legend:
       two have none, buying or selling. `docs/kingdom.md` §7.6.
     - **The game's own tutorial text lists the goods and omits them.** Group 295 index 4:
       *"Visit a merchant … and buy cows, grain, weapons, ale, wood, iron, or stone."*
+    - **And the artwork says it too, twice.** `g_goodsStall` (`0x004D2B70`) places every
+      good's price plaque on `Merchant.pl8` and puts sheep and wool at **(0, 0)** — no place
+      on the stall. `mercgrid.pl8`, the 80 × 60 byte map that *is* the screen's hit test,
+      holds exactly twelve ids and **neither 3 nor 5 appears in a single one of its 4,800
+      cells**. Those two are the statement made by the *pictures* rather than by the code or
+      the strings, and they were the last two independent sources available.
 
     Sheep make wool; both are cut; the names, the goods slots and the ration strings were
     left behind. **Whether a scenario can grant sheep is still untraced** — but even if one
@@ -658,6 +683,26 @@ It also reads `l2.eng`, `*.skr` and `my_maps1.skr`. `tools/audit/mapl2.js` is a 
 probe of its PE structure and a couple of tables; it is not analysis and nothing is written
 down from it. **`l2.sg2` in particular is a shipped 74 KB file this project has never
 opened.**
+
+## The saved games worth producing
+
+**A save is twenty minutes of play and has repeatedly beaten weeks of reading.** Three battle
+saves made in one sitting caught a bug in code merged hours earlier; five siege saves verified
+the siege build twelve numbers deep. `docs/plan.md` §11 keeps the list in order of yield, and
+the top three are a **late-game save** (turn 40 or later, one realm holding several counties —
+the largest single gap in this project's evidence), **several seasons with the AI running and
+an unowned county on a merchant route**, and **a castle under siege with engines building**.
+
+Two things about that list are worth knowing before producing one. `Save_RotateAndWrite`
+rotates `safeturn.sav ← old_turn.sav ← lastturn.sav` at every turn boundary, so **one played
+turn gives a before/after pair for free**. And C23 is the warning that goes with it: name each
+save, fingerprint it, and put it in `%LORDS2_FIXTURES%` — never read one out of an install,
+because the install rewrites it.
+
+**A save is the witness of last resort, not the first.** Three of the fields that list has
+asked for longest were settled by reading the binary instead (C53, C54), and the ask is
+sharper for it: the merchant item now needs no trading skill at all, only that the game be
+left to run.
 
 ## What to look for when reading this
 

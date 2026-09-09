@@ -1484,11 +1484,68 @@ and let the game demonstrate its own dead end.
 because ale is never stored: `Merchant_Trade` hands `Ale_Apply` (`0x00428C42`) the **crowns
 spent**, not the barrels, and the happiness ladder is on money against `population / 10` —
 one point per tenth of the population's worth of crowns, five at most. Then it is clamped
-again to `5 − county +0x219`, the total ale has ever given this county. **Nothing in the
-binary resets `+0x219`**, so the five points are for the life of the game and a county that
-has had them will never gain from ale again. `Ale_PreviewGain` (`0x00435673`) is the same
-ladder copied out for the trade panel's preview — *copied*, not shared, so a mod that
-changes the rule must change both.
+again to `5 − county +0x219`, the happiness ale has already given this county.
+`Ale_PreviewGain` (`0x00435673`) is the same ladder copied out for the trade panel's preview
+— *copied*, not shared, so a mod that changes the rule must change both.
+
+**Corrected: the five points are per season.** This paragraph said *"nothing in the binary
+resets `+0x219`, so the five points are for the life of the game"*, and so did
+`mechanics.md`, `symbols.json` and the crate. `Happiness_UpdateAll` (`0x0044BAEA`) zeroes
+`+0x219` every season for every county, in the middle of the display-field clears, one line
+above the `shownAle` reset that all four documents already quoted. `Readme.txt` had said so
+in English — *"Ale can only be purchased once per county per season. Its benefit is also
+limited to +3 happiness per purchase."* — and it disagrees with this binary about the
+number, which is **5** as a `MOV` immediate in both copies of the ladder. Both are recorded;
+see [`decisions.md`](decisions.md) C53.
+
+#### How the price is set, and what moves it  **[V]**
+
+`Trade_BeginGood` (`0x00428DAF`) runs when a good is picked, and it is the whole of the
+pricing:
+
+```c
+sellPrice = g_merchantStall[good].price;                 /* the base table, §10 */
+markup    = Pct(sellPrice, g_units[tradingUnit].morale);
+if (markup < 1) markup = 1;
+if (good == 4) markup = 0;                               /* ale */
+buyPrice  = sellPrice + markup;
+maxQty    = buyPrice == 0 ? 0 : realm.gold / buyPrice;   /* the up arrow's clamp */
+minQty    = -(what the seller holds);                    /* the down arrow's   */
+```
+
+Three things fall out, and each closes something this document had open:
+
+* **The sell price never moves.** `Merchant_ResetStall` (`0x0042847C`) copies `g_goodsPrice`
+  into the live stall and is called **exactly once in the binary**, from the new-game path.
+  Nothing else writes a stall row.
+* **The buy price moves only with the clicked merchant's own morale**, and
+  `Merchant_SpawnAll` writes `morale = 100` into every merchant the game creates while
+  nothing anywhere writes a merchant's morale again. So the shipped buy price is **exactly
+  twice the sell price**, which resolves §11's open disagreement: a published guide's
+  merchant prices are uniformly double the table's and the manual says *"such as 30/60"* —
+  both are the `morale = 100` case of one formula, and the formula is the rule.
+* **A merchant's stock is infinite.** The stall row's second word is the obvious place for
+  one; `Merchant_ResetStall` zeroes it and nothing writes it again. The fifteen-entry table
+  at `0x004D8950` reads exactly like a stock list — 1000 grain, 100 cattle, 500 each weapon
+  — and **no instruction in the binary reads it**. §12 asked what it was; it is data for a
+  mechanic that was cut.
+
+The AI prices through the same markup (`Ai_BuyGood` `0x004A4B12`, `Ai_SellGood`
+`0x004A4A3F`), off the county's own stall slot rather than off a click, so this is the price
+for everybody.
+
+**The four accumulators on the realm are not two horizons.** `Merchant_Trade` adds a
+purchase to `+0x108` then `+0x104` and a sale to `+0x110` then `+0x10C`; the only other
+instruction touching any of the four zeroes all four at new game, and **nothing reads any of
+them**. C54.
+
+**Two guards fire only for an owned county.** Both the stock check and the gold check sit
+inside `if (realm != 0)`, so an **unowned** county trading on its own account out of `+0x1F4`
+is checked for neither: it can sell grain it does not have and buy with a purse it has
+emptied. The negative store is then erased by the tail's own `Ration_Apply`, whose
+`sacks = min(wanted, grain)` is negative against a negative store — so the bug is worth free
+crowns rather than a visible negative number, which is presumably why nobody has noticed it.
+`Ai_BuyGood` reaches this path for every unowned county on the map. [`bugs.md`](bugs.md).
 
 ### 7.7 Bankruptcy is a six-season ladder  **[V]**
 
@@ -2083,9 +2140,12 @@ Each of those is now written out in the section it belongs to.
 * **The second column of `g_castleWorkforce`** (§7.5). Both columns hold the same number in
   all five rows, so nothing here distinguishes a duplicate from a second quantity.
 * **`localModifier`** (`FUN_00449D6E`, §7.3), the per-county weather swing.
-* **Trade.** `plane4.md` closed the merchant *movement*; the transaction is still open. The
-  price table is §10; how a merchant's offer is generated from it, and what the second
-  15-entry table at `0x004D8950` is, are not established.
+* ~~**Trade.**~~ **Closed.** §7.6 now carries `Trade_BeginGood`'s pricing — the sell price is
+  the base table, the buy price is the base plus the *clicked merchant's morale* as a
+  percentage of it, and every merchant in the shipped game has morale 100, which is why the
+  guides' prices are double the table's. The second 15-entry table at `0x004D8950` is
+  **read by nothing**: a merchant's stock is infinite. `crates/l2-kingdom/src/trade.rs` and
+  `crates/l2-game/src/screens/merchant.rs`.
 * **Fertility's effect.** `+0x208` runs −100 … +100 and `L2.eng` group 22 names seven
   levels, but where the crop yield reads it was not found. The yield multipliers in
   `Grain_Grow` and `Grain_Harvest` were not decompiled beyond their weather branches.

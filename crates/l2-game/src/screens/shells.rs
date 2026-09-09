@@ -108,23 +108,12 @@ pub const SHELLS: &[Shell] = &[
         unfinished: "the unit's own lines, its county of origin, and the tile panel for a \
                      right-click that hits no unit",
     },
-    Shell {
-        id: 0x08,
-        painter: 0x0041_5FB7,
-        name: "The merchant",
-        background: Some("Merchant.pl8"),
-        palette: Some("Merchant.256"),
-        window: None,
-        group: 68,
-        heading: None,
-        // `FUN_0041608B` draws the price grid over the picture; the only line
-        // this shell can place without inventing one is the standing caption.
-        lines: &[(0, 0x88, 0x68)],
-        // `Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1)`.
-        ok: Some((640 - 0x1C, 480 - 0x1C, 1)),
-        overlay: false,
-        unfinished: "the price grid (mercgrid.pl8) and the eight commodities",
-    },
+    // `0x08` **graduated**, and so did `0x0C` below it. This row said *"the
+    // price grid (mercgrid.pl8) and the eight commodities"*, and both halves
+    // were wrong in a way worth keeping: `mercgrid.pl8` is **not drawn** — it is
+    // the hit test, an 80 x 60 byte map of good ids over the whole screen — and
+    // there are twelve wares on the stall rather than eight. See
+    // `screens/merchant.rs`.
     Shell {
         id: 0x09,
         painter: 0x0041_6925,
@@ -168,20 +157,6 @@ pub const SHELLS: &[Shell] = &[
         ok: Some((0x1A8, 0x1A6, 0)),
         overlay: true,
         unfinished: "the lord cards from faces.pl8 and the other three menu layouts",
-    },
-    Shell {
-        id: 0x0C,
-        painter: 0x0041_6308,
-        name: "Trade goods",
-        background: Some("Merchant.pl8"),
-        palette: Some("Merchant.256"),
-        window: Some((0x30, 0x40, 0x22, 0x10, 1)),
-        group: 68,
-        heading: Some((2, 0x88, 0x68)),
-        lines: &[(9, 0x50, 0xA0), (10, 0x50, 0xC0), (17, 0x50, 0x100)],
-        ok: Some((0x22C, 0x114, 0)),
-        overlay: false,
-        unfinished: "the commodity icon from icontrad.pl8, the prices and the arrows",
     },
     Shell {
         id: 0x0F,
@@ -518,5 +493,7 @@ mod tests {
             "raising an army is implemented - and it is not a mercenaries screen"
         );
         assert!(find(0x1D).is_none(), "siege preparation is implemented");
+        assert!(find(0x08).is_none(), "the merchant trades");
+        assert!(find(0x0C).is_none(), "the trade panel is the merchant's other half");
     }
 }

@@ -820,17 +820,14 @@ impl MapScreen {
     /// **`Map_Click`'s merchant arm**, and where it stops.
     ///
     /// The guard, the centre-on-the-town and the `townTile != 0` refusal are
-    /// the original's (quoted in [`MapScreen::click_unit`]). What it opens is
-    /// screen `0x08`, which in this tree is still a **shell**: it draws
-    /// `Merchant.pl8` under `Merchant.256` and does not trade. So the route is
-    /// real and the destination is a picture — and that is deliberate, because
-    /// the alternative is inventing a trading interface.
+    /// the original's (quoted in [`MapScreen::click_unit`]).
     ///
     /// `DAT_00553C64`, which the original sets here, has **exactly one writer
     /// in the whole binary — this line** — and two readers, both in the
     /// merchant screen's price arithmetic. So the trading screen is reachable
-    /// only by clicking a merchant on the map, and when `0x08` grows a trade
-    /// this is the call that has to carry the unit into it.
+    /// only by clicking a merchant on the map, and the unit id is carried into
+    /// [`ScreenId::Merchant`] because the *price* depends on it: the markup is
+    /// this merchant's own morale. See [`crate::screens::merchant`].
     fn click_merchant(&mut self, ctx: &mut Ctx, unit: usize) -> Transition {
         let county = ctx.game.kingdom.campaign.units.get(unit).map_or(0, |u| u.county);
         if !ctx.game.is_players(county) {
@@ -848,7 +845,9 @@ impl MapScreen {
         ctx.game.select(county);
         self.centre_on_tile(x as usize, y as usize);
         self.selected_unit = None;
-        Transition::Push(ScreenId::Shell(0x08))
+        // `DAT_00553C64 = g_pickedTileUnit` — and this is the call that carries
+        // it, exactly as the paragraph above predicted it would have to.
+        Transition::Push(ScreenId::Merchant(unit))
     }
 
     /// **`Map_ConfirmMoveOrder`** — the second click, the one that places the

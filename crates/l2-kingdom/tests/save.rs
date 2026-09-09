@@ -118,6 +118,10 @@ fn furnished(seed: u64) -> Kingdom {
         r.wood = 60 + n;
         r.weapons = [1, 2, 3, 4, 5, 6].map(|w| w * (n + 1));
         r.bankrupt_stage = (id % 5 + 1) as u8;
+        r.trade_spent_a = 1100 + n;
+        r.trade_spent_b = 1200 + n;
+        r.trade_received_a = 1300 + n;
+        r.trade_received_b = 1400 + n;
         r.population_total = 4000 + n;
         r.population_last = 3900 + n;
         r.population_mean = 300 + n;
@@ -226,6 +230,7 @@ fn furnished(seed: u64) -> Kingdom {
         c.tax_rate = id as i32 % 13 + 1;
         c.tax_collected = 25 + n;
         c.tax_shown = 26 + n;
+        c.purse = 27 + n;
         for job in 0..JOB_COUNT {
             c.labour[job] = 500 + n + job as i32;
             c.labour_wanted[job] = 300 + n + job as i32;
@@ -546,8 +551,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     let mut c = l2_net::Canonical::hashing();
     l2_net::Encode::encode(&Kingdom::new(1), &mut c);
     // 56,566 at VERSION 11; +5 at 12 for `Options::exploration` (one byte) and
-    // `Options::time_limit` (four).
-    assert_eq!(c.finish().len, 56_571, "the state encoding changed - bump VERSION?");
+    // `Options::time_limit` (four); +164 at 13 for the merchant's books —
+    // `County::purse` over 17 county slots (68) and the four `Realm` trade
+    // accumulators over 6 realm slots (96).
+    assert_eq!(c.finish().len, 56_735, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,
