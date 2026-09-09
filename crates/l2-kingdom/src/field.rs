@@ -403,11 +403,11 @@ pub fn refresh_estimates(
     // Grain and the herd both write nothing at all in a county with no people —
     // `popBand == 0` is the original's guard on both — so a ceiling that was
     // never computed keeps `LABOUR_UNSET`, which `Labour_Allocate` reads as 0.
-    if let Some(ceiling) =
+    if let Some(grain) =
         crate::land::grain_labour_estimate(tables, county, season_next, advanced_farming)
     {
-        county.labour_wanted[JOB_GRAIN_FARMING] = ceiling;
-        county.labour_useful[JOB_GRAIN_FARMING] = ceiling;
+        county.labour_wanted[JOB_GRAIN_FARMING] = grain.wanted;
+        county.labour_useful[JOB_GRAIN_FARMING] = grain.useful;
     }
     if county.pop_band != 0 {
         county.labour_useful[JOB_CATTLE_FARMING] =

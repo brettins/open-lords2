@@ -171,9 +171,14 @@ fn the_grain_ceiling_is_computed_in_all_four_seasons() {
     c.crop[1] = 480; // a standing crop for the two growing steps and the harvest
 
     for season in [Season::Spring, Season::Summer, Season::Autumn, Season::Winter] {
-        let ceiling = land::grain_labour_estimate(t, &c, season, false)
+        let grain = land::grain_labour_estimate(t, &c, season, false)
             .unwrap_or_else(|| panic!("{season:?} still has no grain ceiling"));
-        assert!(ceiling > 0, "{season:?} should want somebody on the fields");
+        assert!(grain.useful > 0, "{season:?} should want somebody on the fields");
+        assert_eq!(
+            grain.wanted, grain.useful,
+            "grain's floor and ceiling come from one loop variable, so they agree \
+             whenever the search found anything at all"
+        );
     }
 
     // The only `None` left is the original's own guard: a county with nobody

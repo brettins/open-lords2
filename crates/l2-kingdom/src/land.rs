@@ -827,11 +827,14 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
 ///
 /// * the search subtracts **`grainEaten`** from the store and the panel
 ///   forecast one line below it does not;
-/// * `wanted` and `useful` are written from the same variable, so for grain
-///   alone the floor and the ceiling are the same number. `Labour_Allocate`
-///   reads only the ceiling — **verified by exhaustion over its 2,147 bytes:
-///   it reads `+0xCC + slot*0x0C` eight times and `+0xC8 + slot*0x0C` not
-///   once** — so the floor is a display value and nothing here depends on it.
+/// * `wanted` and `useful` are assigned in the same `if`, so for grain alone
+///   the floor and the ceiling agree — **except when the search found
+///   nothing**, where they are −1 and 0 because that is what they were
+///   initialised to. That is the only reason [`GrainEstimate`] has two fields.
+///   `Labour_Allocate` reads only the ceiling — **verified by exhaustion over
+///   its 2,147 bytes: it reads `+0xCC + slot*0x0C` eight times and
+///   `+0xC8 + slot*0x0C` not once** — so the floor is a display value and
+///   nothing in the simulation depends on it.
 ///
 /// # All four seasons
 ///
@@ -852,13 +855,13 @@ pub fn grain_labour_estimate(
     county: &County,
     season_next: Season,
     advanced_farming: bool,
-) -> Option<i32> {
+) -> Option<GrainEstimate> {
     if county.pop_band == 0 {
         return None;
     }
     let store = county.grain - county.grain_eaten;
     let mut best = 1;
-    let mut ceiling = 0;
+    let mut estimate = GrainEstimate { wanted: crate::county::LABOUR_NO_FLOOR, useful: 0 };
     for workers in 0..county.population {
         let got = match season_next {
             Season::Spring => sow_seed(t, county.fields_grain, store, workers, advanced_farming).0,
@@ -868,11 +871,27 @@ pub fn grain_labour_estimate(
             _ => grow_step(t, county, workers, county.crop[1], advanced_farming),
         };
         if best < got {
-            ceiling = workers;
+            estimate = GrainEstimate { wanted: workers, useful: workers };
             best = got;
         }
     }
-    Some(ceiling)
+    Some(estimate)
+}
+
+/// What [`grain_labour_estimate`] writes into labour record 0.
+///
+/// The two are the same number whenever the search found anything at all —
+/// `Grain_LabourEstimate` assigns them from the same loop variable — and they
+/// differ in exactly one case, which is the reason they are two fields: a
+/// county whose best result never beats 1 gets a **floor of −1** ("no floor")
+/// and a **ceiling of 0**, because the two are initialised differently and
+/// neither is ever written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GrainEstimate {
+    /// `+0xC8` — the wanted floor, or [`crate::county::LABOUR_NO_FLOOR`].
+    pub wanted: i32,
+    /// `+0xCC` — the useful ceiling, the only one `Labour_Allocate` reads.
+    pub useful: i32,
 }
 
 /// `Herd_LabourEstimate` (`0x0044DD4D`) — the **cattle** ceiling.

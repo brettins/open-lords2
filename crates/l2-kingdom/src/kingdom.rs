@@ -686,14 +686,14 @@ impl Kingdom {
         let advanced = self.options.advanced_farming;
         for id in 1..=self.county_count {
             land::grain_season_tick(&self.tables, &mut self.counties[id], season, advanced);
-            if let Some(ceiling) = land::grain_labour_estimate(
+            if let Some(grain) = land::grain_labour_estimate(
                 &self.tables,
                 &self.counties[id],
                 season_next,
                 advanced,
             ) {
-                self.counties[id].labour_wanted[crate::tables::JOB_GRAIN_FARMING] = ceiling;
-                self.counties[id].labour_useful[crate::tables::JOB_GRAIN_FARMING] = ceiling;
+                self.counties[id].labour_wanted[crate::tables::JOB_GRAIN_FARMING] = grain.wanted;
+                self.counties[id].labour_useful[crate::tables::JOB_GRAIN_FARMING] = grain.useful;
             }
         }
     }
