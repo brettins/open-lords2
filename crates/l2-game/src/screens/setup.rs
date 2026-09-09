@@ -857,6 +857,11 @@ impl SetupScreen {
                 for (i, s) in TITLE_ITEMS.iter().enumerate() {
                     self.draw_item(canvas, pen, i, item_rect(i), GROUP, *s);
                 }
+                // **Ours, and the one caption on this screen that has to be.**
+                // Not the original's — see [`crate::build_id`], which exists
+                // because a player spent an evening reporting three defects
+                // against a binary four merges old.
+                crate::build_id::draw(canvas, pen);
             }
             SetupPage::Options => {
                 pen.window_from(canvas, BOX_SHEET, 0xB0, 10, 0x12, 0x12);

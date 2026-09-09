@@ -279,3 +279,45 @@ fn nothing_is_started_by_looking_at_the_page() {
     click(&mut screen, &mut game, &assets, 0xA5 + 20, 0xC6);
     assert_eq!(game.kingdom, before, "only Start may touch the world");
 }
+
+/// **The build stamp identifies a build, and this is the assertion that stops
+/// it decaying back into a version string.**
+///
+/// It exists because three of the last five interface defects a player reported
+/// were against a binary four merges old — two already fixed, one fixed twice —
+/// and nothing on screen could have told him. The failure mode this guards is
+/// not the stamp going missing; it is somebody replacing it with something that
+/// *looks* like an answer. `0.1.0` has been true of every build for two months,
+/// so a constant is worse than nothing: it invites the reader to stop asking.
+///
+/// So the shape is asserted, not the value: nine hex digits, an optional
+/// `-DIRTY`, and a date — or the literal `NO GIT` when the source is not a
+/// checkout, which is a fact rather than a fabrication. No gate; it needs
+/// neither the game nor the fixtures.
+#[test]
+fn the_build_stamp_names_a_commit_rather_than_a_version() {
+    let id = l2_game::build_id::ID;
+    assert!(!id.is_empty(), "build.rs always emits something");
+
+    if id == "NO GIT" {
+        return; // A tarball build. Honest, and there is nothing else to check.
+    }
+
+    let (commit, date) = id.split_once(' ').unwrap_or_else(|| {
+        panic!("the stamp is `<commit>[-DIRTY] <date>`, got {id:?}")
+    });
+    let hex = commit.strip_suffix("-DIRTY").unwrap_or(commit);
+    assert_eq!(hex.len(), 9, "nine hex digits of commit, got {hex:?}");
+    assert!(
+        hex.bytes().all(|b| b.is_ascii_digit() || (b'A'..=b'F').contains(&b)),
+        "upper-case hex, so it reads in our caps font: {hex:?}",
+    );
+    assert!(
+        date.len() == 10 && date.split('-').count() == 3,
+        "a date, because `is this old?` is the question a hash cannot answer: {date:?}",
+    );
+
+    // The point of the whole exercise: two different builds must be able to
+    // disagree. A constant cannot, and this is the shape a constant has.
+    assert_ne!(id, env!("CARGO_PKG_VERSION"), "a version is not an identity");
+}

@@ -278,6 +278,53 @@ Two practical consequences:
   fixtures exist for this; a hand-built `Kingdom` carries whatever `new()` gives it, and
   `new()` agrees with every wrong reading equally.
 
+## The correction log can be wrong, and it is believed harder than anything else
+
+The five failures below this heading are tools returning clean, plausible, wrong answers. This
+one is different in kind and worse in consequence: **`docs/decisions.md` — the artefact this
+project consults when documents disagree — produced a correction whose own central claim was
+false, and used it to retract an entry that was right.**
+
+What happened, in order:
+
+1. A player reported a convenience of ours as a bug: *"if you click anywhere on grass it opens up
+   the tax window too."* The instruction was to remove it.
+2. Reading `Map_Click` (`0x0043CE1A`) turned up what looked like a free-standing final arm — *a
+   click on a tile whose county is not the selected one, carrying no unit, selects that county and
+   recentres* — and the conclusion drawn was that the fix asked for was too big: the original
+   selects, it just does not open anything.
+3. That reading was written up as C61, **C58 was edited in place to apologise for its claim that
+   `Map_Click` has no county-selection arm**, `screens/map.rs`'s module header was rewritten around
+   it, and two tests were rewritten to assert it. All of it passed.
+4. It is the **prologue of the industry branch**, guarded by tile flag `0x80` *and* by the county
+   being the local player's. `Map_Click` has no such arm; its three writes to `g_selectedCounty`
+   are in the village, industry and merchant branches, exactly as C58 said. C58 was correct.
+
+**Why this is worse than a wrong tool.** A tool's output is treated as a lead. A correction is
+treated as settled — the whole point of the log is that it outranks prose written earlier, and
+C58's flat statement is precisely what stopped anyone re-reading `Map_Click` for weeks. A wrong
+correction therefore propagates *further* than the mistake it replaced and is *harder* to
+dislodge, because the next reader finds a numbered entry that says the question was already
+asked and answered. It had already reached three documents and two tests before it was caught.
+
+**What caught it was re-reading the decompilation before committing, and nothing else could
+have.** Not the tests — they were rewritten to agree. Not the citation lockfile, the figures check
+or the symbol check — all five checks were green, and none of them knows what a binary does. Not
+review of the prose, which was internally consistent and cited four addresses. The only defence
+that exists is opening the function again, at the end, and reading it against the claim rather
+than for the claim.
+
+So, as a working rule: **a correction that retracts an earlier correction re-reads the primary
+source at the moment of writing, not at the moment of deciding.** The gap between deciding and
+writing is where the draft's own confidence accumulates. And an absence is evidence only in
+proportion to how hard it was looked for — three greps that found nothing became a claim, one grep
+that found something overturned it, and a fourth reading overturned that. `docs/method.md` §4.
+
+One consolation worth recording, because it is the reason to keep doing this: the corrected fix is
+*smaller* than the fix that was asked for, and the fix that was asked for was smaller than the one
+the draft proposed. Every time this project has actually read the binary rather than reasoned from
+an absence, the answer has been less work than the guess.
+
 ## A tool that degrades silently is worse the more people use it
 
 `tools/oracle/decompile-all.ps1` **exits non-zero** when `ApplySymbols` or
