@@ -434,6 +434,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         castle_concurrent: 0,
         castle_min_population: 0,
         castle_gold: [0; CASTLE_TYPE_COUNT - 1],
+        weapon_rota: [0; 6],
     }; AI_PERSONALITY_COUNT];
     expect_rows(rs, "kingdom.ai.personality", AI_PERSONALITY_COUNT)?;
     for (i, slot) in personality.iter_mut().enumerate() {
@@ -455,8 +456,20 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             castle_gold[t] = narrow(rs, &format!("{base}.castle_gold"), v, 0, 1_000_000)?;
         }
 
+        // The lord's weapon programme: six weapon types, stepped through by AI
+        // turn step 12. Out-of-range entries would index past the weapon table,
+        // so the bound is the table's length.
+        let rota = rs.integer_array(&format!("{base}.weapon_rota"), 6)?;
+        let mut weapon_rota = [0usize; 6];
+        for (i, &v) in rota.iter().enumerate() {
+            weapon_rota[i] =
+                narrow(rs, &format!("{base}.weapon_rota"), v, 0, l2_kingdom::tables::WEAPON_TYPE_COUNT as i64 - 1)?
+                    as usize;
+        }
+
         *slot = AiPersonalityRow {
             farm_style: int(rs, &format!("{base}.farm_style"), 0, 255)? as u8,
+            weapon_rota,
             tax_ladder: int(rs, &format!("{base}.tax_ladder"), 0, AI_TAX_LADDER_COUNT as i64 - 1)?
                 as usize,
             // A zero increment divides by zero in the gift ratchet.
@@ -1095,14 +1108,22 @@ pub fn render_toml(t: &Tables) -> String {
     }
 
     out.push_str(
-        "\n# One personality record per AI lord, in lord order. Two of the six\n\
-         # ints in each record are identified and those two are here.\n\
+        "\n# One personality record per AI lord, in lord order.\n\
          #\n\
-         # farm_style LOADS AND DOES NOTHING. AI_ManageFields copies it into\n\
-         # county +0x1FE and dispatches into one of three labour allocators\n\
-         # that were never traced, so this engine has no behaviour to attach\n\
-         # to it. It is here because it is half of the record, not because\n\
-         # changing it will change a game. tax_ladder does take effect.\n\
+         # farm_style NOW TAKES EFFECT. It used to load and do nothing: the\n\
+         # note here said AI_ManageFields dispatched into \"one of three labour\n\
+         # allocators that were never traced\". There are FIVE allocators, two\n\
+         # outer passes and two different functions with those two names -\n\
+         # Ai_ManageCountyFarms at 0x0049DD01 for an AI realm and\n\
+         # AI_ManageFields at 0x0049DFC6 for the unowned counties. All five are\n\
+         # implemented; see l2_kingdom::ai_farm. 0 is an arable lord, 1 a\n\
+         # grazier, 9 a mixer; anything else farms nothing.\n\
+         #\n\
+         # weapon_rota is the lord's weapon programme, six weapon types stepped\n\
+         # through by AI turn step 12. Values index the weapon table: 0\n\
+         # crossbow, 1 mace, 2 sword, 3 pike, 4 bow, 5 armour. The ten-step\n\
+         # cursor visits slots 0,1,2,3,0,1,2,3,4,5, so the first four are made\n\
+         # twice as often as the last two.\n\
          #\n\
          # There are four records and not five: docs/kingdom.md sec 2 says the\n\
          # lord byte runs 1..5, but a fifth record's bytes read a farm style of\n\
@@ -1115,7 +1136,8 @@ pub fn render_toml(t: &Tables) -> String {
             "\n[[kingdom.ai.personality]]\nlord = {}\nfarm_style = {}\ntax_ladder = {}\n\
              gift_increment = {}\nhelp_price = {}\ngrudge_tolerance = {}\n\
              offer_interval = {}\nhelp_population_floor = {}\nmuster_pct = {}\n\
-             castle_concurrent = {}\ncastle_min_population = {}\ncastle_gold = [{}]\n",
+             castle_concurrent = {}\ncastle_min_population = {}\ncastle_gold = [{}]\n\
+             weapon_rota = [{}]\n",
             i + 1,
             row.farm_style,
             row.tax_ladder,
@@ -1127,7 +1149,8 @@ pub fn render_toml(t: &Tables) -> String {
             row.muster_pct,
             row.castle_concurrent,
             row.castle_min_population,
-            join_i32(&row.castle_gold)
+            join_i32(&row.castle_gold),
+            row.weapon_rota.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ")
         );
     }
 

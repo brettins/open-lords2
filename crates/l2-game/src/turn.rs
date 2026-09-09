@@ -286,7 +286,8 @@ fn hand_off_battles(game: &mut Game, moved: &UnitsTick, pending: &mut Vec<Encoun
 /// * **Phase 1** — `docs/kingdom.md` §3.1 says the neutral counties get their tax
 ///   rates and their fields set once a turn, on the neutral ladder, and realm
 ///   **0** is how the original addresses them: `AI_SetTaxRates(0)` then
-///   `AI_ManageFields(0)`.
+///   `AI_ManageFields(0)` — which is `0x0049DFC6`, the *unowned* counties' pass,
+///   and not the AI realms' step 5. See `l2_kingdom::ai_farm`.
 /// * **Phase 4** — `AI_RunTurnStep`'s **step 0** for every realm: recount its
 ///   strength, eliminate it if that comes out zero, and rank. See
 ///   [`Game::recount_realm`](crate::game::Game::recount_realm), and note that it
@@ -326,8 +327,11 @@ fn begin_phase(game: &mut Game, phase: Phase) {
     match phase {
         Phase::NeutralCounties => {
             game.kingdom.run_ai_tax_rates(0);
-            let count = game.kingdom.county_count;
-            ai::manage_fields(&mut game.kingdom.counties, count, 0);
+            // The unowned counties farm too, by whichever lord held them last.
+            // `NoMarket` is the merchant seam: there is no stall yet, so every
+            // style's opening shopping cascade is refused and the county farms
+            // what it already has. See `l2_kingdom::ai_farm`.
+            game.kingdom.run_neutral_farms(&mut l2_kingdom::ai_farm::NoMarket);
         }
         Phase::PlayersTurn => {
             for id in 1..l2_kingdom::realm::MAX_REALMS {
@@ -396,7 +400,18 @@ fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut boo
             }
         }
         AiStep::ManageFields => {
-            ai::manage_fields(&mut kingdom.counties, kingdom.county_count, realm);
+            kingdom.run_ai_farms(realm, &mut l2_kingdom::ai_farm::NoMarket);
+        }
+        AiStep::BuildCastles => {
+            kingdom.run_ai_castles(realm);
+        }
+        AiStep::ChooseIndustry => kingdom.run_ai_industry(realm),
+        // The letters are dropped rather than shown: a realm-to-realm taunt is
+        // not a season message and `l2-game` has no letter screen yet. The
+        // realm's timer, stage and voice rotation still advance, which is the
+        // whole of the step's effect on the simulation.
+        AiStep::Taunt => {
+            kingdom.run_ai_taunt(realm);
         }
         AiStep::UpdateTotals => update_totals(kingdom, realm),
         // An empty function in the shipped binary. Named, and it does nothing

@@ -193,7 +193,7 @@ the battle debug overlay.
 | `+0x1A8` | u8 | **taxRobbed** | [V] | non-zero after the *"Stop thief!"* event; `Tax_CollectAll` then takes nothing. §4.1, §8.1. |
 | `+0x1AA` | i16 | **eventId** | [V] | the id of the random event that fired, which is also its `L2.eng` group. §8.1. |
 | `+0x1F4` | i32 | neutralPurse | [D] | where an unowned county's tax goes. §4.1. |
-| `+0x1FE` | u8 | farmStyle | [D] | the AI lord's farming style, copied in by AI step 5. §8.2. |
+| `+0x1FE` | u8 | farmStyle | [V] | the farming style the county is farmed by. Step 5 writes it from the owning lord; the unowned-counties pass only reads it. §8.6. |
 | `+0x219` | u8 | **aleGiven** | [V] | the total happiness this county has ever been given by ale; caps the bonus at 5 and is never reset. §4.4. |
 | `+0x21C` | u8 | weatherLast | [D] | the previous season's band, saved at the top of `Weather_UpdateAll`. |
 
@@ -301,7 +301,7 @@ that realm's `+0x00`. All fourteen handlers have now been decompiled:
 | 2 | `AI_Diplomacy` `0x004A0C1D` | **the whole diplomacy driver.** Heal standing +1 a turn towards every non-human realm, age the alliance grudge and break it past the lord's threshold, and court an ally. [`diplomacy.md`](diplomacy.md) §4.1 |
 | 3 | `0x0049D638` | `AI_SetTaxRates` — §8.2 |
 | 4 | `0x0049E1BF` | total what the realm can sell and what it needs to buy, into realm `+0x70 … +0x7C` |
-| 5 | `0x0049DD01` | `AI_ManageFields` — add fields as the county grows, then apply the lord's farming style |
+| 5 | `Ai_ManageCountyFarms` `0x0049DD01` | **not `AI_ManageFields`, which is `0x0049DFC6`** — order fields reclaimed as the county grows, then lay the county out by the lord's farming style. §8.6 |
 | 6 | `AI_BuildCastles` `0x0049EDC7` | order the largest castle the treasury clears, from five per-lord gold thresholds at personality `+0xCC … +0xDC`, capped at personality `+0x90` concurrent builds. [`diplomacy.md`](diplomacy.md) §8.1 |
 | 7 | `0x0049F93D` | three army-management sub-passes |
 | 8 | `0x0049F96C` | **nothing — the function is empty** |
@@ -873,7 +873,7 @@ pass and the field recount.
    **A tie goes to the *highest* block index, and this document said the lowest.** The
    comparison is `if (best <= block.population)` scanning upward from slot 0, so an equal
    population *overwrites* the incumbent. The operator was read correctly and the
-   conclusion drawn backwards. `docs/decisions.md` C34.
+   conclusion drawn backwards. `docs/decisions.md` C36.
 
    Two more details worth having. The key is the **sum of the block's members'
    populations**, filled by `Territory_BuildBlocks`' last loop — so a realm holding one
@@ -1182,10 +1182,13 @@ and the panel forecasts, which the estimates fill from whatever the allocator la
 All fourteen counties of the England turn-one position store `fieldsGrain = 0`. That is not
 an artefact of the fixture: **in this game you paint your fields at the start**, and until
 `crates/l2-kingdom/src/field.rs` there was no code path in this tree that could set that
-number for the human player at all. The AI could not farm either — `AI_ManageFields`'
-ladder only adds *fallow* fields, and the grain comes from the lord's farming style
-(`FUN_004A3C67` and its siblings), which calls `FUN_0046988D(county, 2, fields/2)` **in
-Winter**, and which this tree does not implement.
+number for the human player at all. The AI could not farm either — and the reason was worse
+than it looked. The ladder in `Ai_ManageCountyFarms` does not *add* a field, it orders one
+**reclaimed** (`Field_OrderReclamation`, `0x0044C6C4`, paints terrain `0x19` on a wasteland
+tile); this tree used to add one to the *cached count* instead, which `County_RecountFields`
+overwrites from the map on the very next pass. The grain then comes from the lord's farming
+style, which calls `FUN_0046988D(county, 2, fields/2)` **in Winter**. Both halves are
+implemented now — §8.6 — and `docs/decisions.md` C36 is the correction.
 
 ### 7.3 Weather
 
@@ -1650,7 +1653,9 @@ See [`diplomacy.md`](diplomacy.md) §0. Note also that both this table and `g_ai
 indexed by the **lord byte** (realm `+0x07`), not by the realm index; row 0 of the gold tables
 is lord 0, the human. The farming style is copied into county `+0x1FE` by step 5
 and dispatched on; 0, 1 and 9 are exactly the three values the dispatch tests, which is a
-check on the field's identity. **What each style does was not traced.**
+check on the field's identity. **What each style does is §8.6** — and there are five
+allocators behind those three values, not three, because the unowned counties run a
+different pass into two more.
 
 **The grants**, gated on the realm being in play, not human, and holding at least one
 county:
@@ -1801,6 +1806,52 @@ its counter at **2** and the same `< 8` test ends it. The purse **resets to 5,00
 of each difficulty tier** rather than falling monotonically, and a fourth column running
 1, 1, 2, 3, 4, 4, 5, 5 is **[D]** the opponent count. Rows 8 and 9 of both tables are zeroed
 padding, which is what makes the eighth win's one-past-the-end read harmless.
+
+### 8.6 The five farming styles
+
+**There are five, not three, and the two names in play are two functions.** This section
+replaces the sentence §3.2 used to carry; `docs/decisions.md` C36 is the correction and
+`crates/l2-kingdom/src/ai_farm.rs` is the implementation.
+
+| | callers | dispatches county `+0x1FE` | into |
+|---|---|---|---|
+| `Ai_ManageCountyFarms` `0x0049DD01` | AI step 5, and `Ai_ManageFarmsAll` at the head of `Season_Advance` | 0, 1, **9** | `0x004A4052`, `0x004A42E3`, `0x004A440F` |
+| `AI_ManageFields` `0x0049DFC6` | **one**: `AI_ManageFields(0)`, turn phase 1 — the **unowned** counties | 0, 1 | `0x004A3C67`, `0x004A3ED3` |
+
+`Ai_ManageCountyFarms` **writes** `+0x1FE` from the lord's personality every pass;
+`AI_ManageFields` only **reads** it. So an unowned county farms the way its last lord farmed,
+and one left holding style 9 is dispatched nowhere at all. `AI_ManageFields` also zeroes
+county `+0x1B0` on the way in, which the AI pass does not.
+
+Each style is the same skeleton — buy food, set the industry share, take
+`Labour_DefaultSharesBuilt`, set rations, re-lay the fields, re-estimate — differing in six
+places:
+
+| | `0x004A3C67` n0 | `0x004A3ED3` n1 | `0x004A4052` r0 | `0x004A42E3` r1 | `0x004A440F` r9 |
+|---|---|---|---|---|---|
+| sells its surplus first | — | — | yes | yes | yes |
+| buys cattle when | — | herd < 11 | — | herd < **41** | herd < 11 |
+| buys grain below | 100 | 100 | **600** | 100 | **300** |
+| grain lots | 400/200/100/50 | 400/200/100/50 | 400/200/100, then 50/25 below 100 | **400 only** | 800/400/200/100/50/25 |
+| industry share | 0 | 0 | **50** | **20** | **40** |
+| field layout | grain on half, one pasture | pasture on all but one | grain on half, one pasture | pasture on all but one | grain on a third, pasture up to a third |
+
+`AI_PERSONALITY_FARM_STYLE` is `[1, 1, 0, 9]`: **two lords graze, one ploughs, one mixes.**
+
+Four things in the arithmetic can never fire, and all four are reproduced rather than tidied:
+
+1. the Winter grain quota's `fertility < -50` rung sits **after** `fertility < -20`;
+2. turning **Advanced Farming off makes the AI plant more**, not less — the option's `else`
+   limb replaces the ladder with `total - 3` (n0), `total - 1` (r0) or `total / 2` (r9);
+3. `Ai_SetRations`' Triple dairy rung can never change an answer, and its Double rung can
+   only *lower* the level, because the store term it is compared against counts the herd
+   twice;
+4. `Field_OrderReclamation`'s quota is spent by a field **already** reclaiming as well as by
+   one it starts, so a county told to add one while one is under way adds nothing.
+
+**[V]** on all five allocators, the two outer passes and the four items above, from the
+decompilation. **[D]** on reading the styles as *arable / grazier / mixed* — that is a
+characterisation of what the numbers do, not a label found in the binary.
 
 ---
 
@@ -1991,16 +2042,14 @@ Each of those is now written out in the section it belongs to.
 
 **Still unknown, and named rather than guessed at:**
 
-* **What ten of the fourteen AI handlers do in detail** (§3.2). All fourteen are located
-  and each has a one-line description, but steps 1, 2, 4, 6, 7, 9, 10, 11, 12 and 13 drive
-  armies, merchants, diplomacy and map tiles and were read only far enough to say what they
-  are for. This is still the largest remaining piece of the kingdom layer, though it is now
-  a bounded one: ten named functions rather than an unexplored region.
-* **The three AI farming styles.** `AI_ManageFields` copies the lord's style into county
-  `+0x1FE` and dispatches on 0, 1 or 9 into `FUN_004A4052`, `FUN_004A42E3` and
-  `FUN_004A440F`. None was traced. This is why `kingdom.ai.personality.*.farm_style` in
-  `crates/l2-mods` loads and changes nothing: the value is carried and there is no
-  behaviour to attach to it. `docs/modding.md` §11 says so in those words.
+* **What seven of the fourteen AI handlers do in detail** (§3.2). Steps 3, 5, 6, 8, 12, 13
+  and 14 are read and implemented. Of the rest, **steps 1, 2 and 11 are blocked on a
+  subsystem that does not exist** — the diplomatic inbox and its seven reply handlers, and
+  the six unit-*mission* handlers behind `FUN_004A57AC` — and steps 4, 7, 9 and 10 are read
+  and want only fields. `crates/l2-kingdom/src/ai.rs`'s table says which is which.
+* ~~**The three AI farming styles.**~~ **Corrected: there are five, and they are
+  implemented.** See §8.6 and `docs/decisions.md` C36. This is no longer why
+  `kingdom.ai.personality.*.farm_style` changes nothing — it changes a game now.
 * **A fifth AI lord's personality record.** §8.2 finds four; `0x004D8E18` is where a fifth
   would be and what is there fits no pattern. **[I]**, and now held by the oracle: it reads
   those six ints and expects `17, 0, 5000, 1, 1, 1`, so if the reading is ever wrong the

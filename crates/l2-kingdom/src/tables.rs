@@ -981,6 +981,49 @@ pub const AI_PERSONALITY_MUSTER_PCT: [i32; AI_PERSONALITY_COUNT] = [30, 30, 40, 
 /// whichever county he starts on gets the whole treasury's worth.
 pub const AI_PERSONALITY_CASTLE_CONCURRENT: [i32; AI_PERSONALITY_COUNT] = [4, 3, 2, 1];
 
+/// Record `+0x50` … `+0x64` — **the lord's weapon rota**: six weapon types,
+/// stepped through by AI step 12 (`FUN_0049E77D`).
+///
+/// **`[V]`** — read straight out of `Lords2.exe` at `0x004D8A58 + lord*0xF0`
+/// rather than off a decompiler listing, so the values are the file's. They
+/// agree entry for entry with the table `docs/diplomacy.md` §8.3 had already
+/// recovered by a different route, which is the corroboration that lifts the
+/// mark: two independent reads of the same twenty-four numbers.
+///
+/// §8.3 stopped short of claiming these index [`WEAPON_NAMES`] — *"nothing ties
+/// `+0x50` to `g_weaponCost` beyond both being small integers under 6"*. What
+/// closes it is `FUN_0049ED13`, the call the rota loop makes immediately after
+/// assigning one: it looks the value up in **`g_weaponCost`** to decide whether
+/// the realm can afford the county's weapon. The field is a `g_weaponCost`
+/// index because a `g_weaponCost` lookup is the next thing done with it. `[V]`.
+///
+/// That also settles §8.3's open half: on this reading the **Baron makes pikes,
+/// bows and armour and no crossbows at all**, which is the *opposite* of the
+/// player claim that he favours peasant armies.
+///
+/// The cursor at [`crate::realm::Realm::weapon_rota`] runs 0..=9 and the ten
+/// steps index these six as [`AI_WEAPON_ROTA_ORDER`] — `0,1,2,3` twice, then
+/// `4,5`. So the first four entries are visited **twice as often** as the last
+/// two, and a lord's programme is a ten-county cycle rather than a six-county
+/// one.
+///
+/// The values index [`WEAPON_NAMES`]: 0 crossbow, 1 mace, 2 sword, 3 pike,
+/// 4 bow, 5 armour. Read as behaviour the four lords are recognisably
+/// different: lord 2 makes nothing but pikes, bows and armour; lord 4 makes
+/// bows and pikes almost exclusively; lord 3's rota is the cheap end of the
+/// table — crossbows, maces and swords — and only lord 1 spreads across the
+/// whole armoury.
+pub const AI_PERSONALITY_WEAPON_ROTA: [[usize; 6]; AI_PERSONALITY_COUNT] =
+    [[0, 1, 4, 2, 5, 2], [3, 5, 4, 4, 4, 5], [0, 1, 1, 2, 4, 0], [4, 4, 3, 4, 4, 3]];
+
+/// Which of the six rota slots each of the ten cursor values selects.
+///
+/// `FUN_0049E77D` is ten `else if` limbs, not an array lookup, and the limbs
+/// repeat: 0→`+0x50`, 1→`+0x54`, 2→`+0x58`, 3→`+0x5C`, **4→`+0x50`, 5→`+0x54`,
+/// 6→`+0x58`, 7→`+0x5C`**, 8→`+0x60`, 9→`+0x64`. Written as data because that
+/// is what it is; `[V]` from the ten branches.
+pub const AI_WEAPON_ROTA_ORDER: [usize; 10] = [0, 1, 2, 3, 0, 1, 2, 3, 4, 5];
+
 /// Record `+0xC8` — the county population a castle project needs before it is
 /// started at all.
 pub const AI_PERSONALITY_CASTLE_MIN_POPULATION: [i32; AI_PERSONALITY_COUNT] =
@@ -1904,6 +1947,8 @@ pub struct AiPersonalityRow {
     /// [`AI_PERSONALITY_MUSTER_PCT`]: raising men is not this crate's, and a
     /// mod that changes this will not change anything until it is.
     pub muster_pct: i32,
+    /// Record `+0x50` … `+0x64` — [`AI_PERSONALITY_WEAPON_ROTA`].
+    pub weapon_rota: [usize; 6],
     /// Record `+0x90` — [`AI_PERSONALITY_CASTLE_CONCURRENT`].
     pub castle_concurrent: i32,
     /// Record `+0xC8` — [`AI_PERSONALITY_CASTLE_MIN_POPULATION`].
@@ -2248,6 +2293,7 @@ impl Tables {
                     offer_interval: AI_PERSONALITY_OFFER_INTERVAL[0],
                     help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[0],
                     muster_pct: AI_PERSONALITY_MUSTER_PCT[0],
+                    weapon_rota: AI_PERSONALITY_WEAPON_ROTA[0],
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[0],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[0],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[0],
@@ -2261,6 +2307,7 @@ impl Tables {
                     offer_interval: AI_PERSONALITY_OFFER_INTERVAL[1],
                     help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[1],
                     muster_pct: AI_PERSONALITY_MUSTER_PCT[1],
+                    weapon_rota: AI_PERSONALITY_WEAPON_ROTA[1],
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[1],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[1],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[1],
@@ -2274,6 +2321,7 @@ impl Tables {
                     offer_interval: AI_PERSONALITY_OFFER_INTERVAL[2],
                     help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[2],
                     muster_pct: AI_PERSONALITY_MUSTER_PCT[2],
+                    weapon_rota: AI_PERSONALITY_WEAPON_ROTA[2],
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[2],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[2],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[2],
@@ -2287,6 +2335,7 @@ impl Tables {
                     offer_interval: AI_PERSONALITY_OFFER_INTERVAL[3],
                     help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[3],
                     muster_pct: AI_PERSONALITY_MUSTER_PCT[3],
+                    weapon_rota: AI_PERSONALITY_WEAPON_ROTA[3],
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[3],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[3],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[3],
@@ -2382,6 +2431,17 @@ impl Tables {
     /// the trap, and it is the shape of `docs/decisions.md` C3.
     pub fn ai_personality(&self, lord: u8) -> Option<&AiPersonalityRow> {
         self.ai.personality.get((lord as usize).checked_sub(1)?)
+    }
+
+    /// The farming style byte a lord stamps on every county he holds — record
+    /// `+0x00`, and `None` for a lord byte with no record.
+    ///
+    /// `Ai_ManageCountyFarms` (`0x0049DD01`) copies this into county `+0x1FE`
+    /// and dispatches on it; [`crate::ai_farm::FarmStyle::for_realm`] is that
+    /// dispatch. The four values are `[1, 1, 0, 9]`, so **two of the four lords
+    /// graze, one ploughs and one mixes**.
+    pub fn ai_farm_style(&self, lord: u8) -> Option<u8> {
+        Some(self.ai_personality(lord)?.farm_style)
     }
 
     /// [`score_gold_bracket`], from this table.

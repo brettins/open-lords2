@@ -455,12 +455,18 @@ fn every_part_of_the_state_reaches_the_bytes() {
         ("industry total", Box::new(|k: &mut Kingdom| k.counties[2].industry[3].total = 5)),
         ("weapon_type", Box::new(|k: &mut Kingdom| k.counties[2].weapon_type = 5)),
         ("tax_suppressed", Box::new(|k: &mut Kingdom| k.counties[2].tax_suppressed = true)),
+        // The AI's farming style (`+0x1FE`) and the realm's weapon rota cursor
+        // (`+0x6C`) — `crate::ai_farm` and AI step 12. Both are read *and*
+        // written by a turn, so both are lockstep state and not display.
+        ("farm_style", Box::new(|k: &mut Kingdom| k.counties[2].farm_style = 9)),
+        ("weapon_rota", Box::new(|k: &mut Kingdom| k.realms[2].weapon_rota = 7)),
         ("the last county", Box::new(|k: &mut Kingdom| k.counties[16].population = 1)),
         ("realm ai_step", Box::new(|k: &mut Kingdom| k.realms[2].ai_step = 77)),
         ("realm in_play", Box::new(|k: &mut Kingdom| k.realms[2].in_play = false)),
         ("realm strength", Box::new(|k: &mut Kingdom| k.realms[2].strength = 77)),
         ("realm is_human", Box::new(|k: &mut Kingdom| k.realms[2].is_human = true)),
         ("realm lord", Box::new(|k: &mut Kingdom| k.realms[2].lord = 4)),
+        ("realm shield_index", Box::new(|k: &mut Kingdom| k.realms[2].shield_index = 3)),
         ("realm tax_hap", Box::new(|k: &mut Kingdom| k.realms[2].tax_hap_empire = 9)),
         ("realm county_count", Box::new(|k: &mut Kingdom| k.realms[2].county_count = 9)),
         ("realm rank", Box::new(|k: &mut Kingdom| k.realms[2].rank = 3)),
@@ -697,4 +703,66 @@ fn trailing_bytes_are_refused() {
         decode(&bytes, Tables::DEFAULT),
         Err(LoadError::TruncatedBody { .. })
     ));
+}
+
+/// **`VERSION` must be ahead of its own changelog, with no gap and no repeat.**
+///
+/// The version number is the one constant in `save.rs` that *every* branch
+/// changing the layout has to touch and *no* branch can see the others touch.
+/// It has now collided three times in a single day — 5 twice, then 6 twice,
+/// then 7 twice — and each time the merge produced a number that already meant a
+/// different layout in somebody else's save. All three were caught by an
+/// integrator reading the doc comment, which is the same "a check nobody runs"
+/// failure `tools/decisions/corrections.js` was written to end for correction
+/// numbers.
+///
+/// This is that check. It reads `src/save.rs`, pulls the `* N —` entries out of
+/// `VERSION`'s doc comment, and asserts three things:
+///
+/// * the entries are `1 … n` with no gap and no duplicate — a duplicate is
+///   exactly what a two-branch collision leaves behind;
+/// * `VERSION` equals the highest of them — so a merge that keeps one branch's
+///   constant and both branches' entries goes red;
+/// * every entry actually says something, which is the reason the changelog
+///   exists: an older save's *absence* of a field is a question, and the answer
+///   belongs here rather than in a commit message.
+///
+/// It cannot prevent two branches choosing the same number. It fails the moment
+/// they meet, which is the earliest a machine can know.
+#[test]
+fn the_version_is_ahead_of_its_own_changelog() {
+    let source = include_str!("../src/save.rs");
+    let head = source.split("pub const VERSION").next().expect("VERSION is declared");
+    let mut entries: Vec<u32> = Vec::new();
+    for line in head.lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix("/// * ") else { continue };
+        let Some((number, tail)) = rest.split_once(' ') else { continue };
+        let Ok(n) = number.parse::<u32>() else { continue };
+        assert!(
+            tail.starts_with('\u{2014}') || tail.starts_with('-'),
+            "changelog entry {n} has no description: {line}"
+        );
+        entries.push(n);
+    }
+
+    assert!(entries.len() > 1, "the changelog was not found; did the comment's shape change?");
+
+    let expected: Vec<u32> = (1..=entries.len() as u32).collect();
+    assert_eq!(
+        entries, expected,
+        "the save changelog is {entries:?}, which is not 1..={}. A repeated number is what \
+         two branches bumping VERSION in parallel leaves behind: give the later layout the \
+         next free number and say so in its entry.",
+        entries.len()
+    );
+
+    assert_eq!(
+        VERSION,
+        *entries.last().unwrap(),
+        "VERSION is {VERSION} and the changelog's last entry is {}. Every layout change \
+         needs both, and a merge that takes one branch's constant with both branches' \
+         entries is exactly what this catches.",
+        entries.last().unwrap()
+    );
 }

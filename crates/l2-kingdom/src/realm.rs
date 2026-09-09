@@ -275,6 +275,17 @@ pub struct Realm {
     pub offer_timer: i8,
     /// `+0xED` — the one-shot guard on *"Just call me king."*
     pub crowned_once: bool,
+    /// `+0x6C` — **the weapon rota's cursor**, 0..=9, advanced once per county
+    /// by AI step 12 and wrapping at 10.
+    ///
+    /// It is a *realm* counter walked inside a loop over the realm's counties,
+    /// so a realm of four counties advances it four places in one step and the
+    /// counties of one realm end up making four different weapons. The rota
+    /// itself is six values in the personality record —
+    /// [`crate::tables::AI_PERSONALITY_WEAPON_ROTA`] — visited in the order
+    /// 0,1,2,3,0,1,2,3,4,5, so the first four are seen twice per lap.
+    /// See [`crate::ai::choose_industry`].
+    pub weapon_rota: i32,
     /// `+0x159` — 0..=3, advanced after **every** message this realm sends.
     /// It picks which of the lord's four recorded takes plays, and it is half
     /// of the `lord * 4 + rot - 4` variant index. `docs/diplomacy.md` §0.
@@ -326,6 +337,7 @@ impl Realm {
             war_target: 0,
             offer_timer: 0,
             crowned_once: false,
+            weapon_rota: 0,
             voice_rotation: 0,
         }
     }

@@ -459,6 +459,59 @@ fn ai_brush_matches(kind: FieldType, terrain: u8) -> bool {
     }
 }
 
+/// `FUN_0044C6C4` — order `want` of the county's fields put under
+/// reclamation. Returns how many wasteland tiles were actually started.
+///
+/// **This is what the AI's "add a field" ladder really does**, and it is not
+/// what it looks like. `crate::tables::AI_FIELD_LADDER` reads as *"give the
+/// county another field"*, and until now this crate implemented it by adding
+/// one to `County::fields_fallow` — a counter [`recount`] overwrites from the
+/// map on the next pass, so the field evaporated. The original paints
+/// [`terrain::RECLAIM_FIRST`] onto a **wasteland** tile and lets
+/// `Field_ReclaimTick` finish it over four stages; the county's counts follow
+/// from the map, as everything in this module does.
+///
+/// The walk is one pass in slot order with a quota, and the quota is spent by
+/// two different things:
+///
+/// ```c
+/// if (terrain < 0x19) {
+///     if (terrain != 0) continue;     /* a field in use: skipped, quota intact */
+///     paint(tile, 0x19);              /* wasteland: started */
+/// }
+/// if (--want < 1) return;             /* reached for a fresh start *and* for
+///                                        a field already reclaiming */
+/// ```
+///
+/// So **a field already under reclamation consumes a place in the quota**
+/// without anything happening. A county with one field already being reclaimed
+/// that is told to add one adds nothing at all, and only the county told to add
+/// two gets a second going. `[V]` — the `goto` in the decompilation skips the
+/// decrement for an in-use field and falls through to it for a reclaiming one,
+/// which is the whole of the difference.
+///
+/// A quota of zero or less starts nothing: the decrement runs before the test,
+/// so the first tile considered ends it.
+pub fn order_reclamation(county: &County, map: &mut CampaignMap, mut want: i32) -> i32 {
+    let mut started = 0;
+    for slot in 0..MAX_FIELDS {
+        let Some(tile) = county.field_tile(slot) else { continue };
+        let here = map.terrain[tile];
+        if here < terrain::RECLAIM_FIRST {
+            if here != terrain::WASTE {
+                continue;
+            }
+            map.terrain[tile] = terrain::RECLAIM_FIRST;
+            started += 1;
+        }
+        want -= 1;
+        if want < 1 {
+            break;
+        }
+    }
+    started
+}
+
 /// `FUN_004697CD` — turn every field of one type back to fallow.
 ///
 /// The AI's farming styles open with this: *"forget what I said last year"*.

@@ -1229,9 +1229,9 @@
       "addr": "0x0049DFC6",
       "name": "AI_ManageFields",
       "section": "kingdom",
-      "confidence": "inferred",
+      "confidence": "verified",
       "signature": "void AI_ManageFields(uint realm)",
-      "comment": "For each of the realm's counties: start reclaiming when the field count is low for the population, then run one of two field-allocation strategies and Ration_Apply."
+      "comment": "Turn phase 1 step 2, and its ONLY caller passes realm 0 - this is the UNOWNED counties pass, not an AI realm one. Zeroes county +0x1B0, runs the same field-reclamation ladder as Ai_ManageCountyFarms, then dispatches county +0x1FE into Ai_FarmStyleNeutralArable (style 0) or Ai_FarmStyleNeutralGrazing (style 1) and calls Labour_Allocate. [V] It never writes +0x1FE, so an unowned county farms by whichever lord held it last, and one left holding style 9 is dispatched nowhere at all. Do not confuse it with Ai_ManageCountyFarms at 0x0049DD01, which is AI turn step 5 and dispatches three different allocators."
     },
     {
       "addr": "0x0049AA0E",
@@ -2902,9 +2902,9 @@
       "addr": "0x004A13A6",
       "name": "AI_Taunt",
       "section": "diplomacy",
-      "confidence": "inferred",
+      "confidence": "verified",
       "signature": "void AI_Taunt(unsigned int realm)",
-      "comment": "AI turn step 13. Not 'offer an alliance or break one' as docs/kingdom.md 3.2 said: a taunt timer. A realm ranked better than 2nd and holding more than 39 percent of the map sends group 193 'How are you doing?' to every human after 8 turns; afterwards, above 27 percent, it sends group 192 'Helpful advice.' to the last-placed realm if that realm is human and not its ally."
+      "comment": "AI turn step 13, and NOT \"offer or break an alliance\" - alliances are step 2. Only a realm ranked first taunts. Stage 0: above 39 percent of the map, count to 8, then send group 193 to every live human realm, reset and go to stage 1. Stage 1: above 27 percent, and only if the last-placed realm is human and not this realm ally, count to 8, then send group 192 to it and return to stage 0. Every letter advances voiceRotation with the 3-to-0 wrap and carries variant lord*4 + rotation - 4. The share test only gates the count, so slipping below the threshold pauses the timer rather than resetting it."
     },
     {
       "addr": "0x0049EDC7",
@@ -3488,7 +3488,7 @@
       "section": "kingdom",
       "confidence": "inferred",
       "signature": "void Labour_DefaultSharesBuilt(int county)",
-      "comment": "The same farm 33/50/17, with industry 40/15/15/15/15 - castle building favoured. Also sums to 100 in both halves. Which of the two setters a county gets is not traced."
+      "comment": "The same farm 33/50/17, with industry 40/15/15/15/15 - castle building favoured. Also sums to 100 in both halves. [V] It is the AI setter: all five of the farming styles call this one and none calls Labour_DefaultShares at 0x004514F8."
     },
     {
       "addr": "0x00451150",
@@ -4428,7 +4428,7 @@
       "section": "diplomacy",
       "confidence": "verified",
       "signature": "void Ai_ManageFarmsAll(void)",
-      "comment": "The first thing Season_Advance does, before Rand_Advance: Ai_ManageCountyFarms for every realm that is in play and not human. It runs ahead of the whole economy, so an AI's fields and labour split are already this season's when tax, rations and industry read them."
+      "comment": "The first thing Season_Advance does, before Rand_Advance: Ai_ManageCountyFarms for every realm that is in play and not human. It runs ahead of the whole economy, so an AI fields and labour split are already this season when tax, rations and industry read them. The human county is not touched."
     },
     {
       "addr": "0x0049DD01",
@@ -5311,6 +5311,102 @@
       "confidence": "verified",
       "signature": "void Msg_Dismiss(void)",
       "comment": "Closes the message window: clears g_messageGroup and the timer, and for groups 0x9E, 0x9F, 0xEE and 0xEF drops into screen 0x26 instead. [V] Its last three lines are the ending: if g_gameOutcome is 10 or 11 it calls Campaign_EnterConquest and sets g_screenId = 0x1C. So a game ends when the message that set the outcome is dismissed, not when the outcome is written."
+    },
+    {
+      "addr": "0x004A3C67",
+      "name": "Ai_FarmStyleNeutralArable",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_FarmStyleNeutralArable(uint county)",
+      "comment": "Farming style 0 for an UNOWNED county - AI_ManageFields(0) only, and no AI realm can reach it. Gives the county 100 crowns of its own purse (+0x1F4) if it is short of grain, buys grain in lots of 400/200/100/50 until it holds 100 sacks, zeroes industrySharePct, takes Labour_DefaultSharesBuilt, sets rations searching the split downward from 100 if the herd is over 100 and upward from 0 otherwise, clears every pasture, and in Winter plants grain on half the county (total-3 with Advanced Farming off). One pasture is kept if the herd is over 10. [V] Its only caller is AI_ManageFields at 0x0049DFC6."
+    },
+    {
+      "addr": "0x004A3ED3",
+      "name": "Ai_FarmStyleNeutralGrazing",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_FarmStyleNeutralGrazing(uint county)",
+      "comment": "Farming style 1 for an UNOWNED county. Buys 10 cattle if the herd is under 11 and grain in lots of 400/200/100/50 to 100 sacks, zeroes industrySharePct, takes Labour_DefaultSharesBuilt, sets rations with the upward split search, clears every grain field WHATEVER THE SEASON and grows the pasture towards total-1 through FUN_004A4694. [V] Its only caller is AI_ManageFields at 0x0049DFC6."
+    },
+    {
+      "addr": "0x004A4052",
+      "name": "Ai_FarmStyleArable",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_FarmStyleArable(uint county)",
+      "comment": "Farming style 0 for an AI REALM - the one Ai_ManageCountyFarms dispatches, which no earlier note distinguished from 0x004A3C67. Runs Ai_TradeForCounty first, tops the granary up to 600 sacks with lots of 400/200/100 and to 100 with lots of 50/25, sets industrySharePct to 50 - the highest of the five styles - takes Labour_DefaultSharesBuilt, sets rations, clears every pasture, and in Winter plants grain on half the county (total-1 with Advanced Farming off). One pasture is kept if the herd is over 10."
+    },
+    {
+      "addr": "0x004A42E3",
+      "name": "Ai_FarmStyleGrazing",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_FarmStyleGrazing(uint county)",
+      "comment": "Farming style 1 for an AI REALM. Runs Ai_TradeForCounty, buys 10 cattle if the herd is under 41 - the only style that stocks forty rather than ten - and one lot of 400 grain if under 100 sacks, sets industrySharePct to 20, takes Labour_DefaultSharesBuilt, sets rations, clears every grain field in every season and grows the pasture towards total-1 through FUN_004A4694. Plants no grain at all, ever."
+    },
+    {
+      "addr": "0x004A440F",
+      "name": "Ai_FarmStyleMixed",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_FarmStyleMixed(uint county)",
+      "comment": "Farming style 9 for an AI REALM, and the only style that farms both. Runs Ai_TradeForCounty, buys 10 cattle under 11 head and grain in lots of 800/400/200/100/50/25 up to 300 sacks - the longest shopping list of the five and the only one offering 800 - sets industrySharePct to 40, takes Labour_DefaultSharesBuilt, sets rations, plants grain on a third of the county in Winter (half with Advanced Farming off) and grows the pasture towards a third through FUN_004A4694. Ends on estimate/allocate with no closing estimate, where the other four run estimate/allocate/estimate."
+    },
+    {
+      "addr": "0x004A4694",
+      "name": "Ai_FitCattleFields",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_FitCattleFields(uint county, int cap)",
+      "comment": "Nudges a county pasture count by one, in whichever direction the herd crowding meter asks for: under 11 it gives a field back, but only with more than two pastures and fewer than ten animals; at 11 or over it takes one more, up to cap. Both limbs clear every pasture and re-lay the whole count, then County_RecountFields and Herd_UpdateCrowding. The else-if re-tests 10 < crowding, which the first branch already implies."
+    },
+    {
+      "addr": "0x004A4782",
+      "name": "Ai_SetRations",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_SetRations(int county, int mode)",
+      "comment": "The AI ration setter. rationWanted comes from a ladder on FUN_0044E6A3 (herd*5 + herd*10 + grain*6, the STORES, not Food_Available caps) against the people to feed: under half of them None, under them Quarter, under twice Half, then two rungs on dairy alone and two on the store, else Normal. [D] The two dairy rungs sit above the two store rungs and, because the store counts the herd twice, the Triple dairy rung can never change an answer and the Double one can only lower it - a cattle county is fed Double where a grain county with the same food is fed Triple. Then rationSplit: mode 0 sweeps 0..100 upward and mode 100 sweeps 100..0 downward, each keeping the split with the best rationAchieved on a strict improvement, so the two modes take the opposite end of a tie; any other mode is used as the split unchanged."
+    },
+    {
+      "addr": "0x004A4B12",
+      "name": "Ai_BuyGood",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_BuyGood(uint county, int qty, int good)",
+      "comment": "One AI purchase from the county merchant stall: refuses unless the county has a stall (+0x1A4), prices the good at the stall price plus the merchant unit morale as a percentage markup (good 4, ale, carries no markup), and calls Merchant_Trade only if the purse covers it - the realm treasury for an owned county, county +0x1F4 for an unowned one. The farming styles call it repeatedly with falling lot sizes, re-reading the stock between calls, so a lot that arrives ends the cascade and one refused lets the next be tried."
+    },
+    {
+      "addr": "0x004A4A3F",
+      "name": "Ai_SellGood",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_SellGood(uint county, int qty, int good)",
+      "comment": "The selling half of Ai_BuyGood: same stall and morale markup, then Merchant_Trade with a negative quantity. Used by Ai_TradeForCounty to dump wood, iron and stone above the lord personality reserves."
+    },
+    {
+      "addr": "0x004A4C41",
+      "name": "Ai_BuyGoodDownTo",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_BuyGoodDownTo(uint county, int qty, int good)",
+      "comment": "As Ai_BuyGood but walks the price down until the purse covers the lot instead of refusing outright."
+    },
+    {
+      "addr": "0x0049E39B",
+      "name": "Ai_TradeForCounty",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Ai_TradeForCounty(int realm, uint county)",
+      "comment": "The three AI-realm farming styles run this first. Skipped entirely if the county has no merchant stall or the realm is bankrupt. For each of wood, iron and stone: a non-zero want at realm +0x70/+0x74/+0x7C buys that much, and a zero want sells everything above the lord personality reserve at +0x84/+0x88/+0x8C. Then, if gold clears personality +0x78, buys personality +0x7C of the weapon the county is making - the county weapon type 0..5 maps to market good 12/11/13/9/10/14."
+    },
+    {
+      "addr": "0x0044C6C4",
+      "name": "Field_OrderReclamation",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Field_OrderReclamation(int county, int want)",
+      "comment": "Orders want of a county twenty field tiles put under reclamation: walks them in slot order, paints terrain 0x19 on a wasteland tile (terrain 0) and skips a tile already in use. [V] A tile already reclaiming (terrain >= 0x19) is NOT repainted but still spends a place in the quota - the goto skips the decrement for an in-use field and falls through to it for a reclaiming one - so a county told to add one while one is already under way adds nothing. This is what the AI field ladder in Ai_ManageCountyFarms and AI_ManageFields actually calls."
     }
   ],
   "globals": [
