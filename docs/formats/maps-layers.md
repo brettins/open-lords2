@@ -449,6 +449,60 @@ on. The dumps are at `tools/maps/out/{tiles,lattice}.bin` (gitignored);
 `tools/maps/dump.ps1` regenerates them — see §7 for why that is harder than it
 sounds.
 
+### 5.5 The graphic for a terrain — `FUN_0046D7F4`  **[V]**
+
+**The single writer of a tile's `content` byte, and it picks the tile's picture at
+the same time.** Every state change on the map goes through it — the field brush
+(`0x00434...`), the seasonal crop pass, `County_DestroyField`, `Unit_TrampleTile`,
+`Counties_PlaceSites` and `Map_PlaceStartingFields` all call it — so this one
+function *is* the terrain → frame mapping the renderer needs, and nothing has to be
+inferred from what the tiles look like.
+
+```c
+void FUN_0046d7f4(int tileByteOffset, int terrain, char variant)
+```
+
+It sets `content = terrain`, then
+
+```c
+frame = ((frame - oldBase) & 3) + base + variant * 4;
+bank  = (((bank | 1) & 0xE3) | layer) & 0x7F;
+if (0x0E < terrain && terrain < 0x17) bank |= 0x80;
+```
+
+where `oldBase` is `0x82` if the *previous* terrain was `0x17` or `0x18` and 0
+otherwise, and `base` and `layer` come from a ladder on the new terrain:
+
+| terrain | base | bank layer |
+|---|---|---|
+| `0` wild | 80 | `0x08` roads |
+| `1` fallow | 84 | `0x08` |
+| `2 … 0x12` (grain, and pasture up to 18) | 88 | `0x08` |
+| `0x13 … 0x16` | 104 | `0x08` |
+| `0x17` | 130 | `0x00` base |
+| `0x18` | 134 | `0x00` base |
+| `0x19` | 108 | `0x08` |
+| `0x1A` | 112 | `0x08` |
+| `0x1B` | 116 | `0x08` |
+| `0x1C` | 120 | `0x08` |
+
+**`& 3` is the point.** Every crop state is **four consecutive frames** and the tile
+keeps whichever of the four it already had, so a repaint changes the crop without
+changing the tile's variation. §1.2's own histogram is the check: farm tiles on disk
+are bank `0x20`/roads **frame 80 only** and their boundary twins are 81 … 83 —
+which is `base = 80`, the four variants of *wild*, exactly.
+
+`Map_PlaceStartingFields` (`0x00467A36`) is the same three bases seen from the other
+side: it writes `frame = base + ((frame + 0xB0) & 3)` with `base` 104 for pasture
+(`content 0x14`), 84 for fallow (`content 1`) and 80 for wild (`content 0`), the mix
+chosen by difficulty. Two functions, one table.
+
+**Not yet drawn.** `crates/l2-game`'s field brush still paints markers of our own
+rather than the game's artwork, which was the right call when the mapping was
+unread; it is read now, and the sparse `campaign::Overrides` plane C41 added is
+where the repaint goes. What is still open is whether the *season* moves a field's
+`content` on its own — that is the economy's business, not this file's.
+
 ---
 
 ## 6. Slot names — `L2.eng` group 101  **[V]**

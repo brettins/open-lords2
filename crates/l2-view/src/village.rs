@@ -73,7 +73,10 @@ use crate::Canvas;
 
 /// The eight peasant clusters. Seven jobs and *Idle townsfolk*: iron and stone
 /// **share** cluster 0, because a county's mine and its quarry are drawn at the
-/// same spot (`Misc_cty` frames 0x2B and 0x28, both at `(0x4C, top + 0x0C)`).
+/// same spot — `villani2.pl8` frames 0x2B and 0x28, both at `(0x4C, top + 0x0C)`.
+///
+/// This used to name `Misc_cty.pl8`. The frames were right and the file was
+/// wrong; [`RESOURCE_BUILDINGS`] has `Village_Draw`'s three calls verbatim.
 pub const CLUSTER_COUNT: usize = 8;
 
 /// Twenty-five icon slots to a cluster, one twenty-fifth of the county each.
@@ -406,11 +409,60 @@ fn fill_two(
 
 // ------------------------------------------------------------------- artwork
 
+/// **The three buildings `Village_Draw` paints on top of the scene**, in the
+/// order it paints them, each one gated on the county having that resource.
+///
+/// `[V]` — `Village_Draw` (`0x00412143`), read out of the corpus verbatim:
+///
+/// ```c
+/// if (county.industry[0].hasResource) Pl8_DrawFrame(villani2, 0x29, 0xac, top + 0xe5);
+/// if (county.industry[3].hasResource) Pl8_DrawFrame(villani2, 0x28, 0x4c, top + 0x0c);
+/// if (county.industry[1].hasResource) Pl8_DrawFrame(villani2, 0x2b, 0x4c, top + 0x0c);
+/// ```
+///
+/// Three things it settles, all of which had been guessed at:
+///
+/// * **The sheet is `villani2.pl8`, not `Misc_cty.pl8`.** This module's own
+///   doc comment on [`CLUSTER_COUNT`] named `Misc_cty` frames `0x2B` and `0x28`
+///   and it was wrong about the file; the frame numbers were right.
+/// * **The lumber camp is a third building.** Wood is industry 0 and it has a
+///   building of its own, at the bottom right of the scene — the pairing that
+///   was documented was only the two that share a spot.
+/// * **The mine is drawn *after* the quarry at the same position.** A county
+///   holding both would show the mine, and no county on any shipped map holds
+///   both — see `crates/l2-scenario/tests/import.rs`, where iron and stone come
+///   out complementary in thirteen of England's fourteen counties and absent in
+///   the fourteenth.
+pub const RESOURCE_BUILDINGS: [(usize, usize, i32, i32); 3] = [
+    // (industry record, villani2 frame, x, y relative to g_villageTopY)
+    (0, 0x29, 0xAC, 0xE5),
+    (3, 0x28, 0x4C, 0x0C),
+    (1, 0x2B, 0x4C, 0x0C),
+];
+
+/// The animated overlay `Village_Animate` (`0x00412421`) puts on each of the
+/// same three buildings: `(industry, sheet is villani1, first frame, frame
+/// count, x, y from `g_villageTopY`)`.
+///
+/// **Not drawn yet** — this crate has no animation clock and `docs/netcode.md`
+/// keeps one out of the simulation — but read out of the binary at the same
+/// time as [`RESOURCE_BUILDINGS`] so the next person does not have to find it
+/// again. The counters are `DAT_004d2944` (0…7), `DAT_004d2930` (0…6) and
+/// `DAT_004d2938` (0…0x11), each incremented once a frame and wrapped.
+pub const RESOURCE_ANIMATIONS: [(usize, bool, usize, usize, i32, i32); 3] = [
+    (0, false, 7, 8, 0xF3, 0x104),
+    (3, false, 0, 7, 0xA3, 0x1B),
+    (1, true, 0, 18, 0xA4, 0x0C),
+];
+
 /// The village's own files, none of which any other screen loads.
 pub struct VillageArt {
     scene: Sheet,
     tops: Option<Sheet>,
     grid: Vec<u8>,
+    /// `villani2.pl8` — the quarry, the mine and the lumber camp, and the
+    /// animated overlays for two of the three.
+    animation_b: Option<Sheet>,
 }
 
 impl VillageArt {
@@ -428,7 +480,8 @@ impl VillageArt {
             .filter(|b| b.len() >= GRID_DATA_OFFSET + GRID_LEN)
             .map(|b| b[GRID_DATA_OFFSET..GRID_DATA_OFFSET + GRID_LEN].to_vec())
             .unwrap_or_default();
-        Ok(VillageArt { scene, tops, grid })
+        let animation_b = read("villani2.pl8").ok().and_then(|b| Sheet::new(b).ok());
+        Ok(VillageArt { scene, tops, grid, animation_b })
     }
 
     /// Whether the drop grid was found. Without it nothing can be dropped, and
@@ -478,6 +531,32 @@ impl VillageArt {
 
     pub fn tops_frames(&self) -> usize {
         self.tops.as_ref().map_or(0, |s| s.frame_count())
+    }
+
+    /// **The quarry, the mine and the lumber camp**, drawn over the scene in
+    /// `Village_Draw`'s own order and gated on `has_resource[industry]`.
+    ///
+    /// Returns how many were painted, so a caller can tell "this county has
+    /// none" from "the artwork is missing" — and so a test can assert the
+    /// county with a mine draws one and the county with a quarry does not.
+    ///
+    /// This is the missing half of a defect a player reported as *"a county
+    /// that clearly has iron has no iron mine in the town centre"*: the other
+    /// half was that `has_resource` was never imported and every county claimed
+    /// every resource. `docs/decisions.md` C57.
+    pub fn draw_resources(&self, canvas: &mut Canvas, has_resource: [bool; 4], top: i32) -> usize {
+        let Some(sheet) = self.animation_b.as_ref() else { return 0 };
+        let mut drawn = 0;
+        for (industry, frame, x, y) in RESOURCE_BUILDINGS {
+            if !has_resource[industry] {
+                continue;
+            }
+            if let Some(f) = sheet.frame(frame) {
+                canvas.blit(&f, x, top + y);
+                drawn += 1;
+            }
+        }
+        drawn
     }
 }
 

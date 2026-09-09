@@ -535,3 +535,87 @@ fn the_shield_index_of_a_default_game_is_the_realm_id() {
         );
     }
 }
+
+/// **A county's four `hasResource` bytes agree with the map, 56 times out of
+/// 56** — and until this test existed, none of them was read at all.
+///
+/// `County_PlaceResourceSites` (`0x00468E61`) writes `+0x295 + c*0x18` at load
+/// from the county's `Town`-bank tiles, and `County_PlaceBlacksmith` does the
+/// weapons record. So the byte and the map are two recordings of one fact and
+/// have to match: an industry has its resource exactly when the county owns a
+/// settlement tile (plane-0 bit `0x80`) whose terrain falls in that industry's
+/// rung of `Map_Click`'s ladder — 0…3 iron, 4…6 stone, 7…9 weapons, 10…12 wood.
+///
+/// It is not a vacuous agreement. On the England fixture the answer is *false*
+/// for 15 of the 56, iron and stone are complementary in thirteen of the
+/// fourteen counties, and county 5 has neither — so a defaulted `true`, which
+/// is what the importer used to supply, fails this fifteen times.
+#[test]
+fn every_industrys_resource_byte_agrees_with_the_tiles_the_map_puts_it_on() {
+    let save = l2_testkit::england!();
+    let s = Scenario::from_save(&save).unwrap();
+    let mut checked = 0;
+    let mut without = 0;
+    for id in s.county_ids() {
+        let Some(c) = &s.counties[id] else { continue };
+        // What the map says: the terrain of every settlement tile of this
+        // county, run through the same ladder the map click uses.
+        let mut from_map = [false; 4];
+        for tile in 0..l2_kingdom::map::MAP_TILES {
+            if s.map.county[tile] != id as u8
+                || s.map.flags[tile] & l2_kingdom::map::flags::SETTLEMENT == 0
+            {
+                continue;
+            }
+            if let Some(l2_kingdom::industry::MapToggle::Industry(what)) =
+                l2_kingdom::industry::map_toggle_for_graphic(s.map.terrain[tile])
+            {
+                from_map[what.index()] = true;
+            }
+        }
+        for slot in 0..4 {
+            assert_eq!(
+                c.industry[slot].has_resource, from_map[slot],
+                "county {id} industry {slot}: the record says {} and the map says {}",
+                c.industry[slot].has_resource, from_map[slot]
+            );
+            checked += 1;
+            without += usize::from(!from_map[slot]);
+        }
+    }
+    assert_eq!(checked, 56, "fourteen counties, four industries each");
+    assert_eq!(without, 15, "and fifteen of the fifty-six have no resource at all");
+}
+
+/// **Turn one has exactly five industries switched on: the wood cutting of the
+/// five counties that start owned.** Every other switch of all fourteen
+/// counties is off.
+///
+/// This is the byte `Industry_ToggleFromMap` XORs and the one
+/// `Labour_Allocate` gates each mining job on, so importing it as a defaulted
+/// `true` — which is what happened until C57 — starts the player with four
+/// industries running in every county he owns and, worse, puts every one of the
+/// map's toggles in the opposite position to the one the player sees.
+#[test]
+fn only_wood_is_switched_on_at_the_start_and_only_in_an_owned_county() {
+    let save = l2_testkit::england!();
+    let s = Scenario::from_save(&save).unwrap();
+    let mut on = Vec::new();
+    for id in s.county_ids() {
+        let Some(c) = &s.counties[id] else { continue };
+        for slot in 0..4 {
+            if c.industry[slot].enabled {
+                on.push((id, slot, c.owner));
+            }
+            assert_eq!(
+                c.industry[slot].disabled_seasons, 0,
+                "nothing is out of action on turn one"
+            );
+        }
+    }
+    assert!(
+        on.iter().all(|&(_, slot, owner)| slot == 0 && owner != 0),
+        "every switch that is on is wood, in an owned county: {on:?}"
+    );
+    assert_eq!(on.len(), 5, "five counties start owned and each has its forestry running");
+}

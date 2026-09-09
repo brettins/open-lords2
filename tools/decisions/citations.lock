@@ -121,6 +121,7 @@ crates/l2-mods/src/units.rs	C11	1f34a41c4bbb
 crates/l2-mods/src/units.rs	C11	82a3e3450631
 crates/l2-mods/tests/simulation.rs	C11	b927dbbbca77
 crates/l2-mods/tests/simulation.rs	C12	84283df43fd5
+crates/l2-scenario/src/lib.rs	C53	14b498ed2873
 crates/l2-scenario/tests/import.rs	C26	bdddd4567993
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
@@ -135,6 +136,7 @@ crates/l2-sim/tests/oracle.rs	C20	d336abeab0e5
 crates/l2-testkit/src/lib.rs	C1	365a5efbf069
 crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8
 crates/l2-view/src/village.rs	C22	4b0da6199195
+crates/l2-view/src/village.rs	C53	fbc575f34d82
 crates/l2-view/tests/install.rs	C1	b6dbfeba4b54
 crates/l2-view/tests/install.rs	C46	3ca8b1f138bc
 docs/agents.md	C1	d79ae046534d
@@ -267,6 +269,7 @@ docs/decisions.md	C39	bafbbde7c92a
 docs/decisions.md	C39	d16999be8062
 docs/decisions.md	C40	dd07d41c363e
 docs/decisions.md	C41	31c16a7144fe
+docs/decisions.md	C41	ce61a32481ef
 docs/decisions.md	C42	d82da22eca5c
 docs/decisions.md	C42	f53259005d3f
 docs/decisions.md	C43	e2cdd9974342

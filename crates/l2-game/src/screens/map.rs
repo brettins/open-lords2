@@ -518,6 +518,68 @@ impl MapScreen {
         Self::tiles_with(ctx, county, l2_kingdom::map::flags::SETTLEMENT)
     }
 
+    /// [`MapScreen::settlements`], for the tests that need to find a county's
+    /// mine on the map without duplicating the flag test.
+    pub fn settlements_for_test(ctx: &Ctx, county: u8) -> Vec<usize> {
+        Self::settlements(ctx, county)
+    }
+
+    /// **Which settlement tile a pixel is on — the ground first, then the
+    /// building standing on it.**
+    ///
+    /// The diamond alone is not enough, and this is the second half of a defect
+    /// a player reported as *"I can't click the iron mine on the world map"*.
+    /// `Town1a.pl8` frame 30, the mine, is **58 × 47** against a 58 × 30 tile,
+    /// so seventeen rows of headframe are drawn *above* the tile's diamond and
+    /// a further band of it falls inside the diamond's bounding box but outside
+    /// the rhombus. Swept pixel by pixel, 1,314 of the mine's pixels are
+    /// painted and only 857 of them were on the tile: **the whole upper half of
+    /// the building — the part anybody would aim at — was dead.** The forest is
+    /// worse, at 22 rows of overhang.
+    ///
+    /// **This is a deliberate departure from the original and the only one on
+    /// this path.** `Map_PickTile` (`0x00429ba4`) is pure geometry — it divides
+    /// by the pitch and resolves the diamond with a parity test, and never
+    /// looks at a pixel — so in the original the top of the mine belongs to the
+    /// tile behind it, where `Map_Click` finds no flags and does nothing. Ours
+    /// answers instead of doing nothing. It can only *add* hits, never move
+    /// one: the diamond is tried first and wins, and the fallback tests the
+    /// frame's own opaque mask, so it fires only on pixels where that building
+    /// is actually painted.
+    ///
+    /// It reads the map file rather than [`MapScreen::town_graphics`] because
+    /// the overrides plane holds towns — plane-0 bit `0x40` — and a settlement
+    /// is bit `0x80`; the two sets are disjoint.
+    fn settlement_at(&self, ctx: &Ctx, county: u8, x: i32, y: i32) -> Option<usize> {
+        let tiles = Self::settlements(ctx, county);
+        if let Some(tile) = self.tile_at(x, y, tiles.iter().copied()) {
+            return Some(tile);
+        }
+        if !self.map_clip().contains(x, y) {
+            return None;
+        }
+        let slot = ctx.assets.slot(ctx.game.map_slot)?;
+        for tile in tiles {
+            let (tx, ty) = l2_kingdom::map::coords(tile);
+            let (row, col) = campaign::tile_to_cell(tx as usize, ty as usize);
+            let (sx, sy) = campaign::cell_to_screen(self.view, &self.zoom, row, col);
+            let bank_byte = slot.at(Plane::GfxBank, tx as usize, ty as usize);
+            let frame = slot.at(Plane::GfxIndex, tx as usize, ty as usize) as usize;
+            let bank = ((bank_byte & campaign::BANK_MASK) >> 2) as usize;
+            let Some(sheet) = ctx.assets.map.bank(&self.zoom, bank) else { continue };
+            let Some(decoded) = sheet.frame(frame) else { continue };
+            let overhang = (decoded.height as i32 - self.zoom.tile_h).max(0);
+            let (dx, dy) = (x - sx, y - (sy - overhang));
+            if dx < 0 || dy < 0 || dx >= decoded.width as i32 || dy >= decoded.height as i32 {
+                continue;
+            }
+            if decoded.opaque[dy as usize * decoded.width as usize + dx as usize] {
+                return Some(tile);
+            }
+        }
+        None
+    }
+
     /// The county's **town**: the 2 × 2 block on plane-0 bit `0x40`.
     ///
     /// The constant is still spelled `CASTLE` in `l2-kingdom` and its own doc
@@ -1359,9 +1421,7 @@ impl Screen for MapScreen {
                     // farmland and opens the field brush. All three are gated
                     // on the county being the local player's.
                     if county != 0 && ctx.game.is_players(county) {
-                        if let Some(tile) =
-                            self.tile_at(x, y, Self::settlements(ctx, county).into_iter())
-                        {
+                        if let Some(tile) = self.settlement_at(ctx, county, x, y) {
                             let terrain = ctx.game.kingdom.campaign.map.terrain[tile];
                             match industry::map_toggle_for_graphic(terrain) {
                                 Some(what) => {

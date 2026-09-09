@@ -273,6 +273,31 @@ Rows 0–4 are exactly the five banks `Map_DrawTile` selects on `plane1 & 0x1c`,
 an independent confirmation of `maps-layers.md` §1.1 from the loader rather than from the
 frame counts. `misc_cty.pl8` is loaded alongside into `0x005530C8` (§4).
 
+**The season is a whole-bank swap, not a per-frame variation, and it is `g_season`
+directly.** The `+ g_season * 8 - 8` above is the entire mechanism: the eight pointers are
+repointed at eight *different files* and every frame index in the renderer keeps its
+meaning. So the `a`/`b`/`c`/`d` suffix on `Base1?.pl8`, `Mtns1?.pl8`, `Roads1?.pl8`,
+`Town1?.pl8` and `Castle1?.pl8` **is** the season, four sets per zoom, entries 0–31 and
+32–63. `Flags1a.pl8` is the exception that proves the stride: entries 7, 15, 23 and 31 all
+name it, and `Flags1b/c/d.pl8` ship and are never loaded.
+
+Two consequences worth writing down.
+
+* **A player who says "the season graphics change" is describing this call.** It is also the
+  best available explanation of `FUN_004B0CB4`, the ~320 ms fade to quarter brightness over
+  palette entries 10 … 245 with exactly two call sites, both on the turn boundary: the
+  reload runs inside the dark window. That was an unsupported `[I]`; a person reporting the
+  swap independently is a second source for it.
+* **The overrides plane survives a season, but only because frame numbering does.** C41's
+  `campaign::Overrides` stores `(bank byte, frame)` and the reload changes neither, so the
+  town's 47 … 58 mean the same thing in every season — *provided* the four seasonal files of
+  a bank really do share a frame table. That is the one thing here nobody has measured, and
+  it is what would show up as towns reverting to quarries every spring.
+
+**Ours draws season `a` and nothing else.** `l2_view::campaign::NEAR` and `FAR` name the
+five banks as literals, so the campaign map is permanently in whatever season the `a` files
+hold. Fixing it is a lookup on `g_season` in `MapAssets`, not a change to the renderer.
+
 ### 2.2 Zoom 1 is unreachable  **[V]**
 
 `DAT_0057CB18` has exactly three writers in 2,452 functions:
@@ -589,6 +614,23 @@ Clicks on the map go through `FUN_00429BA4`, which inverts the projection with a
 half-pitch modulo and a diagonal tie-break, then reads `g_screenLattice[startRow + dy][startCol + dx]`
 and fails if that cell is off-map. Our engine picks off a tag plane instead — exact by
 construction for "which tile can the player see here", and *not* the same algorithm.
+
+**Three things about that pick that were not written down, and one of them is a defect.**
+
+* **`Map_PickTile` never looks at a pixel.** It is pure geometry, so a tile whose artwork
+  *overhangs* — and the mine, the forest and the town all do — has most of its building
+  standing on its neighbours as far as a click is concerned. `Town1a.pl8` frame 30 is
+  58 × 47 on a 58 × 30 tile: **1,314 pixels painted, 857 of them on the tile.** Our engine
+  deliberately departs here, testing the frame's opacity mask when the diamond misses;
+  `docs/decisions.md` C57 has the argument, and it is the only departure on this path.
+* **`Map_ResolvePick` snaps to the north-west anchor of a multi-tile object.** With
+  `flags & 0x80` and `content >= 0x15`, or with `flags & 0x40`, the object is 2 wide and
+  `t -= (part & 0xf) % 2 * 8 + (part & 0xf) / 2 * 0x200` walks back to its first tile — so
+  all four quadrants of a town or a standing castle are one hotspot. It then **blanks the
+  flags** for two cases that would otherwise be hotspots: `0x80` with `content == 0x14`
+  (the empty castle plot) and `0x10` with `content == 0` (an unbuilt dwelling plot).
+* **`Map_Click` does nothing at all at the far zoom.** The whole dispatcher is inside
+  `if (g_mapZoom != 2)`.
 
 **What is then done with the tile is `Map_Click` (`0x0043CE1A`)**, 1,263 bytes, and it is
 where most of this interface is actually reached from. `Map_ResolvePick` (`0x0046D5FE`)

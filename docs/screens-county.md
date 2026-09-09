@@ -1120,11 +1120,32 @@ and `Job_SlotForCluster` (`0x004517CA`) overrides cluster 0 to slot **4** when t
 has industry 1's resource but not industry 3's.
 
 **There are eight clusters and nine jobs.** Iron and stone *share* cluster 0, because the
-mine (`Misc_cty` frame 0x2B) and the quarry (frame 0x28) are painted at the same spot,
+mine (`villani2.pl8` frame 0x2B) and the quarry (frame 0x28) are painted at the same spot,
 `(0x4C, top + 0x0C)`. `Village_ClusterHasJob` (`0x0045183A`) refuses that one cluster, and
 only when the county has neither — the other seven never refuse, and
 **`Village_DrawPeasants` loops 0 … 7 with no test at all**, so a county with no mine still
 shows the slot. It simply has nobody in it.
+
+**The three buildings, and the file they come from `[V]`.** This document said `Misc_cty.pl8`
+until `docs/decisions.md` C57; the frame numbers were right and the file was not. `Village_Draw`
+(`0x00412143`) ends with three consecutive blits out of **`villani2.pl8`**, each gated on one
+`hasResource` byte, and there are **three** of them rather than the two that share a spot:
+
+| industry | record | frame | at | what |
+|---|---|---|---|---|
+| 0 wood | `+0x295` | `0x29` | `(0xAC, top + 0xE5)` | the lumber camp, bottom right |
+| 3 stone | `+0x2DD` | `0x28` | `(0x4C, top + 0x0C)` | the quarry |
+| 1 iron | `+0x2AD` | `0x2B` | `(0x4C, top + 0x0C)` | the mine, drawn **after** the quarry |
+
+The mine overwriting the quarry is safe because no county has both: over the England
+turn-one fixture the two are complementary in thirteen of the fourteen counties and absent in
+the fourteenth (`crates/l2-scenario/tests/import.rs`).
+
+`Village_Animate` (`0x00412421`) then puts a moving overlay on each of the three — wood
+`villani2` frames 7 … 14 at `(0xF3, top + 0x104)`, stone `villani2` frames 0 … 6 at
+`(0xA3, top + 0x1B)`, iron **`villani1`** frames 0 … 0x11 at `(0xA4, top + 0x0C)`, each
+counter incremented once a frame and wrapped. The offsets are recorded in
+`l2_view::village::RESOURCE_ANIMATIONS`; nothing draws them yet.
 
 ### 6.4.1 The gesture is three screen ids **[V]**
 
@@ -1238,8 +1259,8 @@ count rather than added to it. The fill orders are three permutations in `.data`
 `g_iconFillOrder` (25 slots), and `g_iconFillOrderMain` + `g_iconFillOrderOther` for a
 cluster showing both states, which partition the 25 slots as 13 + 12 with nothing over.
 
-That single special case pins the industry order **[V]**: the village draws frame 0x2B (a
-mine) on `+0x2AD` = industry **1** and frame 0x28 (a quarry) on `+0x2DD` = industry **3**,
+That single special case pins the industry order **[V]**: the village draws `villani2.pl8`
+frame 0x2B (a mine) on `+0x2AD` = industry **1** and frame 0x28 (a quarry) on `+0x2DD` = industry **3**,
 at the same spot — so industry 1 is iron (slot 4, *"Iron mining"*) and industry 3 is stone
 (slot 5, *"Stone quarrying"*); industry 0 is wood (frame 0x29, trees, on `+0x295`) and
 industry 2 is weapons. That is the order `crates/l2-kingdom`'s `Commodity` already has,
