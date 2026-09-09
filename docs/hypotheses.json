@@ -343,15 +343,6 @@
       "caveat": "The hotspot ids 1 and 0 are take-the-field and decline; the screen is 0x12, Screen_BattlePrompt. That much is solid. Whether this is the whole click handler or one arm of it was not checked, and the ui section is another agent's."
     },
     {
-      "addr": "0x0043F5C5",
-      "name": "Battle_ReplayFrame",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "With g_battlePhase == 2, copies g_battleMen[1..80], g_missiles[1..100], g_battleUnits[1..80] and both PRNG states out of a buffer selected by g_battlePhase, then runs a frame. Every 4th tick it advances a counter and, at the end, either autosaves or restarts the battle.",
-      "basis": "the only Battle_Start caller that copies the whole battle state through a buffer",
-      "caveat": "The three memcpy sizes close exactly - 0x8700 = 80 x 432 figures, 0x1040 = 80 x 52 units, 0x1DB0 = 100 x 76 missiles, all from index 1 - and it also copies g_randStateA and g_randStateB, so this is unambiguously a snapshot of the whole deterministic battle state. Whether it is a replay, a demo loop or a network resync was NOT established."
-    },
-    {
       "addr": "0x00447136",
       "name": "Net_JournalCommand",
       "section": "units",

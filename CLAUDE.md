@@ -23,6 +23,7 @@ subagent, so it stays short. Read the linked document before working in that are
 |---|---|
 | **need to know what the game actually does** | **`docs/rules.md` — the mechanics in plain language, with the real numbers. Start here; everything else is written to help you *find* things in the binary rather than to explain them.** |
 | **wonder whether the game already answers your question** | **`Readme.txt` in the install — the v1.03 patch's rules errata, with manual page references. It is the game correcting its own manual and it post-dates it, so it wins wherever they disagree. A first-class oracle alongside `L2.eng`; `docs/mechanics.md` says what it settles.** |
+| **want a lead on any screen, panel, message or refusal** | **`docs/formats/eng.md` §5 — every one of `L2.eng`'s 317 string groups mapped to the mechanic and the code that draws it. Index 0 of a group is a label the game wrote about itself, so this is 317 self-written summaries with the function beside each.** |
 | run any command | `docs/environment.md` |
 | work on a file format | `docs/formats/` |
 | read or name the binary | `docs/symbols.md` |

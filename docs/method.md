@@ -98,6 +98,15 @@ with the size of the set it came from** — and a control helps: asking the same
 group that *does* ship named its function immediately, which is what showed the query worked
 at all.
 
+*Settled since.* All 317 groups have now been mapped —
+[`docs/formats/eng.md`](formats/eng.md) §5. **250 are reached, 67 are not, and 28 of those
+67 contain no strings at all.** The "135" above counts direct literals plus `Msg_Enqueue`
+and is the same measurement from the other side; the routes it could not see are army
+names via `owner + 93`, the `g_eventTable` deck, the menu-bar records, the tip-screen
+dispatcher and the diplomacy reply tiers. The example the paragraph is built on stands and
+gets better: **group 62 really is dead** — 39 strings of a food panel superseded by group
+87's twelve — but that is a fact about a cut panel, not about the query.
+
 **A tool that is wrong is worse than an analysis that is wrong**, because every agent
 inherits it and their agreement then looks like corroboration. `anchor.js`'s `litNum` parsed
 `'\b'` as the letter *b*, and produced six screen ids that did not exist, self-consistently,
@@ -612,7 +621,7 @@ that still needs its own check.
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — <!--fig:functions-->676<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->28<!--/fig-->%.
+always more of the binary to name — <!--fig:functions-->684<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->28<!--/fig-->%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the

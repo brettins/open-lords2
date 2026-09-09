@@ -1149,6 +1149,37 @@ and the marking was honest; what was missing was that a **[D]** row disagreeing 
 not a difference of emphasis. C13's shape once more: the summary and the branch disagreed
 and the summary was load-bearing.
 
+**C36 — `anchor.js` was reading two of the five `L2.eng` primitives as zero call sites,
+because a rename in `symbols.json` silently unhooked its table. A key that matches nothing
+looks exactly like a primitive nobody calls.**
+
+`anchor.js`'s `ENG_CALLS` table keys on the *decompiled* function name, and `symbols.json`
+named `0x004017BF` `Eng_CopyString`. `decompile-all.ps1` duly emits that name, and the
+table's `FUN_004017bf` key stopped matching anything at all. Nothing failed. The scanner
+just returned a number two groups smaller than the truth — 65 instead of 67 — and the two
+it lost were group 7, the four lord titles, which is how new-game setup names the AI, and
+group 89.
+
+Two lessons, and only the second is new:
+
+1. This is `docs/method.md` §4's *"a tool that is wrong is worse than an analysis that is
+   wrong"* again, and the same fix applies: **the count was re-derived by a scanner
+   written from the corpus rather than from `anchor.js`, and the two now agree
+   set-for-set, all 67 groups.** That agreement is the check. Renaming a symbol is
+   therefore not a `symbols.json` edit; it is a `symbols.json` edit plus a sweep of every
+   tool that keys on a name.
+2. **A number quoted off a tool's printed output is not the tool's answer.**
+   `anchor.js strings` shows the top 40 functions by size and stops, so counting distinct
+   groups off its output gives 40 — a third wrong number, from a correct tool, with no
+   bug involved. The `--limit` was in the usage text the whole time. When a census is the
+   point, check whether what you are counting is the result or the *display* of the
+   result.
+
+Recorded because three different "how many groups are reached" figures were in
+circulation at once — 40, 52 and 65 — and only one of them came from anything wrong. The
+52 could not be reproduced from any query and is written down as unexplained in
+`docs/formats/eng.md` §5.1 rather than quietly dropped.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
