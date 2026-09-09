@@ -102,6 +102,46 @@ pub const SHADOW: (u8, u8) = (0x10, 0x1F);
 /// conquest screen and the setup pages, which run under `gateway.256`.
 pub const SHADOW_GATEWAY: (u8, u8) = (0x36, 0x2C);
 
+/// **The grey emboss — `DAT_0058FE9C`'s pair, and the third mode of
+/// `Ui_DrawText`.** **[V]**
+///
+/// The module doc above describes two emboss modes. There are four, and this is
+/// the one that had been missed. When `DAT_0058FE9C` is non-zero the function
+/// ignores the screen-id pair entirely and draws `0x3F` above and `0x26` below:
+///
+/// ```c
+/// else {                       /* DAT_0058fe9c != 0 */
+///   g_drawY = y - 1; DAT_0057d3bc = 0x3f; Glyph_Draw(font, c);
+///   g_drawY = y + 1; DAT_0057d3bc = 0x26; Glyph_Draw(font, c);
+///   g_drawY = y;     DAT_0057d3bc = colour; Glyph_Draw(font, c);
+/// }
+/// ```
+///
+/// In `Base01.256` those are **black** — `0x3F` is `rgb(0, 0, 0)` — and a
+/// **light grey**, `0x26` = `rgb(202, 202, 202)`. [`SHADOW`]'s pair is
+/// `0x10` = `rgb(81, 73, 53)` and `0x1F` = `rgb(247, 223, 134)`: a dark olive
+/// and a pale yellow, which is the colour of the *parchment* plate the owned
+/// county strip is drawn on.
+///
+/// **Three functions set it and no more:** `CountyStrip_Draw` around the three
+/// *Sovereign land of …* lines, `Screen_Armoury`, and `FUN_004180F6`. It is
+/// cleared again immediately after each.
+///
+/// This matters because a player reported the difference by eye and was exactly
+/// right about it: *"the OG correctly has the 'sovereign land of the baron'
+/// properly tinged in grey"* while the county's own name keeps the parchment
+/// emboss over a background that is not parchment. See
+/// [`crate::screens::county::draw_strip`] and `docs/bugs.md`.
+pub const SHADOW_GREY: (u8, u8) = (0x3F, 0x26);
+
+/// The fourth mode, recorded rather than implemented: when `DAT_005AEB90` is
+/// non-zero `Ui_DrawText` draws a **drop shadow** rather than an emboss — one
+/// pass at `(x + 1, y + 1)` in `0x3F` and then the glyph — and the county
+/// strip's seven produce rows and its castle icon are all drawn inside it.
+/// Nothing here uses it yet; it is the next thing anybody re-reading that
+/// function will find.
+pub const DROP_SHADOW_COLOUR: u8 = 0x3F;
+
 /// The colour the setup and conquest painters pass for ordinary text.
 pub const TEXT: u8 = 0x3F;
 /// The colour they pass for the highlighted item of a menu.

@@ -502,6 +502,95 @@ Reproduced (`VillageScreen::handle` passes only in `Phase::Idle`) and asserted, 
 `the_sidebar_slider_still_works_with_the_village_open_but_not_mid_drag` that exists to stop it
 being "fixed" into uniformity. `docs/decisions.md` C59.
 
+### B64 — A county's name is embossed in parchment colours over a background that is not parchment
+
+**Reported by a player, in the original.** *"There's a bug in the original where the town
+name's embossing against the cloudy background, e.g. when you don't own it, still has the
+emboss colour of the parchment that you see on a town you own, that blends it in with the
+parchment. But the OG correctly has the 'sovereign land of the baron' properly tinged in
+grey."* Both halves check out.
+
+**What the original does. [V]** `CountyStrip_Draw` (`0x0040F7D3`) draws the county's name
+through `Ui_DrawCentred` → `Ui_DrawText` (`0x00402637`), and `Ui_DrawText` takes its emboss
+colours from `g_screenId` and two globals — **never from the caller**:
+
+```c
+local_1c = 0x10; local_20 = 0x1f;                       /* the campaign pair */
+if (g_screenId == 0x1f || g_screenId == 0x1c) { local_1c = 0x36; local_20 = 0x2c; }
+...
+else if (g_flatText == 0) {
+  if (g_embossGrey != 0) {                              /* 0x0058FE9C */
+    y-1 in 0x3f;  y+1 in 0x26;  y in colour;            /* the grey pair   */
+  } else if (g_dropShadow != 0) { ... }                 /* 0x005AEB90     */
+  else { y-1 in local_1c; y+1 in local_20; y in colour; }
+}
+```
+
+`CountyStrip_Draw` sets `g_embossGrey` around the three *Sovereign land of …* lines and
+around nothing else, so the **name** — drawn before that block, on either plate — always gets
+the default pair. In `Base01.256` those are `0x10` = `rgb(81, 73, 53)` and `0x1F` =
+`rgb(247, 223, 134)`: a dark olive under a pale parchment yellow, which is the colour of the
+`Misc_cty` frame `0x37` plate an **owned** county's strip stands on. A county you do not hold
+gets frame `0x3A`, the cloudy one, and the name keeps the parchment highlight over a
+background with no parchment in it. The grey pair the banner beneath it uses — `0x3F` =
+`rgb(0, 0, 0)` over `0x26` = `rgb(202, 202, 202)` — is what the same plate calls for and what
+the same function is already able to ask for, four lines further down.
+
+So the two colours are not a judgement about what looks right: **both pairs are palette
+indices in the executable and both are used in this plate**, and the defect is that the name
+is on the wrong side of a switch the function flips a moment later.
+
+**Reproduced?** **Yes, and switchable.** The name keeps the parchment pair by default. The
+player asked for both — reproduce it, and give a way to turn it off — so
+`l2_game::game::Quirks::grey_county_name` moves the name onto the grey pair, and is `false`
+unless something sets it. Tests:
+`l2-game/tests/screens.rs::the_county_name_keeps_the_parchment_emboss_and_the_sovereign_lines_do_not`
+reads both pairs back off the canvas by their palette index, and
+`the_grey_county_name_quirk_changes_the_emboss_and_nothing_else` runs the pair.
+
+**Where the switch lives, and why it is not `Options`.** §6.3 argues for `Options` as the home
+for a quirk set and is right about every quirk it is arguing about — all of them change a
+*rule*, which is where its three constraints come from. **A text shadow changes no rule.**
+`Quirks` is on `Assets`, whose definition is *"everything the screens draw with, not part of
+the world"*: it cannot reach `l2-kingdom` or `l2-sim`, it is not in the save body, it is not in
+the lockstep state, and two players running with different values compute identical turns.
+`netcode.md` D-12 makes that a requirement rather than a convenience — display state must not
+reach the simulation — so a shadow colour in the hashed options would be wrong, not merely
+expensive. **A behavioural quirk still belongs on `Options` and still costs a `save::VERSION`
+bump.** The two sets are different things; see §6.3a.
+
+**Not to be confused with our own bug, which was the mirror image.** We drew the *Sovereign
+land* lines with the parchment pair too, having collapsed the two into one, and we drew them
+for **unclaimed** counties, which the original never does — its guard is `owner != 0` and
+`L2.eng` group 15 has only the two strings `"Sovereign land"` and `"of"`, with the third line
+a lord's name out of `g_playerNames`. Both are fixed; neither was the original's.
+
+### B65 — Two of the village's eight animation counters are stepped every frame and drawn by nothing
+
+**[V] on every number, [I] on the explanation.**
+
+`Village_Animate` (`0x00412421`) steps **eight** counters and draws **six** overlays.
+`DAT_004D2934` (wrapping at `0x14`, so 21 states, on the 160 ms pulse) and `DAT_004D2948`
+(wrapping at `0x0F`, 16 states, on the 80 ms pulse) are incremented on every frame the village
+is up, and `RefsTo` finds **no other reader of either address in the executable**. Two
+animations were cut and their clocks were left running.
+
+One number is worth writing down beside it. **`villani1.pl8` holds 21 frames** — 21 cells of
+40 × 62, laid out 8, 8 and 5 on the artist's sheet with nothing to divide them — and the
+counter that actually draws it, `DAT_004D2938`, wraps at `0x11`, so the iron mine plays 18 of
+the 21 and three are never shown. The dead counter has **exactly 21 states.**
+
+That is as far as this goes. The coincidence is real, it is asserted in
+`every_village_overlay_run_fits_inside_its_own_sheet` so that it stays visible, and it is
+**not** a demonstration that the mine was meant to run off `DAT_004D2934` — nothing in the
+binary connects them and `CLAUDE.md` rule 4 is the reason this paragraph stops here.
+
+**Reproduced?** The visible behaviour is: `l2_view::village::OVERLAYS` is the six that draw,
+the iron mine's run is 18 frames and stops there, and
+`l2_view::village::DEAD_COUNTER_PERIODS` records the two that do not draw rather than
+implementing them. There is nothing to see either way — a counter with no consumer has no
+pixels — so this is catalogued, not switched.
+
 ---
 
 # 3. The original's bugs we do **not** reproduce
@@ -865,6 +954,34 @@ Three constraints, none optional:
 boolean table feeding `Options::default()`, which would also be the first real use of a
 boolean in the ruleset. The authoritative value still has to travel in the save and the
 handshake.
+
+## 6.3a Presentation quirks are a second set, and they do not go on `Options`
+
+**§6.3's argument is about quirks that change a rule.** All three of its constraints follow
+from that — reach the simulation as a value, be agreed in the lobby handshake, be stamped into
+replays — and all three are the reason a behavioural quirk costs a `save::VERSION` bump.
+
+**None of them applies to a defect you can only see.** B64 is a text shadow colour. It cannot
+change a turn, so it must not be in the state that decides one: `netcode.md` D-12 says display
+state does not reach the simulation, which makes `Options` the *wrong* home for it rather than
+the expensive one. Two players running with different values compute identical turns, and a
+save that recorded the setting would be recording the reader's preferences in the world.
+
+So there are two sets and they live in different places:
+
+| | where | cost of a new flag | example |
+|---|---|---|---|
+| **behavioural** | `Options`, in the save body and the lockstep state | one `save::VERSION` bump, a handshake field, a replay stamp | B63's screen stack |
+| **presentation** | `l2_game::game::Quirks`, on `Assets` | one `bool` | B64's emboss |
+
+The test that tells them apart is the one §6.3 already implies: **if flipping it can change a
+number in a saved game, it is behavioural.** If it can only change which pixels are painted
+from the same numbers, it is presentation. A flag that is hard to classify is a flag that is
+doing two things.
+
+`l2-mods` can reasonably own the defaults for either set. The authoritative value for a
+behavioural quirk still has to travel in the save and the handshake; a presentation quirk has
+nowhere to travel to.
 
 ## 6.4 A coherent option group — and the game's own precedent for one
 

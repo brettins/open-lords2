@@ -517,8 +517,11 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
 - ✅ **The job popup** (screen `0x0F`) — the window and the head of it: the job's name, its
   worker count, and the three-colour rule that reads the record's other two words. Its nine
   per-job bodies are not drawn and say so.
-- 🕳 The village's animations — `Village_Animate` steps six counters over
-  `villani1`/`villani2`. The scene here is still.
+- ✅ **The village's animations** — `Village_Animate` draws **six** overlays, three of them
+  unconditional, off eight counters on a 80 ms / 160 ms pulse chain; two of the eight are
+  stepped and drawn by nothing (`docs/bugs.md` B65). `villani1.pl8` is the iron mine's
+  eighteen-frame loop and its only use in the binary.
+  `docs/screens-county.md` §6.3a
 - 📖 **`Screen_Draw` has 39 arms**, 35 of them with a named painter. Drawn with real
   contents: the front end and its setup pages, the campaign map, the county panels, the
   village, the job popup, the conquest screen, and **three military screens that graduated

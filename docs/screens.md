@@ -312,15 +312,36 @@ Two consequences worth writing down.
   palette entries 10 … 245 with exactly two call sites, both on the turn boundary: the
   reload runs inside the dark window. That was an unsupported `[I]`; a person reporting the
   swap independently is a second source for it.
-* **The overrides plane survives a season, but only because frame numbering does.** C41's
+* **The overrides plane survives a season, and it has now been measured.** C41's
   `campaign::Overrides` stores `(bank byte, frame)` and the reload changes neither, so the
-  town's 47 … 58 mean the same thing in every season — *provided* the four seasonal files of
-  a bank really do share a frame table. That is the one thing here nobody has measured, and
-  it is what would show up as towns reverting to quarries every spring.
+  town's 47 … 58 mean the same thing in every season *provided* the four seasonal files of a
+  bank share a frame table. This paragraph used to end *"that is the one thing here nobody
+  has measured"*. **They do share one.** Over all five near-zoom banks and 1,398 frame
+  comparisons the frame count, the canvas anchor, the size and the shape are identical in
+  every season; the only difference anywhere is the overhang-row byte on nine `Roads1?.pl8`
+  crop frames, which is a taller crop needing a taller picture and not an index moving.
+  `maps-layers.md` §1.1a has the numbers and
+  `l2-view/tests/install.rs::the_four_seasons_of_a_bank_are_the_same_frame_table` asserts
+  them. So the season is a lookup table, and towns do not revert to quarries in spring —
+  `l2-game/tests/screens.rs::a_towns_overridden_graphic_survives_every_season` checks that
+  at the pixel in all four.
 
-**Ours draws season `a` and nothing else.** `l2_view::campaign::NEAR` and `FAR` name the
-five banks as literals, so the campaign map is permanently in whatever season the `a` files
-hold. Fixing it is a lookup on `g_season` in `MapAssets`, not a change to the renderer.
+**One correction to the paragraph above, and it matters to anyone implementing this.** The
+sentence *"the suffix **is** the season, four sets per zoom, entries 0–31 and 32–63"* is
+right for entries 0–31 and **wrong for 32–63**. The zoom-2 half of the table names
+`base2a`/`mtns2a`/`roads2a`/`town2a`/`castle2a` in **all four** of its season blocks: the far
+view is not seasonal, and `Base2b.pl8` and its eleven siblings ship and are never loaded,
+exactly as `Flags1b/c/d.pl8` do. Worse for a naive fix, the dead files are not
+interchangeable with the live one — `Town2a.pl8` has 61 frames and `Town2b/c/d.pl8` have 94 —
+so deriving the far zoom's filenames from the season letter draws a different sheet for three
+seasons in four. `maps-layers.md` §1.1b.
+
+**Ours draws the season.** `l2_view::campaign::Zoom::banks` is a 4 × 5 table per zoom,
+transcribed from `g_resourceTable` rather than generated from the suffix, and `MapAssets`
+interns it by filename — twenty-five names, twenty distinct files. `campaign::draw` takes
+`g_season` and `MapScreen`'s repaint key carries it.
+`a_real_turn_turns_the_season_and_the_map_is_repainted_from_other_files` ends a real turn and
+requires the picture to change, rather than assigning to `season` and reading the lookup back.
 
 ### 2.2 Zoom 1 is unreachable  **[V]**
 

@@ -15,6 +15,7 @@ crates/l2-formats/src/maps.rs	C25	795dd2e31c53
 crates/l2-formats/tests/battle_fixtures.rs	C23	24f9d69c852a
 crates/l2-formats/tests/save.rs	C1	93f2edca7e60
 crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609
+crates/l2-game/src/game.rs	C61	d85ce3f9ca01
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7
 crates/l2-game/src/screens/army.rs	C21	d250307406e2
 crates/l2-game/src/screens/army.rs	C45	ba3094ad6579
@@ -146,10 +147,12 @@ crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8
 crates/l2-view/src/campaign.rs	C49	38f05e43397f
 crates/l2-view/src/campaign.rs	C57	cc211f4ea532
 crates/l2-view/src/campaign.rs	C58	f81f70509bd8
+crates/l2-view/src/campaign.rs	C61	3a082e1b8c33
 crates/l2-view/src/chrome.rs	C50	d9471b57f9d8
 crates/l2-view/src/fade.rs	C49	538f7940f33a
 crates/l2-view/src/village.rs	C22	4b0da6199195
 crates/l2-view/src/village.rs	C57	fbc575f34d82
+crates/l2-view/src/village.rs	C61	9bff3d2af45d
 crates/l2-view/tests/install.rs	C1	b6dbfeba4b54
 crates/l2-view/tests/install.rs	C46	3ca8b1f138bc
 docs/agents.md	C1	d79ae046534d
@@ -189,6 +192,7 @@ docs/armies.md	C59	1cbb270593d9
 docs/audit.md	C4	137a29e56031
 docs/audit.md	C4	27ad00fc666e
 docs/audit.md	C4	fad246d96439
+docs/audit.md	C61	05b9f73cb062
 docs/battle-ai.md	C3	6f2c0794a107
 docs/battle-ai.md	C3	a317d3a65cab
 docs/battle.md	C12	c0753f7ef8f6
@@ -204,7 +208,7 @@ docs/bugs.md	C38	3a2b93b33329
 docs/bugs.md	C44	76f06582a66b
 docs/bugs.md	C53	89e746f595f9
 docs/bugs.md	C57	cab2c3c3436a
-docs/bugs.md	C59	20d4ce8ff41b
+docs/bugs.md	C59	ee28fc662f04
 docs/bugs.md	C60	23aa8203bd6a
 docs/decisions.md	C10	1026d11e7d3f
 docs/decisions.md	C10	6307927dc59c

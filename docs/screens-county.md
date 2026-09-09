@@ -1141,11 +1141,56 @@ The mine overwriting the quarry is safe because no county has both: over the Eng
 turn-one fixture the two are complementary in thirteen of the fourteen counties and absent in
 the fourteenth (`crates/l2-scenario/tests/import.rs`).
 
-`Village_Animate` (`0x00412421`) then puts a moving overlay on each of the three — wood
-`villani2` frames 7 … 14 at `(0xF3, top + 0x104)`, stone `villani2` frames 0 … 6 at
-`(0xA3, top + 0x1B)`, iron **`villani1`** frames 0 … 0x11 at `(0xA4, top + 0x0C)`, each
-counter incremented once a frame and wrapped. The offsets are recorded in
-`l2_view::village::RESOURCE_ANIMATIONS`; nothing draws them yet.
+### 6.3a `Village_Animate`'s six overlays, and its clock **[V]**
+
+`Village_Animate` (`0x00412421`) is called from `Screen_DrawWidgets` (`0x004BA26E`) — the
+per-screen overlay pass, whose `g_screenId == 0x02` arm is this and nothing else — so it runs
+on every frame the village is up, whatever the player is doing. It draws **six** overlays,
+in this order:
+
+| # | gate | sheet | frames | at | counter | pulse |
+|---|---|---|---:|---|---|---:|
+| 1 | none | `villani2` | 0x19 … 0x20 (8) | `(0x50, top + 0xAF)` | `DAT_004D293C` | 160 ms |
+| 2 | none | `villani2` | 0x21 … 0x27 (7) | `(0x72, top + 0xC3)` | `DAT_004D2940` | **80 ms** |
+| 3 | none | `villani2` | 0x0F … 0x18 (10) | `(0x16E, top + 0x125)` | `DAT_004D294C` | 160 ms |
+| 4 | `industry[0]` wood | `villani2` | 7 … 14 (8) | `(0xF3, top + 0x104)` | `DAT_004D2944` | 160 ms |
+| 5 | `industry[3]` stone | `villani2` | 0 … 6 (7) | `(0xA3, top + 0x1B)` | `DAT_004D2930` | 160 ms |
+| 6 | `industry[1]` iron | **`villani1`** | 0 … 0x11 (18) | `(0xA4, top + 0x0C)` | `DAT_004D2938` | 160 ms |
+
+**Three of the six are unconditional**, which had not been noticed: every village animates
+whatever the county holds, and only three of the six are the resource buildings' own.
+
+**`villani1.pl8` is the iron mine's animation and that is its only use in the executable.**
+It goes into `DAT_0053E918` and overlay 6 is the single read of that buffer anywhere. The
+file had been recorded on this project as loaded by nothing.
+
+**`villani2.pl8`'s frame table confirms all five of its runs independently.** Its 44 frames
+fall into five blocks of equal-sized cells laid out in rows on the artist's sheet — 0 … 6 at
+26 × 29, 7 … 14 at 39 × 40, 15 … 24 at 15 × 12, 25 … 32 at 32 × 42, 33 … 39 at 19 × 18 —
+which is exactly the table above, start index and length, five times over. What is left is
+frames 40, 41 and 43, the three static buildings, and a 2 × 2 stub at 42. Nothing over,
+nothing short. The counter bounds were read from the decompilation and the block boundaries
+from the file; they agree, and
+`l2-game/tests/screens.rs::the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in`
+asserts it including the frames either side of each run.
+
+**The clock is `Tick_Pulses` (`0x004BBC80`), and it is not a frame counter.** It is a divider
+chain that sets eight booleans, each cleared at the top of every call and true only on the
+frame it fires: a **20 ms** gate on `timeGetTime`, `g_pulse80` every fourth of those, and
+`g_pulse160` every second `g_pulse80`, plus six slower ones at 320, 640, 1040, 1280, 1920 and
+2560 ms. So the village's slow overlays run at **6.25 Hz** and overlay 2 at **12.5 Hz**. The
+same two pulses drive `FUN_004071A0`, the campaign map's waving flag.
+
+**Two more counters are stepped and drawn by nothing** — `DAT_004D2934` (21 states, 160 ms)
+and `DAT_004D2948` (16 states, 80 ms) — with no other reader anywhere in the binary.
+`docs/bugs.md` B65, which also records that the dead 21-state counter has exactly as many
+states as `villani1.pl8` has frames, and declines to make anything of it.
+
+**Drawn.** `l2_view::village::OVERLAYS` is the table, `AnimationClock` is the two pulses, and
+`VillageScreen` owns one. The clock is **display state**: it lives on the screen, not in
+`Game` or `Kingdom`, nothing in a save or the lockstep digest depends on it, and
+`the_village_animates_and_the_iron_mine_comes_out_of_villani1` asserts that a hundred ticks of
+it leave the kingdom byte-identical (`docs/netcode.md` D-12).
 
 ### 6.4.1 The gesture is three screen ids **[V]**
 
@@ -1542,10 +1587,10 @@ Named here so nobody mistakes silence for coverage.
   five-member twin `FUN_004502CA` does the same for the industry group and is called from
   `Industry_ToggleFromMap`. `g_shareTable` (`0x004D6768`) is `{100, 50, 33, 25, 20, 0, 5, 0}`
   — `100 / (n + 1)` for the entries either can reach. **[V]**
-* ~~**The village's own layout.**~~ *Done — §6.4. The clusters, the icons, the drop grid and
-  the three-state drag are read and reproduced. What is still not is
-  **`Village_Animate`** (`0x00412421`) and its six counters at `0x004D2930 …`, which redraw
-  smoke, water and a cart from `villani1`/`villani2` over the still scene.*
+* ~~**The village's own layout.**~~ *Done — §6.4, and `Village_Animate` with it (§6.3a): the
+  six overlays, the eight counters, the two that draw nothing, and the 80 ms / 160 ms pulse
+  chain in `Tick_Pulses` that steps them. `villani1.pl8` turned out to be the iron mine's
+  eighteen-frame loop and nothing else.*
 * ~~**`Misc_cty.pl8` frames 0 … 0x16.**~~ *Wrong — they are the **peasant icons**, not the
   menu bar. §6.4.3, and the four 2 × 2 stubs among them are exactly the four the icon table
   never names. This was the only **[I]** in this document that turned out to be false, and
