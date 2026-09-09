@@ -499,6 +499,15 @@ impl Scenario {
                 difficulty: g.opt_difficulty.clamp(0, 3) as u8,
                 advanced_farming: g.opt_advanced_farming != 0,
                 armies_eat: g.opt_armies_eat != 0,
+                // NOT read from the save. `l2-formats` exposes five option
+                // globals and `g_optFightHumansOnly` (0x0053F284) is not among
+                // them, so an imported game gets the game's default rather than
+                // the setting the save was played with. That is a real gap -
+                // the option decides whether a battle against an AI is fought
+                // or auto-resolved - and it is written here rather than hidden
+                // behind a `..Default::default()`, which would have made it
+                // invisible.
+                fight_humans_only_byte: l2_kingdom::battle::FIGHT_HUMANS_ONLY_DEFAULT,
             },
             clock: Clock {
                 season: g.season as u8,

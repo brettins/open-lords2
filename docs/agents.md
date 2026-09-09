@@ -147,10 +147,16 @@ Two rules follow, and they are cheap:
 
 `docs/decisions.md` runs C1, C2, C3 … and an agent that finds something worth recording
 takes the next free number. With several agents running, they all read the same log and all
-reach for the same number: **this has now happened four times in one day** — three agents on
-C22, and two each on C25, C28 and C29.
+reach for the same number: **this happened five times in one day** — three agents on C22,
+and two each on C25, C28, C30 and C31.
 
-It is not worth serialising the log to prevent, and the integrator can renumber safely. What
+**This is now checked mechanically.** `node tools/decisions/corrections.js --check` runs in
+CI and fails on a duplicate number, naming both headings and the next free one; it also
+fails on a citation of a correction that does not exist, which is the other half of the same
+problem and the one that went unnoticed for weeks. Run it before you finish and you will not
+hand the integrator a collision.
+
+It is still not worth serialising the log, and the integrator can renumber safely. What
 makes that cheap rather than archaeological is one line:
 
 > **Say in your report which correction number you took**, and grep the tree for
@@ -167,6 +173,17 @@ carried a citation to a correction that had never been written at all for weeks 
 The integrator repeats the check at merge time — union-merging by address, then scanning for
 an address or a name that appears twice — but that is a second line of defence. The agent
 doing the edit is the one who can still tell what it meant to write.
+
+**An honest note about the paragraph above, because the record is worth more than the rule
+looking effective.** The protocol in this section was written after four collisions and then
+did not prevent the fifth — but it was never actually tested: the branch that collided had
+been cut *before* the protocol landed, so the agent never read it. So there is no evidence
+either way about whether writing it down works, and there is now no need to find out.
+Documented process depends on an agent having read the document, which a long-running branch
+by construction may not have; a check in CI does not. That is the general lesson, and it is
+worth applying to the next process rule this file gains: **prefer the version a machine
+enforces over the version an agent is asked to remember**, and if you write the second, plan
+to replace it with the first.
 
 ## Prior art first
 

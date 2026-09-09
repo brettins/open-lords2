@@ -56,7 +56,12 @@ use l2_kingdom::{Kingdom, Options};
 fn furnished(seed: u64) -> Game {
     let mut game = Game::new(seed);
     let k = &mut game.kingdom;
-    k.options = Options { difficulty: 2, advanced_farming: true, armies_eat: true };
+    k.options = Options {
+        difficulty: 2,
+        advanced_farming: true,
+        armies_eat: true,
+        fight_humans_only_byte: 0,
+    };
     assert!(k.set_county_count(14));
     k.season = 1;
     k.season_next = 2;

@@ -85,7 +85,7 @@ fn army(k: &mut Kingdom, owner: u8, county: u8, men: i32, x: u8, y: u8) -> usize
 #[test]
 fn a_starving_army_warns_then_deserts_three_times_then_dies() {
     let mut k = kingdom();
-    k.options = Options { difficulty: 0, advanced_farming: false, armies_eat: true };
+    k.options = Options { difficulty: 0, advanced_farming: false, armies_eat: true, ..Options::default() };
     // A county with nothing at all in it, so `Food_Available` is 0 and any army
     // is unfed.
     k.counties[1].herd = 0;

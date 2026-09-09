@@ -54,12 +54,24 @@ pub struct Options {
     pub advanced_farming: bool,
     /// `g_optArmiesEat`. Off in the England turn-one fixture.
     pub armies_eat: bool,
+    /// `g_optFightHumansOnly` (`0x0053F284`) **as the option byte**, which the
+    /// original stores *inverted*: it is 0 when the option displays *Yes*. Kept
+    /// as the byte rather than as a `bool` so that the sense cannot drift from
+    /// the binary's — [`crate::battle::settlement`] tests it against 0 exactly
+    /// as `FUN_004A6A30` does. [`crate::battle::FIGHT_HUMANS_ONLY_DEFAULT`] is
+    /// the game's default.
+    pub fight_humans_only_byte: u8,
 }
 
 impl Default for Options {
     fn default() -> Self {
         // The shipped lastturn.sav's settings (docs/kingdom.md §9).
-        Options { difficulty: 0, advanced_farming: false, armies_eat: false }
+        Options {
+            difficulty: 0,
+            advanced_farming: false,
+            armies_eat: false,
+            fight_humans_only_byte: crate::battle::FIGHT_HUMANS_ONLY_DEFAULT,
+        }
     }
 }
 
@@ -943,7 +955,7 @@ mod tests {
     fn two_identical_kingdoms_stay_identical_for_forty_seasons() {
         let build = || {
             let mut k = Kingdom::new(0xA11CE);
-            k.options = Options { difficulty: 2, advanced_farming: true, armies_eat: true };
+            k.options = Options { difficulty: 2, advanced_farming: true, armies_eat: true, ..Options::default() };
             k.set_county_count(14);
             for id in 1..=5 {
                 k.realms[id].in_play = true;

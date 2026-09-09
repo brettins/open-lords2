@@ -229,7 +229,6 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
         COUNTY,
         Answer::Decline,
         1,
-        l2_kingdom::battle::FIGHT_HUMANS_ONLY_DEFAULT,
     )
     .expect("a battle");
 
@@ -308,7 +307,6 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
         COUNTY,
         Answer::TakeTheField,
         l2_sim::runner::DEFAULT_SEED,
-        l2_kingdom::battle::FIGHT_HUMANS_ONLY_DEFAULT,
     )
     .expect("a battle");
 

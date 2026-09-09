@@ -30,7 +30,12 @@ use l2_kingdom::{Kingdom, Options};
 /// save format tested only on zeros.
 fn furnished(seed: u64) -> Kingdom {
     let mut k = Kingdom::new(seed);
-    k.options = Options { difficulty: 2, advanced_farming: true, armies_eat: true };
+    k.options = Options {
+        difficulty: 2,
+        advanced_farming: true,
+        armies_eat: true,
+        fight_humans_only_byte: 0,
+    };
     assert!(k.set_county_count(14));
 
     for id in 1..=5 {
@@ -304,6 +309,14 @@ fn every_part_of_the_state_reaches_the_bytes() {
         ("difficulty", Box::new(|k: &mut Kingdom| k.options.difficulty = 1)),
         ("advanced_farming", Box::new(|k: &mut Kingdom| k.options.advanced_farming = false)),
         ("armies_eat", Box::new(|k: &mut Kingdom| k.options.armies_eat = false)),
+        // Added to `Options` after the battle seam landed. This line is the one
+        // C30 is about: the list below is hand-written, so a field arrives in
+        // the struct and nothing makes anyone add it here. Until the check is
+        // derived, adding the line is a step of adding the field.
+        (
+            "fight_humans_only_byte",
+            Box::new(|k: &mut Kingdom| k.options.fight_humans_only_byte = 1),
+        ),
         ("rng", Box::new(|k: &mut Kingdom| { k.rng.next_u32(); })),
         // --- the campaign layer (docs/armies.md) ---------------------------
         ("unit men", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().men = 77)),

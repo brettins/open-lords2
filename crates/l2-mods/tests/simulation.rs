@@ -250,7 +250,7 @@ use l2_kingdom::{Kingdom, Options};
 /// harvest.
 fn a_years_harvest(tables: Tables) -> i32 {
     let mut k = Kingdom::with_tables(0xF00D_1234, tables);
-    k.options = Options { difficulty: 0, advanced_farming: false, armies_eat: false };
+    k.options = Options { difficulty: 0, advanced_farming: false, ..Options::default() };
     assert!(k.set_county_count(1));
     k.realms[1].in_play = true;
     k.realms[1].is_human = true;
@@ -454,7 +454,7 @@ fn modded(name: &'static str, rules: &str) -> Tables {
 /// season, on whatever rules it is handed.
 fn one_county(tables: Tables) -> Kingdom {
     let mut k = Kingdom::with_tables(0xBEEF_0001, tables);
-    k.options = Options { difficulty: 0, advanced_farming: false, armies_eat: false };
+    k.options = Options { difficulty: 0, advanced_farming: false, ..Options::default() };
     assert!(k.set_county_count(1));
     k.realms[1].in_play = true;
     k.realms[1].is_human = true;

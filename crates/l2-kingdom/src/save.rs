@@ -96,7 +96,14 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   allocates *from*, so this was a hole in the lockstep checksum
 ///   (`docs/netcode.md` §5) and not only in the save. A version 4 save has the
 ///   four missing and no way to say what they held.
-pub const VERSION: u32 = 5;
+/// * 6 — `Options::fight_humans_only_byte`. It was a parameter threaded through
+///   `l2-game`'s `engagement::resolve` while the save and the battle seam were
+///   being written in parallel branches; now that both have landed it is where
+///   it belongs, in the kingdom's own options, and therefore in the save and in
+///   the lockstep checksum. A version 5 save does not carry it, and the option
+///   changes whether a battle is fought or auto-resolved — so this is a refusal
+///   rather than a default, on the same grounds as version 5.
+pub const VERSION: u32 = 6;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -282,6 +289,7 @@ impl Encode for Kingdom {
         out.u8(self.options.difficulty);
         out.bool(self.options.advanced_farming);
         out.bool(self.options.armies_eat);
+        out.u8(self.options.fight_humans_only_byte);
 
         // The generator is part of the state (docs/netcode.md D-3), so it is
         // part of the save and part of the checksum.
@@ -434,6 +442,7 @@ fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, Loa
         difficulty: input.u8()?,
         advanced_farming: input.bool()?,
         armies_eat: input.bool()?,
+        fight_humans_only_byte: input.u8()?,
     };
     k.rng = input.decode()?;
 

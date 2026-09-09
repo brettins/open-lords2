@@ -131,25 +131,28 @@ pub enum Answer {
 /// derived from simulation state, never from a clock: two lockstep peers fight
 /// the same battle or they are not playing the same game.
 ///
-/// `fight_humans_only_byte` is `g_optFightHumansOnly` **as the option byte**,
-/// which is stored inverted — [`battle::FIGHT_HUMANS_ONLY_DEFAULT`] is the
-/// game's default. It is a parameter rather than a field of
-/// [`l2_kingdom::kingdom::Options`] because nothing else in `l2-kingdom` reads
-/// it yet.
+/// `g_optFightHumansOnly` comes from `kingdom.options`. It was a parameter here
+/// while the save and the battle seam were being written in parallel branches —
+/// adding a field to [`l2_kingdom::kingdom::Options`] means adding it to the
+/// save and to the lockstep checksum, and neither branch could do that to the
+/// other's file. Both have landed, so it lives where it belongs.
 pub fn resolve(
     kingdom: &mut Kingdom,
     attack: Attack,
     county: u8,
     answer: Answer,
     seed: u64,
-    fight_humans_only_byte: u8,
 ) -> Option<BattleReport> {
     let Attack::Battle { attacker, defender } = attack else { return None };
     let before = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.men);
     let (attacker_before, defender_before) = (before(kingdom, attacker), before(kingdom, defender));
 
-    let settlement =
-        battle::settlement(&kingdom.campaign.units, attacker, defender, fight_humans_only_byte);
+    let settlement = battle::settlement(
+        &kingdom.campaign.units,
+        attacker,
+        defender,
+        kingdom.options.fight_humans_only_byte,
+    );
     let take_the_field = settlement == Settlement::Prompt && answer == Answer::TakeTheField;
 
     let (verdict, resolution) = if take_the_field {
@@ -434,7 +437,6 @@ mod tests {
             3,
             Answer::Decline,
             1,
-            battle::FIGHT_HUMANS_ONLY_DEFAULT,
         )
         .expect("a battle");
 
@@ -483,7 +485,6 @@ mod tests {
             3,
             Answer::TakeTheField,
             l2_sim::runner::DEFAULT_SEED,
-            battle::FIGHT_HUMANS_ONLY_DEFAULT,
         )
         .expect("a battle");
 
@@ -541,7 +542,7 @@ mod tests {
             k.campaign.units.get_mut(a).unwrap().owner_is_human = false;
 
             let report =
-                resolve(&mut k, Attack::Battle { attacker: a, defender: d }, 3, answer, 1, 1)
+                resolve(&mut k, Attack::Battle { attacker: a, defender: d }, 3, answer, 1)
                     .unwrap();
             assert_eq!(report.settlement, Settlement::Silently);
             assert_eq!(report.resolution, Resolution::Autocalc);
@@ -570,7 +571,6 @@ mod tests {
                 3,
                 Answer::TakeTheField,
                 0xC0FF_EE01,
-                1,
             )
             .unwrap();
             (r.attacker_men, r.defender_men, r.verdict.attacker_won, r.resolution)
