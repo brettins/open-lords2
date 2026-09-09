@@ -40,8 +40,13 @@
 //! have made every one of those omissions a *compile error*. See the failing
 //! note in `docs/decisions.md` C65.
 //!
-//! So: this narrows the hole on the half of the boundary it can see. It does not
-//! close it.
+//! So: **this narrows the half of the boundary it can see, and the half it cannot
+//! see is the half that has actually bitten us twice.** It does not close the
+//! hole. Stated here in the file rather than only in the correction, because a
+//! check whose limits are unstated gets trusted past them — and this is now the
+//! third artefact on the project people will reach for when asking *"is this
+//! field covered?"*, after a round trip that compares one fixture and a digest
+//! that is structurally incapable of answering (`docs/decisions.md` C65).
 //!
 //! # The escape hatch is deliberate, explicit and countable
 //!
@@ -236,6 +241,26 @@ fn is_word(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
 }
 
+/// **Types with a codec that this check makes no claim about**, each read and
+/// classified rather than merely tolerated:
+///
+/// * `Fixed` — `pub struct Fixed(i32)`, a tuple struct. It has no named fields,
+///   so there is no list to compare; its single value is checked by
+///   `l2-net`'s own round trip.
+/// * `Message`, `Mismatch` — enums. A variant list is a different contract from
+///   a field list and needs a different check; the tag-and-payload round trip in
+///   `l2-net/tests/canonical.rs` is what covers them today.
+/// * `Order` — an enum, and a fixture in `l2-net/tests/common`. Not shipped.
+///
+/// **A growing list is a signal, which is why it is asserted rather than
+/// counted.** Every entry is a field list nothing is checking.
+const UNVERIFIABLE: &[&str] = &[
+    "Fixed (l2-net)",
+    "Message (l2-net)",
+    "Mismatch (l2-net)",
+    "Order (l2-net)",
+];
+
 /// **The check.** Every field of every type with an `Encode`/`Decode` pair must
 /// be named in both.
 #[test]
@@ -246,13 +271,17 @@ fn every_field_of_an_encodable_struct_is_encoded_and_decoded() {
     let mut missing: Vec<String> = Vec::new();
     let mut checked = 0usize;
     let mut excused_total = 0usize;
+    let mut unverifiable: Vec<String> = Vec::new();
 
     for (ty, c) in &bodies {
         let (enc, dec) = (&c.encode, &c.decode);
         // A type with only one half is an enum wire format or a hand-rolled
         // pair; this check is about structs whose field list is the contract.
         let (Some(enc), Some(dec)) = (enc, dec) else { continue };
-        let Some((fields, excused)) = struct_fields(ty, &c.krate) else { continue };
+        let Some((fields, excused)) = struct_fields(ty, &c.krate) else {
+            unverifiable.push(format!("{ty} ({})", c.krate));
+            continue;
+        };
         excused_total += excused.len();
         for f in &fields {
             checked += 1;
@@ -270,6 +299,20 @@ fn every_field_of_an_encodable_struct_is_encoded_and_decoded() {
     }
 
     assert!(checked > 100, "only {checked} fields checked; the scanner is broken");
+
+    // **Unverifiable is a verdict, not a silence, and it is written down so that
+    // a growing list goes red.** These are types with a codec whose struct does
+    // not resolve in the codec own crate: enums with a hand-rolled wire form,
+    // and fixtures that live in a test module. Each is a type this check makes
+    // NO claim about, which is worth exactly as much as knowing which ones it
+    // does.
+    unverifiable.sort();
+    assert_eq!(
+        unverifiable, UNVERIFIABLE,
+        "the set of types this check cannot verify has changed.
+
+A type here \n         is one whose codec exists but whose struct does not resolve in the same \n         crate - an enum, or a test fixture. If a new one appeared, either it is \n         a struct that should resolve (and the scanner is wrong), or it is a \n         genuine enum (and it belongs in the list). Do not let the list grow \n         without reading each addition: an unverifiable type is a field list \n         nothing is checking."
+    );
     assert!(
         missing.is_empty(),
         "{} field(s) of a save-crossing struct are not named in both halves of \

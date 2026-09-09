@@ -413,6 +413,32 @@ failure mode there is a citation quietly renumbered to point at the wrong correc
 pointer into the log the project trusts most, which is the failure mode recorded above under
 *The correction log can be wrong*.
 
+## Prefer a shape that cannot be wrong to a check that notices when it is
+
+Almost everything in this file is the same remedy: **two artefacts, maintained by different
+work, that must agree.** `symbols_md.js`, `figures.js`, the citation lockfile, the test census,
+the encode/decode scanner. It is a good pattern and it has caught real things.
+
+It is the second-best pattern, and it is worth saying so at the top of the list rather than
+leaving it implied.
+
+The best one is a **construction in which the failure cannot be expressed**. The case that
+produced this heading: `l2-scenario` builds a `County` from a `.sav` by assignment onto a
+default — `c.farm_style = s.farm_style;`, forty-odd lines of them — so a field nobody remembered
+is left at zero and nothing anywhere says so. That is how `County::farm_style` (C62) and
+`Unit::mission` both survived. A **struct literal with no `..`** makes every one of those
+omissions a compile error: rustc refuses to build until every field is named, permanently, with
+nothing to maintain and no scanner that can be fooled by a name.
+
+Compare the two honestly. The source-text check (`crates/l2-testkit/tests/encoding.rs`) reads
+text, resolves names, and got two resolutions wrong on its first run. The struct literal cannot
+be got wrong, because there is no step in which judgement happens. **Where that option exists we
+should take it**, and the check should be reserved for the boundaries where it does not — which
+is most of them, because the compiler cannot read `L2.eng` or a decompilation.
+
+The general form: **ask whether the mistake can be made unrepresentable before asking what would
+notice it.** A check is what you build when the answer is no.
+
 ## A correct experiment can produce a wrong inference, and twice today one did
 
 Every other entry under this heading is a tool returning **wrong output**. These two returned
@@ -442,11 +468,55 @@ played game, reloads it, and compares the digest after each of ten further seaso
 kingdom genuinely *is* a different world — a mine with no ore behaves differently from one with
 ore — and ten seasons of that divergence never moved the number.
 
+**And a third instance, from the same hour and the same person, which is why this is a pattern
+and not two accidents.** The instruction that followed was to prove the new encode/decode check
+by making it fail on `Unit::mission`. It was wrong twice over: that field does not exist on
+`main` at all — it arrives with an unmerged branch — and *neither* `mission` nor `farm_style` is
+an encoder omission, so no encoder check could ever have caught either. Both were dropped by the
+**importer**, building a struct from a `.sav`, on a path that never touches `encode`. The proof
+target was neither available nor in scope.
+
+None of the three was carelessness. All three were **confident reasoning about which check covers
+what, done without checking** — which is the same act the whole project exists to avoid when the
+subject is `Lords2.exe`, applied to our own tools instead, where it feels like knowledge rather
+than inference because we wrote them.
+
 **What generalises.** Before running an ablation, say which artefact you expect to fail and *why
 it is downstream of the thing you are testing*. If the answer is "the digest", check whether the
 digest is built from the thing being ablated. And read *which* tests went red, not how many — the
 count was wrong too (two, not eight), and the count being wrong was the less important error.
 `docs/decisions.md` C65.
+
+## The sixth wrong answer was the first flattering one
+
+A new tool's first run reported **twenty-four findings**. Twelve were fields of
+`l2_formats::save::Unit` — the raw `.sav` record — reported missing from a codec belonging to
+`l2_kingdom::unit::Unit`, a different type that happens to share a short name. Six more came from
+the same collision on `Order`, resolving an `l2-net` test fixture to `l2_kingdom::trade::Order`.
+The scanner had resolved a name by its last path segment across the whole workspace.
+
+**Twenty-four findings look exactly like a productive new tool**, and that is the entire lesson.
+The five failures above this heading all *understated* or *misdirected* — a symbol silently
+dropped, a count that read as success, a rename that quietly unhooked a table — and the defence
+against those is suspicion, which people can be asked for. This one **overstated**, and it
+overstated in the direction nobody is inclined to doubt: it told us we had a lot of bugs.
+
+It is the exact twin of the `ApplySymbols` tally that reported two failures for one, and the pair
+makes the point better than either alone. *A tool that overstates is one people learn to
+discount*, and a tool discounted is a tool switched off. Both directions cost the same thing in
+the end; only the flattering one buys a few days of feeling productive first.
+
+It was caught by **reading the failures rather than counting them** — opening the first row and
+asking which `Unit` it meant. That is the only defence that has ever worked, and it is expensive
+enough that it has to be spent deliberately: read the first three findings of every new tool's
+first run, in full, before believing the total.
+
+The fix was to require **same-crate resolution**, and to make *unverifiable* a distinct verdict
+from *absent*: a type whose codec exists but whose struct will not resolve in its own crate is
+now reported as a type the check makes no claim about, listed by name in `UNVERIFIABLE` and
+asserted so the list cannot grow quietly. Four types are on it, each read and classified — a
+tuple struct with no named fields and three enums. **A growing unverifiable list is itself a
+signal**, and it is a signal only if somebody has to look at it.
 
 ## A tool that degrades silently is worse the more people use it
 
