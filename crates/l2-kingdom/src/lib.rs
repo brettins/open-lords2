@@ -192,6 +192,7 @@
 //!     [`ai::begin_realm_turn`].
 
 pub mod ai;
+pub mod battle;
 pub mod conquest;
 pub mod county;
 pub mod event;

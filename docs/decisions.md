@@ -950,6 +950,52 @@ retyping it — a `Kingdom` walked by reflection, or an encoding generated from 
 definition. That is not written, and until it is, this correction is the reason to add a
 line to that list every time a field is added to `County`.
 
+**C31 — A battle had no end. The function that ends one was in no document, and the two
+rules we thought we had about the end of a battle were both somebody else's.**
+
+Found while wiring the campaign–battle seam. `crates/l2-sim` was a frame loop with no
+victory test, no outcome and no return: you could get *into* a battle and there was nothing
+to come back from. The original's answer is **`Battle_CheckOutcome` (`0x00477DFC`)**, 1,225
+bytes, and it was in neither `symbols.json` nor `hypotheses.json` — so nothing in this tree
+pointed at the one function that decides whether a battle is over.
+
+**What it says, and it is shorter than anyone expected.** A field battle ends exactly two
+ways: one side's living-men counter reaching zero, or a withdrawal flag, which is tested
+first and outranks annihilation. **No morale break, no rout threshold, no clock.** Three
+further arms are sieges, including an *assault repulsed, repeat* that resets the breach and
+approach scores and carries on. The outcome then picks one of seven `L2.eng` group 82
+heading/body pairs, and `Battle_WriteBackCasualties` (`0x0047F474`) — the *"path not traced
+here"* `armies.md` §7 left open — turns the surviving figures back into troop counts.
+
+**Two corrections ride along, and both are the same mistake in different places.**
+
+1. **`docs/armies.md` §7 and `symbols.md` both said the ≥ 50-men survival rule was an
+   *autocalc* rule.** It is not. Its gate is `g_battleWithdrawal` (`0x0056D5C8`), and
+   `Battle_AutoResolve`'s **first statement clears it**. The flag is raised in exactly one
+   place, `UnitOrder_SiegeAttKnight`, when an all-knight AI besieger faces an unbreached
+   wall. So it is a *siege-withdrawal* rule, and under autocalc the loser is always
+   destroyed. Four sites in the whole binary touch that flag; reading all four is what
+   settles it, and reading one is what produced the wrong sentence.
+2. **`armies.md` §8.1 still said a county is attacked "by stepping onto its castle tile".**
+   C25 corrected `0x40` from castle to county town two entries ago; the sentence was written
+   before that and kept the old label. `L2.eng` group 30 says it outright — *"Your troops
+   may capture a castleless county by attacking its county town"* — and `battle-before.sav`
+   has the player's army sitting **on** county 3's castle tile with no battle at all.
+
+**What paid for this.** The battle fixture triple, which `armies.md` had declared could not
+exist. `Battle_AutoResolve`'s ladder, read out of `Lords2.exe` at `0x004DE710`, reproduces
+`battle-after.sav` to the man: strengths 926 against 1044, ratio 112, the ladder's second
+rung 20 %, and 20 % of 122 peasants and 60 archers is the 36 people county 3 gets back.
+Four independent numbers had to be right at once.
+
+**The lesson is not C3's and not C25's.** Nothing here was a plausible story assembled from
+decompiler output; the readings were *correct about the code they had read*. What was wrong
+was the **scope** of that reading — one branch stood in for a function, one function stood
+in for a subsystem, and a flag named in one place was assumed to mean the same thing in
+another. **A `[V]` on a branch is not a `[V]` on the rule the branch belongs to**, and the
+cheapest defence is the one this correction used: grep every site that touches the flag, and
+count them.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

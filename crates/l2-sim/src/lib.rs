@@ -70,7 +70,7 @@ pub use figure::{Figure, Motion, Role, Side, State, SIDE_A, SIDE_B};
 pub use missile::{MissileStats, WeaponClass};
 pub use movement::{move_delay, ticks_per_cell, CellEntry, Progress};
 pub use pathfind::{Grid, Outcome, Pos};
-pub use runner::{BattleRunner, Fighter};
+pub use runner::{BattleRunner, Conclusion, End, Fighter, Muster};
 pub use terrain::Battlefield;
 pub use troop::{Troop, TroopStats, TroopTable, ALL_TROOPS};
 pub use unit::{BattleUnit, Units, MAX_UNITS};

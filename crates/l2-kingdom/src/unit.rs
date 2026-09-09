@@ -317,6 +317,28 @@ pub struct Unit {
     pub besieging_county: u8,
     /// `+0x19A` — on a garrison, the slot of its besieger.
     pub besieged_by: u8,
+    /// `+0x167` — **the county-defence mark**, and the field that decides
+    /// whether winning a battle also wins the county.
+    ///
+    /// `Army_AttackCounty` writes it when it settles who defends: **1** for a
+    /// defence levied on the spot, **2** for an existing army pressed into the
+    /// role. [`crate::battle::return_to_campaign`] reads it to decide whether
+    /// the county changes hands, and
+    /// [`crate::battle::disband_defence`] (`Defence_Disband`, `0x004ABA5A`)
+    /// reads it afterwards: a **1** goes back into the county's people and the
+    /// unit is destroyed; a **2** simply has the mark cleared and the army
+    /// stays.
+    ///
+    /// **The 2 is written on the AI branch and not on the human one.** An
+    /// existing army defending a *human's* county is never marked at all, so
+    /// `Defence_Disband` never touches it — which is the same outcome by a
+    /// different route, and is quoted verbatim in [`crate::conquest`].
+    ///
+    /// A merchant carries its own county in the same byte; that is a different
+    /// meaning for a different unit type, like `+0x14F` and `+0x164`.
+    /// `docs/armies.md` §8.1. `[V]` — written by one site, read by three, and
+    /// `battle-during.sav` slot 6 carries a 1.
+    pub defence_mark: u8,
 }
 
 impl Unit {
@@ -352,6 +374,7 @@ impl Unit {
             garrison_county: 0,
             besieging_county: 0,
             besieged_by: 0,
+            defence_mark: 0,
         }
     }
 

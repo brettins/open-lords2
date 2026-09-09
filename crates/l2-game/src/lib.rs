@@ -30,6 +30,7 @@
 //! with nothing on screen — which is also the shape the eventual pixel diff
 //! against `Lords2.exe` will take.
 
+pub mod engagement;
 pub mod game;
 pub mod input;
 pub mod save;

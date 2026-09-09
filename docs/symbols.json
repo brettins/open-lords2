@@ -3319,7 +3319,7 @@
       "name": "Battle_ReturnToCampaign",
       "section": "units",
       "confidence": "verified",
-      "comment": "Applies a battle result to the campaign: charges the winner moves (+8, or all but one for a human owner), clears garrison and siege links, flips a captured county, and destroys the loser - except under autocalc, where an army left with 50 or more men only has its siege lifted. Diplomacy takes a 20-point hit.",
+      "comment": "Applies a battle result to the campaign. CORRECTED: g_battleLoser holds the WINNER, and this function is one of four sites that say so. The two branches are not mirror images. A wins: the county changes hands (County_ChangeOwner) if the loser was a garrison OR carried the +0x167 defence mark, the county's garrisonUnit is cleared, and the winner is charged +8 moves and then, if its owner is NOT human (+0x01 == 0 is the AI), set to moveAllowance - 1. B wins: the county NEVER changes hands - there is no County_ChangeOwner in that branch at all - only the attacker's garrison link is cleared, and only an AI winner pays, +7, while a winning human pays nothing. Either way the loser is destroyed and Diplo_Offend takes 20 off the loser's realm. ALSO CORRECTED: the 'except under autocalc, an army left with 50 or more men only has its siege lifted' rule this entry used to carry is wrong. Its gate is g_battleWithdrawal, which Battle_AutoResolve clears as its first statement; the flag is raised only by UnitOrder_SiegeAttKnight, so that path is a siege withdrawal and under autocalc the loser is always destroyed. See docs/decisions.md C31.",
       "signature": "void Battle_ReturnToCampaign(int resume)"
     },
     {
@@ -5087,6 +5087,54 @@
       "confidence": "verified",
       "signature": "void Transport_Tick(void)",
       "comment": "g_unitTickTable[4], and it is Merchant_Tick again - same 319 bytes, same body, statement for statement. A transport ticks exactly like a merchant; the two types differ only in what the arrival handlers do with them. Worth naming separately because the duplication is the finding: a reimplementation that shares one tick between types 3 and 4 is faithful, and one that invents a difference is not."
+    },
+    {
+      "addr": "0x004AAD07",
+      "name": "Battle_AutoResolve",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The autocalc - the whole of a battle nobody watches, and one of only two ways a battle can end. Clears g_battleWithdrawal, takes both sides' Army_StrengthScore, multiplies the DEFENDER's by 160/200/250/320/400 per cent by castle level on a siege, forms ratio = PctOf(larger, smaller) and reads a survival percentage out of the ten-pair ladder g_autocalcSurvivalLadder (default 100). The winner is A unless strengthA < strengthB, so a TIE GOES TO THE ATTACKER. The winner keeps Pct(count, p) of each of its seven troop counts and of its mercenary band and has +0x168 rebuilt by summing rather than scaling; the loser's seven counts are zeroed, its band released and its total set to 0. Reproduces battle-after.sav exactly: 926 against 1044 is a ratio of 112, the ladder's second rung is 20 per cent, and 20 per cent of 122 peasants and 60 archers is the 36 men county 3's population gains back.",
+      "signature": "void Battle_AutoResolve(void)"
+    },
+    {
+      "addr": "0x004A6A30",
+      "name": "Battle_ChooseSettlement",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Decides which of three ways a battle is settled, and is called by all three battle entries (Army_AttackCounty, the army-versus-army path FUN_004A7158, and Siege_LaunchAssault). Returns 0 when NEITHER side's ownerIsHuman is set - an AI-versus-AI battle is autocalculated with no screen at all. Otherwise it returns 1, sets g_battleBothHuman when both sides are human, records which player owns the take-the-field choice in g_battleChoiceOwner, and copies both owners and shields for the screens; each caller then tests (g_optFightHumansOnly == 0 && !bothHuman) to autocalc straight to the report screen 0x13, or pushes the prompt screen 0x12 and asks. There is no distance test, no army-size cutoff and no separate quick-battle toggle on this path.",
+      "signature": "int Battle_ChooseSettlement(void)"
+    },
+    {
+      "addr": "0x00477DFC",
+      "name": "Battle_CheckOutcome",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The per-frame test for whether the battle is over - the half of the battle model that decides anything, and previously in neither symbols.json nor hypotheses.json. A FIELD battle ends exactly two ways: one side's living-men counter (g_battleMenA, g_battleMenB, both drawn on the battle HUD) reaching zero, or g_battleWithdrawal marking a withdrawal, which is tested FIRST and so outranks annihilation. There is no morale break, no rout threshold and no clock. Three further arms are sieges: the escape-tile flag DAT_00553F3C, and with no breach and no engines left either 'assault repulsed, repeat' (breach and approach scores reset to 4 when the castle level is under 3) or the besieger loses. It then raises the outcome screen 0x2B, and once DAT_00568470 counts past 5000 it calls Battle_WriteBackCasualties and Battle_ReturnToCampaign(1).",
+      "signature": "void Battle_CheckOutcome(void)"
+    },
+    {
+      "addr": "0x00478419",
+      "name": "Battle_SelectOutcomeBanner",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Chooses which of Screen_BattleOutcome's seven L2.eng group 82 heading/body pairs to draw, from two questions: was it a siege, and is g_localPlayer the winner's owner (g_battleWinnerOwner). Field: 0 won, 1 lost. Siege with the local player winning: 2 if A won (the player besieged and took the castle), 4 if B won (the player held it and the siege was lifted). Siege with the local player losing: 5 if A won (the player's castle fell), 3 if B won (the player was driven off). Each of the four siege arms reads as a different sentence, which is the check on the mapping - A is always the besieger and B always the garrison. Independently confirms that g_battleLoser holds the winner.",
+      "signature": "void Battle_SelectOutcomeBanner(void)"
+    },
+    {
+      "addr": "0x0047F474",
+      "name": "Battle_WriteBackCasualties",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "How a fought battle's casualties reach the campaign. Zeroes both army records' +0x168, +0x196 and all eleven +0x16C counts, then walks the 80 figures of g_battleMen and adds each living figure's men into its owner's record - into +0x16C + troopType*2 for a levied figure and into +0x196 for a mercenary one, with +0x168 accumulated alongside. Only troop types 0..6 are counted, so the four battle-only slots are zeroed and never rebuilt: siege engines do not survive a battle. Called immediately before every Battle_ReturnToCampaign(1).",
+      "signature": "void Battle_WriteBackCasualties(void)"
+    },
+    {
+      "addr": "0x0043B622",
+      "name": "Battle_Decline",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Answering 'no' to the prompt screen's 'Will you take the field?'. Guarded on g_screenId == 0x12 so it is idempotent, it runs Battle_AutoResolve, Battle_ReturnToCampaign(0) and raises the report screen 0x13. So DECLINING A BATTLE IS EXACTLY THE AUTOCALC - a way out of watching the battle, not out of fighting it. The multiplayer answer timeout and an end-of-turn sync both route here as an auto-decline; in single player the prompt waits forever.",
+      "signature": "void Battle_Decline(void)"
     }
   ],
   "globals": [
@@ -7146,7 +7194,7 @@
       "name": "g_battleLoser",
       "section": "units",
       "confidence": "verified",
-      "comment": "The unit index of the defeated side, read by Battle_ReturnToCampaign to decide which army is destroyed and which is charged movement."
+      "comment": "CORRECTED - despite the name this holds the index of the WINNING army, and the name is kept only because it is the one the project has used everywhere. Four independent sites agree against it: Battle_AutoResolve assigns it the side whose troop counts it then keeps, zeroing the other's; Battle_ReturnToCampaign's g_battleLoser == g_battleArmyA branch hands the county to A and destroys B; Battle_CheckOutcome sets it to the side whose men are still above zero; and Battle_SelectOutcomeBanner maps g_localPlayer == g_units[g_battleLoser].owner onto L2.eng group 82's 'won' pair. Implemented on the name you destroy the winner and hand the county to the corpse."
     },
     {
       "addr": "0x005533E8",
@@ -7903,6 +7951,62 @@
       "section": "units",
       "confidence": "verified",
       "comment": "i32[6] = {0, 1, 2, 3, 4, 5}, the walk-frame cycle Merchant_Tick and Transport_Tick index with unit +0x1B. Six frames per facing against the army's three-frame ping-pong at g_unitWalkFrames, and the sprite arithmetic closes: ((facing+1)&7)*6 + phase covers 0..47 with nothing left over. The three merchants in the battle fixtures sit at frames 42, 42 and 18, which is that formula at phase 0 for facings 6, 6 and 2."
+    },
+    {
+      "addr": "0x004DE710",
+      "name": "g_autocalcSurvivalLadder",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Ten (threshold, value) int32 pairs, the ladder Battle_AutoResolve reads the winner's survival percentage from with Table_Lookup(ratio, .., 10, 100): 110/10, 130/20, 160/30, 180/40, 220/50, 270/65, 360/80, 500/90, 700/95, 900/98. Read straight out of Lords2.exe; the thresholds ascend strictly and the eleventh pair in memory is (100, 200), a different table starting, which is what fixes the count at ten. An evenly matched fight - ratio under 110 - leaves the winner ONE TENTH of its army, so mutual annihilation is the default outcome of auto-resolving a fair battle, and only a roughly threefold advantage is cheap."
+    },
+    {
+      "addr": "0x0056822C",
+      "name": "g_battleCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The county a battle is being fought over. Written by Army_AttackCounty (the county attacked), by the army-versus-army path (the defender's county byte) and by Siege_LaunchAssault (the besieged county); read by Battle_ReturnToCampaign to decide which county changes hands, and by both battle screens for its name."
+    },
+    {
+      "addr": "0x005440CC",
+      "name": "g_battleWinnerOwner",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The owner byte of the winning army - always assigned as g_units[g_battleLoser].owner, at every one of the eight sites that write it. Battle_SelectOutcomeBanner compares it with g_localPlayer to pick the 'won' or 'lost' pair, which is the fourth independent confirmation that g_battleLoser names the winner."
+    },
+    {
+      "addr": "0x0056D5C8",
+      "name": "g_battleWithdrawal",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Set to 1 in exactly one place, UnitOrder_SiegeAttKnight, when an all-knight AI besieger faces an unbreached wall and gives up; DAT_005656F8 records whose army withdrew. Battle_CheckOutcome tests it BEFORE either men counter, so a withdrawal outranks annihilation, and Battle_ReturnToCampaign reads it for the 'a loser with 50 or more men only has its siege lifted' branch. Cleared by Battle_InitArmies, by FUN_00477C89 and - decisively - by Battle_AutoResolve's first statement, which is why that branch is a SIEGE-WITHDRAWAL rule and not an autocalc one, correcting docs/armies.md section 7."
+    },
+    {
+      "addr": "0x004EE89C",
+      "name": "g_battleBothHuman",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Set by Battle_ChooseSettlement when both armies' ownerIsHuman are set, and read at all three battle entries as the second half of (g_optFightHumansOnly == 0 && !bothHuman): the 'fight humans only' option never auto-resolves a battle between two people."
+    },
+    {
+      "addr": "0x005533D0",
+      "name": "g_battleChoiceOwner",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Who owns the take-the-field choice on the prompt screen: 0 when the local player is in neither army, 1 when the local player is a participant and decides, 2 when the local player is army B in a human-versus-human battle and the other person decides. Battle_ChooseSettlement sets it; the prompt screen, the outcome screen, the answer timeout and Battle_CheckOutcome all gate on it."
+    },
+    {
+      "addr": "0x0053F028",
+      "name": "g_battleMenA",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Army A's living men, recomputed every frame by the figure census over troop types 0..6 only - so siege engines are worth no men and a side reduced to them has already lost. Battle_CheckOutcome ends the battle when it falls below 1, and the battle HUD draws it and g_battleMenB side by side, so the two numbers that decide a battle are the two numbers on the screen."
+    },
+    {
+      "addr": "0x00553C58",
+      "name": "g_battleMenB",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Army B's living men - the twin of g_battleMenA, counted the same way, drawn beside it, and the other of Battle_CheckOutcome's two field-battle end conditions."
     }
   ]
 }

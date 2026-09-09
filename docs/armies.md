@@ -1204,54 +1204,247 @@ mail was bought once, at the blacksmith.
 
 ## 7. How a battle result returns
 
-`docs/mechanics.md` lists this as ❓. It is `Battle_ReturnToCampaign` (`0x004AB383`).
+`docs/mechanics.md` listed this as ❓. **The whole path is now implemented** — the campaign
+half in `crates/l2-kingdom/src/battle.rs`, the hand-off to the simulation in
+`crates/l2-game/src/engagement.rs` — and it is checked end to end against the battle fixture
+triple in `crates/l2-game/tests/seam.rs`. This section is rewritten from the four functions
+that make it up rather than from `Battle_ReturnToCampaign` alone, because
+`Battle_ReturnToCampaign` is only the third of them.
+
+```
+Battle_ChooseSettlement  0x004A6A30   §7.1  autocalc, a report, or ask the player
+Battle_AutoResolve       0x004AAD07   §7.2  a battle nobody watches
+Battle_CheckOutcome      0x00477DFC   §7.3  when a fought battle is over
+Battle_WriteBackCasualties 0x0047F474 §7.3  the figures become troop counts again
+Battle_ReturnToCampaign  0x004AB383   §7.4  the county, the moves, the loser
+Defence_Disband          0x004ABA5A   §7.5  the levy walks home
+```
 
 > ### ⚠ `g_battleLoser` (`0x0057C924`) holds the **winner**. The name is inverted.
 >
 > This is the single most dangerous error in this document, because everything below was
-> written on the name and the name is wrong. Two independent sites agree against it:
+> written on the name and the name is wrong. **Four** independent sites agree against it,
+> two of them found since this warning was written:
 >
-> * **The autocalc** (`004a0000.c:4305`). When `Army_StrengthScore(A) < Army_StrengthScore(B)`
+> * **`Battle_AutoResolve`.** When `Army_StrengthScore(A) < Army_StrengthScore(B)`
 >   — A is the weaker side, so A loses — it sets **`g_battleLoser = g_battleArmyB`** and
->   applies the survival percentage to **B**'s seven troop counts.
-> * **`Battle_ReturnToCampaign`** (`:4439`). The `g_battleLoser == g_battleArmyA` branch
->   hands the county to **A** via `FUN_004A72FE(A.owner, county)`, charges **A** the winner's
->   movement, and calls `Army_Destroy(g_battleArmyB)`. It also runs
+>   applies the survival percentage to **B**'s seven troop counts, zeroing A's.
+> * **`Battle_ReturnToCampaign`.** The `g_battleLoser == g_battleArmyA` branch
+>   hands the county to **A** via `County_ChangeOwner(A.owner, county)`, charges **A** the
+>   winner's movement, and calls `Army_Destroy(g_battleArmyB)`. It also runs
 >   `Diplo_Offend(B.owner, A.owner, 20)` — the *loser's* owner resenting the *winner*.
+> * **`Battle_CheckOutcome`** (`0x00477DFC`). `if (menA < 1) g_battleLoser = g_battleArmyB;`
+>   — the side still standing is the one assigned.
+> * **`Battle_SelectOutcomeBanner`** (`0x00478419`). `g_battleWinnerOwner` is
+>   `g_units[g_battleLoser].owner`, and this maps `g_localPlayer == g_battleWinnerOwner`
+>   onto `L2.eng` group 82's ***"won"*** pair.
 >
-> Both only make sense if the variable names the side that **won**. Implementing §7 on the
-> name as written destroys the winner and hands the county to the corpse. `docs/symbols.md`
-> carries the same inverted name and needs the same correction. [D]
+> All four only make sense if the variable names the side that **won**. Implementing §7 on
+> the name as written destroys the winner and hands the county to the corpse. `[V]`
+> `crates/l2-kingdom`'s `battle::Verdict` has no field called `loser` beside a field called
+> `winner` and no way to fill them in the wrong order, which is the shape this correction
+> asks for.
 
-For whichever of `g_battleArmyA` / `g_battleArmyB` lost:
+### 7.1 Which of three ways it is settled — `Battle_ChooseSettlement` (`0x004A6A30`)
 
-* the winner is charged movement — and **the two branches are not symmetric, and the
-  human/AI test is the other way round from what this document said**:
+Called by all three battle entries — `Army_AttackCounty`, the army-versus-army path
+`FUN_004A7158`, and `Siege_LaunchAssault` — and every one of them branches on the same two
+expressions:
 
-  ```c
-  /* A wins */                             /* B wins */
-  movesUsed[A] += 8;                       if (B.ownerIsHuman == 0)
-  if (A.ownerIsHuman == 0)                     movesUsed[B] += 7;
-      movesUsed[A] = moveAllowance[A] - 1;
-  ```
+```c
+if (A.ownerIsHuman == 0 && B.ownerIsHuman == 0)   return 0;   /* autocalc, silently  */
+...
+if (g_optFightHumansOnly == 0 && !bothHuman)      /* autocalc, then report screen 0x13 */
+else                                              /* prompt screen 0x12, ask          */
+```
 
-  `+0x01` is a copy of realm `+0x05` = `isHuman`, so `== 0` is **the AI**. A winning AI is
-  left with one move; a winning human keeps everything but the 8. And when B wins, an AI
-  pays 7 and **a human pays nothing at all**. [D]
-* if the loser was a garrison, county `+0x1BC` is cleared and the county changes hands
-  (`0x004A72FE`);
+**A battle between two AI realms never reaches a screen and never reaches the battle
+simulation at all**, which is why the autocalc and everything downstream of it lives in
+`l2-kingdom` rather than beside `l2-sim`: an AI war has to be fightable with no battle
+layer present. `g_optFightHumansOnly` is the advanced option *"Fight humans only?"* and is
+**stored inverted** — the byte is 0 when the option displays *Yes*.
+
+There is no distance-from-the-view test, no army-size cut-off and no separate "quick
+battle" toggle on this path. The mid-battle *"Autocalc battle?"* button (`0x0043BD67`,
+`L2.eng` group 10 index 9) is a fourth entry rather than a fourth outcome: it re-runs
+`Battle_AutoResolve` on the counts as they stand, which the battle layer has not yet
+written back. `[V]`
+
+**And declining the prompt is exactly the autocalc.** `Battle_Decline` (`0x0043B622`) runs
+`Battle_AutoResolve`, `Battle_ReturnToCampaign(0)` and raises the report screen. Saying no
+to *"Will you take the field?"* is a way out of *watching* the battle, not out of fighting
+it. In single player the prompt waits for ever; in multiplayer a 20- or 30-second timeout
+auto-declines. `[V]`
+
+### 7.2 The autocalc — `Battle_AutoResolve` (`0x004AAD07`)
+
+Not in `symbols.json` at all until now, despite being one of only two ways a battle can
+end.
+
+```c
+sA = Army_StrengthScore(A);  sB = Army_StrengthScore(B);
+if (siege) sB = Pct(sB, [160,200,250,320,400][castleLevel]);   /* the DEFENDER only */
+ratio = (sA < sB) ? PctOf(sB, sA) : PctOf(sA, sB);             /* larger*100/smaller */
+p     = Table_Lookup(ratio, g_autocalcSurvivalLadder, 10, 100);
+winner = (sA < sB) ? B : A;                                    /* a tie goes to A */
+for t in 0..7: winner.troops[t] = Pct(winner.troops[t], p);
+winner.merc.men = Pct(winner.merc.men, p);
+winner.men = Σ winner.troops + winner.merc.men;                /* summed, not scaled */
+loser.troops[..] = 0;  release the loser's band;  loser.men = 0;
+```
+
+**`g_autocalcSurvivalLadder` (`0x004DE710`)** is ten `(threshold, value)` int32 pairs, read
+straight out of `Lords2.exe`:
+
+| ratio under | 110 | 130 | 160 | 180 | 220 | 270 | 360 | 500 | 700 | 900 | else |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **winner keeps** | 10 % | 20 % | 30 % | 40 % | 50 % | 65 % | 80 % | 90 % | 95 % | 98 % | 100 % |
+
+`[V]` — the thresholds ascend strictly and the eleventh pair in memory is `(100, 200)`, a
+different table starting, which is what fixes the count at ten.
+
+**The shape of that ladder is a rule about the game, not a detail.** An evenly matched
+fight leaves the winner **a tenth of its army**: mutual annihilation is the *default*
+outcome of auto-resolving a fair battle, and the curve only turns generous once one side is
+roughly triple the other. A player who declines a close fight has traded both armies.
+
+> **The autocalc reproduces the battle fixture exactly, and this is the strongest check
+> anything in this document has.** `battle-before.sav`'s attacker is 128 peasants, 25
+> swordsmen and 25 archers — `128×2 + 25×13 + 25×13 + 20 = 926`. County 3's militia is 122
+> peasants and 60 archers — `122×2 + 60×13 + 20 = 1044`. So the defender wins;
+> `1044 × 100 / 926 = 112`; 112 lands on the ladder's second rung, 20 %; and 20 % of 122 and
+> of 60 is **24 + 12 = 36 men**. `battle-during.sav` leaves county 3 with 546 people and
+> `battle-after.sav` has 582. `546 + 36 = 582`. Four independent numbers — the strength
+> weights, the `+20`, the ratio and the ladder — all have to be right for that to come out.
+> `[V]`
+
+### 7.3 When a fought battle ends — `Battle_CheckOutcome` (`0x00477DFC`)
+
+**This function was in neither `symbols.json` nor `hypotheses.json`, and it is the half of
+the battle model that decides anything.** A field battle ends exactly two ways:
+
+* one side's living-men counter reaching zero — `g_battleMenA` (`0x0053F028`) and
+  `g_battleMenB` (`0x00553C58`), recomputed every frame over **troop types 0…6 only**, so
+  siege engines are worth no men and a side reduced to them has already lost;
+* `g_battleWithdrawal` (`0x0056D5C8`) marking a side as having left the field, which is
+  tested **before** either counter and so outranks annihilation.
+
+There is **no morale break, no rout threshold and no clock.** And the two counters are the
+two numbers `Ui_DrawNumberRight` puts on the battle HUD, so the numbers that decide a
+battle are the numbers the player is looking at. `[V]`
+
+Three further arms are sieges and are out of scope here: the escape-tile flag
+`DAT_00553F3C`; *assault repulsed, repeat*, where a castle under level 3 with no breach and
+no engines left has its breach and approach scores reset to 4 and the battle carries on;
+and the same position at level 3 or above, where the besieger loses.
+
+The outcome then goes to screen `0x2B` and one of **seven** `L2.eng` group 82 heading/body
+pairs, chosen by `Battle_SelectOutcomeBanner` (`0x00478419`) from two questions — was it a
+siege, and is the local player the winner:
+
+| | local player won | local player lost |
+|---|---|---|
+| field | 0 *won* | 1 *lost* |
+| siege, A (the besieger) won | 2 *siege won* | 5 *castle lost* |
+| siege, B (the garrison) won | 4 *siege lifted* | 3 *siege lost* |
+
+The seventh pair, 12/13 *"The conflict is over."*, is somebody else's war. Each of the four
+siege arms reads as a different sentence, and that is the check on the mapping: A is always
+the besieger and B always the garrison, so no two of them are interchangeable.
+
+Once the banner has been up for 5,000 ticks, `Battle_WriteBackCasualties` (`0x0047F474`)
+runs and *then* `Battle_ReturnToCampaign(1)`. The write-back is the answer to what this
+section used to call *"that path was not traced here"*: both records' `+0x168`, `+0x196` and
+all eleven `+0x16C` counts are zeroed, and every living figure of the 80 adds its men back
+into its owner's record — into `+0x16C + t*2` for a levied figure and `+0x196` for a
+mercenary one. **Only types 0…6 are rebuilt**, so siege engines never survive a battle.
+
+### 7.4 `Battle_ReturnToCampaign` (`0x004AB383`)
+
+The two branches are **not** mirror images, and the differences are the content of the
+function:
+
+| | **attacker (A) wins** | **defender (B) wins** |
+|---|---|---|
+| county changes hands | yes, if the loser was a garrison **or** carried `+0x167` | **never** |
+| county `+0x1BC` cleared | if the *defender* was a garrison | if the *attacker* was a garrison |
+| winner's moves | `+8`, then an **AI** is set to `allowance − 1` | an **AI** pays `+7`; a human pays nothing |
+| loser | destroyed | destroyed |
+| diplomacy | −20 from the loser's realm | −20 from the loser's realm |
+
+```c
+/* A wins */                             /* B wins */
+movesUsed[A] += 8;                       if (B.ownerIsHuman == 0)
+if (A.ownerIsHuman == 0)                     movesUsed[B] += 7;
+    movesUsed[A] = moveAllowance[A] - 1;
+```
+
+`+0x01` is a copy of realm `+0x05` = `isHuman`, so `== 0` is **the AI**. A winning AI is
+left with one move; a winning human keeps everything but the 8. And when B wins, an AI pays
+7 and **a human pays nothing at all**. `[V]`
+
+**There is no `County_ChangeOwner` anywhere in the B-wins branch.** That is not an omission
+in the reading — `g_battleArmyB` is the *defender* at all three call sites, so a defender
+that wins keeps a county it already had, or leaves a neutral county neutral. It is the half
+of this section that was inverted, and `crates/l2-game/tests/seam.rs` asserts it against
+`battle-after.sav`, where the player lost and county 3 is still owner 0.
+
+Also, and easy to miss: `Army_AttackCounty` has *already* charged the attacker 8 moves
+before the battle, so **a winning attacker pays 16** and is finished for the season either
+way.
+
+The rest:
+
 * garrison and besieger links (`+0x199`, `+0x19A`) are cleared, and if it was not a siege,
   `Siege_RecomputeBuildTime` runs again for the winner;
 * the battle scratch fields `+0x17A … +0x180` are zeroed on both sides (`0x004AA89F`);
-* the loser is destroyed — **except** under autocalc, where an army left with **≥ 50 men**
-  merely has its siege lifted, while one below 50 gets message `0x120` (group 288) and dies;
-* diplomacy takes a **−20** hit against the winner.
+* the loser is destroyed;
+* diplomacy takes a **−20** hit against the winner — but the guard is `loser.owner != 0`,
+  which an **ownerless militia's 6 passes**, so the original then indexes a five-realm table
+  with 6. `crates/l2-kingdom` refuses instead of reproducing that write.
 
-Casualties themselves come back through the battle layer writing `+0x16C + t*2` and `+0x168`;
-that path was not traced here.
+> ### ⚠ The ≥ 50-men rule is **not** an autocalc rule, and this document said it was.
+>
+> §7 used to read *"the loser is destroyed — **except** under autocalc, where an army left
+> with ≥ 50 men merely has its siege lifted"*. `docs/symbols.md` carried the same sentence.
+> Both are wrong. The gate is `g_battleWithdrawal` (`0x0056D5C8`), and
+> **`Battle_AutoResolve`'s first statement clears it**. The flag is raised in exactly one
+> place — `UnitOrder_SiegeAttKnight`, when an all-knight AI besieger faces an unbreached
+> wall and gives up — so it is a *siege-withdrawal* rule, reachable only after a real
+> interactive siege, and **under autocalc the loser is always destroyed**. The message
+> `0x120` (group 288) for a loser under 50 men belongs to the same branch. `[V]` — the one
+> write and the three clears are the only four sites the flag has. See `decisions.md` C31.
+
+### 7.5 The levy walks home — `Defence_Disband` (`0x004ABA5A`)
+
+Runs **after** `Battle_ReturnToCampaign`: immediately after it on the silent path, and as
+the last line of the report screen otherwise.
+
+```c
+if (unit.defenceMark == 0) return;
+if (unit.defenceMark < 2) {
+    county[unit.homeCounty].population += unit.menTotal;
+    county[unit.homeCounty].popArmy    += unit.menTotal;
+    Army_Destroy(unit);
+} else {
+    unit.defenceMark = 0;
+}
+```
+
+**Every survivor, not a fraction**, and into the population *and* the panel's *"Army"* line,
+exactly as the levy debited both. Mark 2 — an army that already existed and was pressed
+into defending — is not disbanded at all; it only loses the mark.
+
+Running it after the return is what makes it correct in both directions: a defence that
+*lost* has already been destroyed and this finds nothing, and a defence that *won* is still
+standing with its survivors in `+0x168`. §7.2's 36 men are the ones this walks home.
+
+`Armies_ReturnDefences` (`0x004AD39A`) is the turn-end backstop, sweeping every army slot
+before the wage pass.
 
 `Army_StrengthScore` (`0x004AB2AA`), used by the AI and the autocalc, is
-`Σ troops[t] × g_troopStrengthWeight[t]` plus the mercenary band, `+ 20` if non-zero.
+`Σ troops[t] × g_troopStrengthWeight[t]` plus the mercenary band, floored at 1 and `+ 20`
+above that.
 
 ---
 
@@ -1264,7 +1457,26 @@ county.** Three functions, none of them mentioned anywhere else here.
 ### 8.1 `Army_AttackCounty` (`FUN_004A6C68`, `0x004A6C68`)
 
 Called from the mover's **code-5 branch** — see §2.2 — with `g_movingUnit` and the tile's
-county. So a county is attacked **by stepping onto its castle tile**.
+county.
+
+> ### ⚠ It is the county **town**, not the castle tile. C25, one more time.
+>
+> Code 5 comes from `Unit_TryEnterTile`'s plane-0 **`0x40`** branch, and `decisions.md` C25
+> established that `0x40` is the county town and `0x80` the castle — the labels were the
+> wrong way round. This sentence was written before that, kept the old label, and has been
+> saying "castle tile" ever since. **No code is wrong**: `crates/l2-kingdom` reads the same
+> bit under the name `flags::CASTLE`, and `movement::Step::reached_castle` really does fire
+> on the town. Only the words are.
+>
+> The game says it in English. `L2.eng` group 30 description `0x1B`, the tile info panel's
+> own text for a `0x40` tile: ***"Your troops may capture a castleless county by attacking
+> its county town."***
+>
+> And the battle fixture agrees on the bytes. In `battle-before.sav` the player's army is
+> standing **on** county 3's `+0x74`/`+0x75` — its castle tile, (33, 17) — with no battle
+> and no moves spent. In `battle-during.sav` it has walked to (35, 16), beside the town
+> whose anchor is (37, 16), and the battle has started. Standing on the castle site did
+> nothing; approaching the town is what attacked the county. `[V]`
 
 ```c
 if (unit.type == 1 && unit.owner != 0 && county.owner != unit.owner
@@ -1296,7 +1508,15 @@ It is one condition, not a subsystem.
 **`+0x167` is the county-defence marker**, which §1.5 lists among the offsets *"not traced"*.
 It is written here — 1 for a defence raised on the spot, 2 for an existing army pressed into
 the role — and read by `Battle_ReturnToCampaign`, whose A-wins branch captures the county when
-`B[+0x167] != 0`. Two sites, written by one and read by the other. [D]
+`B[+0x167] != 0`, and by `Defence_Disband` (§7.5), which sends a **1** home and merely clears a
+**2**. `battle-during.sav` slot 6 carries a 1, so this is `[V]` on the data side as well.
+
+**The `if (defender) defender[+0x167] = (raised ? 1 : 2)` above is a simplification, and the
+real thing is asymmetric.** The `2` is written on the **AI** branch only. A human's county
+defended by an army that was already standing at its town is **never marked at all**, so
+`Defence_Disband` never touches it — which reaches the same end as the 2 would by writing
+nothing, and is the sort of accident that looks like a rule until both branches are read
+side by side. `[V]`
 
 *(Six merchant records in `lastturn.sav` carry their own county in `+0x167`. That is a
 different meaning for a different unit type, like `+0x14F` and `+0x164`, not a contradiction —

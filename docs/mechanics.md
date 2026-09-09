@@ -297,10 +297,24 @@ Legend:
   from is traced — 200 / 200 / 400 man-seasons each, and the defender's oil count is a switch
   on castle type — `docs/armies.md` §4
 - ❓ Moat filling (traced: figures raise the terrain 15 times)
-- ❓ Retreat, capture, what happens after a battle ends
-- 📖 How a battle result returns to the campaign — `Battle_ReturnToCampaign`, `docs/armies.md` §7.
-  **`g_battleLoser` holds the winner**; the name is inverted and §7 says so. Implementing it
-  on the name destroys the winner and hands the county to the corpse
+- ✅ **When a battle ends, and what happens after** — `Battle_CheckOutcome` (`0x00477DFC`),
+  which was in no document at all until the seam was wired. A field battle ends **two** ways:
+  one side's living men reaching zero, or a withdrawal, which is tested first.
+  **No morale break, no rout threshold, no clock.** Seven `L2.eng` group 82 outcome banners,
+  four of them sieges. `docs/armies.md` §7.3
+- ✅ **The autocalc** — `Battle_AutoResolve` (`0x004AAD07`), the other of the two ways a
+  battle can end, and the one every AI-versus-AI battle takes. A strength ratio into a
+  ten-rung ladder; an evenly matched fight leaves the winner **a tenth of its army**.
+  `docs/armies.md` §7.2
+- ✅ **The campaign–battle seam** — an army that reaches an enemy county now fights and hands
+  the result back: `crates/l2-kingdom/src/battle.rs` and `crates/l2-game/src/engagement.rs`,
+  checked end to end against the battle fixture triple in `crates/l2-game/tests/seam.rs`.
+  **`g_battleLoser` holds the winner**; four sites say so and `docs/armies.md` §7 lists them.
+  Implementing it on the name destroys the winner and hands the county to the corpse
+- 🕳 **A battle the player watches is not one the player can steer.** Orders go in at
+  deployment and nothing withdraws, surrenders or re-tasks a unit mid-battle; the lever
+  exists (`BattleRunner::withdraw`) and no rule pulls it
+- ❓ Capture — prisoners and ransom, which nothing here has looked at
 
 ---
 

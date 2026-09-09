@@ -138,6 +138,112 @@ pub struct Army<'a> {
     pub human: bool,
 }
 
+/// One side's army as the **campaign** hands it over: real men per troop type,
+/// not figures.
+///
+/// [`Army`] is the skirmish shape — a fixed number of figures of four men each,
+/// which is what a `.skr` map and the shell want. A campaign army is a row of
+/// eleven counts out of a `g_units` record (`docs/armies.md` §1.4), and how
+/// many men one drawn figure stands for is **not** the caller's choice: it is
+/// derived from the two armies together by `Battle_InitArmies`
+/// (`docs/battle.md` §5.1). So this carries men and
+/// [`BattleRunner::deploy_muster`] picks the scale.
+#[derive(Debug, Clone, Copy)]
+pub struct Muster<'a> {
+    /// `(troop, men)` — real men, in any order; [`RAISE_ORDER`] is applied here.
+    pub troops: &'a [(Troop, u32)],
+    /// The realm this army belongs to. Zero is the free-slot marker and is
+    /// refused, exactly as in [`BattleRunner::deploy_armies`].
+    pub owner: u8,
+    pub human: bool,
+}
+
+impl Muster<'_> {
+    pub fn men(&self) -> u32 {
+        self.troops.iter().map(|(_, n)| *n).sum()
+    }
+}
+
+/// `g_menPerFigureTable` (`0x004D9658`) — men one drawn figure stands for, by
+/// battlefield size class. **[V]** `docs/battle.md` §5.1.
+pub const MEN_PER_FIGURE_TABLE: [u32; 9] = [4, 8, 16, 32, 64, 128, 256, 512, 1024];
+
+/// `g_sizeClassLadder` (`0x004D95D8`) — the totals at which the size class
+/// steps up. **[V]** `docs/battle.md` §5.1.
+pub const SIZE_CLASS_LADDER: [u32; 8] = [305, 609, 1217, 2433, 4865, 9729, 19457, 38913];
+
+/// `Table_Lookup(total, g_sizeClassLadder, 8)`: the first threshold the total
+/// does not reach, or 8.
+///
+/// ```
+/// # use l2_sim::runner::{size_class, MEN_PER_FIGURE_TABLE};
+/// // docs/battle.md §5.4 derives USER.SKR map 0 independently: 600 v 450 men,
+/// // size class 2, 16 men a figure.
+/// assert_eq!(size_class(600 + 450), 2);
+/// assert_eq!(MEN_PER_FIGURE_TABLE[size_class(1050)], 16);
+/// // …and the blank template, 150 v 150, is class 0 at four men a figure.
+/// assert_eq!(MEN_PER_FIGURE_TABLE[size_class(300)], 4);
+/// ```
+pub fn size_class(total_men: u32) -> usize {
+    SIZE_CLASS_LADDER.iter().position(|&b| total_men < b).unwrap_or(8)
+}
+
+/// The **per-side** refinement of §5.1: a side that would draw fewer than nine
+/// figures halves the scale, so a small army is not nearly invisible beside a
+/// large one. Floor of four men, the smallest figure the ladder produces.
+///
+/// The original's condition is `sideTotal / menPerFigure < 9 && menPerFigure > 7`.
+/// It is applied **once**; `docs/battle.md` lists the reachable results as
+/// 4, 8, 16, 32 or 64, which is one halving from 8 … 128 and no more. **[D]**
+/// on the once.
+pub fn side_scale(side_men: u32, men_per_figure: u32) -> u32 {
+    if men_per_figure > 7 && side_men / men_per_figure < 9 {
+        (men_per_figure / 2).max(4)
+    } else {
+        men_per_figure
+    }
+}
+
+/// Why a battle ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum End {
+    /// One side has no men left. The only way a field battle ends by itself.
+    Annihilation,
+    /// A side left the field — [`BattleRunner::withdraw`].
+    Withdrawal,
+}
+
+/// **The battle is over.** [`BattleRunner::conclusion`]'s answer.
+///
+/// A conclusion is not a boolean and never has been: `FUN_00477DFC` reaches
+/// this point six ways and `FUN_00478419` turns the result into one of `L2.eng`
+/// group 82's seven heading/body pairs. Two of those ways are in scope here;
+/// the rest are sieges.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Conclusion {
+    /// The side left holding the field.
+    pub winner: Side,
+    pub cause: End,
+}
+
+/// How long the original leaves the outcome banner up before
+/// `Battle_ReturnToCampaign` runs — `DAT_00568470` counting past 5000 in
+/// `FUN_00477DFC`.
+///
+/// **Nothing about the result changes while it counts**, so this is presentation
+/// timing rather than a rule; it is here because the write-back is on the far
+/// side of it, and a caller reproducing the original's pacing needs the number.
+pub const SETTLE_TICKS: u32 = 5000;
+
+/// The other of the two sides.
+pub fn other_side(side: Side) -> Side {
+    if side == SIDE_A {
+        SIDE_B
+    } else {
+        SIDE_A
+    }
+}
+
 /// The battle: rules, battlefield, units, figures and the clock.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BattleRunner {
@@ -161,6 +267,13 @@ pub struct BattleRunner {
     occupant: Vec<Option<u16>>,
     /// Impassable terrain, built once from the battlefield flags.
     blocked: Vec<bool>,
+    /// The side that has left the field, if any — `DAT_0056D5C8` and
+    /// `DAT_005656F8` folded into one. Outranks annihilation.
+    withdrawn: Option<Side>,
+    /// Men one figure of each side stands for, indexed `[side 0, side 4]` —
+    /// `docs/battle.md` §5.1. Four for a skirmish; the campaign's ladder picks
+    /// it in [`Self::deploy_muster`], and each side may differ.
+    men_per_figure: [u16; 2],
     pub tick: u32,
 }
 
@@ -196,13 +309,70 @@ impl BattleRunner {
         )
     }
 
+    /// **The campaign's entry point.** Deploy two armies given as real men,
+    /// choosing the men-per-figure scale the way `Battle_InitArmies` does.
+    ///
+    /// `docs/battle.md` §5.1: the size class comes from the two totals
+    /// *together*, then each side may halve it again if it would otherwise draw
+    /// fewer than nine figures. Army A takes side 4 and army B side 0, and in a
+    /// campaign battle **army B is the defender** (§4.3).
+    ///
+    /// Unlike [`Self::deploy_armies`], every figure carries its real share of
+    /// men and the **last figure of each unit carries the remainder**, which is
+    /// `BattleUnit_Create`'s own rounding. That is what makes the survivors
+    /// readable back out as campaign troop counts: the totals start exactly at
+    /// the counts that went in.
+    ///
+    /// ```
+    /// # use l2_sim::runner::{blank_field, BattleRunner, Muster};
+    /// # use l2_sim::{Troop, SIDE_A, SIDE_B};
+    /// let a = [(Troop::Peasants, 128u32), (Troop::Swordsmen, 25), (Troop::Archers, 25)];
+    /// let b = [(Troop::Peasants, 122u32), (Troop::Archers, 60)];
+    /// let r = BattleRunner::deploy_muster(
+    ///     blank_field(),
+    ///     l2_sim::runner::DEFAULT_SEED,
+    ///     Muster { troops: &a, owner: 1, human: true },
+    ///     Muster { troops: &b, owner: 6, human: false },
+    /// );
+    /// // 178 + 182 = 360, which is size class 1: eight men a figure.
+    /// assert_eq!(r.men_per_figure(SIDE_B), 8);
+    /// // And no man is lost or invented in the raising.
+    /// assert_eq!(r.men(SIDE_B), 178);
+    /// assert_eq!(r.men(SIDE_A), 182);
+    /// ```
+    pub fn deploy_muster(field: Battlefield, seed: u64, army_a: Muster, army_b: Muster) -> Self {
+        let total = army_a.men() + army_b.men();
+        let class = MEN_PER_FIGURE_TABLE[size_class(total)];
+        let mpf_a = side_scale(army_a.men(), class);
+        let mpf_b = side_scale(army_b.men(), class);
+        let mut runner = BattleRunner::empty(field, seed);
+        runner.men_per_figure = [mpf_b as u16, mpf_a as u16];
+        // Side 4 first, then side 0 — the order fixes figure indices, and figure
+        // indices are the simulation order.
+        runner.raise_men(&army_a, mpf_a, SIDE_B);
+        runner.raise_men(&army_b, mpf_b, SIDE_A);
+        runner.settle();
+        runner
+    }
+
     /// Deploy with full control over owners, control and the AI's seed.
     pub fn deploy_armies(field: Battlefield, seed: u64, army_a: Army, army_b: Army) -> Self {
         assert_ne!(army_a.owner, 0, "owner 0 is the original's free-slot marker");
         assert_ne!(army_b.owner, 0, "owner 0 is the original's free-slot marker");
+        let mut runner = BattleRunner::empty(field, seed);
+        // Side 4 first, then side 0. The order fixes figure indices, and figure
+        // indices are the simulation order.
+        runner.raise(army_a, SIDE_B);
+        runner.raise(army_b, SIDE_A);
+        runner.settle();
+        runner
+    }
+
+    /// A battlefield with the arrays allocated and nothing on it.
+    fn empty(field: Battlefield, seed: u64) -> Self {
         let blocked: Vec<bool> = field.cells.iter().map(|c| c.impassable()).collect();
         let ai_field = ai_field_for(&field);
-        let mut runner = BattleRunner {
+        BattleRunner {
             sim: Battle::new(),
             field,
             fighters: Vec::new(),
@@ -212,24 +382,24 @@ impl BattleRunner {
             positions: Vec::new(),
             occupant: vec![None; DIM * DIM],
             blocked,
+            withdrawn: None,
+            men_per_figure: [MEN_PER_FIGURE, MEN_PER_FIGURE],
             tick: 0,
-        };
-        // Side 4 first, then side 0. The order fixes figure indices, and figure
-        // indices are the simulation order.
-        runner.raise(army_a, SIDE_B);
-        runner.raise(army_b, SIDE_A);
-        // `Battle_InitArmies` ends with a census and a rebuild, before the
-        // first frame runs.
-        runner.sync_positions();
-        runner.units.rebuild_from_figures(&mut runner.sim.figures);
-        runner.ai.count_men(&runner.sim.figures);
+        }
+    }
+
+    /// `Battle_InitArmies`'s tail: the census and the rebuild, before the first
+    /// frame runs.
+    fn settle(&mut self) {
+        self.sync_positions();
+        self.units.rebuild_from_figures(&mut self.sim.figures);
+        self.ai.count_men(&self.sim.figures);
         for u in 1..=MAX_UNITS {
-            if runner.units.get(u).is_live() {
-                let BattleRunner { units, sim, positions, .. } = &mut runner;
+            if self.units.get(u).is_live() {
+                let BattleRunner { units, sim, positions, .. } = self;
                 units.recentre(u, &sim.figures, positions);
             }
         }
-        runner
     }
 
     /// The player's order: send a unit to a cell.
@@ -309,13 +479,46 @@ impl BattleRunner {
     /// unit's figures are laid out in a rectangle around that slot by
     /// [`formation::offset_x`] / [`formation::offset_y`].
     fn raise(&mut self, army: Army, side: Side) {
+        let men: Vec<(Troop, u32)> = army
+            .troops
+            .iter()
+            .map(|&(t, figures)| (t, figures as u32 * MEN_PER_FIGURE as u32))
+            .collect();
+        self.raise_men(
+            &Muster { troops: &men, owner: army.owner, human: army.human },
+            MEN_PER_FIGURE as u32,
+            side,
+        );
+    }
+
+    /// `Battle_RaiseSide` proper: men in, units and figures out.
+    ///
+    /// `docs/battle.md` §5.2. The eleven troop types are walked in
+    /// [`RAISE_ORDER`]; each is cut into units of at most
+    /// `MAX_FIGURES_PER_UNIT[t] * men_per_figure` **men**, and each unit into
+    /// `ceil(unitMen / men_per_figure)` figures with the last figure taking the
+    /// remainder rather than a full complement.
+    fn raise_men(&mut self, army: &Muster, men_per_figure: u32, side: Side) {
+        assert_ne!(army.owner, 0, "owner 0 is the original's free-slot marker");
+        let mpf = men_per_figure.max(1);
+        let mut counts = [0u32; 11];
+        for &(t, n) in army.troops {
+            counts[t.index()] += n;
+        }
         let mut ordinal = 0usize;
-        for &(troop, count) in army.troops {
-            let per_unit = MAX_FIGURES_PER_UNIT[troop.index()] as usize;
+        for &troop in RAISE_ORDER.iter() {
+            let count = counts[troop.index()];
+            if count == 0 {
+                continue;
+            }
+            // A siege engine is one figure whatever the scale, so its count is
+            // multiplied up before the split and divided back out by it.
+            let mut left = if troop.index() > 6 { count * mpf } else { count };
+            let per_unit = MAX_FIGURES_PER_UNIT[troop.index()] as u32;
             let footprint = FOOTPRINT[troop.index()];
-            let mut left = count as usize;
             while left > 0 {
-                let figures = left.min(per_unit);
+                let unit_men = left.min(per_unit * mpf);
+                let figures = unit_men.div_ceil(mpf) as usize;
                 let Some(unit) = self.units.create(
                     army.owner,
                     army.human,
@@ -327,7 +530,14 @@ impl BattleRunner {
                 let slot = self.deploy_slot(ordinal, side);
                 let rows = formation::rows_for(troop, figures);
                 for i in 0..figures {
-                    let Some(sim) = self.sim.add(troop, side, MEN_PER_FIGURE) else {
+                    // The last figure takes what is left rather than a full
+                    // complement — `BattleUnit_Create`'s own rounding.
+                    let men = if i + 1 == figures {
+                        (unit_men - (figures as u32 - 1) * mpf) as u16
+                    } else {
+                        mpf as u16
+                    };
+                    let Some(sim) = self.sim.add(troop, side, men) else {
                         // The original truncates at 80 figures and keeps
                         // allocating empty units for the rest of the army; we
                         // stop, because an empty unit is a unit the AI would
@@ -370,7 +580,7 @@ impl BattleRunner {
                         reroutes: 0,
                     });
                 }
-                left -= figures;
+                left -= unit_men;
                 ordinal += 1;
             }
         }
@@ -405,6 +615,113 @@ impl BattleRunner {
         self.positions.clear();
         self.positions
             .extend(self.fighters.iter().map(|f| (f.x, f.y)));
+    }
+
+    /// `DAT_0053F028` / `DAT_00553C58` — **a side's living men, and the number
+    /// the player is looking at.**
+    ///
+    /// `Battle_CountMenByType` recomputes both every frame, and
+    /// `00420000.c:1072` draws them side by side on the battle HUD with
+    /// `Ui_DrawNumberRight`. So the two counters that decide the battle are the
+    /// two numbers on the screen, which is as good a confirmation as this layer
+    /// offers. **[V]**
+    ///
+    /// **Troop types 7 … 10 are excluded** — the original's loop is
+    /// `if (troopType < 7)`, so catapults, towers, rams and oil are worth no
+    /// men and a side reduced to siege engines has already lost.
+    pub fn men_of_side(&self, side: Side) -> u32 {
+        self.sim
+            .figures
+            .iter()
+            .filter(|f| f.side == side && f.is_alive() && f.troop.index() < 7)
+            .map(|f| f.men as u32)
+            .sum()
+    }
+
+    /// **Is the battle over, and who holds the field** — `FUN_00477DFC`
+    /// (`0x00477DFC`), the per-frame outcome test.
+    ///
+    /// `None` while it continues. The whole of the non-siege rule is the first
+    /// two arms of that function:
+    ///
+    /// ```c
+    /// if (DAT_0056d5c8 == 0) {
+    ///     if      (menA < 1) { g_battleLoser = g_battleArmyB; }  /* B holds the field */
+    ///     else if (menB < 1) { g_battleLoser = g_battleArmyA; }
+    ///     else if (siege)    { ...three more arms... }
+    /// } else {                                    /* a side withdrew */
+    ///     g_battleLoser = (A.owner == withdrawer) ? B : A;
+    /// }
+    /// ```
+    ///
+    /// — remembering that `g_battleLoser` holds the **winner**, which this is a
+    /// fourth site to confirm: `FUN_00478419` maps
+    /// `g_localPlayer == g_units[g_battleLoser].owner` onto `L2.eng` group 82's
+    /// *"won"* pair.
+    ///
+    /// **A field battle ends only when one side is annihilated or withdraws.**
+    /// There is no morale break, no rout threshold and no clock. The three
+    /// siege arms — the escape tile, *assault repulsed, repeat*, and *siege
+    /// lifted* — are deliberately not here: sieges are out of scope, and
+    /// `Battlefield_BuildCastle` has not been implemented, so a battle in this
+    /// crate cannot be one.
+    pub fn conclusion(&self) -> Option<Conclusion> {
+        if let Some(side) = self.withdrawn {
+            return Some(Conclusion { winner: other_side(side), cause: End::Withdrawal });
+        }
+        // The original tests A first, so a battle that wipes both sides out on
+        // the same frame is won by B. Reproduced.
+        if self.men_of_side(SIDE_B) < 1 {
+            return Some(Conclusion { winner: SIDE_A, cause: End::Annihilation });
+        }
+        if self.men_of_side(SIDE_A) < 1 {
+            return Some(Conclusion { winner: SIDE_B, cause: End::Annihilation });
+        }
+        None
+    }
+
+    /// A side leaves the field — `DAT_0056D5C8` and `DAT_005656F8`.
+    ///
+    /// The original raises this in exactly one place,
+    /// `UnitOrder_SiegeAttKnight`: an all-knight AI besieger facing an
+    /// unbreached wall gives up. It is a lever rather than a rule here because
+    /// the only *rule* that pulls it is a siege one, and because a player's
+    /// withdrawal has to enter the model somewhere.
+    ///
+    /// It outranks annihilation: the original tests the flag before it looks at
+    /// either men counter.
+    pub fn withdraw(&mut self, side: Side) {
+        self.withdrawn = Some(side);
+    }
+
+    /// Men one figure of `side` stands for — [`size_class`]'s answer for this
+    /// battle, or four for a skirmish.
+    pub fn men_per_figure(&self, side: Side) -> u16 {
+        self.men_per_figure[usize::from(side != SIDE_A)]
+    }
+
+    /// **The casualty readback.** Living men of `side`, by
+    /// [`Troop::index`] — the eleven counts a `g_units` record carries at
+    /// `+0x16C`.
+    ///
+    /// This is the whole of "the battle hands its result back": the campaign
+    /// wrote eleven counts in, the battle killed some of the men standing for
+    /// them, and this reads what is left in the same eleven slots. It is exact
+    /// rather than proportional because [`Self::deploy_muster`] gives every
+    /// figure its real share of men.
+    pub fn survivors(&self, side: Side) -> [u32; 11] {
+        let mut out = [0u32; 11];
+        for f in &self.sim.figures {
+            if f.side == side && f.is_alive() {
+                out[f.troop.index()] += f.men as u32;
+            }
+        }
+        out
+    }
+
+    /// Living men of `side` — the sum of [`Self::survivors`].
+    pub fn men(&self, side: Side) -> u32 {
+        self.sim.men(side)
     }
 
     pub fn is_alive(&self, i: usize) -> bool {
@@ -1228,6 +1545,142 @@ mod tests {
             &[(Troop::Swordsmen, 6), (Troop::Archers, 4)],
             &[(Troop::Pikemen, 6), (Troop::Peasants, 4)],
         )
+    }
+
+    // --- the outcome test, `FUN_00477DFC` --------------------------------
+
+    #[test]
+    fn a_battle_with_both_armies_standing_has_not_concluded() {
+        let r = small_battle();
+        assert_eq!(r.conclusion(), None);
+        assert_eq!(r.men_of_side(SIDE_A), 40, "ten figures of four");
+        assert_eq!(r.men_of_side(SIDE_B), 40);
+    }
+
+    /// The whole of the non-siege rule: a side's men reaching zero.
+    #[test]
+    fn a_side_with_no_men_left_has_lost_and_the_other_holds_the_field() {
+        let mut r = small_battle();
+        for f in &mut r.sim.figures {
+            if f.side == SIDE_A {
+                f.men = 0;
+                f.state = State::Dead;
+            }
+        }
+        assert_eq!(r.men_of_side(SIDE_A), 0);
+        assert_eq!(
+            r.conclusion(),
+            Some(Conclusion { winner: SIDE_B, cause: End::Annihilation })
+        );
+    }
+
+    /// The original tests army A first, so a frame that empties both sides is
+    /// won by B — army A is side 4 here, and `menA < 1` is the first arm.
+    #[test]
+    fn a_battle_that_kills_everyone_at_once_falls_to_the_side_tested_first() {
+        let mut r = small_battle();
+        for f in &mut r.sim.figures {
+            f.men = 0;
+            f.state = State::Dead;
+        }
+        assert_eq!(r.conclusion().unwrap().winner, SIDE_A, "army B holds an empty field");
+    }
+
+    /// Withdrawal outranks annihilation: the original tests `DAT_0056D5C8`
+    /// before it looks at either men counter, so a side that has already
+    /// withdrawn loses even if the enemy is the one that was wiped out.
+    #[test]
+    fn a_withdrawal_decides_the_battle_before_the_men_are_counted() {
+        let mut r = small_battle();
+        for f in &mut r.sim.figures {
+            if f.side == SIDE_A {
+                f.men = 0;
+                f.state = State::Dead;
+            }
+        }
+        r.withdraw(SIDE_B);
+        let c = r.conclusion().unwrap();
+        assert_eq!(c.cause, End::Withdrawal);
+        assert_eq!(c.winner, SIDE_A, "the side that left the field loses whatever the count says");
+    }
+
+    /// Siege engines are worth no men: the original's counting loop is
+    /// `if (troopType < 7)`, so a side reduced to catapults has already lost.
+    #[test]
+    fn siege_engines_do_not_count_towards_a_sides_men() {
+        let mut r = BattleRunner::deploy_muster(
+            blank_field(),
+            DEFAULT_SEED,
+            Muster { troops: &[(Troop::Catapults, 2)], owner: 1, human: false },
+            Muster { troops: &[(Troop::Peasants, 40)], owner: 2, human: true },
+        );
+        assert!(r.sim.figures.iter().any(|f| f.troop == Troop::Catapults), "they were raised");
+        assert_eq!(r.men_of_side(SIDE_B), 0, "and they are worth nobody");
+        assert_eq!(r.conclusion().unwrap().winner, SIDE_A);
+        r.withdraw(SIDE_A);
+        assert_eq!(r.conclusion().unwrap().winner, SIDE_B);
+    }
+
+    // --- raising from real men, `docs/battle.md` §5.1 and §5.2 ------------
+
+    /// The last figure of a unit takes the remainder rather than a full
+    /// complement, so the men that go in are the men that come out.
+    #[test]
+    fn the_last_figure_of_a_unit_carries_the_remainder() {
+        // 306 + 200 = 506, between the ladder's first two breaks at 305 and 609:
+        // class 1, eight men a figure.
+        let a = [(Troop::Peasants, 306u32)];
+        let b = [(Troop::Peasants, 200u32)];
+        let r = BattleRunner::deploy_muster(
+            blank_field(),
+            DEFAULT_SEED,
+            Muster { troops: &a, owner: 1, human: false },
+            Muster { troops: &b, owner: 2, human: true },
+        );
+        // Army A deploys as side 4 - `Battle_InitArmies`.
+        assert_eq!(r.men_per_figure(SIDE_B), 8);
+        assert_eq!(r.men(SIDE_B), 306, "not 312, which 39 full figures of eight would give");
+        assert_eq!(r.survivors(SIDE_B)[Troop::Peasants.index()], 306);
+        // ceil(306 / 8) = 39 figures, cut into units of at most twelve.
+        assert_eq!(r.sim.figures.iter().filter(|f| f.side == SIDE_B).count(), 39);
+    }
+
+    /// A side small enough to be nearly invisible halves its scale on its own —
+    /// and the *other* side keeps the scale the pair chose.
+    #[test]
+    fn a_small_side_beside_a_large_one_gets_its_own_finer_scale() {
+        // 1000 + 40 = 1040, under the third break at 1217: class 2, sixteen a
+        // figure. The small side would draw two figures at that scale.
+        let a = [(Troop::Peasants, 1000u32)];
+        let b = [(Troop::Peasants, 40u32)];
+        let r = BattleRunner::deploy_muster(
+            blank_field(),
+            DEFAULT_SEED,
+            Muster { troops: &a, owner: 1, human: false },
+            Muster { troops: &b, owner: 2, human: true },
+        );
+        assert_eq!(size_class(1040), 2);
+        assert_eq!(r.men_per_figure(SIDE_B), 16, "the large side keeps the pair's scale");
+        assert_eq!(r.men_per_figure(SIDE_A), 8, "and the small one halves it");
+        assert_eq!(r.men(SIDE_A), 40, "nobody lost either way");
+        assert_eq!(r.men(SIDE_B), 1000);
+    }
+
+    /// `deploy_muster` walks [`RAISE_ORDER`] whatever order the caller wrote
+    /// the troops in — the tail of that order is what gets truncated at the
+    /// eighty-figure ceiling, so it is not cosmetic.
+    #[test]
+    fn the_raise_order_is_the_binarys_and_not_the_callers() {
+        let a = [(Troop::Peasants, 40u32), (Troop::Knights, 40)];
+        let b = [(Troop::Peasants, 40u32)];
+        let r = BattleRunner::deploy_muster(
+            blank_field(),
+            DEFAULT_SEED,
+            Muster { troops: &a, owner: 1, human: false },
+            Muster { troops: &b, owner: 2, human: true },
+        );
+        let first = r.sim.figures.iter().find(|f| f.side == SIDE_B).unwrap();
+        assert_eq!(first.troop, Troop::Knights, "knights are raised before peasants");
     }
 
     #[test]
