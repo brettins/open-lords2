@@ -64,6 +64,28 @@ fn send<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets, e: Event) -
     screen.handle(e, &mut ctx)
 }
 
+/// **Run the frames a turn takes.** Pressing End Turn only starts one — the
+/// phase machine is wound on once per fixed tick and the season fade follows —
+/// so a test that wants the numbers afterwards has to tick. See
+/// `l2_game::turn::TurnRun`.
+fn run_turn<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) {
+    let before = game.kingdom.turn_count;
+    let mut done_at = None;
+    for n in 1..2_000u32 {
+        let mut ctx = Ctx { game, assets };
+        screen.update(&mut ctx);
+        if done_at.is_none() && game.kingdom.turn_count > before {
+            done_at = Some(n);
+        }
+        if let Some(t) = done_at {
+            if n >= t + l2_view::fade::PHASES as u32 {
+                return;
+            }
+        }
+    }
+    panic!("the turn never came round");
+}
+
 /// Find a string drawn in `colour`, returning its top-left. Only the glyphs'
 /// *set* pixels are matched; what is behind the letters is the panel's
 /// business.
@@ -1475,6 +1497,11 @@ fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
 
     let b = map::END_TURN_BUTTON;
     send(&mut screen, &mut game, &assets, Event::Click { x: b.centre_x(), y: b.y + 4 });
+    assert_eq!(
+        game.kingdom.turn_count, 1,
+        "the click starts the turn; it does not run it inside the click",
+    );
+    run_turn(&mut screen, &mut game, &assets);
 
     assert_eq!(game.kingdom.turn_count, 2, "one season ran");
     assert_eq!(game.kingdom.season, 1, "Winter gave way to Spring");
@@ -1509,6 +1536,19 @@ fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
     for _ in 0..4 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         m.handle(Event::KeyDown(Key::Char('E')), &mut ctx);
+        // Four turns, and each of them takes the frames it takes.
+        let before = game.kingdom.turn_count;
+        let mut done_at = None;
+        for n in 1..2_000u32 {
+            let mut ctx = Ctx { game: &mut game, assets: &assets };
+            m.update(&mut ctx);
+            if done_at.is_none() && game.kingdom.turn_count > before {
+                done_at = Some(n);
+            }
+            if done_at.is_some_and(|t| n >= t + l2_view::fade::PHASES as u32) {
+                break;
+            }
+        }
         ctx_seasons.push((game.kingdom.season, game.kingdom.year));
     }
     assert_eq!(ctx_seasons, vec![(1, 1268), (2, 1268), (3, 1268), (4, 1269)]);

@@ -523,6 +523,7 @@ for it to live (§6.5).
 | **N9** | **The DirectPlay `guidApplication` is different on every run**, with a byte pattern that looks like a module address repeated into the field — *"a value that is supposed to identify 'this game' and instead identifies 'this process'."* Observation **[V]**, explanation **[I]**. And the game asks for `IID_IDirectPlay2` — the **wide** variant — while being an ANSI application that passes ANSI strings through it. | Not reproduced. `netcode.md` rule D-6 exists precisely to forbid this class of defect in our engine. |
 | **N10** | **Two of the three alliance-envy tiers are unreachable** — `v < 0x15` implies `v < 0x22` and implies `!(0x32 < v)`, so only the `+1` arm can fire and envy of a winning ally accumulates at a fifth to a quarter of the intended rate. **[V]**, *"arithmetic over three constants, not a reading."* | **Diplomacy is traced and implemented nowhere.** Whoever implements it must reproduce this and move the row into §2 — or decline it and say so here. Same for two siblings: an AI's standing towards a **human** never heals (the +1 per turn is guarded on the other realm being non-human, **[V]**), and the **Bishop does not declare war** when his alliance breaks because `lord != 4` guards the `atWar` write, so he can be allied with again later ([D]; `diplomacy.md` declines to call that one a bug). |
 | **N11** | **`Map_PickTile` is pure geometry, so the top of a tall building belongs to the tile behind it.** The mine sprite is 58 × 47 on a 58 × 30 tile: in the original its upper half resolves to a tile where `Map_Click` finds no flags and does nothing at all. The forest is worse, at 22 rows of overhang. | **We test the frame's opacity mask when the diamond misses.** It can add an answer where the original had none; it can never move one. Reproducing the dead zone faithfully would reproduce a defect that **our own county-selection arm makes worse than it is in the original** — `Map_Click` has no such arm, so there a missed click does nothing, while ours falls through to selecting the county and opening a screen. A player reported it twice. `docs/decisions.md` C57. |
+| **N12** | **`g_moveOrderClickGuard` deadens the map for forty frames after a move order opens.** `Screen_FrameInput` polls the *level* of the mouse button, so without the guard the press that opens move-order mode is read again on the next frame as the press that confirms the destination. The constant is a workaround for the polling, not a rule about movement. | **We do not port the forty frames, because the defect cannot occur here.** Our `Event::Click` is edge-triggered: one press produces one event, so there is no second read to suppress. The property is asserted rather than the constant reproduced — which is the distinction worth keeping, because a parity audit that finds a constant in the original and none here should be able to see *why* in one line instead of filing it as a gap. `docs/decisions.md` C60. |
 
 ---
 
@@ -609,6 +610,21 @@ is a pass 0, and it is this one.
   is **not established**; `battle-ai.md` judges a deliberate handicap *"the more economical
   reading than an inverted test, but it is not proof, and one instance of the four points away
   from it."*
+
+## 4.2a Ours, latent: crashes nothing can currently reach
+
+Not the original's bugs and not behaviour — **our own panics that no current caller can
+provoke.** They are here rather than in `decisions.md` because there is nothing to correct
+yet: the code is right for every input it is given today, and wrong for an input a future
+caller could hand it.
+
+* **`movement::order_move` panics on an off-grid destination.** Unreachable from the
+  interface, because `pick_tile` only ever yields a tile that exists — which is precisely
+  why it has never fired. Any caller that computes a destination rather than picking one
+  (a script, an AI order, a replayed command) can reach it. It wants a `Result` or a clamp,
+  and it wants deciding rather than defaulting: an off-grid order is a caller's bug and
+  silently clamping it would hide one. Found by the agent that rewrote `pick_tile`, which
+  correctly declined to touch `l2-kingdom` while other agents were working in it.
 
 ## 4.3 Suspected, unresolved — do not treat these as findings
 

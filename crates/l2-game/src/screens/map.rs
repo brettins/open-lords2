@@ -36,6 +36,18 @@
 //! Keep it, but if you narrow or move a hitbox, the failure you are risking is a
 //! *wrong answer*, not a silent one.
 //!
+//! **Three separate defects have now reached a player through that multiplier,
+//! and they are one pattern rather than three bugs.** A hit test smaller than
+//! the thing drawn (C58, a 9 × 9 box under a 40 × 32 figure); a hit test that
+//! stops at the diamond when the sprite stands over the tiles behind it (C57,
+//! the mine); and a hit test whose arithmetic is simply wrong (C60, `pick_tile`
+//! dividing by `tile_w / 2` where `Map_PickTile` divides by the half pitch —
+//! 56 dead pixels around every tile centre, so an order aimed at a seam
+//! silently reselected a county).
+//!
+//! Each is a different mistake. **All three became visible to a player for the
+//! same reason: the miss did not do nothing, it opened the wrong screen.**
+//!
 //! # What is the original's, and what is ours
 //!
 //! **The original's:** the viewport and both zooms, the scroll clamp and the
@@ -403,7 +415,64 @@ pub struct MapScreen {
     /// **`g_minimapMode` (`0x0057A0C4`)** — what the minimap is coloured by.
     /// Set by [`MINIMAP_MODE_BUTTONS`] through `Minimap_ModeButton`.
     minimap_mode: MinimapMode,
+    /// **The end-of-turn screen fade, while it is running.** See [`Fading`].
+    fading: Option<Fading>,
+    /// The player's gold when End Turn was pressed, so the *"you gained N"*
+    /// line still compares against the right number however many frames later
+    /// the turn finishes. See [`MapScreen::end_turn`].
+    gold_at_turn_start: i32,
+    /// **`g_optScrollSpeed` (`0x0053F234`).** 0 … 100 in steps of ten, shown on
+    /// the options slider as 0 … 10; the shipped default is
+    /// [`DEFAULT_SCROLL_SPEED`].
+    ///
+    /// It lives on the screen rather than in `Options` because it is not a
+    /// rule: nothing in the simulation reads it, and two lockstep peers may
+    /// disagree about it the way they may disagree about window size.
+    /// `Menu_ScrollSpeed` (`0x00434CEE`) is the control that sets it, the
+    /// options menu is not drawn yet, and this is the seam it will attach to.
+    /// See [`MapScreen::scroll_interval_ticks`].
+    scroll_speed: i32,
+    /// Ticks still to wait before the next edge-scroll step.
+    scroll_wait: u32,
 }
+
+/// **The end-of-turn screen fade, mid-flight.**
+///
+/// `FUN_004B0CB4` has exactly two call sites in the whole binary and both are
+/// on the turn boundary: `Turn_Tick`'s phase 7 with `rawFlag = 1` immediately
+/// after `Season_Advance`, and `FUN_0049A3E6` with `0` after reloading the
+/// seasonal art. So the sequence a player sees is **units walk, season
+/// advances, screen fades down, art swaps in the dark, screen fades back up** —
+/// which is the order he described from memory, and it is the order these two
+/// states run in.
+///
+/// The phase counts `0 ..= l2_view::fade::PHASES`, one per fixed tick; the
+/// palette arithmetic and the entry range are in [`l2_view::fade`].
+#[derive(Debug, Clone)]
+struct Fading {
+    phase: u8,
+    /// What to put in the status line once the light is back. Held rather than
+    /// written immediately because the numbers it names change *during* the
+    /// dark, and announcing them early is the abruptness the fade hides.
+    status: String,
+    /// Whether the turn ended the game, in which case the conquest screen comes
+    /// up when the light does — as it does in the original, where
+    /// `g_screenId = 0x1C` is set on the far side of the same fade.
+    over: bool,
+}
+
+/// One fixed simulation tick in milliseconds — `main::TICK`.
+///
+/// **This is a constant, not a clock.** Nothing here asks how long a frame
+/// actually took; the number exists so an interval the original states in
+/// milliseconds can be converted to the whole ticks this crate is allowed to
+/// count. `VillageScreen::CLICK_SETTLE_TICKS` makes the same conversion by
+/// hand and for the same reason (`docs/netcode.md`).
+const TICK_MS: u32 = 16;
+
+/// `g_optScrollSpeed`'s shipped default, written by the options-defaults
+/// routine at `0x004AE310`. **[V]**
+pub const DEFAULT_SCROLL_SPEED: i32 = 60;
 
 /// A field tile the player has clicked, and the menu its terrain opens.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -440,6 +509,10 @@ impl MapScreen {
             selected_unit: None,
             slider_held: false,
             minimap_mode: MinimapMode::Owner,
+            fading: None,
+            gold_at_turn_start: 0,
+            scroll_speed: DEFAULT_SCROLL_SPEED,
+            scroll_wait: 0,
         }
     }
 
@@ -471,6 +544,60 @@ impl MapScreen {
             self.minimap_mode = MinimapMode::Owner;
             self.status = "MINIMAP OWNERS".into();
         }
+    }
+
+    /// Set `g_optScrollSpeed`. 0 … 100; 0 disables scrolling, as it does in the
+    /// original. See [`MapScreen::scroll_interval_ticks`].
+    pub fn set_scroll_speed(&mut self, speed: i32) {
+        self.scroll_speed = speed.clamp(0, 100);
+        self.scroll_wait = 0;
+    }
+
+    /// **`Map_ScrollThrottle` (`0x004BBBE3`), in ticks.**
+    ///
+    /// The original:
+    ///
+    /// ```c
+    /// elapsed = timeGetTime() - g_lastScrollTick;
+    /// q = (100 - g_optScrollSpeed) / 10;
+    /// if (q >= 10) return 0;                       /* speed 0 never scrolls */
+    /// if (g_screenId == 0x10) q += 2;
+    /// if (q * 12 + 2 > elapsed) return 0;
+    /// g_lastScrollTick = timeGetTime();  return 1;
+    /// ```
+    ///
+    /// So the interval is **`((100 − speed) / 10) × 12 + 2` milliseconds**, the
+    /// remainder is discarded rather than carried, and `Map_EdgeScroll` itself
+    /// is called unconditionally every frame — the *detection* runs at frame
+    /// rate and only the *movement* is gated. `g_optScrollSpeed` is a 0 … 100
+    /// slider in steps of ten shown as 0 … 10, and the default written by the
+    /// options-defaults routine at `0x004AE310` is **60**, which is 50 ms,
+    /// which is **20 tiles a second**. **[V]** — decoded from the binary.
+    ///
+    /// Ours had no throttle at all and scrolled one tile per fixed tick, which
+    /// is 62.5 a second: **three times too fast**. A player said *"mouse scroll
+    /// needs to be like… half that speed, not sure if it's a game default or
+    /// some cycle thing"*, and it was both — there is a game default and it is
+    /// applied on a timer.
+    ///
+    /// # The quantisation is ours and this is it
+    ///
+    /// Nothing below `main.rs` may read a clock (`docs/netcode.md`), so the
+    /// millisecond interval becomes a whole number of [`TICK_MS`] ticks,
+    /// **rounded to nearest** and never below one. At the default that is 3
+    /// ticks — 48 ms, 20.8 tiles a second against the original's 20.0. Rounding
+    /// rather than flooring or ceiling is what keeps it close: 4 ticks would be
+    /// 64 ms and visibly slower than the game.
+    fn scroll_interval_ticks(&self) -> u32 {
+        let speed = self.scroll_speed.clamp(0, 100);
+        let q = (100 - speed) / 10;
+        if q >= 10 {
+            // Speed 0 disables scrolling outright, which is a real setting and
+            // not a degenerate one: `Map_ScrollThrottle` returns 0 for ever.
+            return u32::MAX;
+        }
+        let ms = (q * 12 + 2) as u32;
+        ((ms + TICK_MS / 2) / TICK_MS).max(1)
     }
 
     /// One frame of the farm/industry slider: `FUN_00439122`'s body, once the
@@ -738,6 +865,11 @@ impl MapScreen {
         if self.built == Some(key) {
             return;
         }
+        // The seasonal art changes in the dark. See
+        // [`MapScreen::holding_art_for_the_dark`].
+        if self.holding_art_for_the_dark() {
+            return;
+        }
         let Some(slot) = ctx.assets.slot(ctx.game.map_slot) else {
             return;
         };
@@ -816,7 +948,19 @@ impl MapScreen {
         if !self.map_clip().contains(x, y) {
             return None;
         }
-        let (hw, hh) = (self.zoom.tile_w / 2, self.zoom.tile_h / 2);
+        // **The half-extents are the lattice's, not the picture's.**
+        // `Map_PickTile` (`0x00429BA4`) *"divides by `g_mapTileHalfStep` and
+        // `g_mapRowStep`"*, which are the half **pitch** and the row step — 30
+        // and 15 near, 6 and 3 far. These were `tile_w / 2` and `tile_h / 2`,
+        // which are 29 and 15: the near tile is 58 wide but the lattice pitch
+        // is 60, so the diamonds were two pixels narrow and **did not tile the
+        // plane** — 56 dead pixels around every tile centre.
+        //
+        // A `None` from here is not a refusal. The click falls through to
+        // county selection, so a march order aimed at one of those pixels
+        // quietly reselected a county instead of ordering anything.
+        // `the_diamonds_leave_no_pixel_unpicked` is the assertion.
+        let (hw, hh) = (self.zoom.half_pitch, self.zoom.row_step);
         let dim = l2_kingdom::MAP_DIM;
         for ty in 0..dim {
             for tx in 0..dim {
@@ -1204,13 +1348,36 @@ impl MapScreen {
     /// pop, and it is called from `update` because this screen is underneath
     /// them and gets its tick back the moment they are gone.
     fn end_turn(&mut self, ctx: &mut Ctx) -> Transition {
-        let before = ctx.game.gold();
+        if turn::turn_in_flight(ctx.game) || self.fading.is_some() {
+            return Transition::Stay;
+        }
+        // **The gold is snapshotted here and not in `resume_turn`.** A turn
+        // takes many frames now, and `resume_turn` runs on all of them; reading
+        // the treasury there would compare the end of the turn against the
+        // frame before it and report a change of nothing.
+        self.gold_at_turn_start = ctx.game.gold();
+        // The modal state has nowhere to land while the map is not taking
+        // clicks. The unit *selection* is kept: an order placed and then
+        // silently cancelled by the turn ending would be a surprise.
+        self.picked_field = None;
+        self.slider_held = false;
         let step = turn::begin_turn(ctx.game);
+        self.status = "ENDING THE TURN...".into();
+        self.scrolled = true;
+        let before = self.gold_at_turn_start;
         self.settle_turn(ctx, step, before)
     }
 
-    /// Pick a suspended turn back up. Called every tick; almost always a no-op,
-    /// because almost always there is no turn in flight.
+    /// Pick a suspended turn back up **and wind it on by one tick**. Called
+    /// every tick; almost always a no-op, because almost always there is no
+    /// turn in flight.
+    ///
+    /// This used to call [`turn::dismiss_report`], which ran the machine to the
+    /// end unless a battle stopped it — so a turn with no battle in it was over
+    /// before the next frame was drawn. [`turn::tick_turn`] is one
+    /// `Turn_Tick` / `Units_Tick` pair, which is what the original's main loop
+    /// calls once a frame, and it is what gives a turn its duration. See
+    /// [`turn::TurnStep::Running`].
     fn resume_turn(&mut self, ctx: &mut Ctx) -> Transition {
         if !turn::turn_in_flight(ctx.game) {
             return Transition::Stay;
@@ -1224,8 +1391,11 @@ impl MapScreen {
         if turn::pending_report(ctx.game).is_some() {
             return Transition::Push(ScreenId::BattleResult);
         }
-        let before = ctx.game.gold();
-        let step = turn::dismiss_report(ctx.game);
+        // **A tick of the turn is a repaint**, because the whole point of
+        // spreading it over frames is that the units on it are seen to move.
+        self.scrolled = true;
+        let step = turn::tick_turn(ctx.game);
+        let before = self.gold_at_turn_start;
         self.settle_turn(ctx, step, before)
     }
 
@@ -1234,6 +1404,8 @@ impl MapScreen {
         match step {
             turn::TurnStep::Ask(_) => return Transition::Push(ScreenId::BattlePrompt),
             turn::TurnStep::Report(_) => return Transition::Push(ScreenId::BattleResult),
+            // One tick down. The next frame brings the next one.
+            turn::TurnStep::Running => return Transition::Stay,
             turn::TurnStep::Stuck => {
                 self.status = "THE TURN MACHINE DID NOT COME ROUND".into();
                 return Transition::Stay;
@@ -1250,7 +1422,7 @@ impl MapScreen {
     ) -> Transition {
         let change = ctx.game.gold() - before;
         let fought = outcome.battles.len();
-        self.status = format!(
+        let status = format!(
             "{} {} {} - {} MSG{}",
             season_name(ctx.game.kingdom.season),
             ctx.game.kingdom.year,
@@ -1258,8 +1430,35 @@ impl MapScreen {
             outcome.report.messages.len(),
             if fought == 0 { String::new() } else { format!(" - {fought} BATTLE") }
         );
-        if outcome.outcome.is_over() {
+        let over = outcome.outcome.is_over();
+        if over {
             ctx.game.campaign.enter_conquest_screen();
+        }
+        // **`Turn_Tick`'s phase 7 fades the screen the instant `Season_Advance`
+        // returns**, and this is that instant. `FUN_004B0CB4(_, 1, _)` down to
+        // a quarter, the seasonal art reloaded in the dark, `FUN_0049A3E6`'s
+        // `FUN_004B0CB4(_, 0, _)` back up. See [`l2_view::fade`] and
+        // [`Fading`].
+        //
+        // The status line and the leave for screen `0x1C` both wait for the
+        // light: the original's `g_screenId = 0x1C` is on the far side of the
+        // fade too.
+        self.fading = Some(Fading { phase: 0, status, over });
+        self.scrolled = true;
+        Transition::Stay
+    }
+
+    /// One frame of the end-of-turn fade. See [`Fading`].
+    fn tick_fade(&mut self) -> Transition {
+        let Some(mut f) = self.fading.take() else { return Transition::Stay };
+        self.scrolled = true;
+        f.phase += 1;
+        if f.phase < l2_view::fade::PHASES {
+            self.fading = Some(f);
+            return Transition::Stay;
+        }
+        self.status = f.status;
+        if f.over {
             // `Replace`, not `Push`: the campaign map underneath is a map of a
             // game that is over, and the original leaves it — the OK button on
             // `0x1C` goes on to `Game_NewGame` or the front end, never back to
@@ -1267,6 +1466,25 @@ impl MapScreen {
             return Transition::Replace(ScreenId::Conquest);
         }
         Transition::Stay
+    }
+
+    /// Whether the base render is being held back until the fade bottoms out.
+    ///
+    /// **The seasonal art changes in the dark, and that is the job the fade is
+    /// doing.** The original's second `FUN_004B0CB4` call site is
+    /// `FUN_0049A3E6`, *after* reloading the seasonal art — so the reload
+    /// happens between the two calls, inside the dark window. A player who has
+    /// played it says the same thing from the other side: the fade *"hides the
+    /// season change visuals just abruptly changing"*. Two unrelated sources
+    /// meeting is what turns the note in [`l2_view::fade`] from inferred into
+    /// confirmed.
+    ///
+    /// So a rebuild that falls due while the light is going down waits for the
+    /// bottom. Without this the map pops to the new season one frame after the
+    /// button and then fades a picture the player has already watched change,
+    /// which is the abruptness the effect exists to hide.
+    fn holding_art_for_the_dark(&self) -> bool {
+        matches!(self.fading, Some(Fading { phase, .. }) if phase < l2_view::fade::STEPS)
     }
 }
 
@@ -1297,6 +1515,16 @@ impl Screen for MapScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        // **While a turn is being wound on the map is a spectator.** Every
+        // hotspot it offers writes to state the phase machine is in the middle
+        // of reading, so a click that landed mid-turn would race it. Pointer
+        // motion still gets through, because a frozen cursor reads as a hang
+        // rather than as a turn passing.
+        if (turn::turn_in_flight(ctx.game) || self.fading.is_some())
+            && !matches!(event, Event::Pointer { .. } | Event::PointerLeft | Event::Release { .. })
+        {
+            return Transition::Stay;
+        }
         match event {
             Event::KeyDown(Key::Escape) => return Transition::Pop,
             // **Ours, and only the key is.** The original has no keyboard route
@@ -1614,10 +1842,6 @@ impl Screen for MapScreen {
         // the top screen is given a tick, so this runs the moment `0x12` or
         // `0x13` pops and not before — which is exactly when the campaign is
         // allowed to move again.
-        let resumed = self.resume_turn(ctx);
-        if resumed != Transition::Stay {
-            return resumed;
-        }
         // `Map_DrawFrame`: `if (0x7F < tick) tick = 0; phase = tick >> 4;`
         // Only a change of phase is a repaint, so a still map with flags on it
         // costs eight frames every 2.05 seconds rather than sixty a second.
@@ -1627,17 +1851,53 @@ impl Screen for MapScreen {
             self.flag_phase = phase;
             self.scrolled = true;
         }
+        // The season has turned and the screen is dark or on its way there.
+        // Nothing else may run: the fade *is* the frame.
+        if self.fading.is_some() {
+            return self.tick_fade();
+        }
+        let resumed = self.resume_turn(ctx);
+        if resumed != Transition::Stay {
+            return resumed;
+        }
+        // A turn in flight winds itself on above and runs `Units_Tick` as part
+        // of doing so; the sweep below must not run a second time in the same
+        // frame, or every unit would take two tiles a tick and three of the
+        // seven phases would settle early.
+        if !turn::turn_in_flight(ctx.game) {
+            // **`Units_Tick` on an ordinary frame.** This is what makes an army
+            // the player has just ordered walk away while he watches, rather
+            // than standing still until End Turn. See
+            // [`turn::tick_units_only`].
+            if turn::tick_units_only(ctx.game) > 0 {
+                self.scrolled = true;
+            }
+        }
         // The brush popup is modal, and a modal popup that scrolled the map out
         // from under its own target would be worse than one that does not.
         if self.picked_field.is_some() {
             return Transition::Stay;
         }
-        if let Some(dir) = self.edge_direction() {
-            if self.scroll(dir) {
-                self.scrolled = true;
+        // **`Map_ScrollThrottle` (`0x004BBBE3`)** — the map does not step on
+        // every frame the pointer is at the edge. See
+        // [`MapScreen::scroll_interval_ticks`].
+        let every = self.scroll_interval_ticks();
+        self.scroll_wait = self.scroll_wait.saturating_sub(1);
+        // `q >= 10` — speed 0 — is the original's own early return, and no
+        // amount of waiting satisfies it.
+        if self.scroll_wait == 0 && every != u32::MAX {
+            if let Some(dir) = self.edge_direction() {
+                self.scroll_wait = every;
+                if self.scroll(dir) {
+                    self.scrolled = true;
+                }
             }
         }
         Transition::Stay
+    }
+
+    fn fade(&self) -> Option<u8> {
+        self.fading.as_ref().map(|f| f.phase)
     }
 
     fn take_redraw(&mut self) -> bool {
@@ -1962,22 +2222,34 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
 /// frame index *is* the accumulated cost and everything past the remaining
 /// budget collapses to frame `0x38`. `docs/armies.md` §2.3.
 ///
-/// **The mechanism is the original's and the mark is ours.** We have no
-/// `Flags1a.pl8` frame placed, so a path tile is a small dot — bright while the
-/// army can still reach it this season, dim beyond that — and the transition
-/// between the two is at exactly the same step the original greys at.
+/// **The balls are the game's own art now.** A player who has played it:
+/// *"there are colored dot images for the army walking dots"* — and they are
+/// `Flags1a.pl8` frames `0x38 … 0x4D`, 23 pictures of one 15 × 15 ball in
+/// rising amounts of colour, indexed by the **accumulated cost** of reaching
+/// that tile. Nothing about the realm, the shield or the unit's kind selects
+/// the colour; see [`campaign::path_marker_frame`], which carries the
+/// measurement that settled it.
+///
+/// The small dot is the fallback for an install with no `Flags1a.pl8`, and for
+/// the placeholder assets the tests use — bright while the army can still reach
+/// the tile this season, dim beyond that, greying at exactly the step the
+/// original greys at. `docs/decisions.md` C21.
+///
+/// **This is the feedback the player was missing.** `Unit_OrderMove` writes
+/// nothing at all when no path is found, and an *unreachable* destination is an
+/// accepted order with an empty path — so a refused order, a hopeless one and a
+/// perfectly good one all looked the same on screen. The path is the original's
+/// own answer to that, and drawing it is how a player tells our bug from his own
+/// mis-click.
 fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
     let Some(unit) = screen.selected_unit.and_then(|id| ctx.game.kingdom.campaign.units.get(id))
     else {
         return;
     };
-    let mut left = unit.moves_left();
+    let left_at_start = unit.moves_left();
+    let mut spent = 0;
     for &(x, y) in &unit.path {
-        let Some((cx, cy)) = campaign::tile_centre(screen.view, &screen.zoom, x as usize, y as usize)
-        else {
-            continue;
-        };
         // The step's own cost is what the stepper charges; a road is 1 and open
         // ground 3, and the preview greys where the budget runs out.
         let cost = if ctx.game.kingdom.campaign.map.has(x, y, l2_kingdom::map::flags::ROAD) {
@@ -1985,8 +2257,25 @@ fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: C
         } else {
             3
         };
-        left -= cost;
-        let colour = if left >= 0 { ink.highlight } else { ink.dim };
+        spent += cost;
+        let in_range = spent <= left_at_start;
+        let drawn = campaign::draw_path_marker(
+            canvas,
+            &ctx.assets.map,
+            screen.view,
+            &screen.zoom,
+            (x as usize, y as usize),
+            campaign::path_marker_frame(spent, in_range),
+            clip,
+        );
+        if drawn {
+            continue;
+        }
+        let Some((cx, cy)) = campaign::tile_centre(screen.view, &screen.zoom, x as usize, y as usize)
+        else {
+            continue;
+        };
+        let colour = if in_range { ink.highlight } else { ink.dim };
         fill_clipped(canvas, cx - 1, cy - 1, 3, colour, clip);
     }
 }
@@ -2447,30 +2736,184 @@ mod tests {
 
     }
 
-    /// And a tick with the pointer held at the edge actually moves the view,
-    /// and reports that it did so the machine repaints. That report is what
-    /// makes the gesture continuous rather than one step per mouse move.
+    /// Holding the pointer at the edge scrolls the map, **at the original's
+    /// rate and not at ours**, and reports that it did so the machine
+    /// repaints. That report is what makes the gesture continuous rather than
+    /// one step per mouse move.
+    ///
+    /// This used to be called `..._scrolls_every_tick_...` and asserted exactly
+    /// that: one tile per fixed tick, which is 62.5 a second. The original's
+    /// `Map_ScrollThrottle` gives 20 at the shipped default, so we were **three
+    /// times too fast** — the defect a player reported as *"mouse scroll needs
+    /// to be like… half that speed"*. The interval is now the original's
+    /// formula, and this asserts the pacing rather than assuming there is none.
     #[test]
-    fn holding_the_pointer_at_the_edge_scrolls_every_tick_and_asks_for_a_repaint() {
+    fn holding_the_pointer_at_the_edge_scrolls_at_the_originals_rate() {
         let mut game = crate::Game::new(1);
         let assets = crate::game::Assets::placeholder();
         let mut s = MapScreen::new();
         s.view = Viewport::new(40, 20);
         s.pointer = (CANVAS_W - 1, 240);
         s.pointer_in = true;
-        for step in 1..=3 {
+
+        let every = s.scroll_interval_ticks();
+        assert_eq!(every, 3, "the default 60 is 50 ms, which is three of our 16 ms ticks");
+
+        let mut moved = 0;
+        for tick in 1..=every * 3 {
             let mut ctx = Ctx { game: &mut game, assets: &assets };
             s.update(&mut ctx);
-            assert_eq!(s.viewport(), Viewport::new(40, 20 + step), "tick {step}");
-            assert!(s.take_redraw(), "a tick that moved the map has to be drawn");
-            assert!(!s.take_redraw(), "and taking the flag clears it");
+            if s.viewport().col > 20 + moved {
+                moved += 1;
+                assert!(s.take_redraw(), "a tick that moved the map has to be drawn");
+            }
+            assert_eq!(
+                s.viewport(),
+                Viewport::new(40, 20 + moved),
+                "tick {tick}: one tile every {every} ticks and no more",
+            );
         }
-        // In the middle of the screen nothing happens at all.
+        assert_eq!(moved, 3, "three steps in nine ticks, not nine");
+
+        // In the middle of the screen nothing happens at all, however many
+        // ticks go by.
         s.pointer = (240, 240);
-        let mut ctx = Ctx { game: &mut game, assets: &assets };
-        s.update(&mut ctx);
-        assert_eq!(s.viewport(), Viewport::new(40, 23));
-        assert!(!s.take_redraw());
+        let settled = s.viewport();
+        for _ in 0..every * 2 {
+            let mut ctx = Ctx { game: &mut game, assets: &assets };
+            s.update(&mut ctx);
+        }
+        assert_eq!(s.viewport(), settled);
+    }
+
+    /// **The whole of `Map_ScrollThrottle`'s ladder**, at every setting the
+    /// slider can produce: `((100 − speed) / 10) × 12 + 2` milliseconds, and
+    /// speed 0 never scrolls at all.
+    #[test]
+    fn the_scroll_throttle_reproduces_the_originals_interval_at_every_setting() {
+        let mut s = MapScreen::new();
+        // speed, the original's interval in ms, and our tick count for it.
+        let table = [
+            (0, None, u32::MAX),
+            (10, Some(110), 7),
+            (20, Some(98), 6),
+            (30, Some(86), 5),
+            (40, Some(74), 5),
+            (50, Some(62), 4),
+            (60, Some(50), 3),
+            (70, Some(38), 2),
+            (80, Some(26), 2),
+            (90, Some(14), 1),
+            (100, Some(2), 1),
+        ];
+        for (speed, ms, ticks) in table {
+            s.set_scroll_speed(speed);
+            if let Some(ms) = ms {
+                let q = (100 - speed) / 10;
+                assert_eq!(q * 12 + 2, ms, "speed {speed}: the original's own arithmetic");
+            }
+            assert_eq!(s.scroll_interval_ticks(), ticks, "speed {speed}");
+        }
+        // Out of range is clamped rather than wrapped, at both ends.
+        s.set_scroll_speed(-40);
+        assert_eq!(s.scroll_interval_ticks(), u32::MAX, "below zero is still 'never'");
+        s.set_scroll_speed(4_000);
+        assert_eq!(s.scroll_interval_ticks(), 1);
+    }
+
+    /// Speed 0 is a real setting: `Map_ScrollThrottle` returns 0 for ever, so
+    /// the map does not scroll however long the pointer is held at the edge.
+    #[test]
+    fn scroll_speed_zero_never_scrolls() {
+        let mut game = crate::Game::new(1);
+        let assets = crate::game::Assets::placeholder();
+        let mut s = MapScreen::new();
+        s.view = Viewport::new(40, 20);
+        s.pointer = (CANVAS_W - 1, 240);
+        s.pointer_in = true;
+        s.set_scroll_speed(0);
+        for _ in 0..200 {
+            let mut ctx = Ctx { game: &mut game, assets: &assets };
+            s.update(&mut ctx);
+        }
+        assert_eq!(s.viewport(), Viewport::new(40, 20));
+    }
+
+    /// **Every pixel around a tile centre picks a tile.**
+    ///
+    /// `pick_tile` resolves a pixel against the diamond around each tile
+    /// centre, and the half-extents have to be the **lattice**'s — the half
+    /// pitch and the row step — for those diamonds to tile the plane. They were
+    /// `tile_w / 2` and `tile_h / 2`, and at the near zoom the tile is 58 wide
+    /// while the pitch is 60: two pixels narrow.
+    ///
+    /// The seams are **sparse** and are not on the line between two tile
+    /// centres, which is why a coarser test than this one passes with the bug
+    /// still in. At the near zoom the first missing pixel is 28 across and 1
+    /// down from a centre: with `hw = 29` its own tile scores
+    /// `28×15 + 1×29 = 449 > 435` and the neighbour scores `436 > 435`, so it
+    /// belongs to nobody by one unit. So this sweeps a tile's whole
+    /// neighbourhood — 56 pixels of it were dead — and requires all of it to
+    /// resolve.
+    #[test]
+    fn the_diamonds_leave_no_pixel_unpicked() {
+        for zoom in [NEAR, FAR] {
+            let mut s = MapScreen::new();
+            s.zoom = zoom;
+            s.view = Viewport::new(60, 30).clamped(&zoom);
+            // A tile whose neighbours are all comfortably on screen **and all
+            // on the map**. The grid's own edge is a real hole and not a seam:
+            // there is no tile beyond it to pick.
+            let (tx, ty) = (1..l2_kingdom::MAP_DIM - 1)
+                .flat_map(|y| (1..l2_kingdom::MAP_DIM - 1).map(move |x| (x, y)))
+                .find(|&(x, y)| {
+                    [(x, y), (x + 1, y), (x, y + 1), (x - 1, y), (x, y - 1)].iter().all(|&(a, b)| {
+                        campaign::tile_centre(s.view, &zoom, a, b).is_some_and(|(cx, cy)| {
+                            let c = s.map_clip();
+                            cx - zoom.pitch > c.x0
+                                && cx + zoom.pitch < c.x1
+                                && cy - zoom.row_step * 2 > c.y0
+                                && cy + zoom.row_step * 2 < c.y1
+                        })
+                    })
+                })
+                .expect("a tile with room around it");
+            let (cx, cy) = campaign::tile_centre(s.view, &zoom, tx, ty).expect("in view");
+
+            let mut misses = Vec::new();
+            for dy in -zoom.row_step..=zoom.row_step {
+                for dx in -zoom.half_pitch..=zoom.half_pitch {
+                    if s.pick_tile(cx + dx, cy + dy).is_none() {
+                        misses.push((dx, dy));
+                    }
+                }
+            }
+            assert!(
+                misses.is_empty(),
+                "zoom {}: {} pixels around a tile centre pick nothing, first at {:?} \
+                 — the diamonds do not tile the plane",
+                zoom.id,
+                misses.len(),
+                misses.first(),
+            );
+        }
+    }
+
+    /// **The half-extents are the lattice's**, which is the arithmetic the test
+    /// above rests on, stated so a reader does not have to derive it from a
+    /// pixel sweep. `Map_PickTile` divides by `g_mapTileHalfStep` and
+    /// `g_mapRowStep`: the *pitch* halved and the row step, not the picture's
+    /// width and height halved.
+    #[test]
+    fn the_pick_diamond_is_the_lattice_and_not_the_picture() {
+        for zoom in [NEAR, FAR] {
+            assert_eq!(zoom.half_pitch * 2, zoom.pitch, "zoom {}", zoom.id);
+        }
+        // The near zoom is the case that was wrong: 58 / 2 = 29, pitch / 2 = 30.
+        assert_eq!(NEAR.tile_w / 2, 29);
+        assert_eq!(NEAR.half_pitch, 30);
+        assert_eq!(FAR.tile_w / 2, 5);
+        assert_eq!(FAR.half_pitch, 6);
     }
 
     /// The screen opens where `Map_InitMode` opens: near zoom, row 0x4A,

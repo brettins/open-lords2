@@ -518,6 +518,91 @@ pub fn draw_flag(
     true
 }
 
+/// **`Map_DrawPathMarker` (`0x004081A6`) — one ball of an ordered path.**
+///
+/// `Path_MarkPreviewTiles` (`0x004A91BA`) sets bank bit `0x40` on each step of
+/// the local player's path, and this draws `g_flagsSheet` on every tile
+/// carrying it. `docs/decisions.md` C49 is what this function is: for four
+/// documents it was `Map_DrawCountyFlag` and was said to draw a castle's flag
+/// at a frame derived from the castle level. Every clause of that was wrong,
+/// and the frame arithmetic those documents quoted was **this** one's.
+///
+/// **The placement is ours.** The frame is centred on the tile, which is where
+/// a marker for a tile goes ([`tile_centre`]); the original's own offset is not
+/// traced, and the two flag offsets in [`Zoom::flag_at`] belong to
+/// `FUN_004071A0`, which is a different function on a different bit.
+///
+/// Returns false when the sheet or the frame is missing, so the caller can fall
+/// back to a mark of its own.
+pub fn draw_path_marker(
+    canvas: &mut Canvas,
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    frame: usize,
+    clip: Clip,
+) -> bool {
+    let Some(sheet) = assets.flag_sheet(zoom) else { return false };
+    let Some(decoded) = sheet.frame(frame) else { return false };
+    let (row, col) = tile_to_cell(tile.0, tile.1);
+    let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    let x = sx + zoom.tile_w / 2 - decoded.width as i32 / 2;
+    let y = sy + zoom.tile_h / 2 - decoded.height as i32 / 2;
+    canvas.blit_clipped(&decoded, x, y, clip);
+    true
+}
+
+/// **The path ball's frame** — `0x38 + n`, and the frame index *is* the
+/// accumulated cost.
+///
+/// `Map_DrawPathMarker`, in full:
+///
+/// ```c
+/// n = distance[tile] - 1;
+/// if (unit.moveAllowance - unit.movesUsed < n) n = 0;         /* out of range */
+/// frame = (tile is castle/settlement/plot) ? 0x4E : 0x38 + n;
+/// ```
+///
+/// So nothing about the realm, the shield or the unit's kind selects the
+/// colour: **the cost does**, and everything past the remaining budget collapses
+/// to [`PATH_MARKER_FIRST`]. `docs/armies.md` §2.3. **[V]**
+///
+/// # What the sheet says, now that somebody has looked at it
+///
+/// `docs/armies.md` carried *"**[I]** that frame `0x38` is specifically the grey
+/// one — nobody has looked at the sheet"*. Measured against a real
+/// `Flags1a.pl8`: frames `0x38 … 0x4E` are **23 frames, every one of them
+/// 15 × 15 with the same 177-pixel silhouette** — one picture, recoloured — and
+/// **`0x38` is the only frame in the run whose every opaque pixel is a true
+/// grey** (`r == g == b`). Frame `0x39` has 13 coloured pixels, and the count
+/// climbs to 39 by `0x4D`, so the ball gains colour as the cost rises. The
+/// inference is now a measurement, and it is asserted in
+/// `crates/l2-view/tests/install.rs` against the user's own file. **[V]**
+///
+/// `0x4E` is the odd one out and is the castle marker the ladder above names:
+/// 177 coloured pixels and **not one grey**, a different picture entirely.
+pub const PATH_MARKER_FIRST: usize = 0x38;
+
+/// The last cost-indexed ball. `0x4E` is the castle/settlement marker and is
+/// not part of the ramp.
+pub const PATH_MARKER_LAST: usize = 0x4D;
+
+/// `Map_DrawPathMarker`'s frame for a tile the path reaches at accumulated cost
+/// `n`, with `in_range` false for a step past the remaining budget.
+///
+/// The clamp at the top of the ramp is ours: the original indexes
+/// `0x38 + n` with no bound, and a path costing more than 21 would walk off the
+/// end of the bank into `0x4E`, the castle marker. Ours stops at
+/// [`PATH_MARKER_LAST`]. That is a divergence and it is a deliberate one — see
+/// `docs/bugs.md`.
+pub fn path_marker_frame(cost: i32, in_range: bool) -> usize {
+    if !in_range || cost <= 0 {
+        return PATH_MARKER_FIRST;
+    }
+    (PATH_MARKER_FIRST + cost as usize).min(PATH_MARKER_LAST)
+}
+
 /// **The waving flag's frame** — `shield * 8 - 8 + phase`, i.e.
 /// `(shield − 1) * 8 + phase`.
 ///

@@ -401,3 +401,92 @@ fn ten_turns_of_merchants_never_leave_their_own_routes() {
         game.kingdom.campaign.units.iter().map(|(_, u)| u.county).collect();
     eprintln!("after ten turns the six merchants stand in counties {visited:?}");
 }
+
+/// **A turn has a duration, and a merchant walks it.**
+///
+/// This is the defect a player reported as *"the merchant seems to just
+/// teleport on end turn"*, made into an assertion. It is not about *where* a
+/// merchant ends up — the route test above already pins that — it is about the
+/// turn taking **frames**, with the merchant on a different tile in each of
+/// them.
+///
+/// The old `end_turn` ran the whole phase machine inside one call, so every
+/// tile of every route was entered between two frames and the only two
+/// positions a merchant was ever *drawn* at were where it started and where it
+/// stopped. `turn::tick` is one `Turn_Tick` / `Units_Tick` pair, which is what
+/// the original's main loop calls once a frame, and this walks the same turn
+/// one frame at a time and watches.
+///
+/// Three properties, and the first is the one that was false:
+///
+/// 1. a turn takes **many** ticks, and a merchant occupies **several distinct
+///    tiles** over them — it is seen to walk;
+/// 2. it never moves more than one tile in a tick, which is `Unit_Step`'s own
+///    rule and the difference between walking and skipping;
+/// 3. the turn ends in exactly the state the all-at-once `end_turn` produces,
+///    so nothing about spreading it over frames changed the simulation.
+#[test]
+fn a_merchant_walks_its_route_over_the_frames_of_a_turn_rather_than_teleporting() {
+    // The same turn, run both ways, from the same starting position.
+    let mut stepped = game!();
+    let mut at_once = game!();
+
+    let watched: Vec<usize> = stepped.kingdom.campaign.units.iter().map(|(id, _)| id).collect();
+    assert_eq!(watched.len(), 6, "six merchants to watch");
+
+    // Where each merchant stood at the end of every tick of the turn.
+    let mut trail: Vec<Vec<(u8, u8)>> = vec![Vec::new(); watched.len()];
+    let mut ticks = 0u32;
+    let mut step = l2_game::turn::begin_turn(&mut stepped);
+    loop {
+        ticks += 1;
+        for (i, &slot) in watched.iter().enumerate() {
+            if let Some(u) = stepped.kingdom.campaign.units.get(slot) {
+                trail[i].push(u.tile());
+            }
+        }
+        match step {
+            l2_game::turn::TurnStep::Done(_) => break,
+            l2_game::turn::TurnStep::Running => {}
+            other => panic!("nobody is at war on turn one: {other:?}"),
+        }
+        assert!(ticks < l2_game::turn::MAX_TICKS, "the machine never came round");
+        step = l2_game::turn::tick_turn(&mut stepped);
+    }
+
+    assert!(ticks > 8, "a turn takes frames, not one call: {ticks}");
+
+    for (i, &slot) in watched.iter().enumerate() {
+        let path = &trail[i];
+        // 2. One tile a tick. `Unit_Step` enters at most one, and a merchant
+        //    that jumped two would be a merchant nobody could watch walk.
+        for pair in path.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            let step = (a.0 as i32 - b.0 as i32).abs().max((a.1 as i32 - b.1 as i32).abs());
+            assert!(step <= 1, "merchant {slot} went from {a:?} to {b:?} in one tick");
+        }
+        // 1. And it was seen in more than two places, which is the whole
+        //    difference between walking and teleporting.
+        let mut seen: Vec<(u8, u8)> = path.clone();
+        seen.dedup();
+        assert!(
+            seen.len() > 2,
+            "merchant {slot} stood on only {} tiles over {ticks} ticks: that is a teleport",
+            seen.len(),
+        );
+    }
+
+    // 3. Spreading a turn over frames is a *display* change and must not be a
+    //    simulation one.
+    let outcome = l2_game::turn::end_turn(&mut at_once).expect("the machine comes round");
+    assert_eq!(outcome.ticks, ticks, "both ways take the same number of Turn_Ticks");
+    for &slot in &watched {
+        let a = stepped.kingdom.campaign.units.get(slot).map(|u| u.tile());
+        let b = at_once.kingdom.campaign.units.get(slot).map(|u| u.tile());
+        assert_eq!(a, b, "merchant {slot} ends the turn in the same place either way");
+    }
+    assert_eq!(stepped.gold(), at_once.gold());
+    assert_eq!(stepped.kingdom.season, at_once.kingdom.season);
+    assert_eq!(stepped.kingdom.turn_count, at_once.kingdom.turn_count);
+    eprintln!("the turn took {ticks} frames and every merchant was watched across them");
+}

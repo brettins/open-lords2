@@ -2067,7 +2067,15 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "undefined4 Map_ScrollThrottle(void)",
-      "comment": "Rate limit for Map_ScrollStep from the Scroll Speed option: one step every ((100 - g_optScrollSpeed)/10)*12 + 2 ms, and never when that quotient reaches 10 - so a speed of 0 disables scrolling."
+      "comment": "Rate limit for Map_ScrollStep from the Scroll Speed option: one step every ((100 - g_optScrollSpeed)/10)*12 + 2 ms, and never when that quotient reaches 10 - so a speed of 0 disables scrolling. [V] The clock is timeGetTime (WINMM IAT 0x005CF5C4), not GetTickCount, against g_lastScrollTick; a negative elapsed is treated as 10000 ms, which is the wrap guard. [V] g_screenId == 0x10 adds 2 to the quotient, i.e. +24 ms. It is this function's only call site, and Map_EdgeScroll's five call sites are unconditional every frame - so the pointer-at-edge detection runs at frame rate and only the movement is gated. The remainder is discarded rather than accumulated. docs/decisions.md C59."
+    },
+    {
+      "addr": "0x004AE310",
+      "name": "Options_SetDefaults",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Options_SetDefaults(void)",
+      "comment": "Fills g_options with the shipped defaults: the magic 0x7EC at g_optionsMagic, the 31-byte player name 'Player1' (string at 0x004DF17C), g_optGameSpeed = 90, g_optScrollSpeed = 60, and a run of about twelve flags set to 1. Two callers: 0x004AE228 unconditionally, and 0x004AE2D3 guarded by a comparison of g_optionsMagic against 0x7EC - [I] first run or a settings file from another build. It was unnamed until docs/decisions.md C59 needed the scroll speed's default."
     },
     {
       "addr": "0x0043253A",
@@ -7345,7 +7353,28 @@
       "name": "g_optScrollSpeed",
       "section": "ui",
       "confidence": "verified",
-      "comment": "The Scroll Speed option, 0..100. Map_ScrollThrottle turns it into a minimum interval; 0 disables scrolling."
+      "comment": "The Scroll Speed option, 0..100 in steps of ten, shown on the slider as 0..10. Map_ScrollThrottle turns it into a minimum interval of ((100-speed)/10)*12+2 ms; 0 disables scrolling. [V] The shipped default is 60 - 50 ms, 20 tiles a second - written by Options_SetDefaults. It sits at +0x54 of the persisted settings block g_options, and Menu_ScrollSpeed forms the pointer as g_options+0x54 rather than pushing the address, so a byte scan for readers misses the menu. Exactly two other references in .text: the default, and the sub inside the throttle. docs/decisions.md C59."
+    },
+    {
+      "addr": "0x0053F1E0",
+      "name": "g_options",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The persisted settings block: 0x468 bytes, fread/fwritten whole. Byte 0 begins a 31-byte player name defaulting to 'Player1'; +0x24 is a magic/version word (0x7EC = 2028) that Options_SetDefaults' second caller checks before trusting the file; +0x50 is g_optGameSpeed and +0x54 g_optScrollSpeed."
+    },
+    {
+      "addr": "0x0053F204",
+      "name": "g_optionsMagic",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "0x7EC (2028), the settings-block version. 0x004AE2C3 compares against it and re-runs Options_SetDefaults when it does not match, which is how a settings file from another build is discarded."
+    },
+    {
+      "addr": "0x004E5B14",
+      "name": "g_lastScrollTick",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Map_ScrollThrottle's last-accepted timestamp, from timeGetTime. Written only when a scroll step is accepted, and the excess elapsed time is discarded rather than carried - so the scroll rate quantises to the frame rate whenever a frame is longer than the interval."
     },
     {
       "addr": "0x00591524",
@@ -8367,7 +8396,7 @@
       "name": "g_optGameSpeed",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Options > Game Speed. The slider dialog edits it with step 10 over 0..100 and displays it divided by ten."
+      "comment": "Options > Game Speed. The slider dialog edits it with step 10 over 0..100 and displays it divided by ten. [V] It lives at +0x50 of the persisted settings block g_options, and its default is 90, written by Options_SetDefaults. A throttle at 0x004BBAC3 reads it with arithmetic exactly parallel to Map_ScrollThrottle's; [I] that this is what produces the main loop's ticksDue - the bytes were decoded, the link to the loop was not traced."
     },
     {
       "addr": "0x0053F248",

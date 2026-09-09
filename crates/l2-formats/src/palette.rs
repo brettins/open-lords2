@@ -28,6 +28,22 @@ impl Palette {
         Ok(Palette { entries })
     }
 
+    /// A palette from triples that are **already** 8-bit, for a caller that
+    /// derives one palette from another rather than reading a file.
+    ///
+    /// The end-of-turn fade is the only such caller and it lives in `l2-view`,
+    /// where a fade belongs; this pair of accessors is what lets it stay there
+    /// instead of putting a display effect in the format crate.
+    pub fn from_entries(entries: [[u8; 3]; 256]) -> Palette {
+        Palette { entries }
+    }
+
+    /// All 256 triples, 8-bit. See [`Palette::from_entries`].
+    #[inline]
+    pub fn entries(&self) -> &[[u8; 3]; 256] {
+        &self.entries
+    }
+
     #[inline]
     pub fn rgb(&self, index: u8) -> [u8; 3] {
         self.entries[index as usize]

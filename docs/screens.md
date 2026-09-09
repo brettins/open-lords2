@@ -211,9 +211,33 @@ alternates aligned/offset rows starting from the origin, and `maps-layers.md` §
 odd lattice rows are the half-shifted ones.
 
 `FUN_00432221` refuses to scroll at all when `g_battlePhase == 0 && g_mapZoom == 2`, so
-**the far view is fixed**. `FUN_004BBBE3` throttles the rate from the "Scroll Speed"
-option (`_DAT_0053F234`): interval = `((100 − speed)/10)·12 + 2` ms, and a speed of 0
-disables scrolling entirely.
+**the far view is fixed**. `Map_ScrollThrottle` (`0x004BBBE3`) throttles the rate from the
+"Scroll Speed" option (`g_optScrollSpeed`, `0x0053F234`): interval =
+`((100 − speed)/10)·12 + 2` ms, and a speed of 0 disables scrolling entirely.
+
+**[V] The default is 60, which is 50 ms, which is 20 tiles a second.** Written by the
+options-defaults routine at `0x004AE310` — unnamed in `symbols.json`, and also the writer of
+`g_optGameSpeed = 90` (`0x0053F230`) and the settings magic `0x7EC` at `0x0053F204` that
+gates a re-default. The persisted settings block is `0x0053F1E0`, 0x468 bytes, and the two
+speed options sit at `+0x50` and `+0x54`. `Menu_ScrollSpeed` (`0x00434CEE`) opens the slider
+as `min 0, max 100, step 10, format 1` — eleven settings shown as 0 … 10 — and it forms the
+pointer as `0x53F1E0 + 0x54` rather than pushing the address, which is why a byte scan for
+readers of `0x0053F234` misses the menu. There are exactly two other references in `.text`:
+the default above, and the `sub` inside the throttle.
+
+**Three things worth having beside the formula.** The clock is **`timeGetTime`** (WINMM), not
+`GetTickCount`. There is a `g_screenId == 0x10` special case that adds 2 to the quotient, i.e.
+**+24 ms**; `0x10` is a gap in `screens-county.md`'s id table. And `Map_EdgeScroll` runs on
+screens `0x00`, `0x04`, `0x10`, `0x28` and `0x29`, not the campaign map alone.
+
+**The gate is on the movement, not on the detection.** `Map_EdgeScroll` is called
+unconditionally every frame from `Screen_FrameInput` — deliberately outside the main loop's
+`ticksDue` gate, which is why the map scrolls smoothly while the simulation ticks at game
+speed. `Map_ScrollStep` applies the move, calls the throttle, and **undoes it** by restoring
+four saved globals if the interval has not elapsed. The remainder is discarded rather than
+carried (`g_lastScrollTick = now`), so at high speeds the rate degenerates to one tile per
+frame. `crates/l2-game`'s map ignored all of this and scrolled one tile per fixed tick — 62.5
+a second against 20 — which a player reported; `docs/decisions.md` C59.
 
 **Centre on a county** — `FUN_0043278B(tileOffset)` scans the lattice for the cell holding
 that tile and, *only at near zoom*, sets `col = foundCol − 4`, `row = (foundRow & ~1) − 12`.

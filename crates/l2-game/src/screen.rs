@@ -179,6 +179,22 @@ pub trait Screen {
         None
     }
 
+    /// How far into the end-of-turn screen fade this screen is, or `None` for
+    /// the ordinary full-brightness palette.
+    ///
+    /// **The canvas is not involved.** `FUN_004B0CB4` is entirely a palette
+    /// effect — no dither table, no half-brightness blit — so a screen that is
+    /// fading draws exactly what it always draws and answers this instead. The
+    /// presenter turns the number into colour, which is the same division
+    /// [`Screen::palette`] already makes and for the same reason: a [`Canvas`]
+    /// is a plane of indices and only one place in the application knows what
+    /// they mean.
+    ///
+    /// The value is a phase in `0 ..= l2_view::fade::PHASES`.
+    fn fade(&self) -> Option<u8> {
+        None
+    }
+
     /// Whether this screen is an **inset over what was underneath** rather than
     /// a page of its own.
     ///
@@ -386,6 +402,12 @@ impl Machine {
     /// turns indices into colour.
     pub fn palette_name(&self) -> Option<&'static str> {
         self.stack.last().and_then(|s| s.palette())
+    }
+
+    /// The end-of-turn fade phase of the top screen, or `None`. The presenter
+    /// is the only caller; see [`Screen::fade`].
+    pub fn fade(&self) -> Option<u8> {
+        self.stack.last().and_then(|s| s.fade())
     }
 
     pub fn title(&self, ctx: &Ctx) -> String {

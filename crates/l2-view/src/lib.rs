@@ -21,6 +21,8 @@
 //! * [`campaign`] — the campaign map: a **scrolling viewport** into
 //!   `L2_maps.dat`'s lattice at one of the original's two zooms. See
 //!   `docs/screens.md`.
+//! * [`fade`] — the end-of-turn palette fade, and the only effect in the game
+//!   that lives entirely in the colour table.
 //! * [`chrome`] — the original's interface artwork: the `Panels.pl8` framed-box
 //!   kit, the `Misc_cty.pl8` right column, and the `MAPnn.PL8` minimap.
 //! * [`village`] — the village screen's picture, its eight peasant clusters
@@ -48,6 +50,7 @@
 pub mod campaign;
 pub mod canvas;
 pub mod chrome;
+pub mod fade;
 pub mod figures;
 pub mod ink;
 pub mod scene;

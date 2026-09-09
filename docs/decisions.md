@@ -2386,6 +2386,146 @@ the interface, and every one of those eleven was settled by a *measurement that 
 the file* — a slot number, a frame index, a colour argument, and this time six function names
 in a row in an arm nobody had read. C46's pattern, C52's pattern, and now C59's.
 
+**C60 — A turn had no duration. Three of the player's four reports were that one fact, and
+the fourth met C58 coming the other way.**
+
+A player, in one sentence: *"can't seem to move my army, and the merchant seems to just
+teleport on end turn and the screen doesn't go dark"*. Then, correcting himself with the
+sequence from the original: *"the merchants move and then it fades out then in which hides
+the season change visuals just abruptly changing."* And separately: *"mouse scroll needs to
+be like…half that speed, not sure if it's a game default or some cycle thing."*
+
+**The teleport, the missing fade and half of the immobile army are one defect**, and it is
+structural. `end_turn` ran the phase machine to completion inside `Machine::handle`, so every
+phase of a turn happened **between two frames**. A merchant walked its entire route in the
+time it took a function to return, which on screen is a teleport; there was no interval
+during which a screen could be dark; and an ordered army was never seen to take a step.
+
+C35 established that `Units_Tick` has one call site and it is the frame loop, immediately
+after `Turn_Tick`, never reading `g_turnPhase`. **The half that was not spent is that the
+dispatch therefore happens *many times*.** The seven phases originate the game's own orders
+and then wait for the units they started to stop moving; those waits are not bookkeeping,
+they are the **pacing**, and they are the reason a march is something a player can watch.
+C35's own note said the correction was about the dispatch and not necessarily the pacing.
+It was about both.
+
+`TurnStep::Running` is the fix: one `Turn_Tick` / `Units_Tick` pair per fixed tick, the map
+drawn between every pair. On the England position a turn is **48 frames**, and the six
+shipped merchants are each seen on several distinct tiles across them — asserted, along with
+the property that matters more, which is that the turn spread over frames produces *exactly*
+the state the all-at-once turn produced. Spreading a turn over frames is a display change and
+must never be a simulation one.
+
+**`Units_Tick` also runs on frames that are not part of a turn**, and that is the other half
+of the immobile army. The original's loop calls it whenever the game is up, so an army the
+player orders walks away while he watches. Ours reached the sweep only from inside a turn, so
+an order was accepted, `moving` was set, a path was written *and drawn*, and nothing moved
+until End Turn. It is bounded by `moveAllowance - movesUsed`, so a player who sits on the map
+gets no extra movement — asserted over a thousand idle frames.
+
+**The fade is real and it is entirely in the palette.** `FUN_004B0CB4(restoreScreen, rawFlag,
+palPtr)` has exactly two call sites in the binary, both on the turn boundary: `Turn_Tick`
+phase 7 with `rawFlag = 1` after `Season_Advance`, and `FUN_0049A3E6` with `0` after
+reloading the seasonal art. The two branches differ by a factor of four — a fade to **one
+quarter brightness and back** — and the stepper at `0x004B0E03` moves each channel by at most
+12 per step over palette entries **10 … 245 only**, which is why the chrome stays lit while
+the map dims. Sixteen steps each way. No dither table, no 50 % blit: `l2_view::fade` produces
+a `Palette` and `Canvas::to_rgba` does the rest, so a fading screen draws exactly what it
+always draws and answers `Screen::fade` instead.
+
+**What the fade is *for* was inferred and is now confirmed.** It was recorded as cover for
+the seasonal art reload and the autosave, from the call sites alone. The player, who has
+never seen that reasoning, says it *"hides the season change visuals just abruptly
+changing"*. Two unrelated sources meeting is what promotes an inference, so our base render
+is now held back until the fade bottoms out — the art changes in the dark, which is the whole
+job the effect is doing.
+
+**The army he could not move was a second defect, and two agents found it from opposite
+ends of the same afternoon.** This one started from *"can't seem to move my army"* and the
+other from *"if I click a merchant… it will open up the tax window"*; both arrived at
+`g_pickedTileUnit` being read out of the tile record, and both replaced a nine-pixel marker
+box with a tile pick. **C58 is the entry for it** and its version is the one that stands,
+because it adds the drawn sprite's opacity mask underneath the tile — a figure is anchored on
+the tile's bottom vertex and stands up over the tiles behind it, so the mask can add an answer
+where the tile has none. Nothing here re-argues that.
+
+**What this half contributes is the measurement and why nothing caught it.** The near-zoom
+army frame is **40 × 32** and the box was **9 × 9**; after the fix, **460 of the figure's 504
+opaque pixels resolve to the tile it stands on**, asserted against the user's own
+`Sprite1a.pl8`. And the reason no test saw it: every test runs on `Assets::placeholder`, where
+there is no sprite sheet, `draw_unit` returns false, and the fallback marker is drawn *at the
+tile centre* — **the one configuration in which the old hit test and the picture agree**. The
+suite was not weak; it was run in the only world where the bug does not exist. So the
+assertion had to be install-gated, and it compares the pixels the sprite paints against the
+tile the pick resolves them to, rather than checking that a click at a chosen coordinate
+works. **Two agents converging on one defect is cheap; a test that only passes because the art
+is missing is the thing to keep noticing.**
+
+**A third defect fell out of looking**: `pick_tile`'s diamond used `tile_w / 2` and
+`tile_h / 2`. `Map_PickTile` divides by `g_mapTileHalfStep` and `g_mapRowStep` — the half
+**pitch** and the row step. The near tile is 58 wide and the pitch is 60, so the diamonds were
+two pixels narrow and **did not tile the plane**: 56 dead pixels around every tile centre.
+A `None` from `pick_tile` is not a refusal — the click falls through to county selection — so
+a march order aimed at one of them quietly reselected a county. The seams are sparse and are
+*not* on the line between two tile centres, so the first assertion written for them passed
+with the bug still in; the one that stands sweeps a tile's whole neighbourhood.
+
+**The scroll was three times too fast, and the player was right that it is both a default and
+a cycle.** `Map_EdgeScroll` is called unconditionally every frame from five `g_screenId` arms
+of `Screen_FrameInput`, so the *detection* runs at frame rate; the *movement* is gated inside
+`Map_ScrollStep` by `Map_ScrollThrottle` (`0x004BBBE3`), which is a wall-clock minimum
+interval on `timeGetTime`:
+
+```c
+q = (100 - g_optScrollSpeed) / 10;
+if (q >= 10) return 0;                 /* speed 0 never scrolls */
+if (g_screenId == 0x10) q += 2;
+if (q * 12 + 2 > elapsed) return 0;
+```
+
+`g_optScrollSpeed` (`0x0053F234`) is a 0 … 100 slider in steps of ten shown as 0 … 10, and
+its **shipped default is 60** — written by the options-defaults routine at `0x004AE310`,
+which is unnamed in `symbols.json` and also writes `g_optGameSpeed = 90` and the settings
+magic `0x7EC`. Sixty is 50 ms, which is **20 tiles a second**. Ours scrolled one tile per
+fixed tick: 62.5. He said half; it was a third. **[V]** — decoded from the binary, not
+inferred.
+
+**The move-order click guard is a bug we do not have, and that is worth writing down as
+loudly as a bug we do.** `g_hoverDamper` was renamed `g_moveOrderClickGuard`: forty frames of
+deadness so the press that *opens* move-order mode is not read again as the press that
+*confirms* the destination. It exists because `Screen_FrameInput` polls the button's **level**
+every frame. Our `Event::Click` is edge-triggered — one event per physical press — and
+`Map_Click`'s army branch returns, so the selecting click cannot reach `Map_ConfirmMoveOrder`
+in the same call. Porting forty frames would have been porting the shape of a defect in an
+input model we do not use. What landed instead is an assertion of the property the guard
+protects.
+
+**And the path markers are the game's own art now**, which matters beyond appearance. A
+player: *"there are colored dot images for the army walking dots."* `Map_DrawPathMarker`
+(`0x004081A6`, C49) draws `Flags1a.pl8` frame `0x38 + n` where `n` is the accumulated cost.
+`docs/armies.md` §2.3 marked the mechanism **[V]** and one clause **[I]**: *"that frame
+`0x38` is specifically the grey one — nobody has looked at the sheet."* Somebody has now.
+Frames `0x38 … 0x4E` are **23 frames of one 15 × 15 silhouette**, 177 opaque pixels each —
+one picture recoloured, which is what "indexed by cost" predicts and which a set of different
+pictures would have refuted — and **`0x38` is the only frame in the run with no colour in it
+at all**. The count of coloured pixels then climbs from 13 to 39 across the ramp. `0x4E`, the
+castle marker, is the opposite extreme: not one grey pixel, a different picture. The
+inference is now a measurement. So **the cost selects the colour** — not the realm, not the
+shield, not the unit's kind.
+
+That last one is the reason to draw them at all. `Unit_OrderMove` writes nothing when no path
+is found, and an unreachable destination is an *accepted* order with an empty path — so a
+refused order, a hopeless one and a good one all looked identical. **If the player cannot see
+whether his order was taken, he cannot tell our bug from his own mis-click**, which is
+exactly the position this report started from.
+
+**Four reports, four defects, and the tests were green throughout.** Two of them were
+invisible because the test suite runs without the game's art, one because nothing in it
+counts frames, and one because nothing measured a rate. The pattern under all four is the one
+C46 named: *a measurement and a word beside it that nobody checked agreed* — 9 × 9 beside
+40 × 32, `tile_w` beside `pitch`, "one tick" beside 50 ms, and a turn described as a loop
+when the thing it models is a frame.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

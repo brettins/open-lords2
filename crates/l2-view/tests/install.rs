@@ -965,3 +965,171 @@ fn the_village_files_are_the_size_the_drawing_code_indexes_them_at() {
     );
     eprintln!("village: 363x320 scene, 6 weather tops, 45x40 grid");
 }
+
+/// **The path-preview balls, and the `[I]` they settle.**
+///
+/// `Map_DrawPathMarker` (`0x004081A6`) draws `g_flagsSheet` frame `0x38 + n`
+/// where `n` is the accumulated cost of reaching the tile, collapsing to
+/// `0x38` for a step past the remaining budget, and `0x4E` on a castle,
+/// settlement or plot. `docs/armies.md` §2.3 marked the mechanism **[V]** and
+/// recorded one thing as **[I]**: *"that frame `0x38` is specifically the grey
+/// one — nobody has looked at the sheet."*
+///
+/// This is looking at the sheet. Three things come out of it, and each is the
+/// kind of claim that only a measurement can make:
+///
+/// 1. the run `0x38 … 0x4E` is **23 frames of exactly one shape** — same size,
+///    same 177-pixel silhouette — so it is one picture recoloured, which is
+///    what "indexed by cost" predicts and what a set of *different* pictures
+///    would have refuted;
+/// 2. **`0x38` is the only frame in the ramp with no colour in it at all**, so
+///    the grey one is the out-of-range one and the inference is now a fact;
+/// 3. `0x4E` is the opposite extreme — not one grey pixel — which is the
+///    castle marker being a different picture rather than another ball.
+///
+/// A player reported these as *"colored dot images for the army walking dots"*,
+/// and what selects the colour is the **cost**: not the realm, not the shield,
+/// not the unit's kind. See `l2_view::campaign::path_marker_frame`.
+#[test]
+fn the_path_marker_ramp_is_one_ball_recoloured_and_only_the_first_is_grey() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("skipping: no install");
+        return;
+    };
+    let bytes = read(&dir, "Flags1a.pl8").expect("Flags1a.pl8");
+    let sheet = Sheet::new(bytes).expect("parse");
+    let pal_bytes = read(&dir, "Base01.256").expect("Base01.256");
+    let pal = l2_formats::Palette::from_bytes(&pal_bytes).expect("palette");
+
+    let first = sheet.frame(campaign::PATH_MARKER_FIRST).expect("frame 0x38");
+    assert_eq!((first.width, first.height), (15, 15), "the ball is 15 x 15");
+
+    // How many opaque pixels of a frame are a true grey, and how many carry
+    // colour.
+    let split = |i: usize| {
+        let f = sheet.frame(i).unwrap_or_else(|| panic!("frame {i:#04x} is missing"));
+        assert_eq!(
+            (f.width, f.height),
+            (first.width, first.height),
+            "frame {i:#04x} is a different size from the rest of the ramp",
+        );
+        assert_eq!(
+            f.opaque, first.opaque,
+            "frame {i:#04x} has a different silhouette: the ramp is one picture recoloured",
+        );
+        let (mut grey, mut colour) = (0usize, 0usize);
+        for (&p, &o) in f.indices.iter().zip(f.opaque.iter()) {
+            if !o {
+                continue;
+            }
+            let [r, g, b] = pal.rgb(p);
+            if r == g && g == b {
+                grey += 1;
+            } else {
+                colour += 1;
+            }
+        }
+        (grey, colour)
+    };
+
+    let (grey, colour) = split(campaign::PATH_MARKER_FIRST);
+    assert_eq!(colour, 0, "frame 0x38 is the grey one, and that was an inference until now");
+    assert_eq!(grey, 177, "and all 177 of its opaque pixels are grey");
+
+    for i in campaign::PATH_MARKER_FIRST + 1..=campaign::PATH_MARKER_LAST {
+        let (_, colour) = split(i);
+        assert!(colour > 0, "frame {i:#04x} carries colour and 0x38 does not");
+    }
+
+    // 0x4E, the castle/settlement marker, is the same size and silhouette and
+    // is the one frame in the block with no grey in it at all.
+    let (grey, colour) = split(campaign::PATH_MARKER_LAST + 1);
+    assert_eq!(grey, 0, "0x4E is not a ball");
+    assert_eq!(colour, 177);
+
+    eprintln!(
+        "path markers: {:#04x}..={:#04x} are 15x15, one silhouette, 0x38 alone is grey",
+        campaign::PATH_MARKER_FIRST,
+        campaign::PATH_MARKER_LAST + 1,
+    );
+}
+
+/// **The click has to be able to reach what the renderer drew.**
+///
+/// This is the assertion the army-movement defect would have failed. The hit
+/// test used to be a 9 x 9 square around the tile centre while
+/// `campaign::draw_unit` blits a **40 x 32** `Sprite1a.pl8` frame anchored on
+/// the diamond's bottom vertex — so a player clicking the figure he could see
+/// mostly missed, and *"can't seem to move my army"*.
+///
+/// It never showed up in a test because every test runs on placeholder assets,
+/// where no sheet exists, `draw_unit` returns false and the fallback marker is
+/// drawn at the tile centre — the one configuration in which the old hit test
+/// and the picture agreed. So this test needs the install, and it compares the
+/// two directly: **the pixels the sprite actually paints, against the tile the
+/// pick resolves them to.**
+///
+/// The rule it holds to is the original's, which has no way to disagree with
+/// itself: `g_pickedTileUnit` is *"the unit index on the tile
+/// `Map_ResolvePick` just resolved"*, so the pick is a tile pick and the figure
+/// is drawn on that tile. What is asserted here is that a healthy majority of
+/// the drawn figure resolves to the tile it is standing on — not all of it,
+/// because a 40 x 32 sprite genuinely overhangs a 58 x 30 diamond and the
+/// original overhangs it too.
+#[test]
+fn a_click_on_the_drawn_army_resolves_to_the_tile_it_stands_on() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("skipping: no install");
+        return;
+    };
+    let bytes = read(&dir, "Sprite1a.pl8").expect("Sprite1a.pl8");
+    let sheet = Sheet::new(bytes).expect("parse");
+    let frame = sheet.frame(0).expect("frame 0");
+    assert_eq!(
+        (frame.width, frame.height),
+        (40, 32),
+        "the near-zoom figure is 40 x 32, which is the number the 9 x 9 hit box was up against",
+    );
+
+    let zoom = &campaign::NEAR;
+    // Where `draw_unit` puts the frame, for an army's nudge of (0, -4).
+    // x = sx + half_pitch + nx - w/2 ; y = sy + half_pitch + ny - h
+    let (nx, ny) = (0i32, -4i32);
+    let origin_x = zoom.half_pitch + nx - frame.width as i32 / 2;
+    let origin_y = zoom.half_pitch + ny - frame.height as i32;
+
+    // And the diamond the pick resolves against, in the same tile-local space:
+    // centre (tile_w/2 is the picture, half_pitch is the lattice — the lattice
+    // is what `Map_PickTile` divides by).
+    let (hw, hh) = (zoom.half_pitch, zoom.row_step);
+    let (cx, cy) = (zoom.half_pitch, zoom.tile_h / 2);
+
+    let (mut on_tile, mut off_tile) = (0usize, 0usize);
+    for row in 0..frame.height as i32 {
+        for col in 0..frame.width as i32 {
+            let i = (row * frame.width as i32 + col) as usize;
+            if !frame.opaque[i] {
+                continue;
+            }
+            let (px, py) = (origin_x + col, origin_y + row);
+            if (px - cx).abs() * hh + (py - cy).abs() * hw <= hw * hh {
+                on_tile += 1;
+            } else {
+                off_tile += 1;
+            }
+        }
+    }
+    let total = on_tile + off_tile;
+    assert!(total > 0, "the frame has pixels in it");
+    // The old 9 x 9 box could hold at most 81 pixels of a figure this size.
+    // The diamond holds a real share of it.
+    assert!(
+        on_tile * 2 > total,
+        "most of the drawn figure has to pick its own tile: {on_tile} of {total}",
+    );
+    assert!(
+        on_tile > 81,
+        "and more of it than the 9 x 9 box that was there before could ever hold: {on_tile}",
+    );
+    eprintln!("army sprite {}x{}: {on_tile} of {total} opaque pixels pick their own tile", frame.width, frame.height);
+}

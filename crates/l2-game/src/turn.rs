@@ -174,6 +174,32 @@ pub enum TurnStep {
     /// battle ends and the campaign does not move again until the corner button
     /// is clicked. [`dismiss_report`] is that click.
     Report(Box<BattleReport>),
+    /// **One `Turn_Tick` has happened and the turn is not over.** Draw a frame
+    /// and call [`tick_turn`] again.
+    ///
+    /// # This is what gives a turn a duration
+    ///
+    /// The interactive door used to run the phase machine to completion unless
+    /// a battle stopped it, so on a turn with no battle in it **every phase
+    /// happened between two frames**. A merchant walked its entire route in the
+    /// time it took to return from `Machine::handle`, which on screen is a
+    /// teleport; an army never appeared to march; and there was no interval
+    /// during which a screen could be dark. A player reported all three
+    /// (*"the merchant seems to just teleport on end turn and the screen
+    /// doesn't go dark"*) and they were one defect.
+    ///
+    /// The original's turn is spread over frames by construction: `Turn_Tick`
+    /// is called once per frame from the main loop, `Units_Tick` right after
+    /// it, and three of the seven phases do nothing but **wait for the units
+    /// they started to stop moving**. Those waits are not bookkeeping — they
+    /// are the pacing, and they are what makes a march something a player can
+    /// watch. `docs/decisions.md` C35 established where the mover is dispatched
+    /// from; this is the other half of the same fact, which is that the
+    /// dispatch happens *many times*.
+    ///
+    /// [`end_turn`], the headless door, never returns this: a caller with no
+    /// frames to spread a turn over has nothing to do with it.
+    Running,
     /// The phase machine did not come round inside [`MAX_TICKS`]. A bug in a
     /// wait condition rather than anything a player can cause.
     Stuck,
@@ -254,6 +280,53 @@ pub fn answer_battle(game: &mut Game, answer: Answer) -> TurnStep {
 /// turn on to whatever is next — another battle, or the end of the turn.
 pub fn dismiss_report(game: &mut Game) -> TurnStep {
     advance(game, Resume::Dismiss, true)
+}
+
+/// **One frame of a turn in flight.** The screen's per-tick door.
+///
+/// Runs exactly one `Turn_Tick` / `Units_Tick` pair and comes back, so the map
+/// is drawn between every pair of them and a unit that is walking is *seen* to
+/// walk. See [`TurnStep::Running`] for why that is the whole fix for a
+/// teleporting merchant.
+///
+/// Answers [`TurnStep::Stuck`] if no turn is in flight, because starting one
+/// from here would turn a stray tick into a played turn.
+pub fn tick_turn(game: &mut Game) -> TurnStep {
+    if game.turn.is_none() {
+        return TurnStep::Stuck;
+    }
+    advance(game, Resume::Start, true)
+}
+
+/// **`Units_Tick` on a frame that is not part of a turn.**
+///
+/// The original's main loop is `if ((g_battlePhase == 0) && (ticksDue != 0))
+/// { Turn_Tick(); Units_Tick(); }` and it runs *whenever the game is up*, not
+/// only while a turn is being wound on (`docs/decisions.md` C35 quotes the call
+/// site). That is what makes an army the player has just ordered walk away
+/// while he watches, instead of standing still until he presses End Turn — the
+/// second half of *"can't seem to move my army"*, and indistinguishable from
+/// the order having been ignored.
+///
+/// A unit walks at most `moveAllowance - movesUsed` tiles and then stops, so a
+/// player who sits on the map gets no extra movement out of it;
+/// `Pass::UnitsResetMoves` at the end of the season is what starts it again.
+///
+/// A battle raised here is settled by the standing policy rather than by a
+/// prompt: this is not a turn, there is no [`TurnProgress`] to suspend, and a
+/// screen `0x12` raised from an idle frame would have nothing to carry on
+/// afterwards. Returns how many tiles were entered, so a caller can decide
+/// whether the frame needs repainting.
+pub fn tick_units_only(game: &mut Game) -> usize {
+    let moved = game.kingdom.tick_units();
+    let stepped = moved.stepped;
+    if let Some(e) = moved.battle() {
+        let answer = game.field_policy;
+        let attack = Attack::Battle { attacker: e.mover, defender: e.occupant };
+        let seed = battle_seed(&game.kingdom, e);
+        let _ = engagement::resolve(&mut game.kingdom, attack, e.county, answer, seed);
+    }
+    stepped
 }
 
 /// Whether a turn is suspended waiting on an answer.
@@ -432,6 +505,20 @@ fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
             Stage::Tail => {
                 if let Some(outcome) = finish_tick(game, interactive) {
                     return TurnStep::Done(Box::new(outcome));
+                }
+                // **The end of a whole tick, and where an interactive caller
+                // gets its frame back.** `Stage::Begin` is the only stage that
+                // means "a tick finished": `finish_tick` returns without
+                // setting it when a battle interrupted the sweep, and that is
+                // not a frame boundary — the two armies are standing on one
+                // tile with the fight unresolved.
+                //
+                // A turn therefore takes as many frames as it takes ticks,
+                // which is the whole of `TurnStep::Running`. See there.
+                if interactive
+                    && game.turn.as_ref().is_some_and(|p| p.stage == Stage::Begin)
+                {
+                    return TurnStep::Running;
                 }
             }
         }

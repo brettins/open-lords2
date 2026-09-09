@@ -108,7 +108,13 @@ impl App {
             .palette_name()
             .and_then(|n| self.assets.shell.palette(n))
             .unwrap_or(&self.assets.palette);
-        self.canvas.to_rgba(palette, pixels.frame_mut());
+        // **The end-of-turn fade, and it is the whole of the effect.**
+        // `FUN_004B0CB4` never touches the framebuffer — it rewrites the
+        // display palette and lets the unchanged plane of indices resolve
+        // darker. So this is the one line, and the screen decides *when* by
+        // answering `Screen::fade`. See `l2_view::fade`.
+        let faded = self.machine.fade().map(|phase| l2_view::fade::at(palette, phase));
+        self.canvas.to_rgba(faded.as_ref().unwrap_or(palette), pixels.frame_mut());
         if let Err(e) = pixels.render() {
             eprintln!("render failed: {e}");
         }
