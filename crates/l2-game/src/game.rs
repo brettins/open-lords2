@@ -205,6 +205,15 @@ pub struct Game {
     /// game's own counter and starts at 1 in the England turn-one fixture; this one counts
     /// what the player did.
     pub turns_played: u32,
+    /// **Whether this game is over, and where it sits in its campaign.**
+    ///
+    /// The three globals a campaign is made of — `DAT_0053F258`, `DAT_0053F640`
+    /// and `DAT_0053F0C4` — plus the ending messages the current map has raised.
+    /// It is here rather than in [`Kingdom`] because the original keeps it here
+    /// too: `Game_NewGame` *clears* the outcome and *does not touch* the campaign
+    /// counter, which is exactly the line between "the world" and "the session
+    /// playing through it". See [`crate::victory`].
+    pub campaign: crate::victory::Campaign,
 }
 
 impl Game {
@@ -222,6 +231,50 @@ impl Game {
             gold_last: [0; MAX_REALMS],
             last_report: None,
             turns_played: 0,
+            campaign: crate::victory::Campaign::new(crate::victory::Track::First),
+        }
+    }
+
+    /// Whether this game has ended, and how. `DAT_0053F0C4`.
+    pub fn outcome(&self) -> l2_kingdom::victory::Outcome {
+        self.campaign.outcome
+    }
+
+    /// `FUN_0049B42B` for one realm, then `Score_RankRealms` — the ending chain's
+    /// two halves in the order the original runs them, with the messages landing
+    /// in [`Game::campaign`].
+    ///
+    /// **Called for every realm, the human included.** `AI_RunTurnStep`'s
+    /// `isHuman` test guards the fourteen handlers, not the step-0
+    /// initialisation above them, so the human's strength is recounted and the
+    /// human's defeat detected on the human's own turn. Skipping humans here is
+    /// the one way to build a game that cannot be lost.
+    pub fn recount_realm(&mut self, realm: u8) {
+        let msg = l2_kingdom::victory::recount_strength(
+            &mut self.kingdom.realms,
+            &self.kingdom.counties,
+            self.kingdom.county_count,
+            &self.kingdom.campaign.units,
+            realm,
+            self.player,
+        );
+        if let Some(msg) = msg {
+            self.campaign.raise(msg);
+        }
+        self.rank_realms();
+    }
+
+    /// `Score_RankRealms`, with its three globals kept.
+    pub fn rank_realms(&mut self) {
+        let mut out = Vec::new();
+        self.campaign.ranking = l2_kingdom::victory::rank_and_crown(
+            &self.kingdom.tables,
+            &mut self.kingdom.realms,
+            self.player,
+            &mut out,
+        );
+        for msg in out {
+            self.campaign.raise(msg);
         }
     }
 

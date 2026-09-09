@@ -925,7 +925,7 @@
       "name": "AI_RunTurnStep",
       "section": "kingdom",
       "confidence": "verified",
-      "comment": "One step of one realm's turn, round-robin over realms 1..5 through 0x0057C944. Realm +0x00 is a 1..14 program counter into fourteen sub-handlers; at 15 + 2*realm the realm is marked done (999). Skipped entirely when realm +0x05 (human) is set."
+      "comment": "One step of one realm's turn, round-robin over realms 1..5 through 0x0057C944. Realm +0x00 is a 1..14 program counter into fourteen sub-handlers; at 15 + 2*realm the realm is marked done (999). [V] The realm +0x05 (human) test guards the fourteen handlers and the counter's increment, NOT the initialisation above them: step 0 - Realm_RecountStrength, Realm_UpdateTotals, clear +0x1C, set the counter to 1 - runs for EVERY realm, the human included. That is where a human player's own elimination is detected, and an earlier revision of this entry said the whole function was skipped for a human."
     },
     {
       "addr": "0x00448440",
@@ -5135,6 +5135,78 @@
       "confidence": "verified",
       "comment": "Answering 'no' to the prompt screen's 'Will you take the field?'. Guarded on g_screenId == 0x12 so it is idempotent, it runs Battle_AutoResolve, Battle_ReturnToCampaign(0) and raises the report screen 0x13. So DECLINING A BATTLE IS EXACTLY THE AUTOCALC - a way out of watching the battle, not out of fighting it. The multiplayer answer timeout and an end-of-turn sync both route here as an auto-decline; in single player the prompt waits forever.",
       "signature": "void Battle_Decline(void)"
+    },
+    {
+      "addr": "0x0049B42B",
+      "name": "Realm_RecountStrength",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Realm_RecountStrength(uint realm)",
+      "comment": "Rebuilds realm +0x04 as 3 * owned counties + 1 * armies (g_units slots 1..150 with type 1; merchants, transports and mobs do not count) and, if that comes out zero, the realm has just been eliminated. [V] The whole body is guarded on +0x04 already being non-zero, so it fires exactly once per realm. The message is chosen on \"is this the local player\", not on \"is this a human\": g_localPlayer gets L2.eng group 224 \"Defeat!\" addressed from and to itself, an AI raises group 194 \"Foiled again.\" from itself, and a second human in a network game is told nothing at all - the voice rotation at +0x159 advances in all three cases. Then Score_RankRealms, and in multiplayer Net_SendCommand(0x24) if it was me. Four callers: AI_RunTurnStep's step 0 (EVERY realm, the human included), County_ChangeOwner - which calls it on the outgoing owner BEFORE writing the new one, so that call can never eliminate anybody - and the two arms of the post-battle resolution."
+    },
+    {
+      "addr": "0x00497879",
+      "name": "Campaign_EnterConquest",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Campaign_EnterConquest(void)",
+      "comment": "The step out of a finished game and into screen 0x1C. [V] Increments the campaign counter g_campaignMap ONLY when g_gameOutcome is 10, which is the whole rule for replaying a lost map; copies g_scenarioIndex into g_campaignLastMap so the interstitial can name the country just fought over; calls Campaign_LoadEntry to bring in the next row; sets g_screenId = 0x1C. Reached from Msg_Dismiss when the dismissed message left the outcome at 10 or 11."
+    },
+    {
+      "addr": "0x00499E5D",
+      "name": "Campaign_LoadEntry",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Campaign_LoadEntry(void)",
+      "comment": "Loads campaign row g_campaignMap out of g_campaignTableA or g_campaignTableB (g_campaignTrack picks) into g_scenarioIndex, g_optDifficulty and six option globals, then Minimap_Load, Map_LoadPlanes and Map_BuildLattice on the new scenario. [V] Forces g_optTimeLimit = 0, g_optFightHumansOnly = 1 and advanced farming, exploration and army eating off, so a campaign map ignores whatever the custom-game screen last set. On the eighth win it reads row 8, one past the eight real rows, and both tables are padded with two zeroed rows so that read is harmless."
+    },
+    {
+      "addr": "0x0041E1DD",
+      "name": "Screen_DrawConquest",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Screen_DrawConquest(void)",
+      "comment": "Screen 0x1C, the campaign interstitial: gateway.256, gateway.pl8 and a panels2.pl8 window 26 cells wide at x=0x70, 14 cells tall for the two short outcomes and 18 for the long one. [V] Draws L2.eng group 36 in three branches - won (0..3 around the map name), lost (4..8) and, when g_campaignMap has reached 8, the end of the campaign (0, 1 then 9..15). The country just fought over is group 101 indexed by g_campaignLastMap, and on a win the next one is group 101 indexed by the already-advanced g_scenarioIndex."
+    },
+    {
+      "addr": "0x004A72FE",
+      "name": "County_ChangeOwner",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void County_ChangeOwner(uint newOwner, uint county)",
+      "comment": "Hands a county to a new realm: recomputes the taker's totals, raises one of the nine \"we have taken\" / \"we have lost\" letters (L2.eng 0x72..0x7E, chosen on the taker's county count and share of the map), calls Realm_RecountStrength on the OLD owner, writes the new owner, and docks the county happiness by the conquest penalty. [V] The recount happens one statement before the owner is written, so the county being lost is still counted and the losing realm cannot be eliminated here - it survives until its own AI_RunTurnStep step 0."
+    },
+    {
+      "addr": "0x00433461",
+      "name": "Setup_ChooseCampaign",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Setup_ChooseCampaign(void)",
+      "comment": "Setup page 4. [V] Stores the clicked hotspot in g_campaignTrack and starts the campaign counter at 2 for hotspot 1 and 0 otherwise - which is why the second campaign is six maps and the first is eight, and why both still end on the same \"counter < 8\" test."
+    },
+    {
+      "addr": "0x004329EC",
+      "name": "Setup_StartGame",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Setup_StartGame(void)",
+      "comment": "The Start button. [V] In a single-player game it calls Game_NewGame and drops to g_screenId 0. It is also what the OK button on the conquest screen reaches while the campaign counter is below 8, which settles what carries across a campaign map boundary: nothing does. Each map of a campaign is a whole new game, and the only state that survives is g_campaignMap, g_campaignTrack and g_gameOutcome."
+    },
+    {
+      "addr": "0x0049B6D3",
+      "name": "Turn_BeginPlayersTurn",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Turn_BeginPlayersTurn(void)",
+      "comment": "Resets every realm's AI program counter at the top of phase 4: aiStep = 0, or 999 for a realm at zero strength, and g_realmsActive counts the rest. [V] The counter is reset for the human too, because AI_RunTurnStep's step 0 runs for every realm."
+    },
+    {
+      "addr": "0x00476768",
+      "name": "Msg_Dismiss",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Msg_Dismiss(void)",
+      "comment": "Closes the message window: clears g_messageGroup and the timer, and for groups 0x9E, 0x9F, 0xEE and 0xEF drops into screen 0x26 instead. [V] Its last three lines are the ending: if g_gameOutcome is 10 or 11 it calls Campaign_EnterConquest and sets g_screenId = 0x1C. So a game ends when the message that set the outcome is dismissed, not when the outcome is written."
     }
   ],
   "globals": [
@@ -7018,15 +7090,15 @@
       "addr": "0x00553D24",
       "name": "g_rankLeader",
       "section": "diplomacy",
-      "confidence": "inferred",
-      "comment": "The top-ranked realm, the first non-zero entry of the table Score_RankRealms sorts. An AI envies an ally that holds this slot."
+      "confidence": "verified",
+      "comment": "The top-ranked realm: the first entry of g_rankTable that Score_RankRealms did not zero out. [V] With g_rankTrailer, the last such entry, it is the victory condition - leader == trailer means one realm is left standing, since both are realm indices rather than scores. An AI also envies an ally that holds this slot. Both are 0 when nobody is in play, which passes the same test and makes the original crown g_realms[0]."
     },
     {
       "addr": "0x00522D90",
       "name": "g_rankTrailer",
       "section": "diplomacy",
-      "confidence": "inferred",
-      "comment": "The bottom-ranked in-play realm, the last non-zero entry of the same table. AI step 13 sends it 'Helpful advice.' When it equals g_rankLeader one realm is left and the winner sends 'Just call me king.'"
+      "confidence": "verified",
+      "comment": "The bottom-ranked realm: the last entry of g_rankTable that Score_RankRealms did not zero out. [V] See g_rankLeader - the two being equal is the game's victory condition, and it compares realm indices, not scores."
     },
     {
       "addr": "0x00554004",
@@ -8007,6 +8079,69 @@
       "section": "battle",
       "confidence": "verified",
       "comment": "Army B's living men - the twin of g_battleMenA, counted the same way, drawn beside it, and the other of Battle_CheckOutcome's two field-battle end conditions."
+    },
+    {
+      "addr": "0x0053F0C4",
+      "name": "g_gameOutcome",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "How the current game ended: 0 still in play, 10 won, 11 lost. [V] Cleared by Game_NewGame and by the static-resource loader; written in exactly one place during play, the category-0x0E arm of Msg_DrawWindow, which sets 10 for L2.eng group 225 and 11 for any other ending message whose subject realm is the local player. Every reader tests it against those two numbers."
+    },
+    {
+      "addr": "0x0053F258",
+      "name": "g_campaignMap",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "How many maps of the current campaign have been won, and the row index into the campaign table. [V] Starts at 0 or 2 depending on which campaign was chosen, is incremented by Campaign_EnterConquest only on a win, and is compared against 8 in three places to decide whether the campaign is over."
+    },
+    {
+      "addr": "0x0053F640",
+      "name": "g_campaignTrack",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Which of the two campaigns is being played, from the hotspot Setup_ChooseCampaign saw. 1 selects the table at 0x004D8F58 and anything else the one at 0x004D8E18. [V]"
+    },
+    {
+      "addr": "0x004D8E18",
+      "name": "g_campaignTableA",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "The first campaign: eight rows of eight dwords, read by Campaign_LoadEntry. [V] Column 0 is g_scenarioIndex and produces Quaintville, Rose, Ireland, Italy, England, France, Crusades, Germany; column 1 is the difficulty, 0,0,1,1,2,2,2,2; column 2 is the starting treasury and holds only the three values of the dropdown table at 0x004DBC18 - 5000, 2500, 1000 - resetting to 5000 at the top of each difficulty tier rather than falling monotonically. Column 3 runs 1,1,2,3,4,4,5,5 and is [D] the opponent count. Rows 8 and 9 are zeroed padding, and they are also rows 0 and 1 of g_campaignTableB."
+    },
+    {
+      "addr": "0x004D8F58",
+      "name": "g_campaignTableB",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "The second campaign, same shape as g_campaignTableA and entered at row 2 because Setup_ChooseCampaign starts its counter there. [V] Its six real rows are Australia, Central Am., S. America, U.S.A., Imperium, The World, all on difficulty 2. Rows 0 and 1 are the zero padding it shares with the end of table A."
+    },
+    {
+      "addr": "0x0056D5D8",
+      "name": "g_opponentsRemaining",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "How many realms are in play that are not the local player, recounted at the top of Score_RankRealms. [V] Msg_DrawWindow reads it to decide the ordinary human victory: when an ending message is displayed and this is zero, it enqueues L2.eng group 225 \"Victory!\" at the local player. That, and not the leader/trailer test in Score_RankRealms, is how killing the last AI wins a game."
+    },
+    {
+      "addr": "0x00565410",
+      "name": "g_rankTable",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Five {realm, score} pairs, bubble-sorted into descending score order by Score_RankRealms, which then writes each realm its 1..5 rank at +0x2B and zeroes the entry of any realm at zero strength. [V] The sort reads one pair past the end; the two dwords at 0x00565438 are the sentinel it needs and are explicitly zeroed just before the loop."
+    },
+    {
+      "addr": "0x00553E78",
+      "name": "g_campaignLastMap",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The scenario the conquest screen names as the country just fought over. [V] Campaign_EnterConquest copies g_scenarioIndex here before Campaign_LoadEntry overwrites it with the next map, so the interstitial can print both."
+    },
+    {
+      "addr": "0x00553EE0",
+      "name": "g_messageFrom",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "The `from` field of the message being displayed, taken out of the queue record by Msg_Pump. [V] The ending logic compares it against g_localPlayer: an elimination notice whose sender is me is a loss, and one about somebody else is not. It is also the realm whose player name the message window draws, except for group 225, which draws the local player's."
     }
   ]
 }

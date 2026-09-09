@@ -996,6 +996,71 @@ another. **A `[V]` on a branch is not a `[V]` on the rule the branch belongs to*
 cheapest defence is the one this correction used: grep every site that touches the flag, and
 count them.
 
+**C32 — Nothing detected a winner, and the victory condition everybody had written down
+was a paraphrase that changed what it says.**
+
+Found while wiring the ending. `Realm::is_eliminated` and `Realm::in_play` were implemented
+and tested; nothing read either as an ending, so a game could not be won, lost, or finished.
+The chain the plan named — `Realm_RecountStrength` → `Score_RankRealms` → the outcome byte →
+screen `0x1C` — is real and now implemented. **Four things it does are not what the plan said,
+and all four were checked against the binary rather than argued about.**
+
+1. **"`Score_RankRealms` fires group 225 when the trailing realm equals the leader" is a
+   sentence that reads as a scores comparison and is not one.** `g_rankLeader` and
+   `g_rankTrailer` are the first and last *realm indices* left in the sorted ranking table
+   after every eliminated realm has been struck out of it. Two indices are equal exactly when
+   one realm is left. The condition is the ordinary one, written as a table scan; the plan
+   warned it "reads strange", and the strangeness is entirely in the paraphrase. It also
+   passes with **nobody** in play — both are then 0 — and the original goes on to crown
+   `g_realms[0]`, the slot that is never a realm.
+2. **That is not how a person wins, though.** The ordinary human victory is in
+   `Msg_DrawWindow`: any ending message displayed while `g_opponentsRemaining` is zero
+   *enqueues* group 225 at the local player, and the win lands when that message is shown.
+   Killing the last AI raises group 194 about **that AI**, and displaying 194 with nobody
+   left is what wins the game. A reading that stopped at `Score_RankRealms` would have
+   produced a game that could only be won by the second, redundant path.
+3. **`AI_RunTurnStep` is not skipped for a human, and `symbols.json` said it was.** The
+   `isHuman` test guards the fourteen handlers and the counter's increment, not the step-0
+   initialisation above them. Step 0 — the strength recount, and therefore *the detection of
+   the human's own defeat* — runs for every realm. Skipping humans there is the one way to
+   build a game that cannot be lost, and our `ai::run_step` skipped them. Entry corrected.
+4. **The asymmetry is on "is this the local player", not on "is this a human".** The local
+   player gets group 224, an AI gets 194, and a **second human in a network game is
+   eliminated in silence**. Three arms, and only two of them are about humanity.
+
+**Two bugs of ours that only the ending could expose.** `ai::all_realms_done` asked every
+realm for its sentinel rather than every *in-play* realm, which is fine while `begin_turn` is
+the only writer of `in_play` and hangs phase 4 the moment a realm is eliminated during it —
+that is, on the turn the game ends. And `County_ChangeOwner`'s recount of the outgoing owner
+happens one statement *before* the owner is written, so it can never eliminate anybody; a
+realm losing its last county survives until its own step 0. Both are now reproduced and named.
+
+**C33 — The score's gold bracket is dead code from the second rung up, and we had
+implemented the table's intent instead of the executable's behaviour.**
+
+`docs/rules.md`, `docs/kingdom.md` §8.3 and `l2_kingdom::tables::score_gold_bracket` all gave
+the treasury bonus as +50 over 2,000, +100 over 5,000, +200 over 10,000. The shipped
+`Score_RankRealms` tests the **smallest threshold first**:
+
+```text
+0049aed1  cmp  [eax+57c018], 2000
+0049aedb  jle  0049aefb
+0049aee1  add  [eax+57bf50], 50        ; and then jmp straight to the next realm
+```
+
+so the 5,000 and 10,000 arms are reached only by a treasury that has already failed
+`> 2000`. **The bonus is 0 below 2,001 and 50 above it**, and a full treasury is worth one
+castle rather than four. Read out of the instruction bytes, because the decompiler's nesting
+is exactly the kind of evidence C3 warns about and this claim deserved better than one
+rendering of it. The stock ruleset now pays 50 on all three brackets and keeps the
+thresholds, so a ruleset that wants the ladder the table was designed for changes three
+numbers.
+
+**The lesson is C13's, sharpened.** Every one of these six corrections came from a *summary*
+of a function — the plan's, `symbols.json`'s, or a doc comment's — that was faithful to the
+shape of the code and wrong about what it does. A paraphrase is a lead. The bytes are the
+finding.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

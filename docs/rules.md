@@ -324,16 +324,23 @@ point:
 | Total men under arms | ÷5 |
 | Total population | ÷10 |
 
-Then the treasury is added as a **bracket, not a rate** — four steps, and nothing above them:
+Then the treasury is added as a **bracket, not a rate**. The table clearly means three steps
+— +50 over 2,000, +100 over 5,000, +200 over 10,000 — and **the shipped executable pays 50
+for all three**:
 
 | gold | bonus |
 |---|---:|
-| 2,001 – 5,000 | +50 |
-| 5,001 – 10,000 | +100 |
-| over 10,000 | +200 |
+| 0 – 2,000 | 0 |
+| 2,001 and up | **+50** |
 
-So hoarding past 10,000 crowns adds **nothing at all**, and the whole treasury is worth at
-most four castles.
+`Score_RankRealms` tests its *smallest* threshold first (`cmp gold, 2000; jle …`), adds the
+50 and jumps straight to the next realm, so the 5,000 and 10,000 arms are reached only by a
+treasury that has already failed `> 2000` — which is impossible. They are dead code. Verified
+from the instruction bytes at `0x0049AED1`, not from the decompiler alone, and reproduced:
+`l2_kingdom::tables::score_gold_bracket` pays 50 flat and carries the disassembly.
+
+So hoarding past **2,000** crowns adds nothing at all, and the whole treasury is worth **one
+castle**, not four.
 
 **Castles outweigh everything else combined.** The standings screen shows the categories
 separately — *Most counties, Most castles, Most troops, Most crowns, Happiest people, Most
@@ -418,6 +425,53 @@ soldiers, grouped into **units**.
 The AI runs on **one number**: its total strength as a percentage of yours, minus 100,
 recomputed every 101 frames with a random jitter. Field units attack when it is above 5;
 castle garrisons sortie only above 260, which is close to never.
+
+---
+
+## 8a. How a game ends, and what a campaign is
+
+**A game ends one way: somebody runs out of everything.** There is no turn limit, no score
+target and no date. A realm's *strength* is
+
+> **strength = 3 × counties held + 1 × armies**
+
+recounted at the top of **every** realm's turn — the human's included — and a realm whose
+strength comes out zero is out of the game. Armies only: merchants, transports and peasant
+mobs are in the same array and do not count.
+
+The messages are asymmetric, and the split is on **"is this me"** rather than on "is this a
+human":
+
+| who died | what is raised |
+|---|---|
+| you | group 224, *"Defeat!"* — *"You have fallen from your once-mighty position…"* |
+| an AI | group 194, *"Foiled again."* |
+| another human, in a network game | **nothing at all** |
+
+**You win when the last opponent's obituary is shown.** That is worth reading twice, because
+it is not where you would look for it. The victory is not decided by a rule at the end of the
+turn; it happens in the *message window*. When any elimination notice is displayed and no
+realms but yours are left in play, the window enqueues group 225, *"Victory!"* — and when
+*that* message is dismissed, the game is over. There is a second path in `Score_RankRealms`,
+which crowns whoever is left when the ranking table has one live entry; if that realm is an
+AI it gets group 195, *"Just call me king."*, once, and the *next* time the function runs it
+sends you the Victory message instead — in a game you have already lost.
+
+The outcome is one byte: **10 won, 11 lost**, and screen `0x1C` reads it.
+
+### A campaign is eight maps and nothing carries between them
+
+Pressing OK on the between-maps screen calls **`Game_NewGame`** — the same function the front
+end calls. No gold, no armies, no counties, no diplomacy survives a map boundary. Three
+numbers do: which of the two campaigns, how many of its maps you have won, and how the last
+one ended.
+
+The first campaign is **Quaintville, Rose, Ireland, Italy, England, France, Crusades,
+Germany**; the second is **Australia, Central Am., S. America, U.S.A., Imperium, The World**
+and is six maps because its counter starts at 2 and the same "counter < 8" test ends it. The
+difficulty climbs 0, 0, 1, 1, 2, 2, 2, 2 and the starting purse is 5,000, 2,500 or 1,000 —
+resetting to 5,000 at the top of each difficulty tier rather than falling all the way. A loss
+does not advance the counter, so you fight the same country again.
 
 ---
 

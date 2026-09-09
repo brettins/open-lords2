@@ -80,7 +80,10 @@ pipeline, random events, scoring. Not working: §2.1 through §2.4.
 
 The game ends, and somebody wins it.
 
-**Status: no. This is what reorders the plan.**
+**Status: the ending is built; reaching it in play still needs sieges.** A game *can* now end
+— constructed positions are driven to a win and to a loss in `tests/ending.rs`, land on the
+right outcome byte and the right sentence of screen `0x1C`, and a campaign steps map to map.
+What is still missing is the way a person actually gets to that position on the board.
 
 **Sieges are on the critical path.** `crates/l2-kingdom/src/conquest.rs:114` implements the
 gate, and it is one `if`: a county with a castle *and* a garrison that is not yours cannot be
@@ -88,18 +91,24 @@ entered at all — `Refusal::Garrisoned`. It is correct and it is tested at all 
 Its consequence is that **without sieges the map stops moving and a game cannot be won.** Any
 plan that files sieges as a later phase is wrong, and revision 3 filed them that way twice.
 
-**Victory detection is missing, and cheap.** In the original the chain is four functions and
-is fully readable. AI turn step 0 (`0x0049B42B`) recomputes `strength = 3 × counties +
-armies`; a realm at zero is eliminated and told so (`L2.eng` group 224, *"Defeat!"*).
-`Score_RankRealms` (`0x0049AA0E`) ranks the survivors and, **when the trailer equals the
-leader — one realm standing — enqueues group 225, "Victory!"**. `Msg_DrawWindow` sets the
-terminal flag `DAT_0053F0C4` to 10 for won and 11 for lost, and screen `0x1C` reads it.
+~~**Victory detection is missing, and cheap.**~~ **Done, and the chain was not quite the one
+written here.** `Realm_RecountStrength` (`0x0049B42B`) recomputes `strength = 3 × counties +
+armies` at the top of **every** realm's turn — the human's too, because `AI_RunTurnStep`'s
+`isHuman` test guards the handlers and not the step-0 initialisation — and a realm at zero is
+eliminated and told so. The message is chosen on *"is this the local player"*: group 224 for
+you, 194 for an AI, and silence for a second human in a network game.
 
-Ours has the first half and none of the rest. `ai::begin_realm_turn` already recomputes
-strength and sets `realm.in_play`, and `Realm::is_eliminated` exists with a test. **Nothing
-reads either as an ending**, there is no ranking, and the conquest interstitial cycles its
-three outcomes on a key press as a demo affordance. Our reimplementation cannot end. It will
-run forever.
+`Score_RankRealms`'s *"trailer equals the leader"* is a comparison of **realm indices**, not
+of scores: it means one realm is left standing, and the paraphrase above is what made it read
+strange. It is also not the mainline victory. **`Msg_DrawWindow` is**: any ending message
+displayed while `g_opponentsRemaining` is zero enqueues group 225, and the game is won when
+*that* is dismissed. `g_gameOutcome` (`0x0053F0C4`) is 10 won, 11 lost, and dismissing the
+message that set it calls `Campaign_EnterConquest` and enters screen `0x1C`.
+
+Implemented in `l2_kingdom::victory` (the rules) and `l2_game::victory` (the campaign and the
+message queue), with `crates/l2-game/tests/ending.rs` driving a won game and a lost game
+through the real phase machine. `docs/decisions.md` C32 records the four ways the reading
+above was wrong and the two bugs of ours that only an ending could expose.
 
 ---
 
@@ -262,11 +271,13 @@ that work rather than after it.
                                                           10 new game from a chosen map
 ```
 
-**1 — Victory and defeat.** Hours. Elimination and `in_play` exist and are tested; victory is
-`Score_RankRealms`'s one line — the trailer equals the leader — and the interstitial that
-shows the result already draws all three outcomes. First because it is the definition of done,
-because it is the cheapest thing here, and because it **unblocks nothing**, which is exactly
-why it keeps losing priority arguments (§4).
+**1 — Victory and defeat. ✅ Done.** A game can now be won, lost and finished:
+`l2_kingdom::victory` holds the rules, `l2_game::victory` the campaign counter and the ending
+queue, and `crates/l2-game/tests/ending.rs` drives both endings through the phase machine and
+onto the right branch of screen `0x1C`. It was hours, as estimated, and the estimate was right
+for the wrong reason: the code was small and **four of the five things the plan said about the
+chain were wrong** (`docs/decisions.md` C32). It still unblocks nothing, which is exactly why
+it kept losing priority arguments (§4) — and it was the definition of done.
 
 **2 — The battle's end condition and its outcome.** `FUN_00477DFC` is 1,225 bytes on disk and
 unread. Do it with or immediately after the seam; a battle you can enter and not leave is
@@ -434,7 +445,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,301<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,340<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -528,7 +539,7 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->654<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->663<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->27<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and

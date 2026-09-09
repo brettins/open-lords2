@@ -879,11 +879,11 @@ castle_gold = [0, 0, 100, 0, 2000]
 
 [[kingdom.score.gold_bracket]]
 at_least = 10001
-points = 200
+points = 50
 
 [[kingdom.score.gold_bracket]]
 at_least = 5001
-points = 100
+points = 50
 
 [[kingdom.score.gold_bracket]]
 at_least = 2001

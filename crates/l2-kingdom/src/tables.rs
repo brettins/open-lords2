@@ -1236,15 +1236,45 @@ pub const HISTORY_COUNTIES: usize = 16;
 // Score
 // ---------------------------------------------------------------------------
 
-/// The gold brackets in `Score_RankRealms` (`0x0049AA0E`) - the one term of the
+/// The gold brackets in `Score_RankRealms` (`0x0049AA0E`) — the one term of the
 /// score whose meaning is unambiguous. `docs/kingdom.md` §8.3.
+///
+/// # The ladder in the shipped executable is broken, and this reproduces it
+///
+/// **`[V]`, from the bytes.** It reads as three thresholds paying 50, 100 and
+/// 200, and this function used to implement that. It is not what the binary
+/// does. `0x0049AED1` onwards, disassembled by hand:
+///
+/// ```text
+/// 0049aed1  81 b8 18c05700 d0070000   cmp  [eax+57c018], 2000
+/// 0049aedb  0f 8e 1a000000            jle  0049aefb
+/// 0049aee1  83 80 50bf5700 32         add  [eax+57bf50], 50      ; gold > 2000
+/// 0049aef6  e9 6e000000               jmp  0049af69              ; next realm
+/// 0049aefb  ...  cmp  [eax+57c018], 5000
+/// 0049af13  0f 8e 1a000000            jle  0049af33
+/// 0049af19  ...  add  [eax+57bf50], 100                          ; unreachable
+/// 0049af33  ...  cmp  [eax+57c018], 10000
+/// 0049af4b  0f 8e 18000000            jle  0049af69
+/// 0049af51  ...  add  [eax+57bf50], 200                          ; unreachable
+/// ```
+///
+/// The ladder is tested **smallest threshold first**: anything over 2,000 takes
+/// the 50 and jumps to the next realm, and the 5,000 and 10,000 arms are only
+/// reached by a treasury that has already failed `> 2000`. So the two richest
+/// brackets are dead code and the shipped rule is:
+///
+/// | gold | bonus |
+/// |---|---:|
+/// | 0 … 2,000 | 0 |
+/// | 2,001 and up | **50** |
+///
+/// A treasury is therefore worth **one castle**, not four, and `docs/rules.md`'s
+/// *"hoarding past 10,000 adds nothing at all"* is true a great deal earlier than
+/// it says. The table keeps its three thresholds so a ruleset that wants the
+/// designed ladder is three numbers away — see [`Tables::DEFAULT`].
 #[inline]
 pub fn score_gold_bracket(gold: i32) -> i32 {
-    if gold > 10_000 {
-        200
-    } else if gold >= 5_001 {
-        100
-    } else if gold >= 2_001 {
+    if gold > 2_000 {
         50
     } else {
         0
@@ -2223,11 +2253,14 @@ impl Tables {
             ],
         },
         score: ScoreTable {
-            // `score_gold_bracket` is written as `> 10_000`, `>= 5_001`,
-            // `>= 2_001`; as inclusive lower bounds that is 10_001 / 5_001 /
-            // 2_001, the same function with one fewer comparison rule for a
-            // mod author to learn.
-            gold_brackets: [(10_001, 200), (5_001, 100), (2_001, 50), (0, 0)],
+            // Inclusive lower bounds, richest first. **All three live brackets
+            // pay 50**, because the shipped `Score_RankRealms` tests 2,000
+            // first and jumps away, so the 100 and 200 arms are unreachable —
+            // see [`score_gold_bracket`], which carries the disassembly. The
+            // thresholds are kept so that a ruleset wanting the ladder the
+            // table was clearly designed for changes three numbers and nothing
+            // else.
+            gold_brackets: [(10_001, 50), (5_001, 50), (2_001, 50), (0, 0)],
             weights: SCORE_WEIGHTS,
             input_offsets: SCORE_INPUT_OFFSETS,
         },

@@ -71,7 +71,10 @@ pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 /// one.
 ///
 /// * 1 — the first layout: the ten fields `Game` carries on top of `Kingdom`.
-pub const VERSION: u32 = 1;
+/// * 2 — the campaign section: which of the two campaigns, how many of its maps
+///   have been won, whether this one is over, and the ending messages still
+///   queued. Without it a saved campaign always resumed at map one.
+pub const VERSION: u32 = 2;
 
 /// Magic, version, the prefix's length and the kingdom blob's length.
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
@@ -281,6 +284,71 @@ fn encode_prefix(game: &Game, out: &mut Canonical) {
 
     out.section("report");
     out.option(game.last_report.as_ref(), encode_report);
+
+    // The campaign: `DAT_0053F640`, `DAT_0053F258` and `DAT_0053F0C4`, plus the
+    // ending messages that have been raised and not yet shown. The queue is
+    // empty at every point a person can save — `turn::end_turn` settles it — but
+    // it is written anyway, because a field that is usually empty and silently
+    // dropped is a field somebody eventually loses a game to.
+    out.section("campaign");
+    let c = &game.campaign;
+    out.u8(match c.track {
+        crate::victory::Track::First => 0,
+        crate::victory::Track::Second => 1,
+    });
+    out.u32(c.map as u32);
+    out.u8(c.outcome.value());
+    out.u8(c.ranking.leader);
+    out.u8(c.ranking.trailer);
+    out.u8(c.ranking.opponents_remaining);
+    out.u8(c.ranking.realms_in_play);
+    out.u32(c.pending.len() as u32);
+    for msg in &c.pending {
+        out.u32(msg.group as u32);
+        out.u8(msg.from);
+        out.u8(msg.to);
+        out.u8(msg.category);
+    }
+}
+
+/// The campaign section, read back. Every field is range-checked, because a
+/// campaign counter past the table is an out-of-bounds map lookup.
+fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::victory::Campaign, LoadError> {
+    use crate::victory::{Campaign, Track, CAMPAIGN_LENGTH};
+    use l2_kingdom::victory::{Ending, Outcome};
+
+    let track = match input.u8()? {
+        0 => Track::First,
+        1 => Track::Second,
+        other => return Err(bad_count(input, other as usize, "campaign track")),
+    };
+    let map = input.u32()? as usize;
+    if map > CAMPAIGN_LENGTH {
+        return Err(bad_count(input, map, "campaign map"));
+    }
+    let outcome_byte = input.u8()?;
+    let outcome = Outcome::from_value(outcome_byte)
+        .ok_or_else(|| bad_count(input, outcome_byte as usize, "outcome"))?;
+    let ranking = l2_kingdom::victory::Ranking {
+        leader: input.u8()?,
+        trailer: input.u8()?,
+        opponents_remaining: input.u8()?,
+        realms_in_play: input.u8()?,
+    };
+    let count = input.u32()? as usize;
+    if count > MAX_REALMS * 4 {
+        return Err(bad_count(input, count, "ending message count"));
+    }
+    let mut pending = Vec::with_capacity(count);
+    for _ in 0..count {
+        pending.push(Ending {
+            group: input.u32()? as u16,
+            from: input.u8()?,
+            to: input.u8()?,
+            category: input.u8()?,
+        });
+    }
+    Ok(Campaign { track, map, outcome, pending, ranking })
 }
 
 fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadError> {
@@ -322,6 +390,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         None => None,
         Some(report) => Some(report?),
     };
+    let campaign = decode_campaign(input)?;
 
     Ok(Game {
         kingdom,
@@ -334,6 +403,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         gold_last,
         last_report,
         turns_played,
+        campaign,
     })
 }
 

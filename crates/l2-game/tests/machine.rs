@@ -13,16 +13,28 @@ use l2_game::screens::menu::MenuScreen;
 use l2_game::Game;
 use l2_view::Canvas;
 
-/// A two-county world: county 1 is the player's, county 2 is not.
+/// County 1 is the player's, county 2 is unowned, county 3 belongs to an AI.
+///
+/// **The opponent is not decoration.** These tests end turns, and a world with
+/// one realm in it is a world that has already been won: the ending chain sees
+/// no opponents left, `Score_RankRealms` crowns the survivor, and the very first
+/// `E` sends the map screen to the conquest interstitial instead of leaving the
+/// map on top. That is the original's behaviour too — it is the fixture that was
+/// unreal. `crates/l2-game/tests/ending.rs` is where a game is *meant* to end.
 fn world() -> (Game, Assets) {
     let mut g = Game::new(5);
-    g.kingdom.set_county_count(2);
+    g.kingdom.set_county_count(3);
     g.kingdom.realms[1].in_play = true;
+    g.kingdom.realms[1].strength = 3;
     g.kingdom.realms[1].is_human = true;
+    g.kingdom.realms[2].in_play = true;
+    g.kingdom.realms[2].strength = 3;
     g.kingdom.counties[1].owner = 1;
     g.kingdom.counties[1].population = 400;
     g.kingdom.counties[2].owner = 0;
     g.kingdom.counties[2].population = 400;
+    g.kingdom.counties[3].owner = 2;
+    g.kingdom.counties[3].population = 400;
     g.player = 1;
     g.selected = 1;
     (g, Assets::placeholder())
