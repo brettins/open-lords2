@@ -195,6 +195,7 @@ pub mod ai;
 pub mod conquest;
 pub mod county;
 pub mod event;
+pub mod field;
 pub mod happiness;
 pub mod health;
 pub mod industry;

@@ -737,6 +737,48 @@ impl Kingdom {
     /// turn in phase 1 on the neutral ladder. An out-of-range realm index does
     /// nothing rather than panicking, because the caller is a turn machine and
     /// not a rule.
+    /// **Paint one field.** `Field_SetType` (`0x00438BEC`) with this kingdom's
+    /// own map, ruleset and clock supplied — the whole of what a click on the
+    /// campaign map does to the simulation.
+    ///
+    /// This is the only writer of the field counts a player can reach, and
+    /// until it existed there was none: every county of the England position
+    /// starts with `fieldsGrain = 0` and nothing but the AI's own farming
+    /// styles ever changed one. See [`crate::field`].
+    ///
+    /// A refusal is a refusal — the tile is not one of the county's twenty
+    /// fields, it is blighted this season, or the brush is not one that tile's
+    /// menu offers — and never a silent no-op.
+    pub fn paint_field(
+        &mut self,
+        county: usize,
+        tile: usize,
+        brush: crate::field::FieldType,
+    ) -> Result<(), crate::field::BrushRefusal> {
+        let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
+        crate::field::set_type(
+            &mut self.counties,
+            self.county_count,
+            &mut self.campaign.map,
+            county,
+            tile,
+            brush,
+            season_next,
+            &self.tables,
+            self.options.advanced_farming,
+        )
+    }
+
+    /// The map tiles that are one county's fields, with what each is being
+    /// used for — what a screen needs to draw the brush's targets.
+    pub fn field_tiles(&self, county: usize) -> Vec<(usize, crate::field::FieldType)> {
+        let Some(c) = self.counties.get(county) else { return Vec::new() };
+        (0..crate::county::MAX_FIELDS)
+            .filter_map(|slot| c.field_tile(slot))
+            .map(|tile| (tile, crate::field::classify(self.campaign.map.terrain[tile])))
+            .collect()
+    }
+
     pub fn run_ai_tax_rates(&mut self, realm: u8) {
         let Some(r) = self.realms.get(realm as usize) else { return };
         let lord = r.lord;

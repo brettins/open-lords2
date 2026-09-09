@@ -237,6 +237,96 @@ fn spend(
     }
 }
 
+/// `g_shareTable` (`0x004D6768`) — `{100, 50, 33, 25, 20, 0, 5, 0}`.
+///
+/// **`[V]`**, byte for byte out of `Lords2.exe`. The first five entries are
+/// `100 / (n + 1)` for `n` = 0 … 4 — an even split once one more job joins the
+/// `n` that already have a share. The last three are not that sequence and are
+/// never indexed: [`toggle_share`] can only reach entries 0 … 3, because its
+/// caller counts non-zero shares among **three** jobs.
+pub const SHARE_TABLE: [i32; 8] = [100, 50, 33, 25, 20, 0, 5, 0];
+
+/// The divisor [`toggle_share`]'s only caller passes: the farm group has three
+/// members. `Field_SetType` calls `Labour_ToggleShare(county, 2, on, 3)`.
+pub const FARM_GROUP_DIVISOR: i32 = 3;
+
+/// The three jobs whose shares [`toggle_share`] renormalises — the farm group.
+const FARM_GROUP: [usize; 3] =
+    [JOB_GRAIN_FARMING, JOB_CATTLE_FARMING, JOB_FIELD_RECLAMATION];
+
+/// `Labour_ToggleShare` (`FUN_00450639`, `0x00450639`, 677 bytes) — bring one
+/// farm job into the split, or take it out.
+///
+/// **This is the function `docs/screens-county.md` §9 called the field brush.**
+/// It is not: it writes county `+0x130 + job*4`, the eight job percentages
+/// (`docs/kingdom.md` §14), and its only caller is `Field_SetType`, which uses
+/// it to give field reclamation a share of the farm the moment the county has
+/// a field under reclamation, and to take it away again when it has none. The
+/// two readings were both half-right — the *call* comes from painting a field,
+/// the *effect* is on labour — and only the caller separates them.
+///
+/// ```c
+/// if ((share[job] == 0) != (on == 1)) return;    /* already in the wanted state */
+/// n = number of the three farm shares that are non-zero;
+/// if (on) {  give  = g_shareTable[n] / divisor;
+///            scale = 100 - give;
+///            share[0..3] = Pct(scale, share[0..3]);
+///            share[job]  = give; }
+/// else    {  scale = 100 - share[job];  share[job] = 0;
+///            share[0..3] = PctOf(share[0..3], scale); }
+/// /* and the rounding remainder goes to the largest of the three */
+/// ```
+///
+/// **`[D]`**, and two details of it are worth stating because they look like
+/// transcription errors and are not.
+///
+/// The **guard is inverted from what its shape suggests**. Written out, the
+/// original's condition is *"(share is zero or we are not switching on) and
+/// (share is non-zero or we are not switching off)"* — which is exactly *"the
+/// job is not already in the state being asked for"*. So switching on a job
+/// that already has a share does nothing at all.
+///
+/// The **remainder pass is asymmetric**: it seeds its search with cattle's
+/// share and with slot 1, then adds `(100 - grain - cattle) - reclamation` to
+/// whichever of the three is largest. On a group that already sums to 100 that
+/// term is 0, so the pass is a no-op; it only bites where the two `Pct` calls
+/// have rounded the group away from 100, which is what it is for.
+pub fn toggle_share(county: &mut County, job: usize, on: bool, divisor: i32) {
+    // The original spells this `(s || !on) && (!s || on)`, which is `s == on`.
+    if (county.labour_share[job] == 0) != on {
+        return;
+    }
+    if on {
+        let n = FARM_GROUP.iter().filter(|&&j| county.labour_share[j] != 0).count();
+        let give = SHARE_TABLE[n.min(SHARE_TABLE.len() - 1)] / divisor.max(1);
+        let scale = 100 - give;
+        for j in FARM_GROUP {
+            county.labour_share[j] = crate::math::pct(scale, county.labour_share[j]);
+        }
+        county.labour_share[job] = give;
+    } else {
+        let scale = 100 - county.labour_share[job];
+        county.labour_share[job] = 0;
+        for j in FARM_GROUP {
+            county.labour_share[j] = crate::math::pct_of(county.labour_share[j], scale);
+        }
+    }
+
+    // `iVar1 = (100 - share[0]) - share[1]`, then the largest of the three
+    // takes `iVar1 - share[2]`. Seeded with slot 1 and with cattle's share,
+    // which is why a tie goes to cattle.
+    let short = (100 - county.labour_share[FARM_GROUP[0]]) - county.labour_share[FARM_GROUP[1]];
+    let mut best = FARM_GROUP[1];
+    let mut best_share = county.labour_share[FARM_GROUP[1]];
+    for j in FARM_GROUP {
+        if best_share < county.labour_share[j] {
+            best = j;
+            best_share = county.labour_share[j];
+        }
+    }
+    county.labour_share[best] += short - county.labour_share[FARM_GROUP[2]];
+}
+
 /// `FUN_0044FF4A` — rewrite [`County::industry_share`] from what was actually
 /// assigned.
 ///

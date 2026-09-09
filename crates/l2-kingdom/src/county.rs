@@ -404,13 +404,39 @@ pub struct County {
     pub event_population_pct: i32,
     pub event_grain_pct: i32,
     pub event_herd_pct: i32,
+    /// `g_countyFieldTiles + county * 0x50 + slot * 4` (`0x0053EA00`) — **the
+    /// twenty map tiles that are this county's fields**, or 0 for an empty
+    /// slot.
+    ///
+    /// Not part of the county record in the original, but per-county and
+    /// twenty-wide, so it lives here. The original stores a **byte offset**
+    /// into its eight-byte-per-tile array; this stores the tile index, which is
+    /// that offset divided by eight and is what [`crate::map`] indexes by.
+    ///
+    /// This is the primary state the five counts below are derived from — see
+    /// [`crate::field`]. Save block 12 is 1,360 bytes = 17 × 80 exactly, which
+    /// is where the width comes from.
+    pub field_tiles: [u16; MAX_FIELDS],
     /// `+0x1FF` — read positively by the fertility rule.
+    ///
+    /// **Derived.** [`crate::field::recount`] is the only thing that should
+    /// write any of the five counts; they are a cache over
+    /// [`County::field_tiles`] and the map's terrain plane.
     pub fields_fallow: i32,
     /// `+0x200` — **not read by the fertility rule at all.**
     pub fields_cattle: i32,
     /// `+0x201` — the field count `Grain_Sow` multiplies by sacks-per-field,
     /// and the term the fertility rule subtracts.
     pub fields_grain: i32,
+    /// `+0x203` — fields in no use: terrain `0`, and the two blighted terrains
+    /// `0x17` and `0x18` a drought or a flood leaves behind for one season.
+    pub fields_waste: i32,
+    /// `+0x204` — fields under reclamation.
+    ///
+    /// The one count with a *rule* attached rather than a display: it is what
+    /// `Field_SetType` tests to decide whether field reclamation gets a share
+    /// of the farm workforce at all.
+    pub fields_reclaiming: i32,
     /// `+0x208` — -100..=100.
     pub fertility: i32,
     /// `+0x21B`.
@@ -545,9 +571,12 @@ impl County {
             event_population_pct: 0,
             event_grain_pct: 0,
             event_herd_pct: 0,
+            field_tiles: [0; MAX_FIELDS],
             fields_fallow: 0,
             fields_cattle: 0,
             fields_grain: 0,
+            fields_waste: 0,
+            fields_reclaiming: 0,
             fertility: 0,
             weather: Weather::Cloudy,
             dryness: 0,
@@ -582,8 +611,42 @@ impl County {
 
     /// The sum of the three field-usage counts is the county's field total.
     /// Over the fourteen counties of the England map the totals run 8 to 16.
+    ///
+    /// **Three of five.** `County_RecountFields` fills five counts and this
+    /// sums the three the AI's field ladder reads; a county's waste and
+    /// reclaiming fields are not in it. [`County::field_slots_used`] is the
+    /// count of tiles.
     pub fn field_total(&self) -> i32 {
         self.fields_fallow + self.fields_cattle + self.fields_grain
+    }
+
+    /// The map tile in one of the twenty field slots, or `None` for an empty
+    /// slot. Out-of-range slots are `None` rather than a panic, because the
+    /// callers walk `0 .. MAX_FIELDS` and a bound check reads better there.
+    pub fn field_tile(&self, slot: usize) -> Option<usize> {
+        match self.field_tiles.get(slot) {
+            Some(&0) | None => None,
+            Some(&t) => Some(t as usize),
+        }
+    }
+
+    /// Put a tile in a field slot, or clear it. Returns `false` if the slot is
+    /// out of range.
+    pub fn set_field_tile(&mut self, slot: usize, tile: Option<usize>) -> bool {
+        let Some(cell) = self.field_tiles.get_mut(slot) else { return false };
+        *cell = tile.unwrap_or(0) as u16;
+        true
+    }
+
+    /// Which field slot holds this tile, if any. Linear over twenty entries in
+    /// stored order — the original's own search.
+    pub fn field_slot(&self, tile: usize) -> Option<usize> {
+        (0..MAX_FIELDS).find(|&slot| self.field_tile(slot) == Some(tile))
+    }
+
+    /// How many of the twenty slots hold a tile.
+    pub fn field_slots_used(&self) -> usize {
+        (0..MAX_FIELDS).filter(|&slot| self.field_tile(slot).is_some()).count()
     }
 
     /// The neighbour ids actually present, as a slice. Always walked in stored
