@@ -161,7 +161,7 @@
       "section": "map",
       "confidence": "verified",
       "signature": "void Map_InitScenario(void)",
-      "comment": "Whole map bring-up for scenario g_scenarioIndex: Map_LoadPlanes, Map_LoadLattice, Minimap_Load, Map_PlaceDwellings, then Merchant_PickStartCounties."
+      "comment": "Whole map bring-up for scenario g_scenarioIndex: Map_LoadPlanes, Map_LoadLattice, Minimap_Load, Map_PlaceStartingFields, then Merchant_PickStartCounties."
     },
     {
       "addr": "0x00467770",
@@ -188,12 +188,28 @@
       "comment": "Loads the two 128x128 minimap rasters for map slot 0..59 out of MAPnn.PL8: name = \"map01.pl8\" + (slot>>2)*0x10, frame (slot&3)*5 -> g_minimapCounty (county id per pixel) and frame (slot&3)*5+1 -> g_minimapPixels (the picture). Each MAPnn.PL8 therefore carries four slots, and the 11 shipped files cover exactly the 44 used slots. It was named Map_LoadTileSets and described as picking a season variant; it does neither - the tile sets are loaded by Gfx_LoadCountyMode and the season is a separate global."
     },
     {
-      "addr": "0x00467A36",
-      "name": "Map_PlaceDwellings",
+      "addr": "0x00468C41",
+      "name": "County_FindDwellingPlots",
       "section": "map",
       "confidence": "verified",
-      "signature": "void Map_PlaceDwellings(void)",
-      "comment": "Sweeps the 64x64 grid and, for each tile with a county in 1..17 and plane0 bit 0x20 set, increments a per-county counter and rewrites the tile's graphic index to Roads frame 80, 84 or 104 - the three crop states. maps-layers.md 2.4 reads bit 0x20 as farmland on this evidence."
+      "signature": "undefined4 County_FindDwellingPlots(uint county)",
+      "comment": "Sweeps the 64x64 grid for this county's tiles with plane-0 bit 0x10 set and records each one's byte offset in county.dwellingPlots, copying g_tiles[t].frame into .savedFrame and zeroing .content. Called once per county from Counties_PlaceSites, immediately after County_FindTownTile. [V] - the check that could have failed is arithmetic: the destination is four i32 slots at county +0x80 with no bound on the counter, and it ends exactly on fieldProgress at +0x90, so a county with five 0x10 tiles would corrupt a field. maps-layers.md 2.3 measured exactly four per county over all 434 counties of the 44 shipped maps."
+    },
+    {
+      "addr": "0x004684C6",
+      "name": "County_UpdateDwellings",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void County_UpdateDwellings(int county, int wanted)",
+      "comment": "Raises or clears a dwelling on each of the four plots County_FindDwellingPlots found. Population_UpdateAll calls it once per county per season with wanted banded on population: 0 below 601, 1 below 1001, 2 below 1401, 3 below 1601, else 4. Each of the first `wanted` plots steps g_tiles[t].content one size up the ladder 0x13 -> 0x12 -> 0x11 -> 0x10 (frame 0x3C for the two small sizes, 0x3B for the two large), sets the bank to Town (0x0C) with bit 0x80 and sets flags bit 0x10; each plot beyond `wanted` is razed - frame restored from savedFrame, bank cleared back to base, flags bit 0x10 cleared, content 0. This answers maps-layers.md 8's open question about the four 0x10 plots. [V] - the razing branch reads savedFrame, the byte maps-layers.md 5.3 predicted exists for exactly this and for nothing else; had +0x80 not been the plot list it would restore an unrelated tile's terrain. Unit_BurnDwelling is the inverse: it drives 0x10 back to 0x13 on one plot."
+    },
+    {
+      "addr": "0x00467A36",
+      "name": "Map_PlaceStartingFields",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void Map_PlaceStartingFields(void)",
+      "comment": "Gives every farm tile its starting crop. Sweeps the 64x64 grid and, for each tile with a county in 1..17 and plane0 bit 0x20 set, counts it into county +0x205 and writes g_tiles[t].content and .frame by DIFFICULTY and by the tile's ordinal within its county: easiest, first 8 pasture (content 0x14, frame base 104) then fallow (content 1, base 84); difficulty 1, 6 pasture then 2 fallow then wild (content 0, base 80); difficulty 2, 4 then 2 then wild; hardest, 4 pasture then wild. The frame is base + ((stored frame + 0xB0) & 3), a four-variant pick, and the three bases are the crop states maps-layers.md 2.4 reads bit 0x20 as farmland from. It was called Map_PlaceDwellings: it places no dwelling, and the four dwelling plots per county are County_FindDwellingPlots and County_UpdateDwellings. See decisions.md C28."
     },
     {
       "addr": "0x0040526E",
@@ -5163,7 +5179,7 @@
       "name": "g_tiles",
       "section": "map",
       "confidence": "verified",
-      "comment": "Runtime tile array, 4096 records x 8 bytes, index y*64 + x. +1 plane0 flags, +2 bank, +3 frame, +4 plane3, +5 unit index on this tile, +6 saved terrain frame, +7 county. See docs/formats/maps-layers.md 5.3."
+      "comment": "Runtime tile array, 4096 records x 8 bytes in a 64x64 grid. Typed as struct Tile in docs/records.json - all eight bytes named, and every one of the 441 accesses in the binary is one byte wide (RecordProbe). The code indexes it by BYTE OFFSET, (y*64 + x)*8, so a step east is +8 and a step south is +0x200; Ghidra renders the two idioms as g_tiles[y*0x40 + x].county and (&g_tiles[0].county)[tileOffset]. See docs/formats/maps-layers.md 5.3."
     },
     {
       "addr": "0x0055CEA0",
@@ -5296,7 +5312,7 @@
       "name": "g_battlefield",
       "section": "battle",
       "confidence": "verified",
-      "comment": "Battlefield cell array, 80x80 records of 8 bytes, index (y*80 + x)*8. +0 terrain id, +1 flags (0x10 and 0x80 impassable), +2 flags, +3 graphic index, +4 elevation, +5 index of the figure standing here, +6 head of the missile list in this cell, +7 surface type (7 bridge, 10 and 17 burning, 15 woodland)."
+      "comment": "Battlefield cell array, 6400 records of 8 bytes in an 80x80 grid. Typed as struct BattleCell in docs/records.json - all eight bytes named, and every dereference in the binary is one byte wide (RecordProbe; the only two wider hits are PUSH 0x5440e0, the array's address). Indexed by BYTE OFFSET, (y*80 + x)*8: a step east is +8 and a step south is +0x280. The 80x80x8 shape is confirmed from the game's own side - both callers of the isometric grid renderer pass FUN_004bc020(bank, bank2, g_battlefield, 0x50, 0x50, 8, 0, ...). See docs/battle.md 3."
     },
     {
       "addr": "0x0053E8F8",
@@ -7845,27 +7861,6 @@
       "section": "units",
       "confidence": "verified",
       "comment": "void(*)(void)[112], the per-opcode payload serialisers Net_SendCommand calls. Every one of the 112 entries is a real function start in the decompiled corpus - a mechanical check that could have failed - and each writer's matching reader is the next function in address order, ending where the next opcode's writer begins. The campaign-map entries are 0x29 NetCmd_WriteMoveOrder, 0x2C move-and-combine, 0x2E disband, 0x34 garrison, 0x35 begin siege, 0x3A toggle industry."
-    },
-    {
-      "addr": "0x0053FA24",
-      "name": "g_county0_castleX",
-      "section": "units",
-      "confidence": "verified",
-      "comment": "X of county 0's castle tile in the county record array (stride 0x300), written by County_FindCastleTile. battle-before.sav confirms it from the data side: county 2's pair is (30, 46), that tile carries plane-0 bit 0x80 with terrain 0x15, and unit slot 4 - the army whose garrisonCounty is 2 - stands exactly there. Distinct from the anchor at +0x6C/+0x6D, which is the county TOWN."
-    },
-    {
-      "addr": "0x0053FA25",
-      "name": "g_county0_castleY",
-      "section": "units",
-      "confidence": "verified",
-      "comment": "Y of county 0's castle tile, as above."
-    },
-    {
-      "addr": "0x0053FA20",
-      "name": "g_county0_townTile",
-      "section": "units",
-      "confidence": "verified",
-      "comment": "i32 byte offset into g_tiles of the TOP-LEFT tile of county 0's 2x2 county town; the anchor at +0x6C/+0x6D is that block's bottom-right corner. Map_Click centres the map on it before opening the village. The relation holds on all four occupied counties of battle-before.sav - (14,37)/(15,38), (30,49)/(31,50), (36,15)/(37,16), (48,41)/(49,42) - which is what makes County_FindDefendingArmy's asymmetric -2..+1 window read as 'the town block plus its one-tile ring'."
     },
     {
       "addr": "0x0053FB72",

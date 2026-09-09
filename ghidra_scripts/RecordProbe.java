@@ -50,6 +50,11 @@ public class RecordProbe extends GhidraScript {
         { "lord",   0x004D8A58L, 0xF0L, 4L },
         { "battleMan",  0x00554480L, 0x1B0L, 80L },
         { "battleUnit", 0x00566520L, 0x34L, 80L },
+        // The two grids are byte-offset indexed rather than stride indexed, but
+        // the fold this script does - address minus base, modulo stride - is the
+        // same arithmetic either way, so an 8-byte "stride" reports the plane.
+        { "tile",       0x00522F90L, 0x8L,  4096L },
+        { "battleCell", 0x005440E0L, 0x8L,  6400L },
     };
 
     /** record -> offset -> size -> count */

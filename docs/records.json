@@ -42,6 +42,7 @@
         { "off": "0x05", "type": "u8",  "name": "hasResource",     "comment": "The resource is in the ground here at all." },
         { "off": "0x06", "type": "u8",  "name": "disabledSeasons", "comment": "Countdown; while non-zero the pass produces nothing." },
         { "off": "0x07", "type": "u8",  "name": "enabled",         "comment": "The industry is switched on." },
+        { "off": "0x08", "type": "i32", "name": "siteTile",        "comment": "Byte offset into g_tiles of this industry's site. County_PlaceResourceSites and County_PlaceBlacksmith store it at load; Industry_UpdateSiteTile writes g_tiles[site].content through it. Four 4-byte accesses, one per commodity." },
         { "off": "0x0E", "type": "i16", "name": "capacity",        "comment": "Workers absorbed at full value. Two bytes, not four - +0x10 is the running total." },
         { "off": "0x10", "type": "i32", "name": "total",           "comment": "Running total the pass adds this season's output to." },
         { "off": "0x14", "type": "i32", "name": "totalSnapshot",   "comment": "Last pass's copy of total; output is the difference." }
@@ -106,6 +107,11 @@
         { "off": "0x05C", "type": "u8[15]", "name": "neighbours",        "comment": "Adjacency ids; MAX_COUNTIES - 2 slots." },
         { "off": "0x06C", "type": "u8",  "name": "anchorX" },
         { "off": "0x06D", "type": "u8",  "name": "anchorY" },
+        { "off": "0x070", "type": "i32", "name": "townTile",       "comment": "Byte offset into g_tiles of the TOP-LEFT tile of the 2x2 county town; the anchor at +0x6C/+0x6D is that block's bottom-right corner. County_FindTownTile fills it, Minimap_Click and Map_Click centre on it. Held all four occupied counties of battle-before.sav - (14,37)/(15,38), (30,49)/(31,50), (36,15)/(37,16), (48,41)/(49,42) - which is what makes County_FindDefendingArmy's asymmetric -2..+1 window read as the town block plus its one-tile ring. Was carried as the single-county global g_county0_townTile until this array was typed." },
+        { "off": "0x074", "type": "u8",  "name": "castleX",        "comment": "X of the castle tile, written by County_FindCastleTile. battle-before.sav confirms it from the data side: county 2's pair is (30, 46), that tile carries plane-0 bit 0x80 with content 0x15, and unit slot 4 - the army whose garrisonCounty is 2 - stands exactly there. Distinct from the anchor at +0x6C/+0x6D, which is the county TOWN." },
+        { "off": "0x075", "type": "u8",  "name": "castleY" },
+        { "off": "0x078", "type": "i32", "name": "castleTile",     "comment": "Byte offset into g_tiles of the castle block, from County_FindCastleTile." },
+        { "off": "0x080", "type": "i32[4]", "name": "dwellingPlots", "comment": "The four reserved plots, as g_tiles byte offsets. County_FindDwellingPlots fills them by scanning for plane-0 bit 0x10 - maps-layers.md 2.3's exactly-four-per-county - and County_UpdateDwellings raises or clears a dwelling on each. Four slots and no bound check: the array ends exactly on fieldProgress, so a fifth plot would overwrite a field's reclamation progress." },
         { "off": "0x090", "type": "u16[20]", "name": "fieldProgress",    "comment": "Reclamation progress of each of 20 fields, 0..800. Ends exactly on popBand." },
         { "off": "0x0B8", "type": "u8",  "name": "popBand",              "comment": "(pop - 1) / 25 + 1." },
         { "off": "0x0B9", "type": "u8",  "name": "taxRate",              "comment": "L2.eng 86/1 Tax rate." },
@@ -351,6 +357,37 @@
     },
 
     {
+      "name": "Tile",
+      "size": 8,
+      "comment": "One campaign-map tile. 4096 records at g_tiles, 0x00522F90, in a 64 x 64 grid. INDEXED BY BYTE OFFSET, not by record index: tileOffset = (y * 64 + x) * 8, so a step east is +8 and a step south is +0x200. docs/formats/maps-layers.md 5.3.",
+      "fields": [
+        { "off": "0x00", "type": "u8", "name": "content",    "comment": "What stands on the tile. The enumeration is selected by the flags byte, not global: on an 0x80 site 1/2/3 iron, 4/5/6 stone, 7/8/9 weapons, 10/11/12 wood as idle/working/wrecked (Unit_TrampleTile, Industry_UpdateSiteTile), 0x14 castle plot and 0x15..0x19 a castle (Unit_Step's dispatch); on an 0x10 dwelling plot 0x10..0x13, largest to smallest (Unit_BurnDwelling, FUN_004684c6); on an 0x20 farm tile 0 wild, 1 fallow, 2..14 grain, 15..22 pasture, 25+ being reclaimed (County_RecountFields)." },
+        { "off": "0x01", "type": "u8", "name": "flags",      "comment": "The stored plane-0 flags. 0x01 road, 0x02 county boundary, 0x08 rough, 0x10 dwelling plot, 0x20 farm field, 0x40 county town, 0x80 castle or industry site. Unit_TryEnterTile returns one code per bit; decisions.md C25 for the 0x40/0x80 order." },
+        { "off": "0x02", "type": "u8", "name": "bank",       "comment": "Tile-set selector in bits 0x1C (0 base, 4 mtns, 8 roads, 0xC town, 0x10 castle), plus run-time bits the file never carries: 0x20 is the fog-of-war seen bit, tested only when g_optExploration is 1." },
+        { "off": "0x03", "type": "u8", "name": "frame",      "comment": "Frame index within the bank's PL8." },
+        { "off": "0x04", "type": "u8", "name": "part",       "comment": "Plane 3 verbatim: the tile's index inside a multi-tile object, dx + width*dy. Read as & 0xF; FUN_00467770 walks back to the anchor with (part % w) * -8 + (part / w) * -0x200." },
+        { "off": "0x05", "type": "u8", "name": "unit",       "comment": "Slot in g_units of the unit standing here, 0 for none. Unit_TryEnterTile reads it first of all, and County_FindDefendingArmy scans this plane." },
+        { "off": "0x06", "type": "u8", "name": "savedFrame", "comment": "The terrain frame stashed before a building was stamped on the tile, and copied back into frame when it is removed. Written by the dwelling-plot scan, read by FUN_004684c6's else branch." },
+        { "off": "0x07", "type": "u8", "name": "county",     "comment": "Plane 5 verbatim: county id, 0 for no county." }
+      ]
+    },
+    {
+      "name": "BattleCell",
+      "size": 8,
+      "comment": "One battlefield cell. 6400 records at g_battlefield, 0x005440E0, in an 80 x 80 grid. INDEXED BY BYTE OFFSET like Tile: cellOffset = (y * 80 + x) * 8, a step east is +8 and a step south is +0x280. docs/battle.md 3.",
+      "fields": [
+        { "off": "0x00", "type": "u8", "name": "terrain",     "comment": "Terrain id: 1 open, 3 rocks, 4 hills, 7/8/9 bridge parts, 11 water, 12 woodland, 13 the 0x15 lines. docs/formats/skr.md's Lords2 id column." },
+        { "off": "0x01", "type": "u8", "name": "flags",       "comment": "0x10 and 0x80 impassable - Cell_TryEnter rejects flags & 0x90; 0x40 blocks everyone; 0x20 blocks side != 0 and makes the figure wait rather than reroute." },
+        { "off": "0x02", "type": "u8", "name": "flags2",      "comment": "Further flags; bits 0x1C are cleared and rewritten per cell during the build. [D] - what they select is not established." },
+        { "off": "0x03", "type": "u8", "name": "frame",       "comment": "Graphic index. [D]" },
+        { "off": "0x04", "type": "u8", "name": "elevation",   "comment": "Governs missile damage and blocks movement between cells more than 1 apart. Never written by Battlefield_BuildFromSkr, so a .skr battlefield is flat." },
+        { "off": "0x05", "type": "u8", "name": "figure",      "comment": "Slot in g_battleMen of the figure standing here, 0 for none." },
+        { "off": "0x06", "type": "u8", "name": "missileHead", "comment": "Head of the linked list of missiles in this cell." },
+        { "off": "0x07", "type": "u8", "name": "surface",     "comment": "Surface type: 7 bridge, 10 and 17 burning, 15 woodland, 4/5/6 read by BattleUnit_Order for siege structures. Cell_NeighbourHasSurface tests the four orthogonal neighbours of this byte." }
+      ]
+    },
+
+    {
       "name": "AiPersonality",
       "size": 240,
       "comment": "One AI lord's personality, 4 records at g_aiPersonality, 0x004D8A58, indexed by realm.lord - 1. l2_kingdom::tables.",
@@ -376,6 +413,8 @@
     { "addr": "0x0057BF00", "name": "g_realms",        "struct": "Realm",         "count": 6 },
     { "addr": "0x004D8A58", "name": "g_aiPersonality", "struct": "AiPersonality", "count": 4 },
     { "addr": "0x00554480", "name": "g_battleMen",     "struct": "BattleMan",     "count": 81 },
-    { "addr": "0x00566520", "name": "g_battleUnits",   "struct": "BattleUnit",    "count": 81 }
+    { "addr": "0x00566520", "name": "g_battleUnits",   "struct": "BattleUnit",    "count": 81 },
+    { "addr": "0x00522F90", "name": "g_tiles",         "struct": "Tile",          "count": 4096 },
+    { "addr": "0x005440E0", "name": "g_battlefield",   "struct": "BattleCell",    "count": 6400 }
   ]
 }
