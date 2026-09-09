@@ -1113,7 +1113,7 @@ mod tests {
     /// > Readme's own wording — *"any army that would have less than 50 men
     /// > **after** retreating is eliminated instead"* — and this file had the
     /// > constant right and the order wrong. `docs/decisions.md`
-    /// > CNEW-withdrawal.
+    /// > C71.
     #[test]
     fn a_withdrawing_army_needs_a_hundred_men_to_walk_off_with_fifty() {
         let (mut counties, mut realms) = world();

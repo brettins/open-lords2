@@ -90,6 +90,7 @@ const EXT = /\.(rs|md|json|js|ps1|toml|html|java|yml|yaml)$/;
 const HISTORICAL = /\b(frozen|historical|superseded|withdrawn|at the time|used to be|renumber)/i;
 
 const citations = [];
+const placeholders = [];
 (function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     if (SKIP_DIR.has(e.name)) continue;
@@ -110,6 +111,33 @@ const citations = [];
     s = s.replace(/\r\n/g, '\n');
     const rel = path.relative(repo, p).replace(/\\/g, '/');
     const isLog = rel === 'docs/decisions.md';
+
+    // ---- rule 4: no unassigned placeholder may reach `main` ----------------
+    //
+    // An agent writing on a branch cannot know which number its correction will
+    // get: C61 had SIX claimants in one day, from six branches that all
+    // correctly read C60 as the highest. So a branch writes `CNEW-<slug>` (or
+    // `BNEW-<slug>` for `docs/bugs.md`) and the integrator assigns a number at
+    // merge — which is the one moment serialisation is free.
+    //
+    // **This rule exists because the scheme was proposed, approved, not built,
+    // and then failed within hours in exactly the predicted way.** A branch's
+    // own `CNEW-withdrawal` entry was merged to `main` unassigned, and a second
+    // correction about the same work was appended beside it, because the
+    // integrator did not notice the first. Two entries, one piece of work, and
+    // nothing to catch it. The convention travelled — agents adopted `CNEW-`
+    // before the check existed — which is exactly what makes the check
+    // necessary rather than redundant: a convention people follow produces
+    // artefacts that need collecting.
+    //
+    // Skipped inside this tool and inside `docs/agents.md`, which have to be
+    // able to *describe* the convention.
+    if (rel !== 'tools/decisions/corrections.js' && rel !== 'docs/agents.md') {
+      for (const m of s.matchAll(/\b([CB])NEW-([a-z0-9-]+)/g)) {
+        const before = s.slice(Math.max(0, m.index - 200), m.index);
+        placeholders.push({ file: rel, tag: `${m[1]}NEW-${m[2]}`, kind: m[1], before });
+      }
+    }
     for (const m of s.matchAll(/\bC(\d{1,3})\b/g)) {
       const n = Number(m[1]);
       const win = s.slice(Math.max(0, m.index - 220), m.index + 220);
@@ -140,6 +168,32 @@ if (dangling.length) {
   console.error('point it at the number the correction actually has now.');
   console.error('If the reference is deliberately historical, say so in the surrounding text');
   console.error('("frozen", "superseded", "used to be") and this check will leave it alone.');
+  process.exit(1);
+}
+
+if (placeholders.length) {
+  const byTag = new Map();
+  for (const h of placeholders) {
+    if (!byTag.has(h.tag)) byTag.set(h.tag, []);
+    byTag.get(h.tag).push(h.file);
+  }
+  console.error(
+    `corrections: ${byTag.size} unassigned placeholder(s) reached the tree.\n`,
+  );
+  for (const [tag, files] of byTag) {
+    const uniq = [...new Set(files)];
+    console.error(`  ${tag}  in ${uniq.length} file(s): ${uniq.slice(0, 6).join(', ')}`);
+  }
+  const kinds = new Set(placeholders.map(h => h.kind));
+  const log = kinds.has('C') ? 'docs/decisions.md' : 'docs/bugs.md';
+  console.error(
+    `\nA placeholder is how a BRANCH writes a correction whose number it cannot\n` +
+    `know: several branches routinely pick the same next number. Assigning it is\n` +
+    `the integrator's job at merge, and it is one command per tag:\n\n` +
+    `    the next free number in ${log}, then across the whole tree\n` +
+    `    (headings, prose, symbols.json comments, Rust doc comments, tests)\n\n` +
+    `Assign it or the entry is invisible to every citation this tool checks.`,
+  );
   process.exit(1);
 }
 

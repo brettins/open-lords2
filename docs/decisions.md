@@ -3393,7 +3393,7 @@ enumeration here reaches the same six by a different route. The totals differ �
 §15.11 states the rule and says where the difference most likely is. Two enumerations agreeing
 on a sub-count they were not aligned on is worth more than either total.
 
-**CNEW-withdrawal — "Nobody dies" was three-quarters false, and the quarter that was true was
+**C71 — "Nobody dies" was three-quarters false, and the quarter that was true was
 a rule with no writer.**
 
 The brief this began from read: *"Retreat and autocalc discard the battle. Both confirms reach
@@ -3454,78 +3454,98 @@ A rule documented, tested and unreachable looks exactly like a rule that works.
 `Realm_RecountStrength` is called from `turn::record` now, and the withdrawal clause and
 `withdraw_casualties` are ablation-checked in both directions.
 
-**C71 — "Every casualty in every battle is unkilled" was wrong, and what it hid was better than
-what it claimed: a function in no document that halves a retreating army *before* the rule that
-destroys it.**
+**Two things about how this was reported, added when the entry was merged.**
 
-**The premise, and it came from us.** A brief went out saying that retreat and autocalc discard
-casualties and that *"every casualty we have fought so far is unkilled."* It was repeated from an
-agent's report, restated by the coordinator, and acted on.
+The brief that started it said *"every casualty so far is unkilled"*, which is a claim about
+the seam. What was true was *"the solo retreat arm discards casualties"*, which is a claim
+about one branch. **A true statement about one branch, promoted to a statement about the**
+**subsystem** — the fourth right-output/wrong-meaning instance of the week and the first that
+travelled in prose between people rather than in a tool's output, where none of the checks in
+`docs/agents.md` can reach it. The defence is cheap: **name the branch**, because a scope in
+the sentence cannot be widened by accident.
 
-**Measured, it is false and always was.** The forty-turn England run fights **five battles and
-kills 1,951 men**. Every one of them is an autocalc, because an AI-versus-AI battle never enters
-the simulation at all — and writing survivors into the campaign records is the autocalc's entire
-purpose. The before/after table is identical on every row.
+And the ablation that settles it needs `--no-fail-fast`. Run plainly, `cargo test --workspace`
+stops after the first failing crate and reports **one** red test where there are three — so an
+ablation read without it understates its own result, which is a poor way to learn how much a
+line is worth.
 
-`Battle_WriteBackCasualties` has **five call sites**, we implement it, and ablating our
-`write_back` turns **three** tests red: `taking_the_field_runs_the_real_simulation_and_hands_the_result_back`,
-`the_same_position_can_be_fought_for_real_and_still_comes_back`, and
-`the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled`. (Counted with `--no-fail-fast`; the
-first run stopped after one crate and reported a single failure, which is its own small lesson
-about reading an ablation.)
+**C72 — The engine names its own functions in `status.txt`, and it graded five of
+our guesses.**
 
-The original claim was true of **exactly one path** — the solo retreat arm — and was stated as
-though it were the seam. **A true statement about one branch, promoted to a statement about the
-subsystem**, is the third instance this week of a correct observation producing a wrong
-inference, and the first where the promotion happened in a *brief* rather than in a tool's
-output. `docs/agents.md` carries all three together, because the pattern is now clearly not
-confined to tools.
+`L2.eng` is the project's strongest naming lever and it has a hard limit: it only reaches code
+that draws text. The engine layer — DirectDraw, the window, the transport, the video player —
+draws no strings and has been the darkest part of the binary for that reason.
 
-**What was actually missing.** `Army_WithdrawCasualties` (`0x004AD8CC`) — in no document, no
-`symbols.json` entry, and no line of our code. It halves every troop line, **wipes any line under
-11**, leaves mercenaries untouched, and — this is the part that matters — it runs **above** the
-loser branch, so the `menTotal < 50` test reads the **halved** total.
+It has an equivalent, and `docs/symbols.md` had already pointed at it without anyone working
+it through: `Lords2.exe` writes `status.txt` beside itself. The writer is **`Log_Write`
+(`0x004AFAB9`)**, **85 functions call it with a literal message address**, and the messages
+are the game describing what that function is doing. `OK :DD Set resolution.`
+`ERR:DP open session - user cancel` `ERR:BATTLE Data load, couldn't find `.
 
-We tested the unhalved one. **An 80-man army survived where the original halves it to 40 and
-destroys it.**
+**Eight of those messages contain the routine's own name**, in the C convention
+`ERR:<function> bad data`:
 
-**And the shipped `Readme.txt` says so, in English, and we have quoted that sentence twice.**
-*"less than 50 men **after** retreating."* `CLAUDE.md` promotes `Readme.txt` to a first-class
-oracle precisely because it post-dates the manual and corrects it; this project cited it twice
-while implementing the opposite order of operations. **Citing an oracle is not the same as reading
-it**, and that is a short lesson with its own entry in `docs/agents.md`.
+| address | the game's word | what it is |
+|---|---|---|
+| `0x004071A0` | `top_it` | the tall-sprite overhang blitter |
+| `0x0040946D` | `gen_frame` | `Sprite_GenFrame` |
+| `0x004097C5` | `gen_blank` | `Sprite_GenBlank` |
+| `0x0040A127` | `gen_sprite` | `Sprite_GenSprite` |
+| `0x0040A3D0` | `write_c_sprite` | the clipped twin of `Pl8_DrawFrame` |
+| `0x0040A682` | `w_gen_sprite` | |
+| `0x0040A80E` | `w_gen_h_sprite` | |
+| `0x0040A9B0` | `w_gen_f_sprite` | |
 
-**It was unreachable, and that is C27's eighth instance.** `g_battleWithdrawal` has exactly one
-writer in the binary, `UnitOrder_SiegeAttKnight`, and we had every other line of that function and
-not the three that raise the flag. So `End::Withdrawal` was reachable only from two unit tests,
-and the **entire withdrawal half of `Battle_ReturnToCampaign` was dead code** — written, correct,
-and impossible to enter.
+**And five more grade names we had already committed to.** `mos_frame`, `mos_blank`,
+`mos_24blank`, `write_sprite` and `place_sprite` are `Ui_DrawBoxBorder`,
+`Ui_DrawBoxInterior`, `Ui_DrawTileStrip`, `Pl8_DrawFrame` and `Pl8_DrawFrameHere`. Five
+independent chances for a guessed name to be wrong; **none was**. That is the first time
+anything on this project has been able to mark our own naming rather than merely be
+consistent with it, and it is worth more than the eight new names.
 
-This is the first of the eight found by **adding a writer** rather than by chasing a reader, and
-the difference is worth keeping. The other seven were found by asking *"who writes this field?"*
-and getting no answer. Here the field had a writer in the original that we had simply not
-transcribed, so the question *"is this reachable?"* had a comfortable answer — *yes, from the
-tests* — and the missing piece was three lines inside a function we thought we had finished.
-Adding it also removed a stall: a fought siege that previously ran to `MAX_TICKS` and came back
-`Stalled { ticks: 12000 }`.
+Two cautions, because this lever has the shape the project keeps getting caught by.
 
-**A call graph that did not exist.** `victory.rs`'s doc comment has listed the two post-battle
-sites among `Realm_RecountStrength`'s callers since the day it was written, **and nothing called
-it.** Not a stale comment — a comment that was never true, describing a call graph as though it
-were the code beneath it. It is called on the loser's realm now.
+* **The number argument is passed plus one.** `Log_Write(message, extra, n)` prints `n - 1`,
+  and every call site writes `value + 1` so that `0` can mean *no number*. A reader taking the
+  immediate at face value is off by one at 85 sites.
+* **A message says what the caller was doing, not what the function is.** `Screen_DrawConquest`
+  and six other art loaders share `"ERR:Data load, couldn't find  "` verbatim. The lever gives
+  a *subject*, exactly as `anchor.js` does with `L2.eng` groups, and the role still needs its
+  own check.
 
-**And a genuine defect of the original's, catalogued rather than fixed.** The retreat/autocalc
-split is on `g_multiplayer`: the network arm writes casualties back first and the solo arm does
-not. Same button, two meanings. Worse, because the autocalc clears the withdrawal flag before it
-runs, **pressing Retreat does not retreat** — you auto-resolve, and losing destroys your army.
-That is behaviour, it is in `docs/bugs.md`, and it is not ours to correct.
+`tools/oracle/logstrings.js` is the lever as a tool — `--unnamed`, `--grep`, `--fn`/`--arg` for
+any other function that takes a literal string address. It reads the PE section table out of the
+exe rather than hardcoding it, and takes `--decomp`/`$LORDS2_DECOMP` because the corpus is
+gitignored and every agent now works in a worktree that therefore has none — `anchor.js` and
+`xref.js` assume `__dirname/decomp` and are unusable from a worktree for that reason.
 
-**Three things left open and declared rather than quietly handled**, which is why this entry
-trusts the rest: mercenary figures lose their band on a fought battle because `l2_sim::Figure`
-carries no flag for it; the loser-survives branch clears a link the original leaves
-half-connected, marked deliberate by an earlier decision; and `engagement::resolve*` called
-directly does not recount the losing realm, though all four roads a player can take go through
-the path that does.
+**C73 — `g_netCmdWriters` is 100 entries, not 112, and the check that said 112
+passed for an accidental reason.**
+
+`g_netCmdWriters` (`0x004D57F0`) carried a confident comment: *"void(\*)(void)[112] … every one
+of the 112 entries is a real function start in the decompiled corpus — a mechanical check that
+could have failed"*. The check ran, it passed, and it was worthless.
+
+`Net_ApplyPacket` (`0x0043EAC1`) — the receive half of `Net_SendCommand`, unnamed until now —
+dispatches through a **second** table at `0x004D5980`. `0x004D5980 − 0x004D57F0` is exactly
+400 bytes, so the writer table is **100** entries and the twelve that were counted past its end
+are the first twelve *handlers*. They are real function starts, so the check saw what it was
+looking for.
+
+Three further constraints, and they all agree on 100:
+
+* the handler table's own hundredth slot is `0x004D5B10`, which is `g_syncBlocks`;
+* `g_netCmdLength` (`0x004D5B90`) is `0xFF` from index 98 onward, and the valid opcodes are
+  `0x01`…`0x61`;
+* every entry of both tables in `0x00441050`…`0x00446D4E` is inside the network-command block.
+
+This is `docs/agents.md`'s *"a check that passes for an accidental reason is
+indistinguishable from one that passes for the right reason"*, and it is the cleanest instance
+on file: **the accident was that the array being over-read was followed by another array of the
+same element type.** The general defence is the one that caught it — a bound stated by
+something other than the thing being bounded. Here it was a neighbouring symbol's address.
+
+`g_netCmdHandlers` is now in `symbols.json` and both counts are corrected.
 
 ## Open questions
 

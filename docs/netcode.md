@@ -80,6 +80,32 @@ below owes the original nothing. And the DirectPlay call sites found earlier
 (`0x004B826E`, `0x004B7FCE`) belong to the *other* multiplayer path, LAN, which is the only
 one that could ever have run on this build.
 
+**The transport layer is now named, and it confirms the paragraph above from the inside.**
+`docs/symbols.md` §*Networking transport* has the whole of it; three things from it bear on
+this section.
+
+* **There are exactly two transports and they are never both live.** `g_dplay`
+  (`0x004E2A2C`) is an `IDirectPlay2`; `g_sigs` (`0x004E2A30`) is a `0x74`-byte
+  `ASIGSSession`. `Net_SendPacket`, `Net_PumpReceive`, `Net_Shutdown` and `Net_LeaveGame`
+  each branch on which is non-null and do the equivalent thing twice.
+* **`Sigs_LoadDlls` (`0x004B64D8`) is the dialog.** It loads `SNWValid.dll` first, calls its
+  single export `SNWValidate`, and frees it again *before* it will even try `SierraNW.dll`.
+  So the licence check is what the GOG build fails, and it fails ahead of any networking at
+  all — which is why nothing about the protocol can be observed on this build.
+* **`Sigs_BindExports` (`0x004B6754`) is the entire transport surface**, nineteen
+  `GetProcAddress` calls with literal names: `SendTCPMessage`, `SendTCPPointMessage`,
+  `RecvTCPMessage`, `PeekForTCPMessage`, `CheckForAnyTCPMessage`, `GetNumberOfPlayers`,
+  `PingTime` and the rest. That is a *description* of what Sierra's matchmaking DLL offered,
+  recovered without the DLL — and it is worth exactly as much as this section says: it tells
+  us what the original expected, not what we should build.
+
+One detail is worth carrying into our own design as a thing **not** to copy.
+`g_netPlayerJoined` (`0x004E5A90`) is an `int[5]` written by the SierraNW callback thread —
+`Net_MarkPlayerJoined` sets a slot to 1 — and drained by `Net_PumpReceive` on the game
+thread, which turns each 1 into a session event and then a 2. There is no interlock of any
+kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
+`SetForegroundWindow` and `SetFocus` on the game window from that background thread.
+
 > ## Corrected by the implementation — read this before the design below
 >
 > Building this design found **ten places where it is wrong**. Where the document and the

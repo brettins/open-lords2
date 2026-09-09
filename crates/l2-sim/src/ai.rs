@@ -1540,7 +1540,7 @@ fn siege_att_melee(w: &mut World, cur: usize) {
 /// raises the flag, so with it absent `End::Withdrawal` could not arise in a
 /// played game, the whole withdrawal half of the campaign seam was unreachable,
 /// and the campaign's own missing `Army_WithdrawCasualties` could not be
-/// noticed. `docs/decisions.md` CNEW-withdrawal.
+/// noticed. `docs/decisions.md` C71.
 fn siege_att_knight(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
@@ -2610,7 +2610,7 @@ mod tests {
     /// which made [`crate::End::Withdrawal`] unreachable in a played game and
     /// with it the whole withdrawal half of the campaign seam, including
     /// `Army_WithdrawCasualties`, which `l2-kingdom` had never implemented
-    /// because nothing could reach it. `docs/decisions.md` CNEW-withdrawal.
+    /// because nothing could reach it. `docs/decisions.md` C71.
     ///
     /// Three cases, and the third is the one the two conditions are for:
     /// `g_aiMenTotal <= g_aiMenKnight` is *"every AI man still standing is a

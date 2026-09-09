@@ -352,7 +352,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
 /// write-back is ablated. A battle between two AI realms never reaches the
 /// simulation at all and is settled by the autocalc, which writes the survivors
 /// into the campaign records as its whole purpose. **Only the early exit
-/// discards**, and only here. `docs/decisions.md` CNEW-withdrawal.
+/// discards**, and only here. `docs/decisions.md` C71.
 ///
 /// And note what `Battle_AutoResolve` does *first*: it clears
 /// `g_battleWithdrawal`. Pressing Retreat therefore does not perform a retreat
@@ -766,7 +766,7 @@ fn pump_siege(game: &mut Game) {
 ///
 /// `l2_kingdom::victory::recount_strength`'s own doc comment has listed the two
 /// post-battle sites among its four callers since it was written, and nothing
-/// called it from either. `docs/decisions.md` CNEW-withdrawal.
+/// called it from either. `docs/decisions.md` C71.
 fn record(game: &mut Game, report: Option<BattleReport>) {
     let Some(report) = report else { return };
     game.recount_realm(report.aftermath.loser_owner);

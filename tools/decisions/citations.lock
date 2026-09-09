@@ -67,6 +67,8 @@ crates/l2-game/src/turn.rs	C35	87cde1fdbcb4
 crates/l2-game/src/turn.rs	C35	90db6b8f5bcd
 crates/l2-game/src/turn.rs	C35	dcd60927a9fb
 crates/l2-game/src/turn.rs	C35	fc388a7cfe62
+crates/l2-game/src/turn.rs	C71	05f7c4015c63
+crates/l2-game/src/turn.rs	C71	eaac43d0b670
 crates/l2-game/src/victory.rs	C44	81209403d144
 crates/l2-game/src/victory.rs	C44	eb2da78efce9
 crates/l2-game/src/victory.rs	C44	fa73148cbb7c
@@ -98,6 +100,7 @@ crates/l2-kingdom/src/battle.rs	C31	595fe1623cf7
 crates/l2-kingdom/src/battle.rs	C31	6b32e180f17e
 crates/l2-kingdom/src/battle.rs	C31	8d915a69b7d9
 crates/l2-kingdom/src/battle.rs	C38	0e75ae65c153
+crates/l2-kingdom/src/battle.rs	C71	0c621cbb0ebd
 crates/l2-kingdom/src/conquest.rs	C21	0fc3f0194453
 crates/l2-kingdom/src/county.rs	C53	e8fb6191353a
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2
@@ -180,6 +183,8 @@ crates/l2-scenario/tests/import.rs	C26	bdddd4567993
 crates/l2-scenario/tests/newgame.rs	C23	4b471e07b88e
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
+crates/l2-sim/src/ai.rs	C71	4fa25e346302
+crates/l2-sim/src/ai.rs	C71	9a7d14ae22d0
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab
 crates/l2-sim/src/troop.rs	C11	f3ee142fc544
 crates/l2-sim/tests/lockstep.rs	C39	1983d0f73f54
@@ -326,7 +331,6 @@ docs/decisions.md	C25	faa4dd8295f4
 docs/decisions.md	C25	fcf38cc5919b
 docs/decisions.md	C26	1824d81774d5
 docs/decisions.md	C26	5357aea2a649
-docs/decisions.md	C27	1e74e5454859
 docs/decisions.md	C27	251c3e5931bb
 docs/decisions.md	C27	95bf59280ccd
 docs/decisions.md	C27	d8fd9b6745ad
@@ -546,7 +550,7 @@ docs/symbols.json	C53	e811dd05e095
 docs/symbols.json	C54	04e36de3a81d
 docs/symbols.json	C59	410f990c7250
 docs/symbols.json	C59	4846249a065c
-docs/symbols.json	C59	4ee71e630714
+docs/symbols.json	C59	6073fe1e8e7a
 docs/symbols.json	C59	c11f058d1946
 docs/symbols.json	C59	d4a4c3bc5b89
 docs/symbols.json	C59	e10ce771f945
@@ -565,6 +569,11 @@ docs/symbols.json	C62	88903a5ff764
 docs/symbols.json	C62	e2f1f98176e9
 docs/symbols.json	C67	22c0b95f019a
 docs/symbols.json	C67	8fb41cde27ee
+docs/symbols.json	C72	21997549ac81
+docs/symbols.json	C72	6e925fbc1c1c
+docs/symbols.json	C72	eca0027aa8d3
+docs/symbols.json	C73	1c3e9e9c9026
+docs/symbols.json	C73	a7a0a127db4b
 docs/symbols.md	C20	d50fe7b21adc
 docs/symbols.md	C20	f78855d335cd
 docs/symbols.md	C22	76e2e999ec4b
@@ -606,6 +615,12 @@ docs/symbols.md	C62	96d419532a0b
 docs/symbols.md	C62	b8d2711df1cd
 docs/symbols.md	C67	6dff12829605
 docs/symbols.md	C67	8fb41cde27ee
+docs/symbols.md	C72	21997549ac81
+docs/symbols.md	C72	4dd99474c46e
+docs/symbols.md	C72	5fc9a7735491
+docs/symbols.md	C72	64c244fb6c65
+docs/symbols.md	C73	bdcf70f27755
+docs/symbols.md	C73	c472a2560d07
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611
 tools/audit/rva.js	C14	99231cda993c
 tools/audit/rva.js	C16	e4312831d7d6
@@ -620,8 +635,11 @@ tools/decisions/corrections.js	C25	ecb1b5c2b1db
 tools/decisions/corrections.js	C26	64c408092916
 tools/decisions/corrections.js	C28	49d0b7bacaeb
 tools/decisions/corrections.js	C30	136405912f85
+tools/decisions/corrections.js	C60	7d80223a5242
+tools/decisions/corrections.js	C61	9bd71bb6b68f
 tools/oracle/anchor.js	C3	64f970433d76
 tools/oracle/kingdom.ps1	C16	179704412b64
+tools/oracle/logstrings.js	C72	eddd2090b75a
 tools/oracle/runtime.ps1	C10	c77e1ac33816
 tools/oracle/runtime.ps1	C10	eeb0822b279d
 tools/oracle/tables.ps1	C3	a6bada1093d5
