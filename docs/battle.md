@@ -1296,8 +1296,9 @@ order layer learns the wall is down.
 State 14 is reachable **only by a ram**, and that is a fact rather than a
 reading: `BattleMan_TryStepDir` sends any siege engine to `Cell_TryEnterEngine`,
 whose two leaf tests — `Cell_TryEnterEngineOrtho` and `Cell_TryEnterEngineDiag`,
-sweeping the engine's three-cell leading edge from `g_engineEdgeOrtho` and
-`g_engineEdgeDiag` — return `6` for a cell flagged `0x20` or `0x40` **only when
+sweeping the engine's leading edge from `g_engineEdgeOrtho` (three cells for a
+orthogonal step) and `g_engineEdgeDiag` (five for a diagonal one, which is what a
+3 × 3 footprint exposes, and a second statement of that footprint) — return `6` for a cell flagged `0x20` or `0x40` **only when
 `troopType == 9`**. `Cell_TryEnter` itself never returns 6, and `6` is the one
 value `BattleMan_Step` turns into state 14.
 

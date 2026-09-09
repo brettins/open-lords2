@@ -3735,7 +3735,7 @@
       "name": "TroopTick_Peasant",
       "section": "battle",
       "confidence": "verified",
-      "comment": "Slot 0 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 0 - peasant. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 6, heavy blow 0, armour 0, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries. Also the only writer of the counter at 0x005694FC."
+      "comment": "Slot 0 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 0 - peasant. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 6, heavy blow 0, armour 0, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries. Also the only writer of the counter at 0x005694FC, which is zeroed elsewhere and drawn by Ui_DrawNumber - a live count of peasant figures, on screen."
     },
     {
       "addr": "0x004826B0",
@@ -3812,7 +3812,7 @@
       "name": "BattleMan_StateNone",
       "section": "battle",
       "confidence": "verified",
-      "comment": "Slot 0 of g_manStateTable: an empty stub, `ret`. State 0 is the do-nothing state, and BattleMan_StateMelee drops a figure to state 8 rather than 0, so nothing in the field battle reaches it."
+      "comment": "Slot 0 of g_manStateTable: an empty stub, ret. Nothing writes state = 0 anywhere in the struct-typed corpus - BattleMan_StateMelee drops a figure to state 8 rather than 0 - so slot 0 is the array's zero value and not a state the battle uses."
     },
     {
       "addr": "0x00482F91",
@@ -6317,14 +6317,14 @@
       "name": "g_engineEdgeOrtho",
       "section": "battle",
       "confidence": "verified",
-      "comment": "Rows of three cell-offset deltas, indexed as [direction * 0x0C + i * 4]: the three cells a 3-wide siege engine sweeps as it steps. Cell_TryEnterEngineOrtho indexes it with directions 0, 2, 4 and 6 only, so the odd rows are dead; g_engineEdgeDiag is the odd-direction table."
+      "comment": "Three cell-offset deltas per direction, stride 0x0C, read by Cell_TryEnterEngineOrtho with directions 0, 2, 4 and 6: the three cells a 3-wide siege engine sweeps as it steps. The odd rows are dead; g_engineEdgeDiag is the odd-direction table and its rows are five long."
     },
     {
       "addr": "0x004D9CF0",
       "name": "g_engineEdgeDiag",
       "section": "battle",
       "confidence": "verified",
-      "comment": "The diagonal counterpart of g_engineEdgeOrtho, read by Cell_TryEnterEngineDiag."
+      "comment": "Five cell-offset deltas per direction, stride 0x14, read by Cell_TryEnterEngineDiag with directions 1, 3, 5 and 7. Five and not three because a 3x3 footprint stepping diagonally exposes an L of five new cells where an orthogonal step exposes three - a second statement of the footprint 3 that g_troopBattleStats gives every siege engine."
     },
     {
       "addr": "0x00554034",
