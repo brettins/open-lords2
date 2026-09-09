@@ -4469,6 +4469,360 @@
       "confidence": "verified",
       "signature": "void County_RecountFields(int county)",
       "comment": "Rebuilds the county's five field tallies from the map: walks its 20 slots in g_countyFieldTiles and buckets each tile's graphic byte out of g_tiles - 1 fallow (+0x1FF), 2..14 grain (+0x201), 15..22 pasture (+0x200), 0/23/24 to +0x203 and 25 and above to +0x204. The tallies are a cache; the map is the state. +0x204 is load-bearing: Field_SetType switches the reclamation labour share on exactly when it is non-zero. [V] Recomputed from g_countyFieldTiles and g_tiles in the England turn-one fixture, all five tallies reproduce in all fourteen counties - 168 field tiles - which pins every band boundary. Independently reproduced by the field-brush work on every other reachable save including the four-county battle map. It is also the first call in County_RefreshEstimates, so the herd's crowding estimate always runs against a field count refreshed one call earlier."
+    },
+    {
+      "addr": "0x004825D1",
+      "name": "TroopTick_Peasant",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 0 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 0 - peasant. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 6, heavy blow 0, armour 0, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries. Also the only writer of the counter at 0x005694FC, which is zeroed elsewhere and drawn by Ui_DrawNumber - a live count of peasant figures, on screen."
+    },
+    {
+      "addr": "0x004826B0",
+      "name": "TroopTick_Crossbowman",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 1 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 1 - crossbowman. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 8, heavy blow 0, armour 12, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x00482789",
+      "name": "TroopTick_Maceman",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 2 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 2 - maceman. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 12, heavy blow 300, armour 12, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x00482862",
+      "name": "TroopTick_Swordsman",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 3 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 3 - swordsman. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 12, heavy blow 100, armour 35, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x0048293B",
+      "name": "TroopTick_Pikeman",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 4 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 4 - pikeman. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 30, heavy blow 0, armour 35, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x00482A14",
+      "name": "TroopTick_Archer",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 5 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 5 - archer. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 6, heavy blow 0, armour 0, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x00482AED",
+      "name": "TroopTick_Knight",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 6 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 6 - knight. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 16, heavy blow 200, armour 25, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x00482BC6",
+      "name": "TroopTick_Catapult",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 7 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 7 - catapult. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 20, heavy blow 0, armour 33, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries. Siege engines also force meleeAttack to 0 and animSet to 0."
+    },
+    {
+      "addr": "0x00482CA8",
+      "name": "TroopTick_SiegeTower",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 8 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 8 - siegetower. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 15, heavy blow 0, armour 35, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x00482D8A",
+      "name": "TroopTick_BatteringRam",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 9 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 9 - batteringram. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 30, heavy blow 0, armour 50, which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x00482E6C",
+      "name": "TroopTick_Oil",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 10 of g_troopTickTable (0x004D9140), so this is the per-frame handler for troop type 10 - oil. Reloads that type's constants into the figure and tail-calls g_manStateTable[state]. Verified by the constants it writes: recovery 8, heavy blow 0, armour 40 (25 when ownerIsHuman), which is that troop's row of docs/battle.md 6.1 - all eleven handlers agree with all eleven rows, and a wrong table order would scatter them. Also bounds state to 0..17 and calls BattleMan_Destroy outside it, which independently fixes g_manStateTable at 18 entries."
+    },
+    {
+      "addr": "0x00482F86",
+      "name": "BattleMan_StateNone",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 0 of g_manStateTable: an empty stub, ret. Nothing writes state = 0 anywhere in the struct-typed corpus - BattleMan_StateMelee drops a figure to state 8 rather than 0 - so slot 0 is the array's zero value and not a state the battle uses."
+    },
+    {
+      "addr": "0x00482F91",
+      "name": "BattleMan_StateDelay",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 1 of g_manStateTable: the wait state. Counts `delay` (+0x30) down and, at zero, restores `dly state` (+0x2F) into `state`, clears walking and moveTick, and re-arms stepFlags bit 0. Fires while it waits if the figure has a weapon class and more than 5 ticks left. Verified two ways: the two fields it drives are the debug panel's own labels `delay` and `dly state` (BattleDebug_Panel), and BattleMan_Step is the writer at the other end - on a blocked friendly it saves the current state into dly state, sets state 1, and sets delay to (otherMan & 1) + 1."
+    },
+    {
+      "addr": "0x004830E9",
+      "name": "BattleMan_StateDead",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 2 of g_manStateTable. docs/battle.md 2.2 already had state 2 as dead; this is the handler. Steps the collapse animation and counts +0x173 up to 80, then calls BattleMan_Destroy - so a corpse lies on its cell for 80 frames before the slot is freed. Its siege-engine twin is BattleMan_StateEngineDead, which counts to 120."
+    },
+    {
+      "addr": "0x00483A88",
+      "name": "BattleMan_StateAttackWall",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 6 of g_manStateTable, and it is not merely \"blocked\". A figure enters it from BattleMan_Step when BattleMan_TryStepDir returns 5, which Cell_TryEnter returns for a cell flagged 0x20 against a non-zero side - the castle wall. The handler plays the strike animation, adds 1 per frame to the rampart counter at 0x00554034 when it stands on surface 5 and to the gate counter at 0x00568DA4 otherwise, converts a rampart cell to surface 4 at 5000, breaches at 20000, and returns to `dly state` once Cell_NeighbourHasSurface finds no more wall to the north."
+    },
+    {
+      "addr": "0x00483FE1",
+      "name": "BattleMan_StateFillMoat",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 9 of g_manStateTable: the moat fill, as docs/battle-ai.md 5 describes it. The only caller of Anim_Dying."
+    },
+    {
+      "addr": "0x004843BC",
+      "name": "BattleMan_StateEngineFire",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 12 of g_manStateTable: a catapult aiming and shooting. Seeds the figure's own aim point (+0x28/+0x2A) from the unit's aim point (+0x16/+0x18) when it is still zero - this is the one non-zero writer of that pair that docs/battle.md 2.1 identifies - walks until the aim point is within range >> 3, then counts swingTimer to 100, spawns a missile, steps it eight times on the spot, and wraps the timer at 179."
+    },
+    {
+      "addr": "0x00484A0C",
+      "name": "BattleMan_StateRamGate",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 14 of g_manStateTable: the siege-engine twin of BattleMan_StateAttackWall, at twenty hits per frame instead of one. Reachable only by a battering ram: BattleMan_TryStepDir sends a siege engine to Cell_TryEnterEngine, whose two leaf tests return 6 - the value BattleMan_Step turns into state 14 - only when troopType == 9. So 1000 frames of ramming breach a gate where a man on foot needs 20000 hits."
+    },
+    {
+      "addr": "0x00484B89",
+      "name": "BattleMan_StateEngineDead",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 15 of g_manStateTable: the siege-engine death state. Same shape as BattleMan_StateDead with the wreck lying on its cells for 120 frames rather than 80, and the engine animation instead of the collapse."
+    },
+    {
+      "addr": "0x00484BF9",
+      "name": "BattleMan_StateCloseToAttack",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Slot 17 of g_manStateTable, the state Formation_SendFigure gives a bow or crossbow figure that has something standing on its destination. The largest state handler in the battle at 2340 bytes; it drives the missile record fields directly."
+    },
+    {
+      "addr": "0x00490C59",
+      "name": "Cell_TryEnterEngine",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The siege-engine arm of BattleMan_TryStepDir: a 3-cell-wide engine tests its whole leading edge rather than one cell. Turns a direction 0..7 into the orthogonal or diagonal leaf test and clamps two cells from the map edge instead of one."
+    },
+    {
+      "addr": "0x00490FA2",
+      "name": "Cell_TryEnterEngineOrtho",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Tests the three cells of a siege engine's leading edge for an orthogonal step, from the offsets at g_engineEdgeOrtho. Returns Cell_TryEnter's vocabulary plus one value Cell_TryEnter never produces: 6, and only when troopType == 9 - a battering ram against a cell flagged 0x20 or 0x40. That is the sole way into figure state 14."
+    },
+    {
+      "addr": "0x00491147",
+      "name": "Cell_TryEnterEngineDiag",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The diagonal twin of Cell_TryEnterEngineOrtho, reading g_engineEdgeDiag. Same return vocabulary, same ram-only 6."
+    },
+    {
+      "addr": "0x004861E9",
+      "name": "Anim_Strike",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Sixteen-byte thunk to Anim_StrikeA2. One of six such thunks at 0x004861E9..0x00486239, each an unconditional `call` to one animation handler; they are the only entry points the state machine uses."
+    },
+    {
+      "addr": "0x004861F9",
+      "name": "Anim_Walk",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Sixteen-byte thunk to Anim_WalkA2."
+    },
+    {
+      "addr": "0x00486209",
+      "name": "Anim_Stand",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Sixteen-byte thunk to Anim_StandA2."
+    },
+    {
+      "addr": "0x00486219",
+      "name": "Anim_Dying",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Sixteen-byte thunk to Anim_DyingA2."
+    },
+    {
+      "addr": "0x00486229",
+      "name": "Anim_Collapse",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Sixteen-byte thunk to Anim_CollapseA2."
+    },
+    {
+      "addr": "0x00486239",
+      "name": "Anim_DrawBow",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Sixteen-byte thunk to Anim_DrawBowA2."
+    },
+    {
+      "addr": "0x00486249",
+      "name": "Anim_StrikeA2",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The strike block of an a2 sheet: frame = dirc2 * N + 6 + g_strikeCycle*[animPhase >> 2] while the figure holds the attacker role (+0x185 == 1), else the standing pose N-1. Phase wraps at 0x27. Called from BattleMan_StateMelee and BattleMan_StateAttackWall. Note this is frames 6.. and NOT the walk cycle - docs/battle.md 13.5 had the two blocks the other way round; see 14.3."
+    },
+    {
+      "addr": "0x004867CC",
+      "name": "Anim_StrikeA3",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The a3 twin of Anim_StrikeA2: identical code with frames-per-facing 12/13/8/10 replaced by 7/8/5/6, standing pose 11/9/7/9 by 6/5/4/5, two further walk-cycle tables, and horseFrame = dirc rather than dirc * 6. Those six numbers are exactly what the shipped a3 art needs - A3*_swor/mace 69 frames, arch/cros 77, pike 53, psnt 61, all 8*N + 13, and A3_horse.pl8 is 8 frames - so the a2/a3 reading is checked against the art and not only against the code. UNREFERENCED: nothing in the binary calls it, and its address appears in no table. Same for all six a3 handlers."
+    },
+    {
+      "addr": "0x00486D83",
+      "name": "Anim_WalkA2",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The walk block of an a2 sheet: frame = dirc * N + (animPhase >> 2), phase wrapping at 0x17, so six poses at one per four ticks. Called at the top of BattleMan_StateWalk and BattleMan_StateChase, and in melee only when the figure actually moved. Frames 0..5 are therefore the walk, which is the opposite of what docs/battle.md 13.5 said."
+    },
+    {
+      "addr": "0x0048702F",
+      "name": "Anim_WalkA3",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The a3 twin of Anim_WalkA2: the same code with N 12/13/8/10 -> 7/8/5/6 and the phase wrapping at 0x0B rather than 0x17, so three poses rather than six. Unreferenced."
+    },
+    {
+      "addr": "0x004872AE",
+      "name": "Anim_StandA2",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The standing pose of an a2 sheet, and the reader of figure +0x0B/+0x0C: +0x0B counts up each frame and, when it passes +0x0C, resets and turns facingDrawn one step - left on an even map x, right on an odd one. BattleMan_Create seeds +0x0C to ((index*9 + x*16) & 0x3F) + 0xB4, so a standing figure shifts its feet every 180 to 243 frames and no two neighbours do it together. Called by BattleMan_StateIdle, BattleMan_LookForMelee, and by the walk states when the mover reports no progress."
+    },
+    {
+      "addr": "0x004875F7",
+      "name": "Anim_StandA3",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The a3 twin of Anim_StandA2, N 12/13/8/10 -> 7/8/5/6. Unreferenced."
+    },
+    {
+      "addr": "0x00487908",
+      "name": "Anim_DyingA2",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The dying block of an a2 sheet: base 8*N + 6 per troop group - 102 macemen and swordsmen, 110 crossbowmen and archers, 70 pikemen, 86 peasants - stepped by animPhase to 0x5F. Its only caller is BattleMan_StateFillMoat."
+    },
+    {
+      "addr": "0x00487AF6",
+      "name": "Anim_DyingA3",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The a3 twin of Anim_DyingA2, and the arithmetic that pins the whole a2/a3 pairing. Its four bases are 57, 65, 41, 49 = 8*N + 1 for a3's N of 7, 8, 5, 6; the a3 sheets hold 8*N + 13 frames; 13 - 1 = 12 = four half-facings of three dying frames, exactly as in a2. The index space closes with nothing left over for all four troop groups. Unreferenced."
+    },
+    {
+      "addr": "0x00487CE4",
+      "name": "Anim_CollapseA2",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The six shared frames at 8*N + 0..5 of an a2 sheet - 96, 104, 64, 80 - indexed by the state-2 death timer +0x173 >> 2 and held once it passes 6. Called only by BattleMan_StateDead, so this is a figure falling over; Anim_DyingA2 is the twelve-frame block after it."
+    },
+    {
+      "addr": "0x00487EB1",
+      "name": "Anim_CollapseA3",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The a3 twin of Anim_CollapseA2: bases 56, 64, 40, 48 = 8*N for a3, and a single frame rather than a six-frame run, which is all a3 has room for. Unreferenced."
+    },
+    {
+      "addr": "0x0048804A",
+      "name": "Anim_DrawBowA2",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The bow-draw animation: frame = facing * N + curve[swingTimer clamped to 0x4F] + 10, from the 0x50-byte curves g_drawBowCrossbow (troop 1) and g_drawBowArcher (troop 5). The +10 is where the crossbow and archer sheets have room for it: N is 13, frames 0..5 are the walk, 6..8 the strike and 9 the stand, leaving 10..12. Called by BattleMan_FireMissile and BattleMan_StateCloseToAttack. It is also the only function in the battle that reads g_mapRotation, which is the campaign map's orientation; see docs/battle.md 14.5."
+    },
+    {
+      "addr": "0x00488240",
+      "name": "Anim_DrawBowA3",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The a3 twin of Anim_DrawBowA2: N 13 -> 8, curves g_drawBowCrossbowA3 / g_drawBowArcherA3, base +10 -> +6. Unreferenced."
+    },
+    {
+      "addr": "0x00493CB9",
+      "name": "Missile_SetupLine",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Missile_SetupLine(int missile, int x0, int y0, int x1, int y1)",
+      "comment": "Bresenham set-up for a missile's flight: |dx| into +0x20, |dy| into +0x24, and 2*min - max into the error term at +0x28, then snaps the flight direction +0x2E to the nearer of the eight octants when one axis is more than twice the other. Called by Missile_Spawn."
+    },
+    {
+      "addr": "0x00493B61",
+      "name": "Missile_StepError",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "One Bresenham error update, parameter 1 meaning \"the major axis is x\". Adds 2*d(minor) when the error is negative and 2*(d(minor) - d(major)) otherwise, and decrements the remaining major-axis count. Called by Missile_Step once per sub-step; g_missileStats' sub-step column is 4 for every class."
+    },
+    {
+      "addr": "0x00494075",
+      "name": "Missile_OffMap",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Returns 1 when the missile's cell coordinates (+0x14, +0x16) have left 0..79 in either axis. The battlefield bound 0x50 again, so a missile that misses everything dies at the map edge rather than flying forever."
+    },
+    {
+      "addr": "0x004941C5",
+      "name": "Missile_StepTowardTargetX",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Moves the missile's x (+0x0A, in 1/32 cell) one unit toward its target x (+0x0E), or leaves it alone when they are equal."
+    },
+    {
+      "addr": "0x00494125",
+      "name": "Missile_StepTowardTargetY",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Moves the missile's y (+0x0C) one unit toward its target y (+0x10). The twin of Missile_StepTowardTargetX."
+    },
+    {
+      "addr": "0x0046EFBE",
+      "name": "Missile_LinkToCell",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Missile_LinkToCell(int missile)",
+      "comment": "Pushes a missile onto the list of missiles standing on its cell: cell byte +6 is the head, missile +0x04 is the next link, and the walk gives up after ten so a corrupt list cannot hang the frame. Confirms docs/battle.md 3's reading of cell byte +6."
+    },
+    {
+      "addr": "0x0046EF3C",
+      "name": "Missile_ClearCellLists",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Sweeps missiles 1..100 and clears both ends of the per-cell missile list - cell byte +6 and the missile's own next link. The loop bound is i < 0x65, the same 100 as Missile_UpdateAll."
+    },
+    {
+      "addr": "0x00496F72",
+      "name": "Cell_NeighbourHasSurface",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Cell_NeighbourHasSurface(int x, int y, int cellOffset, uint surface)",
+      "comment": "Tests the four orthogonal neighbours of a cell for a given surface value (cell byte +7), clipped at the map edge. Verified by arithmetic: the four bases it reads are 0x00543E67, 0x00544367, 0x005440DF and 0x005440EF, which are g_battlefield + 7 offset by -0x280, +0x280, -8 and +8 - one row north, one row south, one cell west, one cell east."
+    },
+    {
+      "addr": "0x0046F525",
+      "name": "Dir_FromDeltaOctant",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "uint Dir_FromDeltaOctant(int x0, int y0, int x1, int y1)",
+      "comment": "A second direction-from-delta, snapping to the eight compass points by a 3:1 ratio test rather than exactly: a delta within a third of an axis is treated as on that axis. Same numbering as Dir_FromDelta - 0 north, 2 east, 4 south, 6 west - which is a third independent statement of the facing table. Used by BattleMan_StateEngineFire to aim a catapult."
     }
   ],
   "globals": [
@@ -7012,6 +7366,104 @@
       "section": "kingdom",
       "confidence": "verified",
       "comment": "i32[8] {100, 50, 33, 25, 20, 0, 5, 0} - the share a job takes when it is switched into a labour group that already has n members, i.e. 100/(n+1) rounded down, read by Labour_ToggleShare and Labour_ToggleIndustryShare. Only indices 0..4 are reachable: the farm group has three members and the industry group five, so n tops out at 4 for the industry group and 2 for the farm one. Entries 5..7 are not 100/(n+1) and are never indexed."
+    },
+    {
+      "addr": "0x004D9A00",
+      "name": "g_strikeCycleMace",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Ten u32 entries, read at animPhase & ~3 and stepped over a forty-tick loop by Anim_StrikeA2: the maceman and swordsman strike cycle, 0,1,2,3,4,4,3,2,1,0 over frames 6..10 of a 12-frame facing block. Read out of the file; docs/battle.md 13.5 published these three cycles as the WALK cycles, which section 14.3 corrects. The five cycle tables and the four bow-draw curves tile 0x004D9A00..0x004D9C08 exactly: five times 0x28 then four times 0x50."
+    },
+    {
+      "addr": "0x004D9A28",
+      "name": "g_strikeCycleBow",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Strike cycle for crossbowmen, archers and peasants (a2): 0,0,1,1,2,2,1,1,0,0, frames 6..8 of a 13- or 10-frame facing block."
+    },
+    {
+      "addr": "0x004D9A50",
+      "name": "g_strikeCyclePike",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Strike cycle for pikemen (a2): 0,0,1,1,1,1,1,0,0,0, frames 6..7 of an 8-frame facing block, so a pikeman's strike and standing poses overlap."
+    },
+    {
+      "addr": "0x004D9A78",
+      "name": "g_strikeCycleA3Mace",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The cycle Anim_StrikeA3 uses for macemen and swordsmen. Its contents are a copy of g_strikeCycleBow (0,0,1,1,2,2,1,1,0,0), not of g_strikeCycleMace - a3 strike blocks are shorter. Read only by Anim_StrikeA3, which nothing calls."
+    },
+    {
+      "addr": "0x004D9AA0",
+      "name": "g_strikeCycleA3Bow",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The cycle Anim_StrikeA3 uses for crossbowmen, archers, pikemen and peasants; contents are a copy of g_strikeCyclePike (0,0,1,1,1,1,1,0,0,0). Unreferenced with its handler."
+    },
+    {
+      "addr": "0x004D9AC8",
+      "name": "g_drawBowArcher",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "0x50 signed bytes: the archer's frame offset for each tick of swingTimer 0..79, added to facing*13 + 10 by Anim_DrawBowA2."
+    },
+    {
+      "addr": "0x004D9B18",
+      "name": "g_drawBowCrossbow",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The crossbowman's draw curve, same shape as g_drawBowArcher."
+    },
+    {
+      "addr": "0x004D9B68",
+      "name": "g_drawBowArcherA3",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The a3 archer draw curve. Read only by Anim_DrawBowA3, which nothing calls."
+    },
+    {
+      "addr": "0x004D9BB8",
+      "name": "g_drawBowCrossbowA3",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The a3 crossbowman draw curve. Unreferenced for the same reason."
+    },
+    {
+      "addr": "0x004D9C08",
+      "name": "g_horseWalkCycle",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The horse's frame offset curve, indexed by animPhase >> 2 and used by the siege-engine animation for a mounted figure."
+    },
+    {
+      "addr": "0x004D9C90",
+      "name": "g_engineEdgeOrtho",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Three cell-offset deltas per direction, stride 0x0C, read by Cell_TryEnterEngineOrtho with directions 0, 2, 4 and 6: the three cells a 3-wide siege engine sweeps as it steps. The odd rows are dead; g_engineEdgeDiag is the odd-direction table and its rows are five long."
+    },
+    {
+      "addr": "0x004D9CF0",
+      "name": "g_engineEdgeDiag",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Five cell-offset deltas per direction, stride 0x14, read by Cell_TryEnterEngineDiag with directions 1, 3, 5 and 7. Five and not three because a 3x3 footprint stepping diagonally exposes an L of five new cells where an orthogonal step exposes three - a second statement of the footprint 3 that g_troopBattleStats gives every siege engine."
+    },
+    {
+      "addr": "0x00554034",
+      "name": "g_wallHitsRampart",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Damage accumulated against the rampart a figure is standing on (surface 5): +1 per frame per man in BattleMan_StateAttackWall, +20 in BattleMan_StateRamGate. At 5000 the cell becomes surface 4, the counter resets and 0x0055307C is bumped."
+    },
+    {
+      "addr": "0x00568DA4",
+      "name": "g_wallHitsGate",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The same accumulator for a figure attacking a cell that is not a rampart. At 20000 it breaches once and for all, raising g_siegeApproachScore and g_siegeBreachScore by 4 each. It is never reset, so a siege has exactly one of these breaches."
     }
   ]
 }

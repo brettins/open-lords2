@@ -352,68 +352,121 @@ The same run found `g_battleMen` and `g_battleUnits` are **81** records, not the
 `symbols.json` comments say: every sweep is `for (i = 1; i < 0x51; i++)`, so index 80 is
 live, and nothing else in the binary claims the storage behind it.
 
-### 7.6 Two tiers, so that bulk work cannot dilute the verified one
+### 7.6 Two tiers of name, and the file that keeps them apart
 
 §7.3's two rates are the reason this section exists. The filters produce leads faster than
 anyone can check them, and there are only two things to do with an unchecked lead: throw it
 away, or write it down somewhere that is **not** `docs/symbols.json`. Throwing it away is how
 correction C21 happened — a whole layer went unexamined because nothing recorded that it had
-not been. Pouring it into `symbols.json` and marking it `inferred` is how C3 happened, and
-it trades a file you can trust for a file you have to audit.
+not been. Pouring it into `symbols.json` and marking it `inferred` is how C3 happened.
+`symbols.json` is kept at a deliberately high verified ratio, and **that ratio is the only
+thing that makes it worth reading**; a bulk pass produces far more plausible names than
+checked ones, so admitting them would destroy the property that makes the file useful.
 
-So there are two files and one rule.
+So there are two files:
 
-| | file | what it costs to add | what it costs to cite |
-|---|---|---|---|
-| **`[V]` verified** | `docs/symbols.json` | a check that could have failed, written into the `comment` | nothing — it is a finding |
-| **`[I]` hypothesis** | `docs/hypotheses.json` | a `basis`, and a statement of confidence | **it may not be cited as a finding at all** |
+| | `docs/symbols.json` | `docs/hypotheses.json` |
+|---|---|---|
+| what goes in | **[V]** a check that could have failed, recorded in the `comment` | **[I]** a plausible name and the reason to think it |
+| extra fields | — | `basis`, `confidence` |
+| applied to Ghidra | yes, by `ApplySymbols` | **no** |
+| in `docs/symbols.md` | yes, regenerated | no |
+| in the decompiled corpus | yes, the function reads by name | no, it stays `FUN_…` |
+| what it costs to cite | nothing — it is a finding | **it may not be cited as a finding at all** |
 
-The second column is the whole of it. `symbols.json` is applied to Ghidra by
-`ApplySymbols` and therefore reaches the decompiled corpus, where a wrong name becomes a
-fact by repetition — the exact mechanism behind C3. **Nothing in `hypotheses.json` is
-applied to anything.**
+The last two rows are the whole of it. `symbols.json` reaches the decompiled corpus, where a
+wrong name becomes a fact by repetition — the exact mechanism behind C3. **Nothing in
+`hypotheses.json` is applied to anything.**
 
-`hypotheses.json` has the same shape as `symbols.json`, plus a `fields` array for record
-offsets, plus a required `basis` on every entry:
+**Promotion is a move, not a copy.** Run a check that could have failed, add the symbol with
+that check in its comment, and delete the entry from `hypotheses.json` in the same commit. An
+address that is verified must not also sit in the hypothesis file: a name in both is a name
+whose tier nobody can read off. Nothing is promoted by having sat there a while, and a name
+that cannot be given such a sentence has not been promoted — it has been relabelled. If the
+check goes the other way, **delete** the entry; do not soften it and do not mark it
+"partially confirmed", because a refuted hypothesis left on the page is worse than one never
+written — the next reader cannot tell it from the ones nobody has looked at yet.
 
-* **`basis`** — what generated it: which filter, which caller, which `L2.eng` group, which
-  shipped filename, which record stride. Not the reasoning — the *source*, so that when a
-  basis turns out to be unreliable everything resting on it can be found in one grep. An
-  entry whose basis is only *"it is called from near something named"* is the shape C3 took
-  and should be read as a question, not an answer.
+Every entry carries a **`basis`**: the observation the guess rests on — an `L2.eng` group and
+index, a widget-table membership, a shipped filename, a record stride, a named caller. Not
+the reasoning, the *source*, so that when a basis turns out to be unreliable everything
+resting on it can be found in one grep. An entry whose basis is only *"it is called from near
+something named"* is the shape C3 took and should be read as a question, not an answer.
 
-**Confidence is recorded two ways, and the file currently holds both.** Two agents created
-it independently on the same day, each reading this section a different way, and the merge
-kept both rather than rewriting one into the other:
+**Confidence is recorded two ways and the file holds both.** Three agents created it
+independently on the same day and the merges kept both forms rather than rewriting one into
+the other. One is an enum — `subject` / `role` / `both` — saying *which half of the name is
+the guess*, in §7.3's vocabulary: `subject` (a string, an asset or a stride pins what it is
+about, and the role word may be wrong — 89% right), `role` (the role is pinned and the
+subject is the guess — 58% right), `both` (**neither half has an independent anchor, and a
+cluster of these that touches no string and no shipped file is where C3 lives**). The other is
+a prose line saying what would have to be true and what would refute it; a line that names no
+way of being wrong is not a hypothesis, it is a wish. The two are not interchangeable — the
+enum is countable against the measured rates, the prose is not — and unifying them is a
+decision for whoever owns the file.
 
-* **an enum — `subject` / `role` / `both`** — saying *which half of the name is the guess*,
-  in §7.3's own vocabulary. `subject`: an `L2.eng` group, a `.pl8` filename or a record
-  stride pins what it is about, and the role word may be wrong — 89% right. `role`: the role
-  is pinned (it is in a widget table, it is the painter a dispatcher calls) and the subject
-  is the guess — 58% right. `both`: neither half has an independent anchor, and **a cluster
-  of these that touches no string and no shipped file is where C3 lives.**
-* **a prose line** saying what would have to be true and **what would refute it**. An entry
-  whose line does not name a way of being wrong is not a hypothesis, it is a wish.
+`hypotheses.json` also carries a **`corrections`** array: claims elsewhere that a pass
+believes are wrong but did not rewrite, because the entry belongs to another subsystem or
+another agent is appending to the same file mid-flight. Each carries its evidence and a
+`notDoneBecause`. That is not a to-do list; it is the alternative to silently leaving a known
+error in place or reaching into somebody else's file while they are working in it.
 
-They are not interchangeable — the enum is countable against the measured rates, the prose
-is not — and unifying them is a decision for whoever owns the file, not for the merge that
-first put them side by side.
+#### 7.6.1 What "a check that could have failed" means in practice
 
-**Promotion is one direction and it is not free.** Run a check that could have failed, move
-the entry to `symbols.json`, and put the check in its `comment`. A name that cannot be given
-such a sentence has not been promoted, it has been relabelled. And if the check goes the
-other way, **delete** the entry — do not soften it, do not mark it "partially confirmed": a
-refuted hypothesis left on the page is worse than one never written, because the next reader
-cannot tell it from the ones nobody has looked at yet.
+The bar is not "I read the function and it does that". It is: **name a consequence of the
+guess that the evidence could have contradicted, and go and look.** In ascending order of
+strength:
 
-The rate to expect is §7.3's. About two in five of the roles in that file are wrong. Its
-value is that it says which ones to check first, not that it is right.
+* **A dispatch table read out of the file.** The slot index is a fact. Eleven functions in
+  `g_troopTickTable` wrote eleven sets of constants and every set matched the troop on that
+  row of `docs/battle.md` §6.1 — a wrong table order scatters them, so the agreement is
+  evidence and not a restatement.
+* **Arithmetic that closes with nothing left over.** A figure's sprite sheet splits into walk,
+  strike, stand and — for bowmen only — a draw block, and the bow animation's otherwise
+  unexplained `+ 10` lands exactly in the gap the other three leave. There is one way to fit
+  it.
+* **Numbers from outside the binary.** Six animation functions pairing with six others is the
+  shape of C3. What made it evidence was the *shipped art*: the `a3` sheets hold `8N + 13`
+  frames for exactly the six N the `a3` handlers use, and `A3_horse.pl8` has 8 frames against
+  `A2_horse.pl8`'s 48, matching `horseFrame = dirc` against `dirc * 6`. The binary cannot
+  have arranged that.
+
+#### 7.6.2 Constraint propagation, and its failure mode
+
+Naming a subsystem one function at a time costs the same for the thousandth as for the first.
+Naming it as a graph does not: **a guess is a set of predictions about its neighbours**, and
+each prediction that holds makes the next one cheaper. If X is the fight-or-autocalc prompt,
+its callers are battle initiation and its callees are the autocalc path; go and check.
+
+The danger is the one C3 names, and propagation makes it *worse*, not better: a network of
+mutually supporting wrong guesses feels more convincing the larger it grows, because every
+new member is consistent with all the others. Two rules:
+
+* **Never let a region float free of an anchor.** An anchor is something that cannot lie — a
+  table read out of the file, a string the game displays, a saved-game value, a frame count
+  in the shipped art, an invariant that closes. A cluster that is coherent and touches
+  nothing external is **[I]** at best, and saying so is the deliverable.
+* **Say where the network stayed coherent and unanchored.** The battle pass ended with
+  exactly one: the bow-draw animation reads the *campaign* map's rotation and nothing else in
+  the battle does. Two stories fit and no evidence separates them, so it is written down as
+  unresolved rather than narrated into place. That paragraph is worth more than the fifty
+  names around it, because it is the one place the next person should look first.
+
+#### 7.6.3 The tools are grep with structure, not an authority
+
+§4 records what `anchor.js`'s C-literal bug cost. The operational consequence belongs here:
+**anything small and enumerated — state bytes, unit kinds, order ids, troop indices, screen
+ids — is exactly what gets written as a character escape**, so a figure that came through a
+tool must be confirmed against the corpus text or the bytes before it is load-bearing. The
+corpus is the evidence; the tools are a convenience over it.
+
+---
 
 ## 8. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — 498 of 2,452 functions so far, about 20%.
+always more of the binary to name — <!--fig:functions-->615<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->25<!--/fig-->%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the

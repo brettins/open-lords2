@@ -75,8 +75,21 @@ pub struct Fighter {
     pub side: Side,
     pub x: u8,
     pub y: u8,
-    /// Where this figure is walking to — figure record `+0x144`/`+0x146`,
-    /// written by `Formation_SendFigure` and by nothing else.
+    /// Where this figure is walking to — the original's `tg x` / `tg y`, figure
+    /// record `+0x24`/`+0x26`, which is what the developers' own debug panel
+    /// calls them.
+    ///
+    /// **Corrected.** This comment used to say `+0x144`/`+0x146`, "written by
+    /// `Formation_SendFigure` and by nothing else". Both halves were wrong and
+    /// nothing tested either. No instruction in `Lords2.exe` references
+    /// `+0x144` or `+0x146`; both fall inside the 300-byte path array at
+    /// `+0x38`, which runs to `+0x164` (`docs/records.json`). And eleven
+    /// functions write `tg x` / `tg y`, not one: `BattleMan_Create`,
+    /// `BattleMan_Step`, `BattleMan_StateChase`, `BattleMan_StateEngineFire`,
+    /// `BattleMan_StateCloseToAttack`, `Formation_SendFigure` and five
+    /// unnamed functions in `0x00492000`. `BattleMan_StateChase` in particular
+    /// rewrites it *every tick* from the chased figure's position, which is
+    /// the behaviour "written by nothing else" would have ruled out.
     pub target: (u8, u8),
     pub facing: u8,
     /// Sub-cell progress, 0 … 16 in twos, from [`crate::movement`].

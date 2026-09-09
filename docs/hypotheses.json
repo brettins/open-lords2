@@ -3,42 +3,62 @@
     "The [I] tier. Names, record fields and globals that a filter, a caller or a",
     "neighbouring name produced and that nothing has yet checked. They are NOT symbols.",
     "",
-    "Nothing here is applied to Ghidra and nothing here may be cited as a finding.",
-    "docs/symbols.json is the verified tier and its ratio is deliberately high: a name",
-    "moves there only once someone has run a check that COULD have failed and it did",
-    "not, with that check written into its comment. This file exists so that leads can",
-    "be written down in bulk without diluting that. Promotion is one direction only,",
-    "and a refuted entry is DELETED rather than softened. Correction C3 in",
-    "docs/decisions.md is what a coherent, unchecked model costs when it is filed as",
-    "fact.",
+    "Nothing here is applied to Ghidra, nothing here is rendered into docs/symbols.md,",
+    "and nothing here may be cited as a finding. The corpus goes on calling these",
+    "FUN_... on purpose.",
+    "",
+    "docs/symbols.json is the verified tier and its ratio is deliberately high - that",
+    "ratio is the only thing that makes it worth reading. A bulk pass over a subsystem",
+    "produces far more plausible names than checked ones, and pouring those in would",
+    "destroy the property that makes the file useful. So they land here instead.",
+    "Correction C3 in docs/decisions.md is what a coherent, unchecked model costs when",
+    "it is filed as fact.",
+    "",
+    "PROMOTION IS A MOVE, NOT A COPY. Run a check that could have failed, add the",
+    "symbol to docs/symbols.json with that check written into its comment, and delete",
+    "the entry here in the same commit. An address that is verified in symbols.json",
+    "must NOT also appear in this file: a name in both is a name whose tier nobody can",
+    "read off. If the check goes the other way, DELETE the entry - do not soften it and",
+    "do not mark it partially confirmed, because a refuted hypothesis left on the page",
+    "is worse than one never written. The next reader cannot tell it from the ones",
+    "nobody has looked at yet.",
     "",
     "Every entry carries a basis: the mechanical observation the guess rests on - an",
-    "L2.eng group and index, a widget-table membership, a shipped filename, a caller.",
-    "An entry whose basis is only \"it is called from near something named\" is the",
-    "shape C3 took and should be read as a question, not an answer.",
+    "L2.eng group and index, a widget-table membership, a shipped filename, a record",
+    "stride, a named caller. Not the reasoning; the SOURCE, so that when a basis turns",
+    "out to be unreliable everything resting on it can be found in one grep. An entry",
+    "whose basis is only \"it is called from near something named\" is the shape C3 took",
+    "and should be read as a question, not an answer.",
     "",
     "The rate to expect is measured in docs/method.md section 7.3: the subject filter",
     "runs 89% correct and the role hypothesis on top of it 58%. So roughly two in five",
     "of the roles below are wrong, and the value of this file is that it says which two",
     "in five to check first - not that it is right.",
     "",
-    "SCHEMA NOTE - the confidence key currently holds two different things, because",
-    "two agents created this file independently on the same day and each read the spec",
-    "a different way. Both forms are kept verbatim rather than one being rewritten into",
-    "the other, which would be an integrator inventing data:",
+    "SCHEMA NOTE - the confidence key holds two different things, because three agents",
+    "created this file independently on the same day. Both forms are kept verbatim",
+    "rather than one being rewritten into the other, which would be an integrator",
+    "inventing data:",
     "",
     "  an enum - subject | role | both - saying WHICH HALF of the name is the guess.",
-    "      subject: what the function is about is anchored to a string or an asset,",
-    "               and the role word may be wrong.",
-    "      role:    the role is anchored (it is in a widget table, it is a painter)",
-    "               and the subject is the guess.",
-    "      both:    neither half has an independent anchor. Read this before using it.",
+    "      subject: what it is about is anchored to a string, an asset or a stride,",
+    "               and the role word in the name may be wrong.",
+    "      role:    the role is anchored (it is in a widget table, it is the painter a",
+    "               dispatcher calls) and the subject is the guess.",
+    "      both:    neither half has an independent anchor. A cluster of these that",
+    "               touches no string and no shipped file is where C3 lives.",
     "",
-    "  a prose line saying what would have to be true and what would refute it.",
+    "  a prose line saying what would have to be true and what would refute it. An",
+    "  entry whose line names no way of being wrong is not a hypothesis, it is a wish.",
     "",
-    "The two are not interchangeable: the enum is countable against the measured",
-    "rates above, the prose is not. Unifying them is a decision for whoever owns this",
+    "The two are not interchangeable - the enum is countable against the measured rates",
+    "above, the prose is not - and unifying them is a decision for whoever owns this",
     "file, not for the merge that first put them side by side.",
+    "",
+    "corrections holds claims in docs/symbols.json or in the documents that a pass",
+    "believes are WRONG but did not rewrite, because the entry belongs to another",
+    "subsystem or another agent is editing the same file. Each carries its evidence,",
+    "and each is a task for somebody rather than a resolved question.",
     "",
     "See docs/method.md section 7.6."
   ],
@@ -244,6 +264,94 @@
       "basis": "Sole caller is FUN_004AD39A. Reads unit +0x167: at 1 it adds menTotal back to the home county's population and popArmy and destroys the unit; above 1 it decrements the flag to 0 instead.",
       "confidence": "The effect is plain; what is not established is what sets +0x167, and therefore whether this is a disband order, a garrison return, or something else. Find the writer of +0x167 and this either promotes or dies.",
       "comment": "Returns an army's men to its home county and destroys it, when unit +0x167 says one is pending."
+    },
+    {
+      "addr": "0x004842C6",
+      "name": "BattleMan_StateEngineWalk",
+      "section": "battle",
+      "basis": "slot 10 of g_manStateTable (0x004D9170), read out of the file",
+      "confidence": "The slot index is a fact; the name is a reading of a 184-byte body. It plays Anim_EngineMove, calls BattleMan_Step, and on stepFlags bit 1 - \"was interrupted\" - drops to state 11. Nothing outside the table says \"engine\", only that its animation helper is the one the four siege troop types use.",
+      "comment": "Steps a siege engine along its route. Zeroes the figure aim point on the way out, as every non-firing engine state does."
+    },
+    {
+      "addr": "0x0048437E",
+      "name": "BattleMan_StateEngineHalt",
+      "section": "battle",
+      "basis": "slot 11 of g_manStateTable; the state BattleMan_StateEngineWalk and BattleMan_StateChase both jump to",
+      "confidence": "A 62-byte body that plays the engine hold pose and zeroes the aim point, nothing more. \"Halt\" is the only thing it does; whether the original thought of it as halted, parked or arrived is not recoverable.",
+      "comment": "A siege engine standing still. BattleMan_StateChase sends any figure of troop type > 6 here rather than letting it pursue."
+    },
+    {
+      "addr": "0x004849FC",
+      "name": "BattleMan_StateEngineWork",
+      "section": "battle",
+      "basis": "slot 13 of g_manStateTable",
+      "confidence": "A sixteen-byte thunk to the engine working animation and nothing else, so the body constrains the name almost not at all. It is the only state that plays that animation without also doing something.",
+      "comment": "Plays Anim_EngineWork and returns."
+    },
+    {
+      "addr": "0x00484BEE",
+      "name": "BattleMan_StateUnused16",
+      "section": "battle",
+      "basis": "slot 16 of g_manStateTable",
+      "confidence": "An empty `ret`, like slot 0. Whether slot 16 is reachable was not checked; no writer of state = 16 was found by grep over the struct-typed corpus, but a computed write would not show up in that search.",
+      "comment": "Empty stub."
+    },
+    {
+      "addr": "0x00488436",
+      "name": "Anim_EngineMove",
+      "section": "battle",
+      "basis": "the else-branch every a2 animation handler takes for troopType > 6",
+      "confidence": "The four branches are on troop types 7, 8, 9 and 10 and it writes frame and horseFrame, so it is certainly the siege-engine animation. \"Move\" versus \"work\" for this one and Anim_EngineWork rests only on which states call which.",
+      "comment": "Siege-engine frames. Type 10 (oil) steps animPhase to 0x2F and reads frame 0x23 + phase >> 3; type 8 (tower) folds dirc and polarDirc into four half-facings; type 7 (catapult) uses dirc + 5 and a horse frame of dirc * 5."
+    },
+    {
+      "addr": "0x0048895E",
+      "name": "Anim_EngineWork",
+      "section": "battle",
+      "basis": "the sibling of Anim_EngineMove; called by the firing and dying engine states",
+      "confidence": "Same shape as Anim_EngineMove with a longer animPhase range (0xA0 up for a catapult once swingTimer passes 100, 0x8F down for a ram) and the horse cycle table. That the longer animation is the working one is inference from the callers.",
+      "comment": "Siege-engine frames while the engine is doing its job. Reads g_horseWalkCycle."
+    },
+    {
+      "addr": "0x00488793",
+      "name": "Anim_EngineHold",
+      "section": "battle",
+      "basis": "the third engine helper; every a2 handler that is not Anim_EngineMove falls back to it",
+      "confidence": "Called by thirteen functions and does the least of the three. \"Hold\" is a guess at intent.",
+      "comment": "The still pose for a siege engine."
+    },
+    {
+      "addr": "0x0048551D",
+      "name": "Bridge_Cross",
+      "section": "battle",
+      "basis": "Cell_TryEnter calls it, and only when the cell surface is 7 and the figure side is 4",
+      "confidence": "battle.md 3 has surface 7 as bridge on independent evidence, and side 4 is the attacker. What the function then does to the bridge was not read.",
+      "comment": "Called from Cell_TryEnter for an attacking figure entering a bridge cell, with the cell x and y."
+    },
+    {
+      "addr": "0x0049694F",
+      "name": "Siege_BreachCells",
+      "section": "battle",
+      "basis": "called by BattleMan_StateAttackWall and BattleMan_StateRamGate at exactly the two damage thresholds, with (x, y, 4)",
+      "confidence": "The third argument is 4 and the two callers are the wall-damage accumulators, so \"turn this patch of wall into surface 4\" is the only reading that fits. The extent it paints was not read; docs/battle-ai.md 9 records the same uncertainty for the neighbouring 0x00496B9F.",
+      "comment": "Converts the cells around (x, y) to surface 4 - the breached-wall surface Siege_FindCellSurface4 then looks for."
+    },
+    {
+      "addr": "0x0043B593",
+      "name": "Screen_BattlePromptClick",
+      "section": "ui",
+      "basis": "the only function that reads g_uiHotspotId and then either calls Battle_Start or sends network message 0x3C",
+      "confidence": "The hotspot ids 1 and 0 are take-the-field and decline; the screen is 0x12, Screen_BattlePrompt. That much is solid. Whether this is the whole click handler or one arm of it was not checked, and the ui section is another agent's.",
+      "comment": "Screen 0x12 button handler. Hotspot 1 starts the battle locally, or in a network game sleeps 2 s and sends message 0x3C instead; hotspot 0 declines, or sends 0x3D twice."
+    },
+    {
+      "addr": "0x0043F5C5",
+      "name": "Battle_ReplayFrame",
+      "section": "battle",
+      "basis": "the only Battle_Start caller that copies the whole battle state through a buffer",
+      "confidence": "The three memcpy sizes close exactly - 0x8700 = 80 x 432 figures, 0x1040 = 80 x 52 units, 0x1DB0 = 100 x 76 missiles, all from index 1 - and it also copies g_randStateA and g_randStateB, so this is unambiguously a snapshot of the whole deterministic battle state. Whether it is a replay, a demo loop or a network resync was NOT established.",
+      "comment": "With g_battlePhase == 2, copies g_battleMen[1..80], g_missiles[1..100], g_battleUnits[1..80] and both PRNG states out of a buffer selected by g_battlePhase, then runs a frame. Every 4th tick it advances a counter and, at the end, either autosaves or restarts the battle."
     }
   ],
   "fields": [
@@ -388,6 +496,102 @@
       "section": "kingdom",
       "basis": "Indexes g_startArmoury (stride 0x18) and, alongside g_startTroops's own index, seeds a new game's armoury.",
       "confidence": "Both tables have exactly four meaningful rows, so the setting takes four values, which matches a new-game option. Which option, and whether 0..3 runs weakest to strongest, is inferred from the rows being monotonic and nothing else."
+    },
+    {
+      "addr": "0x004D57F0",
+      "name": "g_netMessageWriters",
+      "section": "battle",
+      "basis": "the table Net_SendMessage indexes with its message id, read out of the file",
+      "confidence": "That it is a per-message-id function table is certain - Net_SendMessage calls (&PTR_FUN_004d57f0)[id]() one line after reading (&DAT_004d5b90)[id] as the payload length. Slot 60 is the battle-start writer, which matches the 0x3C that Screen_BattlePromptClick sends. The other 97 slots were not read, and the whole network layer is unclaimed.",
+      "comment": "98 message serialisers, indexed by message id. Slot 60 (0x3C) writes the battle-start message; its reader twin is at 0x00444A9B."
+    },
+    {
+      "addr": "0x004D5B90",
+      "name": "g_netMessageLength",
+      "section": "battle",
+      "basis": "read by Net_SendMessage in the same expression as g_netMessageWriters",
+      "confidence": "Certainly a per-id byte table, and -1 certainly means \"no such message\" because that branch takes the error path. That the value is a payload length is inferred from its being added to 4 and passed as the send size.",
+      "comment": "One byte per message id: the payload length, or -1 for an id the build does not carry."
+    },
+    {
+      "addr": "0x00512FB0",
+      "name": "g_netSendRing",
+      "section": "battle",
+      "basis": "the buffer Net_SendMessage builds each packet into",
+      "confidence": "The stride 0x104 and the wrap at 0x27 are read straight out of the code; the field meanings at +0, +1, +2, +3 are inferred from what is written into them.",
+      "comment": "39 slots of 0x104 bytes. Byte 0 the message id, 1 the payload length, 2 a checksum from FUN_00440038, 3 the slot number with bits 0x40/0x80 used to mark the duplicate sends."
+    },
+    {
+      "addr": "0x0055307C",
+      "name": "g_rampartCellsBreached",
+      "section": "battle",
+      "basis": "incremented beside g_wallHitsRampart every time a rampart cell is converted to surface 4",
+      "confidence": "The mechanism is read; the name is a guess at what the count is for. BattleMan_StateRamGate reads it back and sends the figure to state 11 once it passes 1.",
+      "comment": "How many rampart cells this siege has knocked through."
+    },
+    {
+      "addr": "0x00569588",
+      "name": "g_gateBreached",
+      "section": "battle",
+      "basis": "set to 1 exactly once, at the 20000-hit threshold in both wall-attack states",
+      "confidence": "A one-shot flag on the gate/wall threshold, read by BattleUnit_FewOnRampart and UnitOrder_SiegeAttRam. \"Gate\" rather than \"wall\" is inference from its being the non-rampart branch.",
+      "comment": "Set once when the 20000-hit accumulator breaches; also raises g_siegeApproachScore and g_siegeBreachScore by 4."
+    }
+  ],
+  "corrections": [
+    {
+      "target": "docs/symbols.json global 0x00553030 g_deterministicBattle",
+      "claim": "The name is wrong. 0x00553030 is the multiplayer flag - a network game is in progress - and it should be g_multiplayer.",
+      "evidence": [
+        "It is written to 1 in exactly one place: FUN_004B7250, immediately after FUN_004B7585 succeeds, and it is written to 0 on every failure and teardown path in that function and in FUN_004B743B. FUN_004B7250 then spins for up to 10 s waiting for a connection and, on timeout, calls vtable+0x24 on the interface pointer at 0x004E2A2C.",
+        "0x004E2A2C is the DirectPlay interface. FUN_004B8243 calls DirectPlayCreate and QueryInterfaces into it, and Lords2.exe imports DPLAYX.dll.",
+        "FUN_0043EDA0 - the packet builder, now proposed as Net_SendMessage - returns immediately unless this global is non-zero. Every one of its 98 message ids is dead in single player.",
+        "FUN_0043B593 branches on it to decide between calling Battle_Start locally and sending message 0x3C.",
+        "It is read by more than a hundred functions across the county, setup and diplomacy screens, which is what a multiplayer flag looks like and not what a battle-determinism flag looks like."
+      ],
+      "notDoneBecause": "Renaming it is not an additive edit to a file four agents are appending to, and it changes the reading of docs/battle-ai.md 8 and docs/netcode.md. The existing comment already flags the name as inferred."
+    },
+    {
+      "target": "docs/battle.md 13.5, the figure frame layout",
+      "claim": "The walking and attacking blocks are the other way round. Frames 0..5 of a facing block are the WALK cycle and 6..N-2 are the strike; N-1 is the standing pose.",
+      "evidence": [
+        "Anim_WalkA2 (0x00486D83) computes dirc * N + (animPhase >> 2) with the phase wrapping at 0x17 - poses 0..5 - and is called at the top of BattleMan_StateWalk and BattleMan_StateChase.",
+        "Anim_StrikeA2 (0x00486249) computes dirc2 * N + 6 + cycle[...] and is called at the top of BattleMan_StateMelee and BattleMan_StateAttackWall.",
+        "BattleMan_StateMelee calls Anim_WalkA2 only when BattleMan_Step actually moved the figure; BattleMan_StateWalk calls Anim_StandA2 when it did not.",
+        "Anim_StrikeA2 plays the cycle only while the figure holds the attacker role (+0x185 == 1) and otherwise shows the standing pose - the melee defender stands while the attacker swings.",
+        "The block sizes close: peasants N=10, walk 0..5, strike 6..8 from a cycle whose maximum is 2, stand 9. Macemen N=12, strike 6..10 from a cycle whose maximum is 4, stand 11. Crossbowmen and archers N=13, strike 6..8, stand 9, and 10..12 are the bow draw, which is where Anim_DrawBowA2 gets its +10."
+      ],
+      "notDoneBecause": "Corrected in place in docs/battle.md 13.5 and 13.8 by this pass. Recorded here because crates/l2-view may encode the old reading."
+    },
+    {
+      "target": "docs/battle.md 2.2, the known figure states",
+      "claim": "State 6 is not \"blocked\" and state 9 is not \"siege-wall movement\". State 6 is a figure attacking the castle wall it just walked into; state 9 is the moat fill.",
+      "evidence": [
+        "g_manStateTable slot 6 is 0x00483A88, which accumulates wall damage and converts rampart cells to surface 4.",
+        "A figure reaches it from BattleMan_Step when BattleMan_TryStepDir returns 5, which Cell_TryEnter returns only for cell flag 0x20 against a non-zero side - already [V] in docs/battle.md 3.",
+        "Slot 9 is 0x00483FE1, which reads g_moatFillSteps; docs/battle-ai.md 5 already describes state 9 as the moat fill."
+      ],
+      "notDoneBecause": "Corrected in place in docs/battle.md 2.2 by this pass."
+    },
+    {
+      "target": "crates/l2-sim/src/runner.rs, Fighter::target",
+      "claim": "The doc comment named a field that does not exist. Figure +0x144/+0x146 fall inside the 300-byte path array at +0x38, no instruction in the binary references either offset, and the field is tg x / tg y at +0x24/+0x26. \"Written by Formation_SendFigure and by nothing else\" is also wrong: eleven functions write it.",
+      "evidence": [
+        "docs/records.json gives BattleMan +0x38 as u8[300], which runs to +0x164.",
+        "Formation_SendFigure writes g_battleMen[man].tgX / .tgY.",
+        "Grep over the struct-typed corpus finds .tgX = or .tgY = in BattleMan_Create, BattleMan_StateChase, BattleMan_StateEngineFire, BattleMan_StateCloseToAttack, Formation_SendFigure, BattleMan_Step, and five functions at 0x004923A8, 0x0049260E, 0x004926FB, 0x004927FA and 0x00492951."
+      ],
+      "notDoneBecause": "Fixed in place by this pass. Recorded because the field is still untested."
+    },
+    {
+      "target": "Anim_DrawBowA2 (0x0048804A) reading g_mapRotation",
+      "claim": "UNRESOLVED, and flagged rather than explained. The bow-draw animation is the only function in the battle that reads g_mapRotation - the campaign map orientation, 0/2/4/6 - and it rotates the figure facing by it before choosing a frame.",
+      "evidence": [
+        "Nothing else in the battle reads it: not the terrain renderer, not BattleFigure_Draw, not the other five animation handlers.",
+        "docs/battle.md 13.1 has the battlefield as a plain top-down grid with no rotation.",
+        "The identical idiom appears in the campaign unit renderer at 0x00400000+0x4508, facing minus g_mapRotation."
+      ],
+      "notDoneBecause": "Either the battlefield honours a rotation nothing else implements, or this is a paste from the campaign renderer whose three extra branches never run. Both stories are coherent and neither is anchored. Deciding it needs a live battle or the 16-pixel renderer read."
     }
   ]
 }

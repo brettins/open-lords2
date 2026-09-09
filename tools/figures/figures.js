@@ -121,7 +121,7 @@ function figures() {
 
 // ---- rewriting -------------------------------------------------------------
 
-const TARGETS = ['README.md', path.join('docs', 'status.html')];
+const TARGETS = ['README.md', path.join('docs', 'status.html'), path.join('docs', 'method.md')];
 const MARKER = /<!--fig:([a-z0-9-]+)-->([\s\S]*?)<!--\/fig-->/g;
 
 const values = figures();
