@@ -3215,7 +3215,7 @@
       "name": "Army_Combine",
       "section": "units",
       "confidence": "verified",
-      "comment": "Merges one army into another when the combined men are under 1501 and at most one of them carries mercenaries (otherwise message 0xA7, L2.eng 167). Sums men, the seven troop counts and the three siege-engine records, and keeps the lower movesUsed.",
+      "comment": "Merges one army into another when the combined men are under 1501 and at most one of them carries mercenaries (otherwise message 0xA7, L2.eng 167). Sums men, the seven troop counts and the three siege-engine records, and keeps the HIGHER movesUsed - both arms of the if select the maximum, so a reinforcement can never buy back movement. It also migrates the siege link: the survivor inherits whichever of the two was besieging and the besieged garrison's +0x19A is repointed at it, which is what L2.eng 275 means by 'You must join with or dispose of the existing siegers.' The earlier 'keeps the lower movesUsed' here was wrong and was corrected in docs/armies.md section 2.7 without being corrected here.",
       "signature": "void Army_Combine(int into, uint from)"
     },
     {
@@ -3997,7 +3997,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void Ui_OpenConfirm(int prompt, int x, int y, void * onAnswer)",
-      "comment": "Opens screen 0x1E, the yes/no box: saves g_screenId, stores the prompt index into g_confirmPrompt, the origin into g_confirmX / g_confirmY and the callback into g_confirmCallback, then paints. The prompt is an index into L2.eng group 10 - 0 \"Exit the game?\", 1 \"Start a new game?\", 9 \"Autocalc battle?\", 11 \"Surrender castle?\"."
+      "comment": "Opens screen 0x1E, the yes/no box: saves g_screenId, stores the prompt index into g_confirmPrompt, the origin into g_confirmX / g_confirmY and the callback into g_confirmCallback, then paints. The prompt is an index into L2.eng group 10 - 0 \"Exit the game?\", 1 \"Start a new game?\", 9 \"Autocalc battle?\", 11 \"Surrender castle?\". The campaign map fills in the rest of that group, and it is a directory of the game's confirmable actions: 4 \"Slaughter villagers?\", 5 \"Combine armies?\", 6 \"Disband army?\", 7 \"Garrison castle?\", 8 \"Besiege castle?\", 10 \"Destroy field?\", 12 \"Retreat from field?\", 13 \"Lift the siege?\", 14 \"Quit? (no destination).\". Thirteen literal call sites cover indices 0, 1 and 4..14, so a callback passed to index 7 IS the garrison callback, by the text the player reads - which is what named six move-order globals at once. See docs/armies.md section 8.5."
     },
     {
       "addr": "0x0040CCFA",
@@ -4823,6 +4823,254 @@
       "confidence": "verified",
       "signature": "uint Dir_FromDeltaOctant(int x0, int y0, int x1, int y1)",
       "comment": "A second direction-from-delta, snapping to the eight compass points by a 3:1 ratio test rather than exactly: a delta within a third of an axis is treated as on that axis. Same numbering as Dir_FromDelta - 0 north, 2 east, 4 south, 6 west - which is a third independent statement of the facing table. Used by BattleMan_StateEngineFire to aim a catapult."
+    },
+    {
+      "addr": "0x0046D42C",
+      "name": "County_FindDefendingArmy",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "uint County_FindDefendingArmy(int county)",
+      "comment": "The existing-defender search Army_AttackCounty calls before levying one. Scans the 4x4 tile block x in [townX-2, townX+1], y in [townY-2, townY+1] around the county's town anchor (+0x6C/+0x6D), reads the unit index out of the occupancy plane at g_tiles+5, and returns the LARGEST type-1 unit whose owner equals the county's owner - 0 if there is none. The window arithmetic closes exactly: +8 a column, +0x1E0 to the next row = 512 - 4*8. Because the town is a 2x2 whose bottom-right corner is the anchor, the block is the town plus the one-tile ring around it: an army defends its county town by standing on or beside it. Corrects docs/armies.md section 9, which modelled it as 'the lowest-numbered army of the county's owner standing in the county'; both the scope and the tie-break were wrong, and the two readings disagree on battle-before.sav, where county 2's garrison sits at (30,46) and county 2's town is at (31,50)."
+    },
+    {
+      "addr": "0x004ABA5A",
+      "name": "Defence_Disband",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Defence_Disband(uint unit)",
+      "comment": "Undoes a county defence after the battle, keyed on unit +0x167. Mark 1 (raised on the spot): the survivors go back into the home county's population and popArmy and the unit is destroyed. Mark 2 (an existing army pressed into the role): the mark is cleared and the army stays. Verified against the battle fixture triple - battle-during.sav slot 6 is the raised defence (owner 6, mark 1, 182 men) and county 3's population falls 728 to 582 across before/after, which is the 182 levied minus 36 survivors returned. That makes docs/armies.md section 8.1's [D] reading of +0x167 a data-side [V]."
+    },
+    {
+      "addr": "0x004AD39A",
+      "name": "Armies_ReturnDefences",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Armies_ReturnDefences(void)",
+      "comment": "Sweeps unit slots 1..150: runs Defence_Disband on every type-1 unit, then destroys any whose county byte is above 16 - an army standing outside the map's county set. Note the comma operator in the condition: the disband runs for every army, the destroy only for the strays."
+    },
+    {
+      "addr": "0x004686A0",
+      "name": "Unit_ReachCastleBuilding",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Unit_ReachCastleBuilding(uint unit, int tileOffset)",
+      "comment": "Unit_Step's code-6 branch for terrain 0x15..0x19, a built castle on a plane-0 bit 0x80 tile. Armies only: the county is yours -> Army_Garrison, otherwise -> Army_BeginSiege. Two unrelated functions agree on the test, which is what makes this [V] rather than [D] - Map_HoverUnitTarget collects the same tile as a garrison target when the county owner matches the unit's and as a siege target when it does not, using bit 0x80 and terrain above 0x14. The stepper additionally caps at below 0x1A; the hover has no upper bound."
+    },
+    {
+      "addr": "0x004A79A3",
+      "name": "Army_GarrisonApply",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_GarrisonApply(uint unit, int county)",
+      "comment": "The body Army_Garrison, its confirm-dialog callback and two other call sites all funnel into; Army_Garrison itself only stashes the arguments. Over g_castleGarrisonCap[castleType] it writes unit +0x1A = 2 and refuses; otherwise it links county +0x1BC and unit +0x198, teleports the unit onto the castle tile (county +0x74/+0x75), charges 5 moves and writes unit +0x1A = 5. An already-garrisoned castle takes Army_Combine instead. battle-before.sav slot 4 is a garrison and carries +0x1A = 5 at exactly county 2's +0x74/+0x75, which is the data-side confirmation docs/armies.md section 1.5 wanted for +0x1A."
+    },
+    {
+      "addr": "0x004A8AAB",
+      "name": "Siege_LaunchAssault",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Siege_LaunchAssault(int unit)",
+      "comment": "Turn phase 2's payoff. Sets g_battleCounty from the besieger's +0x199, works out the castle level to fight (castleDegraded 1 with a build in progress -> castleBuilding-1; castleDegraded 2 -> county +0x1F9; else castleType-1), sums the three siege-engine counts at unit +0x182 + e*6, and fights only when the level is below 3 OR at least one engine was built. Otherwise message 0x119 - L2.eng group 281, 'Cannot siege castle' / 'Your captains advise that you must build some siege engines to besiege this castle.' - and Siege_Break lifts the siege. The engine offset closes: 0x52F232 minus g_units 0x52F0B0 is 0x182, stride 6, three records."
+    },
+    {
+      "addr": "0x004A84BA",
+      "name": "Siege_TickPhase",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int Siege_TickPhase(void)",
+      "comment": "Turn phase 2's pump. Walks the resumable cursor g_siegeCursor from 1 to 150 calling Siege_BuildTick, and returns 1 the moment one reports its engines finished - leaving the cursor where it is, so the turn machine can run Siege_LaunchAssault on that unit and resume afterwards. Returns 0 when the sweep is exhausted. Siege_StartPhase seeds the cursor with 1."
+    },
+    {
+      "addr": "0x004A8426",
+      "name": "Siege_ValidateLink",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Siege_ValidateLink(int unit)",
+      "comment": "Clears unit +0x199 when the besieged county no longer has a garrison, or when that garrison is no longer garrisoned in that county, and counts the survivors into g_siegeCount. Run over every besieging army by Siege_StartPhase, and once more by Map_Click before it decides whether clicking your own army opens its move order or the siege-preparation screen. This corrects the existing comment on Siege_StartPhase, which says it 're-prepares every besieging army': it never calls Siege_Prepare, it breaks stale links."
+    },
+    {
+      "addr": "0x0043B917",
+      "name": "Siege_Break",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Siege_Break(int unit)",
+      "comment": "Lifts a siege: clears the besieger's +0x199 and the garrison's +0x19A. Its three callers are together the whole answer to docs/armies.md section 9's 'the lift-siege handler was not traced'. Unit_OrderMove calls it on every successful type-1 move order, so giving a besieging army anywhere to go lifts its siege; Siege_LaunchAssault calls it when the castle is too strong to assault without engines; and the siege-preparation screen's 'Lift siege' button (L2.eng 83/6) calls it directly. L2.eng 10/13 'Lift the siege?' is the confirmation the move-order path asks first."
+    },
+    {
+      "addr": "0x004A9252",
+      "name": "Map_ConfirmMoveOrder",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Map_ConfirmMoveOrder(void)",
+      "comment": "Clicking a destination for the selected unit. Saves g_screenId into g_screenIdSaved, then picks at most one confirmation from the targets Map_HoverUnitTarget collected, in this priority: g_hoverVillageCounty -> dialog 4 'Slaughter villagers?'; g_hoverFieldCounty -> 10 'Destroy field?'; g_hoverMergeUnit -> 5 'Combine armies?'; g_hoverGarrisonCounty -> 7 'Garrison castle?'; g_hoverSiegeCounty -> 8 'Besiege castle?'; otherwise no dialog and the order goes straight through. Those numbers are indices into L2.eng group 10, which is how each of the six hover globals can be named from the text the game puts on screen when it is set. Does nothing unless g_moveOrderAvailable is 1."
+    },
+    {
+      "addr": "0x004A983B",
+      "name": "MoveOrder_Confirm",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void MoveOrder_Confirm(void)",
+      "comment": "The plain move-order callback, and also the no-dialog path. Refuses with message 0x11E - L2.eng 286, 'This shire contains a garrisoned castle my lord. We must lay siege to that, to gain control of the county.' - when g_hoverCountyTownCounty names a county whose castle holds a garrison. That is the user-facing half of Army_AttackCounty's siege gate, stated in the game's own words. Otherwise Unit_OrderMove, or network command 0x29 under g_deterministicBattle."
+    },
+    {
+      "addr": "0x004A9372",
+      "name": "MoveOrder_ConfirmGarrison",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void MoveOrder_ConfirmGarrison(void)",
+      "comment": "The 'Garrison castle?' callback, and five L2.eng strings pin its five branches one for one. Castle under construction -> 0xA4 = 164 'This castle is undergoing construction work'; county +0x1C2 set -> 0xA5 = 165 'You cannot station men in a ruined castle'; g_castleGarrisonCap[castleType] minus the sitting garrison below 1 -> 0x11B = 283 'Castle fully barracked'; below the incoming army -> 0xA6 = 166, which offers to SPLIT the army (166/2..4 read 'Your army contains' / 'more troops can be stationed here.' / 'Do you want to split your army?', a mechanic nothing in the docs records); both armies carrying mercenaries -> 0xA7 = 167. A garrison that is itself besieged refuses ahead of all of them with 0x121 = 289, 'You cannot send men into this castle my lord. As it is currently under siege !!'"
+    },
+    {
+      "addr": "0x004A960F",
+      "name": "MoveOrder_ConfirmSiege",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void MoveOrder_ConfirmSiege(void)",
+      "comment": "The 'Besiege castle?' callback. No garrison and castleDegraded 0 -> message 0x11D = L2.eng 285, 'This castle is deserted my liege. Your enemies await you in the county town.'; no garrison and degraded -> 0x11C = 284, 'This castle is under construction my liege.'; the garrison already besieged -> 0x113 = 275, 'Your captains advise that other troops already lay siege to this castle. You must join with or dispose of the existing siegers.' - which is exactly the siege-link migration Army_Combine implements. Otherwise Unit_OrderMove, or network command 0x29."
+    },
+    {
+      "addr": "0x004A975D",
+      "name": "MoveOrder_ConfirmCombine",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void MoveOrder_ConfirmCombine(void)",
+      "comment": "The 'Combine armies?' callback, and the third independent sighting of the 1500 cap: it tests the two armies' men against 0x5DD before the order is issued at all, and otherwise sends message 0x112 = L2.eng 274, 'The resulting army would be over their recommended limit of 1500 troops.' It is the only caller that passes a non-zero fifth argument to Unit_OrderMove, and what it passes is g_hoverMergeUnit - so unit +0x152, which docs/armies.md section 1.2 lists as an untraced 'orderMode', is the unit index to merge into on arrival. Network command 0x2C rather than 0x29."
+    },
+    {
+      "addr": "0x0046F68E",
+      "name": "Move_ResetSelection",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Move_ResetSelection(int realm, int unit, int x, int y)",
+      "comment": "Clears the realm's distance field and re-seeds the movement preview at (x, y). The memset length is 0x2000 = 64*64*2, the exact size of g_moveDistLocal and g_moveDistOther as i16[4096], which closes both arithmetically. Also writes the origin pair at 0x00504020/0x00504024 and the flat index y*64+x at 0x004F4070, then clears the local player's path buffer. The unit argument is not used."
+    },
+    {
+      "addr": "0x004A8D9C",
+      "name": "Map_SelectUnitForMove",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Map_SelectUnitForMove(void)",
+      "comment": "Points g_moveTargetX/Y at the selected unit's own tile and calls Move_ResetSelection, so a freshly selected unit starts with a zero-length path rather than inheriting the previous unit's."
+    },
+    {
+      "addr": "0x0043723A",
+      "name": "Map_BeginMoveSelection",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Map_BeginMoveSelection(void)",
+      "comment": "Enters the campaign map in move-order mode for g_selectedUnit: rebuilds the cost map, screen 0x10, resets the preview, sets 0x00553ECC to 40 (a counter Map_HoverUnitTarget decrements each frame), CLEARS unit +0x14E (ignoreSettlements) and runs Move_FloodFill from the unit. Also the yes-callback of L2.eng 10/13 'Lift the siege?'. It does not itself break the siege - Unit_OrderMove does, when the order is actually placed."
+    },
+    {
+      "addr": "0x004371CE",
+      "name": "Panel_MoveButton",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Panel_MoveButton(void)",
+      "comment": "The unit panel's move button. Goes straight to Map_BeginMoveSelection unless the unit is besieging, in which case it asks L2.eng 10/13 'Lift the siege?' first. Map_Click reaches the same place by a different route - it runs Siege_ValidateLink, calls this if the siege link died and opens the siege-preparation screen 0x1D if it did not - so from the map a besieging army never sees the prompt."
+    },
+    {
+      "addr": "0x0043733A",
+      "name": "Panel_DisbandButton",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Panel_DisbandButton(void)",
+      "comment": "Picks the county the army would disband into - its home county, or the county it is standing in if the home county is no longer the owner's - and asks L2.eng 10/6 'Disband army?' only when that county is the owner's. Otherwise message 0x91 = L2.eng group 145: 'Your army must disband to its county of origin. If you no longer rule the county, the army must then disband inside a county that you do rule.' The string states the two-step rule the code implements, clause for clause, which is what makes this [V]."
+    },
+    {
+      "addr": "0x0043744F",
+      "name": "Army_DisbandConfirm",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_DisbandConfirm(void)",
+      "comment": "The 'Disband army?' yes-callback: Army_Disband, or network command 0x2E under g_deterministicBattle."
+    },
+    {
+      "addr": "0x00438681",
+      "name": "Army_Disband",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_Disband(uint unit)",
+      "comment": "Releases any mercenary band, returns troops[1..6] to the realm's weapons[0..5] - troop type t maps to weapon slot t-1, the same off-by-one Levy_Init uses in the other direction - and returns the men to the county's population, its labour[8].workers and its popArmy. Then Army_Destroy, clear the garrison link, recompute the realm wage bill and re-run the labour allocator and Ration_Apply three times over. The county is the home county, or the current one when the home county has changed hands."
+    },
+    {
+      "addr": "0x004A7948",
+      "name": "Army_GarrisonConfirm",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_GarrisonConfirm(void)",
+      "comment": "Yes-callback of the confirmation Army_Garrison stashes its arguments for: restores g_screenId from g_screenIdSaved and runs Army_GarrisonApply, or sends network command 0x34 under g_deterministicBattle. Its twin one function later does the same for a siege with command 0x35, and that pairing is how those two opcodes are identified."
+    },
+    {
+      "addr": "0x004A7DAF",
+      "name": "Army_BeginSiegeConfirm",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_BeginSiegeConfirm(void)",
+      "comment": "Yes-callback for 'Besiege castle?': Siege_Link, or network command 0x35 under g_deterministicBattle."
+    },
+    {
+      "addr": "0x0043EDA0",
+      "name": "Net_SendCommand",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Net_SendCommand(byte op, int dest)",
+      "comment": "The deterministic-play command sender, and the reason every campaign action in the binary is written twice - once as a direct call and once as Net_SendCommand(op, 0) under g_deterministicBattle. Looks the opcode up in g_netCmdLength (0xFF is not a command and errors), calls g_netCmdWriters[op] to serialise the payload, stamps opcode, length and a sequence number that wraps 1..39 into a 0x104-byte slot at 0x00512FB0, and sends the packet once for eleven listed opcodes and three times - with flag bits 0x40 then 0x80 - for all the others. Two invariants close: all 112 entries of g_netCmdWriters are real function starts, and opcode 0x29's writer emits 1+4+1+2+2 bytes, exactly the 10 g_netCmdLength records for it. The campaign-map opcodes are 0x29 move order, 0x2C move-and-combine, 0x2E disband, 0x34 garrison, 0x35 begin siege, 0x3A toggle industry from the map."
+    },
+    {
+      "addr": "0x004401BA",
+      "name": "Net_WriteField",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Net_WriteField(void *src, int len)",
+      "comment": "Appends len bytes to the command packet being built. Its reader twin is Net_ReadField, and the two come as matched pairs: the writer for opcode N is g_netCmdWriters[N] and its reader is the next function in address order, ending where g_netCmdWriters[N+1] begins. That pairing plus the length table is what makes a command's payload readable without running anything."
+    },
+    {
+      "addr": "0x004401F6",
+      "name": "Net_ReadField",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Net_ReadField(void *dest, int len)",
+      "comment": "Reads len bytes back out of a received command packet. See Net_WriteField."
+    },
+    {
+      "addr": "0x00443990",
+      "name": "NetCmd_WriteMoveOrder",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void NetCmd_WriteMoveOrder(void)",
+      "comment": "g_netCmdWriters[0x29]: g_localPlayer (1), a 4-byte value from FUN_00446E21, g_selectedUnit (1), g_moveTargetX (2), g_moveTargetY (2) - ten bytes, matching g_netCmdLength[0x29] exactly. Its reader at 0x00443A2D deserialises the same five fields in the same order and both then call the command journal at 0x00447136 with sub-opcode 0x0C. This is the whole payload of a campaign move order, and therefore the whole input a lockstep peer needs to reproduce one."
+    },
+    {
+      "addr": "0x00465214",
+      "name": "Unit_TickNone",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Unit_TickNone(void)",
+      "comment": "g_unitTickTable[0]: an eleven-byte function that returns. Dead - Units_Tick sends kind 0 to the record-clearer before it indexes the table, so slot 0 is never called. Named so the table reads as six entries of which two (0 and 5) are inert, rather than as a gap."
+    },
+    {
+      "addr": "0x00465486",
+      "name": "PeasantMob_Tick",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void PeasantMob_Tick(void)",
+      "comment": "g_unitTickTable[2], the revolting-peasant tick, and the answer to which of the four unit types a given sweep serves. moveAllowance 10 (not the army's 15), sprite base -0x70 = 0x90 with the army's three-frame walk table, county recount on a border crossing, then FUN_004ABD0F and Unit_Step. It opens with `if (menTotal < 0x1E) destroy` - and that is the ONLY `menTotal < 0x1E` in the whole corpus, so the 'below 30 men it is destroyed on the map' rule in docs/armies.md section 0 belongs to peasant mobs, not to armies. Army_Tick has no such test, and L2.eng 148, which that row cites, only says 'impractical to create an army of less than 50 men'."
+    },
+    {
+      "addr": "0x00465622",
+      "name": "Merchant_Tick",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Merchant_Tick(void)",
+      "comment": "g_unitTickTable[3]. moveAllowance 10, county byte assigned from the tile with no border event at all - a merchant crossing a frontier greets nobody and triggers no recount - then the cooldown decrement and Unit_Step. Its sprite is facing*6 plus g_merchantWalkFrames[walkPhase], a SIX-frame cycle over eight facings rather than the army's three, and the arithmetic closes at 47. Verified on the battle fixtures three for three: merchants at facing 6, 6 and 2 carry spriteFrame 42, 42 and 18, and ((facing+1)&7)*6 gives exactly those."
+    },
+    {
+      "addr": "0x00465761",
+      "name": "Transport_Tick",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Transport_Tick(void)",
+      "comment": "g_unitTickTable[4], and it is Merchant_Tick again - same 319 bytes, same body, statement for statement. A transport ticks exactly like a merchant; the two types differ only in what the arrival handlers do with them. Worth naming separately because the duplication is the finding: a reimplementation that shares one tick between types 3 and 4 is faithful, and one that invents a difference is not."
     }
   ],
   "globals": [
@@ -7464,6 +7712,181 @@
       "section": "battle",
       "confidence": "verified",
       "comment": "The same accumulator for a figure attacking a cell that is not a rampart. At 20000 it breaches once and for all, raising g_siegeApproachScore and g_siegeBreachScore by 4 each. It is never reset, so a siege has exactly one of these breaches."
+    },
+    {
+      "addr": "0x0057C8C4",
+      "name": "g_selectedUnit",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The unit a move order is being given to. Map_SelectUnitForMove reads g_units[this].x/.y; Map_HoverUnitTarget tests this unit's moveAllowance minus movesUsed against the path cost; every MoveOrder_Confirm* passes it to Unit_OrderMove. Distinct from g_pickedTileUnit, which is what the click landed on."
+    },
+    {
+      "addr": "0x0052AFBC",
+      "name": "g_pickedTileUnit",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The unit index on the tile Map_ResolvePick just resolved, out of the occupancy plane at g_tiles+5. Map_Click branches on its kind (1 army, 3 merchant) before it looks at the tile flags at all, and Panel_MoveButton and Panel_DisbandButton act on it."
+    },
+    {
+      "addr": "0x0056D5AC",
+      "name": "g_moveTargetX",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "X of the tile a move order is aimed at. Written by Map_HoverUnitTarget from the hovered tile and by Map_SelectUnitForMove from the unit's own tile; read as Unit_OrderMove's third argument and serialised into network command 0x29."
+    },
+    {
+      "addr": "0x0056D5A8",
+      "name": "g_moveTargetY",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Y of the tile a move order is aimed at. See g_moveTargetX."
+    },
+    {
+      "addr": "0x0057D358",
+      "name": "g_moveOrderAvailable",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Set by Map_HoverUnitTarget when the hovered tile yielded a path, cleared when the distance field says the tile is the unit's own or unreachable. Map_ConfirmMoveOrder does nothing at all unless this is 1, so it is the gate between hovering and ordering."
+    },
+    {
+      "addr": "0x00568974",
+      "name": "g_hoverTileOffset",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Byte offset into g_tiles of the tile under the cursor - (y*64 + x) * 8. Map_HoverUnitTarget short-circuits when it is 0x0FFF0000 or more (no tile) and recomputes only when it changed since the last frame."
+    },
+    {
+      "addr": "0x005651A4",
+      "name": "g_hoverCountyTownCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "One of the six move-order targets Map_HoverUnitTarget collects: the county whose county TOWN (plane-0 bit 0x40) the cursor is over, when that county is not the moving unit's. It raises no dialog; MoveOrder_Confirm reads it and refuses with L2.eng 286 when that county's castle holds a garrison. That is the user-facing half of Army_AttackCounty's siege gate."
+    },
+    {
+      "addr": "0x0057CB1C",
+      "name": "g_hoverVillageCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Move-order target: the foreign county whose dwelling plot (plane-0 bit 0x10) the cursor is over. Raises L2.eng 10/4, 'Slaughter villagers?', which is the game naming Unit_BurnDwelling's effect for us."
+    },
+    {
+      "addr": "0x00544020",
+      "name": "g_hoverFieldCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Move-order target: the foreign county whose sown field the cursor is over - bit 0x20 AND County_TileIsField, so a fallow strip does not count. Raises L2.eng 10/10, 'Destroy field?'. Confirms from the UI side that Unit_CrossField's damage is gated on the county's owner differing."
+    },
+    {
+      "addr": "0x00553F44",
+      "name": "g_hoverMergeUnit",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Move-order target: another unit of the local player standing on the hovered tile - not the mover itself and not a transport (kind 4). Raises L2.eng 10/5, 'Combine armies?', and is the value MoveOrder_ConfirmCombine passes as Unit_OrderMove's fifth argument, landing in unit +0x152."
+    },
+    {
+      "addr": "0x005689AC",
+      "name": "g_hoverGarrisonCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Move-order target: the county whose castle (bit 0x80, terrain above 0x14) the cursor is over when that county IS the moving unit's. Raises L2.eng 10/7, 'Garrison castle?'."
+    },
+    {
+      "addr": "0x0057C8C8",
+      "name": "g_hoverSiegeCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Move-order target: the same castle tile as g_hoverGarrisonCounty but when the county is NOT the moving unit's. Raises L2.eng 10/8, 'Besiege castle?'. The two are the arms of one owner test, which is the same split Unit_ReachCastleBuilding makes when an army actually arrives - one function for the intention, one for the act."
+    },
+    {
+      "addr": "0x0057C90C",
+      "name": "g_screenIdSaved",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "g_screenId stashed while a Ui_OpenConfirm box is up. Every yes-callback restores it as its first statement, which is the shape that identifies a callback in the corpus - that is how the campaign map's six move-order callbacks were found."
+    },
+    {
+      "addr": "0x0057CAD4",
+      "name": "g_siegeCursor",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Turn phase 2's resumable position in the unit array. Siege_StartPhase seeds it with 1; Siege_TickPhase advances it to 150 and stops on the first army whose engines are ready, so the phase can leave the turn machine to run the assault and come back where it left off."
+    },
+    {
+      "addr": "0x0052AFAC",
+      "name": "g_siegeCount",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "How many sieges survived Siege_StartPhase's link validation this turn. Zeroed there and incremented once per surviving besieger by Siege_ValidateLink."
+    },
+    {
+      "addr": "0x00568ED0",
+      "name": "g_siegeScreenUnit",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The besieging army the siege-preparation screen (0x1D) is showing. Written by Siege_Link for a human owner and by Map_Click when clicking an army that is already besieging; the screen's 'Lift siege' button passes it to Siege_Break."
+    },
+    {
+      "addr": "0x00554000",
+      "name": "g_siegeScreenCounty",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The county Army_BeginSiege stashed for its confirmation callback, which passes it back to Siege_Link."
+    },
+    {
+      "addr": "0x004D5B90",
+      "name": "g_netCmdLength",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "u8[112]: the payload length of each deterministic-play command, 0xFF for an opcode that is not one. Valid opcodes run 0x01..0x61; 0x00 and 0x62..0x6F are all 0xFF. Net_SendCommand rejects a 0xFF opcode outright. Opcode 0x29's 10 matches its writer's 1+4+1+2+2 exactly, which is what makes the table's reading a finding rather than a guess."
+    },
+    {
+      "addr": "0x004D57F0",
+      "name": "g_netCmdWriters",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "void(*)(void)[112], the per-opcode payload serialisers Net_SendCommand calls. Every one of the 112 entries is a real function start in the decompiled corpus - a mechanical check that could have failed - and each writer's matching reader is the next function in address order, ending where the next opcode's writer begins. The campaign-map entries are 0x29 NetCmd_WriteMoveOrder, 0x2C move-and-combine, 0x2E disband, 0x34 garrison, 0x35 begin siege, 0x3A toggle industry."
+    },
+    {
+      "addr": "0x0053FA24",
+      "name": "g_county0_castleX",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "X of county 0's castle tile in the county record array (stride 0x300), written by County_FindCastleTile. battle-before.sav confirms it from the data side: county 2's pair is (30, 46), that tile carries plane-0 bit 0x80 with terrain 0x15, and unit slot 4 - the army whose garrisonCounty is 2 - stands exactly there. Distinct from the anchor at +0x6C/+0x6D, which is the county TOWN."
+    },
+    {
+      "addr": "0x0053FA25",
+      "name": "g_county0_castleY",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Y of county 0's castle tile, as above."
+    },
+    {
+      "addr": "0x0053FA20",
+      "name": "g_county0_townTile",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "i32 byte offset into g_tiles of the TOP-LEFT tile of county 0's 2x2 county town; the anchor at +0x6C/+0x6D is that block's bottom-right corner. Map_Click centres the map on it before opening the village. The relation holds on all four occupied counties of battle-before.sav - (14,37)/(15,38), (30,49)/(31,50), (36,15)/(37,16), (48,41)/(49,42) - which is what makes County_FindDefendingArmy's asymmetric -2..+1 window read as 'the town block plus its one-tile ring'."
+    },
+    {
+      "addr": "0x0053FB72",
+      "name": "g_county0_castleRuined",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "County +0x1C2. Non-zero blocks both garrisoning and besieging: Army_BeginSiege refuses silently, and MoveOrder_ConfirmGarrison refuses with message 0xA5 = L2.eng 165, 'You cannot station men in a ruined castle.' The string is what names the field."
+    },
+    {
+      "addr": "0x0055416C",
+      "name": "g_industryRecordFromTile",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "The industry record index Map_Click derives from a clicked building's graphic before calling Industry_ToggleFromMap: graphic below 4 -> record 1, below 7 -> 3, below 10 -> 2, below 0x0D -> 0, and 0x15 or above -> 4. The first four rungs are the same terrain groups Unit_TrampleTile ruins and County_PlaceResourceSites places, agreeing a third time; the fifth rung, record 4 for the castle graphics, has no counterpart in either and is not explained."
+    },
+    {
+      "addr": "0x004D6AB8",
+      "name": "g_merchantWalkFrames",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "i32[6] = {0, 1, 2, 3, 4, 5}, the walk-frame cycle Merchant_Tick and Transport_Tick index with unit +0x1B. Six frames per facing against the army's three-frame ping-pong at g_unitWalkFrames, and the sprite arithmetic closes: ((facing+1)&7)*6 + phase covers 0..47 with nothing left over. The three merchants in the battle fixtures sit at frames 42, 42 and 18, which is that formula at phase 0 for facings 6, 6 and 2."
     }
   ]
 }

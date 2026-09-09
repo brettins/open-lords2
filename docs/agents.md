@@ -125,6 +125,28 @@ Prefer short focused sessions with the game over keeping it open across a long
 investigation, and if a task genuinely needs it open for a long stretch, say so in the
 report so the cost is visible.
 
+## Concurrent agents: unique scratch paths, and count before and after
+
+Two agents picked the same scratchpad filename on the same day, and one spliced the other's
+half-written symbol list into `docs/symbols.json` by mistake. It was caught, reverted and
+redone. What caught it was **a count check** — read the number of entries before the edit and
+after it, and confirm the difference is the number you meant to add.
+
+Two rules follow, and they are cheap:
+
+* **Every agent uses scratch filenames unique to itself.** Put the agent's own id in the
+  path. A shared temp directory with a predictable name — `out.json`, `syms.json`,
+  `tmp.txt` — is a collision waiting for the day two agents run at once, and that day is
+  now normal here rather than rare.
+* **Count before and after any edit to a shared JSON file**, and say both numbers in the
+  report. `docs/symbols.json`, `docs/hypotheses.json` and `docs/records.json` are all
+  appended to by several agents at once. A count that moves by the wrong amount is the only
+  cheap signal that something arrived that you did not write, and it is how this was found.
+
+The integrator repeats the check at merge time — union-merging by address, then scanning for
+an address or a name that appears twice — but that is a second line of defence. The agent
+doing the edit is the one who can still tell what it meant to write.
+
 ## Prior art first
 
 Before commissioning a reverse-engineering task, spend five minutes searching for existing

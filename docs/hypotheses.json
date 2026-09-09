@@ -250,22 +250,6 @@
       "comment": "A season pass that does nothing. Called only from Season_Advance."
     },
     {
-      "addr": "0x004AD39A",
-      "name": "Army_ProcessPendingDisbands",
-      "section": "units",
-      "basis": "First call in Wages_PayAll, ahead of Army_Starve. Walks every kind-1 unit, calls FUN_004ABA5A on it, and destroys any whose county byte is above 16.",
-      "confidence": "The stray-army half is directly readable and near-certain; the disband half rests on FUN_004ABA5A, which returns an army's men to its home county's population when unit +0x167 is 1 and clears the flag when it is more - so +0x167 looks like a disband request with a one-season delay, and that reading is unchecked. Cross-subsystem: this belongs to whoever owns armies, not to the season pipeline. Refuted if +0x167 turns out to be set anywhere other than a disband order.",
-      "comment": "Retires armies at the top of the wage pass: honours pending disbands, then destroys any army standing outside every county."
-    },
-    {
-      "addr": "0x004ABA5A",
-      "name": "Army_DisbandPending",
-      "section": "units",
-      "basis": "Sole caller is FUN_004AD39A. Reads unit +0x167: at 1 it adds menTotal back to the home county's population and popArmy and destroys the unit; above 1 it decrements the flag to 0 instead.",
-      "confidence": "The effect is plain; what is not established is what sets +0x167, and therefore whether this is a disband order, a garrison return, or something else. Find the writer of +0x167 and this either promotes or dies.",
-      "comment": "Returns an army's men to its home county and destroys it, when unit +0x167 says one is pending."
-    },
-    {
       "addr": "0x004842C6",
       "name": "BattleMan_StateEngineWalk",
       "section": "battle",
@@ -352,6 +336,62 @@
       "basis": "the only Battle_Start caller that copies the whole battle state through a buffer",
       "confidence": "The three memcpy sizes close exactly - 0x8700 = 80 x 432 figures, 0x1040 = 80 x 52 units, 0x1DB0 = 100 x 76 missiles, all from index 1 - and it also copies g_randStateA and g_randStateB, so this is unambiguously a snapshot of the whole deterministic battle state. Whether it is a replay, a demo loop or a network resync was NOT established.",
       "comment": "With g_battlePhase == 2, copies g_battleMen[1..80], g_missiles[1..100], g_battleUnits[1..80] and both PRNG states out of a buffer selected by g_battlePhase, then runs a frame. Every 4th tick it advances a counter and, at the end, either autosaves or restarts the battle."
+    },
+    {
+      "addr": "0x00447136",
+      "name": "Net_JournalCommand",
+      "section": "units",
+      "confidence": "role",
+      "signature": "void Net_JournalCommand(byte subop, int a, ...)",
+      "comment": "Records an executed deterministic command into a ring of 0x38-byte slots at 0x0050D7C0: a live flag, the sub-opcode, and twelve int arguments. Both the writer and the reader of every command opcode call it, so it sees each command exactly once per peer.",
+      "basis": "Read in full. The slot layout is unambiguous - 0x0050D7C6 flag, 0x0050D7C7 sub-opcode, 0x0050D7C0 + 4*n arguments, stride 0x38. Every command writer/reader pair traced so far ends in a call to it. What is inferred is the PURPOSE: 'journal' rather than 'apply'. Nothing in the function itself changes game state.",
+      "promotion": "Find the consumer of the 0x0050D7C0 ring. If it replays the slots, this is a journal; if it is only a debug overlay, the name is wrong. Either answer is a check that could fail."
+    },
+    {
+      "addr": "0x00443A2D",
+      "name": "NetCmd_ReadMoveOrder",
+      "section": "units",
+      "confidence": "subject",
+      "signature": "void NetCmd_ReadMoveOrder(void)",
+      "comment": "The receiving half of network command 0x29: reads player (1), a 4-byte value, unit (1), x (2), y (2) and journals sub-opcode 0x0C.",
+      "basis": "It sits between g_netCmdWriters[0x29] and g_netCmdWriters[0x2A] in address order, uses Net_ReadField where its neighbour used Net_WriteField, reads the same five widths in the same order, and passes the same sub-opcode 0x0C to Net_JournalCommand. The writer half IS verified and is in symbols.json.",
+      "promotion": "The reader is never called from the command table, so its caller has to be found - presumably a dispatch keyed on the received opcode byte. Naming that dispatcher promotes every reader at once."
+    },
+    {
+      "addr": "0x00446E21",
+      "name": "Net_ResolveDest",
+      "section": "units",
+      "confidence": "both",
+      "comment": "Turns 0x00544094 into the 4-byte value NetCmd_WriteMoveOrder puts second in the packet, ahead of the unit index.",
+      "basis": "Position in the payload only. Not read.",
+      "promotion": "Read it."
+    },
+    {
+      "addr": "0x00470678",
+      "name": "Move_DistanceAcrossExpensive",
+      "section": "units",
+      "confidence": "both",
+      "comment": "Map_HoverUnitTarget uses it instead of the raw distance field whenever that field reads 100 or more, then adds 1. 100 is the cost the cost map gives an impassable-in-practice tile - castle, settlement, dwelling plot - so this looks like 'what would the cost be if the last step onto the objective were free'.",
+      "basis": "The call site and the 99 threshold, which matches Move_BuildCostMap's 100 exactly. The function body was not read.",
+      "promotion": "Read it, and check the result against a hand-computed path onto a county town in the England fixture."
+    },
+    {
+      "addr": "0x004A4E3D",
+      "name": "Unit_AbandonOrders",
+      "section": "units",
+      "confidence": "both",
+      "comment": "One of the three callers of Siege_Break, and it passes g_movingUnit.",
+      "basis": "The Siege_Break call and the argument. Body not read.",
+      "promotion": "Read it. It is 286 bytes and it is the only unread member of a three-caller set whose other two are verified."
+    },
+    {
+      "addr": "0x00476710",
+      "name": "Merchant_OpenScreen",
+      "section": "units",
+      "confidence": "subject",
+      "comment": "Map_Click's branch for clicking a type-3 unit that is the local player's.",
+      "basis": "Position in Map_Click's dispatch only, against an existing symbols.json comment that says the merchant branch opens screen 0x08. Body not read.",
+      "promotion": "Read it and check it sets g_screenId to 8."
     }
   ],
   "fields": [
@@ -438,14 +478,6 @@
   ],
   "globals": [
     {
-      "addr": "0x0057C90C",
-      "name": "g_screenIdSaved",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Written with the current g_screenId by Menu_LoadGame, Menu_SaveGame and Ui_OpenConfirm, and read back into g_screenId by SaveLoad_Cancel. Sixteen other functions touch it.",
-      "comment": "The screen a modal box returns to. Distinct from g_menuPrevScreen, which the menu-bar drop-down uses; why there are two has not been established."
-    },
-    {
       "addr": "0x004EA1A0",
       "name": "g_fileListTop",
       "section": "ui",
@@ -460,14 +492,6 @@
       "confidence": "subject",
       "basis": "The bound SaveLoad_Scroll clamps g_fileListTop against.",
       "comment": "How many files the save/load list holds."
-    },
-    {
-      "addr": "0x00568ED0",
-      "name": "g_siegeArmy",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "The index SiegePrep_Add and SiegePrep_Remove multiply by 0x1A4 to reach the record holding the three siege-engine counts at +0x232 relative to 0x0052F000, six bytes apart.",
-      "comment": "Which army the siege-preparation screen is ordering engines for. The 0x1A4 stride has not been matched to a named record type."
     },
     {
       "addr": "0x00553D50",
@@ -498,28 +522,14 @@
       "confidence": "Both tables have exactly four meaningful rows, so the setting takes four values, which matches a new-game option. Which option, and whether 0..3 runs weakest to strongest, is inferred from the rows being monotonic and nothing else."
     },
     {
-      "addr": "0x004D57F0",
-      "name": "g_netMessageWriters",
-      "section": "battle",
-      "basis": "the table Net_SendMessage indexes with its message id, read out of the file",
-      "confidence": "That it is a per-message-id function table is certain - Net_SendMessage calls (&PTR_FUN_004d57f0)[id]() one line after reading (&DAT_004d5b90)[id] as the payload length. Slot 60 is the battle-start writer, which matches the 0x3C that Screen_BattlePromptClick sends. The other 97 slots were not read, and the whole network layer is unclaimed.",
-      "comment": "98 message serialisers, indexed by message id. Slot 60 (0x3C) writes the battle-start message; its reader twin is at 0x00444A9B."
-    },
-    {
-      "addr": "0x004D5B90",
-      "name": "g_netMessageLength",
-      "section": "battle",
-      "basis": "read by Net_SendMessage in the same expression as g_netMessageWriters",
-      "confidence": "Certainly a per-id byte table, and -1 certainly means \"no such message\" because that branch takes the error path. That the value is a payload length is inferred from its being added to 4 and passed as the send size.",
-      "comment": "One byte per message id: the payload length, or -1 for an id the build does not carry."
-    },
-    {
       "addr": "0x00512FB0",
       "name": "g_netSendRing",
       "section": "battle",
       "basis": "the buffer Net_SendMessage builds each packet into",
       "confidence": "The stride 0x104 and the wrap at 0x27 are read straight out of the code; the field meanings at +0, +1, +2, +3 are inferred from what is written into them.",
-      "comment": "39 slots of 0x104 bytes. Byte 0 the message id, 1 the payload length, 2 a checksum from FUN_00440038, 3 the slot number with bits 0x40/0x80 used to mark the duplicate sends."
+      "comment": "39 slots of 0x104 bytes. Byte 0 the message id, 1 the payload length, 2 a checksum from FUN_00440038, 3 the slot number with bits 0x40/0x80 used to mark the duplicate sends. UNRECONCILED: the campaign-map pass reached this same buffer independently and called it g_netPacketBuf. The two readings agree on everything material - stride 0x104, +0 the opcode/message id, +1 the declared length, +2 a checksum from FUN_00440038, +3 a sequence byte the duplicate-send path ORs with 0x40 and then 0x80 - and disagree on two things: the name, and whether the ring is 39 slots or 40. Neither count has been checked against the bytes. Both names are recorded here rather than one being chosen by a merge; settling it means reading the wrap test in Net_SendMessage.",
+      "altName": "g_netPacketBuf",
+      "altComment": "Forty 0x104-byte outgoing command packets. +0 opcode, +1 declared length, +2 a checksum from FUN_00440038, +3 sequence-number byte, which the triple-send path ORs with 0x40 and then 0x80. The sequence counter at 0x00512F4C wraps 1..39, one short of the forty slots."
     },
     {
       "addr": "0x0055307C",
@@ -536,6 +546,60 @@
       "basis": "set to 1 exactly once, at the 20000-hit threshold in both wall-attack states",
       "confidence": "A one-shot flag on the gate/wall threshold, read by BattleUnit_FewOnRampart and UnitOrder_SiegeAttRam. \"Gate\" rather than \"wall\" is inference from its being the non-rampart branch.",
       "comment": "Set once when the 20000-hit accumulator breaches; also raises g_siegeApproachScore and g_siegeBreachScore by 4."
+    },
+    {
+      "addr": "0x0050D7C0",
+      "name": "g_netCmdJournal",
+      "section": "units",
+      "confidence": "role",
+      "comment": "Ring of 0x38-byte records Net_JournalCommand fills: +6 live flag, +7 sub-opcode, +0 and +4.. twelve int arguments.",
+      "basis": "The write pattern in Net_JournalCommand, which is unambiguous about the layout and silent about the purpose.",
+      "promotion": "As Net_JournalCommand - find the reader."
+    },
+    {
+      "addr": "0x00544094",
+      "name": "g_moveOrderDest",
+      "section": "units",
+      "confidence": "both",
+      "comment": "Whatever NetCmd_WriteMoveOrder passes to Net_ResolveDest to make the packet's second field.",
+      "basis": "One call site. Nothing else traced reads it.",
+      "promotion": "Read Net_ResolveDest."
+    },
+    {
+      "addr": "0x00553ECC",
+      "name": "g_hoverDamper",
+      "section": "units",
+      "confidence": "both",
+      "comment": "Set to 40 when a move selection begins and decremented once per Map_HoverUnitTarget call while positive. Never read anywhere else in the traced corpus.",
+      "basis": "Two sites, both writes. A counter nothing reads is exactly the shape a reader should distrust: 'damper' is a guess at intent, not a finding.",
+      "promotion": "Find a reader. If there is none, say so and drop the name - an unread counter deserves a number, not a noun."
+    },
+    {
+      "addr": "0x004D8AF8",
+      "name": "g_lordPersonality",
+      "section": "diplomacy",
+      "confidence": "both",
+      "comment": "Stride 0x50, three rows a lord. Siege_Prepare reads *(int*)(base + (lord*3 - 3) * 0x50) to choose the AI's siege-engine order.",
+      "basis": "The indexing arithmetic, and docs/armies.md section 4's [D] reading of the branch. The name comes from what the branch is used FOR, which is the weakest kind of evidence and is C3's shape.",
+      "promotion": "Read the table out of the file with tools/oracle/tables.ps1 and check the values against kingdom.md section 8.2's four personalities. Three rows a lord at 0x50 is a layout claim that can be falsified by the bytes alone."
+    },
+    {
+      "addr": "0x00504020",
+      "name": "g_moveOriginX",
+      "section": "units",
+      "confidence": "subject",
+      "comment": "The tile a movement flood-fill was seeded from. Move_ResetSelection writes it and its Y twin at 0x00504024, plus the flat index at 0x004F4070.",
+      "basis": "One writer, read in full. No reader traced.",
+      "promotion": "Find a reader - most likely Move_ExtractPath's terminator or the panel that prints a distance."
+    },
+    {
+      "addr": "0x0052F0A8",
+      "name": "g_garrisonPendingCounty",
+      "section": "units",
+      "confidence": "subject",
+      "comment": "The county Army_Garrison stashes for Army_GarrisonConfirm, alongside the unit at 0x0055CD58. The address sits 8 bytes BELOW g_units (0x0052F0B0), so it is not part of any unit record.",
+      "basis": "Two sites, matched writer and reader. That is all.",
+      "promotion": "Check no third site writes it."
     }
   ],
   "corrections": [
@@ -592,6 +656,64 @@
         "The identical idiom appears in the campaign unit renderer at 0x00400000+0x4508, facing minus g_mapRotation."
       ],
       "notDoneBecause": "Either the battlefield honours a rotation nothing else implements, or this is a paste from the campaign renderer whose three extra branches never run. Both stories are coherent and neither is anchored. Deciding it needs a live battle or the 16-pixel renderer read."
+    }
+  ],
+  "claims": [
+    {
+      "id": "H2",
+      "subject": "The raised county defence never gets a moveAllowance or a sprite because Army_Tick has not run on it yet",
+      "confidence": "inferred",
+      "comment": "battle-during.sav slot 6 is a defence raised the same turn and carries moveAllowance 0 AND spriteFrame 0, while the two ordinary armies in the same save carry 15 and a correct sprite. Army_Tick writes both unconditionally at the top of every tick. So 'moveAllowance is 15 for an army' (docs/armies.md section 1.2) is a tick-maintained invariant, not an initial value, and a freshly created army is briefly outside it.",
+      "basis": "Three unit records in one fixture, plus Army_Tick read in full. Two of three agree and the third disagrees in exactly the way the explanation predicts.",
+      "promotion": "A fixture in which a defence survives into a following turn: it should then read 15. Nothing available today can produce one."
+    },
+    {
+      "id": "H3",
+      "subject": "Unit +0x07 lags +0x1B by one walk phase",
+      "confidence": "inferred",
+      "comment": "battle-during.sav slot 5 has facing 2, walkPhase 0 and spriteFrame 82, where Army_Tick's formula gives 0x48 + 3*((2+1)&7) + g_unitWalkFrames[0] = 81. The other two armies match exactly. Army_Tick writes +0x07 and then calls Unit_Step, which advances +0x1B - so the saved sprite is one phase behind the saved phase, and 82 - 81 = 1 is a value the table actually contains.",
+      "basis": "Three records; the discrepancy is exactly one walk-frame unit and the ordering in Army_Tick explains it. This is a reading that fits, which is why it is here and not in symbols.json.",
+      "promotion": "Read Unit_Step's +0x1B update and confirm it runs after the sprite write on the path that produced this record. If it does not, the formula or the table is wrong instead."
+    },
+    {
+      "id": "H4",
+      "subject": "Map_Click's fifth industry rung, record 4 for castle graphics",
+      "confidence": "inferred",
+      "comment": "Map_Click maps a clicked building's graphic to an industry record: below 4 -> 1, below 7 -> 3, below 10 -> 2, below 0x0D -> 0, and 0x15 or above -> 4. The first four rungs agree exactly with Unit_TrampleTile's ruin ladder and County_PlaceResourceSites' placement, a three-way agreement. The fifth has no counterpart in either, and docs/armies.md section 3.5 lists only records 0..3.",
+      "basis": "One function. The other two functions are silent about record 4 rather than contradicting it.",
+      "promotion": "Find a fifth industry record in the county layout, or a second reader of index 4. Silence from two functions is not evidence for it."
+    },
+    {
+      "id": "H5",
+      "subject": "MoveOrder_ConfirmGarrison offers to split an army that will not fit",
+      "confidence": "inferred",
+      "comment": "When the castle's remaining capacity is below the incoming army's men, the callback sends message 0xA6 with the unit, the county and a fourth value, and L2.eng group 166 carries 'Your army contains' / 'more troops can be stationed here.' / 'Do you want to split your army?' beside its 'Cannot garrison castle.' heading. Nothing in the knowledge base records an army-splitting mechanic.",
+      "basis": "The strings are certain. That message 0xA6 leads to a working split, rather than to a prompt whose yes-branch does something else, is not.",
+      "promotion": "Find message 0xA6's handler and read what its yes-branch does to the two unit records."
+    },
+    {
+      "id": "H6",
+      "subject": "The tile at county +0x74/+0x75 carries terrain 0x14 when no castle is built and 0x15..0x19 for castle types 1..5",
+      "confidence": "inferred",
+      "comment": "battle-before.sav: county 2 has castleType 1 and its +0x74/+0x75 tile has terrain 0x15; county 3 has castleType 0 and terrain 0x14. Unit_ReachCastleBuilding fires on 0x15..0x19, five values for five castle types, and County_FindCastleTile stamps 0x14 over a bare plot at load.",
+      "basis": "Two counties in one save, a five-wide range matching a five-wide castle-type ladder, and the load-time stamp. Two data points do not establish five rungs.",
+      "promotion": "A save with a type 2..5 castle, or the writer that changes the tile when a castle is completed - which would give the mapping from code rather than from two coincidences."
+    },
+    {
+      "id": "H7",
+      "subject": "County_RaiseDefence's mode-1 auto-equip moves men ten at a time",
+      "confidence": "inferred",
+      "comment": "The AI branch loops at most 50 times over the six weapon slots, moving 10 men from the realm's stock into each slot per pass and stopping when the remaining headcount drops below 10. So an AI county's defence is equipped in blocks of ten, round-robin by weapon type, and the last nine men are always peasants.",
+      "basis": "The loop read in full. Never observed - the fixture's only raised defence is a neutral county on the mode-2 path, whose ladder IS verified.",
+      "promotion": "A save with a defence raised in an AI-owned county. The signature is a troop count divisible by 10 in every equipped slot."
+    },
+    {
+      "id": "H8",
+      "subject": "Giving a besieging army a move order is the only routine way to lift a siege",
+      "confidence": "inferred",
+      "comment": "Siege_Break has three callers: Unit_OrderMove on a successful type-1 order, Siege_LaunchAssault refusing for want of engines, and the siege screen's own button. Siege_ValidateLink can also clear +0x199, but only when the garrison side of the link has already gone.",
+      "basis": "An exhaustive grep of the writes to +0x199 across the whole corpus, which is mechanical. What is inferred is that the set is complete in the sense that matters - the corpus is decompiled C and an indirect write through a struct pointer would not be found by that grep.",
+      "promotion": "Nothing cheap. Recorded so that a later reader knows the grep was by field name, not by address."
     }
   ]
 }
