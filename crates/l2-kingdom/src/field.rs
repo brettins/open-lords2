@@ -239,8 +239,8 @@ pub fn recount(county: &mut County, map: &CampaignMap) {
 
 /// `County_RecountFieldsAll` (`FUN_00469b51`) — every county, ascending.
 pub fn recount_all(counties: &mut [County], county_count: usize, map: &CampaignMap) {
-    for id in 1..=county_count {
-        recount(&mut counties[id], map);
+    for county in counties.iter_mut().take(county_count + 1).skip(1) {
+        recount(county, map);
     }
 }
 
@@ -406,7 +406,7 @@ fn ai_brush_matches(kind: FieldType, terrain: u8) -> bool {
 /// `FUN_004697CD` — turn every field of one type back to fallow.
 ///
 /// The AI's farming styles open with this: *"forget what I said last year"*.
-/// It matches by [`ai_brush_matches`], so a grain field halfway through its
+/// It matches by `ai_brush_matches` above, so a grain field halfway through its
 /// thirteen stages is cleared as readily as a freshly sown one.
 pub fn clear_type(county: &County, map: &mut CampaignMap, kind: FieldType) {
     for slot in 0..MAX_FIELDS {

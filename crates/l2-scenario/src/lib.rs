@@ -448,9 +448,9 @@ impl Scenario {
                 dryness: c.dryness as i32,
                 grain: c.grain,
                 herd: c.herd,
-                labour: read_labour(&save, c.index, 0)?,
-                labour_wanted: read_labour(&save, c.index, 4)?,
-                labour_useful: read_labour(&save, c.index, 8)?,
+                labour: read_labour(save, c.index, 0)?,
+                labour_wanted: read_labour(save, c.index, 4)?,
+                labour_useful: read_labour(save, c.index, 8)?,
                 labour_share: {
                     let base = COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + LABOUR_SHARE_BASE;
                     let mut shares = [0i32; JOB_COUNT - 1];
@@ -462,7 +462,7 @@ impl Scenario {
                 industry_share: save
                     .i8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + INDUSTRY_SHARE)?
                     as i32,
-                field_tiles: read_field_tiles(&save, c.index)?,
+                field_tiles: read_field_tiles(save, c.index)?,
             });
         }
 

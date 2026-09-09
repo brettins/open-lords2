@@ -750,6 +750,58 @@ no business being: 50 is not a widget's range, it is part of the ruleset, and a 
 replaces the table is entitled to move it. An arithmetic bound standing in for a rule is
 its own small version of this entry.
 
+**C27 — A rule with no way in is not a rule the game has. The grain economy was
+finished, tested and unreachable for the whole of a game.**
+
+Every county of the England turn-one position stores `fieldsGrain = 0`, all fourteen. The
+three field counts had exactly one production writer in this tree — the scenario import —
+so sowing, the seed debit, growth, harvest, `g_grainLabourDivisor`,
+`g_grainMaxSacksPerField` and the fallow-per-two-grain rule were all correct, all covered
+by tests, and **none of them could ever run for a human player**. `AI_ManageFields` does not
+close the gap either: its ladder only adds *fallow* fields, and the grain comes from a
+lord's farming style, which this tree does not implement. Nobody farmed.
+
+Nothing was broken and no test could have caught it, because every test that exercised the
+grain rules set `fieldsGrain` itself. **Coverage of a rule says nothing about whether the
+game can reach it.** That is C26's shape moved one level out: there a rule was wrong at 45
+of its 51 inputs because the fixture exercised one; here a rule was right and unreachable
+because no fixture had to reach it.
+
+Two things fell out of fixing it, and both are the same lesson about *where* state lives.
+
+**The counts are a cache.** `County_RecountFields` (`FUN_00469B8D`) rebuilds them every
+time from the terrain byte of the twenty map tiles in `g_countyFieldTiles`. A field's type
+is a property of the **map**, and the county record only counts them — which is why nothing
+in the county record could be the writer. Applying the ladder to the tiles the save names
+reproduces all three stored counts for all fourteen counties, 168 field tiles, with none of
+our rules in the loop.
+
+**And the map was empty.** `Kingdom::new` builds a blank `CampaignMap` and `l2-scenario`
+never overwrote it, so every imported game had been running its pathfinding, its
+field-crossing and its trampling against 4,096 zero tiles since those were written. The
+planes are in the save — `g_tiles` is block 0, at file offset 0 — and were simply not read.
+A whole plane of simulation input can be missing without a single test noticing, when every
+test that needs a map builds its own.
+
+One more correction rides along, and it is C25 confirmed from the other side.
+`Map_Click`'s plane-0 dispatch is three bits in one order:
+
+```c
+if      (flags & 0x80) { ...the industry / castle toggle ladder... }
+else if (flags & 0x40) { g_screenId = 2; Village_Draw(1); }   /* the village */
+else if (flags & 0x20) { g_screenId = 4; }                    /* the field brush */
+```
+
+**Clicking a `0x40` tile opens the village**, so `0x40` is the county town — which C25
+argued from `L2.eng`'s own words and this settles from behaviour. `crates/l2-kingdom`'s
+constant is still called `flags::CASTLE`, because `cost_map` and `movement` read it under
+that name in half a dozen places and renaming it means re-reading `Unit_TryEnterTile`'s
+return codes alongside; the doc comment carries the correction instead. The fixture agrees
+on all three bits and closes C25's loose end as well: every county's `0x80` tiles are one
+iron site, one stone, one weapons, one wood and a 2 × 2 block at terrain `0x14` or `0x17`,
+and the five counties with a `0x17` block are exactly the five that start owned. `0x17` is
+a standing castle; `0x14` is the plot it gets built on.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

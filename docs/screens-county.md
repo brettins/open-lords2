@@ -877,7 +877,8 @@ of grain fields, and the season pipeline does them.
 
 The **field types** are painted on the campaign map, not set from a county panel:
 `Field_SetType` (`0x00438BEC`) is called from a map click with a brush id in
-`g_uiHotspotId`.
+`g_uiHotspotId`. The five brushes and the two menus they sit in are
+`docs/kingdom.md` §7.2.
 
 **Ale is bought at the merchant** (screen 0x08), not from a county panel — `L2.eng` group
 68.19 is *"Buy ale for your county, as a gift for its people."* and group 6.4 is *"Ale"*,
@@ -1003,8 +1004,12 @@ Named here so nobody mistakes silence for coverage.
   `0xFC` for a second warning state. Which actual colours those are depends on
   `base01.256`, which this document does not decode.
 * **Screens 0x04 and 0x1A**, and the two sidebar buttons at `0x00436A88` and `0x0043611B`.
-* **The field-painting brush** on the campaign map: `Field_SetType` is seen, not understood.
-  That is the map agent's territory.
+* ~~**The field-painting brush** on the campaign map: `Field_SetType` is seen, not
+  understood.~~ *Done — `docs/kingdom.md` §7.2 and `crates/l2-kingdom/src/field.rs`. The
+  brush is five 48 × 48 buttons in two hotspot tables at `0x004DC4D0` (three: fallow, grain,
+  pasture) and `0x004DC530` (two: begin reclaiming, abandon), all five calling
+  `FUN_00438B02`, which passes the button's id to `Field_SetType` as a raw terrain value.
+  Read out of the executable, not inferred.*
 
   The three percentages at `+0x130`, `+0x134` and `+0x138` that used to be listed here with
   it **are not the brush's**, and they are not three. They are the first three of **eight
@@ -1014,8 +1019,15 @@ Named here so nobody mistakes silence for coverage.
   the binary's own default setters close on both halves: 33 / 50 / 17 with 0 / 0 / 0 / 100 /
   0, and 33 / 50 / 17 with 40 / 15 / 15 / 15 / 15. **[V]**
 
-  `Field_SetType` reads them because repainting a field changes what the county can grow and
-  therefore how it should staff itself: it calls `Labour_Allocate` straight afterwards.
+  **Both readings were half right, and the caller is what separates them.** The function
+  this section pointed at — `FUN_00450639`, 677 bytes, redistributing three percentages —
+  is `Labour_ToggleShare(county, job, on, divisor)`, and its **only** caller is
+  `Field_SetType`, which uses it to give *field reclamation* a share of the farm the moment
+  the county has a field under reclamation and to take it away again when it has none. So
+  the call really does come from painting a field; the thing it writes is labour. Its
+  five-member twin `FUN_004502CA` does the same for the industry group and is called from
+  `Industry_ToggleFromMap`. `g_shareTable` (`0x004D6768`) is `{100, 50, 33, 25, 20, 0, 5, 0}`
+  — `100 / (n + 1)` for the entries either can reach. **[V]**
 * ~~**The village's own layout.**~~ *Done — §6.4. The clusters, the icons, the drop grid and
   the three-state drag are read and reproduced. What is still not is
   **`Village_Animate`** (`0x00412421`) and its six counters at `0x004D2930 …`, which redraw

@@ -147,6 +147,37 @@ top, so a handful of well-tended cattle recovers much faster than the percentage
 
 Crowding is also drawn on the map, so you can see it without opening a panel.
 
+### Fields are painted on the map, and you start with none sown
+
+A county owns up to twenty fields, and **what each one is being used for is a property of
+the map tile, not of the county**. The county's "6 grain, 8 pasture, 3 fallow" is recounted
+from those twenty tiles every time one of them changes.
+
+**You paint them by clicking them on the campaign map.** There is no field control on any
+county panel. Clicking one of your own fields opens a small popup of three buttons — fallow,
+grain, pasture — and clicking a tile that is waste or already being reclaimed offers two
+instead: begin reclaiming, or abandon it. A field ruined by this season's drought or flood
+offers nothing until the weather moves on.
+
+Every county begins with **no grain fields at all**. That is what the first winter of a game
+is for: a county that is not painted grows nothing, because sowing multiplies the number of
+grain fields by the sacks it can afford, and nought times anything is nought.
+
+Three consequences worth knowing:
+
+- **Painting reassigns the county's labour immediately.** The game recounts the fields,
+  works out how many farmers the new arrangement can use, and reallocates. Paint a field to
+  grain and farmers appear on it in the same click.
+- **An empty granary means no farmers.** The ceiling on grain farmers is worked out by
+  asking how many people would improve the sowing, and sowing is limited by the seed in the
+  store — so a county with no grain is told it has no use for a farmer. Buy grain *before*
+  you paint.
+- **A drought or a flood turns a field to waste, not back to fallow**, and waste has to be
+  reclaimed — 800 units of work, at most a quarter of a field a season, so four seasons.
+
+The same click switches **industries** on and off: clicking a mine, quarry, forest or smithy
+on the map toggles it, and there is no other way to do it either.
+
 ---
 
 ## 5. People

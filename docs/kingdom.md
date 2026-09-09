@@ -862,6 +862,83 @@ field total. Over the fourteen counties of the England map in `lastturn.sav` the
 and as high as 16"*). Sample: fourteen counties of one map. **[V]** for the count,
 **[I]** for generalising it.
 
+#### The counts are a cache, and the field's type is a property of the map
+
+`County_RecountFields` (`FUN_00469B8D`) rebuilds all **five** counts from the terrain byte
+of the twenty tiles in `g_countyFieldTiles`, and `FUN_00469B51` does it for every county.
+Nothing else writes them. The ladder is one `if`/`else if` chain, and its order is the rule
+— `0`, `0x17` and `0x18` are tested before the ranges, which is the only reason two values
+inside the pasture-and-beyond span come out as waste:
+
+| terrain | count | what it is |
+|---|---|---|
+| `0` | `+0x203` | wasteland — the field is not in use |
+| `1` | `+0x1FF` | fallow |
+| `2 … 0x0E` | `+0x201` | grain, at one of thirteen crop stages |
+| `0x0F … 0x16` | `+0x200` | pasture |
+| `0x17`, `0x18` | `+0x203` | flooded / drought-struck this season |
+| `0x19 … 0x1C` | `+0x204` | under reclamation, at each quarter |
+
+**[V] against the England turn-one save, which stores both halves of the sum.** Applying
+this ladder to the tiles `g_countyFieldTiles` names reproduces all three stored counts for
+**all fourteen counties, 168 field tiles**, with nothing of ours in the loop — the file was
+written by the original. `crates/l2-kingdom/tests/fields.rs`.
+
+Two rows are corroborated from their writers. `Field_ReclaimTick` writes `0x19`, `0x1A`,
+`0x1B`, `0x1C` at 200, 400, 600 and 800 units of progress and `1` when a field finishes, so
+`0x19 … 0x1C` are the four quarters and `1` is the reward. `Weather_UpdateAll` writes `0x18`
+on one field of a county in *Drought* and `0x17` on one in *Flooding*, and `FUN_0046942C`
+clears both back to `0` at the start of the next weather pass — so a blighted field becomes
+**waste** and has to be reclaimed. **[D]** on both.
+
+`+0x204` is the one count with a rule rather than a display attached: `Field_SetType` tests
+it to decide whether field reclamation gets a share of the farm workforce at all.
+
+#### The brush
+
+`Field_SetType` (`0x00438BEC`) is reached from a map click and from nowhere else — **no
+county panel has a field control**. `Map_Click`'s farmland branch (plane-0 bit `0x20`, plus
+the county being the local player's) opens a popup of 48 × 48 buttons whose handler is
+`FUN_00438B02`, which passes the button's id straight through as a terrain value. The
+buttons are two hotspot tables in `.rdata`, and `FUN_00438990` chooses between them on the
+clicked tile's own terrain:
+
+| table | ids | offered when the tile is |
+|---|---|---|
+| `0x004DC4D0`, 3 records at x 240/304/368 | `1`, `2`, `0x13` | a field: fallow, grain, pasture |
+| `0x004DC530`, 2 records at x 304/368 | `0x19`, `0x0` | waste or reclaiming: begin reclaiming, or abandon |
+
+All five are 48 × 48 on the row `y 184 … 232` and all five call `0x00438B02`. **[V]**, read
+out of `Lords2.exe` by `crates/l2-kingdom/tests/oracle.rs`. A tile at `0x17` or `0x18` — one
+blighted this season — is masked off before either table is tested, so a ruined field opens
+no menu at all.
+
+What the function does besides paint:
+
+```c
+Field_PaintTile(tile, brush, 0);            /* FUN_0046D7F4 — the terrain byte + graphics */
+County_RecountFieldsAll();                  /* FUN_00469B51 — every county, not just this one */
+Labour_ToggleShare(county, 2, county.fieldsReclaiming != 0, 3);
+twice: { Labour_Allocate(county); Herd_UpdateCrowding(county);
+         County_RefreshEstimates(county, g_seasonNext); }
+```
+
+**The doubled round is not a fixpoint.** No ceiling depends on the current assignment —
+every one comes from a search over `0 … population` or from a stock figure. What the second
+round is for is the `Herd_UpdateCrowding` between them, which does move an estimate's input,
+and the panel forecasts, which the estimates fill from whatever the allocator last decided.
+**[I]** on the reading, **[D]** on the shape.
+
+#### Every county starts with no grain fields
+
+All fourteen counties of the England turn-one position store `fieldsGrain = 0`. That is not
+an artefact of the fixture: **in this game you paint your fields at the start**, and until
+`crates/l2-kingdom/src/field.rs` there was no code path in this tree that could set that
+number for the human player at all. The AI could not farm either — `AI_ManageFields`'
+ladder only adds *fallow* fields, and the grain comes from the lord's farming style
+(`FUN_004A3C67` and its siblings), which calls `FUN_0046988D(county, 2, fields/2)` **in
+Winter**, and which this tree does not implement.
+
 ### 7.3 Weather
 
 `Weather_UpdateAll` (`0x00449889`) keeps a per-county **dryness** accumulator at `+0x21D`:

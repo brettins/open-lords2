@@ -40,15 +40,37 @@
 //!
 //! # What is not here
 //!
-//! **The estimates that fill the floors and the ceilings.** `FUN_004485A5` runs
-//! seven of them for one county — reclamation, grain, herd, four industries and
-//! the castle — and this crate has none. Until it does, [`allocate`] must be
-//! given ceilings from somewhere else, which today means the ones the scenario
-//! imported. So this module is **not wired into
-//! [`crate::phase`]**: an allocator running against a stale ceiling every
-//! season would move people on evidence that stopped being true, which is worse
-//! than the honest gap of not moving them at all. The two call sites are named
-//! in [`SEASON_CALL_SITES`] so the next hand does not have to find them again.
+//! **Five of the nine ceilings, and the season pipeline.**
+//!
+//! `County_RefreshEstimates` (`0x004485A5`) is nine calls — the field recount,
+//! then reclamation, grain, herd, four industries and the castle — and this
+//! crate reproduces the recount and three of the estimates exactly
+//! ([`crate::field::refresh_estimates`]). [`allocate`] therefore runs where a
+//! **click** reaches it, which is where the original runs it too:
+//! `Field_SetType` and `Industry_ToggleFromMap` both allocate straight
+//! afterwards, and so do [`crate::field::set_type`] and
+//! [`crate::Kingdom::toggle_industry`].
+//!
+//! It is still **not in [`crate::phase`]'s pipeline**, and the reason is
+//! specific rather than general. `Season_Advance` does not call
+//! `County_RefreshEstimates` before its two `Labour_AllocateAll`s at all: each
+//! estimate is the **tail call of the pass that invalidates it**, so wiring the
+//! allocator means adding six tail calls, three of which cannot be written
+//! honestly yet — grain outside the sowing season, the four industries (which
+//! need the owning realm), and the castle (which needs a materials-delivery
+//! model this crate does not have). And `Field_ReclaimTick` here spends no
+//! labour, so reclamation would be allocated and then ignored, which is worse
+//! than not allocating it.
+//!
+//! `crates/l2-kingdom/tests/labour_gap.rs` is that list as four tests that go
+//! red when somebody closes part of it. The two season call sites are named in
+//! [`SEASON_CALL_SITES`].
+//!
+//! One input that turned out not to be needed: **`Labour_Allocate` never reads
+//! [`County::labour_wanted`]** — verified by exhaustion over its 2,147 bytes,
+//! which read `+0xCC + slot*0x0C` eight times and `+0xC8 + slot*0x0C` not once.
+//! The floors are what the county panel draws a worker count red against, and
+//! nothing here depends on them.
 
 use crate::county::County;
 use crate::math::pct;
@@ -58,12 +80,17 @@ use crate::tables::{
     JOB_WOOD_CUTTING,
 };
 
-/// Where `Season_Advance` (`0x0044C1EE`) calls `FUN_0044F699`, which is
+/// Where `Season_Advance` (`0x00448440`) calls `FUN_0044F699`, which is
 /// [`allocate`] for every county in index order.
 ///
 /// Both are **after** the pass that changes how many people there are and
 /// before anything that reads a worker count, which is what keeps the nine
 /// records summing to the population.
+///
+/// **Corrected:** the enclosing function is `Season_Advance` at **`0x00448440`**,
+/// 261 bytes. This constant's documentation used to give `0x0044C1EE`, which is
+/// an address *inside* `Field_ReclaimTick` (`0x0044C093` + 485). The two call
+/// sites themselves were right.
 pub const SEASON_CALL_SITES: [&str; 2] =
     ["after Castle_BuildTick, before Migration_UpdateAll", "after FUN_00448D16, before Panels_RefreshAll"];
 
@@ -111,10 +138,15 @@ const INDUSTRY_TAIL: usize = JOB_CASTLE_BUILDING;
 /// (`+0x297 + c*0x18`) rather than the *has-resource* byte beside it — an
 /// industry switched off allocates nobody even where the ore is.
 ///
-/// **One gate is not modelled**: castle building is gated on `+0x1C3` *and* on
-/// `+0x1B0`, and `+0x1B0` is a switch `FUN_00439CC2` throws the first time the
-/// player drags builders onto the castle. This crate has no such field, so only
-/// the first gate is applied and the second is treated as thrown.
+/// **One gate is deliberately not applied**: castle building is gated on
+/// `+0x1C3` *and* on `+0x1B0`, and `+0x1B0` is a switch the player throws by
+/// clicking the castle on the map. The field exists now
+/// ([`County::castle_switch`], and `Industry_ToggleFromMap` moves it), and the
+/// gate is still not applied — the original has three UI writers for that
+/// switch and **no AI writer at all**, so gating on it here would stop every AI
+/// realm building a castle. That is a rule which is right for the original's
+/// human player and wrong for everybody else in it, and the AI's own path to
+/// the switch has not been found.
 pub fn ceilings(county: &County) -> [i32; JOB_COUNT] {
     let mut out = [0i32; JOB_COUNT];
     for (job, slot) in out.iter_mut().enumerate() {
@@ -321,7 +353,7 @@ pub fn toggle_share(county: &mut County, job: usize, on: bool, divisor: i32) {
 /// industry jobs, and the only caller is `Industry_ToggleFromMap`.
 ///
 /// Line for line the twin of [`toggle_share`] with a five-member group and no
-/// divisor, which is why both are [`toggle`]. Switching an industry off on the
+/// divisor, which is why both are one private `toggle`. Switching an industry off on the
 /// map takes its share out of the split and hands it to the rest; switching one
 /// on gives it `g_shareTable[n]`, an even share of the enlarged group.
 pub fn toggle_industry_share(county: &mut County, job: usize, on: bool) {
