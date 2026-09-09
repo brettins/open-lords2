@@ -1565,6 +1565,73 @@ The lesson is C25's and C29's again in a third shape: **a global's name tells yo
 somebody thought it was, and the function that writes it tells you what it is.** Every one
 of the twelve had a plausible destination one block away.
 
+**C45 — The corner of every panel was called a tick by five documents and four source
+files. It is a cursor arrow pointing into a black hole, and nobody had decoded the frame.**
+
+The player again, looking at the real screen: *"The corner is a hotspot, it's a picture of a
+pointer icon, not a mouse. Like it's an arrow pointing to a little black hole. It's a close
+button… a weird one"* — and, a minute later, *"i mean it is an instruction"*.
+
+Both. **It is a hotspot whose artwork depicts the action it performs**, and that is the
+resolution rather than a contradiction.
+
+`Ui_OkButton` (`0x0040D1BC`) draws `System.pl8` frame `0x33` for mode 0 and `0x10` for mode
+1, both 24 × 24 — a fact this repository had recorded correctly since the button sheet was
+first read. What it had never done is *look at the frames*. Decoded against `Base01.256`,
+both hold the same drawing, mode 1 adding a raised bevel. There is no tick in `System.pl8`
+at that index or near it.
+
+The picture is a measurement rather than an impression, which is what makes the entry
+**[V]** rather than a second opinion: those two frames are the **4th and 5th darkest of the
+sheet's 84**, 15.3% and 11.5% of their area in near-black ink against a median frame's 1.2%,
+while the widgets that really are thin strokes sit at 0.2% and 0.0%. A tick cannot come 4th
+out of 84. The rank is asserted in `crates/l2-view/tests/install.rs` against the user's own
+file, so the label cannot drift back.
+
+It is not a decoration either. `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests a 24 × 24 box
+at `(DAT_0055CE78, DAT_0057C8A0)` on a left release, and `Ui_OkButton` itself writes those
+two globals — so the panel has two ways out and the game offers both. One consequence falls
+out of the stash being a single pair of globals rather than a table: a screen that draws two
+of these makes only the **last** one clickable.
+
+**Both readings that preceded the artwork were half right, and that is the part worth
+keeping.** The standing one had a *button* with the wrong *picture*. The reading that
+replaced it went the other way: from `L2.eng` group 12 index 0, *"Click Right to Exit"*, and
+from `Screen_FrameInput` closing these panels on the right button, it inferred that the
+corner must be **signage** rather than a target — a clean story, arrived at from real
+evidence, that the artwork does not support. Each was a confident account of one half built
+entirely from evidence about the other half. **That is C3's shape inside a single 24 × 24
+frame**, and it is the sixth of this species logged today; the fix in both directions was
+the same and cost a minute, which was to decode the frame and look at it.
+
+The picture is C43's own finding drawn rather than written. `Screen_FrameInput` closes these
+panels on a right release; `L2.eng` group 12 index 0 is *"Click Right to Exit"*; and the
+corner is the same sentence as a 24 × 24 icon. Three independent statements of one gesture,
+and we had turned the third into a confirm button.
+
+**Two more frames went the same way.** `g_confirmWidgets`' pair, 29 and 31, was written down
+as *"a tick and a cross"* in two places. They are 32 × 32 pictures of **a mailed hand with
+its thumb up and its thumb down** — which is a medieval game's yes and no, and reads
+immediately once seen.
+
+**What made it findable, and the rule it suggests.** A frame index is a *measurement* and
+survives; the word beside it is a *guess* and does not. Every one of these labels was
+written by someone who knew exactly which frame the function drew and then described it
+from the function's name — `Ui_OkButton` draws the OK button, so the OK button is a tick.
+That is C28's failure with a picture instead of a name, and it is cheap to avoid: the
+frames are in a file we can decode, and looking at one costs a minute.
+
+The symbol keeps its name. `Ui_OkButton` and `l2-view`'s `system::OK` are in half the
+interface and renaming them would cost more than the word "OK" misleads; the comment beside
+each now says what the frame holds. `docs/screens-county.md` §2.7.
+
+**The player has now been right five times in one day** — the village being an inset (C22),
+the county town, the sidebar icons, right-click, and this. Four of the five were things a
+screenshot or a decoded frame would have settled at any point in the last year. It is worth
+saying plainly: **on questions about the interface, somebody who has played the game is a
+better oracle than the decompiler**, because the decompiler tells you what is drawn and he
+tells you what it looks like.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

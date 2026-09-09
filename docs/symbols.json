@@ -2325,7 +2325,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void Ui_OkButton(int x, int y, int mode)",
-      "comment": "The tick that closes a panel: g_systemSheet frame 0x33 for mode 0, 0x10 for mode 1."
+      "comment": "The 24x24 picture in a panel's bottom-right corner: g_systemSheet frame 0x33 for mode 0, 0x10 for mode 1 (the same picture with a raised bevel). NOT A TICK - decoded, both frames are a cursor arrow pointing into a small black hole: a close button whose artwork is the instruction it gives. Measured rather than described: of System.pl8's 84 frames these two are the 4th and 5th darkest, 15.3% and 11.5% near-black against a median frame's 1.2%, while the genuinely thin widgets sit at 0.2% and 0.0%. It is a target as well as an instruction, and the right button closes the panel too, so the game offers two ways out: it stashes x and y into DAT_0055CE78 / DAT_0057C8A0, which FUN_0040E7E4 hit-tests on a left release - and it stashes only the LAST call's position, so a screen drawing two of them makes only the second clickable. The name is ours and predates the frame being looked at; docs/screens-county.md 2.7."
     },
     {
       "addr": "0x00403DEB",
@@ -3611,6 +3611,22 @@
       "comment": "Turns one cluster's two icon counts into g_peasantIcons values. `other` is negative for a shortfall against the job's wanted floor and positive for a surplus past its useful ceiling; cluster 6, Idle townsfolk, is always drawn in the surplus icon."
     },
     {
+      "addr": "0x0042FF10",
+      "name": "Screen_FrameInput",
+      "section": "ui",
+      "confidence": "inferred",
+      "signature": "void Screen_FrameInput(void)",
+      "comment": "The FOURTH function that switches on g_screenId, and the one nothing had read: 8,140 bytes, 49 hand-written arms covering 50 screen ids, 150 g_screenId writes. Called once per frame from Battle_Frame (0x004B99C0) as the LAST thing in the frame, after every draw pass - so its navigation lands one frame late by construction. Its shape: FUN_0047685D (right-release dismisses the message scroll, and swallows the click) then Screen_HandleInput (the widget tables, LEFT BUTTON ONLY - it names no right-button global anywhere) and then, only if neither consumed the input, the per-screen arms. It is where the right mouse button lives: DAT_004E6900 (right RELEASED this frame) is tested 48 times and is how nearly every screen in the game is left, which is what L2.eng group 12 index 0, 'Click Right to Exit', tells the player. It also runs the OK-button hit test 26 times (FUN_0040E7E4), force-closes every open panel when DAT_0055403C (Turn_End) or DAT_00553FC8 (the multiplayer sync latch) says the turn is no longer the local player's, owns a falling-edge 'the map scrolled' latch across the frame boundary (DAT_0057CAC4 -> DAT_00565488), clears the WM_KEYDOWN edge DAT_004EABB4, and in individual arms sends Net_SendCommand(6, 0), calls Setup_StartGame, Map_ConfirmMoveOrder and Battle_Decline, and loads vill_gd8.pl8 and demo1.pl8. So it is not only navigation and 'HandleBack' would be far too narrow: right-close is 19 of the 49 arms and 36% of the body. INFERRED rather than verified: every line of the body has been read and the census, the state writes and the call-site placement come from the code, but the ~35 callees the arms dispatch to have not been read and the g_screenId -> screen mapping was not re-derived here. docs/screens-county.md 1 and 2.6."
+    },
+    {
+      "addr": "0x0040E7E4",
+      "name": "Ui_OkButtonClicked",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Ui_OkButtonClicked(void)",
+      "comment": "Hit-tests the corner picture Ui_OkButton last drew: returns 0 unless the LEFT button was released this frame (DAT_004E65D8) inside a 24x24 box at (DAT_0055CE78, DAT_0057C8A0), and on a hit calls FUN_004B18E3 to consume the click. Ui_OkButton is the only writer of those two globals and stashes only its LAST call's position, so on a screen that draws two corner pictures only the second is clickable - which is safe only because the draw pass runs before this one in the frame. Screen_FrameInput calls it 26 times. The message scroll has its own, larger hotspot: FUN_0047685D tests a 48x48 box round a copy of the same coordinates."
+    },
+    {
       "addr": "0x0043CE1A",
       "name": "Map_Click",
       "section": "ui",
@@ -4076,7 +4092,7 @@
       "name": "Screen_ConfirmBox",
       "section": "ui",
       "confidence": "verified",
-      "comment": "The 0x1E painter: a 14 x 8 cell box at (g_confirmX - 16, g_confirmY - 16) with group 10 index g_confirmPrompt inside it. The two widgets, tick and cross, are drawn by the widget pass at the same offset."
+      "comment": "The 0x1E painter: a 14 x 8 cell box at (g_confirmX - 16, g_confirmY - 16) with group 10 index g_confirmPrompt inside it. The two widgets - frames 29 and 31, a mailed hand thumb-up and thumb-down rather than a tick and a cross - are drawn by the widget pass at the same offset."
     },
     {
       "addr": "0x00434E1F",
@@ -7871,7 +7887,7 @@
       "name": "g_confirmWidgets",
       "section": "ui",
       "confidence": "verified",
-      "comment": "The confirmation box's two widgets, tick and cross, frames 29 and 31 at (64, 46) and (112, 50) relative to the box origin."
+      "comment": "The confirmation box's two widgets, frames 29 and 31 at (64, 46) and (112, 50) relative to the box origin. Decoded, the pair is a mailed hand with its thumb UP and its thumb DOWN, not a tick and a cross; every yes/no pair in the game draws these two frames. docs/screens-county.md 4.2."
     },
     {
       "addr": "0x0052AF90",
@@ -7906,7 +7922,7 @@
       "name": "g_confirmAnswer",
       "section": "ui",
       "confidence": "verified",
-      "comment": "1 for the tick, 0 for the cross. Written before g_confirmCallback runs, and read by it."
+      "comment": "1 for yes (the thumb-up hand), 0 for no. Written before g_confirmCallback runs, and read by it."
     },
     {
       "addr": "0x004DDBE0",
@@ -8004,7 +8020,7 @@
       "name": "g_saveLoadWidgets",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Four widget records for screens 0x35 and 0x36: tick and cross at (304, 64) and (352, 64), then the list scroll arrows at (384, 144) and (384, 176) carrying deltas -3 and +3 and list id 1."
+      "comment": "Four widget records for screens 0x35 and 0x36: yes and no - frames 29 and 31, the thumb-up and thumb-down hands - at (304, 64) and (352, 64), then the list scroll arrows at (384, 144) and (384, 176) carrying deltas -3 and +3 and list id 1."
     },
     {
       "addr": "0x004DDDD8",
@@ -8018,7 +8034,7 @@
       "name": "g_sendSuppliesWidgets",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Six widget records for screen 0x18: tick and cross at (320, 342) and (360, 346), then two rows of a minus/plus pair at x 216 and 296, y 264 and 300, hotspot ids 0 and 2."
+      "comment": "Six widget records for screen 0x18: yes and no at (320, 342) and (360, 346), then two rows of a minus/plus pair at x 216 and 296, y 264 and 300, hotspot ids 0 and 2."
     },
     {
       "addr": "0x004DD8C8",
@@ -8032,7 +8048,7 @@
       "name": "g_castleBuildWidgets",
       "section": "ui",
       "confidence": "verified",
-      "comment": "The castle-build screen's tick and cross, at (432, 440) and (472, 444)."
+      "comment": "The castle-build screen's yes and no, at (432, 440) and (472, 444)."
     },
     {
       "addr": "0x004DDF10",
@@ -8046,7 +8062,7 @@
       "name": "g_smackTestWidgets",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Four widget records for screen 0x44, the Smacker test page: a minus/plus pair at (208, 232) and (240, 232) and a tick/cross pair at (288, 280) and (324, 284)."
+      "comment": "Four widget records for screen 0x44, the Smacker test page: a minus/plus pair at (208, 232) and (240, 232) and a yes/no pair at (288, 280) and (324, 284)."
     },
     {
       "addr": "0x00568240",

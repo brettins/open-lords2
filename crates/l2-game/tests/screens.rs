@@ -603,7 +603,7 @@ fn the_sidebar_split_slider_moves_the_countys_labour_between_farm_and_industry()
 /// **The right button has two jobs, and they are opposite ones.**
 ///
 /// A player said *"right click would close a bunch of popups"*, and he is right:
-/// `FUN_0042FF10` — the fourth and unnamed `g_screenId` dispatcher, and the one
+/// `Screen_FrameInput` — the fourth and unnamed `g_screenId` dispatcher, and the one
 /// that decides how every screen is *left* — has a right-release arm for almost
 /// every screen id there is, and `L2.eng` group 12 index 0 is the game printing
 /// *"Click Right to Exit"* on the value spinner.

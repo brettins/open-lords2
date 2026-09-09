@@ -455,7 +455,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,545<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,546<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -467,13 +467,22 @@ itself out of decompiler output. These are that shape — coherent, unanchored, 
 enough that a wrong reading would spread. They are here so the risk register carries live
 worries instead of dead ones.
 
-* **`FUN_0042FF10`** — 8,140 bytes, the largest unnamed function in the interface. It writes
-  `g_screenId` with **thirty different values, more than any other function in the binary**,
-  and touches no string and no shipped asset. **Only the first 6% of the body has been read.**
-  `hypotheses.json` calls it `Ui_DispatchPointer` on the strength of its opening — hit region,
-  input handler, then a per-screen fallback chain — which is a claim about the role and not
-  about the other 94%. Every screen this plan adds routes clicks through whatever it actually
-  is. The largest unread object on the critical path.
+* ~~**`FUN_0042FF10`**~~ — **closed.** It is **`Screen_FrameInput`** (`0x0042FF10`), and the
+  whole 8,140-byte body has been read: 49 hand-written arms over 50 screen ids, the fourth
+  and last function that switches on `g_screenId`, called once per frame from `Battle_Frame`
+  **after every draw pass**. It is where the right mouse button lives — `DAT_004E6900`, right
+  *released*, tested 48 times — and right-click is how nearly every screen in the game is
+  left, which `L2.eng` group 12 index 0 states in English as *"Click Right to Exit"*.
+  `docs/screens-county.md` §2.6.
+
+  Three of the risk register's own claims about it were wrong, which is the part worth
+  keeping. It **does** touch strings and shipped assets (`vill_gd8.pl8`, `demo1.pl8`); it
+  writes `g_screenId` 150 times, not thirty; and `Ui_DispatchPointer` was too narrow in one
+  direction and too wide in another — a third of the body is closing panels because
+  **`Turn_End` ended the turn or the network is blocked**, with no pointer involved at all.
+  The symbol is filed `inferred`, not `verified`: every line of the body is read, but the
+  ~35 callees its arms dispatch to are not, and the `g_screenId` → screen mapping was not
+  re-derived. That is the honest half of a name that used to claim more from less.
 * **The command journal at `0x0050D7C0`.** `Net_JournalCommand` writes a ring of `0x38`-byte
   slots — a live flag, a sub-opcode and twelve int arguments — and every command writer/reader
   pair traced so far ends in a call to it. **Nothing traced reads the ring.** Whether it is a
@@ -549,7 +558,7 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->708<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->710<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->29<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and
@@ -580,9 +589,11 @@ Written so the failure is recognisable early rather than in hindsight.
   scope goes to die. Only three are required by §1 — raise army, the merchant, the castle
   chooser — plus the two file-list shells for save and load. *Early warning:* a fourth screen
   gets built because it was next in the table.
-* **`FUN_0042FF10` turns out to matter.** 94% of the biggest interface function is unread and
-  every screen routes clicks through whatever it is. *Early warning:* a screen's input needs a
-  dispatch rule nobody can find.
+* ~~**`FUN_0042FF10` turns out to matter.**~~ **Retired — it did matter, and it has been
+  read.** It is `Screen_FrameInput`, and the rule nobody could find was the right mouse
+  button: a player said *"right click would close a bunch of popups"* and the function is
+  where that lives. The early warning fired exactly as written, from the player rather than
+  from us. `docs/decisions.md` C45 and `docs/screens-county.md` §2.6.
 * **The plan is followed and the game is unplayable anyway**, because none of it was shown to
   somebody who has played it. C21 and C22 were both overturned by a player looking at a
   picture, in one sentence each, against a green suite. **Show screens early.**

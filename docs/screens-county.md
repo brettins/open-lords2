@@ -77,7 +77,7 @@ both fall out of a file we did not write.
 | draw | `Screen_Draw` (`0x0040F1A0`) | 39 cases; calls the screen's painter |
 | overlay | `Screen_DrawWidgets` (`0x004BA26E`) | per-screen widget lists and animations |
 | input | `Screen_HandleInput` (`0x004BA9C8`) | per-screen widget hit-test tables — **left button only** |
-| **back** | **`FUN_0042FF10` (`0x0042FF10`)**, unnamed in `symbols.json` | per-screen *right*-button and tick handling: how every screen is **left**. §2.6 |
+| **input, late** | **`Screen_FrameInput` (`0x0042FF10`)** | 49 hand-written arms over 50 ids: the right button, the corner picture, and everything the widget tables cannot express. **How every screen is left.** §2.6 |
 
 An earlier revision of this section said there were three and that nothing else dispatched on
 `g_screenId`. The fourth is the largest of them and the only one that reads the right mouse
@@ -394,9 +394,12 @@ spinner's caption.
 
 ### The dispatcher this document did not know about
 
-§1 says three functions switch on `g_screenId` and nothing else does. **There is a fourth**,
-and it is the one that decides how every screen is *left*: `FUN_0042FF10` (`0x0042FF10`),
-unnamed in `symbols.json`, ~8 KB, called once per frame:
+§1 used to say three functions switch on `g_screenId` and nothing else does. **There is a
+fourth**, and it is the one that decides how every screen is *left*: **`Screen_FrameInput`**
+(`0x0042FF10`), 8,140 bytes, called once per frame — named only after this pass, having sat
+in `docs/hypotheses.json` as `Ui_DispatchPointer` with 6% of its body read and a warning
+attached. The whole body has been read now; what it dispatches *to* has not, so the symbol
+is `inferred` rather than `verified`.
 
 ```c
 Screen_HitRegion();
@@ -413,6 +416,29 @@ if ((iVar2 == 0) && (iVar2 = Screen_HandleInput(), iVar2 == 0)) {
 all**; nor do `Hotspot_Test` or `Widget_Test`, both of which test only the left button's
 press, release or held flags. Every right-button behaviour in the game is in the function
 above, copy-pasted about forty times: there is no shared helper.
+
+**It is not only "back", which is why it is not called `Screen_HandleBack`.** Of its 49
+arms, 19 are close-only (36% of the body), **17 run a real left-button hotspot chain as
+well** — including the campaign map, the battle map, the village and the four county panels
+— and 13 are neither: the village's drag state machine (`0x05`/`0x06`), the setup pages
+(`0x1F`, the longest arm, which calls `Net_SendCommand(6, 0)` twice), `Setup_StartGame`
+(`0x1C`), `Battle_Decline` (`0x12`), and an explicit do-nothing at `0x23`. It also commits
+orders — `Map_ConfirmMoveOrder` on `0x10`, the levy on `0x17` — loads `vill_gd8.pl8` and
+`demo1.pl8`, clears the `WM_KEYDOWN` edge `DAT_004EABB4`, and carries a falling-edge
+"the map scrolled" latch (`DAT_0057CAC4` → `DAT_00565488`) across the frame boundary.
+
+**A second gesture is as common as the right button, and it is not a gesture at all.**
+Twenty-nine arms open with `if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))`
+→ force-close, where `DAT_0055403C` is what `Turn_End` writes and `DAT_00553FC8` is the
+multiplayer sync-wait latch. **A third of this function's job is tearing every open panel
+down when the turn ends or the network blocks**, with no user input involved.
+
+**Where it sits in the frame matters.** Its one caller is `Battle_Frame` (`0x004B99C0`) —
+the whole-game per-frame function, not just the battle's — and it is the *last* thing in
+the frame, after every draw pass and after the cursor is chosen. So the `g_redrawRequest`
+it sets is consumed at the top of the **next** frame, and the scroll latch at line 6555 of
+the next frame: **its effects are one frame late by construction.** Anything that tries to
+reproduce the original's frame ordering has to know that.
 
 ### The button flags
 
@@ -472,21 +498,21 @@ is the F12 debug override, so its `else` **force-closes the panel when the turn 
 it**. `0x19` is identical plus a `Ration_SliderClick()` guard, so dragging the ration slider
 does not dismiss the panel.
 
-**So a panel has three ways out and none of them is a key**: the tick (`FUN_0040E7E4`, a
+**So a panel has three ways out and none of them is a key**: the corner picture (`FUN_0040E7E4`, a
 left release inside the 24 × 24 box the last `Ui_OkButton` call stashed), a right release
-anywhere, and a click on the campaign minimap — `FUN_0042FF10`'s tail runs `Minimap_Click`
+anywhere, and a click on the campaign minimap — `Screen_FrameInput`'s tail runs `Minimap_Click`
 from any screen and closes to the map on a hit. The only `VK_ESCAPE` handler in the game
 quits it (`Menu_Quit`, or the main-loop exit flag); **no key dismisses a panel**, verified by
 absence.
 
 The one exception to all of it is **screen `0x1E`, the yes/no box**, which appears nowhere in
-`FUN_0042FF10` and has no `Ui_OkButton`. It is served solely by `Screen_HandleInput`'s
-`g_confirmWidgets` tick and cross: the confirmation box is genuinely modal and must be
+`Screen_FrameInput` and has no `Ui_OkButton`. It is served solely by `Screen_HandleInput`'s
+`g_confirmWidgets` thumb-up and thumb-down: the confirmation box is genuinely modal and must be
 answered.
 
 ### What it opens
 
-On the campaign map the same button does the reverse. `FUN_0042FF10`'s `g_screenId == 0` arm
+On the campaign map the same button does the reverse. `Screen_FrameInput`'s `g_screenId == 0` arm
 has exactly three right-button branches, in this order:
 
 1. `FUN_00439079` — right release in `x >= 478`, `24 <= y < 153` with a minimap mode active:
@@ -503,12 +529,65 @@ accesses an information pop-up that includes the army's county of origin."* The 
 is two `Eng_DrawString` calls — group 31 index 9, *"An army from"*, then group 100 at
 `unit.homeCounty + scenarioIndex * 20` — inside the branch that requires the unit to be an
 army of the local player's, so the county of origin shows for your own armies only. Screen
-`0x04` carries its own tick at `Ui_OkButton(0x1AC, 0x1B6, 0)` and its own right-release arm,
-so the same button opens it and closes it.
+`0x04` carries its own `Ui_OkButton(0x1AC, 0x1B6, 0)` and its own right-release arm, so the
+same button opens it and closes it.
 
 **Loose end.** `DAT_0052AFA8` gates the whole per-screen chain as a one-shot "swallow the
 next right release", and **nothing in the corpus ever writes it a non-zero value**. Either
 its writer is outside the decompiled range or it is vestigial; it is not guessed at here.
+
+---
+
+## 2.7 The corner of a panel: a close button whose picture is the instruction  **[V]**
+
+**Player-reported, then confirmed from the artwork.** He described the bottom-right corner
+of a county panel as *"an arrow pointing to a little black hole. It's a close button… a
+weird one"*, and then, of the same picture, *"i mean it is an instruction"*. Both, and that
+is the resolution rather than a contradiction: **it is a hotspot whose artwork depicts the
+action it performs.**
+
+The sheet is **`System.pl8`**, not `Misc_cty.pl8` or `Panels.pl8`. `Ui_OkButton`
+(`0x0040D1BC`) draws frame **`0x33`** for mode 0 and frame **`0x10`** for mode 1, both
+24 × 24, and both hold the same drawing: **a cursor arrow pointing into a small black
+hole**, on the parchment ground the rest of the sheet uses. Mode 1 adds a raised bevel;
+mode 0 has none. There is no tick anywhere in either.
+
+The picture is measurable rather than a matter of opinion, which is what makes this **[V]**:
+of the sheet's 84 frames those two are the **4th and 5th darkest**, 15.3% and 11.5% of their
+area in near-black ink against a median frame's 1.2%. The widgets that really are thin
+strokes sit where you would expect — the tax-up arrow at 0.2%, the slider knob at 0.0%. A
+tick cannot come 4th out of 84. `crates/l2-view/tests/install.rs` asserts that rank against
+the user's own file.
+
+**And it is live.** `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests a 24 × 24 box at
+`(DAT_0055CE78, DAT_0057C8A0)` on a **left release** and consumes the click; `Ui_OkButton`
+is the only writer of those two globals (`00400000.c:7114`). So a panel has two ways out and
+the game offers both: this corner, and the right button anywhere (§2.6). The one consequence
+worth knowing is that `Ui_OkButton` stashes only the **last** call's position, so on a screen
+that draws two corner pictures only the second is clickable — safe only because the draw
+pass runs before the input pass in the frame.
+
+**Both first readings were half right, and neither had looked at the sheet.** This document
+had a *button* with the wrong *picture* — it called the corner "the tick" in five places, and
+§4.2 labelled frame `0x33` "the tick that closes a panel". The reading that replaced it
+inferred from `L2.eng` group 12 index 0, *"Click Right to Exit"*, that the corner must
+therefore be **signage** rather than a target — a clean story that the artwork does not
+support. Each was a plausible account of one half built from evidence about the other, which
+is C3's shape at the scale of a single 24 × 24 frame, and the fix in both directions was to
+decode the frame and look at it. `docs/decisions.md` C45.
+
+**Why the name is kept.** `Ui_OkButton` and `l2-view`'s `system::OK` stay as they are,
+because renaming a symbol every reader already knows costs more than the word "OK" misleads
+— but the comment beside each now says what the frame holds. The name is ours; the picture
+is the game's.
+
+The same pass corrected `g_confirmWidgets`' pair, §4.2's other guess: frames `0x1D` and
+`0x1F` are **a mailed hand giving a thumb up and a thumb down**, not a tick and a cross.
+
+His interface recollections have now been right five times running — the village being an
+inset (`docs/decisions.md` C22), the town square (C41), the sidebar icons (C43), right-click
+(§2.6), and this. A player who has looked at the real screen is the cheapest oracle in this
+project; `docs/decisions.md` C45 records the whole of it.
 
 ---
 
@@ -532,7 +611,7 @@ their own bodies.
 | `Ui_DrawCount` `0x0041AB67` | `(value, unitIndex, x, y, font, colour)` | a number plus a **singular/plural noun** |
 | `Ui_DrawHappinessDelta` `0x0041AC95` | `(value, x, y, font, colPos, colNeg)` | `( ±n ☺ )` — a signed number wrapped in brackets with the happiness face after it |
 | `Ui_DrawYear` `0x0041A900` | `(year, x, y, style)` | a year with **BC / AD** from group 26 |
-| `Ui_OkButton` `0x0040D1BC` | `(x, y, mode)` | the tick that closes a panel: the button sheet's frame 0x33 (mode 0) or 0x10 (mode 1) |
+| `Ui_OkButton` `0x0040D1BC` | `(x, y, mode)` | the picture that closes a panel - a mouse pointer going into a black hole, button-sheet frame 0x33 (mode 0) or 0x10 (mode 1). Section 2.7 |
 
 `Ui_DrawText` advances a pen width in `g_penAdvance` (`0x005CD404`), which every caller
 resets to 0 and then adds to the next x — that is how a label and its value are laid out
@@ -658,7 +737,7 @@ for skin 1 into the same buffer, and **the kingdom screens ask for skin 1** — 
 
 The two files are byte for byte the same size, 56,518, with the same 84-frame table, so it
 looks like a cosmetic skin. It is not. **69 of `System2.pl8`'s 84 frames are entirely
-index 0** — every frame in the table below except the tick — while **none of
+index 0** — every frame in the table below except `Ui_OkButton`'s — while **none of
 `System.pl8`'s are**. Drawing a panel from `System2.pl8` draws its arrows and its slider as
 nothing at all, which is exactly how this was found: the reimplementation loaded
 `System2.pl8`, its slider test could not tell two knob positions apart, and the files' own
@@ -671,11 +750,26 @@ bytes said why.
 |---|---|---|
 | 0x15 / 0x16 | 24 × 24 | **tax up** |
 | 0x17 / 0x18 | 24 × 24 | **tax down** |
-| 0x10 / 0x11 | 24 × 24 | `Ui_OkButton` mode 1 |
-| 0x33 | 24 × 24 | `Ui_OkButton` mode 0 — the tick that closes a panel |
+| 0x1D / 0x1F | 32 × 32 | `g_confirmWidgets` — **a mailed hand, thumb up and thumb down**, not a tick and a cross |
+| 0x10 / 0x11 | 24 × 24 | `Ui_OkButton` mode 1 — the same picture as 0x33, with a raised bevel round it |
+| 0x33 | 24 × 24 | `Ui_OkButton` mode 0 — **a mouse pointer going into a black hole.** §2.7 |
 | 0x4A | 24 × 24 | **slider left cap** |
 | 0x4B | 24 × 24 | **slider right cap** |
 | 0x4C | **10 × 32** | **slider knob** |
+
+Two of those rows used to say something else, and both were guesses that read as
+descriptions. **0x33 is not a tick** and 0x1D / 0x1F are not a tick and a cross; the frames
+were decoded and looked at rather than named from the function that draws them.
+
+**The skin trap has a sharper edge than "69 blank frames" suggests**, and it is worth
+knowing which way round it falls. In `System2.pl8`, `Ui_OkButton`'s **mode 0** frame
+(`0x33`) is painted — the same drawing on a stone ground rather than parchment — while its
+**mode 1** frame (`0x10`) is entirely index 0. Mode 1 is exactly what the village, the
+merchant, the armoury, castle building and the greatest-noble page pass, all at
+`(g_screenStride - 0x1C, g_screenHeight - 0x1C)`; every other call site passes mode 0. So
+loading the wrong skin does not blank every corner — it blanks the corners of those five
+screens and leaves the rest looking correct, which is the hardest kind of wrong to notice.
+`crates/l2-view/tests/install.rs` asserts both halves against the user's own files.
 
 ### 4.3 `Misc_cty.pl8` — the kingdom-mode icons
 
@@ -1056,7 +1150,7 @@ What the village actually covers:
 | the picture — `vill.pl8` frame 0 | 363 × 320 at (64, `g_villageTopY`) |
 | `villtops.pl8`, *Advanced Farming* only | 363 × 70 at (64, 64) |
 | the band it saves and restores | **480 × 320 at (0, `g_villageTopY`)** — §3.1 |
-| the tick | `Ui_OkButton(0x180, g_villageTopY + 0x118, 1)` |
+| the corner picture | `Ui_OkButton(0x180, g_villageTopY + 0x118, 1)` |
 
 `g_villageTopY` is 64, or 132 with *Advanced Farming*. The menu bar (y 0 … 23) and the
 county sidebar (x 478 … 639) are outside all of it, and so is a strip of campaign map on
@@ -1461,9 +1555,11 @@ ally.
 
 Worth writing down because they turn an unread widget table into a legible one:
 
-* **Button sheet frame pairs.** 29 / 31 is tick and cross, 35 / 37 a scroll pair, 68 / 66 a
-  minus and plus, 21 / 23 an up and down. Every tick/cross pair found sits at (x, y) and
-  (x + 40, y + 4) — the cross is four pixels lower, on all six screens that use one.
+* **Button sheet frame pairs.** 29 / 31 is yes and no, 35 / 37 a scroll pair, 68 / 66 a
+  minus and plus, 21 / 23 an up and down. Every yes/no pair found sits at (x, y) and
+  (x + 40, y + 4) — the *no* is four pixels lower, on all six screens that use one.
+  **29 / 31 are not a tick and a cross**: decoded, they are 32 × 32 pictures of a mailed
+  hand with its thumb up and its thumb down. §4.2.
 * **Hotspot id 1 is confirm, 0 is cancel.** Both halves of a pair share one handler and read
   `g_uiHotspotId` to find out which was pressed. `Ui_ConfirmClicked`, `Diplo_SendClicked`,
   `SendSupplies_Close`, `CastleBuild_Close` and `SmackTest_Close` are all this shape.
@@ -1531,10 +1627,10 @@ row at `g_fileListCount − 15` and zeroes it below 30 entries, while thirty are
 so a list of, say, twenty scrolls into empty space. Recorded, not reproduced.
 
 **The four widget records are box-relative, and that is `[I]`.** `g_saveLoadWidgets`
-(`0x004DDD78`) holds a tick at (304, 64) frame 29, a cross at (352, 64) frame 31, and the
+(`0x004DDD78`) holds a thumb-up at (304, 64) frame 29, a thumb-down at (352, 64) frame 31, and the
 list's two scroll arrows at (384, 144) and (384, 176), frames 35 and 37, carrying the
 deltas −3 and +3 with list id 1. Read as absolute screen coordinates all four sit above or
-on the top edge of a window that begins at y = 144, which would put the tick and cross
+on the top edge of a window that begins at y = 144, which would put the two hands
 outside the panel they belong to. Read relative to the box origin they land at (320, 208)
 and (368, 208) — level with the name field, whose rectangle ends at x = 232 — and at
 (400, 288) and (400, 320), immediately right of the list, whose rectangle ends at x = 392.

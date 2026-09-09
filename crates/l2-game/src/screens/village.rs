@@ -337,7 +337,7 @@ impl Screen for VillageScreen {
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
             // **The right button leaves the village**, which is the third of
-            // `FUN_0042FF10`'s three ways out of screen `0x02`: a right release
+            // `Screen_FrameInput`'s three ways out of screen `0x02`: a right release
             // sets `g_screenId = 0` outright. Escape is ours and does the same,
             // except that mid-drag it cancels the drag instead — the original
             // has no key here at all.
@@ -450,7 +450,7 @@ impl Screen for VillageScreen {
             ch.draw_system(canvas, l2_view::chrome::system::OK_ALT, ok.x, ok.y)
         });
         if !drawn {
-            widget::button(canvas, ink, ok, "OK", false);
+            widget::button(canvas, ink, ok, "CLOSE", false);
         }
 
         // OURS. `Village_BandStart`'s hit region is read out of the binary and
@@ -702,7 +702,7 @@ mod tests {
     fn the_ok_button_and_the_band_area_sit_where_the_picture_is() {
         for top in [vill::SCENE_Y, vill::SCENE_Y_ADVANCED] {
             let ok = VillageScreen::ok_button(top);
-            assert!(ok.x >= vill::SCENE_X, "{top}: the tick is on the picture");
+            assert!(ok.x >= vill::SCENE_X, "{top}: the corner is on the picture");
             assert!(ok.x + ok.w <= vill::SCENE_X + vill::SCENE_W, "{top}");
             assert!(ok.y + ok.h <= top + vill::SCENE_H, "{top}");
             assert!(top + vill::BAND_H >= top + vill::SCENE_H, "the band covers the scene");

@@ -68,19 +68,11 @@
   "imageBase": "0x00400000",
   "functions": [
     {
-      "addr": "0x0042FF10",
-      "name": "Ui_DispatchPointer",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "8,140 bytes, the largest unnamed function in the interface. Its opening is Screen_HitRegion, then Screen_HandleInput, then a per-screen fallback chain that on the campaign map tries Map_EdgeScroll, Menu_OpenDropdown(g_menuBarItems, 3), CountyStrip_Click, CountyStrip_JobClick and Map_Click in that order. It writes g_screenId with 30 different values - more than any other function in the binary.",
-      "comment": "The top-level pointer dispatcher: one click, routed to whatever the current screen wants. Only the first 6% of the body has been read; the name claims the role, not the whole behaviour."
-    },
-    {
       "addr": "0x004342F3",
       "name": "SaveLoad_Accept",
       "section": "ui",
       "confidence": "role",
-      "basis": "Record 0 of g_saveLoadWidgets (0x004DDD78), frame 29 at (304, 64) - the tick of the tick/cross pair whose cross is the verified SaveLoad_Cancel. Its whole body is DAT_005CD41C = 100.",
+      "basis": "Record 0 of g_saveLoadWidgets (0x004DDD78), frame 29 at (304, 64) - the yes of the yes/no pair whose no is the verified SaveLoad_Cancel; the two frames are a mailed hand thumb-up and thumb-down, not a tick and a cross. Its whole body is DAT_005CD41C = 100.",
       "comment": "The save/load box's confirm button. What the sentinel 100 means to its reader has not been traced."
     },
     {
@@ -88,7 +80,7 @@
       "name": "Screen_MapInfo",
       "section": "ui",
       "confidence": "role",
-      "basis": "The painter Screen_Draw dispatches for g_screenId 0x04, which FUN_0042FF10 sets after a map click that picked something. Branches to UnitPanel_Draw when a unit is picked and FUN_0041BEFE otherwise, on the same g_pickedTileFlags bits Map_Click uses.",
+      "basis": "The painter Screen_Draw dispatches for g_screenId 0x04, which Screen_FrameInput (0x0042FF10) sets after a map click that picked something. Branches to UnitPanel_Draw when a unit is picked and FUN_0041BEFE otherwise, on the same g_pickedTileFlags bits Map_Click uses.",
       "comment": "docs/screens-county.md calls this 'the map information panel'; nothing has read what it draws."
     },
     {
@@ -136,7 +128,7 @@
       "name": "SendSupplies_Close",
       "section": "ui",
       "confidence": "role",
-      "basis": "Records 0 and 1 of the send-supplies widget table 0x004DD538: frames 29 and 31 at (320, 342) and (360, 346), hotspot ids 1 and 0 - the tick/cross convention. It writes g_screenId twice.",
+      "basis": "Records 0 and 1 of the send-supplies widget table 0x004DD538: frames 29 and 31 at (320, 342) and (360, 346), hotspot ids 1 and 0 - the yes/no convention (frames 29 and 31 are a mailed hand thumb-up and thumb-down). It writes g_screenId twice.",
       "comment": "Accept or cancel the supply shipment; the hotspot id says which."
     },
     {
@@ -216,7 +208,7 @@
       "name": "SmackTest_Close",
       "section": "ui",
       "confidence": "role",
-      "basis": "Records 2 and 3 of 0x004DDFA0, frames 29 and 31 - the tick/cross pair. It writes g_screenId.",
+      "basis": "Records 2 and 3 of 0x004DDFA0, frames 29 and 31 - the yes/no pair. It writes g_screenId.",
       "comment": "Leave the Smacker test screen."
     },
     {
