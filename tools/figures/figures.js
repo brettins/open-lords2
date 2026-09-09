@@ -95,9 +95,55 @@ function fromCargo() {
 
 // ---- the figures -----------------------------------------------------------
 
+// **The input-arm inventory, which is the 1:1 measurement.**
+//
+// `docs/plan.md` revision 5 leads with this number, so it is generated rather
+// than typed — the same rule the rest of this file exists for, and the same
+// reason: an earlier brief quoted 61/32/10 for the quirk counts when the live
+// numbers were 67/34/12, and a stale headline is worse than an absent one.
+//
+// The denominator is deliberately **live arms**: `dead` records are in the
+// binary and cannot run, so counting them would inflate the gap with work no
+// player could ever see. `invention` is not in the denominator either — it is
+// ours, and it is reported separately because it is the other half of 1:1 and
+// the half nobody was counting.
+function fromArms() {
+  const j = JSON.parse(fs.readFileSync(path.join(repo, 'docs', 'arms.json'), 'utf8'));
+  const by = k => j.arms.filter(a => a.status === k).length;
+  const reproduced = by('reproduced');
+  const missing = by('missing');
+  const live = reproduced + missing;
+  const groups = Object.values(j.groups || {});
+  return {
+    reproduced,
+    missing,
+    dead: by('dead'),
+    inventions: by('invention'),
+    live,
+    pct: live ? Math.round((reproduced / live) * 100) : 0,
+    groups: groups.length,
+    groupsDone: groups.filter(g => g && g.complete).length,
+  };
+}
+
+// How many screens are still shells — the honest measure of how much of the
+// interface is a placeholder, and one a player can feel: he described seven of
+// them as "placeholder everywhere" without being told which were which.
+function fromShells() {
+  const src = fs.readFileSync(
+    path.join(repo, 'crates', 'l2-game', 'src', 'screens', 'shells.rs'),
+    'utf8',
+  );
+  const at = src.indexOf('SHELLS');
+  const body = at < 0 ? src : src.slice(at);
+  return (body.match(/^\s{4}Shell \{$/gm) || []).length;
+}
+
 function figures() {
   const sym = fromSymbols();
   const cargo = fromCargo();
+  const arms = fromArms();
+  const shells = fromShells();
   const pct = Math.round((sym.functions / BINARY_FUNCTIONS) * 100);
   return {
     tests: group(cargo.tests),
@@ -106,6 +152,15 @@ function figures() {
     globals: group(sym.globals),
     'functions-pct': String(pct),
     'binary-functions': group(BINARY_FUNCTIONS),
+    'arms-reproduced': group(arms.reproduced),
+    'arms-missing': group(arms.missing),
+    'arms-live': group(arms.live),
+    'arms-dead': group(arms.dead),
+    'arms-inventions': group(arms.inventions),
+    'arms-pct': String(arms.pct),
+    'arms-groups': group(arms.groups),
+    'arms-groups-done': group(arms.groupsDone),
+    shells: group(shells),
     // A date that does not move while the content does is worse than no date,
     // so the stamp is regenerated with everything else. Spelled out rather than
     // taken from toLocaleDateString, which gives "Sept" on some ICU versions

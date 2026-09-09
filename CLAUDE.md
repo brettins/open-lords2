@@ -45,6 +45,7 @@ subagent, so it stays short. Read the linked document before working in that are
 | revisit an architectural choice | `docs/decisions.md` |
 | spawn or coordinate agents | `docs/agents.md` |
 | ask what state the project is in | `docs/status.html` |
+| **wonder what we are building, or argue with the order** | **`docs/plan.md` — the goal, what would falsify it, and what is in flight** |
 | wonder whether a documented number is true | `docs/audit.md` |
 
 **`docs/netcode.md` binds code you might not think of as networking.** Deterministic
