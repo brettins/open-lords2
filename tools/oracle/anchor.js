@@ -58,7 +58,16 @@ const ENG_CALLS = {
   Eng_Seek:       [0, 1],   // 0x004018D7  leave a pointer in g_engCursor
   Ui_DrawCentred: [0, 1],   // centred in a box
   FUN_0040328e:   [0, 1],   // word-wrapped paragraph, takes a width
-  FUN_004017bf:   [1, 2],   // copy into a buffer: (dest, group, index, len)
+  // Copy into a buffer: (dest, group, index, len). BOTH spellings are listed on
+  // purpose. symbols.json named 0x004017BF Eng_CopyString, so decompile-all.ps1
+  // emits the name and the old FUN_ key stopped matching anything - silently,
+  // because a key that matches nothing looks exactly like a primitive nobody
+  // calls. That is what put this tool's count at 65 when the real direct-literal
+  // count is 67 (docs/formats/eng.md 5.1). Rename a primitive here and in
+  // symbols.json at the same time, and keep the old key until the corpus is
+  // rebuilt.
+  Eng_CopyString: [1, 2],
+  FUN_004017bf:   [1, 2],
 };
 
 function loadEng(engPath) {

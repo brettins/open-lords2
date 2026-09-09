@@ -5407,6 +5407,70 @@
       "confidence": "verified",
       "signature": "void Field_OrderReclamation(int county, int want)",
       "comment": "Orders want of a county twenty field tiles put under reclamation: walks them in slot order, paints terrain 0x19 on a wasteland tile (terrain 0) and skips a tile already in use. [V] A tile already reclaiming (terrain >= 0x19) is NOT repainted but still spends a place in the quota - the goto skips the decrement for an in-use field and falls through to it for a reclaiming one - so a county told to add one while one is already under way adds nothing. This is what the AI field ladder in Ai_ManageCountyFarms and AI_ManageFields actually calls."
+    },
+    {
+      "addr": "0x0044015A",
+      "name": "Sync_RecordDigest",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "uchar Sync_RecordDigest(void * base, int size, int skip)",
+      "comment": "The multiplayer state checksum's kernel: an 8-bit truncating sum of every byte of one record from offset `skip` to `size`. [V] Its six (size, skip) call sites - (0x300,5) counties, (0x160,6) realms, (0x1A4,0) units, (0x1B0,0x12) battle men, (0x4C,4) missiles, (0x34,0) battle units - are byte-for-byte the six descriptors in g_syncBlocks (0x004D5B10) read out of the exe. So the original's digest is a whole-record hash minus a fixed prefix, not a field list; see docs/formats/eng.md 5.2 and correction C30."
+    },
+    {
+      "addr": "0x00440231",
+      "name": "Sync_BuildDigest",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Sync_BuildDigest(void)",
+      "comment": "Fills the local player's 10-byte g_syncDigest record: byte 1 counties, 2 realms, 3 units in the campaign phase; 5 battle men, 6 missiles, 7 battle units in battle; byte 0 the sum of bytes 1..8 and byte 9 a (tick & 0x7F) + 1 frame tag. [V] L2.eng group 14 indices 2..9 name those eight slots COUNTY PLAYER PIECE 'CTY MAP' FIGURE ARROW 'AI GROUP' 'BAT MAP', and the two slots this function never writes - 4 and 8 - are exactly the two the strings call maps. Its last statement before the total overwrites byte 7 with the constant 1, so the battle-unit block's divergences are silenced in the shipped build."
+    },
+    {
+      "addr": "0x00440DD2",
+      "name": "Sync_BlockAgrees",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "undefined4 Sync_BlockAgrees(int block)",
+      "comment": "Compares byte `block` of g_syncDigest across every live human realm. [V] Returns 2 - wait, not divergence - unless every peer's byte 9 frame tag is equal and non-zero; 0 and sets a per-block flag in the ten-entry array at 0x0053F090 on a mismatch; 1 on agreement. The flag array is one entry per L2.eng group 14 block name."
+    },
+    {
+      "addr": "0x0043F939",
+      "name": "Sync_ResendState",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Sync_ResendState(void)",
+      "comment": "The full-state resync L2.eng group 14 index 16 calls 'The master machine will resync the game.' [V] Sends the current snapshot as 400 net commands of 200 bytes - 80,000 bytes - then calls Sync_Rollback."
+    },
+    {
+      "addr": "0x0044098F",
+      "name": "Sync_DrawRecordDigests",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Sync_DrawRecordDigests(void)",
+      "comment": "Debug overlay: per-record Sync_RecordDigest values for 16 counties, 5 realms and 24 units, using the inline literals \"cty \", \"plyr \" and \"pce \". [V] It is the shipped replacement for L2.eng group 14's COUNTY/PLAYER/PIECE labels, which is why nothing in the binary draws that group. Gated on DAT_0056D690 and a non-zero divergence timestamp."
+    },
+    {
+      "addr": "0x00476DA9",
+      "name": "Tip_Show",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Tip_Show(int group)",
+      "comment": "Shows one first-time tip screen: saves g_screenId, switches to screen 0x27, marks g_tipShown[group] and posts the group with the category from g_tipCategory[group]. [V] Fourteen literal groups reach it - 200, 201, 202, 206..212, 214, 215, 217, 218 - and each is an L2.eng group whose label names the screen it belongs to. See docs/formats/eng.md 5.3."
+    },
+    {
+      "addr": "0x00476AA7",
+      "name": "Tip_Update",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Tip_Update(void)",
+      "comment": "Per-frame tip-screen driver, gated on g_optTipScreens. [V] Twenty frames after a screen is first opened it calls Tip_Show with the group for that g_screenId, once per game. The screen ids it tests - 0x02 town centre, 0x0F job popup with g_jobPanelJob 8, 0x10 army movement, 0x17 armoury, 0x1B castle building, 0x39 advanced options - agree one for one with the L2.eng labels of the groups it passes."
+    },
+    {
+      "addr": "0x0043F5C5",
+      "name": "Sync_Rollback",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "undefined4 Sync_Rollback(void)",
+      "comment": "Multiplayer divergence recovery, promoted from hypotheses.json where it was Battle_ReplayFrame with the caveat 'whether it is a replay, a demo loop or a network resync was NOT established'. [V] It is the network resync: FUN_00440666 calls it on the branch where Sync_BlockAgrees(0) reports a divergence, and Sync_ResendState calls it after pushing the whole snapshot. It restores the last agreed snapshot - g_battleMen, g_missiles, g_battleUnits and both PRNG states - bumps the 'divergances' counter the shipped debug overlay draws, and after four consecutive failures reloads lastturn.sva/.svb and posts L2.eng group 259, 'Com-link error.' See docs/formats/eng.md 5.2."
     }
   ],
   "globals": [
@@ -8356,6 +8420,34 @@
       "section": "diplomacy",
       "confidence": "verified",
       "comment": "The `from` field of the message being displayed, taken out of the queue record by Msg_Pump. [V] The ending logic compares it against g_localPlayer: an elimination notice whose sender is me is a loss, and one about somebody else is not. It is also the realm whose player name the message window draws, except for group 225, which draws the local player's."
+    },
+    {
+      "addr": "0x00569530",
+      "name": "g_syncDigest",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Six 10-byte multiplayer state digests, one per realm, stride 10. Byte 0 total, 1 counties, 2 realms, 3 units, 4 unused, 5 battle men, 6 missiles, 7 battle units (forced to 1), 8 unused, 9 frame tag. [V] Written by Sync_BuildDigest, exchanged whole by Net_WriteField/Net_ReadField, compared by Sync_BlockAgrees; L2.eng group 14 indices 2..9 name bytes 1..8."
+    },
+    {
+      "addr": "0x004D6ED8",
+      "name": "g_tipCategory",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "One message-category byte per L2.eng group, read by Tip_Show. [V] For all twenty tip groups 200..219 the byte read out of the exe equals (strings in the group - 1) + 4, so categories 5..9 are Msg_DrawWindow's 'tip window with 1..5 paragraphs' layouts. Twenty independent chances to disagree and none does."
+    },
+    {
+      "addr": "0x004F0298",
+      "name": "g_tipShown",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "One 'already shown this game' byte per L2.eng group, set by Tip_Show and tested by Tip_Update. [V] FUN_00476A5D clears exactly 20 bytes from g_tipShown + 200, which fixes the tip-screen range at groups 200..219."
+    },
+    {
+      "addr": "0x004D6EB8",
+      "name": "g_helpWindowGeom",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Six {x, y, w, h} int records for the message-category-0x13 help windows, indexed (group - 291), so groups 291..296. [V] Read out of the exe as (32,176,26,10), (16,32,28,27) x4, (32,160,26,12); the matching paragraph counts begin at 0x004D6F18 and equal (strings - 1) for all six."
     }
   ]
 }

@@ -873,7 +873,7 @@ pass and the field recount.
    **A tie goes to the *highest* block index, and this document said the lowest.** The
    comparison is `if (best <= block.population)` scanning upward from slot 0, so an equal
    population *overwrites* the incumbent. The operator was read correctly and the
-   conclusion drawn backwards. `docs/decisions.md` C36.
+   conclusion drawn backwards. `docs/decisions.md` C34.
 
    Two more details worth having. The key is the **sum of the block's members'
    populations**, filled by `Territory_BuildBlocks`' last loop — so a realm holding one

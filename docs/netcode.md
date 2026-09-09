@@ -630,6 +630,87 @@ opens a debugger. The PRNG state deserves its own slot: if it is the *only* thin
 that differs, someone drew a random number outside the simulation, and if it
 differs *along with* everything else, it is a consequence rather than the cause.
 
+### What the original actually did — and where we deliberately differ
+
+> **Read this section differently from the rest of `docs/`.** Everywhere else in this
+> project the original is the authority: where our engine and `Lords2.exe` disagree, the
+> binary is right and we are wrong. **Networking is the exception**, and it is the only
+> one. The owner's reason for the rewrite is the original's multiplayer:
+>
+> > *"we can probably pause on replicating multiplayer, that's the main reason we're doing
+> > this rewrite is because the multiplayer sync is terrible."*
+>
+> So the original's sync is **the defect being replaced, not a model**. Nothing below is an
+> argument for adopting a behaviour because the original had it; every claim here has to
+> stand on its own reasoning, and where it does not, the original's choice is evidence of
+> nothing but what shipped. Fidelity is the method everywhere except here.
+
+Found by reading `L2.eng` group 14, whose label is *"Divergence error. Current count of"*
+and whose indices 2–9 are `COUNTY PLAYER PIECE "CTY MAP" FIGURE ARROW "AI GROUP" "BAT MAP"`.
+The full derivation, with the eight-for-eight check that could have failed, is in
+[`docs/formats/eng.md`](formats/eng.md) §5.2. The parts that bear on decisions here:
+
+**The original's checksum is a whole-record byte sum, not a field list.**
+`Sync_RecordDigest` (`0x0044015A`) sums every byte of a record from a fixed offset to its
+end, truncating to 8 bits; `Sync_BuildDigest` (`0x00440231`) runs it over counties
+(`0x300`, skipping 5), realms (`0x160`, skipping 6), units (`0x1A4`, skipping 0), battle
+men (`0x1B0`, skipping `0x12`), missiles (`0x4C`, skipping 4) and battle units (`0x34`,
+skipping 0), and stores one byte per block plus a total in a 10-byte record per realm at
+`g_syncDigest` (`0x00569530`).
+
+**That is the direct answer to correction C30.** Our `Canonical` digest is a hand-written
+field list, four `County` fields fell out of it, and the digest still reported agreement.
+The original cannot lose a field, because it never enumerates them — it hashes the record
+and skips a documented head. C30's own conclusion was *"what would actually close it is
+deriving the field list from the struct rather than retyping it"*; the original is the
+existence proof that the derived form is what a shipping build used. Note the constraint
+that buys: it works only because a record is a flat POD block with the non-deterministic
+parts pushed into a prefix. That is a design property, not an implementation trick, and
+it is worth deciding whether our records can hold it before copying the scheme.
+
+**Per-subsystem hashes are not a debug-build luxury; the original shipped them.** The
+eight named slots above are exactly the "hash subsystems separately" advice in
+*Localising it*, done in 1996, in the release build, with the block names in the
+localisable string file. `Sync_BlockAgrees` (`0x00440DD2`) sets a per-block flag in a
+ten-entry array so the report can say *which* array diverged. We should keep ours in
+release too.
+
+**Its frame tag is worth stealing.** Byte 9 of the record is `(tick & 0x7F) + 1`, and
+`Sync_BlockAgrees` refuses to compare at all until every live peer carries the same
+non-zero tag — returning "not everybody is here yet" rather than "divergence". Without
+that, the first slow peer looks exactly like a desync. Ours needs the same guard.
+
+**Where we differ, on purpose.** The original **rolls back and retries**: on a mismatch
+`Sync_Rollback` (`0x0043F5C5`) restores the last agreed snapshot — including both PRNG
+states — and carries on; after three consecutive failures it re-sends two peers' state,
+and only on the fourth does it reload the turn autosave and post *"Com-link error."*
+(`L2.eng` group 259). `Sync_ResendState` (`0x0043F939`) pushes 80,000 bytes of raw
+snapshot to do it, which is what group 14's *"The master machine will resync the game."*
+describes.
+
+**We halt, and finding out that the original did otherwise is not a reason to reconsider.**
+A resynchronised session hides the bug that caused the divergence; the original's own
+shipped `status.txt` counts `Net play divergance count` and `Net play wipe outs` as
+routine telemetry, which is evidence that it diverged **often enough to need a policy** —
+and that is the symptom being designed out, not a feature to reproduce. Rollback, retry,
+state resend and turn reload are explicitly **not** on this project's roadmap. What changes
+with this reading is only that our halt is now a considered disagreement with a known
+design rather than an assumption; the position itself is unchanged and does not depend on
+what the original did.
+
+The two things above that *are* worth taking — a digest whose completeness is structural,
+and a frame tag that distinguishes "not everybody is here yet" from "divergence" — are
+worth taking because the reasoning holds, not because 1996 did them. The first is C30's
+own conclusion arrived at independently; the second removes a false positive that would
+otherwise make every slow peer look like a desync.
+
+**One last thing the original teaches by its own bug.** The statement immediately before
+it totals the record is `g_syncDigest[me][7] = 1` — the battle-unit block's sum is
+computed and then overwritten with a constant, so that block's divergences were invisible
+in the shipped game. A checksum with a silenced field is exactly C30 again, in someone
+else's code. Whatever we build, make the *coverage* of the digest a thing a test asserts,
+not a thing a reader has to notice.
+
 ### The replay harness — the part that pays for itself
 
 Because `step()` is pure (D-11), a session is fully described by
