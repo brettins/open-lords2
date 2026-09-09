@@ -42,6 +42,21 @@ l2-sim = { path = "../l2-sim" }
 l2-view = { path = "../l2-view" }
 pixels = "0.17.2"
 winit = "0.30.13"
+# Sound, and the third thing in the workspace that touches the machine rather
+# than the world. It is here for the same reason `winit` is: `src/audio` opens
+# an output device, and a crate that opens a device is a crate whose behaviour
+# depends on which machine it is running on (`docs/netcode.md` D-3).
+#
+# `default-features = false` drops the optional ASIO and JACK back ends; what
+# is left is WASAPI on Windows, ALSA on Linux and CoreAudio on macOS, which is
+# every machine this game runs on. `cpal` is an output device and a callback —
+# the decoding, the resampling and the mixing are all in `src/audio`, in about
+# four hundred lines, because the alternative pulls a whole media stack in for
+# 11 kHz 8-bit PCM.
+#
+# **Nothing in CI's Linux job builds this.** `l2-game` is excluded there on
+# purpose, so `cpal`'s ALSA headers are not a new requirement on that runner.
+cpal = { version = "0.16", default-features = false }
 
 [lib]
 name = "l2_game"

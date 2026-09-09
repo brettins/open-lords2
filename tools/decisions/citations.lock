@@ -43,6 +43,7 @@ crates/l2-game/src/turn.rs	C35	dcd60927a9fb
 crates/l2-game/src/victory.rs	C44	81209403d144
 crates/l2-game/src/victory.rs	C44	eb2da78efce9
 crates/l2-game/src/victory.rs	C44	fa73148cbb7c
+crates/l2-game/tests/audio_install.rs	C1	afd71632a6e6
 crates/l2-game/tests/military.rs	C35	ded7fe0edd82
 crates/l2-game/tests/screens.rs	C21	1523306009a2
 crates/l2-game/tests/screens.rs	C22	1d39d618c245
@@ -222,6 +223,7 @@ docs/decisions.md	C25	fcf38cc5919b
 docs/decisions.md	C26	1824d81774d5
 docs/decisions.md	C26	5357aea2a649
 docs/decisions.md	C28	86890c8b2fbc
+docs/decisions.md	C28	8a45d173ac29
 docs/decisions.md	C28	a1984c5fe2fb
 docs/decisions.md	C28	aa16a345c654
 docs/decisions.md	C28	d54a0560329e
@@ -255,6 +257,7 @@ docs/decisions.md	C40	dd07d41c363e
 docs/decisions.md	C41	31c16a7144fe
 docs/decisions.md	C43	e2cdd9974342
 docs/decisions.md	C46	9f9877405047
+docs/decisions.md	C5	2d9efa526576
 docs/decisions.md	C5	87aaf3ba3e2d
 docs/decisions.md	C5	8ac42aa0e5d0
 docs/decisions.md	C7	3c72ce757143
@@ -296,6 +299,7 @@ docs/mechanics.md	C27	6a66e90a3f82
 docs/mechanics.md	C33	ee15b2bcca4b
 docs/mechanics.md	C44	4a8c86312733
 docs/mechanics.md	C45	3017fd9007b8
+docs/mechanics.md	C51	6132fb2e84ab
 docs/method.md	C21	4fd02f68abf9
 docs/method.md	C3	588652ea16c6
 docs/method.md	C38	5300e90cb318
@@ -356,6 +360,9 @@ docs/symbols.json	C30	a8b53e985a1d
 docs/symbols.json	C31	8b2fadf0f9d5
 docs/symbols.json	C34	1d2ee3676454
 docs/symbols.json	C49	7626b709d45a
+docs/symbols.json	C51	4410d4bdcffa
+docs/symbols.json	C51	8a9048b61f48
+docs/symbols.json	C51	ae4dd65c277f
 docs/symbols.md	C20	607a21e04411
 docs/symbols.md	C20	bd8dc0cc37c2
 docs/symbols.md	C22	663d0fc4172b
@@ -370,6 +377,9 @@ docs/symbols.md	C30	045b912580de
 docs/symbols.md	C31	c0282091f875
 docs/symbols.md	C34	1d2ee3676454
 docs/symbols.md	C49	797eb3ccc5a7
+docs/symbols.md	C51	0786b01a4165
+docs/symbols.md	C51	60c9085466ab
+docs/symbols.md	C51	ba30732104b0
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611
 tools/audit/rva.js	C14	99231cda993c
 tools/audit/rva.js	C16	e4312831d7d6

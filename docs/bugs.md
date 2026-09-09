@@ -389,6 +389,33 @@ All five arrived with the siege branch, and all five are reproduced.
 | **B60** | **`Army_BeginSiege`'s guard does not check whose garrison it is.** Besieging your own castle is refused only by the map's hover test never offering the order, not by the function. | — | `siege.rs:212` — *"Reproduced as the original has it"* |
 | **B61** | **A besieger starved to nothing reports stale readiness.** The whole body of the build-time recompute is inside `if (menTotal > 0)`, so an army with no men leaves `siegeSeasonsLeft` at whatever it held. | — | `siege.rs:361` — *"reproduced rather than tidied"* |
 
+## 2.9 Sound
+
+### B62 — Winning a battle plays the defeat fanfare
+
+**What the original does.** `Battle_ReturnToCampaign` (`0x004AB383`) plays a fanfare at two
+sites, one on each side of the outcome. Both name **`ff_lose.wav`** — and not through a
+shared pointer either: they are two separate string literals, at `0x004DE8F8` and
+`0x004DE904`, holding the same eleven characters.
+
+**Why it is a bug.** `Ff_win.wav` **ships**, 8-bit 11 kHz like every other effect, and
+`Lords2.exe` does not contain its name anywhere. A byte scan of the executable for each of
+the install's 771 `.wav` filenames finds 753 and misses 18; `Ff_win.wav` is one of them, and
+it is the only one of the eighteen with an obvious caller sitting right beside a literal
+that ought to be it. Two adjacent identical literals is what a copy-paste looks like in
+`.data`.
+
+**Evidence.** **[V]** on the two call sites and on the executable containing no reference to
+`ff_win.wav`, asserted over the user's own install by
+`l2-game/tests/audio_install.rs::the_shipped_sounds_the_executable_never_names_are_the_eighteen_we_wrote_down`.
+**[I]** that it is a mistake rather than a late decision to use one fanfare for both — but
+a decision would have deleted the file, and it is still in the box.
+
+**Reproduced?** **Not yet applicable.** There is no post-battle fanfare in our code because
+there is no battle screen. `crates/l2-game/src/audio/names.rs` names the constant
+`fanfare::AFTER_BATTLE` rather than `LOSE`, so whoever wires it up meets the fact rather
+than the assumption.
+
 ---
 
 # 3. The original's bugs we do **not** reproduce
@@ -626,6 +653,8 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 | **D29** | **The 50-men withdrawal-survival rule is unreachable under the autocalc**, which zeroes the loser's men. It is gated on `DAT_0056D5C8`, raised in exactly one place (`UnitOrder_SiegeAttKnight`). Note this is the *inner* test only: the **outer** `else` — a loser still linked as a besieger and still holding men keeps them and merely has its siege lifted — is reachable from a fought siege, and C31 stopped before it. | [V] (corrections C31 and **C38**) |
 | **D32** | **The siege-preparation default of two towers is unreachable for every shipped lord.** `Siege_Prepare` tests the lord's doctrine byte against three constants, and the four shipped values are `8, 9, 7, 7` — so every lord takes a named arm and the `default:` never runs. | [V] — three of the four values are exactly the three constants tested and the fourth repeats one of them |
 | **D30** | **Phase 5's wait predicate covers a unit nothing creates** — a player-owned peasant mob. The guard is reproduced anyway. | — |
+| **D34** | **Three of every sixteen troop cries are unreachable, and the shipping build knew.** `FUN_00499CB1` round-robins four takes within an event class but forces take 0 for class 3, so cells 13, 14 and 15 of each unit's block at `0x004DB0D0` can never be selected. That is where the `_F1` names sit — one per troop type, `Peas_F1.wav` through `Knig_F1.wav`, seven names the binary carries and **not one of which is in the install**. Cells 13 and 14 name real files, which is why the block reads as complete. | [V] — the index arithmetic, plus the absence of all seven `_F1` files |
+| **D35** | **Both sample banks reserve a slot for a file that has never existed.** Slot 1 of each is `null.wav`, which is in neither the Windows install nor the DOS one; the bank loader takes a count and the slot is how the original spells a hole in a fixed-size table. | [V] on both installs |
 | **D31** | **81 % of the game's audio exists to satisfy a test whose answer is fixed.** `FUN_004AEF7E` opens `pumkin.wav` (320 MB across two byte-identical copies), measures it against 151,000,000 and closes it. `DAT_005C9A74` is set to 1 before the test, set to 1 again in both success branches, and never set to any other value anywhere; its three readers ask `(flag < 1) \|\| (2 < flag)`, which cannot be true. | [V] |
 
 ---
