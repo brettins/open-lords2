@@ -573,6 +573,13 @@ pub fn garrison_apply(
     if men > crate::industry::garrison_cap(t, castle_type) {
         if let Some(u) = units.get_mut(army) {
             u.moving = false;
+            // `unit.state = 2` in the C above, and **the mission has to go with
+            // it**. Without this an AI lord marches the same men at the same
+            // full castle every turn: step 7 gives the garrison order, the
+            // order is refused here, the mission is still GARRISON, and next
+            // turn it gives the same order. Found by `ai-lords-play` playing
+            // forty turns, not by reading this function.
+            u.mission = crate::ai_army::Mission::SEEK_ENEMY;
         }
         return None;
     }

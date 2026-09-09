@@ -303,11 +303,11 @@ that realm's `+0x00`. All fourteen handlers have now been decompiled:
 | 4 | `0x0049E1BF` | total what the realm can sell and what it needs to buy, into realm `+0x70 … +0x7C` |
 | 5 | `Ai_ManageCountyFarms` `0x0049DD01` | **not `AI_ManageFields`, which is `0x0049DFC6`** — order fields reclaimed as the county grows, then lay the county out by the lord's farming style. §8.6 |
 | 6 | `AI_BuildCastles` `0x0049EDC7` | order the largest castle the treasury clears, from five per-lord gold thresholds at personality `+0xCC … +0xDC`, capped at personality `+0x90` concurrent builds. [`diplomacy.md`](diplomacy.md) §8.1 |
-| 7 | `0x0049F93D` | three army-management sub-passes |
+| 7 | `0x0049F93D` | three army-management sub-passes: pick the muster county (`FUN_004A0AAA`), top up the castle garrisons (`FUN_0049F12F`), and hold or write off each threatened frontier county (`FUN_0049F431`). [`armies.md`](armies.md) §10 |
 | 8 | `0x0049F96C` | **nothing — the function is empty** |
-| 9 | `0x0049F977` | raise men in the realm's chosen county and march them |
-| 10 | `0x004A0015` | create a type-7 unit and send it out |
-| 11 | `0x004A5667` | walk every army towards its target tile |
+| 9 | `0x0049F977` | raise the main army in the muster county and aim it, or divert an existing one of 200+ men when the county is too small. [`armies.md`](armies.md) §10 |
+| 10 | `0x004A0015` | send a **raiding party** — about fifty unarmed men — at the standing crops of a rival county. **Not a "type-7 unit": there is no unit kind 7.** The 7 is unit `+0x1A`, the mission byte; the unit `Army_Create` spawns is a type-1 army. [`armies.md`](armies.md) §10 |
+| 11 | `0x004A5667` | `Ai_AdvanceArmies` — run each army's mission handler (unit `+0x1A`, six of them) and re-path it. [`armies.md`](armies.md) §10 |
 | 12 | `0x0049E77D` | set every county's weapon type from a ten-step per-lord rota, switch the four industries on or off, reallocate labour |
 | 13 | `AI_Taunt` `0x004A13A6` | **not alliances** — a taunt timer. A realm ranked better than 2nd sends *"How are you doing?"* above 39 % of the map and *"Helpful advice."* to the last-placed human above 27 %. [`diplomacy.md`](diplomacy.md) §6 |
 | 14 | `0x0049D1E0` | recompute the realm's totals — §8.3 |
@@ -320,6 +320,20 @@ in [`diplomacy.md`](diplomacy.md).
 **Steps 2 and 13 were the wrong way round here until the diplomacy work.** This section had
 step 2 as a grudge counter and step 13 as *"offer an alliance, or break one"*. Step 2 does
 both of those; step 13 does neither and is a taunt timer. The rows are corrected above.
+
+**And step 10 was one digit wrong for as long as this table has existed.** It read *"create a
+**type-7 unit** and send it out"*, which `crates/l2-kingdom/src/ai.rs` then copied on as
+*"needs the unit mission byte"* without noticing the two were the same claim. There is no unit
+kind 7 — [`armies.md`](armies.md) §1 has four and `g_unitTickTable` has four handlers — and
+`FUN_004A0015` reaches `Army_Create`, which spawns a **type-1 army**. The 7 goes into unit
+`+0x1A`, the mission byte. [`armies.md`](armies.md) §10 is the whole enum. It is C28's shape
+for the fourth time on this project: a field name in a table read as a fact.
+
+**Steps 4, 7, 9, 10 and 11 are implemented**, in `crates/l2-kingdom/src/ai_army.rs`, and the
+reason they were not is recorded in `docs/plan.md` §2.4: the module comment said they *"drive
+armies, merchants, diplomacy and map tiles, none of which `l2-kingdom` owns"*, and it had owned
+a unit model since the day that was written. Two of the fourteen are still not run and both are
+diplomacy.
 
 Three corrections to what this section used to say:
 

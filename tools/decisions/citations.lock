@@ -90,8 +90,11 @@ crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992
 crates/l2-kingdom/src/levy.rs	C47	7a585921e1bb
 crates/l2-kingdom/src/lib.rs	C11	40b20e35a6aa
+crates/l2-kingdom/src/lib.rs	C61	32da975bdde2
+crates/l2-kingdom/src/lib.rs	C62	2dea38655850
 crates/l2-kingdom/src/map.rs	C25	28b0c4932b46
 crates/l2-kingdom/src/mercenary.rs	C3	5338c04f3210
+crates/l2-kingdom/src/movement.rs	C25	c507242adac1
 crates/l2-kingdom/src/movement.rs	C40	87816e7f9e43
 crates/l2-kingdom/src/phase.rs	C35	234e7ea17154
 crates/l2-kingdom/src/population.rs	C20	11223ff82fe2
@@ -214,9 +217,9 @@ docs/armies.md	C31	b676389c8793
 docs/armies.md	C31	ee22c35135b4
 docs/armies.md	C35	e0a7b45808b5
 docs/armies.md	C38	5e9d901fbb69
-docs/armies.md	C40	365b1b19ac27
 docs/armies.md	C40	36d53b118aac
 docs/armies.md	C40	3cddc0864ef1
+docs/armies.md	C40	48ac95a9d767
 docs/armies.md	C59	1cbb270593d9
 docs/armies.md	C61	0f02362fcf6e
 docs/audit.md	C4	137a29e56031
@@ -276,6 +279,7 @@ docs/decisions.md	C25	279621d20313
 docs/decisions.md	C25	2b0966c01658
 docs/decisions.md	C25	3e669c6c4204
 docs/decisions.md	C25	542068b1deb2
+docs/decisions.md	C25	85c3d43f38b0
 docs/decisions.md	C25	a7c5b0f119ba
 docs/decisions.md	C25	c04531db429e
 docs/decisions.md	C25	de5babed763b
@@ -285,6 +289,7 @@ docs/decisions.md	C25	fcf38cc5919b
 docs/decisions.md	C26	1824d81774d5
 docs/decisions.md	C26	5357aea2a649
 docs/decisions.md	C27	95bf59280ccd
+docs/decisions.md	C27	d8fd9b6745ad
 docs/decisions.md	C28	86890c8b2fbc
 docs/decisions.md	C28	8a45d173ac29
 docs/decisions.md	C28	a1984c5fe2fb
@@ -354,7 +359,9 @@ docs/decisions.md	C58	4d7747b50e07
 docs/decisions.md	C58	c9cba72f3595
 docs/decisions.md	C58	cf211d06686a
 docs/decisions.md	C59	611dbc328c24
+docs/decisions.md	C59	8d056fe8fc64
 docs/decisions.md	C59	d158413c5a3c
+docs/decisions.md	C59	f8f78fa7b192
 docs/decisions.md	C61	af1e7ea10593
 docs/decisions.md	C62	caa3cf750af3
 docs/decisions.md	C63	6bf7e86683ab
@@ -434,6 +441,7 @@ docs/plan.md	C32	759df38b58c2
 docs/plan.md	C32	c9b6bccd6393
 docs/plan.md	C45	546a5f993a1b
 docs/plan.md	C46	8269936b6754
+docs/plan.md	C61	ae8c0f929448
 docs/plan.md	C62	3c12bfd5b5df
 docs/plan.md	C62	67ee0db471b9
 docs/plan.md	C63	9f326925183e
@@ -536,8 +544,8 @@ docs/symbols.md	C61	7ad6c6c3e1d9
 docs/symbols.md	C61	f7e9211f55d0
 docs/symbols.md	C62	1887747d945d
 docs/symbols.md	C62	2c4c65a13ecb
+docs/symbols.md	C62	d83cf4e1233b
 docs/symbols.md	C62	db60feb8efc6
-docs/symbols.md	C62	e62a9adc5549
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611
 tools/audit/rva.js	C14	99231cda993c
 tools/audit/rva.js	C16	e4312831d7d6

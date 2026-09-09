@@ -137,6 +137,13 @@ pub mod terrain {
     /// `Unit_ReachCastleBuilding` on exactly `0x14 < terrain < 0x1A`. This
     /// promotes `docs/hypotheses.json` H6, which had the mapping from two
     /// counties of one save and said so.
+    /// **Confirmed a third time, by a branch that did not know about the first
+    /// two.** `ai-lords-play` derived the same range independently: the England
+    /// fixture's five *owned* counties carry a `0x17` block and the nine
+    /// unowned ones carry `0x14`, and the AI's own castle-tile finder
+    /// (`FUN_004A65A3`) tests exactly `0x14 < terrain < 0x1A` — a third writer
+    /// and a third reader agreeing with `Castle_StampTile` and `Unit_Step`.
+    /// Its duplicate constant is gone; this is the one.
     pub const CASTLE_FROM: u8 = 0x15;
     pub const CASTLE_TO: u8 = 0x19;
 

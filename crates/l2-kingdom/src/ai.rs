@@ -15,20 +15,35 @@
 //! | 1 | `0x004A277D` | `Diplo_AnswerInbox` — answer the five pending diplomatic messages | no — **blocked**: there is no inbox and no reply handlers |
 //! | 2 | `0x004A0C1D` | `AI_Diplomacy` — accumulate grudges; break or offer an alliance | no — **blocked**: needs `form_alliance` / `break_alliance` / `offend` |
 //! | 3 | `0x0049D638` | **`AI_SetTaxRates`** — set tax rates, grant resources | [`set_tax_rates`], [`grant_resources`] |
-//! | 4 | `0x0049E1BF` | work out what the realm wants to buy | no — the four `want` fields have no consumer until the merchant lands |
+//! | 4 | `0x0049E1BF` | work out what the realm wants to buy | [`crate::ai_army::resource_wants`] |
 //! | 5 | `0x0049DD01` | **`Ai_ManageCountyFarms`** — order fields, then the lord's farming style | [`crate::ai_farm::manage_county_farms`] |
 //! | 6 | `0x0049EDC7` | **`AI_BuildCastles`** — order the biggest castle the treasury clears | [`build_castles`] |
-//! | 7 | `0x0049F93D` | three army-management passes | partly — pass 3 is **blocked** on transports and merchant trade |
+//! | 7 | `0x0049F93D` | three army-management passes | [`crate::Kingdom::run_ai_armies`] |
 //! | 8 | `0x0049F96C` | **nothing: the function is empty** | [`AiStep::is_empty`] |
-//! | 9 | `0x0049F977` | raise and move the main army | no — needs eight new fields and `Diplo_ActionAllowed` |
-//! | 10 | `0x004A0015` | send out the raiding force | no — needs the unit *mission* byte |
-//! | 11 | `0x004A5667` | walk every army towards its target | no — **blocked** on the six unit-mission handlers behind `FUN_004A57AC` |
+//! | 9 | `0x0049F977` | raise the main army and aim it | [`crate::Kingdom::run_ai_raise_army`] |
+//! | 10 | `0x004A0015` | send out the raiding force | [`crate::Kingdom::run_ai_raid`] |
+//! | 11 | `0x004A5667` | walk every army towards its target | [`crate::Kingdom::run_ai_move_armies`] |
 //! | 12 | `0x0049E77D` | **`AI_ChooseIndustry`** — the weapon rota, and the industry switches | [`choose_industry`] |
 //! | 13 | `0x004A13A6` | **`AI_Taunt`** — gloat at the human when winning | [`taunt`] |
 //! | 14 | `0x0049D1E0` | **recompute the realm's totals** | [`update_realm_totals`] |
 //!
 //! Step 8 being empty is worth stating as a finding rather than an omission:
 //! one of the fourteen slots does nothing in the shipped binary.
+//!
+//! # The reason five of them were blocked had expired
+//!
+//! Steps 4, 7, 9, 10 and 11 carried, between them, *"needs the unit mission
+//! byte"*, *"blocked on transports"*, *"needs eight new fields"* and
+//! *"blocked on the six unit-mission handlers"*. Every one of those was true
+//! when it was written and none of it was true when it was read: this crate
+//! has owned [`crate::unit`], [`crate::movement`], [`crate::levy`] and
+//! [`crate::map`] since the day the note was made. **A stale comment that
+//! reads as a decision is the most expensive kind** — `docs/plan.md` §2.4 —
+//! and [`crate::ai_army`] is the five steps it was holding shut.
+//!
+//! Two of the fourteen are still not run, and both are diplomacy. That is the
+//! ordering `docs/plan.md` §3 item 7 argues for: *"a game can be finished
+//! without diplomacy and cannot be finished without opponents that attack."*
 //!
 //! # The two names that were one name
 //!
@@ -193,20 +208,10 @@ impl AiStep {
         self == AiStep::Nothing
     }
 
-    /// True where this crate actually runs the step. The rest are named and
-    /// described and do nothing, because what they drive — armies, merchants,
-    /// diplomacy, map tiles — is not this crate's state.
+    /// True where this crate actually runs the step. The two that are not are
+    /// the diplomacy pair, which needs an inbox and the seven reply handlers.
     pub fn is_implemented(self) -> bool {
-        matches!(
-            self,
-            AiStep::SetTaxRates
-                | AiStep::ManageFields
-                | AiStep::BuildCastles
-                | AiStep::ChooseIndustry
-                | AiStep::Taunt
-                | AiStep::UpdateTotals
-                | AiStep::Nothing
-        )
+        !matches!(self, AiStep::Diplomacy | AiStep::ConsiderWar)
     }
 }
 
@@ -870,40 +875,28 @@ mod tests {
         assert_eq!(AiStep::Nothing.address(), 0x0049_F96C);
     }
 
-    /// **Seven of the fourteen run.** The other seven are the army, merchant and
-    /// diplomacy steps; the module table says which are blocked on a missing
-    /// subsystem and which only want fields.
+    /// **Twelve of the fourteen run, and the two that do not are both
+    /// diplomacy.** This test used to assert the other way round — seven and
+    /// seven, with the army steps listed as blocked — and the list it asserted
+    /// was a list of reasons that had all expired. See the module
+    /// documentation.
     #[test]
-    fn the_implemented_steps_are_the_ones_that_touch_only_counties_and_realms() {
-        let done: Vec<AiStep> =
-            AiStep::ALL.iter().copied().filter(|s| s.is_implemented()).collect();
-        assert_eq!(
-            done,
-            vec![
-                AiStep::SetTaxRates,
-                AiStep::ManageFields,
-                AiStep::BuildCastles,
-                AiStep::Nothing,
-                AiStep::ChooseIndustry,
-                AiStep::Taunt,
-                AiStep::UpdateTotals,
-            ]
-        );
+    fn the_only_unimplemented_steps_are_the_two_diplomatic_ones() {
         let blocked: Vec<AiStep> =
             AiStep::ALL.iter().copied().filter(|s| !s.is_implemented()).collect();
         assert_eq!(
             blocked,
-            vec![
-                AiStep::Diplomacy,
-                AiStep::ConsiderWar,
-                AiStep::ResourceWants,
-                AiStep::ManageArmies,
-                AiStep::RaiseArmy,
-                AiStep::SendUnit,
-                AiStep::MoveArmies,
-            ],
-            "diplomacy, the merchant's wants, and the four army steps"
+            vec![AiStep::Diplomacy, AiStep::ConsiderWar],
+            "the inbox and the grudge model, and nothing else"
         );
+        assert_eq!(AiStep::ALL.iter().filter(|s| s.is_implemented()).count(), 12);
+        // The four steps the expired comment was holding shut.
+        for step in
+            [AiStep::ResourceWants, AiStep::ManageArmies, AiStep::RaiseArmy, AiStep::SendUnit]
+        {
+            assert!(step.is_implemented(), "{step:?}");
+        }
+        assert!(AiStep::MoveArmies.is_implemented());
     }
 
     #[test]

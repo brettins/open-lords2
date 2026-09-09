@@ -146,6 +146,18 @@ fn furnished(seed: u64) -> Kingdom {
         r.offer_timer = -(n as i8) - 1;
         r.crowned_once = id % 3 == 0;
         r.voice_rotation = (id % 4 + 1) as u8;
+
+        // The war plan — `l2_kingdom::ai_army`, `VERSION` 14. Standing orders
+        // that persist between turns, so a save that dropped them would forget
+        // which county a realm musters from and restart every lord's muster
+        // and raid counter at zero.
+        r.muster_county = (id + 7) as u8;
+        r.raid_county = (id + 8) as u8;
+        r.muster_timer = (id + 9) as u8;
+        r.threat_realm = (id % 5 + 1) as u8;
+        r.attack_county = (id + 10) as u8;
+        r.raid_timer = (id + 11) as u8;
+        r.want = [100 + n, 200 + n, 0, 300 + n];
         for other in 0..MAX_REALMS {
             let m = other as i32;
             r.pairs[other] = Pair {
@@ -400,6 +412,11 @@ fn furnish_campaign(k: &mut Kingdom) {
         // `+0x167`, the county-defence mark — `docs/armies.md` §8.1, and the
         // second half of what `VERSION` 10 restored.
         u.defence_mark = (n % 2 + 1) as u8;
+        // `+0x1A` and `+0x19B`, the AI mission byte and the county it is about
+        // — `l2_kingdom::ai_army::Mission`, `VERSION` 14. Every value 2..=7 is
+        // walked, because they are six different handlers.
+        u.mission = (n % 6 + 2) as u8;
+        u.mission_county = n as u8 + 4;
         // The siege build records and the countdown, saturated the same
         // way: every unit carries one rather than only the besieger, so
         // the round trip covers them on every slot it walks.
@@ -559,10 +576,19 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // 56,566 at VERSION 11; +5 at 12 for `Options::exploration` (one byte) and
     // `Options::time_limit` (four); +164 at 13 for the merchant's books —
     // `County::purse` over 17 county slots (68) and the four `Realm` trade
-    // accumulators over 6 realm slots (96); +357 at 14 for the castle's build
-    // record — `castle_progress` (4 bytes) out and seven fields (25) in, over
-    // 17 county slots, which is 21 apiece.
-    assert_eq!(c.finish().len, 57_092, "the state encoding changed - bump VERSION?");
+    // accumulators over 6 realm slots (96); then TWO independent bumps to
+    // version 14 on the same day, and both deltas apply: +357 for the castle
+    // build record — `castle_progress` (4 bytes) out and seven fields (25) in,
+    // over 17 county slots, 21 apiece — and +132 for the AI war plan, six bytes
+    // and four words a realm over 6 realm slots.
+    //
+    // The unit pair `Unit::mission`/`mission_county` adds nothing *here*, and
+    // that is a property of this measurement rather than of the encoding: a
+    // `Kingdom::new` has no units in it, so the unit block is empty and this
+    // number is blind to every field a unit has. The saturated fixture is what
+    // covers those, and `every_field_of_the_state_is_furnished` is what makes
+    // sure it does.
+    assert_eq!(c.finish().len, 57_224, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

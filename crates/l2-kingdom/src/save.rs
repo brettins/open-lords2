@@ -266,6 +266,37 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   `castle_degraded` had **no reachable writer** before this version, so
 ///   every version 13 save in existence has it zero in every county and a
 ///   castle nobody could have started. There is nothing to preserve.
+///
+///   **Two branches bumped to 14 on the same day with different contents, and
+///   they are one version rather than 14 and 15.** Neither had shipped, so no
+///   save exists that has one set of fields and not the other; numbering them
+///   separately would invent a save nobody can hold and a translation nobody
+///   can test. Both are refusals in any case.
+///
+///   **And, from a second branch that bumped to the same version on the same's war plan** ([`crate::ai_army`]): `Unit`'s `mission` and
+///   day, the AI
+///   `mission_county`, and `Realm`'s `muster_county`, `raid_county`,
+///   `muster_timer`, `threat_realm`, `attack_county`, `raid_timer` and the
+///   four-slot `want`.
+///
+///   Every one of them is a *standing order that persists between turns*, which
+///   is exactly what a save is for. `mission` is the sharpest: it is the byte
+///   AI step 11 dispatches on, so a save that dropped it would reload every AI
+///   army as an attacker — **including the garrisons**, which would then
+///   discover their county was still theirs, do nothing, and be marched out of
+///   their castles the first time anything took one. The realm fields are
+///   softer and no less real: a reloaded game would restart every lord's muster
+///   and raid counters at zero, forget which county each realm musters from,
+///   and forget the county its main army is currently marching on.
+///
+///   **Refusal rather than default**, on the same reasoning as entries 12 and
+///   13: a version 13 save was written by a build whose AI raised no armies at
+///   all, so the fields really are zero in it — but zero is a *meaningful*
+///   value for `mission` (it is the one the dispatcher normalises), and a save
+///   is not the place to be right by accident.
+///
+///   *Written as 14 with `VERSION` at 13 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
 pub const VERSION: u32 = 14;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
@@ -705,6 +736,12 @@ impl Encode for crate::unit::Unit {
         out.u8(self.besieging_county);
         out.u8(self.besieged_by);
         out.u8(self.cargo_county);
+        // The mission byte and its county (`VERSION` 14). `+0x1A` is what AI
+        // step 11 dispatches on, so a save that dropped it would reload every
+        // army as an attacker � including the garrisons, which would then
+        // walk out of their castles.
+        out.u8(self.mission);
+        out.u8(self.mission_county);
         // The siege state. `defence_mark` joins it here for the reason C30
         // gives: it was in no save and in no checksum, and it is the byte that
         // decides whether winning a battle also wins the county. It is
@@ -785,6 +822,8 @@ impl Decode for crate::unit::Unit {
         u.besieging_county = input.u8()?;
         u.besieged_by = input.u8()?;
         u.cargo_county = input.u8()?;
+        u.mission = input.u8()?;
+        u.mission_county = input.u8()?;
         u.defence_mark = input.u8()?;
         for record in u.engines.iter_mut() {
             record.ordered = input.i16()?;
@@ -1149,6 +1188,21 @@ impl Encode for Realm {
         out.i8(self.offer_timer);
         out.bool(self.crowned_once);
         out.u8(self.voice_rotation);
+
+        // The war plan (`VERSION` 14). Seven fields the AI writes in steps 7,
+        // 9 and 10 and reads again next turn, plus the four resource wants
+        // step 4 fills. A realm that reloaded without them would forget which
+        // county it musters from, restart every lord's muster and raid
+        // counters at zero, and lose the county its main army is marching on.
+        out.u8(self.muster_county);
+        out.u8(self.raid_county);
+        out.u8(self.muster_timer);
+        out.u8(self.threat_realm);
+        out.u8(self.attack_county);
+        out.u8(self.raid_timer);
+        for want in &self.want {
+            out.i32(*want);
+        }
     }
 }
 
@@ -1233,6 +1287,15 @@ impl Decode for Realm {
         r.offer_timer = input.i8()?;
         r.crowned_once = input.bool()?;
         r.voice_rotation = input.u8()?;
+        r.muster_county = input.u8()?;
+        r.raid_county = input.u8()?;
+        r.muster_timer = input.u8()?;
+        r.threat_realm = input.u8()?;
+        r.attack_county = input.u8()?;
+        r.raid_timer = input.u8()?;
+        for slot in 0..r.want.len() {
+            r.want[slot] = input.i32()?;
+        }
         Ok(r)
     }
 }

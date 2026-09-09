@@ -312,6 +312,62 @@ pub struct Realm {
     /// It picks which of the lord's four recorded takes plays, and it is half
     /// of the `lord * 4 + rot - 4` variant index. `docs/diplomacy.md` §0.
     pub voice_rotation: u8,
+
+    // --- the war plan: what AI steps 7, 9 and 10 write ----------------------
+    // These seven fields are the AI's *standing orders*. They persist between
+    // turns, which is the whole reason they are realm state and not locals:
+    // a realm that decided last turn to attack county 4 out of county 2 is
+    // still doing that this turn. See [`crate::ai_army`].
+    /// `+0xE5` — **the muster county**: where this realm raises its main army.
+    /// Rebuilt every turn by [`crate::ai_army::choose_muster_counties`], which
+    /// scores every owned county on population, happiness and how much spare
+    /// food it has.
+    pub muster_county: u8,
+    /// `+0xE6` — the **raiding** county, the second output of the same scoring
+    /// pass. It takes the *opposite* food term: the county picked to muster
+    /// from is the one with food to spare, and this is the one whose larder is
+    /// under strain. Written by the same function and read by nothing in the
+    /// shipped binary that this crate has found — carried because the pass
+    /// writes it and a save that dropped it would diverge on nothing today and
+    /// on something tomorrow. `[D]`
+    pub raid_county: u8,
+    /// `+0x45` — **the muster patience counter.** A realm with neither a
+    /// war target nor an ally's request counts up here and only looks for
+    /// somewhere to attack when it reaches the lord's
+    /// [`crate::tables::AI_PERSONALITY_MUSTER_PATIENCE`], then resets to 0.
+    /// So the Bishop goes looking every second turn and the Baron every
+    /// fourth.
+    ///
+    /// The byte sits immediately after the twenty-four army-name counters at
+    /// `+0x2D`, which end exactly on `+0x45` — `docs/records.json`.
+    pub muster_timer: u8,
+    /// `+0x48` — **the realm this one has decided is the threat**: the
+    /// top-ranked realm holding at least 40% of the map, or the declared
+    /// [`Realm::war_target`] when there is one. Rebuilt every muster;
+    /// [`crate::ai_army::pick_threat`].
+    pub threat_realm: u8,
+    /// `+0x4B` — **the county the main army is aimed at.** Chosen by
+    /// [`crate::Kingdom::pick_attack_county`] and read again by step 10, which
+    /// sends its raider to the same place.
+    pub attack_county: u8,
+    /// `+0x15A` — **the raid cooldown.** Step 10 sends one unit and then loads
+    /// this with the lord's [`crate::tables::AI_PERSONALITY_RAID_INTERVAL`],
+    /// counting it down one a turn and sending nothing until it is 0 again.
+    pub raid_timer: u8,
+
+    /// `+0x70`, `+0x74`, `+0x78`, `+0x7C` — **what the realm wants to buy**,
+    /// in wood, iron, (unwritten) and stone.
+    ///
+    /// AI step 4 ([`crate::ai_army::resource_wants`]) zeroes all four and
+    /// refills the three it uses; `Ai_TradeForCounty` (`0x0049E39B`) is the
+    /// reader, and it is the pass that decides whether the lord sells his
+    /// surplus or buys. **`+0x78` is zeroed every turn and never written**,
+    /// which is a fact about the shipped game and not a gap here.
+    ///
+    /// Easy to confuse with the personality record's `+0x70 … +0x7C`, which
+    /// are different numbers in a different record — `docs/diplomacy.md` §8.4
+    /// warns about exactly this pair.
+    pub want: [i32; 4],
 }
 
 impl Default for Realm {
@@ -365,7 +421,29 @@ impl Realm {
             crowned_once: false,
             weapon_rota: 0,
             voice_rotation: 0,
+            muster_county: 0,
+            raid_county: 0,
+            muster_timer: 0,
+            threat_realm: 0,
+            attack_county: 0,
+            raid_timer: 0,
+            want: [0; 4],
         }
+    }
+
+    /// Realm `+0x138` — **the total weapon stock**, the sum of the six
+    /// counters at `+0x140`.
+    ///
+    /// `Realm_RecountWeapons` (`0x004487A9`) maintains it as a stored field and
+    /// `Merchant_Trade` and the weapons branch of `Industry_Produce` both call
+    /// it after moving a stock; it is derived here for the reason
+    /// [`crate::ai::build_castles`] derives the castle concurrency count — one
+    /// loop already answers it, and a stored copy is a second source of truth.
+    /// It is the number the panel draws as *Arms* (`L2.eng` group 70) and the
+    /// number AI step 9 tests against
+    /// [`crate::tables::AI_PERSONALITY_MUSTER_ARMS`].
+    pub fn weapons_total(&self) -> i32 {
+        self.weapons.iter().sum()
     }
 
     pub fn is_eliminated(&self) -> bool {

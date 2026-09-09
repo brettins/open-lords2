@@ -445,9 +445,22 @@ fn a_merchant_walks_its_route_across_several_turns() {
 /// `england-turn1.sav` holds exactly that: six merchants, all with
 /// `moveAllowance = 0`, because the field is written by the tick handler and
 /// never persisted.
+///
+/// > **The AI realms are taken out of play for this one test**, and the reason
+/// > is worth a sentence. `with_a_map` gives every county a border with every
+/// > other, so once `l2_kingdom::ai_army` landed the very first turn had realm
+/// > 3 raise an army, march it across the map and **destroy this one at (11,
+/// > 10) with 83 men to spare**. That is the feature working, and it is not
+/// > what this test is about: the subject is the tick handler rewriting
+/// > `move_allowance`, and a subject that has been killed by an unrelated rule
+/// > cannot be observed. Every other test in this file that ends a turn with a
+/// > unit on the board was already immune.
 #[test]
 fn a_unit_loaded_with_no_allowance_still_walks() {
     let mut g = with_a_map();
+    for realm in 2..=5 {
+        g.kingdom.realms[realm].in_play = false;
+    }
     let id = army(&mut g, 1, 5, 10);
     g.order_unit_move(id, (12, 10)).unwrap();
     g.kingdom.campaign.units.get_mut(id).unwrap().move_allowance = 0;

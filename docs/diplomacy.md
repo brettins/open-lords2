@@ -729,17 +729,34 @@ the file), **[D]** on each field's meaning, from its single reader.
 | `+0x0C` | 500 | 1000 | 1600 | 1500 | base price of military help (§3.5) |
 | `+0x10` | **5** | 10 | 15 | 20 | grudge tolerated before breaking an alliance |
 | `+0x14` | 12 | 10 | 8 | **4** | turns between alliance offers |
-| `+0x28` | 3 | 4 | 4 | 2 | turns between musters |
+| `+0x28` | 3 | 4 | 4 | 2 | turns between musters — `FUN_0049F977` counts realm `+0x45` up to it |
 | `+0x30` | 750 | 800 | 900 | 1000 | treasury floor for helping; also a county-population floor at step 9 |
 | `+0x40` | 30 | 30 | 40 | **50** | percent of a county conscripted |
 | `+0x50`…`+0x64` | §8.3 | | | | the ten-step weapon rota |
-| `+0x68` | 100 | 120 | 200 | 250 | a threshold on realm `+0x38` in step 9 |
+| `+0x68` | 100 | 120 | 200 | 250 | the **weapon stock** a lord wants before mustering — a threshold on realm `+0x138` |
+| `+0x70` | 300 | 300 | 250 | **150** | the county population needed before a castle garrison is raised (`FUN_0049F12F`) |
+| `+0x74` | 6 | 10 | **5** | 10 | turns between raids; step 10 loads realm `+0x15A` from it |
+| `+0x9C` | 32 | 28 | 23 | 35 | the tax rate put on a county the lord has written off (`FUN_0049F431`) |
 | `+0x90` | 4 | 3 | 2 | **1** | concurrent castle projects |
 | `+0xC8` | 700 | 650 | 600 | 600 | county population needed to start a castle |
 | `+0xCC`…`+0xDC` | §8.1 | | | | the five castle gold thresholds |
 
-Fields at `+0x2C`, `+0x6C`, `+0x70`, `+0x74`, `+0x9C` and `+0xA0` hold plausible per-lord
-values and **were not traced**. Five more are traced now, all by `Ai_TradeForCounty`
+**`+0x68` used to read *"a threshold on realm `+0x38`"*, and that is a missing digit.** It is
+realm **`+0x138`**, the maintained sum of the six weapon counters (`Realm_RecountWeapons`,
+`0x004487A9`) — the number the panel draws as *Arms*. `+0x38` sits inside the twenty-four
+army-name counters at `+0x2D`, which is not a number anything would threshold. Found by trying
+to use the field; see `crates/l2-kingdom/src/ai_army.rs`.
+
+**Three more of the untraced set have readers now**, all in the table above and all `[D]` from
+a single reader each: `+0x70`, `+0x74` and `+0x9C`. Two of them are worth a sentence. `+0x70`
+runs the **opposite** way to the castle-building floor at `+0xC8` — the Bishop needs the
+largest county before he will *build* a castle (600) and the smallest before he will
+*garrison* one (150). And every value of `+0x9C` is far above anything a lord's own tax ladder
+would charge a county he meant to keep (§8.2's ladders top out at 15), so it is a lord
+stripping a county on the way out rather than a tax policy.
+
+Fields at `+0x2C` (a flat 100 in all four records) and `+0x6C` (2, 3, 4, 5) hold plausible
+per-lord values and **are still not traced**. Five more are traced by `Ai_TradeForCounty`
 (`0x0049E39B`), which the three AI-realm farming styles run before they farm: `+0x84`, `+0x88`
 and `+0x8C` are the **wood, stone and iron the lord keeps back** — everything above them is
 sold to the county merchant — and `+0x78`/`+0x7C` are the treasury floor and the quantity for

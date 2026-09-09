@@ -158,9 +158,15 @@ and draws a different icon set. [V]
 
 ### 1.5 What is not traced
 
-`+0x03`–`+0x05`, `+0x0D`–`+0x0F`, `+0x18`–`+0x1A`, `+0x159`–`+0x15B`, `+0x15D`–`+0x15F`,
-`+0x161`–`+0x163`, `+0x193`, `+0x194`, `+0x19D`–`+0x1A3`. `+0x1A` takes small enumerated
-values (2, 5) on the garrison path and looks like a UI feedback code. None were chased.
+`+0x03`–`+0x05`, `+0x0D`–`+0x0F`, `+0x18`, `+0x19`, `+0x159`–`+0x15B`, `+0x15D`–`+0x15F`,
+`+0x161`–`+0x163`, `+0x193`, `+0x194`, `+0x19D`–`+0x1A3`. None were chased.
+
+**`+0x1A` and `+0x19B` have come off this list, and `+0x1A` is much bigger than it looked.**
+This document read it as *"a UI feedback code taking 2 and 5 on the garrison path"* and closed
+it on that reading in §9. Both observations are correct and the conclusion is too narrow:
+**`+0x1A` is the AI's *mission* byte**, a six-value enum that the whole AI army driver
+dispatches on (`FUN_004A57AC`, AI turn step 11), of which garrisoning is two values.
+`+0x19B` is the county an ally has asked this army to relieve. See §10.
 
 **`+0x167` has come off this list** and is a third *sh* offset with a per-type meaning, which
 is why it read as untraced: it is the **county-defence mark** on an army (§8.1) and the county
@@ -2188,6 +2194,10 @@ check is cheap and the fixture is the right place to end the argument.)
    on the garrison path. Slot 4, the garrison, carries **5** — the success value — and stands
    at exactly county 2's `+0x74`/`+0x75`. **[V]**
 
+   > **Right about the byte, too narrow about the meaning.** `+0x1A` is the AI's *mission*
+   > byte and 5 is one of its six values. The fixture evidence stands unchanged — a garrison
+   > really does carry 5 — and the reading *"a UI feedback code"* does not. §10.
+
 ### 8b.3 A county has three tiles, not one
 
 The fixture makes a distinction the document had blurred:
@@ -2277,8 +2287,10 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
 * ~~**Unit `+0x167`**, in §1.5's untraced list.~~ **Closed** — it is the county-defence
   marker; see §8.1.
 * ~~**Unit `+0x152`**~~ **Closed** — it is the merge-target unit index, §8.5.
-  ~~**`+0x1A`**~~ **Closed** — the garrison feedback code, 5 on success, witnessed in the
-  fixture (§8b.2). **`+0x19B`** and the rest of §1.5's untraced offsets stand.
+  ~~**`+0x1A`**~~ **Closed twice.** First as *"the garrison feedback code, 5 on success"*
+  (§8b.2), which was the right byte read too narrowly; then properly, as **the AI's mission
+  byte** — §10. ~~**`+0x19B`**~~ **Closed** — the ally-help target county, §10. The rest of
+  §1.5's untraced offsets stand.
 * ~~**`FUN_0046D42C`**, the existing-defender search §8.1 calls.~~ **Closed, and the guess
   was wrong in both halves** — it is `County_FindDefendingArmy`, a 4×4 scan around the county
   town returning the *largest* army, not a slot-order scan of the whole county. §8.2a.
@@ -2320,3 +2332,106 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
   them to the next county on its own route. The first thing that found was a rule this
   document had got wrong — §2.7's occupancy guards, `docs/decisions.md` C40 — which is what a
   second source is for and what nine hundred hand-built test units had not managed.
+
+---
+
+## 10. The AI's army orders — unit `+0x1A`, the **mission** byte
+
+Everything below is `[D]` from `Lords2.exe`'s decompilation unless marked otherwise, and is
+implemented in `crates/l2-kingdom/src/ai_army.rs`, which carries the same table with its
+addresses.
+
+§1.5 closed `+0x1A` as *"a UI feedback code taking 2 and 5 on the garrison path"* and §9
+repeated it. The observations behind that were right — `Army_GarrisonApply` writes 5 on
+success and 2 on refusal, and `battle-before.sav`'s garrison carries 5 — and the conclusion
+was too small. **`+0x1A` is a six-value mission enum**, and AI turn step 11 (`FUN_004A5667`,
+`Ai_AdvanceArmies`) is a loop that dispatches on it once a turn for every army the AI owns:
+
+```c
+for (i = 1; i <= 150; i++)
+  if (u[i].kind == 1 && u[i].owner == realm && mission_handler(i) != 0) {
+      u[i].castlePassThrough = 0;                    /* +0x14E */
+      Move_FloodFill(0, u[i].x, u[i].y, 0);          /* mode 0: NOT road-preferring */
+      if (Move_ExtractPath(0, u[i].destX, u[i].destY)) { Path_CopyToUnit(0, i); u[i].moving = 1; }
+  }
+```
+
+| `+0x1A` | handler | what the army is doing | who sets it |
+|---:|---|---|---|
+| 2 | `0x004A5B1F` | **Seek the enemy.** Intercept an enemy army within 5 tiles (Chebyshev), else keep or pick a hostile county that borders the realm and march on it. | step 9, and the dispatcher's `else` |
+| 3 | `0x004A5F0A` | **Hold the home county.** Intercept anything hostile in `+0x11` within 30 tiles, else walk back to it. Always has something to do. | step 7's frontier pass |
+| 4 | `0x004A6270` | **Join a garrison.** Re-check the target castle has room for the whole army, is standing, is not under construction and is still the realm's; else find another; else **disband**. | step 7's garrison pass |
+| 5 | `0x004A60B9` | **In garrison.** Does nothing while the county is still the realm's. Once it is lost, the army is turned out and demoted to 2 — and if the castle still stands, sent at the county town to take it back. | `Army_GarrisonApply` |
+| 6 | `0x004A599D` | **Relieve an ally.** March on `+0x19B` while the ally still holds it *and* `county +0x19C` (enemy men) is non-zero; close to within 21 tiles. Otherwise demote to 2 and run that handler in the same tick. | step 9, when an ally has asked |
+| 7 | `0x004A58F4` | **Raid.** Re-aim every turn at the nearest **standing crop** in the target county. The party is ~50 unarmed men; the damage is `Unit_TrampleTile`, done on the way in. | step 10 |
+| other | — | rewritten to **2**, and the army is not moved that turn. | — |
+
+**`+0x19B` is the ally-help target county**, written by `FUN_0049FDA5` from realm `+0xE8`.
+
+### 10.1 Three destination finders, and what each one means
+
+All three scan the whole 64 × 64 map for the tile of one county nearest by **Manhattan**
+distance (the county choosers use Chebyshev; the two are not interchangeable), ties to the
+lowest tile offset, and fall back to a fixed tile when nothing matches. Tile (0, 0) can never
+be chosen: the running best doubles as the "not found" sentinel.
+
+| fn | tile | fallback | stepping there runs |
+|---|---|---|---|
+| `0x004A6735` | plane-0 `0x40` — **the county town** | county `+0x6C`/`+0x6D` | `Army_AttackCounty` — the county changes hands |
+| `0x004A65A3` | plane-0 `0x80` with terrain `0x15…0x19` — **the built castle** (not the `0x14` plot) | county `+0x74`/`+0x75` | `Unit_ReachCastleBuilding` → `Army_Garrison` if the county is yours, `Army_BeginSiege` if not |
+| `0x004A689D` | plane-0 `0x20` with terrain `3…22` — **a standing crop** | county `+0x6C`/`+0x6D` | `Unit_TrampleTile` |
+
+`FUN_004A64CA` is the choice missions 2 and 3 make between the first two: *a county with no
+castle, or a castle with nobody in it, is entered at the town; anything else is approached at
+the castle.* The game says the same thing to the player in `L2.eng` group 286 — *"This shire
+contains a garrisoned castle my lord. We must lay siege to that, to gain control of the
+county."* **[V]**, and an independent confirmation of the branch.
+
+**The raid is aimed at the harvest.** `0x004A689D`'s terrain window is exactly the standing-crop
+range, so a raiding party walks a fresh line to the nearest surviving crop every season and
+tramples everything it crosses. That is the whole of its damage: `FUN_004A5003` never opens
+the armoury, so the party carries nothing and cannot fight.
+
+### 10.2 `Unit_EnterOccupiedTile`'s same-owner branch — the AI merges automatically
+
+```c
+if (mover.owner == occupant.owner) {
+    if (occupant.ownerIsHuman) { if (mover.mergeOrder == occupant) Army_Combine(...); return ordinary; }
+    if (mover.mission == 4 || occupant.mission == 4) return ordinary;
+    Army_Combine(mover, occupant);                 /* no order, no prompt */
+    return ordinary;
+}
+```
+
+**An AI's two armies merge the moment they touch**; a person's merge only on an explicit
+order. The test is on the **occupant's** `ownerIsHuman`, not the mover's. The two mission-4
+exemptions are why the mission byte has to be modelled outside the AI's own module: an army on
+a garrison errand is not to be absorbed by whatever it passes, in either direction.
+
+### 10.3 `Army_GarrisonApply` (`0x004A79A3`)
+
+```c
+unit.needsDestination = 1;                                  /* whatever happens */
+total = unit.men + (county.garrisonUnit ? garrison.men : 0);
+if (total > g_castleGarrisonCap[castleType]) { unit.mission = 2; unit.moving = 0; }
+else if (county.garrisonUnit == 0) {
+    county.garrisonUnit = unit;  unit.garrisonCounty = county;  unit.mission = 5;
+    unit.x = county.castleX;  unit.y = county.castleY;          /* a teleport, not a step */
+    unit.moving = 0;  unit.isPlayerDriven = 1;  unit.movesUsed += 5;  unit.destCounty = county;
+} else Army_Combine(county.garrisonUnit, unit);
+Army_RecountCountyTroops();
+```
+
+The cap is tested against the **pair**, so a castle 90 % full refuses an army that would have
+fitted in the 10 %.
+
+### 10.4 What this document did not have, and what it cost
+
+`Unit_ReachCastleBuilding` is not in §2.2's table at all: reaching plane-0 `0x80` was recorded
+as *"the move ends; `Unit_TrampleTile` charges 7, conditionally"*, with no mention that the
+tile might be a castle. §9's target table has the rule — *your county → `Army_Garrison`* — and
+nothing joined the two. In our engine that meant **an army ordered onto its own castle stopped
+on the tile and stood there for ever**, which nobody could see because no order in the game
+produced one until the AI's garrison pass did. Recorded because it is the same shape as the
+garrison relation C59 found: a rule written down in one section and absent from the section
+that would have made somebody implement it.

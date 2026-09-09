@@ -590,14 +590,24 @@ pub struct Step {
     /// ruleset and the name counters, and a stepper that took all of those
     /// would be a stepper nothing could test in isolation.
     pub reached_castle: Option<u8>,
-    /// **The army reached the castle *building*** — a settlement tile carrying
-    /// a standing castle, `Unit_Step`'s other code-6 handler.
+    /// **The army reached the castle *building*** — a settlement tile
+    /// (plane-0 [`crate::map::flags::SETTLEMENT`], `0x80`) carrying a standing
+    /// castle, terrain [`crate::map::terrain::CASTLE_FROM`] … `CASTLE_TO`.
+    /// `Unit_Step`'s other code-6 handler.
     ///
-    /// `Unit_ReachCastleBuilding` (`0x004686A0`) splits on ownership: the
-    /// county is the army's, so it garrisons; it is not, so it lays siege. Both
-    /// need the realm array and one of them opens a screen, so this is reported
-    /// rather than resolved — the same division [`Step::reached_castle`]
-    /// already makes. See [`crate::conquest::reach_castle_building`].
+    /// **This is a different tile from [`Step::reached_castle`] and a different
+    /// rule**, and the two are easy to cross. `flags::CASTLE` (`0x40`) is *the
+    /// county town* — `docs/decisions.md` C25, and the constant keeps the wrong
+    /// name — and walking onto it is how a county is **taken**. `0x80` with a
+    /// castle terrain is the castle itself.
+    ///
+    /// `Unit_ReachCastleBuilding` (`0x004686A0`) splits on ownership:
+    /// **`Army_Garrison` when the county is the mover's own, `Army_BeginSiege`
+    /// when it is not.** `docs/armies.md` §9's target table. Both need the realm
+    /// array and one of them opens a screen, so this is reported rather than
+    /// resolved — the same division [`Step::reached_castle`] already makes. See
+    /// [`crate::conquest::reach_castle_building`], and
+    /// [`crate::Kingdom::tick_units`] for the garrison half.
     pub reached_castle_building: Option<u8>,
     /// A field was destroyed, and this is the county that lost it.
     pub field_destroyed: Option<u8>,
@@ -677,6 +687,12 @@ pub fn step(
             return Some(out);
         }
         Entry::Settlement => {
+            // **Two branches wrote this arm on the same day and only one of
+            // them found the guard.** `ai-lords-play` reported the castle and
+            // trampled unconditionally, which is the behaviour the line below
+            // corrects; both agreed exactly on the tile — plane-0 `0x80` with
+            // terrain `0x15 … 0x19`, garrison if yours and besiege if not —
+            // and on the name and type of the field it sets.
             // **Code 6 is two handlers, not one**, and this arm only had the
             // first — so an army that walked into a castle *trampled* it:
             //
@@ -842,6 +858,11 @@ fn cross_field(
 
 /// What trampling a field costs the trampler diplomatically — `Diplo_Offend`'s
 /// third argument, `'\n'` = 10.
+///
+/// **These two lines were silently stolen by a merge.** Two branches added a
+/// constant here; the resolution glued this doc onto the head of the other
+/// one's and left this constant bare. It compiles, it reads plausibly, and
+/// nothing catches it.
 pub const FIELD_TRAMPLE_OFFENCE: i32 = 10;
 
 /// `County_DestroyField` (`0x00469E5B`) — remove one field and its share of

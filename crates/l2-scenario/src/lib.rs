@@ -615,6 +615,21 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         // and the countdown adding to `l2_formats::save`.
         engines: Default::default(),
         siege_seasons_left: 0,
+        // Unit `+0x1A` and `+0x19B` — the AI's mission byte and the county it
+        // is about (`l2_kingdom::ai_army::Mission`). **Neither is surfaced by
+        // `l2_formats::save`'s unit block yet**, so an imported army starts
+        // with mission 0, which the AI's own dispatcher normalises to
+        // `Mission::SEEK_ENEMY` on its first turn. That is one lost turn per
+        // imported army and it is stated rather than hidden: reading them is
+        // two more bytes off the same record, in the same place the siege
+        // records above are still missing from.
+        //
+        // It costs more than it looks on a save with a garrison in it. A
+        // garrison carries `+0x1A = 5`, and imported as 0 it becomes an
+        // attacker — so it walks out of its castle. `battle-before.sav` slot 4
+        // is exactly that case.
+        mission: 0,
+        mission_county: 0,
     })
 }
 

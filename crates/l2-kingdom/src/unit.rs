@@ -401,6 +401,31 @@ pub struct Unit {
     /// > keeping them apart means no code can read the wrong one. The cost is
     /// > one byte per unit in the save.
     pub cargo_county: u8,
+    /// `+0x1A` — **the mission byte**: what this unit is currently trying to
+    /// do, and the thing AI turn step 11 dispatches on.
+    ///
+    /// [`crate::ai_army::Mission`] is the enumeration and carries what each
+    /// value means; the field is kept as the raw byte because the original's
+    /// dispatcher has an `else` arm that rewrites any unrecognised value to
+    /// [`crate::ai_army::Mission::SEEK_ENEMY`], and a Rust enum would have
+    /// nowhere to put the value that provoked it.
+    ///
+    /// **It is not a player's order.** A human's army is steered by
+    /// [`Unit::dest`] and [`Unit::path`]; this byte is only ever read for a
+    /// unit whose realm the AI is driving. It is written by five sites in the
+    /// original, all of them AI, and by one that is not — joining a castle
+    /// garrison sets it to [`crate::ai_army::Mission::GARRISON`] whoever
+    /// ordered it. `docs/records.json` does not carry `+0x1A` at all.
+    pub mission: u8,
+    /// `+0x19B` — **the county the mission is about**, where that is not the
+    /// same as the county the current path ends in.
+    ///
+    /// Written by `FUN_0049FDA5` from the realm's [`Realm::target_county`] —
+    /// the county an ally has asked this realm to march on. The distinction
+    /// matters for [`crate::ai_army::Mission::ASSIST_ALLY`]: the army's
+    /// [`Unit::dest_county`] is where it is walking *now*, which may be an
+    /// intermediate friendly county, and this is what it was sent to do.
+    pub mission_county: u8,
 }
 
 impl Unit {
@@ -440,6 +465,8 @@ impl Unit {
             siege_seasons_left: 0,
             defence_mark: 0,
             cargo_county: 0,
+            mission: 0,
+            mission_county: 0,
         }
     }
 

@@ -431,6 +431,11 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         offer_interval: 0,
         help_population_floor: 0,
         muster_pct: 0,
+        muster_patience: 0,
+        muster_arms: 0,
+        garrison_min_population: 0,
+        raid_interval: 0,
+        abandon_tax_rate: 0,
         castle_concurrent: 0,
         castle_min_population: 0,
         castle_gold: [0; CASTLE_TYPE_COUNT - 1],
@@ -482,6 +487,28 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             offer_interval: int(rs, &format!("{base}.offer_interval"), 0, 10_000)?,
             help_population_floor: int(rs, &format!("{base}.help_population_floor"), 0, 1_000_000)?,
             muster_pct: int(rs, &format!("{base}.muster_pct"), 0, 100)?,
+            // The five fields AI steps 7, 9 and 10 read
+            // (`l2_kingdom::ai_army`). A zero patience musters every turn and
+            // a zero raid interval raids every turn; both are rebalances
+            // rather than crashes, so the low bound is open.
+            muster_patience: int(rs, &format!("{base}.muster_patience"), 0, 10_000)?,
+            muster_arms: int(rs, &format!("{base}.muster_arms"), 0, 1_000_000)?,
+            garrison_min_population: int(
+                rs,
+                &format!("{base}.garrison_min_population"),
+                0,
+                1_000_000,
+            )?,
+            raid_interval: int(rs, &format!("{base}.raid_interval"), 0, 255)?,
+            // The tax rate a written-off county is set to. Bounded by
+            // `MAX_TAX_RATE` because it is written straight into
+            // `County::tax_rate`, which indexes the tax-happiness table.
+            abandon_tax_rate: int(
+                rs,
+                &format!("{base}.abandon_tax_rate"),
+                0,
+                l2_kingdom::tables::MAX_TAX_RATE as i64,
+            )?,
             castle_concurrent: int(rs, &format!("{base}.castle_concurrent"), 0, 100)?,
             castle_min_population: int(rs, &format!("{base}.castle_min_population"), 0, 1_000_000)?,
             castle_gold,
@@ -1138,7 +1165,16 @@ pub fn render_toml(t: &Tables) -> String {
          # siege_doctrine is record +0xA0 and it DOES take effect: 8 orders four\n\
          # siege towers, 9 a battering ram, 7 three catapults and a late ram,\n\
          # and anything else leaves the default of two towers. The orders are\n\
-         # cumulative, so 7 and 9 also get the two towers.\n",
+         # cumulative, so 7 and 9 also get the two towers.\n\
+         #\n\
+         # The five war fields are records +0x28, +0x68, +0x70, +0x74 and\n\
+         # +0x9C, and l2_kingdom::ai_army reads all five:\n\
+         #   muster_patience         turns between musters when there is no war\n\
+         #   muster_arms             the weapon stock wanted before mustering\n\
+         #   garrison_min_population the county size a castle garrison needs\n\
+         #   raid_interval           turns between raids\n\
+         #   abandon_tax_rate        the tax put on a county being written off\n\
+         # docs/diplomacy.md sec 8.4 listed the last three as never traced.\n",
     );
     for (i, row) in t.ai.personality.iter().enumerate() {
         let _ = write!(
@@ -1146,6 +1182,8 @@ pub fn render_toml(t: &Tables) -> String {
             "\n[[kingdom.ai.personality]]\nlord = {}\nfarm_style = {}\ntax_ladder = {}\n\
              gift_increment = {}\nhelp_price = {}\ngrudge_tolerance = {}\n\
              offer_interval = {}\nhelp_population_floor = {}\nmuster_pct = {}\n\
+             muster_patience = {}\nmuster_arms = {}\ngarrison_min_population = {}\n\
+             raid_interval = {}\nabandon_tax_rate = {}\n\
              castle_concurrent = {}\ncastle_min_population = {}\ncastle_gold = [{}]\n\
              weapon_rota = [{}]\nsiege_doctrine = {}\n",
             i + 1,
@@ -1157,6 +1195,11 @@ pub fn render_toml(t: &Tables) -> String {
             row.offer_interval,
             row.help_population_floor,
             row.muster_pct,
+            row.muster_patience,
+            row.muster_arms,
+            row.garrison_min_population,
+            row.raid_interval,
+            row.abandon_tax_rate,
             row.castle_concurrent,
             row.castle_min_population,
             join_i32(&row.castle_gold),
