@@ -396,12 +396,20 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         kingdom,
         player,
         // **A save is between turns, always.** The original saves from the
-        // campaign map and nowhere else, so a loaded game has no half-run turn
-        // and no battle waiting to be answered — the two fields below are
-        // session state rather than world state, which is why they are not in
-        // the ten-field prefix and why `VERSION` did not have to move.
+        // campaign map and nowhere else, so a loaded game has no half-run turn,
+        // no battle waiting to be answered and no half-made levy — the three
+        // fields below are session state rather than world state, which is why
+        // they are not in the ten-field prefix and why `VERSION` did not have to
+        // move.
+        //
+        // The levy is the clearest case of the three: `g_levyBasket` is scratch
+        // that `Army_Create` spends and abandons, and the only durable half of
+        // it — the realm's weapon stocks it was seeded from — is in the kingdom
+        // already, encoded by `l2_kingdom::save` and hashed into the lockstep
+        // digest with everything else.
         field_policy: crate::engagement::Answer::Decline,
         turn: None,
+        levy: crate::game::LevyOrder::default(),
         map_slot: map_slot as usize,
         realm_colour,
         selected,

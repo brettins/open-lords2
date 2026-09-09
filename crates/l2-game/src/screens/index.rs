@@ -63,6 +63,12 @@ impl IndexScreen {
         // army to take one from. `0x17` on county 1 draws the no-offer layout
         // with a zero levy; `0x11` on a slot with no army in it says so.
         push("0x17 RAISE AN ARMY".into(), Some(ScreenId::RaiseArmy(1)));
+        // The other half of it, and the half that raises the army. From the
+        // index the levy is whatever the last one left, so an armoury opened
+        // cold shows a levy of nobody with every rack full — which is exactly
+        // what the original shows before a slider has been touched.
+        push("0x0A THE ARMOURY".into(), Some(ScreenId::Armoury(1)));
+        push("0x0D THE SWORD RACK".into(), Some(ScreenId::Rack(1, 3)));
         push("0x11 ARMY DIVISION".into(), Some(ScreenId::Divide(1)));
         // The same stand-in again, and here it shows something the screen
         // itself is about: unit 1 is not a merchant from the index, so its

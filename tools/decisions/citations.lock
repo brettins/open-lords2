@@ -16,8 +16,8 @@ crates/l2-formats/tests/battle_fixtures.rs	C23	24f9d69c852a
 crates/l2-formats/tests/save.rs	C1	93f2edca7e60
 crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7
-crates/l2-game/src/screens/army.rs	C21	d250307406e2
-crates/l2-game/src/screens/army.rs	C45	ba3094ad6579
+crates/l2-game/src/screens/army.rs	C45	056ecffec256
+crates/l2-game/src/screens/army.rs	C61	cda5b05eea52
 crates/l2-game/src/screens/battle.rs	C21	9867d38dde6d
 crates/l2-game/src/screens/battle.rs	C21	c7d8aa24877d
 crates/l2-game/src/screens/county.rs	C22	11557e27ba54
@@ -39,10 +39,12 @@ crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
 crates/l2-game/src/screens/setup.rs	C21	061497c61678
 crates/l2-game/src/screens/setup.rs	C21	f030e5ba689c
-crates/l2-game/src/screens/shells.rs	C22	6210d0b3625b
+crates/l2-game/src/screens/shells.rs	C22	746cddad9eff
 crates/l2-game/src/screens/shells.rs	C45	971440fb6fdf
 crates/l2-game/src/screens/village.rs	C22	81b65db0836a
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857
+crates/l2-game/src/shell/mod.rs	C61	4852635e7bff
+crates/l2-game/src/shell/mod.rs	C61	bf7c15012e16
 crates/l2-game/src/turn.rs	C35	5d5f3b924ebe
 crates/l2-game/src/turn.rs	C35	820d88d9976c
 crates/l2-game/src/turn.rs	C35	87cde1fdbcb4
@@ -52,11 +54,14 @@ crates/l2-game/src/turn.rs	C35	fc388a7cfe62
 crates/l2-game/src/victory.rs	C44	81209403d144
 crates/l2-game/src/victory.rs	C44	eb2da78efce9
 crates/l2-game/src/victory.rs	C44	fa73148cbb7c
+crates/l2-game/tests/armoury.rs	C21	7b180bf100d0
+crates/l2-game/tests/armoury.rs	C58	b9ae26438b9f
 crates/l2-game/tests/audio_install.rs	C1	afd71632a6e6
 crates/l2-game/tests/merchant.rs	C50	444a9e4940bc
 crates/l2-game/tests/merchant.rs	C53	7cd616c516aa
 crates/l2-game/tests/military.rs	C35	0578d12796f0
 crates/l2-game/tests/military.rs	C35	ded7fe0edd82
+crates/l2-game/tests/military.rs	C58	4d35f48f598a
 crates/l2-game/tests/screens.rs	C21	1523306009a2
 crates/l2-game/tests/screens.rs	C22	1d39d618c245
 crates/l2-game/tests/screens.rs	C42	3c40a931b48c
@@ -186,6 +191,7 @@ docs/armies.md	C40	365b1b19ac27
 docs/armies.md	C40	36d53b118aac
 docs/armies.md	C40	3cddc0864ef1
 docs/armies.md	C59	1cbb270593d9
+docs/armies.md	C61	0f02362fcf6e
 docs/audit.md	C4	137a29e56031
 docs/audit.md	C4	27ad00fc666e
 docs/audit.md	C4	fad246d96439
@@ -203,7 +209,7 @@ docs/bugs.md	C33	970cde363d20
 docs/bugs.md	C38	3a2b93b33329
 docs/bugs.md	C44	76f06582a66b
 docs/bugs.md	C53	89e746f595f9
-docs/bugs.md	C57	cab2c3c3436a
+docs/bugs.md	C57	5cb182dec58c
 docs/bugs.md	C59	20d4ce8ff41b
 docs/bugs.md	C60	23aa8203bd6a
 docs/decisions.md	C10	1026d11e7d3f
@@ -264,6 +270,7 @@ docs/decisions.md	C3	73b73488d9b3
 docs/decisions.md	C3	82d67eae856b
 docs/decisions.md	C3	dbf6bd203d7e
 docs/decisions.md	C3	ee5ed618429c
+docs/decisions.md	C3	fb2fbc1e9f23
 docs/decisions.md	C30	10744c48b4db
 docs/decisions.md	C30	3c37996daf9c
 docs/decisions.md	C30	7ce287aa9814
@@ -317,6 +324,7 @@ docs/decisions.md	C9	72e3f741f15b
 docs/decisions.md	C9	99e56fdcae4b
 docs/diplomacy.md	C3	d4bc35a985fd
 docs/formats/eng.md	C3	f56e526bf0e2
+docs/formats/eng.md	C61	4cbf794a0efc
 docs/formats/maps-layers.md	C25	4ebf3f639877
 docs/formats/maps-layers.md	C41	87c5e3e5dc40
 docs/formats/maps-layers.md	C41	89650dc3b322
@@ -349,7 +357,7 @@ docs/mechanics.md	C26	811398837c72
 docs/mechanics.md	C27	6a66e90a3f82
 docs/mechanics.md	C33	ee15b2bcca4b
 docs/mechanics.md	C44	4a8c86312733
-docs/mechanics.md	C45	3017fd9007b8
+docs/mechanics.md	C45	9a62437d53c6
 docs/mechanics.md	C51	6132fb2e84ab
 docs/mechanics.md	C53	216e64d25fc6
 docs/mechanics.md	C54	fea22479a2bf
@@ -394,11 +402,12 @@ docs/screens-county.md	C41	57bb52d70137
 docs/screens-county.md	C42	8b74a650b8bb
 docs/screens-county.md	C43	18c6d8a78b5b
 docs/screens-county.md	C43	e5d82cc82d66
-docs/screens-county.md	C45	deb8ce88337e
+docs/screens-county.md	C45	6bff20de2ef9
 docs/screens-county.md	C46	0b66ca8a3963
 docs/screens-county.md	C46	9aadfb874c22
 docs/screens-county.md	C57	29da3728fc03
 docs/screens-county.md	C59	aec4d2276a51
+docs/screens-county.md	C61	675bbac0eace
 docs/screens.md	C22	29997cfa2796
 docs/screens.md	C25	6e23d74e76ec
 docs/screens.md	C48	63058cefc7e7
@@ -436,6 +445,10 @@ docs/symbols.json	C59	5e3d7047e62c
 docs/symbols.json	C59	6c9af806edc8
 docs/symbols.json	C59	a26c63971b4a
 docs/symbols.json	C59	c8ebd509d2ab
+docs/symbols.json	C61	4aaabbecc237
+docs/symbols.json	C61	5830be3922d3
+docs/symbols.json	C61	76720a821595
+docs/symbols.json	C61	a28b547baf57
 docs/symbols.md	C20	607a21e04411
 docs/symbols.md	C20	bd8dc0cc37c2
 docs/symbols.md	C22	663d0fc4172b
@@ -464,6 +477,10 @@ docs/symbols.md	C59	64a497c25e59
 docs/symbols.md	C59	71e2db0c83cf
 docs/symbols.md	C59	af8f4f7bf789
 docs/symbols.md	C59	eaf97ce0085e
+docs/symbols.md	C61	15679f4bca90
+docs/symbols.md	C61	5588be6bad9e
+docs/symbols.md	C61	7ad6c6c3e1d9
+docs/symbols.md	C61	f7e9211f55d0
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611
 tools/audit/rva.js	C14	99231cda993c
 tools/audit/rva.js	C16	e4312831d7d6
@@ -483,5 +500,7 @@ tools/oracle/kingdom.ps1	C16	179704412b64
 tools/oracle/runtime.ps1	C10	c77e1ac33816
 tools/oracle/runtime.ps1	C10	eeb0822b279d
 tools/oracle/tables.ps1	C3	a6bada1093d5
+tools/oracle/widgets.js	C3	31c16884e2e7
+tools/oracle/widgets.js	C61	ef2b1baaad8a
 tools/oracle/xref.js	C21	56cb3a0cadde
 tools/oracle/xref.js	C3	dbc82d5dfc52

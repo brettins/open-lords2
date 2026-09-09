@@ -669,7 +669,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 66 | 12 | `Frost` | The six weather events and their crop effects. | `Village_Draw` [V] |
 | 67 | 2 | `Free` | "Free" / "Some info goes here" — an unfilled slot. | [I] dead placeholder |
 | 68 | 20 | `Click on a price to trade with` | The merchant trade panel. | `Trade_DrawPanel` [V] |
-| 69 | 17 | `crowns to hire.` | Mercenary hire and the raise-army/armoury panel. | `Screen_Armoury`, `FUN_004180f6`, `Screen_RaiseArmy`, `FUN_00418e2d` [V] |
+| 69 | 17 | `crowns to hire.` | Mercenary hire, the raise-army screen **and the armoury**, which share it: 0…4 and 10…16 are the levy window, **6, 7 and 8 are the armoury's three buttons — *Create*, *Change*, *Cancel*** — 9 is *"Continue"*, the button that leaves the levy screen for the armoury, and 5 is the rack panel's *"more could still be raised."* `screens/shells.rs` filed screen 0x0A under group **16** (the nationalities) until this row was read the other way; `docs/decisions.md` C61. | `Screen_Armoury`, `Screen_ArmouryRepaint`, `Screen_RaiseArmy`, `FUN_00418e2d` [V] |
 | 70 | 9 | `Gold` | The court screen: gold, arms, iron, stone, wood totals. | `Court_Draw` [V] |
 | 71 | 20 | `Select a castle to build` | Castle selection and status; index 1..5 are the five castle types, 0x12 the "materials still needed" line. | `CountyStrip_DrawCastleIcon`, `Screen_CastleBuildPanel`, `TileInfo_DrawCastle`, `Castle_DrawStatusBlock` [V] |
 | 72 | 25 | `Diplomacy.` | The diplomacy screen and its four action layouts. | `Diplo_DrawScreen`, `Diplo_DrawGiftGold`, `Diplo_DrawLetter`, `Diplo_DrawCountyRequest` [V] |

@@ -9,11 +9,17 @@
 //! [`index`] is **ours** — the demo's list of every screen, so that the ones
 //! the game logic cannot yet open can still be reached.
 //!
-//! None of these modules refers to another, with one exception that is worth
-//! naming: the county panel calls `map::season_name` to print a season. That is
-//! a formatting helper, not a transition — no screen here constructs, owns or
-//! pushes another, and the only way from one to another is a [`Transition`]
+//! None of these modules refers to another, with two exceptions that are worth
+//! naming: the county panel calls `map::season_name` to print a season, and the
+//! raise-army screen calls `armoury::page` to paint the room it stands in.
+//! Both are painting helpers, not transitions — no screen here constructs, owns
+//! or pushes another, and the only way from one to another is a [`Transition`]
 //! value handed back to the machine.
+//!
+//! The second one is the binary's own arrangement rather than a convenience:
+//! `Screen_Draw`'s `0x17` arm opens `if (firstFrame == 1) Screen_Armoury(1);`
+//! before it calls `Screen_RaiseArmy`, so the levy window really is a box drawn
+//! over the armoury. Sharing the painter here is sharing the painter there.
 //!
 //! **[`Transition::Pass`] extends that rule and does not break it.** A screen
 //! may decline an event, and the machine then offers it to the screen
@@ -55,6 +61,7 @@
 //! [`Screen::overlay`]: crate::screen::Screen::overlay
 //! [`Machine::draw`]: crate::screen::Machine::draw
 
+pub mod armoury;
 pub mod army;
 pub mod battle;
 pub mod conquest;

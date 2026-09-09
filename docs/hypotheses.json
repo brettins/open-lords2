@@ -84,22 +84,6 @@
       "comment": "docs/screens-county.md calls this 'the map information panel'; nothing has read what it draws."
     },
     {
-      "addr": "0x00418FC5",
-      "name": "Armoury_DrawPanel",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Called by Screen_DrawWidgets for both armoury screens, 0x0A and 0x0D.",
-      "comment": "Shared overlay for the armoury and the armoury's buy list."
-    },
-    {
-      "addr": "0x0043582A",
-      "name": "Armoury_HandleInput",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Called by Screen_HandleInput for screens 0x0A and 0x0D, before Hotspot_Test on a 9-entry table at 0x004DC938.",
-      "comment": "Shared input for the armoury screens."
-    },
-    {
       "addr": "0x0041AEA2",
       "name": "SendSupplies_DrawPanel",
       "section": "ui",
@@ -138,38 +122,6 @@
       "confidence": "role",
       "basis": "Both records of the castle-build widget table 0x004DDB80, frames 29 and 31 at (432, 440) and (472, 444), hotspot ids 1 and 0. It writes g_screenId five times.",
       "comment": "Accept or abandon the castle design, on the verified Screen_CastleBuild."
-    },
-    {
-      "addr": "0x0043593A",
-      "name": "Armoury_BuyLess",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Record 0 of the armoury buy table 0x004DD8C8, frame 68 at (176, 44); the four buttons in that row are frames 68, 66, 58 and 60, and 68/66 is the minus/plus pair the diplomacy gift row also uses.",
-      "comment": "One of the armoury buy-list's four buttons; the pairing is the evidence, not the body."
-    },
-    {
-      "addr": "0x004359BC",
-      "name": "Armoury_BuyMore",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Record 1 of 0x004DD8C8, frame 66 at (208, 44).",
-      "comment": "The other half of the minus/plus pair."
-    },
-    {
-      "addr": "0x00435A0C",
-      "name": "Armoury_BuyPrev",
-      "section": "ui",
-      "confidence": "both",
-      "basis": "Record 2 of 0x004DD8C8, frame 58 at (240, 44). Frames 58 and 60 have not been identified in the button sheet.",
-      "comment": "Unanchored: only its position in the table is known."
-    },
-    {
-      "addr": "0x00435A61",
-      "name": "Armoury_BuyNext",
-      "section": "ui",
-      "confidence": "both",
-      "basis": "Record 3 of 0x004DD8C8, frame 60 at (272, 44).",
-      "comment": "Unanchored: only its position in the table is known."
     },
     {
       "addr": "0x00436372",

@@ -24,8 +24,17 @@
 //   menu item, 12 byte +0 y  +2 engIndex  +4 handler  +8 0
 //
 // Conventions worth knowing when you read the output: button-sheet frames
-// 29/31 are tick and cross, 35/37 a scroll pair, 68/66 minus and plus, 21/23
-// up and down; and hotspot id 1 means confirm, 0 means cancel.
+// 29/31 are tick and cross, 35/37 a scroll pair, **68 plus and 66 minus**,
+// 21/23 up and down; and hotspot id 1 means confirm, 0 means cancel.
+//
+// That pair used to be written here the other way round, and the error left
+// this file and got into docs/hypotheses.json as two names: 0x0043593A was
+// filed as Armoury_BuyLess and 0x004359BC as Armoury_BuyMore, and both bodies
+// say the opposite. It is settled by the only *other* table that uses the pair
+// - the diplomacy gift row at 0x004DD9D0, whose frame-68 record carries hotspot
+// id 1 and whose handler FUN_00436372 reads `if (id == 1) g_diploGold += 10;`.
+// A convention note in a hypothesis generator is a hypothesis too; this one is
+// now anchored to a body. docs/decisions.md C61, and C3 for the general case.
 
 const fs = require('fs');
 const path = require('path');

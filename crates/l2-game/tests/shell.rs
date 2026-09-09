@@ -147,13 +147,15 @@ fn a_popup_is_drawn_over_what_was_underneath() {
     let (mut game, assets) = bare();
     game.kingdom.set_county_count(2);
 
-    // The court is an overlay; the armoury, which loads its own 640 x 480
+    // The court is an overlay; castle building, which loads its own 640 x 480
     // background, is not. (The merchant stood here until it graduated out of
-    // the shell table — `screens/merchant.rs` — and it made the same point.)
+    // the shell table — `screens/merchant.rs` — and the armoury after it, in
+    // `screens/armoury.rs`. Both made the same point, and both are still the
+    // two kinds of screen this test is about.)
     let court = shells::find(0x09).unwrap();
     assert!(court.overlay);
-    let armoury = shells::find(0x0A).unwrap();
-    assert!(!armoury.overlay);
+    let castle = shells::find(0x1B).unwrap();
+    assert!(!castle.overlay);
 
     let mut m = Machine::new(ScreenId::Index);
     m.push(ScreenId::Shell(0x09));
