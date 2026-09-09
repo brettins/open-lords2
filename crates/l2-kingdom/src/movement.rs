@@ -590,6 +590,24 @@ pub struct Step {
     /// ruleset and the name counters, and a stepper that took all of those
     /// would be a stepper nothing could test in isolation.
     pub reached_castle: Option<u8>,
+    /// The unit reached a county's **castle building** — plane-0
+    /// [`crate::map::flags::SETTLEMENT`] with a terrain in
+    /// [`CASTLE_TERRAIN`], which is the five built castle types and not the
+    /// empty plot they go on.
+    ///
+    /// **This is a different tile from [`Step::reached_castle`] and a different
+    /// rule.** `flags::CASTLE` (`0x40`) is *the county town* — `docs/decisions.md`
+    /// C25, and the constant keeps the wrong name — and walking onto it is how
+    /// a county is taken. `0x80` with a castle terrain is the castle itself,
+    /// and the original's handler for it is `Unit_ReachCastleBuilding`:
+    /// **`Army_Garrison` when the county is the mover's own, `Army_BeginSiege`
+    /// when it is not.** `docs/armies.md` §9's target table.
+    ///
+    /// Reported rather than resolved for the same reason
+    /// [`Step::reached_castle`] is. [`crate::Kingdom::tick_units`] handles the
+    /// garrison half; the siege half is [`crate::siege`]'s and is **not wired
+    /// here yet**, so an army sent at somebody else's castle arrives and stops.
+    pub reached_castle_building: Option<u8>,
     /// A field was destroyed, and this is the county that lost it.
     pub field_destroyed: Option<u8>,
     /// A resource site was ruined: the county, and which of its four industry
@@ -606,6 +624,7 @@ impl Step {
             moved: false,
             entered_county: None,
             reached_castle: None,
+            reached_castle_building: None,
             field_destroyed: None,
             site_ruined: None,
             offence: None,
@@ -670,6 +689,9 @@ pub fn step(
             let t = trample(map, counties, realms, units, id, nx, ny);
             out.charged = t.0;
             out.site_ruined = t.1;
+            if CASTLE_TERRAIN.contains(&map.terrain_at(nx, ny)) {
+                out.reached_castle_building = Some(tile_county);
+            }
             units.get_mut(id)?.moving = false;
             return Some(out);
         }
@@ -813,6 +835,16 @@ fn cross_field(
 
 /// What trampling a field costs the trampler diplomatically — `Diplo_Offend`'s
 /// third argument, `'\n'` = 10.
+/// The terrain values a **built castle** takes, `0x15 … 0x19` — one per castle
+/// type 1..=5.
+///
+/// `0x14` is the empty plot the castle goes on and is deliberately outside the
+/// range: the England fixture's five *owned* counties carry a `0x17` block and
+/// the nine unowned ones carry `0x14`, which is what settled the pair
+/// (`crate::map::flags::SETTLEMENT`). The AI's own castle-tile finder
+/// (`FUN_004A65A3`) tests exactly `0x14 < terrain < 0x1A`. `[V]`
+pub const CASTLE_TERRAIN: [u8; 5] = [0x15, 0x16, 0x17, 0x18, 0x19];
+
 pub const FIELD_TRAMPLE_OFFENCE: i32 = 10;
 
 /// `County_DestroyField` (`0x00469E5B`) — remove one field and its share of

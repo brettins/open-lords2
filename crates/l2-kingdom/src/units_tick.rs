@@ -124,6 +124,17 @@ pub enum Contact {
     /// [`Contact::Battle`] and is reported separately only because the caller
     /// has to change the county's owner afterwards.
     Castle { unit: usize, county: u8, outcome: Attack },
+    /// An army reached the castle tile of a county **its own realm holds**, and
+    /// [`Kingdom::garrison_army`] said what came of it. See the branch in
+    /// [`Kingdom::tick_units`] for why this used to be a
+    /// [`crate::conquest::Refusal::AlreadyYours`] and an army standing still
+    /// for ever.
+    Garrison { unit: usize, county: u8, outcome: Garrison },
+    /// **Two of an AI realm's armies met and merged into one**, with no order
+    /// and no prompt. The mover's slot is gone. See
+    /// [`Kingdom::merge_on_contact`], and note that a *person's* two armies do
+    /// not do this.
+    Merged { mover: usize, into: usize },
     /// A unit's next tile is held by somebody it will not fight — its own side,
     /// an ally, or a merchant. The move simply ends.
     ///
@@ -137,6 +148,23 @@ pub enum Contact {
     /// where the original has none. Modelling the stack is a `Units` change and
     /// is not this work.
     Blocked { mover: usize, occupant: usize },
+}
+
+/// What became of an army that walked onto its own castle — the three arms of
+/// `Army_GarrisonApply` (`0x004A79A3`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Garrison {
+    /// The castle was empty and this army is now its garrison.
+    Took,
+    /// A garrison was already in place and the two were merged into it —
+    /// `Army_Combine`, so the arriving slot is gone.
+    Joined { into: usize },
+    /// The two together would be over
+    /// [`crate::industry::garrison_cap`], so nobody goes in. The army's
+    /// mission is reset to [`crate::ai_army::Mission::SEEK_ENEMY`] and it
+    /// stops — which is the original's own answer and is what stops a lord
+    /// marching the same men at the same full castle every turn.
+    TooMany,
 }
 
 /// What one call to [`Kingdom::tick_units`] did.
@@ -174,6 +202,85 @@ impl UnitsTick {
 }
 
 impl Kingdom {
+    /// `Army_GarrisonApply` (`0x004A79A3`) — put an army inside its own
+    /// county's castle.
+    ///
+    /// ```c
+    /// unit.needsDestination = 1;                       /* whatever happens */
+    /// total = unit.men + (garrison ? garrison.men : 0);
+    /// if (total > g_castleGarrisonCap[castleType]) { unit.mission = 2; unit.moving = 0; }
+    /// else if (county.garrisonUnit == 0) {
+    ///     county.garrisonUnit = unit;  unit.garrisonCounty = county;  unit.mission = 5;
+    ///     unit.x = county.castleX;  unit.y = county.castleY;          /* a teleport */
+    ///     unit.moving = 0;  unit.isPlayerDriven = 1;  unit.movesUsed += 5;
+    ///     unit.destCounty = county;
+    /// } else Army_Combine(county.garrisonUnit, unit);
+    /// Army_RecountCountyTroops();
+    /// ```
+    ///
+    /// Three things the shape decides:
+    ///
+    /// * **The cap is tested against the pair**, not against the new arrival,
+    ///   so a castle 90 % full refuses an army that would have fitted in the
+    ///   10 %. Reproduced.
+    /// * **It is a teleport, not a step.** The army does not walk onto the
+    ///   castle tile; it is placed on it and charged five moves. The tile it
+    ///   was walking to is `County_FindCastleTile`'s `+0x74`/`+0x75`, which
+    ///   this crate does not store — [`crate::ai_army::aim_tile`] recomputes it
+    ///   off the map, which is what wrote that pair in the first place. `[I]`
+    ///   on the substitution and `[V]` on there being one tile to find:
+    ///   `battle-before.sav`'s garrison stands on county 2's stored pair and
+    ///   that tile carries plane-0 `0x80` with terrain `0x15`.
+    /// * **A second army merges rather than stacking.** Two garrisons in one
+    ///   castle is not a state the record can hold: `garrisonUnit` is one slot.
+    pub fn garrison_army(&mut self, unit: usize, county: u8) -> Garrison {
+        if let Some(u) = self.campaign.units.get_mut(unit) {
+            u.needs_destination = true;
+        }
+        let Some(c) = self.counties.get(county as usize) else { return Garrison::TooMany };
+        let (castle_type, sitting_slot) = (c.castle_type, c.garrison_unit);
+        let sitting = self.campaign.units.get(sitting_slot).map_or(0, |u| u.men);
+        let arriving = self.campaign.units.get(unit).map_or(0, |u| u.men);
+        if arriving + sitting > crate::industry::garrison_cap(&self.tables, castle_type) {
+            if let Some(u) = self.campaign.units.get_mut(unit) {
+                u.mission = crate::ai_army::Mission::SEEK_ENEMY;
+                u.moving = false;
+            }
+            return Garrison::TooMany;
+        }
+        if sitting_slot != 0 {
+            let _ = crate::unit::combine(&mut self.campaign.units, sitting_slot, unit);
+            let realms = self.realms.clone();
+            self.campaign.units.recount_county_troops(&mut self.counties, &realms);
+            return Garrison::Joined { into: sitting_slot };
+        }
+        let from = self.campaign.units.get(unit).map_or((0, 0), |u| u.tile());
+        let (x, y) = crate::ai_army::aim_tile(
+            &self.campaign.map,
+            &self.counties,
+            from,
+            county,
+            crate::ai_army::Aim::Castle,
+        );
+        self.counties[county as usize].garrison_unit = unit;
+        if let Some(u) = self.campaign.units.get_mut(unit) {
+            u.mission = crate::ai_army::Mission::GARRISON;
+            u.garrison_county = county;
+            u.x = x;
+            u.y = y;
+            u.county = county;
+            u.moving = false;
+            u.path.clear();
+            u.player_driven = true;
+            u.moves_used += GARRISON_MOVE_COST;
+            u.dest_county = county;
+            u.dest = Some((x, y));
+        }
+        let realms = self.realms.clone();
+        self.campaign.units.recount_county_troops(&mut self.counties, &realms);
+        Garrison::Took
+    }
+
     /// `Units_Tick` (`0x004650B0`) — one step for every unit that is walking.
     ///
     /// Slots are walked in ascending order, every kind, whatever the phase.
@@ -237,6 +344,31 @@ impl Kingdom {
             self.campaign.units.recount_county_troops(&mut self.counties, &self.realms);
         }
 
+        // **Reaching a castle *building* was not a rule here at all.**
+        // `docs/armies.md` §9's target table has two entries for it — *your*
+        // county → `Army_Garrison`, anybody else's → `Army_BeginSiege` — and
+        // [`crate::movement::step`] treated the tile as an ordinary settlement:
+        // trample it and stop. So an army ordered onto its own castle stopped
+        // **on** it and stood there for ever.
+        //
+        // It went unnoticed because nothing ever gave that order: a person has
+        // to click the castle, and no AI raised an army at all. AI step 7's
+        // garrison pass ([`Kingdom::run_ai_garrisons`]) gives it several times
+        // a turn, and on the England fixture the result was one frozen army per
+        // AI realm, for forty turns, with the castles still empty.
+        //
+        // The **siege** half is not wired here: it belongs beside
+        // [`crate::siege::begin`] and is left to whoever owns that.
+        if let Some(county) = step.reached_castle_building {
+            if self.counties.get(county as usize).map(|c| c.owner)
+                == self.campaign.units.get(id).map(|u| u.owner)
+            {
+                let outcome = self.garrison_army(id, county);
+                out.contacts.push(Contact::Garrison { unit: id, county, outcome });
+                return;
+            }
+        }
+
         if let Some(county) = step.reached_castle {
             let outcome = conquest::attack_county(
                 &self.tables,
@@ -255,8 +387,56 @@ impl Kingdom {
         }
 
         if let Entry::Occupied(occupant) = step.entry {
+            if self.merge_on_contact(id, occupant) {
+                out.contacts.push(Contact::Merged { mover: id, into: occupant });
+                return;
+            }
             out.contacts.push(self.classify_occupied(id, occupant));
         }
+    }
+
+    /// The **AI's automatic merge** — `Unit_EnterOccupiedTile`'s same-owner
+    /// branch, which this driver had only half of.
+    ///
+    /// ```c
+    /// if (mover.owner == occupant.owner) {
+    ///     if (occupant.ownerIsHuman) {                 /* the half that was here */
+    ///         if (mover.mergeOrder == occupant) Army_Combine(mover, occupant);
+    ///         return ordinaryCode;
+    ///     }
+    ///     if (mover.mission    == 4) return ordinaryCode;   /* on a garrison errand */
+    ///     if (occupant.mission == 4) return ordinaryCode;
+    ///     Army_Combine(mover, occupant);                     /* unconditional */
+    ///     return ordinaryCode;
+    /// }
+    /// ```
+    ///
+    /// **An AI's two armies merge the moment they touch**, with no order and no
+    /// prompt — which is why an AI realm ends a long game with a few large
+    /// armies rather than a crowd of small ones. A **person's** two armies
+    /// merge only on an explicit order, and that asymmetry is the original's:
+    /// the test is on the *occupant's* `ownerIsHuman`, not on the mover's.
+    ///
+    /// The two exemptions are the reason [`crate::ai_army::Mission`] has to be
+    /// modelled at all outside `ai_army`: an army walking to a castle to join
+    /// its garrison is on a **dedicated errand** and is not to be absorbed by
+    /// whatever it passes, in either direction. `[D]`
+    ///
+    /// Returns whether the pair were merged, in which case the mover's slot is
+    /// gone and there is no contact to classify.
+    fn merge_on_contact(&mut self, mover: usize, occupant: usize) -> bool {
+        let units = &self.campaign.units;
+        let (Some(m), Some(o)) = (units.get(mover), units.get(occupant)) else { return false };
+        if m.kind != UnitKind::Army || o.kind != UnitKind::Army || m.owner != o.owner {
+            return false;
+        }
+        if o.owner_is_human
+            || m.mission == crate::ai_army::Mission::JOIN_GARRISON
+            || o.mission == crate::ai_army::Mission::JOIN_GARRISON
+        {
+            return false;
+        }
+        crate::unit::combine(&mut self.campaign.units, occupant, mover).is_ok()
     }
 
     /// `Unit_EnterOccupiedTile` (`0x004658C1`), reduced to the question this
@@ -503,6 +683,9 @@ impl Kingdom {
 /// Realm 6 — the owner byte merchants and peasant mobs carry. Not a realm: it
 /// is one past the five, which is why `Units::realm_totals` and the wage bill
 /// never see them.
+/// What `Army_GarrisonApply` charges an army for walking into a castle.
+pub const GARRISON_MOVE_COST: i32 = 5;
+
 pub const OWNERLESS: u8 = 6;
 
 /// The season every peasant mob is re-targeted in, whatever it was already

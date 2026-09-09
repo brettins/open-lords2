@@ -956,9 +956,17 @@ pub fn drive_ai(kingdom: &mut Kingdom, granted: &mut bool) {
 
 /// Dispatch one AI handler.
 ///
-/// Four of the fourteen are implemented in `l2-kingdom`; the other ten drive
-/// armies, merchants, diplomacy and map tiles, which no crate owns yet. They
-/// are skipped rather than stubbed, so nothing here pretends to be a rule.
+/// **Twelve of the fourteen run.** One of the two that do not is empty in the
+/// shipped binary; the other two are the diplomacy steps, which need a
+/// `l2_kingdom::diplomacy` that does not exist yet.
+///
+/// > This used to read: *"Four of the fourteen are implemented in
+/// > `l2-kingdom`; the other ten drive armies, merchants, diplomacy and map
+/// > tiles, which no crate owns yet."* `l2-kingdom` has owned a unit model
+/// > since the day that was written — `unit.rs`, `movement.rs`, `levy.rs`,
+/// > `map.rs` — so the sentence had stopped being a decision and become a
+/// > description of a world that had gone. `docs/plan.md` §2.4;
+/// > `l2_kingdom::ai_army` is the five steps it was blocking.
 fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut bool) {
     match step {
         AiStep::SetTaxRates => {
@@ -981,11 +989,29 @@ fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut boo
                 *granted = true;
             }
         }
+        AiStep::ResourceWants => kingdom.run_ai_resource_wants(realm),
         AiStep::ManageFields => {
             kingdom.run_ai_farms(realm, &mut l2_kingdom::ai_farm::NoMarket);
         }
         AiStep::BuildCastles => {
             kingdom.run_ai_castles(realm);
+        }
+        // The four army steps. Their reports — which garrisons went up, which
+        // counties were written off, which garrisons were turned out of a lost
+        // castle — are dropped here for the same reason the taunt's letters
+        // are: `l2-game` has nowhere to show them yet. Everything they change
+        // about the simulation has already happened by the time they return.
+        AiStep::ManageArmies => {
+            kingdom.run_ai_armies(realm);
+        }
+        AiStep::RaiseArmy => {
+            kingdom.run_ai_raise_army(realm);
+        }
+        AiStep::SendUnit => {
+            kingdom.run_ai_raid(realm);
+        }
+        AiStep::MoveArmies => {
+            kingdom.run_ai_move_armies(realm);
         }
         AiStep::ChooseIndustry => kingdom.run_ai_industry(realm),
         // The letters are dropped rather than shown: a realm-to-realm taunt is

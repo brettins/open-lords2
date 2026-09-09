@@ -379,14 +379,33 @@ fn the_six_shipped_merchants_take_the_next_county_on_their_own_route() {
 /// route row read at the wrong stride would all break this within a season or
 /// two; walking it ten times is what makes the cyclic half of the walk mean
 /// something.
+///
+/// > **This used to walk *every* unit and assert each one was a merchant**, on
+/// > the reasonable grounds that nothing else had ever appeared. The AI raises
+/// > armies now (`l2_kingdom::ai_army`), so by turn ten the unit array holds
+/// > merchants *and* armies and the old assertion failed on slot 7 — which is
+/// > the first evidence, from a test written before any of this existed, that
+/// > the AI's war actually runs. The subject of this test is merchants, so it
+/// > filters; the count is asserted separately below so the filter cannot
+/// > quietly become "no merchants at all".
 #[test]
 fn ten_turns_of_merchants_never_leave_their_own_routes() {
     let mut game = game!();
     let routes = game.kingdom.campaign.routes.clone();
     for turn in 1..=10 {
         l2_game::turn::end_turn(&mut game).expect("the machine comes round");
-        for (slot, u) in game.kingdom.campaign.units.iter() {
-            assert_eq!(u.kind, l2_kingdom::UnitKind::Merchant, "slot {slot} stopped being one");
+        let merchants: Vec<usize> = game
+            .kingdom
+            .campaign
+            .units
+            .iter()
+            .filter(|(_, u)| u.kind == l2_kingdom::UnitKind::Merchant)
+            .map(|(id, _)| id)
+            .collect();
+        assert_eq!(merchants.len(), 6, "turn {turn}: six merchants, still");
+        for slot in merchants {
+            let u = game.kingdom.campaign.units.get(slot).expect("just listed");
+            assert!(slot <= 6, "a merchant is always one of slots 1..=6");
             let route = routes.row(slot - 1);
             assert!(
                 route.contains(&u.dest_county),
@@ -397,8 +416,14 @@ fn ten_turns_of_merchants_never_leave_their_own_routes() {
             assert!((0..16).contains(&u.year_formed), "turn {turn}: merchant {slot} cursor");
         }
     }
-    let visited: Vec<u8> =
-        game.kingdom.campaign.units.iter().map(|(_, u)| u.county).collect();
+    let visited: Vec<u8> = game
+        .kingdom
+        .campaign
+        .units
+        .iter()
+        .filter(|(_, u)| u.kind == l2_kingdom::UnitKind::Merchant)
+        .map(|(_, u)| u.county)
+        .collect();
     eprintln!("after ten turns the six merchants stand in counties {visited:?}");
 }
 

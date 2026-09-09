@@ -971,9 +971,77 @@ pub const AI_PERSONALITY_HELP_POPULATION_FLOOR: [i32; AI_PERSONALITY_COUNT] =
     [750, 800, 900, 1000];
 
 /// Record `+0x40` — the percentage of a county's population one AI muster
-/// conscripts. `[V]` on the values, `[D]` on the meaning; nothing in this
-/// crate raises an army, so it is carried and not read. §8.2.
+/// conscripts. `[V]` on the values, `[D]` on the meaning. §8.2.
+///
+/// > It used to say *"nothing in this crate raises an army, so it is carried
+/// > and not read"*. [`crate::Kingdom::run_ai_raise_army`] reads it.
 pub const AI_PERSONALITY_MUSTER_PCT: [i32; AI_PERSONALITY_COUNT] = [30, 30, 40, 50];
+
+/// Record `+0x28` — **how many turns a lord waits between musters** when he
+/// has neither a war target nor an ally's request. `docs/diplomacy.md` §8.4
+/// already carried the values and called them *"turns between musters"*; this
+/// is the reader that makes the name a claim rather than a guess.
+///
+/// `FUN_0049F977` (AI step 9) counts realm `+0x45` up and returns early while
+/// it is **below** the lord's figure, then resets it to 0 — so the muster
+/// happens on the turn the counter *reaches* the number, and the Bishop looks
+/// for a war every second turn where the Baron and Countess look every fourth.
+/// `[V]` on the values, read out of `Lords2.exe` at `0x004D8A58 + lord*0xF0 +
+/// 0x28`; `[D]` on the meaning, from its single reader.
+pub const AI_PERSONALITY_MUSTER_PATIENCE: [i32; AI_PERSONALITY_COUNT] = [3, 4, 4, 2];
+
+/// Record `+0x68` — **the weapon stock a lord wants before he musters.**
+///
+/// AI step 9 tests it against realm `+0x138`, the maintained sum of the six
+/// weapon counters (`Realm_RecountWeapons`, `0x004487A9`) — the number the
+/// panel draws as *Arms*. Below it, the lord raises nothing at all **unless**
+/// [`crate::ai_army::emergency_weapons`] says he is in trouble, which is the
+/// one branch that bypasses the gate.
+///
+/// > **`docs/diplomacy.md` §8.4 says this is "a threshold on realm `+0x38`".
+/// > It is `+0x138`.** `+0x38` is inside the twenty-four army-name counters at
+/// > `+0x2D`, which is not a number anything would threshold. A missing digit,
+/// > and the kind that is only found by trying to use the field.
+///
+/// `[V]` on the values; `[D]` on the meaning.
+pub const AI_PERSONALITY_MUSTER_ARMS: [i32; AI_PERSONALITY_COUNT] = [100, 120, 200, 250];
+
+/// Record `+0x70` — **the county population a lord needs before he will raise
+/// a garrison for its castle.** Read by `FUN_0049F12F`, the second of AI step
+/// 7's three passes.
+///
+/// `docs/diplomacy.md` §8.4 lists `+0x70` among the fields that *"hold
+/// plausible per-lord values and were not traced"*. Traced. Note it runs the
+/// **opposite** way to the castle-building floor at `+0xC8`: the Bishop needs
+/// the largest county before he will *build* (600) and the smallest before he
+/// will *garrison* (150).
+///
+/// `[V]` on the values; `[D]` on the meaning.
+pub const AI_PERSONALITY_GARRISON_MIN_POPULATION: [i32; AI_PERSONALITY_COUNT] =
+    [300, 300, 250, 150];
+
+/// Record `+0x74` — **turns between raids.** AI step 10 sends one unit and
+/// then loads realm `+0x15A` with this, counting it down one a turn and
+/// sending nothing until it is 0.
+///
+/// Another of §8.4's untraced six. The Countess raids every five turns, the
+/// Baron and the Bishop every ten.
+///
+/// `[V]` on the values; `[D]` on the meaning.
+pub const AI_PERSONALITY_RAID_INTERVAL: [i32; AI_PERSONALITY_COUNT] = [6, 10, 5, 10];
+
+/// Record `+0x9C` — **the tax rate a lord puts on a county he has given up
+/// on.** The last of §8.4's untraced six that has a reader.
+///
+/// `FUN_0049F431`, AI step 7's third pass, decides a county cannot be held,
+/// levies what is left of it, sets the tax rate to this, sets the industry
+/// share to 100 and ships or sells everything in the larder. Every one of the
+/// four is **far above** anything the lord's own tax ladder would ever charge
+/// a county he meant to keep — [`AI_TAX_LADDERS`] tops out at 15 — so this is
+/// a lord stripping a county on the way out rather than a tax policy.
+///
+/// `[V]` on the values; `[D]` on the meaning.
+pub const AI_PERSONALITY_ABANDON_TAX_RATE: [i32; AI_PERSONALITY_COUNT] = [32, 28, 23, 35];
 
 /// Record `+0x90` — how many castles a lord will have in progress at once.
 ///
@@ -1670,11 +1738,13 @@ mod tests {
 /// rules with no field here, and they now have one. **Every rule function in
 /// this crate takes `&Tables`.**
 ///
-/// One field is carried without being read: [`AiPersonalityRow::farm_style`].
-/// `AI_ManageFields` dispatches on it into three labour allocators that were
-/// never traced, so a ruleset can set it and nothing in this crate will
-/// behave differently — which is said here, in the field's own doc comment and
-/// in `docs/modding.md` §11 rather than left to be discovered.
+/// **Every field of the AI personality record this crate carries is now read
+/// by a rule.** This paragraph used to say that
+/// [`AiPersonalityRow::farm_style`] was carried and never read, because
+/// *"`AI_ManageFields` dispatches on it into three labour allocators that were
+/// never traced"*. There are five allocators, all five are
+/// [`crate::ai_farm`], and [`AiPersonalityRow::muster_pct`] — the other field
+/// that carried the same warning — is read by [`crate::ai_army`].
 ///
 /// Array *sizes* — [`JOB_COUNT`], [`RATION_LEVEL_COUNT`],
 /// [`WEAPON_TYPE_COUNT`], [`ARMY_HAPPINESS_COST_LEN`], [`TAX_LADDER_RUNGS`],
@@ -1937,20 +2007,22 @@ pub struct AleTable {
 
 /// One AI lord's personality record, `g_aiPersonality + (lord - 1) * 0xF0`.
 ///
-/// The record is 240 bytes and about a third of it is accounted for. What is
-/// carried here is what a rule in this crate reads, plus two fields carried
-/// deliberately without a reader and said so. `docs/diplomacy.md` §8.4 lists
-/// the eleven fields that hold plausible per-lord values and were never traced
-/// (`+0x2C`, `+0x6C`, `+0x70`, `+0x74`, `+0x78`, `+0x7C`, `+0x84`, `+0x88`,
-/// `+0x8C`, `+0x9C`, `+0xA0`); they are **not** invented into fields here, and
-/// §9 is why.
+/// The record is 240 bytes and rather over half of it is accounted for. What
+/// is carried here is what a rule in this crate reads. `docs/diplomacy.md`
+/// §8.4 listed **eleven** fields that hold plausible per-lord values and were
+/// never traced (`+0x2C`, `+0x6C`, `+0x70`, `+0x74`, `+0x78`, `+0x7C`,
+/// `+0x84`, `+0x88`, `+0x8C`, `+0x9C`, `+0xA0`). Eight of the eleven have a
+/// reader now — `+0xA0` is the siege doctrine, `+0x78`/`+0x7C` and the three
+/// reserves `+0x84`/`+0x88`/`+0x8C` are `Ai_TradeForCounty`'s, and
+/// `+0x70`, `+0x74` and `+0x9C` are AI steps 7 and 10's, traced by
+/// [`crate::ai_army`]. **Two remain**: `+0x2C`, a flat 100 in all four
+/// records, and `+0x6C`, which runs 2, 3, 4, 5. They are **not** invented into
+/// fields here, and §9 is why.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AiPersonalityRow {
-    /// Record `+0x00`. **Carried, and nothing reads it.** `AI_ManageFields`
-    /// copies it into county `+0x1FE` and dispatches into one of three labour
-    /// allocators that were never traced, so this crate has no behaviour to
-    /// attach to it. It is here because it is half of the table, not because
-    /// changing it does anything yet — see [`AI_PERSONALITY_FARM_STYLE`].
+    /// Record `+0x00` — the lord's farming style, copied into county `+0x1FE`
+    /// by AI step 5 and dispatched on by [`crate::ai_farm`].
+    /// [`AI_PERSONALITY_FARM_STYLE`] has the four values.
     pub farm_style: u8,
     /// Record `+0x04` — which of [`AiTable::tax_ladders`] the lord taxes on.
     pub tax_ladder: usize,
@@ -1965,10 +2037,24 @@ pub struct AiPersonalityRow {
     /// Record `+0x30` — [`AI_PERSONALITY_HELP_POPULATION_FLOOR`]. A population
     /// floor, not a treasury one; the constant's own documentation says why.
     pub help_population_floor: i32,
-    /// Record `+0x40` — **carried, and nothing here reads it.**
-    /// [`AI_PERSONALITY_MUSTER_PCT`]: raising men is not this crate's, and a
-    /// mod that changes this will not change anything until it is.
+    /// Record `+0x40` — [`AI_PERSONALITY_MUSTER_PCT`], the share of a county's
+    /// people one muster conscripts. Read by
+    /// [`crate::Kingdom::run_ai_raise_army`].
+    ///
+    /// > This used to read *"carried, and nothing here reads it: raising men is
+    /// > not this crate's, and a mod that changes this will not change anything
+    /// > until it is"*. It is, and it does.
     pub muster_pct: i32,
+    /// Record `+0x28` — [`AI_PERSONALITY_MUSTER_PATIENCE`].
+    pub muster_patience: i32,
+    /// Record `+0x68` — [`AI_PERSONALITY_MUSTER_ARMS`].
+    pub muster_arms: i32,
+    /// Record `+0x70` — [`AI_PERSONALITY_GARRISON_MIN_POPULATION`].
+    pub garrison_min_population: i32,
+    /// Record `+0x74` — [`AI_PERSONALITY_RAID_INTERVAL`].
+    pub raid_interval: i32,
+    /// Record `+0x9C` — [`AI_PERSONALITY_ABANDON_TAX_RATE`].
+    pub abandon_tax_rate: i32,
     /// Record `+0x50` … `+0x64` — [`AI_PERSONALITY_WEAPON_ROTA`].
     pub weapon_rota: [usize; 6],
     /// Record `+0x90` — [`AI_PERSONALITY_CASTLE_CONCURRENT`].
@@ -2319,6 +2405,11 @@ impl Tables {
                     offer_interval: AI_PERSONALITY_OFFER_INTERVAL[0],
                     help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[0],
                     muster_pct: AI_PERSONALITY_MUSTER_PCT[0],
+                    muster_patience: AI_PERSONALITY_MUSTER_PATIENCE[0],
+                    muster_arms: AI_PERSONALITY_MUSTER_ARMS[0],
+                    garrison_min_population: AI_PERSONALITY_GARRISON_MIN_POPULATION[0],
+                    raid_interval: AI_PERSONALITY_RAID_INTERVAL[0],
+                    abandon_tax_rate: AI_PERSONALITY_ABANDON_TAX_RATE[0],
                     weapon_rota: AI_PERSONALITY_WEAPON_ROTA[0],
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[0],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[0],
@@ -2334,6 +2425,11 @@ impl Tables {
                     offer_interval: AI_PERSONALITY_OFFER_INTERVAL[1],
                     help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[1],
                     muster_pct: AI_PERSONALITY_MUSTER_PCT[1],
+                    muster_patience: AI_PERSONALITY_MUSTER_PATIENCE[1],
+                    muster_arms: AI_PERSONALITY_MUSTER_ARMS[1],
+                    garrison_min_population: AI_PERSONALITY_GARRISON_MIN_POPULATION[1],
+                    raid_interval: AI_PERSONALITY_RAID_INTERVAL[1],
+                    abandon_tax_rate: AI_PERSONALITY_ABANDON_TAX_RATE[1],
                     weapon_rota: AI_PERSONALITY_WEAPON_ROTA[1],
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[1],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[1],
@@ -2349,6 +2445,11 @@ impl Tables {
                     offer_interval: AI_PERSONALITY_OFFER_INTERVAL[2],
                     help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[2],
                     muster_pct: AI_PERSONALITY_MUSTER_PCT[2],
+                    muster_patience: AI_PERSONALITY_MUSTER_PATIENCE[2],
+                    muster_arms: AI_PERSONALITY_MUSTER_ARMS[2],
+                    garrison_min_population: AI_PERSONALITY_GARRISON_MIN_POPULATION[2],
+                    raid_interval: AI_PERSONALITY_RAID_INTERVAL[2],
+                    abandon_tax_rate: AI_PERSONALITY_ABANDON_TAX_RATE[2],
                     weapon_rota: AI_PERSONALITY_WEAPON_ROTA[2],
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[2],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[2],
@@ -2364,6 +2465,11 @@ impl Tables {
                     offer_interval: AI_PERSONALITY_OFFER_INTERVAL[3],
                     help_population_floor: AI_PERSONALITY_HELP_POPULATION_FLOOR[3],
                     muster_pct: AI_PERSONALITY_MUSTER_PCT[3],
+                    muster_patience: AI_PERSONALITY_MUSTER_PATIENCE[3],
+                    muster_arms: AI_PERSONALITY_MUSTER_ARMS[3],
+                    garrison_min_population: AI_PERSONALITY_GARRISON_MIN_POPULATION[3],
+                    raid_interval: AI_PERSONALITY_RAID_INTERVAL[3],
+                    abandon_tax_rate: AI_PERSONALITY_ABANDON_TAX_RATE[3],
                     weapon_rota: AI_PERSONALITY_WEAPON_ROTA[3],
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[3],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[3],

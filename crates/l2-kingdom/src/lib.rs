@@ -129,10 +129,12 @@
 //!    came from and what second source confirms it:
 //!
 //!    * the fourteen AI turn handlers — all named with their addresses in
-//!      [`ai::AiStep`]; **four are implemented here** and the other ten drive
-//!      armies, merchants, diplomacy and map tiles, which this crate does not
-//!      own. One of the fourteen (step 8) is an *empty function* in the
-//!      shipped binary;
+//!      [`ai::AiStep`]. **Twelve of the fourteen are implemented here**: the
+//!      economy in [`ai`], the five farming styles in [`ai_farm`], and the war
+//!      — steps 4, 7, 9, 10 and 11 — in [`ai_army`]. One of the fourteen
+//!      (step 8) is an *empty function* in the shipped binary; the two that
+//!      remain are the diplomacy pair, which needs the inbox and its seven
+//!      reply handlers;
 //!    * the four `AI_SetTaxRates` ladders — [`tables::AiTable::tax_ladder_neutral`]
 //!      and [`tables::AiTable::tax_ladders`];
 //!    * the five bankruptcy stages — [`industry::BankruptcyAction`], each
@@ -160,11 +162,22 @@
 //!       of the six;
 //!     * the two denominators the weapons `resourceLimit` divides by
 //!       (`FUN_0044F15B`);
-//!     * the three AI farming styles `AI_ManageFields` dispatches into, and the
-//!       per-lord castle and weapon ladders steps 6 and 12 read;
 //!     * a fifth AI lord's personality record — see
 //!       [`tables::AI_PERSONALITY_COUNT`], which is four;
-//!     * the ten AI handlers whose state lives outside this crate.
+//!     * personality `+0x2C` and `+0x6C`, the last two fields of that record
+//!       with no reader — `docs/diplomacy.md` §8.4;
+//!     * **`l2_kingdom::diplomacy` itself.** AI steps 1 and 2 are the only two
+//!       of the fourteen this crate does not run, and four fields
+//!       [`ai_army`] reads have no other writer — so the raid (step 10) and
+//!       the *assist ally* mission are implemented, dispatched and
+//!       **unreachable in a played game**. `docs/decisions.md` C62 states it,
+//!       and `crates/l2-game/tests/ai_war.rs` holds a test written to go red
+//!       the day it stops being true;
+//!     * `Transport_Deliver`, and with it the goods evacuation in AI step 7's
+//!       third pass — see [`ai_army::Evacuation`];
+//!     * `Army_BeginSiege` from the mover: an army sent at somebody else's
+//!       castle arrives and stops. The garrison half of the same tile is
+//!       [`Kingdom::garrison_army`]; `docs/decisions.md` C61.
 //!
 //! 11. **§9's five-stage chain reproduces exactly**, and `tests/reproduction.rs`
 //!     now asserts it against `lastturn.sav` rather than against §9's prose:
@@ -192,6 +205,7 @@
 //!     [`ai::begin_realm_turn`].
 
 pub mod ai;
+pub mod ai_army;
 pub mod ai_farm;
 pub mod battle;
 pub mod conquest;

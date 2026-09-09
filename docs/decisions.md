@@ -2526,6 +2526,65 @@ C46 named: *a measurement and a word beside it that nobody checked agreed* — 9
 40 × 32, `tile_w` beside `pitch`, "one tick" beside 50 ms, and a turn described as a loop
 when the thing it models is a frame.
 
+
+**C61 — Two rules written down in two documents, and nothing joined them: an army ordered
+onto its own castle stood on the tile for ever.**
+
+`docs/armies.md` §9's target table has the rule — *your county → `Army_Garrison`, anybody
+else's → `Army_BeginSiege`* — and §2.2's tile table, which is what somebody implementing
+movement reads, describes plane-0 `0x80` as *"the move ends; `Unit_TrampleTile` charges 7,
+conditionally"* and does not mention that the tile might be a castle. So
+`movement::step` trampled it and stopped, `Army_Garrison` was implemented nowhere, and
+`conquest::attack_county` answered a friendly county with `Refusal::AlreadyYours`.
+
+**Nothing in the game could produce that order**, so nothing was wrong. A person has to click
+the castle and the campaign UI has no such click yet; no AI raised an army at all. The moment
+AI step 7's garrison pass landed it produced the order several times a turn, and on the England
+fixture the result was one army per AI realm frozen one tile from its own castle for **forty
+turns**, with the castles still empty. It cost about an hour to find and four lines to fix.
+
+Two things worth carrying:
+
+* **The two tile bits are not what their names say.** `flags::CASTLE` (`0x40`) is *the county
+  town* — C25 said so from `L2.eng` and this is the second time it has bitten — and `0x80`
+  with terrain `0x15…0x19` is the castle building. Walking onto the first takes a county;
+  walking onto the second garrisons or besieges. `Step::reached_castle` was named for the
+  first and there was no field for the second.
+* **This is C59's shape exactly, one level up.** C59 was a *relation* stored from one end and
+  read from the other with nothing joining them. This is a *rule* stated in one section and
+  absent from the section somebody implementing it would read. Both were invisible behind a
+  green suite for the same reason: no code path in the shipped engine reached them.
+
+The generalisation, which is worth more than the fix: **a rule that only one caller can reach
+is untested until that caller exists**, and the AI is the caller for a large fraction of this
+engine's rules. Fourteen turn handlers were named and four were run; the ten that were not
+were holding shut every rule only they call. `docs/plan.md` §2.4 argued that from the outside;
+this is the same argument with a number on it.
+
+**C62 — Four of the AI's inputs are written by a module that does not exist, and two of its
+handlers can therefore never fire.**
+
+Asked directly — *for every field these handlers read, what writes it in a real game?* — the
+answer for `crates/l2-kingdom/src/ai_army.rs` is that four fields have exactly one writer and
+that writer is `l2_kingdom::diplomacy`, which is not a module. `crates/l2-kingdom/src/realm.rs`
+links to seven of its functions in doc comments and every link is dangling.
+
+| field | its only writer | what is unreachable without it |
+|---|---|---|
+| `Realm::pairs[].standing` | `Diplo_Init`, `Diplo_Offend`, the seven reply handlers | **AI step 10 entirely** — the raid wants a rival below −10 |
+| `Realm::war_target` | `Diplo_Offend` | the same, and step 9's halved population floor |
+| `Realm::ally` | `Diplo_FormAlliance` | mission 6 *assist ally*, and `Diplo_ActionAllowed`'s grudge |
+| `Realm::target_county` | `Diplo_PayForHelp` | step 9's ally-request branch |
+
+So the raiding party — step 10, the whole of `FUN_004A0015` and mission 7 — is implemented,
+dispatched, unit-tested and **can never fire in a played game**. That is C27 restated for the
+AI's war, and it is written down here rather than left to be discovered because the suite is
+green either way.
+
+`crates/l2-game/tests/ai_war.rs` holds both halves as one test: nothing moves a standing off
+zero in forty turns, *and* the raid goes out the moment something does. The first assertion is
+designed to **go red when diplomacy lands**, which is the only way a gap like this announces
+that it has closed.
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

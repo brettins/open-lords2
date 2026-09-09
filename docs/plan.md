@@ -186,6 +186,13 @@ count, how retreat and surrender are commanded, and how the seven outcomes are c
 
 ### 2.4 The AI cannot farm, cannot fight, and the reason it cannot was true yesterday
 
+> **Closed** — §3 items 5 and 7. Twelve of the fourteen handlers run; the five styles are
+> `ai_farm.rs` and the war is `ai_army.rs`. The section is kept as written because the
+> *reasoning* is what item 7 is now recommended on, and because the expired-comment failure it
+> names has already recurred once inside this very work: `docs/kingdom.md` §3.2's *"create a
+> type-7 unit"* was copied into `ai.rs` as *"needs the unit mission byte"* and neither reader
+> noticed they were the same wrong claim.
+
 `crates/l2-kingdom/src/ai.rs` names all fourteen handlers with addresses — real progress;
 `docs/kingdom.md` §12 used to call them *"the single largest remaining piece of the kingdom
 layer"*. **Four are implemented.** The AI sets tax rates, takes its resource grants, adds
@@ -316,10 +323,28 @@ for iron, stone and timber, the only entrance for bought weapons, and the only s
 The castle chooser is five buttons and an OK (§8), and it is the door to castles, which are
 the door to sieges.
 
-**7 — The AI's remaining steps.** Armies first (7, 9, 11) and merchants (10), because those
-are the ones the expired constraint was blocking; then castles (6) and industry (12), which
-need the per-lord ladders; then diplomacy (1, 2, 13) last, because a game can be finished
-without diplomacy and cannot be finished without opponents that attack.
+**7 — The AI's remaining steps. ✅ Twelve of the fourteen run.** Armies first (7, 9, 11) and
+merchants (10), because those are the ones the expired constraint was blocking; then castles
+(6) and industry (12), which need the per-lord ladders; then diplomacy (1, 2, 13) last, because
+a game can be finished without diplomacy and cannot be finished without opponents that attack.
+
+Steps 4, 7, 9, 10 and 11 are `crates/l2-kingdom/src/ai_army.rs`; 6, 12 and 13 were already
+there. **Forty turns of the England fixture now ends with all four AI realms alive, fed,
+planting, garrisoned and at war**, and the map has moved for the first time —
+`crates/l2-game/tests/ai_war.rs`. Two of the fourteen remain and both are diplomacy, which is
+the ordering above. Three things that fell out and are worth reading before the next item:
+
+* **Two rules were written down in two documents and nothing joined them.** An army ordered
+  onto its own castle stood on the tile for ever, because `Army_Garrison` existed in
+  `docs/armies.md` §9's target table and nowhere in the code, and no order in the game could
+  produce one until the AI's garrison pass did. `docs/decisions.md` C61.
+* **Four of the AI's inputs have exactly one writer and that writer is a module that does not
+  exist.** The raid — step 10, and mission 7 — is implemented, dispatched, tested, and cannot
+  fire in a played game. C62. That moves diplomacy up: it is no longer only *"a game can be
+  finished without it"*, it is *"one of the fourteen handlers is dead without it"*.
+* §2.5's exposure is real and this is the first thing to have gone looking. Every rule that
+  fires above one county — the AI's muster floor is 750 to 1,000 people against England's
+  opening 435 — was unreachable in every fixture, and forty turns is what reaches it.
 
 **8 — Sieges. ✅ Built.** The **campaign half** is `crates/l2-kingdom/src/siege.rs`, whole:
 laying a siege and its four refusals, the engine order with the screen's own ceilings of
@@ -477,7 +502,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,726<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,731<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -580,7 +605,7 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->757<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->771<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->31<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and

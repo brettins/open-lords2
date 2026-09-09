@@ -5952,6 +5952,118 @@
       "confidence": "verified",
       "signature": "undefined4 File_Exists(char * name)",
       "comment": "Open, close, and on failure chdir to the install and retry - returns 0 missing, 1 found here, 2 found after the chdir. Not a sound function, but both music pickers open with it and reading it as \"is this playing\" inverts both ladders."
+    },
+    {
+      "addr": "0x004A5667",
+      "name": "Ai_AdvanceArmies",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Ai_AdvanceArmies(int realm)",
+      "comment": "AI turn step 11. Walks slots 1..150 and, for every type-1 unit of this realm whose mission handler (Ai_RunMission, 0x004A57AC) returns non-zero, clears +0x14E, floods from the unit in mode 0 and re-paths it to destX/destY. Byte for byte the same shape as the verified PeasantMob_AdvanceAll. Note mode 0: the AI driver does NOT prefer roads, though Unit_OrderMove does."
+    },
+    {
+      "addr": "0x004A57AC",
+      "name": "Ai_RunMission",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "uint Ai_RunMission(uint unit)",
+      "comment": "Dispatches on unit +0x1A, the AI mission byte: 7 to 0x004A58F4, 6 to 0x004A599D, 2 to 0x004A5B1F, 3 to 0x004A5F0A, 4 to 0x004A6270, 5 to 0x004A60B9, and anything else rewrites +0x1A to 2 and returns 0. Non-zero means the handler wrote destX/destY and wants a fresh path. docs/armies.md section 10 has the enum; this closes +0x1A, which docs/armies.md section 1.5 had as a UI feedback code."
+    },
+    {
+      "addr": "0x004A58F4",
+      "name": "Ai_MissionRaid",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "bool Ai_MissionRaid(uint unit)",
+      "comment": "Mission 7. Unless the unit is besieging (+0x199), re-aims it at the nearest STANDING CROP of its destCounty via Ai_FindStandingCropTile and clears needsDestination. It is re-aimed every turn, which is what makes a fifty-man unarmed raiding party destructive: Unit_TrampleTile fires on every field it crosses in a county it does not own."
+    },
+    {
+      "addr": "0x004A599D",
+      "name": "Ai_MissionAssistAlly",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "uint Ai_MissionAssistAlly(uint unit)",
+      "comment": "Mission 6. Re-validates unit +0x19B, the ally-help target county, through 0x0049FF71; a cancelled request demotes the unit to mission 2 and runs that handler in the SAME tick. Otherwise it closes on the nearest enemy army in that county, but only within Chebyshev 21 - outside that it does nothing at all this turn."
+    },
+    {
+      "addr": "0x004A5B1F",
+      "name": "Ai_MissionSeekEnemy",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "uint Ai_MissionSeekEnemy(uint unit)",
+      "comment": "Mission 2, the default war mission and the one every unrecognised value becomes. Four arms in order: intercept an enemy army within Chebyshev 6 (tie-break: the more westerly gives chase, and an army already on mission 2 is not chased); keep the standing destCounty if it is still hostile and still borders the realm; else pick a new target with 0x004A0649; else attack the county it is standing in. Two defects: the last arm never updates destCounty, and an ally-owned county with no alternative aims the army at county 0. It also calls 0x00467F2E and discards the result - the two arms it was written to choose between are identical."
+    },
+    {
+      "addr": "0x004A5F0A",
+      "name": "Ai_MissionHoldHome",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "uint Ai_MissionHoldHome(uint unit)",
+      "comment": "Mission 3. Intercepts the nearest attackable army in the unit homeCounty (+0x11) within Chebyshev 31 - five times mission 2 radius - and otherwise walks back to that county. Always returns 1 unless besieging. Its only setter is 0x0049F431, which overwrites homeCounty with the realm muster county on the abandon branch, so home means posted-to rather than raised-in."
+    },
+    {
+      "addr": "0x004A6270",
+      "name": "Ai_MissionJoinGarrison",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "uint Ai_MissionJoinGarrison(uint unit)",
+      "comment": "Mission 4. Re-checks that the target castle has room for the WHOLE army (g_castleGarrisonCap tested against the unit men plus the sitting garrison), is standing, is not under construction and still belongs to the realm; failing any of those it looks for another castle with room (0x004A07F2) and disbands the army if there is none. Returns 1 even after Army_Disband, so the caller then floods from a record Army_Destroy has already cleared."
+    },
+    {
+      "addr": "0x004A60B9",
+      "name": "Ai_MissionGarrisoned",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "uint Ai_MissionGarrisoned(uint unit)",
+      "comment": "Mission 5, which Army_GarrisonApply writes. Does nothing while destCounty still belongs to the unit owner. Once the county is lost the garrison is ejected (0x00437535) and demoted to mission 2, and in the one case where the castle is still standing and unruined it is also sent at the county town to take it back."
+    },
+    {
+      "addr": "0x004A6735",
+      "name": "Ai_FindTownTile",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void Ai_FindTownTile(int unit, uint county)",
+      "comment": "The tile of the county carrying plane-0 0x40 - the county TOWN, not the castle - nearest by Manhattan distance to the unit, into g_foundTileX/Y; falls back to the county anchor at +0x6C/+0x6D. Distinct from County_FindTownTile (0x00467FD1), which finds the same bit once at map load to place that anchor. Stepping onto the result runs Army_AttackCounty. Ties go to the lowest tile offset, and offset 0 doubles as not-found, so tile (0,0) can never be returned."
+    },
+    {
+      "addr": "0x004A65A3",
+      "name": "Ai_FindCastleBuildingTile",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void Ai_FindCastleBuildingTile(int unit, uint county)",
+      "comment": "The tile of the county carrying plane-0 0x80 with terrain 0x15..0x19 - the five BUILT castle types, excluding the 0x14 plot - nearest by Manhattan distance to the unit; falls back to the stored castle tile at county +0x74/+0x75. Stepping onto the result runs Unit_ReachCastleBuilding: Army_Garrison when the county is the mover own, Army_BeginSiege when it is not."
+    },
+    {
+      "addr": "0x004A689D",
+      "name": "Ai_FindStandingCropTile",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void Ai_FindStandingCropTile(int unit, uint county)",
+      "comment": "The tile of the county carrying plane-0 0x20 with terrain 3..22 - a standing crop or a pasture, excluding wild and fallow - nearest by Manhattan distance to the unit; falls back to the county anchor. This is what the AI raiding party (mission 7) is aimed at, which is why a raid damages the harvest."
+    },
+    {
+      "addr": "0x004A64CA",
+      "name": "Ai_AimAtCounty",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Ai_AimAtCounty(int unit, uint county)",
+      "comment": "The choice missions 2 and 3 make between the two county tiles: a county with no castle, or a castle with no garrison, is entered at the TOWN (Ai_FindTownTile); anything else is approached at the CASTLE (Ai_FindCastleBuildingTile), which begins a siege. L2.eng group 286 states the same rule to the player."
+    },
+    {
+      "addr": "0x004A545F",
+      "name": "Levy_EquipSlot",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Levy_EquipSlot(int realm, int slot)",
+      "comment": "Moves min(unequipped men, weapons remaining in that basket slot) from basket slot 0 into slot 1..6 - it arms as many still-unarmed levies with that one weapon type as the stock allows. Called five times by 0x004A5389 in the order 5, 1, 3, 2, 6: bows, crossbows, swords, maces, mail. Pikes, slot 4, are never issued by that path."
+    },
+    {
+      "addr": "0x00467EB0",
+      "name": "County_BordersRealm",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "int County_BordersRealm(uint realm, int county)",
+      "comment": "Walks the county zero-terminated 16-slot adjacency list at +0x5C and returns 1 if any neighbour is owned by that realm. It is the adjacency gate on every county the AI picks for its main army, which is why an AI attack always lands next to its own territory - and why a raid, whose chooser skips this test, need not."
     }
   ],
   "globals": [
