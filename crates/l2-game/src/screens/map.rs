@@ -42,9 +42,17 @@
 //! | the six sidebar buttons | `Sidebar_ButtonClicked` `0x00432967` |
 //! | the strip's 2 × 2 | `CountyStrip_Click` `0x00438CEB` |
 //! | the farm/industry slider | `Labour_SplitSliderDrag` `0x00439122` |
-//! | **not reproduced:** the menu bar's three titles | `Menu_OpenDropdown` `0x0040DECA` |
-//! | **not reproduced:** right release clears the minimap mode | `FUN_00439079` `0x00439079` |
-//! | **not reproduced:** the sidebar's job rows | `CountyStrip_JobClick` `0x00438E3B` |
+//! | the menu bar's three titles | `Menu_OpenDropdown` `0x0040DECA` — [`crate::screens::menubar`] |
+//! | right release clears the minimap mode | `FUN_00439079` `0x00439079` |
+//! | the sidebar's job rows | `CountyStrip_JobClick` `0x00438E3B` |
+//! | **not reproduced:** a left press at zoom 2 zooms in on the tile | `Map_ZoomInAtTile` |
+//! | **not reproduced:** a right release dismisses the message scroll | `Msg_Dismiss` |
+//!
+//! *(The last three rows used to read* **not reproduced** *for the menu bar,
+//! `FUN_00439079` and the job rows. Those three lines were **twenty-one input
+//! arms** between them — the menu bar alone is sixteen items over three
+//! drop-downs — which is what a one-line table row can hide.
+//! `docs/arms.json` groups `menu-bar` and `right-column`.)*
 //!
 //! `Map_Click` itself is six branches, in this order, and the order is the rule
 //! — **it tests the picked *unit* before any tile flag**, so an army standing on
@@ -135,6 +143,7 @@ use l2_view::{text, Canvas, Clip, Ink, Tags};
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::screens::county;
+use crate::screens::menubar;
 use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::turn;
 use crate::widget;
@@ -175,6 +184,13 @@ pub const END_TURN_BUTTON: Rect = Rect::new(
 /// All five destinations are read: `Sidebar_Button` (`0x0043AE30`) is a
 /// five-way `if` on the hotspot id, and every arm sets a `g_screenId` we
 /// already have a [`shell`](crate::screens::shells) for.
+/// **The table itself is the arm**, and the six things it dispatches to are six
+/// more: `Sidebar_ButtonClicked` (`0x00432967`) is one
+/// `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)` call and nothing else.
+/// The sixth record is **End Turn**, `(0, 30) … (161, 49)` at that offset, whose
+/// handler is `Turn_End` rather than `Sidebar_Button`; it is [`END_TURN_BUTTON`]
+/// here and its own arm.
+// arm: 0x00432967/sidebar-hit-test
 pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
     // `Levy_SetPercent(sel, g_levyPercent); FUN_004AA90A(sel, g_levyMen);
     // g_screenId = 0x17`, and the mercenary band is loaded on top of it when
@@ -332,10 +348,16 @@ pub const SPLIT_SLIDER: Rect = Rect::new(PANEL_X, 257, PANEL_W, 296 - 257 + 1);
 /// The slider's own arithmetic, verbatim: left of the track steps down by four,
 /// right of it up by four, and on the track the value is
 /// `((x - 531) * 2) & 0xFC` — masked, so it lands on a multiple of four.
+///
+/// **The three zones are half-open and the upper bound is 594, not 595.** The
+/// original is `if (mx < 0x213) down; else if (mx < 0x252) track; else up;` —
+/// so x = 594 steps the share **up**. This read `x > 594` and put that one
+/// column on the track instead: a wrong arm rather than a missing one, and the
+/// kind nothing looks broken about.
 pub fn split_from_click(x: i32, current: i32) -> i32 {
     let next = if x < 531 {
         current - 4
-    } else if x > 594 {
+    } else if x >= 594 {
         current + 4
     } else {
         ((x - 531) * 2) & 0xFC
@@ -639,16 +661,52 @@ impl MapScreen {
     fn minimap_mode_button(&mut self, button: usize) {
         if self.minimap_mode == MinimapMode::Owner {
             match MinimapMode::from_button(button) {
+                // arm: 0x0043AB76/minimap-mode-set
                 Some(mode) => {
                     self.minimap_mode = mode;
                     self.status = format!("MINIMAP {}", minimap_mode_name(mode));
                 }
+                // arm: 0x0043AB76/minimap-zoom-toggle
                 None => self.toggle_zoom(),
             }
         } else if button == 3 {
+            // arm: 0x0043AB76/minimap-mode-clear
             self.minimap_mode = MinimapMode::Owner;
             self.status = "MINIMAP OWNERS".into();
         }
+    }
+
+    /// **`FUN_00439079` (`0x00439079`)** — a right release anywhere in
+    /// `x >= 0x1DE, 0x18 <= y < 0x99` with a minimap overlay up **clears the
+    /// overlay and swallows the click**, and does nothing at all when no overlay
+    /// is up.
+    ///
+    /// It is guard 2 of the `g_screenId == 0` arm, ahead of the sidebar and
+    /// *outside* the turn-ended gate, and it is also guard 6 of the village's
+    /// and of all four county panels'. This module's header carried it as *"not
+    /// reproduced"*.
+    ///
+    /// The rectangle is the **minimap and its button strip**, not the whole
+    /// column: y stops at 152, which is four pixels above the county strip's
+    /// plate at 156.
+    fn clear_minimap_mode(&mut self, x: i32, y: i32) -> bool {
+        if x < PANEL_X || !(0x18..0x99).contains(&y) || self.minimap_mode == MinimapMode::Owner {
+            return false;
+        }
+        // arm: 0x00439079/right-clears-minimap-mode
+        self.minimap_mode = MinimapMode::Owner;
+        self.status = "MINIMAP OWNERS".into();
+        true
+    }
+
+    /// `CountyStrip_JobClick`'s ownership gate and its geometry, which is
+    /// [`county::job_row_at`].
+    fn job_row_at(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
+        if !ctx.game.is_players(ctx.game.selected) {
+            return None;
+        }
+        let c = ctx.game.kingdom.counties.get(ctx.game.selected as usize)?;
+        county::job_row_at(c, x, y)
     }
 
     /// Set `g_optScrollSpeed`. 0 … 100; 0 disables scrolling, as it does in the
@@ -888,6 +946,7 @@ impl MapScreen {
 
     /// The rectangle of one brush button, `i` counting from the left of the
     /// menu that is open.
+    // arm: 0x00438990/tile-panel-hotspots
     fn brush_button(menu_len: usize, i: usize) -> Rect {
         // The two-button menu uses the *right-hand* two columns, which is what
         // the hotspot table holds: x 304 and 368, not 240 and 304.
@@ -1523,7 +1582,7 @@ impl MapScreen {
     /// in move-order mode, in the order `Screen_FrameInput` does it:
     ///
     /// ```c
-    /// if ((g_mouseLeftPressed != ' ') && (g_moveOrderClickGuard < 1)) {
+    /// if ((g_mouseLeftPressed != '\0') && (g_moveOrderClickGuard < 1)) {
     ///     g_screenId = 0; DAT_0056D64C = 1; Map_ConfirmMoveOrder(); }
     /// ```
     ///
@@ -2024,6 +2083,12 @@ impl Screen for MapScreen {
             // gate is `Map_PickTile` finding a tile at all, which is our map
             // clip. A right-click on the sidebar reaches the minimap-mode
             // clear instead, and we have no minimap modes to clear.
+            // **Guard 2 of the arm, and it is tested before anything else the
+            // right button does** — including the information panel below.
+            // `FUN_00439079` consumes the click only when an overlay is up, so
+            // with no overlay this falls through exactly as the original's
+            // `return 0` does.
+            Event::RightClick { x, y } if self.clear_minimap_mode(x, y) => {}
             Event::RightClick { x, y } if self.map_clip().contains(x, y) => {
                 if self.picked_field.take().is_some() {
                     self.status = "NO CHANGE".into();
@@ -2072,6 +2137,13 @@ impl Screen for MapScreen {
                 // The brush popup is modal over the map, the way
                 // `Hotspot_Test` makes it: while it is up its buttons are
                 // tested first and a click anywhere else dismisses it.
+                // **Ours, and counted.** The brush's five buttons and all five
+                // destinations are the original's (see [`brush`]), but the
+                // *popup* is not: in the original the same table is drawn on
+                // **screen `0x04`**, the information panel a RIGHT click opens,
+                // at a runtime row offset. There is no popup on screen 0.
+                // `docs/arms.json` `ours/brush-popup-on-the-map`.
+                // arm: ours/brush-popup-on-the-map
                 if let Some(picked) = self.picked_field.clone() {
                     for (i, &b) in picked.menu.iter().enumerate() {
                         if Self::brush_button(picked.menu.len(), i).contains(x, y) {
@@ -2083,14 +2155,52 @@ impl Screen for MapScreen {
                     self.status = "NO CHANGE".into();
                     return Transition::Stay;
                 }
+                // **`Sidebar_ButtonClicked` is guard 3 and it is OUTSIDE the
+                // turn-ended gate**, which the menu bar below it is inside. So
+                // the five icons and End Turn keep working once the turn has
+                // been ended and nothing else in the column does. Verbatim, the
+                // `g_screenId == 0` arm:
+                //
+                // ```c
+                // if (Map_EdgeScroll() || FUN_00439079() || Sidebar_ButtonClicked()) goto done;
+                // if (!syncWait && (!turnEnded || debugOverride)) {
+                //     if (Menu_OpenDropdown(&g_menuBarItems, 3) || Minimap_ModeButtonClicked()
+                //         || CountyStrip_Click() || Labour_SplitSliderDrag()
+                //         || CountyStrip_JobClick()) goto done;
+                //     ...the message scroll, the zoom, Map_Click, the info panel...
+                // }
+                // ```
                 if END_TURN_BUTTON.contains(x, y) {
-                    return self.end_turn(ctx);
+                    // **Ending the turn takes every open panel with it**, and
+                    // that is not this arm's doing: `Turn_End` writes
+                    // `DAT_0055403C`, and the *next* frame twenty-nine of
+                    // `Screen_FrameInput`'s forty-nine arms open with
+                    // `if (DAT_0055403C != 0 && !debugOverride)` and force-close.
+                    // The observable result is the same and it has to happen
+                    // here, because this button is reachable *through* a county
+                    // panel and `Machine::update` ticks only the top screen — a
+                    // turn started from under a panel would be a turn nothing
+                    // wound on.
+                    //
+                    // `docs/arms.json` `0x0042FF10/force-close-on-turn-end` is
+                    // the general arm and stays `missing`: this is one screen's
+                    // corner of it, not the guard.
+                    // arm: 0x0043AC23/end-turn
+                    let t = self.end_turn(ctx);
+                    return if t == Transition::Stay { Transition::Reveal } else { t };
                 } else if let Some(b) = SIDEBAR_BUTTONS.iter().find(|b| b.rect().contains(x, y)) {
                     // `g_sidebarButtons`. Three of the five reach a screen we
                     // can draw; the other two name the function the original
                     // dispatches to and do nothing, which is the honest state.
                     // Three of the five are gated on the county being yours,
                     // and the two that are not are the court and the lords.
+                    // Each of the five is an arm of its own: `Sidebar_Button`
+                    // (`0x0043AE30`) is a five-way `if` on `g_uiHotspotId`.
+                    // arm: 0x0043AE30/sidebar-levy
+                    // arm: 0x0043AE30/sidebar-court
+                    // arm: 0x0043AE30/sidebar-supplies
+                    // arm: 0x0043AE30/sidebar-castle
+                    // arm: 0x0043AE30/sidebar-lords
                     let SidebarAction::Screen(id) = b.action;
                     let gated = matches!(id, 0x17 | 0x18 | 0x1B);
                     if gated && !ctx.game.is_players(ctx.game.selected) {
@@ -2098,16 +2208,39 @@ impl Screen for MapScreen {
                         return Transition::Stay;
                     }
                     return Transition::Push(sidebar_destination(id, ctx.game.selected));
+                } else if let Some(title) = menubar::title_at(&*ctx, x, y) {
+                    // **`Menu_OpenDropdown` (`0x0040DECA`)** — the one line this
+                    // module's header carried as *"not reproduced"*. It saves
+                    // `g_screenId` into `g_menuPrevScreen` and writes `0x32`,
+                    // which is a push here.
+                    // arm: 0x0040DECA/open-dropdown
+                    return Transition::Push(ScreenId::MenuBar(title));
                 } else if let Some(i) =
                     MINIMAP_MODE_BUTTONS.iter().position(|r| r.contains(x, y))
                 {
+                    // arm: 0x0043292D/minimap-mode-buttons
                     self.minimap_mode_button(i);
-                } else if SPLIT_SLIDER.contains(x, y) && ctx.game.selected != 0 {
+                } else if SPLIT_SLIDER.contains(x, y)
+                    && ctx.game.is_players(ctx.game.selected)
+                {
                     // `FUN_00439122`, the farm/industry split. The press is the
                     // first frame of a **drag**: the button is now down, and
                     // every pointer move while it stays down moves the slider.
+                    //
+                    // **The ownership gate is the function's second line** —
+                    // `if (g_counties[g_selectedCounty].owner == g_localPlayer)`
+                    // — and this tested only `selected != 0`, so the slider
+                    // moved another lord's peasants.
+                    // arm: 0x00439122/split-slider
                     self.slider_held = true;
                     self.drag_split(ctx, x);
+                } else if let Some(job) = self.job_row_at(&*ctx, x, y) {
+                    // **`CountyStrip_JobClick` (`0x00438E3B`)** — the produce
+                    // rows on the 162 × 128 plate at y = 302, which open the job
+                    // popup for that row. Another of this module's header's
+                    // three "not reproduced" lines.
+                    // arm: 0x00438E3B/job-rows
+                    return Transition::Push(ScreenId::Job(ctx.game.selected, job));
                 } else if let Some(panel) = county::panel_at(x, y) {
                     // **The county strip is a 2 x 2 hotspot and it is the whole
                     // navigation into the four county panels** — there is no
@@ -2116,12 +2249,32 @@ impl Screen for MapScreen {
                     // on this screen at all, which is why a player could reach
                     // tax and nothing else: our own COUNTY PANEL button opened
                     // the county screen on its own default.
+                    // arm: 0x00438CEB/strip-population
+                    // arm: 0x00438CEB/strip-happiness
+                    // arm: 0x00438CEB/strip-tax
+                    // arm: 0x00438CEB/strip-ration
                     if ctx.game.selected != 0 {
                         return Transition::Push(ScreenId::County(ctx.game.selected, panel));
                     }
                 } else if chrome::minimap_hit_area().contains(x, y) {
                     // `Minimap_Click`: the county raster decides, then
                     // `Map_CentreOnTile` moves the viewport onto it.
+                    //
+                    // **It is reached from every screen, not only this one.**
+                    // `Screen_FrameInput`'s epilogue runs it on any press with
+                    // `g_screenId != 0x12`, and closes the management surface on
+                    // a hit — so this arm is live under a county panel, the job
+                    // popup and a shell. Our stack says that with
+                    // [`Transition::Reveal`]: the overlay passes the press down,
+                    // this runs, and everything above the map is thrown away.
+                    //
+                    // `Minimap_Click` returns **1 for any press inside the
+                    // raster**, county or no county, so the surface closes even
+                    // where the raster is blank. And it returns 0 outright while
+                    // `g_screenId` is `0x05` or `0x06` — the village's two drag
+                    // screens — which is why the village keeps a peasant drag
+                    // rather than losing it to a stray click on the minimap.
+                    // arm: 0x0043253A/minimap-click
                     self.ensure_minimap(ctx);
                     let county = self.minimap.as_ref().map_or(0, |m| m.county_at(x, y));
                     if county != 0 && ctx.game.select(county) {
@@ -2133,6 +2286,8 @@ impl Screen for MapScreen {
                         self.centre_on_county(anchor);
                         self.status = format!("COUNTY {county} SELECTED");
                     }
+                    // arm: 0x0042FF10/minimap-closes-the-surface
+                    return Transition::Reveal;
                 } else if self.map_clip().contains(x, y) {
                     self.ensure(ctx);
                     // **Move-order mode is a screen, not a flag, and that is the
@@ -2847,9 +3002,12 @@ fn fill_clipped(canvas: &mut Canvas, x: i32, y: i32, side: i32, colour: u8, clip
 /// 196 + (c mod 8) — 25 cells from x 0 and 2 more from x 592 — and one 13 × 16
 /// `Misc_cty` banner per live realm at `x = 270 + 16i, y = 4`.
 ///
-/// **Ours:** the File / Options / Help menu titles are not drawn (they come
-/// from `L2.eng` groups 1–3 and open drop-downs nothing here implements), and
-/// the clock and treasury are our font at the original's x positions.
+/// **The File / Options / Help titles are drawn now**, out of `L2.eng` groups
+/// 1, 2 and 3 index 0, measured the way `Ui_DrawMenuTitles` (`0x0040C5B0`)
+/// measures them — see [`menubar`](crate::screens::menubar). This comment used
+/// to say they were not, which was true and was nineteen input arms.
+///
+/// **Ours:** the clock and treasury are our font at the original's x positions.
 fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
     let ink = &ctx.assets.ink;
     let game = &ctx.game;
@@ -2880,9 +3038,26 @@ fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
     let clock = format!("{} {}", season_name(k.season), k.year);
     text::draw(canvas, 360, 6, &clock, ink.text);
     text::draw(canvas, 500, 6, &format!("GOLD {}", game.gold()), ink.text);
-    text::draw(canvas, 6, 6, &format!("TURN {}", k.turn_count), ink.dim);
+    // `Ui_DrawMenuTitles(&g_menuBarItems, 3)`. Nothing here is open — the
+    // drop-down is its own screen and draws its own title lit.
+    menubar::draw_titles(ctx, canvas, None);
+
+    // **OURS, and it has been evicted from the menu bar.**
+    //
+    // The turn number and the counties-held count were at x = 6 and x = 150,
+    // which is where the original draws *File*, *Options* and *Help* — so two
+    // lines of ours were sitting on the three words that are the way into every
+    // menu in the game, and neither was visible with the real fonts loaded.
+    // There is no room for them: the bar holds three measured titles, up to five
+    // 13 × 16 realm banners from x = 270, the clock at 360 and the treasury at
+    // 500, and every one of those is `Screen_DrawMenuBar`'s.
+    //
+    // So they go **under** the bar, on the map's own top-left corner, where
+    // nothing of the original's is drawn. Still ours, still marked, and now they
+    // cannot hide a control.
+    text::draw(canvas, 6, 28, &format!("TURN {}", k.turn_count), ink.dim);
     let held = format!("COUNTIES {}/{}", game.owned_by(game.player), k.county_count);
-    text::draw(canvas, 150, 6, &held, ink.dim);
+    text::draw(canvas, 6, 38, &held, ink.dim);
 }
 
 /// The right column: the original's seven `Misc_cty` frames, our numbers inside

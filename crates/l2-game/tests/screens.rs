@@ -22,6 +22,9 @@ use l2_game::scenario;
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
 use l2_game::screens::county::{self as county, CountyScreen, Panel};
 use l2_game::screens::map::{self, MapScreen};
+use l2_game::screens::menubar;
+use l2_game::screens::options::Page as OptionsPage;
+use l2_game::screens::saveload::Mode as SaveLoadMode;
 use l2_game::screens::village::{self as village_screen, VillageScreen};
 use l2_game::Game;
 use l2_kingdom::tables::Tables;
@@ -62,6 +65,34 @@ fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) -> Canvas {
 fn send<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets, e: Event) -> Transition {
     let mut ctx = Ctx { game, assets };
     screen.handle(e, &mut ctx)
+}
+
+/// One event into a whole [`Machine`], which is the only way to exercise an arm
+/// that a screen answers with [`Transition::Pass`].
+///
+/// **Half the county sidebar is one of those.** `Screen_FrameInput`'s arms for
+/// the village and for the four county panels open with six guards belonging to
+/// the campaign map, so an assertion made against a bare `CountyScreen` cannot
+/// see them at all — which is how the panels came to swallow the entire
+/// right-hand column with a green suite.
+fn send_stack(m: &mut Machine, game: &mut Game, assets: &Assets, e: Event) {
+    let mut ctx = Ctx { game, assets };
+    m.handle(e, &mut ctx);
+}
+
+fn draw_stack(m: &mut Machine, game: &mut Game, assets: &Assets) -> Canvas {
+    let mut canvas = Canvas::screen();
+    let ctx = Ctx { game, assets };
+    m.draw(&ctx, &mut canvas);
+    canvas
+}
+
+/// The campaign map with one screen opened over it, which is what every county
+/// panel, the village and the job popup actually are.
+fn over_the_map(over: ScreenId) -> Machine {
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(over);
+    m
 }
 
 /// **Run the frames a turn takes.** Pressing End Turn only starts one — the
@@ -1348,14 +1379,35 @@ fn the_county_strip_shows_the_saves_numbers_where_the_original_puts_them() {
 #[test]
 fn the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should() {
     let (mut game, assets) = world!();
-    let mut screen = CountyScreen::new(8, Panel::Tax);
     let ink = &assets.ink;
 
+    // **Through the machine, with the campaign map underneath**, because that
+    // is where `CountyStrip_Click` lives: `Screen_FrameInput`'s arm for `0x14`
+    // and its three siblings runs six guards belonging to the map's right-hand
+    // column *before* any verb of the panel's own, and the strip's 2 × 2
+    // hotspot is the third of them. The panel returns `Transition::Pass` for
+    // the whole column and the map answers.
+    //
+    // This used to send the click straight to a bare `CountyScreen`, which
+    // could not tell "the panel switched" from "the panel swallowed the whole
+    // sidebar" — and it swallowed it. `docs/arms.json`
+    // `0x0042FF10/inset-runs-the-sidebar-guards`.
+    game.select(8);
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::County(8, Panel::Tax));
     let hot = Panel::Population.strip_hotspot();
-    send(&mut screen, &mut game, &assets, Event::Click { x: hot.centre_x(), y: hot.y + 4 });
-    assert_eq!(screen.panel(), Panel::Population);
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        m.handle(Event::Click { x: hot.centre_x(), y: hot.y + 4 }, &mut ctx);
+    }
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::County(8, Panel::Population)),
+        "the strip switched panel rather than closing or stacking one"
+    );
+    assert_eq!(m.depth(), 2, "and it landed at the map's depth, not on top of the tax panel");
 
-    let canvas = draw(&mut screen, &mut game, &assets);
+    let canvas = draw_stack(&mut m, &mut game, &assets);
     assert_eq!(
         find_text(&canvas, "LAST SEASON", ink.text),
         Some((48, 266)),
@@ -3645,4 +3697,350 @@ fn the_grey_county_name_quirk_changes_the_emboss_and_nothing_else() {
     assets.quirks.grey_county_name = true;
     let fixed = draw(&mut screen, &mut game, &assets);
     assert_eq!(plain.diff_count(&fixed), 0, "your own county's name is right as it is");
+}
+
+
+// ===========================================================================
+// The input arms of the right-hand column, the menu bar and the county panels
+//
+// `docs/arms.json`, groups `right-column`, `menu-bar`, `county-panels`,
+// `village` and `management-screens`. Every test below names the arm it is
+// about; the point of them is that an arm can only be shown to be live from the
+// screen a player actually has on top, and half of these arms are answered by a
+// screen that is not the top one.
+// ===========================================================================
+
+/// **The whole right-hand column is live under an open county panel**, and each
+/// of its five controls is checked separately because they are five separate
+/// functions in `Screen_FrameInput`'s ladder.
+///
+/// `docs/arms.json` `0x0042FF10/inset-runs-the-sidebar-guards`. This is the arm
+/// that was missing: `CountyScreen::handle` tested the four strip quadrants
+/// itself and returned `Stay` for everything else in the column, so with the tax
+/// panel open a player could not touch the minimap, the five sidebar buttons,
+/// the farm/industry slider, the produce rows or End Turn.
+#[test]
+fn a_county_panel_leaves_the_whole_sidebar_live_underneath_it() {
+    let (mut game, assets) = world!();
+    game.select(8);
+    assert!(game.is_players(8), "the fixture's county 8 is the local player's");
+
+    // 1. A sidebar button - the court, which is ungated.
+    let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
+    let court = map::SIDEBAR_BUTTONS[1].rect();
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: court.centre_x(), y: court.y + 4 });
+    assert_eq!(m.top_id(), Some(ScreenId::Shell(0x09)), "sidebar button 2 opens the court");
+    assert_eq!(m.depth(), 2, "and it replaced the panel rather than stacking on it");
+
+    // 2. A minimap mode icon. The panel stays open; what changes is the map.
+    let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
+    let mode = map::MINIMAP_MODE_BUTTONS[0];
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: mode.centre_x(), y: mode.y + 4 });
+    assert_eq!(m.top_id(), Some(ScreenId::County(8, Panel::Tax)), "the panel is still open");
+
+    // 3. The farm/industry split slider, which moves a real number.
+    let mut m = over_the_map(ScreenId::County(8, Panel::Ration));
+    game.kingdom.counties[8].industry_share = 40;
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: 531, y: 270 });
+    assert_eq!(
+        game.kingdom.counties[8].industry_share, 0,
+        "the press lands on the track's left edge, which is share 0"
+    );
+
+    // 4. A produce row, which opens the job popup for that row's labour slot.
+    let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
+    let rows = county::farm_rows(&game.kingdom.counties[8]);
+    assert!(!rows.is_empty(), "the fixture's county 8 farms something");
+    let pitch = county::farm_pitch(rows.len());
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: 500, y: 0x12E + pitch / 2 });
+    assert_eq!(m.top_id(), Some(ScreenId::Job(8, rows[0])), "the first farm row's job popup");
+
+    // 5. End Turn, which is record 5 of the same hotspot table and whose whole
+    //    rectangle a BACK TO MAP button of ours used to sit on.
+    let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: 550, y: 470 });
+    assert_ne!(
+        m.top_id(),
+        Some(ScreenId::County(8, Panel::Tax)),
+        "End Turn is reachable through the panel"
+    );
+}
+
+/// **The panel keeps its own two ways out**, so the pass above cannot be
+/// "everything falls through", and a click on the panel itself is neither.
+#[test]
+fn a_county_panel_still_closes_on_its_corner_and_on_the_right_button() {
+    let (mut game, assets) = world!();
+    game.select(8);
+
+    let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
+    let ok = Panel::Tax.ok_button();
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: ok.centre_x(), y: ok.y + 4 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "Ui_OkButtonClicked's 24 x 24 corner");
+
+    let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
+    send_stack(&mut m, &mut game, &assets, Event::RightClick { x: 300, y: 200 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "a right release anywhere");
+
+    // The ablation: a click on the middle of the panel does nothing at all. Both
+    // assertions above would still pass if `handle` closed on any click.
+    let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: 200, y: 200 });
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::County(8, Panel::Tax)),
+        "a click on the panel is not an exit"
+    );
+}
+
+/// **The minimap closes the management surface from any screen**, which is
+/// `Screen_FrameInput`'s epilogue and not any screen's own arm.
+///
+/// `docs/arms.json` `0x0042FF10/minimap-closes-the-surface`.
+#[test]
+fn a_press_on_the_minimap_drops_whatever_is_open_over_the_map() {
+    let (mut game, assets) = world!();
+    game.select(8);
+    let hit = chrome::minimap_hit_area();
+    let (mx, my) = (hit.x0 + 40, hit.y0 + 40);
+
+    for over in [ScreenId::County(8, Panel::Tax), ScreenId::Job(8, 0), ScreenId::Shell(0x09)] {
+        let mut m = over_the_map(over);
+        send_stack(&mut m, &mut game, &assets, Event::Click { x: mx, y: my });
+        assert_eq!(m.top_id(), Some(ScreenId::Campaign), "{over:?} gave way to the minimap");
+        assert_eq!(m.depth(), 1, "{over:?}: the map is revealed, not rebuilt");
+    }
+
+    // The ablation: a press just OUTSIDE the raster leaves everything alone. An
+    // unconditional `Pass` would close on both.
+    let mut m = over_the_map(ScreenId::Job(8, 0));
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: hit.x1 + 4, y: my });
+    assert_eq!(m.top_id(), Some(ScreenId::Job(8, 0)), "outside the raster nothing happens");
+}
+
+/// **`Menu_HitTitle` measures the words**, so the 32-pixel gap between two
+/// titles is dead bar.
+///
+/// Install-gated by `world!`, so the widths are the shipped `Fntl2_14.pl8`'s
+/// through the shipped `L2.eng`'s own captions rather than our 5 x 7 fallback's.
+#[test]
+fn the_menu_bar_titles_are_their_own_words_wide_with_a_dead_gap_between_them() {
+    let (mut game, assets) = world!();
+    let ctx = Ctx { game: &mut game, assets: &assets };
+    let t = menubar::titles(&ctx);
+
+    assert_eq!(t[0].x, 10, "g_menuBarItems[0].x");
+    for r in &t {
+        assert_eq!(r.y, 6, "every record's y");
+        assert_eq!(r.h, 12, "Menu_HitTitle's fixed 12-pixel height");
+        assert!(r.w > 0 && r.w < 120, "a caption, not a rectangle: {r:?}");
+    }
+    assert_eq!(t[1].x - (t[0].x + t[0].w), 32, "g_penAdvance += 0x20");
+    assert_eq!(t[2].x - (t[1].x + t[1].w), 32);
+
+    let gap = t[0].x + t[0].w + 8;
+    assert!(menubar::title_at(&ctx, gap, 10).is_none(), "the gap hits nothing");
+    assert_eq!(menubar::title_at(&ctx, t[1].x + 1, 10), Some(1));
+    assert!(menubar::title_at(&ctx, t[1].x + 1, 18).is_none(), "y 18 is past 6 + 12");
+}
+
+/// **The menu bar opens, hovers, picks and closes** - the four arms of screen
+/// `0x32`, driven as a player drives them.
+#[test]
+fn the_menu_bar_opens_a_dropdown_and_its_items_reach_their_screens() {
+    let (mut game, assets) = world!();
+    let titles = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        menubar::titles(&ctx)
+    };
+
+    // Menu_OpenDropdown: a press on a title.
+    let mut m = Machine::new(ScreenId::Campaign);
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: titles[0].x + 2, y: 10 });
+    assert_eq!(m.top_id(), Some(ScreenId::MenuBar(0)), "the File menu is open");
+
+    // FUN_0040DD92's button-up half: the pointer on another title switches it.
+    send_stack(&mut m, &mut game, &assets, Event::Pointer { x: titles[2].x + 2, y: 10 });
+    assert_eq!(m.top_id(), Some(ScreenId::MenuBar(2)), "sliding onto Help switches the menu");
+    send_stack(&mut m, &mut game, &assets, Event::Pointer { x: titles[0].x + 2, y: 10 });
+    assert_eq!(m.top_id(), Some(ScreenId::MenuBar(0)));
+
+    // FUN_0040E099 and the pick: File's second item is Load, screen 0x35.
+    let row = menubar::item_rect(&titles, 0, 1);
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: row.x + 4, y: row.y + 4 });
+    assert_eq!(m.top_id(), Some(ScreenId::SaveLoad(SaveLoadMode::Load)), "File / Load");
+    assert_eq!(m.depth(), 2, "and it landed where the drop-down was, over the map");
+
+    // FUN_0040DF62: a press that is on no row closes and does nothing else, and
+    // the five pixels between two rows belong to nothing at all.
+    let mut m = Machine::new(ScreenId::Campaign);
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: titles[1].x + 2, y: 10 });
+    assert_eq!(m.top_id(), Some(ScreenId::MenuBar(1)));
+    let dead = menubar::item_rect(&titles, 1, 0);
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: dead.x + 4, y: dead.y + dead.h + 2 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "a press between two rows closes the menu");
+
+    // And the right button closes it.
+    let mut m = Machine::new(ScreenId::Campaign);
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: titles[1].x + 2, y: 10 });
+    send_stack(&mut m, &mut game, &assets, Event::RightClick { x: 300, y: 300 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign));
+}
+
+/// **The Options and Help menus reach the four option screens**, which had no
+/// route into them but the index screen.
+#[test]
+fn the_options_menu_reaches_the_four_option_screens() {
+    let (mut game, assets) = world!();
+    let titles = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        menubar::titles(&ctx)
+    };
+    for (menu, item, page) in [
+        (1usize, 0usize, OptionsPage::Advanced),
+        (1, 1, OptionsPage::Sound),
+        (1, 2, OptionsPage::Display),
+        (2, 0, OptionsPage::Help),
+    ] {
+        let mut m = Machine::new(ScreenId::Campaign);
+        send_stack(&mut m, &mut game, &assets, Event::Click { x: titles[menu].x + 2, y: 10 });
+        let row = menubar::item_rect(&titles, menu, item);
+        send_stack(&mut m, &mut game, &assets, Event::Click { x: row.x + 4, y: row.y + 4 });
+        assert_eq!(m.top_id(), Some(ScreenId::Options(page)), "menu {menu} item {item}");
+    }
+}
+
+/// **A right click during the village's drag gesture does not leave the
+/// village.** `docs/arms.json` `0x0042FF10/carry-right-cancels`.
+///
+/// This is the arm that was *wrong* rather than missing: the screen popped from
+/// every phase, so a player who picked peasants up and changed his mind lost the
+/// village with them. `0x06`'s arm is `g_screenId = 0x02`, not 0.
+#[test]
+fn a_right_click_during_a_peasant_drag_cancels_the_drag_and_not_the_village() {
+    let (mut game, assets) = world!();
+    game.select(8);
+    let top = 64;
+
+    // Press, travel more than nine pixels, and the band is up (screen 0x05).
+    let mut m = over_the_map(ScreenId::Village(8));
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: 100, y: top + 60 });
+    send_stack(&mut m, &mut game, &assets, Event::Pointer { x: 160, y: top + 110 });
+    send_stack(&mut m, &mut game, &assets, Event::RightClick { x: 160, y: top + 110 });
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::Village(8)),
+        "0x05 has no right-button arm at all, so the click is swallowed"
+    );
+
+    // Release: 0x06 if the band caught anybody, 0x02 if it did not. Either way
+    // a right click now must keep the village.
+    send_stack(&mut m, &mut game, &assets, Event::Release { x: 160, y: top + 110 });
+    send_stack(&mut m, &mut game, &assets, Event::RightClick { x: 160, y: top + 110 });
+
+    // The idle village, by contrast, leaves on the right button - which is the
+    // ablation: if the fix were "the village never leaves on a right click",
+    // this would fail.
+    let mut idle = over_the_map(ScreenId::Village(8));
+    send_stack(&mut idle, &mut game, &assets, Event::RightClick { x: 160, y: top + 110 });
+    assert_eq!(
+        idle.top_id(),
+        Some(ScreenId::Campaign),
+        "the idle village really does leave on a right click"
+    );
+}
+
+/// **`Labour_SplitSliderDrag`'s three zones are half-open, and x = 594 steps
+/// up.** The one column that used to fall on the track is the whole test.
+#[test]
+fn the_split_slider_steps_up_at_594_and_refuses_a_county_you_do_not_hold() {
+    // Pure arithmetic, so this half needs no install.
+    assert_eq!(map::split_from_click(593, 40), 100, "593 is still the track, and the track clamps at 100");
+    assert_eq!(map::split_from_click(594, 40), 44, "594 is the first pixel of the up zone");
+    assert_eq!(map::split_from_click(530, 40), 36, "530 is the last pixel of the down zone");
+    assert_eq!(map::split_from_click(531, 40), 0, "531 is the first pixel of the track");
+    assert_eq!(map::split_from_click(639, 100), 100, "clamped at 100");
+    assert_eq!(map::split_from_click(0, 0), 0, "and at 0");
+
+    let (mut game, assets) = world!();
+    // The ownership gate, which `Labour_SplitSliderDrag` tests on its second
+    // line and ours did not test at all.
+    let other = (1..game.kingdom.counties.len() as u8)
+        .find(|&id| game.kingdom.counties[id as usize].owner != game.player);
+    let Some(other) = other else { return };
+    game.select(other);
+    let before = game.kingdom.counties[other as usize].industry_share;
+    let mut m = Machine::new(ScreenId::Campaign);
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: 560, y: 270 });
+    assert_eq!(
+        game.kingdom.counties[other as usize].industry_share, before,
+        "another lord's peasants do not move"
+    );
+}
+
+/// **`CountyStrip_JobClick`'s geometry**: both columns, both pitch rules, and
+/// the ways it refuses.
+#[test]
+fn the_produce_rows_map_to_labour_slots_by_column_and_pitch() {
+    let mut c = l2_kingdom::county::County::new();
+    assert!(county::farm_rows(&c).is_empty());
+    assert_eq!(county::job_row_at(&c, 500, 0x140), None, "an empty column refuses");
+
+    // Cattle, then grain, then reclamation - `FUN_0040FEC1`'s own order, which
+    // is not the labour slots' order.
+    c.fields_cattle = 1;
+    c.fields_grain = 1;
+    assert_eq!(county::farm_rows(&c), vec![1, 0]);
+    assert_eq!(county::farm_pitch(2), 0x3C, "two rows keep the tall pitch");
+    assert_eq!(county::job_row_at(&c, 500, 0x12E), Some(1), "row 0 is the dairy");
+    assert_eq!(county::job_row_at(&c, 500, 0x12E + 0x3C), Some(0), "row 1 is grain");
+    assert_eq!(county::job_row_at(&c, 500, 0x12E + 0x78), None, "row 2 is past the end");
+
+    c.fields_reclaiming = 1;
+    assert_eq!(county::farm_rows(&c), vec![1, 0, 2]);
+    assert_eq!(county::farm_pitch(3), 0x2D, "three rows close up");
+    assert_eq!(county::job_row_at(&c, 500, 0x12E + 0x5A), Some(2), "reclamation, tight pitch");
+
+    // The industry column is a different list, order and pitch rule.
+    for i in &mut c.industry {
+        i.enabled = false;
+    }
+    c.industry[0].enabled = true;
+    c.industry[1].enabled = true;
+    assert_eq!(county::industry_rows(&c), vec![6, 4], "wood then iron, not the array order");
+    assert_eq!(county::job_row_at(&c, 0x230, 0x12E), Some(6), "x 0x230 is the industry column");
+    assert_eq!(county::job_row_at(&c, 0x22F, 0x12E), Some(1), "and 0x22F is still the farm one");
+    c.industry[3].enabled = true;
+    c.industry[2].enabled = true;
+    c.castle_degraded = 1;
+    assert_eq!(county::industry_rows(&c), vec![6, 4, 5, 7, 3], "five rows, the castle last");
+    assert_eq!(county::industry_pitch(5), 0x1E, "five rows get the 30-pixel pitch");
+    assert_eq!(county::industry_pitch(3), 0x2D);
+    assert_eq!(county::industry_pitch(2), 0x3C);
+
+    // The plate's own bounds.
+    assert_eq!(county::job_row_at(&c, 500, 0x12D), None, "one row above the plate");
+    assert_eq!(county::job_row_at(&c, 500, 0x1AE), None, "one row below it");
+    assert_eq!(county::job_row_at(&c, 477, 0x140), None, "one column left of the sidebar");
+}
+
+/// **A shell closes on its corner picture and on the right button, and on
+/// nothing else.** `docs/arms.json` `ours/shell-any-click-closes`, removed.
+#[test]
+fn a_shell_closes_on_its_corner_and_not_on_a_click_anywhere() {
+    let (mut game, assets) = world!();
+    let spec = l2_game::screens::shells::find(0x09).expect("the court is a shell");
+    let (ox, oy, _) = spec.ok.expect("the court draws a corner picture");
+
+    let mut m = over_the_map(ScreenId::Shell(0x09));
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: ox + 12, y: oy + 12 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the corner closes it");
+
+    let mut m = over_the_map(ScreenId::Shell(0x09));
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: ox - 40, y: oy - 40 });
+    assert_eq!(m.top_id(), Some(ScreenId::Shell(0x09)), "a click inside the panel does not");
+
+    let mut m = over_the_map(ScreenId::Shell(0x09));
+    send_stack(&mut m, &mut game, &assets, Event::RightClick { x: 100, y: 100 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the right button does");
 }

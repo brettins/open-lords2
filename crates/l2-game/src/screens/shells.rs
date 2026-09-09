@@ -292,19 +292,53 @@ impl Screen for ShellScreen {
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         match event {
-            // Every one of these closes and nothing else. That is the whole
-            // truth about a shell, and pretending otherwise would be the
-            // invented interface again.
-            //
+            // **The minimap is live under a shell**, because
+            // `Screen_FrameInput`'s epilogue runs `Minimap_Click` on every
+            // screen id but `0x12` and every id in this table is an overlay
+            // over the campaign map. See [`Transition::Reveal`].
+            // arm: 0x0042FF10/minimap-under-a-shell
+            Event::Click { x, y } if l2_view::chrome::minimap_hit_area().contains(x, y) => {
+                Transition::Pass
+            }
             // The right one is the original's: `Screen_FrameInput` has a
             // right-release arm for almost every screen id in this table, and
             // `L2.eng` group 12 index 0 — *"Click Right to Exit"*, printed on
             // the value spinner — is the game saying so in English.
+            // arm: 0x0042FF10/shell-right-closes
+            Event::RightClick { .. } => Transition::Pop,
+            // **`Ui_OkButtonClicked` (`0x0040E7E4`) — the corner picture, and
+            // only the corner picture.**
+            //
+            // This arm used to be `Event::Click { .. }`, unqualified: **a left
+            // click anywhere on the screen closed a shell.** Every one of the
+            // twenty-six `Ui_OkButtonClicked` calls in `Screen_FrameInput` is a
+            // 24 × 24 box at the position the last `Ui_OkButton` stashed, and
+            // there is no screen in the game where a click on the middle of a
+            // panel dismisses it. A shell that closes when you click the thing
+            // it is showing you is worse than one that does nothing: nothing
+            // looked broken, and the row for `0x04` — the information panel a
+            // right-click on the map opens — could not be read at all, because
+            // the click that opened it was followed by the click that closed
+            // it.
+            //
+            // A shell with no `ok` in the table has no corner picture in the
+            // original either, and is left by the right button alone.
+            // arm: 0x0040E7E4/shell-corner-closes
+            Event::Click { x, y } => match self.spec.ok {
+                Some((ox, oy, _)) if (ox..ox + 24).contains(&x) && (oy..oy + 24).contains(&y) => {
+                    Transition::Pop
+                }
+                _ => Transition::Stay,
+            },
+            // **Ours, and counted.** No arm in this table reads a key: the only
+            // `VK_ESCAPE` handler in the binary quits the game and the Enter arm
+            // is `FUN_0043600C`, a text-field commit. Kept because several of
+            // these screens have no corner picture and a player who reaches one
+            // through the index needs a way back.
+            // arm: ours/shell-keyboard-closes
             Event::KeyDown(Key::Escape)
             | Event::KeyDown(Key::Enter)
-            | Event::KeyDown(Key::Space)
-            | Event::RightClick { .. }
-            | Event::Click { .. } => Transition::Pop,
+            | Event::KeyDown(Key::Space) => Transition::Pop,
             _ => Transition::Stay,
         }
     }

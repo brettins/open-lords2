@@ -258,6 +258,7 @@ impl VillageScreen {
     }
 
     /// `Village_BoxSelect` (`0x0043958A`).
+    // arm: 0x0043958A/box-select
     fn box_select(&mut self, ctx: &Ctx) {
         self.selected = [false; ICONS_PER_CLUSTER];
         self.drag_cluster = 0;
@@ -410,11 +411,10 @@ impl VillageScreen {
     /// double click must not pass either: `Village_DoubleClick` is read in
     /// exactly one place in the whole binary and this arm is it.
     fn belongs_to_the_sidebar(event: Event) -> bool {
-        let x = match event {
-            Event::Click { x, .. } | Event::Release { x, .. } | Event::Pointer { x, .. } => x,
-            _ => return false,
-        };
-        x >= l2_view::campaign::PANEL_X
+        // The six guards are the *same six* the four county panels open with,
+        // so the predicate is one function for both:
+        // [`crate::screens::belongs_to_the_right_column`].
+        crate::screens::belongs_to_the_right_column(event)
     }
 }
 
@@ -467,12 +467,49 @@ impl Screen for VillageScreen {
             return Transition::Pass;
         }
         match event {
-            // **The right button leaves the village**, which is the third of
-            // `Screen_FrameInput`'s three ways out of screen `0x02`: a right release
-            // sets `g_screenId = 0` outright. Escape is ours and does the same,
-            // except that mid-drag it cancels the drag instead — the original
-            // has no key here at all.
-            Event::RightClick { .. } => return Transition::Pop,
+            // **The right button does two different things and this did one.**
+            //
+            // The village is three screen ids in the original, and two of them
+            // have a right-button arm:
+            //
+            // ```c
+            // /* 0x02, idle */              if (rightReleased) { g_screenId = 0; ... }
+            // /* 0x06, carrying peasants */ if (rightReleased) { g_screenId = 0x02;
+            //                                    g_villageDragCluster = 0;
+            //                                    FUN_004120E0(); FUN_00432893(1); }
+            // ```
+            //
+            // — so a right click **while carrying** puts the peasants back and
+            // stays in the village, and only a right click on the idle village
+            // leaves it. (`0x05`, the rubber band, has no right arm at all: the
+            // band ends on the *release* of the left button and nothing else.)
+            //
+            // This popped the screen from every phase, which meant a player who
+            // picked up peasants and changed his mind lost the village as well
+            // as the selection. **A wrong arm rather than a missing one, and
+            // nothing looked broken** — `docs/decisions.md` CNEW-arms-county.
+            //
+            // Escape is ours and mirrors whichever of the two applies; the
+            // original has no key here at all.
+            // arm: 0x0042FF10/village-right-leaves
+            // arm: 0x0042FF10/carry-right-cancels
+            Event::RightClick { .. } => {
+                if self.phase == Phase::Carry {
+                    self.clear_drag();
+                    self.pending_click = None;
+                    self.status = "PUT BACK".into();
+                    return Transition::Stay;
+                }
+                if self.phase == Phase::Band {
+                    // 0x05 has no right arm. The band is still being drawn and
+                    // the click is not one of its two exits, so it is swallowed.
+                    return Transition::Stay;
+                }
+                return Transition::Pop;
+            }
+            // **Ours, and counted.** No key reaches screen `0x02`, `0x05` or
+            // `0x06` in the original.
+            // arm: ours/village-keyboard
             Event::KeyDown(Key::Escape) => {
                 if self.phase == Phase::Idle {
                     return Transition::Pop;
@@ -505,6 +542,7 @@ impl Screen for VillageScreen {
             // `Village_ClickJob` in `Screen_FrameInput`'s screen-`0x02` ladder,
             // which is the order kept here: a drag in progress wins, then the
             // double click, then — only once it has settled — the job popup.
+            // arm: 0x00439DF0/double-click-balances
             Event::DoubleClick { x, y } => {
                 self.pointer = (x, y);
                 // The pending single click is cancelled outright: the original
@@ -520,13 +558,16 @@ impl Screen for VillageScreen {
             }
             Event::Click { x, y } => {
                 self.pointer = (x, y);
+                // arm: 0x004399B0/drop
                 if self.phase == Phase::Carry {
                     self.drop_on(ctx, x, y);
                     return Transition::Stay;
                 }
+                // arm: 0x0040E7E4/village-corner-closes
                 if VillageScreen::ok_button(VillageScreen::top_y(&*ctx)).contains(x, y) {
                     return Transition::Pop;
                 }
+                // arm: 0x004393EB/band-start
                 if VillageScreen::in_band_area(&*ctx, x, y) {
                     self.anchor = Some((x, y));
                 }
@@ -534,6 +575,7 @@ impl Screen for VillageScreen {
             Event::Release { x, y } => {
                 self.pointer = (x, y);
                 match self.phase {
+                    // arm: 0x00439541/band-release
                     Phase::Band => {
                         // `FUN_00439541`: something selected means carry it,
                         // nothing means the band was for nothing.
@@ -555,6 +597,7 @@ impl Screen for VillageScreen {
                         // where it lands. Ownership is not tested: you cannot
                         // reach the village of a county you do not hold in the
                         // first place.
+                        // arm: 0x0043A123/click-opens-the-job-popup
                         if self.anchor.take().is_some() {
                             self.pending_click = Some((x, y, Self::CLICK_SETTLE_TICKS));
                         }

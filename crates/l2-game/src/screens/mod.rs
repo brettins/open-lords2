@@ -61,6 +61,51 @@
 //! [`Screen::overlay`]: crate::screen::Screen::overlay
 //! [`Machine::draw`]: crate::screen::Machine::draw
 
+use crate::input::Event;
+
+/// **Does this event belong to the campaign map's right-hand column?**
+///
+/// `Screen_FrameInput`'s arms for the village (`0x02`) and for all four county
+/// panels (`0x14`, `0x15`, `0x16`, `0x19`) open with the *same six guards*, in
+/// the same order, before a single verb of their own:
+///
+/// | # | guard | what it is |
+/// |---|---|---|
+/// | 1 | `Minimap_ModeButtonClicked` (`0x0043292D`) | `Hotspot_Test(0x262, 0x20, &g_minimapModeButtons, 4)` |
+/// | 2 | `Sidebar_ButtonClicked` (`0x00432967`) | `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)` |
+/// | 3 | `CountyStrip_Click` (`0x00438CEB`) | the 2 × 2 quadrant into the four panels |
+/// | 4 | `Labour_SplitSliderDrag` (`0x00439122`) | `x 0x1DE … 0x27F, y 0x101 … 0x128` |
+/// | 5 | `CountyStrip_JobClick` (`0x00438E3B`) | the produce rows, `y 0x12E … 0x1AD` |
+/// | 6 | `FUN_00439079` | a right release that clears the minimap overlay |
+///
+/// **Every one of the six hit-tests `x >= 0x1DE`**, which is 478, and nothing
+/// else in either arm does. So the rule is exactly *"the column at 478 keeps
+/// working"* — `Map_Click` is not in either ladder, and a click on the strip of
+/// campaign map either side of an inset does nothing at all.
+///
+/// The right button is deliberately **not** here. Guard 6 is the only one of the
+/// six that reads it, it consumes the click only while an overlay is up, and
+/// the arm's *own* right-release — which closes the panel or the village — comes
+/// after it. An overlay that passed every right click down would reach the
+/// campaign map's information panel instead of closing, which is the opposite
+/// behaviour. `docs/arms.json`'s `0x00439079/right-clears-minimap-mode` records
+/// what that costs.
+///
+/// `docs/screens-county.md` §6.4.4a; `docs/decisions.md` C59.
+///
+/// One record for six guards on five screens, because
+/// `docs/arms.json` counts **per implementation** and this is the
+/// implementation: the six functions themselves are the campaign map's and are
+/// recorded against their own addresses there.
+// arm: 0x0042FF10/inset-runs-the-sidebar-guards
+pub fn belongs_to_the_right_column(event: Event) -> bool {
+    let x = match event {
+        Event::Click { x, .. } | Event::Release { x, .. } | Event::Pointer { x, .. } => x,
+        _ => return false,
+    };
+    x >= l2_view::campaign::PANEL_X
+}
+
 pub mod armoury;
 pub mod army;
 pub mod battle;
@@ -73,6 +118,7 @@ pub mod index;
 pub mod job;
 pub mod map;
 pub mod menu;
+pub mod menubar;
 pub mod merchant;
 pub mod options;
 pub mod saveload;

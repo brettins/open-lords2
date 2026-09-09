@@ -173,14 +173,32 @@ impl Screen for JobScreen {
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         match event {
+            // **The minimap is live under this popup**, and it is the one thing
+            // from the right-hand column that is: `0x0F`'s arm runs
+            // `Ui_OkButtonClicked` and a right-release test and **none** of the
+            // six sidebar guards, while `Screen_FrameInput`'s epilogue runs
+            // `Minimap_Click` on every screen id but `0x12`. So a press on the
+            // raster selects that county, re-centres the map and drops the
+            // popup — and the epilogue names this screen specially while doing
+            // it: `if (g_screenId == 0x0F) Sound_StopOneShot();`, because the
+            // job popup is one of the few screens that starts a voice clip.
+            //
+            // Passing only the raster, and not the whole column, is the
+            // difference between reproducing the arm and inventing five more.
+            // arm: 0x0042FF10/minimap-under-the-job-popup
+            Event::Click { x, y } if l2_view::chrome::minimap_hit_area().contains(x, y) => {
+                Transition::Pass
+            }
             // `Screen_FrameInput`'s `0x0F` arm: the corner picture **or** a right release
             // closes the popup, and it returns to whichever screen opened it —
             // the village when `DAT_005533F4` is zero, the campaign map's
             // sidebar otherwise. `Transition::Pop` is both, because the stack
             // remembers what our `g_screenId` cannot.
-            Event::KeyDown(Key::Escape)
-            | Event::KeyDown(Key::Enter)
-            | Event::RightClick { .. } => Transition::Pop,
+            // arm: 0x0042FF10/job-popup-closes
+            Event::RightClick { .. } => Transition::Pop,
+            // **Ours, and counted.** `0x0F`'s arm reads no key at all.
+            // arm: ours/job-popup-keyboard
+            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             Event::Click { x, y } if JobScreen::ok_button(self.job).contains(x, y) => {
                 Transition::Pop
             }

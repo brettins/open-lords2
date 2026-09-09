@@ -47,8 +47,13 @@
 //!   each row names. The strip reads `L2.eng` properly — group 100 for the
 //!   county's name, 61 for its two captions and 21 for the ration level — and
 //!   falls back to the transcriptions when the install has no `L2.eng`.
-//! * **The bottom strip** reads BACK TO MAP. The original's is End Turn, which
-//!   is the map screen's business.
+//! *(**Fixed.** This list used to carry a fifth entry: "the bottom strip reads
+//! BACK TO MAP; the original's is End Turn, which is the map screen's
+//! business." It was a rectangle of ours drawn over — and hit-tested ahead of —
+//! a live control of the game's, at (478, 460), which is `g_sidebarButtons`
+//! record 5 to the pixel. It is gone, and the whole right-hand column is now
+//! passed down to the map screen the way `Screen_FrameInput`'s six guards pass
+//! it.)*
 //!
 //! # What is not here at all
 //!
@@ -63,7 +68,7 @@ use l2_kingdom::tables::{
 use l2_view::chrome::{self, misc_cty, system};
 use l2_view::{text, Canvas, Ink};
 
-use crate::game::{Assets, MAX_RATION_SPLIT, MAX_TAX_RATE};
+use crate::game::{MAX_RATION_SPLIT, MAX_TAX_RATE};
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::widget;
@@ -234,6 +239,109 @@ impl Panel {
     }
 }
 
+// ------------------------------------------------- the produce rows, and
+//                                                    the popup they open
+//
+// `FUN_0040FEC1` (`0x0040FEC1`) lays the 162 x 128 plate at y = 302 out into two
+// columns, `CountyStrip_Draw` picks the two row pitches, and
+// `CountyStrip_JobClick` (`0x00438E3B`) turns a press into a job popup. The
+// three are one fact and live together here.
+
+/// `CountyStrip_JobClick`'s hit box: `x 0x1DE … 0x27F, y 0x12E … 0x1AD`, and the
+/// column split at `0x230`.
+const JOBS_Y0: i32 = 0x12E;
+const JOBS_Y1: i32 = 0x1AE;
+const JOBS_SPLIT_X: i32 = 0x230;
+
+/// **`FUN_0040FEC1`'s left-hand list**, verbatim and in its own order: cattle,
+/// then grain, then reclamation — each entry the **labour slot** the row is
+/// about, which is also what `CountyStrip_JobClick` writes into `g_jobPanelJob`
+/// plus one.
+pub fn farm_rows(c: &l2_kingdom::county::County) -> Vec<usize> {
+    let mut rows = Vec::with_capacity(3);
+    if c.fields_cattle != 0 || c.herd != 0 {
+        rows.push(1);
+    }
+    if c.fields_grain != 0 || c.grain != 0 {
+        rows.push(0);
+    }
+    if c.fields_reclaiming != 0 {
+        rows.push(2);
+    }
+    rows
+}
+
+/// **`FUN_0040FEC1`'s right-hand list**, and its order is not the industry
+/// array's: wood, iron, stone, weapons, then the castle.
+///
+/// Each of the four is gated on `industry[n].enabled` — county `+0x297 + n*0x18`,
+/// the byte `Industry_ToggleFromMap` (`0x0043D309`) XORs when you click the
+/// building on the campaign map — and the castle row on `castleDegraded`.
+pub fn industry_rows(c: &l2_kingdom::county::County) -> Vec<usize> {
+    let mut rows = Vec::with_capacity(5);
+    for (industry, slot) in [(0usize, 6usize), (1, 4), (3, 5), (2, 7)] {
+        if c.industry[industry].enabled {
+            rows.push(slot);
+        }
+    }
+    if c.castle_degraded != 0 {
+        rows.push(3);
+    }
+    rows
+}
+
+/// `DAT_0053E970` and `DAT_0053F04C`, the two row pitches, which
+/// `CountyStrip_Draw` picks from the two counts.
+///
+/// **They are not the same rule.** The farm column has two cases and the
+/// industry column three, because the industry column can hold five rows:
+///
+/// ```c
+/// DAT_0053E970 = farmRows     < 3 ? 0x3C : 0x2D;
+/// DAT_0053F04C = industryRows < 3 ? 0x3C : industryRows < 4 ? 0x2D : 0x1E;
+/// ```
+pub fn farm_pitch(rows: usize) -> i32 {
+    if rows < 3 {
+        0x3C
+    } else {
+        0x2D
+    }
+}
+
+pub fn industry_pitch(rows: usize) -> i32 {
+    if rows < 3 {
+        0x3C
+    } else if rows < 4 {
+        0x2D
+    } else {
+        0x1E
+    }
+}
+
+/// **`CountyStrip_JobClick` (`0x00438E3B`)** — which labour slot a press in the
+/// sidebar's lower plate opens the job popup for, or `None`.
+///
+/// The caller supplies the ownership gate, which is the function's own first
+/// line: `if (g_counties[g_selectedCounty].owner == g_localPlayer)`. Everything
+/// else is here, including the two ways it refuses — a row index past the end of
+/// its list returns 0 rather than falling through to the other column.
+pub fn job_row_at(c: &l2_kingdom::county::County, x: i32, y: i32) -> Option<usize> {
+    if !(478..640).contains(&x) || !(JOBS_Y0..JOBS_Y1).contains(&y) {
+        return None;
+    }
+    let (rows, pitch) = if x < JOBS_SPLIT_X {
+        let rows = farm_rows(c);
+        let pitch = farm_pitch(rows.len());
+        (rows, pitch)
+    } else {
+        let rows = industry_rows(c);
+        let pitch = industry_pitch(rows.len());
+        (rows, pitch)
+    };
+    let n = ((y - JOBS_Y0) / pitch) as usize;
+    rows.get(n).copied()
+}
+
 /// `CountyStrip_Click` (`0x00438CEB`) itself: which panel a pixel opens, or
 /// `None` for the outer guard and for the thermometer's dead band.
 ///
@@ -355,13 +463,6 @@ impl CountyScreen {
         self.panel = panel;
     }
 
-    /// **Ours.** The original's bottom strip is End Turn; leaving a panel is
-    /// its tick, and leaving the map is not a thing you do. Our stack pushed
-    /// this screen, so something has to pop it.
-    pub fn back_button() -> Rect {
-        Rect::new(478, chrome::PANEL_END_TURN_Y, 162, 20)
-    }
-
     fn panel_index(&self) -> usize {
         PANELS.iter().position(|&p| p == self.panel).unwrap_or(0)
     }
@@ -415,6 +516,45 @@ impl Screen for CountyScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        // **The whole right-hand column is live under an open panel**, and the
+        // arm says so rather than leaving it to be inferred. `0x14`'s, verbatim:
+        //
+        // ```c
+        // if (FUN_0043292D() == 0 && FUN_00432967() == 0 &&      /* modes, sidebar  */
+        //     CountyStrip_Click() == 0 && FUN_00439122() == 0 && /* strip, split    */
+        //     CountyStrip_JobClick() == 0 && FUN_00439079() == 0) {
+        //   if (!rightReleased) { if (Ui_OkButtonClicked()) { g_screenId = 0; } }
+        //   else                                            { g_screenId = 0; }
+        // }
+        // ```
+        //
+        // Six guards, every one of them hit-testing `x >= 0x1DE`, and every one
+        // of them ahead of the panel's own two ways out. `0x15` and `0x16` are
+        // the same six; `0x19` inserts `Ration_SliderClick` after the second,
+        // which is why the split *below* is tested here and the column is not.
+        //
+        // Two things follow. Clicking the strip while a panel is open
+        // **switches** panel rather than closing it — which is how a player goes
+        // from population to tax without a trip via the map — and the five
+        // sidebar buttons, the minimap, its four mode icons, the farm/industry
+        // slider and the produce rows all keep working with a panel up. None of
+        // that was reproduced: this screen tested the four strip quadrants
+        // itself and swallowed everything else in the column.
+        //
+        // [`Transition::Pass`] is the whole of it, and it is the same mechanism
+        // the village already used for the same six guards
+        // (`docs/decisions.md` C59). The strip quadrants go down with the rest,
+        // so the map's own `CountyStrip_Click` answers and its `Push` lands at
+        // the map's depth — which is `g_screenId = 0x14` and not a second panel
+        // stacked on the first.
+        //
+        // The six guards themselves are the map screen's and are recorded there;
+        // the arm here is that *this screen's ladder runs them first*, which is
+        // one predicate shared with the village — so one record, and it lives on
+        // [`crate::screens::belongs_to_the_right_column`].
+        if crate::screens::belongs_to_the_right_column(event) {
+            return Transition::Pass;
+        }
         match event {
             // **`Ui_DrawBox` panels are dismissed by the right button**, and the
             // game says so in its own words: `Screen_SliderBox` prints `L2.eng`
@@ -429,10 +569,16 @@ impl Screen for CountyScreen {
             // that chain tests a left press or a left release, so none of them
             // consumes a right one.
             //
-            // The Escape and Enter keys are **ours**. The original has no
-            // keyboard route out of a panel at all — its only `VK_ESCAPE`
-            // handler quits the game.
+            // arm: 0x0042FF10/panel-right-closes
             Event::RightClick { .. } => return Transition::Pop,
+            // **Ours, and counted.** The original has no keyboard route out of a
+            // panel and none into another one: its only `VK_ESCAPE` handler
+            // quits the game, and the four panels are four screen ids with no
+            // ordering between them at all. Kept because a keyboard player has
+            // nothing else, and recorded in `docs/arms.json` as an invention
+            // rather than left as a comment admitting a choice — which is what
+            // `docs/decisions.md` C61 found nine of.
+            // arm: ours/county-panel-keyboard
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => return Transition::Pop,
             Event::KeyDown(Key::Up) => {
                 self.panel = PANELS[(self.panel_index() + PANELS.len() - 1) % PANELS.len()];
@@ -443,21 +589,33 @@ impl Screen for CountyScreen {
             Event::KeyDown(Key::Left) => self.adjust(ctx, -1),
             Event::KeyDown(Key::Right) => self.adjust(ctx, 1),
             Event::Click { x, y } => {
-                if CountyScreen::back_button().contains(x, y)
-                    || self.panel.ok_button().contains(x, y)
-                {
+                // `Ui_OkButtonClicked` (`0x0040E7E4`) — the 24 × 24 corner
+                // picture the panel's own `Ui_OkButton` call stashed.
+                //
+                // **The BACK TO MAP button that used to be tested here is gone.**
+                // It was ours, it was drawn at (478, 460), and that is the
+                // original's **End Turn** strip to the pixel — record 5 of
+                // `g_sidebarButtons`. So a rectangle of ours sat on top of a
+                // live control of the game's, which is the same defect a player
+                // reported about the five sidebar icons a fortnight ago. The
+                // column now passes down and the strip ends the turn.
+                // arm: 0x0040E7E4/panel-corner-closes
+                if self.panel.ok_button().contains(x, y) {
                     return Transition::Pop;
                 }
-                // The strip's four quadrants, exactly as CountyStrip_Click
-                // splits them. Tested first because the strip never overlaps a
-                // panel: every panel window ends at x = 464 at the latest.
-                if let Some(p) = panel_at(x, y) {
-                    self.panel = p;
-                    return Transition::Stay;
-                }
+                // The strip's four quadrants are in the column and went down
+                // with it, so nothing is tested for them here.
+                // `Ration_SliderClick` (`0x0043A379`) — `0x19`'s own extra
+                // guard, and the reason the ration panel's arm is one line
+                // longer than the other three.
+                // arm: 0x0043A379/ration-split-slider
                 if self.split_click(ctx, x, y) {
                     return Transition::Stay;
                 }
+                // `Screen_HandleInput`'s widget tables: `g_taxWidgets`
+                // (`0x004DD790`) and `g_rationWidgets` (`0x004DD7C0`), two
+                // records each, up then down.
+                // arm: 0x004BA9C8/tax-and-ration-arrows
                 if self.panel.increase_button().is_some_and(|r| r.contains(x, y)) {
                     self.adjust(ctx, 1);
                 } else if self.panel.decrease_button().is_some_and(|r| r.contains(x, y)) {
@@ -480,29 +638,37 @@ impl Screen for CountyScreen {
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
-        let ink = &ctx.assets.ink;
         // **No clear.** The campaign map is the screen underneath on the stack.
 
-        let mine = ctx.game.is_players(self.county);
-        draw_right_column(canvas, ctx.assets, mine);
+        // **The seven column plates are no longer repainted here, and that is a
+        // one-line change with a visible consequence.**
+        //
+        // This used to call `draw_right_column`, which puts `Misc_cty` frames 54
+        // … 59 down over the whole column, y 24 … 480 — including the **minimap**
+        // at (480, 25), the four mode icons beside it and the End Turn caption,
+        // none of which this screen redraws. So *opening a county panel blanked
+        // the minimap.* That was harmless while the column was dead under a
+        // panel; now that every control in it is live it would be a control a
+        // player can click and cannot see.
+        //
+        // The original does not repaint it either: `Screen_Draw`'s `0x14`,
+        // `0x15`, `0x16` and `0x19` arms are `Panel_Population` and its three
+        // siblings, and not one of them calls `CountyStrip_Draw` or
+        // `Minimap_Draw`. The column is simply still there from the last frame —
+        // §3.1's *"there is no screen clear anywhere in this engine"*.
+        //
+        // The **strip** is still drawn, and only because it is the one part of
+        // the column that carries the focus outline (ours) and because the plate
+        // it lands on is identical to the one the map screen drew a moment ago.
         draw_strip(ctx, canvas, self.county, Some(self.panel));
         self.draw_panel(ctx, canvas);
 
-        // OURS: the original's bottom strip ends the turn.
-        widget::button(canvas, ink, CountyScreen::back_button(), "BACK TO MAP", false);
+        // **The bottom strip is not ours to draw.** It is the campaign map's
+        // End Turn button, the map screen is underneath on the stack and draws
+        // it, and the column now passes clicks down to it. A BACK TO MAP
+        // rectangle of ours used to be painted over it — and hit-tested ahead
+        // of it — from right here.
     }
-}
-
-/// `Misc_cty.pl8` frames 54 / 55 / 66 / 56 / 57 / 59, or 54 / 58 / 57 / 59 for
-/// a county you do not hold — the whole right column, y 24 … 480 with no gap.
-fn draw_right_column(canvas: &mut Canvas, assets: &Assets, own: bool) {
-    if let Some(chrome) = assets.chrome.as_ref() {
-        if chrome.draw_right_panel(canvas, own) > 0 {
-            return;
-        }
-    }
-    // OURS: a flat column, for an install with no Misc_cty.pl8.
-    widget::panel(canvas, &assets.ink, Rect::new(478, chrome::PANEL_TOP_Y, 162, 480 - 24));
 }
 
 // -------------------------------------------------------- drawing the strip
@@ -907,19 +1073,12 @@ fn draw_produce_rows(
     c: &l2_kingdom::county::County,
     strip_ink: u8,
 ) {
-    // `FUN_0040FEC1`, in its own order: cattle, then grain, then reclamation.
-    let mut rows: Vec<usize> = Vec::with_capacity(3);
-    if c.fields_cattle != 0 || c.herd != 0 {
-        rows.push(1);
-    }
-    if c.fields_grain != 0 || c.grain != 0 {
-        rows.push(0);
-    }
-    if c.fields_reclaiming != 0 {
-        rows.push(2);
-    }
+    // `FUN_0040FEC1`, in its own order: cattle, then grain, then reclamation —
+    // and the same list `job_row_at` hit-tests, so the picture and the target
+    // cannot drift apart.
+    let rows = farm_rows(c);
     // `DAT_0053E970`: three rows or more and they close up.
-    let pitch = if rows.len() < 3 { 0x3C } else { 0x2D };
+    let pitch = farm_pitch(rows.len());
 
     for (n, &slot) in rows.iter().enumerate() {
         let y = pitch * n as i32;

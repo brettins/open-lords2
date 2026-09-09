@@ -126,6 +126,13 @@ pub enum ScreenId {
     /// original's own numbers. `0x28` is the fourth of that block and is
     /// unreachable in the shipped binary — see [`crate::battlefield`].
     Battlefield,
+    /// **`g_screenId` `0x32` — a menu-bar drop-down is open**, carrying the
+    /// 1-based title index the original keeps in `DAT_00522CB4`.
+    ///
+    /// It is a screen id in the original too, and a strange one: its painter
+    /// (`Menu_RestoreBackdrop`, `0x0040C928`) only puts the 400 × 180 band at
+    /// (0, 24) back. See [`crate::screens::menubar`].
+    MenuBar(usize),
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -160,6 +167,30 @@ pub enum Transition {
     /// `Push` from underneath truncates everything above it first. That is the
     /// original's single-byte `g_screenId` reproduced, not a convenience.
     Pass,
+    /// **I acted, and everything above me closes.**
+    ///
+    /// The other half of [`Transition::Pass`], and it exists for one arm:
+    /// `Screen_FrameInput`'s **epilogue**, which runs on every screen id but
+    /// `0x12` and is the whole of the campaign minimap's reach —
+    ///
+    /// ```text
+    /// if ((leftPressed || rightPressed) && g_screenId != 0x12 && FUN_004323FE()) {
+    ///     if (g_screenId == 0x0F) { Sound_StopOneShot(); FUN_0041438C(); }
+    ///     if (g_battlePhase == 0) g_screenId = 0;
+    /// }
+    /// ```
+    ///
+    /// `FUN_004323FE` (`0x004323FE`) is `Minimap_Click` (`0x0043253A`) outside a
+    /// battle. So a press on the minimap raster from *any* management screen
+    /// selects that county, centres the map on it **and drops the whole
+    /// management surface**. Our stack says that as: the overlay passes the
+    /// event down, the campaign map acts, and the campaign map asks for
+    /// everything above it to be thrown away — which is `g_screenId = 0` with a
+    /// stack underneath.
+    ///
+    /// It is deliberately not `Replace(self.id())`: that rebuilds the screen,
+    /// and the campaign map's viewport is exactly what a re-centre is *about*.
+    Reveal,
 }
 
 /// What a screen is given. `game` is mutable through `handle` and `update`, and
@@ -309,6 +340,9 @@ impl ScreenId {
             ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
             ScreenId::Options(page) => {
                 Box::new(crate::screens::options::OptionsScreen::new(page))
+            }
+            ScreenId::MenuBar(title) => {
+                Box::new(crate::screens::menubar::DropdownScreen::new(title))
             }
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }
@@ -480,6 +514,9 @@ impl Machine {
     fn apply_at(&mut self, depth: usize, t: Transition) {
         match t {
             Transition::Stay | Transition::Pass => {}
+            // `g_screenId = 0` from an arm that was reached by falling through:
+            // this screen stays and everything opened over it goes.
+            Transition::Reveal => self.stack.truncate(depth + 1),
             Transition::Push(id) => {
                 self.stack.truncate(depth + 1);
                 self.stack.push(id.build());
