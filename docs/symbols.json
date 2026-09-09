@@ -3632,7 +3632,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void ScenarioList_Draw(void)",
-      "comment": "The five-row scenario list box, with the selected row inverted and a proportional scrollbar thumb whose three segments are computed from the scroll offset, 5, and the total. Row text is L2.eng group 101, the 60 map slot names, indexed through DAT_0050A460 so the list can be filtered rather than being a straight window onto the group."
+      "comment": "The five-row scenario list box, with the selected row inverted and a proportional scrollbar thumb whose three segments are computed from the scroll offset, 5, and the total. Row text is L2.eng group 101, the 60 map slot names, but indexed *through* the byte table DAT_0050A460 rather than directly, so the visible order is not the group's order. What builds that table has not been read."
     },
     {
       "addr": "0x004149EC",
