@@ -189,6 +189,10 @@ pub fn attack_county(
     }
 
     let county_owner = counties[county as usize].owner;
+    // The mark that goes on the defender: `RAISED` for one levied on the spot,
+    // `PRESSED` for an army that was already standing there. See
+    // [`crate::unit::Unit::defence_mark`].
+    let mut mark = RAISED;
     let defender = if county_owner == 0 {
         if counties[county as usize].happiness < SURRENDER_HAPPINESS {
             None
@@ -202,7 +206,15 @@ pub fn attack_county(
     } else {
         let owner_is_human = realms.get(county_owner as usize).is_some_and(|r| r.is_human);
         match find_defender(units, counties, county) {
-            Some(existing) => Some(existing),
+            Some(existing) => {
+                // **The asymmetry is the original's.** `+0x167 = 2` is written
+                // on the AI branch and *not* on the human one, so an existing
+                // army defending a person's county is never marked at all.
+                // `Defence_Disband` then never touches it — the same outcome
+                // the 2 would have produced, reached by not writing anything.
+                mark = if owner_is_human { UNMARKED } else { PRESSED };
+                Some(existing)
+            }
             None => {
                 let mode = if owner_is_human { Defence::HumanCounty } else { Defence::AiCounty };
                 levy::raise_defence(
@@ -217,9 +229,35 @@ pub fn attack_county(
             change_owner(counties, realms, units, owner, county, difficulty);
             Attack::Captured
         }
-        Some(defender) => Attack::Battle { attacker, defender },
+        Some(defender) => {
+            if let Some(d) = units.get_mut(defender) {
+                d.defence_mark = mark;
+                if mark == RAISED {
+                    // `Unit_Spawn` memsets the record and nothing writes the
+                    // allowance until `Army_Tick` runs, so a defence levied
+                    // this instant has **no moves**: it stands where it was
+                    // raised and fights. It never sees another tick — the
+                    // battle disbands it — so this is the whole of its
+                    // movement rule. `battle-during.sav` slot 6 reads 0/0.
+                    d.move_allowance = 0;
+                    d.moves_used = 0;
+                }
+            }
+            Attack::Battle { attacker, defender }
+        }
     }
 }
+
+/// `+0x167 = 1` — a defence levied out of the county's own people the moment
+/// the attacker arrived. Winning with it takes the county; it is dissolved
+/// afterwards and its survivors go home.
+pub const RAISED: u8 = 1;
+/// `+0x167 = 2` — an army that was already standing at the town. Winning with
+/// it takes the county; it keeps its men and only loses the mark.
+pub const PRESSED: u8 = 2;
+/// No mark. A field battle, and a human's existing defender, which the original
+/// never marks.
+pub const UNMARKED: u8 = 0;
 
 /// Walk a unit for as long as it can walk, and resolve a castle it reaches.
 ///
