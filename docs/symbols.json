@@ -5471,6 +5471,46 @@
       "confidence": "verified",
       "signature": "undefined4 Sync_Rollback(void)",
       "comment": "Multiplayer divergence recovery, promoted from hypotheses.json where it was Battle_ReplayFrame with the caveat 'whether it is a replay, a demo loop or a network resync was NOT established'. [V] It is the network resync: FUN_00440666 calls it on the branch where Sync_BlockAgrees(0) reports a divergence, and Sync_ResendState calls it after pushing the whole snapshot. It restores the last agreed snapshot - g_battleMen, g_missiles, g_battleUnits and both PRNG states - bumps the 'divergances' counter the shipped debug overlay draws, and after four consecutive failures reloads lastturn.sva/.svb and posts L2.eng group 259, 'Com-link error.' See docs/formats/eng.md 5.2."
+    },
+    {
+      "addr": "0x0043B681",
+      "name": "SiegePrep_OrderMore",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void SiegePrep_OrderMore(void)",
+      "comment": "Siege-preparation screen, the increment half of an engine row. Picks its ceiling from g_uiHotspotId - 4 for hotspots 0 and 1 (catapults, siege towers) and 2 for anything else (battering rams) - and refuses to increment at it. Under g_multiplayer it sends network command 0x37 instead. The ceiling is the screen's and not the record's: Siege_Prepare writes 4 towers for the Knight and 3 catapults plus 2 towers for the Countess without consulting it. Ceiling times g_siegeEngineWork is 800 man-seasons for all three rows, which is a second statement that the table is 200/200/400 in record order."
+    },
+    {
+      "addr": "0x0043B741",
+      "name": "SiegePrep_OrderFewer",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void SiegePrep_OrderFewer(void)",
+      "comment": "Siege-preparation screen, the decrement half of an engine row. Refuses at zero; network command 0x37 under g_multiplayer."
+    },
+    {
+      "addr": "0x0043B7C4",
+      "name": "SiegePrep_AdjustOrder",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void SiegePrep_AdjustOrder(int unit, int engine, short delta)",
+      "comment": "Adds delta to the engine record at unit +0x182 + engine*6 and runs Siege_RecomputeBuildTime, so the seasons-remaining line moves as the player clicks. The tail of both SiegePrep_OrderMore and SiegePrep_OrderFewer."
+    },
+    {
+      "addr": "0x0043B848",
+      "name": "SiegePrep_Button",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void SiegePrep_Button(void)",
+      "comment": "The siege-preparation screen's two buttons. Hotspot 1 is L2.eng 83/6 'Lift siege': it closes the screen and calls Siege_Break (network command 0x38). Hotspot 2 is 83/7 'Proceed': it closes the screen and launches the assault ONLY IF unit +0x19C is already zero (network command 0x39), so proceeding with work outstanding simply leaves turn phase 2 to carry the build on."
+    },
+    {
+      "addr": "0x0043B98A",
+      "name": "SiegePrep_Proceed",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void SiegePrep_Proceed(int unit)",
+      "comment": "A one-line thunk to Siege_LaunchAssault, called by SiegePrep_Button when the engines are ready."
     }
   ],
   "globals": [
@@ -8448,6 +8488,27 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Six {x, y, w, h} int records for the message-category-0x13 help windows, indexed (group - 291), so groups 291..296. [V] Read out of the exe as (32,176,26,10), (16,32,28,27) x4, (32,160,26,12); the matching paragraph counts begin at 0x004D6F18 and equal (strings - 1) for all six."
+    },
+    {
+      "addr": "0x00553F3C",
+      "name": "g_castleEntered",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Raised by Cell_TryEnter when a SIDE-4 figure steps onto a cell carrying flag 0x08, a step it refuses for both sides. Battle_CheckOutcome tests it inside the siege arm and ends the battle with army A - the besieger - as the winner, so getting one man to that cell wins a siege outright with the garrison still standing. One writer, one reader. docs/armies.md section 7.3 called it 'the escape-tile flag'; it is neither an escape nor the defender's. See docs/battle.md 14.3a."
+    },
+    {
+      "addr": "0x0055401C",
+      "name": "g_castleLevel",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The castle level 0..4 being fought, written by Siege_LaunchAssault: castleDegraded 1 with a build in progress gives castleBuilding-1, castleDegraded 2 gives county +0x1F9, otherwise castleType-1. Army_PrepareForBattle switches on it for the defender's oil count (1, 2, 3, 4, 6) and Battle_CheckOutcome compares it against 3 to decide whether a failed assault repeats or ends the battle."
+    },
+    {
+      "addr": "0x004D8AF8",
+      "name": "g_aiSiegeDoctrine",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Personality record +0xA0, stride 0xF0 from g_aiPersonality at 0x004D8A58, read by Siege_Prepare and by nothing else. The four shipped values are 8, 9, 7, 7 for the Knight, Baron, Countess and Bishop: 8 orders four siege towers, 9 one battering ram, 7 three catapults plus a ram against a stone or royal castle after season 2, and every arm keeps the default two towers. Three of the four values are exactly the three constants the function tests, and the fourth repeats one. docs/diplomacy.md section 8.4 listed +0xA0 among eleven personality fields that were never traced."
     }
   ]
 }

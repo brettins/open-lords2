@@ -310,13 +310,31 @@ pub struct Unit {
     /// garrison is excluded from the county troop count and never starves.
     pub garrison_county: u8,
     /// `+0x199` — non-zero means camped outside that county's castle building
-    /// engines. Sieges are out of this module's scope; the field is carried
-    /// because [`Units::recount_county_troops`], [`wages_for_realm`] and
-    /// [`starve`] all have to know about it and would otherwise be wrong the
-    /// day sieges arrive.
+    /// engines. [`crate::siege`] is the whole of what it means;
+    /// [`Units::recount_county_troops`], [`wages_for_realm`] and [`starve`]
+    /// each have to know about it because a besieger forages in the county it
+    /// is camped in.
+    ///
+    /// **It is not `garrison_county` and the two are never both set.**
+    /// `siege-sieging.sav` is the position: the besieging army carries
+    /// `+0x198 = 0` and `+0x199 = 4`, and the garrison it is besieging carries
+    /// `+0x198 = 4` and `+0x19A = 5`. `[V]`
     pub besieging_county: u8,
     /// `+0x19A` — on a garrison, the slot of its besieger.
     pub besieged_by: u8,
+    /// `+0x182 + e*6` — the three siege-engine build records, indexed by
+    /// [`crate::siege::Engine`]. See [`crate::siege`].
+    pub engines: [crate::siege::EngineBuild; 3],
+    /// `+0x19C` — **seasons until the ordered engines are ready**, the number
+    /// the siege-preparation screen prints beside `L2.eng` 83/4 *"Siege will
+    /// take"*.
+    ///
+    /// `ceil(remaining man-seasons / men)`, rewritten by
+    /// [`crate::siege::recompute_build_time`] and
+    /// [`crate::siege::build_tick`]. Verified against four snapshots of one
+    /// siege in `E:\dev\lords2-fixtures`: a 43-man army building one catapult
+    /// reads 3, 2, 1, 0 as its work record climbs 86, 129, 172, 200. `[V]`
+    pub siege_seasons_left: u8,
     /// `+0x167` — **the county-defence mark**, and the field that decides
     /// whether winning a battle also wins the county.
     ///
@@ -400,6 +418,8 @@ impl Unit {
             garrison_county: 0,
             besieging_county: 0,
             besieged_by: 0,
+            engines: [crate::siege::EngineBuild::default(); 3],
+            siege_seasons_left: 0,
             defence_mark: 0,
             cargo_county: 0,
         }

@@ -163,11 +163,12 @@ pub fn ceilings(county: &County) -> [i32; JOB_COUNT] {
     );
     gate(JOB_BLACKSMITH, county.industry[Commodity::Weapons.index() as usize].enabled, &mut out);
     // `+0x1C3`: a castle is actually under construction. Our field is named
-    // `castle_degraded`, which `docs/kingdom.md` admits was never traced; the
+    // `castle_degraded`, and it is a byte with three values rather than a flag
+    // — 1 for a build and 2 for a post-siege repair, both of which are work the
     // allocator and `Castle_BuildEstimate` both read it as "a build is in
     // progress", and `Tax_CollectAll` charging the *lower* castle while it is
     // set says the same thing.
-    gate(JOB_CASTLE_BUILDING, county.castle_degraded, &mut out);
+    gate(JOB_CASTLE_BUILDING, county.castle_degraded != 0, &mut out);
     // Idle townsfolk has no ceiling and takes the remainder.
     out[JOB_IDLE_TOWNSFOLK] = 0;
     out

@@ -53,6 +53,11 @@ impl IndexScreen {
         // nothing else: no `ScreenId` for it is invented here, because the
         // agent that owns the screen owns its id.
         push("0x02 THE VILLAGE (ANOTHER AGENT)".into(), None);
+        // Unit 1 is a stand-in: the screen takes the besieging army's slot, and
+        // from the index there is no siege in progress to take it from. It
+        // draws an empty order and a zero countdown, which is what the original
+        // shows the instant a siege is laid.
+        push("0x1D SIEGE PREPARATIONS".into(), Some(ScreenId::Siege(1)));
         push("0x35 LOAD A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Load)));
         push("0x36 SAVE A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Save)));
 

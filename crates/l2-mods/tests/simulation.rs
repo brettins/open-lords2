@@ -688,22 +688,22 @@ fn which_way_an_ai_lord_farms_is_a_rule_a_mod_sets() {
          gift_increment = 100\nhelp_price = 500\ngrudge_tolerance = 5\noffer_interval = 12\n\
          help_population_floor = 750\nmuster_pct = 30\ncastle_concurrent = 4\n\
          castle_min_population = 700\ncastle_gold = [200, 0, 1000, 0, 10000]\n\
-         weapon_rota = [0, 1, 4, 2, 5, 2]\n\n\
+         weapon_rota = [0, 1, 4, 2, 5, 2]\nsiege_doctrine = 8\n\n\
          [[kingdom.ai.personality]]\nlord = 2\nfarm_style = 1\ntax_ladder = 2\n\
          gift_increment = 100\nhelp_price = 1000\ngrudge_tolerance = 10\noffer_interval = 10\n\
          help_population_floor = 800\nmuster_pct = 30\ncastle_concurrent = 3\n\
          castle_min_population = 650\ncastle_gold = [0, 500, 0, 4000, 0]\n\
-         weapon_rota = [3, 5, 4, 4, 4, 5]\n\n\
+         weapon_rota = [3, 5, 4, 4, 4, 5]\nsiege_doctrine = 9\n\n\
          [[kingdom.ai.personality]]\nlord = 3\nfarm_style = 0\ntax_ladder = 2\n\
          gift_increment = 200\nhelp_price = 1600\ngrudge_tolerance = 15\noffer_interval = 8\n\
          help_population_floor = 900\nmuster_pct = 40\ncastle_concurrent = 2\n\
          castle_min_population = 600\ncastle_gold = [0, 300, 0, 2000, 0]\n\
-         weapon_rota = [0, 1, 1, 2, 4, 0]\n\n\
+         weapon_rota = [0, 1, 1, 2, 4, 0]\nsiege_doctrine = 7\n\n\
          [[kingdom.ai.personality]]\nlord = 4\nfarm_style = 9\ntax_ladder = 1\n\
          gift_increment = 50\nhelp_price = 1500\ngrudge_tolerance = 20\noffer_interval = 4\n\
          help_population_floor = 1000\nmuster_pct = 50\ncastle_concurrent = 1\n\
          castle_min_population = 600\ncastle_gold = [0, 0, 100, 0, 2000]\n\
-         weapon_rota = [4, 4, 3, 4, 4, 3]\n",
+         weapon_rota = [4, 4, 3, 4, 4, 3]\nsiege_doctrine = 7\n",
     );
     assert_eq!(arable.ai.personality[0].farm_style, 0);
 
@@ -754,7 +754,8 @@ fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
              gift_increment = {gift}\nhelp_price = {help}\ngrudge_tolerance = {grudge}\n\
              offer_interval = {offer}\nhelp_population_floor = {floor}\nmuster_pct = {muster}\n\
              castle_concurrent = {concurrent}\ncastle_min_population = {min_pop}\n\
-             castle_gold = [{gold}]\nweapon_rota = [0, 1, 2, 3, 4, 5]\n\n"
+             castle_gold = [{gold}]\nweapon_rota = [0, 1, 2, 3, 4, 5]\n\
+             siege_doctrine = 8\n\n"
         )
     }
     let rows = lord(1, 1, 0, 100, 500, 5, 12, 1000, 30, 4, 700, "200, 0, 1000, 0, 10000")

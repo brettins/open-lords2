@@ -461,7 +461,7 @@ rather than balance and stays in the engine.
 | `[[kingdom.ai.gold_grant]]` | 5 | `lord`, `by_difficulty` (4 numbers) |
 | `[[kingdom.ai.tax_ladder_neutral]]` | 1–8 | `below`, `rate` |
 | `[[kingdom.ai.tax_ladder.<n>]]` | 1–8, for `n` in 0–2 | `below`, `rate` |
-| `[[kingdom.ai.personality]]` | 4 | `lord`, `farm_style`, `tax_ladder` |
+| `[[kingdom.ai.personality]]` | 4 | `lord`, `farm_style`, `tax_ladder`, `siege_doctrine` |
 | `[[kingdom.score.gold_bracket]]` | 4 | `at_least`, `points` |
 | `[[kingdom.score.weight]]` | 6 | `offset`, `numerator`, `denominator` |
 
@@ -815,6 +815,13 @@ tables because they always were ones:
   penalty, and which season calves and which culls. None of it existed in the
   crate at all until it was implemented; a herd could be kept with nobody
   tending it. `docs/kingdom.md` §13.
+
+**And one more with sieges**: `kingdom.ai.personality.*.siege_doctrine`, personality record
+`+0xA0`, which `docs/diplomacy.md` §8.4 had among eleven fields *"never traced"*.
+`Siege_Prepare` is its only reader and it is genuinely live: 8 orders four siege towers, 9 a
+battering ram, 7 three catapults plus a late ram, and anything else leaves the default two
+towers — cumulatively, so 7 and 9 keep the towers as well. A mod that sets every lord to 8
+gives every AI an 800-man-season siege with no artillery in it. `docs/armies.md` §4.0.1.
 
 **What is still a constant, and honestly so.** Array *sizes* are structure, not
 balance — the nine job slots, the six ration levels, the eleven troop types,

@@ -621,9 +621,15 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
     // it, and `Tax_CollectAll` charges the *lower* of the standing and the
     // building castle while it is set. Nothing in this crate used to write it,
     // so the castle-building job had a ceiling of zero for ever and no county
-    // could build anything. `[D]` on the name — `County::castle_degraded` is
-    // what `docs/kingdom.md` called it before the readers were traced.
-    county.castle_degraded = true;
+    // could build anything.
+    //
+    // **It is a byte with three values and not a flag**, which the siege work
+    // settled: 1 is *a castle is being built or upgraded* and 2 is *a castle is
+    // being repaired after a siege*. `Siege_LaunchAssault` fights a different
+    // castle for each, and the castle-build season pass sends a different
+    // message. Every reader above tests it against zero, so widening it changes
+    // none of them. See [`crate::siege::CASTLE_DEGRADED_BUILDING`].
+    county.castle_degraded = crate::siege::CASTLE_DEGRADED_BUILDING;
     true
 }
 
@@ -646,7 +652,7 @@ pub fn build_tick(t: &Tables, county: &mut County, id: u8, out: &mut Vec<Message
     county.castle_type = county.castle_building;
     county.castle_building = 0;
     county.castle_progress = 0;
-    county.castle_degraded = false;
+    county.castle_degraded = 0;
     out.push(Message::CastleBuilt { county: id, castle_type: county.castle_type });
     true
 }
@@ -677,7 +683,7 @@ pub fn build_tick(t: &Tables, county: &mut County, id: u8, out: &mut Vec<Message
 /// per-season share — so a county that can staff it finishes the castle in one
 /// season and one that cannot puts everybody it has on the walls.
 pub fn castle_labour_estimate(t: &Tables, county: &County) -> (i32, i32) {
-    if !county.castle_degraded || county.castle_building == 0 {
+    if county.castle_degraded == 0 || county.castle_building == 0 {
         return (crate::county::LABOUR_NO_FLOOR, 0);
     }
     let remaining =

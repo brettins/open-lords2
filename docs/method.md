@@ -64,6 +64,26 @@ caught by running the game. They were caught by corpus checks and invariants.
 
 ---
 
+## 3a. How to use `Readme.txt`
+
+`docs/mechanics.md` introduces the shipped `Readme.txt` — the v1.03 patch's rules errata,
+192 lines with manual page references — and lists what it settles about the economy. This is
+the part about *how to weigh it*, because two agents reached for it on the same day and it
+answers a different kind of question from `L2.eng`.
+
+* **It cannot be wrong about intent**, so it is a legitimate second source for a `[V]`. It
+  turned the drawbridge from `[I]` to `[V]` in one sentence — *"only the Stone and Royal
+  castles have drawbridges"* explains why the routine that lowers one is written as a search
+  that can **fail**, which no amount of reading the routine would have told you.
+* **It can be less precise than the code, and then the code is what shipped.** Its *Retreats
+  (pg82)* states a general rule about retreating that the shipped binary reaches from
+  exactly one AI handler (`decisions.md` C38). Record both; do not implement the errata over
+  the executable.
+* **It is prior art that is inside the box.** C5's lesson — search for prior art first —
+  applies to the files beside `Lords2.exe`, and this one went unread for months.
+
+---
+
 ## 4. Failure modes, from our own log
 
 Each of these has cost real time here.
@@ -116,6 +136,23 @@ a tool, by a route that does not use the tool**; and when you write a parser for
 decompiler's output, make the unhandled case *report itself* rather than silently returning
 nothing — the re-derivation above prints its count of unparsed literals precisely so that a
 missed escape form shows up as a loud zero-or-not rather than as a quiet absence.
+
+**A calculation that closes confirms the formula, not the labels on its inputs.** A player
+recalled that a siege tower took 10 seasons for his 43-man army and a catapult 5. Checked
+against `g_siegeEngineWork`, `200 / 43` ceils to 5 and `400 / 43` ceils to 10 — two exact
+hits — and that was read as confirming the recollection. It confirmed the *man-seasons
+model*, which is genuinely established and was never in doubt; it said nothing whatever
+about **which slot of the table is the tower**, because both the recollection and the
+table's actual order produce that same pair of ceilings. Arithmetic that closes under either
+hypothesis distinguishes neither. Settling it took four independent statements of the
+slot→engine mapping (`docs/armies.md` §4). **Before treating a closed calculation as
+evidence for a labelling, ask what the other labelling would have produced.**
+
+**Reading one branch and reporting the function.** C38, and it is C31's own lesson applied
+to control flow rather than to a global. C31 corrected a rule by grepping every site that
+touched a flag — the right move — and then stopped at the `if` that flag guarded, missing
+the `else` around it, which held a second rule with no flag at all. **Counting the sites
+that touch a global is not the same as reading the function to its closing brace.**
 
 **A test whose name claims more than its body checks.** C12 —
 `expensive_ground_is_deferred_rather_than_weighted` asserted only that a path crossed a gap,
@@ -621,7 +658,7 @@ that still needs its own check.
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — <!--fig:functions-->696<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->28<!--/fig-->%.
+always more of the binary to name — <!--fig:functions-->701<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->29<!--/fig-->%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the

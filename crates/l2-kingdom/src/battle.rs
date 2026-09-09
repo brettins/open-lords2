@@ -375,9 +375,12 @@ pub fn outcome(
 pub struct Aftermath {
     /// The county changed hands, and to whom.
     pub county_taken_by: Option<u8>,
-    /// The loser's slot was emptied. False only on the siege-withdrawal path,
-    /// which this crate does not reach.
+    /// The loser's slot was emptied.
     pub loser_destroyed: bool,
+    /// The loser **survived**, and all that happened to it was that its siege
+    /// was lifted. See [`return_to_campaign`]'s loser branch: two separate
+    /// rules reach this, and only one of them is the 50-men one.
+    pub loser_siege_lifted: bool,
     /// `Diplo_Offend(loserOwner, winnerOwner, 20)` — the loser's realm resents
     /// the winner's. `None` when the loser was ownerless.
     pub offence: Option<(u8, u8)>,
@@ -431,6 +434,42 @@ pub const AI_DEFENDER_MOVE_COST: i32 = 7;
 /// > autocalc the loser is always destroyed. That path is unreachable from
 /// > this crate and is deliberately not modelled here. `[V]` — the write and
 /// > the three clears are the only four sites the flag has. See correction C31.
+///
+/// > ### ⚠ And C31 stopped one branch too early. **A besieger that loses but
+/// > still has men is not destroyed either, and that rule has no flag on it.**
+/// >
+/// > The loser branch is two nested tests, not one:
+/// >
+/// > ```c
+/// > if (loser.besiegingCounty == 0 || loser.menTotal == 0) {
+/// >     if (withdrawal) {
+/// >         if (loser.menTotal < 50) { message 0x120; Army_Destroy(loser); }
+/// >         else                       loser.besiegingCounty = 0;
+/// >     } else Army_Destroy(loser);
+/// > } else loser.besiegingCounty = 0;      /* <- the outer else */
+/// > ```
+/// >
+/// > C31 read the inner test — the 50-men rule, gated on the withdrawal flag —
+/// > and concluded that *"under autocalc the loser is always destroyed"*. That
+/// > conclusion is true, but for a different reason than the one given: under
+/// > autocalc the loser's men are set to **zero**, so the outer test passes and
+/// > the inner one runs. In a **fought** siege the loser can walk off the field
+/// > with men, and then the outer `else` fires: **the besieging army survives
+/// > and its siege is merely lifted.** That is the rule a repulsed assault
+/// > needs, it is reachable from `l2-sim` and from nowhere else, and both
+/// > `docs/armies.md` §7 and C31 are silent about it. See correction C38.
+///
+/// # The Readme calls the withdrawal a *retreat*
+///
+/// The shipped `Readme.txt`'s *Retreats (pg82)*: *"Armies that retreat will
+/// suffer some casualties. Any army that would have less than 50 men after
+/// retreating is eliminated instead."* That is the inner branch in English, and
+/// it is the game's own documentation of a rule the code reaches from **one**
+/// place — `UnitOrder_SiegeAttKnight`, an all-knight AI besieger giving up on
+/// an unbreached wall. The errata describe the rule as general and the shipped
+/// binary makes it specific; where they differ the code is what shipped, and
+/// `withdrawal` is a parameter here so a caller with a retreat of its own can
+/// reach the branch honestly.
 #[allow(clippy::too_many_arguments)]
 pub fn return_to_campaign(
     t: &Tables,
@@ -441,6 +480,7 @@ pub fn return_to_campaign(
     verdict: Verdict,
     county: u8,
     is_siege: bool,
+    withdrawal: bool,
     difficulty: u8,
 ) -> Aftermath {
     let mut out = Aftermath::default();
@@ -481,7 +521,12 @@ pub fn return_to_campaign(
 
     if let Some(w) = units.get_mut(winner) {
         if is_siege {
+            // A siege that ended is a siege link that has to go, whichever
+            // side won. The original clears the *besieger's* `+0x199` in the
+            // A-wins branch and the *garrison's* `+0x19A` in the B-wins one —
+            // the winner's own half in each case.
             w.besieging_county = 0;
+            w.besieged_by = 0;
         }
         if verdict.attacker_won {
             w.besieged_by = 0;
@@ -495,6 +540,12 @@ pub fn return_to_campaign(
             w.moves_used += AI_DEFENDER_MOVE_COST;
         }
         out.winner_moves_used = w.moves_used;
+    }
+    // `if (!isSiege) Siege_RecomputeBuildTime(winner)`. The winner lost men, so
+    // a siege it is *itself* laying somewhere else now needs a different number
+    // of seasons. On the siege path the link has just been cleared instead.
+    if !is_siege {
+        crate::siege::recompute_build_time(units, winner);
     }
 
     // `Army_ClearBattleSlots` (`0x004AA89F`) zeroes the four battle-only troop
@@ -511,10 +562,35 @@ pub fn return_to_campaign(
         out.offence = Some((loser_unit.owner, winner_unit.owner));
     }
 
-    crate::unit::destroy(t, units, realms, names, loser, difficulty);
-    out.loser_destroyed = true;
+    // **The loser branch, both rules.** See the correction above the function.
+    let still_besieging = loser_unit.besieging_county != 0 && loser_unit.men != 0;
+    let survives = still_besieging || (withdrawal && loser_unit.men >= WITHDRAWAL_SURVIVAL_MEN);
+    if survives {
+        if let Some(l) = units.get_mut(loser) {
+            l.besieging_county = 0;
+        }
+        // The garrison's half of the link goes with it, or the pair is left
+        // half-connected for `Siege_StartPhase` to find next turn.
+        if let Some(g) = counties.get(county as usize).map(|c| c.garrison_unit) {
+            if let Some(g) = units.get_mut(g) {
+                if g.besieged_by == loser as u8 {
+                    g.besieged_by = 0;
+                }
+            }
+        }
+        out.loser_siege_lifted = true;
+    } else {
+        crate::unit::destroy(t, units, realms, names, loser, difficulty);
+        out.loser_destroyed = true;
+    }
     out
 }
+
+/// The men a **withdrawing** army needs to survive its withdrawal — the
+/// Readme's *Retreats (pg82)* number, and `Battle_ReturnToCampaign`'s
+/// `menTotal < 0x32`. Under it, message `0x120` (`L2.eng` group 288) and the
+/// army is destroyed.
+pub const WITHDRAWAL_SURVIVAL_MEN: i32 = 50;
 
 // ------------------------------------------------------ §4 the levy goes home
 
@@ -767,7 +843,7 @@ mod tests {
 
         let v = Verdict::a_won(a, d);
         let after =
-            return_to_campaign(T, &mut counties, &mut realms, &mut units, &mut names, v, 2, false, 1);
+            return_to_campaign(T, &mut counties, &mut realms, &mut units, &mut names, v, 2, false, false, 1);
 
         assert_eq!(after.county_taken_by, Some(1));
         assert_eq!(counties[2].owner, 1, "the county changed hands");
@@ -796,7 +872,7 @@ mod tests {
 
         let v = Verdict::b_won(a, d);
         let after =
-            return_to_campaign(T, &mut counties, &mut realms, &mut units, &mut names, v, 2, false, 1);
+            return_to_campaign(T, &mut counties, &mut realms, &mut units, &mut names, v, 2, false, false, 1);
 
         assert_eq!(after.county_taken_by, None);
         assert_eq!(counties[2].owner, 0, "still neutral");
@@ -819,7 +895,7 @@ mod tests {
         units.get_mut(a).unwrap().moves_used = 8;
         return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
-            Verdict::a_won(a, d), 2, false, 1,
+            Verdict::a_won(a, d), 2, false, false, 1,
         );
         let w = units.get(a).unwrap();
         assert_eq!(w.moves_left(), 1, "a winning AI is finished for the season");
@@ -830,7 +906,7 @@ mod tests {
         let d = army(&mut units, 1, true, &[(TroopType::Knight, 100)]);
         return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
-            Verdict::b_won(a, d), 2, false, 1,
+            Verdict::b_won(a, d), 2, false, false, 1,
         );
         assert_eq!(units.get(d).unwrap().moves_used, 0);
 
@@ -840,7 +916,7 @@ mod tests {
         let d = army(&mut units, 2, false, &[(TroopType::Knight, 100)]);
         return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
-            Verdict::b_won(a, d), 2, false, 1,
+            Verdict::b_won(a, d), 2, false, false, 1,
         );
         assert_eq!(units.get(d).unwrap().moves_used, AI_DEFENDER_MOVE_COST);
     }
@@ -857,10 +933,93 @@ mod tests {
 
         let after = return_to_campaign(
             T, &mut counties, &mut realms, &mut units, &mut names,
-            Verdict::a_won(a, d), 2, false, 1,
+            Verdict::a_won(a, d), 2, false, false, 1,
         );
         assert_eq!(after.county_taken_by, None);
         assert_eq!(counties[2].owner, 2, "beating an army in the field takes no land");
+    }
+
+    /// **A repulsed assault does not destroy the besieging army.**
+    ///
+    /// The rule C31 stopped one branch short of: a loser that is still linked
+    /// as a besieger and still has men keeps its men and only loses the siege.
+    /// It is unreachable under the autocalc — which zeroes the loser's men —
+    /// and reachable from a fought battle, which is why it never showed up.
+    #[test]
+    fn a_besieger_that_loses_with_men_left_keeps_them_and_only_loses_the_siege() {
+        let (mut counties, mut realms) = world();
+        let mut names = ArmyNames::new();
+        let mut units = Units::new();
+        let a = army(&mut units, 1, true, &[(TroopType::Peasant, 200)]);
+        let d = army(&mut units, 2, false, &[(TroopType::Archer, 100)]);
+        units.get_mut(a).unwrap().besieging_county = 2;
+        units.get_mut(d).unwrap().garrison_county = 2;
+        units.get_mut(d).unwrap().besieged_by = a as u8;
+        counties[2].owner = 2;
+        counties[2].garrison_unit = d;
+
+        let after = return_to_campaign(
+            T, &mut counties, &mut realms, &mut units, &mut names,
+            Verdict::b_won(a, d), 2, true, false, 1,
+        );
+        assert!(!after.loser_destroyed, "the assault failed; the army did not");
+        assert!(after.loser_siege_lifted);
+        assert_eq!(units.get(a).unwrap().men, 200, "it keeps every man it walked off with");
+        assert_eq!(units.get(a).unwrap().besieging_county, 0, "and loses only the siege");
+        assert_eq!(units.get(d).unwrap().besieged_by, 0, "both halves of the link");
+        assert_eq!(counties[2].owner, 2, "the castle held");
+
+        // …and the same battle with the besieger wiped out destroys it, which
+        // is the outer test's other arm and the autocalc's only arm.
+        let mut units = Units::new();
+        let a = army(&mut units, 1, true, &[(TroopType::Peasant, 200)]);
+        let d = army(&mut units, 2, false, &[(TroopType::Archer, 100)]);
+        units.get_mut(a).unwrap().besieging_county = 2;
+        units.get_mut(a).unwrap().men = 0;
+        units.get_mut(a).unwrap().troops = [0; TROOP_TYPES];
+        let after = return_to_campaign(
+            T, &mut counties, &mut realms, &mut units, &mut names,
+            Verdict::b_won(a, d), 2, true, false, 1,
+        );
+        assert!(after.loser_destroyed);
+        assert!(units.get(a).is_none());
+    }
+
+    /// The **withdrawal** rule, which is a different rule at the same site —
+    /// the Readme's *Retreats (pg82)* and `menTotal < 50`.
+    #[test]
+    fn a_withdrawing_army_survives_at_fifty_men_and_is_eliminated_below_it() {
+        let (mut counties, mut realms) = world();
+        let mut names = ArmyNames::new();
+        for (men, survives) in [(50, true), (49, false)] {
+            let mut units = Units::new();
+            let a = army(&mut units, 1, true, &[(TroopType::Peasant, men)]);
+            let d = army(&mut units, 2, false, &[(TroopType::Archer, 100)]);
+            // Not besieging any more — so only the withdrawal branch is left.
+            let after = return_to_campaign(
+                T, &mut counties, &mut realms, &mut units, &mut names,
+                Verdict::b_won(a, d), 2, false, true, 1,
+            );
+            assert_eq!(units.get(a).is_some(), survives, "{men} men");
+            assert_eq!(after.loser_siege_lifted, survives);
+        }
+    }
+
+    /// And without the flag, fifty men buys nothing — which is the half of
+    /// C31 that stands.
+    #[test]
+    fn without_a_withdrawal_a_loser_with_men_is_still_destroyed() {
+        let (mut counties, mut realms) = world();
+        let mut names = ArmyNames::new();
+        let mut units = Units::new();
+        let a = army(&mut units, 1, true, &[(TroopType::Peasant, 500)]);
+        let d = army(&mut units, 2, false, &[(TroopType::Archer, 100)]);
+        let after = return_to_campaign(
+            T, &mut counties, &mut realms, &mut units, &mut names,
+            Verdict::b_won(a, d), 2, false, false, 1,
+        );
+        assert!(after.loser_destroyed);
+        assert!(units.get(a).is_none());
     }
 
     // --- §4 the disband ----------------------------------------------------

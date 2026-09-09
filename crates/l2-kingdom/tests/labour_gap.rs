@@ -122,7 +122,7 @@ fn every_one_of_the_nine_ceilings_is_refreshed() {
     c.herd_crowding = land::herd_crowding(t, c.herd, c.fields_cattle);
     // A castle under construction, so the ninth ceiling has something to say.
     c.castle_building = 1;
-    c.castle_degraded = true;
+    c.castle_degraded = l2_kingdom::siege::CASTLE_DEGRADED_BUILDING;
 
     c.labour_useful = [LABOUR_UNSET; JOB_COUNT];
     let map = l2_kingdom::CampaignMap::empty();
