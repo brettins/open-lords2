@@ -849,31 +849,115 @@ impl Scenario {
         for id in self.county_ids() {
             let Some(s) = &self.counties[id] else { continue };
             let c = &mut k.counties[id];
-            c.population = s.population;
-            c.pop_last = s.population_last;
-            c.happiness = s.happiness;
-            c.happiness_last = s.happiness_last;
-            c.happiness_sum = s.happiness;
-            c.happiness_avg = s.happiness;
-            c.shown_tax = s.shown_tax;
-            c.shown_ration = s.shown_ration;
-            c.shown_health = s.shown_health;
-            c.shown_events = s.shown_events;
-            c.d_hap_ration = s.d_hap_ration;
-            c.health_meter = s.health_meter;
-            c.health_band = s.health_band;
-            c.unrest = s.unrest;
-            c.births = s.births;
-            c.deaths = s.deaths;
-            c.emigrants = s.emigrants;
-            c.immigrants = s.immigrants;
-            c.pop_band = s.pop_band;
-            c.tax_collected = s.tax_collected;
-            c.ration_achieved = s.ration_achieved;
-            c.grain_eaten = s.grain_eaten;
-            c.herd_eaten = s.herd_eaten;
-            c.grain_available = s.grain;
-            c.herd_available = s.herd;
+
+            // **Destructured with no `..`, and that is the whole point of the
+            // shape.** `County::farm_style` was read by the rules and written by
+            // nothing on this path for months (`docs/decisions.md` C62): the
+            // importer assigned field by field onto a default, so a field nobody
+            // remembered simply stayed at zero, and *no test anywhere could see
+            // it* — a diff of two `CountyState`s cannot notice a step after
+            // `CountyState`, and a round trip compares one fixture.
+            //
+            // Naming every field of the SOURCE makes that a **compile error**:
+            // add a field to `CountyState` and this stops building until
+            // somebody decides where it goes. rustc, permanently, with nothing
+            // to maintain and no scanner that can be fooled — which is a
+            // strictly better instrument than the source-text check in
+            // `crates/l2-testkit/tests/encoding.rs`, and the reason that check's
+            // own doc says it cannot reach this path.
+            //
+            // The *source* rather than the destination, deliberately. `County`
+            // has 101 fields and some seventy of them are derived or computed
+            // later; an exhaustive literal there would be seventy lines of
+            // `x: 0` and the next omission would hide in the middle of it.
+            // `CountyState` has 46 and every one of them is something the save
+            // actually stored, so the question *"is this carried?"* is
+            // meaningful for every line.
+            let CountyState {
+                // --- carried here, the per-turn state ----------------------
+                population,
+                population_last,
+                happiness,
+                happiness_last,
+                shown_tax,
+                shown_ration,
+                shown_health,
+                shown_events,
+                d_hap_ration,
+                health_meter,
+                health_band,
+                unrest,
+                births,
+                deaths,
+                emigrants,
+                immigrants,
+                pop_band,
+                tax_collected,
+                ration_achieved,
+                grain_eaten,
+                herd_eaten,
+                grain,
+                herd,
+                // --- carried by `skeleton`, which ran before this loop -----
+                // Structural rather than per-turn: who owns the county, where
+                // it is, what it is made of. Bound and ignored here so that
+                // this list stays the whole of `CountyState` and a new field
+                // cannot be added without a decision.
+                owner: _,
+                anchor: _,
+                neighbours: _,
+                tax_rate: _,
+                ration_wanted: _,
+                ration_split: _,
+                castle_type: _,
+                castle_building: _,
+                castle_switch: _,
+                industry: _,
+                fertility: _,
+                weather: _,
+                dryness: _,
+                labour: _,
+                labour_wanted: _,
+                labour_useful: _,
+                labour_share: _,
+                industry_share: _,
+                field_tiles: _,
+                farm_style: _,
+                // --- derived, not imported --------------------------------
+                // `County_RecountFields` makes these from the twenty field
+                // tiles, so the file's copies are a cache we recompute rather
+                // than trust. `docs/decisions.md` C62 records the check that
+                // the derived values match the stored bytes.
+                fields_fallow: _,
+                fields_cattle: _,
+                fields_grain: _,
+            } = s;
+
+            c.population = *population;
+            c.pop_last = *population_last;
+            c.happiness = *happiness;
+            c.happiness_last = *happiness_last;
+            c.happiness_sum = *happiness;
+            c.happiness_avg = *happiness;
+            c.shown_tax = *shown_tax;
+            c.shown_ration = *shown_ration;
+            c.shown_health = *shown_health;
+            c.shown_events = *shown_events;
+            c.d_hap_ration = *d_hap_ration;
+            c.health_meter = *health_meter;
+            c.health_band = *health_band;
+            c.unrest = *unrest;
+            c.births = *births;
+            c.deaths = *deaths;
+            c.emigrants = *emigrants;
+            c.immigrants = *immigrants;
+            c.pop_band = *pop_band;
+            c.tax_collected = *tax_collected;
+            c.ration_achieved = *ration_achieved;
+            c.grain_eaten = *grain_eaten;
+            c.herd_eaten = *herd_eaten;
+            c.grain_available = *grain;
+            c.herd_available = *herd;
         }
         k
     }
@@ -932,11 +1016,31 @@ impl Scenario {
         );
 
         for (id, r) in self.realms.iter().enumerate().take(MAX_REALMS).skip(1) {
+            // The same exhaustive destructure as the county loop above, for the
+            // same reason and at a fourteenth of the size. Every field is used,
+            // which is worth knowing: it means the realm import has no gap
+            // today and cannot acquire one silently.
+            let RealmState {
+                in_play,
+                strength,
+                is_human,
+                lord,
+                shield_index,
+                county_count,
+                rank,
+                score,
+                gold,
+                wages,
+                iron,
+                stone,
+                wood,
+                weapons,
+            } = r;
             let realm = &mut k.realms[id];
-            realm.in_play = r.in_play;
-            realm.strength = r.strength;
-            realm.is_human = r.is_human || id == self.local_player as usize;
-            realm.lord = r.lord;
+            realm.in_play = *in_play;
+            realm.strength = *strength;
+            realm.is_human = *is_human || id == self.local_player as usize;
+            realm.lord = *lord;
             // **The banner colour, and it is a default rather than a read.**
             // `Game_SetupRealms` (`0x0049C5xx`) initialises every realm with
             // `g_realms[i].shieldIndex = i`, and only a custom game's colour
@@ -944,16 +1048,16 @@ impl Scenario {
             // why a default game read either way comes out the same. Taken from
             // the save's own byte at realm `+0x0A` rather than assumed, so a
             // custom game's flags are its own colours and not the realm order.
-            realm.shield_index = r.shield_index;
-            realm.county_count = r.county_count;
-            realm.rank = r.rank;
-            realm.score = r.score;
-            realm.gold = r.gold;
-            realm.wages = r.wages;
-            realm.iron = r.iron;
-            realm.stone = r.stone;
-            realm.wood = r.wood;
-            realm.weapons = r.weapons;
+            realm.shield_index = *shield_index;
+            realm.county_count = *county_count;
+            realm.rank = *rank;
+            realm.score = *score;
+            realm.gold = *gold;
+            realm.wages = *wages;
+            realm.iron = *iron;
+            realm.stone = *stone;
+            realm.wood = *wood;
+            realm.weapons = *weapons;
         }
 
         for id in self.county_ids() {

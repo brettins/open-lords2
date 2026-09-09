@@ -170,7 +170,9 @@ crates/l2-net/src/quirks.rs	C26	e75f82770f0b
 crates/l2-net/src/quirks.rs	C62	e187f3a3e544
 crates/l2-net/tests/lobby.rs	C62	e3882440edf8
 crates/l2-scenario/src/lib.rs	C57	14b498ed2873
+crates/l2-scenario/src/lib.rs	C62	578b7d16171a
 crates/l2-scenario/src/lib.rs	C62	94a85e9708ab
+crates/l2-scenario/src/lib.rs	C62	c1277f214127
 crates/l2-scenario/src/newgame.rs	C25	5198b008d5c4
 crates/l2-scenario/src/newgame.rs	C25	f78fd48882c8
 crates/l2-scenario/src/newgame.rs	C41	b844f3c01eef
@@ -179,7 +181,6 @@ crates/l2-scenario/tests/newgame.rs	C23	4b471e07b88e
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab
-crates/l2-sim/src/siege.rs	C3	0f9889cc0837
 crates/l2-sim/src/troop.rs	C11	f3ee142fc544
 crates/l2-sim/tests/lockstep.rs	C39	1983d0f73f54
 crates/l2-sim/tests/lockstep.rs	C39	6cb87bcb548b

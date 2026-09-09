@@ -631,6 +631,63 @@ as prose.
 4. **Compile, then test, then read.** The compiler caught two of these, tests caught two, and
    three had no automated defence whatever. Budget the reading.
 
+### The worked example: a counting file that would have been silently deduplicated
+
+Everything above is abstract until it costs something. This is the one that nearly did, and it
+is three separate failures stacked, each of which would have been enough on its own.
+
+**One: the file was not registered.** `docs/arms.json` — the file whose entire purpose is
+counting, with three agents writing it concurrently — was **not in `.gitattributes` at all**. The
+merge driver had been built, tested, falsified and wired up the day before, specifically for
+files of that shape, and the newest and most exposed file of that shape was outside it. The gap
+was not in the mechanism. It was in the **registration**, which is the half nobody checks,
+because a mechanism that works is satisfying to verify and a list of files it applies to is not.
+
+**Two: the key was wrong, and wrong in the direction that deletes.** `KEY_FIELDS` preferred
+`addr`. `arms.json` carries both `id` and `addr`, and it has **42 records across 23 addresses**,
+because one function can hold several input arms — `Screen_FrameInput` alone holds six. Keyed on
+`addr`, the driver would have kept one record per address and **discarded 19 in silence.**
+
+Sit with what that output would have looked like: a smaller file, internally consistent, every
+remaining record correct, valid JSON, passing every check that existed. **A deduplicating merge
+is the worst possible failure for a counting file**, because the thing it destroys is the count,
+and a count has no local evidence of being wrong. The 1:1 percentage would simply have been
+computed from a smaller denominator, and nobody would have had any reason to look.
+
+**Three: the assumption was never checked.** A keyed merge silently assumes its key is unique.
+Nothing anywhere asserted that. `merge-json.js --check` now refuses any array whose chosen key is
+not unique — which closes it for every file at once, including the ones nobody has written yet,
+and turns a silent deletion into a loud refusal that names the collisions.
+
+Reverting the key order now reports *"arms has 15 duplicate keys — merging it would DELETE the
+duplicates, one per collision"*. Before, it reported nothing and returned a smaller file.
+
+### Two artefacts that must agree, and when that pattern lies
+
+Most of this document recommends duplication: a number in a document against a number derived
+from the tree, a citation against the heading it names, a marker in the code against a record in
+a file. It is the pattern that has caught nearly everything.
+
+It has a failure mode and it is worth naming beside it:
+
+> **Two artefacts that must agree is the pattern that catches things. Two artefacts that must
+> agree *and are maintained by the same person, at the same time, for the same reason* is the
+> pattern that lies.**
+
+Both copies get updated together, by someone holding one intention, and they agree because they
+were written to agree rather than because the thing they describe is true. The check passes
+firmly and means nothing.
+
+So the test for the uniqueness rule **shells out to `merge-json.js --check`** rather than
+reimplementing `KEY_FIELDS` in Rust. A Rust copy of the key rule would be a second list, edited
+by whoever edits the first, in the same session, for the same reason — which is precisely the
+failure this whole area is about, reproduced inside its own remedy. The driver's logic is what a
+merge will actually use, so the driver's logic is what has to be asked.
+
+The discipline: before duplicating, ask **who maintains each copy and when.** If the answer is
+"the same person, in the same commit", you have not built a check — you have built two places to
+make the same mistake.
+
 ## Prefer a shape that cannot be wrong to a check that notices when it is
 
 Almost everything in this file is the same remedy: **two artefacts, maintained by different
