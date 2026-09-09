@@ -275,7 +275,15 @@ Legend:
 - 📖 **The Bishop builds royal castles at 2,000 gold** where the Knight needs 10,000 and the
   Baron and Countess never build one — and he is also the lord handed the most free gold
   every turn. It is the same byte, `lord == 4`, in both tables. §8.1–8.2
-- ✅ Scoring
+- ✅ Scoring — and the treasury bonus is **50 flat above 2,000 gold**, not the three-rung
+  ladder the table describes: `Score_RankRealms` tests its smallest threshold first, so the
+  +100 and +200 arms are dead code. `docs/decisions.md` C33
+- ✅ **Winning and losing.** `strength = 3 × counties + armies`, recounted at the top of every
+  realm's turn including the human's; the last opponent's death notice is what raises
+  *"Victory!"*; the outcome byte is 10 won / 11 lost and screen `0x1C` reads it.
+  `docs/kingdom.md` §8.4, `crates/l2-kingdom/src/victory.rs`
+- ✅ **The campaign** — eight maps, both tables read out of the executable, and **nothing
+  carries between them**: the next map is a whole new game. `docs/kingdom.md` §8.5
 - 📖 **Diplomacy — traced end to end, implemented nowhere.** `docs/diplomacy.md`
   - 📖 **A standing per pair of realms**, −30 … +30, in the realm record at `+0x84 + n*0x10`.
     It heals +1 a turn towards other AIs and **never towards a human player**

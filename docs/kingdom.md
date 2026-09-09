@@ -261,7 +261,7 @@ that realm's `+0x00`. All fourteen handlers have now been decompiled:
 
 | step | address | what it does |
 |---:|---|---|
-| *0* | `0x0049B42B` | **not a handler** — recount realm strength, eliminate the realm if it is zero, `Score_RankRealms`, then set the counter to 1 |
+| *0* | `Realm_RecountStrength` `0x0049B42B` | **not a handler, and the one step a human realm also runs** — recount realm strength, eliminate the realm if it is zero, `Score_RankRealms`, then set the counter to 1. The `isHuman` test is on the `if` *below* this, together with the counter's increment, so a person's own defeat is detected here. §8.4 |
 | 1 | `Diplo_AnswerInbox` `0x004A277D` | answer the five pending messages in the realm's inbox (`g_diploInbox`, `0x0053F0F0`), then empty it. [`diplomacy.md`](diplomacy.md) §2.1 |
 | 2 | `AI_Diplomacy` `0x004A0C1D` | **the whole diplomacy driver.** Heal standing +1 a turn towards every non-human realm, age the alliance grudge and break it past the lord's threshold, and court an ally. [`diplomacy.md`](diplomacy.md) §4.1 |
 | 3 | `0x0049D638` | `AI_SetTaxRates` — §8.2 |
@@ -1543,11 +1543,34 @@ human gets nothing from either mechanism**. **[V]**
 ```
 score = realm[+0x60]*10 + realm[+0x10]/10 + realm[+0x0C]*2 + realm[+0x58]*2
       + realm[+0x54]/5  + realm[+0x4C]*50
-      + (gold > 10000 ? 200 : gold >= 5001 ? 100 : gold >= 2001 ? 50 : 0)
+      + (gold > 2000 ? 50 : 0)
 ```
 
-then bubble-sorts realms 1 … 5 into the table at `0x00565410` and writes the rank back to
-`realm +0x2B`. It is **not** called from `Season_Advance` — see §3.4.
+then bubble-sorts realms 1 … 5 into the table at `0x00565410` (`g_rankTable`) and writes the
+rank back to `realm +0x2B`. It is **not** called from `Season_Advance` — see §3.4.
+
+**The gold term used to be written here as a three-rung ladder — 50 over 2,000, 100 over
+5,000, 200 over 10,000 — and that is the table, not the behaviour.** The compiled ladder
+tests its *smallest* threshold first:
+
+```text
+0049aed1  cmp  [eax+57c018], 2000
+0049aedb  jle  0049aefb
+0049aee1  add  [eax+57bf50], 50      ; then jmp straight past both other arms
+```
+
+so the 5,000 and 10,000 arms are only reachable by a treasury that has already failed
+`> 2000`, and they are dead code. **`[V]` from the instruction bytes**, not from the
+decompiler's nesting alone. `docs/decisions.md` C33.
+
+**The sort reads one pair past the end of the five-entry table.** The two dwords at
+`0x00565438` are the sentinel that makes that safe, and `Score_RankRealms` zeroes them
+explicitly two statements before the loop.
+
+**It also leaves three globals nothing else writes**: `g_rankLeader` and `g_rankTrailer`, the
+first and last entries of the sorted table that were not struck out for being eliminated, and
+`g_opponentsRemaining` (`0x0056D5D8`), the number of in-play realms that are not the local
+player. Those three are the victory condition — see §8.4.
 
 **Five of the six contributing fields are identified**, from `FUN_0049D1E0`, the AI turn's
 fourteenth step, which recomputes exactly these once a turn:
@@ -1568,10 +1591,63 @@ The same step also writes `+0x14` (mean population per county), `+0x18` (last tu
 total), `+0x29` (the county count the grant tiers turn on) and `+0x2C` (the army count),
 and every division is guarded on the county count being non-zero.
 
-**`+0x04` is not `inPlay`.** §2 calls it that and marks it **[V]**; `FUN_0049B42B` — AI
-step 0 — rebuilds it as **`3 × ownedCounties + 1 × armies`**, and the realm is eliminated
+**`+0x04` is not `inPlay`.** §2 calls it that and marks it **[V]**; `Realm_RecountStrength` —
+AI step 0 — rebuilds it as **`3 × ownedCounties + 1 × armies`**, and the realm is eliminated
 when that comes out zero. Every other site only tests it against zero, which is why
 "inPlay" fits everything except the write. **[V]**
+
+### 8.4 The end of a game
+
+**There is no turn limit, no score target and no date.** A game ends when somebody runs out
+of everything, and the chain is four functions:
+
+| step | what |
+|---|---|
+| `Realm_RecountStrength` (`0x0049B42B`) | realm `+0x04` = `3 × counties + armies`; zero means eliminated. Guarded on `+0x04` already being non-zero, so it fires once. Raises group **224** if the realm is the local player, **194** if it is an AI, and **nothing** for a human who is not the local player — the split is on *"is this me"*, not on *"is this a human"*. Then `Score_RankRealms`. |
+| `Score_RankRealms` | if `g_rankLeader == g_rankTrailer` — two *realm indices*, so: one realm left standing — crowns it. An AI not yet crowned gets group **195** *"Just call me king."* and the one-shot guard `+0xED`; anyone else sends the local player group **225** *"Victory!"*. |
+| `Msg_DrawWindow`, category `0x0E` | writes `g_gameOutcome` (`0x0053F0C4`): **10** for group 225, **11** for any other ending message whose `from` is the local player, and — when `g_opponentsRemaining` is 0 — enqueues group 225 instead of writing anything. **That last branch is how a person actually wins.** |
+| `Msg_Dismiss` (`0x00476768`) | on outcome 10 or 11, `Campaign_EnterConquest` and `g_screenId = 0x1C`. |
+
+**The victory condition compares realm indices, not scores.** "The trailer equals the leader"
+is a table scan for "exactly one live entry". It is also true with **no** live entries — both
+are 0 — and the original then crowns `g_realms[0]`, the array slot. **[V]**
+
+**Step 0 runs for the human.** `AI_RunTurnStep`'s `isHuman` test guards the fourteen handlers
+and the counter's increment, not the initialisation above them — §3.2's table says "not a
+handler" and this is exactly why. A person's own defeat is detected there. **[V]**
+
+**`County_ChangeOwner` cannot eliminate anybody.** It calls `Realm_RecountStrength` on the
+outgoing owner one statement *before* writing the new owner, so the county being lost is still
+counted. A realm losing its last county survives until its own step 0. **[V]**
+
+### 8.5 A campaign
+
+Eight maps, and **nothing carries between them**: the conquest screen's OK button reaches
+`Setup_StartGame`, which calls `Game_NewGame`. Three globals survive a boundary —
+`g_campaignTrack` (which of the two campaigns), `g_campaignMap` (how many of its maps have
+been won, and the row index) and `g_gameOutcome`. `Campaign_EnterConquest` increments the
+counter **only on a win**, so a loss replays the same country.
+
+`Campaign_LoadEntry` (`0x00499E5D`) reads a 0x20-byte row out of `g_campaignTableA`
+(`0x004D8E18`) or `g_campaignTableB` (`0x004D8F58`). Read out of the executable, **[V]**:
+
+| campaign one | scenario | difficulty | purse |
+|---:|---|---:|---:|
+| 0 | Quaintville (17) | 0 | 5,000 |
+| 1 | Rose (12) | 0 | 2,500 |
+| 2 | Ireland (2) | 1 | 5,000 |
+| 3 | Italy (5) | 1 | 2,500 |
+| 4 | England (0) | 2 | 5,000 |
+| 5 | France (3) | 2 | 2,500 |
+| 6 | Crusades (7) | 2 | 1,000 |
+| 7 | Germany (4) | 2 | 1,000 |
+
+Campaign two is Australia (52), Central Am. (53), S. America (45), U.S.A. (44), Imperium (41)
+and The World (42), all on difficulty 2 — **six** maps, because `Setup_ChooseCampaign` starts
+its counter at **2** and the same `< 8` test ends it. The purse **resets to 5,000 at the top
+of each difficulty tier** rather than falling monotonically, and a fourth column running
+1, 1, 2, 3, 4, 4, 5, 5 is **[D]** the opponent count. Rows 8 and 9 of both tables are zeroed
+padding, which is what makes the eighth win's one-past-the-end read harmless.
 
 ---
 

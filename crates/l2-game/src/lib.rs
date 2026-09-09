@@ -40,6 +40,7 @@ pub mod screen;
 pub mod screens;
 pub mod shell;
 pub mod turn;
+pub mod victory;
 pub mod widget;
 
 pub use game::{Assets, Game};

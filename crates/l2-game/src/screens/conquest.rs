@@ -41,6 +41,7 @@ use l2_view::Canvas;
 use crate::input::{Event, Key};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
+use crate::victory::ConquestBranch;
 
 /// `L2.eng` group 36.
 pub const GROUP: usize = 36;
@@ -83,15 +84,41 @@ impl Outcome {
 
 pub struct ConquestScreen {
     outcome: Outcome,
+    /// Whether the game's own ending has been read yet. A screen is built with
+    /// no [`Ctx`], so the adoption happens on the first tick instead — and it
+    /// happens **once**, or the arrow keys would be overwritten every frame and
+    /// the shell would stop being walkable.
+    adopted: bool,
 }
 
 impl ConquestScreen {
     pub fn new() -> ConquestScreen {
-        ConquestScreen { outcome: Outcome::Won }
+        ConquestScreen { outcome: Outcome::Won, adopted: false }
     }
 
     pub fn outcome(&self) -> Outcome {
         self.outcome
+    }
+
+    /// Take the branch from the game if the game has one.
+    ///
+    /// A game that is still in play has nothing to say here — that is the shell
+    /// walking the screen — so the cycling default stands. A game that has ended
+    /// decides, and `l2_game::victory::Campaign::branch` is the decision:
+    /// the outcome plus whether the campaign counter has reached eight.
+    fn adopt(&mut self, ctx: &Ctx) {
+        if self.adopted {
+            return;
+        }
+        self.adopted = true;
+        if !ctx.game.outcome().is_over() {
+            return;
+        }
+        self.outcome = match ctx.game.campaign.branch() {
+            ConquestBranch::Won => Outcome::Won,
+            ConquestBranch::Lost => Outcome::Lost,
+            ConquestBranch::Finished => Outcome::Finished,
+        };
     }
 }
 
@@ -129,7 +156,14 @@ impl Screen for ConquestScreen {
         }
     }
 
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        let ctx: &Ctx = ctx;
+        self.adopt(ctx);
+        Transition::Stay
+    }
+
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        self.adopt(ctx);
         let a = &ctx.assets.shell;
         // `FUN_0041E1DD` sets `DAT_0058FE2C = 1` around *every* line it draws
         // and never touches `DAT_005AEA40`, so unlike the setup pages this

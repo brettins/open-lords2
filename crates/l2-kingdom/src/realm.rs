@@ -515,10 +515,24 @@ mod tests {
         assert_eq!(r.compute_score(T), 10 + 10 + 2 + 2 + 20 + 50);
     }
 
+    /// **The bracket pays 50 all the way up**, because the shipped ladder tests
+    /// its smallest threshold first and never reaches the other two. The
+    /// disassembly is in [`crate::tables::score_gold_bracket`]; this test used
+    /// to assert 100 at 5,001 and 200 at 10,001, which is what the table looks
+    /// like rather than what the executable does.
     #[test]
     fn the_gold_bracket_is_the_only_term_with_a_known_meaning() {
         let mut r = Realm::new();
-        for (gold, bonus) in [(0, 0), (2000, 0), (2001, 50), (5000, 50), (5001, 100), (10_000, 100), (10_001, 200)] {
+        for (gold, bonus) in [
+            (0, 0),
+            (2000, 0),
+            (2001, 50),
+            (5000, 50),
+            (5001, 50),
+            (10_000, 50),
+            (10_001, 50),
+            (1_000_000, 50),
+        ] {
             r.gold = gold;
             assert_eq!(r.compute_score(T), bonus, "gold {gold}");
         }

@@ -246,8 +246,23 @@ pub fn pending_step(realm: &Realm, realm_index: usize) -> Option<AiStep> {
 ///
 /// The original's test is `aiStep == 999`; because of the increment bug the
 /// stored value is 1000, so [`Realm::turn_done`] tests `>= 999`.
+///
+/// **A realm that is not in play is not waited on**, which is the original's own
+/// condition and not a softening of it:
+///
+/// ```c
+/// if ((g_realms[i].strength != 0) && (g_realms[i].aiStep < 999)) g_realmsActive++;
+/// ```
+///
+/// It used to read `all(turn_done)`, which is the same answer as long as
+/// [`begin_turn`] is the only thing that ever writes `in_play` — it sets the
+/// sentinel on every realm it takes out. **A realm eliminated *during* phase 4
+/// breaks that**: it is out of play with its counter still at 0, and phase 4
+/// would then wait on a realm that will never take another step. That is exactly
+/// what happens the turn somebody loses their last county, so it is the turn the
+/// game ends that would have hung.
 pub fn all_realms_done(realms: &[Realm]) -> bool {
-    realms.iter().all(|r| r.turn_done())
+    realms.iter().all(|r| !r.in_play || r.turn_done())
 }
 
 /// Reset every realm's program counter at the start of phase 4.

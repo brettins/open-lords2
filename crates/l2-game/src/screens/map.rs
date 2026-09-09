@@ -371,7 +371,13 @@ impl MapScreen {
         self.centre_on_tile(anchor.0, anchor.1);
     }
 
-    fn end_turn(&mut self, ctx: &mut Ctx) {
+    /// End the turn, and leave for screen `0x1C` if that ended the game.
+    ///
+    /// `FUN_00476768` is the original's shape: dismissing the message that set
+    /// `DAT_0053F0C4` calls `FUN_00497879` — which advances the campaign counter
+    /// on a win — and sets `g_screenId = 0x1C`. There is no message window here
+    /// yet, so the turn's own end is the dismissal.
+    fn end_turn(&mut self, ctx: &mut Ctx) -> Transition {
         let before = ctx.game.gold();
         match turn::end_turn(ctx.game) {
             Some(outcome) => {
@@ -383,9 +389,18 @@ impl MapScreen {
                     widget::signed(change),
                     outcome.report.messages.len()
                 );
+                if outcome.outcome.is_over() {
+                    ctx.game.campaign.enter_conquest_screen();
+                    // `Replace`, not `Push`: the campaign map underneath is a map
+                    // of a game that is over, and the original leaves it — the
+                    // OK button on `0x1C` goes on to `Game_NewGame` or the front
+                    // end, never back to it.
+                    return Transition::Replace(ScreenId::Conquest);
+                }
             }
             None => self.status = "THE TURN MACHINE DID NOT COME ROUND".into(),
         }
+        Transition::Stay
     }
 }
 
@@ -468,7 +483,9 @@ impl Screen for MapScreen {
                 return Transition::Push(ScreenId::SaveLoad(SaveLoadMode::Load))
             }
             Event::KeyDown(Key::Char('Z')) => self.toggle_zoom(),
-            Event::KeyDown(Key::Char('E')) | Event::KeyDown(Key::Space) => self.end_turn(ctx),
+            Event::KeyDown(Key::Char('E')) | Event::KeyDown(Key::Space) => {
+                return self.end_turn(ctx)
+            }
             Event::Pointer { x, y } => {
                 self.focus = if COUNTY_BUTTON.contains(x, y) {
                     Focus::County
@@ -494,7 +511,7 @@ impl Screen for MapScreen {
                     return Transition::Stay;
                 }
                 if END_TURN_BUTTON.contains(x, y) {
-                    self.end_turn(ctx);
+                    return self.end_turn(ctx);
                 } else if COUNTY_BUTTON.contains(x, y) {
                     if ctx.game.selected != 0 {
                         return Transition::Push(ScreenId::County(ctx.game.selected));

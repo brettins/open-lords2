@@ -535,15 +535,17 @@ Not everything is a reply. **[D]** throughout.
 | 191 | *Notice of revenge.* | third time — war |
 | 192 | *Helpful advice.* | **AI step 13** — an AI holding > 27 % of the map patronises the **last-placed** realm, if that realm is human and not its ally |
 | 193 | *How are you doing?* | **AI step 13** — an AI holding > 39 % of the map taunts **every** human realm |
-| 194 | *Foiled again.* | `FUN_0049B42B`, AI step 0's strength recount — the realm has just been **eliminated**. A human in the same position gets group 224 instead. |
-| 195 | *Just call me king.* | `Score_RankRealms`, when the leader and the trailer are the same realm — i.e. the last one standing. Guarded once by realm `+0xED`. |
+| 194 | *Foiled again.* | `Realm_RecountStrength`, AI step 0's strength recount — the realm has just been **eliminated**. The **local player** in the same position gets group 224; a human who is *not* the local player gets nothing at all. `docs/kingdom.md` §8.4 |
+| 195 | *Just call me king.* | `Score_RankRealms`, when the leader and the trailer are the same realm — i.e. the last one standing, and only if that realm is an AI that has not been crowned before. Guarded once by realm `+0xED`; the second time round the guard sends the local player group 225 instead. |
 
 **`docs/kingdom.md` §3.2 has step 13 wrong.** It says *"offer an alliance, or break one"*.
 `AI_Taunt` (`0x004A13A6`) does neither: it is the taunt timer, gated on the realm's rank being
 better than 2nd and counting to 8 before it speaks. Alliances are entirely step 2's business.
 
 `g_rankLeader` (`0x00553D24`) and `g_rankTrailer` (`0x00522D90`) are the first and last
-non-zero entries of the rank table `Score_RankRealms` sorts. **[D]**
+non-zero entries of the rank table `Score_RankRealms` sorts. **[V]** — and because they hold
+*realm indices*, the two being equal means one realm is left in play, which is the game's
+victory condition. `docs/kingdom.md` §8.4.
 
 ---
 

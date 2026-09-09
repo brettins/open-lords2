@@ -218,6 +218,7 @@ pub mod tables;
 pub mod tax;
 pub mod unit;
 pub mod unrest;
+pub mod victory;
 pub mod weather;
 
 pub use county::{ChangeReason, County, Industry, MAX_COUNTIES, MAX_COUNTY_ID, MAX_FIELDS};
@@ -230,6 +231,7 @@ pub use mercenary::{Band, MercenaryBands, MERCENARY_BANDS};
 pub use movement::Routing;
 pub use realm::{Realm, AI_STEP_DONE, MAX_REALMS};
 pub use report::{Message, SeasonReport};
+pub use victory::{Ending, Outcome, OutcomeStep, Ranking};
 pub use tables::{Commodity, Season, Weather};
 pub use unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS};
 

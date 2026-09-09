@@ -32,6 +32,7 @@
 
 use l2_kingdom::ai::{self, AiStep};
 use l2_kingdom::phase::Phase;
+use l2_kingdom::victory::Outcome;
 use l2_kingdom::{Kingdom, SeasonReport};
 
 use crate::game::Game;
@@ -51,6 +52,9 @@ pub struct TurnOutcome {
     /// How many phase ticks it took. Interesting only as a check on the
     /// machine; nothing branches on it.
     pub ticks: u32,
+    /// `DAT_0053F0C4` after this turn: whether the game is now over, and how.
+    /// [`Outcome::InPlay`] almost always. See [`crate::victory`].
+    pub outcome: Outcome,
 }
 
 /// Run the phase machine until the end-of-season pipeline has run once.
@@ -71,7 +75,7 @@ pub fn end_turn(game: &mut Game) -> Option<TurnOutcome> {
         // `step == 0` is the machine's own "this is the first call of this
         // phase", which is when the original's phase handlers kick off work.
         if game.kingdom.turn.step == 0 {
-            begin_phase(&mut game.kingdom, phase);
+            begin_phase(game, phase);
         }
         if phase == Phase::PlayersTurn {
             drive_ai(&mut game.kingdom, &mut granted);
@@ -82,7 +86,15 @@ pub fn end_turn(game: &mut Game) -> Option<TurnOutcome> {
         if let Some(report) = report {
             game.turns_played += 1;
             game.last_report = Some(report.clone());
-            return Some(TurnOutcome { report, ticks });
+            // `Turn_Tick`'s phase 7 calls `Score_RankRealms` after
+            // `Season_Advance` — one of its five callers, and the one that can
+            // crown a survivor at the end of a season in which nobody died.
+            // `Pass::ScoreRank` inside the pipeline has already ranked; this
+            // adds the leader/trailer scan that the pass deliberately does not
+            // own, because the pass does not know who the local player is.
+            game.rank_realms();
+            let outcome = game.campaign.settle(game.player);
+            return Some(TurnOutcome { report, ticks, outcome });
         }
     }
     None
@@ -90,14 +102,37 @@ pub fn end_turn(game: &mut Game) -> Option<TurnOutcome> {
 
 /// The work a phase does on its first call.
 ///
-/// Only phase 1 has any, here: `docs/kingdom.md` §3.1 says the neutral counties
-/// get their tax rates and their fields set once a turn, on the neutral ladder,
-/// and realm **0** is how the original addresses them —
-/// `AI_SetTaxRates(0)` then `AI_ManageFields(0)`.
-fn begin_phase(kingdom: &mut Kingdom, phase: Phase) {
-    if phase == Phase::NeutralCounties {
-        kingdom.run_ai_tax_rates(0);
-        ai::manage_fields(&mut kingdom.counties, kingdom.county_count, 0);
+/// * **Phase 1** — `docs/kingdom.md` §3.1 says the neutral counties get their tax
+///   rates and their fields set once a turn, on the neutral ladder, and realm
+///   **0** is how the original addresses them: `AI_SetTaxRates(0)` then
+///   `AI_ManageFields(0)`.
+/// * **Phase 4** — `AI_RunTurnStep`'s **step 0** for every realm: recount its
+///   strength, eliminate it if that comes out zero, and rank. See
+///   [`Game::recount_realm`](crate::game::Game::recount_realm), and note that it
+///   runs for the human too.
+///
+/// # The one difference from the original, stated
+///
+/// `AI_RunTurnStep` interleaves: realm 1 takes step 0, then realm 2 takes step 0,
+/// and by the time realm 5 reaches its own step 0 the earlier realms have taken
+/// several of their fourteen. So a realm that realm 2's turn destroys is noticed
+/// *later in the same phase*. Here all five step 0s happen at the top of the
+/// phase instead. The two are the same as long as nothing inside phase 4 takes a
+/// county or destroys an army — which is true today, because both happen in phase
+/// 2 — and this is the note to read when that stops being true.
+fn begin_phase(game: &mut Game, phase: Phase) {
+    match phase {
+        Phase::NeutralCounties => {
+            game.kingdom.run_ai_tax_rates(0);
+            let count = game.kingdom.county_count;
+            ai::manage_fields(&mut game.kingdom.counties, count, 0);
+        }
+        Phase::PlayersTurn => {
+            for id in 1..l2_kingdom::realm::MAX_REALMS {
+                game.recount_realm(id as u8);
+            }
+        }
+        _ => {}
     }
 }
 
