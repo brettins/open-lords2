@@ -21,6 +21,7 @@ use std::path::PathBuf;
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId};
+use l2_game::screens::county::Panel;
 use l2_game::screens::conquest::ConquestScreen;
 use l2_game::screens::setup::{self, SetupPage};
 use l2_game::screens::shells::{self, SHELLS};
@@ -132,7 +133,7 @@ fn every_screen_the_index_lists_opens_over_it_draws_and_closes_again() {
 fn every_screen() -> Vec<ScreenId> {
     let mut v = vec![
         ScreenId::Campaign,
-        ScreenId::County(1),
+        ScreenId::County(1, Panel::Tax),
         ScreenId::Conquest,
         ScreenId::Index,
     ];

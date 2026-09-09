@@ -84,6 +84,30 @@ pub struct Shell {
 /// the four county panels are **not** here: those are implemented screens.
 pub const SHELLS: &[Shell] = &[
     Shell {
+        id: 0x04,
+        painter: 0x0041_B032,
+        name: "The map information panel",
+        background: None,
+        palette: None,
+        // `FUN_0041B032` draws no `Ui_DrawBox`: it paints over the campaign map
+        // and its two halves place their own lines. Ours has no window either,
+        // which is why what it says about itself is the whole of it.
+        window: None,
+        // `UnitPanel_Draw` (`0x0041B19D`) draws group 31 index 9, "An army
+        // from", and then the county name out of group 100 at
+        // `homeCounty + scenarioIndex * 20`. The y is a runtime row
+        // (`DAT_00553D2C * 16 + 74`) and we will not invent one, so the shell
+        // places no lines rather than placing them somewhere plausible.
+        group: 31,
+        heading: None,
+        lines: &[],
+        // `Ui_OkButton(0x1AC, 0x1B6, 0)`, in both halves of the painter.
+        ok: Some((0x1AC, 0x1B6, 0)),
+        overlay: true,
+        unfinished: "the unit's own lines, its county of origin, and the tile panel for a \
+                     right-click that hits no unit",
+    },
+    Shell {
         id: 0x08,
         painter: 0x0041_5FB7,
         name: "The merchant",
@@ -377,9 +401,15 @@ impl Screen for ShellScreen {
             // Every one of these closes and nothing else. That is the whole
             // truth about a shell, and pretending otherwise would be the
             // invented interface again.
+            //
+            // The right one is the original's: `FUN_0042FF10` has a
+            // right-release arm for almost every screen id in this table, and
+            // `L2.eng` group 12 index 0 — *"Click Right to Exit"*, printed on
+            // the value spinner — is the game saying so in English.
             Event::KeyDown(Key::Escape)
             | Event::KeyDown(Key::Enter)
             | Event::KeyDown(Key::Space)
+            | Event::RightClick { .. }
             | Event::Click { .. } => Transition::Pop,
             _ => Transition::Stay,
         }

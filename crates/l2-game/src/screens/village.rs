@@ -336,12 +336,16 @@ impl Screen for VillageScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
+            // **The right button leaves the village**, which is the third of
+            // `FUN_0042FF10`'s three ways out of screen `0x02`: a right release
+            // sets `g_screenId = 0` outright. Escape is ours and does the same,
+            // except that mid-drag it cancels the drag instead — the original
+            // has no key here at all.
+            Event::RightClick { .. } => return Transition::Pop,
             Event::KeyDown(Key::Escape) => {
                 if self.phase == Phase::Idle {
                     return Transition::Pop;
                 }
-                // Escape out of a carried selection rather than out of the
-                // screen — the original's right-click while carrying.
                 self.clear_drag();
                 self.status = "CANCELLED".into();
             }
