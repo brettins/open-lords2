@@ -3729,6 +3729,482 @@
       "confidence": "verified",
       "signature": "void Eng_CopyString(int dest, int group, int index, int len)",
       "comment": "Copies len bytes of L2.eng string (group, index) into a caller buffer, walking the group exactly as Eng_DrawString does. The fifth and last function that takes a literal (group, index) pair - the others are Eng_DrawString, Eng_Seek, Ui_DrawCentred and FUN_0040328E - and therefore the fifth place a call site names its own subject. Note the pair is at arguments 2 and 3 here, not 1 and 2."
+    },
+    {
+      "addr": "0x0040DECA",
+      "name": "Menu_OpenDropdown",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "undefined4 Menu_OpenDropdown(short * items, int count)",
+      "comment": "Opens a menu-bar drop-down. Menu_HitTitle picks the title under the pointer; on a hit this saves g_screenId into g_menuPrevScreen, sets g_screenId to 0x32, points g_menuOpenItem at the last record and calls Menu_SaveBackdrop. Both call sites pass (g_menuBarItems, 3)."
+    },
+    {
+      "addr": "0x0040E00A",
+      "name": "Menu_HitTitle",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Menu_HitTitle(short * items, int count)",
+      "comment": "Hit-tests the menu-bar titles: record short 0 is x, short 1 the measured right edge Ui_DrawMenuTitles wrote back, short 2 is y, and the height is a fixed 12. Returns a 1-based index, 0 for a miss."
+    },
+    {
+      "addr": "0x0040C8D1",
+      "name": "Menu_SaveBackdrop",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Saves the 400 x 180 band at (0, 24) that an open drop-down will cover, into the scratch buffer, via FUN_004b3f0a with row stride 0xF0. 100 dwords a row is 400 bytes; 400 + 240 = 640, the screen stride."
+    },
+    {
+      "addr": "0x0040C928",
+      "name": "Menu_RestoreBackdrop",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x32 is \"a drop-down is open\", and its painter only puts back what Menu_SaveBackdrop took: the same 400 x 180 band at (0, 24), through the restore twin FUN_004b3ec0. The drop-down itself is drawn by the widget pass."
+    },
+    {
+      "addr": "0x00433DBD",
+      "name": "Menu_NewGame",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "File > New Game (L2.eng group 1 index 1). Opens the confirmation box with prompt 1, \"Start a new game?\", whose yes branch is FUN_00433deb."
+    },
+    {
+      "addr": "0x00433E93",
+      "name": "Menu_LoadGame",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "File > Load (group 1 index 2). Globs *.sav, or *.svb / *.sva in a network game, saves g_screenId into g_screenIdSaved and opens screen 0x35."
+    },
+    {
+      "addr": "0x00433F49",
+      "name": "Menu_SaveGame",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "File > Save (group 1 index 3). The same glob as Menu_LoadGame, then screen 0x36."
+    },
+    {
+      "addr": "0x004343F8",
+      "name": "Menu_Quit",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "File > Quit (group 1 index 4). Opens the confirmation box with prompt 0, \"Exit the game?\", whose yes branch FUN_0043441c leaves for screen 0x1F."
+    },
+    {
+      "addr": "0x004344F2",
+      "name": "Menu_AdvancedOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Options > Advanced (group 2 index 1) -> screen 0x39. Refused during a network game unless DAT_00553248 is set, with message 0xE3 instead."
+    },
+    {
+      "addr": "0x0043496C",
+      "name": "Menu_SoundOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Options > Sounds (group 2 index 2) -> screen 0x42."
+    },
+    {
+      "addr": "0x00434988",
+      "name": "Menu_DisplayOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Options > Display (group 2 index 3) -> screen 0x43."
+    },
+    {
+      "addr": "0x00434CBE",
+      "name": "Menu_GameSpeed",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Options > Game Speed (group 2 index 4). Opens the slider dialog on g_optGameSpeed, step 10, range 0..100, prompt 1 = \"Adjusting game speed\"."
+    },
+    {
+      "addr": "0x00434CEE",
+      "name": "Menu_ScrollSpeed",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Options > Scroll Speed (group 2 index 5). The same slider on the already-named g_optScrollSpeed, prompt 2 = \"Adjusting scroll speed\" - the check that fixed the whole table."
+    },
+    {
+      "addr": "0x00434D33",
+      "name": "Menu_GameHelp",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help > Game Help (group 3 index 1) -> screen 0x31, the help-options panel, which is where the WinHelp button lives."
+    },
+    {
+      "addr": "0x0043480C",
+      "name": "Menu_HelpHowDoI",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help > \"How do I...\" (group 3 index 2). Enqueues message 0x123 and returns to g_menuPrevScreen. The five topics use five consecutive ids, 0x123 .. 0x127."
+    },
+    {
+      "addr": "0x0043484A",
+      "name": "Menu_HelpGrowGrain",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help > \"Grow grain?\" (group 3 index 3): message 0x124."
+    },
+    {
+      "addr": "0x00434888",
+      "name": "Menu_HelpBuildCastle",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help > \"Build a castle?\" (group 3 index 4): message 0x125."
+    },
+    {
+      "addr": "0x004348C6",
+      "name": "Menu_HelpMakeWeapons",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help > \"Make Weapons?\" (group 3 index 5): message 0x126."
+    },
+    {
+      "addr": "0x00434904",
+      "name": "Menu_HelpManageTurn",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help > \"Manage each turn.?\" (group 3 index 6): message 0x127."
+    },
+    {
+      "addr": "0x00434D60",
+      "name": "Menu_About",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help > About (group 3 index 7) -> screen 0x25."
+    },
+    {
+      "addr": "0x00414F68",
+      "name": "Screen_AdvancedOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x39. A 24 x 13 cell box at (48, 96); L2.eng group 50 index 0 as the heading and 1..4 as four rows at y 160, 192, 224 and 256, each with a group 18 Yes/No beside it at x 320. Publishes 4 into g_advancedOptWidgetCount, which the widget pass reads. The four widgets in g_advancedOptWidgets sit at y 156, 188, 220, 252 - each label y minus 4."
+    },
+    {
+      "addr": "0x0041515C",
+      "name": "Screen_SoundOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x42. Group 51: Music, Sound effects and Speech, each with a group 19 On/Off at x 320, and 3 into g_soundOptWidgetCount."
+    },
+    {
+      "addr": "0x004152EA",
+      "name": "Screen_DisplayOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x43. Group 52: Animations (On/Off) and Full screen (Yes/No). Group 52 index 3, \"(F5 key re-sizes window to 640x480)\", is drawn only when g_optFullScreen is 0 - a hint about the window that appears exactly when there is a window."
+    },
+    {
+      "addr": "0x004154EA",
+      "name": "Screen_HelpOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x31. Group 45: Tip screens and Tool tips as Yes/No rows, and \"Start game help\" as a plain button whose handler calls WinHelpA on l2help.hlp."
+    },
+    {
+      "addr": "0x0041543F",
+      "name": "Screen_About",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x25. A 22 x 9 cell box at (96, 224) holding group 59 - \"Lords 2.\", the release version and the copyright line - and nothing else but the OK tick."
+    },
+    {
+      "addr": "0x00434556",
+      "name": "Opt_ToggleAdvancedFarming",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Row 1 of the advanced options, \"Advanced farming\": flips the already-named g_optAdvancedFarming. In a network game it refuses, shows tip 0x32 and drops back to g_menuPrevScreen - all four advanced rules are frozen once play is deterministic."
+    },
+    {
+      "addr": "0x004345D0",
+      "name": "Opt_ToggleArmyForaging",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Row 2, \"Army foraging\": flips g_optArmiesEat and then re-runs Ration_Apply and County_RefreshEstimates for every county, because the rule changes this turn's food."
+    },
+    {
+      "addr": "0x00434693",
+      "name": "Opt_ToggleExploration",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Row 3, \"Exploration\": flips g_optExploration."
+    },
+    {
+      "addr": "0x0043470D",
+      "name": "Opt_ToggleFightHumansOnly",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Row 4, \"Fight humans only?\": flips g_optFightHumansOnly, which the painter displays inverted - 0 shows \"Yes\"."
+    },
+    {
+      "addr": "0x00434787",
+      "name": "Opt_ToggleTipScreens",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help options row 1, \"Tip screens\": flips g_optTipScreens."
+    },
+    {
+      "addr": "0x004347C7",
+      "name": "Opt_ToggleToolTips",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help options row 2, \"Tool tips\": flips g_optToolTips."
+    },
+    {
+      "addr": "0x00434942",
+      "name": "Opt_GameHelpContents",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help options row 3, \"Start game help\": WinHelpA(hwnd, \"l2help.hlp\", HELP_CONTENTS, 1). The only WinHelp call reached from the interface."
+    },
+    {
+      "addr": "0x004349A4",
+      "name": "Opt_ToggleMusic",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Sound options row 1, \"Music\": flips g_optMusic and either stops the music or restarts it for the current g_battlePhase."
+    },
+    {
+      "addr": "0x00434A29",
+      "name": "Opt_ToggleSoundEffects",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Sound options row 2, \"Sound effects\": flips g_optSoundEffects and re-opens the sample device per g_battlePhase."
+    },
+    {
+      "addr": "0x00434A9A",
+      "name": "Opt_ToggleSpeech",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Sound options row 3, \"Speech\": flips g_optSpeech."
+    },
+    {
+      "addr": "0x00434AD5",
+      "name": "Opt_ToggleAnimations",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Display options row 1, \"Animations\": flips g_optAnimations."
+    },
+    {
+      "addr": "0x00434B10",
+      "name": "Opt_ToggleFullScreen",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Display options row 2, \"Full screen\". Leaves the panel first - to g_screenId 0 on the campaign, 0x29 in battle - then either refuses with message 0x104 or 299 or flips g_optFullScreen and resets the display mode."
+    },
+    {
+      "addr": "0x0040E6F2",
+      "name": "Ui_OpenConfirm",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_OpenConfirm(int prompt, int x, int y, void * onAnswer)",
+      "comment": "Opens screen 0x1E, the yes/no box: saves g_screenId, stores the prompt index into g_confirmPrompt, the origin into g_confirmX / g_confirmY and the callback into g_confirmCallback, then paints. The prompt is an index into L2.eng group 10 - 0 \"Exit the game?\", 1 \"Start a new game?\", 9 \"Autocalc battle?\", 11 \"Surrender castle?\"."
+    },
+    {
+      "addr": "0x0040CCFA",
+      "name": "Screen_ConfirmBox",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The 0x1E painter: a 14 x 8 cell box at (g_confirmX - 16, g_confirmY - 16) with group 10 index g_confirmPrompt inside it. The two widgets, tick and cross, are drawn by the widget pass at the same offset."
+    },
+    {
+      "addr": "0x00434E1F",
+      "name": "Ui_ConfirmClicked",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Both buttons of the confirmation box. Publishes the widget hotspot id - 1 for the tick, 0 for the cross - into g_confirmAnswer and calls g_confirmCallback, which reads it."
+    },
+    {
+      "addr": "0x0040E761",
+      "name": "Ui_OpenSlider",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Ui_OpenSlider(int prompt, int * value, int step, int max, int min, int x, int y, int format)",
+      "comment": "Opens screen 0x21, the value spinner: the prompt indexes L2.eng group 12 (\"Adjusting game speed\", \"Adjusting scroll speed\", \"Adjusting music level\", ...), and value / step / max / min are stored for the two arrow widgets."
+    },
+    {
+      "addr": "0x0040CD58",
+      "name": "Screen_SliderBox",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The 0x21 painter: a 15 x 7 cell box at (x - 16, y - 16), group 12 index g_sliderPrompt as the caption and index 0, \"Click Right to Exit\", underneath, with the value in a 3 x 1 recess. g_sliderFormat 1 divides by ten, 3 appends a per cent sign."
+    },
+    {
+      "addr": "0x00434E9E",
+      "name": "Ui_SliderUp",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The slider dialog's up arrow: adds g_sliderStep while the value is below g_sliderMax."
+    },
+    {
+      "addr": "0x00434EC9",
+      "name": "Ui_SliderDown",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The slider dialog's down arrow: subtracts g_sliderStep while the value is above g_sliderMin."
+    },
+    {
+      "addr": "0x0041789B",
+      "name": "Screen_DiploDialog",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "Screen 0x1A, which docs/screens-county.md could not identify: the seven diplomacy dialogs, selected by g_diploKind and all drawing L2.eng group 72. 0 is the gift of gold, 1..4 the four letters, 5 and 6 the two requests that need a county."
+    },
+    {
+      "addr": "0x00417960",
+      "name": "Diplo_DrawGiftGold",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "g_diploKind 0. Group 72 index 10 \"Send gift of gold to\" and the target's name, index 23 \"Last gift was\" and the per-pair record at 0x0057BF8C, index 18 \"Gift of\" and g_diploGold, index 17 \"Dispatch ?\"."
+    },
+    {
+      "addr": "0x00417AEF",
+      "name": "Diplo_DrawLetter",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Diplo_DrawLetter(int kind)",
+      "comment": "g_diploKind 1..4, called with kind - 1. Draws group 72 index 11 + kind - \"Give a compliment to\", \"Insult\", \"Ask for an alliance with\", \"End alliance with\" - plus the target's name and the draft body."
+    },
+    {
+      "addr": "0x00417CEF",
+      "name": "Diplo_DrawCountyRequest",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Diplo_DrawCountyRequest(int kind)",
+      "comment": "g_diploKind 5 and 6. Group 72 index 15 + kind, \"Plead for help from\" / \"Plan strategic attack with\", a county map, and then either index 19 / 20 (\"Choose the county you want help in / attacked\") while g_pickedCounty is 0 or index 21 / 22 plus the county name from group 100."
+    },
+    {
+      "addr": "0x00436141",
+      "name": "Diplo_OpenGift",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "Widget 0 of the diplomacy screen, group 72 index 2 \"Dispatch a gift\": screen 0x1A with g_diploKind 0."
+    },
+    {
+      "addr": "0x0043618B",
+      "name": "Diplo_OpenCompliment",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "Widget 1, index 3 \"Send a compliment\": g_diploKind 1, and clears the letter draft g_diploLetterDraft."
+    },
+    {
+      "addr": "0x004361DA",
+      "name": "Diplo_OpenInsult",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "Widget 2, index 4 \"Send an insult\": g_diploKind 2."
+    },
+    {
+      "addr": "0x00436229",
+      "name": "Diplo_OpenAlliance",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "Widget 3, index 5 \"Offer an alliance\" or 6 \"Terminate alliance\" - one widget for two rows, and the code picks g_diploKind 4 over 3 exactly when the target is already this realm's ally."
+    },
+    {
+      "addr": "0x004362CA",
+      "name": "Diplo_OpenAskHelp",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "Widget 4, index 7 \"Ask ally for help\": g_diploKind 5, county cleared."
+    },
+    {
+      "addr": "0x0043631E",
+      "name": "Diplo_OpenAskAttack",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "Widget 5, index 8 \"Ask ally to attack\": g_diploKind 6, county cleared."
+    },
+    {
+      "addr": "0x00415FB7",
+      "name": "Screen_Merchant",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x08. Loads merchant.256 as its palette, then merchant.pl8 and mercgrid.pl8."
+    },
+    {
+      "addr": "0x00417EA7",
+      "name": "Screen_Armoury",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screens 0x0A and 0x17. Loads armoury.256, armoury.pl8, arm_grid.pl8, arm_it_r.pl8, armtorch.pl8 and base1a.pl8."
+    },
+    {
+      "addr": "0x00416308",
+      "name": "Screen_TradeGoods",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x0C. Re-uses merchant.pl8 as the backdrop and overlays icontrad.pl8."
+    },
+    {
+      "addr": "0x004192B1",
+      "name": "Screen_ArmyDivision",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x11. L2.eng group 17, \"Army Division.\", and icon_tmp.pl8."
+    },
+    {
+      "addr": "0x0041AD5D",
+      "name": "Screen_SendSupplies",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x18. L2.eng group 33, \"Send supplies\", with county names from group 100."
+    },
+    {
+      "addr": "0x00414819",
+      "name": "Screen_SaveLoad",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Screen_SaveLoad(int saving)",
+      "comment": "Screens 0x35 and 0x36, one painter with a mode flag: L2.eng group 40 index 0 \"Loading a conquest.\" or 1 \"Saving a conquest.\"."
+    },
+    {
+      "addr": "0x00421707",
+      "name": "Screen_BattleMasterRatings",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x2E. score1.256 + score1.pl8, L2.eng group 37 \"Battle Master ratings\"."
+    },
+    {
+      "addr": "0x00421D09",
+      "name": "Screen_BattleMasterRank",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x2F. score2.256 + score2.pl8, groups 37 and 38 - 38 index 0 is \"Rank of Private\", so this is the rank sheet rather than the ratings table."
+    },
+    {
+      "addr": "0x0041E5D0",
+      "name": "Screen_LordsOfMagicAd",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x45. Loads lom.256 and lom.pl8 and installs the palette: the Lords of Magic advertisement the front end links to, and nothing else."
+    },
+    {
+      "addr": "0x00423241",
+      "name": "Screen_BattleOutcome",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x2B. L2.eng group 82 as seven heading/body pairs at index 2n and 2n + 1, chosen by g_battleOutcome - won, lost, siege won, siege lost, siege lifted, castle lost, and the neutral pair 12/13 \"The conflict is over.\" Draws a taller box with an inset animation panel when g_optAnimations is set, which is a second, independent confirmation of that flag."
+    },
+    {
+      "addr": "0x004233F7",
+      "name": "Screen_DrawBattlefield",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screens 0x28 and 0x29, and the frame around 0x2A: the battle sidebar - Misc sheet frames 0, 1 and 2 at x 480, the same 162-pixel column the campaign uses - the menu bar, and the field or siege palette chosen by g_battleIsSiege. The main loop treats 0x28 .. 0x2A as one range."
+    },
+    {
+      "addr": "0x00434308",
+      "name": "SaveLoad_Cancel",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The cross of the save/load box (record 1 of g_saveLoadWidgets, frame 31). On the front end it restores g_setupPage; anywhere else it restores g_screenId from g_screenIdSaved, which is the value Menu_LoadGame and Menu_SaveGame put there."
+    },
+    {
+      "addr": "0x00434346",
+      "name": "SaveLoad_Scroll",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The scroll arrows of both file lists, and the reason their hotspot fields hold odd numbers: the widget's hotspot id is the row delta and its hotspot arg is which list. The save/load box passes -3 / +3 with arg 1 and a 15-row window; the skirmish box passes -1 / +1 with arg 2 and a 5-row window. Clamped at 0 and at g_fileListCount minus the window."
     }
   ],
   "globals": [
@@ -5887,6 +6363,328 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "That county's owner (+0x05), compared against g_localPlayer by every branch of Map_Click."
+    },
+    {
+      "addr": "0x0053F20C",
+      "name": "g_optSpeech",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Sound options: speech on. Group 51 index 3, drawn as group 19 On/Off."
+    },
+    {
+      "addr": "0x0053F214",
+      "name": "g_optSoundEffects",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Sound options: sound effects on. Group 51 index 2."
+    },
+    {
+      "addr": "0x0053F218",
+      "name": "g_optMusic",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Sound options: music on. Group 51 index 1; turning it off stops the current track."
+    },
+    {
+      "addr": "0x0053F228",
+      "name": "g_optFullScreen",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Display options: full screen. Group 52 index 2, Yes/No. The \"(F5 key re-sizes window...)\" line is drawn only while this is 0."
+    },
+    {
+      "addr": "0x0053F230",
+      "name": "g_optGameSpeed",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Options > Game Speed. The slider dialog edits it with step 10 over 0..100 and displays it divided by ten."
+    },
+    {
+      "addr": "0x0053F248",
+      "name": "g_optAnimations",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Display options: animations. Group 52 index 1, On/Off; Screen_BattleOutcome also branches on it for its animated variant."
+    },
+    {
+      "addr": "0x0053F24C",
+      "name": "g_optTipScreens",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help options: tip screens. Group 45 index 1, Yes/No."
+    },
+    {
+      "addr": "0x0053F250",
+      "name": "g_optToolTips",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Help options: tool tips. Group 45 index 2, Yes/No."
+    },
+    {
+      "addr": "0x0053F264",
+      "name": "g_optExploration",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Advanced options: exploration. Group 50 index 3, Yes/No."
+    },
+    {
+      "addr": "0x0053F284",
+      "name": "g_optFightHumansOnly",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Advanced options: \"Fight humans only?\", group 50 index 4 - stored inverted, so 0 displays Yes. When it is 0 and the local player is not a participant the battle is auto-resolved to screen 0x13 instead of prompting on 0x12."
+    },
+    {
+      "addr": "0x0057D340",
+      "name": "g_redrawRequest",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The interface's only redraw request. Every handler writes 2; the main loop is \"if (g_redrawRequest != 0) { Screen_Draw(g_redrawRequest); g_redrawRequest = 0; }\", so the value becomes Screen_Draw's firstFrame argument and 1 means a full repaint."
+    },
+    {
+      "addr": "0x0056D894",
+      "name": "g_menuPrevScreen",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The screen an open menu-bar drop-down will return to. Menu_OpenDropdown saves g_screenId here before switching to 0x32, and the help topics and the refused option toggles restore it."
+    },
+    {
+      "addr": "0x004DDC10",
+      "name": "g_advancedOptWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Four 24-byte widget records for screen 0x39, at (280, 156 + 32n)."
+    },
+    {
+      "addr": "0x0056D8A0",
+      "name": "g_advancedOptWidgetCount",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x39's widget count: written as 4 by the painter, read by the widget pass."
+    },
+    {
+      "addr": "0x004DDC70",
+      "name": "g_soundOptWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Three widget records for screen 0x42, at (280, 156 + 32n)."
+    },
+    {
+      "addr": "0x00553F00",
+      "name": "g_soundOptWidgetCount",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x42's widget count, written as 3 by the painter."
+    },
+    {
+      "addr": "0x004DDCB8",
+      "name": "g_displayOptWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Two widget records for screen 0x43, at (280, 204) and (280, 236)."
+    },
+    {
+      "addr": "0x005533AC",
+      "name": "g_displayOptWidgetCount",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x43's widget count, written as 2 by the painter."
+    },
+    {
+      "addr": "0x004DDCE8",
+      "name": "g_helpOptWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Three widget records for screen 0x31: two toggles at x 240 and the WinHelp button at (288, 252)."
+    },
+    {
+      "addr": "0x0052AFD0",
+      "name": "g_helpOptWidgetCount",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x31's widget count, written as 3 by the painter."
+    },
+    {
+      "addr": "0x004DD310",
+      "name": "g_confirmWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The confirmation box's two widgets, tick and cross, frames 29 and 31 at (64, 46) and (112, 50) relative to the box origin."
+    },
+    {
+      "addr": "0x0052AF90",
+      "name": "g_confirmX",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Confirmation box origin x; the box itself is drawn 16 pixels up and left of it."
+    },
+    {
+      "addr": "0x0052AF98",
+      "name": "g_confirmY",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Confirmation box origin y."
+    },
+    {
+      "addr": "0x0057CB14",
+      "name": "g_confirmPrompt",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Which L2.eng group 10 string the confirmation box asks."
+    },
+    {
+      "addr": "0x00552FF4",
+      "name": "g_confirmCallback",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The function Ui_ConfirmClicked calls once either button is pressed."
+    },
+    {
+      "addr": "0x0059151C",
+      "name": "g_confirmAnswer",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "1 for the tick, 0 for the cross. Written before g_confirmCallback runs, and read by it."
+    },
+    {
+      "addr": "0x004DDBE0",
+      "name": "g_sliderWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The slider dialog's two arrow widgets, frames 35 and 37 at (32, 28) and (64, 28) relative to the box origin."
+    },
+    {
+      "addr": "0x0058FE1C",
+      "name": "g_sliderPrompt",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Which L2.eng group 12 string the slider dialog is adjusting."
+    },
+    {
+      "addr": "0x0058FE20",
+      "name": "g_sliderX",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Slider dialog origin x."
+    },
+    {
+      "addr": "0x0058FE24",
+      "name": "g_sliderY",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Slider dialog origin y."
+    },
+    {
+      "addr": "0x005CD410",
+      "name": "g_sliderValue",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Pointer to the int the slider dialog is editing."
+    },
+    {
+      "addr": "0x0058FD64",
+      "name": "g_sliderStep",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "How much one arrow press moves g_sliderValue."
+    },
+    {
+      "addr": "0x005C9260",
+      "name": "g_sliderMax",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Upper bound; the up arrow does nothing at or above it."
+    },
+    {
+      "addr": "0x005C927C",
+      "name": "g_sliderMin",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Lower bound; the down arrow does nothing at or below it."
+    },
+    {
+      "addr": "0x005AEB74",
+      "name": "g_sliderFormat",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "How the value is printed: 1 divides by ten, 2 prints it plainly, anything else appends a per cent sign."
+    },
+    {
+      "addr": "0x005C9278",
+      "name": "g_sliderPrevScreen",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The screen the slider dialog returns to."
+    },
+    {
+      "addr": "0x004DD940",
+      "name": "g_diploWidgets",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "The diplomacy screen's widgets: six at (400, 102 + 50n) opening L2.eng group 72 rows 2..8 in order, then a plus/minus pair at (184, 240) and (216, 240) for the gift amount."
+    },
+    {
+      "addr": "0x00553EE8",
+      "name": "g_diploWidgetCount",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "How many of g_diploWidgets the current group 72 menu layout uses."
+    },
+    {
+      "addr": "0x00553FB8",
+      "name": "g_battleOutcome",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Which of the seven L2.eng group 82 heading/body pairs Screen_BattleOutcome shows."
+    },
+    {
+      "addr": "0x004DDD78",
+      "name": "g_saveLoadWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Four widget records for screens 0x35 and 0x36: tick and cross at (304, 64) and (352, 64), then the list scroll arrows at (384, 144) and (384, 176) carrying deltas -3 and +3 and list id 1."
+    },
+    {
+      "addr": "0x004DDDD8",
+      "name": "g_skirmishFileWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The skirmish file box's two scroll arrows at (480, 256) and (480, 288), deltas -1 and +1, list id 2 - the same SaveLoad_Scroll with a five-row window."
+    },
+    {
+      "addr": "0x004DD538",
+      "name": "g_sendSuppliesWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Six widget records for screen 0x18: tick and cross at (320, 342) and (360, 346), then two rows of a minus/plus pair at x 216 and 296, y 264 and 300, hotspot ids 0 and 2."
+    },
+    {
+      "addr": "0x004DD8C8",
+      "name": "g_armouryBuyWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Four widget records for screen 0x0D, in a row at y 44 and x 176, 208, 240, 272, frames 68, 66, 58 and 60."
+    },
+    {
+      "addr": "0x004DDB80",
+      "name": "g_castleBuildWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The castle-build screen's tick and cross, at (432, 440) and (472, 444)."
+    },
+    {
+      "addr": "0x004DDF10",
+      "name": "g_siegePrepWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Six widget records for screen 0x1D: three up/down pairs at x 38, tops at y 184, 252 and 320 with the partner 26 pixels below, hotspot ids 0, 1 and 2 - Catapults, Siege towers and Battering rams, the order of L2.eng group 83 indices 1 to 3."
+    },
+    {
+      "addr": "0x004DDFA0",
+      "name": "g_smackTestWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Four widget records for screen 0x44, the Smacker test page: a minus/plus pair at (208, 232) and (240, 232) and a tick/cross pair at (288, 280) and (324, 284)."
     }
   ]
 }

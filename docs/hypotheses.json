@@ -1,0 +1,241 @@
+{
+  "_note": [
+    "Bulk hypotheses about Lords2.exe: names that are consistent with everything",
+    "measured but that no check has yet tried to falsify. They are NOT symbols.",
+    "",
+    "docs/symbols.json is the verified tier and its ratio is deliberately high; a",
+    "name only moves there once someone has run a check that could have failed and",
+    "it did not. This file exists so that leads can be written down in bulk without",
+    "diluting that. Correction C3 in docs/decisions.md is what a coherent, unchecked",
+    "model costs when it is filed as fact.",
+    "",
+    "Every entry carries a 'basis': the mechanical observation the guess rests on -",
+    "an L2.eng group and index, a widget-table membership, a shipped filename. An",
+    "entry whose basis is only 'it is called from near something named' is the shape",
+    "correction C3 took and should be treated as a question, not an answer.",
+    "",
+    "'confidence' is the author's own estimate, in the same words the pilot measured:",
+    "  'subject'  - what the function is about is anchored to a string or an asset;",
+    "               the role word in the name is the part that may be wrong.",
+    "  'role'     - the role is anchored (it is in a widget table, it is a painter);",
+    "               the subject is the guess.",
+    "  'both'     - neither half has an independent anchor. Read this before using it.",
+    "",
+    "Promote an entry by deleting it from here and adding it to docs/symbols.json",
+    "with the check that promoted it written into its comment."
+  ],
+  "program": "Lords2.exe",
+  "imageBase": "0x00400000",
+  "functions": [
+    {
+      "addr": "0x0042FF10",
+      "name": "Ui_DispatchPointer",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "8,140 bytes, the largest unnamed function in the interface. Its opening is Screen_HitRegion, then Screen_HandleInput, then a per-screen fallback chain that on the campaign map tries Map_EdgeScroll, Menu_OpenDropdown(g_menuBarItems, 3), CountyStrip_Click, CountyStrip_JobClick and Map_Click in that order. It writes g_screenId with 30 different values - more than any other function in the binary.",
+      "comment": "The top-level pointer dispatcher: one click, routed to whatever the current screen wants. Only the first 6% of the body has been read; the name claims the role, not the whole behaviour."
+    },
+    {
+      "addr": "0x004342F3",
+      "name": "SaveLoad_Accept",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Record 0 of g_saveLoadWidgets (0x004DDD78), frame 29 at (304, 64) - the tick of the tick/cross pair whose cross is the verified SaveLoad_Cancel. Its whole body is DAT_005CD41C = 100.",
+      "comment": "The save/load box's confirm button. What the sentinel 100 means to its reader has not been traced."
+    },
+    {
+      "addr": "0x0041B032",
+      "name": "Screen_MapInfo",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "The painter Screen_Draw dispatches for g_screenId 0x04, which FUN_0042FF10 sets after a map click that picked something. Branches to UnitPanel_Draw when a unit is picked and FUN_0041BEFE otherwise, on the same g_pickedTileFlags bits Map_Click uses.",
+      "comment": "docs/screens-county.md calls this 'the map information panel'; nothing has read what it draws."
+    },
+    {
+      "addr": "0x0041608B",
+      "name": "Merchant_DrawPanel",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "The widget-pass companion Screen_DrawWidgets calls for screen 0x08, immediately before Widget_Draw on the merchant's own table.",
+      "comment": "The merchant screen's per-frame overlay. Subject is anchored by the screen id; what it draws is unread."
+    },
+    {
+      "addr": "0x004357A6",
+      "name": "Merchant_HandleInput",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "The input-pass companion Screen_HandleInput calls for screen 0x08, before Widget_Test on the merchant's table.",
+      "comment": "The merchant screen's non-widget hit-testing."
+    },
+    {
+      "addr": "0x00418FC5",
+      "name": "Armoury_DrawPanel",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Called by Screen_DrawWidgets for both armoury screens, 0x0A and 0x0D.",
+      "comment": "Shared overlay for the armoury and the armoury's buy list."
+    },
+    {
+      "addr": "0x0043582A",
+      "name": "Armoury_HandleInput",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Called by Screen_HandleInput for screens 0x0A and 0x0D, before Hotspot_Test on a 9-entry table at 0x004DC938.",
+      "comment": "Shared input for the armoury screens."
+    },
+    {
+      "addr": "0x0041AEA2",
+      "name": "SendSupplies_DrawPanel",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Called by Screen_DrawWidgets for screen 0x18, whose painter Screen_SendSupplies draws L2.eng group 33, 'Send supplies'.",
+      "comment": "The send-supplies overlay."
+    },
+    {
+      "addr": "0x0043B04C",
+      "name": "SendSupplies_Close",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Records 0 and 1 of the send-supplies widget table 0x004DD538: frames 29 and 31 at (320, 342) and (360, 346), hotspot ids 1 and 0 - the tick/cross convention. It writes g_screenId twice.",
+      "comment": "Accept or cancel the supply shipment; the hotspot id says which."
+    },
+    {
+      "addr": "0x0043B1CA",
+      "name": "SendSupplies_Less",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Records 2 and 4 of the same table, frame 27 at x 216, hotspot ids 0 and 2 - two rows of a pair whose other half is 0x0043B27A at frame 25.",
+      "comment": "Decrease the amount of one commodity."
+    },
+    {
+      "addr": "0x0043B27A",
+      "name": "SendSupplies_More",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Records 3 and 5 of the same table, frame 25 at x 296, hotspot ids 0 and 2.",
+      "comment": "Increase the amount of one commodity."
+    },
+    {
+      "addr": "0x00436B59",
+      "name": "CastleBuild_Close",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Both records of the castle-build widget table 0x004DDB80, frames 29 and 31 at (432, 440) and (472, 444), hotspot ids 1 and 0. It writes g_screenId five times.",
+      "comment": "Accept or abandon the castle design, on the verified Screen_CastleBuild."
+    },
+    {
+      "addr": "0x0043593A",
+      "name": "Armoury_BuyLess",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Record 0 of the armoury buy table 0x004DD8C8, frame 68 at (176, 44); the four buttons in that row are frames 68, 66, 58 and 60, and 68/66 is the minus/plus pair the diplomacy gift row also uses.",
+      "comment": "One of the armoury buy-list's four buttons; the pairing is the evidence, not the body."
+    },
+    {
+      "addr": "0x004359BC",
+      "name": "Armoury_BuyMore",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Record 1 of 0x004DD8C8, frame 66 at (208, 44).",
+      "comment": "The other half of the minus/plus pair."
+    },
+    {
+      "addr": "0x00435A0C",
+      "name": "Armoury_BuyPrev",
+      "section": "ui",
+      "confidence": "both",
+      "basis": "Record 2 of 0x004DD8C8, frame 58 at (240, 44). Frames 58 and 60 have not been identified in the button sheet.",
+      "comment": "Unanchored: only its position in the table is known."
+    },
+    {
+      "addr": "0x00435A61",
+      "name": "Armoury_BuyNext",
+      "section": "ui",
+      "confidence": "both",
+      "basis": "Record 3 of 0x004DD8C8, frame 60 at (272, 44).",
+      "comment": "Unanchored: only its position in the table is known."
+    },
+    {
+      "addr": "0x0043B681",
+      "name": "SiegePrep_Add",
+      "section": "ui",
+      "confidence": "subject",
+      "basis": "Records 0, 2 and 4 of the siege-preparation widget table 0x004DDF10, frame 21 at x 38 and y 184 / 252 / 320, hotspot ids 0, 1 and 2. Screen_SiegePrep draws L2.eng group 83, whose indices 1, 2 and 3 are Catapults, Siege towers and Battering rams in that order. The body caps the count at 4, 4 and 2 respectively and refuses in a network game.",
+      "comment": "Order one more siege engine of the row's type. The caps 4 / 4 / 2 are read off the body and are not yet cross-checked against play."
+    },
+    {
+      "addr": "0x0043B741",
+      "name": "SiegePrep_Remove",
+      "section": "ui",
+      "confidence": "subject",
+      "basis": "Records 1, 3 and 5 of 0x004DDF10, frame 23, each 26 pixels below its partner, same hotspot ids. Decrements the same field while it is above zero.",
+      "comment": "Cancel one ordered siege engine."
+    },
+    {
+      "addr": "0x00436372",
+      "name": "Diplo_AdjustGift",
+      "section": "diplomacy",
+      "confidence": "subject",
+      "basis": "Records 6 and 7 of g_diploWidgets, frames 68 and 66 at (184, 240) and (216, 240), hotspot ids 1 and 0 - the minus/plus pair. The screen it sits on draws L2.eng group 72 index 18, 'Gift of', beside g_diploGold.",
+      "comment": "Raise or lower the offered gift; the hotspot id says which way."
+    },
+    {
+      "addr": "0x00434EF9",
+      "name": "SmackTest_Step",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Records 0 and 1 of the screen 0x44 widget table 0x004DDFA0, frames 68 and 66 at (208, 232) and (240, 232). Screen 0x44's painter draws L2.eng group 89, whose index 0 is 'Smack file testing'.",
+      "comment": "Pick the previous or next Smacker file on the developers' test screen."
+    },
+    {
+      "addr": "0x00434F53",
+      "name": "SmackTest_Close",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Records 2 and 3 of 0x004DDFA0, frames 29 and 31 - the tick/cross pair. It writes g_screenId.",
+      "comment": "Leave the Smacker test screen."
+    },
+    {
+      "addr": "0x004360F2",
+      "name": "Ratings_DrawPanel",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Called by Screen_DrawWidgets for both 0x2E and 0x2F, the two Battle Master screens, and by Menu_NewGame before it opens its confirmation box.",
+      "comment": "Shared overlay for the two score screens. Being called from Menu_NewGame as well means the role may be wider than 'the ratings panel' - read it before promoting."
+    }
+  ],
+  "globals": [
+    {
+      "addr": "0x0057C90C",
+      "name": "g_screenIdSaved",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Written with the current g_screenId by Menu_LoadGame, Menu_SaveGame and Ui_OpenConfirm, and read back into g_screenId by SaveLoad_Cancel. Sixteen other functions touch it.",
+      "comment": "The screen a modal box returns to. Distinct from g_menuPrevScreen, which the menu-bar drop-down uses; why there are two has not been established."
+    },
+    {
+      "addr": "0x004EA1A0",
+      "name": "g_fileListTop",
+      "section": "ui",
+      "confidence": "subject",
+      "basis": "The only value SaveLoad_Scroll moves, by the widget's hotspot id, clamped at 0 and against DAT_004EB25C with a window of 15 rows for list 1 and 5 for list 2.",
+      "comment": "First visible row of the save/load file list."
+    },
+    {
+      "addr": "0x004EB25C",
+      "name": "g_fileListCount",
+      "section": "ui",
+      "confidence": "subject",
+      "basis": "The bound SaveLoad_Scroll clamps g_fileListTop against.",
+      "comment": "How many files the save/load list holds."
+    },
+    {
+      "addr": "0x00568ED0",
+      "name": "g_siegeArmy",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "The index SiegePrep_Add and SiegePrep_Remove multiply by 0x1A4 to reach the record holding the three siege-engine counts at +0x232 relative to 0x0052F000, six bytes apart.",
+      "comment": "Which army the siege-preparation screen is ordering engines for. The 0x1A4 stride has not been matched to a named record type."
+    }
+  ]
+}

@@ -18,11 +18,11 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 
 | | state |
 |---|---|
-| **Screens** | **3 of 29** — the main menu, the campaign map, the county panel |
+| Screens | the front end and its thirteen setup pages, the campaign map, the four county panels, the village, the job popup and the conquest screen are drawn; **nineteen more exist only as shells** — right artwork, right hotspots, contents unbuilt. `Screen_Draw` has 39 arms and 35 now have a named painter |
 | Kingdom economy | the full end-of-season pipeline: tax, rations, health, happiness, grain, herds, industry, migration, population, scoring |
 | Battle | figures, units, formations, movement, pathfinding, melee, missile resolution, the battle AI |
 | Campaign map | scrolling viewport, two zooms, the minimap, county tinting |
-| Scenarios | the shipped `lastturn.sav` imports and reproduces |
+| Scenarios | the England turn-one fixture imports and reproduces. *(A clean install ships **no** saves — see `docs/decisions.md` C23 for what believing otherwise cost)* |
 | Mods | rules are data; a mod can override the tables |
 | Multiplayer | deterministic lockstep, tested — no matchmaking or UI |
 | **Castle designer** | **not started.** One of the game's signature features |
@@ -38,7 +38,7 @@ how two wrong rules once survived **932 passing tests** *(that figure is deliber
 it is the size of the suite at the moment `docs/decisions.md` C26 describes, and correcting
 it to today's number would destroy the thing it records)*. And of the executable's
 <!--fig:binary-functions-->2,452<!--/fig--> functions, we have identified
-**<!--fig:functions-->465<!--/fig-->**, plus <!--fig:globals-->308<!--/fig--> globals; most
+**<!--fig:functions-->532<!--/fig-->**, plus <!--fig:globals-->354<!--/fig--> globals; most
 of the program is still dark.
 
 ## The idea that shapes everything

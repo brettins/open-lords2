@@ -265,8 +265,11 @@ Legend:
   per-job bodies are not drawn and say so.
 - 🕳 The village's animations — `Village_Animate` steps six counters over
   `villani1`/`villani2`. The scene here is still.
-- 📖 **29 screens exist.** We have five. Merchant, court, armoury, mercenaries,
-  send-supplies, castle-building, siege prep and twenty more are enumerated and unbuilt.
+- 📖 **`Screen_Draw` has 39 arms**, 35 of them with a named painter. Drawn with real
+  contents: the front end and its setup pages, the campaign map, the county panels, the
+  village, the job popup, the conquest screen. Merchant, court, armoury, send-supplies,
+  castle-building, siege prep and thirteen more exist as shells — right artwork and
+  hotspots, contents unbuilt.
   Three of them are now decompiled rather than merely enumerated: the raise-army screen
   (`0x00418653`, and the mercenary offer lives on it — there is no separate mercenaries
   screen), the army-division screen and the siege-preparation screen — `docs/armies.md`.

@@ -128,9 +128,19 @@ function litNum(tok) {
   tok = tok.trim();
   if (/^0x[0-9a-f]+$/i.test(tok)) return parseInt(tok, 16);
   if (/^-?\d+$/.test(tok)) return +tok;
-  const c = /^'(\\x([0-9a-f]{2})|\\?(.))'$/i.exec(tok);
-  if (c) return c[2] ? parseInt(c[2], 16) : (c[3] === '\\0' ? 0 : c[3].charCodeAt(0));
-  return null;
+  // C character escapes. The previous regex read '\b' as the *letter* b, because
+  // \\? swallowed the backslash and let (.) match what followed, and '\0' as the
+  // digit '0'. That put six screen ids in the wrong place - 0x08 reported as
+  // 0x62, 0x09 as 0x74, 0x0a as 0x6e, 0x0b as 0x76, 0x0c as 0x66, 0x00 as 0x30 -
+  // which is every management screen the game has. Verified against the arms of
+  // Screen_Draw read by hand.
+  const ESC = { a: 7, b: 8, t: 9, n: 10, v: 11, f: 12, r: 13, e: 27, '\\': 92, "'": 39, '"': 34, '?': 63 };
+  const c = /^'(?:\\x([0-9a-f]{1,2})|\\([0-7]{1,3})|\\(.)|(.))'$/i.exec(tok);
+  if (!c) return null;
+  if (c[1] !== undefined) return parseInt(c[1], 16);
+  if (c[2] !== undefined) return parseInt(c[2], 8);
+  if (c[3] !== undefined) return ESC[c[3]] !== undefined ? ESC[c[3]] : c[3].charCodeAt(0);
+  return c[4].charCodeAt(0);
 }
 
 // Split a call's argument list at top level - arguments contain commas inside
