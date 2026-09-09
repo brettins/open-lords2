@@ -2095,9 +2095,11 @@ reproduced, for the reason each line gives.
 * **`Grain_Harvest`'s weather branches overwrite the labour-limited result** with a
   multiple of the raw crop at `+0x244`, rather than scaling the value the labour check just
   returned — so in any weather but Drought or Cloudy the labour limit is discarded
-  entirely. **[D]**. *Not reproduced: `crates/l2-kingdom` does not model the labour limit on
-  growing and harvesting at all, so there is nothing for the overwrite to discard. Both
-  halves are open.*
+  entirely. **[V]** on the reading — the four assignments are `crop[1]`-sourced and the two
+  branches at sowing and growing are not. *Reproduced.* This line said *"not reproduced,
+  because the crate does not model the labour limit on growing and harvesting at all"*; both
+  halves closed when `grow_step` and `harvest_step` landed, and the line went stale rather
+  than wrong. `crates/l2-kingdom/src/land.rs::harvest`, and [`bugs.md`](bugs.md) B1.
 * **The migration inflow list is written without a `break`**, so it holds one repeated
   value (§5.3). **[D]**
 * **`dryness` is a signed byte that nothing clamps** (§7.3), so a long enough dry run wraps

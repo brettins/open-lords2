@@ -3,6 +3,10 @@
 > **Looking for how the game works, rather than how much of it we have?**
 > That is [`rules.md`](rules.md) — the same mechanics in plain language with the real
 > numbers. This document is the *inventory*: what has been looked at, and what has not.
+>
+> **A mechanic that looks wrong is often the original being wrong**, and we reproduce it on
+> purpose. [`bugs.md`](bugs.md) is the catalogue of those, separated from our own corrections
+> and from the original's dead code — check it before ticking anything ⚠️ wrong.
 
 **This document exists to be read by someone who has played the game**, so that they can
 point at what is missing. That is a check nothing else here can perform: you cannot grep for
@@ -276,6 +280,37 @@ Legend:
   `L2.eng` groups 228–237, ten one-string groups the function picks by
   `230 + industry*2 + on`, which also confirms the industry numbering. `docs/kingdom.md`
   §7.4.1.
+
+### The game's own three rule switches
+
+The original ships **behaviour toggles**, not just presentation ones, and a player has
+confirmed using all three: *"i recall foraging, exploration and advanced farming to be
+options I saw and tried. Fallow fields on advanced farming, a fog of war of some sort."*
+They are `g_optAdvancedFarming`, `g_optArmiesEat` and `g_optExploration` — `L2.eng` group 50
+indices 1, 2 and 3, toggled by `Opt_ToggleExploration` (`0x00434693`) and its siblings. They
+are the precedent for anything this project ships as an option; see [`bugs.md`](bugs.md) §5.
+
+- ✅ **Advanced Farming.** Fertility exists and this option changes how it works; the harvest
+  halves the workforce under it, so the effective rate is one and a half sacks a reaper
+  against two without it; industry efficiency has a separate without-Advanced-Farming table.
+  It also flips the **AI's** planting ladder — with the option *off* an AI plants far more
+  grain, not less (`crates/l2-kingdom/src/ai_farm.rs`, and [`bugs.md`](bugs.md) §4).
+- ✅ **Foraging** (`g_optArmiesEat`). An army eats county stores only while the option is on,
+  and `Readme.txt` adds the consequence in the game's own words: *"Armies in castles forage
+  for themselves, and therefore do not eat from county stores. When foraging is on, building
+  large castles and keeping your army inside is an effective way of avoiding starvation
+  problems."* The garrison exemption is modelled — `l2_kingdom::unit`, `l2_kingdom::ration`.
+- 🕳 **Exploration — read, shown, and ignored.** The game states the rule itself, in `L2.eng`
+  group 218 index 3: *"When Exploration is turned on, the world outside your county is
+  blacked out. It is gradually revealed as your armies move through and conquer new counties."*
+  That is the specification. `l2_formats::save` imports `opt_exploration` from the save and
+  the setup screen draws the switch, but `l2_kingdom::kingdom::Options` has no field for it
+  and **there is no fog of war anywhere in the engine**. Nothing between the save and the
+  simulation carries it.
+- 🕳 **No option on the setup screen starts a game with the setting it shows.** All twelve
+  are local state on `l2_game::screens::setup` and none of them reaches `Options`; the two
+  that *are* implemented get their values from a loaded save or from a test. Whoever wires
+  the new-game path wires all twelve.
 
 ### The wider game
 - ✅ Random events: a 256-slot deck, 24 distinct, and the bug that exempts even-numbered counties
