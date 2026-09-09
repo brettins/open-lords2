@@ -374,6 +374,47 @@ dependency-free — see their `Cargo.toml`).
 Corollary: **no ambient randomness.** No `rand::thread_rng()`, no
 `getrandom`, no time-seeded anything inside `step()`.
 
+#### D-3a — Where the original's stream is unrecoverable, reproduce the *shape* and seed it from the command
+
+**The case that forced this, and the first one in the tree.** `PlayerStart_Shuffle`
+(`0x00497E65`) is what makes which realm you play differ from game to game: `Game_NewGame`
+runs it between `Mercenary_Init` and `PlayerStart_Compact`, and it re-deals the live entries of
+`g_playerStartTable` into each other's slots — for each source entry `i` it draws a random
+offset, `pos = (rand & 3) + 1 + i` wrapping at the live count, then probes forward for a free
+destination. `docs/environment.md` had already recorded the realm-to-county assignment as
+*"rolled per game"*, from two independently created England turn-one saves disagreeing about
+it. This is the code that rolls it.
+
+**We cannot reproduce its numbers and should stop trying.** The original's generator is an LFSR
+whose state at that call depends on every draw since process start — the splash timing, the
+menu, the map load. There is no seed to copy. So `l2_scenario::newgame::shuffle_starts`
+reproduces the *algorithm* on our own `Pcg32`: the same `(rand & 3) + 1 + i`, the same wrap, the
+same forward probe, the same order of entries. Identical structure, a different stream.
+
+**And therefore the seed is a parameter, not ambient.** This is the whole determinism content
+of the decision, and it is why the entry exists rather than living only in a commit message:
+
+- A new game is **state that every peer must agree on**, exactly like a tick. If one peer
+  shuffled from `thread_rng` and another from its own clock, the two would be playing different
+  maps before the first command was ever sent — a desync at frame zero, which is the one place
+  the digest cadence in §6 would not localise, because there is no earlier agreed frame to bisect
+  back to.
+- So `shuffle_starts` takes its seed as an argument, the lobby settles it the way it settles the
+  ruleset hash (D-12), and it travels in the game-start command. **No call to it may pass a seed
+  the caller invented locally.** That is D-3's *"no ambient randomness"* applied to world
+  construction, which is a place people do not think of as simulation and which is squarely
+  inside `step`'s preconditions.
+
+**The general rule, since this will happen again.** Wherever the original's stream is
+unrecoverable — and it will be, everywhere the LFSR's history matters — the reproduction is
+*structural*: the same draws in the same order, consuming the same number of values, so that the
+shape of the outcome distribution and the number of PRNG advances both match. Say so at the call
+site, label the claim `inferred` rather than `verified`, and never let the impossibility of
+matching the stream become an excuse for a different *algorithm*. A different algorithm is a
+different game; a different stream is a different roll of the same dice.
+
+`docs/decisions.md` C62.
+
 ### D-4 — No hash-ordered iteration
 
 Never iterate a `HashMap` or `HashSet` in simulation code. Rust's default hasher

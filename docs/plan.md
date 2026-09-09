@@ -48,24 +48,27 @@ So this plan is organised by **what the goal requires**, not by what is left to 
 A person launches the binary, chooses a game, and is standing on a campaign map with a world
 under it.
 
-**Status: no — and the barrier is not where it was expected.** `l2-scenario` needs no map
-file: `Scenario::from_save` reads the three tile planes out of the save's own `TILES` block,
-so `starting_kingdom()` works today and produces a real, playable turn-one position from
-`lastturn.sav`. It is called from ten tests and **from nowhere in `l2-game`**, which always
-takes the load-a-save path (`crates/l2-game/src/scenario.rs:123`).
+**Status: yes.** This section used to say *"no"*, and named exactly what was missing: a
+**new game on a chosen scenario**, which is `Map_InitScenario`. It is written —
+`crates/l2-scenario/src/newgame.rs` — and *Start* on the custom page now runs
+`Game_NewGame`'s three steps in its order: the world from the chosen `L2_maps.dat` slot,
+then the twelve options through `Settings::apply_to`, then the one immediate
+`Season_Advance` that begins a game in Winter 1268. **Pick Ireland and you play Ireland**,
+from an empty `Game` and with no save in the path at all.
 
-What is missing is a **new game on a chosen scenario**. All thirteen setup pages draw, their
-page graph is read out of the original, and the boundary is written in the code:
+All 44 shipped maps start and take a turn (`crates/l2-game/tests/newgame.rs`), and England
+built from `L2_maps.dat` is diffed field by field against England read from `lastturn.sav`
+— two files authored separately, agreeing on every fact the map decides.
+`docs/decisions.md` C62 has the four corrections that fell out of it.
 
-> *"The setup screen chooses a scenario; nothing in this workspace can yet build a world from
-> that choice, so Start enters the campaign the scenario loader already put in `Game`."*
-> — `crates/l2-game/src/screens/setup.rs:538`
-
-Every drop-down, the map list, the lord and shield choice: all local, none reaching `Scenario`
-or `Kingdom`. Press Start on any configuration and you get England turn one.
+What is still short of the original at *Start*: the starting garrison (`Army_Create` at
+setup, which is `Settings::unhonoured`'s and was already), and the castle *on* the start
+county's plot — the world builder stamps the bare plot and `FUN_0046826C` raises the chosen
+level on it, which belongs beside the castle rules. Both are marked on the page.
 
 *(`docs/decisions.md` D9 calls the two constructors "load-a-save" and "new-game-on-this-map".
-The second is loose enough to mislead — the map it means is the one inside that save.)*
+The second used to be loose enough to mislead, because the map it meant was the one inside
+that save. It is now literal.)*
 
 ### 1.2 Play
 
@@ -347,12 +350,19 @@ sprite work, which is the renderer's.
 rates, bankruptcy, revolt, alliances. All writable today and none checkable against anything
 until §5's first ask exists. Get the save first, so it lands with a witness.
 
-**10 — New game from a chosen map.** The ordering call most worth arguing with. A game that
-cannot be started is not a game, so by the goal's own words this belongs near the front.
-Against that: the imported position is a *better* development base than a new game, because it
-is an oracle and a new game is not, and items 1 to 9 can all be built and checked against it.
-Doing 10 early means building the rest of the game against a position nothing can verify. So:
-last of the required work — and if it proves cheaper than §1.1 suggests, move it forward.
+**10 — New game from a chosen map. ✅ Done.** The ordering call most worth arguing with, and
+the argument against doing it early turned out to be the argument *for* the shape it took.
+The worry was that a new game is not an oracle and the imported position is, so building on
+one would mean building against a position nothing can verify. That is true of a new game
+taken alone — and it stops being true the moment the two constructors are diffed against each
+other. England built from `L2_maps.dat` and England read from `lastturn.sav` are two readings
+of one map from two files authored separately, so **the new game verifies the import and the
+import verifies the new game**. Four corrections came out of the diff and one defect of ours
+that had been invisible since the importer was written (`docs/decisions.md` C62).
+
+It was also cheaper than §1.1 suggested, which the entry above allowed for. The cost was not
+the loader — that is `l2-formats` and was already there — it was `Counties_PlaceSites` and
+its five passes, whose *order* is load-bearing in a way nothing had written down.
 
 ### Three orderings that are defensible, with the call made
 
@@ -477,7 +487,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,729<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,752<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -580,7 +590,7 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->757<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->760<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->31<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and

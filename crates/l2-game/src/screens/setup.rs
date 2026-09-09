@@ -350,6 +350,12 @@ pub struct SetupScreen {
     /// [`crate::setup::Settings::unhonoured`]. Drawn under the grid, in our own
     /// font. `docs/decisions.md` C21.
     unhonoured: Vec<usize>,
+    /// **Why the last *Start* did not start**, if it did not.
+    ///
+    /// A slot that will not build a world — no `L2_maps.dat`, an empty
+    /// template, more lords than seats — leaves the game untouched and says so
+    /// under the grid. Silence would look exactly like a button that works.
+    failure: Option<String>,
 }
 
 impl SetupScreen {
@@ -366,6 +372,7 @@ impl SetupScreen {
             player_starts: 5,
             map_read: false,
             unhonoured: Vec::new(),
+            failure: None,
         }
     }
 
@@ -659,19 +666,28 @@ impl SetupScreen {
     /// program. In a single-player game there is one person and every shipped
     /// map seats at least two, so it never fires here.
     ///
-    /// # What it can and cannot do
+    /// # The map is built now
     ///
-    /// [`crate::setup::Settings::apply_to`] is `FUN_0049BD99` over the world
-    /// [`crate::scenario`] built: the stores, the treasury, the armoury, the
-    /// castle and the lord count all take the settings shown. **What it cannot
-    /// do is change the map.** Building a world from a `L2_maps.dat` slot means
-    /// `Map_InitScenario` — the planes, the starting fields, the industry
-    /// sites, the dwelling plots, the merchant routes — and none of that
-    /// exists here; the only world this workspace can build is the one a save
-    /// carries. So the map list chooses a slot, the slot's seat count really
-    /// does drive the lord count, and starting on a *different* slot is the
-    /// gap. `docs/mechanics.md` has it, and the page says so on itself rather
-    /// than starting England while the list says Ireland.
+    /// This section used to say the opposite, and it named exactly what was
+    /// missing: *"building a world from a `L2_maps.dat` slot means
+    /// `Map_InitScenario` … and none of that exists here"*. It does now —
+    /// `l2_scenario::newgame` — so **the slot the list names is the world the
+    /// game starts in**. Pick Ireland and you play Ireland.
+    ///
+    /// The three steps are `Game_NewGame`'s, in its order:
+    ///
+    /// 1. [`crate::scenario::new_game`] — `Map_InitScenario` and
+    ///    `County_Reset`, which is the world;
+    /// 2. [`crate::setup::Settings::apply_to`] — `FUN_0049BD99`'s option half:
+    ///    the stores, the treasury, the armoury, the castle and the lord count;
+    /// 3. `Kingdom::start_new_game` — the one immediate `Season_Advance` that
+    ///    is why a new game begins in **Winter 1268**.
+    ///
+    /// **A world that cannot be built is not half-started.** An install with no
+    /// `L2_maps.dat`, or a slot that is an empty template, leaves the game
+    /// exactly as it was and says so under the grid in our own font
+    /// (`docs/decisions.md` C21) rather than dropping the player onto a
+    /// different map than the one they chose.
     fn start(&mut self, ctx: &mut Ctx) -> Transition {
         // One person, in this build. `DAT_00553F98` is the lobby's count and
         // there is no lobby.
@@ -684,7 +700,28 @@ impl SetupScreen {
         }
         let settings = self.options.commit(HUMAN_PLAYERS);
         self.unhonoured = settings.unhonoured();
+        let tables = ctx.game.kingdom.tables;
+        match crate::scenario::new_game(
+            ctx.assets,
+            self.map,
+            &settings,
+            HUMAN_PLAYERS,
+            crate::scenario::SEED,
+            tables,
+        ) {
+            Ok(game) => {
+                *ctx.game = game;
+                self.failure = None;
+            }
+            Err(e) => {
+                self.failure = Some(e.to_string());
+                return Transition::Stay;
+            }
+        }
         settings.apply_to(ctx.game);
+        // `Game_NewGame`'s last economic call. Everything above is the position
+        // the original hands to it.
+        ctx.game.last_report = Some(ctx.game.kingdom.start_new_game());
         Transition::Push(ScreenId::Campaign)
     }
 }
@@ -1074,8 +1111,11 @@ impl SetupScreen {
             let label = pen.assets.text(GROUP_OPTIONS, i).to_string();
             say(&format!("NOT IMPLEMENTED: {}", label.to_uppercase()));
         }
-        if self.map != 0 {
-            say("NOT IMPLEMENTED: STARTING ON A MAP OTHER THAN THE SAVE'S");
+        // **The map line is gone**, and that is the point of this commit: the
+        // slot the list names is now the world *Start* builds. What is left is
+        // the case where it cannot be built at all.
+        if let Some(why) = &self.failure {
+            say(&format!("CANNOT START THIS MAP: {}", why.to_uppercase()));
         }
     }
 
