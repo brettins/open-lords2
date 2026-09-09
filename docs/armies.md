@@ -758,6 +758,49 @@ from the record index, not from anything that names the tile.
 
 The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could not reach.
 
+> ### There is a siege in the fixtures now, and it closes every number below.
+>
+> This section was written entirely from the decompiler because no saved game held a castle
+> under siege. `E:\dev\lords2-fixtures` now holds **five snapshots of one**, and
+> `crates/l2-kingdom/tests/siege.rs` asserts this section against them.
+>
+> The position: county 4 has a **palisade** (`castleType` 1) garrisoned by an AI army of
+> **149**, and a human army of **43** is camped beside it building **one catapult**. Four
+> consecutive turns are preserved:
+>
+> | file | `+0x182` record | `+0x19C` |
+> |---|---|---:|
+> | `siege-safeturn.sav` | `ordered 1, 43 %, work 86` | 3 |
+> | `siege-old_turn.sav` | `ordered 1, 64 %, work 129` | 2 |
+> | `siege-lastturn.sav` | `ordered 1, 86 %, work 172` | 1 |
+> | `siege-sieging.sav` | `ordered 1, 100 %, work 200` | 0 |
+>
+> **Twelve stored numbers and every one of them comes out**: the work climbs by exactly the
+> army's 43 men a season, the percentage is `work × 100 / 200` truncated, and the countdown
+> is `ceil(remaining / 43)` at every step. So `g_siegeEngineWork[0]` is **200**, the
+> catapult is record **0**, and the whole build model is **[V]** against data rather than
+> against a listing. The player's own account agrees from the other end: he saw *"5
+> seasons"* when he placed the order, and `ceil(200 / 43) = 5`.
+>
+> `siege-sieging.sav` was saved with the battle **staged** — `Army_PrepareForBattle` had
+> run — so it is also the only fixture in which the four battle-only troop slots are
+> non-zero: the besieger's slot 7 holds its one catapult and the garrison's slot 10 holds
+> **one** pot of oil, which is `OIL_BY_CASTLE_LEVEL[0]`. That is the first arm of a
+> five-way switch nobody had ever seen fire.
+>
+> `siege-aftersie.sav` is the aftermath, and it pins the **castle bonus**. The player
+> declined the prompt, so `Battle_Decline` ran the autocalc: 43 attackers scoring 713
+> against a garrison scoring 1,769, lifted by 160 % to 3,150; ratio 441; the ladder's 90 %
+> rung; and 90 % of 4 crossbowmen, 20 swordsmen and 125 archers is **3 + 18 + 112 = 133**,
+> which is what the save holds. **Only level 0 reproduces it** — the other four give 140,
+> 140, 144 and 149 — so this is a *measurement* of `CASTLE_STRENGTH_PERCENT[0]` and not a
+> check that the arithmetic runs.
+>
+> **And `+0x198` and `+0x199` are finally distinguishable.** Every earlier fixture had one
+> or neither. Here the besieger carries `garrisonCounty = 0` with `besiegingCounty = 4`,
+> and the garrison carries `garrisonCounty = 4` with `besiegedBy = 5`. A besieger is
+> *outside* the castle, so the two are never both set. **[V]**
+
 `Army_BeginSiege` (`0x004A7CA2` → `0x004A7E0A`) requires the county to have a garrison
 (`+0x1BC ≠ 0`), the castle not to be under construction, and the garrison not to be besieged
 already. It sets `unit.besiegingCounty`, links the garrison's `+0x19A` back, clears the three
@@ -768,11 +811,35 @@ screen** (`L2.eng` group 83: *"Siege preparations. / Catapults / Siege towers / 
 **Engines are built on the spot, not carried.** `g_siegeEngineWork` (`0x004DE440`) is three
 `i32`:
 
-| engine | troop type | man-seasons each |
-|---|---:|---:|
-| catapult | 7 | **200** |
-| siege tower | 8 | **200** |
-| battering ram | 9 | **400** |
+| engine | record | troop type | man-seasons each | the screen's ceiling |
+|---|---|---:|---:|---:|
+| catapult | `+0x182` | 7 | **200** | 4 |
+| siege tower | `+0x188` | 8 | **200** | 4 |
+| battering ram | `+0x18E` | 9 | **400** | 2 |
+
+**Which record is which engine**, because it decides which costs 400 and a swap is
+plausible enough that it has been proposed once already:
+
+1. `Screen_SiegePrep` (`0x00421F14`) draws row 1 from `+0x182` beside `L2.eng` **83/1
+   "Catapults"**, row 2 from `+0x188` beside 83/2 *"Siege towers"* and row 3 from `+0x18E`
+   beside 83/3 *"Battering rams"*. Those strings were read out of the shipped `L2.eng`, not
+   transcribed from memory. **[V]**
+2. `Army_PrepareForBattle` copies the same three records into troop types 7, 8 and 9, and
+   troop 7 is the catapult — `UnitOrder_SiegeAttCatapult` searches radius **20**, which is
+   the catapult class's 160-eighths range exactly — and troop 9 the ram, since state 14 is
+   gated on `troopType == 9`. **[V]**
+3. The fixture: record 0, one ordered, total work 200, five seasons at 43 men, and the
+   player built a catapult. **[V]**
+4. **Ceiling × cost is constant**: `4 × 200 = 4 × 200 = 2 × 400 = 800` man-seasons for every
+   row. A swapped table breaks that.
+
+**The ceilings are new here.** The screen's increment handler (`0x0043B681`) picks its limit
+from the hotspot id — 4 for hotspots 0 and 1, 2 for anything else — and refuses to increment
+at it; the decrement handler (`0x0043B741`) refuses at zero. Both end in `0x0043B7C4`, which
+adjusts the count and runs `Siege_RecomputeBuildTime`, so the *"Siege will take N
+Season(s)"* line moves as you click. **The ceiling is on the screen and not on the record**:
+`Siege_Prepare` writes 4 towers for the Knight and 3 catapults *plus* 2 towers for the
+Countess without consulting it, and no sequence of clicks produces the latter.
 
 `Siege_BuildTick` (`0x004A8507`), once a season in turn phase 2, spreads the army's `men`
 evenly over the incomplete engine types, spills the remainder onto whichever is still short,
@@ -795,13 +862,40 @@ rows a lord):
 
 ```
 default:                  2 siege towers
-personality == 8:         4 siege towers
-personality == 9:         1 battering ram
+personality == 8:         4 siege towers          (replaces the default)
+personality == 9:         1 battering ram         (and keeps the default 2 towers)
 personality == 7:         3 catapults, plus 1 ram if castle type > 3 and season > 2
+                                                  (and keeps the default 2 towers)
 ```
 
-[D] — the personality field is `*(int*)(0x004D8AF8 + (lord*3 − 3) * 0x50)` and was not
-identified; `kingdom.md` §8.2 has four AI personalities.
+### 4.0.1 The personality field is `+0xA0`, and it is no longer untraced  **[V]**
+
+`docs/diplomacy.md` §8.4 lists eleven fields of the 240-byte personality record that *"hold
+plausible per-lord values and were never traced"*, and `+0xA0` is one of them.
+`Siege_Prepare` is its **only** reader. Read straight out of `Lords2.exe` at
+`0x004D8A58 + (lord − 1) × 0xF0 + 0xA0`:
+
+| lord | `+0xA0` | what it orders |
+|---|---:|---|
+| 1 the Knight | **8** | four siege towers |
+| 2 the Baron | **9** | one battering ram, and the default two towers |
+| 3 the Countess | **7** | three catapults, the default two towers, and a ram against a stone or royal castle after season 2 |
+| 4 the Bishop | **7** | the same |
+
+Three of the four values are exactly the three constants the function compares against and
+the fourth repeats one of them; a field that meant something else would not land on that
+set. Two consequences follow and both are worth having:
+
+* **the *"default: 2 towers"* arm is unreachable for every shipped lord** — it exists for a
+  personality byte no lord carries;
+* **the Knight is the only lord who brings no artillery to a siege.** He escalades; the
+  Countess and the Bishop bombard; the Baron breaks the gate.
+
+The cost of each doctrine, with the cumulative rule applied: the Knight 800 man-seasons, the
+Baron 800, the Countess and the Bishop **1,000** — or 1,400 against a big castle late in the
+year, when the ram is added. `crates/l2-kingdom/src/tables.rs` carries the four as
+`AI_PERSONALITY_SIEGE_DOCTRINE` and the core ruleset exposes them as
+`kingdom.ai.personality.N.siege_doctrine`.
 
 Immediately before the battle, `Army_PrepareForBattle` (`0x004AA6CA`) copies the three engine
 counts into `+0x17A/+0x17C/+0x17E` (troop types 7, 8, 9) and, for the **defender**, sets
@@ -1446,6 +1540,34 @@ The rest:
 > interactive siege, and **under autocalc the loser is always destroyed**. The message
 > `0x120` (group 288) for a loser under 50 men belongs to the same branch. `[V]` — the one
 > write and the three clears are the only four sites the flag has. See `decisions.md` C31.
+>
+> ### ⚠ …and that correction stopped one branch short.
+>
+> The loser branch is **two nested tests**, and C31 read the inner one:
+>
+> ```c
+> if (loser.besiegingCounty == 0 || loser.menTotal == 0) {
+>     if (withdrawal) {
+>         if (loser.menTotal < 50) { message 0x120; Army_Destroy(loser); }
+>         else                       loser.besiegingCounty = 0;
+>     } else Army_Destroy(loser);
+> } else loser.besiegingCounty = 0;    /* still besieging, still has men: it lives */
+> ```
+>
+> **The outer `else` is a second survival rule with no flag on it at all.** A loser that is
+> still linked as a besieger and still has living men keeps every one of them and only
+> loses the siege. It is unreachable under the autocalc — which sets the loser's men to
+> zero, so the outer test passes — and reachable from a *fought* siege, where
+> `Battle_CheckOutcome`'s *assault repulsed* and *siege lost* arms end a battle with the
+> besieger still standing. **A repulsed assault costs an army its siege and not its life**,
+> which is the rule that makes a siege a war of attrition. `[V]` — one function, read to
+> its closing brace this time. See `decisions.md` C36.
+>
+> The shipped `Readme.txt`'s *Retreats (pg82)* — *"Armies that retreat will suffer some
+> casualties. Any army that would have less than 50 men after retreating is eliminated
+> instead"* — is the **inner** rule, stated as a general one about retreating. The errata
+> are authoritative about intent and the code is what shipped; in the shipped binary that
+> rule is reachable from one AI handler and from nowhere a player can go.
 
 ### 7.5 The levy walks home — `Defence_Disband` (`0x004ABA5A`)
 

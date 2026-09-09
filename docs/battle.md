@@ -1379,6 +1379,49 @@ side 4 and merely occupied for side 0**, and it raises `0x00553F3C` on the way
 past. A side-4 figure entering a **surface-7** cell — the bridge — calls
 `0x0048551D` first.
 
+### 14.3a `0x00553F3C` is a **third way to win a siege**, and it is not a counter
+
+The flag above is not bookkeeping. `Battle_CheckOutcome` (§7.3) tests it inside
+the siege arm and, when it is set, ends the battle with **army A — the besieger
+— as the winner**. Its only writer is the `0x08` arm of `Cell_TryEnter`, and it
+fires only for a side-4 figure.
+
+So: **an attacker does not have to kill the garrison.** Getting one man to a
+cell carrying flag `0x08` wins the siege outright, with the defenders standing.
+`[D]` for the mechanism — one write, one read, both unambiguous — and `[I]` for
+reading the cell as the keep's door, which is what `Battlefield_BuildCastle`'s
+structure codes and `L2.eng` 214/1 (*"Get your soldiers inside the castle to
+fight the defenders"*) suggest and neither states.
+
+Nothing before today had this. `armies.md` §7.3 listed the arm as *"the escape
+tile flag `DAT_00553F3C`"* without saying who escapes or what it settles; it is
+neither an escape nor the defender's.
+
+### 14.3b Flag `0x40` is the drawbridge, and the game's own errata say so
+
+`docs/battle-ai.md` §6.3 describes the defender's routine at `0x00496B9F` as a
+one-shot latch that *"scans for any cell carrying flag `0x40`, and if one exists"*
+lays down a patch of passable ground — and calls the drawbridge reading `[I]`,
+because nothing outside the code said so.
+
+The shipped `Readme.txt` says so. *Drawbridge (pg95)*: **"Note that only the
+Stone and Royal castles have drawbridges. Within a siege, drawbridges can not be
+closed once they have been opened."** Both halves land: a routine written as a
+search that can *fail* is exactly what a feature only two of five castle types
+have needs, and *"cannot be closed"* is the latch. **[V]**
+
+The same document settles two more readings in this chapter:
+
+* *Battering Rams*: **"Battering rams are only effective at attacking either
+  gatehouses and keeps."** §14.3's two accumulators say the same thing from the
+  other side — a ram cannot stand on a rampart, so the only counter it can ever
+  feed is the gate's.
+* *Siege Towers*: **"Once siege towers reach a wall and 'dock' with it, they can
+  not be moved again."** Nothing found in `UnitOrder_SiegeAttTower` or in the
+  mover enforces that, and it is recorded here as **unlocated** rather than
+  implemented: the handler stops advancing its script on the wall-found path,
+  which is not the same rule.
+
 ### 14.4 The six `a3` animation handlers are unreachable code
 
 Twelve animation functions sit in `0x00486249 … 0x00488240` in six adjacent

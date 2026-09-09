@@ -340,14 +340,24 @@ Legend:
 - ✅ Pathfinding, including two reproduced original bugs
 - ✅ Melee: attack bands, recovery as the only defence, the heavy blow
 - ✅ Missiles: three weapon classes, range, reload, armour
-- ✅ Battle AI: the strength advantage, the 200-frame think, 3 of 17 order handlers reachable
-- 🕳 **The other 14 handlers are siege**, and there is no castle to besiege. The campaign half
-  is traced now: engines are *built on the spot* over several seasons with the army pinned in
-  place, and only then does the assault start — `docs/armies.md` §4
+- ✅ Battle AI: the strength advantage, the 200-frame think, **all 17 order handlers
+  reachable**. The fourteen siege ones had never been dispatched once, because nothing could
+  produce a siege; `crates/l2-sim/tests/siege.rs` runs one and enumerates every handler it
+  reaches. `docs/battle-ai.md` §6
+- ✅ **Sieges, both halves.** Campaign: laying one, the engine order and its ceilings, the
+  build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege.rs`,
+  checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege.rs`).
+  Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
+  the way in — `crates/l2-sim/src/siege.rs`.
 - 🕳 **Missiles are computed and never fired** — a hit resolves, nothing flies
-- ❓ Siege engines: catapults, towers, rams, boiling oil as things that act. Where they come
-  from is traced — 200 / 200 / 400 man-seasons each, and the defender's oil count is a switch
-  on castle type — `docs/armies.md` §4
+- ⚠ **The castle's layout on the battlefield is ours, not the original's.**
+  `Battlefield_BuildCastle`'s cell *translation* is read (`docs/battle.md` §3.0.1); the
+  layout **rasters** it translates are not. `l2_sim::siege::our_castle` is a plain concentric
+  keep with one of everything the rules need, and says so in its name and everywhere it draws.
+- ✅ Siege engines and boiling oil as things that act: they are raised into the battle with
+  the right counts (`Army_PrepareForBattle`, verified against `siege-sieging.sav`), the ram
+  is the only figure that can reach the wall-breaking state, and the oil unit gets the
+  defender-only handler. What they *look like* doing it is the renderer's, and is not done.
 - ❓ Moat filling (traced: figures raise the terrain 15 times)
 - ✅ **When a battle ends, and what happens after** — `Battle_CheckOutcome` (`0x00477DFC`),
   which was in no document at all until the seam was wired. A field battle ends **two** ways:
@@ -402,9 +412,12 @@ Legend:
   `villani1`/`villani2`. The scene here is still.
 - 📖 **`Screen_Draw` has 39 arms**, 35 of them with a named painter. Drawn with real
   contents: the front end and its setup pages, the campaign map, the county panels, the
-  village, the job popup, the conquest screen. Merchant, court, armoury, send-supplies,
-  castle-building, siege prep and thirteen more exist as shells — right artwork and
-  hotspots, contents unbuilt.
+  village, the job popup, the conquest screen, **and the siege-preparation screen**, which
+  graduated out of the shell table: the three engine rows with their counts and percent
+  bars, the seasons countdown, the six order buttons at the widget table's own coordinates,
+  and *Lift siege* / *Proceed* both doing what the original's do. Merchant, court, armoury,
+  send-supplies, castle-building and twelve more remain shells — right artwork and hotspots,
+  contents unbuilt.
   Three of them are now decompiled rather than merely enumerated: the raise-army screen
   (`0x00418653`, and the mercenary offer lives on it — there is no separate mercenaries
   screen), the army-division screen and the siege-preparation screen — `docs/armies.md`.

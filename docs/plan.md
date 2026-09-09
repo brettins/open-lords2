@@ -310,17 +310,27 @@ are the ones the expired constraint was blocking; then castles (6) and industry 
 need the per-lord ladders; then diplomacy (1, 2, 13) last, because a game can be finished
 without diplomacy and cannot be finished without opponents that attack.
 
-**8 — Sieges.** On the critical path, not after it. The **campaign half** is mapped:
-`Army_BeginSiege`, engines built on the spot over seasons (200 / 200 / 400 man-seasons) with
-the army pinned, `Siege_BuildTick`, `Siege_Prepare`'s per-lord order, the assault gate,
-`Siege_Break` and its three callers. Ours has the gate and the link bookkeeping and none of
-the rest. The **battle half** is the harder piece and is now well understood:
-`Battlefield_BuildCastle` (`0x0047C4BA`) takes an **int** and reads a stock cell layout out of
-a `batfield`-family `.pl8` at record `castle × 0x20`, with `Siege_LaunchAssault` passing
-`castleType − 1`. `l2-sim` has the siege troop types, the siege AI scores, the defence posts
-and the siege-side raise order, and **no castle terrain to fight on** — `is_siege` is set true
-only inside the crate's own test fixtures. Unlocks 14 of the 17 battle AI order handlers,
-which are today called by nothing.
+**8 — Sieges. ✅ Built.** The **campaign half** is `crates/l2-kingdom/src/siege.rs`, whole:
+laying a siege and its four refusals, the engine order with the screen's own ceilings of
+4 / 4 / 2, the build over seasons at one point a man, the resumable phase-2 cursor, breaking
+a siege, the assault and its `level < 3 || engines > 0` gate, and `Army_PrepareForBattle`'s
+engines and oil. It is checked against **five snapshots of a real siege** in
+`E:\dev\lords2-fixtures` — twelve stored numbers, all of them reproduced, plus a castle bonus
+that only one of the five levels can produce. The **seam** carries the castle level into
+`auto_resolve` (which has held the bonus table since the seam landed with nothing to pass
+it), and `engagement::run_siege_phase` is turn phase 2 end to end.
+
+The **battle half** is built and **its castle layout is ours**. `Battlefield_BuildCastle`'s
+cell *translation* is read (`docs/battle.md` §3.0.1); the layout rasters it translates are
+not, so `l2_sim::siege::our_castle` builds a plain concentric keep with one of everything the
+rules need and says so in its name. What is the original's and is reproduced: the flags
+(`0x20` wall, `0x40` drawbridge, `0x08` the way in), the two damage accumulators, the ram's
+twentyfold rate, and the three siege end conditions. **All 14 siege order handlers are now
+dispatched** — `crates/l2-sim/tests/siege.rs` runs a siege and enumerates every one.
+
+What remains: the castle's real layout, which needs the rasters read; the tower's *"once
+docked, cannot be moved"* rule from the errata, which was not located in the code; and the
+sprite work, which is the renderer's.
 
 **9 — The long game.** Secession and contiguity (in flight), empire happiness at non-zero tax
 rates, bankruptcy, revolt, alliances. All writable today and none checkable against anything
@@ -445,7 +455,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,399<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,447<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -539,7 +549,7 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->676<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->681<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->28<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and

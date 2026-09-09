@@ -211,7 +211,28 @@ pub enum End {
     Annihilation,
     /// A side left the field — [`BattleRunner::withdraw`].
     Withdrawal,
+    /// **Siege only.** A besieging figure reached the castle's `0x08` cell —
+    /// `DAT_00553F3C`. The garrison is still standing and the siege is over
+    /// anyway.
+    BrokeIn,
+    /// **Siege only.** No breach and no siege engines left, against a castle
+    /// of [`ASSAULT_REPEATS_BELOW_LEVEL`] or above: the besieger has no way in
+    /// and loses. Below that level the same position resets the two progress
+    /// scores and the battle carries on instead.
+    AssaultFailed,
 }
+
+/// The castle level at and above which running out of engines with no breach
+/// **ends** the battle rather than restarting the assault.
+///
+/// The same 3 as `crate::siege`'s campaign-side gate, from a different
+/// function: `Siege_LaunchAssault` refuses to *start* an engineless assault at
+/// level 3, and `Battle_CheckOutcome` refuses to *continue* one. Two
+/// independent statements of the same rule, which is what makes it `[V]`.
+pub const ASSAULT_REPEATS_BELOW_LEVEL: u8 = 3;
+
+/// What *assault repulsed, repeat* resets both progress scores to.
+pub const ASSAULT_REPEAT_SCORE: i32 = 4;
 
 /// **The battle is over.** [`BattleRunner::conclusion`]'s answer.
 ///
@@ -267,6 +288,14 @@ pub struct BattleRunner {
     occupant: Vec<Option<u16>>,
     /// Impassable terrain, built once from the battlefield flags.
     blocked: Vec<bool>,
+    /// The castle, the two damage accumulators and the way in.
+    /// [`crate::siege::SiegeState::field`] on a field battle, and every rule it
+    /// carries is then inert.
+    pub siege: crate::siege::SiegeState,
+    /// One-shot latches for the garrison's first two missile units, which take
+    /// dispatch categories **9** and **10** rather than 1 — `BattleUnit_Create`,
+    /// siege only, side 0 only. `docs/battle-ai.md` §1.2.
+    wall_missile_latch: u8,
     /// The side that has left the field, if any — `DAT_0056D5C8` and
     /// `DAT_005656F8` folded into one. Outranks annihilation.
     withdrawn: Option<Side>,
@@ -341,12 +370,49 @@ impl BattleRunner {
     /// assert_eq!(r.men(SIDE_A), 182);
     /// ```
     pub fn deploy_muster(field: Battlefield, seed: u64, army_a: Muster, army_b: Muster) -> Self {
+        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, None)
+    }
+
+    /// **Deploy a siege** — army A besieging a castle of `castle_level` held by
+    /// army B.
+    ///
+    /// Three things change, and they are the three the original changes:
+    /// `g_battleIsSiege`, the castle level `Battle_CheckOutcome` reads, and the
+    /// two one-shot category latches that give a garrison's first two missile
+    /// units categories **9 and 10** instead of 1. Everything else — the size
+    /// ladder, the raise order, the deployment slots — is what a field battle
+    /// does.
+    ///
+    /// The battlefield is the caller's. [`crate::siege::our_castle`] builds one
+    /// and says in its name that the layout is ours rather than the original's.
+    pub fn deploy_siege(
+        field: Battlefield,
+        seed: u64,
+        army_a: Muster,
+        army_b: Muster,
+        castle_level: u8,
+    ) -> Self {
+        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, Some(castle_level))
+    }
+
+    fn deploy_muster_on(
+        field: Battlefield,
+        seed: u64,
+        army_a: Muster,
+        army_b: Muster,
+        castle_level: Option<u8>,
+    ) -> Self {
         let total = army_a.men() + army_b.men();
         let class = MEN_PER_FIGURE_TABLE[size_class(total)];
         let mpf_a = side_scale(army_a.men(), class);
         let mpf_b = side_scale(army_b.men(), class);
         let mut runner = BattleRunner::empty(field, seed);
         runner.men_per_figure = [mpf_b as u16, mpf_a as u16];
+        if let Some(level) = castle_level {
+            runner.siege = crate::siege::SiegeState::castle(level);
+            runner.ai.is_siege = true;
+            runner.ai_field = crate::siege::our_castle_ai_field(&runner.field, level);
+        }
         // Side 4 first, then side 0 — the order fixes figure indices, and figure
         // indices are the simulation order.
         runner.raise_men(&army_a, mpf_a, SIDE_B);
@@ -384,6 +450,8 @@ impl BattleRunner {
             blocked,
             withdrawn: None,
             men_per_figure: [MEN_PER_FIGURE, MEN_PER_FIGURE],
+            siege: crate::siege::SiegeState::field(),
+            wall_missile_latch: 0,
             tick: 0,
         }
     }
@@ -519,12 +587,19 @@ impl BattleRunner {
             while left > 0 {
                 let unit_men = left.min(per_unit * mpf);
                 let figures = unit_men.div_ceil(mpf) as usize;
-                let Some(unit) = self.units.create(
-                    army.owner,
-                    army.human,
-                    side,
-                    CATEGORY_OF_TROOP[troop.index()],
-                ) else {
+                // `BattleUnit_Create`'s eleven-way ladder, plus the two
+                // one-shot latches: in a **siege**, on side **0**, the first
+                // missile unit raised takes category 9 and the second takes
+                // category 10. Those two categories exist nowhere else, and
+                // their handlers — one of which does nothing but count — are
+                // two of the fourteen this makes reachable.
+                let mut category = CATEGORY_OF_TROOP[troop.index()];
+                if self.siege.is_siege && side == SIDE_A && category == 1 && self.wall_missile_latch < 2
+                {
+                    self.wall_missile_latch += 1;
+                    category = 8 + self.wall_missile_latch;
+                }
+                let Some(unit) = self.units.create(army.owner, army.human, side, category) else {
                     return;
                 };
                 let slot = self.deploy_slot(ordinal, side);
@@ -677,7 +752,46 @@ impl BattleRunner {
         if self.men_of_side(SIDE_A) < 1 {
             return Some(Conclusion { winner: SIDE_B, cause: End::Annihilation });
         }
+        if self.siege.is_siege {
+            // **Arm three: the besieger got in.** A side-4 figure reached a
+            // `0x08` cell, and that alone wins the siege — the garrison need
+            // not be touched.
+            if self.siege.broke_in {
+                return Some(Conclusion { winner: SIDE_B, cause: End::BrokeIn });
+            }
+            // **Arms four and five, which are one test with two answers.** No
+            // breach and no engines left: a small castle can still be stormed,
+            // so the scores are reset and the battle carries on; a big one
+            // cannot, and the besieger has lost.
+            if self.ai.breach_score == 0 && self.ai.siege_engine_count == 0 {
+                if self.siege.castle_level >= ASSAULT_REPEATS_BELOW_LEVEL {
+                    return Some(Conclusion { winner: SIDE_A, cause: End::AssaultFailed });
+                }
+                // *Assault repulsed, repeat* is handled in [`Self::step`],
+                // which is where a state change belongs; this test is `&self`.
+            }
+        }
         None
+    }
+
+    /// **Assault repulsed, repeat.** `Battle_CheckOutcome`'s arm four, which is
+    /// the only place in the whole outcome test that *changes* something
+    /// instead of ending the battle: with no breach and no engines left, a
+    /// castle below level 3 has the breach and approach scores **reset to 4**
+    /// and the fighting goes on.
+    ///
+    /// It reads as the besiegers regrouping for another go, and it is why a
+    /// palisade cannot be defended by simply destroying the siege engines.
+    fn assault_repulsed(&mut self) {
+        if !self.siege.is_siege
+            || self.siege.castle_level >= ASSAULT_REPEATS_BELOW_LEVEL
+            || self.ai.breach_score != 0
+            || self.ai.siege_engine_count != 0
+        {
+            return;
+        }
+        self.ai.breach_score = ASSAULT_REPEAT_SCORE;
+        self.ai.approach_score = ASSAULT_REPEAT_SCORE;
     }
 
     /// A side leaves the field — `DAT_0056D5C8` and `DAT_005656F8`.
@@ -741,6 +855,10 @@ impl BattleRunner {
     pub fn step(&mut self) {
         self.sync_positions();
         self.units.rebuild_from_figures(&mut self.sim.figures);
+        if self.siege.is_siege {
+            self.recount_siege();
+            self.assault_repulsed();
+        }
 
         // A destination the handlers are about to overwrite. Comparing before
         // and after is how this driver notices an order: the handlers in
@@ -806,6 +924,39 @@ impl BattleRunner {
         for _ in 0..ticks {
             self.step();
         }
+    }
+
+    /// The two counters `Battle_UpdateAllMen` recounts **every frame**, and
+    /// which every siege handler branches on.
+    ///
+    /// * `g_attackersOnWall` (`0x00553E64`) — live side-4 figures standing on
+    ///   surface 5. Every defender handler tests it, at 1, 2, 3, 4 and 6.
+    /// * `g_siegeEngineCount` (`0x00553FF0`) — live figures of troop type 7, 8
+    ///   or 9. Three attacker handlers will not move onto the castle objective
+    ///   while it is zero, and `Battle_CheckOutcome` ends the battle when it
+    ///   and the breach score are both zero.
+    ///
+    /// The other two — the approach and breach scores — are *accumulators*
+    /// rather than counts and are raised where the wall comes down.
+    fn recount_siege(&mut self) {
+        let mut on_wall = 0;
+        let mut engines = 0;
+        for f in self.fighters.iter() {
+            if !self.sim.figures[f.sim].is_alive() {
+                continue;
+            }
+            if f.troop.index() >= 7 && f.troop.index() <= 9 {
+                engines += 1;
+            }
+            if f.side == SIDE_B
+                && self.field.cells[f.y as usize * DIM + f.x as usize].surface
+                    == crate::siege::SURFACE_RAMPART
+            {
+                on_wall += 1;
+            }
+        }
+        self.ai.attackers_on_wall = on_wall;
+        self.ai.siege_engine_count = engines;
     }
 
     // -- reforming ----------------------------------------------------------
@@ -1281,6 +1432,12 @@ impl BattleRunner {
     /// outcomes: free, blocked by a friendly, impassable, or an enemy.
     fn enter(&mut self, i: usize, next: Pos) {
         let dst = next.y as usize * DIM + next.x as usize;
+        // **The castle, before anything else.** `Cell_TryEnter` tests `0x40`,
+        // then `0x20`, then `0x08` before it looks at the occupant, and each of
+        // the three answers differently for the two sides.
+        if self.siege.is_siege && self.strike_castle(i, dst) {
+            return;
+        }
         if self.blocked[dst] {
             self.request_path(i);
             return;
@@ -1325,6 +1482,102 @@ impl BattleRunner {
                     self.occupant[dst] = None;
                 }
             }
+        }
+    }
+
+    /// **A figure walks into the castle** — `Cell_TryEnter`'s three siege
+    /// answers, and the two damage accumulators behind them.
+    ///
+    /// Returns true when the step was consumed here, whatever the outcome.
+    ///
+    /// ```c
+    /// if (flags & 0x40) { /* drawbridge: a hole in the wall once it is down */ }
+    /// if (flags & 0x20) return (side == 0) ? 1 : 5;   /* wall: 5 -> state 6  */
+    /// if (flags & 0x08) { if (side == 4) { DAT_00553F3C = 1; return 2; } return 0; }
+    /// ```
+    ///
+    /// and a **siege engine** goes through `Cell_TryEnterEngine` instead, which
+    /// returns **6** — the value `BattleMan_Step` turns into state 14 — for a
+    /// `0x20` or `0x40` cell, and **only when `troopType == 9`**. So a ram is
+    /// the only figure in the game that reaches state 14, and every other
+    /// engine is simply stopped by a wall.
+    fn strike_castle(&mut self, i: usize, dst: usize) -> bool {
+        use crate::siege::{FLAG_DRAWBRIDGE, FLAG_KEEP, FLAG_WALL};
+        let flags = self.field.cells[dst].flags;
+        let side = self.fighters[i].side;
+        let troop = self.fighters[i].troop;
+        let engine = troop.index() >= 7;
+        let is_ram = troop == Troop::BatteringRams;
+
+        // The drawbridge is a hole in the wall for whoever is standing on it —
+        // it is the patch of passable ground the defender's routine lays down —
+        // except that a ram treats it as something to break, which is the
+        // `0x20 | 0x40` arm of `Cell_TryEnterEngine`.
+        if flags & FLAG_DRAWBRIDGE != 0 && !is_ram {
+            return false;
+        }
+
+        if flags & (FLAG_WALL | FLAG_DRAWBRIDGE) != 0 {
+            if side == SIDE_A {
+                // The garrison walks its own walls.
+                return false;
+            }
+            // An engine that is not a ram is simply stopped: no state 14, no
+            // hits, nothing. `Cell_TryEnterEngine` returns 6 for troop type 9
+            // and 2 — blocked — for 7 and 8.
+            if engine && !is_ram {
+                self.fighters[i].anim = Motion::Idle;
+                return true;
+            }
+            let standing = self.field.cells
+                [self.fighters[i].y as usize * DIM + self.fighters[i].x as usize]
+                .surface;
+            let blow = crate::siege::strike_wall(&mut self.siege, standing, is_ram);
+            self.fighters[i].anim = Motion::Attacking;
+            match blow {
+                crate::siege::WallBlow::RampartBreached => {
+                    // The patch the attacker was standing beside comes down.
+                    // Surface 4 is what `Siege_FindCellSurface4` hunts for, so
+                    // this is how the order layer learns the wall is open.
+                    self.field.cells[dst].surface = crate::siege::SURFACE_BREACH;
+                    self.field.cells[dst].flags &= !FLAG_WALL;
+                    self.field.cells[dst].elevation = 1;
+                    self.blocked[dst] = self.field.cells[dst].impassable();
+                    self.refresh_ai_surfaces();
+                    self.ai.breach_score += 1;
+                    self.ai.approach_score += 1;
+                }
+                crate::siege::WallBlow::GateBreached => {
+                    self.field.cells[dst].surface = crate::siege::SURFACE_BREACH;
+                    self.field.cells[dst].flags &= !(FLAG_WALL | FLAG_DRAWBRIDGE);
+                    self.blocked[dst] = self.field.cells[dst].impassable();
+                    self.refresh_ai_surfaces();
+                    self.ai.breach_score += crate::siege::GATE_BREACH_SCORE;
+                    self.ai.approach_score += crate::siege::GATE_BREACH_SCORE;
+                }
+                crate::siege::WallBlow::Absorbed => {}
+            }
+            return true;
+        }
+
+        if flags & FLAG_KEEP != 0 {
+            // **The way in.** The step is refused for both sides; for the
+            // besieger it also ends the battle.
+            if side == SIDE_B {
+                self.siege.broke_in = true;
+            }
+            self.fighters[i].anim = Motion::Idle;
+            return true;
+        }
+        false
+    }
+
+    /// The AI reads the surfaces out of its own copy, so a breach has to reach
+    /// it. Cheap enough at once per breach; there are at most a handful.
+    fn refresh_ai_surfaces(&mut self) {
+        for (c, cell) in self.field.cells.iter().enumerate() {
+            self.ai_field.surface[c] = cell.surface;
+            self.ai_field.elevation[c] = cell.elevation;
         }
     }
 

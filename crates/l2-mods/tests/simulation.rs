@@ -681,7 +681,7 @@ fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
              gift_increment = {gift}\nhelp_price = {help}\ngrudge_tolerance = {grudge}\n\
              offer_interval = {offer}\nhelp_population_floor = {floor}\nmuster_pct = {muster}\n\
              castle_concurrent = {concurrent}\ncastle_min_population = {min_pop}\n\
-             castle_gold = [{gold}]\n\n"
+             castle_gold = [{gold}]\nsiege_doctrine = 8\n\n"
         )
     }
     let rows = lord(1, 1, 0, 100, 500, 5, 12, 1000, 30, 4, 700, "200, 0, 1000, 0, 10000")

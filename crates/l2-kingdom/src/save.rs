@@ -135,7 +135,21 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   layout has to touch it and none of them can see the others. A check like
 ///   `tools/decisions/corrections.js` — which catches exactly this for
 ///   correction numbers — is the fix, and it does not exist for this constant.
-pub const VERSION: u32 = 8;
+/// * 9 — **sieges** (`crate::siege`). The unit grew the three siege-engine
+///   build records and the seasons countdown; `County::castle_degraded` grew
+///   from a `bool` to the three-valued byte it always was, and the county grew
+///   `castle_ruined` and `castle_level_left` beside it. `Unit::defence_mark`
+///   joins them: it existed before and was in neither the save nor the
+///   checksum, which is C30's shape exactly, and it is the byte that decides
+///   whether winning a battle also wins the county. An older save has no siege
+///   in it, but it also cannot say what its `castle_degraded` bytes meant — a
+///   `true` could be either 1 or 2 and the two fight different castles — so
+///   this is a refusal rather than a widening.
+///
+///   **And a fourth collision, on the same day as the other three.** This
+///   arrived as its own version 7. The standing hazard above is now the rule
+///   rather than the exception: assume the number has moved under you.
+pub const VERSION: u32 = 9;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -570,6 +584,18 @@ impl Encode for crate::unit::Unit {
         out.u8(self.besieging_county);
         out.u8(self.besieged_by);
         out.u8(self.cargo_county);
+        // The siege state. `defence_mark` joins it here for the reason C30
+        // gives: it was in no save and in no checksum, and it is the byte that
+        // decides whether winning a battle also wins the county. It is
+        // short-lived — written when a defence is found, read when the battle
+        // returns — but a save taken between those two points loses the county.
+        out.u8(self.defence_mark);
+        for record in &self.engines {
+            out.i16(record.ordered);
+            out.i16(record.percent);
+            out.i16(record.work_done);
+        }
+        out.u8(self.siege_seasons_left);
     }
 }
 
@@ -638,6 +664,13 @@ impl Decode for crate::unit::Unit {
         u.besieging_county = input.u8()?;
         u.besieged_by = input.u8()?;
         u.cargo_county = input.u8()?;
+        u.defence_mark = input.u8()?;
+        for record in u.engines.iter_mut() {
+            record.ordered = input.i16()?;
+            record.percent = input.i16()?;
+            record.work_done = input.i16()?;
+        }
+        u.siege_seasons_left = input.u8()?;
         Ok(u)
     }
 }
@@ -727,7 +760,9 @@ impl Encode for County {
         out.i32(self.levy_surcharge);
         out.u8(self.castle_type);
         out.u8(self.castle_building);
-        out.bool(self.castle_degraded);
+        out.u8(self.castle_degraded);
+        out.bool(self.castle_ruined);
+        out.u8(self.castle_level_left);
         out.bool(self.castle_switch);
         out.i32(self.castle_progress);
         out.i32(self.event_population_pct);
@@ -850,7 +885,9 @@ impl Decode for County {
         c.levy_surcharge = input.i32()?;
         c.castle_type = input.u8()?;
         c.castle_building = input.u8()?;
-        c.castle_degraded = input.bool()?;
+        c.castle_degraded = input.u8()?;
+        c.castle_ruined = input.bool()?;
+        c.castle_level_left = input.u8()?;
         c.castle_switch = input.bool()?;
         c.castle_progress = input.i32()?;
         c.event_population_pct = input.i32()?;

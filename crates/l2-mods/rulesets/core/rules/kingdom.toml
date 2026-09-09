@@ -820,6 +820,11 @@ rate = 10
 # lord byte runs 1..5, but a fifth record's bytes read a farm style of
 # 17 where every real one reads 0, 1 or 9. A realm whose lord names no
 # record sets no tax rates at all.
+#
+# siege_doctrine is record +0xA0 and it DOES take effect: 8 orders four
+# siege towers, 9 a battering ram, 7 three catapults and a late ram,
+# and anything else leaves the default of two towers. The orders are
+# cumulative, so 7 and 9 also get the two towers.
 
 [[kingdom.ai.personality]]
 lord = 1
@@ -834,6 +839,7 @@ muster_pct = 30
 castle_concurrent = 4
 castle_min_population = 700
 castle_gold = [200, 0, 1000, 0, 10000]
+siege_doctrine = 8
 
 [[kingdom.ai.personality]]
 lord = 2
@@ -848,6 +854,7 @@ muster_pct = 30
 castle_concurrent = 3
 castle_min_population = 650
 castle_gold = [0, 500, 0, 4000, 0]
+siege_doctrine = 9
 
 [[kingdom.ai.personality]]
 lord = 3
@@ -862,6 +869,7 @@ muster_pct = 40
 castle_concurrent = 2
 castle_min_population = 600
 castle_gold = [0, 300, 0, 2000, 0]
+siege_doctrine = 7
 
 [[kingdom.ai.personality]]
 lord = 4
@@ -876,6 +884,7 @@ muster_pct = 50
 castle_concurrent = 1
 castle_min_population = 600
 castle_gold = [0, 0, 100, 0, 2000]
+siege_doctrine = 7
 
 # --- score -----------------------------------------------------------
 # The gold brackets are the one term of the score whose meaning is

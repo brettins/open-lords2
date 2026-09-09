@@ -52,4 +52,5 @@ pub mod menu;
 pub mod saveload;
 pub mod setup;
 pub mod shells;
+pub mod siege;
 pub mod village;

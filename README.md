@@ -26,10 +26,10 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 | Mods | rules are data; a mod can override the tables |
 | Multiplayer | deterministic lockstep, tested — no matchmaking or UI |
 | **Castle designer** | **not started.** One of the game's signature features |
-| **Sieges** | traced end to end, built nowhere. 14 of 17 battle AI handlers are siege-only and unreachable |
+| **Sieges** | built, both halves — and the 14 siege battle AI handlers are reachable at last. The castle's *layout* on the battlefield is ours, not the original's, and says so |
 | Merchants, diplomacy, armies | documented in detail, implemented barely or not at all |
 
-**<!--fig:tests-->1,399<!--/fig--> tests pass**, and roughly a third of them assert things
+**<!--fig:tests-->1,447<!--/fig--> tests pass**, and roughly a third of them assert things
 read out of the original binary rather than out of our own heads.
 
 Two honest caveats. The one shipped save we test against exercises a narrow slice of the
@@ -38,7 +38,7 @@ how two wrong rules once survived **932 passing tests** *(that figure is deliber
 it is the size of the suite at the moment `docs/decisions.md` C26 describes, and correcting
 it to today's number would destroy the thing it records)*. And of the executable's
 <!--fig:binary-functions-->2,452<!--/fig--> functions, we have identified
-**<!--fig:functions-->676<!--/fig-->**, plus <!--fig:globals-->421<!--/fig--> globals; most
+**<!--fig:functions-->681<!--/fig-->**, plus <!--fig:globals-->424<!--/fig--> globals; most
 of the program is still dark.
 
 ## The idea that shapes everything

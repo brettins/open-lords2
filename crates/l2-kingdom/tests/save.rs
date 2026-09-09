@@ -93,7 +93,7 @@ fn furnished(seed: u64) -> Kingdom {
         c.castle_type = (id % 6) as u8;
         c.castle_building = ((id + 1) % 6) as u8;
         c.castle_progress = id as i32 * 13;
-        c.castle_degraded = id % 3 == 0;
+        c.castle_degraded = (id % 3) as u8;
         c.tax_suppressed = id % 4 == 0;
         c.unrest_warned = id % 2 == 0;
         c.event_id = id as u16 * 3;
@@ -170,6 +170,12 @@ fn furnish_campaign(k: &mut Kingdom) {
         u.garrison_county = if n == 1 { 3 } else { 0 };
         u.besieging_county = if n == 2 { 5 } else { 0 };
         u.besieged_by = if n == 3 { 2 } else { 0 };
+        if n == 2 {
+            u.engines[0] = l2_kingdom::EngineBuild { ordered: 1, percent: 43, work_done: 86 };
+            u.engines[2] = l2_kingdom::EngineBuild { ordered: 2, percent: 0, work_done: 0 };
+            u.siege_seasons_left = 3;
+        }
+        u.defence_mark = if n == 4 { 1 } else { 0 };
         // Slot 1 upward, but not contiguously: a gap is state too.
         k.campaign.units.put(n * 2 + 1, u);
     }
@@ -327,6 +333,13 @@ fn every_part_of_the_state_reaches_the_bytes() {
         ("unit morale", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().morale = 99)),
         ("unit wages", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().wages = 1)),
         ("unit garrison", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().garrison_county = 7)),
+        ("unit besieging", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().besieging_county = 6)),
+        ("unit besieged_by", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().besieged_by = 6)),
+        ("unit defence_mark", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().defence_mark = 2)),
+        ("unit engine ordered", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().engines[1].ordered = 4)),
+        ("unit engine percent", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().engines[1].percent = 50)),
+        ("unit engine work", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().engines[2].work_done = 77)),
+        ("unit siege seasons", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().siege_seasons_left = 9)),
         ("unit mercenaries", Box::new(|k: &mut Kingdom| k.campaign.units.get_mut(1).unwrap().mercenaries = None)),
         ("unit slot", Box::new(|k: &mut Kingdom| { k.campaign.units.remove(3); })),
         ("map terrain", Box::new(|k: &mut Kingdom| k.campaign.map.set_terrain(9, 9, 200))),
@@ -415,7 +428,9 @@ fn every_part_of_the_state_reaches_the_bytes() {
         ("enemy_troops", Box::new(|k: &mut Kingdom| k.counties[2].enemy_troops = 1)),
         ("castle_type", Box::new(|k: &mut Kingdom| k.counties[2].castle_type = 5)),
         ("castle_building", Box::new(|k: &mut Kingdom| k.counties[2].castle_building = 5)),
-        ("castle_degraded", Box::new(|k: &mut Kingdom| k.counties[2].castle_degraded = true)),
+        ("castle_degraded", Box::new(|k: &mut Kingdom| k.counties[2].castle_degraded = 1)),
+        ("castle_ruined", Box::new(|k: &mut Kingdom| k.counties[2].castle_ruined = true)),
+        ("castle_level_left", Box::new(|k: &mut Kingdom| k.counties[2].castle_level_left = 3)),
         ("castle_progress", Box::new(|k: &mut Kingdom| k.counties[2].castle_progress = 5)),
         ("event_pop_pct", Box::new(|k: &mut Kingdom| k.counties[2].event_population_pct = 5)),
         ("event_grain_pct", Box::new(|k: &mut Kingdom| k.counties[2].event_grain_pct = 5)),

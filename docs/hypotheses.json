@@ -196,22 +196,6 @@
       "comment": "Unanchored: only its position in the table is known."
     },
     {
-      "addr": "0x0043B681",
-      "name": "SiegePrep_Add",
-      "section": "ui",
-      "confidence": "subject",
-      "basis": "Records 0, 2 and 4 of the siege-preparation widget table 0x004DDF10, frame 21 at x 38 and y 184 / 252 / 320, hotspot ids 0, 1 and 2. Screen_SiegePrep draws L2.eng group 83, whose indices 1, 2 and 3 are Catapults, Siege towers and Battering rams in that order. The body caps the count at 4, 4 and 2 respectively and refuses in a network game.",
-      "comment": "Order one more siege engine of the row's type. The caps 4 / 4 / 2 are read off the body and are not yet cross-checked against play."
-    },
-    {
-      "addr": "0x0043B741",
-      "name": "SiegePrep_Remove",
-      "section": "ui",
-      "confidence": "subject",
-      "basis": "Records 1, 3 and 5 of 0x004DDF10, frame 23, each 26 pixels below its partner, same hotspot ids. Decrements the same field while it is above zero.",
-      "comment": "Cancel one ordered siege engine."
-    },
-    {
       "addr": "0x00436372",
       "name": "Diplo_AdjustGift",
       "section": "diplomacy",
@@ -593,15 +577,6 @@
       "comment": "Set to 40 when a move selection begins and decremented once per Map_HoverUnitTarget call while positive. Never read anywhere else in the traced corpus.",
       "basis": "Two sites, both writes. A counter nothing reads is exactly the shape a reader should distrust: 'damper' is a guess at intent, not a finding.",
       "promotion": "Find a reader. If there is none, say so and drop the name - an unread counter deserves a number, not a noun."
-    },
-    {
-      "addr": "0x004D8AF8",
-      "name": "g_lordPersonality",
-      "section": "diplomacy",
-      "confidence": "both",
-      "comment": "Stride 0x50, three rows a lord. Siege_Prepare reads *(int*)(base + (lord*3 - 3) * 0x50) to choose the AI's siege-engine order.",
-      "basis": "The indexing arithmetic, and docs/armies.md section 4's [D] reading of the branch. The name comes from what the branch is used FOR, which is the weakest kind of evidence and is C3's shape.",
-      "promotion": "Read the table out of the file with tools/oracle/tables.ps1 and check the values against kingdom.md section 8.2's four personalities. Three rows a lord at 0x50 is a layout claim that can be falsified by the bytes alone."
     },
     {
       "addr": "0x00504020",

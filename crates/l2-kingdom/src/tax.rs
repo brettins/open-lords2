@@ -31,7 +31,7 @@ pub const FREE_TAX_RATE: i32 = 5;
 /// meaning is **`[D]`** — a siege or a partly razed castle would both fit and
 /// neither is established.
 pub fn effective_castle_type(county: &County) -> u8 {
-    if !county.castle_degraded {
+    if county.castle_degraded == 0 {
         return county.castle_type;
     }
     if county.castle_building == 0 {
@@ -389,13 +389,13 @@ mod tests {
     #[test]
     fn a_degraded_castle_taxes_at_the_lower_of_the_two_types() {
         let mut c = county_with(1000, 100, 5);
-        c.castle_degraded = true;
+        c.castle_degraded = crate::siege::CASTLE_DEGRADED_BUILDING;
         c.castle_building = 2;
         assert_eq!(collect(T, &mut c, 0), pct(pct(1000, 560), 100));
 
         // A zero castle_building forces type 0 outright.
         let mut c = county_with(1000, 100, 5);
-        c.castle_degraded = true;
+        c.castle_degraded = crate::siege::CASTLE_DEGRADED_BUILDING;
         c.castle_building = 0;
         assert_eq!(collect(T, &mut c, 0), pct(pct(1000, 320), 100));
     }

@@ -144,6 +144,111 @@ pub fn resolve(
     seed: u64,
 ) -> Option<BattleReport> {
     let Attack::Battle { attacker, defender } = attack else { return None };
+    resolve_battle(kingdom, attacker, defender, county, None, answer, seed)
+}
+
+/// **Resolve a siege assault** — [`l2_kingdom::siege::assault`]'s
+/// [`Assault::Battle`](l2_kingdom::siege::Assault::Battle), fought or
+/// auto-resolved.
+///
+/// The only differences from [`resolve`] are the three the original makes, and
+/// each of them is one argument:
+///
+/// * the **castle level** goes to [`battle::auto_resolve`], which multiplies
+///   the *defender's* strength by [`battle::CASTLE_STRENGTH_PERCENT`]. The
+///   table has been in that function since the seam landed with nothing to
+///   pass it; this is what passes it.
+/// * `Army_PrepareForBattle` fills the four battle-only troop slots — the
+///   besieger's engines and the garrison's oil — and they go into the muster
+///   rather than into the campaign record, because the original zeroes them
+///   again the instant the battle ends.
+/// * `g_battleIsSiege` reaches [`battle::return_to_campaign`], where it decides
+///   which half of the siege link is cleared, and reaches
+///   [`battle::outcome`], where it picks four of the seven `L2.eng` group 82
+///   banners.
+///
+/// **The `county` is the besieged one**, taken from the besieger's own
+/// `besieging_county`, exactly as `Siege_LaunchAssault` takes it.
+pub fn resolve_siege(
+    kingdom: &mut Kingdom,
+    assault: l2_kingdom::siege::Assault,
+    answer: Answer,
+    seed: u64,
+) -> Option<BattleReport> {
+    let l2_kingdom::siege::Assault::Battle { attacker, defender, castle_level } = assault else {
+        return None;
+    };
+    let county = kingdom.campaign.units.get(attacker)?.besieging_county;
+    resolve_battle(kingdom, attacker, defender, county, Some(castle_level), answer, seed)
+}
+
+/// **Turn phase 2, end to end** — `Turn_Tick`'s `g_turnPhase == 2` arm.
+///
+/// ```c
+/// if (step == 1) Siege_StartPhase();
+/// if (step % 100 == 2) {
+///     if (Siege_TickPhase() == 0) Turn_AdvancePhase();
+///     else                        Siege_LaunchAssault(g_siegeCursor);
+/// }
+/// ```
+///
+/// **Phase 2 is sieges and nothing else.** It is called *"army movement"* in
+/// `docs/kingdom.md` §3.1 and there is no movement in it: `Siege_StartPhase`,
+/// a cursor, and the assaults it yields. Armies move in phase 4, under whoever
+/// is driving that realm.
+///
+/// The cursor is deliberately not advanced past an army that assaulted: the
+/// assault clears the siege link one way or another, so the next
+/// [`l2_kingdom::siege::build_tick`] on that slot reports nothing and the
+/// cursor moves on by itself. Reproduced, and it is what makes the loop
+/// terminate.
+///
+/// `answer` decides what a human does when asked to take the field, and `seed`
+/// must come from simulation state — a battle is lockstep state like any other.
+/// Returns one report per assault fought, in cursor order.
+pub fn run_siege_phase(kingdom: &mut Kingdom, answer: Answer, seed: u64) -> Vec<BattleReport> {
+    let mut cursor = {
+        let Kingdom { counties, campaign, .. } = kingdom;
+        l2_kingdom::siege::start_phase(counties, &mut campaign.units)
+    };
+    let mut reports = Vec::new();
+    // The cursor only ever advances, so this cannot spin: at worst it looks at
+    // every unit slot once and yields at most one assault a slot.
+    for round in 0..=l2_kingdom::MAX_UNITS {
+        let ready = {
+            let Kingdom { campaign, .. } = kingdom;
+            l2_kingdom::siege::tick_phase(&mut cursor, &mut campaign.units)
+        };
+        let Some(army) = ready else { break };
+        let assault = {
+            let Kingdom { counties, campaign, .. } = kingdom;
+            l2_kingdom::siege::assault(counties, &mut campaign.units, army)
+        };
+        // A refusal is not a battle: message `0x119` and the siege is lifted,
+        // which `siege::assault` has already done.
+        if let Some(report) =
+            resolve_siege(kingdom, assault, answer, seed.wrapping_add(round as u64))
+        {
+            reports.push(report);
+        }
+        // Whatever happened, this slot must not be looked at again with the
+        // same state — the original relies on the link being gone, and an
+        // assault that was refused has had it broken too.
+        cursor.at += 1;
+    }
+    reports
+}
+
+#[allow(clippy::too_many_arguments)]
+fn resolve_battle(
+    kingdom: &mut Kingdom,
+    attacker: usize,
+    defender: usize,
+    county: u8,
+    castle_level: Option<u8>,
+    answer: Answer,
+    seed: u64,
+) -> Option<BattleReport> {
     let before = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.men);
     let (attacker_before, defender_before) = (before(kingdom, attacker), before(kingdom, defender));
 
@@ -156,16 +261,21 @@ pub fn resolve(
     let take_the_field = settlement == Settlement::Prompt && answer == Answer::TakeTheField;
 
     let (verdict, resolution) = if take_the_field {
-        fight(kingdom, attacker, defender, seed)?
+        fight(kingdom, attacker, defender, castle_level, seed)?
     } else {
-        // Sieges are out of scope, so no castle level is ever passed. When they
-        // arrive this is the one argument that changes.
-        let verdict = battle::auto_resolve(&mut kingdom.campaign.units, attacker, defender, None)?;
+        let verdict =
+            battle::auto_resolve(&mut kingdom.campaign.units, attacker, defender, castle_level)?;
         (verdict, Resolution::Autocalc)
     };
 
     let attacker_after = before(kingdom, attacker);
     let defender_after = before(kingdom, defender);
+
+    // `g_battleWithdrawal` is raised in exactly one place in the original —
+    // `UnitOrder_SiegeAttKnight` — and `l2-sim` reports it the same way, as the
+    // cause of the conclusion. Nothing else can set it, which is the whole
+    // point of C31.
+    let withdrawal = matches!(resolution, Resolution::Fought { cause: End::Withdrawal, .. });
 
     let Kingdom { counties, realms, campaign, options, tables, .. } = kingdom;
     let aftermath = battle::return_to_campaign(
@@ -176,7 +286,8 @@ pub fn resolve(
         &mut campaign.names,
         verdict,
         county,
-        false,
+        castle_level.is_some(),
+        withdrawal,
         options.difficulty,
     );
     // `Defence_Disband` runs **after** the return, at the end of screen `0x13`
@@ -228,10 +339,21 @@ fn fight(
     kingdom: &mut Kingdom,
     attacker: usize,
     defender: usize,
+    castle_level: Option<u8>,
     seed: u64,
 ) -> Option<(Verdict, Resolution)> {
-    let a_troops = muster_of(kingdom, attacker)?;
-    let d_troops = muster_of(kingdom, defender)?;
+    // `Army_PrepareForBattle` — the four battle-only troop slots, produced here
+    // rather than stored, because the original zeroes them again the moment the
+    // battle is over (`Army_ClearBattleSlots`).
+    let (a_extra, d_extra) = match castle_level {
+        Some(level) => (
+            l2_kingdom::siege::prepare_besieger(kingdom.campaign.units.get(attacker)?),
+            l2_kingdom::siege::prepare_garrison(level),
+        ),
+        None => Default::default(),
+    };
+    let a_troops = muster_with(kingdom, attacker, a_extra)?;
+    let d_troops = muster_with(kingdom, defender, d_extra)?;
     let (a_owner, a_human) = {
         let u = kingdom.campaign.units.get(attacker)?;
         (u.owner, u.owner_is_human)
@@ -241,12 +363,21 @@ fn fight(
         (u.owner, u.owner_is_human)
     };
 
-    let mut runner = BattleRunner::deploy_muster(
-        blank_field(),
-        seed,
-        Muster { troops: &a_troops, owner: a_owner, human: a_human },
-        Muster { troops: &d_troops, owner: d_owner, human: d_human },
-    );
+    let a = Muster { troops: &a_troops, owner: a_owner, human: a_human };
+    let d = Muster { troops: &d_troops, owner: d_owner, human: d_human };
+    let mut runner = match castle_level {
+        // **The castle layout is ours, not the original's**, and
+        // `l2_sim::siege::our_castle` says so in its name. See its module
+        // header: `Battlefield_BuildCastle` reads a raster we have not read.
+        Some(level) => BattleRunner::deploy_siege(
+            l2_sim::siege::our_castle(level),
+            seed,
+            a,
+            d,
+            level,
+        ),
+        None => BattleRunner::deploy_muster(blank_field(), seed, a, d),
+    };
 
     // A human side gets no order handler — `Battle_UpdateAllUnits` guards on
     // it — so without this it stands where it deployed until the other side
@@ -306,17 +437,36 @@ fn fight(
 /// [`TroopType`]'s order and [`Troop`]'s alike. The four battle-only slots
 /// (`+0x16C + t*2` for `t` 7…10) hold siege engines and oil and are filled by
 /// `Army_PrepareForBattle` on the siege path only, which is out of scope.
+#[cfg(test)]
 fn muster_of(kingdom: &Kingdom, id: usize) -> Option<Vec<(Troop, u32)>> {
+    muster_with(kingdom, id, l2_kingdom::siege::BattleEngines::default())
+}
+
+/// The same, plus the four battle-only slots a siege fills. `extra` is empty
+/// for a field battle, so the two paths are one function.
+fn muster_with(
+    kingdom: &Kingdom,
+    id: usize,
+    extra: l2_kingdom::siege::BattleEngines,
+) -> Option<Vec<(Troop, u32)>> {
     let u = kingdom.campaign.units.get(id)?;
-    let mut counts = [0u32; TROOP_TYPES];
+    let mut counts = [0u32; 11];
     for (slot, men) in counts.iter_mut().zip(u.troops.iter()) {
         *slot = (*men).max(0) as u32;
     }
     if let Some(band) = u.mercenaries {
         counts[band.troop.index()] += band.men().max(0) as u32;
     }
+    // Troop types 7…10. **These are counts of engines, not of men**: one
+    // catapult is one figure whatever the men-per-figure scale, and
+    // `BattleRunner::raise_men` multiplies them back up for exactly that
+    // reason.
+    for (slot, count) in extra.counts().into_iter().enumerate() {
+        counts[7 + slot] = count.max(0) as u32;
+    }
+    debug_assert_eq!(TROOP_TYPES, 7, "the campaign record carries seven of the eleven");
     Some(
-        (0..TROOP_TYPES)
+        (0..11)
             .filter(|&t| counts[t] > 0)
             .map(|t| (l2_sim::ALL_TROOPS[t], counts[t]))
             .collect(),
@@ -604,5 +754,217 @@ mod tests {
         assert_eq!(runner.survivors(SIDE_B)[TroopType::Swordsman.index()], 25);
         assert_eq!(runner.survivors(SIDE_A)[TroopType::Archer.index()], 60);
         assert_eq!(runner.men(SIDE_B) + runner.men(SIDE_A), 360, "nobody lost in the raising");
+    }
+
+    // --- sieges ------------------------------------------------------------
+
+    /// A besieging army with its engines built, a garrison in a castle, and
+    /// the assault taken all the way back onto the campaign map.
+    fn siege_kingdom(castle_type: u8, engines: [i16; 3]) -> (Kingdom, usize, usize) {
+        // Chosen so that the castle bonus is the *only* thing that decides it:
+        // 200 peasants and 150 knights score 3,720, and 100 archers with 50
+        // pikemen score 1,770 — which the five castle percentages lift to
+        // 2,832 / 3,540 / 4,425 / 5,664 / 7,080. The attacker clears the first
+        // two and nothing above them.
+        let (mut k, a, d) = kingdom_with(
+            &[(TroopType::Peasant, 200), (TroopType::Knight, 150)],
+            &[(TroopType::Archer, 100), (TroopType::Pikeman, 50)],
+            2,
+            false,
+        );
+        k.counties[3].owner = 2;
+        k.counties[3].castle_type = castle_type;
+        k.counties[3].garrison_unit = d;
+        k.realms[2].in_play = true;
+
+        let du = k.campaign.units.get_mut(d).unwrap();
+        du.garrison_county = 3;
+        du.defence_mark = 0;
+        du.besieged_by = a as u8;
+        let au = k.campaign.units.get_mut(a).unwrap();
+        au.besieging_county = 3;
+        for (slot, ordered) in au.engines.iter_mut().zip(engines) {
+            slot.ordered = ordered;
+            slot.percent = 100;
+        }
+        (k, a, d)
+    }
+
+    /// **The castle level reaches the autocalc, and it changes who wins.**
+    ///
+    /// The same two armies, the same seed, five castles: the besieger takes a
+    /// palisade and is thrown off a royal castle, and the only thing that
+    /// differs is [`l2_kingdom::battle::CASTLE_STRENGTH_PERCENT`]. Until this
+    /// existed the table was in `auto_resolve` with nothing to pass it.
+    #[test]
+    fn the_castle_level_reaches_the_autocalc_and_decides_the_siege() {
+        let mut won = Vec::new();
+        for castle_type in 1..=5u8 {
+            let (mut k, a, d) = siege_kingdom(castle_type, [2, 0, 0]);
+            let assault = l2_kingdom::siege::assault(&k.counties, &mut k.campaign.units, a);
+            assert!(matches!(
+                assault,
+                l2_kingdom::siege::Assault::Battle { castle_level, .. }
+                    if castle_level == castle_type - 1
+            ));
+            let report = resolve_siege(&mut k, assault, Answer::Decline, 1).expect("a siege");
+            assert_eq!(report.resolution, Resolution::Autocalc);
+            won.push(report.verdict.attacker_won);
+            if report.verdict.attacker_won {
+                assert_eq!(k.counties[3].owner, 1, "the castle fell and the county with it");
+                assert_eq!(k.counties[3].garrison_unit, 0);
+                assert!(k.campaign.units.get(d).is_none());
+                assert_eq!(k.campaign.units.get(a).unwrap().besieging_county, 0);
+            } else {
+                assert_eq!(k.counties[3].owner, 2, "a castle that holds keeps its county");
+                assert_eq!(k.campaign.units.get(d).unwrap().besieged_by, 0, "the siege is over");
+            }
+        }
+        assert_eq!(
+            won,
+            vec![true, true, false, false, false],
+            "the same army takes the two smallest castles and no others"
+        );
+    }
+
+    /// **The engines and the oil reach the battle**, which is the whole of
+    /// `Army_PrepareForBattle` — and neither survives it.
+    #[test]
+    fn the_besiegers_engines_and_the_garrisons_oil_are_raised_and_then_gone() {
+        let (k, a, d) = siege_kingdom(5, [2, 1, 1]);
+        let engines = l2_kingdom::siege::prepare_besieger(k.campaign.units.get(a).unwrap());
+        let oil = l2_kingdom::siege::prepare_garrison(4);
+        assert_eq!(engines.counts(), [2, 1, 1, 0]);
+        assert_eq!(oil.counts(), [0, 0, 0, 6], "a royal castle gets six pots");
+
+        let at = muster_with(&k, a, engines).unwrap();
+        let dt = muster_with(&k, d, oil).unwrap();
+        assert!(at.iter().any(|&(t, n)| t == l2_sim::Troop::Catapults && n == 2));
+        assert!(dt.iter().any(|&(t, n)| t == l2_sim::Troop::Oil && n == 6));
+
+        // And the campaign record never learns about them: `Unit::troops` is
+        // seven columns and the four battle slots are produced on the way in.
+        assert_eq!(k.campaign.units.get(a).unwrap().troops.len(), TROOP_TYPES);
+    }
+
+    /// A siege **fought** rather than calculated: the castle is on the field,
+    /// the siege order tables are the ones being dispatched, and the result
+    /// comes back onto the campaign map.
+    ///
+    /// The winner is deliberately not asserted, for the same reason the field
+    /// version does not assert one — missiles do not fly yet, so a fought
+    /// battle here and a fought battle there would not agree.
+    #[test]
+    fn a_fought_siege_puts_a_castle_on_the_field_and_returns_a_result() {
+        let (mut k, a, d) = siege_kingdom(4, [2, 2, 1]);
+        k.campaign.units.get_mut(d).unwrap().owner_is_human = true;
+        let assault = l2_kingdom::siege::assault(&k.counties, &mut k.campaign.units, a);
+        let report =
+            resolve_siege(&mut k, assault, Answer::TakeTheField, 0xB01D).expect("a siege");
+        assert!(
+            matches!(report.resolution, Resolution::Fought { .. } | Resolution::Stalled { .. }),
+            "taking the field runs l2-sim: {:?}",
+            report.resolution
+        );
+        // Whoever won, the siege link is gone on both sides afterwards.
+        for id in [a, d] {
+            if let Some(u) = k.campaign.units.get(id) {
+                assert_eq!(u.besieging_county, 0);
+                assert_eq!(u.besieged_by, 0);
+            }
+        }
+    }
+
+    /// **A whole turn phase 2**, from the link check to the county changing
+    /// hands — which is the thing a player could not do before today.
+    #[test]
+    fn one_turn_phase_two_builds_the_engines_assaults_and_takes_the_county() {
+        let (mut k, a, d) = siege_kingdom(1, [0, 0, 0]);
+        // The player orders one catapult: 200 man-seasons over 350 men is one.
+        l2_kingdom::siege::order_engine(
+            &mut k.campaign.units,
+            a,
+            l2_kingdom::siege::Engine::Catapult,
+            1,
+        );
+        assert_eq!(k.campaign.units.get(a).unwrap().siege_seasons_left, 1);
+
+        let reports = run_siege_phase(&mut k, Answer::Decline, 7);
+        assert_eq!(reports.len(), 1, "one siege, one assault");
+        let report = &reports[0];
+        assert!(report.verdict.attacker_won, "a palisade against 350 men");
+        assert_eq!(k.counties[3].owner, 1, "the county changed hands");
+        assert_eq!(k.counties[3].garrison_unit, 0);
+        assert!(k.campaign.units.get(d).is_none());
+        assert_eq!(k.campaign.units.get(a).unwrap().engines[0].percent, 100);
+
+        // And a second phase 2 finds nothing to do.
+        assert!(run_siege_phase(&mut k, Answer::Decline, 8).is_empty());
+    }
+
+    /// A siege whose engines are not ready yet is **not** assaulted, and the
+    /// phase leaves it building.
+    #[test]
+    fn a_siege_still_building_survives_the_phase_untouched() {
+        let (mut k, a, d) = siege_kingdom(5, [0, 0, 0]);
+        // Two rams: 800 man-seasons over 350 men is three seasons.
+        for _ in 0..2 {
+            l2_kingdom::siege::order_engine(
+                &mut k.campaign.units,
+                a,
+                l2_kingdom::siege::Engine::BatteringRam,
+                1,
+            );
+        }
+        assert_eq!(k.campaign.units.get(a).unwrap().siege_seasons_left, 3);
+
+        for expected in [2u8, 1, 0] {
+            let reports = run_siege_phase(&mut k, Answer::Decline, 3);
+            if expected == 0 {
+                assert_eq!(reports.len(), 1, "the last season assaults");
+            } else {
+                assert!(reports.is_empty(), "still building");
+                assert_eq!(k.campaign.units.get(a).unwrap().siege_seasons_left, expected);
+                assert_eq!(k.counties[3].owner, 2, "the castle still stands");
+                assert!(k.campaign.units.get(d).is_some());
+            }
+        }
+    }
+
+    /// **The gate, from the phase's own side.** A besieger that orders nothing
+    /// against a stone castle is not stalled and does not fight: its siege is
+    /// lifted and it is free to march away.
+    #[test]
+    fn a_besieger_with_no_engines_against_a_big_castle_is_released_rather_than_stalled() {
+        let (mut k, a, d) = siege_kingdom(4, [0, 0, 0]);
+        assert_eq!(k.campaign.units.get(a).unwrap().siege_seasons_left, 0, "nothing to build");
+        let reports = run_siege_phase(&mut k, Answer::Decline, 1);
+        assert!(reports.is_empty(), "no battle was fought");
+        assert_eq!(k.campaign.units.get(a).unwrap().besieging_county, 0, "the siege was lifted");
+        assert_eq!(k.campaign.units.get(d).unwrap().besieged_by, 0);
+        assert_eq!(k.counties[3].owner, 2);
+    }
+
+    /// The banner the outcome screen shows is one of the four siege pairs, and
+    /// which one depends on **both** questions.
+    #[test]
+    fn a_siege_picks_one_of_the_four_siege_banners_and_not_a_field_one() {
+        let (mut k, a, _d) = siege_kingdom(1, [1, 0, 0]);
+        let assault = l2_kingdom::siege::assault(&k.counties, &mut k.campaign.units, a);
+        let report = resolve_siege(&mut k, assault, Answer::Decline, 1).unwrap();
+        // A is the besieger (realm 1, the player) and B the garrison (realm 2).
+        let (winner_owner, loser_owner) =
+            if report.verdict.attacker_won { (1, 2) } else { (2, 1) };
+        let banner = battle::outcome(report.verdict, true, 1, winner_owner, loser_owner);
+        assert!(
+            matches!(
+                banner,
+                battle::Outcome::SiegeWon
+                    | battle::Outcome::SiegeLost
+                    | battle::Outcome::SiegeLifted
+                    | battle::Outcome::CastleLost
+            ),
+            "a siege never shows a field banner: {banner:?}"
+        );
     }
 }

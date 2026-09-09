@@ -1009,6 +1009,28 @@ pub const AI_PERSONALITY_CASTLE_GOLD: [[i32; AI_CASTLE_LADDER_LEN]; AI_PERSONALI
     [0, 0, 100, 0, 2000],      // Bishop
 ];
 
+/// Personality record `+0xA0` — **which siege engines the lord builds**, read
+/// by `crate::siege::prepare` and by nothing else.
+///
+/// `docs/diplomacy.md` §8.4 listed `+0xA0` among eleven fields that *"hold
+/// plausible per-lord values and were never traced"*. `Siege_Prepare`
+/// (`0x004A7EB5`) is its reader, and the four values read straight out of
+/// `Lords2.exe` are below.
+///
+/// | lord | value | what it orders |
+/// |---|---:|---|
+/// | Knight | 8 | four siege towers |
+/// | Baron | 9 | one battering ram, and the default two towers |
+/// | Countess | 7 | three catapults, the default two towers, and a ram against a stone or royal castle after season 2 |
+/// | Bishop | 7 | the same |
+///
+/// **[V]** — three of the four are exactly the three constants the function
+/// compares against, and the fourth repeats one of them. A field that meant
+/// something else would not land on that set. Two consequences: the function's
+/// *"default: two towers"* arm is **unreachable for every shipped lord**, and
+/// the Knight is the only lord who brings no artillery to a siege.
+pub const AI_PERSONALITY_SIEGE_DOCTRINE: [i32; AI_PERSONALITY_COUNT] = [8, 9, 7, 7];
+
 /// How many buildable castle types an AI chooses between — five, where
 /// [`CASTLE_TYPE_COUNT`] is six because it counts *no castle* as type 0. A
 /// size, not a balance figure.
@@ -1911,6 +1933,10 @@ pub struct AiPersonalityRow {
     /// Record `+0xCC` … `+0xDC` — [`AI_PERSONALITY_CASTLE_GOLD`], by castle
     /// type 1..=5. A zero means the type is not offered to this lord.
     pub castle_gold: [i32; AI_CASTLE_LADDER_LEN],
+    /// Record `+0xA0` — **the siege-engine doctrine**,
+    /// [`AI_PERSONALITY_SIEGE_DOCTRINE`]. `crate::siege::prepare` is its only
+    /// reader.
+    pub siege_doctrine: i32,
 }
 
 impl AiPersonalityRow {
@@ -2251,6 +2277,7 @@ impl Tables {
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[0],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[0],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[0],
+                    siege_doctrine: AI_PERSONALITY_SIEGE_DOCTRINE[0],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[1],
@@ -2264,6 +2291,7 @@ impl Tables {
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[1],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[1],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[1],
+                    siege_doctrine: AI_PERSONALITY_SIEGE_DOCTRINE[1],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[2],
@@ -2277,6 +2305,7 @@ impl Tables {
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[2],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[2],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[2],
+                    siege_doctrine: AI_PERSONALITY_SIEGE_DOCTRINE[2],
                 },
                 AiPersonalityRow {
                     farm_style: AI_PERSONALITY_FARM_STYLE[3],
@@ -2290,6 +2319,7 @@ impl Tables {
                     castle_concurrent: AI_PERSONALITY_CASTLE_CONCURRENT[3],
                     castle_min_population: AI_PERSONALITY_CASTLE_MIN_POPULATION[3],
                     castle_gold: AI_PERSONALITY_CASTLE_GOLD[3],
+                    siege_doctrine: AI_PERSONALITY_SIEGE_DOCTRINE[3],
                 },
             ],
         },

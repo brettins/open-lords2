@@ -389,12 +389,38 @@ pub struct County {
     pub castle_type: u8,
     /// `+0x1C1` — the type under construction.
     pub castle_building: u8,
-    /// `+0x1C3` — when set, `Tax_CollectAll` uses the *lower* of
-    /// [`County::castle_type`] and [`County::castle_building`], and a zero
-    /// `castle_building` forces type 0. **The flag was not traced**; a siege
-    /// or a partly razed castle would both fit and neither is established
-    /// (`docs/kingdom.md` §4.1).
-    pub castle_degraded: bool,
+    /// `+0x1C3` — **castle work in progress**, and it is a *byte with three
+    /// values*, not a flag.
+    ///
+    /// | value | meaning |
+    /// |---:|---|
+    /// | 0 | nothing under way |
+    /// | 1 | a castle is being **built or upgraded** — [`crate::siege::CASTLE_DEGRADED_BUILDING`] |
+    /// | 2 | a castle is being **repaired after a siege** — [`crate::siege::CASTLE_DEGRADED_DAMAGED`] |
+    ///
+    /// > **This was a `bool` and `docs/kingdom.md` §4.1 said the flag *"was not
+    /// > traced"*.** Three readers settle it and each names a different value.
+    /// > The castle-build season pass (`0x00450C48`) branches on **2** to send
+    /// > message `0xA3` variant 1 rather than variant 0 and to skip the
+    /// > garrison top-up, so 2 is *repair* and 1 is *new work*.
+    /// > [`crate::siege::assault_castle_level`] reads **1** as *"fight the
+    /// > castle being built"* and **2** as *"fight what a previous siege left
+    /// > standing"*. And the map's info panel (`0x00414...`) prints a different
+    /// > line for each. `[D]`
+    ///
+    /// Every existing reader tests it against zero — `Tax_CollectAll` charges
+    /// the *lower* of type and building while it is non-zero, and
+    /// [`crate::labour::ceilings`] opens the castle job while it is non-zero —
+    /// so widening the field changes no behaviour those two have.
+    pub castle_degraded: u8,
+    /// `+0x1C2` — **the castle is ruined**. `L2.eng` 165 names it, and
+    /// `Army_BeginSiege` refuses to lay a siege while it is set: there is
+    /// nothing left to besiege.
+    pub castle_ruined: bool,
+    /// `+0x1F9` — the castle level **left standing** after a siege knocked one
+    /// down, read only when [`County::castle_degraded`] is 2.
+    /// [`crate::siege::assault_castle_level`] is its one reader here.
+    pub castle_level_left: u8,
     /// `+0x1B0` — **the castle-building switch**, thrown from the map the same
     /// way an industry is: [`crate::industry::toggle_from_map`] with
     /// [`crate::industry::MapToggle::Castle`].
@@ -610,7 +636,9 @@ impl County {
             levy_surcharge: 0,
             castle_type: 0,
             castle_building: 0,
-            castle_degraded: false,
+            castle_degraded: 0,
+            castle_ruined: false,
+            castle_level_left: 0,
             castle_switch: false,
             castle_progress: 0,
             event_population_pct: 0,

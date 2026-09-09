@@ -523,12 +523,76 @@ does not advance the counter, so you fight the same country again.
 
 ---
 
+## 8b. Sieges
+
+**A county holding both a castle and a garrison cannot be walked into at all.** That single
+rule is why sieges exist: the game's own errata say it in as many words — *"If a garrisoned
+castle is present in the county, it must be attacked instead of the county town to gain
+control of the county."* Run out of undefended counties and you have run out of ways to
+win.
+
+**Siege engines are built on the spot, not carried.** You march up, and the whole army
+spends its seasons building:
+
+| | man-seasons each | most you may order |
+|---|---:|---:|
+| catapult | 200 | 4 |
+| siege tower | 200 | 4 |
+| battering ram | 400 | 2 |
+
+A season of work is **one point per man**, so the wait is `ceil(work ÷ men)`. A 43-man army
+building one catapult waits five seasons; a 400-man army building two towers is ready next
+season. Ordering more of one kind is not free and ordering a cheaper kind is not weaker —
+each row maxes out at the same 800 man-seasons.
+
+**The army is pinned while it builds**, in the sense that matters: *any* successful move
+order lifts the siege. The *"Lift the siege?"* prompt is a warning, not a veto.
+
+**Castles below a Norman keep can be stormed bare-handed; nothing above one can.** Order no
+engines against a stone or royal castle and your captains refuse outright — *"you must
+build some siege engines to besiege this castle"* — and the siege is lifted, not stalled.
+
+**The castle is worth 160 %, 200 %, 250 %, 320 % or 400 %** of the garrison's strength, by
+castle size, when a siege is settled by arithmetic rather than fought. That multiplier is
+the whole of what a castle is worth on the strategic layer, and it is steep: 43 men against
+a 149-man garrison in the *smallest* castle in the game lose without killing 20 of them.
+
+**The defenders get boiling oil** — 1, 2, 3, 4 or 6 pots by castle size — and only the
+defenders. The attacker's engines and the defender's oil exist for the length of the battle
+and no longer; nothing survives it.
+
+**In the battle itself there are three ways to take a castle.** Break the gate (20,000 hits,
+one-shot — a battering ram is worth 20 men a frame at it, so one ram opens a gate in a
+thousand frames where a lone swordsman needs twenty thousand); chew through the rampart
+(5,000 hits a patch, and the counter resets, so a wall can be breached repeatedly); or
+simply **get one man to the keep's door**, which ends the siege with the garrison
+untouched. And if the attacker runs out of engines with no breach, a small castle sends him
+back to try again and a large one has beaten him.
+
+**Losing an assault does not destroy the besieging army.** It loses its siege and keeps its
+men — which is why sieges are attritional rather than all-or-nothing.
+
+**The AI lords each besiege differently**, and it is fixed per lord rather than judged:
+
+| | orders | man-seasons |
+|---|---|---:|
+| the Knight | four siege towers | 800 |
+| the Baron | one ram, two towers | 800 |
+| the Countess | three catapults, two towers | 1,000 |
+| the Bishop | the same | 1,000 |
+
+The Countess and the Bishop add a ram against a stone or royal castle late in the year,
+taking them to 1,400. **The Knight is the only lord who brings no artillery.**
+
+---
+
 ## 9. Where this is *not* the whole story
 
 Things the engine does not yet do, so this document describes the original rather than us:
-the castle designer, sieges, most of the interface, merchants and transports as things that
-move, and the fourteen siege battle orders. `docs/mechanics.md` tracks what is implemented
-against what is merely known.
+the castle designer, the castle's own layout on the battlefield (ours is a plain concentric
+keep and is marked as ours wherever it is drawn), most of the interface, and merchants and
+transports as things that move. `docs/mechanics.md` tracks what is implemented against what
+is merely known.
 
 And a standing caution, learned twice the hard way: **the England turn-one fixture exercises one narrow
 slice of these rules.** Every county in it sits at tax rate 0 with a well-staffed herd, which

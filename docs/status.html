@@ -219,14 +219,14 @@
     <span><b>Repo</b> E:\dev\lords2</span>
     <span><b>Game</b> GOG build, 21 Jul 2009</span>
     <span><b>Battle</b> runs and draws itself</span>
-    <span><b>Oracle</b> Ghidra 12.1.3 &middot; <!--fig:functions-->676<!--/fig--> functions named</span>
+    <span><b>Oracle</b> Ghidra 12.1.3 &middot; <!--fig:functions-->681<!--/fig--> functions named</span>
   </div>
 
   <h2>Progress</h2>
   <div class="gauges">
     <div class="gauge">
       <div class="k">Test suite</div>
-      <div class="v"><!--fig:tests-->1,399<!--/fig--></div>
+      <div class="v"><!--fig:tests-->1,447<!--/fig--></div>
       <div class="sub">identical counts in debug <em>and</em> release, with and without the install</div>
       <div class="bar"><i class="done" style="width:100%"></i></div>
     </div>
@@ -238,7 +238,7 @@
     </div>
     <div class="gauge">
       <div class="k">Functions named</div>
-      <div class="v"><!--fig:functions-->676<!--/fig--></div>
+      <div class="v"><!--fig:functions-->681<!--/fig--></div>
       <div class="sub"><!--fig:functions-pct-->28<!--/fig-->% of <!--fig:binary-functions-->2,452<!--/fig--> &middot; the rest is mostly CRT and DirectDraw glue</div>
       <div class="bar"><i id="fn-bar" style="width:28%"></i></div>
     </div>
@@ -396,7 +396,7 @@
         <li class="done"><span class="mark">&#10003;</span><span><code>l2-formats</code> crate &mdash; PL8 and palette decoders ported</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Corpus validation is the crate&rsquo;s test suite &mdash; 291 files, 27 palettes</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>A workspace of six crates, each testable on a bare checkout</span></li>
-        <li class="done"><span class="mark">&#10003;</span><span><!--fig:tests-->1,399<!--/fig--> tests, and the same count in release &mdash; a debug-only pass is a desync waiting to happen</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span><!--fig:tests-->1,447<!--/fig--> tests, and the same count in release &mdash; a debug-only pass is a desync waiting to happen</span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Asset extraction CLI &mdash; sprites to PNG, in bulk</span></li>
       </ul>
     </div>
@@ -435,8 +435,8 @@
         <li class="done"><span class="mark">&#10003;</span><span>Melee table checked against the binary <span class="count">&mdash; 11/11 rows exact</span></span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Battlefield terrain, auto-tiling, sprites, facings, animation</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>All 20 shipped battlefields build <span class="count">&mdash; 128,000 cells, every index valid</span></span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Units, formations, and the AI driving them <span class="count">&mdash; 3 of 17 handlers reachable</span></span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>The other 14 handlers are siege &mdash; and there is no castle to besiege</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Units, formations, and the AI driving them <span class="count">&mdash; all 17 handlers reachable</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Sieges &mdash; the wall, the gate, the way in, and the 14 siege orders <span class="count">&mdash; the castle&rsquo;s layout is ours and says so</span></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Missiles &mdash; a hit resolves, but nothing flies</span></li>
       </ul>
     </div>
@@ -453,7 +453,7 @@
       <ul class="checks">
         <li class="done"><span class="mark">&#10003;</span><span>Ghidra 12.1.3 + headless analysis pipeline</span></li>
         <li class="done"><span class="mark">&#10003;</span><span><strong>Whole binary decompiled and greppable</strong> <span class="count">&mdash; 2,452 functions in 22 seconds</span></span></li>
-        <li class="done"><span class="mark">&#10003;</span><span>Symbol database shared between Ghidra and the docs <span class="count">&mdash; <!--fig:functions-->676<!--/fig--> functions, <!--fig:globals-->421<!--/fig--> globals</span></span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Symbol database shared between Ghidra and the docs <span class="count">&mdash; <!--fig:functions-->681<!--/fig--> functions, <!--fig:globals-->424<!--/fig--> globals</span></span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Battle tables read from the executable &mdash; disk and live memory identical</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Runtime constants recovered from the <code>MOV</code> immediates that write them</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Kingdom economy tables checked &mdash; every value right, two layouts wrong</span></li>
@@ -477,7 +477,8 @@
         <li class="done"><span class="mark">&#10003;</span><span>The seven-phase turn machine &mdash; a 23-entry pipeline the driver walks</span></li>
         <li class="done"><span class="mark">&#10003;</span><span>Shipped save reproduced end to end <span class="count">&mdash; five stages, nothing adjusted</span></span></li>
         <li class="todo"><span class="mark">&#9675;</span><span>Stubs left honest: AI handlers, bankruptcy stages, the event table</span></li>
-        <li class="todo"><span class="mark">&#9675;</span><span>Castle designer and siege resolution</span></li>
+        <li class="done"><span class="mark">&#10003;</span><span>Sieges on the campaign map <span class="count">&mdash; engines, seasons, the assault gate; five real snapshots reproduced</span></span></li>
+        <li class="todo"><span class="mark">&#9675;</span><span>The castle designer &mdash; which is not in this executable</span></li>
       </ul>
     </div>
   </div>
@@ -526,12 +527,12 @@
         <tr><td class="m">ddraw-proxy</td><td class="d">Injects our code into the original game</td><td class="d">Verified: attach, forward, S_OK</td></tr>
         <tr><td class="m">l2-formats</td><td class="d">Rust crate &mdash; PL8, palettes, maps, .skr</td><td class="d">291/291 files; 180,224/180,224 tile invariant</td></tr>
         <tr><td class="m">l2-sim</td><td class="d">Battle rules &mdash; figures, melee, missiles, movement, pathing</td><td class="d">Every ranking the manual states, asserted</td></tr>
-        <tr><td class="m">l2-kingdom</td><td class="d">The turn-based economy &mdash; 7 phases, 30-pass pipeline</td><td class="d"><!--fig:tests-l2-kingdom-->582<!--/fig--> tests; the shipped save reproduced</td></tr>
+        <tr><td class="m">l2-kingdom</td><td class="d">The turn-based economy &mdash; 7 phases, 30-pass pipeline</td><td class="d"><!--fig:tests-l2-kingdom-->607<!--/fig--> tests; the shipped save reproduced</td></tr>
         <tr><td class="m">l2-net</td><td class="d">Lockstep, canonical encoding, TCP transport</td><td class="d">Two peers bit-identical over a real socket</td></tr>
         <tr><td class="m">l2-mods</td><td class="d">Overlay filesystem &mdash; assets shadow, rules accumulate</td><td class="d">Override proven with synthetic art</td></tr>
         <tr><td class="m">l2-view</td><td class="d">Viewer &mdash; sprite sheets and campaign maps</td><td class="d">Slot 0 renders as England and Wales</td></tr>
         <tr><td class="m">ghidra_scripts/</td><td class="d">Headless binary analysis &mdash; find loaders, decompile to C</td><td class="d">Found the renderer at 0x0040A21A</td></tr>
-        <tr><td class="m">symbols.json</td><td class="d">One symbol database, applied to Ghidra and rendered to docs</td><td class="d"><!--fig:functions-->676<!--/fig--> functions, <!--fig:globals-->421<!--/fig--> globals, 0 failures</td></tr>
+        <tr><td class="m">symbols.json</td><td class="d">One symbol database, applied to Ghidra and rendered to docs</td><td class="d"><!--fig:functions-->681<!--/fig--> functions, <!--fig:globals-->424<!--/fig--> globals, 0 failures</td></tr>
         <tr><td class="m">xref.js</td><td class="d">Finds call sites of imported functions</td><td class="d">Located both DirectPlay calls</td></tr>
         <tr><td class="m">peimp / peexp / pehdr / pefun</td><td class="d">PE imports, exports, headers, per-DLL functions</td><td class="d">Resolved imports-by-ordinal</td></tr>
         <tr><td class="m">probe.ps1</td><td class="d">Reads memory from a live process</td><td class="d">Read the game at 0x400000</td></tr>

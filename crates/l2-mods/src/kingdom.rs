@@ -434,6 +434,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         castle_concurrent: 0,
         castle_min_population: 0,
         castle_gold: [0; CASTLE_TYPE_COUNT - 1],
+        siege_doctrine: 0,
     }; AI_PERSONALITY_COUNT];
     expect_rows(rs, "kingdom.ai.personality", AI_PERSONALITY_COUNT)?;
     for (i, slot) in personality.iter_mut().enumerate() {
@@ -471,6 +472,10 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             castle_concurrent: int(rs, &format!("{base}.castle_concurrent"), 0, 100)?,
             castle_min_population: int(rs, &format!("{base}.castle_min_population"), 0, 1_000_000)?,
             castle_gold,
+            // Personality `+0xA0`: 7, 8 or 9 selects the lord's siege-engine
+            // order and anything else falls to the default of two towers, so
+            // the range is deliberately open rather than an enum.
+            siege_doctrine: int(rs, &format!("{base}.siege_doctrine"), 0, 255)?,
         };
     }
 
@@ -1107,7 +1112,12 @@ pub fn render_toml(t: &Tables) -> String {
          # There are four records and not five: docs/kingdom.md sec 2 says the\n\
          # lord byte runs 1..5, but a fifth record's bytes read a farm style of\n\
          # 17 where every real one reads 0, 1 or 9. A realm whose lord names no\n\
-         # record sets no tax rates at all.\n",
+         # record sets no tax rates at all.\n\
+         #\n\
+         # siege_doctrine is record +0xA0 and it DOES take effect: 8 orders four\n\
+         # siege towers, 9 a battering ram, 7 three catapults and a late ram,\n\
+         # and anything else leaves the default of two towers. The orders are\n\
+         # cumulative, so 7 and 9 also get the two towers.\n",
     );
     for (i, row) in t.ai.personality.iter().enumerate() {
         let _ = write!(
@@ -1115,7 +1125,8 @@ pub fn render_toml(t: &Tables) -> String {
             "\n[[kingdom.ai.personality]]\nlord = {}\nfarm_style = {}\ntax_ladder = {}\n\
              gift_increment = {}\nhelp_price = {}\ngrudge_tolerance = {}\n\
              offer_interval = {}\nhelp_population_floor = {}\nmuster_pct = {}\n\
-             castle_concurrent = {}\ncastle_min_population = {}\ncastle_gold = [{}]\n",
+             castle_concurrent = {}\ncastle_min_population = {}\ncastle_gold = [{}]\n\
+             siege_doctrine = {}\n",
             i + 1,
             row.farm_style,
             row.tax_ladder,
@@ -1127,7 +1138,8 @@ pub fn render_toml(t: &Tables) -> String {
             row.muster_pct,
             row.castle_concurrent,
             row.castle_min_population,
-            join_i32(&row.castle_gold)
+            join_i32(&row.castle_gold),
+            row.siege_doctrine
         );
     }
 

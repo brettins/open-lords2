@@ -1149,6 +1149,49 @@ and the marking was honest; what was missing was that a **[D]** row disagreeing 
 not a difference of emphasis. C13's shape once more: the summary and the branch disagreed
 and the summary was load-bearing.
 
+**C36 — C31 stopped one branch short. A besieger that loses a fight but still has men is
+not destroyed, and that rule has no flag on it.**
+
+C31 read `Battle_ReturnToCampaign`'s loser branch, found that the ≥ 50-men survival rule is
+gated on `g_battleWithdrawal` rather than on the autocalc, and concluded — correctly — that
+*"under autocalc the loser is always destroyed"*. It read one `if` and stopped at it. The
+branch is two nested tests:
+
+```c
+if (loser.besiegingCounty == 0 || loser.menTotal == 0) {
+    if (withdrawal) {
+        if (loser.menTotal < 50) { message 0x120; Army_Destroy(loser); }
+        else                       loser.besiegingCounty = 0;
+    } else Army_Destroy(loser);
+} else loser.besiegingCounty = 0;          /* <- the outer else, which C31 never reached */
+```
+
+**The outer `else` is the rule a siege needs and neither `armies.md` §7 nor C31 has it**: a
+loser that is still linked as a besieger and still has living men keeps them, and all that
+happens is that its siege is lifted. C31's conclusion about the autocalc is *true* and its
+reason was wrong — under autocalc the loser's men are set to zero, so the outer test passes
+and the inner one runs. The rule is reachable only from a **fought** siege, where
+`Battle_CheckOutcome`'s *assault repulsed* and *siege lost* arms can end a battle with the
+besieger still standing. So a repulsed assault costs an army its siege and not its life,
+which is why sieges are a war of attrition rather than a coin toss.
+
+**And the shipped `Readme.txt` describes the inner rule as something the code does not.**
+*Retreats (pg82)*: *"Armies that retreat will suffer some casualties. Any army that would
+have less than 50 men after retreating is eliminated instead."* That is exactly the inner
+branch, stated as a general rule about retreating. In the shipped binary
+`g_battleWithdrawal` is written in **one** place — `UnitOrder_SiegeAttKnight`, an all-knight
+AI besieger giving up on an unbreached wall — so the rule the errata generalise is one the
+player can never trigger. The errata are authoritative about *intent*; the code is what
+shipped. Both are recorded, and `crates/l2-kingdom`'s `return_to_campaign` takes
+`withdrawal` as a parameter so the branch is reachable honestly rather than by inventing a
+retreat.
+
+**The lesson is the same shape as C31's own and it is worth stating twice, because C31
+stated it and then fell for it.** *"A `[V]` on a branch is not a `[V]` on the rule the
+branch belongs to."* C31 wrote that sentence about a **flag** — grep every site — and did
+not apply it to the **control flow** around the flag it had just read. Counting the sites
+that touch a global is not the same as reading the function to its closing brace.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
