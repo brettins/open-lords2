@@ -339,6 +339,18 @@ descriptors match `g_syncBlocks` (`0x004D5B10`) byte for byte. `netcode.md`, `sy
 is here so that whoever builds the replication layer decides deliberately rather than
 inheriting a blind spot. Our answer should almost certainly be *don't*: §6.4.
 
+## 2.8 Sieges
+
+All five arrived with the siege branch, and all five are reproduced.
+
+| | the original's bug | evidence | our code |
+|---|---|---|---|
+| **B57** | **The siege engine order is cumulative where it reads as alternative.** `Siege_Prepare` writes the tower count **before** the personality tests, and only the `== 8` arm overwrites it — so the Countess builds 3 catapults *and* 2 towers, 600 + 400 = **1,000** man-seasons rather than 600. Whether the `default:` arm was meant to be exclusive is unjudged; the arithmetic is not. | [V] | `l2-kingdom/src/siege.rs:289` |
+| **B58** | **`Siege_ValidateLink` increments `g_siegeCount` for the link it has just broken.** The increment is unconditional, so the count means *"armies that were besieging when the phase began"* rather than *"armies besieging now"*. Harmless in the original, whose one consumer only asks whether it is above 1. | — | `siege.rs:556` — *"Reproduced"* |
+| **B59** | **The engines that go into an assault are what was *ordered*, not what was finished.** The original copies each engine record's `ordered` field with no reference to the build percentages, and gets away with it only because the phase tick reaches the assault when `siegeSeasonsLeft` is zero. A caller that assaults early gets engines it has not paid for — and so does the original. | — | `siege.rs:731` — *"Reproduced as written"* |
+| **B60** | **`Army_BeginSiege`'s guard does not check whose garrison it is.** Besieging your own castle is refused only by the map's hover test never offering the order, not by the function. | — | `siege.rs:212` — *"Reproduced as the original has it"* |
+| **B61** | **A besieger starved to nothing reports stale readiness.** The whole body of the build-time recompute is inside `if (menTotal > 0)`, so an army with no men leaves `siegeSeasonsLeft` at whatever it held. | — | `siege.rs:361` — *"reproduced rather than tidied"* |
+
 ---
 
 # 3. The original's bugs we do **not** reproduce
@@ -573,7 +585,8 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 | **D26** | **Two one-past-the-end reads saved by adjacent padding.** `Score_RankRealms`' bubble sort reads one pair past the five-entry rank table, and the function zeroes the two dwords at `0x00565438` two statements earlier; and rows 8 and 9 of both campaign tables are zeroed padding, which is what makes the eighth win's read harmless. | [V] |
 | **D27** | **The far campaign zoom shows 40 of 64 usable lattice columns and cannot scroll**, so 24 columns are unreachable in the original's view. | — |
 | **D28** | **One of the fourteen AI turn steps is an empty function** — step 8. Listed here rather than in §2 because an empty step is not wrong, only unexplained. | [D] |
-| **D29** | **The "loser survives with its siege lifted at ≥ 50 men" rule is unreachable** from the campaign side: it is gated on `DAT_0056D5C8`, raised in exactly one place (`UnitOrder_SiegeAttKnight`) that autocalc clears first. Deliberately not modelled. | [V] (correction C31) |
+| **D29** | **The 50-men withdrawal-survival rule is unreachable under the autocalc**, which zeroes the loser's men. It is gated on `DAT_0056D5C8`, raised in exactly one place (`UnitOrder_SiegeAttKnight`). Note this is the *inner* test only: the **outer** `else` — a loser still linked as a besieger and still holding men keeps them and merely has its siege lifted — is reachable from a fought siege, and C31 stopped before it. | [V] (corrections C31 and **C38**) |
+| **D32** | **The siege-preparation default of two towers is unreachable for every shipped lord.** `Siege_Prepare` tests the lord's doctrine byte against three constants, and the four shipped values are `8, 9, 7, 7` — so every lord takes a named arm and the `default:` never runs. | [V] — three of the four values are exactly the three constants tested and the fourth repeats one of them |
 | **D30** | **Phase 5's wait predicate covers a unit nothing creates** — a player-owned peasant mob. The guard is reproduced anyway. | — |
 | **D31** | **81 % of the game's audio exists to satisfy a test whose answer is fixed.** `FUN_004AEF7E` opens `pumkin.wav` (320 MB across two byte-identical copies), measures it against 151,000,000 and closes it. `DAT_005C9A74` is set to 1 before the test, set to 1 again in both success branches, and never set to any other value anywhere; its three readers ask `(flag < 1) \|\| (2 < flag)`, which cannot be true. | [V] |
 
@@ -719,10 +732,13 @@ value:
   result depend on what ran before it, so a per-search toggle is meaningless; and any of them
   invalidates every recorded battle replay. If exposed at all, one all-or-nothing switch,
   clearly marked as changing every path in every battle.
-* **B56, the sync digest, is catalogue-only.** When replication is built, the answer should be
-  *don't reproduce this one*: reproducing a defect in the mechanism that **detects** divergence
-  buys nothing a player can see and costs the ability to find real desyncs. It is the one entry
-  where fidelity and function genuinely conflict, and function should win.
+* **B56, the sync digest, is catalogue-only, and the project rule already answers it.**
+  `CLAUDE.md`: *"Networking is the one place the original is not the authority… the original's
+  multiplayer sync is the reason for the rewrite — it is the defect being replaced, not a
+  model."* So the answer is *don't reproduce this one*, and it is not even a judgement call:
+  reproducing a defect in the mechanism that **detects** divergence buys nothing a player can
+  see and costs the ability to find real desyncs. Note the same rule quietly settles N9, the
+  per-run DirectPlay GUID, for the same reason.
 * **The invisible ones stay off the menu** — B23's 1000 sentinel has no observable effect at
   all, B21, B22, B49 and B55 likewise. They belong in the model, not in a settings page.
 
