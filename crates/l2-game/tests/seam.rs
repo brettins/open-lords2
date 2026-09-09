@@ -271,12 +271,22 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
 /// The same position **fought** rather than calculated: the seam runs a real
 /// `l2-sim` battle from saved campaign records and brings a result back.
 ///
-/// The winner is deliberately not asserted against the save. `l2-sim` does not
-/// fly missiles yet — its own module documentation says so — and the defence is
-/// a third archers, so the two paths do not agree about who wins and pinning
-/// the fought one here would pin that gap in place. What is asserted is that
-/// the seam is whole in both directions and that the county's books balance
-/// whichever way it fell.
+/// # The winner is asserted now, and it did not used to be
+///
+/// This test used to carry a caveat: *"the winner is deliberately not asserted
+/// against the save — `l2-sim` does not fly missiles yet and the defence is a
+/// third archers, so the two paths do not agree about who wins."* They did not:
+/// the player **won** the fought battle with 56 men of 178, against a saved
+/// game in which he lost and both armies were destroyed. Sixty archers were
+/// fighting as sixty men carrying bows.
+///
+/// Missiles fly. The same position, the same seed, the same eleven counts on
+/// each side now come out the way the saved game did — **the militia holds the
+/// field** — and the caveat is gone with the gap it described.
+///
+/// It is not asserted to the man and should not be. The autocalc is a ladder
+/// and a real battle is not one; what the two paths can be held to is the
+/// *verdict*, which is what the save records and what a player would have seen.
 #[test]
 fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
     let before_save: Save = l2_testkit::fixture!("battle-before.sav");
@@ -321,19 +331,28 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
     assert_eq!(report.defender_men.0, levied);
     assert!(report.attacker_men.1 <= 178 && report.defender_men.1 <= levied);
 
-    // The loser is gone, and the county's people balance either way.
+    // **The same verdict the saved game records**, reached by fighting it out
+    // rather than by the ladder. This is the assertion the missile gap made
+    // impossible.
+    assert!(
+        !report.verdict.attacker_won,
+        "the militia held the field in the save; fought, {:?} v {:?}",
+        report.attacker_men,
+        report.defender_men
+    );
+    assert_eq!(report.verdict.winner(), defender);
+    // And it was as close as the save's own 20 % survival rung says it was: the
+    // winner is left with a fraction of itself, not a comfortable margin.
+    assert!(
+        report.defender_men.1 * 4 < levied,
+        "an even fight all but destroys the winner too: {} of {levied}",
+        report.defender_men.1
+    );
+
+    // The loser is gone, and the county's people balance.
     assert!(k.campaign.units.get(report.verdict.loser()).is_none());
-    if report.verdict.attacker_won {
-        assert_eq!(k.counties[COUNTY as usize].owner, 1, "a marked defence loses the county");
-        assert_eq!(report.defenders_returned, 0, "and returns nobody");
-        assert_eq!(k.counties[COUNTY as usize].population, after_levy);
-    } else {
-        assert_eq!(k.counties[COUNTY as usize].owner, 0);
-        assert_eq!(
-            k.counties[COUNTY as usize].population,
-            after_levy + report.defenders_returned
-        );
-    }
+    assert_eq!(k.counties[COUNTY as usize].owner, 0, "the county is still neutral");
+    assert_eq!(k.counties[COUNTY as usize].population, after_levy + report.defenders_returned);
     eprintln!(
         "fought: {ticks} ticks, attacker {:?}, defender {:?}, {} held the field",
         report.attacker_men,

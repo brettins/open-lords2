@@ -214,6 +214,24 @@ pub struct Game {
     /// counter, which is exactly the line between "the world" and "the session
     /// playing through it". See [`crate::victory`].
     pub campaign: crate::victory::Campaign,
+    /// **What to answer *"Will you take the field?"* when nobody is asked.**
+    ///
+    /// [`crate::turn::end_turn`] is the headless door and cannot raise a screen,
+    /// so every prompt it meets is answered with this. Declining is the
+    /// original's own autocalc branch — it is a way out of *watching* a battle,
+    /// not out of fighting one — so it is the default and nothing about a
+    /// headless turn changed when the prompt was built.
+    ///
+    /// The interactive door ([`crate::turn::begin_turn`]) ignores it and asks.
+    pub field_policy: crate::engagement::Answer,
+    /// **A turn that stopped to ask.** `None` between turns, which is almost
+    /// always.
+    ///
+    /// It is here rather than in the caller's hands because a half-run turn is
+    /// not something a caller may drop: the kingdom is in a state no rule
+    /// describes — two armies on one tile with the battle unresolved — and the
+    /// only safe thing to do with it is finish it. See [`crate::turn`].
+    pub(crate) turn: Option<crate::turn::TurnProgress>,
 }
 
 impl Game {
@@ -232,6 +250,8 @@ impl Game {
             last_report: None,
             turns_played: 0,
             campaign: crate::victory::Campaign::new(crate::victory::Track::First),
+            field_policy: crate::engagement::Answer::Decline,
+            turn: None,
         }
     }
 

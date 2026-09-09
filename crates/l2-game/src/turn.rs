@@ -70,11 +70,11 @@
 use l2_kingdom::ai::{self, AiStep};
 use l2_kingdom::conquest::Attack;
 use l2_kingdom::phase::{Phase, PhaseWait};
-use l2_kingdom::units_tick::{Contact, Encounter, UnitsTick};
+use l2_kingdom::units_tick::{Contact, Encounter};
 use l2_kingdom::victory::Outcome;
 use l2_kingdom::{Kingdom, SeasonReport};
 
-use crate::engagement::{self, Answer};
+use crate::engagement::{self, Answer, BattleReport, SiegePhase};
 use crate::game::Game;
 
 /// How many `Turn_Tick` calls one whole turn may take before we conclude the
@@ -107,6 +107,13 @@ pub struct TurnOutcome {
     /// [`crate::engagement::resolve`] declined the pair, which it does when
     /// either slot is no longer a unit. Reported rather than swallowed.
     pub pending_battles: Vec<Encounter>,
+    /// **Every battle this turn settled, oldest first** — one per army that
+    /// walked into an enemy, plus one per siege assault phase 2 launched.
+    ///
+    /// A turn used to be able to destroy two armies and hand back nothing that
+    /// said so; the caller had to diff the unit array. This is what screen
+    /// `0x13` draws, and what a message log would read.
+    pub battles: Vec<BattleReport>,
 }
 
 impl TurnOutcome {
@@ -136,63 +143,514 @@ impl TurnOutcome {
 /// finished ordering the rest of them, which is a lockstep difference and not a
 /// cosmetic one.
 pub fn end_turn(game: &mut Game) -> Option<TurnOutcome> {
-    for (id, realm) in game.kingdom.realms.iter().enumerate() {
-        game.gold_last[id] = realm.gold;
+    // The non-interactive path: nothing may stop to ask, so every prompt is
+    // answered by the policy and the machine cannot come back holding a
+    // question. `Ask` reaching here would be a caller using the wrong door.
+    match advance(game, Resume::Start, false) {
+        TurnStep::Done(outcome) => Some(*outcome),
+        _ => None,
     }
+}
 
-    let mut ticks = 0;
-    let mut steps = 0;
-    let mut contacts: Vec<Contact> = Vec::new();
-    let mut pending_battles: Vec<Encounter> = Vec::new();
-    // The AI's resource grant runs once a turn. See `run_handler`.
-    let mut granted = false;
-    while ticks < MAX_TICKS {
-        ticks += 1;
-        let phase = game.kingdom.turn.phase;
-        // `step == 0` is the machine's own "this is the first call of this
-        // phase", which is when the original's phase handlers kick off work.
-        if game.kingdom.turn.step == 0 {
-            begin_phase(game, phase);
-        }
-        if phase == Phase::PlayersTurn {
-            drive_ai(&mut game.kingdom, &mut granted);
-        }
-        let (_, report) = game.kingdom.tick(settled(&game.kingdom, phase));
+/// **Where a turn got to.** [`begin_turn`]'s and [`answer_battle`]'s answer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TurnStep {
+    /// The turn came round. Boxed because a [`TurnOutcome`] is far larger than
+    /// the other two arms and every caller matches on the enum.
+    Done(Box<TurnOutcome>),
+    /// **The turn is suspended, and the player is being asked.** *"A Battle is
+    /// to be fought. Will you take the field?"* — `L2.eng` group 80, screen
+    /// `0x12`.
+    ///
+    /// The kingdom is mid-turn and must not be touched until
+    /// [`answer_battle`] carries it on: the two armies are standing on the same
+    /// tile with the battle unresolved, which is exactly the state the original
+    /// leaves the campaign in while the prompt is up.
+    Ask(Question),
+    /// **A battle has been settled and the player has not been shown it.**
+    /// *"The Battle is decided."* — `L2.eng` group 81, screen `0x13`.
+    ///
+    /// The turn is still suspended: the original puts `0x13` up the instant the
+    /// battle ends and the campaign does not move again until the corner button
+    /// is clicked. [`dismiss_report`] is that click.
+    Report(Box<BattleReport>),
+    /// The phase machine did not come round inside [`MAX_TICKS`]. A bug in a
+    /// wait condition rather than anything a player can cause.
+    Stuck,
+}
 
-        // `Units_Tick`, immediately after `Turn_Tick` and outside the phase
-        // machine entirely. See the module documentation.
-        let moved = game.kingdom.tick_units();
-        steps += moved.stepped;
-        hand_off_battles(game, &moved, &mut pending_battles);
-        contacts.extend(moved.contacts.iter().copied());
+/// **A battle waiting for an answer.** Everything a screen needs to name the
+/// two sides without reaching into the kingdom, plus enough to settle it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Question {
+    pub attacker: usize,
+    pub defender: usize,
+    /// The county fought over — the besieged one for an assault.
+    pub county: u8,
+    /// A siege assault rather than a field battle. `L2.eng` group 80 index 7 is
+    /// *"The Siege commences."* where a field battle draws index 0.
+    pub is_siege: bool,
+    /// Which realm each side belongs to, read while both records still exist.
+    pub attacker_owner: u8,
+    pub defender_owner: u8,
+    pub attacker_men: i32,
+    pub defender_men: i32,
+    /// The seven troop counts each side is taking onto the field — the roster
+    /// screen `0x12` draws down the middle of its window.
+    pub attacker_roster: crate::engagement::Roster,
+    pub defender_roster: crate::engagement::Roster,
+    /// **Whose choice it is** — `g_battleChoiceOwner`, which picks between
+    /// `L2.eng` group 80's indices 1, 2 and 3 and decides whether the two thumb
+    /// widgets are drawn at all.
+    ///
+    /// 1 *"Will you take the field?"* — the local player chooses, and gets the
+    /// buttons. 2 *"Your opponent has the choice…"*. 0 *"The opponents are
+    /// deciding how they will fight this engagement."* — a battle between two
+    /// other realms, which draws no buttons.
+    ///
+    /// **`[I]` on which of two humans holds the choice**, which cannot arise
+    /// until there are two: the attacker is taken to hold it, because the
+    /// attacker is the side that pressed. The three strings and the "no buttons
+    /// for a bystander" rule are `[V]`.
+    pub choice_owner: u8,
+}
 
-        if let Some(report) = report {
-            game.turns_played += 1;
-            game.last_report = Some(report.clone());
-            // `Turn_Tick`'s phase 7 calls `Score_RankRealms` after
-            // `Season_Advance` — one of its five callers, and the one that can
-            // crown a survivor at the end of a season in which nobody died.
-            // `Pass::ScoreRank` inside the pipeline has already ranked; this
-            // adds the leader/trailer scan that the pass deliberately does not
-            // own, because the pass does not know who the local player is.
-            //
-            // It runs *after* the unit sweep and the battles, which is the
-            // order that matters now that a turn can destroy an army: a realm
-            // whose last army died this turn is eliminated by this call rather
-            // than surviving until the next one.
-            game.rank_realms();
-            let outcome = game.campaign.settle(game.player);
-            return Some(TurnOutcome {
-                report,
-                ticks,
-                outcome,
-                steps,
-                contacts,
-                pending_battles,
-            });
+impl Question {
+    /// Whether `player` is the attacker, the defender, or neither.
+    pub fn side_of(&self, player: u8) -> Option<bool> {
+        if player == self.attacker_owner {
+            Some(true)
+        } else if player == self.defender_owner {
+            Some(false)
+        } else {
+            None
         }
     }
-    None
+}
+
+/// **Start a turn that is allowed to stop and ask.**
+///
+/// The interactive door. [`end_turn`] is the other one and answers every
+/// prompt with the game's standing policy instead; the two run the same code
+/// and differ only in whether a [`Settlement::Prompt`](l2_kingdom::battle::Settlement::Prompt)
+/// battle is allowed to suspend the machine.
+///
+/// A suspended turn lives on the [`Game`] until it is answered. Only one can be
+/// in flight, because there is only one campaign.
+pub fn begin_turn(game: &mut Game) -> TurnStep {
+    advance(game, Resume::Start, true)
+}
+
+/// **Answer the question on the table and carry the turn on.** The player has
+/// clicked the thumb on screen `0x12`.
+///
+/// The battle is fought or calculated inside this call, so what comes back is
+/// normally [`TurnStep::Report`].
+pub fn answer_battle(game: &mut Game, answer: Answer) -> TurnStep {
+    advance(game, Resume::Answer(answer), true)
+}
+
+/// **The player has finished looking at screen `0x13`.** Carries the suspended
+/// turn on to whatever is next — another battle, or the end of the turn.
+pub fn dismiss_report(game: &mut Game) -> TurnStep {
+    advance(game, Resume::Dismiss, true)
+}
+
+/// Whether a turn is suspended waiting on an answer.
+pub fn pending_question(game: &Game) -> Option<Question> {
+    game.turn.as_ref().and_then(|p| p.question)
+}
+
+/// The battle a suspended turn has settled and not yet shown — what screen
+/// `0x13` draws.
+pub fn pending_report(game: &Game) -> Option<&BattleReport> {
+    game.turn.as_ref().and_then(|p| p.unseen.as_ref())
+}
+
+/// Whether a turn is in flight at all — which is the state a caller must not
+/// start a second one from, and must not save from.
+pub fn turn_in_flight(game: &Game) -> bool {
+    game.turn.is_some()
+}
+
+/// What the caller is handing back to a suspended turn.
+///
+/// A plain `Option<Answer>` could not express the difference between *"carry
+/// on, I have seen the result"* and *"carry on, I have nothing to say"*, and
+/// the two are different: the first consumes a report and the second would hand
+/// the same report back for ever.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Resume {
+    /// Start a turn, or carry one on with nothing to contribute.
+    Start,
+    /// The answer to *"will you take the field?"*.
+    Answer(Answer),
+    /// The result screen has been seen.
+    Dismiss,
+}
+
+/// Where the tick loop is when it is put down mid-turn.
+///
+/// Three points, and they are the three places a turn can be interrupted: at
+/// the top of a tick, part-way through phase 2's assaults, and after the unit
+/// sweep has raised a battle but before the tick's bookkeeping has run. A turn
+/// resumed at the wrong one would run `begin_phase` twice or lose a season
+/// report, so the stage is stored rather than guessed from the other fields.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum Stage {
+    /// Start a tick: count it, and run the phase's first-call work.
+    #[default]
+    Begin,
+    /// Run the phase itself — or, while phase 2's pump is loaded, one assault
+    /// of it.
+    Phase,
+    /// Finish the tick the unit sweep interrupted.
+    Tail,
+}
+
+/// What the second half of an interrupted tick still has to do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Tail {
+    contacts: Vec<Contact>,
+    report: Option<SeasonReport>,
+    /// The battle the sweep raised, still unresolved.
+    battle: Option<Encounter>,
+}
+
+/// **A turn, mid-flight.** Everything [`end_turn`]'s loop used to hold in
+/// locals, hoisted so the loop can be left and re-entered.
+///
+/// It lives on the [`Game`] rather than being handed back to the caller because
+/// a half-run turn is not something a caller may drop: the kingdom is in a state
+/// no rule describes — two armies on one tile, a season report computed and not
+/// yet delivered — and the only safe thing to do with it is finish it.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct TurnProgress {
+    ticks: u32,
+    steps: usize,
+    contacts: Vec<Contact>,
+    pending_battles: Vec<Encounter>,
+    /// The AI's resource grant runs once a turn. See `run_handler`.
+    granted: bool,
+    stage: Stage,
+    /// Phase 2's assault pump while it is loaded.
+    siege: Option<SiegePhase>,
+    /// The question on the table, if the turn is suspended.
+    question: Option<Question>,
+    /// The assault the question is about, already launched and not yet settled.
+    /// `None` when the question is about a field battle.
+    pending_assault: Option<l2_kingdom::siege::Assault>,
+    tail: Option<Tail>,
+    /// Battles settled this turn, oldest first — what [`TurnOutcome::battles`]
+    /// is built from.
+    reports: Vec<BattleReport>,
+    /// The one the player has not been shown yet. Held separately because a
+    /// screen has to see it *before* the turn ends, and because dropping it on
+    /// the floor would be the difference between a battle happening and a
+    /// battle being noticed.
+    unseen: Option<BattleReport>,
+}
+
+/// The whole turn loop, in both its interactive and its headless form.
+///
+/// `resume` is what the caller is handing back — nothing, an answer, or "I have
+/// seen the result". `interactive` decides whether the loop may stop at all:
+/// without it every question is answered by
+/// [`Game::field_policy`](crate::game::Game::field_policy), no report is shown,
+/// and the loop runs to the end.
+fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
+    if game.turn.is_none() {
+        for (id, realm) in game.kingdom.realms.iter().enumerate() {
+            game.gold_last[id] = realm.gold;
+        }
+        game.turn = Some(TurnProgress::default());
+    }
+    let mut input = resume;
+
+    loop {
+        // **An unshown result outranks everything**, including the next battle:
+        // the original does not move the campaign on while `0x13` is up.
+        if game.turn.as_ref().is_some_and(|p| p.unseen.is_some()) {
+            if !interactive || input == Resume::Dismiss {
+                game.turn.as_mut().expect("checked").unseen = None;
+                input = Resume::Start;
+                continue;
+            }
+            let r = game.turn.as_ref().and_then(|p| p.unseen.clone()).expect("checked");
+            return TurnStep::Report(Box::new(r));
+        }
+
+        // **A question outranks the rest.** Nothing else in the turn may run
+        // while two armies are standing on the same tile unresolved.
+        if let Some(q) = game.turn.as_ref().and_then(|p| p.question) {
+            let a = match input {
+                Resume::Answer(a) => {
+                    input = Resume::Start;
+                    a
+                }
+                _ if interactive => return TurnStep::Ask(q),
+                _ => game.field_policy,
+            };
+            settle_question(game, q, a);
+            continue;
+        }
+
+        let stage = match game.turn.as_ref() {
+            Some(p) => p.stage,
+            None => return TurnStep::Stuck,
+        };
+        match stage {
+            Stage::Begin => {
+                let p = game.turn.as_mut().expect("checked above");
+                if p.ticks >= MAX_TICKS {
+                    // Give the half-turn back rather than leaving it parked:
+                    // a stuck turn that could not be re-entered would wedge the
+                    // campaign for the rest of the session.
+                    game.turn = None;
+                    return TurnStep::Stuck;
+                }
+                p.ticks += 1;
+                p.stage = Stage::Phase;
+                let phase = game.kingdom.turn.phase;
+                // `step == 0` is the machine's own "this is the first call of
+                // this phase", which is when the original's phase handlers kick
+                // off work.
+                if game.kingdom.turn.step == 0 {
+                    begin_phase(game, phase);
+                }
+            }
+            Stage::Phase => {
+                // Phase 2's pump, one assault at a time. `begin_phase` loaded
+                // it and left it here rather than running it, which is what
+                // makes an assault askable.
+                if game.turn.as_ref().is_some_and(|p| p.siege.is_some()) {
+                    pump_siege(game);
+                    continue;
+                }
+                run_phase_tick(game);
+            }
+            Stage::Tail => {
+                if let Some(outcome) = finish_tick(game, interactive) {
+                    return TurnStep::Done(Box::new(outcome));
+                }
+            }
+        }
+    }
+}
+
+/// The phase's own tick and the unit sweep that follows it, up to the point
+/// where a battle may interrupt.
+fn run_phase_tick(game: &mut Game) {
+    let phase = game.kingdom.turn.phase;
+    if phase == Phase::PlayersTurn {
+        let mut granted = game.turn.as_ref().is_some_and(|p| p.granted);
+        drive_ai(&mut game.kingdom, &mut granted);
+        if let Some(p) = game.turn.as_mut() {
+            p.granted = granted;
+        }
+    }
+    let (_, report) = game.kingdom.tick(settled(&game.kingdom, phase));
+
+    // `Units_Tick`, immediately after `Turn_Tick` and outside the phase
+    // machine entirely. See the module documentation.
+    let moved = game.kingdom.tick_units();
+    let Some(p) = game.turn.as_mut() else { return };
+    p.steps += moved.stepped;
+    p.stage = Stage::Tail;
+    p.tail = Some(Tail { battle: moved.battle(), contacts: moved.contacts, report });
+}
+
+/// The rest of the tick: the battle, the contacts, and — on the last tick of
+/// the turn — the season report.
+///
+/// The order is the original's and is not cosmetic: the battle is fought before
+/// the contacts are recorded and before the report is delivered, so a realm
+/// whose last army dies this tick is eliminated by [`Game::rank_realms`] on the
+/// same turn rather than the next one.
+fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
+    let Some(mut tail) = game.turn.as_mut().and_then(|p| p.tail.take()) else {
+        if let Some(p) = game.turn.as_mut() {
+            p.stage = Stage::Begin;
+        }
+        return None;
+    };
+    if let Some(e) = tail.battle.take() {
+        // Put the rest of the tick back before anything can suspend: the
+        // question is answered at the top of the loop and lands here again.
+        if let Some(p) = game.turn.as_mut() {
+            p.tail = Some(tail);
+        }
+        raise_battle(game, e, interactive);
+        return None;
+    }
+    let p = game.turn.as_mut()?;
+    p.contacts.extend(tail.contacts.iter().copied());
+    p.stage = Stage::Begin;
+
+    let report = tail.report?;
+    game.turns_played += 1;
+    game.last_report = Some(report.clone());
+    // `Turn_Tick`'s phase 7 calls `Score_RankRealms` after `Season_Advance` —
+    // one of its five callers, and the one that can crown a survivor at the end
+    // of a season in which nobody died. `Pass::ScoreRank` inside the pipeline
+    // has already ranked; this adds the leader/trailer scan that the pass
+    // deliberately does not own, because the pass does not know who the local
+    // player is.
+    game.rank_realms();
+    let outcome = game.campaign.settle(game.player);
+    // **The turn is over, so the progress goes.** Every scrap of it moves into
+    // the outcome — nothing is left on the `Game`, because a `Game` carrying a
+    // finished turn's leavings is a `Game` that no longer round-trips through a
+    // save, and `tests/save.rs` compares the whole struct.
+    let p = game.turn.take()?;
+    Some(TurnOutcome {
+        report,
+        ticks: p.ticks,
+        outcome,
+        steps: p.steps,
+        contacts: p.contacts,
+        pending_battles: p.pending_battles,
+        battles: p.reports,
+    })
+}
+
+/// One assault of phase 2, asked about or settled.
+fn pump_siege(game: &mut Game) {
+    let Some(mut phase) = game.turn.as_mut().and_then(|p| p.siege.take()) else { return };
+    let Some(assault) = phase.next(&mut game.kingdom) else {
+        // The cursor ran off the end; phase 2 is done and the tick carries on.
+        return;
+    };
+    let seed = siege_seed(&game.kingdom);
+    // A refusal is not a battle and cannot be asked about: the siege has
+    // already been lifted by `siege::assault` and there is nothing to fight.
+    let question = SiegePhase::settlement(&game.kingdom, assault).and_then(|(a, d, s)| {
+        (s == l2_kingdom::battle::Settlement::Prompt).then(|| question_for(game, a, d, true))
+    });
+    match question {
+        Some(q) => {
+            // Park the assault on the question so the answer settles this one.
+            let p = game.turn.as_mut().expect("pump runs inside a turn");
+            p.siege = Some(phase);
+            p.pending_assault = Some(assault);
+            p.question = Some(q);
+        }
+        None => {
+            let report = phase.settle(&mut game.kingdom, assault, game.field_policy, seed);
+            let p = game.turn.as_mut().expect("pump runs inside a turn");
+            p.siege = Some(phase);
+            record(p, report);
+        }
+    }
+}
+
+/// File a settled battle: onto the turn's list, and onto the one screen `0x13`
+/// has still to show.
+fn record(p: &mut TurnProgress, report: Option<BattleReport>) {
+    if let Some(report) = report {
+        p.unseen = Some(report.clone());
+        p.reports.push(report);
+    }
+}
+
+/// The unit sweep raised a battle: ask about it, or fight it now.
+fn raise_battle(game: &mut Game, e: Encounter, interactive: bool) {
+    let settlement = l2_kingdom::battle::settlement(
+        &game.kingdom.campaign.units,
+        e.mover,
+        e.occupant,
+        game.kingdom.options.fight_humans_only_byte,
+    );
+    if interactive && settlement == l2_kingdom::battle::Settlement::Prompt {
+        let q = question_for(game, e.mover, e.occupant, false);
+        let p = game.turn.as_mut().expect("raised inside a turn");
+        p.question = Some(Question { county: e.county, ..q });
+        return;
+    }
+    let answer = game.field_policy;
+    settle_question(
+        game,
+        Question { county: e.county, ..question_for(game, e.mover, e.occupant, false) },
+        answer,
+    );
+}
+
+/// Read the two records into a [`Question`] while both still exist.
+fn question_for(game: &Game, attacker: usize, defender: usize, is_siege: bool) -> Question {
+    let units = &game.kingdom.campaign.units;
+    let read = |id: usize| {
+        units.get(id).map_or((0u8, 0i32, 0u8, false, [0; l2_kingdom::unit::TROOP_TYPES]), |u| {
+            (u.owner, u.men, u.besieging_county, u.owner_is_human, u.troops)
+        })
+    };
+    let (attacker_owner, attacker_men, besieged, a_human, attacker_roster) = read(attacker);
+    let (defender_owner, defender_men, _, d_human, defender_roster) = read(defender);
+    let county = if is_siege { besieged } else { units.get(defender).map_or(0, |u| u.county) };
+    // `g_battleChoiceOwner`. A player who owns neither army is only told about
+    // the battle; otherwise the attacker holds the choice, and the defender is
+    // told that his opponent holds it.
+    let me = game.player;
+    let choice_owner = if me != attacker_owner && me != defender_owner {
+        0
+    } else if me == defender_owner && a_human {
+        2
+    } else if me == attacker_owner || !d_human {
+        1
+    } else {
+        2
+    };
+    Question {
+        attacker,
+        defender,
+        county,
+        is_siege,
+        attacker_owner,
+        defender_owner,
+        attacker_men,
+        defender_men,
+        attacker_roster,
+        defender_roster,
+        choice_owner,
+    }
+}
+
+/// Settle the question on the table, whichever kind it is, and clear it.
+fn settle_question(game: &mut Game, q: Question, answer: Answer) {
+    let Some(p) = game.turn.as_mut() else { return };
+    p.question = None;
+    let staged = p.pending_assault.take();
+    if let Some(assault) = staged {
+        let Some(mut phase) = p.siege.take() else { return };
+        let seed = siege_seed(&game.kingdom);
+        let report = phase.settle(&mut game.kingdom, assault, answer, seed);
+        let p = game.turn.as_mut().expect("settling inside a turn");
+        p.siege = Some(phase);
+        record(p, report);
+        return;
+    }
+    let attack = Attack::Battle { attacker: q.attacker, defender: q.defender };
+    let seed = battle_seed(
+        &game.kingdom,
+        Encounter { mover: q.attacker, occupant: q.defender, county: q.county },
+    );
+    match engagement::resolve(&mut game.kingdom, attack, q.county, answer, seed) {
+        Some(report) => {
+            if let Some(p) = game.turn.as_mut() {
+                record(p, Some(report));
+            }
+        }
+        None => {
+            // Not resolvable — a slot is no longer a unit. Reported rather than
+            // swallowed, exactly as it always was.
+            if let Some(p) = game.turn.as_mut() {
+                p.pending_battles.push(Encounter {
+                    mover: q.attacker,
+                    occupant: q.defender,
+                    county: q.county,
+                });
+            }
+        }
+    }
 }
 
 /// Answer the current phase's wait.
@@ -247,15 +705,18 @@ fn siege_seed(kingdom: &Kingdom) -> u64 {
 /// > handoff is a real call now. `pending_battles` stays, because there is
 /// > still one case that does not resolve: see below.
 ///
-/// # The player is not asked, and that is a UI gap rather than a rule
+/// # The player *is* asked now, and this is not the door it happens at
 ///
-/// `engagement::resolve` takes an [`Answer`] and consults it only when
-/// [`l2_kingdom::battle::settlement`] returns `Prompt` — the original's *"will
-/// you take the field?"*. `end_turn` has no screen to ask on, so it answers
-/// [`Answer::Decline`], which is a real branch of the original and not an
-/// invention: declining runs the autocalc and shows the report, so it is a way
-/// out of *watching* the battle rather than out of fighting it. When the map
-/// screen can raise the prompt, this is the one line that changes.
+/// This used to carry a note saying `end_turn` had no screen to raise *"will
+/// you take the field?"* on and therefore answered [`Answer::Decline`], and
+/// that when the map screen could raise the prompt *"this is the one line that
+/// changes"*. It was not one line, and the note was wrong about where the
+/// change belonged: a prompt has to **suspend the turn**, because the campaign
+/// is left mid-tick with two armies on one tile while the player thinks. So the
+/// interactive path is [`begin_turn`] and [`answer_battle`], and this function
+/// is what remains for a caller resolving one encounter by itself — a test, or
+/// anything outside the turn loop. It answers the game's standing
+/// [`Game::field_policy`](crate::game::Game::field_policy).
 ///
 /// # The seed is state, never a clock
 ///
@@ -271,7 +732,8 @@ fn siege_seed(kingdom: &Kingdom) -> u64 {
 pub fn resolve_battle(game: &mut Game, encounter: Encounter) -> Option<Encounter> {
     let attack = Attack::Battle { attacker: encounter.mover, defender: encounter.occupant };
     let seed = battle_seed(&game.kingdom, encounter);
-    match engagement::resolve(&mut game.kingdom, attack, encounter.county, Answer::Decline, seed) {
+    let answer = game.field_policy;
+    match engagement::resolve(&mut game.kingdom, attack, encounter.county, answer, seed) {
         Some(_) => None,
         None => Some(encounter),
     }
@@ -291,14 +753,6 @@ fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
     z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
     z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
     z ^ (z >> 31)
-}
-
-fn hand_off_battles(game: &mut Game, moved: &UnitsTick, pending: &mut Vec<Encounter>) {
-    if let Some(e) = moved.battle() {
-        if let Some(unfought) = resolve_battle(game, e) {
-            pending.push(unfought);
-        }
-    }
 }
 
 /// The work a phase does on its first call.
@@ -356,13 +810,15 @@ fn begin_phase(game: &mut Game, phase: Phase) {
         // besieging army in a played turn built nothing and never assaulted.
         // This is the call.
         //
-        // The player is answered [`Answer::Decline`] here for the same reason
-        // [`resolve_battle`] answers it: `end_turn` has no screen to raise
-        // *"will you take the field?"* on. Declining runs the autocalc and is a
-        // real branch of the original, not a stub.
+        // **The pump is loaded here and run by the tick loop**, one assault at
+        // a time, so that each assault can stop and ask the player. Running it
+        // to exhaustion in this call — which is what it used to do — is what
+        // made a siege the one battle nobody could be asked about.
         Phase::ArmyMovement => {
-            let seed = siege_seed(&game.kingdom);
-            engagement::run_siege_phase(&mut game.kingdom, Answer::Decline, seed);
+            let phase = SiegePhase::begin(&mut game.kingdom);
+            if let Some(p) = game.turn.as_mut() {
+                p.siege = Some(phase);
+            }
         }
         Phase::NeutralCounties => {
             game.kingdom.run_ai_tax_rates(0);

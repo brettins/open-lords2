@@ -395,6 +395,13 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
     Ok(Game {
         kingdom,
         player,
+        // **A save is between turns, always.** The original saves from the
+        // campaign map and nowhere else, so a loaded game has no half-run turn
+        // and no battle waiting to be answered — the two fields below are
+        // session state rather than world state, which is why they are not in
+        // the ten-field prefix and why `VERSION` did not have to move.
+        field_policy: crate::engagement::Answer::Decline,
+        turn: None,
         map_slot: map_slot as usize,
         realm_colour,
         selected,

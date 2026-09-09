@@ -81,6 +81,15 @@ pub enum ScreenId {
     /// `g_screenId` `0x0C` — the trade panel, for one merchant and one
     /// `L2.eng` group 6 good id.
     Trade(usize, u8),
+    /// `g_screenId` `0x12` — ***"A Battle is to be fought. Will you take the
+    /// field?"*** See [`crate::screens::battle`].
+    ///
+    /// **The battle it is about is not part of the identity.** It is on the
+    /// suspended turn, where the answer has to go back to, and there can only
+    /// ever be one because there is only one campaign.
+    BattlePrompt,
+    /// `g_screenId` `0x13` — *"The Battle is decided."*
+    BattleResult,
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -209,6 +218,12 @@ impl ScreenId {
             }
             ScreenId::Trade(unit, good) => {
                 Box::new(crate::screens::merchant::TradeScreen::new(unit, good))
+            }
+            ScreenId::BattlePrompt => {
+                Box::new(crate::screens::battle::BattlePromptScreen::new())
+            }
+            ScreenId::BattleResult => {
+                Box::new(crate::screens::battle::BattleResultScreen::new())
             }
             ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),

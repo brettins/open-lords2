@@ -1006,34 +1006,82 @@ impl MapScreen {
         }
     }
 
-    /// End the turn, and leave for screen `0x1C` if that ended the game.
+    /// **End the turn — or get as far as the first battle**, and leave for
+    /// screen `0x1C` if the turn ended the game.
     ///
-    /// `FUN_00476768` is the original's shape: dismissing the message that set
-    /// `DAT_0053F0C4` calls `FUN_00497879` — which advances the campaign counter
-    /// on a win — and sets `g_screenId = 0x1C`. There is no message window here
-    /// yet, so the turn's own end is the dismissal.
+    /// `FUN_00476768` is the original's shape for the ending: dismissing the
+    /// message that set `DAT_0053F0C4` calls `FUN_00497879` — which advances the
+    /// campaign counter on a win — and sets `g_screenId = 0x1C`. There is no
+    /// message window here yet, so the turn's own end is the dismissal.
+    ///
+    /// [`turn::begin_turn`] is the interactive door and may come back holding a
+    /// question, which is `Push`ed as screen `0x12`. The turn stays suspended on
+    /// the [`Game`](crate::game::Game) until the prompt and the result screen
+    /// hand it back; [`Self::resume_turn`] is what picks it up again when they
+    /// pop, and it is called from `update` because this screen is underneath
+    /// them and gets its tick back the moment they are gone.
     fn end_turn(&mut self, ctx: &mut Ctx) -> Transition {
         let before = ctx.game.gold();
-        match turn::end_turn(ctx.game) {
-            Some(outcome) => {
-                let change = ctx.game.gold() - before;
-                self.status = format!(
-                    "{} {} {} - {} MSG",
-                    season_name(ctx.game.kingdom.season),
-                    ctx.game.kingdom.year,
-                    widget::signed(change),
-                    outcome.report.messages.len()
-                );
-                if outcome.outcome.is_over() {
-                    ctx.game.campaign.enter_conquest_screen();
-                    // `Replace`, not `Push`: the campaign map underneath is a map
-                    // of a game that is over, and the original leaves it — the
-                    // OK button on `0x1C` goes on to `Game_NewGame` or the front
-                    // end, never back to it.
-                    return Transition::Replace(ScreenId::Conquest);
-                }
+        let step = turn::begin_turn(ctx.game);
+        self.settle_turn(ctx, step, before)
+    }
+
+    /// Pick a suspended turn back up. Called every tick; almost always a no-op,
+    /// because almost always there is no turn in flight.
+    fn resume_turn(&mut self, ctx: &mut Ctx) -> Transition {
+        if !turn::turn_in_flight(ctx.game) {
+            return Transition::Stay;
+        }
+        // A turn that is still asking is one whose screen has not been put up
+        // yet, or has just been popped without answering; either way the prompt
+        // is what has to come back.
+        if turn::pending_question(ctx.game).is_some() {
+            return Transition::Push(ScreenId::BattlePrompt);
+        }
+        if turn::pending_report(ctx.game).is_some() {
+            return Transition::Push(ScreenId::BattleResult);
+        }
+        let before = ctx.game.gold();
+        let step = turn::dismiss_report(ctx.game);
+        self.settle_turn(ctx, step, before)
+    }
+
+    /// What to do with whatever the turn machine came back with.
+    fn settle_turn(&mut self, ctx: &mut Ctx, step: turn::TurnStep, before: i32) -> Transition {
+        match step {
+            turn::TurnStep::Ask(_) => return Transition::Push(ScreenId::BattlePrompt),
+            turn::TurnStep::Report(_) => return Transition::Push(ScreenId::BattleResult),
+            turn::TurnStep::Stuck => {
+                self.status = "THE TURN MACHINE DID NOT COME ROUND".into();
+                return Transition::Stay;
             }
-            None => self.status = "THE TURN MACHINE DID NOT COME ROUND".into(),
+            turn::TurnStep::Done(outcome) => self.finish_turn(ctx, *outcome, before),
+        }
+    }
+
+    fn finish_turn(
+        &mut self,
+        ctx: &mut Ctx,
+        outcome: turn::TurnOutcome,
+        before: i32,
+    ) -> Transition {
+        let change = ctx.game.gold() - before;
+        let fought = outcome.battles.len();
+        self.status = format!(
+            "{} {} {} - {} MSG{}",
+            season_name(ctx.game.kingdom.season),
+            ctx.game.kingdom.year,
+            widget::signed(change),
+            outcome.report.messages.len(),
+            if fought == 0 { String::new() } else { format!(" - {fought} BATTLE") }
+        );
+        if outcome.outcome.is_over() {
+            ctx.game.campaign.enter_conquest_screen();
+            // `Replace`, not `Push`: the campaign map underneath is a map of a
+            // game that is over, and the original leaves it — the OK button on
+            // `0x1C` goes on to `Game_NewGame` or the front end, never back to
+            // it.
+            return Transition::Replace(ScreenId::Conquest);
         }
         Transition::Stay
     }
@@ -1387,7 +1435,15 @@ impl Screen for MapScreen {
     /// the clamp are `Map_ScrollStep`'s and `Map_ClampScroll`'s; the rate is
     /// one step per fixed tick, which is ours because the original's is a frame
     /// rate and nothing below this crate may read a clock.
-    fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        // **A turn left suspended by a battle screen is picked up here.** Only
+        // the top screen is given a tick, so this runs the moment `0x12` or
+        // `0x13` pops and not before — which is exactly when the campaign is
+        // allowed to move again.
+        let resumed = self.resume_turn(ctx);
+        if resumed != Transition::Stay {
+            return resumed;
+        }
         // `Map_DrawFrame`: `if (0x7F < tick) tick = 0; phase = tick >> 4;`
         // Only a change of phase is a repaint, so a still map with flags on it
         // costs eight frames every 2.05 seconds rather than sixty a second.

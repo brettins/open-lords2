@@ -429,7 +429,14 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
 - ✅ Movement, elevation, cell swapping
 - ✅ Pathfinding, including two reproduced original bugs
 - ✅ Melee: attack bands, recovery as the only defence, the heavy blow
-- ✅ Missiles: three weapon classes, range, reload, armour
+- ✅ **Missiles, and they fly.** Three weapon classes, range, reload, armour — *and* the
+  arrow. A shot is an object stepping a Bresenham line four sub-steps a tick, and the
+  question that had to be settled before any of it could be written is whether the original
+  resolves a hit at launch and merely animates it. **It does not.** `Missile_Step` reads the
+  victim out of the cell the missile has just entered, fresh, every sub-step; nothing on the
+  record remembers who the shot was aimed at. So a body in the flight path takes the arrow, a
+  miss keeps flying past the target, and a target that dies is not tracked. `docs/battle.md`
+  §6.2 and §14.7
 - ✅ Battle AI: the strength advantage, the 200-frame think, **all 17 order handlers
   reachable**. The fourteen siege ones had never been dispatched once, because nothing could
   produce a siege; `crates/l2-sim/tests/siege.rs` runs one and enumerates every handler it
@@ -439,7 +446,6 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege.rs`).
   Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
   the way in — `crates/l2-sim/src/siege.rs`.
-- 🕳 **Missiles are computed and never fired** — a hit resolves, nothing flies
 - ⚠ **The castle's layout on the battlefield is ours, not the original's.**
   `Battlefield_BuildCastle`'s cell *translation* is read (`docs/battle.md` §3.0.1); the
   layout **rasters** it translates are not. `l2_sim::siege::our_castle` is a plain concentric
@@ -463,9 +469,22 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   checked end to end against the battle fixture triple in `crates/l2-game/tests/seam.rs`.
   **`g_battleLoser` holds the winner**; four sites say so and `docs/armies.md` §7 lists them.
   Implementing it on the name destroys the winner and hands the county to the corpse
+- ✅ **"Will you take the field?"** — screens `0x12` and `0x13`
+  (`crates/l2-game/src/screens/battle.rs`), `L2.eng` groups 80 and 81, and a turn that
+  **suspends** while the question is up. `end_turn` used to answer `Decline` for the player
+  because there was no screen to ask on; the campaign now stops mid-tick with both armies
+  standing, and neither the autocalc nor the fought battle runs until a thumb is clicked.
+  Right-release declines, and **nothing times out** — the timeout gate returns 0 outright
+  unless `g_multiplayer`
 - 🕳 **A battle the player watches is not one the player can steer.** Orders go in at
   deployment and nothing withdraws, surrenders or re-tasks a unit mid-battle; the lever
-  exists (`BattleRunner::withdraw`) and no rule pulls it
+  exists (`BattleRunner::withdraw`) and no rule pulls it. Taking the field runs the real
+  simulation and shows the result; it does not yet *show the battle*
+- 🕳 **Screen `0x2B`, the outcome banner, is not built.** All seven of `L2.eng` group 82's
+  heading/body pairs are reachable — `l2_kingdom::battle::outcome` picks between them and
+  `BattleReport::outcome(local_player)` is the call — and `0x13` prints the heading so the
+  result is not lost, but the banner has a screen of its own with three layouts and a movie
+  panel
 - ❓ Capture — prisoners and ransom, which nothing here has looked at
 
 ---

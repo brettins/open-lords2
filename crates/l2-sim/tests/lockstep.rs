@@ -711,6 +711,13 @@ impl Simulation for RunnerNetBattle {
             out.u8(f.barred);
             out.u8(f.hold);
             out.u16(f.reroutes);
+            // **Found by the census below, not by anybody remembering it.** How
+            // far a figure is through its current cell decides which *tick* it
+            // commits to the next one, so two peers that disagree about it take
+            // their next step on different frames — and every checksum they
+            // exchanged before that agreed.
+            out.u32(f.progress.tick_counter);
+            out.u32(f.progress.substep);
         }
         out.end_section();
 
@@ -723,6 +730,46 @@ impl Simulation for RunnerNetBattle {
             out.u16(f.unit);
             out.u8(f.targeted);
             out.option(f.opponent.as_ref(), |c, i| c.len32(*i));
+            out.u16(f.reload_counter);
+        }
+        out.end_section();
+
+        // **The arrows.** A missile in flight is simulation state: it carries
+        // damage, it is a tick away from killing somebody, and two peers that
+        // disagree about where one is disagree about the battle. The original
+        // agrees — its own sync digest copies all hundred records, `0x1DB0`
+        // bytes, one `Sync_RecordDigest` per slot.
+        //
+        // **Every slot, not every live one.** A record that has just been freed
+        // must hash differently from one that was never used, and a walk over
+        // only the live ones is the second half of `docs/decisions.md` C39: a
+        // whole *record* can go missing from the sweep and no amount of field
+        // checking sees it.
+        out.section("missiles");
+        for slot in 1..=l2_sim::missile::MAX_MISSILES {
+            let m = self.runner.missiles.get(slot);
+            out.u8(m.owner);
+            out.u8(m.class);
+            out.u16(m.shooter);
+            out.i32(m.x as i32);
+            out.i32(m.y as i32);
+            out.i32(m.target_x as i32);
+            out.i32(m.target_y as i32);
+            out.i32(m.cell_x as i32);
+            out.i32(m.cell_y as i32);
+            out.i32(m.dx);
+            out.i32(m.dy);
+            out.i32(m.err);
+            out.u8(m.major_axis);
+            out.u8(m.dir);
+            out.u8(m.launch_elevation);
+            out.u8(m.blocked_ticks);
+            out.i32(m.sub_steps as i32);
+            out.i32(m.ticks_flown as i32);
+            out.i32(m.range_ticks as i32);
+            out.bool(m.blocked);
+            out.i32(m.ttl as i32);
+            out.u16(m.power);
         }
         out.end_section();
 
@@ -840,4 +887,172 @@ fn a_peer_whose_figure_stepped_wrong_is_caught() {
         .position(|(a, b)| a != b)
         .expect("no differing tick in the recorded history");
     assert_eq!(peers[0].hashes[split].0, Tick(300));
+}
+
+/// **An arrow in flight is in the checksum.**
+///
+/// A peer that had one arrow where the other had none, and agreed on every
+/// checksum, would kill a different man three ticks later and diverge
+/// invisibly. The original agrees that this is state: its own sync digest
+/// copies all hundred records, `0x1DB0` bytes, one `Sync_RecordDigest` a slot.
+#[test]
+fn an_arrow_in_flight_changes_the_state_hash() {
+    // The peers' own line-up carries no bow, so this builds its own: archers
+    // against peasants on the same close field, everything else identical.
+    let mut sim = RunnerNetBattle {
+        runner: BattleRunner::deploy_armies(
+            close_field(),
+            RUNNER_SEED,
+            l2_sim::runner::Army { troops: &[(Troop::Peasants, 12)], owner: 2, human: false },
+            l2_sim::runner::Army { troops: &[(Troop::Archers, 4)], owner: 1, human: true },
+        ),
+        nudge_at: None,
+    };
+    let mut loosed = None;
+    for t in 0..4_000u32 {
+        sim.step(Tick(t), &[]);
+        if sim.runner.missiles.live() > 0 {
+            loosed = Some(Canonical::hash_of(&Hashable(&sim)));
+            break;
+        }
+    }
+    let hash = loosed.expect("no missile was ever loosed");
+
+    // The same battle with the arrows taken out of the sky and nothing else
+    // touched must hash differently.
+    let mut emptied = sim.runner.clone();
+    for slot in 1..=l2_sim::missile::MAX_MISSILES {
+        emptied.missiles.free(slot);
+    }
+    let stripped = RunnerNetBattle { runner: emptied, nudge_at: None };
+    assert_ne!(
+        hash,
+        Canonical::hash_of(&Hashable(&stripped)),
+        "the missile array is outside the checksum: two peers could disagree about \
+         every arrow in the air and every checksum would report agreement"
+    );
+}
+
+/// A [`Simulation`]'s state as something [`Canonical::hash_of`] will take.
+struct Hashable<'a>(&'a RunnerNetBattle);
+
+impl l2_net::canonical::Encode for Hashable<'_> {
+    fn encode(&self, out: &mut Canonical) {
+        self.0.encode_state(out);
+    }
+}
+
+/// **The completeness check, derived rather than remembered.**
+///
+/// `docs/decisions.md` C39: *completeness must be derived, not remembered.* The
+/// encoder above is a hand-written list, and a hand-written list cannot fail for
+/// a field nobody put in it — which is how eleven `Realm` fields, the whole
+/// diplomatic matrix among them, once sat outside the lockstep checksum with
+/// every test green.
+///
+/// So this reads the **field names out of the source** and requires each one to
+/// appear in `encode_state`. A field added to `Missile` or to `Fighter`
+/// tomorrow fails by name, in this file, with the sentence that says what to do
+/// about it.
+///
+/// The exemption table has the polarity C39 insists on: inclusion is the
+/// default, a line is a claim with a reason attached, and a line naming a field
+/// that no longer exists fails too — because a stale exemption looks like a
+/// decision and covers nothing.
+#[test]
+fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
+    /// `(struct, field, why it is not hashed)`.
+    const NOT_HASHED: &[(&str, &str, &str)] = &[
+        // A path is recomputed from state that *is* hashed — the figure's cell
+        // and its destination — so two peers that agree on those agree on it.
+        // Its *length* is hashed, which catches a peer that stopped pathing.
+        ("Fighter", "path", "recomputed from hashed state; its length is hashed"),
+        ("Fighter", "sim", "the index of the figure this Fighter is, and both walks are by index"),
+        ("Fighter", "troop", "fixed at deployment and never written again"),
+        ("Fighter", "side", "fixed at deployment and never written again"),
+    ];
+
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let encoder = std::fs::read_to_string(root.join("tests/lockstep.rs")).expect("this file");
+    let mut all: Vec<(String, String)> = Vec::new();
+    for (file, want) in [("src/missile.rs", "Missile"), ("src/runner.rs", "Fighter")] {
+        let src = std::fs::read_to_string(root.join(file)).expect(file);
+        let fields = fields_of(&src, want);
+        assert!(fields.len() >= 5, "{want} parsed as {} fields - the parser broke", fields.len());
+        all.extend(fields.into_iter().map(|f| (want.to_string(), f)));
+    }
+
+    // A stale exemption is a failure of its own.
+    for (s, f, _) in NOT_HASHED {
+        assert!(
+            all.iter().any(|(a, b)| a == s && b == f),
+            "NOT_HASHED names {s}::{f}, which no longer exists"
+        );
+    }
+
+    let missing: Vec<String> = all
+        .iter()
+        .filter(|(s, f)| !NOT_HASHED.iter().any(|(a, b, _)| a == s && b == f))
+        .filter(|(_, f)| !mentions(&encoder, f))
+        .map(|(s, f)| format!("  {s}::{f}"))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "{} field(s) of the battle state are outside the lockstep checksum:\n{}\n\n\
+         Add each to `RunnerNetBattle::encode_state`. A field that genuinely is not \
+         simulation state goes in NOT_HASHED with the reason it is not.",
+        missing.len(),
+        missing.join("\n")
+    );
+    println!("{} fields of Missile and Fighter, all hashed", all.len());
+}
+
+/// The named fields of one `struct Name { .. }`, from source text.
+///
+/// Deliberately literal: a struct header ending in `struct Name {`, and fields
+/// at exactly one level of indentation. Anything cleverer would be a parser
+/// that can be wrong quietly, and the shape assertion above is what catches it
+/// being wrong loudly.
+fn fields_of(src: &str, want: &str) -> Vec<String> {
+    let header = format!("struct {want} {{");
+    let mut lines = src.lines();
+    while let Some(line) = lines.next() {
+        if !line.ends_with(&header) {
+            continue;
+        }
+        let mut out = Vec::new();
+        for body in lines.by_ref() {
+            if body == "}" {
+                return out;
+            }
+            let Some(rest) = body.strip_prefix("    ") else { continue };
+            if rest.starts_with(' ') || rest.starts_with("//") || rest.starts_with('#') {
+                continue;
+            }
+            let rest = rest.strip_prefix("pub(crate) ").or_else(|| rest.strip_prefix("pub ")).unwrap_or(rest);
+            let Some((name, _)) = rest.split_once(": ") else { continue };
+            if !name.is_empty()
+                && name.chars().all(|c| c.is_lowercase() || c.is_numeric() || c == '_')
+            {
+                out.push(name.to_string());
+            }
+        }
+        return out;
+    }
+    Vec::new()
+}
+
+/// Whether a field name is used in the encoder — `.name` as a whole word, so
+/// `x` does not match `max`.
+fn mentions(src: &str, field: &str) -> bool {
+    let needle = format!(".{field}");
+    let mut from = 0;
+    while let Some(at) = src[from..].find(&needle) {
+        let end = from + at + needle.len();
+        if !src[end..].chars().next().is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            return true;
+        }
+        from = end;
+    }
+    false
 }

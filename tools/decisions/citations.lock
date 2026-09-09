@@ -18,6 +18,8 @@ crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7
 crates/l2-game/src/screens/army.rs	C21	d250307406e2
 crates/l2-game/src/screens/army.rs	C45	ba3094ad6579
+crates/l2-game/src/screens/battle.rs	C21	9867d38dde6d
+crates/l2-game/src/screens/battle.rs	C21	c7d8aa24877d
 crates/l2-game/src/screens/county.rs	C22	11557e27ba54
 crates/l2-game/src/screens/county.rs	C22	19162a21321c
 crates/l2-game/src/screens/county.rs	C42	bd3303c98be3
@@ -124,6 +126,8 @@ crates/l2-sim/src/ai.rs	C15	0b1357346ad8
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab
 crates/l2-sim/src/troop.rs	C11	f3ee142fc544
+crates/l2-sim/tests/lockstep.rs	C39	1983d0f73f54
+crates/l2-sim/tests/lockstep.rs	C39	6cb87bcb548b
 crates/l2-sim/tests/oracle.rs	C10	51e2435705b4
 crates/l2-sim/tests/oracle.rs	C12	7ec839366322
 crates/l2-sim/tests/oracle.rs	C17	0f5dbd453b42
@@ -257,6 +261,10 @@ docs/decisions.md	C31	e0e1f8d052f8
 docs/decisions.md	C31	ed3eab8182c3
 docs/decisions.md	C36	278739b8f0b8
 docs/decisions.md	C36	77721e6dffe1
+docs/decisions.md	C39	6a5f6cc77f33
+docs/decisions.md	C39	b900cd987da2
+docs/decisions.md	C39	bafbbde7c92a
+docs/decisions.md	C39	d16999be8062
 docs/decisions.md	C40	dd07d41c363e
 docs/decisions.md	C41	31c16a7144fe
 docs/decisions.md	C42	d82da22eca5c
