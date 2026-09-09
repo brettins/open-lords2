@@ -1952,6 +1952,16 @@ somewhere — most likely the menu bar's titles, the cursor's leaves, or the dig
 keys counted individually — and `0x28`'s two are in both totals and should be in
 neither.
 
+**`docs/arms.json` holds 33 battlefield records for these 38 arms, and the gap is
+the same rule applied from the other end.** This table counts an arm once **per
+screen it is live on**, which is how C61 counted (`screens/map.rs`'s table lists
+the edge scroll under both `0` and `0x10`); the file counts it once **per
+implementation**, because its job is to be compared against the code and the code
+has one function. The five that differ are the overview panel, live on all three
+screens and one record; the cursor ladder, live on two and one record; and the
+drag's three release classes, which are one branch of one function. Both numbers
+are in each file so that neither can be quoted without the other.
+
 **One number does agree exactly, and it is the one that would have caught a
 disagreement about the code.** C61 records *"Battle: 6 of 6"* right-button arms
 missing. There are exactly six, and they are: `0x28`'s dead right release;

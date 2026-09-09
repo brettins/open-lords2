@@ -42,6 +42,12 @@
     "panel orders or looks: two). Where a count here differs from C61's, the counting rule is",
     "the likeliest reason and the `group` totals in docs/battle.md section 15 say so.",
     "",
+    "COUNTED PER IMPLEMENTATION, NOT PER SCREEN. An arm live on three screens -- the overview",
+    "panel is -- is ONE record here, because the check compares this file against code and the",
+    "code has one function. docs/battle.md section 15.11 counts the same arms the other way,",
+    "once per screen, because that is how C61 counted and the two totals have to be",
+    "comparable: 33 records for 38 arms, and section 15.11 names the five that differ.",
+    "",
     "STATE OF THE FILE. The battlefield group is complete. The other two groups C61 measured",
     "-- the village and the right column -- are not in here yet, so the totals below are not",
     "the project's totals."
