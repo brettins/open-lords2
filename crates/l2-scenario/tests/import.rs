@@ -1,40 +1,31 @@
-//! The seam, against the shipped save.
+//! The seam, against a real save.
 //!
 //! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-scenario
+//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-scenario
 //! ```
 //!
-//! Two halves. The first is that the import *is* the file — every value the
-//! kingdom ends up holding can be pointed at a byte. The second is that a save
-//! this code has misread is **refused** rather than half-loaded: each test below
-//! corrupts one byte of a real save and checks which error comes back, which is
-//! the only way to know the guards are reachable at all.
+//! Two halves, and they are gated differently, which is the point of the split:
+//!
+//! * **The import *is* the file** — every value the kingdom ends up holding can
+//!   be pointed at a byte. Where the numbers are the England turn-one position's
+//!   own, the test is gated on that named fixture (`l2_testkit::england_turn1`)
+//!   and fails loudly if handed a different game.
+//! * **A save this code has misread is refused** rather than half-loaded. Each
+//!   refusal below corrupts one byte of a real save and checks which error comes
+//!   back, which is the only way to know the guards are reachable at all — and
+//!   that is a property of the importer, not of any scenario, so it runs over
+//!   **every** save the machine can offer.
+//!
+//! Nothing here reads a save out of the game install by a hard-coded path. That
+//! is what broke: the install's `lastturn.sav` is the rolling autosave and three
+//! directories on this machine hold a different game under that name.
 
 use l2_formats::save::{Layout, Save, COUNTY_BASE, COUNTY_STRIDE};
 use l2_scenario::{ImportError, Scenario, STARTING_HEALTH_METER};
-use std::path::{Path, PathBuf};
+use l2_testkit::{saves, SaveFile};
 
-fn install() -> Option<PathBuf> {
-    std::env::var("LORDS2_DIR")
-        .ok()
-        .filter(|d| Path::new(d).is_dir())
-        .map(PathBuf::from)
-        .or_else(|| {
-            let fallback = PathBuf::from(r"F:\games\Lords of the Realm II");
-            fallback.is_dir().then_some(fallback)
-        })
-}
-
-fn bytes() -> Option<(Vec<u8>, Vec<u8>)> {
-    let dir = install()?;
-    Some((
-        std::fs::read(dir.join("Lords2.exe")).ok()?,
-        std::fs::read(dir.join("lastturn.sav")).ok()?,
-    ))
-}
-
-/// Overwrite one byte of a *copy* of the save, at a runtime address, using the
-/// layout the executable itself supplies. Nothing is written to the install.
+/// Overwrite one byte of a *copy* of a save, at a runtime address, using the
+/// layout the executable itself supplies. Nothing is written to any install.
 fn poke(exe: &[u8], sav: &[u8], va: u32, value: u8) -> Vec<u8> {
     let layout = Layout::from_executable(exe).expect("block table");
     let at = layout.offset_of(va).expect("a saved address");
@@ -43,28 +34,41 @@ fn poke(exe: &[u8], sav: &[u8], va: u32, value: u8) -> Vec<u8> {
     out
 }
 
-macro_rules! shipped {
-    () => {
-        match bytes() {
-            Some(b) => b,
-            None => {
-                eprintln!("LORDS2_DIR not set - skipping");
-                return;
-            }
-        }
-    };
+/// Corrupt one byte of every reachable save and check the same error comes back
+/// from all of them. A guard that is only reachable on one file is not a guard
+/// anybody can rely on.
+fn refusal_over_every_save(
+    va: impl Fn(&SaveFile) -> u32,
+    value: u8,
+    expected: impl Fn(&SaveFile) -> ImportError,
+) {
+    let exe = l2_testkit::executable!();
+    let saves = saves!();
+    for s in &saves {
+        let bytes = std::fs::read(&s.path).expect("re-read");
+        let poked = poke(&exe, &bytes, va(s), value);
+        let save = Save::open(&exe, &poked).expect("still the right length");
+        assert_eq!(Scenario::from_save(&save), Err(expected(s)), "{}", s.label());
+    }
+    eprintln!("refusal reached on {} saves", saves.len());
 }
 
+/// **Corrected.** `assert_eq!(s.weather_county, 2)` was per-game noise: a second
+/// England turn-one save rolls 10. What the importer owes is that it carried
+/// across a real county, which is what is checked now.
 #[test]
-fn the_shipped_save_imports_as_fourteen_counties_and_five_realms() {
-    let (exe, sav) = shipped!();
-    let save = Save::open(&exe, &sav).unwrap();
+fn the_england_fixture_imports_as_fourteen_counties_and_five_realms() {
+    let save = l2_testkit::england!();
     let s = Scenario::from_save(&save).unwrap();
 
     assert_eq!(s.county_count, 14);
     assert_eq!(s.county_ids().count(), 14);
     assert_eq!(s.local_player, 1);
-    assert_eq!(s.weather_county, 2);
+    assert_eq!(
+        s.weather_county as i32, save.globals().unwrap().weather_county,
+        "the weather county is whatever the file rolled"
+    );
+    assert!((1..=s.county_count).contains(&s.weather_county));
     assert_eq!(s.realms.len(), 6);
     assert!(!s.realms[0].in_play, "realm 0 is an array slot");
     assert_eq!(s.realms.iter().filter(|r| r.in_play).count(), 5);
@@ -74,8 +78,7 @@ fn the_shipped_save_imports_as_fourteen_counties_and_five_realms() {
 /// the assertion that fails if the seam drops a field on the floor.
 #[test]
 fn every_imported_county_holds_what_the_file_holds() {
-    let (exe, sav) = shipped!();
-    let save = Save::open(&exe, &sav).unwrap();
+    let save = l2_testkit::england!();
     let s = Scenario::from_save(&save).unwrap();
     let k = s.kingdom(1);
 
@@ -118,8 +121,7 @@ fn every_imported_county_holds_what_the_file_holds() {
 /// happiness and health are not.
 #[test]
 fn the_starting_kingdom_differs_from_the_saved_one_by_one_season() {
-    let (exe, sav) = shipped!();
-    let save = Save::open(&exe, &sav).unwrap();
+    let save = l2_testkit::england!();
     let s = Scenario::from_save(&save).unwrap();
     let saved = s.kingdom(1);
     let start = s.starting_kingdom(1);
@@ -143,8 +145,7 @@ fn the_starting_kingdom_differs_from_the_saved_one_by_one_season() {
 /// kingdom, and the seam never learns which one it handed over.
 #[test]
 fn a_mod_reaches_an_imported_scenario() {
-    let (exe, sav) = shipped!();
-    let save = Save::open(&exe, &sav).unwrap();
+    let save = l2_testkit::england!();
     let s = Scenario::from_save(&save).unwrap();
     let mut rules = l2_kingdom::tables::Tables::DEFAULT;
     rules.grain.yield_per_sack = 24;
@@ -154,54 +155,70 @@ fn a_mod_reaches_an_imported_scenario() {
 }
 
 // --- refusals --------------------------------------------------------------
+//
+// These are invariants of the importer, so each runs over **every** save the
+// machine offers rather than over the one file somebody happened to have. The
+// old versions poked counties 2, 3 and 5 of `lastturn.sav`; county 5 does not
+// exist on every map, which is the same mistake in miniature.
 
 /// An owner byte naming a realm that does not exist is refused. A save whose
 /// arithmetic closed and whose owner byte is 9 has been misread, and half of a
 /// misread scenario is worse than none of one.
 #[test]
 fn an_owner_byte_naming_no_realm_is_refused() {
-    let (exe, sav) = shipped!();
-    let poked = poke(&exe, &sav, COUNTY_BASE + (2 * COUNTY_STRIDE) as u32 + 0x05, 9);
-    let save = Save::open(&exe, &poked).unwrap();
-    assert_eq!(Scenario::from_save(&save), Err(ImportError::Owner { county: 2, owner: 9 }));
+    refusal_over_every_save(
+        |_| COUNTY_BASE + COUNTY_STRIDE as u32 + 0x05,
+        9,
+        |_| ImportError::Owner { county: 1, owner: 9 },
+    );
 }
 
 /// A weather byte outside 0..=5 is refused rather than defaulted to Cloudy.
 #[test]
 fn a_weather_byte_naming_nothing_is_refused() {
-    let (exe, sav) = shipped!();
-    let poked = poke(&exe, &sav, COUNTY_BASE + (3 * COUNTY_STRIDE) as u32 + 0x21B, 9);
-    let save = Save::open(&exe, &poked).unwrap();
-    assert_eq!(Scenario::from_save(&save), Err(ImportError::Weather { county: 3, byte: 9 }));
+    refusal_over_every_save(
+        |_| COUNTY_BASE + COUNTY_STRIDE as u32 + 0x21B,
+        9,
+        |_| ImportError::Weather { county: 1, byte: 9 },
+    );
 }
 
 /// A neighbour id off the end of the map is refused: adjacency drives migration
 /// and the regional weather swing, and a stale id would quietly point one of
 /// them at a record that is not a county.
+///
+/// The poked id is one past *that* save's county count, which differs between
+/// maps — the England fixture has fourteen counties and the battle fixtures
+/// four.
 #[test]
 fn a_neighbour_off_the_end_of_the_map_is_refused() {
-    let (exe, sav) = shipped!();
-    let poked = poke(&exe, &sav, COUNTY_BASE + (5 * COUNTY_STRIDE) as u32 + 0x5C, 15);
-    let save = Save::open(&exe, &poked).unwrap();
-    assert_eq!(Scenario::from_save(&save), Err(ImportError::Neighbour { county: 5, id: 15 }));
+    let exe = l2_testkit::executable!();
+    let saves = saves!();
+    for s in &saves {
+        let past_the_end = s.save.globals().unwrap().county_count as u8 + 1;
+        let bytes = std::fs::read(&s.path).expect("re-read");
+        let poked =
+            poke(&exe, &bytes, COUNTY_BASE + COUNTY_STRIDE as u32 + 0x5C, past_the_end);
+        let save = Save::open(&exe, &poked).unwrap();
+        assert_eq!(
+            Scenario::from_save(&save),
+            Err(ImportError::Neighbour { county: 1, id: past_the_end }),
+            "{}",
+            s.label()
+        );
+    }
 }
 
 /// More counties than `g_counties` can hold is refused rather than truncated.
 #[test]
 fn a_county_count_the_array_cannot_hold_is_refused() {
-    let (exe, sav) = shipped!();
-    let poked = poke(&exe, &sav, 0x0056_D5DC, 99);
-    let save = Save::open(&exe, &poked).unwrap();
-    assert_eq!(Scenario::from_save(&save), Err(ImportError::CountyCount(99)));
+    refusal_over_every_save(|_| 0x0056_D5DC, 99, |_| ImportError::CountyCount(99));
 }
 
 /// And `g_localPlayer` outside the five realms.
 #[test]
 fn a_local_player_that_is_not_a_realm_is_refused() {
-    let (exe, sav) = shipped!();
-    let poked = poke(&exe, &sav, 0x0057_C8CC, 7);
-    let save = Save::open(&exe, &poked).unwrap();
-    assert_eq!(Scenario::from_save(&save), Err(ImportError::LocalPlayer(7)));
+    refusal_over_every_save(|_| 0x0057_C8CC, 7, |_| ImportError::LocalPlayer(7));
 }
 
 /// **The other two words of the labour record**, which this crate read as
@@ -230,8 +247,7 @@ fn the_labour_records_other_two_words_are_a_wanted_floor_and_a_useful_ceiling() 
         JOB_CATTLE_FARMING, JOB_COUNT, JOB_IDLE_TOWNSFOLK, JOB_WOOD_CUTTING,
     };
 
-    let (exe, sav) = shipped!();
-    let save = Save::open(&exe, &sav).unwrap();
+    let save = l2_testkit::england!();
     let s = Scenario::from_save(&save).unwrap();
 
     let mut floors = 0;

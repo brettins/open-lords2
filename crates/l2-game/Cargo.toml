@@ -44,3 +44,9 @@ path = "src/lib.rs"
 [[bin]]
 name = "l2-game"
 path = "src/main.rs"
+
+# `tests/` reach the England turn-one fixture and the install through the
+# testkit rather than each guessing at a path inside a directory the game
+# rewrites. Test-only: the spine finds its own install at run time.
+[dev-dependencies]
+l2-testkit = { path = "../l2-testkit" }

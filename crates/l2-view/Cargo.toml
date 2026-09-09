@@ -19,3 +19,9 @@ description = "Drawing for Lords of the Realm II: an indexed canvas and the pain
 [dependencies]
 l2-formats = { path = "../l2-formats" }
 l2-sim = { path = "../l2-sim" }
+
+# `tests/install.rs` locates the game install through the testkit rather than
+# repeating the env-var-and-fallback dance, and its skip sites are what the
+# gate census counts.
+[dev-dependencies]
+l2-testkit = { path = "../l2-testkit" }

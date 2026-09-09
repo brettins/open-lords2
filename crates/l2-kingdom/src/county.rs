@@ -443,7 +443,7 @@ pub struct County {
     /// *"Calf births expected"*, *"Cow deaths expected"* and *"Change due to
     /// farming"*. Written by [`crate::land::herd_preview`], and the three
     /// numbers `crates/l2-kingdom/tests/reproduction.rs` holds against the
-    /// shipped save.
+    /// England turn-one save.
     pub herd_births_expected: i32,
     pub herd_deaths_expected: i32,
     pub herd_change_expected: i32,
@@ -643,7 +643,7 @@ mod tests {
     }
 
     /// `docs/kingdom.md` §9: `(435-1)/25 + 1 = 18` and `(456-1)/25 + 1 = 19`,
-    /// which are the values stored in the shipped save.
+    /// which are the values stored in the England turn-one fixture.
     #[test]
     fn pop_band_reproduces_the_two_values_in_the_save() {
         let mut c = County::new();

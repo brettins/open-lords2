@@ -8,7 +8,7 @@
 //! without the game. No assets live in this repository.
 
 use l2_formats::{Palette, Pl8, Shape, Storage};
-use std::{collections::BTreeMap, env, fs, path::Path};
+use std::{collections::BTreeMap, fs};
 
 /// Files that use a supported encoding but still do not decode cleanly.
 ///
@@ -21,7 +21,7 @@ const KNOWN_FAILING: &[&str] = &[];
 const VALIDATED_BASELINE: usize = 291;
 
 fn asset_dir() -> Option<String> {
-    env::var("LORDS2_DIR").ok().filter(|d| Path::new(d).is_dir())
+    l2_testkit::install_dir().map(|d| d.display().to_string())
 }
 
 fn files_with_ext(dir: &str, ext: &str) -> Vec<std::path::PathBuf> {
@@ -41,8 +41,7 @@ fn files_with_ext(dir: &str, ext: &str) -> Vec<std::path::PathBuf> {
 #[test]
 fn pl8_corpus_validates() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set or not a directory - skipping corpus test");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set or not a directory - skipping corpus test");
     };
 
     let mut by_mode: BTreeMap<String, usize> = BTreeMap::new();
@@ -112,8 +111,7 @@ fn pl8_corpus_validates() {
 #[test]
 fn palettes_are_768_bytes_of_6bit_vga() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping palette test");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping palette test");
     };
 
     // 63 must scale to a true 255, not the 252 a naive << 2 would give.
@@ -142,8 +140,7 @@ fn palettes_are_768_bytes_of_6bit_vga() {
 #[test]
 fn decoded_frames_are_not_blank() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
 
     let mut stats: BTreeMap<&'static str, (usize, usize)> = BTreeMap::new();
@@ -198,8 +195,7 @@ fn decoded_frames_are_not_blank() {
 #[test]
 fn counts_that_the_documentation_quotes_still_hold() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
 
     let (mut shape1_with_rows, mut non_iso_family_with_iso_frames) = (0usize, 0usize);

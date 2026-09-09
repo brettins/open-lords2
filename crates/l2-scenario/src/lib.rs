@@ -61,7 +61,7 @@ use l2_kingdom::{land, Kingdom, Options};
 /// **`[V]`.** The layout is fixed by the labour allocator (`FUN_0044F6E7`),
 /// which clears the block with
 /// `for (c = 0; c < 9; c++) *(int *)(county + 0xC4 + c * 0x0C) = 0;` — nine
-/// records, twelve bytes each, count first. The shipped save then checks
+/// records, twelve bytes each, count first. The England turn-one fixture then checks
 /// itself: county 1 holds 218 cattle farmers and 217 wood cutters against a
 /// population of 435, county 2 holds 323 and 133 against 456, and **every one
 /// of the fourteen sums to its population exactly**, which no wrong stride
@@ -105,7 +105,7 @@ fn read_labour(save: &Save, county: usize, word: u32) -> Result<[i32; JOB_COUNT]
 /// `{grain 0, herd 95, population 417, health 65, health 65}`. Two more of
 /// those five turn up in `lastturn.sav` unchanged — `popLast` is 417 in all
 /// fourteen counties and `+0x254` is 95 in all fourteen — so the row the
-/// shipped scenario used is not in doubt. `tools/oracle/kingdom.ps1` checks the
+/// England turn-one scenario used is not in doubt. `tools/oracle/kingdom.ps1` checks the
 /// table; `crates/l2-kingdom/tests/reproduction.rs` checks the save against it.
 pub const STARTING_HEALTH_METER: i32 = 65;
 
@@ -284,7 +284,7 @@ pub struct Scenario {
 }
 
 impl Scenario {
-    /// Read a shipped save into plain data.
+    /// Read a England turn-one save into plain data.
     ///
     /// Every refusal here is a refusal rather than a default. A save whose owner
     /// byte names realm 9 is not a save with a small problem; it is a save this

@@ -8,6 +8,7 @@ members = [
     "crates/l2-net",
     "crates/l2-scenario",
     "crates/l2-sim",
+    "crates/l2-testkit",
     "crates/l2-view",
 ]
 

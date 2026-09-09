@@ -315,7 +315,7 @@ mod tests {
     }
 
     /// **`docs/kingdom.md` §9 point 3.** With Advanced Farming off, every
-    /// county's weather byte in the shipped save is 3 (Cloudy).
+    /// county's weather byte in the England turn-one fixture is 3 (Cloudy).
     #[test]
     fn basic_farming_forces_cloudy_everywhere_whatever_the_accumulator_says() {
         let mut rng = Pcg32::from_seed(1);

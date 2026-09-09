@@ -714,6 +714,9 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "l2-formats"
 version = "0.1.0"
+dependencies = [
+ "l2-testkit",
+]
 
 [[package]]
 name = "l2-game"
@@ -724,6 +727,7 @@ dependencies = [
  "l2-mods",
  "l2-scenario",
  "l2-sim",
+ "l2-testkit",
  "l2-view",
  "pixels",
  "winit",
@@ -736,6 +740,7 @@ dependencies = [
  "l2-formats",
  "l2-net",
  "l2-scenario",
+ "l2-testkit",
 ]
 
 [[package]]
@@ -746,6 +751,7 @@ dependencies = [
  "l2-kingdom",
  "l2-net",
  "l2-sim",
+ "l2-testkit",
 ]
 
 [[package]]
@@ -758,6 +764,7 @@ version = "0.1.0"
 dependencies = [
  "l2-formats",
  "l2-kingdom",
+ "l2-testkit",
 ]
 
 [[package]]
@@ -766,6 +773,14 @@ version = "0.1.0"
 dependencies = [
  "l2-formats",
  "l2-net",
+ "l2-testkit",
+]
+
+[[package]]
+name = "l2-testkit"
+version = "0.1.0"
+dependencies = [
+ "l2-formats",
 ]
 
 [[package]]
@@ -774,6 +789,7 @@ version = "0.1.0"
 dependencies = [
  "l2-formats",
  "l2-sim",
+ "l2-testkit",
 ]
 
 [[package]]

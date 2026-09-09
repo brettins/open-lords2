@@ -925,8 +925,9 @@ pub fn render_toml(t: &Tables) -> String {
          # docs/kingdom.md never says which slot holds it, and the value is\n\
          # this engine's placeholder so the rule can be written and tested at\n\
          # all. cattle_farming IS established: Herd_SeasonTick passes county\n\
-         # +0xD0, which is record 1, and the shipped save's nine labour records\n\
-         # sum to the county's population in all fourteen counties.\n\
+         # +0xD0, which is record 1, and the England turn-one fixture's\n\
+         # nine labour records sum to the county's population in all\n\
+         # fourteen counties.\n\
          \n[kingdom.job]\n\
          count = {}\n\
          iron_mining = {}\n\
@@ -951,8 +952,8 @@ pub fn render_toml(t: &Tables) -> String {
          # season towards max, so an industry is worth more the longer it has\n\
          # run and a county that is conquered and restarted is not. With\n\
          # Advanced Farming off none of that happens and every industry sits\n\
-         # flat at without_advanced_farming - which is the shipped save's\n\
-         # setting, so it is the ramp most games actually see.\n\
+         # flat at without_advanced_farming - which is the England turn-one\n\
+         # fixture's setting, so it is the ramp most games actually see.\n\
          \n[kingdom.efficiency]\n\
          max = {}\n\
          without_advanced_farming = {}\n",

@@ -26,3 +26,8 @@ description = "Deterministic battle simulation for Lords of the Realm II"
 [dependencies]
 l2-formats = { path = "../l2-formats" }
 l2-net = { path = "../l2-net" }
+
+# `tests/oracle.rs` reads the battle tables straight out of Lords2.exe.
+# Test-only: the simulation must not know what a file is.
+[dev-dependencies]
+l2-testkit = { path = "../l2-testkit" }

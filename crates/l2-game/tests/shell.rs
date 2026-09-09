@@ -30,14 +30,7 @@ use l2_game::Game;
 use l2_view::Canvas;
 
 fn install() -> Option<PathBuf> {
-    env::var("LORDS2_DIR")
-        .ok()
-        .filter(|d| Path::new(d).is_dir())
-        .map(PathBuf::from)
-        .or_else(|| {
-            let fallback = PathBuf::from(r"F:\games\Lords of the Realm II");
-            fallback.is_dir().then_some(fallback)
-        })
+    l2_testkit::install_dir()
 }
 
 fn eng() -> Option<Eng> {

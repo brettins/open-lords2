@@ -515,7 +515,7 @@ and destroys the absorbed unit.
 
 `g_optArmiesEat` (`0x0053F260`) is `L2.eng` group 50 index 2, ***"Army foraging"***, on the
 advanced-options screen — so the game's own word for the feature is foraging. Off in the
-shipped save. It gates exactly four things:
+England turn-one save. It gates exactly four things:
 
 1. `Ration_Apply` adds the county's troop counts to the food requirement (§3.3a).
 2. `Panel_Ration` grows by two rows and prints the troop total.

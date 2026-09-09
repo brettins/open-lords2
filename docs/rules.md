@@ -167,7 +167,7 @@ Winter loses **43%** of its people in a single season.
 
 **Migration** moves people between neighbouring counties, driven by the happiness gap. The
 formula makes small gaps produce *nothing*: a county at 72 next to one at 77 moves nobody at
-all, which is why the shipped save's numbers work out with no migration in them.
+all, which is why the England turn-one fixture's numbers work out with no migration in them.
 
 Peasants are assigned to **nine jobs**: grain farming, cattle farming, field reclamation,
 castle building, iron mining, stone quarrying, wood cutting, blacksmith, and **Idle
@@ -332,7 +332,7 @@ the castle designer, sieges, most of the interface, merchants and transports as 
 move, and the fourteen siege battle orders. `docs/mechanics.md` tracks what is implemented
 against what is merely known.
 
-And a standing caution, learned twice the hard way: **the shipped save exercises one narrow
+And a standing caution, learned twice the hard way: **the England turn-one fixture exercises one narrow
 slice of these rules.** Every county in it sits at tax rate 0 with a well-staffed herd, which
 is exactly why two wrong rules survived 932 passing tests. A rule that looks right in the
 save may still be wrong everywhere else.

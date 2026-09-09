@@ -9,19 +9,16 @@
 //! data lives in this repository.
 
 use l2_formats::maps::{flags, Plane, MapSet, PLANE_DIM, SLOT_LEN};
-use std::{env, fs, path::Path};
+use std::fs;
 
 fn maps_file() -> Option<Vec<u8>> {
-    let dir = env::var("LORDS2_DIR").ok()?;
-    let p = Path::new(&dir).join("L2_maps.dat");
-    fs::read(p).ok()
+    l2_testkit::read_install("L2_maps.dat")
 }
 
 #[test]
 fn the_windows_release_holds_eighty_slots_of_which_fortyfour_are_used() {
     let Some(bytes) = maps_file() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     assert_eq!(bytes.len() % SLOT_LEN, 0, "file is not a whole number of slots");
 
@@ -112,11 +109,15 @@ fn castle_tiles_form_complete_two_by_two_blocks() {
 
 #[test]
 fn the_dos_release_is_the_windows_file_truncated() {
-    let Some(bytes) = maps_file() else { return };
+    let Some(bytes) = maps_file() else {
+        l2_testkit::skip!("no L2_maps.dat reachable");
+    };
     // Optional: only runs if the older DOS install is also present.
-    let Ok(dos) = fs::read("F:/games/LORDS2/L2_MAPS.DAT") else {
-        eprintln!("DOS install not present - skipping");
-        return;
+    let Some(dos_dir) = l2_testkit::dos_install_dir() else {
+        l2_testkit::skip!("no DOS install ({} unset)", l2_testkit::DOS_INSTALL_VAR);
+    };
+    let Ok(dos) = fs::read(dos_dir.join("L2_MAPS.DAT")) else {
+        l2_testkit::skip!("{} holds no L2_MAPS.DAT", dos_dir.display());
     };
     assert_eq!(dos.len(), 40 * SLOT_LEN);
     assert_eq!(

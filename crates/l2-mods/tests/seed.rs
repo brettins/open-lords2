@@ -5,8 +5,8 @@
 //! bare checkout.
 
 use l2_mods::seed::{
-    battle_names, parse_troops_eng, slug, to_rules_toml, SeedError, COLUMNS, GROUPS, NORMAL_GROUP,
-    ROWS, SIDES, TOKEN_COUNT,
+    battle_names, parse_troops_eng, slug, to_rules_toml, SeedError, COLUMNS, DIFFICULTIES, GROUPS,
+    NORMAL_GROUP, ROWS, SIDES, TOKEN_COUNT,
 };
 use l2_mods::{Ruleset, Side, TroopRules};
 
@@ -135,14 +135,74 @@ fn the_generated_rules_reparse_and_mean_what_the_file_meant() {
     assert_eq!(b.defender[1], table.counts[0][NORMAL_GROUP][1][1]);
 }
 
+/// **The curve the binary hard-codes, as the ruleset carries it.**
+///
+/// `docs/formats/eng.md` §3.2: the engine derives every difficulty group from
+/// Normal as `x * p / 100` with p = 116, 108, 100, 92, 84, for troop columns
+/// 0–6 only. All five percentages are asserted here, over every column, from
+/// the ruleset the seeder actually emits.
+///
+/// **Corrected.** This test used to inject `scale_percent = 50` through a mod
+/// and then assert that the engine had applied 50 %, over a synthetic file:
+///
+/// ```text
+/// rs.apply_str("[difficulty.very_hard]\nscale_percent = 50\n", ...);
+/// assert_eq!(brutal[0], normal[0] * 50 / 100);
+/// ```
+///
+/// which is a tautology — the test supplied the number it then checked for.
+/// Under a name saying "the binary hard-coded", nothing about the binary was
+/// touched, and a typo in `seed::DIFFICULTIES` would not have moved it. One
+/// line at the end did check 116; the other four percentages were unguarded.
+///
+/// The override half is still worth having and is kept below, as a separate
+/// assertion that says what it is.
 #[test]
 fn the_difficulty_curve_the_binary_hard_coded_is_now_a_rule() {
     let table = parse_troops_eng(&synthetic_troops_eng()).unwrap();
     let text = to_rules_toml(&table, &[], "TROOPS2.ENG");
     let mut rs = Ruleset::new();
     rs.apply_str(&text, "base:rules/troops.toml").unwrap();
+    let rules = TroopRules::from_ruleset(&rs).unwrap();
 
-    // A mod that only changes the curve.
+    let mut checked = 0;
+    for &(id, _, percent) in &DIFFICULTIES {
+        assert_eq!(
+            rules.difficulty(id).expect(id).scale_percent,
+            percent,
+            "{id} lost its transcribed percentage"
+        );
+        for b in &rules.battles {
+            for side in [Side::Attacker, Side::Defender] {
+                let normal = rules.army(b, "normal", side);
+                let scaled = rules.army(b, id, side);
+                for c in 0..COLUMNS {
+                    let want =
+                        if c < 7 { normal[c] * percent / 100 } else { normal[c] };
+                    assert_eq!(scaled[c], want, "{} {id} side {side:?} column {c}", b.id);
+                    checked += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(checked, DIFFICULTIES.len() * ROWS * 2 * COLUMNS);
+
+    // The five percentages themselves, spelled out once so that a change to
+    // seed::DIFFICULTIES has to be made twice on purpose.
+    assert_eq!(
+        DIFFICULTIES.map(|(_, _, p)| p),
+        [116, 108, 100, 92, 84],
+        "the curve docs/formats/eng.md §3.2 reads out of the engine"
+    );
+}
+
+/// A mod may replace the curve, and only the columns the curve touches move.
+#[test]
+fn a_mod_can_replace_the_difficulty_curve_and_siege_columns_still_do_not_scale() {
+    let table = parse_troops_eng(&synthetic_troops_eng()).unwrap();
+    let text = to_rules_toml(&table, &[], "TROOPS2.ENG");
+    let mut rs = Ruleset::new();
+    rs.apply_str(&text, "base:rules/troops.toml").unwrap();
     rs.apply_str("[difficulty.very_hard]\nscale_percent = 50\n", "brutal:rules/curve.toml")
         .unwrap();
 
@@ -159,7 +219,7 @@ fn the_difficulty_curve_the_binary_hard_coded_is_now_a_rule() {
     for c in 7..COLUMNS {
         assert_eq!(brutal[c], normal[c], "siege column {c} was scaled");
     }
-    // And +16% at the easy end, still by truncating division.
+    // The groups the mod did not name keep the transcribed curve.
     let easy = rules.army(b, "very_easy", Side::Attacker);
     assert_eq!(easy[0], normal[0] * 116 / 100);
 }

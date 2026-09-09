@@ -23,7 +23,7 @@
 //!   base to *last season's* efficiency every season, capped at 100 — so a new
 //!   mine starts at 15% and reaches full output in seven seasons. And with
 //!   *Advanced Farming* off the whole mechanism is bypassed for a flat 80%,
-//!   which means the shipped save's settings put every industry at 80% and the
+//!   which means the England turn-one fixture's settings put every industry at 80% and the
 //!   published *"30 serfs working at 15% efficiency"* describes the advanced
 //!   game only.
 //! * **`resourceLimit` is a literal 999 for wood, iron and stone** once the
@@ -554,7 +554,7 @@ mod tests {
     // --- the efficiency ramp -----------------------------------------------
 
     /// **With Advanced Farming off every industry is a flat 80%**, and the base
-    /// efficiencies never come into it. The shipped save has the option off.
+    /// efficiencies never come into it. The England turn-one fixture has the option off.
     #[test]
     fn a_basic_game_runs_every_industry_at_eighty_percent() {
         for base in [15, 20] {
@@ -722,7 +722,7 @@ mod tests {
     }
 
     /// A basic game's flat 80% dwarfs the advanced game's early seasons — and
-    /// that is the shipped save's setting.
+    /// that is the England turn-one fixture's setting.
     #[test]
     fn a_basic_game_out_produces_a_new_advanced_one() {
         let mut basic = advanced_county(100);
@@ -988,7 +988,7 @@ mod tests {
 
     /// The default starting castle is the Norman keep, and it is the cheapest
     /// castle in wood — which is why it is the one every player-owned county in
-    /// the shipped save has.
+    /// the England turn-one fixture has.
     #[test]
     fn the_norman_keep_is_the_cheapest_castle_in_wood() {
         assert_eq!(crate::tables::CASTLE_STARTING_TYPE, 3);

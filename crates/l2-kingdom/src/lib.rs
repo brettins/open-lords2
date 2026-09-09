@@ -52,7 +52,7 @@
 //! 1. **§4.1's empire tax term is a table, and inference got it wrong.**
 //!    §4.1 gives `dHapTax = (5 - taxRate) + realm.taxHapEmpire` and §2 gives
 //!    `taxHapEmpire = sum of every owned county's +0x16`. `+0x16` cannot be
-//!    `5 - rate` — the shipped save, four owned counties all at rate 0, would
+//!    `5 - rate` — the England turn-one fixture, four owned counties all at rate 0, would
 //!    then store `dHapTax = 25` where §9 says `+5`. This crate inferred
 //!    `min(5 - rate, 0)` from that, which reproduces the save and matches the
 //!    manual, **and is wrong at 45 of the 51 rates.** `Tax_RecomputePreview`
@@ -72,7 +72,7 @@
 //!    when `ended == 4`, i.e. in the same `Season_Advance` call that begins
 //!    Winter, so the year label runs **Winter, Spring, Summer, Autumn**. The
 //!    prose says *"the year runs Spring → Winter"*. The code reproduces the
-//!    shipped save's `season 4, year 1268, turn 1`; the prose does not follow
+//!    England turn-one save's `season 4, year 1268, turn 1`; the prose does not follow
 //!    from it. See [`Kingdom::start_new_game`].
 //!
 //! 4. **§7.3's `random/8` has no stated range** — *resolved, and this crate's

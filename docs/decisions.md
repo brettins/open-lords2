@@ -554,9 +554,112 @@ test suite. The difference is that C21 had a blank where the layout should be, a
 something worse — a confident paragraph, `[V]`-adjacent, in three documents and a module
 header. A wrong answer written down is more expensive than no answer, and it survives longer
 because it stops anyone looking.
+**C23 — "The shipped save" was three words that hid a rolling autosave, and a test
+suite that passes identically whether or not it ran.**
+
+Nine tests in `crates/l2-formats/tests/save.rs` asserted one saved game's numbers against
+`lastturn.sav` *inside the game install*. That file is the **rolling autosave**: the game
+rewrites it every turn a human plays. Ten minutes of play replaced it and all nine went
+red at once, with bare assertion diffs that read like a broken reader.
+
+**A clean GOG install ships no saves at all** — verified by diffing a pristine copy of the
+install against a played one, where exactly six files differ and five of them are saves.
+The file was produced by somebody in an earlier session of this project starting a
+campaign. "Shipped" was simply wrong, and the wrong word is what made a volatile file look
+permanent: nobody protects a fixture they believe the publisher supplied.
+
+Three separate defects came out of one breakage, and only the first is the obvious one.
+
+**1. A path is not an identity.** Three directories on this machine now hold a
+`lastturn.sav` and they are three different games. A fixture is now a *name* plus a
+*fingerprint* — `l2_testkit::england_turn1()` reads
+`%LORDS2_FIXTURES%\england-turn1.sav`, checks it is that position, and returns one of
+three states: **ready**, **absent** (skip, with a reason) or **wrong game** (fail, naming
+the fixture). The last two were the same state before, which is exactly why this was not
+noticed earlier. There is deliberately no fall back to any install's autosave.
+
+**2. Three of the nine were asserting per-playthrough noise under an invariant's name.**
+This was settled empirically, by comparing two independently created England turn-one
+saves rather than by argument. The five starting counties are always 1, 4, 8, 11 and 13
+and realms 1 to 5 always take one each — but **which realm takes which is rolled per
+game**, and so are `g_weatherCounty`, which lord sits behind which realm, and which county
+the person ends up on. County 11 falls to realm 3 in both saves, which is chance, and is a
+fair warning about how convincingly one playthrough reads as a rule.
+
+The third of those is the interesting one. `the_food_configuration_has_three_shapes_and_county_one_is_alone_in_the_third`
+asserted that **county 1** is the odd one out on food. In the second save the odd county is
+8 — and county 1 there and county 8 here are both **realm 5's**. *One lord always begins
+short of food, and it is always realm 5.* A real piece of scenario design had been pinned
+to a coincidence, in three test files and in `docs/kingdom.md` §4.3, and would have gone on
+passing against the file it was written from. Two more constants had the same shape:
+`reproduction.rs`'s `const DEAD_END: usize = 1` conflated "the map's dead end" with "the
+county that starves", which happen to coincide in exactly one save.
+
+Note what the failure told us and what it did not. `the_neighbour_lists_are_symmetric_and_name_only_real_counties`
+also went red — on `assert_eq!(real.len(), 14)`. **The invariant its name promises held
+perfectly on all eleven saves this machine can reach.** A scenario value wearing an
+invariant's name is indistinguishable from a broken invariant until somebody separates
+them.
+
+**3. A silent skip is worse than a red test, and the suite was full of them.**
+`cargo test --workspace` printed `989 passed; 0 failed` with the game present and
+`989 passed; 0 failed` with it absent. **116 tests** — the reproduction against a real
+save, the renderer against real sprites, every screen test — did not exist on CI, and
+nothing said so. Two of those files used `env::var` with no fall back, so all 22 of their
+tests had never run on any machine that did not export `LORDS2_DIR`; twelve of them failed
+the moment they were made to run, because they took the *assets* and the *position* from
+the same directory.
+
+`crates/l2-testkit/tests/census.rs` now reads the source, works out which gate each
+`#[test]` sits behind, and asserts the count against a written-down inventory. Adding a
+gate fails the build until the inventory is updated. It also prints what the current
+environment satisfies, so a run that asserted an eighth of what it looks like it asserted
+says so.
+
+The general form, and the one worth keeping: **a test's failure mode is not only "wrong
+answer" — it is also "did not run" and "ran against something else".** This project had
+careful machinery for the first and none at all for the other two. And the naming matters
+more than it looks: three of these defects are downstream of calling a file "shipped".
+
+**C24 — The oracle existed, printed to a console, and was wired to nothing.**
+
+`tools/oracle/*.ps1` has read the battle and economy tables straight out of `Lords2.exe`
+since C14. `crates/l2-view/tests/install.rs` has had `va_to_offset` — the four lines that
+turn a documented virtual address into a file offset — since it was written. Neither had
+ever been applied to `l2-kingdom::tables` or `l2-sim`, the two crates carrying the most
+hand-transcribed numbers, and the test guarding `l2-sim`'s was named
+`the_unit_size_and_footprint_tables_match_the_oracle_reading` while opening nothing: it
+compared a constant against a second spelling of itself, both typed on the same afternoon.
+
+C10, C12, C17 and C20 are four instances of one mechanism — **nothing re-checks** — and
+the apparatus to fix it was already in the tree, split across a script that printed and a
+test that never ran anywhere useful.
+
+`crates/l2-sim/tests/oracle.rs` and `crates/l2-kingdom/tests/oracle.rs` close it: 66
+battle values and eleven economy tables, read from the image. Two things fell out
+immediately. `MissileStats::range` is in cells and the table stores **eighths of a cell**,
+which nothing had ever confirmed. And 25 of `g_healthDeltaTable`'s 30 entries had never
+been read by any test at all, because every county in the England turn-one position sits
+on Normal rations at health band 3 — the reproduction test is strong evidence about the
+rules that *one save exercises*, and silent about everything else.
+
+The general form: **"we have a tool that could check this" is not a check.** The distance
+between a script that prints a table and a test that fails is the whole of the value.
 
 ## Open questions
 
+- **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
+  shipped `TROOPS*.ENG` an oracle for it was tried and does not work: the non-Normal rows
+  are hand-authored leftovers (402 of 3,080 populated in `TROOPS.ENG`, ratios running 1.20
+  to 2.00 with 116 % nowhere among them) which the engine overwrites. `docs/formats/eng.md`
+  §3.2 said those rows were "all zeros" and that is corrected there. The percentages are
+  immediates in the caller of `FUN_00404D6B` and would need `initconsts.ps1`'s technique to
+  recover.
+- **The labour allocator never reruns.** `sum(labour) == population` holds on an imported
+  kingdom and is frozen at the import's figure ten seasons later while the population moves
+  under it; `FUN_0044F6E7` reallocates every season. Found by replacing C12's shape in
+  `ten_more_seasons_...`, pinned there, and named at the assertion that will go red when
+  somebody writes the rule.
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
   gives the weather jitter as `random/8` with no stated range, which is not implementable —
   the constant is the one number in that crate with no evidence behind it, and it is marked

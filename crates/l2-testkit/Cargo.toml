@@ -1,0 +1,17 @@
+[package]
+name = "l2-testkit"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Test infrastructure: where fixtures live, which gate a test is behind, and a census of the gates"
+
+# Test-only. Nothing in `crates/*/src` may depend on this, and `tests/census.rs`
+# asserts that nothing does: a library that can find a game install is a library
+# that behaves differently on the developer's machine.
+#
+# It depends on `l2-formats` because locating a save and *checking it is the
+# right save* are the same job. A path with no fingerprint behind it is how a
+# rolling autosave came to be treated as a fixed fixture.
+[dependencies]
+l2-formats = { path = "../l2-formats" }

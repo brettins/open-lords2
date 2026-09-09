@@ -27,7 +27,7 @@
 //!
 //! # What this is for
 //!
-//! The shipped scenario. `crates/l2-kingdom` reproduces the *rules* exactly, but
+//! The England turn-one scenario. `crates/l2-kingdom` reproduces the *rules* exactly, but
 //! its test built the *scenario* from a document rather than from the save —
 //! four counties owned by one realm, where the file actually holds five owned by
 //! five different realms. Reading the save turns that from a self-consistent
@@ -58,7 +58,7 @@ pub const REALM_RECORDS: usize = 6;
 /// The neighbour ids live at county `+0x5C`, and the next identified field is
 /// `anchorX` at `+0x6C`. That is sixteen bytes, so sixteen slots is what the
 /// record affords — a layout fact rather than a count anyone has observed used.
-/// The largest count in the shipped save is seven.
+/// The largest count in the England turn-one fixture is seven.
 pub const NEIGHBOUR_SLOTS: usize = 16;
 
 /// One weapon counter per type, realm `+0x140 + t*4`.
@@ -402,7 +402,7 @@ impl Save {
     }
 }
 
-/// A realm as the shipped save holds it. Index 0 is never a realm.
+/// A realm as the England turn-one fixture holds it. Index 0 is never a realm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Realm {
     pub index: usize,
@@ -457,7 +457,7 @@ pub struct Globals {
     pub weather_county: i32,
 }
 
-/// A county as the shipped save holds it.
+/// A county as the England turn-one fixture holds it.
 ///
 /// Only fields whose meaning is established in `docs/kingdom.md` are read. The
 /// record is `0x300` bytes and most of it is still unnamed.
@@ -508,7 +508,7 @@ pub struct County {
     pub grain_eaten: i32,
     pub herd_eaten: i32,
     /// `+0x180`, `+0x184` — the stores as the last ration pass saw them. In
-    /// the shipped save they equal [`County::grain`] and [`County::herd`]
+    /// the England turn-one fixture they equal [`County::grain`] and [`County::herd`]
     /// exactly, which is evidence that the pass that wrote them spent nothing.
     pub grain_available: i32,
     pub herd_available: i32,

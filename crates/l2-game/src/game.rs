@@ -202,7 +202,7 @@ pub struct Game {
     /// What the last season did. Plain data: passes, messages and revolts.
     pub last_report: Option<SeasonReport>,
     /// How many turns this session has ended. `Kingdom::turn_count` is the
-    /// game's own counter and starts at 1 in the shipped save; this one counts
+    /// game's own counter and starts at 1 in the England turn-one fixture; this one counts
     /// what the player did.
     pub turns_played: u32,
 }

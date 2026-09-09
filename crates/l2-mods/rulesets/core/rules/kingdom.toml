@@ -492,8 +492,9 @@ free_archers = 300
 # docs/kingdom.md never says which slot holds it, and the value is
 # this engine's placeholder so the rule can be written and tested at
 # all. cattle_farming IS established: Herd_SeasonTick passes county
-# +0xD0, which is record 1, and the shipped save's nine labour records
-# sum to the county's population in all fourteen counties.
+# +0xD0, which is record 1, and the England turn-one fixture's
+# nine labour records sum to the county's population in all
+# fourteen counties.
 
 [kingdom.job]
 count = 9
@@ -509,8 +510,8 @@ castle_building = 3
 # season towards max, so an industry is worth more the longer it has
 # run and a county that is conquered and restarted is not. With
 # Advanced Farming off none of that happens and every industry sits
-# flat at without_advanced_farming - which is the shipped save's
-# setting, so it is the ramp most games actually see.
+# flat at without_advanced_farming - which is the England turn-one
+# fixture's setting, so it is the ramp most games actually see.
 
 [kingdom.efficiency]
 max = 100

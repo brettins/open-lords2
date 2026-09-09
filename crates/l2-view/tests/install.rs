@@ -20,7 +20,7 @@
 //! * **Render** — `USER.SKR`'s twenty battlefields are built and drawn, and a
 //!   battle is stepped and drawn, with assertions on the resulting pixels.
 
-use std::{env, fs, path::{Path, PathBuf}};
+use std::{fs, path::{Path, PathBuf}};
 
 use l2_sim::runner::{self as battle, BattleRunner};
 use l2_sim::terrain;
@@ -33,7 +33,7 @@ use l2_view::scene::{self, BattleAssets, Camera};
 use l2_view::sheet::Sheet;
 
 fn asset_dir() -> Option<PathBuf> {
-    env::var("LORDS2_DIR").ok().map(PathBuf::from).filter(|d| d.is_dir())
+    l2_testkit::install_dir()
 }
 
 /// The install is inconsistent about casing, so every lookup is
@@ -72,8 +72,7 @@ const STRIDE_TROOPS: [Troop; 6] = [
 #[test]
 fn the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let mut checked = 0;
     for colour in Colour::ALL {
@@ -113,8 +112,7 @@ fn the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet() {
 #[test]
 fn the_knight_frame_table_fits_the_knight_sheets() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     for colour in Colour::ALL {
         let name = figures::sprite_file(colour, Troop::Knights).unwrap();
@@ -169,12 +167,10 @@ fn va_to_offset(exe: &[u8], va: u32) -> Option<usize> {
 #[test]
 fn the_walk_offsets_match_the_table_in_the_binary() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let Some(exe) = read(&dir, "Lords2.exe") else {
-        eprintln!("Lords2.exe not present - skipping");
-        return;
+        l2_testkit::skip!("Lords2.exe not present - skipping");
     };
     const TABLE_VA: u32 = 0x004E_4030;
     const STRIDE: u32 = 0x88;
@@ -207,12 +203,10 @@ fn the_walk_offsets_match_the_table_in_the_binary() {
 #[test]
 fn every_shipped_battlefield_asks_only_for_tiles_that_exist() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let Some(skr) = read(&dir, "USER.SKR") else {
-        eprintln!("USER.SKR not present - skipping");
-        return;
+        l2_testkit::skip!("USER.SKR not present - skipping");
     };
     let tiles = Sheet::new(read(&dir, scene::TILESET).expect(scene::TILESET)).unwrap();
     assert_eq!(tiles.frame_count(), 252, "T32_bat1.pl8 should hold 252 frames");
@@ -243,12 +237,10 @@ fn every_shipped_battlefield_asks_only_for_tiles_that_exist() {
 #[test]
 fn the_sample_battlefield_renders_with_no_holes() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let Some(skr) = read(&dir, "USER.SKR") else {
-        eprintln!("USER.SKR not present - skipping");
-        return;
+        l2_testkit::skip!("USER.SKR not present - skipping");
     };
     let tiles = Sheet::new(read(&dir, scene::TILESET).expect(scene::TILESET)).unwrap();
     let skr = l2_formats::Skr::parse(&skr).unwrap();
@@ -301,12 +293,10 @@ fn load_assets(dir: &Path) -> BattleAssets {
 #[test]
 fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let Some(skr_bytes) = read(&dir, "USER.SKR") else {
-        eprintln!("USER.SKR not present - skipping");
-        return;
+        l2_testkit::skip!("USER.SKR not present - skipping");
     };
     let assets = load_assets(&dir);
     let skr = l2_formats::Skr::parse(&skr_bytes).unwrap();
@@ -380,8 +370,7 @@ fn a_battle_on_the_sample_map_animates_rather_than_sitting_still() {
 #[test]
 fn figures_are_visible_against_the_terrain_behind_them() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let assets = load_assets(&dir);
     let runner = BattleRunner::deploy(
@@ -416,8 +405,7 @@ fn figures_are_visible_against_the_terrain_behind_them() {
 #[test]
 fn every_campaign_tile_bank_matches_the_pitch_the_binary_steps_by() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let mut checked = 0;
     for zoom in campaign::ZOOMS {
@@ -457,12 +445,10 @@ fn every_campaign_tile_bank_matches_the_pitch_the_binary_steps_by() {
 #[test]
 fn the_minimap_realm_ramp_matches_the_table_in_the_binary() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let Some(exe) = read(&dir, "Lords2.exe") else {
-        eprintln!("Lords2.exe not present - skipping");
-        return;
+        l2_testkit::skip!("Lords2.exe not present - skipping");
     };
     let Some(base) = va_to_offset(&exe, chrome::MINIMAP_REALM_RAMP_VA) else {
         panic!("0x{:08X} is not inside any initialised section", chrome::MINIMAP_REALM_RAMP_VA);
@@ -490,12 +476,10 @@ fn the_minimap_realm_ramp_matches_the_table_in_the_binary() {
 #[test]
 fn every_used_map_slot_has_a_minimap_and_every_empty_one_does_not() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let Some(maps) = read(&dir, "L2_maps.dat") else {
-        eprintln!("L2_maps.dat not present - skipping");
-        return;
+        l2_testkit::skip!("L2_maps.dat not present - skipping");
     };
     let set = l2_formats::MapSet::parse(&maps).expect("L2_maps.dat parses");
     let used = set.used_slots();
@@ -525,12 +509,10 @@ fn every_used_map_slot_has_a_minimap_and_every_empty_one_does_not() {
 #[test]
 fn the_right_panel_frames_in_the_file_tile_the_column_exactly() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let Some(bytes) = read(&dir, "Misc_cty.pl8") else {
-        eprintln!("Misc_cty.pl8 not present - skipping");
-        return;
+        l2_testkit::skip!("Misc_cty.pl8 not present - skipping");
     };
     let pl8 = l2_formats::Pl8::parse(&bytes).expect("Misc_cty.pl8 parses");
     let h = |i: usize| {
@@ -572,12 +554,10 @@ fn the_right_panel_frames_in_the_file_tile_the_column_exactly() {
 #[test]
 fn the_panels_kit_in_the_file_has_the_shape_the_drawing_code_indexes() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let Some(bytes) = read(&dir, "Panels.pl8") else {
-        eprintln!("Panels.pl8 not present - skipping");
-        return;
+        l2_testkit::skip!("Panels.pl8 not present - skipping");
     };
     let pl8 = l2_formats::Pl8::parse(&bytes).expect("Panels.pl8 parses");
     use l2_view::chrome::panels as p;

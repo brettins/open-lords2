@@ -12,7 +12,7 @@ failed to look for.
 Two mechanics were added to this project in a single conversation because a player mentioned
 them in passing — cattle needing peasants to tend them, and herd crowding in four bands.
 Neither was in any document. Both are real, both are traced to the instruction stream, and
-both are now implemented and checked against the shipped save (`docs/kingdom.md` §13).
+both are now implemented and checked against the England turn-one fixture (`docs/kingdom.md` §13).
 
 Legend:
 
@@ -281,5 +281,5 @@ minutes the first time anyone asked.
 
 Particularly worth doubting: anything involving **things that move on the campaign map**
 (armies, merchants, transports), anything about **what happens between turns**, and any
-rule that only shows up at values the shipped save never reaches — that last category has
+rule that only shows up at values the England turn-one fixture never reaches — that last category has
 already produced two wrong rules today, both invisible to 932 tests.

@@ -9,25 +9,88 @@ Everything here has cost real time at least once.
 | Repo | `E:\dev\lords2` |
 | Game (GOG, Windows build) | `F:\games\Lords of the Realm II` — **read only** |
 | Game (older DOS install) | `F:\games\LORDS2` — **read only**, useful for diffing |
+| **Test fixtures** | `E:\dev\lords2-fixtures` — preserved saves, **outside every install** |
 | Ghidra | `E:\dev\tools\ghidra_12.1.3_PUBLIC` |
 | Ghidra projects | `E:\dev\ghidra-projects` |
 | JDK 21 | `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot` |
 | Rust | `~/.cargo/bin` (not on PATH by default) |
+
+## The test suite's three inputs
+
+| variable | default | holds |
+|---|---|---|
+| `LORDS2_DIR` | `F:\games\Lords of the Realm II` | the install: `Lords2.exe`, the art, `USER.SKR`, `L2_maps.dat` |
+| `LORDS2_FIXTURES` | `E:\dev\lords2-fixtures` | preserved `.sav` files that nothing rewrites |
+| `LORDS2_DOS_DIR` | `F:\games\LORDS2` | the older DOS install, for the two tests that diff against it |
+
+All three are resolved in **one place**, `crates/l2-testkit`, and a test in that
+crate fails if a game directory is spelled out anywhere else. Thirteen files used
+to carry their own copy of the install path.
+
+### Fixtures are named, not found
+
+**`lastturn.sav` inside a game install is the rolling autosave.** The game
+rewrites it every turn a human plays, and a clean GOG install ships **no saves at
+all** — verified by diffing a pristine copy of the install against a played one,
+where exactly six files differ and five of them are saves. Nine tests treated one
+particular `lastturn.sav` as a fixed fixture, called it "the shipped save", and
+went red the first time somebody played for ten minutes.
+
+So a fixture is a **file name plus a fingerprint**, and lives outside every
+install:
+
+| fixture | file | what it is |
+|---|---|---|
+| England turn one | `england-turn1.sav` | the England map, turn 1, Winter 1268. Fourteen counties; five owned at indices 1, 4, 8, 11, 13, one realm each; `g_localPlayer` 1 |
+| the battle triple | `battle-before.sav`, `battle-during.sav`, `battle-after.sav` | one battle caught at three moments: 178 men at (33, 17); a defender in slot 6; both armies gone |
+| the turn pair | `old_turn.sav`, `safeturn.sav` | earlier turns of the same game — a multi-turn economy |
+
+`l2_testkit::england_turn1()` returns one of three states and they are kept
+distinct on purpose, because conflating the last two is what hid the breakage:
+
+* **ready** — the file is there and the fingerprint matches;
+* **absent** — nothing is configured; the test *skips*, printing `SKIP <name>: <why>`;
+* **wrong game** — something is there and it is a different saved game; the test
+  **fails**, naming the fixture and saying which clause failed.
+
+There is deliberately **no fall back to the install's `lastturn.sav`.** Three
+directories on this machine hold a file of that name and they are three
+different games.
+
+**What the fingerprint deliberately excludes.** The realm→county assignment,
+`g_weatherCounty`, which lord sits behind which realm, and which county the
+person ends up on are all **rolled per game**. Comparing two independently
+created England turn-one saves is what established that; asserting any of them
+is what turned a regenerable fixture into an irreproducible one.
+
+**Regenerating the England fixture.** Start a new England campaign in the
+original game, let turn one begin, quit, and copy that install's `lastturn.sav`
+to `%LORDS2_FIXTURES%\england-turn1.sav`. Never copy it *into* the repository:
+`.gitignore` refuses `*.sav` and a test in `l2-testkit` fails if one appears in
+the working tree.
 
 ## Commands
 
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 
-# Unit tests only (no game install needed)
-cargo test -p l2-formats
+# What CI runs: no install, no fixtures. 116 tests skip, and say so.
+cargo test --workspace
 
-# Including corpus validation against a real install
-LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-formats -- --nocapture
+# Everything, including the corpus and the fixture-gated suites.
+LORDS2_DIR="F:\games\Lords of the Realm II" \
+LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test --workspace
 
-# Differential harness: our Node decoder vs our Rust decoder
-powershell -File tools/pl8diff.ps1
+# What this run actually asserted, and what it silently did not.
+cargo test -p l2-testkit --test census -- --nocapture
 ```
+
+**Both of the first two must pass, and they are different suites.** That is the
+whole point of the census: `cargo test --workspace` prints the same
+`passed; 0 failed` line either way while asserting wildly different amounts, so
+the number of gated tests is written down in
+`crates/l2-testkit/tests/census.rs` and a new gate fails the build until it is
+added there.
 
 Ghidra headless. The `lords2` project is **already imported and analysed** — reuse it,
 don't re-import:

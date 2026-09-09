@@ -649,7 +649,7 @@ pub const JOB_IDLE_TOWNSFOLK: usize = 8;
 /// **`[V]`** - `FUN_0044F248`'s first line is
 /// `if (g_optAdvancedFarming == 0) return 80;`. The 15% and 20% bases, and the
 /// whole ramp, only exist in an Advanced Farming game. Nothing in
-/// `docs/kingdom.md` §7.4 says so, and the shipped save has the option **off**,
+/// `docs/kingdom.md` §7.4 says so, and the England turn-one fixture has the option **off**,
 /// so the FAQ's *"30 serfs working at 15% efficiency"* describes the advanced
 /// game only.
 pub const EFFICIENCY_WITHOUT_ADVANCED_FARMING: i32 = 80;

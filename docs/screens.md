@@ -593,4 +593,4 @@ into the gitignored `out/` so it can be looked at.
 * **`symbols.json`'s `Map_LoadTileSets` was misnamed** — it loads minimaps, not tile sets.
   Renamed `Minimap_Load`.
 * **`g_scenarioIndex` is the map slot unshifted**, and `crates/l2-game` was shifting it
-  right by two. Unobservable on the shipped save, whose index is 0.
+  right by two. Unobservable on the England turn-one fixture, whose index is 0.
