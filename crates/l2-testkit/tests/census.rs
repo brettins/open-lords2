@@ -3,13 +3,14 @@
 //!
 //! # The problem
 //!
-//! `cargo test --workspace` on this machine prints `989 passed; 0 failed`. With
+//! `cargo test --workspace` on this machine and `cargo test --workspace` with
 //! `LORDS2_DIR` and `LORDS2_FIXTURES` pointing nowhere — which is what CI does —
-//! it prints `989 passed; 0 failed` as well. The two runs assert wildly
-//! different amounts and are indistinguishable from their output, because a
-//! gated test that finds no game prints a line to stderr and returns green.
+//! print **the same** `N passed; 0 failed`, whatever `N` is that week. The two
+//! runs assert wildly different amounts and are indistinguishable from their
+//! output, because a gated test that finds no game prints a line to stderr and
+//! returns green.
 //!
-//! The gap is 143 tests, which this file names.
+//! The gap is [`GATED_TOTAL`] tests, which this file names.
 //!
 //! Nobody notices a test that stops existing. The reproduction against a real
 //! save, the renderer against real sprites, the scenario against the England
