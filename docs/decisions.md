@@ -2935,6 +2935,64 @@ is a verified reading of an invented model.** The cheapest thing that would have
 is the thing that did: making the field reachable from the screen the original reaches it
 from.
 
+**C65 — A digest cannot audit the encoder it is made of. Every "is this field covered?"
+answer this project has given was measured with the wrong instrument, including mine, tonight.**
+
+`Canonical::hash_of` is three lines: `value.encode(&mut c); c.finish().hash`. `l2_kingdom::save::checksum`
+is the same encoder. **The lockstep digest is not a check on the encoder — it is a projection
+through it.** A field absent from `encode` is absent from every digest, on every peer,
+identically, so two timelines that have both lost it agree perfectly.
+
+**Measured, not reasoned.** `Industry::has_resource` was removed from `save.rs`'s encoder and the
+whole workspace run. **Two tests go red, and both are round trips** —
+`a_game_round_trips_field_for_field` and `a_season_report_round_trips_including_its_tagged_union`.
+Not one digest assertion fails. `ten_seasons_from_a_reloaded_game_are_the_same_ten` is the
+strongest one we have — it saves a played game, reloads it, and compares
+`checksum(original)` against `checksum(resumed)` after each of ten further seasons — and it
+**passes with the field dropped**, because both sides hash the same smaller thing.
+
+That is worse than it first reads. With `has_resource` unencoded the reloaded kingdom is
+genuinely a different world — a mine with no ore behaves differently from one with ore — and ten
+seasons of divergence still did not raise the digest, because the difference has to *reach some
+other encoded field* before the number can move. The digest catches a field it covers going
+wrong. It cannot catch a field it does not cover, and it cannot tell you which case you are in.
+
+**This retracts a claim of mine from earlier tonight.** I wrote that removing `has_resource` or
+`garrison_unit` from the encoding *"fails eight tests each"*, and offered it as evidence that the
+derived census had closed C30. The number is two, not eight, and the number was never the point:
+**the question was whether the digest covered the field, and the experiment could not answer
+that question no matter what it returned.** A correct experiment, a wrong inference — which is
+the same shape as C61's first draft, twice in one session, and the reason both are recorded
+rather than quietly fixed.
+
+**So what is the real check?** `assert_eq!(back, game)`. It works for a reason worth naming: the
+`PartialEq` it uses is **derived from the struct's field list**, and the encoder is **hand
+written**. Two independently maintained lists that must agree — the same shape as
+`symbols_md.js`, `figures.js` and the citation lockfile, and the only shape that has ever caught
+anything here.
+
+**And it has a hole, which is C30's own hole in a new place.** The round trip compares one
+fixture. A field added to the struct and not to the encoder is caught **only if `a_game()` sets
+it to something a defaulted decode would not produce.** Leave it at its `Default` and both sides
+are equal and the test passes. The fixture is hand maintained, so the derived half of the pair is
+only as wide as somebody remembered to make the other half.
+
+That is exactly how `County::farm_style` (C62) and `Unit::mission` (`+0x1A`, found by the AI
+agent an hour later) both survived: read by the rules, written by nothing on the import path, and
+equal to zero on both sides of every comparison anybody ran.
+
+**Proposed, not built** — a source-text check, in the family that already works here. Read each
+`#[derive(…PartialEq…)]` struct that crosses the save boundary, read its `encode`/`decode` pair,
+and assert **every field name in the struct appears in both**. It cannot prove a field is encoded
+*correctly*; it can prove none was forgotten, which is the failure that has now happened six
+times. It is cheap, it goes red on the commit that adds the field, and it needs no fixture to be
+clever. The alternative — making the fixture derived — cannot be done in Rust without a macro,
+and a macro that generates the thing under test would be the same mistake one level down.
+
+Until it exists, the rule to state plainly wherever coverage is claimed: **"the digest covers it"
+is not a sentence anybody can support by running the digest.** Ablate the encoder and read
+*which* tests go red, not how many.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
