@@ -49,6 +49,7 @@ pub mod index;
 pub mod job;
 pub mod map;
 pub mod menu;
+pub mod saveload;
 pub mod setup;
 pub mod shells;
 pub mod village;

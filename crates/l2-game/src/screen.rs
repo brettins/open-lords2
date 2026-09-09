@@ -46,6 +46,9 @@ pub enum ScreenId {
     Setup(crate::screens::setup::SetupPage),
     /// `g_screenId` `0x1C` — the campaign interstitial.
     Conquest,
+    /// `g_screenId` `0x35` and `0x36` — loading and saving a conquest. One
+    /// painter with a mode flag, so one screen with a mode.
+    SaveLoad(crate::screens::saveload::Mode),
     /// A screen that is drawn and not yet driven, named by its `g_screenId`.
     Shell(u8),
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
@@ -149,6 +152,9 @@ impl ScreenId {
             ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
             ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
             ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),
+            ScreenId::SaveLoad(mode) => {
+                Box::new(crate::screens::saveload::SaveLoadScreen::new(mode))
+            }
             ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }

@@ -153,6 +153,34 @@ refused rather than reinterpreted. The ruleset is fingerprinted rather than stor
 whatever mod set the player has enabled: the rules come from the mod layer, and the save
 only checks that they are the same rules.
 
+**D11 — A saved game is `l2_kingdom::save` plus ten fields; it lives under the user's
+profile; and its extension is `.l2sav`.**
+
+D10 settled the *world's* encoding. A saved **game** is that file with a short prefix —
+the ten plain fields `l2_game::Game` adds on top of `Kingdom`: the local player, the map
+slot, the realm colours, the selected county, the county anchors, last turn's treasuries,
+the last season's report and the turns played. `l2_game::save` writes that prefix through
+the same `Canonical` and then calls `l2_kingdom::save::encode` for the rest, unchanged, so
+there is exactly one kingdom encoder in the workspace and no way for a save and a lockstep
+checksum to disagree about how an integer is spelled.
+
+**Two version numbers, and both refuse rather than guess.** The prefix has its own, and the
+world keeps `l2_kingdom::save::VERSION`. Either being unfamiliar names itself and stops;
+neither is ever read on the assumption that the fields happen to line up.
+
+**Saves live in `%APPDATA%\open-lords2\saves`** (`$XDG_DATA_HOME/open-lords2/saves`
+elsewhere), overridable with `LORDS2_SAVES`, and the directory is created on the first
+write. Three places were considered and rejected: *inside the game install*, which rule 2
+forbids and which is where the original's volatile `lastturn.sav` already lives; *inside
+the repository*, where `.gitignore` and the census both refuse it; and *beside the
+executable*, which works for a portable build and fails for an installed one because
+`%PROGRAMFILES%` is not writable by the player.
+
+**The extension is deliberately not `.sav`.** Theirs is an unversioned memory dump whose
+schema comes out of `Lords2.exe` and which we read as an oracle; ours is a versioned format
+we write. Writing *their* format is a separate job that nothing needs yet. `.l2sav` also
+keeps `*.sav` in `.gitignore` meaning exactly one thing.
+
 ## Corrections
 
 **C1 — "The PL8 format is fully decoded."** Claimed after one sprite rendered correctly.
@@ -882,6 +910,45 @@ appeared. The lesson is the one C25 already paid for once — **a name is not ev
 `verified` mark attaches to the measurement, not to the label on top of it.** Two documents
 in this tree had the correct reading of bit `0x20` while a third named a function after the
 wrong one, for long enough that the function was cited by name in the scenario bring-up.
+
+**C30 — Four county fields were in no save and in no checksum, and the test written to
+catch exactly that did not, because the catching was a hand-written list.**
+
+`l2_kingdom::save` did not encode `County::labour_wanted`, `labour_useful`, `labour_share`
+or `industry_share`. A kingdom decoded from a save came back with `County::new`'s defaults
+in all four — `labour_share` at 40/15/15/15/15, `industry_share` at 25 — whatever the
+county actually held.
+
+**Two of them are simulation state, not display.** `labour_useful` is the ceiling the
+labour allocator (`FUN_0044F6E7`) fills each job up to before dropping the remainder into
+*Idle townsfolk*, and `labour_share` is its only instruction about where people should go.
+So this was a hole in the **lockstep checksum** (`docs/netcode.md` §5) and not only in the
+save: two peers could disagree about all four and the per-tick digest would agree, because
+the digest is `Canonical::hash_of(kingdom)` and runs through the same `Encode` impl the
+save does. One encoder is D10's whole point, and it cuts both ways — a field missing from
+it is missing from everything at once.
+
+**How it was found, and why it took a second format to find it.** The game save's round
+trip over the England turn-one position produced a kingdom whose checksum was *equal* and
+whose `PartialEq` was *not*. That combination can only mean a field outside the encoding,
+and it is not reachable from inside `l2-kingdom`'s own suite: `tests/save.rs` compares
+decoded against original with `assert_eq!` too, but over `furnished()`, a kingdom this
+file builds by hand — and `furnished()` never sets any of the four, so both sides held the
+default and matched.
+
+**The guard that should have caught it was a list.** `every_part_of_the_state_reaches_the_bytes`
+exists precisely for fields that round-trip perfectly because neither side writes them; it
+mutates a field and requires the bytes to move. It has forty-odd entries, hand-written, and
+it simply had no line for these four. **A completeness check that enumerates what to check
+is only as complete as the enumeration** — the same shape as C25 and C29, where the evidence
+was already in the tree and the label on top of it was not re-read. The four lines are added
+and `l2_kingdom::save::VERSION` is 5; a version 4 save is refused rather than loaded with the
+defaults, because there is no way to recover what the fields held.
+
+**What would actually close it** is deriving the field list from the struct rather than
+retyping it — a `Kingdom` walked by reflection, or an encoding generated from the
+definition. That is not written, and until it is, this correction is the reason to add a
+line to that list every time a field is added to `County`.
 
 ## Open questions
 

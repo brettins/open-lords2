@@ -380,6 +380,16 @@ fn every_part_of_the_state_reaches_the_bytes() {
         ("tax_collected", Box::new(|k: &mut Kingdom| k.counties[2].tax_collected = 33)),
         ("tax_shown", Box::new(|k: &mut Kingdom| k.counties[2].tax_shown = 33)),
         ("labour", Box::new(|k: &mut Kingdom| k.counties[2].labour[8] = 33)),
+        // **These four were the gap this test exists to catch and did not.**
+        // They were absent from the encoding — and so from the checksum — until
+        // a game save round-tripped the England position and came back with
+        // `County::new`'s defaults in all four. The list below was the only
+        // thing standing between them and that, and it had no line for them.
+        // `docs/decisions.md` C30.
+        ("labour_wanted", Box::new(|k: &mut Kingdom| k.counties[2].labour_wanted[0] = 77)),
+        ("labour_useful", Box::new(|k: &mut Kingdom| k.counties[2].labour_useful[1] = 78)),
+        ("labour_share", Box::new(|k: &mut Kingdom| k.counties[2].labour_share[3] = 79)),
+        ("industry_share", Box::new(|k: &mut Kingdom| k.counties[2].industry_share = 61)),
         ("field_progress", Box::new(|k: &mut Kingdom| k.counties[2].field_progress[19] = 33)),
         ("ration_achieved", Box::new(|k: &mut Kingdom| k.counties[2].ration_achieved = 1)),
         ("ration_wanted", Box::new(|k: &mut Kingdom| k.counties[2].ration_wanted = 1)),

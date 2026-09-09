@@ -42,6 +42,12 @@ node_modules/
 *.wav
 *.saf
 *.sav
+# **Our own** saved games, which live in %APPDATA%\open-lords2\saves and should
+# never be anywhere near this tree in the first place. `*.sav` does not match
+# `.l2sav`, and the extensions are deliberately different: theirs is an
+# unversioned memory dump we read as an oracle, ours is a format we write.
+# docs/decisions.md D11.
+*.l2sav
 
 # Local scratch
 *.log

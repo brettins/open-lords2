@@ -100,6 +100,8 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/save.rs", "executable", 1),
     ("crates/l2-formats/tests/save.rs", "saves", 12),
     ("crates/l2-formats/tests/save_england_turn1.rs", "england", 11),
+    ("crates/l2-game/tests/save.rs", "england", 1),
+    ("crates/l2-game/tests/save.rs", "install", 1),
     ("crates/l2-game/tests/scenario.rs", "england", 7),
     ("crates/l2-game/tests/screens.rs", "england", 26),
     ("crates/l2-game/tests/shell.rs", "install", 3),
@@ -117,7 +119,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 145;
+const GATED_TOTAL: usize = 147;
 
 /// The workspace root, from this crate's manifest.
 fn repo_root() -> PathBuf {
@@ -398,7 +400,12 @@ fn no_game_data_is_checked_in() {
                 walk(&p, out);
             } else if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                 let ext = ext.to_ascii_lowercase();
-                if ["sav", "pl8", "256", "smk", "wav", "saf"].contains(&ext.as_str()) {
+                // `l2sav` is **ours**, not the publisher's, so it is not here
+                // for rule 1's reason. It is here for the other one: a saved
+                // game belongs in `%APPDATA%\open-lords2\saves`, and one that
+                // has appeared in the working tree is a test writing where it
+                // should not. `docs/decisions.md` D11.
+                if ["sav", "l2sav", "pl8", "256", "smk", "wav", "saf"].contains(&ext.as_str()) {
                     out.push(p);
                 }
             }

@@ -133,6 +133,28 @@ one that could ever have run on this build.
 > 14. **Windows sends RST, not FIN, when a peer closes with unread data** — the ordinary
 >     alt-F4-mid-tick. Classifying `Ok(0)` as goodbye and everything else as an error
 >     reports the most common way a session ends as an unexplained I/O fault.
+> 15. **The checksum had a hole in it, and it was in the state, not the protocol.**
+>     Everything above is about hashing the right ticks. This is about hashing the right
+>     *fields*. Four county fields — `labour_wanted`, `labour_useful`, `labour_share` and
+>     `industry_share` — were missing from `l2_kingdom::save`'s `Encode` impl, and because
+>     §6's checksum runs through **that same impl**, they were missing from the per-tick
+>     hash as well. Two of them are what the labour allocator allocates *from*. So two peers
+>     could diverge on real simulation state and every checksum they exchanged would report
+>     agreement — the exact failure this whole document exists to make impossible, live in
+>     the tree, for as long as the encoding was hand-written.
+>
+>     It was found by a **save round trip**, not by anything in this layer: a decoded
+>     kingdom compared equal on its checksum and unequal on `PartialEq`, which can only
+>     mean fields outside the encoding. Two consequences worth keeping. **Sharing one
+>     encoder between the save and the digest is what made the save able to find it** —
+>     that is D10's payoff and the argument for not giving the digest its own serialiser.
+>     And **`#[derive(PartialEq)]` is the only exhaustive reader of a struct we have**;
+>     everything else is a hand-written list that stops at what somebody remembered.
+>
+>     The four lines are restored (save `VERSION` 5) and **the mechanism is not fixed**.
+>     `every_part_of_the_state_reaches_the_bytes` is still a hand-written enumeration, so
+>     it still cannot fail for a field nobody listed. `docs/decisions.md` C30 records that;
+>     deriving the enumeration instead is outstanding work.
 >
 > **Now verified:** the default port is Unassigned in the IANA registry for both TCP and
 > UDP, and sockets have been opened — 20 tests drive two real peers on loopback, including

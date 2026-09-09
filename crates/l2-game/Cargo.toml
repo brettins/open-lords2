@@ -31,6 +31,12 @@ description = "The application spine: the window, the input, the screens and the
 l2-formats = { path = "../l2-formats" }
 l2-kingdom = { path = "../l2-kingdom" }
 l2-mods = { path = "../l2-mods" }
+# For `l2_net::canonical` and nothing else. `src/save.rs` writes the ten fields
+# `Game` adds on top of `Kingdom` through the *same* deterministic encoder
+# `l2_kingdom::save` uses, so a saved game and a lockstep checksum cannot
+# disagree about how an integer is spelled. It brings in no dependencies of its
+# own - `l2-net` has none, deliberately (docs/netcode.md D-3).
+l2-net = { path = "../l2-net" }
 l2-scenario = { path = "../l2-scenario" }
 l2-sim = { path = "../l2-sim" }
 l2-view = { path = "../l2-view" }

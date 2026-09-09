@@ -117,7 +117,7 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x2F | `Screen_BattleMasterRank` `0x00421D09` | the rank sheet | groups 37, 38; `score2.256` + `score2.pl8` |
 | 0x31 | `Screen_HelpOptions` `0x004154EA` | help options | group 45 |
 | 0x32 | `Menu_RestoreBackdrop` `0x0040C928` | **a menu-bar drop-down is open** — §10.1 | |
-| 0x35 / 0x36 | `Screen_SaveLoad` `0x00414819` | load / save | group 40 |
+| 0x35 / 0x36 | `Screen_SaveLoad` `0x00414819` | **load / save** — one painter, one flag; §10.7 | group 40 |
 | 0x39 | `Screen_AdvancedOptions` `0x00414F68` | advanced options | group 50 |
 | 0x42 | `Screen_SoundOptions` `0x0041515C` | sound options | group 51 |
 | 0x43 | `Screen_DisplayOptions` `0x004152EA` | display options | group 52 |
@@ -1274,3 +1274,52 @@ decompiler prints those cases as `g_screenId == '\b'`, `'\t'`, `'\n'`, `'\v'`, `
 This is the failure mode a hypothesis generator is *most* dangerous in: the output was
 self-consistent, three columns joined across three dispatchers, and simply displaced. It cost
 nothing here only because §1 of this document already had the right ids to disagree with.
+
+### 10.7 `0x35` / `0x36` — the save and load box, whole **[V]**
+
+Read out of `Screen_SaveLoad` (`0x00414819`) and `SaveLoad_DrawStatus` (`0x004149EC`) while
+wiring them up, and both screens are implemented now rather than shelled
+(`crates/l2-game/src/screens/saveload.rs`).
+
+**One painter, one flag.** `Screen_SaveLoad(saving)` uses its argument as the `L2.eng`
+group 40 string index, so `0x35` draws index 0 *"Loading a conquest."* and `0x36` index 1
+*"Saving a conquest."* and nothing else about them differs. `SaveLoad_DrawStatus` is shared
+with the front end's page 3 (`FUN_004148E4`) and switches its origin on a flag: the box is
+at `(0x10, 0x90)` in game and `(0x60, 0x0A)` on the front end. Everything below is an
+offset from that origin `o`.
+
+| what | call | in game |
+|---|---|---|
+| window | `Ui_DrawBox(0x10, 0x90, 0x1C, 0x14)` | (16, 144), 448 × 320 |
+| heading | `Eng_DrawString(40, saving, 0x20, 0xA0, heading, 0x3F)` | (32, 160) |
+| the lower area | `Ui_DrawInsetRect(0x20, 200, 400, 0x100)` | (32, 200), 400 × 256 |
+| name field | `Ui_DrawInsetRect(0x28, 0xD0, 0xC0, 0x20)` | (40, 208), 192 × 32 |
+| file list | `Ui_DrawInsetRect(0x28, 0xF8, 0x160, 0xA4)` | (40, 248), 352 × 164 |
+| status line | `Ui_DrawInsetRect(0x28, 0x1A4, 0x180, 0x1C)` | (40, 420), 384 × 28 |
+| the name being typed | `Ui_DrawText(DAT_004EA130, o.x + 0x20, o.y + 0x48)` | (48, 216) |
+| list interior | `Ui_DrawBoxInterior(o.x + 0x1E, o.y + 0x6A, 0x15, 10)` | (46, 250), 336 × 160 |
+| status text | `Eng_DrawString(40, 2 / 3 / 4, o.x + 0x20, o.y + 0x11A)` | (48, 426) |
+
+**The list is three columns of ten.** The loop starts at `(o.x + 0x20, o.y + 0x6C)` =
+(48, 252), steps x by `0x78` twice, then resets x and steps y by `0x10`, and breaks once it
+has drawn thirty — which is exactly the ten 16-pixel rows the interior above covers. The
+names come from a table of **65-byte records** at `0x004E8790`, indexed `base + i * 0x41`,
+so a save name is at most 64 characters. The selected row is a 6 × 16 mark at `(x − 2,
+y − 1)` and its text in colour `0x20` rather than `0x3F`; the status text is drawn only
+while `DAT_0057D3C4` is set, so the line is blank until something is happening.
+
+**The scroll clamp is off by half a page in the original.** `SaveLoad_Scroll` clamps the top
+row at `g_fileListCount − 15` and zeroes it below 30 entries, while thirty are on screen —
+so a list of, say, twenty scrolls into empty space. Recorded, not reproduced.
+
+**The four widget records are box-relative, and that is `[I]`.** `g_saveLoadWidgets`
+(`0x004DDD78`) holds a tick at (304, 64) frame 29, a cross at (352, 64) frame 31, and the
+list's two scroll arrows at (384, 144) and (384, 176), frames 35 and 37, carrying the
+deltas −3 and +3 with list id 1. Read as absolute screen coordinates all four sit above or
+on the top edge of a window that begins at y = 144, which would put the tick and cross
+outside the panel they belong to. Read relative to the box origin they land at (320, 208)
+and (368, 208) — level with the name field, whose rectangle ends at x = 232 — and at
+(400, 288) and (400, 320), immediately right of the list, whose rectangle ends at x = 392.
+The deciding argument is that **one table serves two screens whose boxes are at different
+origins**, which an absolute table cannot do. It is still an inference; it is marked as one
+in the module that acts on it.
