@@ -367,6 +367,21 @@ impl VillageScreen {
     /// rather than on it, and that delay is not an accident of ours: without it
     /// there is nowhere for the double click to happen.
     pub const CLICK_SETTLE_TICKS: u32 = 19;
+
+    /// Whether this event is one the village's arm hands to the sidebar.
+    ///
+    /// **Left button and pointer only.** The six guards are all left-button
+    /// hit tests, and the right button is the village's own third way out
+    /// (`g_mouseRightReleased` → `g_screenId = 0`), so it must not pass. The
+    /// double click must not pass either: `Village_DoubleClick` is read in
+    /// exactly one place in the whole binary and this arm is it.
+    fn belongs_to_the_sidebar(event: Event) -> bool {
+        let x = match event {
+            Event::Click { x, .. } | Event::Release { x, .. } | Event::Pointer { x, .. } => x,
+            _ => return false,
+        };
+        x >= l2_view::campaign::PANEL_X
+    }
 }
 
 impl Screen for VillageScreen {
@@ -379,6 +394,44 @@ impl Screen for VillageScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        // **The sidebar stays live with the village open**, and it is the arm
+        // itself that says so rather than an inference from the inset's size.
+        // `Screen_FrameInput`'s `g_screenId == 0x02` ladder runs six guards
+        // before it reaches a single village verb:
+        //
+        // ```c
+        // if (Minimap_ModeButtonClicked()   ||   /* FUN_0043292d, the four minimap modes */
+        //     Sidebar_ButtonClicked()       ||   /* FUN_00432967, the six sidebar buttons */
+        //     CountyStrip_Click()           ||
+        //     Labour_SplitSliderDrag()      ||   /* FUN_00439122, the farm/industry split */
+        //     CountyStrip_JobClick()        ||
+        //     FUN_00439079()) goto done;         /* consumed: no village verb runs */
+        // /* only now: Ui_OkButtonClicked, Village_BandStart, Village_DoubleClick, ... */
+        // ```
+        //
+        // All six are the **campaign map's** right-hand column: `FUN_0043292d`
+        // is `Hotspot_Test(0x262, 0x20, &g_minimapModeButtons, 4)` and
+        // `FUN_00432967` is `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)`,
+        // and every one of the six hit-tests `x >= 0x1DE` — 478, which is
+        // [`campaign::PANEL_X`]. So the rule is exactly *"the column at x >=
+        // 478 keeps working"*, and nothing else does: `Map_Click` is **not** in
+        // this ladder, so a click on the terrain round the inset does nothing.
+        //
+        // **The two drag states do not do this.** The `0x05` (banding) and
+        // `0x06` (carrying) arms test no sidebar guard at all — they run
+        // `Village_BandRelease` / `Village_Drop` and nothing else — so the
+        // sidebar goes dead for the duration of a peasant drag and comes back
+        // when it ends. That is [`Phase::Idle`] below, and it is the kind of
+        // detail that reads as intermittent to a player and gets "fixed" into
+        // uniformity by mistake. C57.
+        //
+        // A player checked it against the original: *"The slider does indeed
+        // still work with town square open and causes no issues."* It did not
+        // work in ours, because [`crate::screen::Machine`] offered input to the
+        // top screen and stopped. [`Transition::Pass`] is what that cost.
+        if self.phase == Phase::Idle && Self::belongs_to_the_sidebar(event) {
+            return Transition::Pass;
+        }
         match event {
             // **The right button leaves the village**, which is the third of
             // `Screen_FrameInput`'s three ways out of screen `0x02`: a right release

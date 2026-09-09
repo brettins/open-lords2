@@ -556,6 +556,81 @@ fn the_minimap_realm_ramp_matches_the_table_in_the_binary() {
     eprintln!("minimap ramp: 6 realm colours match the binary");
 }
 
+/// The **rating** ramp the three statistic overlays index, read back out of the
+/// user's own binary at `chrome::MINIMAP_RATING_RAMP_VA`.
+///
+/// It sits eight bytes below the realm ramp, and the two are separate tables:
+/// `Minimap_DrawOverlay` indexes this one with a bare `[band]` and that one with
+/// `[colour * 8 + step]`. The two bytes between them are indexed by nothing, and
+/// this asserts they are there rather than quietly folding six entries into
+/// eight.
+#[test]
+fn the_minimap_rating_ramp_matches_the_table_in_the_binary() {
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+    let Some(exe) = read(&dir, "Lords2.exe") else {
+        l2_testkit::skip!("Lords2.exe not present - skipping");
+    };
+    assert_eq!(
+        chrome::MINIMAP_RATING_RAMP_VA + 8,
+        chrome::MINIMAP_REALM_RAMP_VA,
+        "the two ramps are adjacent, and that is why they get confused"
+    );
+    let Some(base) = va_to_offset(&exe, chrome::MINIMAP_RATING_RAMP_VA) else {
+        panic!("0x{:08X} is not inside any initialised section", chrome::MINIMAP_RATING_RAMP_VA);
+    };
+    assert_eq!(
+        &exe[base..base + chrome::MINIMAP_RATING_RAMP.len()],
+        &chrome::MINIMAP_RATING_RAMP,
+        "the six rating colours"
+    );
+    eprintln!("minimap ramp: 6 rating colours match the binary");
+}
+
+/// **The rating ramp's direction, from the artwork rather than from the code.**
+///
+/// `Misc_cty.pl8` frame 91 is the strip the original swaps in beside the minimap
+/// while an overlay is up, and it carries a six-swatch colour bar with a tick
+/// against one end and a cross against the other. Reading the bar's pixels top
+/// to bottom gives `chrome::MINIMAP_RATING_RAMP` **reversed** — so index 0 is
+/// the crossed end and index 5 the ticked one, which is what makes
+/// "`happiness / 20`" a rating and not an arbitrary number.
+///
+/// This is a cross-check between two things nobody coordinated: a table of
+/// palette indices in the code segment and a painted legend in an art file.
+#[test]
+fn the_rating_ramp_is_the_colour_bar_the_legend_strip_draws() {
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+    let Some(bytes) = read(&dir, "Misc_cty.pl8") else {
+        l2_testkit::skip!("Misc_cty.pl8 not present - skipping");
+    };
+    let pl8 = l2_formats::Pl8::parse(&bytes).expect("Misc_cty.pl8 parses");
+    let frame = pl8
+        .decode(l2_view::chrome::misc_cty::MINIMAP_SIDE_ACTIVE)
+        .expect("frame 0x5B decodes");
+    assert_eq!((frame.width, frame.height), (29, 123), "the 29 x 123 mode strip");
+
+    // Column 5 runs down the middle of the swatch bar. Collect the runs.
+    let w = frame.width as usize;
+    let mut runs: Vec<(u8, usize)> = Vec::new();
+    for y in 0..frame.height as usize {
+        let v = frame.indices[y * w + 5];
+        match runs.last_mut() {
+            Some((c, n)) if *c == v => *n += 1,
+            _ => runs.push((v, 1)),
+        }
+    }
+    // The swatches are the only runs more than ten rows tall.
+    let bar: Vec<u8> = runs.iter().filter(|(_, n)| *n >= 10).map(|(c, _)| *c).collect();
+    let mut want = chrome::MINIMAP_RATING_RAMP;
+    want.reverse();
+    assert_eq!(bar, want, "the legend bar is the rating ramp, best first");
+    eprintln!("minimap legend: frame 0x5B's colour bar is the rating ramp reversed");
+}
+
 /// `Minimap_Load`'s file and frame arithmetic, checked against the install:
 /// every used map slot must resolve to a `MAPnn.PL8` that exists and holds two
 /// 128 x 128 frames where the formula says, and every *empty* slot must resolve

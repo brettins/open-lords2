@@ -48,7 +48,7 @@ use l2_kingdom::field::{self, BrushRefusal, FieldType};
 use l2_kingdom::industry;
 use l2_formats::maps::Plane;
 use l2_view::campaign::{self, Dir, Lattice, Viewport, Zoom, FAR, NEAR, PANEL_W, PANEL_X};
-use l2_view::chrome::{self, Minimap};
+use l2_view::chrome::{self, Minimap, MinimapMode, MinimapTint};
 use l2_view::{text, Canvas, Clip, Ink, Tags};
 
 use crate::input::{Event, Key, Rect};
@@ -121,14 +121,28 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
 ///
 /// The top three switch `g_minimapMode` — 1 the labour rating, 2 the food
 /// rating, 3 happiness — which recolours the minimap from a second ramp
-/// (`g_minimapRatingRamp`, `0x004D28F8`) we have not transcribed. The fourth is
-/// **the zoom toggle**, and it is the control `docs/screens.md` §7 says we
-/// replaced with the `Z` key; it is wired.
+/// (`g_minimapRatingRamp`, `0x004D28F8`, transcribed as
+/// [`chrome::MINIMAP_RATING_RAMP`]). The fourth is **the zoom toggle** in mode
+/// 0 and **the way back out of an overlay** in every other mode; it is the
+/// control `docs/screens.md` §7 says we replaced with the `Z` key.
+/// [`MapScreen::minimap_mode_button`] has the whole of that behaviour.
 ///
 /// The second record's `y1` is `0x42` where the pattern wants `0x3F`, so band 2
 /// is 34 pixels tall and overlaps band 3's first two rows. `Hotspot_Test`
 /// returns on the first match, so y 96 and 97 select mode 2. **That is the
 /// original's own data**, transcribed rather than tidied.
+/// What our status line calls each overlay. **Ours** — the original labels them
+/// only with the button icons and the badge, and `L2.eng` has no strings for
+/// them.
+fn minimap_mode_name(mode: MinimapMode) -> &'static str {
+    match mode {
+        MinimapMode::Owner => "OWNERS",
+        MinimapMode::Labour => "LABOUR",
+        MinimapMode::Food => "FOOD",
+        MinimapMode::Happiness => "HAPPINESS",
+    }
+}
+
 pub const MINIMAP_MODE_BUTTONS: [Rect; 4] = [
     Rect::new(610, 32, 27, 31),
     Rect::new(610, 64, 27, 34),
@@ -369,6 +383,9 @@ pub struct MapScreen {
     /// being *down*, not on it having been clicked, so the value tracks the
     /// pointer for as long as it is held — see [`SPLIT_SLIDER`].
     slider_held: bool,
+    /// **`g_minimapMode` (`0x0057A0C4`)** — what the minimap is coloured by.
+    /// Set by [`MINIMAP_MODE_BUTTONS`] through `Minimap_ModeButton`.
+    minimap_mode: MinimapMode,
 }
 
 /// A field tile the player has clicked, and the menu its terrain opens.
@@ -405,6 +422,37 @@ impl MapScreen {
             flag_phase: 0,
             selected_unit: None,
             slider_held: false,
+            minimap_mode: MinimapMode::Owner,
+        }
+    }
+
+    /// `Minimap_ModeButton` (`0x0043AB76`), button 0…3 of
+    /// [`MINIMAP_MODE_BUTTONS`].
+    ///
+    /// **The original is not a set of four radio buttons**, and this is the
+    /// shape of it:
+    ///
+    /// * in mode 0, buttons 1…3 select their mode and button 4 toggles the map
+    ///   zoom;
+    /// * in any other mode, **button 4 turns the overlay off** and buttons 1…3
+    ///   do nothing at all.
+    ///
+    /// So there is no switching straight from food to happiness: the overlay
+    /// has to be turned off first. The artwork agrees — `Misc_cty` frame `0x5B`,
+    /// the strip drawn while a mode is up, has one button on it where frame
+    /// `0x5C` has four.
+    fn minimap_mode_button(&mut self, button: usize) {
+        if self.minimap_mode == MinimapMode::Owner {
+            match MinimapMode::from_button(button) {
+                Some(mode) => {
+                    self.minimap_mode = mode;
+                    self.status = format!("MINIMAP {}", minimap_mode_name(mode));
+                }
+                None => self.toggle_zoom(),
+            }
+        } else if button == 3 {
+            self.minimap_mode = MinimapMode::Owner;
+            self.status = "MINIMAP OWNERS".into();
         }
     }
 
@@ -1290,14 +1338,7 @@ impl Screen for MapScreen {
                 } else if let Some(i) =
                     MINIMAP_MODE_BUTTONS.iter().position(|r| r.contains(x, y))
                 {
-                    // `Minimap_ModeButton`. The fourth is the zoom toggle and
-                    // it works; the first three need the rating ramp at
-                    // `0x004D28F8`, which is not transcribed.
-                    if i == 3 {
-                        self.toggle_zoom();
-                    } else {
-                        self.status = "MINIMAP RATINGS NOT DRAWN".into();
-                    }
+                    self.minimap_mode_button(i);
                 } else if SPLIT_SLIDER.contains(x, y) && ctx.game.selected != 0 {
                     // `FUN_00439122`, the farm/industry split. The press is the
                     // first frame of a **drag**: the button is now down, and
@@ -1962,7 +2003,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
         None => widget::panel(canvas, ink, PANEL),
     }
 
-    // The minimap, tinted from `Lords2.exe`'s own realm ramp.
+    // The minimap, tinted from `Lords2.exe`'s own ramps.
     if let Some(m) = &screen.minimap {
         let owner = |county: u8| -> u8 {
             let id = county as usize;
@@ -1977,7 +2018,35 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
                 realm => chrome::realm_colour(game.realm_colour.get(realm).copied().unwrap_or(0)),
             }
         };
-        chrome::draw_minimap(canvas, m, game.selected, &owner);
+        // **The three statistic overlays colour the local player's counties and
+        // nothing else** — `Minimap_DrawOverlay` tests `owner == g_localPlayer`
+        // in each of its three branches and skips the pixel otherwise, so a
+        // rival's county keeps the raster's own grey.
+        let band = |county: u8| -> Option<u8> {
+            let id = county as usize;
+            let c = k.counties.get(id)?;
+            if id == 0 || c.owner != game.player {
+                return None;
+            }
+            let bands = c.minimap_bands();
+            Some(match screen.minimap_mode {
+                MinimapMode::Labour => bands.labour,
+                MinimapMode::Food => bands.food,
+                MinimapMode::Happiness => bands.happiness,
+                MinimapMode::Owner => return None,
+            })
+        };
+        let tint = match screen.minimap_mode {
+            MinimapMode::Owner => MinimapTint::Owner(&owner),
+            _ => MinimapTint::Rating(&band),
+        };
+        chrome::draw_minimap(canvas, m, game.selected, &tint);
+        if let Some(c) = &ctx.assets.chrome {
+            // `Minimap_Draw` draws the strip and then the badge, both after the
+            // overlay, so both sit on top of it.
+            c.draw_minimap_side(canvas, screen.minimap_mode);
+            c.draw_minimap_badge(canvas, screen.minimap_mode);
+        }
     } else {
         // No `MAPnn.PL8`: say so rather than leaving an unexplained hole.
         text::draw_centred(canvas, PANEL_X + PANEL_W / 2, 84, "NO MINIMAP", ink.dim);

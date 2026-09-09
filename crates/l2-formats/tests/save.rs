@@ -569,3 +569,74 @@ fn a_merchants_0x167_is_its_start_county_however_far_it_has_walked() {
     assert!(moved > 0, "no merchant in any save had left its start county");
     eprintln!("{moved} merchants stood outside the county +0x167 names");
 }
+
+/// **The three minimap rating bytes, `+0x01`, `+0x02` and `+0x03`, named from
+/// the saved games rather than from a decompiler.**
+///
+/// `FUN_00451BBA` recomputes them on every minimap draw and `Minimap_DrawOverlay`
+/// reads them. `docs/screens.md` §3.2 used to call them `+0x0B1`, `+0x0B2` and
+/// `+0x0B3`, which is the literal `0x0053F9B3` in the disassembly mistaken for an
+/// offset; they are three of the five bytes `Sync_CompareState` skips, so they
+/// are interface state and a save holds whatever the last draw left there.
+///
+/// Three claims, each falsifiable against the user's own saves:
+///
+/// * **`+0x02` is the food rating and it is binary** — 0 when the county did not
+///   achieve the ration it was asked for and 6, off the end of the six-entry
+///   ramp, when it did. Never anything between.
+/// * **`+0x03` is the labour rating and it has three values** — 0 short of farm
+///   workers, 5 carrying slack, 6 neither.
+/// * **`+0x01` is `happiness / 20`.** Checked only in saves where the bands have
+///   been computed at all: a game whose minimap overlay was never opened has all
+///   three bytes zero, which the England turn-one fixture is.
+#[test]
+fn the_minimap_rating_bytes_are_food_labour_and_happiness_over_twenty() {
+    use l2_formats::save::{COUNTY_BASE, COUNTY_STRIDE};
+    let saves = saves!();
+    let mut checked = 0;
+    let mut computed = 0;
+    for s in &saves {
+        let mut any = false;
+        let mut happiness_bands = Vec::new();
+        for i in 0..COUNTY_RECORDS {
+            let county = s.save.county(i).unwrap();
+            if !county.is_county() {
+                continue;
+            }
+            let base = COUNTY_BASE + (i * COUNTY_STRIDE) as u32;
+            let (b1, b2, b3) = (
+                s.save.u8_at(base + 1).unwrap(),
+                s.save.u8_at(base + 2).unwrap(),
+                s.save.u8_at(base + 3).unwrap(),
+            );
+            assert!(
+                matches!(b2, 0 | 6),
+                "{}: county {i} food band {b2} is neither 0 nor 6",
+                s.label()
+            );
+            assert!(
+                matches!(b3, 0 | 5 | 6),
+                "{}: county {i} labour band {b3} is not 0, 5 or 6",
+                s.label()
+            );
+            any |= b1 != 0 || b2 != 0 || b3 != 0;
+            happiness_bands.push((i, b1, county.happiness));
+            checked += 1;
+        }
+        if !any {
+            // Nothing has ever drawn this game's minimap overlay.
+            continue;
+        }
+        computed += 1;
+        for (i, band, happiness) in happiness_bands {
+            assert_eq!(
+                band as i32,
+                happiness as i32 / 20,
+                "{}: county {i} band {band} against happiness {happiness}",
+                s.label()
+            );
+        }
+    }
+    assert!(computed >= 2, "at least two saves must have the bands computed");
+    eprintln!("minimap bands: {checked} counties, {computed} saves with the bands computed");
+}

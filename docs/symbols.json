@@ -1950,6 +1950,14 @@
       "comment": "The battle frame loop. Calls Battle_CountMenByType, Battle_UpdateAllMen, Missile_UpdateAll, BattleUnits_RebuildFromFigures, Battle_UpdateAllUnits and BattleDebug_Panel, which fixes all of them at once per frame - and so fixes the unit timers those passes age."
     },
     {
+      "addr": "0x00451BBA",
+      "name": "Minimap_ComputeBands",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Minimap_ComputeBands(void)",
+      "comment": "Recomputes the three minimap overlay ratings for every county, and Minimap_DrawOverlay calls it first on every draw. It is the ONLY writer of county +0x01, +0x02 and +0x03 - three of the five bytes Sync_CompareState skips, which is what they are: interface state, not simulation. +0x03 labour: 0 if job 0 or 1 is below its wanted floor, else 6 if idle townsfolk plus over-staffed jobs is zero, else 5. +0x02 food: 0 if rationAchieved < rationWanted, else 6. +0x01 happiness: happiness / 20, so 0..5. TWO OF THE THREE MODES ROUTINELY PRODUCE 6, which is off the end of the six-entry g_minimapRatingRamp and colours nothing - so the shipped food overlay is a single red mark on counties that went short and nothing else, and the labour overlay paints only the ramp's two ends. That is not a misreading: a second food branch spreading rationAchieved over bands 1..5 sits behind DAT_00553E60, a debug flag zeroed at 0x00497500 and toggled only in the window procedure at 0x004B29BE. Found by scanning the binary for divide-by-20 sites; there are exactly two. docs/decisions.md C57."
+    },
+    {
       "addr": "0x00451FCC",
       "name": "Map_SetZoom",
       "section": "ui",
@@ -2115,7 +2123,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void Minimap_DrawOverlay(uint selected, int x, int y, int mode)",
-      "comment": "Recolours the minimap raster per county. Source pixels 10..13 are land inside a county and are replaced from an 8-byte-per-realm ramp at g_minimapRealmRamp indexed realmColour*8 + (v-10); shade 10 of the selected county becomes index 0x20. Modes 1..3 instead colour the local players own counties from a 6-entry ramp at g_minimapRatingRamp by county fields +0xB3, +0xB2 and +0xB1. Everything else is left as the picture drew it."
+      "comment": "Recolours the minimap raster per county. Source pixels 10..13 are land inside a county and are replaced from an 8-byte-per-realm ramp at g_minimapRealmRamp indexed realmColour*8 + (v-10); shade 10 of the selected county becomes index 0x20. Modes 1..3 instead colour the county from the 6-entry g_minimapRatingRamp, and ALL THREE rating branches skip the pixel unless owner == g_localPlayer - the statistic modes show your own counties and nobody else's. Everything else is left as the picture drew it. CORRECTED: the rating index is county +0x03, +0x02 and +0x01, not +0xB3/+0xB2/+0xB1 - the old numbers were 0x0053F9B3 read as an offset rather than as an address into g_counties (0x0053F9B0). Minimap_ComputeBands (0x00451BBA) fills those three bytes and this function calls it first on every draw. docs/decisions.md C57."
     },
     {
       "addr": "0x0043AB76",
@@ -2123,7 +2131,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void Minimap_ModeButton(void)",
-      "comment": "Acts on g_uiHotspotId: 1..3 set g_minimapMode, 4 calls Map_ToggleZoom. Pressing the active one again returns to mode 0."
+      "comment": "Acts on g_uiHotspotId. THE FOUR BUTTONS ARE NOT RADIO BUTTONS, and this entry used to say they were. In mode 0: 1..3 set g_minimapMode and 4 calls Map_ToggleZoom. In any other mode: 4 turns the overlay off and 1..3 do nothing at all - so food to happiness takes three clicks. The artwork says the same thing from the other side: Misc_cty frame 0x5C, drawn in mode 0, carries four buttons and frame 0x5B, drawn while a mode is up, carries a colour bar and one. docs/decisions.md C57."
     },
     {
       "addr": "0x0041A734",
@@ -2284,6 +2292,29 @@
       "confidence": "verified",
       "signature": "void Screen_Draw(int firstFrame)",
       "comment": "The interface's master switch: 39 cases on g_screenId, each calling one screen's painter. With Screen_DrawWidgets and Screen_HandleInput these are the only three places the screen id is dispatched. docs/screens-county.md section 1."
+    },
+    {
+      "addr": "0x004B1CF3",
+      "name": "Cursor_Set",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Cursor_Set(int kind)",
+      "comment": "The only caller of SetCursor in the binary. Maps a cursor KIND onto one of the eight HCURSORs App_InitWindow loaded: 0 and 13 -> g_cursorArrow, 2 -> g_cursorQuestion, 4 -> g_cursorCross, 5 -> g_cursorCrossTarget, 6 -> g_cursorRing, 12 -> g_cursorPeasant, 14 -> g_cursorScythe, anything else -> g_cursorArrow. Stores the choice in g_cursorCurrent. Its ONE caller is Battle_Frame, the whole-game per-frame function, which outside the battle range 0x28..0x2A just passes g_cursorByScreen[g_screenId] and inside it runs a hand-written ladder on what is under the pointer. So the pointer is re-chosen from scratch every frame and nothing else in the game touches it. docs/screens.md section 9."
+    },
+    {
+      "addr": "0x004B2258",
+      "name": "App_InitWindow",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "bool App_InitWindow(HINSTANCE inst)",
+      "comment": "The window bootstrap. Seeds the two PRNG words, sets the 640x480 canvas globals, registers window class \"WinLords2Class\" with hCursor NULL, LOADS THE EIGHT CURSORS with LoadCursorA from the executable's OWN resources - RT_GROUP_CURSOR 102, 103, 104, 105 (twice, into two different globals), 110, 111 and 113 - then creates the main window. hCursor NULL is why the pointer has to be set by hand: Cursor_Set runs once per frame from Battle_Frame. The twelve Cursor1..12.cur files in the install are NOT read here or anywhere: the binary imports no LoadCursorFromFile and contains no .cur filename. docs/screens.md section 9."
+    },
+    {
+      "addr": "0x0047ED9B",
+      "name": "Battle_UpdateHover",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Runs once per frame from Battle_Frame and recomputes what the pointer is over on the battlefield: clears the five hover globals, asks FUN_004BC222(g_mouseX, g_mouseY) whether the pointer is inside the battlefield viewport and sets g_battleHoverOnField, converts the pointer to a battlefield cell, counts the local player's selected men into DAT_00565404, reads that cell's surface into g_battleHoverSurface and its occupant figure, and then sorts the occupant into g_battleHoverFriendly, g_battleHoverFriendlyPicked or g_battleHoverEnemy depending on whose it is and whether DAT_00553078 says a selection exists. Those globals are what the battle arm of Battle_Frame's cursor ladder reads - but Battle_UpdateHover runs AFTER the cursor is chosen, so the battle pointer is one frame behind the pointer position, the same off-by-one-frame shape docs/screens-county.md section 2.6 records for Screen_FrameInput."
     },
     {
       "addr": "0x004BA26E",
@@ -3660,7 +3691,7 @@
       "section": "ui",
       "confidence": "inferred",
       "signature": "void Screen_FrameInput(void)",
-      "comment": "The FOURTH function that switches on g_screenId, and the one nothing had read: 8,140 bytes, 49 hand-written arms covering 50 screen ids, 150 g_screenId writes. Called once per frame from Battle_Frame (0x004B99C0) as the LAST thing in the frame, after every draw pass - so its navigation lands one frame late by construction. Its shape: FUN_0047685D (right-release dismisses the message scroll, and swallows the click) then Screen_HandleInput (the widget tables, LEFT BUTTON ONLY - it names no right-button global anywhere) and then, only if neither consumed the input, the per-screen arms. It is where the right mouse button lives: DAT_004E6900 (right RELEASED this frame) is tested 48 times and is how nearly every screen in the game is left, which is what L2.eng group 12 index 0, 'Click Right to Exit', tells the player. It also runs the OK-button hit test 26 times (FUN_0040E7E4), force-closes every open panel when DAT_0055403C (Turn_End) or DAT_00553FC8 (the multiplayer sync latch) says the turn is no longer the local player's, owns a falling-edge 'the map scrolled' latch across the frame boundary (DAT_0057CAC4 -> DAT_00565488), clears the WM_KEYDOWN edge DAT_004EABB4, and in individual arms sends Net_SendCommand(6, 0), calls Setup_StartGame, Map_ConfirmMoveOrder and Battle_Decline, and loads vill_gd8.pl8 and demo1.pl8. So it is not only navigation and 'HandleBack' would be far too narrow: right-close is 19 of the 49 arms and 36% of the body. INFERRED rather than verified: every line of the body has been read and the census, the state writes and the call-site placement come from the code, but the ~35 callees the arms dispatch to have not been read and the g_screenId -> screen mapping was not re-derived here. docs/screens-county.md 1 and 2.6."
+      "comment": "The FOURTH function that switches on g_screenId, and the one nothing had read: 8,140 bytes, 49 hand-written arms covering 50 screen ids, 150 g_screenId writes. Called once per frame from Battle_Frame (0x004B99C0) as the LAST thing in the frame, after every draw pass - so its navigation lands one frame late by construction. Its shape: FUN_0047685D (right-release dismisses the message scroll, and swallows the click) then Screen_HandleInput (the widget tables, LEFT BUTTON ONLY - it names no right-button global anywhere) and then, only if neither consumed the input, the per-screen arms. It is where the right mouse button lives: DAT_004E6900 (right RELEASED this frame) is tested 48 times and is how nearly every screen in the game is left, which is what L2.eng group 12 index 0, 'Click Right to Exit', tells the player. It also runs the OK-button hit test 26 times (FUN_0040E7E4), force-closes every open panel when DAT_0055403C (Turn_End) or DAT_00553FC8 (the multiplayer sync latch) says the turn is no longer the local player's, owns a falling-edge 'the map scrolled' latch across the frame boundary (DAT_0057CAC4 -> DAT_00565488), clears the WM_KEYDOWN edge DAT_004EABB4, and in individual arms sends Net_SendCommand(6, 0), calls Setup_StartGame, Map_ConfirmMoveOrder and Battle_Decline, and loads vill_gd8.pl8 and demo1.pl8. So it is not only navigation and 'HandleBack' would be far too narrow: right-close is 19 of the 49 arms and 36% of the body. INFERRED rather than verified: every line of the body has been read and the census, the state writes and the call-site placement come from the code, but the ~35 callees the arms dispatch to have not been read and the g_screenId -> screen mapping was not re-derived here. docs/screens-county.md 1 and 2.6. WHERE THE WRITES GO, from the decompilation: 100 g_screenId writes in the body (the '150' above counts the disassembly's stores, not the C statements), of which 57 are the literal 0 - the campaign map - and only 15 restore a screen the game remembered: 11 g_menuPrevScreen, 2 g_screenIdSaved, 2 g_sliderPrevScreen. So a screen's exit is a CONSTANT compiled into its own arm and not a memory of where it was opened from, which is why a panel opened over the village exits to the map and takes the village with it. The job popup is the apparent exception and is a constant too: 0x0F's arm is 'if (DAT_005533F4 == 0) g_screenId = 0x02; else g_screenId = 0', a flag the two call sites set. docs/bugs.md B63."
     },
     {
       "addr": "0x0040E7E4",
@@ -5443,6 +5474,22 @@
       "confidence": "verified",
       "signature": "void Setup_ChooseCampaign(void)",
       "comment": "Setup page 4. [V] Stores the clicked hotspot in g_campaignTrack and starts the campaign counter at 2 for hotspot 1 and 0 otherwise - which is why the second campaign is six maps and the first is eight, and why both still end on the same \"counter < 8\" test."
+    },
+    {
+      "addr": "0x00432967",
+      "name": "Sidebar_ButtonClicked",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Sidebar_ButtonClicked(void)",
+      "comment": "The six buttons along the bottom of the county sidebar, and the whole of it: return Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6) != 0. [V] It is the SECOND of the six guards Screen_FrameInput runs on screen 0x02 - the village - before it reaches a single village verb, which is what makes the sidebar clickable with the town square open. The other five are Minimap_ModeButtonClicked, CountyStrip_Click, Labour_SplitSliderDrag, CountyStrip_JobClick and FUN_00439079, and every one of them hit-tests x >= 0x1DE. The village's two drag screens, 0x05 and 0x06, test none of them, so the whole column is dead for the length of a peasant drag. docs/screens-county.md 6.4.4a; docs/decisions.md C57."
+    },
+    {
+      "addr": "0x0043292D",
+      "name": "Minimap_ModeButtonClicked",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "bool Minimap_ModeButtonClicked(void)",
+      "comment": "The four icons in the strip beside the minimap: return Hotspot_Test(0x262, 0x20, &g_minimapModeButtons, 4) != 0. [V] First of Screen_FrameInput's six sidebar guards on both the campaign map (screen 0) and the village (0x02). The table it tests is g_minimapModeButtons at 0x004DC620."
     },
     {
       "addr": "0x004329EC",
@@ -7451,15 +7498,15 @@
       "addr": "0x004D2900",
       "name": "g_minimapRealmRamp",
       "section": "ui",
-      "confidence": "inferred",
-      "comment": "Eight bytes per realm colour; Minimap_DrawOverlay indexes realmColour*8 + (sourcePixel - 10) to shade county land on the minimap. The stride comes out of the index expression; the tables full extent is not otherwise pinned."
+      "confidence": "verified",
+      "comment": "Six rows of EIGHT bytes - the disassembly indexes [EAX + ECX*0x8 + 0x4D2900] - of which Minimap_DrawOverlay uses only the first four of each, realmColour*8 + (sourcePixel - 10) for source shades 10..13. Read out of the image: row 0 is 0A 0B 0C 0D 20 0B 0C 0D and row 1 is 01 0E 0F F9 20 0E 0F F9, so the unused half of each row is the used half with the first entry replaced by 0x20 - which is the same substitution the function makes by hand for the SELECTED county, prepared in the table and then not used. Row 0 is the unowned shading, i.e. the raster's own indices unchanged."
     },
     {
       "addr": "0x004D28F8",
       "name": "g_minimapRatingRamp",
       "section": "ui",
-      "confidence": "inferred",
-      "comment": "Six bytes indexed by a 0..5 county rating for minimap overlay modes 1..3. Six because the code rejects values above 5."
+      "confidence": "verified",
+      "comment": "Six palette indices, 0F 15 F3 09 F1 05, indexed ramp[band] behind the original's own band < 6 guard, for minimap overlay modes 1..3. WORST FIRST: band 0 is red and band 5 purple, confirmed from the artwork independently of the code - Misc_cty.pl8 frame 91, the strip drawn while an overlay is up, is a six-swatch colour bar whose pixels down column 5 read 05 F1 09 F3 15 0F, this table reversed, with a tick at the good end and a cross at the bad. A SEPARATE TABLE from g_minimapRealmRamp and not an extension of it: it sits eight bytes below 0x004D2900 and the two bytes between them are indexed by nothing. docs/decisions.md C57."
     },
     {
       "addr": "0x004DC428",
@@ -7523,6 +7570,111 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Which screen the interface is on. Screen_Draw, Screen_DrawWidgets and Screen_HandleInput all switch on it and nothing else does. The ids are listed in docs/screens-county.md section 1."
+    },
+    {
+      "addr": "0x004E3098",
+      "name": "g_cursorByScreen",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "64 dwords indexed by g_screenId, holding the cursor KIND Battle_Frame hands to Cursor_Set on every screen outside the battle range 0x28..0x2A. Only five rows are non-zero: 0x02 the village idle -> 2 (the question mark), 0x06 the village carrying a selection -> 12 (the peasant), 0x07 -> 13, 0x0E -> 2, 0x10 army movement -> 14 (the scythe). Every other screen, the help screen 0x31 included, gets 0, the plain arrow. This table is the whole of the game's non-battle cursor policy. docs/screens.md section 9."
+    },
+    {
+      "addr": "0x004EA514",
+      "name": "g_cursorCurrent",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The HCURSOR Cursor_Set last passed to SetCursor. Written and read nowhere else."
+    },
+    {
+      "addr": "0x004EA834",
+      "name": "g_cursorArrow",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "HCURSOR for RT_GROUP_CURSOR 105, the plain arrow pointer. Cursor_Set's kind 0 and its default."
+    },
+    {
+      "addr": "0x004EB258",
+      "name": "g_cursorArrowAlt",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "A second HCURSOR loaded from the SAME resource as g_cursorArrow, RT_GROUP_CURSOR 105. Cursor_Set's kind 13, which g_cursorByScreen uses only for screen 0x07 - a screen no immediate store to g_screenId ever selects. An unfinished slot: a distinct kind that draws the default picture."
+    },
+    {
+      "addr": "0x004E659C",
+      "name": "g_cursorCross",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "HCURSOR for RT_GROUP_CURSOR 102, a hollow serifed cross drawn in the top-left 21x21 of a 32x32 bitmap, hotspot (10, 10). Cursor_Set's kind 4 - the battlefield cursor while you hold a selection."
+    },
+    {
+      "addr": "0x004EA194",
+      "name": "g_cursorCrossTarget",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "HCURSOR for RT_GROUP_CURSOR 103, the same cross as g_cursorCross with a filled diamond and a plus at its centre, hotspot (10, 10). Cursor_Set's kind 5 - drawn when an enemy figure is under the pointer and you have a selection, which is the change L2.eng describes as the cursor turning red."
+    },
+    {
+      "addr": "0x004EA518",
+      "name": "g_cursorRing",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "HCURSOR for RT_GROUP_CURSOR 104, an empty ring drawn in the top-left 19x19 of a 32x32 bitmap, hotspot (9, 9). Cursor_Set's kind 6 - one of your own figures is under the pointer."
+    },
+    {
+      "addr": "0x004EABA8",
+      "name": "g_cursorQuestion",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "HCURSOR for RT_GROUP_CURSOR 110, an arrow corner with a QUESTION MARK beside it, hotspot (0, 0). Cursor_Set's kind 2, and g_cursorByScreen gives it to screen 0x02 - the village, idle - and to the unreachable 0x0E. This is the pointer a player reported seeing in the town square. Its 304-byte payload is byte-identical to the shipped Cursor9.cur. It has nothing to do with the help screen 0x31 or the tip screens: those are separate mechanisms and the help screen's own row in g_cursorByScreen is 0."
+    },
+    {
+      "addr": "0x004EAC58",
+      "name": "g_cursorPeasant",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "HCURSOR for RT_GROUP_CURSOR 111, an arrow corner with a filled human figure - a head over a body - beside it, hotspot (0, 0). Cursor_Set's kind 12, which g_cursorByScreen gives to screen 0x06, the village while a selection of peasants is being carried."
+    },
+    {
+      "addr": "0x004EABE4",
+      "name": "g_cursorScythe",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "HCURSOR for RT_GROUP_CURSOR 113, an arrow corner with a SCYTHE beside it, hotspot (0, 0). Cursor_Set's kind 14, which g_cursorByScreen gives to screen 0x10 - the campaign map in army-movement mode, the screen Map_BeginMoveSelection opens."
+    },
+    {
+      "addr": "0x005651D0",
+      "name": "g_battleHoverOnField",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "1 while the pointer is inside the battlefield viewport, 0 otherwise. Battle_UpdateHover sets it from FUN_004BC222(g_mouseX, g_mouseY) and clears it at the top of every frame; Battle_Frame's cursor ladder and Screen_FrameInput read it."
+    },
+    {
+      "addr": "0x00553EEC",
+      "name": "g_battleHoverSurface",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The surface byte of the battlefield cell under the pointer, copied by Battle_UpdateHover out of g_battlefield[cell].surface. Value 0x0F raises DAT_0053E874. Battle_Frame's cursor ladder compares it against the order kind DAT_00568968 (< 6 for kind 6, < 4 for kind 4) to decide whether the destination under the pointer is legal."
+    },
+    {
+      "addr": "0x005533B8",
+      "name": "g_battleHoverEnemy",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "The battle figure under the pointer when it belongs to someone else AND you hold a selection, 0 otherwise. Battle_UpdateHover writes it; it is the FIRST thing Battle_Frame's battle cursor ladder tests, and a non-zero value draws g_cursorCrossTarget. That is the state L2.eng's battle help calls the cursor turning red over an enemy unit."
+    },
+    {
+      "addr": "0x00553F90",
+      "name": "g_battleHoverFriendly",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "The battle figure under the pointer when it is yours and no selection is being placed. Battle_UpdateHover writes it; a non-zero value draws g_cursorRing."
+    },
+    {
+      "addr": "0x0057CAC8",
+      "name": "g_battleHoverFriendlyPicked",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "The same as g_battleHoverFriendly but for the case where DAT_00553078 says a selection already exists: Battle_UpdateHover routes one of your own figures here instead. Also draws g_cursorRing."
     },
     {
       "addr": "0x005530F0",

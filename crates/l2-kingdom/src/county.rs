@@ -16,7 +16,35 @@
 //! small integer: the whole record is walked in index order, every season, on
 //! every peer (`docs/netcode.md` §3).
 
-use crate::tables::{Commodity, Weather, FIELD_PROGRESS_MAX, JOB_COUNT, RATION_LEVEL_COUNT};
+use crate::tables::{
+    Commodity, Weather, FIELD_PROGRESS_MAX, JOB_CATTLE_FARMING, JOB_COUNT, JOB_GRAIN_FARMING,
+    JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT,
+};
+
+/// The three per-county ratings the minimap's statistic overlays colour by,
+/// recomputed by `FUN_00451BBA` on every minimap draw and stored in the five
+/// bytes at county `+0x00 … +0x04` that `Sync_CompareState` skips — they are
+/// interface state, not simulation state, which is why they are computed here
+/// on demand rather than kept in [`County`].
+///
+/// **They are the county's bytes `+0x03`, `+0x02` and `+0x01`, in that order**;
+/// `docs/screens.md` §3.2 called them `+0x0B3`, `+0x0B2` and `+0x0B1`, which is
+/// the literal `0x0053F9B3` in the disassembly read as an offset.
+///
+/// Every band indexes `l2_view::chrome::MINIMAP_RATING_RAMP`, 0 worst … 5 best,
+/// and **6 is a real value meaning "colour nothing"** — the original's guard is
+/// `band < 6` and two of the three producers emit 6 routinely.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MinimapBands {
+    /// `+0x03` — 0 short of farm workers, 5 has idle or surplus labour, 6 no
+    /// slack at all. Never anything else.
+    pub labour: u8,
+    /// `+0x02` — 0 the ration achieved fell short of the ration wanted, 6 it
+    /// did not. Only a debug toggle makes this use the middle of the ramp.
+    pub food: u8,
+    /// `+0x01` — `happiness / 20`, so 0 … 5 over the 0 … 100 range.
+    pub happiness: u8,
+}
 
 /// `g_counties` is 17 records and **index 0 is never a county**
 /// (`docs/kingdom.md` §1). So the usable ids are 1..=16 and the array bound is
@@ -803,6 +831,49 @@ impl County {
         (self.ration_achieved.max(0) as usize).min(RATION_LEVEL_COUNT - 1)
     }
 
+    /// The three minimap overlay ratings — `FUN_00451BBA` (`0x00451BBA`),
+    /// which `Minimap_DrawOverlay` calls on **every** draw before it reads
+    /// them. See [`MinimapBands`].
+    pub fn minimap_bands(&self) -> MinimapBands {
+        // +0x01. The original divides an `i8` happiness by 20 and stores an
+        // `i8`, and the draw then reads the byte *unsigned*: a negative
+        // happiness of -20 or worse wraps past 5 and the county is left
+        // uncoloured rather than painted band 0. Reproduced with the same
+        // cast, so the edge behaves the same if happiness ever goes negative.
+        let happiness = ((self.happiness / 20) as i8) as u8;
+
+        // +0x02. `DAT_00553E60` is a debug toggle, zeroed by the bulk global
+        // reset at `0x00497500` and flipped only inside the command dispatcher
+        // at `0x004B29BE`. With it clear — the shipped game — the food rating
+        // is *binary*: red when the county did not achieve the ration it was
+        // asked for, and **6, meaning draw nothing at all**, when it did. The
+        // debug branch spreads `ration_achieved` over bands 1..=5 instead.
+        let food = if self.ration_achieved < self.ration_wanted { 0 } else { 6 };
+
+        // +0x03. Idle townsfolk, plus one for each of jobs 0..=7 carrying more
+        // workers than it can use. Understaffing either farm job below its
+        // wanted floor beats everything and gives band 0; otherwise a county
+        // with no slack at all is 6 (draw nothing) and one with slack is 5.
+        // So the labour overlay only ever paints the two ends of the ramp.
+        let mut slack = self.labour[JOB_IDLE_TOWNSFOLK];
+        for job in 0..JOB_IDLE_TOWNSFOLK {
+            if self.labour_useful[job] < self.labour[job] {
+                slack += 1;
+            }
+        }
+        let short = self.labour[JOB_GRAIN_FARMING] < self.labour_wanted[JOB_GRAIN_FARMING]
+            || self.labour[JOB_CATTLE_FARMING] < self.labour_wanted[JOB_CATTLE_FARMING];
+        let labour = if short {
+            0
+        } else if slack == 0 {
+            6
+        } else {
+            5
+        };
+
+        MinimapBands { labour, food, happiness }
+    }
+
     /// Push one field's reclamation towards [`FIELD_PROGRESS_MAX`] by at most
     /// [`crate::tables::FIELD_RECLAIM_PER_SEASON`]. Returns the new progress.
     pub fn reclaim_field(&mut self, field: usize, by: i32) -> u16 {
@@ -816,6 +887,7 @@ impl County {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tables::{JOB_FIELD_RECLAMATION, JOB_STONE_QUARRYING};
 
     #[test]
     fn a_new_county_is_unowned_and_on_normal_rations() {
@@ -865,6 +937,56 @@ mod tests {
         let mut c = County::new();
         // Ask for the whole thing at once; the cap is the rule.
         assert_eq!(c.reclaim_field(0, 10_000), 200);
+    }
+
+    /// `FUN_00451BBA`'s three ratings, band by band.
+    ///
+    /// The two that matter are the ones that look like bugs: **the food rating
+    /// has no middle** and **the labour rating has no middle**, and both of them
+    /// answer 6, which is off the end of the six-entry ramp and means *colour
+    /// nothing*. Reproduced deliberately; see `docs/screens.md` §3.2.
+    #[test]
+    fn the_minimap_ratings_are_happiness_over_twenty_and_two_binary_flags() {
+        let mut c = County::new();
+        c.labour_wanted = [LABOUR_NO_FLOOR; JOB_COUNT];
+
+        // Happiness: 0..=100 spreads over exactly the six bands, and 100 lands
+        // on the last one rather than one past it.
+        for (happiness, want) in [(0, 0), (19, 0), (20, 1), (79, 3), (99, 4), (100, 5)] {
+            c.happiness = happiness;
+            assert_eq!(c.minimap_bands().happiness, want, "happiness {happiness}");
+        }
+        // A negative happiness wraps past the ramp rather than reading band 0 —
+        // the original stores an i8 and the draw reads it unsigned.
+        c.happiness = -20;
+        assert!(c.minimap_bands().happiness > 5, "negative happiness is not band 0");
+        c.happiness = 60;
+
+        // Food: short of the wanted ration is 0, anything else is 6.
+        c.ration_wanted = 3;
+        for (achieved, want) in [(0, 0), (2, 0), (3, 6), (5, 6)] {
+            c.ration_achieved = achieved;
+            assert_eq!(c.minimap_bands().food, want, "ration {achieved} of 3");
+        }
+        c.ration_achieved = 3;
+
+        // Labour: no slack at all is 6.
+        assert_eq!(c.minimap_bands().labour, 6);
+        // Idle townsfolk are slack, and so is an over-staffed job.
+        c.labour[JOB_IDLE_TOWNSFOLK] = 4;
+        assert_eq!(c.minimap_bands().labour, 5);
+        c.labour[JOB_IDLE_TOWNSFOLK] = 0;
+        c.labour[JOB_STONE_QUARRYING] = 9;
+        c.labour_useful[JOB_STONE_QUARRYING] = 2;
+        assert_eq!(c.minimap_bands().labour, 5);
+        // Being short of farm workers beats both.
+        c.labour_wanted[JOB_CATTLE_FARMING] = 10;
+        c.labour[JOB_CATTLE_FARMING] = 3;
+        assert_eq!(c.minimap_bands().labour, 0);
+        // Only jobs 0 and 1 have a floor that counts: job 2's is ignored.
+        c.labour_wanted[JOB_CATTLE_FARMING] = LABOUR_NO_FLOOR;
+        c.labour_wanted[JOB_FIELD_RECLAMATION] = 10;
+        assert_eq!(c.minimap_bands().labour, 5, "only the two farm jobs carry a floor");
     }
 
     #[test]

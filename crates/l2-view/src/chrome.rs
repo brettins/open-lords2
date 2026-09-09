@@ -224,6 +224,12 @@ pub const MINIMAP_Y: i32 = 28;
 pub const MINIMAP_HIT_X: i32 = 480;
 pub const MINIMAP_HIT_Y: i32 = 25;
 pub const MINIMAP_DIM: i32 = 128;
+/// `Minimap_Draw` puts the 29 × 123 mode strip at `(x + 0x83, y + 7)` and the
+/// mode badge at `(x + 5, y + 5)`, both off the hit rectangle's origin.
+pub const MINIMAP_SIDE_X: i32 = MINIMAP_HIT_X + 0x83;
+pub const MINIMAP_SIDE_Y: i32 = MINIMAP_HIT_Y + 7;
+pub const MINIMAP_BADGE_X: i32 = MINIMAP_HIT_X + 5;
+pub const MINIMAP_BADGE_Y: i32 = MINIMAP_HIT_Y + 5;
 
 // ------------------------------------------------------------------ minimap
 
@@ -293,6 +299,89 @@ pub const MINIMAP_REALM_RAMP: [[u8; 4]; 6] = [
 ];
 /// Where that table lives, so a test can go and read it.
 pub const MINIMAP_REALM_RAMP_VA: u32 = 0x004D_2900;
+
+/// The **rating** ramp the three statistic overlays index, read out of
+/// `Lords2.exe` at `0x004D28F8`: six bytes, **worst first**.
+///
+/// ```text
+/// 004d28f8  0f 15 f3 09 f1 05 | 05 05      <- this table, then two bytes of slack
+/// 004d2900  0a 0b 0c 0d 20 0b 0c 0d        <- MINIMAP_REALM_RAMP row 0
+/// ```
+///
+/// It is a *different* table from the realm ramp, not an extension of it: the
+/// two are adjacent and the eight bytes between `0x004D28F8` and the realm
+/// ramp's first row are this table plus two bytes nothing indexes.
+///
+/// **The direction is verified from the artwork.** `Misc_cty.pl8` frame 91 —
+/// the strip the original swaps in beside the minimap while an overlay is up —
+/// carries a six-swatch colour bar with a tick against the top swatch and a
+/// cross against the bottom one, and reading its pixels down column 5 gives
+/// `0x05, 0xF1, 0x09, 0xF3, 0x15, 0x0F`: **exactly this table reversed**. So
+/// index 0 is the red at the bottom of the bar (bad) and index 5 the purple at
+/// the top (good), which is also what the three ratings mean — band 0 is
+/// "unhappy", "short of food", "short of workers".
+pub const MINIMAP_RATING_RAMP: [u8; 6] = [0x0F, 0x15, 0xF3, 0x09, 0xF1, 0x05];
+/// Where that table lives, so a test can go and read it.
+pub const MINIMAP_RATING_RAMP_VA: u32 = 0x004D_28F8;
+
+/// `g_minimapMode` (`0x0057A0C4`): what the minimap is coloured by.
+///
+/// The three statistic modes are the top three buttons of the strip beside the
+/// minimap, and `Minimap_Draw` draws a badge for each in the minimap's top-left
+/// corner — see [`MinimapMode::badge_frame`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MinimapMode {
+    /// 0 — who owns each county, through [`MINIMAP_REALM_RAMP`].
+    #[default]
+    Owner,
+    /// 1 — the labour rating, county `+0x03`. Badge: the peasant.
+    Labour,
+    /// 2 — the food rating, county `+0x02`. Badge: the loaf and cheese.
+    Food,
+    /// 3 — happiness, county `+0x01`. Badge: the heart.
+    Happiness,
+}
+
+impl MinimapMode {
+    /// `Minimap_ModeButton`'s hotspot id, 1…4. Button 4 is not a mode.
+    pub fn from_button(button: usize) -> Option<MinimapMode> {
+        match button {
+            0 => Some(MinimapMode::Labour),
+            1 => Some(MinimapMode::Food),
+            2 => Some(MinimapMode::Happiness),
+            _ => None,
+        }
+    }
+
+    /// The `Misc_cty` frame `Minimap_Draw` puts at (485, 30) while this mode is
+    /// up — `0x5D` peasant, `0x5F` food, `0x5E` heart. **The order is not
+    /// sequential**, and it is the original's: mode 2 draws `0x5F` and mode 3
+    /// draws `0x5E`.
+    pub fn badge_frame(self) -> Option<usize> {
+        match self {
+            MinimapMode::Owner => None,
+            MinimapMode::Labour => Some(0x5D),
+            MinimapMode::Food => Some(0x5F),
+            MinimapMode::Happiness => Some(0x5E),
+        }
+    }
+
+    pub fn is_rating(self) -> bool {
+        self != MinimapMode::Owner
+    }
+}
+
+/// How [`draw_minimap`] colours one county's land pixels.
+pub enum MinimapTint<'a> {
+    /// Mode 0: the county's realm colour, indexing [`MINIMAP_REALM_RAMP`].
+    Owner(&'a dyn Fn(u8) -> u8),
+    /// Modes 1…3: a rating band indexing [`MINIMAP_RATING_RAMP`].
+    ///
+    /// `None`, or a band of 6 or more, leaves the pixel as the raster drew it —
+    /// which is what the original does, and is why a well-fed county shows
+    /// nothing at all in food mode. See `l2_kingdom::county::MinimapBands`.
+    Rating(&'a dyn Fn(u8) -> Option<u8>),
+}
 
 /// The index `Minimap_DrawOverlay` writes for the selected county's brightest
 /// shade, in place of the ramp entry.
@@ -486,20 +575,50 @@ impl Chrome {
     pub fn draw_banner(&self, canvas: &mut Canvas, slot: i32, colour: u8) -> bool {
         self.draw_misc(canvas, misc_cty::BANNER + colour as usize, 270 + slot * 16, 4)
     }
+
+    /// The 29 × 123 strip beside the minimap, at `Minimap_Draw`'s
+    /// `(x + 0x83, y + 7)` = **(611, 32)**.
+    ///
+    /// Frame `0x5C` is the four buttons — peasant, food, heart, magnifier — and
+    /// frame `0x5B` replaces it while an overlay is up: the six-swatch colour
+    /// bar of [`MINIMAP_RATING_RAMP`] with a tick at the good end and a cross at
+    /// the bad one, over a single button. That the strip loses three of its four
+    /// buttons is not decoration: `Minimap_ModeButton` ignores buttons 1…3 once
+    /// a mode is on, and only button 4 — now the only one drawn — turns it off.
+    pub fn draw_minimap_side(&self, canvas: &mut Canvas, mode: MinimapMode) -> bool {
+        let frame = if mode.is_rating() {
+            misc_cty::MINIMAP_SIDE_ACTIVE
+        } else {
+            misc_cty::MINIMAP_SIDE
+        };
+        self.draw_misc(canvas, frame, MINIMAP_SIDE_X, MINIMAP_SIDE_Y)
+    }
+
+    /// The mode badge in the minimap's top-left corner, at `Minimap_Draw`'s
+    /// `(x + 5, y + 5)` = **(485, 30)**. Nothing is drawn in mode 0.
+    pub fn draw_minimap_badge(&self, canvas: &mut Canvas, mode: MinimapMode) -> bool {
+        match mode.badge_frame() {
+            Some(f) => self.draw_misc(canvas, f, MINIMAP_BADGE_X, MINIMAP_BADGE_Y),
+            None => false,
+        }
+    }
 }
 
-/// Draw the minimap: the shading raster recoloured per county owner, exactly as
-/// `Minimap_DrawOverlay` does it.
+/// Draw the minimap: the shading raster recoloured per county, exactly as
+/// `Minimap_DrawOverlay` (`0x00410CBD`) does it.
 ///
-/// `owner` maps a county id to its realm colour. A shade outside 10..=13 is
-/// left as the raster holds it, which is how the sea (63) and the transparent
-/// surround (0) survive; the selected county's brightest shade becomes
-/// [`MINIMAP_SELECTED`].
+/// A shade outside 10..=13 is left as the raster holds it, which is how the sea
+/// (63) and the transparent surround (0) survive; the selected county's
+/// brightest shade becomes [`MINIMAP_SELECTED`] **in every mode**, because the
+/// original tests the selection before it dispatches on the mode.
+///
+/// `tint` is the mode: [`MinimapTint::Owner`] for the realm colours and
+/// [`MinimapTint::Rating`] for the three statistic overlays.
 pub fn draw_minimap(
     canvas: &mut Canvas,
     minimap: &Minimap,
     selected: u8,
-    owner: &dyn Fn(u8) -> u8,
+    tint: &MinimapTint,
 ) {
     for y in 0..MINIMAP_DIM {
         for x in 0..MINIMAP_DIM {
@@ -519,8 +638,22 @@ pub fn draw_minimap(
             let ink = if step == 0 && county != 0 && county == selected {
                 MINIMAP_SELECTED
             } else {
-                let colour = owner(county).min(MINIMAP_REALM_RAMP.len() as u8 - 1);
-                MINIMAP_REALM_RAMP[colour as usize][step]
+                match tint {
+                    MinimapTint::Owner(colour) => {
+                        let c = colour(county).min(MINIMAP_REALM_RAMP.len() as u8 - 1);
+                        MINIMAP_REALM_RAMP[c as usize][step]
+                    }
+                    // The original's guard is `band < 6`, and its three bands
+                    // really do produce 6 — `goto` past the write, leaving the
+                    // pixel the raster blitted. Reproduced literally rather
+                    // than clamped: clamping would paint half the map purple.
+                    MinimapTint::Rating(band) => match band(county) {
+                        Some(b) if (b as usize) < MINIMAP_RATING_RAMP.len() => {
+                            MINIMAP_RATING_RAMP[b as usize]
+                        }
+                        _ => shade,
+                    },
+                }
             };
             canvas.set(px as usize, py as usize, ink);
         }
@@ -634,7 +767,7 @@ mod tests {
         }
         let mut c = Canvas::screen();
         c.clear(200);
-        draw_minimap(&mut c, &m, 0, &|_| 2);
+        draw_minimap(&mut c, &m, 0, &MinimapTint::Owner(&|_| 2));
 
         fn at(c: &Canvas, i: i32) -> u8 {
             c.at((MINIMAP_X + i) as usize, MINIMAP_Y as usize)
@@ -644,9 +777,105 @@ mod tests {
         assert_eq!(at(&c, 5), 200, "index 0 is transparent");
 
         // The selection replaces only the brightest shade.
-        draw_minimap(&mut c, &m, 3, &|_| 2);
+        draw_minimap(&mut c, &m, 3, &MinimapTint::Owner(&|_| 2));
         assert_eq!(at(&c, 0), MINIMAP_SELECTED);
         assert_eq!(at(&c, 1), MINIMAP_REALM_RAMP[2][1], "the other three are untouched");
+    }
+
+    /// **A statistic overlay is one flat colour per county, not a four-step
+    /// shade**, and a band of 6 leaves the raster alone.
+    ///
+    /// The same synthetic raster as above, drawn three ways, with the pixels
+    /// counted rather than described.
+    #[test]
+    fn a_rating_overlay_paints_one_ramp_colour_over_all_four_shades() {
+        let n = (MINIMAP_DIM * MINIMAP_DIM) as usize;
+        let mut m = Minimap { counties: vec![0; n], shades: vec![0; n] };
+        for (i, s) in [10u8, 11, 12, 13, 63, 0].iter().enumerate() {
+            m.shades[i] = *s;
+            m.counties[i] = 3;
+        }
+        fn at(c: &Canvas, i: i32) -> u8 {
+            c.at((MINIMAP_X + i) as usize, MINIMAP_Y as usize)
+        }
+        let mut c = Canvas::screen();
+
+        // Band 0 — the worst rating — is one colour across all four shades,
+        // where the ownership ramp gives four different ones.
+        c.clear(200);
+        draw_minimap(&mut c, &m, 0, &MinimapTint::Rating(&|_| Some(0)));
+        assert_eq!(
+            [at(&c, 0), at(&c, 1), at(&c, 2), at(&c, 3)],
+            [MINIMAP_RATING_RAMP[0]; 4]
+        );
+        assert_eq!(at(&c, 4), 63, "the sea is still the raster's");
+        assert_eq!(at(&c, 5), 200, "index 0 is still transparent");
+
+        // Band 5 — the best — is a different colour, so the modes are
+        // distinguishable by pixel and not only by intent.
+        c.clear(200);
+        draw_minimap(&mut c, &m, 0, &MinimapTint::Rating(&|_| Some(5)));
+        assert_eq!([at(&c, 0), at(&c, 3)], [MINIMAP_RATING_RAMP[5]; 2]);
+        assert_ne!(MINIMAP_RATING_RAMP[0], MINIMAP_RATING_RAMP[5]);
+
+        // Band 6, and "not the player's county", both leave the raster's own
+        // shade — which is exactly the unowned row of the realm ramp.
+        for absent in [Some(6u8), None] {
+            c.clear(200);
+            draw_minimap(&mut c, &m, 0, &MinimapTint::Rating(&|_| absent));
+            assert_eq!(
+                [at(&c, 0), at(&c, 1), at(&c, 2), at(&c, 3)],
+                MINIMAP_REALM_RAMP[0],
+                "band {absent:?} must leave the picture alone"
+            );
+        }
+
+        // The selected county's brightest shade is still 0x20 in a rating mode:
+        // the original tests the selection before it dispatches on the mode.
+        c.clear(200);
+        draw_minimap(&mut c, &m, 3, &MinimapTint::Rating(&|_| Some(0)));
+        assert_eq!(at(&c, 0), MINIMAP_SELECTED);
+        assert_eq!(at(&c, 1), MINIMAP_RATING_RAMP[0]);
+    }
+
+    /// Every band any of the three ratings can produce is either a valid index
+    /// into the six-entry ramp or the "draw nothing" 6 — **checked over the
+    /// whole `u8` range**, because a six-entry table in this subsystem has run
+    /// off its end once already (`docs/decisions.md` C50).
+    #[test]
+    fn no_rating_band_can_index_past_the_ramp() {
+        let n = (MINIMAP_DIM * MINIMAP_DIM) as usize;
+        let mut m = Minimap { counties: vec![0; n], shades: vec![10; n] };
+        m.counties[0] = 3;
+        let mut c = Canvas::screen();
+        for band in 0..=255u8 {
+            c.clear(200);
+            // The point is that this does not panic, and that anything outside
+            // 0..=5 falls through to the raster's own pixel.
+            draw_minimap(&mut c, &m, 0, &MinimapTint::Rating(&|_| Some(band)));
+            let px = c.at(MINIMAP_X as usize, MINIMAP_Y as usize);
+            if (band as usize) < MINIMAP_RATING_RAMP.len() {
+                assert_eq!(px, MINIMAP_RATING_RAMP[band as usize]);
+            } else {
+                assert_eq!(px, 10, "band {band} must leave the raster's shade");
+            }
+        }
+    }
+
+    /// The mode buttons are not radio buttons, and the badge frames are not in
+    /// order. Both are the original's.
+    #[test]
+    fn the_minimap_mode_buttons_map_to_modes_and_badges() {
+        assert_eq!(MinimapMode::from_button(0), Some(MinimapMode::Labour));
+        assert_eq!(MinimapMode::from_button(1), Some(MinimapMode::Food));
+        assert_eq!(MinimapMode::from_button(2), Some(MinimapMode::Happiness));
+        assert_eq!(MinimapMode::from_button(3), None, "button 4 is not a mode");
+        assert_eq!(MinimapMode::default(), MinimapMode::Owner);
+        assert!(!MinimapMode::Owner.is_rating());
+        assert_eq!(MinimapMode::Owner.badge_frame(), None);
+        assert_eq!(MinimapMode::Labour.badge_frame(), Some(0x5D));
+        assert_eq!(MinimapMode::Food.badge_frame(), Some(0x5F));
+        assert_eq!(MinimapMode::Happiness.badge_frame(), Some(0x5E));
     }
 
     /// `FUN_004171EE`'s clamp, and the reason it lives here rather than on the

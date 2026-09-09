@@ -2124,3 +2124,515 @@ fn the_battle_screens_draw_the_original_sentences() {
     assert_eq!(eng.text(GROUP_BANNER, 12), "The conflict is over.");
     assert_eq!(eng.text(GROUP_BANNER, 14), "", "and there is no eighth pair");
 }
+
+// ---------------------------------------------------------------------------
+// **Pixels, asserted.** C57.
+//
+// Three visual features have now been reported missing by a human *after* being
+// merged — the town flag, the merchant sprite, the minimap tint. Two of the
+// three did have a pixel test:
+// [`the_county_town_flies_its_owners_flag_and_it_waves`] and
+// [`a_merchant_is_drawn_and_opens_the_merchant_screen_from_the_county_it_is_in`]
+// both diff two canvases and assert the ink landed in the right box. **The
+// minimap's tint had none**, and it is the one the player was still describing
+// as wrong.
+//
+// Both tests below are stronger than a diff, in the same way: a diff says
+// *something* changed inside a rectangle, so it passes on a garbage sprite or
+// on the wrong frame of the right sheet. These match the **artwork itself** —
+// the frame's own palette indices, several hundred of them, standing where the
+// blit put them — and then vary one field of the save and require the picture
+// to follow it. That is what makes them able to catch a flag that draws, but
+// draws the wrong realm's.
+//
+// The house technique is to turn the visual claim into a number the file can
+// settle and then assert the number. Two precedents: *a tick cannot come 4th of
+// 84 frames by ink*, and *a two-pixel ring is four pixels of width*.
+// ---------------------------------------------------------------------------
+
+/// A sprite's **exact ink**, found anywhere on the canvas.
+///
+/// The same idea as [`find_text`] and for the same reason: render the thing
+/// being looked for, keep the pixels it would actually paint, and scan for that
+/// pattern. A PL8 blit copies only its opaque bytes, so a match is the frame's
+/// own palette indices standing where the frame was blitted — several hundred
+/// of them for a flag. That cannot arise from terrain.
+///
+/// Every place this frame's artwork stands, and how many opaque pixels had to
+/// agree to make each one a match.
+fn sprite_positions(
+    canvas: &Canvas,
+    frame: &l2_formats::pl8::DecodedFrame,
+) -> (Vec<(i32, i32)>, usize) {
+    let (w, h) = (frame.width as i32, frame.height as i32);
+    let wanted: Vec<(i32, i32, u8)> = (0..h)
+        .flat_map(|y| (0..w).map(move |x| (x, y)))
+        .filter(|&(x, y)| frame.opaque[(y * w + x) as usize])
+        .map(|(x, y)| (x, y, frame.indices[(y * w + x) as usize]))
+        .collect();
+    let mut found = Vec::new();
+    if wanted.is_empty() {
+        return (found, 0);
+    }
+    for oy in 0..=(canvas.height as i32 - h) {
+        for ox in 0..=(canvas.width as i32 - w) {
+            let (fx, fy, fi) = wanted[0];
+            if canvas.at((ox + fx) as usize, (oy + fy) as usize) != fi {
+                continue;
+            }
+            if wanted.iter().all(|&(x, y, i)| canvas.at((ox + x) as usize, (oy + y) as usize) == i)
+            {
+                found.push((ox, oy));
+            }
+        }
+    }
+    (found, wanted.len())
+}
+
+/// The first of them, scanning rows then columns.
+fn find_sprite(
+    canvas: &Canvas,
+    frame: &l2_formats::pl8::DecodedFrame,
+) -> Option<((i32, i32), usize)> {
+    let (found, ink) = sprite_positions(canvas, frame);
+    found.first().map(|&p| (p, ink))
+}
+
+/// The map centred on a county's town, drawn.
+fn town_view(game: &mut Game, assets: &Assets, county: u8) -> (MapScreen, Canvas) {
+    let mut screen = MapScreen::new();
+    {
+        let ctx = Ctx { game, assets };
+        let town = MapScreen::town(&ctx, county);
+        let &tile = town.first().expect("a county has a town");
+        let (tx, ty) = l2_kingdom::map::coords(tile);
+        screen.centre_on_tile(tx as usize, ty as usize);
+    }
+    let canvas = draw(&mut screen, game, assets);
+    (screen, canvas)
+}
+
+/// **The county town flies its owner's flag, and it waves.**
+///
+/// A player: *"I didn't see the colorful waving flag over my county."* It is
+/// there, and this is the assertion that says so in numbers rather than in a
+/// screenshot somebody has to open.
+///
+/// Three claims, each with its own pixels:
+///
+/// 1. **It is drawn.** `Flags1a.pl8` frame `(shield − 1) * 8 + phase` — several
+///    hundred opaque palette indices — stands somewhere on the canvas, exactly.
+/// 2. **The frame is keyed on the shield.** Move the owning realm's
+///    `shield_index` and the flag at the *same pixel* becomes the other
+///    shield's frame. Nothing else on the campaign map reads `shield_index` —
+///    the minimap and the menu-bar banner both read `realm_colour` — so this
+///    isolates the flag from everything drawn beside it.
+/// 3. **The wave advances.** Sixteen ticks is one phase (`phase = tick >> 4`),
+///    and after them the flag at the same pixel is the next frame of the eight.
+///
+/// If any of the three stops being true the feature has gone, and this fails
+/// instead of a person noticing weeks later. C57.
+#[test]
+fn the_county_town_flies_its_owners_flag_and_the_wave_advances() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+
+    let owner = game.kingdom.counties[county as usize].owner as usize;
+    let shield = game.kingdom.realms[owner].shield_index;
+    assert!(
+        (1..=5).contains(&shield),
+        "realm {owner} carries shield {shield}, which flies nothing"
+    );
+
+    let (mut screen, canvas) = town_view(&mut game, &assets, county);
+    let sheet = assets.map.flag_sheet(screen.zoom()).expect("Flags1a.pl8 is in the install");
+    let frame_of = |shield: u8, phase: u8| {
+        let i = campaign::flag_frame(shield, phase).expect("a shield of 1 ..= 5 has a frame");
+        sheet.frame(i).expect("Flags1a.pl8 holds forty 32 x 24 frames")
+    };
+
+    // 1 — it is drawn.
+    let f = frame_of(shield, 0);
+    assert_eq!((f.width, f.height), (32, 24), "the first forty frames are 32 x 24");
+    let (at, ink) = find_sprite(&canvas, &f)
+        .expect("the county town flies its owner's flag, and it is not on the canvas");
+    assert!(
+        ink >= 200,
+        "the flag matched on only {ink} opaque pixels, which is too few to be the flag"
+    );
+
+    assert!(at.0 < campaign::PANEL_X, "the flag is on the map, not in the sidebar");
+
+    // 2 — the frame is keyed on the shield, at the same pixel.
+    let other = if shield == 5 { 1 } else { shield + 1 };
+    game.kingdom.realms[owner].shield_index = other;
+    let (_, moved) = town_view(&mut game, &assets, county);
+    assert_eq!(
+        find_sprite(&moved, &frame_of(other, 0)).map(|(p, _)| p),
+        Some(at),
+        "with shield {other} the same pixel must fly shield {other}'s flag"
+    );
+    game.kingdom.realms[owner].shield_index = shield;
+
+    // 3 — the wave advances. `Map_DrawFrame`: `phase = (tick & 0x7F) >> 4`.
+    for _ in 0..16 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        let _ = screen.update(&mut ctx);
+    }
+    let waved = draw(&mut screen, &mut game, &assets);
+    assert_eq!(
+        find_sprite(&waved, &frame_of(shield, 1)).map(|(p, _)| p),
+        Some(at),
+        "sixteen ticks is one phase, so the same pixel must now fly phase 1"
+    );
+}
+
+/// **A garrisoned castle flies its *garrison's* shield, and an empty one flies
+/// nothing.**
+///
+/// The second half of `FUN_004071A0`, and the half that is easy to get wrong by
+/// reading the county instead of the unit standing in it:
+///
+/// ```c
+/// else if (flags & 0x80) {                       /* the castle */
+///   if (content <= 0x14 || !county.garrisonUnit) return;
+///   shield = units[county.garrisonUnit].shield;  /* NOT county.owner */
+/// }
+/// ```
+///
+/// So a castle taken from somebody whose garrison is still theirs flies
+/// **their** colours, and the two flags of one county disagree. That is the
+/// case worth testing, and it is the case a fixture cannot supply: the position
+/// is set up here — a county the player holds, its castle built, and somebody
+/// *else's* army standing in it — so the two flags must be two different
+/// pictures. A save that merely happened to have a garrison would almost always
+/// have one whose shield matched its host's, and would prove nothing about
+/// which of the two fields the branch reads.
+///
+/// The measurement is a **count**, not a position: the town of the same county
+/// is flying a flag of its own a few tiles away, so what is asserted is that
+/// taking the garrison out removes **exactly one** flag and leaves the other
+/// standing. C57.
+#[test]
+fn a_garrisoned_castle_flies_the_garrisons_shield_and_an_empty_one_flies_nothing() {
+    let (mut game, assets) = world!();
+    let county = game
+        .kingdom
+        .county_ids()
+        .find(|&id| game.is_players(id as u8))
+        .expect("the player holds a county");
+    game.select(county as u8);
+
+    let owner = game.kingdom.counties[county].owner as usize;
+    let town_shield = game.kingdom.realms[owner].shield_index;
+    // Somebody else's shield, so the castle's flag and the town's cannot be
+    // confused for one another.
+    let garrison_shield = if town_shield == 5 { 1 } else { town_shield + 1 };
+
+    // A built castle with a foreign army inside it. `content <= 0x14` is the
+    // bare plot and flies nothing even with a garrison standing on it, so the
+    // castle has to be built for this to be the branch under test.
+    let unit = game
+        .kingdom
+        .campaign
+        .units
+        .iter()
+        .map(|(id, _)| id)
+        .next()
+        .expect("the fixture carries units");
+    game.kingdom.campaign.units.get_mut(unit).expect("the slot exists").shield = garrison_shield;
+    {
+        let c = &mut game.kingdom.counties[county];
+        c.castle_type = c.castle_type.max(1);
+        c.garrison_unit = unit;
+    }
+
+    let mut screen = MapScreen::new();
+    {
+        let c = &game.kingdom.counties[county];
+        screen.centre_on_tile(c.anchor_x as usize, c.anchor_y as usize);
+    }
+    let held = draw(&mut screen, &mut game, &assets);
+
+    let sheet = assets.map.flag_sheet(screen.zoom()).expect("Flags1a.pl8 is in the install");
+    let frame_of = |shield: u8| {
+        sheet
+            .frame(campaign::flag_frame(shield, 0).expect("a shield of 1 ..= 5 has a frame"))
+            .expect("Flags1a.pl8 holds forty 32 x 24 frames")
+    };
+    let castle_flag = frame_of(garrison_shield);
+    let town_flag = frame_of(town_shield);
+
+    let (before, ink) = sprite_positions(&held, &castle_flag);
+    assert!(
+        !before.is_empty(),
+        "the garrisoned castle of county {county} flies no flag: shield {garrison_shield}"
+    );
+    assert!(ink >= 200, "matched on {ink} opaque pixels, too few to be a flag");
+    let towns_before = sprite_positions(&held, &town_flag).0.len();
+
+    // Take the garrison away. `if (!county.garrisonUnit) return`.
+    game.kingdom.counties[county].garrison_unit = 0;
+    let empty = draw(&mut screen, &mut game, &assets);
+    assert!(
+        sprite_positions(&empty, &castle_flag).0.is_empty(),
+        "an empty castle must fly nothing, and shield {garrison_shield}'s flag is still there"
+    );
+    assert_eq!(
+        sprite_positions(&empty, &town_flag).0.len(),
+        towns_before,
+        "and the town's own flag reads the county's owner, so it must not have moved"
+    );
+
+    // The other half of the guard: a garrison on a bare plot flies nothing
+    // either, whatever its shield.
+    {
+        let c = &mut game.kingdom.counties[county];
+        c.castle_type = 0;
+        c.garrison_unit = unit;
+    }
+    let bare = draw(&mut screen, &mut game, &assets);
+    assert!(
+        sprite_positions(&bare, &castle_flag).0.is_empty(),
+        "`content <= 0x14` is the bare plot, and an unbuilt castle flies nothing"
+    );
+}
+
+/// **The minimap tints by owner, and a realm's ramp is its own.**
+///
+/// A player: *"the minimap had default colors, it didn't actually identify who
+/// owned a county."* The number that settles it is the count of distinct ramp
+/// **rows** standing in the minimap rectangle. `MINIMAP_REALM_RAMP` is six rows
+/// of four shades — row 0 the raster's own shading for unowned land, rows 1 … 5
+/// one per realm colour — so:
+///
+/// * a minimap that tints by owner shows **one row per owning colour, plus row
+///   0 wherever land is unowned**;
+/// * a minimap that has lost the tint shows **exactly one row**, because
+///   `chrome::realm_colour` clamps a zero colour *up* to 1 and every county
+///   would collapse onto ramp 1.
+///
+/// On the England fixture that is five owned counties flying five different
+/// colours out of fourteen, so six rows against one. The two cannot be
+/// confused, which is the property that makes this worth asserting.
+///
+/// It also asserts the thing that makes the count mean anything: **no palette
+/// index appears in two rows**, so "which row is this pixel from" has one
+/// answer. C57.
+#[test]
+fn the_minimap_paints_one_ramp_row_per_owning_realm() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+
+    // The ramp must be unambiguous before it can be counted.
+    let mut row_of_index = [None::<usize>; 256];
+    for (row, shades) in chrome::MINIMAP_REALM_RAMP.iter().enumerate() {
+        for &i in shades {
+            assert_eq!(
+                row_of_index[i as usize], None,
+                "palette index {i:#04x} is in two ramp rows, so a pixel cannot name its realm"
+            );
+            row_of_index[i as usize] = Some(row);
+        }
+    }
+
+    // **The measurement is a difference, not a census**, and it has to be.
+    // `MAPnn.PL8`'s raster also carries pixels the overlay leaves alone —
+    // coastline, borders, the panel round it — and some of those indices are
+    // by coincidence entries of a ramp row (0x38, the beige, is row 3's
+    // darkest). Counting colours across the whole rectangle would therefore
+    // report a realm nobody owns. What is unambiguous is what *moves* when the
+    // ownership moves: the raster is byte-for-byte the same in both renders, so
+    // every differing pixel is one the tint wrote.
+    let tinted = draw(&mut MapScreen::new(), &mut game, &assets);
+    let owners: Vec<u8> =
+        game.kingdom.county_ids().map(|id| game.kingdom.counties[id].owner).collect();
+    for id in game.kingdom.county_ids() {
+        game.kingdom.counties[id].owner = 0;
+    }
+    let flat = draw(&mut MapScreen::new(), &mut game, &assets);
+    for (id, owner) in game.kingdom.county_ids().zip(owners) {
+        game.kingdom.counties[id].owner = owner;
+    }
+
+    let mut seen = std::collections::BTreeSet::new();
+    let mut moved = 0usize;
+    let mut selected_pixels = 0usize;
+    for y in 0..chrome::MINIMAP_DIM {
+        for x in 0..chrome::MINIMAP_DIM {
+            let (px, py) = ((chrome::MINIMAP_X + x) as usize, (chrome::MINIMAP_Y + y) as usize);
+            let (a, b) = (tinted.at(px, py), flat.at(px, py));
+            if a == chrome::MINIMAP_SELECTED {
+                selected_pixels += 1;
+            }
+            if a == b {
+                continue;
+            }
+            moved += 1;
+            assert_eq!(
+                row_of_index[b as usize],
+                Some(0),
+                "an unowned county must paint the raster's own shading, ramp row 0, \
+                 and this pixel painted {b:#04x}"
+            );
+            let row = row_of_index[a as usize].unwrap_or_else(|| {
+                panic!("owned land painted {a:#04x}, which is in no ramp row at all")
+            });
+            seen.insert(row);
+        }
+    }
+
+    // What the save says the answer should be, worked out from the counties
+    // rather than from the picture.
+    let mut wanted = std::collections::BTreeSet::new();
+    for id in game.kingdom.county_ids() {
+        let owner = game.kingdom.counties[id].owner as usize;
+        if owner != 0 {
+            wanted.insert(chrome::realm_colour(game.realm_colour[owner]) as usize);
+        }
+    }
+    assert!(
+        wanted.len() >= 2,
+        "this fixture has {} owning colour(s), so it could not tell a tinted minimap \
+         from an untinted one even if the tint were gone",
+        wanted.len()
+    );
+
+    assert_eq!(
+        seen, wanted,
+        "the minimap's ramp rows must be exactly the ones the counties' owners ask for; \
+         **one single row** is the shape of the failure to watch for — `realm_colour` \
+         clamps a zero colour up to 1, so a tint that has lost its input does not go \
+         blank, it goes uniformly red"
+    );
+    assert!(
+        moved > 500,
+        "only {moved} pixels changed when five counties changed hands, which is too few \
+         to be five counties"
+    );
+    assert!(
+        selected_pixels > 0,
+        "the selected county's brightest shade is replaced by MINIMAP_SELECTED, and none was drawn"
+    );
+}
+
+/// **The sidebar stays live with the village open — and goes dead mid-drag.**
+///
+/// A player, having gone and checked against the original: *"The slider does
+/// indeed still work with town square open and causes no issues."* He is right,
+/// and `Screen_FrameInput`'s `g_screenId == 0x02` arm says so before any
+/// village verb is reached — six guards, all of them the campaign map's
+/// sidebar, `Labour_SplitSliderDrag` fourth among them. It did not work in
+/// ours, because [`Machine::handle`] offered input to the top screen and
+/// stopped there.
+///
+/// The second half is the half a person would never think to check, and it is
+/// the reason this is a test rather than a one-line change: the `0x05`
+/// (banding) and `0x06` (carrying) arms test **no sidebar guard at all**, so
+/// the sidebar is dead for exactly as long as a peasant is in the air. Making
+/// all three behave alike would look like a tidy-up and would be wrong. C57.
+#[test]
+fn the_sidebar_slider_still_works_with_the_village_open_but_not_mid_drag() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+    let share = |g: &Game| g.kingdom.counties[county as usize].industry_share;
+
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Village(county));
+    assert_eq!(m.depth(), 2, "the village is an inset over the map, not a replacement");
+
+    // The press lands on the split slider's track, through the village.
+    {
+        let mut c = Ctx { game: &mut game, assets: &assets };
+        m.handle(Event::Click { x: 561, y: 270 }, &mut c);
+    }
+    assert_eq!(share(&game), 60, "the sidebar's slider is dead with the village open");
+    assert_eq!(m.ids(), vec![ScreenId::Campaign, ScreenId::Village(county)], "and it stayed open");
+
+    // Held and moved, still through the village: `FUN_00439122` runs on the
+    // level and the movement, so this is the drag continuing.
+    {
+        let mut c = Ctx { game: &mut game, assets: &assets };
+        m.handle(Event::Pointer { x: 541, y: 270 }, &mut c);
+    }
+    assert_eq!(share(&game), 20, "the drag tracks the pointer over the village too");
+
+    // A click on the village's own half of the screen must NOT reach the map:
+    // `Map_Click` is not in the `0x02` ladder. The county under the inset is
+    // whatever it was; nothing selects a new one.
+    let before = game.selected;
+    {
+        let mut c = Ctx { game: &mut game, assets: &assets };
+        m.handle(Event::Click { x: 200, y: 200 }, &mut c);
+    }
+    assert_eq!(game.selected, before, "a click on the map round the inset is not a map click");
+
+    // And the drag states. Reaching `Phase::Band` needs a press inside the
+    // village's own area and nine pixels of travel.
+    let mut screen = VillageScreen::new(county);
+    let top = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        VillageScreen::top_y(&ctx)
+    };
+    send(&mut screen, &mut game, &assets, Event::Click { x: 100, y: top + 60 });
+    send(&mut screen, &mut game, &assets, Event::Pointer { x: 140, y: top + 100 });
+    assert_eq!(screen.phase(), village_screen::Phase::Band, "the band is up");
+    assert_eq!(
+        send(&mut screen, &mut game, &assets, Event::Click { x: 561, y: 270 }),
+        Transition::Stay,
+        "screen 0x05 tests no sidebar guard, so the click must not pass to the map"
+    );
+}
+
+/// **Closing a screen opened over the village closes the village with it**, and
+/// that is the original's behaviour rather than a shortcut of ours.
+///
+/// The player, again from the real game: *"things that open a dialog will open
+/// it and when you close that dialogue it will close town square and that
+/// dialogue, probably something to fix so it only closes the dialog you
+/// opened."* `docs/bugs.md` B63 records why it happens — `g_screenId` is one
+/// byte and 57 of `Screen_FrameInput`'s 100 writes to it are the literal `0` —
+/// and what a switch would cost. **We reproduce it on purpose**, so it needs a
+/// test that fails if somebody quietly improves it. C57.
+#[test]
+fn a_screen_opened_over_the_village_takes_the_village_with_it_when_it_closes() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Village(county));
+
+    // A sidebar button, clicked through the village. `FUN_00432967` is
+    // `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)` and it is the second
+    // of the six guards. COURT rather than ARMY because a shell's right button
+    // closes it and this test needs to watch it close.
+    let button = map::SIDEBAR_BUTTONS[1].rect();
+    {
+        let mut c = Ctx { game: &mut game, assets: &assets };
+        m.handle(Event::Click { x: button.x + 4, y: button.y + 4 }, &mut c);
+    }
+    assert_eq!(
+        m.ids(),
+        vec![ScreenId::Campaign, ScreenId::Shell(0x09)],
+        "the sidebar's screen replaced the village rather than stacking on it"
+    );
+
+    // And closing that screen lands on the map, not back on the village.
+    {
+        let mut c = Ctx { game: &mut game, assets: &assets };
+        m.handle(Event::RightClick { x: 320, y: 240 }, &mut c);
+    }
+    assert_eq!(m.ids(), vec![ScreenId::Campaign], "a panel's exit is a constant 0, not a memory");
+}
