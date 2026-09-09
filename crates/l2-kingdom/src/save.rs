@@ -80,7 +80,13 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   the map's three tile planes, the twelve mercenary bands and the realms'
 ///   army-name counters, plus three new county fields. A version 2 save has no
 ///   armies in it and no way to say so.
-pub const VERSION: u32 = 3;
+/// * 4 — **fields became tile-derived** (`crate::field`): the county carries
+///   its twenty field tiles and the two counts `County_RecountFields` fills
+///   besides the three we already had. A version 3 save records the counts but
+///   not the tiles they were counted from, so its fields could never be
+///   repainted; there is no way to recover the tiles from the counts, which is
+///   why this is a refusal and not a default.
+pub const VERSION: u32 = 4;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -638,13 +644,19 @@ impl Encode for County {
         out.u8(self.castle_type);
         out.u8(self.castle_building);
         out.bool(self.castle_degraded);
+        out.bool(self.castle_switch);
         out.i32(self.castle_progress);
         out.i32(self.event_population_pct);
         out.i32(self.event_grain_pct);
         out.i32(self.event_herd_pct);
+        for tile in &self.field_tiles {
+            out.u16(*tile);
+        }
         out.i32(self.fields_fallow);
         out.i32(self.fields_cattle);
         out.i32(self.fields_grain);
+        out.i32(self.fields_waste);
+        out.i32(self.fields_reclaiming);
         out.i32(self.fertility);
         out.u8(self.weather.index());
         out.i32(self.dryness);
@@ -743,13 +755,19 @@ impl Decode for County {
         c.castle_type = input.u8()?;
         c.castle_building = input.u8()?;
         c.castle_degraded = input.bool()?;
+        c.castle_switch = input.bool()?;
         c.castle_progress = input.i32()?;
         c.event_population_pct = input.i32()?;
         c.event_grain_pct = input.i32()?;
         c.event_herd_pct = input.i32()?;
+        for slot in 0..c.field_tiles.len() {
+            c.field_tiles[slot] = input.u16()?;
+        }
         c.fields_fallow = input.i32()?;
         c.fields_cattle = input.i32()?;
         c.fields_grain = input.i32()?;
+        c.fields_waste = input.i32()?;
+        c.fields_reclaiming = input.i32()?;
         c.fertility = input.i32()?;
         let at = input.position();
         let byte = input.u8()?;

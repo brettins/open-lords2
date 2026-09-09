@@ -479,6 +479,165 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
     herd_preview(t, county, season_next);
 }
 
+// ---------------------------------------------------------------------------
+// The labour ceilings
+// ---------------------------------------------------------------------------
+
+/// `Grain_LabourEstimate` (`0x0044D374`) — the **grain** ceiling, for the
+/// season the sowing happens in.
+///
+/// The original is not the inversion of [`sacks_per_field`] it looks like; it
+/// is a plain forward scan:
+///
+/// ```c
+/// best = 1; ceiling = 0;
+/// for (workers = 0; workers < population; workers++) {
+///     got = Grain_Sow(county, workers, grain - grainEaten);   /* season 1 */
+///     if (best < got) { ceiling = workers; best = got; }
+/// }
+/// wanted[0] = (nothing beat 1) ? -1 : ceiling;
+/// useful[0] = ceiling;
+/// ```
+///
+/// Because `Grain_Sow` is monotone in labour and the test is strict, the answer
+/// *is* "the fewest farmers that reach the best yield" — but by scanning, and
+/// the loop stops one short of the population, so a county can never want every
+/// one of its people on the fields. **`[D]`**, and reproduced by search here
+/// rather than by a closed form, for the same reason the original does: the
+/// integer truncation inside `Grain_Sow` is part of the answer.
+///
+/// Two details that are the original's and look like slips:
+///
+/// * the search subtracts **`grainEaten`** from the store and the panel
+///   forecast one line below it does not;
+/// * `wanted` and `useful` are written from the same variable, so for grain
+///   alone the floor and the ceiling are the same number. `Labour_Allocate`
+///   reads only the ceiling — **verified by exhaustion over its 2,147 bytes:
+///   it reads `+0xCC + slot*0x0C` eight times and `+0xC8 + slot*0x0C` not
+///   once** — so the floor is a display value and nothing here depends on it.
+///
+/// # Only the sowing season
+///
+/// Returns `None` for Summer, Autumn and Winter, where the original scans
+/// `Grain_Grow` and `Grain_Harvest` instead. Those two are **not** this crate's
+/// [`grow`] and [`harvest`]: the original caps the crop at `labour * divisor`
+/// *every* season and applies fertility at the growing step, and it carries one
+/// crop word where [`County::crop`] carries three. Reproducing the estimate for
+/// those seasons means fixing the crop model first, and a ceiling computed from
+/// the wrong function would be worse than an absent one. See
+/// [`crate::labour`].
+pub fn grain_labour_estimate(
+    t: &Tables,
+    county: &County,
+    season_next: Season,
+    advanced_farming: bool,
+) -> Option<i32> {
+    if season_next != Season::Spring {
+        return None;
+    }
+    if county.pop_band == 0 {
+        return Some(0);
+    }
+    let store = county.grain - county.grain_eaten;
+    let mut best = 1;
+    let mut ceiling = 0;
+    for workers in 0..county.population {
+        let sacks = sacks_per_field(t, county.fields_grain, store, workers, advanced_farming);
+        let sown = county.fields_grain * sacks;
+        if best < sown {
+            ceiling = workers;
+            best = sown;
+        }
+    }
+    Some(ceiling)
+}
+
+/// `Herd_LabourEstimate` (`0x0044DD4D`) — the **cattle** ceiling.
+///
+/// A search too, over the same `births − deaths` the season's own tick
+/// computes:
+///
+/// ```c
+/// for (workers = 0; workers < population; workers++) {
+///     Herd_BirthsAndDeaths(county, herd - herdEaten, workers, crowding, season);
+///     net = births - deaths;
+///     if (bestNet < net) { ceiling = workers; bestNet = net; }
+/// }
+/// useful[1] = ceiling;                 /* 999999 when the loop never ran */
+/// ```
+///
+/// **`[D]`.** Three things about it are worth keeping.
+///
+/// The herd is the post-ration one (`herd − herdEaten`) and the crowding is the
+/// **stored** band, not a freshly derived one — which is why `Field_SetType`
+/// calls `Herd_UpdateCrowding` before every refresh.
+///
+/// The answer is *not* `herd * 3`. Staffing is
+/// `PctOf(labour, herd * 3)` capped at 200, deaths flatten at 100 % and births
+/// keep rising to 200 %, so the argmax is the first labour figure reaching
+/// **200 %** — about `6 * herd`, twice [`crate::tables::HERD_LABOUR_PER_HEAD`].
+/// **`[I]`** on that closed form and `[D]` on the loop; truncation inside
+/// `Pct(birthRate, staffing)` can land it a little below, which is exactly why
+/// the original searches.
+///
+/// A county with no people leaves the ceiling at
+/// [`crate::county::LABOUR_UNSET`] — the loop never runs and 999,999 is its
+/// initial value. That is where the sentinel comes from, and `Labour_Allocate`
+/// reads it back as 0.
+pub fn herd_labour_estimate(t: &Tables, county: &County, season: u8) -> i32 {
+    let herd = county.herd - county.herd_eaten;
+    let mut best = -1_000_000;
+    let mut ceiling = crate::county::LABOUR_UNSET;
+    for workers in 0..county.population {
+        let g = herd_growth(t, herd, county.fields_cattle, workers, county.herd_crowding, season);
+        let net = g.births - g.deaths;
+        if best < net {
+            ceiling = workers;
+            best = net;
+        }
+    }
+    ceiling
+}
+
+/// `Field_ReclaimEstimate` (`0x0044C278`) — the **reclamation** ceiling: the
+/// work outstanding in every field under reclamation, at most a season's worth
+/// each.
+///
+/// ```c
+/// total = 0;
+/// for (slot = 0; slot < 20; slot++)
+///     if (fieldTile[slot] != 0 && terrain[fieldTile[slot]] > 0x18)
+///         total += min(800 - progress[slot], 200);
+/// wanted[2] = -1; useful[2] = total;
+/// ```
+///
+/// **`[D]`.** The `> 0x18` test is the same one that puts a field in
+/// [`County::fields_reclaiming`], so the two agree by construction.
+///
+/// **This ceiling is honoured and then ignored**, and that is worth saying
+/// plainly. [`reclaim_fields`] advances every started field by a flat
+/// [`crate::tables::FIELD_RECLAIM_PER_SEASON`] whatever the county's
+/// reclamation labour is; the original spends `labour[2]` as a *budget*,
+/// starting at the most advanced field and carrying the remainder on. Until
+/// that is fixed, putting people on reclamation changes nothing — a silent
+/// no-op rather than a wrong number, but a gap all the same.
+pub fn reclaim_labour_estimate(
+    t: &Tables,
+    county: &County,
+    map: &crate::map::CampaignMap,
+) -> i32 {
+    let mut total = 0;
+    for slot in 0..MAX_FIELDS {
+        let Some(tile) = county.field_tile(slot) else { continue };
+        if crate::field::classify(map.terrain[tile]) != crate::field::FieldType::Reclaiming {
+            continue;
+        }
+        let left = t.field.progress_max - county.field_progress[slot] as i32;
+        total += left.clamp(0, t.field.reclaim_per_season);
+    }
+    total
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

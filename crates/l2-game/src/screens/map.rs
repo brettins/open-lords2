@@ -44,9 +44,11 @@
 //! A click on the minimap goes through `MAPnn.PL8`'s own county raster, which
 //! *is* what the original does, and then centres the map on that county.
 
+use l2_kingdom::field::{self, BrushRefusal, FieldType};
+use l2_kingdom::industry;
 use l2_view::campaign::{self, Dir, Lattice, Viewport, Zoom, FAR, NEAR, PANEL_W, PANEL_X};
 use l2_view::chrome::{self, Minimap};
-use l2_view::{text, Canvas, Clip, Tags};
+use l2_view::{text, Canvas, Clip, Ink, Tags};
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
@@ -61,8 +63,12 @@ pub const PANEL: Rect = Rect::new(PANEL_X, TOP_BAR, PANEL_W, 480 - TOP_BAR);
 
 /// The End Turn strip — `Misc_cty` frame 59 (162 × 20) at (478, 460), with
 /// `L2.eng` group 4 centred in it.
-pub const END_TURN_BUTTON: Rect =
-    Rect::new(PANEL_X, chrome::PANEL_END_TURN_Y, PANEL_W, 480 - chrome::PANEL_END_TURN_Y);
+pub const END_TURN_BUTTON: Rect = Rect::new(
+    PANEL_X,
+    chrome::PANEL_END_TURN_Y,
+    PANEL_W,
+    480 - chrome::PANEL_END_TURN_Y,
+);
 
 /// `Misc_cty` frame 57 (162 × 30) at (478, 430). **Ours:** the original puts a
 /// status line here, not a button; we use it to open the county panel, because
@@ -82,6 +88,35 @@ pub const MAP_AREA: Rect = Rect::new(0, TOP_BAR, PANEL_X, NEAR.bottom() - TOP_BA
 /// county flag from `Flags1a.pl8` over the castle tile instead, which we do not
 /// yet place.
 const MARKER: i32 = 2;
+
+/// The field brush popup, and how far it is from the original.
+///
+/// **The original's:** which brushes exist, which menu a tile opens, and the
+/// button geometry — five 48 × 48 buttons on the row `y 184 … 232`, three at
+/// `x 240/304/368` for a field and two at `x 304/368` for waste. All of that is
+/// read out of `Lords2.exe` by `crates/l2-kingdom/tests/oracle.rs`, and the
+/// popup's vertical offset is `g_uiPopupRow << 4` in `FUN_00438990`.
+///
+/// **Ours, and it should look it:** the buttons hold our words rather than the
+/// original's pictures, the frame is `widget::panel`, and the *targets* — the
+/// twenty field tiles — are drawn as small squares coloured by what the field
+/// is being used for. The original does not mark fields at all; it repaints the
+/// tile artwork itself (`FUN_0046D7F4` picks a graphics bank and frame from the
+/// same terrain value), and we deliberately do not, because that ladder's bank
+/// byte is only half understood and `docs/decisions.md` C21 is what happens
+/// when verified data is given invented presentation. A marker says *we know
+/// what this field is*; painted artwork would claim *this is what the game
+/// looked like*.
+mod brush {
+    /// One brush button, `BUTTON` on a side.
+    pub const BUTTON: i32 = 48;
+    /// The row the original puts them on, before its `g_uiPopupRow` offset.
+    pub const ROW_Y: i32 = 184;
+    /// The three x positions, of which the two-button menu uses the last two.
+    pub const COLUMNS: [i32; 3] = [240, 304, 368];
+    /// Half-width of a field marker. **Ours.**
+    pub const FIELD_MARKER: i32 = 3;
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Focus {
@@ -109,6 +144,21 @@ pub struct MapScreen {
     focus: Focus,
     /// One line of feedback about the last thing that happened. **Ours.**
     status: String,
+    /// The field brush popup, open over a tile the player clicked.
+    ///
+    /// `Map_Click` reaches `Field_SetType` exactly this way and no other: there
+    /// is no field control on any county panel. See [`brush`].
+    picked_field: Option<PickedField>,
+}
+
+/// A field tile the player has clicked, and the menu its terrain opens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PickedField {
+    county: u8,
+    tile: usize,
+    /// `FUN_00438990`'s choice between the two hotspot tables, made on the
+    /// tile's own terrain.
+    menu: &'static [FieldType],
 }
 
 impl MapScreen {
@@ -126,7 +176,104 @@ impl MapScreen {
             minimap_slot: None,
             focus: Focus::None,
             status: "CLICK A COUNTY".into(),
+            picked_field: None,
         }
+    }
+
+    /// Which of a set of candidate tiles a pixel is on, if any.
+    ///
+    /// The original inverts the isometric projection (`Map_PickTile`) and gets
+    /// the tile from anywhere on the map. **Ours** hit-tests the diamonds of
+    /// the tiles that could mean something — the county's fields and its
+    /// settlements, a few dozen — which reaches the same answer on those and no
+    /// answer elsewhere. Honest about being less than the original's picker,
+    /// and enough for the two things a map click does to a county.
+    fn tile_at(&self, x: i32, y: i32, candidates: impl Iterator<Item = usize>) -> Option<usize> {
+        if !self.map_clip().contains(x, y) {
+            return None;
+        }
+        let (hw, hh) = (self.zoom.tile_w as f32 / 2.0, self.zoom.tile_h as f32 / 2.0);
+        for tile in candidates {
+            let (tx, ty) = l2_kingdom::map::coords(tile);
+            let Some((cx, cy)) =
+                campaign::tile_centre(self.view, &self.zoom, tx as usize, ty as usize)
+            else {
+                continue;
+            };
+            // The diamond, not its bounding box: |dx|/halfW + |dy|/halfH <= 1.
+            let (dx, dy) = ((x - cx).abs() as f32, (y - cy).abs() as f32);
+            if dx / hw + dy / hh <= 1.0 {
+                return Some(tile);
+            }
+        }
+        None
+    }
+
+    /// The county's settlement tiles — its four industry sites and its castle
+    /// block. `Map_Click`'s own test: plane-0 bit `0x80`.
+    fn settlements(ctx: &Ctx, county: u8) -> Vec<usize> {
+        let map = &ctx.game.kingdom.campaign.map;
+        (0..map.terrain.len())
+            .filter(|&t| {
+                map.county[t] == county && map.flags[t] & l2_kingdom::map::flags::SETTLEMENT != 0
+            })
+            .collect()
+    }
+
+    /// The rectangle of one brush button, `i` counting from the left of the
+    /// menu that is open.
+    fn brush_button(menu_len: usize, i: usize) -> Rect {
+        // The two-button menu uses the *right-hand* two columns, which is what
+        // the hotspot table holds: x 304 and 368, not 240 and 304.
+        let first = brush::COLUMNS.len() - menu_len;
+        Rect::new(
+            brush::COLUMNS[first + i],
+            brush::ROW_Y,
+            brush::BUTTON,
+            brush::BUTTON,
+        )
+    }
+
+    /// The popup's frame — the smallest box holding its buttons, with a margin.
+    fn brush_panel(menu_len: usize) -> Rect {
+        let first = Self::brush_button(menu_len, 0);
+        let last = Self::brush_button(menu_len, menu_len - 1);
+        Rect::new(
+            first.x - 8,
+            first.y - 20,
+            last.x + last.w + 8 - (first.x - 8),
+            brush::BUTTON + 28,
+        )
+    }
+
+    /// `Field_SetType`, reached the way the original reaches it.
+    fn paint(&mut self, ctx: &mut Ctx, picked: &PickedField, brush: FieldType) {
+        match ctx
+            .game
+            .kingdom
+            .paint_field(picked.county as usize, picked.tile, brush)
+        {
+            Ok(()) => {
+                let c = &ctx.game.kingdom.counties[picked.county as usize];
+                self.status = format!(
+                    "{} - {} GRAIN {} PASTURE {} FALLOW",
+                    brush.name().to_uppercase(),
+                    c.fields_grain,
+                    c.fields_cattle,
+                    c.fields_fallow
+                );
+            }
+            // Every refusal is one of the original's own guards, and saying
+            // which is more useful than a beep.
+            Err(why) => {
+                self.status = match why {
+                    BrushRefusal::NotAField => "NOT ONE OF THIS COUNTY'S FIELDS".into(),
+                    BrushRefusal::Blighted => "THAT FIELD IS RUINED THIS SEASON".into(),
+                    BrushRefusal::WrongMenu => "NOT OFFERED ON THAT FIELD".into(),
+                };
+            }
+        }
+        self.picked_field = None;
     }
 
     pub fn zoom(&self) -> &Zoom {
@@ -153,7 +300,9 @@ impl MapScreen {
         if self.built == Some(key) {
             return;
         }
-        let Some(slot) = ctx.assets.slot(ctx.game.map_slot) else { return };
+        let Some(slot) = ctx.assets.slot(ctx.game.map_slot) else {
+            return;
+        };
         let lattice = Lattice::build(&slot);
         self.base.clear(ctx.assets.ink.background);
         self.tags.clear();
@@ -210,10 +359,15 @@ impl MapScreen {
         }
     }
 
-    /// `Map_CentreOnTile`, reached the way the original reaches it: through a
-    /// minimap click. Centres on the county's anchor tile.
+    /// `Map_CentreOnTile`. Reached from a minimap click, from a click on a
+    /// county town, and from `Field_SetType`'s caller — the original centres
+    /// the map before it opens anything over it (`docs/decisions.md` C22).
+    pub fn centre_on_tile(&mut self, x: usize, y: usize) {
+        self.view = Viewport::centred_on_tile(x, y, &self.zoom);
+    }
+
     fn centre_on_county(&mut self, anchor: (usize, usize)) {
-        self.view = Viewport::centred_on_tile(anchor.0, anchor.1, &self.zoom);
+        self.centre_on_tile(anchor.0, anchor.1);
     }
 
     fn end_turn(&mut self, ctx: &mut Ctx) {
@@ -312,6 +466,20 @@ impl Screen for MapScreen {
                 };
             }
             Event::Click { x, y } => {
+                // The brush popup is modal over the map, the way
+                // `Hotspot_Test` makes it: while it is up its buttons are
+                // tested first and a click anywhere else dismisses it.
+                if let Some(picked) = self.picked_field.clone() {
+                    for (i, &b) in picked.menu.iter().enumerate() {
+                        if Self::brush_button(picked.menu.len(), i).contains(x, y) {
+                            self.paint(ctx, &picked, b);
+                            return Transition::Stay;
+                        }
+                    }
+                    self.picked_field = None;
+                    self.status = "NO CHANGE".into();
+                    return Transition::Stay;
+                }
                 if END_TURN_BUTTON.contains(x, y) {
                     self.end_turn(ctx);
                 } else if COUNTY_BUTTON.contains(x, y) {
@@ -325,14 +493,61 @@ impl Screen for MapScreen {
                     let county = self.minimap.as_ref().map_or(0, |m| m.county_at(x, y));
                     if county != 0 && ctx.game.select(county) {
                         let id = county as usize;
-                        let anchor =
-                            (ctx.game.anchor_x[id] as usize, ctx.game.anchor_y[id] as usize);
+                        let anchor = (
+                            ctx.game.anchor_x[id] as usize,
+                            ctx.game.anchor_y[id] as usize,
+                        );
                         self.centre_on_county(anchor);
                         self.status = format!("COUNTY {county} SELECTED");
                     }
                 } else if self.map_clip().contains(x, y) {
                     self.ensure(ctx);
                     let county = self.county_at(x, y);
+                    // **A click on one of your own buildings or fields takes
+                    // precedence over selecting the county**, and in that
+                    // order, which is `Map_Click`'s own plane-0 dispatch:
+                    // `0x80` is a settlement and switches its industry, `0x40`
+                    // is the county town and opens the village, `0x20` is
+                    // farmland and opens the field brush. All three are gated
+                    // on the county being the local player's.
+                    if county != 0 && ctx.game.is_players(county) {
+                        if let Some(tile) =
+                            self.tile_at(x, y, Self::settlements(ctx, county).into_iter())
+                        {
+                            let terrain = ctx.game.kingdom.campaign.map.terrain[tile];
+                            match industry::map_toggle_for_graphic(terrain) {
+                                Some(what) => {
+                                    let on = ctx.game.kingdom.toggle_industry(county as usize, what);
+                                    self.status = format!(
+                                        "{} {}",
+                                        toggle_name(what),
+                                        if on { "ON" } else { "OFF" }
+                                    );
+                                }
+                                // Terrain 13 … 20 — the empty castle plot —
+                                // is the original's own `return`.
+                                None => self.status = "NOTHING TO SWITCH THERE".into(),
+                            }
+                            return Transition::Stay;
+                        }
+                        let fields = ctx.game.kingdom.field_tiles(county as usize);
+                        if let Some(tile) =
+                            self.tile_at(x, y, fields.into_iter().map(|(t, _)| t))
+                        {
+                            let terrain = ctx.game.kingdom.campaign.map.terrain[tile];
+                            match field::menu_for(terrain) {
+                                Some(menu) => {
+                                    self.picked_field = Some(PickedField { county, tile, menu });
+                                    self.status = format!(
+                                        "FIELD: {}",
+                                        field::classify(terrain).name().to_uppercase()
+                                    );
+                                }
+                                None => self.status = "THAT FIELD IS RUINED THIS SEASON".into(),
+                            }
+                            return Transition::Stay;
+                        }
+                    }
                     if county == 0 {
                         ctx.game.select(0);
                         self.status = "CLICK A COUNTY".into();
@@ -378,8 +593,22 @@ impl Screen for MapScreen {
             };
             let owner = k.counties[id].owner as usize;
             let colour = ink.realm.get(owner).copied().unwrap_or(ink.dim);
-            fill_clipped(canvas, cx - MARKER - 1, cy - MARKER - 1, MARKER * 2 + 3, ink.background, clip);
-            fill_clipped(canvas, cx - MARKER, cy - MARKER, MARKER * 2 + 1, colour, clip);
+            fill_clipped(
+                canvas,
+                cx - MARKER - 1,
+                cy - MARKER - 1,
+                MARKER * 2 + 3,
+                ink.background,
+                clip,
+            );
+            fill_clipped(
+                canvas,
+                cx - MARKER,
+                cy - MARKER,
+                MARKER * 2 + 1,
+                colour,
+                clip,
+            );
         }
 
         // Below the map at the far zoom the original draws a `Ui_DrawBox` of
@@ -394,8 +623,102 @@ impl Screen for MapScreen {
             text::draw(canvas, 24, 432, &self.status, ink.text);
         }
 
+        // Ours: the player's own county's fields, marked by what each is being
+        // used for, so the brush has visible targets. See [`brush`] for what
+        // the original does instead and why we do not.
+        if game.is_players(game.selected) {
+            for (tile, kind) in k.field_tiles(game.selected as usize) {
+                let (tx, ty) = l2_kingdom::map::coords(tile);
+                let Some((cx, cy)) =
+                    campaign::tile_centre(self.view, &self.zoom, tx as usize, ty as usize)
+                else {
+                    continue;
+                };
+                let m = brush::FIELD_MARKER;
+                fill_clipped(
+                    canvas,
+                    cx - m - 1,
+                    cy - m - 1,
+                    m * 2 + 3,
+                    ink.background,
+                    clip,
+                );
+                fill_clipped(
+                    canvas,
+                    cx - m,
+                    cy - m,
+                    m * 2 + 1,
+                    field_colour(ink, kind),
+                    clip,
+                );
+            }
+        }
+
         draw_menu_bar(canvas, ctx);
         draw_right_panel(self, canvas, ctx);
+
+        // Last, so it sits over everything: the brush popup.
+        if let Some(picked) = &self.picked_field {
+            let panel = Self::brush_panel(picked.menu.len());
+            widget::panel(canvas, ink, panel);
+            let terrain = k.campaign.map.terrain[picked.tile];
+            text::draw(
+                canvas,
+                panel.x + 8,
+                panel.y + 6,
+                &format!(
+                    "FIELD IS {}",
+                    field::classify(terrain).name().to_uppercase()
+                ),
+                ink.text,
+            );
+            for (i, &b) in picked.menu.iter().enumerate() {
+                let r = Self::brush_button(picked.menu.len(), i);
+                widget::panel(canvas, ink, r);
+                let swatch = 12;
+                fill_clipped(
+                    canvas,
+                    r.x + r.w / 2,
+                    r.y + 14,
+                    swatch,
+                    field_colour(ink, b),
+                    Clip::WHOLE,
+                );
+                text::draw(
+                    canvas,
+                    r.x + 4,
+                    r.y + r.h - 12,
+                    &b.name().to_uppercase(),
+                    ink.text,
+                );
+            }
+        }
+    }
+}
+
+/// What a settlement click switched, in words. **Ours** — the original enqueues
+/// one of `L2.eng`'s "mining stopped / started" messages instead.
+fn toggle_name(what: industry::MapToggle) -> &'static str {
+    match what {
+        industry::MapToggle::Industry(c) => match c {
+            l2_kingdom::Commodity::Wood => "WOOD CUTTING",
+            l2_kingdom::Commodity::Iron => "IRON MINING",
+            l2_kingdom::Commodity::Weapons => "THE SMITHY",
+            l2_kingdom::Commodity::Stone => "STONE QUARRYING",
+        },
+        industry::MapToggle::Castle => "CASTLE BUILDING",
+    }
+}
+
+/// **Ours.** One colour per field use, so a marked field says what it is
+/// without a legend.
+fn field_colour(ink: &Ink, kind: FieldType) -> u8 {
+    match kind {
+        FieldType::Grain => ink.good,
+        FieldType::Pasture => ink.highlight,
+        FieldType::Fallow => ink.dim,
+        FieldType::Reclaiming => ink.panel,
+        FieldType::Waste => ink.bad,
     }
 }
 
@@ -543,8 +866,18 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
 
     // The two strips at the bottom. The End Turn one is the original's own
     // button; the status line above it is ours.
-    let label = if screen.focus == Focus::County { ink.highlight } else { ink.text };
-    text::draw_centred(canvas, COUNTY_BUTTON.centre_x(), COUNTY_BUTTON.y + 4, "COUNTY PANEL", label);
+    let label = if screen.focus == Focus::County {
+        ink.highlight
+    } else {
+        ink.text
+    };
+    text::draw_centred(
+        canvas,
+        COUNTY_BUTTON.centre_x(),
+        COUNTY_BUTTON.y + 4,
+        "COUNTY PANEL",
+        label,
+    );
     text::draw_centred(
         canvas,
         COUNTY_BUTTON.centre_x(),
@@ -552,8 +885,18 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
         &screen.status,
         ink.dim,
     );
-    let end = if screen.focus == Focus::EndTurn { ink.highlight } else { ink.text };
-    text::draw_centred(canvas, END_TURN_BUTTON.centre_x(), END_TURN_BUTTON.y + 6, "END TURN", end);
+    let end = if screen.focus == Focus::EndTurn {
+        ink.highlight
+    } else {
+        ink.text
+    };
+    text::draw_centred(
+        canvas,
+        END_TURN_BUTTON.centre_x(),
+        END_TURN_BUTTON.y + 6,
+        "END TURN",
+        end,
+    );
 }
 
 #[cfg(test)]
@@ -565,7 +908,11 @@ mod tests {
     /// and the two strips at the bottom of the panel meet exactly.
     #[test]
     fn the_screen_is_partitioned_with_no_gap_and_no_overlap() {
-        assert_eq!(MAP_AREA.x + MAP_AREA.w, PANEL.x, "the map stops where the panel starts");
+        assert_eq!(
+            MAP_AREA.x + MAP_AREA.w,
+            PANEL.x,
+            "the map stops where the panel starts"
+        );
         assert_eq!(PANEL.x + PANEL.w, 640);
         assert_eq!(PANEL.y, TOP_BAR);
         assert_eq!(COUNTY_BUTTON.y + COUNTY_BUTTON.h, END_TURN_BUTTON.y);
@@ -601,7 +948,11 @@ mod tests {
         s.view = Viewport::new(60, 30);
         s.toggle_zoom();
         assert_eq!(s.zoom().id, FAR.id);
-        assert_eq!(s.viewport(), Viewport::new(0, 14), "row clamps to 0, col 0x0E stands");
+        assert_eq!(
+            s.viewport(),
+            Viewport::new(0, 14),
+            "row clamps to 0, col 0x0E stands"
+        );
         // And the far view cannot be scrolled off that position.
         assert!(!s.scroll(Dir::E));
         assert!(!s.scroll(Dir::N));

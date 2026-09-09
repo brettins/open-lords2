@@ -520,14 +520,36 @@ at `0x00522F91` — and `g_pickedTileGraphic`, which is just `g_tiles[tile]`. Th
 | your army (unit type 1) | its orders, or siege preparation (screen `0x1D`) |
 | your merchant (unit type 3) | the merchant (screen `0x08`) |
 | flags bit **0x80** — an industry building | that industry is **toggled on or off** (`Industry_ToggleFromMap`), the industry chosen by a ladder on the tile *graphic*: 0 … 3 iron, 4 … 6 stone, 7 … 9 weapons, 10 … 12 wood, 21+ castle |
-| flags bit **0x40** — the town square | the **village** (screen `0x02`) |
-| flags bit **0x20** | screen `0x04` |
+| flags bit **0x40** — the county town | the **village** (screen `0x02`) |
+| flags bit **0x20** — farmland | the **field brush** (screen `0x04`) |
 | a county that is not yours | `Msg_Enqueue(…, 0x70, …)` |
 
 `g_screenId = 2` appears **exactly once in the binary** and it is in that table's fourth
 row — and the branch centres the map on the town and repaints one map frame *before*
 opening the village, because the village is drawn over the map rather than instead of it.
 `docs/screens-county.md` §6.4.4 and `docs/decisions.md` C22.
+
+**Those three bits are tested in that order, and the order settles what two of them
+are.** `0x40` opens the village, so `0x40` is the **county town** — `docs/decisions.md`
+C25 argued that from `L2.eng`'s wording and this is the same answer from behaviour.
+`0x80` covers the industry sites *and* the castle, which is why its ladder ends at
+"21 and up: castle building". All three arms are gated on the county being the local
+player's; a click on somebody else's county falls to the last row.
+
+The England turn-one fixture agrees with all of it and adds one thing.
+Every county has **exactly four** `0x40` tiles, in one 2 × 2 block, all at terrain 0; its
+`0x20` tiles are **exactly** the twenty tiles `g_countyFieldTiles` names, 168 of 168 with
+nothing in one set and not the other; and its `0x80` tiles are always one iron site, one
+stone, one weapons, one wood and a 2 × 2 block at terrain `0x14` or `0x17` — where the five
+counties holding a `0x17` block are exactly the five that start owned. So **`0x17` is a
+standing castle and `0x14` is the plot it gets built on**, which is the loose end C25 left
+open. **[V]**
+
+**Screen `0x04` is the field brush**, and it is five 48 × 48 buttons in two hotspot tables:
+`0x004DC4D0` holds three (fallow `1`, grain `2`, pasture `0x13`) for a tile that is already
+a field, `0x004DC530` two (begin reclaiming `0x19`, abandon `0`) for waste; all five call
+`FUN_00438B02`, which hands the button's id to `Field_SetType` as a raw terrain value. See
+`docs/kingdom.md` §7.2.
 
 ---
 
@@ -547,7 +569,11 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   read out of `Lords2.exe` at `0x004D2900`;
 * the clip-rectangle derivation of §1.4, asserted rather than assumed —
   `campaign::tests::the_clip_rectangle_swallows_exactly_the_columns_the_half_blitters_drop`
-  goes red if the clip is moved to 480.
+  goes red if the clip is moved to 480;
+* **two of `Map_Click`'s three plane-0 arms**: a click on one of your own settlement tiles
+  toggles that industry, and a click on one of your own fields opens the brush. Both are
+  gated exactly as the original gates them, and both reach the rules
+  (`Kingdom::toggle_industry`, `Kingdom::paint_field`) that the original reaches.
 
 Five oracle tests in `crates/l2-view/tests/install.rs` read the shipped files and the user's
 own binary back: all 830 tile frames against the pitch, the 48-byte realm ramp byte for
@@ -573,6 +599,16 @@ into the gitignored `out/` so it can be looked at.
 * the county **outline** and the county **marker squares** — invented, no original
   equivalent; the original draws a `Flags1a.pl8` county flag over the castle tile, which we
   do not place;
+* the **field markers** and the words on the brush's buttons. The original does not mark
+  fields: it repaints the tile artwork itself, `FUN_0046D7F4` choosing a graphics bank and
+  frame from the same terrain value it writes. We do not, because that ladder's bank byte
+  (`|1`, `&0xE3`, `|8` or `|0`, `&0x7F`, `|0x80` for pasture) is only half understood and a
+  painted tile would claim to be what the game looked like. A marker only claims we know
+  what the field is. C21;
+* **tile picking**: the original inverts the projection and answers for any tile
+  (`Map_PickTile`). We hit-test the diamonds of the tiles that can mean something — the
+  selected county's fields and settlements — which is right where it answers and silent
+  elsewhere;
 * **armies** (`Map_DrawArmies`), **flags** (`Map_DrawCountyFlag`) and settlement state on
   the map;
 * the File / Options / Help menus, their drop-downs, and everything the right column puts

@@ -40,15 +40,37 @@
 //!
 //! # What is not here
 //!
-//! **The estimates that fill the floors and the ceilings.** `FUN_004485A5` runs
-//! seven of them for one county — reclamation, grain, herd, four industries and
-//! the castle — and this crate has none. Until it does, [`allocate`] must be
-//! given ceilings from somewhere else, which today means the ones the scenario
-//! imported. So this module is **not wired into
-//! [`crate::phase`]**: an allocator running against a stale ceiling every
-//! season would move people on evidence that stopped being true, which is worse
-//! than the honest gap of not moving them at all. The two call sites are named
-//! in [`SEASON_CALL_SITES`] so the next hand does not have to find them again.
+//! **Five of the nine ceilings, and the season pipeline.**
+//!
+//! `County_RefreshEstimates` (`0x004485A5`) is nine calls — the field recount,
+//! then reclamation, grain, herd, four industries and the castle — and this
+//! crate reproduces the recount and three of the estimates exactly
+//! ([`crate::field::refresh_estimates`]). [`allocate`] therefore runs where a
+//! **click** reaches it, which is where the original runs it too:
+//! `Field_SetType` and `Industry_ToggleFromMap` both allocate straight
+//! afterwards, and so do [`crate::field::set_type`] and
+//! [`crate::Kingdom::toggle_industry`].
+//!
+//! It is still **not in [`crate::phase`]'s pipeline**, and the reason is
+//! specific rather than general. `Season_Advance` does not call
+//! `County_RefreshEstimates` before its two `Labour_AllocateAll`s at all: each
+//! estimate is the **tail call of the pass that invalidates it**, so wiring the
+//! allocator means adding six tail calls, three of which cannot be written
+//! honestly yet — grain outside the sowing season, the four industries (which
+//! need the owning realm), and the castle (which needs a materials-delivery
+//! model this crate does not have). And `Field_ReclaimTick` here spends no
+//! labour, so reclamation would be allocated and then ignored, which is worse
+//! than not allocating it.
+//!
+//! `crates/l2-kingdom/tests/labour_gap.rs` is that list as four tests that go
+//! red when somebody closes part of it. The two season call sites are named in
+//! [`SEASON_CALL_SITES`].
+//!
+//! One input that turned out not to be needed: **`Labour_Allocate` never reads
+//! [`County::labour_wanted`]** — verified by exhaustion over its 2,147 bytes,
+//! which read `+0xCC + slot*0x0C` eight times and `+0xC8 + slot*0x0C` not once.
+//! The floors are what the county panel draws a worker count red against, and
+//! nothing here depends on them.
 
 use crate::county::County;
 use crate::math::pct;
@@ -58,12 +80,17 @@ use crate::tables::{
     JOB_WOOD_CUTTING,
 };
 
-/// Where `Season_Advance` (`0x0044C1EE`) calls `FUN_0044F699`, which is
+/// Where `Season_Advance` (`0x00448440`) calls `FUN_0044F699`, which is
 /// [`allocate`] for every county in index order.
 ///
 /// Both are **after** the pass that changes how many people there are and
 /// before anything that reads a worker count, which is what keeps the nine
 /// records summing to the population.
+///
+/// **Corrected:** the enclosing function is `Season_Advance` at **`0x00448440`**,
+/// 261 bytes. This constant's documentation used to give `0x0044C1EE`, which is
+/// an address *inside* `Field_ReclaimTick` (`0x0044C093` + 485). The two call
+/// sites themselves were right.
 pub const SEASON_CALL_SITES: [&str; 2] =
     ["after Castle_BuildTick, before Migration_UpdateAll", "after FUN_00448D16, before Panels_RefreshAll"];
 
@@ -111,10 +138,15 @@ const INDUSTRY_TAIL: usize = JOB_CASTLE_BUILDING;
 /// (`+0x297 + c*0x18`) rather than the *has-resource* byte beside it — an
 /// industry switched off allocates nobody even where the ore is.
 ///
-/// **One gate is not modelled**: castle building is gated on `+0x1C3` *and* on
-/// `+0x1B0`, and `+0x1B0` is a switch `FUN_00439CC2` throws the first time the
-/// player drags builders onto the castle. This crate has no such field, so only
-/// the first gate is applied and the second is treated as thrown.
+/// **One gate is deliberately not applied**: castle building is gated on
+/// `+0x1C3` *and* on `+0x1B0`, and `+0x1B0` is a switch the player throws by
+/// clicking the castle on the map. The field exists now
+/// ([`County::castle_switch`], and `Industry_ToggleFromMap` moves it), and the
+/// gate is still not applied — the original has three UI writers for that
+/// switch and **no AI writer at all**, so gating on it here would stop every AI
+/// realm building a castle. That is a rule which is right for the original's
+/// human player and wrong for everybody else in it, and the AI's own path to
+/// the switch has not been found.
 pub fn ceilings(county: &County) -> [i32; JOB_COUNT] {
     let mut out = [0i32; JOB_COUNT];
     for (job, slot) in out.iter_mut().enumerate() {
@@ -235,6 +267,144 @@ fn spend(
             break 'outer;
         }
     }
+}
+
+/// `g_shareTable` (`0x004D6768`) — `{100, 50, 33, 25, 20, 0, 5, 0}`.
+///
+/// **`[V]`**, byte for byte out of `Lords2.exe`. The first five entries are
+/// `100 / (n + 1)` for `n` = 0 … 4 — an even split once one more job joins the
+/// `n` that already have a share. The last three are not that sequence and are
+/// never indexed: the two callers count non-zero shares among **three** and
+/// **five** jobs, so the largest `n` either can reach is 4.
+pub const SHARE_TABLE: [i32; 8] = [100, 50, 33, 25, 20, 0, 5, 0];
+
+/// The divisor [`toggle_share`]'s caller passes: the farm group has three
+/// members. `Field_SetType` calls `Labour_ToggleShare(county, 2, on, 3)`.
+///
+/// **The industry twin has no divisor at all** — `FUN_004502CA` uses
+/// `g_shareTable[n]` neat. That asymmetry is the original's; a job joining the
+/// farm gets a *third* of an even split and a job joining industry gets the
+/// whole of one.
+pub const FARM_GROUP_DIVISOR: i32 = 3;
+
+/// The three jobs [`toggle_share`] renormalises, and the slot its remainder
+/// search is seeded with — cattle, so a tie goes to the herd.
+const FARM_GROUP: [usize; 3] =
+    [JOB_GRAIN_FARMING, JOB_CATTLE_FARMING, JOB_FIELD_RECLAMATION];
+const FARM_SEED: usize = 1;
+
+/// The five [`toggle_industry_share`] renormalises, seeded with wood.
+///
+/// The order is the original's own read order in `FUN_004502CA`
+/// (`+0x148, +0x144, +0x140, +0x14C, +0x13C`), which is wood, stone, iron,
+/// blacksmith, castle. Only the seed depends on it — the sum does not — and the
+/// seed is what decides a tie.
+const INDUSTRY_GROUP: [usize; 5] = [
+    JOB_WOOD_CUTTING,
+    JOB_STONE_QUARRYING,
+    JOB_IRON_MINING,
+    JOB_BLACKSMITH,
+    JOB_CASTLE_BUILDING,
+];
+const INDUSTRY_SEED: usize = 0;
+
+/// `Labour_ToggleShare` (`FUN_00450639`, `0x00450639`, 677 bytes) — bring one
+/// farm job into the split, or take it out.
+///
+/// **This is the function `docs/screens-county.md` §9 called the field brush.**
+/// It is not: it writes county `+0x130 + job*4`, the eight job percentages
+/// (`docs/kingdom.md` §14), and its only caller is `Field_SetType`, which uses
+/// it to give field reclamation a share of the farm the moment the county has
+/// a field under reclamation, and to take it away again when it has none. The
+/// two readings were both half-right — the *call* comes from painting a field,
+/// the *effect* is on labour — and only the caller separates them.
+///
+/// ```c
+/// if ((share[job] == 0) != (on == 1)) return;    /* already in the wanted state */
+/// n = number of the three farm shares that are non-zero;
+/// if (on) {  give  = g_shareTable[n] / divisor;
+///            scale = 100 - give;
+///            share[0..3] = Pct(scale, share[0..3]);
+///            share[job]  = give; }
+/// else    {  scale = 100 - share[job];  share[job] = 0;
+///            share[0..3] = PctOf(share[0..3], scale); }
+/// /* and the rounding remainder goes to the largest of the three */
+/// ```
+///
+/// **`[D]`**, and two details of it are worth stating because they look like
+/// transcription errors and are not.
+///
+/// The **guard is inverted from what its shape suggests**. Written out, the
+/// original's condition is *"(share is zero or we are not switching on) and
+/// (share is non-zero or we are not switching off)"* — which is exactly *"the
+/// job is not already in the state being asked for"*. So switching on a job
+/// that already has a share does nothing at all.
+///
+/// The **remainder pass is asymmetric**: it seeds its search with cattle's
+/// share and with slot 1, then adds `(100 - grain - cattle) - reclamation` to
+/// whichever of the three is largest. On a group that already sums to 100 that
+/// term is 0, so the pass is a no-op; it only bites where the two `Pct` calls
+/// have rounded the group away from 100, which is what it is for.
+pub fn toggle_share(county: &mut County, job: usize, on: bool, divisor: i32) {
+    toggle(county, job, on, divisor, &FARM_GROUP, FARM_SEED);
+}
+
+/// `FUN_004502CA` (`0x004502CA`, 879 bytes) — the same thing for the five
+/// industry jobs, and the only caller is `Industry_ToggleFromMap`.
+///
+/// Line for line the twin of [`toggle_share`] with a five-member group and no
+/// divisor, which is why both are one private `toggle`. Switching an industry off on the
+/// map takes its share out of the split and hands it to the rest; switching one
+/// on gives it `g_shareTable[n]`, an even share of the enlarged group.
+pub fn toggle_industry_share(county: &mut County, job: usize, on: bool) {
+    toggle(county, job, on, 1, &INDUSTRY_GROUP, INDUSTRY_SEED);
+}
+
+/// The body both share. `group` is the jobs whose percentages must go on
+/// summing to 100; `seed` indexes into it, and decides where a tie in the
+/// remainder search lands.
+fn toggle(
+    county: &mut County,
+    job: usize,
+    on: bool,
+    divisor: i32,
+    group: &[usize],
+    seed: usize,
+) {
+    // The original spells this `(s || !on) && (!s || on)`, which is `s == on`.
+    if (county.labour_share[job] == 0) != on {
+        return;
+    }
+    if on {
+        let n = group.iter().filter(|&&j| county.labour_share[j] != 0).count();
+        let give = SHARE_TABLE[n.min(SHARE_TABLE.len() - 1)] / divisor.max(1);
+        let scale = 100 - give;
+        for &j in group {
+            county.labour_share[j] = crate::math::pct(scale, county.labour_share[j]);
+        }
+        county.labour_share[job] = give;
+    } else {
+        let scale = 100 - county.labour_share[job];
+        county.labour_share[job] = 0;
+        for &j in group {
+            county.labour_share[j] = crate::math::pct_of(county.labour_share[j], scale);
+        }
+    }
+
+    // `100 - share[seed] - (every other member)`, added to whichever member is
+    // largest. On a group that already sums to 100 the term is 0, so the pass
+    // only bites where the `Pct` calls above have rounded it away from 100 —
+    // which is what it is for.
+    let short: i32 = 100 - group.iter().map(|&j| county.labour_share[j]).sum::<i32>();
+    let mut best = group[seed];
+    let mut best_share = county.labour_share[group[seed]];
+    for &j in group {
+        if best_share < county.labour_share[j] {
+            best = j;
+            best_share = county.labour_share[j];
+        }
+    }
+    county.labour_share[best] += short;
 }
 
 /// `FUN_0044FF4A` — rewrite [`County::industry_share`] from what was actually

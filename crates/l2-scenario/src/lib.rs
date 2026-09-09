@@ -45,10 +45,11 @@
 //! measures exactly what that costs: one county of fourteen.
 
 use l2_formats::save::{Save, SaveError, COUNTY_BASE, COUNTY_STRIDE};
-use l2_kingdom::county::{County, MAX_COUNTY_ID};
+use l2_kingdom::county::{County, MAX_COUNTY_ID, MAX_FIELDS};
+use l2_kingdom::map::MAP_TILES;
 use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::{health_band, Tables, Weather, JOB_COUNT};
-use l2_kingdom::{land, Kingdom, Options};
+use l2_kingdom::{field, land, CampaignMap, Kingdom, Options};
 
 /// Where the nine labour records begin inside a county record, and how far
 /// apart they are — `+0xC4`, stride `0x0C`, worker count at word 0.
@@ -77,6 +78,69 @@ const LABOUR_STRIDE: u32 = 0x0C;
 /// range summing to exactly 100.
 const LABOUR_SHARE_BASE: u32 = 0x130;
 const INDUSTRY_SHARE: u32 = 0x08;
+
+/// `+0x1B0` — the castle-building switch `Industry_ToggleFromMap` flips and
+/// `Labour_Allocate` gates castle building on.
+const CASTLE_SWITCH: u32 = 0x1B0;
+
+/// `g_countyFieldTiles` (`0x0053EA00`) — 17 × 20 × `u32`, **the map tiles that
+/// are each county's fields**, stored as byte offsets into [`TILES`].
+///
+/// **`[V]`.** Save block 12 is 1,360 bytes = 17 × 80 exactly, and applying
+/// `County_RecountFields`' terrain ladder to the tiles this names reproduces
+/// all three stored field counts for all fourteen counties of the England
+/// turn-one fixture — see `crates/l2-kingdom/tests/fields.rs`.
+const COUNTY_FIELD_TILES: u32 = 0x0053_EA00;
+const COUNTY_FIELD_STRIDE: u32 = 0x50;
+
+/// `g_tiles` (`0x00522F90`) — 4,096 eight-byte tile records, `y * 64 + x`.
+///
+/// The three bytes `l2-kingdom` reads are `+0` terrain, `+1` flags and `+7`
+/// county (`docs/symbols.md`, `docs/formats/maps-layers.md` §5.3). This is the
+/// **first block in the save**, at file offset 0.
+const TILES: u32 = 0x0052_2F90;
+const TILE_STRIDE: u32 = 8;
+
+/// One county's twenty field tiles, converted from byte offsets to tile
+/// indices.
+///
+/// An offset that is not a multiple of eight, or that lands outside the
+/// 64 × 64 plane, is a misread and not a field: it becomes an **empty slot**
+/// rather than an out-of-bounds index. Nothing in the fixture takes that path
+/// — `crates/l2-scenario/tests/import.rs` asserts every populated slot is a
+/// real tile — and it is here so that a corrupt save loses a field instead of
+/// panicking somewhere else later.
+fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_FIELDS], SaveError> {
+    let base = COUNTY_FIELD_TILES + county as u32 * COUNTY_FIELD_STRIDE;
+    let mut tiles = [0u16; MAX_FIELDS];
+    for (slot, out) in tiles.iter_mut().enumerate() {
+        let offset = save.i32_at(base + slot as u32 * 4)?;
+        if offset <= 0 || offset % TILE_STRIDE as i32 != 0 {
+            continue;
+        }
+        let index = offset / TILE_STRIDE as i32;
+        if (index as usize) < MAP_TILES {
+            *out = index as u16;
+        }
+    }
+    Ok(tiles)
+}
+
+/// `g_tiles`' terrain, flags and county planes, de-interleaved out of the
+/// eight-byte records.
+fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
+    let mut terrain = vec![0u8; MAP_TILES];
+    let mut flags = vec![0u8; MAP_TILES];
+    let mut county = vec![0u8; MAP_TILES];
+    for tile in 0..MAP_TILES {
+        let base = TILES + tile as u32 * TILE_STRIDE;
+        terrain[tile] = save.u8_at(base)?;
+        flags[tile] = save.u8_at(base + 1)?;
+        county[tile] = save.u8_at(base + 7)?;
+    }
+    Ok(CampaignMap::from_planes(&terrain, &flags, &county)
+        .expect("three planes of MAP_TILES bytes each"))
+}
 
 /// One word out of each of a county's nine labour records.
 ///
@@ -205,6 +269,9 @@ pub struct CountyState {
     pub herd_eaten: i32,
     pub castle_type: u8,
     pub castle_building: u8,
+    /// `+0x1B0` — the castle-building switch a click on the castle throws.
+    /// See [`l2_kingdom::county::County::castle_switch`].
+    pub castle_switch: bool,
     pub fields_fallow: i32,
     pub fields_cattle: i32,
     pub fields_grain: i32,
@@ -241,6 +308,14 @@ pub struct CountyState {
     /// against what the file says. See [`l2_kingdom::labour`].
     pub labour_share: [i32; JOB_COUNT - 1],
     pub industry_share: i32,
+    /// `g_countyFieldTiles + county * 0x50` — the twenty field tiles, as tile
+    /// **indices** (the file's byte offsets divided by eight), 0 for an empty
+    /// slot.
+    ///
+    /// Without these a county's fields cannot be repainted, because the three
+    /// counts are a cache and there is nothing to recount from. See
+    /// [`l2_kingdom::field`].
+    pub field_tiles: [u16; MAX_FIELDS],
 }
 
 /// One realm's imported state.
@@ -281,6 +356,14 @@ pub struct Scenario {
     pub counties: Vec<Option<CountyState>>,
     /// Index 0 is never a realm.
     pub realms: Vec<RealmState>,
+    /// `g_tiles`' three simulation planes — terrain, flags and county.
+    ///
+    /// **The map used to be left empty.** `Kingdom::new` builds
+    /// [`l2_kingdom::CampaignMap::empty`] and nothing overwrote it, so every
+    /// imported game ran its pathfinding, its field-crossing and its trampling
+    /// against 4,096 blank tiles. The planes are in the save — `g_tiles` is
+    /// block 0 — and they are read here.
+    pub map: CampaignMap,
 }
 
 impl Scenario {
@@ -354,6 +437,9 @@ impl Scenario {
                 herd_eaten: c.herd_eaten,
                 castle_type: c.castle_type,
                 castle_building: c.castle_building,
+                castle_switch: save
+                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + CASTLE_SWITCH)?
+                    != 0,
                 fields_fallow: c.fields_fallow as i32,
                 fields_cattle: c.fields_cattle as i32,
                 fields_grain: c.fields_grain as i32,
@@ -362,9 +448,9 @@ impl Scenario {
                 dryness: c.dryness as i32,
                 grain: c.grain,
                 herd: c.herd,
-                labour: read_labour(&save, c.index, 0)?,
-                labour_wanted: read_labour(&save, c.index, 4)?,
-                labour_useful: read_labour(&save, c.index, 8)?,
+                labour: read_labour(save, c.index, 0)?,
+                labour_wanted: read_labour(save, c.index, 4)?,
+                labour_useful: read_labour(save, c.index, 8)?,
                 labour_share: {
                     let base = COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + LABOUR_SHARE_BASE;
                     let mut shares = [0i32; JOB_COUNT - 1];
@@ -376,6 +462,7 @@ impl Scenario {
                 industry_share: save
                     .i8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + INDUSTRY_SHARE)?
                     as i32,
+                field_tiles: read_field_tiles(save, c.index)?,
             });
         }
 
@@ -421,6 +508,7 @@ impl Scenario {
             },
             counties,
             realms,
+            map: read_map(save)?,
         })
     }
 
@@ -513,6 +601,7 @@ impl Scenario {
     /// the realms. Split out so the two constructors cannot drift apart.
     fn skeleton(&self, seed: u64, tables: Tables) -> Kingdom {
         let mut k = Kingdom::with_tables(seed, tables);
+        k.campaign.map = self.map.clone();
         k.options = self.options;
         k.weather_county = self.weather_county;
         assert!(
@@ -552,9 +641,8 @@ impl Scenario {
             c.ration_split = s.ration_split;
             c.castle_type = s.castle_type;
             c.castle_building = s.castle_building;
-            c.fields_fallow = s.fields_fallow;
-            c.fields_cattle = s.fields_cattle;
-            c.fields_grain = s.fields_grain;
+            c.castle_switch = s.castle_switch;
+            c.field_tiles = s.field_tiles;
             c.fertility = s.fertility;
             c.weather = s.weather;
             c.dryness = s.dryness;
@@ -570,6 +658,16 @@ impl Scenario {
             // arrives with its crowding already computed. Deriving it here
             // rather than reading `+0x25C` keeps the two consistent — and the
             // reproduction test checks the derived value against the byte.
+            // **The five field counts are derived, not imported.** The file
+            // stores them, `CountyState` carries what it stored, and the
+            // kingdom gets what `County_RecountFields` makes of the twenty
+            // field tiles — two independent readings that
+            // `crates/l2-kingdom/tests/fields.rs` diffs against each other on
+            // all fourteen counties. Doing it the other way round would leave
+            // the counts and the tiles free to disagree the first time a field
+            // was repainted. Recounted here rather than after the loop because
+            // the herd's crowding on the next line reads `fields_cattle`.
+            field::recount(c, &self.map);
             c.herd_crowding = land::herd_crowding(&tables, c.herd, c.fields_cattle);
         }
         k

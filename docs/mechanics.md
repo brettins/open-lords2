@@ -120,11 +120,28 @@ Legend:
   `+0x134` and `+0x138` are the first three of **eight job percentages** at
   `+0x130 + job*4`, in two groups that each sum to 100.
 
-  🕳 **It is not wired into the season pipeline yet**, because its inputs are seven estimate
-  passes (`County_RefreshEstimates`, `0x004485A5`) this tree does not have. Until it is, a
-  county's nine records stop summing to its population as soon as anybody is born.
-  `l2_kingdom::labour::SEASON_CALL_SITES` records where the original calls it — twice a
-  season.
+  ✅ **It runs where a player's click reaches it** — `Field_SetType` and
+  `Industry_ToggleFromMap` both allocate straight afterwards, and both do here.
+
+  🕳 **It is still not in the season pipeline**, and the reason is now measured rather than
+  estimated. `Season_Advance` (`0x00448440`, *not* `0x0044C1EE` — that address is inside
+  `Field_ReclaimTick`) never calls `County_RefreshEstimates` before its two
+  `Labour_AllocateAll`s; **each estimate is the tail call of the pass that invalidates it**,
+  so wiring the allocator is six tail calls rather than one function. Three of the six
+  cannot be written honestly yet: grain outside the sowing season needs `Grain_Grow` and
+  `Grain_Harvest`, which are not this tree's `grow` and `harvest`; the four industry
+  ceilings need the owning *realm's* stock, so the refresh is not a `&mut County` function
+  at all; and the castle ceiling is 0 until a build's materials are delivered, which this
+  tree debits up front. Three of the nine — grain in the sowing season, cattle, reclamation
+  — **are** reproduced exactly. `crates/l2-kingdom/tests/labour_gap.rs` names all of it and
+  goes red when somebody closes half of it.
+
+  One thing that would make wiring it a *silent* failure: `Field_ReclaimTick` in this tree
+  spends no labour, so putting people on reclamation changes nothing at all.
+
+  ✅ And one worry retired: **`Labour_Allocate` never reads `labour_wanted`** — verified by
+  exhaustion over its 2,147 bytes, which read `+0xCC + slot*0x0C` eight times and
+  `+0xC8 + slot*0x0C` not once. The floors are a display value.
 - ✅ Moving peasants between jobs: a rubber-band drag on the village screen — see below
 - 📖 Unrest and revolt
 
@@ -136,7 +153,17 @@ Legend:
   `County_PlaceResourceSites` reads plane 2 on `Town`-bank tiles at load. And an enemy army
   marching over a site disables it for three seasons, which is the writer of
   `disabled_seasons` we could not find — `docs/armies.md` §3.5
-- ❓ Field painting — choosing what a field grows, by brush, on the map
+- ✅ **Field painting — choosing what a field grows, by brush, on the map.** This was the
+  largest gameplay hole in the project: every county of the England position starts with
+  `fieldsGrain = 0`, the counts had exactly one production writer (the scenario import), and
+  so **the whole grain economy was finished, tested and unreachable in play** — for the
+  player *and* for the AI. `docs/decisions.md` C27.
+
+  The five brushes are read out of the executable's own hotspot tables, and the counts turn
+  out to be a *cache* over the twenty map tiles' terrain bytes. `docs/kingdom.md` §7.2.
+- ✅ **Switching an industry on and off**, which is also only reachable by clicking its
+  building on the map — `Industry_ToggleFromMap` (`0x0043D309`) and the enable byte at
+  `+0x297 + industry*0x18`.
 
 ### The wider game
 - ✅ Random events: a 256-slot deck, 24 distinct, and the bug that exempts even-numbered counties

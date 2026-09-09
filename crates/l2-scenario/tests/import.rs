@@ -295,3 +295,38 @@ fn the_labour_records_other_two_words_are_a_wanted_floor_and_a_useful_ceiling() 
     }
     assert_eq!(floors, 14 * 7, "fourteen counties, seven floorless jobs each");
 }
+
+/// **The field counts we derive are the counts every reachable save stores.**
+///
+/// The importer no longer carries `+0x1FF`, `+0x200` and `+0x201` across: it
+/// reads the twenty tiles in `g_countyFieldTiles`, applies
+/// `County_RecountFields`' terrain ladder to the tile planes, and lets the
+/// kingdom hold what that makes. `CountyState` still carries what the file
+/// said, so the two are independent readings of the same thing and this diffs
+/// them.
+///
+/// It runs over **every** save the machine can offer rather than over the one
+/// named fixture, because `docs/decisions.md` C26 is what happens when a rule
+/// is checked against one value of its input — and the battle saves are a
+/// different map with four counties, which is exactly the second value.
+#[test]
+fn the_field_counts_are_derived_and_they_match_every_save_that_stores_them() {
+    let saves = saves!();
+    let mut counties_checked = 0;
+    for SaveFile { name, save, .. } in &saves {
+        let Ok(scenario) = Scenario::from_save(save) else { continue };
+        let kingdom = scenario.kingdom(1);
+        for id in scenario.county_ids() {
+            let Some(stored) = &scenario.counties[id] else { continue };
+            let ours = &kingdom.counties[id];
+            counties_checked += 1;
+            assert_eq!(
+                (ours.fields_fallow, ours.fields_cattle, ours.fields_grain),
+                (stored.fields_fallow, stored.fields_cattle, stored.fields_grain),
+                "{name} county {id}: recounting its {} field tiles disagrees with the file",
+                ours.field_slots_used()
+            );
+        }
+    }
+    assert!(counties_checked > 14, "only {counties_checked} counties reached");
+}
