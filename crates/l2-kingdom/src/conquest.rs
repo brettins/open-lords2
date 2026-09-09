@@ -463,6 +463,150 @@ pub fn recount_realm_counties(counties: &[County; MAX_COUNTIES], realms: &mut [R
     }
 }
 
+// ---------------------------------------------------------------------------
+// Reaching the castle building
+// ---------------------------------------------------------------------------
+
+/// What an army did when it walked onto a standing castle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CastleArrival {
+    /// It is your county: the army is inside. The slot is the garrison — which
+    /// is **not** the arriving army when it merged into one already there.
+    Garrisoned(usize),
+    /// Your county, and the castle will not hold that many men. Nothing moved.
+    GarrisonFull,
+    /// Somebody else's: a siege is laid, or was refused for one of
+    /// [`crate::siege::SiegeRefusal`]'s reasons.
+    Siege(Result<(), crate::siege::SiegeRefusal>),
+    /// Not an army, or the slot is empty.
+    NotAnArmy,
+}
+
+/// `Unit_ReachCastleBuilding` (`0x004686A0`) — **the fork an army walks into**,
+/// and the only route into either half.
+///
+/// ```c
+/// if (unit.kind != 1) return;
+/// if (unit.owner == county.owner) Army_Garrison(unit, county);
+/// else                            Army_BeginSiege(unit, county);
+/// ```
+///
+/// Two unrelated functions agree on the test — `Map_HoverUnitTarget` offers
+/// *"Garrison castle?"* or *"Besiege castle?"* from the same owner comparison —
+/// which is what makes it `[V]`.
+///
+/// Note it is the **county's** owner, not the garrison's: marching onto a
+/// castle in your own county that somebody else's garrison is sitting in
+/// garrisons *into* them, and [`garrison_apply`] then merges the two armies.
+/// That is the original's behaviour and it looks like a bug; it is unreachable
+/// in practice because `County_ChangeOwner` evicts a foreign garrison.
+pub fn reach_castle_building(
+    t: &Tables,
+    map: &CampaignMap,
+    counties: &mut [County; MAX_COUNTIES],
+    realms: &[Realm; MAX_REALMS],
+    units: &mut Units,
+    army: usize,
+    county: u8,
+    season: u8,
+) -> CastleArrival {
+    let Some(u) = units.get(army) else { return CastleArrival::NotAnArmy };
+    if u.kind != UnitKind::Army {
+        return CastleArrival::NotAnArmy;
+    }
+    let owner = u.owner;
+    if counties.get(county as usize).map(|c| c.owner) == Some(owner) {
+        match garrison_apply(t, map, counties, realms, units, army, county) {
+            Some(slot) => CastleArrival::Garrisoned(slot),
+            None => CastleArrival::GarrisonFull,
+        }
+    } else {
+        CastleArrival::Siege(crate::siege::begin_siege(
+            t, counties, realms, units, army, county, season,
+        ))
+    }
+}
+
+/// The moves `Army_GarrisonApply` charges for stepping inside.
+pub const GARRISON_MOVE_COST: i32 = 5;
+
+/// `Army_GarrisonApply` (`0x004A79A3`) — **put an army in the castle**.
+///
+/// ```c
+/// men = unit.men + (county.garrisonUnit ? garrison.men : 0);
+/// if (men > g_castleGarrisonCap[county.castleType]) { unit.state = 2; return; }
+/// if (county.garrisonUnit == 0) {
+///     county.garrisonUnit = unit;  unit.garrisonCounty = county;
+///     unit.x = county.castleX;  unit.y = county.castleY;   /* a teleport */
+///     unit.movesUsed += 5;  unit.destCounty = county;
+/// } else Army_Combine(county.garrisonUnit, unit);
+/// Army_RecountCountyTroops();
+/// ```
+///
+/// **The move onto the castle tile is a teleport**, not a step: the army is
+/// standing on the tile *outside* when this runs and is placed on the castle
+/// block itself. That is why a garrison is drawn inside the castle rather than
+/// beside it, and why the campaign map draws a garrisoned unit hollow.
+///
+/// Returns the garrison's slot, or `None` when the castle will not hold them —
+/// the one refusal that lives in the body rather than in the move-order
+/// confirmation. **Nothing is charged and nothing moves on a refusal**; the
+/// army is left standing where it was.
+///
+/// `map` is read only, for the castle tile: `County_FindCastleTile` caches it in
+/// county `+0x74`/`+0x75` and [`crate::map::castle_tile`] finds it instead.
+pub fn garrison_apply(
+    t: &Tables,
+    map: &CampaignMap,
+    counties: &mut [County; MAX_COUNTIES],
+    realms: &[Realm; MAX_REALMS],
+    units: &mut Units,
+    army: usize,
+    county: u8,
+) -> Option<usize> {
+    let sitting = counties.get(county as usize)?.garrison_unit;
+    let castle_type = counties[county as usize].castle_type;
+    if let Some(u) = units.get_mut(army) {
+        u.needs_destination = true;
+    }
+    let men = units.get(army)?.men + units.get(sitting).map_or(0, |g| g.men);
+    if men > crate::industry::garrison_cap(t, castle_type) {
+        if let Some(u) = units.get_mut(army) {
+            u.moving = false;
+        }
+        return None;
+    }
+    let slot = if sitting == 0 {
+        let tile = crate::map::castle_tile(map, county);
+        let u = units.get_mut(army)?;
+        u.garrison_county = county;
+        if let Some(tile) = tile {
+            let (x, y) = crate::map::coords(tile);
+            u.x = x;
+            u.y = y;
+        }
+        u.path.clear();
+        u.moving = false;
+        u.needs_destination = true;
+        u.player_driven = true;
+        u.moves_used += GARRISON_MOVE_COST;
+        u.dest_county = county;
+        u.county = county;
+        counties[county as usize].garrison_unit = army;
+        army
+    } else {
+        // `Army_Combine` folds the newcomer into the sitting garrison and frees
+        // the slot. A refusal there — two mercenary bands, or over the army cap
+        // — leaves both armies standing, which is the original's silence.
+        match crate::unit::combine(units, sitting, army) {
+            Ok(_) => sitting,
+            Err(_) => return None,
+        }
+    };
+    units.recount_county_troops(counties, realms);
+    Some(slot)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

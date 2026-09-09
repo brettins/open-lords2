@@ -22,6 +22,7 @@ crates/l2-game/src/screens/army.rs	C21	d250307406e2
 crates/l2-game/src/screens/army.rs	C45	ba3094ad6579
 crates/l2-game/src/screens/battle.rs	C21	9867d38dde6d
 crates/l2-game/src/screens/battle.rs	C21	c7d8aa24877d
+crates/l2-game/src/screens/castle.rs	C27	e6bab7a842a1
 crates/l2-game/src/screens/county.rs	C22	11557e27ba54
 crates/l2-game/src/screens/county.rs	C22	19162a21321c
 crates/l2-game/src/screens/county.rs	C42	bd3303c98be3
@@ -45,7 +46,7 @@ crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
 crates/l2-game/src/screens/setup.rs	C21	8b9ebc1ffbf5
 crates/l2-game/src/screens/setup.rs	C21	9c04dd669ff9
 crates/l2-game/src/screens/setup.rs	C21	f030e5ba689c
-crates/l2-game/src/screens/shells.rs	C22	6210d0b3625b
+crates/l2-game/src/screens/shells.rs	C22	3b382b2b3050
 crates/l2-game/src/screens/shells.rs	C45	971440fb6fdf
 crates/l2-game/src/screens/village.rs	C22	81b65db0836a
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857
@@ -91,6 +92,7 @@ crates/l2-kingdom/src/phase.rs	C35	234e7ea17154
 crates/l2-kingdom/src/population.rs	C20	11223ff82fe2
 crates/l2-kingdom/src/ration.rs	C3	316be8511779
 crates/l2-kingdom/src/realm.rs	C3	806d5d4cf93c
+crates/l2-kingdom/src/siege.rs	C27	1d9816cd2737
 crates/l2-kingdom/src/tables.rs	C10	ca6d41e102b2
 crates/l2-kingdom/src/tables.rs	C11	09ae49121c2b
 crates/l2-kingdom/src/tables.rs	C11	b50cc9ec171d
@@ -270,6 +272,7 @@ docs/decisions.md	C25	faa4dd8295f4
 docs/decisions.md	C25	fcf38cc5919b
 docs/decisions.md	C26	1824d81774d5
 docs/decisions.md	C26	5357aea2a649
+docs/decisions.md	C27	95bf59280ccd
 docs/decisions.md	C28	86890c8b2fbc
 docs/decisions.md	C28	8a45d173ac29
 docs/decisions.md	C28	a1984c5fe2fb
@@ -314,6 +317,7 @@ docs/decisions.md	C41	ce61a32481ef
 docs/decisions.md	C42	d82da22eca5c
 docs/decisions.md	C42	f53259005d3f
 docs/decisions.md	C43	e2cdd9974342
+docs/decisions.md	C46	728233e494c6
 docs/decisions.md	C46	7587dce98120
 docs/decisions.md	C46	9f9877405047
 docs/decisions.md	C46	a5c3441b0147
@@ -336,6 +340,8 @@ docs/decisions.md	C58	c9cba72f3595
 docs/decisions.md	C58	cf211d06686a
 docs/decisions.md	C59	611dbc328c24
 docs/decisions.md	C59	d158413c5a3c
+docs/decisions.md	C63	6bf7e86683ab
+docs/decisions.md	C63	d00f4e770141
 docs/decisions.md	C7	3c72ce757143
 docs/decisions.md	C8	490a0a7ca7d4
 docs/decisions.md	C8	553fa7149d4e
@@ -412,6 +418,7 @@ docs/plan.md	C45	546a5f993a1b
 docs/plan.md	C46	8269936b6754
 docs/plan.md	C62	3c12bfd5b5df
 docs/plan.md	C62	67ee0db471b9
+docs/plan.md	C63	9f326925183e
 docs/records.json	C25	25ca0e0c5124
 docs/records.json	C3	6cef8ac01b2c
 docs/records.json	C53	332340f37944
@@ -500,8 +507,8 @@ docs/symbols.md	C59	64a497c25e59
 docs/symbols.md	C59	71e2db0c83cf
 docs/symbols.md	C59	af8f4f7bf789
 docs/symbols.md	C59	eaf97ce0085e
+docs/symbols.md	C62	1887747d945d
 docs/symbols.md	C62	2c4c65a13ecb
-docs/symbols.md	C62	4a48534f8c9f
 docs/symbols.md	C62	db60feb8efc6
 docs/symbols.md	C62	e62a9adc5549
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611

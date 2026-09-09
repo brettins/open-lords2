@@ -493,6 +493,35 @@ one code per flag bit, and only the `0x80` arm (code 6) then splits on
 `content < 0x10` for an industry site versus `0x14 < content < 0x1A` for a
 castle.
 
+#### The castle rung, read from its writer  **[V]**
+
+`0x14 + castleType`, so `0x14` is the bare plot and `0x15 … 0x19` are the five castle
+types — and it is worth saying where that comes from, because it used to be
+`docs/hypotheses.json` H6, which rested on two counties of one save. It is now
+**`Castle_StampTile` (`0x0046826C`)**, an `if`/`else if` ladder over the five levels writing
+`0x15, 0x16, 0x17, 0x18, 0x19` and nothing else, matched by `Unit_Step`'s
+`0x14 < content < 0x1A` at the reading end. The two saved counties agree with it and are no
+longer what it rests on.
+
+The same function is the reason **a castle is not in `L2_maps.dat` at all**. Unlike the
+mine, the quarry and the forest — which the file stores as real artwork that
+`County_PlaceResourceSites` merely flags — the castle plot is plain ground in the base bank,
+and every castle on the original's campaign map is stamped in at run time:
+
+```c
+if (castleDegraded == 0)   frame = level*4 + 0x50;   /* finished */
+else if (percent < 0x32)   frame = level*4 + 0x28;   /* scaffolding, under half done */
+else                       frame = level*4 + 0x3C;   /* half built or more */
+Map_StampBlock(frame, 2, county.castleTile, 0x10, 0x15 + level);
+```
+
+Three appearances a level, twenty frames apart, re-stamped **every season** by
+`Castle_BuildTick` — so a castle visibly goes up. Bank bits `0x10` are bank index
+`(0x10 & 0x1C) >> 2 = 4`, `Castle1a.pl8` / `Castle2a.pl8`; the `a` is the season and the
+whole bank is swapped by `Gfx_LoadCountyMode`, so the frame numbers are season-independent.
+`Map_StampBlock`'s 2×2 quadrant offsets are `[0, 2, 1, 3]`, read out of `Lords2.exe` at
+`0x004D80E0` — the same table the town's rewrite above already uses.
+
 The 70 plane-0 differences are all load-time edits: `0x10 → 0x00` on 55 tiles
 (the reserved plots, whose terrain index was copied to +6), `0x12 → 0x02` on 1,
 and `0x00 → 0x80` on 14 — one per county — which simultaneously moved to bank

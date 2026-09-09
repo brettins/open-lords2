@@ -316,8 +316,14 @@ is *"very nearly the real screen"* already, and it is the oracle for seven zero 
 But `Merchant_Trade` is implemented **nowhere** — `l2-kingdom` has `GOOD_SELL_PRICE` and no
 transaction — so this is a rule to write, not only a screen to fill. It is also the only exit
 for iron, stone and timber, the only entrance for bought weapons, and the only source of ale.
-The castle chooser is five buttons and an OK (§8), and it is the door to castles, which are
-the door to sieges.
+**The castle chooser is done.** It is `crates/l2-game/src/screens/castle.rs`: five picture
+buttons and an OK, at the original's own widget-table rectangles, reached from the sidebar's
+CASTLE button. It matters more than its size suggested — `castle_degraded` had **no writer a
+player could reach**, so no county in this engine had ever built a castle, and the four
+traced rules that read the field were holding up an invented writer that had the meaning of
+`castleBuilding` backwards (`docs/decisions.md` C63). `crates/l2-game/tests/castles.rs`
+drives the whole route as `Event` values: order a castle, watch it go up over seasons, march
+an army into it, have an enemy march up to it and end the turn into the assault.
 
 **7 — The AI's remaining steps.** Armies first (7, 9, 11) and merchants (10), because those
 are the ones the expired constraint was blocking; then castles (6) and industry (12), which
@@ -487,7 +493,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,763<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,778<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -590,9 +596,9 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->762<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->776<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
-  <!--fig:functions-pct-->31<!--/fig-->%. The review measured that *"the rest is mostly CRT and
+  <!--fig:functions-pct-->32<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and
   the conclusion survives for a different reason: we are inventing our interface rather than
   cloning the original's. Name what a plan item needs, when it needs it.

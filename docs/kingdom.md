@@ -1441,6 +1441,88 @@ stride is what puts the tax bonus at `0x004D8A28`, the free archers at `0x004D8A
 shipped `lastturn.sav` has `castleType = 3`, and `L2.eng` group 103 index 22 — the value
 word for the "Starting Castle" option — is `keep`.
 
+#### 7.5.1 Ordering one, and how the work is actually done  **[V]**
+
+This section named the tables and left the *mechanism* to be guessed at, and the guess this
+project made was wrong in three ways at once. `Castle_Order` (`0x00436D02`), the castle
+chooser's OK handler, is the whole of it:
+
+```c
+wood = g_castleMaterial[p].wood;  stone = g_castleMaterial[p].stone;   /* p is 0-based */
+if (county.castleType != 0) {
+    county.castleBuilding = county.castleType;      /* the castle that WAS here */
+    wood  -= g_castleMaterial[castleType - 1].wood;
+    stone -= g_castleMaterial[castleType - 1].stone;
+    if (wood  < 0) { realm.wood  -= wood;  wood  = 0; }     /* a refund */
+    if (stone < 0) { realm.stone -= stone; stone = 0; }
+}
+county.castleType     = p + 1;                      /* immediately */
+county.castleRuined   = 0;
+county.castleDegraded = 1;                          /* +0x1C3 — the only writer of 1 */
+county.castleSwitch   = 1;                          /* +0x1B0 */
+county.workLeft = county.workTotal = g_castleWorkforce[p];    /* +0x1CC, +0x1D8 */
+county.stoneTotal = stone;  county.woodTotal = wood;          /* +0x1DC, +0x1E0 */
+county.percent = 0;                                           /* +0x1C4 */
+Castle_StampTile(county, p);  Castle_EvictTile(county);
+Labour_ToggleIndustryShare(county, 3, 1);
+county.stoneOwed = take(realm.stone, stone);        /* +0x1D0 — what the realm cannot */
+county.woodOwed  = take(realm.wood,  wood);         /* +0x1D4 — pay now stays owing */
+```
+
+**`castleType` moves the moment you order.** `+0x1C1`, which every document on this project
+called *"the type under construction"*, is the opposite: it is the castle that **was**
+standing, written only on an upgrade and never cleared. Four readers all become obvious
+under that reading and were odd under the other — `Tax_CollectAll` (§4.1) charges the
+*standing* castle while `castleDegraded` is set and **0 when `castleBuilding` is 0**;
+`Siege_LaunchAssault` fights the standing castle rather than the scaffolding;
+`Army_BeginSiege` refuses when `castleDegraded == 1 && castleBuilding == 0`, which is
+exactly *building the first castle on a bare plot — there is nothing there to besiege*; and
+`Castle_BuildTick` hands out free archers on `castleBuilding < castleType`, an upgrade.
+
+**There is no affordability guard, and the materials are drawn down over seasons.** The OK
+button's only two refusals are *the castle you already have* (message `0x93`, `L2.eng` 147)
+and *anything smaller* (`0x122`, `L2.eng` 290). You may order a royal castle with an empty
+store; the bill simply stays owing in `+0x1D0` / `+0x1D4` and
+`Castle_DeliverMaterials` (`0x00450CCD`) takes whatever the realm has at the top of every
+season until it is clear. Until it *is* clear, `Castle_BuildEstimate` gives the castle job a
+ceiling of **zero** — so the builders stand idle and the county eats its own quarry output
+as it arrives.
+
+**An upgrade pays the difference, and the cheaper column pays you back.** A motte and bailey
+is 800 wood and 80 stone; a Norman keep is 200 and 1,000. Upgrading costs 920 stone and
+**refunds 600 wood**. The negative arm is reachable on the shipped table and is not an
+overflow guard.
+
+**`Castle_BuildTick` (`0x004508DE`) counts down.** Per owned county with work under way:
+deliver the materials, then, only if `Castle_MaterialsPercent` is above 99, spend
+`min(labour[3], workLeft)` off `+0x1CC`; write `100 - Pct(workLeft, workTotal)` into
+`+0x1C4`, **clamped to 99 whenever any work remains** so rounding can never finish a castle.
+Above 99 it hands out `Castle_RaiseFreeGarrison`'s archers through `Army_GarrisonApply`,
+sends message `0xA3` (variant 1 for a post-siege repair, `L2.eng` 163/7 *"This bastion has
+been repaired"*), clears `castleDegraded` and switches the castle job off. It does **not**
+promote `castleType`. It ends with `Castle_StampTile`, which is why a castle changes picture
+on the map as it goes up.
+
+**The free garrison is a difference too.** `g_castleFreeArchers[castleType-1]` minus
+`g_castleFreeArchers[castleBuilding-1]`, refused if that is zero or above **half the
+county's population** — so a motte and bailey upgraded to a Norman keep (150 archers each)
+yields nothing at all, and a small county gets nothing however big the castle.
+
+#### 7.5.2 You have to close the mines to build a castle  **[V]**
+
+Not a quirk of any fixture. `Labour_Allocate` serves the industry half as a round robin —
+wood, stone, iron, blacksmith, and **castle building only as the tail**, reached when all
+four of those sit at their ceilings. `Industry_LabourEstimate` gives wood, iron and stone a
+ceiling of **100,000** in any owned county that has the site (§7.4), so those four are never
+full and the tail is never reached. A county with its industries running puts every spare
+hand down the mine and none on the walls, for ever.
+
+That is what `AI_ChooseIndustry` is *for*: it switches iron and the blacksmith off outright
+the moment a lord orders a castle, and keeps wood and stone only while `+0x1D4` / `+0x1D0`
+are still above zero. Read on its own it looks like an odd strategic preference; read beside
+the allocator it is the only way an AI lord ever finishes anything. For a human the switch
+is a click on the building on the campaign map.
+
 ### 7.6 The merchant, and what he will not sell you  **[V]**
 
 One function moves every good: `Merchant_Trade` (`0x004284CE`), taking a quantity, a good

@@ -47,22 +47,23 @@
 //!   [`l2_kingdom::industry::weapon_shares`], `FUN_0044F15B`, which was `[D]`
 //!   and is now traced.
 //! * **the castle.** `Castle_BuildEstimate`'s ceiling is 0 until the build's
-//!   materials have been delivered; this crate debits them **up front**, so
-//!   the gate is permanently open and the ceiling is the work outstanding.
-//!   `[I]` on the model, not on the arithmetic — see
-//!   [`l2_kingdom::industry::castle_labour_estimate`].
+//!   materials have been delivered. This file used to say the gate was
+//!   permanently open because the crate debited the cost up front; it does not,
+//!   the six words at `+0x1CC … +0x1E0` are on [`County`] now, and the gate
+//!   shuts. See [`l2_kingdom::industry::castle_labour_estimate`].
 //!
 //! And the one that would have made wiring the allocator a **silent no-op**:
 //! [`l2_kingdom::land::reclaim_fields`] now spends `labour[2]` as a budget, the
 //! way `Field_ReclaimTick` does, instead of advancing every started field by a
 //! flat quarter. Putting people on reclamation now does something.
 //!
-//! # What is still open
+//! # What was still open, and is not
 //!
-//! One thing, and it is named in [`the_castle_ceiling_still_rests_on_an_inferred_model`]:
-//! the six words at county `+0x1CC … +0x1E0` that track a castle's material
-//! *delivery* are not in [`County`], because this crate has no delivery to
-//! track. Everything else in `County_RefreshEstimates` is reproduced.
+//! The six words at county `+0x1CC … +0x1E0` that track a castle's material
+//! *delivery*. They are in [`County`] now and
+//! [`the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived`] asserts
+//! the gate they open and shut. Everything in `County_RefreshEstimates` is
+//! reproduced.
 
 use l2_kingdom::county::LABOUR_UNSET;
 use l2_kingdom::phase::{Pass, SEASON_PIPELINE};
@@ -120,9 +121,13 @@ fn every_one_of_the_nine_ceilings_is_refreshed() {
     c.fields_grain = 4;
     c.grain = 500;
     c.herd_crowding = land::herd_crowding(t, c.herd, c.fields_cattle);
-    // A castle under construction, so the ninth ceiling has something to say.
-    c.castle_building = 1;
+    // A castle under construction with its materials all delivered, so the
+    // ninth ceiling has something to say. `castle_building` is deliberately
+    // left at 0: it is the castle that WAS there, and this plot was bare.
+    c.castle_type = 1;
     c.castle_degraded = l2_kingdom::siege::CASTLE_DEGRADED_BUILDING;
+    c.castle_work_left = industry::castle_workforce(t, 1);
+    c.castle_work_total = c.castle_work_left;
 
     c.labour_useful = [LABOUR_UNSET; JOB_COUNT];
     let map = l2_kingdom::CampaignMap::empty();
@@ -220,41 +225,65 @@ fn the_nine_records_sum_to_the_population_every_season() {
     }
 }
 
-/// **The one thing still inferred**, stated so that closing it is a change to
-/// this test and not a rediscovery.
+/// **This test used to say the castle ceiling rested on an inferred model. It
+/// does not any more, and the model it rested on was the wrong one.**
 ///
-/// `Castle_BuildEstimate` computes `min(100 - Pct(woodDelivered, woodNeeded),
-/// 100 - Pct(stoneDelivered, stoneNeeded))` from six words at county
+/// `Castle_BuildEstimate` computes `min(100 - Pct(woodOwed, woodTotal),
+/// 100 - Pct(stoneOwed, stoneTotal))` from six words at county
 /// `+0x1CC … +0x1E0` and returns a ceiling of **0** until that reaches 100.
-/// [`County`] has none of them, because [`industry::order_castle`] takes the
-/// whole cost out of the realm the moment the castle is ordered — which is
-/// `docs/kingdom.md` §7.5's reading and is why the gate is permanently open
-/// here. The arithmetic given a complete delivery is reproduced; the delivery
-/// is not modelled.
+/// The claim here was that `County` could not have those words because
+/// `order_castle` took the whole cost up front — which was this crate's
+/// invention, not `docs/kingdom.md`'s finding. `Castle_Order` (`0x00436D02`)
+/// takes what the realm happens to have and leaves the rest owing, and
+/// `Castle_DeliverMaterials` (`0x00450CCD`) carts the rest in season by season.
+/// So the gate is real, it is reproduced, and this asserts it shuts.
 #[test]
-fn the_castle_ceiling_still_rests_on_an_inferred_model() {
+fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
     let t = &Tables::DEFAULT;
     let mut c = County::new();
+    c.owner = 1;
+    c.population = 2_000;
     assert_eq!(
         industry::castle_labour_estimate(t, &c),
         (l2_kingdom::county::LABOUR_NO_FLOOR, 0),
         "no build, no ceiling"
     );
 
+    // A palisade is 400 wood and 40 stone. Order it with nothing in the store.
     let mut realm = Realm::new();
-    realm.wood = 100_000;
-    realm.stone = 100_000;
     assert!(industry::order_castle(t, &mut c, &mut realm, 1));
-    let (_, ceiling) = industry::castle_labour_estimate(t, &c);
+    assert_eq!((c.castle_wood_owed, c.castle_stone_owed), (400, 40), "all of it owed");
     assert_eq!(
-        ceiling,
-        industry::castle_workforce(t, 1),
-        "the whole workforce is outstanding the season it is ordered — and in the original \
-         it would be 0 until the wood and stone had been carted in"
+        industry::castle_labour_estimate(t, &c).1,
+        0,
+        "nobody may lift a spade until the carts come"
     );
+    assert_eq!(industry::castle_seasons_left(t, &c), 100, "and the panel says: for ever");
 
-    // …and it counts down as the work is done, which is the half that is the
-    // original's arithmetic rather than this crate's model.
-    c.castle_progress = ceiling / 4;
+    // **The gate is a whole percent, and that is the original's arithmetic.**
+    // `PctOf(1, 400)` is 0, so a build one stick of wood short reads as fully
+    // delivered and the builders start. Reproduced rather than tightened:
+    // `FUN_00450FB4` is two `PctOf` calls and integer division, and a rule that
+    // rounded the other way would idle a county over a rounding error.
+    realm.wood = 399;
+    realm.stone = 40;
+    industry::deliver_castle_materials(&mut c, &mut realm);
+    assert_eq!(c.castle_wood_owed, 1, "one stick short");
+    assert_eq!(
+        industry::castle_labour_estimate(t, &c).1,
+        industry::castle_workforce(t, 1),
+        "and one stick short is close enough for the original"
+    );
+    // Four sticks short is not: PctOf(4, 400) is 1.
+    c.castle_wood_owed = 4;
+    assert_eq!(industry::castle_labour_estimate(t, &c).1, 0, "1% short shuts it");
+
+    realm.wood = 4;
+    industry::deliver_castle_materials(&mut c, &mut realm);
+    let (_, ceiling) = industry::castle_labour_estimate(t, &c);
+    assert_eq!(ceiling, industry::castle_workforce(t, 1), "the whole workforce, now it is paid");
+
+    // …and it counts down as the work is done.
+    c.castle_work_left = ceiling - ceiling / 4;
     assert_eq!(industry::castle_labour_estimate(t, &c).1, ceiling - ceiling / 4);
 }

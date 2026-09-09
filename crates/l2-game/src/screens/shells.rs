@@ -30,13 +30,15 @@
 //! a player said he could see the map around it (`docs/decisions.md` C22). A
 //! shell that loads a `.pl8` is not thereby a page either — read its rectangle.
 //!
-//! # The three that are whole pictures
+//! # The ones that are whole pictures
 //!
 //! The merchant (`0x08`), the armoury (`0x0A`) and castle building (`0x1B`)
 //! each load a **640 × 480 `.pl8` and a `.256` of their own** and draw their
-//! widgets on top. For those three a shell is very nearly the real screen: the
-//! artwork is the artwork, and what is missing is the grid of prices, the
-//! weapon stocks and the castle plan drawn over it.
+//! widgets on top, so for those a shell is very nearly the real screen: the
+//! artwork is the artwork, and what is missing is the grid of prices and the
+//! weapon stocks drawn over it. Two of the three have graduated —
+//! [`crate::screens::merchant`] and [`crate::screens::castle`] — and the
+//! armoury has not.
 
 use l2_view::Canvas;
 
@@ -198,20 +200,6 @@ pub const SHELLS: &[Shell] = &[
         ok: None,
         overlay: true,
         unfinished: "the county picture, the two county names and the grain/sheep/cattle rows",
-    },
-    Shell {
-        id: 0x1B,
-        painter: 0x0041_9789,
-        name: "Castle building",
-        background: Some("Cas_back.pl8"),
-        palette: Some("Cas_back.256"),
-        window: None,
-        group: 30,
-        heading: None,
-        lines: &[],
-        ok: Some((640 - 0x1C, 480 - 0x1C, 1)),
-        overlay: false,
-        unfinished: "the castle plan from caspics.pl8 and the piece palette from cas_bits.pl8",
     },
     Shell {
         id: 0x25,
@@ -493,6 +481,7 @@ mod tests {
             "raising an army is implemented - and it is not a mercenaries screen"
         );
         assert!(find(0x1D).is_none(), "siege preparation is implemented");
+        assert!(find(0x1B).is_none(), "the castle chooser orders castles");
         assert!(find(0x08).is_none(), "the merchant trades");
         assert!(find(0x0C).is_none(), "the trade panel is the merchant's other half");
     }

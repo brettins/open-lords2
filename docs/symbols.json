@@ -1180,14 +1180,14 @@
       "addr": "0x004508DE",
       "name": "Castle_BuildTick",
       "section": "kingdom",
-      "confidence": "inferred",
-      "comment": "Advances castle construction in every county, promoting the castle type and raising its free garrison when the work reaches 100%."
+      "confidence": "verified",
+      "comment": "Season pass 3.4, over every county. castleDegraded == 0 just refreshes the estimate; otherwise, for an owned county: Castle_DeliverMaterials, then percent = 100 - Pct(workLeft, workTotal), and if Castle_MaterialsPercent > 99 spend min(labour[3], workLeft) off +0x1CC and recompute - clamping the percentage to 99 whenever work remains, so rounding can never finish a castle. Above 99 it zeroes +0x1E4..+0x1F1, raises Castle_RaiseFreeGarrison into Army_GarrisonApply unless castleDegraded == 2 or castleBuilding >= castleType, sends message 0xA3 (variant 1 for a repair, L2.eng 163/7), clears castleDegraded and switches the castle job share off. It does NOT promote castleType - Castle_Order already did. Ends with Castle_StampTile(county, castleType - 1) and Castle_BuildEstimate."
     },
     {
       "addr": "0x00450E46",
       "name": "Castle_BuildEstimate",
       "section": "kingdom",
-      "confidence": "inferred",
+      "confidence": "verified",
       "signature": "void Castle_BuildEstimate(int county)",
       "comment": "Fills the castle panel: work left (+0xF0) and seasons remaining (+0x1A6) from the outstanding work and the labour assigned."
     },
@@ -5992,6 +5992,110 @@
       "confidence": "verified",
       "signature": "void Tick_Pulses(void)",
       "comment": "The animation clock for the whole interface: eight boolean pulses, all cleared at the top of every call and set again by a divider chain, so each is true only on the frame it fires. A 20 ms gate (timeGetTime() - last > 0x13) steps a counter; every 4 of those - 80 ms - sets g_pulse80 and steps six more counters, which set their own flags every 2, 4, 8, 13, 16, 24 and 32 of the 80 ms pulse: 160, 320, 640, 1040, 1280, 1920 and 2560 ms. Village_Animate takes 80 ms and 160 ms, and so does FUN_004071A0, the campaign flag. This is where any millisecond figure quoted for an animation in this project comes from."
+    },
+    {
+      "addr": "0x00436D02",
+      "name": "Castle_Order",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Castle_Order(int county, int level)",
+      "comment": "THE ONLY WRITER of county +0x1C3 to 1, and the whole castle-ordering rule. level is 0-based. If castleType != 0 it copies castleType into castleBuilding (so +0x1C1 is the castle that WAS there, not the one being built) and subtracts g_castleMaterial[castleType-1] from the new cost, refunding a negative difference into the realm. Then castleType = level+1 IMMEDIATELY, castleRuined = 0, castleDegraded = 1, +0x1B0 = 1, +0x1CC = +0x1D8 = g_castleWorkforce[level], +0x1DC = stone total, +0x1E0 = wood total, +0x1C4 = 0; Castle_StampTile, Castle_EvictTile, Labour_ToggleIndustryShare(county, 3, 1); then it takes what the realm HAS and leaves the rest owing in +0x1D0 (stone) and +0x1D4 (wood). THERE IS NO AFFORDABILITY GUARD."
+    },
+    {
+      "addr": "0x00436A88",
+      "name": "Castle_OpenScreen",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The campaign sidebar's castle button. Refuses a county that is not g_localPlayer's with message 0x70; otherwise seeds DAT_0056D898 (the chooser's 0..4 selection) from castleType - 1, or 0 for a bare plot, and sets g_screenId = 0x1B."
+    },
+    {
+      "addr": "0x00436B22",
+      "name": "CastleBuild_Select",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Handler of g_castleTypeWidgets' five rectangles: DAT_0056D898 = g_uiHotspotId, redraw, set the panel's dirty flag. A bare assignment - there is no guard here, so a player may select a castle smaller than the one he has and learns otherwise only from the OK button."
+    },
+    {
+      "addr": "0x00436B59",
+      "name": "CastleBuild_Confirm",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "g_castleBuildWidgets' handler for both the tick (hotspot 1) and the cross (hotspot 0). Hotspot 0 closes to the map. Hotspot 1 has exactly two guards, both of which also close: castleType == selection+1 sends message 0x93 (L2.eng 147, 'already of the type you are proposing'), selection+1 < castleType sends 0x122 (L2.eng 290, 'your current castle is stronger'). Otherwise Castle_Order(g_selectedCounty, DAT_0056D898) - or Net_SendCommand(0x2B) in multiplayer - and then plays Castle1.smk .. Castle5.smk when g_optAnimations is on."
+    },
+    {
+      "addr": "0x0046826C",
+      "name": "Castle_StampTile",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Castle_StampTile(int county, int level)",
+      "comment": "Draws the castle onto the map, and the frame comes from the castle's STATE: castleDegraded == 0 -> level*4 + 0x50 (finished), else +0x1C4 < 0x32 -> level*4 + 0x28 (scaffolding), else level*4 + 0x3C (half built). content = 0x15 + level. Map_StampBlock(frame, 2, county.castleTile, 0x10, content), so bank bits 0x10 = bank index 4 = Castle1a.pl8 / Castle2a.pl8 - a seasonal bank, a..d, swapped whole by Gfx_LoadCountyMode. Called by Castle_Order and by Castle_BuildTick every season, which is why a castle changes picture as it goes up. This is the only writer of a castle's artwork: L2_maps.dat holds plain ground on the plot. Promotes hypotheses.json H6 - the content ladder is read from the writer, not from two saves."
+    },
+    {
+      "addr": "0x00468349",
+      "name": "Castle_ClearTile",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The inverse of Castle_StampTile over the same 2x2: restore each tile's frame from its saved frame at +6, clear bank bits 0x1C, re-set bit 8 when plane-0 bit 2 is set, and write content 0x14 - the bare plot."
+    },
+    {
+      "addr": "0x0046841C",
+      "name": "Castle_EvictTile",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Called by Castle_Order right after Castle_StampTile: walks the castle's 2x2 and, for any unit standing on it, calls Unit_UnlinkFromTile and sets unit +0x14E. Ordering a castle turns its plot into an obstacle at once, so whatever was standing there is pushed out of the tile chain."
+    },
+    {
+      "addr": "0x0046AC22",
+      "name": "Map_StampBlock",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Map_StampBlock(char baseFrame, int size, int tileOffset, byte bankBits, byte content)",
+      "comment": "Writes an n x n block of tile records. Per tile: bank |= 1, bank &= 0xE3, frame = baseFrame + g_blockQuadrants[i] for the given size (size 1 writes baseFrame flat), bank |= bankBits, content = content. Steps 8 bytes a tile across and (0x40 - size)*8 at the end of a row. The town, the resource sites and the castle all go through it."
+    },
+    {
+      "addr": "0x00450CCD",
+      "name": "Castle_DeliverMaterials",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Castle_DeliverMaterials(int county)",
+      "comment": "The season's cart of wood and stone, called first thing in Castle_BuildTick's degraded branch. Takes as much of county +0x1D4 (wood owed) and +0x1D0 (stone owed) out of the realm's stores as they hold and leaves the remainder owing. THE MATERIALS ARE DRAWN DOWN OVER SEASONS, NOT PAID UP FRONT - Castle_Order takes only what the realm had at the moment of the order."
+    },
+    {
+      "addr": "0x00450FB4",
+      "name": "Castle_MaterialsPercent",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "int Castle_MaterialsPercent(int county)",
+      "comment": "min(100 - Pct(woodOwed, woodTotal), 100 - Pct(stoneOwed, stoneTotal)), or 0 when castleDegraded is 0. The gate on all castle work: Castle_BuildTick spends no labour and Castle_BuildEstimate gives a ceiling of 0 until this is above 99. It is whole-percent integer arithmetic, so a build a fraction of a percent short of its bill reads as fully delivered."
+    },
+    {
+      "addr": "0x004A551B",
+      "name": "Castle_RaiseFreeGarrison",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int Castle_RaiseFreeGarrison(int county)",
+      "comment": "The garrison a finished castle comes with. archers = g_castleFreeArchers[castleType-1], minus g_castleFreeArchers[castleBuilding-1] when castleBuilding != 0 - so an upgrade yields only the DIFFERENCE and a motte-and-bailey to a Norman keep yields nothing. Refuses when that is <= 0 or above population/2. Otherwise clears the realm's levy basket, adds the archers to realm.weapons[4] so they cost nothing, writes them into basket slot 5 (archers) and slot 7 (the total), and calls Army_Create. Its one caller is Castle_BuildTick, which passes the result to Army_GarrisonApply."
+    },
+    {
+      "addr": "0x0046EDDF",
+      "name": "Unit_LinkToTile",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Puts a unit into its tile's occupancy chain (tile +5, chained through unit +0x04). It opens 'if (kind != 1 || garrisonCounty == 0)' and does nothing otherwise, so A GARRISONED ARMY IS NEVER ON ITS TILE. With Army_GarrisonApply's Unit_UnlinkFromTile call that is two functions agreeing, and it is what stops a besieger meeting the garrison as an obstacle and fighting a field battle instead of laying a siege - Unit_TryEnterTile tests occupancy before any tile flag."
+    },
+    {
+      "addr": "0x0046EC6E",
+      "name": "Unit_UnlinkFromTile",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Removes a unit from its tile's occupancy chain, walking the +0x04 links with a ten-step guard. Called by Army_GarrisonApply on the way into a castle and by Castle_EvictTile."
+    },
+    {
+      "addr": "0x004784CA",
+      "name": "Siege_RecordCastleDamage",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The end-of-siege bookkeeper, called from Battle_ReturnToCampaign's siege arm, and the ONLY writer of county +0x1C3 to 2. Returns unless g_battleIsSiege and one of the two damage accumulators is non-zero. Stores the battle's breach and approach scores into +0x1E4..+0x1F1 (which Castle_BuildTick zeroes on completion), then bills the repair: castleLevel < 2 charges wood +0x1D4/+0x1E0 = wallDamage*10, otherwise stone +0x1D0/+0x1DC = wallDamage*15, and work +0x1CC/+0x1D8 = breachDamage*5 + wallDamage*15 - ADDING to whatever a build already under way had owed. So a wooden castle is repaired in wood and a stone one in stone. Finally +0x1F9 = g_castleLevel, castleDegraded = 2, +0x1C4 = 0."
     }
   ],
   "globals": [
@@ -9522,6 +9626,27 @@
       "section": "sprite",
       "confidence": "verified",
       "comment": "villani2.pl8, loaded by Village_Draw. 44 frames: five equal-sized animation blocks (0-6 at 26x29, 7-14 at 39x40, 15-24 at 15x12, 25-32 at 32x42, 33-39 at 19x18) that are exactly the five overlays Village_Animate draws from it, then the three static buildings Village_Draw blits - 0x28 stone, 0x29 wood, 0x2B iron - and a 2x2 stub at 42."
+    },
+    {
+      "addr": "0x004DC818",
+      "name": "g_castleTypeWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The castle chooser's five picture buttons: kind-1 rectangles (x1,y1,x2,y2) at (17,270)-(95,415), (96,270)-(209,415), (210,270)-(290,415), (291,270)-(414,415) and (415,270)-(618,415), hotspot ids 0..4, all handled by CastleBuild_Select. They tile x 17..618 with no gap because each is as wide as its castle's picture in caspics.pl8 - 79, 114, 81, 124 and 204 pixels."
+    },
+    {
+      "addr": "0x004D80E0",
+      "name": "g_blockQuadrants",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Map_StampBlock's per-cell frame offsets, read out of the binary: size 2 at 0x004D80E0 is 0, 2, 1, 3 (north-west, north-east, south-west, south-east); size 3 at 0x004D80E8 is 0, 2, 5, 1, 4, 7, 3, 6, 8; size 4 at 0x004D80F8 begins 0, 2, 5, 9, 1, 4, 8, 12."
+    },
+    {
+      "addr": "0x0056D898",
+      "name": "g_castleSelection",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The castle chooser's selected level, 0..4. Seeded from castleType - 1 by Castle_OpenScreen, written by CastleBuild_Select, read by Screen_CastleBuild (the picture), Screen_CastleBuildPanel (every number on the panel) and CastleBuild_Confirm (the two guards and the argument to Castle_Order)."
     }
   ]
 }

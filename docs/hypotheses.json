@@ -132,14 +132,6 @@
       "comment": "Increase the amount of one commodity."
     },
     {
-      "addr": "0x00436B59",
-      "name": "CastleBuild_Close",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Both records of the castle-build widget table 0x004DDB80, frames 29 and 31 at (432, 440) and (472, 444), hotspot ids 1 and 0. It writes g_screenId five times.",
-      "comment": "Accept or abandon the castle design, on the verified Screen_CastleBuild."
-    },
-    {
       "addr": "0x0043593A",
       "name": "Armoury_BuyLess",
       "section": "ui",
@@ -598,14 +590,6 @@
       "comment": "When the castle's remaining capacity is below the incoming army's men, the callback sends message 0xA6 with the unit, the county and a fourth value, and L2.eng group 166 carries 'Your army contains' / 'more troops can be stationed here.' / 'Do you want to split your army?' beside its 'Cannot garrison castle.' heading. Nothing in the knowledge base records an army-splitting mechanic.",
       "basis": "The strings are certain. That message 0xA6 leads to a working split, rather than to a prompt whose yes-branch does something else, is not.",
       "promotion": "Find message 0xA6's handler and read what its yes-branch does to the two unit records."
-    },
-    {
-      "id": "H6",
-      "subject": "The tile at county +0x74/+0x75 carries terrain 0x14 when no castle is built and 0x15..0x19 for castle types 1..5",
-      "confidence": "inferred",
-      "comment": "battle-before.sav: county 2 has castleType 1 and its +0x74/+0x75 tile has terrain 0x15; county 3 has castleType 0 and terrain 0x14. Unit_ReachCastleBuilding fires on 0x15..0x19, five values for five castle types, and County_FindCastleTile stamps 0x14 over a bare plot at load.",
-      "basis": "Two counties in one save, a five-wide range matching a five-wide castle-type ladder, and the load-time stamp. Two data points do not establish five rungs.",
-      "promotion": "A save with a type 2..5 castle, or the writer that changes the tile when a castle is completed - which would give the mapping from code rather than from two coincidences."
     },
     {
       "id": "H7",

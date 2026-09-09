@@ -444,7 +444,34 @@ pub struct County {
     /// `+0x1C0` — 0 none, 1 palisade, 2 motte and bailey, 3 Norman keep,
     /// 4 stone castle, 5 royal castle.
     pub castle_type: u8,
-    /// `+0x1C1` — the type under construction.
+    /// `+0x1C1` — **the castle that was standing when the current work was
+    /// ordered**, and *not* the type being built.
+    ///
+    /// > **This field was backwards here until the castle chooser was written,
+    /// > and every reader in the crate was already right.** `Castle_Order`
+    /// > (`0x00436D02`) has exactly one write in the whole binary:
+    /// >
+    /// > ```c
+    /// > if (county.castleType != 0) county.castleBuilding = county.castleType;
+    /// > county.castleType = newType;          /* immediately, not on completion */
+    /// > ```
+    /// >
+    /// > So `castleType` is the castle you are *getting* from the moment you
+    /// > order it, and `castleBuilding` is the one you *had*. Nothing ever
+    /// > clears it, which is safe because every reader is gated on
+    /// > [`County::castle_degraded`] being non-zero.
+    /// >
+    /// > Read that way, four readers stop being odd and start being obvious:
+    /// > `Tax_CollectAll` charges the **standing** castle while work is under
+    /// > way and 0 if there was none ([`crate::tax`]);
+    /// > [`crate::siege::assault_castle_level`] fights the **standing** castle,
+    /// > not the scaffolding; [`crate::siege::begin_siege`] refuses when
+    /// > `degraded == 1 && castleBuilding == 0`, which is precisely *building
+    /// > the first castle on a bare plot — there is nothing there to besiege*;
+    /// > and `Castle_BuildTick`'s free-archer top-up fires on
+    /// > `castleBuilding < castleType`, an **upgrade**. Under the old reading
+    /// > the siege refusal was unreachable and the assault fought the wrong
+    /// > castle. `[V]` — one writer, four agreeing readers.
     pub castle_building: u8,
     /// `+0x1C3` — **castle work in progress**, and it is a *byte with three
     /// values*, not a flag.
@@ -491,10 +518,38 @@ pub struct County {
     /// map button has something to move; the gate is not added until the
     /// original's own AI path for it is found.
     pub castle_switch: bool,
-    /// **Engine state.** `Castle_BuildTick` needs somewhere to accumulate
-    /// progress against [`crate::tables::CASTLE_WORKFORCE`]; the document names
-    /// the pass and the table but not the counter.
-    pub castle_progress: i32,
+    /// `+0x1C4` — **how far the current castle work has got, 0…100.**
+    ///
+    /// Not a derived figure: `Castle_BuildTick` writes it every season and the
+    /// tile stamp reads it (`< 50` is scaffolding, `>= 50` is a half-built
+    /// castle), so two seasons of the same castle look different on the map.
+    /// Completion is `> 99`, tested on the byte.
+    pub castle_percent: u8,
+    /// `+0x1CC` / `+0x1D8` — **man-work still outstanding**, and the total the
+    /// work was ordered at.
+    ///
+    /// The original counts *down*: [`crate::industry::order_castle`] sets both
+    /// to `g_castleWorkforce[level]` and each season's castle labour is
+    /// subtracted from the first. A siege adds to **both**, which is how a
+    /// repair becomes a bigger job than the castle it is repairing.
+    pub castle_work_left: i32,
+    pub castle_work_total: i32,
+    /// `+0x1D0` / `+0x1DC` — **stone still owed**, and the stone the job was
+    /// costed at. `+0x1D4` / `+0x1E0` are the same pair for wood.
+    ///
+    /// > **The materials are drawn down over seasons, not paid up front**, and
+    /// > this crate had it the other way round with a comment saying the choice
+    /// > was not a finding. It is one now. `Castle_Order` takes whatever the
+    /// > realm has *at the moment of the order* and leaves the rest owing;
+    /// > `Castle_DeliverMaterials` (`0x00450CCD`) then takes whatever the realm
+    /// > has at the top of every season until the debt is clear. Until it *is*
+    /// > clear `Castle_BuildEstimate` gives the castle job a ceiling of **zero**
+    /// > — so a castle ordered without the stone for it stands still, with the
+    /// > builders idle, and eats the realm's quarry output as it arrives.
+    pub castle_stone_owed: i32,
+    pub castle_stone_total: i32,
+    pub castle_wood_owed: i32,
+    pub castle_wood_total: i32,
     /// `+0x1FB`, `+0x1FC`, `+0x1FD` — percentage swings to population, grain
     /// and herd from a random event.
     pub event_population_pct: i32,
@@ -714,7 +769,13 @@ impl County {
             castle_ruined: false,
             castle_level_left: 0,
             castle_switch: false,
-            castle_progress: 0,
+            castle_percent: 0,
+            castle_work_left: 0,
+            castle_work_total: 0,
+            castle_stone_owed: 0,
+            castle_stone_total: 0,
+            castle_wood_owed: 0,
+            castle_wood_total: 0,
             event_population_pct: 0,
             event_grain_pct: 0,
             event_herd_pct: 0,

@@ -695,8 +695,26 @@ impl Units {
     /// The unit standing on a tile, if any. The original keeps this in the
     /// runtime tile record's byte `+5`; recomputing it from the array is the
     /// same answer without a second place for it to be wrong.
+    ///
+    /// # A garrison is not standing on its tile
+    ///
+    /// **`Unit_LinkToTile` (`0x0046EDDF`) opens `if (kind != 1 || garrisonCounty
+    /// == 0)` and does nothing for anything else**, and `Army_GarrisonApply`
+    /// calls `Unit_UnlinkFromTile` on its way in. So an army inside a castle is
+    /// deliberately kept **out** of the tile's occupancy chain: two functions
+    /// agree, and the same fact is why the original draws a flag over the castle
+    /// instead of the unit.
+    ///
+    /// It is not cosmetic. `Unit_TryEnterTile` tests occupancy *before* it tests
+    /// any tile flag, so a garrison that occupied its own castle tile would turn
+    /// every siege into a field battle fought on open ground — which is exactly
+    /// what happened here until this line existed: the besieger walked up, met
+    /// the garrison as an obstacle, and `Army_BeginSiege` was never reached.
+    /// `[V]`
     pub fn at(&self, x: u8, y: u8) -> Option<usize> {
-        self.iter().find(|(_, u)| u.x == x && u.y == y).map(|(i, _)| i)
+        self.iter()
+            .find(|(_, u)| u.x == x && u.y == y && !u.is_garrisoned())
+            .map(|(i, _)| i)
     }
 
     /// `Units_ResetMoves` (`0x004651B9`) — turn phase 7, for **all 150 slots

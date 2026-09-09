@@ -591,6 +591,59 @@ the iron mine's run is 18 frames and stops there, and
 implementing them. There is nothing to see either way — a counter with no consumer has no
 pixels — so this is catalogued, not switched.
 
+### B67 — A castle's materials bill is settled to the nearest whole per cent
+
+**Reproduced.** **[V].**
+
+`Castle_MaterialsPercent` (`0x00450FB4`) is
+`min(100 - Pct(woodOwed, woodTotal), 100 - Pct(stoneOwed, stoneTotal))` in integer
+arithmetic, and `Castle_BuildTick` opens the labour gate at `> 99`. `Pct(1, 400)` is 0, so a
+wooden palisade **one stick of wood short of its bill** reads as fully delivered and the
+builders start. The bigger the castle the more generous it gets: a royal castle is 3,000
+stone, so up to 29 of them are free.
+
+Reproduced rather than tightened, and the reasoning is not sentiment: the gate is two `PctOf`
+calls and a `min`, a rule that rounded the other way would idle a whole county over a
+rounding error, and the outcome — work starts a season earlier than a strict reading would
+allow — is invisible to a player and harmless. `the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived`
+in `crates/l2-kingdom/tests/labour_gap.rs` asserts both sides of the boundary: one stick
+short opens it, four sticks short (`Pct(4, 400) == 1`) shuts it.
+
+### B66 — A siege bills the repair in the material the castle is made of
+
+**Identified and not yet reproduced.** **[V].**
+
+`Siege_RecordCastleDamage` (`0x004784CA`) is the only writer of `castleDegraded = 2`, and it
+bills the repair from `g_castleLevel`: below 2 — a palisade or a motte and bailey — it charges
+`wallDamage * 10` in **wood**, and at 2 or above `wallDamage * 15` in **stone**, with the work
+at `breachDamage * 5 + wallDamage * 15` either way. When a build was already under way it
+**adds** to the existing totals, so besieging a half-built castle makes the job bigger than
+the castle was.
+
+Not in this tree: every number comes from two battle-side accumulators `l2-sim` does not
+keep, and the autocalc path produces no wall damage at all. Written down here and on
+`l2_kingdom::siege::CASTLE_DEGRADED_DAMAGED` so that the three readers of that constant are
+known to be reachable only from their own tests.
+
+### B68 — Building a castle stops a county mining, and only the AI knows
+
+**Reproduced, and it is the rule rather than a defect — filed here because it reads as one.**
+**[V].**
+
+`Labour_Allocate` serves the industry half of a county as a round robin over wood, stone,
+iron and the blacksmith, with **castle building as the tail**, reached only when all four are
+at their ceilings. `Industry_LabourEstimate` gives wood, iron and stone a ceiling of
+**100,000** wherever the site exists, so they are never full and the tail is never reached.
+**A county with its industries running never puts one man on the walls, for ever.**
+
+The human's way out is to click the buildings off on the campaign map. The AI's is
+`AI_ChooseIndustry`, which switches iron and the blacksmith off outright while a castle is up
+and keeps wood and stone only while `+0x1D4` / `+0x1D0` are still owed — a rule that looks
+like an odd strategic preference until you see it is the only way an AI lord ever finishes
+anything. `docs/kingdom.md` §7.5.2, and
+`a_county_with_its_mines_running_never_gets_round_to_the_castle` in
+`crates/l2-game/tests/castles.rs`.
+
 ---
 
 # 3. The original's bugs we do **not** reproduce
@@ -848,6 +901,7 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 | **D34** | **Three of every sixteen troop cries are unreachable, and the shipping build knew.** `FUN_00499CB1` round-robins four takes within an event class but forces take 0 for class 3, so cells 13, 14 and 15 of each unit's block at `0x004DB0D0` can never be selected. That is where the `_F1` names sit — one per troop type, `Peas_F1.wav` through `Knig_F1.wav`, seven names the binary carries and **not one of which is in the install**. Cells 13 and 14 name real files, which is why the block reads as complete. | [V] — the index arithmetic, plus the absence of all seven `_F1` files |
 | **D35** | **Both sample banks reserve a slot for a file that has never existed.** Slot 1 of each is `null.wav`, which is in neither the Windows install nor the DOS one; the bank loader takes a count and the slot is how the original spells a hole in a fixed-size table. | [V] on both installs |
 | **D31** | **81 % of the game's audio exists to satisfy a test whose answer is fixed.** `FUN_004AEF7E` opens `pumkin.wav` (320 MB across two byte-identical copies), measures it against 151,000,000 and closes it. `DAT_005C9A74` is set to 1 before the test, set to 1 again in both success branches, and never set to any other value anywhere; its three readers ask `(flag < 1) \|\| (2 < flag)`, which cannot be true. | [V] |
+| **D36** | **`L2.eng` 163/4 — *"This lesser castle will reduce the tax collected in the county."* — describes something no code path can produce.** `castleType` has two writers in the whole binary: `g_startCastle` at new-game, and `Castle_Order`, whose OK guard sends message `0x122` and returns whenever the type picked is below the one standing. Nothing lowers it, and a siege lowers `+0x1F9` instead. **Bounded claim:** what is verified is that the two writers cannot lower it. Which of group 163's indices message `0xA3` actually renders was not traced, so "unreachable" is a reading of the writers and not of the renderer. | bounded claim |
 
 ---
 

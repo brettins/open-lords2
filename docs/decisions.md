@@ -2779,8 +2779,6 @@ the seam is symmetric, not that the seam reaches the simulation. So the diff rep
 verdicts and not two — **agree**, **differ, because…**, and **both silent**, the last being a
 finding — and it re-checks every field it calls *agreed* on the `Kingdom`, where the rules
 read it. Both ablations now go red; six were run and all six do.
-
-
 **C63 — The season, the fields and the village's clock; and a resource table that says a
 filename is not evidence.**
 
@@ -2890,6 +2888,53 @@ pass; and the season test **ends a real turn** and looks at the map rather than 
 tested if something a test reads was written by something the game runs.
 
 
+**C64 — `castleBuilding` meant the opposite of its name, and four correct readers were
+holding the wrong writer up.**
+
+`County::castle_building` (`+0x1C1`) was documented here, in `docs/kingdom.md` and in three
+Rust doc comments as *"the type under construction"*. `Castle_Order` (`0x00436D02`) has the
+field's **only** write in the whole binary and it is one line:
+
+```c
+if (county.castleType != 0) county.castleBuilding = county.castleType;
+county.castleType = newType;          /* immediately, not on completion */
+```
+
+It is the castle you **had**. `castleType` is the castle you are getting, from the moment
+you order it. Nothing ever clears `castleBuilding`, which is safe because every reader is
+gated on `castleDegraded`.
+
+**What makes this C46's shape rather than a typo is that all four readers were already
+right.** `Tax_CollectAll` charging *"the lower of standing and building"*,
+`Siege_LaunchAssault` fighting `castleBuilding - 1`, `Army_BeginSiege` refusing on
+`castleDegraded == 1 && castleBuilding == 0`, and the free-archer top-up firing on
+`castleBuilding < castleType` — every one of those had been read out of the binary and
+transcribed faithfully, and every one of them reads as arbitrary under the wrong name and as
+obvious under the right one. Two of them were also *wrong in effect*: an assault fought the
+scaffolding instead of the standing castle, and the *"this castle is under construction"*
+refusal was unreachable, because our writer put a non-zero target in the field on every
+order.
+
+**Nobody noticed because nothing could order a castle.** `castle_degraded` had no writer a
+player could reach — the chooser screen did not exist — so the whole block was dead code
+with a green suite over it, which is C27 for the seventh time. Three further inventions came
+out with it, each of which had a *"this is a choice, not a finding"* comment attached
+admitting as much:
+
+* the materials were debited **up front**; the original carts them in season by season and
+  gates all castle labour on the delivery (`docs/kingdom.md` §7.5.1);
+* `order_castle` **refused** when the realm could not pay; the original has no affordability
+  guard at all, only *"you already have that one"* and *"that one is smaller"*;
+* the work counted **up** against the workforce; the original counts `+0x1CC` down, and
+  clamps the percentage to 99 whenever any work remains so that rounding can never finish a
+  castle.
+
+The comments were honest and they were still load-bearing for four other rules. **A field
+that is read by four traced rules and written by one invented one is not half-verified; it
+is a verified reading of an invented model.** The cheapest thing that would have caught it
+is the thing that did: making the field reachable from the screen the original reaches it
+from.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
@@ -2903,14 +2948,12 @@ tested if something a test reads was written by something the game runs.
   `Pass::LabourAllocate` and `Pass::LabourAllocateAgain` now, behind the six estimate tail
   calls it needed; `sum(labour) == population` holds for all fourteen counties of the England
   position for ten seasons, and `ten_more_seasons_...` asserts that instead of the freeze.
-  The one piece still inferred is the castle ceiling's materials gate —
-  `crates/l2-kingdom/tests/labour_gap.rs` and `docs/kingdom.md` §14.4.
-- **The castle's materials are debited up front, and the original delivers them over time.**
-  `Castle_BuildEstimate` returns a labour ceiling of **0** until six words at county
-  `+0x1CC … +0x1E0` say the wood and stone have arrived; `industry::order_castle` takes the
-  whole cost the moment the castle is ordered, so this tree's gate is permanently open. The
-  arithmetic given a complete delivery is reproduced and the delivery is not modelled. It is
-  the last unreproduced call of `County_RefreshEstimates`.
+  The castle ceiling's materials gate was the last piece still inferred and it is closed —
+  see C63.
+- ~~**The castle's materials are debited up front, and the original delivers them over
+  time.**~~ **Closed, and it was a defect rather than a simplification.** The six words at
+  county `+0x1CC … +0x1E0` are on `County` now, `Castle_DeliverMaterials` (`0x00450CCD`)
+  carts them in season by season, and `Castle_BuildEstimate`'s gate shuts. C63.
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
   gives the weather jitter as `random/8` with no stated range, which is not implementable —
   the constant is the one number in that crate with no evidence behind it, and it is marked
