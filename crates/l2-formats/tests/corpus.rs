@@ -245,8 +245,7 @@ fn counts_that_the_documentation_quotes_still_hold() {
 #[test]
 fn a_rectangle_reserves_the_rows_it_declares_whether_or_not_it_stores_them() {
     let Some(dir) = asset_dir() else {
-        eprintln!("LORDS2_DIR not set - skipping");
-        return;
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
 
     let (mut checked, mut declaring) = (0usize, 0usize);
