@@ -267,6 +267,15 @@ impl Kingdom {
     /// 1. the **mover** is a merchant or a transport — walk through;
     /// 2. the **occupant** is a merchant — walk through, so a merchant is never
     ///    attacked;
+    ///
+    /// **Rungs 1 and 2 no longer reach here.** They are not "no fight, but the
+    /// move ends": the original returns the tile's ordinary Road or Open code
+    /// and the mover steps onto the tile, which is a *movement* answer rather
+    /// than a contact. [`crate::movement::pass_through`] gives it, so
+    /// [`Entry::Occupied`] never reaches this function in those two cases and
+    /// the rungs are kept below only because the ladder reads wrong without
+    /// them. `docs/decisions.md` C40.
+    ///
     /// 3. the occupant is an army or a mob:
     ///    * same owner — merge, but only on an explicit merge order;
     ///    * different owner — `Diplo_ActionAllowed` decides. An **ally** is
@@ -680,19 +689,29 @@ mod tests {
 
     /// A merchant is never attacked, whoever it belongs to — the second rung of
     /// `Unit_EnterOccupiedTile`'s ladder.
+    ///
+    /// **Corrected, and the assertion reversed.** This used to expect
+    /// `Contact::Blocked`, on the reading that a merchant merely cannot be
+    /// *fought*. The rung says `return local_8`, and `local_8` is the ordinary
+    /// Road or Open code — so the army walks *through* the merchant and no
+    /// contact is reported at all. [`crate::movement::pass_through`] is where
+    /// that now happens, which makes rungs 1 and 2 of
+    /// [`UnitsTick::classify_occupied`] unreachable by construction rather than
+    /// by comment. `docs/decisions.md` C40.
     #[test]
-    fn a_merchant_is_never_attacked() {
+    fn a_merchant_is_walked_through_rather_than_attacked() {
         let mut k = kingdom();
         k.realms[2].in_play = true;
         let a = army(&mut k, 1, 5, 10);
         let mut m = Unit::new(UnitKind::Merchant, OWNERLESS, 6, 10);
         m.county = 1;
-        let trader = k.campaign.units.spawn(m).unwrap();
+        k.campaign.units.spawn(m).unwrap();
         movement::order_move(&k.campaign.map, &mut k.campaign.units, a, (8, 10), movement::Routing::Direct)
             .unwrap();
         let t = k.tick_units();
         assert_eq!(t.battle(), None);
-        assert_eq!(t.contacts, vec![Contact::Blocked { mover: a, occupant: trader }]);
+        assert_eq!(t.contacts, vec![], "no fight, and no obstacle either");
+        assert_eq!(k.campaign.units.get(a).unwrap().tile(), (6, 10), "the army is on the tile");
     }
 
     /// Phase 2 starts nothing. The whole point of the module's headline.

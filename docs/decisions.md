@@ -1352,6 +1352,52 @@ correction. The fourth collision, this one, is the first that a machine caught r
 integrator reading a doc comment — the check working on the day it was written, on the branch
 that wrote it.
 
+**C40 — A unit standing in the way was treated as an obstacle for everybody. Merchants and
+transports walk straight through, and so does anything walking through a merchant.
+`Unit_EnterOccupiedTile`'s three opening guards were paraphrased in two places and
+implemented in neither.**
+
+`docs/armies.md` §2.7 read *"types 3 and 4 return immediately — merchants and transports are
+non-combatants"*, and `units_tick::classify_occupied` opens its ladder with *"the mover is a
+merchant or a transport — **walk through**"*. Both describe the guards. Neither *does* them:
+`movement::try_enter` returned `Entry::Occupied` for every occupied tile, `Entry::ends_the_move`
+makes that the end of the move, and `classify_occupied` then reported `Contact::Blocked` for
+the two cases its own comment says walk through. The function opens:
+
+```c
+local_8 = (flags & 1) ? 3 : 1;               /* an ordinary road or open step */
+if (mover.kind == 3) return local_8;
+if (mover.kind == 4) return local_8;
+if (occupant.kind == 3) return local_8;
+...the ladder...
+```
+
+**3 and 1 are not stop codes.** `Unit_StepOnce` returns early only above 4, so those three
+returns are the tile classified as ordinary ground — the mover steps onto it and keeps going,
+at the tile's ordinary cost and *without* the field surcharge, the trample or the castle
+capture the tile's other bits would have earned, because the occupancy test happens first in
+`Unit_TryEnterTile`.
+
+It stood because **nothing in the workspace had ever put two units on the map at once**: the
+seam that loads a save dropped `g_units` on the floor, so every unit in existence was one a
+test had built by hand for a scenario about one unit. Importing the block found it in two
+seasons — the England position's six merchants converge on the road junction between counties
+11 and 12, each stops in front of the next, and none of them reaches a county again. In the
+original they pass through each other.
+
+The class is a new one and worth naming: **a guard that everybody described and nobody
+executed.** Two documents and a doc-comment all carried the words "return immediately" and
+"walk through", which read as *this is handled*; the code path they described did not exist,
+and the prose was accurate enough that re-reading it never raised the question. C13 is the
+summary disagreeing with the branch; this is the summary agreeing with the branch and the
+*code* agreeing with neither.
+
+The fix is one function, `movement::pass_through`, applied where the tile is classified, so
+rungs 1 and 2 of `classify_occupied`'s ladder are now unreachable by construction rather than
+by comment. The check is cheap and is now written down —
+`a_merchant_walks_through_whatever_is_standing_in_its_way` walks six mover/blocker pairs and
+asserts which four pass.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

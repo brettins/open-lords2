@@ -321,3 +321,83 @@ fn a_turn_on_the_shipped_position_settles_every_phase() {
     assert_eq!(game.kingdom.turn.phase, l2_kingdom::Phase::NeutralCounties);
     assert!(outcome.pending_battles.is_empty(), "nobody is at war on turn one");
 }
+
+/// **The six shipped merchants walk their shipped routes.**
+///
+/// This is the whole point of importing `g_units`, and it had never happened:
+/// the seam read the counties, the realms and the map and dropped the unit block
+/// on the floor, so every game loaded from the England position had a working
+/// economy and an empty board.
+///
+/// One ended turn is enough to see it. Phase 6 runs `Merchant_AdvanceAll`, each
+/// merchant takes the *second* county on its own route — the cursor ships at 1,
+/// not 0 — and walks its ten points towards it. What is checked is not where any
+/// of them ends up, which is pathfinding, but that the destination each one took
+/// is the county the route table names for its slot.
+#[test]
+fn the_six_shipped_merchants_take_the_next_county_on_their_own_route() {
+    let mut game = game!();
+    let routes = game.kingdom.campaign.routes.clone();
+    let before: Vec<(usize, (u8, u8))> =
+        game.kingdom.campaign.units.iter().map(|(id, u)| (id, u.tile())).collect();
+    assert_eq!(before.len(), 6, "six merchants stand on the board before the turn");
+
+    l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+
+    let mut walked = 0;
+    for (slot, was) in before {
+        let u = game.kingdom.campaign.units.get(slot).expect("merchants do not die");
+        // `Merchant_AdvanceAll` indexes the table by **slot minus one**, not by
+        // the merchant's own route number. The two agree here — the merchants
+        // are slots 1..6 and their route numbers are 0..5 — and that agreement
+        // is the coupling the original depends on.
+        assert_eq!(u.name_index as usize, slot - 1, "merchant {slot} is on the wrong route");
+        let expected = routes.row(slot - 1)[1];
+        assert_eq!(
+            u.dest_county, expected,
+            "merchant {slot} was sent to county {} and its route says {expected}",
+            u.dest_county
+        );
+        // A merchant that *arrived* this turn is idle again and will take its
+        // next stop next turn; one still walking is not. Both are correct, and
+        // `dest_county` above is the assertion either way, because
+        // `Merchant_AdvanceAll` writes the route's county and never overwrites
+        // it from the tile.
+        assert_eq!(u.move_allowance, 10, "Merchant_Tick writes the allowance every tick");
+        if u.tile() != was {
+            walked += 1;
+        }
+    }
+    assert_eq!(walked, 6, "every merchant moved off the tile it started on");
+}
+
+/// Ten turns of merchants, and the property that has to hold across all of
+/// them: a merchant only ever heads for a county **on its own route**, and it
+/// takes them in order.
+///
+/// A cursor that ran off the end, an index taken from the wrong field, or a
+/// route row read at the wrong stride would all break this within a season or
+/// two; walking it ten times is what makes the cyclic half of the walk mean
+/// something.
+#[test]
+fn ten_turns_of_merchants_never_leave_their_own_routes() {
+    let mut game = game!();
+    let routes = game.kingdom.campaign.routes.clone();
+    for turn in 1..=10 {
+        l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+        for (slot, u) in game.kingdom.campaign.units.iter() {
+            assert_eq!(u.kind, l2_kingdom::UnitKind::Merchant, "slot {slot} stopped being one");
+            let route = routes.row(slot - 1);
+            assert!(
+                route.contains(&u.dest_county),
+                "turn {turn}: merchant {slot} is heading for county {}, and its route is {route:?}",
+                u.dest_county
+            );
+            // The cursor stays inside the row it indexes.
+            assert!((0..16).contains(&u.year_formed), "turn {turn}: merchant {slot} cursor");
+        }
+    }
+    let visited: Vec<u8> =
+        game.kingdom.campaign.units.iter().map(|(_, u)| u.county).collect();
+    eprintln!("after ten turns the six merchants stand in counties {visited:?}");
+}

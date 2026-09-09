@@ -233,6 +233,7 @@ pub use phase::{Pass, Phase, PhaseTick, PhaseWait, TurnMachine, PHASE_ORDER, SEA
 pub use levy::{Levy, LevyBasket, LevyRefusal};
 pub use map::{CampaignMap, CostMap, MAP_DIM, MAP_TILES};
 pub use mercenary::{Band, MercenaryBands, MERCENARY_BANDS};
+pub use merchant::MerchantRoutes;
 pub use movement::Routing;
 pub use realm::{Realm, AI_STEP_DONE, MAX_REALMS};
 pub use siege::{Engine, EngineBuild, SiegeCursor, SiegeRefusal};

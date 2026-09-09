@@ -294,9 +294,29 @@ pub fn advance_all(
             u.needs_destination = false;
         }
         if units.get(id).is_some_and(|u| !u.needs_destination) {
-            let Some(dest) = units.get(id).and_then(|u| u.dest) else { continue };
+            let Some((dest, dest_county)) =
+                units.get(id).and_then(|u| u.dest.map(|d| (d, u.dest_county)))
+            else {
+                continue;
+            };
             if movement::order_move_by_road(map, units, id, dest).is_some() {
                 started += 1;
+            }
+            // **`dest_county` is the county on the *route*, not the county the
+            // destination tile happens to sit in**, and the two really do
+            // differ. `County_FindFreeRoadTile` searches a 7 × 7 box around the
+            // county's anchor and never looks at the county plane, so a merchant
+            // sent to England's county 12 is sent to a road tile that county 11
+            // owns — and on the shipped position that is four of the six.
+            //
+            // `Unit_OrderMove` derives the field from the tile and is right to,
+            // because a human clicking a tile means *that tile*.
+            // `Merchant_AdvanceAll` writes the route's county and then never
+            // touches it again, so the derived value has to be put back.
+            // Restored rather than avoided, so both orders keep sharing one
+            // pathfinder.
+            if let Some(u) = units.get_mut(id) {
+                u.dest_county = dest_county;
             }
         }
     }

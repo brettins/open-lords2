@@ -167,6 +167,18 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   `true` could be either 1 or 2 and the two fight different castles — so
 ///   this is a refusal rather than a widening.
 ///
+///   **Three branches found `defence_mark` missing, independently, within a
+///   day.** The sharpest statement of it is the unit-import branch's: entry 8
+///   added `cargo_county`, the *other* meaning of the same `+0x167` byte, and
+///   left the field beside it unwritten. Two meanings sharing one offset, one
+///   encoded and one not, added in the same neighbourhood by different hands.
+///   It was invisible for version 5's reason: every unit that had ever
+///   existed was one a test built by hand, and a hand-built unit carries 0 in
+///   it. It surfaced the moment `l2-scenario` began importing `g_units` from
+///   a save — `battle-during.sav` slot 6 carries a 1 — and it surfaced the
+///   same way version 5's four did: a round trip equal on the checksum and
+///   unequal on `PartialEq`.
+///
 ///   **And a fourth collision, on the same day as the other three.** This
 ///   arrived as its own version 7, was rebased to 9, and is 10 here because the
 ///   entry above took 9 first. The standing hazard above is now the rule rather

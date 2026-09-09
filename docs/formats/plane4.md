@@ -218,6 +218,16 @@ unit's index into **byte +5 of the runtime tile record**.
 > [`armies.md`](../armies.md) §2.1a's "tick-maintained rather than initial"
 > reading — and a warning for any loader, because a unit restored from a save
 > and never ticked cannot move at all.
+>
+> **All of it is now asserted rather than quoted.** `l2-formats` reads
+> `g_merchantRoutes`, `g_merchantStartCounty` and the whole `g_units` array out
+> of a save, and `crates/l2-formats/tests/save_england_turn1.rs`'s
+> `england_ships_six_merchants_on_the_six_routes_plane4_predicted` and
+> `the_six_units_are_merchants_waiting_in_their_start_counties` check every
+> number in the block above against the file. `tests/save.rs` then checks the
+> shape of the table, the merchant count and the slot-1…n coupling over **every**
+> save the machine can reach, which is what makes the coupling an invariant
+> rather than an observation about England.
 
 Merchant count per map, from the simulation (an upper bound — a spawn also
 requires a free tile, which is never a problem on the shipped maps but is not
@@ -363,15 +373,25 @@ slightly buggy selection loop.
 * **The trade transaction itself.** What a merchant offers, at what price, and
   how the county trade screen decides a merchant is present, was not traced.
   Only the route/movement half of the merchant system is covered here.
-* **`unit.field216 = 100`** set at spawn (`+0x166` in the unit record). Type 4
-  transports use the neighbouring `+0x167` as a destination county and `+0x16c…`
-  as cargo; for merchants the panel never reads either. `100` looks like a stock
-  or gold float, but nothing here proves it. **[I]**
-* **No runtime confirmation.** Every claim above comes from the binary and from
-  the 44 shipped maps. The merchants were not observed moving in a live game —
-  see `maps-layers.md` §7 for why driving the game from an agent is close to
-  unusable. The falsifiable prediction, for anyone who does: on slot 0 (England)
-  six merchants appear, named Jock McTooth, Bob the Shop, Fat Barry, Olde George,
-  Honest Jim and Bernard Slap, starting in counties 14, 5, 13, 11, 12 and 4.
+* **`unit.morale = 100`** set at spawn (`+0x166`). Still nothing reads it back —
+  the panel never draws a merchant's morale — so `100` remains a value with no
+  consumer. **[I]** that it means anything at all.
+* ~~**`+0x167` is a destination county for transports and unread for
+  merchants.**~~ **It is the county the unit was spawned in**, and the save says
+  so: `Merchant_SpawnAll` writes `g_merchantStartCounty[i]` there once, nothing
+  updates it, and in `siege-sieging.sav` the three merchants carry **3, 4, 2** —
+  the start-county array exactly — while standing in counties 4, 3 and 3. It is a
+  birthplace, not a position, and it is the *same byte* an army uses for its
+  county-defence mark (`docs/armies.md` §1.5, §8.1). **[V]**, over every save the
+  machine can reach.
+* ~~**No runtime confirmation.**~~ **Confirmed from the game's own saves**, which
+  is the oracle this section was waiting for and did not expect to get without
+  driving the game. `england-turn1.sav` holds `g_merchantRoutes`,
+  `g_merchantStartCounty` and `g_merchantCount` verbatim: England's six start
+  counties are **14, 5, 13, 11, 12, 4**, the six route rows are the six derived
+  here, and the six units in slots 1…6 are type 3, owner 6, one in each of those
+  counties with `nameIndex` 0…5 and a route cursor of 1. The **names** half of
+  the prediction — Jock McTooth through Bernard Slap — is still unobserved,
+  because a save stores the index and not the string.
 * **Slot 15 "Rorschach"** should show two merchants starting in the same county
-  (county 8). Also falsifiable, also unobserved.
+  (county 8). Still falsifiable, still unobserved: no fixture is that map.
