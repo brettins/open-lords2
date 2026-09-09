@@ -164,12 +164,31 @@ function looks dark.
 
     node tools/oracle/anchor.js stride --unnamed
 
-**415 of the 1,761 unnamed functions** carry a stride. The filter is essentially exact about
-the claim it makes: across **7,723 occurrences** of those five constants in the corpus, **zero**
-appear outside array-index context — the multiplication only ever indexes a record. And each
-stride is dominated by one base region (81–99.8%), so it identifies the record *type*
-reliably. What it does **not** do is distinguish the primary array from a parallel array of
-the same stride; for that you still read the base.
+The filter is essentially exact about the claim it makes: across **7,723 occurrences** of
+those five constants in the corpus, **zero** appeared outside array-index context — the
+multiplication only ever indexes a record. And each stride is dominated by one base region
+(81–99.8%), so it identifies the record *type* reliably. What it does **not** do is
+distinguish the primary array from a parallel array of the same stride; for that you still
+read the base.
+
+**§7.5 has since retired most of this filter's work, which is the point of it.** Once the
+county, unit and realm arrays have a struct type the decompiler folds the arithmetic away,
+so the stride stops appearing — and a function that no longer needs the filter is a function
+that now says what it does:
+
+| stride | functions carrying it, before → after | of those, unnamed |
+|---|---|---|
+| county `0x300` | 297 → **38** | 178 → **22** |
+| unit `0x1A4` | 173 → **37** | 117 → **24** |
+| realm `0x160` | 190 → **38** | 119 → **10** |
+| battle figure `0x1B0` | 146 → **4** | 90 → **1** |
+| battle unit `0x34` | 81 → **0** | 13 → **0** |
+| **total** | 692 → **115** | 399 → **56** |
+
+The residue — 38 functions still doing county arithmetic by hand — is not a failure of the
+struct. Those are the places the decompiler cannot fold: whole-record copies, pointer walks
+that step by the stride, and code that takes the address of a record and passes it on. They
+are a short, concrete list rather than a third of the binary.
 
 ### 7.2 The `L2.eng` string ids are a confession
 
@@ -233,30 +252,92 @@ The figure has been repeated as though that many functions were unanalysable. Ru
 
 | | count | median size | |
 |---|---:|---:|---|
-| touch **no global at all** | **290** | **22 b** | the only genuinely dark ones — and 175 are ≤ 40 b, so accessors and thunks |
-| touch only *unnamed* globals | 545 | 109 b | anchored the moment one global is named |
-| touch a *named* global | 926 | 253 b | already in a cluster |
+| touch **no global at all** | **291** | **22 b** | the only genuinely dark ones — and 175 are ≤ 40 b, so accessors and thunks |
+| touch only *unnamed* globals | 478 | 97 b | anchored the moment one global is named |
+| touch a *named* global | 968 | 238 b | already in a cluster |
 
 The bound on how much of the binary reads as prose is the **global** ratio, not the function
-count: 3,303 distinct globals, 301 named.
+count: 2,898 distinct globals, 303 named.
 
 And even that overstates it. `node tools/oracle/anchor.js fields` resolves every `DAT_` that
-appears beside a record stride back to `record[i] + offset`: **334 of those "unknown globals"
-are field offsets of three arrays that are already named** — `DAT_0052F218` is
-`unit[i] + 0x168`, the total-men field `docs/armies.md` has documented all along. Ghidra
-applies a name to one address, so `g_counties` labels `0x0053F9B0` and every field of every
-county invents its own `DAT_`. Only **13** stride-adjacent globals failed to resolve, and
-those are the ones worth chasing.
+appears beside a record stride back to `record[i] + offset`. Ghidra applies a name to one
+address, so `g_counties` labels `0x0053F9B0` and every field of every county used to invent
+its own `DAT_`: `DAT_0052F218` was not an unknown global, it was `unit[i] + 0x168`, the
+total-men field `docs/armies.md` has documented all along. **334 of the "unknown globals"
+were field offsets of three arrays that were already named.**
 
-So the highest-leverage naming act is not any single hot global. It is **giving the five
-record arrays a struct type**, which converts 334 synthetic labels and the 415 unnamed
-functions that index them into field access in one move.
+### 7.5 So the arrays were given a struct type, and it is the largest single move so far
+
+`docs/records.json` is the layout of every fixed-stride record array, and
+`ghidra_scripts/ApplyRecords.java` applies it before every corpus rebuild — see
+`tools/oracle/decompile-all.ps1`, which now runs `ApplySymbols` then `ApplyRecords` then
+`DecompileAll`. One edit to the JSON reaches the whole corpus.
+
+Measured on the same 2,452 functions, before and after:
+
+| | before | county/unit/realm/lord | + the two battle arrays |
+|---|---:|---:|---:|
+| `DAT_` occurrences in the corpus | 24,608 | 19,661 | **17,192** |
+| distinct `DAT_` names | 2,977 | 2,575 | **2,461** |
+| distinct globals the corpus sees | 3,302 | 2,898 | **2,782** |
+| `anchor.js fields` — synthetic labels that are really record fields | 334 | 0 | **0** |
+| stride-adjacent `DAT_`s that resolve to nothing | 12 | 5 | **5** |
+| functions carrying a record stride | 692 | 303 | **115** |
+| functions touching *only* unnamed globals | 545 | 478 | **471** |
+| functions touching a *named* global | 902 | 968 | **974** |
+
+Seventy-two functions crossed from "unanchored" to "in a cluster" without anybody looking at
+one of them, and 520 synthetic globals stopped existing. A step function that used to read
+
+```c
+if ((&DAT_0052f0b8)[g_movingUnit * 0x1a4] == '\x03') { ... }
+(&DAT_0052f0bb)[g_movingUnit * 0x1a4] = (&DAT_0052f0bb)[g_movingUnit * 0x1a4] + -1;
+```
+
+now reads
+
+```c
+if (g_units[g_movingUnit].kind == 3) { ... }
+g_units[g_movingUnit].y = g_units[g_movingUnit].y - 1;
+```
+
+**The widths are measured, not assumed.** `ghidra_scripts/RecordProbe.java` walks every
+instruction, folds each address that lands in a record array to an offset within the record,
+and reports the p-code `LOAD`/`STORE` width used there. `docs/records.json` carries a field
+only where the documented meaning and the observed width agree; everything else stays
+undefined padding, which is why the structs are 23–86% named rather than 100%. The check the
+retyping then passes is that **no widening cast straddles a named field anywhere in the
+corpus** — if a field were typed one byte too narrow, some function would be reading across
+its boundary, and none is.
+
+**A struct that does not fit is evidence a record is wrong, and three did not.**
+
+* `docs/battle.md` §2.1 says the figure's second target pair at `+0x28`/`+0x2A` is "filled
+  from unit `+0x26`/`+0x28`". It is not. The only non-zero write to it in the whole binary
+  takes the unit's `+0x16`/`+0x18` — the pair `docs/battle-ai.md` §7 calls the catapult aim
+  point — and the three other writers only zero it. `records.json` names it the figure's own
+  aim point on that evidence.
+* `crates/l2-sim/src/runner.rs` calls figure `+0x144`/`+0x146` "where this figure is walking
+  to … written by `Formation_SendFigure` and by nothing else". **No instruction in
+  `Lords2.exe` references either offset**, and both fall inside the 150-pair path array at
+  `+0x38`. `docs/battle.md` §2.1 and `docs/battle-ai.md` §7 agree with each other that the
+  field is `tg x`/`tg y` at `+0x24`/`+0x26`, and the probe finds 41 sixteen-bit accesses on
+  each. The documents are right and the Rust comment is wrong.
+* `crates/l2-kingdom`'s `Industry` carries `capacity`, `efficiency` and `disabled_seasons` as
+  `i32`. In the original `capacity` is **two** bytes at industry `+0x0E` — `+0x10` is the
+  running total and there is no room — and the other two are single bytes at `+0x04` and
+  `+0x06`. Nothing overflows, so this is a widening rather than a bug, but the record is not
+  four `i32`s and reading it as one would misplace every field after the first.
+
+The same run found `g_battleMen` and `g_battleUnits` are **81** records, not the 80 their
+`symbols.json` comments say: every sweep is `for (i = 1; i < 0x51; i++)`, so index 80 is
+live, and nothing else in the binary claims the storage behind it.
 
 ## 8. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — 461 of 2,452 functions so far, about 19%.
+always more of the binary to name — 465 of 2,452 functions so far, about 19%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the

@@ -13,9 +13,9 @@
       rg "0x004d96d0" tools/oracle/decomp/          # who reads this table
       rg -l "Rules_InitConstants" tools/oracle/decomp/
 
-  Re-run it after docs/symbols.json changes so names propagate. Naming one
-  global makes dozens of unrelated functions legible, and this is how that
-  reaches code nobody has opened yet.
+  Re-run it after docs/symbols.json or docs/records.json changes so names
+  propagate. Naming one global makes dozens of unrelated functions legible, and
+  this is how that reaches code nobody has opened yet.
 
   Output goes to tools/oracle/decomp/, which is gitignored by the **/out/ and
   explicit rules - it is derived from the shipped binary and must never be
@@ -45,6 +45,14 @@ if (-not $SkipSymbols) {
   & $Headless $GhidraProject $ProjectName -process 'Lords2.exe' -noanalysis `
       -scriptPath $scripts -postScript ApplySymbols 2>&1 |
     Select-String -Pattern 'ApplySymbols|ERROR|failed' | Select-Object -First 20
+
+  # Then the record layouts. Without them the decompiler invents one global per
+  # field of every record array - 334 of them - and a third of the binary reads
+  # as (&DAT_0053f9bc)[i * 0x300] instead of g_counties[i].happiness.
+  Write-Host "applying docs/records.json struct layouts..." -ForegroundColor Cyan
+  & $Headless $GhidraProject $ProjectName -process 'Lords2.exe' -noanalysis `
+      -scriptPath $scripts -postScript ApplyRecords 2>&1 |
+    Select-String -Pattern 'ApplyRecords|ERROR|failed' | Select-Object -First 20
 }
 
 Write-Host "decompiling every function - this takes a while, once..." -ForegroundColor Cyan

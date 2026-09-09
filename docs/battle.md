@@ -115,7 +115,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x1C` | i32 | cellOffset | [V] | `(y*80 + x) * 8`, kept in step with x and y. |
 | `+0x20` `+0x22` | i16 | **map x**, **map y** | [V] | cell coordinates. |
 | `+0x24` `+0x26` | i16 | **tg x**, **tg y** | [V] | where this figure is walking to. |
-| `+0x28` `+0x2A` | i16 | — | [D] | a second target pair, filled from unit `+0x26`/`+0x28`. |
+| `+0x28` `+0x2A` | i16 | **aim x**, **aim y** | [V] | the figure's own aim point. **Corrected:** this row used to say "filled from unit `+0x26`/`+0x28`". It is not. Once `g_battleMen` and `g_battleUnits` were given struct types (`docs/records.json`), the whole corpus could be searched for writers, and there is exactly one non-zero writer — `FUN_004843bc`, the ranged-figure handler, copying the unit's `+0x16`/`+0x18`, which is the aim point §7 of `docs/battle-ai.md` already described. The three other writers only zero it. |
 | `+0x2C` | u8 | owner | [V] | player index; **0 means the slot is free**. |
 | `+0x2E` | u8 | — | [D] | 0 for side 4, 1 for side 0. |
 | `+0x17A` | u8 | side | [V] | 0 or 4, copied from the unit. |

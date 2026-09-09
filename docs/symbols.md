@@ -30,6 +30,30 @@ node tools/symbols/symbols_md.js --check   # fail if this file is out of date
 hand-edit the tables between the `BEGIN`/`END` markers — `--check` will catch it. Prose
 outside the markers is yours to write.
 
+## Record *fields* live in `records.json`, not here
+
+A name in `symbols.json` names **one address**. That is the wrong shape for a record array:
+`g_counties` labels `0x0053F9B0` and nothing labels `county[i].happiness`, so the decompiler
+used to invent a synthetic global for every field of every one of the five stride-indexed
+arrays — 334 of them, a tenth of the globals in the corpus.
+
+[`records.json`](records.json) holds those layouts instead, and
+`ghidra_scripts/ApplyRecords.java` turns them into Ghidra structs so the decompiler writes
+`g_counties[i].happiness`. `tools/oracle/decompile-all.ps1` runs it after `ApplySymbols`, so
+a field added to the JSON reaches the whole corpus on the next rebuild.
+
+```powershell
+& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
+    "E:\dev\ghidra-projects" lords2 -process Lords2.exe -noanalysis `
+    -scriptPath "E:\dev\lords2\ghidra_scripts" -postScript ApplyRecords.java --dry-run
+```
+
+**A field goes in only when its width is measured.** `ghidra_scripts/RecordProbe.java`
+reports, for every offset in every record array, the p-code `LOAD`/`STORE` width the binary
+actually uses there. Documented meaning plus disagreeing width is a gap, not a field — a
+wrong field name propagates into every function that touches it, which is correction C3 in
+`docs/decisions.md`. `docs/method.md` §7.5 has the before-and-after.
+
 ---
 
 ## Sprite rendering
@@ -173,6 +197,7 @@ to `l2_maps.dat` at all. The reference implementation for the campaign map forma
 | `0x0046634D` | `Unit_StepOnce(dir)` | verified | One animation tick of a move: accumulates +0x149 to 16, then calls Unit_NeighbourTile and charges movesUsed +1 on a road (+0x14D set) or +3 otherwise. |
 | `0x00466893` | `Unit_NeighbourTile(dir)` | verified | Maps a direction 0..7 to the neighbouring tile offset with edge-of-map guards and hands it to Unit_TryEnterTile. |
 | `0x00466C3C` | `Unit_TryEnterTile(tileOffset)` | verified | Classifies the target tile and returns a code: occupied -> Unit_EnterOccupiedTile; road (plane0 0x01) -> 3; county town (0x40) -> 5; castle (0x80) -> 6; dwelling plot (0x10) -> 7; farm field (0x20) -> 8; otherwise 1. The 0x40 and 0x80 labels were swapped here until decisions.md C25; the codes themselves are unchanged. The entry guard that clears bit 0x80 when the terrain is 0x14 is County_FindCastleTile's stamp, which is how a built castle stops blocking its owner. |
+| `0x00466D84` | `Unit_MoveInFacing()` | inferred | Commits one step of g_movingUnit in the facing it has already been given: erases the sprite, plays the per-kind movement sound (army 0x0C, mob 5, merchant/transport 0x0B), adds the eight compass deltas to x, y and tileOffset (+-1 tile, +-8 and +-0x200 bytes of g_tiles), redraws, then sets onRoad from bit 0x01 of the tile's plane-0 flag byte. Unit_StepOnce is the caller: it charges the move (3 off-road, 1 on-road), writes facing, and calls this. [D] - the check that could have failed is that all eight cases are exactly the eight compass deltas and that tileOffset stays (y*64+x)*8 in every one of them; a case that disagreed would have shown up as a ninth delta. |
 | `0x0046673C` | `Unit_CrossField()` | verified | A step onto a farm field: charges 3 extra moves and, when the tile's county is not the unit's own, worsens diplomacy by 10 (human owners only) and calls County_DestroyField. Total cost 6, which is what g_moveCost holds for a field. |
 | `0x00469E5B` | `County_DestroyField(tileOffset)` | verified | Removes one field: a grain field takes crop * (100/fieldsSown) percent off county +0x244 and decrements +0x201; a pasture takes the same fraction off the herd and decrements +0x200. The tile is repainted bare. |
 | `0x00469E0E` | `County_TileIsField(tileOffset)` | verified | True when the tile terrain is in 2..0x16, the range County_DestroyField will act on. |
@@ -293,8 +318,8 @@ Written up in full in [`battle.md`](battle.md).
 | `0x004801F8` | `Battle_RaiseSideSiege(armyUnit, outnumbered, side)` | inferred | The castle-defender variant of Battle_RaiseSide: uses g_raiseOrderSiege (8 troop types, no catapult/tower/ram), forces archers and crossbowmen to at most 3 figures per unit, and places units by wall slot rather than by deployment marker. |
 | `0x00480599` | `BattleUnit_LoadTroopStats(troopType)` | verified | Copies one row of g_troopBattleStats (0x004D96D0, stride 0x14) into scratch globals, then the matching row of g_missileStats (0x004D97B0) selected by the weapon class in field +0x0C. |
 | `0x00480662` | `BattleUnit_Create(siegePlacement, troopType, outnumbered, side, men, owner, mercenary)` | verified | Allocates a battle unit and fills it with ceil(men / g_menPerFigure) figures laid out in a rectangle. Sets the unit category from the troop type, and copies the troop and missile stats into every figure. |
-| `0x0046E4C8` | `BattleMan_Create(troopType, x0, dx, y0, dy, owner, unit)` | verified | Allocates the first free slot of the 80-entry figure array g_battleMen (stride 0x1B0), places it on the battlefield, writes its index into cell byte +5 and links it to its unit. Returns 0 when all 80 slots are in use, which silently truncates the army. |
-| `0x0046E97A` | `BattleUnit_Alloc(owner, humanControlled)` | verified | Allocates the first free slot of the 80-entry unit array g_battleUnits (stride 0x34); a slot is free when byte +0 (owner) is zero. Leaves the index in g_lastBattleUnit. |
+| `0x0046E4C8` | `BattleMan_Create(troopType, x0, dx, y0, dy, owner, unit)` | verified | Allocates the first free slot of the figure array g_battleMen (81 records, slots 1..80 usable) (stride 0x1B0), places it on the battlefield, writes its index into cell byte +5 and links it to its unit. Returns 0 when all 80 slots are in use, which silently truncates the army. |
+| `0x0046E97A` | `BattleUnit_Alloc(owner, humanControlled)` | verified | Allocates the first free slot of the unit array g_battleUnits (81 records, slots 1..80 usable) (stride 0x34); a slot is free when byte +0 (owner) is zero. Leaves the index in g_lastBattleUnit. |
 | `0x0046E767` | `Missile_Spawn(owner, x, y, tx, ty)` | verified | Allocates one of the 100 slots of g_missiles (stride 0x4C) and sets its start and target positions in 1/32-cell units. Used for arrows, bolts, catapult shot, thrown oil, fire and falling figures. |
 | `0x0046EBAE` | `BattleUnit_Clear(rec)` | verified | Zeroes one 0x34-byte battle unit record. |
 | `0x0046EB3F` | `BattleMan_Clear(rec)` | verified | Zeroes one 0x1B0-byte battle figure record. |
@@ -357,8 +382,8 @@ Written up in full in [`battle.md`](battle.md).
 
 | Address | Name | Confidence | Meaning |
 |---|---|---|---|
-| `0x00554480` | `g_battleMen` | verified | Battle figure array, 80 records of 0x1B0 bytes, index 1..80 (0 unused). A figure is one drawn man representing g_menPerFigure real soldiers. +0x09 selected, +0x12 troop type, +0x13 owner is human, +0x18 facing 0..7, +0x1C cell byte offset, +0x20/+0x22 x,y, +0x24/+0x26 target x,y, +0x2C owner (0 = free slot), +0x31 state, +0x172 armour, +0x174 target figure, +0x178 owning unit, +0x17A side, +0x17E melee opponent, +0x189 move delay, +0x18B melee recovery interval, +0x197 strength band, +0x198 heavy-blow bonus, +0x19A hits, +0x19C melee attack, +0x1A0 men left. Full map in docs/battle.md. |
-| `0x00566520` | `g_battleUnits` | verified | Battle unit array, 80 records of 0x34 bytes, index 1..80 (0 unused). A unit is what the player selects and orders. +0x00 owner (0 = free slot), +0x01 human controlled, +0x02 figure count, +0x03 side (0 or 4), +0x04/+0x06 first and last figure index, +0x08 category, +0x0F firing timer, +0x14 re-target countdown, +0x1A orders, +0x1E/+0x20 position, +0x22/+0x24 target, +0x2C ordered target figure, +0x30 target cell offset. |
+| `0x00554480` | `g_battleMen` | verified | Battle figure array, 81 records of 0x1B0 bytes, index 1..80 (0 unused). A figure is one drawn man representing g_menPerFigure real soldiers. +0x09 selected, +0x12 troop type, +0x13 owner is human, +0x18 facing 0..7, +0x1C cell byte offset, +0x20/+0x22 x,y, +0x24/+0x26 target x,y, +0x2C owner (0 = free slot), +0x31 state, +0x172 armour, +0x174 target figure, +0x178 owning unit, +0x17A side, +0x17E melee opponent, +0x189 move delay, +0x18B melee recovery interval, +0x197 strength band, +0x198 heavy-blow bonus, +0x19A hits, +0x19C melee attack, +0x1A0 men left. Full map in docs/battle.md. Eighty usable slots but eighty-one records of storage: every sweep is for (i = 1; i < 0x51; i++), so index 80 is live, and nothing else in the binary claims the space behind it. |
+| `0x00566520` | `g_battleUnits` | verified | Battle unit array, 81 records of 0x34 bytes, index 1..80 (0 unused). A unit is what the player selects and orders. +0x00 owner (0 = free slot), +0x01 human controlled, +0x02 figure count, +0x03 side (0 or 4), +0x04/+0x06 first and last figure index, +0x08 category, +0x0F firing timer, +0x14 re-target countdown, +0x1A orders, +0x1E/+0x20 position, +0x22/+0x24 target, +0x2C ordered target figure, +0x30 target cell offset. Eighty usable slots but eighty-one records of storage: every sweep is for (i = 1; i < 0x51; i++), so index 80 is live, and nothing else in the binary claims the space behind it. |
 | `0x0057A100` | `g_missiles` | verified | Missile / effect array, 100 records of 0x4C bytes, index 1..100. +0x06 firing figure, +0x08 owner, +0x09 class (1 bow, 2 crossbow, 3 catapult, 5 fire, 7 falling figure), +0x0A/+0x0C position in 1/32 cell, +0x14/+0x16 cell x,y, +0x1C cell byte offset, +0x2F launch elevation, +0x36 distance flown, +0x38 range, +0x40 power. |
 | `0x005440E0` | `g_battlefield` | verified | Battlefield cell array, 80x80 records of 8 bytes, index (y*80 + x)*8. +0 terrain id, +1 flags (0x10 and 0x80 impassable), +2 flags, +3 graphic index, +4 elevation, +5 index of the figure standing here, +6 head of the missile list in this cell, +7 surface type (7 bridge, 10 and 17 burning, 15 woodland). |
 | `0x0053E8F8` | `g_curBattleMan` | verified | Index of the figure currently being updated. The whole figure state machine reads its subject from this global rather than from a parameter. |
