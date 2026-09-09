@@ -746,7 +746,21 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // The *colour* is still ours: `g_realms[owner].field_0x8` is a palette
         // byte out of the save and we have the realm number instead. Only the
         // emboss is read out of the binary here.
-        let owner = format!("REALM {}", c.owner);
+        //
+        // **The third line is a name now.** It read `REALM 3` because nothing
+        // in this workspace filled `g_playerNames`; the front end fills it at
+        // *Start* — the local player's from what was typed on setup page 4, an
+        // AI lord's from `L2.eng` group 7 — so the line says *SOVEREIGN LAND /
+        // OF / THE BARON* the way the original's does.
+        //
+        // **The fallback is not decoration.** A world that did not come through
+        // the front end — a `.sav` imported by `l2-scenario`, a kingdom a test
+        // built — has no names in it, and an empty third line under two full
+        // ones looks like a drawing fault rather than like missing data.
+        let owner = match ctx.game.player_names[c.owner as usize].as_str() {
+            n if n.is_empty() => format!("REALM {}", c.owner),
+            n => n,
+        };
         let colour = ink.realm.get(c.owner as usize).copied().unwrap_or(ink.text);
         let style = crate::shell::font::Style {
             colour,

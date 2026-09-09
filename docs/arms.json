@@ -84,9 +84,132 @@
       "what": "0x12 and 0x13, the prompt and the report either side of a battle",
       "complete": true,
       "note": "0x12 and 0x13 only. The rest of the campaign-side chrome is not in this file."
+    },
+    "text": {
+      "what": "TYPING. Every text-entry field in the game, and the keyboard dispatch behind them.",
+      "complete": true,
+      "note": "THE GAME HAS SEVEN TEXT FIELDS. Enumerated exhaustively and from the direction that cannot miss one: `g_editActive` (0x005AEB78) is the single flag that decides whether a keystroke reaches the edit buffer at all, Screen_HandleInput CLEARS it at the top of every frame, and exactly seven of its arms set it again. Every one of those seven is a record below, and there is no eighth because there is no eighth writer of the flag in the binary. A second enumeration from a different direction agrees, and closes exactly: Edit_Commit (0x0040210C) -- the OTHER end, where the buffer is copied out to wherever the field belongs -- also has exactly SEVEN call sites, and they are the same seven places, each one two lines below its `g_editActive = 1`. Four distinct destination buffers between them, because three of the seven share DAT_00553E80. (Edit_Begin, the third end, has 23 call sites over 14 seed strings, and is NOT a count of fields: a seed is the text a field opens with, and most of those 14 are string literals in .rdata.)\n\nTHE DISPATCH IS THE WINDOW PROCEDURE (0x004B29BE), not Screen_FrameInput and not Screen_HandleInput -- which is why an audit that read the screen ladders found no text entry to count. WM_CHAR (0x102) is one statement, Edit_TypeChar(ch), with NO screen test; the seven editing keys are WM_KEYDOWN (0x100) cases and are equally ungated. The whole editor is one 2000-byte buffer at 0x005CD550 with a caret, two limits and a kind, and the sixteen functions between 0x00401984 and 0x0040210C are all of it.\n\nARMS ARE COUNTED PER IMPLEMENTATION here as everywhere: the seven editing keys are ONE record each even though every field is edited by the same seven, because crates/l2-game/src/text.rs has one function each. The seven FIELDS are seven records because they are seven guards in seven places."
+    },
+    "front-end-keys": {
+      "what": "The keyboard on setup screen 0x1F and the save/load box 0x35/0x36",
+      "complete": true,
+      "note": "Recorded because enumerating the text fields meant reading these ladders anyway, and what it turned up is that THE FRONT END HAS NO KEYBOARD AT ALL in the original: not one of Screen_HandleInput's thirteen g_setupPage arms tests a key, and the window procedure has no g_screenId == 0x1F case. Every `ours/setup-*` and `ours/saveload-*` record below is therefore an invention, and they are KEPT rather than removed -- a menu a person cannot drive from the keyboard is worse, not more faithful. They are here so the count is honest, which is the whole point of the `invention` status."
     }
   },
   "arms": [
+    {
+      "id": "0x00401C5B/enter-confirms",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "0x35",
+      "gesture": "key",
+      "addr": "0x00401C5B",
+      "what": "VK_RETURN IS THE SAVE/LOAD BOX'S CONFIRM BUTTON. Edit_Confirm's whole body is `g_saveLoadConfirm = 100`, which is the IDENTICAL assignment the confirm widget's own handler FUN_004342F3 makes, and SaveLoad_Tick (0x004AD9F0) reads that latch, builds the path and does the load or the save.",
+      "note": "Ours had Enter confirm this box as a convenience, unattributed. Reading the keyboard path turned it into an arm -- the one case in this group where a guess happened to be right, and it is worth as much as the ones that were wrong.",
+      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00401C70/backspace",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00401C70",
+      "what": "VK_BACK: caret back one, THEN delete. Not gated on the field being full, which is what makes deleting the only way out of a field that has hit either limit.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00401CA3/toggle-insert",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00401CA3",
+      "what": "VK_INSERT: g_editInsert ^= 1, and that is the whole function. It matters far more than the name suggests, because OVERWRITE IS THE DEFAULT -- see 0x00401D26/overwrite-default -- so this is the key that turns typing OVER the name you have into typing BESIDE it.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00401CBC/caret-left",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00401CBC",
+      "what": "VK_LEFT: `if (0 < caret) caret--`. The window procedure's arm ALSO steps g_debugSelectedMan down, which is the battle debug panel's figure index and is the one debug key of the four that is ungated.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00401CDA/caret-right",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00401CDA",
+      "what": "VK_RIGHT: `if (caret < length) caret++`. Stops at the length, not at the character limit.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00401CFC/caret-home",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00401CFC",
+      "what": "VK_HOME: caret = 0.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00401D11/caret-end",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00401D11",
+      "what": "VK_END: caret = length. The window procedure's VK_END arm calls TWO functions -- this and Chat_Close (0x004360F2) -- so the same key also cancels a pending save; see 0x004360F2/end-cancels-confirm, which is a separate record and is missing.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00401D26/overwrite-default",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00401D26",
+      "what": "Edit_Insert has TWO branches with DIFFERENT limits and the wrong-looking one is the default. g_editInsert (0x005C9280) starts at zero, zero is the OVERWRITE branch -- `buf[caret++] = ch`, bounded only by the caret reaching the character limit -- and the insert branch additionally needs the LENGTH to be under it. So arriving on the name page, whose field is seeded with the name you already have, and typing E, d gives Edayer1 and not Ed. docs/bugs.md BNEW-overwrite-default.",
+      "note": "Reproduced as found, not corrected. The caret glyph follows it and is the opposite way round to the usual convention: underline for overwrite, I-beam for insert.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00401DC8/delete",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00401DC8",
+      "what": "VK_DELETE, through 0x00401C93: the tail shifts left over the caret and the caret stays. More load-bearing than it looks -- see 0x00401D26/overwrite-default, where it is how a person gets from Edayer1 to Ed.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040ACCE/caret",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "timer",
+      "addr": "0x0040ACCE",
+      "what": "Edit_DrawCaret: a counter 0..=16 stepped once per call, drawn only above 8, so EIGHT FRAMES LIT IN SEVENTEEN. Two shapes: overwrite draws a 2-pixel underline under the character, insert draws a 15-pixel I-beam with four serifs before it. The underline's width is the advance of the character UNDER the caret, and at the end of the text that character is the terminator, whose advance FUN_004015B9 returns as 0 -- so the caret at the end of a name is a two-pixel stub.",
+      "note": "Not an input arm; recorded because it is the whole of the affordance -- there is no focus ring and no second plate frame, so a field with no caret is indistinguishable from a label, which is exactly what ours were. Ours steps on a TICK rather than a frame, because docs/netcode.md does not let anything below the renderer read a clock. Presentation only.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
     {
       "id": "0x0040DECA/battle-menu-bar",
       "status": "missing",
@@ -96,6 +219,17 @@
       "addr": "0x0040DECA",
       "what": "Menu_OpenDropdown(&g_menuBarItems, 3) -- File, Options and Help are live during a battle, so a player can save, load, quit or open the options from the battlefield.",
       "note": "The same arm is missing on the campaign map (crates/l2-game/src/screens/map.rs's table). Saving mid-battle is a question nobody has answered: Screen_HandleInput has no 0x29 arm and Menu_SaveGame does not test g_battlePhase.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00420316/chat-line",
+      "status": "missing",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x00420316",
+      "what": "FIELD 7 OF 7 -- THE MULTIPLAYER CHAT LINE, and the only field that is not on a screen. Chat_Frame sets g_editActive from OUTSIDE Screen_HandleInput -- which is why the flag is cleared at the top of Screen_HandleInput only `if (g_chatTimer < 1)` -- commits to DAT_00553E80 at 64 characters and draws the line over whatever is underneath. Sixty-four characters, 470 pixels, kind 0, seeded empty.",
+      "note": "Opened by Chat_Toggle on VK_RETURN, and it takes over Return, End and every printable key on ANY screen while it is up: 0x0043600C refuses only screens 0x0A, 0x0D and 0x17. Missing because there is no multiplayer.",
       "evidence": "V"
     },
     {
@@ -206,6 +340,39 @@
       "addr": "0x004329A4",
       "what": "Hotspot_Test(0x1E0, 0x1C0, &DAT_004DC710, 5) -- the five 32x32 buttons in a row at (480, 448). This record is the hit test; the five actions are five records of their own.",
       "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432B05/name-field-open",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "0x1F",
+      "gesture": "left-release",
+      "addr": "0x00432B05",
+      "what": "Arriving at page 4 SEEDS the field with the name you already have: both hotspot arms that open it -- FUN_00432B05's hotspot 2 and FUN_00432CC8's hotspots 3 and 5 -- run `Edit_Begin(&g_options, 0x10, 0xC0, 0); Edit_RecomputeLength();` immediately after setting g_setupPage = 4.\n\nAND THE ASYMMETRY IS REAL: arriving at page 4 from page 5 or page 6 does NOT re-seed, because those arms set the page and nothing else. So a name typed on the way in through the campaign chooser survives the round trip and a name typed before going out to the title menu does not.",
+      "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043600C/chat-toggle",
+      "status": "missing",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x0043600C",
+      "what": "VK_RETURN's SECOND half -- the window procedure calls Edit_Confirm and then this. Opens the chat line if g_multiplayer is set and the screen is not 0x0A, 0x0D or 0x17, giving it a 5000-frame life; pressing it again sends the line as Net_SendCommand(6, 0) and closes it.",
+      "note": "Missing because there is no multiplayer. Recorded because it explains why Enter is NOT free on any screen in the original, which is the thing a reimplementation gets wrong: our screens spend Enter on activate, confirm and dismiss in five places.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004360F2/end-cancels-confirm",
+      "status": "missing",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x004360F2",
+      "what": "VK_END's SECOND half, and it is genuinely odd: Chat_Close clears g_chatTimer AND g_saveLoadConfirm, so pressing End after Enter on the save box CANCELS THE PENDING SAVE. The two counters are cleared by one function because chat and the save box are the only two things Return arms, and nothing separates them again.",
+      "note": "Reachable in single player -- neither half is guarded on g_multiplayer -- so this is a real key a person can press on a real save box, not a multiplayer-only arm. Missing because our save is immediate and has no latch to cancel; a save that took 150 frames the way SaveLoad_Tick's does would need it.",
       "evidence": "V"
     },
     {
@@ -423,6 +590,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x0049BAE9/name-to-playernames",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "0x1F",
+      "gesture": "left-release",
+      "addr": "0x0049BAE9",
+      "what": "Player_SetHuman -- where a typed name stops being a keystroke: `g_realms[p].isHuman = 1; g_playerNames[p].occupied = 1; Str_Copy(0x53F1E0, &g_playerNames + p * 0x2C, 0x1F);`. THIRTY-ONE bytes out of the settings block into the name array, and the player index IS the realm index -- the same argument selects both.\n\nThe AI half of the same array is a different width and a different source: Eng_Seek(7, realm.lord) and SIXTEEN bytes copied. L2.eng group 7 is 'The Knight, The Baron, The Countess, The Bishop, No player', and the index is the LORD, not the realm and not the colour.",
+      "note": "g_playerNames is a save block of its own (g_saveBlocks[2] = {0x00553D50, 264} = 6 x 0x2C), which is why ours is on Game beside realm_colour rather than on Kingdom: the lockstep digest is hash_of(kingdom) and a name cannot change a number.",
+      "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x004B29BE/debug-add-hits",
       "status": "missing",
       "group": "battlefield",
@@ -463,6 +642,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x004B29BE/wm-char",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "any",
+      "gesture": "key",
+      "addr": "0x004B29BE",
+      "what": "WM_CHAR's WHOLE ARM is Edit_TypeChar(ch) -- 0x00401A20 -- with no test of g_screenId, so every printable character a person types anywhere in the game goes into the one edit buffer. Whether it LANDS is g_editActive's business, not this arm's.\n\nTHE CHARACTER SET, exactly, in the chain's own order: space always; , . ? ! only when the field's kind is 0; - always; 0-9 always; a-z always; A-Z always, LOWER-CASED by 0x004011B0 when the kind is not 0; 0x80-0x9A, 0xA0-0xA7 and 0xE1 always. Everything else is dropped in SILENCE -- no beep, no message -- and that includes the apostrophe, the ampersand, every bracket and all of 0xA8-0xE0. A person typing O'Neill gets ONeill.",
+      "note": "Ours arrives as Event::Text rather than Event::KeyDown, which is the same split Windows makes: WM_KEYDOWN carries a key and WM_CHAR carries a character. It has to be, because Key::Char is folded to upper case for the hotkeys and a name typed through it would come out RICHARD.",
+      "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x004B99C0/cursor",
       "status": "reproduced",
       "group": "battlefield",
@@ -493,6 +684,74 @@
       "addr": "0x004BA9C8",
       "what": "DAT_004DDBB0[0], the thumb up at (332, 116), hotspot id 1 -> FUN_0043B593 -> Battle_Start. It RAISES THE BATTLEFIELD; it does not settle the battle.",
       "ours": "crates/l2-game/src/screens/battle.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/setup-name",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "0x1F",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 1 OF 7 -- THE LORD'S NAME. Screen_HandleInput's g_setupPage == 4 arm: `g_editActive = 1; Edit_RecomputeLength(); Chat_Timeout(); if (g_messageGroup == 0 && DAT_0055CD78 == 0) Edit_Commit(&g_options, 0x1F);`. The commit runs EVERY FRAME the page is up rather than on a button, and the two guards are a message box and an open drop-down over the page.\n\nThe limits are Edit_Begin's: SIXTEEN characters, 192 pixels, kind 0. The destination is g_options + 0 (0x0053F1E0), the persisted settings block, whose name field is 31 bytes and defaults to 'Player1' -- so the commit width (31) and the edit width (16) are different numbers and the smaller one is what a person meets.",
+      "note": "This is the field a player reported missing: 'I can't type my name in the start menu?'",
+      "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/saveload-name",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "0x35",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 2 OF 7 -- THE SAVED GAME'S FILE NAME. Screen_HandleInput's arm is `else if (g_screenId == '5' || g_screenId == '6')`, ONE arm for both screens, so the original lets a person type the name of the game they want to LOAD as well as the one they want to save. SaveLoad_Tick builds the path out of the edit buffer either way -- `Str_Copy(0x4EA130, 0x4EAD60, 0xC); Path_AddExtension(...)` -- and never out of the highlighted row; clicking a row is what puts a name INTO the buffer.\n\nEdit_Begin's limits here are EIGHT characters, 160 pixels, KIND 1 -- a DOS 8.3 name, so A-Z is lower-cased and , . ? ! are refused, the game supplying .sav, .svb or .sva itself.",
+      "note": "Two of the three limits are reproduced and the eight is not: our saves are .l2sav files in %APPDATA% and saves::MAX_NAME is 64. Holding a person to eight characters on a filesystem that has not had that limit since 1995 is superstition rather than fidelity -- the same line this module already draws about the scroll clamp. The 160-pixel limit still bites first.",
+      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/setup-load-name",
+      "status": "missing",
+      "group": "text",
+      "screen": "0x1F",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 3 OF 7 -- the front end's own load box, g_setupPage == 3. The same field as 0x004BA9C8/saveload-name with the same limits and the same destination buffer (DAT_004EA130, eight characters, kind 1), reached by FUN_00432CC8's hotspot 2, which also picks the extension by game mode: .sav single player, .svb multiplayer client, .sva multiplayer host.",
+      "note": "Missing because our SetupPage::Load is still a shell that draws three empty recesses -- it has no file list and no field. The screen 0x35/0x36 version of the same box is built.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/diplo-letter",
+      "status": "missing",
+      "group": "text",
+      "screen": "0x1A",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 4 OF 7 -- THE LETTER YOU WRITE TO ANOTHER LORD, and the longest field in the game: `g_editActive = 1; Edit_RecomputeLength(); Edit_Commit(&g_diploLetterDraft + (g_diploKind * 5 - 5) * 0x28, 199);`. Two hundred characters, and the PIXEL limit is passed as 10000, which is fifteen screens wide and therefore no limit at all -- the only field in the game with none.\n\nOne arm, four buffers: g_diploKind 1..4 each index their own 200-byte slot at 0x0053F2B8, 0x0053F380, 0x0053F448 and 0x0053F510, and Diplo_OpenCompliment and its three neighbours each Edit_Begin their own. Counted as ONE arm because it is one guard and one computed destination.",
+      "note": "The diplomacy agent's screen. Recorded here because the enumeration found it, and it is the field most likely to be missed by someone building screen 0x1A from the painters -- the letter has no plate of its own.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/mp-custom-name",
+      "status": "missing",
+      "group": "text",
+      "screen": "0x1F",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 5 OF 7 -- the multiplayer custom game's name, g_setupPage == 8: `g_editActive = 1; Edit_RecomputeLength(); Edit_Commit(&DAT_00553E80, 0x40); Str_ToLower(&DAT_00553E80);`. Sixty-four characters and then LOWER-CASED WHOLESALE by 0x00401246 after the commit -- which is a second, cruder lowering than the kind-1 filter's, applied to a kind-0 field.",
+      "note": "Missing because there is no multiplayer, not because it was overlooked.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/mp-skirmish-name",
+      "status": "missing",
+      "group": "text",
+      "screen": "0x1F",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 6 OF 7 -- the same field on the multiplayer skirmish page, g_setupPage == 11. Byte-for-byte the same three statements as 0x004BA9C8/mp-custom-name, under a different page guard, which is why it is a second arm and not the same one.",
+      "note": "Missing because there is no multiplayer.",
       "evidence": "V"
     },
     {
@@ -544,6 +803,83 @@
       "gesture": "key",
       "what": "Escape and Enter dismissed the battle report.",
       "why": "0x13's arm is a right-button test and Ui_OkButtonClicked. No key."
+    },
+    {
+      "id": "ours/saveload-key-escape",
+      "status": "invention",
+      "removed": false,
+      "group": "front-end-keys",
+      "screen": "0x35",
+      "gesture": "key",
+      "what": "Escape closes the save/load box.",
+      "why": "SaveLoad_Cancel (0x00434308) is the cross widget and nothing reaches it from the keyboard.",
+      "ours": "crates/l2-game/src/screens/saveload.rs"
+    },
+    {
+      "id": "ours/saveload-key-scroll",
+      "status": "invention",
+      "removed": false,
+      "group": "front-end-keys",
+      "screen": "0x35",
+      "gesture": "key",
+      "what": "Up and Down scroll the file list by one row of three.",
+      "why": "The original scrolls that list from the two arrow widgets and from nothing else. KEPT because a thirty-name list with no keyboard is awkward; note that Left and Right, which this screen also spent on the list, have been GIVEN BACK -- they are Edit_Left and Edit_Right, and a screen that spent them on a list left a person unable to move the caret in the one place the game has one.",
+      "ours": "crates/l2-game/src/screens/saveload.rs"
+    },
+    {
+      "id": "ours/setup-key-activate",
+      "status": "invention",
+      "removed": false,
+      "group": "front-end-keys",
+      "screen": "0x1F",
+      "gesture": "key",
+      "what": "Enter or Space activates the highlighted item.",
+      "why": "As above. NARROWED by the name field: on page 4 the field takes Space as a character, because that is what it is, so this arm no longer fires there. Enter still does, and in the original Enter on page 4 is Chat_Toggle and does nothing in single player.",
+      "ours": "crates/l2-game/src/screens/setup.rs"
+    },
+    {
+      "id": "ours/setup-key-down",
+      "status": "invention",
+      "removed": false,
+      "group": "front-end-keys",
+      "screen": "0x1F",
+      "gesture": "key",
+      "what": "Down moves the highlight to the next item.",
+      "why": "As above.",
+      "ours": "crates/l2-game/src/screens/setup.rs"
+    },
+    {
+      "id": "ours/setup-key-escape",
+      "status": "invention",
+      "removed": false,
+      "group": "front-end-keys",
+      "screen": "0x1F",
+      "gesture": "key",
+      "what": "Escape is the page's Back button, or leaves the front end from the title page.",
+      "why": "The window procedure's Escape arm is Menu_Quit when DAT_0052AF94 == 3 and `g_backOut = 1` otherwise; neither knows what page the front end is on.",
+      "ours": "crates/l2-game/src/screens/setup.rs"
+    },
+    {
+      "id": "ours/setup-key-index",
+      "status": "invention",
+      "removed": false,
+      "group": "front-end-keys",
+      "screen": "0x1F",
+      "gesture": "key",
+      "what": "I opens crate::screens::index, our own list of every screen.",
+      "why": "A development affordance, and index is marked as ours already. NARROWED by the name field: on page 4 the letter I is the letter I.",
+      "ours": "crates/l2-game/src/screens/setup.rs"
+    },
+    {
+      "id": "ours/setup-key-up",
+      "status": "invention",
+      "removed": false,
+      "group": "front-end-keys",
+      "screen": "0x1F",
+      "gesture": "key",
+      "what": "Up moves the highlight to the previous item.",
+      "why": "The original's front end has no keyboard at all -- see the group note. KEPT: a menu a person cannot drive from the keyboard is worse, not more faithful.",
+      "ours": "crates/l2-game/src/screens/setup.rs"
     }
   ]
 }

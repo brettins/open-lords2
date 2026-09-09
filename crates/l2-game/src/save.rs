@@ -74,7 +74,10 @@ pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 /// * 2 — the campaign section: which of the two campaigns, how many of its maps
 ///   have been won, whether this one is over, and the ending messages still
 ///   queued. Without it a saved campaign always resumed at map one.
-pub const VERSION: u32 = 2;
+/// * 3 — `g_playerNames`: six 31-byte lord names, in the realms section beside
+///   the colours. Without it the name a person typed on setup page 4 lasted
+///   until they saved.
+pub const VERSION: u32 = 3;
 
 /// Magic, version, the prefix's length and the kingdom blob's length.
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
@@ -273,6 +276,12 @@ fn encode_prefix(game: &Game, out: &mut Canonical) {
     out.section("realms");
     out.u32(MAX_REALMS as u32);
     out.raw(&game.realm_colour);
+    // `g_playerNames`, fixed width and no length prefix, because that is what
+    // the original's own save block is: six 44-byte records of which 31 bytes
+    // are the name. See `Game::player_names`.
+    for name in &game.player_names {
+        out.raw(name.bytes());
+    }
     for gold in &game.gold_last {
         out.i32(*gold);
     }
@@ -372,6 +381,12 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
     }
     let mut realm_colour = [0u8; MAX_REALMS];
     realm_colour.copy_from_slice(input.raw(MAX_REALMS)?);
+    let mut player_names = [crate::text::PlayerName::EMPTY; MAX_REALMS];
+    for slot in player_names.iter_mut() {
+        let mut bytes = [0u8; crate::text::PLAYER_NAME_LEN];
+        bytes.copy_from_slice(input.raw(crate::text::PLAYER_NAME_LEN)?);
+        *slot = crate::text::PlayerName::from_bytes(bytes);
+    }
     let mut gold_last = [0i32; MAX_REALMS];
     for slot in gold_last.iter_mut() {
         *slot = input.i32()?;
@@ -413,6 +428,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         battle: None,
         map_slot: map_slot as usize,
         realm_colour,
+        player_names,
         selected,
         anchor_x,
         anchor_y,

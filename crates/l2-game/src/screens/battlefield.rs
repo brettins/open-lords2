@@ -335,6 +335,11 @@ impl Screen for BattlefieldScreen {
                 self.redraw |= acted;
                 Transition::Stay
             }
+            // `WM_CHAR`. The battlefield's four key arms are all `WM_KEYDOWN`
+            // virtual-key ones — the nine digits and H/V — and there is no text
+            // field on any of the three battle screens, so the character
+            // message has nothing to do here. See `crate::text`.
+            Event::Text(_) => Transition::Stay,
         }
     }
 

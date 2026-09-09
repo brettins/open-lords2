@@ -75,6 +75,13 @@ use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::setup::SetupOptions;
 use crate::shell::{self, font, Pen};
+use crate::text::{self, TextField};
+
+/// `Edit_Begin(&g_options, 0x10, 0xC0, 0)` — the name field's own three
+/// arguments, in one place because three call sites open it.
+fn begin_name(seed: &str) -> TextField {
+    TextField::begin(seed, text::NAME_MAX_TYPED, text::NAME_MAX_PIXELS, text::Kind::Text)
+}
 
 /// `g_setupPage` (`0x005530F0`). The thirteen values `FUN_0041E7E1` switches on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -177,6 +184,10 @@ impl SetupPage {
 /// *"Lords of the Realm 2"* to index 49.
 pub const GROUP: usize = 11;
 /// Group 39, the expansion pack's two choices.
+/// `Eng_Seek(7, realm.lord)` — *"The Knight, The Baron, The Countess, The
+/// Bishop, No player"*. Five strings, indexed by the lord.
+pub const LORD_TITLE_GROUP: usize = 7;
+
 pub const GROUP_EXPANSION: usize = 39;
 /// Group 40, the load/save captions.
 pub const GROUP_FILE: usize = 40;
@@ -223,6 +234,14 @@ pub const OPTION_ITEMS: [usize; 5] = [6, 7, 19, 8, 9];
 const SHIELD_BUTTONS: [(i32, i32, usize); 2] = [(0x70, 0xD7, 9), (0x150, 0xD7, 11)];
 
 /// The five shields: `x = 0x70 + 0x58 i`, `y = 0x8C`, from `FUN_0041F1DD`.
+/// `Pl8_DrawFrameHere(panels2, 0xCC, 0xD0, 0x48)` — the 224 x 32 recess the
+/// name sits in, and `Ui_DrawText(&g_options, 0xD6, 0x50, …)` the text inside
+/// it. Six pixels in and eight down from the plate's corner.
+pub const NAME_PLATE_X: i32 = 0xD0;
+pub const NAME_PLATE_Y: i32 = 0x48;
+pub const NAME_X: i32 = 0xD6;
+pub const NAME_Y: i32 = 0x50;
+
 const SHIELD_X: i32 = 0x70;
 const SHIELD_STEP: i32 = 0x58;
 const SHIELD_Y: i32 = 0x8C;
@@ -356,6 +375,29 @@ pub struct SetupScreen {
     /// template, more lords than seats — leaves the game untouched and says so
     /// under the grid. Silence would look exactly like a button that works.
     failure: Option<String>,
+    /// **The lord's name, being typed.** `g_editBuffer` while page 4 is up.
+    ///
+    /// A player reported *"I can't type my name in the start menu?"*, and this
+    /// is the field they were looking for. Both arms that open page 4 —
+    /// `FUN_00432B05`'s hotspot 2 and `FUN_00432CC8`'s hotspots 3 and 5 — run
+    /// `Edit_Begin(&g_options, 0x10, 0xC0, 0)` before anything else, so the
+    /// field is seeded with the name you already have, sixteen characters, one
+    /// hundred and ninety-two pixels, free text. [`crate::text`] is the engine
+    /// and `docs/arms.json`'s `text` group is the inventory.
+    ///
+    /// It lives here rather than being made on entry because our page 4 is
+    /// reachable from three places and a field rebuilt on each of them would
+    /// lose what was typed; [`SetupScreen::go`] does the `Edit_Begin` at
+    /// exactly the moments the original does.
+    name: crate::text::TextField,
+    /// The persisted `g_options` name — what the field is seeded *from*, and
+    /// where a commit goes back to.
+    ///
+    /// `g_options` is one 0x468-byte block the original `fread`s and `fwrite`s
+    /// whole, and byte 0 begins a 31-byte name. We have no settings file yet,
+    /// so this is that byte run and nothing else, defaulted the way
+    /// `Options_SetDefaults` defaults it.
+    saved_name: String,
 }
 
 impl SetupScreen {
@@ -373,7 +415,20 @@ impl SetupScreen {
             map_read: false,
             unhonoured: Vec::new(),
             failure: None,
+            name: begin_name(text::DEFAULT_PLAYER_NAME),
+            saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
         }
+    }
+
+    /// What the name field holds, for a test or a caller that wants to know
+    /// what *Start* would name the lord.
+    pub fn name(&self) -> String {
+        self.name.commit(text::PLAYER_NAME_LEN)
+    }
+
+    /// The field itself, for a test that wants to look at the caret.
+    pub fn name_field(&self) -> &text::TextField {
+        &self.name
     }
 
     /// The twelve selections, for a test or a caller that wants to know what
@@ -641,7 +696,22 @@ impl SetupScreen {
         }
     }
 
+    /// **Every arrival at page 4 re-seeds the name field**, because every one
+    /// of the original's does.
+    ///
+    /// `FUN_00432B05` (page 1 → 4, *Multiple players*) and `FUN_00432CC8`
+    /// (page 2 → 4, both of its two arms) each set `g_setupPage = 4` and then
+    /// immediately run `Edit_Begin(&g_options, 0x10, 0xC0, 0)` and
+    /// `Edit_RecomputeLength`. Arriving from page 5 or 6 does **not** — those
+    /// two arms set the page and nothing else, so a name typed on the way in
+    /// through the campaign chooser survives the round trip. That asymmetry is
+    /// the original's and is reproduced by seeding from
+    /// [`SetupScreen::saved_name`], which only a commit moves.
     fn go(&mut self, page: SetupPage) -> Transition {
+        if page == SetupPage::Shield && self.page != SetupPage::Shield {
+            // arm: 0x00432B05/name-field-open
+            self.name = begin_name(&self.saved_name);
+        }
         self.page = page;
         self.selected = 0;
         Transition::Stay
@@ -723,10 +793,43 @@ impl SetupScreen {
             }
         }
         settings.apply_to(ctx.game);
+        self.name_the_lords(ctx);
         // `Game_NewGame`'s last economic call. Everything above is the position
         // the original hands to it.
         ctx.game.last_report = Some(ctx.game.kingdom.start_new_game());
         Transition::Push(ScreenId::Campaign)
+    }
+
+    /// **Fill `g_playerNames`** — the one place the typed name stops being a
+    /// keystroke and becomes part of the game.
+    ///
+    /// Two sources, and both are the original's:
+    ///
+    /// * the local player's is `Player_SetHuman` (`0x0049BAE9`), which is
+    ///   `g_realms[p].isHuman = 1; g_playerNames[p] = g_options; …` — the
+    ///   thirty-one bytes of the settings block's name field, copied by
+    ///   `FUN_00401136(0x53F1E0, &g_playerNames + p * 0x2C, 0x1F)`;
+    /// * every other realm's is `Eng_Seek(7, realm.lord)` and **sixteen** bytes
+    ///   copied. `L2.eng` group 7 is *"The Knight, The Baron, The Countess, The
+    ///   Bishop"* and index 4 is *"No player"*, and the index is the **lord**,
+    ///   not the realm and not the colour — `docs/diplomacy.md` §0.1.
+    ///
+    /// **Sixteen, not thirty-one, for the AI half** — the copy width really is
+    /// different between the two paths, and none of group 7's four titles is
+    /// long enough for it to show.
+    fn name_the_lords(&self, ctx: &mut Ctx) {
+        let local = ctx.game.player as usize;
+        for realm in 0..l2_kingdom::realm::MAX_REALMS {
+            let name = if realm == local {
+                // arm: 0x0049BAE9/name-to-playernames
+                self.name.commit(text::PLAYER_NAME_LEN)
+            } else {
+                let lord = ctx.game.kingdom.realms[realm].lord as usize;
+                let title = ctx.assets.shell.text(LORD_TITLE_GROUP, lord.min(4));
+                title.chars().take(0x10).collect()
+            };
+            ctx.game.player_names[realm] = text::PlayerName::new(&name);
+        }
     }
 }
 
@@ -773,18 +876,56 @@ impl Screen for SetupScreen {
         if !self.map_read {
             self.read_map(ctx);
         }
+        // `Edit_DrawCaret` counts its own frames; ours counts ticks, because
+        // nothing under the renderer may read a clock. `crate::text`.
+        if self.page == SetupPage::Shield {
+            self.name.tick();
+        }
         Transition::Stay
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let n = self.count().max(1);
+        // **The name field gets first refusal on page 4, and only there.**
+        //
+        // `Screen_HandleInput`'s page-4 arm is the one that sets `g_editActive`
+        // (`0x005AEB78`), and that flag is what decides whether a keystroke
+        // reaches the buffer at all — so on every other page of the front end
+        // the keys below keep the meaning they have here today. On page 4 they
+        // do not: `Space` is a space in a name, and `I` is the letter I.
+        //
+        // The commit is `Edit_Commit(&g_options, 0x1F)`, which the original
+        // runs **every frame** while the page is up rather than on a button.
+        // Doing it per keystroke is the same thing at the only moments the
+        // buffer can have changed.
+        if self.page == SetupPage::Shield {
+            // arm: 0x004BA9C8/setup-name
+            let metrics = text::FontMetrics::of(&ctx.assets.shell);
+            if self.name.event(event, &metrics) {
+                self.saved_name = self.name.commit(text::PLAYER_NAME_LEN);
+                return Transition::Stay;
+            }
+        }
+        // **Everything below this line is ours.** The front end has no keyboard
+        // at all in the original: not one of `Screen_HandleInput`'s thirteen
+        // `g_setupPage` arms tests a key, and the window procedure has no
+        // `g_screenId == 0x1F` case. Its whole interface is `Hotspot_Test` and
+        // `Widget_Test`. That is recorded rather than removed — a menu a person
+        // cannot drive from the keyboard is worse, not more faithful — and the
+        // records are `ours/setup-*` in `docs/arms.json`.
         match event {
+            // arm: ours/setup-key-up
             Event::KeyDown(Key::Up) => self.selected = (self.selected + n - 1) % n,
+            // arm: ours/setup-key-down
             Event::KeyDown(Key::Down) => self.selected = (self.selected + 1) % n,
+            // arm: ours/setup-key-activate
             Event::KeyDown(Key::Enter) | Event::KeyDown(Key::Space) => return self.activate(ctx),
             // Ours: the demo's index of every screen. `screens::index` says
             // why it exists and marks itself as not the game's.
+            //
+            // arm: ours/setup-key-index
             Event::KeyDown(Key::Char('I')) => return Transition::Push(ScreenId::Index),
+            // arm: ours/setup-key-escape
             Event::KeyDown(Key::Escape) => {
                 // Whatever the page is, Escape is its own way back — the
                 // original's Back button where there is one, and out of the
@@ -997,11 +1138,45 @@ impl SetupScreen {
     /// when it is taken, at `x = 0x70 + 88(i - 1)`, `y = 0x8C`; the 54 × 27
     /// plaque marks the chosen one at `(x + 4, 0x70)`.
     fn paint_shields(&self, canvas: &mut Canvas, pen: &Pen) {
-        let Some(sheet) = pen.assets.sheet(BOX_SHEET) else { return };
-        // The name field, and the player's name in it at (0xD6, 0x50).
-        if let Some(f) = sheet.frame(0xCC) {
-            canvas.blit(&f, 0xD0, 0x48);
+        // **The name field, and it now has a name in it.**
+        //
+        // `FUN_0041F321` is five statements and every one of them is here:
+        //
+        // ```c
+        // g_caretPlaced = 0; g_caretX = 0; g_drawIndex = 0;
+        // g_editDrawing = 1; g_penAdvance = 0;
+        // Pl8_DrawFrameHere(panels2, 0xCC, 0xD0, 0x48);      /* the plate      */
+        // Ui_DrawText(&g_options, 0xD6, 0x50, &g_fontBody, 0x3F);
+        // if (!g_caretPlaced) { g_caretX = g_penAdvance; g_caretPlaced = 1; }
+        // g_caretX += 0xD6;  g_caretY = 0x52;
+        // Edit_DrawCaret(0x5AF8F0, 0x3F);                    /* the caret      */
+        // ```
+        //
+        // The plate is drawn **before** the text and the caret **after** it,
+        // which is why the caret is a solid bar rather than a shape the plate
+        // eats. `g_caretPlaced` is set by `Ui_DrawText` itself when the drawing
+        // index reaches `g_editCaret`, so the caret x is the pen after that
+        // many characters and needs nothing from the caller;
+        // `TextField::caret_x` computes the same number the same way.
+        //
+        // **The plate is the same frame whether or not the field is being
+        // typed into.** There is no focus ring and no second frame: the caret
+        // is the whole of the affordance, which is why it had to be built
+        // rather than skipped.
+        let sheet = pen.assets.sheet(BOX_SHEET);
+        match sheet.and_then(|s| s.frame(0xCC)) {
+            Some(f) => canvas.blit(&f, NAME_PLATE_X, NAME_PLATE_Y),
+            // No `Panels2.pl8`. A recess of our own, so the field is still a
+            // field on a placeholder install and a test can still find it.
+            None => shell::button_recess(canvas, NAME_PLATE_X, NAME_PLATE_Y, 0xE0, 0x20),
         }
+        pen.body(canvas, NAME_X, NAME_Y, &self.name.text(), font::TEXT);
+        // `font::TEXT` is `0x3F`, a palette index; with no font loaded the
+        // fallback renderer draws in named interface colours instead, and the
+        // caret has to follow the text it belongs to.
+        let ink = if pen.assets.body.is_some() { font::TEXT } else { pen.ink.text };
+        self.name.draw_caret(canvas, NAME_X, NAME_Y, ink, &text::FontMetrics::of(pen.assets));
+        let Some(sheet) = sheet else { return };
         for i in 1..6usize {
             let x = SHIELD_X + (i as i32 - 1) * SHIELD_STEP;
             if i - 1 == self.shield {

@@ -81,15 +81,41 @@ pub enum Key {
     Escape,
     Enter,
     Space,
-    /// Only the save screen's name field reads it. It is here rather than being
-    /// folded into [`Key::Char`] because a text field has to tell "the player
-    /// typed a backspace" from "the player typed a character", and no other
-    /// screen in this crate has a text field at all.
+    /// `VK_BACK`, and the first of the **six editing keys the original's window
+    /// procedure dispatches straight into the text buffer** — see
+    /// [`crate::text`], which reproduces all of them.
+    ///
+    /// It is a variant of its own rather than a [`Key::Char`] because a text
+    /// field has to tell "the player typed a backspace" from "the player typed
+    /// a character".
+    ///
+    /// **This paragraph used to say "only the save screen's name field reads
+    /// it … no other screen in this crate has a text field at all."** That was
+    /// true and it was the bug: the original has seven text fields and we had
+    /// one hand-rolled imitation. `docs/arms.json`, group `text`.
     Backspace,
     Up,
     Down,
     Left,
     Right,
+    /// `VK_HOME` — `Edit_Home` (`0x00401CFC`). Caret to the start.
+    Home,
+    /// `VK_END` — `Edit_End` (`0x00401D11`). Caret to the end.
+    ///
+    /// The original's arm does two things, not one: `Edit_End` *and*
+    /// `Chat_Close` (`0x004360F2`). The second half is multiplayer chat and is
+    /// not reproduced.
+    End,
+    /// `VK_INSERT` — `Edit_ToggleInsert` (`0x00401CA3`), which is `g_editInsert
+    /// ^= 1`.
+    ///
+    /// **It matters more here than the name suggests**: overwrite is the
+    /// original's default, so this is the key that turns *typing over the name
+    /// you already have* into *typing beside it*.
+    Insert,
+    /// `VK_DELETE` — `Edit_Delete` (`0x00401C93` → `0x00401DC8`). The tail
+    /// shifts left over the caret.
+    Delete,
     /// A printable character, already folded to uppercase so a screen never
     /// has to match both cases.
     Char(char),
@@ -124,7 +150,26 @@ impl Key {
 pub enum Event {
     /// A key went down. Key *repeat* is delivered as further presses, which is
     /// what makes holding an arrow key step a value.
+    ///
+    /// **`WM_KEYDOWN` (`0x100`)**, and the original's window procedure
+    /// (`0x004B29BE`) dispatches it on virtual-key codes: the editing keys, the
+    /// nine control-group digits, the function keys and Escape.
     KeyDown(Key),
+    /// **A character was typed** — `WM_CHAR` (`0x102`), whose whole arm in the
+    /// window procedure is `Edit_TypeChar(ch)`.
+    ///
+    /// A second event rather than a field on [`Event::KeyDown`], because in the
+    /// original it is a **second message**, and the two carry different things:
+    /// `WM_KEYDOWN` carries a *key* and `WM_CHAR` carries a *character*, with
+    /// the shift state, the keyboard layout and the dead keys already applied.
+    ///
+    /// **That distinction is load-bearing here and not a nicety.**
+    /// [`Key::Char`] is folded to upper case so a hotkey matcher writes one
+    /// case — which is right for a hotkey and fatal for a name, because a
+    /// person typing *Richard* would get *RICHARD*. Windows sends both messages
+    /// for a printable key and so does `main.rs`: the hotkey arms read the
+    /// folded [`Event::KeyDown`], the text fields read this.
+    Text(char),
     /// The pointer moved to a canvas pixel.
     ///
     /// **Clamped into the canvas, not dropped.** The window is scaled by an

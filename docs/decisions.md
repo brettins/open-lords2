@@ -3393,6 +3393,123 @@ enumeration here reaches the same six by a different route. The totals differ �
 §15.11 states the rule and says where the difference most likely is. Two enumerations agreeing
 on a sub-count they were not aligned on is worth more than either total.
 
+**CNEW-text-entry — Nobody could type anything, and the reason the arms audit missed it is
+that the keyboard is not on the screens at all.**
+
+A player wrote one line: *"I can't type my name in the start menu?"* The answer was that
+**this workspace had no keyboard text entry of any kind.** `Key::Backspace` was manufactured
+by `main.rs` and read by one hand-rolled `String` on the save screen; `Key::Char` reached
+hotkeys and nothing else. Every field the original lets a person type into was absent, and
+nobody had counted them.
+
+**The game has seven text fields.** That number is the deliverable, and it is exhaustive
+rather than a survey, because there is a single flag that decides whether any keystroke lands:
+`g_editActive` (`0x005AEB78`). `Screen_HandleInput` **clears it at the top of every frame** and
+exactly **seven** of its arms set it again. Enumerate the writers of that one byte and you have
+enumerated typing:
+
+| # | screen | field | limits | destination |
+|---:|---|---|---|---|
+| 1 | `0x1F` page 4 | **the lord's name** | 16 chars, 192 px, kind 0 | `g_options` + 0, 31 bytes |
+| 2 | `0x35` / `0x36` | the saved game's file name | 8 chars, 160 px, **kind 1** | `DAT_004EA130`, 64 |
+| 3 | `0x1F` page 3 | the front end's load box, same field | 8, 160, kind 1 | `DAT_004EA130`, 64 |
+| 4 | `0x1A` kinds 1–4 | **the letter you write to a lord** | 200 chars, *no* pixel limit | `g_diploLetterDraft + (kind−1)·200`, 199 |
+| 5 | `0x1F` page 8 | the multiplayer game's name | 64, 192, kind 0, then lower-cased | `DAT_00553E80`, 64 |
+| 6 | `0x1F` page 11 | the same on the skirmish page | as above | `DAT_00553E80`, 64 |
+| 7 | *any* | **the multiplayer chat line** | 64 chars, 470 px, kind 0 | `DAT_00553E80`, 64 |
+
+A **second enumeration from a different direction agrees**, which is the only reason to
+believe the first. `Edit_Commit` (`0x0040210C`) is the *other* end — where the buffer is copied
+out to wherever the field actually belongs — and it has **exactly seven call sites, which are
+the same seven places**, each two lines below its own `g_editActive = 1`. Four distinct
+destination buffers between them, because three of the seven share `DAT_00553E80`. Two of the
+seven are built now (1 and 2); three of the remaining five are multiplayer, one is
+diplomacy's, and one is a front-end screen still in the shell table.
+
+**This paragraph said something weaker and wrong until it was re-read at the moment of
+writing**, which is the practice `docs/agents.md` argues for and this is a small vindication of
+it. The draft cited `Edit_Begin` (`0x00402009`) instead: *"23 call sites naming six distinct
+destination buffers."* Both halves are wrong. `Edit_Begin`'s first argument is the **seed** —
+the text a field opens *with* — not the destination, and its 23 sites name **fourteen** seeds,
+most of which are string literals in `.rdata` rather than fields. Counting seeds would have
+over-counted the fields and called it corroboration. The true second enumeration is the commit
+side, and it is *stronger* than the claim it replaced: not "every one of them is one of the
+seven" but **seven and seven, paired**.
+
+**Why the arms audit found none of them, which is the part worth carrying.** C61 enumerated
+`Screen_FrameInput` screen by screen and reported 80 of 185 arms — *and it counted mouse arms*,
+because that is what `Screen_FrameInput` holds. **The keyboard is dispatched from the window
+procedure** (`0x004B29BE`), which is not a screen ladder and was not in the audit's scope.
+`WM_CHAR` (`0x102`) is one statement — `Edit_TypeChar(ch)` — with **no test of `g_screenId`
+whatever, and the seven editing keys are equally ungated `WM_KEYDOWN` cases.** An audit that
+reads per-screen ladders is structurally blind to input that is not per-screen, and this was a
+whole class of it: *seven fields and eight keys, none of which any screen mentions.*
+
+That generalises past this feature. **When an enumeration reports a percentage, ask what the
+denominator's shape excludes**, not only whether it counted its own members correctly. C61's
+denominator was "arms of `Screen_FrameInput`", which is a *place*, and every input that lives
+somewhere else scored zero without ever appearing as a miss.
+
+**What was found by reading the editor that would not have been guessed.** Sixteen functions
+between `0x00401984` and `0x0040210C` are the whole of it, over one 2,000-byte buffer:
+
+* **Overwrite is the default.** `g_editInsert` is BSS, zero is the overwrite branch, and
+  `Edit_Begin` does not reset it — so typing `Ed` over the seeded `Player1` gives `Edayer1`.
+  `docs/bugs.md` BNEW-overwrite-default. Reproduced.
+* **The character set is seven byte ranges and everything else is dropped in silence** —
+  including the apostrophe, so `O'Neill` becomes `ONeill`. Kind 1 additionally refuses `,` `.`
+  `?` `!` and lower-cases `A`–`Z`, which is a DOS 8.3 name.
+* **The caret is the whole affordance.** There is no focus ring and no second plate frame; a
+  field with no caret is indistinguishable from a label, which is exactly what ours were. It
+  blinks eight ticks in seventeen and has two shapes, the opposite way round to the usual
+  convention: underline for overwrite, I-beam for insert.
+* **`VK_RETURN` is the save box's confirm button** (`Edit_Confirm`, `0x00401C5B`, sets the same
+  latch the tick widget does). Ours had that as an unattributed convenience; it turns out to be
+  an arm — the one guess in this area that was right.
+* **`VK_END` cancels a confirmed save**, because it also calls `Chat_Close`, which clears that
+  latch. `docs/bugs.md` BNEW-end-cancels-save.
+* **The front end has no keyboard at all.** Not one of `Screen_HandleInput`'s thirteen
+  `g_setupPage` arms tests a key, and the window procedure has no `0x1F` case. Our seven
+  keyboard arms there are inventions; they are **kept** — a menu nobody can drive from the
+  keyboard is worse, not more faithful — and recorded as `invention` with `removed: false`,
+  which is the first use of that combination the schema was written for.
+
+The inventory is `docs/arms.json`, groups `text` and `front-end-keys`, 29 new records; the
+engine is `crates/l2-game/src/text.rs`.
+
+**CNEW-encoding-comments — The field-coverage check matched prose, so the better a field was
+documented the less it checked.**
+
+`crates/l2-testkit/tests/encoding.rs` is the guard against `docs/decisions.md` C30's family —
+*a field the encoder never writes*. Adding `Game::player_names` and then **deleting the loop
+that encodes it** left the check **green**. The comment above the deleted loop still said the
+words `player_names`, and `mentions()` matches text.
+
+This is `docs/agents.md`'s *"a check that passes for an accidental reason"* with an
+uncomfortable twist: the accident was **good documentation**. A field with a bare
+`out.raw(...)` was genuinely checked; a field with a paragraph above it explaining what it is
+was not. The better this project writes, the less that check was worth — which is exactly
+backwards, and no amount of re-reading the check's assertions would have shown it. Only the
+ablation did.
+
+Two more holes fell out of the same half-hour, and both are the same shape — *a thing the
+scanner cannot see is a thing it silently makes no claim about*:
+
+* **`Game` was outside the check entirely.** It is the type at the top of every saved file, and
+  the scanner keys on `impl Encode for T`; `l2_game::save` uses free functions
+  (`encode`/`encode_prefix`), so `Game` had never been checked at all. It is named explicitly
+  now in `FREE_FUNCTION_CODECS`, which **asserts that its heads still resolve** — a check that
+  silently stops checking is worse than no check. Bringing it in required six deliberate
+  `not-encoded:` markers, which is six decisions that were previously implicit.
+* **`pub(crate)` fields were skipped.** The scanner stripped `pub ` only, so `pub(crate) turn:`
+  produced a "name" with a parenthesis in it and was dropped by the identifier guard. One field
+  invisible for as long as nobody looked.
+
+**The rule this argues for**, and it is cheap: **a source-scanning check must strip what it is
+not reading.** Comments are not code. And when such a check is extended to a new type, run the
+ablation *for that type* — the general "does the check work" was answered years of tests ago
+and says nothing about whether it works here.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

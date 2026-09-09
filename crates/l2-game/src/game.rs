@@ -453,6 +453,29 @@ pub struct Game {
     /// misread offset into a plausible colour 1 for every realm, which is
     /// exactly the failure a test cannot see.
     pub realm_colour: [u8; MAX_REALMS],
+    /// **`g_playerNames` (`0x00553D54`)** — what each realm's lord is called.
+    ///
+    /// Six records, indexed by realm, and the index really is the realm:
+    /// `Player_SetHuman` (`0x0049BAE9`) writes `g_realms[p].isHuman` and
+    /// `g_playerNames[p]` from the same argument. Two sources fill it and they
+    /// are both new-game work:
+    ///
+    /// * **the human's** is the string a person typed on setup page 4, copied
+    ///   out of `g_options` — see [`crate::text`] and
+    ///   [`crate::screens::setup::SetupScreen`];
+    /// * **an AI lord's** is `Eng_Seek(7, realm.lord)` and sixteen bytes
+    ///   copied. `L2.eng` group 7 is *The Knight, The Baron, The Countess, The
+    ///   Bishop* — indexed by the **lord**, which is not the realm and not the
+    ///   colour (`docs/diplomacy.md` §0.1).
+    ///
+    /// **Here rather than on `Realm`, and it changes what it is covered by.**
+    /// The original keeps names outside `g_realms` too — they are a save block
+    /// of their own — and the reason holds for us: the lockstep digest is
+    /// `Canonical::hash_of(kingdom)` and a name cannot change a number. Putting
+    /// it in the kingdom would make a cosmetic string a desync source. It is in
+    /// the save, in the prefix beside [`Game::realm_colour`], which is the
+    /// other per-realm thing the interface draws and the rules never read.
+    pub player_names: [crate::text::PlayerName; MAX_REALMS],
     /// The county under the cursor's last click, or 0 for none. County ids are
     /// 1-based in the original, so 0 is a usable "nothing".
     pub selected: u8,
@@ -488,6 +511,9 @@ pub struct Game {
     /// headless turn changed when the prompt was built.
     ///
     /// The interactive door ([`crate::turn::begin_turn`]) ignores it and asks.
+    ///
+    /// not-encoded: session state. A save is written between turns, so no
+    /// prompt is outstanding when one is taken.
     pub field_policy: crate::engagement::Answer,
     /// **A turn that stopped to ask.** `None` between turns, which is almost
     /// always.
@@ -496,9 +522,16 @@ pub struct Game {
     /// not something a caller may drop: the kingdom is in a state no rule
     /// describes — two armies on one tile with the battle unresolved — and the
     /// only safe thing to do with it is finish it. See [`crate::turn`].
+    ///
+    /// not-encoded: session state, and the same argument as
+    /// [`Game::field_policy`] — a half-run turn cannot be in a file because the
+    /// only door to the save screen is between turns.
     pub(crate) turn: Option<crate::turn::TurnProgress>,
     /// **What this machine is like**, as against what this game is. Never in
     /// the save, never in the digest, never below this crate. See [`Prefs`].
+    ///
+    /// not-encoded: one person's preferences, not the world's state. A save
+    /// that carried them would push them onto whoever loads it.
     pub prefs: Prefs,
     /// **The presentation quirks, as the person set them.**
     ///
@@ -517,6 +550,10 @@ pub struct Game {
     /// sees, which is the failure `docs/decisions.md` C30 records five of.
     ///
     /// Never in the save and never in the digest, exactly like [`Prefs`].
+    ///
+    /// not-encoded: presentation. The *behavioural* quirks are the world's and
+    /// are in `l2_kingdom::save`; these can only change which pixels are
+    /// painted from the same numbers.
     pub presentation_quirks: Quirks,
     /// **The levy in progress** — the original's five globals, which three
     /// screens share and none of them owns.
@@ -525,6 +562,9 @@ pub struct Game {
     /// above, and not in the save for the same reason: the original saves from
     /// the campaign map and nowhere else, so a levy is never half-made when a
     /// file is written. See [`LevyOrder`].
+    ///
+    /// not-encoded: session state. The durable half — the realm's weapon stocks
+    /// the basket was seeded from — is in the kingdom already.
     pub levy: LevyOrder,
     /// **The battle the player is watching**, or `None`, which is almost
     /// always.
@@ -542,6 +582,9 @@ pub struct Game {
     /// File menu, whose three titles the battle screen does draw, and
     /// `Screen_HandleInput` has no arm for `0x29`. Whether the original refuses
     /// or misbehaves there was not established.
+    ///
+    /// not-encoded: session state, and the paragraph above is the whole
+    /// argument — the original cannot save inside a battle either.
     pub battle: Option<Box<crate::battlefield::LiveBattle>>,
 }
 
@@ -594,6 +637,11 @@ impl Game {
             player: 1,
             map_slot: 0,
             realm_colour: [0; MAX_REALMS],
+            // Empty, not "Player1": `Options_SetDefaults` seeds the persisted
+            // *settings* block with a default name and new-game setup is what
+            // copies a name into `g_playerNames`. A world nobody has set up has
+            // no lords in it to be called anything.
+            player_names: [crate::text::PlayerName::EMPTY; MAX_REALMS],
             selected: 0,
             anchor_x: [0; MAX_COUNTIES],
             anchor_y: [0; MAX_COUNTIES],
