@@ -482,6 +482,85 @@ pub fn build_tick(t: &Tables, county: &mut County, id: u8, out: &mut Vec<Message
     true
 }
 
+// ---------------------------------------------------------------------------
+// Switching an industry on and off
+// ---------------------------------------------------------------------------
+
+/// What a click on a building on the campaign map toggles.
+///
+/// `Map_Click` picks this from a ladder on the clicked tile's graphic index,
+/// and the whole ladder is: **0…3 iron, 4…6 stone, 7…9 weapons, 10…12 wood,
+/// 13…20 nothing at all, 21 and above the castle.** `[D]` — `Map_Click`'s own
+/// `if`/`else if` chain, and it is the only way to reach
+/// [`toggle_from_map`]: **nothing on any county panel switches an industry**.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MapToggle {
+    /// One of the four commodities: its enable byte, county `+0x297 + c*0x18`.
+    Industry(Commodity),
+    /// County `+0x1B0` — the switch a player throws by dragging builders onto
+    /// the castle, and the second gate `Labour_Allocate` puts on castle
+    /// building. Until now this crate had no such field and treated it as
+    /// permanently thrown ([`crate::labour::ceilings`]).
+    Castle,
+}
+
+/// The ladder itself, so a screen can ask "is this building anything?".
+pub fn map_toggle_for_graphic(graphic: u8) -> Option<MapToggle> {
+    match graphic {
+        0..=3 => Some(MapToggle::Industry(Commodity::Iron)),
+        4..=6 => Some(MapToggle::Industry(Commodity::Stone)),
+        7..=9 => Some(MapToggle::Industry(Commodity::Weapons)),
+        10..=12 => Some(MapToggle::Industry(Commodity::Wood)),
+        13..=20 => None,
+        _ => Some(MapToggle::Castle),
+    }
+}
+
+/// `Industry_ToggleFromMap` (`0x0043D309`) — switch one industry, or castle
+/// building, on or off.
+///
+/// ```c
+/// enabled ^= 1;                                   /* +0x297 + c*0x18, or +0x1B0 */
+/// County_RefreshEstimates(county, seasonNext);
+/// Labour_ToggleIndustryShare(county, jobFor(industry), enabled);
+/// County_RefreshEstimates(county, seasonNext);
+/// Labour_Allocate(county); Ration_Apply(county, season); Labour_Allocate(county);
+/// County_RefreshEstimates(county, seasonNext);
+/// ```
+///
+/// **`[D]`.** The enable byte is what [`crate::labour::ceilings`] already gates
+/// each mining job on, so switching one off empties that job on the next
+/// allocation — which is the point of the button. The castle arm reads its
+/// switch *before* flipping it, so the share is toggled to the state the switch
+/// was **leaving**, not the one it lands in; that is the original's order and
+/// it is kept.
+///
+/// The caller supplies the allocation and the estimates it can run, as
+/// [`crate::field::set_type`] does and for the same reasons —
+/// [`crate::Kingdom::toggle_industry`] is the whole thing assembled.
+pub fn toggle_from_map(county: &mut County, what: MapToggle) -> bool {
+    match what {
+        MapToggle::Industry(c) => {
+            let slot = c.index();
+            county.industry[slot].enabled = !county.industry[slot].enabled;
+            crate::labour::toggle_industry_share(
+                county,
+                c.job(),
+                county.industry[slot].enabled,
+            );
+            county.industry[slot].enabled
+        }
+        MapToggle::Castle => {
+            // `local_c = (castleSwitch != 0)` is taken **before** the flip, and
+            // that stale value is what reaches the share toggle. Reproduced.
+            let was = county.castle_switch;
+            crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, was);
+            county.castle_switch = !was;
+            county.castle_switch
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

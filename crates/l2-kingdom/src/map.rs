@@ -58,11 +58,41 @@ pub mod flags {
     pub const PLOT: u8 = 0x10;
     /// Farmland. The terrain byte then says which crop state it is in.
     pub const FARMLAND: u8 = 0x20;
-    /// Castle site. These form complete 2×2 blocks, four per county.
+    /// **Misnamed: this is the county town, not the castle.** `docs/decisions.md`
+    /// C25 said so from `L2.eng`'s own words; `Map_Click` (`0x0043CE1A`) proves
+    /// it from behaviour, because its whole plane-0 dispatch is three bits in
+    /// this order:
+    ///
+    /// ```c
+    /// if      (flags & 0x80) { ...the industry / castle toggle ladder... }
+    /// else if (flags & 0x40) { g_screenId = 2; Village_Draw(1); }   /* the village */
+    /// else if (flags & 0x20) { g_screenId = 4; }                    /* the field brush */
+    /// ```
+    ///
+    /// **Clicking a `0x40` tile opens the village**, which is the county town by
+    /// definition. And the England turn-one fixture agrees: every one of the
+    /// fourteen counties has **exactly four** `0x40` tiles, in one 2×2 block, all
+    /// at terrain 0 — verified.
+    ///
+    /// The constant keeps its name here for now because `cost_map` and
+    /// [`crate::movement`] read it under that name in half a dozen places and
+    /// renaming it means re-reading `Unit_TryEnterTile`'s return codes with it.
+    /// **Nothing behaves wrongly** — the bit is read consistently; only the word
+    /// beside it is wrong, which is exactly C25's shape.
     pub const CASTLE: u8 = 0x40;
-    /// A settlement, which for the purposes of this crate means an industry
-    /// site: `County_PlaceResourceSites` puts the iron, stone and wood records
-    /// on tiles carrying this bit.
+    /// A settlement: an industry site **or the castle**.
+    ///
+    /// `County_PlaceResourceSites` puts the iron, stone and wood records on
+    /// tiles carrying this bit, and `Map_Click` sends a click on one into
+    /// `Industry_ToggleFromMap` through a ladder on the *terrain* byte
+    /// ([`crate::industry::map_toggle_for_graphic`]).
+    ///
+    /// The England fixture shows the whole set, six or seven tiles a county and
+    /// the same shape every time: **one iron site, one stone, one weapons, one
+    /// wood, and a 2×2 block that is either terrain `0x14` or terrain `0x17`.**
+    /// The five counties with a `0x17` block are exactly the five that start
+    /// owned — so `0x17` is a standing castle and `0x14` is the empty plot it
+    /// gets built on, which closes the loose end C25 left open.
     pub const SETTLEMENT: u8 = 0x80;
 
     /// `plane0 & 0x0C` — sea, mountain or woodland. The **first** test the

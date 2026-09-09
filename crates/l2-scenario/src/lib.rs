@@ -79,6 +79,10 @@ const LABOUR_STRIDE: u32 = 0x0C;
 const LABOUR_SHARE_BASE: u32 = 0x130;
 const INDUSTRY_SHARE: u32 = 0x08;
 
+/// `+0x1B0` — the castle-building switch `Industry_ToggleFromMap` flips and
+/// `Labour_Allocate` gates castle building on.
+const CASTLE_SWITCH: u32 = 0x1B0;
+
 /// `g_countyFieldTiles` (`0x0053EA00`) — 17 × 20 × `u32`, **the map tiles that
 /// are each county's fields**, stored as byte offsets into [`TILES`].
 ///
@@ -265,6 +269,9 @@ pub struct CountyState {
     pub herd_eaten: i32,
     pub castle_type: u8,
     pub castle_building: u8,
+    /// `+0x1B0` — the castle-building switch a click on the castle throws.
+    /// See [`l2_kingdom::county::County::castle_switch`].
+    pub castle_switch: bool,
     pub fields_fallow: i32,
     pub fields_cattle: i32,
     pub fields_grain: i32,
@@ -430,6 +437,9 @@ impl Scenario {
                 herd_eaten: c.herd_eaten,
                 castle_type: c.castle_type,
                 castle_building: c.castle_building,
+                castle_switch: save
+                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + CASTLE_SWITCH)?
+                    != 0,
                 fields_fallow: c.fields_fallow as i32,
                 fields_cattle: c.fields_cattle as i32,
                 fields_grain: c.fields_grain as i32,
@@ -631,6 +641,7 @@ impl Scenario {
             c.ration_split = s.ration_split;
             c.castle_type = s.castle_type;
             c.castle_building = s.castle_building;
+            c.castle_switch = s.castle_switch;
             c.field_tiles = s.field_tiles;
             c.fertility = s.fertility;
             c.weather = s.weather;

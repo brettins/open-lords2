@@ -769,6 +769,40 @@ impl Kingdom {
         )
     }
 
+    /// **Switch one industry, or castle building, on or off.**
+    /// `Industry_ToggleFromMap` (`0x0043D309`) assembled — the enable byte, the
+    /// industry share, and the allocation the original runs afterwards.
+    ///
+    /// Like [`Kingdom::paint_field`] this is only reachable from a click on the
+    /// map, because in the original it is only reachable from a click on the
+    /// map: no county panel has an industry switch. Returns the state the
+    /// switch ends in.
+    ///
+    /// The original also runs `Ration_Apply` between its two allocations and
+    /// four estimate refreshes around them; this runs the three estimates the
+    /// crate has (see [`crate::field::refresh_estimates`]) and leaves the
+    /// ration pass to the season, which is the same gap
+    /// [`crate::field::set_type`] documents.
+    pub fn toggle_industry(&mut self, county: usize, what: crate::industry::MapToggle) -> bool {
+        if county == 0 || county > self.county_count {
+            return false;
+        }
+        let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
+        let advanced = self.options.advanced_farming;
+        let on = crate::industry::toggle_from_map(&mut self.counties[county], what);
+        for _ in 0..2 {
+            crate::labour::allocate(&mut self.counties[county]);
+            crate::field::refresh_estimates(
+                &mut self.counties[county],
+                &self.campaign.map,
+                season_next,
+                &self.tables,
+                advanced,
+            );
+        }
+        on
+    }
+
     /// The map tiles that are one county's fields, with what each is being
     /// used for — what a screen needs to draw the brush's targets.
     pub fn field_tiles(&self, county: usize) -> Vec<(usize, crate::field::FieldType)> {

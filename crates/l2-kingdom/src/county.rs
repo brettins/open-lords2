@@ -395,6 +395,19 @@ pub struct County {
     /// or a partly razed castle would both fit and neither is established
     /// (`docs/kingdom.md` §4.1).
     pub castle_degraded: bool,
+    /// `+0x1B0` — **the castle-building switch**, thrown from the map the same
+    /// way an industry is: [`crate::industry::toggle_from_map`] with
+    /// [`crate::industry::MapToggle::Castle`].
+    ///
+    /// `Labour_Allocate` gates castle building on this *and* on
+    /// [`County::castle_degraded`]. [`crate::labour::ceilings`] applies only
+    /// the second, and deliberately: the switch has three UI writers in the
+    /// original and no AI writer at all, so gating on it here would stop every
+    /// AI realm building a castle — a rule that is right for the original's
+    /// human player and wrong for everybody else in it. The field exists so the
+    /// map button has something to move; the gate is not added until the
+    /// original's own AI path for it is found.
+    pub castle_switch: bool,
     /// **Engine state.** `Castle_BuildTick` needs somewhere to accumulate
     /// progress against [`crate::tables::CASTLE_WORKFORCE`]; the document names
     /// the pass and the table but not the counter.
@@ -567,6 +580,7 @@ impl County {
             castle_type: 0,
             castle_building: 0,
             castle_degraded: false,
+            castle_switch: false,
             castle_progress: 0,
             event_population_pct: 0,
             event_grain_pct: 0,

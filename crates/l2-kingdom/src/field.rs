@@ -310,6 +310,11 @@ pub fn menu_for(terrain: u8) -> Option<&'static [FieldType]> {
 /// that is `100000` for wood on an owned county and `0` elsewhere, which is
 /// stable; it is still a gap, and `crates/l2-kingdom/tests/labour_gap.rs` is
 /// the test that goes red when it closes.
+///
+/// The argument list is long because a brush stroke reaches five things and
+/// this crate takes its world as values rather than owning it —
+/// [`crate::Kingdom::paint_field`] is the call a caller should make.
+#[allow(clippy::too_many_arguments)]
 pub fn set_type(
     counties: &mut [County],
     county_count: usize,

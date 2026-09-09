@@ -242,17 +242,39 @@ fn spend(
 /// **`[V]`**, byte for byte out of `Lords2.exe`. The first five entries are
 /// `100 / (n + 1)` for `n` = 0 … 4 — an even split once one more job joins the
 /// `n` that already have a share. The last three are not that sequence and are
-/// never indexed: [`toggle_share`] can only reach entries 0 … 3, because its
-/// caller counts non-zero shares among **three** jobs.
+/// never indexed: the two callers count non-zero shares among **three** and
+/// **five** jobs, so the largest `n` either can reach is 4.
 pub const SHARE_TABLE: [i32; 8] = [100, 50, 33, 25, 20, 0, 5, 0];
 
-/// The divisor [`toggle_share`]'s only caller passes: the farm group has three
+/// The divisor [`toggle_share`]'s caller passes: the farm group has three
 /// members. `Field_SetType` calls `Labour_ToggleShare(county, 2, on, 3)`.
+///
+/// **The industry twin has no divisor at all** — `FUN_004502CA` uses
+/// `g_shareTable[n]` neat. That asymmetry is the original's; a job joining the
+/// farm gets a *third* of an even split and a job joining industry gets the
+/// whole of one.
 pub const FARM_GROUP_DIVISOR: i32 = 3;
 
-/// The three jobs whose shares [`toggle_share`] renormalises — the farm group.
+/// The three jobs [`toggle_share`] renormalises, and the slot its remainder
+/// search is seeded with — cattle, so a tie goes to the herd.
 const FARM_GROUP: [usize; 3] =
     [JOB_GRAIN_FARMING, JOB_CATTLE_FARMING, JOB_FIELD_RECLAMATION];
+const FARM_SEED: usize = 1;
+
+/// The five [`toggle_industry_share`] renormalises, seeded with wood.
+///
+/// The order is the original's own read order in `FUN_004502CA`
+/// (`+0x148, +0x144, +0x140, +0x14C, +0x13C`), which is wood, stone, iron,
+/// blacksmith, castle. Only the seed depends on it — the sum does not — and the
+/// seed is what decides a tie.
+const INDUSTRY_GROUP: [usize; 5] = [
+    JOB_WOOD_CUTTING,
+    JOB_STONE_QUARRYING,
+    JOB_IRON_MINING,
+    JOB_BLACKSMITH,
+    JOB_CASTLE_BUILDING,
+];
+const INDUSTRY_SEED: usize = 0;
 
 /// `Labour_ToggleShare` (`FUN_00450639`, `0x00450639`, 677 bytes) — bring one
 /// farm job into the split, or take it out.
@@ -292,39 +314,65 @@ const FARM_GROUP: [usize; 3] =
 /// term is 0, so the pass is a no-op; it only bites where the two `Pct` calls
 /// have rounded the group away from 100, which is what it is for.
 pub fn toggle_share(county: &mut County, job: usize, on: bool, divisor: i32) {
+    toggle(county, job, on, divisor, &FARM_GROUP, FARM_SEED);
+}
+
+/// `FUN_004502CA` (`0x004502CA`, 879 bytes) — the same thing for the five
+/// industry jobs, and the only caller is `Industry_ToggleFromMap`.
+///
+/// Line for line the twin of [`toggle_share`] with a five-member group and no
+/// divisor, which is why both are [`toggle`]. Switching an industry off on the
+/// map takes its share out of the split and hands it to the rest; switching one
+/// on gives it `g_shareTable[n]`, an even share of the enlarged group.
+pub fn toggle_industry_share(county: &mut County, job: usize, on: bool) {
+    toggle(county, job, on, 1, &INDUSTRY_GROUP, INDUSTRY_SEED);
+}
+
+/// The body both share. `group` is the jobs whose percentages must go on
+/// summing to 100; `seed` indexes into it, and decides where a tie in the
+/// remainder search lands.
+fn toggle(
+    county: &mut County,
+    job: usize,
+    on: bool,
+    divisor: i32,
+    group: &[usize],
+    seed: usize,
+) {
     // The original spells this `(s || !on) && (!s || on)`, which is `s == on`.
     if (county.labour_share[job] == 0) != on {
         return;
     }
     if on {
-        let n = FARM_GROUP.iter().filter(|&&j| county.labour_share[j] != 0).count();
+        let n = group.iter().filter(|&&j| county.labour_share[j] != 0).count();
         let give = SHARE_TABLE[n.min(SHARE_TABLE.len() - 1)] / divisor.max(1);
         let scale = 100 - give;
-        for j in FARM_GROUP {
+        for &j in group {
             county.labour_share[j] = crate::math::pct(scale, county.labour_share[j]);
         }
         county.labour_share[job] = give;
     } else {
         let scale = 100 - county.labour_share[job];
         county.labour_share[job] = 0;
-        for j in FARM_GROUP {
+        for &j in group {
             county.labour_share[j] = crate::math::pct_of(county.labour_share[j], scale);
         }
     }
 
-    // `iVar1 = (100 - share[0]) - share[1]`, then the largest of the three
-    // takes `iVar1 - share[2]`. Seeded with slot 1 and with cattle's share,
-    // which is why a tie goes to cattle.
-    let short = (100 - county.labour_share[FARM_GROUP[0]]) - county.labour_share[FARM_GROUP[1]];
-    let mut best = FARM_GROUP[1];
-    let mut best_share = county.labour_share[FARM_GROUP[1]];
-    for j in FARM_GROUP {
+    // `100 - share[seed] - (every other member)`, added to whichever member is
+    // largest. On a group that already sums to 100 the term is 0, so the pass
+    // only bites where the `Pct` calls above have rounded it away from 100 —
+    // which is what it is for.
+    let short: i32 = 100 - group.iter().map(|&j| county.labour_share[j]).sum::<i32>();
+    let mut best = group[seed];
+    let mut best_share = county.labour_share[group[seed]];
+    for &j in group {
         if best_share < county.labour_share[j] {
             best = j;
             best_share = county.labour_share[j];
         }
     }
-    county.labour_share[best] += short - county.labour_share[FARM_GROUP[2]];
+    county.labour_share[best] += short;
 }
 
 /// `FUN_0044FF4A` — rewrite [`County::industry_share`] from what was actually

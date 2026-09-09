@@ -869,6 +869,138 @@ fn a_click_on_a_cluster_opens_its_job_popup() {
     assert_eq!(t, Transition::Push(ScreenId::Job(county, slots[2])));
 }
 
+// ---------------------------------------------------------------------------
+// The field brush
+// ---------------------------------------------------------------------------
+
+/// Centre the map on a tile and give back its screen position.
+fn on_screen(screen: &mut MapScreen, tile: usize) -> (i32, i32) {
+    let (x, y) = l2_kingdom::map::coords(tile);
+    screen.centre_on_tile(x as usize, y as usize);
+    l2_view::campaign::tile_centre(screen.viewport(), screen.zoom(), x as usize, y as usize)
+        .expect("a tile the viewport was just centred on is in the viewport")
+}
+
+/// **A player clicks one of their own fields and paints it to grain.**
+///
+/// Two clicks, both through `Screen::handle`: one on the tile, which is
+/// `Map_Click`'s farmland branch, and one on the grain button, which is the
+/// hotspot at `x 304 … 352, y 184 … 232`. Nothing here reaches into the
+/// simulation; the assertion is that the county's grain field count moved.
+#[test]
+fn clicking_a_field_and_then_the_grain_button_sows_it() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+
+    let (tile, kind) = game
+        .kingdom
+        .field_tiles(county as usize)
+        .into_iter()
+        .find(|&(_, k)| k == l2_kingdom::field::FieldType::Fallow)
+        .expect("a fallow field to paint");
+    assert_eq!(kind, l2_kingdom::field::FieldType::Fallow);
+    let before = game.kingdom.counties[county as usize].fields_grain;
+
+    let mut screen = MapScreen::new();
+    let (x, y) = on_screen(&mut screen, tile);
+    send(&mut screen, &mut game, &assets, Event::Click { x, y });
+
+    // The grain button is the middle column of the three-button menu.
+    send(&mut screen, &mut game, &assets, Event::Click { x: 328, y: 208 });
+    assert_eq!(
+        game.kingdom.counties[county as usize].fields_grain,
+        before + 1,
+        "the click reached Field_SetType"
+    );
+    assert_eq!(
+        game.kingdom.campaign.map.terrain[tile],
+        l2_kingdom::field::terrain::GRAIN,
+        "and the map tile is the terrain the hotspot's id names"
+    );
+}
+
+/// A click somewhere else while the popup is up dismisses it and paints
+/// nothing, which is what a modal hotspot table does.
+#[test]
+fn a_click_off_the_brush_popup_changes_nothing() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+    let (tile, _) = game.kingdom.field_tiles(county as usize)[0];
+    let before = game.kingdom.counties[county as usize].clone();
+
+    let mut screen = MapScreen::new();
+    let (x, y) = on_screen(&mut screen, tile);
+    send(&mut screen, &mut game, &assets, Event::Click { x, y });
+    send(&mut screen, &mut game, &assets, Event::Click { x: 40, y: 400 });
+    assert_eq!(game.kingdom.counties[county as usize], before);
+}
+
+/// **A click on a county that is not yours paints nothing**, which is the owner
+/// test `Map_Click` makes before it reaches any of the three hotspots.
+#[test]
+fn another_lords_fields_are_not_yours_to_paint() {
+    let (mut game, assets) = world!();
+    let theirs = (1..=game.kingdom.county_count as u8)
+        .find(|&id| !game.is_players(id) && game.kingdom.counties[id as usize].owner != 0)
+        .expect("somebody else holds a county");
+    let (tile, _) = game.kingdom.field_tiles(theirs as usize)[0];
+    let before = game.kingdom.counties[theirs as usize].clone();
+
+    let mut screen = MapScreen::new();
+    let (x, y) = on_screen(&mut screen, tile);
+    send(&mut screen, &mut game, &assets, Event::Click { x, y });
+    send(&mut screen, &mut game, &assets, Event::Click { x: 328, y: 208 });
+    assert_eq!(game.kingdom.counties[theirs as usize], before);
+}
+
+/// **A click on one of your own buildings switches its industry.**
+///
+/// `Map_Click`'s plane-0 dispatch tests bit `0x80` before farmland, and the
+/// industry comes from a ladder on the tile's terrain byte. The England
+/// position gives every county one iron site, one stone, one weapons and one
+/// wood, so a click on each is a click on a different industry.
+#[test]
+fn clicking_a_mine_switches_that_industry_off_and_on_again() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+
+    let map = &game.kingdom.campaign.map;
+    let sites: Vec<(usize, l2_kingdom::industry::MapToggle)> = (0..map.terrain.len())
+        .filter(|&t| {
+            map.county[t] == county && map.flags[t] & l2_kingdom::map::flags::SETTLEMENT != 0
+        })
+        .filter_map(|t| l2_kingdom::industry::map_toggle_for_graphic(map.terrain[t]).map(|w| (t, w)))
+        .collect();
+    assert!(sites.len() >= 4, "one site per industry: {sites:?}");
+
+    let mut screen = MapScreen::new();
+    for (tile, what) in sites {
+        let l2_kingdom::industry::MapToggle::Industry(c) = what else { continue };
+        let slot = c.index();
+        let before = game.kingdom.counties[county as usize].industry[slot].enabled;
+        let (x, y) = on_screen(&mut screen, tile);
+        send(&mut screen, &mut game, &assets, Event::Click { x, y });
+        assert_ne!(
+            game.kingdom.counties[county as usize].industry[slot].enabled, before,
+            "{c:?} at tile {tile} did not switch"
+        );
+        send(&mut screen, &mut game, &assets, Event::Click { x, y });
+        assert_eq!(
+            game.kingdom.counties[county as usize].industry[slot].enabled, before,
+            "{c:?} did not switch back"
+        );
+    }
+}
+
 /// Not a test: a way to look at the screen. `cargo test -p l2-game --test
 /// screens shoot -- --ignored` writes raw RGBA into `out/`, which `.gitignore`
 /// excludes. Renders of the game's own artwork are derived assets and must

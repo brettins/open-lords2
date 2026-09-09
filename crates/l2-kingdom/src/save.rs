@@ -644,6 +644,7 @@ impl Encode for County {
         out.u8(self.castle_type);
         out.u8(self.castle_building);
         out.bool(self.castle_degraded);
+        out.bool(self.castle_switch);
         out.i32(self.castle_progress);
         out.i32(self.event_population_pct);
         out.i32(self.event_grain_pct);
@@ -754,6 +755,7 @@ impl Decode for County {
         c.castle_type = input.u8()?;
         c.castle_building = input.u8()?;
         c.castle_degraded = input.bool()?;
+        c.castle_switch = input.bool()?;
         c.castle_progress = input.i32()?;
         c.event_population_pct = input.i32()?;
         c.event_grain_pct = input.i32()?;
