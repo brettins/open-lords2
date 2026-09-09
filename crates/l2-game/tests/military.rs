@@ -317,19 +317,82 @@ fn two_clicks_on_the_map_select_an_army_and_send_it_marching() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the map is still what is on screen");
 }
 
-/// A second click on the selected army cancels the order mode rather than
-/// ordering it to march onto itself.
+/// **A second click on the selected army ends the selection and orders
+/// nothing — and it is not a cancel, it is a refused destination.**
+///
+/// The distinction is the whole of what was wrong here. We had an explicit
+/// "clicking the same army again deselects it" branch in `click_unit`, which
+/// was ours: while move-order mode is up, `g_screenId` is `0x10` and
+/// `Map_Click` is not reachable at all, so the original never sees a second
+/// click on an army *as* a click on an army. It sees a destination, and
+/// `Map_HoverUnitTarget` has already cleared `g_moveOrderAvailable` for that
+/// tile because the flood fill's raw distance there is 1 — the army is
+/// standing on it. `Map_ConfirmMoveOrder` returns without writing anything,
+/// and `Screen_FrameInput` had already put the screen back to `0`.
+///
+/// Same outcome, different mechanism, and the mechanism is what generalises:
+/// **every** tile the fill did not reach behaves this way, not just this one.
 #[test]
-fn clicking_the_selected_army_again_puts_the_map_back_in_selection_mode() {
+fn clicking_the_selected_army_again_ends_the_selection_and_orders_nothing() {
     let (mut g, a, mut m) = on_the_map();
     let (here, there) = adjacent_pair(|x| x < 30);
     let id = army_at(&mut g, 1, 1, 300, here);
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    assert!(
+        g.kingdom.campaign.units.get(id).is_some_and(|u| !u.moving),
+        "a destination the fill never reached is not an order",
+    );
+    // And the selection is gone, so the next click is a fresh selection
+    // rather than a destination.
     click(&mut m, &mut g, &a, pixel(there.0, there.1).unwrap());
     assert!(
         g.kingdom.campaign.units.get(id).is_some_and(|u| !u.moving),
         "the deselected army took no order",
+    );
+}
+
+/// **The right button is how an army is deselected, and it was missing.**
+///
+/// A player, one minute after reporting that the march preview only appears
+/// after the click: *"you cannot deselect an army."* Both were the same gap.
+/// `Screen_FrameInput`'s `0x10` arm has exactly four clauses, and this is one
+/// of them: `if (g_mouseRightReleased != 0) { g_screenId = 0; g_redrawRequest
+/// = 2; }`. We had the right button bound to screen `0`'s arm — the
+/// information panel — with no test for the mode, so it opened a panel where
+/// the original cancels.
+#[test]
+fn the_right_button_deselects_an_army_and_does_not_open_the_information_panel() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, there) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+
+    let (hx, hy) = pixel(here.0, here.1).unwrap();
+    click(&mut m, &mut g, &a, (hx, hy));
+
+    send(&mut m, &mut g, &a, Event::RightClick { x: hx, y: hy });
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::Campaign),
+        "the information panel did not open over the selection",
+    );
+
+    // The selection is gone, and the observable proof is that the next click
+    // on open ground is no longer a destination: it is a click on plain
+    // ground, which does nothing at all.
+    click(&mut m, &mut g, &a, pixel(there.0, there.1).unwrap());
+    assert!(
+        g.kingdom.campaign.units.get(id).is_some_and(|u| !u.moving),
+        "a deselected army takes no orders",
+    );
+
+    // And with nothing selected the same gesture reaches screen 0x04, which
+    // is what makes the arm above a *mode* test rather than a suppression.
+    send(&mut m, &mut g, &a, Event::RightClick { x: hx, y: hy });
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::Shell(0x04)),
+        "with nothing picked the right button still opens the information panel",
     );
 }
 
@@ -345,6 +408,16 @@ fn clicking_the_selected_army_again_puts_the_map_back_in_selection_mode() {
 /// A reimplementation that treated "no path" as a refusal would leave
 /// `moveState` at 0, and the phase waits read that field — so this is a
 /// lockstep difference, not a cosmetic one.
+///
+/// **But a human click on the map cannot reach that state, and this test used
+/// to say it could.** `Map_ConfirmMoveOrder` opens with `if
+/// (g_moveOrderAvailable != 1) return;`, and `Map_HoverUnitTarget` clears that
+/// flag whenever the flood fill's raw distance at the hovered tile is below 2
+/// — which is every tile the fill never reached. So the empty-path order is
+/// real and is what the AI, the network command and the phase machine produce;
+/// **from the map it is unreachable, because a gate stands in front of it that
+/// we had not implemented.** The order is asserted where it actually happens,
+/// in `l2-kingdom`, and the gate is asserted on the screen.
 #[test]
 fn an_unreachable_destination_is_ordered_with_an_empty_path_and_the_army_stands() {
     let (mut g, a, mut m) = on_the_map();
@@ -368,11 +441,28 @@ fn an_unreachable_destination_is_ordered_with_an_empty_path_and_the_army_stands(
         g.kingdom.campaign.units.get(id).unwrap().y,
     );
 
+    // The screen refuses first: two clicks place no order at all, because the
+    // hover gate never lit.
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
     click(&mut m, &mut g, &a, pixel(there.0, there.1).unwrap());
+    assert!(
+        g.kingdom.campaign.units.get(id).is_some_and(|u| !u.moving),
+        "g_moveOrderAvailable was never set, so Map_ConfirmMoveOrder returned",
+    );
+
+    // `Unit_OrderMove` itself, which is what the AI and the network command
+    // call, accepts it — and that is the part that must not drift.
+    let steps = l2_kingdom::movement::order_move(
+        &g.kingdom.campaign.map,
+        &mut g.kingdom.campaign.units,
+        id,
+        there,
+        l2_kingdom::movement::Routing::Direct,
+    );
+    assert_eq!(steps, Some(0), "success, with nothing in the buffer");
     let unit = g.kingdom.campaign.units.get(id).expect("still there");
     assert!(unit.moving, "the order was accepted");
-    assert_eq!(unit.dest, Some(there), "and it names the tile that was clicked");
+    assert_eq!(unit.dest, Some(there), "and it names the tile that was asked for");
     assert!(unit.path.is_empty(), "with no path to walk");
 
     // And a whole turn of ticking moves it nowhere.
@@ -999,8 +1089,9 @@ fn the_click_that_selects_an_army_never_also_orders_it() {
     assert_eq!(u.moves_used, 0, "and cost nothing");
 
     // Repeating the same press — which is what a held button looks like to a
-    // polled reader — cancels the selection rather than ordering a march onto
-    // the tile the army is already standing on.
+    // polled reader — orders nothing either, by the original's own route: the
+    // tile is the army's own, the fill's distance there is `START_DISTANCE`,
+    // and `Map_ConfirmMoveOrder` returns on `g_moveOrderAvailable != 1`.
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
     let u = g.kingdom.campaign.units.get(id).expect("still there");
     assert!(!u.moving, "and neither did the second one");

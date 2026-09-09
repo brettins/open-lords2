@@ -19,34 +19,86 @@
 //! right-column frames are 162 wide and tile `y` 24 … 480 with no gap, and
 //! `Map_DrawPathMarker` clips the map to `x < 478`, `y < 474`.
 //!
-//! # The county-selection arm is **ours**, and it changes what a miss costs
+//! # The screen is two screens, and every arm of both is named here
 //!
-//! `Map_Click` (`0x0043CE1A`) dispatches on the picked tile's own flags and has
-//! **no arm for empty ground**: in the original, a click that resolves to a tile
-//! carrying nothing does nothing at all. Ours ends with "otherwise, select this
-//! county", because the county strip needs a selection and nothing else offers
-//! one.
+//! The campaign map is `g_screenId == 0` **and** `g_screenId == 0x10`, and
+//! forgetting the second one cost two player-reported defects in a single
+//! evening. `Screen_FrameInput` (`0x0042FF10`) dispatches on the id, so while an
+//! army is picked *none of the arms below the first heading run at all*.
 //!
-//! That convenience has a cost worth knowing before you touch the hit test.
-//! **Every geometric shortfall here degrades into opening the wrong screen
-//! rather than into nothing happening** — which is why one bad hitbox has
-//! produced a player-visible bug twice, and why `docs/decisions.md` C57 chose to
-//! widen the hit test rather than reproduce the original's dead zone.
+//! Rule 5 in `CLAUDE.md` says a behaviour must name the function it reproduces.
+//! This module's arms, so that the next person can check the list rather than
+//! rediscover it:
 //!
-//! Keep it, but if you narrow or move a hitbox, the failure you are risking is a
-//! *wrong answer*, not a silent one.
+//! ## Screen `0` — the map
 //!
-//! **Three separate defects have now reached a player through that multiplier,
-//! and they are one pattern rather than three bugs.** A hit test smaller than
-//! the thing drawn (C58, a 9 × 9 box under a 40 × 32 figure); a hit test that
-//! stops at the diamond when the sprite stands over the tiles behind it (C57,
-//! the mine); and a hit test whose arithmetic is simply wrong (C60, `pick_tile`
-//! dividing by `tile_w / 2` where `Map_PickTile` divides by the half pitch —
-//! 56 dead pixels around every tile centre, so an order aimed at a seam
-//! silently reselected a county).
+//! | arm | the original |
+//! |---|---|
+//! | edge of the screen scrolls | `Map_EdgeScroll` `0x00432221` |
+//! | left release on a tile | `Map_Click` `0x0043CE1A` |
+//! | right release on a tile | `g_screenId = 4; FUN_0043CAF4` (`0x0043CAF4`) |
+//! | minimap raster | `Minimap_Click` `0x0043253A` |
+//! | the four mode icons | `Minimap_ModeButtonClicked` `0x0043292D` |
+//! | the six sidebar buttons | `Sidebar_ButtonClicked` `0x00432967` |
+//! | the strip's 2 × 2 | `CountyStrip_Click` `0x00438CEB` |
+//! | the farm/industry slider | `Labour_SplitSliderDrag` `0x00439122` |
+//! | **not reproduced:** the menu bar's three titles | `Menu_OpenDropdown` `0x0040DECA` |
+//! | **not reproduced:** right release clears the minimap mode | `FUN_00439079` `0x00439079` |
+//! | **not reproduced:** the sidebar's job rows | `CountyStrip_JobClick` `0x00438E3B` |
 //!
-//! Each is a different mistake. **All three became visible to a player for the
-//! same reason: the miss did not do nothing, it opened the wrong screen.**
+//! `Map_Click` itself is six branches, in this order, and the order is the rule
+//! — **it tests the picked *unit* before any tile flag**, so an army standing on
+//! your own farmland is an army and not a field:
+//!
+//! 1. your army, not besieging → move-order mode (`Panel_MoveButton` `0x004371CE`)
+//! 2. your army, besieging → the siege screen `0x1D`
+//! 3. a merchant in your county → the merchant `0x08`; elsewhere, `Msg_Enqueue` 0x70
+//! 4. flag `0x80`, your county → select, recentre, `Industry_ToggleFromMap` `0x0043D309`
+//! 5. flag `0x40`, your county → select, recentre, the village `0x02`
+//! 6. flag `0x20`, your county → the field brush `0x04`
+//!
+//! ## Screen `0x10` — the map, taking an order
+//!
+//! Four clauses in `Screen_FrameInput`, plus one per-frame call that lives, of
+//! all places, in the *draw* dispatcher:
+//!
+//! | arm | the original |
+//! |---|---|
+//! | entering it | `Map_BeginMoveSelection` `0x0043723A` — one `Move_FloodFill`, and that is all |
+//! | the route under the cursor, every frame | `Map_HoverUnitTarget` `0x004A8E0B`, called from `Screen_DrawWidgets` `0x004BA26E` |
+//! | marking and drawing it | `Path_MarkPreviewTiles` `0x004A91BA`, `Map_DrawPathMarker` `0x004081A6` |
+//! | left press → leave the mode, then order | `Map_ConfirmMoveOrder` `0x004A9252` |
+//! | right release → leave the mode | inline, `g_screenId = 0` |
+//! | edge scroll | `Map_EdgeScroll`, again |
+//! | **absent by model, not omission:** 40 dead frames | `g_moveOrderClickGuard` `0x00553ECC` |
+//!
+//! # A miss does nothing, and it took four bugs to get here
+//!
+//! **`Map_Click` has no county-selection arm.** It ends in the ladder above;
+//! the tail is `else { DAT_0056D64C = 0; }`, a scroll latch. Its three writes to
+//! `g_selectedCounty` are all inside branches 3, 4 and 5 — **selecting a county
+//! is a side effect of arriving somewhere, never a verb of its own.** A click on
+//! plain ground, on sea, on a foreign county, or on your own county away from
+//! its town, fields and buildings changes nothing at all.
+//!
+//! We had an arm here, and a second click on the selected county opened its tax
+//! panel — one click fewer than reaching for the strip. Both are gone
+//! (`docs/decisions.md` C61). The history is worth keeping, because **that arm
+//! was the multiplier under three separate defects that reached a player in one
+//! evening**: a hit test smaller than the thing drawn (C58, a 9 × 9 box under a
+//! 40 × 32 figure); one that stopped at the diamond while the sprite stood over
+//! the tiles behind it (C57, the mine); and one whose arithmetic was simply
+//! wrong (C60, `pick_tile` dividing by `tile_w / 2` where `Map_PickTile` divides
+//! by the half pitch — 56 dead pixels around every tile centre). Three different
+//! mistakes. **All three became *the wrong screen opening* rather than nothing
+//! happening**, because a miss had somewhere to fall through to — and the player
+//! reported the arm itself in the end: *"if you click anywhere on grass it opens
+//! up the tax window too."*
+//!
+//! So the hit tests are still worth getting right, and now a mistake in one is
+//! quiet rather than loud. `a_click_on_plain_ground_changes_nothing_at_all` is
+//! the assertion that could not exist while the arm did; it covers the whole
+//! kingdom, not the screen id, because *nothing happened* is the claim.
 //!
 //! # What is the original's, and what is ours
 //!
@@ -408,6 +460,13 @@ pub struct MapScreen {
     /// with a selection. This is that selection, and it is why a click on a
     /// tile means *march there* while it is `Some`.
     selected_unit: Option<usize>,
+    /// **What `Map_BeginMoveSelection` sets up and `Map_HoverUnitTarget`
+    /// reads every frame** — the flood fill, and the route to the tile the
+    /// pointer is over right now. `None` unless [`MapScreen::selected_unit`] is
+    /// `Some`; the two are set and cleared together by
+    /// [`MapScreen::begin_move_selection`] and
+    /// [`MapScreen::cancel_move_selection`].
+    move_order: Option<MoveOrder>,
     /// **The farm/industry slider is held.** `FUN_00439122` acts on the button
     /// being *down*, not on it having been clicked, so the value tracks the
     /// pointer for as long as it is held — see [`SPLIT_SLIDER`].
@@ -484,6 +543,40 @@ struct PickedField {
     menu: &'static [FieldType],
 }
 
+/// **Move-order mode's whole state** — `g_screenId == 0x10`.
+///
+/// `Map_BeginMoveSelection` (`0x0043723A`) runs `Move_FloodFill` **once**, when
+/// the army is picked, and leaves the result in `g_moveDistLocal`
+/// (`0x00500C30`). Every frame after that, `Map_HoverUnitTarget` (`0x004A8E0B`)
+/// only *descends* it — `Move_ExtractPath` — and only when the hovered tile
+/// changed since the last frame (`if (DAT_005691E0 != g_hoverTileOffset)`). One
+/// fill, one descent per new tile. Caching the field here is not an
+/// optimisation of ours; it is the shape of the original.
+///
+/// This is **display state**. Nothing in it reaches the simulation: an order is
+/// placed by [`MapScreen::order_march`] calling into `l2-kingdom`, and what is
+/// stored here is only what the player is being shown he *would* get. That
+/// matters for `docs/netcode.md` — the lockstep digest must not depend on where
+/// anyone's mouse is, and a pointer position is the least deterministic input
+/// there is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct MoveOrder {
+    /// The unit the order is for — `g_selectedUnit` (`0x0057C8C4`).
+    unit: usize,
+    /// The terrain costs the fill was run over.
+    cost: l2_kingdom::map::CostMap,
+    /// `g_moveDistLocal`, filled from the unit's own tile.
+    field: l2_kingdom::movement::DistanceField,
+    /// `DAT_005691E0` — the tile the last descent was run for, so the pointer
+    /// moving *within* a tile costs nothing.
+    hovered: Option<(u8, u8)>,
+    /// `g_pathBuf[localPlayer]` — the route `Path_MarkPreviewTiles`
+    /// (`0x004A91BA`) marks and `Map_DrawPathMarker` (`0x004081A6`) draws.
+    /// Empty when the hovered tile is unreachable, which is
+    /// `g_moveOrderAvailable = 0`.
+    path: Vec<(u8, u8)>,
+}
+
 impl MapScreen {
     pub fn new() -> MapScreen {
         // `Map_InitMode`: zoom 0, scroll origin row 0x4A col 0x14.
@@ -507,6 +600,7 @@ impl MapScreen {
             flag_tick: 0,
             flag_phase: 0,
             selected_unit: None,
+            move_order: None,
             slider_held: false,
             minimap_mode: MinimapMode::Owner,
             fading: None,
@@ -1080,6 +1174,82 @@ impl MapScreen {
     ///   besieging; the map does not reach `Panel_MoveButton` in that case at
     ///   all, it opens the siege screen instead. Two routes to one decision, and
     ///   only one of them asks.
+    /// **`Map_BeginMoveSelection` (`0x0043723A`)** — the map enters move-order
+    /// mode, `g_screenId = 0x10`.
+    ///
+    /// The whole of what it does that we can do: `g_selectedUnit = unit`, then
+    /// `Move_FloodFill` from the unit's own tile. It also sets
+    /// `g_moveOrderClickGuard` (`0x00553ECC`) to 40 — forty frames in which a
+    /// left button that is *down* is not read as the destination, so that the
+    /// press which opened the mode cannot also close it. **We do not need it
+    /// and do not have it**: the original polls the button's level once a frame,
+    /// where we are handed one [`Event::Click`] per press, and the press that
+    /// selected the army was consumed by this call. Recorded rather than
+    /// silently dropped — it is an arm of the original, and the reason it is
+    /// absent is a difference in our input model, not a judgement that it is
+    /// unimportant.
+    fn begin_move_selection(&mut self, ctx: &Ctx, unit: usize) {
+        let Some(u) = ctx.game.kingdom.campaign.units.get(unit) else { return };
+        let start = u.tile();
+        let cost = ctx.game.kingdom.campaign.map.cost_map();
+        let field =
+            l2_kingdom::movement::flood_fill(&cost, start, l2_kingdom::movement::Routing::Direct);
+        self.selected_unit = Some(unit);
+        self.move_order =
+            Some(MoveOrder { unit, cost, field, hovered: None, path: Vec::new() });
+    }
+
+    /// Leaving move-order mode — `g_screenId = 0`.
+    ///
+    /// Three things do it in the original and all three are just that
+    /// assignment: the right button released (`Screen_FrameInput`'s `0x10`
+    /// arm), `Map_ConfirmMoveOrder` having placed the order, and the turn
+    /// ceasing to be the local player's.
+    fn cancel_move_selection(&mut self) {
+        self.selected_unit = None;
+        self.move_order = None;
+    }
+
+    /// **`Map_HoverUnitTarget` (`0x004A8E0B`) — the arm this project missed,
+    /// and the one a player noticed first.**
+    ///
+    /// In the original the march route appears **while the pointer moves**, not
+    /// after the click: you sweep the cursor over the map and the gold balls
+    /// follow it, so you can see the route and its cost *before* committing.
+    /// Ours drew the same artwork — `Flags1a.pl8` frames `0x38 … 0x4E`, read
+    /// carefully and correctly — from the unit's **already ordered** path, which
+    /// is a picture the original never shows: `Path_MarkPreviewTiles` is the
+    /// only writer of tile bank bit `0x40` in the whole binary, it runs only
+    /// from here, and here runs only on screen `0x10`. So the balls exist in
+    /// move-order mode and nowhere else, and they show the *hovered* route.
+    ///
+    /// The sprite sheet was read and the behaviour was not. `docs/decisions.md`
+    /// C61.
+    ///
+    /// Two economies of the original are kept because they are behaviour, not
+    /// speed: the descent runs **only when the hovered tile changed**
+    /// (`if (DAT_005691E0 != g_hoverTileOffset)`), and the flood fill is not
+    /// re-run at all — it was done once when the army was picked, from where the
+    /// army *was*.
+    fn update_hover_path(&mut self, x: i32, y: i32) {
+        if self.move_order.is_none() {
+            return;
+        }
+        // `g_hoverTileOffset >= 0x0FFF0000` — the pointer is not over a tile —
+        // clears `g_moveOrderAvailable` and draws nothing.
+        let tile = if self.map_clip().contains(x, y) { self.pick_tile(x, y) } else { None };
+        let sel = self.move_order.as_mut().expect("checked directly above");
+        if sel.hovered == tile {
+            return;
+        }
+        sel.hovered = tile;
+        sel.path = tile
+            .and_then(|dest| {
+                l2_kingdom::movement::extract_path(&sel.cost, &sel.field, dest)
+            })
+            .unwrap_or_default();
+    }
+
     fn click_unit(&mut self, ctx: &mut Ctx, unit: usize) -> Transition {
         // **The merchant arm, and its guard is the county's owner rather than
         // the merchant's.** `Map_Click` tests `kind != 1` first, then `kind !=
@@ -1122,17 +1292,21 @@ impl MapScreen {
             ctx.game.kingdom.campaign.units.get(unit).is_some_and(|u| u.besieging_county != 0)
         };
         if besieging {
-            self.selected_unit = None;
+            self.cancel_move_selection();
             return Transition::Push(ScreenId::Siege(unit));
         }
         // `Panel_MoveButton` -> `Map_BeginMoveSelection`: the map stays up and
         // the next click is the order.
-        if self.selected_unit == Some(unit) {
-            self.selected_unit = None;
-            self.status = "ORDERS CANCELLED".into();
-            return Transition::Stay;
-        }
-        self.selected_unit = Some(unit);
+        // **Clicking the same army again used to cancel the selection. That was
+        // ours and it is gone.** In the original `Map_Click` is not reachable at
+        // all while move-order mode is up — `Screen_FrameInput` dispatches on
+        // `g_screenId`, and `0x10` is not `0` — so a second click on the army
+        // is `Map_ConfirmMoveOrder` aimed at the tile the army is standing on,
+        // and `Map_HoverUnitTarget` has already cleared `g_moveOrderAvailable`
+        // for that tile because the fill's distance there is its own start. It
+        // does nothing. **The cancel is the right button**, and the reason this
+        // convenience existed is that we had never looked for it.
+        self.begin_move_selection(ctx, unit);
         let (men, left) = ctx
             .game
             .kingdom
@@ -1171,7 +1345,7 @@ impl MapScreen {
         let (x, y) = l2_kingdom::map::coords(town);
         ctx.game.select(county);
         self.centre_on_tile(x as usize, y as usize);
-        self.selected_unit = None;
+        self.cancel_move_selection();
         // `DAT_00553C64 = g_pickedTileUnit` — and this is the call that carries
         // it, exactly as the paragraph above predicted it would have to.
         Transition::Push(ScreenId::Merchant(unit))
@@ -1191,6 +1365,40 @@ impl MapScreen {
     /// The refusal is the whole rule: `Unit_OrderMove` writes **nothing at all**
     /// when no path is extracted, so a refused order leaves the army exactly as
     /// it was — not half-ordered, not stopped. `docs/armies.md` §2.3.
+    /// **`g_screenId = 0` and then `Map_ConfirmMoveOrder`** — the left press
+    /// in move-order mode, in the order `Screen_FrameInput` does it:
+    ///
+    /// ```c
+    /// if ((g_mouseLeftPressed != ' ') && (g_moveOrderClickGuard < 1)) {
+    ///     g_screenId = 0; DAT_0056D64C = 1; Map_ConfirmMoveOrder(); }
+    /// ```
+    ///
+    /// **The mode is left first, unconditionally, and whether an order results
+    /// is a separate question.** `Map_ConfirmMoveOrder` opens with
+    /// `if (g_moveOrderAvailable != 1) return;` — and `g_moveOrderAvailable` is
+    /// [`MapScreen::update_hover_path`]'s output, cleared when the flood
+    /// fill's raw distance at the tile is below 2. Raw 0 is *never reached*;
+    /// raw 1 is the army's **own tile**, whose distance is
+    /// [`START_DISTANCE`]. So a click on the army you just picked ends the
+    /// selection and orders nothing — which is what we used to do by hand in
+    /// `click_unit`, as a convenience, and can now stop doing.
+    ///
+    /// [`START_DISTANCE`]: l2_kingdom::movement::START_DISTANCE
+    fn confirm_move_order(&mut self, ctx: &mut Ctx, unit: usize, dest: (u8, u8)) -> Transition {
+        let available = self.move_order.as_ref().is_some_and(|sel| {
+            sel.field.cost_to(dest.0, dest.1).is_some_and(|d| d > 0)
+        });
+        self.cancel_move_selection();
+        if !available {
+            // Not a refusal message in the original — it is a press that
+            // reached a `return`. Ours says so, because a silent no-op on a
+            // deliberate click is the shape three hit-test defects hid behind.
+            self.status = "THE ARMY IS ALREADY THERE".into();
+            return Transition::Stay;
+        }
+        self.order_march(ctx, unit, dest)
+    }
+
     fn order_march(&mut self, ctx: &mut Ctx, unit: usize, dest: (u8, u8)) -> Transition {
         match ctx.game.order_unit_move(unit, dest) {
             // **A zero-length path is an accepted order, not a refusal.**
@@ -1317,7 +1525,7 @@ impl MapScreen {
     fn cycle_unit(&mut self, ctx: &mut Ctx) {
         let mine = ctx.game.player_units();
         if mine.is_empty() {
-            self.selected_unit = None;
+            self.cancel_move_selection();
             self.status = "YOU HAVE NOTHING ON THE MAP".into();
             return;
         }
@@ -1325,7 +1533,7 @@ impl MapScreen {
             Some(cur) => mine.iter().copied().find(|&id| id > cur).unwrap_or(mine[0]),
             None => mine[0],
         };
-        self.selected_unit = Some(next);
+        self.begin_move_selection(ctx, next);
         if let Some(u) = ctx.game.kingdom.campaign.units.get(next) {
             let (x, y, men, left, kind) = (u.x, u.y, u.men, u.moves_left(), u.kind);
             self.centre_on_tile(x as usize, y as usize);
@@ -1618,6 +1826,14 @@ impl Screen for MapScreen {
             Event::Pointer { x, y } => {
                 self.pointer = (x, y);
                 self.pointer_in = true;
+                // `Map_HoverUnitTarget`. It runs once a frame in the original,
+                // out of `Screen_DrawWidgets`'s `0x10` arm — where every other
+                // screen draws its widget table, this one recomputes the route
+                // under the cursor — and its first act is to compare the hovered
+                // tile with the last one and do nothing if it has not changed.
+                // Driving it from pointer motion is that comparison, made by the
+                // event loop instead of by hand.
+                self.update_hover_path(x, y);
                 // The slider's whole gesture: held **and** moved, tested
                 // against the rectangle again every time, which is what lets
                 // the pointer wander off the sidebar and come back without
@@ -1653,6 +1869,32 @@ impl Screen for MapScreen {
             Event::RightClick { x, y } if self.map_clip().contains(x, y) => {
                 if self.picked_field.take().is_some() {
                     self.status = "NO CHANGE".into();
+                    return Transition::Stay;
+                }
+                // **This is how an army is deselected, and it was missing.**
+                //
+                // A player found it in a minute: *"you cannot deselect an
+                // army."* The information panel above is screen `0`'s arm, and
+                // while an army is picked the screen is `0x10`, whose entire
+                // right-button clause is
+                //
+                //     if (g_mouseRightReleased != 0) {
+                //         g_screenId = 0; g_redrawRequest = 2; }
+                //
+                // — leave move-order mode, redraw, and that is all. No
+                // information panel, no confirmation. Ours reached the panel
+                // instead because the arm was written for one screen and the
+                // mode it belongs to was never given its own.
+                //
+                // Note what is *not* here: a click on empty ground does **not**
+                // cancel. In the original that click is `Map_ConfirmMoveOrder`
+                // and it either places the order or does nothing at all. Adding
+                // "click away to deselect" would be the same invention as the
+                // tax-panel convenience removed above, made in the opposite
+                // direction.
+                if self.selected_unit.is_some() {
+                    self.cancel_move_selection();
+                    self.status = "ORDERS CANCELLED".into();
                     return Transition::Stay;
                 }
                 return Transition::Push(ScreenId::Shell(0x04));
@@ -1735,6 +1977,33 @@ impl Screen for MapScreen {
                     }
                 } else if self.map_clip().contains(x, y) {
                     self.ensure(ctx);
+                    // **Move-order mode is a screen, not a flag, and that is the
+                    // whole reason this block is shaped the way it is.**
+                    //
+                    // `Screen_FrameInput` dispatches on `g_screenId`, and while
+                    // an army is picked that is `0x10`, not `0`. So the map's
+                    // own arm — `Map_Click`, every hotspot below, the sidebar
+                    // guards, the minimap — **is not reachable at all**. The
+                    // `0x10` arm is four lines long: the turn-ended latch,
+                    // `Map_EdgeScroll`, a left press that is
+                    // `Map_ConfirmMoveOrder`, and a right release that leaves.
+                    //
+                    // We had this as a flag consulted *after* the unit hit test,
+                    // which is why clicking a second army re-selected it. In the
+                    // original that click is a destination: the second army is
+                    // `g_hoverMergeUnit` and the order asks *"Combine armies?"*.
+                    if let Some(unit) = self.selected_unit {
+                        if !ctx.game.is_players_unit(unit) {
+                            // The turn-ended latch's civilian cousin: the
+                            // selection's owner changed under it.
+                            self.cancel_move_selection();
+                        } else if let Some(dest) = self.pick_tile(x, y) {
+                            return self.confirm_move_order(ctx, unit, dest);
+                        } else {
+                            self.cancel_move_selection();
+                            return Transition::Stay;
+                        }
+                    }
                     // **`Map_Click` tests the picked *unit* before it tests any
                     // tile flag**, and both of its unit branches return without
                     // ever reaching the terrain dispatch below. That order is
@@ -1743,16 +2012,6 @@ impl Screen for MapScreen {
                     if let Some(unit) = self.unit_at(&Ctx { game: ctx.game, assets: ctx.assets }, x, y)
                     {
                         return self.click_unit(ctx, unit);
-                    }
-                    // With an army selected the map is in move-order mode
-                    // (`g_screenId == 0x10`) and a click on the ground is
-                    // `Map_ConfirmMoveOrder`, not a selection.
-                    if let Some(unit) = self.selected_unit {
-                        if !ctx.game.is_players_unit(unit) {
-                            self.selected_unit = None;
-                        } else if let Some(dest) = self.pick_tile(x, y) {
-                            return self.order_march(ctx, unit, dest);
-                        }
                     }
                     let county = self.county_at(x, y);
                     // **A click on one of your own buildings or fields takes
@@ -1764,6 +2023,27 @@ impl Screen for MapScreen {
                     // on the county being the local player's.
                     if county != 0 && ctx.game.is_players(county) {
                         if let Some(tile) = self.settlement_at(ctx, county, x, y) {
+                            // **The industry arm selects the county first**, and
+                            // it is the only one of the three flag arms that
+                            // guards on the selection:
+                            //
+                            //     if (pickedCounty != g_selectedCounty) {
+                            //         if (townTile == 0) return;
+                            //         g_selectedCounty = pickedCounty;
+                            //         Map_CentreOnTile(townTile);
+                            //     }
+                            //
+                            // A county with no town refuses the toggle outright
+                            // — the `return` is before `Industry_ToggleFromMap`.
+                            if county != ctx.game.selected {
+                                let Some(&town) = Self::town(ctx, county).first() else {
+                                    self.status = "THAT COUNTY HAS NO TOWN".into();
+                                    return Transition::Stay;
+                                };
+                                let (tx, ty) = l2_kingdom::map::coords(town);
+                                ctx.game.select(county);
+                                self.centre_on_tile(tx as usize, ty as usize);
+                            }
                             let terrain = ctx.game.kingdom.campaign.map.terrain[tile];
                             match industry::map_toggle_for_graphic(terrain) {
                                 Some(what) => {
@@ -1788,7 +2068,12 @@ impl Screen for MapScreen {
                         // and the village had no route in but a key of ours.
                         if let Some(tile) = self.tile_at(x, y, Self::town(ctx, county).into_iter())
                         {
+                            // `if (townTile != 0) { g_selectedCounty = picked;
+                            // Map_CentreOnTile(townTile); ... }` — the selection
+                            // is inside the guard, `g_screenId = 2` outside it.
+                            // We had the recentre and not the selection.
                             let (tx, ty) = l2_kingdom::map::coords(tile);
+                            ctx.game.select(county);
                             self.centre_on_tile(tx as usize, ty as usize);
                             return Transition::Push(ScreenId::Village(county));
                         }
@@ -1810,18 +2095,26 @@ impl Screen for MapScreen {
                             return Transition::Stay;
                         }
                     }
-                    if county == 0 {
-                        ctx.game.select(0);
-                        self.status = "CLICK A COUNTY".into();
-                    } else if ctx.game.selected == county {
-                        // A second click on the county already selected opens
-                        // it, which is one click fewer than reaching for the
-                        // strip. **Ours**; the original re-selects and no more.
-                        return Transition::Push(ScreenId::County(county, county::Panel::Tax));
-                    } else {
-                        ctx.game.select(county);
-                        self.status = format!("COUNTY {county} SELECTED");
-                    }
+                    // **And that is the end of `Map_Click`. There is no arm
+                    // below this one.**
+                    //
+                    // A click that reaches here — plain ground, sea, a county
+                    // that is not yours, your own county away from its town, its
+                    // fields and its buildings — falls out of the bottom having
+                    // changed nothing at all. The last statement in the original
+                    // is `else { DAT_0056D64C = 0; }`, a scroll latch.
+                    //
+                    // We had a county-selection arm here, and then a second
+                    // click on the selected county opened its tax panel. A
+                    // player reported it: *"there's some weird thing where if
+                    // you click anywhere on grass it opens up the tax window
+                    // too."* Both halves are gone. The three ways into a
+                    // selection are the ones the original has: the county strip,
+                    // the minimap, and the three arms above — a village, an
+                    // industry building or a merchant, each of which selects the
+                    // county it belongs to on the way to opening something.
+                    // `docs/decisions.md` C61.
+                    let _ = county;
                 }
             }
             _ => {}
@@ -2243,21 +2536,21 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
 /// mis-click.
 fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
-    let Some(unit) = screen.selected_unit.and_then(|id| ctx.game.kingdom.campaign.units.get(id))
-    else {
-        return;
-    };
+    let Some(sel) = screen.move_order.as_ref() else { return };
+    let Some(unit) = ctx.game.kingdom.campaign.units.get(sel.unit) else { return };
     let left_at_start = unit.moves_left();
-    let mut spent = 0;
-    for &(x, y) in &unit.path {
-        // The step's own cost is what the stepper charges; a road is 1 and open
-        // ground 3, and the preview greys where the budget runs out.
-        let cost = if ctx.game.kingdom.campaign.map.has(x, y, l2_kingdom::map::flags::ROAD) {
-            1
-        } else {
-            3
-        };
-        spent += cost;
+    // **The route under the cursor, not the route already ordered.** This loop
+    // used to walk `unit.path` — the *committed* path — and re-derive each
+    // step's cost by hand from the road flag. Both were wrong in the same way:
+    // the original never draws balls for an order that has been placed (the
+    // only writer of the bank bit runs only on screen `0x10`), and it never
+    // re-derives a cost, because the flood fill already holds one.
+    //
+    // `local_c = g_moveDistLocal[tile] - 1`, and `if (allowance - used <
+    // local_c) local_c = 0` — a step past the army's remaining moves draws
+    // frame `0x38`, the one recolouring in the run with no colour in it.
+    for &(x, y) in &sel.path {
+        let spent = sel.field.cost_to(x, y).unwrap_or(0);
         let in_range = spent <= left_at_start;
         let drawn = campaign::draw_path_marker(
             canvas,

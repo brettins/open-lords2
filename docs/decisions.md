@@ -2526,6 +2526,168 @@ C46 named: *a measurement and a word beside it that nobody checked agreed* — 9
 40 × 32, `tile_w` beside `pitch`, "one tick" beside 50 ms, and a turn described as a loop
 when the thing it models is a frame.
 
+**C61 — We reproduce artwork and skip behaviour. A player found two missing input arms on one
+screen in one evening, and counting the rest says we reproduce 43% of what the original does
+with a mouse.**
+
+Three things happened in an hour and they are one thing. Taken separately each is a small bug;
+taken together they are the measurement this project had not made.
+
+**The reports.** *"The original has the army steps on hover, ours just populate on click."* And a
+minute later: *"you cannot deselect an army."*
+
+Both are `Screen_FrameInput`'s screen-`0x10` arm, which is four clauses long and which nobody had
+read:
+
+```c
+if (g_screenId == 0x10) {                       /* the map, in move-order mode */
+    if (sync_latch || turn_not_yours) { g_screenId = 0; redraw; }
+    if (Map_EdgeScroll()) return;
+    if (g_mouseLeftPressed && g_moveOrderClickGuard < 1) {
+        g_screenId = 0; DAT_0056D64C = 1; Map_ConfirmMoveOrder(); }
+    if (g_mouseRightReleased) { g_screenId = 0; g_redrawRequest = 2; }
+}
+```
+
+The last line is the deselect. The hover is the other half: `Screen_DrawWidgets`' `0x10` arm is
+`Map_HoverUnitTarget()` and nothing else — **where every other screen draws a widget table, this
+one recomputes the route under the cursor.** It decrements the click guard, marks the route
+through `Path_MarkPreviewTiles` (`0x004A91BA`), and re-runs the descent only when the hovered tile
+changed. `Map_DrawPathMarker` (`0x004081A6`) then draws a ball on every marked tile **and clears
+the mark as it draws it**, which is why the trail does not accumulate as the cursor sweeps.
+
+`Path_MarkPreviewTiles` is the **only writer of tile bank bit `0x40` in the whole binary**, and it
+runs only from the hover, which runs only on `0x10`. So the gold balls exist in move-order mode,
+they show the route you have *not yet committed to*, and they vanish the moment you commit.
+
+**We drew the same artwork from the opposite end.** The agent that did the path markers
+established the sheet thoroughly and correctly — `0x38 … 0x4E` are 23 recolourings of one 15 × 15
+ball, `0x38` is the one with no colour in it, the cost selects the colour — and then wired it to
+`unit.path`, the *ordered* path. A picture the original never shows, drawn from the right sprites
+in the wrong direction at the wrong time. **The sprite sheet was read and the behaviour was not**,
+and that sentence is the whole entry.
+
+**The correction that was itself wrong.** This entry was drafted once already, and the draft was
+wrong.
+
+The instruction was to remove our county-selection convenience — a click on grass selected the
+county, a second click opened its tax panel — because a player had reported it: *"there's some
+weird thing where if you click anywhere on grass it opens up the tax window too."* Reading
+`Map_Click` produced a "last arm" that selects and recentres and opens nothing, and a conclusion
+that C58 had been wrong to say there was no such arm. Code was written, tests were rewritten to
+assert it, and C58 was edited in place to apologise for a claim that was correct.
+
+**There is no last arm.** `Map_Click` ends in its terrain ladder; the tail is
+`else { DAT_0056D64C = 0; }`, a scroll latch. The code quoted as a free-standing arm is the
+**prologue of the industry branch** —
+
+```c
+else if (g_counties[g_pickedTileCounty].owner == g_localPlayer) {   /* flags & 0x80 */
+    if (g_pickedTileCounty != g_selectedCounty) {
+        if (g_counties[g_pickedTileCounty].townTile == 0) return;
+        g_selectedCounty = g_pickedTileCounty;
+        Map_CentreOnTile(g_counties[g_pickedTileCounty].townTile);
+    }
+```
+
+— guarded by tile flag `0x80` **and** by the county being yours. `Map_Click` writes
+`g_selectedCounty` three times, in the village, industry and merchant branches, exactly as C58
+said. C58 needed no correction and has been left alone.
+
+**Selection from the map is a side effect of arriving somewhere. It is never a verb of its own.** A
+click on plain ground, on sea, on a foreign county, or on your own county away from its town, its
+fields and its buildings changes nothing at all.
+
+What is worth carrying is not the fact but the shape: **the correction written to fix a misreading
+was itself a misreading of the same function, in the same session, by someone who had been told to
+be careful.** It was caught by re-reading the decompilation before committing, which is the only
+thing that has ever caught one of these. Three greps that find nothing become a claim; one grep
+that finds something overturns it; and a fourth reading overturns that. `docs/method.md` §4.
+
+**What was ours, and is now gone.**
+
+- **The county-selection arm and its tax panel.** A click on plain ground now does nothing, and
+  `a_click_on_plain_ground_changes_nothing_at_all` asserts it over the whole kingdom.
+- **"Click the selected army again to cancel."** Removed, and this one is instructive. It was a
+  reasonable-looking convenience *and it was standing where the real deselect goes*. In the
+  original that click is a destination, not a re-selection: move-order mode is `0x10`, so
+  `Map_Click` is unreachable, and `Map_HoverUnitTarget` has already cleared `g_moveOrderAvailable`
+  for the tile the army stands on. Same outcome, different mechanism — and the mechanism
+  generalises to every tile the fill never reached, which the convenience did not.
+- **Ordering an unreachable destination from the map.** `Unit_OrderMove` really does accept an
+  order with an empty path — `docs/armies.md` §2.3 is right — but a human click cannot reach it,
+  because the hover gate stands in front. The test that asserted otherwise now asserts the
+  acceptance in `l2-kingdom`, where it happens, and the gate on the screen.
+
+**What was missing, and is now there.**
+
+- `Map_HoverUnitTarget` (`0x004A8E0B`) — the route under the cursor, recomputed on pointer motion,
+  descending a flood fill run **once** when the army was picked (`Map_BeginMoveSelection`,
+  `0x0043723A`), exactly as the original does it.
+- The right button cancels a selection (`0x10`'s fourth clause) instead of opening the information
+  panel, which is screen `0`'s arm and was firing in both modes.
+- `Map_Click`'s village and industry branches select the county they belong to, which they did in
+  the original and did not here.
+
+**And note what is deliberately still absent.** A click on empty ground does **not** deselect. It
+is the obvious fix, it is what a modern game does, and it is not what this one does — that click
+is `Map_ConfirmMoveOrder` and it either places an order or returns. Putting it in would have been
+the same invention as the tax-panel convenience, made in the opposite direction and for a
+better-sounding reason.
+
+`g_moveOrderClickGuard` (`0x00553ECC`, 40 frames) is also absent, and that one is a difference of
+model rather than an omission: it exists because `Screen_FrameInput` polls the button's *level*
+every frame, so one physical press reads as a click on every frame it is held. Our `Event::Click`
+is edge-triggered. Recorded here rather than dropped silently.
+
+**The number.** The user's inference was that if hover-versus-click was missed, the connection to
+the original is weaker than our documents imply. It is. Three screen groups were enumerated arm by
+arm out of the decompilation — every hotspot, hover, drag, double-click, right-click and key — and
+compared against our source:
+
+| screen group | arms the original has | we reproduce | |
+|---|--:|--:|--:|
+| village, the two drag screens, the job popup | 22 | 16 | 73% |
+| the right column, the menu bar, the county panels, `0x04`, `0x11`–`0x13` | 114 | 64 | 56% |
+| the battlefield (`0x28`, `0x29`, `0x2A`, `0x2B`) | 49 | 0 | 0% |
+| **total** | **185** | **80** | **43%** |
+
+The battlefield zero is honest rather than alarming — those screens are unbuilt, and
+`screens/battle.rs` is the campaign-map *prompt*, not the battle. Excluding it, **80 of 136, 59%.**
+That is the number to argue with, and it is the first time one has existed.
+
+Three patterns fall out of it, and none of them is "we were sloppy":
+
+1. **The gap is at the level of *behaviours within* a screen, not screens.** Every screen module is
+   supposed to open with the painter's address; no behaviour has any such convention. Measured: 10
+   of our 16 screen modules cite at least one address in their module docs, and `map.rs` — 74 lines
+   of header, the screen both of today's misses live on — cited **none**.
+2. **Right-click is the systematically missed gesture.** Village group: 2 of 4 missing, and one of
+   the misses is *wrong* rather than absent — a right-click while carrying peasants leaves the
+   village instead of cancelling the carry. Right column: 3 of 12 missing. Battle: 6 of 6. "Right
+   click exits" was learned early and applied everywhere; the original uses that button for four
+   different verbs.
+3. **We implement the arms a feature needs and stop.** The armies work end to end and hover was
+   missing. The ration slider steps, drags and double-clicks in the original; ours steps. The
+   division screen has 18 of its 20 arms and moves ten men per click where the original moves one.
+
+Three inventions were found too, which is the same failure pointing the other way: right-click to
+Decline on screen `0x12` (that arm has no right-button test at all), our sidebar hover highlight,
+and the two conveniences removed above.
+
+**The rule that came out of it.** The user, and it is now rule 5 in `CLAUDE.md`: **if we implement
+a feature we must find its equivalent in the old binary's functions.** It is rule 4's other half —
+rule 4 governs what we may *claim*, this governs what we may *build* — and "we could not find it"
+is a finding to report, not a licence to invent.
+
+Stated rules do not hold on this project; checked ones do. The numbering protocol was written
+after four collisions and did not prevent the fifth. `git add -A` is blocked by a hook because
+guidance was not enough. Five of six tool failures returned clean, plausible, wrong answers and
+every one was caught by something external contradicting it. A sixth rule in a list has the
+enforcement of the ones that failed, so the proposal for what would check it is in
+`docs/agents.md`, and the tables above are its first data.
+
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

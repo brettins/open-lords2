@@ -658,35 +658,76 @@ fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
     assert!(a.diff_count(&b) > 10_000, "scrolling one column must repaint the map");
 }
 
-/// A click picks the county the player can actually see at that pixel, and a
-/// second click on the same county opens it. The pixel is found through the
-/// pick plane, so this exercises exactly the path the mouse takes.
+/// **A click on a county's open ground does not select it. `Map_Click` has no
+/// county-selection arm at all.**
+///
+/// This test has now been wrong twice, in opposite directions, and both times
+/// the error was a reading of the same 1,263-byte function.
+///
+/// It first asserted that a second click on the selected county opened its tax
+/// panel — our convenience, which a player reported: *"there's some weird thing
+/// where if you click anywhere on grass it opens up the tax window too."* It
+/// was then rewritten to assert that the click *selects and recentres*, on the
+/// strength of a "last arm" quoted into three documents. There is no last arm.
+/// The quoted code is the **prologue of the industry branch**, guarded by tile
+/// flag `0x80` and by the county being the local player's, and `Map_Click`'s
+/// three writes to `g_selectedCounty` are all inside branches that open
+/// something: the village, an industry toggle, the merchant.
+///
+/// So selection from the map is a *side effect of arriving somewhere*, never a
+/// verb of its own. `docs/decisions.md` C61.
 #[test]
-fn clicking_a_county_selects_it_and_clicking_it_again_opens_its_panel() {
+fn a_click_on_a_countys_open_ground_selects_nothing() {
     let (mut game, assets) = world!();
     let mut screen = MapScreen::new();
     draw(&mut screen, &mut game, &assets);
 
-    // Whichever county the opening viewport happens to show most of.
     let counts = pick_counts(&screen);
     let target = (1..=14u8).max_by_key(|&id| counts[id as usize]).expect("a county is visible");
-    assert!(counts[target as usize] > 0, "the opening view shows at least one county");
     let (px, py) = pixel_of(&screen, target).expect("and it has a pixel");
 
     game.select(0);
+    let before = game.kingdom.clone();
     let t = send(&mut screen, &mut game, &assets, Event::Click { x: px, y: py });
-    assert_eq!(t, Transition::Stay, "the first click only selects");
-    assert_eq!(game.selected, target);
-
-    let t = send(&mut screen, &mut game, &assets, Event::Click { x: px, y: py });
-    assert_eq!(t, Transition::Push(ScreenId::County(target, Panel::Tax)), "the second click opens it");
-
-    // A click on the sea clears the selection rather than picking a county at
-    // random.
-    let (sx, sy) = pixel_of(&screen, 0).expect("there is sea");
-    send(&mut screen, &mut game, &assets, Event::Click { x: sx, y: sy });
-    assert_eq!(game.selected, 0);
+    assert_eq!(t, Transition::Stay, "it opens nothing");
+    assert_eq!(game.selected, 0, "and selects nothing");
+    assert_eq!(game.kingdom, before, "and changes no part of the world");
 }
+
+/// **A click on plain ground changes nothing at all** — not the screen, not the
+/// selection, not one byte of the kingdom.
+///
+/// This is the assertion that could not exist while we had a county-selection
+/// arm that opened a panel, and it is the one that would have caught all three
+/// of the hit-test defects a player found in a single evening: the mine's dead
+/// upper half (C57), the merchant's nine-pixel box (C58) and `pick_tile`'s 56
+/// dead pixels around every tile centre (C60). Every one of them was a
+/// *geometric* shortfall, and every one became **the wrong screen opening**
+/// rather than nothing happening, purely because a miss had somewhere to fall
+/// through to. It asserts over the whole state rather than the screen id,
+/// because "nothing happened" is the claim.
+#[test]
+fn a_click_on_plain_ground_changes_nothing_at_all() {
+    let (mut game, assets) = world!();
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+
+    // The sea is the one thing on the map guaranteed to carry no county, no
+    // unit and no flags.
+    let (sx, sy) = pixel_of(&screen, 0).expect("there is sea");
+
+    let selected_before = game.selected;
+    let before = game.kingdom.clone();
+    let t = send(&mut screen, &mut game, &assets, Event::Click { x: sx, y: sy });
+
+    assert_eq!(t, Transition::Stay, "a click on nothing opens nothing");
+    assert_eq!(game.selected, selected_before, "and does not clear the selection either");
+    assert_eq!(game.kingdom, before, "and changes no part of the world");
+}
+
+/// A click picks the county the player can actually see at that pixel. The
+/// pixel is found through the pick plane, so this exercises exactly the path
+/// the mouse takes.
 
 /// **The county town is not four quarries.**
 ///

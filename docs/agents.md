@@ -305,6 +305,120 @@ case loud. And do not hesitate to add a check to a tool other people depend on: 
 that degrades silently is worse the more people use it**, so shared use is the argument for
 the check and not against it.
 
+## Rule 5 needs a check, and here is the argument for which one
+
+`CLAUDE.md` rule 5 — *if we implement a feature, find its equivalent in the binary's functions* —
+arrived because a player noticed that the march preview appears on **hover** in the original and
+only after the click in ours, and then, a minute later, that an army cannot be deselected. Both
+are arms of `Screen_FrameInput`'s screen-`0x10` ladder. Neither had been looked for.
+`docs/decisions.md` C61 has the whole of it, including the count: **80 of 185 input arms
+reproduced, 43%.**
+
+**A sixth rule in a list has the enforcement of the ones that failed.** The numbering protocol was
+written after four collisions and did not prevent the fifth. `git add -A` is blocked by a hook
+because guidance was not enough. Five of six tool failures on this project returned clean,
+plausible, wrong answers, and *every one* was caught by something external contradicting it, never
+by the tool noticing itself. So the question is not how to phrase rule 5. It is what goes red.
+
+### What was proposed, and the two halves of it that do not survive
+
+The proposal was: a per-screen inventory of the original's input arms, and a census that goes red
+when a screen graduates out of the shell table without one.
+
+**The inventory is right.** `Screen_FrameInput`'s `0x02` arm running six sidebar guards was found
+by enumerating rather than by reacting to a report, and enumerating three screen groups is what
+produced the 43% at all. Nothing else this project has tried finds an arm nobody asked about.
+
+**The trigger is wrong, for a measurable reason.** "Red when a screen graduates" fires once per
+screen, at graduation. Every miss found today is on a screen that graduated weeks ago; the check
+would have caught **none of them**. Worse, it can only ever go red once — after the file exists it
+is green for ever, however wrong its contents become. It checks that a document was created, which
+is the same class of guarantee as checking that a rule was written down.
+
+**And one premise behind it is false, which is worth stating because it was cheap to test.** The
+proposal leans on *"every screen module already opens with the painter's address; that convention
+exists and is followed."* Measured across `crates/l2-game/src/screens/`: **10 of 16 modules cite at
+least one address in their module docs, 6 cite none** — and `map.rs`, which had a 74-line header
+and is the screen both of today's misses live on, was one of the six. The convention is not
+followed; it is *mostly* followed, which is exactly how an unchecked convention decays. (It now
+cites eleven, in a table of its arms.)
+
+Also worth saying plainly: **a check that a feature cites *an* address is theatre.** An address in
+a comment proves a lookup happened, not that a function was read. C61's own first draft cites four
+addresses and is wrong about all of them.
+
+### What is proposed instead
+
+The three checks that have actually worked here — `symbols_md.js`, `figures.js`, `corrections.js`
+— all have the same shape, and it is not "a file must exist". It is **two artefacts maintained by
+different work, that must agree.** A number in a document versus a number derived from the tree. A
+citation versus the heading it names. That shape goes red on ordinary work, in both directions,
+which is the whole point.
+
+So: `docs/arms.json`, one record per input arm of the original —
+
+```json
+{ "screen": "0x10", "addr": "0x004A8E0B", "gesture": "hover",
+  "what": "the route under the cursor, recomputed when the hovered tile changes",
+  "status": "reproduced", "by": "MapScreen::update_hover_path" }
+```
+
+`status` is `reproduced`, `absent`, `ours` or `n-a`, and `n-a` must name the unbuilt subsystem.
+Then four checks, in rising order of cost and value:
+
+1. **Every `addr` resolves in `docs/symbols.json` or `docs/hypotheses.json`.** Cheap, and it is the
+   difference between citing an address and citing a *function somebody named*. An arm cannot be
+   invented from a plausible-looking constant.
+2. **Every `by` names a symbol that exists in the crate.** Cheap, and it catches the failure this
+   project has already had once: a rename silently unhooking `ENG_CALLS`. An arm that stops being
+   reproduced because its function was renamed or deleted goes red the same day.
+3. **The two lists must agree, both ways.** Each handled gesture in a screen module carries a
+   one-line marker — `// arm: 0x004A8E0B` or `// arm: ours` — and the check is *set equality*
+   between the markers in the code and the `reproduced`/`ours` records in the file. This is the
+   half that fires on ordinary work: a new handler with no marker fails, a marker with no record
+   fails, a record claiming an arm nobody built fails, and a deleted handler fails. It is also the
+   half that makes an invention **countable**, which is what a 1:1 goal actually needs — `ours`
+   arms are a number that should go down.
+4. **A per-screen percentage, printed by the census.** Not a gate: a number in `status.html` and
+   the README, maintained by the script, that cannot drift because nobody types it. `figures.js`
+   already does exactly this for other counts, and the precedent there is *"a number that cannot
+   drift beats a number that is checked"*.
+
+The falsification condition, since a check that cannot go red is a rule: **check 3 fails if I add a
+`RightClick` handler to `divide.rs` without an entry, and fails if I delete
+`MapScreen::update_hover_path` without one.** Both are one-line experiments and both should be run
+before this is believed.
+
+### What it costs, honestly
+
+Enumerating three screen groups took three agents about half an hour of wall time each and
+produced ~185 rows, most of which are verdicts rather than research. Marking up the existing
+handlers is the larger job — perhaps a day — and it is unavoidable, because check 3 is worthless
+until the markers exist and check 3 is the only one that fires on ordinary work.
+
+**So do not start with all of it.** The three groups already enumerated are `map.rs`,
+`village.rs`/`job.rs`, and `county.rs`/`divide.rs`/`shells.rs`, and their tables are in C61 and in
+the three agent reports. Land those, run the two falsification experiments, and let the census go
+red for a screen that has arms in the file and no markers in the code. The battlefield's 49 arms
+are the argument for doing this *before* that screen is built rather than after — it is the only
+screen group where the inventory would be written ahead of the code, which is the cheap direction.
+
+### The rest of the pattern, recorded
+
+Two other things fell out of the enumeration and belong here rather than in a correction:
+
+- **Right-click is the gesture we systematically miss**, because "right click exits" was learned
+  early and generalised. The original uses that button for four different verbs — exit, cancel a
+  drag, clear a selection, re-centre a panel — and 11 of the 22 right-button arms found are either
+  missing or wrong. One is *wrong* rather than absent: a right-click while carrying peasants leaves
+  the village instead of cancelling the carry.
+- **Two documented claims were falsified by the enumeration**, both of the "verified" tier:
+  `Village_DoubleClick` is *not* the only reader of `g_mouseLeftDoubleClick` (`FUN_0043BF07` and
+  `Hotspot_Test` read it too, and `crates/l2-game/src/input.rs` repeats the claim), and screen
+  `0x12`'s arm has no right-button test at all, so `battle.rs`'s right-click-to-Decline is ours.
+  Neither was found by looking for errors; both fell out of reading a screen exhaustively. That is
+  the argument for enumeration in one sentence.
+
 ## Prior art first
 
 Before commissioning a reverse-engineering task, spend five minutes searching for existing

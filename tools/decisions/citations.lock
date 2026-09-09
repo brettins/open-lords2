@@ -9,6 +9,7 @@
 # Generated. Do not hand-edit except to accept a single deliberate change.
 .github/workflows/ci.yml	C26	8ee8f43c4642
 CLAUDE.md	C5	b0903798b42f
+CLAUDE.md	C61	30548a1bfcb5
 README.md	C23	05c1d7fce551
 README.md	C26	9648f42b9cac
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53
@@ -32,8 +33,11 @@ crates/l2-game/src/screens/map.rs	C25	23e8c28769c0
 crates/l2-game/src/screens/map.rs	C45	12e98c92949f
 crates/l2-game/src/screens/map.rs	C48	5ed2d9912e7f
 crates/l2-game/src/screens/map.rs	C57	3865532a202c
-crates/l2-game/src/screens/map.rs	C57	8b5e7f194e7c
+crates/l2-game/src/screens/map.rs	C58	79132223dcda
 crates/l2-game/src/screens/map.rs	C58	c583727df160
+crates/l2-game/src/screens/map.rs	C61	4ec0e911ae60
+crates/l2-game/src/screens/map.rs	C61	56e0155cb915
+crates/l2-game/src/screens/map.rs	C61	9e7ed2c574ff
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
@@ -64,6 +68,7 @@ crates/l2-game/tests/screens.rs	C42	555ed4e9d785
 crates/l2-game/tests/screens.rs	C47	944e764a1fca
 crates/l2-game/tests/screens.rs	C48	38f59896d07f
 crates/l2-game/tests/screens.rs	C48	a3f70d784d36
+crates/l2-game/tests/screens.rs	C61	0666dfecda29
 crates/l2-game/tests/turn.rs	C19	2b27ff0ebcc9
 crates/l2-kingdom/src/ai.rs	C13	b6951068455b
 crates/l2-kingdom/src/ai_farm.rs	C3	5a9c96365a5c
@@ -171,6 +176,8 @@ docs/agents.md	C34	f2c33fb8f901
 docs/agents.md	C36	5f5b8e281e9a
 docs/agents.md	C36	733d2c65b207
 docs/agents.md	C38	e3ec1a1dd845
+docs/agents.md	C61	629e9991f82f
+docs/agents.md	C61	f21353298644
 docs/armies.md	C12	107ce66c22f6
 docs/armies.md	C13	01136a71a801
 docs/armies.md	C25	0e1a3d3b6e2c
@@ -306,7 +313,11 @@ docs/decisions.md	C52	5e26cd0befa4
 docs/decisions.md	C52	7927c7868f8b
 docs/decisions.md	C57	2abd57a143c3
 docs/decisions.md	C57	a01e03e89d00
+docs/decisions.md	C58	117a0bc239b7
+docs/decisions.md	C58	11ed95e47ec9
 docs/decisions.md	C58	146714b7fa85
+docs/decisions.md	C58	4d7747b50e07
+docs/decisions.md	C58	c9cba72f3595
 docs/decisions.md	C58	cf211d06686a
 docs/decisions.md	C59	611dbc328c24
 docs/decisions.md	C7	3c72ce757143

@@ -16,6 +16,12 @@ subagent, so it stays short. Read the linked document before working in that are
    freely — formats are not copyrightable. Never copy, vendor or translate their code.
 4. **Label claims verified or inferred.** A plausible story assembled from decompiler
    output is not a finding.
+5. **If we implement a feature, find its equivalent in the binary's functions.** Rule 4's
+   other half: 4 governs what we may *claim*, this governs what we may *build*. Name the
+   function the behaviour reproduces, in the code, beside it — not just the screen's painter.
+   *"We could not find it"* is a finding to report, not a licence to invent. Measured once:
+   we reproduce **80 of 185** of the original's input arms, and every miss was a behaviour
+   nobody had looked for. `docs/decisions.md` C61.
 
 ## Where to look
 
