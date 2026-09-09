@@ -996,6 +996,41 @@ another. **A `[V]` on a branch is not a `[V]` on the rule the branch belongs to*
 cheapest defence is the one this correction used: grep every site that touches the flag, and
 count them.
 
+**C32 — A tie in the secession pass was said to go to the lowest block index. It goes to
+the highest. The operator was read correctly and the conclusion drawn backwards.**
+
+`Territory_SecedeMinorBlocks` (`0x0044AE51`) picks the block a realm keeps with
+
+```c
+for (i = 0; i < 17; i++)
+    if (blocks[i].owner == realm && best <= blocks[i].population) { kept = i; best = ...; }
+```
+
+and `symbols.json` and `docs/kingdom.md` §6.1 both said *"ties go to the lowest block index,
+**because** the comparison is `<=`"*. The `because` is where it went wrong: `<=` is exactly
+what makes a later equal block **overwrite** the incumbent. `<` would have given the lowest.
+
+It is a one-word error in a sentence whose reasoning is visible, which is what makes it worth
+a number: **the citation was carried forward twice without anyone re-deriving it**, once into
+`symbols.md` by the generator and once into the prose. The check that catches this class is
+cheap and was not run — write the tie-break down as a test with two equal blocks and read
+which one survives (`territory.rs`,
+`an_equal_population_hands_the_realm_the_higher_numbered_block`).
+
+Three smaller readings in the same pass are corrected with it, all in the same direction —
+the code says more than the summary did. The realm loop is **1 … 5 guarded on
+`strength != 0`**, so an eliminated realm is skipped and realm 0 is never considered. The
+key is the **sum of the block's members' populations**, not its county count. And the
+message is suppressed unless the realm held more than one block, which is a second guard on
+top of "something actually seceded".
+
+**And the honest note about the anchor, which is not a correction but belongs beside one.**
+This mechanic still has no data-side oracle: every realm in all six fixtures owns exactly one
+county. A player has now confirmed from memory that cut-off counties secede in play, and that
+is what moved it from unanchored to corroborated and got it implemented. Recorded in
+`docs/kingdom.md` §6.1 and `docs/rules.md` §5a **as a recollection plus two `L2.eng`
+strings**, because writing it down as anything stronger is how C5 and C8 happened.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
@@ -1005,11 +1040,18 @@ count them.
   §3.2 said those rows were "all zeros" and that is corrected there. The percentages are
   immediates in the caller of `FUN_00404D6B` and would need `initconsts.ps1`'s technique to
   recover.
-- **The labour allocator never reruns.** `sum(labour) == population` holds on an imported
-  kingdom and is frozen at the import's figure ten seasons later while the population moves
-  under it; `FUN_0044F6E7` reallocates every season. Found by replacing C12's shape in
-  `ten_more_seasons_...`, pinned there, and named at the assertion that will go red when
-  somebody writes the rule.
+- ~~**The labour allocator never reruns.**~~ **Closed.** It is
+  `Pass::LabourAllocate` and `Pass::LabourAllocateAgain` now, behind the six estimate tail
+  calls it needed; `sum(labour) == population` holds for all fourteen counties of the England
+  position for ten seasons, and `ten_more_seasons_...` asserts that instead of the freeze.
+  The one piece still inferred is the castle ceiling's materials gate —
+  `crates/l2-kingdom/tests/labour_gap.rs` and `docs/kingdom.md` §14.4.
+- **The castle's materials are debited up front, and the original delivers them over time.**
+  `Castle_BuildEstimate` returns a labour ceiling of **0** until six words at county
+  `+0x1CC … +0x1E0` say the wood and stone have arrived; `industry::order_castle` takes the
+  whole cost the moment the castle is ordered, so this tree's gate is permanently open. The
+  arithmetic given a complete delivery is reproduced and the delivery is not modelled. It is
+  the last unreproduced call of `County_RefreshEstimates`.
 - `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
   gives the weather jitter as `random/8` with no stated range, which is not implementable —
   the constant is the one number in that crate with no evidence behind it, and it is marked

@@ -1026,7 +1026,23 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Field_ReclaimTick(int county)",
-      "comment": "Advances the 20 per-county field-progress words at +0x90 towards 800, at most 200 per season - the manual's \"never more than a quarter of a field in a single season\". Rewrites the tile graphic at each quarter."
+      "comment": "SPENDS labour record 2's worker count as a budget, one unit of progress a worker. Starts at Field_ReclaimLeadSlot's field - the most advanced one under reclamation - walks the twenty slots wrapping, gives each at most 200 (the manual's \"never more than a quarter of a field in a single season\"), refunds any overshoot past 800 to the budget, repaints the tile at each quarter, and returns the moment the budget runs out. So a county with NOBODY on reclamation reclaims nothing, 200 workers is one field a season, and a field finished with labour to spare hands the remainder to the next field in the rota. The stored progress is not clamped to 800; the overshoot is written back and is inert because the tile is already fallow. Reproduced in l2-kingdom::land::reclaim_fields."
+    },
+    {
+      "addr": "0x0044C53B",
+      "name": "Field_ReclaimLeadSlot",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Field_ReclaimLeadSlot(int county)",
+      "comment": "Writes county +0x210: the field slot, among those whose terrain is reclamation (> 0x18), with the HIGHEST progress - ties to the lowest slot. The gang finishes the nearly-done field before starting the next. Leaves 0 when nothing is being reclaimed. FUN_0044C5FC at 0x0044C5FC is the same three lines with 99 as its no-work value instead, which is what Field_ReclaimEstimate tests to decide whether there is any work at all; Field_ReclaimTick calls both and the second overwrites the first."
+    },
+    {
+      "addr": "0x0044C5FC",
+      "name": "Field_ReclaimLeadSlotOr99",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Field_ReclaimLeadSlotOr99(int county)",
+      "comment": "Field_ReclaimLeadSlot with 99 rather than 0 as the value written to +0x210 when no field is under reclamation. Field_ReclaimEstimate's `if (+0x210 < 99)` is the only reader that cares."
     },
     {
       "addr": "0x0044C278",
@@ -1056,17 +1072,33 @@
       "addr": "0x0044D15A",
       "name": "Grain_Grow",
       "section": "kingdom",
-      "confidence": "inferred",
+      "confidence": "verified",
       "signature": "int Grain_Grow(int county, int labour, int crop)",
-      "comment": "Mid-season crop step, entering Summer and Autumn."
+      "comment": "Mid-season crop step, entering Summer and Autumn: crop = FertilityBonus(min(GrainFieldShare(crop), labour * perWorker)), clamped at 0. perWorker is 10 with Advanced Farming (0x00553538) and g_grainLabourDivisor's 2 without - the SAME global Grain_Sow uses as a divisor, used here as a multiplier. The labour cap is the reason the grain labour ceiling exists at all: a county that puts nobody on the fields grows nothing whatever it sowed. Reproduced in l2-kingdom::land::grow_step."
     },
     {
       "addr": "0x0044D1E5",
       "name": "Grain_Harvest",
       "section": "kingdom",
-      "confidence": "inferred",
+      "confidence": "verified",
       "signature": "int Grain_Harvest(int county, int labour, int crop)",
-      "comment": "Harvest step, entering Winter."
+      "comment": "Harvest step, entering Winter: min(max(GrainFieldShare(crop), 0), labour * perWorker), and with Advanced Farming on the labour is HALVED first. perWorker is 3 with it on (0x00553218) and 2 without. No fertility here - it was spent at the two Grain_Grow steps. Reproduced in l2-kingdom::land::harvest_step."
+    },
+    {
+      "addr": "0x0044D281",
+      "name": "Grain_FieldShare",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "int Grain_FieldShare(int county, int crop)",
+      "comment": "First line of both Grain_Grow and Grain_Harvest. If the county now has FEWER grain fields than it sowed (+0x202), scales the crop by Pct(crop, PctOf(fieldsGrain, fieldsGrainSown)); otherwise returns it unchanged. So ploughing a wheat field under in midsummer costs a share of the year's crop, and painting new grain buys nothing until the next sowing."
+    },
+    {
+      "addr": "0x0044D303",
+      "name": "Grain_FertilityBonus",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "int Grain_FertilityBonus(int county, int crop)",
+      "comment": "crop + Pct(crop, fertility / 2). The whole of fertility's effect on grain, applied by Grain_Grow only - twice a year - and AFTER the labour cap, so it multiplies what the farmhands could tend rather than what the field could have grown. The -100..100 scalar is therefore worth -50%..+50% a step and a perfectly fertile county reaps 2.25 times a neutral one. The decompiler shows an if whose two arms are identical; that is a signed divide, not a rule."
     },
     {
       "addr": "0x0044D60D",
@@ -3488,7 +3520,31 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Industry_LabourEstimate(int county, int industry, int slot, int baseEfficiency, int divisor)",
-      "comment": "Fills one industry's labour record: wanted floor -1 always, useful ceiling 0 when the county has no such resource, the output-maximising worker count for weapons, and 100,000 - effectively unbounded - for iron, stone and wood. Called four times from FUN_004485A5 as (1,4,15,1) (3,5,15,2) (0,6,20,1) (2,7,15,4), which is the same job-and-divisor mapping l2-kingdom::tables holds."
+      "comment": "Fills one industry's labour record: wanted floor -1 always, useful ceiling 0 when the county is UNOWNED or the resource limit is 0 or popBand is 0, the output-maximising worker count for weapons, and 100,000 - effectively unbounded - for iron, stone and wood. The weapons search steps by popBand, one peasant icon, not by one person. Called four times from FUN_004485A5 as (1,4,15,1) (3,5,15,2) (0,6,20,1) (2,7,15,4), which is the same job-and-divisor mapping l2-kingdom::tables holds. The owner test is why the shipped save's owned counties are full of foresters and its neutral ones full of idlers. Reproduced in l2-kingdom::industry::labour_estimate."
+    },
+    {
+      "addr": "0x0044EF4E",
+      "name": "Industry_ResourceLimit",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "int Industry_ResourceLimit(int county, int industry, uint realm, int useShadow)",
+      "comment": "The resourceLimit term of Industry_Produce and Industry_LabourEstimate. For wood, iron and stone it is a flag test rather than a quantity - enabled (+0x297) and has-resource (+0x295) and not counting down a disablement (+0x296) gives a literal 999, anything else 0. For weapons it is a real quantity: min over wood and iron of (stock * cost / share) / cost, where share is Industry_WeaponShares and stock is the realm's own wood/iron when useShadow is 0 and realm +0x134/+0x124 when it is not. Reproduced in l2-kingdom::industry::resource_limit."
+    },
+    {
+      "addr": "0x0044F15B",
+      "name": "Industry_WeaponShares",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Industry_WeaponShares(uint realm)",
+      "comment": "Writes the two denominators Industry_ResourceLimit divides the weapons stockpile by: 0x0057C904 = the sum of g_weaponCost[weaponType].wood and 0x0056D628 = the sum of its .iron, over every county of this realm whose blacksmith is switched ON and STAFFED (labour[7].workers > 0), each clamped to at least 1. They are summed COSTS, not a count of counties - so two smithies forging different weapons split the stockpile in proportion to what each weapon costs, an idle smithy takes no share at all, and a realm with one smithy divides by that weapon's own cost, making its limit exactly the number of weapons the stockpile can pay for. This answers a [D] that l2-kingdom::industry carried; it is now l2-kingdom::industry::weapon_shares."
+    },
+    {
+      "addr": "0x0044F248",
+      "name": "Industry_EfficiencyRamp",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "int Industry_EfficiencyRamp(int county, int industry, int workers, int baseEfficiency)",
+      "comment": "This season's efficiency for one industry. A flat 80 with Advanced Farming off; 0 with no workers; otherwise lastEfficiency (+0x29C + industry*0x18) plus the base, where the base is first scaled by PctOf(capacity, workers) if the workers exceed the capacity (+0x29E), capped at 100 and floored at the unscaled base. Reproduced in l2-kingdom::industry::efficiency_ramp."
     },
     {
       "addr": "0x004485A5",
@@ -4268,7 +4324,7 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Territory_SecedeMinorBlocks(void)",
-      "comment": "For each realm in play, finds its most populous block in g_territoryBlocks and calls County_MakeIndependent on every county in each of its other blocks. Ties go to the lowest block index, because the comparison is <=. Only the local player is told: message 0x7F when exactly one county went, 0x80 when more. An AI loses its outlying counties in silence."
+      "comment": "For each realm 1..5 with a non-zero strength, finds its most populous block in g_territoryBlocks and calls County_MakeIndependent on every county in each of its other blocks. Ties go to the HIGHEST block index: the comparison is `best <= block.population` and the scan runs upward, so an equal population overwrites the incumbent. (This comment said 'lowest' - the operator was read correctly and the conclusion drawn backwards; docs/decisions.md C32.) Only the local player is told, and only when the realm held more than one block: message 0x7F when exactly one county went, 0x80 when more. An AI loses its outlying counties in silence. Reproduced in l2-kingdom::territory."
     },
     {
       "addr": "0x0044B302",

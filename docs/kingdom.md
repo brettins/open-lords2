@@ -831,9 +831,19 @@ pass and the field recount.
    It never merges two blocks that a newly placed county would join, which is exactly why it
    sweeps repeatedly instead of once.
 
-2. **`Territory_SecedeMinorBlocks`** then finds, for each realm, its **most populous** block
-   — ties to the lowest index — and calls `County_MakeIndependent` on every county in each
-   of its other blocks.
+2. **`Territory_SecedeMinorBlocks`** then finds, for each realm 1 … 5 with a non-zero
+   `strength`, its **most populous** block and calls `County_MakeIndependent` on every
+   county in each of its other blocks.
+
+   **A tie goes to the *highest* block index, and this document said the lowest.** The
+   comparison is `if (best <= block.population)` scanning upward from slot 0, so an equal
+   population *overwrites* the incumbent. The operator was read correctly and the
+   conclusion drawn backwards. `docs/decisions.md` C32.
+
+   Two more details worth having. The key is the **sum of the block's members'
+   populations**, filled by `Territory_BuildBlocks`' last loop — so a realm holding one
+   huge county and three small ones loses the three. And **the human is not treated
+   differently**: the only branch on `g_localPlayer` in the whole pass is the message.
 
 So a realm keeps one contiguous empire and loses everything cut off from it, at the end of
 the very season it was cut off. The game says so itself, which is what names the pass:
@@ -861,7 +871,33 @@ maintains — each realm's counties form one connected component of the neighbou
 holds trivially in all six saves and proves nothing. What the fixtures *did* establish is
 that the neighbour lists this pass runs on are read correctly: the England turn-one
 adjacency is perfectly symmetric across all fourteen counties, 39 undirected edges with no
-half-edges. The mechanic itself rests on the two strings and on the code.
+half-edges.
+
+**And a player has since confirmed it from memory: cut-off counties do secede in play.**
+That moves the mechanic from unanchored to corroborated and it is why
+`crates/l2-kingdom/src/territory.rs` exists. It is worth being exact about what the anchor
+now is — *the code, two `L2.eng` strings, and one person's recollection*. It is not a
+reproduction against a save, and until a fixture exists in which some realm holds two
+counties there is nothing here that could become one.
+
+**What "contiguous" means, since it is the question anyone implementing this asks first:
+the county neighbour list at `+0x5C`, and nothing else.** `Territory_ExtendBlock` joins a
+county to a block through `County_IsNeighbour` (`0x00467E2C`), which walks that list. Two
+counties whose tiles touch but which are not in each other's list are not contiguous for
+this pass; two counties in each other's list are contiguous however far apart their anchors
+sit. Map adjacency never enters it.
+
+**And the partition is not a connected-components walk.** `Territory_ExtendBlock` never
+merges two blocks that a newly placed county would join, so a county placed into block A
+that also neighbours block B leaves A and B separate for that sweep. That is exactly why
+`Territory_BuildBlocks` sweeps repeatedly — up to a hundred times — and opens a fresh block
+only when a whole sweep extended nothing. Run to a fixpoint it agrees with the components;
+run once it does not.
+
+`crates/l2-kingdom/src/territory.rs` reproduces all of it and
+`crates/l2-kingdom/tests/secession.rs` is the pass through the season pipeline. It is
+[`Pass::SecedeIsolatedCounties`], between the unrest counter and the field recount, which is
+where the call list puts it.
 
 ---
 
@@ -878,6 +914,63 @@ end of Spring   Grain_Grow     crop adjusted
 end of Summer   Grain_Grow     crop adjusted
 end of Autumn   Grain_Harvest  store += crop
 ```
+
+**The three crop words are the seed, the standing crop, and the harvest — not three growth
+stages**, and this document's field table implied otherwise. `crop[0]` (`+0x240`) is written
+once a year, at sowing, and holds the sacks that actually went into the ground; `crop[1]`
+(`+0x244`) is the **one** word the whole year's crop lives in, rewritten in place by each
+`Grain_Grow`; `crop[2]` (`+0x248`) is cleared at the top of *every* season and holds what
+the harvest brought in. **[V]** — `Grain_SeasonTick`'s four arms, read together.
+
+**`Grain_Grow` and `Grain_Harvest` are where the grain farmers earn their keep**, and both
+were `[inferred]` one-liners until now:
+
+```c
+int Grain_Grow(county, labour, crop) {                 /* 0x0044D15A */
+    perWorker = advancedFarming ? 10 : g_grainLabourDivisor;   /* 0x00553538, 0x0057D34C */
+    crop = min(Grain_FieldShare(county, crop), labour * perWorker);
+    return max(Grain_FertilityBonus(county, crop), 0);
+}
+int Grain_Harvest(county, labour, crop) {              /* 0x0044D1E5 */
+    perWorker = advancedFarming ? 3 : g_grainLabourDivisor;    /* 0x00553218 */
+    crop = max(Grain_FieldShare(county, crop), 0);
+    if (advancedFarming) labour /= 2;
+    return min(crop, labour * perWorker);
+}
+```
+
+Four rules fall out of ten lines, and every one of them changes results rather than
+structure. **[V]**
+
+* **The crop is capped at `labour * perWorker` every season.** A county that sows a full
+  crop and then puts nobody on the fields grows and reaps *nothing*. This is what
+  `Grain_LabourEstimate` is searching for in Summer, Autumn and Winter, and why the grain
+  ceiling is a real number in all four seasons rather than only at sowing.
+* **`Rules_InitConstants` writes four grain numbers, not two.** `g_grainLabourDivisorAdv`
+  is 5, `0x00553538` is 10, `0x00553218` is 3, and `g_grainLabourDivisor` is 2. Each step
+  picks between its own advanced value and the *same* basic value — so with *Advanced
+  Farming* off all three read the single global `0x0057D34C`, once as a divisor and twice
+  as a multiplier.
+* **Fertility multiplies the crop, twice a year, and only there.**
+  `Grain_FertilityBonus` (`0x0044D303`) is `crop + Pct(crop, fertility / 2)`, applied by
+  `Grain_Grow` *after* the labour cap. The −100 … 100 scalar §7.2 keeps is therefore worth
+  −50 % … +50 % per grow step: a perfectly fertile county reaps **2.25 times** what a
+  neutral one does and a ruined one a quarter. Until this was traced, fertility accumulated
+  in this tree and did nothing at all.
+* **Losing a grain field mid-year costs a share of the crop.** `Grain_FieldShare`
+  (`0x0044D281`) scales the standing crop by `fieldsGrain / fieldsGrainSown` whenever the
+  county now has fewer grain fields than it sowed — county `+0x202`, written at sowing
+  (and to **1** rather than the real count when the shortfall flag `+0x1A7` is set).
+  Painting *more* grain in July buys nothing until the next sowing.
+
+**And one thing that is a bug in the original and is reproduced because it is what the game
+does.** At the harvest, four of the six weather bands assign `crop[2]` from **`crop[1]`** —
+the standing crop — rather than from what `Grain_Harvest` just returned. So under *Sunny* a
+county reaps three halves of everything it grew however few reapers it sent, and under
+*Frost*, *Storms* or *Flooding* it reaps a fixed fraction of the same; only *Cloudy* and
+*Drought* leave the labour cap standing. The two branches at sowing and growing read their
+own word. **[V]** on the reading — the four assignments are `crop[1]`-sourced in the
+decompilation and their neighbours are not.
 
 **[V] `g_grainYieldPerSack` (`0x0057C8E0`) is 12** — and `L2.eng` group 292 index 4, the
 game's own frequently-asked-questions page, says *"Each sack planted will grow into 12
@@ -935,6 +1028,31 @@ condition in the twenty words at county `+0x90`.
 by **at most 200 per season**, redrawing the tile at each quarter. The manual: *"you will
 never be able to reclaim more than a quarter of a field in a single season."* 200 / 800 is
 exactly a quarter. **[V]**
+
+**It spends the reclamation labour as a budget, and that sentence was missing.** This
+document gave the rate and the cap and never said where the 200 comes from. It comes from
+job slot 2, one unit of progress a worker:
+
+```c
+budget = county.labour[2].workers;
+slot   = Field_ReclaimLeadSlot(county);          /* 0x0044C53B, or 0 */
+for (twenty slots, from slot, wrapping) {
+    if (terrain[fieldTile[slot]] <= 0x18) continue;      /* not being reclaimed */
+    take = min(budget, 200); progress += take; budget -= take;
+    if (progress > 800) budget += progress - 800;        /* the overshoot comes back */
+    repaint(fieldTile[slot], quarter(progress));
+    if (budget < 1) return;
+}
+```
+
+Three consequences. **A county with nobody on reclamation reclaims nothing**, which is what
+makes `Field_ReclaimEstimate`'s ceiling worth computing at all. **The gang starts on the
+most advanced field** — `Field_ReclaimLeadSlot` is the reclaiming slot with the highest
+progress, ties to the lowest slot — so it finishes one field before starting the next rather
+than inching four along together. And **a field finished with labour to spare refunds the
+overshoot**, so the gang moves straight on round the rota. The stored progress is *not*
+clamped to 800; the raw sum is written back and is inert, because the tile has already been
+repainted fallow. **[V]**
 
 **Fertility.** `Fertility_Update` (`0x0044BFD5`) is three lines:
 
@@ -2115,7 +2233,55 @@ That last contrast is the ceiling doing all the work: an owned county's wood cei
 100,000 and an unowned one's is 0, so identical populations end up as a county full of
 foresters or a county full of idlers.
 
-**Not wired into `phase.rs`.** The allocator's inputs are the seven estimate passes
-`County_RefreshEstimates` (`0x004485A5`) runs, and this crate has none of them. Running the
-allocator every season against a stale ceiling would move people on evidence that had
-stopped being true. `l2_kingdom::labour::SEASON_CALL_SITES` records where it belongs.
+### 14.4 It is in the pipeline now, and here is what that took
+
+`crates/l2-kingdom/tests/labour_gap.rs` used to be four tests asserting the *absence* of the
+allocation pass. It is now the record of closing it, and the shape of the job is worth
+keeping because it is the same shape every "why is this pass not wired in" question has.
+
+The blocker was never the allocator. It was that **`Season_Advance` does not call
+`County_RefreshEstimates` before either of its two `Labour_AllocateAll`s** — each of the
+nine ceilings is refreshed by the pass that invalidates it, as that pass's *tail call*:
+
+| ceiling | refreshed at the end of |
+|---|---|
+| the five field counts | `County_RecountFieldsAll`, its own pipeline entry |
+| reclamation | `Field_ReclaimEstimate`, last line of `Fields_SeasonTick` |
+| grain | `Grain_LabourEstimate`, last line of `Grain_SeasonTick` |
+| cattle | `Herd_LabourEstimate`, last line of `Herd_SeasonTick` |
+| four industries | `Industry_LabourEstimate`, and `Panels_RefreshAll` at the end |
+| castle | `Castle_BuildEstimate`, both arms of `Castle_BuildTick` |
+
+…plus the one that unlocked it: **`County_RefreshEstimates` *does* run every season**, once
+per county, as the middle statement of `Panels_RefreshAll` — `Season_Advance`'s **last**
+call. "`Season_Advance` never calls it" is true of the direct call list and false of the
+pipeline, and that difference was the whole obstruction. §3.4.
+
+Three of the six could not be written before and now can:
+
+* **grain outside the sowing season** needed `Grain_Grow` and `Grain_Harvest` to be real
+  functions rather than weather multipliers — §7.1;
+* **the four industries** needed the owning **realm**, so `County_RefreshEstimates` is not a
+  one-county function at all, and needed `Industry_WeaponShares` (`0x0044F15B`), the two
+  summed-cost denominators §7.4 left as `[D]`;
+* **the castle** is still the one inferred piece: `Castle_BuildEstimate`'s ceiling is 0
+  until the build's six delivery words say the materials have arrived, and this tree debits
+  them up front (§7.5), so the gate is permanently open and the ceiling is the work
+  outstanding. **[I]** on the model, not on the arithmetic.
+
+And one thing that would have made the wiring a **silent no-op** rather than a wrong number:
+`Field_ReclaimTick` spends `labour[2]` as a budget (§7.2) and this tree advanced every
+started field by a flat quarter. Reclamation labour now does something, so allocating it
+means something.
+
+**The invariant closes.** A county's nine job records sum to its population, exactly, in
+every season — `crates/l2-kingdom/tests/reproduction.rs`, all fourteen counties of the
+England position, ten seasons. That assertion used to read *"labour is frozen at the
+import's allocation, because the allocator does not rerun"*.
+
+**One consequence worth knowing before writing a test.** `County_RecountFieldsAll` is a
+pass of the season now, and it rebuilds all five field counts from the map. Writing
+`fields_grain = 5` into a county record and advancing a season no longer gives you five
+grain fields — a county with no field tiles has no fields, whatever its record says. That is
+the original's rule (§7.2) and it is the correct one; it is written here because two tests
+in `l2-mods` were quietly relying on the old behaviour.

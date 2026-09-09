@@ -62,19 +62,106 @@ pub fn update_fertility(county: &mut County, advanced_farming: bool) {
     }
 }
 
-/// `Field_ReclaimTick` (`0x0044C093`) — push every field under reclamation
-/// towards 800 by at most 200.
+/// County `+0x210` — **which field the reclamation gang is working on.**
 ///
-/// **`[I]` on which fields are being reclaimed.** `docs/kingdom.md` §7.2 gives
-/// the rate, the target and the manual's confirmation of the quarter-per-season
-/// cap, and does not say what marks a field as in progress. A field with
-/// progress strictly between 0 and 800 is taken to be under way; a field at 0
-/// has not been started and a field at 800 is done.
-pub fn reclaim_fields(t: &Tables, county: &mut County) {
-    for field in 0..MAX_FIELDS {
-        let p = county.field_progress[field] as i32;
-        if p > 0 && p < t.field.progress_max {
-            county.reclaim_field(field, t.field.reclaim_per_season);
+/// `FUN_0044C53B` and `FUN_0044C5FC` are the same three lines twice: the slot,
+/// among the county's fields whose *terrain* says reclamation, with the
+/// **highest progress**, ties going to the lowest slot. So the gang finishes
+/// the nearly-done field before it starts the next one, and a county with two
+/// hundred workers completes one field a season rather than inching four along
+/// together.
+///
+/// The two differ only in what they leave behind when nothing is being
+/// reclaimed — `0` for the tick, `99` for the estimate, which is the estimate's
+/// "is there any work at all" test. Here that is `None`.
+pub fn reclaim_leader(county: &County, map: &crate::map::CampaignMap) -> Option<usize> {
+    let mut best: Option<(usize, i32)> = None;
+    for slot in 0..MAX_FIELDS {
+        let Some(tile) = county.field_tile(slot) else { continue };
+        if crate::field::classify(map.terrain[tile]) != crate::field::FieldType::Reclaiming {
+            continue;
+        }
+        let progress = county.field_progress[slot] as i32;
+        // Strictly greater, scanning upward: a tie keeps the earlier slot.
+        if best.is_none_or(|(_, p)| p < progress) {
+            best = Some((slot, progress));
+        }
+    }
+    best.map(|(slot, _)| slot)
+}
+
+/// The terrain byte a field under reclamation shows at `progress`: the four
+/// quarters `0x19 … 0x1C`, and [`crate::field::terrain::FALLOW`] the moment it
+/// is finished. `Field_ReclaimTick` repaints the tile on every step, which is
+/// what eventually moves the field out of [`County::fields_reclaiming`] and
+/// into [`County::fields_fallow`] at the next recount.
+pub fn reclaim_terrain(t: &Tables, progress: i32) -> u8 {
+    let max = t.field.progress_max;
+    for quarter in 1..=4 {
+        if progress < max * quarter / 4 {
+            return crate::field::terrain::RECLAIM_FIRST + (quarter as u8 - 1);
+        }
+    }
+    crate::field::terrain::FALLOW
+}
+
+/// `Field_ReclaimTick` (`0x0044C093`) — **spend the county's reclamation
+/// labour.**
+///
+/// This crate used to advance every started field by a flat
+/// [`crate::tables::FIELD_RECLAIM_PER_SEASON`] whatever anybody was doing, so
+/// [`crate::tables::JOB_FIELD_RECLAMATION`] was a job nobody had to hold. The
+/// original spends the job's worker count as a **budget**, one unit of progress
+/// a worker:
+///
+/// ```c
+/// budget = labour[2].workers;
+/// slot   = mostAdvancedReclaimingField(county);   /* or 0 */
+/// for (twenty slots, from slot, wrapping) {
+///     if (!reclaiming(slot)) continue;
+///     take = min(budget, 200); progress += take; budget -= take;
+///     if (progress > 800) budget += progress - 800;     /* the overshoot comes back */
+///     repaint(tile, quarter(progress));
+///     if (budget < 1) return;
+/// }
+/// ```
+///
+/// Three consequences, all the original's. **A county with nobody on
+/// reclamation reclaims nothing** — the first field takes a budget of zero and
+/// the walk returns. **Two hundred workers is one field a season**, the
+/// manual's *"never more than a quarter of a field in a single season"*, and
+/// eight hundred workers is a whole field. And a field finished with labour to
+/// spare hands the **overshoot back to the budget**, so the gang moves straight
+/// on to the next field in the rota rather than wasting the season.
+///
+/// The stored progress is deliberately **not** clamped to `progress_max`: the
+/// original writes the overshooting value back even as it refunds the excess.
+/// It is inert, because the tile has already been repainted as fallow and the
+/// slot is no longer reclamation on the next pass.
+pub fn reclaim_fields(t: &Tables, county: &mut County, map: &mut crate::map::CampaignMap) {
+    let mut budget = county.labour[crate::tables::JOB_FIELD_RECLAMATION];
+    let start = reclaim_leader(county, map).unwrap_or(0);
+    for step in 0..MAX_FIELDS {
+        let slot = (start + step) % MAX_FIELDS;
+        let Some(tile) = county.field_tile(slot) else { continue };
+        if crate::field::classify(map.terrain[tile]) != crate::field::FieldType::Reclaiming {
+            continue;
+        }
+        let mut progress = county.field_progress[slot] as i32;
+        if budget <= t.field.reclaim_per_season {
+            progress += budget;
+            budget = 0;
+        } else {
+            progress += t.field.reclaim_per_season;
+            budget -= t.field.reclaim_per_season;
+        }
+        if progress > t.field.progress_max {
+            budget += progress - t.field.progress_max;
+        }
+        crate::field::paint_tile(map, tile, reclaim_terrain(t, progress));
+        county.field_progress[slot] = progress.clamp(0, u16::MAX as i32) as u16;
+        if budget < 1 {
+            return;
         }
     }
 }
@@ -134,6 +221,10 @@ pub fn harvest_factor(weather: Weather) -> Factor {
 /// and `labour >= 12 * fields * sacks / divisor` hold.
 ///
 /// Returns 0 when even one sack a field cannot be afforded or worked.
+///
+/// This is the first half of [`sow_sacks`], which is the whole function; it is
+/// kept separate because "sacks a field" is the number the county panel draws
+/// and the number two published guides quote.
 pub fn sacks_per_field(
     t: &Tables,
     fields: i32,
@@ -144,8 +235,7 @@ pub fn sacks_per_field(
     if fields <= 0 {
         return 0;
     }
-    let divisor =
-        if advanced_farming { t.grain.labour_divisor_advanced } else { t.grain.labour_divisor_basic };
+    let divisor = sow_divisor(t, advanced_farming);
     let mut sacks = t.grain.max_sacks_per_field;
     while sacks >= 1 {
         let seed = fields * sacks;
@@ -158,6 +248,202 @@ pub fn sacks_per_field(
     0
 }
 
+/// The divisor `Grain_Sow` tests labour against: 5 with *Advanced Farming* on
+/// and 2 with it off. **The smaller divisor demands more labour**, so turning
+/// the option off makes sowing harder.
+fn sow_divisor(t: &Tables, advanced_farming: bool) -> i32 {
+    if advanced_farming {
+        t.grain.labour_divisor_advanced
+    } else {
+        t.grain.labour_divisor_basic
+    }
+    .max(1)
+}
+
+/// `Grain_Grow`'s crop cap per worker: 10 with *Advanced Farming* on, and the
+/// **sowing divisor's** 2 with it off, because both read the same global.
+fn grow_per_worker(t: &Tables, advanced_farming: bool) -> i32 {
+    if advanced_farming {
+        t.grain.grow_per_worker_advanced
+    } else {
+        t.grain.labour_divisor_basic
+    }
+}
+
+/// `Grain_Harvest`'s: **3** with *Advanced Farming* on — and it halves the
+/// reapers first, so the effective rate is 1.5 sacks a head — and 2 with it
+/// off, on the full workforce.
+fn harvest_per_worker(t: &Tables, advanced_farming: bool) -> i32 {
+    if advanced_farming {
+        t.grain.harvest_per_worker_advanced
+    } else {
+        t.grain.labour_divisor_basic
+    }
+}
+
+/// `Grain_Sow` in full (`0x0044CFE1`) — **the sacks that actually go into the
+/// ground**, and the fallback that keeps a poor county from sowing nothing.
+///
+/// The normal answer is `fieldsGrain * sacksPerField`. If even one sack a field
+/// cannot be afforded or worked, the function sets [`County::sow_shortfall`]
+/// and retries against the **sack count alone**, ignoring the field count: the
+/// largest `s <= 10` with `s <= grainStore` and `12 * s / divisor <= labour`,
+/// sown as the county's whole seed. `Grain_SeasonTick` then records the field
+/// usage as 1. If even that fails the flag is cleared again and nothing is
+/// sown.
+///
+/// **Two early exits do not touch the flag.** An empty store or an empty
+/// workforce returns 0 with [`County::sow_shortfall`] left as it was. That is
+/// the original's and it is reproduced; nothing observable turns on it, because
+/// a county that sowed no seed grows no crop either way.
+pub fn sow_sacks(
+    t: &Tables,
+    county: &mut County,
+    grain_store: i32,
+    labour: i32,
+    advanced_farming: bool,
+) -> i32 {
+    let (sown, flag) =
+        sow_seed(t, county.fields_grain, grain_store, labour, advanced_farming);
+    if let Some(shortfall) = flag {
+        county.sow_shortfall = shortfall;
+    }
+    sown
+}
+
+/// The arithmetic of [`sow_sacks`], with no county to write to.
+///
+/// Returns the seed and what `Grain_Sow` writes to `+0x1A7` — `None` on the two
+/// early exits, which leave the flag alone. `Grain_LabourEstimate` calls
+/// `Grain_Sow` `population + 1` times a season and every one of those calls
+/// moves the real flag in the original; nothing reads it between the sowing
+/// that sets it and the next season's, so the search here is pure and the
+/// difference is unobservable. **`[D]`**
+pub fn sow_seed(
+    t: &Tables,
+    fields_grain: i32,
+    grain_store: i32,
+    labour: i32,
+    advanced_farming: bool,
+) -> (i32, Option<bool>) {
+    if grain_store < 1 || labour < 1 {
+        return (0, None);
+    }
+    let divisor = sow_divisor(t, advanced_farming);
+    let max = t.grain.max_sacks_per_field;
+    let affordable =
+        |seed: i32| grain_store >= seed && labour >= t.grain.yield_per_sack * seed / divisor;
+
+    let mut sacks = max;
+    let mut sown = 0;
+    let mut tried = 0;
+    while tried < max {
+        sown = fields_grain * sacks;
+        if affordable(sown) {
+            break;
+        }
+        tried += 1;
+        sacks -= 1;
+    }
+    if sacks >= 1 {
+        return (sown, Some(false));
+    }
+
+    // The fallback: a token handful, measured in sacks rather than in fields.
+    sacks = max;
+    for _ in 0..max {
+        sown = sacks;
+        if affordable(sacks) {
+            break;
+        }
+        sacks -= 1;
+    }
+    if sacks < 1 {
+        return (0, Some(false));
+    }
+    (sown, Some(true))
+}
+
+/// `FUN_0044D281` — **scale a standing crop by the grain fields still
+/// standing.**
+///
+/// Runs at the top of both `Grain_Grow` and `Grain_Harvest`. If the county now
+/// has *fewer* grain fields than it sowed, the crop is cut to
+/// `PctOf(fieldsGrain, fieldsGrainSown)` percent of itself; if it has as many
+/// or more, nothing happens. So ploughing a wheat field under in midsummer
+/// costs a share of the year's crop, and painting new grain in midsummer buys
+/// nothing until the next sowing.
+pub fn field_share(county: &County, crop: i32) -> i32 {
+    if county.fields_grain < county.fields_grain_sown {
+        pct(crop, crate::math::pct_of(county.fields_grain, county.fields_grain_sown))
+    } else {
+        crop
+    }
+}
+
+/// `FUN_0044D303` — **fertility, at half strength, once per growing season.**
+///
+/// `crop + Pct(crop, fertility / 2)`, so the −100…100 scalar
+/// [`update_fertility`] keeps is worth −50 % … +50 % *per grow step* and there
+/// are two of them a year: a perfectly fertile county reaps 2.25 times what a
+/// neutral one does and a ruined one a quarter. The original writes the
+/// division as an `if` whose two arms are identical, which is a compiler
+/// artefact of a signed divide, not a rule.
+///
+/// This is the whole of fertility's effect on the crop. It is applied **after**
+/// the labour cap, so fertility multiplies what the farmhands could actually
+/// tend rather than what the field could have grown.
+pub fn fertility_bonus(county: &County, crop: i32) -> i32 {
+    crop + pct(crop, county.fertility / 2)
+}
+
+/// `Grain_Grow` (`0x0044D15A`) — one mid-season step, entering Summer and
+/// Autumn.
+///
+/// ```c
+/// crop = min(FieldShare(county, crop), labour * perWorker);
+/// crop = FertilityBonus(county, crop);
+/// return max(crop, 0);
+/// ```
+///
+/// **This is not the crate's old `grow`**, which was one weather multiplier and
+/// nothing else. The labour cap is the part that matters: a county that puts
+/// nobody on the fields grows nothing whatever it sowed, and one that puts
+/// half a workforce on grows half.
+pub fn grow_step(
+    t: &Tables,
+    county: &County,
+    labour: i32,
+    crop: i32,
+    advanced_farming: bool,
+) -> i32 {
+    let capped = field_share(county, crop).min(labour * grow_per_worker(t, advanced_farming));
+    fertility_bonus(county, capped).max(0)
+}
+
+/// `Grain_Harvest` (`0x0044D1E5`) — what the reapers bring in, entering Winter.
+///
+/// ```c
+/// crop = max(FieldShare(county, crop), 0);
+/// if (advancedFarming) labour /= 2;
+/// return min(crop, labour * perWorker);
+/// ```
+///
+/// **No fertility here** — it was spent at the two growing steps — and the
+/// workforce is halved before the multiplier when *Advanced Farming* is on, so
+/// the effective rate is one and a half sacks a reaper against two without it.
+pub fn harvest_step(
+    t: &Tables,
+    county: &County,
+    labour: i32,
+    crop: i32,
+    advanced_farming: bool,
+) -> i32 {
+    let crop = field_share(county, crop).max(0);
+    let hands = if advanced_farming { labour / 2 } else { labour };
+    crop.min(hands * harvest_per_worker(t, advanced_farming))
+}
+
 /// The labour figure `Grain_Sow` tests against.
 ///
 /// **Not established** — see [`JOB_GRAIN_FARMING`]. `docs/kingdom.md` §7.1
@@ -167,45 +453,76 @@ pub fn grain_labour(t: &Tables, county: &County) -> i32 {
     county.labour[t.job.grain_farming]
 }
 
-/// Sow: spend the seed, and put this year's crop into stage 0.
-pub fn sow(t: &Tables, county: &mut County, advanced_farming: bool) {
-    let sacks =
-        sacks_per_field(t, county.fields_grain, county.grain, grain_labour(t, county), advanced_farming);
-    let seed = county.fields_grain * sacks;
-    county.grain -= seed;
-    let crop = seed * t.grain.yield_per_sack;
-    county.crop = [sow_factor(county.weather).apply(crop), 0, 0];
-}
-
-/// Grow: move the crop on one stage, scaled by this season's weather.
-pub fn grow(county: &mut County, stage: usize) {
-    let previous = county.crop[stage - 1];
-    county.crop[stage] = grow_factor(county.weather).apply(previous);
-}
-
-/// Harvest: the last stage lands in the store and the crop is cleared.
-pub fn harvest(county: &mut County) {
-    let yield_ = harvest_factor(county.weather).apply(county.crop[2]);
-    county.grain += yield_;
-    county.crop = [0; 3];
-}
-
-/// `Grain_SeasonTick` — sow, grow, grow, harvest, plus the random-event
-/// modifier on the store.
+/// Sow: spend the seed, and start the year's crop.
 ///
-/// `season` is `g_season`, the season now *beginning*.
+/// `crop[0]` is the seed that went in — **after** the weather has cut it, which
+/// is what the store is debited — and `crop[1]` is that seed times
+/// `g_grainYieldPerSack`, the number every later step works on.
+pub fn sow(t: &Tables, county: &mut County, advanced_farming: bool) {
+    let labour = grain_labour(t, county);
+    let store = county.grain;
+    let sown = sow_sacks(t, county, store, labour, advanced_farming);
+    county.crop[0] = sow_factor(county.weather).apply(sown);
+    county.crop[1] = county.crop[0] * t.grain.yield_per_sack;
+    // What the crop is measured against for the rest of the year. A county
+    // that fell back to a token handful records **one** field, not its real
+    // count — so if it later loses a grain field the ratio still reads 1.
+    county.fields_grain_sown =
+        if county.sow_shortfall { 1 } else { county.fields_grain };
+    county.grain -= county.crop[0];
+}
+
+/// Grow: cap the crop at what the farmhands can tend, apply fertility, then
+/// this season's weather.
+pub fn grow(t: &Tables, county: &mut County, advanced_farming: bool) {
+    let labour = grain_labour(t, county);
+    let grown = grow_step(t, county, labour, county.crop[1], advanced_farming);
+    county.crop[1] = grow_factor(county.weather).apply(grown);
+}
+
+/// Harvest: what the reapers bring in lands in the store.
+///
+/// **The weather does not scale the harvest; it replaces it.** Four of the six
+/// bands assign `crop[2]` from `crop[1]` — the *standing* crop — rather than
+/// from what `Grain_Harvest` just returned, so under *Sunny* a county reaps
+/// three halves of everything it grew however few reapers it sent, and under
+/// *Frost*, *Storms* or *Flooding* it reaps a fixed fraction of the same. Only
+/// *Cloudy* and *Drought* leave the labour cap standing. That is the binary's,
+/// it is four separate `if`s reading the wrong word, and it is reproduced
+/// because it is what the game does. **`[V]`** on the reading — the four
+/// assignments are `crop[1]`-sourced in the decompilation and the surrounding
+/// two branches at sowing and growing are self-sourced.
+pub fn harvest(t: &Tables, county: &mut County, advanced_farming: bool) {
+    let labour = grain_labour(t, county);
+    let reaped = harvest_step(t, county, labour, county.crop[1], advanced_farming);
+    let factor = harvest_factor(county.weather);
+    county.crop[2] =
+        if factor == Factor::NONE { reaped } else { factor.apply(county.crop[1]) };
+    county.grain += county.crop[2];
+}
+
+/// `Grain_SeasonTick` (`0x0044C8AE`) — the random-event modifier on the store,
+/// then sow, grow, grow or harvest, then next season's labour ceiling.
+///
+/// `season` is `g_season`, the season now *beginning*, so the sowing clause
+/// fires at the **end of Winter** — `docs/kingdom.md` §3.3.
+///
+/// The order inside is the original's: `crop[2]` is cleared for every season
+/// before anything else, and the event percentage is applied to the store
+/// *before* the seed comes out of it, so a *"rats in the granary"* season eats
+/// the seed corn too.
 pub fn grain_season_tick(t: &Tables, county: &mut County, season: Season, advanced_farming: bool) {
-    match season {
-        Season::Spring => sow(t, county, advanced_farming),
-        Season::Summer => grow(county, 1),
-        Season::Autumn => grow(county, 2),
-        Season::Winter => harvest(county),
-    }
+    county.crop[2] = 0;
     if county.event_grain_pct != 0 {
         county.grain += pct(county.grain, county.event_grain_pct);
         county.event_grain_pct = 0;
     }
     county.grain = county.grain.max(0);
+    match season {
+        Season::Spring => sow(t, county, advanced_farming),
+        Season::Summer | Season::Autumn => grow(t, county, advanced_farming),
+        Season::Winter => harvest(t, county, advanced_farming),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -516,37 +833,43 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
 ///   it reads `+0xCC + slot*0x0C` eight times and `+0xC8 + slot*0x0C` not
 ///   once** — so the floor is a display value and nothing here depends on it.
 ///
-/// # Only the sowing season
+/// # All four seasons
 ///
-/// Returns `None` for Summer, Autumn and Winter, where the original scans
-/// `Grain_Grow` and `Grain_Harvest` instead. Those two are **not** this crate's
-/// [`grow`] and [`harvest`]: the original caps the crop at `labour * divisor`
-/// *every* season and applies fertility at the growing step, and it carries one
-/// crop word where [`County::crop`] carries three. Reproducing the estimate for
-/// those seasons means fixing the crop model first, and a ceiling computed from
-/// the wrong function would be worse than an absent one. See
-/// [`crate::labour`].
+/// The search runs whichever of the three grain functions next season will
+/// use — `Grain_Sow` entering Spring, `Grain_Harvest` entering Winter, and
+/// `Grain_Grow` for the two in between, all against the crop the county is
+/// carrying now. Summer, Autumn and Winter used to return `None` because
+/// [`grow`] and [`harvest`] were a weather multiplier and nothing more; they
+/// are now [`grow_step`] and [`harvest_step`], which are the original's, so
+/// the ceiling is a real number in every season.
+///
+/// Returns `None` only where the original writes nothing: `popBand == 0`, an
+/// empty county, whose ceiling keeps whatever it had — which for a county that
+/// has never been estimated is [`crate::county::LABOUR_UNSET`], and
+/// `Labour_Allocate` reads that back as zero.
 pub fn grain_labour_estimate(
     t: &Tables,
     county: &County,
     season_next: Season,
     advanced_farming: bool,
 ) -> Option<i32> {
-    if season_next != Season::Spring {
-        return None;
-    }
     if county.pop_band == 0 {
-        return Some(0);
+        return None;
     }
     let store = county.grain - county.grain_eaten;
     let mut best = 1;
     let mut ceiling = 0;
     for workers in 0..county.population {
-        let sacks = sacks_per_field(t, county.fields_grain, store, workers, advanced_farming);
-        let sown = county.fields_grain * sacks;
-        if best < sown {
+        let got = match season_next {
+            Season::Spring => sow_seed(t, county.fields_grain, store, workers, advanced_farming).0,
+            Season::Winter => {
+                harvest_step(t, county, workers, county.crop[1], advanced_farming)
+            }
+            _ => grow_step(t, county, workers, county.crop[1], advanced_farming),
+        };
+        if best < got {
             ceiling = workers;
-            best = sown;
+            best = got;
         }
     }
     Some(ceiling)
@@ -705,26 +1028,89 @@ mod tests {
         assert_eq!(c.fertility, 0);
     }
 
+    /// A county with fields under reclamation and a workforce to spend on
+    /// them. `slots` are the field slots that carry a reclaiming tile; every
+    /// other slot is fallow, so the walk skips it.
+    fn reclaiming(slots: &[(usize, u16)], workers: i32) -> (County, crate::map::CampaignMap) {
+        let mut map = crate::map::CampaignMap::empty();
+        let mut c = County::new();
+        c.labour[crate::tables::JOB_FIELD_RECLAMATION] = workers;
+        for slot in 0..MAX_FIELDS {
+            // Tile 0 is "no field"; start at 1.
+            c.field_tiles[slot] = slot as u16 + 1;
+            map.terrain[slot + 1] = crate::field::terrain::FALLOW;
+        }
+        for &(slot, progress) in slots {
+            c.field_progress[slot] = progress;
+            map.terrain[slot + 1] = reclaim_terrain(T, progress as i32);
+        }
+        (c, map)
+    }
+
+    /// Only a field whose *tile* says reclamation is worked on, and the
+    /// progress word alone does not say so.
     #[test]
     fn only_fields_already_started_are_reclaimed() {
-        let mut c = County::new();
-        c.field_progress[0] = 0; // never started
-        c.field_progress[1] = 100; // under way
-        c.field_progress[2] = 800; // done
-        reclaim_fields(T, &mut c);
+        let (mut c, mut map) = reclaiming(&[(1, 100)], 10_000);
+        c.field_progress[0] = 0; // fallow tile: never started
+        c.field_progress[2] = 800; // fallow tile: finished long ago
+        reclaim_fields(T, &mut c, &mut map);
         assert_eq!(c.field_progress[0], 0);
-        assert_eq!(c.field_progress[1], 300);
+        assert_eq!(c.field_progress[1], 300, "a quarter, and no more");
         assert_eq!(c.field_progress[2], 800);
     }
 
+    /// **The manual's rule, and the reason it is a rule:** the per-field step
+    /// is capped at a quarter however large the workforce is.
     #[test]
     fn a_field_under_way_finishes_in_four_seasons_at_most() {
-        let mut c = County::new();
-        c.field_progress[5] = 1;
+        let (mut c, mut map) = reclaiming(&[(5, 1)], 10_000);
         for _ in 0..4 {
-            reclaim_fields(T, &mut c);
+            reclaim_fields(T, &mut c, &mut map);
         }
-        assert_eq!(c.field_progress[5], T.field.progress_max as u16);
+        assert!(c.field_progress[5] >= T.field.progress_max as u16);
+        assert_eq!(
+            map.terrain[6],
+            crate::field::terrain::FALLOW,
+            "and the tile becomes fallow, which is the reward"
+        );
+    }
+
+    /// **The labour is a budget, and this is what closes the gap
+    /// `crates/l2-kingdom/tests/labour_gap.rs` recorded.** Nobody on
+    /// reclamation used to mean a field advanced anyway.
+    #[test]
+    fn a_county_with_nobody_on_reclamation_reclaims_nothing() {
+        let (mut c, mut map) = reclaiming(&[(0, 100), (3, 400)], 0);
+        reclaim_fields(T, &mut c, &mut map);
+        assert_eq!(c.field_progress[0], 100);
+        assert_eq!(c.field_progress[3], 400);
+
+        // Fifty workers buy fifty units, all of it on the leading field.
+        c.labour[crate::tables::JOB_FIELD_RECLAMATION] = 50;
+        reclaim_fields(T, &mut c, &mut map);
+        assert_eq!(c.field_progress[3], 450, "the most advanced field goes first");
+        assert_eq!(c.field_progress[0], 100, "and the other gets nothing");
+    }
+
+    /// The gang starts on the **most advanced** field, spends at most a
+    /// quarter there, and carries the rest round the rota — including the
+    /// overshoot from a field it has just finished.
+    #[test]
+    fn the_budget_walks_the_rota_from_the_leading_field() {
+        let (mut c, mut map) = reclaiming(&[(0, 0), (7, 700)], 500);
+        reclaim_fields(T, &mut c, &mut map);
+        // Slot 7 leads, is offered its quarter, and hands the 100 units of
+        // overshoot straight back to the budget — so 400 wraps round to slot
+        // 0, which can only take its own quarter.
+        //
+        // **The stored progress overshoots to 900 and is not clamped.** The
+        // original refunds the excess to the budget and writes the raw sum
+        // back anyway. It is inert: the tile is already fallow, so the slot is
+        // never offered work again.
+        assert_eq!(c.field_progress[7], 900);
+        assert_eq!(map.terrain[8], crate::field::terrain::FALLOW);
+        assert_eq!(c.field_progress[0], 200);
     }
 
     /// **The manual says 5 sacks a field, twice, and it is wrong.** Two
@@ -775,6 +1161,11 @@ mod tests {
 
     /// The whole year, in Cloudy weather where every factor is 1: 6 fields at
     /// 10 sacks is 60 sacks of seed, becoming 720 sacks at harvest.
+    ///
+    /// **And the three crop words are seed, standing crop and harvest** — not
+    /// three growth stages. `crop[0]` is written once, at sowing, and never
+    /// moves again; `crop[1]` is rewritten in place by every grow; `crop[2]` is
+    /// cleared at the top of every season and filled at the harvest.
     #[test]
     fn a_full_year_of_grain_turns_each_sack_into_twelve() {
         let mut c = County::new();
@@ -785,15 +1176,96 @@ mod tests {
 
         grain_season_tick(T, &mut c, Season::Spring, true);
         assert_eq!(c.grain, 140, "60 sacks of seed spent");
-        assert_eq!(c.crop[0], 720);
+        assert_eq!(c.crop[0], 60, "the seed, not the crop");
+        assert_eq!(c.crop[1], 720, "and the crop is the seed times twelve");
+        assert_eq!(c.fields_grain_sown, 6);
 
         grain_season_tick(T, &mut c, Season::Summer, true);
         assert_eq!(c.crop[1], 720);
+        assert_eq!(c.crop[2], 0, "nothing is harvested in summer");
         grain_season_tick(T, &mut c, Season::Autumn, true);
-        assert_eq!(c.crop[2], 720);
+        assert_eq!(c.crop[1], 720);
         grain_season_tick(T, &mut c, Season::Winter, true);
+        assert_eq!(c.crop[2], 720, "and this is the harvest");
         assert_eq!(c.grain, 860, "140 + 720");
-        assert_eq!(c.crop, [0; 3]);
+    }
+
+    /// **The labour cap, which is the whole reason the grain ceiling exists.**
+    /// A county that sows a full crop and then puts nobody on the fields grows
+    /// and reaps nothing at all; one that sends half the hands reaps half.
+    #[test]
+    fn a_crop_nobody_tends_comes_to_nothing() {
+        let sow_and_run = |grow_hands: i32| {
+            let mut c = County::new();
+            c.fields_grain = 6;
+            c.grain = 200;
+            c.weather = Weather::Cloudy;
+            c.labour[T.job.grain_farming] = 10_000;
+            grain_season_tick(T, &mut c, Season::Spring, true);
+            assert_eq!(c.crop[1], 720);
+            c.labour[T.job.grain_farming] = grow_hands;
+            for season in [Season::Summer, Season::Autumn, Season::Winter] {
+                grain_season_tick(T, &mut c, season, true);
+            }
+            c.crop[2]
+        };
+        assert_eq!(sow_and_run(0), 0, "nobody tends it, nobody reaps it");
+        // 10 hands tend 100 sacks a season and 5 of them reap 15, so the cap
+        // that binds at the end is the harvest's, not the growing's.
+        assert_eq!(sow_and_run(10), 15);
+        assert_eq!(sow_and_run(10_000), 720, "and a full workforce loses nothing");
+    }
+
+    /// **Fertility is the crop's multiplier, once per growing season**, and it
+    /// was doing nothing at all in this crate before: `Grain_Grow` applies
+    /// `crop + Pct(crop, fertility / 2)` after the labour cap, and there are
+    /// two grow steps a year.
+    #[test]
+    fn fertility_multiplies_the_crop_twice_a_year() {
+        let year = |fertility: i32| {
+            let mut c = County::new();
+            c.fields_grain = 6;
+            c.grain = 200;
+            c.weather = Weather::Cloudy;
+            c.labour[T.job.grain_farming] = 10_000;
+            grain_season_tick(T, &mut c, Season::Spring, true);
+            c.fertility = fertility;
+            for season in [Season::Summer, Season::Autumn, Season::Winter] {
+                grain_season_tick(T, &mut c, season, true);
+            }
+            c.crop[2]
+        };
+        assert_eq!(year(0), 720);
+        // +100 is +50% a step: 720 -> 1080 -> 1620.
+        assert_eq!(year(100), 1620);
+        // -100 is -50% a step: 720 -> 360 -> 180.
+        assert_eq!(year(-100), 180);
+    }
+
+    /// **Ploughing a wheat field under in midsummer costs a share of the
+    /// year's crop.** `FUN_0044D281` scales the standing crop by
+    /// `fieldsGrain / fieldsGrainSown` whenever the county has fewer grain
+    /// fields than it sowed — and painting *more* grain buys nothing until the
+    /// next sowing.
+    #[test]
+    fn losing_a_grain_field_mid_year_cuts_the_standing_crop() {
+        let mut c = County::new();
+        c.fields_grain = 6;
+        c.grain = 200;
+        c.weather = Weather::Cloudy;
+        c.labour[T.job.grain_farming] = 10_000;
+        grain_season_tick(T, &mut c, Season::Spring, true);
+        assert_eq!(c.crop[1], 720);
+
+        c.fields_grain = 3; // half the fields turned over to pasture
+        grain_season_tick(T, &mut c, Season::Summer, true);
+        assert_eq!(c.crop[1], 360);
+
+        // And back the other way: twelve fields on a crop sown on six is still
+        // a crop sown on six.
+        c.fields_grain = 12;
+        grain_season_tick(T, &mut c, Season::Autumn, true);
+        assert_eq!(c.crop[1], 360);
     }
 
     #[test]

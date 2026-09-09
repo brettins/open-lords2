@@ -96,7 +96,14 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   allocates *from*, so this was a hole in the lockstep checksum
 ///   (`docs/netcode.md` §5) and not only in the save. A version 4 save has the
 ///   four missing and no way to say what they held.
-pub const VERSION: u32 = 5;
+/// * 6 — **the grain year got a memory**: `fields_grain_sown` (county `+0x202`)
+///   and `sow_shortfall` (`+0x1A7`). `Grain_Grow` and `Grain_Harvest` scale the
+///   standing crop by the grain fields still standing *against the fields that
+///   were sown*, so a save that dropped the second number would resume a
+///   half-grown crop with no basis to measure it against. A version 5 save has
+///   both missing, and defaulting `fields_grain_sown` to 0 would silently mean
+///   "no fields were sown" — which is not a default, it is a different game.
+pub const VERSION: u32 = 6;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -691,6 +698,8 @@ impl Encode for County {
         for stage in &self.crop {
             out.i32(*stage);
         }
+        out.i32(self.fields_grain_sown);
+        out.bool(self.sow_shortfall);
         out.i32(self.herd);
         out.i32(self.herd_crowding);
         out.i32(self.herd_births_expected);
@@ -815,6 +824,8 @@ impl Decode for County {
         for stage in 0..c.crop.len() {
             c.crop[stage] = input.i32()?;
         }
+        c.fields_grain_sown = input.i32()?;
+        c.sow_shortfall = input.bool()?;
         c.herd = input.i32()?;
         c.herd_crowding = input.i32()?;
         c.herd_births_expected = input.i32()?;

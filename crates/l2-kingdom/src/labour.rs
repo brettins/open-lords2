@@ -38,33 +38,27 @@
 //! difference between `[0, 218, 0, 0, 0, 0, 217, 0, 0]` and
 //! `[0, 323, 0, 0, 0, 0, 0, 0, 133]`.
 //!
-//! # What is not here
+//! # Where it runs
 //!
-//! **Five of the nine ceilings, and the season pipeline.**
+//! Wherever a **click** reaches it — `Field_SetType` and
+//! `Industry_ToggleFromMap` both allocate straight afterwards, and so do
+//! [`crate::field::set_type`] and [`crate::Kingdom::toggle_industry`] — and
+//! **twice in the season pipeline**, [`crate::phase::Pass::LabourAllocate`] and
+//! [`crate::phase::Pass::LabourAllocateAgain`], at the two points
+//! [`SEASON_CALL_SITES`] names.
 //!
-//! `County_RefreshEstimates` (`0x004485A5`) is nine calls — the field recount,
-//! then reclamation, grain, herd, four industries and the castle — and this
-//! crate reproduces the recount and three of the estimates exactly
-//! ([`crate::field::refresh_estimates`]). [`allocate`] therefore runs where a
-//! **click** reaches it, which is where the original runs it too:
-//! `Field_SetType` and `Industry_ToggleFromMap` both allocate straight
-//! afterwards, and so do [`crate::field::set_type`] and
-//! [`crate::Kingdom::toggle_industry`].
-//!
-//! It is still **not in [`crate::phase`]'s pipeline**, and the reason is
-//! specific rather than general. `Season_Advance` does not call
-//! `County_RefreshEstimates` before its two `Labour_AllocateAll`s at all: each
-//! estimate is the **tail call of the pass that invalidates it**, so wiring the
-//! allocator means adding six tail calls, three of which cannot be written
-//! honestly yet — grain outside the sowing season, the four industries (which
-//! need the owning realm), and the castle (which needs a materials-delivery
-//! model this crate does not have). And `Field_ReclaimTick` here spends no
-//! labour, so reclamation would be allocated and then ignored, which is worse
-//! than not allocating it.
-//!
-//! `crates/l2-kingdom/tests/labour_gap.rs` is that list as four tests that go
-//! red when somebody closes part of it. The two season call sites are named in
-//! [`SEASON_CALL_SITES`].
+//! It was not in the pipeline for a long time, and the reason is worth keeping
+//! because it is the shape of every "why is this pass not wired in" question.
+//! `Season_Advance` does not call `County_RefreshEstimates` before either
+//! allocation at all: **each of the nine ceilings is refreshed by the pass that
+//! invalidates it, as that pass's tail call**, and `County_RefreshEstimates`
+//! itself runs at the very end of the season as the middle statement of
+//! `Panels_RefreshAll` ([`crate::phase::Pass::RefreshEstimates`]). Wiring the
+//! allocator meant writing six tail calls, three of which needed real work
+//! first — `Grain_Grow` and `Grain_Harvest` for the grain ceiling outside
+//! sowing, the owning **realm** for the four industries, and a materials model
+//! for the castle. `crates/l2-kingdom/tests/labour_gap.rs` is the record of it,
+//! including the one piece still inferred.
 //!
 //! One input that turned out not to be needed: **`Labour_Allocate` never reads
 //! [`County::labour_wanted`]** — verified by exhaustion over its 2,147 bytes,

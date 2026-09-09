@@ -105,6 +105,22 @@ pub fn sum_empire_happiness(
     }
 }
 
+/// `Tax_RecomputePreview` (`0x0044B80B`) — the two happiness terms the tax
+/// panel draws, without collecting anything.
+///
+/// It is **the only writer of `+0x16`** anywhere in the binary, and it writes
+/// two different things to two different fields: `+0x0F` is the local half,
+/// `5 - rate`, and `+0x16` is the empire half, which is a table lookup and not
+/// that. `docs/kingdom.md` §4.1 and `docs/decisions.md` C26.
+///
+/// It runs as `Panels_RefreshAll`'s third statement — once per county at the
+/// very end of every season — and again inside `County_MakeIndependent`,
+/// `County_SetOwner` and every tax control.
+pub fn recompute_preview(t: &Tables, county: &mut County) {
+    county.d_hap_tax_local = FREE_TAX_RATE - county.tax_rate;
+    county.tax_hap_other = empire_contribution(t, county.tax_rate);
+}
+
 /// Collect one county's tax and write its tax happiness term.
 ///
 /// `empire` is the owning realm's `taxHapEmpire`; an unowned county has no

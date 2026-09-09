@@ -114,6 +114,16 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         // Divisors. Zero is a division by zero in `Grain_Sow`, not a rebalance.
         labour_divisor_advanced: int(rs, "kingdom.grain.labour_divisor_advanced", 1, 10_000)?,
         labour_divisor_basic: int(rs, "kingdom.grain.labour_divisor_basic", 1, 10_000)?,
+        // Multipliers, not divisors: `Grain_Grow` and `Grain_Harvest` cap the
+        // crop at `labour * this`. Zero is a county that can never tend or
+        // reap anything, which is a legitimate — if bleak — ruleset.
+        grow_per_worker_advanced: int(rs, "kingdom.grain.grow_per_worker_advanced", 0, 10_000)?,
+        harvest_per_worker_advanced: int(
+            rs,
+            "kingdom.grain.harvest_per_worker_advanced",
+            0,
+            10_000,
+        )?,
     };
     t.field = FieldTable {
         progress_max: int(rs, "kingdom.field.progress_max", 1, 1_000_000)?,
@@ -668,6 +678,12 @@ pub fn render_toml(t: &Tables) -> String {
          max_sacks_per_field = {}\n\
          labour_divisor_advanced = {}\n\
          labour_divisor_basic = {}\n\
+         # ...and these two are MULTIPLIERS, on the same line of the same\n\
+         # branch: Grain_Grow and Grain_Harvest cap the standing crop at\n\
+         # labour * this. With Advanced Farming off all three read\n\
+         # labour_divisor_basic, which is one global in the original.\n\
+         grow_per_worker_advanced = {}\n\
+         harvest_per_worker_advanced = {}\n\
          \n[kingdom.field]\n\
          progress_max = {}\n\
          reclaim_per_season = {}\n",
@@ -675,6 +691,8 @@ pub fn render_toml(t: &Tables) -> String {
         t.grain.max_sacks_per_field,
         t.grain.labour_divisor_advanced,
         t.grain.labour_divisor_basic,
+        t.grain.grow_per_worker_advanced,
+        t.grain.harvest_per_worker_advanced,
         t.field.progress_max,
         t.field.reclaim_per_season
     );

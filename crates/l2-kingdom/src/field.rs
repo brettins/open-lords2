@@ -290,28 +290,19 @@ pub fn menu_for(terrain: u8) -> Option<&'static [FieldType]> {
 /// and the panel forecasts the estimates fill from the final assignment.
 /// **`[I]`** on the reading, `[D]` on the shape.
 ///
-/// # Three of the nine ceilings are computed here, and the rest are not
+/// # All nine ceilings are computed here
 ///
-/// [`crate::land::grain_labour_estimate`], [`crate::land::herd_labour_estimate`]
-/// and [`crate::land::reclaim_labour_estimate`] are the three passes of
-/// `County_RefreshEstimates` this crate can reproduce exactly. The other three
-/// cannot be, yet:
+/// [`refresh_estimates`] is `County_RefreshEstimates` in full — the recount,
+/// reclamation, grain in every season, the herd, the four industries and the
+/// castle. That is why this takes the **realms**: the industry ceilings read the
+/// owning realm's stockpile, so `County_RefreshEstimates` is not a one-county
+/// function at all.
 ///
-/// * **the four industry ceilings** need the owning realm's wood and iron
-///   stock, so `Industry_LabourEstimate` is not a `&mut County` function at all;
-/// * **the castle ceiling** is 0 until the build's materials have all been
-///   delivered, and this crate debits them up front and has none of the six
-///   fields that track the delivery;
-/// * **grain outside the sowing season**, because `Grain_Grow` and
-///   `Grain_Harvest` are not this crate's [`crate::land::grow`] and
-///   [`crate::land::harvest`].
+/// The one thing still inferred is the castle's materials gate; see
+/// [`crate::industry::castle_labour_estimate`] and
+/// `crates/l2-kingdom/tests/labour_gap.rs`.
 ///
-/// Those five keep whatever ceiling they arrived with. On the England position
-/// that is `100000` for wood on an owned county and `0` elsewhere, which is
-/// stable; it is still a gap, and `crates/l2-kingdom/tests/labour_gap.rs` is
-/// the test that goes red when it closes.
-///
-/// The argument list is long because a brush stroke reaches five things and
+/// The argument list is long because a brush stroke reaches six things and
 /// this crate takes its world as values rather than owning it —
 /// [`crate::Kingdom::paint_field`] is the call a caller should make.
 #[allow(clippy::too_many_arguments)]
@@ -325,6 +316,7 @@ pub fn set_type(
     season_next: crate::tables::Season,
     tables: &crate::tables::Tables,
     advanced_farming: bool,
+    realms: &[crate::realm::Realm],
 ) -> Result<(), BrushRefusal> {
     if counties[county].field_slot(tile).is_none() {
         return Err(BrushRefusal::NotAField);
@@ -344,37 +336,101 @@ pub fn set_type(
         on,
         crate::labour::FARM_GROUP_DIVISOR,
     );
+    let owner = counties[county].owner;
+    // Realm 0 is not a realm; an unowned county's industry ceilings are all 0
+    // whatever is in this record, because `Industry_LabourEstimate` tests the
+    // owner first.
+    let neutral = crate::realm::Realm::new();
     for _ in 0..2 {
         crate::labour::allocate(&mut counties[county]);
+        // The blacksmith's share moves with who is *staffed*, and the
+        // allocation just above is what staffs them, so this is recomputed
+        // inside the loop exactly as the original recomputes it inside every
+        // `resourceLimit`.
+        let share = crate::industry::weapon_shares(tables, counties, county_count, owner);
+        let realm = realms.get(owner as usize).unwrap_or(&neutral);
         let c = &mut counties[county];
         c.herd_crowding = crate::land::herd_crowding(tables, c.herd, c.fields_cattle);
-        refresh_estimates(c, map, season_next, tables, advanced_farming);
+        refresh_estimates(c, map, season_next, tables, advanced_farming, realm, share);
     }
     Ok(())
 }
 
-/// `County_RefreshEstimates` (`0x004485A5`), as far as this crate reaches.
+/// `County_RefreshEstimates` (`0x004485A5`) — **all nine calls.**
 ///
-/// The original is nine calls: the field recount, then reclamation, grain,
-/// herd, four industries and the castle. The recount is done by the caller
-/// (every county, not one), and the three in the middle are here. See
-/// [`set_type`] for why the last five are not, and `docs/kingdom.md` §14.
+/// ```c
+/// County_RecountFields(county);
+/// Field_ReclaimEstimate(county);
+/// Grain_LabourEstimate(county, seasonNext);
+/// Herd_LabourEstimate(county, seasonNext);
+/// Industry_LabourEstimate(county, 1, 4, 15, 1);   /* iron      */
+/// Industry_LabourEstimate(county, 3, 5, 15, 2);   /* stone     */
+/// Industry_LabourEstimate(county, 0, 6, 20, 1);   /* wood      */
+/// Industry_LabourEstimate(county, 2, 7, 15, 4);   /* weapons   */
+/// Castle_BuildEstimate(county);
+/// ```
+///
+/// The four `Industry_LabourEstimate` argument lists are the same job, base
+/// efficiency and divisor mapping [`crate::tables::COMMODITY`] already holds —
+/// which is a second, independent reading of that table.
+///
+/// **It reads the owning realm**, which is why this takes one: the blacksmith's
+/// ceiling is a share of the realm's wood and iron
+/// ([`crate::industry::weapon_shares`]), and every industry's ceiling is 0 in a
+/// county nobody owns. That is the whole reason the shipped save's owned
+/// counties are full of foresters and its neutral ones full of idlers.
+///
+/// The recount is the caller's — the original recounts *this* county here and
+/// every county from `Field_SetType`.
 pub fn refresh_estimates(
     county: &mut County,
     map: &CampaignMap,
     season_next: crate::tables::Season,
     tables: &crate::tables::Tables,
     advanced_farming: bool,
+    realm: &crate::realm::Realm,
+    weapon_share: crate::industry::WeaponShare,
 ) {
-    county.labour_useful[crate::tables::JOB_FIELD_RECLAMATION] =
+    use crate::county::LABOUR_NO_FLOOR;
+    use crate::tables::{JOB_CATTLE_FARMING, JOB_FIELD_RECLAMATION, JOB_GRAIN_FARMING};
+
+    recount(county, map);
+
+    county.labour_wanted[JOB_FIELD_RECLAMATION] = LABOUR_NO_FLOOR;
+    county.labour_useful[JOB_FIELD_RECLAMATION] =
         crate::land::reclaim_labour_estimate(tables, county, map);
+
+    // Grain and the herd both write nothing at all in a county with no people —
+    // `popBand == 0` is the original's guard on both — so a ceiling that was
+    // never computed keeps `LABOUR_UNSET`, which `Labour_Allocate` reads as 0.
     if let Some(ceiling) =
         crate::land::grain_labour_estimate(tables, county, season_next, advanced_farming)
     {
-        county.labour_useful[crate::tables::JOB_GRAIN_FARMING] = ceiling;
+        county.labour_wanted[JOB_GRAIN_FARMING] = ceiling;
+        county.labour_useful[JOB_GRAIN_FARMING] = ceiling;
     }
-    county.labour_useful[crate::tables::JOB_CATTLE_FARMING] =
-        crate::land::herd_labour_estimate(tables, county, season_next.index());
+    if county.pop_band != 0 {
+        county.labour_useful[JOB_CATTLE_FARMING] =
+            crate::land::herd_labour_estimate(tables, county, season_next.index());
+    }
+
+    for c in crate::tables::INDUSTRY_ESTIMATE_ORDER {
+        let job = tables.commodity[c.index()].job;
+        let (wanted, useful) = crate::industry::labour_estimate(
+            tables,
+            county,
+            c,
+            realm,
+            weapon_share,
+            advanced_farming,
+        );
+        county.labour_wanted[job] = wanted;
+        county.labour_useful[job] = useful;
+    }
+
+    let (wanted, useful) = crate::industry::castle_labour_estimate(tables, county);
+    county.labour_wanted[crate::tables::JOB_CASTLE_BUILDING] = wanted;
+    county.labour_useful[crate::tables::JOB_CASTLE_BUILDING] = useful;
 }
 
 /// `Field_PaintTile` (`FUN_0046D7F4`) — the terrain byte, and nothing else.
@@ -451,6 +507,10 @@ pub fn set_count(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// No realms at all: every county here is unowned, so every industry
+    /// ceiling is 0 whatever record the estimate would have read.
+    const NO_REALMS: [crate::realm::Realm; 0] = [];
     use crate::tables::{Season, Tables, JOB_FIELD_RECLAMATION};
 
     /// One county with `n` field tiles laid along row 8, all fallow.
@@ -522,7 +582,7 @@ mod tests {
         assert_eq!(counties[1].fields_fallow, 6);
 
         let tile = counties[1].field_tile(0).unwrap();
-        set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Grain, Season::Spring, &Tables::DEFAULT, false).unwrap();
+        set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Grain, Season::Spring, &Tables::DEFAULT, false, &NO_REALMS).unwrap();
         assert_eq!(counties[1].fields_grain, 1);
         assert_eq!(counties[1].fields_fallow, 5);
         assert_eq!(map.terrain[tile], terrain::GRAIN);
@@ -537,7 +597,7 @@ mod tests {
         counties[1] = c;
         let stranger = crate::map::index(40, 40);
         assert_eq!(
-            set_type(&mut counties, 2, &mut map, 1, stranger, FieldType::Grain, Season::Spring, &Tables::DEFAULT, false),
+            set_type(&mut counties, 2, &mut map, 1, stranger, FieldType::Grain, Season::Spring, &Tables::DEFAULT, false, &NO_REALMS),
             Err(BrushRefusal::NotAField)
         );
     }
@@ -552,23 +612,23 @@ mod tests {
         let tile = counties[1].field_tile(0).unwrap();
 
         assert_eq!(
-            set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Reclaiming, Season::Spring, &Tables::DEFAULT, false),
+            set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Reclaiming, Season::Spring, &Tables::DEFAULT, false, &NO_REALMS),
             Err(BrushRefusal::WrongMenu),
             "a standing field has no reclaim button"
         );
 
         map.terrain[tile] = terrain::WASTE;
         assert_eq!(
-            set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Grain, Season::Spring, &Tables::DEFAULT, false),
+            set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Grain, Season::Spring, &Tables::DEFAULT, false, &NO_REALMS),
             Err(BrushRefusal::WrongMenu),
             "waste has to be reclaimed before it can be sown"
         );
-        set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Reclaiming, Season::Spring, &Tables::DEFAULT, false).unwrap();
+        set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Reclaiming, Season::Spring, &Tables::DEFAULT, false, &NO_REALMS).unwrap();
         assert_eq!(map.terrain[tile], terrain::RECLAIM_FIRST);
 
         map.terrain[tile] = terrain::FLOODED;
         assert_eq!(
-            set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Fallow, Season::Spring, &Tables::DEFAULT, false),
+            set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Fallow, Season::Spring, &Tables::DEFAULT, false, &NO_REALMS),
             Err(BrushRefusal::Blighted),
             "a ruined field opens no menu at all"
         );
@@ -586,7 +646,7 @@ mod tests {
         let tile = counties[1].field_tile(0).unwrap();
         map.terrain[tile] = terrain::WASTE;
 
-        set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Reclaiming, Season::Spring, &Tables::DEFAULT, false).unwrap();
+        set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Reclaiming, Season::Spring, &Tables::DEFAULT, false, &NO_REALMS).unwrap();
         assert!(
             counties[1].labour_share[JOB_FIELD_RECLAMATION] > 0,
             "somebody has to do the reclaiming: {:?}",
@@ -596,7 +656,7 @@ mod tests {
         assert_eq!(farm, 100, "and the farm group still closes");
 
         // Abandon it again and the share goes back where it came from.
-        set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Waste, Season::Spring, &Tables::DEFAULT, false).unwrap();
+        set_type(&mut counties, 2, &mut map, 1, tile, FieldType::Waste, Season::Spring, &Tables::DEFAULT, false, &NO_REALMS).unwrap();
         assert_eq!(counties[1].labour_share[JOB_FIELD_RECLAMATION], 0);
         assert_eq!(counties[1].labour_share[..3].iter().sum::<i32>(), 100);
     }

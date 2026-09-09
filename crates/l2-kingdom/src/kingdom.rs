@@ -1,7 +1,7 @@
 //! The kingdom — the whole state, and the driver that walks
 //! [`SEASON_PIPELINE`] over it.
 //!
-//! `Season_Advance` (`0x00448440`) calls 28 functions in a fixed order, and
+//! `Season_Advance` (`0x00448440`) calls 29 functions in a fixed order, and
 //! `docs/kingdom.md` §3.4 is explicit that **the order is the rule**. So the
 //! driver here is a loop over an array rather than a sequence of statements:
 //! [`Kingdom::advance_season`] walks [`SEASON_PIPELINE`] and records what it
@@ -35,7 +35,7 @@ use crate::phase::{Pass, Phase, PhaseTick, TurnMachine, SEASON_PIPELINE};
 use crate::population;
 use crate::ration;
 use crate::realm::{Realm, MAX_REALMS};
-use crate::report::SeasonReport;
+use crate::report::{Message, SeasonReport};
 use crate::tables::{Commodity, Season, Tables};
 use crate::tax;
 use crate::unrest;
@@ -418,17 +418,25 @@ impl Kingdom {
             Pass::HealthUpdate => self.health_update(),
             Pass::HappinessUpdate => self.happiness_update(),
             Pass::UnrestUpdate => self.unrest_update(report),
+            Pass::SecedeIsolatedCounties => self.secede_isolated_counties(report),
+            Pass::CountyRecountFields => crate::field::recount_all(
+                &mut self.counties,
+                self.county_count,
+                &self.campaign.map,
+            ),
             Pass::FertilityUpdate => self.fertility_update(),
             Pass::FieldReclaim => self.field_reclaim(),
             Pass::GrainSeasonTick => self.grain_season_tick(),
             Pass::HerdSeasonTick => self.herd_season_tick(),
             Pass::Industry(c) => self.industry(c),
             Pass::CastleBuildTick => self.castle_build_tick(report),
+            Pass::LabourAllocate | Pass::LabourAllocateAgain => self.labour_allocate_all(),
             Pass::MigrationUpdate => self.migration_update(),
             Pass::PopulationUpdate => self.population_update(),
             Pass::ScoreRank => ai::rank_realms(&self.tables, &mut self.realms),
             Pass::History => self.history(),
             Pass::RationPreview => self.ration_apply(true),
+            Pass::RefreshEstimates => self.refresh_estimates_all(),
             Pass::MercenaryAdvance => self.mercenary_advance(),
             Pass::UnitsResetMoves => self.units_reset_moves(),
         }
@@ -657,24 +665,42 @@ impl Kingdom {
         }
     }
 
+    /// `Field_ReclaimTick` and `Field_ReclaimEstimate`, per county — the second
+    /// and third statements of `Fields_SeasonTick`.
     fn field_reclaim(&mut self) {
         for id in 1..=self.county_count {
-            land::reclaim_fields(&self.tables, &mut self.counties[id]);
+            land::reclaim_fields(&self.tables, &mut self.counties[id], &mut self.campaign.map);
+            // The estimate is the pass's own tail call, and the tick has just
+            // moved every input it has.
+            self.counties[id].labour_wanted[crate::tables::JOB_FIELD_RECLAMATION] =
+                crate::county::LABOUR_NO_FLOOR;
+            self.counties[id].labour_useful[crate::tables::JOB_FIELD_RECLAMATION] =
+                land::reclaim_labour_estimate(&self.tables, &self.counties[id], &self.campaign.map);
         }
     }
 
+    /// `Grain_SeasonTick`, with `Grain_LabourEstimate` as its last line.
     fn grain_season_tick(&mut self) {
         let Some(season) = self.season() else { return };
+        let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
+        let advanced = self.options.advanced_farming;
         for id in 1..=self.county_count {
-            land::grain_season_tick(
+            land::grain_season_tick(&self.tables, &mut self.counties[id], season, advanced);
+            if let Some(ceiling) = land::grain_labour_estimate(
                 &self.tables,
-                &mut self.counties[id],
-                season,
-                self.options.advanced_farming,
-            );
+                &self.counties[id],
+                season_next,
+                advanced,
+            ) {
+                self.counties[id].labour_wanted[crate::tables::JOB_GRAIN_FARMING] = ceiling;
+                self.counties[id].labour_useful[crate::tables::JOB_GRAIN_FARMING] = ceiling;
+            }
         }
     }
 
+    /// `Herd_SeasonTick`, with `Herd_LabourEstimate` as its last line — which
+    /// is [`land::herd_preview`]'s forecast *and* the cattle ceiling, one
+    /// function in the original.
     fn herd_season_tick(&mut self) {
         for id in 1..=self.county_count {
             land::herd_season_tick(
@@ -683,10 +709,114 @@ impl Kingdom {
                 self.season,
                 self.season_next,
             );
+            if self.counties[id].pop_band != 0 {
+                self.counties[id].labour_useful[crate::tables::JOB_CATTLE_FARMING] =
+                    land::herd_labour_estimate(
+                        &self.tables,
+                        &self.counties[id],
+                        self.season_next,
+                    );
+            }
         }
     }
 
+    /// `Labour_AllocateAll` (`0x0044F699`) — [`crate::labour::allocate`] for
+    /// counties 1..=`county_count`, in index order.
+    fn labour_allocate_all(&mut self) {
+        for id in 1..=self.county_count {
+            crate::labour::allocate(&mut self.counties[id]);
+        }
+    }
+
+    /// `Panels_RefreshAll`'s middle statement, and `Tax_RecomputePreview` with
+    /// it — the third.
+    fn refresh_estimates_all(&mut self) {
+        for id in 1..=self.county_count {
+            self.refresh_estimates(id);
+            crate::tax::recompute_preview(&self.tables, &mut self.counties[id]);
+        }
+    }
+
+    /// `Realm_SecedeIsolatedCounties` (`0x0044AE3C`) — `docs/kingdom.md` §6.1.
+    fn secede_isolated_counties(&mut self, report: &mut SeasonReport) {
+        let blocks = crate::territory::build_blocks(&self.counties, self.county_count);
+        let strength: Vec<u8> = self.realms.iter().map(|r| r.strength).collect();
+        for cut in crate::territory::minor_blocks(&blocks, &strength) {
+            for county in &cut.counties {
+                self.make_county_independent(*county as usize);
+            }
+            // The original tells only the local player, and only when the realm
+            // held more than one block. Both messages are raised here whatever
+            // realm they belong to, because this crate has no local player: the
+            // realm is on the message and the UI filters. An **AI loses its
+            // outlying counties in silence**, which is the same rule seen from
+            // the other side.
+            if cut.blocks > 1 {
+                report.message(if cut.counties.len() == 1 {
+                    Message::CountySeceded { realm: cut.realm, county: cut.counties[0] }
+                } else {
+                    Message::LandsDivide { realm: cut.realm, counties: cut.counties.len() as u8 }
+                });
+            }
+        }
+        if !self.counties.is_empty() {
+            crate::conquest::recount_realm_counties(&self.counties, &mut self.realms);
+        }
+    }
+
+    /// `County_MakeIndependent` (`0x004AC3C6`) — **the common ending of every
+    /// way a county stops being owned**: secession, revolt, and the elimination
+    /// of a realm all call it.
+    ///
+    /// ```c
+    /// owner = 0; shieldIndex = 0;
+    /// for (i = 0; i < 4; i++) industry[i].enabled = 0;
+    /// castleSwitch = 0;
+    /// Labour_Allocate(county); Ration_Apply(county, season);
+    /// County_RefreshEstimates(county, seasonNext); Tax_RecomputePreview(county);
+    /// if (garrison) handOverGarrison(garrison, county);
+    /// ```
+    ///
+    /// **Switching all four industries off is the mechanism, not a flourish.**
+    /// It is what turns the county's four industry ceilings to zero, and the
+    /// re-allocation two lines later is what moves those people into *Idle
+    /// townsfolk* — the difference between the shipped save's
+    /// `[0, 218, 0, 0, 0, 0, 217, 0, 0]` and its `[0, 323, 0, 0, 0, 0, 0, 0,
+    /// 133]`.
+    ///
+    /// County `+0x07`, the owner's shield byte, is presentation and this crate
+    /// has no such field; the garrison hand-off is `FUN_00437535`, which lives
+    /// in the unit layer and is left to the caller.
+    pub fn make_county_independent(&mut self, county: usize) {
+        if county == 0 || county > self.county_count {
+            return;
+        }
+        let armies_eat = self.options.armies_eat;
+        {
+            let c = &mut self.counties[county];
+            c.owner = 0;
+            for industry in c.industry.iter_mut() {
+                industry.enabled = false;
+            }
+            c.castle_switch = false;
+        }
+        crate::labour::allocate(&mut self.counties[county]);
+        crate::ration::apply(&self.tables, &mut self.counties[county], armies_eat);
+        self.refresh_estimates(county);
+        crate::tax::recompute_preview(&self.tables, &mut self.counties[county]);
+    }
+
+    /// One `Industry_Produce` run over every county.
+    ///
+    /// The blacksmith's stockpile share ([`industry::weapon_shares`],
+    /// `FUN_0044F15B`) is computed **per realm, before the loop**. The original
+    /// recomputes it inside every `resourceLimit` call, which is the same
+    /// answer: its inputs are which smithies are switched on and staffed, and
+    /// the pass changes neither.
     fn industry(&mut self, commodity: Commodity) {
+        let shares: [industry::WeaponShare; MAX_REALMS] = core::array::from_fn(|realm| {
+            industry::weapon_shares(&self.tables, &self.counties, self.county_count, realm as u8)
+        });
         let (counties, realms, tables) = (&mut self.counties, &mut self.realms, &self.tables);
         for id in 1..=self.county_count {
             let owner = counties[id].owner as usize;
@@ -694,12 +824,13 @@ impl Kingdom {
             if owner == 0 || owner >= MAX_REALMS {
                 continue;
             }
-            industry::produce(
+            industry::produce_with_share(
                 tables,
                 &mut counties[id],
                 &mut realms[owner],
                 commodity,
                 self.options.advanced_farming,
+                shares[owner],
             );
         }
     }
@@ -766,7 +897,36 @@ impl Kingdom {
             season_next,
             &self.tables,
             self.options.advanced_farming,
+            &self.realms,
         )
+    }
+
+    /// `County_RefreshEstimates` (`0x004485A5`) for one county, with the owning
+    /// realm and its blacksmiths' share of the stockpile looked up.
+    ///
+    /// Every caller in this crate goes through here rather than assembling the
+    /// arguments itself, because getting the *owner* wrong is the failure that
+    /// leaves a county full of idle townsfolk.
+    pub fn refresh_estimates(&mut self, county: usize) {
+        if county == 0 || county >= self.counties.len() {
+            return;
+        }
+        let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
+        let advanced = self.options.advanced_farming;
+        let owner = self.counties[county].owner;
+        let share =
+            crate::industry::weapon_shares(&self.tables, &self.counties, self.county_count, owner);
+        let neutral = Realm::new();
+        let realm = self.realms.get(owner as usize).unwrap_or(&neutral);
+        crate::field::refresh_estimates(
+            &mut self.counties[county],
+            &self.campaign.map,
+            season_next,
+            &self.tables,
+            advanced,
+            realm,
+            share,
+        );
     }
 
     /// **Switch one industry, or castle building, on or off.**
@@ -787,18 +947,10 @@ impl Kingdom {
         if county == 0 || county > self.county_count {
             return false;
         }
-        let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
-        let advanced = self.options.advanced_farming;
         let on = crate::industry::toggle_from_map(&mut self.counties[county], what);
         for _ in 0..2 {
             crate::labour::allocate(&mut self.counties[county]);
-            crate::field::refresh_estimates(
-                &mut self.counties[county],
-                &self.campaign.map,
-                season_next,
-                &self.tables,
-                advanced,
-            );
+            self.refresh_estimates(county);
         }
         on
     }

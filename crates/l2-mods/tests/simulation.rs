@@ -259,15 +259,27 @@ fn a_years_harvest(tables: Tables) -> i32 {
     let c = &mut k.counties[1];
     c.owner = 1;
     c.population = 400;
+    c.pop_band = c.compute_pop_band();
     c.happiness = 65;
     c.health_meter = 65;
     c.health_band = health_band(65);
     c.herd = 400;
     c.grain = 100;
-    c.fields_grain = 5;
     c.ration_wanted = 3; // Normal
     c.ration_split = 100; // fed entirely from the herd
     c.labour = [100_000; l2_kingdom::tables::JOB_COUNT];
+
+    // **Five grain fields, on the map.** Writing `fields_grain = 5` into the
+    // record is not enough any more and never should have been:
+    // `County_RecountFieldsAll` is a pass of the season now, and it rebuilds
+    // all five counts from the terrain byte of the twenty tiles the county
+    // names. A county with no field tiles has no fields, whatever its record
+    // says. `docs/kingdom.md` §7.2.
+    for slot in 0..5usize {
+        let tile = slot + 1;
+        k.counties[1].field_tiles[slot] = tile as u16;
+        k.campaign.map.terrain[tile] = l2_kingdom::field::terrain::GRAIN;
+    }
 
     k.start_new_game(); // Winter 1268
     k.advance_season(); // Spring: sow
@@ -373,11 +385,18 @@ fn the_last_kingdom_mod_in_the_load_order_is_the_one_the_economy_runs_on() {
     let backward = build(["zzz", "aaa"]);
     assert_eq!(forward.grain.yield_per_sack, 24);
     assert_eq!(backward.grain.yield_per_sack, 6);
-    assert_eq!(
-        a_years_harvest(forward),
-        a_years_harvest(backward) * 4,
-        "24 against 6 is four times the harvest"
-    );
+    let high = a_years_harvest(forward);
+    let low = a_years_harvest(backward);
+    assert!(high > low, "the last mod loaded is the one that farms: {high} against {low}");
+
+    // **And it is not four times, which is the labour cap talking.** The yield
+    // per sack is in `Grain_Sow`'s own labour test — `yield * seed / divisor`
+    // hands are needed to tend the seed — so a fourfold yield makes each sack
+    // four times as hungry for farmhands, and the county sows correspondingly
+    // less of it. `Grain_Grow` and `Grain_Harvest` then cap the standing crop
+    // at `labour * multiplier` twice more. Quadrupling the number in the file
+    // doubles what reaches the barn.
+    assert_eq!((high, low), (600, 300));
 }
 
 /// A rule with no arithmetic in it at all: the year random events start.
@@ -570,8 +589,16 @@ fn three_years_of_timber(tables: Tables) -> (i32, i32) {
     c.labour = [0; JOB_COUNT];
     c.labour[job] = 100;
     k.realms[1].wood = 0;
+    // **Twelve wood-cutting passes, not twelve whole seasons.** The season
+    // pipeline runs `Labour_AllocateAll` twice now, so a workforce written
+    // straight into the record does not survive a full `advance_season` — the
+    // allocator rebuilds all nine records from the population and the
+    // ceilings. Running the one pass keeps the hundred cutters fixed, which is
+    // what makes the totals below exact arithmetic on the ramp rather than a
+    // measurement of the allocator.
+    let mut report = l2_kingdom::SeasonReport::new();
     for _ in 0..12 {
-        k.advance_season();
+        k.run_pass(l2_kingdom::Pass::Industry(Commodity::Wood), &mut report);
     }
     (k.realms[1].wood, k.counties[1].industry[wood].efficiency)
 }

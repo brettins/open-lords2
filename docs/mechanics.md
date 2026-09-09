@@ -174,21 +174,27 @@ Legend:
   ✅ **It runs where a player's click reaches it** — `Field_SetType` and
   `Industry_ToggleFromMap` both allocate straight afterwards, and both do here.
 
-  🕳 **It is still not in the season pipeline**, and the reason is now measured rather than
-  estimated. `Season_Advance` (`0x00448440`, *not* `0x0044C1EE` — that address is inside
-  `Field_ReclaimTick`) never calls `County_RefreshEstimates` before its two
-  `Labour_AllocateAll`s; **each estimate is the tail call of the pass that invalidates it**,
-  so wiring the allocator is six tail calls rather than one function. Three of the six
-  cannot be written honestly yet: grain outside the sowing season needs `Grain_Grow` and
-  `Grain_Harvest`, which are not this tree's `grow` and `harvest`; the four industry
-  ceilings need the owning *realm's* stock, so the refresh is not a `&mut County` function
-  at all; and the castle ceiling is 0 until a build's materials are delivered, which this
-  tree debits up front. Three of the nine — grain in the sowing season, cattle, reclamation
-  — **are** reproduced exactly. `crates/l2-kingdom/tests/labour_gap.rs` names all of it and
-  goes red when somebody closes half of it.
+  ✅ **And it is in the season pipeline now, twice.** It was not for a long time, and the
+  obstruction was worth naming: `Season_Advance` (`0x00448440`, *not* `0x0044C1EE` — that
+  address is inside `Field_ReclaimTick`) never calls `County_RefreshEstimates` before either
+  `Labour_AllocateAll`, because **each estimate is the tail call of the pass that invalidates
+  it**. So wiring the allocator was six tail calls rather than one function, and the missing
+  seventh piece was that `County_RefreshEstimates` *does* run every season — as the middle
+  statement of `Panels_RefreshAll`, `Season_Advance`'s last call.
 
-  One thing that would make wiring it a *silent* failure: `Field_ReclaimTick` in this tree
-  spends no labour, so putting people on reclamation changes nothing at all.
+  All nine ceilings are computed now. The three that could not be written before took real
+  work: `Grain_Grow` and `Grain_Harvest` are now `land::grow_step` and `land::harvest_step`,
+  which cap the crop at `labour * multiplier` and apply fertility (`docs/kingdom.md` §7.1);
+  the four industry ceilings read the owning realm and `Industry_WeaponShares`
+  (`0x0044F15B`); and `Field_ReclaimTick` now spends `labour[2]` as a budget, which is what
+  kept wiring it from being a *silent* no-op. **The invariant closes** — the nine records sum
+  to the population in every county in every season, for ten seasons of the England
+  position. `crates/l2-kingdom/tests/labour_gap.rs`.
+
+  🕳 One piece is still inferred: **the castle ceiling is 0 until a build's materials are
+  delivered**, and this tree debits them up front, so the gate is permanently open. The
+  arithmetic given a complete delivery is reproduced; the six delivery words are not
+  modelled.
 
   ✅ And one worry retired: **`Labour_Allocate` never reads `labour_wanted`** — verified by
   exhaustion over its 2,147 bytes, which read `+0xCC + slot*0x0C` eight times and
@@ -201,16 +207,21 @@ Legend:
   tile it returns 0, the counter stays at 4, and the county never revolts. There is also a
   **dead branch**: the "happiness 0 revolts instantly" arm is guarded by a test identical to
   its own parent and can never run. `docs/kingdom.md` §6.
-- 🕳 **Territorial contiguity — a mechanic that was in none of these documents.** Every
-  season, a realm keeps only its **largest connected block of counties** and everything cut
-  off from it declares independence. `Realm_SecedeIsolatedCounties` (`0x0044AE3C`), and the
-  game names it itself: `L2.eng` 127 *"Deeming itself too far from the heart of your empire
-  …"* and 128 *"Your lands divide."* Implemented nowhere, and it changes what conquest is
-  worth: a county taken behind an enemy's lines cannot be held. `docs/kingdom.md` §6.1.
+- ✅ **Territorial contiguity — a mechanic that was in none of these documents.** Every
+  season, a realm keeps only its **most populous connected block of counties** and everything
+  cut off from it declares independence. `Realm_SecedeIsolatedCounties` (`0x0044AE3C`), and
+  the game names it itself: `L2.eng` 127 *"Deeming itself too far from the heart of your
+  empire …"* and 128 *"Your lands divide."* It changes what conquest is worth in both
+  directions: taking the county that *bridges* an enemy's territory costs him the far half
+  for free, and a county taken behind his lines cannot be held. Implemented in
+  `crates/l2-kingdom/src/territory.rs` as `Pass::SecedeIsolatedCounties`;
+  `docs/kingdom.md` §6.1 and `docs/rules.md` §5a.
 
-  **It has no data-side oracle.** Every realm in every fixture holds exactly one county, so
-  the invariant the pass maintains is trivially true in all six saves. This is the one claim
-  in this pass that rests on the code and two strings alone — worth an early test when a
+  **It still has no data-side oracle.** Every realm in every fixture holds exactly one
+  county, so the invariant the pass maintains is trivially true in all six saves. What moved
+  it from unanchored to corroborated is **a player's recollection that cut-off counties do
+  secede in play**, and that plus two strings and the code is the whole of the anchor — it is
+  the weakest-anchored thing this crate implements, and worth a real test the day a
   multi-county save exists.
 
 ### Land and building

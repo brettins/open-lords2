@@ -463,8 +463,39 @@ pub struct County {
     pub dryness: i32,
     /// `+0x224` — sacks in store.
     pub grain: i32,
-    /// `+0x240`, `+0x244`, `+0x248` — the growing crop at its three stages.
+    /// `+0x240`, `+0x244`, `+0x248` — **the seed, the standing crop, and this
+    /// season's harvest.**
+    ///
+    /// This document used to call them *"the growing crop at its three
+    /// stages"*, and they are not that. `Grain_SeasonTick` writes `crop[0]`
+    /// once a year, at sowing, as the sacks that actually went into the
+    /// ground; `crop[1]` is the **one** word the whole year's crop lives in,
+    /// rewritten in place by every `Grain_Grow`; and `crop[2]` is cleared at
+    /// the top of every season and holds what the harvest brought in. So the
+    /// crop is one running number with a sowing figure in front of it and a
+    /// harvest figure behind it, not three stages. See [`crate::land`].
     pub crop: [i32; 3],
+    /// `+0x202` — **how many grain fields were sown**, kept so that losing a
+    /// field mid-year cuts the crop.
+    ///
+    /// `FUN_0044D281` scales the standing crop by `fieldsGrain / this`
+    /// whenever the county now has *fewer* grain fields than it sowed, and it
+    /// runs at the top of both `Grain_Grow` and `Grain_Harvest`. Repainting a
+    /// grain field as pasture in July therefore costs a share of the standing
+    /// crop, and repainting *more* land as grain does nothing until next
+    /// year's sowing. `+0x206` is a second copy of the same number, read only
+    /// by the tile graphic.
+    pub fields_grain_sown: i32,
+    /// `+0x1A7` — `Grain_Sow` could not afford one sack a field and fell back
+    /// to sowing a token handful.
+    ///
+    /// `Grain_SeasonTick` reads it immediately afterwards and records the
+    /// county's field usage as **1** rather than `fieldsGrain` when it is set.
+    /// It is deliberately *not* cleared on `Grain_Sow`'s two early exits — no
+    /// store, or nobody on the fields — so a county that sowed nothing at all
+    /// carries last year's flag. That is the original's; nothing observable
+    /// depends on it, because the crop is 0 either way.
+    pub sow_shortfall: bool,
     /// `+0x250` — head of livestock.
     pub herd: i32,
     /// `+0x25C` — how crowded the herd is: 10, 20, 30 or 40, which `L2.eng`
@@ -596,6 +627,8 @@ impl County {
             dryness: 0,
             grain: 0,
             crop: [0; 3],
+            fields_grain_sown: 0,
+            sow_shortfall: false,
             herd: 0,
             // The lowest band: density 0 is at the bottom of it, and a county
             // with no pasture is pushed to the top band by `herd_crowding` the

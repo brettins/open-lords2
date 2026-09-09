@@ -163,10 +163,21 @@ fn a_player_can_paint_a_field_to_grain_and_harvest_it_four_seasons_later() {
         "the harvest put grain back in the store: low {low}, now {}",
         k.counties[mine].grain
     );
+    // **The crop words are not cleared by the harvest**, and this test used to
+    // say they were. `crop` is *seed, standing crop, harvest* rather than three
+    // growth stages: `Grain_SeasonTick` clears `crop[2]` at the top of every
+    // season and fills it at the harvest, and `crop[0]` and `crop[1]` keep the
+    // year's record until the next sowing overwrites them. See
+    // [`l2_kingdom::land`].
+    assert!(
+        k.counties[mine].crop[2] > 0,
+        "the harvest is the third word: {:?}",
+        k.counties[mine].crop
+    );
     assert_eq!(
-        k.counties[mine].crop.iter().sum::<i32>(),
-        0,
-        "and the field is empty again"
+        k.counties[mine].crop[0] * l2_kingdom::tables::GRAIN_YIELD_PER_SACK,
+        k.counties[mine].crop[1],
+        "and the first two are still the seed and the crop it became"
     );
 }
 

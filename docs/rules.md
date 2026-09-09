@@ -195,6 +195,35 @@ Three consequences worth knowing:
 - **A drought or a flood turns a field to waste, not back to fallow**, and waste has to be
   reclaimed — 800 units of work, at most a quarter of a field a season, so four seasons.
 
+**Reclamation is paid for by the hour.** One unit of that 800 costs one worker-season, so
+200 people is a quarter of a field and 800 is a whole one — and **a county with nobody on
+reclamation reclaims nothing at all**, however many fields it has started. The gang works
+the nearest-to-finished field first and moves on to the next when it is done, so putting a
+handful of people on it finishes one field slowly rather than four fields never.
+
+### The crop has to be tended all year, not just sown
+
+Sowing is only the first of three demands the year makes on your grain farmers, and the
+other two are just as capable of losing you the harvest:
+
+- **In summer and autumn the crop is capped at what the farmhands can tend** — ten sacks a
+  worker with *Advanced Farming*, two without. Sow a full crop, then move everyone off the
+  fields, and you reap nothing.
+- **At harvest it is capped again, and much harder**: with *Advanced Farming* only half your
+  grain farmers count as reapers and each brings in three sacks, so **one and a half sacks a
+  head**. A crop that took a hundred people to grow takes far more than a hundred to get in.
+- **Fertility multiplies the crop, twice.** The soil rating runs −100 to +100 and is worth
+  half of itself as a percentage at *each* of the two growing steps, so perfect soil reaps
+  **two and a quarter times** what neutral soil does and ruined soil about a quarter. One
+  fallow field per two grain fields is exactly break-even, and cattle fields do not count.
+- **Ploughing a wheat field under in midsummer costs you a share of that year's crop**, in
+  proportion to the fields you have left against the fields you sowed. Painting *more* grain
+  mid-year does nothing at all until the next sowing.
+
+None of this shows up if you leave the labour dials alone, because the game recomputes how
+many farmers the fields can use and reassigns people to them every single season. It shows
+up the moment you move people off the land by hand.
+
 The same click switches **industries** on and off: clicking a mine, quarry, forest or smithy
 on the map toggles it, and there is no other way to do it either.
 
@@ -274,9 +303,28 @@ population**. Anything cut off from it declares independence that same season:
 > *"Deeming itself too far from the heart of your empire, this county has declared
 > independence and thrown out your officials."*
 
-So taking a county behind someone else's lines does not hold it, and losing a county in the
-middle of your territory can cost you the ones beyond it as well. You get told — *"Your
-lands divide."* when it is more than one — but the AI lords lose theirs in silence.
+Two counties count as joined if they are on each other's **neighbour list** — the adjacency
+the map was authored with — not merely because their tiles touch. If two blocks are equally
+populous the game keeps the later one it found, which in practice means you cannot rely on
+keeping the half you expect.
+
+**This is the cheapest attack in the game and it is easy to miss.** Taking the one county
+that *bridges* an enemy's territory does not just take that county: everything on the far
+side of it goes free at the end of the same season, without a siege, without a battle, and
+without costing you a man. A lord holding a long thin realm can be halved by one well-chosen
+assault, and the counties that fall off do not become yours — they become neutral, so you
+have to go back for them, but so does he. The same rule runs the other way: **do not let
+anyone take a county in the middle of yours**, and think twice before pushing a lone army
+deep behind someone's lines, because a county you capture out there is cut off from *your*
+empire and secedes at the end of the season.
+
+You get told — *"Your lands divide."* when it is more than one — but the AI lords lose theirs
+in silence. Nothing else about the rule treats you differently from them.
+
+> **How well is this known?** Less well than everything around it. Every saved game we can
+> test has each lord holding exactly one county, so there is no position in which the rule
+> could be observed doing anything. What it rests on is the code, the two messages above,
+> and one player's memory of counties seceding in play. `docs/kingdom.md` §6.1.
 
 **Or the peasants take it.** A human-owned county whose happiness stays under 25 climbs an
 unrest counter one step a season, with a warning at each step — *"Murmurs of unrest."*,
