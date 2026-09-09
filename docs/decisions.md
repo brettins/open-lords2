@@ -1230,6 +1230,85 @@ circulation at once — 40, 52 and 65 — and only one of them came from anythin
 52 could not be reproduced from any query and is written down as unexplained in
 `docs/formats/eng.md` §5.1 rather than quietly dropped.
 
+**C38 — The completeness check for the lockstep checksum was a list, so it kept finding
+nothing. Deriving it from the struct definitions found twelve more fields in neither the
+save nor the digest, one of which is the entire diplomatic matrix.**
+
+C30 recorded four `County` fields missing from `l2_kingdom::save`'s `Encode` impl — and
+therefore, since `docs/netcode.md` §6's per-tick digest is `Canonical::hash_of(kingdom)` over
+that same impl, missing from the lockstep checksum. It restored the four, and it said in as
+many words that **the mechanism was not fixed**: `every_part_of_the_state_reaches_the_bytes`
+was a hand-written enumeration of ~130 mutations and a hand-written enumeration cannot fail
+for a field nobody listed.
+
+**It then failed three more times, each in a way C30 predicted.** Three commits after C30 the
+four lines had to be added to the enumeration by hand with nothing forcing it. The next
+branch added two saved fields and did not add them either. Matching the list against `County`
+by hand turned up **six** fields outside it — all six encoded correctly, which is luck rather
+than the test working. And matching it against `Realm` turned up **eleven that were in neither
+`Encode` nor `Decode`**, including `pairs`: standing, alliance, grudge, at-war and the gift
+history between every pair of realms. Two peers could have diverged on the whole diplomatic
+state of a game and every checksum they exchanged would have reported agreement. `Unit`'s
+`defence_mark` — which decides whether winning a battle also wins the county — made twelve.
+
+**What replaces it is two halves, and neither is a list.**
+
+1. **A fixture with every field holding something other than its default**, round-tripped and
+   compared with `#[derive(PartialEq)]` — the only exhaustive reader of a struct this project
+   has. Saturation is the whole point: a field that *both* sides ignore round-trips perfectly
+   when the source also holds the default, which is exactly why all four C30 fields survived
+   the old round-trip tests. Over a saturated fixture that single `assert_eq!` *is* the
+   completeness check.
+2. **A census that derives the field list from the source.**
+   `every_field_of_the_state_is_furnished` parses every `struct` in `crates/l2-kingdom/src`,
+   walks the types from `Kingdom`, and requires each field it finds to be furnished. A field
+   added tomorrow fails by name. Its two exemption tables have the right polarity — inclusion
+   is the default, a line is a claim with a reason attached, and a line naming a field that no
+   longer exists fails too, because a stale exemption looks like a decision and covers
+   nothing.
+
+Twenty-five ablations were run to check that this is not theatre: each of the four C30 fields
+alone and together, each of the six later `County` fields, each of the eleven `Realm` fields,
+`defence_mark`, and two fields *inside* `Pair` — deleted from the encoding one at a time.
+**All twenty-five fail the round trip.** The hand-written enumeration is deleted, along with
+`tests/save_gap.rs`, which pinned eleven of them; leaving either beside a derived check is how
+the derived one rots.
+
+**A second property, easy to miss, and the original has the bug.** A *field* can go missing
+from a record; a whole *record* can go missing from the walk over an array, and no amount of
+field checking sees that. `no_record_slot_is_silenced` loops over the array lengths instead.
+The original game has exactly this defect in its own multiplayer sync: `Sync_BuildDigest`
+(`0x00440231`) fills eight per-block digest bytes and, as its last statement before summing
+them, overwrites byte 7 — the battle-unit block — with the constant 1, so that block's
+divergences are silenced in the shipped build. **This class of bug is not a mark of our
+carelessness — it is what happens whenever a completeness check is written by hand, in 1996
+or now.**
+
+**The generalisable rule, and it is not only about saves: completeness must be derived, not
+remembered.** Whenever a test enumerates what to check, the enumeration is the thing that
+will be wrong, and it will be wrong silently and in the safe-looking direction. C25, C29 and
+C30 are the same shape. Where a derive macro is unavailable — `l2-kingdom` is
+dependency-free on purpose — reading the source in a test is the available substitute, and
+`crates/l2-testkit/tests/census.rs` had already established it as the house style.
+
+**The same disease one file over, and two branches independently caught it.**
+`l2_kingdom::save::VERSION` collided in four consecutive merges: two branches bumped 5 → 6
+with different field sets (so the merged encoding had to become 7), then two collided at 7,
+then two at 8, then this branch's entry had to move 8 → 9 → 10. Nothing checked it; the
+changelog above the constant was the only guard, and only if somebody read it. This work and
+C36's were both written to fix that, arrived at the same rule and even the same test name —
+`the_version_is_ahead_of_its_own_changelog`, requiring the `* N —` entries to be `1..=VERSION`
+with no gap and no repeat, exactly as `tools/decisions/corrections.js` does for these
+correction numbers.
+
+**Only one survived, deliberately.** C36's landed first and reads the changelog through
+`include_str!` rather than a path, and additionally requires every entry to carry a
+description; this branch's duplicate was deleted rather than kept alongside it. Two tests
+asserting the same property is how one of them rots, which is the whole subject of this
+correction. The fourth collision, this one, is the first that a machine caught rather than an
+integrator reading a doc comment — the check working on the day it was written, on the branch
+that wrote it.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

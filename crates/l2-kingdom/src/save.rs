@@ -116,9 +116,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   of their version 6s — so it is 7. A version 6 save is a real thing that
 ///   exists (it carries `fight_humans_only_byte` and *not* these two), which is
 ///   why the number had to move rather than the two entries being folded
-///   together. Nothing checks for this collision the way
-///   `tools/decisions/corrections.js` checks correction numbers; the changelog
-///   above is the only thing that catches it, and only if it is read.
+///   together.
 /// * 8 — **the things that move now move** (`crate::units_tick`): the six
 ///   merchant trade routes `g_merchantRoutes`, the peasant mobs' shared
 ///   destination cursor, and a transport's cargo county on the unit record.
@@ -158,7 +156,35 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   integrator reading a doc comment. A merge that takes one branch's `VERSION`
 ///   and both branches' changelog entries now goes red rather than shipping a
 ///   number that means two different layouts.
-pub const VERSION: u32 = 9;
+/// * 10 — **the diplomacy record and the county-defence mark**: `Realm`'s
+///   `offer_pending`, `ally_candidate`, `ally`, the six-slot `pairs` block,
+///   `target_county`, `taunt_timer`, `taunt_stage`, `war_target`,
+///   `offer_timer`, `crowned_once` and `voice_rotation`, and `Unit`'s
+///   `defence_mark`. Every one of them is simulation state — `pairs` is what
+///   `docs/diplomacy.md` §1 *is*: standing, alliance, grudge, at-war and the
+///   gift history between every pair of realms, and `defence_mark` decides
+///   whether winning a battle also wins the county — and none of them reached
+///   these bytes, so none of them reached the lockstep digest either. Two peers
+///   could diverge on the whole diplomatic state of a game and every checksum
+///   they exchanged would agree.
+///
+///   **C30 for the third time, and the first time it was not luck that found
+///   it**: `every_field_of_the_state_is_furnished` in `tests/save.rs` derives
+///   the field list from the struct definitions, and these twelve were its
+///   first run's output. `tests/save_gap.rs`, which pinned eleven of them, is
+///   deleted with them — the gap it described is closed.
+///
+///   A version 9 save has all twelve missing. **Refusal rather than default**,
+///   and `pairs` is why: a defaulted pair block is not "no diplomacy", it is
+///   every alliance broken, every grudge forgotten and every standing reset to
+///   the same number, which is a different game silently resumed.
+///
+///   **And this one is the fourth collision, caught by the check rather than by
+///   an integrator.** It was written as version 8, then 9, and
+///   `the_version_is_ahead_of_its_own_changelog` — added by the branch above,
+///   independently and for the same reason — failed the merge both times and
+///   named the duplicate. That is the entry above working exactly as it says.
+pub const VERSION: u32 = 10;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -593,6 +619,7 @@ impl Encode for crate::unit::Unit {
         out.u8(self.besieging_county);
         out.u8(self.besieged_by);
         out.u8(self.cargo_county);
+        out.u8(self.defence_mark);
     }
 }
 
@@ -661,6 +688,7 @@ impl Decode for crate::unit::Unit {
         u.besieging_county = input.u8()?;
         u.besieged_by = input.u8()?;
         u.cargo_county = input.u8()?;
+        u.defence_mark = input.u8()?;
         Ok(u)
     }
 }
@@ -978,6 +1006,54 @@ impl Encode for Realm {
         for input in &self.score_inputs {
             out.i32(*input);
         }
+
+        // The diplomacy record (`docs/diplomacy.md` §1). It landed on `main`
+        // outside this file and was absent from the encoding — and therefore
+        // from the lockstep digest — until the census below found it. See
+        // [`VERSION`] 8.
+        out.bool(self.offer_pending);
+        out.u8(self.ally_candidate);
+        out.u8(self.ally);
+        for pair in &self.pairs {
+            pair.encode(out);
+        }
+        out.u8(self.target_county);
+        out.u8(self.taunt_timer);
+        out.u8(self.taunt_stage);
+        out.u8(self.war_target);
+        out.i8(self.offer_timer);
+        out.bool(self.crowned_once);
+        out.u8(self.voice_rotation);
+    }
+}
+
+impl Encode for crate::realm::Pair {
+    fn encode(&self, out: &mut Canonical) {
+        out.i8(self.standing);
+        out.bool(self.allied);
+        out.u8(self.grudge);
+        out.u8(self.warnings_sent);
+        out.bool(self.at_war);
+        out.u8(self.compliments_from);
+        out.i32(self.best_gift);
+        out.bool(self.has_mail);
+        out.u8(self.help_price_multiple);
+    }
+}
+
+impl Decode for crate::realm::Pair {
+    fn decode(input: &mut Reader<'_>) -> Result<crate::realm::Pair, CodecError> {
+        Ok(crate::realm::Pair {
+            standing: input.i8()?,
+            allied: input.bool()?,
+            grudge: input.u8()?,
+            warnings_sent: input.u8()?,
+            at_war: input.bool()?,
+            compliments_from: input.u8()?,
+            best_gift: input.i32()?,
+            has_mail: input.bool()?,
+            help_price_multiple: input.u8()?,
+        })
     }
 }
 
@@ -1015,6 +1091,19 @@ impl Decode for Realm {
         for slot in 0..r.score_inputs.len() {
             r.score_inputs[slot] = input.i32()?;
         }
+        r.offer_pending = input.bool()?;
+        r.ally_candidate = input.u8()?;
+        r.ally = input.u8()?;
+        for slot in 0..MAX_REALMS {
+            r.pairs[slot] = crate::realm::Pair::decode(input)?;
+        }
+        r.target_county = input.u8()?;
+        r.taunt_timer = input.u8()?;
+        r.taunt_stage = input.u8()?;
+        r.war_target = input.u8()?;
+        r.offer_timer = input.i8()?;
+        r.crowned_once = input.bool()?;
+        r.voice_rotation = input.u8()?;
         Ok(r)
     }
 }
