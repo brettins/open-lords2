@@ -823,6 +823,14 @@ impl Scenario {
             realm.strength = r.strength;
             realm.is_human = r.is_human || id == self.local_player as usize;
             realm.lord = r.lord;
+            // **The banner colour, and it is a default rather than a read.**
+            // `Game_SetupRealms` (`0x0049C5xx`) initialises every realm with
+            // `g_realms[i].shieldIndex = i`, and only a custom game's colour
+            // picker permutes it (`0x0049CE1F` walks a free-slot pool). The
+            // save's own byte is realm `+0x0A`, which `l2_formats::save::Realm`
+            // does not read yet; until it does, a default game's flags and
+            // shields come out right and a custom game's may not.
+            realm.shield_index = id as u8;
             realm.county_count = r.county_count;
             realm.rank = r.rank;
             realm.score = r.score;

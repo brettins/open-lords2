@@ -258,10 +258,16 @@ table is short enough to be the answer:
 | type | handler | allowance | sprite | walk table | on crossing a border |
 |---:|---|---:|---|---|---|
 | 0 | `Unit_TickNone` `0x00465214` | — | — | — | dead: `Units_Tick` clears kind 0 before it indexes |
-| **1** army | `Army_Tick` `0x0046521F` | **15** | `0x48`/`0x60`/`0x78` by men, `+3×facing` | `g_unitWalkFrames` (3) | `Unit_EnterCounty` **and** a troop recount |
-| **2** mob | `PeasantMob_Tick` `0x00465486` | 10 | `0x90 + 3×facing` | `g_unitWalkFrames` (3) | a troop recount, then `FUN_004ABD0F` |
-| **3** merchant | `Merchant_Tick` `0x00465622` | 10 | `6×facing` | `g_merchantWalkFrames` (6) | **nothing** |
-| **4** transport | `Transport_Tick` `0x00465761` | 10 | `6×facing` | `g_merchantWalkFrames` (6) | **nothing** |
+| **1** army | `Army_Tick` `0x0046521F` | **15** | `0x48`/`0x60`/`0x78` by men, `+ 3×((facing+1)&7)` | `g_unitWalkFrames` (3) | `Unit_EnterCounty` **and** a troop recount |
+| **2** mob | `PeasantMob_Tick` `0x00465486` | 10 | `0x90 + 3×((facing+1)&7)` | `g_unitWalkFrames` (3) | a troop recount, then `FUN_004ABD0F` |
+| **3** merchant | `Merchant_Tick` `0x00465622` | 10 | `6×((facing+1)&7)` | `g_merchantWalkFrames` (6) | **nothing** |
+| **4** transport | `Transport_Tick` `0x00465761` | 10 | `6×((facing+1)&7)` | `g_merchantWalkFrames` (6) | **nothing** |
+
+**All four sprites come out of `Sprite1a.pl8` except the transport's**, which is the whole of
+`Map_DrawArmies`' sheet choice — `if (kind == 4) sheet = B;`. The 168 frames of `Sprite1a`
+decompose exactly: `0 … 47` the 40 × 32 merchant, `48 … 71` a dead 3 × 4 block, then the
+three 53 × 44 army banks at 72, 96 and 120, and the mob's at 144. `Sprite1b.pl8` is 48
+frames and nothing else. `docs/screens.md` §5.2 has the placement.
 | 5 | NULL | | | | |
 
 Four things fall out, and three of them change something:

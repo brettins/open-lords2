@@ -64,6 +64,24 @@ pub const MAX_PATH: usize = 150;
 /// `L2.eng` groups 94…98 hold twenty-four names a lord.
 pub const ARMY_NAME_SLOTS: usize = 24;
 
+/// The three army sprite banks `Army_Tick` picks between, by
+/// [`Unit::size_class`]. Twenty-four frames apart, which is eight facings times
+/// three walk frames. `[V]`
+pub const SPRITE_BANKS: [usize; 3] = [0x48, 0x60, 0x78];
+
+/// The revolting-peasants bank, one step past the last army bank. `[V]` — the
+/// twenty-four frames at `0x90` are the last of `Sprite1a.pl8`'s 168.
+pub const MOB_SPRITE_BANK: usize = 0x90;
+
+/// `g_unitWalkFrames` (`0x004D6A78`), read out of `Lords2.exe`: four `i32`,
+/// `0, 1, 2, 1` — a three-frame walk played there and back.
+pub const UNIT_WALK_FRAMES: [usize; 4] = [0, 1, 2, 1];
+
+/// `g_merchantWalkFrames` (`0x004D6AB8`): six `i32`, `0 … 5` — a plain
+/// six-frame cycle, which is what makes a merchant's facing block six frames
+/// wide where an army's is three.
+pub const MERCHANT_WALK_FRAMES: [usize; 6] = [0, 1, 2, 3, 4, 5];
+
 /// The kind of unit a record holds — the type byte at `+0x08`.
 ///
 /// `[V]` — `L2.eng` group 31 names all four, and `g_unitTickTable`
@@ -461,6 +479,64 @@ impl Unit {
             1
         } else {
             2
+        }
+    }
+
+    /// **Which sprite sheet this unit is drawn from** — 0 for
+    /// `g_spriteSheetA` (`Sprite1a.pl8` / `Sprite2a.pl8`), 1 for
+    /// `g_spriteSheetB`.
+    ///
+    /// `Map_DrawArmies` (`0x00408438`) makes this choice in one line:
+    /// `if (kind == 4) sheet = B;`. A merchant is drawn from **sheet A**, the
+    /// same file as the armies — only a transport uses B. `[D]`
+    pub fn sprite_sheet(&self) -> usize {
+        usize::from(self.kind == UnitKind::Transport)
+    }
+
+    /// **The frame the unit's figure is drawn with** — unit record `+0x07`,
+    /// which the type's tick handler writes and `Map_DrawArmies` reads
+    /// unmodified.
+    ///
+    /// ```c
+    /// Army_Tick     / Mob_Tick:  frame = bank + 3 * ((facing + 1) & 7) + walk[phase];
+    /// Merchant_Tick / Transport_Tick: frame =  6 * ((facing + 1) & 7) + phase;
+    /// ```
+    ///
+    /// with `walk` = `g_unitWalkFrames` (`0x004D6A78`) = `[0, 1, 2, 1]` and the
+    /// merchant's `g_merchantWalkFrames` (`0x004D6AB8`) = `[0, 1, 2, 3, 4, 5]`.
+    /// The bank is [`SPRITE_BANKS`] by [`Unit::size_class`] for an army and
+    /// [`MOB_SPRITE_BANK`] for a mob; a merchant and a transport have no bank
+    /// at all, because their sheets hold nothing else.
+    ///
+    /// **The rotation is `facing + 1`, not `facing`** — all four handlers, and
+    /// `docs/screens.md` §5 had it as `3*facing`.
+    ///
+    /// The counts close against the shipped sheets: 8 facings × 3 walk frames =
+    /// 24, which is the spacing of the three army banks (`0x48`, `0x60`,
+    /// `0x78`) and of the mob's `0x90`; 8 × 6 = 48, which is exactly the
+    /// 40 × 32 run at the front of `Sprite1a.pl8` and the whole of
+    /// `Sprite1b.pl8`.
+    pub fn sprite_frame(&self, phase: usize) -> usize {
+        let dir = ((self.facing as usize) + 1) & 7;
+        match self.kind {
+            UnitKind::Merchant | UnitKind::Transport => {
+                dir * MERCHANT_WALK_FRAMES.len() + MERCHANT_WALK_FRAMES[phase % MERCHANT_WALK_FRAMES.len()]
+            }
+            UnitKind::Army => {
+                SPRITE_BANKS[self.size_class()] + dir * 3 + UNIT_WALK_FRAMES[phase % UNIT_WALK_FRAMES.len()]
+            }
+            UnitKind::PeasantMob => {
+                MOB_SPRITE_BANK + dir * 3 + UNIT_WALK_FRAMES[phase % UNIT_WALK_FRAMES.len()]
+            }
+        }
+    }
+
+    /// The `(x, y)` `Map_DrawArmies` adds for this kind before it centres the
+    /// figure on the tile's bottom vertex. `[D]`
+    pub fn sprite_nudge(&self) -> (i32, i32) {
+        match self.kind {
+            UnitKind::Army | UnitKind::PeasantMob => (0, -4),
+            UnitKind::Merchant | UnitKind::Transport => (-4, -2),
         }
     }
 

@@ -22,11 +22,12 @@ crates/l2-game/src/screens/county.rs	C22	11557e27ba54
 crates/l2-game/src/screens/county.rs	C22	19162a21321c
 crates/l2-game/src/screens/county.rs	C42	4cfb123aa27e
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb
+crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c
 crates/l2-game/src/screens/map.rs	C21	f00297685d46
-crates/l2-game/src/screens/map.rs	C21	fa48367b6348
 crates/l2-game/src/screens/map.rs	C22	9269ad59f313
 crates/l2-game/src/screens/map.rs	C25	23e8c28769c0
 crates/l2-game/src/screens/map.rs	C45	12e98c92949f
+crates/l2-game/src/screens/map.rs	C48	dfa42eb3b5d2
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
 crates/l2-game/src/screens/setup.rs	C21	061497c61678
@@ -47,6 +48,9 @@ crates/l2-game/tests/screens.rs	C21	1523306009a2
 crates/l2-game/tests/screens.rs	C22	1d39d618c245
 crates/l2-game/tests/screens.rs	C42	3c40a931b48c
 crates/l2-game/tests/screens.rs	C42	555ed4e9d785
+crates/l2-game/tests/screens.rs	C47	944e764a1fca
+crates/l2-game/tests/screens.rs	C48	38f59896d07f
+crates/l2-game/tests/screens.rs	C48	a3f70d784d36
 crates/l2-game/tests/turn.rs	C19	2b27ff0ebcc9
 crates/l2-kingdom/src/ai.rs	C13	b6951068455b
 crates/l2-kingdom/src/ai_farm.rs	C3	5a9c96365a5c
@@ -57,6 +61,7 @@ crates/l2-kingdom/src/battle.rs	C38	0e75ae65c153
 crates/l2-kingdom/src/conquest.rs	C21	0fc3f0194453
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992
+crates/l2-kingdom/src/levy.rs	C47	7a585921e1bb
 crates/l2-kingdom/src/lib.rs	C11	40b20e35a6aa
 crates/l2-kingdom/src/map.rs	C25	28b0c4932b46
 crates/l2-kingdom/src/mercenary.rs	C3	5338c04f3210
@@ -218,6 +223,7 @@ docs/decisions.md	C26	1824d81774d5
 docs/decisions.md	C26	5357aea2a649
 docs/decisions.md	C28	86890c8b2fbc
 docs/decisions.md	C28	a1984c5fe2fb
+docs/decisions.md	C28	aa16a345c654
 docs/decisions.md	C28	d54a0560329e
 docs/decisions.md	C28	dae0adb9b022
 docs/decisions.md	C29	3a43aa0e9083
@@ -248,6 +254,7 @@ docs/decisions.md	C36	77721e6dffe1
 docs/decisions.md	C40	dd07d41c363e
 docs/decisions.md	C41	31c16a7144fe
 docs/decisions.md	C43	e2cdd9974342
+docs/decisions.md	C46	9f9877405047
 docs/decisions.md	C5	87aaf3ba3e2d
 docs/decisions.md	C5	8ac42aa0e5d0
 docs/decisions.md	C7	3c72ce757143
@@ -331,6 +338,9 @@ docs/screens-county.md	C46	0b66ca8a3963
 docs/screens-county.md	C46	9aadfb874c22
 docs/screens.md	C22	29997cfa2796
 docs/screens.md	C25	6e23d74e76ec
+docs/screens.md	C48	63058cefc7e7
+docs/screens.md	C49	a1b14839a0c8
+docs/screens.md	C50	0b13b32b4844
 docs/screens.md	C8	b62c9b07e307
 docs/symbols.json	C20	79f068916b16
 docs/symbols.json	C20	dddc3abf41e9

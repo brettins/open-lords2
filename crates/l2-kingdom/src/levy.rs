@@ -315,34 +315,80 @@ pub fn refuse_levy(men: i32, hiring_mercenaries: bool) -> Option<LevyRefusal> {
     }
 }
 
-/// `County_FindFreeRoadTile`, then `County_FindFreeOpenTile` — where a new army
-/// is put.
+/// `County_FindFreeRoadTile` (`0x00428007`), then `County_FindFreeOpenTile`
+/// (`0x00428078`) — where a new army is put.
 ///
-/// A road tile is preferred, and any passable unoccupied tile of the county
-/// will do otherwise. Walked in ascending tile index so the choice is
-/// deterministic and reproducible, which the original's own scan order gives
-/// for free.
-pub fn muster_tile(map: &CampaignMap, units: &Units, county: u8) -> Option<(u8, u8)> {
-    let cost = map.cost_map();
-    let free = |x: u8, y: u8| {
-        map.county_at(x, y) == county && cost.at(x, y) != 0 && units.at(x, y).is_none()
-    };
-    let mut fallback = None;
-    for y in 0..crate::map::MAP_DIM as u8 {
-        for x in 0..crate::map::MAP_DIM as u8 {
-            if !free(x, y) {
-                continue;
-            }
-            if map.has(x, y, flags::ROAD) {
-                return Some((x, y));
-            }
-            if fallback.is_none() {
-                fallback = Some((x, y));
+/// **Correction C47.** This used to scan the whole 64 × 64 map row-major for
+/// the first free road tile *of the county*, and that is not what the original
+/// does. Both finders are a **box search around the county's anchor tile**, at
+/// radius 1, then 2, then 3, and neither of them looks at the county id at all:
+///
+/// ```c
+/// County_FindFreeRoadTile(county):
+///     for r in 1..=3: if Map_FindFreeRoadTileNear(county.anchorX, county.anchorY, r) return 1;
+///     return 0;
+/// Map_FindFreeRoadTileNear(x, y, r):          /* 0x0046CFBD */
+///     scan the (2r+1)² box from (x−r, y−r), clipped to [0, 64), row-major;
+///     accept the first tile with  tile.unit == 0  &&  (tile.flags & 0x01);
+/// Map_FindFreeOpenTileNear(x, y, r):          /* 0x0046D130 */
+///     the same box; accept  tile.unit == 0  &&  (tile.flags & 0xFD) == 0;
+/// ```
+///
+/// The difference is not academic and it is the whole of the bug a player
+/// reported as *"I raised an army and nothing appeared on the map"*. A county
+/// is tens of tiles across, the near zoom shows **eight lattice columns**, and
+/// the old scan handed back the county's lowest-indexed road tile — which on
+/// the England fixture is fourteen columns from the county's anchor and off
+/// the side of the screen. The original never places an army more than three
+/// tiles from the county's centre, so it is always in shot.
+///
+/// Two further facts fall out of the quoted code and both are the original's:
+///
+/// * **The county is never tested.** A county whose anchor sits near a border
+///   can raise its army onto a *neighbour's* tile, and the original lets it.
+/// * **The open-ground fallback is stricter than "passable"**: `& 0xFD == 0`
+///   admits bare ground and the county-boundary bit `0x02` and nothing else —
+///   not farmland, not a settlement, not rough ground, not a road. The road
+///   pass is the only way an army lands on a road.
+///
+/// `anchor` is `County +0x6C`/`+0x6D`.
+pub fn muster_tile(map: &CampaignMap, units: &Units, anchor: (u8, u8)) -> Option<(u8, u8)> {
+    // A road tile: plane-0 bit 0x01 set, whatever else it carries.
+    if let Some(at) = search_near(map, units, anchor, |f| f & flags::ROAD != 0) {
+        return Some(at);
+    }
+    // Open ground: nothing set but, at most, the county boundary.
+    search_near(map, units, anchor, |f| f & !flags::BOUNDARY == 0)
+}
+
+/// The `for r in 1..=3` box walk both finders share, with the predicate that
+/// tells them apart. Row-major inside each box and radius-ascending between
+/// them, which is the original's order and therefore reproducible.
+fn search_near(
+    map: &CampaignMap,
+    units: &Units,
+    (ax, ay): (u8, u8),
+    accept: impl Fn(u8) -> bool,
+) -> Option<(u8, u8)> {
+    let dim = crate::map::MAP_DIM as i32;
+    for r in 1..=MUSTER_RADIUS {
+        let (x0, y0) = ((ax as i32 - r).max(0), (ay as i32 - r).max(0));
+        let (x1, y1) = ((ax as i32 + r).min(dim - 1), (ay as i32 + r).min(dim - 1));
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let (x, y) = (x as u8, y as u8);
+                if units.at(x, y).is_none() && accept(map.flags_at(x, y)) {
+                    return Some((x, y));
+                }
             }
         }
     }
-    fallback
+    None
 }
+
+/// How far from the county's anchor a new army may be put — the `3` both
+/// `County_FindFree*Tile` loops stop at.
+const MUSTER_RADIUS: i32 = 3;
 
 /// Everything `create_army` needs that is not a county, a realm or a basket.
 #[derive(Debug, Clone, Copy)]
@@ -422,7 +468,20 @@ pub fn create_army(
     basket: &LevyBasket,
     muster: Muster,
 ) -> Result<usize, LevyRefusal> {
-    let (x, y) = muster_tile(map, units, muster.county).ok_or(LevyRefusal::NowhereToStand)?;
+    // `County_FindFree*Tile` searches around the county's **anchor**, not over
+    // the county — C47, and see [`muster_tile`].
+    let anchor = counties
+        .get(muster.county as usize)
+        .map_or((0, 0), |c| (c.anchor_x, c.anchor_y));
+    let (x, y) = muster_tile(map, units, anchor).ok_or(LevyRefusal::NowhereToStand)?;
+    // **`Unit_Spawn`'s own precondition**, which is stricter than the road
+    // finder's: `(tile.flags & 0xFC) == 0`. A road tile that also carries
+    // farmland, rough ground, a plot or a settlement passes
+    // `Map_FindFreeRoadTileNear` and then fails the spawn, and `Army_Create`
+    // returns 0 — message `0xDD`, the same refusal as nowhere to stand.
+    if map.flags_at(x, y) & !(flags::ROAD | flags::BOUNDARY) != 0 {
+        return Err(LevyRefusal::NowhereToStand);
+    }
 
     let (is_human, shield) = realms
         .get(muster.realm as usize)
@@ -896,12 +955,49 @@ mod tests {
         let mut m = open_map();
         m.set_flags(20, 20, flags::ROAD);
         let units = Units::new();
-        assert_eq!(muster_tile(&m, &units, 1), Some((20, 20)));
+        assert_eq!(muster_tile(&m, &units, (20, 20)), Some((20, 20)));
 
-        // With the road occupied it falls back to open ground, lowest index.
+        // With the road occupied it falls back to open ground — the first tile
+        // of the radius-1 box, row-major, which is the anchor's north-west
+        // neighbour and *not* tile (0, 0).
         let mut units = Units::new();
         units.spawn(Unit::new(UnitKind::Army, 1, 20, 20));
-        assert_eq!(muster_tile(&m, &units, 1), Some((0, 0)));
+        assert_eq!(muster_tile(&m, &units, (20, 20)), Some((19, 19)));
+    }
+
+    /// **C47.** The finders search a box around the county's *anchor*, radius 1
+    /// then 2 then 3, and stop. A road tile four tiles away is out of reach,
+    /// and the army lands on open ground beside the anchor instead — which is
+    /// why a raised army is always in shot on a screen eight lattice columns
+    /// wide.
+    #[test]
+    fn the_muster_never_reaches_further_than_three_tiles_from_the_anchor() {
+        let mut m = open_map();
+        m.set_flags(0, 0, flags::ROAD);
+        m.set_flags(24, 20, flags::ROAD); // four east of the anchor
+        let units = Units::new();
+        let at = muster_tile(&m, &units, (20, 20)).expect("open ground beside the anchor");
+        assert_eq!(at, (19, 19), "neither road is within three of (20, 20)");
+
+        // Three away is in reach, at radius 3, and the road wins over the open
+        // ground the radius-1 box already held.
+        m.set_flags(23, 20, flags::ROAD);
+        assert_eq!(muster_tile(&m, &units, (20, 20)), Some((23, 20)));
+    }
+
+    /// The open-ground fallback is `flags & 0xFD == 0`, not "passable": a box
+    /// of farmland around the anchor has nowhere to stand even though every
+    /// tile of it is walkable.
+    #[test]
+    fn farmland_is_not_open_ground_for_a_muster() {
+        let mut m = open_map();
+        for y in 16..25u8 {
+            for x in 16..25u8 {
+                m.set_flags(x, y, flags::FARMLAND);
+            }
+        }
+        let units = Units::new();
+        assert_eq!(muster_tile(&m, &units, (20, 20)), None);
     }
 
     #[test]
