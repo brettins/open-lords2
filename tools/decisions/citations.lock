@@ -30,6 +30,9 @@ crates/l2-game/src/screens/map.rs	C22	9269ad59f313
 crates/l2-game/src/screens/map.rs	C25	23e8c28769c0
 crates/l2-game/src/screens/map.rs	C45	12e98c92949f
 crates/l2-game/src/screens/map.rs	C48	5ed2d9912e7f
+crates/l2-game/src/screens/map.rs	C57	3865532a202c
+crates/l2-game/src/screens/map.rs	C57	8b5e7f194e7c
+crates/l2-game/src/screens/map.rs	C58	c583727df160
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
 crates/l2-game/src/screens/setup.rs	C21	061497c61678
@@ -121,6 +124,7 @@ crates/l2-mods/src/units.rs	C11	1f34a41c4bbb
 crates/l2-mods/src/units.rs	C11	82a3e3450631
 crates/l2-mods/tests/simulation.rs	C11	b927dbbbca77
 crates/l2-mods/tests/simulation.rs	C12	84283df43fd5
+crates/l2-scenario/src/lib.rs	C57	14b498ed2873
 crates/l2-scenario/tests/import.rs	C26	bdddd4567993
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
@@ -134,7 +138,10 @@ crates/l2-sim/tests/oracle.rs	C17	0f5dbd453b42
 crates/l2-sim/tests/oracle.rs	C20	d336abeab0e5
 crates/l2-testkit/src/lib.rs	C1	365a5efbf069
 crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8
+crates/l2-view/src/campaign.rs	C57	cc211f4ea532
+crates/l2-view/src/campaign.rs	C58	f81f70509bd8
 crates/l2-view/src/village.rs	C22	4b0da6199195
+crates/l2-view/src/village.rs	C57	fbc575f34d82
 crates/l2-view/tests/install.rs	C1	b6dbfeba4b54
 crates/l2-view/tests/install.rs	C46	3ca8b1f138bc
 docs/agents.md	C1	d79ae046534d
@@ -187,6 +194,7 @@ docs/bugs.md	C33	970cde363d20
 docs/bugs.md	C38	3a2b93b33329
 docs/bugs.md	C44	76f06582a66b
 docs/bugs.md	C53	89e746f595f9
+docs/bugs.md	C57	0d225f608cb4
 docs/decisions.md	C10	1026d11e7d3f
 docs/decisions.md	C10	6307927dc59c
 docs/decisions.md	C10	ff432eaffe58
@@ -261,12 +269,13 @@ docs/decisions.md	C31	e0e1f8d052f8
 docs/decisions.md	C31	ed3eab8182c3
 docs/decisions.md	C36	278739b8f0b8
 docs/decisions.md	C36	77721e6dffe1
+docs/decisions.md	C39	4c573c6aebc6
 docs/decisions.md	C39	6a5f6cc77f33
 docs/decisions.md	C39	b900cd987da2
 docs/decisions.md	C39	bafbbde7c92a
-docs/decisions.md	C39	d16999be8062
 docs/decisions.md	C40	dd07d41c363e
 docs/decisions.md	C41	31c16a7144fe
+docs/decisions.md	C41	ce61a32481ef
 docs/decisions.md	C42	d82da22eca5c
 docs/decisions.md	C42	f53259005d3f
 docs/decisions.md	C43	e2cdd9974342
@@ -276,6 +285,8 @@ docs/decisions.md	C5	2d9efa526576
 docs/decisions.md	C5	87aaf3ba3e2d
 docs/decisions.md	C5	8ac42aa0e5d0
 docs/decisions.md	C52	5e26cd0befa4
+docs/decisions.md	C57	2abd57a143c3
+docs/decisions.md	C57	a01e03e89d00
 docs/decisions.md	C7	3c72ce757143
 docs/decisions.md	C8	490a0a7ca7d4
 docs/decisions.md	C8	553fa7149d4e
@@ -363,12 +374,15 @@ docs/screens-county.md	C43	e5d82cc82d66
 docs/screens-county.md	C45	deb8ce88337e
 docs/screens-county.md	C46	0b66ca8a3963
 docs/screens-county.md	C46	9aadfb874c22
+docs/screens-county.md	C57	29da3728fc03
 docs/screens.md	C22	29997cfa2796
 docs/screens.md	C25	6e23d74e76ec
 docs/screens.md	C48	63058cefc7e7
 docs/screens.md	C49	a1b14839a0c8
 docs/screens.md	C50	0b13b32b4844
 docs/screens.md	C54	058651c9e443
+docs/screens.md	C57	20afea58b682
+docs/screens.md	C58	1667c55aa79a
 docs/screens.md	C8	b62c9b07e307
 docs/symbols.json	C20	79f068916b16
 docs/symbols.json	C20	dddc3abf41e9

@@ -205,6 +205,17 @@ impl VillageScreen {
         (c.industry[3].has_resource, c.industry[1].has_resource)
     }
 
+    /// All four `has_resource` bytes, in commodity order, for the three
+    /// buildings [`l2_view::village::VillageArt::draw_resources`] paints.
+    pub fn resource_flags(c: &County) -> [bool; 4] {
+        [
+            c.industry[0].has_resource,
+            c.industry[1].has_resource,
+            c.industry[2].has_resource,
+            c.industry[3].has_resource,
+        ]
+    }
+
     /// `Village_RebuildIcons` for the whole village.
     pub fn icons(c: &County) -> [ClusterIcons; vill::CLUSTER_COUNT] {
         let slots = Self::slots(c);
@@ -525,6 +536,11 @@ impl Screen for VillageScreen {
             if ctx.game.kingdom.options.advanced_farming {
                 art.map(|a| a.draw_tops(canvas, c.weather.index() as usize));
             }
+            // **The quarry, the mine and the lumber camp**, before the
+            // peasants, which is `Village_Draw`'s own order — the icons stand
+            // in front of the buildings.
+            let has = VillageScreen::resource_flags(c);
+            art.map(|a| a.draw_resources(canvas, has, top));
             self.draw_clusters(ctx, canvas, c, top, drew);
         }
 

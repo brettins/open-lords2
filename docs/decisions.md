@@ -2128,6 +2128,121 @@ reason attached, and a line naming a field that no longer exists fails too. The 
 is hashed **slot by slot over all hundred**, live and free alike, which is C39's *second*
 property — a whole record can go missing from a sweep and no amount of field checking sees
 it.
+**C57 — The county's four industry records were never imported, so every county claimed
+every resource; the village drew none of the three buildings that depend on them; and half
+of the mine on the map was not clickable because the building overhangs its own tile.**
+
+A player reported *"a county that clearly has iron has no iron mine in the town center and I
+can't click the iron mine on the world map to enable/disable that."* It reads as one defect
+and it is three, on three different layers, and only the middle one had ever been looked at.
+
+**1. `+0x295`, `+0x296` and `+0x297` were not read.** `l2-scenario` imported fifty-odd county
+fields and skipped the four twenty-four-byte industry records entirely, so every county
+arrived from `County::new()` with `has_resource: true` and `enabled: true` — all four
+resources, all four switches on, in all fourteen counties. The file says otherwise, and it
+**checks itself against the map**: `County_PlaceResourceSites` (`0x00468E61`) writes `+0x295`
+at load from the county's `Town`-bank tiles, so the byte and the terrain are two recordings
+of one fact. Over the England turn-one fixture they agree **56 times out of 56** — and it is
+not a vacuous agreement, because 15 of the 56 are *false*: iron and stone come out
+complementary in thirteen of the fourteen counties and county 5 has neither.
+
+The switches are just as far from the default: **five of the fifty-six are on**, and they are
+the wood cutting of exactly the five counties that start owned. So the map's toggles had all
+been drawn — and, worse, *acted on* — in the opposite position to the one the player sees.
+
+**2. `Village_Draw` blits three buildings and we drew none of them.** Read out of the
+corpus, the three calls are consecutive and each is gated on a resource:
+
+```c
+if (county.industry[0].hasResource) Pl8_DrawFrame(villani2, 0x29, 0xac, top + 0xe5);  /* wood  */
+if (county.industry[3].hasResource) Pl8_DrawFrame(villani2, 0x28, 0x4c, top + 0x0c);  /* stone */
+if (county.industry[1].hasResource) Pl8_DrawFrame(villani2, 0x2b, 0x4c, top + 0x0c);  /* iron  */
+```
+
+Three things that were guessed and are now read. **The sheet is `villani2.pl8`, not
+`Misc_cty.pl8`** — `l2-view`'s own doc comment named the right frames in the wrong file, and
+`villani1.pl8` and `villani2.pl8` were not loaded by anything. **The lumber camp is a third
+building**, at the bottom right; the documented pairing was only the two that share a spot.
+And **the mine is drawn after the quarry at the same coordinates**, which is safe precisely
+because of the complementarity the fixture shows: no county holds both, so the later blit
+never covers the earlier one.
+
+Note the distinction that was already right and stays right: a county with *neither* still
+shows cluster 0's **slot** — `Village_DrawPeasants` loops 0 … 7 unconditionally. What was
+missing was the *building*, not the slot.
+
+**3. The mine overhangs its tile, and the hit test was the tile.** `Town1a.pl8` frame 30 is
+**58 × 47** on a 58 × 30 tile — seventeen rows of headframe above the diamond, and more of
+the building inside the diamond's bounding box but outside the rhombus. Swept pixel by pixel:
+**1,314 pixels of the mine are painted and 857 of them were on the tile.** The whole upper
+half of the building — the part anybody aims at — was dead, and because our map has a
+fall-through the original does not have, a click there **opened the county panel** instead of
+doing nothing. The forest is worse at 22 rows of overhang.
+
+**This is the one deliberate departure from the binary on that path, and it is stated as
+such.** `Map_PickTile` (`0x00429ba4`) is pure geometry: it divides by the pitch and resolves
+the diamond with a parity and remainder test, and never looks at a pixel — so in the original
+the top of the mine belongs to the tile behind it, where `Map_Click` finds no flags and does
+nothing at all. Ours tries the diamond first and, only if that misses, tests the tile's own
+frame **opacity mask**. It can add an answer where the original had none; it can never move
+one. The alternative — reproducing the dead zone faithfully — reproduces a defect that this
+project's own fall-through makes considerably worse than it is in the original.
+
+**Two more readings fell out of `Map_Click` and are recorded rather than acted on.**
+`Map_ResolvePick` (`0x0046D5FE`) **snaps a click on a multi-tile object to its north-west
+anchor**: `part & 0xf` is divided and remaindered by the object's width to walk back to the
+first tile, so all four quadrants of a town or a standing castle resolve to one. And the
+whole dispatcher is wrapped in `if (g_mapZoom != 2)` — **at the far zoom the campaign map
+does not respond to a left click at all.**
+
+**What the pattern is, since this is the fifth visual defect a person has reported after the
+code was merged.** C41's lesson was *a renderer verified against its input file is verified
+against the wrong thing*. This one is narrower and sharper: **the village screen had eleven
+tests and not one of them asked what the county's own record said.** Every test drove the
+picture from the *labour* fields, which were imported, and none from the *industry* fields,
+which were not — so a struct field that no importer ever wrote and every screen read as
+`true` passed the whole suite. The three assertions added here are all of the same shape:
+they compare two independent recordings of one fact (the record against the map, the drawn
+region against the frame it should hold, every painted pixel against the toggle it should
+reach), and each of them fails on the code as it stood.
+
+**C58 — A unit is picked by its *tile*, not by the marker we drew on it. Ours asked a
+nine-pixel box on a 58 × 30 diamond, so most clicks on a merchant missed it — and our own
+"a second click opens the county" caught them.**
+
+The player, in the same session as C57: *"there seems to be some weird thing where a certain
+county is 'selected', and if I click a merchant while the map has a different county selected
+it will open up the tax window."*
+
+**The selection is innocent.** `Map_Click` consults `g_selectedCounty` for exactly one thing,
+and it is not a hit test: the site and merchant arms compare it with the picked county in
+order to decide whether to *re-centre* first. The pick itself is positional throughout.
+
+**The hit test was the defect, and it is C57's defect again.** `Map_ResolvePick`
+(`0x0046D5FE`) reads `g_pickedTileUnit = g_tiles[t].unit` — **the whole tile is the unit**.
+Ours hit-tested the little square marker instead, `unit_marker_half + 1` around the tile
+centre, which is nine pixels across at the near zoom; the merchant that is actually drawn is
+a 40 × 32 figure from `Sprite1a.pl8`. So a click on the visible merchant usually resolved to
+no unit at all, fell past the settlement, town and field arms, and landed on ours. Fixed the
+same way and for the same reason: **the tile first, which is the original's entire answer**,
+then the drawn figure's opacity mask, because `Map_DrawArmies` anchors a sprite on the tile's
+*bottom vertex* and it therefore stands up over the tiles behind it. The tile wins whenever
+it holds a unit, so the fallback can add an answer and can never move one.
+
+**What a click on empty ground does in the original: nothing.** This was asked as a separate
+question and it has a flat answer — `Map_Click` has **no county-selection arm**. Its only
+writes to `g_selectedCounty` are inside the merchant, town and industry-site branches, beside
+a `Map_CentreOnTile`. Selecting a county from the map is entirely ours, and so is the second
+click that opens its panel.
+
+**That is worth stating on its own, because it is the amplifier under both reports.** In the
+original a hit test that misses costs nothing — the click falls off the end of the function
+and the player clicks again two pixels lower. In ours a miss *does something*: it selects,
+and a second miss opens a modal county panel. Every geometric shortfall anywhere on the map
+is therefore converted into a visible wrong screen. The convenience is kept for now — the
+county strip needs a selection and the original's routes to one are the strip and the minimap
+— but it should be read as a standing multiplier on hit-test accuracy rather than as a free
+extra.
 
 ## Open questions
 

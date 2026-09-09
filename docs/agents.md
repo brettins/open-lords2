@@ -253,6 +253,31 @@ worth applying to the next process rule this file gains: **prefer the version a 
 enforces over the version an agent is asked to remember**, and if you write the second, plan
 to replace it with the first.
 
+## A test that drives the picture from the wrong field passes for ever
+
+The village screen had **eleven tests and not one asked what the county's own record
+said.** Every one drove the picture from the county's *labour* fields, which the scenario
+importer fills. Not one drove it from the *industry* fields, which it did not — four
+24-byte records per county were skipped wholesale, so `has_resource` and all four enable
+switches came from `County::new()`'s defaults, and **every map toggle sat in the opposite
+position to the one the player saw.** Eleven passing tests, and a struct field that no
+importer had ever written.
+
+That is C30 from the drawing side rather than the save side, and the pair states the rule
+better than either alone: **a field is only tested if something a test reads was written by
+something the game runs.** A test that populates the state it then asserts on is checking
+its own fixture. C30's four fields were absent from the *encoding*; these were absent from
+the *import*; in both cases the suite was green and the field was fiction.
+
+Two practical consequences:
+
+* **When you add a field to a record, ask what writes it in a real game** — an importer, a
+  season pass, a click — and make at least one test travel that road. If nothing writes it
+  yet, that is worth knowing and worth saying at the field.
+* **Prefer a fixture the game produced to one a test built.** `l2_testkit`'s gated
+  fixtures exist for this; a hand-built `Kingdom` carries whatever `new()` gives it, and
+  `new()` agrees with every wrong reading equally.
+
 ## A tool that degrades silently is worse the more people use it
 
 `tools/oracle/decompile-all.ps1` **exits non-zero** when `ApplySymbols` or

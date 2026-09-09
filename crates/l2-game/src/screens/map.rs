@@ -19,6 +19,23 @@
 //! right-column frames are 162 wide and tile `y` 24 … 480 with no gap, and
 //! `Map_DrawPathMarker` clips the map to `x < 478`, `y < 474`.
 //!
+//! # The county-selection arm is **ours**, and it changes what a miss costs
+//!
+//! `Map_Click` (`0x0043CE1A`) dispatches on the picked tile's own flags and has
+//! **no arm for empty ground**: in the original, a click that resolves to a tile
+//! carrying nothing does nothing at all. Ours ends with "otherwise, select this
+//! county", because the county strip needs a selection and nothing else offers
+//! one.
+//!
+//! That convenience has a cost worth knowing before you touch the hit test.
+//! **Every geometric shortfall here degrades into opening the wrong screen
+//! rather than into nothing happening** — which is why one bad hitbox has
+//! produced a player-visible bug twice, and why `docs/decisions.md` C57 chose to
+//! widen the hit test rather than reproduce the original's dead zone.
+//!
+//! Keep it, but if you narrow or move a hitbox, the failure you are risking is a
+//! *wrong answer*, not a silent one.
+//!
 //! # What is the original's, and what is ours
 //!
 //! **The original's:** the viewport and both zooms, the scroll clamp and the
@@ -518,6 +535,68 @@ impl MapScreen {
         Self::tiles_with(ctx, county, l2_kingdom::map::flags::SETTLEMENT)
     }
 
+    /// [`MapScreen::settlements`], for the tests that need to find a county's
+    /// mine on the map without duplicating the flag test.
+    pub fn settlements_for_test(ctx: &Ctx, county: u8) -> Vec<usize> {
+        Self::settlements(ctx, county)
+    }
+
+    /// **Which settlement tile a pixel is on — the ground first, then the
+    /// building standing on it.**
+    ///
+    /// The diamond alone is not enough, and this is the second half of a defect
+    /// a player reported as *"I can't click the iron mine on the world map"*.
+    /// `Town1a.pl8` frame 30, the mine, is **58 × 47** against a 58 × 30 tile,
+    /// so seventeen rows of headframe are drawn *above* the tile's diamond and
+    /// a further band of it falls inside the diamond's bounding box but outside
+    /// the rhombus. Swept pixel by pixel, 1,314 of the mine's pixels are
+    /// painted and only 857 of them were on the tile: **the whole upper half of
+    /// the building — the part anybody would aim at — was dead.** The forest is
+    /// worse, at 22 rows of overhang.
+    ///
+    /// **This is a deliberate departure from the original and the only one on
+    /// this path.** `Map_PickTile` (`0x00429ba4`) is pure geometry — it divides
+    /// by the pitch and resolves the diamond with a parity test, and never
+    /// looks at a pixel — so in the original the top of the mine belongs to the
+    /// tile behind it, where `Map_Click` finds no flags and does nothing. Ours
+    /// answers instead of doing nothing. It can only *add* hits, never move
+    /// one: the diamond is tried first and wins, and the fallback tests the
+    /// frame's own opaque mask, so it fires only on pixels where that building
+    /// is actually painted.
+    ///
+    /// It reads the map file rather than [`MapScreen::town_graphics`] because
+    /// the overrides plane holds towns — plane-0 bit `0x40` — and a settlement
+    /// is bit `0x80`; the two sets are disjoint.
+    fn settlement_at(&self, ctx: &Ctx, county: u8, x: i32, y: i32) -> Option<usize> {
+        let tiles = Self::settlements(ctx, county);
+        if let Some(tile) = self.tile_at(x, y, tiles.iter().copied()) {
+            return Some(tile);
+        }
+        if !self.map_clip().contains(x, y) {
+            return None;
+        }
+        let slot = ctx.assets.slot(ctx.game.map_slot)?;
+        for tile in tiles {
+            let (tx, ty) = l2_kingdom::map::coords(tile);
+            let (row, col) = campaign::tile_to_cell(tx as usize, ty as usize);
+            let (sx, sy) = campaign::cell_to_screen(self.view, &self.zoom, row, col);
+            let bank_byte = slot.at(Plane::GfxBank, tx as usize, ty as usize);
+            let frame = slot.at(Plane::GfxIndex, tx as usize, ty as usize) as usize;
+            let bank = ((bank_byte & campaign::BANK_MASK) >> 2) as usize;
+            let Some(sheet) = ctx.assets.map.bank(&self.zoom, bank) else { continue };
+            let Some(decoded) = sheet.frame(frame) else { continue };
+            let overhang = (decoded.height as i32 - self.zoom.tile_h).max(0);
+            let (dx, dy) = (x - sx, y - (sy - overhang));
+            if dx < 0 || dy < 0 || dx >= decoded.width as i32 || dy >= decoded.height as i32 {
+                continue;
+            }
+            if decoded.opaque[dy as usize * decoded.width as usize + dx as usize] {
+                return Some(tile);
+            }
+        }
+        None
+    }
+
     /// The county's **town**: the 2 × 2 block on plane-0 bit `0x40`.
     ///
     /// The constant is still spelled `CASTLE` in `l2-kingdom` and its own doc
@@ -704,25 +783,81 @@ impl MapScreen {
         None
     }
 
-    /// The unit whose marker covers a pixel — `g_pickedTileUnit`.
+    /// **`g_pickedTileUnit` — the unit standing on the tile a pixel is in.**
     ///
-    /// It asks the *marker*, not the tile, so that a click on a drawn army is
-    /// the army whatever the projection thinks of the pixel. Walked in ascending
-    /// slot order, so two units on adjacent tiles resolve the same way twice.
+    /// `Map_ResolvePick` (`0x0046D5FE`) reads it out of the tile record —
+    /// `g_pickedTileUnit = g_tiles[t].unit` — so in the original a click
+    /// **anywhere on a unit's tile** is that unit. This asked the unit's little
+    /// *marker* instead, a box `unit_marker_half + 1` around the tile centre,
+    /// which at near zoom is nine pixels across on a diamond that is 58 × 30.
+    ///
+    /// That is what a player reported as *"if I click a merchant while the map
+    /// has a different county selected it will open up the tax window"*: the
+    /// click missed the box, fell past the unit arm and past the settlement,
+    /// town and field arms, and landed on our own "a second click on the
+    /// selected county opens it". Same shape as the mine (`docs/decisions.md`
+    /// C57) and the same cause — a hit test smaller than the thing drawn. C58.
+    ///
+    /// So: **the tile first, which is the original's whole answer**, and then
+    /// the drawn figure, because `Map_DrawArmies` anchors a sprite on the
+    /// tile's *bottom vertex* and it therefore stands up over the tiles behind
+    /// it — pixels the original would resolve to a tile with no unit on it.
+    /// Ours can add an answer there; it can never move one, because the tile
+    /// wins whenever it has a unit.
     pub fn unit_at(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
         if !self.map_clip().contains(x, y) {
             return None;
         }
-        ctx.game.kingdom.campaign.units.iter().find_map(|(id, u)| {
-            let (cx, cy) = campaign::tile_centre(
-                self.view,
-                &self.zoom,
-                u.x as usize,
-                u.y as usize,
-            )?;
-            let r = unit_marker_half(&self.zoom, u) + 1;
-            ((x - cx).abs() <= r && (y - cy).abs() <= r).then_some(id)
+        let units = &ctx.game.kingdom.campaign.units;
+        if let Some((tx, ty)) = self.pick_tile(x, y) {
+            // Ascending slot order, so two units sharing a tile — which the
+            // original's single `tile.unit` byte cannot even express — resolve
+            // the same way twice. `docs/netcode.md` §3.
+            if let Some(id) = units.iter().find(|(_, u)| u.x == tx && u.y == ty).map(|(id, _)| id) {
+                return Some(id);
+            }
+        }
+        units.iter().find_map(|(id, u)| {
+            if u.is_garrisoned() {
+                // Drawn as a hollow marker, not a figure — there is no sprite
+                // to hit-test, so the marker box is the whole of it.
+                let (cx, cy) = campaign::tile_centre(self.view, &self.zoom, u.x as usize, u.y as usize)?;
+                let r = unit_marker_half(&self.zoom, u) + 1;
+                return ((x - cx).abs() <= r && (y - cy).abs() <= r).then_some(id);
+            }
+            self.unit_sprite_covers(ctx, u, x, y).then_some(id)
         })
+    }
+
+    /// Whether a pixel lands on a unit's drawn figure, at
+    /// [`campaign::draw_unit`]'s own placement and against the frame's own
+    /// opacity mask. Falls back to the marker box when the sprite sheets are
+    /// missing, which is the case in every test that runs without an install.
+    fn unit_sprite_covers(&self, ctx: &Ctx, u: &l2_kingdom::Unit, x: i32, y: i32) -> bool {
+        let Some((cx, cy)) =
+            campaign::tile_centre(self.view, &self.zoom, u.x as usize, u.y as usize)
+        else {
+            return false;
+        };
+        let sprite = campaign::UnitSprite {
+            sheet: u.sprite_sheet(),
+            frame: u.sprite_frame(0),
+            nudge: u.sprite_nudge(),
+        };
+        match campaign::unit_sprite_rect(&ctx.assets.map, self.view, &self.zoom, (u.x as usize, u.y as usize), sprite) {
+            Some((ox, oy, decoded)) => {
+                let (dx, dy) = (x - ox, y - oy);
+                dx >= 0
+                    && dy >= 0
+                    && dx < decoded.width as i32
+                    && dy < decoded.height as i32
+                    && decoded.opaque[dy as usize * decoded.width as usize + dx as usize]
+            }
+            None => {
+                let r = unit_marker_half(&self.zoom, u) + 1;
+                (x - cx).abs() <= r && (y - cy).abs() <= r
+            }
+        }
     }
 
     /// The army the map is currently giving orders to, if it is still an army.
@@ -1359,9 +1494,7 @@ impl Screen for MapScreen {
                     // farmland and opens the field brush. All three are gated
                     // on the county being the local player's.
                     if county != 0 && ctx.game.is_players(county) {
-                        if let Some(tile) =
-                            self.tile_at(x, y, Self::settlements(ctx, county).into_iter())
-                        {
+                        if let Some(tile) = self.settlement_at(ctx, county, x, y) {
                             let terrain = ctx.game.kingdom.campaign.map.terrain[tile];
                             match industry::map_toggle_for_graphic(terrain) {
                                 Some(what) => {

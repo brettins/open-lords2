@@ -480,6 +480,129 @@ fn a_merchant_is_drawn_and_opens_the_merchant_screen_from_the_county_it_is_in() 
     assert_eq!(t, Transition::Stay, "a merchant in a county you do not own opens nothing");
 }
 
+/// **A merchant is clickable across its whole tile and its whole figure, and a
+/// different county being selected changes nothing.**
+///
+/// The player: *"there seems to be some weird thing where a certain county is
+/// 'selected', and if I click a merchant while the map has a different county
+/// selected it will open up the tax window."* The selection was innocent. The
+/// hit test asked the unit's nine-pixel *marker* box while the figure drawn is
+/// 40 × 32 on a 58 × 30 tile — so most clicks on a merchant missed the unit arm
+/// entirely and fell through to our own "a second click on the selected county
+/// opens its panel", which is the tax window.
+///
+/// `Map_ResolvePick` (`0x0046D5FE`) has no such problem: `g_pickedTileUnit =
+/// g_tiles[t].unit`, so the whole tile is the merchant. This sweeps both — the
+/// tile's diamond and the figure's opaque pixels — with an unrelated county
+/// selected throughout, and requires every one of them to reach the merchant.
+#[test]
+fn a_merchant_is_clickable_over_its_whole_tile_whichever_county_is_selected() {
+    let (mut game, assets) = world!();
+    let mine = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let elsewhere = (1..=game.kingdom.county_count as u8)
+        .find(|&id| id != mine)
+        .expect("England has more than one county");
+    let merchant = game
+        .kingdom
+        .campaign
+        .units
+        .iter()
+        .find(|(_, u)| u.kind == l2_kingdom::UnitKind::Merchant)
+        .map(|(id, _)| id)
+        .expect("the fixture ships six merchants");
+
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+    let (ax, ay) = {
+        let c = &game.kingdom.counties[mine as usize];
+        (c.anchor_x, c.anchor_y)
+    };
+    {
+        let u = game.kingdom.campaign.units.get_mut(merchant).expect("the merchant");
+        u.x = ax;
+        u.y = ay;
+        u.county = mine;
+    }
+    // **A different county is selected for the whole sweep.** That is the
+    // player's condition, and it must make no difference.
+    game.select(elsewhere);
+    draw(&mut screen, &mut game, &assets);
+
+    let (cx, cy) =
+        campaign::tile_centre(screen.viewport(), screen.zoom(), ax as usize, ay as usize)
+            .expect("the anchor is in shot");
+    let zoom = *screen.zoom();
+    let (hw, hh) = (zoom.tile_w / 2, zoom.tile_h / 2);
+
+    let hits = |screen: &MapScreen, game: &mut Game, pts: &[(i32, i32)]| {
+        let mut ok = 0;
+        for &(x, y) in pts {
+            let ctx = Ctx { game, assets: &assets };
+            if screen.unit_at(&ctx, x, y) == Some(merchant) {
+                ok += 1;
+            }
+        }
+        ok
+    };
+
+    // Half the diamond's rows, on its centre line and near its two side
+    // vertices — points the old marker box could not reach.
+    let mut ground = Vec::new();
+    for dy in -hh + 2..hh - 1 {
+        let span = hw - (dy.abs() * hw) / hh;
+        for dx in [-span + 2, 0, span - 2] {
+            ground.push((cx + dx, cy + dy));
+        }
+    }
+    assert!(ground.len() > 60, "the diamond is 58 x 30 and this samples it");
+    assert_eq!(
+        hits(&screen, &mut game, &ground),
+        ground.len(),
+        "every pixel of the merchant's own tile is the merchant"
+    );
+
+    // And the figure, which stands up over the tiles behind its own.
+    let sprite = {
+        let u = game.kingdom.campaign.units.get(merchant).expect("the merchant");
+        campaign::UnitSprite {
+            sheet: u.sprite_sheet(),
+            frame: u.sprite_frame(0),
+            nudge: u.sprite_nudge(),
+        }
+    };
+    let rect = campaign::unit_sprite_rect(
+        &assets.map,
+        screen.viewport(),
+        &zoom,
+        (ax as usize, ay as usize),
+        sprite,
+    );
+    if let Some((ox, oy, art)) = rect {
+        assert!(art.height as i32 > zoom.tile_h, "the figure is taller than its tile");
+        let mut figure = Vec::new();
+        for dy in 0..art.height as i32 {
+            for dx in 0..art.width as i32 {
+                if art.opaque[dy as usize * art.width as usize + dx as usize] {
+                    figure.push((ox + dx, oy + dy));
+                }
+            }
+        }
+        assert!(figure.len() > 200, "the merchant is a figure, not a dot");
+        assert_eq!(
+            hits(&screen, &mut game, &figure),
+            figure.len(),
+            "every painted pixel of the merchant is the merchant"
+        );
+    }
+
+    // The selection is untouched by the sweep, and the click still trades.
+    assert_eq!(game.selected, elsewhere, "hit-testing selects nothing");
+    let t = send(&mut screen, &mut game, &assets, Event::Click { x: cx, y: cy });
+    assert_eq!(t, Transition::Push(ScreenId::Merchant(merchant)), "and it opens the merchant");
+}
+
 /// Zooming out reaches the rest of the map, and scrolling moves the near view.
 /// Both halves matter: a viewport that could not move would be the minimap the
 /// user complained about, in a smaller rectangle.
@@ -660,6 +783,78 @@ fn clicking_the_county_town_centres_the_map_on_it_and_opens_the_village() {
 
     let t = send(&mut screen, &mut game, &assets, Event::Click { x: cx, y: cy });
     assert_eq!(t, Transition::Push(ScreenId::Village(8)), "the town opens the village");
+}
+
+/// **Every painted pixel of the mine switches the mine.**
+///
+/// A player reported *"I can't click the iron mine on the world map to
+/// enable/disable that"*, and he was describing geometry. `Town1a.pl8` frame 30
+/// is 58 × 47 on a 58 × 30 tile: seventeen rows of headframe hang above the
+/// tile's diamond, and more of the building falls inside the diamond's bounding
+/// box but outside the rhombus. Swept pixel by pixel against the old hit test,
+/// **1,314 pixels of the mine were painted and only 857 of them were on the
+/// tile** — the entire upper half of the building was dead, and a click there
+/// fell through to "open the county panel" instead.
+///
+/// The sweep is the assertion. It is not vacuous in either direction: the frame
+/// really does overhang (asserted), and a pixel *outside* the building that is
+/// also outside the diamond must still not toggle, or the fallback would be a
+/// bounding box and not a mask.
+#[test]
+fn every_painted_pixel_of_a_mine_reaches_the_industry_toggle() {
+    let (mut game, assets) = world!();
+    // A county the player holds that actually has a mine, from the save.
+    let county = game
+        .kingdom
+        .county_ids()
+        .find(|&id| game.is_players(id as u8) && game.kingdom.counties[id].industry[1].has_resource)
+        .expect("the player starts with a mine somewhere");
+    let ctx = Ctx { game: &mut game, assets: &assets };
+    let tile = MapScreen::settlements_for_test(&ctx, county as u8)
+        .into_iter()
+        .find(|&t| ctx.game.kingdom.campaign.map.terrain[t] == 1)
+        .expect("and that county has an iron site on the map");
+    let (tx, ty) = l2_kingdom::map::coords(tile);
+
+    let mut screen = MapScreen::new();
+    game.select(county as u8);
+    screen.centre_on_tile(tx as usize, ty as usize);
+    draw(&mut screen, &mut game, &assets);
+
+    let (row, col) = campaign::tile_to_cell(tx as usize, ty as usize);
+    let (sx, sy) = campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
+    let slot = assets.slot(game.map_slot).expect("the map slot");
+    let frame = slot.at(l2_formats::maps::Plane::GfxIndex, tx as usize, ty as usize) as usize;
+    let sheet = assets.map.bank(screen.zoom(), 3).expect("the Town bank");
+    let art = sheet.frame(frame).expect("the mine's frame");
+    let overhang = art.height as i32 - screen.zoom().tile_h;
+    assert!(overhang > 0, "the mine overhangs its tile; without that this test proves nothing");
+
+    let mut painted = 0;
+    let mut reached = 0;
+    let mut off_the_art_and_off_the_tile = 0;
+    for dy in 0..art.height as i32 {
+        for dx in 0..art.width as i32 {
+            let opaque = art.opaque[dy as usize * art.width as usize + dx as usize];
+            let before = game.kingdom.counties[county].industry[1].enabled;
+            let (x, y) = (sx + dx, sy - overhang + dy);
+            send(&mut screen, &mut game, &assets, Event::Click { x, y });
+            let toggled = game.kingdom.counties[county].industry[1].enabled != before;
+            if opaque {
+                painted += 1;
+                reached += usize::from(toggled);
+            } else if toggled && dy < overhang {
+                // Above the diamond entirely, and not on the building.
+                off_the_art_and_off_the_tile += 1;
+            }
+        }
+    }
+    assert!(painted > 1_000, "the mine is a building, not a smudge: {painted} pixels");
+    assert_eq!(reached, painted, "every painted pixel of the mine must switch it");
+    assert_eq!(
+        off_the_art_and_off_the_tile, 0,
+        "the fallback is the frame's opacity mask, not its bounding box"
+    );
 }
 
 /// The minimap is the original's own raster out of `MAPnn.PL8`, and clicking it
@@ -1412,6 +1607,85 @@ fn the_village_draws_the_picture_and_the_people_on_it() {
         clusters_with_people >= 2,
         "county {county} staffs {clusters_with_people} clusters; the save has cattle and wood"
     );
+}
+
+/// **A county with a mine draws a mine, and a county with a quarry draws a
+/// quarry — and neither draws the other.**
+///
+/// A player reported *"a county that clearly has iron has no iron mine in the
+/// town centre"*. Two things were wrong at once and this asserts both:
+///
+/// * `Village_Draw` (`0x00412143`) blits three buildings out of `villani2.pl8`,
+///   each gated on `county.industry[c].hasResource` — frame `0x29` at
+///   `(0xac, top + 0xe5)` for wood, `0x28` at `(0x4c, top + 0x0c)` for stone
+///   and `0x2b` at the *same spot* for iron. None of the three was drawn.
+/// * `has_resource` was never imported, so every county claimed all four and
+///   the mine could not have been chosen even if it had been drawn.
+///
+/// The check is exact: the shared spot is compared against the frame it should
+/// be holding, pixel for pixel, and against the *other* county's frame, which
+/// must differ. County 5 of England has neither, and its spot must hold neither.
+#[test]
+fn the_village_draws_the_mine_for_an_iron_county_and_the_quarry_for_a_stone_one() {
+    let (mut game, assets) = world!();
+    let art = assets.village.as_ref().expect("the village artwork");
+    let top = village::SCENE_Y;
+
+    // The three buildings, as `Village_Draw` has them.
+    let (stone_slot, stone_frame, bx, by) = village::RESOURCE_BUILDINGS[1];
+    let (iron_slot, iron_frame, ix, iy) = village::RESOURCE_BUILDINGS[2];
+    assert_eq!((stone_slot, iron_slot), (3, 1), "stone is industry 3 and iron is industry 1");
+    assert_eq!((bx, by), (ix, iy), "and they are drawn at the same spot");
+
+    // A county of each kind, chosen by what the *save* says rather than by id.
+    let kind = |id: usize| {
+        let c = &game.kingdom.counties[id];
+        (c.industry[1].has_resource, c.industry[3].has_resource)
+    };
+    let ids: Vec<usize> = game.kingdom.county_ids().collect();
+    let iron = ids.iter().copied().find(|&id| kind(id) == (true, false)).expect("a mine county");
+    let stone = ids.iter().copied().find(|&id| kind(id) == (false, true)).expect("a quarry county");
+    let neither = ids.iter().copied().find(|&id| kind(id) == (false, false));
+    assert!(
+        ids.iter().all(|&id| kind(id) != (true, true)),
+        "no county holds both, so the mine never covers the quarry"
+    );
+
+    // What each one *should* look like: the scene, then that frame.
+    let reference = |frame: Option<usize>| {
+        let mut c = Canvas::screen();
+        art.draw_scene(&mut c, top);
+        if let Some(f) = frame {
+            art.draw_resources(&mut c, [false, f == iron_frame, false, f == stone_frame], top);
+        }
+        c
+    };
+    let region = |c: &Canvas| {
+        let mut out = Vec::new();
+        for y in by + top..by + top + 96 {
+            for x in bx..bx + 96 {
+                out.push(c.at(x as usize, y as usize));
+            }
+        }
+        out
+    };
+
+    let mine = region(&reference(Some(iron_frame)));
+    let pit = region(&reference(Some(stone_frame)));
+    let bare = region(&reference(None));
+    assert_ne!(mine, pit, "the mine and the quarry are different pictures");
+    assert_ne!(mine, bare, "and the mine is not the bare scene");
+
+    for (id, want, what) in [(iron, &mine, "a mine"), (stone, &pit, "a quarry")] {
+        let mut screen = VillageScreen::new(id as u8);
+        let drawn = draw(&mut screen, &mut game, &assets);
+        assert_eq!(&region(&drawn), want, "county {id} must show {what}");
+    }
+    if let Some(id) = neither {
+        let mut screen = VillageScreen::new(id as u8);
+        let drawn = draw(&mut screen, &mut game, &assets);
+        assert_eq!(region(&drawn), bare, "county {id} has neither and must show neither");
+    }
 }
 
 /// **The village is an inset, and this is the test that says so.**

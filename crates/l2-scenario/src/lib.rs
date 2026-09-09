@@ -85,6 +85,32 @@ const INDUSTRY_SHARE: u32 = 0x08;
 /// `Labour_Allocate` gates castle building on.
 const CASTLE_SWITCH: u32 = 0x1B0;
 
+/// `+0x290 + c*0x18` — the four industry records, and the three bytes of each
+/// that say whether it can run: `+5` the resource, `+6` the countdown, `+7` the
+/// switch. Commodity order **wood, iron, weapons, stone**, which is
+/// `Industry_ToggleFromMap`'s own numbering.
+///
+/// **`[V]`, and it checks itself against the map.** `County_PlaceResourceSites`
+/// (`0x00468E61`) sets `+0x295` from the county's `Town`-bank tiles, so the byte
+/// and the terrain have to agree: an industry's `hasResource` is 1 exactly when
+/// the county owns a settlement tile whose terrain is in that industry's rung of
+/// `Map_Click`'s ladder (0…3 iron, 4…6 stone, 7…9 weapons, 10…12 wood). Over the
+/// England turn-one fixture that is **56 of 56** — fourteen counties, four
+/// industries each — with iron and stone complementary in thirteen of the
+/// fourteen and county 5 having neither. `crates/l2-scenario/tests/import.rs`
+/// asserts it.
+///
+/// Until this was read, every county arrived with [`Industry::has_resource`] and
+/// [`Industry::enabled`] defaulted to `true`, which is why **no county ever
+/// showed a mine**: the village picks the mine for cluster 0 only when the
+/// county has a mine *and no quarry*, and a county that claims both is a county
+/// with a quarry. `docs/decisions.md` C57.
+const INDUSTRY_BASE: u32 = 0x290;
+const INDUSTRY_STRIDE: u32 = 0x18;
+const INDUSTRY_HAS_RESOURCE: u32 = 5;
+const INDUSTRY_DISABLED_SEASONS: u32 = 6;
+const INDUSTRY_ENABLED: u32 = 7;
+
 /// `g_countyFieldTiles` (`0x0053EA00`) — 17 × 20 × `u32`, **the map tiles that
 /// are each county's fields**, stored as byte offsets into [`TILES`].
 ///
@@ -142,6 +168,29 @@ fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
     }
     Ok(CampaignMap::from_planes(&terrain, &flags, &county)
         .expect("three planes of MAP_TILES bytes each"))
+}
+
+/// One county's four industry records, reduced to the three bytes that decide
+/// whether the industry can run at all. See [`INDUSTRY_BASE`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct IndustryState {
+    pub has_resource: bool,
+    pub disabled_seasons: i32,
+    pub enabled: bool,
+}
+
+fn read_industry(save: &Save, county: usize) -> Result<[IndustryState; 4], SaveError> {
+    let base = COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + INDUSTRY_BASE;
+    let mut out = [IndustryState::default(); 4];
+    for (c, slot) in out.iter_mut().enumerate() {
+        let record = base + c as u32 * INDUSTRY_STRIDE;
+        *slot = IndustryState {
+            has_resource: save.u8_at(record + INDUSTRY_HAS_RESOURCE)? != 0,
+            disabled_seasons: save.u8_at(record + INDUSTRY_DISABLED_SEASONS)? as i32,
+            enabled: save.u8_at(record + INDUSTRY_ENABLED)? != 0,
+        };
+    }
+    Ok(out)
 }
 
 /// One word out of each of a county's nine labour records.
@@ -300,6 +349,11 @@ pub struct CountyState {
     /// `+0x1B0` — the castle-building switch a click on the castle throws.
     /// See [`l2_kingdom::county::County::castle_switch`].
     pub castle_switch: bool,
+    /// `+0x295`, `+0x296` and `+0x297` of each of the four industry records,
+    /// in commodity order **wood, iron, weapons, stone**: whether the county
+    /// has the resource, how many seasons the industry is out of action, and
+    /// whether its switch is on. See [`INDUSTRY_BASE`].
+    pub industry: [IndustryState; 4],
     pub fields_fallow: i32,
     pub fields_cattle: i32,
     pub fields_grain: i32,
@@ -607,6 +661,7 @@ impl Scenario {
                 castle_switch: save
                     .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + CASTLE_SWITCH)?
                     != 0,
+                industry: read_industry(save, c.index)?,
                 fields_fallow: c.fields_fallow as i32,
                 fields_cattle: c.fields_cattle as i32,
                 fields_grain: c.fields_grain as i32,
@@ -862,6 +917,18 @@ impl Scenario {
             c.castle_type = s.castle_type;
             c.castle_building = s.castle_building;
             c.castle_switch = s.castle_switch;
+            // **The three bytes that say whether an industry runs.** They were
+            // not imported at all until C57, so every county arrived claiming
+            // all four resources and all four switches on — which is why no
+            // county ever showed a mine in its village and why the map's
+            // industry toggles all started in the wrong position. Everything
+            // else in the record (`output`, `efficiency`, `capacity`,
+            // `total`) is still `County::new()`'s.
+            for (slot, s) in s.industry.iter().enumerate() {
+                c.industry[slot].has_resource = s.has_resource;
+                c.industry[slot].disabled_seasons = s.disabled_seasons;
+                c.industry[slot].enabled = s.enabled;
+            }
             c.field_tiles = s.field_tiles;
             c.fertility = s.fertility;
             c.weather = s.weather;
