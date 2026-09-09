@@ -35,6 +35,15 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # `.gitattributes` marks the symbol databases `merge=l2json`, and git will
+      # not run a merge driver a repository merely names - that would be
+      # executing code on checkout. A fresh runner is a fresh clone, so it has
+      # to be registered here too, and
+      # `keyed_json.rs::the_keyed_json_merge_driver_is_registered` is what fails
+      # if this step is ever dropped.
+      - name: Register the keyed JSON merge driver
+        run: sh tools/symbols/install-merge-driver.sh
+
       - name: Build
         run: cargo build --workspace --all-targets
 
@@ -85,6 +94,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
+
+      # `.gitattributes` marks the symbol databases `merge=l2json`, and git will
+      # not run a merge driver a repository merely names - that would be
+      # executing code on checkout. A fresh runner is a fresh clone, so it has
+      # to be registered here too, and
+      # `keyed_json.rs::the_keyed_json_merge_driver_is_registered` is what fails
+      # if this step is ever dropped.
+      - name: Register the keyed JSON merge driver
+        run: sh tools/symbols/install-merge-driver.sh
 
       - name: Test everything but the windowing crate
         run: cargo test --workspace --exclude l2-game

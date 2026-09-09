@@ -68,12 +68,12 @@
   "imageBase": "0x00400000",
   "functions": [
     {
-      "addr": "0x004342F3",
-      "name": "SaveLoad_Accept",
+      "addr": "0x0041AEA2",
+      "name": "SendSupplies_DrawPanel",
       "section": "ui",
       "confidence": "role",
-      "basis": "Record 0 of g_saveLoadWidgets (0x004DDD78), frame 29 at (304, 64) - the yes of the yes/no pair whose no is the verified SaveLoad_Cancel; the two frames are a mailed hand thumb-up and thumb-down, not a tick and a cross. Its whole body is DAT_005CD41C = 100.",
-      "comment": "The save/load box's confirm button. What the sentinel 100 means to its reader has not been traced."
+      "basis": "Called by Screen_DrawWidgets for screen 0x18, whose painter Screen_SendSupplies draws L2.eng group 33, 'Send supplies'.",
+      "comment": "The send-supplies overlay."
     },
     {
       "addr": "0x0041B032",
@@ -84,44 +84,21 @@
       "comment": "docs/screens-county.md calls this 'the map information panel'; nothing has read what it draws."
     },
     {
-      "addr": "0x0041AEA2",
-      "name": "SendSupplies_DrawPanel",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Called by Screen_DrawWidgets for screen 0x18, whose painter Screen_SendSupplies draws L2.eng group 33, 'Send supplies'.",
-      "comment": "The send-supplies overlay."
+      "addr": "0x00428471",
+      "name": "Merchant_SeasonTick",
+      "section": "kingdom",
+      "confidence": "both",
+      "comment": "A season pass that does nothing. Called only from Season_Advance.",
+      "basis": "Position in Season_Advance's call list, between County_RecountMerchants and Army_RecountCountyTroops, and its address - it sits between Merchant_AdvanceAll (0x004280E9) and Merchant_ResetStall (0x0042847C) in the merchant neighbourhood.",
+      "caveat": "The body is eleven bytes and returns. So the name is a guess at what was removed, and it cannot be checked from this binary at all: an empty function has no evidence in it. Recorded because a reader of Season_Advance needs to know the slot is deliberately empty rather than missing, not because the name is worth anything."
     },
     {
-      "addr": "0x0043B04C",
-      "name": "SendSupplies_Close",
+      "addr": "0x004342F3",
+      "name": "SaveLoad_Accept",
       "section": "ui",
       "confidence": "role",
-      "basis": "Records 0 and 1 of the send-supplies widget table 0x004DD538: frames 29 and 31 at (320, 342) and (360, 346), hotspot ids 1 and 0 - the yes/no convention (frames 29 and 31 are a mailed hand thumb-up and thumb-down). It writes g_screenId twice.",
-      "comment": "Accept or cancel the supply shipment; the hotspot id says which."
-    },
-    {
-      "addr": "0x0043B1CA",
-      "name": "SendSupplies_Less",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Records 2 and 4 of the same table, frame 27 at x 216, hotspot ids 0 and 2 - two rows of a pair whose other half is 0x0043B27A at frame 25.",
-      "comment": "Decrease the amount of one commodity."
-    },
-    {
-      "addr": "0x0043B27A",
-      "name": "SendSupplies_More",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "Records 3 and 5 of the same table, frame 25 at x 296, hotspot ids 0 and 2.",
-      "comment": "Increase the amount of one commodity."
-    },
-    {
-      "addr": "0x00436372",
-      "name": "Diplo_AdjustGift",
-      "section": "diplomacy",
-      "confidence": "subject",
-      "basis": "Records 6 and 7 of g_diploWidgets, frames 68 and 66 at (184, 240) and (216, 240), hotspot ids 1 and 0 - the minus/plus pair. The screen it sits on draws L2.eng group 72 index 18, 'Gift of', beside g_diploGold.",
-      "comment": "Raise or lower the offered gift; the hotspot id says which way."
+      "basis": "Record 0 of g_saveLoadWidgets (0x004DDD78), frame 29 at (304, 64) - the yes of the yes/no pair whose no is the verified SaveLoad_Cancel; the two frames are a mailed hand thumb-up and thumb-down, not a tick and a cross. Its whole body is DAT_005CD41C = 100.",
+      "comment": "The save/load box's confirm button. What the sentinel 100 means to its reader has not been traced."
     },
     {
       "addr": "0x00434EF9",
@@ -148,13 +125,92 @@
       "comment": "Shared overlay for the two score screens. Being called from Menu_NewGame as well means the role may be wider than 'the ratings panel' - read it before promoting."
     },
     {
-      "addr": "0x00428471",
-      "name": "Merchant_SeasonTick",
-      "section": "kingdom",
+      "addr": "0x00436372",
+      "name": "Diplo_AdjustGift",
+      "section": "diplomacy",
+      "confidence": "subject",
+      "basis": "Records 6 and 7 of g_diploWidgets, frames 68 and 66 at (184, 240) and (216, 240), hotspot ids 1 and 0 - the minus/plus pair. The screen it sits on draws L2.eng group 72 index 18, 'Gift of', beside g_diploGold.",
+      "comment": "Raise or lower the offered gift; the hotspot id says which way."
+    },
+    {
+      "addr": "0x0043B04C",
+      "name": "SendSupplies_Close",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Records 0 and 1 of the send-supplies widget table 0x004DD538: frames 29 and 31 at (320, 342) and (360, 346), hotspot ids 1 and 0 - the yes/no convention (frames 29 and 31 are a mailed hand thumb-up and thumb-down). It writes g_screenId twice.",
+      "comment": "Accept or cancel the supply shipment; the hotspot id says which."
+    },
+    {
+      "addr": "0x0043B1CA",
+      "name": "SendSupplies_Less",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Records 2 and 4 of the same table, frame 27 at x 216, hotspot ids 0 and 2 - two rows of a pair whose other half is 0x0043B27A at frame 25.",
+      "comment": "Decrease the amount of one commodity."
+    },
+    {
+      "addr": "0x0043B27A",
+      "name": "SendSupplies_More",
+      "section": "ui",
+      "confidence": "role",
+      "basis": "Records 3 and 5 of the same table, frame 25 at x 296, hotspot ids 0 and 2.",
+      "comment": "Increase the amount of one commodity."
+    },
+    {
+      "addr": "0x0043B593",
+      "name": "Screen_BattlePromptClick",
+      "section": "ui",
+      "confidence": "subject",
+      "comment": "Screen 0x12 button handler. Hotspot 1 starts the battle locally, or in a network game sleeps 2 s and sends message 0x3C instead; hotspot 0 declines, or sends 0x3D twice.",
+      "basis": "the only function that reads g_uiHotspotId and then either calls Battle_Start or sends network message 0x3C",
+      "caveat": "The hotspot ids 1 and 0 are take-the-field and decline; the screen is 0x12, Screen_BattlePrompt. That much is solid. Whether this is the whole click handler or one arm of it was not checked, and the ui section is another agent's."
+    },
+    {
+      "addr": "0x00443A2D",
+      "name": "NetCmd_ReadMoveOrder",
+      "section": "units",
+      "confidence": "subject",
+      "signature": "void NetCmd_ReadMoveOrder(void)",
+      "comment": "The receiving half of network command 0x29: reads player (1), a 4-byte value, unit (1), x (2), y (2) and journals sub-opcode 0x0C.",
+      "basis": "It sits between g_netCmdWriters[0x29] and g_netCmdWriters[0x2A] in address order, uses Net_ReadField where its neighbour used Net_WriteField, reads the same five widths in the same order, and passes the same sub-opcode 0x0C to Net_JournalCommand. The writer half IS verified and is in symbols.json.",
+      "promotion": "The reader is never called from the command table, so its caller has to be found - presumably a dispatch keyed on the received opcode byte. Naming that dispatcher promotes every reader at once."
+    },
+    {
+      "addr": "0x00446E21",
+      "name": "Net_ResolveDest",
+      "section": "units",
       "confidence": "both",
-      "comment": "A season pass that does nothing. Called only from Season_Advance.",
-      "basis": "Position in Season_Advance's call list, between County_RecountMerchants and Army_RecountCountyTroops, and its address - it sits between Merchant_AdvanceAll (0x004280E9) and Merchant_ResetStall (0x0042847C) in the merchant neighbourhood.",
-      "caveat": "The body is eleven bytes and returns. So the name is a guess at what was removed, and it cannot be checked from this binary at all: an empty function has no evidence in it. Recorded because a reader of Season_Advance needs to know the slot is deliberately empty rather than missing, not because the name is worth anything."
+      "comment": "Turns 0x00544094 into the 4-byte value NetCmd_WriteMoveOrder puts second in the packet, ahead of the unit index.",
+      "basis": "Position in the payload only. Not read.",
+      "promotion": "Read it."
+    },
+    {
+      "addr": "0x00447136",
+      "name": "Net_JournalCommand",
+      "section": "units",
+      "confidence": "role",
+      "signature": "void Net_JournalCommand(byte subop, int a, ...)",
+      "comment": "Records an executed deterministic command into a ring of 0x38-byte slots at 0x0050D7C0: a live flag, the sub-opcode, and twelve int arguments. Both the writer and the reader of every command opcode call it, so it sees each command exactly once per peer.",
+      "basis": "Read in full. The slot layout is unambiguous - 0x0050D7C6 flag, 0x0050D7C7 sub-opcode, 0x0050D7C0 + 4*n arguments, stride 0x38. Every command writer/reader pair traced so far ends in a call to it. What is inferred is the PURPOSE: 'journal' rather than 'apply'. Nothing in the function itself changes game state.",
+      "promotion": "Find the consumer of the 0x0050D7C0 ring. If it replays the slots, this is a journal; if it is only a debug overlay, the name is wrong. Either answer is a check that could fail."
+    },
+    {
+      "addr": "0x00470678",
+      "name": "Move_DistanceAcrossExpensive",
+      "section": "units",
+      "confidence": "both",
+      "comment": "Map_HoverUnitTarget uses it instead of the raw distance field whenever that field reads 100 or more, then adds 1. 100 is the cost the cost map gives an impassable-in-practice tile - castle, settlement, dwelling plot - so this looks like 'what would the cost be if the last step onto the objective were free'.",
+      "basis": "The call site and the 99 threshold, which matches Move_BuildCostMap's 100 exactly. The function body was not read.",
+      "promotion": "Read it, and check the result against a hand-computed path onto a county town in the England fixture."
+    },
+    {
+      "addr": "0x00476710",
+      "name": "Merchant_OpenScreen",
+      "section": "units",
+      "confidence": "subject",
+      "comment": "Map_Click's branch for clicking a type-3 unit that is the local player's.",
+      "basis": "Position in Map_Click's dispatch only, against an existing symbols.json comment that says the merchant branch opens screen 0x08. Body not read.",
+      "promotion": "Read it and check it sets g_screenId to 8."
     },
     {
       "addr": "0x004842C6",
@@ -193,6 +249,15 @@
       "caveat": "An empty `ret`, like slot 0. Whether slot 16 is reachable was not checked; no writer of state = 16 was found by grep over the struct-typed corpus, but a computed write would not show up in that search."
     },
     {
+      "addr": "0x0048551D",
+      "name": "Bridge_Cross",
+      "section": "battle",
+      "confidence": "subject",
+      "comment": "Called from Cell_TryEnter for an attacking figure entering a bridge cell, with the cell x and y.",
+      "basis": "Cell_TryEnter calls it, and only when the cell surface is 7 and the figure side is 4",
+      "caveat": "battle.md 3 has surface 7 as bridge on independent evidence, and side 4 is the attacker. What the function then does to the bridge was not read."
+    },
+    {
       "addr": "0x00488436",
       "name": "Anim_EngineMove",
       "section": "battle",
@@ -200,15 +265,6 @@
       "comment": "Siege-engine frames. Type 10 (oil) steps animPhase to 0x2F and reads frame 0x23 + phase >> 3; type 8 (tower) folds dirc and polarDirc into four half-facings; type 7 (catapult) uses dirc + 5 and a horse frame of dirc * 5.",
       "basis": "the else-branch every a2 animation handler takes for troopType > 6",
       "caveat": "The four branches are on troop types 7, 8, 9 and 10 and it writes frame and horseFrame, so it is certainly the siege-engine animation. \"Move\" versus \"work\" for this one and Anim_EngineWork rests only on which states call which."
-    },
-    {
-      "addr": "0x0048895E",
-      "name": "Anim_EngineWork",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "Siege-engine frames while the engine is doing its job. Reads g_horseWalkCycle.",
-      "basis": "the sibling of Anim_EngineMove; called by the firing and dying engine states",
-      "caveat": "Same shape as Anim_EngineMove with a longer animPhase range (0xA0 up for a catapult once swingTimer passes 100, 0x8F down for a ram) and the horse cycle table. That the longer animation is the working one is inference from the callers."
     },
     {
       "addr": "0x00488793",
@@ -220,13 +276,13 @@
       "caveat": "Called by thirteen functions and does the least of the three. \"Hold\" is a guess at intent."
     },
     {
-      "addr": "0x0048551D",
-      "name": "Bridge_Cross",
+      "addr": "0x0048895E",
+      "name": "Anim_EngineWork",
       "section": "battle",
       "confidence": "subject",
-      "comment": "Called from Cell_TryEnter for an attacking figure entering a bridge cell, with the cell x and y.",
-      "basis": "Cell_TryEnter calls it, and only when the cell surface is 7 and the figure side is 4",
-      "caveat": "battle.md 3 has surface 7 as bridge on independent evidence, and side 4 is the attacker. What the function then does to the bridge was not read."
+      "comment": "Siege-engine frames while the engine is doing its job. Reads g_horseWalkCycle.",
+      "basis": "the sibling of Anim_EngineMove; called by the firing and dying engine states",
+      "caveat": "Same shape as Anim_EngineMove with a longer animPhase range (0xA0 up for a catapult once swingTimer passes 100, 0x8F down for a ram) and the horse cycle table. That the longer animation is the working one is inference from the callers."
     },
     {
       "addr": "0x0049694F",
@@ -236,62 +292,6 @@
       "comment": "Converts the cells around (x, y) to surface 4 - the breached-wall surface Siege_FindCellSurface4 then looks for.",
       "basis": "called by BattleMan_StateAttackWall and BattleMan_StateRamGate at exactly the two damage thresholds, with (x, y, 4)",
       "caveat": "The third argument is 4 and the two callers are the wall-damage accumulators, so \"turn this patch of wall into surface 4\" is the only reading that fits. The extent it paints was not read; docs/battle-ai.md 9 records the same uncertainty for the neighbouring 0x00496B9F."
-    },
-    {
-      "addr": "0x0043B593",
-      "name": "Screen_BattlePromptClick",
-      "section": "ui",
-      "confidence": "subject",
-      "comment": "Screen 0x12 button handler. Hotspot 1 starts the battle locally, or in a network game sleeps 2 s and sends message 0x3C instead; hotspot 0 declines, or sends 0x3D twice.",
-      "basis": "the only function that reads g_uiHotspotId and then either calls Battle_Start or sends network message 0x3C",
-      "caveat": "The hotspot ids 1 and 0 are take-the-field and decline; the screen is 0x12, Screen_BattlePrompt. That much is solid. Whether this is the whole click handler or one arm of it was not checked, and the ui section is another agent's."
-    },
-    {
-      "addr": "0x00447136",
-      "name": "Net_JournalCommand",
-      "section": "units",
-      "confidence": "role",
-      "signature": "void Net_JournalCommand(byte subop, int a, ...)",
-      "comment": "Records an executed deterministic command into a ring of 0x38-byte slots at 0x0050D7C0: a live flag, the sub-opcode, and twelve int arguments. Both the writer and the reader of every command opcode call it, so it sees each command exactly once per peer.",
-      "basis": "Read in full. The slot layout is unambiguous - 0x0050D7C6 flag, 0x0050D7C7 sub-opcode, 0x0050D7C0 + 4*n arguments, stride 0x38. Every command writer/reader pair traced so far ends in a call to it. What is inferred is the PURPOSE: 'journal' rather than 'apply'. Nothing in the function itself changes game state.",
-      "promotion": "Find the consumer of the 0x0050D7C0 ring. If it replays the slots, this is a journal; if it is only a debug overlay, the name is wrong. Either answer is a check that could fail."
-    },
-    {
-      "addr": "0x00443A2D",
-      "name": "NetCmd_ReadMoveOrder",
-      "section": "units",
-      "confidence": "subject",
-      "signature": "void NetCmd_ReadMoveOrder(void)",
-      "comment": "The receiving half of network command 0x29: reads player (1), a 4-byte value, unit (1), x (2), y (2) and journals sub-opcode 0x0C.",
-      "basis": "It sits between g_netCmdWriters[0x29] and g_netCmdWriters[0x2A] in address order, uses Net_ReadField where its neighbour used Net_WriteField, reads the same five widths in the same order, and passes the same sub-opcode 0x0C to Net_JournalCommand. The writer half IS verified and is in symbols.json.",
-      "promotion": "The reader is never called from the command table, so its caller has to be found - presumably a dispatch keyed on the received opcode byte. Naming that dispatcher promotes every reader at once."
-    },
-    {
-      "addr": "0x00446E21",
-      "name": "Net_ResolveDest",
-      "section": "units",
-      "confidence": "both",
-      "comment": "Turns 0x00544094 into the 4-byte value NetCmd_WriteMoveOrder puts second in the packet, ahead of the unit index.",
-      "basis": "Position in the payload only. Not read.",
-      "promotion": "Read it."
-    },
-    {
-      "addr": "0x00470678",
-      "name": "Move_DistanceAcrossExpensive",
-      "section": "units",
-      "confidence": "both",
-      "comment": "Map_HoverUnitTarget uses it instead of the raw distance field whenever that field reads 100 or more, then adds 1. 100 is the cost the cost map gives an impassable-in-practice tile - castle, settlement, dwelling plot - so this looks like 'what would the cost be if the last step onto the objective were free'.",
-      "basis": "The call site and the 99 threshold, which matches Move_BuildCostMap's 100 exactly. The function body was not read.",
-      "promotion": "Read it, and check the result against a hand-computed path onto a county town in the England fixture."
-    },
-    {
-      "addr": "0x00476710",
-      "name": "Merchant_OpenScreen",
-      "section": "units",
-      "confidence": "subject",
-      "comment": "Map_Click's branch for clicking a type-3 unit that is the local player's.",
-      "basis": "Position in Map_Click's dispatch only, against an existing symbols.json comment that says the merchant branch opens screen 0x08. Body not read.",
-      "promotion": "Read it and check it sets g_screenId to 8."
     }
   ],
   "fields": [
@@ -377,6 +377,51 @@
       "comment": "How many files the save/load list holds."
     },
     {
+      "addr": "0x00504020",
+      "name": "g_moveOriginX",
+      "section": "units",
+      "confidence": "subject",
+      "comment": "The tile a movement flood-fill was seeded from. Move_ResetSelection writes it and its Y twin at 0x00504024, plus the flat index at 0x004F4070.",
+      "basis": "One writer, read in full. No reader traced.",
+      "promotion": "Find a reader - most likely Move_ExtractPath's terminator or the panel that prints a distance."
+    },
+    {
+      "addr": "0x0050D7C0",
+      "name": "g_netCmdJournal",
+      "section": "units",
+      "confidence": "role",
+      "comment": "Ring of 0x38-byte records Net_JournalCommand fills: +6 live flag, +7 sub-opcode, +0 and +4.. twelve int arguments.",
+      "basis": "The write pattern in Net_JournalCommand, which is unambiguous about the layout and silent about the purpose.",
+      "promotion": "As Net_JournalCommand - find the reader."
+    },
+    {
+      "addr": "0x0052F0A8",
+      "name": "g_garrisonPendingCounty",
+      "section": "units",
+      "confidence": "subject",
+      "comment": "The county Army_Garrison stashes for Army_GarrisonConfirm, alongside the unit at 0x0055CD58. The address sits 8 bytes BELOW g_units (0x0052F0B0), so it is not part of any unit record.",
+      "basis": "Two sites, matched writer and reader. That is all.",
+      "promotion": "Check no third site writes it."
+    },
+    {
+      "addr": "0x00544094",
+      "name": "g_moveOrderDest",
+      "section": "units",
+      "confidence": "both",
+      "comment": "Whatever NetCmd_WriteMoveOrder passes to Net_ResolveDest to make the packet's second field.",
+      "basis": "One call site. Nothing else traced reads it.",
+      "promotion": "Read Net_ResolveDest."
+    },
+    {
+      "addr": "0x0055307C",
+      "name": "g_rampartCellsBreached",
+      "section": "battle",
+      "confidence": "subject",
+      "comment": "How many rampart cells this siege has knocked through.",
+      "basis": "incremented beside g_wallHitsRampart every time a rampart cell is converted to surface 4",
+      "caveat": "The mechanism is read; the name is a guess at what the count is for. BattleMan_StateRamGate reads it back and sends the figure to state 11 once it passes 1."
+    },
+    {
       "addr": "0x00553D50",
       "name": "g_playerSlots",
       "section": "diplomacy",
@@ -393,23 +438,6 @@
       "caveat": "One writer, one direction. Nothing here shows what increments it or who reads it."
     },
     {
-      "addr": "0x0056D8AC",
-      "name": "g_tradeGood",
-      "section": "kingdom",
-      "confidence": "subject",
-      "basis": "Indexes g_merchantStall in the trade panel and selects the branch in the good-to-stock switch.",
-      "caveat": "Consistent everywhere it appears. Not promoted because the trade screen was not read end to end here - only the transaction underneath it."
-    },
-    {
-      "addr": "0x0055307C",
-      "name": "g_rampartCellsBreached",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "How many rampart cells this siege has knocked through.",
-      "basis": "incremented beside g_wallHitsRampart every time a rampart cell is converted to surface 4",
-      "caveat": "The mechanism is read; the name is a guess at what the count is for. BattleMan_StateRamGate reads it back and sends the figure to state 11 once it passes 1."
-    },
-    {
       "addr": "0x00569588",
       "name": "g_gateBreached",
       "section": "battle",
@@ -419,40 +447,12 @@
       "caveat": "A one-shot flag on the gate/wall threshold, read by BattleUnit_FewOnRampart and UnitOrder_SiegeAttRam. \"Gate\" rather than \"wall\" is inference from its being the non-rampart branch."
     },
     {
-      "addr": "0x0050D7C0",
-      "name": "g_netCmdJournal",
-      "section": "units",
-      "confidence": "role",
-      "comment": "Ring of 0x38-byte records Net_JournalCommand fills: +6 live flag, +7 sub-opcode, +0 and +4.. twelve int arguments.",
-      "basis": "The write pattern in Net_JournalCommand, which is unambiguous about the layout and silent about the purpose.",
-      "promotion": "As Net_JournalCommand - find the reader."
-    },
-    {
-      "addr": "0x00544094",
-      "name": "g_moveOrderDest",
-      "section": "units",
-      "confidence": "both",
-      "comment": "Whatever NetCmd_WriteMoveOrder passes to Net_ResolveDest to make the packet's second field.",
-      "basis": "One call site. Nothing else traced reads it.",
-      "promotion": "Read Net_ResolveDest."
-    },
-    {
-      "addr": "0x00504020",
-      "name": "g_moveOriginX",
-      "section": "units",
+      "addr": "0x0056D8AC",
+      "name": "g_tradeGood",
+      "section": "kingdom",
       "confidence": "subject",
-      "comment": "The tile a movement flood-fill was seeded from. Move_ResetSelection writes it and its Y twin at 0x00504024, plus the flat index at 0x004F4070.",
-      "basis": "One writer, read in full. No reader traced.",
-      "promotion": "Find a reader - most likely Move_ExtractPath's terminator or the panel that prints a distance."
-    },
-    {
-      "addr": "0x0052F0A8",
-      "name": "g_garrisonPendingCounty",
-      "section": "units",
-      "confidence": "subject",
-      "comment": "The county Army_Garrison stashes for Army_GarrisonConfirm, alongside the unit at 0x0055CD58. The address sits 8 bytes BELOW g_units (0x0052F0B0), so it is not part of any unit record.",
-      "basis": "Two sites, matched writer and reader. That is all.",
-      "promotion": "Check no third site writes it."
+      "basis": "Indexes g_merchantStall in the trade panel and selects the branch in the good-to-stock switch.",
+      "caveat": "Consistent everywhere it appears. Not promoted because the trade screen was not read end to end here - only the transaction underneath it."
     }
   ],
   "corrections": [
