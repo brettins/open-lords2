@@ -328,6 +328,14 @@
       "comment": "Walks the unit list hanging off a tile and draws each from g_spriteSheetA or g_spriteSheetB, offset by an 8-orientation by 16-frame table per zoom at 0x004D8108/0x004D8188 (zoom 0), 0x004D8208/0x004D8288 (zoom 1) and 0x004D8308/0x004D8388 (zoom 2). The sprite direction is the unit facing minus g_mapRotation, mod 8."
     },
     {
+      "addr": "0x00408EA4",
+      "name": "Debug_Screenshot",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Debug_Screenshot(int slot)",
+      "comment": "Writes the back buffer to shot1.lbm, shot2.lbm, shot3.lbm or shot4.lbm through the writer at 0x00408F1A. Its only caller is App_WndProc's key ladder, so the original's screenshot key has four fixed slots and no filename cycling. .lbm is Deluxe Paint's format, not one the game reads back."
+    },
+    {
       "addr": "0x00409397",
       "name": "Ui_DrawBox",
       "section": "ui",
@@ -546,6 +554,14 @@
       "confidence": "verified",
       "signature": "int Ui_OkButtonClicked(void)",
       "comment": "Hit-tests the corner picture Ui_OkButton last drew: returns 0 unless the LEFT button was released this frame (DAT_004E65D8) inside a 24x24 box at (DAT_0055CE78, DAT_0057C8A0), and on a hit calls FUN_004B18E3 to consume the click. Ui_OkButton is the only writer of those two globals and stashes only its LAST call's position, so on a screen that draws two corner pictures only the second is clickable - which is safe only because the draw pass runs before this one in the frame. Screen_FrameInput calls it 26 times. The message scroll has its own, larger hotspot: FUN_0047685D tests a 48x48 box round a copy of the same coordinates."
+    },
+    {
+      "addr": "0x0040E890",
+      "name": "App_Draw",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int App_Draw(void)",
+      "comment": "The whole of the per-frame draw, and it is three lines: Battle_Frame, then a latch set once g_appPhase is past 8. Battle_Frame is misnamed for what it now carries - App_IdleFrame reaches every screen through it."
     },
     {
       "addr": "0x0040E8BB",
@@ -1166,6 +1182,14 @@
       "comment": "Screens 0x28 and 0x29, and the frame around 0x2A: the battle sidebar - Misc sheet frames 0, 1 and 2 at x 480, the same 162-pixel column the campaign uses - the menu bar, and the field or siege palette chosen by g_battleIsSiege. The main loop treats 0x28 .. 0x2A as one range."
     },
     {
+      "addr": "0x00423BA4",
+      "name": "Net_DrawDebugOverlay",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_DrawDebugOverlay(int x, int y)",
+      "comment": "[V] The multiplayer sync overlay, drawn by Battle_Frame when g_multiplayer is set and the debug toggle at 0x0052EFF8 is on, and it LABELS ITS OWN FIELDS: `sent`, `Gtime` (the game tick), `divergances`, `Dchk`, `D_F8`, `DAcc`, `todo`, `placed`, `ahead`. Our own player's row is drawn in colour 0x3F and everyone else's in 0xF9. That list is a statement of what the original thought was worth watching when a session drifted, and every one of those counters is a named global waiting to be picked up."
+    },
+    {
       "addr": "0x00424992",
       "name": "BattleDebug_Panel",
       "section": "battle",
@@ -1678,7 +1702,7 @@
       "section": "platform",
       "confidence": "verified",
       "signature": "void Palette_ToFullScreenEntries(void)",
-      "comment": "Expands g_paletteRgb into g_paletteFull as PALETTEENTRYs. Index 0 is forced to the RGB at 0x004D50F0 and index 255 to the one at 0x004D4E2E+765, both with peFlags 0; indices 1..254 carry peFlags 4 (PC_RESERVED). So full-screen the game keeps 254 of the 256 slots."
+      "comment": "Expands g_paletteRgb into g_paletteFullScreen as PALETTEENTRYs. Index 0 is forced to the RGB at 0x004D50F0 and index 255 to the one at 0x004D4E2E+765, both with peFlags 0; indices 1..254 carry peFlags 4 (PC_RESERVED). So full-screen the game keeps 254 of the 256 slots."
     },
     {
       "addr": "0x0042F449",
@@ -2915,6 +2939,38 @@
       "confidence": "verified",
       "signature": "void NetCmd_WriteMoveOrder(void)",
       "comment": "g_netCmdWriters[0x29]: g_localPlayer (1), a 4-byte value from FUN_00446E21, g_selectedUnit (1), g_moveTargetX (2), g_moveTargetY (2) - ten bytes, matching g_netCmdLength[0x29] exactly. Its reader at 0x00443A2D deserialises the same five fields in the same order and both then call the command journal at 0x00447136 with sub-opcode 0x0C. This is the whole payload of a campaign move order, and therefore the whole input a lockstep peer needs to reproduce one."
+    },
+    {
+      "addr": "0x004470C4",
+      "name": "NetJournal_ReportLate",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void NetJournal_ReportLate(int opcode, int tick)",
+      "comment": "Logs \"ERR: Putting todo packet too late : todo:- \" with the opcode, and for every opcode but 0x1B keeps a running mean of how late packets are arriving (total lateness / count) before asking the sender to resend with command 0x5A. Outside a battle only. Called from Net_JournalCommand."
+    },
+    {
+      "addr": "0x0044779C",
+      "name": "NetJournal_Save",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void NetJournal_Save(void)",
+      "comment": "[V] Dumps the whole command journal - 0x5780 bytes at g_netCmdJournal, which is exactly 400 records of 0x38 - to master.rec or slave.rec depending on g_netIsMaster. The two file names are what the original called the two ends of a session, and the size confirms the journal's 400 x 0x38 shape from a second direction."
+    },
+    {
+      "addr": "0x004477E7",
+      "name": "NetJournal_Load",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void NetJournal_Load(int slot)",
+      "comment": "[V] Reads a saved journal back over g_netCmdJournal from master<n>.rec or slave<n>.rec - five slots, 0 for the unnumbered pair - and then rewrites every record whose state byte at +0x36 is 2 back to 1, which re-arms an already-applied command for replay. ITS ONLY CALLER IS App_WndProc, so this is a key on the keyboard: the original shipped with a desync replay facility bound to a keystroke. Directly relevant to docs/netcode.md, which is designing the same capability from scratch."
+    },
+    {
+      "addr": "0x00447B8E",
+      "name": "Net_RequestResync",
+      "section": "netcode",
+      "confidence": "inferred",
+      "signature": "void Net_RequestResync(void)",
+      "comment": "Raises the flag at 0x0056D6A4, stamps timeGetTime and sends command 8 TWICE with a 50 ms Sleep between them. INFERRED that 8 is the resync request: the doubling and the sleep say 'this one must not be lost', and 0x0056D6A4 is one of the counters Net_DrawDebugOverlay puts on screen. No callers in the corpus, so it is dispatched from a table or bound to a key."
     },
     {
       "addr": "0x00448308",
@@ -6846,6 +6902,14 @@
       "signature": "void Army_RecountCountyTroops(void)"
     },
     {
+      "addr": "0x004ADCF6",
+      "name": "Net_WaitForPreload",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Net_WaitForPreload(void)",
+      "comment": "Waits up to SIXTY SECONDS for every human realm to report that it has finished loading, pumping the message queue through App_PumpOnce so the window stays alive. On timeout it logs the elapsed time and then each of the five players' states in turn - \"ERR:- player 1 = \" through \"- player 5 = \" - which is the original's own idea of what you need to know when a join hangs."
+    },
+    {
       "addr": "0x004ADE93",
       "name": "Save_Write",
       "section": "kingdom",
@@ -6917,6 +6981,14 @@
       "comment": "Creates castles.dat as sixteen zeroed 0x3200-byte blocks, one castle plan per county slot."
     },
     {
+      "addr": "0x004AECF0",
+      "name": "Files_Enumerate",
+      "section": "fileio",
+      "confidence": "verified",
+      "signature": "void Files_Enumerate(int pattern, int keepExtension)",
+      "comment": "FindFirstFileA/FindNextFileA into a fixed table of 100 names at 0x004E8790, stride 0x41, then sorts it. Six callers and they are every file list the player sees: the save and load screens, the options loader, the .skr picker and the two save-slot scanners. THE HUNDRED IS A HARD CEILING - the loop breaks at 99 and nothing reports the truncation, so a directory with more matching files simply loses the rest."
+    },
+    {
       "addr": "0x004AEF7E",
       "name": "Install_MeasurePumkin",
       "section": "sound",
@@ -6927,17 +6999,17 @@
       "addr": "0x004AF116",
       "name": "Cd_PathForFile",
       "section": "fileio",
-      "confidence": "inferred",
+      "confidence": "verified",
       "signature": "void Cd_PathForFile(int path)",
-      "comment": "Takes a filename's extension, and for the four it recognises builds a directory under the CD-ROM drive letter (g_cdDrive) and chdirs to it. Paired with Restore_WorkingDir, which every caller runs afterwards. INFERRED: which four extensions map to which directory is not read out here, only that the shape is extension -> directory -> chdir."
+      "comment": "Takes a filename's extension - PL8, 256, WAV or SMK - and chdirs to the matching directory on the CD: the paths are literals beginning \"c:.\\\" whose first byte is overwritten with g_cdDrive, giving pl8, wav and, on g_fastMedia, smk_high or smk_low. Every caller runs Restore_WorkingDir afterwards. An extension it does not recognise leaves the working directory alone."
     },
     {
       "addr": "0x004AF312",
       "name": "Hd_PathForFile",
       "section": "fileio",
-      "confidence": "inferred",
+      "confidence": "verified",
       "signature": "void Hd_PathForFile(int path)",
-      "comment": "The hard-disk twin of Cd_PathForFile: builds a subdirectory of the ORIGINAL working directory saved at startup and chdirs there. The .smk case is the visible one - \"\\smk_low\" or \"\\smk_high\" chosen on g_hiResVideo - so the two video quality sets are two directories, not two files."
+      "comment": "The hard-disk twin of Cd_PathForFile: matches the filename's extension against PL8, 256, WAV and SMK and chdirs into the matching subdirectory of the ORIGINAL working directory saved at startup - pl8, pl8, wav, and for .smk either smk_low or smk_high on g_fastMedia. The two video sets are two directories rather than two files; WHICH of them the flag selects is deliberately not explained, because this function and Cd_PathForFile make opposite choices from the same flag - see g_fastMedia."
     },
     {
       "addr": "0x004AF502",
@@ -7412,6 +7484,14 @@
       "comment": "IDirectPlay2::SetSessionDesc (vtable +0x7C) with the description at 0x004E5AB0, logging \"OK :DP New players locked out.\" Called once, from Setup_StartGame - the moment a multiplayer game stops accepting joins."
     },
     {
+      "addr": "0x004B7585",
+      "name": "Net_ConnectWizard",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Net_ConnectWizard(int a, int b, int c, int d)",
+      "comment": "[V] The multiplayer connection dialogs, in order. Dialog 0x81 picks the transport, and its 0x3EB return means Internet play and goes to Sigs_Start; anything else means DirectPlay, whose IDirectPlay2::GetCaps (vtable +0x38) is then logged field by field - \"DP service provider Baud rate \", \"max_players \", \"latency of \", \"header of \". A caps triple of exactly (0x10000, 0xFA, 8) is recognised and sets the modem flag. Dialog 0x6C then picks host or join - return 0x3EA is join and clears g_netIsMaster - and a third dialog collects the session. Every arm logs \"OK :DP Created.\" or \"OK :DP Not Created.\"."
+    },
+    {
       "addr": "0x004B79E3",
       "name": "Net_PostChat",
       "section": "netcode",
@@ -7426,6 +7506,14 @@
       "confidence": "verified",
       "signature": "void Net_MarkPlayerJoined(int slot)",
       "comment": "Sets g_netPlayerJoined[slot] to 1. Net_PumpReceive turns each 1 into a session event and then a 2, so the array is a one-shot per-player 'has arrived' latch written by the SIGS callback thread and drained on the game thread."
+    },
+    {
+      "addr": "0x004B7A9A",
+      "name": "Sigs_Start",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_Start(void)",
+      "comment": "Builds the SierraNW session if there is not one already - operator new of 0x74 bytes, Sigs_Construct, then Sigs_Open with the game window, the command line rebuilt from GetModuleFileNameA + _splitpath, and the application name \"Lords2\". If a session already exists it only waits for a new game on it. Logs \"InitializeSIGS - got FAILED TO U...\" on the failure the GOG build actually reaches, because SNWValid.dll is not there."
     },
     {
       "addr": "0x004B8C3A",
@@ -9107,6 +9195,13 @@
       "comment": "256 PALETTEENTRYs for full-screen mode, where only index 0 and index 255 are reserved to the system and the other 254 are ours."
     },
     {
+      "addr": "0x005169B0",
+      "name": "g_smkReturnScreen",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The screen id to restore when the movie ends. Smk_Play stashes it before parking g_screenId at 0x22 and Smk_OnFinished puts it back."
+    },
+    {
       "addr": "0x005169D0",
       "name": "g_smkPath",
       "section": "platform",
@@ -9219,6 +9314,13 @@
       "comment": "Confirmation box origin x; the box itself is drawn 16 pixels up and left of it."
     },
     {
+      "addr": "0x0052AF94",
+      "name": "g_appPhase",
+      "section": "platform",
+      "confidence": "inferred",
+      "comment": "How far the program has got: 0 while App_WinMain is still setting up, 1 once App_InitWindow has returned, 3 by the time Escape means the quit menu, and past 8 by the time App_Draw sets its own latch. INFERRED as a monotonic phase from the two writes and the four comparisons; the values between are not accounted for and nothing in the binary names them."
+    },
+    {
       "addr": "0x0052AF98",
       "name": "g_confirmY",
       "section": "ui",
@@ -9273,6 +9375,13 @@
       "section": "battle",
       "confidence": "verified",
       "comment": "Index of the other figure in the current interaction: the melee opponent, the missile target, or the figure being swapped with."
+    },
+    {
+      "addr": "0x0052EFFC",
+      "name": "g_smkTestIndex",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Which movie the debug viewer is on, an index into the 16-byte filename table at 0x004D4D60 that starts with \"Intro.smk\". Stepped by two arms of the viewer's input and read only by Smk_ReplayIntro."
     },
     {
       "addr": "0x0052F020",
@@ -9448,6 +9557,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "The persisted settings block: 0x468 bytes, fread/fwritten whole. Byte 0 begins a 31-byte player name defaulting to 'Player1'; +0x24 is a magic/version word (0x7EC = 2028) that Options_SetDefaults' second caller checks before trusting the file; +0x50 is g_optGameSpeed and +0x54 g_optScrollSpeed."
+    },
+    {
+      "addr": "0x0053F200",
+      "name": "g_cdDrive",
+      "section": "fileio",
+      "confidence": "verified",
+      "comment": "The CD-ROM drive letter as a single character, defaulting to 'D' (0x44) and overwritten by the first character of `CDRomDrives=` in sierra.ini. Cd_PathForFile builds a path beginning \"c:.\\\" and then overwrites that first byte with this."
     },
     {
       "addr": "0x0053F204",
@@ -9709,6 +9825,27 @@
       "comment": "Four 200-byte free-text letter buffers, one per message kind 1..4, typed by the player on screen 0x1A."
     },
     {
+      "addr": "0x0053F5E0",
+      "name": "g_cpuMhz",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The clock speed parsed out of sierra.ini's processor line - the digits after the '-' - default 0x42, 66 MHz. Ini_ReadConfig also sets a separate threshold to 0x24A rather than 0x1E6 when that line begins with '>' or 'P'."
+    },
+    {
+      "addr": "0x0053F5F4",
+      "name": "g_fastMedia",
+      "section": "fileio",
+      "confidence": "verified",
+      "comment": "[V] ON THE PREDICATE, AND DELIBERATELY NOT ON THE MEANING. Ini_ReadConfig sets it to 1 when `g_cdSpeed > 3 && g_cpuMhz > 0x46` - a quad-speed drive and a processor above 70 MHz - and it selects between two video directories. The two selectors DISAGREE, which is why this comment stops here: with the flag set, Cd_PathForFile chooses `smk_high` and Hd_PathForFile chooses `smk_low`; with it clear, they swap. Both branch on the same flag and the same file extension, and both were read. A story in which one directory is simply better fits one of the two and not the other, so no story is recorded. docs/decisions.md CNEW-selfname's second caution."
+    },
+    {
+      "addr": "0x0053F5F8",
+      "name": "g_cdSpeed",
+      "section": "fileio",
+      "confidence": "verified",
+      "comment": "The `CDROM=` speed multiplier from sierra.ini, default 2. Read for one purpose only: with g_cpuMhz it decides g_fastMedia."
+    },
+    {
       "addr": "0x0053F640",
       "name": "g_campaignTrack",
       "section": "kingdom",
@@ -9945,6 +10082,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Y of the first drawn lattice row: 9 near, 21 far. That row is top-clipped, so the visible band starts at viewY + rowStep = 24 at both zooms."
+    },
+    {
+      "addr": "0x00553248",
+      "name": "g_netIsMaster",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "This machine hosts the session. Cleared by Net_ConnectWizard when the player picks join (dialog 0x6C returning 0x3EA). It is what decides master.rec against slave.rec in the journal dump, and Net_JoinGame skips the whole connect handshake when it is set."
     },
     {
       "addr": "0x00553254",
@@ -10253,6 +10397,13 @@
       "section": "battleai",
       "confidence": "verified",
       "comment": "Recounted every frame by Battle_UpdateAllMen: live figures of troop type 7, 8 or 9 - catapult, siege tower, battering ram - on either side. Three siege-attacker handlers refuse to move onto the castle objective while it is zero."
+    },
+    {
+      "addr": "0x00553FF4",
+      "name": "g_divergeDumpKind",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "What Log_WriteDiverged should dump on the next divergence: 0 nothing, 1 whatever comes first, or one of Log_FormatRecord's six record kinds. Cleared after the first dump, so diverged.txt holds one record per session."
     },
     {
       "addr": "0x00554000",
@@ -11268,6 +11419,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "l2.eng, whole. Eng_GroupBase indexes the group table from here."
+    },
+    {
+      "addr": "0x005AEB68",
+      "name": "g_quitRequest",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "A byte: 1 means quit now, 3 means quit at the end of this frame, 0 means carry on. App_IdleFrame turns 3 into 1 and then refuses to draw; App_WinMain and App_PumpOnce turn 1 into a WM_CLOSE and clear it. Set to 1 by Escape in App_WndProc unless g_appPhase is 3, when Escape opens the quit menu instead."
     },
     {
       "addr": "0x005AEB70",
