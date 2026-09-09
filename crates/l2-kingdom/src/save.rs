@@ -228,7 +228,27 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   **Refusal rather than default.** A version 11 save carries neither, and
 ///   defaulting both to off would silently claim a setting the file never made.
-pub const VERSION: u32 = 12;
+/// * 13 — **the merchant's books**: `County::purse` and the four `Realm` trade
+///   accumulators (`trade_spent_a`/`_b`, `trade_received_a`/`_b`). All five are
+///   written by [`crate::trade::trade`] and by nothing else, and until the
+///   merchant screen existed no code path could make any of them non-zero — so
+///   they were absent from the record, the save and the lockstep digest at once,
+///   which is C30's shape for the fifth time. A trade produces them now, and an
+///   unowned county's purse in particular is *simulation* state: the AI trades
+///   out of it for every county nobody owns, so two peers that disagreed about a
+///   purse would deal different goods and every checksum they exchanged would
+///   still agree.
+///
+///   **Refusal rather than default**, on the same reasoning as entry 12: a
+///   version 12 save was written by a build that could not trade, so all five
+///   really are zero in it — but a save is not the place to be right by
+///   accident, and the next version that widens this file would inherit a
+///   default nobody checked.
+///
+///   *This entry was written as 13 with `VERSION` at 12 on `main`. Per the
+///   standing hazard above, assume the number has moved: a merge that finds 13
+///   taken renumbers this entry and the constant together.*
+pub const VERSION: u32 = 13;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -806,6 +826,7 @@ impl Encode for County {
         out.i32(self.tax_rate);
         out.i32(self.tax_collected);
         out.i32(self.tax_shown);
+        out.i32(self.purse);
         for job in &self.labour {
             out.i32(*job);
         }
@@ -939,6 +960,7 @@ impl Decode for County {
         c.tax_rate = input.i32()?;
         c.tax_collected = input.i32()?;
         c.tax_shown = input.i32()?;
+        c.purse = input.i32()?;
         for job in 0..JOB_COUNT {
             c.labour[job] = input.i32()?;
         }
@@ -1063,6 +1085,10 @@ impl Encode for Realm {
             out.i32(*weapon);
         }
         out.u8(self.bankrupt_stage);
+        out.i32(self.trade_spent_a);
+        out.i32(self.trade_spent_b);
+        out.i32(self.trade_received_a);
+        out.i32(self.trade_received_b);
         out.i32(self.weapon_rota);
         out.i32(self.population_total);
         out.i32(self.population_last);
@@ -1148,6 +1174,10 @@ impl Decode for Realm {
             r.weapons[slot] = input.i32()?;
         }
         r.bankrupt_stage = input.u8()?;
+        r.trade_spent_a = input.i32()?;
+        r.trade_spent_b = input.i32()?;
+        r.trade_received_a = input.i32()?;
+        r.trade_received_b = input.i32()?;
         r.weapon_rota = input.i32()?;
         r.population_total = input.i32()?;
         r.population_last = input.i32()?;

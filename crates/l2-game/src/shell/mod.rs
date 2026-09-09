@@ -106,7 +106,27 @@ pub struct ShellAssets {
     pub small: Option<Font>,
     sheets: BTreeMap<String, Sheet>,
     palettes: BTreeMap<String, Palette>,
+    /// `mercgrid.pl8`'s 80 x 60 byte map, with its 24-byte header stripped.
+    /// Empty when the file is not installed. See [`ShellAssets::merchant_grid`].
+    merchant_grid: Vec<u8>,
 }
+
+/// `mercgrid.pl8` is an **80 x 60 grid of eight-pixel cells over the whole
+/// screen**, one byte a cell holding the good id under it.
+///
+/// `File_ReadChunk("mercgrid.pl8", &g_villageGrid, 0x12D8, 0)` reads the file
+/// whole — 4,824 bytes, which is these 4,800 cells plus a 24-byte `.pl8`
+/// header — and `FUN_004357A6` then indexes it as
+/// `grid[(x >> 3) + (y >> 3) * 0x50]`. It shares its buffer with the village's
+/// own drop grid (`vill_gd8.pl8`, 45 x 40, 1,824 bytes) and with the armoury's
+/// (`arm_grid.pl8`, also 4,824), which is why the buffer is named for the
+/// village and read by three unrelated screens.
+pub const MERCHANT_GRID_COLS: usize = 80;
+pub const MERCHANT_GRID_ROWS: usize = 60;
+pub const MERCHANT_GRID_CELL: i32 = 8;
+pub const MERCHANT_GRID_LEN: usize = MERCHANT_GRID_COLS * MERCHANT_GRID_ROWS;
+/// The bytes of a `.pl8` before its single frame's data.
+pub const GRID_HEADER: usize = 24;
 
 impl ShellAssets {
     pub fn load(vfs: &Vfs) -> ShellAssets {
@@ -132,6 +152,10 @@ impl ShellAssets {
             small: read(font::SMALL).and_then(|b| Font::new(b, 12).ok()),
             sheets,
             palettes,
+            merchant_grid: read("mercgrid.pl8")
+                .filter(|b| b.len() >= GRID_HEADER + MERCHANT_GRID_LEN)
+                .map(|b| b[GRID_HEADER..GRID_HEADER + MERCHANT_GRID_LEN].to_vec())
+                .unwrap_or_default(),
         }
     }
 
@@ -145,7 +169,43 @@ impl ShellAssets {
             small: None,
             sheets: BTreeMap::new(),
             palettes: BTreeMap::new(),
+            merchant_grid: Vec::new(),
         }
+    }
+
+    /// `FUN_004357A6`'s hit test: the good id under a screen pixel, or `None`
+    /// when the pointer is on no ware — or when `mercgrid.pl8` is not installed,
+    /// which the merchant screen answers with its own rectangles.
+    ///
+    /// **The shipped grid holds exactly twelve ids** — 1, 2, 4, 6, 7, 8, 9, 10,
+    /// 11, 12, 13, 14. Sheep (3) and wool (5) appear in no cell, so there is
+    /// nowhere on the stall to click for either. That is the fourth independent
+    /// statement that the two goods are not in the game, after the missing
+    /// `Merchant_Trade` branch, the price of zero and the (0, 0) plaque
+    /// position — and it is the one made by the artwork rather than the code.
+    pub fn merchant_grid(&self, x: i32, y: i32) -> Option<u8> {
+        if self.merchant_grid.len() != MERCHANT_GRID_LEN {
+            return None;
+        }
+        let (col, row) = (x / MERCHANT_GRID_CELL, y / MERCHANT_GRID_CELL);
+        if col < 0 || row < 0 {
+            return None;
+        }
+        let (col, row) = (col as usize, row as usize);
+        if col >= MERCHANT_GRID_COLS || row >= MERCHANT_GRID_ROWS {
+            return None;
+        }
+        match self.merchant_grid[row * MERCHANT_GRID_COLS + col] {
+            0 => None,
+            good => Some(good),
+        }
+    }
+
+    /// Whether `mercgrid.pl8` was found, so a screen can say which hit test it
+    /// is using rather than leaving a player to wonder why a ware will not
+    /// click.
+    pub fn has_merchant_grid(&self) -> bool {
+        self.merchant_grid.len() == MERCHANT_GRID_LEN
     }
 
     pub fn sheet(&self, name: &str) -> Option<&Sheet> {

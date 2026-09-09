@@ -84,6 +84,13 @@ pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
     county.shown_army = 0;
     county.shown_events = 0;
     county.shown_ale = 0;
+    // **And the ale allowance itself.** `Happiness_UpdateAll` clears `+0x219`
+    // in the same breath as the display field beside it, which makes the five
+    // points a seasonal allowance rather than the lifetime one this crate,
+    // `docs/kingdom.md` §7.6, `docs/mechanics.md` and `docs/symbols.json` all
+    // claimed. Reading the reset off the wrong line for a whole subsystem is
+    // C53; the line is here.
+    county.ale_happiness_given = 0;
 
     if county.population == 0 && !county.is_unowned() && !owner_is_human {
         county.happiness = EMPTY_AI_COUNTY_HAPPINESS;
@@ -120,9 +127,11 @@ pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
 /// panel's own preview (`FUN_00435673`) computes the identical ladder, which is
 /// the second source.
 ///
-/// The cap is **cumulative and never reset** — see
-/// [`crate::county::County::ale_happiness_given`]. Returns the happiness
-/// actually gained, which is 0 once the county has had its five.
+/// The cap is **cumulative within a season**: [`update`] clears
+/// `ale_happiness_given` every season, so a county can have five points of ale
+/// happiness a season and no more. Returns the happiness actually gained, which
+/// is 0 once the county has had its five. See
+/// [`crate::county::County::ale_happiness_given`].
 ///
 /// `crowns` is `price x quantity` at the call site. Ale's base price is 1
 /// (`docs/kingdom.md` §10), so in the shipped game a barrel is a crown and the

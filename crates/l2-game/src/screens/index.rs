@@ -64,6 +64,13 @@ impl IndexScreen {
         // with a zero levy; `0x11` on a slot with no army in it says so.
         push("0x17 RAISE AN ARMY".into(), Some(ScreenId::RaiseArmy(1)));
         push("0x11 ARMY DIVISION".into(), Some(ScreenId::Divide(1)));
+        // The same stand-in again, and here it shows something the screen
+        // itself is about: unit 1 is not a merchant from the index, so its
+        // morale reads 0 and every buy price falls to the markup's floor of one
+        // crown. That is the formula working, not a placeholder — reached from
+        // the map the unit is a merchant at morale 100 and the prices double.
+        push("0x08 THE MERCHANT".into(), Some(ScreenId::Merchant(1)));
+        push("0x0C TRADE GOODS (GRAIN)".into(), Some(ScreenId::Trade(1, 1)));
         push("0x35 LOAD A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Load)));
         push("0x36 SAVE A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Save)));
 

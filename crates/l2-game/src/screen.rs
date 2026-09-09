@@ -70,6 +70,17 @@ pub enum ScreenId {
     /// `g_screenId` `0x11` — the army-division screen, for one army. See
     /// [`crate::screens::divide`].
     Divide(usize),
+    /// `g_screenId` `0x08` — **the merchant's stall**, for the merchant unit
+    /// being traded with.
+    ///
+    /// The unit is part of the identity because the *price* depends on it:
+    /// `DAT_00553C64` is written on the map click and read only by this
+    /// screen's plaque and by the panel's price arithmetic. See
+    /// [`crate::screens::merchant`].
+    Merchant(usize),
+    /// `g_screenId` `0x0C` — the trade panel, for one merchant and one
+    /// `L2.eng` group 6 good id.
+    Trade(usize, u8),
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -193,6 +204,12 @@ impl ScreenId {
                 Box::new(crate::screens::army::RaiseArmyScreen::new(county))
             }
             ScreenId::Divide(unit) => Box::new(crate::screens::divide::DivideScreen::new(unit)),
+            ScreenId::Merchant(unit) => {
+                Box::new(crate::screens::merchant::MerchantScreen::new(unit))
+            }
+            ScreenId::Trade(unit, good) => {
+                Box::new(crate::screens::merchant::TradeScreen::new(unit, good))
+            }
             ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }

@@ -206,6 +206,28 @@ pub struct Realm {
     /// mutiny and it resets to 0 afterwards; it does not saturate.
     pub bankrupt_stage: u8,
 
+    /// `+0x104` and `+0x108` — **crowns spent at the merchant**, and
+    /// `+0x10C` / `+0x110` — crowns taken.
+    ///
+    /// Four accumulators, two per direction: `Merchant_Trade` adds the bill to
+    /// `+0x108` then `+0x104` on a purchase, and the proceeds to `+0x110` then
+    /// `+0x10C` on a sale. Nothing else in the binary writes them and
+    /// **nothing at all reads them.** The only other instruction that touches
+    /// any of the four is `Game_SetupRealmsAndCounties` zeroing all four at
+    /// new game.
+    ///
+    /// `docs/hypotheses.json` guessed the pairs were *this season* and *the
+    /// running total*, with the caveat that if neither is ever reset they are
+    /// something else. Neither is ever reset, so the guess is refuted and the
+    /// names are deliberately `a` and `b`: what is verified is that two run on
+    /// spending, two on income, both of a pair always take the same number, and
+    /// no reader distinguishes them. Naming them anything more specific would
+    /// be a claim about a mechanic the shipped game does not have.
+    pub trade_spent_a: i32,
+    pub trade_spent_b: i32,
+    pub trade_received_a: i32,
+    pub trade_received_b: i32,
+
     // --- the totals AI step 14 rebuilds (`FUN_0049D1E0`) --------------------
     /// `+0x10` — the realm's total population, summed over its counties.
     /// Score input, weighted `/10`.
@@ -318,6 +340,10 @@ impl Realm {
             wood: 0,
             weapons: [0; WEAPON_TYPE_COUNT],
             bankrupt_stage: 0,
+            trade_spent_a: 0,
+            trade_spent_b: 0,
+            trade_received_a: 0,
+            trade_received_b: 0,
             population_total: 0,
             population_last: 0,
             population_mean: 0,
