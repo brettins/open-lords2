@@ -57,7 +57,7 @@
 //!
 //! **[I] — those coordinates are treated here as relative to the box origin,
 //! not absolute.** Read absolutely, all four sit above or on the top edge of a
-//! window that runs from y = 144 to y = 464, which would put the tick and cross
+//! window that runs from y = 144 to y = 464, which would put the two hands
 //! outside the panel they belong to. Read relative to `Ui_DrawBox(0x10, 0x90)`
 //! they land at (320, 208) and (368, 208) — level with the name field, whose
 //! own rectangle ends at x = 232 — and the arrows at (400, 288) and (400, 320),
@@ -233,7 +233,8 @@ impl SaveLoadScreen {
         };
         // Loading opens on the first file, because loading *is* choosing one.
         // Saving opens on none, because saving is naming one, and a preselected
-        // row would mean the tick overwrote a game the player never pointed at.
+        // row would mean the confirm button overwrote a game the player never
+        // pointed at.
         if mode == Mode::Load {
             screen.select(0);
         }
@@ -297,14 +298,16 @@ impl SaveLoadScreen {
 
     /// Highlight a row and put its name in the field. In save mode that is how
     /// an existing save is overwritten — you pick it, and the name it had is
-    /// what the tick will write to.
+    /// what the confirm button will write to.
     fn select(&mut self, i: usize) {
         let Some(entry) = self.entries.get(i) else { return };
         self.selected = Some(i);
         self.name = entry.name.clone();
     }
 
-    /// The tick. Everything that can go wrong comes back as a [`Status`] and
+    /// The confirm button - `g_saveLoadWidgets` frame 29, a mailed hand with
+    /// its thumb up rather than a tick. Everything that can go wrong comes
+    /// back as a [`Status`] and
     /// the screen stays open; only success closes it.
     fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         match self.mode {
@@ -353,7 +356,7 @@ impl SaveLoadScreen {
     /// `MAX_NAME` is counted in **bytes**, because that is what
     /// [`saves::is_valid_name`] checks and what the original's 65-byte list
     /// records hold. A field that let a name past its own validator would be a
-    /// field whose tick always fails.
+    /// field whose confirm always fails.
     fn type_char(&mut self, c: char) {
         if self.mode != Mode::Save || self.name.len() + c.len_utf8() > saves::MAX_NAME {
             return;

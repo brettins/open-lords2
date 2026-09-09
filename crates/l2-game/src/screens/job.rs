@@ -147,7 +147,7 @@ impl JobScreen {
     }
 
     /// `Ui_OkButton(0x1A4, rows * 0x10 + 0x44, 0)`. The 0x44 is not the box's
-    /// own origin — the tick hangs four pixels below the bottom row, which is
+    /// own origin — the corner picture hangs four pixels below the bottom row, which is
     /// the original's arrangement and worth not tidying.
     pub fn ok_button(job: usize) -> Rect {
         let rows = BOX_ROWS[job.min(JOB_COUNT - 1)];
@@ -173,7 +173,7 @@ impl Screen for JobScreen {
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         match event {
-            // `FUN_0042FF10`'s `0x0F` arm: the tick **or** a right release
+            // `Screen_FrameInput`'s `0x0F` arm: the corner picture **or** a right release
             // closes the popup, and it returns to whichever screen opened it —
             // the village when `DAT_005533F4` is zero, the campaign map's
             // sidebar otherwise. `Transition::Pop` is both, because the stack
@@ -236,7 +236,7 @@ impl Screen for JobScreen {
             .as_ref()
             .is_some_and(|ch| ch.draw_system(canvas, system::OK, ok.x, ok.y));
         if !drawn {
-            widget::button(canvas, ink, ok, "OK", false);
+            widget::button(canvas, ink, ok, "CLOSE", false);
         }
     }
 }
@@ -296,15 +296,15 @@ mod tests {
         }
     }
 
-    /// Every one of the nine windows is on screen and holds its own tick.
+    /// Every one of the nine windows is on screen and holds its own corner.
     #[test]
     fn every_job_window_is_on_screen_and_holds_its_own_ok_button() {
         for job in 0..JOB_COUNT {
             let w = JobScreen::window(job);
             assert!(w.x + w.w <= 640 && w.y + w.h <= 480, "job {job}: {w:?}");
             let ok = JobScreen::ok_button(job);
-            assert!(ok.x >= w.x && ok.x + ok.w <= w.x + w.w, "job {job}: tick escapes in x");
-            assert!(ok.y >= w.y, "job {job}: the tick is below the box's top");
+            assert!(ok.x >= w.x && ok.x + ok.w <= w.x + w.w, "job {job}: the corner escapes in x");
+            assert!(ok.y >= w.y, "job {job}: the corner is below the box's top");
         }
         // The two farm jobs get the tallest windows, which is where their own
         // reports go.

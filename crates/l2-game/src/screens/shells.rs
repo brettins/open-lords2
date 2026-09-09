@@ -68,7 +68,8 @@ pub struct Shell {
     pub heading: Option<Line>,
     /// The body lines, in the 14-pixel font.
     pub lines: &'static [Line],
-    /// `Ui_OkButton(x, y, mode)` — the tick that closes the panel. Mode 0 is
+    /// `Ui_OkButton(x, y, mode)` — the corner picture that closes the panel: a
+    /// mouse pointer going into a black hole, not a tick. Mode 0 is
     /// button-sheet frame `0x33`, mode 1 is frame `0x10`.
     pub ok: Option<(i32, i32, usize)>,
     /// Whether this draws over what was underneath rather than replacing it.
@@ -382,7 +383,7 @@ impl Screen for ShellScreen {
             // truth about a shell, and pretending otherwise would be the
             // invented interface again.
             //
-            // The right one is the original's: `FUN_0042FF10` has a
+            // The right one is the original's: `Screen_FrameInput` has a
             // right-release arm for almost every screen id in this table, and
             // `L2.eng` group 12 index 0 — *"Click Right to Exit"*, printed on
             // the value spinner — is the game saying so in English.
@@ -497,7 +498,7 @@ mod tests {
             }
             if let Some((x, y, mode)) = s.ok {
                 assert!(mode < 2, "{}", s.name);
-                assert!(x + 24 <= 640 && y + 24 <= 480, "{}'s tick is off screen", s.name);
+                assert!(x + 24 <= 640 && y + 24 <= 480, "{}'s corner picture is off screen", s.name);
             }
         }
     }

@@ -106,9 +106,19 @@ pub mod system {
     pub const ARROW_DOWN: usize = 0x17;
     /// Both arrow frames are 24 × 24, which is also the widget's hit box.
     pub const ARROW: i32 = 24;
-    /// `Ui_OkButton(x, y, 0)` — the tick that closes a panel.
+    /// `Ui_OkButton(x, y, 0)` — the picture that closes a panel.
+    ///
+    /// **Not a tick.** The frame decodes to a cursor arrow pointing into a
+    /// small black hole: a close button whose artwork is the instruction. It is
+    /// a live hotspot, and the right button closes the panel as well, so the
+    /// game offers two ways out. Of `System.pl8`'s 84 frames this one is the
+    /// **fourth darkest**, 15.3% near-black against a median frame's 1.2%,
+    /// which is what `l2-view`'s install test asserts so that the label cannot
+    /// drift back. `docs/screens-county.md` §2.7. The name is ours and is kept,
+    /// because renaming a constant every reader knows costs more than the word
+    /// "OK" misleads.
     pub const OK: usize = 0x33;
-    /// `Ui_OkButton(x, y, 1)`.
+    /// `Ui_OkButton(x, y, 1)` — the same picture with a raised bevel round it.
     pub const OK_ALT: usize = 0x10;
     pub const OK_DIM: i32 = 24;
     /// The ration slider, from `Panel_RationSlider` (`0x00411FDE`).

@@ -13,7 +13,11 @@
 //! panel from its top-left quadrant, happiness from top-right, tax from
 //! bottom-left and rations from bottom-right, and there is no other way into
 //! any of them. Each is a floating `Ui_DrawBox` window over whatever was
-//! underneath, with a tick button in its bottom-right corner.
+//! underneath, and each has **two ways out**: the 24 × 24 picture in its
+//! bottom-right corner, which is a live hotspot, and the **right mouse button**
+//! anywhere. That picture is a cursor arrow pointing into a black hole — a
+//! close button whose artwork is the instruction, and not the tick this file
+//! used to call it. `docs/screens-county.md` §2.6 and §2.7.
 //!
 //! So this screen draws the strip at the original's own coordinates, over the
 //! original's own `Misc_cty.pl8` plates, with the original's own quadrants
@@ -146,7 +150,15 @@ impl Panel {
         matches!(self, Panel::Population | Panel::Happiness).then_some(GRAPH)
     }
 
-    /// `Ui_OkButton(x, y, 0)` — the tick, 24 × 24, in the panel's own corner.
+    /// `Ui_OkButton(x, y, 0)` — the 24 × 24 picture in the panel's own corner,
+    /// and the box `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests on a left
+    /// release.
+    ///
+    /// **It is not a tick.** `System.pl8` frame `0x33` decodes to a cursor
+    /// arrow pointing into a small black hole: a close button whose artwork is
+    /// the instruction. It is a real target *and* the right button closes the
+    /// panel from anywhere (`docs/screens-county.md` §2.6), so the game offers
+    /// two ways out and so do we. §2.7; the name `OK` is ours and is kept.
     pub fn ok_button(self) -> Rect {
         let (x, y) = match self {
             // Ui_OkButton(0x1B4, 0x184, 0)
@@ -380,7 +392,7 @@ impl Screen for CountyScreen {
             // **`Ui_DrawBox` panels are dismissed by the right button**, and the
             // game says so in its own words: `Screen_SliderBox` prints `L2.eng`
             // group 12 index 0, *"Click Right to Exit"*, under its caption.
-            // `FUN_0042FF10`'s arm for each of `0x14`, `0x15`, `0x16` and
+            // `Screen_FrameInput`'s arm for each of `0x14`, `0x15`, `0x16` and
             // `0x19` is the same shape — the strip, the sidebar and the ration
             // slider are tested first, so a click on those *switches* panel
             // rather than closing it, and only then does a right release set
@@ -789,7 +801,7 @@ impl CountyScreen {
         let chrome = ctx.assets.chrome.as_ref();
         let ok = self.panel.ok_button();
         if !chrome.is_some_and(|ch| ch.draw_system(canvas, system::OK, ok.x, ok.y)) {
-            widget::button(canvas, ink, ok, "OK", false);
+            widget::button(canvas, ink, ok, "CLOSE", false);
         }
         let live = ctx.game.is_players(self.county);
         for (rect, frame, label) in [
@@ -905,15 +917,15 @@ mod tests {
     }
 
     /// The four windows are the four `Ui_DrawBox` calls, and each holds its own
-    /// tick button. A window that ran off the screen, or a tick outside it,
-    /// would mean a cell count or a button coordinate was misread.
+    /// corner picture. A window that ran off the screen, or a corner outside
+    /// it, would mean a cell count or a button coordinate was misread.
     #[test]
     fn every_panel_window_is_on_screen_and_holds_its_own_ok_button() {
         for p in PANELS {
             let w = p.window();
             assert!(w.x >= 0 && w.y >= 0, "{p:?} starts on screen");
             assert!(w.x + w.w <= 640 && w.y + w.h <= 480, "{p:?} ends on screen: {w:?}");
-            assert!(inside(w, p.ok_button()), "{p:?}: the tick is outside its window {w:?}");
+            assert!(inside(w, p.ok_button()), "{p:?}: the corner is outside its window {w:?}");
         }
     }
 

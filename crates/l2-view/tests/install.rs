@@ -105,6 +105,98 @@ fn the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet() {
     eprintln!("frame layout: {checked} sheets agree");
 }
 
+/// **`Ui_OkButton` does not draw a tick. It draws a hole.**
+///
+/// A player described the corner of a county panel as *"a little mouse icon
+/// around a black hole"*, against five documents and four source files calling
+/// it a tick. Nobody had decoded the frame; decoding it settled it
+/// (`docs/decisions.md` C46), and this is what stops the label drifting back.
+///
+/// The claim is made as a **rank** rather than as a word, because a threshold
+/// picked to pass is not evidence: of the sheet's 84 frames, `Ui_OkButton`'s
+/// two are the **4th and 5th darkest**, at 15.3% and 11.5% of their area in
+/// near-black ink against a median frame's 1.2%. The widgets that really are
+/// thin strokes sit where you would expect — the tax-up arrow at 0.2%, the
+/// slider knob at 0.0%. A tick cannot come 4th out of 84.
+#[test]
+fn the_ok_button_frames_are_a_hole_rather_than_a_tick() {
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+    let bytes = read(&dir, "System.pl8").expect("System.pl8 is in the install");
+    let sheet = Sheet::new(bytes).expect("System.pl8 decodes");
+    let palette = l2_formats::Palette::from_bytes(&read(&dir, "Base01.256").expect("Base01.256"))
+        .expect("the palette decodes");
+    // Index 0 is this sheet's transparency, so ink is everything else, and the
+    // hole is the ink that is nearly black under the campaign palette.
+    let darkness = |index: usize| -> f64 {
+        let Some(f) = sheet.frame(index) else { return 0.0 };
+        let dark = f
+            .indices
+            .iter()
+            .filter(|&&i| {
+                let [r, g, b] = palette.rgb(i);
+                i != 0 && (r as u32 + g as u32 + b as u32) < 90
+            })
+            .count();
+        dark as f64 / f.indices.len().max(1) as f64
+    };
+
+    let dim = chrome::system::OK_DIM as usize;
+    let mut all: Vec<(usize, f64)> =
+        (0..sheet.frame_count()).map(|i| (i, darkness(i))).collect();
+    all.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let median = all[all.len() / 2].1;
+
+    for (label, index) in [("mode 0", chrome::system::OK), ("mode 1", chrome::system::OK_ALT)] {
+        let f = sheet.frame(index).unwrap_or_else(|| panic!("{label}: frame {index:#04X}"));
+        assert_eq!(
+            (f.width as usize, f.height as usize),
+            (dim, dim),
+            "{label} is not 24 x 24"
+        );
+        let rank = all.iter().position(|&(i, _)| i == index).expect("it is in the sheet") + 1;
+        let pct = darkness(index);
+        assert!(
+            rank <= 8,
+            "{label}: frame {index:#04X} is only the {rank}th darkest of {} — a hole should be \
+             near the top",
+            sheet.frame_count()
+        );
+        assert!(
+            pct > median * 8.0,
+            "{label}: {:.1}% near-black against a median frame's {:.1}%",
+            pct * 100.0,
+            median * 100.0
+        );
+        eprintln!(
+            "Ui_OkButton {label}: frame {index:#04X} is {:.1}% near-black, rank {rank}/{} \
+             (median {:.1}%)",
+            pct * 100.0,
+            sheet.frame_count(),
+            median * 100.0
+        );
+    }
+
+    // **And the skin trap, measured.** `System2.pl8` is the same size with the
+    // same 84-frame table, and §4.2 already records that 69 of its frames are
+    // entirely index 0. Frame 0x10 is one of them — so a panel that draws its
+    // corner in **mode 1** under skin 0 draws nothing at all, while mode 0 is
+    // painted in both. That is why `Chrome::load` prefers `System.pl8`.
+    let alt = Sheet::new(read(&dir, "System2.pl8").expect("System2.pl8 is in the install"))
+        .expect("System2.pl8 decodes");
+    let blank = alt.frame(chrome::system::OK_ALT).expect("frame 0x10");
+    assert!(
+        blank.indices.iter().all(|&i| i == 0),
+        "System2.pl8's mode 1 frame is expected to be entirely transparent"
+    );
+    let painted = alt.frame(chrome::system::OK).expect("frame 0x33");
+    assert!(
+        painted.indices.iter().any(|&i| i != 0),
+        "but its mode 0 frame is painted, which is why only mode 1 vanishes"
+    );
+}
+
 /// Knights come off an 8 x 8 `(body, target)` table whose live entries are
 /// spaced three apart and top out at 53. With the walk cycle's maximum of 2
 /// that reaches frame 55 — and `A2*_knig.pl8` holds exactly 56 real frames

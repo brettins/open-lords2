@@ -981,7 +981,7 @@ impl Screen for MapScreen {
                 };
             }
             // **On the map the right button opens rather than closes.**
-            // `FUN_0042FF10`'s `g_screenId == 0` arm ends with
+            // `Screen_FrameInput`'s `g_screenId == 0` arm ends with
             // `if (onATile && rightReleased) { g_screenId = 4; FUN_0043CAF4(); }`
             // — screen `0x04`, the information panel, which
             // `FUN_0043CAF4` fills by picking whatever is under the cursor:
