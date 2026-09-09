@@ -149,11 +149,114 @@ The corollary for delegation: **a task worded "build a screen" will get you a bu
 Word it "decompile the screen, then build what the decompilation says" and say which is the
 deliverable if the two run out of time.
 
-## 7. What "done" means
+## 7. Naming functions: two mechanical filters
+
+`tools/oracle/anchor.js`. Both filters answer *what a function is about*, cheaply and without
+judgement. Neither answers *what it is*, and the gap between those two is where the errors
+live — measured below, because guessing at it is how C3 happened.
+
+### 7.1 Record-stride arithmetic
+
+The binary indexes every record array by a fixed stride: `0x300` county, `0x1A4` unit, `0x160`
+realm, `0x1B0` battle figure, `0x34` battle unit. A function computing `[base + i * 0x300]` is
+touching counties **even when `base` is an unnamed `DAT_`**, which is the usual reason a
+function looks dark.
+
+    node tools/oracle/anchor.js stride --unnamed
+
+**415 of the 1,761 unnamed functions** carry a stride. The filter is essentially exact about
+the claim it makes: across **7,723 occurrences** of those five constants in the corpus, **zero**
+appear outside array-index context — the multiplication only ever indexes a record. And each
+stride is dominated by one base region (81–99.8%), so it identifies the record *type*
+reliably. What it does **not** do is distinguish the primary array from a parallel array of
+the same stride; for that you still read the base.
+
+### 7.2 The `L2.eng` string ids are a confession
+
+Five functions take a literal `(group, index)` pair — `Eng_DrawString` (`0x00402D37`),
+`Eng_Seek` (`0x004018D7`), `Eng_CopyString` (`0x004017BF`), `Ui_DrawCentred`, and the
+word-wrapper `FUN_0040328E`. **Index 0 of every group is a descriptive label**, so the game
+ships a one-line description of each of its 317 string groups. Look the call site up and the
+function names its own subject.
+
+    node tools/oracle/anchor.js strings --unnamed
+    node tools/oracle/anchor.js strings --group 80
+
+Two multipliers on top:
+
+**Sound files are named after the group.** 197 `sNNN_MM.wav` files ship, and `NNN` is the
+`L2.eng` group — `s080_01.wav` plays under the screen that draws group 80. Only 15 distinct
+references survive in the corpus, so this corroborates rather than finds.
+
+**The screen-id dispatch is a third table for free.** `Screen_Draw`, `Screen_DrawWidgets` and
+`Screen_HandleInput` each switch on `g_screenId`; `anchor.js screens` joins them, so a painter
+can be corroborated by appearing in two or three of the three. That is what placed nine of
+this batch's candidates without reading a line of their bodies.
+
+### 7.3 The measured error rate — the number to actually use
+
+A batch of 19 unnamed functions was selected by filter 2 and each one checked against
+something that could have failed (callers, the strides it indexes, the constants it reads,
+whether the strings it draws in order match the flow claimed). Two very different rates fell
+out, and conflating them is the trap:
+
+| the claim | correct | rate |
+|---|---|---|
+| **filter output** — "this function's subject is what group *N* is about" | 17 / 19 | **89%** |
+| **hypothesis on top of it** — "therefore it is the *X* screen" | 11 / 19 | **58%** |
+
+**The filter is reliable about subject and unreliable about role.** Seven of the nineteen were
+about the right thing and doing something else with it: three group-71 functions were castle
+*status blocks* in other panels rather than the castle-building screen; the group-77 candidate
+was the herd panel, not the sowing forecast; two group-11 candidates were skirmish setup, not
+siege messages.
+
+Two specific lessons worth more than the percentages:
+
+- **The two outright subject failures were both `Eng_Seek`, not `Eng_DrawString`.** `Eng_Seek`
+  leaves a pointer for the caller to *copy*, so its callers **write** `g_playerNames` rather
+  than display it — `Realms_AssignLords` assigns lords, it does not show them. Treat a draw
+  call and a seek call as different evidence.
+- **Read index 0, not the strings a summary quotes.** The group-11 candidates were described
+  from string 1, *"The siege is on"* — which is the game's **subtitle**. Index 0 is "Lords of
+  the Realm 2" and the group is the front end. The filter was right and the reading of it was
+  wrong.
+
+C22 came out of this batch and is the best argument for the technique: the game's own English
+overturned a **[V]**-marked tile-flag claim that our own consistent mislabelling had preserved
+for months.
+
+### 7.4 "844 dark functions" was never true
+
+The figure has been repeated as though that many functions were unanalysable. Run
+`node tools/oracle/anchor.js dark`:
+
+| | count | median size | |
+|---|---:|---:|---|
+| touch **no global at all** | **290** | **22 b** | the only genuinely dark ones — and 175 are ≤ 40 b, so accessors and thunks |
+| touch only *unnamed* globals | 545 | 109 b | anchored the moment one global is named |
+| touch a *named* global | 926 | 253 b | already in a cluster |
+
+The bound on how much of the binary reads as prose is the **global** ratio, not the function
+count: 3,303 distinct globals, 301 named.
+
+And even that overstates it. `node tools/oracle/anchor.js fields` resolves every `DAT_` that
+appears beside a record stride back to `record[i] + offset`: **334 of those "unknown globals"
+are field offsets of three arrays that are already named** — `DAT_0052F218` is
+`unit[i] + 0x168`, the total-men field `docs/armies.md` has documented all along. Ghidra
+applies a name to one address, so `g_counties` labels `0x0053F9B0` and every field of every
+county invents its own `DAT_`. Only **13** stride-adjacent globals failed to resolve, and
+those are the ones worth chasing.
+
+So the highest-leverage naming act is not any single hot global. It is **giving the five
+record arrays a struct type**, which converts 334 synthetic labels and the 415 unnamed
+functions that index them into field access in one move.
+
+## 8. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — 230 of 2,452 functions so far, about 10%.
+always more of the binary to name — 461 of 2,452 functions so far, about 19%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the
