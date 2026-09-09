@@ -99,7 +99,7 @@ pub struct Options {
     /// could not, because to it these are not settings at all. This field is a
     /// declared divergence, and it is here on [`Options`] rather than on
     /// [`Tables`] for the reason `docs/bugs.md` §6.3 works out and
-    /// `docs/decisions.md` C61 records:
+    /// `docs/decisions.md` C62 records:
     ///
     /// * **not on [`Tables`]** — `save::ruleset_fingerprint` is hashed into the
     ///   save *header* and `save::decode` refuses a mismatch, so a quirk there

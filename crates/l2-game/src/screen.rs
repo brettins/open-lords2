@@ -90,6 +90,16 @@ pub enum ScreenId {
     BattlePrompt,
     /// `g_screenId` `0x13` — *"The Battle is decided."*
     BattleResult,
+    /// The options panels — `g_screenId` `0x39` (Advanced), `0x42` (Sounds),
+    /// `0x43` (Display) and `0x31` (Help) — **and the quirks page, which is
+    /// ours**.
+    ///
+    /// The page is part of the identity for the same reason
+    /// [`ScreenId::County`]'s panel is: in the original these are four separate
+    /// screen ids reached from four separate menu items, and a value that had to
+    /// guess which one it meant would be a value that guessed. See
+    /// [`crate::screens::options`].
+    Options(crate::screens::options::Page),
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -259,6 +269,9 @@ impl ScreenId {
                 Box::new(crate::screens::battle::BattleResultScreen::new())
             }
             ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
+            ScreenId::Options(page) => {
+                Box::new(crate::screens::options::OptionsScreen::new(page))
+            }
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }
     }

@@ -249,7 +249,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   standing hazard above, assume the number has moved: a merge that finds 13
 ///   taken renumbers this entry and the constant together.*
 /// * 14 — **`Options::quirks`**, the bitfield saying which of the original's
-///   defects this game reproduces (`docs/bugs.md`, `docs/decisions.md` C61).
+///   defects this game reproduces (`docs/bugs.md`, `docs/decisions.md` C62).
 ///   It changes what the simulation computes, so it is state: a save that did
 ///   not carry it would resume a fixed game as a faithful one, and a lockstep
 ///   peer that never exchanged it would desync.

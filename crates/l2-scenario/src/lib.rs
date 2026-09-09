@@ -742,7 +742,7 @@ impl Scenario {
                 // a game imported from a `.sav` was played by `Lords2.exe`, and
                 // `Lords2.exe` reproduces all of them. Faithful is therefore
                 // not a default here, it is the only correct answer.
-                // `docs/decisions.md` C61.
+                // `docs/decisions.md` C62.
                 quirks: l2_kingdom::Quirks::FAITHFUL,
             },
             clock: Clock {

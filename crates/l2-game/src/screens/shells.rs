@@ -243,66 +243,18 @@ pub const SHELLS: &[Shell] = &[
         overlay: false,
         unfinished: "the seven rating rows per player and the shield sprites",
     },
-    Shell {
-        id: 0x31,
-        painter: 0x0041_54EA,
-        name: "Help options",
-        background: None,
-        palette: None,
-        window: Some((0x60, 0x80, 0x16, 0x0B, 1)),
-        group: 45,
-        heading: Some((0, 0x80, 0x94)),
-        lines: &[(1, 0x80, 0xC0), (2, 0x80, 0xE0), (3, 0x80, 0x100)],
-        ok: Some((0x194, 0x106, 0)),
-        overlay: true,
-        unfinished: "the On/Off values from group 18, which need the settings",
-    },
     // `0x35` and `0x36` **graduated**. They were the two rows here that said
     // *"the file list, which walks the save directory"*; the list walks it now
     // and the buttons work, so they are `screens/saveload.rs` and no longer a
     // shell. See the note on `find` below.
-    Shell {
-        id: 0x39,
-        painter: 0x0041_4F68,
-        name: "Advanced options",
-        background: None,
-        palette: None,
-        window: Some((0x30, 0x60, 0x18, 0x0D, 1)),
-        group: 50,
-        heading: Some((0, 0x40, 0x74)),
-        lines: &[(1, 0x60, 0xA0), (2, 0x60, 0xC0), (3, 0x60, 0xE0), (4, 0x60, 0x100)],
-        ok: None,
-        overlay: true,
-        unfinished: "the four Yes/No values from group 18 at x = 0x140",
-    },
-    Shell {
-        id: 0x42,
-        painter: 0x0041_515C,
-        name: "Sound options",
-        background: None,
-        palette: None,
-        window: Some((0x30, 0x60, 0x18, 0x0C, 1)),
-        group: 51,
-        heading: Some((0, 0x40, 0x74)),
-        lines: &[(1, 0x60, 0xA0), (2, 0x60, 0xC0), (3, 0x60, 0xE0)],
-        ok: Some((0x188, 0xF0, 0)),
-        overlay: true,
-        unfinished: "the three On/Off values from group 19 at x = 0x140",
-    },
-    Shell {
-        id: 0x43,
-        painter: 0x0041_52EA,
-        name: "Display options",
-        background: None,
-        palette: None,
-        window: Some((0x30, 0x90, 0x18, 0x0A, 1)),
-        group: 52,
-        heading: Some((0, 0x40, 0xA4)),
-        lines: &[(1, 0x60, 0xD0), (2, 0x60, 0xF0), (3, 0x48, 0x108)],
-        ok: Some((0x188, 0x100, 0)),
-        overlay: true,
-        unfinished: "the two values, and the F5 note that only shows in windowed mode",
-    },
+    //
+    // **And so have all four options panels.** `0x31` Help, `0x39` Advanced,
+    // `0x42` Sounds and `0x43` Display were rows here whose `unfinished` read
+    // *"the four Yes/No values from group 18 at x = 0x140"*, *"the three On/Off
+    // values from group 19"*, *"the two values, and the F5 note that only shows
+    // in windowed mode"* and *"the On/Off values from group 18, which need the
+    // settings"*. There are settings now, so the values are drawn and the
+    // widgets toggle them: `screens/options.rs`.
 ];
 
 /// The shell for a screen id, if there is one.
@@ -495,5 +447,11 @@ mod tests {
         assert!(find(0x1D).is_none(), "siege preparation is implemented");
         assert!(find(0x08).is_none(), "the merchant trades");
         assert!(find(0x0C).is_none(), "the trade panel is the merchant's other half");
+        for id in [0x31u8, 0x39, 0x42, 0x43] {
+            assert!(
+                find(id).is_none(),
+                "options panel 0x{id:02X} is implemented - screens/options.rs"
+            );
+        }
     }
 }

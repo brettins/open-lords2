@@ -349,6 +349,37 @@ cannot answer it either. `l2_kingdom::save` (**our** format, version 12) stores 
 `exploration` and `time_limit`, so a game saved by this engine does not lose them. That is a
 divergence and a deliberate one: it is our save format, and D11 already separates the two.
 
+### B66 — `Options_SetDefaults` defaults one sound flag twice and, apparently, another not at all
+
+**[V]** on the duplicate; **[I]**, and no more than that, on what was meant.
+
+`Options_SetDefaults` (`0x004AE310`) stores 1 into `g_optSpeech` (`0x0053F20C`) **twice**, at
+`0x004AE369` and again at `0x004AE389`, with `g_optMusic` and `g_optSoundEffects` between them:
+
+```text
+004ae369  MOV dword ptr [0x0053f20c],0x1     ; g_optSpeech
+004ae373  MOV dword ptr [0x0053f218],0x1     ; g_optMusic
+004ae37d  MOV dword ptr [0x0053f214],0x1     ; g_optSoundEffects
+004ae387  MOV dword ptr [0x0053f20c],0x1     ; g_optSpeech AGAIN
+```
+
+Read out of the instruction bytes and confirmed independently by a 32-bit scan of the image
+for absolute references: `0x0053F20C` has exactly two inside this function and no others.
+
+**Why it is a bug.** Four consecutive stores where one target is repeated is what a
+copy-and-paste with a missed edit looks like. It is **completely harmless as shipped** —
+storing the same constant twice is storing it once — so it changes no behaviour and there is
+nothing to switch.
+
+**What it does not establish.** `g_options+0x30` (`0x0053F210`) sits in the sound block, is
+defaulted to 1, and is read by nothing; it is the obvious candidate for the store that lost
+its target. **That is a guess and it stays one.** `CLAUDE.md` rule 4 is why this paragraph
+stops here: the shape is suggestive and there is no second source, so it is not a finding.
+
+**Reproduced?** There is nothing to reproduce. `l2_game::game::Prefs::default()` sets the
+three sound flags once each, and the note lives on `Prefs::speech` so that whoever writes a
+preferences file meets the fact rather than the assumption.
+
 ## 2.7 Multiplayer — catalogue only
 
 ### B56 — The shipped build silences one of its own eight checksum blocks
@@ -764,8 +795,27 @@ zoom left in. `screens.md` §2.2, `l2-view/src/campaign.rs:25`.
 
 # 6. The mechanism — what switching these off would actually take
 
-**Recommendation only.** The owner said *"make a call later"*; this is the material for that
-call, not an implementation.
+> **Built, as of `docs/decisions.md` C62.** This section was written as material for a
+> decision and the decision has been taken; it is kept as the *argument*, because the
+> argument is what a later reader needs in order to change the answer. What actually
+> shipped, and where it differs from the recommendation below:
+>
+> | | recommended here | built |
+> |---|---|---|
+> | home | `Options` | `Options::quirks` for a **behavioural** quirk; `Assets` for a **presentation** one — §6.3a, which §6.3 did not anticipate |
+> | shape | *"a struct of named `bool`s, or a bitfield"* | a `u64` bitfield, `l2_net::Quirks`, with the sense **inverted** so that faithful is zero |
+> | version bumps | *"pay the bump once"* | paid once, and the inversion is what makes it once rather than once per bug: a new quirk sets a bit that was already written as zero |
+> | default | faithful | faithful (§6.5) |
+> | scope | *"roughly a dozen worth exposing"* | fourteen wired |
+>
+> **The switch list is generated from this document**, not written beside it:
+> `crates/l2-testkit/tests/quirks_catalogue.rs` reads §2 and both switch lists as text and
+> fails if they disagree — including if a quirk is filed in the wrong home, which §6.3a's
+> price asymmetry makes the likely drift. §2 is now load-bearing: **adding an entry here
+> turns the suite red until somebody says what its switch is.**
+
+**The argument, as it was written.** The owner said *"make a call later"*; this was the
+material for that call.
 
 ## 6.1 What is already switchable through the ruleset: one entry
 
@@ -868,10 +918,25 @@ handshake.
 
 ## 6.4 A coherent option group — and the game's own precedent for one
 
-**The original ships three behaviour switches, and a player has confirmed using all three.**
-They are `g_optAdvancedFarming`, `g_optArmiesEat` and `g_optExploration` — `L2.eng` group 50
-indices 1 … 3, toggled by `Opt_ToggleExploration` (`0x00434693`) and its siblings. They change
-*rules*, not presentation:
+**The original ships four behaviour switches on one panel, and a player has confirmed using
+three of them.**
+
+> **Corrected: four, not three.** This paragraph said *"three behaviour switches"* and named
+> `g_optAdvancedFarming`, `g_optArmiesEat` and `g_optExploration` as *"`L2.eng` group 50
+> indices 1 … 3"*. **Group 50 has five strings** — a heading and four rows — and
+> `g_advancedOptWidgets` (`0x004DDC10`) holds **four** 24-byte widget records whose callbacks
+> are `Opt_ToggleAdvancedFarming`, `Opt_ToggleArmyForaging`, `Opt_ToggleExploration` and
+> `Opt_ToggleFightHumansOnly`. Index 4 is *"Fight humans only?"*, it is on the same panel, and
+> it changes a rule: `FUN_004A6A30` auto-resolves a battle the local player is not in when
+> `g_optFightHumansOnly` (`0x0053F284`) is 0. **[V]** on both counts — the string count out of
+> `L2.eng` and the record count out of `.data`. `crates/l2-game/src/screens/options.rs` draws
+> all four. Nothing turned on the number; it was simply wrong, and B55a two sections up had
+> been discussing that fourth option's *save* behaviour for weeks without either half noticing
+> the other.
+
+They are `g_optAdvancedFarming`, `g_optArmiesEat`, `g_optExploration` and
+`g_optFightHumansOnly` — `L2.eng` group 50 indices 1 … 4, toggled by `Opt_ToggleExploration`
+(`0x00434693`) and its siblings. They change *rules*, not presentation:
 
 * **Advanced Farming** turns on weather, fertility and crop rotation — S1 above, and *"fallow
   fields"* in the player's own words;

@@ -24,7 +24,7 @@
 //!
 //! **This is not a claim that quirks are networking.** It is a claim that they
 //! are part of the agreed configuration, which is what this crate is for. See
-//! `docs/decisions.md` C61.
+//! `docs/decisions.md` C62.
 //!
 //! # The sense is inverted, deliberately
 //!
@@ -60,9 +60,11 @@
 //!
 //! **A quirk that nothing reads is worse than no quirk**, because a checkbox
 //! claims a behaviour is configurable. Every variant of [`Quirk`] is read by
-//! the simulation and has a test that flips it and observes a different answer;
-//! `tools/quirks/quirks.js --check` and
-//! `crates/l2-kingdom/tests/quirks_catalogue.rs` are what keep that true.
+//! the simulation and has a test that flips it and observes a different answer:
+//! `crates/l2-testkit/tests/quirks_catalogue.rs` reads this file and
+//! `docs/bugs.md` as text and fails on a variant nothing calls `reproduces(` on,
+//! and `crates/l2-kingdom/tests/quirks.rs` flips each one and watches the
+//! simulation give a different answer.
 //! Catalogue entries that cannot be switched off for a reasonable price are
 //! **not** variants here — they are rows in that catalogue marked unswitchable,
 //! with the reason written down.
@@ -132,8 +134,15 @@ pub enum Quirk {
     /// population panel's *"arrive from"* line names the wrong county.
     InflowListHasNoBreak = 7,
 
-    /// **B16** — a county that dies out records a negative death count.
-    /// `deaths = pop` with `pop` already negative.
+    /// **B16** — a county that dies out records a wrong death count. `deaths =
+    /// pop` after `pop` has been driven below one.
+    ///
+    /// **Two faces, and `docs/bugs.md` describes the second.** On the season a
+    /// county loses its last person the arithmetic lands on exactly 0, so the
+    /// figure recorded is 0 — wrong, but not negative. The negative number
+    /// appears the *next* season, when the pass runs again over a county that is
+    /// already empty and drives it to −1. Both are switched here; both are
+    /// asserted in `crates/l2-kingdom/tests/quirks.rs`.
     ExtinctCountyRecordsNegativeDeaths = 8,
 
     /// **B17** — the AI unrest ladder has a dead band from happiness 1 to 10.

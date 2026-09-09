@@ -411,6 +411,16 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         last_report,
         turns_played,
         campaign,
+        // **Deliberately not in the file, and this is the note that says so.**
+        // `Prefs` is what this machine is like — sound, animations, scroll
+        // speed — and the presentation quirks are what this reader wants to
+        // look at. Neither is a property of the *game*: recording them in a
+        // save would put one person's preferences into a world another person
+        // then loads, and `VERSION` would move every time somebody added a
+        // volume control. The behavioural quirks, which really are the world's,
+        // are in `l2_kingdom::save` where they belong.
+        prefs: crate::game::Prefs::default(),
+        presentation_quirks: crate::game::Quirks::default(),
     })
 }
 

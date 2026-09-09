@@ -564,7 +564,7 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // accumulators over 6 realm slots (96); **+8 at 14 for `Options::quirks`**,
     // one `u64` and the last one the quirk set will ever cost — a bitfield does
     // not widen when a quirk is added, which is the whole reason it is a
-    // bitfield (`docs/bugs.md` §6.3, `docs/decisions.md` C61).
+    // bitfield (`docs/bugs.md` §6.3, `docs/decisions.md` C62).
     assert_eq!(c.finish().len, 56_743, "the state encoding changed - bump VERSION?");
 }
 

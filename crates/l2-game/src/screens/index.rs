@@ -18,6 +18,7 @@ use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screens::options::Page as OptionsPage;
 use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::screens::setup::SetupPage;
 use crate::screens::shells::SHELLS;
@@ -78,6 +79,16 @@ impl IndexScreen {
         push("-- 0x1F GAME SETUP, 13 PAGES --".into(), None);
         for p in SetupPage::ALL {
             push(format!("  PAGE {:>2}  {}", p.number(), setup_name(p)), Some(ScreenId::Setup(p)));
+        }
+
+        push(String::new(), None);
+        push("-- OPTIONS: 4 PANELS, 1 MENU --".into(), None);
+        for p in OptionsPage::ALL {
+            let label = match p.screen_id() {
+                Some(id) => format!("  0x{id:02X} POPUP {}", options_name(p)),
+                None => format!("  OURS  POPUP {}", options_name(p)),
+            };
+            push(label, Some(ScreenId::Options(p)));
         }
 
         push(String::new(), None);
@@ -241,6 +252,19 @@ impl Screen for IndexScreen {
     }
 }
 
+/// What the index calls each options page. The original supplies a name for
+/// four of the five (`L2.eng` group 2 and group 45's own heading); the fifth is
+/// ours and says so.
+fn options_name(p: OptionsPage) -> &'static str {
+    match p {
+        OptionsPage::Advanced => "ADVANCED OPTIONS",
+        OptionsPage::Sound => "SOUNDS",
+        OptionsPage::Display => "DISPLAY OPTIONS",
+        OptionsPage::Help => "HELP OPTIONS",
+        OptionsPage::Quirks => "THE ORIGINAL'S BUGS (OURS)",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,6 +283,12 @@ mod tests {
         }
         for sh in SHELLS {
             assert!(dests.contains(&ScreenId::Shell(sh.id)), "shell 0x{:02X}", sh.id);
+        }
+        for p in OptionsPage::ALL {
+            assert!(
+                dests.contains(&ScreenId::Options(p)),
+                "options page {p:?} is not reachable from the index"
+            );
         }
     }
 

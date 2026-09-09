@@ -257,7 +257,7 @@ pub use l2_net::Pcg32;
 /// They live in `l2-net` because a quirk is part of the *agreed configuration*
 /// — the same category as the ruleset hash and the seed — and because that is
 /// the one crate `l2-kingdom`, `l2-sim`, `l2-view` and `l2-game` can all see.
-/// `docs/decisions.md` C61.
+/// `docs/decisions.md` C62.
 ///
 /// [`Options::quirks`]: crate::kingdom::Options::quirks
 pub use l2_net::{Quirk, Quirks};

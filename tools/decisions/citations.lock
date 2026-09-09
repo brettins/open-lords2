@@ -15,6 +15,8 @@ crates/l2-formats/src/maps.rs	C25	795dd2e31c53
 crates/l2-formats/tests/battle_fixtures.rs	C23	24f9d69c852a
 crates/l2-formats/tests/save.rs	C1	93f2edca7e60
 crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609
+crates/l2-game/src/game.rs	C30	7a6ba0a3e919
+crates/l2-game/src/game.rs	C62	1f489b238ce0
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7
 crates/l2-game/src/screens/army.rs	C21	d250307406e2
 crates/l2-game/src/screens/army.rs	C45	ba3094ad6579
@@ -36,6 +38,7 @@ crates/l2-game/src/screens/map.rs	C57	8b5e7f194e7c
 crates/l2-game/src/screens/map.rs	C58	c583727df160
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28
+crates/l2-game/src/screens/options.rs	C62	65a8bf182816
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
 crates/l2-game/src/screens/setup.rs	C21	061497c61678
 crates/l2-game/src/screens/setup.rs	C21	f030e5ba689c
@@ -43,6 +46,7 @@ crates/l2-game/src/screens/shells.rs	C22	6210d0b3625b
 crates/l2-game/src/screens/shells.rs	C45	971440fb6fdf
 crates/l2-game/src/screens/village.rs	C22	81b65db0836a
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857
+crates/l2-game/src/setup.rs	C62	a935365ea2c1
 crates/l2-game/src/turn.rs	C35	5d5f3b924ebe
 crates/l2-game/src/turn.rs	C35	820d88d9976c
 crates/l2-game/src/turn.rs	C35	87cde1fdbcb4
@@ -57,6 +61,8 @@ crates/l2-game/tests/merchant.rs	C50	444a9e4940bc
 crates/l2-game/tests/merchant.rs	C53	7cd616c516aa
 crates/l2-game/tests/military.rs	C35	0578d12796f0
 crates/l2-game/tests/military.rs	C35	ded7fe0edd82
+crates/l2-game/tests/options.rs	C26	7899982bcf4c
+crates/l2-game/tests/options.rs	C30	716f251c5193
 crates/l2-game/tests/screens.rs	C21	1523306009a2
 crates/l2-game/tests/screens.rs	C22	1d39d618c245
 crates/l2-game/tests/screens.rs	C42	3c40a931b48c
@@ -74,9 +80,11 @@ crates/l2-kingdom/src/battle.rs	C38	0e75ae65c153
 crates/l2-kingdom/src/conquest.rs	C21	0fc3f0194453
 crates/l2-kingdom/src/county.rs	C53	e8fb6191353a
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2
+crates/l2-kingdom/src/kingdom.rs	C62	24c0c9697884
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992
 crates/l2-kingdom/src/levy.rs	C47	7a585921e1bb
 crates/l2-kingdom/src/lib.rs	C11	40b20e35a6aa
+crates/l2-kingdom/src/lib.rs	C62	2dc2468a0675
 crates/l2-kingdom/src/map.rs	C25	28b0c4932b46
 crates/l2-kingdom/src/mercenary.rs	C3	5338c04f3210
 crates/l2-kingdom/src/movement.rs	C40	87816e7f9e43
@@ -84,6 +92,7 @@ crates/l2-kingdom/src/phase.rs	C35	234e7ea17154
 crates/l2-kingdom/src/population.rs	C20	11223ff82fe2
 crates/l2-kingdom/src/ration.rs	C3	316be8511779
 crates/l2-kingdom/src/realm.rs	C3	806d5d4cf93c
+crates/l2-kingdom/src/save.rs	C62	e48a60b5604b
 crates/l2-kingdom/src/tables.rs	C10	ca6d41e102b2
 crates/l2-kingdom/src/tables.rs	C11	09ae49121c2b
 crates/l2-kingdom/src/tables.rs	C11	b50cc9ec171d
@@ -107,6 +116,8 @@ crates/l2-kingdom/tests/oracle.rs	C12	e241145b7370
 crates/l2-kingdom/tests/oracle.rs	C17	edc2b5f29915
 crates/l2-kingdom/tests/oracle.rs	C20	981f2d23d128
 crates/l2-kingdom/tests/oracle.rs	C3	ce0088d1a447
+crates/l2-kingdom/tests/quirks.rs	C30	06301ff299f3
+crates/l2-kingdom/tests/quirks.rs	C30	baa38c081a33
 crates/l2-kingdom/tests/reproduction.rs	C12	40909731b47f
 crates/l2-kingdom/tests/reproduction.rs	C12	410abd9ce336
 crates/l2-kingdom/tests/reproduction.rs	C12	7bfb2efd8284
@@ -119,6 +130,7 @@ crates/l2-kingdom/tests/save.rs	C30	e2a7c8a85daa
 crates/l2-kingdom/tests/save.rs	C39	68a534ebe490
 crates/l2-kingdom/tests/save.rs	C39	912c63b4e2a0
 crates/l2-kingdom/tests/save.rs	C39	9a6fea8bae53
+crates/l2-kingdom/tests/save.rs	C62	0b7e7afb2c23
 crates/l2-mods/rulesets/core/rules/kingdom.toml	C10	0b6d21a76fea
 crates/l2-mods/rulesets/core/rules/kingdom.toml	C11	f607cac3e195
 crates/l2-mods/rulesets/core/rules/units.toml	C11	aa6ae9f23e5b
@@ -129,7 +141,11 @@ crates/l2-mods/src/units.rs	C11	1f34a41c4bbb
 crates/l2-mods/src/units.rs	C11	82a3e3450631
 crates/l2-mods/tests/simulation.rs	C11	b927dbbbca77
 crates/l2-mods/tests/simulation.rs	C12	84283df43fd5
+crates/l2-net/src/quirks.rs	C26	3666e846a6ab
+crates/l2-net/src/quirks.rs	C26	e75f82770f0b
+crates/l2-net/src/quirks.rs	C62	e187f3a3e544
 crates/l2-scenario/src/lib.rs	C57	14b498ed2873
+crates/l2-scenario/src/lib.rs	C62	94a85e9708ab
 crates/l2-scenario/tests/import.rs	C26	bdddd4567993
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
@@ -143,6 +159,10 @@ crates/l2-sim/tests/oracle.rs	C17	0f5dbd453b42
 crates/l2-sim/tests/oracle.rs	C20	d336abeab0e5
 crates/l2-testkit/src/lib.rs	C1	365a5efbf069
 crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8
+crates/l2-testkit/tests/quirks_catalogue.rs	C62	0139b3d61739
+crates/l2-testkit/tests/quirks_catalogue.rs	C62	158971b86058
+crates/l2-testkit/tests/quirks_catalogue.rs	C62	6e16796702fc
+crates/l2-testkit/tests/quirks_catalogue.rs	C62	bb3cf267d3c1
 crates/l2-view/src/campaign.rs	C49	38f05e43397f
 crates/l2-view/src/campaign.rs	C57	cc211f4ea532
 crates/l2-view/src/campaign.rs	C58	f81f70509bd8
@@ -206,6 +226,7 @@ docs/bugs.md	C53	89e746f595f9
 docs/bugs.md	C57	cab2c3c3436a
 docs/bugs.md	C59	20d4ce8ff41b
 docs/bugs.md	C60	23aa8203bd6a
+docs/bugs.md	C62	57caa6ff3b20
 docs/decisions.md	C10	1026d11e7d3f
 docs/decisions.md	C10	6307927dc59c
 docs/decisions.md	C10	ff432eaffe58
@@ -231,6 +252,7 @@ docs/decisions.md	C21	7cb6452b0185
 docs/decisions.md	C21	7e1ce2bf6129
 docs/decisions.md	C21	8ab6f5823eaf
 docs/decisions.md	C21	e643c79f1b0f
+docs/decisions.md	C22	516958f577ba
 docs/decisions.md	C22	d5fb664c5a6b
 docs/decisions.md	C22	e2c2d7647114
 docs/decisions.md	C23	99e73b072814

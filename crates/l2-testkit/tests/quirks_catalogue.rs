@@ -20,14 +20,33 @@
 //! join cannot be satisfied by code that merely compiles, and this crate's
 //! dependency list stays as short as it is (`docs/environment.md`).
 //!
-//! # The four rules
+//! # There are two switch lists, and that is why this is worth its length
+//!
+//! `docs/bugs.md` §6.3a splits quirks in two by a one-line test — *if flipping
+//! it can change a number in a saved game it is behavioural; if it can only
+//! change which pixels are painted from the same numbers it is presentation* —
+//! and the two live in different places at very different prices:
+//!
+//! | | list | home | a new one costs |
+//! |---|---|---|---|
+//! | behavioural | `l2_net::Quirk` | `l2_kingdom::kingdom::Options` | a `save::VERSION` bump, a handshake field, a replay stamp |
+//! | presentation | `l2_game::game::PRESENTATION` | `Assets` | one `bool` |
+//!
+//! **The catalogue is the only artefact that spans both**, which is what makes
+//! generating from it the right answer rather than merely a tidy one: a check
+//! driven by either enum would silently omit the other half.
+//!
+//! # The five rules
 //!
 //! 1. **Every behavioural entry in `docs/bugs.md` §2 appears here exactly once,
 //!    with a disposition.** Add a bug to the catalogue and this goes red until
 //!    somebody says what its switch is.
-//! 2. **`Switchable` ⇔ a `l2_net::Quirk` variant naming that entry.** A switch
-//!    with no catalogue entry fails; a catalogue entry marked switchable with no
-//!    variant fails. That is the join the whole file exists for.
+//! 2. **`Switchable(home)` ⇔ a switch in that home, and in no other.** A switch
+//!    with no catalogue entry fails; an entry marked switchable with no switch
+//!    fails; and an entry implemented in *both* homes fails. That last one is
+//!    the assertion the split created the need for — the price asymmetry above
+//!    means a rule variation will be tempted onto `Assets`, and it would be
+//!    invisible until a multiplayer desync.
 //! 3. **A `Quirk` variant must be read by the simulation.** `docs/agents.md`: *a
 //!    quirk switch that nothing reads is worse than no switch*, because a
 //!    checkbox claims a behaviour is configurable. So every variant has to be
@@ -35,7 +54,10 @@
 //! 4. **No quirk may be filed under `Tables`.** `Tables` is hashed into the save
 //!    *header* and `save::decode` refuses a mismatch, so a quirk there would
 //!    invalidate every existing save and would frame a quirk as a rule.
-//!    `docs/bugs.md` §6.3, `docs/decisions.md` C61.
+//!    `docs/bugs.md` §6.3, `docs/decisions.md` C62.
+//! 5. **The presentation table and its struct are the same list.** A field with
+//!    no row cannot be shown on the quirks page and is joined to no catalogue
+//!    entry; a row with no field names nothing.
 //!
 //! # What this cannot catch
 //!
@@ -53,9 +75,11 @@ use std::path::{Path, PathBuf};
 /// What a catalogue entry's switch is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Disposition {
-    /// A `l2_net::Quirk` variant exists, the simulation reads it, and
-    /// `l2-kingdom/tests/quirks.rs` flips it and sees a different answer.
-    Switchable,
+    /// A switch exists, in the home named. `Behavioural` means an
+    /// `l2_net::Quirk` variant that the simulation reads and
+    /// `l2-kingdom/tests/quirks.rs` flips; `Presentation` means a field of
+    /// `l2_game::game::Quirks` named in `l2_game::game::PRESENTATION`.
+    Switchable(Home),
     /// Reproduced in our code, switchable at a reasonable price, **and nobody
     /// has done it**. The honest middle: not impossible, just not done. The
     /// string says where the code is, so the next person starts from a path
@@ -70,19 +94,49 @@ enum Disposition {
 }
 
 use Disposition::{Retracted, Switchable, Unswitchable, Unwired};
+use Home::{Behavioural, Presentation};
+
+/// **Which of the two homes a switch lives in**, and the assertion that keeps a
+/// quirk from drifting between them.
+///
+/// `docs/bugs.md` §6.3a: *if flipping it can change a number in a saved game it
+/// is behavioural; if it can only change which pixels are painted from the same
+/// numbers it is presentation.* The two cost wildly different amounts — a
+/// behavioural quirk bumps `save::VERSION`, goes into the lockstep digest and
+/// has to be agreed before the first tick; a presentation quirk is one `bool` —
+/// and **that asymmetry is the danger**. A rule variation filed on `Assets`
+/// because it is cheaper there would be invisible until a multiplayer desync.
+///
+/// So the home is written down here, beside the catalogue entry, and the check
+/// below fails if the implementation is anywhere else — including if it is in
+/// *both*. Moving a quirk between homes is then a visible edit to this file
+/// rather than a silent one to a struct.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Home {
+    /// `l2_net::Quirk`, on `l2_kingdom::kingdom::Options`. In the save body and
+    /// the per-tick digest.
+    Behavioural,
+    /// A field of `l2_game::game::Quirks`, on `Assets`. Cannot reach the
+    /// simulation at all — `l2-game` is above every crate that computes a turn.
+    ///
+    /// **Unused on `main` today**, because the first presentation quirk (the
+    /// county name's parchment emboss, `docs/bugs.md` B64) is on another
+    /// branch. The variant exists ahead of it deliberately: the check has to
+    /// be able to demand the row the day the entry lands, rather than being
+    /// taught about the second home after the first one has already drifted.
+    #[allow(dead_code)]
+    Presentation,
+}
 
 /// **The inventory. Update it deliberately.**
 ///
 /// One row per behavioural entry in `docs/bugs.md` §2, in catalogue order.
 const DISPOSITIONS: &[(&str, Disposition)] = &[
     // 2.1 — the nine that change play the most
-    ("B1", Switchable),
-    ("B2", Switchable),
-    ("B3", Switchable),
-    (
-        "B4",
-        Switchable,
-    ),
+    ("B1", Switchable(Behavioural)),
+    ("B2", Switchable(Behavioural)),
+    ("B3", Switchable(Behavioural)),
+    ("B4", Switchable(Behavioural)),
     (
         "B5",
         Unswitchable(
@@ -95,15 +149,15 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B8", Unwired("crates/l2-sim/src/runner.rs — l2-sim takes no Quirks value yet")),
     ("B9", Unwired("crates/l2-sim/src/ai.rs — l2-sim takes no Quirks value yet")),
     // 2.2 — the county economy
-    ("B10", Switchable),
+    ("B10", Switchable(Behavioural)),
     ("B11", Retracted),
-    ("B11a", Switchable),
-    ("B12", Switchable),
+    ("B11a", Switchable(Behavioural)),
+    ("B12", Switchable(Behavioural)),
     ("B13", Unwired("crates/l2-kingdom/src/levy.rs")),
     ("B14", Unwired("crates/l2-kingdom/src/industry.rs")),
-    ("B15", Switchable),
-    ("B16", Switchable),
-    ("B17", Switchable),
+    ("B15", Switchable(Behavioural)),
+    ("B16", Switchable(Behavioural)),
+    ("B17", Switchable(Behavioural)),
     ("B18", Unwired("crates/l2-kingdom/src/land.rs")),
     ("B19", Unwired("crates/l2-kingdom/src/land.rs")),
     ("B20", Unwired("crates/l2-kingdom/src/land.rs")),
@@ -152,7 +206,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B39", Unwired("crates/l2-kingdom/src/movement.rs")),
     ("B40", Unwired("crates/l2-kingdom/src/movement.rs")),
     ("B41", Unwired("crates/l2-kingdom/src/units_tick.rs")),
-    ("B42", Switchable),
+    ("B42", Switchable(Behavioural)),
     ("B43", Unwired("the merchant route script and crates/l2-kingdom/src/merchant.rs")),
     (
         "B44",
@@ -166,9 +220,9 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B49", Unwired("crates/l2-sim/src/terrain.rs")),
     ("B50", Unwired("crates/l2-view/src/scene.rs")),
     // 2.6 — victory, defeat and the score
-    ("B51", Switchable),
-    ("B52", Switchable),
-    ("B53", Switchable),
+    ("B51", Switchable(Behavioural)),
+    ("B52", Switchable(Behavioural)),
+    ("B53", Switchable(Behavioural)),
     ("B54", Unwired("crates/l2-kingdom/src/conquest.rs and its caller")),
     ("B55", Unswitchable("invisible: a wrapping subtraction on a message variant; bugs.md §6.4")),
     (
@@ -176,6 +230,12 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         Unswitchable(
             "not two behaviours: the original cannot save the option and ours can. \
              That is a declared divergence in our save format (decisions.md D11), not a quirk",
+        ),
+    ),
+    (
+        "B66",
+        Unswitchable(
+            "nothing to switch: storing the same constant into g_optSpeech twice is storing \n             it once, and the store that apparently lost its target is a guess, not a finding",
         ),
     ),
     // 2.7 — multiplayer
@@ -214,6 +274,11 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
         ),
     ),
 ];
+
+/// How many rows `l2_game::game::PRESENTATION` has.
+fn presentation_rows(root: &Path) -> usize {
+    presentation(root).0.len()
+}
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_path_buf()
@@ -333,10 +398,56 @@ fn sources(root: &Path) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Rule 1 and rule 2: the catalogue and the inventory are the same list, and
-/// `Switchable` means a `Quirk` variant exists for it.
+/// `(field, docs/bugs.md entry)` out of `l2_game::game::PRESENTATION`, and the
+/// field list of `l2_game::game::Quirks`.
+///
+/// The presentation half of the switch list. Parsed from the source for the same
+/// reason the behavioural half is: a textual join cannot be satisfied by code
+/// that merely compiles.
+fn presentation(root: &Path) -> (Vec<(String, String)>, Vec<String>) {
+    let src = read(root, "crates/l2-game/src/game.rs");
+
+    let table = src
+        .split("pub const PRESENTATION: &[(&str, &str)] = &[")
+        .nth(1)
+        .expect("l2_game::game::PRESENTATION is what this check joins on; it has moved");
+    let table = table.split("];").next().unwrap_or("");
+    let mut rows = Vec::new();
+    for row in table.split('(').skip(1) {
+        let quoted: Vec<&str> = row.split('"').skip(1).step_by(2).collect();
+        if quoted.len() >= 2 {
+            rows.push((quoted[0].to_string(), quoted[1].to_string()));
+        }
+    }
+
+    let body = src
+        .split("pub struct Quirks {")
+        .nth(1)
+        .expect("l2_game::game::Quirks is what this check joins on; it has moved");
+    let body = body.split("\n}").next().unwrap_or("");
+    let fields: Vec<String> = body
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("pub "))
+        .filter_map(|l| l.split(':').next())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    (rows, fields)
+}
+
+/// Rules 1 and 2: the catalogue and the inventory are the same list, every
+/// switch names a real entry, **and every switch is in the home the catalogue
+/// says it is in**.
+///
+/// That last clause is the one the split created the need for. A behavioural
+/// quirk filed on `Assets` because a `bool` is cheaper than a `save::VERSION`
+/// bump would be invisible until a multiplayer desync; a presentation quirk
+/// filed on `Options` would put a text-shadow colour in the state two peers
+/// have to agree on before the first tick. Both fail here, and so does a quirk
+/// implemented in *both* homes at once.
 #[test]
-fn every_bug_in_the_catalogue_has_a_disposition_and_every_switch_has_a_bug() {
+fn every_bug_has_a_disposition_every_switch_has_a_bug_and_every_switch_is_in_its_own_home() {
     let root = repo_root();
     let catalogue = catalogue(&root);
     assert!(
@@ -347,31 +458,60 @@ fn every_bug_in_the_catalogue_has_a_disposition_and_every_switch_has_a_bug() {
     );
 
     let inventory: BTreeMap<&str, Disposition> = DISPOSITIONS.iter().copied().collect();
-    assert_eq!(
-        inventory.len(),
-        DISPOSITIONS.len(),
-        "an entry id appears twice in DISPOSITIONS"
-    );
+    assert_eq!(inventory.len(), DISPOSITIONS.len(), "an entry id appears twice in DISPOSITIONS");
+
     let variants = quirk_variants(&root);
-    let switched: BTreeMap<&str, &str> =
+    let behavioural: BTreeMap<&str, &str> =
         variants.iter().map(|(v, e)| (e.as_str(), v.as_str())).collect();
+    let (rows, fields) = presentation(&root);
+    let presentational: BTreeMap<&str, &str> =
+        rows.iter().map(|(f, e)| (e.as_str(), f.as_str())).collect();
 
     let mut problems: Vec<String> = Vec::new();
 
+    // The one that matters most: a quirk cannot be in both homes.
+    for entry in behavioural.keys() {
+        if presentational.contains_key(entry) {
+            problems.push(format!(
+                "  {entry} is implemented in BOTH homes — Quirk::{} on Options and the field \
+                 `{}` on Assets. One of them is wrong and the wrong one is probably the cheap \
+                 one; docs/bugs.md §6.3a has the test.",
+                behavioural[entry], presentational[entry]
+            ));
+        }
+    }
+
     for id in &catalogue {
-        match inventory.get(id.as_str()) {
+        let id = id.as_str();
+        let in_b = behavioural.contains_key(id);
+        let in_p = presentational.contains_key(id);
+        match inventory.get(id) {
             None => problems.push(format!(
-                "  docs/bugs.md has {id} and DISPOSITIONS does not. Say what its switch is."
+                "  docs/bugs.md has {id} and DISPOSITIONS does not. Say what its switch is, and \
+                 which home it is in."
             )),
-            Some(Switchable) if !switched.contains_key(id.as_str()) => problems.push(format!(
-                "  {id} is marked Switchable and no l2_net::Quirk variant names it."
+            Some(Switchable(Behavioural)) if !in_b => problems.push(format!(
+                "  {id} is marked Switchable(Behavioural) and no l2_net::Quirk variant names it.{}",
+                if in_p { " It is on Assets instead — that is the wrong home for a rule." } else { "" }
             )),
-            Some(d) if *d != Switchable && switched.contains_key(id.as_str()) => {
-                problems.push(format!(
-                    "  {id} has the switch Quirk::{} and is not marked Switchable.",
-                    switched[id.as_str()]
-                ))
-            }
+            Some(Switchable(Presentation)) if !in_p => problems.push(format!(
+                "  {id} is marked Switchable(Presentation) and no row of \
+                 l2_game::game::PRESENTATION names it.{}",
+                if in_b {
+                    " It is on Options instead — that costs a save bump and a handshake field \
+                     for something that only changes pixels."
+                } else {
+                    ""
+                }
+            )),
+            Some(d) if !matches!(d, Switchable(_)) && in_b => problems.push(format!(
+                "  {id} has the switch Quirk::{} and is not marked Switchable.",
+                behavioural[id]
+            )),
+            Some(d) if !matches!(d, Switchable(_)) && in_p => problems.push(format!(
+                "  {id} has the presentation switch `{}` and is not marked Switchable.",
+                presentational[id]
+            )),
             _ => {}
         }
     }
@@ -390,25 +530,57 @@ fn every_bug_in_the_catalogue_has_a_disposition_and_every_switch_has_a_bug() {
             ));
         }
     }
+    // The presentation half's own two-way join: table against struct, and table
+    // against catalogue. This is the shape that would have caught a field whose
+    // doc cited an entry that does not exist.
+    for (field, entry) in &rows {
+        if !fields.iter().any(|f| f == field) {
+            problems.push(format!(
+                "  PRESENTATION names `{field}`, which is not a field of l2_game::game::Quirks."
+            ));
+        }
+        if !catalogue.iter().any(|c| c == entry) {
+            problems.push(format!(
+                "  PRESENTATION's `{field}` claims docs/bugs.md entry {entry}, which is not in §2."
+            ));
+        }
+    }
+    for field in &fields {
+        if !rows.iter().any(|(f, _)| f == field) {
+            problems.push(format!(
+                "  l2_game::game::Quirks has the field `{field}` and PRESENTATION does not name \
+                 it, so the quirks page cannot show it and nothing joins it to a catalogue entry."
+            ));
+        }
+    }
 
     if !problems.is_empty() {
         let mut lines = String::new();
         for id in &catalogue {
-            let d = match (inventory.get(id.as_str()), switched.get(id.as_str())) {
-                (_, Some(_)) => "Switchable".to_string(),
-                (Some(Retracted), _) => "Retracted".to_string(),
-                (Some(Unwired(w)), _) => format!("Unwired({w:?})"),
-                (Some(Unswitchable(w)), _) => format!("Unswitchable({w:?})"),
-                (Some(Switchable), None) => "Unwired(\"SAY WHERE\")".to_string(),
-                (None, None) => "Unwired(\"SAY WHERE, or Unswitchable(\\\"why\\\")\")".to_string(),
+            let id = id.as_str();
+            let d = match (
+                inventory.get(id),
+                behavioural.contains_key(id),
+                presentational.contains_key(id),
+            ) {
+                (_, true, _) => "Switchable(Behavioural)".to_string(),
+                (_, _, true) => "Switchable(Presentation)".to_string(),
+                (Some(Retracted), _, _) => "Retracted".to_string(),
+                (Some(Unwired(w)), _, _) => format!("Unwired({w:?})"),
+                (Some(Unswitchable(w)), _, _) => format!("Unswitchable({w:?})"),
+                (Some(Switchable(_)), _, _) => "Unwired(\"SAY WHERE\")".to_string(),
+                (None, _, _) => {
+                    "Unwired(\"SAY WHERE, or Unswitchable(\\\"why\\\")\")".to_string()
+                }
             };
             lines.push_str(&format!("    ({id:?}, {d}),\n"));
         }
         panic!(
-            "the quirk catalogue and the switch list disagree.\n\n{}\n\n\
-             docs/bugs.md §2 is the catalogue and l2_net::Quirk is the switch list, and a \
-             hand-kept copy of one beside the other drifts. If the change is intended, replace \
-             DISPOSITIONS in crates/l2-testkit/tests/quirks_catalogue.rs with:\n\n\
+            "the quirk catalogue and the switch lists disagree.\n\n{}\n\n\
+             docs/bugs.md §2 is the catalogue; l2_net::Quirk is the behavioural switch list and \
+             l2_game::game::PRESENTATION the presentation one. A hand-kept copy of any of them \
+             beside another drifts. If the change is intended, replace DISPOSITIONS in \
+             crates/l2-testkit/tests/quirks_catalogue.rs with:\n\n\
              const DISPOSITIONS: &[(&str, Disposition)] = &[\n{}];\n",
             problems.join("\n"),
             lines
@@ -470,7 +642,7 @@ fn every_switch_is_read_by_the_simulation() {
 /// so a quirk field there would invalidate every existing save on the day it was
 /// added — and would frame a quirk as a *rule*, which it is not. It belongs on
 /// `Options`, which is in the save *body* and therefore already inside the
-/// per-tick lockstep digest. `docs/bugs.md` §6.3, `docs/decisions.md` C61.
+/// per-tick lockstep digest. `docs/bugs.md` §6.3, `docs/decisions.md` C62.
 #[test]
 fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     let root = repo_root();
@@ -484,7 +656,7 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
              into the save header (`ruleset_fingerprint`), so adding one invalidates every \
              existing save — and it frames a quirk as a rule. Put it on \
              `l2_kingdom::kingdom::Options::quirks`, which is in the save body and in the \
-             per-tick digest. docs/bugs.md §6.3, docs/decisions.md C61."
+             per-tick digest. docs/bugs.md §6.3, docs/decisions.md C62."
         );
     }
     // And the other direction: `Options` really is the home, so that this test
@@ -493,7 +665,7 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     assert!(
         kingdom.contains("pub quirks: l2_net::Quirks"),
         "l2_kingdom::kingdom::Options::quirks has moved. It is where the quirk set lives; \
-         docs/decisions.md C61."
+         docs/decisions.md C62."
     );
     let save = read(&root, "crates/l2-kingdom/src/save.rs");
     assert!(
@@ -516,14 +688,17 @@ fn the_switchable_count_is_reported() {
     let count = |f: fn(&Disposition) -> bool| {
         catalogue.iter().filter(|id| inventory.get(id.as_str()).is_some_and(f)).count()
     };
-    let switchable = count(|d| matches!(d, Switchable));
+    let behavioural = count(|d| matches!(d, Switchable(Behavioural)));
+    let presentation = count(|d| matches!(d, Switchable(Presentation)));
+    let switchable = behavioural + presentation;
     let unwired = count(|d| matches!(d, Unwired(_)));
     let unswitchable = count(|d| matches!(d, Unswitchable(_)));
     let retracted = count(|d| matches!(d, Retracted));
 
     eprintln!(
-        "quirk catalogue: {} entries in docs/bugs.md §2 — {switchable} switchable, \
-         {unwired} unwired, {unswitchable} unswitchable, {retracted} retracted",
+        "quirk catalogue: {} entries in docs/bugs.md §2 — {switchable} switchable \
+         ({behavioural} behavioural, {presentation} presentation), {unwired} unwired, \
+         {unswitchable} unswitchable, {retracted} retracted",
         catalogue.len()
     );
     assert_eq!(
@@ -532,8 +707,13 @@ fn the_switchable_count_is_reported() {
         "an entry fell out of every bucket"
     );
     assert_eq!(
-        switchable,
+        behavioural,
         quirk_variants(&root).len(),
-        "the number of Switchable rows and the number of Quirk variants must be the same number"
+        "Switchable(Behavioural) rows and l2_net::Quirk variants must be the same number"
+    );
+    assert_eq!(
+        presentation,
+        presentation_rows(&root),
+        "Switchable(Presentation) rows and l2_game::game::PRESENTATION rows must be the same number"
     );
 }

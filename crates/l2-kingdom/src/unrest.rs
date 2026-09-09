@@ -96,7 +96,7 @@ fn update_human(county: &mut County, id: u8, out: &mut Vec<Message>) -> bool {
 
 /// **Switchable** — [`Quirk::AiUnrestDeadBand`], `docs/bugs.md` B17.
 ///
-/// The fixed path moves the climb.s threshold from [`AI_UNREST_BELOW`] to
+/// The fixed path moves the climb's threshold from [`AI_UNREST_BELOW`] to
 /// [`AI_SETTLE_AT_OR_ABOVE`], which closes the hole **upwards**: happiness
 /// 1..=10 then climbs, which is what the ladder plainly intends and what a
 /// mistyped `< 11` would have given. It deliberately does *not* extend the

@@ -335,7 +335,7 @@ pub struct Settings {
     /// It sits with the six *rule* settings rather than the six starting
     /// conditions because it is one: it lives for the length of the game, it
     /// goes into the save, and it is in the lockstep digest.
-    /// `docs/decisions.md` C61.
+    /// `docs/decisions.md` C62.
     pub quirks: l2_kingdom::Quirks,
     // The six that are starting conditions and are spent once.
     pub gold: i32,
