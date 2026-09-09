@@ -42,6 +42,14 @@
       "title": "Map loading and rendering"
     },
     {
+      "id": "netcode",
+      "title": "Networking transport (DirectPlay and SierraNW)"
+    },
+    {
+      "id": "platform",
+      "title": "Platform: window, DirectDraw, video and the log"
+    },
+    {
       "id": "sound",
       "title": "Sound"
     },
@@ -296,6 +304,14 @@
       "comment": "Draws the chevron (\"overhang\") records that sit above a diamond tile. Reaches them by adding a fixed body size to the frame data pointer: 900 at zoom 0, 0xC4 at zoom 1, 0x24 at zoom 2, which are h*h/2 for h = 30, 14 and 6 and so pin the three tile sizes from the instruction stream alone."
     },
     {
+      "addr": "0x004071A0",
+      "name": "Sprite_TopIt",
+      "section": "sprite",
+      "confidence": "verified",
+      "signature": "int Sprite_TopIt(int a, int b, int c)",
+      "comment": "THE GAME'S OWN NAME FOR THIS ROUTINE: its three failure messages read \"ERR:top_it no data \" and \"ERR:top_it bad data \", written by Log_Write from a literal address (0x004D1C6C-ish) at 0x004071A0. The whole 0x00409934-0x0040A9B0 blitter family names itself the same way and five of those names confirm symbols we had already guessed - see docs/decisions.md CNEW-selfname. Draws the part of a tall map sprite that overhangs the tile above it; it marks the tiles it touches through the dirty helpers at 0x00452436/0x00452489/0x004524DC."
+    },
+    {
       "addr": "0x004081A6",
       "name": "Map_DrawPathMarker",
       "section": "ui",
@@ -318,6 +334,22 @@
       "confidence": "verified",
       "signature": "void Ui_DrawBox(int x, int y, int cols, int rows)",
       "comment": "Ui_DrawBoxBorder(0, ...) plus Ui_DrawBoxInterior inset by one cell. Sizes are in 16-pixel cells: the strip under the far-zoom map is Ui_DrawBox(0, 412, 30, 4) = 480x64."
+    },
+    {
+      "addr": "0x0040946D",
+      "name": "Sprite_GenFrame",
+      "section": "sprite",
+      "confidence": "verified",
+      "signature": "void Sprite_GenFrame(int a, int b, int c, int d)",
+      "comment": "The game calls this routine `gen_frame`: its two failure messages are \"ERR:gen_frame bad data \". Sibling of Ui_DrawBoxBorder (`mos_frame`) - the `gen_` family takes a caller-supplied sheet where the `mos_` family uses the mosaic sheet."
+    },
+    {
+      "addr": "0x004097C5",
+      "name": "Sprite_GenBlank",
+      "section": "sprite",
+      "confidence": "verified",
+      "signature": "void Sprite_GenBlank(int a, int b, int c, int d)",
+      "comment": "The game calls this routine `gen_blank` (\"ERR:gen_blank bad data \"). Sibling of Ui_DrawBoxInterior (`mos_blank`)."
     },
     {
       "addr": "0x00409934",
@@ -352,6 +384,14 @@
       "comment": "Blits a bare w*h raster with no PL8 record through the standard clipper. Used for the 128x128 minimap picture."
     },
     {
+      "addr": "0x0040A127",
+      "name": "Sprite_GenSprite",
+      "section": "sprite",
+      "confidence": "verified",
+      "signature": "void Sprite_GenSprite(int a, int b, int c)",
+      "comment": "The game calls this routine `gen_sprite` (\"ERR:gen_sprite bad data \")."
+    },
+    {
       "addr": "0x0040A21A",
       "name": "Pl8_DrawFrame",
       "section": "sprite",
@@ -360,12 +400,44 @@
       "comment": "Reads the frame record at buf + frame*0x10 + 8, range-checks the data offset, calls the clipper, dispatches to a blitter. Independently confirms the 8-byte header / 16-byte record layout inferred from offset arithmetic. Also reads record bytes +12, +13 and +14."
     },
     {
+      "addr": "0x0040A3D0",
+      "name": "Pl8_DrawFrameClipped",
+      "section": "sprite",
+      "confidence": "verified",
+      "signature": "void Pl8_DrawFrameClipped(int buf, int frame, int x, int y)",
+      "comment": "The game calls this routine `write_c_sprite` (\"ERR:write_c_sprite no data \" / \"bad data \") - the clipped twin of Pl8_DrawFrame, whose own messages say `write_sprite`. The three-message shape (no data / bad data / bad data) is identical in both, which is what identifies them as a pair."
+    },
+    {
       "addr": "0x0040A567",
       "name": "Pl8_DrawFrameHere",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Pl8_DrawFrameHere(int sheet, int frame, int x, int y)",
       "comment": "Pl8_DrawFrame without the inline range diagnostics: reads the 16-byte frame record, sets g_drawX/g_drawY and g_clipDstAdvance = 0x280 - width. That 0x280 is where the 640-byte screen stride is visible."
+    },
+    {
+      "addr": "0x0040A682",
+      "name": "Sprite_WGenSprite",
+      "section": "sprite",
+      "confidence": "verified",
+      "signature": "void Sprite_WGenSprite(int a, int b, int c)",
+      "comment": "The game calls this routine `w_gen_sprite` (\"ERR:w_gen_sprite bad data \"). One of three `w_gen_*` variants at 0x0040A682, 0x0040A80E and 0x0040A9B0; what the `w_`, `_h_` and `_f_` stand for is NOT established here."
+    },
+    {
+      "addr": "0x0040A80E",
+      "name": "Sprite_WGenHSprite",
+      "section": "sprite",
+      "confidence": "verified",
+      "signature": "void Sprite_WGenHSprite(int a, int b, int c)",
+      "comment": "The game calls this routine `w_gen_h_sprite` (\"ERR:w_gen_h_sprite bad data \")."
+    },
+    {
+      "addr": "0x0040A9B0",
+      "name": "Sprite_WGenFSprite",
+      "section": "sprite",
+      "confidence": "verified",
+      "signature": "void Sprite_WGenFSprite(int a, int b, int c)",
+      "comment": "The game calls this routine `w_gen_f_sprite` (\"ERR:w_gen_f_sprite bad data \")."
     },
     {
       "addr": "0x0040C5B0",
@@ -474,6 +546,30 @@
       "confidence": "verified",
       "signature": "int Ui_OkButtonClicked(void)",
       "comment": "Hit-tests the corner picture Ui_OkButton last drew: returns 0 unless the LEFT button was released this frame (DAT_004E65D8) inside a 24x24 box at (DAT_0055CE78, DAT_0057C8A0), and on a hit calls FUN_004B18E3 to consume the click. Ui_OkButton is the only writer of those two globals and stashes only its LAST call's position, so on a screen that draws two corner pictures only the second is clickable - which is safe only because the draw pass runs before this one in the frame. Screen_FrameInput calls it 26 times. The message scroll has its own, larger hotspot: FUN_0047685D tests a 48x48 box round a copy of the same coordinates."
+    },
+    {
+      "addr": "0x0040E8BB",
+      "name": "App_IdleFrame",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int App_IdleFrame(void)",
+      "comment": "One turn of the idle work App_WinMain does when no window message is waiting. Asks IDirectDrawSurface::IsLost (vtable +0x60) of both surfaces and compares against DDERR_SURFACELOST (0x887601C2, which the decompiler prints as -0x7789fe3e); if either is lost it calls Display_RestoreSurfaces and, on failure, App_OnPaused and returns 0. Otherwise it steps the season/turn drivers and calls App_Draw (0x0040E890). Returns 0 when a quit has been requested (g_quitRequest == 1)."
+    },
+    {
+      "addr": "0x0040E9AB",
+      "name": "App_WinMain",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int App_WinMain(int hInstance)",
+      "comment": "[V] WinMain. The PE entry point is 0x004C3370 (SizeOfImage header, EntryPoint RVA 0xC3370) and 0x004C3370 is the ONLY caller of this function; it takes an HINSTANCE and returns msg.wParam, which is WinMain's exact shape. Reads L2.eng into g_engText (120,000 bytes), calls App_InitWindow, Sound_Init, then loops on PeekMessageA/GetMessageA, calling Net_PumpReceive whenever the queue is empty and App_IdleFrame when the window is active. Its five log lines are the game's own account of its startup: \"ERR:Exited, couldn't InitApp.\", \"OK :Game partialy setup.\", \"ERR:Exited, couldn't InitGame.\", \"OK :Game fully setup.\", \"ERR:Exited, couldn't LoadGame.\"."
+    },
+    {
+      "addr": "0x0040EC2C",
+      "name": "App_PumpOnce",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int App_PumpOnce(void)",
+      "comment": "One iteration of App_WinMain's message pump, lifted out so a modal wait can keep the window alive: PeekMessageA, else Net_PumpReceive; GetMessageA/TranslateMessage/DispatchMessageA; returns 0 on WM_QUIT. Called from the multiplayer preload wait at 0x004ADCF6."
     },
     {
       "addr": "0x0040ECC4",
@@ -1409,12 +1505,196 @@
       "comment": "Reads one .skr terrain layer: 0x1900 bytes at file offset index * 0x1900 + 0x1674. See docs/formats/skr.md."
     },
     {
+      "addr": "0x0042D91B",
+      "name": "Smk_Play",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Smk_Play(int path, int x, int y, int mode, int returnScreen)",
+      "comment": "Plays a Smacker movie. Calls Smk_Open and, if it opened, parks g_screenId at 0x22 - the movie screen - after stashing returnScreen in g_smkReturnScreen for Smk_OnFinished; if it did not open, it goes straight to returnScreen. Seven callers, and they are the game's whole video inventory: the setup chain, CastleBuild_Confirm, Msg_DrawWindow, Battle_CheckOutcome and Smk_ReplayIntro."
+    },
+    {
+      "addr": "0x0042D96E",
+      "name": "Smk_PlayThenClose",
+      "section": "platform",
+      "confidence": "inferred",
+      "signature": "int Smk_PlayThenClose(int path, int x, int y)",
+      "comment": "Smk_Open followed immediately by SmackClose and Restore_WorkingDir - a movie played to completion inside the call rather than driven by the screen loop. NO CALLERS in the decompiled corpus, so what it was for is not established."
+    },
+    {
+      "addr": "0x0042DA18",
+      "name": "Smk_Open",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Smk_Open(int path, int x, int y, int mode)",
+      "comment": "Opens a .smk: Smk_BindDirectSound, then Cd_PathForFile or Hd_PathForFile depending on File_Exists' verdict, then SmackOpen(path, flags, -1) with flags 0x2000 when DirectSound is up and 0x2400 when mode == 1. Sets g_smkPlaying, calls SmackToBuffer(smack, x, y, 640, 480, g_backBufferBits, 0) and hands off to Smk_PlayLoop. Logs \"OK :SMK starting smack \" or \"ERR:SMK Could not open \" and then \"MEM:Max alloc after = \" with Mem_AvailPhysical."
+    },
+    {
+      "addr": "0x0042DBC7",
+      "name": "Smk_PlayLoop",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Smk_PlayLoop(void)",
+      "comment": "The movie's own frame loop: SmackWait, SmackDoFrame, SmackToBufferRect, SmackNextFrame, locking and unlocking the surface around each frame (\"ERR:DD surface lock error:\"), applying the movie's palette through Smk_ApplyPalette, and ending on \"OK :SMK natural end of \" into Smk_OnFinished."
+    },
+    {
+      "addr": "0x0042DF30",
+      "name": "Smk_Skip",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Smk_Skip(void)",
+      "comment": "The player skipped the movie: closes it and runs Smk_OnFinished. Its log line is the game's own word for the case - \"OK :SMK user ends \". Called from Screen_FrameInput, from 0x0043AD25 and from Net_LeaveGame."
+    },
+    {
+      "addr": "0x0042DFE2",
+      "name": "Smk_CloseQuiet",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Smk_CloseQuiet(void)",
+      "comment": "Closes a playing movie WITHOUT running Smk_OnFinished and without logging - the teardown path, called only from App_WndProc's WM_DESTROY."
+    },
+    {
+      "addr": "0x0042E060",
+      "name": "Smk_OnFinished",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Smk_OnFinished(void)",
+      "comment": "What happens when a movie ends, and it is where the title sequence is chained: during startup (g_appPhase == 1) intro.smk hands to imptitle.smk at (0x50, 0x50) and imptitle.smk hands to credits.smk at (0, 0), each returning to screen 0x1F; otherwise it restores g_screenId from g_smkReturnScreen, reloads the county or battle art and repaints. The chain is driven by strcmp against the stored path, not by a table."
+    },
+    {
+      "addr": "0x0042E26F",
+      "name": "Smk_IsPlaying",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Smk_IsPlaying(void)",
+      "comment": "Returns g_smkPlaying. Read by exactly two callers and both matter: Gfx_Present skips presenting while a movie is up, and App_WndProc's WM_PAINT routes to Smk_OnPaint instead of the ordinary repaint."
+    },
+    {
+      "addr": "0x0042E298",
+      "name": "Smk_CopyPalette",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Smk_CopyPalette(void)",
+      "comment": "Copies 256 RGB triples out of the Smack structure at +0x6C into g_paletteRgb. That fixes SmackBuf's palette at offset 0x6C, read out of the running game rather than from a header."
+    },
+    {
+      "addr": "0x0042E320",
+      "name": "Smk_BindDirectSound",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Smk_BindDirectSound(void)",
+      "comment": "Calls SmackSoundUseDirectSound (imported as _SetDirectSoundHWND_4) with g_directSound, once, guarded by a latch. Always returns 1."
+    },
+    {
+      "addr": "0x0042E362",
+      "name": "Smk_ApplyPalette",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Smk_ApplyPalette(void)",
+      "comment": "Smk_CopyPalette then Palette_Upload - the movie's palette becomes the screen palette every frame."
+    },
+    {
+      "addr": "0x0042E381",
+      "name": "Smk_ReplayIntro",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Smk_ReplayIntro(void)",
+      "comment": "Stops the music and replays one of the intro movies, chosen by g_smkTestIndex into the 16-byte filename table beginning at 0x004D4D60 (\"Intro.smk\"). Its only caller is SmackTest_Close, so this is the debug movie viewer's replay button."
+    },
+    {
+      "addr": "0x0042E3BA",
+      "name": "Smk_OnPaint",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Smk_OnPaint(int hwnd)",
+      "comment": "WM_PAINT while a movie is up: BeginPaint, PatBlt the movie's own width and height (SmackBuf +4 and +8) with BLACKNESS (0x42), EndPaint, then SmackSoundOnOff/SmackGoto/SmackSoundOnOff to re-seek to the frame we were on. Independently fixes SmackBuf +4 and +8 as width and height."
+    },
+    {
+      "addr": "0x0042E45E",
+      "name": "Gfx_BlitRectToWindow",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_BlitRectToWindow(int x, int y, int w, int h)",
+      "comment": "Copies one rectangle of the back buffer to the primary surface, offset by the window's client origin. Windowed it is IDirectDrawSurface::Blt (vtable +0x14) with DDBLT_WAIT|DDBLT_ASYNC (0x1000200); full-screen it is BltFast (+0x1C) with DDBLTFAST_WAIT (0x10). Both vtable offsets are the documented IDirectDrawSurface slots and all six calls in the binary agree."
+    },
+    {
+      "addr": "0x0042E50D",
+      "name": "Gfx_BlitScreenToWindow",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_BlitScreenToWindow(void)",
+      "comment": "Gfx_BlitRectToWindow for the whole 640x480 frame. Called from App_WndProc when the window moves or resizes while a movie is on screen (g_screenId 0x22)."
+    },
+    {
       "addr": "0x0042E5C0",
       "name": "Display_Init",
       "section": "ui",
       "confidence": "inferred",
       "signature": "void Display_Init(void)",
       "comment": "Sets g_desktopBpp = GetDeviceCaps(BITSPIXEL) * GetDeviceCaps(PLANES) and FORCES g_optFullScreen = 1 whenever that is not 8. On any modern desktop the Display panel's 'Full screen' row is therefore a permanent Yes that Opt_ToggleFullScreen also refuses to change (it raises message 260 instead). We do not reproduce it: this engine is a winit window. See crates/l2-game/src/screens/options.rs."
+    },
+    {
+      "addr": "0x0042EAA6",
+      "name": "Display_ReleaseSurfaces",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Display_ReleaseSurfaces(int alsoReleaseDirectDraw)",
+      "comment": "Releases the clipper, the back buffer and the primary surface, in that order, and - only when alsoReleaseDirectDraw is set - the IDirectDraw object itself, logging \"OK :DD Released.\". Also zeroes g_backBufferBits, which is why any pointer into the back buffer held across a mode change is stale."
+    },
+    {
+      "addr": "0x0042EB7C",
+      "name": "Display_ClearSurfaces",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Display_ClearSurfaces(void)",
+      "comment": "UpdateWindow, then a DDBLT_COLORFILL|DDBLT_WAIT (0x1000400) Blt of colour 0 over the primary surface (windowed) or over back buffer and primary in turn (full-screen). Its three failure messages number themselves - \"ERR:DD Clearing(W) Fill failed ddrval:\", \"... failed no:\" 1 and 2 - which is how the two full-screen calls are told apart in a log."
+    },
+    {
+      "addr": "0x0042EC91",
+      "name": "Display_CreateSurfaces",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Display_CreateSurfaces(void)",
+      "comment": "Creates the drawing surfaces and says so in its own words. Windowed: one primary surface, one system-memory back buffer through Display_CreateSurface(g_screenStride, g_screenHeight, 1), an IDirectDrawClipper (IDirectDraw vtable +0x10) bound to the game window and attached to the primary with SetClipper (+0x70) - \"OK :DD Creating one Vram and one system surface.\" ... \"OK :DD Surfaces created and clipper attached.\". Full-screen: primary plus back buffer and no clipper - \"OK :DD Creating one Vram only.\" ... \"OK :DD Surface created.\". Locks each surface once at creation to capture g_backBufferBits."
+    },
+    {
+      "addr": "0x0042F148",
+      "name": "Display_CreateSurface",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Display_CreateSurface(int width, int height, int inSystemMemory)",
+      "comment": "IDirectDraw::CreateSurface (vtable +0x18) for an offscreen plain surface of the given size, in system memory when the third argument is set. Returns the surface or 0 after logging \"ERR:DD ExtraSurface failed.\"."
+    },
+    {
+      "addr": "0x0042F1DF",
+      "name": "Palette_Create",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Palette_Create(int resetSystemUse)",
+      "comment": "Builds the 256 PALETTEENTRYs (Palette_ToWindowedEntries or Palette_ToFullScreenEntries), releases any existing palette, creates a new one with IDirectDraw::CreatePalette (vtable +0x14, flags 0x44 = DDPCAPS_8BIT|DDPCAPS_ALLOW256) and attaches it with IDirectDrawSurface::SetPalette (+0x7C). When resetSystemUse is set and we are windowed it first toggles SetSystemPaletteUse to SYSPAL_NOSTATIC and back, the standard trick for reclaiming the twenty system colours."
+    },
+    {
+      "addr": "0x0042F306",
+      "name": "Palette_ToFullScreenEntries",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Palette_ToFullScreenEntries(void)",
+      "comment": "Expands g_paletteRgb into g_paletteFull as PALETTEENTRYs. Index 0 is forced to the RGB at 0x004D50F0 and index 255 to the one at 0x004D4E2E+765, both with peFlags 0; indices 1..254 carry peFlags 4 (PC_RESERVED). So full-screen the game keeps 254 of the 256 slots."
+    },
+    {
+      "addr": "0x0042F449",
+      "name": "Palette_ToWindowedEntries",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Palette_ToWindowedEntries(void)",
+      "comment": "The windowed twin of Palette_ToFullScreenEntries, and the asymmetry is the point: indices 0..9 and 0xF6..0xFF are read BACK from the system palette into g_paletteRgb rather than written to it, and only 10..0xF5 are ours with peFlags 4. That is Windows' twenty static system colours, and it is why our own palette handling must reserve the same twenty if a windowed screenshot is ever to match."
+    },
+    {
+      "addr": "0x0042F58C",
+      "name": "Palette_Upload",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Palette_Upload(void)",
+      "comment": "Rebuilds the entry table for the current mode and pushes all 256 entries with IDirectDrawPalette::SetEntries (vtable +0x18). The per-frame path; Palette_Create is the once-per-mode path."
     },
     {
       "addr": "0x0042FF10",
@@ -2519,6 +2799,30 @@
       "comment": "Clicking an industry building on the campaign map switches that industry on or off: it XORs the enable byte at +0x297 + industry*0x18 - the byte Labour_Allocate gates each mining job on - and maps the industry to its labour slot (0 wood -> 6, 1 iron -> 4, 2 weapons -> 7, 3 stone -> 5). Argument 4 is castle building instead, and toggles +0x1B0. Map_Click picks the argument from a ladder on g_pickedTileGraphic: 0..3 iron, 4..6 stone, 7..9 weapons, 10..12 wood, 13..20 nothing, 21+ castle. [V] The last statement is Msg_Enqueue with id 0xE6 + industry*2 + on, and L2.eng groups 228..237 are ten consecutive ONE-STRING groups that land in exactly that order: 230/231 Forestry, 232/233 Mining, 234/235 Blacksmith, 236/237 Quarrying - which confirms the industry numbering 0 wood, 1 iron, 2 weapons, 3 stone independently of the labour ladder. The castle arm does not use industry*2 at all; it writes -2 or -1 by hand, landing on 228 Building off and 229 Building on. A player described this mechanic unprompted the day it was found - 'you can click on the forest or mine on the main map to turn them off for that county. Forestry off. Forestry On.' - and the shipped Readme.txt describes it a third time. See docs/kingdom.md 7.4.1."
     },
     {
+      "addr": "0x0043E668",
+      "name": "Net_Fail",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_Fail(int message)",
+      "comment": "Logs \"ERR:Network:\" followed by the caller's own message, shuts the transport down with Net_Shutdown(1) and posts WM_CLOSE to the game window. The single exit for an unrecoverable transport error."
+    },
+    {
+      "addr": "0x0043E6A2",
+      "name": "Net_OnSessionEvent",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_OnSessionEvent(int event, int player)",
+      "comment": "[V] The nine session events, named by their own log lines: 0 connect, 1 add player, 2 delete player, 3 session lost, 4 host, 5 add player to group, 6 delete player from group, 7 set player or group data, 8 set player or group name - the DirectPlay system-message set, spelled \"OK :DP netsys - ...\". Only 2 and 4 do anything: a departing player is removed from the realm table and, once fewer than two realms remain, the game leaves the session and returns to the setup screen; 4 marks the session started."
+    },
+    {
+      "addr": "0x0043EAC1",
+      "name": "Net_ApplyPacket",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_ApplyPacket(int fromPlayer)",
+      "comment": "[V] The receive half of Net_SendCommand. Validates a packet in g_netRecvPacket: byte 0 is the opcode, byte 1 the payload length checked against g_netCmdLength, byte 2 an 8-bit checksum recomputed over the packet, byte 3 the sequence number in its low six bits and a resend flag in the top two. Then it points g_netReadCursor at the payload and calls g_netCmdHandlers[opcode]. Its four rejections are logged verbatim: \"ERR:Corrupt packet from \", \"ERR:Resend Forced from \", \"ERR:Bad packet CRC from \", \"ERR:Wrong size packet from \"."
+    },
+    {
       "addr": "0x0043EDA0",
       "name": "Net_SendCommand",
       "section": "units",
@@ -3193,12 +3497,188 @@
       "comment": "Recomputes the three minimap overlay ratings for every county, and Minimap_DrawOverlay calls it first on every draw. It is the ONLY writer of county +0x01, +0x02 and +0x03 - three of the five bytes Sync_CompareState skips, which is what they are: interface state, not simulation. +0x03 labour: 0 if job 0 or 1 is below its wanted floor, else 6 if idle townsfolk plus over-staffed jobs is zero, else 5. +0x02 food: 0 if rationAchieved < rationWanted, else 6. +0x01 happiness: happiness / 20, so 0..5. TWO OF THE THREE MODES ROUTINELY PRODUCE 6, which is off the end of the six-entry g_minimapRatingRamp and colours nothing - so the shipped food overlay is a single red mark on counties that went short and nothing else, and the labour overlay paints only the ramp's two ends. That is not a misreading: a second food branch spreading rationAchieved over bands 1..5 sits behind DAT_00553E60, a debug flag zeroed at 0x00497500 and toggled only in the window procedure at 0x004B29BE. Found by scanning the binary for divide-by-20 sites; there are exactly two. docs/decisions.md C59."
     },
     {
+      "addr": "0x00451F70",
+      "name": "Gfx_Repaint",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_Repaint(void)",
+      "comment": "Gfx_MarkAllDirty then Gfx_Present(1) - mark the whole screen and present it now, ignoring the frame budget. The one-line answer to \"get what we have drawn onto the glass\", used by WM_PAINT, by the full-screen toggle and by the modal dialogs."
+    },
+    {
+      "addr": "0x00451F8A",
+      "name": "Gfx_ForceFullRedraw",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_ForceFullRedraw(void)",
+      "comment": "Marks the whole screen dirty and sets five separate 'redraw everything' latches, g_redrawRequest among them. Called when a game starts (Setup_StartGame) and from the two multiplayer game-start paths."
+    },
+    {
       "addr": "0x00451FCC",
       "name": "Map_SetZoom",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Map_SetZoom(int zoom)",
       "comment": "The only writer of the campaign map geometry. Sets ten globals per zoom: g_mapZoom, g_mapScrollStep 1/2/4, g_mapViewCols 8/17/40, g_mapViewRows 30/64/128, g_mapViewX 0/4/0, g_mapViewY 9/17/21, g_mapTilePitch 60/28/12, g_mapHalfPitch and g_mapTileHalfStep 30/14/6, g_mapRowStep 15/7/3; then derives g_mapViewRight = pitch*cols + viewX (480 at all three) and g_mapViewBottom = (rows+1)*rowStep + viewY (474/472/408). Case 1 is unreachable: nothing in the binary ever passes 1, and g_mapZoom has no other writer than 0."
+    },
+    {
+      "addr": "0x00452160",
+      "name": "Gfx_Present",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_Present(int force)",
+      "comment": "[V] THE FRAME LIMITER, and it caps the game at 20 frames a second. Adds Frame_Tick's elapsed milliseconds to g_presentBudgetMs, forces it to 0x32 when force is set or a widget asked for it, and presents only once the budget passes 0x31 - fifty milliseconds. The present itself is IDirectDrawSurface::Blt of the back buffer to the primary when windowed and BltFast when full-screen; then g_dirtyCount is decremented and, at zero, the dirty box is reset to its empty sentinel. Skipped entirely while a Smacker movie is up. Sixteen callers, every one a screen painter."
+    },
+    {
+      "addr": "0x00452306",
+      "name": "Gfx_MarkDirty",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkDirty(int left, int top, int right, int bottom)",
+      "comment": "[V] Grows the dirty box to cover a rectangle and raises g_dirtyCount to at least 1. THE BOX IS WRITE-ONLY: g_dirtyLeft/Top/Right/Bottom are referenced by five sites each in the whole decompiled corpus and all five are in this function and Gfx_Present's reset - nothing ever reads them to build a blit rectangle, so the accumulation is vestigial and only the counter has an effect. It also carries a copy-paste defect that the vestigiality hides: the bottom clamp tests against 0x27F, the RIGHT edge's bound, and assigns 0x1DF. docs/bugs.md BNEW-dirtybox. Fourteen wrappers call it; they are the only entry points."
+    },
+    {
+      "addr": "0x004523E6",
+      "name": "Gfx_MarkRightHalfDirty",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkRightHalfDirty(void)",
+      "comment": "Gfx_MarkDirty(0x140, 0, 0x27F, 0x1DF) - columns 320..639, the county strip's half of the screen. Its only caller is CountyStrip_Draw."
+    },
+    {
+      "addr": "0x0045240A",
+      "name": "Gfx_MarkAllDirty",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkAllDirty(void)",
+      "comment": "Gfx_MarkDirty(0, 0, 0x27F, 0x1DF) - the whole 640x480 frame. EIGHTY-FIVE callers, which is nearly every screen painter in the binary: a screen that repaints itself marks everything dirty rather than tracking what it touched."
+    },
+    {
+      "addr": "0x0045242B",
+      "name": "Gfx_MarkNothing1",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkNothing1(void)",
+      "comment": "An empty function in the dirty-rect family, called once from Battle_Frame. Two more like it sit at 0x0045276A and 0x0045280B. All three compile to a bare return, so whatever they marked was removed; they are kept named so a reader does not go looking."
+    },
+    {
+      "addr": "0x00452436",
+      "name": "Gfx_MarkTile32",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkTile32(int tx, int ty)",
+      "comment": "Marks a 32x32 box at 16-pixel cell (tx, ty), clamping negatives to zero. One of seven cell-indexed wrappers whose only difference is the box size: 0x20 here, 0x30 at 0x00452489, 0x40 at 0x004524DC and 0x0045252F, 0x50 at 0x00452582 and 0x00452660, 0x60 at 0x004525D5, 0xC8 by 0xA0 at 0x004526B3."
+    },
+    {
+      "addr": "0x00452489",
+      "name": "Gfx_MarkTile48",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkTile48(int tx, int ty)",
+      "comment": "48x48 at 16-pixel cell (tx, ty). See Gfx_MarkTile32."
+    },
+    {
+      "addr": "0x004524DC",
+      "name": "Gfx_MarkTile64",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkTile64(int tx, int ty)",
+      "comment": "64x64 at 16-pixel cell (tx, ty). Its only caller is Map_DrawArmies. See Gfx_MarkTile32."
+    },
+    {
+      "addr": "0x0045252F",
+      "name": "Gfx_MarkTile64Alt",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkTile64Alt(int tx, int ty)",
+      "comment": "Byte-for-byte the same as Gfx_MarkTile64 and NO CALLERS. Duplicate-and-edit is how this family was written and four of the eight are dead."
+    },
+    {
+      "addr": "0x00452582",
+      "name": "Gfx_MarkTile80",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkTile80(int tx, int ty)",
+      "comment": "80x80 at 16-pixel cell (tx, ty). No callers."
+    },
+    {
+      "addr": "0x004525D5",
+      "name": "Gfx_MarkTile96",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkTile96(int tx, int ty)",
+      "comment": "96x96 at 16-pixel cell (tx, ty). No callers."
+    },
+    {
+      "addr": "0x00452628",
+      "name": "Gfx_MarkTileWide",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkTileWide(int tx, int ty)",
+      "comment": "80 wide by 48 high at 16-pixel cell (tx, ty) - the isometric map tile's own footprint, which is why Map_DrawTile calls this one when it clears a tile's redraw bit."
+    },
+    {
+      "addr": "0x00452660",
+      "name": "Gfx_MarkTile80Alt",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkTile80Alt(int tx, int ty)",
+      "comment": "The same box as Gfx_MarkTile80. No callers."
+    },
+    {
+      "addr": "0x004526B3",
+      "name": "Gfx_MarkPanel",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkPanel(int tx, int ty)",
+      "comment": "200 wide by 160 high at 16-pixel cell (tx, ty) - the largest of the family and the only non-square one besides Gfx_MarkTileWide. No callers."
+    },
+    {
+      "addr": "0x0045270A",
+      "name": "Gfx_MarkMapViewDirty",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkMapViewDirty(void)",
+      "comment": "Gfx_MarkDirty(0, 0x18, 0x1DE, 0x1DF) and sets g_mapRedraw - rows 24..479, columns 0..478: the campaign map viewport below the menu bar and left of the county strip. That rectangle is the map view's extent, stated by the engine rather than measured off a screenshot."
+    },
+    {
+      "addr": "0x00452735",
+      "name": "Gfx_MarkMapViewTwice",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkMapViewTwice(void)",
+      "comment": "As Gfx_MarkMapViewDirty but forces g_dirtyCount to 2, so the change is pushed on two consecutive presents. No callers."
+    },
+    {
+      "addr": "0x0045276A",
+      "name": "Gfx_MarkNothing2",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkNothing2(void)",
+      "comment": "Empty; see Gfx_MarkNothing1."
+    },
+    {
+      "addr": "0x00452775",
+      "name": "Gfx_MarkWidgetUrgent",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkWidgetUrgent(int x, int y, int wCells, int hCells, int level)",
+      "comment": "Sets g_presentNow and falls through to Gfx_MarkSpriteDirty. g_presentNow makes Gfx_Present skip the fifty-millisecond budget on the next call, so this is the 'this widget must appear immediately' path - Widget_Draw and the two button painters at 0x0040D6AD and 0x0040D7B8 are its only callers."
+    },
+    {
+      "addr": "0x004527A6",
+      "name": "Gfx_MarkSpriteDirty",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkSpriteDirty(int x, int y, int wCells, int hCells, int level)",
+      "comment": "Marks a box at pixel (x, y) whose size is given in 16-pixel CELLS, and raises g_dirtyCount to 2 when level is above 1. Sixty-seven callers - the general 'I drew a sprite here' call, as against Gfx_MarkAllDirty's 'I repainted the screen'."
+    },
+    {
+      "addr": "0x0045280B",
+      "name": "Gfx_MarkNothing3",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_MarkNothing3(void)",
+      "comment": "Empty; see Gfx_MarkNothing1."
     },
     {
       "addr": "0x004650B0",
@@ -6444,6 +6924,22 @@
       "comment": "The full-install check. Opens swor_p2.wav as a sentinel, then pumkin.wav or pumkin2.wav, calls __filelength and tests it against 151,000,000. The 320 MB is there to be WEIGHED, never played. DAT_005C9A74 is set to 1 before the test and 1 again in both success branches, so the check is inert (docs/bugs.md D31)."
     },
     {
+      "addr": "0x004AF116",
+      "name": "Cd_PathForFile",
+      "section": "fileio",
+      "confidence": "inferred",
+      "signature": "void Cd_PathForFile(int path)",
+      "comment": "Takes a filename's extension, and for the four it recognises builds a directory under the CD-ROM drive letter (g_cdDrive) and chdirs to it. Paired with Restore_WorkingDir, which every caller runs afterwards. INFERRED: which four extensions map to which directory is not read out here, only that the shape is extension -> directory -> chdir."
+    },
+    {
+      "addr": "0x004AF312",
+      "name": "Hd_PathForFile",
+      "section": "fileio",
+      "confidence": "inferred",
+      "signature": "void Hd_PathForFile(int path)",
+      "comment": "The hard-disk twin of Cd_PathForFile: builds a subdirectory of the ORIGINAL working directory saved at startup and chdirs there. The .smk case is the visible one - \"\\smk_low\" or \"\\smk_high\" chosen on g_hiResVideo - so the two video quality sets are two directories, not two files."
+    },
+    {
       "addr": "0x004AF502",
       "name": "Restore_WorkingDir",
       "section": "fileio",
@@ -6468,12 +6964,68 @@
       "comment": "open / lseek / read / close. Retries twice after chdir on failure - almost certainly the original CD-path lookup."
     },
     {
+      "addr": "0x004AFAB9",
+      "name": "Log_Write",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Log_Write(int message, int extra, int numberPlusOne)",
+      "comment": "[V] THE SINGLE BEST NAMING LEVER IN THE ENGINE LAYER, and the counterpart of Eng_DrawString for code that has no L2.eng text. Appends one line to status.txt: a timestamp from Log_Timestamp, the literal string at `message`, optionally the string at `extra`, and optionally a number. THE NUMBER IS PASSED PLUS ONE so that 0 can mean 'no number' - every caller writes `value + 1` and Log_Write undoes it before Ui_NumberToBuffer. Eighty-five functions call it with a literal message address and the messages name their own subject: \"ERR:top_it bad data \", \"OK :DD Set resolution.\", \"ERR:DP open session - user cancel\". docs/decisions.md CNEW-selfname lists what that settled."
+    },
+    {
+      "addr": "0x004AFE3A",
+      "name": "Log_Append",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Log_Append(int len)",
+      "comment": "Writes len bytes of the staging buffer to status.txt. The FIRST call of a run opens with O_TRUNC|O_CREAT and every later one appends and seeks to the end, latched by g_logStarted - so status.txt is one run's worth of log and not a growing file."
+    },
+    {
+      "addr": "0x004AFEED",
+      "name": "Log_FormatRecord",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Log_FormatRecord(int dest, int kind, int index)",
+      "comment": "[V] Hex-dumps one record into a caller buffer for the divergence report, and its kind table is an INDEPENDENT statement of the six record strides: 1 county 0x300, 2 realm 0x160, 3 unit 0x1A4, 4 battle man 0x1B0, 5 missile 0x4C, 6 battle unit 0x34. Those are exactly g_syncBlocks[1..6]'s strides, derived here from a completely different function - two enumerations agreeing, which is the check docs/agents.md asks for."
+    },
+    {
+      "addr": "0x004B03AB",
+      "name": "Log_WriteDiverged",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Log_WriteDiverged(int kind, int index)",
+      "comment": "Writes diverged.txt: opens it truncating, allocates 5,000 bytes, fills them with Log_FormatRecord(kind, index) and writes them out, then clears the request flag so only the FIRST divergence of a session is dumped. Gated on g_divergeDumpKind, which is 1 for 'dump the next one whatever it is' or a specific kind."
+    },
+    {
+      "addr": "0x004B049B",
+      "name": "Log_Timestamp",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Log_Timestamp(void)",
+      "comment": "time / localtime / asctime into the 40-byte g_logTimestamp. Copies a fixed 0x28 bytes out of asctime's 26-byte result, so ten bytes past the string's NUL come with it; harmless because Log_Write copies only the first ten."
+    },
+    {
       "addr": "0x004B0AB5",
       "name": "Palette_Set",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Palette_Set(int pal)",
       "comment": "Copies 256 six-bit RGB triples into the display palette, widening by multiplying by 4, then forces entry 0 to black."
+    },
+    {
+      "addr": "0x004B1208",
+      "name": "Gfx_PresentTiled",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Gfx_PresentTiled(void)",
+      "comment": "Presents the frame as 1,200 separate 16x16 BltFast calls. NO CALLERS - a diagnostic for a driver whose large blits were wrong, left in the binary."
+    },
+    {
+      "addr": "0x004B12C2",
+      "name": "Gfx_PresentWhole",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Gfx_PresentWhole(void)",
+      "comment": "One unconditional Blt of the back buffer to g_presentRect. NO CALLERS; Gfx_Present has the same call inside its budget check."
     },
     {
       "addr": "0x004B1CF3",
@@ -6492,12 +7044,116 @@
       "comment": "x <= g_mouseX < x + w && y <= g_mouseY < y + h. The battle unit panel hit-tests its banners with this rather than through Hotspot_Test, because its rectangles are a table of geometry with no handlers."
     },
     {
+      "addr": "0x004B209A",
+      "name": "Cpu_SpinDelay",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Cpu_SpinDelay(int units)",
+      "comment": "An empty nested loop, 10,000 iterations per unit. Its one caller times it with timeGetTime, so this is the calibration weight for a CPU-speed measurement rather than a delay anyone waits on."
+    },
+    {
       "addr": "0x004B2258",
       "name": "App_InitWindow",
       "section": "ui",
       "confidence": "verified",
       "signature": "bool App_InitWindow(HINSTANCE inst)",
       "comment": "The window bootstrap. Seeds the two PRNG words, sets the 640x480 canvas globals, registers window class \"WinLords2Class\" with hCursor NULL, LOADS THE EIGHT CURSORS with LoadCursorA from the executable's OWN resources - RT_GROUP_CURSOR 102, 103, 104, 105 (twice, into two different globals), 110, 111 and 113 - then creates the main window. hCursor NULL is why the pointer has to be set by hand: Cursor_Set runs once per frame from Battle_Frame. The twelve Cursor1..12.cur files in the install are NOT read here or anywhere: the binary imports no LoadCursorFromFile and contains no .cur filename. docs/screens.md section 9."
+    },
+    {
+      "addr": "0x004B2575",
+      "name": "Mem_AvailPhysical",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Mem_AvailPhysical(void)",
+      "comment": "GlobalMemoryStatus into a 32-byte MEMORYSTATUS and returns dwAvailPhys (offset 0x0C). Its three callers all feed it to Log_Write's \"MEM:Max alloc after = \" line around opening and closing a movie, which is how the original measured Smacker's footprint."
+    },
+    {
+      "addr": "0x004B25B0",
+      "name": "Scratch_Reserve",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Scratch_Reserve(int bytes)",
+      "comment": "Keeps one malloc'd scratch block of exactly the requested size, reallocating only when the size changes. Seven callers, all art loaders - Gfx_LoadCountyMode, the battle and skirmish loaders, Screen_DrawConquest and App_InitWindow."
+    },
+    {
+      "addr": "0x004B25FC",
+      "name": "Scratch_Free",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Scratch_Free(void)",
+      "comment": "Frees the Scratch_Reserve block and zeroes both the pointer and the size."
+    },
+    {
+      "addr": "0x004B2636",
+      "name": "App_LogExit",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void App_LogExit(void)",
+      "comment": "The last four lines the game writes: \"OK :Net play divergance count = \", \"OK :Net play wipe outs = \", \"OK :Av frame rate = \" (the running sum of per-second rates divided by the number of seconds) and \"OK :Exited Normally  \". A status.txt whose last line is not that one is a crash, which makes this function a diagnostic for the user's own log."
+    },
+    {
+      "addr": "0x004B26B8",
+      "name": "App_OnPaused",
+      "section": "platform",
+      "confidence": "inferred",
+      "signature": "void App_OnPaused(void)",
+      "comment": "Logs \"OK :Paused.  \", clears g_displayLost and invalidates the whole window. NAMED FROM ITS OWN LOG LINE AND NOT FROM ITS EFFECT, because the two disagree: it CLEARS the flag that would make App_WinMain sleep instead of drawing, and so does App_OnResumed. See g_displayLost - nothing in the binary ever sets that flag, so the pair cannot be told apart by what they do."
+    },
+    {
+      "addr": "0x004B26F8",
+      "name": "App_OnResumed",
+      "section": "platform",
+      "confidence": "inferred",
+      "signature": "void App_OnResumed(void)",
+      "comment": "Logs \"OK :Unpaused.  \" and clears g_displayLost, but only when we are the foreground window. Named from its log line; see App_OnPaused for why the effect cannot settle it."
+    },
+    {
+      "addr": "0x004B2730",
+      "name": "Display_RestoreSurfaces",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Display_RestoreSurfaces(void)",
+      "comment": "IDirectDrawSurface::Restore (vtable +0x6C) on the primary and then the back buffer, returning 1 only if both came back. Its messages are \"ERR:Can't restore front buffer.  \" and \"ERR:Can't restore back buffer.  \", which is the game's own word for the two surfaces."
+    },
+    {
+      "addr": "0x004B27BF",
+      "name": "Frame_Tick",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Frame_Tick(void)",
+      "comment": "Returns the milliseconds since the previous call and maintains the frame-rate average on the side: it counts frames, and once a second computes g_frameRate = frames * 1000 / elapsed and adds it to the running sum App_LogExit divides. Called from Gfx_Present, whose budget it feeds, and from Battle_Frame."
+    },
+    {
+      "addr": "0x004B284E",
+      "name": "Gfx_Begin",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Gfx_Begin(void)",
+      "comment": "Display_Init then Display_CreateSurfaces, releasing everything again if the second fails. THE GAME'S OWN NAME: its caller logs \"ERR:gfxBegin failed.\" when this returns 0. Its own three lines are \"ERR:GFX DirectDraw not enabled.\", \"OK :GFX DirectDraw enabled.\" and \"ERR:GFX could't create flipping surface.\" - the misspelling is the original's."
+    },
+    {
+      "addr": "0x004B28CD",
+      "name": "Gfx_End",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "void Gfx_End(int alsoReleaseDirectDraw)",
+      "comment": "Releases the palette and then Display_ReleaseSurfaces, guarded so it is a no-op if graphics were never begun."
+    },
+    {
+      "addr": "0x004B2922",
+      "name": "Gfx_Restart",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int Gfx_Restart(void)",
+      "comment": "Gfx_End then Gfx_Begin, then Display_ClearSurfaces, then base01.256 loaded as the palette and the whole screen marked dirty with g_redrawRequest at 2. The three callers are App_InitWindow, Opt_ToggleFullScreen and App_WndProc's reactivation path - so this is what a mode change actually runs."
+    },
+    {
+      "addr": "0x004B29BE",
+      "name": "App_WndProc",
+      "section": "platform",
+      "confidence": "verified",
+      "signature": "int App_WndProc(int hwnd, int msg, int wparam, int lparam)",
+      "comment": "[V] The window procedure - DefWindowProcA at the tail, four parameters, PostQuitMessage on WM_DESTROY. WM_PAINT routes to Smk_OnPaint while a movie is up and to Gfx_Repaint otherwise; WM_SIZE and WM_MOVE recompute g_presentRect from GetClientRect+ClientToScreen (windowed) or GetSystemMetrics (full-screen) and log \"OK :Minimizing.  \" or \"OK :Window moved.  \"; WM_ACTIVATEAPP maintains g_windowActive and logs \"OK :Active.  \" / \"OK :Not active.  \"; WM_KEYDOWN is the keyboard's front door, with Escape, Return, Backspace and F1 handled here before anything else sees them. Its display-reacquisition arm is dead - see g_displayLost and docs/bugs.md BNEW-deadpause."
     },
     {
       "addr": "0x004B35C1",
@@ -6530,6 +7186,294 @@
       "confidence": "verified",
       "signature": "void Blit_ClippedRight(void * buf)",
       "comment": "As Blit_Unclipped, but also advances the source pointer by the clipped-off remainder each row."
+    },
+    {
+      "addr": "0x004B61B0",
+      "name": "Sigs_Construct",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_Construct(int self)",
+      "comment": "Zeroes all 29 dwords of the 0x74-byte SierraNW session object. The constructor: Sigs_Start operator-news 0x74 bytes and calls this."
+    },
+    {
+      "addr": "0x004B62EA",
+      "name": "Sigs_Open",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_Open(int self, int hwnd, int cmdLine, int exePath, int appName)",
+      "comment": "Stores the window handle and the three launch arguments in the session object, publishes it as g_sigsSession, runs Sigs_LoadDlls, and on success creates the manual-reset event g_sigsEvent and waits on Sigs_WaitForGameStart. -2 means the user cancelled, -1 a failure, 0 success; anything else raises \"Failure has occured with Internet...\" in a message box."
+    },
+    {
+      "addr": "0x004B63D0",
+      "name": "Sigs_WaitForGameStart",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_WaitForGameStart(int self)",
+      "comment": "Waits on g_sigsEvent in 300 ms slices, pumping the message queue between them so the window stays alive, and bails out on WM_QUIT. Returns true when the monitor thread signalled a game start - \"NewGame ACK\" in the log - and false when it signalled a disconnect - \"NewGame NAK\"."
+    },
+    {
+      "addr": "0x004B64A3",
+      "name": "Sigs_Destruct",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_Destruct(int self)",
+      "comment": "Sigs_Close if still open, then clears g_sigsSession. The destructor body; Sigs_Delete is the MSVC scalar deleting wrapper around it."
+    },
+    {
+      "addr": "0x004B64D8",
+      "name": "Sigs_LoadDlls",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_LoadDlls(int self)",
+      "comment": "[V] Two DLLs, in order. SNWValid.dll is loaded, its single export SNWValidate called with the launch arguments, and freed again - a licence/serial check whose 0 means proceed, -1 abandon quietly and -2 the user cancelled. Only then is SierraNW.dll loaded, bound by Sigs_BindExports, initialised through InitializeDLL, and a monitor thread started. Every failure raises a MessageBoxA, so a player without those DLLs sees \"SNWValid.dll not found in Windows...\" rather than a silent fallback."
+    },
+    {
+      "addr": "0x004B6754",
+      "name": "Sigs_BindExports",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_BindExports(int self)",
+      "comment": "[V] GetProcAddress for nineteen SierraNW.dll exports into fixed slots of the session object, and the literal names give the object its layout: +0x28 SNWValidate, +0x2C InitializeDLL, +0x30 CloseDLL, +0x34 CheckForAnyTCPMessage, +0x38 PeekForTCPMessage, +0x3C RecvTCPMessage, +0x40 CheckGameConnectStatus, +0x44 GameClose, +0x48 GetNumberOfPlayers, +0x4C SendTCPMessage, +0x50 SendTCPPointMessage, +0x54 GetPlayerXName, +0x58 GetMyPlayerNumber, +0x5C GetGameOption, +0x60 TellMeGameMessReceived, +0x64 FreeGameMessageBuffer, +0x68 PingTime, +0x6C TellMeSpecialChatReceived, +0x70 TellMePlayerLeftGame. Returns 0 if any one is missing. This is the whole transport surface the original expected of Sierra's matchmaking DLL."
+    },
+    {
+      "addr": "0x004B6A15",
+      "name": "Sigs_Close",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_Close(int self)",
+      "comment": "Logs the string \"ASIGSSession::Close\" - which is where this family's `Sigs_` prefix and the original class name come from - stops the monitor thread through Sigs_EndMonitorThread, calls CloseDLL and frees SierraNW.dll."
+    },
+    {
+      "addr": "0x004B6AB6",
+      "name": "Sigs_GameClose",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_GameClose(int self)",
+      "comment": "Calls the DLL's GameClose export (+0x44) and clears the session's connected and started flags. Leaving the game without leaving the lobby."
+    },
+    {
+      "addr": "0x004B6B71",
+      "name": "Sigs_Receive",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_Receive(int self, int buf, int cap, int fromPlayer)",
+      "comment": "CheckForAnyTCPMessage, then for each player index up to Sigs_PlayerCount, PeekForTCPMessage to learn the size and RecvTCPMessage to take it. DebugBreak if the peeked size exceeds the caller's buffer, which is how a 0x104-byte packet limit is enforced in a debug build and not at all in a release one."
+    },
+    {
+      "addr": "0x004B6C59",
+      "name": "Sigs_SendTcp",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_SendTcp(int self, int buf, int len)",
+      "comment": "Thunk to the DLL's SendTCPMessage (+0x4C) - the broadcast send."
+    },
+    {
+      "addr": "0x004B6C82",
+      "name": "Sigs_SendTcpPoint",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_SendTcpPoint(int self, int player, int buf, int len)",
+      "comment": "Thunk to the DLL's SendTCPPointMessage (+0x50) - the point-to-point send. Net_SendPacket picks between this and Sigs_SendTcp on whether it was given a destination."
+    },
+    {
+      "addr": "0x004B6CAF",
+      "name": "Sigs_FreeMessageBuffer",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_FreeMessageBuffer(int self)",
+      "comment": "Thunk to FreeGameMessageBuffer (+0x64)."
+    },
+    {
+      "addr": "0x004B6CCB",
+      "name": "Sigs_PingTime",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_PingTime(int self)",
+      "comment": "Thunk to PingTime (+0x68) with the fixed arguments (2, -1)."
+    },
+    {
+      "addr": "0x004B6CEE",
+      "name": "Sigs_SetChatCallback",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_SetChatCallback(int self, int fn)",
+      "comment": "Thunk to TellMeSpecialChatReceived (+0x6C), registering the callback the DLL calls on an incoming chat line."
+    },
+    {
+      "addr": "0x004B6D19",
+      "name": "Sigs_SetPlayerLeftCallback",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_SetPlayerLeftCallback(int self, int fn)",
+      "comment": "Thunk to TellMePlayerLeftGame (+0x70). Its callback is what ends up calling Net_MarkPlayerJoined's counterpart on the game thread."
+    },
+    {
+      "addr": "0x004B6D44",
+      "name": "Sigs_CheckConnectStatus",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_CheckConnectStatus(int self)",
+      "comment": "CheckGameConnectStatus (+0x40); -1 means the connection has gone and clears the session's connected flag. Polled by the monitor thread and by Net_PumpReceive."
+    },
+    {
+      "addr": "0x004B6DC5",
+      "name": "Sigs_PlayerCount",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_PlayerCount(int self)",
+      "comment": "Thunk to GetNumberOfPlayers (+0x48), called with 0."
+    },
+    {
+      "addr": "0x004B6DE6",
+      "name": "Sigs_IsHost",
+      "section": "netcode",
+      "confidence": "inferred",
+      "signature": "int Sigs_IsHost(int self)",
+      "comment": "Returns GetMyPlayerNumber() == 0. INFERRED that player zero is the host: the equality is verified, what zero means is read off the surrounding use and not from the DLL."
+    },
+    {
+      "addr": "0x004B6E1B",
+      "name": "Sigs_MyPlayerNumber",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_MyPlayerNumber(int self)",
+      "comment": "Thunk to GetMyPlayerNumber (+0x58). Net_PostChat and Net_PumpReceive use it to know which realm slot we are."
+    },
+    {
+      "addr": "0x004B6E8E",
+      "name": "Sigs_GetGameOption",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_GetGameOption(int self, int option, int dest, int cap)",
+      "comment": "GetGameOption (+0x5C) into a 100-byte stack buffer, strncpy'd out; refuses a request for 0x65 bytes or more, which fixes the DLL's own option-string buffer at 100 bytes."
+    },
+    {
+      "addr": "0x004B6EF7",
+      "name": "Sigs_EndMonitorThread",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_EndMonitorThread(int handleSlot)",
+      "comment": "Waits eight seconds for the monitor thread, then either closes its handle or TerminateThreads it, logging which of five outcomes happened - \"SIGSEndThread: thread terminated A...\", \"...failed to t...\", \"...ABANDONED\", \"...FAILED Wait...\", \"...Free Thread Resour...\", \"...Forced thread term...\". Note it passes the ADDRESS of the handle to TerminateThread rather than the handle, so the forced path terminates nothing."
+    },
+    {
+      "addr": "0x004B7037",
+      "name": "Sigs_FreeLastMessage",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Sigs_FreeLastMessage(void)",
+      "comment": "Sigs_FreeMessageBuffer on the global session. No callers."
+    },
+    {
+      "addr": "0x004B7052",
+      "name": "Sigs_MonitorThread",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_MonitorThread(void)",
+      "comment": "[V] The lobby thread, and its five log lines are its whole life: \"MonitorThread: Birth\", \"...Disconnect\", \"...GameStart\", \"...GameEnd\", \"...Death\". Polls Sigs_CheckConnectStatus every 350 ms; when the lobby says a game has started it signals g_sigsEvent and then RESTORES AND FOCUSES THE GAME WINDOW from this background thread - IsIconic, ShowWindow(SW_RESTORE), SetForegroundWindow, SetFocus."
+    },
+    {
+      "addr": "0x004B7180",
+      "name": "Net_Shutdown",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Net_Shutdown(int really)",
+      "comment": "Tears down whichever transport is live and logs which: DirectPlay gets Close (vtable +0x10) and Release (+0x08) and \"OK :DP Released.\", SierraNW gets Sigs_Close, Sigs_Delete and \"OK :SIGS closed.\". Returns 0 without doing anything when `really` is 0."
+    },
+    {
+      "addr": "0x004B7250",
+      "name": "Net_JoinGame",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Net_JoinGame(void)",
+      "comment": "The whole join sequence. Resets the difficulty and multiplayer flags, opens the session with Dp_CreateSession, then broadcasts command 1 and spins on Net_PumpReceive until a peer answers, resending once at five seconds and giving up at ten with \"ERR:DP Timed out waiting for connect reply elapsed = \". While it spins it calls Gfx_Repaint every hundred milliseconds so the window does not go white."
+    },
+    {
+      "addr": "0x004B743B",
+      "name": "Net_LeaveGame",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_LeaveGame(void)",
+      "comment": "Leaves a multiplayer game and returns to the setup screen: DirectPlay gets DestroyPlayer (vtable +0x24) on our own player id and then Net_Shutdown; SierraNW gets Sigs_GameClose, which keeps the lobby connection. Either way g_multiplayer goes to 0 and g_screenId to 0x1F, setup page 1. Seven callers - every way out of a network game."
+    },
+    {
+      "addr": "0x004B74CE",
+      "name": "Net_LeaveGameChecked",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_LeaveGameChecked(void)",
+      "comment": "Sigs_GameClose with two DebugBreaks in front of it - one if the game was not started, one if there is no session. Its only caller is 0x0043441C, the Lords of Magic advertisement screen's exit, which is a surprising place for it."
+    },
+    {
+      "addr": "0x004B7514",
+      "name": "Net_LockOutNewPlayers",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_LockOutNewPlayers(void)",
+      "comment": "IDirectPlay2::SetSessionDesc (vtable +0x7C) with the description at 0x004E5AB0, logging \"OK :DP New players locked out.\" Called once, from Setup_StartGame - the moment a multiplayer game stops accepting joins."
+    },
+    {
+      "addr": "0x004B79E3",
+      "name": "Net_PostChat",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_PostChat(int text)",
+      "comment": "Formats \"%s: %s\" - sender then message - into g_diploLetter and posts it as an L2.eng group 0xF6 (246) message with category 0x14, from the sender's own player number. The multiplayer chat line, and it does nothing during a battle (g_battlePhase == 2)."
+    },
+    {
+      "addr": "0x004B7A7C",
+      "name": "Net_MarkPlayerJoined",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_MarkPlayerJoined(int slot)",
+      "comment": "Sets g_netPlayerJoined[slot] to 1. Net_PumpReceive turns each 1 into a session event and then a 2, so the array is a one-shot per-player 'has arrived' latch written by the SIGS callback thread and drained on the game thread."
+    },
+    {
+      "addr": "0x004B8C3A",
+      "name": "Net_PumpReceive",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Net_PumpReceive(void)",
+      "comment": "[V] The receive pump, five callers: App_WinMain's idle path, App_PumpOnce, Net_JoinGame's connect spin and two art loaders. Drains every waiting packet in a loop: DirectPlay through IDirectPlay2::Receive (vtable +0x64), SierraNW through Sigs_Receive. A packet from player 0 is a system message and goes to Net_OnSessionEvent through a small id map (3 and 5 carry a player, 0x31, 0x101, 7, 0x21, 0x102, 0x103 do not); a packet from ourselves is dropped with \"OK :DP ignore self mess\"; anything else goes to Net_ApplyPacket. Also drains g_netPlayerJoined and, if SIGS reports a disconnect, logs \"RGM SIGS disconnected: shut down...\" and drops the whole game back to the setup screen."
+    },
+    {
+      "addr": "0x004B90FB",
+      "name": "Net_SendPacket",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "void Net_SendPacket(int dest, int slot, int len)",
+      "comment": "Puts one g_netSendRing slot on the wire. DirectPlay: IDirectPlay2::Send (vtable +0x68) from our own player id to `dest`, with dest 0 meaning DPID_ALLPLAYERS. SierraNW: Sigs_SendTcp for a broadcast and Sigs_SendTcpPoint to `dest - 1` otherwise, so the two transports number their players differently by one. Its eight error branches decode DirectPlay's HRESULTs into \"ERR:DP bad send - invalid object / send too big / busy\"."
+    },
+    {
+      "addr": "0x004B92A0",
+      "name": "Sigs_Delete",
+      "section": "netcode",
+      "confidence": "verified",
+      "signature": "int Sigs_Delete(int self, int flags)",
+      "comment": "MSVC's scalar deleting destructor: Sigs_Destruct, then operator delete when bit 0 of the flags is set. Recognisable by shape rather than by anything the game says."
+    },
+    {
+      "addr": "0x004B92E0",
+      "name": "Wav_OpenChunk",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "int Wav_OpenChunk(int path, int hmmio, int fmtOut, int riffOut)",
+      "comment": "Opens a .wav with mmioOpenA, retrying through Hd_PathForFile and then Cd_PathForFile if the plain name is not there, descends into the RIFF/WAVE and fmt chunks and GlobalAllocs a WAVEFORMATEX. Its error is \"ERR:WAV open file - \". The three-attempt path search is the same one Smk_Open uses, so the CD/hard-disk split is a property of the file layer and not of either media type."
+    },
+    {
+      "addr": "0x004B95BA",
+      "name": "Wav_SeekData",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "int Wav_SeekData(int hmmio, int dataChunk, int riffChunk)",
+      "comment": "mmioSeek to the RIFF chunk's data offset and descend into the 'data' chunk. Logs \"ERR:WAV start read data.\"."
+    },
+    {
+      "addr": "0x004B984F",
+      "name": "Wav_Load",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "int Wav_Load(int path, int lenOut, int fmtOut, int dataOut)",
+      "comment": "Wav_OpenChunk, Wav_SeekData, GlobalAlloc for the data chunk, read it. Returns 0 on success and 1..4 for which step failed. \"ERR:WAV loading wavefile data - \"."
     },
     {
       "addr": "0x004B99C0",
@@ -6665,11 +7609,25 @@
       "comment": "Seven ints, the autocalc strength weight of one soldier by troop type: peasant 2, crossbowman 16, maceman 8, swordsman 13, pikeman 9, archer 13, knight 22. Used only for army strength comparisons, not by the real-time battle."
     },
     {
+      "addr": "0x004D4D58",
+      "name": "g_smack",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The Smack handle SmackOpen returns. Its +0x04 and +0x08 are the movie's width and height (Smk_OnPaint PatBlts them) and +0x6C is a 256-entry RGB palette (Smk_CopyPalette reads it) - three offsets of the RAD structure fixed from this binary alone."
+    },
+    {
       "addr": "0x004D57F0",
       "name": "g_netCmdWriters",
       "section": "units",
       "confidence": "verified",
-      "comment": "void(*)(void)[112], the per-opcode payload serialisers Net_SendCommand calls. Every one of the 112 entries is a real function start in the decompiled corpus - a mechanical check that could have failed - and each writer's matching reader is the next function in address order, ending where the next opcode's writer begins. The campaign-map entries are 0x29 NetCmd_WriteMoveOrder, 0x2C move-and-combine, 0x2E disband, 0x34 garrison, 0x35 begin siege, 0x3A toggle industry."
+      "comment": "void(*)(void)[100], the per-opcode payload serialisers Net_SendCommand calls, and the twin of g_netCmdHandlers at 0x004D5980, which Net_ApplyPacket dispatches to. Each writer's matching reader is the next function in address order, ending where the next opcode's writer begins. The campaign-map entries are 0x29 NetCmd_WriteMoveOrder, 0x2C move-and-combine, 0x2E disband, 0x34 garrison, 0x35 begin siege, 0x3A toggle industry. COUNT CORRECTED FROM 112: the check that all 112 entries were real function starts passed for an accidental reason - entries 100..111 are the first twelve of the HANDLER table, which are function starts too. 0x004D5980 - 0x004D57F0 is 400 bytes and the handler table's own hundredth slot is g_syncBlocks, so both tables are 100. docs/decisions.md CNEW-hundred."
+    },
+    {
+      "addr": "0x004D5980",
+      "name": "g_netCmdHandlers",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "[V] void(*)(void)[100], the per-opcode APPLIERS Net_ApplyPacket dispatches to, and the twin of g_netCmdWriters at 0x004D57F0. The two tables sit back to back: 0x004D5980 - 0x004D57F0 is exactly 400 bytes, and this one's hundredth slot is 0x004D5B10, which is g_syncBlocks. That is what settles both tables at ONE HUNDRED entries and not the 112 the writer table's comment used to claim - see docs/decisions.md CNEW-hundred."
     },
     {
       "addr": "0x004D5B10",
@@ -6690,7 +7648,7 @@
       "name": "g_netCmdLength",
       "section": "units",
       "confidence": "verified",
-      "comment": "u8[112]: the payload length of each network command, 0xFF for an opcode that is not one. Valid opcodes run 0x01..0x61; 0x00 and 0x62..0x6F are all 0xFF. Net_SendCommand rejects a 0xFF opcode outright. Opcode 0x29's 10 matches its writer's 1+4+1+2+2 exactly, which is what makes the table's reading a finding rather than a guess."
+      "comment": "u8[100]: the payload length of each network command, 0xFF for an opcode that is not one. Valid opcodes run 0x01..0x61; 0x00 and 0x62..0x63 are 0xFF and filler follows. Net_SendCommand rejects a 0xFF opcode outright and Net_ApplyPacket rejects a packet whose byte 1 disagrees with it. Opcode 0x29's 10 matches its writer's 1+4+1+2+2 exactly, which is what makes the table's reading a finding rather than a guess. Length corrected from 112 to 100 with g_netCmdWriters - the two pointer tables that share this index are 100 entries each."
     },
     {
       "addr": "0x004D6108",
@@ -7498,6 +8456,27 @@
       "comment": "225 {u32 address, u32 length} records terminated by a zero length; Save_Write dumps each in order. Sums to 267,028 bytes."
     },
     {
+      "addr": "0x004DF288",
+      "name": "g_ddPalette",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The IDirectDrawPalette. Created by Palette_Create and fed by Palette_Upload through SetEntries (vtable +0x18)."
+    },
+    {
+      "addr": "0x004DF28C",
+      "name": "g_surfaceLockable",
+      "section": "platform",
+      "confidence": "inferred",
+      "comment": "Cleared on every path through Display_CreateSurfaces and read by Gfx_Present and Smk_OnPaint as a 'the primary surface can be locked' permission. Display_CreateSurfaces logs \"OK :DD can lock primary surface - but not going to\", which is the original saying it decided against the optimisation, and the flag is never set to 1."
+    },
+    {
+      "addr": "0x004DF2A0",
+      "name": "g_logStarted",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Whether status.txt has been opened this run. The first Log_Write truncates the file and writes a sixty-dash rule under its message; every later one appends. So a status.txt is exactly one run."
+    },
+    {
       "addr": "0x004DF7B8",
       "name": "g_msgVoiceS010",
       "section": "diplomacy",
@@ -7526,6 +8505,27 @@
       "comment": "16-byte .wav filenames for the 28 diplomatic message groups 170..197, indexed (group - 170) * 0x100 + variant * 0x10. Sixteen per group: Kt<g>_1..4, Bn<g>_1..4, Ct<g>_1..4, Bp<g>_1..4 - Knight, Baron, Countess, Bishop, four takes each. 0x004E0458 + 28 * 0x100 = 0x004E2058, where the next filename table begins, so the extent is exact and all 448 files are present in the install."
     },
     {
+      "addr": "0x004E2A28",
+      "name": "g_dpPlayerId",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "Our own DPID, from IDirectPlay2::CreatePlayer. Net_SendPacket passes it as the sender and Net_LeaveGame passes it to DestroyPlayer."
+    },
+    {
+      "addr": "0x004E2A2C",
+      "name": "g_dplay",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "[V] The IDirectPlay2 interface, and one of the game's TWO transports. Every vtable offset used against it matches the documented IDirectPlay2 slot and the log line beside it: +0x08 Release, +0x10 Close, +0x18 CreatePlayer, +0x24 DestroyPlayer, +0x38 GetCaps (\"DP service provider Baud rate / max_players / latency / header\"), +0x60 Open, +0x64 Receive, +0x68 Send, +0x7C SetSessionDesc (\"DP New players locked out\"). When it is null the SierraNW path in g_sigs is used instead; the two are never both live."
+    },
+    {
+      "addr": "0x004E2A30",
+      "name": "g_sigs",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "The 0x74-byte SierraNW session object, the game's other transport. Its class is ASIGSSession - Sigs_Close writes that name into status.txt. Nineteen of its fields are function pointers bound by Sigs_BindExports."
+    },
+    {
       "addr": "0x004E3098",
       "name": "g_cursorByScreen",
       "section": "ui",
@@ -7538,6 +8538,34 @@
       "section": "units",
       "confidence": "verified",
       "comment": "The peasant mobs' shared destination cursor - one counter for the whole map, not one per mob. See PeasantMob_PickDestination."
+    },
+    {
+      "addr": "0x004E5A00",
+      "name": "g_hwnd",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The game window. Passed to SetClipper, used by every PostMessageA and InvalidateRect in the engine layer, and cleared in App_WndProc's WM_DESTROY before PostQuitMessage."
+    },
+    {
+      "addr": "0x004E5A04",
+      "name": "g_sigsEvent",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "A manual-reset Win32 event. The monitor thread sets it when the lobby reports a game start or a disconnect; Sigs_WaitForGameStart is what waits on it."
+    },
+    {
+      "addr": "0x004E5A08",
+      "name": "g_sigsSession",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "A second pointer to the same ASIGSSession, published by Sigs_Open so that the monitor thread - which takes no argument - can reach it."
+    },
+    {
+      "addr": "0x004E5A90",
+      "name": "g_netPlayerJoined",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "int[5], one per remote player: 0 never seen, 1 arrived and not yet announced, 2 announced. Net_MarkPlayerJoined writes the 1 from the SierraNW callback and Net_PumpReceive turns it into a session event on the game thread. A cross-thread hand-off with no interlock, which is exactly the kind of thing docs/netcode.md exists to not reproduce."
     },
     {
       "addr": "0x004E5B14",
@@ -7554,11 +8582,25 @@
       "comment": "HCURSOR for RT_GROUP_CURSOR 102, a hollow serifed cross drawn in the top-left 21x21 of a 32x32 bitmap, hotspot (10, 10). Cursor_Set's kind 4 - the battlefield cursor while you hold a selection."
     },
     {
+      "addr": "0x004E65A8",
+      "name": "g_windowActive",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Whether the game window is the foreground window and not minimised, maintained by App_WndProc's WM_ACTIVATEAPP, WM_SIZE and WM_MOVE arms. App_WinMain draws when this is set and Sleeps 200 ms when it is not, so the whole background-throttle rests on this one byte."
+    },
+    {
       "addr": "0x004E65CC",
       "name": "g_mouseLeftDown",
       "section": "ui",
       "confidence": "verified",
       "comment": "LEVEL, not an edge: the left button is down right now. (DAT_004EABC2 & 1), which the window procedure sets on WM_LBUTTONDOWN (0x201) and clears on WM_LBUTTONUP (0x202). This is the flag a drag reads - the split slider tracks on it."
+    },
+    {
+      "addr": "0x004E65D0",
+      "name": "g_displayLost",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "[V] A DEAD FLAG. Meant to say the DirectDraw surfaces need re-acquiring; it has exactly four references in the whole decompiled corpus and NOTHING EVER SETS IT NON-ZERO - App_OnPaused and App_OnResumed both write 0. Its two readers therefore take fixed branches: App_WinMain's idle test is always satisfied, and App_WndProc's WM_ACTIVATEAPP arm that would call Display_RestoreSurfaces and Gfx_Restart is unreachable. That is the recovery path that would have handled a deactivation during startup, which is the crash already recorded against g_ddPrimary. docs/bugs.md BNEW-deadpause."
     },
     {
       "addr": "0x004E65D8",
@@ -7573,6 +8615,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "A left release is waiting to find out whether it is half of a double click. Armed on release when g_mouseClickArm is set, with the position stashed in g_mouseClickX/Y; cleared by g_mouseLeftDoubleClick, or after 300 ms by setting g_mouseClickSettled."
+    },
+    {
+      "addr": "0x004E65EC",
+      "name": "g_gfxStarted",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Set by Gfx_Restart when Gfx_Begin succeeded; Gfx_End is a no-op unless it is set."
     },
     {
       "addr": "0x004E65F0",
@@ -7603,6 +8652,13 @@
       "comment": "The right button came up this frame. This is the one every 'click right to exit' arm reads."
     },
     {
+      "addr": "0x004E6974",
+      "name": "g_ddraw",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The IDirectDraw object, created by Display_Init. Distinct from g_ddPrimary, which is a SURFACE: this one's vtable is used at +0x10 CreateClipper, +0x14 CreatePalette, +0x18 CreateSurface, +0x50 SetCooperativeLevel and +0x54 SetDisplayMode, all of which are the documented IDirectDraw slots and all of which agree with the log line beside them."
+    },
+    {
       "addr": "0x004E8780",
       "name": "g_mouseRightDown",
       "section": "ui",
@@ -7610,11 +8666,53 @@
       "comment": "LEVEL: the right button is down. (DAT_004EABC2 & 2)."
     },
     {
+      "addr": "0x004EA0F4",
+      "name": "g_frameRateSum",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Running sum of g_frameRate, one addend per elapsed second; divided by g_frameRateSeconds to make App_LogExit's \"OK :Av frame rate = \"."
+    },
+    {
+      "addr": "0x004EA12C",
+      "name": "g_ddClipper",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The IDirectDrawClipper, created and bound to the game window in windowed mode only, and attached to g_ddPrimary with SetClipper. Null full-screen."
+    },
+    {
+      "addr": "0x004EA174",
+      "name": "g_frameRate",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Frames per second over the last whole second, recomputed by Frame_Tick. Summed into g_frameRateSum for the average App_LogExit writes."
+    },
+    {
+      "addr": "0x004EA180",
+      "name": "g_presentRect",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "A RECT holding where the frame goes on the desktop: GetClientRect + ClientToScreen on both corners when windowed, SetRect(0, 0, screenW, screenH) when full-screen. Recomputed in App_WndProc on WM_SIZE and WM_MOVE, which is the only place it changes."
+    },
+    {
       "addr": "0x004EA194",
       "name": "g_cursorCrossTarget",
       "section": "ui",
       "confidence": "verified",
       "comment": "HCURSOR for RT_GROUP_CURSOR 103, the same cross as g_cursorCross with a filled diamond and a plus at its centre, hotspot (10, 10). Cursor_Set's kind 5 - drawn when an enemy figure is under the pointer and you have a selection, which is the change L2.eng describes as the cursor turning red."
+    },
+    {
+      "addr": "0x004EA1A8",
+      "name": "g_backBufferBits",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The linear pixel address of the back buffer, captured from the surface description the one time Display_CreateSurfaces locks it and used unlocked from then on. Every blitter in the binary writes through this pointer, and Display_ReleaseSurfaces zeroes it."
+    },
+    {
+      "addr": "0x004EA1B0",
+      "name": "g_paletteRgb",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The working palette as 256 packed RGB triples - the form Palette_Set, the .256 files and Smacker all speak. Palette_ToWindowedEntries and Palette_ToFullScreenEntries expand it into PALETTEENTRYs."
     },
     {
       "addr": "0x004EA4B0",
@@ -7652,6 +8750,13 @@
       "comment": "HCURSOR for RT_GROUP_CURSOR 105, the plain arrow pointer. Cursor_Set's kind 0 and its default."
     },
     {
+      "addr": "0x004EA83C",
+      "name": "g_frameRateSeconds",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "How many whole seconds Frame_Tick has measured. Forced to 1 by App_LogExit before the division, so a run shorter than a second does not divide by zero."
+    },
+    {
       "addr": "0x004EABA8",
       "name": "g_cursorQuestion",
       "section": "ui",
@@ -7667,10 +8772,10 @@
     },
     {
       "addr": "0x004EABD0",
-      "name": "g_ddrawInterface",
+      "name": "g_ddPrimary",
       "section": "sprite",
       "confidence": "verified",
-      "comment": "A DirectDraw interface pointer. It was NULL at the crash at 0x004522B5, which happened when the window was deactivated during startup under DxWnd."
+      "comment": "The PRIMARY DirectDraw SURFACE - the front buffer, what the desktop shows. Renamed from g_ddrawInterface, which read as the IDirectDraw object; that is g_ddraw at 0x004E6974, and the two are used through different vtables. Every offset taken off this pointer is a documented IDirectDrawSurface slot: +0x14 Blt, +0x1C BltFast, +0x60 IsLost, +0x64 Lock, +0x6C Restore, +0x70 SetClipper, +0x7C SetPalette, +0x80 Unlock. It was NULL at the crash at 0x004522B5, which happened when the window was deactivated during startup under DxWnd - and the arm that would have re-acquired it is dead, see g_displayLost."
     },
     {
       "addr": "0x004EABE0",
@@ -7685,6 +8790,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "HCURSOR for RT_GROUP_CURSOR 113, an arrow corner with a SCYTHE beside it, hotspot (0, 0). Cursor_Set's kind 14, which g_cursorByScreen gives to screen 0x10 - the campaign map in army-movement mode, the screen Map_BeginMoveSelection opens."
+    },
+    {
+      "addr": "0x004EABE8",
+      "name": "g_presentBudgetMs",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Milliseconds accumulated since the last present, fed by Frame_Tick. Gfx_Present presents once it passes 0x31 and resets it to 0, which is a hard cap of one present per fifty milliseconds - twenty frames a second."
     },
     {
       "addr": "0x004EABF0",
@@ -7729,6 +8841,20 @@
       "comment": "HCURSOR for RT_GROUP_CURSOR 111, an arrow corner with a filled human figure - a head over a body - beside it, hotspot (0, 0). Cursor_Set's kind 12, which g_cursorByScreen gives to screen 0x06, the village while a selection of peasants is being carried."
     },
     {
+      "addr": "0x004EADB0",
+      "name": "g_logBuffer",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The line Log_Write assembles before Log_Append writes it. Each of its four contributors is capped at 100 bytes and there is no total bound, so a caller passing two long strings and a number overruns it; every shipped call site is well inside."
+    },
+    {
+      "addr": "0x004EAFAC",
+      "name": "g_ddBackBuffer",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The back-buffer surface everything draws into, created by Display_CreateSurface(g_screenStride, g_screenHeight, 1) - system memory, because the game writes pixels with the CPU. Gfx_Present blits it to g_ddPrimary."
+    },
+    {
       "addr": "0x004EAFB4",
       "name": "g_mouseLeftPressed",
       "section": "ui",
@@ -7748,6 +8874,13 @@
       "section": "sprite",
       "confidence": "inferred",
       "comment": "Screen stride, 640."
+    },
+    {
+      "addr": "0x004EB280",
+      "name": "g_logTimestamp",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "asctime's output, refreshed by Log_Timestamp before every line. Log_Write copies the first ten bytes of it - the weekday and the date, not the time."
     },
     {
       "addr": "0x004EE89C",
@@ -7890,6 +9023,41 @@
       "comment": "Set by Unit_EnterOccupiedTile when Battle_BeginFromCampaign opens an interactive battle. Units_Tick returns as soon as it is set, so units in higher slots do not move on that tick at all, and Unit_StepOnce returns 10 so no tile is entered and no movement is charged."
     },
     {
+      "addr": "0x0050A4BC",
+      "name": "g_dirtyTop",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Top edge of the accumulated dirty box. WRITE-ONLY in the shipped binary: see Gfx_MarkDirty."
+    },
+    {
+      "addr": "0x0050A4C0",
+      "name": "g_dirtyBottom",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Bottom edge of the accumulated dirty box, and the one the clamp gets wrong - Gfx_MarkDirty tests it against 0x27F and assigns 0x1DF. Write-only, so it never showed."
+    },
+    {
+      "addr": "0x0050A4C4",
+      "name": "g_dirtyLeft",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Left edge of the accumulated dirty box. Write-only; see Gfx_MarkDirty."
+    },
+    {
+      "addr": "0x0050A4C8",
+      "name": "g_dirtyRight",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Right edge of the accumulated dirty box. Write-only; see Gfx_MarkDirty."
+    },
+    {
+      "addr": "0x0050D09C",
+      "name": "g_dirtyCount",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "How many more presents owe this change. Gfx_MarkDirty raises it to at least 1 and the sprite and map-view wrappers raise it to 2; Gfx_Present decrements it and presents only while it is positive. The ONLY part of the dirty-rectangle machinery that has an effect - the four edges are dead."
+    },
+    {
       "addr": "0x00512F4C",
       "name": "g_netSendSlot",
       "section": "units",
@@ -7909,6 +9077,48 @@
       "section": "units",
       "confidence": "verified",
       "comment": "The outgoing packet ring Net_SendCommand builds into: FORTY slots of 0x104 bytes, 0x00512FB0..0x0051584F, of which the sequence counter g_netSendSlot uses only 1..39 - slot 0 is allocated and never written. The extent is arithmetic that closes exactly: 0x00512FB0 + 40 * 0x104 = 0x00515850, and 0x00515850 is the next address anything in the binary references - nothing at all is referenced between +0x104 and there. Slot layout: +0 opcode, +1 the declared payload length from g_netCmdLength, +2 a checksum, +3 the sequence number, which the triple-send path ORs with 0x40 and then 0x80 to mark the two duplicates; +4.. the payload, written through the cursor g_netSendCursor. The checksum at 0x00440038 sums length bytes starting at slot+4, and the sender is handed length+4 bytes from the slot base, so the four header bytes and the payload account for the whole packet. Settles a name recorded twice: the battle pass called this g_netSendRing and the campaign-map pass g_netPacketBuf, and they disagreed 39 against 40 because those are two different true counts - forty slots exist, thirty-nine are in rotation."
+    },
+    {
+      "addr": "0x00515918",
+      "name": "g_netReadCursor",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "Where Net_ReadField takes the next bytes from. Net_ApplyPacket sets it to g_netRecvPacket + 4 before dispatching, mirroring g_netSendCursor on the writing side."
+    },
+    {
+      "addr": "0x00515C50",
+      "name": "g_netRecvPacket",
+      "section": "netcode",
+      "confidence": "verified",
+      "comment": "The 0x104-byte receive buffer, the same size as one g_netSendRing slot. Byte 0 opcode, 1 length, 2 checksum, 3 sequence in the low six bits and a resend flag in the top two; the payload starts at +4, which is where Net_ApplyPacket points g_netReadCursor and exactly where Net_SendCommand starts writing."
+    },
+    {
+      "addr": "0x00515D90",
+      "name": "g_paletteWindowed",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "256 PALETTEENTRYs for windowed mode. Indices 0..9 and 0xF6..0xFF are Windows' static system colours and are read back OUT of here into g_paletteRgb rather than written; only 10..0xF5 carry PC_RESERVED."
+    },
+    {
+      "addr": "0x005165B0",
+      "name": "g_paletteFullScreen",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "256 PALETTEENTRYs for full-screen mode, where only index 0 and index 255 are reserved to the system and the other 254 are ours."
+    },
+    {
+      "addr": "0x005169D0",
+      "name": "g_smkPath",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "The 16-byte filename of the movie currently open. Smk_OnFinished strcmps against it to decide what to play next, which is how intro.smk chains to imptitle.smk and imptitle.smk to credits.smk."
+    },
+    {
+      "addr": "0x00516A4C",
+      "name": "g_smkPlaying",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "A Smacker movie is on screen. Read through Smk_IsPlaying by Gfx_Present, which skips the present entirely while it is set, and by App_WndProc's WM_PAINT."
     },
     {
       "addr": "0x00516AC0",
@@ -8156,6 +9366,13 @@
       "comment": "The peasant cluster the rubber-band selection came from, 1-based; 0 for none."
     },
     {
+      "addr": "0x0053E9AC",
+      "name": "g_mapRedraw",
+      "section": "platform",
+      "confidence": "inferred",
+      "comment": "Set alongside the map viewport's dirty rectangle by Gfx_MarkMapViewDirty and read in 55 places across the campaign, county and battle code. INFERRED as 'the map view needs repainting' from where it is set; its readers were not enumerated here."
+    },
+    {
       "addr": "0x0053E9EC",
       "name": "g_villageDropCluster",
       "section": "ui",
@@ -8266,6 +9483,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Display options: full screen. Group 52 index 2, Yes/No. The \"(F5 key re-sizes window...)\" line is drawn only while this is 0."
+    },
+    {
+      "addr": "0x0053F22C",
+      "name": "g_desktopColours",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Colours the desktop can show, computed in Display_Init as GetDeviceCaps(NUMCOLORS) x GetDeviceCaps(PLANES) and forced to 16 when NUMCOLORS returns -1. If it is not 8 the game switches itself to full-screen, because the windowed path needs a palettised desktop."
     },
     {
       "addr": "0x0053F230",
@@ -9155,6 +10379,13 @@
       "section": "units",
       "confidence": "verified",
       "comment": "One of the six move-order targets Map_HoverUnitTarget collects: the county whose county TOWN (plane-0 bit 0x40) the cursor is over, when that county is not the moving unit's. It raises no dialog; MoveOrder_Confirm reads it and refuses with L2.eng 286 when that county's castle holds a garrison. That is the user-facing half of Army_AttackCounty's siege gate."
+    },
+    {
+      "addr": "0x005651AC",
+      "name": "g_presentNow",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Set by Gfx_MarkWidgetUrgent and cleared by Gfx_Present, and while set it forces the frame budget full so the next present happens immediately. Widget_Draw is what sets it, so a button that lights up under the cursor does not wait for the 20 Hz tick."
     },
     {
       "addr": "0x005651B4",

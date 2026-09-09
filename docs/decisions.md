@@ -3393,6 +3393,84 @@ enumeration here reaches the same six by a different route. The totals differ �
 §15.11 states the rule and says where the difference most likely is. Two enumerations agreeing
 on a sub-count they were not aligned on is worth more than either total.
 
+**CNEW-selfname — The engine names its own functions in `status.txt`, and it graded five of
+our guesses.**
+
+`L2.eng` is the project's strongest naming lever and it has a hard limit: it only reaches code
+that draws text. The engine layer — DirectDraw, the window, the transport, the video player —
+draws no strings and has been the darkest part of the binary for that reason.
+
+It has an equivalent, and `docs/symbols.md` had already pointed at it without anyone working
+it through: `Lords2.exe` writes `status.txt` beside itself. The writer is **`Log_Write`
+(`0x004AFAB9`)**, **85 functions call it with a literal message address**, and the messages
+are the game describing what that function is doing. `OK :DD Set resolution.`
+`ERR:DP open session - user cancel` `ERR:BATTLE Data load, couldn't find `.
+
+**Eight of those messages contain the routine's own name**, in the C convention
+`ERR:<function> bad data`:
+
+| address | the game's word | what it is |
+|---|---|---|
+| `0x004071A0` | `top_it` | the tall-sprite overhang blitter |
+| `0x0040946D` | `gen_frame` | `Sprite_GenFrame` |
+| `0x004097C5` | `gen_blank` | `Sprite_GenBlank` |
+| `0x0040A127` | `gen_sprite` | `Sprite_GenSprite` |
+| `0x0040A3D0` | `write_c_sprite` | the clipped twin of `Pl8_DrawFrame` |
+| `0x0040A682` | `w_gen_sprite` | |
+| `0x0040A80E` | `w_gen_h_sprite` | |
+| `0x0040A9B0` | `w_gen_f_sprite` | |
+
+**And five more grade names we had already committed to.** `mos_frame`, `mos_blank`,
+`mos_24blank`, `write_sprite` and `place_sprite` are `Ui_DrawBoxBorder`,
+`Ui_DrawBoxInterior`, `Ui_DrawTileStrip`, `Pl8_DrawFrame` and `Pl8_DrawFrameHere`. Five
+independent chances for a guessed name to be wrong; **none was**. That is the first time
+anything on this project has been able to mark our own naming rather than merely be
+consistent with it, and it is worth more than the eight new names.
+
+Two cautions, because this lever has the shape the project keeps getting caught by.
+
+* **The number argument is passed plus one.** `Log_Write(message, extra, n)` prints `n - 1`,
+  and every call site writes `value + 1` so that `0` can mean *no number*. A reader taking the
+  immediate at face value is off by one at 85 sites.
+* **A message says what the caller was doing, not what the function is.** `Screen_DrawConquest`
+  and six other art loaders share `"ERR:Data load, couldn't find  "` verbatim. The lever gives
+  a *subject*, exactly as `anchor.js` does with `L2.eng` groups, and the role still needs its
+  own check.
+
+`tools/oracle/logstrings.js` is the lever as a tool — `--unnamed`, `--grep`, `--fn`/`--arg` for
+any other function that takes a literal string address. It reads the PE section table out of the
+exe rather than hardcoding it, and takes `--decomp`/`$LORDS2_DECOMP` because the corpus is
+gitignored and every agent now works in a worktree that therefore has none — `anchor.js` and
+`xref.js` assume `__dirname/decomp` and are unusable from a worktree for that reason.
+
+**CNEW-hundred — `g_netCmdWriters` is 100 entries, not 112, and the check that said 112
+passed for an accidental reason.**
+
+`g_netCmdWriters` (`0x004D57F0`) carried a confident comment: *"void(\*)(void)[112] … every one
+of the 112 entries is a real function start in the decompiled corpus — a mechanical check that
+could have failed"*. The check ran, it passed, and it was worthless.
+
+`Net_ApplyPacket` (`0x0043EAC1`) — the receive half of `Net_SendCommand`, unnamed until now —
+dispatches through a **second** table at `0x004D5980`. `0x004D5980 − 0x004D57F0` is exactly
+400 bytes, so the writer table is **100** entries and the twelve that were counted past its end
+are the first twelve *handlers*. They are real function starts, so the check saw what it was
+looking for.
+
+Three further constraints, and they all agree on 100:
+
+* the handler table's own hundredth slot is `0x004D5B10`, which is `g_syncBlocks`;
+* `g_netCmdLength` (`0x004D5B90`) is `0xFF` from index 98 onward, and the valid opcodes are
+  `0x01`…`0x61`;
+* every entry of both tables in `0x00441050`…`0x00446D4E` is inside the network-command block.
+
+This is `docs/agents.md`'s *"a check that passes for an accidental reason is
+indistinguishable from one that passes for the right reason"*, and it is the cleanest instance
+on file: **the accident was that the array being over-read was followed by another array of the
+same element type.** The general defence is the one that caught it — a bound stated by
+something other than the thing being bounded. Here it was a neighbouring symbol's address.
+
+`g_netCmdHandlers` is now in `symbols.json` and both counts are corrected.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
