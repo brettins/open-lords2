@@ -22,6 +22,7 @@
 
 use crate::county::County;
 use crate::report::Message;
+use l2_net::{Quirk, Quirks};
 
 /// The counter that raises a peasant mob.
 pub const UNREST_REVOLT: u8 = 4;
@@ -50,6 +51,7 @@ pub fn update(
     county: &mut County,
     id: u8,
     owner_is_human: bool,
+    quirks: Quirks,
     out: &mut Vec<Message>,
 ) -> bool {
     if county.is_unowned() {
@@ -61,7 +63,7 @@ pub fn update(
     if owner_is_human {
         update_human(county, id, out)
     } else {
-        update_ai(county);
+        update_ai(county, quirks);
         false
     }
 }
@@ -92,20 +94,38 @@ fn update_human(county: &mut County, id: u8, out: &mut Vec<Message>) -> bool {
     false
 }
 
-fn update_ai(county: &mut County) {
+/// **Switchable** — [`Quirk::AiUnrestDeadBand`], `docs/bugs.md` B17.
+///
+/// The fixed path moves the climb.s threshold from [`AI_UNREST_BELOW`] to
+/// [`AI_SETTLE_AT_OR_ABOVE`], which closes the hole **upwards**: happiness
+/// 1..=10 then climbs, which is what the ladder plainly intends and what a
+/// mistyped `< 11` would have given. It deliberately does *not* extend the
+/// walk-down instead — an AI county at happiness 3 calming itself is the
+/// reading nothing supports.
+fn update_ai(county: &mut County, quirks: Quirks) {
+    let climb_below = if quirks.reproduces(Quirk::AiUnrestDeadBand) {
+        AI_UNREST_BELOW
+    } else {
+        AI_SETTLE_AT_OR_ABOVE
+    };
     if county.happiness >= AI_CALM_AT_OR_ABOVE {
         county.unrest = 0;
     } else if county.happiness >= AI_SETTLE_AT_OR_ABOVE {
         county.unrest = county.unrest.saturating_sub(1);
-    } else if county.happiness < AI_UNREST_BELOW {
+    } else if county.happiness < climb_below {
         county.unrest = county.unrest.saturating_add(1).min(UNREST_REVOLT);
     }
-    // 1..=10: docs/kingdom.md §6 gives no rule. See the module comment.
+    // 1..=10 with the quirk reproduced: docs/kingdom.md §6 gives no rule. See
+    // the module comment.
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
 
     fn owned_by(owner: u8, happiness: i32) -> County {
         let mut c = County::new();
@@ -122,10 +142,10 @@ mod tests {
         let mut c = owned_by(1, 24);
         let mut out = Vec::new();
         for season in 1..=3 {
-            assert!(!update(&mut c, 7, true, &mut out), "season {season} is too early");
+            assert!(!update(&mut c, 7, true, Q, &mut out), "season {season} is too early");
             assert_eq!(c.unrest, season);
         }
-        assert!(update(&mut c, 7, true, &mut out), "the fourth season revolts");
+        assert!(update(&mut c, 7, true, Q, &mut out), "the fourth season revolts");
         assert_eq!(c.unrest, 0, "and the counter resets");
 
         assert!(out.contains(&Message::Revolt { county: 7 }));
@@ -139,7 +159,7 @@ mod tests {
         let mut c = owned_by(1, 25);
         let mut out = Vec::new();
         for _ in 0..100 {
-            assert!(!update(&mut c, 1, true, &mut out));
+            assert!(!update(&mut c, 1, true, Q, &mut out));
         }
         assert_eq!(c.unrest, 0);
     }
@@ -151,7 +171,7 @@ mod tests {
         let mut c = owned_by(1, 29);
         let mut out = Vec::new();
         for _ in 0..5 {
-            update(&mut c, 3, true, &mut out);
+            update(&mut c, 3, true, Q, &mut out);
         }
         let warnings = out.iter().filter(|m| matches!(m, Message::UnrestWarning { .. })).count();
         assert_eq!(warnings, 1);
@@ -159,9 +179,9 @@ mod tests {
         assert_eq!(c.unrest, 0);
 
         c.happiness = 30;
-        update(&mut c, 3, true, &mut out);
+        update(&mut c, 3, true, Q, &mut out);
         c.happiness = 29;
-        update(&mut c, 3, true, &mut out);
+        update(&mut c, 3, true, Q, &mut out);
         let warnings = out.iter().filter(|m| matches!(m, Message::UnrestWarning { .. })).count();
         assert_eq!(warnings, 2, "the flag re-armed");
     }
@@ -171,7 +191,7 @@ mod tests {
         let mut c = owned_by(2, 41);
         c.unrest = 3;
         let mut out = Vec::new();
-        update(&mut c, 1, false, &mut out);
+        update(&mut c, 1, false, Q, &mut out);
         assert_eq!(c.unrest, 0);
         assert!(out.is_empty(), "the AI ladder raises no messages");
     }
@@ -182,7 +202,7 @@ mod tests {
         c.unrest = 3;
         let mut out = Vec::new();
         for expected in [2u8, 1, 0, 0] {
-            update(&mut c, 1, false, &mut out);
+            update(&mut c, 1, false, Q, &mut out);
             assert_eq!(c.unrest, expected);
         }
     }
@@ -192,7 +212,7 @@ mod tests {
         let mut c = owned_by(2, 0);
         let mut out = Vec::new();
         for expected in [1u8, 2, 3, 4, 4, 4] {
-            update(&mut c, 1, false, &mut out);
+            update(&mut c, 1, false, Q, &mut out);
             assert_eq!(c.unrest, expected);
         }
     }
@@ -206,7 +226,7 @@ mod tests {
             let mut c = owned_by(2, happiness);
             c.unrest = 2;
             let mut out = Vec::new();
-            update(&mut c, 1, false, &mut out);
+            update(&mut c, 1, false, Q, &mut out);
             assert_eq!(c.unrest, 2, "happiness {happiness} moves nothing");
         }
     }
@@ -218,7 +238,7 @@ mod tests {
         let mut c = owned_by(2, 0);
         let mut out = Vec::new();
         for _ in 0..50 {
-            assert!(!update(&mut c, 1, false, &mut out));
+            assert!(!update(&mut c, 1, false, Q, &mut out));
         }
         assert!(out.is_empty());
     }
@@ -228,7 +248,7 @@ mod tests {
         let mut c = owned_by(0, 0);
         let mut out = Vec::new();
         for _ in 0..50 {
-            assert!(!update(&mut c, 1, false, &mut out));
+            assert!(!update(&mut c, 1, false, Q, &mut out));
         }
         assert_eq!(c.unrest, 0);
         assert!(out.is_empty());
@@ -242,11 +262,11 @@ mod tests {
     fn a_human_county_s_unrest_counter_never_falls_on_its_own() {
         let mut c = owned_by(1, 24);
         let mut out = Vec::new();
-        update(&mut c, 1, true, &mut out);
+        update(&mut c, 1, true, Q, &mut out);
         assert_eq!(c.unrest, 1);
         c.happiness = 100;
         for _ in 0..20 {
-            update(&mut c, 1, true, &mut out);
+            update(&mut c, 1, true, Q, &mut out);
         }
         assert_eq!(c.unrest, 1, "recovery does not clear the counter");
     }

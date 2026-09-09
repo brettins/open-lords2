@@ -63,6 +63,9 @@ fn furnished(seed: u64) -> Game {
         fight_humans_only_byte: 0,
         exploration: true,
         time_limit: 240,
+        // Not the default, so a round trip that dropped it would come back
+        // FAITHFUL and the test would pass anyway.
+        quirks: l2_kingdom::Quirks::FIXED,
     };
     assert!(k.set_county_count(14));
     k.season = 1;

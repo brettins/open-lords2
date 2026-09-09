@@ -39,6 +39,7 @@
 use crate::county::{County, MAX_COUNTIES};
 use crate::realm::{Realm, MAX_REALMS};
 use crate::unit::{Mercenaries, TroopType, UnitKind, Units};
+use l2_net::{Quirk, Quirks};
 
 /// Twelve bands, one per nationality, indexed 1…12. Slot 0 is never a band.
 pub const MERCENARY_BANDS: usize = 12;
@@ -253,7 +254,17 @@ impl MercenaryBands {
     /// `nextCounty++` has **no wrap guard**, so a band that has just made an
     /// offer sits at `countyCount + 1` for one season until the next call wraps
     /// it. Reproduce the sequence, not the invariant.
-    pub fn advance(&mut self, counties: &mut [County; MAX_COUNTIES], county_count: usize) {
+    ///
+    /// **Switchable** — [`Quirk::MercenaryBandOvershoots`], `docs/bugs.md` B42.
+    /// The fixed path gives the second increment the wrap guard the first one
+    /// has, so a band that has just made an offer stands next season in the
+    /// county after it rather than one past the end of the map.
+    pub fn advance(
+        &mut self,
+        counties: &mut [County; MAX_COUNTIES],
+        county_count: usize,
+        quirks: Quirks,
+    ) {
         let limit = county_count.max(1) as u8;
         for i in 1..=self.in_play {
             let band = &mut self.bands[i];
@@ -270,6 +281,11 @@ impl MercenaryBands {
                 band.offered_in = band.next_county;
                 band.countdown = band.reload;
                 band.next_county = band.next_county.saturating_add(1);
+                if !quirks.reproduces(Quirk::MercenaryBandOvershoots)
+                    && band.next_county > limit
+                {
+                    band.next_county = 1;
+                }
             }
         }
         for id in 1..=county_count.min(MAX_COUNTIES - 1) {
@@ -390,6 +406,10 @@ impl MercenaryBands {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
     use crate::unit::Unit;
 
     fn blank() -> ([County; MAX_COUNTIES], [Realm; MAX_REALMS]) {
@@ -503,7 +523,7 @@ mod tests {
         }
         let mut offers = Vec::new();
         for _ in 0..4 {
-            bands.advance(&mut counties, 14);
+            bands.advance(&mut counties, 14, Q);
             offers.push(bands.get(9).unwrap().offered_in);
         }
         assert_eq!(offers, vec![14, 1, 3, 5]);
@@ -521,10 +541,10 @@ mod tests {
             }
         }
         for season in 1..=6 {
-            bands.advance(&mut counties, 14);
+            bands.advance(&mut counties, 14, Q);
             assert_eq!(bands.get(6).unwrap().offered_in, 0, "season {season}");
         }
-        bands.advance(&mut counties, 14);
+        bands.advance(&mut counties, 14, Q);
         assert_ne!(bands.get(6).unwrap().offered_in, 0, "the seventh season");
     }
 
@@ -535,7 +555,7 @@ mod tests {
         bands.bands[3].hired_by = 7;
         let before = *bands.get(3).unwrap();
         for _ in 0..5 {
-            bands.advance(&mut counties, 14);
+            bands.advance(&mut counties, 14, Q);
         }
         assert_eq!(*bands.get(3).unwrap(), before, "a hired band is frozen");
     }
@@ -565,7 +585,7 @@ mod tests {
         let mut bands = MercenaryBands::init(6);
         assert_eq!(bands.in_play(), 5);
         for _ in 0..20 {
-            bands.advance(&mut counties, 6);
+            bands.advance(&mut counties, 6, Q);
             for (_, band) in bands.iter() {
                 assert!(band.next_county <= 7, "walked past the map: {}", band.next_county);
                 assert!(band.offered_in <= 6);

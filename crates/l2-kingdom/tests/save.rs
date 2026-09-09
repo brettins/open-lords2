@@ -96,6 +96,14 @@ fn furnished(seed: u64) -> Kingdom {
         fight_humans_only_byte: 1,
         exploration: true,
         time_limit: 120,
+        // Not the default, so the save has to carry it: a round trip that
+        // dropped the field would come back FAITHFUL and pass anyway.
+        quirks: {
+            let mut q = l2_kingdom::Quirks::FAITHFUL;
+            q.set_reproduced(l2_kingdom::Quirk::AnyAleFillsATinyVillage, false);
+            q.set_reproduced(l2_kingdom::Quirk::MercenaryBandOvershoots, false);
+            q
+        },
     };
     assert!(k.set_county_count(14));
 
@@ -410,7 +418,7 @@ fn furnish_campaign(k: &mut Kingdom) {
     k.campaign.mercenaries = l2_kingdom::MercenaryBands::init(14);
     let mut counties = k.counties.clone();
     for _ in 0..3 {
-        k.campaign.mercenaries.advance(&mut counties, 14);
+        k.campaign.mercenaries.advance(&mut counties, 14, k.options.quirks);
     }
     k.counties = counties;
     for band in 1..l2_kingdom::mercenary::BAND_SLOTS {
@@ -553,8 +561,11 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // 56,566 at VERSION 11; +5 at 12 for `Options::exploration` (one byte) and
     // `Options::time_limit` (four); +164 at 13 for the merchant's books —
     // `County::purse` over 17 county slots (68) and the four `Realm` trade
-    // accumulators over 6 realm slots (96).
-    assert_eq!(c.finish().len, 56_735, "the state encoding changed - bump VERSION?");
+    // accumulators over 6 realm slots (96); **+8 at 14 for `Options::quirks`**,
+    // one `u64` and the last one the quirk set will ever cost — a bitfield does
+    // not widen when a quirk is added, which is the whole reason it is a
+    // bitfield (`docs/bugs.md` §6.3, `docs/decisions.md` C61).
+    assert_eq!(c.finish().len, 56_743, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

@@ -682,7 +682,11 @@ impl SetupScreen {
         if HUMAN_PLAYERS > self.player_starts {
             return Transition::Stay;
         }
-        let settings = self.options.commit(HUMAN_PLAYERS);
+        // **The quirk set is already on the game**, because the quirks page
+        // writes it there whether or not a campaign is running - one home for
+        // the value rather than a pending copy that could disagree with it.
+        // See [`crate::screens::options`].
+        let settings = self.options.commit(HUMAN_PLAYERS, ctx.game.kingdom.options.quirks);
         self.unhonoured = settings.unhonoured();
         settings.apply_to(ctx.game);
         Transition::Push(ScreenId::Campaign)

@@ -288,7 +288,7 @@ impl SetupOptions {
 
     /// `Setup_CommitOptions` (`0x00499DC3`), and `human_players` is
     /// `DAT_00553F98`, which is 1 in a single-player game.
-    pub fn commit(&self, human_players: usize) -> Settings {
+    pub fn commit(&self, human_players: usize, quirks: l2_kingdom::Quirks) -> Settings {
         let castle = self.get(option::STARTING_CASTLE);
         Settings {
             advanced_farming: self.get(option::ADVANCED_FARMING) != 0,
@@ -300,6 +300,7 @@ impl SetupOptions {
             // compares the byte, not a bool, for exactly this reason.
             fight_humans_only_byte: self.get(option::FIGHT) as u8,
             time_limit: TIME_LIMIT_SECONDS[self.get(option::TIME_LIMIT)],
+            quirks,
             gold: STARTING_GOLD[self.get(option::CROWNS)],
             castle_type: castle as u8,
             armoury: START_ARMOURY[self.get(option::WEAPONS)],
@@ -327,6 +328,15 @@ pub struct Settings {
     pub difficulty: u8,
     pub fight_humans_only_byte: u8,
     pub time_limit: i32,
+    /// **Ours, not the original.s.** Which of the original.s defects this game
+    /// will reproduce, taken from the quirks page
+    /// ([`crate::screens::options`]) at the moment the game is started.
+    ///
+    /// It sits with the six *rule* settings rather than the six starting
+    /// conditions because it is one: it lives for the length of the game, it
+    /// goes into the save, and it is in the lockstep digest.
+    /// `docs/decisions.md` C61.
+    pub quirks: l2_kingdom::Quirks,
     // The six that are starting conditions and are spent once.
     pub gold: i32,
     pub castle_type: u8,
@@ -349,6 +359,7 @@ impl Settings {
             fight_humans_only_byte: self.fight_humans_only_byte,
             exploration: self.exploration,
             time_limit: self.time_limit,
+            quirks: self.quirks,
         }
     }
 
@@ -521,7 +532,7 @@ mod tests {
         let o = SetupOptions::new();
         assert_eq!(o.lords(), 5, "the default game is five lords");
         assert_eq!(o.get(option::STARTING_CASTLE), 3, "a keep");
-        let s = o.commit(1);
+        let s = o.commit(1, l2_kingdom::Quirks::FAITHFUL);
         assert_eq!(s.gold, 1000);
         assert_eq!(s.time_limit, 0, "no limit in a single-player game");
         assert_eq!(s.armoury, START_ARMOURY[2], "some weapons");
@@ -600,7 +611,7 @@ mod tests {
             assert_eq!(o.get(i), VALUE_COUNT[i] - 1, "option {i}");
         }
         // And every commit off that is still a real row of every table.
-        let s = o.commit(1);
+        let s = o.commit(1, l2_kingdom::Quirks::FAITHFUL);
         assert_eq!(s.gold, 5000);
         assert_eq!(s.time_limit, 0);
         assert_eq!(s.difficulty, 3);
@@ -610,10 +621,10 @@ mod tests {
     fn the_ai_lord_count_is_the_lords_minus_the_people() {
         let mut o = SetupOptions::new();
         o.set(option::NOBLES, 3);
-        assert_eq!(o.commit(1).ai_lords, 4);
-        assert_eq!(o.commit(3).ai_lords, 2);
+        assert_eq!(o.commit(1, l2_kingdom::Quirks::FAITHFUL).ai_lords, 4);
+        assert_eq!(o.commit(3, l2_kingdom::Quirks::FAITHFUL).ai_lords, 2);
         o.set(option::NOBLES, 0);
-        assert_eq!(o.commit(1).ai_lords, 1);
+        assert_eq!(o.commit(1, l2_kingdom::Quirks::FAITHFUL).ai_lords, 1);
     }
 
     #[test]
@@ -622,7 +633,7 @@ mod tests {
         o.set(option::WEAPONS, 0);
         for d in 0..4usize {
             o.set(option::DIFFICULTY, d);
-            let s = o.commit(1);
+            let s = o.commit(1, l2_kingdom::Quirks::FAITHFUL);
             assert_eq!(s.armoury[AI_EXTRA_WEAPON_SLOT], 0, "the table row itself is untouched");
             assert_eq!(s.difficulty as usize, d);
         }

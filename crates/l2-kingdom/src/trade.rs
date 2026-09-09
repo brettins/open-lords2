@@ -111,6 +111,7 @@ use crate::kingdom::Kingdom;
 use crate::math::pct;
 use crate::realm::Realm;
 use crate::tables::{Tables, WEAPON_TYPE_COUNT};
+use l2_net::{Quirk, Quirks};
 
 /// `L2.eng` group 6 has fifteen strings and `g_goodsPrice` fifteen entries;
 /// index 0 is a placeholder in both, so a good id runs 1 … 14.
@@ -384,12 +385,17 @@ pub fn trade(kingdom: &mut Kingdom, order: Order) -> Result<Receipt, Refusal> {
         return Ok(Receipt::default());
     }
     let owned = order.realm != 0;
+    // **Switchable** - [`Quirk::UnownedCountyTradesUnchecked`], `docs/bugs.md`
+    // B11a. Both of the original.s guards are inside `if (realm != 0)`; with the
+    // quirk fixed they are asked of an unowned county too, against the two
+    // things such a county actually has - its own stores and its own purse.
+    let checked = owned || !kingdom.options.quirks.reproduces(Quirk::UnownedCountyTradesUnchecked);
     let mut receipt = Receipt::default();
 
     if order.qty < 0 {
         let want = -order.qty;
         receipt.crowns = order.sell_price * want;
-        if owned
+        if checked
             && order.good.tradeable()
             && order.good != Good::Ale
             && stock(&kingdom.counties, &kingdom.realms, order.good, order.realm, order.county) < want
@@ -408,13 +414,19 @@ pub fn trade(kingdom: &mut Kingdom, order: Order) -> Result<Receipt, Refusal> {
         }
     } else {
         receipt.crowns = order.buy_price * order.qty;
-        if owned && kingdom.realms[order.realm].gold < receipt.crowns {
+        let purse = if owned { kingdom.realms[order.realm].gold } else { kingdom.counties[order.county].purse };
+        if checked && purse < receipt.crowns {
             return Err(Refusal::NotEnoughGold);
         }
         if order.good == Good::Ale {
             let t = kingdom.tables;
-            receipt.ale_happiness =
-                crate::happiness::buy_ale(&t, &mut kingdom.counties[order.county], receipt.crowns);
+            let quirks = kingdom.options.quirks;
+            receipt.ale_happiness = crate::happiness::buy_ale(
+                &t,
+                &mut kingdom.counties[order.county],
+                receipt.crowns,
+                quirks,
+            );
         } else {
             receipt.moved = move_stock(kingdom, order.good, order.qty, order.realm, order.county);
         }
@@ -492,6 +504,10 @@ pub fn arrow_step(repeat: u32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
     use crate::tables::Tables;
 
     const T: &Tables = &Tables::DEFAULT;

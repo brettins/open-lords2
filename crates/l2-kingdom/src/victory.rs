@@ -74,6 +74,7 @@ use crate::county::{County, MAX_COUNTIES};
 use crate::realm::{Realm, MAX_REALMS};
 use crate::tables::Tables;
 use crate::unit::{UnitKind, Units};
+use l2_net::{Quirk, Quirks};
 
 /// `L2.eng` group 194 — *"Foiled again."*, an **AI** realm has been eliminated.
 pub const MSG_AI_ELIMINATED: u16 = 194;
@@ -302,6 +303,7 @@ pub fn rank_and_crown(
     t: &Tables,
     realms: &mut [Realm; MAX_REALMS],
     local_player: u8,
+    quirks: Quirks,
     out: &mut Vec<Ending>,
 ) -> Ranking {
     crate::ai::rank_realms(t, realms);
@@ -333,8 +335,22 @@ pub fn rank_and_crown(
         }
     }
 
-    if r.sole_survivor() {
+    // **Switchable** — [`Quirk::EmptyGameIsWonBySlotZero`], `docs/bugs.md` B51.
+    // With nobody in play leader and trailer are both 0, `0 == 0` passes, and
+    // the original crowns `g_realms[0]`, which is not a realm. The fixed path
+    // requires somebody to be standing before anyone is crowned.
+    let crowning = r.sole_survivor()
+        && (quirks.reproduces(Quirk::EmptyGameIsWonBySlotZero) || r.realms_in_play > 0);
+    if crowning {
         let winner = r.leader as usize;
+        // **Switchable** — [`Quirk::DeadHumanCanStillWin`], `docs/bugs.md` B52.
+        // The `else` limb is reached twice for an AI winner: `Score_RankRealms`
+        // runs many times a turn, and the second call finds `crowned_once` set,
+        // falls through, and sends the *human* group 225 *"Victory!"* — in a
+        // game the human is not in. The fixed path sends the victory only to a
+        // local player who is actually the realm left standing.
+        let victory_is_the_local_players =
+            quirks.reproduces(Quirk::DeadHumanCanStillWin) || winner == local_player as usize;
         if !realms[winner].crowned_once && !realms[winner].is_human {
             realms[winner].crowned_once = true;
             out.push(Ending {
@@ -348,12 +364,14 @@ pub fn rank_and_crown(
             advance_voice(&mut realms[winner]);
         } else {
             realms[winner].crowned_once = true;
-            out.push(Ending {
-                group: MSG_VICTORY,
-                from: 0,
-                to: local_player,
-                category: CATEGORY_ENDING,
-            });
+            if victory_is_the_local_players {
+                out.push(Ending {
+                    group: MSG_VICTORY,
+                    from: 0,
+                    to: local_player,
+                    category: CATEGORY_ENDING,
+                });
+            }
         }
     }
     r
@@ -399,9 +417,23 @@ pub enum OutcomeStep {
 /// raises group 194 *about that AI*, and displaying 194 with nobody left is what
 /// produces the victory. The second row is the ordinary way a person loses:
 /// group 224 with `from == me`.
-pub fn outcome_of(msg: Ending, local_player: u8, ranking: Ranking) -> OutcomeStep {
+pub fn outcome_of(
+    msg: Ending,
+    local_player: u8,
+    ranking: Ranking,
+    quirks: Quirks,
+) -> OutcomeStep {
     if msg.group == MSG_VICTORY {
         return OutcomeStep::Set(Outcome::Won);
+    }
+    // **Switchable** — [`Quirk::MutualDestructionIsAWin`], `docs/bugs.md` B53.
+    // The original tests "no opponents left" *before* "is this message about
+    // me", so a local player eliminated on the same pass as the last opponent
+    // is handed a victory. The fixed path asks whose defeat this is first; the
+    // two tests are otherwise unchanged and in the same function.
+    let mine_first = !quirks.reproduces(Quirk::MutualDestructionIsAWin);
+    if mine_first && msg.from == local_player {
+        return OutcomeStep::Set(Outcome::Lost);
     }
     if ranking.opponents_remaining == 0 {
         return OutcomeStep::EnqueueVictory;
@@ -421,6 +453,10 @@ pub fn victory_message(local_player: u8) -> Ending {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
+    #[allow(dead_code)]
+    const Q: Quirks = Quirks::FAITHFUL;
     use crate::unit::Unit;
 
     const T: &Tables = &Tables::DEFAULT;
@@ -558,7 +594,7 @@ mod tests {
         }
         let _ = &units;
         let mut out = Vec::new();
-        let r = rank_and_crown(T, &mut realms, 1, &mut out);
+        let r = rank_and_crown(T, &mut realms, 1, Q, &mut out);
         assert_eq!(r.realms_in_play, 3);
         assert_eq!(r.opponents_remaining, 2);
         assert!(!r.sole_survivor());
@@ -574,7 +610,7 @@ mod tests {
         }
         realms[1].is_human = true;
         let mut out = Vec::new();
-        let r = rank_and_crown(T, &mut realms, 1, &mut out);
+        let r = rank_and_crown(T, &mut realms, 1, Q, &mut out);
         assert!(r.sole_survivor());
         assert_eq!(r.leader, 1);
         assert_eq!(r.opponents_remaining, 0);
@@ -594,7 +630,7 @@ mod tests {
         }
         realms[3].is_human = false;
         let mut out = Vec::new();
-        rank_and_crown(T, &mut realms, 1, &mut out);
+        rank_and_crown(T, &mut realms, 1, Q, &mut out);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].group, MSG_AI_CROWNED, "\"Just call me king.\"");
         assert_eq!(out[0].category, 1, "a taunt, so it cannot set an outcome");
@@ -605,7 +641,7 @@ mod tests {
         // the other branch fires and the *human* is sent group 225 — in a game
         // the human has already lost. Reproduced deliberately.
         out.clear();
-        rank_and_crown(T, &mut realms, 1, &mut out);
+        rank_and_crown(T, &mut realms, 1, Q, &mut out);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].group, MSG_VICTORY);
         assert!(out[0].sets_outcome());
@@ -620,7 +656,7 @@ mod tests {
             realms[id].strength = 0;
         }
         let mut out = Vec::new();
-        let r = rank_and_crown(T, &mut realms, 1, &mut out);
+        let r = rank_and_crown(T, &mut realms, 1, Q, &mut out);
         assert_eq!((r.leader, r.trailer), (0, 0));
         assert!(r.sole_survivor(), "0 == 0, and the original crowns g_realms[0]");
         assert_eq!(out.len(), 1);
@@ -635,7 +671,7 @@ mod tests {
         let msg = victory_message(1);
         for opponents in 0..=4 {
             let r = Ranking { opponents_remaining: opponents, ..Ranking::default() };
-            assert_eq!(outcome_of(msg, 1, r), OutcomeStep::Set(Outcome::Won));
+            assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::Set(Outcome::Won));
         }
     }
 
@@ -643,14 +679,14 @@ mod tests {
     fn my_own_elimination_with_opponents_left_is_a_loss() {
         let msg = Ending { group: MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING };
         let r = Ranking { opponents_remaining: 2, ..Ranking::default() };
-        assert_eq!(outcome_of(msg, 1, r), OutcomeStep::Set(Outcome::Lost));
+        assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::Set(Outcome::Lost));
     }
 
     #[test]
     fn somebody_elses_elimination_ends_nothing() {
         let msg = Ending { group: MSG_AI_ELIMINATED, from: 3, to: 0, category: CATEGORY_ENDING };
         let r = Ranking { opponents_remaining: 2, ..Ranking::default() };
-        assert_eq!(outcome_of(msg, 1, r), OutcomeStep::Set(Outcome::InPlay));
+        assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::Set(Outcome::InPlay));
     }
 
     /// The mainline human victory: it is this branch, not `Score_RankRealms`.
@@ -658,10 +694,10 @@ mod tests {
     fn the_last_ais_death_notice_with_no_opponents_left_enqueues_the_victory() {
         let msg = Ending { group: MSG_AI_ELIMINATED, from: 3, to: 0, category: CATEGORY_ENDING };
         let r = Ranking { opponents_remaining: 0, ..Ranking::default() };
-        assert_eq!(outcome_of(msg, 1, r), OutcomeStep::EnqueueVictory);
+        assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::EnqueueVictory);
         // …and that message is then a win.
         assert_eq!(
-            outcome_of(victory_message(1), 1, r),
+            outcome_of(victory_message(1), 1, r, Q),
             OutcomeStep::Set(Outcome::Won),
             "the enqueued 225 is what actually sets the outcome"
         );
@@ -674,7 +710,7 @@ mod tests {
         let msg = Ending { group: MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING };
         let r = Ranking { opponents_remaining: 0, ..Ranking::default() };
         assert_eq!(
-            outcome_of(msg, 1, r),
+            outcome_of(msg, 1, r, Q),
             OutcomeStep::EnqueueVictory,
             "the opponents test is checked before the is-it-me test"
         );

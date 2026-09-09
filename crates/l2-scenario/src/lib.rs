@@ -737,6 +737,13 @@ impl Scenario {
                 fight_humans_only_byte: l2_kingdom::battle::FIGHT_HUMANS_ONLY_DEFAULT,
                 exploration: g.opt_exploration != 0,
                 time_limit: g.opt_time_limit,
+                // **The original has no such setting**, so there is nothing in
+                // the file to read and nothing to be honest or dishonest about:
+                // a game imported from a `.sav` was played by `Lords2.exe`, and
+                // `Lords2.exe` reproduces all of them. Faithful is therefore
+                // not a default here, it is the only correct answer.
+                // `docs/decisions.md` C61.
+                quirks: l2_kingdom::Quirks::FAITHFUL,
             },
             clock: Clock {
                 season: g.season as u8,

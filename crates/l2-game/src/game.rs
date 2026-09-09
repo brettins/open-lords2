@@ -291,6 +291,7 @@ impl Game {
             &self.kingdom.tables,
             &mut self.kingdom.realms,
             self.player,
+            self.kingdom.options.quirks,
             &mut out,
         );
         for msg in out {
