@@ -957,6 +957,49 @@ impl Scenario {
             field::recount(c, &self.map);
             c.herd_crowding = land::herd_crowding(&tables, c.herd, c.fields_cattle);
         }
+
+        // **The garrison relation was stored from one end and read from the
+        // other, and nothing joined them.**
+        //
+        // The original keeps both halves — county `+0x1BC` names the unit and
+        // unit `+0x198` names the county (`docs/armies.md` §2, both **[V]**) —
+        // and `Castle_Garrison` writes them together. We import only the unit's
+        // half, as [`Unit::garrison_county`], while **every** consumer reads the
+        // county's: `conquest`'s ownership test, `divide`, `siege`'s
+        // still-inside check, and `Map_DrawFrame`'s castle flag, which is gated
+        // on `county.garrisonUnit != 0`. `County::new` seeds it to 0 and no
+        // import path overwrote it, so a loaded game arrived with **no castle
+        // garrisoned anywhere** — including the five siege fixtures that exist
+        // for exactly that position, and the install's own `lastturn.sav`. The
+        // symptom that exposed it was the castle flag never drawing; the
+        // consequences in `conquest` and `siege` were the same bug and had not
+        // been noticed. C59.
+        //
+        // **Derived from the unit rather than read from `+0x1BC`**, because the
+        // unit's half is already imported and the two agree in all eleven saves
+        // in the tree — ten with a garrison and England turn one with none.
+        // Adding the county field to `l2-formats` would be a second reading of
+        // one fact, and `l2-scenario` already derives `fields_*` and
+        // `herd_crowding` for the same reason.
+        //
+        // **After the county loop**, which opens with `*c = County::new()`.
+        // This ran before it once and was silently wiped, which is worth a line
+        // of comment rather than a silent reorder.
+        //
+        // **Ascending slot wins a tie.** Two units claiming one castle is not a
+        // state the original can reach; if a save carries it, the lowest slot is
+        // the answer every peer computes (`docs/netcode.md`).
+        for (slot, unit) in &self.units {
+            let county = unit.garrison_county as usize;
+            if county == 0 || *slot >= MAX_UNITS {
+                continue;
+            }
+            if let Some(c) = k.counties.get_mut(county) {
+                if c.garrison_unit == 0 {
+                    c.garrison_unit = *slot;
+                }
+            }
+        }
         k
     }
 }

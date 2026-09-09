@@ -512,6 +512,55 @@ fn a_unit_type_that_names_no_handler_is_refused() {
     }
 }
 
+/// **A castle garrison survives the import, and it does so on every save that
+/// has one.**
+///
+/// The relation has two halves in the original — county `+0x1BC` names the unit,
+/// unit `+0x198` names the county — and this importer reads only the unit's,
+/// then derives the county's. It had not derived it at all: `County::new` seeds
+/// `garrison_unit: 0`, nothing overwrote it, and **every loaded game arrived
+/// with no castle garrisoned**. `conquest`'s ownership test, `divide`, `siege`
+/// and the campaign map's castle flag are all downstream of that field, and the
+/// flag is what exposed it. C59.
+///
+/// Run over **every** save the machine can offer rather than one fixture,
+/// because the failure was silent on all of them: ten of the eleven in the tree
+/// carry a garrison and the eleventh is England turn one, which has none because
+/// it is turn one. Asserting "both halves agree" on each is what makes this a
+/// check of the derivation and not of one file.
+#[test]
+fn a_castle_garrison_reaches_the_county_it_is_standing_in() {
+    let saves = saves!();
+    let mut with_a_garrison = 0;
+    for s in &saves {
+        let scenario = Scenario::from_save(&s.save).expect("a save this code can read");
+        let kingdom = scenario.kingdom(1);
+        for (slot, unit) in &scenario.units {
+            let county = unit.garrison_county as usize;
+            if county == 0 {
+                continue;
+            }
+            with_a_garrison += 1;
+            assert_eq!(
+                kingdom.counties[county].garrison_unit, *slot,
+                "{}: unit {slot} says it garrisons county {county}, and the county does not \
+                 say so back — the derivation in `skeleton` ran before the county loop \
+                 overwrote it, or not at all",
+                s.name
+            );
+            assert_ne!(
+                kingdom.counties[county].castle_type, 0,
+                "{}: county {county} holds a garrison and has no castle to hold it",
+                s.name
+            );
+        }
+    }
+    assert!(
+        with_a_garrison > 0,
+        "no save on this machine has a garrison, so this test asserted nothing"
+    );
+}
+
 /// **Realm `+0x0A` is the shield index, and a default game sets it to the realm
 /// id.** Read rather than assumed: the importer used to fill this field with the
 /// realm id on the strength of `Game_SetupRealmsAndCounties` doing so, which is

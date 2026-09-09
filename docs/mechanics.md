@@ -532,6 +532,38 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   mercenaries"* and **there is no mercenaries screen** — the offer is a block on the only
   door to `Army_Create` a player has. C45.
 - 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
+- 🕳 **The mouse pointer changes shape, and we draw the OS arrow everywhere.** A player
+  reported *"an alternative mouse icon in the town square, it's like a question mark"*,
+  *"only when you're not selecting"* — and he is right twice over. `docs/screens.md` §9 has
+  the whole mapping; the short version:
+
+  | where | pointer |
+  |---|---|
+  | the village, idle (`0x02`) | **arrow + question mark** |
+  | the village, carrying peasants (`0x06`) | arrow + a human figure |
+  | the campaign map giving an army its destination (`0x10`) | arrow + a scythe |
+  | a battlefield figure of yours under the pointer | a ring |
+  | the battlefield with a selection in hand | a cross |
+  | an enemy figure under the pointer | a cross with a target in it — the game's own help calls this *"when the cursor turns red"* |
+  | **everywhere else, all 59 other screens** | the plain arrow |
+
+  It is **one 64-entry table** (`g_cursorByScreen`, `0x004E3098`) indexed by `g_screenId`,
+  plus a hand-written ladder for the three battle ids, read once per frame by `Cursor_Set`
+  (`0x004B1CF3`) — the only `SetCursor` call in the binary. Five table rows are non-zero.
+
+  **The twelve `Cursor1…12.cur` files in the install are a red herring.** Nothing reads
+  them: `Lords2.exe` has no `LoadCursorFromFile` import and no `.cur` filename anywhere in
+  it, and they are installed only because `INSTALL.HST` lists them. Eight are unused
+  eight-way edge-scroll arrows and the other four are drafts, of which exactly one
+  (`Cursor9.cur`, the question mark) shipped byte-identical to the resource the game loads.
+  The pictures that matter live in `Lords2.exe`'s own `.rsrc`, as `RT_GROUP_CURSOR` 102,
+  103, 104, 105, 110, 111 and 113.
+
+  **Cost:** a `.rsrc` walk plus seven 32 × 32 1-bpp AND/XOR decodes out of the user's own
+  binary — the same shape as the realm ramp `crates/l2-view` already reads at `0x004D2900` —
+  and one lookup table. No new file format: an `RT_CURSOR` is a `.cur` with the 22-byte
+  directory swapped for a 4-byte hotspot. The pointer is not simulation state, so it costs
+  nothing in `docs/netcode.md` terms.
 - ✅ **Sound: the music plays.** 771 `.wav` files, 396 MB. The layer is
   `crates/l2-game/src/audio`, and it is in `l2-game` for the same reason `winit` is
   (`docs/netcode.md` D-3). **A sound can only ever read the world**: `Audio` is not in

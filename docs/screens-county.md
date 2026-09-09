@@ -1303,6 +1303,55 @@ once in the binary**, in `Map_Click` (`0x0043CE1A`): the town-square branch does
 open the village over it.** `Village_Draw` then repaints the map itself, by the same route,
 every time it is called with `reload != 0`.
 
+### 6.4.4a The sidebar stays **live** under the village, and dies for the length of a drag  **[V]**
+
+§6.4.4 established that the sidebar is still *visible*. Whether it is still *clickable* is a
+separate question and the arm answers it outright. `Screen_FrameInput`'s `g_screenId == 0x02`
+ladder, in order, before a single village verb:
+
+| # | guard | what it is |
+|---|---|---|
+| 1 | `FUN_0043292d` | `Hotspot_Test(0x262, 0x20, &g_minimapModeButtons, 4)` — the four mode icons |
+| 2 | `FUN_00432967` | `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)` — the six sidebar buttons |
+| 3 | `CountyStrip_Click` | the 2 × 2 quadrant hotspot into the four county panels |
+| 4 | `Labour_SplitSliderDrag` (`0x00439122`) | the farm/industry split, `x 478 … 639, y 257 … 296` |
+| 5 | `CountyStrip_JobClick` | the produce rows |
+| 6 | `FUN_00439079` | untraced; also guard 2 of the `g_screenId == 0` arm |
+
+Only then `Ui_OkButtonClicked`, `Village_BandStart` → `0x05`, `Village_DoubleClick`,
+`Village_ClickJob` → `0x0F`, and finally the right release → `0`.
+
+Two facts fall out, and they are opposite ones.
+
+**The whole right-hand column keeps working.** Every one of the six hit-tests `x >= 0x1DE`, so
+the rule is *the column at 478 and nothing else*: `Map_Click` is **not** in this ladder, and a
+click on the strip of campaign map either side of the inset does nothing at all. A player who
+went and checked: *"everything is still clickable with the town square open… The slider does
+indeed still work with town square open and causes no issues."*
+
+**The village's other two screen ids test none of them.** `0x05` runs `Village_BandRelease`
+and `Village_BoxSelect`; `0x06` runs `Village_Drop`. Neither looks at the sidebar. So the
+column is dead from the moment a rubber band starts until the peasants land — reproduced on
+purpose, `docs/bugs.md` B63a, `docs/decisions.md` C59.
+
+**One thing the arm settles that our engine still conflates.** `Map_EdgeScroll` is guard 1 of
+the `g_screenId == 0` arm and appears **nowhere** in the `0x02` arm, so the campaign map does
+*not* edge-scroll under an open village. The flag wave is a different matter — it lives in the
+draw pass (`Map_DrawFrame`'s `tick`), which `Village_Draw` re-enters on every repaint, so flags
+keep waving behind the inset. Ours runs both from `MapScreen::update`, and `Machine::update`
+ticks only the top screen, so with the village open we stop both. **Neither half is right**:
+the scroll should stay stopped for a different reason than it currently is, and the wave should
+not have stopped at all. Untouched, and written down here so whoever separates them meets the
+distinction rather than making one of the two behaviours match and calling it done.
+
+**And a screen opened from that sidebar does not come back to the village.** `g_screenId` is
+one byte; 57 of the 100 writes to it in `Screen_FrameInput` are the literal `0`, and only 15
+restore a remembered screen — 11 `g_menuPrevScreen`, 2 `g_screenIdSaved`, 2
+`g_sliderPrevScreen`, none of them the village. The one exception is the job popup, and it is a
+constant too: `0x0F`'s arm is `if (DAT_005533F4 == 0) g_screenId = 0x02; else g_screenId = 0;`
+— a flag set at the call sites saying *"opened from the map"*, not a memory of the stack.
+`docs/bugs.md` B63.
+
 ### 6.4.5 Clicking the map is the whole of this navigation  **[V]**
 
 `Map_Click` (`0x0043CE1A`) is 1,263 bytes and dispatches every left click on the campaign

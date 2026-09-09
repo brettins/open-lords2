@@ -418,6 +418,90 @@ there is no battle screen. `crates/l2-game/src/audio/names.rs` names the constan
 `fanfare::AFTER_BATTLE` rather than `LOSE`, so whoever wires it up meets the fact rather
 than the assumption.
 
+## 2.10 Screens and navigation
+
+### B63 — Closing a screen opened over the village closes the village with it
+
+**Reported by a player, checked by the same player in the original.** *"Things that open a
+dialog will open it and when you close that dialogue it will close town square and that
+dialogue, probably something to fix so it only closes the dialog you opened, but list that in
+future bug fixes that diverge from the game."* That last clause is why this is here rather
+than fixed: the improvement is wanted **recorded**, not applied.
+
+**What the original does. [V]** Open the village (screen `0x02`), click any sidebar button
+while it is up — which works, because the village's arm hands the whole right-hand column
+through (§below) — and the screen that opens replaces the village outright. Close it and you
+are on the **campaign map**, not back in the village.
+
+**Why. [V]** `g_screenId` is *one byte*, and there is no stack anywhere in the binary. Of the
+**100** writes to `g_screenId` inside `Screen_FrameInput` (`0x0042FF10`), **57 are the literal
+`0`** — the campaign map. A screen's exit is a **constant compiled into its own arm**, not a
+memory of where it was opened from. The `0x0A` arm is the shape of all of them:
+
+```c
+if (g_screenId == '\n') {                       /* 0x0A, opened from the sidebar */
+  if (g_mouseRightReleased == '\0') {
+    if (Ui_OkButtonClicked()) { g_screenId = '\0'; Gfx_LoadCountyMode(); g_redrawRequest = 1; }
+  } else                      { g_screenId = '\0'; Gfx_LoadCountyMode(); g_redrawRequest = 1; }
+}
+```
+
+The counted alternative exists and is rare: **11** writes restore `g_menuPrevScreen` (the menu
+bar's drop-downs), **2** restore `g_screenIdSaved` and **2** `g_sliderPrevScreen`. So the game
+*can* remember where it came from — it does it in fifteen places out of a hundred, and none of
+them is the village. The one screen that does come back to the village is the **job popup**,
+and it does so by a constant too, not a memory: `0x0F`'s arm is
+`if (DAT_005533F4 == 0) g_screenId = 0x02; else g_screenId = 0;` — a flag saying *"this popup
+was opened from the map, not from the village"*, set at the two call sites rather than tracked.
+
+So the collapse is not one arm closing two screens, and not a dismissal walking a stack.
+**There is nothing to walk.** The village is not "closed" at all: it simply stops being what
+`g_screenId` names, and every draw pass after that draws something else.
+
+**Reproduced?** **Yes, deliberately, and structurally rather than by a special case.**
+`Machine::apply_at` truncates the stack to the depth of the screen that acted before applying
+its transition, so a `Push` from the campaign map — reached through the village by
+[`Transition::Pass`] — discards the village on the way. That makes our stack behave like one
+byte in exactly the situation the original has one byte, and leaves it a stack everywhere
+else. Test:
+`l2-game/tests/screens.rs::a_screen_opened_over_the_village_takes_the_village_with_it_when_it_closes`.
+
+**What a switch would cost.** Small, and the cost is not in the code. `apply_at` would keep
+the intervening screens instead of truncating, which is three lines; the work is deciding what
+the *rest* of the screen set does once a stack is real, because the original's constants become
+wrong everywhere at once — every one of those 57 literal zeroes is a screen that would now
+return to whatever was under it rather than to the map, and some of them (the menu-bar
+drop-downs, the job popup) already have their own idea of where to go and would start
+disagreeing with the stack. So it is one flag and a pass over 49 arms, not one flag.
+
+**Where the flag would live: `Quirks` on `Options`, not on `Tables`.** `Tables` is hashed into
+the save header (`docs/modding.md`), so a quirk added there changes the hash and invalidates
+every existing save. §6.3 has the general argument; this is the first entry that would use it.
+
+### B63a — The sidebar goes dead for exactly as long as a peasant is in the air
+
+**Not a divergence of ours — the original's own asymmetry, and worth the row because it looks
+like an inconsistency somebody would tidy.** **[V].**
+
+`Screen_FrameInput`'s `g_screenId == 0x02` arm runs six sidebar guards before any village verb:
+
+```c
+if (FUN_0043292d() ||        /* Hotspot_Test(0x262, 0x20, &g_minimapModeButtons, 4) */
+    FUN_00432967() ||        /* Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)    */
+    CountyStrip_Click() || Labour_SplitSliderDrag() ||
+    CountyStrip_JobClick() || FUN_00439079()) goto done;
+```
+
+The village's **other two screen ids do not.** `0x05` (banding) runs `Village_BandRelease` and
+`Village_BoxSelect`; `0x06` (carrying) runs `Village_Drop`. Neither tests a single sidebar
+guard. So the entire right-hand column — minimap modes, the six buttons, the county strip, the
+farm/industry slider — is live in the idle village and dead from the moment a rubber band
+starts until the peasants are dropped.
+
+Reproduced (`VillageScreen::handle` passes only in `Phase::Idle`) and asserted, in the half of
+`the_sidebar_slider_still_works_with_the_village_open_but_not_mid_drag` that exists to stop it
+being "fixed" into uniformity. `docs/decisions.md` C59.
+
 ---
 
 # 3. The original's bugs we do **not** reproduce

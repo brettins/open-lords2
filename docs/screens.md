@@ -374,19 +374,86 @@ Two things fall out and both check:
 
 * the 128 × 128 picture at `(x − 2, y + 3)` = **(478, 28)** — flush with the panel's left
   edge, and 28 + 128 = 156, exactly where the panel's next section begins (§4);
-* a county tint over it (`FUN_00410CBD`): a source pixel of 10…13 is land inside a county
-  and is replaced from a 8-entry-per-realm ramp at `0x004D2900` indexed
+* a county tint over it (`Minimap_DrawOverlay`, `0x00410CBD`): a source pixel of 10…13 is
+  land inside a county and is replaced from a 8-byte-per-realm ramp at `0x004D2900` indexed
   `realmColour*8 + (v − 10)`; the *selected* county's shade-10 pixels become index 0x20.
   Anything else (sea, coast, 0x24) is left as the picture drew it;
 * a 29 × 123 strip (`misc_cty` frame 91 or 92) at `(x + 0x83, y + 7)` = (611, 32);
 * one of `misc_cty` frames 93/95/94 at (485, 30) when the overlay mode is 1/2/3.
 
-`DAT_0057A0C4` is the overlay mode: 0 = owner colours, 1/2/3 = three per-county ratings of
-the player's own counties (`+0x0B3`, `+0x0B2`, `+0x0B1`) through a 6-entry ramp at
-`0x004D28F8`. `FUN_0043AB76` switches it from a hotspot id `DAT_0059154C`: 1–3 pick a mode,
-**4 toggles the zoom**.
+### 3.3 The three statistic overlays  **[V]**
 
-**Clicking the minimap** — `FUN_0043253A`:
+`g_minimapMode` (`0x0057A0C4`) is the overlay: 0 = owner colours, and **1 labour, 2 food,
+3 happiness**, each of which colours *only the local player's own counties* — all three
+branches of `Minimap_DrawOverlay` test `owner == g_localPlayer` and skip the pixel
+otherwise, leaving the raster's own shade.
+
+**Two adjacent tables, not one.** `0x004D28F8` and `0x004D2900` are eight bytes apart and
+it is worth writing the bytes out, because the two have different strides:
+
+```text
+004d28f8  0f 15 f3 09 f1 05 | 05 05      the rating ramp, then two bytes nothing indexes
+004d2900  0a 0b 0c 0d 20 0b 0c 0d        realm colour 0 — the shades unchanged
+004d2908  01 0e 0f f9 20 0e 0f f9        realm colour 1
+004d2910  03 f2 f3 fb 20 f2 f3 fb        realm colour 2
+004d2918  38 35 32 2f 20 35 32 2f        realm colour 3
+004d2920  05 f4 f5 fd 20 f4 f5 fd        realm colour 4
+004d2928  04 fc f1 f0 20 fc f1 f0        realm colour 5
+```
+
+The realm ramp is **six rows of eight of which four are used** — the second half of each
+row is the first with `0x20` substituted for the darkest entry, which is exactly the
+substitution the function then makes by hand for the selected county, and is the
+corroboration that the stride is 8. The rating ramp is **six flat bytes indexed
+`ramp[band]`**, guarded by `band < 6`.
+
+**The rating ramp runs bad to good, and the artwork proves it.** `Misc_cty.pl8` frame 91 —
+the strip that replaces the four buttons while an overlay is up — carries a six-swatch
+colour bar with a tick against the top swatch and a cross against the bottom, and reading
+its pixels down column 5 gives `05 f1 09 f3 15 0f`: **this table reversed**. So band 0 is
+the red at the crossed end and band 5 the purple at the ticked end.
+`l2-view/tests/install.rs` asserts both halves against the user's own files.
+
+**The bands are computed on every draw**, by `FUN_00451BBA` — the first thing
+`Minimap_DrawOverlay` calls — into county bytes `+0x03`, `+0x02` and `+0x01`. Those are
+three of the five bytes `Sync_CompareState` skips, i.e. interface state, not simulation
+state. *(This document previously called them `+0x0B3`, `+0x0B2` and `+0x0B1`. That was the
+literal `0x0053F9B3` in the disassembly mistaken for an offset; `g_counties` is at
+`0x0053F9B0`.)*
+
+| mode | byte | rule | values it can take |
+|---|---|---|---|
+| 1 labour | `+0x03` | 0 if `labour[0] < wanted[0]` or `labour[1] < wanted[1]`; else 6 if `labour[8] + (jobs 0…7 with `workers > useful`) == 0`; else 5 | **0, 5, 6** |
+| 2 food | `+0x02` | 0 if `rationAchieved < rationWanted`, else 6 | **0, 6** |
+| 3 happiness | `+0x01` | `happiness / 20` | 0 … 5 |
+
+**Two of the three have no middle, and 6 is off the end of the ramp — so those counties
+are not coloured at all.** In the shipped game the food overlay is therefore a single red
+mark on the counties that went short and nothing anywhere else, and the labour overlay
+paints only the ramp's two ends. That is not a gap in the reading: `FUN_00451BBA` has a
+*second* food branch, spreading `rationAchieved` over bands 1…5, behind `DAT_00553E60` —
+a flag zeroed by the bulk global reset at `0x00497500` and toggled only inside the command
+dispatcher at `0x004B29BE`, i.e. a debug switch. With it clear the ramp's middle four
+colours are unreachable in food mode.
+
+Corroborated from the user's own saved games: over every save on this machine, `+0x02` is
+only ever 0 or 6, `+0x03` only ever 0, 5 or 6, and `+0x01` is `happiness / 20` in every
+save where the bands have been computed at all — `l2-formats/tests/save.rs`. (A game whose
+overlay was never opened has all three zero, which the England turn-one fixture is.)
+
+**The four buttons are not radio buttons.** `Minimap_ModeButton` (`0x0043AB76`) reads a
+hotspot id from `DAT_0059154C` and is a two-state machine:
+
+* **in mode 0** — buttons 1…3 select their mode; button 4 toggles the map zoom;
+* **in any other mode** — button 4 turns the overlay *off*; buttons 1…3 do nothing.
+
+So there is no switching straight from food to happiness. The artwork agrees again: frame
+`0x5C`, drawn in mode 0, has four buttons on it, and frame `0x5B`, drawn in every other
+mode, has the colour bar and **one** button.
+
+### 3.4 Clicking the minimap  **[V]**
+
+`FUN_0043253A`:
 
 ```c
 if (x < 0x1E0 || x > 0x25F) return 0;      /* 480 … 607 */
@@ -702,6 +769,10 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   `Ui_DrawBox(0, 412, 30, 4)` strip, the End Turn rectangle;
 * the `MAPnn.PL8` minimap, its click rectangle, and its owner tint through the realm ramp
   read out of `Lords2.exe` at `0x004D2900`;
+* **all four minimap modes** (§3.3) — the labour, food and happiness overlays through the
+  rating ramp at `0x004D28F8`, `FUN_00451BBA`'s three bands including the two that answer
+  "colour nothing", the mode strip and mode badge, and `Minimap_ModeButton`'s two-state
+  button behaviour;
 * the clip-rectangle derivation of §1.4, asserted rather than assumed —
   `campaign::tests::the_clip_rectangle_swallows_exactly_the_columns_the_half_blitters_drop`
   goes red if the clip is moved to 480;
@@ -769,7 +840,6 @@ into the gitignored `out/` so it can be looked at.
 * the File / Options / Help menus, their drop-downs, and everything the right column puts
   *inside* frames 55 / 66 / 56 / 58 — our own numbers go on a dark backing over frame 56,
   which is the one plain part of the column, so they read as an overlay;
-* the four minimap **overlay modes** (`g_minimapMode` 1…3) and their side strip;
 * our own 5 × 7 font, wherever text is drawn — the original uses `Fntl2_9`, `Fntl2_14` and
   `Fntl2_22`, which are decoded but not wired up.
 
@@ -783,5 +853,228 @@ into the gitignored `out/` so it can be looked at.
   The season is `g_season`; those bits pick one of four map slots inside a `MAPnn.PL8`.
 * **`symbols.json`'s `Map_LoadTileSets` was misnamed** — it loads minimaps, not tile sets.
   Renamed `Minimap_Load`.
+* **This document's own `+0x0B1` … `+0x0B3` were wrong** (§3.3): the minimap's three rating
+  bytes are county `+0x01`, `+0x02` and `+0x03`. The old numbers are `0x0053F9B1`… read as
+  offsets rather than as addresses into `g_counties` at `0x0053F9B0`.
+* **`Minimap_ModeButton`'s comment in `symbols.md` said "pressing the active one again
+  returns to mode 0".** It is *button 4* that returns to mode 0; pressing the active mode's
+  own button does nothing.
 * **`g_scenarioIndex` is the map slot unshifted**, and `crates/l2-game` was shifting it
   right by two. Unobservable on the England turn-one fixture, whose index is 0.
+
+---
+
+## 9. The mouse pointer
+
+**A player asked about this and nothing in the tree had an answer.** *"There's also an
+alternative mouse icon in the town square, it's like a question mark of some sort"*, and
+then, unprompted, *"only when you're not selecting"*. Both halves are exactly right, and the
+second half is the more interesting one: it names the axis the game switches on.
+
+### 9.1 The twelve `Cursor*.cur` files are not read by anything  **[V]**
+
+`Cursor1.cur` … `Cursor12.cur` sit in both installs — the GOG Windows one and the older
+`F:\games\LORDS2` — twelve files of **326 bytes each**, byte-for-byte identical between the
+two. They are installed because `INSTALL.HST`, the installer's own manifest, lists them; they
+are read by nothing.
+
+* `Lords2.exe` imports **`LoadCursorA`, `SetCursor` and `GetCursorPos` from `USER32.dll`, and
+  nothing else cursor-shaped**. There is no `LoadCursorFromFile`, no `LoadImageA`, no
+  `SetClassLongA`.
+* The binary contains **no `.cur` filename and no `Cursor%d`-style format string** — the only
+  matches for "cursor" anywhere in it are the three import names above.
+* `mapl2.exe` names them nowhere either.
+
+So the shipped `.cur` files are **source art left in the install directory**. What the game
+actually draws lives in the executable's own resource directory.
+
+### 9.2 What the game loads: seven cursors out of its own `.rsrc`  **[V]**
+
+`Lords2.exe`'s resource directory holds **seven** `RT_GROUP_CURSOR` entries — ids 102, 103,
+104, 105, 110, 111 and 113 — each pointing at one `RT_CURSOR` (ids 3 … 9, 308 bytes each).
+Every one is **32 × 32, 1 bpp**, black and white with an AND mask, drawn in the top-left
+corner of the bitmap.
+
+`App_InitWindow` (`0x004B2258`) registers `WinLords2Class` with **`hCursor = NULL`** — which
+is what makes the pointer the application's problem rather than the window class's — and then
+loads eight `HCURSOR`s from those seven resources:
+
+| resource | global | picture | hotspot |
+|---:|---|---|---:|
+| 105 | `g_cursorArrow` (`0x004EA834`) | the plain arrow pointer | (0, 0) |
+| 105 | `g_cursorArrowAlt` (`0x004EB258`) | **the same resource, loaded a second time** | (0, 0) |
+| 102 | `g_cursorCross` (`0x004E659C`) | a hollow serifed cross | (10, 10) |
+| 103 | `g_cursorCrossTarget` (`0x004EA194`) | the same cross with a filled diamond and a plus at its centre | (10, 10) |
+| 104 | `g_cursorRing` (`0x004EA518`) | an empty ring | (9, 9) |
+| **110** | **`g_cursorQuestion`** (`0x004EABA8`) | **an arrow corner with a question mark beside it** | (0, 0) |
+| 111 | `g_cursorPeasant` (`0x004EAC58`) | an arrow corner with a filled human figure — a head over a body | (0, 0) |
+| 113 | `g_cursorScythe` (`0x004EABE4`) | an arrow corner with a scythe | (0, 0) |
+
+**Resource 110 and the shipped `Cursor9.cur` are the same picture**, verified by comparing the
+304-byte `BITMAPINFOHEADER`-and-bits payload byte for byte, hotspot (0, 0) on both. It is the
+only one of the twelve files that survived into the executable unchanged.
+
+### 9.3 What the twelve files are  **[V] for the pictures, [I] for the intent**
+
+Decoded from the headers — all `type = 2`, one image, 32 × 32, 1 bpp, 304-byte payload:
+
+| file | hotspot | picture |
+|---|---:|---|
+| `Cursor1.cur` | (15, 1) | a chevron pointing **up** |
+| `Cursor2.cur` | (29, 1) | a corner pointing **up-right** |
+| `Cursor3.cur` | (28, 15) | a chevron pointing **right** |
+| `Cursor4.cur` | (29, 29) | a corner pointing **down-right** |
+| `Cursor5.cur` | (16, 30) | a chevron pointing **down** |
+| `Cursor6.cur` | (2, 29) | a corner pointing **down-left** |
+| `Cursor7.cur` | (2, 16) | a chevron pointing **left** |
+| `Cursor8.cur` | (1, 1) | a corner pointing **up-left** |
+| **`Cursor9.cur`** | (0, 0) | **arrow corner + question mark** — identical to resource 110 |
+| `Cursor10.cur` | (0, 0) | arrow corner + a plain rounded pillar |
+| `Cursor11.cur` | (0, 0) | arrow corner + a scythe, curved blade |
+| `Cursor12.cur` | (0, 0) | arrow corner + a straight-headed tool, hoe or mallet |
+
+The set reads as two groups. **1 … 8 are the eight compass directions**, and their hotspots
+prove it: each sits at the edge or corner of the 32 × 32 square its arrow points to. They are
+**edge-scroll cursors for the campaign map** — [I], but the eight-way hotspot pattern is not
+consistent with anything else, and `Map_ScrollStep`'s eight directions (§1.5) are the
+mechanic they would belong to. **The shipped build never uses them**: the map scrolls with the
+ordinary arrow pointer.
+
+**9 … 12 are four drafts of the "arrow plus a glyph" pointer**, of which one shipped verbatim
+(9 → resource 110) and two were redrawn — the pillar of 10 became the human figure of 111, the
+scythes of 11 and 12 became the scythe of 113. So the `.cur` files are an **earlier revision
+of the same artwork**, not a superset of it.
+
+### 9.4 What selects which: one table, and one ladder  **[V]**
+
+`Cursor_Set` (`0x004B1CF3`) is the **only** caller of `SetCursor` in the binary. It takes a
+*kind* and switches it onto one of the eight `HCURSOR`s:
+
+| kind | cursor |
+|---:|---|
+| 0 | `g_cursorArrow` |
+| 2 | `g_cursorQuestion` |
+| 4 | `g_cursorCross` |
+| 5 | `g_cursorCrossTarget` |
+| 6 | `g_cursorRing` |
+| 12 | `g_cursorPeasant` |
+| 13 | `g_cursorArrowAlt` — the same picture as kind 0 |
+| 14 | `g_cursorScythe` |
+| anything else | `g_cursorArrow` |
+
+Its **one** caller is `Battle_Frame` (`0x004B99C0`) — which despite the name is the whole-game
+per-frame function, the same one that ends by calling `Screen_FrameInput`
+(`docs/screens-county.md` §2.6). The pointer is therefore re-chosen from scratch on every
+frame, and the choice is made in exactly two ways:
+
+```c
+if (g_screenId >= 0x28 && g_screenId < 0x2B)   /* the battlefield */
+    ... the ladder in §9.7 ...
+else
+    Cursor_Set(g_cursorByScreen[g_screenId]);  /* a table lookup */
+```
+
+### 9.5 The table, and the question mark  **[V]**
+
+`g_cursorByScreen` (`0x004E3098`) is **64 dwords, one per `g_screenId`**. Read out of the
+image, **five** rows are non-zero and every other screen in the game gets 0, the plain arrow:
+
+| `g_screenId` | kind | cursor | the screen |
+|---:|---:|---|---|
+| **`0x02`** | **2** | **question mark** | **the village, idle** |
+| `0x06` | 12 | the human figure | the village, **carrying a selection** |
+| `0x07` | 13 | arrow (alt) | — nothing sets `g_screenId` to 7 |
+| `0x0E` | 2 | question mark | — nothing sets `g_screenId` to 0x0E |
+| `0x10` | 14 | the scythe | the campaign map in **army-movement mode** |
+
+**This settles the player's report, both halves.** The village occupies three screen ids —
+`0x02` idle, `0x05` while the rubber band is being drawn, `0x06` while the selection is
+carried (`docs/screens-county.md` §6.4.1). The table gives the question mark to `0x02` **and
+to `0x02` only**: `0x05` falls through to 0 and gets the plain arrow, `0x06` gets the human
+figure. *"Only when you're not selecting"* is the table, row for row.
+
+`0x10` is the screen `Map_BeginMoveSelection` (`0x0043723A`) opens, and the tip-screen
+driver's own label for it is *"army movement"* — so the scythe is the pointer you get while
+choosing where an army marches. The human figure on `0x06` is the peasants in your hand.
+
+**Screens `0x07` and `0x0E` are dead rows.** A scan of every `mov byte ptr [g_screenId], imm`
+in `.text` finds **50 distinct values** written and neither 7 nor 0x0E among them; 0x10 is
+written exactly once, inside `Map_BeginMoveSelection`. **[I]** rather than **[V]**, because
+the scan covers only the immediate-store form — but that form accounts for all 50 ids,
+including every one `docs/screens-county.md` §1 lists.
+
+### 9.6 The question mark is **not** the help system  **[V]**
+
+Three separate mechanisms could have owned a question-mark pointer, and none of them does:
+
+* the **help screen** is `g_screenId 0x31` (`Screen_HelpOptions`, `L2.eng` group 45). Its row
+  in `g_cursorByScreen` is **0** — the plain arrow;
+* the **tip screens** (`L2.eng` groups 200–219, one per screen, once per game, gated on
+  `g_optTipScreens`) run through `Tip_Update`, a 20-frame timer that switches `g_screenId` to
+  `0x27`. `0x27`'s row is **0** as well, and the tip driver never touches a cursor;
+* **`Ui_OpenConfirm`, the message scroll and the drop-down menus** likewise leave the row at 0.
+
+The question mark is a **static property of the village screen**, evaluated fresh every frame
+from a constant table, with no state of its own. **[I]** as to what it *means*: on `0x02` a
+click on the picture opens the job popup for whatever cluster is under it — `vill_gd8.pl8` is
+the 45 × 40 lookup, `docs/screens-county.md` §6.4 — so *"point at something here to ask about
+it"* is the reading the behaviour supports. Nothing in `L2.eng` labels the cursor itself.
+
+### 9.7 The battle ladder  **[D]**
+
+Inside `0x28 … 0x2A` the pointer is chosen from what is under it, using five globals
+`Battle_UpdateHover` (`0x0047ED9B`) recomputes each frame:
+
+```c
+if (g_screenId == 0x2A)                  Cursor_Set(0);   /* arrow */
+else if (g_battleHoverEnemy)             Cursor_Set(5);   /* cross + target */
+else if (DAT_00553078) {                 /* a selection exists */
+    if (DAT_0053E8BC) {                  /* an order is being placed */
+        if (DAT_00568968 == 6 && g_battleHoverSurface < 6) Cursor_Set(5);
+        else if (DAT_00568968 == 4 && g_battleHoverSurface < 4) Cursor_Set(5);
+        else                                               Cursor_Set(4);
+    }
+    else if (g_battleHoverFriendly)       Cursor_Set(6);  /* ring */
+    else if (g_battleHoverFriendlyPicked) Cursor_Set(6);
+    else if (!g_battleHoverOnField)       Cursor_Set(g_mouseY >= 0xB8 ? 0 : 4);
+    else                                  Cursor_Set(4);  /* plain cross */
+}
+else {                                    /* nothing selected */
+    if (!g_battleHoverOnField)            Cursor_Set(0);
+    else if (g_battleHoverFriendly)       Cursor_Set(6);
+    else                                  Cursor_Set(0);
+}
+```
+
+So: **ring** = one of yours is under the pointer, **plain cross** = the battlefield with a
+selection in hand, **cross-with-target** = an enemy under the pointer, or a legal destination
+while an order is being placed.
+
+**The game says this itself.** `L2.eng`'s battle help reads *"To attack, select units and then
+move the cursor onto an enemy unit. **When the cursor turns red**, click on the unit and your
+soldiers will attack."* That is the `g_battleHoverEnemy` branch, in the game's own words —
+which is what lifts the mapping above a story assembled from a decompiler listing. The word
+*red* does not describe these resources, which are 1-bit black and white with no colour at
+all; either it is a DOS-build recollection or *red* is loose for *changes*. **[I]**, and
+flagged rather than resolved.
+
+**`Battle_UpdateHover` runs after the cursor is chosen** — `Battle_Frame` calls it at
+`0x004BA1DB`, well past the ladder at `0x004B9F49` — so the battle pointer is **one frame
+behind the pointer position**. That is the same construction `docs/screens-county.md` §2.6
+records for `Screen_FrameInput`, and for the same reason: the frame function's tail is the
+next frame's head.
+
+### 9.8 What our engine does  **[V]**
+
+**Nothing.** `crates/l2-view` draws the OS cursor everywhere, and no code in the workspace
+reads a `.cur` file, a cursor resource or `g_cursorByScreen`. That is a gap, and
+`docs/mechanics.md` now carries it as one.
+
+The cost of closing it is small, and worth writing down because it is smaller than it looks —
+but it is *not* "parse the twelve files". Two of the three glyph cursors the game actually
+draws exist only inside `Lords2.exe`. A faithful implementation reads the user's own binary,
+the way `crates/l2-view` already reads the realm ramp at `0x004D2900` (§7): walk `.rsrc` to
+`RT_GROUP_CURSOR` 102, 103, 104, 105, 110, 111 and 113, decode seven 32 × 32 1-bpp AND/XOR
+pairs, and hang them off a copy of `g_cursorByScreen` plus the §9.7 ladder. There is no new
+file format to learn: `.cur`, `.ico` and `RT_CURSOR` are the same three structures, and an
+`RT_CURSOR` is a `.cur` with the 22-byte directory replaced by a 4-byte hotspot.

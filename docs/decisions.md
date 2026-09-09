@@ -2244,6 +2244,148 @@ county strip needs a selection and the original's routes to one are the strip an
 — but it should be read as a standing multiplier on hit-test accuracy rather than as a free
 extra.
 
+**C59 — The flags and the minimap tint were not broken. The sidebar being dead under the
+village was, and the reason a human found all three is that the suite never looked at the
+canvas.**
+
+A player reported two things missing from the campaign map: *"I noticed the minimap had
+default colors, it didn't actually identify who owned a county, and I didn't see the colorful
+waving flag over my county."* **Both render at `main`, on his own save as well as the
+fixture**, and the way to know that is to render rather than to read the code.
+
+| claim | measured at `main` |
+|---|---|
+| the town flag | `Flags1a.pl8` frame `(shield−1)×8+phase` matches **exactly** on the canvas: **285 opaque palette indices** of a 32 × 24 frame, all agreeing, at (236, 176) — on the England fixture *and* on the install's own `lastturn.sav` |
+| the minimap tint | setting every county unowned moves **2,651 pixels** inside the 116 × 116 rectangle, and the ramp rows those pixels came from are **{1, 2, 3, 4, 5}** — exactly the five colours England's five owning realms fly |
+
+**So what was he running?** The flags reached `main` in `098895e`, at **01:17 on 9 September**,
+three commits before the report; the minimap's owner tint reached it in `c67d0e8` at **00:51 on
+8 September** and has not changed a line since. There is no build in which both were absent
+*and* the sidebar he had just filed five defects against existed. The flag half is simply a
+binary built before 01:17; the minimap half does not correspond to any build, and the most
+likely reading is that he saw the untinted **unowned** counties — row 0 is the raster's own
+shading, deliberately, so on England nine of the fourteen counties really are "default
+colours" — and generalised. Worth knowing: *"the tint is missing"* and *"most of the map is
+unowned"* look identical to somebody who has not counted.
+
+**The pattern is real even though these two were fine.** Three visual features have now been
+reported missing after being merged. The flag and the merchant both *did* have a pixel test —
+each diffs two canvases and checks the ink landed inside the right rectangle — and **the
+minimap's tint had none at all**. A diff says *something* changed in a box, so it passes a
+garbage sprite and it passes the wrong frame of the right sheet. The two tests added here
+match the **artwork itself** and then move one field of the save and require the picture to
+follow: change `shield_index` and the *same pixel* must fly the other shield's flag; change
+who owns the counties and the set of ramp rows that move must be exactly the set of owning
+colours. The minimap one has to be a **difference** rather than a census, because `MAPnn.PL8`'s
+raster carries pixels the overlay never touches and one of them (`0x38`, the beige) is by
+coincidence an entry of ramp row 3 — a census reports a realm nobody owns.
+
+**And the failure mode is worth naming, because it is not blankness.** `chrome::realm_colour`
+clamps a zero colour *up* to 1. A tint that has lost its input does not go grey; it goes
+uniformly **red**, which is a plausible-looking picture. That is exactly the "a wrong offset
+reads as zero and a clamp turns it into a plausible colour" trap `scenario.rs` already refuses
+to walk into by storing the colour byte raw — the same trap, one layer up, and it is why the
+new test asserts *one row is the shape of the failure* in its own message.
+
+**And writing the test for the *other* flag found something the report had not.** C49 claims
+two flags — the town's, in the county owner's colours, and the castle's, **in the garrison's**.
+Trying to assert the second one against the five siege fixtures skipped: not one save in the
+tree had a garrisoned castle. They all do. **The relation is stored from one end and read from
+the other, and nothing joined them.** The original keeps both halves — county `+0x1BC` names
+the unit, unit `+0x198` names the county, both **[V]** in `docs/armies.md` — and
+`Castle_Garrison` writes them together; `l2-scenario` imported only the unit's half, and
+`County::new` seeds `garrison_unit: 0`. So every loaded game arrived with **no castle
+garrisoned anywhere**, and the castle flag was not merely unseen by the player, it was
+**unreachable**. It is one loop, and the place it goes is not obvious: put it where the units
+are installed and the county loop's `*c = County::new()` wipes it a hundred lines later, which
+is where it went first.
+
+The flag is what exposed it and the flag is the least of it. `conquest`'s ownership test,
+`divide`'s garrison arm and `siege`'s still-inside check all read the same field and had all
+been reading zero. `l2-scenario`'s
+`a_castle_garrison_reaches_the_county_it_is_standing_in` runs over **every** save the machine
+can offer rather than one fixture, because the failure was silent on all of them.
+
+**The real defect was three feet to the right.** The same player: *"The slider on the right is
+disabled when the town square window is open, I remember that being clickable I think, I'll
+check."* He checked, in the original: *"everything is still clickable with the town square
+open… The slider does indeed still work with town square open and causes no issues."* He is
+right, and `Screen_FrameInput`'s `g_screenId == 0x02` arm says so outright — six guards before
+a single village verb, and all six are the campaign map's:
+`FUN_0043292d` is `Hotspot_Test(0x262, 0x20, &g_minimapModeButtons, 4)`, `FUN_00432967` is
+`Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)`, then `CountyStrip_Click`,
+`Labour_SplitSliderDrag`, `CountyStrip_JobClick`, `FUN_00439079`. Every one hit-tests
+`x >= 0x1DE` = 478, so the rule is *"the column at 478 keeps working, and nothing else does"* —
+`Map_Click` is **not** in the ladder, so a click on the terrain round the inset still does
+nothing.
+
+**The `0x05` and `0x06` arms test none of them.** Banding and carrying run
+`Village_BandRelease` / `Village_Drop` and stop. So the sidebar is dead for exactly as long as
+a peasant is in the air, which reads as intermittent from the outside and is the kind of thing
+that gets tidied into uniformity by somebody who never read the other two arms. It is
+reproduced and asserted, `docs/bugs.md` B63a.
+
+**`Transition::Pass` is what it cost, and it brought a second finding with it.** Our machine
+offered input to the top screen and stopped, which is right for a modal popup and wrong for an
+inset whose arm begins with somebody else's guards. A screen may now decline an event and let
+the one underneath have it — and the moment a lower screen can *act*, the question is where
+its `Push` lands. The original answers it: **`g_screenId` is one byte and there is no stack**.
+Of the 100 writes to it inside `Screen_FrameInput`, **57 are the literal `0`**; only 15 restore
+a remembered screen (11 `g_menuPrevScreen`, 2 `g_screenIdSaved`, 2 `g_sliderPrevScreen`), and
+none of those is the village. So a screen opened from the sidebar over the village exits to the
+**map**, and the village goes with it — which is precisely the third thing the player reported:
+*"when you close that dialogue it will close town square and that dialogue, probably something
+to fix so it only closes the dialog you opened, but list that in future bug fixes that diverge
+from the game."*
+
+`Machine::apply_at` truncates the stack to the depth that acted, which reproduces that
+structurally rather than as a special case: our stack behaves like one byte exactly where the
+original has one byte, and stays a stack everywhere else. **Not fixed, on the owner's explicit
+instruction** — catalogued as `docs/bugs.md` B63, with the note that the switch belongs on
+`Options`' `Quirks` and not on `Tables`, because `Tables` is hashed into the save header and a
+quirk there would invalidate every existing save.
+
+**The three minimap modes, in the same branch and off the same table.** *"Most of the minimap
+options aren't working, those should be quite easy to implement, it's just the same minimap
+with different colors based on food, happiness and population (or sickness, not sure)."* They
+are implemented now, and three things came out of it that the documentation had wrong.
+
+**The county fields are `+0x01`, `+0x02`, `+0x03`, not `+0x0B1`, `+0x0B2`, `+0x0B3`.** The
+`+0xB` was `0x0053F9B3` read as an *offset* when it is an *address* into `g_counties`
+(`0x0053F9B0`) — an off-by-a-base that had been sitting in `docs/screens.md` §3 unchallenged.
+They are three of the five bytes `Sync_CompareState` skips, which is exactly what they are:
+interface state. The writer is `Minimap_ComputeBands` (`0x00451BBA`), found by scanning the
+binary for divide-by-20 sites — there are two — and `Minimap_DrawOverlay` calls it first on
+every draw. Labour is `+0x03` and takes 0, 5 or 6; food is `+0x02` and takes 0 or 6; happiness
+is `+0x01` and is `happiness / 20`. **Happiness, not population and not sickness** — the
+player's own guess was the half he flagged as a guess.
+
+**Two of the three modes routinely index off the end of their own ramp, and that is the
+shipped behaviour.** The ramp has six entries and both the food and labour bands can be 6, so
+those pixels colour nothing: the food overlay is a single red mark on counties that went short
+and nothing else. `Minimap_ComputeBands` *has* a branch that spreads the ration over bands
+1 … 5 — behind `DAT_00553E60`, which is zeroed at `0x00497500` and toggled only in the window
+procedure. A debug flag. The shipped path is reproduced and the other one is not.
+
+**And two tables that look like one are two.** `0x004D28F8` is six bytes and `0x004D2900` is
+six rows of *eight*, with two unindexed bytes between them; the realm ramp's unused second half
+of each row is the used half with `0x20` substituted — the selected-county colour, prepared in
+the table and then computed by hand instead. The rating ramp's direction is confirmed
+**from the artwork**, independently of the code: `Misc_cty.pl8` frame 91, the strip drawn while
+an overlay is up, is a six-swatch colour bar whose pixels read the table reversed, tick at one
+end and cross at the other. That is the C52 move again — a measurement in a shipped file
+settling a question the disassembly could only imply.
+
+**The four mode buttons are not radio buttons**, which `symbols.md` said they were. In mode 0
+buttons 1–3 pick a mode and 4 toggles the zoom; in any other mode 4 turns the overlay off and
+1–3 do nothing at all, so food to happiness is three clicks. The artwork agrees from the other
+side: frame `0x5C` has four buttons and frame `0x5B` has the bar and one.
+
+**The one that keeps recurring**: the player has now been right eleven times out of eleven on
+the interface, and every one of those eleven was settled by a *measurement that was already in
+the file* — a slot number, a frame index, a colour argument, and this time six function names
+in a row in an arm nobody had read. C46's pattern, C52's pattern, and now C59's.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

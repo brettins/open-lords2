@@ -107,6 +107,23 @@ pub enum Transition {
     Replace(ScreenId),
     /// Leave the game.
     Quit,
+    /// **Not mine — offer it to the screen underneath.**
+    ///
+    /// `Screen_FrameInput`'s per-screen arms are *ladders of guards*, and a
+    /// guard that returns zero has not consumed the click: the arm falls
+    /// through to the next one. The village's arm (`g_screenId == 0x02`) opens
+    /// with six of them before any village verb is tried — see
+    /// [`crate::screens::village`] — and every one of the six belongs to the
+    /// campaign map's sidebar, not to the village. So the sidebar stays live
+    /// with the village open, which is a thing our stack could not say until
+    /// this variant existed: [`Machine::handle`] offered the event to the top
+    /// screen and stopped.
+    ///
+    /// **A pass is not a peek.** The lower screen acts for real, and what it
+    /// asks for lands *at its own depth* — see [`Machine::handle`], where a
+    /// `Push` from underneath truncates everything above it first. That is the
+    /// original's single-byte `g_screenId` reproduced, not a convenience.
+    Pass,
 }
 
 /// What a screen is given. `game` is mutable through `handle` and `update`, and
@@ -284,14 +301,41 @@ impl Machine {
         self.dirty = true;
     }
 
-    /// Deliver one event to the top screen only.
+    /// Deliver one event, top screen first, down through anything that passes.
     ///
-    /// Only the top screen is offered input. A stack where every layer gets a
-    /// look is a stack where two screens act on the same click.
+    /// **The top screen still gets first refusal, and almost always keeps it.**
+    /// A screen that does not return [`Transition::Pass`] ends the walk, so a
+    /// popup is modal by default and two screens never act on one click.
+    ///
+    /// The exception is written down where it is used: `Screen_FrameInput`'s
+    /// arm for a screen that is an *inset* can begin with guards belonging to
+    /// the surface underneath, and the village's arm begins with six of the
+    /// campaign map's. See [`Transition::Pass`].
+    ///
+    /// # A pass lands at the depth it came from
+    ///
+    /// The original has no stack: `g_screenId` is one byte, and 57 of the 100
+    /// writes to it in `Screen_FrameInput` are the literal `0`. So a screen
+    /// opened from the sidebar *while the village was up* still exits to the
+    /// campaign map, because its arm's exit is a constant and not a memory of
+    /// where it was opened from — the village goes with it. A player who tried
+    /// it put it exactly: *"when you close that dialogue it will close town
+    /// square and that dialogue"*.
+    ///
+    /// [`Machine::apply_at`] reproduces that by truncating the stack to the
+    /// depth that acted before applying the transition. For the top screen —
+    /// every other caller — truncating to the top is a no-op, so this is the
+    /// same machine it has always been for everything that does not pass.
+    /// `docs/bugs.md` B63 catalogues the collapse and what a switch would cost.
     pub fn handle(&mut self, event: Event, ctx: &mut Ctx) {
-        let Some(top) = self.stack.last_mut() else { return };
-        let t = top.handle(event, ctx);
-        self.apply(t);
+        for depth in (0..self.stack.len()).rev() {
+            let t = self.stack[depth].handle(event, ctx);
+            if t == Transition::Pass {
+                continue;
+            }
+            self.apply_at(depth, t);
+            break;
+        }
         self.dirty = true;
     }
 
@@ -349,17 +393,32 @@ impl Machine {
     }
 
     fn apply(&mut self, t: Transition) {
+        let depth = self.stack.len().saturating_sub(1);
+        self.apply_at(depth, t);
+    }
+
+    /// Apply a transition **asked for by the screen at `depth`**.
+    ///
+    /// Everything above `depth` is discarded first. For the top screen that is
+    /// nothing, which is why every existing caller is unaffected; for a screen
+    /// that was reached by a [`Transition::Pass`] it is the whole point, and it
+    /// is the original's behaviour rather than a simplification of it — see
+    /// [`Machine::handle`].
+    fn apply_at(&mut self, depth: usize, t: Transition) {
         match t {
-            Transition::Stay => {}
-            Transition::Push(id) => self.stack.push(id.build()),
+            Transition::Stay | Transition::Pass => {}
+            Transition::Push(id) => {
+                self.stack.truncate(depth + 1);
+                self.stack.push(id.build());
+            }
             Transition::Pop => {
-                self.stack.pop();
+                self.stack.truncate(depth);
                 if self.stack.is_empty() {
                     self.quit = true;
                 }
             }
             Transition::Replace(id) => {
-                self.stack.pop();
+                self.stack.truncate(depth);
                 self.stack.push(id.build());
             }
             Transition::Quit => {

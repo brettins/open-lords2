@@ -34,6 +34,7 @@ crates/l2-game/src/screens/map.rs	C57	3865532a202c
 crates/l2-game/src/screens/map.rs	C57	8b5e7f194e7c
 crates/l2-game/src/screens/map.rs	C58	c583727df160
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9
+crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
 crates/l2-game/src/screens/setup.rs	C21	061497c61678
 crates/l2-game/src/screens/setup.rs	C21	f030e5ba689c
@@ -140,6 +141,7 @@ crates/l2-testkit/src/lib.rs	C1	365a5efbf069
 crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8
 crates/l2-view/src/campaign.rs	C57	cc211f4ea532
 crates/l2-view/src/campaign.rs	C58	f81f70509bd8
+crates/l2-view/src/chrome.rs	C50	d9471b57f9d8
 crates/l2-view/src/village.rs	C22	4b0da6199195
 crates/l2-view/src/village.rs	C57	fbc575f34d82
 crates/l2-view/tests/install.rs	C1	b6dbfeba4b54
@@ -195,6 +197,7 @@ docs/bugs.md	C38	3a2b93b33329
 docs/bugs.md	C44	76f06582a66b
 docs/bugs.md	C53	89e746f595f9
 docs/bugs.md	C57	0d225f608cb4
+docs/bugs.md	C59	20d4ce8ff41b
 docs/decisions.md	C10	1026d11e7d3f
 docs/decisions.md	C10	6307927dc59c
 docs/decisions.md	C10	ff432eaffe58
@@ -279,14 +282,19 @@ docs/decisions.md	C41	ce61a32481ef
 docs/decisions.md	C42	d82da22eca5c
 docs/decisions.md	C42	f53259005d3f
 docs/decisions.md	C43	e2cdd9974342
+docs/decisions.md	C46	7146943fe524
 docs/decisions.md	C46	7587dce98120
 docs/decisions.md	C46	9f9877405047
+docs/decisions.md	C49	c08bf8d2178e
 docs/decisions.md	C5	2d9efa526576
 docs/decisions.md	C5	87aaf3ba3e2d
 docs/decisions.md	C5	8ac42aa0e5d0
+docs/decisions.md	C52	20de3ea3d5cb
 docs/decisions.md	C52	5e26cd0befa4
+docs/decisions.md	C52	6acc12ad157c
 docs/decisions.md	C57	2abd57a143c3
 docs/decisions.md	C57	a01e03e89d00
+docs/decisions.md	C59	9239027225f9
 docs/decisions.md	C7	3c72ce757143
 docs/decisions.md	C8	490a0a7ca7d4
 docs/decisions.md	C8	553fa7149d4e
@@ -375,6 +383,7 @@ docs/screens-county.md	C45	deb8ce88337e
 docs/screens-county.md	C46	0b66ca8a3963
 docs/screens-county.md	C46	9aadfb874c22
 docs/screens-county.md	C57	29da3728fc03
+docs/screens-county.md	C59	aec4d2276a51
 docs/screens.md	C22	29997cfa2796
 docs/screens.md	C25	6e23d74e76ec
 docs/screens.md	C48	63058cefc7e7
@@ -403,6 +412,11 @@ docs/symbols.json	C51	ae4dd65c277f
 docs/symbols.json	C53	55b6968d8760
 docs/symbols.json	C53	e811dd05e095
 docs/symbols.json	C54	04e36de3a81d
+docs/symbols.json	C59	27ae23f1a5ae
+docs/symbols.json	C59	2bf19e178584
+docs/symbols.json	C59	4ee71e630714
+docs/symbols.json	C59	5e3d7047e62c
+docs/symbols.json	C59	a26c63971b4a
 docs/symbols.md	C20	607a21e04411
 docs/symbols.md	C20	bd8dc0cc37c2
 docs/symbols.md	C22	663d0fc4172b
@@ -423,6 +437,11 @@ docs/symbols.md	C51	ba30732104b0
 docs/symbols.md	C53	32ae7755da5d
 docs/symbols.md	C53	90fe9b1ebdac
 docs/symbols.md	C54	97cfca91ecd5
+docs/symbols.md	C59	13b2ca5df5f7
+docs/symbols.md	C59	172efdef9245
+docs/symbols.md	C59	64a497c25e59
+docs/symbols.md	C59	71e2db0c83cf
+docs/symbols.md	C59	af8f4f7bf789
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611
 tools/audit/rva.js	C14	99231cda993c
 tools/audit/rva.js	C16	e4312831d7d6
