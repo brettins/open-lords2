@@ -47,6 +47,14 @@ the goal is not met — not "mostly met".
 The first two have instruments. The third has none. The fourth has a partial one. The fifth is
 what the fixtures do.
 
+**The third row is the most valuable line in this file and it must not disappear when it
+improves.** *"A screen showing the wrong thing — instrument: none"* is the only entry that tells
+you what to build next; the numbers above it tell you where you are. When the draw-call audit
+(§2.10) narrows it, the row does not become a tick — it names **which** instrument now covers it
+and **what that instrument still cannot see**. A falsification condition that vanishes on
+acquiring a partial instrument is a condition that has been quietly weakened rather than met,
+and this list is the one place in the project where that would not be caught by anything.
+
 **The honest caveat on the headline, stated here rather than in a footnote:** `arms.json` covers
 **<!--fig:arms-groups-done-->2<!--/fig--> of <!--fig:arms-groups-->2<!--/fig-->** enumerated
 groups, and those two are the battlefield and the battle seam. It is not yet the project's
@@ -389,6 +397,15 @@ the seven shells, and the text-layout defect that placeholder assets hid for wee
 It is a large job and it should be scoped like the arms one was — one screen group, enumerated
 completely, before any judgement about whether the shape works.
 
+**A pilot is already running and nobody has to commit to the full audit before reading it.** The
+agent finishing the last shells and the pasture cattle is keeping an inventory as it goes: every
+draw the original makes that we do not, on the screens it touches. That is the cheapest possible
+form of the estimate — the work was happening anyway, and the by-product answers the only
+question that matters before scoping the rest, which is *how many records per screen* and *how
+long each takes to establish*. If its rate is close to the arms enumeration's, the shape holds
+and the audit is schedulable; if it is much worse, the reason will be visible in its records
+rather than argued about.
+
 ---
 
 ## 2.11 Which of our checks would survive their own assumptions changing
@@ -486,6 +503,37 @@ half-inventories and no finished one.
 DirectDraw glue, and naming it is not the goal — but under 1:1 the fraction matters more than it
 did, because an unnamed function is a behaviour nobody has looked for, and every miss this month
 was exactly that.
+---
+
+## 3.1 A development affordance can be on the critical path, and this one was
+
+**The instinct is to cut these first, so here is the evidence against it, from this month.**
+
+A player spent an evening reporting five interface defects. **Three of the five were against a
+binary four merges old** — two already fixed, one fixed twice. The cost was not his time; it was
+that each report was investigated from the decompilation outward before anyone thought to ask
+which build he was running, and nothing on screen could have told him or us.
+
+The fix was a build stamp on the title screen: short commit, dirty marker, and the commit's date,
+in the bottom-left in the dim ink. Hours, not days. It carries a date as well as a hash because
+*"is this old?"* is the actual question and a hash cannot answer it without a lookup, and it says
+`NO GIT` rather than inventing a version when the source is not a checkout. A static `0.1.0`
+would have been worse than nothing, because it looks like an answer.
+
+**It is in the field as of tonight** — the player has rebuilt and is running a binary that
+identifies itself. The next report will name its build.
+
+Two things this is evidence for, beyond the stamp:
+
+* **A tool that shortens the feedback loop competes with features on the critical path**, because
+  a wrong loop spends the scarcest thing this project has, which is a person willing to play the
+  game and say what he saw. Five reports, three wasted, is a 60% loss rate on the only external
+  oracle we have.
+* **The affordance needs the same rigour as the feature.** The first test written for the stamp
+  asserted it was on screen by counting pixels, passed, and passed just as well with the drawing
+  deleted (`docs/agents.md`, *Ablate the line*). A development tool that is quietly broken is
+  worse than one that is absent, for the same reason a stale version string is.
+
 ---
 
 ## 4. The cheapest items, named — because this project defers them

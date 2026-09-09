@@ -720,6 +720,56 @@ category that quietly acquires members is how a finding becomes a bucket — the
 discovery, the tenth is a fact of life nobody reads any more. The status exists so the case
 cannot hide inside a neighbouring one; the assertion exists so that using it costs a decision.
 
+### The producer is protected and the consumer is not, and everyone reviews from the producer's end
+
+The struct-literal fix above was aimed at an importer that had lost a field: `County::farm_style`
+was read by the rules and written by nothing on the import path for months. The obvious repair is
+to make the importer build its `County` with an exhaustive literal, so a new field stops the
+build.
+
+**Ablating it said something better than that.** Adding a field to `CountyState` now produces
+**three** compile errors, and two of them were already there: *both* constructors — the map
+reader and the save reader — had used exhaustive struct literals all along. The write side had
+been protected from the beginning. The entire hole was on the **read** side, and that is exactly
+where `farm_style` fell through: something wrote it faithfully and nothing ever picked it up.
+
+> **A producer that must fill every field, and a consumer that may ignore any, is a shape that
+> looks completely safe from the producer's end.**
+
+And the producer's end is where everyone stands. A reviewer opening an importer reads the
+constructor, sees every field named, and concludes the data is carried — when what they have
+verified is that the data was *assembled*. Rust makes this asymmetry easy to fall into, because
+a struct literal is checked for completeness and a field access never is; the same asymmetry
+exists in every language with named construction and free access.
+
+The remedy is to **destructure the source with no `..`** at the point of consumption, which turns
+"did anyone read this?" into a compile error. `crates/l2-scenario/src/lib.rs` does it for
+`CountyState` and `RealmState`.
+
+### Choose the smaller list, because noise is where an omission hides
+
+The same fix had a second decision in it, and it is the one that generalises further.
+
+`County` has **101** fields; `CountyState` has **46**. Destructuring the destination would have
+been an exhaustive literal over 101 names, of which some seventy are derived, computed later, or
+genuinely absent from the save — seventy lines of `x: 0` for a reader to scan past. Destructuring
+the source is 46 names, **every one of which is something the file actually stored**, so the
+question *"is this carried?"* is meaningful on every line.
+
+> **Noise is where an omission hides. A check over a smaller list of things that all matter is
+> stronger than a check over a larger list that is mostly filler** — even though the larger one
+> covers more.
+
+This is the same instinct as making `dead-reproduced` awkward and asserting it stays empty, which
+is why the two sit together: both are about refusing to let a check accumulate members it does
+not mean. A list that acquires filler stops being read, and a list that stops being read is a
+list that no longer checks anything — it just fails to compile in the right places, which is not
+the same thing as being understood.
+
+The practical test, before adding to any exhaustive list: **would a reader scanning this line
+have a real question to answer?** If most lines have no question, the list is measuring the wrong
+set.
+
 ## A correct experiment can produce a wrong inference, and twice today one did
 
 Every other entry under this heading is a tool returning **wrong output**. These two returned
