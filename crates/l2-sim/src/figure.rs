@@ -162,6 +162,23 @@ pub struct Figure {
     /// where every figure is full; [`crate::runner::BattleRunner`] overwrites it
     /// with the side's scale when it raises an army.
     pub full_men: u16,
+    /// Figure record `+0x09`, and the debug panel's own label **`selected`**:
+    /// **which player has this figure picked**, `0` for nobody.
+    ///
+    /// A player index rather than a flag, because that is what the original
+    /// stores — `FUN_00479B58` writes `selected = param_1` and `FUN_00479A71`
+    /// clears only the figures whose `selected` equals the player being cleared,
+    /// so two players can hold disjoint selections in the same battle at the
+    /// same time.
+    ///
+    /// **Selection is simulation state, not interface state**, and that is not a
+    /// modelling choice: `FUN_00478987` (`0x00478987`) walks the selection and
+    /// *allocates a new unit* for it whenever the picked figures are not exactly
+    /// one whole unit. A box drawn round half a unit therefore **splits** that
+    /// unit in the original, which changes what every later order applies to and
+    /// what the AI's own sweeps see. It has to be in this crate, and it has to
+    /// be in the lockstep digest.
+    pub selected: u8,
 }
 
 impl Figure {
@@ -195,6 +212,7 @@ impl Figure {
             hits_per_casualty: table.hits_per_casualty(troop),
             reload_counter: 0,
             full_men: men,
+            selected: 0,
         }
     }
 

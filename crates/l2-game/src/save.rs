@@ -410,6 +410,7 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         field_policy: crate::engagement::Answer::Decline,
         turn: None,
         levy: crate::game::LevyOrder::default(),
+        battle: None,
         map_slot: map_slot as usize,
         realm_colour,
         selected,

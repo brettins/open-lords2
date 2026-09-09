@@ -310,6 +310,17 @@ pub struct Assets {
     /// ground and refuses to move anybody, because the grid that decides where
     /// a drop lands *is* one of those files.
     pub village: Option<VillageArt>,
+    /// `T32_bat1.pl8`, its palette and six colours of seven troop sheets — the
+    /// battlefield's own artwork, loaded by `Battle_LoadAssets` (`0x004987B7`)
+    /// and by nothing else.
+    ///
+    /// `None` on a partial install, and the battlefield then draws its own flat
+    /// ground and a block for each man. That keeps every input arm testable
+    /// without the install, and it is safe here for a reason the campaign map's
+    /// hit test was not (`docs/decisions.md` C61): **every hotspot on this
+    /// screen is a constant out of the binary**, not a consequence of the
+    /// artwork, so the placeholder and the real install hit-test identically.
+    pub battle: Option<l2_view::scene::BattleAssets>,
     /// What the shell screens draw with: `L2.eng`, the two panel fonts, and
     /// the per-screen artwork the front end and the management screens load.
     /// See [`crate::shell`].
@@ -340,6 +351,12 @@ impl Assets {
             Chrome::load(|name| vfs.read(name).map_err(|e| format!("{name}: {e}"))).ok();
         let village =
             VillageArt::load(|name| vfs.read(name).map_err(|e| format!("{name}: {e}"))).ok();
+        let battle = l2_view::scene::BattleAssets::load(
+            |name| vfs.read(name).map_err(|e| format!("{name}: {e}")),
+            l2_view::figures::Colour::Red,
+            l2_view::figures::Colour::Blue,
+        )
+        .ok();
         // The game ships 11 of the 15 `MAPnn.PL8` names; the four it does not
         // are exactly the empty map slots 24..39 (`docs/screens.md` §3.1).
         let minimap_files = (0..16)
@@ -352,6 +369,7 @@ impl Assets {
             map,
             chrome,
             village,
+            battle,
             shell: ShellAssets::load(vfs),
             maps,
             minimap_files,
@@ -404,6 +422,7 @@ impl Assets {
             map,
             chrome: None,
             village: None,
+            battle: None,
             shell: ShellAssets::empty(),
             maps: vec![0u8; l2_formats::maps::SLOT_LEN],
             minimap_files: vec![None; 16],
@@ -507,6 +526,23 @@ pub struct Game {
     /// the campaign map and nowhere else, so a levy is never half-made when a
     /// file is written. See [`LevyOrder`].
     pub levy: LevyOrder,
+    /// **The battle the player is watching**, or `None`, which is almost
+    /// always.
+    ///
+    /// `docs/plan.md`: *"A `Game` holds the kingdom, the active battle if any,
+    /// and the screen stack."* This is that. It is here rather than inside
+    /// [`crate::screens::battlefield::BattlefieldScreen`] for the same reason
+    /// [`Game::turn`] is here rather than in the caller's hands: a screen is
+    /// built from a bare [`crate::screen::ScreenId`] with no access to the
+    /// world, and a half-fought battle is not something anyone may drop — the
+    /// campaign is in a state no rule describes until it is settled.
+    ///
+    /// **It is not saved.** `l2_game::save` writes the campaign, and the
+    /// original cannot save inside a battle either: `Menu_SaveGame` is on the
+    /// File menu, whose three titles the battle screen does draw, and
+    /// `Screen_HandleInput` has no arm for `0x29`. Whether the original refuses
+    /// or misbehaves there was not established.
+    pub battle: Option<Box<crate::battlefield::LiveBattle>>,
 }
 
 /// `g_levyPercent`, `g_levyMen`, `g_levyHappinessCost`, `g_levyBasket` and
@@ -570,6 +606,7 @@ impl Game {
             prefs: Prefs::default(),
             presentation_quirks: Quirks::default(),
             levy: LevyOrder::default(),
+            battle: None,
         }
     }
 

@@ -58,6 +58,15 @@ pub struct BattleUnit {
     pub last: u16,
     /// `+0x08` dispatch category, 0…10. See [`crate::ai`] §1.2.
     pub category: u8,
+    /// `+0x09` **which way the formation rectangle lies** — 0 across, 1 down.
+    ///
+    /// `docs/battle.md` §1 lists `+0x09` as "unnamed and untraced". It is
+    /// written in exactly one place, `BattleUnit_Order`'s `facing` arm, from a
+    /// value only a player's keypress can supply, and read in exactly one,
+    /// `0x00480F8B`'s `if (unit.field_0x9 == 1)`. So it is the `H` / `V` keys
+    /// and nothing else touches it. **[V]** on the two references,
+    /// **[I]** on "horizontal / vertical" as the reading of the two keys.
+    pub orientation: u8,
     /// `+0x0A` the **unit** whose figure last hit one of ours.
     pub last_attacker: u16,
     /// `+0x0C` frames of memory of that attacker: set to 50 on a hit and
@@ -126,6 +135,7 @@ impl BattleUnit {
         first: 0,
         last: 0,
         category: 0,
+        orientation: 0,
         last_attacker: 0,
         hit_memory: 0,
         in_melee: false,
@@ -163,6 +173,15 @@ pub const HIT_MEMORY: u8 = 50;
 /// already in melee, buying it that many passes of immunity from
 /// `BattleUnit_JoinMelee`. **[D]** `docs/battle-ai.md` §4.2.
 pub const ORDER_LOCK: u8 = 64;
+
+/// What `+0x14` is set to when a unit is **ordered** rather than when the
+/// countdown expires: `0x14`, twenty frames.
+///
+/// Three separate sites write it — `BattleUnit_Order` (`0x00479E90`),
+/// `FUN_00478987`'s regroup, and both halves of the split it can perform — and
+/// all three write the same twenty. So an ordered unit reforms almost at once
+/// instead of waiting out the rest of its five hundred. **[V]**
+pub const REFORM_ON_ORDER: i16 = 0x14;
 
 /// Which dispatch category a troop type is given by `BattleUnit_Create`
 /// (`0x00480662`), read from the eleven-way ladder at `0x00480743`. **[D]**

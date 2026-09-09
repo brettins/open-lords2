@@ -40,6 +40,7 @@
 //! against `Lords2.exe` will take.
 
 pub mod audio;
+pub mod battlefield;
 pub mod build_id;
 pub mod engagement;
 pub mod game;

@@ -3282,6 +3282,117 @@ is like and reaches neither the save nor the digest. `l2_game::game::Prefs` is t
 category, and a debug overlay toggle belongs there: not on `Options::quirks`, not on `Tables`,
 because it is not a rule variation at all.
 
+**C70 — The battlefield had no input at all, and enumerating it found a screen that cannot
+be entered, a battle that starts paused, and five inventions of ours on the screen before it.**
+
+C61 measured us at 80 of 185 input arms and put the battlefield at **0 of 49** — the single
+largest hole, and the only screen group where a battle could run to a conclusion without the
+player being able to do one thing about it. This is that group built, and the enumeration it
+had to start from.
+
+`docs/battle.md` §15 is the enumeration; `docs/arms.json` is its machine-readable form and
+`crates/l2-game/tests/arms.rs` holds it to the code in both directions. Below is what
+changed a document rather than a feature.
+
+**Screen `0x28` cannot be entered.** The audit named four battlefield screens. There are
+three. Every immediate write of `g_screenId` in the binary was enumerated — 212 `mov byte
+ptr [0x004EAC50], imm8` sites, covering `0x00` … `0x45` — and `0x28` is absent while `0x29`,
+`0x2A` and `0x2B` are present; no decompiled function assigns it, and the five indirect
+writes can only restore a value the byte already held. It has a live `Screen_FrameInput` arm
+and a live `Screen_Draw` arm, and neither can run (`docs/bugs.md` D37).
+
+**That is the shape of evidence this project is supposed to produce and mostly does not.**
+An exhaustive scan of a machine-checkable property, rather than a search that came back
+empty. C58's *"three greps that find nothing become a claim"* is the failure mode; the
+difference here is that the scan enumerates the whole class and *counts* it, so "not found"
+and "not there" are the same statement.
+
+**A battle starts paused, and the pause sound is dead.** `Battle_Start` writes
+`DAT_0053F238 = 0xFFFFFFFF` before it raises the screen. Battle button 0 toggles that word
+with a bitwise NOT, so the very first thing a player does in every battle is press pause — to
+unpause it. The same function then guards a sound on `if (DAT_0053F238 == 1)`, and a word
+that only ever holds `0` or `-1` is never 1 (`docs/bugs.md` D38). We had no pause at all;
+our battles ran the instant they were raised.
+
+**`H` and `V` settle a field two documents called untraced.** `docs/battle.md` §1 listed unit
+`+0x09` as "unnamed and untraced". `FUN_0043C77A` writes it, from a value only a keypress
+can supply, and `Formation_ComputeRect` reads it in one line: `if (field_0x9 == 1)
+g_formationCols = 2`. So the two keys are **line and column**, and the byte has exactly one
+writer and one reader. That is what an unknown field looks like when it is approached from
+the input side rather than from the struct.
+
+**`BattleUnit_Order`'s fifth argument is not `fromPlayer`.** `docs/symbols.json` named it
+that. Its only writer is `Battle_UpdateHover`, which sets it when the hovered cell's surface
+byte is 15 and clears it otherwise, and all twenty-five AI call sites pass a literal 0. Its
+effect is that a missile unit of side 0 ordered onto such a cell stops short. Renamed;
+*why* surface 15 is **not established** and is recorded as open rather than narrated.
+
+**Selection is simulation state, and this is not a modelling preference.** `FUN_00478987`
+walks the selection and, when it is not exactly one whole unit, **allocates a new unit and
+moves the picked figures into it**. A box drawn round half a unit *splits* that unit in the
+original, which changes what every later order applies to and what the AI's own sweeps see.
+So `Figure::selected` is in `l2-sim` and belongs in the lockstep digest, and the whole
+select-and-order path is below the screen rather than in it.
+
+**Five arms of ours, on the screen before the battlefield, and this is the part worth
+carrying.** C61 found three inventions by enumeration and had no way to count them. Screen
+`0x12`'s arm in `Screen_FrameInput` is:
+
+```c
+else if (g_screenId == '\x12') {
+    if (DAT_00553fc8 != 0)        { Battle_Decline(); … }   /* the sync latch  */
+    if (FUN_004bbea7() != 0)      { Battle_Decline(); … }   /* an answer timer */
+}
+```
+
+and `FUN_004BBEA7` opens `if (g_multiplayer == 0) return 0;`. **In a single-player game the
+arm does nothing at all.** The only two exits are the two widgets of `DAT_004DDBB0`, whose
+count `Battle_ChooseSettlement` writes as 2 when the local player owns the choice and 0
+otherwise — so a bystander's prompt has no widgets and no exit but the multiplayer timeout.
+The table holds exactly two records; `g_sliderWidgets` begins 48 bytes on, which is what
+rules out a third widget hiding behind the count.
+
+Ours had **right-click to Decline, Escape to Decline, Enter to take the field, and
+answer-on-any-click for a bystander**, plus **Escape and Enter on `0x13`**. All are gone and
+all are in `docs/arms.json` as `invention` with `removed: true`, which is the first time this
+project can *count* the direction C61 could only name. And `0x13` really does have the
+right-button exit that `0x12` does not — two neighbouring screens differing on it is exactly
+what made the invention look reasonable.
+
+**The prompt waits for ever in single player and that has been left alone.** It is what
+`docs/symbols.json` records of `Battle_Decline`; a hang that is the original's is content,
+and the instinct to "fix" it while removing the right-click is the same instinct that put the
+right-click there.
+
+**The check, because a stated rule on this project does not hold.** `docs/arms.json`'s
+`reproduced` records and the `// arm: 0x…` markers in the Rust are compared for **set
+equality in both directions**, and the two differences are reported separately because they
+mean different things: a record with no marker is a claim nobody kept, and a marker with no
+record is an arm nobody wrote down — which is the exact failure C61 measured. Both directions
+were ablated. It is a test rather than a convention for the reason C61 gives about its own
+numbering protocol: the protocol was written after four collisions and did not prevent the
+fifth.
+
+**One fixture bug caught by ablation, and it is the fifth of its kind.** The first version of
+`the_right_button_on_the_battlefield_clears_the_selection` boxed the opening viewport, which
+`Battle_Start` puts at cell (0x20, 0x21) — nowhere near either army's deployment marker. It
+selected nobody, then asserted that nothing was selected. Deleting the deselect arm left it
+green. `docs/agents.md`'s rule caught it only because the ablation was actually run:
+**a check that passes is not a check that would have caught the bug**, and the assertion that
+fixed it is one line saying the fixture is non-empty.
+
+**What is deliberately not built.** The menu bar's three titles during a battle — the same
+arm is missing on the campaign map, and whether `Menu_SaveGame` works mid-battle is an open
+question rather than a feature. The four debug keys, three of which are gated on a flag no
+shipped game sets. And `0x28`, which cannot run.
+
+**One number in the audit was reproduced exactly and it is the one that matters.** C61
+records *"Battle: 6 of 6"* right-button arms missing. There are exactly six, and the
+enumeration here reaches the same six by a different route. The totals differ — 38 against 49
+— and that is a counting rule rather than a disagreement about the code; `docs/battle.md`
+§15.11 states the rule and says where the difference most likely is. Two enumerations agreeing
+on a sub-count they were not aligned on is worth more than either total.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

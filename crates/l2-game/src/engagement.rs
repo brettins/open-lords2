@@ -219,7 +219,36 @@ pub fn resolve(
     seed: u64,
 ) -> Option<BattleReport> {
     let Attack::Battle { attacker, defender } = attack else { return None };
-    resolve_battle(kingdom, attacker, defender, county, None, answer, seed)
+    resolve_battle(kingdom, attacker, defender, county, None, answer, seed, None)
+}
+
+/// **Settle a battle the player has already watched.**
+///
+/// [`resolve`] runs the whole battle between two statements; this takes one that
+/// a [`crate::battlefield::LiveBattle`] has been stepping a tick at a time and
+/// does the rest — the write-back, the verdict and the aftermath — from exactly
+/// where it stopped. Everything after the fight is the same code, which is the
+/// point: a played battle and a headless one differ in *who supplied the ticks*
+/// and in nothing else.
+pub fn resolve_fought(
+    kingdom: &mut Kingdom,
+    attacker: usize,
+    defender: usize,
+    county: u8,
+    castle_level: Option<u8>,
+    seed: u64,
+    runner: BattleRunner,
+) -> Option<BattleReport> {
+    resolve_battle(
+        kingdom,
+        attacker,
+        defender,
+        county,
+        castle_level,
+        Answer::TakeTheField,
+        seed,
+        Some(runner),
+    )
 }
 
 /// **Resolve a siege assault** — [`l2_kingdom::siege::assault`]'s
@@ -254,7 +283,7 @@ pub fn resolve_siege(
         return None;
     };
     let county = kingdom.campaign.units.get(attacker)?.besieging_county;
-    resolve_battle(kingdom, attacker, defender, county, Some(castle_level), answer, seed)
+    resolve_battle(kingdom, attacker, defender, county, Some(castle_level), answer, seed, None)
 }
 
 /// **Turn phase 2, end to end** — `Turn_Tick`'s `g_turnPhase == 2` arm.
@@ -392,6 +421,7 @@ fn resolve_battle(
     castle_level: Option<u8>,
     answer: Answer,
     seed: u64,
+    fought: Option<BattleRunner>,
 ) -> Option<BattleReport> {
     let before = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.men);
     let (attacker_before, defender_before) = (before(kingdom, attacker), before(kingdom, defender));
@@ -410,7 +440,11 @@ fn resolve_battle(
     );
     let take_the_field = settlement == Settlement::Prompt && answer == Answer::TakeTheField;
 
-    let (verdict, resolution) = if take_the_field {
+    let (verdict, resolution) = if let Some(runner) = fought {
+        // **The player watched it.** Everything after this point is the same
+        // code the headless path runs; only the ticks came from somewhere else.
+        conclude_fight(kingdom, attacker, defender, runner)
+    } else if take_the_field {
         fight(kingdom, attacker, defender, castle_level, seed)?
     } else {
         let verdict =
@@ -502,6 +536,35 @@ fn fight(
     castle_level: Option<u8>,
     seed: u64,
 ) -> Option<(Verdict, Resolution)> {
+    let mut runner = begin_fight(kingdom, attacker, defender, castle_level, seed)?;
+    // The original's frame loop asks `FUN_00477DFC` every frame; asking every
+    // hundredth costs at most ninety-nine ticks of a battle that is already
+    // over, and no rule reads the tick count.
+    while runner.tick < MAX_TICKS {
+        runner.run(CHECK_EVERY);
+        if runner.conclusion().is_some() {
+            break;
+        }
+    }
+    Some(conclude_fight(kingdom, attacker, defender, runner))
+}
+
+/// **Raise the battle and stop**, so that somebody else can supply the ticks.
+///
+/// This is `Battle_Start` (`0x004778A0`) minus the screen: the two musters, the
+/// battlefield, and the one order a human side always issues on the first frame
+/// because `Battle_UpdateAllUnits` runs no handler for it.
+///
+/// A battle a player watches and a battle nobody watches begin **here, in the
+/// same call, with the same seed**, which is what makes it possible to assert
+/// that giving no orders reproduces the headless verdict exactly.
+pub fn begin_fight(
+    kingdom: &mut Kingdom,
+    attacker: usize,
+    defender: usize,
+    castle_level: Option<u8>,
+    seed: u64,
+) -> Option<BattleRunner> {
     // `Army_PrepareForBattle` — the four battle-only troop slots, produced here
     // rather than stored, because the original zeroes them again the moment the
     // battle is over (`Army_ClearBattleSlots`).
@@ -549,17 +612,22 @@ fn fight(
         }
     }
 
-    // The original's frame loop asks `FUN_00477DFC` every frame; asking every
-    // hundredth costs at most ninety-nine ticks of a battle that is already
-    // over, and no rule reads the tick count.
-    let mut conclusion = None;
-    while runner.tick < MAX_TICKS {
-        runner.run(CHECK_EVERY);
-        conclusion = runner.conclusion();
-        if conclusion.is_some() {
-            break;
-        }
-    }
+    Some(runner)
+}
+
+/// **The tail of a fought battle**: the write-back and the verdict.
+///
+/// `FUN_0047F474` rebuilds both campaign records from the figures still
+/// standing, and the winner is the side the conclusion names. The stall arm is
+/// ours — the original has no clock — and it is a separate [`Resolution`]
+/// variant so that nobody can mistake an invented winner for a won battle.
+pub fn conclude_fight(
+    kingdom: &mut Kingdom,
+    attacker: usize,
+    defender: usize,
+    runner: BattleRunner,
+) -> (Verdict, Resolution) {
+    let conclusion = runner.conclusion();
 
     // `FUN_0047F474` — the write-back. Both sides, all eleven slots, rebuilt
     // from what is still standing.
@@ -585,7 +653,7 @@ fn fight(
     } else {
         Verdict::b_won(attacker, defender)
     };
-    Some((verdict, resolution))
+    (verdict, resolution)
 }
 
 /// A campaign record's seven counts as `l2-sim` troops, plus its mercenary band

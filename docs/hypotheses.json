@@ -157,15 +157,6 @@
       "comment": "Increase the amount of one commodity."
     },
     {
-      "addr": "0x0043B593",
-      "name": "Screen_BattlePromptClick",
-      "section": "ui",
-      "confidence": "subject",
-      "comment": "Screen 0x12 button handler. Hotspot 1 starts the battle locally, or in a network game sleeps 2 s and sends message 0x3C instead; hotspot 0 declines, or sends 0x3D twice.",
-      "basis": "the only function that reads g_uiHotspotId and then either calls Battle_Start or sends network message 0x3C",
-      "caveat": "The hotspot ids 1 and 0 are take-the-field and decline; the screen is 0x12, Screen_BattlePrompt. That much is solid. Whether this is the whole click handler or one arm of it was not checked, and the ui section is another agent's."
-    },
-    {
       "addr": "0x00443A2D",
       "name": "NetCmd_ReadMoveOrder",
       "section": "units",
@@ -306,42 +297,6 @@
     },
     {
       "record": "County",
-      "off": "0x203",
-      "type": "u8",
-      "name": "fieldsOther",
-      "confidence": "role",
-      "basis": "County_RecountFields buckets tile graphics 0, 23 and 24 here, next to the three named field tallies.",
-      "caveat": "Zero in all fourteen counties of the England fixture, so the reproduction that verified the other four tallies could not verify this one - a bucket that never fires is a bucket whose meaning is unknown. Graphic 0 is an empty slot; 23 and 24 are not identified. Needs a save with those tiles."
-    },
-    {
-      "record": "County",
-      "off": "0x204",
-      "type": "u8",
-      "name": "fieldsReclaimable",
-      "confidence": "subject",
-      "basis": "County_RecountFields buckets tile graphic 25 and above here; Field_SetType switches the reclamation labour share on exactly when it is non-zero.",
-      "caveat": "The gate in Field_SetType is direct and strong - this counts land the county can reclaim. What is not checked is the graphic band: it is 0 in every fixture, so no save demonstrates which tiles land in it. Promote when a save with wasteland exists."
-    },
-    {
-      "record": "County",
-      "off": "0x1FE",
-      "type": "u8",
-      "name": "farmStyle",
-      "confidence": "role",
-      "basis": "Ai_ManageCountyFarms writes it from g_aiPersonality's farmStyle and immediately dispatches on 0, 1 and 9.",
-      "caveat": "Strong: the fixture holds only 0, 1 and 9, exactly the dispatched values. Left here rather than promoted because unowned counties also carry 1, and Ai_ManageCountyFarms only writes AI-owned ones, so something at map load writes it too and has not been found. The name may be too narrow."
-    },
-    {
-      "record": "County",
-      "off": "0x1F4",
-      "type": "i32",
-      "name": "purse",
-      "confidence": "role",
-      "basis": "Three unrelated writers all treat it as money belonging to a county with no lord: Merchant_Trade credits and debits it instead of realm gold whenever the realm argument is 0, the tax pass banks an unowned county's taxCollected into it (FUN_0044B4F3), and the AI grants an unowned county a flat 100 a season (FUN_004A15xx). Ai_BuyGood then tests it as the purse for every unowned county's trade.",
-      "caveat": "Still 0 in every fixture, because no unowned county in any saved position has traded yet - so nothing has ever OBSERVED a non-zero value, only code that would produce one. crates/l2-kingdom's trade module exercises it and l2-game can now produce it, but our own engine agreeing with our own reading is not the check. Promote on a .sav taken after an AI season in which an unowned county traded: the offset should be non-zero and should equal tax banked plus grants minus purchases."
-    },
-    {
-      "record": "County",
       "off": "0x198",
       "type": "i32",
       "name": "armyFoodSoldiers",
@@ -357,6 +312,42 @@
       "confidence": "role",
       "basis": "Ration_Apply adds +0x198 + +0x19C to the county's food requirement when g_optArmiesEat is on, and Panel_Ration draws that same sum against L2.eng 87/8 'men foraging in the county.'. The orphaned ration group 62 has 'Soldiers', 'Foragers', 'take' and 'steal' as four separate strings, which is where the split into two fields comes from.",
       "caveat": "That the pair exists and sums into the food bill is certain. Which of the two is soldiers and which is foragers is a guess off the dead string group, and is a coin flip. Both are 0 in every fixture - no fixture has an army standing in a county with Armies Eat on."
+    },
+    {
+      "record": "County",
+      "off": "0x1F4",
+      "type": "i32",
+      "name": "purse",
+      "confidence": "role",
+      "basis": "Three unrelated writers all treat it as money belonging to a county with no lord: Merchant_Trade credits and debits it instead of realm gold whenever the realm argument is 0, the tax pass banks an unowned county's taxCollected into it (FUN_0044B4F3), and the AI grants an unowned county a flat 100 a season (FUN_004A15xx). Ai_BuyGood then tests it as the purse for every unowned county's trade.",
+      "caveat": "Still 0 in every fixture, because no unowned county in any saved position has traded yet - so nothing has ever OBSERVED a non-zero value, only code that would produce one. crates/l2-kingdom's trade module exercises it and l2-game can now produce it, but our own engine agreeing with our own reading is not the check. Promote on a .sav taken after an AI season in which an unowned county traded: the offset should be non-zero and should equal tax banked plus grants minus purchases."
+    },
+    {
+      "record": "County",
+      "off": "0x1FE",
+      "type": "u8",
+      "name": "farmStyle",
+      "confidence": "role",
+      "basis": "Ai_ManageCountyFarms writes it from g_aiPersonality's farmStyle and immediately dispatches on 0, 1 and 9.",
+      "caveat": "Strong: the fixture holds only 0, 1 and 9, exactly the dispatched values. Left here rather than promoted because unowned counties also carry 1, and Ai_ManageCountyFarms only writes AI-owned ones, so something at map load writes it too and has not been found. The name may be too narrow."
+    },
+    {
+      "record": "County",
+      "off": "0x203",
+      "type": "u8",
+      "name": "fieldsOther",
+      "confidence": "role",
+      "basis": "County_RecountFields buckets tile graphics 0, 23 and 24 here, next to the three named field tallies.",
+      "caveat": "Zero in all fourteen counties of the England fixture, so the reproduction that verified the other four tallies could not verify this one - a bucket that never fires is a bucket whose meaning is unknown. Graphic 0 is an empty slot; 23 and 24 are not identified. Needs a save with those tiles."
+    },
+    {
+      "record": "County",
+      "off": "0x204",
+      "type": "u8",
+      "name": "fieldsReclaimable",
+      "confidence": "subject",
+      "basis": "County_RecountFields buckets tile graphic 25 and above here; Field_SetType switches the reclamation labour share on exactly when it is non-zero.",
+      "caveat": "The gate in Field_SetType is direct and strong - this counts land the county can reclaim. What is not checked is the graphic band: it is 0 in every fixture, so no save demonstrates which tiles land in it. Promote when a save with wasteland exists."
     }
   ],
   "globals": [
@@ -457,6 +448,26 @@
   ],
   "corrections": [
     {
+      "target": "Anim_DrawBowA2 (0x0048804A) reading g_mapRotation",
+      "claim": "UNRESOLVED, and flagged rather than explained. The bow-draw animation is the only function in the battle that reads g_mapRotation - the campaign map orientation, 0/2/4/6 - and it rotates the figure facing by it before choosing a frame.",
+      "evidence": [
+        "Nothing else in the battle reads it: not the terrain renderer, not BattleFigure_Draw, not the other five animation handlers.",
+        "docs/battle.md 13.1 has the battlefield as a plain top-down grid with no rotation.",
+        "The identical idiom appears in the campaign unit renderer at 0x00400000+0x4508, facing minus g_mapRotation."
+      ],
+      "notDoneBecause": "Either the battlefield honours a rotation nothing else implements, or this is a paste from the campaign renderer whose three extra branches never run. Both stories are coherent and neither is anchored. Deciding it needs a live battle or the 16-pixel renderer read."
+    },
+    {
+      "target": "crates/l2-sim/src/runner.rs, Fighter::target",
+      "claim": "The doc comment named a field that does not exist. Figure +0x144/+0x146 fall inside the 300-byte path array at +0x38, no instruction in the binary references either offset, and the field is tg x / tg y at +0x24/+0x26. \"Written by Formation_SendFigure and by nothing else\" is also wrong: eleven functions write it.",
+      "evidence": [
+        "docs/records.json gives BattleMan +0x38 as u8[300], which runs to +0x164.",
+        "Formation_SendFigure writes g_battleMen[man].tgX / .tgY.",
+        "Grep over the struct-typed corpus finds .tgX = or .tgY = in BattleMan_Create, BattleMan_StateChase, BattleMan_StateEngineFire, BattleMan_StateCloseToAttack, Formation_SendFigure, BattleMan_Step, and five functions at 0x004923A8, 0x0049260E, 0x004926FB, 0x004927FA and 0x00492951."
+      ],
+      "notDoneBecause": "Fixed in place by this pass. Recorded because the field is still untested."
+    },
+    {
       "target": "docs/battle.md 13.5, the figure frame layout",
       "claim": "The walking and attacking blocks are the other way round. Frames 0..5 of a facing block are the WALK cycle and 6..N-2 are the strike; N-1 is the standing pose.",
       "evidence": [
@@ -477,26 +488,6 @@
         "Slot 9 is 0x00483FE1, which reads g_moatFillSteps; docs/battle-ai.md 5 already describes state 9 as the moat fill."
       ],
       "notDoneBecause": "Corrected in place in docs/battle.md 2.2 by this pass."
-    },
-    {
-      "target": "crates/l2-sim/src/runner.rs, Fighter::target",
-      "claim": "The doc comment named a field that does not exist. Figure +0x144/+0x146 fall inside the 300-byte path array at +0x38, no instruction in the binary references either offset, and the field is tg x / tg y at +0x24/+0x26. \"Written by Formation_SendFigure and by nothing else\" is also wrong: eleven functions write it.",
-      "evidence": [
-        "docs/records.json gives BattleMan +0x38 as u8[300], which runs to +0x164.",
-        "Formation_SendFigure writes g_battleMen[man].tgX / .tgY.",
-        "Grep over the struct-typed corpus finds .tgX = or .tgY = in BattleMan_Create, BattleMan_StateChase, BattleMan_StateEngineFire, BattleMan_StateCloseToAttack, Formation_SendFigure, BattleMan_Step, and five functions at 0x004923A8, 0x0049260E, 0x004926FB, 0x004927FA and 0x00492951."
-      ],
-      "notDoneBecause": "Fixed in place by this pass. Recorded because the field is still untested."
-    },
-    {
-      "target": "Anim_DrawBowA2 (0x0048804A) reading g_mapRotation",
-      "claim": "UNRESOLVED, and flagged rather than explained. The bow-draw animation is the only function in the battle that reads g_mapRotation - the campaign map orientation, 0/2/4/6 - and it rotates the figure facing by it before choosing a frame.",
-      "evidence": [
-        "Nothing else in the battle reads it: not the terrain renderer, not BattleFigure_Draw, not the other five animation handlers.",
-        "docs/battle.md 13.1 has the battlefield as a plain top-down grid with no rotation.",
-        "The identical idiom appears in the campaign unit renderer at 0x00400000+0x4508, facing minus g_mapRotation."
-      ],
-      "notDoneBecause": "Either the battlefield honours a rotation nothing else implements, or this is a paste from the campaign renderer whose three extra branches never run. Both stories are coherent and neither is anchored. Deciding it needs a live battle or the 16-pixel renderer read."
     },
     {
       "target": "docs/records.json, the County.industry array at +0x290",
