@@ -612,6 +612,39 @@ pub fn break_siege(counties: &[County; MAX_COUNTIES], units: &mut Units, army: u
 pub const CASTLE_DEGRADED_BUILDING: u8 = 1;
 /// County `+0x1C3` when the castle has been **knocked down in a siege**, and
 /// `+0x1F9` holds the level that is left standing.
+///
+/// > **Nothing in this workspace writes it, and that is a known hole rather
+/// > than an oversight.** The other two values of the byte have reachable
+/// > writers now — [`crate::industry::order_castle`] sets 1 and
+/// > [`crate::industry::build_tick`] clears it — but 2 belongs to the
+/// > end-of-siege bookkeeper, `FUN_004784CA` (`0x004784CA`), which is called
+/// > from `Battle_ReturnToCampaign`'s siege arm and does this:
+/// >
+/// > ```c
+/// > if (!g_battleIsSiege || (breachDamage == 0 && wallDamage == 0)) return;
+/// > county[+0x1E4..+0x1F1] = the battle's breach and approach scores;
+/// > if (g_castleLevel < 2) { woodOwed  = woodTotal  = wallDamage * 10; }
+/// > else                   { stoneOwed = stoneTotal = wallDamage * 15; }
+/// > workLeft = workTotal = breachDamage * 5 + wallDamage * 15;
+/// > county.castleLevelLeft = g_castleLevel;
+/// > county.castleDegraded  = 2;
+/// > county.percent         = 0;
+/// > ```
+/// >
+/// > — adding to the totals rather than replacing them when a build was
+/// > already under way, so **a wooden castle is repaired in wood and a stone
+/// > one in stone**, and a siege on a half-built castle makes the job bigger.
+/// >
+/// > It is not reproduced because every number in it comes from two battle-side
+/// > damage accumulators (`DAT_0057A0D8`, `DAT_0056D648`) that `l2-sim`'s
+/// > [`SiegeState`](../../l2_sim/siege/struct.SiegeState.html) does not have,
+/// > and the autocalc path — which is how most sieges settle — produces no wall
+/// > damage at all. Mapping them would have been a guess, so it is written down
+/// > instead. Until it lands, three readers of this constant
+/// > ([`assault_castle_level`], [`crate::industry::build_tick`]'s `repaired`
+/// > branch, and `Castle_StampTile`'s scaffolding arm) are reachable only from
+/// > their own tests, which is `docs/decisions.md` C27's shape and is said here
+/// > so the next reader does not have to rediscover it.
 pub const CASTLE_DEGRADED_DAMAGED: u8 = 2;
 
 /// **Which castle is actually fought** — `Siege_LaunchAssault`'s opening, and

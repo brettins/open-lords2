@@ -520,6 +520,22 @@ allow — is invisible to a player and harmless. `the_castle_ceiling_is_shut_unt
 in `crates/l2-kingdom/tests/labour_gap.rs` asserts both sides of the boundary: one stick
 short opens it, four sticks short (`Pct(4, 400) == 1`) shuts it.
 
+### B66 — A siege bills the repair in the material the castle is made of
+
+**Identified and not yet reproduced.** **[V].**
+
+`Siege_RecordCastleDamage` (`0x004784CA`) is the only writer of `castleDegraded = 2`, and it
+bills the repair from `g_castleLevel`: below 2 — a palisade or a motte and bailey — it charges
+`wallDamage * 10` in **wood**, and at 2 or above `wallDamage * 15` in **stone**, with the work
+at `breachDamage * 5 + wallDamage * 15` either way. When a build was already under way it
+**adds** to the existing totals, so besieging a half-built castle makes the job bigger than
+the castle was.
+
+Not in this tree: every number comes from two battle-side accumulators `l2-sim` does not
+keep, and the autocalc path produces no wall damage at all. Written down here and on
+`l2_kingdom::siege::CASTLE_DEGRADED_DAMAGED` so that the three readers of that constant are
+known to be reachable only from their own tests.
+
 ### B65 — Building a castle stops a county mining, and only the AI knows
 
 **Reproduced, and it is the rule rather than a defect — filed here because it reads as one.**

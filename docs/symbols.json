@@ -6073,6 +6073,13 @@
       "section": "units",
       "confidence": "verified",
       "comment": "Removes a unit from its tile's occupancy chain, walking the +0x04 links with a ten-step guard. Called by Army_GarrisonApply on the way into a castle and by Castle_EvictTile."
+    },
+    {
+      "addr": "0x004784CA",
+      "name": "Siege_RecordCastleDamage",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The end-of-siege bookkeeper, called from Battle_ReturnToCampaign's siege arm, and the ONLY writer of county +0x1C3 to 2. Returns unless g_battleIsSiege and one of the two damage accumulators is non-zero. Stores the battle's breach and approach scores into +0x1E4..+0x1F1 (which Castle_BuildTick zeroes on completion), then bills the repair: castleLevel < 2 charges wood +0x1D4/+0x1E0 = wallDamage*10, otherwise stone +0x1D0/+0x1DC = wallDamage*15, and work +0x1CC/+0x1D8 = breachDamage*5 + wallDamage*15 - ADDING to whatever a build already under way had owed. So a wooden castle is repaired in wood and a stone one in stone. Finally +0x1F9 = g_castleLevel, castleDegraded = 2, +0x1C4 = 0."
     }
   ],
   "globals": [
