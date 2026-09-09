@@ -652,7 +652,7 @@ pub fn fit_cattle_fields(t: &Tables, county: &mut County, map: &mut CampaignMap,
         field::set_count(county, map, FieldType::Pasture, county.fields_cattle + 1);
     }
     field::recount(county, map);
-    county.herd_crowding = crate::land::herd_crowding(t, county.herd, county.fields_cattle);
+    field::herd_update_crowding(t, county, map);
 }
 
 /// One farming style, start to finish — the body of one of the five.
@@ -734,8 +734,7 @@ pub fn lay_out(
             if county.herd > 10 {
                 field::set_count(county, map, FieldType::Pasture, 1);
                 field::recount(county, map);
-                county.herd_crowding =
-                    crate::land::herd_crowding(t, county.herd, county.fields_cattle);
+                field::herd_update_crowding(t, county, map);
             }
             refresh(t, counties, county_count, id, map, realms, env);
             labour::allocate(&mut counties[id]);

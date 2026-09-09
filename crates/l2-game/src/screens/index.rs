@@ -21,7 +21,6 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::screens::options::Page as OptionsPage;
 use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::screens::setup::SetupPage;
-use crate::screens::shells::SHELLS;
 use crate::widget;
 
 /// One row: what it is called, where it goes, and whether it goes anywhere.
@@ -80,6 +79,16 @@ impl IndexScreen {
         push("0x0C TRADE GOODS (GRAIN)".into(), Some(ScreenId::Trade(1, 1)));
         push("0x35 LOAD A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Load)));
         push("0x36 SAVE A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Save)));
+        // The last seven shells. Four take no argument; the other three take a
+        // county or a right-click target and get the same stand-in the siege
+        // and merchant rows above take, for the same reason.
+        push("0x04 MAP INFO: A UNIT".into(), Some(ScreenId::Info(crate::screens::info::Target::Unit(1))));
+        push("0x04 MAP INFO: A TILE".into(), Some(ScreenId::Info(crate::screens::info::Target::Tile(0))));
+        push("0x09 THE COURT".into(), Some(ScreenId::Court));
+        push("0x0B DIPLOMACY".into(), Some(ScreenId::Diplomacy));
+        push("0x18 SEND SUPPLIES".into(), Some(ScreenId::Supplies(1)));
+        push("0x25 ABOUT".into(), Some(ScreenId::About));
+        push("0x2E BATTLE MASTER RATINGS".into(), Some(ScreenId::Ratings));
 
         push(String::new(), None);
         push("-- 0x1F GAME SETUP, 13 PAGES --".into(), None);
@@ -101,15 +110,6 @@ impl IndexScreen {
         push("-- 0x1C CONQUEST --".into(), None);
         push("  WON / LOST / CAMPAIGN OVER".into(), Some(ScreenId::Conquest));
 
-        push(String::new(), None);
-        push("-- SHELLS: REAL ART, NO LOGIC --".into(), None);
-        for s in SHELLS {
-            let mark = if s.overlay { "POPUP" } else { "PAGE " };
-            push(
-                format!("  0x{:02X} {} {}", s.id, mark, s.name.to_uppercase()),
-                Some(ScreenId::Shell(s.id)),
-            );
-        }
 
         IndexScreen { rows, selected: 1 }
     }
@@ -287,8 +287,17 @@ mod tests {
         for p in SetupPage::ALL {
             assert!(dests.contains(&ScreenId::Setup(p)), "setup page {}", p.number());
         }
-        for sh in SHELLS {
-            assert!(dests.contains(&ScreenId::Shell(sh.id)), "shell 0x{:02X}", sh.id);
+        // **The shell section is gone**, because the table is empty. What
+        // replaces it is the graduated list: every id that ever had a row must
+        // be reachable from here under its own name, or the demo has lost a
+        // door that used to exist.
+        for &(id, module) in crate::screens::shells::GRADUATED {
+            if let Some(to) = crate::screens::shells::screen_for(id) {
+                assert!(
+                    dests.contains(&to),
+                    "0x{id:02X} ({module}) graduated and is not on the index",
+                );
+            }
         }
         for p in OptionsPage::ALL {
             assert!(

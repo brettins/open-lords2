@@ -57,8 +57,6 @@ pub enum ScreenId {
     /// `g_screenId` `0x35` and `0x36` — loading and saving a conquest. One
     /// painter with a mode flag, so one screen with a mode.
     SaveLoad(crate::screens::saveload::Mode),
-    /// A screen that is drawn and not yet driven, named by its `g_screenId`.
-    Shell(u8),
     /// `g_screenId` `0x1B` — **the castle chooser**, for one county. Five
     /// picture buttons and an OK; see [`crate::screens::castle`].
     Castle(u8),
@@ -126,6 +124,31 @@ pub enum ScreenId {
     /// original's own numbers. `0x28` is the fourth of that block and is
     /// unreachable in the shipped binary — see [`crate::battlefield`].
     Battlefield,
+    /// `g_screenId` `0x25` — **About**, the Help menu's box. See
+    /// [`crate::screens::about`].
+    About,
+    /// `g_screenId` `0x09` — **the court**, the realm's balance sheet. Not a
+    /// diplomacy screen; see [`crate::screens::court`].
+    Court,
+    /// `g_screenId` `0x0B` — **diplomacy**, the lord cards and the action menu.
+    /// See [`crate::screens::diplomacy`].
+    Diplomacy,
+    /// `g_screenId` `0x18` — **send supplies**, from one county to another.
+    /// The destination is part of the identity because the screen opens with it
+    /// equal to the source and the player moves it with the minimap. See
+    /// [`crate::screens::supplies`].
+    Supplies(u8),
+    /// `g_screenId` `0x2E` — **the Battle Master ratings**, the skirmish
+    /// scoreboard. See [`crate::screens::ratings`].
+    Ratings,
+    /// `g_screenId` `0x04` — **the map information panel**, for whatever the
+    /// right click resolved to.
+    ///
+    /// The target is part of the identity because the original keeps it in
+    /// `g_pickedTileUnit` and `DAT_0056795C` and picks the painter from them;
+    /// a value that had to guess would be a value that guessed. See
+    /// [`crate::screens::info`].
+    Info(crate::screens::info::Target),
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -306,10 +329,19 @@ impl ScreenId {
             ScreenId::Battlefield => {
                 Box::new(crate::screens::battlefield::BattlefieldScreen::new())
             }
-            ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
             ScreenId::Options(page) => {
                 Box::new(crate::screens::options::OptionsScreen::new(page))
             }
+            ScreenId::About => Box::new(crate::screens::about::AboutScreen::new()),
+            ScreenId::Court => Box::new(crate::screens::court::CourtScreen::new()),
+            ScreenId::Diplomacy => {
+                Box::new(crate::screens::diplomacy::DiplomacyScreen::new())
+            }
+            ScreenId::Supplies(to) => {
+                Box::new(crate::screens::supplies::SuppliesScreen::new(to))
+            }
+            ScreenId::Ratings => Box::new(crate::screens::ratings::RatingsScreen::new()),
+            ScreenId::Info(target) => Box::new(crate::screens::info::InfoScreen::new(target)),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }
     }

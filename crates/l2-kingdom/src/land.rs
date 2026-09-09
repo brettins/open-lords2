@@ -603,6 +603,50 @@ pub fn herd_crowding(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
     last.level
 }
 
+/// **The picture on the pasture** — `FUN_0044D913`'s *other* output, which is a
+/// terrain value and not a level.
+///
+/// `Herd_UpdateCrowding` computes one density and uses it twice, with **two
+/// different ladders**, and the difference is the reason this is its own
+/// function rather than a lookup on [`herd_crowding`]:
+///
+/// ```c
+/// if      (herd < 1)      graphic = 0x13;      /* and the level is still written */
+/// else if (density < 11)  graphic = 0x14;
+/// else if (density < 21)  graphic = 0x15;
+/// else                    graphic = 0x16;
+/// ```
+///
+/// * The **graphic has an empty-herd arm** and the level has none. A county
+///   that has lost every animal keeps its pasture, gets terrain `0x13`, and
+///   [`l2_view::campaign::herd_sprite`] draws nothing on it.
+/// * The **graphic has three bands and the level has four.** Density 25 and
+///   density 250 are `herd_crowding` 30 and 40 — *"Herd overcrowded."* and
+///   *"Massive overcrowding!!"* — and the **same** picture, `0x16`. The map
+///   cannot tell the top two bands apart.
+///
+/// So the map is a lossy view of the meter, deliberately, and a renderer that
+/// derived the tile from `county.herd_crowding` would show three counties out
+/// of the England position wrongly. **[V]** — the England turn-one save carries
+/// both halves and `crates/l2-kingdom/tests/fields.rs` diffs them on all
+/// fourteen counties.
+pub fn herd_graphic(t: &Tables, herd: i32, fields_cattle: i32) -> u8 {
+    if herd < 1 {
+        return crate::field::terrain::PASTURE;
+    }
+    let density = herd_density(t, herd, fields_cattle);
+    // The **first two** rows of the same table the level uses, and the third
+    // arm swallows rows 2 and 3 together. `density_max` is inclusive, so
+    // `<= 10` is the binary's `< 11`.
+    if density <= t.herd.crowding[0].density_max {
+        crate::field::terrain::PASTURE_LOW
+    } else if density <= t.herd.crowding[1].density_max {
+        crate::field::terrain::PASTURE_CROWDED
+    } else {
+        crate::field::terrain::PASTURE_PACKED
+    }
+}
+
 /// The crowding band a stored level names.
 ///
 /// The original matches the level **exactly** — `if (crowding == 10) … else if

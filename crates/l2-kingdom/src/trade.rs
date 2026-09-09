@@ -475,8 +475,13 @@ fn settle(kingdom: &mut Kingdom, county: usize) {
     let t = kingdom.tables;
     let armies_eat = kingdom.options.armies_eat;
     let season_next = kingdom.season_next;
+    // `Merchant_Trade`'s own `Herd_UpdateCrowding` — buying or selling cattle
+    // moves the herd, so the animals on the county's pasture move with it.
+    // Split off `kingdom` before the county is borrowed, because the repaint
+    // needs the map and the rest of `settle` needs the county.
+    let Kingdom { counties, campaign, .. } = kingdom;
+    crate::field::herd_update_crowding(&t, &mut counties[county], &mut campaign.map);
     let c = &mut kingdom.counties[county];
-    c.herd_crowding = crate::land::herd_crowding(&t, c.herd, c.fields_cattle);
     crate::ration::apply(&t, c, armies_eat);
     crate::land::herd_preview(&t, c, season_next);
     crate::labour::allocate(c);

@@ -805,6 +805,17 @@ impl Kingdom {
                 self.season,
                 self.season_next,
             );
+            // `Herd_SeasonTick`'s last act is `Herd_UpdateCrowding`, which
+            // writes the crowding level **and repaints the county's pasture**.
+            // `land::herd_season_tick` has no map and does only the first half;
+            // this is the second. Without it the animals on the ground never
+            // change however the herd grows, which is what the map looked like
+            // until somebody asked why the pastures were empty.
+            crate::field::herd_update_crowding(
+                &self.tables,
+                &mut self.counties[id],
+                &mut self.campaign.map,
+            );
             if self.counties[id].pop_band != 0 {
                 self.counties[id].labour_useful[crate::tables::JOB_CATTLE_FARMING] =
                     land::herd_labour_estimate(

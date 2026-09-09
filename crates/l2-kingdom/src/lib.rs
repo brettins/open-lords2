@@ -232,6 +232,7 @@ pub mod realm;
 pub mod report;
 pub mod save;
 pub mod siege;
+pub mod supply;
 pub mod tables;
 pub mod tax;
 pub mod territory;

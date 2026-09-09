@@ -268,16 +268,19 @@ pub enum SidebarAction {
 /// **Which of our screens a sidebar button opens.**
 ///
 /// The table stores a `g_screenId` because that is what `Sidebar_Button`
-/// writes, and for four of the five that is a shell. `0x17` is not a shell any
-/// more — it is [`crate::screens::army`], the raise-army screen — and it needs
-/// the county, because in the original the whole strip is *about*
+/// writes. **All five now resolve to a screen** — the shell table is empty —
+/// and two need the county, because in the original the whole strip is *about*
 /// `g_selectedCounty`: `Sidebar_Button`'s own arm is
 /// `Levy_SetPercent(g_selectedCounty, g_levyPercent); FUN_004AA90A(g_selectedCounty, g_levyMen)`.
 ///
-/// **This is the function to change when a shell graduates**, and the test
+/// **This is the function to change when a screen graduates**, and the test
 /// below is what makes forgetting it a failure rather than a silently dead
-/// button: every id in the table must resolve either to a shell or to a screen
-/// this function names.
+/// button: every id in the table must resolve to a screen this function names.
+///
+/// The five ids are `Sidebar_Button`'s five hotspots — 1 the levy, 2 the court,
+/// 3 send supplies, 4 the castle, 5 diplomacy — and **only 1 and 3 are gated**
+/// on the county belonging to the local player. 2 and 5 have no test at all,
+/// which `screens/index.rs` used to say the opposite of.
 pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
     match id {
         0x17 => ScreenId::RaiseArmy(county),
@@ -286,7 +289,16 @@ pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
         // already in `handle` — and otherwise sets `g_screenId = 0x1B` for
         // `g_selectedCounty`.
         0x1B => ScreenId::Castle(county),
-        _ => ScreenId::Shell(id),
+        // Hotspot 2, `Sidebar_Button`'s own arm, **ungated**.
+        0x09 => ScreenId::Court,
+        // Hotspot 3. The destination opens equal to the source and the minimap
+        // is the only thing that moves it.
+        0x18 => ScreenId::Supplies(county),
+        // Hotspot 5, `FUN_0043611B` — also ungated, and it does not touch
+        // `g_diploTarget`; the painter's prologue heals a stale one.
+        0x0B => ScreenId::Diplomacy,
+        // There is no sixth hotspot, so this arm is unreachable from the strip.
+        _ => ScreenId::Campaign,
     }
 }
 
@@ -457,6 +469,23 @@ pub struct MapScreen {
     /// is stepped by [`Screen::update`] and the arithmetic is the original's.
     flag_tick: u8,
     flag_phase: u8,
+    /// `DAT_0057D388`, the map's **second** animation counter, and
+    /// `_DAT_0057D38C`, the herd's grazing phase, which is that counter mod
+    /// `0x60` shifted right by four — so **six** phases rather than the flag's
+    /// eight.
+    ///
+    /// `FUN_004CFB08` steps both counters behind one 16 ms `GetTickCount` gate,
+    /// so a herd holds each frame for 16 × 16 ms and the loop takes 1.54
+    /// seconds. **This is not `Tick_Pulses`** (`0x004BBC80`), the 20 ms
+    /// `timeGetTime` divider chain the village animates off — the campaign map
+    /// has its own clock, and the two are different rates. Worth stating
+    /// because the natural guess is that everything on screen shares one.
+    ///
+    /// It is stepped from [`Screen::update`] for the same reason `flag_tick`
+    /// is: nothing below this crate may read a clock, and this must never
+    /// reach the simulation (`docs/netcode.md` D-12).
+    herd_tick: u8,
+    herd_phase: u8,
     /// **`g_selectedUnit`, and the map is in move-order mode while it is set.**
     ///
     /// `Map_Click`'s army branch is three lines: a picked unit of type 1 that is
@@ -610,6 +639,8 @@ impl MapScreen {
             opened: false,
             flag_tick: 0,
             flag_phase: 0,
+            herd_tick: 0,
+            herd_phase: 0,
             selected_unit: None,
             move_order: None,
             slider_held: false,
@@ -2055,7 +2086,23 @@ impl Screen for MapScreen {
                     self.status = "ORDERS CANCELLED".into();
                     return Transition::Stay;
                 }
-                return Transition::Push(ScreenId::Shell(0x04));
+                // **`0x04` is a real screen now** and it needs to know what the
+                // right click resolved to, because the original picks between
+                // its two painters on `g_pickedTileUnit`: a unit under the
+                // cursor gets the unit panel, anything else gets the tile
+                // panel and — on the player's own farmland — the field brush.
+                // See [`crate::screens::info`].
+                let target = self
+                    .pick_tile(x, y)
+                    .map(|(tx, ty)| {
+                        let tile = l2_kingdom::map::index(tx, ty);
+                        match ctx.game.kingdom.campaign.units.at(tx, ty) {
+                            Some(unit) => crate::screens::info::Target::Unit(unit),
+                            None => crate::screens::info::Target::Tile(tile),
+                        }
+                    })
+                    .unwrap_or(crate::screens::info::Target::Tile(0));
+                return Transition::Push(ScreenId::Info(target));
             }
             // **Ours.** `winit` has no "the pointer left"; `main.rs` synthesises
             // this so a cursor that walked off the window stops scrolling the
@@ -2328,6 +2375,19 @@ impl Screen for MapScreen {
             self.flag_phase = phase;
             self.scrolled = true;
         }
+        // The same frame steps the herd's counter, off the same gate.
+        // `Map_DrawFrame`: `if (0x5F < tick) tick = 0; phase = tick >> 4;` —
+        // note the wrap is `0x60`, not a mask, so the six phases are 0 … 5 and
+        // the counter is **not** a power of two.
+        self.herd_tick += 1;
+        if self.herd_tick > 0x5F {
+            self.herd_tick = 0;
+        }
+        let phase = self.herd_tick >> 4;
+        if phase != self.herd_phase {
+            self.herd_phase = phase;
+            self.scrolled = true;
+        }
         // The season has turned and the screen is dark or on its way there.
         // Nothing else may run: the fade *is* the frame.
         if self.fading.is_some() {
@@ -2471,6 +2531,16 @@ impl Screen for MapScreen {
         // `Map_DrawFrame`'s order: the terrain, then the building/flag pass,
         // then the unit sprites — so a flag is over the town and under an army
         // walking past it.
+        // **Two loops where the original has one, and it shows in one place.**
+        // `FUN_004071A0` handles all four arms inside a single lattice-ordered
+        // traversal, so a cattle sprite on a later tile overdraws a flag on an
+        // earlier one. Ours draws every herd and then every flag, so the flag
+        // wins instead. A tile is never both, so nothing is drawn twice; the
+        // only visible difference is a 58 × 30 meadow overlapping the 32 × 24
+        // banner of the town up and to its left. Recorded rather than papered
+        // over — merging the passes means the county loop and the tile loop
+        // becoming one, which is a bigger change than the defect.
+        draw_herds(self, canvas, ctx, clip);
         draw_flags(self, canvas, ctx, clip);
         draw_path_preview(self, canvas, ctx, clip);
         draw_units(self, canvas, ctx, clip);
@@ -2688,6 +2758,43 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
         if let Some(tile) = castle {
             flag(tile, frame);
         }
+    }
+}
+
+/// **`FUN_004071A0`'s farm arm — the cattle in the pastures.**
+///
+/// A player who had the build in front of him: *"why do the pastures not have
+/// cows in them?"* Because this pass had three of its four arms and not the
+/// fourth. It is the same overlay pass as [`draw_flags`], on the same bank bit
+/// `0x80`, off the same `Flags1a.pl8` — `Terrain_Set` sets that bit for
+/// `0x0E < terrain < 0x17`, which is exactly the pasture range, so a pasture is
+/// the one field state that gets a second blit at all.
+///
+/// **Which of three pictures is drawn is `herd ÷ fieldsCattle`**, so this is a
+/// rule wearing a graphic's clothes: `l2_kingdom::land::herd_graphic` bands the
+/// density at 11 and 21 and `Herd_UpdateCrowding` writes the answer onto every
+/// pasture tile of the county. The terrain byte carries it, this reads it back,
+/// and neither end guesses. An empty herd is terrain `0x13` and draws nothing.
+///
+/// The phase is [`MapScreen::herd_phase`] and is **display state**: it never
+/// reaches [`l2_kingdom::Kingdom`], exactly as the flag's does not.
+fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+    let map = &ctx.game.kingdom.campaign.map;
+    for tile in 0..map.terrain.len() {
+        if map.flags[tile] & l2_kingdom::map::flags::FARMLAND == 0 {
+            continue;
+        }
+        let (x, y) = l2_kingdom::map::coords(tile);
+        campaign::draw_herd(
+            canvas,
+            &ctx.assets.map,
+            screen.view,
+            &screen.zoom,
+            (x as usize, y as usize),
+            map.terrain[tile],
+            screen.herd_phase,
+            clip,
+        );
     }
 }
 
@@ -3069,20 +3176,23 @@ mod tests {
                 assert!(ra.x + ra.w <= rb.x || rb.x + rb.w <= ra.x, "{a:?} overlaps {b:?}");
             }
         }
-        // And every destination is a screen we can actually draw: either a
-        // shell, or a screen that has graduated out of the table and is named
-        // by `sidebar_destination`. A shell graduating without that second half
-        // is a button that opens the first shell in the table, which is why
-        // this asserts both halves rather than just the first.
+        // And every destination is a screen we can actually draw.
+        //
+        // **This check used to be *"either a shell or a graduated screen, and
+        // not both"*, and the shell table is empty now**, so the first half is
+        // gone and the second is all of it: a button whose id falls through
+        // `sidebar_destination`'s ladder lands on `ScreenId::Campaign` — the
+        // screen it was already on — which is a button that does nothing, and
+        // that is exactly what this must catch. It is the same failure the old
+        // form caught (a graduation that forgot to add an arm), stated against
+        // the fall-through instead of against the table.
         for b in SIDEBAR_BUTTONS {
             let SidebarAction::Screen(id) = b.action;
-            let shelled = crate::screens::shells::SHELLS.iter().any(|s| s.id == id);
-            let built = sidebar_destination(id, 1) != ScreenId::Shell(id);
-            assert!(
-                shelled || built,
-                "{b:?} names screen {id:#04X}, which has neither a shell nor a screen"
+            assert_ne!(
+                sidebar_destination(id, 1),
+                ScreenId::Campaign,
+                "{b:?} names screen {id:#04X}, which sidebar_destination does not build",
             );
-            assert!(!(shelled && built), "{b:?} is both a shell and a screen");
         }
         assert_eq!(
             sidebar_destination(0x17, 4),

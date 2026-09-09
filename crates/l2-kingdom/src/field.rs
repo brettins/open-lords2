@@ -112,7 +112,20 @@ pub mod terrain {
     /// The first pasture terrain.
     pub const PASTURE_FIRST: u8 = 0x0F;
     /// Pasture — the value the brush paints, which sits inside the range.
+    ///
+    /// It is also **an empty pasture**: `Herd_UpdateCrowding` writes it when
+    /// the county's herd is zero, and `FUN_004071A0` draws no animals on it.
+    /// So the brush paints grass and the next herd pass puts the cattle in.
     pub const PASTURE: u8 = 0x13;
+    /// Pasture grazed at **ten head a field or fewer** — the first of the three
+    /// stocked pictures. `l2_kingdom::land::herd_graphic`.
+    pub const PASTURE_LOW: u8 = 0x14;
+    /// …eleven to twenty…
+    pub const PASTURE_CROWDED: u8 = 0x15;
+    /// …and twenty-one or more, which is also the picture for a county with no
+    /// pasture at all. The map cannot tell *"Herd overcrowded."* from
+    /// *"Massive overcrowding!!"*.
+    pub const PASTURE_PACKED: u8 = 0x16;
     /// …and the last.
     pub const PASTURE_LAST: u8 = 0x16;
     /// A field ruined by *Flooding* this season (`Weather_UpdateAll`).
@@ -350,7 +363,10 @@ pub fn set_type(
         let share = crate::industry::weapon_shares(tables, counties, county_count, owner);
         let realm = realms.get(owner as usize).unwrap_or(&neutral);
         let c = &mut counties[county];
-        c.herd_crowding = crate::land::herd_crowding(tables, c.herd, c.fields_cattle);
+        // `Field_SetType`'s own call, both halves of it. Painting a pasture
+        // writes `0x13`, and this is the line that puts the animals on it —
+        // before `refresh_estimates` reads the map back.
+        herd_update_crowding(tables, c, map);
         refresh_estimates(c, map, season_next, tables, advanced_farming, realm, share);
     }
     Ok(())
@@ -440,6 +456,53 @@ pub fn refresh_estimates(
 /// (`campaign::field_graphic`); this crate holds no graphics.
 pub fn paint_tile(map: &mut CampaignMap, tile: usize, terrain: u8) {
     map.terrain[tile] = terrain;
+}
+
+/// `FUN_00469D21(county, terrain, 0, first, last)` — **repaint every one of a
+/// county's field tiles whose terrain is in `first ..= last`.**
+///
+/// The original sweeps all 4,096 tiles rather than the county's twenty slots,
+/// testing `tile.county == county && (tile.flags & 0x20)`; the two are the same
+/// set by construction ([`recount`] builds the slots from exactly that test)
+/// and the slots are what this crate has.
+///
+/// **The `param_4 == 2` clause is not reproduced and this is why.** The
+/// original carries an extra arm — *if the range starts at 2 and the county's
+/// `+0x1A7` is set and this is not the first tile matched, write `2` instead of
+/// the requested terrain* — which is `Grain_SeasonTick`'s business, not the
+/// herd's, and `Herd_UpdateCrowding` passes `first = 0x13`. Naming it here
+/// rather than silently narrowing the helper: a caller that wants the grain
+/// half needs to bring it. **[V]**
+pub fn repaint_range(county: &County, map: &mut CampaignMap, terrain: u8, range: (u8, u8)) {
+    for slot in 0..MAX_FIELDS {
+        let Some(tile) = county.field_tile(slot) else { continue };
+        if (range.0..=range.1).contains(&map.terrain[tile]) {
+            map.terrain[tile] = terrain;
+        }
+    }
+}
+
+/// **`Herd_UpdateCrowding` (`0x0044D913`) in full** — the crowding level *and*
+/// the picture on the ground.
+///
+/// The original is one function and does both, which is the only reason the
+/// pasture on a map ever shows the right number of animals: nothing else writes
+/// terrain `0x14 … 0x16`. Splitting them was how our map came to have pastures
+/// with no cattle in them — [`crate::land::herd_crowding`] was reproduced and
+/// its other half was not.
+///
+/// Call it wherever the herd or the pasture count can have moved. The original
+/// calls it from `Field_SetType`, `Herd_SeasonTick`, the trade screen, county
+/// setup and four places in the AI's farm pass, and every one of those is a
+/// place `county.herd` or `county.fields_cattle` has just changed.
+pub fn herd_update_crowding(
+    tables: &crate::tables::Tables,
+    county: &mut County,
+    map: &mut CampaignMap,
+) {
+    county.herd_crowding = crate::land::herd_crowding(tables, county.herd, county.fields_cattle);
+    let graphic = crate::land::herd_graphic(tables, county.herd, county.fields_cattle);
+    repaint_range(county, map, graphic, (terrain::PASTURE, terrain::PASTURE_LAST));
 }
 
 /// Whether `terrain` is a field the **AI's brush** counts as `kind`.

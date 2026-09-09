@@ -3393,6 +3393,102 @@ enumeration here reaches the same six by a different route. The totals differ �
 §15.11 states the rule and says where the difference most likely is. Two enumerations agreeing
 on a sub-count they were not aligned on is worth more than either total.
 
+**CNEW-cattle — The picture on a pasture is the herd count, and we had reproduced the meter
+and not the picture.**
+
+A player with the build in front of him: *"why do the pastures not have cows in them?"*
+
+Because `FUN_004071A0` — the overlay pass `Map_DrawFrame` runs between the terrain and the
+army sprites, on runtime bank bit `0x80` — has four arms and we had built three. The town's
+flag, the castle's garrison banner and the mercenary marker were drawn. The fourth is
+farmland, and it is the animals.
+
+The chain is short and every link of it was already in this repository, unjoined:
+
+* `Terrain_Set` sets bank bit `0x80` when `0x0E < terrain < 0x17`. That range is *exactly*
+  the pasture range, so **a pasture is the only field state that gets a second blit at all**
+  — and `l2_view::campaign::field_graphic` already carried the bit, with a comment guessing
+  *"on a pasture, presumably the animals"*. It is.
+* The arm picks `Flags1a.pl8` frame `0x55 + (terrain − 0x14) * 6 + phase` for a stocked
+  pasture, at tile origin `(+4, −4)`, and returns without drawing for `0x13`.
+* `Herd_UpdateCrowding` (`0x0044D913`) is what writes that terrain, onto **every** pasture
+  tile of the county, from `herd / fieldsCattle` banded at 11 and 21.
+
+So it is a **rule wearing a graphic's clothes**, and the shape of the miss is the one C61
+named: we had `land::herd_crowding`, the *meter*, reproduced and tested; we did not have
+`Herd_UpdateCrowding`'s other half, which is the same function.
+
+**The bands are not the same bands, and that is the trap.** The meter has four —
+`< 11 → 10`, `< 21 → 20`, `< 31 → 30`, else 40 — and the picture has three, merging 30 and
+40. A renderer that indexed three pictures by `herd_crowding / 10` would run off the end of
+its table **on county 1 of the shipped England position**, which grazes 74 head on one field.
+`land::herd_graphic` is therefore its own function beside `land::herd_crowding` rather than
+a lookup on it, and `the_map_merges_the_top_two_crowding_bands_and_the_meter_does_not` is
+that difference asserted.
+
+**The evidence is the original's own save, on fourteen counties, and it is the strongest
+shape this project has.** The England turn-one fixture stores `county.herd`, it stores
+`fields_cattle`'s twenty tiles, and it stores the terrain byte the original wrote on each —
+so reproducing the third from the first two is a check nothing in this tree can make come out
+right by agreeing with itself. 107 pasture tiles, three of the four states, every one exact.
+That also means the fixture *already carried* the right pictures: the only thing missing was
+the drawing, which is why nobody noticed the rule was missing either.
+
+**Two things about the artwork that a canvas diff could not have told us.** Frames
+`0x55 … 0x66` are eighteen frames of **58 × 30** — exactly the near-zoom diamond, so the
+sprite is a full-meadow overlay — and their opaque pixel counts run 344 / 706 / 930 across
+the three bands, which is *more animals on a more crowded meadow* stated as something the
+file could have contradicted. The second block the ladder can reach, `0x67 … 0x78`, is
+eighteen **2 × 2 stubs**: art that was reserved and never drawn.
+
+**And that second block is not sheep.** The natural reading of a second three-group ladder is
+a second species. The tile-info table at `0x004D2EC8` refutes it: content `0x0F … 0x12` gets
+`L2.eng` group 30 descriptions 40 … 43 and mode 20, which are *the same four strings* as
+`0x19 … 0x1C`, the live reclamation ladder. It is a vestigial earlier encoding of field
+reclamation whose art moved with it. Nothing writes those four values onto a farm tile in the
+shipped game — every `Terrain_Set` call site was enumerated — so the arm is dead, and it is
+reproduced rather than dropped because the ladder is what the function does.
+
+There are **no sheep anywhere**: a pasture is a *"dairy meadow"* and its mode line is
+*"- Cattle."*; no sheet holds a sheep; no `farm_style` branch picks a species.
+
+**The clock is not the village's.** The natural guess — and the one the brief made — is that
+the animals take a pulse from `Tick_Pulses` (`0x004BBC80`), the 20 ms `timeGetTime` divider
+chain the village animates off. They do not. The campaign map has its own clock,
+`FUN_004CFB08`, a **16 ms `GetTickCount`** gate stepping two counters: `DAT_0057D378`,
+wrapped at `0x80`, whose `>> 4` is the flag's eight wave phases, and `DAT_0057D388`, wrapped
+at **`0x60`** — not a power of two — whose `>> 4` is the herd's six. A herd holds each frame
+for 256 ms and the loop takes 1.54 seconds.
+
+**CNEW-shells — Emptying the shell table found four wrong claims, and the table's shape is
+why they survived.**
+
+Seven rows were left. All seven are gone. Six graduated into modules; the seventh was never a
+shell at all.
+
+| row | the claim | what it was |
+|---|---|---|
+| `0x0F` *"The job popup"* | name, painter and group all **correct** | **a live duplicate of `screens/job.rs`**, which had claimed the same id and painter since it graduated. Two index entries for one screen. |
+| `0x04` *"The map information panel"* | *"`FUN_0041B032` draws no `Ui_DrawBox`"* | **both** its halves open with one. Somebody read the dispatcher's own 79 bytes — which contain no drawing at all — and concluded the callees did not either. |
+| `0x09` *"The court"* | four lines in the `lines` field, *"the body lines, in the 14-pixel font"* | the painter draws all four in the **22-pixel heading font**, and the fifth entry is a **button caption**, not a line. |
+| `0x2E` *"the seven rating rows per player"* | seven rows | **seven columns by three rows**, twice. The columns are troop types and the rows are Before / Killed / Kills. |
+
+`0x0F` is the instructive one. **Nothing could have caught it**, because the only check —
+`every_shell_has_a_distinct_screen_id_and_a_painter` — dedupped *within* the table, and
+`find` was only ever asked about ids the table already held. The check that would have caught
+it is the opposite one: *a shell id must not be a screen id we build*. That is now
+`shells.rs`'s `find_answers_for_every_id_that_ever_sat_here`, and it is C61's shape again —
+a rule that reads as complete while naming no artefact the failure could live in.
+
+**The general lesson, and it is why `shells.rs` survives as a record with an empty array: a
+row of five fields cannot say what a painter does.** Every graduation found something the row
+had no place to hold — that `0x0A` is where an army is *created* and not a shop, that
+`0x18`'s widget table carries a complete **sheep row** the game never passes, that `0x25`'s
+apologetic *"nothing — this is the whole screen"* was a **measurement** of a 171-byte
+function. A module header can hold a painter as a literal listing; a table cannot, and four
+weeks of wrong priorities came out of the difference.
+
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

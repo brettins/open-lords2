@@ -604,9 +604,8 @@ fn the_right_button_deselects_an_army_and_does_not_open_the_information_panel() 
     // And with nothing selected the same gesture reaches screen 0x04, which
     // is what makes the arm above a *mode* test rather than a suppression.
     send(&mut m, &mut g, &a, Event::RightClick { x: hx, y: hy });
-    assert_eq!(
-        m.top_id(),
-        Some(ScreenId::Shell(0x04)),
+    assert!(
+        matches!(m.top_id(), Some(ScreenId::Info(_))),
         "with nothing picked the right button still opens the information panel",
     );
 }

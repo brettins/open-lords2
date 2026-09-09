@@ -24,7 +24,8 @@ use l2_game::screen::{Ctx, Machine, Screen, ScreenId};
 use l2_game::screens::county::Panel;
 use l2_game::screens::conquest::ConquestScreen;
 use l2_game::screens::setup::{self, SetupPage};
-use l2_game::screens::shells::{self, SHELLS};
+use l2_game::screens::court::CourtScreen;
+use l2_game::screens::ratings::RatingsScreen;
 use l2_game::shell::{font, Eng};
 use l2_game::Game;
 use l2_view::Canvas;
@@ -138,7 +139,16 @@ fn every_screen() -> Vec<ScreenId> {
         ScreenId::Index,
     ];
     v.extend(SetupPage::ALL.iter().map(|p| ScreenId::Setup(*p)));
-    v.extend(SHELLS.iter().map(|s| ScreenId::Shell(s.id)));
+    // The last seven shells, now seven screens.
+    v.extend([
+        ScreenId::About,
+        ScreenId::Court,
+        ScreenId::Diplomacy,
+        ScreenId::Supplies(1),
+        ScreenId::Ratings,
+        ScreenId::Info(l2_game::screens::info::Target::Tile(0)),
+        ScreenId::Info(l2_game::screens::info::Target::Unit(1)),
+    ]);
     v
 }
 
@@ -151,23 +161,25 @@ fn a_popup_is_drawn_over_what_was_underneath() {
     // 640 × 480 background, are not. Those are the two kinds of screen this
     // test is about.
     //
-    // **This test has now outlived three of its own examples**, which is the
-    // interesting part. The merchant stood here until it graduated, then the
-    // armoury, then castle building — every whole-picture shell the table had.
-    // A shell graduating is the project working, so a test that names one by id
-    // is a test that breaks on success. It still names an id rather than
-    // searching for any non-overlay shell, because the day the last one
-    // graduates this should go red and be deleted deliberately rather than
-    // quietly pass over an empty set.
-    let court = shells::find(0x09).unwrap();
-    assert!(court.overlay);
-    let full_screen = shells::find(0x2E).expect(
-        "no whole-picture shell is left; if the last one graduated, delete this test",
-    );
-    assert!(!full_screen.overlay);
+    // **This test outlived four of its own examples and then the whole
+    // table.** The merchant stood here, then the armoury, then castle
+    // building, then the court - every whole-picture shell the table had -
+    // and the note here said that when the last one graduated this should go
+    // red and be deleted deliberately rather than quietly pass over an empty
+    // set. It went red. This is that deliberate rewrite.
+    //
+    // What it asserted was never really about shells. It is that **an overlay
+    // does not clear what is underneath it** - the property
+    // `docs/decisions.md` C22 was written about, and the reason
+    // `Machine::draw` walks back to the last non-overlay screen. So it names
+    // two graduated screens instead: the court, which paints over the map,
+    // and the Battle Master ratings, which load their own 640 x 480 page.
+    // The claim outlives its examples, which is what a claim is for.
+    assert!(CourtScreen::new().is_overlay(), "the court paints over what opened it");
+    assert!(!RatingsScreen::new().is_overlay(), "the ratings screen is a page of its own");
 
     let mut m = Machine::new(ScreenId::Index);
-    m.push(ScreenId::Shell(0x09));
+    m.push(ScreenId::Court);
     assert_eq!(m.depth(), 2);
     let mut alone = Machine::new(ScreenId::Index);
     let (mut over, mut under) = (Canvas::screen(), Canvas::screen());
@@ -239,16 +251,73 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
     assert_eq!(e.get(103, 45), Some("all"));
     assert_eq!(e.group(103).len(), 46, "the twelve runs cover 45 of these");
 
-    // And every shell's group is a group that exists and has the index the
-    // table draws.
-    for s in SHELLS {
-        for &(i, _, _) in s.lines {
-            assert!(e.get(s.group, i).is_some(), "{}: group {} has no {i}", s.name, s.group);
-        }
-        if let Some((i, _, _)) = s.heading {
-            assert!(e.get(s.group, i).is_some(), "{}: group {} has no {i}", s.name, s.group);
-        }
+    // **And every index the last seven screens draw is a string that exists.**
+    //
+    // This walked `SHELLS` until the table emptied. The claim it was making -
+    // *a group and index this engine draws must be a group and index the
+    // player's own `L2.eng` has* - is worth more than the table it walked, so
+    // it now names the seven modules' own constants. Two of those constants
+    // are the finding rather than the check: group 70 index 1 (*"Arms"*) and
+    // group 37 index 1 (*"Before"*) exist in the file and are drawn by
+    // **nothing in the binary**, which is why they are asserted present here
+    // and appear in no painter.
+    use l2_game::screens::{about, court, diplomacy, ratings, supplies};
+
+    for i in [about::TITLE, about::VERSION, about::COPYRIGHT] {
+        assert!(e.get(about::GROUP, i).is_some(), "about: group 59 has no {i}");
     }
+    assert_eq!(e.get(about::GROUP, about::TITLE), Some("Lords 2."));
+    assert_eq!(e.group(about::GROUP).len(), 3, "group 59 is three strings and no more");
+
+    for i in [
+        court::GOLD,
+        court::ARMS,
+        court::IRON,
+        court::STONE,
+        court::WOOD,
+        court::COURT_OF,
+        court::NOBLES,
+        court::WAGES,
+        court::TAX_EXPECTED,
+    ] {
+        assert!(e.get(court::GROUP, i).is_some(), "court: group 70 has no {i}");
+    }
+    assert_eq!(e.get(court::GROUP, court::COURT_OF), Some("Court of"));
+    assert_eq!(e.get(court::GROUP, court::ARMS), Some("Arms"), "and nothing draws it");
+
+    for i in [
+        diplomacy::GIFT,
+        diplomacy::COMPLIMENT,
+        diplomacy::INSULT,
+        diplomacy::OFFER_ALLIANCE,
+        diplomacy::END_ALLIANCE,
+        diplomacy::ASK_HELP,
+        diplomacy::ASK_ATTACK,
+        diplomacy::DISPATCHED,
+    ] {
+        assert!(e.get(diplomacy::GROUP, i).is_some(), "diplomacy: group 72 has no {i}");
+    }
+    assert_eq!(e.get(diplomacy::GROUP, 0), Some("Diplomacy."), "which is the screen's name");
+
+    for i in [
+        supplies::TITLE,
+        supplies::FROM,
+        supplies::TO,
+        supplies::GRAIN,
+        supplies::SHEEP,
+        supplies::CATTLE,
+        supplies::DISPATCH,
+        supplies::PROMPT,
+    ] {
+        assert!(e.get(supplies::GROUP, i).is_some(), "supplies: group 33 has no {i}");
+    }
+    assert_eq!(e.get(supplies::GROUP, supplies::SHEEP), Some("Sheep"), "and nothing draws it");
+
+    for i in [ratings::HEADING, ratings::BEFORE, ratings::KILLED, ratings::KILLS, ratings::SCORED]
+    {
+        assert!(e.get(ratings::GROUP, i).is_some(), "ratings: group 37 has no {i}");
+    }
+    assert_eq!(e.get(ratings::GROUP, ratings::BEFORE), Some("Before"), "and nothing draws it");
 }
 
 #[test]
