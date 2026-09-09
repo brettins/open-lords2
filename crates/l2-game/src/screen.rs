@@ -70,6 +70,19 @@ pub enum ScreenId {
     /// screen, and the offer is a block on this one. See
     /// [`crate::screens::army`].
     RaiseArmy(u8),
+    /// `g_screenId` `0x0A` — **the armoury**, for the county whose levy is
+    /// being equipped.
+    ///
+    /// It is not reached *from* the raise-army screen so much as it is the
+    /// other half of it: `Screen_Draw` paints both with `Screen_Armoury`, the
+    /// two share the one `g_levyBasket`, and the button that actually raises
+    /// the army is on this one. See [`crate::screens::armoury`].
+    Armoury(u8),
+    /// `g_screenId` `0x0D` — one weapon's rack, opened by clicking that weapon
+    /// on the armoury's wall. The county and the troop type are both part of
+    /// the identity because the original's `DAT_00553F20` is what picks the
+    /// sprite sheet, the noun and the basket slot.
+    Rack(u8, u8),
     /// `g_screenId` `0x11` — the army-division screen, for one army. See
     /// [`crate::screens::divide`].
     Divide(usize),
@@ -250,6 +263,12 @@ impl ScreenId {
             ScreenId::Siege(unit) => Box::new(crate::screens::siege::SiegeScreen::new(unit)),
             ScreenId::RaiseArmy(county) => {
                 Box::new(crate::screens::army::RaiseArmyScreen::new(county))
+            }
+            ScreenId::Armoury(county) => {
+                Box::new(crate::screens::armoury::ArmouryScreen::new(county))
+            }
+            ScreenId::Rack(county, troop) => {
+                Box::new(crate::screens::armoury::RackScreen::new(county, troop))
             }
             ScreenId::Divide(unit) => Box::new(crate::screens::divide::DivideScreen::new(unit)),
             ScreenId::Merchant(unit) => {

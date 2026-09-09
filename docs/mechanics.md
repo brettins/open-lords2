@@ -531,16 +531,19 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   `docs/screens-county.md` §6.3a
 - 📖 **`Screen_Draw` has 39 arms**, 35 of them with a named painter. Drawn with real
   contents: the front end and its setup pages, the campaign map, the county panels, the
-  village, the job popup, the conquest screen, and **three military screens that graduated
-  out of the shell table**: siege preparation (`0x1D`), **the raise-army screen (`0x17`)** and
-  **army division (`0x11`)**. Between them a player can now levy an army, equip it, hire the
-  county's mercenary band, march it from the map, split it, disband it and lay or lift a
-  siege — the three verbs `docs/decisions.md` C45 is about. Merchant, court, armoury,
-  send-supplies, castle-building and eleven more remain shells — right artwork and hotspots,
-  contents unbuilt.
+  village, the job popup, the conquest screen, and **five military screens that graduated
+  out of the shell table**: siege preparation (`0x1D`), **the raise-army screen (`0x17`)**,
+  **army division (`0x11`)**, **the armoury (`0x0A`)** and **one weapon's rack (`0x0D`)**.
+  Between them a player can now levy an army, walk it into the armoury, arm it weapon by
+  weapon, hire the county's mercenary band, create it, march it from the map, split it,
+  disband it and lay or lift a siege — the three verbs `docs/decisions.md` C45 is about.
+  Merchant, court, send-supplies, castle-building and eleven more remain shells — right
+  artwork and hotspots, contents unbuilt.
   The raise-army screen's name was the finding: the shell table called it *"hire
   mercenaries"* and **there is no mercenaries screen** — the offer is a block on the only
-  door to `Army_Create` a player has. C45.
+  door to the armoury a player has. C45. And the *armoury's* row was the second finding:
+  filed under the wrong `L2.eng` group, with `arm_grid.pl8` called a "buy grid", it looked
+  like optional content and it holds the button that actually creates the army. C61.
 - 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
 - 🕳 **The mouse pointer changes shape, and we draw the OS arrow everywhere.** A player
   reported *"an alternative mouse icon in the town square, it's like a question mark"*,

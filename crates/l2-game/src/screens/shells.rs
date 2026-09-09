@@ -30,15 +30,19 @@
 //! a player said he could see the map around it (`docs/decisions.md` C22). A
 //! shell that loads a `.pl8` is not thereby a page either — read its rectangle.
 //!
-//! # The ones that are whole pictures
+//! # The three that were whole pictures
 //!
 //! The merchant (`0x08`), the armoury (`0x0A`) and castle building (`0x1B`)
 //! each load a **640 × 480 `.pl8` and a `.256` of their own** and draw their
-//! widgets on top, so for those a shell is very nearly the real screen: the
-//! artwork is the artwork, and what is missing is the grid of prices and the
-//! weapon stocks drawn over it. Two of the three have graduated —
-//! [`crate::screens::merchant`] and [`crate::screens::castle`] — and the
-//! armoury has not.
+//! widgets on top. For those three a shell was very nearly the real screen: the
+//! artwork is the artwork, and what was missing is the grid of prices, the
+//! weapon stocks and the castle plan drawn over it. Two of the three have left.
+//!
+//! **The armoury is the row that shows what "very nearly" was worth.** Its
+//! artwork was right and everything else about the row was wrong: the `L2.eng`
+//! group, the description of `arm_grid.pl8`, and — worst — the implication that
+//! a screen drawing the artwork was most of the screen. It is where an army is
+//! *created*; the levy screen next door cannot do it. See `screens/armoury.rs`.
 
 use l2_view::Canvas;
 
@@ -130,20 +134,14 @@ pub const SHELLS: &[Shell] = &[
         overlay: true,
         unfinished: "the realm's stock numbers, the six weapon rows and the wage lines",
     },
-    Shell {
-        id: 0x0A,
-        painter: 0x0041_7EA7,
-        name: "The armoury",
-        background: Some("Armoury.pl8"),
-        palette: Some("Armoury.256"),
-        window: None,
-        group: 16,
-        heading: None,
-        lines: &[],
-        ok: Some((640 - 0x1C, 480 - 0x70, 1)),
-        overlay: false,
-        unfinished: "the weapon racks, the buy grid (arm_grid.pl8) and the armourer",
-    },
+    // `0x0A` **graduated, and it took `0x0D` with it and a mistake out of this
+    // row.** The group was **69**, not 16 — 16 is the twelve mercenary
+    // nationalities and the armoury's painter never touches it, while 69/6,
+    // 69/7 and 69/8 are the three words on its right-hand edge: *"Create"*,
+    // *"Change"*, *"Cancel"*. Filing the screen under the wrong group is what
+    // made it look like a mercenary panel with nothing behind it rather than
+    // the screen the whole levy is confirmed on. And `arm_grid.pl8` is not a
+    // "buy grid": nothing here is bought. See `screens/armoury.rs`.
     Shell {
         id: 0x0B,
         painter: 0x0041_6CF3,
@@ -481,8 +479,9 @@ mod tests {
             "raising an army is implemented - and it is not a mercenaries screen"
         );
         assert!(find(0x1D).is_none(), "siege preparation is implemented");
-        assert!(find(0x1B).is_none(), "the castle chooser orders castles");
         assert!(find(0x08).is_none(), "the merchant trades");
         assert!(find(0x0C).is_none(), "the trade panel is the merchant's other half");
+        assert!(find(0x0A).is_none(), "the armoury equips a levy - and raises the army");
+        assert!(find(0x0D).is_none(), "a weapon's rack was never in this table at all");
     }
 }

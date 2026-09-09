@@ -1247,6 +1247,11 @@ per-troop-type recruitment price anywhere on this path.
 
 ### 6.2 Equipping
 
+> **The screen this section describes is now read end to end**, and its shape was not what
+> §6 assumed. Raising an army is **three** `g_screenId` values, not one, and the button that
+> raises it is on the second of them. `docs/decisions.md` C61; §6.2a below is the walk, and
+> `crates/l2-game/src/screens/armoury.rs` carries the layout tables address by address.
+
 `Levy_Init` (`0x004AAA80`) builds a per-realm scratch buffer, `g_levyBasket` (`0x0053F6A0`,
 stride `0x80`, **8 slots of `0x10` bytes**):
 
@@ -1257,8 +1262,9 @@ stride `0x80`, **8 slots of `0x10` bytes**):
 | 7 | the total |
 
 with `slot[t].+0x00` = chosen, `+0x04` = available, `+0x08` = remaining; slots 1 … 6 are
-seeded from realm `+0x140 + (t−1)*4`, the weapon stockpiles. The `+`/`−` buttons on the
-armoury screen move one man at a time between slot 0 and slot `t`, and **never touch slot 7**,
+seeded from realm `+0x140 + (t−1)*4`, the weapon stockpiles. The `+`/`−` buttons — which are
+on screen `0x0D`, one weapon's rack, not on the armoury itself; see §6.2a —
+move one man at a time between slot 0 and slot `t`, and **never touch slot 7**,
 which is why the levy total is what `Army_Create` writes into `+0x168`. The same buffer is
 reused, with different field meanings, by the army-split screen (`L2.eng` group 17 *"Army
 Division. / Split the army?"*), where row 7 is the mercenary band.
@@ -1321,6 +1327,69 @@ published tables — lands one for one on `L2.eng` group 8's troop nouns at `typ
 
 Seven for seven, from two sources that know nothing about each other. **A knight is a man in
 mail**, and an unequipped levy is a peasant — the pitchfork default the player described. [V]
+
+### 6.2a The three screens, and which one raises the army
+
+**Raising an army is a walk through three screen ids**, and until C61 this document described
+only the first of them.
+
+| id | painter | what it is |
+|---|---|---|
+| `0x17` | `Screen_RaiseArmy` `0x00418653` | the levy slider, the mercenary offer, and **one** button: *Continue* |
+| `0x0A` | `Screen_Armoury` `0x00417EA7` | the room: the stock on the walls, the eight troop racks, and **Create / Change / Cancel** |
+| `0x0D` | `Armoury_LoadScreen` `0x004184C6` | one weapon: its picture, its count, and the four buttons that move men |
+
+**`0x17` is drawn on top of `0x0A`.** `Screen_Draw`'s arm is
+`if (firstFrame == 1) Screen_Armoury(1); Screen_RaiseArmy();` — one painter, two screen ids —
+so the levy window is a `Ui_DrawBox` over the armoury, in `armoury.256`, and the three words
+down the right-hand edge are painted underneath it and inert until the player presses
+*Continue*.
+
+**The stock hangs on the wall, and that is the whole of `FUN_00418426`.**
+`g_armouryWallItems` (`0x004D2D88`) puts six weapons at fixed positions — crossbow (59, 178),
+mace (157, 240), sword (496, 235), pike (199, 130), bow (373, 232), armour (290, 182) — and
+each is drawn **only when `realm.weapons[t − 1] > 0`.** A realm with an empty treasury walks
+into an empty room. `arm_grid.pl8`, an 80 × 60 byte map read as
+`grid[(x >> 3) + (y >> 3) * 0x50]`, holds the weapon's slot over exactly those six shapes, so
+**the weapon on the wall is the button** — and the two tables agree to within a cell on every
+edge, which is two authors who never met saying the same thing. [V]
+
+**The eight racks along the bottom** are `g_armouryRacks` (`0x004D2CE8`), read by
+`FUN_004181EB`: sprites on y 396, counts on y 450, slot 0 the peasants and slots 1…6 the
+weapon types. A rack appears when the realm has that weapon **or** when the mercenary band on
+offer is of that troop type, in which case the band's men are *added to the number*. Slot 7 is
+in the table and **never drawn**: the loop opens `if (6 < i) return`, so the total's arm —
+including its `frame 13 + shieldIndex − 1` tint, the only shield-coloured sprite on the
+screen — is dead code. [V]
+
+**The four buttons on `0x0D`** are `g_armouryBuyWidgets` (`0x004DD8C8`), and none of them buys
+anything:
+
+| frame | handler | |
+|---:|---|---|
+| 68 | `Levy_EquipOne` `0x0043593A` | one man picks the weapon up |
+| 66 | `Levy_UnequipOne` `0x004359BC` | one man puts it down |
+| 58 | `Levy_UnequipAll` `0x00435A0C` | every man of that type puts it down |
+| 60 | `Levy_EquipAll` `0x00435A61` | as many men as there are weapons pick it up |
+
+Two things follow that a reader of §6.2 alone would get wrong.
+
+* **There is no auto-equip a player can reach.** `Levy_AutoEquip`'s ten-at-a-time round-robin
+  is the AI's, no widget or hotspot in the game calls it, and the address this document's
+  neighbours carried for it (`0x004AAD5F`) is inside `Battle_AutoResolve`. The nearest thing
+  a player has is *EquipAll* on one rack at a time.
+* **Every door into the armoury re-seeds the basket.** `Sidebar_Button` on the way in to
+  `0x17`, `RaiseArmy_Continue` on the way out of it, and `0x17`'s right-release arm all call
+  `Levy_Seed(county, g_levyMen)`. So pressing *Change*, adjusting nothing, and pressing
+  *Continue* again strips every man back to a peasant. **The slider does not do this** —
+  `Levy_SliderClick`'s tail is `Levy_SetPercent` and a redraw request and nothing else — and
+  the difference matters to a mod hook, which would fire on the wrong event. [V]
+
+**And `Army_RaiseConfirm` is a button on the armoury.** `FUN_00435AE8` is bound to hotspots
+6, 7 and 8 of `g_armouryHotspots` (`0x004DC938`) — `L2.eng` 69/6 *"Create"*, 69/7 *"Change"*,
+69/8 *"Cancel"* — and it is the only caller a player can reach. Screen `0x17` has no confirm
+at all. Screen `0x0D` tests the first **seven** records of that table, so the racks stay live
+and *Create* stays live while *Change* and *Cancel* do not.
 
 ### 6.3 `Army_Create` (`0x004A9A9A`) end to end
 

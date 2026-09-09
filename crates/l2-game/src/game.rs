@@ -273,6 +273,54 @@ pub struct Game {
     /// describes — two armies on one tile with the battle unresolved — and the
     /// only safe thing to do with it is finish it. See [`crate::turn`].
     pub(crate) turn: Option<crate::turn::TurnProgress>,
+    /// **The levy in progress** — the original's five globals, which three
+    /// screens share and none of them owns.
+    ///
+    /// Session state, exactly like [`Game::field_policy`] and [`Game::turn`]
+    /// above, and not in the save for the same reason: the original saves from
+    /// the campaign map and nowhere else, so a levy is never half-made when a
+    /// file is written. See [`LevyOrder`].
+    pub levy: LevyOrder,
+}
+
+/// `g_levyPercent`, `g_levyMen`, `g_levyHappinessCost`, `g_levyBasket` and
+/// `DAT_0055446C` — **one order, three screens.**
+///
+/// The original has no stack. `g_screenId` is a byte, and the raise-army screen
+/// (`0x17`), the armoury (`0x0A`) and one weapon's rack (`0x0D`) are three
+/// values of it that all read and write the same globals: the slider on `0x17`
+/// writes `men` and `happiness_cost`, the `+`/`−` on `0x0D` move men between
+/// `basket` slots, and `Army_RaiseConfirm` — which is a button on the
+/// **armoury**, not on the levy screen — spends the lot.
+///
+/// So it cannot live in a screen. Our machine destroys a screen the moment it
+/// is replaced, and `0x17 → 0x0A → 0x17` is two replacements; anything the
+/// player chose in between would go with them. It lives here because it lives
+/// in the original's data segment, which is the same reason.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct LevyOrder {
+    /// The county being levied. 0 when there is no order.
+    pub county: u8,
+    /// `g_levyPercent` (`0x0056D65C`) — **where the player put the slider**,
+    /// which is not necessarily what the county gave up.
+    ///
+    /// `Sidebar_Button` does not reset it: it calls `Levy_SetPercent(county,
+    /// g_levyPercent)` with whatever the last levy left there, so opening the
+    /// screen for a second county starts at the first county's percentage.
+    /// Reproduced — [`Game::open_levy`] takes no percentage.
+    pub percent: i32,
+    /// `g_levyMen` (`0x00543FD8`) and `g_levyHappinessCost` (`0x00565400`),
+    /// both written by `Levy_SetPercent` and by nothing else.
+    pub men: i32,
+    pub happiness_cost: i32,
+    /// `g_levyBasket[g_localPlayer]` (`0x0053F6A0`) — who is carrying what.
+    pub basket: l2_kingdom::LevyBasket,
+    /// `DAT_0055446C` — the mercenary hire flag, cleared by `Sidebar_Button`
+    /// every time the screen opens and toggled by the tick and cross on it.
+    pub hire: bool,
+    /// `DAT_00553F20` — the rack the player last opened, 1…6, or 0 for none.
+    /// `FUN_004AA90A` clears it whenever the basket is re-seeded.
+    pub rack: u8,
 }
 
 impl Game {
@@ -293,7 +341,59 @@ impl Game {
             campaign: crate::victory::Campaign::new(crate::victory::Track::First),
             field_policy: crate::engagement::Answer::Decline,
             turn: None,
+            levy: LevyOrder::default(),
         }
+    }
+
+    // ------------------------------------------------------------ the levy
+
+    /// `Sidebar_Button`'s hotspot 1 (`0x0043AE30`) — **open the levy.**
+    ///
+    /// ```c
+    /// if (county.owner != g_localPlayer) { Msg_Enqueue(0x70); return; }
+    /// Levy_SetPercent(county, g_levyPercent);     /* the slider is NOT reset */
+    /// FUN_004AA90A(county, g_levyMen);            /* seed the basket        */
+    /// g_screenId = 0x17;  DAT_005679D0 = 0;  DAT_0055446C = 0;
+    /// ```
+    ///
+    /// Returns false for a county that is not the player's, which is the
+    /// message-`0x70` arm.
+    pub fn open_levy(&mut self, county: u8) -> bool {
+        if !self.is_players(county) {
+            return false;
+        }
+        self.levy.county = county;
+        self.set_levy_percent(self.levy.percent);
+        self.seed_levy_basket();
+        self.levy.hire = false;
+        true
+    }
+
+    /// `Levy_SetPercent(g_selectedCounty, g_levyPercent)` — the whole of what
+    /// the slider does. **It does not touch the basket**; `Levy_SliderClick`'s
+    /// tail is this call and a redraw request, and nothing else.
+    pub fn set_levy_percent(&mut self, percent: i32) {
+        self.levy.percent = percent.clamp(0, 100);
+        let Some(county) = self.kingdom.counties.get(self.levy.county as usize) else { return };
+        let levy = l2_kingdom::levy::set_percent(&self.kingdom.tables, county, self.levy.percent);
+        self.levy.men = levy.men;
+        self.levy.happiness_cost = levy.happiness_cost;
+    }
+
+    /// `FUN_004AA90A(county, g_levyMen)` — re-seed the basket from the realm's
+    /// weapon stocks and the levy's headcount, and forget the selected rack.
+    ///
+    /// **Every door into the armoury calls it.** `Sidebar_Button` on the way in
+    /// to `0x17`, `FUN_00435CBF` on the *Continue* button, and the right-release
+    /// arm of `0x17`. So walking back to the levy screen and forward again
+    /// throws away everything the player equipped — the original's behaviour,
+    /// and the reason a slider move appears to strip the army even though the
+    /// slider itself never touches the basket.
+    pub fn seed_levy_basket(&mut self) {
+        let realm = self.player as usize;
+        let Some(realm) = self.kingdom.realms.get(realm) else { return };
+        self.levy.basket = l2_kingdom::LevyBasket::seed(realm, self.levy.men);
+        self.levy.rack = 0;
     }
 
     /// Whether this game has ended, and how. `DAT_0053F0C4`.

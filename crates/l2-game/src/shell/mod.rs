@@ -64,9 +64,27 @@ pub const SHEETS: &[&str] = &[
     "Merchant.pl8",
     "Mercgrid.pl8",
     "Icontrad.pl8",
-    // 0x0A / 0x0D the armoury
+    // 0x0A / 0x0D the armoury. `Arm_it_<c>.pl8` is the one sheet the armoury
+    // and the raise-army screen share — the weapons on the walls, the eight
+    // troop portraits along the bottom, and the six little weapon icons the
+    // levy screen prints its stocks beside. Which of the five is loaded is the
+    // realm's `shield_index`; see [`crate::screens::armoury::items_sheet`].
     "Armoury.pl8",
     "Arm_grid.pl8",
+    "Arm_it_r.pl8",
+    "Arm_it_y.pl8",
+    "Arm_it_k.pl8",
+    "Arm_it_p.pl8",
+    "Arm_it_b.pl8",
+    // 0x0D, one per weapon type: a 24-frame 100 x 100 animation of the weapon
+    // being made. `Armoury_LoadScreen` reads exactly one of them, chosen by
+    // `DAT_00553F20`, the rack the player clicked.
+    "Arm_cros.pl8",
+    "Arm_mace.pl8",
+    "Arm_swor.pl8",
+    "Arm_pike.pl8",
+    "Arm_bow.pl8",
+    "Arm_mail.pl8",
     // 0x0B the other lords
     "Faces.pl8",
     // 0x1B castle building
@@ -109,6 +127,9 @@ pub struct ShellAssets {
     /// `mercgrid.pl8`'s 80 x 60 byte map, with its 24-byte header stripped.
     /// Empty when the file is not installed. See [`ShellAssets::merchant_grid`].
     merchant_grid: Vec<u8>,
+    /// `arm_grid.pl8`'s, the same shape and read by the same arithmetic.
+    /// See [`ShellAssets::armoury_grid`].
+    armoury_grid: Vec<u8>,
 }
 
 /// `mercgrid.pl8` is an **80 x 60 grid of eight-pixel cells over the whole
@@ -152,10 +173,8 @@ impl ShellAssets {
             small: read(font::SMALL).and_then(|b| Font::new(b, 12).ok()),
             sheets,
             palettes,
-            merchant_grid: read("mercgrid.pl8")
-                .filter(|b| b.len() >= GRID_HEADER + MERCHANT_GRID_LEN)
-                .map(|b| b[GRID_HEADER..GRID_HEADER + MERCHANT_GRID_LEN].to_vec())
-                .unwrap_or_default(),
+            merchant_grid: read_grid(&read, "mercgrid.pl8"),
+            armoury_grid: read_grid(&read, "arm_grid.pl8"),
         }
     }
 
@@ -170,6 +189,7 @@ impl ShellAssets {
             sheets: BTreeMap::new(),
             palettes: BTreeMap::new(),
             merchant_grid: Vec::new(),
+            armoury_grid: Vec::new(),
         }
     }
 
@@ -184,21 +204,7 @@ impl ShellAssets {
     /// `Merchant_Trade` branch, the price of zero and the (0, 0) plaque
     /// position — and it is the one made by the artwork rather than the code.
     pub fn merchant_grid(&self, x: i32, y: i32) -> Option<u8> {
-        if self.merchant_grid.len() != MERCHANT_GRID_LEN {
-            return None;
-        }
-        let (col, row) = (x / MERCHANT_GRID_CELL, y / MERCHANT_GRID_CELL);
-        if col < 0 || row < 0 {
-            return None;
-        }
-        let (col, row) = (col as usize, row as usize);
-        if col >= MERCHANT_GRID_COLS || row >= MERCHANT_GRID_ROWS {
-            return None;
-        }
-        match self.merchant_grid[row * MERCHANT_GRID_COLS + col] {
-            0 => None,
-            good => Some(good),
-        }
+        grid_cell(&self.merchant_grid, x, y)
     }
 
     /// Whether `mercgrid.pl8` was found, so a screen can say which hit test it
@@ -206,6 +212,36 @@ impl ShellAssets {
     /// click.
     pub fn has_merchant_grid(&self) -> bool {
         self.merchant_grid.len() == MERCHANT_GRID_LEN
+    }
+
+    /// `FUN_0043582A`'s hit test: the **weapon type** whose rack is under a
+    /// screen pixel, or `None`.
+    ///
+    /// The same arithmetic as [`ShellAssets::merchant_grid`] — the two painters
+    /// read the same buffer with the same expression — and the cell value here
+    /// is the basket slot, 1…6, which is also the [`l2_kingdom::unit::TroopType`]
+    /// index of the man who carries that weapon.
+    ///
+    /// **The shipped grid has 26 cells that are not a rack**, holding 60…63:
+    /// column 0 for the first fifteen rows, and an eleven-cell sliver at
+    /// y 216…223 between x 512 and 599. In the original those are live — the
+    /// hit test accepts any non-zero cell and the handler then indexes the
+    /// eight-slot levy basket with 60-something. **We answer `None` for them**,
+    /// because there is no faithful reproduction of an out-of-bounds read.
+    /// `docs/bugs.md` N13.
+    pub fn armoury_grid(&self, x: i32, y: i32) -> Option<u8> {
+        match grid_cell(&self.armoury_grid, x, y) {
+            Some(t) if (1..=l2_kingdom::tables::WEAPON_TYPE_COUNT as u8).contains(&t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Whether `arm_grid.pl8` was found. The armoury falls back to the six
+    /// rectangles of its own hotspot table, which is a coarser hit test than
+    /// the picture but is the original's too — see
+    /// [`crate::screens::armoury::RACK_HOTSPOTS`].
+    pub fn has_armoury_grid(&self) -> bool {
+        self.armoury_grid.len() == MERCHANT_GRID_LEN
     }
 
     pub fn sheet(&self, name: &str) -> Option<&Sheet> {
@@ -226,6 +262,35 @@ impl ShellAssets {
     /// reader of a screenshot can tell which they are looking at.
     pub fn has_artwork(&self) -> bool {
         self.eng.is_some() && self.body.is_some() && !self.sheets.is_empty()
+    }
+}
+
+/// One `.pl8` region grid, header stripped, or empty when the file is missing
+/// or the wrong size. `mercgrid.pl8` and `arm_grid.pl8` are byte-for-byte the
+/// same shape and the original reads both into the same buffer.
+fn read_grid(read: &impl Fn(&str) -> Option<Vec<u8>>, name: &str) -> Vec<u8> {
+    read(name)
+        .filter(|b| b.len() >= GRID_HEADER + MERCHANT_GRID_LEN)
+        .map(|b| b[GRID_HEADER..GRID_HEADER + MERCHANT_GRID_LEN].to_vec())
+        .unwrap_or_default()
+}
+
+/// `grid[(x >> 3) + (y >> 3) * 0x50]`, with a zero cell meaning nothing.
+fn grid_cell(grid: &[u8], x: i32, y: i32) -> Option<u8> {
+    if grid.len() != MERCHANT_GRID_LEN {
+        return None;
+    }
+    let (col, row) = (x / MERCHANT_GRID_CELL, y / MERCHANT_GRID_CELL);
+    if col < 0 || row < 0 {
+        return None;
+    }
+    let (col, row) = (col as usize, row as usize);
+    if col >= MERCHANT_GRID_COLS || row >= MERCHANT_GRID_ROWS {
+        return None;
+    }
+    match grid[row * MERCHANT_GRID_COLS + col] {
+        0 => None,
+        id => Some(id),
     }
 }
 
@@ -294,6 +359,28 @@ pub fn box_from(canvas: &mut Canvas, sheet: &Sheet, x: i32, y: i32, cols: i32, r
     }
 }
 
+/// `Ui_DrawInsetRect` (`0x00403DEB`) — **four lines and no fill.**
+///
+/// Colour `0x10` along the top and right edges, `0x1F` along the bottom and
+/// left, clipped to the screen. That is the whole function, and the *no fill*
+/// is the part worth stating: every one of these on the raise-army screen sits
+/// on the panel's own parchment, so a caller that filled the rectangle first —
+/// as this crate's did — painted a black hole in the middle of a window. It
+/// went unseen because the fill used the interface's `background` index, which
+/// is the panel colour under our own palette and pitch black under
+/// `armoury.256`. `docs/decisions.md` C61.
+pub fn inset_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
+    const TOP_RIGHT: u8 = 0x10;
+    const BOTTOM_LEFT: u8 = 0x1F;
+    if w < 1 || h < 1 {
+        return;
+    }
+    canvas.fill_rect(x, y, w, 1, TOP_RIGHT);
+    canvas.fill_rect(x + w - 1, y, 1, h, TOP_RIGHT);
+    canvas.fill_rect(x, y + h - 1, w, 1, BOTTOM_LEFT);
+    canvas.fill_rect(x, y, 1, h, BOTTOM_LEFT);
+}
+
 /// The recessed rectangle the setup pages put every menu item in —
 /// `FUN_00403EE4(x, y, w, h)`. **[D]** from its own body: the top and right
 /// edges are colour `0x35` and the bottom and left `0x28`, which is the
@@ -333,6 +420,15 @@ pub struct Pen<'a> {
     pub caps: Option<u8>,
 }
 
+/// **Four pixels of trailing space after every string**, and it is the last
+/// statement of `Ui_DrawText` (`0x00402637`): `g_penAdvance = g_penAdvance + 4;`.
+///
+/// It is the gap between the two halves of every sentence the original builds
+/// out of pieces — *"Raising an army in"* and the county's name, a number and
+/// its noun — and none of `L2.eng`'s strings carries a trailing space of its
+/// own, so without it the two halves touch. `[V]`
+pub const TRAILING: i32 = 4;
+
 impl<'a> Pen<'a> {
     /// The same pen with the emboss switched off — `DAT_005AEA40 = 1`, which
     /// is what the front end sets around every menu item and body line.
@@ -359,17 +455,33 @@ impl<'a> Pen<'a> {
         }
     }
 
+    /// One line in the body font. **Returns the x the next glyph would go at**,
+    /// so a caller building a sentence out of pieces can hand the answer
+    /// straight back in.
+    ///
+    /// **That was not true until it was looked at with the real fonts loaded.**
+    /// [`Font::draw`] returns `pen - x`, the *advance* — which is the
+    /// original's `g_penAdvance`, and correct there, because every call site in
+    /// the binary reads it as `Eng_DrawString(…, g_penAdvance + 0x70, …)`.
+    /// `l2_view::text::draw`, the fallback, returns the absolute x. So this one
+    /// method meant two different things depending on whether the install had
+    /// `Fntl2_14.pl8` in it, and **every caller in this crate reads it as
+    /// absolute** — nine of them, in three screens. With no artwork they were
+    /// right and with artwork the second half of each sentence landed on top of
+    /// the first. Found by looking at the armoury with the game's own fonts;
+    /// `docs/decisions.md` C61.
     pub fn body(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
         match &self.assets.body {
-            Some(f) => f.draw(canvas, x, y, s, &self.style(colour)),
-            None => l2_view::text::draw(canvas, x, y, s, self.fallback(colour)),
+            Some(f) => x + f.draw(canvas, x, y, s, &self.style(colour)) + TRAILING,
+            None => l2_view::text::draw(canvas, x, y, s, self.fallback(colour)) + TRAILING,
         }
     }
 
+    /// The same in the heading font, and the same return.
     pub fn heading(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
         match &self.assets.heading {
-            Some(f) => f.draw(canvas, x, y, s, &self.style(colour)),
-            None => l2_view::text::draw(canvas, x, y, s, self.fallback(colour)),
+            Some(f) => x + f.draw(canvas, x, y, s, &self.style(colour)) + TRAILING,
+            None => l2_view::text::draw(canvas, x, y, s, self.fallback(colour)) + TRAILING,
         }
     }
 
@@ -469,10 +581,20 @@ impl<'a> Pen<'a> {
         out
     }
 
-    /// An `L2.eng` string, drawn in the body font.
-    pub fn eng(&self, canvas: &mut Canvas, group: usize, index: usize, x: i32, y: i32, colour: u8) {
+    /// An `L2.eng` string, drawn in the body font. Returns where it ended, like
+    /// [`Pen::body`], because the original's sentences are built out of a
+    /// string and a number and a string.
+    pub fn eng(
+        &self,
+        canvas: &mut Canvas,
+        group: usize,
+        index: usize,
+        x: i32,
+        y: i32,
+        colour: u8,
+    ) -> i32 {
         let s = self.assets.text(group, index).to_string();
-        self.body(canvas, x, y, &s, colour);
+        self.body(canvas, x, y, &s, colour)
     }
 
     /// `Ui_DrawCentred(group, index, x, y, width, body, colour)`.
@@ -503,6 +625,30 @@ impl<'a> Pen<'a> {
                 canvas.fill_rect(x, y + rows * 16 - 1, cols * 16, 1, self.ink.border);
                 canvas.fill_rect(x, y, 1, rows * 16, self.ink.border);
                 canvas.fill_rect(x + cols * 16 - 1, y, 1, rows * 16, self.ink.border);
+            }
+        }
+    }
+
+    /// `Ui_DrawBoxInterior(x, y, cols, rows)` — **the parchment on its own,
+    /// with no border round it.** The armoury's rack panel draws two of these
+    /// as wells inside a window it has already drawn, which is why the border
+    /// half would be wrong.
+    ///
+    /// `Ui_DrawBox` is `Ui_DrawBoxBorder(1, …)` followed by this inset one
+    /// cell, so the tiling is the same 12 × 12 field at frame `0x34` and only
+    /// the edges are missing.
+    pub fn box_interior(&self, canvas: &mut Canvas, x: i32, y: i32, cols: i32, rows: i32) {
+        use l2_view::chrome::panels;
+        let Some(chrome) = self.chrome else {
+            canvas.fill_rect(x, y, cols * panels::CELL, rows * panels::CELL, self.ink.panel);
+            return;
+        };
+        for r in 0..rows {
+            for c in 0..cols {
+                let frame = panels::TEXTURE
+                    + (c as usize) % panels::TEXTURE_DIM
+                    + ((r as usize) % panels::TEXTURE_DIM) * panels::TEXTURE_DIM;
+                chrome.draw_panel_frame(canvas, frame, x + c * panels::CELL, y + r * panels::CELL);
             }
         }
     }

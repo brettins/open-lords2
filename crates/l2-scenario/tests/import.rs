@@ -585,6 +585,59 @@ fn the_shield_index_of_a_default_game_is_the_realm_id() {
     }
 }
 
+/// **The realm's treasury and its armoury arrive**, both of them field for
+/// field out of the file.
+///
+/// This test exists because deleting the importer's `realm.weapons = r.weapons`
+/// broke **nothing in the workspace**. Every weapon assertion in the tree was
+/// downstream of a fixture the test had written itself: `military.rs` sets
+/// `weapons = [200; 6]` before it equips anyone, `merchant.rs` reads a stock
+/// back after buying it, and `setup.rs` checks the *new-game* table. Nothing
+/// read a stock that came off a disk — which is `docs/agents.md`'s rule to the
+/// letter: *a field is only tested if something a test reads was written by
+/// something the game runs.*
+///
+/// It matters now because the armoury is the screen that spends them. A levy
+/// whose realm imports with an empty armoury is a levy that can only ever be
+/// peasants, and the picture would say so — the six weapons hang on the wall
+/// only when the realm owns one — so the failure would have been visible and
+/// unexplained rather than invisible.
+///
+/// Asserted against the file rather than against a literal, for the reason the
+/// weather-county correction above records: a regenerated fixture is a
+/// different game, and `docs/kingdom.md`'s *"50 swords, 50 pikes and 50 bows in
+/// all five realms"* is one roll of `g_startArmoury`, not a law.
+#[test]
+fn every_imported_realm_holds_the_stocks_the_file_holds() {
+    let save = l2_testkit::england!();
+    let s = Scenario::from_save(&save).unwrap();
+    let k = s.kingdom(1);
+
+    let mut checked = 0;
+    let mut armed = 0;
+    for r in save.realms().unwrap().iter() {
+        let ours = &k.realms[r.index];
+        assert_eq!(ours.gold, r.gold, "realm {}", r.index);
+        assert_eq!(ours.iron, r.iron, "realm {}", r.index);
+        assert_eq!(ours.stone, r.stone, "realm {}", r.index);
+        assert_eq!(ours.wood, r.wood, "realm {}", r.index);
+        assert_eq!(
+            ours.weapons.as_slice(),
+            r.weapons.as_slice(),
+            "realm {}'s armoury did not survive the seam",
+            r.index,
+        );
+        checked += 1;
+        if r.weapons.iter().any(|&w| w > 0) {
+            armed += 1;
+        }
+    }
+    assert!(checked >= 5, "only {checked} realms were compared");
+    // Not a vacuous agreement: a fixture whose realms all had empty armouries
+    // would pass the loop above while proving nothing about the field.
+    assert!(armed > 0, "every realm in the fixture has an empty armoury: the test proves nothing");
+}
+
 /// **A county's four `hasResource` bytes agree with the map, 56 times out of
 /// 56** — and until this test existed, none of them was read at all.
 ///

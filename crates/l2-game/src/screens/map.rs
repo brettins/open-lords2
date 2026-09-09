@@ -1936,8 +1936,12 @@ impl Screen for MapScreen {
             // agent's, so the destination is the original's and the way in is
             // not. See `screens::army`.
             Event::KeyDown(Key::Char('R')) => {
-                if ctx.game.is_players(ctx.game.selected) {
-                    return Transition::Push(ScreenId::RaiseArmy(ctx.game.selected));
+                // `Game::open_levy` is `Sidebar_Button`'s own body: the county
+                // check, `Levy_SetPercent` at the slider's last position, and
+                // the basket seeded before the screen id moves.
+                let county = ctx.game.selected;
+                if ctx.game.open_levy(county) {
+                    return Transition::Push(ScreenId::RaiseArmy(county));
                 }
                 self.status = "SELECT ONE OF YOUR COUNTIES FIRST".into();
             }

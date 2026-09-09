@@ -147,13 +147,24 @@ fn a_popup_is_drawn_over_what_was_underneath() {
     let (mut game, assets) = bare();
     game.kingdom.set_county_count(2);
 
-    // The court is an overlay; the armoury, which loads its own 640 x 480
-    // background, is not. (The merchant stood here until it graduated out of
-    // the shell table — `screens/merchant.rs` — and it made the same point.)
+    // The court is an overlay; the battle master ratings, which load their own
+    // 640 × 480 background, are not. Those are the two kinds of screen this
+    // test is about.
+    //
+    // **This test has now outlived three of its own examples**, which is the
+    // interesting part. The merchant stood here until it graduated, then the
+    // armoury, then castle building — every whole-picture shell the table had.
+    // A shell graduating is the project working, so a test that names one by id
+    // is a test that breaks on success. It still names an id rather than
+    // searching for any non-overlay shell, because the day the last one
+    // graduates this should go red and be deleted deliberately rather than
+    // quietly pass over an empty set.
     let court = shells::find(0x09).unwrap();
     assert!(court.overlay);
-    let armoury = shells::find(0x0A).unwrap();
-    assert!(!armoury.overlay);
+    let full_screen = shells::find(0x2E).expect(
+        "no whole-picture shell is left; if the last one graduated, delete this test",
+    );
+    assert!(!full_screen.overlay);
 
     let mut m = Machine::new(ScreenId::Index);
     m.push(ScreenId::Shell(0x09));

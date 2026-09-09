@@ -95,16 +95,16 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x06 | *(no painter)* | **the village carrying a selection** — §6.4 | `Village_Drop` |
 | 0x08 | `Screen_Merchant` `0x00415FB7` | the merchant | `merchant.256` + `merchant.pl8`, `mercgrid.pl8` |
 | 0x09 | `Court_Draw` `0x00416925` | **the court** — the realm's treasury and stores | group 70 |
-| 0x0A | `Screen_Armoury` `0x00417EA7` | the armoury | `armoury.256` + `armoury.pl8`, `arm_grid.pl8` |
+| 0x0A | `Screen_Armoury` `0x00417EA7` | **the armoury** — the realm's weapons hanging on the walls, the eight troop racks along the bottom, and **Create / Change / Cancel**. `Army_RaiseConfirm` is a hotspot *here*, not on `0x17`. `docs/armies.md` §6.2a | `armoury.256` + `armoury.pl8`, `arm_grid.pl8`, `arm_it_<colour>.pl8`; group 69 |
 | 0x0B | `Diplo_DrawScreen` `0x00416CF3` | the other lords, and the menu of what to send one | `faces.pl8`; group 72 |
 | 0x0C | `Screen_TradeGoods` `0x00416308` | trade goods | group 68; `merchant.pl8` **again** as the background, then `icontrad.pl8` |
-| 0x0D | `Screen_Armoury` + a list | the armoury, buying — `Screen_Draw` has **no** arm for it; only the widget and input passes do | `g_armouryBuyWidgets` |
+| 0x0D | `Armoury_LoadScreen` `0x004184C6` | **one weapon's rack** — its 24-frame picture, its count and the four buttons that move men one at a time. `Screen_Draw` has **no** arm for it: `Armoury_ClickRack` paints it once on the way in, and only the widget and input passes run afterwards. **Nothing here is bought** | `arm_<weapon>.pl8`; `g_armouryBuyWidgets`; group 69 index 5, group 8 nouns |
 | 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output | group 74 |
 | 0x11 | `Screen_ArmyDivision` `0x004192B1` | **army division** — the levy basket reused, parent from `slot.chosen` and daughter from `slot.available`, row 7 the mercenary band | group 17; `icon_tmp.pl8` |
 | 0x14 | `Panel_Population` `0x004110B1` | **population** | group 73 |
 | 0x15 | `Panel_Tax` `0x0041152F` | **tax** | group 86 |
 | 0x16 | `Panel_Happiness` `0x004116FB` | **happiness** | group 85 |
-| 0x17 | `Screen_RaiseArmy` `0x00418653` | **raise an army** — the levy slider, the six weapon stocks and the mercenary offer. There is no separate mercenaries screen; `docs/decisions.md` C45 | groups 16, 18, 69, 100 |
+| 0x17 | `Screen_RaiseArmy` `0x00418653` | **raise an army** — the levy slider, the six weapon stocks and the mercenary offer, **drawn over the armoury**: the arm is `if (firstFrame == 1) Screen_Armoury(1); Screen_RaiseArmy();`, so this is a window on `0x0A` in `armoury.256`, and its only way forward is *Continue*. There is no separate mercenaries screen; `docs/decisions.md` C45, C61 | groups 16, 18, 69, 100 |
 | 0x18 | `Screen_SendSupplies` `0x0041AD5D` | send supplies to another county | group 33 |
 | 0x19 | `Panel_Ration` `0x00411B72` | **rations** | groups 20, 21, 87 |
 | 0x1A | `Screen_DiploDialog` `0x0041789B` | **the seven diplomacy dialogs**, on `g_diploKind` — §10.4 | group 72 |

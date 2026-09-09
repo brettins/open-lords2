@@ -3031,6 +3031,81 @@ Until the importer is converted, the rule to state plainly wherever coverage is 
 digest covers it" is not a sentence anybody can support by running the digest.** Ablate the
 encoder and read *which* tests go red, not how many.
 
+**C66 — The raise-army screen was floating over the wrong picture, and the button that
+raises an army was on the screen nobody had built.**
+
+A player: *"The hire an army is pretty botched at the moment. Instead of the blacksmith with
+a listing of their tools, it's just a weird popup with a lot of placeholder stuff."* Twelve
+out of twelve, and both halves of the sentence were literal.
+
+**The finding is one line of `Screen_Draw`.**
+
+```c
+else if (g_screenId == '\n')   { Screen_Armoury(firstFrame); }
+else if (g_screenId == '\x17') { if (firstFrame == 1) Screen_Armoury(1); Screen_RaiseArmy(); }
+```
+
+**One painter, two screens.** `Screen_Armoury` loads `armoury.pl8`, paints the room, and ends
+with `Palette_Set(armoury.256)`; `Screen_RaiseArmy` then draws a `Ui_DrawBox` on top of it and
+never clears. So the levy window is a window *on the armoury*, in the armoury's palette — and
+`screens/army.rs` answered `is_overlay() == true` with no palette, which put it over the
+campaign map in the campaign colours. That is the *weird popup*, exactly: a box with nothing
+round it. The *blacksmith with a listing of their tools* is the room it should have been
+standing in, and the listing is `FUN_00418426` — six weapons at fixed positions on the walls,
+**each drawn only when the realm owns one**, so the picture is an inventory.
+
+**And the raise button was ours and in the wrong place.** `Army_RaiseConfirm` is not reachable
+from screen `0x17` at all. Its callers are `FUN_00435AE8`, bound to hotspots 6, 7 and 8 of
+`g_armouryHotspots` — the three words down the armoury's right-hand edge, `L2.eng` 69/6, 69/7
+and 69/8: **Create, Change, Cancel**. Screen `0x17`'s entire widget table is three records: a
+*Continue* button that goes to the armoury, and the tick and cross of the mercenary offer.
+Filing `0x0A` as a shell therefore did not leave a screen unbuilt; it left **the door out of
+the levy screen unbuilt**, and `screens/army.rs` grew four buttons of our own to stand in for
+it — AUTO-EQUIP, UNEQUIP ALL, RAISE and CANCEL — every one of them now deleted and every one
+of them with a real home.
+
+**Three smaller corrections came with it, and the first is the shell table's own.**
+
+* The armoury's `L2.eng` group is **69**, not 16. Group 16 is the twelve mercenary
+  nationalities and the painter never touches it. The row also called `arm_grid.pl8` a *"buy
+  grid"*; **nothing on either armoury screen is bought.** Weapons are made in a county and
+  paid for in iron and wood, and the armoury is where men pick them up. The four functions
+  `docs/hypotheses.json` had named `Armoury_Buy*` are `Levy_EquipOne`, `Levy_UnequipOne`,
+  `Levy_UnequipAll` and `Levy_EquipAll`.
+* **`tools/oracle/widgets.js` had the plus and the minus the wrong way round**, and the
+  database inherited it. Its conventions note said *"68/66 minus and plus"*; the only other
+  table in the binary that uses the pair is the diplomacy gift row (`0x004DD9D0`), whose
+  frame-68 record carries hotspot id 1 and whose handler `FUN_00436372` adds ten crowns for
+  id 1. **Frame 68 is the plus.** The tool is corrected as well as the database, because the
+  tool is what would have said it again — the same shape as C3's warning about a hypothesis
+  generator, one layer down.
+* **The slider does not re-seed the basket.** `screens/army.rs` said `Levy_SliderClick` called
+  `Levy_SetPercent` and then `FUN_004AA90A`, and that *"re-seeding the basket is what makes a
+  slider move throw away the equipment"*. The tail of that function is two statements and
+  neither is that call. Equipment *is* thrown away, by the **door into the armoury**, which
+  re-seeds on every entry — so the visible behaviour survived the correction and the sentence
+  explaining it did not. A conclusion that survives a wrong reason is the most expensive kind
+  to leave standing.
+
+**`Levy_AutoEquip` at `0x004AAD5F` named nothing.** The address is inside `Battle_AutoResolve`
+(`0x004AAD07`, 1,443 bytes), the symbol is in neither database, and the only place in the tree
+that cited it was the AUTO-EQUIP button's doc comment. The *rule* is real and the AI runs it;
+no button in the game does, which is why the button that cited it was ours.
+
+**What the test discipline caught, and what it could not.** `docs/agents.md`'s rule — *a field
+is only tested if something a test reads was written by something the game runs* — predicted
+this exactly. Deleting the importer's `realm.weapons = r.weapons` broke **nothing** in the
+workspace: every weapon assertion in the tree was downstream of a fixture the test had written
+itself. `every_imported_realm_holds_the_stocks_the_file_holds` closes it and goes red on that
+deletion, naming the England fixture's `{0, 0, 50, 50, 50, 0}`.
+
+The save side was already covered, and *how* is worth recording. Breaking the encoder's
+weapons write turns six tests red — and **not one of them is the lockstep digest**, because
+`Canonical::hash_of` is the same encoder: both timelines lose the field identically and hash
+the same. The check that works is the plain `assert_eq!(back, game)`, a derived comparison that
+does not route through the encoder at all. *A digest cannot audit the encoder it is made of*,
+and any future "is this field covered?" question has to be asked of a struct comparison.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

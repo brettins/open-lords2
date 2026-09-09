@@ -36,7 +36,7 @@
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_game::screens::{army, battle, divide, map};
+use l2_game::screens::{armoury, army, battle, divide, map};
 use l2_game::Game;
 use l2_kingdom::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
@@ -233,34 +233,82 @@ fn r_on_the_map_opens_the_raise_army_screen_for_the_selected_county() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "county 2 is not yours");
 }
 
-/// The whole verb by mouse: open the screen, put the slider at 30 %, equip, and
-/// press Raise. An army exists afterwards that did not before, and the county
-/// has paid for it in people and in happiness.
+/// Set the levy slider on the raise-army screen. With no band on offer the
+/// layout's base is 0xA0, and `Levy_SliderClick`'s track is `x - 0xC4` over the
+/// row `base + 0x10 ..< base + 0x40`.
+fn set_levy(m: &mut Machine, g: &mut Game, a: &Assets, percent: i32) {
+    click(m, g, a, (army::SLIDER_X + percent, army::base(false) + 0x20));
+}
+
+/// **The whole walk, and the reason this test is the shape it is.**
+///
+/// `docs/agents.md` C27: *a rule with no way in is not a rule the game has.*
+/// Raising an army is four screens' worth of clicks in the original and every
+/// one of them is here — the map, the levy window, the armoury, one weapon's
+/// rack — with no helper reaching past a screen to set the state it then
+/// asserts on. The only inputs are a key and five pixel positions.
+///
+/// 1. `R` on the map — `Sidebar_Button`'s hotspot 1 — opens `0x17`;
+/// 2. the slider sets the levy to 30 % of a thousand people;
+/// 3. **Continue** — `FUN_00435CBF` — replaces it with the armoury, `0x0A`;
+/// 4. clicking the swords on the wall — `FUN_004358B0` through
+///    `arm_grid.pl8`, or through the hotspot rectangle when it is not
+///    installed — opens `0x0D`;
+/// 5. **ALL** — `FUN_00435A61` — arms every man it can;
+/// 6. the corner picture returns to the armoury and **Create** —
+///    `FUN_00435AE8` id 1, then `Army_RaiseConfirm` — puts the army on the map.
 #[test]
-fn the_levy_slider_and_the_raise_button_put_an_army_on_the_map() {
+fn the_walk_from_the_map_through_the_armoury_puts_an_equipped_army_on_the_map() {
     let (mut g, a, mut m) = on_the_map();
     press(&mut m, &mut g, &a, 'r');
     tick(&mut m, &mut g, &a);
+    assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
     assert_eq!(g.kingdom.campaign.units.len(), 0, "nothing on the map yet");
     let (pop, happy) = (g.kingdom.counties[1].population, g.kingdom.counties[1].happiness);
 
-    // `FUN_00435CEF`: the track is `x - 0xC4` over the row
-    // `base + 0x10 ..< base + 0x40`, and with no band on offer `base` is 0xA0.
-    click(&mut m, &mut g, &a, (army::SLIDER_X + 30, army::base(false) + 0x20));
-    click(&mut m, &mut g, &a, on(army::auto_button()));
-    click(&mut m, &mut g, &a, on(army::raise_button()));
+    set_levy(&mut m, &mut g, &a, 30);
+    assert_eq!(g.levy.men, 300, "thirty per cent of a thousand people");
 
-    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the screen closed on a successful raise");
+    // Continue. The armoury *replaces* the levy screen rather than stacking on
+    // it, because the original has one `g_screenId` byte and no stack.
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
+    assert_eq!(m.depth(), 2, "the levy window was replaced, not covered");
+    assert_eq!(g.levy.basket.unequipped(), 300, "the armoury seeded three hundred peasants");
+
+    // The swords. `RACK_HOTSPOTS`'s sixth record carries troop type 3.
+    let swords = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 3).expect("a sword rack");
+    click(&mut m, &mut g, &a, ((swords.0 + swords.2) / 2, (swords.1 + swords.3) / 2));
+    assert_eq!(m.top_id(), Some(ScreenId::Rack(1, 3)));
+
+    // ALL is record 3 of `g_armouryBuyWidgets`.
+    click(&mut m, &mut g, &a, on(armoury::button_box(3)));
+    assert_eq!(
+        g.levy.basket.troops()[TroopType::Swordsman.index()],
+        200,
+        "two hundred swords in the armoury, and two hundred men took one",
+    );
+    assert_eq!(g.levy.basket.unequipped(), 100, "the other hundred are still peasants");
+
+    // Out of the rack, then Create.
+    click(&mut m, &mut g, &a, on(armoury::RACK_OK));
+    assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
+    click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
+
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the armoury closed on a successful raise");
     assert_eq!(g.kingdom.campaign.units.len(), 1, "one army");
     let (id, unit) = g.kingdom.campaign.units.iter().next().expect("the army");
     assert_eq!(unit.kind, UnitKind::Army);
     assert_eq!(unit.owner, 1);
     assert_eq!(unit.home_county, 1, "L2.eng 31/9, 'An army from'");
-    assert_eq!(unit.men, 300, "thirty per cent of a thousand people");
+    assert_eq!(unit.men, 300);
     assert_eq!(unit.troops.iter().sum::<i32>(), unit.men, "every man is in a troop slot");
-    assert!(
-        unit.troops[TroopType::Peasant.index()] < unit.men,
-        "and the auto-equip armed most of them",
+    assert_eq!(unit.troops[TroopType::Swordsman.index()], 200, "and two hundred carry a sword");
+    assert_eq!(unit.troops[TroopType::Peasant.index()], 100);
+    assert_eq!(
+        g.kingdom.realms[1].weapons[TroopType::Swordsman.weapon_slot().unwrap()],
+        0,
+        "Levy_ConsumeWeapons emptied the sword rack",
     );
     assert_eq!(unit.morale, happy, "morale is the happiness *before* the levy is charged");
     assert_eq!(g.kingdom.counties[1].population, pop - 300, "the men left the county");
@@ -272,25 +320,191 @@ fn the_levy_slider_and_the_raise_button_put_an_army_on_the_map() {
     assert!(g.is_players_unit(id));
 }
 
+/// **Change throws the equipment away**, which is the original's behaviour and
+/// not an accident of ours: every door into the armoury runs `FUN_004AA90A`,
+/// which re-seeds the basket from the realm's stocks and the levy's headcount.
+///
+/// The slider is *not* what does it — `Levy_SliderClick`'s tail is
+/// `Levy_SetPercent` and a redraw request — and this test is the difference
+/// between the two readings: the levy is never touched here and the equipment
+/// still goes.
+#[test]
+fn walking_back_to_the_levy_screen_and_forward_again_strips_the_men() {
+    let (mut g, a, mut m) = on_the_map();
+    press(&mut m, &mut g, &a, 'r');
+    tick(&mut m, &mut g, &a);
+    set_levy(&mut m, &mut g, &a, 30);
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+
+    let swords = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 3).expect("a sword rack");
+    click(&mut m, &mut g, &a, ((swords.0 + swords.2) / 2, (swords.1 + swords.3) / 2));
+    click(&mut m, &mut g, &a, on(armoury::button_box(3)));
+    click(&mut m, &mut g, &a, on(armoury::RACK_OK));
+    assert_eq!(g.levy.basket.troops()[TroopType::Swordsman.index()], 200);
+
+    // Change, then Continue again. The slider is not moved.
+    click(&mut m, &mut g, &a, on(armoury::CHANGE_BOX));
+    assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
+    assert_eq!(g.levy.percent, 30, "the slider stayed where it was");
+    assert_eq!(g.levy.basket.troops()[TroopType::Swordsman.index()], 200, "and so did the swords");
+
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
+    assert_eq!(g.levy.basket.troops()[TroopType::Swordsman.index()], 0, "re-seeded on the way in");
+    assert_eq!(g.levy.basket.unequipped(), 300, "every man a peasant again");
+    assert_eq!(g.levy.men, 300, "and the levy itself is untouched");
+}
+
+/// An empty rack is inert. `FUN_004358B0`'s guard is `basket[id].available > 0`
+/// — the stock the realm owns — so a weapon the treasury has none of does not
+/// open a screen at all, which is the same fact the picture states by not
+/// drawing it.
+#[test]
+fn a_rack_the_realm_has_no_weapons_for_does_not_open() {
+    let (mut g, a, mut m) = on_the_map();
+    g.kingdom.realms[1].weapons = [0; 6];
+    press(&mut m, &mut g, &a, 'r');
+    tick(&mut m, &mut g, &a);
+    set_levy(&mut m, &mut g, &a, 30);
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+
+    for h in &armoury::RACK_HOTSPOTS {
+        click(&mut m, &mut g, &a, ((h.0 + h.2) / 2, (h.1 + h.3) / 2));
+        assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)), "rack {} opened on an empty armoury", h.4);
+    }
+    // And Create still works: an army of peasants is an army.
+    click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
+    assert_eq!(g.kingdom.campaign.units.len(), 1);
+    let (_, unit) = g.kingdom.campaign.units.iter().next().expect("the army");
+    assert_eq!(unit.troops[TroopType::Peasant.index()], 300, "the pitchfork default");
+}
+
 /// The two size guards and the message each stands for. `FUN_00435B4D` refuses
 /// a levy of nothing (`0xA8`) and a levy under fifty (`0x94`), and both
-/// refusals leave the world exactly as it was.
+/// refusals leave the world exactly as it was — **and leave the player on the
+/// armoury**, which is where the button is.
 #[test]
 fn a_levy_of_nothing_and_a_levy_under_fifty_are_both_refused() {
     for percent in [0, 4] {
         let (mut g, a, mut m) = on_the_map();
         press(&mut m, &mut g, &a, 'r');
         tick(&mut m, &mut g, &a);
-        click(&mut m, &mut g, &a, (army::SLIDER_X + percent, army::base(false) + 0x20));
-        click(&mut m, &mut g, &a, on(army::raise_button()));
+        set_levy(&mut m, &mut g, &a, percent);
+        click(&mut m, &mut g, &a, on(army::continue_button(false)));
+        click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
         assert_eq!(
             m.top_id(),
-            Some(ScreenId::RaiseArmy(1)),
+            Some(ScreenId::Armoury(1)),
             "{percent} %: the screen stays open on a refusal",
         );
         assert_eq!(g.kingdom.campaign.units.len(), 0, "{percent} %: and nothing was raised");
         assert_eq!(g.kingdom.counties[1].population, 1_000, "{percent} %: nobody left");
     }
+}
+
+/// **Cancel is not a refusal.** `FUN_00435AE8`'s id 3 calls `Army_RaiseConfirm`
+/// with `g_confirmAnswer = 0`, whose first arm is `g_screenId = 0;
+/// Gfx_LoadCountyMode()` — the map, no army, no message.
+#[test]
+fn cancel_on_the_armoury_leaves_for_the_map_and_raises_nothing() {
+    let (mut g, a, mut m) = on_the_map();
+    press(&mut m, &mut g, &a, 'r');
+    tick(&mut m, &mut g, &a);
+    set_levy(&mut m, &mut g, &a, 40);
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    click(&mut m, &mut g, &a, on(armoury::CANCEL_BOX));
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign));
+    assert_eq!(g.kingdom.campaign.units.len(), 0, "nothing was raised");
+    assert_eq!(g.kingdom.counties[1].population, 1_000, "and nobody left the county");
+}
+
+/// The `+` and `−` move **one man**, which is the granularity the original's
+/// two smallest buttons have and the thing our screen used to get wrong by
+/// moving ten. The arrow keys are ours and do the same.
+#[test]
+fn the_plus_and_minus_on_a_rack_move_exactly_one_man() {
+    let (mut g, a, mut m) = on_the_map();
+    press(&mut m, &mut g, &a, 'r');
+    tick(&mut m, &mut g, &a);
+    set_levy(&mut m, &mut g, &a, 30);
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    let bows = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 5).expect("a bow rack");
+    click(&mut m, &mut g, &a, ((bows.0 + bows.2) / 2, (bows.1 + bows.3) / 2));
+
+    let archer = TroopType::Archer.index();
+    for expected in 1..=3 {
+        click(&mut m, &mut g, &a, on(armoury::button_box(0)));
+        assert_eq!(g.levy.basket.troops()[archer], expected, "+ moves one man");
+    }
+    click(&mut m, &mut g, &a, on(armoury::button_box(1)));
+    assert_eq!(g.levy.basket.troops()[archer], 2, "- moves one back");
+    click(&mut m, &mut g, &a, on(armoury::button_box(2)));
+    assert_eq!(g.levy.basket.troops()[archer], 0, "NONE empties the rack");
+    assert_eq!(g.levy.basket.unequipped(), 300);
+}
+
+/// **`Create` works from inside a rack, and `Change` and `Cancel` do not** —
+/// `Hotspot_Test(0, 0, &g_armouryHotspots, 7)` on screen `0x0D` against the
+/// armoury's own 9, so record 6 is reached and records 7 and 8 are not.
+///
+/// It is the one place [`Transition::Pass`] earns its keep in this file: the
+/// button belongs to the armoury, the rack declines the click, and the armoury
+/// underneath acts — **at its own depth**, so the rack goes with it rather than
+/// being left on a stack above a screen that has closed.
+#[test]
+fn create_reaches_through_an_open_rack_and_the_other_two_buttons_do_not() {
+    let (mut g, a, mut m) = on_the_map();
+    press(&mut m, &mut g, &a, 'r');
+    tick(&mut m, &mut g, &a);
+    set_levy(&mut m, &mut g, &a, 30);
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    let swords = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 3).expect("a sword rack");
+    let sword_click = ((swords.0 + swords.2) / 2, (swords.1 + swords.3) / 2);
+
+    // Change and Cancel are dead on 0x0D: the screen stays exactly where it is.
+    click(&mut m, &mut g, &a, sword_click);
+    for dead in [armoury::CHANGE_BOX, armoury::CANCEL_BOX] {
+        click(&mut m, &mut g, &a, on(dead));
+        assert_eq!(m.top_id(), Some(ScreenId::Rack(1, 3)), "{dead:?} acted on 0x0D");
+        assert_eq!(m.depth(), 3, "and it did not disturb the stack either");
+    }
+
+    click(&mut m, &mut g, &a, on(armoury::button_box(3)));
+    click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "Create is live, and it closed both");
+    assert_eq!(m.depth(), 1, "the rack did not survive the armoury it was opened from");
+    assert_eq!(g.kingdom.campaign.units.len(), 1);
+    let (_, unit) = g.kingdom.campaign.units.iter().next().expect("the army");
+    assert_eq!(unit.troops[TroopType::Swordsman.index()], 200);
+}
+
+/// **A hit box that misses.** Every pixel of every rack hotspot opens that rack
+/// and no other, and no pixel of the three right-hand buttons opens any rack.
+/// `docs/decisions.md` C58: three wrong-screen bugs have reached this player
+/// through a near-miss, so the boxes are walked rather than sampled.
+#[test]
+fn no_pixel_of_the_armoury_opens_the_wrong_thing() {
+    let (mut g, a, mut m) = on_the_map();
+    press(&mut m, &mut g, &a, 'r');
+    tick(&mut m, &mut g, &a);
+    set_levy(&mut m, &mut g, &a, 30);
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+
+    for &(x0, y0, x1, y1, troop) in &armoury::RACK_HOTSPOTS {
+        for (x, y) in [(x0, y0), (x1 - 1, y0), (x0, y1 - 1), (x1 - 1, y1 - 1)] {
+            click(&mut m, &mut g, &a, (x, y));
+            assert_eq!(
+                m.top_id(),
+                Some(ScreenId::Rack(1, troop)),
+                "({x}, {y}) is rack {troop}'s corner and opened something else",
+            );
+            click(&mut m, &mut g, &a, on(armoury::RACK_OK));
+        }
+    }
+    // The three buttons are outside every rack, and Change is the one that goes
+    // back rather than forward.
+    click(&mut m, &mut g, &a, on(armoury::CHANGE_BOX));
+    assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
 }
 
 // ---------------------------------------------------------------------------
@@ -679,79 +893,106 @@ fn an_army_with_no_friendly_county_to_go_to_cannot_disband() {
 // What lands on the canvas
 // ---------------------------------------------------------------------------
 
-/// Both screens paint **inside the rectangle the painter opens** and leave the
-/// rest of the frame to whatever was underneath.
-///
-/// That second half is the point: `Screen_RaiseArmy` and `Screen_ArmyDivision`
-/// both open a `Ui_DrawBox` over the campaign map and neither clears the
-/// screen — *"the original has no screen clear anywhere"* — so a screen that
-/// blanked the frame would be wrong in a way no other assertion here notices.
-/// The one place either is allowed outside its window is our own controls,
-/// which is why this counts pixels in a band rather than asserting the whole
-/// frame is untouched.
-#[test]
-fn both_screens_paint_inside_the_window_the_painter_opens() {
-    use l2_view::Canvas;
+/// Paint the stack as it stands.
+fn frame(m: &mut Machine, g: &mut Game, a: &Assets) -> l2_view::Canvas {
+    let mut c = l2_view::Canvas::screen();
+    let ctx = Ctx { game: g, assets: a };
+    m.draw(&ctx, &mut c);
+    c
+}
 
-    type Step = Box<dyn Fn(&mut Machine, &mut Game, &Assets)>;
-    let nothing: Step = Box::new(|_, _, _| {});
-    let select_an_army: Step = Box::new(|m, g, a| {
-        let (here, _) = adjacent_pair(|x| x < 30);
-        army_at(g, 1, 1, 300, here);
-        click(m, g, a, pixel(here.0, here.1).unwrap());
-    });
-
-    for (setup, open, window) in [
-        (
-            nothing,
-            Box::new(|m: &mut Machine, g: &mut Game, a: &Assets| press(m, g, a, 'r')) as Step,
-            army::window(false),
-        ),
-        (
-            // **The setup happens before the reference frame is taken.**
-            // Selecting an army changes the *map*: it draws a selection ring, a
-            // unit marker and the banner, and a marker on a tile near the top of
-            // the viewport lands above the division window's own y. Measuring
-            // from a frame taken before the selection would blame the screen for
-            // pixels the map drew.
-            select_an_army,
-            Box::new(|m: &mut Machine, g: &mut Game, a: &Assets| press(m, g, a, 'a')) as Step,
-            divide::window(),
-        ),
-    ] {
-        let (mut g, a, mut m) = on_the_map();
-        setup(&mut m, &mut g, &a);
-        let mut before = Canvas::screen();
-        {
-            let ctx = Ctx { game: &mut g, assets: &a };
-            m.draw(&ctx, &mut before);
-        }
-        open(&mut m, &mut g, &a);
-        tick(&mut m, &mut g, &a);
-        let mut after = Canvas::screen();
-        {
-            let ctx = Ctx { game: &mut g, assets: &a };
-            m.draw(&ctx, &mut after);
-        }
-
-        let mut inside = 0usize;
-        let mut above = 0usize;
-        for y in 0..480usize {
-            for x in 0..640usize {
-                if before.at(x, y) == after.at(x, y) {
-                    continue;
-                }
-                let (px, py) = (x as i32, y as i32);
-                if window.contains(px, py) {
-                    inside += 1;
-                } else if py < window.y {
-                    above += 1;
-                }
+fn differing(a: &l2_view::Canvas, b: &l2_view::Canvas) -> Vec<(i32, i32)> {
+    let mut out = Vec::new();
+    for y in 0..480usize {
+        for x in 0..640usize {
+            if a.at(x, y) != b.at(x, y) {
+                out.push((x as i32, y as i32));
             }
         }
-        assert!(inside > 500, "the painter drew almost nothing: {inside} pixels");
-        assert_eq!(above, 0, "it painted above its own window, over the map");
     }
+    out
+}
+
+/// **The division screen paints inside the rectangle its painter opens** and
+/// leaves the rest of the frame to the map underneath.
+///
+/// That second half is the point: `Screen_ArmyDivision` opens a `Ui_DrawBox`
+/// over the campaign map and does not clear the screen — *"the original has no
+/// screen clear anywhere"* — so a screen that blanked the frame would be wrong
+/// in a way no other assertion here notices.
+///
+/// **The raise-army screen used to be tested with it, and that was the bug.**
+/// `Screen_Draw`'s `0x17` arm runs `Screen_Armoury(1)` before
+/// `Screen_RaiseArmy`, so the levy window really does repaint the whole frame;
+/// asserting that it did not is what kept the screen floating over the campaign
+/// map in the wrong palette until a player called it *"a weird popup"*. The
+/// test below it is the replacement.
+#[test]
+fn the_division_screen_paints_inside_the_window_the_painter_opens() {
+    let (mut g, a, mut m) = on_the_map();
+    // **The setup happens before the reference frame is taken.** Selecting an
+    // army changes the *map*: it draws a selection ring, a unit marker and the
+    // banner, and a marker on a tile near the top of the viewport lands above
+    // the division window's own y. Measuring from a frame taken before the
+    // selection would blame the screen for pixels the map drew.
+    let (here, _) = adjacent_pair(|x| x < 30);
+    army_at(&mut g, 1, 1, 300, here);
+    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    let before = frame(&mut m, &mut g, &a);
+
+    press(&mut m, &mut g, &a, 'a');
+    tick(&mut m, &mut g, &a);
+    let after = frame(&mut m, &mut g, &a);
+
+    let window = divide::window();
+    let (mut inside, mut above) = (0usize, 0usize);
+    for (x, y) in differing(&before, &after) {
+        if window.contains(x, y) {
+            inside += 1;
+        } else if y < window.y {
+            above += 1;
+        }
+    }
+    assert!(inside > 500, "the painter drew almost nothing: {inside} pixels");
+    assert_eq!(above, 0, "it painted above its own window, over the map");
+}
+
+/// **The levy window and the armoury are one surface**, and this is the
+/// assertion that says so without any test knowing what the armoury looks like.
+///
+/// Open the levy screen and paint a frame; press Continue and paint another.
+/// Continue replaces `0x17` with `0x0A`, so what leaves the picture is the levy
+/// window and what stays is everything else — and *everything else* has to
+/// include a lot, because it is a whole room. If the levy screen were still an
+/// inset over the campaign map the two frames would differ almost everywhere.
+#[test]
+fn the_levy_window_lifts_off_the_armoury_and_leaves_the_room_behind() {
+    let (mut g, a, mut m) = on_the_map();
+    press(&mut m, &mut g, &a, 'r');
+    tick(&mut m, &mut g, &a);
+    let with_window = frame(&mut m, &mut g, &a);
+
+    click(&mut m, &mut g, &a, on(army::continue_button(false)));
+    assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
+    let armoury_only = frame(&mut m, &mut g, &a);
+
+    let window = army::window(false);
+    let changed = differing(&with_window, &armoury_only);
+    assert!(!changed.is_empty(), "Continue changed nothing at all");
+    let outside = changed.iter().filter(|&&(x, y)| !window.contains(x, y)).count();
+    let inside = changed.len() - outside;
+    assert!(inside > 500, "the levy window did not lift: {inside} pixels changed inside it");
+    // Outside the window the two frames are the same room. Not *identical* —
+    // the armoury draws its three labels bright where the levy screen dims them
+    // and adds a corner picture — so this is a fraction rather than a zero, and
+    // it is a small one: 3,700 pixels out of the 300,000 that are not the
+    // window.
+    let elsewhere = (640 * 480 - window.w * window.h) as usize;
+    assert!(
+        outside * 20 < elsewhere,
+        "{outside} of {elsewhere} pixels outside the levy window changed: \
+         the two screens are not standing on the same picture",
+    );
 }
 
 // ---------------------------------------------------------------------------
