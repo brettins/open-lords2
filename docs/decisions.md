@@ -1878,6 +1878,47 @@ That is deliberate. `DAT_00553C64`, which the original sets on this line, has ex
 writer in the whole binary — this line — and two readers, both in the merchant screen's price
 arithmetic, so when `0x08` grows a trade this is the call that has to carry the unit into it.
 
+**C51 — The sound banks were read 0-based. They are 1-based, and every consequence of the
+wrong reading was plausible.**
+
+`Sound_LoadBank` (`0x00425E4B`) writes the loaded buffers to `&DAT_00522B00 + i * 4`,
+counting `i` from 0. `Sound_PlaySlot` (`0x00426120`) and `Sound_RestartSlot`
+(`0x00426216`) read from **`&DAT_00522AFC + slot * 4`** — a different base, four bytes
+lower. So `slot n` is bank entry `n − 1`, and the two functions never appear in the same
+screenful of decompiler output.
+
+Read 0-based, everything still *worked*. The campaign bank's twelve names came straight
+out of `.data`, `Unit_MoveInFacing` plays slot 12 for an army, and the resulting story was
+"slot 12 is past the end of a twelve-entry bank" — an odd fact, not an impossible one, and
+one that reads as a quirk of the original rather than an error in the reading. Every other
+consequence went the same way: `Unit_MoveInFacing` gave a peasant mob `Fallow.wav` and a
+merchant `Army.wav`; the village job table gave grain `Stonecut.wav`, cattle
+`Rioters.wav` and fields `Wheat.wav`; and slot 0 was never passed by anything, so
+`Click3.wav` looked like a sound with no trigger and was written into `docs/bugs.md` as
+dead content. **Nine wrong facts, none of them absurd on its own.**
+
+**What caught it was a second agent's independent finding**, arrived at from the campaign
+map rather than from the sound tables: *"`Army.wav` for kind 1, `Merchant.wav` for kinds 3
+and 4, `Rioters.wav` for kind 2"*. Two readings of the same three lines disagreed, which
+is the only reason anyone went back to the base addresses.
+
+**The rule this suggests is about the shape of the check, not about being careful.** The
+disproof was sitting in the data the whole time and cost thirty seconds once looked for:
+`g_jobSound` maps six village jobs to six slots, and 1-based they are wheat, cattle,
+fallow, iron, stone and wood — **six for six**, which cannot happen by chance. 0-based
+they are stonecut for grain and rioters for cattle, which is noise. **A table that maps
+one named thing to another named thing is a self-checking oracle**, and this project has
+one for nearly every index it reads. The check to reach for is not "is my arithmetic
+right" but "does my arithmetic make the names line up" — and where it does not, the
+arithmetic is wrong even when it looks fine.
+
+That is C28's failure with an index instead of a name and C5's with a table instead of a
+format: a confident account built from real evidence about the adjacent thing. It is the
+seventh of the species logged, and the cheapest to have avoided.
+
+`crates/l2-game/src/audio/names.rs` now converts in exactly one place, `names::slot`, with
+both proofs as tests; `docs/mechanics.md` carries the corrected tables.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

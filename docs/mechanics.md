@@ -488,15 +488,125 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   mercenaries"* and **there is no mercenaries screen** — the offer is a block on the only
   door to `Army_Create` a player has. C45.
 - 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
-- 📖 **Sound: 771 `.wav` files, 396 MB. Nothing plays yet, but the shape is known.**
+- ✅ **Sound: the music plays.** 771 `.wav` files, 396 MB. The layer is
+  `crates/l2-game/src/audio`, and it is in `l2-game` for the same reason `winit` is
+  (`docs/netcode.md` D-3). **A sound can only ever read the world**: `Audio` is not in
+  `Ctx`, so no screen can reach it, and the event loop derives what should be audible
+  from what already happened.
 
   | | files | size | |
   |---|---:|---:|---|
   | `PUMKIN.WAV` / `PUMKIN2.WAV` | 2 | **320 MB** | byte-identical; see below |
-  | Lord voices | 449 | 32 MB | `Kt`/`Bn`/`Ct`/`Bp` × groups 170–197 × 4 takes |
+  | Lord voices | 449 | 32 MB | 448 in `Kt`/`Bn`/`Ct`/`Bp` × groups 170–197 × 4 takes, **plus one stray `Bp100_3.wav`** the executable never names — which is where the 448/449 disagreement in this file came from |
   | `S`-numbered speech | 197 | 8 MB | |
   | Music | 10 | 27 MB | `Scroll1‑5` (map and county), `Battle1‑5` |
   | Troop and combat effects | 70+ | 1 MB | |
+
+  **[V] The campaign music is a progress bar.** `Music_StartCampaign` (`0x00499ACA`,
+  reached from `Opt_ToggleMusic` when `g_battlePhase` is 0) is a ladder on **how much of
+  the map you hold**:
+
+  | condition | track |
+  |---|---|
+  | `countyCount < 2` | `Scroll1` |
+  | `shareOfMapPct < 8` | `Scroll1` |
+  | `< 15` | `Scroll2` |
+  | `< 29` | `Scroll3` |
+  | `< 43` | `Scroll4` |
+  | otherwise | `Scroll5` |
+
+  `shareOfMapPct` is realm `+0x60`, rebuilt each season by `FUN_0049D1E0` as
+  `PctOf(countyCount, g_countyCount)` — **counties over counties, and nothing else**.
+  Armies are not in it. The player remembered *"music changed based on how far you were
+  in the game, possibly army sizes or number of counties owned"* and *"scroll1 almost
+  always played in the first map right away"*; both halves hold, and the **first** clause
+  is why the second is *almost* always — one county is `Scroll1` at any map size, and only
+  from the second does the percentage decide. There is no separate county track: phase 0
+  is the whole management surface.
+
+  **[V] The battle music alternates in pairs**, it does not choose. `Music_StartBattle`
+  (`0x00477B2F`) keeps two 0/1 toggles: a field battle flips `DAT_00553D28` between
+  `Battle1` and `Battle2`, a siege flips `DAT_00553540` between `Battle3` and `Battle4`,
+  and an unidentified third mode (`DAT_0057A0F0`, which also picks how `g_castleLevel` is
+  derived) uses `Battle4`/`Battle5`. The counter is stepped *before* use from zero, so the
+  first battle of a session plays the **second** track of its pair.
+
+  **[V] Both pickers open with a branch that cannot run.** `FUN_004AF841("scroll2.wav")`
+  and `("battle2.wav")` are **file-existence probes** — open, close, retry once after a
+  `chdir` — and only a *missing* file plus multiplayer reaches a shortened ladder. Both
+  files ship, so on any complete install those three branches are dead. They are the
+  fallback for a minimal install.
+
+  **[V] Effects are two preloaded banks, and the same slot means two things.**
+  `Sound_LoadBank(names, count)` (`0x00425E4B`) fills a cache of DirectSound buffers, and
+  the game fills it twice: `FUN_00499D7D` loads twelve for the campaign (`0x004DAF00`:
+  click3, *null*, dest_ind, moo_2, rioters, fallow, wheat, stonecut, woodcut, iron,
+  merchant, army) and `FUN_00499D97` loads seventeen for a battle (`0x004DAFC0`: click3,
+  *null*, pouroil, sword5/2/3, bowmen1, bow_hit, crossbow, cros_hit, deadguy2/3/4,
+  catfire, cathit, catmiss, siegedoc). Entry 1 of both is `null.wav`, which is in neither
+  install and never was — a deliberate hole in a fixed-size table.
+
+  **[V] Slot numbers are 1-based and the tables are not: `slot n` is `BANK[n − 1]`.**
+  `Sound_LoadBank` *stores* at `&DAT_00522B00 + i × 4` from `i = 0`; `Sound_PlaySlot` and
+  `Sound_RestartSlot` *read* from `&DAT_00522AFC + slot × 4`, four bytes lower. Reading
+  the slots 0-based is entirely plausible and makes nine separate things wrong at once —
+  see `docs/decisions.md` C51.
+
+  **[V] There are exactly two verbs, and the difference is the whole mixing policy.**
+  `Sound_PlaySlot` (`0x00426120`) checks `GetStatus` and **drops the request if that
+  buffer is still playing**; `Sound_RestartSlot` (`0x00426216`) rewinds and plays
+  regardless. That is why `Unit_MoveInFacing` (`0x00466D84`) can ask for a movement sound
+  on *every step of every moving unit* — slot 12 `Army.wav` for an army, 11
+  `Merchant.wav` for a merchant or transport, 5 `Rioters.wav` for a peasant mob — and get
+  a continuous march rather than a roar. Twelve units crossing the map at once cost one
+  voice.
+
+  **[V] The click has a trigger after all.** `Widget_Test` (`0x0040DA1E`) and
+  `FUN_0040D6AD` play slot 1 — `click3.wav` — whenever a widget is pressed.
+
+  **[V] The village job panel has its own sound map**, `g_jobSound` at `0x004D2950`,
+  `i32` indexed by `g_jobPanelJob`, into the campaign bank. Its first twelve entries are
+  `[0, 7, 4, 6, 0, 10, 8, 9, 0, 0, 0, 2]`, where 0 means no sound; 1-based those are
+  wheat, cattle, fallow, iron, stone and wood for jobs 1, 2, 3, 5, 6 and 7 — six for six,
+  which is the second independent proof of the indexing. Job 8 never consults the table:
+  `Panel_JobDetail` (`0x00412B33`), the only reader, special-cases it to play `fire.wav`
+  *and* slot 8.
+
+  **[V] Troop cries are 11 × 4 × 4.** `FUN_00499CB1` indexes `0x004DB0D0` as
+  `unit * 0x100 + class * 0x40 + take * 0x10`: eleven unit types (the seven troops, then
+  catapult, siege tower, ram and oil — `Movcat`/`Movsiege`/`Movbat`/`Movoil` fill only
+  their class-1 slots and the rest of those four blocks is `null.wav`), four event
+  classes, four takes round-robined by a per-(unit, class) counter at `DAT_0053EF60`.
+  **Class 3 forces take 0**, so takes 1–3 of class 3 — three cells per block — are
+  unreachable. That is where the `_F1` names sit, and `Peas_F1.wav`, `Cros_F1.wav` and
+  their siblings are named by the binary and **are not in the install**: the shipping
+  build knew they were dead.
+
+  **[V] There is no end-of-turn sound.** Nothing on the `Turn_End` / `Season_Advance` /
+  phase-7 path plays anything, the End Turn button is silent, and the two call sites of
+  the end-of-turn screen fade (`FUN_004B0CB4` from `0x00499...`, once either side of
+  `Season_Advance` and the autosave) carry no sound call either — checked by reading both.
+  **What a player hears at the end of a turn is three other things**: the units moving,
+  which is `Unit_MoveInFacing`'s per-step effect above; the message window's chime; and
+  the narration.
+
+  **[V] The chime is `Ff_msg.wav`**, and it belongs to the *message window*, not to the
+  turn. `Msg_DrawWindow` (`0x0047309E`) fires it on the frame `g_messageTimer` reaches
+  2000 for category 1 — a letter from another lord — and `Ff_capt.wav` instead for
+  category 0 with the group in `0x72 ..= 0x7E`. The lord's voice follows **90 ticks
+  later**, at timer `0x776`. The end of a turn is a run of message windows, so the chime
+  is what a player remembers as the end-of-turn sound.
+
+  **[V] 753 of the 771 shipped sounds are named in `Lords2.exe`; 18 are not** — asserted
+  by name over the user's own install. `Ff_win.wav` is one of them: `Battle_ReturnToCampaign`
+  (`0x004AB383`) plays a fanfare at two sites and **both name `ff_lose.wav`**, from two
+  separate string literals holding the same text. `docs/bugs.md`.
+
+  **[V] One file in 771 is not 11 kHz.** `Bp180_4.wav` is 44,100 Hz where every other is
+  11,025 — same 9.2-second take at four times the resolution, so a mastering slip rather
+  than a wrong file. It is harmless only because the rate is read per file; 768 files
+  would have let an 11 kHz assumption pass. 737 are mono, 31 stereo (the ten tracks and
+  the fanfares), all 8-bit unsigned PCM.
 
   **[V] The two 160 MB files are never played.** `FUN_004AEF7E` opens `pumkin.wav` — or
   `pumkin2.wav` if it is missing — calls `__filelength`, tests it against **151,000,000**,

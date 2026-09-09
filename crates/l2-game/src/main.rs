@@ -27,6 +27,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use l2_game::audio::{names, Audio};
 use l2_game::game::Assets;
 use l2_game::input::{window, Event as GameEvent, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
@@ -60,6 +61,18 @@ struct App {
     /// own in `winit`, and asking the window again would be a second source of
     /// truth that could disagree with what the screen was last told.
     last_cursor: (i32, i32),
+    /// **Sound, and it is deliberately only here.**
+    ///
+    /// `Audio` is not in [`Ctx`], so no screen can reach it, ask it anything,
+    /// or wait on it. Everything audible is *derived* from the world once a
+    /// tick by [`App::listen`], which means a sound cannot change what the
+    /// simulation does in either value or timing — the property
+    /// `docs/netcode.md`'s lockstep argument rests on, held by the type
+    /// system rather than by remembering.
+    audio: Audio,
+    /// `game.turns_played` as it stood at the last tick, so that the end of a
+    /// turn can be noticed without anything having to report it.
+    turns_heard: u32,
 }
 
 impl App {
@@ -155,6 +168,51 @@ impl App {
         let App { game, assets, machine, .. } = self;
         let mut ctx = Ctx { game, assets };
         machine.update(&mut ctx);
+        self.listen();
+    }
+
+    /// **Everything audible, decided from the world after the tick that made
+    /// it.**
+    ///
+    /// One direction only: this reads the game and the screen stack and tells
+    /// the audio layer what should be true. It never writes to either, and
+    /// nothing it does is visible to the next tick — so the recording of a
+    /// session and a replay of it are the same simulation whether or not the
+    /// machine had a sound card.
+    ///
+    /// Asking for a track that is already playing is free, so this runs sixty
+    /// times a second and the music does not restart.
+    fn listen(&mut self) {
+        self.audio.follow(l2_game::audio::scene(&self.machine, &self.game));
+
+        // **There is no end-of-turn sound in the original**, and this is not
+        // one. Nothing on the `Turn_End` / `Season_Advance` / phase-7 path
+        // plays anything, the End Turn button is silent, and both call sites
+        // of the end-of-turn screen fade carry no sound either.
+        //
+        // What a player hears at the end of a turn is the *message window*
+        // opening: `Msg_DrawWindow` (`0x0047309E`) plays `ff_msg.wav` on the
+        // frame `g_messageTimer` reaches 2000, and a turn ends in a run of
+        // message windows. So the chime belongs to the window.
+        //
+        // We have no message windows yet, so this fires **once per turn that
+        // produced any message** rather than once per window. It is an
+        // approximation and it is written down as one: when the message
+        // windows exist, the call belongs on the window and this goes away.
+        // The other two thirds of the sound — the units marching, which is
+        // `audio::play_effect_if_idle`, and the narration — are not wired at
+        // all.
+        if self.game.turns_played != self.turns_heard {
+            self.turns_heard = self.game.turns_played;
+            let spoke = self
+                .game
+                .last_report
+                .as_ref()
+                .is_some_and(|r| !r.messages.is_empty());
+            if spoke {
+                self.audio.play_effect(names::fanfare::MESSAGE);
+            }
+        }
     }
 }
 
@@ -277,10 +335,13 @@ impl ApplicationHandler for App {
 }
 
 fn usage() -> ! {
-    eprintln!("usage: l2-game <game dir> [--mods <dir>]");
+    eprintln!("usage: l2-game <game dir> [--mods <dir>] [--no-sound]");
     eprintln!();
     eprintln!("  <game dir>   a Lords of the Realm II install: Lords2.exe, L2_maps.dat,");
     eprintln!("               lastturn.sav and the tile sets. Never written to.");
+    eprintln!("  --no-sound   do not open an audio device. The game already runs");
+    eprintln!("               silent on a machine that has none; this is for a");
+    eprintln!("               machine that has one and would rather it stayed quiet.");
     std::process::exit(2)
 }
 
@@ -288,10 +349,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut dir: Option<PathBuf> = None;
     let mut mods: Option<PathBuf> = None;
+    let mut sound = true;
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--mods" => mods = Some(PathBuf::from(it.next().unwrap_or_else(|| usage()))),
+            "--no-sound" => sound = false,
             "-h" | "--help" => usage(),
             other => dir = Some(PathBuf::from(other)),
         }
@@ -324,9 +387,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         game.kingdom.year
     );
 
+    // Sound is opened through the same vfs every other asset comes through, so
+    // the install is found once and a mod layer can replace a `.wav` for free.
+    // `Audio::open` cannot fail: no device, no files, or a device that refuses
+    // a stream all end at the same silent object, and the game runs exactly as
+    // it did before sound existed.
+    let audio = if sound { Audio::open(&platform.vfs) } else { Audio::silent() };
+    println!(
+        "sound: {} ({} wav files found)",
+        if audio.is_live() { "on" } else { "off" },
+        audio.file_count()
+    );
+
     let mut app = App {
         game,
         assets,
+        audio,
+        turns_heard: 0,
         // The front end, as the original has it: `g_screenId` 0x1F, page 1.
         // `screens::menu` is the two-item placeholder it replaces; it is still
         // there, and `tests/machine.rs` still drives it, but the application

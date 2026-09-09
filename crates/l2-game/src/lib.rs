@@ -19,8 +19,17 @@
 //!
 //! Menu, campaign map, county panel, end turn — starting from the shipped
 //! scenario in `lastturn.sav` rather than an invented position. Everything else
-//! is refused: the castle designer, sieges, diplomacy, sound, video, the
-//! multiplayer lobby, and any screen not on that list.
+//! is refused: the castle designer, diplomacy, video, the multiplayer lobby,
+//! and any screen not on that list.
+//!
+//! Two things have since been let in and are worth naming, because the list
+//! above is what stops this crate becoming the whole game. Sieges arrived with
+//! their own screens. **Sound arrived as [`audio`]** — the music bed and the
+//! message fanfare — and it is allowed here on one condition: it may only ever
+//! *read* the world. It is not in [`Ctx`], no screen can reach it, and the
+//! event loop derives what should be audible from what already happened. A
+//! sound that could change a tick would end the lockstep argument
+//! (`docs/netcode.md`).
 //!
 //! # Everything here is testable without a window
 //!
@@ -30,6 +39,7 @@
 //! with nothing on screen — which is also the shape the eventual pixel diff
 //! against `Lords2.exe` will take.
 
+pub mod audio;
 pub mod engagement;
 pub mod game;
 pub mod input;

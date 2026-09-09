@@ -1314,6 +1314,74 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 
 <!-- END symbols.json: ui -->
 
+## Sound
+
+DirectSound plus the Windows multimedia API, in two halves that never meet. **Short effects
+and voices** are whole files in one-shot buffers — `Sound_LoadBank` preloads a bank of them
+and `Sound_PlayFile` opens one on demand. **Music** is *streamed*: `Music_OpenStream` fills a
+sliced buffer and `timeSetEvent` drives `Music_Refill` behind the play cursor, which is how a
+1996 game plays a 3.8 MB track without holding it.
+
+Three option flags gate everything and there are no volumes: `g_optMusic`, `g_optSoundEffects`
+and `g_optSpeech`, from screen `0x42`.
+
+The two pickers are the interesting functions. **`Music_StartCampaign` is a progress bar** —
+which of `Scroll1‑5` plays is a ladder on the share of the map the local player holds, so the
+music tells you how you are doing. **`Music_StartBattle` alternates within a pair** rather
+than choosing, with a separate toggle for sieges. Both are reached from `Opt_ToggleMusic`
+keyed on `g_battlePhase`, which is what identifies them. `docs/mechanics.md` has the numbers.
+
+The sample banks are the trap: the game loads **two** banks into the same cache, twelve
+entries for the campaign and seventeen for a battle, so a bare slot number means two different
+sounds depending on the screen.
+
+<!-- BEGIN symbols.json: sound -->
+
+| Address | Name | Confidence | What it does |
+|---|---|---|---|
+| `0x00425B10` | `Sound_Init` | verified | DirectSoundCreate(0, &g_directSound, 0), SetCooperativeLevel(hwnd, PRIORITY), then the primary buffer. Called once at start-up, immediately before the prime-and-stop of setup.wav and the pumkin measurement. |
+| `0x00425D35` | `Sound_Shutdown` | verified | Stops both streaming channels and releases. |
+| `0x00425E4B` | `Sound_LoadBank(names, count)` | verified | Preloads up to 20 short samples into DirectSound buffers from a char[count][16] table of file names: mmioOpenA, CreateSoundBuffer, Lock/copy/Unlock. Called twice with two different banks - see Sound_LoadKingdomBank and Sound_LoadBattleBank - so the SAME SLOT NUMBER means a different sound on the campaign than in a battle. Stores at &DAT_00522B00 + i*4 from i=0 while the players read from &DAT_00522AFC, so a SLOT is one MORE than the entry it names (docs/decisions.md C51). |
+| `0x00426120` | `Sound_PlaySlot(slot)` | verified | Plays a preloaded bank slot ONLY IF THAT BUFFER IS NOT ALREADY PLAYING - it reads GetStatus and returns 0 on DSBSTATUS_PLAYING. That drop-if-busy is the whole of the original effect mixing policy: Unit_MoveInFacing asks for a movement sound on every step of every moving unit and gets one continuous march rather than a stack. SLOT NUMBERS ARE 1-BASED: this reads &DAT_00522AFC + slot*4 while Sound_LoadBank writes &DAT_00522B00 + i*4, so slot n is bank entry n-1 (docs/decisions.md C51). Gated on g_optSoundEffects. |
+| `0x00426216` | `Sound_RestartSlot(slot)` | verified | SetCurrentPosition(0) then Play, unconditionally - the other verb, and the one that does NOT drop when busy. Widget_Test (0x0040DA1E) uses it for slot 1, click3.wav, on every widget press. Slot numbers are 1-based; see Sound_PlaySlot. |
+| `0x004262EB` | `Sound_FreeSlot(slot)` | verified | Stop and Release one bank buffer. |
+| `0x00426360` | `Sound_RewindSlot(slot)` | verified | SetCurrentPosition(0) on one bank buffer. |
+| `0x004263AD` | `Music_Play(name, channel, loop)` | verified | Start a STREAMED track on a channel: channel 0 is music and is gated on g_optMusic, channel 1 is a looping effect and is gated on g_optSoundEffects. Stops whatever the channel held, copies the 16-byte name into g_musicChannelName, opens the stream and starts the refill timer. Both music pickers end here. |
+| `0x004264AC` | `Music_IsActive(channel)` | verified | Whether a streaming channel is playing, with the same two option gates in front of it. |
+| `0x00426534` | `Music_OpenStream(channel, loop)` | verified | Opens the RIFF through the mmio helpers and sizes a DirectSound buffer to a fixed number of slices. The streaming half of Music_Play. |
+| `0x00426B92` | `Music_StartRefill(channel)` | verified | Play(LOOPING) then timeBeginPeriod + timeSetEvent(Music_Refill, channel) - a multimedia timer drives double-buffered refill. This is why the original can stream 3.8 MB tracks in 1996. |
+| `0x00426D11` | `Music_Stop(channel)` | verified | timeKillEvent, timeEndPeriod, Stop, close the mmio handle. |
+| `0x00426DD5` | `Music_Refill` | verified | The timeSetEvent callback that refills the streaming buffer behind the play cursor. |
+| `0x00427990` | `Sound_PlayFile(name, isSpeech, loop)` | verified | One-shot: loads a whole .wav into a DirectSound buffer and plays it. isSpeech = 1 gates on g_optSpeech, 0 gates on g_optSoundEffects. Every fanfare, every troop cry and every voice line goes through here; Msg_PlayVoice is a name lookup in front of it. |
+| `0x00427C9B` | `Sound_OneShotBusy` | verified | GetStatus bit test on the one-shot buffer - Sound_PlayFile will not interrupt itself. |
+| `0x00427D19` | `Sound_StopOneShot` | verified | Stop and release the one-shot buffer. Msg_PlayVoice calls it before every voice line, so a lord cuts off the previous lord. |
+| `0x00477B2F` | `Music_StartBattle` | verified | THE BATTLE MUSIC PICKER. Alternates within a pair rather than choosing: a field battle flips g_battleTrackField between battle1 and battle2, a siege flips g_battleTrackSiege between battle3 and battle4, and DAT_0057A0F0 selects battle4/battle5. The counter is stepped BEFORE use from zero, so the first battle of a session plays the second track of its pair. Reached from Opt_ToggleMusic when g_battlePhase is 2. Its opening branch tests whether battle2.wav EXISTS and is dead on a complete install. |
+| `0x00499ACA` | `Music_StartCampaign` | verified | THE CAMPAIGN MUSIC PICKER, and it is a progress bar. countyCount < 2 -> scroll1; then shareOfMapPct < 8 -> scroll1, < 15 -> scroll2, < 29 -> scroll3, < 43 -> scroll4, else scroll5. shareOfMapPct is PctOf(countyCount, g_countyCount) - counties over counties, armies are not in it. Reached from Opt_ToggleMusic when g_battlePhase is 0, which is the WHOLE management surface: there is no separate county track. Its opening branch tests whether scroll2.wav EXISTS and is dead on a complete install. |
+| `0x00499CB1` | `Sound_PlayTroopCry(class)` | verified | Indexes g_troopSounds as unit*0x100 + class*0x40 + take*0x10, where unit is DAT_0055408C and take round-robins 0..3 in g_troopCryCounter per (unit, class). Class 3 forces take 0, so three cells per block are unreachable (docs/bugs.md D34). |
+| `0x00499D7D` | `Sound_LoadKingdomBank` | verified | Sound_LoadBank(g_soundBankKingdom, 12) - the campaign and county effects. |
+| `0x00499D97` | `Sound_LoadBattleBank` | verified | Sound_LoadBank(g_soundBankBattle, 17) - the battle effects. |
+| `0x004AEF7E` | `Install_MeasurePumkin` | verified | The full-install check. Opens swor_p2.wav as a sentinel, then pumkin.wav or pumkin2.wav, calls __filelength and tests it against 151,000,000. The 320 MB is there to be WEIGHED, never played. DAT_005C9A74 is set to 1 before the test and 1 again in both success branches, so the check is inert (docs/bugs.md D31). |
+| `0x004AF841` | `File_Exists(name)` | verified | Open, close, and on failure chdir to the install and retry - returns 0 missing, 1 found here, 2 found after the chdir. Not a sound function, but both music pickers open with it and reading it as "is this playing" inverts both ladders. |
+
+**Globals**
+
+| Address | Name | Confidence | Meaning |
+|---|---|---|---|
+| `0x004D2950` | `g_jobSound` | verified | Village job panel -> campaign bank SLOT (1-based), i32 indexed by g_jobPanelJob. First twelve: 0, 7, 4, 6, 0, 10, 8, 9, 0, 0, 0, 2, where 0 is no sound. Jobs 1,2,3,5,6,7 come out as wheat, cattle, fallow, iron, stone, wood - six for six, which is what fixes the 1-based reading (docs/decisions.md C51). Panel_JobDetail is the only reader and special-cases job 8. |
+| `0x004D4760` | `g_directSound` | verified | The IDirectSound created by Sound_Init. Null means no device, and every play function returns early on it. |
+| `0x004D9228` | `g_musicBattle` | verified | char[5][16] - battle1.wav .. battle5.wav, in order. Music_StartBattle indexes it. |
+| `0x004DAF00` | `g_soundBankKingdom` | verified | char[12][16] - click3, null, dest_ind, moo_2, rioters, fallow, wheat, stonecut, woodcut, iron, merchant, army. Slot 1 is a hole: null.wav is in neither install. |
+| `0x004DAFC0` | `g_soundBankBattle` | verified | char[17][16] - click3, null, pouroil, sword5, sword2, sword3, bowmen1, bow_hit, crossbow, cros_hit, deadguy2, deadguy3, deadguy4, catfire, cathit, catmiss, siegedoc. Overlaps the kingdom bank only on slots 0 and 1. |
+| `0x004DB0D0` | `g_troopSounds` | verified | char[11][4][4][16] - eleven unit types (seven troops, then catapult, siege tower, ram, oil) x four event classes x four takes. The four engine blocks carry Movcat/Movsiege/Movbat/Movoil in their class-1 slots and null.wav everywhere else. |
+| `0x004DC034` | `g_musicScroll` | verified | char[5][12] - scroll1.wav .. scroll5.wav, in order. Music_StartCampaign reaches its entries by literal rather than by index, which is why the ladder is six branches over five files. |
+| `0x0053EF60` | `g_troopCryCounter` | verified | i32 per (unit, event class) - the 0..3 round-robin Sound_PlayTroopCry steps before choosing a take. |
+| `0x00522B50` | `g_musicChannelActive` | verified | i32 per streaming channel: whether it holds an open stream. Channel 0 is music, channel 1 a looping effect. |
+| `0x00522B60` | `g_musicChannelName` | verified | char[16] per streaming channel - the file name Music_Play copied in. |
+| `0x00553540` | `g_battleTrackSiege` | verified | The 0/1 toggle picking battle3 or battle4 for a siege. Stepped before use, so the first siege of a session gets battle4. |
+| `0x00553D28` | `g_battleTrackField` | verified | The 0/1 toggle picking battle1 or battle2 for a field battle. Stepped before use, so the first battle of a session gets battle2. |
+
+<!-- END symbols.json: sound -->
+
 ## Diplomacy, messages and the AI lords
 
 The four AI lords, the per-pair standing between realms, the seven letters a player can send,

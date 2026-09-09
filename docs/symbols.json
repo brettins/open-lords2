@@ -54,6 +54,10 @@
       "title": "Interface and screen layout"
     },
     {
+      "id": "sound",
+      "title": "Sound"
+    },
+    {
       "id": "diplomacy",
       "title": "Diplomacy, messages and the AI lords"
     }
@@ -5647,6 +5651,180 @@
       "confidence": "verified",
       "signature": "void PlayerStart_Compact(void)",
       "comment": "Drops the player-start slots above the number of live realms by bubbling the table down, so a game with fewer lords than the map seats leaves the extra start counties unowned rather than off the end of the array."
+    },
+    {
+      "addr": "0x00425B10",
+      "name": "Sound_Init",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "DirectSoundCreate(0, &g_directSound, 0), SetCooperativeLevel(hwnd, PRIORITY), then the primary buffer. Called once at start-up, immediately before the prime-and-stop of setup.wav and the pumkin measurement."
+    },
+    {
+      "addr": "0x00425D35",
+      "name": "Sound_Shutdown",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "Stops both streaming channels and releases."
+    },
+    {
+      "addr": "0x00425E4B",
+      "name": "Sound_LoadBank",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 Sound_LoadBank(char * names, int count)",
+      "comment": "Preloads up to 20 short samples into DirectSound buffers from a char[count][16] table of file names: mmioOpenA, CreateSoundBuffer, Lock/copy/Unlock. Called twice with two different banks - see Sound_LoadKingdomBank and Sound_LoadBattleBank - so the SAME SLOT NUMBER means a different sound on the campaign than in a battle. Stores at &DAT_00522B00 + i*4 from i=0 while the players read from &DAT_00522AFC, so a SLOT is one MORE than the entry it names (docs/decisions.md C51)."
+    },
+    {
+      "addr": "0x00426120",
+      "name": "Sound_PlaySlot",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 Sound_PlaySlot(int slot)",
+      "comment": "Plays a preloaded bank slot ONLY IF THAT BUFFER IS NOT ALREADY PLAYING - it reads GetStatus and returns 0 on DSBSTATUS_PLAYING. That drop-if-busy is the whole of the original effect mixing policy: Unit_MoveInFacing asks for a movement sound on every step of every moving unit and gets one continuous march rather than a stack. SLOT NUMBERS ARE 1-BASED: this reads &DAT_00522AFC + slot*4 while Sound_LoadBank writes &DAT_00522B00 + i*4, so slot n is bank entry n-1 (docs/decisions.md C51). Gated on g_optSoundEffects."
+    },
+    {
+      "addr": "0x00426216",
+      "name": "Sound_RestartSlot",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 Sound_RestartSlot(int slot)",
+      "comment": "SetCurrentPosition(0) then Play, unconditionally - the other verb, and the one that does NOT drop when busy. Widget_Test (0x0040DA1E) uses it for slot 1, click3.wav, on every widget press. Slot numbers are 1-based; see Sound_PlaySlot."
+    },
+    {
+      "addr": "0x004262EB",
+      "name": "Sound_FreeSlot",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "void Sound_FreeSlot(int slot)",
+      "comment": "Stop and Release one bank buffer."
+    },
+    {
+      "addr": "0x00426360",
+      "name": "Sound_RewindSlot",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "void Sound_RewindSlot(int slot)",
+      "comment": "SetCurrentPosition(0) on one bank buffer."
+    },
+    {
+      "addr": "0x004263AD",
+      "name": "Music_Play",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 Music_Play(char * name, DWORD_PTR channel, undefined4 loop)",
+      "comment": "Start a STREAMED track on a channel: channel 0 is music and is gated on g_optMusic, channel 1 is a looping effect and is gated on g_optSoundEffects. Stops whatever the channel held, copies the 16-byte name into g_musicChannelName, opens the stream and starts the refill timer. Both music pickers end here."
+    },
+    {
+      "addr": "0x004264AC",
+      "name": "Music_IsActive",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 Music_IsActive(int channel)",
+      "comment": "Whether a streaming channel is playing, with the same two option gates in front of it."
+    },
+    {
+      "addr": "0x00426534",
+      "name": "Music_OpenStream",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 Music_OpenStream(int channel, undefined4 loop)",
+      "comment": "Opens the RIFF through the mmio helpers and sizes a DirectSound buffer to a fixed number of slices. The streaming half of Music_Play."
+    },
+    {
+      "addr": "0x00426B92",
+      "name": "Music_StartRefill",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 Music_StartRefill(DWORD_PTR channel)",
+      "comment": "Play(LOOPING) then timeBeginPeriod + timeSetEvent(Music_Refill, channel) - a multimedia timer drives double-buffered refill. This is why the original can stream 3.8 MB tracks in 1996."
+    },
+    {
+      "addr": "0x00426D11",
+      "name": "Music_Stop",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "void Music_Stop(int channel)",
+      "comment": "timeKillEvent, timeEndPeriod, Stop, close the mmio handle."
+    },
+    {
+      "addr": "0x00426DD5",
+      "name": "Music_Refill",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "The timeSetEvent callback that refills the streaming buffer behind the play cursor."
+    },
+    {
+      "addr": "0x00427990",
+      "name": "Sound_PlayFile",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 Sound_PlayFile(char * name, int isSpeech, int loop)",
+      "comment": "One-shot: loads a whole .wav into a DirectSound buffer and plays it. isSpeech = 1 gates on g_optSpeech, 0 gates on g_optSoundEffects. Every fanfare, every troop cry and every voice line goes through here; Msg_PlayVoice is a name lookup in front of it."
+    },
+    {
+      "addr": "0x00427C9B",
+      "name": "Sound_OneShotBusy",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "GetStatus bit test on the one-shot buffer - Sound_PlayFile will not interrupt itself."
+    },
+    {
+      "addr": "0x00427D19",
+      "name": "Sound_StopOneShot",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "Stop and release the one-shot buffer. Msg_PlayVoice calls it before every voice line, so a lord cuts off the previous lord."
+    },
+    {
+      "addr": "0x00477B2F",
+      "name": "Music_StartBattle",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "THE BATTLE MUSIC PICKER. Alternates within a pair rather than choosing: a field battle flips g_battleTrackField between battle1 and battle2, a siege flips g_battleTrackSiege between battle3 and battle4, and DAT_0057A0F0 selects battle4/battle5. The counter is stepped BEFORE use from zero, so the first battle of a session plays the second track of its pair. Reached from Opt_ToggleMusic when g_battlePhase is 2. Its opening branch tests whether battle2.wav EXISTS and is dead on a complete install."
+    },
+    {
+      "addr": "0x00499ACA",
+      "name": "Music_StartCampaign",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "THE CAMPAIGN MUSIC PICKER, and it is a progress bar. countyCount < 2 -> scroll1; then shareOfMapPct < 8 -> scroll1, < 15 -> scroll2, < 29 -> scroll3, < 43 -> scroll4, else scroll5. shareOfMapPct is PctOf(countyCount, g_countyCount) - counties over counties, armies are not in it. Reached from Opt_ToggleMusic when g_battlePhase is 0, which is the WHOLE management surface: there is no separate county track. Its opening branch tests whether scroll2.wav EXISTS and is dead on a complete install."
+    },
+    {
+      "addr": "0x00499CB1",
+      "name": "Sound_PlayTroopCry",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "void Sound_PlayTroopCry(int class)",
+      "comment": "Indexes g_troopSounds as unit*0x100 + class*0x40 + take*0x10, where unit is DAT_0055408C and take round-robins 0..3 in g_troopCryCounter per (unit, class). Class 3 forces take 0, so three cells per block are unreachable (docs/bugs.md D34)."
+    },
+    {
+      "addr": "0x00499D7D",
+      "name": "Sound_LoadKingdomBank",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "Sound_LoadBank(g_soundBankKingdom, 12) - the campaign and county effects."
+    },
+    {
+      "addr": "0x00499D97",
+      "name": "Sound_LoadBattleBank",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "Sound_LoadBank(g_soundBankBattle, 17) - the battle effects."
+    },
+    {
+      "addr": "0x004AEF7E",
+      "name": "Install_MeasurePumkin",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "The full-install check. Opens swor_p2.wav as a sentinel, then pumkin.wav or pumkin2.wav, calls __filelength and tests it against 151,000,000. The 320 MB is there to be WEIGHED, never played. DAT_005C9A74 is set to 1 before the test and 1 again in both success branches, so the check is inert (docs/bugs.md D31)."
+    },
+    {
+      "addr": "0x004AF841",
+      "name": "File_Exists",
+      "section": "sound",
+      "confidence": "verified",
+      "signature": "undefined4 File_Exists(char * name)",
+      "comment": "Open, close, and on failure chdir to the install and retry - returns 0 missing, 1 found here, 2 found after the chdir. Not a sound function, but both music pickers open with it and reading it as \"is this playing\" inverts both ladders."
     }
   ],
   "globals": [
@@ -8792,6 +8970,90 @@
       "section": "kingdom",
       "confidence": "verified",
       "comment": "Three rows of five i32, stride 0x14, the County Status option indexes: {grain, herd, population, healthMeter, happiness} = {10, 40, 167, 45, 41} weak, {0, 95, 417, 65, 65} medium, {500, 330, 1181, 85, 85} strong. Medium really does start with no grain. It sits exactly between g_startArmoury (which ends at 0x004DC0D0) and g_startTroops (0x004DC110), three tables closing with no overlap and a four-byte gap."
+    },
+    {
+      "addr": "0x004D2950",
+      "name": "g_jobSound",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "Village job panel -> campaign bank SLOT (1-based), i32 indexed by g_jobPanelJob. First twelve: 0, 7, 4, 6, 0, 10, 8, 9, 0, 0, 0, 2, where 0 is no sound. Jobs 1,2,3,5,6,7 come out as wheat, cattle, fallow, iron, stone, wood - six for six, which is what fixes the 1-based reading (docs/decisions.md C51). Panel_JobDetail is the only reader and special-cases job 8."
+    },
+    {
+      "addr": "0x004D4760",
+      "name": "g_directSound",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "The IDirectSound created by Sound_Init. Null means no device, and every play function returns early on it."
+    },
+    {
+      "addr": "0x004D9228",
+      "name": "g_musicBattle",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "char[5][16] - battle1.wav .. battle5.wav, in order. Music_StartBattle indexes it."
+    },
+    {
+      "addr": "0x004DAF00",
+      "name": "g_soundBankKingdom",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "char[12][16] - click3, null, dest_ind, moo_2, rioters, fallow, wheat, stonecut, woodcut, iron, merchant, army. Slot 1 is a hole: null.wav is in neither install."
+    },
+    {
+      "addr": "0x004DAFC0",
+      "name": "g_soundBankBattle",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "char[17][16] - click3, null, pouroil, sword5, sword2, sword3, bowmen1, bow_hit, crossbow, cros_hit, deadguy2, deadguy3, deadguy4, catfire, cathit, catmiss, siegedoc. Overlaps the kingdom bank only on slots 0 and 1."
+    },
+    {
+      "addr": "0x004DB0D0",
+      "name": "g_troopSounds",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "char[11][4][4][16] - eleven unit types (seven troops, then catapult, siege tower, ram, oil) x four event classes x four takes. The four engine blocks carry Movcat/Movsiege/Movbat/Movoil in their class-1 slots and null.wav everywhere else."
+    },
+    {
+      "addr": "0x004DC034",
+      "name": "g_musicScroll",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "char[5][12] - scroll1.wav .. scroll5.wav, in order. Music_StartCampaign reaches its entries by literal rather than by index, which is why the ladder is six branches over five files."
+    },
+    {
+      "addr": "0x0053EF60",
+      "name": "g_troopCryCounter",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "i32 per (unit, event class) - the 0..3 round-robin Sound_PlayTroopCry steps before choosing a take."
+    },
+    {
+      "addr": "0x00522B50",
+      "name": "g_musicChannelActive",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "i32 per streaming channel: whether it holds an open stream. Channel 0 is music, channel 1 a looping effect."
+    },
+    {
+      "addr": "0x00522B60",
+      "name": "g_musicChannelName",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "char[16] per streaming channel - the file name Music_Play copied in."
+    },
+    {
+      "addr": "0x00553540",
+      "name": "g_battleTrackSiege",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "The 0/1 toggle picking battle3 or battle4 for a siege. Stepped before use, so the first siege of a session gets battle4."
+    },
+    {
+      "addr": "0x00553D28",
+      "name": "g_battleTrackField",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "The 0/1 toggle picking battle1 or battle2 for a field battle. Stepped before use, so the first battle of a session gets battle2."
     }
   ]
 }
