@@ -1064,7 +1064,15 @@ Written after §9 listed *"screens 0x04 and 0x1A"* as unestablished and nobody h
 followed the menu bar past the three words painted on it. Everything below was reached by
 one method: **read the table, not the painter.** The interface is data — 24-byte widget
 records with a function pointer in them, and 12-byte menu records with another — and a table
-in `Lords2.exe` cannot be talked into agreeing with a story.
+in `Lords2.exe` cannot be talked into agreeing with a story. Those pointers appear in no
+instruction, so `xref.js` cannot see them; `tools/oracle/widgets.js` decodes them out of the
+executable, and every table quoted below came out of it:
+
+```bash
+node tools/oracle/widgets.js menu 4dc428 3      # the menu bar and its three drop-downs
+node tools/oracle/widgets.js widgets 4ddc10 4   # one widget table
+node tools/oracle/widgets.js ref 434d33         # who *points at* a function
+```
 
 ### 10.1 The menu bar is three tables of function pointers, and every one is accounted for **[V]**
 
