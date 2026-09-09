@@ -89,6 +89,25 @@ this. If N things match N other things, that is not evidence.
 three places, the printed manual wrong twice. Prior art tells you *what to look for*, which
 is valuable, and it is never the authority. This includes our own docs.
 
+**An absence quoted without its denominator.** "No function in the binary references `L2.eng`
+group 62" was written here as a finding. Re-deriving it turned up the number that mattered:
+**135 of the 317 groups are unreached by a literal**, several of them demonstrably live text
+reached through a computed id. The observation was true and it was ordinary. An absence is
+only evidence in proportion to how surprising it is, so **a negative result must be reported
+with the size of the set it came from** — and a control helps: asking the same query for the
+group that *does* ship named its function immediately, which is what showed the query worked
+at all.
+
+**A tool that is wrong is worse than an analysis that is wrong**, because every agent
+inherits it and their agreement then looks like corroboration. `anchor.js`'s `litNum` parsed
+`'\b'` as the letter *b*, and produced six screen ids that did not exist, self-consistently,
+joined across three dispatchers. It was caught by an existing document, not by the work
+using it. Two consequences worth keeping: **re-derive anything load-bearing that came out of
+a tool, by a route that does not use the tool**; and when you write a parser for the
+decompiler's output, make the unhandled case *report itself* rather than silently returning
+nothing — the re-derivation above prints its count of unparsed literals precisely so that a
+missed escape form shows up as a loud zero-or-not rather than as a quiet absence.
+
 **A test whose name claims more than its body checks.** C12 —
 `expensive_ground_is_deferred_rather_than_weighted` asserted only that a path crossed a gap,
 which was true under either reading, so it passed before and after a semantic change. **A
@@ -333,43 +352,68 @@ The same run found `g_battleMen` and `g_battleUnits` are **81** records, not the
 `symbols.json` comments say: every sweep is `for (i = 1; i < 0x51; i++)`, so index 80 is
 live, and nothing else in the binary claims the storage behind it.
 
-### 7.6 The bulk tier: `docs/hypotheses.json`
+### 7.6 Two tiers, so that bulk work cannot dilute the verified one
 
-§7.3's two rates are the reason this file exists. The filters produce leads faster than
+§7.3's two rates are the reason this section exists. The filters produce leads faster than
 anyone can check them, and there are only two things to do with an unchecked lead: throw it
 away, or write it down somewhere that is **not** `docs/symbols.json`. Throwing it away is how
 correction C21 happened — a whole layer went unexamined because nothing recorded that it had
-not been. Writing it into `symbols.json` is how C3 happened.
+not been. Pouring it into `symbols.json` and marking it `inferred` is how C3 happened, and
+it trades a file you can trust for a file you have to audit.
 
-So there are two tiers, and blurring them is the failure both corrections describe:
+So there are two files and one rule.
 
-| | `docs/symbols.json` | `docs/hypotheses.json` |
-|---|---|---|
-| what it holds | a name **plus the check that could have refuted it and did not** | a name plus the mechanical observation it rests on |
-| applied to Ghidra | yes, by `ApplySymbols` | **no** |
-| read by the decompiler output | yes | no |
-| the ratio that matters | verified stays high on purpose | there is no ratio; it is all guesses |
+| | file | what it costs to add | what it costs to cite |
+|---|---|---|---|
+| **`[V]` verified** | `docs/symbols.json` | a check that could have failed, written into the `comment` | nothing — it is a finding |
+| **`[I]` hypothesis** | `docs/hypotheses.json` | a `basis`, and a statement of confidence | **it may not be cited as a finding at all** |
 
-Every hypothesis entry carries a `basis` — the observation, stated so that someone else can
-disagree with it — and a `confidence` in §7.3's own vocabulary:
+The second column is the whole of it. `symbols.json` is applied to Ghidra by
+`ApplySymbols` and therefore reaches the decompiled corpus, where a wrong name becomes a
+fact by repetition — the exact mechanism behind C3. **Nothing in `hypotheses.json` is
+applied to anything.**
 
-* **`subject`** — an `L2.eng` group, a `.pl8` filename or a record stride pins *what it is
-  about*; the role word in the name is the part that may be wrong. This was 89% right.
-* **`role`** — the role is pinned (it is in a widget table, it is the painter a dispatcher
-  calls); the subject is the guess. This was 58% right.
-* **`both`** — neither half has an independent anchor. **A cluster of these that touches no
-  string and no shipped file is where C3 lives.** Read it before using it, and prefer
-  deleting it to promoting it.
+`hypotheses.json` has the same shape as `symbols.json`, plus a `fields` array for record
+offsets, plus a required `basis` on every entry:
 
-Promotion is a deletion plus an addition: remove the entry here, add it to `symbols.json`,
-and put the check that promoted it into its `comment`. A name that cannot be given such a
-sentence has not been promoted — it has been relabelled.
+* **`basis`** — what generated it: which filter, which caller, which `L2.eng` group, which
+  shipped filename, which record stride. Not the reasoning — the *source*, so that when a
+  basis turns out to be unreliable everything resting on it can be found in one grep. An
+  entry whose basis is only *"it is called from near something named"* is the shape C3 took
+  and should be read as a question, not an answer.
+
+**Confidence is recorded two ways, and the file currently holds both.** Two agents created
+it independently on the same day, each reading this section a different way, and the merge
+kept both rather than rewriting one into the other:
+
+* **an enum — `subject` / `role` / `both`** — saying *which half of the name is the guess*,
+  in §7.3's own vocabulary. `subject`: an `L2.eng` group, a `.pl8` filename or a record
+  stride pins what it is about, and the role word may be wrong — 89% right. `role`: the role
+  is pinned (it is in a widget table, it is the painter a dispatcher calls) and the subject
+  is the guess — 58% right. `both`: neither half has an independent anchor, and **a cluster
+  of these that touches no string and no shipped file is where C3 lives.**
+* **a prose line** saying what would have to be true and **what would refute it**. An entry
+  whose line does not name a way of being wrong is not a hypothesis, it is a wish.
+
+They are not interchangeable — the enum is countable against the measured rates, the prose
+is not — and unifying them is a decision for whoever owns the file, not for the merge that
+first put them side by side.
+
+**Promotion is one direction and it is not free.** Run a check that could have failed, move
+the entry to `symbols.json`, and put the check in its `comment`. A name that cannot be given
+such a sentence has not been promoted, it has been relabelled. And if the check goes the
+other way, **delete** the entry — do not soften it, do not mark it "partially confirmed": a
+refuted hypothesis left on the page is worse than one never written, because the next reader
+cannot tell it from the ones nobody has looked at yet.
+
+The rate to expect is §7.3's. About two in five of the roles in that file are wrong. Its
+value is that it says which ones to check first, not that it is right.
 
 ## 8. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — 465 of 2,452 functions so far, about 19%.
+always more of the binary to name — 498 of 2,452 functions so far, about 20%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the

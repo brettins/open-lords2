@@ -31,12 +31,13 @@ Each turn has seven phases in a fixed order:
 ## 2. What happens between seasons
 
 **The order is the rule.** Taxation reads the happiness that migration has not yet changed;
-population growth reads the happiness this turn already wrote. Twenty-five passes, in this
-sequence:
+population growth reads the happiness this turn already wrote. Thirty passes, in this
+sequence — and one of them, between the merchants and the muster, is an empty function:
 
 | # | pass | what it does |
 |---:|---|---|
 | 1 | Clock | advance season; roll the year if Winter is beginning |
+| 1a | Ledger | photograph every realm's gold, ore, timber and weapons, so the panels can show a change |
 | 2 | Events | deal one random event per eligible county |
 | 3 | Weather | roll each county's weather for the season |
 | 4 | **Tax** | collect; write the tax happiness terms |
@@ -45,6 +46,8 @@ sequence:
 | 7 | Health | move each county's health meter by how well it ate |
 | 8 | **Happiness** | sum the terms into one number |
 | 9 | Unrest | move each county towards or away from revolt |
+| 9a | **Secession** | any county cut off from your main block declares independence |
+| 9b | Field census | recount each county's fallow, grain and pasture strips off the map |
 | 10 | Fertility | age the soil |
 | 11 | Field reclamation | turn wasteland into usable fields |
 | 12 | **Grain** | sow, grow or harvest, depending on the season |
@@ -54,10 +57,16 @@ sequence:
 | 19 | **Labour** | reassign every county's peasants to jobs, from scratch |
 | 20 | Migration | move people between neighbouring counties |
 | 21 | **Population** | births and deaths |
-| 22 | Score | rank the realms |
-| 23 | **Labour, again** | and once more, now that the newborns and the levies are counted |
-| 24 | History | write this season's line into the 400-season ring |
-| 25 | Ration preview | recompute each job's thresholds and what next season *would* cost |
+| 22 | Merchants | note which merchant is standing in which county |
+| 23 | Muster | recount the men under arms in each county |
+| 24 | Events expire | clear this season's event swings, so they last exactly one season |
+| 25 | **Labour, again** | and once more, now that the newborns and the levies are counted |
+| 26 | History | write this season's line into the 400-season ring |
+| 27 | Ration preview | recompute each job's thresholds and what next season *would* cost |
+
+**Scoring is not one of these passes.** It used to be listed here. `Score_RankRealms` is
+called when the turn phase advances and when a realm's strength is recounted, not at the end
+of the season — `docs/kingdom.md` §3.4.
 
 Weapons are made **first**, before the ore is mined — so the blacksmith always spends last
 season's iron.
@@ -103,21 +112,32 @@ Two things worth knowing because they surprise people:
 
 ## 4. Food, and why counties starve
 
-Feeding a county happens in one pass, and it works from the top down:
+Feeding a county happens in one pass:
 
 1. Work out what the county needs: `population ÷ divisor × multiplier`, where the divisor and
    multiplier come from the ration level. Normal rations need one sack per ten people.
-2. **Dairy first.** Every head of cattle feeds **5 people**, free, without being killed.
-3. **Then grain**, from the store.
-4. **Then slaughter.** Any shortfall is made up by killing cattle, at 10 people per head.
-5. If it still cannot be fed, the ration level drops and everyone is unhappier.
+2. **Dairy first, and free.** Every head of cattle feeds **5 people** without being killed.
+   This is not a priority you can change; it is subtracted before anything else happens.
+3. **The rest is split, not ordered.** A single percentage — the county's own setting — says
+   how much of the remaining requirement comes from slaughtered cattle; the balance comes
+   from grain. One head feeds 10 people, one sack feeds 6.
+4. Each side is capped at what is actually in store, and if the total still will not fit the
+   ration level drops and everyone is unhappier.
 
-**The player can reorder that list.** The ration screen says *"Click on a food to swap its
-priority"* — the eating order is a setting, not a constant. We do not model this yet.
+So it is a dial, not a queue, and it really is per county: in the shipped England save four
+counties sit at 0% livestock and ten at 100%.
 
-The same screen reports each food in turn, and it names **five**, not three: *"Dairy produce
-feeds …"*, *"Grain feeds …"*, *"Sheep feed …"*, *"Cows feed …"*, and *"Barrels swilled."*
-So ale is consumed alongside the food rather than merely bought.
+**A correction, because this section used to say otherwise.** It said the player could
+reorder five foods, on the strength of the ration-screen text *"Click on a food to swap its
+priority"* and the five foods beside it — *"Dairy produce feeds"*, *"Grain feeds"*, *"Sheep
+feed"*, *"Cows feed"*, *"Barrels swilled."*
+
+**Those strings are not the ration panel the game draws.** They are `L2.eng` group 62; the
+panel is `Panel_Ration`, it reads group **87**, and it shows three foods. The code agrees:
+the food pass has no priority list in it and the county record has no field for a food order,
+for sheep, or for ale in store. Group 62 looks like a ration screen that was cut — though
+that is an inference rather than a finding, and `docs/mechanics.md` says why it is weaker
+evidence than it appears.
 
 Armies standing in a county are **extra mouths at the county's ration level** — so they make
 the bill bigger rather than eating a fixed amount, and an unpayable bill drops *everyone's*
@@ -242,6 +262,36 @@ identical populations.
 figures in the cluster that cannot be picked up, and the job's own panel prints its worker
 count in red. Past the useful ceiling the surplus is drawn in the idle figure instead. Both
 are how the interface says "you have this wrong" without a word of text.
+
+---
+
+## 5a. Two ways to lose a county without a battle
+
+**Your empire must be in one piece.** At the end of every season the game works out which of
+your counties are joined to which, and you keep only your **largest connected block, by
+population**. Anything cut off from it declares independence that same season:
+
+> *"Deeming itself too far from the heart of your empire, this county has declared
+> independence and thrown out your officials."*
+
+So taking a county behind someone else's lines does not hold it, and losing a county in the
+middle of your territory can cost you the ones beyond it as well. You get told — *"Your
+lands divide."* when it is more than one — but the AI lords lose theirs in silence.
+
+**Or the peasants take it.** A human-owned county whose happiness stays under 25 climbs an
+unrest counter one step a season, with a warning at each step — *"Murmurs of unrest."*,
+*"Trouble in the county."*, *"Uproar in the shire."*, *"Revolution in your lands."* At the
+fourth step **30% of the population walks out as an armed mob** and the county goes neutral.
+The mob is unarmed peasants and it wanders the map like any other army.
+
+An AI-owned county is judged on a different ladder — it only climbs below happiness 1, and
+recovers between 11 and 40 — so the peasants rise against you far more readily than against
+them.
+
+**And your army can leave you.** Miss the wages and your mercenaries go at once; miss them
+again and your men start deserting; miss them for six seasons and *"Furious at their ill
+treatment, all your troops have deserted. All your armies are disbanded."* Paying in full
+once resets the whole ladder.
 
 ---
 
