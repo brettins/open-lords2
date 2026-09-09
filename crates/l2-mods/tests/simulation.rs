@@ -640,6 +640,79 @@ fn an_ai_seasons_tax(tables: Tables, happiness: i32) -> (i32, i32) {
     (rate, k.realms[1].gold)
 }
 
+/// An AI lord laying out one county's eight fields, in Winter. Returns
+/// `(grain, pasture, industry share)`.
+///
+/// This is the rule `docs/modding.md` used to list as *"loads and does
+/// nothing"*. It does something now, and this is where it has to earn that:
+/// the same county, the same season, the same eight tiles, and a different
+/// answer because one byte of the ruleset changed.
+fn an_ai_lays_out_a_county(tables: Tables, lord: u8) -> (i32, i32, i32) {
+    let mut k = one_county(tables);
+    k.realms[1].is_human = false;
+    k.realms[1].lord = lord;
+    k.options.advanced_farming = true;
+    k.season = 4; // Winter: the only season the arable styles re-sow in
+    k.season_next = 1;
+    for i in 0..8u8 {
+        let tile = l2_kingdom::map::index(i, 8);
+        k.counties[1].set_field_tile(i as usize, Some(tile));
+        k.campaign.map.terrain[tile] = l2_kingdom::field::terrain::FALLOW;
+    }
+    k.counties[1].herd = 400;
+    k.counties[1].fertility = 0;
+    l2_kingdom::field::recount(&mut k.counties[1], &k.campaign.map);
+    k.counties[1].herd_crowding =
+        l2_kingdom::land::herd_crowding(&k.tables, k.counties[1].herd, k.counties[1].fields_cattle);
+    // No merchant stall in this scenario, so every style's opening shopping
+    // cascade is refused and the layout is the only thing that differs.
+    k.run_ai_farms(1, &mut l2_kingdom::ai_farm::NoMarket);
+    l2_kingdom::field::recount(&mut k.counties[1], &k.campaign.map);
+    (k.counties[1].fields_grain, k.counties[1].fields_cattle, k.counties[1].industry_share)
+}
+
+/// **`farm_style` is a rule a mod sets, and it changes the map.**
+#[test]
+fn which_way_an_ai_lord_farms_is_a_rule_a_mod_sets() {
+    // Lord 1 ships as style 1, a grazier: no grain at all, and the pasture
+    // grows one field a pass towards all but one of the county.
+    let (grain, pasture, share) = an_ai_lays_out_a_county(Tables::DEFAULT, 1);
+    assert_eq!(grain, 0, "a grazier plants nothing, even in Winter");
+    assert_eq!(pasture, 1, "and takes one more field for the herd");
+    assert_eq!(share, 20);
+
+    // Turn him into an arable lord with one byte.
+    let arable = modded(
+        "arable-lord",
+        "[[kingdom.ai.personality]]\nlord = 1\nfarm_style = 0\ntax_ladder = 2\n\
+         gift_increment = 100\nhelp_price = 500\ngrudge_tolerance = 5\noffer_interval = 12\n\
+         help_population_floor = 750\nmuster_pct = 30\ncastle_concurrent = 4\n\
+         castle_min_population = 700\ncastle_gold = [200, 0, 1000, 0, 10000]\n\
+         weapon_rota = [0, 1, 4, 2, 5, 2]\n\n\
+         [[kingdom.ai.personality]]\nlord = 2\nfarm_style = 1\ntax_ladder = 2\n\
+         gift_increment = 100\nhelp_price = 1000\ngrudge_tolerance = 10\noffer_interval = 10\n\
+         help_population_floor = 800\nmuster_pct = 30\ncastle_concurrent = 3\n\
+         castle_min_population = 650\ncastle_gold = [0, 500, 0, 4000, 0]\n\
+         weapon_rota = [3, 5, 4, 4, 4, 5]\n\n\
+         [[kingdom.ai.personality]]\nlord = 3\nfarm_style = 0\ntax_ladder = 2\n\
+         gift_increment = 200\nhelp_price = 1600\ngrudge_tolerance = 15\noffer_interval = 8\n\
+         help_population_floor = 900\nmuster_pct = 40\ncastle_concurrent = 2\n\
+         castle_min_population = 600\ncastle_gold = [0, 300, 0, 2000, 0]\n\
+         weapon_rota = [0, 1, 1, 2, 4, 0]\n\n\
+         [[kingdom.ai.personality]]\nlord = 4\nfarm_style = 9\ntax_ladder = 1\n\
+         gift_increment = 50\nhelp_price = 1500\ngrudge_tolerance = 20\noffer_interval = 4\n\
+         help_population_floor = 1000\nmuster_pct = 50\ncastle_concurrent = 1\n\
+         castle_min_population = 600\ncastle_gold = [0, 0, 100, 0, 2000]\n\
+         weapon_rota = [4, 4, 3, 4, 4, 3]\n",
+    );
+    assert_eq!(arable.ai.personality[0].farm_style, 0);
+
+    let (grain, pasture, share) = an_ai_lays_out_a_county(arable, 1);
+    assert_eq!(grain, 4, "an arable lord plants half the county");
+    assert_eq!(pasture, 1, "and keeps exactly one pasture for a herd over ten");
+    assert_eq!(share, 50, "and puts half his people into industry rather than the farm");
+}
+
 #[test]
 fn the_ai_tax_ladders_are_rules_a_mod_sets() {
     // Ladder 2 is the one three of the four lords use, and it charges nothing
@@ -681,7 +754,7 @@ fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
              gift_increment = {gift}\nhelp_price = {help}\ngrudge_tolerance = {grudge}\n\
              offer_interval = {offer}\nhelp_population_floor = {floor}\nmuster_pct = {muster}\n\
              castle_concurrent = {concurrent}\ncastle_min_population = {min_pop}\n\
-             castle_gold = [{gold}]\n\n"
+             castle_gold = [{gold}]\nweapon_rota = [0, 1, 2, 3, 4, 5]\n\n"
         )
     }
     let rows = lord(1, 1, 0, 100, 500, 5, 12, 1000, 30, 4, 700, "200, 0, 1000, 0, 10000")

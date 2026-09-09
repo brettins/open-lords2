@@ -6,9 +6,10 @@ The subsystem a player named in one sentence and no document here had a row for:
 > messages (which have voice acting sound files). The bishop always tries to build really big
 > castles, I think the baron makes peasant armies."*
 
-All of it is real, all of it is in the binary, and the bishop half of the prediction is
-**confirmed at the instruction stream**. `docs/mechanics.md` had diplomacy as a single
-`🕳 gap` line; this is what was behind it.
+All of it is real, all of it is in the binary, the bishop half of the prediction is
+**confirmed at the instruction stream**, and the baron half is now **contradicted** by it —
+his weapon rota contains no crossbows at all (§8.3). `docs/mechanics.md` had diplomacy as a
+single `🕳 gap` line; this is what was behind it.
 
 Evidence legend, as everywhere here:
 
@@ -696,19 +697,21 @@ turn. **[V]** on the dispatch and the values:
 | Countess | 0 | 1 | 1 | 2 | 0 | 1 | 1 | 2 | 4 | 0 |
 | Bishop | 4 | 4 | 3 | 4 | 4 | 4 | 3 | 4 | 4 | 3 |
 
-**[D]** on reading these as weapon-type ids. The Knight's rota contains **0** three times in
-ten and the Countess's four; the **Baron's contains no 0 at all**, and neither does the
-Bishop's.
+**They are `g_weaponCost` indices — `[V]`, and this closes what the paragraph below used to
+leave open.** It said *"nothing here ties `+0x50` to `g_weaponCost` beyond both being small
+integers under 6"*. What ties them is the call the rota loop makes **immediately after**
+assigning one: `FUN_0049ED13` (`0x0049ED13`) looks the value it just wrote into county
+`weaponType` up in `g_weaponCost`, and sets the blacksmith's *has resource* flag from whether
+the realm's wood and iron cover that row. The field is a `g_weaponCost` index because a
+`g_weaponCost` lookup is the next thing done with it.
 
-If the fields are `g_weaponCost` indices — crossbow 0, mace 1, sword 2, pike 3, bow 4, armour 5
-(`docs/kingdom.md` §7.4) — then the Baron makes pikes, bows and armour while the Knight makes
-crossbows and bows, which is the **opposite** of "the Baron makes peasant armies". If they are
-something else, the table says nothing at all. **Nothing here ties `+0x50` to `g_weaponCost`
-beyond both being small integers under 6**, so the identity is not established and neither
-reading is claimed.
+So, with crossbow 0, mace 1, sword 2, pike 3, bow 4, armour 5 (`docs/kingdom.md` §7.4): the
+Knight's rota contains **0** three times in ten and the Countess's four; the **Baron's contains
+no 0 at all**, and neither does the Bishop's. The Baron makes pikes, bows and armour where the
+Knight makes crossbows and bows — the **opposite** of "the Baron makes peasant armies".
 
-**So the bishop half of the prediction is confirmed and the baron half is open.** Saying
-otherwise would be the four-things-match-four-things error of correction C3. What *can* be said
+**So the bishop half of the prediction is confirmed and the baron half is contradicted.** What
+*can* be said
 is that **peasant armies are not a lord trait**: every AI raises peasants and arms whatever it
 can, and the only per-lord number in the muster is *how many*, where the Bishop takes the
 largest share and the Knight and Baron the smallest.
@@ -735,9 +738,18 @@ the file), **[D]** on each field's meaning, from its single reader.
 | `+0xC8` | 700 | 650 | 600 | 600 | county population needed to start a castle |
 | `+0xCC`…`+0xDC` | §8.1 | | | | the five castle gold thresholds |
 
-Fields at `+0x2C`, `+0x6C`, `+0x70`, `+0x74`, `+0x78`, `+0x7C`, `+0x84`, `+0x88`, `+0x8C`,
-`+0x9C` and `+0xA0` hold plausible per-lord values and **were not traced**. The record is 240
-bytes and about a third of it is accounted for.
+Fields at `+0x2C`, `+0x6C`, `+0x70`, `+0x74`, `+0x9C` and `+0xA0` hold plausible per-lord
+values and **were not traced**. Five more are traced now, all by `Ai_TradeForCounty`
+(`0x0049E39B`), which the three AI-realm farming styles run before they farm: `+0x84`, `+0x88`
+and `+0x8C` are the **wood, stone and iron the lord keeps back** — everything above them is
+sold to the county merchant — and `+0x78`/`+0x7C` are the treasury floor and the quantity for
+buying weapons of the county's current type. All three reserves hold the same number within a
+lord (250 / 300 / 500 / 1000), which is consistent with a single "keep this much of everything"
+figure written into three slots. **[D]**, from a single reader each. Note the *wants* that
+switch each of the three between selling and buying are **realm** fields at `+0x70 … +0x7C`,
+not personality ones sharing the offsets — the two records are easy to confuse here and
+`FUN_0049E1BF` (AI step 4) is what fills the realm's. The record is 240 bytes and a little over
+half of it is accounted for.
 
 ---
 
@@ -745,8 +757,8 @@ bytes and about a third of it is accounted for.
 
 Stated plainly, because a wrong map is worse than a small one.
 
-* **The baron / peasant-army claim.** §8.3. The rota is read; what its six fields index is not.
-* **The eleven untraced personality fields.** §8.4.
+* ~~**The baron / peasant-army claim.**~~ **Settled against it** — §8.3. The rota fields are `g_weaponCost` indices, pinned by `FUN_0049ED13`, and the Baron makes no crossbows at all.
+* **The six untraced personality fields.** §8.4. Five more were closed by `Ai_TradeForCounty`.
 * **`g_realmsActive` (`0x00554004`) has two writers with two meanings**, and the diplomacy code
   reads whichever wrote last. §3.4.
 * **`pair +0x06` and `+0x07`** are neither initialised nor read anywhere. Probably padding, not

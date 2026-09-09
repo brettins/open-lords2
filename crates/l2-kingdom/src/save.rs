@@ -135,7 +135,30 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   layout has to touch it and none of them can see the others. A check like
 ///   `tools/decisions/corrections.js` — which catches exactly this for
 ///   correction numbers — is the fix, and it does not exist for this constant.
-pub const VERSION: u32 = 8;
+/// * 9 — **the AI's farming style and its weapon rota**: county `farm_style`
+///   (`+0x1FE`) and realm `weapon_rota` (`+0x6C`). Neither is derivable from the
+///   rest of the file. An *unowned* county's style is whichever lord held it
+///   last and `AI_ManageFields(0)` only reads it, so a save without it cannot
+///   say how a county that has changed hands should be farmed; and AI step 12
+///   advances the rota cursor once per county, so a game reloaded without it
+///   restarts every AI's weapon programme from the top. See
+///   [`crate::ai_farm`].
+///
+///   **Three times in one day, and this one is the third.** This arrived as its
+///   own version 5, was moved to 7 on one merge and to 9 on the next, both
+///   times by reading this changelog. The check the two entries above ask for
+///   now exists: `the_version_is_ahead_of_its_own_changelog` in
+///   `tests/save.rs` reads this file, scans the comment for its `* N —`
+///   entries, and fails unless [`VERSION`] is greater than every one of them
+///   and the numbering has no gap and no repeat.
+///
+///   It cannot stop two branches picking the same number, because neither can
+///   see the other. What it *can* do is fail the instant they are merged —
+///   which is where all three of these were caught by hand, twice by an
+///   integrator reading a doc comment. A merge that takes one branch's `VERSION`
+///   and both branches' changelog entries now goes red rather than shipping a
+///   number that means two different layouts.
+pub const VERSION: u32 = 9;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -759,6 +782,7 @@ impl Encode for County {
             industry.encode(out);
         }
         out.u32(self.weapon_type as u32);
+        out.u8(self.farm_style);
         out.bool(self.tax_suppressed);
     }
 }
@@ -885,6 +909,7 @@ impl Decode for County {
             c.industry[slot] = Industry::decode(input)?;
         }
         c.weapon_type = input.u32()? as usize;
+        c.farm_style = input.u8()?;
         c.tax_suppressed = input.bool()?;
         Ok(c)
     }
@@ -941,6 +966,7 @@ impl Encode for Realm {
             out.i32(*weapon);
         }
         out.u8(self.bankrupt_stage);
+        out.i32(self.weapon_rota);
         out.i32(self.population_total);
         out.i32(self.population_last);
         out.i32(self.population_mean);
@@ -977,6 +1003,7 @@ impl Decode for Realm {
             r.weapons[slot] = input.i32()?;
         }
         r.bankrupt_stage = input.u8()?;
+        r.weapon_rota = input.i32()?;
         r.population_total = input.i32()?;
         r.population_last = input.i32()?;
         r.population_mean = input.i32()?;

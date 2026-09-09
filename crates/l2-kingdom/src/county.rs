@@ -523,6 +523,22 @@ pub struct County {
     /// `docs/kingdom.md` §7.4 says weapons are credited to
     /// `realm +0x140 + type*4` without saying what picks `type`.
     pub weapon_type: usize,
+    /// `+0x1FE` — **the farming style the county is farmed by**, and the one
+    /// piece of AI personality that lives on the county rather than on the
+    /// realm.
+    ///
+    /// `Ai_ManageCountyFarms` (`0x0049DD01`) writes the owning lord's
+    /// `farmStyle` here every pass and dispatches on it. The unowned counties'
+    /// pass, `AI_ManageFields(0)` (`0x0049DFC6`), only *reads* it — so a county
+    /// that has fallen out of a realm keeps farming the way its last lord
+    /// farmed, and one whose last lord was a style-9 mixer is farmed by nobody
+    /// at all, because the neutral pass dispatches only 0 and 1.
+    ///
+    /// **`[V]`** — `docs/symbols.md` records that `+0x1FE` holds only 0, 1 and
+    /// 9 across the England turn-one fixture, which is exactly the set of
+    /// values `AI_PERSONALITY_FARM_STYLE` can produce.
+    /// [`crate::ai_farm`] is the whole rule.
+    pub farm_style: u8,
     /// `+0x1A8` — an **untraced gate**: when non-zero, `Tax_CollectAll` takes
     /// nothing at all (`docs/kingdom.md` §4.1).
     pub tax_suppressed: bool,
@@ -644,6 +660,7 @@ impl County {
                 Industry::new(Commodity::Stone),
             ],
             weapon_type: 0,
+            farm_style: 0,
             tax_suppressed: false,
         }
     }

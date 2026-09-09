@@ -807,14 +807,22 @@ rate = 8
 below = 2147483647
 rate = 10
 
-# One personality record per AI lord, in lord order. Two of the six
-# ints in each record are identified and those two are here.
+# One personality record per AI lord, in lord order.
 #
-# farm_style LOADS AND DOES NOTHING. AI_ManageFields copies it into
-# county +0x1FE and dispatches into one of three labour allocators
-# that were never traced, so this engine has no behaviour to attach
-# to it. It is here because it is half of the record, not because
-# changing it will change a game. tax_ladder does take effect.
+# farm_style NOW TAKES EFFECT. It used to load and do nothing: the
+# note here said AI_ManageFields dispatched into "one of three labour
+# allocators that were never traced". There are FIVE allocators, two
+# outer passes and two different functions with those two names -
+# Ai_ManageCountyFarms at 0x0049DD01 for an AI realm and
+# AI_ManageFields at 0x0049DFC6 for the unowned counties. All five are
+# implemented; see l2_kingdom::ai_farm. 0 is an arable lord, 1 a
+# grazier, 9 a mixer; anything else farms nothing.
+#
+# weapon_rota is the lord's weapon programme, six weapon types stepped
+# through by AI turn step 12. Values index the weapon table: 0
+# crossbow, 1 mace, 2 sword, 3 pike, 4 bow, 5 armour. The ten-step
+# cursor visits slots 0,1,2,3,0,1,2,3,4,5, so the first four are made
+# twice as often as the last two.
 #
 # There are four records and not five: docs/kingdom.md sec 2 says the
 # lord byte runs 1..5, but a fifth record's bytes read a farm style of
@@ -834,6 +842,7 @@ muster_pct = 30
 castle_concurrent = 4
 castle_min_population = 700
 castle_gold = [200, 0, 1000, 0, 10000]
+weapon_rota = [0, 1, 4, 2, 5, 2]
 
 [[kingdom.ai.personality]]
 lord = 2
@@ -848,6 +857,7 @@ muster_pct = 30
 castle_concurrent = 3
 castle_min_population = 650
 castle_gold = [0, 500, 0, 4000, 0]
+weapon_rota = [3, 5, 4, 4, 4, 5]
 
 [[kingdom.ai.personality]]
 lord = 3
@@ -862,6 +872,7 @@ muster_pct = 40
 castle_concurrent = 2
 castle_min_population = 600
 castle_gold = [0, 300, 0, 2000, 0]
+weapon_rota = [0, 1, 1, 2, 4, 0]
 
 [[kingdom.ai.personality]]
 lord = 4
@@ -876,6 +887,7 @@ muster_pct = 50
 castle_concurrent = 1
 castle_min_population = 600
 castle_gold = [0, 0, 100, 0, 2000]
+weapon_rota = [4, 4, 3, 4, 4, 3]
 
 # --- score -----------------------------------------------------------
 # The gold brackets are the one term of the score whose meaning is

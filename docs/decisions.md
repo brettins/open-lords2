@@ -1149,6 +1149,56 @@ and the marking was honest; what was missing was that a **[D]** row disagreeing 
 not a difference of emphasis. C13's shape once more: the summary and the branch disagreed
 and the summary was load-bearing.
 
+**C36 — `AI_ManageFields` and `Ai_ManageCountyFarms` are two functions, and treating them as
+one hid two of the five farming styles and left the AI's field expansion doing nothing at
+all.**
+
+C28's shape again, and this time the collapsed name reached the code rather than a document.
+`crates/l2-kingdom/src/ai.rs` gave AI turn step 5 as *"`AI_ManageFields` (`0x0049DD01`)"*,
+dispatching into *"one of three labour allocators"* that *"were not traced"*. Every clause is
+wrong in a different way:
+
+| the claim | what the corpus says |
+|---|---|
+| step 5 is `AI_ManageFields` | step 5 is **`Ai_ManageCountyFarms`** (`0x0049DD01`). `AI_ManageFields` is `0x0049DFC6` |
+| `AI_ManageFields` is the AI's pass | its **only** caller is `AI_ManageFields(0)` in turn phase 1 — the **unowned** counties |
+| three allocators | **five**: `0x004A4052` / `0x004A42E3` / `0x004A440F` for an AI realm, `0x004A3C67` / `0x004A3ED3` for the neutral counties |
+| they were not traced | all five decompile cleanly and are 300–660 bytes each |
+
+The cost was not only the missing behaviour. A briefing built on the collapsed reading told a
+previous agent that **`FUN_004A3C67` is "the AI's farming style"**; it is the one allocator
+**no AI realm can reach**, and the wrong version had already been propagated once before it
+was checked. The check that settles it is two lines of `grep`: `AI_ManageFields` has exactly
+one call site and its argument is the literal `0`.
+
+**And the field ladder had never added a field.** `AI_FIELD_LADDER` reads as *"give the
+county another field"* and this crate implemented it by adding one to `County::fields_fallow`.
+Since the field counts became **tile-derived** (`crate::field`, save version 4) that counter
+is recomputed from the map on the next pass, so **every field the AI ever ordered evaporated
+before it could be farmed**. The original paints terrain `0x19` onto a *wasteland tile*
+(`Field_OrderReclamation`, `0x0044C6C4`) — and a tile already reclaiming spends a place in the
+quota without anything happening, so a county told to add one while one is under way adds
+nothing at all. Two rules, both wrong, both invisible because nothing downstream read the
+result: `docs/audit.md`'s C26 exactly.
+
+Three smaller findings came out of the same read and are worth having on the record because
+each of them is a rung of a ladder that can never fire:
+
+* the Winter grain quota's `fertility < -50` branch sits **after** `fertility < -20`, so a
+  ruined county gets the same one-field discount as a tired one;
+* the AI's ration ladder tests dairy above store, and because its store term counts the herd
+  **twice**, its Triple dairy rung can never change an answer and its Double rung can only
+  ever *lower* the level — a cattle county is fed Double where a grain county with the same
+  food is fed Triple;
+* turning *Advanced Farming* **off** makes the AI plant far **more** grain, because the
+  option's `else` limb replaces the whole fertility ladder with `total - 1` / `total - 3` /
+  `total / 2`.
+
+`0x004A13A6` was corrected in the same pass and is a straight mis-naming rather than a
+collapse: `docs/kingdom.md` §3.2 had step 13 as *"offer or break an alliance"*. It is
+**`AI_Taunt`** — a two-stage gloat at the human, on a timer, with no effect on any alliance.
+Alliances are step 2.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

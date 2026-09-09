@@ -9,33 +9,37 @@
 //! **none was decompiled**. All fourteen are decompiled now, and [`AiStep`]
 //! names them with their addresses.
 //!
-//! Naming them is most of the value; **implementing them is mostly not this
-//! crate's to do**. Nine of the fourteen drive armies, merchants, diplomacy and
-//! map tiles, none of which `l2-kingdom` owns — reproducing them here would
-//! mean inventing a unit model to hang them on. So they are declared, described
-//! and left as explicit no-ops, and the five that are county- or realm-local
-//! are implemented:
-//!
 //! | step | address | what it does | here? |
 //! |---:|---|---|---|
 //! | *0* | `0x0049B42B` | recount realm strength, check elimination, rank realms | [`begin_realm_turn`] |
-//! | 1 | `0x004A277D` | answer the five pending diplomatic messages | no — diplomacy |
-//! | 2 | `0x004A0C1D` | accumulate grudges; declare war when one passes the lord's threshold | no — diplomacy |
+//! | 1 | `0x004A277D` | `Diplo_AnswerInbox` — answer the five pending diplomatic messages | no — **blocked**: there is no inbox and no reply handlers |
+//! | 2 | `0x004A0C1D` | `AI_Diplomacy` — accumulate grudges; break or offer an alliance | no — **blocked**: needs `form_alliance` / `break_alliance` / `offend` |
 //! | 3 | `0x0049D638` | **`AI_SetTaxRates`** — set tax rates, grant resources | [`set_tax_rates`], [`grant_resources`] |
-//! | 4 | `0x0049E1BF` | work out what the realm wants to buy | no — trade |
-//! | 5 | `0x0049DD01` | **`AI_ManageFields`** — add fields as the county grows | [`manage_fields`] |
-//! | 6 | `0x0049EDC7` | order the biggest castle the treasury clears | no — needs the per-lord gold ladder |
-//! | 7 | `0x0049F93D` | three army-management passes | no — armies |
+//! | 4 | `0x0049E1BF` | work out what the realm wants to buy | no — the four `want` fields have no consumer until the merchant lands |
+//! | 5 | `0x0049DD01` | **`Ai_ManageCountyFarms`** — order fields, then the lord's farming style | [`crate::ai_farm::manage_county_farms`] |
+//! | 6 | `0x0049EDC7` | **`AI_BuildCastles`** — order the biggest castle the treasury clears | [`build_castles`] |
+//! | 7 | `0x0049F93D` | three army-management passes | partly — pass 3 is **blocked** on transports and merchant trade |
 //! | 8 | `0x0049F96C` | **nothing: the function is empty** | [`AiStep::is_empty`] |
-//! | 9 | `0x0049F977` | raise and move the main army | no — armies |
-//! | 10 | `0x004A0015` | send out a merchant or transport | no — units |
-//! | 11 | `0x004A5667` | walk every army towards its target | no — armies |
-//! | 12 | `0x0049E77D` | choose the county's weapon and switch industries on | no — needs the per-lord weapon rota |
-//! | 13 | `0x004A13A6` | offer or break an alliance | no — diplomacy |
+//! | 9 | `0x0049F977` | raise and move the main army | no — needs eight new fields and `Diplo_ActionAllowed` |
+//! | 10 | `0x004A0015` | send out the raiding force | no — needs the unit *mission* byte |
+//! | 11 | `0x004A5667` | walk every army towards its target | no — **blocked** on the six unit-mission handlers behind `FUN_004A57AC` |
+//! | 12 | `0x0049E77D` | **`AI_ChooseIndustry`** — the weapon rota, and the industry switches | [`choose_industry`] |
+//! | 13 | `0x004A13A6` | **`AI_Taunt`** — gloat at the human when winning | [`taunt`] |
 //! | 14 | `0x0049D1E0` | **recompute the realm's totals** | [`update_realm_totals`] |
 //!
 //! Step 8 being empty is worth stating as a finding rather than an omission:
 //! one of the fourteen slots does nothing in the shipped binary.
+//!
+//! # The two names that were one name
+//!
+//! This table used to give step 5 as *"`AI_ManageFields` (`0x0049DD01`)"*.
+//! **Those are two different functions and the mistake hid two whole
+//! allocators.** `Ai_ManageCountyFarms` (`0x0049DD01`) is step 5 and dispatches
+//! styles 0, 1 and 9 into three allocators; `AI_ManageFields` (`0x0049DFC6`) has
+//! exactly one caller, `AI_ManageFields(0)` in turn phase 1, and dispatches
+//! styles 0 and 1 into **two others**. There are five allocators in all, and the
+//! one previously described as *"the AI's farming style"* is the one no AI realm
+//! can reach. [`crate::ai_farm`] carries the correction and all five.
 //!
 //! # The turn's shape, corrected
 //!
@@ -79,7 +83,8 @@
 use crate::county::County;
 use crate::realm::{Realm, AI_STEP_DONE};
 use crate::tables::{
-    ai_grant_tier, tax_rate_for, Tables, AI_FIELD_LADDER, AI_GOLD_GRANT_SMALL_COUNTIES,
+    ai_grant_tier, tax_rate_for, Tables, AI_CASTLE_LADDER_LEN, AI_GOLD_GRANT_SMALL_COUNTIES,
+    AI_WEAPON_ROTA_ORDER,
 };
 
 /// The number of handlers `AI_RunTurnStep` dispatches into: `aiStep` 1..=14.
@@ -105,11 +110,13 @@ pub enum AiStep {
     /// `0x0049E1BF` — total up what the realm's counties can sell and what it
     /// needs to buy, into realm `+0x70 … +0x7C`.
     ResourceWants = 4,
-    /// `0x0049DD01` — `AI_ManageFields`: [`manage_fields`], then the lord's
-    /// farming style.
+    /// `0x0049DD01` — `Ai_ManageCountyFarms`: order fields, then run the lord's
+    /// farming style. **Not `AI_ManageFields`, which is `0x0049DFC6` and a
+    /// different pass** — see the module documentation and
+    /// [`crate::ai_farm::manage_county_farms`].
     ManageFields = 5,
-    /// `0x0049EDC7` — order the largest castle the realm's gold clears, from
-    /// five per-lord thresholds.
+    /// `0x0049EDC7` — `AI_BuildCastles`: order the largest castle the realm's
+    /// gold clears, from five per-lord thresholds. [`build_castles`].
     BuildCastles = 6,
     /// `0x0049F93D` — three sub-passes over the realm's armies.
     ManageArmies = 7,
@@ -123,9 +130,12 @@ pub enum AiStep {
     MoveArmies = 11,
     /// `0x0049E77D` — set every county's weapon type from a ten-step per-lord
     /// rota, switch the four industries on or off, and reallocate labour.
+    /// [`choose_industry`].
     ChooseIndustry = 12,
-    /// `0x004A13A6` — offer an alliance, or break one.
-    Alliance = 13,
+    /// `0x004A13A6` — `AI_Taunt`: gloat at the human when winning.
+    /// **`docs/kingdom.md` §3.2's "offer or break an alliance" is wrong** —
+    /// alliances are step 2's business. [`taunt`].
+    Taunt = 13,
     /// `0x0049D1E0` — [`update_realm_totals`]. Also called by step 0.
     UpdateTotals = 14,
 }
@@ -144,7 +154,7 @@ impl AiStep {
         AiStep::SendUnit,
         AiStep::MoveArmies,
         AiStep::ChooseIndustry,
-        AiStep::Alliance,
+        AiStep::Taunt,
         AiStep::UpdateTotals,
     ];
 
@@ -172,7 +182,7 @@ impl AiStep {
             AiStep::SendUnit => 0x004A0015,
             AiStep::MoveArmies => 0x004A5667,
             AiStep::ChooseIndustry => 0x0049E77D,
-            AiStep::Alliance => 0x004A13A6,
+            AiStep::Taunt => 0x004A13A6,
             AiStep::UpdateTotals => 0x0049D1E0,
         }
     }
@@ -189,7 +199,13 @@ impl AiStep {
     pub fn is_implemented(self) -> bool {
         matches!(
             self,
-            AiStep::SetTaxRates | AiStep::ManageFields | AiStep::UpdateTotals | AiStep::Nothing
+            AiStep::SetTaxRates
+                | AiStep::ManageFields
+                | AiStep::BuildCastles
+                | AiStep::ChooseIndustry
+                | AiStep::Taunt
+                | AiStep::UpdateTotals
+                | AiStep::Nothing
         )
     }
 }
@@ -343,53 +359,6 @@ pub fn set_tax_rates(
     }
 }
 
-/// Step 5 — `AI_ManageFields` (`FUN_0049DD01`), the part of it that is
-/// county-local.
-///
-/// ```c
-/// total = fieldsFallow + fieldsGrain + fieldsCattle;
-/// if      (total == 0)                     addFields(county, 1);
-/// else if (total < 3 && population > 200)  addFields(county, 1);
-/// else if (total < 5 && population > 400)  addFields(county, 1);
-/// else if (total < 7 && population > 600)  addFields(county, 1);
-/// else if (total < 9 && population > 1000) addFields(county, 1);
-/// else if (population > 1200)              addFields(county, 2);
-/// ```
-///
-/// An `if`/`else if` chain, so the **first** row whose *both* conditions hold
-/// wins and the rest are skipped — which is why a two-field county of 150
-/// people falls through every row and gains nothing.
-///
-/// The lord's farming style (`+0x1FE`) is set from the personality record
-/// straight afterwards and dispatches into one of three labour allocators; that
-/// part is **not** implemented, because the allocators were not traced. See
-/// [`crate::tables::AI_PERSONALITY_FARM_STYLE`].
-///
-/// A new field is added as **fallow**, which is `[I]`: the original calls
-/// `FUN_0044C6C4(county, n)` and what state the new field lands in was not
-/// traced. Fallow is the reading that does not make the AI's fertility worse
-/// for expanding.
-pub fn manage_fields(counties: &mut [County], county_count: usize, realm: u8) -> i32 {
-    let mut added = 0;
-    for id in 1..=county_count {
-        let county = &mut counties[id];
-        if county.owner != realm {
-            continue;
-        }
-        let total = county.field_total();
-        for &(fields_below, population_above, n) in AI_FIELD_LADDER.iter() {
-            if total < fields_below && county.population > population_above {
-                let room = crate::county::MAX_FIELDS as i32 - total;
-                let n = n.min(room).max(0);
-                county.fields_fallow += n;
-                added += n;
-                break;
-            }
-        }
-    }
-    added
-}
-
 /// Step 14 — `FUN_0049D1E0`, which recomputes the realm-wide totals every other
 /// pass reads.
 ///
@@ -518,6 +487,285 @@ pub fn grant_resources(
     }
 }
 
+/// Step 6 — `AI_BuildCastles` (`0x0049EDC7`).
+///
+/// For every county the realm holds that has **no castle**, is at or above the
+/// lord's population floor, and while the realm has fewer builds running than
+/// the lord's concurrency limit, order the **largest** castle type whose gold
+/// threshold the treasury clears.
+///
+/// The ladder is walked from type 5 down, and a **zero threshold means the type
+/// is not offered to that lord at all** rather than meaning free. Read against
+/// [`crate::tables::AI_PERSONALITY_CASTLE_GOLD`], the four lords are sharply
+/// different: two of them have a non-zero entry in the top slot and two do not,
+/// so **two of the four can never build the largest castle however rich they
+/// get**.
+///
+/// The concurrency count is realm `+0x4D`, which `Castle_BuildTick`
+/// (`0x004508DE`) rebuilds every season as *the number of the realm's counties
+/// with a build in progress*. It is derived here rather than stored, for the
+/// same reason the original derives it: a stored copy would be a second source
+/// of truth for something one loop already answers. `[V]` on what `+0x4D`
+/// counts — `Castle_BuildTick` zeroes both `+0x4C` and `+0x4D` and increments
+/// `+0x4C` for a finished castle and `+0x4D` for one under construction.
+///
+/// The limit is tested **inside** the county loop and the count is not
+/// refreshed as builds are ordered, so a lord with a limit of 4 and five
+/// castle-less counties can start five builds in one pass if he began the pass
+/// with none. Reproduced.
+///
+/// Returns the counties a build was started in.
+pub fn build_castles(
+    t: &Tables,
+    counties: &mut [County],
+    county_count: usize,
+    realms: &mut [Realm],
+    realm_id: u8,
+) -> Vec<u8> {
+    let mut started = Vec::new();
+    let Some(realm) = realms.get(realm_id as usize) else { return started };
+    let Some(p) = t.ai_personality(realm.lord) else { return started };
+    let (min_population, concurrent) = (p.castle_min_population, p.castle_concurrent);
+    let gold_ladder = p.castle_gold;
+    let in_progress = counties[1..=county_count.min(counties.len() - 1)]
+        .iter()
+        .filter(|c| c.owner == realm_id && c.castle_building != 0)
+        .count() as i32;
+    if in_progress >= concurrent {
+        return started;
+    }
+    for id in 1..=county_count.min(counties.len() - 1) {
+        if counties[id].owner != realm_id
+            || counties[id].population < min_population
+            || counties[id].castle_type != 0
+        {
+            continue;
+        }
+        let gold = realms[realm_id as usize].gold;
+        let Some(castle_type) = largest_castle_affordable(&gold_ladder, gold) else { continue };
+        let (county, realm) = (&mut counties[id], &mut realms[realm_id as usize]);
+        if crate::industry::order_castle(t, county, realm, castle_type) {
+            started.push(id as u8);
+        }
+    }
+    started
+}
+
+/// The castle type an AI lord orders at `gold`, or `None`.
+///
+/// Walked from the top down; a zero threshold takes the type out of the ladder
+/// entirely, so the search continues past it rather than treating it as free.
+pub fn largest_castle_affordable(ladder: &[i32; AI_CASTLE_LADDER_LEN], gold: i32) -> Option<u8> {
+    for slot in (0..AI_CASTLE_LADDER_LEN).rev() {
+        if ladder[slot] != 0 && gold >= ladder[slot] {
+            return Some(slot as u8 + 1);
+        }
+    }
+    None
+}
+
+/// Step 12 — `FUN_0049E77D`, which this crate names `AI_ChooseIndustry`.
+///
+/// Three loops over the realm's counties, and the first is **the weapon rota**:
+/// each county takes the weapon type at the realm's cursor and the cursor
+/// advances. Because the cursor is a *realm* field advanced inside a loop over
+/// counties, a realm of four counties makes four different weapons at once and
+/// the pattern rotates from wherever it stopped last turn — which is why
+/// [`Realm::weapon_rota`] has to be saved.
+///
+/// The second loop is **the industry switchboard**, and it is the interesting
+/// one:
+///
+/// ```c
+/// enabled = 0;
+/// if (hasResource && disabledSeasons == 0 &&
+///     (!castleBuilding
+///      || (slot != iron && slot != weapons
+///          && (slot != wood  || woodStillNeeded  > 0)
+///          && (slot != stone || stoneStillNeeded > 0))))
+///     enabled = 1;
+/// ```
+///
+/// With the four slots in [`crate::tables::Commodity`] order that reads:
+/// **while a castle is going up, the AI switches iron and the blacksmith off
+/// outright**, and keeps forestry and quarrying on only while the build still
+/// wants wood or stone. An AI at war stops making weapons the moment it starts
+/// a castle, which is a real strategic quirk and not an obvious one.
+///
+/// `docs/kingdom.md` calls county `+0x1B0` untraced; this loop sets it to **1
+/// on every county the realm holds, unconditionally**, and
+/// `AI_ManageFields(0)` sets it to 0 on the unowned ones. That is
+/// [`County::castle_switch`], and the pair of writes says what it is: *this
+/// county's castle-building job slot is live*.
+///
+/// **One departure, stated.** The original reads county `+0x1D4`/`+0x1D0`, the
+/// wood and stone a build still needs. This crate debits a castle's whole cost
+/// up front ([`crate::industry::order_castle`]), so it has no such counter and
+/// a literal transcription would read both as zero and switch forestry and
+/// quarrying off as well. The condition is therefore evaluated as *"a build in
+/// progress still needs its wood and stone"*, which is true for all five castle
+/// types in [`crate::tables::CASTLE_COST`] and is what the original computes on
+/// the first season of any build. `[I]`, and it is the up-front debit that
+/// makes it so rather than anything read out of the binary.
+///
+/// The third loop is the labour re-allocation, which the caller does — this
+/// crate's [`crate::labour::allocate`] is county-local and the caller already
+/// walks the counties.
+pub fn choose_industry(
+    t: &Tables,
+    counties: &mut [County],
+    county_count: usize,
+    realm: &mut Realm,
+    realm_id: u8,
+) {
+    let Some(p) = t.ai_personality(realm.lord) else { return };
+    let rota = p.weapon_rota;
+    for id in 1..=county_count.min(counties.len() - 1) {
+        if counties[id].owner != realm_id {
+            continue;
+        }
+        let cursor = realm.weapon_rota.clamp(0, AI_WEAPON_ROTA_ORDER.len() as i32 - 1) as usize;
+        counties[id].weapon_type = rota[AI_WEAPON_ROTA_ORDER[cursor]];
+        realm.weapon_rota += 1;
+        if realm.weapon_rota > 9 {
+            realm.weapon_rota = 0;
+        }
+        // `FUN_0049ED13`: the blacksmith's "has resource" is not geology, it is
+        // **affordability** — can the realm pay this county's chosen weapon out
+        // of its wood and iron?
+        let row = t.weapon[counties[id].weapon_type.min(t.weapon.len() - 1)];
+        counties[id].industry[crate::tables::Commodity::Weapons as usize].has_resource =
+            row.wood <= realm.wood && row.iron <= realm.iron;
+    }
+    for id in 1..=county_count.min(counties.len() - 1) {
+        if counties[id].owner != realm_id {
+            continue;
+        }
+        let building = counties[id].castle_building != 0;
+        for slot in 0..counties[id].industry.len() {
+            let record = &counties[id].industry[slot];
+            let free = record.has_resource && record.disabled_seasons == 0;
+            counties[id].industry[slot].enabled = free && (!building || castle_allows(slot));
+        }
+        counties[id].castle_switch = true;
+    }
+}
+
+/// The industry slots a county with a castle going up may still run.
+///
+/// Iron (`1`) and weapons (`2`) are switched off outright; wood (`0`) and stone
+/// (`3`) survive because the build still wants them. See [`choose_industry`]
+/// for why the two "still wants" tests are constants here.
+fn castle_allows(slot: usize) -> bool {
+    use crate::tables::Commodity;
+    slot != Commodity::Iron as usize && slot != Commodity::Weapons as usize
+}
+
+/// Step 13 — `AI_Taunt` (`0x004A13A6`).
+///
+/// **`docs/kingdom.md` §3.2 has this step as *"offer or break an alliance"*. It
+/// is not.** Alliances are step 2's business; step 13 is a two-stage gloat, and
+/// the only thing it changes about the game state is a timer, a stage byte and
+/// the voice rotation.
+///
+/// * Only a realm ranked **first** taunts at all (`rank < 2`).
+/// * **Stage 0** — above 39% of the map, count to 8, then send *"How are you
+///   doing?"* (`L2.eng` group 193) to **every** live human realm, reset the
+///   timer and go to stage 1.
+/// * **Stage 1** — above 27% of the map, and only if the realm in **last
+///   place** is human and is not this realm's ally, count to 8, then send
+///   *"Helpful advice."* (group 192) to that realm and go back to stage 0.
+///
+/// The two thresholds are `>` on 0x27 and 0x1B, and the timer test is `7 <
+/// timer`, so it is the **ninth** consecutive qualifying turn that sends. The
+/// timer only advances on a turn the share threshold is met, so a realm that
+/// slips below 39% pauses rather than restarting.
+///
+/// `trailer` is the last-placed realm — `g_rankTrailer`, which the original
+/// keeps as a global and which is derived by the caller from
+/// [`rank_realms`]. `out` collects the letters; the caller decides what to do
+/// with them, because a realm-to-realm letter is not a season message.
+pub fn taunt(realm: &mut Realm, realm_id: u8, realms_snapshot: &[Realm], trailer: u8) -> Vec<Taunt> {
+    let mut sent = Vec::new();
+    if realm.rank >= 2 {
+        return sent;
+    }
+    if realm.taunt_stage == 0 {
+        if realm.share_of_map_pct <= 39 {
+            return sent;
+        }
+        realm.taunt_timer = realm.taunt_timer.saturating_add(1);
+        if realm.taunt_timer <= 7 {
+            return sent;
+        }
+        for (id, other) in realms_snapshot.iter().enumerate().take(6).skip(1) {
+            if id as u8 != realm_id && other.in_play && other.is_human {
+                sent.push(Taunt {
+                    from: realm_id,
+                    to: id as u8,
+                    group: TAUNT_HOW_ARE_YOU_DOING,
+                    variant: realm.message_variant(),
+                });
+                realm.advance_voice();
+            }
+        }
+        realm.taunt_timer = 0;
+        realm.taunt_stage = 1;
+        return sent;
+    }
+    let Some(target) = realms_snapshot.get(trailer as usize) else { return sent };
+    if realm.share_of_map_pct <= 27 || !target.is_human || realm.ally == trailer {
+        return sent;
+    }
+    realm.taunt_timer = realm.taunt_timer.saturating_add(1);
+    if realm.taunt_timer <= 7 {
+        return sent;
+    }
+    realm.taunt_timer = 0;
+    realm.taunt_stage = 0;
+    sent.push(Taunt {
+        from: realm_id,
+        to: trailer,
+        group: TAUNT_HELPFUL_ADVICE,
+        variant: realm.message_variant(),
+    });
+    realm.advance_voice();
+    sent
+}
+
+/// `L2.eng` group 193 — *"How are you doing?"*, the stage-0 taunt.
+pub const TAUNT_HOW_ARE_YOU_DOING: u16 = 0xC1;
+/// `L2.eng` group 192 — *"Helpful advice."*, the stage-1 taunt.
+pub const TAUNT_HELPFUL_ADVICE: u16 = 0xC0;
+
+/// One letter [`taunt`] sends. `variant` is `lord * 4 + rotation - 4`, which
+/// picks which of the lord's four recorded takes plays.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Taunt {
+    pub from: u8,
+    pub to: u8,
+    pub group: u16,
+    pub variant: u8,
+}
+
+/// `g_rankTrailer` — the in-play realm with the **worst** rank, or 0.
+///
+/// The original keeps it as a global that `Score_RankRealms` writes; deriving it
+/// from the ranks [`rank_realms`] just wrote is the same answer with one fewer
+/// thing to keep in step. Ties go to the lower index, which is the ordering
+/// [`rank_realms`] already guarantees is unique among in-play realms.
+pub fn rank_trailer(realms: &[Realm]) -> u8 {
+    let mut worst = 0u8;
+    let mut worst_rank = 0u8;
+    for (id, realm) in realms.iter().enumerate().take(6).skip(1) {
+        if realm.in_play && realm.rank > worst_rank {
+            worst_rank = realm.rank;
+            worst = id as u8;
+        }
+    }
+    worst
+}
+
 /// Whether a realm draws from the small gold table — fewer than three counties.
 pub fn uses_small_gold_table(county_count: u8) -> bool {
     county_count < AI_GOLD_GRANT_SMALL_COUNTIES
@@ -604,15 +852,39 @@ mod tests {
         assert_eq!(AiStep::Nothing.address(), 0x0049_F96C);
     }
 
-    /// Four of the fourteen are county- or realm-local and are implemented
-    /// here; the rest drive state this crate does not own.
+    /// **Seven of the fourteen run.** The other seven are the army, merchant and
+    /// diplomacy steps; the module table says which are blocked on a missing
+    /// subsystem and which only want fields.
     #[test]
     fn the_implemented_steps_are_the_ones_that_touch_only_counties_and_realms() {
         let done: Vec<AiStep> =
             AiStep::ALL.iter().copied().filter(|s| s.is_implemented()).collect();
         assert_eq!(
             done,
-            vec![AiStep::SetTaxRates, AiStep::ManageFields, AiStep::Nothing, AiStep::UpdateTotals]
+            vec![
+                AiStep::SetTaxRates,
+                AiStep::ManageFields,
+                AiStep::BuildCastles,
+                AiStep::Nothing,
+                AiStep::ChooseIndustry,
+                AiStep::Taunt,
+                AiStep::UpdateTotals,
+            ]
+        );
+        let blocked: Vec<AiStep> =
+            AiStep::ALL.iter().copied().filter(|s| !s.is_implemented()).collect();
+        assert_eq!(
+            blocked,
+            vec![
+                AiStep::Diplomacy,
+                AiStep::ConsiderWar,
+                AiStep::ResourceWants,
+                AiStep::ManageArmies,
+                AiStep::RaiseArmy,
+                AiStep::SendUnit,
+                AiStep::MoveArmies,
+            ],
+            "diplomacy, the merchant's wants, and the four army steps"
         );
     }
 
@@ -953,49 +1225,315 @@ mod tests {
         assert_eq!(realm.gold, 250, "except the gold, 250 for lord 4");
     }
 
-    // --- AI_ManageFields ---------------------------------------------------
+    // The field ladder moved to `crate::ai_farm` with the rest of step 5; it is
+    // no longer a bare counter bump but a reclamation order, and the tests moved
+    // with it.
 
-    /// The ladder is an `if`/`else if` chain, so a county that clears no row's
-    /// *pair* of conditions gains nothing even though it is small.
+    // --- step 6: the castles -----------------------------------------------
+
+    /// **A zero threshold takes a castle type out of a lord's ladder**, and two
+    /// of the four lords can never build the largest castle at any treasury.
     #[test]
-    fn the_field_ladder_adds_a_field_only_when_both_conditions_hold() {
-        let case = |fields: i32, population: i32| {
-            let mut counties = vec![County::new(); 2];
-            counties[1].owner = 1;
-            counties[1].fields_grain = fields;
-            counties[1].population = population;
-            manage_fields(&mut counties, 1, 1)
-        };
-        assert_eq!(case(0, 10), 1, "an empty county always gets its first field");
-        assert_eq!(case(2, 150), 0, "small, but not populous enough for any row");
-        assert_eq!(case(2, 201), 1);
-        assert_eq!(case(4, 401), 1);
-        assert_eq!(case(6, 601), 1);
-        assert_eq!(case(8, 1001), 1);
-        assert_eq!(case(8, 601), 0, "under 1000 the fields < 9 row does not fire");
-        assert_eq!(case(12, 1201), 2, "a big county adds two");
-        assert_eq!(case(12, 1200), 0, "and the test is strictly greater");
+    fn a_zero_gold_threshold_means_the_type_is_not_offered_rather_than_free() {
+        let ladder = &crate::tables::AI_PERSONALITY_CASTLE_GOLD[1]; // [0, 500, 0, 4000, 0]
+        assert_eq!(largest_castle_affordable(ladder, 0), None, "nothing at all with no gold");
+        assert_eq!(largest_castle_affordable(ladder, 499), None);
+        assert_eq!(largest_castle_affordable(ladder, 500), Some(2));
+        assert_eq!(largest_castle_affordable(ladder, 3_999), Some(2), "type 3 is not offered");
+        assert_eq!(largest_castle_affordable(ladder, 4_000), Some(4));
+        assert_eq!(
+            largest_castle_affordable(ladder, 1_000_000),
+            Some(4),
+            "and type 5 never, however rich"
+        );
+
+        let reaches_the_top = (0..crate::tables::AI_PERSONALITY_COUNT)
+            .filter(|&l| {
+                largest_castle_affordable(&crate::tables::AI_PERSONALITY_CASTLE_GOLD[l], 1_000_000)
+                    == Some(5)
+            })
+            .count();
+        assert_eq!(reaches_the_top, 2, "two of the four lords can reach a royal castle");
     }
 
-    /// A county at the twenty-field bound gains nothing, however big it is.
+    fn castle_realm(lord: u8, gold: i32) -> (Vec<County>, Vec<Realm>) {
+        let mut counties = vec![County::new(); 4];
+        let mut realms = vec![Realm::new(); MAX_REALMS];
+        realms[2].in_play = true;
+        realms[2].lord = lord;
+        realms[2].gold = gold;
+        realms[2].wood = 100_000;
+        realms[2].stone = 100_000;
+        for id in 1..=3 {
+            counties[id].owner = 2;
+            counties[id].population = 5_000;
+        }
+        (counties, realms)
+    }
+
+    /// The lord's population floor and his concurrency limit both gate the
+    /// order, and a county that already has a castle is skipped.
     #[test]
-    fn a_full_county_cannot_gain_another_field() {
+    fn a_lord_builds_only_where_the_county_is_big_enough_and_has_no_castle() {
+        let (mut counties, mut realms) = castle_realm(1, 100_000);
+        counties[2].castle_type = 3; // already has one
+        counties[3].population = 699; // below lord 1's floor of 700
+        let started = build_castles(T, &mut counties, 3, &mut realms, 2);
+        assert_eq!(started, vec![1]);
+        assert_eq!(counties[1].castle_building, 5, "lord 1 reaches the royal castle");
+    }
+
+    /// **The concurrency limit is read once, before the loop.** The Countess
+    /// allows one build at a time — and starts three in one pass if she began
+    /// it with none. Reproduced, not tidied.
+    #[test]
+    fn the_concurrency_limit_is_tested_before_the_pass_and_not_during_it() {
+        let (mut counties, mut realms) = castle_realm(4, 100_000);
+        assert_eq!(T.ai_personality(4).unwrap().castle_concurrent, 1);
+        let started = build_castles(T, &mut counties, 3, &mut realms, 2);
+        assert_eq!(started, vec![1, 2, 3], "one at a time, three at once");
+
+        // But next pass, with those three running, she starts nothing.
+        let started = build_castles(T, &mut counties, 3, &mut realms, 2);
+        assert!(started.is_empty());
+    }
+
+    #[test]
+    fn a_lord_with_no_personality_record_builds_nothing() {
+        let (mut counties, mut realms) = castle_realm(5, 100_000);
+        assert!(build_castles(T, &mut counties, 3, &mut realms, 2).is_empty());
+    }
+
+    // --- step 12: the weapon rota ------------------------------------------
+
+    /// **The rota is a realm counter walked inside a loop over counties**, so
+    /// one realm's counties make different weapons in the same step and the
+    /// pattern carries across turns.
+    #[test]
+    fn one_realms_counties_each_take_the_next_weapon_on_the_lords_rota() {
+        let mut counties = vec![County::new(); 5];
+        let mut realm = Realm::new();
+        realm.lord = 1; // rota [0, 1, 4, 2, 5, 2]
+        realm.wood = 100_000;
+        realm.iron = 100_000;
+        for id in 1..=4 {
+            counties[id].owner = 2;
+        }
+        choose_industry(T, &mut counties, 4, &mut realm, 2);
+        assert_eq!(
+            (1..=4).map(|i| counties[i].weapon_type).collect::<Vec<_>>(),
+            vec![0, 1, 4, 2],
+            "cursor 0..3 selects rota slots 0..3"
+        );
+        assert_eq!(realm.weapon_rota, 4);
+
+        // The next turn picks up where it left off, and slots 0..3 come round
+        // a second time before slots 4 and 5 are ever seen.
+        choose_industry(T, &mut counties, 4, &mut realm, 2);
+        assert_eq!(
+            (1..=4).map(|i| counties[i].weapon_type).collect::<Vec<_>>(),
+            vec![0, 1, 4, 2],
+            "cursor 4..7 selects rota slots 0..3 again"
+        );
+        choose_industry(T, &mut counties, 4, &mut realm, 2);
+        assert_eq!(
+            (1..=4).map(|i| counties[i].weapon_type).collect::<Vec<_>>(),
+            vec![5, 2, 0, 1],
+            "cursor 8, 9 reach the last two slots, then it wraps"
+        );
+        assert_eq!(realm.weapon_rota, 2);
+    }
+
+    /// The blacksmith's *has resource* is **affordability**, not geology.
+    #[test]
+    fn the_blacksmith_has_a_resource_only_when_the_realm_can_pay_for_the_weapon() {
         let mut counties = vec![County::new(); 2];
-        counties[1].owner = 1;
-        counties[1].fields_grain = crate::county::MAX_FIELDS as i32;
-        counties[1].population = 5_000;
-        assert_eq!(manage_fields(&mut counties, 1, 1), 0);
-        assert_eq!(counties[1].field_total(), crate::county::MAX_FIELDS as i32);
+        let mut realm = Realm::new();
+        realm.lord = 1;
+        counties[1].owner = 2;
+        let weapons = crate::tables::Commodity::Weapons as usize;
+
+        realm.wood = 0;
+        realm.iron = 0;
+        choose_industry(T, &mut counties, 1, &mut realm, 2);
+        assert!(!counties[1].industry[weapons].has_resource, "no stock, no smithing");
+
+        realm.wood = 100_000;
+        realm.iron = 100_000;
+        realm.weapon_rota = 0;
+        choose_industry(T, &mut counties, 1, &mut realm, 2);
+        assert!(counties[1].industry[weapons].has_resource);
     }
 
+    /// **A castle going up switches iron and the blacksmith off**, and leaves
+    /// forestry and quarrying running.
     #[test]
-    fn manage_fields_only_touches_the_realms_own_counties() {
-        let mut counties = vec![County::new(); 3];
-        counties[1].owner = 1;
-        counties[2].owner = 2;
-        assert_eq!(manage_fields(&mut counties, 2, 1), 1);
-        assert_eq!(counties[1].fields_fallow, 1);
-        assert_eq!(counties[2].fields_fallow, 0);
+    fn a_castle_under_construction_switches_the_mine_and_the_smithy_off() {
+        use crate::tables::Commodity;
+        let mut counties = vec![County::new(); 2];
+        let mut realm = Realm::new();
+        realm.lord = 1;
+        realm.wood = 100_000;
+        realm.iron = 100_000;
+        counties[1].owner = 2;
+        for slot in 0..4 {
+            counties[1].industry[slot].has_resource = true;
+        }
+
+        choose_industry(T, &mut counties, 1, &mut realm, 2);
+        assert!(counties[1].industry.iter().all(|i| i.enabled), "no castle: all four run");
+        assert!(counties[1].castle_switch, "and the castle job slot is switched on regardless");
+
+        counties[1].castle_building = 2;
+        for slot in 0..4 {
+            counties[1].industry[slot].has_resource = true;
+        }
+        realm.weapon_rota = 0;
+        choose_industry(T, &mut counties, 1, &mut realm, 2);
+        assert!(counties[1].industry[Commodity::Wood as usize].enabled, "the build wants wood");
+        assert!(counties[1].industry[Commodity::Stone as usize].enabled, "and stone");
+        assert!(!counties[1].industry[Commodity::Iron as usize].enabled, "iron is off");
+        assert!(!counties[1].industry[Commodity::Weapons as usize].enabled, "and so is the smithy");
+    }
+
+    /// A seasonally disabled industry stays off whatever else is true.
+    #[test]
+    fn a_seasonally_disabled_industry_is_not_switched_back_on() {
+        let mut counties = vec![County::new(); 2];
+        let mut realm = Realm::new();
+        realm.lord = 1;
+        counties[1].owner = 2;
+        counties[1].industry[0].has_resource = true;
+        counties[1].industry[0].disabled_seasons = 2;
+        choose_industry(T, &mut counties, 1, &mut realm, 2);
+        assert!(!counties[1].industry[0].enabled);
+    }
+
+    // --- step 13: the taunt -------------------------------------------------
+
+    fn taunting_realm(share: i32) -> (Realm, Vec<Realm>) {
+        let mut realms = vec![Realm::new(); MAX_REALMS];
+        for i in 1..=3 {
+            realms[i].in_play = true;
+            realms[i].rank = i as u8;
+        }
+        realms[3].is_human = true;
+        let mut me = realms[1].clone();
+        me.rank = 1;
+        me.lord = 2;
+        me.share_of_map_pct = share;
+        (me, realms)
+    }
+
+    /// **Only the leader taunts, and only on the ninth qualifying turn.**
+    #[test]
+    fn the_leader_taunts_every_human_after_eight_turns_above_two_fifths_of_the_map() {
+        let (mut me, realms) = taunting_realm(40);
+        for turn in 1..=7 {
+            assert!(taunt(&mut me, 1, &realms, 3).is_empty(), "turn {turn}");
+            assert_eq!(me.taunt_timer, turn as u8);
+        }
+        let sent = taunt(&mut me, 1, &realms, 3);
+        assert_eq!(sent.len(), 1, "one human realm, one letter");
+        assert_eq!(sent[0].group, TAUNT_HOW_ARE_YOU_DOING);
+        assert_eq!(sent[0].to, 3);
+        assert_eq!(me.taunt_stage, 1, "and it moves to the second stage");
+        assert_eq!(me.taunt_timer, 0);
+    }
+
+    /// The share threshold is `> 39`, and falling below it **pauses** the timer
+    /// rather than resetting it.
+    #[test]
+    fn slipping_below_the_share_threshold_pauses_the_count_rather_than_restarting_it() {
+        let (mut me, realms) = taunting_realm(40);
+        for _ in 0..5 {
+            taunt(&mut me, 1, &realms, 3);
+        }
+        assert_eq!(me.taunt_timer, 5);
+        me.share_of_map_pct = 39;
+        taunt(&mut me, 1, &realms, 3);
+        assert_eq!(me.taunt_timer, 5, "39 is not above 39");
+        me.share_of_map_pct = 40;
+        taunt(&mut me, 1, &realms, 3);
+        assert_eq!(me.taunt_timer, 6, "and it carries on from where it was");
+    }
+
+    /// A realm that is not first says nothing at all.
+    #[test]
+    fn only_the_realm_in_first_place_taunts() {
+        let (mut me, realms) = taunting_realm(90);
+        me.rank = 2;
+        for _ in 0..20 {
+            assert!(taunt(&mut me, 1, &realms, 3).is_empty());
+        }
+        assert_eq!(me.taunt_timer, 0, "the timer does not even run");
+    }
+
+    /// Stage 1 writes only to the **last-placed** realm, and only if that realm
+    /// is human and not this one's ally.
+    #[test]
+    fn the_second_taunt_goes_to_the_trailer_and_never_to_an_ally() {
+        let (mut me, realms) = taunting_realm(30);
+        me.taunt_stage = 1;
+        for _ in 0..8 {
+            taunt(&mut me, 1, &realms, 3);
+        }
+        assert_eq!(me.taunt_stage, 0, "it went, and the cycle restarts");
+
+        // An allied trailer is spared.
+        let (mut me, realms) = taunting_realm(30);
+        me.taunt_stage = 1;
+        me.ally = 3;
+        for _ in 0..20 {
+            assert!(taunt(&mut me, 1, &realms, 3).is_empty());
+        }
+
+        // So is an AI trailer.
+        let (mut me, mut realms) = taunting_realm(30);
+        realms[3].is_human = false;
+        me.taunt_stage = 1;
+        for _ in 0..20 {
+            assert!(taunt(&mut me, 1, &realms, 3).is_empty());
+        }
+    }
+
+    /// Every letter advances the voice rotation, which is half of the variant
+    /// index the message screen plays.
+    #[test]
+    fn every_taunt_advances_the_lords_voice_rotation() {
+        let mut realms = vec![Realm::new(); MAX_REALMS];
+        for i in 1..=4 {
+            realms[i].in_play = true;
+            realms[i].is_human = i >= 2;
+        }
+        let mut me = Realm::new();
+        me.in_play = true;
+        me.rank = 1;
+        me.lord = 3;
+        me.share_of_map_pct = 90;
+        me.taunt_timer = 7;
+        let sent = taunt(&mut me, 1, &realms, 4);
+        assert_eq!(sent.len(), 3, "three human realms, three letters");
+        assert_eq!(
+            sent.iter().map(|t| t.variant).collect::<Vec<_>>(),
+            vec![8, 9, 10],
+            "lord 3: 3*4 + rot - 4"
+        );
+        assert_eq!(me.voice_rotation, 3);
+    }
+
+    /// The trailer is the worst-ranked realm still in play.
+    #[test]
+    fn the_trailer_is_the_worst_ranked_realm_in_play() {
+        let mut realms = vec![Realm::new(); MAX_REALMS];
+        for i in 1..=4 {
+            realms[i].in_play = true;
+            realms[i].rank = i as u8;
+        }
+        assert_eq!(rank_trailer(&realms), 4);
+        realms[4].in_play = false;
+        assert_eq!(rank_trailer(&realms), 3);
+        assert_eq!(rank_trailer(&vec![Realm::new(); MAX_REALMS]), 0, "nobody in play");
     }
 
     // --- step 14: the realm totals -----------------------------------------

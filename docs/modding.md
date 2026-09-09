@@ -518,10 +518,21 @@ Three things worth knowing before you rebalance:
   taken, not by the number of men.** Fifty men out of a thousand is index 5.
   The shipped table is brutal past a third: index 50 — half the county — costs
   90 happiness, and everything from 61 up is a flat 101.
-- **`kingdom.ai.personality.*.farm_style` loads and does nothing.** The three
-  labour allocators `AI_ManageFields` dispatches on it into were never traced,
-  so this engine has no behaviour to attach to it. It is in the schema because
-  it is half of the record. `tax_ladder`, in the same row, does take effect.
+- **`kingdom.ai.personality.*.farm_style` now takes effect.** It used to load and
+  do nothing, on the strength of a claim that turned out to be wrong twice over —
+  see `docs/decisions.md` C36. There are **five** allocators behind it, not
+  three, split across two different functions with confusingly similar names,
+  and all five are implemented in `l2_kingdom::ai_farm`. **0** is an arable lord
+  (grain on half the county, half its people in industry), **1** a grazier (no
+  grain at all, ever; pasture on all but one field), **9** a mixer (a third
+  each). Anything else farms nothing at all, which is a real behaviour: a county
+  the neutral pass finds holding style 9 is dispatched nowhere.
+- **`kingdom.ai.personality.*.weapon_rota` is the lord's weapon programme.** Six
+  weapon types, stepped through by AI turn step 12 with a ten-place cursor that
+  visits slots `0,1,2,3,0,1,2,3,4,5` — so the **first four are made twice as
+  often** as the last two. The cursor is a *realm* counter advanced inside a loop
+  over that realm's counties, so a realm of four counties makes four different
+  weapons at once.
 
 `kingdom.castle.type.*.workforce` is one number in the ruleset and a pair in
 the binary — the table at `0x004D89E8` holds two ints per castle level and both
@@ -811,13 +822,15 @@ the 102 rows of `army_cost`, the eight rungs a tax ladder has room for, the
 four AI personality records — and a ruleset that changed one would be
 describing a different simulation rather than a different game.
 
-**One rule loads and does nothing**, which is a different claim and worth
-keeping separate: `kingdom.ai.personality.*.farm_style`. `AI_ManageFields`
-copies it into county `+0x1FE` and dispatches into one of three labour
-allocators that were never traced, so `l2-kingdom` has no behaviour to attach
-to it. There is deliberately no test naming it, because a test that asserted
-the value round-tripped would be claiming more than it checks —
-`docs/decisions.md` C12.
+**The one rule that used to load and do nothing now does something.**
+`kingdom.ai.personality.*.farm_style` was carried for a year on the claim that
+`AI_ManageFields` *"dispatches into one of three labour allocators that were
+never traced"*. Every clause of that was wrong — the function is
+`Ai_ManageCountyFarms`, there are five allocators across two passes, and they
+decompile cleanly (`docs/decisions.md` C36). It changes a game now, and
+`tests/simulation.rs` is where a rule earns that claim: **no rule in this
+document is described as taking effect unless the simulation reads a different
+answer with it changed** — `docs/decisions.md` C12.
 
 `Tables::DEFAULT` is assembled *from* the constants in
 `crates/l2-kingdom/src/tables.rs`, which remain the source of truth and keep

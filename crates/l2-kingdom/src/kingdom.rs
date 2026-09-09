@@ -1006,6 +1006,109 @@ impl Kingdom {
             self.options.difficulty,
         );
     }
+
+    /// What the AI's farming passes read besides the counties and the map.
+    fn farm_env(&self) -> crate::ai_farm::FarmEnv {
+        crate::ai_farm::FarmEnv {
+            season: self.season().unwrap_or(Season::Spring),
+            season_next: Season::from_index(self.season_next).unwrap_or(Season::Spring),
+            advanced_farming: self.options.advanced_farming,
+            armies_eat: self.options.armies_eat,
+        }
+    }
+
+    /// AI step 5 — `Ai_ManageCountyFarms`. Orders fields and runs the lord's
+    /// farming style over every county the realm holds.
+    ///
+    /// `market` is the merchant seam; pass [`crate::ai_farm::NoMarket`] until
+    /// there is a stall to trade with, and every style still lays out its
+    /// fields, sets its rations and splits its labour.
+    pub fn run_ai_farms(&mut self, realm: u8, market: &mut dyn crate::ai_farm::Market) -> i32 {
+        let Some(r) = self.realms.get(realm as usize) else { return 0 };
+        let lord = r.lord;
+        let env = self.farm_env();
+        crate::ai_farm::manage_county_farms(
+            &self.tables,
+            &mut self.counties,
+            self.county_count,
+            &mut self.campaign.map,
+            &self.realms,
+            realm,
+            lord,
+            market,
+            &env,
+        )
+    }
+
+    /// Turn phase 1, step 2 — `AI_ManageFields(0)`, the unowned counties.
+    pub fn run_neutral_farms(&mut self, market: &mut dyn crate::ai_farm::Market) -> i32 {
+        let env = self.farm_env();
+        crate::ai_farm::manage_neutral_fields(
+            &self.tables,
+            &mut self.counties,
+            self.county_count,
+            &mut self.campaign.map,
+            &self.realms,
+            market,
+            &env,
+        )
+    }
+
+    /// AI step 6 — `AI_BuildCastles`.
+    pub fn run_ai_castles(&mut self, realm: u8) -> Vec<u8> {
+        ai::build_castles(
+            &self.tables,
+            &mut self.counties,
+            self.county_count,
+            &mut self.realms,
+            realm,
+        )
+    }
+
+    /// AI step 12 — the weapon rota and the industry switchboard, then the
+    /// labour re-allocation and the estimate refresh the original's third loop
+    /// does.
+    pub fn run_ai_industry(&mut self, realm_id: u8) {
+        let Some(realm) = self.realms.get(realm_id as usize) else { return };
+        let mut realm = realm.clone();
+        ai::choose_industry(&self.tables, &mut self.counties, self.county_count, &mut realm, realm_id);
+        self.realms[realm_id as usize] = realm;
+        let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
+        for id in 1..=self.county_count {
+            if self.counties[id].owner != realm_id {
+                continue;
+            }
+            crate::labour::allocate(&mut self.counties[id]);
+            // The blacksmith's ceiling is a share of the realm's stockpile
+            // split across every *staffed* smithy it owns, and the allocation
+            // on the line above is what staffs them — so the share is
+            // recomputed per county, inside the loop, exactly as
+            // `crate::field::set_type` recomputes it inside its own.
+            let share = crate::industry::weapon_shares(
+                &self.tables,
+                &self.counties,
+                self.county_count,
+                realm_id,
+            );
+            crate::field::refresh_estimates(
+                &mut self.counties[id],
+                &self.campaign.map,
+                season_next,
+                &self.tables,
+                self.options.advanced_farming,
+                &self.realms[realm_id as usize],
+                share,
+            );
+        }
+    }
+
+    /// AI step 13 — `AI_Taunt`. Returns the letters the realm sent.
+    pub fn run_ai_taunt(&mut self, realm_id: u8) -> Vec<ai::Taunt> {
+        let trailer = ai::rank_trailer(&self.realms);
+        let snapshot = self.realms.clone();
+        let Some(realm) = self.realms.get_mut(realm_id as usize) else { return Vec::new() };
+        ai::taunt(realm, realm_id, &snapshot, trailer)
+    }
 }
 
 #[cfg(test)]
