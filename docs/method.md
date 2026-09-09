@@ -181,18 +181,14 @@ that now says what it does:
 | county `0x300` | 297 → **38** | 178 → **22** |
 | unit `0x1A4` | 173 → **37** | 117 → **24** |
 | realm `0x160` | 190 → **38** | 119 → **10** |
-| battle figure `0x1B0` | 146 → 146 | 90 → 90 |
-| battle unit `0x34` | 81 → 81 | 13 → 13 |
-| **total** | 692 → **303** | 399 → **148** |
+| battle figure `0x1B0` | 146 → **4** | 90 → **1** |
+| battle unit `0x34` | 81 → **0** | 13 → **0** |
+| **total** | 692 → **115** | 399 → **56** |
 
 The residue — 38 functions still doing county arithmetic by hand — is not a failure of the
 struct. Those are the places the decompiler cannot fold: whole-record copies, pointer walks
 that step by the stride, and code that takes the address of a record and passes it on. They
 are a short, concrete list rather than a third of the binary.
-
-**The two battle arrays are untouched and are now the largest remaining block** — 90 unnamed
-functions on the figure record alone, more than county, unit and realm put together. They
-are the obvious next application of `docs/records.json`.
 
 ### 7.2 The `L2.eng` string ids are a confession
 
@@ -279,18 +275,19 @@ were field offsets of three arrays that were already named.**
 
 Measured on the same 2,452 functions, before and after:
 
-| | before | after |
-|---|---:|---:|
-| `DAT_` occurrences in the corpus | 24,608 | **19,661** |
-| distinct `DAT_` names | 2,977 | **2,575** |
-| distinct globals the corpus sees | 3,302 | **2,898** |
-| `anchor.js fields` — synthetic labels that are really record fields | 334 | **0** |
-| stride-adjacent `DAT_`s that resolve to nothing | 12 | **5** |
-| functions touching *only* unnamed globals | 545 | **478** |
-| functions touching a *named* global | 902 | **968** |
+| | before | county/unit/realm/lord | + the two battle arrays |
+|---|---:|---:|---:|
+| `DAT_` occurrences in the corpus | 24,608 | 19,661 | **17,192** |
+| distinct `DAT_` names | 2,977 | 2,575 | **2,461** |
+| distinct globals the corpus sees | 3,302 | 2,898 | **2,782** |
+| `anchor.js fields` — synthetic labels that are really record fields | 334 | 0 | **0** |
+| stride-adjacent `DAT_`s that resolve to nothing | 12 | 5 | **5** |
+| functions carrying a record stride | 692 | 303 | **115** |
+| functions touching *only* unnamed globals | 545 | 478 | **471** |
+| functions touching a *named* global | 902 | 968 | **974** |
 
-Sixty-six functions crossed from "unanchored" to "in a cluster" without anybody looking at
-one of them. A step function that used to read
+Seventy-two functions crossed from "unanchored" to "in a cluster" without anybody looking at
+one of them, and 520 synthetic globals stopped existing. A step function that used to read
 
 ```c
 if ((&DAT_0052f0b8)[g_movingUnit * 0x1a4] == '\x03') { ... }
@@ -312,6 +309,29 @@ undefined padding, which is why the structs are 23–86% named rather than 100%.
 retyping then passes is that **no widening cast straddles a named field anywhere in the
 corpus** — if a field were typed one byte too narrow, some function would be reading across
 its boundary, and none is.
+
+**A struct that does not fit is evidence a record is wrong, and three did not.**
+
+* `docs/battle.md` §2.1 says the figure's second target pair at `+0x28`/`+0x2A` is "filled
+  from unit `+0x26`/`+0x28`". It is not. The only non-zero write to it in the whole binary
+  takes the unit's `+0x16`/`+0x18` — the pair `docs/battle-ai.md` §7 calls the catapult aim
+  point — and the three other writers only zero it. `records.json` names it the figure's own
+  aim point on that evidence.
+* `crates/l2-sim/src/runner.rs` calls figure `+0x144`/`+0x146` "where this figure is walking
+  to … written by `Formation_SendFigure` and by nothing else". **No instruction in
+  `Lords2.exe` references either offset**, and both fall inside the 150-pair path array at
+  `+0x38`. `docs/battle.md` §2.1 and `docs/battle-ai.md` §7 agree with each other that the
+  field is `tg x`/`tg y` at `+0x24`/`+0x26`, and the probe finds 41 sixteen-bit accesses on
+  each. The documents are right and the Rust comment is wrong.
+* `crates/l2-kingdom`'s `Industry` carries `capacity`, `efficiency` and `disabled_seasons` as
+  `i32`. In the original `capacity` is **two** bytes at industry `+0x0E` — `+0x10` is the
+  running total and there is no room — and the other two are single bytes at `+0x04` and
+  `+0x06`. Nothing overflows, so this is a widening rather than a bug, but the record is not
+  four `i32`s and reading it as one would misplace every field after the first.
+
+The same run found `g_battleMen` and `g_battleUnits` are **81** records, not the 80 their
+`symbols.json` comments say: every sweep is `for (i = 1; i < 0x51; i++)`, so index 80 is
+live, and nothing else in the binary claims the storage behind it.
 
 ## 8. What "done" means
 

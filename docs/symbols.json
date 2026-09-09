@@ -3933,14 +3933,14 @@
       "name": "g_battleMen",
       "section": "battle",
       "confidence": "verified",
-      "comment": "Battle figure array, 80 records of 0x1B0 bytes, index 1..80 (0 unused). A figure is one drawn man representing g_menPerFigure real soldiers. +0x09 selected, +0x12 troop type, +0x13 owner is human, +0x18 facing 0..7, +0x1C cell byte offset, +0x20/+0x22 x,y, +0x24/+0x26 target x,y, +0x2C owner (0 = free slot), +0x31 state, +0x172 armour, +0x174 target figure, +0x178 owning unit, +0x17A side, +0x17E melee opponent, +0x189 move delay, +0x18B melee recovery interval, +0x197 strength band, +0x198 heavy-blow bonus, +0x19A hits, +0x19C melee attack, +0x1A0 men left. Full map in docs/battle.md."
+      "comment": "Battle figure array, 81 records of 0x1B0 bytes, index 1..80 (0 unused). A figure is one drawn man representing g_menPerFigure real soldiers. +0x09 selected, +0x12 troop type, +0x13 owner is human, +0x18 facing 0..7, +0x1C cell byte offset, +0x20/+0x22 x,y, +0x24/+0x26 target x,y, +0x2C owner (0 = free slot), +0x31 state, +0x172 armour, +0x174 target figure, +0x178 owning unit, +0x17A side, +0x17E melee opponent, +0x189 move delay, +0x18B melee recovery interval, +0x197 strength band, +0x198 heavy-blow bonus, +0x19A hits, +0x19C melee attack, +0x1A0 men left. Full map in docs/battle.md. Eighty usable slots but eighty-one records of storage: every sweep is for (i = 1; i < 0x51; i++), so index 80 is live, and nothing else in the binary claims the space behind it."
     },
     {
       "addr": "0x00566520",
       "name": "g_battleUnits",
       "section": "battle",
       "confidence": "verified",
-      "comment": "Battle unit array, 80 records of 0x34 bytes, index 1..80 (0 unused). A unit is what the player selects and orders. +0x00 owner (0 = free slot), +0x01 human controlled, +0x02 figure count, +0x03 side (0 or 4), +0x04/+0x06 first and last figure index, +0x08 category, +0x0F firing timer, +0x14 re-target countdown, +0x1A orders, +0x1E/+0x20 position, +0x22/+0x24 target, +0x2C ordered target figure, +0x30 target cell offset."
+      "comment": "Battle unit array, 81 records of 0x34 bytes, index 1..80 (0 unused). A unit is what the player selects and orders. +0x00 owner (0 = free slot), +0x01 human controlled, +0x02 figure count, +0x03 side (0 or 4), +0x04/+0x06 first and last figure index, +0x08 category, +0x0F firing timer, +0x14 re-target countdown, +0x1A orders, +0x1E/+0x20 position, +0x22/+0x24 target, +0x2C ordered target figure, +0x30 target cell offset. Eighty usable slots but eighty-one records of storage: every sweep is for (i = 1; i < 0x51; i++), so index 80 is live, and nothing else in the binary claims the space behind it."
     },
     {
       "addr": "0x0057A100",

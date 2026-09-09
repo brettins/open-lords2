@@ -48,6 +48,8 @@ public class RecordProbe extends GhidraScript {
         { "unit",   0x0052F0B0L, 0x1A4L, 151L },
         { "realm",  0x0057BF00L, 0x160L, 6L },
         { "lord",   0x004D8A58L, 0xF0L, 4L },
+        { "battleMan",  0x00554480L, 0x1B0L, 80L },
+        { "battleUnit", 0x00566520L, 0x34L, 80L },
     };
 
     /** record -> offset -> size -> count */
