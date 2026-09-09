@@ -3027,6 +3027,14 @@
       "signature": "int Unit_TryEnterTile(int tileOffset)"
     },
     {
+      "addr": "0x00466D84",
+      "name": "Unit_MoveInFacing",
+      "section": "units",
+      "confidence": "inferred",
+      "comment": "Commits one step of g_movingUnit in the facing it has already been given: erases the sprite, plays the per-kind movement sound (army 0x0C, mob 5, merchant/transport 0x0B), adds the eight compass deltas to x, y and tileOffset (+-1 tile, +-8 and +-0x200 bytes of g_tiles), redraws, then sets onRoad from bit 0x01 of the tile's plane-0 flag byte. Unit_StepOnce is the caller: it charges the move (3 off-road, 1 on-road), writes facing, and calls this. [D] - the check that could have failed is that all eight cases are exactly the eight compass deltas and that tileOffset stays (y*64+x)*8 in every one of them; a case that disagreed would have shown up as a ninth delta.",
+      "signature": "void Unit_MoveInFacing(void)"
+    },
+    {
       "addr": "0x0046673C",
       "name": "Unit_CrossField",
       "section": "units",

@@ -30,6 +30,30 @@ node tools/symbols/symbols_md.js --check   # fail if this file is out of date
 hand-edit the tables between the `BEGIN`/`END` markers — `--check` will catch it. Prose
 outside the markers is yours to write.
 
+## Record *fields* live in `records.json`, not here
+
+A name in `symbols.json` names **one address**. That is the wrong shape for a record array:
+`g_counties` labels `0x0053F9B0` and nothing labels `county[i].happiness`, so the decompiler
+used to invent a synthetic global for every field of every one of the five stride-indexed
+arrays — 334 of them, a tenth of the globals in the corpus.
+
+[`records.json`](records.json) holds those layouts instead, and
+`ghidra_scripts/ApplyRecords.java` turns them into Ghidra structs so the decompiler writes
+`g_counties[i].happiness`. `tools/oracle/decompile-all.ps1` runs it after `ApplySymbols`, so
+a field added to the JSON reaches the whole corpus on the next rebuild.
+
+```powershell
+& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
+    "E:\dev\ghidra-projects" lords2 -process Lords2.exe -noanalysis `
+    -scriptPath "E:\dev\lords2\ghidra_scripts" -postScript ApplyRecords.java --dry-run
+```
+
+**A field goes in only when its width is measured.** `ghidra_scripts/RecordProbe.java`
+reports, for every offset in every record array, the p-code `LOAD`/`STORE` width the binary
+actually uses there. Documented meaning plus disagreeing width is a gap, not a field — a
+wrong field name propagates into every function that touches it, which is correction C3 in
+`docs/decisions.md`. `docs/method.md` §7.5 has the before-and-after.
+
 ---
 
 ## Sprite rendering
@@ -173,6 +197,7 @@ to `l2_maps.dat` at all. The reference implementation for the campaign map forma
 | `0x0046634D` | `Unit_StepOnce(dir)` | verified | One animation tick of a move: accumulates +0x149 to 16, then calls Unit_NeighbourTile and charges movesUsed +1 on a road (+0x14D set) or +3 otherwise. |
 | `0x00466893` | `Unit_NeighbourTile(dir)` | verified | Maps a direction 0..7 to the neighbouring tile offset with edge-of-map guards and hands it to Unit_TryEnterTile. |
 | `0x00466C3C` | `Unit_TryEnterTile(tileOffset)` | verified | Classifies the target tile and returns a code: occupied -> Unit_EnterOccupiedTile; road (plane0 0x01) -> 3; county town (0x40) -> 5; castle (0x80) -> 6; dwelling plot (0x10) -> 7; farm field (0x20) -> 8; otherwise 1. The 0x40 and 0x80 labels were swapped here until decisions.md C25; the codes themselves are unchanged. The entry guard that clears bit 0x80 when the terrain is 0x14 is County_FindCastleTile's stamp, which is how a built castle stops blocking its owner. |
+| `0x00466D84` | `Unit_MoveInFacing()` | inferred | Commits one step of g_movingUnit in the facing it has already been given: erases the sprite, plays the per-kind movement sound (army 0x0C, mob 5, merchant/transport 0x0B), adds the eight compass deltas to x, y and tileOffset (+-1 tile, +-8 and +-0x200 bytes of g_tiles), redraws, then sets onRoad from bit 0x01 of the tile's plane-0 flag byte. Unit_StepOnce is the caller: it charges the move (3 off-road, 1 on-road), writes facing, and calls this. [D] - the check that could have failed is that all eight cases are exactly the eight compass deltas and that tileOffset stays (y*64+x)*8 in every one of them; a case that disagreed would have shown up as a ninth delta. |
 | `0x0046673C` | `Unit_CrossField()` | verified | A step onto a farm field: charges 3 extra moves and, when the tile's county is not the unit's own, worsens diplomacy by 10 (human owners only) and calls County_DestroyField. Total cost 6, which is what g_moveCost holds for a field. |
 | `0x00469E5B` | `County_DestroyField(tileOffset)` | verified | Removes one field: a grain field takes crop * (100/fieldsSown) percent off county +0x244 and decrements +0x201; a pasture takes the same fraction off the herd and decrements +0x200. The tile is repainted bare. |
 | `0x00469E0E` | `County_TileIsField(tileOffset)` | verified | True when the tile terrain is in 2..0x16, the range County_DestroyField will act on. |
