@@ -48,6 +48,22 @@ const CANVAS_H: u32 = l2_view::canvas::HEIGHT as u32;
 /// One fixed simulation tick. The only clock in the application.
 const TICK: Duration = Duration::from_millis(16);
 
+/// How long after a left press a second one is a **double** click.
+///
+/// The original never measures this: Windows does, against the user's own
+/// `GetDoubleClickTime()`, and hands the game `WM_LBUTTONDBLCLK` instead of the
+/// second `WM_LBUTTONDOWN`. `winit` has no such event, so this file measures it
+/// — and it is this file's business alone, because it is a *clock*, and
+/// `docs/netcode.md` allows one only above [`l2_game::input`]. 500 ms is the
+/// Windows default that the original was therefore compiled against.
+const DOUBLE_CLICK: Duration = Duration::from_millis(500);
+
+/// And how far apart the two presses may be. Windows uses
+/// `SM_CXDOUBLECLK` / `SM_CYDOUBLECLK`, four *window* pixels by default; ours is
+/// in canvas pixels because that is the only coordinate a screen ever sees, and
+/// four of them is generous at any whole scale.
+const DOUBLE_CLICK_SLOP: i32 = 4;
+
 struct App {
     game: Game,
     assets: Assets,
@@ -60,6 +76,11 @@ struct App {
     /// own in `winit`, and asking the window again would be a second source of
     /// truth that could disagree with what the screen was last told.
     last_cursor: (i32, i32),
+    /// When and where the left button last went down, for [`DOUBLE_CLICK`].
+    /// `None` once a double click has been reported, so three clicks are a
+    /// double and then a single rather than two doubles — which is what
+    /// Windows itself does.
+    last_press: Option<(Instant, (i32, i32))>,
 }
 
 impl App {
@@ -248,7 +269,21 @@ impl ApplicationHandler for App {
                 ..
             } => {
                 let (x, y) = self.last_cursor;
-                self.deliver(GameEvent::Click { x, y });
+                // `WM_LBUTTONDBLCLK` *replaces* the second `WM_LBUTTONDOWN`, so
+                // this is one event or the other and never both.
+                let now = Instant::now();
+                let doubled = self.last_press.is_some_and(|(t, (px, py))| {
+                    now.duration_since(t) <= DOUBLE_CLICK
+                        && (x - px).abs() <= DOUBLE_CLICK_SLOP
+                        && (y - py).abs() <= DOUBLE_CLICK_SLOP
+                });
+                if doubled {
+                    self.last_press = None;
+                    self.deliver(GameEvent::DoubleClick { x, y });
+                } else {
+                    self.last_press = Some((now, (x, y)));
+                    self.deliver(GameEvent::Click { x, y });
+                }
             }
             WindowEvent::MouseInput {
                 state: ElementState::Released,
@@ -337,6 +372,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pixels: None,
         next_tick: Instant::now(),
         last_cursor: (0, 0),
+        last_press: None,
     };
 
     let event_loop = EventLoop::new()?;

@@ -57,8 +57,10 @@
 //! the village screen (0x02), ale is bought from the merchant (0x08), and
 //! fields are painted on the map. `docs/screens-county.md` §6.4 and §6.5.
 
-use l2_kingdom::tables::{HEALTH_BAND_NAMES, RATION_LEVEL_COUNT, RATION_NAMES};
-use l2_view::chrome::{self, system};
+use l2_kingdom::tables::{
+    HEALTH_BAND_NAMES, JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT, RATION_NAMES,
+};
+use l2_view::chrome::{self, misc_cty, system};
 use l2_view::{text, Canvas, Ink};
 
 use crate::game::{Assets, MAX_RATION_SPLIT, MAX_TAX_RATE};
@@ -123,6 +125,31 @@ const HOT_Y_SPLIT: i32 = 212;
 const THERMOMETER: (i32, i32) = (552, 181);
 const THERMOMETER_FRAME: usize = 0x46;
 const THERMOMETER_W: i32 = 14;
+
+/// The county strip's three farming rows, by labour slot, as
+/// (plain, below the floor, **above the ceiling — the blue ring**).
+///
+/// **`[V]`.** Every drawer in `CountyStrip_Draw`'s left-hand row loop asks the
+/// same question first: `if (county.labour[slot].useful <
+/// county.labour[slot].workers)` — *more people on this job than it can use* —
+/// and draws the ringed frame two pixels up and left of where the plain one
+/// goes. That is the signal the player described as *"a blue outline for idle
+/// peasants (eg too many on dairy)"*, and dairy is the second row.
+///
+/// A `None` in the middle column is a job whose drawer has no shortfall frame
+/// at all: `FUN_004103C5` tests only the ceiling. The frame numbers themselves
+/// are [`misc_cty::RINGED_PAIRS`](l2_view::chrome::misc_cty::RINGED_PAIRS).
+///
+/// | slot | drawer | job |
+/// |---|---|---|
+/// | 0 | `FUN_0041023A` | grain farming |
+/// | 1 | `FUN_004100AF` | cattle farming — the dairy |
+/// | 2 | `FUN_004103C5` | field reclamation |
+const PRODUCE_ICONS: [(usize, Option<usize>, usize); 3] = [
+    (misc_cty::RINGED_PAIRS[0].0, Some(misc_cty::SHORTFALL_GRAIN), misc_cty::RINGED_PAIRS[0].1),
+    (misc_cty::RINGED_PAIRS[1].0, Some(misc_cty::SHORTFALL_CATTLE), misc_cty::RINGED_PAIRS[1].1),
+    (misc_cty::RINGED_PAIRS[2].0, None, misc_cty::RINGED_PAIRS[2].1),
+];
 
 /// Both graph panels put their labels at x = 48 and right-anchor their values
 /// at x = 336 (`0x30` and `0x150`).
@@ -543,6 +570,24 @@ fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: 
 /// The strip's own font is the 9-pixel one, but the county's name and the
 /// three "sovereign land of …" lines are drawn with `g_fontBody`, embossed —
 /// `DAT_005AEA40` is only set for the numeric block between them.
+/// `Ui_DrawNumberRight`'s anchoring: right-aligned in `w` pixels from `x`.
+///
+/// **Flat, not embossed.** Each produce row sets `DAT_005AEA40 = 1` around its
+/// number and clears it after — the same switch the strip's own figures are
+/// drawn under — and that global turns `Ui_DrawText`'s emboss off.
+fn body_right(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, w: i32, s: &str, colour: u8) {
+    match ctx.assets.shell.body.as_ref() {
+        Some(f) => {
+            let style = crate::shell::font::Style { colour, shadow: None, caps: None };
+            f.draw_right(canvas, x + w, y, s, &style);
+        }
+        None => {
+            let width = text::width(s);
+            text::draw(canvas, x + w - width, y, s, colour);
+        }
+    }
+}
+
 fn body_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, w: i32, s: &str, colour: u8) {
     match ctx.assets.shell.body.as_ref() {
         Some(f) => {
@@ -596,6 +641,25 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     let ink = &ctx.assets.ink;
     let Some(c) = ctx.game.kingdom.counties.get(county as usize) else { return };
     let mine = ctx.game.is_players(county);
+    // **The strip's ink is the original's literal `0x3F`, which is black.**
+    //
+    // Every string `CountyStrip_Draw` writes — the county's name, its
+    // population, its happiness, the tax rate, both group-61 captions — passes
+    // colour `0x3F` to `Ui_DrawText`, and `0x3F` in `Base01.256` is
+    // `rgb(0, 0, 0)`. The one exception is the achieved ration when it is not
+    // the wanted one, which is `0xF9`.
+    //
+    // These were `ink.text`, which resolves to *white*, and a player reported
+    // it: *"the text should be black not white over the happiness."* He is
+    // right, and the reason [`Ink`](l2_view::Ink) is not the answer here is
+    // that this text is written on the **original's own plate** — `Misc_cty`
+    // frame `0x37` — so the index is a reading of the binary and not a choice
+    // of ours. With no chrome loaded there is no plate to be black on, and the
+    // fallback is our own ink.
+    let strip_ink =
+        if ctx.assets.chrome.is_some() { crate::shell::font::TEXT } else { ink.text };
+    let strip_bad =
+        if ctx.assets.chrome.is_some() { crate::shell::font::HIGHLIGHT } else { ink.bad };
 
     // `Ui_DrawCentred(100, scenarioIndex*0x14 + county, 0x1E0, 0xA5, 0xA0,
     // &g_fontBody, 0x3F)` — the county's name, centred across 160 pixels at
@@ -609,7 +673,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // not a rounding of ours.
     let name = county_name(ctx, county);
     let name_y = if mine { 165 } else { 180 };
-    body_centred(ctx, canvas, 480, name_y, 160, &name, ink.text);
+    body_centred(ctx, canvas, 480, name_y, 160, &name, strip_ink);
 
     if !mine {
         // `Ui_DrawCentred(0xF, 0, 0x1E0, 0xF0, 0xA0, &g_fontBody, realm+0x08)`
@@ -637,17 +701,18 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // figure starts at 602 rather than ending there. We right-anchored it,
     // which put a two-digit number on top of the plate's heart and would have
     // put a three-digit one further left still. See `docs/decisions.md` C42.
-    strip_text(ctx, canvas, 508, 189, &c.population.to_string(), ink.text);
-    strip_text(ctx, canvas, 602, 189, &c.happiness.to_string(), ink.text);
+    strip_text(ctx, canvas, 508, 189, &c.population.to_string(), strip_ink);
+    strip_text(ctx, canvas, 602, 189, &c.happiness.to_string(), strip_ink);
     // Group 61, centred in 76 pixels at (0x1E0, 0xD5) and (0x234, 0xD5), and
     // **in colour 0x3F, the same as the numbers** — the captions are not dimmed
     // in the original and ours were unreadable against the plate.
-    strip_centred(ctx, canvas, 480, 213, 76, &eng(ctx, 61, 0, g86::STRIP_TAX), ink.text);
-    strip_centred(ctx, canvas, 564, 213, 76, &eng(ctx, 61, 1, g86::STRIP_RATION), ink.text);
+    strip_centred(ctx, canvas, 480, 213, 76, &eng(ctx, 61, 0, g86::STRIP_TAX), strip_ink);
+    strip_centred(ctx, canvas, 564, 213, 76, &eng(ctx, 61, 1, g86::STRIP_RATION), strip_ink);
     // (0x1FA, 0xE2), and the ration level centred in 76 at (0x234, 0xE2).
-    strip_text(ctx, canvas, 506, 226, &format!("{}%", c.tax_rate), ink.text);
-    // "Red when it differs from rationWanted" is the original's own rule.
-    let colour = if c.ration_achieved == c.ration_wanted { ink.text } else { ink.bad };
+    strip_text(ctx, canvas, 506, 226, &format!("{}%", c.tax_rate), strip_ink);
+    // "Red when it differs from rationWanted" is the original's own rule, and
+    // the colour it picks is `0xF9` rather than `0x3F`.
+    let colour = if c.ration_achieved == c.ration_wanted { strip_ink } else { strip_bad };
     strip_centred(ctx, canvas, 564, 226, 76, &ration_label(ctx, c.ration_achieved), colour);
 
     // Pl8_DrawFrameHere(g_miscCtySheet, band + 0x46, 0x228, 0xB5) — the
@@ -673,21 +738,167 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // over the map, and a thumb only the map drew would vanish whenever a panel
     // was open.
     //
-    // The original swaps to frame `0x55`, two pixels up and left, when the
-    // castle job has workers; which of `l2-kingdom`'s nine job slots that test
-    // reads is not settled, so we always draw the plain thumb.
+    // # The blue outline, which is a **frame**
+    //
+    // `CountyStrip_Draw`'s last branch, verbatim:
+    //
+    // ```c
+    // if (county.labour[8].workers == 0)
+    //     Pl8_DrawFrame(g_miscCtySheet, 0x3D, share / 2 + 0x214, 0x106);
+    // else
+    //     Pl8_DrawFrame(g_miscCtySheet, 0x55, share / 2 + 0x212, 0x104);
+    // ```
+    //
+    // Slot 8 is *Idle townsfolk*, so **the thumb changes the moment anybody in
+    // the county has nothing to do** — which is exactly what the player
+    // remembered: *"the peasant slider I think had a blue outline if there
+    // were idle peasants as well."* This module used to guess the castle job;
+    // it is the idle pool.
+    //
+    // And the outline is measurable rather than described. Frame `0x3D` is
+    // 9 × 33 and frame `0x55` is 13 × 37 — four wider and four taller — drawn
+    // two pixels left and two pixels up, so it is *the same thumb inside a
+    // two-pixel ring*. Every one of the ring's 124 pixels is one of three
+    // palette entries, and all three are blue: `95` = `rgb(0, 0, 121)`,
+    // `65` = `rgb(157, 202, 234)` and `64` = `rgb(194, 230, 255)`.
+    // `crates/l2-view/tests/install.rs` asserts that against the player's own
+    // `Misc_cty.pl8`.
     let share = c.industry_share.clamp(0, 100);
-    let (tx, ty) = (share / 2 + 532, 262);
-    let thumb =
-        ctx.assets.chrome.as_ref().is_some_and(|ch| ch.draw_misc(canvas, 0x3D, tx, ty));
+    let idle = c.labour[JOB_IDLE_TOWNSFOLK] != 0;
+    let (frame, tx, ty) = if idle {
+        (misc_cty::SPLIT_THUMB_IDLE, share / 2 + 530, 260)
+    } else {
+        (misc_cty::SPLIT_THUMB, share / 2 + 532, 262)
+    };
+    let thumb = ctx.assets.chrome.as_ref().is_some_and(|ch| ch.draw_misc(canvas, frame, tx, ty));
     if !thumb {
-        canvas.fill_rect(tx, ty, 9, 33, ink.highlight);
+        // OURS, for an install with no `Misc_cty.pl8`: the ring is drawn as a
+        // ring, because that is what it is.
+        canvas.fill_rect(share / 2 + 532, 262, 9, 33, ink.highlight);
+        if idle {
+            widget::frame(canvas, Rect::new(share / 2 + 530, 260, 13, 37), ink.realm[2]);
+        }
     }
+
+    draw_produce_rows(ctx, canvas, c, strip_ink);
 
     // OURS: the original's quadrants are invisible. A one-pixel outline is how
     // a keyboard player sees which of the four is open.
     if let Some(p) = focus {
         widget::frame(canvas, p.strip_hotspot(), ink.highlight);
+    }
+}
+
+/// **The produce rows, and the blue outline that is the point of them.**
+///
+/// The plate below the slider — `Misc_cty` frame `0x38` at (478, 302) — carries
+/// one row per thing the county makes. `FUN_0040FEC1` decides *which* rows,
+/// into two lists, and `CountyStrip_Draw` then walks them; this is the **left**
+/// list, the three farming rows, which is where the dairy is.
+///
+/// ```c
+/// if (fieldsCattle || herd)     rows[n++] = 1;   // FUN_004100AF
+/// if (fieldsGrain  || grain)    rows[n++] = 0;   // FUN_0041023A
+/// if (fieldsReclaiming)         rows[n++] = 2;   // FUN_004103C5
+/// DAT_0053E970 = n < 3 ? 0x3C : 0x2D;            // the row pitch
+/// ```
+///
+/// Each drawer opens with the same three-way choice, and it is the one the
+/// player asked about:
+///
+/// ```c
+/// if (labour[slot].useful  < labour[slot].workers) ringed frame, two px up-left
+/// else if (labour[slot].workers < labour[slot].wanted) shortfall frame
+/// else                                                 plain frame
+/// ```
+///
+/// So **the county's cow gets a blue ring around it the moment more people are
+/// milking than the herd can use** — *"there's no blue outline for idle
+/// peasants (eg too many on dairy)"*, exactly. The ceiling is
+/// [`l2_kingdom::county::County::labour_useful`], the same word
+/// `Village_RebuildIcons` uses to decide which peasants in the village are
+/// drawn sitting down, and the floor is the one `Panel_JobDetail` already
+/// colours the count red below.
+///
+/// # What is not here
+///
+/// * **The right-hand list** — wood, iron, stone, weapons and the castle. Three
+///   of the five have no state at all (frames `0x2C`, `0x2D`, `0x2E`, drawn
+///   flat), and the two that do — the blacksmith and the castle — pick their
+///   frame from county `+0x290`, an unnamed byte, and from `+0x1B0`. Neither is
+///   settled, so neither is drawn.
+/// * **The seasonal deltas.** Every drawer follows its icon with a
+///   `Ui_DrawDelta` of the change since last season, out of a per-commodity i32
+///   this project has mis-attributed: the strip reads commodity `c`'s at county
+///   `0x2A8 + c * 0x18`, which `docs/records.json` currently gives to
+///   `Industry[c + 1]`'s unnamed head word — and the stone row reads `0x2F0`,
+///   one whole record past the end of a four-record array. Reported, not
+///   guessed at.
+fn draw_produce_rows(
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    c: &l2_kingdom::county::County,
+    strip_ink: u8,
+) {
+    // `FUN_0040FEC1`, in its own order: cattle, then grain, then reclamation.
+    let mut rows: Vec<usize> = Vec::with_capacity(3);
+    if c.fields_cattle != 0 || c.herd != 0 {
+        rows.push(1);
+    }
+    if c.fields_grain != 0 || c.grain != 0 {
+        rows.push(0);
+    }
+    if c.fields_reclaiming != 0 {
+        rows.push(2);
+    }
+    // `DAT_0053E970`: three rows or more and they close up.
+    let pitch = if rows.len() < 3 { 0x3C } else { 0x2D };
+
+    for (n, &slot) in rows.iter().enumerate() {
+        let y = pitch * n as i32;
+        let (plain, short, ringed) = PRODUCE_ICONS[slot];
+        let state = if c.labour_useful[slot] < c.labour[slot] {
+            // The ringed frame, and its own position — two pixels up and left
+            // of the plain one, because it is the plain one plus a ring.
+            Some(ringed)
+        } else if c.labour[slot] < c.labour_wanted[slot] {
+            short
+        } else {
+            None
+        };
+        let (frame, x, dy) = match (slot, state) {
+            (1, Some(f)) => (f, 482, 0x131),
+            (1, None) => (plain, 484, 0x133),
+            (0, Some(f)) if f == ringed => (f, 484, 0x12D),
+            (0, Some(f)) => (f, 485, 0x12E),
+            (0, None) => (plain, 486, 0x12F),
+            (_, Some(f)) => (f, 491, 0x130),
+            (_, None) => (plain, 493, 0x132),
+        };
+        let drawn =
+            ctx.assets.chrome.as_ref().is_some_and(|ch| ch.draw_misc(canvas, frame, x, y + dy));
+        if !drawn {
+            // OURS, with no `Misc_cty.pl8`: a label and, when it applies, the
+            // ring — because the ring is the thing being said.
+            let ink = &ctx.assets.ink;
+            let name = ["GRAIN", "DAIRY", "RECLAIM"][slot];
+            text::draw(canvas, x, y + dy + 8, name, ink.dim);
+            if state == Some(ringed) {
+                widget::frame(canvas, Rect::new(x - 2, y + dy - 2, 44, 32), ink.realm[2]);
+            }
+        }
+        // `Ui_DrawNumberRight(store, ' ', …, 0x1E0, y + 0x14D, 0x3C,
+        // &g_fontBody, 0x3F)` — the store itself, right-anchored in sixty
+        // pixels from x = 480. Reclamation's number is a field this project has
+        // not named, so that row carries none.
+        let store = match slot {
+            0 => Some(c.grain),
+            1 => Some(c.herd),
+            _ => None,
+        };
+        if let Some(v) = store {
+            body_right(ctx, canvas, 480, y + 0x14D, 0x3C, &v.to_string(), strip_ink);
+        }
     }
 }
 

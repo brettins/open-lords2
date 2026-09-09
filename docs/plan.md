@@ -466,7 +466,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,584<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,591<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -569,7 +569,7 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->718<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->723<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->29<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and

@@ -142,6 +142,23 @@ pub enum Event {
     /// five times and never to dismiss anything. Right double-clicks are
     /// computed and never read at all.
     RightClick { x: i32, y: i32 },
+    /// The left button was **double-clicked** at a canvas pixel.
+    ///
+    /// **This is the original's own event, not a convenience.** `Lords2.exe`'s
+    /// window procedure (`0x004B29BE`) handles message `0x203`
+    /// — `WM_LBUTTONDBLCLK` — by setting bit 0 of `DAT_004EADA1`, and the frame
+    /// poll at `0x004B2D5A` turns that into `DAT_004EABC5`, read by exactly one
+    /// input arm: `Village_DoubleClick` (`0x00439DF0`), which balances one job's
+    /// labour against the idle pool. So the double click is a *different verb*
+    /// from the click, dispatched from a different flag, and folding it into two
+    /// [`Event::Click`]s would lose the distinction the game makes.
+    ///
+    /// **Windows sends it instead of the second press**, not as well as it: the
+    /// second `WM_LBUTTONDOWN` never arrives, which is why the original's
+    /// button-down flag stays clear through a double click and why `main.rs`
+    /// delivers this in place of the second [`Event::Click`]. The
+    /// [`Event::Release`] that ends it still arrives, as `WM_LBUTTONUP` does.
+    DoubleClick { x: i32, y: i32 },
     /// The left button came **up** at a canvas pixel.
     ///
     /// Added for the village, and it is not a convenience. The original's

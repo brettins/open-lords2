@@ -18,9 +18,9 @@
 
 use l2_formats::maps::{MapSet, MapSlot};
 use l2_formats::Palette;
-use l2_kingdom::county::MAX_COUNTIES;
+use l2_kingdom::county::{LABOUR_CEILING_IGNORED, MAX_COUNTIES};
 use l2_kingdom::realm::MAX_REALMS;
-use l2_kingdom::tables::RATION_LEVEL_COUNT;
+use l2_kingdom::tables::{JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT};
 use l2_kingdom::{Kingdom, SeasonReport};
 use l2_mods::vfs::Vfs;
 use l2_view::campaign::{self, MapAssets};
@@ -555,17 +555,97 @@ impl Game {
     /// drag changes are the worker counts and nothing else. That is the same
     /// choice [`Game::set_ration_split`] already documents.
     pub fn move_labour(&mut self, id: u8, from: usize, to: usize, icons: i32) -> i32 {
-        if !self.is_players(id) || from == to || icons <= 0 {
+        let band = self.kingdom.counties.get(id as usize).map_or(0, |c| c.pop_band);
+        self.move_workers(id, from, to, icons.saturating_mul(band))
+    }
+
+    /// The same move counted in **people** rather than icons.
+    ///
+    /// `Labour_Move` itself takes a worker count; it is `Village_Drop` that
+    /// multiplies by `popBand` and clamps. The double click
+    /// (`Village_BalanceJob`, `0x00439F6A`) does not go through icons at all —
+    /// it moves exactly the shortfall or exactly the surplus — so the two
+    /// callers need the two shapes, and [`Game::move_labour`] is now this
+    /// function with the icon arithmetic in front of it.
+    pub fn move_workers(&mut self, id: u8, from: usize, to: usize, workers: i32) -> i32 {
+        if !self.is_players(id) || from == to || workers <= 0 {
             return 0;
         }
         let c = &mut self.kingdom.counties[id as usize];
         let (Some(&held), true) = (c.labour.get(from), to < c.labour.len()) else {
             return 0;
         };
-        let workers = (icons * c.pop_band).min(held).max(0);
+        let workers = workers.min(held).max(0);
         c.labour[to] += workers;
         c.labour[from] -= workers;
         workers
+    }
+
+    /// **The double click on the village: balance one job against the idle
+    /// pool.** `Village_BalanceJob` (`0x00439F6A`), given a *cluster*.
+    ///
+    /// One gesture, two directions, and which one it is depends on the job:
+    ///
+    /// * a job **below its wanted floor** takes people *from* the idle
+    ///   townsfolk — as many as it is short, or as many as are idle, whichever
+    ///   is fewer;
+    /// * a job **above its useful ceiling** puts the surplus *back* into the
+    ///   idle townsfolk. That is the one the player asked for: *"I can't double
+    ///   click idle peasants in a task to remove them from the task."*
+    ///
+    /// `fill` is the original's third argument. With it clear the shortfall
+    /// branch is skipped entirely, so the job can only *shed* — which is how
+    /// [`Game::balance_all_labour`] empties every job before refilling any.
+    ///
+    /// The floor is ignored when it is not positive and the ceiling when it is
+    /// [`l2_kingdom::county::LABOUR_CEILING_IGNORED`] or above, exactly as the
+    /// original's two guards do. Returns how many people moved.
+    pub fn balance_labour(&mut self, id: u8, cluster: usize, fill: bool) -> i32 {
+        let Some(c) = self.kingdom.counties.get(id as usize) else { return 0 };
+        let slot = l2_view::village::slot_for_cluster(
+            cluster,
+            c.industry[3].has_resource,
+            c.industry[1].has_resource,
+        );
+        let wanted = c.labour_wanted[slot];
+        let useful = c.labour_useful[slot];
+        let workers = c.labour[slot];
+        let short = if wanted < 1 { 0 } else { wanted - workers };
+        let surplus = if useful < LABOUR_CEILING_IGNORED { workers - useful } else { 0 };
+        let idle = c.labour[JOB_IDLE_TOWNSFOLK];
+
+        if short < 1 || !fill {
+            if surplus < 1 {
+                return 0;
+            }
+            self.move_workers(id, slot, JOB_IDLE_TOWNSFOLK, surplus)
+        } else {
+            if idle == 0 {
+                return 0;
+            }
+            self.move_workers(id, JOB_IDLE_TOWNSFOLK, slot, idle.min(short))
+        }
+    }
+
+    /// **A double click on the idle townsfolk themselves: put everybody to
+    /// work.** `Village_BalanceAll` (`0x00439EDB`)'s cluster-6 branch.
+    ///
+    /// Two passes, and the order is the whole point: every job **sheds** its
+    /// surplus into the pool first, and only then does every job draw from the
+    /// pool to fill its shortfall. One pass would let whichever job came first
+    /// take people the later ones needed.
+    ///
+    /// Ten clusters, not eight — see
+    /// [`l2_view::village::CLUSTER_TO_SLOT_BALANCE`].
+    pub fn balance_all_labour(&mut self, id: u8) -> i32 {
+        let clusters = l2_view::village::CLUSTER_TO_SLOT_BALANCE.len();
+        let mut moved = 0;
+        for fill in [false, true] {
+            for cluster in 0..clusters {
+                moved += self.balance_labour(id, cluster, fill);
+            }
+        }
+        moved
     }
 }
 

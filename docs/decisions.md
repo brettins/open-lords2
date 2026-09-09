@@ -1878,6 +1878,81 @@ That is deliberate. `DAT_00553C64`, which the original sets on this line, has ex
 writer in the whole binary — this line — and two readers, both in the merchant screen's price
 arithmetic, so when `0x08` grows a trade this is the call that has to carry the unit into it.
 
+**C51 — The blue outline is real, it is a *frame*, and it is on the county strip. The
+player remembered it in two places and was right in both; this document has now been
+wrong about which job it tests.**
+
+Five interface defects reported in one message, four of them about assigning peasants:
+*"The peasant slider of industry isn't draggable, should be. I can't double click idle
+peasants in a task to remove them from the task, there's no 'blue outline' for idle peasants
+(eg too many on dairy)… The text should be black not white over the happiness, the peasant
+slider I think had a blue outline if there were idle peasants as well."* All five are in the
+binary.
+
+**The blue outline is `Misc_cty.pl8` frames `0x4B` … `0x55`, and it is measurable.** Eleven
+frames, a contiguous run, and every one of them is drawn two pixels up and left of the plain
+frame it replaces. Ten of the eleven are **exactly four pixels wider and four taller** than
+that plain frame, which is what a two-pixel ring around an unchanged picture measures as,
+and **every non-transparent pixel of that two-pixel border is one of three palette entries,
+all of them blue**: `95` = `rgb(0,0,121)`, `65` = `rgb(157,202,234)`, `64` =
+`rgb(194,230,255)`. That is asserted in `crates/l2-view/tests/install.rs` against the user's
+own file, so "blue outline" is now a measurement rather than a recollection. The eleventh —
+the castle, `0x40` → `0x4E` — is 23 × 26 against 32 × 34 and is a different, larger picture
+that also carries the ring; it is written down as the exception rather than smoothed over.
+
+**Two signals, and they are *not* the same test**, which is the part the player's memory
+merged and the part this entry exists to separate:
+
+| where | condition | frames |
+|---|---|---|
+| the farm/industry slider's thumb | `county.labour[8].workers != 0` — **anybody** idle | `0x3D` → `0x55` |
+| a produce icon on the strip | `labour[slot].useful < labour[slot].workers` — too many on **that** job | five pairs |
+
+`crates/l2-game`'s `county.rs` carried a comment saying the swap happened *"when the castle
+job has workers"* and that *"which of the nine job slots that test reads is not settled"*.
+It is slot **8**, idle townsfolk, and it is one line of `CountyStrip_Draw`. The guess had
+been sitting beside the answer.
+
+**The outline is the other end of a record we already had.** The labour record is three
+`i32` per job — workers, a wanted floor, a useful ceiling — and `Panel_JobDetail` already
+coloured the count red *below* the floor. The blue ring is *above* the ceiling. Same three
+words, both ends, and neither was invented for the occasion.
+
+**The double click is its own input arm, and the single click is deferred to make room for
+it.** `Village_DoubleClick` (`0x00439DF0`) sits between `Village_BandStart` and
+`Village_ClickJob` in `Screen_FrameInput`'s screen-`0x02` ladder and is the **only** reader
+of `DAT_004EABC5` in the binary — a flag the window procedure sets from message `0x203`,
+`WM_LBUTTONDBLCLK`. So Windows counts the clicks, not the game. `Village_ClickJob` is then
+gated on `DAT_004EABF0`, which the frame poll sets only once a click has stood **300 ms**
+without a second one: the job popup deliberately opens a fraction late, because until then
+the click might be half of a double click. Ours does the same, counted in ticks rather than
+milliseconds, because nothing below `main.rs` may read a clock.
+
+What the gesture *does* is `FUN_00439F6A`: a job below its floor takes people from the idle
+pool, a job above its ceiling puts its surplus back, and a double click on the idle cluster
+runs both passes over every job — shedding first, filling second, because one pass would let
+whichever job came first take people the later ones needed.
+
+**The slider is press-and-track, not the village's three-screen gesture.** `FUN_00439122`
+acts while `DAT_004E65CC` — the button's *level* — is set and `DAT_004EA4B0` says the
+pointer moved, and returns without doing anything on the release. No dead zone, no second
+click, and `g_screenId` is never touched. Reading the three flags out of the frame poll at
+`0x004B2D5A` settled in one sitting a question that would otherwise have been a guess
+between two plausible mechanisms.
+
+**And the strip's text is `0x3F`, which is black.** Every `Ui_DrawText` call in
+`CountyStrip_Draw` passes it — the county's name, the population, the happiness, the tax
+rate, both captions — and `0x3F` in `Base01.256` is `rgb(0,0,0)`. Ours drew all of them in
+`Ink::text`, which resolves to white, on the original's parchment plate. C42 had already
+corrected the *anchoring* of the same two calls by reading their arguments; the colour
+argument was the last one on the line and nobody read it either. **The argument was there
+both times.**
+
+**The player is now right ten times out of ten on the interface**, and five of those were in
+a single message. The pattern from C46 holds exactly: every one of these was a *word* beside
+a measurement — "castle job" beside a slot number, "tick" beside a frame index, `ink.text`
+beside `0x3F` — and in every case the measurement was already in the file.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

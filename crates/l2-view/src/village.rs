@@ -126,6 +126,23 @@ pub const CLUSTER_TO_SLOT: [usize; CLUSTER_COUNT] = [5, 0, 1, 3, 6, 7, 8, 2];
 /// idle people **are** the surplus.
 pub const IDLE_CLUSTER: usize = 6;
 
+/// **Ten** cluster numbers, because `Village_BalanceAll` (`0x00439EDB`) loops
+/// `for (i = 0; i < 10; i++)` over an eight-entry table.
+///
+/// It is an over-read and it is reproduced on purpose — `docs/bugs.md`. The two
+/// words past `g_jobClusterToSlot` are the head of `DAT_004D67A0`, and they are
+/// **4** and **6**, read out of the shipped `Lords2.exe` at `0x004D67A0` by
+/// `crates/l2-view/tests/install.rs`. So a double click on the idle cluster
+/// also balances slot 4, *Iron mining* — which no cluster 0 … 7 reaches unless
+/// the county's cluster 0 has been overridden to it — and balances slot 6,
+/// *Wood cutting*, a second time. Whether the original meant to reach iron or
+/// merely ran off the end of its table, the effect is that the gesture covers
+/// **all nine slots**, and a faithful reimplementation has to loop the same ten.
+pub const CLUSTER_TO_SLOT_BALANCE: [usize; 10] = [5, 0, 1, 3, 6, 7, 8, 2, 4, 6];
+/// Where the ten words above start, so a test can read them back out of the
+/// user's own executable rather than trusting this table.
+pub const CLUSTER_TO_SLOT_VA: u32 = 0x004D_6780;
+
 /// `Village_Draw`: `FUN_0040A682(0, 0x40, g_villageTopY)`.
 pub const SCENE_X: i32 = 64;
 /// `g_villageTopY` with *Advanced Farming* off.
@@ -237,7 +254,7 @@ const MIXED_LIMIT: i32 = 13;
 /// Cluster 0 is the stone quarry unless the county has **no** quarry and **does**
 /// have a mine, in which case the same spot is the mine.
 pub fn slot_for_cluster(cluster: usize, has_quarry: bool, has_mine: bool) -> usize {
-    let slot = CLUSTER_TO_SLOT[cluster.min(CLUSTER_COUNT - 1)];
+    let slot = CLUSTER_TO_SLOT_BALANCE[cluster.min(CLUSTER_TO_SLOT_BALANCE.len() - 1)];
     if cluster == 0 && !has_quarry && has_mine {
         4
     } else {

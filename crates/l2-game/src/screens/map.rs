@@ -200,6 +200,33 @@ pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
 /// percentage of the county's people that goes to the mines and the smithy
 /// rather than to the fields. It was not wired, and a player reported that he
 /// could not assign peasants.
+///
+/// # It is a **drag**, and the flags say which kind
+///
+/// The same player then reported that it was not draggable, and it is. The
+/// question was whether it uses the village's three-screen gesture — press,
+/// nine pixels, release, second press (`docs/screens-county.md` §6.4.1) — or
+/// simple press-and-track, and `FUN_00439122`'s guard settles it outright:
+///
+/// ```c
+/// if (g_mouseLeftReleased == 0) {          // DAT_004E65D8: the up edge
+///     if (g_mouseLeftDown == 0)      return 0;   // DAT_004E65CC: the level
+///     else if (g_mouseMoved == 0)    return 0;   // DAT_004EA4B0
+///     else                           ...set the value...
+/// } else return 1;                          // a release is eaten, not acted on
+/// ```
+///
+/// Those three globals are named by the frame poll at `0x004B2D5A`, which
+/// derives them from the window procedure's `WM_LBUTTONDOWN` / `WM_LBUTTONUP`:
+/// `DAT_004E65CC` is the button's **level**, `DAT_004EAFB4` and `DAT_004E65D8`
+/// its two edges, and `DAT_004EA4B0` is set whenever the pointer moved or a
+/// button changed this frame. So the slider runs on *held **and** moved*, every
+/// frame, and does nothing at all on the release. **Press and track** — no
+/// second click, no dead zone, and no extra screen ids: `g_screenId` is
+/// untouched by the whole function.
+///
+/// It is tested on the campaign map *and* on the village, in that order — the
+/// two arms in `Screen_FrameInput` — so it keeps working with the village open.
 pub const SPLIT_SLIDER: Rect = Rect::new(PANEL_X, 257, PANEL_W, 296 - 257 + 1);
 
 /// The slider's own arithmetic, verbatim: left of the track steps down by four,
@@ -338,6 +365,10 @@ pub struct MapScreen {
     /// with a selection. This is that selection, and it is why a click on a
     /// tile means *march there* while it is `Some`.
     selected_unit: Option<usize>,
+    /// **The farm/industry slider is held.** `FUN_00439122` acts on the button
+    /// being *down*, not on it having been clicked, so the value tracks the
+    /// pointer for as long as it is held — see [`SPLIT_SLIDER`].
+    slider_held: bool,
 }
 
 /// A field tile the player has clicked, and the menu its terrain opens.
@@ -373,6 +404,23 @@ impl MapScreen {
             flag_tick: 0,
             flag_phase: 0,
             selected_unit: None,
+            slider_held: false,
+        }
+    }
+
+    /// One frame of the farm/industry slider: `FUN_00439122`'s body, once the
+    /// button is known to be down and the pointer inside [`SPLIT_SLIDER`].
+    fn drag_split(&mut self, ctx: &mut Ctx, x: i32) {
+        let id = ctx.game.selected as usize;
+        let Some(current) = ctx.game.kingdom.counties.get(id).map(|c| c.industry_share) else {
+            return;
+        };
+        let next = split_from_click(x, current);
+        // `if (next == share) return 1;` — the original checks and skips the
+        // recompute, which matters here for the same reason: dragging along
+        // one snapped step must not rerun the allocator on every pixel.
+        if next != current && ctx.game.kingdom.set_industry_share(id, next) {
+            self.status = format!("INDUSTRY {next}% FARM {}%", 100 - next);
         }
     }
 
@@ -1112,6 +1160,13 @@ impl Screen for MapScreen {
             Event::Pointer { x, y } => {
                 self.pointer = (x, y);
                 self.pointer_in = true;
+                // The slider's whole gesture: held **and** moved, tested
+                // against the rectangle again every time, which is what lets
+                // the pointer wander off the sidebar and come back without
+                // letting go. See [`SPLIT_SLIDER`].
+                if self.slider_held && SPLIT_SLIDER.contains(x, y) {
+                    self.drag_split(ctx, x);
+                }
                 self.focus = if END_TURN_BUTTON.contains(x, y) {
                     Focus::EndTurn
                 } else {
@@ -1151,6 +1206,10 @@ impl Screen for MapScreen {
                 self.pointer_in = false;
                 self.focus = Focus::None;
             }
+            // `FUN_00439122` eats the release and does nothing with it — the
+            // value was already set on the way down and on every move since.
+            // All the release does is end the drag.
+            Event::Release { .. } => self.slider_held = false,
             Event::Click { x, y } => {
                 // The brush popup is modal over the map, the way
                 // `Hotspot_Test` makes it: while it is up its buttons are
@@ -1193,13 +1252,11 @@ impl Screen for MapScreen {
                         self.status = "MINIMAP RATINGS NOT DRAWN".into();
                     }
                 } else if SPLIT_SLIDER.contains(x, y) && ctx.game.selected != 0 {
-                    // `FUN_00439122`, the farm/industry split.
-                    let id = ctx.game.selected as usize;
-                    let current = ctx.game.kingdom.counties[id].industry_share;
-                    let next = split_from_click(x, current);
-                    if ctx.game.kingdom.set_industry_share(id, next) {
-                        self.status = format!("INDUSTRY {next}% FARM {}%", 100 - next);
-                    }
+                    // `FUN_00439122`, the farm/industry split. The press is the
+                    // first frame of a **drag**: the button is now down, and
+                    // every pointer move while it stays down moves the slider.
+                    self.slider_held = true;
+                    self.drag_split(ctx, x);
                 } else if let Some(panel) = county::panel_at(x, y) {
                     // **The county strip is a 2 x 2 hotspot and it is the whole
                     // navigation into the four county panels** — there is no
@@ -1897,26 +1954,22 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // plate carries a dark box of ours with the county's stores in it and the
     // one status line this interface has. A stub that says so beats one that
     // looks finished.
-    let jobs = Rect::new(PANEL_X + 3, chrome::PANEL_OWN_C_Y + 4, PANEL_W - 6, 120);
+    //
+    // **The left column is now drawn**, by `county::draw_produce_rows` with the
+    // rest of the strip, because that is where the blue outline lives — the cow
+    // gains a ring the moment more people are milking than the herd can use.
+    // The right column is not: three of its five rows are flat icons and the
+    // other two pick their frame from bytes this project has not settled. So
+    // the box that used to cover the whole plate covers the right half only,
+    // and names which half it is.
+    let x = PANEL_X + 8;
+    let jobs = Rect::new(PANEL_X + 84, chrome::PANEL_OWN_C_Y + 4, PANEL_W - 87, 100);
     if ctx.assets.chrome.is_some() {
         widget::panel(canvas, ink, jobs);
     }
-    let x = PANEL_X + 8;
-    let right = PANEL_X + PANEL_W - 8;
-    let mut y = jobs.y + 5;
-    text::draw(canvas, x, y, "JOBS: NOT DRAWN", ink.dim);
-    y += 14;
-    if let Some(c) = k.counties.get(game.selected as usize).filter(|_| game.selected != 0) {
-        for (label, value) in [
-            ("GRAIN", c.grain.to_string()),
-            ("HERD", c.herd.to_string()),
-            ("FIELDS", c.fields_grain.to_string()),
-        ] {
-            widget::stat(canvas, ink, x, y, right, label, &value);
-            y += 12;
-        }
-    }
-    text::draw(canvas, x, y + 6, &screen.status, ink.dim);
+    text::draw(canvas, jobs.x + 4, jobs.y + 5, "INDUSTRY", ink.dim);
+    text::draw(canvas, jobs.x + 4, jobs.y + 17, "NOT DRAWN", ink.dim);
+    text::draw(canvas, x, chrome::PANEL_OWN_C_Y + 110, &screen.status, ink.dim);
 
     // **The five sidebar buttons.** `Misc_cty` frame 57 already drew them; all
     // this adds is which one the pointer is over, because the original's

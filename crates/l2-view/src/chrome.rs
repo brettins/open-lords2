@@ -79,6 +79,77 @@ pub mod misc_cty {
     /// overlay mode is active.
     pub const MINIMAP_SIDE: usize = 0x5C;
     pub const MINIMAP_SIDE_ACTIVE: usize = 0x5B;
+
+    /// The farm/industry slider's thumb, and **the same thumb inside a
+    /// two-pixel blue ring** when the county has idle townsfolk.
+    ///
+    /// `CountyStrip_Draw`'s last branch: `labour[8].workers == 0` draws `0x3D`
+    /// at `(share / 2 + 0x214, 0x106)` and anything else draws `0x55` at
+    /// `(share / 2 + 0x212, 0x104)` — two pixels up and left, for a frame four
+    /// pixels wider and four taller.
+    pub const SPLIT_THUMB: usize = 0x3D;
+    pub const SPLIT_THUMB_IDLE: usize = 0x55;
+
+    /// **Every frame that carries the blue ring**, plain first.
+    ///
+    /// Five of the county strip's drawers pick between a plain icon and a
+    /// ringed one on the same question — `labour[slot].useful <
+    /// labour[slot].workers`, *more people on this job than it can use* — and
+    /// the ringed frame is always drawn two pixels up and two left of the plain
+    /// one, because it is the plain one inside a ring.
+    ///
+    /// | plain | ringed | what |
+    /// |---|---|---|
+    /// | `0x21` | `0x4B` | the sheaf — grain farming, slot 0 |
+    /// | `0x26` | `0x4C` | the cow — cattle farming, slot 1 |
+    /// | `0x3F` | `0x4D` | field reclamation, slot 2 |
+    /// | `0x30 + n` | `0x4F + n` | the county's industry, slot 7 |
+    ///
+    /// **The last row is six pairs, not four.** `FUN_004106C4` indexes both
+    /// frames by a county byte at `+0x290` this project has not named, and the
+    /// ringed run in the file is `0x4F` … `0x54` — six frames, matching
+    /// `0x30` … `0x35` — so `n` reaches 5. That is a reading of how many frames
+    /// exist, not of what the byte means, and none of the six is drawn yet.
+    ///
+    /// **The castle is deliberately not here.** It has a ringed frame too, and
+    /// it is the one that is *not* its plain twin plus a ring — see
+    /// [`CASTLE_PLAIN`].
+    pub const RINGED_PAIRS: [(usize, usize); 9] = [
+        (0x21, 0x4B),
+        (0x26, 0x4C),
+        (0x3F, 0x4D),
+        (0x30, 0x4F),
+        (0x31, 0x50),
+        (0x32, 0x51),
+        (0x33, 0x52),
+        (0x34, 0x53),
+        (0x35, 0x54),
+    ];
+
+    /// The castle's cell on the strip, and the odd one out.
+    ///
+    /// `CountyStrip_DrawCastleIcon` draws `0x40` at `(0x25B, y + 300)` and
+    /// `0x4E` at `(0x255, y + 0x129)` — six pixels left and three up, not the
+    /// two-and-two every other pair uses, because `0x4E` is 32 × 34 against
+    /// `0x40`'s 23 × 26. So the ringed castle is a **different, larger
+    /// picture** that also carries the ring, rather than the same one inside
+    /// one. Its border is blue like all the others; its geometry is its own.
+    pub const CASTLE_PLAIN: usize = 0x40;
+    pub const CASTLE_RINGED: usize = 0x4E;
+
+    /// The shortfall icons, drawn when a job is **below** its wanted floor —
+    /// the other end of the same test, and the only two the strip has.
+    pub const SHORTFALL_GRAIN: usize = 0x23;
+    pub const SHORTFALL_CATTLE: usize = 0x29;
+
+    /// **The three palette entries the ring is made of**, in `Base01.256`:
+    /// `rgb(194, 230, 255)`, `rgb(157, 202, 234)` and `rgb(0, 0, 121)`.
+    ///
+    /// Named rather than described, because *"blue outline"* is a memory and
+    /// this is a measurement: of frame `0x55`'s 124 border pixels, 124 are one
+    /// of these three. `crates/l2-view/tests/install.rs` asserts it against the
+    /// player's own file.
+    pub const RING_COLOURS: [u8; 3] = [64, 65, 95];
 }
 
 // -------------------------------------------------------------- System2.pl8
