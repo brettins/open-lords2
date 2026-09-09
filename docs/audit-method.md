@@ -173,6 +173,14 @@ Decompiled *functions* do carry their confidence — `Weather_UpdateAll`'s body 
 `if (g_deterministicBattle != 0)` 155 times and has no signal that
 `docs/symbols.md:465` ends its entry with *"which is a reading, not a proof"*.
 
+> **The example turned out to be the case, and the name it carries here is the old
+> one on purpose.** `0x00553030` has since been read to where it is set and renamed
+> **`g_multiplayer`** (`docs/battle.md` §14.9) — it is the DirectPlay session flag, and
+> its determinism-shaped effects are consequences of being on a wire. So an inferred
+> name did reach 155 call sites, did assert something the address does not mean, and
+> was believed for as long as nobody re-read it. This block is left spelling
+> `g_deterministicBattle` so that the measurement still says what was measured.
+
 `battle-ai.md` §9 is right to keep flagging `g_siegeApproachScore` and `g_siegeBreachScore`
 as `[I]`. But the flag lives in a document, and the name lives in 91 places in the artefact
 people actually read. This is the structural version of C13 — *the artefact an agent leaves
@@ -180,7 +188,7 @@ behind is evidence; its prose is a claim* — with the roles reversed: here the 
 carries the claim and the prose carries the caveat.
 
 **What should change.** `ghidra_scripts/ApplySymbols.java` should mark inferred symbols in
-the database — either a name suffix (`g_deterministicBattle_i`) or, less invasively, a
+the database — either a name suffix (`g_siegeApproachScore_i`) or, less invasively, a
 plate comment the way function comments already work. It is a few lines in one file plus
 one re-run of `decompile-all.ps1`. Until then, no agent reading the tree can tell the 352
 from the 42.
@@ -201,7 +209,7 @@ from the 42.
 | `local_modifier` *"Never traced … Zero until somebody reads it out of the binary"* | `crates/l2-kingdom/src/weather.rs:104` | **False. It took four greps.** See F5 below. |
 | `Title.pl8` *"decodes with provably correct geometry, but no shipped `.256` colours it"* | `formats/pl8.md:192` | **The wrong question.** `Lords2.exe` contains **zero** occurrences of `title.pl8` or `title.256`; the only title string in either shipped executable is `imptitle.smk`, twice. `mapl2.exe` contains no `title` string and no `.256` string at all. No shipped code pairs `Title.pl8` with any palette, because no shipped code loads `Title.pl8`. F7. |
 | `g_goodsStock` *"Reads like the quantity a merchant carries"*, marked inferred | `symbols.md:576` | **Zero references in the entire binary.** F6. |
-| `g_deterministicBattle` *"flag was not traced to where it is set"* `[I]` | `battle-ai.md:734` | **A write exists** at `decomp/00400000.c:7904`. The *meaning* is still a reading — `symbols.md:465` says so correctly — but "not traced to where it is set" is no longer true. |
+| `g_deterministicBattle` *"flag was not traced to where it is set"* `[I]` | `battle-ai.md:734` | **A write exists** at `decomp/00400000.c:7904`. The *meaning* is still a reading — `symbols.md:465` says so correctly — but "not traced to where it is set" is no longer true. **Closed since**: the write was read, it is the DirectPlay session opening, and the global is now `g_multiplayer`, `[V]`. `docs/battle.md` §14.9. |
 
 ### Standing, with the specific test that would settle each
 

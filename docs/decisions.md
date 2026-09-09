@@ -802,6 +802,49 @@ iron site, one stone, one weapons, one wood and a 2 × 2 block at terrain `0x14`
 and the five counties with a `0x17` block are exactly the five that start owned. `0x17` is
 a standing castle; `0x14` is the plot it gets built on.
 
+**C28 — Two names were doing work nobody had checked, and both were wrong. A name is a
+claim, and a claim that reaches an artefact gets believed.**
+
+Two unrelated corrections landed in one pass and they are the same failure.
+
+**`conquest::find_defender` was a plausible reading, recorded as `[I]`, and then relied
+on.** `docs/armies.md` §9 modelled `FUN_0046D42C` as *"the lowest-numbered army of the
+county's owner standing in the county"* and said in the same sentence that the function had
+not been read. The crate implemented it, four tests exercised it, and it was **wrong in both
+halves**: the original scans a 4×4 tile block around the county *town* and returns the
+**largest** army, not a slot-order scan of the county. Neither half of the guess survived.
+
+The part worth keeping is *how it was checked*. The two readings disagree on a file that has
+been in `LORDS2_FIXTURES` the whole time — `battle-before.sav` has county 2's town at
+(31, 50) and its garrison on the castle tile at (30, 46), four rows away, so ours returned an
+army and the original returns nothing. That test was written first, watched fail, and then
+fixed (`crates/l2-kingdom/tests/defence.rs`, which runs *both* readings on the same bytes and
+asserts they differ). **A correction that cannot be made to fail first is not a correction, it
+is a preference** — C12 in the shape it takes when the thing under test is a model rather than
+a number.
+
+**`g_deterministicBattle` was `g_multiplayer` all along**, and `docs/audit-method.md`'s own
+measurement had already flagged it without anyone acting: an *inferred* global name reaches
+the decompiled corpus through `ApplySymbols`, where it appeared **155 times** with no marker
+saying it was a guess, while the caveat sat in a document. `0x00553030` is written to 1 in
+exactly one place — after a DirectPlay session opens — and to 0 on every teardown. The
+determinism-shaped effects that produced the name (cyclic battle selectors, no strength
+jitter, the side-neutral `TROOPS.ENG`) are *consequences* of being on a wire.
+
+Nothing in `docs/netcode.md` had leaned on it — its case for lockstep is made from first
+principles about our own engine and never cites the flag — so no argument had to be
+withdrawn. But it was one refactor away from mattering: a name asserting that *the original
+has a deterministic-battle mode* is exactly the sort of thing a later pass builds on. The
+cost of being wrong here was 155 call sites and a rename across nine documents; the cost of
+being wrong one document later would have been an architecture.
+
+**`hypotheses.json` is the file that exists to stop this, and its own `confidence` key had
+two shapes** — 36 entries an enum, 29 a paragraph — so nothing could count it. It is one enum
+now (`docs/method.md` §7.6), the prose moved verbatim to `caveat`, and both rules are checked
+by `tools/symbols/symbols_md.js`, which CI already runs: a non-enum `confidence` fails, and so
+does an address that sits in `symbols.json` *and* `hypotheses.json` at once. The tier
+discipline was written down for a year and enforced by nothing.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

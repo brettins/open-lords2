@@ -37,6 +37,35 @@ const fail = m => { console.error('symbols_md: ' + m); process.exit(1); };
       if (seenName.has(e.name)) fail(`name ${e.name} used twice (${seenName.get(e.name)}, ${e.addr})`);
       seenAddr.set(e.addr, e.name); seenName.set(e.name, e.addr);
     }
+
+  // ---- and on docs/hypotheses.json, which is the other half of the same rule.
+  //
+  // Two things kept going wrong by hand and are now checked here, because this
+  // script is what CI already runs on every push:
+  //
+  //  * `confidence` in the hypothesis file is an ENUM. Three agents created that
+  //    file on one day and 29 of 65 entries carried a paragraph in the key
+  //    instead, which makes it unreadable by anything mechanical. See
+  //    docs/method.md 7.6.
+  //  * PROMOTION IS A MOVE, NOT A COPY. An address verified in symbols.json must
+  //    not also sit in hypotheses.json — a name in both is a name whose tier
+  //    nobody can read off.
+  const hypPath = path.join(repo, 'docs', 'hypotheses.json');
+  if (fs.existsSync(hypPath)) {
+    const hyp = JSON.parse(fs.readFileSync(hypPath, 'utf8'));
+    const TIER = ['subject', 'role', 'both'];
+    for (const kind of ['functions', 'fields', 'globals'])
+      for (const e of hyp[kind] || []) {
+        const who = e.addr || `${e.record}+${e.off}` || e.name || '?';
+        if (!TIER.includes(e.confidence))
+          fail(`hypotheses ${kind} ${who} (${e.name}): confidence must be one of `
+             + `${TIER.join(' | ')} — see docs/method.md 7.6`);
+        if (!e.basis) fail(`hypotheses ${kind} ${who} (${e.name}) is missing "basis"`);
+        if (e.addr && seenAddr.has(e.addr))
+          fail(`${e.addr} is verified in symbols.json as ${seenAddr.get(e.addr)} and `
+             + `also a hypothesis (${e.name}). Promotion is a move, not a copy.`);
+      }
+  }
 }
 
 // ---- rendering ------------------------------------------------------------

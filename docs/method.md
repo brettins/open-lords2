@@ -368,7 +368,7 @@ So there are two files:
 | | `docs/symbols.json` | `docs/hypotheses.json` |
 |---|---|---|
 | what goes in | **[V]** a check that could have failed, recorded in the `comment` | **[I]** a plausible name and the reason to think it |
-| extra fields | — | `basis`, `confidence` |
+| extra fields | — | `basis`, `confidence`, `caveat`, `promotion` |
 | applied to Ghidra | yes, by `ApplySymbols` | **no** |
 | in `docs/symbols.md` | yes, regenerated | no |
 | in the decompiled corpus | yes, the function reads by name | no, it stays `FUN_…` |
@@ -393,17 +393,36 @@ the reasoning, the *source*, so that when a basis turns out to be unreliable eve
 resting on it can be found in one grep. An entry whose basis is only *"it is called from near
 something named"* is the shape C3 took and should be read as a question, not an answer.
 
-**Confidence is recorded two ways and the file holds both.** Three agents created it
-independently on the same day and the merges kept both forms rather than rewriting one into
-the other. One is an enum — `subject` / `role` / `both` — saying *which half of the name is
-the guess*, in §7.3's vocabulary: `subject` (a string, an asset or a stride pins what it is
-about, and the role word may be wrong — 89% right), `role` (the role is pinned and the
-subject is the guess — 58% right), `both` (**neither half has an independent anchor, and a
-cluster of these that touches no string and no shipped file is where C3 lives**). The other is
-a prose line saying what would have to be true and what would refute it; a line that names no
-way of being wrong is not a hypothesis, it is a wish. The two are not interchangeable — the
-enum is countable against the measured rates, the prose is not — and unifying them is a
-decision for whoever owns the file.
+**`confidence` is an enum, always one of exactly three words**, saying *which half of the
+name a reader should distrust*, in §7.3's vocabulary:
+
+| value | means | §7.3 rate |
+|---|---|---|
+| `subject` | a string, an asset or a stride pins **what it is about**, and the role word in the name may be wrong | 89% right |
+| `role` | the **role** is pinned — it is in a widget table, it is the painter a dispatcher calls — and the subject is the guess | 58% right |
+| `both` | **neither half has an independent anchor.** A cluster of these that touches no string and no shipped file is where C3 lives | — |
+
+Nothing else is a legal value. The point of the enum is that it is *countable*: it can be
+totted up against the two measured rates, so the file can say which two entries in five to
+check first rather than merely that it is unsure.
+
+**`caveat` holds the prose.** What is anchored, what is not, and what would refute it. A
+caveat that names no way of being wrong is not a hypothesis, it is a wish.
+
+Three agents created the file independently on the same day, and for a while `confidence`
+held either form — 36 entries an enum, 29 a paragraph — which makes it unreadable by anything
+mechanical. The 29 were read and classified and their prose moved verbatim into `caveat`;
+four field entries that carried neither, because their evidence had been written once on the
+last member of a quartet, were given both.
+
+**Migrating them said something the enum could not.** Several of the prose entries turned out
+to express no doubt about the *name* at all: `County.purse`, `County.fieldsReclaimable`, the
+`armyFood` pair and the four `Realm` trade accumulators are all anchored on both halves, and
+what is missing is a **save that exercises them** — every one is zero in every fixture, so no
+reproduction can confirm or refute it. That is a promotion note, not a confidence value, and
+it already lives in `basis` and `promotion`. Hence three words and not four: an entry waiting
+for a witness is not a fourth kind of uncertain name, it is a certain-enough name with no
+data behind it.
 
 `hypotheses.json` also carries a **`corrections`** array: claims elsewhere that a pass
 believes are wrong but did not rewrite, because the entry belongs to another subsystem or

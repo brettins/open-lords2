@@ -35,12 +35,9 @@
     "of the roles below are wrong, and the value of this file is that it says which two",
     "in five to check first - not that it is right.",
     "",
-    "SCHEMA NOTE - the confidence key holds two different things, because three agents",
-    "created this file independently on the same day. Both forms are kept verbatim",
-    "rather than one being rewritten into the other, which would be an integrator",
-    "inventing data:",
+    "SCHEMA - confidence is an enum, ALWAYS one of three words, saying WHICH HALF of",
+    "the name a reader should distrust:",
     "",
-    "  an enum - subject | role | both - saying WHICH HALF of the name is the guess.",
     "      subject: what it is about is anchored to a string, an asset or a stride,",
     "               and the role word in the name may be wrong.",
     "      role:    the role is anchored (it is in a widget table, it is the painter a",
@@ -48,12 +45,17 @@
     "      both:    neither half has an independent anchor. A cluster of these that",
     "               touches no string and no shipped file is where C3 lives.",
     "",
-    "  a prose line saying what would have to be true and what would refute it. An",
-    "  entry whose line names no way of being wrong is not a hypothesis, it is a wish.",
+    "Three agents created this file on the same day and 29 of the 65 entries carried a",
+    "prose line in this key instead. Those were read and classified, and the prose they",
+    "held moved verbatim to caveat - what is anchored, what is not, and what would",
+    "refute it. Nothing was rewritten and nothing was discarded. An entry whose caveat",
+    "names no way of being wrong is not a hypothesis, it is a wish.",
     "",
-    "The two are not interchangeable - the enum is countable against the measured rates",
-    "above, the prose is not - and unifying them is a decision for whoever owns this",
-    "file, not for the merge that first put them side by side.",
+    "The enum is countable against the measured rates above. The caveat is not, and it",
+    "is not trying to be: several of the migrated entries turned out to have no doubt",
+    "about the NAME at all - the name is anchored on both halves and what is missing is",
+    "a save that exercises the field. That is a promotion note, not a confidence value,",
+    "and it is why there is no fourth word.",
     "",
     "corrections holds claims in docs/symbols.json or in the documents that a pass",
     "believes are WRONG but did not rewrite, because the entry belongs to another",
@@ -245,97 +247,109 @@
       "addr": "0x00428471",
       "name": "Merchant_SeasonTick",
       "section": "kingdom",
+      "confidence": "both",
+      "comment": "A season pass that does nothing. Called only from Season_Advance.",
       "basis": "Position in Season_Advance's call list, between County_RecountMerchants and Army_RecountCountyTroops, and its address - it sits between Merchant_AdvanceAll (0x004280E9) and Merchant_ResetStall (0x0042847C) in the merchant neighbourhood.",
-      "confidence": "The body is eleven bytes and returns. So the name is a guess at what was removed, and it cannot be checked from this binary at all: an empty function has no evidence in it. Recorded because a reader of Season_Advance needs to know the slot is deliberately empty rather than missing, not because the name is worth anything.",
-      "comment": "A season pass that does nothing. Called only from Season_Advance."
+      "caveat": "The body is eleven bytes and returns. So the name is a guess at what was removed, and it cannot be checked from this binary at all: an empty function has no evidence in it. Recorded because a reader of Season_Advance needs to know the slot is deliberately empty rather than missing, not because the name is worth anything."
     },
     {
       "addr": "0x004842C6",
       "name": "BattleMan_StateEngineWalk",
       "section": "battle",
+      "confidence": "role",
+      "comment": "Steps a siege engine along its route. Zeroes the figure aim point on the way out, as every non-firing engine state does.",
       "basis": "slot 10 of g_manStateTable (0x004D9170), read out of the file",
-      "confidence": "The slot index is a fact; the name is a reading of a 184-byte body. It plays Anim_EngineMove, calls BattleMan_Step, and on stepFlags bit 1 - \"was interrupted\" - drops to state 11. Nothing outside the table says \"engine\", only that its animation helper is the one the four siege troop types use.",
-      "comment": "Steps a siege engine along its route. Zeroes the figure aim point on the way out, as every non-firing engine state does."
+      "caveat": "The slot index is a fact; the name is a reading of a 184-byte body. It plays Anim_EngineMove, calls BattleMan_Step, and on stepFlags bit 1 - \"was interrupted\" - drops to state 11. Nothing outside the table says \"engine\", only that its animation helper is the one the four siege troop types use."
     },
     {
       "addr": "0x0048437E",
       "name": "BattleMan_StateEngineHalt",
       "section": "battle",
+      "confidence": "role",
+      "comment": "A siege engine standing still. BattleMan_StateChase sends any figure of troop type > 6 here rather than letting it pursue.",
       "basis": "slot 11 of g_manStateTable; the state BattleMan_StateEngineWalk and BattleMan_StateChase both jump to",
-      "confidence": "A 62-byte body that plays the engine hold pose and zeroes the aim point, nothing more. \"Halt\" is the only thing it does; whether the original thought of it as halted, parked or arrived is not recoverable.",
-      "comment": "A siege engine standing still. BattleMan_StateChase sends any figure of troop type > 6 here rather than letting it pursue."
+      "caveat": "A 62-byte body that plays the engine hold pose and zeroes the aim point, nothing more. \"Halt\" is the only thing it does; whether the original thought of it as halted, parked or arrived is not recoverable."
     },
     {
       "addr": "0x004849FC",
       "name": "BattleMan_StateEngineWork",
       "section": "battle",
+      "confidence": "role",
+      "comment": "Plays Anim_EngineWork and returns.",
       "basis": "slot 13 of g_manStateTable",
-      "confidence": "A sixteen-byte thunk to the engine working animation and nothing else, so the body constrains the name almost not at all. It is the only state that plays that animation without also doing something.",
-      "comment": "Plays Anim_EngineWork and returns."
+      "caveat": "A sixteen-byte thunk to the engine working animation and nothing else, so the body constrains the name almost not at all. It is the only state that plays that animation without also doing something."
     },
     {
       "addr": "0x00484BEE",
       "name": "BattleMan_StateUnused16",
       "section": "battle",
+      "confidence": "role",
+      "comment": "Empty stub.",
       "basis": "slot 16 of g_manStateTable",
-      "confidence": "An empty `ret`, like slot 0. Whether slot 16 is reachable was not checked; no writer of state = 16 was found by grep over the struct-typed corpus, but a computed write would not show up in that search.",
-      "comment": "Empty stub."
+      "caveat": "An empty `ret`, like slot 0. Whether slot 16 is reachable was not checked; no writer of state = 16 was found by grep over the struct-typed corpus, but a computed write would not show up in that search."
     },
     {
       "addr": "0x00488436",
       "name": "Anim_EngineMove",
       "section": "battle",
+      "confidence": "subject",
+      "comment": "Siege-engine frames. Type 10 (oil) steps animPhase to 0x2F and reads frame 0x23 + phase >> 3; type 8 (tower) folds dirc and polarDirc into four half-facings; type 7 (catapult) uses dirc + 5 and a horse frame of dirc * 5.",
       "basis": "the else-branch every a2 animation handler takes for troopType > 6",
-      "confidence": "The four branches are on troop types 7, 8, 9 and 10 and it writes frame and horseFrame, so it is certainly the siege-engine animation. \"Move\" versus \"work\" for this one and Anim_EngineWork rests only on which states call which.",
-      "comment": "Siege-engine frames. Type 10 (oil) steps animPhase to 0x2F and reads frame 0x23 + phase >> 3; type 8 (tower) folds dirc and polarDirc into four half-facings; type 7 (catapult) uses dirc + 5 and a horse frame of dirc * 5."
+      "caveat": "The four branches are on troop types 7, 8, 9 and 10 and it writes frame and horseFrame, so it is certainly the siege-engine animation. \"Move\" versus \"work\" for this one and Anim_EngineWork rests only on which states call which."
     },
     {
       "addr": "0x0048895E",
       "name": "Anim_EngineWork",
       "section": "battle",
+      "confidence": "subject",
+      "comment": "Siege-engine frames while the engine is doing its job. Reads g_horseWalkCycle.",
       "basis": "the sibling of Anim_EngineMove; called by the firing and dying engine states",
-      "confidence": "Same shape as Anim_EngineMove with a longer animPhase range (0xA0 up for a catapult once swingTimer passes 100, 0x8F down for a ram) and the horse cycle table. That the longer animation is the working one is inference from the callers.",
-      "comment": "Siege-engine frames while the engine is doing its job. Reads g_horseWalkCycle."
+      "caveat": "Same shape as Anim_EngineMove with a longer animPhase range (0xA0 up for a catapult once swingTimer passes 100, 0x8F down for a ram) and the horse cycle table. That the longer animation is the working one is inference from the callers."
     },
     {
       "addr": "0x00488793",
       "name": "Anim_EngineHold",
       "section": "battle",
+      "confidence": "subject",
+      "comment": "The still pose for a siege engine.",
       "basis": "the third engine helper; every a2 handler that is not Anim_EngineMove falls back to it",
-      "confidence": "Called by thirteen functions and does the least of the three. \"Hold\" is a guess at intent.",
-      "comment": "The still pose for a siege engine."
+      "caveat": "Called by thirteen functions and does the least of the three. \"Hold\" is a guess at intent."
     },
     {
       "addr": "0x0048551D",
       "name": "Bridge_Cross",
       "section": "battle",
+      "confidence": "subject",
+      "comment": "Called from Cell_TryEnter for an attacking figure entering a bridge cell, with the cell x and y.",
       "basis": "Cell_TryEnter calls it, and only when the cell surface is 7 and the figure side is 4",
-      "confidence": "battle.md 3 has surface 7 as bridge on independent evidence, and side 4 is the attacker. What the function then does to the bridge was not read.",
-      "comment": "Called from Cell_TryEnter for an attacking figure entering a bridge cell, with the cell x and y."
+      "caveat": "battle.md 3 has surface 7 as bridge on independent evidence, and side 4 is the attacker. What the function then does to the bridge was not read."
     },
     {
       "addr": "0x0049694F",
       "name": "Siege_BreachCells",
       "section": "battle",
+      "confidence": "subject",
+      "comment": "Converts the cells around (x, y) to surface 4 - the breached-wall surface Siege_FindCellSurface4 then looks for.",
       "basis": "called by BattleMan_StateAttackWall and BattleMan_StateRamGate at exactly the two damage thresholds, with (x, y, 4)",
-      "confidence": "The third argument is 4 and the two callers are the wall-damage accumulators, so \"turn this patch of wall into surface 4\" is the only reading that fits. The extent it paints was not read; docs/battle-ai.md 9 records the same uncertainty for the neighbouring 0x00496B9F.",
-      "comment": "Converts the cells around (x, y) to surface 4 - the breached-wall surface Siege_FindCellSurface4 then looks for."
+      "caveat": "The third argument is 4 and the two callers are the wall-damage accumulators, so \"turn this patch of wall into surface 4\" is the only reading that fits. The extent it paints was not read; docs/battle-ai.md 9 records the same uncertainty for the neighbouring 0x00496B9F."
     },
     {
       "addr": "0x0043B593",
       "name": "Screen_BattlePromptClick",
       "section": "ui",
+      "confidence": "subject",
+      "comment": "Screen 0x12 button handler. Hotspot 1 starts the battle locally, or in a network game sleeps 2 s and sends message 0x3C instead; hotspot 0 declines, or sends 0x3D twice.",
       "basis": "the only function that reads g_uiHotspotId and then either calls Battle_Start or sends network message 0x3C",
-      "confidence": "The hotspot ids 1 and 0 are take-the-field and decline; the screen is 0x12, Screen_BattlePrompt. That much is solid. Whether this is the whole click handler or one arm of it was not checked, and the ui section is another agent's.",
-      "comment": "Screen 0x12 button handler. Hotspot 1 starts the battle locally, or in a network game sleeps 2 s and sends message 0x3C instead; hotspot 0 declines, or sends 0x3D twice."
+      "caveat": "The hotspot ids 1 and 0 are take-the-field and decline; the screen is 0x12, Screen_BattlePrompt. That much is solid. Whether this is the whole click handler or one arm of it was not checked, and the ui section is another agent's."
     },
     {
       "addr": "0x0043F5C5",
       "name": "Battle_ReplayFrame",
       "section": "battle",
+      "confidence": "subject",
+      "comment": "With g_battlePhase == 2, copies g_battleMen[1..80], g_missiles[1..100], g_battleUnits[1..80] and both PRNG states out of a buffer selected by g_battlePhase, then runs a frame. Every 4th tick it advances a counter and, at the end, either autosaves or restarts the battle.",
       "basis": "the only Battle_Start caller that copies the whole battle state through a buffer",
-      "confidence": "The three memcpy sizes close exactly - 0x8700 = 80 x 432 figures, 0x1040 = 80 x 52 units, 0x1DB0 = 100 x 76 missiles, all from index 1 - and it also copies g_randStateA and g_randStateB, so this is unambiguously a snapshot of the whole deterministic battle state. Whether it is a replay, a demo loop or a network resync was NOT established.",
-      "comment": "With g_battlePhase == 2, copies g_battleMen[1..80], g_missiles[1..100], g_battleUnits[1..80] and both PRNG states out of a buffer selected by g_battlePhase, then runs a frame. Every 4th tick it advances a counter and, at the end, either autosaves or restarts the battle."
+      "caveat": "The three memcpy sizes close exactly - 0x8700 = 80 x 432 figures, 0x1040 = 80 x 52 units, 0x1DB0 = 100 x 76 missiles, all from index 1 - and it also copies g_randStateA and g_randStateB, so this is unambiguously a snapshot of the whole deterministic battle state. Whether it is a replay, a demo loop or a network resync was NOT established."
     },
     {
       "addr": "0x00447136",
@@ -400,80 +414,99 @@
       "off": "0x15C",
       "type": "u8",
       "name": "merchantFlag",
+      "confidence": "subject",
       "basis": "County_RecountMerchants zeroes it alongside +0x1A4 and +0x1A5, the two merchant fields.",
-      "confidence": "Zero in every county of every fixture, and nothing else in the corpus writes it, so the zeroing is all the evidence there is. It sits immediately before rationAchieved (+0x15D), so a width error here would be visible; it is a byte. Refuted if a writer turns up outside the merchant code."
+      "caveat": "Zero in every county of every fixture, and nothing else in the corpus writes it, so the zeroing is all the evidence there is. It sits immediately before rationAchieved (+0x15D), so a width error here would be visible; it is a byte. Refuted if a writer turns up outside the merchant code."
     },
     {
       "record": "County",
       "off": "0x203",
       "type": "u8",
       "name": "fieldsOther",
+      "confidence": "role",
       "basis": "County_RecountFields buckets tile graphics 0, 23 and 24 here, next to the three named field tallies.",
-      "confidence": "Zero in all fourteen counties of the England fixture, so the reproduction that verified the other four tallies could not verify this one - a bucket that never fires is a bucket whose meaning is unknown. Graphic 0 is an empty slot; 23 and 24 are not identified. Needs a save with those tiles."
+      "caveat": "Zero in all fourteen counties of the England fixture, so the reproduction that verified the other four tallies could not verify this one - a bucket that never fires is a bucket whose meaning is unknown. Graphic 0 is an empty slot; 23 and 24 are not identified. Needs a save with those tiles."
     },
     {
       "record": "County",
       "off": "0x204",
       "type": "u8",
       "name": "fieldsReclaimable",
+      "confidence": "subject",
       "basis": "County_RecountFields buckets tile graphic 25 and above here; Field_SetType switches the reclamation labour share on exactly when it is non-zero.",
-      "confidence": "The gate in Field_SetType is direct and strong - this counts land the county can reclaim. What is not checked is the graphic band: it is 0 in every fixture, so no save demonstrates which tiles land in it. Promote when a save with wasteland exists."
+      "caveat": "The gate in Field_SetType is direct and strong - this counts land the county can reclaim. What is not checked is the graphic band: it is 0 in every fixture, so no save demonstrates which tiles land in it. Promote when a save with wasteland exists."
     },
     {
       "record": "County",
       "off": "0x1FE",
       "type": "u8",
       "name": "farmStyle",
+      "confidence": "role",
       "basis": "Ai_ManageCountyFarms writes it from g_aiPersonality's farmStyle and immediately dispatches on 0, 1 and 9.",
-      "confidence": "Strong: the fixture holds only 0, 1 and 9, exactly the dispatched values. Left here rather than promoted because unowned counties also carry 1, and Ai_ManageCountyFarms only writes AI-owned ones, so something at map load writes it too and has not been found. The name may be too narrow."
+      "caveat": "Strong: the fixture holds only 0, 1 and 9, exactly the dispatched values. Left here rather than promoted because unowned counties also carry 1, and Ai_ManageCountyFarms only writes AI-owned ones, so something at map load writes it too and has not been found. The name may be too narrow."
     },
     {
       "record": "County",
       "off": "0x1F4",
       "type": "i32",
       "name": "purse",
+      "confidence": "role",
       "basis": "Merchant_Trade credits and debits it instead of realm gold when the realm argument is 0.",
-      "confidence": "Readable but never exercised: 0 in every fixture, because no unowned county has traded. The claim that an unowned county has a treasury of its own is a real one and it is untested."
+      "caveat": "Readable but never exercised: 0 in every fixture, because no unowned county has traded. The claim that an unowned county has a treasury of its own is a real one and it is untested."
     },
     {
       "record": "County",
       "off": "0x198",
       "type": "i32",
-      "name": "armyFoodSoldiers"
+      "name": "armyFoodSoldiers",
+      "confidence": "role",
+      "basis": "The pair with +0x19C: Ration_Apply adds +0x198 + +0x19C to the food requirement when g_optArmiesEat is on. The evidence is written out on +0x19C.",
+      "caveat": "Shares the caveat of +0x19C: which of the two is soldiers and which is foragers is a coin flip off a dead string group, and both are 0 in every fixture."
     },
     {
       "record": "County",
       "off": "0x19C",
       "type": "i32",
       "name": "armyFoodForagers",
+      "confidence": "role",
       "basis": "Ration_Apply adds +0x198 + +0x19C to the county's food requirement when g_optArmiesEat is on, and Panel_Ration draws that same sum against L2.eng 87/8 'men foraging in the county.'. The orphaned ration group 62 has 'Soldiers', 'Foragers', 'take' and 'steal' as four separate strings, which is where the split into two fields comes from.",
-      "confidence": "That the pair exists and sums into the food bill is certain. Which of the two is soldiers and which is foragers is a guess off the dead string group, and is a coin flip. Both are 0 in every fixture - no fixture has an army standing in a county with Armies Eat on."
+      "caveat": "That the pair exists and sums into the food bill is certain. Which of the two is soldiers and which is foragers is a guess off the dead string group, and is a coin flip. Both are 0 in every fixture - no fixture has an army standing in a county with Armies Eat on."
     },
     {
       "record": "Realm",
       "off": "0x104",
       "type": "i32",
-      "name": "spentThisSeason"
+      "name": "spentThisSeason",
+      "confidence": "subject",
+      "basis": "One of the four Merchant_Trade accumulators; the evidence is written out on +0x110.",
+      "caveat": "Shares the caveat of +0x110: that two accumulators run on spending is certain, which of the pair is the season figure is not, and all four are 0 in every fixture."
     },
     {
       "record": "Realm",
       "off": "0x108",
       "type": "i32",
-      "name": "spentTotal"
+      "name": "spentTotal",
+      "confidence": "subject",
+      "basis": "One of the four Merchant_Trade accumulators; the evidence is written out on +0x110.",
+      "caveat": "Shares the caveat of +0x110: that two accumulators run on spending is certain, which of the pair is the running total is not, and all four are 0 in every fixture."
     },
     {
       "record": "Realm",
       "off": "0x10C",
       "type": "i32",
-      "name": "receivedThisSeason"
+      "name": "receivedThisSeason",
+      "confidence": "subject",
+      "basis": "One of the four Merchant_Trade accumulators; the evidence is written out on +0x110.",
+      "caveat": "Shares the caveat of +0x110: that two accumulators run on income is certain, which of the pair is the season figure is not, and all four are 0 in every fixture."
     },
     {
       "record": "Realm",
       "off": "0x110",
       "type": "i32",
       "name": "receivedTotal",
+      "confidence": "subject",
       "basis": "Merchant_Trade adds the crown amount to +0x104 and +0x108 on a purchase and to +0x10C and +0x110 on a sale.",
-      "confidence": "That two accumulators run on spending and two on income is certain. Which of each pair is the season figure and which the running total is not: nothing in the corpus resets either, and all four are 0 in every fixture because no fixture has traded. If neither is ever reset, the pair is something else entirely - two panels rather than two horizons."
+      "caveat": "That two accumulators run on spending and two on income is certain. Which of each pair is the season figure and which the running total is not: nothing in the corpus resets either, and all four are 0 in every fixture because no fixture has traded. If neither is ever reset, the pair is something else entirely - two panels rather than two horizons."
     }
   ],
   "globals": [
@@ -497,55 +530,51 @@
       "addr": "0x00553D50",
       "name": "g_playerSlots",
       "section": "diplomacy",
+      "confidence": "role",
       "basis": "Mp_DropDepartedPlayers tests slot +0x00 for zero; Realm_Eliminate clears +0x00, +0x25, +0x26 and sets +0x27. Stride 0x2C, six entries, one per realm.",
-      "confidence": "A per-realm table whose first word means 'this realm is still attached' is the only reading that makes both functions work. What the table actually holds - a network peer, a save slot, a controller - is not established, and the name presumes the first."
+      "caveat": "A per-realm table whose first word means 'this realm is still attached' is the only reading that makes both functions work. What the table actually holds - a network peer, a save slot, a controller - is not established, and the name presumes the first."
     },
     {
       "addr": "0x00553F98",
       "name": "g_playerCount",
       "section": "diplomacy",
+      "confidence": "both",
       "basis": "Decremented by Mp_DropDepartedPlayers each time a realm is dropped.",
-      "confidence": "One writer, one direction. Nothing here shows what increments it or who reads it."
+      "caveat": "One writer, one direction. Nothing here shows what increments it or who reads it."
     },
     {
       "addr": "0x0056D8AC",
       "name": "g_tradeGood",
       "section": "kingdom",
+      "confidence": "subject",
       "basis": "Indexes g_merchantStall in the trade panel and selects the branch in the good-to-stock switch.",
-      "confidence": "Consistent everywhere it appears. Not promoted because the trade screen was not read end to end here - only the transaction underneath it."
+      "caveat": "Consistent everywhere it appears. Not promoted because the trade screen was not read end to end here - only the transaction underneath it."
     },
     {
       "addr": "0x0053F270",
       "name": "g_startForcesSetting",
       "section": "kingdom",
+      "confidence": "role",
       "basis": "Indexes g_startArmoury (stride 0x18) and, alongside g_startTroops's own index, seeds a new game's armoury.",
-      "confidence": "Both tables have exactly four meaningful rows, so the setting takes four values, which matches a new-game option. Which option, and whether 0..3 runs weakest to strongest, is inferred from the rows being monotonic and nothing else."
-    },
-    {
-      "addr": "0x00512FB0",
-      "name": "g_netSendRing",
-      "section": "battle",
-      "basis": "the buffer Net_SendMessage builds each packet into",
-      "confidence": "The stride 0x104 and the wrap at 0x27 are read straight out of the code; the field meanings at +0, +1, +2, +3 are inferred from what is written into them.",
-      "comment": "39 slots of 0x104 bytes. Byte 0 the message id, 1 the payload length, 2 a checksum from FUN_00440038, 3 the slot number with bits 0x40/0x80 used to mark the duplicate sends. UNRECONCILED: the campaign-map pass reached this same buffer independently and called it g_netPacketBuf. The two readings agree on everything material - stride 0x104, +0 the opcode/message id, +1 the declared length, +2 a checksum from FUN_00440038, +3 a sequence byte the duplicate-send path ORs with 0x40 and then 0x80 - and disagree on two things: the name, and whether the ring is 39 slots or 40. Neither count has been checked against the bytes. Both names are recorded here rather than one being chosen by a merge; settling it means reading the wrap test in Net_SendMessage.",
-      "altName": "g_netPacketBuf",
-      "altComment": "Forty 0x104-byte outgoing command packets. +0 opcode, +1 declared length, +2 a checksum from FUN_00440038, +3 sequence-number byte, which the triple-send path ORs with 0x40 and then 0x80. The sequence counter at 0x00512F4C wraps 1..39, one short of the forty slots."
+      "caveat": "Both tables have exactly four meaningful rows, so the setting takes four values, which matches a new-game option. Which option, and whether 0..3 runs weakest to strongest, is inferred from the rows being monotonic and nothing else."
     },
     {
       "addr": "0x0055307C",
       "name": "g_rampartCellsBreached",
       "section": "battle",
+      "confidence": "subject",
+      "comment": "How many rampart cells this siege has knocked through.",
       "basis": "incremented beside g_wallHitsRampart every time a rampart cell is converted to surface 4",
-      "confidence": "The mechanism is read; the name is a guess at what the count is for. BattleMan_StateRamGate reads it back and sends the figure to state 11 once it passes 1.",
-      "comment": "How many rampart cells this siege has knocked through."
+      "caveat": "The mechanism is read; the name is a guess at what the count is for. BattleMan_StateRamGate reads it back and sends the figure to state 11 once it passes 1."
     },
     {
       "addr": "0x00569588",
       "name": "g_gateBreached",
       "section": "battle",
+      "confidence": "role",
+      "comment": "Set once when the 20000-hit accumulator breaches; also raises g_siegeApproachScore and g_siegeBreachScore by 4.",
       "basis": "set to 1 exactly once, at the 20000-hit threshold in both wall-attack states",
-      "confidence": "A one-shot flag on the gate/wall threshold, read by BattleUnit_FewOnRampart and UnitOrder_SiegeAttRam. \"Gate\" rather than \"wall\" is inference from its being the non-rampart branch.",
-      "comment": "Set once when the 20000-hit accumulator breaches; also raises g_siegeApproachScore and g_siegeBreachScore by 4."
+      "caveat": "A one-shot flag on the gate/wall threshold, read by BattleUnit_FewOnRampart and UnitOrder_SiegeAttRam. \"Gate\" rather than \"wall\" is inference from its being the non-rampart branch."
     },
     {
       "addr": "0x0050D7C0",
@@ -603,18 +632,6 @@
     }
   ],
   "corrections": [
-    {
-      "target": "docs/symbols.json global 0x00553030 g_deterministicBattle",
-      "claim": "The name is wrong. 0x00553030 is the multiplayer flag - a network game is in progress - and it should be g_multiplayer.",
-      "evidence": [
-        "It is written to 1 in exactly one place: FUN_004B7250, immediately after FUN_004B7585 succeeds, and it is written to 0 on every failure and teardown path in that function and in FUN_004B743B. FUN_004B7250 then spins for up to 10 s waiting for a connection and, on timeout, calls vtable+0x24 on the interface pointer at 0x004E2A2C.",
-        "0x004E2A2C is the DirectPlay interface. FUN_004B8243 calls DirectPlayCreate and QueryInterfaces into it, and Lords2.exe imports DPLAYX.dll.",
-        "FUN_0043EDA0 - the packet builder, now proposed as Net_SendMessage - returns immediately unless this global is non-zero. Every one of its 98 message ids is dead in single player.",
-        "FUN_0043B593 branches on it to decide between calling Battle_Start locally and sending message 0x3C.",
-        "It is read by more than a hundred functions across the county, setup and diplomacy screens, which is what a multiplayer flag looks like and not what a battle-determinism flag looks like."
-      ],
-      "notDoneBecause": "Renaming it is not an additive edit to a file four agents are appending to, and it changes the reading of docs/battle-ai.md 8 and docs/netcode.md. The existing comment already flags the name as inferred."
-    },
     {
       "target": "docs/battle.md 13.5, the figure frame layout",
       "claim": "The walking and attacking blocks are the other way round. Frames 0..5 of a facing block are the WALK cycle and 6..N-2 are the strike; N-1 is the standing pose.",

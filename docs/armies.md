@@ -1356,9 +1356,16 @@ anchor** (§10.3). With that, the window is exactly *the town, plus the one-tile
 it* — a rule you can state in a sentence: **an army defends its county town by standing on it
 or beside it.**
 
-`crates/l2-kingdom`'s `conquest::find_defender` implements the old reading, and the two
-disagree on shipped data: in `battle-before.sav`, county 2's garrison is at (30, 46) and
-county 2's town is at (31, 50), so our version returns that army and the original returns 0.
+The two readings **disagree on shipped data**, which is what makes this a correction rather
+than a preference. In `battle-before.sav` county 2's town anchor is (31, 50) and its owner's
+only army stands at (30, 46) — the county's own **castle** tile (§8b.3), four rows north of
+the town. The old reading returns that army; the original returns 0 and the county levies a
+fresh defence.
+
+`crates/l2-kingdom`'s `conquest::find_defender` **has been corrected to this function**, and
+both readings are run against those bytes in `crates/l2-kingdom/tests/defence.rs`, which
+asserts that they return different answers. The geometry — the `−2 … +1` window, the
+size tie-break and the edge guard — is in the unit tests beside the function.
 
 ### 8.3 `County_ChangeOwner` (`FUN_004A72FE`)
 
@@ -1460,7 +1467,7 @@ passes a non-zero fifth argument to `Unit_OrderMove`, and what it passes is
 `g_hoverMergeUnit`. So `+0x152` is **the unit to merge into on arrival**, not the abstract
 "order mode" §1.2 called it.
 
-**Every one of these actions exists twice.** Under `g_deterministicBattle` the callback sends
+**Every one of these actions exists twice.** Under `g_multiplayer` the callback sends
 a network command instead of acting: `0x29` a move order, `0x2C` a move-and-combine, `0x2E` a
 disband, `0x34` a garrison, `0x35` a begin-siege, `0x3A` an industry toggle from the map. See
 §8c — the payload of `0x29` is the whole input a lockstep peer needs.
@@ -1511,7 +1518,7 @@ campaign-map callbacks, and because it is what a lockstep move order actually is
 Every one of §8.5's callbacks ends in the same shape:
 
 ```c
-if (g_deterministicBattle == 0) Unit_OrderMove(...);
+if (g_multiplayer == 0) Unit_OrderMove(...);
 else                            Net_SendCommand(0x29, 0);
 ```
 

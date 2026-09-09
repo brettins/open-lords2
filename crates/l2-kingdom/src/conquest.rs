@@ -149,10 +149,10 @@ pub const ATTACK_MOVE_COST: i32 = 8;
 /// among the offsets *"not traced"*, is **the county-defence marker**. Written
 /// here, read there: two sites, `[D]`.
 ///
-/// The **existing-defender search** (`FUN_0046D42C`) is reproduced as "the
-/// lowest-numbered army of the county's owner standing in the county", which is
-/// what a scan of `g_units` in slot order gives. `[I]` on the exact predicate;
-/// the function was not read.
+/// The **existing-defender search** is `County_FindDefendingArmy`
+/// (`FUN_0046D42C`), and it is not a scan of the county — it is a 4×4 block
+/// around the county *town*, returning the largest army in it. See
+/// [`find_defender`], which has the function.
 #[allow(clippy::too_many_arguments)]
 pub fn attack_county(
     t: &Tables,
@@ -265,20 +265,83 @@ pub fn march_and_fight(
     (steps, outcome)
 }
 
-/// `FUN_0046D42C` — an army of the county's owner already standing in it.
+/// `County_FindDefendingArmy` (`FUN_0046D42C`, `0x0046D42C`) — the army already
+/// standing at the county's town, which defends it instead of a fresh levy.
 ///
-/// `[I]` on the predicate: the function was not read, and this is the reading
-/// that makes `Army_AttackCounty` behave sensibly. Slot order, so the choice is
-/// deterministic.
+/// ```c
+/// uint County_FindDefendingArmy(int county) {
+///     ax = county.anchorX;  ay = county.anchorY;          /* +0x6C / +0x6D */
+///     if (ax - 2 < 0 || ax + 2 > 64 || ay - 2 < 0 || ay + 2 > 64) return 0;
+///     best = 0;  bestMen = 0;
+///     for (y = ay - 2; y < ay + 2; y++)
+///       for (x = ax - 2; x < ax + 2; x++) {
+///         u = g_tiles[y*64 + x].unit;                     /* the +5 plane */
+///         if (u && units[u].owner == county.owner && units[u].kind == 1
+///               && units[u].men > bestMen) { best = u; bestMen = units[u].men; }
+///       }
+///     return best;
+/// }
+/// ```
+///
+/// **This was modelled wrong in both halves until the function was read**, as
+/// *"the lowest-numbered army of the county's owner standing in the county"*.
+/// Both the scope and the tie-break were wrong:
+///
+/// * **The scope** is a **4×4 tile block around the county town**, not the
+///   county. An army three tiles from the town does not defend it however deep
+///   inside the county it stands.
+/// * **The tie-break** is the **largest** army by [`crate::unit::Unit::men`],
+///   not the first slot.
+///
+/// `[V]` on the arithmetic, which closes exactly: the scan advances `+8` per
+/// column and `+0x1E0` to the next row, and `512 − 4×8 = 480 = 0x1E0`, so the
+/// block is four wide and four tall and nothing else fits.
+///
+/// **The asymmetric `−2 … +1` window is the tell that the reading is right.**
+/// It looks like an off-by-one until you know the county town is a 2×2 block
+/// whose *bottom-right* corner is the anchor — with that, the window is exactly
+/// the town plus the one-tile ring around it, and the rule states in a
+/// sentence: **an army defends its county town by standing on it or beside it.**
+///
+/// The two readings disagree on shipped data. In `battle-before.sav` county 2's
+/// town anchor is (31, 50) and its owner's only army stands at (30, 46) — the
+/// county's own castle tile, four rows north of the town. The old version
+/// returned that army and the original returns 0. Both are run against those
+/// bytes in `tests/defence.rs`.
+///
+/// The original reads the occupying unit out of the tile record's `+5`
+/// occupancy plane; [`crate::map::CampaignMap`] deliberately does not carry that
+/// plane, so [`Units::at`] answers the same question from the unit array. The
+/// tiles are visited in the original's row-major order, so a tie between two
+/// equally large armies falls the same way.
 pub fn find_defender(units: &Units, counties: &[County; MAX_COUNTIES], county: u8) -> Option<usize> {
-    let owner = counties.get(county as usize)?.owner;
+    let c = counties.get(county as usize)?;
+    let owner = c.owner;
     if owner == 0 {
         return None;
     }
-    units
-        .iter()
-        .find(|(_, u)| u.kind == UnitKind::Army && u.owner == owner && u.county == county)
-        .map(|(i, _)| i)
+    let (ax, ay) = (c.anchor_x as i32, c.anchor_y as i32);
+    // The original's own bounds check, and it is `+2` on both sides even though
+    // the scan only reaches `+1`: a town within two tiles of an edge defends
+    // itself with a levy and nothing else.
+    let dim = crate::map::MAP_DIM as i32;
+    if ax - 2 < 0 || ax + 2 > dim || ay - 2 < 0 || ay + 2 > dim {
+        return None;
+    }
+
+    let mut best = None;
+    let mut best_men = 0;
+    for y in (ay - 2)..(ay + 2) {
+        for x in (ax - 2)..(ax + 2) {
+            let Some(i) = units.at(x as u8, y as u8) else { continue };
+            let Some(u) = units.get(i) else { continue };
+            if u.kind == UnitKind::Army && u.owner == owner && u.men > best_men {
+                best = Some(i);
+                best_men = u.men;
+            }
+        }
+    }
+    best
 }
 
 /// `County_ChangeOwner` (`FUN_004A72FE`, `0x004A72FE`) — the county changes
@@ -523,9 +586,12 @@ mod tests {
         let m = two_county_map();
         let (mut counties, mut realms) = world();
         counties[2].owner = 2;
+        counties[2].anchor_x = 45;
+        counties[2].anchor_y = 20;
         let mut units = Units::new();
         let mut names = ArmyNames::new();
         let a = attacker(&mut units, 1, 2);
+        // On the town's own anchor tile, which is inside the 4x4 window.
         let mut standing = Unit::new(UnitKind::Army, 2, 45, 20);
         standing.men = 300;
         standing.county = 2;
@@ -535,6 +601,126 @@ mod tests {
         assert_eq!(out, Attack::Battle { attacker: a, defender: existing });
         assert_eq!(units.len(), 2, "nothing new was levied");
         assert_eq!(counties[2].population, 500, "and nobody was called up");
+    }
+
+    // --- the defender search ------------------------------------------------
+
+    /// An army of `owner`, `men` strong, standing on `(x, y)` in county 2.
+    fn standing(units: &mut Units, owner: u8, x: u8, y: u8, men: i32) -> usize {
+        let mut u = Unit::new(UnitKind::Army, owner, x, y);
+        u.men = men;
+        u.county = 2;
+        units.spawn(u).unwrap()
+    }
+
+    /// County 2 owned by realm 2, with its town anchored where the caller says.
+    fn owned_county_two(anchor: (u8, u8)) -> ([County; MAX_COUNTIES], [Realm; MAX_REALMS]) {
+        let (mut counties, mut realms) = world();
+        counties[2].owner = 2;
+        counties[2].anchor_x = anchor.0;
+        counties[2].anchor_y = anchor.1;
+        realms[2].is_human = false;
+        (counties, realms)
+    }
+
+    /// **The case that was wrong on shipped data.**
+    ///
+    /// In `battle-before.sav` county 2's town anchor is (31, 50) and the only
+    /// army its owner has — its castle garrison — stands at (30, 46), one
+    /// column left and *four rows north*. The reading this function used to
+    /// carry, *"the lowest-numbered army of the county's owner standing in the
+    /// county"*, returns that army. `County_FindDefendingArmy` scans four rows
+    /// around the anchor and returns 0, so the county levies a fresh defence
+    /// instead. `tests/defence.rs` runs both readings on the real bytes.
+    ///
+    /// The control below is the same army moved to (30, 49), which *is* in the
+    /// window — so the test fails for the geometry and not for some other
+    /// reason.
+    #[test]
+    fn an_army_four_rows_from_the_town_does_not_defend_it() {
+        let (counties, _) = owned_county_two((31, 50));
+
+        let mut units = Units::new();
+        standing(&mut units, 2, 30, 46, 300);
+        assert_eq!(
+            find_defender(&units, &counties, 2),
+            None,
+            "battle-before.sav: the army at (30,46) is outside the town's 4x4 block"
+        );
+
+        let mut units = Units::new();
+        let close = standing(&mut units, 2, 30, 49, 300);
+        assert_eq!(
+            find_defender(&units, &counties, 2),
+            Some(close),
+            "…and one row nearer, it defends"
+        );
+    }
+
+    /// **The window is `−2 … +1`, not `−2 … +2`.** The town is a 2×2 whose
+    /// bottom-right corner is the anchor, so the block is the town plus the
+    /// one-tile ring around it — asymmetric, and that asymmetry is the tell.
+    #[test]
+    fn the_defence_window_is_the_town_block_plus_its_one_tile_ring() {
+        let (counties, _) = owned_county_two((31, 50));
+        let inside = |x: u8, y: u8| {
+            let mut units = Units::new();
+            let u = standing(&mut units, 2, x, y, 300);
+            find_defender(&units, &counties, 2) == Some(u)
+        };
+
+        for x in 29..=32u8 {
+            for y in 48..=51u8 {
+                assert!(inside(x, y), "({x},{y}) is inside the block");
+            }
+        }
+        for (x, y) in [(28, 50), (33, 50), (31, 47), (31, 52), (28, 47), (33, 52)] {
+            assert!(!inside(x, y), "({x},{y}) is outside it");
+        }
+    }
+
+    /// **The tie-break is size, not slot order.** A small army spawned first
+    /// does not beat a large one spawned second, which is exactly what the old
+    /// `iter().find(..)` did.
+    #[test]
+    fn the_largest_army_beside_the_town_defends_it_not_the_earliest_slot() {
+        let (counties, _) = owned_county_two((31, 50));
+        let mut units = Units::new();
+        let _small = standing(&mut units, 2, 29, 48, 40);
+        let big = standing(&mut units, 2, 32, 51, 400);
+        let _middling = standing(&mut units, 2, 31, 50, 200);
+        assert_eq!(find_defender(&units, &counties, 2), Some(big));
+    }
+
+    /// Only the owner's own armies, and only armies. A besieger of another
+    /// realm sitting on the town, and the owner's own merchant, are both
+    /// invisible to it.
+    #[test]
+    fn the_defence_search_ignores_other_realms_and_other_unit_kinds() {
+        let (counties, _) = owned_county_two((31, 50));
+        let mut units = Units::new();
+        standing(&mut units, 1, 31, 50, 900);
+        let mut trader = Unit::new(UnitKind::Merchant, 2, 30, 50);
+        trader.men = 900;
+        trader.county = 2;
+        units.spawn(trader).unwrap();
+        assert_eq!(find_defender(&units, &counties, 2), None);
+
+        let own = standing(&mut units, 2, 29, 49, 10);
+        assert_eq!(find_defender(&units, &counties, 2), Some(own), "ten men still beat nobody");
+    }
+
+    /// The original's own bounds check: a town within two tiles of the map's
+    /// edge finds nobody at all, whoever is standing beside it. `ax − 2 < 0` or
+    /// `ax + 2 > 64` and the function returns 0 before it scans.
+    #[test]
+    fn a_town_against_the_map_edge_finds_nobody() {
+        for anchor in [(1u8, 50u8), (63, 50), (31, 1), (31, 63)] {
+            let (counties, _) = owned_county_two(anchor);
+            let mut units = Units::new();
+            standing(&mut units, 2, anchor.0, anchor.1, 300);
+            assert_eq!(find_defender(&units, &counties, 2), None, "anchor {anchor:?}");
+        }
     }
 
     #[test]
