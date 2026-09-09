@@ -86,7 +86,17 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   not the tiles they were counted from, so its fields could never be
 ///   repainted; there is no way to recover the tiles from the counts, which is
 ///   why this is a refusal and not a default.
-pub const VERSION: u32 = 4;
+/// * 5 — **four county fields that were never written at all**:
+///   `labour_wanted`, `labour_useful`, `labour_share` and `industry_share`.
+///   Found by the *game* save's round trip over the England turn-one position
+///   (`crates/l2-game/tests/save.rs`): a decoded kingdom compared equal on its
+///   checksum and unequal on `PartialEq`, because the four were absent from the
+///   `Encode` impl below and therefore absent from the hash as well. Two of
+///   them — `labour_useful` and `labour_share` — are what the labour allocator
+///   allocates *from*, so this was a hole in the lockstep checksum
+///   (`docs/netcode.md` §5) and not only in the save. A version 4 save has the
+///   four missing and no way to say what they held.
+pub const VERSION: u32 = 5;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -626,6 +636,23 @@ impl Encode for County {
         for job in &self.labour {
             out.i32(*job);
         }
+        // **The other three labour arrays and the industry split.** They were
+        // missing until a game save round-tripped the England position and came
+        // back with `County::new`'s defaults in all four; see [`VERSION`] 5.
+        // `labour_useful` and `labour_share` are what `FUN_0044F6E7` allocates
+        // *from*, so they are simulation state and not a display hint, and
+        // leaving them out of the encoding left them out of the lockstep
+        // checksum too.
+        for job in &self.labour_wanted {
+            out.i32(*job);
+        }
+        for job in &self.labour_useful {
+            out.i32(*job);
+        }
+        for job in &self.labour_share {
+            out.i32(*job);
+        }
+        out.i32(self.industry_share);
         for field in &self.field_progress {
             out.u16(*field);
         }
@@ -737,6 +764,16 @@ impl Decode for County {
         for job in 0..JOB_COUNT {
             c.labour[job] = input.i32()?;
         }
+        for job in 0..JOB_COUNT {
+            c.labour_wanted[job] = input.i32()?;
+        }
+        for job in 0..JOB_COUNT {
+            c.labour_useful[job] = input.i32()?;
+        }
+        for job in 0..JOB_COUNT - 1 {
+            c.labour_share[job] = input.i32()?;
+        }
+        c.industry_share = input.i32()?;
         for field in 0..c.field_progress.len() {
             c.field_progress[field] = input.u16()?;
         }

@@ -18,6 +18,7 @@ use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::screens::setup::SetupPage;
 use crate::screens::shells::SHELLS;
 use crate::widget;
@@ -52,6 +53,8 @@ impl IndexScreen {
         // nothing else: no `ScreenId` for it is invented here, because the
         // agent that owns the screen owns its id.
         push("0x02 THE VILLAGE (ANOTHER AGENT)".into(), None);
+        push("0x35 LOAD A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Load)));
+        push("0x36 SAVE A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Save)));
 
         push(String::new(), None);
         push("-- 0x1F GAME SETUP, 13 PAGES --".into(), None);
@@ -231,6 +234,8 @@ mod tests {
         assert!(dests.contains(&ScreenId::Campaign));
         assert!(dests.contains(&ScreenId::County(1)));
         assert!(dests.contains(&ScreenId::Conquest));
+        assert!(dests.contains(&ScreenId::SaveLoad(SaveLoadMode::Load)));
+        assert!(dests.contains(&ScreenId::SaveLoad(SaveLoadMode::Save)));
         for p in SetupPage::ALL {
             assert!(dests.contains(&ScreenId::Setup(p)), "setup page {}", p.number());
         }

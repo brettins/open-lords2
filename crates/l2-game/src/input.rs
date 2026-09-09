@@ -17,6 +17,11 @@ pub enum Key {
     Escape,
     Enter,
     Space,
+    /// Only the save screen's name field reads it. It is here rather than being
+    /// folded into [`Key::Char`] because a text field has to tell "the player
+    /// typed a backspace" from "the player typed a character", and no other
+    /// screen in this crate has a text field at all.
+    Backspace,
     Up,
     Down,
     Left,

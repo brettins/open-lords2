@@ -32,6 +32,8 @@
 
 pub mod game;
 pub mod input;
+pub mod save;
+pub mod saves;
 pub mod scenario;
 pub mod screen;
 pub mod screens;

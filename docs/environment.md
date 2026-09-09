@@ -10,6 +10,7 @@ Everything here has cost real time at least once.
 | Game (GOG, Windows build) | `F:\games\Lords of the Realm II` — **read only** |
 | Game (older DOS install) | `F:\games\LORDS2` — **read only**, useful for diffing |
 | **Test fixtures** | `E:\dev\lords2-fixtures` — preserved saves, **outside every install** |
+| **Our own saved games** | `%APPDATA%\open-lords2\saves` — §"Where our saves go" below |
 | Ghidra | `E:\dev\tools\ghidra_12.1.3_PUBLIC` |
 | Ghidra projects | `E:\dev\ghidra-projects` |
 | JDK 21 | `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot` |
@@ -68,6 +69,44 @@ original game, let turn one begin, quit, and copy that install's `lastturn.sav`
 to `%LORDS2_FIXTURES%\england-turn1.sav`. Never copy it *into* the repository:
 `.gitignore` refuses `*.sav` and a test in `l2-testkit` fails if one appears in
 the working tree.
+
+## Where our saves go
+
+**`%APPDATA%\open-lords2\saves`**, and `%LORDS2_SAVES%` overrides it. On a
+non-Windows machine it is `$XDG_DATA_HOME/open-lords2/saves`, falling back to
+`$HOME/.local/share/open-lords2/saves`. The directory is created on the first
+*write* and never on a read or a listing, so opening the load screen on a
+machine that has never saved touches nothing.
+
+| variable | default | holds |
+|---|---|---|
+| `LORDS2_SAVES` | `%APPDATA%\open-lords2\saves` | **our** saved games, `.l2sav` |
+
+It is resolved in one place, `l2_game::saves::dir`, and nothing else in the
+workspace names a save directory.
+
+**Why not the three obvious places.**
+
+* **Not inside the game install.** `CLAUDE.md` rule 2 — read only — and it is
+  also where the original keeps `lastturn.sav`, whose fixture identity this
+  document has already watched a program destroy once.
+* **Not inside the repository.** `.gitignore` refuses `*.sav` and `*.l2sav`, and
+  `crates/l2-testkit/tests/census.rs` fails if either appears in the tree. A
+  save that lands beside the source is a save somebody commits.
+* **Not beside the executable.** That works for a portable build and fails for
+  an installed one: `%PROGRAMFILES%` is not writable by the user who runs the
+  game, and the failure arrives at the worst moment, when somebody presses save.
+
+**The extension is `.l2sav`, not `.sav`.** The original's `.sav` is an
+unversioned memory dump we read as an *oracle* (`l2_formats::save`, whose schema
+comes out of the user's own `Lords2.exe`). Ours is a versioned format of our own
+(`l2_game::save`, `l2_kingdom::save`) that we write and read. A directory
+listing that cannot tell them apart is one somebody eventually confuses, and
+`docs/decisions.md` D11 records the whole decision.
+
+**We do not write the original's format**, and reading it is a separate job. A
+save the original could open is not on any plan yet; what exists is a save
+*we* can open, which is what "quit and resume" needs.
 
 ## Commands
 

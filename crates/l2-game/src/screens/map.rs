@@ -52,6 +52,7 @@ use l2_view::{text, Canvas, Clip, Ink, Tags};
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::turn;
 use crate::widget;
 
@@ -454,6 +455,18 @@ impl Screen for MapScreen {
             // every screen, so the ones the game logic cannot yet open can
             // still be walked. `screens::index`.
             Event::KeyDown(Key::Char('I')) => return Transition::Push(ScreenId::Index),
+            // **Ours, and only the key is.** The original reaches `0x35` and
+            // `0x36` through the menu bar's Game drop-down (`Menu_LoadGame` and
+            // `Menu_SaveGame`, which save `g_screenId` into `g_screenIdSaved`
+            // so that `SaveLoad_Cancel` can put it back — which is what
+            // `Transition::Pop` does here). The drop-down is not drawn yet, so
+            // the destinations are the original's and the way in is not.
+            Event::KeyDown(Key::Char('S')) => {
+                return Transition::Push(ScreenId::SaveLoad(SaveLoadMode::Save))
+            }
+            Event::KeyDown(Key::Char('L')) => {
+                return Transition::Push(ScreenId::SaveLoad(SaveLoadMode::Load))
+            }
             Event::KeyDown(Key::Char('Z')) => self.toggle_zoom(),
             Event::KeyDown(Key::Char('E')) | Event::KeyDown(Key::Space) => self.end_turn(ctx),
             Event::Pointer { x, y } => {

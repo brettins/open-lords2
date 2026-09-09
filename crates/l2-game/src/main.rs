@@ -126,6 +126,7 @@ fn translate(key: &WinitKey) -> Option<Key> {
         WinitKey::Named(NamedKey::Escape) => Key::Escape,
         WinitKey::Named(NamedKey::Enter) => Key::Enter,
         WinitKey::Named(NamedKey::Space) => Key::Space,
+        WinitKey::Named(NamedKey::Backspace) => Key::Backspace,
         WinitKey::Named(NamedKey::ArrowUp) => Key::Up,
         WinitKey::Named(NamedKey::ArrowDown) => Key::Down,
         WinitKey::Named(NamedKey::ArrowLeft) => Key::Left,

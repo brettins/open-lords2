@@ -291,34 +291,10 @@ pub const SHELLS: &[Shell] = &[
         overlay: true,
         unfinished: "the On/Off values from group 18, which need the settings",
     },
-    Shell {
-        id: 0x35,
-        painter: 0x0041_4819,
-        name: "Load a game",
-        background: None,
-        palette: None,
-        window: Some((0x10, 0x90, 0x1C, 0x14, 0)),
-        group: 40,
-        heading: Some((0, 0x20, 0xA0)),
-        lines: &[(8, 0x20, 0x1A8)],
-        ok: None,
-        overlay: true,
-        unfinished: "the file list, which walks the save directory",
-    },
-    Shell {
-        id: 0x36,
-        painter: 0x0041_4819,
-        name: "Save a game",
-        background: None,
-        palette: None,
-        window: Some((0x10, 0x90, 0x1C, 0x14, 0)),
-        group: 40,
-        heading: Some((1, 0x20, 0xA0)),
-        lines: &[(8, 0x20, 0x1A8)],
-        ok: None,
-        overlay: true,
-        unfinished: "the file list, which walks the save directory",
-    },
+    // `0x35` and `0x36` **graduated**. They were the two rows here that said
+    // *"the file list, which walks the save directory"*; the list walks it now
+    // and the buttons work, so they are `screens/saveload.rs` and no longer a
+    // shell. See the note on `find` below.
     Shell {
         id: 0x39,
         painter: 0x0041_4F68,
@@ -364,6 +340,11 @@ pub const SHELLS: &[Shell] = &[
 ];
 
 /// The shell for a screen id, if there is one.
+///
+/// **A screen leaving this table is the measure of progress.** `0x35` and
+/// `0x36` — load and save — were here until there was a save format behind
+/// them; `find` answering `None` for a screen id is now the check that the
+/// implemented screen and the shell for it cannot both exist.
 pub fn find(id: u8) -> Option<&'static Shell> {
     SHELLS.iter().find(|s| s.id == id)
 }
@@ -532,5 +513,7 @@ mod tests {
         assert!(find(0x00).is_none(), "the campaign map is implemented, not shelled");
         assert!(find(0x02).is_none(), "the village is somebody else's");
         assert!(find(0x14).is_none(), "the four county panels are implemented");
+        assert!(find(0x35).is_none(), "loading a game is implemented");
+        assert!(find(0x36).is_none(), "saving a game is implemented");
     }
 }
