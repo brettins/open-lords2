@@ -196,7 +196,22 @@ Three consequences worth knowing:
   reclaimed — 800 units of work, at most a quarter of a field a season, so four seasons.
 
 The same click switches **industries** on and off: clicking a mine, quarry, forest or smithy
-on the map toggles it, and there is no other way to do it either.
+on the map toggles it, and there is no other way to do it either. **[V]**, and confirmed by a
+player from play before we had asked him: *"you can click on the forest or mine on the main
+map to turn them off for that county. 'Forestry off'. 'Forestry On'."* Those are the game's
+own words — `L2.eng` groups 228–237, ten one-string groups the toggle picks by arithmetic:
+
+| industry | off | on |
+|---|---|---|
+| castle building | 228 *"Building off"* | 229 *"Building on"* |
+| 0, wood — forestry | 230 *"Forestry off"* | 231 *"Forestry on"* |
+| 1, iron — mining | 232 *"Mining off"* | 233 *"Mining on"* |
+| 2, weapons — the blacksmith | 234 *"Blacksmith off"* | 235 *"Blacksmith on"* |
+| 3, stone — quarrying | 236 *"Quarrying off"* | 237 *"Quarrying on"* |
+
+The shipped `Readme.txt` describes the same mechanic in English a third time, from the other
+end: *"turning a blacksmith on will reduce the resources available to other blacksmiths"*, and
+castle construction *"'off'"* as the way to choose which castle gets materials first.
 
 ---
 

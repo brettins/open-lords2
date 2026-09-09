@@ -1128,6 +1128,52 @@ are
 Three independent facts fix it and they agree: the driver passes 7, 4, 5 and 6; the labour
 allocator `FUN_0044F6E7` gates record 6 on the *wood* industry's enable flag, 4 on *iron*,
 5 on *stone* and 7 on the *blacksmith*; and that allocator clears exactly nine records.
+
+#### 7.4.1 Switching an industry off — the only way in is the map, and a player found it first
+
+**[V]**, and **player-confirmed**. `Industry_ToggleFromMap` (`0x0043D309`) XORs the enable
+byte at county `+0x297 + industry*0x18` — the byte the allocator above gates each mining job
+on — and is reached only from `Map_Click`'s plane-0 `0x80` branch, which picks the industry
+from a ladder on the tile graphic: 0–3 iron, 4–6 stone, 7–9 weapons, 10–12 wood, 13–20
+nothing, 21+ castle. **Nothing on any county panel does this**, which is why it went unfound
+until the binary was read — and then a player described it unprompted:
+
+> *"you can click on the forest or mine on the main map to turn them off for that county.
+> 'Forestry off'. 'Forestry On'."*
+
+The game says exactly that. The function ends with
+
+```c
+local_10 = industry * 2;              /* castle takes the -2 / -1 arm instead */
+enable ^= 1;
+if (enable != 0) local_10 += 1;
+...
+Msg_Enqueue(0, g_localPlayer, local_10 + 0xE6, 0, 4, 0, 0, 0);
+```
+
+and `0xE6` is 230, so the message id is **`230 + industry*2 + on`**. `L2.eng` groups 228–237
+are ten consecutive **one-string** groups, and they land in exactly that order:
+
+| industry | enable byte | labour record | off | on |
+|---|---|---:|---|---|
+| castle building | `+0x1B0` | 3 | 228 *"Building off"* | 229 *"Building on"* |
+| **0** wood | `+0x297` | 6 | 230 *"Forestry off"* | 231 *"Forestry on"* |
+| **1** iron | `+0x2AF` | 4 | 232 *"Mining off"* | 233 *"Mining on"* |
+| **2** weapons | `+0x2C7` | 7 | 234 *"Blacksmith off"* | 235 *"Blacksmith on"* |
+| **3** stone | `+0x2DF` | 5 | 236 *"Quarrying off"* | 237 *"Quarrying on"* |
+
+**This is a check that could have failed and did not, four times over.** The industry
+numbering 0 wood / 1 iron / 2 weapons / 3 stone was inferred from the labour-slot ladder
+above; the strings are in that order and no other. And the castle arm does not use
+`industry * 2` at all — it sets `local_10` to −2 or −1 by hand, which lands on 228 and 229,
+and those two turn out to be *"Building off"* and *"Building on"*. A wrong industry order
+would have printed *"Quarrying on"* for a forest.
+
+The shipped `Readme.txt` (§0.1) states the same mechanic in English from the other end, and
+adds what it is *for*: *"turning a blacksmith on will reduce the resources available to other
+blacksmiths and can change the labor allocation of counties that have already been adjusted
+that turn"*, and castle construction *"'off'"* as how you choose which castle gets materials
+first. That last is not implemented and is not documented anywhere else in this tree.
 Grain sowing reads record 0 (§7.1), which is *"Grain farming"*.
 
 **[V] The efficiency is not the base — it ramps.** `FUN_0044F248` is:

@@ -14,6 +14,34 @@ them in passing — cattle needing peasants to tend them, and herd crowding in f
 Neither was in any document. Both are real, both are traced to the instruction stream, and
 both are now implemented and checked against the England turn-one fixture (`docs/kingdom.md` §13).
 
+## The game states its own rules in three places, and we had read one
+
+Before adding to this inventory, check whether the game already answers the question. Three
+shipped files are the game speaking English about itself, and they are **oracles in the same
+sense `Lords2.exe` is** — evidence, not prior art.
+
+| | what it is | why it matters |
+|---|---|---|
+| `L2.eng` | every string the game draws, in 318 groups | a function that draws group *N* is a function about whatever group *N* is about — `docs/method.md` §7.2 |
+| **`Readme.txt`** | **the v1.03 patch's rules errata, with manual page references** | **the game correcting its own manual, and it post-dates the manual** |
+| the printed manual | the rules as intended | wrong twice, and superseded by `Readme.txt` wherever they disagree — C8, C10 |
+
+**`Readme.txt` had not been read by anyone on this project until today**, and it is 192
+lines. It confirms or extends, in the game's own words: herd overcrowding's **four** states
+and their names; the ale **1:10** ratio and the +1…+5 happiness ladder; that **multiple
+fields reclaim at once**, a field taking at least four seasons and taking its full worker
+requirement before any labour spills to the next; that **blacksmiths share one global
+resource pool** divided by how many are switched on; that castle construction **cannot be
+given labour until every material has been delivered**, and that turning it off is how you
+choose which castle gets materials first; that castle garrisons **forage for themselves** and
+so do not eat county stores; and that armies may be **split three different ways**, including
+below 50 men when splitting *into* a castle.
+
+Several of those are mechanics this tree has traced from the instruction stream and several
+are not implemented at all. Where it and the manual disagree, `Readme.txt` is later and
+wins. Treat a claim it makes as **[V]**-adjacent: it is a statement by the authors about the
+shipped build, not a recollection.
+
 Legend:
 
 | | meaning |
@@ -231,7 +259,12 @@ Legend:
   out to be a *cache* over the twenty map tiles' terrain bytes. `docs/kingdom.md` §7.2.
 - ✅ **Switching an industry on and off**, which is also only reachable by clicking its
   building on the map — `Industry_ToggleFromMap` (`0x0043D309`) and the enable byte at
-  `+0x297 + industry*0x18`.
+  `+0x297 + industry*0x18`. **Found in the binary and then confirmed by a player the same
+  day, unprompted**: *"you can click on the forest or mine on the main map to turn them off
+  for that county. 'Forestry off'. 'Forestry On'."* Those are the game's own strings —
+  `L2.eng` groups 228–237, ten one-string groups the function picks by
+  `230 + industry*2 + on`, which also confirms the industry numbering. `docs/kingdom.md`
+  §7.4.1.
 
 ### The wider game
 - ✅ Random events: a 256-slot deck, 24 distinct, and the bug that exempts even-numbered counties
@@ -341,7 +374,8 @@ Legend:
   on it: your army, your merchant, the town square (the village), and **an industry
   building, which toggles that industry on or off**. That last one is the writer of the
   enable byte the labour allocator gates each mining job on, and nothing on any county panel
-  does it. `docs/screens-county.md` §6.4.5
+  does it — **player-confirmed**, `docs/kingdom.md` §7.4.1.
+  `docs/screens-county.md` §6.4.5
 - ✅ **The job popup** (screen `0x0F`) — the window and the head of it: the job's name, its
   worker count, and the three-colour rule that reads the record's other two words. Its nine
   per-job bodies are not drawn and say so.
@@ -384,6 +418,38 @@ Legend:
 - ❓ Video: 45 `.smk` files, no decoder, blocked on a licence decision (D5a)
 
 ---
+
+## ❓ `mapl2.exe` — a second executable nobody has analysed
+
+The install ships **two** PE binaries. `mapl2.exe` is 253,440 bytes, dated 16 July 1997, and
+its own error strings call it the **"L2 Battlemap editor"**. Nothing in this project has
+looked at it.
+
+It is worth a task on its own for one reason: **it is an independent implementation of the
+battlefield format by the original authors**, so it is a potential second oracle in the same
+way `Lords2.exe` is the first — and a disagreement between the two would be far more
+informative than either alone.
+
+It is also a **debug build**, which is unusual and useful:
+
+* the CodeView record still carries the PDB path `C:\tools\map_l2\Debug\mapl2.pdb`;
+* it links the *debug* CRT — `dbgheap.c`, `dbgrpt.c` and friends are named in it.
+
+Its error strings name six data files, and which of them ship is itself informative:
+
+| file | ships? |
+|---|---|
+| `l2.sg2` | **yes**, 74,480 bytes, 14 Jul 1997 |
+| `l2map.inf` | **yes**, 268 bytes, 28 May 1997 |
+| `status.txt` | present, but the game **writes** it at runtime — not an input |
+| `battles.txt` | no |
+| `troops.txt` | no |
+| `batfiel2.lbm` | no |
+
+It also reads `l2.eng`, `*.skr` and `my_maps1.skr`. `tools/audit/mapl2.js` is a scratch
+probe of its PE structure and a couple of tables; it is not analysis and nothing is written
+down from it. **`l2.sg2` in particular is a shipped 74 KB file this project has never
+opened.**
 
 ## What to look for when reading this
 
