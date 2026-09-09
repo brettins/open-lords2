@@ -110,6 +110,74 @@ here, and `maps.md`, read the low 2 bits of `g_scenarioIndex` as the season
 selector. That is wrong: those bits pick which of four map slots inside a
 `MAPnn.PL8` the **minimap** comes from. See `docs/screens.md` §2.1 and §3.1.
 
+#### 1.1a The four seasonal files of a bank share a frame table  **[V]**
+
+**This is the measurement the whole seasonal swap rests on**, because the swap repoints eight
+pointers and leaves every frame *index* alone. Anything the game has already rewritten — a
+town's 47 … 50, an industry site, a crop — keeps its stored index across the season boundary,
+so if frame 47 of `Town1c.pl8` were a different cell of the sheet than frame 47 of
+`Town1a.pl8`, every county town on the map would turn back into a quarry in autumn.
+
+Measured over all five near-zoom banks and all 466 frames of each season:
+
+* the **frame count** is identical in all four files of every bank — 140, 25, 140, 61, 100;
+* the **canvas anchor** `(X, Y)` at record offsets `0x08`/`0x0A` — where the artist put the
+  cell on the sheet — is identical for **1,398 of 1,398** frames compared;
+* `width`, `height` and `shape` are identical for every frame of every bank.
+
+The **only** structural difference anywhere is the overhang-row byte at `0x0D`, on **nine**
+`Roads1?.pl8` frames — 109, 111 and 113 … 119 — differing by one or two rows. Those are inside
+the four-frame crop blocks based at 108/112/116/120 (§5.5): a crop that grows needs one more
+scanline of picture above the tile in the season it is taller. That is artwork varying, not an
+index moving.
+
+So frame *n* of a bank is the same cell of the same sheet in every season. Asserted in
+`crates/l2-view/tests/install.rs::the_four_seasons_of_a_bank_are_the_same_frame_table`.
+
+#### 1.1b The **zoom-2** half of the table is not seasonal at all  **[V]**
+
+`Base2b.pl8`, `Mtns2c.pl8` and the other eleven zoom-2 seasonal files ship in the install and
+**the game never opens one.** Entries 32 … 63 are four *identical* blocks:
+
+```text
+32 base2a  33 mtns2a  34 roads2a  35 town2a  36 castle2a  37 sprite2a  38 sprite2b  39 flags2a
+40 base2a  41 mtns2a  42 roads2a  43 town2a  44 castle2a  …          (season 2)
+48 base2a  …                                                        (season 3)
+56 base2a  …                                                        (season 4)
+```
+
+so `base + (season - 1) * 8` lands on the same five filenames whichever season it is. The far
+view does not change with the year, and that is shipped behaviour rather than an omission.
+
+**And the dead files are not interchangeable with the live one.** `Town2a.pl8` has **61**
+frames; `Town2b/c/d.pl8` have **94**, and their frame records do not line up with it. A
+renderer that derived the far zoom's filenames from the season letter — which is the obvious
+thing to do, and what §1.1's *"the suffix is the season"* invites — would draw a different
+sheet for three seasons in four. `Flags1b/c/d.pl8` are dead in the same way: entries 7, 15, 23
+and 31 all name `flags1a.pl8`.
+
+The lesson generalises: **the resource table is the authority on which file a bank loads, and
+the filename is not.** `l2_view::campaign::Zoom::banks` is that table rather than a suffix
+rule, and `the_far_zoom_names_one_season_four_times_and_the_unused_files_do_not_match` asserts
+both halves.
+
+#### 1.1c Which letter is which season, from the artwork  **[V]**
+
+The loader's arithmetic puts season 1 on `a` and season 4 on `d`. The pixels agree
+independently. Over the sixteen grass frames (6 … 21) of each `Base1?.pl8`, with "green"
+meaning `g > r + 8 && g > b + 8`:
+
+| file | green pixels | mean luminance |
+|---|---:|---:|
+| `Base1a` | 99.1 % | 113 |
+| `Base1b` | 68.0 % | 108 |
+| `Base1c` | **0.3 %** | 112 |
+| `Base1d` | 37.9 % | **135** |
+
+`c` has no green grass and no green woodland — autumn — and `d` is much the brightest, which
+is snow. Spring, summer, autumn, winter, matching `l2_kingdom::tables::Season`'s
+`Spring = 1 … Winter = 4`.
+
 ### 1.2 Plane 2 — the frame index  **[V]**
 
 Plane 2 is the frame number within the bank's PL8, decoded per
@@ -449,7 +517,11 @@ on. The dumps are at `tools/maps/out/{tiles,lattice}.bin` (gitignored);
 `tools/maps/dump.ps1` regenerates them — see §7 for why that is harder than it
 sounds.
 
-### 5.5 The graphic for a terrain — `FUN_0046D7F4`  **[V]**
+### 5.5 The graphic for a terrain — `Terrain_Set` (`0x0046D7F4`)  **[V]**
+
+> **It has a name now.** Four documents referred to this function only as
+> `FUN_0046D7F4`; it is `Terrain_Set` in `docs/symbols.json`, and
+> `l2_view::campaign::field_graphic` is the reimplementation.
 
 **The single writer of a tile's `content` byte, and it picks the tile's picture at
 the same time.** Every state change on the map goes through it — the field brush
@@ -486,6 +558,25 @@ otherwise, and `base` and `layer` come from a ladder on the new terrain:
 | `0x1B` | 116 | `0x08` |
 | `0x1C` | 120 | `0x08` |
 
+**Two corrections to this table, both from re-reading the function.**
+
+* **The last row is a bare `else`, not a range.** The `104` arm catches every terrain at
+  `0x13` or above that is not one of `0x17 … 0x1C` — so `0x1D` and up land there too, and
+  those are the values `County_RecountFields` buckets as *being reclaimed*. The table above
+  reads as if `0x13 … 0x16` were exhaustive; it is not wrong about those four and it was
+  silent about the rest. **[V]**
+* **The third parameter is dead.** `variant * 4` shifts the frame by a whole four-frame
+  block, and **all sixteen call sites in the shipped binary pass zero** — including the two
+  that forward a parameter (`FUN_00469D21`, whose only callers are `Grain_SeasonTick` and
+  `Herd_UpdateCrowding`, and both pass `'\0'`). So the term contributes nothing to any
+  picture the game draws, and the frame is exactly `base + (storedFrame & 3)`. **[V]**
+
+**Why `& 3` is enough, stated as the invariant it is.** Every base above is a multiple of
+four *except* 130 and 134, and `oldBase` exists for precisely those two. So the low two bits
+of a farm tile's frame **never change for the life of the game**, whatever happens to the
+crop — which is what makes the picture a pure function of `(terrain, the frame the map file
+stored)` and lets a renderer recompute it without tracking the tile's history.
+
 **`& 3` is the point.** Every crop state is **four consecutive frames** and the tile
 keeps whichever of the four it already had, so a repaint changes the crop without
 changing the tile's variation. §1.2's own histogram is the check: farm tiles on disk
@@ -496,6 +587,16 @@ which is `base = 80`, the four variants of *wild*, exactly.
 side: it writes `frame = base + ((frame + 0xB0) & 3)` with `base` 104 for pasture
 (`content 0x14`), 84 for fallow (`content 1`) and 80 for wild (`content 0`), the mix
 chosen by difficulty. Two functions, one table.
+
+**Drawn.** `MapScreen::add_field_graphics` puts every farm tile's picture into the sparse
+`campaign::Overrides` plane C41 added, from `l2_view::campaign::field_graphic`, which is this
+function. Until it existed the field brush painted markers of our own and every field on the
+map looked like the bare frame 80 the file stores. Tests:
+`l2-game/tests/screens.rs::a_fields_picture_follows_its_crop_state` walks the ladder and
+requires four crop states to be four different pictures at the tile.
+
+What is still open is whether the *season* moves a field's `content` on its own — that is the
+economy's business, not this file's.
 
 ### 5.6 Twenty fields per county is a property of the map, not a cap  **[V]**
 
@@ -517,12 +618,6 @@ bit `0x80` to a tile the file gave no flags at all, one per county. Over England
 the whole of the difference: 14 blacksmiths added and nothing razed. See `docs/decisions.md`
 C62, which also records that county 4 of slot 8 gets no blacksmith because it has no `flags == 0`
 tile for one to stand on.
-
-**Not yet drawn.** `crates/l2-game`'s field brush still paints markers of our own
-rather than the game's artwork, which was the right call when the mapping was
-unread; it is read now, and the sparse `campaign::Overrides` plane C41 added is
-where the repaint goes. What is still open is whether the *season* moves a field's
-`content` on its own — that is the economy's business, not this file's.
 
 ---
 

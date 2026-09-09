@@ -440,29 +440,167 @@ pub const RESOURCE_BUILDINGS: [(usize, usize, i32, i32); 3] = [
     (1, 0x2B, 0x4C, 0x0C),
 ];
 
-/// The animated overlay `Village_Animate` (`0x00412421`) puts on each of the
-/// same three buildings: `(industry, sheet is villani1, first frame, frame
-/// count, x, y from `g_villageTopY`)`.
+/// One animated overlay of `Village_Animate` (`0x00412421`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Overlay {
+    /// Which `has_resource` gates it, or `None` for one that always runs.
+    pub industry: Option<usize>,
+    /// `true` for `villani1.pl8`, `false` for `villani2.pl8`.
+    pub villani1: bool,
+    /// The first of the run; the counter is added to it.
+    pub first: usize,
+    /// How many frames the counter cycles through.
+    pub frames: usize,
+    /// Where it goes, `y` relative to `g_villageTopY`.
+    pub at: (i32, i32),
+    /// Which pulse steps this one's counter — [`PULSE_FAST_MS`] or
+    /// [`PULSE_SLOW_MS`].
+    pub period_ms: u32,
+}
+
+/// **Every overlay `Village_Animate` (`0x00412421`) draws, in its own order.**
+/// **[V]** — read out of the corpus verbatim.
 ///
-/// **Not drawn yet** — this crate has no animation clock and `docs/netcode.md`
-/// keeps one out of the simulation — but read out of the binary at the same
-/// time as [`RESOURCE_BUILDINGS`] so the next person does not have to find it
-/// again. The counters are `DAT_004d2944` (0…7), `DAT_004d2930` (0…6) and
-/// `DAT_004d2938` (0…0x11), each incremented once a frame and wrapped.
-pub const RESOURCE_ANIMATIONS: [(usize, bool, usize, usize, i32, i32); 3] = [
-    (0, false, 7, 8, 0xF3, 0x104),
-    (3, false, 0, 7, 0xA3, 0x1B),
-    (1, true, 0, 18, 0xA4, 0x0C),
+/// ```c
+/// Pl8_DrawFrame(villani2, c293c + 0x19, 0x50,  top + 0xaf);
+/// Pl8_DrawFrame(villani2, c2940 + 0x21, 0x72,  top + 0xc3);
+/// Pl8_DrawFrame(villani2, c294c + 0x0f, 0x16e, top + 0x125);
+/// if (industry[0].hasResource) Pl8_DrawFrame(villani2, c2944 + 7, 0xf3, top + 0x104);
+/// if (industry[3].hasResource) Pl8_DrawFrame(villani2, c2930,     0xa3, top + 0x1b);
+/// if (industry[1].hasResource) Pl8_DrawFrame(villani1, c2938,     0xa4, top + 0xc);
+/// ```
+///
+/// Three things this settles that were not known before:
+///
+/// * **Three of the six are unconditional.** Every village animates, whatever
+///   the county holds. The three that were written down here previously were
+///   only the resource-gated half.
+/// * **`villani1.pl8` is the iron mine's animation, and that is its only use in
+///   the binary.** It is loaded by `Village_Draw` beside `villani2.pl8` and
+///   read by exactly one blit — this one. Nothing else in the corpus touches
+///   `DAT_0053E918`, the buffer it goes into. That answers a standing question
+///   in this module: the file is not spare, it is one eighteen-frame loop.
+/// * **The two counters that are not here are not drawn anywhere.**
+///   `Village_Animate` also steps `DAT_004D2934` (0 … 0x14) and `DAT_004D2948`
+///   (0 … 0x0F), and `RefsTo` finds no other reader of either address in the
+///   whole executable. Two animations were cut and their clocks were left
+///   running. `docs/bugs.md` has the row.
+pub const OVERLAYS: [Overlay; 6] = [
+    // The three that always run. `docs/screens-county.md` has no names for
+    // them; what they are is a matter for somebody looking at the sheet.
+    Overlay { industry: None, villani1: false, first: 0x19, frames: 8, at: (0x50, 0xAF), period_ms: PULSE_SLOW_MS },
+    Overlay { industry: None, villani1: false, first: 0x21, frames: 7, at: (0x72, 0xC3), period_ms: PULSE_FAST_MS },
+    Overlay { industry: None, villani1: false, first: 0x0F, frames: 10, at: (0x16E, 0x125), period_ms: PULSE_SLOW_MS },
+    // …and the three over the buildings of [`RESOURCE_BUILDINGS`], in the
+    // same industry order.
+    Overlay { industry: Some(0), villani1: false, first: 7, frames: 8, at: (0xF3, 0x104), period_ms: PULSE_SLOW_MS },
+    Overlay { industry: Some(3), villani1: false, first: 0, frames: 7, at: (0xA3, 0x1B), period_ms: PULSE_SLOW_MS },
+    Overlay { industry: Some(1), villani1: true, first: 0, frames: 18, at: (0xA4, 0x0C), period_ms: PULSE_SLOW_MS },
 ];
+
+/// **The village's animation clock, in milliseconds — and where the numbers
+/// come from.** **[V]**
+///
+/// `Village_Animate` does not count frames. It reads two booleans,
+/// `DAT_00591510` and `DAT_0057D3AC`, and steps its counters only when they are
+/// set. `FUN_004BBC80` is where they are set, once per frame, and it is a pure
+/// pulse generator:
+///
+/// ```c
+/// DAT_00591510 = 0; DAT_0057d3ac = 0;  /* …and six more, cleared every call */
+/// now = timeGetTime();
+/// if (0x13 < (int)(now - last) || (int)(now - last) < 0) { ticks++; last = now; }
+/// if (3 < ticks) {                      /* every 4 x 20 ms = 80 ms */
+///   ticks = 0;
+///   DAT_00591510 = 1;
+///   if (1 < ++half) { half = 0; DAT_0057d3ac = 1; }   /* every 2 x 80 ms = 160 ms */
+///   /* …and /4, /8, /13, /16, /24, /32 for six other subscribers */
+/// }
+/// ```
+///
+/// So the base is **20 ms**, `DAT_00591510` fires at **80 ms** and
+/// `DAT_0057D3AC` at **160 ms**. Five of the six overlays are on the slow
+/// pulse and one — the second unconditional one — is on the fast one.
+///
+/// The same two pulses drive `FUN_004071A0`, the campaign map's waving flag,
+/// which is where they can be checked against something already drawn.
+pub const PULSE_FAST_MS: u32 = 80;
+/// The 160 ms pulse — `DAT_0057D3AC`, two of the fast one.
+pub const PULSE_SLOW_MS: u32 = 160;
+
+/// **The two counters `Village_Animate` steps and nothing reads.**
+///
+/// Their periods, for anyone who goes looking: `DAT_004D2934` wraps at `0x14`
+/// (21 frames) on the slow pulse and `DAT_004D2948` at `0x0F` (16 frames) on
+/// the fast one. Kept here because "we did not find a consumer" is a claim
+/// somebody will want to re-check, and the addresses are the way to do it.
+pub const DEAD_COUNTER_PERIODS: [(u32, usize); 2] = [(PULSE_SLOW_MS, 21), (PULSE_FAST_MS, 16)];
+
+/// **The village's animation clock. Display state, and nothing else.**
+///
+/// `docs/netcode.md` D-12: nothing below `l2-game` may read a wall clock, and
+/// no part of the lockstep digest may depend on what an animation is showing.
+/// This counts *fixed ticks* handed to it by the caller and converts them to
+/// the original's two millisecond pulses; it is owned by a screen, is not in
+/// any save, is not hashed, and two clients whose villages are on different
+/// frames are not desynchronised — they are looking at the same county.
+///
+/// It is deliberately not `Copy`: a clock that can be duplicated is a clock
+/// that gets stepped twice. `docs/decisions.md` C61.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AnimationClock {
+    /// Milliseconds accumulated, modulo the slow pulse, so this never grows.
+    elapsed_ms: u32,
+    /// The two pulse counters, `[fast, slow]`, each counting pulses rather
+    /// than frames — an overlay takes its own frame as `counter % frames`.
+    pulses: [u32; 2],
+}
+
+impl AnimationClock {
+    pub fn new() -> AnimationClock {
+        AnimationClock::default()
+    }
+
+    /// Advance by one fixed tick of `tick_ms`, and say whether anything moved.
+    ///
+    /// A `false` is a screen that need not repaint — the same economy
+    /// `MapScreen`'s flag phase makes, and the reason the village does not cost
+    /// sixty repaints a second while a player thinks about it.
+    pub fn tick(&mut self, tick_ms: u32) -> bool {
+        let before = self.pulses;
+        self.elapsed_ms += tick_ms;
+        // The original's own arithmetic: the fast pulse is the primary and the
+        // slow one is every second fast one, so they cannot drift apart.
+        while self.elapsed_ms >= PULSE_FAST_MS {
+            self.elapsed_ms -= PULSE_FAST_MS;
+            self.pulses[0] += 1;
+            if self.pulses[0].is_multiple_of(2) {
+                self.pulses[1] += 1;
+            }
+        }
+        self.pulses != before
+    }
+
+    /// Which frame of `overlay` is showing.
+    pub fn frame_of(&self, overlay: &Overlay) -> usize {
+        let pulses = if overlay.period_ms == PULSE_FAST_MS { self.pulses[0] } else { self.pulses[1] };
+        overlay.first + (pulses as usize % overlay.frames.max(1))
+    }
+}
 
 /// The village's own files, none of which any other screen loads.
 pub struct VillageArt {
     scene: Sheet,
     tops: Option<Sheet>,
     grid: Vec<u8>,
-    /// `villani2.pl8` — the quarry, the mine and the lumber camp, and the
-    /// animated overlays for two of the three.
+    /// `villani2.pl8` — the quarry, the mine and the lumber camp, and five of
+    /// the six animated overlays.
     animation_b: Option<Sheet>,
+    /// `villani1.pl8` — **the iron mine's eighteen-frame loop, and nothing
+    /// else.** `Village_Draw` loads it into `DAT_0053E918` and the single
+    /// `Pl8_DrawFrame` in `Village_Animate` is the only read of that buffer in
+    /// the executable. See [`OVERLAYS`].
+    animation_a: Option<Sheet>,
 }
 
 impl VillageArt {
@@ -481,7 +619,8 @@ impl VillageArt {
             .map(|b| b[GRID_DATA_OFFSET..GRID_DATA_OFFSET + GRID_LEN].to_vec())
             .unwrap_or_default();
         let animation_b = read("villani2.pl8").ok().and_then(|b| Sheet::new(b).ok());
-        Ok(VillageArt { scene, tops, grid, animation_b })
+        let animation_a = read("villani1.pl8").ok().and_then(|b| Sheet::new(b).ok());
+        Ok(VillageArt { scene, tops, grid, animation_b, animation_a })
     }
 
     /// Whether the drop grid was found. Without it nothing can be dropped, and
@@ -557,6 +696,44 @@ impl VillageArt {
             }
         }
         drawn
+    }
+
+    /// **`Village_Animate`'s six overlays**, in its own order, at the frames
+    /// `clock` is currently showing.
+    ///
+    /// The three unconditional ones are drawn whatever the county holds; the
+    /// other three are gated on `has_resource` exactly as
+    /// [`VillageArt::draw_resources`]'s are, and go **on top of** the buildings
+    /// that function paints — the original calls `Village_Draw` once and
+    /// `Village_Animate` every frame after it.
+    ///
+    /// Returns how many were painted, so a caller can tell a still village from
+    /// a missing sheet.
+    pub fn draw_animations(
+        &self,
+        canvas: &mut Canvas,
+        has_resource: [bool; 4],
+        top: i32,
+        clock: &AnimationClock,
+    ) -> usize {
+        let mut drawn = 0;
+        for overlay in &OVERLAYS {
+            if overlay.industry.is_some_and(|i| !has_resource[i]) {
+                continue;
+            }
+            let sheet = if overlay.villani1 { &self.animation_a } else { &self.animation_b };
+            let Some(sheet) = sheet.as_ref() else { continue };
+            if let Some(f) = sheet.frame(clock.frame_of(overlay)) {
+                canvas.blit(&f, overlay.at.0, top + overlay.at.1);
+                drawn += 1;
+            }
+        }
+        drawn
+    }
+
+    /// Whether `villani1.pl8` loaded. Only the iron mine's overlay needs it.
+    pub fn has_villani1(&self) -> bool {
+        self.animation_a.is_some()
     }
 }
 

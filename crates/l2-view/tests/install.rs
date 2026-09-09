@@ -500,28 +500,184 @@ fn every_campaign_tile_bank_matches_the_pitch_the_binary_steps_by() {
         l2_testkit::skip!("LORDS2_DIR not set - skipping");
     };
     let mut checked = 0;
+    let mut seen: Vec<&str> = Vec::new();
     for zoom in campaign::ZOOMS {
-        for name in zoom.banks {
-            let Some(bytes) = read(&dir, name) else {
-                panic!("{name} is not in the install");
-            };
-            let pl8 = l2_formats::Pl8::parse(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
-            assert!(!pl8.frames.is_empty(), "{name} has no frames");
-            for (i, f) in pl8.frames.iter().enumerate() {
-                assert_eq!(
-                    f.width as i32, zoom.tile_w,
-                    "{name} frame {i} is {} wide, but zoom {} steps by {}",
-                    f.width, zoom.id, zoom.pitch
-                );
-                assert_eq!(f.height as i32, zoom.tile_h, "{name} frame {i}");
-                checked += 1;
+        for set in zoom.banks {
+            for name in set {
+                if seen.contains(&name) {
+                    continue;
+                }
+                seen.push(name);
+                let Some(bytes) = read(&dir, name) else {
+                    panic!("{name} is not in the install");
+                };
+                let pl8 = l2_formats::Pl8::parse(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+                assert!(!pl8.frames.is_empty(), "{name} has no frames");
+                for (i, f) in pl8.frames.iter().enumerate() {
+                    assert_eq!(
+                        f.width as i32, zoom.tile_w,
+                        "{name} frame {i} is {} wide, but zoom {} steps by {}",
+                        f.width, zoom.id, zoom.pitch
+                    );
+                    assert_eq!(f.height as i32, zoom.tile_h, "{name} frame {i}");
+                    checked += 1;
+                }
+                assert_eq!(zoom.pitch, zoom.tile_w + 2);
+                assert_eq!(zoom.row_step, zoom.tile_h / 2);
             }
-            assert_eq!(zoom.pitch, zoom.tile_w + 2);
-            assert_eq!(zoom.row_step, zoom.tile_h / 2);
         }
     }
-    assert_eq!(checked, 2 * (140 + 25 + 140 + 61 + 100), "all ten banks, every frame");
-    eprintln!("campaign tiles: {checked} frames match the renderer's pitch");
+    // Twenty near-zoom files — four seasons of base, mtns, roads, town and
+    // castle, none of them repeating — plus five far-zoom ones, which are one
+    // season named four times. Twenty-five names from a 2 × 4 × 5 table of
+    // forty, and the difference is the far zoom's season-invariance.
+    assert_eq!(seen.len(), 25, "the distinct bank files across both zooms");
+    assert_eq!(checked, 4 * (140 + 25 + 140 + 61 + 100) + (140 + 25 + 140 + 61 + 100));
+    eprintln!("campaign tiles: {checked} frames in {} files", seen.len());
+}
+
+/// **The measurement the seasonal artwork rests on: do the four seasonal files
+/// of a bank share a frame table?**
+///
+/// If they do not, `campaign::Overrides` does not survive a season — the game
+/// rewrites a town's tiles to `Town1a.pl8` frames 47 … 50 and if frame 47 of
+/// `Town1c.pl8` were a different picture, every town on the map would turn back
+/// into a quarry every autumn. It is a cheap thing to check and it decides
+/// whether the season is a lookup table or a real piece of work.
+///
+/// **It is a lookup table.** Across all five near-zoom banks and all 466 frames
+/// of each season:
+///
+/// * the **frame count** is identical in all four files of every bank;
+/// * the **canvas anchor** `(X, Y)` — where the artist put the cell on the
+///   sheet — is identical for every frame of every bank, 1,864 of 1,864;
+/// * the diamond's `width`, `height` and `shape` are identical for every frame
+///   of every bank.
+///
+/// The **only** structural difference anywhere is the `rows` byte — how many
+/// overhang scanlines stand above the diamond — on nine `Roads1?.pl8` frames,
+/// 109 and 111 and 113 … 119, and it differs by one or two. Those are frames
+/// 108 … 120, which [`campaign::FIELD_BASES`] identifies as the four
+/// reclamation crops: a crop that grows needs a row more of picture above the
+/// tile in the season it is taller. That is artwork varying, not an index
+/// moving.
+///
+/// So frame *n* of a bank is the same cell of the same sheet in every season,
+/// and an override recorded in spring is still correct in winter.
+#[test]
+fn the_four_seasons_of_a_bank_are_the_same_frame_table() {
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+    let zoom = campaign::NEAR;
+    let mut frames_checked = 0;
+    let mut anchors_checked = 0;
+    let mut row_differences = Vec::new();
+    for bank in 0..5 {
+        let files: Vec<_> = (0..campaign::SEASONS)
+            .map(|s| {
+                let name = zoom.banks[s][bank];
+                let bytes = read(&dir, name).unwrap_or_else(|| panic!("{name} is not installed"));
+                (name, bytes)
+            })
+            .collect();
+        let parsed: Vec<_> = files
+            .iter()
+            .map(|(n, b)| (*n, l2_formats::Pl8::parse(b).unwrap_or_else(|e| panic!("{n}: {e}"))))
+            .collect();
+        let (spring_name, spring) = &parsed[0];
+        for (name, other) in &parsed[1..] {
+            assert_eq!(
+                other.frames.len(),
+                spring.frames.len(),
+                "{name} has {} frames and {spring_name} has {}",
+                other.frames.len(),
+                spring.frames.len()
+            );
+            for (i, (a, b)) in spring.frames.iter().zip(other.frames.iter()).enumerate() {
+                // The anchor is the artist's own sheet coordinate. If frame `i`
+                // moved on the sheet between seasons, the index would not mean
+                // the same cell — this is the assertion that matters.
+                assert_eq!(
+                    (a.x, a.y),
+                    (b.x, b.y),
+                    "{name} frame {i} sits at a different place on the sheet than {spring_name}'s"
+                );
+                anchors_checked += 1;
+                assert_eq!((a.width, a.height), (b.width, b.height), "{name} frame {i} size");
+                if a.overhang_rows != b.overhang_rows {
+                    row_differences.push((*name, i, a.overhang_rows, b.overhang_rows));
+                }
+                frames_checked += 1;
+            }
+        }
+    }
+    assert_eq!(anchors_checked, 3 * (140 + 25 + 140 + 61 + 100), "every frame of every bank");
+    assert_eq!(frames_checked, anchors_checked);
+
+    // The nine overhang differences, and nothing else. Naming them exactly is
+    // what turns "we looked and it was fine" into a claim that fails if the
+    // artwork ever stops matching this reading.
+    let mut differing: Vec<usize> =
+        row_differences.iter().map(|(_, i, _, _)| *i).collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
+    differing.sort_unstable();
+    assert_eq!(
+        differing,
+        vec![109, 111, 113, 114, 115, 116, 117, 118, 119],
+        "the only per-season structural differences should be nine Roads frames"
+    );
+    assert!(
+        row_differences.iter().all(|(n, ..)| n.starts_with("Roads1")),
+        "an overhang difference outside the roads bank: {row_differences:?}"
+    );
+    // Each of the nine is one of the four-frame crop blocks 108/112/116/120.
+    for (_, i, ..) in &row_differences {
+        let base = (i / 4) * 4;
+        assert!(
+            (108..=120).contains(&base),
+            "frame {i} differs by season but is not in a crop block"
+        );
+    }
+    assert!(
+        row_differences.iter().all(|(_, _, a, b)| a.abs_diff(*b) <= 2),
+        "an overhang differs by more than two rows: {row_differences:?}"
+    );
+    eprintln!(
+        "seasons: {frames_checked} frames compared, {} overhang differences, 0 index moves",
+        row_differences.len()
+    );
+}
+
+/// **The far zoom is not seasonal, and the shipped files say otherwise.**
+///
+/// `g_resourceTable`'s zoom-2 half names `base2a`/`mtns2a`/… in all four of its
+/// season blocks (see [`campaign::FAR`]), so `Base2b.pl8` and its eleven
+/// siblings are dead weight in the install. This asserts the consequence of
+/// getting that wrong: the dead `Town2b.pl8` is **not** interchangeable with
+/// the live `Town2a.pl8`, so a renderer that derived the far zoom's filenames
+/// from the season suffix would draw a different sheet for three seasons in
+/// four.
+#[test]
+fn the_far_zoom_names_one_season_four_times_and_the_unused_files_do_not_match() {
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+    for season in 1..=campaign::SEASONS {
+        assert_eq!(
+            campaign::FAR.banks[season - 1],
+            campaign::FAR.banks[0],
+            "season {season} of the far zoom should name spring's files"
+        );
+    }
+    // …and the reason it matters.
+    let a = read(&dir, "Town2a.pl8").expect("Town2a.pl8");
+    let b = read(&dir, "Town2b.pl8").expect("Town2b.pl8");
+    let (a, b) = (l2_formats::Pl8::parse(&a).unwrap(), l2_formats::Pl8::parse(&b).unwrap());
+    assert_eq!(a.frames.len(), 61, "the live far-zoom town bank");
+    assert_eq!(b.frames.len(), 94, "the dead one is a different sheet entirely");
+    eprintln!("far zoom: Town2a has 61 frames, the unused Town2b has 94");
 }
 
 /// The minimap's realm colour ramp is `Lords2.exe`'s own data, transcribed into

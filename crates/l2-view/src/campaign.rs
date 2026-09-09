@@ -74,6 +74,46 @@ pub const BANK_MASK: u8 = 0x1c;
 /// and `0x005691F0` is entry 0 of the startup preload table, `Base01.256`.
 pub const PALETTE: &str = "Base01.256";
 
+/// How many seasons the artwork has: `g_season` is 1 … 4 and
+/// `Gfx_LoadCountyMode` strides eight resource-table entries per season.
+pub const SEASONS: usize = 4;
+
+/// **The season letter on a bank's filename, in `g_season` order.**
+///
+/// `Gfx_LoadCountyMode` takes eight consecutive entries from
+/// `g_resourceTable` at `(g_season - 1) * 8`, and entries 0, 8, 16 and 24 are
+/// `base1a`, `base1b`, `base1c` and `base1d` — so season 1 is `a` and season 4
+/// is `d`, matching `l2_kingdom::tables::Season`'s `Spring = 1 … Winter = 4`.
+///
+/// **The artwork says the same thing independently.** Measured over the sixteen
+/// grass frames (6 … 21) of each `Base1?.pl8` in the shipped install, with
+/// "green" meaning `g > r + 8 && g > b + 8`:
+///
+/// | file | green pixels | mean luminance |
+/// |---|---:|---:|
+/// | `Base1a` | 99.1 % | 113 |
+/// | `Base1b` | 68.0 % | 108 |
+/// | `Base1c` | **0.3 %** | 112 |
+/// | `Base1d` | 37.9 % | **135** |
+///
+/// `c` has no green grass and no green woodland — that is autumn — and `d` is
+/// far the brightest, which is snow. The order runs spring, summer, autumn,
+/// winter, which is what the loader's arithmetic already said. **[V]**
+pub const SEASON_SUFFIX: [char; SEASONS] = ['a', 'b', 'c', 'd'];
+
+/// `g_season` (1 … 4) as an index into [`Zoom::banks`].
+///
+/// `Gfx_LoadCountyMode` guards with `if (0 < g_season && g_season < 5)` and
+/// otherwise leaves the base at zero, so an out-of-range season draws the
+/// **spring** set. This clamps rather than wrapping for the same reason.
+pub fn season_slot(season: u8) -> usize {
+    if (1..=SEASONS as u8).contains(&season) {
+        season as usize - 1
+    } else {
+        0
+    }
+}
+
 /// One of the two campaign zooms, exactly as `Map_SetZoom` sets it up.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Zoom {
@@ -100,10 +140,16 @@ pub struct Zoom {
     pub view_y: i32,
     /// `g_mapScrollStep` — lattice columns per scroll step.
     pub scroll_step: i32,
-    /// The five isometric tile banks, in the order `Plane::GfxBank` selects
-    /// them. `Gfx_LoadCountyMode` loads exactly these five, in this order, from
-    /// consecutive `g_resourceTable` entries.
-    pub banks: [&'static str; 5],
+    /// The five isometric tile banks **per season**, indexed by
+    /// [`season_slot`], in the order `Plane::GfxBank` selects them.
+    ///
+    /// `Gfx_LoadCountyMode` loads exactly these five, in this order, from
+    /// consecutive `g_resourceTable` entries starting at
+    /// `(zoom == 2 ? 0x20 : 0) + (season - 1) * 8`. This array **is** those
+    /// entries, read out of the table at `0x004DA050` rather than guessed from
+    /// the filenames on disk — which matters, because the far zoom's four rows
+    /// are not four files. See [`SEASON_SUFFIX`].
+    pub banks: [[&'static str; 5]; SEASONS],
     /// `g_spriteSheetA` and `g_spriteSheetB` — resource table entries 5 and 6
     /// of the zoom's block. `Map_DrawArmies` picks **B for a transport and A
     /// for everything else**, and that is the whole of the choice.
@@ -133,7 +179,12 @@ pub const NEAR: Zoom = Zoom {
     view_x: 0,
     view_y: 9,
     scroll_step: 1,
-    banks: ["Base1a.pl8", "Mtns1a.pl8", "Roads1a.pl8", "Town1a.pl8", "Castle1a.pl8"],
+    banks: [
+        ["Base1a.pl8", "Mtns1a.pl8", "Roads1a.pl8", "Town1a.pl8", "Castle1a.pl8"],
+        ["Base1b.pl8", "Mtns1b.pl8", "Roads1b.pl8", "Town1b.pl8", "Castle1b.pl8"],
+        ["Base1c.pl8", "Mtns1c.pl8", "Roads1c.pl8", "Town1c.pl8", "Castle1c.pl8"],
+        ["Base1d.pl8", "Mtns1d.pl8", "Roads1d.pl8", "Town1d.pl8", "Castle1d.pl8"],
+    ],
     sprites: ["Sprite1a.pl8", "Sprite1b.pl8"],
     flags: "Flags1a.pl8",
     flag_at: (0x1A, -0x1C),
@@ -141,6 +192,29 @@ pub const NEAR: Zoom = Zoom {
 
 /// Zoom 2: 10 × 6 tiles, forty lattice columns on screen. The original pins the
 /// scroll origin at this zoom and refuses to scroll at all.
+///
+/// # The far zoom has no seasons, and this is not an omission
+///
+/// `Base2b.pl8`, `Mtns2c.pl8` and the other eleven zoom-2 seasonal files ship
+/// in the install and **the game never opens one.** `g_resourceTable`'s zoom-2
+/// half, entries 32 … 63, is four *identical* blocks:
+///
+/// ```text
+/// 32 base2a  33 mtns2a  34 roads2a  35 town2a  36 castle2a  37 sprite2a  38 sprite2b  39 flags2a
+/// 40 base2a  41 mtns2a  42 roads2a  43 town2a  44 castle2a  …          (season 2)
+/// 48 base2a  …                                                        (season 3)
+/// 56 base2a  …                                                        (season 4)
+/// ```
+///
+/// so `base + (season - 1) * 8` lands on the same five filenames whichever
+/// season it is. Read out of the table at `0x004DA050` in the shipped binary,
+/// not inferred. **[V]** — `docs/decisions.md` C61.
+///
+/// The dead files are not even consistent with the live one: `Town2a.pl8` has
+/// **61** frames and `Town2b/c/d.pl8` have **94**, and their frame records do
+/// not line up. Pointing the far zoom at them by filename — which is what
+/// deriving the name from the suffix would have done — would have drawn the
+/// wrong picture for three seasons out of four.
 pub const FAR: Zoom = Zoom {
     id: 2,
     set: 1,
@@ -154,7 +228,12 @@ pub const FAR: Zoom = Zoom {
     view_x: 0,
     view_y: 21,
     scroll_step: 4,
-    banks: ["Base2a.pl8", "Mtns2a.pl8", "Roads2a.pl8", "Town2a.pl8", "Castle2a.pl8"],
+    banks: [
+        ["Base2a.pl8", "Mtns2a.pl8", "Roads2a.pl8", "Town2a.pl8", "Castle2a.pl8"],
+        ["Base2a.pl8", "Mtns2a.pl8", "Roads2a.pl8", "Town2a.pl8", "Castle2a.pl8"],
+        ["Base2a.pl8", "Mtns2a.pl8", "Roads2a.pl8", "Town2a.pl8", "Castle2a.pl8"],
+        ["Base2a.pl8", "Mtns2a.pl8", "Roads2a.pl8", "Town2a.pl8", "Castle2a.pl8"],
+    ],
     sprites: ["Sprite2a.pl8", "Sprite2b.pl8"],
     flags: "Flags2a.pl8",
     flag_at: (6, -0x15),
@@ -353,10 +432,29 @@ impl Lattice {
     }
 }
 
-/// The five tile banks, the two sprite sheets and the flag sheet at both zooms,
-/// decoded on demand.
+/// The five tile banks **in every season**, the two sprite sheets and the flag
+/// sheet at both zooms, decoded on demand.
+///
+/// # Why the banks are a pool and an index table rather than a nested array
+///
+/// `Gfx_LoadCountyMode` does not hold four seasons at once: it frees the eight
+/// buffers and reloads them from a different eight resource-table entries every
+/// time the season turns. We hold all of them, because a `Sheet` decodes lazily
+/// and re-reading five files on the season boundary would need the reader kept
+/// alive for the life of the program.
+///
+/// That makes the repetition matter. The far zoom names the *same five files*
+/// for all four seasons ([`FAR`]), so a naive `[[Sheet; 5]; 4]` per zoom would
+/// hold four copies of `Base2a.pl8`. Interning by filename collapses those to
+/// one and costs a string compare at load. Twenty-five names resolve to
+/// **twenty** distinct files.
 pub struct MapAssets {
-    sets: [Vec<Sheet>; 2],
+    /// Every distinct bank file, decoded once. `Gfx_LoadCountyMode` repoints
+    /// eight pointers at eight buffers; this is what they point into.
+    banks: Vec<Sheet>,
+    /// `[set][season slot][bank index]` → an index into `banks`, or `None` when
+    /// that file would not load.
+    bank_at: [[[Option<usize>; 5]; SEASONS]; 2],
     sprites: [Vec<Sheet>; 2],
     flags: [Option<Sheet>; 2],
 }
@@ -365,21 +463,45 @@ impl MapAssets {
     /// Load through a caller-supplied reader, so this works equally against a
     /// plain directory and against the mod overlay's case-insensitive VFS.
     ///
-    /// The five tile banks are required — without them there is no map. The
-    /// sprite and flag sheets are **optional**, and everything that draws from
-    /// them falls back to a marker of ours when they are missing, so a partial
+    /// **Spring is required and the other three seasons are not.** Without
+    /// spring's five banks there is no map at all; without summer's the map
+    /// falls back on spring, which is a map that does not change with the year
+    /// rather than no map. An install that is missing `Base1c.pl8` should still
+    /// play, and a mod that ships one season should not have to ship four.
+    ///
+    /// The sprite and flag sheets are optional for the same reason: everything
+    /// that draws from them falls back to a marker of ours, so a partial
     /// install still shows where its units are.
     pub fn load<F>(mut read: F) -> Result<MapAssets, String>
     where
         F: FnMut(&str) -> Result<Vec<u8>, String>,
     {
-        let mut sets = [Vec::new(), Vec::new()];
+        let mut banks: Vec<Sheet> = Vec::new();
+        let mut names: Vec<String> = Vec::new();
+        let mut bank_at = [[[None; 5]; SEASONS]; 2];
         let mut sprites = [Vec::new(), Vec::new()];
         let mut flags = [None, None];
         for zoom in ZOOMS {
-            for name in zoom.banks {
-                let bytes = read(name)?;
-                sets[zoom.set].push(Sheet::new(bytes).map_err(|e| format!("{name}: {e}"))?);
+            for (season, set) in zoom.banks.iter().enumerate() {
+                for (index, &name) in set.iter().enumerate() {
+                    if let Some(i) = names.iter().position(|n| n == name) {
+                        bank_at[zoom.set][season][index] = Some(i);
+                        continue;
+                    }
+                    // Spring is the one the caller is entitled to an error
+                    // about; a season that will not load is left `None` and
+                    // resolves back to spring at draw time.
+                    let sheet = match read(name).and_then(|b| {
+                        Sheet::new(b).map_err(|e| format!("{name}: {e}"))
+                    }) {
+                        Ok(s) => s,
+                        Err(e) if season == 0 => return Err(e),
+                        Err(_) => continue,
+                    };
+                    names.push(name.to_string());
+                    banks.push(sheet);
+                    bank_at[zoom.set][season][index] = Some(banks.len() - 1);
+                }
             }
             for name in zoom.sprites {
                 if let Some(s) = read(name).ok().and_then(|b| Sheet::new(b).ok()) {
@@ -388,11 +510,33 @@ impl MapAssets {
             }
             flags[zoom.set] = read(zoom.flags).ok().and_then(|b| Sheet::new(b).ok());
         }
-        Ok(MapAssets { sets, sprites, flags })
+        Ok(MapAssets { banks, bank_at, sprites, flags })
     }
 
-    pub fn bank(&self, zoom: &Zoom, index: usize) -> Option<&Sheet> {
-        self.sets.get(zoom.set)?.get(index)
+    /// One tile bank, for a zoom and a `g_season` value.
+    ///
+    /// A season whose file would not load falls back to spring, which is
+    /// `Gfx_LoadCountyMode`'s own behaviour for a season outside 1 … 4.
+    pub fn bank(&self, zoom: &Zoom, season: u8, index: usize) -> Option<&Sheet> {
+        let table = self.bank_at.get(zoom.set)?;
+        let slot = season_slot(season);
+        let at = table[slot].get(index).copied().flatten().or_else(|| {
+            table[0].get(index).copied().flatten()
+        })?;
+        self.banks.get(at)
+    }
+
+    /// How many distinct bank files were actually loaded. Twenty on a complete
+    /// install: fifteen for the near zoom's four seasons and five for the far
+    /// zoom's one.
+    pub fn bank_files(&self) -> usize {
+        self.banks.len()
+    }
+
+    /// Whether this season has artwork of its own, or is falling back on
+    /// spring. A caller that wants to say "this install has no winter" can ask.
+    pub fn has_season(&self, zoom: &Zoom, season: u8) -> bool {
+        self.bank_at[zoom.set][season_slot(season)].iter().all(Option::is_some)
     }
 
     /// `g_spriteSheetA` (0) or `g_spriteSheetB` (1) for this zoom.
@@ -703,6 +847,134 @@ impl Overrides {
     }
 }
 
+// -------------------------------------------------------------- field crops
+
+/// **`Terrain_Set` (`0x0046D7F4`) — the single writer of a tile's `content`
+/// byte, and the terrain → picture map the renderer needs.** **[V]**
+///
+/// Every state change on the campaign map goes through it: the field brush
+/// (`Field_SetType`), the seasonal crop pass, `Field_ReclaimTick`,
+/// `County_DestroyField`, `Unit_TrampleTile` and `Counties_PlaceSites` all
+/// call it, sixteen call sites in all. So this is not inferred from what the
+/// tiles look like — it is the game's own assignment.
+///
+/// ```c
+/// frame = ((frame - oldBase) & 3) + base + variant * 4;
+/// bank  = (((bank | 1) & 0xE3) | layer) & 0x7F;
+/// if (0x0E < terrain && terrain < 0x17) bank |= 0x80;
+/// ```
+///
+/// # `& 3` is the point
+///
+/// Every field state is **four consecutive frames** and the tile keeps
+/// whichever of the four it already had, so a repaint changes the crop without
+/// changing the tile's variation. Every base below is a multiple of four
+/// **except** 130 and 134, and `oldBase` exists for exactly that: it is `0x82`
+/// when the *previous* terrain was `0x17` or `0x18` and zero otherwise, which
+/// subtracts the offset those two introduce. (The original writes `0x82` for
+/// both, not `0x82` and `0x86`; `130 & 3` and `134 & 3` are both 2, so it makes
+/// no difference and the shortcut is harmless.)
+///
+/// The consequence is the one this function relies on: **the low two bits of a
+/// farm tile's frame never change.** Whatever `L2_maps.dat` stored is the
+/// variant for the life of the game, which is why [`field_frame`] can be a
+/// pure function of the terrain and the stored frame rather than needing the
+/// tile's history.
+///
+/// The claim self-checks against the map file: farm tiles on disk are bank
+/// `0x20`/roads **frame 80 only**, with boundary twins 81 … 83 — which is
+/// `base = 80` and its four variants exactly (`maps-layers.md` §1.2).
+///
+/// # `variant` is dead
+///
+/// The third parameter is `variant * 4` — a whole sub-block shift on top of the
+/// base. **All sixteen call sites in the shipped binary pass zero**, including
+/// the two that forward a parameter (`FUN_00469D21`, whose only callers are
+/// `Grain_SeasonTick` and `Herd_UpdateCrowding`, and both pass `'\0'`). So the
+/// term contributes nothing to any picture the game draws and this function
+/// omits it. If it ever mattered it would move a field into the *next* state's
+/// frame block, which is presumably why nothing uses it.
+pub const FIELD_BASES: [(u8, u8, u8); 10] = [
+    // (terrain, first frame of the four, plane-1 bank byte for the layer)
+    (0x00, 80, BANK_ROADS),  // wild
+    (0x01, 84, BANK_ROADS),  // fallow — ploughed and bare
+    (0x02, 88, BANK_ROADS),  // 0x02 … 0x12: grain, and pasture up to 18
+    (0x13, 104, BANK_ROADS), // 0x13 … 0x16, and anything from 0x1D up
+    (0x17, 130, BANK_BASE),  // harvested — and in the **base** bank, not roads
+    (0x18, 134, BANK_BASE),
+    (0x19, 108, BANK_ROADS), // the four reclamation stages
+    (0x1A, 112, BANK_ROADS),
+    (0x1B, 116, BANK_ROADS),
+    (0x1C, 120, BANK_ROADS),
+];
+
+/// The plane-1 byte for the `base` bank — `Base1?.pl8`, bank index 0.
+pub const BANK_BASE: u8 = 0x00;
+/// The plane-1 byte for the `roads` bank — `Roads1?.pl8`, bank index 2.
+pub const BANK_ROADS: u8 = 0x08;
+
+/// The first frame of a terrain's four, and the bank layer it draws from.
+///
+/// The ladder is `Terrain_Set`'s, in its own order — the specific values are
+/// tested before the two ranges, which is why `0x17` and `0x18` do not fall
+/// into the `0x13 …` arm and `0x19 … 0x1C` do not fall into the tail.
+///
+/// **The tail catches more than `maps-layers.md` §5.5's table says.** The
+/// original's last arm is a bare `else`, so every terrain at `0x13` or above
+/// that is not one of `0x17 … 0x1C` lands on base 104 — including `0x1D` and
+/// up, which `County_RecountFields` buckets as *being reclaimed*. The
+/// document's table reads as if `0x13 … 0x16` were exhaustive. It is not
+/// wrong about those four; it is silent about the ones past `0x1C`.
+pub fn field_base(terrain: u8) -> (u8, u8) {
+    match terrain {
+        0x00 => (80, BANK_ROADS),
+        0x17 => (130, BANK_BASE),
+        0x18 => (134, BANK_BASE),
+        0x01 => (84, BANK_ROADS),
+        0x19 => (108, BANK_ROADS),
+        0x1A => (112, BANK_ROADS),
+        0x1B => (116, BANK_ROADS),
+        0x1C => (120, BANK_ROADS),
+        t if t < 0x13 => (88, BANK_ROADS),
+        _ => (104, BANK_ROADS),
+    }
+}
+
+/// **The picture for one farm tile.** Returns `(plane-1 byte, frame)`, ready
+/// for [`Overrides::set`].
+///
+/// `stored_frame` is the tile's graphic index as `L2_maps.dat` holds it — the
+/// low two bits of which are the tile's variant, permanently (see
+/// [`FIELD_BASES`]). `Map_PlaceStartingFields` writes
+/// `frame = base + ((frame + 0xB0) & 3)` from the other side and `0xB0` is a
+/// multiple of four, so the two functions agree on which two bits carry the
+/// variant.
+///
+/// The bank byte reproduces `Terrain_Set`'s own arithmetic —
+/// `(((bank | 1) & 0xE3) | layer) & 0x7F` — applied to the byte the file holds
+/// for a farm tile, which is always `0x08`, the roads bank. That comes out
+/// `0x09` for a roads-layer state and `0x01` for a base-layer one; bit `0x01`
+/// is the road bit the original sets unconditionally and bits `0x1C` are the
+/// bank, which is all [`draw`] reads.
+///
+/// **Bit `0x80` is set for terrain `0x0F … 0x16` and changes no pixel here.**
+/// It is a run-time *draw* bit asking for the building-overlay blitter
+/// (`maps-layers.md` §5.3) — on a pasture, presumably the animals — and this
+/// crate has no such blitter, so it is carried rather than acted on:
+/// [`Overrides`] stores the plane-1 byte and a caller reading it back should
+/// see what the game's own tile record would hold.
+pub fn field_graphic(terrain: u8, stored_frame: u8) -> (u8, u8) {
+    let (base, layer) = field_base(terrain);
+    let bank = ((((BANK_ROADS | 1) & 0xE3) | layer) & 0x7F)
+        | if (0x0F..0x17).contains(&terrain) { 0x80 } else { 0 };
+    (bank, base + (stored_frame & 3))
+}
+
+/// The frame alone, for a caller that already knows the bank.
+pub fn field_frame(terrain: u8, stored_frame: u8) -> u8 {
+    field_base(terrain).0 + (stored_frame & 3)
+}
+
 /// Paint the viewport, stamping county ids into `tags`. Returns tiles drawn.
 ///
 /// The traversal is `Map_RenderIso`'s: `rows + 1` lattice rows starting at
@@ -720,6 +992,7 @@ pub fn draw(
     zoom: &Zoom,
     tags: &mut Tags,
     overrides: &Overrides,
+    season: u8,
 ) -> usize {
     let clip = zoom.clip();
     let mut drawn = 0;
@@ -746,7 +1019,9 @@ pub fn draw(
                     let bank = ((bank_byte & BANK_MASK) >> 2) as usize;
                     let frame = frame as usize;
                     let county = map.county_at(x, y);
-                    if blit_cell(canvas, assets, zoom, bank, frame, sx, sy, clip, tags, county) {
+                    if blit_cell(
+                        canvas, assets, zoom, season, bank, frame, sx, sy, clip, tags, county,
+                    ) {
                         drawn += 1;
                     }
                 }
@@ -761,7 +1036,7 @@ pub fn draw(
                     // sea and the off-map grass repeat where the original
                     // varies them.
                     let frame = lattice.surround(row, col) as usize;
-                    blit_cell(canvas, assets, zoom, 0, frame, sx, sy, clip, tags, 0);
+                    blit_cell(canvas, assets, zoom, season, 0, frame, sx, sy, clip, tags, 0);
                 }
             }
         }
@@ -774,6 +1049,7 @@ fn blit_cell(
     canvas: &mut Canvas,
     assets: &MapAssets,
     zoom: &Zoom,
+    season: u8,
     bank: usize,
     frame: usize,
     sx: i32,
@@ -782,7 +1058,7 @@ fn blit_cell(
     tags: &mut Tags,
     county: u8,
 ) -> bool {
-    let Some(sheet) = assets.bank(zoom, bank) else { return false };
+    let Some(sheet) = assets.bank(zoom, season, bank) else { return false };
     let Some(decoded) = sheet.frame(frame) else { return false };
     // The diamond sits at the bottom of the decoded frame; anything above it is
     // the apex rows `Map_DrawTileApex` blits separately in the original.

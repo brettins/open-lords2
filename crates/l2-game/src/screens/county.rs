@@ -588,13 +588,24 @@ fn body_right(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, w: i32, s: &str, c
     }
 }
 
-fn body_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, w: i32, s: &str, colour: u8) {
+/// Centred in `width` from `x`, with the emboss pair chosen by the caller — because
+/// `CountyStrip_Draw` uses **two different ones** in the same plate. See
+/// [`crate::shell::font::SHADOW_GREY`].
+fn body_centred_styled(
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    x: i32,
+    y: i32,
+    w: i32,
+    s: &str,
+    style: crate::shell::font::Style,
+) {
     match ctx.assets.shell.body.as_ref() {
         Some(f) => {
-            f.draw_centred(canvas, x, y, w, s, &crate::shell::font::Style::new(colour));
+            f.draw_centred(canvas, x, y, w, s, &style);
         }
         None => {
-            text::draw_centred(canvas, x + w / 2, y, s, colour);
+            text::draw_centred(canvas, x + w / 2, y, s, style.colour);
         }
     }
 }
@@ -671,25 +682,81 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // The unowned plate is 162 × 274 rather than 162 × 94 and puts the name
     // fifteen pixels lower, at `0xB4`; that is the original's own difference,
     // not a rounding of ours.
+    //
+    // **The emboss is the parchment pair on both plates, and over the cloudy
+    // one that is a bug of the original's that we reproduce.** `Ui_DrawText`
+    // picks its emboss from `g_screenId` and two globals, never from the
+    // caller, and `CountyStrip_Draw` sets neither of them around this call —
+    // so the name is drawn with `0x10`/`0x1F`, a dark olive over a pale
+    // parchment yellow, whether it is standing on the parchment plate
+    // (`Misc_cty` frame `0x37`) or on the cloudy one (frame `0x3A`). On the
+    // cloudy plate the highlight is a colour that is not in the picture and
+    // the name reads as though it were fading into paper that is not there.
+    //
+    // A player reported it and asked for it to be reproduced *and* switchable:
+    // [`crate::game::Quirks::grey_county_name`] is the switch and it is off by
+    // default. `docs/bugs.md` B64.
     let name = county_name(ctx, county);
     let name_y = if mine { 165 } else { 180 };
-    body_centred(ctx, canvas, 480, name_y, 160, &name, strip_ink);
+    let name_style = if ctx.assets.quirks.grey_county_name && !mine {
+        crate::shell::font::Style {
+            colour: strip_ink,
+            shadow: Some(crate::shell::font::SHADOW_GREY),
+            caps: None,
+        }
+    } else {
+        crate::shell::font::Style::new(strip_ink)
+    };
+    body_centred_styled(ctx, canvas, 480, name_y, 160, &name, name_style);
 
     if !mine {
-        // `Ui_DrawCentred(0xF, 0, 0x1E0, 0xF0, 0xA0, &g_fontBody, realm+0x08)`
-        // and index 1 sixteen pixels below it, then the owner's name out of
-        // `g_playerNames` (`0x00553D54`, stride 0x2C) at (480, 280) — all three
-        // in the *realm's own colour*. We have the realm number and not the
-        // name, and our realm colours are `Ink`'s rather than the save's byte.
-        let owner = if c.owner == 0 {
-            "UNCLAIMED".to_string()
-        } else {
-            format!("REALM {}", c.owner)
-        };
+        // **`owner != 0` — and unclaimed land is a third case, not a second.**
+        //
+        // `CountyStrip_Draw`'s else-arm draws the cloudy plate and the name for
+        // *any* county that is not yours, and then:
+        //
+        // ```c
+        // if (g_counties[g_selectedCounty].owner != 0) {
+        //   DAT_0058fe9c = 1;                                   /* the grey emboss */
+        //   colour = g_realms[owner].field_0x8;
+        //   Ui_DrawCentred(0xf, 0, 0x1e0, 0xf0,  0xa0, &g_fontBody, colour);
+        //   Ui_DrawCentred(0xf, 1, 0x1e0, 0x104, 0xa0, &g_fontBody, colour);
+        //   FUN_004025d7(&g_playerNames + owner * 0x2c, 0x1e0, 0x118, 0xa0, &g_fontBody, colour);
+        //   DAT_0058fe9c = 0;
+        // }
+        // ```
+        //
+        // So a county nobody holds gets the plate and its name and **nothing
+        // else** — no banner, no owner line. `L2.eng` group 15 is two strings,
+        // `"Sovereign land"` and `"of"`, and the third line is a lord's name
+        // out of `g_playerNames`; there is no wording in the file for an
+        // unowned county because the original never needs one.
+        //
+        // We drew `SOVEREIGN LAND / OF / UNCLAIMED` here, which is a sentence
+        // the original cannot produce. A player reported it in one line:
+        // *"Unclaimed lands have no 'sovereign land of'."*
+        if c.owner == 0 {
+            return;
+        }
+        // The three lines carry the **grey** emboss — `DAT_0058FE9C = 1` —
+        // and not the parchment one the name above them uses. Two emboss pairs
+        // in one plate is the original's own arrangement, and ours had
+        // collapsed them into one.
+        //
+        // The *colour* is still ours: `g_realms[owner].field_0x8` is a palette
+        // byte out of the save and we have the realm number instead. Only the
+        // emboss is read out of the binary here.
+        let owner = format!("REALM {}", c.owner);
         let colour = ink.realm.get(c.owner as usize).copied().unwrap_or(ink.text);
-        body_centred(ctx, canvas, 480, 240, 160, &eng(ctx, 15, 0, "SOVEREIGN LAND"), colour);
-        body_centred(ctx, canvas, 480, 260, 160, &eng(ctx, 15, 1, "OF"), colour);
-        body_centred(ctx, canvas, 480, 280, 160, &owner, colour);
+        let style = crate::shell::font::Style {
+            colour,
+            shadow: Some(crate::shell::font::SHADOW_GREY),
+            caps: None,
+        };
+        let banner = eng(ctx, 15, 0, "SOVEREIGN LAND");
+        body_centred_styled(ctx, canvas, 480, 240, 160, &banner, style);
+        body_centred_styled(ctx, canvas, 480, 260, 160, &eng(ctx, 15, 1, "OF"), style);
+        body_centred_styled(ctx, canvas, 480, 280, 160, &owner, style);
         return;
     }
 

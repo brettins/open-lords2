@@ -407,7 +407,9 @@ pub struct MapScreen {
     /// scrolling cost one repaint rather than one per frame.
     base: Canvas,
     tags: Tags,
-    built: Option<(usize, u8, Viewport, u32)>,
+    /// `(map slot, zoom, viewport, turn, season, field digest)` — everything
+    /// the painted base plane depends on.
+    built: Option<(usize, u8, Viewport, u32, u8, u64)>,
     /// The two 128 × 128 rasters for this slot, decoded once.
     minimap: Option<Minimap>,
     minimap_slot: Option<usize>,
@@ -852,7 +854,8 @@ impl MapScreen {
             let bank_byte = slot.at(Plane::GfxBank, tx as usize, ty as usize);
             let frame = slot.at(Plane::GfxIndex, tx as usize, ty as usize) as usize;
             let bank = ((bank_byte & campaign::BANK_MASK) >> 2) as usize;
-            let Some(sheet) = ctx.assets.map.bank(&self.zoom, bank) else { continue };
+            let season = ctx.game.kingdom.season;
+            let Some(sheet) = ctx.assets.map.bank(&self.zoom, season, bank) else { continue };
             let Some(decoded) = sheet.frame(frame) else { continue };
             let overhang = (decoded.height as i32 - self.zoom.tile_h).max(0);
             let (dx, dy) = (x - sx, y - (sy - overhang));
@@ -954,8 +957,18 @@ impl MapScreen {
             self.open_on_the_player(ctx);
         }
         // The turn count is in the key because [`town_graphics`] depends on
-        // every county's population, which the end of a turn moves.
-        let key = (ctx.game.map_slot, self.zoom.id, self.view, ctx.game.kingdom.turn_count);
+        // every county's population, which the end of a turn moves. The season
+        // is in it because it repoints all five tile banks, and the field
+        // digest because a brush stroke repaints one tile without ending a
+        // turn — see [`MapScreen::field_graphics`].
+        let key = (
+            ctx.game.map_slot,
+            self.zoom.id,
+            self.view,
+            ctx.game.kingdom.turn_count,
+            ctx.game.kingdom.season,
+            Self::field_digest(ctx),
+        );
         if self.built == Some(key) {
             return;
         }
@@ -978,9 +991,70 @@ impl MapScreen {
             self.view,
             &self.zoom,
             &mut self.tags,
-            &Self::town_graphics(ctx),
+            &Self::tile_graphics(ctx),
+            ctx.game.kingdom.season,
         );
         self.built = Some(key);
+    }
+
+    /// Everything the game rewrites over the map file: the towns, and the
+    /// fields.
+    ///
+    /// Two passes over one plane rather than two planes, because they are
+    /// disjoint by construction — a town tile carries plane-0 bit `0x40` and a
+    /// field carries `0x20`, and `maps-layers.md` §2's census has no tile with
+    /// both.
+    pub fn tile_graphics(ctx: &Ctx) -> campaign::Overrides {
+        let mut out = Self::town_graphics(ctx);
+        Self::add_field_graphics(ctx, &mut out);
+        out
+    }
+
+    /// **Give every farm tile the picture its crop state calls for.**
+    ///
+    /// `Terrain_Set` (`0x0046D7F4`) is the game's single writer of a tile's
+    /// `content` byte and it picks the graphic at the same moment; the frame it
+    /// writes is a pure function of the new terrain and the two low bits of
+    /// whatever frame the tile already had, so it can be recomputed from the
+    /// file rather than tracked. [`l2_view::campaign::field_graphic`] is that
+    /// function and carries the derivation.
+    ///
+    /// Until this existed the field brush painted markers of our own and the
+    /// map showed the same ploughed field in March and in August, whatever the
+    /// county's crops were doing. `maps-layers.md` §5.5 read the mapping and
+    /// said so: *"Not yet drawn."*
+    fn add_field_graphics(ctx: &Ctx, out: &mut campaign::Overrides) {
+        let Some(slot) = ctx.assets.slot(ctx.game.map_slot) else { return };
+        let map = &ctx.game.kingdom.campaign.map;
+        for tile in 0..map.terrain.len() {
+            if map.flags[tile] & l2_kingdom::map::flags::FARMLAND == 0 {
+                continue;
+            }
+            let (x, y) = l2_kingdom::map::coords(tile);
+            let stored = slot.at(Plane::GfxIndex, x as usize, y as usize);
+            let (bank, frame) = campaign::field_graphic(map.terrain[tile], stored);
+            out.set(x as usize, y as usize, bank, frame);
+        }
+    }
+
+    /// A cheap summary of every farm tile's crop state, for the repaint key.
+    ///
+    /// **Order-dependent and deterministic**, which is all it has to be: it
+    /// never leaves this screen, is never saved and is not the lockstep digest.
+    /// It exists so that a single brush stroke repaints the map — the turn
+    /// counter does not move when a player ploughs one field, and without this
+    /// the new picture would not appear until the season turned.
+    fn field_digest(ctx: &Ctx) -> u64 {
+        let map = &ctx.game.kingdom.campaign.map;
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        for tile in 0..map.terrain.len() {
+            if map.flags[tile] & l2_kingdom::map::flags::FARMLAND == 0 {
+                continue;
+            }
+            h ^= u64::from(map.terrain[tile]) ^ (tile as u64);
+            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        h
     }
 
     /// **Put the towns back.** `Counties_PlaceSites` (`0x00468D4F`) rewrites

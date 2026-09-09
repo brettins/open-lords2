@@ -2656,6 +2656,23 @@ The battlefield zero is honest rather than alarming — those screens are unbuil
 `screens/battle.rs` is the campaign-map *prompt*, not the battle. Excluding it, **80 of 136, 59%.**
 That is the number to argue with, and it is the first time one has existed.
 
+**The denominator is provisional and is being corrected downward.** An exhaustive scan of every
+`mov byte ptr [g_screenId], imm8` — 212 sites, `0x00`…`0x45` — finds **no writer of `0x28` at
+all**, and no decompiled function assigns it either. Its `Screen_FrameInput` and `Screen_Draw`
+arms are dead code, so the battlefield is three live screens and the arms audited on `0x28` sit
+in a denominator they do not belong in. Counting arms cannot detect that; counting *writers of
+the screen id* can, which is a hole in the audit's own method and is recorded in
+`docs/agents.md`. **Do not quote 43% until it is regenerated** — the corrected total goes into
+`tools/figures/figures.js` so it cannot go stale the way 34 other figures did.
+
+One of the three inventions below is also worse than described here. Screen `0x12`'s arm is
+**entirely multiplayer** — a sync latch and a timeout that returns 0 unconditionally when
+`g_multiplayer == 0` — so in single player it does nothing at all, and the prompt's only exits
+are the tick and the cross in its widget table. Our right-click-to-Decline is not an untested
+addition to an existing arm; it stands where the original has **no input path whatsoever**. It
+is being removed, and recorded as *an invention removed* rather than as a bug fixed — which is
+the first countable data point for the question the arms file exists to answer.
+
 Three patterns fall out of it, and none of them is "we were sloppy":
 
 1. **The gap is at the level of *behaviours within* a screen, not screens.** Every screen module is
@@ -2762,6 +2779,116 @@ the seam is symmetric, not that the seam reaches the simulation. So the diff rep
 verdicts and not two — **agree**, **differ, because…**, and **both silent**, the last being a
 finding — and it re-checks every field it calls *agreed* on the `Kingdom`, where the rules
 read it. Both ablations now go red; six were run and all six do.
+
+
+**C63 — The season, the fields and the village's clock; and a resource table that says a
+filename is not evidence.**
+
+Three pieces of the map were read and not drawn, and they went in together. Two of them
+carried an explicit unmeasured assumption, and one of those assumptions was right and the
+other quietly wrong in a way that would have been hard to see.
+
+**The measurement that decided the whole first piece.** `docs/screens.md` §2.1 said the
+seasonal swap is safe *"provided the four seasonal files of a bank really do share a frame
+table. That is the one thing here nobody has measured."* It is a cheap measurement and it
+decides whether the season is a lookup table or a real piece of work, because
+`campaign::Overrides` stores a **frame index** — if frame 47 of `Town1c.pl8` were a different
+cell than frame 47 of `Town1a.pl8`, every county town would revert to a quarry each autumn.
+They share one: over 1,398 frame comparisons across five banks, the frame count, the canvas
+anchor `(X, Y)`, the size and the shape agree in every season, and the **only** difference
+anywhere is the overhang-row byte on nine `Roads1?.pl8` frames — 109, 111, 113 … 119 — by one
+or two rows. Those nine are inside the crop blocks based at 108/112/116/120, so they are a
+crop that grows needing a taller picture. Artwork varying, not an index moving. It was a
+lookup table.
+
+**The assumption in the same sentence that was wrong.** The same paragraph, and
+`maps-layers.md` §1.1, say the `a`/`b`/`c`/`d` suffix *"**is** the season, four sets per zoom,
+entries 0–31 and 32–63"*. It is the season for entries 0–31 and it is **not** for 32–63.
+`g_resourceTable`'s zoom-2 half names `base2a`/`mtns2a`/`roads2a`/`town2a`/`castle2a` in all
+four of its season blocks: the far view does not change with the year, and the twelve zoom-2
+seasonal files on disk are never opened, exactly as `Flags1b/c/d.pl8` are not. The obvious
+implementation — take the near zoom's names and swap the letter, take the far zoom's and do
+the same — would have been wrong for three seasons in four, and **not visibly wrong**:
+`Town2a.pl8` has 61 frames and `Town2b/c/d.pl8` have 94, so the far map would have drawn a
+different sheet at every index without erroring anywhere.
+
+The rule that comes out of it is worth more than the feature: **the resource table is the
+authority on which file a bank loads, and the filename is not.** `Zoom::banks` is now that
+table — a 4 × 5 array per zoom, transcribed from `0x004DA050` — rather than a suffix rule, and
+`MapAssets` interns it by name, so the far zoom's repetition costs nothing and the
+season-invariance is a fact in the data instead of a claim in a comment. Twenty-five names,
+twenty distinct files.
+
+**The artwork also settled which letter is which season**, independently of the loader
+arithmetic: over the sixteen grass frames of each `Base1?.pl8`, `a` is 99.1 % green, `c` is
+**0.3 %** green, and `d` is far the brightest. Autumn has no green in it and winter has snow.
+Spring, summer, autumn, winter — which is what `(g_season - 1) * 8` already said, now with a
+second source.
+
+**The fields: a function that is its own documentation.** `FUN_0046D7F4` — named `Terrain_Set`
+here, because four documents referred to it only by address — is the single writer of a tile's
+`content` byte and picks the graphic in the same statement, so it *is* the terrain → frame map
+and nothing had to be inferred from what the tiles look like. Two corrections to
+`maps-layers.md` §5.5 came out of re-reading it: the `104` arm is a bare `else` and so catches
+`0x1D` and up as well as `0x13 … 0x16`, and the third parameter is **dead** — all sixteen call
+sites pass zero, including both callers of the one function that forwards it. The frame is
+exactly `base + (storedFrame & 3)`.
+
+The `& 3` deserves its own line because it is what makes the feature possible at all. Every
+base is a multiple of four except 130 and 134, and `oldBase` exists for precisely those two —
+so the low two bits of a farm tile's frame **never change for the life of the game**. That
+turns the picture into a pure function of `(terrain, the byte the map file stored)`, and a
+renderer can recompute it without tracking a tile's history. A stateful function with a
+stateless answer, and the stateless answer is only visible once you notice which constants are
+multiples of four.
+
+**The village's clock, and a file that was not spare.** `Village_Animate` draws **six**
+overlays and only three of them are the resource buildings' — the other three run in every
+county, which nobody had noticed. The sixth is the single read of `villani1.pl8` anywhere in
+the executable, a file this project had recorded as *"loaded by nothing"*: it is the iron
+mine's loop, 21 frames of which the game plays 18.
+
+`villani2.pl8`'s own frame table then confirmed the whole reading from a direction the
+decompiler cannot reach. Its 44 frames fall into five blocks of equal-sized cells laid out in
+rows on the artist's sheet — 26 × 29, 39 × 40, 15 × 12, 32 × 42, 19 × 18 — and the blocks are
+**exactly** the five runs the counter bounds predict, start index and length, five times over,
+with the three static buildings and one stub left over and nothing short. That is the strongest
+evidence in the piece and it cost one frame-table dump. Counter bounds are a claim; block
+boundaries in a file somebody else drew are a witness.
+
+**The clock itself is `Tick_Pulses` (`0x004BBC80`)**, and it is not a frame counter: a 20 ms
+gate on `timeGetTime` feeding a divider chain that sets eight one-frame booleans at 80, 160,
+320, 640, 1040, 1280, 1920 and 2560 ms. The village takes two of them, and so does the
+campaign flag. So *"once a frame and wrapped"*, which is what four documents said, was
+describing the call site rather than the rate: the slow overlays run at 6.25 Hz.
+
+**Where the clock lives, and the constraint that put it there.** `AnimationClock` is on
+`VillageScreen` and is counted in fixed ticks handed to it, never in wall time.
+`docs/netcode.md` D-12 forbids the simulation learning anything from a clock, and nothing in a
+save or in the lockstep digest may depend on which frame of the smoke is showing — two clients
+whose villages are on different frames are looking at the same county, not desynchronised.
+The test asserts it directly: a hundred ticks of the clock leave `Kingdom` byte-identical.
+
+**And a quirk switch that does not belong on `Options`.** A player asked for the county-name
+emboss (B64) both reproduced *and* switchable. `docs/bugs.md` §6.3 recommends `Options` for a
+quirk set and is right about every quirk it argues about — all of them change a rule, which is
+where its three constraints come from. A text shadow changes no rule, so putting it in the
+hashed options would be the *wrong* answer rather than the expensive one: D-12 says display
+state must not reach the simulation. `Quirks` is on `Assets`, whose definition is already
+*"everything the screens draw with, not part of the world"*, and §6.3a now says there are two
+sets with a one-line test between them — **if flipping it can change a number in a saved game
+it is behavioural; if it can only change which pixels are painted from the same numbers it is
+presentation.**
+
+**The tests, and the lesson from the two that were already on record.** This subsystem has
+produced two sharp lessons about tests that ran in the wrong world, and both applied here.
+Every seasonal claim is asserted against the user's own installed files, install-gated; the
+emboss pair is read back off the canvas **as palette indices**, by reconstructing which of
+`Ui_DrawText`'s three passes owns each pixel, so a colour that merely looked right could not
+pass; and the season test **ends a real turn** and looks at the map rather than assigning to
+`kingdom.season` and reading the lookup back — `docs/agents.md`'s rule that a field is only
+tested if something a test reads was written by something the game runs.
+
 
 ## Open questions
 

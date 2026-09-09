@@ -3726,6 +3726,14 @@
       "comment": "Turns the picked tile into the four things Map_Click branches on: g_pickedTileCounty from the county plane, g_pickedCountyOwner from that county's +0x05, g_pickedTileFlags from the attribute plane at 0x00522F91, and g_pickedTileGraphic from g_tiles. Then masks off three flag/graphic combinations that would otherwise be hotspots."
     },
     {
+      "addr": "0x0046D7F4",
+      "name": "Terrain_Set",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void Terrain_Set(int tileByteOffset, int terrain, char variant)",
+      "comment": "THE SINGLE WRITER of a tile's content byte, and it picks the tile's picture in the same breath - so this one function is the terrain -> frame mapping a renderer needs. Sixteen call sites: Field_SetType (the brush), Field_ReclaimTick, Field_OrderReclamation, County_DestroyField, Grain_SeasonTick and Herd_UpdateCrowding through FUN_00469D21, Map_PlaceStartingFields, and nine helpers around 0x00469xxx. frame = ((frame - oldBase) & 3) + base + variant*4; bank = (((bank | 1) & 0xE3) | layer) & 0x7F, then |= 0x80 for terrain 0x0F..0x16. Base ladder on the NEW terrain, in the order the code tests it: 0 -> 80 roads, 0x17 -> 130 BASE, 0x18 -> 134 BASE, 1 -> 84, 0x19/0x1A/0x1B/0x1C -> 108/112/116/120, terrain < 0x13 -> 88, everything else -> 104 (a bare else, so 0x1D and up land there too - maps-layers.md 5.5's table reads as if 0x13..0x16 were exhaustive). oldBase is 0x82 when the PREVIOUS terrain was 0x17 or 0x18 and 0 otherwise; every other base is a multiple of 4, so the `& 3` preserves the tile's variant forever and the correction exists only for the two bases that are not. Consequence: the low two bits of a farm tile's frame never change, so the picture is a pure function of the terrain and the frame the map file stored. The third parameter is DEAD - all sixteen call sites pass 0, including both callers of the one function that forwards it. Named here after four documents referred to it only as FUN_0046D7F4; docs/formats/maps-layers.md 5.5 is the write-up and l2_view::campaign::field_graphic is the reimplementation."
+    },
+    {
       "addr": "0x0043D309",
       "name": "Industry_ToggleFromMap",
       "section": "ui",
@@ -5976,6 +5984,14 @@
       "confidence": "verified",
       "signature": "void PlayerStart_Shuffle(void)",
       "comment": "Re-deals the live entries of g_playerStartTable into each other slots, from Game_NewGame between Mercenary_Init and PlayerStart_Compact. For each source entry i it draws a random offset, pos = (rand & 3) + 1 + i wrapping at the live count, then probes forward for a free destination. [V] THIS IS WHY WHICH REALM YOU PLAY IS DIFFERENT EVERY GAME: docs/environment.md records the realm-to-county assignment as rolled per game, from two independently created England turn-one saves disagreeing about it, and this is the code that rolls it. The start counties themselves never move - they are the map plane-4 markers. Its second half deals a 48-entry table into DAT_0057CAE0 and fills DAT_00553080 with 0, 100 or 6 + 5n per entry; neither destination has been traced and neither is a player start. Reproduced in l2_scenario::newgame::shuffle_starts on our own Pcg32 - the shape is the original, the stream cannot be. See decisions.md C62."
+    },
+    {
+      "addr": "0x004BBC80",
+      "name": "Tick_Pulses",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Tick_Pulses(void)",
+      "comment": "The animation clock for the whole interface: eight boolean pulses, all cleared at the top of every call and set again by a divider chain, so each is true only on the frame it fires. A 20 ms gate (timeGetTime() - last > 0x13) steps a counter; every 4 of those - 80 ms - sets g_pulse80 and steps six more counters, which set their own flags every 2, 4, 8, 13, 16, 24 and 32 of the 80 ms pulse: 160, 320, 640, 1040, 1280, 1920 and 2560 ms. Village_Animate takes 80 ms and 160 ms, and so does FUN_004071A0, the campaign flag. This is where any millisecond figure quoted for an animation in this project comes from."
     }
   ],
   "globals": [
@@ -9464,6 +9480,48 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "int[14][5]. Where each good sits on the merchant's stall: 14 rows of {x, y, goodId, unread, iconFrame} indexed as base + (good-1)*20. The third column holds the row's own good id, which makes the reading self-checking - fourteen for fourteen. Column 4 is the icon frame Trade_DrawPanel draws after \"and N ...\" and 0 suppresses that whole clause; it is 0 for exactly sheep, ale and wool, the three goods you never hold. Column 3 is 0/1/2 on the same three-way split and NOTHING IN THE BINARY READS IT. [V] SHEEP AND WOOL ARE AT (0,0) - they have no place on the stall at all, which with the missing Merchant_Trade branch, the price of zero and their absence from mercgrid.pl8 makes four independent statements that the two goods are not in the game."
+    },
+    {
+      "addr": "0x00591510",
+      "name": "g_pulse80",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The 80 ms animation pulse, set by Tick_Pulses and true for one frame. Read by Village_Animate (two of its eight counters), FUN_004071A0, FUN_00413526, FUN_004190DB, FUN_00451F1A and FUN_004BD574."
+    },
+    {
+      "addr": "0x0057D3AC",
+      "name": "g_pulse160",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The 160 ms animation pulse - every second g_pulse80 - set by Tick_Pulses and true for one frame. Read by Village_Animate (six of its eight counters) and FUN_004071A0. The village's slow animations run at 6.25 Hz because of this."
+    },
+    {
+      "addr": "0x0058FE9C",
+      "name": "g_embossGrey",
+      "section": "text",
+      "confidence": "verified",
+      "comment": "When non-zero, Ui_DrawText embosses with 0x3F above and 0x26 below instead of the screen-id pair 0x10/0x1F - black over a light grey rather than a dark olive over parchment yellow. Set by exactly three functions and cleared immediately after each: CountyStrip_Draw around the three Sovereign land of ... lines, Screen_Armoury, and FUN_004180F6. It is the reason the county name and the banner beneath it are embossed differently on the same plate; docs/bugs.md B64."
+    },
+    {
+      "addr": "0x005AEB90",
+      "name": "g_dropShadow",
+      "section": "text",
+      "confidence": "verified",
+      "comment": "When non-zero, Ui_DrawText draws a DROP SHADOW rather than an emboss: one pass at (x+1, y+1) in colour 0x3F, then the glyph at (x, y). Set by the county strip's seven produce-row painters and by CountyStrip_DrawCastleIcon. g_flatText (DAT_005AEA40) is tested first and wins."
+    },
+    {
+      "addr": "0x0053E918",
+      "name": "g_villani1Sheet",
+      "section": "sprite",
+      "confidence": "verified",
+      "comment": "villani1.pl8, loaded by Village_Draw. Read by ONE blit in the whole executable - Village_Animate's iron-mine overlay, Pl8_DrawFrame(this, DAT_004D2938, 0xA4, top + 0xC). The file holds 21 frames of 40x62 and the counter wraps at 0x11, so three of them are never drawn."
+    },
+    {
+      "addr": "0x005533C4",
+      "name": "g_villani2Sheet",
+      "section": "sprite",
+      "confidence": "verified",
+      "comment": "villani2.pl8, loaded by Village_Draw. 44 frames: five equal-sized animation blocks (0-6 at 26x29, 7-14 at 39x40, 15-24 at 15x12, 25-32 at 32x42, 33-39 at 19x18) that are exactly the five overlays Village_Animate draws from it, then the three static buildings Village_Draw blits - 0x28 stone, 0x29 wood, 0x2B iron - and a 2x2 stub at 42."
     }
   ]
 }

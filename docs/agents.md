@@ -402,7 +402,16 @@ different work, that must agree.** A number in a document versus a number derive
 citation versus the heading it names. That shape goes red on ordinary work, in both directions,
 which is the whole point.
 
-So: `docs/arms.json`, one record per input arm of the original —
+**The schema is being authored by the battlefield agent, not here.** It has ~50 records
+blocked waiting on one and is the file's largest single contributor, which makes it the right
+author; this section is the requirement, not the design. Three constraints are non-negotiable
+and they are the reason the file exists at all: set equality in both directions between
+`// arm: 0x…` markers and `reproduced` records; an **invention** must be representable and
+countable rather than merely absent; and a **dead** arm must be distinguishable from a missing
+one. Amend that schema once if it is wrong, and say why — two schemas would be worse than
+either.
+
+The shape asked for, so the requirement is concrete —
 
 ```json
 { "screen": "0x10", "addr": "0x004A8E0B", "gesture": "hover",
@@ -449,6 +458,46 @@ the three agent reports. Land those, run the two falsification experiments, and 
 red for a screen that has arms in the file and no markers in the code. The battlefield's 49 arms
 are the argument for doing this *before* that screen is built rather than after — it is the only
 screen group where the inventory would be written ahead of the code, which is the cheap direction.
+
+### Counting arms cannot tell you whether a screen is reachable
+
+**The audit's own method has a hole, and it was found the same way everything else was — by a
+second enumeration from a different direction disagreeing with the first.**
+
+The counts above come from reading each screen's input handlers. That is the right way to count
+arms and it is the only way to count them. It cannot tell you whether anyone can ever get to the
+screen. An exhaustive scan of every `mov byte ptr [g_screenId], imm8` in the binary can: 212
+sites covering `0x00`…`0x45`, and **`0x28` is not among them**, nor is it assigned by any
+decompiled function. It has a live-looking `Screen_FrameInput` arm and a live-looking
+`Screen_Draw` arm, and both are dead code. So the battlefield is **three** screens — `0x29`
+field, `0x2A` drag, `0x2B` outcome — and every arm audited on `0x28` counts toward a
+denominator it should not be in.
+
+So the totals in C61 are provisional until the corrected denominator lands, and the corrected
+one goes into `tools/figures/figures.js` rather than into prose: it is about to be the headline
+of `docs/plan.md` revision 5 and quoted widely, and 34 figures have already gone stale in four
+documents by being typed. **A number that cannot drift beats a number that is checked.**
+
+The general rule for the arms file: **every screen carries a reachability record beside its arm
+records** — the addresses that write its id — and a screen with no writer is `dead`, which is
+why `dead` has to be a distinguishable status rather than an absence. Two enumerations from
+different directions are what has caught things all evening; one enumeration is a claim.
+
+### One entry here that is not a failure
+
+Everything else under this heading is something going wrong, which makes the file read as a
+catalogue of carelessness. `docs/bugs.md` B65 is the good case and belongs beside them.
+
+Two of the village's eight animation counters are stepped every frame and read by **nothing in
+the entire binary**. One of them has 21 states and `villani1.pl8` happens to have 21 frames.
+That is exactly the shape of a finding: a number that matches, a plausible story available for
+free, and a decompiled function that would have looked like evidence for it. The agent recorded
+the coincidence and **declined to build the story on it**, marking the counters dead and the
+match unexplained.
+
+That is rule 4 working — *a plausible story assembled from decompiler output is not a finding* —
+and it is worth naming, because every other example in this file is what happens when the same
+temptation wins.
 
 ### The rest of the pattern, recorded
 

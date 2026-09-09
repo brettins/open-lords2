@@ -135,6 +135,20 @@ pub struct VillageScreen {
     /// **Ours**: what just happened, for a player who cannot see a cursor
     /// change.
     status: String,
+    /// **`Village_Animate`'s counters — display state and nothing else.**
+    ///
+    /// It lives on the screen, not in `Game` and not in `Kingdom`, and that is
+    /// deliberate: `docs/netcode.md` D-12 forbids the simulation learning
+    /// anything from a clock, and nothing in the lockstep digest or in a save
+    /// may depend on which frame of the smoke is showing. Two clients whose
+    /// villages are on different animation frames are not desynchronised.
+    /// Closing the village and reopening it starts the loop again, which is
+    /// also what the original does — `Village_Draw`'s reload path resets the
+    /// counters through `FUN_004050C0`.
+    clock: vill::AnimationClock,
+    /// Whether the last tick moved an animation, so a still village costs no
+    /// repaint. The same economy `MapScreen`'s flag phase makes.
+    animated: bool,
 }
 
 impl VillageScreen {
@@ -149,6 +163,8 @@ impl VillageScreen {
             drag_count: 0,
             pending_click: None,
             status: String::new(),
+            clock: vill::AnimationClock::new(),
+            animated: false,
         }
     }
 
@@ -379,6 +395,13 @@ impl VillageScreen {
     /// there is nowhere for the double click to happen.
     pub const CLICK_SETTLE_TICKS: u32 = 19;
 
+    /// One fixed simulation tick in milliseconds — `main::TICK`, and the same
+    /// constant `screens::map::TICK_MS` carries for the same reason.
+    ///
+    /// **A constant, not a clock.** [`l2_view::village::AnimationClock`] is
+    /// told how long a tick is; it never asks how long one took.
+    pub const TICK_MS: u32 = 16;
+
     /// Whether this event is one the village's arm hands to the sidebar.
     ///
     /// **Left button and pointer only.** The six guards are all left-button
@@ -547,6 +570,11 @@ impl Screen for VillageScreen {
     /// The pending click's clock, and the one thing on this screen that happens
     /// without an event arriving.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        // **The animation clock, and it runs whatever else this tick does.**
+        // `Village_Animate` is called from `Screen_DrawWidgets` — the overlay
+        // pass that runs after `Screen_Draw` on every frame the village is
+        // up — so it is not gated on anything the player did.
+        self.animated = self.clock.tick(Self::TICK_MS);
         let Some((x, y, left)) = self.pending_click else { return Transition::Stay };
         if left > 1 {
             self.pending_click = Some((x, y, left - 1));
@@ -557,6 +585,11 @@ impl Screen for VillageScreen {
             Some(job) => Transition::Push(ScreenId::Job(self.county, job)),
             None => Transition::Stay,
         }
+    }
+
+    /// Repaint when an animation moved, and not otherwise.
+    fn take_redraw(&mut self) -> bool {
+        core::mem::take(&mut self.animated)
     }
 
     /// **The village is an inset.** `Village_Draw` never clears — it repaints
@@ -594,6 +627,13 @@ impl Screen for VillageScreen {
             // in front of the buildings.
             let has = VillageScreen::resource_flags(c);
             art.map(|a| a.draw_resources(canvas, has, top));
+            // **`Village_Animate`'s overlays go on top of the buildings and
+            // under the peasants.** The original calls `Village_Draw` once and
+            // `Village_Animate` from `Screen_DrawWidgets` afterwards, so the
+            // moving parts are painted over the still ones; the icons are
+            // redrawn from the saved band every frame and stay in front of
+            // both.
+            art.map(|a| a.draw_animations(canvas, has, top, &self.clock));
             self.draw_clusters(ctx, canvas, c, top, drew);
         }
 

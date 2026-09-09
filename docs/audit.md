@@ -482,6 +482,40 @@ appeared. `environment.md`'s Paths table does not mention that directory at all.
 
 ## 5. Smaller things
 
+* **`screens.md` §2.1 and `maps-layers.md` §1.1: "the `a`/`b`/`c`/`d` suffix **is** the
+  season, four sets per zoom, entries 0–31 and 32–63."** Right for entries 0–31 and
+  **wrong for 32–63**. `g_resourceTable`'s zoom-2 half names
+  `base2a`/`mtns2a`/`roads2a`/`town2a`/`castle2a` in all four of its season blocks, so the
+  far view is not seasonal at all and the twelve zoom-2 seasonal files on disk are never
+  opened — the same way `Flags1b/c/d.pl8` are not. Verified by dumping the table at
+  `0x004DA050`. The failure mode is quiet rather than loud: `Town2a.pl8` has **61** frames
+  and `Town2b/c/d.pl8` have **94**, so a renderer that derives the filename from the suffix
+  draws a different sheet at every index for three seasons out of four without erroring.
+  Both documents corrected; `maps-layers.md` §1.1b, `docs/decisions.md` C61.
+* **`screens.md` §2.1's open question — "the one thing here nobody has measured" — is now
+  measured, and the answer is the favourable one.** The four seasonal files of a bank do
+  share a frame table: over 1,398 frame comparisons across the five near-zoom banks, the
+  frame count, the canvas anchor `(X, Y)`, the size and the shape agree in every season.
+  The only difference anywhere is the overhang-row byte on nine `Roads1?.pl8` crop frames,
+  by one or two rows. `maps-layers.md` §1.1a; asserted install-gated.
+* **`maps-layers.md` §5.5's base ladder is presented as a table of ranges and its last row
+  is a bare `else`.** Terrain `0x1D` and up — the reclamation values `County_RecountFields`
+  buckets to `+0x204` — land on base 104 along with `0x13 … 0x16`. Not wrong about the four
+  it names; silent about the rest. Also in that section: the third parameter of
+  `Terrain_Set` (`0x0046D7F4`, named there only by address until now) is **dead** — all
+  sixteen call sites pass zero.
+* **`screens-county.md` §6.4 and three other documents: `Village_Animate`'s counters are
+  "incremented once a frame and wrapped".** They are stepped on a **pulse**, not a frame:
+  `Tick_Pulses` (`0x004BBC80`) gates on a 20 ms `timeGetTime` delta and divides that by 4
+  and by 2, so the village's counters run at 80 ms and 160 ms — 12.5 Hz and 6.25 Hz. The
+  sentence was describing the call site rather than the rate. The same section listed
+  **six** counters and **three** overlays; there are **eight** counters, **six** overlays
+  (three of them ungated by any resource), and two counters with no reader anywhere in the
+  binary. `docs/bugs.md` B65.
+* **`mechanics.md` and `screens-county.md`: `villani1.pl8` "loaded by nothing".** It is
+  loaded by `Village_Draw` into `DAT_0053E918` and read by exactly one blit — the iron
+  mine's overlay in `Village_Animate`. 21 frames of 40 × 62, of which the counter's `0x11`
+  bound plays 18.
 * **`maps.md` §2, plane 3:** "per map, values `1,2,3` occur in **exactly equal counts**"
   is contradicted by the document's own table two lines later — slot 4 reads
   `1,2,3 -> 112,111,112`. Verified: the histogram is exact. (The whole model is

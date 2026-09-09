@@ -811,6 +811,7 @@ fn the_rewritten_town_actually_changes_what_is_drawn() {
             screen.zoom(),
             &mut tags,
             o,
+            game.kingdom.season,
         );
         canvas
     };
@@ -888,7 +889,7 @@ fn every_painted_pixel_of_a_mine_reaches_the_industry_toggle() {
     let (sx, sy) = campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
     let slot = assets.slot(game.map_slot).expect("the map slot");
     let frame = slot.at(l2_formats::maps::Plane::GfxIndex, tx as usize, ty as usize) as usize;
-    let sheet = assets.map.bank(screen.zoom(), 3).expect("the Town bank");
+    let sheet = assets.map.bank(screen.zoom(), game.kingdom.season, 3).expect("the Town bank");
     let art = sheet.frame(frame).expect("the mine's frame");
     let overhang = art.height as i32 - screen.zoom().tile_h;
     assert!(overhang > 0, "the mine overhangs its tile; without that this test proves nothing");
@@ -1732,13 +1733,19 @@ fn the_village_draws_the_mine_for_an_iron_county_and_the_quarry_for_a_stone_one(
         "no county holds both, so the mine never covers the quarry"
     );
 
-    // What each one *should* look like: the scene, then that frame.
+    // What each one *should* look like: the scene, the building, then
+    // `Village_Animate`'s overlays at the frame a freshly opened village shows
+    // — which is the order `Village_Draw` and `Screen_DrawWidgets` paint in,
+    // and the reason the overlays are in this reference at all is that the iron
+    // mine's own overlay lands inside the sampled square.
     let reference = |frame: Option<usize>| {
         let mut c = Canvas::screen();
         art.draw_scene(&mut c, top);
-        if let Some(f) = frame {
-            art.draw_resources(&mut c, [false, f == iron_frame, false, f == stone_frame], top);
+        let has = [false, frame == Some(iron_frame), false, frame == Some(stone_frame)];
+        if frame.is_some() {
+            art.draw_resources(&mut c, has, top);
         }
+        art.draw_animations(&mut c, has, top, &village::AnimationClock::new());
         c
     };
     let region = |c: &Canvas| {
@@ -2990,4 +2997,652 @@ fn a_screen_opened_over_the_village_takes_the_village_with_it_when_it_closes() {
         m.handle(Event::RightClick { x: 320, y: 240 }, &mut c);
     }
     assert_eq!(m.ids(), vec![ScreenId::Campaign], "a panel's exit is a constant 0, not a memory");
+}
+
+// ------------------------------------------------ seasons, fields, animation
+
+/// **The map's artwork changes when the season does — driven by a real turn.**
+///
+/// `Gfx_LoadCountyMode` (`0x004984DC`) repoints all five near-zoom tile banks
+/// at `(g_season - 1) * 8` in `g_resourceTable`, so the whole picture is
+/// redrawn from different files. We hard-coded the `a` set and the map looked
+/// the same in January and in August.
+///
+/// **This ends a turn rather than assigning to `season`.** A test that sets
+/// `kingdom.season = 4` and then reads a lookup table is checking its own
+/// fixture (`docs/agents.md`); the season has to be moved by the thing that
+/// moves it in play. `l2_game::turn::end_turn` runs the whole phase machine.
+#[test]
+fn a_real_turn_turns_the_season_and_the_map_is_repainted_from_other_files() {
+    let (mut game, assets) = world!();
+    let mut screen = MapScreen::new();
+    let before_season = game.kingdom.season;
+    let before = draw(&mut screen, &mut game, &assets);
+
+    l2_game::turn::end_turn(&mut game).expect("the turn completes without asking");
+    let after_season = game.kingdom.season;
+    assert_ne!(after_season, before_season, "one turn is one season");
+
+    let after = draw(&mut screen, &mut game, &assets);
+    let moved = before.diff_count(&after);
+
+    // The viewport is 480 x 450 under the menu bar — about 216,000 pixels — and
+    // a whole-bank swap repaints essentially all of it. The floor is what
+    // matters: hard-coding one season made this zero.
+    assert!(
+        moved > 50_000,
+        "the season turned from {before_season} to {after_season} and only {moved} pixels moved"
+    );
+
+    // …and it is the *artwork* that changed, not our own markers: the two
+    // frames must use meaningfully different palettes. Winter is the bright one
+    // and autumn has no green in it (`campaign::SEASON_SUFFIX`).
+    let histogram = |c: &Canvas| {
+        let mut h = [0u32; 256];
+        for &p in &c.pixels {
+            h[p as usize] += 1;
+        }
+        h
+    };
+    let (a, b) = (histogram(&before), histogram(&after));
+    let differing = (0..256).filter(|&i| a[i].abs_diff(b[i]) > 200).count();
+    assert!(differing > 8, "only {differing} palette entries changed their share of the frame");
+}
+
+/// **A town drawn through `Overrides` in one season is still a town in the
+/// next** — which is the thing the season swap could have broken and the reason
+/// `install.rs::the_four_seasons_of_a_bank_are_the_same_frame_table` exists.
+///
+/// The overrides plane stores a **frame index**, not a picture. If frame 47 of
+/// `Town1c.pl8` were a different cell of the sheet than frame 47 of
+/// `Town1a.pl8`, every county town on the map would turn back into a quarry in
+/// autumn — a defect a player would report as *"my buildings disappear"*. The
+/// frame tables agree, so it does not happen, and this asserts the consequence
+/// at the pixel rather than the claim in the file.
+#[test]
+fn a_towns_overridden_graphic_survives_every_season() {
+    let (mut game, assets) = world!();
+    let mut screen = MapScreen::new();
+    let tile = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        *MapScreen::town(&ctx, 8).first().expect("county 8 has a town")
+    };
+    let (tx, ty) = l2_kingdom::map::coords(tile);
+    screen.centre_on_tile(tx as usize, ty as usize);
+
+    let slot = assets.slot(game.map_slot).expect("the map slot");
+    let lattice = campaign::Lattice::build(&slot);
+    let overrides = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        MapScreen::tile_graphics(&ctx)
+    };
+
+    let paint = |season: u8, o: &campaign::Overrides| {
+        let mut canvas = Canvas::screen();
+        let mut tags = l2_view::Tags::screen();
+        campaign::draw(
+            &mut canvas,
+            &slot,
+            &lattice,
+            &assets.map,
+            screen.viewport(),
+            screen.zoom(),
+            &mut tags,
+            o,
+            season,
+        );
+        canvas
+    };
+    let bare = campaign::Overrides::new();
+    let mut seasons_that_differ = 0;
+    for season in 1..=campaign::SEASONS as u8 {
+        let with = paint(season, &overrides);
+        let without = paint(season, &bare);
+        let moved = with.diff_count(&without);
+        assert!(
+            moved > 500,
+            "season {season}: the override changed only {moved} pixels, so the town is not \
+             being restamped"
+        );
+        seasons_that_differ += 1;
+    }
+    assert_eq!(seasons_that_differ, 4, "all four seasons keep their towns");
+}
+
+/// **A field shows its crop, and the picture comes from the terrain byte.**
+///
+/// `Terrain_Set` (`0x0046D7F4`) is the game's single writer of a tile's
+/// `content` byte and it chooses the frame in the same statement; until this
+/// was drawn, `l2-game`'s field brush painted markers of ours and every field
+/// on the map looked like the bare frame 80 the file stores.
+///
+/// The check is on the **ladder**, at the pixel: the four states this walks
+/// through are four different pictures, and each is the four-frame block
+/// [`campaign::field_base`] names.
+#[test]
+fn a_fields_picture_follows_its_crop_state() {
+    let (mut game, assets) = world!();
+    let field = {
+        let map = &game.kingdom.campaign.map;
+        (0..map.terrain.len())
+            .find(|&t| map.flags[t] & l2_kingdom::map::flags::FARMLAND != 0)
+            .expect("England has fields")
+    };
+    let (fx, fy) = l2_kingdom::map::coords(field);
+    let stored = assets
+        .slot(game.map_slot)
+        .expect("the map slot")
+        .at(l2_formats::maps::Plane::GfxIndex, fx as usize, fy as usize);
+
+    // Every state in the ladder gives a frame in its own block, and the variant
+    // — the two low bits the file stored — never moves.
+    let variant = stored & 3;
+    for terrain in [0x00u8, 0x01, 0x05, 0x14, 0x17, 0x18, 0x19, 0x1C, 0x1F] {
+        let (bank, frame) = campaign::field_graphic(terrain, stored);
+        let (base, layer) = campaign::field_base(terrain);
+        assert_eq!(frame, base + variant, "terrain {terrain:#04X} keeps its variant");
+        assert_eq!(bank & campaign::BANK_MASK, layer, "terrain {terrain:#04X} bank layer");
+    }
+    // Harvested stubble is in the **base** bank and everything else is in
+    // roads — the one place the ladder crosses banks.
+    assert_eq!(campaign::field_base(0x17).1, campaign::BANK_BASE);
+    assert_eq!(campaign::field_base(0x16).1, campaign::BANK_ROADS);
+
+    // And it reaches the picture. Paint the same viewport with the field in
+    // four different states and require four different pictures.
+    let mut screen = MapScreen::new();
+    screen.centre_on_tile(fx as usize, fy as usize);
+    let slot = assets.slot(game.map_slot).expect("the map slot");
+    let lattice = campaign::Lattice::build(&slot);
+    let (cx, cy) =
+        campaign::tile_centre(screen.viewport(), screen.zoom(), fx as usize, fy as usize)
+            .expect("the field is centred, so it is in view");
+    let mut seen: Vec<Vec<u8>> = Vec::new();
+    for terrain in [0x00u8, 0x01, 0x0A, 0x14] {
+        game.kingdom.campaign.map.terrain[field] = terrain;
+        let overrides = {
+            let ctx = Ctx { game: &mut game, assets: &assets };
+            MapScreen::tile_graphics(&ctx)
+        };
+        let mut canvas = Canvas::screen();
+        let mut tags = l2_view::Tags::screen();
+        campaign::draw(
+            &mut canvas,
+            &slot,
+            &lattice,
+            &assets.map,
+            screen.viewport(),
+            screen.zoom(),
+            &mut tags,
+            &overrides,
+            game.kingdom.season,
+        );
+        // Just the tile, so a neighbouring field's state cannot carry the test.
+        let mut patch = Vec::new();
+        for y in cy - 10..cy + 10 {
+            for x in cx - 20..cx + 20 {
+                patch.push(canvas.at(x as usize, y as usize));
+            }
+        }
+        assert!(
+            !seen.contains(&patch),
+            "terrain {terrain:#04X} draws the same picture as an earlier state"
+        );
+        seen.push(patch);
+    }
+    assert_eq!(seen.len(), 4, "wild, fallow, grain and pasture are four pictures");
+}
+
+/// **The village animates, and `villani1.pl8` is what the iron mine animates
+/// from.**
+///
+/// `Village_Animate` (`0x00412421`) draws six overlays and the sixth is the
+/// only read of `villani1.pl8` in the whole executable — a file this project
+/// had recorded as *"loaded by nothing"*. Three of the six are unconditional
+/// and run in every county.
+///
+/// The clock is checked as *pulses*, not as pixels alone: eighty milliseconds
+/// is one step of the fast counter and a hundred and sixty of the slow one,
+/// which is `FUN_004BBC80`'s divider chain and not a rate of ours.
+#[test]
+fn the_village_animates_and_the_iron_mine_comes_out_of_villani1() {
+    let (mut game, assets) = world!();
+    let art = assets.village.as_ref().expect("the village artwork");
+    assert!(art.has_villani1(), "villani1.pl8 is in the install and the iron mine needs it");
+
+    let iron = game
+        .kingdom
+        .county_ids()
+        .find(|&id| game.kingdom.counties[id].industry[1].has_resource)
+        .expect("England has an iron county");
+
+    let mut screen = VillageScreen::new(iron as u8);
+    let first = draw(&mut screen, &mut game, &assets);
+
+    // One slow pulse: 160 ms at the 16 ms tick is ten ticks, and every one of
+    // the six overlays has moved at least once by then.
+    let ticks = village::PULSE_SLOW_MS / VillageScreen::TICK_MS;
+    assert_eq!(ticks, 10, "160 ms is ten fixed ticks");
+    for _ in 0..ticks {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        screen.update(&mut ctx);
+    }
+    assert!(screen.take_redraw(), "a moved animation asks for a repaint");
+    let later = draw(&mut screen, &mut game, &assets);
+    let moved = first.diff_count(&later);
+    assert!(moved > 40, "the village is still after ten ticks: {moved} pixels moved");
+
+    // The clock is display state and nothing else: stepping it must not touch
+    // the world. If it ever did, this is the assertion that would say so.
+    let before = game.kingdom.clone();
+    for _ in 0..100 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        screen.update(&mut ctx);
+    }
+    assert_eq!(game.kingdom, before, "the animation clock reached the simulation");
+}
+
+/// **`villani2.pl8`'s own frame table confirms every one of the six overlays,
+/// independently of the decompilation.**
+///
+/// The six runs in [`village::OVERLAYS`] — their first frame and their length —
+/// were read out of `Village_Animate`'s counter bounds. The sheet was never
+/// looked at. Looking at it: `villani2.pl8`'s 44 frames fall into **five blocks
+/// of equal-sized frames laid out in rows on the artist's canvas**, and the
+/// blocks are
+///
+/// | frames | size | overlay |
+/// |---|---|---|
+/// | 0 … 6 | 26 × 29 | the stone quarry's, 7 frames |
+/// | 7 … 14 | 39 × 40 | the lumber camp's, 8 |
+/// | 15 … 24 | 15 × 12 | the third unconditional one, 10 |
+/// | 25 … 32 | 32 × 42 | the first unconditional one, 8 |
+/// | 33 … 39 | 19 × 18 | the second unconditional one, 7 |
+///
+/// which is **exactly** the six-entry table, start index and length, five times
+/// over. What is left is frames 40, 41 and 43 — the three static buildings
+/// `Village_Draw` blits at `0x28`, `0x29` and `0x2B` — and one 2 × 2 stub at
+/// 42. Nothing over, nothing short.
+///
+/// A block boundary that fell one frame from where the counter wraps would show
+/// up here as an animation that jumps to a different-sized picture, and this is
+/// the assertion that would catch it. Sizes are the evidence and the
+/// decompilation is the claim; they agree.
+#[test]
+fn the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in() {
+    let Some(dir) = install() else {
+        l2_testkit::skip!("no game install, so there is no sheet to read");
+    };
+    let path = std::fs::read_dir(&dir)
+        .ok()
+        .and_then(|d| {
+            d.filter_map(|e| e.ok()).map(|e| e.path()).find(|p| {
+                p.file_name()
+                    .and_then(|f| f.to_str())
+                    .is_some_and(|f| f.eq_ignore_ascii_case("villani2.pl8"))
+            })
+        })
+        .expect("villani2.pl8 is in the install");
+    let bytes = std::fs::read(path).expect("villani2.pl8 reads");
+    let pl8 = l2_formats::Pl8::parse(&bytes).expect("villani2.pl8 decodes");
+    assert_eq!(pl8.frames.len(), 44);
+
+    for overlay in village::OVERLAYS.iter().filter(|o| !o.villani1) {
+        let run = &pl8.frames[overlay.first..overlay.first + overlay.frames];
+        let size = (run[0].width, run[0].height);
+        for (i, f) in run.iter().enumerate() {
+            assert_eq!(
+                (f.width, f.height),
+                size,
+                "frame {} of the run at {} is a different size",
+                overlay.first + i,
+                overlay.first
+            );
+        }
+        // The frame *before* the run and the frame *after* it must both be a
+        // different size, or the boundary is not where the counter wraps.
+        if overlay.first > 0 {
+            let prev = &pl8.frames[overlay.first - 1];
+            assert_ne!(
+                (prev.width, prev.height),
+                size,
+                "the run at {} starts one frame late: {} is the same size",
+                overlay.first,
+                overlay.first - 1
+            );
+        }
+        let after = overlay.first + overlay.frames;
+        let next = &pl8.frames[after];
+        assert_ne!(
+            (next.width, next.height),
+            size,
+            "the run at {} is one frame short: {after} is the same size",
+            overlay.first
+        );
+    }
+
+    // The three static buildings are the three big frames past the animation
+    // blocks, and the sheet has nothing else in it.
+    for (_, frame, _, _) in village::RESOURCE_BUILDINGS {
+        let f = &pl8.frames[frame];
+        assert!(f.width > 100 && f.height > 70, "frame {frame:#04X} is not a building");
+    }
+    eprintln!("villani2: five animation blocks and three buildings account for all 44 frames");
+}
+
+/// **Every overlay's frame run is inside the sheet it is indexed against**, and
+/// the two counters nothing draws are recorded rather than drawn.
+///
+/// A frame index off the end of a PL8 is a hole rather than a crash here, so
+/// without this the six runs could be wrong by any amount and nothing would
+/// say so.
+///
+/// # `villani1.pl8` holds 21 frames and the shipped game plays 18 of them
+///
+/// **[V]** for both numbers. The iron mine's counter, `DAT_004D2938`, wraps at
+/// `0x11`, so it visits 0 … 17 and three frames of the file are never drawn.
+///
+/// And `Village_Animate`'s **dead** counter `DAT_004D2934` wraps at `0x14` —
+/// **21 states, which is exactly the file's frame count** — and is read by
+/// nothing in the executable. **[I]**, and deliberately only that: the two
+/// numbers agreeing is a striking coincidence and it is not a demonstration
+/// that the mine was meant to run off that counter. `docs/bugs.md` B65 records
+/// the numbers and says the same thing.
+#[test]
+fn every_village_overlay_run_fits_inside_its_own_sheet() {
+    let Some(dir) = install() else {
+        l2_testkit::skip!("no game install, so there are no sheets to index");
+    };
+    let read = |name: &str| -> Option<Vec<u8>> {
+        std::fs::read_dir(&dir)
+            .ok()?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .find(|p| {
+                p.file_name()
+                    .and_then(|f| f.to_str())
+                    .is_some_and(|f| f.eq_ignore_ascii_case(name))
+            })
+            .and_then(|p| std::fs::read(p).ok())
+    };
+    let counts: Vec<usize> = ["villani1.pl8", "villani2.pl8"]
+        .iter()
+        .map(|n| {
+            let b = read(n).unwrap_or_else(|| panic!("{n} is in the install"));
+            l2_formats::Pl8::parse(&b).unwrap_or_else(|e| panic!("{n}: {e}")).frames.len()
+        })
+        .collect();
+    assert_eq!(counts[0], 21, "villani1.pl8 holds 21 frames");
+    assert_eq!(counts[1], 44, "villani2.pl8 holds 44");
+
+    let mut clock = village::AnimationClock::new();
+    let mut highest = [0usize; 2];
+    // Several full turns of the longest run, so every counter visits every
+    // value it can take.
+    for _ in 0..18 * 4 {
+        clock.tick(village::PULSE_SLOW_MS);
+        for overlay in &village::OVERLAYS {
+            let f = clock.frame_of(overlay);
+            let sheet = usize::from(!overlay.villani1);
+            assert!(
+                f < counts[sheet],
+                "frame {f} is off the end of {} ({} frames)",
+                if overlay.villani1 { "villani1.pl8" } else { "villani2.pl8" },
+                counts[sheet]
+            );
+            highest[sheet] = highest[sheet].max(f);
+        }
+    }
+    // The iron mine stops at 17, three frames short of the file's end. That
+    // is the original's, not a clamp of ours: `DAT_004D2938` wraps at `0x11`.
+    assert_eq!(highest[0], 17, "the iron mine's counter visits 0 … 17");
+    assert_eq!(counts[0] - (highest[0] + 1), 3, "three frames of villani1 are never drawn");
+
+    // The two counters `Village_Animate` steps and nothing reads. Kept as a
+    // claim so that finding a consumer later fails this and gets looked at.
+    assert_eq!(village::DEAD_COUNTER_PERIODS.len(), 2);
+    assert!(
+        village::OVERLAYS.iter().all(|o| o.frames != 21),
+        "no overlay uses the 21-state counter, which is why it is called dead"
+    );
+    // …and the coincidence, asserted so that it stays visible: the dead
+    // counter has exactly as many states as villani1.pl8 has frames.
+    assert_eq!(
+        village::DEAD_COUNTER_PERIODS[0].1,
+        counts[0],
+        "the 21-state dead counter and villani1's 21 frames"
+    );
+}
+
+// ---------------------------------------------------- the county-strip emboss
+
+/// The glyph mask of `s` in the body font, as offsets from the string's origin.
+fn body_mask(assets: &Assets, s: &str) -> Vec<(i32, i32)> {
+    let font = assets.shell.body.as_ref().expect("the body font");
+    let style = l2_game::shell::font::Style { colour: 1, shadow: None, caps: None };
+    let (w, h) = (font.width(s).max(1), font.height(s).max(1));
+    let mut probe = Canvas::new(w as usize, h as usize);
+    font.draw(&mut probe, 0, 0, s, &style);
+    (0..h)
+        .flat_map(|y| (0..w).map(move |x| (x, y)))
+        .filter(|&(x, y)| probe.at(x as usize, y as usize) == 1)
+        .collect()
+}
+
+/// **The emboss pair a line was actually drawn with, read back off the canvas.**
+///
+/// `Ui_DrawText` draws each glyph three times, in this order: at `y - 1` in the
+/// *up* colour, at `y + 1` in the *down* colour, then at `y` in its own. So the
+/// final colour of a pixel is decided by which of the three masks it is in,
+/// later passes winning:
+///
+/// * in the glyph mask → the text colour;
+/// * else in the mask shifted **down** one → the *down* shadow;
+/// * else in the mask shifted **up** one → the *up* shadow.
+///
+/// Reading those two sets back is exact, and it is not a colour picked by eye:
+/// every pixel of each set has to agree or this returns `None`. The two shadow
+/// colours come out as palette indices, which is the form the binary states
+/// them in.
+fn emboss_at(canvas: &Canvas, assets: &Assets, s: &str, colour: u8) -> Option<(u8, u8)> {
+    let mask = body_mask(assets, s);
+    let (ox, oy) = find_body(canvas, assets, s, colour)?;
+    let inside = |dx: i32, dy: i32| mask.contains(&(dx, dy));
+    let mut up: Option<u8> = None;
+    let mut down: Option<u8> = None;
+    for &(mx, my) in &mask {
+        // One row below a glyph pixel, and not itself a glyph pixel: the
+        // *down* shadow, drawn second and never overpainted.
+        if !inside(mx, my + 1) {
+            let got = canvas.at((ox + mx) as usize, (oy + my + 1) as usize);
+            if *down.get_or_insert(got) != got {
+                return None;
+            }
+        }
+        // One row above, in neither the glyph mask nor the down mask: the *up*
+        // shadow, which is drawn first and so loses both overlaps.
+        if !inside(mx, my - 1) && !inside(mx, my - 2) {
+            let got = canvas.at((ox + mx) as usize, (oy + my - 1) as usize);
+            if *up.get_or_insert(got) != got {
+                return None;
+            }
+        }
+    }
+    Some((up?, down?))
+}
+
+/// **Two different emboss colours in one plate, and one of them is the
+/// original's own bug.**
+///
+/// A player reported both halves and was right about both:
+///
+/// > *"There's a bug in the original where the town name's embossing against
+/// > the cloudy background … still has the emboss colour of the parchment that
+/// > you see on a town you own, that blends it in with the parchment. But the
+/// > OG correctly has the 'sovereign land of the baron' properly tinged in
+/// > grey."*
+///
+/// `CountyStrip_Draw` (`0x0040F7D3`) is the function, and it draws the name
+/// with `DAT_0058FE9C` clear and the three *Sovereign land of …* lines with it
+/// set — the only thing in the whole plate that changes it:
+///
+/// ```c
+/// Pl8_DrawFrameHere(g_miscCtySheet, 0x3a, 0x1de, 0x9c);            /* the cloudy plate */
+/// Ui_DrawCentred(100, …, 0x1e0, 0xb4, 0xa0, &g_fontBody, 0x3f);    /* the name */
+/// if (owner != 0) {
+///   DAT_0058fe9c = 1;
+///   Ui_DrawCentred(0xf, 0, …);  Ui_DrawCentred(0xf, 1, …);  FUN_004025d7(name, …);
+///   DAT_0058fe9c = 0;
+/// }
+/// ```
+///
+/// and `Ui_DrawText`'s two branches give `0x10`/`0x1F` — `rgb(81,73,53)` over
+/// `rgb(247,223,134)`, the parchment — and `0x3F`/`0x26` —
+/// `rgb(0,0,0)` over `rgb(202,202,202)`, the grey. Both pairs are palette
+/// indices out of the executable; neither was chosen to look right.
+///
+/// **The fixture used for each case.** `england-turn1.sav`, whose five owned
+/// counties are 1, 4, 8, 11 and 13 with one realm each: county 8 is the
+/// player's, county 1 belongs to realm 5, and county 2 belongs to nobody. There
+/// is no fixture on this project in which one realm holds two counties, so the
+/// owned case is the player's own county and nothing else.
+#[test]
+fn the_county_name_keeps_the_parchment_emboss_and_the_sovereign_lines_do_not() {
+    let (mut game, assets) = world!();
+    if assets.shell.body.is_none() {
+        l2_testkit::skip!("no Fntl2_14.pl8, so nothing is embossed");
+    }
+    let parchment = l2_game::shell::font::SHADOW;
+    let grey = l2_game::shell::font::SHADOW_GREY;
+    assert_ne!(parchment, grey, "the two pairs are different, which is the whole point");
+
+    // --- a county another lord holds: name in parchment, banner in grey.
+    assert_eq!(game.kingdom.counties[1].owner, 5);
+    let mut screen = CountyScreen::new(1, Panel::Tax);
+    let canvas = draw(&mut screen, &mut game, &assets);
+    let name = county::county_name(&Ctx { game: &mut game, assets: &assets }, 1);
+
+    assert_eq!(
+        emboss_at(&canvas, &assets, &name, STRIP_INK),
+        Some(parchment),
+        "the county's name is embossed in the parchment pair — the original's own bug"
+    );
+    let realm5 = assets.ink.realm[5];
+    let banner = assets.shell.text(15, 0).to_string();
+    let banner = if banner.is_empty() { "SOVEREIGN LAND".to_string() } else { banner };
+    assert_eq!(
+        emboss_at(&canvas, &assets, &banner, realm5),
+        Some(grey),
+        "the Sovereign land line is embossed in the grey pair"
+    );
+
+    // --- the player's own county: the same parchment emboss, on the plate it
+    // was designed for, and no banner at all.
+    let mut screen = CountyScreen::new(8, Panel::Tax);
+    let canvas = draw(&mut screen, &mut game, &assets);
+    let name = county::county_name(&Ctx { game: &mut game, assets: &assets }, 8);
+    assert_eq!(
+        emboss_at(&canvas, &assets, &name, STRIP_INK),
+        Some(parchment),
+        "and on the owned plate the same pair is correct"
+    );
+    assert!(
+        find_body(&canvas, &assets, &banner, realm5).is_none(),
+        "your own county carries no Sovereign land line"
+    );
+}
+
+/// **Unclaimed land has no *Sovereign land of* line — a third case, not a
+/// second.** **[V]**
+///
+/// `CountyStrip_Draw`'s else-arm draws the cloudy plate and the name for any
+/// county that is not yours, and guards the three extra lines with
+/// `owner != 0`. `L2.eng` group 15 holds exactly two strings, `"Sovereign
+/// land"` and `"of"`, and the third line is a lord's name out of
+/// `g_playerNames` — there is no wording in the file for a county nobody owns,
+/// because the original never needs one.
+///
+/// Ours drew `SOVEREIGN LAND / OF / UNCLAIMED`, a sentence the original cannot
+/// produce. The player reported it in one line: *"Unclaimed lands have no
+/// 'sovereign land of'."*
+#[test]
+fn an_unclaimed_county_shows_its_name_and_nothing_else() {
+    let (mut game, assets) = world!();
+    let unclaimed = game
+        .kingdom
+        .county_ids()
+        .find(|&id| game.kingdom.counties[id].owner == 0)
+        .expect("England turn one has counties nobody holds");
+
+    let mut screen = CountyScreen::new(unclaimed as u8, Panel::Tax);
+    let canvas = draw(&mut screen, &mut game, &assets);
+    let name = county::county_name(&Ctx { game: &mut game, assets: &assets }, unclaimed as u8);
+
+    // The name is there, on the cloudy plate's lower line…
+    assert_eq!(
+        find_body(&canvas, &assets, &name, STRIP_INK).map(|p| p.1),
+        Some(180),
+        "an unclaimed county still gets its name at 0xB4"
+    );
+    // …and nothing under it. Every colour the banner could be drawn in is
+    // checked, so this cannot pass by looking for the wrong one.
+    let banner = assets.shell.text(15, 0).to_string();
+    let banner = if banner.is_empty() { "SOVEREIGN LAND".to_string() } else { banner };
+    for colour in assets.ink.realm.iter().copied().chain([STRIP_INK, assets.ink.text]) {
+        assert!(
+            find_body(&canvas, &assets, &banner, colour).is_none(),
+            "an unclaimed county must not claim a sovereign, and one was drawn in {colour}"
+        );
+    }
+    assert!(
+        find_body(&canvas, &assets, "UNCLAIMED", assets.ink.text).is_none(),
+        "and it must not invent a lord called UNCLAIMED"
+    );
+}
+
+/// **The quirk switch turns the county name's emboss grey, and only that.**
+///
+/// Default off — the original's behaviour is what ships — and it lives on
+/// [`l2_game::game::Quirks`], which is display state that never reaches the
+/// simulation. See `docs/bugs.md` B64.
+#[test]
+fn the_grey_county_name_quirk_changes_the_emboss_and_nothing_else() {
+    let (mut game, mut assets) = world!();
+    if assets.shell.body.is_none() {
+        l2_testkit::skip!("no Fntl2_14.pl8, so nothing is embossed");
+    }
+    assert!(!assets.quirks.grey_county_name, "the original's behaviour is the default");
+
+    let mut screen = CountyScreen::new(1, Panel::Tax);
+    let plain = draw(&mut screen, &mut game, &assets);
+    assets.quirks.grey_county_name = true;
+    let fixed = draw(&mut screen, &mut game, &assets);
+
+    let name = county::county_name(&Ctx { game: &mut game, assets: &assets }, 1);
+    assert_eq!(
+        emboss_at(&plain, &assets, &name, STRIP_INK),
+        Some(l2_game::shell::font::SHADOW),
+        "off: the parchment pair"
+    );
+    assert_eq!(
+        emboss_at(&fixed, &assets, &name, STRIP_INK),
+        Some(l2_game::shell::font::SHADOW_GREY),
+        "on: the grey pair the Sovereign lines already use"
+    );
+
+    // It moves the name's emboss and leaves everything else alone: the
+    // difference is a few hundred pixels around one line, not a redrawn panel.
+    let moved = plain.diff_count(&fixed);
+    assert!(moved > 0, "the switch does something");
+    assert!(moved < 4_000, "and only around the name: {moved} pixels");
+
+    // And on the player's own county it changes nothing at all — the defect is
+    // the parchment emboss over the *cloudy* plate, and the owned plate really
+    // is parchment.
+    let mut screen = CountyScreen::new(8, Panel::Tax);
+    assets.quirks.grey_county_name = false;
+    let plain = draw(&mut screen, &mut game, &assets);
+    assets.quirks.grey_county_name = true;
+    let fixed = draw(&mut screen, &mut game, &assets);
+    assert_eq!(plain.diff_count(&fixed), 0, "your own county's name is right as it is");
 }

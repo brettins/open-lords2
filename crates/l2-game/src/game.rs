@@ -47,11 +47,50 @@ pub use l2_kingdom::tables::MAX_TAX_RATE;
 /// geometry are the same number.
 pub const MAX_RATION_SPLIT: i32 = 100;
 
+/// **Switches that turn one of the original's *presentation* defects off.**
+///
+/// Every field defaults to `false`, which is the original's behaviour, and
+/// `docs/bugs.md` names the switch in the entry for the defect it undoes.
+///
+/// # Why this is not `Options`
+///
+/// `docs/bugs.md` §6.3 recommends `Options` as the home for a quirk set, and it
+/// is right — for the quirks it is arguing about. Every one of them changes a
+/// *rule*, and its three constraints follow from that: the value must reach the
+/// simulation, must be agreed in the lobby handshake, and must be stamped into
+/// replays, at the cost of a `save::VERSION` bump.
+///
+/// **None of that applies to the colour of a text shadow.** A quirk here cannot
+/// reach `l2-kingdom` or `l2-sim`, is not in the save body, is not in the
+/// lockstep state, and two players running with different values here compute
+/// identical turns — `docs/netcode.md` D-12 says display state must *not* reach
+/// the simulation, so putting a shadow colour in the hashed options would be
+/// the wrong answer rather than the expensive one. It lives on [`Assets`],
+/// whose whole definition is *"everything the screens draw with, not part of
+/// the world."*
+///
+/// A behavioural quirk still belongs on `Options` and still costs the bump.
+/// The two sets are different things; `docs/bugs.md` §6.3a has the test that
+/// tells them apart, and `docs/decisions.md` C61 the argument.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Quirks {
+    /// Draw a county's **name** on the cloudy plate with the grey emboss the
+    /// *Sovereign land* lines beneath it use, instead of the parchment emboss
+    /// the original uses everywhere.
+    ///
+    /// Off by default: the original's behaviour is what ships. `docs/bugs.md`
+    /// V9 has the defect and
+    /// [`crate::shell::font::SHADOW_GREY`] has the two palette indices.
+    pub grey_county_name: bool,
+}
+
 /// Everything the screens draw with. Not part of the world.
 pub struct Assets {
     pub palette: Palette,
     pub ink: Ink,
     pub map: MapAssets,
+    /// Presentation switches. See [`Quirks`].
+    pub quirks: Quirks,
     /// The original's interface artwork — `Panels.pl8` and `Misc_cty.pl8`.
     ///
     /// `None` when the install does not supply them, which is the placeholder
@@ -103,6 +142,7 @@ impl Assets {
             .collect();
         Ok(Assets {
             ink: Ink::for_palette(&palette),
+            quirks: Quirks::default(),
             palette,
             map,
             chrome,
@@ -154,6 +194,7 @@ impl Assets {
 
         Assets {
             ink: Ink::for_palette(&palette),
+            quirks: Quirks::default(),
             palette,
             map,
             chrome: None,
