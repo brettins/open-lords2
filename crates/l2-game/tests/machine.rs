@@ -46,6 +46,38 @@ fn send(machine: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
     machine.handle(event, &mut ctx);
 }
 
+/// One fixed simulation tick, which is what `main.rs` calls sixty times a
+/// second and what a turn is now spread over.
+fn tick(machine: &mut Machine, game: &mut Game, assets: &Assets) {
+    let mut ctx = Ctx { game, assets };
+    machine.update(&mut ctx);
+}
+
+/// Drive ticks until the season has advanced **and the fade has finished**, and
+/// answer how many ticks the phase machine itself took.
+///
+/// **A turn takes frames.** Pressing End Turn only *starts* one — see
+/// `l2_game::turn::TurnRun` — so a test that wants the numbers after a turn has
+/// to run the frames the player would have watched. The season advances part
+/// way through: `l2_view::fade::PHASES` frames of screen fade follow it, and
+/// the map does not take input again until they are done.
+fn run_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) -> u32 {
+    let before = game.kingdom.turn_count;
+    let mut phase_ticks = None;
+    for n in 1..2_000u32 {
+        tick(machine, game, assets);
+        if phase_ticks.is_none() && game.kingdom.turn_count > before {
+            phase_ticks = Some(n);
+        }
+        if let Some(t) = phase_ticks {
+            if n >= t + l2_view::fade::PHASES as u32 {
+                return t;
+            }
+        }
+    }
+    panic!("the turn never came round");
+}
+
 fn draw(machine: &mut Machine, game: &mut Game, assets: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
     let ctx = Ctx { game, assets };
@@ -132,13 +164,23 @@ fn only_the_top_screen_is_offered_input() {
     let before = game.kingdom.turn_count;
 
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Char('E')));
+    assert_eq!(
+        game.kingdom.turn_count, before,
+        "E starts the turn; it does not finish it inside the keystroke",
+    );
+    run_turn(&mut m, &mut game, &assets);
     let after_map = game.kingdom.turn_count;
     assert!(after_map > before, "the map screen ends the turn on E");
 
-    // Now put the county panel on top and press the same key.
+    // Now put the county panel on top and press the same key. Ticking after it
+    // is what makes this an assertion rather than a coincidence: if the map
+    // underneath had taken the key, the ticks would wind its turn on.
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Enter));
     assert_eq!(m.top_id(), Some(ScreenId::County(1, Panel::Tax)));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Char('E')));
+    for _ in 0..64 {
+        tick(&mut m, &mut game, &assets);
+    }
     assert_eq!(
         game.kingdom.turn_count, after_map,
         "the map is underneath and must not see the key"

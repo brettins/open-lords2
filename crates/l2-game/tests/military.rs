@@ -133,6 +133,41 @@ fn press(m: &mut Machine, g: &mut Game, a: &Assets, c: char) {
     send(m, g, a, Event::KeyDown(Key::letter(c)));
 }
 
+/// Tick until `done` answers true, or give up.
+///
+/// **A turn takes frames.** Pressing End Turn only starts one — the phase
+/// machine is wound on a tick at a time so a unit that is walking is seen to
+/// walk (`l2_game::turn::TurnStep::Running`) — so anything that happens *during*
+/// a turn happens some ticks after the keystroke rather than inside it.
+fn run_until(
+    m: &mut Machine,
+    g: &mut Game,
+    a: &Assets,
+    what: &str,
+    done: impl Fn(&Machine, &Game) -> bool,
+) {
+    for _ in 0..2_000 {
+        if done(m, g) {
+            return;
+        }
+        tick(m, g, a);
+    }
+    panic!("{what} never happened");
+}
+
+/// Press End Turn and run the whole turn, including the screen fade that
+/// follows the season. Panics if the turn stops to ask something.
+fn end_turn(m: &mut Machine, g: &mut Game, a: &Assets) {
+    let before = g.kingdom.turn_count;
+    press(m, g, a, 'e');
+    run_until(m, g, a, "the turn", |_, g| g.kingdom.turn_count > before);
+    // The fade runs after the season and the map takes no input until it is
+    // over, so a test that clicks afterwards has to wait for the light.
+    for _ in 0..=l2_view::fade::PHASES {
+        tick(m, g, a);
+    }
+}
+
 /// A button's middle, so a click lands on it wherever it moves to.
 fn on(r: l2_game::input::Rect) -> (i32, i32) {
     (r.centre_x(), r.y + r.h / 2)
@@ -341,7 +376,7 @@ fn an_unreachable_destination_is_ordered_with_an_empty_path_and_the_army_stands(
     assert!(unit.path.is_empty(), "with no path to walk");
 
     // And a whole turn of ticking moves it nowhere.
-    press(&mut m, &mut g, &a, 'e');
+    end_turn(&mut m, &mut g, &a);
     let unit = g.kingdom.campaign.units.get(id).expect("still there");
     assert_eq!((unit.x, unit.y), at, "the army stood exactly where it was");
     assert_eq!(unit.moves_used, 0, "and spent nothing standing there");
@@ -417,8 +452,7 @@ fn an_army_ordered_from_the_map_takes_an_undefended_county_when_the_turn_ends() 
         g.kingdom.campaign.units.get(id).is_some_and(|u| u.moving),
         "the order was placed from the map",
     );
-
-    press(&mut m, &mut g, &a, 'e');
+    end_turn(&mut m, &mut g, &a);
     assert_eq!(
         g.kingdom.counties[2].owner, 1,
         "the county changed hands without the player leaving the map",
@@ -663,11 +697,16 @@ fn a_siege_laid_on_the_map_is_carried_to_its_assault_by_ending_the_turn() {
     g.kingdom.campaign.units.get_mut(garrison).unwrap().besieged_by = besieger as u8;
 
     press(&mut m, &mut g, &a, 'e');
+    // Phase 2 is a few ticks into the turn now that a turn takes frames, so the
+    // prompt arrives some frames after the keystroke rather than inside it.
+    run_until(&mut m, &mut g, &a, "the siege prompt", |m, _| {
+        m.top_id() == Some(ScreenId::BattlePrompt)
+    });
 
-    // **The turn now stops and asks**, which it did not used to: the besieger
-    // is the human's, so `battle::settlement` says `Prompt` and phase 2 parks
-    // its assault on screen `0x12` instead of settling it silently. The player
-    // has to answer before the campaign moves again.
+    // **The turn stops and asks**: the besieger is the human's, so
+    // `battle::settlement` says `Prompt` and phase 2 parks its assault on
+    // screen `0x12` instead of settling it silently. The player has to answer
+    // before the campaign moves again.
     assert_eq!(
         m.top_id(),
         Some(ScreenId::BattlePrompt),
@@ -789,11 +828,13 @@ fn the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled() {
             r.defender_men
         );
 
-        // The corner dismisses it and the turn carries on to its end.
+        // The corner dismisses it and the turn carries on to its end — over as
+        // many frames as the rest of the turn takes, which is what a turn
+        // having a duration means.
         click(&mut m, &mut g, &a, on(battle::ok_rect()));
-        for _ in 0..4 {
-            tick(&mut m, &mut g, &a);
-        }
+        run_until(&mut m, &mut g, &a, "the rest of the turn", |_, g| {
+            !l2_game::turn::turn_in_flight(g)
+        });
         assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the turn finished");
         assert!(!l2_game::turn::turn_in_flight(&g), "nothing left suspended");
     }
@@ -852,6 +893,201 @@ fn the_prompt_paints_inside_its_window_and_over_nothing_above_it() {
     }
     assert!(inside > 500, "the prompt drew almost nothing: {inside} pixels");
     assert_eq!(above, 0, "it painted above its own window");
+}
+
+// ---------------------------------------------------------------------------
+// A turn takes time, and so does a march
+// ---------------------------------------------------------------------------
+
+/// **An army the player orders walks away while he is watching it.**
+///
+/// The defect a player reported as *"can't seem to move my army"* had two
+/// halves and this is the structural one. `Units_Tick` has one call site in the
+/// original and it is the **frame loop**, not a phase (`docs/decisions.md`
+/// C35), so it runs whenever the game is up — including all the time the human
+/// is looking at the map. Ours only ran it from inside a turn, so an order was
+/// accepted, `moving` was set, a path was written and drawn, and the figure did
+/// not move until the turn was ended. From the player's chair that is
+/// indistinguishable from the order having been ignored.
+///
+/// So: order a march, tick the screen the way `main.rs` does, and the army has
+/// to be somewhere else — with no turn ended.
+#[test]
+fn an_army_ordered_from_the_map_walks_while_the_player_watches() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, there) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+
+    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    click(&mut m, &mut g, &a, pixel(there.0, there.1).unwrap());
+    assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.moving), "ordered");
+    assert_eq!(g.kingdom.campaign.units.get(id).map(|u| u.tile()), Some(here));
+
+    let before = g.kingdom.turn_count;
+    for _ in 0..8 {
+        tick(&mut m, &mut g, &a);
+    }
+    assert_eq!(g.kingdom.turn_count, before, "no turn was ended");
+    assert_eq!(
+        g.kingdom.campaign.units.get(id).map(|u| u.tile()),
+        Some(there),
+        "the army walked to the tile it was sent to, without the turn being ended",
+    );
+}
+
+/// **A unit's walk is bounded by its own allowance, not by how long the player
+/// sits there.**
+///
+/// The other side of the change above: `Units_Tick` running every frame must
+/// not hand out free movement. `moveAllowance - movesUsed` is the budget and
+/// `Pass::UnitsResetMoves` at the end of the season refills it, so a player who
+/// leaves the map open for a thousand frames gets exactly the same march as one
+/// who ends the turn immediately.
+#[test]
+fn watching_the_map_does_not_give_an_army_extra_movement() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, _) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+    // Far enough that the allowance runs out first, and still on the grid: an
+    // army has fifteen points and open ground costs three a tile, so five tiles
+    // is the whole season's march and this asks for six times that. The opening
+    // viewport only shows tiles with a high `y`, so the room is northwards.
+    let far = (here.0, here.1.saturating_sub(30));
+    assert!(here.1 - far.1 > 20, "the destination is well out of one season's reach");
+    g.order_unit_move(id, far).expect("a path across open ground");
+    let allowance = g.kingdom.campaign.units.get(id).map_or(0, |u| u.move_allowance);
+
+    for _ in 0..1_000 {
+        tick(&mut m, &mut g, &a);
+    }
+    let u = g.kingdom.campaign.units.get(id).expect("still there");
+    assert!(!u.moving, "the army ran out of moves and stopped");
+    assert!(
+        u.moves_used <= allowance,
+        "a thousand frames spent {} of an allowance of {allowance}",
+        u.moves_used,
+    );
+    assert_ne!(u.tile(), far, "and it did not arrive: the season's budget is the bound");
+}
+
+/// **One press never both selects an army and orders it.**
+///
+/// The original needs `g_moveOrderClickGuard` — forty frames of deadness — for
+/// this, because `Screen_FrameInput` polls the mouse button's *level* every
+/// frame, so one physical press is read as a click on every frame it is held
+/// down and the press that opened move-order mode would otherwise be read again
+/// as the press that confirms the destination.
+///
+/// **Ours needs no guard, and this is why**: `Event::Click` is edge-triggered —
+/// `main.rs` synthesises exactly one per `WindowEvent::MouseInput{Pressed}` —
+/// and `Map_Click`'s army branch `return`s, so the selecting click cannot fall
+/// through to `Map_ConfirmMoveOrder` in the same call. The guard is a
+/// consequence of a polled input model we do not have. This asserts the
+/// property the guard exists to protect, rather than porting a frame count that
+/// would mean nothing here.
+#[test]
+fn the_click_that_selects_an_army_never_also_orders_it() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, _) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+
+    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    let u = g.kingdom.campaign.units.get(id).expect("still there");
+    assert!(!u.moving, "the selecting click did not also place an order");
+    assert_eq!(u.dest, None, "and named no destination");
+    assert!(u.path.is_empty());
+    assert_eq!(u.moves_used, 0, "and cost nothing");
+
+    // Repeating the same press — which is what a held button looks like to a
+    // polled reader — cancels the selection rather than ordering a march onto
+    // the tile the army is already standing on.
+    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    let u = g.kingdom.campaign.units.get(id).expect("still there");
+    assert!(!u.moving, "and neither did the second one");
+}
+
+/// **The screen goes dark, and it goes dark at the season boundary.**
+///
+/// A player: *"the merchants move and then it fades out then in which hides the
+/// season change visuals just abruptly changing"*, and *"the screen doesn't go
+/// dark"* when it did not. `FUN_004B0CB4`'s two call sites are `Turn_Tick`'s
+/// phase 7 with `rawFlag = 1` right after `Season_Advance`, and `FUN_0049A3E6`
+/// with `0` after the seasonal art is reloaded — so the order is: units walk,
+/// season advances, fade down, art swaps in the dark, fade up.
+///
+/// This asserts that order through the one thing a screen exposes about it,
+/// `Screen::fade`: nothing while the phases run, then a full down-and-up that
+/// bottoms out exactly once.
+#[test]
+fn the_end_of_a_turn_fades_the_screen_down_and_back_up() {
+    use l2_game::screen::Screen;
+    let (mut g, a) = world();
+    let mut s = map::MapScreen::new();
+
+    assert_eq!(s.fade(), None, "no fade before the turn");
+    let mut ctx = Ctx { game: &mut g, assets: &a };
+    s.handle(Event::KeyDown(Key::letter('e')), &mut ctx);
+    assert_eq!(s.fade(), None, "and none while the phase machine is still running");
+
+    let mut seen: Vec<u8> = Vec::new();
+    let mut season_at = None;
+    let before = g.kingdom.turn_count;
+    for n in 0..2_000u32 {
+        let mut ctx = Ctx { game: &mut g, assets: &a };
+        s.update(&mut ctx);
+        if season_at.is_none() && g.kingdom.turn_count > before {
+            season_at = Some(n);
+        }
+        match s.fade() {
+            Some(p) => seen.push(p),
+            None if season_at.is_some() && !seen.is_empty() => break,
+            None => {}
+        }
+    }
+
+    assert!(season_at.is_some_and(|n| n > 4), "the season advanced, and took frames doing it");
+    assert_eq!(seen.first(), Some(&0), "the fade starts at full brightness");
+    assert_eq!(
+        seen.len(),
+        l2_view::fade::PHASES as usize,
+        "one phase per tick, all the way down and back up",
+    );
+    assert!(seen.windows(2).all(|w| w[1] == w[0] + 1), "and strictly in order");
+    assert_eq!(
+        seen.iter().filter(|&&p| l2_view::fade::is_darkest(p)).count(),
+        1,
+        "it bottoms out exactly once",
+    );
+    assert_eq!(s.fade(), None, "and the light is fully back afterwards");
+}
+
+/// **The map stops taking orders while the turn is being wound on.**
+///
+/// Every hotspot on the map writes to state the phase machine is in the middle
+/// of reading. A click that landed mid-turn would race it, so it is refused —
+/// and pointer motion is *not*, because a frozen cursor would look like a hang
+/// rather than like a turn passing.
+#[test]
+fn the_map_refuses_orders_while_the_turn_is_running() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, there) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+
+    press(&mut m, &mut g, &a, 'e');
+    tick(&mut m, &mut g, &a);
+    assert!(l2_game::turn::turn_in_flight(&g), "a turn is in flight");
+
+    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    click(&mut m, &mut g, &a, pixel(there.0, there.1).unwrap());
+    assert_eq!(
+        g.kingdom.campaign.units.get(id).and_then(|u| u.dest),
+        None,
+        "no order was taken from a click during the turn",
+    );
+    // Pointer motion still arrives, so the map can still scroll under the
+    // cursor while the season winds on.
+    send(&mut m, &mut g, &a, Event::Pointer { x: 4, y: 4 });
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign));
 }
 
 // ---------------------------------------------------------------------------

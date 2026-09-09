@@ -484,8 +484,21 @@ frame = (tile is castle/settlement/plot) ? 0x4E : 0x38 + n;     /* g_flagsSheet 
 
 so the frame index **is** the accumulated cost, and everything past the remaining budget
 collapses to frame `0x38`. That is the player's *"gold balls along the steps, greyed where
-out of range"*: one sprite bank, `0x38 … 0x4D`, indexed by cost. **[V]** on the mechanism;
-**[I]** that frame `0x38` is specifically the grey one — nobody has looked at the sheet.
+out of range"*: one sprite bank, `0x38 … 0x4D`, indexed by cost. **[V]** on the mechanism.
+
+**[V] Frame `0x38` is the grey one, and that used to say "[I] — nobody has looked at the
+sheet."** Somebody has. `Flags1a.pl8` frames `0x38 … 0x4E` are **23 frames of exactly one
+shape** — 15 × 15, the same 177-pixel silhouette in every one of them, so it is a single ball
+recoloured, which is what "indexed by cost" predicts and which a set of *different* pictures
+would have refuted. Of those, **`0x38` alone has no colour in it**: all 177 of its opaque
+pixels are true greys, and the coloured-pixel count then climbs from 13 at `0x39` to 39 at
+`0x4D`. `0x4E`, the castle/settlement marker the ladder above names, is the opposite extreme —
+177 coloured pixels and not one grey — which is it being a different picture rather than
+another ball. Asserted against the user's own file in `crates/l2-view/tests/install.rs`.
+
+So **the cost selects the colour**: not the realm, not the shield, not the unit's kind. A
+player described these unprompted as *"colored dot images for the army walking dots"*, which
+is the third independent source on the same object. `docs/decisions.md` C59.
 
 The hover handler `Map_HoverUnitTarget` (`0x004A8E0B`) runs the same pathfind against the
 tile under the cursor and, when `allowance − used < distance`, **zeroes every interaction

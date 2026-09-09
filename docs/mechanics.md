@@ -630,6 +630,20 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   phase-7 path plays anything, the End Turn button is silent, and the two call sites of
   the end-of-turn screen fade (`FUN_004B0CB4` from `0x00499...`, once either side of
   `Season_Advance` and the autosave) carry no sound call either — checked by reading both.
+
+  **[V] The fade itself is entirely in the palette, and it is built.** `FUN_004B0CB4`'s two
+  call sites are `Turn_Tick` phase 7 with `rawFlag = 1` right after `Season_Advance`, and
+  `FUN_0049A3E6` with `0` after reloading the seasonal art. The two branches differ by a
+  factor of four, so it is a fade to **one quarter brightness and back**; the stepper at
+  `0x004B0E03` moves each channel by at most 12 per ~20 ms over palette entries **10 … 245
+  only**, which is 16 steps ≈ 320 ms each way and is why the interface chrome stays lit while
+  the map goes dark. There is no dither table and no 50 % blit on the path. `l2_view::fade`.
+
+  **[V→confirmed] What the dark window is for.** It was recorded as inferred cover for the
+  seasonal art reload and the autosave, purely from where the two calls sit. A player who has
+  never seen that reasoning describes it as *"it fades out then in which hides the season
+  change visuals just abruptly changing"* — the same claim from the other side, which is what
+  promotes it. `docs/decisions.md` C59.
   **What a player hears at the end of a turn is three other things**: the units moving,
   which is `Unit_MoveInFacing`'s per-step effect above; the message window's chime; and
   the narration.

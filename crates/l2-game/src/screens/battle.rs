@@ -278,7 +278,10 @@ impl BattlePromptScreen {
             TurnStep::Report(_) => Transition::Replace(ScreenId::BattleResult),
             // Another battle in the same turn, straight after this one.
             TurnStep::Ask(_) => Transition::Stay,
-            TurnStep::Done(_) | TurnStep::Stuck => Transition::Pop,
+            // The turn is carrying on and has nothing more to ask: the map
+            // underneath takes it from here, a tick a frame. See
+            // [`turn::TurnStep::Running`].
+            TurnStep::Running | TurnStep::Done(_) | TurnStep::Stuck => Transition::Pop,
         }
     }
 }
@@ -449,7 +452,9 @@ impl Screen for BattleResultScreen {
             // Another battle this turn: back to the prompt for it.
             TurnStep::Ask(_) => Transition::Replace(ScreenId::BattlePrompt),
             TurnStep::Report(_) => Transition::Stay,
-            TurnStep::Done(_) | TurnStep::Stuck => Transition::Pop,
+            // The rest of the turn belongs to the map, which winds it on one
+            // tick a frame. See [`turn::TurnStep::Running`].
+            TurnStep::Running | TurnStep::Done(_) | TurnStep::Stuck => Transition::Pop,
         }
     }
 
