@@ -73,7 +73,24 @@ public class ApplyRecords extends GhidraScript {
         JsonObject root = JsonParser.parseString(
                 new String(Files.readAllBytes(json.toPath()), StandardCharsets.UTF_8)).getAsJsonObject();
 
-        for (JsonElement e : root.getAsJsonArray("structs")) defineStruct(e.getAsJsonObject());
+        // **Two passes, because a struct's fields may name any other struct in
+        // the file and not merely one declared above it.**
+        //
+        // This used to be one pass, and it worked only because docs/records.json
+        // happened to be in dependency order: LabourSlot and Industry before
+        // County, which contains arrays of both. Sorting that file
+        // alphabetically — done to stop a text merge misaligning it — put
+        // County first and silently dropped `County.labour` and
+        // `County.industry` from every rebuild, taking 204 of County's 768
+        // bytes with them.
+        //
+        // An implicit ordering requirement that nothing states and nothing
+        // checks is not a requirement, it is a trap. The shell pass removes it:
+        // every struct exists, at its right size, before any field is placed,
+        // so the file may be in any order at all.
+        JsonArray structDefs = root.getAsJsonArray("structs");
+        for (JsonElement e : structDefs) declareStruct(e.getAsJsonObject());
+        for (JsonElement e : structDefs) defineStruct(e.getAsJsonObject());
         for (JsonElement e : root.getAsJsonArray("arrays")) applyArray(e.getAsJsonObject());
 
         println("### structs " + structs + ", fields " + fields
@@ -120,6 +137,26 @@ public class ApplyRecords extends GhidraScript {
             case "i32": return IntegerDataType.dataType;
             default:    return defined.get(s);
         }
+    }
+
+    /**
+     * Pass one: the struct exists and is the right size, with no fields yet.
+     *
+     * Registering the empty shell is what makes `LabourSlot[9]` resolvable from
+     * inside `County` regardless of which is written first. The shell is
+     * replaced by the filled structure in pass two — Ghidra's
+     * REPLACE_HANDLER resolves the two into one type, and a field referring to
+     * the shell picks up the fields added later because it holds the same
+     * DataType identity.
+     */
+    private void declareStruct(JsonObject s) {
+        String name = str(s, "name");
+        int size = s.get("size").getAsInt();
+        StructureDataType shell = new StructureDataType(CAT, name, size);
+        DataTypeManager dtm = currentProgram.getDataTypeManager();
+        DataType stored = dryRun ? shell
+                : dtm.addDataType(shell, DataTypeConflictHandler.KEEP_HANDLER);
+        defined.put(name, stored);
     }
 
     private void defineStruct(JsonObject s) {

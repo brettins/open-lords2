@@ -46,7 +46,48 @@
 const fs = require('fs');
 const path = require('path');
 
-const DECOMP = path.join(__dirname, 'decomp');
+// **Finding the corpus from a worktree.**
+//
+// `tools/oracle/decomp/` is gitignored and lives only in the checkout that
+// built it, so `__dirname/decomp` is empty for every agent working in a
+// `git worktree` — which is now all of them. That made the two tools most
+// likely to PREVENT a wrong name the two tools nobody could run.
+//
+// Resolution order, the same one `logstrings.js` uses:
+//   --decomp <dir>      an explicit path
+//   $LORDS2_DECOMP      the environment, for a session-wide setting
+//   __dirname/decomp    this checkout, which is right in the main one
+//   ../../../<main>/... the common git dir, worked out below
+//
+// The last is the useful one: `git rev-parse --git-common-dir` names the main
+// checkout even from inside a worktree, so an agent gets the corpus with no
+// flag and no setup at all. It is a fallback rather than the default because
+// an explicit path must always win.
+function findCorpus(dirname) {
+  const path = require("path");
+  const fs = require("fs");
+  const i = process.argv.indexOf("--decomp");
+  const explicit = i >= 0 ? process.argv[i + 1] : process.env.LORDS2_DECOMP;
+  if (explicit) return explicit;
+  const here = path.join(dirname, "decomp");
+  if (fs.existsSync(here)) return here;
+  try {
+    const { execFileSync } = require("child_process");
+    const common = execFileSync("git", ["rev-parse", "--git-common-dir"], {
+      cwd: dirname,
+      encoding: "utf8",
+    }).trim();
+    // `<main>/.git` -> `<main>`; a worktree reports the main checkout's.
+    const main = path.resolve(dirname, common, "..");
+    const there = path.join(main, "tools", "oracle", "decomp");
+    if (fs.existsSync(there)) return there;
+  } catch {
+    // no git, or not a checkout: fall through to the local path so the
+    // error message below names something a reader recognises.
+  }
+  return here;
+}
+const DECOMP = findCorpus(__dirname);
 const XREF = path.join(__dirname, 'out', 'xref.json');
 
 // ---------------------------------------------------------------- L2.eng

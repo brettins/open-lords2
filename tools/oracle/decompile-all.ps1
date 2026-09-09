@@ -23,7 +23,15 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$OutDir = "$PSScriptRoot\decomp",
+  # **Not `$PSScriptRoot` alone.** It comes back EMPTY when this script is
+  # invoked from inside another PowerShell session (`& powershell -File ...`),
+  # and an empty value made $OutDir "\decomp" — so a full 22-second rebuild of
+  # all 2,452 functions landed in E:\decomp, the summary counted zero files, and
+  # the script exited non-zero having actually succeeded. The corpus is
+  # gitignored, so nothing downstream noticed; every agent simply carried on
+  # reading a corpus 211 names out of date. `$MyInvocation.MyCommand.Path` is
+  # set in every invocation form.
+  [string]$OutDir = (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'decomp'),
   [switch]$SkipSymbols,
   [string]$GhidraProject = 'E:\dev\ghidra-projects',
   [string]$ProjectName = 'lords2',
