@@ -144,6 +144,15 @@ fn find_font_text(
 
 /// One line of the county strip, found in whichever font actually drew it: the
 /// original's 9-pixel one where the install has it, ours where it does not.
+/// **What the county strip's text is actually drawn in**: the literal `0x3F`
+/// every `Ui_DrawText` call in `CountyStrip_Draw` passes, which is `rgb(0,0,0)`
+/// in `Base01.256`. These assertions used to look for `ink.text` — white — and
+/// a player reported the strip as white-on-parchment before anyone read the
+/// argument.
+const STRIP_INK: u8 = l2_game::shell::font::TEXT;
+/// And the one exception: the achieved ration when it is not the wanted one.
+const STRIP_BAD: u8 = l2_game::shell::font::HIGHLIGHT;
+
 fn find_strip(canvas: &Canvas, assets: &Assets, s: &str, colour: u8) -> Option<(i32, i32)> {
     match assets.shell.small.as_ref() {
         Some(f) => find_font_text(canvas, f, s, colour),
@@ -732,10 +741,10 @@ fn the_map_chrome_shows_the_clock_the_treasury_and_the_selected_county() {
     // **The county strip, in the map's own sidebar.** `Screen_DrawCampaign`
     // calls `CountyStrip_Draw` — the map screen used to leave that plate empty
     // and write a box of our own numbers over the jobs plate below it.
-    let pop = find_strip(&canvas, &assets, "435", ink.text).expect("the population");
+    let pop = find_strip(&canvas, &assets, "435", STRIP_INK).expect("the population");
     assert_eq!(pop, (508, 189), "at CountyStrip_Draw's own coordinates");
     assert_eq!(
-        find_strip(&canvas, &assets, "72", ink.text),
+        find_strip(&canvas, &assets, "72", STRIP_INK),
         // **Left-aligned at 602, not right-anchored on it.** `Ui_DrawNumber`
         // has no anchoring argument: the population's call and the happiness's
         // differ only in their value and their x, so both are left origins.
@@ -747,7 +756,7 @@ fn the_map_chrome_shows_the_clock_the_treasury_and_the_selected_county() {
     // The near-misses. If the search could match anything it would match these.
     assert!(find_text(&canvas, "WINTER 1269", ink.text).is_none());
     assert!(find_text(&canvas, "GOLD 1001", ink.text).is_none());
-    assert!(find_strip(&canvas, &assets, "436", ink.text).is_none());
+    assert!(find_strip(&canvas, &assets, "436", STRIP_INK).is_none());
 }
 
 /// **The four county panels are reachable from the map, and each from its own
@@ -853,6 +862,119 @@ fn the_sidebar_split_slider_moves_the_countys_labour_between_farm_and_industry()
     assert!(farm_after > farm, "0% industry puts more people on the land than 100% did");
 }
 
+/// **The blue outline appears, and only when it should.**
+///
+/// Two separate signals with two separate tests, which is the thing worth
+/// pinning down: the **slider's** thumb gains its ring on
+/// `county.labour[8].workers != 0` — anybody idle at all — and each **produce
+/// icon** gains one on `labour[slot].useful < labour[slot].workers` — too many
+/// people on *that* job. A player described both and thought they were the same
+/// signal; they are the same picture and different tests.
+///
+/// Measured by counting pixels of the ring's own three palette entries inside
+/// the sidebar, so it is the artwork being asserted and not a description of
+/// it.
+#[test]
+fn the_strip_draws_the_blue_ring_on_the_slider_and_on_the_overstaffed_job() {
+    use l2_view::chrome::misc_cty::RING_COLOURS;
+    let (mut game, assets) = world!();
+    let idle = l2_kingdom::tables::JOB_IDLE_TOWNSFOLK;
+    let cattle = l2_kingdom::tables::JOB_CATTLE_FARMING;
+
+    // Count the ring's colours in the sidebar column only.
+    let ring_pixels = |canvas: &Canvas| -> usize {
+        let mut n = 0;
+        for y in 156..430usize {
+            for x in 478..640usize {
+                if RING_COLOURS.contains(&canvas.at(x, y)) {
+                    n += 1;
+                }
+            }
+        }
+        n
+    };
+
+    // Nobody idle, and the dairy inside its ceiling.
+    {
+        let c = &mut game.kingdom.counties[8];
+        c.labour[idle] = 0;
+        c.labour[cattle] = 100;
+        c.labour_wanted[cattle] = -1;
+        c.labour_useful[cattle] = 200;
+        c.herd = 400;
+        c.fields_cattle = 4;
+    }
+    let mut screen = CountyScreen::new(8, Panel::Tax);
+    let quiet = ring_pixels(&draw(&mut screen, &mut game, &assets));
+
+    // One idle townsman: the slider's thumb becomes frame 0x55.
+    game.kingdom.counties[8].labour[idle] = 1;
+    let with_slider = ring_pixels(&draw(&mut screen, &mut game, &assets));
+    assert!(
+        with_slider > quiet,
+        "the slider's thumb gains its ring: {quiet} -> {with_slider} ring pixels"
+    );
+
+    // And more people milking than the herd can use: the cow gains one too.
+    game.kingdom.counties[8].labour_useful[cattle] = 50;
+    let with_both = ring_pixels(&draw(&mut screen, &mut game, &assets));
+    assert!(
+        with_both > with_slider,
+        "the dairy icon gains its own ring: {with_slider} -> {with_both} ring pixels"
+    );
+
+    // Putting the ceiling back takes the cow's ring away again and leaves the
+    // slider's, which is what makes them two tests rather than one.
+    game.kingdom.counties[8].labour_useful[cattle] = 200;
+    assert_eq!(ring_pixels(&draw(&mut screen, &mut game, &assets)), with_slider);
+}
+
+/// **And it is a drag, not a click.** A player reported *"the peasant slider of
+/// industry isn't draggable, should be"*, and `FUN_00439122` agrees: it acts
+/// while `DAT_004E65CC` — the button's *level* — is set and `DAT_004EA4B0` says
+/// the pointer moved, and does nothing at all on the release. So the value
+/// follows the pointer for as long as the button is held, and stops the moment
+/// it is let go.
+///
+/// The whole gesture as a sequence of values, which is the only way to test a
+/// drag without an input queue.
+#[test]
+fn the_split_slider_tracks_the_pointer_while_the_button_is_held() {
+    let (mut game, assets) = world!();
+    let mut screen = MapScreen::new();
+    game.select(8);
+    let share = |g: &Game| g.kingdom.counties[8].industry_share;
+
+    // Press on the track at x = 533, then travel along it without letting go.
+    send(&mut screen, &mut game, &assets, Event::Click { x: 533, y: 270 });
+    assert_eq!(share(&game), 4, "the press itself sets the value");
+    for (x, want) in [(541, 20), (561, 60), (581, 100), (551, 40)] {
+        send(&mut screen, &mut game, &assets, Event::Pointer { x, y: 270 });
+        assert_eq!(share(&game), want, "held and moved to x = {x}");
+    }
+
+    // Off the sidebar entirely and the slider stops, without the drag ending —
+    // the original re-tests the rectangle every frame and simply skips.
+    send(&mut screen, &mut game, &assets, Event::Pointer { x: 200, y: 270 });
+    assert_eq!(share(&game), 40, "outside the rectangle nothing moves");
+    send(&mut screen, &mut game, &assets, Event::Pointer { x: 561, y: 270 });
+    assert_eq!(share(&game), 60, "and coming back resumes the same drag");
+
+    // Let go. Now the same movement does nothing.
+    send(&mut screen, &mut game, &assets, Event::Release { x: 561, y: 270 });
+    assert_eq!(share(&game), 60, "the release itself changes nothing");
+    send(&mut screen, &mut game, &assets, Event::Pointer { x: 533, y: 270 });
+    assert_eq!(share(&game), 60, "and a bare pointer move is not a drag");
+
+    // Off the track, each move steps by four rather than jumping.
+    send(&mut screen, &mut game, &assets, Event::Click { x: 600, y: 270 });
+    assert_eq!(share(&game), 64, "right of the track: +4");
+    send(&mut screen, &mut game, &assets, Event::Pointer { x: 601, y: 270 });
+    assert_eq!(share(&game), 68, "and again on the next move");
+    send(&mut screen, &mut game, &assets, Event::Pointer { x: 500, y: 270 });
+    assert_eq!(share(&game), 64, "left of the track: -4");
+}
+
 /// **The right button has two jobs, and they are opposite ones.**
 ///
 /// A player said *"right click would close a bunch of popups"*, and he is right:
@@ -917,18 +1039,17 @@ fn the_county_strip_shows_the_saves_numbers_where_the_original_puts_them() {
     let (mut game, assets) = world!();
     let mut screen = CountyScreen::new(8, Panel::Tax);
     let canvas = draw(&mut screen, &mut game, &assets);
-    let ink = &assets.ink;
 
     let c = &game.kingdom.counties[8];
     assert_eq!((c.population, c.happiness, c.ration_achieved), (435, 72, 3));
 
     assert_eq!(
-        find_strip(&canvas, &assets, "435", ink.text),
+        find_strip(&canvas, &assets, "435", STRIP_INK),
         Some((508, 189)),
         "the population, at Ui_DrawNumber(pop, ' ', ..., 0x1FC, 0xBD)"
     );
     assert_eq!(
-        find_strip(&canvas, &assets, "72", ink.text),
+        find_strip(&canvas, &assets, "72", STRIP_INK),
         // **Left-aligned at 602, not right-anchored on it.** `Ui_DrawNumber`
         // has no anchoring argument: the population's call and the happiness's
         // differ only in their value and their x, so both are left origins.
@@ -937,7 +1058,7 @@ fn the_county_strip_shows_the_saves_numbers_where_the_original_puts_them() {
         "the happiness, right-anchored at 0x25A on the same line"
     );
     assert_eq!(
-        find_strip(&canvas, &assets, "0%", ink.text),
+        find_strip(&canvas, &assets, "0%", STRIP_INK),
         Some((506, 226)),
         "the tax rate at 0x1FA"
     );
@@ -952,13 +1073,13 @@ fn the_county_strip_shows_the_saves_numbers_where_the_original_puts_them() {
     // name with no off-by-one, and county 8 of England is Dyfed.
     assert_eq!(name, "Dyfed", "L2.eng group 100, index map_slot * 20 + 8");
     // rationAchieved == rationWanted, so it is drawn plain rather than red.
-    assert!(find_strip(&canvas, &assets, "Normal", ink.text).is_some());
-    assert!(find_strip(&canvas, &assets, "Normal", ink.bad).is_none());
+    assert!(find_strip(&canvas, &assets, "Normal", STRIP_INK).is_some());
+    assert!(find_strip(&canvas, &assets, "Normal", STRIP_BAD).is_none());
 
     // Near misses, one per number, so none of the three can match by accident.
-    assert!(find_strip(&canvas, &assets, "436", ink.text).is_none());
-    assert!(find_strip(&canvas, &assets, "73", ink.text).is_none());
-    assert!(find_strip(&canvas, &assets, "Double", ink.text).is_none());
+    assert!(find_strip(&canvas, &assets, "436", STRIP_INK).is_none());
+    assert!(find_strip(&canvas, &assets, "73", STRIP_INK).is_none());
+    assert!(find_strip(&canvas, &assets, "Double", STRIP_INK).is_none());
 }
 
 /// The population panel is `Ui_DrawBox(0x10, 0x30, 0x1C, 0x17)` with its rows
@@ -1120,13 +1241,13 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     let realm5 = assets.ink.realm[5];
     let name = county::county_name(&Ctx { game: &mut game, assets: &assets }, 1);
     assert_eq!(
-        find_body(&canvas, &assets, &name, assets.ink.text).map(|p| p.1),
+        find_body(&canvas, &assets, &name, STRIP_INK).map(|p| p.1),
         Some(180),
         "the name sits lower on the 162 x 274 plate"
     );
     assert!(find_body(&canvas, &assets, "REALM 5", realm5).is_some());
     assert!(find_body(&canvas, &assets, "REALM 4", realm5).is_none(), "a near miss");
-    assert!(find_body(&canvas, &assets, "693", assets.ink.text).is_none(), "no numbers at all");
+    assert!(find_body(&canvas, &assets, "693", STRIP_INK).is_none(), "no numbers at all");
 
     send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
     let up = Panel::Tax.increase_button().expect("the arrows are still drawn");
@@ -1173,11 +1294,11 @@ fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
 
     let shown = game.kingdom.counties[8].population.to_string();
     assert!(
-        find_strip(&after, &assets, &shown, assets.ink.text).is_some(),
+        find_strip(&after, &assets, &shown, STRIP_INK).is_some(),
         "the right column shows the new population, {shown}"
     );
     assert!(
-        find_strip(&after, &assets, &population.to_string(), assets.ink.text).is_none(),
+        find_strip(&after, &assets, &population.to_string(), STRIP_INK).is_none(),
         "and not the old one"
     );
 }
@@ -1201,7 +1322,7 @@ fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
     let canvas = draw(&mut panel, &mut game, &assets);
     let shown = game.kingdom.counties[8].population.to_string();
     assert!(
-        find_strip(&canvas, &assets, &shown, assets.ink.text).is_some()
+        find_strip(&canvas, &assets, &shown, STRIP_INK).is_some()
             || find_text(&canvas, &shown, assets.ink.good).is_some()
             || find_text(&canvas, &shown, assets.ink.bad).is_some(),
         "the panel shows the population it now has ({shown})"
@@ -1465,6 +1586,12 @@ fn a_drag_across_the_real_drop_grid_moves_the_county_s_peasants() {
 /// A click that never travels nine pixels is a click, and a click opens the job
 /// popup for the cluster it landed on — the fifth screen, and the only place
 /// the labour record's other two words are shown as a number.
+///
+/// **But not on the release.** `Village_ClickJob` (`0x0043A123`) is gated on
+/// `DAT_004EABF0`, which the frame poll sets only once the click has stood for
+/// 300 ms without a second one; until then the click might be the first half of
+/// a double click, and a double click means something else entirely. So the
+/// popup opens on a *tick*, and the ticks are what this test counts.
 #[test]
 fn a_click_on_a_cluster_opens_its_job_popup() {
     let (mut game, assets) = world!();
@@ -1481,7 +1608,134 @@ fn a_click_on_a_cluster_opens_its_job_popup() {
     send(&mut screen, &mut game, &assets, Event::Click { x, y });
     assert_eq!(screen.phase(), village_screen::Phase::Idle, "one press is not a drag");
     let t = send(&mut screen, &mut game, &assets, Event::Release { x, y });
-    assert_eq!(t, Transition::Push(ScreenId::Job(county, slots[2])));
+    assert_eq!(t, Transition::Stay, "the release only arms the click");
+
+    // One tick short of the settle, and still nothing.
+    for _ in 1..VillageScreen::CLICK_SETTLE_TICKS {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        assert_eq!(screen.update(&mut ctx), Transition::Stay);
+    }
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    assert_eq!(screen.update(&mut ctx), Transition::Push(ScreenId::Job(county, slots[2])));
+}
+
+/// **Double-clicking a job takes the people it cannot use out of it.**
+///
+/// A player reported *"I can't double click idle peasants in a task to remove
+/// them from the task"*, and the original does exactly that:
+/// `Village_DoubleClick` (`0x00439DF0`) is its own arm on screen `0x02`, fed by
+/// `WM_LBUTTONDBLCLK` through `DAT_004EABC5`, and `FUN_00439F6A` moves either
+/// the surplus out or the shortfall in.
+///
+/// Both directions, on the county's own cattle cluster, plus the thing that
+/// makes it a *different* gesture: the job popup a single click would have
+/// opened never appears.
+#[test]
+fn a_double_click_on_a_job_sheds_its_surplus_and_fills_its_shortfall() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let slots = VillageScreen::slots(&game.kingdom.counties[county as usize]);
+    let cattle = slots[2];
+    let idle = l2_kingdom::tables::JOB_IDLE_TOWNSFOLK;
+
+    // Put everybody on cattle and give the job a ceiling it is well over.
+    {
+        let c = &mut game.kingdom.counties[county as usize];
+        c.labour = [0; l2_kingdom::tables::JOB_COUNT];
+        c.labour[cattle] = 300;
+        c.labour_wanted[cattle] = -1;
+        c.labour_useful[cattle] = 100;
+        c.population = 300;
+    }
+
+    let (ox, oy) = village::cluster_origin(2, village::SCENE_Y);
+    let (x, y) = (ox + 36, oy + 24);
+    let mut screen = VillageScreen::new(county);
+    send(&mut screen, &mut game, &assets, Event::DoubleClick { x, y });
+
+    let c = &game.kingdom.counties[county as usize];
+    assert_eq!(c.labour[cattle], 100, "the job is left with exactly what it can use");
+    assert_eq!(c.labour[idle], 200, "and the other two hundred are idle");
+    assert_eq!(c.labour.iter().sum::<i32>(), 300, "nobody was created or lost");
+
+    // The other direction: give the job a floor and double-click it again.
+    game.kingdom.counties[county as usize].labour_wanted[cattle] = 250;
+    game.kingdom.counties[county as usize].labour_useful[cattle] = 250;
+    send(&mut screen, &mut game, &assets, Event::DoubleClick { x, y });
+    let c = &game.kingdom.counties[county as usize];
+    assert_eq!(c.labour[cattle], 250, "the shortfall came out of the idle pool");
+    assert_eq!(c.labour[idle], 50);
+
+    // And it is not a click: nothing is pending, so no job popup ever opens.
+    for _ in 0..VillageScreen::CLICK_SETTLE_TICKS + 2 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        assert_eq!(screen.update(&mut ctx), Transition::Stay, "a double click opens no popup");
+    }
+}
+
+/// **A double click cancels the single click it interrupted.** The frame poll
+/// clears `DAT_004E65E8` — the pending click — the instant `DAT_004EABC5` is
+/// set, which is why the job popup does not open behind the reassignment.
+#[test]
+fn a_double_click_cancels_the_pending_single_click() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let mut screen = VillageScreen::new(county);
+    let (ox, oy) = village::cluster_origin(2, village::SCENE_Y);
+    let (x, y) = (ox + 36, oy + 24);
+
+    // The first half of the double click: press, release, click armed.
+    send(&mut screen, &mut game, &assets, Event::Click { x, y });
+    send(&mut screen, &mut game, &assets, Event::Release { x, y });
+    // The second half arrives well inside the settle window.
+    send(&mut screen, &mut game, &assets, Event::DoubleClick { x, y });
+    for _ in 0..VillageScreen::CLICK_SETTLE_TICKS + 2 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        assert_eq!(screen.update(&mut ctx), Transition::Stay);
+    }
+}
+
+/// **Double-clicking the idle townsfolk themselves puts everybody to work.**
+///
+/// `FUN_00439EDB`'s cluster-6 branch: every job sheds its surplus first, and
+/// only then does every job draw from the pool. One pass would let whichever
+/// job came first take people the later ones needed.
+#[test]
+fn a_double_click_on_the_idle_cluster_balances_every_job_at_once() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let slots = VillageScreen::slots(&game.kingdom.counties[county as usize]);
+    let (cattle, grain) = (slots[2], slots[1]);
+    let idle = l2_kingdom::tables::JOB_IDLE_TOWNSFOLK;
+    {
+        let c = &mut game.kingdom.counties[county as usize];
+        c.labour = [0; l2_kingdom::tables::JOB_COUNT];
+        // Cattle is over its ceiling by 200; grain is a hundred short. The pool
+        // is empty, so grain can only be filled *after* cattle has shed.
+        c.labour[cattle] = 300;
+        c.labour_useful[cattle] = 100;
+        c.labour_wanted[cattle] = -1;
+        c.labour[grain] = 0;
+        c.labour_wanted[grain] = 100;
+        c.labour_useful[grain] = 100;
+        c.population = 300;
+    }
+
+    let mut screen = VillageScreen::new(county);
+    let (ox, oy) = village::cluster_origin(village::IDLE_CLUSTER, village::SCENE_Y);
+    send(&mut screen, &mut game, &assets, Event::DoubleClick { x: ox + 36, y: oy + 24 });
+
+    let c = &game.kingdom.counties[county as usize];
+    assert_eq!(c.labour[cattle], 100, "cattle shed its surplus");
+    assert_eq!(c.labour[grain], 100, "and grain was filled out of what it shed");
+    assert_eq!(c.labour[idle], 100, "the hundred nobody wanted stay idle");
+    assert_eq!(c.labour.iter().sum::<i32>(), 300);
 }
 
 // ---------------------------------------------------------------------------
@@ -1787,6 +2041,28 @@ fn shoot() {
         let canvas = draw(&mut screen, &mut game, &assets);
         save_png(&canvas, &assets, "units_and_flags");
     }
+
+    // **The sidebar with both blue outlines up**, which is the one shot a
+    // reader can check the five interface fixes against: black strip text on
+    // the parchment, the produce rows below the slider, a ring round the cow
+    // because the dairy is overstaffed, and a ring round the slider's thumb
+    // because somebody is idle.
+    {
+        let c = &mut game.kingdom.counties[county as usize];
+        let cattle = l2_kingdom::tables::JOB_CATTLE_FARMING;
+        c.labour[l2_kingdom::tables::JOB_IDLE_TOWNSFOLK] = 40;
+        c.labour[cattle] = c.labour[cattle].max(120);
+        c.labour_useful[cattle] = 40;
+        c.labour_wanted[cattle] = -1;
+        c.herd = c.herd.max(300);
+        c.fields_cattle = c.fields_cattle.max(3);
+    }
+    let mut m = Machine::new(ScreenId::Campaign);
+    let mut c = Ctx { game: &mut game, assets: &assets };
+    let mut canvas = Canvas::screen();
+    m.draw(&c, &mut canvas);
+    let _ = &mut c;
+    save_png(&canvas, &assets, "sidebar_blue_outline");
 
     // And the four panels, each from its own quadrant of the strip.
     for panel in county::PANELS {

@@ -726,6 +726,134 @@ fn the_peasant_icons_account_for_every_frame_the_icon_table_names() {
     eprintln!("Misc_cty: {} named icons, 4 stubs, nothing over", named.len());
 }
 
+/// **The blue outline, named to a frame and to three palette indices.**
+///
+/// A player remembered *"a blue outline for idle peasants"* and *"the peasant
+/// slider I think had a blue outline if there were idle peasants as well."* The
+/// binary says where it is — `CountyStrip_Draw` swaps five icon frames on
+/// `labour[slot].useful < labour[slot].workers` and the slider's thumb on
+/// `labour[8].workers != 0` — and this says *what it is*, out of the shipped
+/// artwork rather than out of a description:
+///
+/// * every ringed frame is **exactly four wider and four taller** than its
+///   plain twin, which is what a two-pixel ring around an unchanged picture
+///   measures as, and the drawing code moves it two pixels up and left;
+/// * every non-transparent pixel of that two-pixel border is one of
+///   **three palette entries, and all three are blue** — `95` = `rgb(0,0,121)`,
+///   `65` = `rgb(157,202,234)`, `64` = `rgb(194,230,255)`.
+///
+/// The second clause is the one that makes "blue" a measurement. A ring of any
+/// other colour would fail it, and so would a frame that merely happened to be
+/// the right size.
+#[test]
+fn the_ringed_strip_icons_are_their_plain_twins_inside_a_blue_two_pixel_ring() {
+    use l2_view::chrome::misc_cty;
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+    let bytes = read(&dir, "Misc_cty.pl8").expect("Misc_cty.pl8");
+    let sheet = Sheet::new(bytes).expect("Misc_cty.pl8 parses");
+    let palette = l2_formats::Palette::from_bytes(&read(&dir, "Base01.256").expect("Base01.256"))
+        .expect("Base01.256 parses");
+
+    // The ring's three entries really are blue, in the palette the campaign
+    // screen runs under. Asserted rather than assumed, because the whole claim
+    // rests on the word.
+    // Blue channel highest, red lowest, and a clear gap between them: the ring
+    // runs from `rgb(0,0,121)` to a near-white highlight at `rgb(194,230,255)`,
+    // so "blue" here is the *ordering* of the channels rather than a hue
+    // distance, which the pale end would fail.
+    for i in misc_cty::RING_COLOURS {
+        let [r, g, b] = palette.rgb(i);
+        assert!(
+            b >= g && g >= r && b as i32 - r as i32 >= 40,
+            "palette entry {i} is rgb({r},{g},{b}), which is not blue"
+        );
+    }
+
+    let pairs: Vec<(usize, usize, bool)> = misc_cty::RINGED_PAIRS
+        .iter()
+        .map(|&(p, r)| (p, r, true))
+        .chain([
+            (misc_cty::SPLIT_THUMB, misc_cty::SPLIT_THUMB_IDLE, true),
+            // The castle is the one exception, and it is written down as one.
+            (misc_cty::CASTLE_PLAIN, misc_cty::CASTLE_RINGED, false),
+        ])
+        .collect();
+    assert_eq!(pairs.len(), 11, "nine icons, the slider's thumb and the castle");
+    // The eleven ringed frames are a contiguous run, `0x4B` … `0x55`, with
+    // nothing else in the sheet ringed and nothing in the run left over.
+    let mut ringed: Vec<usize> = pairs.iter().map(|&(_, r, _)| r).collect();
+    ringed.sort_unstable();
+    assert_eq!(ringed, (0x4B..=0x55).collect::<Vec<_>>(), "the ringed run is 0x4B ..= 0x55");
+
+    for (plain, ringed, same_picture) in pairs {
+        let a = sheet.frame(plain).unwrap_or_else(|| panic!("frame {plain:#04x} decodes"));
+        let b = sheet.frame(ringed).unwrap_or_else(|| panic!("frame {ringed:#04x} decodes"));
+        if same_picture {
+            assert_eq!(
+                (b.width - a.width, b.height - a.height),
+                (4, 4),
+                "{ringed:#04x} is {}x{} and {plain:#04x} is {}x{}: a two-pixel ring is +4 on \
+                 each axis",
+                b.width,
+                b.height,
+                a.width,
+                a.height
+            );
+        } else {
+            assert_ne!(
+                (b.width - a.width, b.height - a.height),
+                (4, 4),
+                "{ringed:#04x} was the documented exception and is no longer one"
+            );
+        }
+
+        let (w, h) = (b.width as usize, b.height as usize);
+        let (mut ring, mut blue) = (0usize, 0usize);
+        for y in 0..h {
+            for x in 0..w {
+                if x >= 2 && y >= 2 && x + 2 < w && y + 2 < h {
+                    continue;
+                }
+                let p = b.indices[y * w + x];
+                if p == 0 {
+                    continue;
+                }
+                ring += 1;
+                if misc_cty::RING_COLOURS.contains(&p) {
+                    blue += 1;
+                }
+            }
+        }
+        assert!(ring > 0, "{ringed:#04x} has no border pixels at all");
+        assert_eq!(ring, blue, "{ringed:#04x}: {} of {ring} border pixels are not blue", ring - blue);
+        eprintln!("Misc_cty {plain:#04x} -> {ringed:#04x}: {ring} border pixels, all blue");
+    }
+}
+
+/// **The ten words `Village_BalanceAll` reads out of an eight-word table.**
+///
+/// `FUN_00439EDB` loops `i < 10` over `g_jobClusterToSlot`, which has eight
+/// entries. The two past the end are the head of the table that follows, and
+/// they decide what a double click on the idle townsfolk actually balances — so
+/// they are read out of the user's own executable rather than believed.
+#[test]
+fn the_cluster_to_slot_table_and_the_two_words_the_balance_loop_overruns_into() {
+    use l2_view::village as v;
+    let Some(exe) = l2_testkit::executable() else {
+        l2_testkit::skip!("no Lords2.exe - skipping");
+    };
+    let table = l2_testkit::pe::Table::at(&exe, v::CLUSTER_TO_SLOT_VA);
+    let read: Vec<usize> = table.i32s(10).into_iter().map(|v| v as usize).collect();
+    assert_eq!(read[..8], v::CLUSTER_TO_SLOT, "the eight the table really has");
+    assert_eq!(read, v::CLUSTER_TO_SLOT_BALANCE, "and the ten the balance loop reads");
+    // The point of the two extra words: they bring slot 4, iron mining, into a
+    // gesture that the eight-entry table can otherwise only reach through
+    // cluster 0's override.
+    assert!(read[8..].contains(&4), "the overrun reaches iron mining");
+}
+
 /// The village's own three files, and the arithmetic that ties them together.
 #[test]
 fn the_village_files_are_the_size_the_drawing_code_indexes_them_at() {

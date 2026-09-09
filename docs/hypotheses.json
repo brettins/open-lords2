@@ -614,6 +614,17 @@
         "The identical idiom appears in the campaign unit renderer at 0x00400000+0x4508, facing minus g_mapRotation."
       ],
       "notDoneBecause": "Either the battlefield honours a rotation nothing else implements, or this is a paste from the campaign renderer whose three extra branches never run. Both stories are coherent and neither is anchored. Deciding it needs a live battle or the 16-pixel renderer read."
+    },
+    {
+      "target": "docs/records.json, the County.industry array at +0x290",
+      "claim": "Something in the County record between +0x290 and +0x2F3 is laid out wrong. The county strip reads commodity c at +0x2A8 + c*0x18, and under the current layout — Industry[4] at +0x290, stride 0x18 — that expression is Industry[c+1] + 0x00, an unnamed head word, and for c = 3 it is +0x2F0, one whole record past the end of a four-record array. One of the base, the stride, the count or the field set is wrong, and this correction does NOT say which.",
+      "evidence": [
+        "The corpus has byte reads at county +0x2A8 and +0x2F0, both guarded `!= 0` and both copied into a panel buffer (00450000.c:7436, 8382, 4044) — 0x2F0 - 0x2A8 = 0x48 = 3 * 0x18, so they are element 0 and element 3 of one 0x18-strided run beginning at +0x2A8.",
+        "docs/records.json places Industry[4] at +0x290 with size 24, so the array occupies +0x290..+0x2EF and +0x2A8 is Industry[1] + 0x00.",
+        "County.levySurcharge is at +0x2F4, so the array cannot simply have a fifth element: Industry[4] would span +0x2F0..+0x307 and swallow it.",
+        "Industry's first named field is `efficiency` at +0x04, so offset +0x00 of the record is unnamed in the current layout — which is why nothing has noticed."
+      ],
+      "notDoneBecause": "records.json is applied to the Ghidra database by ApplyRecords.java, so a wrong record layout propagates into every function in the corpus that touches a county — which is correction C3 exactly. Settling it needs CountyStrip_Draw and Industry_Produce read against the binary to say whether the base, the stride or the field set is wrong, and an integrator picking one of those on the balance of probability is how a plausible wrong layout gets written down as fact. The peasant-interaction pass found it, left the strip's right-hand column a labelled stub rather than a guess, and said so; this entry is the hand-off rather than a repair."
     }
   ],
   "claims": [

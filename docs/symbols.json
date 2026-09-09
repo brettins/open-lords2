@@ -3567,6 +3567,46 @@
       "comment": "Which peasant cluster a point on the village is over, 1-based and clamped to 8, from an 8-pixel grid: (&DAT_00542CF8)[((x-0x40)>>3) + ((y-g_villageTopY)>>3) * 0x2D]. That is vill_gd8.pl8 plus its 24-byte header - 45 x 40 cells covering x 0x40..0x1A8 and y top..top+0x140, and the shipped file is 1,824 bytes exactly."
     },
     {
+      "addr": "0x00439122",
+      "name": "Labour_SplitSliderDrag",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Labour_SplitSliderDrag(void)",
+      "comment": "The farm/industry split slider on the county strip, and it is a DRAG rather than a click: it acts while g_mouseLeftDown is set and g_mouseInputChanged says the pointer moved, and returns 1 without doing anything on the release. Hit box x 0x1DE..0x27F, y 0x101..0x128; left of x=0x213 steps the share down by four, right of x=0x252 up by four, on the track it is ((x - 0x213) * 2) & 0xFC, clamped 0..100. Tested on screens 0 and 0x02, so it works with the village open."
+    },
+    {
+      "addr": "0x0043933B",
+      "name": "Labour_SetIndustryShare",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Labour_SetIndustryShare(int county, unsigned char share)",
+      "comment": "Writes county +0x08 and re-runs Labour_Allocate, Ration_Apply and County_RefreshEstimates. The slider's only writer in single player; multiplayer sends command 0x27 instead."
+    },
+    {
+      "addr": "0x00439DF0",
+      "name": "Village_DoubleClick",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Village_DoubleClick(void)",
+      "comment": "The ONLY reader of g_mouseLeftDoubleClick in the binary. On a left double click inside x 0x40..0x1FF, y top..top+0x178, Village_GridAt names the cluster and Village_BalanceAll reassigns its labour. It sits between Village_BandStart and Village_ClickJob in Screen_FrameInput's screen-0x02 ladder; the job popup is deferred 300 ms precisely so this can pre-empt it."
+    },
+    {
+      "addr": "0x00439EDB",
+      "name": "Village_BalanceAll",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Village_BalanceAll(int county, int cluster)",
+      "comment": "Cluster 6 - Idle townsfolk - runs Village_BalanceJob over every cluster twice, shedding first (fill = 0) and filling second (fill = 1), so no job takes people a later one needs. Any other cluster balances just that one. NOTE: both loops run i < 10 over the eight-entry g_jobClusterToSlot; the two words past the end are 4 and 6, which is what brings slot 4 (iron mining) into the gesture. docs/bugs.md B21a."
+    },
+    {
+      "addr": "0x00439F6A",
+      "name": "Village_BalanceJob",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "int Village_BalanceJob(int county, int cluster, int fill)",
+      "comment": "One job against the idle pool, in PEOPLE rather than icons. shortfall = wanted < 1 ? 0 : wanted - workers; surplus = useful < 99999 ? workers - useful : 0. With a shortfall and fill set it draws min(idle, shortfall) out of cluster 6; otherwise it pushes the surplus back into cluster 6. The surplus branch is the blue outline's own test seen from the input side."
+    },
+    {
       "addr": "0x004393EB",
       "name": "Village_BandStart",
       "section": "ui",
@@ -5828,6 +5868,118 @@
     }
   ],
   "globals": [
+    {
+      "addr": "0x004E65FC",
+      "name": "g_mouseX",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Pointer x in 640x480 canvas pixels, scaled from the window by the frame poll at 0x004B2D5A."
+    },
+    {
+      "addr": "0x004E65F4",
+      "name": "g_mouseY",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Pointer y in canvas pixels."
+    },
+    {
+      "addr": "0x004E65CC",
+      "name": "g_mouseLeftDown",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "LEVEL, not an edge: the left button is down right now. (DAT_004EABC2 & 1), which the window procedure sets on WM_LBUTTONDOWN (0x201) and clears on WM_LBUTTONUP (0x202). This is the flag a drag reads - the split slider tracks on it."
+    },
+    {
+      "addr": "0x004EAFB4",
+      "name": "g_mouseLeftPressed",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The left button went DOWN this frame - the down edge of g_mouseLeftDown."
+    },
+    {
+      "addr": "0x004E65D8",
+      "name": "g_mouseLeftReleased",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The left button came UP this frame. Read wherever a click is acted on, which is most of the interface."
+    },
+    {
+      "addr": "0x004E8780",
+      "name": "g_mouseRightDown",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "LEVEL: the right button is down. (DAT_004EABC2 & 2)."
+    },
+    {
+      "addr": "0x004EABE0",
+      "name": "g_mouseRightPressed",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The right button went down this frame. Read five times in the binary and never to dismiss anything."
+    },
+    {
+      "addr": "0x004E6900",
+      "name": "g_mouseRightReleased",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The right button came up this frame. This is the one every 'click right to exit' arm reads."
+    },
+    {
+      "addr": "0x004EABC5",
+      "name": "g_mouseLeftDoubleClick",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "A left DOUBLE click arrived this frame: (DAT_004EADA1 & 1), set by the window procedure on WM_LBUTTONDBLCLK (0x203). Windows counts the clicks, not the game. Read in exactly one place - Village_DoubleClick - and setting it also clears g_mouseClickPending, so the deferred single click never fires behind it."
+    },
+    {
+      "addr": "0x004EA4B4",
+      "name": "g_mouseRightDoubleClick",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The right-button twin, from WM_RBUTTONDBLCLK (0x206). Computed every frame and never read."
+    },
+    {
+      "addr": "0x004EA4B0",
+      "name": "g_mouseInputChanged",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The pointer moved or a button changed state this frame. A drag reads it together with g_mouseLeftDown so that holding the button still does nothing."
+    },
+    {
+      "addr": "0x004E65E8",
+      "name": "g_mouseClickPending",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "A left release is waiting to find out whether it is half of a double click. Armed on release when g_mouseClickArm is set, with the position stashed in g_mouseClickX/Y; cleared by g_mouseLeftDoubleClick, or after 300 ms by setting g_mouseClickSettled."
+    },
+    {
+      "addr": "0x004EABF0",
+      "name": "g_mouseClickSettled",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The pending left click stood for more than 300 ms without a second one, so it really was a single click. Village_ClickJob - the job popup - is gated on this and on nothing else, which is why that popup opens a fraction after the button comes up."
+    },
+    {
+      "addr": "0x004E65F0",
+      "name": "g_mouseClickArm",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Set by the screen-0x02 arm of Screen_FrameInput at the end of a frame it did not consume, and it is what makes the NEXT release arm g_mouseClickPending. So the deferred click exists on the village and nowhere else."
+    },
+    {
+      "addr": "0x004EAC04",
+      "name": "g_mouseClickX",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Where the pending click was released. Village_ClickJob reads this rather than the live pointer, so the popup opens on the cluster the button came up over."
+    },
+    {
+      "addr": "0x004EAC08",
+      "name": "g_mouseClickY",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The y of the same."
+    },
     {
       "addr": "0x005CDD20",
       "name": "g_clipState",

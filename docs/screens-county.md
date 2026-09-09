@@ -281,14 +281,82 @@ at index 20. `scenarioIndex * 20 + countyId` lands on the county with no off-by-
 * **The 162 × 52 plate below it** — `Misc_cty` frame `0x42` (66) at (478, 250) — is drawn by
   `CountyStrip_Draw`, not by `Screen_DrawCampaign`, and it holds the **farm/industry labour
   split slider**: thumb frame `0x3D` (9 × 33) at (`share/2 + 532`, 262), or frame `0x55`
-  (13 × 37) two pixels up and left when the castle job has workers. `FUN_00439122` hit-tests
-  `x 478 … 639, y 257 … 296`: left of x = 531 steps the share down by four, right of x = 594
-  up by four, and on the track it is `((x - 531) * 2) & 0xFC` — masked, so the slider is not
-  continuous — clamped to 0 … 100.
+  (13 × 37) two pixels up and left **when the county has idle townsfolk** — §2.1.2.
+  `FUN_00439122` hit-tests `x 478 … 639, y 257 … 296`: left of x = 531 steps the share down
+  by four, right of x = 594 up by four, and on the track it is `((x - 531) * 2) & 0xFC` —
+  masked, so the slider is not continuous — clamped to 0 … 100. **It is a drag** — §2.1.1.
 * **The job rows** on the 162 × 128 plate at y = 302, laid out by `FUN_0040FEC1` into up to
   three farm rows and four industry rows at row heights 60 / 45 / 30 depending on the count,
   and clicked by `CountyStrip_JobClick` (`0x00438E3B`): farm left of x = 560, industry right
   of it, `row = (y - 302) / rowHeight`, opening screen `0x0F`.
+
+### 2.1.1 The split slider is a **drag**, and three flags say so **[V]**
+
+`FUN_00439122` is not a click handler. Its guard, verbatim:
+
+```c
+if (g_mouseLeftReleased == 0) {              /* DAT_004E65D8 — the up edge   */
+    if (g_mouseLeftDown == 0)      return 0; /* DAT_004E65CC — the level     */
+    else if (g_mouseMoved == 0)    return 0; /* DAT_004EA4B0                 */
+    else                           ...set the share...
+} else return 1;                             /* a release is eaten, not used */
+```
+
+Those globals are named by the frame poll at `0x004B2D5A`, which derives every one of them
+from the window procedure's messages: `WM_LBUTTONDOWN` / `WM_LBUTTONUP` set and clear
+`DAT_004EABC2 & 1`, from which the poll computes the level (`DAT_004E65CC`), the down edge
+(`DAT_004EAFB4`), the up edge (`DAT_004E65D8`); `DAT_004EA4B0` is set whenever the pointer
+moved or a button changed this frame.
+
+So: **held and moved, every frame, and nothing on the release.** Press-and-track, not the
+village's press-nine-pixels-release-click machinery of §6.4.1, and `g_screenId` is not
+touched anywhere in the function. It is tested on the campaign map *and* on the village, in
+that order, so it keeps working with the village inset open.
+
+### 2.1.2 The blue outline: eleven frames, `0x4B` … `0x55` **[V]**
+
+A player who had played the original reported *"there's no 'blue outline' for idle peasants
+(eg too many on dairy)"* and *"the peasant slider I think had a blue outline if there were
+idle peasants as well."* Both are in `CountyStrip_Draw`, and they are **two different
+tests**.
+
+**What the outline is.** Eleven frames of `Misc_cty.pl8`, a contiguous run. Each is drawn
+two pixels up and left of the plain frame it replaces, and ten of the eleven are exactly
+four pixels wider and four taller — a two-pixel ring around an unchanged picture. Every
+non-transparent pixel of that border is one of **three palette entries of `Base01.256`, all
+blue**: `95` = `rgb(0,0,121)`, `65` = `rgb(157,202,234)`, `64` = `rgb(194,230,255)`.
+`crates/l2-view/tests/install.rs` asserts both properties against the shipped file.
+
+| plain | ringed | what | condition |
+|---|---|---|---|
+| `0x21` | `0x4B` | the sheaf — grain, slot 0 | `labour[0].useful < labour[0].workers` |
+| `0x26` | `0x4C` | the cow — cattle, slot 1 | `labour[1].useful < labour[1].workers` |
+| `0x3F` | `0x4D` | field reclamation, slot 2 | `labour[2].useful < labour[2].workers` |
+| `0x40` | `0x4E` | the castle, slot 3 | `labour[3].useful < labour[3].workers` |
+| `0x30 + n` | `0x4F + n` | the industry, slot 7 | `labour[7].useful < labour[7].workers` |
+| `0x3D` | `0x55` | **the split slider's thumb** | `labour[8].workers != 0` |
+
+**The two tests are not the same one.** A produce icon is ringed when *that job* has more
+people on it than its own useful ceiling; the slider is ringed when *anybody at all* in the
+county is idle. Merging them is the mistake this section exists to prevent — and
+`crates/l2-game` had the second one written down as *"when the castle job has workers"*,
+which is slot 3 rather than slot 8.
+
+**It is the other end of a record already in use.** `labour[slot]` is three `i32` — workers,
+a wanted floor, a useful ceiling (§8, `docs/kingdom.md` §14). `Panel_JobDetail` colours the
+worker count red **below** the floor; the ring marks **above** the ceiling; and
+`Village_RebuildIcons` (§6.4.3) uses the same two words to decide which peasants in the
+village are drawn as the seated *idle* figure rather than as the job's own.
+
+**Two exceptions worth having written down.** The castle's `0x4E` is 32 × 34 against
+`0x40`'s 23 × 26 and is drawn six left and three up — it is a *different, larger picture*
+that also carries the ring, not the plain one inside one. And the industry pair is indexed
+`n` by a county byte at `+0x290` that is not named here; the file has six of each
+(`0x30` … `0x35`, `0x4F` … `0x54`), so `n` reaches 5.
+
+Three of the five right-hand rows — iron (`0x2C`), stone (`0x2D`) and wood (`0x2E`) — have
+**no** state test at all, and that follows: those three jobs are the ones whose ceiling is
+100,000, so nobody can ever be past it.
 
 ### 2.2 Unowned
 
@@ -1077,6 +1145,57 @@ Two rules inside the band that are not obvious from the outside: a band reaching
 second cluster **abandons the whole selection**, and **shortfall icons cannot be picked up**
 — `Village_BoxSelect` skips icon value 1 explicitly, because those figures stand for
 workers the job wants and has not got.
+
+### 6.4.1a The **double click** is a fourth verb, and Windows counts it **[V]**
+
+`Screen_FrameInput`'s screen-`0x02` ladder has an arm between `Village_BandStart` and
+`Village_ClickJob` that this document did not have: `Village_DoubleClick` (`0x00439DF0`).
+
+**The game never times the clicks.** The window procedure (`0x004B29BE`) handles message
+`0x203` — `WM_LBUTTONDBLCLK` — with `DAT_004EADA1 |= 1`, and the frame poll turns that into
+`DAT_004EABC5`. Windows decides, against the user's own `GetDoubleClickTime()`, and sends
+the double click **instead of** the second `WM_LBUTTONDOWN`, which is why the button-level
+flag never rises for it. `DAT_004EABC5` is read in exactly one place in the whole binary,
+and this is it. (Its right-button twin, `DAT_004EA4B4`, is computed and never read.)
+
+**The single click is deferred 300 ms to make room for it.** `Village_ClickJob` — the job
+popup — is gated not on the release but on `DAT_004EABF0`, which the poll sets only when
+`DAT_004E65E8` (a release that armed a pending click, position stashed in `DAT_004EAC04` /
+`DAT_004EAC08`) has stood for more than 300 milliseconds. A double click clears
+`DAT_004E65E8` in the poll itself, so the popup never opens behind the reassignment. **The
+job popup opening a fraction late is deliberate, not a stutter.**
+
+The hit region is `x 0x40 … 0x1FF, y top … top + 0x178` — the same box as the band except
+that it starts at the *picture's* left edge rather than at x = 0 — and `Village_GridAt`
+names the cluster, as it does for a drop.
+
+**What it does** is `FUN_00439EDB` → `FUN_00439F6A(county, cluster, fill)`:
+
+```c
+short   = wanted < 1      ? 0 : wanted - workers;
+surplus = useful < 99999  ? workers - useful : 0;
+if (short < 1 || !fill)  { if (surplus < 1) return 0;
+                           Labour_Move(county, cluster, 6, surplus); }
+else                     { if (idle == 0) return 0;
+                           Labour_Move(county, 6, cluster, min(idle, short)); }
+```
+
+Cluster 6 is *Idle townsfolk*. So **a job below its floor fills from the idle pool, and a
+job above its ceiling empties into it** — which is the player's *"double click idle peasants
+in a task to remove them from the task"*, and it is the same ceiling §2.1.2's blue ring
+tests. The count is in **people**, not icons: `popBand` is not involved.
+
+A double click on the idle cluster itself runs the whole village: every job sheds
+(`fill = 0`), and only then does every job fill (`fill = 1`). One pass would let whichever
+job came first take people the later ones needed.
+
+**And that loop reads two words past the end of its table.** It is
+`for (i = 0; i < 10; i++)` over `g_jobClusterToSlot`, which has **eight** entries. The two
+past the end are the head of the next table and are **4** and **6** — read out of the
+shipped binary at `0x004D67A0` by `crates/l2-view/tests/install.rs`. The effect is that the
+gesture covers all nine labour slots, because slot 4 (iron mining) is otherwise reachable
+only through cluster 0's quarry/mine override. Whether that was intended or is an overrun
+that happens to work, it is what the game does; `docs/bugs.md` carries it.
 
 ### 6.4.2 Where a drop lands is a **painted file** **[V]**
 

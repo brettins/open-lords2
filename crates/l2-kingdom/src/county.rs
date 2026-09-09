@@ -50,6 +50,17 @@ pub const LABOUR_NO_FLOOR: i32 = -1;
 /// before it bound anything.
 pub const LABOUR_UNBOUNDED: i32 = 100_000;
 
+/// The threshold `Village_BalanceJob` (`0x00439F6A`) treats as "no ceiling".
+///
+/// **`[V]`.** It guards its surplus arithmetic with `if (useful < 99999)`, one
+/// short of [`LABOUR_UNBOUNDED`] — so the double click sheds nobody from iron,
+/// stone or wood however many people are in them, which is right, because those
+/// three genuinely have no ceiling. It is written down separately rather than
+/// folded into the constant above because the two numbers are not the same and
+/// the difference is a real one: a hypothetical ceiling of exactly 99,999 would
+/// bind the allocator and not this gesture.
+pub const LABOUR_CEILING_IGNORED: i32 = 99_999;
+
 /// [`County::labour_useful`] for a job whose estimate has never run.
 ///
 /// **`[D]`.** The allocator (`FUN_0044F6E7`) opens by reading all eight

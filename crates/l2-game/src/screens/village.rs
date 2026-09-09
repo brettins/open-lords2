@@ -127,6 +127,11 @@ pub struct VillageScreen {
     selected: [bool; ICONS_PER_CLUSTER],
     /// `g_villageDragCount`, in icons rather than people.
     drag_count: i32,
+    /// A click that has landed and is **waiting to find out whether it is half
+    /// of a double click** — `DAT_004E65E8`, and the position it recorded in
+    /// `DAT_004EAC04` / `DAT_004EAC08`. The counter is ticks remaining; at zero
+    /// the click settles and opens the job popup, which is `DAT_004EABF0`.
+    pending_click: Option<(i32, i32, u32)>,
     /// **Ours**: what just happened, for a player who cannot see a cursor
     /// change.
     status: String,
@@ -142,6 +147,7 @@ impl VillageScreen {
             drag_cluster: 0,
             selected: [false; ICONS_PER_CLUSTER],
             drag_count: 0,
+            pending_click: None,
             status: String::new(),
         }
     }
@@ -323,6 +329,44 @@ impl VillageScreen {
         let top = Self::top_y(ctx);
         (0..=vill::BAND_X_MAX).contains(&x) && y >= top && y < top + vill::BAND_H
     }
+
+    /// `Village_DoubleClick` (`0x00439DF0`)'s own guard, which is **not**
+    /// [`VillageScreen::in_band_area`]: the band arms from x 0, the double
+    /// click only from x `0x40`, the left edge of the picture. Returns the
+    /// cluster it landed on, 1-based, or `None`.
+    fn double_click_cluster(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
+        let top = Self::top_y(ctx);
+        if x < vill::SCENE_X || x > vill::BAND_X_MAX || y < top || y >= top + vill::BAND_H {
+            return None;
+        }
+        let cluster = ctx.assets.village.as_ref()?.cluster_at(x, y, top);
+        (cluster != 0).then_some(cluster)
+    }
+
+    /// The double click, once a cluster is known — `FUN_00439EDB`.
+    fn balance(&mut self, ctx: &mut Ctx, cluster: usize) {
+        let moved = if cluster == vill::IDLE_CLUSTER {
+            ctx.game.balance_all_labour(self.county)
+        } else {
+            ctx.game.balance_labour(self.county, cluster, true)
+        };
+        self.status = if moved > 0 { format!("{moved} REASSIGNED") } else { "NOTHING TO DO".into() };
+    }
+
+    /// How many ticks a click waits before it counts as a click and not the
+    /// first half of a double one.
+    ///
+    /// **The original's number is 300 milliseconds** — the frame poll at
+    /// `0x004B2D5A` compares `timeGetTime() - DAT_004E59F8` against `300` and
+    /// only then sets `DAT_004EABF0`, the flag `Village_ClickJob` opens the job
+    /// popup on. Ours is in *ticks*, because nothing below `main.rs` is allowed
+    /// to read a clock (`docs/netcode.md`); at the 16 ms tick that file fixes,
+    /// nineteen ticks is 304 ms.
+    ///
+    /// It is why the job popup opens a fraction after the button comes up
+    /// rather than on it, and that delay is not an accident of ours: without it
+    /// there is nowhere for the double click to happen.
+    pub const CLICK_SETTLE_TICKS: u32 = 19;
 }
 
 impl Screen for VillageScreen {
@@ -347,6 +391,7 @@ impl Screen for VillageScreen {
                     return Transition::Pop;
                 }
                 self.clear_drag();
+                self.pending_click = None;
                 self.status = "CANCELLED".into();
             }
             Event::KeyDown(Key::Enter) => return Transition::Pop,
@@ -365,6 +410,25 @@ impl Screen for VillageScreen {
                             self.box_select(&*ctx);
                         }
                     }
+                }
+            }
+            // **`Village_DoubleClick` (`0x00439DF0`) is its own input arm**, and
+            // it is the only reader of the double-click flag in the whole
+            // binary. It sits *between* `Village_BandStart` and
+            // `Village_ClickJob` in `Screen_FrameInput`'s screen-`0x02` ladder,
+            // which is the order kept here: a drag in progress wins, then the
+            // double click, then — only once it has settled — the job popup.
+            Event::DoubleClick { x, y } => {
+                self.pointer = (x, y);
+                // The pending single click is cancelled outright: the original
+                // clears `DAT_004E65E8` the moment `DAT_004EABC5` is set, in
+                // the poll itself, so the popup never opens behind the move.
+                self.pending_click = None;
+                if self.phase != Phase::Idle {
+                    return Transition::Stay;
+                }
+                if let Some(cluster) = self.double_click_cluster(&*ctx, x, y) {
+                    self.balance(ctx, cluster - 1);
                 }
             }
             Event::Click { x, y } => {
@@ -395,13 +459,17 @@ impl Screen for VillageScreen {
                     }
                     Phase::Idle => {
                         // A press that never travelled nine pixels is a click,
-                        // and a click opens the job popup. Ownership is not
-                        // tested: you cannot reach the village of a county you
-                        // do not hold in the first place.
+                        // and a click opens the job popup — but **not yet**.
+                        // The original arms `DAT_004E65E8` here and opens the
+                        // popup only when 300 ms have gone by without a second
+                        // press (`Village_ClickJob` reads `DAT_004EABF0`, which
+                        // is that timer expiring). See
+                        // [`VillageScreen::CLICK_SETTLE_TICKS`]; `update` is
+                        // where it lands. Ownership is not tested: you cannot
+                        // reach the village of a county you do not hold in the
+                        // first place.
                         if self.anchor.take().is_some() {
-                            if let Some(job) = self.job_under(&*ctx, x, y) {
-                                return Transition::Push(ScreenId::Job(self.county, job));
-                            }
+                            self.pending_click = Some((x, y, Self::CLICK_SETTLE_TICKS));
                         }
                     }
                     Phase::Carry => {}
@@ -410,6 +478,21 @@ impl Screen for VillageScreen {
             _ => {}
         }
         Transition::Stay
+    }
+
+    /// The pending click's clock, and the one thing on this screen that happens
+    /// without an event arriving.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        let Some((x, y, left)) = self.pending_click else { return Transition::Stay };
+        if left > 1 {
+            self.pending_click = Some((x, y, left - 1));
+            return Transition::Stay;
+        }
+        self.pending_click = None;
+        match self.job_under(&*ctx, x, y) {
+            Some(job) => Transition::Push(ScreenId::Job(self.county, job)),
+            None => Transition::Stay,
+        }
     }
 
     /// **The village is an inset.** `Village_Draw` never clears — it repaints
