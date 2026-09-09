@@ -31,8 +31,8 @@ Each turn has seven phases in a fixed order:
 ## 2. What happens between seasons
 
 **The order is the rule.** Taxation reads the happiness that migration has not yet changed;
-population growth reads the happiness this turn already wrote. Twenty-five passes, in this
-sequence:
+population growth reads the happiness this turn already wrote. Thirty passes, in this
+sequence — and one of them, between the merchants and the muster, is an empty function:
 
 | # | pass | what it does |
 |---:|---|---|
@@ -57,10 +57,16 @@ sequence:
 | 19 | **Labour** | reassign every county's peasants to jobs, from scratch |
 | 20 | Migration | move people between neighbouring counties |
 | 21 | **Population** | births and deaths |
-| 22 | Score | rank the realms |
-| 23 | **Labour, again** | and once more, now that the newborns and the levies are counted |
-| 24 | History | write this season's line into the 400-season ring |
-| 25 | Ration preview | recompute each job's thresholds and what next season *would* cost |
+| 22 | Merchants | note which merchant is standing in which county |
+| 23 | Muster | recount the men under arms in each county |
+| 24 | Events expire | clear this season's event swings, so they last exactly one season |
+| 25 | **Labour, again** | and once more, now that the newborns and the levies are counted |
+| 26 | History | write this season's line into the 400-season ring |
+| 27 | Ration preview | recompute each job's thresholds and what next season *would* cost |
+
+**Scoring is not one of these passes.** It used to be listed here. `Score_RankRealms` is
+called when the turn phase advances and when a realm's strength is recounted, not at the end
+of the season — `docs/kingdom.md` §3.4.
 
 Weapons are made **first**, before the ore is mined — so the blacksmith always spends last
 season's iron.
