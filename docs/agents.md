@@ -253,6 +253,33 @@ worth applying to the next process rule this file gains: **prefer the version a 
 enforces over the version an agent is asked to remember**, and if you write the second, plan
 to replace it with the first.
 
+## A tool that degrades silently is worse the more people use it
+
+`tools/oracle/decompile-all.ps1` **exits non-zero** when `ApplySymbols` or
+`ApplyRecords` drops an entry, and `tools/symbols/symbols_md.js --check` refuses four
+shapes of `signature` field that cause it. Both exist because of the same two incidents,
+two days apart:
+
+    void __cdecl Setup_SetOption(int, int)   a calling convention, which Ghidra's
+                                             C parser rejects outright
+    int g_goodsStall[14][5]                  a data table filed under "functions"
+
+**Each was dropped on every rebuild, and the pipeline reported success both times.** The
+name never reached the corpus; `ApplySymbols` printed one line among a hundred; an
+integrator happened to read it. That is not a control.
+
+The general shape is the one this file keeps returning to: **the dangerous tool failure is
+not the one that errors, it is the one that returns a clean, plausible, wrong answer.**
+Five of the six tool defects logged in `docs/decisions.md` are of that kind — `litNum`
+reading `''` as the letter b, `anchor.js` inventing six coherent screen ids, a rename
+unhooking `ENG_CALLS`, and these two. Every one produced output that looked right. Every
+one was caught by something *external* contradicting it, never by the tool noticing itself.
+
+So when you write or change a tool here, ask what it does when it half-works, and make that
+case loud. And do not hesitate to add a check to a tool other people depend on: **a tool
+that degrades silently is worse the more people use it**, so shared use is the argument for
+the check and not against it.
+
 ## Prior art first
 
 Before commissioning a reverse-engineering task, spend five minutes searching for existing

@@ -36,6 +36,54 @@ const fail = m => { console.error('symbols_md: ' + m); process.exit(1); };
       if (seenAddr.has(e.addr)) fail(`address ${e.addr} used twice (${seenAddr.get(e.addr)}, ${e.name})`);
       if (seenName.has(e.name)) fail(`name ${e.name} used twice (${seenName.get(e.name)}, ${e.addr})`);
       seenAddr.set(e.addr, e.name); seenName.set(e.name, e.addr);
+
+      // ---- the `signature` field must agree with the array it sits in -------
+      //
+      // `ghidra_scripts/ApplySymbols.java` feeds this string to Ghidra's C
+      // parser and applies the result at the entry's address. When the string
+      // does not parse, or parses as something that is not a function, the
+      // entry is **dropped on every rebuild** — the name never reaches the
+      // corpus, `ApplySymbols` prints one line, and the pipeline as a whole
+      // still reports success. Two entries did that on two consecutive days:
+      //
+      //   void __cdecl Setup_SetOption(int, int)   - a calling convention,
+      //                                              which the parser rejects
+      //   int g_goodsStall[14][5]                  - a data table filed under
+      //                                              `functions`
+      //
+      // Both were found by an integrator reading output nobody is required to
+      // read. These four rules catch that whole class here instead, before
+      // Ghidra is involved, and they run anywhere.
+      if (kind === 'globals' && e.signature)
+        fail(`${e.name} (${e.addr}) is a global and carries a "signature".\n`
+          + `  A signature is a function's field. If this is really a function, move the entry\n`
+          + `  to "functions"; if it is data, put its shape in the comment instead.`);
+      if (kind === 'functions' && e.signature) {
+        const sig = e.signature;
+        if (!/\(.*\)/.test(sig))
+          fail(`${e.name} (${e.addr}): signature has no parameter list.\n`
+            + `      ${sig}\n`
+            + `  Ghidra applies this as a function prototype, so it needs "(...)" - use "(void)"\n`
+            + `  for one that takes nothing. If this entry is data, move it to "globals".`);
+        if (/\[\s*\d*\s*\]/.test(sig))
+          fail(`${e.name} (${e.addr}): signature declares an array, so it is data, not a function.\n`
+            + `      ${sig}\n`
+            + `  Move the entry to "globals", drop the "signature" field, and put the shape at the\n`
+            + `  front of the comment. ApplySymbols would otherwise look for a function at this\n`
+            + `  address, find data, and silently drop the name on every rebuild.`);
+        const cc = sig.match(/__(cdecl|stdcall|fastcall|thiscall)/);
+        if (cc)
+          fail(`${e.name} (${e.addr}): signature carries the calling convention "__${cc[1]}".\n`
+            + `      ${sig}\n`
+            + `  Ghidra's C parser refuses it there ("Can't resolve return type") and drops the\n`
+            + `  whole signature. Delete "__${cc[1]}" - the convention is Ghidra's to infer, and it\n`
+            + `  re-emits it in the decompiled corpus by itself.`);
+        if (!sig.includes(e.name))
+          fail(`${e.name} (${e.addr}): signature does not name its own symbol.\n`
+            + `      ${sig}\n`
+            + `  ApplySymbols matches the declared name against the entry; a signature naming\n`
+            + `  something else is applied to the wrong thing or not at all.`);
+      }
     }
 
   // ---- and on docs/hypotheses.json, which is the other half of the same rule.
