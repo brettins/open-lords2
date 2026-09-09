@@ -365,5 +365,6 @@ against what is merely known.
 
 And a standing caution, learned twice the hard way: **the England turn-one fixture exercises one narrow
 slice of these rules.** Every county in it sits at tax rate 0 with a well-staffed herd, which
-is exactly why two wrong rules survived 932 passing tests. A rule that looks right in the
+is exactly why two wrong rules survived **932 passing tests** — a frozen figure, the size of
+the suite on the day it happened (`docs/decisions.md` C26), not a current count. A rule that looks right in the
 save may still be wrong everywhere else.

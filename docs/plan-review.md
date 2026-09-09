@@ -3,6 +3,10 @@
 Commissioned by the plan itself. Everything below was measured; every claim carries the
 command or the file that produced it. Where I could not settle something, I say so.
 
+**Every count in this document is frozen at the day it was written** — it is a review, and
+its numbers are the evidence for what it found. Do not update them to today's figures;
+re-run the commands instead, and write a new review if the answers have changed.
+
 ---
 
 ## Verdict
@@ -335,6 +339,9 @@ it, and to make the first pass the version that does not need a map unit at all 
 * `docs/status.html` says 711 tests. Measured 727 (`cargo test --workspace`, summing
   `test result: ok. N passed`). It also says *"230 functions named"* while `symbols.json`
   now carries more. Neither is load-bearing, but the plan quotes 711 as evidence.
+  *(This was the first sighting of a defect that then recurred for weeks: a document
+  quoting a measurement that nothing recomputes. Both figures are now generated —
+  `node tools/figures/figures.js`, checked in CI.)*
 * Workstream B's mitigation — *"do it in one pass, alone, and land it before anything else
   touches the crate"* — is already violated. `l2-kingdom` changed twice during this review
   (`e486803`, plus six modified files in `git status` that were committed mid-review). That

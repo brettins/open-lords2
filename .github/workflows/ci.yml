@@ -41,6 +41,21 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
+      # Two documents state measurements about this tree - README's test and
+      # function counts, status.html's gauges. Nothing recomputed them, so they
+      # drifted: README said 958 tests against 1,221, status.html said 230
+      # functions named against 465. A document quoting a measurement that
+      # nothing checks is a test that cannot fail, so these are generated and
+      # checked here. `figures.js` re-runs the suite against the warm target
+      # directory, which costs a few seconds.
+      - name: Documented figures are current
+        run: node tools/figures/figures.js --check
+
+      # symbols.md is generated from symbols.json the same way, and for the same
+      # reason. Four agents can append to the database in an afternoon.
+      - name: symbols.md is current
+        run: node tools/symbols/symbols_md.js --check
+
   # Everything except `l2-game` is dependency-free on purpose: deterministic
   # lockstep means no floats where ordering matters, a seeded PRNG frozen
   # in-tree, and no iteration whose order depends on hashing (docs/netcode.md).

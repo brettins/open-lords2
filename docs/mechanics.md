@@ -309,4 +309,6 @@ minutes the first time anyone asked.
 Particularly worth doubting: anything involving **things that move on the campaign map**
 (armies, merchants, transports), anything about **what happens between turns**, and any
 rule that only shows up at values the England turn-one fixture never reaches — that last category has
-already produced two wrong rules today, both invisible to 932 tests.
+already produced two wrong rules today, both invisible to **932 tests** — that count is
+frozen at the day it happened (`docs/decisions.md` C26); the suite is far larger now and
+that is exactly the point.

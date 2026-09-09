@@ -29,13 +29,17 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 | **Sieges** | traced end to end, built nowhere. 14 of 17 battle AI handlers are siege-only and unreachable |
 | Merchants, diplomacy, armies | documented in detail, implemented barely or not at all |
 
-**958 tests pass**, and roughly a third of them assert things read out of the original
-binary rather than out of our own heads.
+**<!--fig:tests-->1,221<!--/fig--> tests pass**, and roughly a third of them assert things
+read out of the original binary rather than out of our own heads.
 
 Two honest caveats. The one shipped save we test against exercises a narrow slice of the
 rules — every county in it sits at tax rate 0 with a well-staffed herd — and that is exactly
-how two wrong rules once survived 932 passing tests. And of the executable's 2,452
-functions, we have identified **422**, plus 298 globals; most of the program is still dark.
+how two wrong rules once survived **932 passing tests** *(that figure is deliberately frozen:
+it is the size of the suite at the moment `docs/decisions.md` C26 describes, and correcting
+it to today's number would destroy the thing it records)*. And of the executable's
+<!--fig:binary-functions-->2,452<!--/fig--> functions, we have identified
+**<!--fig:functions-->465<!--/fig-->**, plus <!--fig:globals-->308<!--/fig--> globals; most
+of the program is still dark.
 
 ## The idea that shapes everything
 
@@ -88,7 +92,7 @@ networking.
 ## Building and testing
 
 ```powershell
-cargo test                                     # 958 tests; no game install needed
+cargo test                                     # the whole suite; no game install needed
 
 $env:LORDS2_DIR = 'F:\games\Lords of the Realm II'
 cargo test -- --nocapture                      # + corpus validation against a real install

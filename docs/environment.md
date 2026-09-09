@@ -74,7 +74,9 @@ the working tree.
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 
-# What CI runs: no install, no fixtures. 116 tests skip, and say so.
+# What CI runs: no install, no fixtures. The install-gated tests skip and say
+# so; crates/l2-testkit/tests/census.rs names every one of them and prints how
+# many the current environment satisfies.
 cargo test --workspace
 
 # Everything, including the corpus and the fixture-gated suites.

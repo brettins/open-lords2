@@ -1,6 +1,6 @@
 # Netcode
 
-**Status: implemented in `crates/l2-net` — 202 tests, zero dependencies, including a
+**Status: implemented in `crates/l2-net` — its own suite, zero dependencies, including a
 TCP transport whose tests open real sockets.** The battle simulation now runs through it:
 `crates/l2-sim/tests/lockstep.rs` drives two peers over a real socket and asserts identical
 state on every tick.
@@ -75,7 +75,7 @@ one that could ever have run on this build.
 > ## Corrected by the implementation — read this before the design below
 >
 > Building this design found **ten places where it is wrong**. Where the document and the
-> crate disagree, **the crate is right**: it has 181 tests and the document has none. The
+> crate disagree, **the crate is right**: it is tested and the document is not. The
 > sections below are left as written; this is the errata.
 >
 > 1. **§4's per-tick hash silently skips ticks.** A peer does not simulate exactly one tick
@@ -122,9 +122,11 @@ one that could ever have run on this build.
 >     everyone after it was skipped: a host whose player 2 has just dropped never sends the
 >     turn to players 3, 4 and 5, and the game stops with no error near the cause.
 >     `Loopback` cannot produce that failure at all, since a partitioned peer still returns
->     `Ok`, so 181 tests passed over it and one real socket plus one ordinary disconnect
->     found it. **Now fixed in the core**: every peer is attempted, the first error reported
->     afterwards.
+>     `Ok`, so **181 tests** passed over it and one real socket plus one ordinary disconnect
+>     found it *(181 is frozen: it is the size of the crate's suite on the day this was
+>     found, and the point is that all of them passed — updating it to today's number would
+>     erase the measurement)*. **Now fixed in the core**: every peer is attempted, the first
+>     error reported afterwards.
 > 13. **`peers()` is necessary but not sufficient.** The trait cannot say *why* a peer went,
 >     or guarantee that everything it sent was handed over first — and a caller that halts
 >     on disconnect without that ordering discards its peer's final tick packets.
