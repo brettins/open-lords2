@@ -82,7 +82,7 @@ fn the_four_unit_geometry_tables_are_the_bytes_in_the_executable() {
     // row 1, 1 at row 5 and 3 at row 7 leave only this ordering, and it is the
     // order of `Troop`. If the enum were reordered the four asserts above would
     // still pass, silently comparing the wrong rows - this is what would not.
-    assert_eq!(t.i32_at(1 * COLS + 3), 2, "row 1 carries a crossbow");
+    assert_eq!(t.i32_at(COLS + 3), 2, "row 1 carries a crossbow");
     assert_eq!(t.i32_at(5 * COLS + 3), 1, "row 5 carries a bow");
     assert_eq!(t.i32_at(7 * COLS + 3), 3, "row 7 is the catapult");
     assert_eq!(Troop::Crossbowmen.index(), 1);

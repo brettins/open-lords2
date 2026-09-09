@@ -34,6 +34,10 @@
 //! `0x004D6520 + 40` is exactly where `g_healthHappiness` begins, so the health
 //! band ladder is five pairs and not six.
 
+// The loops below index by `[rationLevel][healthBand]` on purpose: those are the
+// table's own coordinates and a failure message that names them is the point.
+#![allow(clippy::needless_range_loop)]
+
 use l2_kingdom::tables::{
     Tables, BIRTH_RATE_LADDER, CASTLE_FREE_ARCHERS, CASTLE_GARRISON_CAP, DEATH_RATE_BY_HEALTH,
     GOOD_SELL_PRICE, HEALTH_BAND_LADDER, HEALTH_DELTA, HEALTH_HAPPINESS, HERD_WEATHER_PCT,
