@@ -60,7 +60,7 @@
 //! [`Style`] carries both, because a font that cannot say "flat, capitals in
 //! colour 1" cannot draw the game's own title screen.
 
-use l2_formats::{DecodedFrame, Pl8};
+use l2_formats::DecodedFrame;
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
@@ -139,10 +139,6 @@ impl Style {
 /// One of the original's fonts.
 pub struct Font {
     sheet: Sheet,
-    /// Frame record byte `0x0D` for every frame, read once. `Sheet` decodes
-    /// pixels and does not keep the records, and this is the one field of a
-    /// record the text blitter needs.
-    overhang: Vec<u8>,
     /// The height the game lays lines out on. Not read out of the file — the
     /// painters position every line absolutely — but useful for a shell that
     /// has to place a line the original never drew.
@@ -157,22 +153,24 @@ pub const SMALL: &str = "Fntl2_9.pl8";
 
 impl Font {
     pub fn new(bytes: Vec<u8>, line: i32) -> Result<Font, String> {
-        let overhang = Pl8::parse(&bytes)
-            .map_err(|e| e.to_string())?
-            .frames
-            .iter()
-            .map(|f| f.overhang_rows)
-            .collect();
         let sheet = Sheet::new(bytes).map_err(|e| e.to_string())?;
-        Ok(Font { sheet, overhang, line })
+        Ok(Font { sheet, line })
     }
 
-    /// The frame for a character, and the glyph's own vertical offset — frame
-    /// record byte `0x0D`, which `Glyph_Draw` adds to `y` before clipping.
+    /// The frame for a character.
+    ///
+    /// **`Glyph_Draw`'s `y += frameRecord[0x0D]` is already in the frame.** The
+    /// decoder reserves those rows at the top of the canvas and puts the
+    /// rectangle below them, so a glyph canvas is positioned by its own top
+    /// edge and this function has nothing left to add. It used to add the count
+    /// a second time, which cost every `0x0D = 3` glyph in `Fntl2_14.pl8` —
+    /// `a c e m n o s u x z` and the descenders — three pixels of drop, while
+    /// `b d f h i k l t` and `?` stayed put because their count is zero. That
+    /// is the exact split a player reported off a screenshot.
     ///
     /// `None` for a character the map sends nowhere: a space, or one of the
     /// punctuation marks the font simply does not have.
-    fn glyph(&self, c: char) -> Option<(DecodedFrame, i32)> {
+    fn glyph(&self, c: char) -> Option<DecodedFrame> {
         let code = c as u32;
         if code < GLYPH_MAP_BASE as u32 {
             return None;
@@ -182,9 +180,7 @@ impl Font {
         if entry == 0 {
             return None;
         }
-        let index = entry as usize - 1;
-        let frame = self.sheet.frame(index)?;
-        Some((frame, self.overhang.get(index).copied().unwrap_or(0) as i32))
+        self.sheet.frame(entry as usize - 1)
     }
 
     /// How wide a string draws. `FUN_004014F0`: four for a space, else the
@@ -194,17 +190,18 @@ impl Font {
     pub fn width(&self, s: &str) -> i32 {
         s.chars()
             .map(|c| match self.glyph(c) {
-                Some((f, _)) => f.width as i32 + 1,
+                Some(f) => f.width as i32 + 1,
                 None => SPACE_ADVANCE,
             })
             .sum()
     }
 
     /// The height of the tallest glyph in a string, for laying out a line the
-    /// original placed by hand.
+    /// original placed by hand. The frame's own height already counts the rows
+    /// reserved above the rectangle, so there is nothing to add to it.
     pub fn height(&self, s: &str) -> i32 {
         s.chars()
-            .filter_map(|c| self.glyph(c).map(|(f, o)| f.height as i32 + o))
+            .filter_map(|c| self.glyph(c).map(|f| f.height as i32))
             .max()
             .unwrap_or(self.line)
     }
@@ -233,18 +230,18 @@ impl Font {
     pub fn draw(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, style: &Style) -> i32 {
         let mut pen = x;
         for c in s.chars() {
-            let Some((frame, over)) = self.glyph(c) else {
+            let Some(frame) = self.glyph(c) else {
                 pen += SPACE_ADVANCE;
                 continue;
             };
             // The order the original draws in: above, below, then the real one
-            // on top of both. `over` is the glyph's own offset and applies to
-            // all three, because `Glyph_Draw` adds it every time it is called.
+            // on top of both. The glyph's own vertical offset is inside the
+            // frame — see `glyph` — so all three share `y` and nothing else.
             if let Some((up, down)) = style.shadow {
-                Font::blit_mask(canvas, &frame, pen, y - 1 + over, up);
-                Font::blit_mask(canvas, &frame, pen, y + 1 + over, down);
+                Font::blit_mask(canvas, &frame, pen, y - 1, up);
+                Font::blit_mask(canvas, &frame, pen, y + 1, down);
             }
-            Font::blit_mask(canvas, &frame, pen, y + over, style.colour_of(c));
+            Font::blit_mask(canvas, &frame, pen, y, style.colour_of(c));
             pen += frame.width as i32 + 1;
         }
         pen - x
