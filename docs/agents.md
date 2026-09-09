@@ -385,6 +385,19 @@ What it costs: an agent's own branch reads `CNEW-hover` instead of `C61` while t
 flight. That is a branch, and it is correct that a number which has not been allocated does not
 appear.
 
+**It covers `docs/bugs.md`'s B-numbers in the same change, because they are the same race with
+less protection.** Three branches took overlapping B-numbers tonight — two claimed `B64` and two
+claimed `B65` — and unlike the C-numbers there is no lint on them at all. `BNEW-<slug>` and the
+same `--assign` pass.
+
+**The detail that makes the case is that one collision merged silently.** Two branches both added
+a `C63` heading, at different offsets in `decisions.md`, with unrelated text around them. Git
+saw two additions in different places and took both — no conflict, no marker, nothing to resolve.
+The duplicate was found by grepping for it afterwards, on a hunch. So the failure is not *"someone
+forgot to check"*; it is **the tool that should have refused had no reason to**, and a convention
+policed by human attention is exactly what fails that way. A placeholder cannot collide silently,
+because there is nothing to collide.
+
 What it does not fix, said plainly: **two agents writing corrections about the same thing.** That
 is a content collision, not a numbering one, and no tool resolves it — it is the coordinator
 knowing what is in flight. Today's three were three genuinely different subjects that happened to
@@ -399,6 +412,41 @@ collision will be between two branches that both cite the same file, and the han
 failure mode there is a citation quietly renumbered to point at the wrong correction: a wrong
 pointer into the log the project trusts most, which is the failure mode recorded above under
 *The correction log can be wrong*.
+
+## A correct experiment can produce a wrong inference, and twice today one did
+
+Every other entry under this heading is a tool returning **wrong output**. These two returned
+**right output** and were read to mean something it could not mean, which is a different failure
+and needs its own line, because the defence is different: checking the output harder would not
+have helped either time.
+
+**The first was the county-selection arm.** `Map_Click` was read, an arm was found, and the
+conclusion drawn was that C58 had been wrong to deny it. Every step of the reading was accurate
+except the one that mattered: what was found was the *prologue of the industry branch*, and the
+question being answered — *"is there a free-standing selection arm?"* — was never actually put to
+the text. `docs/decisions.md` C61.
+
+**The second was worse, because it was an experiment designed on purpose.** The question was
+whether the lockstep digest covers a given field. The experiment was to remove the field from the
+encoder and count the tests that went red. Both of us — the agent running it and the coordinator
+who asked for it — read the red tests as an answer. **They could not be one.**
+`Canonical::hash_of` *is* `value.encode(&mut c)`, so the digest is a projection *through* the
+encoder: a field absent from the encoder is absent from the digest on every peer identically, and
+removing it can only ever make round-trip assertions fail. The experiment measured whether the
+round trip works. It was structurally incapable of measuring the thing it was run to measure, and
+it returned a clean number either way.
+
+The sharp illustration, which is the thing to quote:
+`ten_seasons_from_a_reloaded_game_are_the_same_ten` **passes with the field dropped.** It saves a
+played game, reloads it, and compares the digest after each of ten further seasons. The reloaded
+kingdom genuinely *is* a different world — a mine with no ore behaves differently from one with
+ore — and ten seasons of that divergence never moved the number.
+
+**What generalises.** Before running an ablation, say which artefact you expect to fail and *why
+it is downstream of the thing you are testing*. If the answer is "the digest", check whether the
+digest is built from the thing being ablated. And read *which* tests went red, not how many — the
+count was wrong too (two, not eight), and the count being wrong was the less important error.
+`docs/decisions.md` C65.
 
 ## A tool that degrades silently is worse the more people use it
 

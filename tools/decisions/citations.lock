@@ -156,6 +156,9 @@ crates/l2-sim/tests/oracle.rs	C17	0f5dbd453b42
 crates/l2-sim/tests/oracle.rs	C20	d336abeab0e5
 crates/l2-testkit/src/lib.rs	C1	365a5efbf069
 crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8
+crates/l2-testkit/tests/encoding.rs	C65	5ad0593919a3
+crates/l2-testkit/tests/encoding.rs	C65	7f6b8095108a
+crates/l2-testkit/tests/encoding.rs	C65	d4a0d532e933
 crates/l2-view/src/campaign.rs	C49	38f05e43397f
 crates/l2-view/src/campaign.rs	C57	cc211f4ea532
 crates/l2-view/src/campaign.rs	C58	f81f70509bd8
@@ -190,8 +193,10 @@ docs/agents.md	C58	42ea4231d15b
 docs/agents.md	C58	73d47d0aa6ca
 docs/agents.md	C58	d01a271ab703
 docs/agents.md	C61	629e9991f82f
+docs/agents.md	C61	e1ddf1123513
 docs/agents.md	C61	f21353298644
-docs/agents.md	C61	ff04cc74ebdb
+docs/agents.md	C63	a7d03c7622df
+docs/agents.md	C65	e032e30648d5
 docs/armies.md	C12	107ce66c22f6
 docs/armies.md	C13	01136a71a801
 docs/armies.md	C25	0e1a3d3b6e2c

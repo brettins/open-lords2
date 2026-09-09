@@ -2989,9 +2989,47 @@ times. It is cheap, it goes red on the commit that adds the field, and it needs 
 clever. The alternative — making the fixture derived — cannot be done in Rust without a macro,
 and a macro that generates the thing under test would be the same mistake one level down.
 
-Until it exists, the rule to state plainly wherever coverage is claimed: **"the digest covers it"
-is not a sentence anybody can support by running the digest.** Ablate the encoder and read
-*which* tests go red, not how many.
+**Built, and falsified before being believed.**
+`crates/l2-testkit/tests/encoding.rs` reads the source text: every `impl Encode`/`impl Decode`
+pair, the struct's field list, and the assertion that each field is named in both halves. **220
+fields across 21 types.** Two experiments, both red, both with the field named in the message:
+dropping `out.bool(self.has_resource)` from the encoder — *the exact case the digest passes* —
+and adding a field to `County` that nothing encodes.
+
+Writing it reproduced this project's commonest tool failure twice, which is worth recording
+because both were clean, plausible and wrong. Resolving a codec's type by short name across the
+workspace matched `l2_formats::save::Unit` for `l2_kingdom::unit::Unit`, reporting twelve fields
+of the raw `.sav` record as missing from a codec that has never seen them; and it matched
+`l2_kingdom::trade::Order` for a test fixture in `l2-net`, reporting six more. Both were caught
+by *reading the failures* rather than by counting them — 24 findings looked like a productive
+first run. Resolution is now required to be same-crate, and a name that will not resolve there is
+reported as unverifiable rather than answered about the wrong type.
+
+**Two limits, stated because an unstated limit gets trusted past.**
+
+1. **It cannot say a field is encoded *correctly*.** `out.u8(self.a)` written twice and
+   `self.b` never passes this check and is wrong. It proves nothing was *forgotten*.
+2. **It does not reach the importer, which is where both live instances actually are.** This is
+   the part that revises the proposal as approved. `County::farm_style` was not dropped by
+   `l2-kingdom`'s encoder — it was dropped by `l2-scenario` building a `County` from a `.sav`,
+   a path that never touches `encode`. **This check would not have caught it, and will not catch
+   `Unit::mission` either** — a field that does not yet exist on `main`, so it could not be the
+   proof it was asked to be.
+
+**And the importer's fix is not a lint at all.** It builds its structs by assignment onto a
+default — `c.farm_style = s.farm_style;`, forty-odd lines of them — so a forgotten field is
+silently left at zero. **A struct literal with no `..` makes every one of those omissions a
+compile error**, enforced by rustc, permanently, for free, and with no scanner to go wrong. That
+is strictly better than anything in this entry and it is the work to schedule: the two fields we
+know about, and every future one, in a construct the compiler already checks.
+
+So the honest summary: the source-text check **narrows** the hole on the half of the boundary it
+can see. It does not close it, and the half it cannot see is the half that has actually bitten us
+twice.
+
+Until the importer is converted, the rule to state plainly wherever coverage is claimed: **"the
+digest covers it" is not a sentence anybody can support by running the digest.** Ablate the
+encoder and read *which* tests go red, not how many.
 
 ## Open questions
 
