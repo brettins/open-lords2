@@ -179,6 +179,7 @@ crates/l2-scenario/tests/newgame.rs	C23	4b471e07b88e
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab
+crates/l2-sim/src/siege.rs	C3	0f9889cc0837
 crates/l2-sim/src/troop.rs	C11	f3ee142fc544
 crates/l2-sim/tests/lockstep.rs	C39	1983d0f73f54
 crates/l2-sim/tests/lockstep.rs	C39	6cb87bcb548b

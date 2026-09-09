@@ -64,3 +64,11 @@
 docs/symbols.json    merge=l2json
 docs/hypotheses.json merge=l2json
 docs/records.json    merge=l2json
+#
+# `docs/arms.json` is here for a sharper reason than the others: THREE agents are
+# writing it concurrently, and it carries both `id` and `addr` with 42 records
+# across 23 addresses, because one function can hold several input arms. Keyed on
+# `addr` the driver would have collapsed 42 records into 23 and thrown 19 away in
+# silence -- so `id` outranks `addr` in KEY_FIELDS, and `merge-json.js --check`
+# refuses any array whose chosen key is not unique.
+docs/arms.json       merge=l2json

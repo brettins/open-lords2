@@ -35,8 +35,43 @@ fn root() -> PathBuf {
         .to_path_buf()
 }
 
-/// The three files `.gitattributes` marks `merge=l2json`.
-const KEYED: &[&str] = &["docs/symbols.json", "docs/hypotheses.json", "docs/records.json"];
+/// The files `.gitattributes` marks `merge=l2json`.
+///
+/// `docs/arms.json` is the one that matters most and was the last to be added:
+/// **three agents are writing it at once**, and it carries both `id` and `addr`
+/// with 42 records across 23 addresses, because one function can hold several
+/// input arms. Merged on `addr` the driver would have collapsed those 42 into 23
+/// and discarded 19 in silence.
+const KEYED: &[&str] =
+    &["docs/symbols.json", "docs/hypotheses.json", "docs/records.json", "docs/arms.json"];
+
+/// Every file `.gitattributes` hands to the driver is in [`KEYED`], and every
+/// file in [`KEYED`] is handed to the driver.
+///
+/// The two lists are maintained by different work — one by whoever adds a file
+/// to the driver, one by whoever adds a test — so they must agree, which is the
+/// only shape of check that has ever caught anything here. Adding
+/// `docs/arms.json` to `.gitattributes` and forgetting it here would have left
+/// the file this test exists for outside the test.
+#[test]
+fn the_attributes_file_and_this_test_name_the_same_keyed_files() {
+    let text = std::fs::read_to_string(root().join(".gitattributes")).expect(".gitattributes");
+    let mut declared: Vec<String> = text
+        .lines()
+        .filter(|l| l.contains("merge=l2json") && !l.trim_start().starts_with('#'))
+        .filter_map(|l| l.split_whitespace().next())
+        .map(|s| s.to_string())
+        .collect();
+    declared.sort();
+    let mut expected: Vec<String> = KEYED.iter().map(|s| s.to_string()).collect();
+    expected.sort();
+    assert_eq!(
+        declared, expected,
+        "The .gitattributes file and KEYED disagree about which files merge by key. \
+         A file in one and not the other is either merged by a driver nothing \
+         checks, or checked by a test no merge will ever use."
+    );
+}
 
 /// **Every address-keyed array is in address order.**
 ///
@@ -112,6 +147,36 @@ fn every_address_keyed_array_is_in_address_order() {
          sorts what it merges, so re-running a merge through the driver fixes this).",
         wrong.len(),
         wrong.join("\n"),
+    );
+}
+
+/// **Every keyed array's key is actually unique**, asked of the driver itself.
+///
+/// This is the invariant a keyed merge silently depends on: if the key the
+/// driver picks is not unique, merging *deletes* one entry per collision, and
+/// the result parses and reads plausibly. `arms.json` is exactly that trap —
+/// `addr` looks like the key and is not.
+///
+/// It shells out to `merge-json.js --check` rather than reimplementing
+/// `KEY_FIELDS` here **on purpose**. A Rust copy of the key rule would be a
+/// second list that can drift from the first, which is the failure this whole
+/// area is about; the driver's own logic is what a merge will use, so the
+/// driver's own logic is what has to be asked.
+#[test]
+fn every_keyed_arrays_key_is_unique() {
+    let root = root();
+    let mut cmd = Command::new("node");
+    cmd.arg("tools/symbols/merge-json.js").arg("--check");
+    for rel in KEYED {
+        cmd.arg(rel);
+    }
+    let Ok(out) = cmd.current_dir(&root).output() else {
+        return; // no node on this machine; the CI job has one
+    };
+    assert!(
+        out.status.success(),
+        "a keyed array has a non-unique key, so merging it would delete entries:\n{}",
+        String::from_utf8_lossy(&out.stderr),
     );
 }
 

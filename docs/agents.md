@@ -253,6 +253,68 @@ worth applying to the next process rule this file gains: **prefer the version a 
 enforces over the version an agent is asked to remember**, and if you write the second, plan
 to replace it with the first.
 
+## Ablate the line, or you have not tested anything
+
+**This is the practice that would have caught most of what follows, and it takes thirty
+seconds.** It is at the top of the testing sections for that reason: the individual traps below
+are worth reading, but this is the one habit that finds them without knowing which one you are
+in.
+
+> **Delete the exact line the assertion claims to be about, and watch the test go red.**
+>
+> A test written against a passing tree has never been observed failing, and until it has,
+> *"it passes"* is a statement about the tree and not about the test.
+
+Not the code near it. Not a plausible neighbour. The line the assertion names.
+
+### The case that made it a rule
+
+The title screen carries a build stamp — short commit and date — because a player spent an
+evening reporting already-fixed defects against a binary four merges old. A test was written to
+assert it is on screen: count the non-background pixels in the band where the stamp is drawn,
+and require enough of them.
+
+It passed.
+
+**It also passed with the line that draws the stamp deleted.** The title page carries a
+full-screen `gateway.pl8`, so no pixel down there is background, and the test had been measuring
+the artwork the whole time. Nothing about it looked wrong. The threshold had been chosen by
+looking at what the passing case produced — which is exactly how a test comes to describe the
+status quo rather than the claim, and it is a very easy thing to do while being careful.
+
+Thirty seconds of ablation found it. Nothing else would have, until the day the draw call was
+lost in a merge and the stamp quietly stopped appearing — which is the specific failure the
+stamp exists to prevent, so the test would have failed at precisely the moment it mattered.
+
+### Idempotence is a stronger assertion than effect
+
+The replacement is worth recording as a technique, because it applies well beyond this screen:
+
+**Where an operation is idempotent, assert idempotence rather than an effect.**
+
+Draw the page. Copy it. Draw the stamp **again** onto the copy. Require the two canvases to be
+*identical*. Text is an opaque blit, so a second draw over itself changes nothing — but only if
+it was there the first time. Delete the draw call and the second draw *adds* the stamp: 1,234
+pixels differ.
+
+That is exact. No threshold to tune, no knowledge of what else is on the page, and nothing to
+re-tune when the artwork changes. Compare it with the pixel count, which needed a number chosen
+by observation and was wrong about what it was observing.
+
+The same shape is available more often than it looks: re-running an idempotent import, re-sorting
+a sorted list, re-applying a migration, re-normalising a normalised file. Each turns *"did this
+happen?"* — a question about effects, which needs a threshold — into *"is this already done?"*,
+which is an equality.
+
+### When ablation is not available
+
+Some assertions have no single line to delete: a property over generated input, or a check whose
+subject is a whole file. Then the substitute is to **make the check fail deliberately once**, by
+corrupting its input, and read the message it produces. A check whose failure has never been
+read is a check whose message is untested, and the message is most of the value — this project's
+own convention is *fail with the fix in the message*, which is unverifiable until somebody has
+seen one fail.
+
 ## A test that drives the picture from the wrong field passes for ever
 
 The village screen had **eleven tests and not one asked what the county's own record
@@ -435,12 +497,10 @@ chose to **keep** — which the file explicitly supports, with a `removed` field
 would have needed a marker and slipped straight through. The check was right about today's data
 for a reason unrelated to what it was written to guarantee.
 
-**Three, found while writing this.** A new test asserted the title screen's build stamp was
-painted by counting non-background pixels in its band. It passed. **It also passed with the
-line that draws the stamp deleted**, because the title page carries a full-screen
-`gateway.pl8` and no pixel down there is background. It was measuring the artwork. The
-threshold was chosen by looking at what the passing case produced, which is how a test comes
-to describe the status quo rather than the claim.
+**Three, found while writing this**, and it is the sharpest of the set, so it has the section
+of its own above: the build-stamp test that counted non-background pixels, passed, and passed
+just as well with the line that draws the stamp deleted. See *Ablate the line, or you have not
+tested anything*.
 
 ### The defence
 

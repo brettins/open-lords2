@@ -88,14 +88,25 @@
   },
   "arms": [
     {
-      "id": "0x00432221/dead-0x28-edge-scroll",
-      "status": "dead",
+      "id": "0x0040DECA/battle-menu-bar",
+      "status": "missing",
       "group": "battlefield",
-      "screen": "0x28",
-      "gesture": "hover-at-edge",
-      "addr": "0x00432221",
-      "what": "Screen_FrameInput's 0x28 arm opens with Map_EdgeScroll().",
-      "why": "Screen 0x28 is unreachable. Every immediate write of g_screenId in Lords2.exe was enumerated -- 212 `mov byte ptr [0x004EAC50], imm8` sites, values 0x00..0x45 -- and 0x28 is absent while 0x29, 0x2A and 0x2B are present; no decompiled function assigns it, and the indirect writes (g_screenIdSaved, g_menuPrevScreen) can only restore a value g_screenId already held.",
+      "screen": "0x29",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "Menu_OpenDropdown(&g_menuBarItems, 3) -- File, Options and Help are live during a battle, so a player can save, load, quit or open the options from the battlefield.",
+      "note": "The same arm is missing on the campaign map (crates/l2-game/src/screens/map.rs's table). Saving mid-battle is a question nobody has answered: Screen_HandleInput has no 0x29 arm and Menu_SaveGame does not test g_battlePhase.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/cancel-drag",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x2A",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "A right release goes back to 0x29. It does NOT undo the box -- the live selection is left exactly as the last pointer motion made it, because the cancel is a screen change and nothing else.",
+      "ours": "crates/l2-game/src/screens/battlefield.rs",
       "evidence": "V"
     },
     {
@@ -110,14 +121,47 @@
       "evidence": "V"
     },
     {
-      "id": "0x0040DECA/battle-menu-bar",
-      "status": "missing",
+      "id": "0x0042FF10/dismiss-report",
+      "status": "reproduced",
+      "group": "seam",
+      "screen": "0x13",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "0x13 has a right-button test and an OK-corner test, either of which returns to the map. 0x12, one screen earlier, has NEITHER -- which is what made right-click-to-Decline look reasonable.",
+      "ours": "crates/l2-game/src/screens/battle.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/drag-leaves-field",
+      "status": "reproduced",
       "group": "battlefield",
-      "screen": "0x29",
-      "gesture": "left-press",
-      "addr": "0x0040DECA",
-      "what": "Menu_OpenDropdown(&g_menuBarItems, 3) -- File, Options and Help are live during a battle, so a player can save, load, quit or open the options from the battlefield.",
-      "note": "The same arm is missing on the campaign map (crates/l2-game/src/screens/map.rs's table). Saving mid-battle is a question nobody has answered: Screen_HandleInput has no 0x29 arm and Menu_SaveGame does not test g_battlePhase.",
+      "screen": "0x2A",
+      "gesture": "hover",
+      "addr": "0x0042FF10",
+      "what": "`if (g_battleHoverOnField == 0) g_screenId = 0x29` -- the pointer leaving the viewport ends the drag. Tested AFTER the two selection guards, so a release on the very frame the pointer leaves still commits.",
+      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/prompt-timeout",
+      "status": "missing",
+      "group": "seam",
+      "screen": "0x12",
+      "gesture": "timer",
+      "addr": "0x0042FF10",
+      "what": "The whole of Screen_FrameInput's 0x12 arm: the multiplayer sync latch DAT_00553FC8, and FUN_004BBEA7, a 20- or 30-second answer timeout. Both call Battle_Decline. FUN_004BBEA7 returns 0 unconditionally when g_multiplayer is clear, so IN SINGLE PLAYER THE ARM DOES NOTHING AT ALL and the prompt waits for ever.",
+      "note": "Missing because we have no multiplayer, not because it was overlooked. The waiting-for-ever half is reproduced and is correct.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/skip-outcome",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x2B",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "A right release sets DAT_00568470 = 0x1389 -- 5001, one past the limit Battle_CheckOutcome counts it up to -- so it SKIPS the outcome banner rather than dismissing it. The whole of 0x2B's arm.",
+      "ours": "crates/l2-game/src/battlefield.rs",
       "evidence": "V"
     },
     {
@@ -128,6 +172,28 @@
       "gesture": "hover-at-edge",
       "addr": "0x00432221",
       "what": "The pointer on the outermost pixel of the screen scrolls the battle camera ONE cell, against the campaign map's two rows and one column. Map_ScrollStep's g_battlePhase == 2 half.",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432221/dead-0x28-edge-scroll",
+      "status": "dead",
+      "group": "battlefield",
+      "screen": "0x28",
+      "gesture": "hover-at-edge",
+      "addr": "0x00432221",
+      "what": "Screen_FrameInput's 0x28 arm opens with Map_EdgeScroll().",
+      "why": "Screen 0x28 is unreachable. Every immediate write of g_screenId in Lords2.exe was enumerated -- 212 `mov byte ptr [0x004EAC50], imm8` sites, values 0x00..0x45 -- and 0x28 is absent while 0x29, 0x2A and 0x2B are present; no decompiled function assigns it, and the indirect writes (g_screenIdSaved, g_menuPrevScreen) can only restore a value g_screenId already held.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432443/overview",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x29",
+      "gesture": "left-press",
+      "addr": "0x00432443",
+      "what": "BattleMap_Click: the 160x160 panel at (480, 24), two pixels a cell over the whole 80x80 field. Left button with a selection, no oil selected and unpaused ORDERS to that cell; anything else, the right button included, puts the camera there. Reached from Screen_FrameInput's EPILOGUE, so it is live on 0x29, 0x2A and 0x2B alike.",
       "ours": "crates/l2-game/src/battlefield.rs",
       "evidence": "V"
     },
@@ -211,13 +277,36 @@
       "evidence": "V"
     },
     {
-      "id": "0x0043C57D/order",
+      "id": "0x0043BF07/commit-drag",
       "status": "reproduced",
       "group": "battlefield",
-      "screen": "0x29",
+      "screen": "0x2A",
       "gesture": "left-release",
-      "addr": "0x0043C57D",
-      "what": "A left release on ground that holds none of your own men, with something selected and the battle unpaused, is an order: FUN_0043C634 plays a troop cry and calls BattleUnit_Order(currentUnit, cell, hoverEnemy, hoverWoodland, 0).",
+      "addr": "0x0043BF07",
+      "what": "The release, classified by FUN_00479CF7 into three: moved 25 pixels or more on either axis is a BOX and commits with FUN_0043C247(player, 1, ...); barely moved over one of your own men NUDGES THE BOX OUT BY EIGHT PIXELS each way and commits that, so a click picks a 16-pixel square; barely moved over nothing DOES NOTHING AT ALL and in particular does not clear the selection. The commit runs FUN_00478987, which allocates a new unit when the selection is not exactly one whole unit -- so a box drawn round half a unit SPLITS it.",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043BF07/double-click-commits",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x2A",
+      "gesture": "double-click",
+      "addr": "0x0043BF07",
+      "what": "The release test is `(g_mouseLeftReleased || g_mouseLeftDoubleClick) && g_screenId == 0x2A`, so a double click commits an open box exactly as a release would. Not a verb of its own: Windows sends WM_LBUTTONDBLCLK INSTEAD OF the second WM_LBUTTONDOWN, so without this the second click of a fast double click would leave the drag open with no press to end it.",
+      "note": "This is the second reader of g_mouseLeftDoubleClick that C61 predicted and crates/l2-game/src/input.rs denied. Hotspot_Test's kind-2 widgets are a third reader and are not an arm.",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043BF07/drag-update",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x2A",
+      "gesture": "drag",
+      "addr": "0x0043BF07",
+      "what": "While the button is down and the pointer has moved, FUN_0043C247(player, 0, ...) clears and re-boxes the selection LIVE. The 0 is what stops it regrouping units on every pointer motion.",
       "ours": "crates/l2-game/src/battlefield.rs",
       "evidence": "V"
     },
@@ -245,59 +334,24 @@
       "evidence": "V"
     },
     {
-      "id": "0x00432443/overview",
+      "id": "0x0043C57D/order",
       "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
-      "gesture": "left-press",
-      "addr": "0x00432443",
-      "what": "BattleMap_Click: the 160x160 panel at (480, 24), two pixels a cell over the whole 80x80 field. Left button with a selection, no oil selected and unpaused ORDERS to that cell; anything else, the right button included, puts the camera there. Reached from Screen_FrameInput's EPILOGUE, so it is live on 0x29, 0x2A and 0x2B alike.",
+      "gesture": "left-release",
+      "addr": "0x0043C57D",
+      "what": "A left release on ground that holds none of your own men, with something selected and the battle unpaused, is an order: FUN_0043C634 plays a troop cry and calls BattleUnit_Order(currentUnit, cell, hoverEnemy, hoverWoodland, 0).",
       "ours": "crates/l2-game/src/battlefield.rs",
       "evidence": "V"
     },
     {
-      "id": "0x0047ED9B/hover",
-      "status": "reproduced",
+      "id": "0x0043C57D/order-during-drag",
+      "status": "missing",
       "group": "battlefield",
-      "screen": "0x29",
-      "gesture": "hover",
-      "addr": "0x0047ED9B",
-      "what": "Battle_UpdateHover recomputes the five hover globals every frame: on-field, the cell, its surface, whether it is woodland, and whether the occupant is a friend, a picked friend or an enemy. Two of the three order arms read nothing else.",
-      "note": "One clause is reproduced CORRECTED rather than as found -- see docs/bugs.md B69, the stale figure index.",
-      "ours": "crates/l2-game/src/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x004B99C0/cursor",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x29",
-      "gesture": "hover",
-      "addr": "0x004B99C0",
-      "what": "Battle_Frame's cursor ladder for 0x28..0x2A: seven leaves over four cursor kinds -- 0 arrow, 4 move, 5 attack, 6 select. An enemy under the pointer beats everything; 0x2A is always the arrow; with a selection in hand a pointer OUTSIDE the field still shows the move cursor as long as it is above y 184, which is the overview panel, where a click really does order.",
-      "ours": "crates/l2-game/src/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0043C910/recall-group",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x29",
-      "gesture": "key",
-      "addr": "0x0043C910",
-      "what": "Keys 1..9 recall a stored selection and PUT THE CAMERA ON IT -- the function ends by scanning for the first selected figure and setting the viewport corner seven cells above and left of it. Nine slots (VK 0x31..0x39); Battle_Start clears ten.",
-      "ours": "crates/l2-game/src/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0043C885/store-group",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x29",
-      "gesture": "key",
-      "addr": "0x0043C885",
-      "what": "Ctrl and 1..9 store the current selection into DAT_00553400 + (key - '1') * 0x18. The window procedure latches VK_CONTROL into DAT_004DF3A8 and its digit arm calls a DIFFERENT FUNCTION depending on it.",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "screen": "0x2A",
+      "gesture": "left-release",
+      "addr": "0x0043C57D",
+      "what": "0x2A's ladder runs FUN_0043C57D as its second guard, so the order arm is live during a drag as well as on the field. In practice FUN_0043BF07 consumes the release first and this never fires; it is recorded because a change to the order of the two would make it fire, and because 'the same function on a second screen' is exactly what C61 found nobody counts.",
       "evidence": "V"
     },
     {
@@ -313,23 +367,59 @@
       "evidence": "V"
     },
     {
-      "id": "0x004B29BE/debug-panel-cycle",
-      "status": "missing",
+      "id": "0x0043C885/store-group",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
       "gesture": "key",
-      "addr": "0x004B29BE",
-      "what": "F2 cycles DAT_00568960 through 0, 1, 2, which picks between BattleDebug_Panel and two other overlays. All three draw only when DAT_0055402C is set, which is F3, which is gated on the debug flag DAT_0053F684 -- so the developers' panel is off in a shipped game and F2 alone cannot turn it on.",
+      "addr": "0x0043C885",
+      "what": "Ctrl and 1..9 store the current selection into DAT_00553400 + (key - '1') * 0x18. The window procedure latches VK_CONTROL into DAT_004DF3A8 and its digit arm calls a DIFFERENT FUNCTION depending on it.",
+      "ours": "crates/l2-game/src/battlefield.rs",
       "evidence": "V"
     },
     {
-      "id": "0x004B29BE/debug-panel-toggle",
-      "status": "missing",
+      "id": "0x0043C910/recall-group",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
       "gesture": "key",
-      "addr": "0x004B29BE",
-      "what": "F3 toggles DAT_0055402C, which is what makes the three battle overlays draw at all. Gated on DAT_0053F684 == 1.",
+      "addr": "0x0043C910",
+      "what": "Keys 1..9 recall a stored selection and PUT THE CAMERA ON IT -- the function ends by scanning for the first selected figure and setting the viewport corner seven cells above and left of it. Nine slots (VK 0x31..0x39); Battle_Start clears ten.",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0047685D/message-scroll-dismiss",
+      "status": "missing",
+      "group": "battlefield",
+      "screen": "0x29",
+      "gesture": "right-release",
+      "addr": "0x0047685D",
+      "what": "The first thing Screen_FrameInput does on EVERY screen: a right release inside a 48x48 box round the message scroll dismisses it and SWALLOWS THE CLICK, so it never reaches the screen's own arms. A battle can raise messages (the siege gate button enqueues three of them), so this is reachable here.",
+      "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00477DFC/outcome-timer",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x2B",
+      "gesture": "timer",
+      "addr": "0x00477DFC",
+      "what": "Battle_CheckOutcome and FUN_004782C5 both count DAT_00568470 up once a frame; past 5000 the banner gives way to Battle_WriteBackCasualties and Battle_ReturnToCampaign(1). Not an input arm; recorded because the skip above is one and is meaningless without it.",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0047ED9B/hover",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x29",
+      "gesture": "hover",
+      "addr": "0x0047ED9B",
+      "what": "Battle_UpdateHover recomputes the five hover globals every frame: on-field, the cell, its surface, whether it is woodland, and whether the occupant is a friend, a picked friend or an enemy. Two of the three order arms read nothing else.",
+      "note": "One clause is reproduced CORRECTED rather than as found -- see docs/bugs.md B69, the stale figure index.",
+      "ours": "crates/l2-game/src/battlefield.rs",
       "evidence": "V"
     },
     {
@@ -353,113 +443,34 @@
       "evidence": "V"
     },
     {
-      "id": "0x0047685D/message-scroll-dismiss",
+      "id": "0x004B29BE/debug-panel-cycle",
       "status": "missing",
       "group": "battlefield",
       "screen": "0x29",
-      "gesture": "right-release",
-      "addr": "0x0047685D",
-      "what": "The first thing Screen_FrameInput does on EVERY screen: a right release inside a 48x48 box round the message scroll dismisses it and SWALLOWS THE CLICK, so it never reaches the screen's own arms. A battle can raise messages (the siege gate button enqueues three of them), so this is reachable here.",
-      "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed.",
+      "gesture": "key",
+      "addr": "0x004B29BE",
+      "what": "F2 cycles DAT_00568960 through 0, 1, 2, which picks between BattleDebug_Panel and two other overlays. All three draw only when DAT_0055402C is set, which is F3, which is gated on the debug flag DAT_0053F684 -- so the developers' panel is off in a shipped game and F2 alone cannot turn it on.",
       "evidence": "V"
     },
     {
-      "id": "0x0043BF07/drag-update",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x2A",
-      "gesture": "drag",
-      "addr": "0x0043BF07",
-      "what": "While the button is down and the pointer has moved, FUN_0043C247(player, 0, ...) clears and re-boxes the selection LIVE. The 0 is what stops it regrouping units on every pointer motion.",
-      "ours": "crates/l2-game/src/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0043BF07/commit-drag",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x2A",
-      "gesture": "left-release",
-      "addr": "0x0043BF07",
-      "what": "The release, classified by FUN_00479CF7 into three: moved 25 pixels or more on either axis is a BOX and commits with FUN_0043C247(player, 1, ...); barely moved over one of your own men NUDGES THE BOX OUT BY EIGHT PIXELS each way and commits that, so a click picks a 16-pixel square; barely moved over nothing DOES NOTHING AT ALL and in particular does not clear the selection. The commit runs FUN_00478987, which allocates a new unit when the selection is not exactly one whole unit -- so a box drawn round half a unit SPLITS it.",
-      "ours": "crates/l2-game/src/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0043BF07/double-click-commits",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x2A",
-      "gesture": "double-click",
-      "addr": "0x0043BF07",
-      "what": "The release test is `(g_mouseLeftReleased || g_mouseLeftDoubleClick) && g_screenId == 0x2A`, so a double click commits an open box exactly as a release would. Not a verb of its own: Windows sends WM_LBUTTONDBLCLK INSTEAD OF the second WM_LBUTTONDOWN, so without this the second click of a fast double click would leave the drag open with no press to end it.",
-      "note": "This is the second reader of g_mouseLeftDoubleClick that C61 predicted and crates/l2-game/src/input.rs denied. Hotspot_Test's kind-2 widgets are a third reader and are not an arm.",
-      "ours": "crates/l2-game/src/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0042FF10/cancel-drag",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x2A",
-      "gesture": "right-release",
-      "addr": "0x0042FF10",
-      "what": "A right release goes back to 0x29. It does NOT undo the box -- the live selection is left exactly as the last pointer motion made it, because the cancel is a screen change and nothing else.",
-      "ours": "crates/l2-game/src/screens/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0042FF10/drag-leaves-field",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x2A",
-      "gesture": "hover",
-      "addr": "0x0042FF10",
-      "what": "`if (g_battleHoverOnField == 0) g_screenId = 0x29` -- the pointer leaving the viewport ends the drag. Tested AFTER the two selection guards, so a release on the very frame the pointer leaves still commits.",
-      "ours": "crates/l2-game/src/screens/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0043C57D/order-during-drag",
+      "id": "0x004B29BE/debug-panel-toggle",
       "status": "missing",
       "group": "battlefield",
-      "screen": "0x2A",
-      "gesture": "left-release",
-      "addr": "0x0043C57D",
-      "what": "0x2A's ladder runs FUN_0043C57D as its second guard, so the order arm is live during a drag as well as on the field. In practice FUN_0043BF07 consumes the release first and this never fires; it is recorded because a change to the order of the two would make it fire, and because 'the same function on a second screen' is exactly what C61 found nobody counts.",
+      "screen": "0x29",
+      "gesture": "key",
+      "addr": "0x004B29BE",
+      "what": "F3 toggles DAT_0055402C, which is what makes the three battle overlays draw at all. Gated on DAT_0053F684 == 1.",
       "evidence": "V"
     },
     {
-      "id": "0x0042FF10/skip-outcome",
+      "id": "0x004B99C0/cursor",
       "status": "reproduced",
       "group": "battlefield",
-      "screen": "0x2B",
-      "gesture": "right-release",
-      "addr": "0x0042FF10",
-      "what": "A right release sets DAT_00568470 = 0x1389 -- 5001, one past the limit Battle_CheckOutcome counts it up to -- so it SKIPS the outcome banner rather than dismissing it. The whole of 0x2B's arm.",
+      "screen": "0x29",
+      "gesture": "hover",
+      "addr": "0x004B99C0",
+      "what": "Battle_Frame's cursor ladder for 0x28..0x2A: seven leaves over four cursor kinds -- 0 arrow, 4 move, 5 attack, 6 select. An enemy under the pointer beats everything; 0x2A is always the arrow; with a selection in hand a pointer OUTSIDE the field still shows the move cursor as long as it is above y 184, which is the overview panel, where a click really does order.",
       "ours": "crates/l2-game/src/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x00477DFC/outcome-timer",
-      "status": "reproduced",
-      "group": "battlefield",
-      "screen": "0x2B",
-      "gesture": "timer",
-      "addr": "0x00477DFC",
-      "what": "Battle_CheckOutcome and FUN_004782C5 both count DAT_00568470 up once a frame; past 5000 the banner gives way to Battle_WriteBackCasualties and Battle_ReturnToCampaign(1). Not an input arm; recorded because the skip above is one and is meaningless without it.",
-      "ours": "crates/l2-game/src/battlefield.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x004BA9C8/prompt-fight",
-      "status": "reproduced",
-      "group": "seam",
-      "screen": "0x12",
-      "gesture": "left-release",
-      "addr": "0x004BA9C8",
-      "what": "DAT_004DDBB0[0], the thumb up at (332, 116), hotspot id 1 -> FUN_0043B593 -> Battle_Start. It RAISES THE BATTLEFIELD; it does not settle the battle.",
-      "ours": "crates/l2-game/src/screens/battle.rs",
       "evidence": "V"
     },
     {
@@ -474,46 +485,25 @@
       "evidence": "V"
     },
     {
-      "id": "0x0042FF10/dismiss-report",
+      "id": "0x004BA9C8/prompt-fight",
       "status": "reproduced",
       "group": "seam",
-      "screen": "0x13",
-      "gesture": "right-release",
-      "addr": "0x0042FF10",
-      "what": "0x13 has a right-button test and an OK-corner test, either of which returns to the map. 0x12, one screen earlier, has NEITHER -- which is what made right-click-to-Decline look reasonable.",
+      "screen": "0x12",
+      "gesture": "left-release",
+      "addr": "0x004BA9C8",
+      "what": "DAT_004DDBB0[0], the thumb up at (332, 116), hotspot id 1 -> FUN_0043B593 -> Battle_Start. It RAISES THE BATTLEFIELD; it does not settle the battle.",
       "ours": "crates/l2-game/src/screens/battle.rs",
       "evidence": "V"
     },
     {
-      "id": "0x0042FF10/prompt-timeout",
-      "status": "missing",
-      "group": "seam",
-      "screen": "0x12",
-      "gesture": "timer",
-      "addr": "0x0042FF10",
-      "what": "The whole of Screen_FrameInput's 0x12 arm: the multiplayer sync latch DAT_00553FC8, and FUN_004BBEA7, a 20- or 30-second answer timeout. Both call Battle_Decline. FUN_004BBEA7 returns 0 unconditionally when g_multiplayer is clear, so IN SINGLE PLAYER THE ARM DOES NOTHING AT ALL and the prompt waits for ever.",
-      "note": "Missing because we have no multiplayer, not because it was overlooked. The waiting-for-ever half is reproduced and is correct.",
-      "evidence": "V"
-    },
-    {
-      "id": "ours/prompt-right-click-declines",
+      "id": "ours/prompt-bystander-any-click",
       "status": "invention",
       "removed": true,
       "group": "seam",
       "screen": "0x12",
-      "gesture": "right-release",
-      "what": "A right release on the take-the-field prompt ran Battle_Decline. Screen 0x12's arm has no right-button test of any kind.",
-      "why": "'Right click exits' generalised from the screens where it is true. C61 found it by enumeration and this is its removal."
-    },
-    {
-      "id": "ours/prompt-escape-declines",
-      "status": "invention",
-      "removed": true,
-      "group": "seam",
-      "screen": "0x12",
-      "gesture": "key",
-      "what": "Escape declined the battle.",
-      "why": "No key reaches screen 0x12 in the original. The window procedure's Escape arm calls Menu_Quit or sets DAT_005AEB68 = 1 and never touches the prompt."
+      "gesture": "left-release",
+      "what": "When the local player did not own the choice, any click, right-click or key settled the battle by the standing policy.",
+      "why": "Battle_ChooseSettlement writes a widget count of 0 for a bystander, so the prompt has no widgets and no exit but the multiplayer timeout. In a single-player game the state cannot arise at all."
     },
     {
       "id": "ours/prompt-enter-fights",
@@ -526,14 +516,24 @@
       "why": "As above. The window procedure's Enter arm is FUN_0043600C, a text-field commit."
     },
     {
-      "id": "ours/prompt-bystander-any-click",
+      "id": "ours/prompt-escape-declines",
       "status": "invention",
       "removed": true,
       "group": "seam",
       "screen": "0x12",
-      "gesture": "left-release",
-      "what": "When the local player did not own the choice, any click, right-click or key settled the battle by the standing policy.",
-      "why": "Battle_ChooseSettlement writes a widget count of 0 for a bystander, so the prompt has no widgets and no exit but the multiplayer timeout. In a single-player game the state cannot arise at all."
+      "gesture": "key",
+      "what": "Escape declined the battle.",
+      "why": "No key reaches screen 0x12 in the original. The window procedure's Escape arm calls Menu_Quit or sets DAT_005AEB68 = 1 and never touches the prompt."
+    },
+    {
+      "id": "ours/prompt-right-click-declines",
+      "status": "invention",
+      "removed": true,
+      "group": "seam",
+      "screen": "0x12",
+      "gesture": "right-release",
+      "what": "A right release on the take-the-field prompt ran Battle_Decline. Screen 0x12's arm has no right-button test of any kind.",
+      "why": "'Right click exits' generalised from the screens where it is true. C61 found it by enumeration and this is its removal."
     },
     {
       "id": "ours/report-escape-or-enter-dismisses",
