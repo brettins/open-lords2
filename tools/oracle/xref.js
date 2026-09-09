@@ -233,7 +233,12 @@ function clusters(fns) {
   }
   const orphans = Object.values(fns).filter(f => !f.named && !f.globals.some(g => !/^_?DAT_/.test(g)));
   console.log(`\n${orphans.length} unnamed functions touch no named global at all.`);
-  console.log('Those are the dark part of the binary - nothing anchors them yet.');
+  console.log('That is NOT the dark part of the binary, and reading it that way was wrong for');
+  console.log('months - most of these touch globals that merely have no name yet, and a third');
+  console.log('of those globals are field offsets of arrays already named. Run');
+  console.log('  node tools/oracle/anchor.js dark      the honest breakdown');
+  console.log('  node tools/oracle/anchor.js fields    the DAT_ names that are record fields');
+  console.log('See docs/method.md section 7.4.');
 }
 
 function unnamed(fns, near) {

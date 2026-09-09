@@ -23,7 +23,7 @@
 //! # Why this file exists rather than the army tests alone
 //!
 //! **A fixture nobody checks is a fixture that quietly becomes something else.**
-//! That is the whole of `docs/decisions.md` C22: five tests asserted a saved
+//! That is the whole of `docs/decisions.md` C23: five tests asserted a saved
 //! game's numbers for months and the file underneath them was a rolling
 //! autosave. So the *county-side* facts of these five are asserted here, in the
 //! crate that can read them today, before anything is built on top. The unit

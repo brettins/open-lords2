@@ -554,6 +554,7 @@ test suite. The difference is that C21 had a blank where the layout should be, a
 something worse — a confident paragraph, `[V]`-adjacent, in three documents and a module
 header. A wrong answer written down is more expensive than no answer, and it survives longer
 because it stops anyone looking.
+
 **C23 — "The shipped save" was three words that hid a rolling autosave, and a test
 suite that passes identically whether or not it ran.**
 
@@ -645,6 +646,56 @@ rules that *one save exercises*, and silent about everything else.
 
 The general form: **"we have a tool that could check this" is not a check.** The distance
 between a script that prints a table and a test that fails is the whole of the value.
+
+**C25 — Plane-0 bits `0x40` and `0x80` were labelled the wrong way round. `0x40` is the
+county town; `0x80` is the castle.**
+
+Found while naming functions by their `L2.eng` string ids, and it is the game correcting us
+in English. `TileInfo_Draw` (`0x0041C208`) is the tile info panel, and it picks a heading out
+of group 30 by the plane-0 flag byte. Bit `0x40` gets string 7, **"County town."**, with
+description `0x1B`, *"Your troops may capture a castleless county by attacking its county
+town."* Bit `0x80` gets string 8, **"Castle."**, or 14/15 for under construction and repair.
+
+Three independent checks agree, and each could have failed:
+
+- **The construction field.** The `0x80` branch reads county `+0x1C3` to choose between
+  "Castle.", "Castle under construction." and "Castle under repair." `Army_BeginSiege`
+  refuses a siege when that same field is 1. Only the castle has a build state.
+- **The garrison tile.** `County_FindCastleTile` (`0x00468121`) scans for bit `0x80` and
+  writes the result to county `+0x74`/`+0x75` — which is exactly the tile `FUN_004A79A3`
+  moves a garrisoning army onto. Its sibling `County_FindTownTile` (`0x00467FD1`) scans for
+  bit `0x40` and produces the county *anchor*, the tile `County_FindFreeRoadTile` searches
+  around.
+- **The mercenary offer.** The `0x40` branch prints *"Mercenaries are available for hire in
+  the county."* when county `+0x1AD` is set — the field `Mercenary_AdvanceAll` writes. Bands
+  are offered in the town, not the keep.
+
+A fourth, weaker but pleasing: `TileInfo_DrawCastle` prints the barracks capacity out of
+`g_castleGarrisonCap`, the same table `FUN_004A79A3` caps a garrison against.
+
+**What was wrong, and what was not.** No code behaves differently — the bits were read
+consistently everywhere, just described backwards. `Unit_TryEnterTile`'s return codes are
+unchanged; only the words beside them move. `Map_LoadPlanes`'s plane-4 dispatch reads *better*
+after the swap: `0x40` → `Merchant_RouteAppend` makes a trade route a list of **market
+towns**, and `0x80` → `PlayerStart_Record` makes a player start a **castle**. Both are what
+those things are, which is a sign the original label was never checked against meaning.
+
+**`docs/formats/maps-layers.md` had the evidence sitting beside the wrong conclusion.** Its
+table says bit `0x40` draws from the **town** graphics bank (`Town1a.pl8`, frames 0–3) and
+labels the row "castle site"; bit `0x80` draws from the **base** bank and is labelled
+"settlement". The bank names come from the game's own `g_resourceTable`. A row that reads
+"town → castle site" should have been read twice. That table is marked **[V]**, and it was:
+the *counts* were verified, the *names* were never evidence at all. This is C21's second
+lesson in a smaller frame — verification attaches to the measurement, not to the sentence it
+sits in.
+
+One loose end kept deliberately: the `0x80` rows in that table are split between the base
+bank (1,681 tiles, frames 6–21) and the town bank (725, frames 0/20/30), and the base-bank
+range is the same one bit `0x10` uses for dwelling plots. That is consistent with `0x80`
+being an *empty plot the castle gets built on* — `County_FindCastleTile` stamps terrain
+`0x14` over it at load, and `Unit_TryEnterTile` has a special case for exactly that stamp —
+but the 725-tile town-bank half is not explained, and the table has not been rewritten on
+one function's say-so.
 
 ## Open questions
 

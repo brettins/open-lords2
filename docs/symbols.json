@@ -169,7 +169,7 @@
       "section": "map",
       "confidence": "verified",
       "signature": "undefined4 Map_LoadPlanes(int slot)",
-      "comment": "Reads the six 64x64 byte planes of a map slot, at slot offsets +0x0000 ... +0x5000, in a 64x64 nest (y outer, x inner). Tracks the highest county id below 0x11 into g_countyCount, and dispatches plane 4 to Merchant_RouteAppend (castle tiles) or PlayerStart_Record (settlement tiles). See docs/formats/maps.md."
+      "comment": "Reads the six 64x64 byte planes of a map slot, at slot offsets +0x0000 ... +0x5000, in a 64x64 nest (y outer, x inner). Tracks the highest county id below 0x11 into g_countyCount, and dispatches plane 4 to Merchant_RouteAppend for a plane-0 bit 0x40 tile (the county town) or PlayerStart_Record for a bit 0x80 tile (the castle). This description previously had the two the other way round; see decisions.md C25. Under the corrected reading a merchant route is a list of market towns and a player start is a castle, which is what both are. See docs/formats/maps.md."
     },
     {
       "addr": "0x0046797D",
@@ -3023,7 +3023,7 @@
       "name": "Unit_TryEnterTile",
       "section": "units",
       "confidence": "verified",
-      "comment": "Classifies the target tile and returns a code: occupied -> Unit_EnterOccupiedTile; road (plane0 0x01) -> 3; castle (0x40) -> 5; settlement (0x80) -> 6; dwelling plot (0x10) -> 7; farm field (0x20) -> 8; otherwise 1.",
+      "comment": "Classifies the target tile and returns a code: occupied -> Unit_EnterOccupiedTile; road (plane0 0x01) -> 3; county town (0x40) -> 5; castle (0x80) -> 6; dwelling plot (0x10) -> 7; farm field (0x20) -> 8; otherwise 1. The 0x40 and 0x80 labels were swapped here until decisions.md C25; the codes themselves are unchanged. The entry guard that clears bit 0x80 when the terrain is 0x14 is County_FindCastleTile's stamp, which is how a built castle stops blocking its owner.",
       "signature": "int Unit_TryEnterTile(int tileOffset)"
     },
     {
@@ -3553,6 +3553,174 @@
       "confidence": "verified",
       "signature": "void Industry_ToggleFromMap(int county, int industry)",
       "comment": "Clicking an industry building on the campaign map switches that industry on or off: it XORs the enable byte at +0x297 + industry*0x18 - the byte Labour_Allocate gates each mining job on - and maps the industry to its labour slot (0 wood -> 6, 1 iron -> 4, 2 weapons -> 7, 3 stone -> 5). Argument 4 is castle building instead, and toggles +0x1B0. Map_Click picks the argument from a ladder on g_pickedTileGraphic: 0..3 iron, 4..6 stone, 7..9 weapons, 10..12 wood, 13..20 nothing, 21+ castle."
+    },
+    {
+      "addr": "0x00422D22",
+      "name": "Screen_BattlePrompt",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Screen_BattlePrompt(void)",
+      "comment": "Screen 0x12: the 'a battle is to be fought' prompt. Draws L2.eng group 80 heading 0, or 7 'The Siege commences.' when g_battleIsSiege; then group 80 string 1 'Will you take the field?', 2 'Your opponent has the choice' or 3 'The opponents are deciding', selected by DAT_005533D0 (who owns the choice). County name from group 100 at g_scenarioIndex*20 + the battle county, the two lords' names from g_playerNames (group 99 string 0 '\"The people.\"' for owner 6), and both army rosters via FUN_004224E7(g_battleArmyA, g_battleArmyB). Opened by FUN_004A7158 and its sibling, which play s080_01/02/03.wav on the same DAT_005533D0 - the WAV is named after the L2.eng group."
+    },
+    {
+      "addr": "0x00422FF1",
+      "name": "Screen_BattleResult",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Screen_BattleResult(void)",
+      "comment": "Screen 0x13: the battle result report. Same layout as Screen_BattlePrompt with an OK button, L2.eng group 81 heading 0 'The Battle is decided.' or 8 'The siege is over.' under g_battleIsSiege, and the rosters redrawn in mode 1. Reached only after Battle_ReturnToCampaign has already been applied, so it reports rather than decides."
+    },
+    {
+      "addr": "0x0041C208",
+      "name": "TileInfo_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void TileInfo_Draw(void)",
+      "comment": "The 'what is this tile' panel. Switches on the plane-0 flag byte in DAT_005440B0 (a copy of runtime tile +1) and picks a heading, a description paragraph and an icon frame out of L2.eng group 30: bit 0x01 -> 1 'Road.' + 0x17, 0x04 -> 3 'Sea.' + 0x18, 0x08 -> 4 'Mountain.'/5 'Woodland.', 0x10 -> 48 'Village'/50 'Ruined village.', 0x20 -> the farm-field table at 0x004D2EC8, 0x40 -> 7 'County town.' + 0x1B, 0x80 -> the resource sites (9 mine, 10 quarry, 11 lumber mill, 82 blacksmith) or the castle (8, or 14/15 for under construction/repair). Delegates to TileInfo_DrawGrain, TileInfo_DrawHerd and TileInfo_DrawCastle. Every heading pairs with the matching description, which is what fixes the bit meanings - see decisions.md C25 for the 0x40/0x80 correction this forced."
+    },
+    {
+      "addr": "0x0041CB3A",
+      "name": "TileInfo_DrawGrain",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void TileInfo_DrawGrain(void)",
+      "comment": "The grain half of TileInfo_Draw. Prints fertility from L2.eng group 22 indexed by (county +0x208 + 100) / 29 - seven strings for a -100..+100 range, which is exactly how many group 22 has - then sacks sown, the yield at g_grainYieldPerSack, and group 77's grain-store lines 0x18 'No outside factors affected stored grain.', 0x19 'eaten by rats.', 0x1A 'found as surplus.'. The advanced-farming lines are gated on g_optAdvancedFarming."
+    },
+    {
+      "addr": "0x0041D299",
+      "name": "TileInfo_DrawHerd",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void TileInfo_DrawHerd(void)",
+      "comment": "The herd half of TileInfo_Draw, and NOT a sowing forecast as first guessed. Draws only group 77's livestock lines: 5 'Calf births expected', 6 'Cow deaths expected', 7 'Change due to farming', 8..11 the four crowding levels, 0x10..0x12 the weather change, 0x13..0x17 disease/wolves/put down/over expectations, 0x1B 'Change due to eating' and 0x1C 'Overall change'. Group 77 mixes grain and herd text, so its index-0 label 'from' says nothing about which half a caller draws - only the indices do."
+    },
+    {
+      "addr": "0x0041DA2F",
+      "name": "TileInfo_DrawCastle",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void TileInfo_DrawCastle(void)",
+      "comment": "The castle block of TileInfo_Draw - the tile panel, not the build screen. Reads county +0x1C0 (castle type) into g_castleTaxBonus for group 71 string 0x10 'Boosts tax revenues by' and into g_castleGarrisonCap for 0xB 'Barracks for' + 0xC 'troops.'; that is the same cap FUN_004A79A3 tests a garrison against, which is what identifies the branch. With a garrison present it adds the unit's men (+0x168) and 0xD 'currently stationed here.', or 0x13 'Enemy troops are barracked here.', plus 0xE 'View these troops?' and a widget. Note the tables are one-based: DAT_004D8A0C is g_castleGarrisonCap - 4."
+    },
+    {
+      "addr": "0x0041DEDB",
+      "name": "Castle_DrawStatusBlock",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Castle_DrawStatusBlock(int county, int x, int y, int row)",
+      "comment": "The castle-under-construction block, drawn at a caller-chosen origin. L2.eng group 71: 0x10 tax bonus, 0xB/0xC barracks capacity, then county +0x1D0 with 6 'of stone needed,' and +0x1D4 with 7 'of wood needed.'; county +0x1A6 zero gives 0x11 'No castle building in progress.', otherwise county +0xE8 with 8 'will take'. Shared by TileInfo_DrawCastle and the county screen."
+    },
+    {
+      "addr": "0x004107D1",
+      "name": "CountyStrip_DrawCastleIcon",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void CountyStrip_DrawCastleIcon(void)",
+      "comment": "One county's castle cell on the county strip, not a castle screen. Picks a g_miscCtySheet frame from whether the castle is complete, and when county +0x1D0 or +0x1D4 (stone/wood still needed) is non-zero draws a materials icon plus L2.eng group 71 string 0x12 'Needed'. DAT_0056D68C is the strip row counter it advances on the way out."
+    },
+    {
+      "addr": "0x00419789",
+      "name": "Screen_CastleBuild",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Screen_CastleBuild(int firstFrame)",
+      "comment": "Screen 0x1B, the castle chooser. Loads cas_back.256 / cas_back.pl8, the chosen castle's picture out of caspics.pl8 by DAT_004D2DD0[type], and cas_bits.pl8 into DAT_005533C4, then sets the DAT_005440B8 dirty flag and calls Screen_CastleBuildPanel."
+    },
+    {
+      "addr": "0x004198AA",
+      "name": "Screen_CastleBuildPanel",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Screen_CastleBuildPanel(void)",
+      "comment": "The stats panel of screen 0x1B, redrawn only when DAT_005440B8 is set. Names the selected type from L2.eng group 71 index DAT_0056D898 + 1 (1 'Wooden palisade.' .. 5 'Royal castle.'), then prints g_castleMaterial's stone and wood **net of the castle already there** (it subtracts g_castleMaterial[existing type]), g_castleWorkforce with 8 'will take' / 9 'to build.', g_castleTaxBonus with 0x10, g_castleGarrisonCap with 0xB/0xC, and 0xF 'Start construction?'. The four named constant tables all appearing together is what confirms this, rather than the group label, against the three other group-71 callers that are not this screen."
+    },
+    {
+      "addr": "0x0041635F",
+      "name": "Trade_DrawPanel",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Trade_DrawPanel(void)",
+      "comment": "The widget pass of screen 0x66, the merchant trade panel. Draws essentially all of L2.eng group 68 - 1 'We receive', 5 'Buying', 6 'Selling', 8 'Total cost of', 9 'Buying price', 0xA 'Selling price', 0xC 'You have.', 0xE 'Purchase?', 0xF 'Sale?', and the four wrapped advice paragraphs 0x10..0x13 - beside the goods names in group 6."
+    },
+    {
+      "addr": "0x0041593B",
+      "name": "Screen_GreatestNoble",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Screen_GreatestNoble(int firstFrame)",
+      "comment": "Screen 0x20, the standings. Loads grtnoble.256 / grtnoble.pl8 and flags.pl8 - the filename is the identification - and draws L2.eng group 35, the seven 'Most counties,' / 'Most castles,' / ... / 'Greatest noble,' categories, with string 7 'undecided.' where no realm leads. Walks the realms at stride 0x160 and labels each from g_playerNames."
+    },
+    {
+      "addr": "0x0041F98B",
+      "name": "ScenarioList_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void ScenarioList_Draw(void)",
+      "comment": "The five-row scenario list box, with the selected row inverted and a proportional scrollbar thumb whose three segments are computed from the scroll offset, 5, and the total. Row text is L2.eng group 101, the 60 map slot names, but indexed *through* the byte table DAT_0050A460 rather than directly, so the visible order is not the group's order. What builds that table has not been read."
+    },
+    {
+      "addr": "0x004149EC",
+      "name": "SaveLoad_DrawStatus",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void SaveLoad_DrawStatus(void)",
+      "comment": "The progress and error line of the load/save screens 0x35 and 0x36 - not the file browser. Switches on g_screenId to choose L2.eng group 40 string 2 'Loading game. Please wait.' or 3 'Saving game. Please wait.', and prints 4 'File error. Operation canceled.' on failure."
+    },
+    {
+      "addr": "0x00475E07",
+      "name": "Msg_DrawDiplomacy",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Msg_DrawDiplomacy(void)",
+      "comment": "The diplomatic letter window, message category 0x0C, dispatched from Msg_DrawWindow. Draws L2.eng group 109 string 0 'From' plus the sender's name, then switches on g_messageGroup - 0xF5 into eleven arms that land exactly on groups 245..255: 0 'A gift.' with a count, 1 and 2 'A communication' with the free-text body from g_diploLetter + realm*0xCA, 3 'Offer of alliance.', 4 the alliance termination, 5 'Plea for help' and 6 'Launch an attack.' with the county name from group 100, and 7..10 the four 'Reply to request' variants. Arms 3, 5 and 6 are the only ones that call Widget_Draw, and they are exactly the three whose text asks a question - a correspondence that could have failed eleven times and did not."
+    },
+    {
+      "addr": "0x00476488",
+      "name": "Msg_DrawBeyondLetter",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Msg_DrawBeyondLetter(void)",
+      "comment": "Message category 0x14. Byte-for-byte the layout of Msg_DrawDiplomacy, except that the sender is the literal string \"Beyond\" instead of g_playerNames[realm], only the free-text arms 1 and 2 (groups 246/247 'A communication') are handled, and no reply widget is drawn - so it is a letter the player cannot answer."
+    },
+    {
+      "addr": "0x0049CAAA",
+      "name": "Realms_AssignLords",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "signature": "void Realms_AssignLords(void)",
+      "comment": "New-game lord assignment, and not a name display as first guessed - it writes g_playerNames rather than drawing it. For each realm without one it picks an unused lord from g_lordChoice (indexed by the lord id and, off the deterministic path, by g_scenarioIndex & 3), stores the title in realm +0x07 and the lord id in +0x0A, takes the two colours from g_realmColour, and copies 16 bytes of L2.eng group 7 through Eng_Seek into g_playerNames + realm*0x2C. Group 7 is 'No player' / 'The Knight' / 'The Baron' / 'The Countess' / 'The Bishop'."
+    },
+    {
+      "addr": "0x00468D4F",
+      "name": "Counties_PlaceSites",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Counties_PlaceSites(void)",
+      "comment": "Once at map load, for every county 1..g_countyCount: County_FindTownTile into +0x70 and the anchor +0x6C/+0x6D, then County_PlaceResourceSites and County_PlaceBlacksmith, then County_FindCastleTile into +0x78 and the castle tile +0x74/+0x75. The order matters - the resource sites are placed relative to the town, and the castle plot is found afterwards."
+    },
+    {
+      "addr": "0x00467FD1",
+      "name": "County_FindTownTile",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int County_FindTownTile(uint county)",
+      "comment": "Scans the 64x64 grid for this county's tiles with plane-0 bit **0x40** and no terrain yet, takes the 2x2 group, and leaves its x/y in DAT_0057C8D0 / DAT_0056846C. The result becomes the county anchor that County_FindFreeRoadTile searches around. Bit 0x40 is the county town: TileInfo_Draw prints L2.eng group 30 string 7 'County town.' for it, and the mercenary offer at county +0x1AD is advertised on it. See decisions.md C25."
+    },
+    {
+      "addr": "0x00468121",
+      "name": "County_FindCastleTile",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "int County_FindCastleTile(uint county)",
+      "comment": "As County_FindTownTile but for plane-0 bit **0x80**, and it also stamps terrain 0x14 on the 2x2 it finds, saving the previous terrain frame to tile +6. Its result is county +0x74/+0x75, which is exactly the tile FUN_004A79A3 moves a garrisoning army onto - so bit 0x80 is the castle. Unit_TryEnterTile's special case for a 0x80 tile whose terrain is 0x14 is this stamp. See decisions.md C25."
+    },
+    {
+      "addr": "0x004017BF",
+      "name": "Eng_CopyString",
+      "section": "text",
+      "confidence": "verified",
+      "signature": "void Eng_CopyString(int dest, int group, int index, int len)",
+      "comment": "Copies len bytes of L2.eng string (group, index) into a caller buffer, walking the group exactly as Eng_DrawString does. The fifth and last function that takes a literal (group, index) pair - the others are Eng_DrawString, Eng_Seek, Ui_DrawCentred and FUN_0040328E - and therefore the fifth place a call site names its own subject. Note the pair is at arguments 2 and 3 here, not 1 and 2."
     }
   ],
   "globals": [

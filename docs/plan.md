@@ -24,7 +24,7 @@ rather than take them:
    county 8 alone. The *rules* reproduce exactly — 72 = 65+5+1+1 is right, and matches real
    stored values. The *scenario* is fiction, and `docs/kingdom.md` §9 carries the same wrong
    count. Verified with `node tools/kingdom/savedump.js county`.
-   *(Corrected later, C22: the five **counties** are scenario, the realm→county
+   *(Corrected later, C23: the five **counties** are scenario, the realm→county
    **assignment** is not — it is rolled per game, and so is which county the person gets.
    The owner bytes quoted above are one playthrough's.)*
 3. **Workstream B is not mechanical.** There was no unit layer in `l2-sim` at all —
