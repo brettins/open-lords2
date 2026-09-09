@@ -851,6 +851,63 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x0041593B` | `Screen_GreatestNoble(firstFrame)` | verified | Screen 0x20, the standings. Loads grtnoble.256 / grtnoble.pl8 and flags.pl8 - the filename is the identification - and draws L2.eng group 35, the seven 'Most counties,' / 'Most castles,' / ... / 'Greatest noble,' categories, with string 7 'undecided.' where no realm leads. Walks the realms at stride 0x160 and labels each from g_playerNames. |
 | `0x0041F98B` | `ScenarioList_Draw()` | verified | The five-row scenario list box, with the selected row inverted and a proportional scrollbar thumb whose three segments are computed from the scroll offset, 5, and the total. Row text is L2.eng group 101, the 60 map slot names, but indexed *through* the byte table DAT_0050A460 rather than directly, so the visible order is not the group's order. What builds that table has not been read. |
 | `0x004149EC` | `SaveLoad_DrawStatus()` | verified | The progress and error line of the load/save screens 0x35 and 0x36 - not the file browser. Switches on g_screenId to choose L2.eng group 40 string 2 'Loading game. Please wait.' or 3 'Saving game. Please wait.', and prints 4 'File error. Operation canceled.' on failure. |
+| `0x0040DECA` | `Menu_OpenDropdown(items, count)` | verified | Opens a menu-bar drop-down. Menu_HitTitle picks the title under the pointer; on a hit this saves g_screenId into g_menuPrevScreen, sets g_screenId to 0x32, points g_menuOpenItem at the last record and calls Menu_SaveBackdrop. Both call sites pass (g_menuBarItems, 3). |
+| `0x0040E00A` | `Menu_HitTitle(items, count)` | verified | Hit-tests the menu-bar titles: record short 0 is x, short 1 the measured right edge Ui_DrawMenuTitles wrote back, short 2 is y, and the height is a fixed 12. Returns a 1-based index, 0 for a miss. |
+| `0x0040C8D1` | `Menu_SaveBackdrop` | verified | Saves the 400 x 180 band at (0, 24) that an open drop-down will cover, into the scratch buffer, via FUN_004b3f0a with row stride 0xF0. 100 dwords a row is 400 bytes; 400 + 240 = 640, the screen stride. |
+| `0x0040C928` | `Menu_RestoreBackdrop` | verified | Screen 0x32 is "a drop-down is open", and its painter only puts back what Menu_SaveBackdrop took: the same 400 x 180 band at (0, 24), through the restore twin FUN_004b3ec0. The drop-down itself is drawn by the widget pass. |
+| `0x00433DBD` | `Menu_NewGame` | verified | File > New Game (L2.eng group 1 index 1). Opens the confirmation box with prompt 1, "Start a new game?", whose yes branch is FUN_00433deb. |
+| `0x00433E93` | `Menu_LoadGame` | verified | File > Load (group 1 index 2). Globs *.sav, or *.svb / *.sva in a network game, saves g_screenId into g_screenIdSaved and opens screen 0x35. |
+| `0x00433F49` | `Menu_SaveGame` | verified | File > Save (group 1 index 3). The same glob as Menu_LoadGame, then screen 0x36. |
+| `0x004343F8` | `Menu_Quit` | verified | File > Quit (group 1 index 4). Opens the confirmation box with prompt 0, "Exit the game?", whose yes branch FUN_0043441c leaves for screen 0x1F. |
+| `0x004344F2` | `Menu_AdvancedOptions` | verified | Options > Advanced (group 2 index 1) -> screen 0x39. Refused during a network game unless DAT_00553248 is set, with message 0xE3 instead. |
+| `0x0043496C` | `Menu_SoundOptions` | verified | Options > Sounds (group 2 index 2) -> screen 0x42. |
+| `0x00434988` | `Menu_DisplayOptions` | verified | Options > Display (group 2 index 3) -> screen 0x43. |
+| `0x00434CBE` | `Menu_GameSpeed` | verified | Options > Game Speed (group 2 index 4). Opens the slider dialog on g_optGameSpeed, step 10, range 0..100, prompt 1 = "Adjusting game speed". |
+| `0x00434CEE` | `Menu_ScrollSpeed` | verified | Options > Scroll Speed (group 2 index 5). The same slider on the already-named g_optScrollSpeed, prompt 2 = "Adjusting scroll speed" - the check that fixed the whole table. |
+| `0x00434D33` | `Menu_GameHelp` | verified | Help > Game Help (group 3 index 1) -> screen 0x31, the help-options panel, which is where the WinHelp button lives. |
+| `0x0043480C` | `Menu_HelpHowDoI` | verified | Help > "How do I..." (group 3 index 2). Enqueues message 0x123 and returns to g_menuPrevScreen. The five topics use five consecutive ids, 0x123 .. 0x127. |
+| `0x0043484A` | `Menu_HelpGrowGrain` | verified | Help > "Grow grain?" (group 3 index 3): message 0x124. |
+| `0x00434888` | `Menu_HelpBuildCastle` | verified | Help > "Build a castle?" (group 3 index 4): message 0x125. |
+| `0x004348C6` | `Menu_HelpMakeWeapons` | verified | Help > "Make Weapons?" (group 3 index 5): message 0x126. |
+| `0x00434904` | `Menu_HelpManageTurn` | verified | Help > "Manage each turn.?" (group 3 index 6): message 0x127. |
+| `0x00434D60` | `Menu_About` | verified | Help > About (group 3 index 7) -> screen 0x25. |
+| `0x00414F68` | `Screen_AdvancedOptions` | verified | Screen 0x39. A 24 x 13 cell box at (48, 96); L2.eng group 50 index 0 as the heading and 1..4 as four rows at y 160, 192, 224 and 256, each with a group 18 Yes/No beside it at x 320. Publishes 4 into g_advancedOptWidgetCount, which the widget pass reads. The four widgets in g_advancedOptWidgets sit at y 156, 188, 220, 252 - each label y minus 4. |
+| `0x0041515C` | `Screen_SoundOptions` | verified | Screen 0x42. Group 51: Music, Sound effects and Speech, each with a group 19 On/Off at x 320, and 3 into g_soundOptWidgetCount. |
+| `0x004152EA` | `Screen_DisplayOptions` | verified | Screen 0x43. Group 52: Animations (On/Off) and Full screen (Yes/No). Group 52 index 3, "(F5 key re-sizes window to 640x480)", is drawn only when g_optFullScreen is 0 - a hint about the window that appears exactly when there is a window. |
+| `0x004154EA` | `Screen_HelpOptions` | verified | Screen 0x31. Group 45: Tip screens and Tool tips as Yes/No rows, and "Start game help" as a plain button whose handler calls WinHelpA on l2help.hlp. |
+| `0x0041543F` | `Screen_About` | verified | Screen 0x25. A 22 x 9 cell box at (96, 224) holding group 59 - "Lords 2.", the release version and the copyright line - and nothing else but the OK tick. |
+| `0x00434556` | `Opt_ToggleAdvancedFarming` | verified | Row 1 of the advanced options, "Advanced farming": flips the already-named g_optAdvancedFarming. In a network game it refuses, shows tip 0x32 and drops back to g_menuPrevScreen - all four advanced rules are frozen once play is deterministic. |
+| `0x004345D0` | `Opt_ToggleArmyForaging` | verified | Row 2, "Army foraging": flips g_optArmiesEat and then re-runs Ration_Apply and County_RefreshEstimates for every county, because the rule changes this turn's food. |
+| `0x00434693` | `Opt_ToggleExploration` | verified | Row 3, "Exploration": flips g_optExploration. |
+| `0x0043470D` | `Opt_ToggleFightHumansOnly` | verified | Row 4, "Fight humans only?": flips g_optFightHumansOnly, which the painter displays inverted - 0 shows "Yes". |
+| `0x00434787` | `Opt_ToggleTipScreens` | verified | Help options row 1, "Tip screens": flips g_optTipScreens. |
+| `0x004347C7` | `Opt_ToggleToolTips` | verified | Help options row 2, "Tool tips": flips g_optToolTips. |
+| `0x00434942` | `Opt_GameHelpContents` | verified | Help options row 3, "Start game help": WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1). The only WinHelp call reached from the interface. |
+| `0x004349A4` | `Opt_ToggleMusic` | verified | Sound options row 1, "Music": flips g_optMusic and either stops the music or restarts it for the current g_battlePhase. |
+| `0x00434A29` | `Opt_ToggleSoundEffects` | verified | Sound options row 2, "Sound effects": flips g_optSoundEffects and re-opens the sample device per g_battlePhase. |
+| `0x00434A9A` | `Opt_ToggleSpeech` | verified | Sound options row 3, "Speech": flips g_optSpeech. |
+| `0x00434AD5` | `Opt_ToggleAnimations` | verified | Display options row 1, "Animations": flips g_optAnimations. |
+| `0x00434B10` | `Opt_ToggleFullScreen` | verified | Display options row 2, "Full screen". Leaves the panel first - to g_screenId 0 on the campaign, 0x29 in battle - then either refuses with message 0x104 or 299 or flips g_optFullScreen and resets the display mode. |
+| `0x0040E6F2` | `Ui_OpenConfirm(prompt, x, y, onAnswer)` | verified | Opens screen 0x1E, the yes/no box: saves g_screenId, stores the prompt index into g_confirmPrompt, the origin into g_confirmX / g_confirmY and the callback into g_confirmCallback, then paints. The prompt is an index into L2.eng group 10 - 0 "Exit the game?", 1 "Start a new game?", 9 "Autocalc battle?", 11 "Surrender castle?". |
+| `0x0040CCFA` | `Screen_ConfirmBox` | verified | The 0x1E painter: a 14 x 8 cell box at (g_confirmX - 16, g_confirmY - 16) with group 10 index g_confirmPrompt inside it. The two widgets, tick and cross, are drawn by the widget pass at the same offset. |
+| `0x00434E1F` | `Ui_ConfirmClicked` | verified | Both buttons of the confirmation box. Publishes the widget hotspot id - 1 for the tick, 0 for the cross - into g_confirmAnswer and calls g_confirmCallback, which reads it. |
+| `0x0040E761` | `Ui_OpenSlider(prompt, value, step, max, min, x, y, format)` | verified | Opens screen 0x21, the value spinner: the prompt indexes L2.eng group 12 ("Adjusting game speed", "Adjusting scroll speed", "Adjusting music level", ...), and value / step / max / min are stored for the two arrow widgets. |
+| `0x0040CD58` | `Screen_SliderBox` | verified | The 0x21 painter: a 15 x 7 cell box at (x - 16, y - 16), group 12 index g_sliderPrompt as the caption and index 0, "Click Right to Exit", underneath, with the value in a 3 x 1 recess. g_sliderFormat 1 divides by ten, 3 appends a per cent sign. |
+| `0x00434E9E` | `Ui_SliderUp` | verified | The slider dialog's up arrow: adds g_sliderStep while the value is below g_sliderMax. |
+| `0x00434EC9` | `Ui_SliderDown` | verified | The slider dialog's down arrow: subtracts g_sliderStep while the value is above g_sliderMin. |
+| `0x00415FB7` | `Screen_Merchant` | verified | Screen 0x08. Loads merchant.256 as its palette, then merchant.pl8 and mercgrid.pl8. |
+| `0x00417EA7` | `Screen_Armoury` | verified | Screens 0x0A and 0x17. Loads armoury.256, armoury.pl8, arm_grid.pl8, arm_it_r.pl8, armtorch.pl8 and base1a.pl8. |
+| `0x00416308` | `Screen_TradeGoods` | verified | Screen 0x0C. Re-uses merchant.pl8 as the backdrop and overlays icontrad.pl8. |
+| `0x004192B1` | `Screen_ArmyDivision` | verified | Screen 0x11. L2.eng group 17, "Army Division.", and icon_tmp.pl8. |
+| `0x0041AD5D` | `Screen_SendSupplies` | verified | Screen 0x18. L2.eng group 33, "Send supplies", with county names from group 100. |
+| `0x00414819` | `Screen_SaveLoad(saving)` | verified | Screens 0x35 and 0x36, one painter with a mode flag: L2.eng group 40 index 0 "Loading a conquest." or 1 "Saving a conquest.". |
+| `0x00421707` | `Screen_BattleMasterRatings` | verified | Screen 0x2E. score1.256 + score1.pl8, L2.eng group 37 "Battle Master ratings". |
+| `0x00421D09` | `Screen_BattleMasterRank` | verified | Screen 0x2F. score2.256 + score2.pl8, groups 37 and 38 - 38 index 0 is "Rank of Private", so this is the rank sheet rather than the ratings table. |
+| `0x0041E5D0` | `Screen_LordsOfMagicAd` | verified | Screen 0x45. Loads lom.256 and lom.pl8 and installs the palette: the Lords of Magic advertisement the front end links to, and nothing else. |
+| `0x00423241` | `Screen_BattleOutcome` | verified | Screen 0x2B. L2.eng group 82 as seven heading/body pairs at index 2n and 2n + 1, chosen by g_battleOutcome - won, lost, siege won, siege lost, siege lifted, castle lost, and the neutral pair 12/13 "The conflict is over." Draws a taller box with an inset animation panel when g_optAnimations is set, which is a second, independent confirmation of that flag. |
+| `0x004233F7` | `Screen_DrawBattlefield` | verified | Screens 0x28 and 0x29, and the frame around 0x2A: the battle sidebar - Misc sheet frames 0, 1 and 2 at x 480, the same 162-pixel column the campaign uses - the menu bar, and the field or siege palette chosen by g_battleIsSiege. The main loop treats 0x28 .. 0x2A as one range. |
+| `0x00434308` | `SaveLoad_Cancel` | verified | The cross of the save/load box (record 1 of g_saveLoadWidgets, frame 31). On the front end it restores g_setupPage; anywhere else it restores g_screenId from g_screenIdSaved, which is the value Menu_LoadGame and Menu_SaveGame put there. |
+| `0x00434346` | `SaveLoad_Scroll` | verified | The scroll arrows of both file lists, and the reason their hotspot fields hold odd numbers: the widget's hotspot id is the row delta and its hotspot arg is which list. The save/load box passes -3 / +3 with arg 1 and a 15-row window; the skirmish box passes -1 / +1 with arg 2 and a 5-row window. Clamped at 0 and at g_fileListCount minus the window. |
 
 **Globals**
 
@@ -946,6 +1003,50 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x0057CB2C` | `g_pickedTileGraphic` | verified | g_tiles[picked tile] - the clicked tile's graphic index, which is how Map_Click tells a mine from a quarry from a smithy from a forest from a castle without a second plane. |
 | `0x005681E0` | `g_pickedTileCounty` | verified | The county the clicked tile belongs to, from the county plane at 0x00522F97. 0x20 is read back as 0, so a tile in no county picks nothing. |
 | `0x005681D0` | `g_pickedCountyOwner` | verified | That county's owner (+0x05), compared against g_localPlayer by every branch of Map_Click. |
+| `0x0053F20C` | `g_optSpeech` | verified | Sound options: speech on. Group 51 index 3, drawn as group 19 On/Off. |
+| `0x0053F214` | `g_optSoundEffects` | verified | Sound options: sound effects on. Group 51 index 2. |
+| `0x0053F218` | `g_optMusic` | verified | Sound options: music on. Group 51 index 1; turning it off stops the current track. |
+| `0x0053F228` | `g_optFullScreen` | verified | Display options: full screen. Group 52 index 2, Yes/No. The "(F5 key re-sizes window...)" line is drawn only while this is 0. |
+| `0x0053F230` | `g_optGameSpeed` | verified | Options > Game Speed. The slider dialog edits it with step 10 over 0..100 and displays it divided by ten. |
+| `0x0053F248` | `g_optAnimations` | verified | Display options: animations. Group 52 index 1, On/Off; Screen_BattleOutcome also branches on it for its animated variant. |
+| `0x0053F24C` | `g_optTipScreens` | verified | Help options: tip screens. Group 45 index 1, Yes/No. |
+| `0x0053F250` | `g_optToolTips` | verified | Help options: tool tips. Group 45 index 2, Yes/No. |
+| `0x0053F264` | `g_optExploration` | verified | Advanced options: exploration. Group 50 index 3, Yes/No. |
+| `0x0053F284` | `g_optFightHumansOnly` | verified | Advanced options: "Fight humans only?", group 50 index 4 - stored inverted, so 0 displays Yes. When it is 0 and the local player is not a participant the battle is auto-resolved to screen 0x13 instead of prompting on 0x12. |
+| `0x0057D340` | `g_redrawRequest` | verified | The interface's only redraw request. Every handler writes 2; the main loop is "if (g_redrawRequest != 0) { Screen_Draw(g_redrawRequest); g_redrawRequest = 0; }", so the value becomes Screen_Draw's firstFrame argument and 1 means a full repaint. |
+| `0x0056D894` | `g_menuPrevScreen` | verified | The screen an open menu-bar drop-down will return to. Menu_OpenDropdown saves g_screenId here before switching to 0x32, and the help topics and the refused option toggles restore it. |
+| `0x004DDC10` | `g_advancedOptWidgets` | verified | Four 24-byte widget records for screen 0x39, at (280, 156 + 32n). |
+| `0x0056D8A0` | `g_advancedOptWidgetCount` | verified | Screen 0x39's widget count: written as 4 by the painter, read by the widget pass. |
+| `0x004DDC70` | `g_soundOptWidgets` | verified | Three widget records for screen 0x42, at (280, 156 + 32n). |
+| `0x00553F00` | `g_soundOptWidgetCount` | verified | Screen 0x42's widget count, written as 3 by the painter. |
+| `0x004DDCB8` | `g_displayOptWidgets` | verified | Two widget records for screen 0x43, at (280, 204) and (280, 236). |
+| `0x005533AC` | `g_displayOptWidgetCount` | verified | Screen 0x43's widget count, written as 2 by the painter. |
+| `0x004DDCE8` | `g_helpOptWidgets` | verified | Three widget records for screen 0x31: two toggles at x 240 and the WinHelp button at (288, 252). |
+| `0x0052AFD0` | `g_helpOptWidgetCount` | verified | Screen 0x31's widget count, written as 3 by the painter. |
+| `0x004DD310` | `g_confirmWidgets` | verified | The confirmation box's two widgets, tick and cross, frames 29 and 31 at (64, 46) and (112, 50) relative to the box origin. |
+| `0x0052AF90` | `g_confirmX` | verified | Confirmation box origin x; the box itself is drawn 16 pixels up and left of it. |
+| `0x0052AF98` | `g_confirmY` | verified | Confirmation box origin y. |
+| `0x0057CB14` | `g_confirmPrompt` | verified | Which L2.eng group 10 string the confirmation box asks. |
+| `0x00552FF4` | `g_confirmCallback` | verified | The function Ui_ConfirmClicked calls once either button is pressed. |
+| `0x0059151C` | `g_confirmAnswer` | verified | 1 for the tick, 0 for the cross. Written before g_confirmCallback runs, and read by it. |
+| `0x004DDBE0` | `g_sliderWidgets` | verified | The slider dialog's two arrow widgets, frames 35 and 37 at (32, 28) and (64, 28) relative to the box origin. |
+| `0x0058FE1C` | `g_sliderPrompt` | verified | Which L2.eng group 12 string the slider dialog is adjusting. |
+| `0x0058FE20` | `g_sliderX` | verified | Slider dialog origin x. |
+| `0x0058FE24` | `g_sliderY` | verified | Slider dialog origin y. |
+| `0x005CD410` | `g_sliderValue` | verified | Pointer to the int the slider dialog is editing. |
+| `0x0058FD64` | `g_sliderStep` | verified | How much one arrow press moves g_sliderValue. |
+| `0x005C9260` | `g_sliderMax` | verified | Upper bound; the up arrow does nothing at or above it. |
+| `0x005C927C` | `g_sliderMin` | verified | Lower bound; the down arrow does nothing at or below it. |
+| `0x005AEB74` | `g_sliderFormat` | verified | How the value is printed: 1 divides by ten, 2 prints it plainly, anything else appends a per cent sign. |
+| `0x005C9278` | `g_sliderPrevScreen` | verified | The screen the slider dialog returns to. |
+| `0x00553FB8` | `g_battleOutcome` | verified | Which of the seven L2.eng group 82 heading/body pairs Screen_BattleOutcome shows. |
+| `0x004DDD78` | `g_saveLoadWidgets` | verified | Four widget records for screens 0x35 and 0x36: tick and cross at (304, 64) and (352, 64), then the list scroll arrows at (384, 144) and (384, 176) carrying deltas -3 and +3 and list id 1. |
+| `0x004DDDD8` | `g_skirmishFileWidgets` | verified | The skirmish file box's two scroll arrows at (480, 256) and (480, 288), deltas -1 and +1, list id 2 - the same SaveLoad_Scroll with a five-row window. |
+| `0x004DD538` | `g_sendSuppliesWidgets` | verified | Six widget records for screen 0x18: tick and cross at (320, 342) and (360, 346), then two rows of a minus/plus pair at x 216 and 296, y 264 and 300, hotspot ids 0 and 2. |
+| `0x004DD8C8` | `g_armouryBuyWidgets` | verified | Four widget records for screen 0x0D, in a row at y 44 and x 176, 208, 240, 272, frames 68, 66, 58 and 60. |
+| `0x004DDB80` | `g_castleBuildWidgets` | verified | The castle-build screen's tick and cross, at (432, 440) and (472, 444). |
+| `0x004DDF10` | `g_siegePrepWidgets` | verified | Six widget records for screen 0x1D: three up/down pairs at x 38, tops at y 184, 252 and 320 with the partner 26 pixels below, hotspot ids 0, 1 and 2 - Catapults, Siege towers and Battering rams, the order of L2.eng group 83 indices 1 to 3. |
+| `0x004DDFA0` | `g_smackTestWidgets` | verified | Four widget records for screen 0x44, the Smacker test page: a minus/plus pair at (208, 232) and (240, 232) and a tick/cross pair at (288, 280) and (324, 284). |
 
 <!-- END symbols.json: ui -->
 
@@ -1006,6 +1107,16 @@ prefixed `Kt`, `Bn`, `Ct`, `Bp`, one set per lord.
 | `0x00475E07` | `Msg_DrawDiplomacy()` | verified | The diplomatic letter window, message category 0x0C, dispatched from Msg_DrawWindow. Draws L2.eng group 109 string 0 'From' plus the sender's name, then switches on g_messageGroup - 0xF5 into eleven arms that land exactly on groups 245..255: 0 'A gift.' with a count, 1 and 2 'A communication' with the free-text body from g_diploLetter + realm*0xCA, 3 'Offer of alliance.', 4 the alliance termination, 5 'Plea for help' and 6 'Launch an attack.' with the county name from group 100, and 7..10 the four 'Reply to request' variants. Arms 3, 5 and 6 are the only ones that call Widget_Draw, and they are exactly the three whose text asks a question - a correspondence that could have failed eleven times and did not. |
 | `0x00476488` | `Msg_DrawBeyondLetter()` | verified | Message category 0x14. Byte-for-byte the layout of Msg_DrawDiplomacy, except that the sender is the literal string "Beyond" instead of g_playerNames[realm], only the free-text arms 1 and 2 (groups 246/247 'A communication') are handled, and no reply widget is drawn - so it is a letter the player cannot answer. |
 | `0x0049CAAA` | `Realms_AssignLords()` | verified | New-game lord assignment, and not a name display as first guessed - it writes g_playerNames rather than drawing it. For each realm without one it picks an unused lord from g_lordChoice (indexed by the lord id and, off the deterministic path, by g_scenarioIndex & 3), stores the title in realm +0x07 and the lord id in +0x0A, takes the two colours from g_realmColour, and copies 16 bytes of L2.eng group 7 through Eng_Seek into g_playerNames + realm*0x2C. Group 7 is 'No player' / 'The Knight' / 'The Baron' / 'The Countess' / 'The Bishop'. |
+| `0x0041789B` | `Screen_DiploDialog` | verified | Screen 0x1A, which docs/screens-county.md could not identify: the seven diplomacy dialogs, selected by g_diploKind and all drawing L2.eng group 72. 0 is the gift of gold, 1..4 the four letters, 5 and 6 the two requests that need a county. |
+| `0x00417960` | `Diplo_DrawGiftGold` | verified | g_diploKind 0. Group 72 index 10 "Send gift of gold to" and the target's name, index 23 "Last gift was" and the per-pair record at 0x0057BF8C, index 18 "Gift of" and g_diploGold, index 17 "Dispatch ?". |
+| `0x00417AEF` | `Diplo_DrawLetter(kind)` | verified | g_diploKind 1..4, called with kind - 1. Draws group 72 index 11 + kind - "Give a compliment to", "Insult", "Ask for an alliance with", "End alliance with" - plus the target's name and the draft body. |
+| `0x00417CEF` | `Diplo_DrawCountyRequest(kind)` | verified | g_diploKind 5 and 6. Group 72 index 15 + kind, "Plead for help from" / "Plan strategic attack with", a county map, and then either index 19 / 20 ("Choose the county you want help in / attacked") while g_pickedCounty is 0 or index 21 / 22 plus the county name from group 100. |
+| `0x00436141` | `Diplo_OpenGift` | verified | Widget 0 of the diplomacy screen, group 72 index 2 "Dispatch a gift": screen 0x1A with g_diploKind 0. |
+| `0x0043618B` | `Diplo_OpenCompliment` | verified | Widget 1, index 3 "Send a compliment": g_diploKind 1, and clears the letter draft g_diploLetterDraft. |
+| `0x004361DA` | `Diplo_OpenInsult` | verified | Widget 2, index 4 "Send an insult": g_diploKind 2. |
+| `0x00436229` | `Diplo_OpenAlliance` | verified | Widget 3, index 5 "Offer an alliance" or 6 "Terminate alliance" - one widget for two rows, and the code picks g_diploKind 4 over 3 exactly when the target is already this realm's ally. |
+| `0x004362CA` | `Diplo_OpenAskHelp` | verified | Widget 4, index 7 "Ask ally for help": g_diploKind 5, county cleared. |
+| `0x0043631E` | `Diplo_OpenAskAttack` | verified | Widget 5, index 8 "Ask ally to attack": g_diploKind 6, county cleared. |
 
 **Globals**
 
@@ -1040,6 +1151,8 @@ prefixed `Kt`, `Bn`, `Ct`, `Bp`, one set per lord.
 | `0x0058FD60` | `g_rand7B` | verified | randStateB & 0x7F, so 0..127. The die the alliance and help/attack decisions roll. |
 | `0x004DC17C` | `g_lordChoice` | verified | Which of the four lords each colour slot may be given at new game: 4 scenario groups x 5 colour slots x 4 candidate lord ids, indexed 0x004DC17C + (g_scenarioIndex & 3) * 0x14 + realm[+0x0A] * 4 + n. Setup walks the four candidates and takes the first lord not already used, so THE LORD IS NOT THE REALM INDEX AND NOT THE COLOUR - every row except one is a permutation of 1..4, and 4 x 0x14 = 80 bytes ends at 0x004DC1CC. g_aiPersonality and g_aiGoldGrant are both indexed by realm +0x07, the lord, not by the realm slot. |
 | `0x004DC1CE` | `g_realmColour` | inferred | Two palette bytes per colour slot, indexed by realm +0x0A (1..5), copied into realm +0x08 and +0x09 at new game: (14,15) (251,13) (58,32) (5,253) (4,240). The colour slot is handed out in realm order and is independent of which lord the realm gets. |
+| `0x004DD940` | `g_diploWidgets` | verified | The diplomacy screen's widgets: six at (400, 102 + 50n) opening L2.eng group 72 rows 2..8 in order, then a plus/minus pair at (184, 240) and (216, 240) for the gift amount. |
+| `0x00553EE8` | `g_diploWidgetCount` | verified | How many of g_diploWidgets the current group 72 menu layout uses. |
 
 <!-- END symbols.json: diplomacy -->
 

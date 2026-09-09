@@ -333,6 +333,38 @@ The same run found `g_battleMen` and `g_battleUnits` are **81** records, not the
 `symbols.json` comments say: every sweep is `for (i = 1; i < 0x51; i++)`, so index 80 is
 live, and nothing else in the binary claims the storage behind it.
 
+### 7.6 The bulk tier: `docs/hypotheses.json`
+
+§7.3's two rates are the reason this file exists. The filters produce leads faster than
+anyone can check them, and there are only two things to do with an unchecked lead: throw it
+away, or write it down somewhere that is **not** `docs/symbols.json`. Throwing it away is how
+correction C21 happened — a whole layer went unexamined because nothing recorded that it had
+not been. Writing it into `symbols.json` is how C3 happened.
+
+So there are two tiers, and blurring them is the failure both corrections describe:
+
+| | `docs/symbols.json` | `docs/hypotheses.json` |
+|---|---|---|
+| what it holds | a name **plus the check that could have refuted it and did not** | a name plus the mechanical observation it rests on |
+| applied to Ghidra | yes, by `ApplySymbols` | **no** |
+| read by the decompiler output | yes | no |
+| the ratio that matters | verified stays high on purpose | there is no ratio; it is all guesses |
+
+Every hypothesis entry carries a `basis` — the observation, stated so that someone else can
+disagree with it — and a `confidence` in §7.3's own vocabulary:
+
+* **`subject`** — an `L2.eng` group, a `.pl8` filename or a record stride pins *what it is
+  about*; the role word in the name is the part that may be wrong. This was 89% right.
+* **`role`** — the role is pinned (it is in a widget table, it is the painter a dispatcher
+  calls); the subject is the guess. This was 58% right.
+* **`both`** — neither half has an independent anchor. **A cluster of these that touches no
+  string and no shipped file is where C3 lives.** Read it before using it, and prefer
+  deleting it to promoting it.
+
+Promotion is a deletion plus an addition: remove the entry here, add it to `symbols.json`,
+and put the check that promoted it into its `comment`. A name that cannot be given such a
+sentence has not been promoted — it has been relabelled.
+
 ## 8. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why

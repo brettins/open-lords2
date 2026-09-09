@@ -88,32 +88,41 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x04 | `0x0041B032` | the map information panel: `UnitPanel_Draw` when a unit is picked, `FUN_0041BEFE` otherwise, and that branches on the same `g_pickedTileFlags` bits `Map_Click` does. **[D]**, and what it draws is not read | |
 | 0x05 | *(no painter)* | **the village's rubber band** — §6.4 | `Village_BandStart` / `Village_BandRelease` |
 | 0x06 | *(no painter)* | **the village carrying a selection** — §6.4 | `Village_Drop` |
-| 0x08 | `0x00415FB7` | the merchant | `merchant.256` + `merchant.pl8`, `mercgrid.pl8` |
+| 0x08 | `Screen_Merchant` `0x00415FB7` | the merchant | `merchant.256` + `merchant.pl8`, `mercgrid.pl8` |
 | 0x09 | `Court_Draw` `0x00416925` | **the court** — the realm's treasury and stores | group 70 |
-| 0x0A | `0x00417EA7` | the armoury | `armoury.256` + `armoury.pl8`, `arm_grid.pl8` |
-| 0x0B | `0x00416CF3` | the other lords | `faces.pl8` |
-| 0x0C | `0x00416308` | trade goods | group 68; `merchant.pl8` **again** as the background, then `icontrad.pl8` |
-| 0x0D | `0x00417EA7` + a list | the armoury, buying | |
+| 0x0A | `Screen_Armoury` `0x00417EA7` | the armoury | `armoury.256` + `armoury.pl8`, `arm_grid.pl8` |
+| 0x0B | `Diplo_DrawScreen` `0x00416CF3` | the other lords, and the menu of what to send one | `faces.pl8`; group 72 |
+| 0x0C | `Screen_TradeGoods` `0x00416308` | trade goods | group 68; `merchant.pl8` **again** as the background, then `icontrad.pl8` |
+| 0x0D | `Screen_Armoury` + a list | the armoury, buying — `Screen_Draw` has **no** arm for it; only the widget and input passes do | `g_armouryBuyWidgets` |
 | 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output | group 74 |
 | 0x11 | `0x004192B1` | army division | group 17; `icon_tmp.pl8` |
 | 0x14 | `Panel_Population` `0x004110B1` | **population** | group 73 |
 | 0x15 | `Panel_Tax` `0x0041152F` | **tax** | group 86 |
 | 0x16 | `Panel_Happiness` `0x004116FB` | **happiness** | group 85 |
-| 0x17 | `0x00418653` | hire mercenaries | groups 16, 69 |
-| 0x18 | `0x0041AD5D` | send supplies to another county | group 33 |
+| 0x17 | `Screen_Armoury` then `Screen_RaiseArmy` | hire mercenaries / raise an army | groups 16, 69 |
+| 0x18 | `Screen_SendSupplies` `0x0041AD5D` | send supplies to another county | group 33 |
 | 0x19 | `Panel_Ration` `0x00411B72` | **rations** | groups 20, 21, 87 |
-| 0x1A | `0x0041789B` | — | not identified |
+| 0x1A | `Screen_DiploDialog` `0x0041789B` | **the seven diplomacy dialogs**, on `g_diploKind` — §10.4 | group 72 |
 | 0x1B | `0x00419789` | castle building | `cas_back.256` + `cas_back.pl8`, `caspics.pl8`, `cas_bits.pl8` |
 | 0x1C | `0x0041E1DD` | **the campaign interstitial** — *not* the front end; §1.1 | group 36, group 101; `gateway.pl8`, `panels2.pl8` |
 | 0x1D | `0x00421F14` | siege preparations | group 83; `sgeplans.pl8` |
 | 0x1F | `0x0041E7E1` | **the front end**, and game setup: thirteen sub-pages on `g_setupPage` (`0x005530F0`) — §1.2 | groups 11, 39, 40, 101, 102, 103 |
-| 0x25 | `0x0041543F` | about | group 59 |
-| 0x2E | `0x00421707` | battle-master ratings | group 37; `score1.256` + `score1.pl8` |
-| 0x31 | `0x004154EA` | help options | group 45 |
-| 0x35 / 0x36 | `0x00414819` | load / save | group 40 |
-| 0x39 | `0x00414F68` | advanced options | group 50 |
-| 0x42 | `0x0041515C` | sound options | group 51 |
-| 0x43 | `0x004152EA` | display options | group 52 |
+| 0x1E | `Screen_ConfirmBox` `0x0040CCFA` | **the yes/no box** — one dialog for fifteen questions — §10.3 | group 10 |
+| 0x20 | `Screen_GreatestNoble` | the standings | group 35 |
+| 0x21 | `Screen_SliderBox` `0x0040CD58` | **the value spinner** — game speed, scroll speed, volumes — §10.3 | group 12 |
+| 0x25 | `Screen_About` `0x0041543F` | about | group 59 |
+| 0x28 / 0x29 / 0x2A | `Screen_DrawBattlefield` `0x004233F7` | the battlefield; the main loop treats 0x28 … 0x2A as one range | `g_battleIsSiege` picks the palette |
+| 0x2B | `Screen_BattleOutcome` `0x00423241` | **the battle result banner**, seven outcomes | group 82 |
+| 0x2E | `Screen_BattleMasterRatings` `0x00421707` | battle-master ratings | group 37; `score1.256` + `score1.pl8` |
+| 0x2F | `Screen_BattleMasterRank` `0x00421D09` | the rank sheet | groups 37, 38; `score2.256` + `score2.pl8` |
+| 0x31 | `Screen_HelpOptions` `0x004154EA` | help options | group 45 |
+| 0x32 | `Menu_RestoreBackdrop` `0x0040C928` | **a menu-bar drop-down is open** — §10.1 | |
+| 0x35 / 0x36 | `Screen_SaveLoad` `0x00414819` | load / save | group 40 |
+| 0x39 | `Screen_AdvancedOptions` `0x00414F68` | advanced options | group 50 |
+| 0x42 | `Screen_SoundOptions` `0x0041515C` | sound options | group 51 |
+| 0x43 | `Screen_DisplayOptions` `0x004152EA` | display options | group 52 |
+| 0x44 | `0x00425A6A` | the Smacker test page, left in the shipped build | group 89 |
+| 0x45 | `Screen_LordsOfMagicAd` `0x0041E5D0` | the *Lords of Magic* advertisement | `lom.256` + `lom.pl8` |
 
 **Our five-screen model is not the game's, and the gap is wider than this section first
 said.** The management surface is a *campaign map plus insets*: the four county panels are
@@ -1003,7 +1012,11 @@ Named here so nobody mistakes silence for coverage.
 * **The palette indices.** Panels draw in colour `0x3F`, with `0xF9` for negatives and
   `0xFC` for a second warning state. Which actual colours those are depends on
   `base01.256`, which this document does not decode.
-* **Screens 0x04 and 0x1A**, and the two sidebar buttons at `0x00436A88` and `0x0043611B`.
+* ~~**Screens 0x04 and 0x1A**~~ *Half done — **0x1A is the seven diplomacy dialogs**, §10.4.
+  **0x04 is still unread**; it is the map information panel, and the only thing established
+  about it is which branch it takes. The two sidebar buttons at `0x00436A88` and
+  `0x0043611B` are now known to open screens 0x1B and 0x0B — castle building and the other
+  lords — but what they do first is not read.*
 * ~~**The field-painting brush** on the campaign map: `Field_SetType` is seen, not
   understood.~~ *Done — `docs/kingdom.md` §7.2 and `crates/l2-kingdom/src/field.rs`. The
   brush is five 48 × 48 buttons in two hotspot tables at `0x004DC4D0` (three: fallow, grain,
@@ -1042,3 +1055,214 @@ Named here so nobody mistakes silence for coverage.
   a group id**. Five of group 62's strings are literally `FREE`. It looks like dead
   content; the claim is bounded by "no *literal* group id in 2,452 decompiled functions",
   which does not exclude a computed one.
+
+---
+
+## 10. The menu bar, the two generic dialogs, and the option screens
+
+Written after §9 listed *"screens 0x04 and 0x1A"* as unestablished and nobody had yet
+followed the menu bar past the three words painted on it. Everything below was reached by
+one method: **read the table, not the painter.** The interface is data — 24-byte widget
+records with a function pointer in them, and 12-byte menu records with another — and a table
+in `Lords2.exe` cannot be talked into agreeing with a story.
+
+### 10.1 The menu bar is three tables of function pointers, and every one is accounted for **[V]**
+
+`g_menuBarItems` (`0x004DC428`) is three 16-byte records. Read as shorts and dwords:
+
+```text
+  0x4DC428   x=10  measuredX=0  y=6  group=1   items=0x004DC360  count=4
+  0x4DC438   x=10  measuredX=0  y=6  group=2   items=0x004DC390  count=5
+  0x4DC448   x=10  measuredX=0  y=6  group=3   items=0x004DC3D0  count=7
+```
+
+`Ui_DrawMenuTitles` writes the measured right edge back into `measuredX`, and `Menu_HitTitle`
+(`0x0040E00A`) hit-tests `x … measuredX` by a fixed 12-pixel height. A hit sends
+`Menu_OpenDropdown` (`0x0040DECA`), which saves `g_screenId` into `g_menuPrevScreen`, sets
+`g_screenId` to **0x32** and calls `Menu_SaveBackdrop`.
+
+**Screen 0x32 is "a drop-down is open", and its painter only puts the background back.**
+`Menu_SaveBackdrop` (`0x0040C8D1`) copies the band at (0, 24) with `g_spriteWidth` 100 and
+`g_spriteHeight` 180 through `FUN_004B3F0A(buf, 0xF0)`; 100 dwords is 400 bytes a row and
+400 + 240 = **640**, the screen stride. So the band is **400 × 180 at (0, 24)** — under the
+menu bar, wide enough for the widest title and tall enough for seven 20-pixel rows.
+`Menu_RestoreBackdrop` (`0x0040C928`) is the same numbers through the restore twin. This is
+the §3.1 pattern again: a screen id that owns a rectangle and nothing else.
+
+Each drop-down item is **12 bytes**: `{short y; short stringIndex; void (*handler)(); int 0}`.
+The three `items` pointers above land exactly on the first record of each run, which is the
+independent check — the run boundaries were derived from the handler addresses first and the
+pointer agreed afterwards.
+
+| menu | y | `L2.eng` | caption | handler | what it does |
+|---|--:|---|---|---|---|
+| File | 0 | 1.1 | New Game | `Menu_NewGame` | confirmation prompt 1 |
+| | 20 | 1.2 | Load | `Menu_LoadGame` | globs `*.sav` → screen 0x35 |
+| | 40 | 1.3 | Save | `Menu_SaveGame` | → screen 0x36 |
+| | 60 | 1.4 | Quit | `Menu_Quit` | confirmation prompt 0 |
+| Options | 0 | 2.1 | Advanced | `Menu_AdvancedOptions` | → 0x39 |
+| | 20 | 2.2 | Sounds | `Menu_SoundOptions` | → 0x42 |
+| | 40 | 2.3 | Display | `Menu_DisplayOptions` | → 0x43 |
+| | 60 | 2.4 | Game Speed | `Menu_GameSpeed` | slider on `g_optGameSpeed` |
+| | 80 | 2.5 | Scroll Speed | `Menu_ScrollSpeed` | slider on `g_optScrollSpeed` |
+| Help | 0 | 3.1 | Game Help | `Menu_GameHelp` | → 0x31 |
+| | 20 | 3.2 | How do I... | `Menu_HelpHowDoI` | message 0x123 |
+| | 40 | 3.3 | Grow grain? | `Menu_HelpGrowGrain` | message 0x124 |
+| | 60 | 3.4 | Build a castle? | `Menu_HelpBuildCastle` | message 0x125 |
+| | 80 | 3.5 | Make Weapons? | `Menu_HelpMakeWeapons` | message 0x126 |
+| | 100 | 3.6 | Manage each turn.? | `Menu_HelpManageTurn` | message 0x127 |
+| | 120 | 3.7 | About | `Menu_About` | → 0x25 |
+
+Four items, five items, seven items; groups 1, 2 and 3 hold exactly four, five and seven
+strings after their label. The `y` column is 0, 20, 40, … with no gaps, the string indices
+are 1, 2, 3, … with no gaps, and the five help topics use five **consecutive** message ids.
+Nothing here was chosen by us.
+
+**`Menu_ScrollSpeed` is the row that proves the table.** It passes `&g_optScrollSpeed` — a
+global named earlier for unrelated reasons — and the caption above it is *"Scroll Speed"*.
+That is a check that could have failed and did not.
+
+### 10.2 The four option screens, and the twelve rows behind them **[V]**
+
+Each painter is the same shape: `FUN_004093E0(x, y, w, h)` for the box, group index 0 as the
+heading, indices 1 … n as rows 32 pixels apart, and beside each row a **Yes/No from group 18**
+or an **On/Off from group 19** chosen by one global. Then the painter writes its own **row
+count** into a global that `Screen_DrawWidgets` and `Screen_HandleInput` read back.
+
+| screen | painter | group | rows | widget table | count global |
+|---|---|--:|--:|---|---|
+| 0x39 advanced | `Screen_AdvancedOptions` | 50 | 4 | `g_advancedOptWidgets` | `g_advancedOptWidgetCount` |
+| 0x42 sound | `Screen_SoundOptions` | 51 | 3 | `g_soundOptWidgets` | `g_soundOptWidgetCount` |
+| 0x43 display | `Screen_DisplayOptions` | 52 | 2 | `g_displayOptWidgets` | `g_displayOptWidgetCount` |
+| 0x31 help | `Screen_HelpOptions` | 45 | 3 | `g_helpOptWidgets` | `g_helpOptWidgetCount` |
+
+**The geometry closes to the pixel.** The advanced painter draws its labels at y = 160, 192,
+224 and 256; its four widget records sit at y = 156, 188, 220 and 252 — each label y **minus
+four**, the same offset on all four screens, and 24-pixel buttons whose caption baseline sits
+4 below their top. Sound: labels 160/192/224, widgets 156/188/220. Display: labels 208/240,
+widgets 204/236. Help: labels 192/224/256, widgets 188/220/252.
+
+| row | caption | global | handler |
+|---|---|---|---|
+| 50.1 | Advanced farming | `g_optAdvancedFarming` | `Opt_ToggleAdvancedFarming` |
+| 50.2 | Army foraging | `g_optArmiesEat` | `Opt_ToggleArmyForaging` |
+| 50.3 | Exploration | `g_optExploration` | `Opt_ToggleExploration` |
+| 50.4 | Fight humans only? | `g_optFightHumansOnly` | `Opt_ToggleFightHumansOnly` |
+| 51.1 | Music | `g_optMusic` | `Opt_ToggleMusic` |
+| 51.2 | Sound effects | `g_optSoundEffects` | `Opt_ToggleSoundEffects` |
+| 51.3 | Speech | `g_optSpeech` | `Opt_ToggleSpeech` |
+| 52.1 | Animations | `g_optAnimations` | `Opt_ToggleAnimations` |
+| 52.2 | Full screen | `g_optFullScreen` | `Opt_ToggleFullScreen` |
+| 45.1 | Tip screens | `g_optTipScreens` | `Opt_ToggleTipScreens` |
+| 45.2 | Tool tips | `g_optToolTips` | `Opt_ToggleToolTips` |
+| 45.3 | Start game help | — | `Opt_GameHelpContents` |
+
+Five of these have a second, independent anchor, which is why the block is **[V]** and not
+**[D]**:
+
+* **`g_optAdvancedFarming` and `g_optArmiesEat` were already named**, for farming reasons, and
+  they land on rows 1 and 2 of a group whose captions are *"Advanced farming"* and
+  *"Army foraging"*.
+* **`g_optFullScreen`**: group 52 index 3 is *"(F5 key re-sizes window to 640x480)"* and the
+  painter draws it **only while the flag is 0**. A hint about the window appears exactly when
+  there is a window.
+* **`g_optAnimations`**: `Screen_BattleOutcome`, four screens away, branches on the same flag
+  to draw a taller box with an inset animation panel.
+* **`Opt_GameHelpContents`** calls `WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1)` — an
+  import, which is not a matter of opinion.
+
+**The four advanced rules are frozen in a network game.** Each of their four handlers is
+`if (g_deterministicBattle == 0) { flip } else { tip 0x32; g_screenId = g_menuPrevScreen; }`.
+`Opt_ToggleArmyForaging` additionally re-runs `Ration_Apply` and `County_RefreshEstimates`
+over every county, because the rule changes this turn's food.
+
+`g_optFightHumansOnly` is **stored inverted**: the painter shows *"Yes"* when it is 0, and
+when it is 0 — and the local player is not a participant — the battle resolver skips the
+prompt on screen 0x12 and jumps straight to the result on 0x13.
+
+### 10.3 Two dialogs serve the whole game **[V]**
+
+Neither is a screen anybody wrote by hand; both are opened with arguments.
+
+**The yes/no box, screen 0x1E.** `Ui_OpenConfirm(prompt, x, y, onAnswer)` saves the screen,
+stores its four arguments and paints a 14 × 8 cell box at (x − 16, y − 16) with **`L2.eng`
+group 10 index `prompt`** inside it. `g_confirmWidgets` is a tick at (64, 46) and a cross at
+(112, 50) — frames 29 and 31, hotspot ids 1 and 0 — and both call `Ui_ConfirmClicked`, which
+writes the hotspot id into `g_confirmAnswer` and then calls the stored `g_confirmCallback`.
+Group 10 is fifteen strings and they are the whole game's confirmations: *"Exit the game?"*,
+*"Start a new game?"*, *"Overwrite File?"*, *"Create this army?"*, *"Slaughter villagers?"*,
+*"Combine armies?"*, *"Disband army?"*, *"Garrison castle?"*, *"Besiege castle?"*,
+*"Autocalc battle?"*, *"Destroy field?"*, *"Surrender castle?"*, *"Retreat from field?"*,
+*"Lift the siege?"*. `Menu_Quit` passes 0 and `Menu_NewGame` passes 1.
+
+**The value spinner, screen 0x21.** `Ui_OpenSlider(prompt, value, step, max, min, x, y, format)`
+paints a 15 × 7 box with **group 12 index `prompt`** as the caption and group 12 index 0,
+*"Click Right to Exit"*, under it. Two arrow widgets, frames 35 and 37, call `Ui_SliderUp`
+and `Ui_SliderDown`, which move `*g_sliderValue` by `g_sliderStep` between `g_sliderMin` and
+`g_sliderMax`. `format` 1 divides by ten for display, 3 appends a per cent sign. Group 12 is
+*"Adjusting game speed"*, *"Adjusting scroll speed"*, *"Adjusting music level"*,
+*"Adjusting sound level"*, *"Number of samples"* — and `Menu_GameSpeed` passes 1 with
+`&g_optGameSpeed`, `Menu_ScrollSpeed` passes 2 with `&g_optScrollSpeed`.
+
+### 10.4 Screen 0x1A is the seven diplomacy dialogs **[V]**
+
+§1 recorded 0x1A as *"not identified"*. `Screen_DiploDialog` (`0x0041789B`) is a seven-arm
+chain on `g_diploKind`, and every arm draws `L2.eng` group **72**:
+
+| kind | painter | group 72 | the dialog |
+|--:|---|---|---|
+| 0 | `Diplo_DrawGiftGold` | 10 *"Send gift of gold to"*, 23 *"Last gift was"*, 18 *"Gift of"*, 17 *"Dispatch ?"* | a gift of gold |
+| 1 | `Diplo_DrawLetter(0)` | 11 *"Give a compliment to"* | a compliment |
+| 2 | `Diplo_DrawLetter(1)` | 12 *"Insult"* | an insult |
+| 3 | `Diplo_DrawLetter(2)` | 13 *"Ask for an alliance with"* | offer an alliance |
+| 4 | `Diplo_DrawLetter(3)` | 14 *"End alliance with"* | end an alliance |
+| 5 | `Diplo_DrawCountyRequest(0)` | 15 *"Plead for help from"*, then 19 or 21 | ask an ally for help |
+| 6 | `Diplo_DrawCountyRequest(1)` | 16 *"Plan strategic attack with"*, then 20 or 22 | ask an ally to attack |
+
+The two request dialogs draw index 19 / 20 — *"Choose the county you want help in."* /
+*"...attacked."* — while `g_pickedCounty` is 0, and index 21 / 22 plus the county's name from
+group 100 once one is picked. The prompt and the state agree with each other.
+
+**Where they are opened from closes the loop.** `g_diploWidgets` (`0x004DD940`) holds six
+records at (400, 102 + 50n), and their handlers are exactly the six openers above, **in the
+order of group 72 indices 2 … 8**: *Dispatch a gift*, *Send a compliment*, *Send an insult*,
+*Offer an alliance* / *Terminate alliance*, *Ask ally for help*, *Ask ally to attack*. Six
+widgets for seven captions because one widget covers both alliance rows — and
+`Diplo_OpenAlliance` picks kind 4 over kind 3 exactly when the target is already this realm's
+ally.
+
+### 10.5 Conventions that hold across every table read here **[V]**
+
+Worth writing down because they turn an unread widget table into a legible one:
+
+* **Button sheet frame pairs.** 29 / 31 is tick and cross, 35 / 37 a scroll pair, 68 / 66 a
+  minus and plus, 21 / 23 an up and down. Every tick/cross pair found sits at (x, y) and
+  (x + 40, y + 4) — the cross is four pixels lower, on all six screens that use one.
+* **Hotspot id 1 is confirm, 0 is cancel.** Both halves of a pair share one handler and read
+  `g_uiHotspotId` to find out which was pressed. `Ui_ConfirmClicked`, `Diplo_SendClicked`,
+  `SendSupplies_Close`, `CastleBuild_Close` and `SmackTest_Close` are all this shape.
+* **A scroll widget's hotspot fields are its arguments.** `SaveLoad_Scroll` is one function
+  for two lists: the save/load box passes deltas −3 and +3 with list id 1 and a 15-row window,
+  the skirmish box −1 and +1 with list id 2 and a 5-row window.
+* **The painter publishes its own widget count.** The four option screens, the merchant, the
+  armoury, the court, diplomacy and the trade panel each write a row count into a private
+  global that the widget and input passes read back. A screen's widget list is therefore not
+  a constant, and reading only the table understates it.
+* **`g_redrawRequest` (`0x0057D340`) is how any of this reaches the screen.** Every handler
+  ends by writing 2 to it; the main loop is
+  `if (g_redrawRequest != 0) { Screen_Draw(g_redrawRequest); g_redrawRequest = 0; }`, so the
+  value it was given becomes `Screen_Draw`'s `firstFrame` argument. It has exactly one reader.
+
+### 10.6 `anchor.js screens` had six screen ids wrong, and it is fixed **[V]**
+
+The first run of `node tools/oracle/anchor.js screens` reported the merchant at id **0x62**,
+the court at **0x74**, the armoury at **0x6E**, the other lords at **0x76**, trade goods at
+**0x66** and the campaign map at **0x30** — every management screen the game has. The
+decompiler prints those cases as `g_screenId == '\b'`, `'\t'`, `'\n'`, `'\v'`, `'\f'` and
+`'\0'`, and `litNum`'s regex swallowed the backslash and read the *letter*: `'b'` is 0x62,
+`'t'` is 0x74, `'0'` is 0x30. The fix is a proper C escape table; the check is `Screen_Draw`'s
+39 arms read by hand, which now agree with the tool on all 43 ids.
+
+This is the failure mode a hypothesis generator is *most* dangerous in: the output was
+self-consistent, three columns joined across three dispatchers, and simply displaced. It cost
+nothing here only because §1 of this document already had the right ids to disagree with.
