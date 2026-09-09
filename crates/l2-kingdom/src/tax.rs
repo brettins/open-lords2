@@ -75,7 +75,7 @@ pub fn tax_base(t: &Tables, castle_type: u8) -> i32 {
 ///
 /// It survived because **every county in the only save we test sits at rate 0**,
 /// which is one of the six columns where the two agree. See `docs/decisions.md`
-/// C22.
+/// C26.
 pub fn empire_contribution(t: &Tables, tax_rate: i32) -> i32 {
     let rate = tax_rate.clamp(0, MAX_TAX_RATE) as usize;
     t.tax_happiness_other[rate]

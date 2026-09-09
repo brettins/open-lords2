@@ -697,6 +697,59 @@ being an *empty plot the castle gets built on* — `County_FindCastleTile` stamp
 but the 725-tile town-bank half is not explained, and the table has not been rewritten on
 one function's say-so.
 
+**C26 — Taxation's effect on happiness was one rule. It is two fields with two rules, and
+the second is not a formula at all.**
+
+We wrote `min(5 - rate, 0)` and applied it to both. `Tax_RecomputePreview` (`0x0044B80B`)
+is the only writer of either field anywhere in the binary, and its last three statements
+separate them:
+
+```c
+county[0x0F] = 5 - taxRate;                        /* the county's own term  */
+county[0x16] = g_taxHappinessOther[taxRate * 4];   /* every OTHER county's   */
+Tax_SumEmpireHappiness(county.owner);
+```
+
+`5 - rate` was real, and it belongs to `+0x0F`. `+0x16` — what one county's tax rate does
+to the rest of its realm — is a **lookup**, `g_taxHappinessOther` (`0x004D63D8`), 51 `i32`
+entries now transcribed as `TAX_HAPPINESS_OTHER`. Its shape is nothing like a formula:
+**flat zero from rate 0 through 19**, then a shallow ramp reaching only **−15** at rate 50.
+Ours bit from rate 6 and reached −45. Taxing at 19% costs your other counties nothing at
+all, and we had it costing them thirteen.
+
+**The two agree at six of the fifty-one rates. One of the six is rate 0, and rate 0 is the
+tax rate of every county in the only save the suite tested against.** So the rule was wrong
+at 45 of its 51 possible inputs and 932 tests passed. Not a near miss that the fixture
+happened not to catch — a rule that was wrong almost everywhere, sitting behind a green
+suite, because the fixture exercised one value of its input.
+
+**The general form: a rule can be wrong almost everywhere and still be invisible, when the
+only fixture exercises one value of its input.** Coverage of the *code* says nothing here.
+`empire_contribution` was called constantly and every call passed rate 0.
+
+**It happened twice in the same session, which is why it is a shape and not an anecdote.**
+The cattle-tending rule had the identical failure: `Herd_SeasonTick` passes a labour figure
+into the births/deaths function and staffing is `PctOf(labour, herd * 3)`, so an unattended
+herd dies. Ours took no labour argument at all — a county could keep cattle with nobody
+tending them and lose nothing — and every test passed, because the tested save's counties
+are not short-staffed. Two rules, both wrong only in a region one scenario never visits,
+found the same afternoon.
+
+That is the argument for the two corrections either side of this one. **C23** is why there
+is now more than one fixture and why a fixture is a name plus a fingerprint; **C24** is why
+the tables are diffed against the image instead of against a second copy of themselves.
+`TAX_HAPPINESS_OTHER` has since been checked byte for byte against `Lords2.exe`, **51 of 51
+exact** — and that check earns its place twice over, because the hand transcription *did*
+go wrong the first time, off by one at the start of the ramp. A table typed by a person is
+a place a silent error lives; the oracle is the only thing that reads it back.
+
+Two smaller things fell out of the same reading. **The tax ceiling is 50, not 100** —
+`Tax_Increase` (`0x0043AA32`) guards `taxRate < 0x32`, and the table's 51 entries say the
+same thing independently. And `MAX_TAX_RATE` had been living in `l2-game`, where a rule has
+no business being: 50 is not a widget's range, it is part of the ruleset, and a mod that
+replaces the table is entitled to move it. An arithmetic bound standing in for a rule is
+its own small version of this entry.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
