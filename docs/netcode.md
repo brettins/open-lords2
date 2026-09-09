@@ -41,6 +41,14 @@ rather than four tests named after it:
 | **Loss and reordering** | **Not testable here, because TCP has already handled them.** A byte stream does not lose or reorder; it delivers in order or it fails. A test that "drops packets" through `TcpTransport` would be theatre — the code under test never sees it. The failure that replaces them, the connection breaking, is covered in `tests/tcp.rs`; reordering at the *session* layer, where packets from different peers genuinely arrive in any order, is covered in `tests/lockstep.rs`. |
 | **NAT** | **Not tested, and not testable on one machine.** Two peers on loopback traverse nothing. This is a real gap and nothing in `tests/resilience.rs` should be read as covering it. It needs two machines on different networks, and until that happens the honest status is "unknown". |
 
+> **Fidelity is this project's method everywhere except here.** Everywhere else, where our
+> engine and `Lords2.exe` disagree the binary is right; in this document it is not an
+> authority at all, because the original's multiplayer sync is the defect being replaced.
+> Every argument below has to stand on its own reasoning. The full statement, with the
+> reading of the original's sync that it governs, is
+> [*What the original actually did — and where we deliberately differ*](#what-the-original-actually-did--and-where-we-deliberately-differ),
+> and `CLAUDE.md` points at it too. Read it before citing `Lords2.exe` anywhere here.
+
 ## The original's multiplayer is not merely bad, it is absent
 
 Worth stating plainly, because it settles how much of the original's networking is worth
@@ -155,6 +163,32 @@ one that could ever have run on this build.
 >     `every_part_of_the_state_reaches_the_bytes` is still a hand-written enumeration, so
 >     it still cannot fail for a field nobody listed. `docs/decisions.md` C30 records that;
 >     deriving the enumeration instead is outstanding work.
+>
+>     **Done, and it found the rest of the hole — `docs/decisions.md` C39.** The
+>     enumeration is deleted. What replaces it is two halves, neither of them a list:
+>     a fixture with **every field holding something other than its default**, compared
+>     after a round trip with `#[derive(PartialEq)]`; and a census that reads the struct
+>     definitions out of `crates/l2-kingdom/src`, walks the types from `Kingdom`, and
+>     requires every field it finds to be furnished. Over a saturated fixture the single
+>     `assert_eq!` *is* the completeness check, because a field the encoder drops comes
+>     back holding the default and the default is the one value the fixture never holds.
+>
+>     Its first run found **twelve more fields in neither the save nor the digest**:
+>     eleven on `Realm` — including `pairs`, the entire diplomatic matrix, so two peers
+>     could have diverged on every alliance, grudge and standing in the game with every
+>     checksum agreeing — and `Unit::defence_mark`. Save `VERSION` 10.
+>
+>     Two properties, not one, and the second is easy to miss: a *field* can go missing
+>     from a record, and a whole *record* can go missing from the walk over an array.
+>     `no_record_slot_is_silenced` covers the second by looping over the array lengths.
+>     The original game has exactly that bug in its own sync checksum:
+>     `Sync_BuildDigest` (`0x00440231`) fills eight per-block digest bytes and, as its
+>     **last statement before computing the total**, overwrites byte 7 — the battle-unit
+>     block — with the constant 1, so that block's divergences are silenced in the shipped
+>     build. `[V]`, and recorded on that function in `docs/symbols.json`. **This class of
+>     defect is not a mark of our carelessness; it is what happens whenever a completeness
+>     check is written by hand.** The lesson to carry is structural: *completeness must be
+>     derived, not remembered.*
 >
 > **Now verified:** the default port is Unassigned in the IANA registry for both TCP and
 > UDP, and sockets have been opened — 20 tests drive two real peers on loopback, including
