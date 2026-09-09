@@ -772,8 +772,8 @@
       "name": "BattleUnit_Order",
       "section": "battle",
       "confidence": "verified",
-      "signature": "void BattleUnit_Order(int unit, int x, int y, int attackTarget, int fromPlayer, int facing)",
-      "comment": "Gives a battle unit a destination. Missile units stop short of the target by (range/8 - 3) cells; a unit that mixes missile and melee figures is split into two units."
+      "signature": "void BattleUnit_Order(int unit, int x, int y, int attackTarget, int destIsWoodland, int facing)",
+      "comment": "Gives a battle unit a destination. Missile units stop short of the target by (range/8 - 3) cells; a unit that mixes missile and melee figures is split into two units. CORRECTED: the fifth parameter was named fromPlayer and is nothing of the kind. Its only writer is Battle_UpdateHover, which sets DAT_0053E874 when the hovered cell's SURFACE BYTE IS 15 and clears it otherwise, and all twenty-five AI call sites pass a literal 0 -- so only a player's click can make it non-zero, and what it selects is the branch that applies Order_StopShortOfTarget and Dest_FindReachableNear to a missile unit of SIDE 0. Why surface 15 specifically is not established. The sixth parameter is not a facing either: it stores facing - 1 in unit +0x09, whose one reader forces the formation to two columns when it is 1, so the H and V keys are line and column. docs/battle.md section 15."
     },
     {
       "addr": "0x0048143B",
@@ -6208,6 +6208,222 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Screen 0x0A and 0x0D, per frame: two guttering torches from armtorch.pl8 at (0x9A, 0x76) and (0x19A, 0x76), the second thirteen frames behind the first. [V] Presentation only."
+    },
+    {
+      "addr": "0x0043BF07",
+      "name": "Battle_DragSelect",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Battle_DragSelect(void)",
+      "comment": "The battlefield's selection box, and FOUR arms in one function. Gated on DAT_00568964 == 1 (input armed by Battle_Start) and DAT_00553C6C == 0. (1) Left PRESS with g_battleHoverOnField and g_screenId != 0x2A: record the anchor cell in _DAT_0055CE60/64 and the anchor pixel in DAT_0057A0F4/0E8, set g_screenId = 0x2A, and point g_debugSelectedMan at whatever figure is under the press. (2) Button held on 0x2A with g_mouseInputChanged: FUN_0043C247(player, 0, ...) clears and re-boxes the selection live, the 0 being what stops it regrouping units on every pointer motion. (3) g_mouseLeftReleased OR g_mouseLeftDoubleClick on 0x2A: back to 0x29, then FUN_00479CF7 classifies the gesture -- 1 commits the box, 2 nudges the anchor by -8,-8 and the pointer by +8,+8 and commits THAT (so a click on a man selects a 16-pixel square), 0 does nothing at all and in particular does NOT clear the selection. (4) anything else declines and the ladder falls through. THIS IS THE SECOND READER OF g_mouseLeftDoubleClick; docs/decisions.md C61 predicted one and C67 found it. docs/battle.md section 15.5."
+    },
+    {
+      "addr": "0x00479CF7",
+      "name": "Battle_ClassifyDrag",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Battle_ClassifyDrag(void)",
+      "comment": "Which of three things a finished selection drag is. Returns 1 when the pointer has moved 0x19 pixels or more on either axis -- a real box; 2 when it has not and g_battleHoverFriendly or g_battleHoverFriendlyPicked says one of your own men is under it -- a pick; 0 otherwise, which the caller treats as nothing at all. It also writes the four box corners in sixteenths (>> 4) to _DAT_005653F0/EC and _DAT_005656F4/E8 on every call, including the ones that return 0."
+    },
+    {
+      "addr": "0x0043C247",
+      "name": "Battle_CommitSelection",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_CommitSelection(uint player, int commit, int camX, int camY, int ax, int ay, int bx, int by)",
+      "comment": "Clear, box, and -- only when commit is 1 -- regroup. FUN_00479A71 then FUN_00479B58, and on the committing call FUN_00478987, FUN_00478F0B and Battle_CountMenByType. Battle_DragSelect passes 0 on every frame of a drag and 1 on the release, which is why the highlight follows the box live while the UNITS are only rearranged once."
+    },
+    {
+      "addr": "0x00479B58",
+      "name": "BattleMen_SelectInBox",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void BattleMen_SelectInBox(uint player, int camX, int camY, int ax, int ay, int bx, int by)",
+      "comment": "Normalises the two corners, converts them to cells with a quarter-tile tolerance (FUN_004BC2E5 / FUN_004BC3AC round the near corner up past three quarters, FUN_004BC346 / FUN_004BC40D round the far corner down inside a quarter), and walks the closed rectangle. Each cell's OCCUPANT -- battlefield byte +5, not any sprite the box overlaps -- gets selectedSeen set, and gets selected = player if this player owns it. So a man drawn half inside the box and standing outside is not picked, and one drawn outside and standing inside is."
+    },
+    {
+      "addr": "0x00479A71",
+      "name": "BattleMen_ClearSelection",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void BattleMen_ClearSelection(uint player)",
+      "comment": "Sweeps figures 1..80 and clears selected wherever it equals this player, leaving another player selection alone, then clears the five selected-siege-engine counters. The tail of every other selection verb."
+    },
+    {
+      "addr": "0x00478987",
+      "name": "BattleUnits_RegroupSelection",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void BattleUnits_RegroupSelection(uint player)",
+      "comment": "THE REASON SELECTION IS SIMULATION STATE. Counts the selection by troop type into the five panel counters (zeroing all five when more than one kind is present), then asks whether the selection is exactly one whole unit -- the unit of the LOWEST-numbered selected figure. If it is not, BattleUnit_Alloc claims a slot and every selected figure is moved into it, so a box drawn round half a unit SPLITS that unit and every later order applies to the new one. Two details worth keeping: the new unit's category is written INSIDE the move loop, so the LAST selected figure decides whether the whole unit is missile (1) or melee (3); and when BattleUnit_Alloc finds no free slot the whole regroup silently does nothing, at which point FUN_00478F0B truncates the selection instead. Sets DAT_0053E984, the unit a player's orders go to."
+    },
+    {
+      "addr": "0x00478F0B",
+      "name": "BattleMen_NarrowSelectionToOneUnit",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void BattleMen_NarrowSelectionToOneUnit(uint player)",
+      "comment": "Finds the first selected figure and deselects everything not in its unit. Runs immediately after BattleUnits_RegroupSelection on the committing path, where it is normally a no-op because the regroup has just put every selected figure in one unit; it earns its place when BattleUnit_Alloc had no slot left. A selection that cannot be split is truncated instead."
+    },
+    {
+      "addr": "0x0043C634",
+      "name": "Battle_OrderSelection",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_OrderSelection(int x, int y)",
+      "comment": "The click that gives an order. Plays a troop cry -- 2 with an enemy under the cursor, 3 on hover surface 2, else 1 -- sets a 30-frame cooldown in DAT_00553F84 (10 in multiplayer), bumps the per-player order counter DAT_00553100, and calls BattleUnit_Order(DAT_0053E984, x, y, g_battleHoverEnemy, DAT_0053E874, 0). ONE unit, because BattleUnits_RegroupSelection has just made the selection be one unit."
+    },
+    {
+      "addr": "0x0043C57D",
+      "name": "Battle_OrderClicked",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Battle_OrderClicked(void)",
+      "comment": "Five guards, all refusals: g_battleHoverOnField, then NOT g_battleHoverFriendlyPicked, then NOT g_battleHoverFriendly (which is what makes a click on one of your own men a selection and never a destination), then g_mouseLeftReleased, then DAT_00553078 != 0, then DAT_0053F238 == 0 -- the pause. Calls Battle_OrderSelection(DAT_00553F88, DAT_00553F94)."
+    },
+    {
+      "addr": "0x0043C2A9",
+      "name": "Battle_UnitPanelClicked",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Battle_UnitPanelClicked(void)",
+      "comment": "The right column's two arms. LEFT PRESS: walk the local player's selected figures in index order against rectangles from DAT_004D31F4 (28-byte records whose first four ints are x, y, w, h for FUN_004B1DEB), with a base offset chosen by DAT_00553078 -- 0 under 13 figures, 12 under 19, 30 otherwise, so three layouts of 12, 18 and 50 slots. A hit calls FUN_0043C4C6, which DROPS that figure from the selection rather than selecting it. The loop breaks at 0x31 < index, so only the first FIFTY banners are clickable whatever the layout. RIGHT RELEASE: FUN_0043C55C clears the whole selection, refused inside x >= 0x1E1 && 0x18 <= y <= 0xB7 -- the overview panel MINUS ITS LEFTMOST COLUMN, because the panel starts at 0x1E0 and the guard tests 0x1E1."
+    },
+    {
+      "addr": "0x0043C4C6",
+      "name": "BattleMan_Deselect",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void BattleMan_Deselect(int figure)",
+      "comment": "One banner click: clear that figure selected and selectedSeen bits and regroup. Not a selection verb -- the panel is a grid of the men you already hold."
+    },
+    {
+      "addr": "0x0043C55C",
+      "name": "Battle_DeselectAll",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_DeselectAll(uint player)",
+      "comment": "BattleMen_ClearSelection plus a redraw request. What the right button does on the battlefield -- see docs/decisions.md C61 on right-click being the systematically missed gesture."
+    },
+    {
+      "addr": "0x004329A4",
+      "name": "Battle_ButtonClicked",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "int Battle_ButtonClicked(void)",
+      "comment": "Hotspot_Test(0x1E0, 0x1C0, &DAT_004DC710, 5) -- the five 32x32 battle buttons in a row at (480, 448): pause, retreat, the siege gate, charge, autocalc. The table records are (0,0)..(128,0) at size 32, so the strip is exactly the right panel width."
+    },
+    {
+      "addr": "0x0043B9A1",
+      "name": "Battle_PauseButton",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_PauseButton(void)",
+      "comment": "Battle button 0. DAT_0053F238 = ~DAT_0053F238, and Battle_Start seeds that word 0xFFFFFFFF -- so A BATTLE STARTS PAUSED and the first thing a player does is press this to unpause. While it is set, Battle_OrderClicked and BattleMap_Click both refuse to order and Battle_Frame paints L2.eng group 32 index 0 through FUN_00423B4F. The sound branch under it tests == 1, which a word alternating between 0 and -1 can never be: docs/bugs.md D38."
+    },
+    {
+      "addr": "0x0043BA29",
+      "name": "Battle_RetreatButton",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_RetreatButton(void)",
+      "comment": "Battle button 1, guarded on g_battleChoiceOwner == 1. Ui_OpenConfirm(12) 'Retreat from field?', or Ui_OpenConfirm(11) 'Surrender castle?' when g_battleIsSiege and the local player owns army B. Both callbacks reach FUN_0043BE65, which is Battle_AutoResolve and Battle_ReturnToCampaign(1) -- and neither calls Battle_WriteBackCasualties, so RETREATING DISCARDS EVERY CASUALTY THE BATTLE HAS PRODUCED and the result is computed from the armies as they walked on."
+    },
+    {
+      "addr": "0x0043BBE7",
+      "name": "Battle_GateButton",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_GateButton(void)",
+      "comment": "Battle button 2. Four guards: g_battleChoiceOwner != 0, g_battleIsSiege (else message 0x6E), the local player owns army B and g_castleLevel >= 3 (else 0x6F), and DAT_0052AF9C not already set (else 0x9D). On a pass it calls FUN_00496B9F, which finds the first cell flagged 0x40, lays a 7x4 patch of surface 3 over it from DAT_004D9E18, adds 4 to both g_siegeApproachScore and g_siegeBreachScore and rebuilds the pathfinding template."
+    },
+    {
+      "addr": "0x0043BD02",
+      "name": "Battle_ChargeButton",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_ChargeButton(void)",
+      "comment": "Battle button 3, and it fires ONCE per battle -- DAT_0055322C is set on the first press and never cleared. Calls FUN_0047A76D."
+    },
+    {
+      "addr": "0x0047A76D",
+      "name": "Battle_ChargeAll",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_ChargeAll(uint player)",
+      "comment": "Every figure of this player whose troopType is under 7 -- so no siege engine and no oil -- gets state 8, free pursuit, and its unit gets halted = 1, which switches the every-500-frame reform off. NOT Order_ChargeNearest (0x0048C8AF), which is the AI's and also clears the withdraw flag and the figures' targets."
+    },
+    {
+      "addr": "0x0043BD67",
+      "name": "Battle_AutocalcButton",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_AutocalcButton(void)",
+      "comment": "Battle button 4, guarded on g_battleChoiceOwner == 1: Ui_OpenConfirm(9) 'Autocalc battle?'. Same destination as the retreat button."
+    },
+    {
+      "addr": "0x0043BE65",
+      "name": "Battle_GiveUp",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_GiveUp(void)",
+      "comment": "What all three battlefield confirms do when answered yes: Battle_AutoResolve, then either the report screen 0x13 and Battle_ReturnToCampaign(1) or, in a skirmish, the ratings screen 0x2E. It does NOT call Battle_WriteBackCasualties -- see Battle_RetreatButton."
+    },
+    {
+      "addr": "0x0043C885",
+      "name": "Battle_StoreGroup",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_StoreGroup(int vkey)",
+      "comment": "Ctrl and a digit. Guarded on g_battlePhase == 2 and 0x30 < vkey < 0x3A, so nine slots; copies the live selection bitmap into DAT_00553400 + (vkey - 0x31) * 0x18 and marks the slot used. Battle_Start clears TEN slots. Reached from the window procedure's digit arm when DAT_004DF3A8 (the VK_CONTROL latch) is set."
+    },
+    {
+      "addr": "0x0043C910",
+      "name": "Battle_RecallGroup",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_RecallGroup(int vkey)",
+      "comment": "A digit with no Ctrl. Copies a stored selection back, regroups it, and then PUTS THE CAMERA ON IT -- the function ends by scanning for the first selected figure and setting DAT_0055CE70 / DAT_005678A0 to its position minus seven. The camera jump is part of the arm, not a convenience."
+    },
+    {
+      "addr": "0x0043C77A",
+      "name": "Battle_FormationKey",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battle_FormationKey(int mode)",
+      "comment": "The H and V keys, from the window procedure's WM_CHAR arm while g_battlePhase == 2. Re-issues DAT_0053E984 a BattleUnit_Order at the unit's OWN position with facing = mode + 1, which stores mode in unit +0x09. Formation_ComputeRect (0x0048A1C9) is the only reader of that byte and its whole use of it is `if (field_0x9 == 1) g_formationCols = 2` -- so H is a LINE (the troop's own figures-per-row) and V is a COLUMN (two wide). Settles docs/battle.md section 1's 'unnamed and untraced' for +0x09. Note it does not regroup first, so H after men have died reforms whatever unit the selection last became."
+    },
+    {
+      "addr": "0x0043B593",
+      "name": "Battle_PromptAnswered",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Battle_PromptAnswered(void)",
+      "comment": "The handler behind both widgets of DAT_004DDBB0, screen 0x12's whole input. Hotspot id 1 calls Battle_Start; hotspot id 0 calls Battle_Decline. The table holds EXACTLY TWO records -- g_sliderWidgets begins 48 bytes on at 0x004DDBE0 -- and its count DAT_00554408 is written by Battle_ChooseSettlement as 2 when g_battleChoiceOwner == 1 and 0 otherwise, so a bystander's prompt has no widgets at all. Screen_FrameInput's own 0x12 arm is entirely multiplayer (the sync latch and FUN_004BBEA7, which returns 0 unconditionally when g_multiplayer is clear), so IN SINGLE PLAYER THESE TWO WIDGETS ARE THE ONLY WAY OFF THE SCREEN. docs/decisions.md C67. Promoted from docs/hypotheses.json, where it was Screen_BattlePromptClick with the caveat 'whether this is the whole click handler or one arm of it was not checked' -- it is the whole of it, because the table it is the handler for holds exactly two records."
+    },
+    {
+      "addr": "0x004BBEA7",
+      "name": "Battle_PromptTimedOut",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Battle_PromptTimedOut(void)",
+      "comment": "Screen 0x12s answer timeout: 20 seconds when DAT_00554408 is positive (the local player has the choice and is being waited on) and 30 when it is not. Returns 0 UNCONDITIONALLY when g_multiplayer is clear, which is what makes the single-player prompt wait for ever."
+    },
+    {
+      "addr": "0x004BBF15",
+      "name": "Battle_ReportTimedOut",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Battle_ReportTimedOut(void)",
+      "comment": "Screen 0x13s auto-dismiss: 5000 ms after _DAT_005689A0, and immediately when two or more sieges are pending in a siege. Returns 0 unconditionally when g_multiplayer is clear."
+    },
+    {
+      "addr": "0x004B1DEB",
+      "name": "Rect_Contains",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int Rect_Contains(int x, int y, int w, int h)",
+      "comment": "x <= g_mouseX < x + w && y <= g_mouseY < y + h. The battle unit panel hit-tests its banners with this rather than through Hotspot_Test, because its rectangles are a table of geometry with no handlers."
     }
   ],
   "globals": [

@@ -64,6 +64,7 @@
 pub mod armoury;
 pub mod army;
 pub mod battle;
+pub mod battlefield;
 pub mod castle;
 pub mod conquest;
 pub mod county;

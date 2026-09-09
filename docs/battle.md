@@ -1652,3 +1652,328 @@ node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9a00 
 # the a2/a3 frame identity, from the shipped art rather than the binary
 node tools/battle/sheetframes.js "F:/games/Lords of the Realm II"
 ```
+
+---
+
+## 15. Playing a battle: every input arm of `0x28` … `0x2B`
+
+Sections 1–14 are what a battle *is*. This one is what a **player** can do to
+it, and it exists because the input audit (`docs/decisions.md` C61) measured the
+battlefield at **0 of 49** and there was no list to build from. Same status
+legend: **[V]** verified against a second independent source, **[D]** a reading
+of decompiled C, **[I]** inferred.
+
+### 15.1 There are three screens, not four
+
+**[V] Screen `0x28` is unreachable.** Every immediate write of `g_screenId`
+(`0x004EAC50`) in the shipped binary was enumerated — 212 `mov byte ptr
+[0x004EAC50], imm8` sites, values covering `0x00` … `0x45` — and `0x28` is not
+among them, while `0x29`, `0x2A` and `0x2B` all are. No decompiled function
+assigns it, and the only indirect writes (`g_screenIdSaved`, `g_menuPrevScreen`,
+`DAT_004E65C8`, `DAT_004EAFB0`, `DAT_004F0350`) can restore only a value
+`g_screenId` already held. It has a live `Screen_FrameInput` arm and a live
+`Screen_Draw` arm, and neither can run — `docs/bugs.md` D37.
+
+Its arm is worth reading anyway, because of what it says the screen *was*:
+
+```c
+if (g_screenId == '(') {            /* 0x28 */
+    Map_EdgeScroll();
+    if (g_mouseRightReleased) { g_screenId = ')'; DAT_0053f238 = 0; DAT_0053e9ac = 1; }
+}
+```
+
+`DAT_0053F238` is the **pause** word (§15.3), and this is the only place other
+than the pause button that clears it. So `0x28` was a look-around-before-it-
+starts screen, and leaving it started the fighting. **[I]** on that reading;
+**[V]** on the two writes.
+
+| id | what | its arm |
+|---|---|---|
+| `0x28` | dead | `Screen_FrameInput` `0x0042FF10`, arm `'('` |
+| `0x29` | the field | arm `')'` |
+| `0x2A` | **the selection drag** | arm `'*'` |
+| `0x2B` | the outcome banner | arm `'+'` |
+
+`Screen_HandleInput` (`0x004BA9C8`) has **no arm for any of the four**, so the
+battlefield has no widget table: its buttons are a `Hotspot_Test` inside
+`Screen_FrameInput`'s own ladder. `Screen_Draw` (`0x0040F1A0`) has arms for
+`0x28`, `0x29` and `0x2B` and **none for `0x2A`** — during a drag the screen is
+not repainted by the dispatcher at all; `Battle_Frame` paints the field
+directly. **[V]**
+
+### 15.2 The screen, in pixels
+
+`Battle_LoadAssets` (`0x004987B7`) fixes the viewport and `BattleMap_Click`,
+`FUN_004329A4` and the banner table fix the rest.
+
+```
+  x   0 … 479   y  24 … 471   the battlefield, 15 x 14 tiles of 32
+  x 480 … 639   y  24 … 183   the overview: the whole 80 x 80 field at 2 px a cell
+                y 185 … 404   the banners of the figures you hold
+                y 448 … 479   five buttons, 32 x 32 each
+```
+
+### 15.3 A battle starts paused, and the pause sound is dead code  **[V]**
+
+`Battle_Start` writes `DAT_0053F238 = 0xFFFFFFFF` before it raises
+`g_screenId = 0x29`. Battle button 0 (`FUN_0043B9A1`) toggles that word with a
+bitwise NOT, so it flips between `-1` and `0`, and the **first thing a player
+does in every battle is press pause, to unpause it**.
+
+While it is set, `FUN_0043C57D` refuses to issue an order, `BattleMap_Click`
+refuses to order from the overview, and `Battle_Frame` paints `L2.eng` group 32
+index 0 across the bottom of the field through `FUN_00423B4F`.
+
+The same function ends:
+
+```c
+DAT_0053f238 = ~DAT_0053f238;
+...
+if (DAT_0053f238 == 1) { _DAT_005533f0 = 1; Sound_PlayFile("s032_01.wav", 1, 0); }
+```
+
+A word that only ever holds `0` or `-1` is never `1`, so **the pause sound never
+plays**. `docs/bugs.md` D38.
+
+### 15.4 The five buttons — `DAT_004DC710`, `Hotspot_Test(0x1E0, 0x1C0, …, 5)`
+
+**[V]** The table is five 32 × 32 records at x 0, 32, 64, 96, 128, offset by
+(480, 448), so the strip is exactly the panel's width.
+
+| # | handler | what | guard |
+|---:|---|---|---|
+| 0 | `FUN_0043B9A1` | **pause** | `g_battleChoiceOwner != 0` |
+| 1 | `FUN_0043BA29` | **retreat** — `Ui_OpenConfirm(12)` *"Retreat from field?"*, or `Ui_OpenConfirm(11)` *"Surrender castle?"* for a siege garrison | `== 1` |
+| 2 | `FUN_0043BBE7` | the **siege gate** — `FUN_00496B9F` | siege, garrison, castle ≥ 3, once |
+| 3 | `FUN_0043BD02` | **charge** — `FUN_0047A76D` | `!= 0`, once (`DAT_0055322C`) |
+| 4 | `FUN_0043BD67` | **autocalc** — `Ui_OpenConfirm(9)` | `== 1` |
+
+**Retreat and autocalc are the same action.** Both confirms land in
+`FUN_0043BE65`, which is `Battle_AutoResolve` and `Battle_ReturnToCampaign(1)`.
+And `Battle_AutoResolve` reads the **campaign** records (§4.2) while
+`FUN_0043BE65` never calls `Battle_WriteBackCasualties` — so **retreating
+discards every casualty the battle has produced** and computes the result from
+the armies as they walked on. **[V]**
+
+**Charge is not `Order_ChargeNearest`.** `FUN_0047A76D` walks the local player's
+figures of troop type < 7 and sets `unit.halted = 1` and `figure.state = 8`; the
+AI's `Order_ChargeNearest` (`0x0048C8AF`) also clears the withdraw flag and the
+figures' targets. And it is one-shot: `DAT_0055322C` is set on the first press
+and never cleared inside a battle.
+
+### 15.5 Selecting: the drag is a screen  **[V]**
+
+`FUN_0043BF07` (`0x0043BF07`) is four arms in one function, gated on
+`DAT_00568964 == 1` (input armed by `Battle_Start`) and `DAT_00553C6C == 0`.
+
+1. **left press, pointer on the field, not already `0x2A`** — record the anchor
+   cell (`_DAT_0055CE60/64`) and the anchor pixel (`DAT_0057A0F4/0E8`), set
+   `g_screenId = 0x2A`, and set the debug panel's figure to whatever is under
+   the press;
+2. **button held on `0x2A`, pointer moved** — `FUN_0043C247(player, 0, …)`:
+   clear the selection and re-box it, live;
+3. **release, or `g_mouseLeftDoubleClick`, on `0x2A`** — `g_screenId = 0x29`,
+   then `FUN_00479CF7` classifies the gesture;
+4. anything else — decline, and fall through to the next guard.
+
+`FUN_00479CF7` (`0x00479CF7`) returns **1** when the pointer moved 25 pixels or
+more on either axis, **2** when it barely moved and the hover says one of your
+own men is under it, and **0** otherwise. The three land differently:
+
+* **1** → `FUN_0043C247(player, 1, …)`: clear, box, `FUN_00478987`,
+  `FUN_00478F0B`, `Battle_CountMenByType`;
+* **2** → the anchor is moved **−8, −8** and the pointer **+8, +8** and *that*
+  box is committed, so a click on a man selects a 16-pixel square;
+* **0** → **nothing at all**, and in particular the selection is *not* cleared.
+  Clearing is the right button's job (§15.7).
+
+The box itself rounds with a quarter-tile tolerance: the near corner rounds up
+when it is more than three quarters of the way into a tile
+(`FUN_004BC2E5`/`FUN_004BC3AC`) and the far corner rounds down when it is less
+than a quarter in (`FUN_004BC346`/`FUN_004BC40D`). And it reads the **occupant
+of each cell**, not the sprites the box overlaps, so a man drawn half inside it
+and standing outside is not picked. **[V]**
+
+**The commit rearranges the unit array, which is why selection is simulation
+state.** `FUN_00478987` (`0x00478987`) asks whether the selection is exactly one
+whole unit; if it is not — the player boxed half a unit, or figures from two —
+it calls `BattleUnit_Alloc` and moves every selected figure into a **new unit**.
+So a box drawn round half a unit *splits* it, and every later order applies to
+the new one. Two details reproduced rather than tidied: the new unit's category
+is written **inside** the move loop, so the **last** selected figure decides
+whether the whole unit is missile (1) or melee (3); and if `BattleUnit_Alloc`
+finds no free slot the regroup silently does nothing, at which point
+`FUN_00478F0B` (`0x00478F0B`) **truncates the selection to the first figure's
+unit** instead. **[V]**
+
+`DAT_00553078`, the count every order arm gates on, is not written by any of
+this: `Battle_CountMenByType` (`0x00481B9A`) recounts it from the figure array
+every frame. **[V]**
+
+### 15.6 Ordering — `FUN_0043C57D` → `FUN_0043C634` → `BattleUnit_Order`
+
+**[V]** Five guards, all refusals: the pointer must be on the field, it must
+**not** be over one of your own men (either hover flag blocks it, which is what
+makes a click on a friend a selection and never a destination), the button must
+have been *released*, `DAT_00553078` must be non-zero, and `DAT_0053F238` — the
+pause — must be clear.
+
+`FUN_0043C634` then plays a troop cry (2 with an enemy under the cursor, 3 on
+surface 2, else 1), sets a 30-frame cooldown, and calls
+
+```c
+BattleUnit_Order(DAT_0053e984, x, y, g_battleHoverEnemy, DAT_0053e874, 0);
+```
+
+on **one unit** — `DAT_0053E984`, which `FUN_00478987` has just made the
+selection be.
+
+#### `BattleUnit_Order`'s fifth argument is not `fromPlayer`
+
+`docs/symbols.json` names it that. It is **`DAT_0053E874`, and its only writer is
+`Battle_UpdateHover`, which sets it when the hovered cell's surface byte is 15
+and clears it otherwise.** All twenty-five AI call sites pass a literal 0. Its
+effect inside `BattleUnit_Order` is that a **missile** unit of **side 0** ordered
+onto such a cell has `Order_StopShortOfTarget` and `Dest_FindReachableNear`
+applied to its destination. **[V]** on the writer and the branch; the name is a
+correction, and *why* the game cares about surface 15 specifically is **not
+established**.
+
+### 15.7 The right button is a deselect  **[V]**
+
+`FUN_0043C2A9` (`0x0043C2A9`) holds the two panel arms:
+
+* **left press** — walk the local player's selected figures in index order,
+  hit-testing rectangles from `DAT_004D31F4`. The base offset is chosen by
+  `DAT_00553078`: **0** under 13 figures, **12** under 19, **30** otherwise —
+  three layouts of 12, 18 and 50 slots. A hit calls `FUN_0043C4C6`, which
+  **drops that figure from the selection**. The loop breaks at
+  `0x31 < local_c`, so **only the first fifty banners are clickable** whatever
+  the layout;
+* **right release** — `FUN_0043C55C` → `FUN_00479A71`, **clear the whole
+  selection**. Refused inside `x >= 0x1E1 && 0x18 <= y <= 0xB7`, which is the
+  overview panel *minus its leftmost column* — the panel starts at `0x1E0` and
+  the guard tests `0x1E1`, so a right click on column 480 deselects.
+
+The three layouts, read out of `DAT_004D31F4` (28-byte records whose first four
+`i32`s are `x, y, w, h` for `FUN_004B1DEB`):
+
+| slots | grid | origin | size | pitch |
+|---:|---|---|---|---|
+| 12 | 3 × 4 | (488, 189) | 45 × 50 | 53 × 55 |
+| 18 | 3 × 6 | (488, 186) | 45 × 35 | 53 × 37 |
+| 50 | 6 × 9 | (484, 185) | 22 × 18 | 26 × 19 |
+
+### 15.8 The overview panel orders at battlefield scale  **[V]**
+
+`BattleMap_Click` (`0x00432443`) accepts x 480 … 639, y 24 … 183 and maps it to
+a cell by `(x − 480) / 2, (y − 24) / 2`. Left button, something selected, no oil
+selected and unpaused → `FUN_0043C634`, **a real order from a two-pixel click**.
+Anything else, the right button included → the camera goes there
+(`cam = cell − 7`).
+
+It is reached from `Screen_FrameInput`'s **epilogue** —
+`if ((leftPressed || rightPressed) && g_screenId != 0x12 && FUN_004323FE())` —
+which runs after every per-screen arm on every screen but `0x12`. So the
+overview is live on `0x29`, `0x2A` and `0x2B` alike.
+
+### 15.9 The keyboard — the window procedure, `0x004B29BE`
+
+**[V]** The battlefield is the only screen in the game with real keyboard verbs,
+and they are dispatched from `WndProc` rather than from `Screen_FrameInput`.
+
+| key | arm | gate |
+|---|---|---|
+| `1` … `9` | `FUN_0043C910` — recall a control group **and put the camera on it** | `g_battlePhase == 2` |
+| `Ctrl` + `1` … `9` | `FUN_0043C885` — store one | `g_battlePhase == 2` |
+| `H` | `FUN_0043C77A(0)` — form a **line** | `g_battlePhase == 2` |
+| `V` | `FUN_0043C77A(1)` — form a **column** | `g_battlePhase == 2` |
+| `←` `→` | step `g_debugSelectedMan` | none |
+| `F2` | cycle `DAT_00568960`, the debug panel's mode | none, but see below |
+| `F3` | toggle `DAT_0055402C`, which is what makes the panel draw | `DAT_0053F684 == 1` |
+| `F4` | add one hit to figures 1 … 20 | `DAT_0053F684 == 1` |
+
+`VK_CONTROL` is latched into `DAT_004DF3A8` on key-down and cleared on key-up,
+and the digit arm is `if (DAT_004DF3A8 == 0) FUN_0043C910(key); else
+FUN_0043C885(key);` — two different functions rather than one with a flag. Nine
+groups are reachable (`0x30 < key && key < 0x3A`) and `Battle_Start` clears ten
+slots of `DAT_00553400`, stride `0x18`.
+
+**`BattleDebug_Panel` is not on by default**, which §0 leaves open. All three
+panel modes open with `if (DAT_0055402C != 0 && g_battlePhase == 2)`, and
+`DAT_0055402C` is written only by F3, which is gated on `DAT_0053F684`. So F2
+cycles a mode nothing draws unless the debug flag is set.
+
+#### `H` and `V` settle unit `+0x09`  **[V]**
+
+§1 lists `+0x09` as "unnamed and untraced". `FUN_0043C77A` re-issues
+`BattleUnit_Order` at the unit's *own* position with the sixth argument set to
+1 or 2, and `BattleUnit_Order` stores `facing − 1` there. The **one** reader is
+`Formation_ComputeRect` (`0x0048A1C9`), whose whole use of it is
+
+```c
+if (g_battleUnits[unit].field_0x9 == '\x01') { g_formationCols = 2; }
+```
+
+So it is not a facing: it picks between the troop type's own figures-per-row and
+a two-wide column. **Line and column**, which is what the two keys are.
+
+### 15.10 The cursor, and the outcome banner
+
+**[V]** `Battle_Frame`'s ladder for `0x28 ≤ g_screenId ≤ 0x2A` chooses among four
+cursor kinds — 0 arrow, 4 move, 5 attack, 6 select — in seven leaves. An enemy
+under the pointer beats everything; `0x2A` is always the plain arrow; and with a
+selection in hand a pointer **outside** the field still shows the move cursor as
+long as it is above y 184, which is the overview panel, where a click really
+does order. Note `Battle_UpdateHover` runs *after* the cursor is chosen, so the
+original's battle pointer is one frame stale.
+
+`0x2B`'s whole arm is one line: a right release sets `DAT_00568470 = 0x1389`.
+`Battle_CheckOutcome` counts that word up once a frame and gives way past 5000,
+so the right button **skips** the banner rather than dismissing it.
+
+### 15.11 The count
+
+| screen | arms | note |
+|---|---:|---|
+| `0x28` | 2 | both dead |
+| `0x29` | 23 | 5 buttons, 5 pointer arms, 8 keys, the menu bar, the edge scroll, the two overview outcomes, the cursor |
+| `0x2A` | 10 | four of `FUN_0043BF07`, the three drag classes, the two exits, the cursor |
+| `0x2B` | 3 | the skip, and the overview's two outcomes |
+| **total** | **38** | |
+
+**This is not 49, and the difference is a counting rule rather than a
+disagreement about the code.** One (screen, gesture, guard) a player can tell
+apart is one arm here; a table of N identical widgets hit-tested in one call is
+**one** arm (the menu bar's three titles, the nine control-group keys) and a
+ladder with N distinct outcomes is N. C61's 49 was reached with a finer rule
+somewhere — most likely the menu bar's titles, the cursor's leaves, or the digit
+keys counted individually — and `0x28`'s two are in both totals and should be in
+neither.
+
+**One number does agree exactly, and it is the one that would have caught a
+disagreement about the code.** C61 records *"Battle: 6 of 6"* right-button arms
+missing. There are exactly six, and they are: `0x28`'s dead right release;
+`0x29`'s deselect; `0x29`'s right press in the overview, which recentres;
+`0x2A`'s cancel; `0x2B`'s skip; and the message scroll's dismissal, which is
+every screen's. Two enumerations reaching the same six by different routes is
+the cross-check this section could otherwise not have.
+
+`docs/arms.json` is the machine-readable form, and
+`crates/l2-game/tests/arms.rs` holds it to the code in both directions.
+
+### 15.12 What is still unknown here
+
+* **`Menu_SaveGame` during a battle.** The menu bar is live on `0x29` and
+  `Screen_HandleInput` has no `0x29` arm; whether the original refuses, saves a
+  broken file, or saves the campaign underneath was not established.
+* **The banner painter's own bound.** The click loop stops at fifty. The painter
+  (`FUN_004238B8` / `FUN_004239D5`) is handed a count clamped to `0x50`, and the
+  fifty-slot layout has fifty entries; whether it reads past the table for
+  banners 50 … 79 was not checked.
+* **`FUN_00496B9F`'s rules** — the siege gate. Traced far enough to state the
+  button's four guards and no further; it belongs with the siege work.
+* **Why surface 15 specifically** makes a missile unit stop short (§15.6).
+* **`DAT_00553C6C`**, which gates the whole selection and order path, and is
+  written where nothing here looked.

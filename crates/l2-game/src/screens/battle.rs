@@ -71,7 +71,7 @@ use l2_view::chrome::system;
 use l2_view::{text, Canvas};
 
 use crate::engagement::{Answer, Roster};
-use crate::input::{Event, Key, Rect};
+use crate::input::{Event, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 use crate::turn::{self, Question, TurnStep};
@@ -307,36 +307,71 @@ impl Screen for BattlePromptScreen {
         true
     }
 
+    /// **Two widgets and nothing else.**
+    ///
+    /// This is what `Screen_FrameInput`'s `0x12` arm actually is, and it took
+    /// the input audit to find out. The whole arm is:
+    ///
+    /// ```c
+    /// else if (g_screenId == '\x12') {
+    ///     if (DAT_00553fc8 != 0) { Battle_Decline(); … }      /* the sync latch */
+    ///     if (FUN_004bbea7() != 0) { Battle_Decline(); … }    /* the answer timeout */
+    /// }
+    /// ```
+    ///
+    /// and `FUN_004BBEA7` (`0x004BBEA7`) opens with
+    /// `if (g_multiplayer == 0) return 0;`. **In a single-player game the arm
+    /// does nothing at all** — no right-button test, no key, no OK corner. The
+    /// only two exits are the two widgets of `DAT_004DDBB0`, which
+    /// `Screen_HandleInput` (`0x004BA9C8`) hit-tests at offset `(0x20, 0x30)`
+    /// with a count of `DAT_00554408`; that count is written by
+    /// `Battle_ChooseSettlement` (`0x004A6A30`) and is **2 when
+    /// `g_battleChoiceOwner == 1` and 0 otherwise**, so a bystander's prompt has
+    /// no widgets and no way out but the multiplayer timeout. The table holds
+    /// exactly two records — `g_sliderWidgets` begins at `0x004DDBE0`, 48 bytes
+    /// on — so there is no third widget hiding behind the count.
+    ///
+    /// Gone from here, and counted as inventions rather than bugs
+    /// (`docs/arms.json`): **right-click to Decline**, **Escape to Decline**,
+    /// **Enter to take the field**, and answering on any click for a bystander.
+    /// The prompt waits for ever in single player and that is correct — it is
+    /// what `docs/symbols.json` records of `Battle_Decline` and it is not a
+    /// thing to fix.
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        // **A bystander has no choice to make.** `Battle_ChooseSettlement`
-        // writes a widget count of 2 when the local player holds the choice and
-        // 0 otherwise, so the thumbs are not drawn and cannot be clicked; the
-        // battle is settled by the policy and the screen is only a notice.
+        // **A bystander has no choice to make**, and no widget either. The
+        // screen is a notice; the original leaves it up until the multiplayer
+        // timeout, which single player does not have. Ours is reachable only
+        // through the interactive door, and a bystander battle in a
+        // single-player game cannot arise — `Battle_ChooseSettlement` returns 0
+        // when neither side is human and the battle is settled with no screen —
+        // so this arm is a guard against a state that has no route to it.
         let Some(q) = BattlePromptScreen::question(ctx) else { return Transition::Pop };
         if q.choice_owner != 1 {
-            return match event {
-                Event::Click { .. } | Event::RightClick { .. } | Event::KeyDown(_) => {
-                    let a = ctx.game.field_policy;
-                    BattlePromptScreen::answer(ctx, a)
-                }
-                _ => Transition::Stay,
-            };
+            return Transition::Stay;
         }
         match event {
+            // `DAT_004DDBB0[0]`, hotspot id 1 → `FUN_0043B593` →
+            // `Battle_Start` (`0x004778A0`). It raises the battlefield; it does
+            // **not** settle the battle.
+            //
+            // arm: 0x004BA9C8/prompt-fight
             Event::Click { x, y } if widget_rect(TAKE_THE_FIELD).contains(x, y) => {
-                BattlePromptScreen::answer(ctx, Answer::TakeTheField)
+                if turn::take_the_field(ctx.game) {
+                    Transition::Replace(ScreenId::Battlefield)
+                } else {
+                    // The armies could not be mustered — a slot is no longer a
+                    // unit. Settle it the way a headless turn would rather than
+                    // leaving the prompt up with nothing behind it.
+                    BattlePromptScreen::answer(ctx, Answer::TakeTheField)
+                }
             }
+            // `DAT_004DDBB0[1]`, hotspot id 0 → `Battle_Decline`
+            // (`0x0043B622`), which is `Battle_AutoResolve` and the report.
+            //
+            // arm: 0x004BA9C8/prompt-decline
             Event::Click { x, y } if widget_rect(DECLINE).contains(x, y) => {
                 BattlePromptScreen::answer(ctx, Answer::Decline)
             }
-            // `Screen_FrameInput`'s `0x12` arm: a right release runs
-            // `Battle_Decline`. **There is no timeout** — the gate that would
-            // impose one returns 0 outright unless `g_multiplayer`, so in a
-            // single-player game the prompt waits for ever.
-            Event::RightClick { .. } | Event::KeyDown(Key::Escape) => {
-                BattlePromptScreen::answer(ctx, Answer::Decline)
-            }
-            Event::KeyDown(Key::Enter) => BattlePromptScreen::answer(ctx, Answer::TakeTheField),
             _ => Transition::Stay,
         }
     }
@@ -440,11 +475,23 @@ impl Screen for BattleResultScreen {
         true
     }
 
+    /// **Two ways out, and `0x13` really does have the right-button one that
+    /// `0x12` does not.**
+    ///
+    /// ```c
+    /// if (g_mouseRightReleased == '\0') {
+    ///     if (Ui_OkButtonClicked()) { g_screenId = 0; g_redrawRequest = 2; }
+    /// } else { g_screenId = 0; g_redrawRequest = 2; }
+    /// ```
+    ///
+    /// The two neighbouring screens differing on this is what made
+    /// right-click-to-Decline on `0x12` look reasonable. There are no keys on
+    /// either; Escape and Enter used to be here and were ours.
+    ///
+    /// // arm: 0x0042FF10/dismiss-report
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        let dismiss = matches!(
-            event,
-            Event::RightClick { .. } | Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter)
-        ) || matches!(event, Event::Click { x, y } if ok_rect().contains(x, y));
+        let dismiss = matches!(event, Event::RightClick { .. })
+            || matches!(event, Event::Click { x, y } if ok_rect().contains(x, y));
         if !dismiss {
             return Transition::Stay;
         }

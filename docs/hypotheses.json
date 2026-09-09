@@ -238,15 +238,6 @@
       "caveat": "The third argument is 4 and the two callers are the wall-damage accumulators, so \"turn this patch of wall into surface 4\" is the only reading that fits. The extent it paints was not read; docs/battle-ai.md 9 records the same uncertainty for the neighbouring 0x00496B9F."
     },
     {
-      "addr": "0x0043B593",
-      "name": "Screen_BattlePromptClick",
-      "section": "ui",
-      "confidence": "subject",
-      "comment": "Screen 0x12 button handler. Hotspot 1 starts the battle locally, or in a network game sleeps 2 s and sends message 0x3C instead; hotspot 0 declines, or sends 0x3D twice.",
-      "basis": "the only function that reads g_uiHotspotId and then either calls Battle_Start or sends network message 0x3C",
-      "caveat": "The hotspot ids 1 and 0 are take-the-field and decline; the screen is 0x12, Screen_BattlePrompt. That much is solid. Whether this is the whole click handler or one arm of it was not checked, and the ui section is another agent's."
-    },
-    {
       "addr": "0x00447136",
       "name": "Net_JournalCommand",
       "section": "units",

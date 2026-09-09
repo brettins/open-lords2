@@ -89,6 +89,10 @@ struct App {
     /// `game.turns_played` as it stood at the last tick, so that the end of a
     /// turn can be noticed without anything having to report it.
     turns_heard: u32,
+    /// `DAT_004DF3A8` — whether Control is held. The window procedure keeps the
+    /// same latch and its digit arm dispatches on it: with Control, store a
+    /// battle control group; without, recall one.
+    ctrl: bool,
     /// When and where the left button last went down, for [`DOUBLE_CLICK`].
     /// `None` once a double click has been reported, so three clicks are a
     /// double and then a single rather than two doubles — which is what
@@ -243,7 +247,11 @@ impl App {
     }
 }
 
-fn translate(key: &WinitKey) -> Option<Key> {
+/// `ctrl` is the window procedure's `DAT_004DF3A8` — `0x004B29BE` latches
+/// `VK_CONTROL` on key-down and clears it on key-up, and its digit arm calls a
+/// different function depending on it. Only the digits carry the modifier,
+/// because only the digits are dispatched on it.
+fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
     Some(match key {
         WinitKey::Named(NamedKey::Escape) => Key::Escape,
         WinitKey::Named(NamedKey::Enter) => Key::Enter,
@@ -253,6 +261,7 @@ fn translate(key: &WinitKey) -> Option<Key> {
         WinitKey::Named(NamedKey::ArrowDown) => Key::Down,
         WinitKey::Named(NamedKey::ArrowLeft) => Key::Left,
         WinitKey::Named(NamedKey::ArrowRight) => Key::Right,
+        WinitKey::Character(s) if ctrl => Key::ctrl_letter(s.chars().next()?),
         WinitKey::Character(s) => Key::letter(s.chars().next()?),
         _ => return None,
     })
@@ -312,12 +321,16 @@ impl ApplicationHandler for App {
                 self.machine.mark_dirty();
             }
             WindowEvent::RedrawRequested => self.present(),
+            WindowEvent::ModifiersChanged(mods) => {
+                // `WM_KEYDOWN` / `WM_KEYUP` on `VK_CONTROL` in the original.
+                self.ctrl = mods.state().control_key();
+            }
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
                 // F5 never reaches a screen: it is about the window, and the
                 // window is this file's business alone.
                 if event.logical_key == WinitKey::Named(NamedKey::F5) {
                     self.snap_to_whole_scale();
-                } else if let Some(key) = translate(&event.logical_key) {
+                } else if let Some(key) = translate(&event.logical_key, self.ctrl) {
                     self.deliver(GameEvent::KeyDown(key));
                 }
             }
@@ -455,6 +468,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pixels: None,
         next_tick: Instant::now(),
         last_cursor: (0, 0),
+        ctrl: false,
         last_press: None,
     };
 

@@ -106,6 +106,16 @@ pub enum ScreenId {
     BattlePrompt,
     /// `g_screenId` `0x13` — *"The Battle is decided."*
     BattleResult,
+    /// **`g_screenId` `0x29`, `0x2A` and `0x2B`** — the battlefield, the
+    /// selection drag over it, and the outcome banner.
+    ///
+    /// One id for three, because the battle they are about is on the [`Game`]
+    /// and all three draw the same field: which of the three is up is
+    /// [`crate::battlefield::Mode`], and
+    /// [`crate::battlefield::LiveBattle::screen_id`] answers it in the
+    /// original's own numbers. `0x28` is the fourth of that block and is
+    /// unreachable in the shipped binary — see [`crate::battlefield`].
+    Battlefield,
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -282,6 +292,9 @@ impl ScreenId {
             }
             ScreenId::BattleResult => {
                 Box::new(crate::screens::battle::BattleResultScreen::new())
+            }
+            ScreenId::Battlefield => {
+                Box::new(crate::screens::battlefield::BattlefieldScreen::new())
             }
             ScreenId::Shell(id) => Box::new(crate::screens::shells::ShellScreen::new(id)),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),

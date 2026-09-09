@@ -93,11 +93,28 @@ pub enum Key {
     /// A printable character, already folded to uppercase so a screen never
     /// has to match both cases.
     Char(char),
+    /// The same, with **Control** held.
+    ///
+    /// A separate variant rather than a modifier field, because in the original
+    /// it is a separate *dispatch*, not a qualifier: the window procedure
+    /// (`0x004B29BE`) latches `VK_CONTROL` into `DAT_004DF3A8` on key-down and
+    /// clears it on key-up, and its `0x31` … `0x39` arm is
+    /// `if (DAT_004DF3A8 == 0) FUN_0043C910(key); else FUN_0043C885(key);` —
+    /// **two different functions**, recall a control group and store one. A flag
+    /// on [`Key::Char`] would invite a screen to handle the digit and then
+    /// branch, which is the shape that produces a modifier that half-works.
+    ///
+    /// Only the battlefield reads it, and only for the nine digits.
+    CtrlChar(char),
 }
 
 impl Key {
     pub fn letter(c: char) -> Key {
         Key::Char(c.to_ascii_uppercase())
+    }
+
+    pub fn ctrl_letter(c: char) -> Key {
+        Key::CtrlChar(c.to_ascii_uppercase())
     }
 }
 
@@ -147,11 +164,23 @@ pub enum Event {
     /// **This is the original's own event, not a convenience.** `Lords2.exe`'s
     /// window procedure (`0x004B29BE`) handles message `0x203`
     /// — `WM_LBUTTONDBLCLK` — by setting bit 0 of `DAT_004EADA1`, and the frame
-    /// poll at `0x004B2D5A` turns that into `DAT_004EABC5`, read by exactly one
-    /// input arm: `Village_DoubleClick` (`0x00439DF0`), which balances one job's
-    /// labour against the idle pool. So the double click is a *different verb*
-    /// from the click, dispatched from a different flag, and folding it into two
-    /// [`Event::Click`]s would lose the distinction the game makes.
+    /// poll at `0x004B2D5A` turns that into `DAT_004EABC5`. So the double click
+    /// is a *different verb* from the click, dispatched from a different flag,
+    /// and folding it into two [`Event::Click`]s would lose the distinction the
+    /// game makes.
+    ///
+    /// **Corrected.** This paragraph said the flag was "read by exactly one
+    /// input arm: `Village_DoubleClick` (`0x00439DF0`)", and the input audit
+    /// (`docs/decisions.md` C61) falsified it without looking for it. There are
+    /// **two** readers, and the second is on the battlefield:
+    /// `FUN_0043BF07` (`0x0043BF07`) tests
+    /// `(g_mouseLeftReleased || g_mouseLeftDoubleClick) && g_screenId == 0x2A`,
+    /// so a double click **commits an open selection box** exactly as a release
+    /// would. That is not a second verb — it is the same verb reached a second
+    /// way, and it exists precisely because of the sentence below: without it,
+    /// the second click of a fast double click would leave the drag open with no
+    /// press to end it. `Hotspot_Test` (`0x0040E3EE`) also reads the flag for
+    /// its kind-2 widgets, which is a third reader and not an arm.
     ///
     /// **Windows sends it instead of the second press**, not as well as it: the
     /// second `WM_LBUTTONDOWN` never arrives, which is why the original's

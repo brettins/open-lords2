@@ -36,6 +36,7 @@
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
+use l2_game::battlefield as bf;
 use l2_game::screens::{armoury, army, battle, divide, map};
 use l2_game::Game;
 use l2_kingdom::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
@@ -1128,20 +1129,49 @@ fn ending_a_turn_into_a_battle_asks_the_player_before_anything_is_decided() {
 
 /// **Both answers reach the simulation, and they are different battles.**
 ///
-/// Taking the field runs `l2-sim`; declining runs the autocalc. The test that
-/// they are genuinely two paths is that the report says so — a caveat-free
-/// assertion that the button is wired to the thing it names.
+/// Taking the field raises the **battlefield** — `FUN_0043B593` with hotspot id
+/// 1 calls `Battle_Start`, not the autocalc — and declining runs the autocalc.
+/// The test that they are genuinely two paths is that the report says so.
 #[test]
 fn the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled() {
     use l2_game::engagement::Resolution;
 
-    for (thumb, want_fought) in
-        [(battle::TAKE_THE_FIELD, true), (battle::DECLINE, false)]
-    {
+    for (thumb, want_fought) in [(battle::TAKE_THE_FIELD, true), (battle::DECLINE, false)] {
         let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
         press(&mut m, &mut g, &a, 'e');
         assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt));
         click(&mut m, &mut g, &a, on(battle::widget_rect(thumb)));
+
+        if want_fought {
+            // The battlefield, and it is **paused** — `Battle_Start` writes
+            // `DAT_0053F238 = 0xFFFFFFFF` before it raises the screen.
+            assert_eq!(m.top_id(), Some(ScreenId::Battlefield), "the field, not the result");
+            assert!(g.battle.as_ref().expect("a live battle").paused, "a battle starts paused");
+            // Nothing happens while it is paused, however many frames pass.
+            for _ in 0..200 {
+                tick(&mut m, &mut g, &a);
+            }
+            assert_eq!(g.battle.as_ref().expect("still there").runner.tick, 0);
+            // Unpause and let it run. A battle is thousands of ticks long, so
+            // this is a longer loop than `run_until`'s — it is the same thing.
+            click(&mut m, &mut g, &a, on(bf::Button::Pause.rect()));
+            assert!(!g.battle.as_ref().expect("a live battle").paused);
+            for _ in 0..40_000 {
+                if g.battle.as_ref().is_some_and(|b| b.conclusion.is_some()) {
+                    break;
+                }
+                tick(&mut m, &mut g, &a);
+            }
+            assert!(
+                g.battle.as_ref().is_some_and(|b| b.conclusion.is_some()),
+                "the battle did not reach a conclusion",
+            );
+            // The banner is up, and it holds for five thousand frames unless a
+            // right release skips it. Skip it, which is `0x2B`'s only arm.
+            assert_eq!(g.battle.as_ref().map(|b| b.screen_id()), Some(0x2B));
+            send(&mut m, &mut g, &a, Event::RightClick { x: 100, y: 300 });
+            tick(&mut m, &mut g, &a);
+        }
 
         assert_eq!(m.top_id(), Some(ScreenId::BattleResult), "the result screen follows");
         let r = l2_game::turn::pending_report(&g).expect("a settled battle");
@@ -1171,22 +1201,312 @@ fn the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled() {
     }
 }
 
-/// A right release on the prompt is `Battle_Decline`, and there is no timeout:
-/// the gate that would impose one returns 0 unless `g_multiplayer`, so a
-/// single-player prompt waits for ever.
+/// **Screen `0x12` has exactly two exits and neither of them is a button on the
+/// mouse or a key on the keyboard.**
+///
+/// `Screen_FrameInput`'s `0x12` arm is two `if`s, both multiplayer: the sync
+/// latch, and `FUN_004BBEA7`, which returns 0 outright when `g_multiplayer` is
+/// clear. So in a single-player game the arm does **nothing at all** and the
+/// prompt waits for ever, which `docs/symbols.json` records of `Battle_Decline`
+/// and which is correct rather than a hang.
+///
+/// We had right-click-to-Decline, Escape-to-Decline and Enter-to-fight here.
+/// All three were ours; `docs/decisions.md` C67 counts them, and `docs/arms.json` is where they are
+/// counted.
+///
+/// **Ablated**: putting any one of the three back turns this red.
 #[test]
-fn a_right_release_declines_and_nothing_times_out() {
+fn the_prompt_has_no_way_out_but_its_two_widgets() {
     let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
     press(&mut m, &mut g, &a, 'e');
-    // A hundred ticks with nothing clicked: the prompt is still there and the
-    // turn is still suspended.
+    assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt));
+
+    // A hundred ticks: no timeout.
     for _ in 0..100 {
         tick(&mut m, &mut g, &a);
     }
-    assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt), "the prompt timed out");
-    send(&mut m, &mut g, &a, Event::RightClick { x: 0, y: 0 });
-    let r = l2_game::turn::pending_report(&g).expect("declining still fights it");
+    // Every gesture the original does not have, inside the window and outside
+    // it, and none of them may settle anything.
+    let window = battle::window();
+    for e in [
+        Event::RightClick { x: 0, y: 0 },
+        Event::RightClick { x: window.centre_x(), y: window.y + 8 },
+        Event::KeyDown(Key::Escape),
+        Event::KeyDown(Key::Enter),
+        Event::KeyDown(Key::letter('Y')),
+        // A left click on the window that is on neither widget.
+        Event::Click { x: window.x + 8, y: window.y + 8 },
+        Event::DoubleClick { x: window.centre_x(), y: window.y + 8 },
+    ] {
+        send(&mut m, &mut g, &a, e);
+        assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt), "{e:?} left the prompt");
+        assert!(l2_game::turn::pending_report(&g).is_none(), "{e:?} settled the battle");
+        assert!(g.battle.is_none(), "{e:?} raised a battlefield");
+    }
+    // And the two that do work still work.
+    click(&mut m, &mut g, &a, on(battle::widget_rect(battle::DECLINE)));
+    let r = l2_game::turn::pending_report(&g).expect("the thumb down declines");
     assert_eq!(r.resolution, l2_game::engagement::Resolution::Autocalc);
+}
+
+/// **A battle a player watches and gives no orders in produces exactly the
+/// battle nobody watches.**
+///
+/// This is the assertion that lets orders be added safely: a player's orders
+/// change what a player *can do*, and must not change what the same inputs
+/// produce. The two paths share [`l2_game::engagement::begin_fight`] and
+/// [`l2_game::engagement::conclude_fight`]; what differs is who supplies the
+/// ticks, and the tick loops differ in grain — the headless one asks whether the
+/// battle is over every hundredth tick and the played one every tick.
+#[test]
+fn watching_a_battle_and_giving_no_orders_reproduces_the_headless_verdict() {
+    // The headless path: `end_turn`, whose policy answers Decline — so force
+    // the fought path by resolving the same pair directly.
+    let (mut g, _a, _m, attacker, defender) = a_battle_is_about_to_happen();
+    let county = g.kingdom.campaign.units.get(defender).map_or(0, |u| u.county);
+    let seed = 0x5EED_BEEF;
+    let mut headless = g.kingdom.clone();
+    let mut runner = l2_game::engagement::begin_fight(&mut headless, attacker, defender, None, seed)
+        .expect("two armies");
+    while runner.tick < 12_000 && runner.conclusion().is_none() {
+        runner.run(100);
+    }
+    let (want_verdict, _) =
+        l2_game::engagement::conclude_fight(&mut headless, attacker, defender, runner);
+
+    // The watched path: the same two armies, the same seed, one tick at a time.
+    let mut watched = g.kingdom.clone();
+    let mut runner =
+        l2_game::engagement::begin_fight(&mut watched, attacker, defender, None, seed)
+            .expect("two armies");
+    let mut live = l2_game::battlefield::LiveBattle::new(runner, attacker, defender, county, None, 1, 1);
+    live.paused = false;
+    for _ in 0..12_000 {
+        live.tick();
+        if live.conclusion.is_some() {
+            break;
+        }
+    }
+    runner = live.runner;
+    let (got_verdict, _) =
+        l2_game::engagement::conclude_fight(&mut watched, attacker, defender, runner);
+
+    assert_eq!(got_verdict, want_verdict, "a watched battle changed its own outcome");
+    for id in [attacker, defender] {
+        assert_eq!(
+            headless.campaign.units.get(id).map(|u| u.troops),
+            watched.campaign.units.get(id).map(|u| u.troops),
+            "unit {id} came off the field with different men",
+        );
+    }
+    let _ = &mut g;
+}
+
+/// Put the battle camera over the local player's own men.
+///
+/// `Battle_Start` seeds it at cell (0x20, 0x21) and the armies deploy at the two
+/// markers, which may be nowhere near it — the original's player scrolls or
+/// clicks the overview panel. A test that boxed the opening viewport and found
+/// nothing would be asserting on its own emptiness, which is exactly the failure
+/// `docs/agents.md` names.
+fn look_at_the_players_men(g: &mut Game) {
+    // The local realm is 1 and it owns the attacking army, which
+    // `Battle_InitArmies` raises as army A — side 4, the one that is not
+    // `SIDE_A` in `l2-sim`'s naming.
+    let at = {
+        let live = g.battle.as_ref().expect("a live battle");
+        (0..live.runner.fighters.len())
+            .find(|&i| live.runner.is_alive(i) && live.runner.fighters[i].side != l2_sim::SIDE_A)
+            .map(|i| (live.runner.fighters[i].x, live.runner.fighters[i].y))
+            .expect("the player has men on the field")
+    };
+    let live = g.battle.as_mut().expect("a live battle");
+    live.cam = ((at.0 as i32 - 7).clamp(0, 80 - bf::VIEW_COLS), (at.1 as i32 - 7).clamp(0, 80 - bf::VIEW_ROWS));
+}
+
+/// **A player gives an order, and it reaches the simulation.**
+///
+/// The whole chain, driven with [`Event`] values and nothing else: press on the
+/// field opens the drag (`g_screenId` `0x2A`), release commits the box
+/// (`FUN_0043C247`), the men are selected, a release on empty ground is an order
+/// (`FUN_0043C57D` → `BattleUnit_Order`), and the unit's destination is the cell
+/// that was clicked.
+#[test]
+fn a_box_selects_men_and_a_click_on_the_ground_orders_them() {
+    let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
+    press(&mut m, &mut g, &a, 'e');
+    click(&mut m, &mut g, &a, on(battle::widget_rect(battle::TAKE_THE_FIELD)));
+    assert_eq!(m.top_id(), Some(ScreenId::Battlefield));
+    click(&mut m, &mut g, &a, on(bf::Button::Pause.rect()));
+
+    look_at_the_players_men(&mut g);
+
+    send(&mut m, &mut g, &a, Event::Pointer { x: bf::VIEW.x + 4, y: bf::VIEW.y + 4 });
+    send(&mut m, &mut g, &a, Event::Click { x: bf::VIEW.x + 4, y: bf::VIEW.y + 4 });
+    assert_eq!(
+        g.battle.as_ref().map(|b| b.screen_id()),
+        Some(0x2A),
+        "a press on the field is the drag screen",
+    );
+    let far = (bf::VIEW.x + bf::VIEW.w - 4, bf::VIEW.y + bf::VIEW.h - 4);
+    send(&mut m, &mut g, &a, Event::Pointer { x: far.0, y: far.1 });
+    send(&mut m, &mut g, &a, Event::Release { x: far.0, y: far.1 });
+    assert_eq!(g.battle.as_ref().map(|b| b.screen_id()), Some(0x29), "and the release ends it");
+
+    let picked = {
+        let live = g.battle.as_ref().expect("a live battle");
+        live.runner.selected_count(1)
+    };
+    assert!(picked > 0, "the box picked nobody");
+
+    // Now order them somewhere empty. Pick a cell in the viewport with no man
+    // on it, and read the unit's destination back out of `l2-sim`.
+    let (px, py, want) = {
+        let live = g.battle.as_ref().expect("a live battle");
+        let mut found = None;
+        for row in 0..bf::VIEW_ROWS {
+            for col in 0..bf::VIEW_COLS {
+                let cell = (
+                    (live.cam.0 + col).clamp(0, 79) as u8,
+                    (live.cam.1 + row).clamp(0, 79) as u8,
+                );
+                if live.runner.occupant_of(cell.0, cell.1).is_none() {
+                    found = Some((
+                        bf::VIEW.x + col * bf::TILE + 4,
+                        bf::VIEW.y + row * bf::TILE + 4,
+                        cell,
+                    ));
+                    break;
+                }
+            }
+            if found.is_some() {
+                break;
+            }
+        }
+        found.expect("some empty ground in view")
+    };
+    // **Press then release, the way a player does it**, because that is the
+    // path that matters: the press opens the drag (`0x2A`), the release moves
+    // nothing and hits nobody, `FUN_0043BF07` therefore *declines*, and the
+    // order arm behind it in the ladder gets the release. A test that released
+    // without pressing would exercise a state the original never reaches.
+    send(&mut m, &mut g, &a, Event::Pointer { x: px, y: py });
+    send(&mut m, &mut g, &a, Event::Click { x: px, y: py });
+    assert_eq!(g.battle.as_ref().map(|b| b.screen_id()), Some(0x2A));
+    send(&mut m, &mut g, &a, Event::Release { x: px, y: py });
+
+    let live = g.battle.as_ref().expect("a live battle");
+    let unit = live.current_unit;
+    assert_ne!(unit, 0, "the selection did not become a unit");
+    let u = live.runner.units.get(unit);
+    assert_eq!(
+        (u.target_x as u8, u.target_y as u8),
+        want,
+        "the order did not reach the unit's destination",
+    );
+}
+
+/// **A finished box does not also order at the corner it ended on.**
+///
+/// `Screen_FrameInput`'s `0x2A` arm is a ladder and `FUN_0043BF07` is above
+/// `FUN_0043C57D`; when the drag guard consumes the release the dispatcher
+/// `goto`s past the order guard. Ours ran both for a while, which is the sort of
+/// thing that only shows up as *"my men wander off after I select them"*.
+///
+/// **Ablated**: making `release_field` return `true` for every case, or running
+/// `order_at` unconditionally after it, turns this red.
+#[test]
+fn committing_a_selection_box_does_not_also_issue_an_order() {
+    let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
+    press(&mut m, &mut g, &a, 'e');
+    click(&mut m, &mut g, &a, on(battle::widget_rect(battle::TAKE_THE_FIELD)));
+    click(&mut m, &mut g, &a, on(bf::Button::Pause.rect()));
+    look_at_the_players_men(&mut g);
+
+    // A destination nothing could have been ordered to before the box.
+    let before: Vec<(i16, i16)> = {
+        let live = g.battle.as_ref().expect("a live battle");
+        (1..=80).map(|u| {
+            let u = live.runner.units.get(u);
+            (u.target_x, u.target_y)
+        }).collect()
+    };
+
+    let start = (bf::VIEW.x + 4, bf::VIEW.y + 4);
+    let end = (bf::VIEW.x + bf::VIEW.w - 4, bf::VIEW.y + bf::VIEW.h - 4);
+    send(&mut m, &mut g, &a, Event::Pointer { x: start.0, y: start.1 });
+    send(&mut m, &mut g, &a, Event::Click { x: start.0, y: start.1 });
+    send(&mut m, &mut g, &a, Event::Pointer { x: end.0, y: end.1 });
+    send(&mut m, &mut g, &a, Event::Release { x: end.0, y: end.1 });
+
+    let live = g.battle.as_ref().expect("a live battle");
+    assert!(live.runner.selected_count(1) > 0, "the box picked nobody");
+    // The corner the box ended on, which is where a leaked order would land.
+    let corner = (
+        (live.cam.0 + (end.0 - bf::VIEW.x) / bf::TILE) as i16,
+        (live.cam.1 + (end.1 - bf::VIEW.y) / bf::TILE) as i16,
+    );
+    for u in 1..=80usize {
+        let unit = live.runner.units.get(u);
+        if !unit.is_live() {
+            continue;
+        }
+        let now = (unit.target_x, unit.target_y);
+        if now == before[u - 1] {
+            continue;
+        }
+        assert_ne!(now, corner, "unit {u} was ordered to the box's far corner");
+    }
+}
+
+/// **The right button clears the selection; it does not leave the battle.**
+///
+/// `FUN_0043C2A9`'s right half is `FUN_0043C55C`, a deselect, and it is refused
+/// only inside the overview panel. This is the arm the "right click exits"
+/// habit would have replaced — `docs/decisions.md` C61's second pattern.
+///
+/// **Ablated**: making the right button pop the screen turns this red on the
+/// first assertion.
+#[test]
+fn the_right_button_on_the_battlefield_clears_the_selection() {
+    let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
+    press(&mut m, &mut g, &a, 'e');
+    click(&mut m, &mut g, &a, on(battle::widget_rect(battle::TAKE_THE_FIELD)));
+    click(&mut m, &mut g, &a, on(bf::Button::Pause.rect()));
+    look_at_the_players_men(&mut g);
+    // Select everything in view.
+    send(&mut m, &mut g, &a, Event::Pointer { x: bf::VIEW.x + 4, y: bf::VIEW.y + 4 });
+    send(&mut m, &mut g, &a, Event::Click { x: bf::VIEW.x + 4, y: bf::VIEW.y + 4 });
+    let far = (bf::VIEW.x + bf::VIEW.w - 4, bf::VIEW.y + bf::VIEW.h - 4);
+    send(&mut m, &mut g, &a, Event::Pointer { x: far.0, y: far.1 });
+    send(&mut m, &mut g, &a, Event::Release { x: far.0, y: far.1 });
+
+    // A right release inside the overview panel is refused — and note the
+    // off-by-one the original carries: the panel starts at 0x1E0 and the guard
+    // tests 0x1E1, so its leftmost column deselects after all.
+    let before = g.battle.as_ref().expect("a live battle").runner.selected_count(1);
+    // **The fixture has to be non-empty or the last assertion checks nothing.**
+    // `docs/agents.md`: a field is only tested if something a test reads was
+    // written by something the game runs. Ablating the deselect passed this
+    // test until this line existed.
+    assert!(before > 0, "the box picked nobody, so clearing it proves nothing");
+    send(&mut m, &mut g, &a, Event::RightClick { x: 0x1E8, y: 0x40 });
+    assert_eq!(
+        g.battle.as_ref().expect("a live battle").runner.selected_count(1),
+        before,
+        "the overview panel swallows the right button",
+    );
+    assert_eq!(m.top_id(), Some(ScreenId::Battlefield), "and it is still a battle");
+
+    // Anywhere else clears it, and still does not leave.
+    send(&mut m, &mut g, &a, Event::RightClick { x: 100, y: 100 });
+    assert_eq!(
+        g.battle.as_ref().expect("a live battle").runner.selected_count(1),
+        0,
+        "the right button did not clear the selection",
+    );
+    assert_eq!(m.top_id(), Some(ScreenId::Battlefield), "right-click must not leave the battle");
+    assert!(g.battle.is_some());
 }
 
 /// The prompt draws inside its own window and nowhere else — the same

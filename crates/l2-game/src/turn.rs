@@ -239,6 +239,13 @@ pub struct Question {
     /// attacker is the side that pressed. The three strings and the "no buttons
     /// for a bystander" rule are `[V]`.
     pub choice_owner: u8,
+    /// The besieged castle's level, or `None` for a field battle.
+    ///
+    /// Carried on the question because [`take_the_field`] needs it to raise the
+    /// battlefield — `Battle_Start` picks `Battlefield_BuildCastle` over
+    /// `Battlefield_BuildRandom` on exactly this — and the question is the only
+    /// thing that survives from the assault to the answer.
+    pub castle_level: Option<u8>,
 }
 
 impl Question {
@@ -274,6 +281,84 @@ pub fn begin_turn(game: &mut Game) -> TurnStep {
 /// normally [`TurnStep::Report`].
 pub fn answer_battle(game: &mut Game, answer: Answer) -> TurnStep {
     advance(game, Resume::Answer(answer), true)
+}
+
+/// **The player pressed the thumb up on screen `0x12`** — `FUN_0043B593` with
+/// `g_uiHotspotId == 1`, which calls `Battle_Start` (`0x004778A0`).
+///
+/// Raises the battlefield instead of settling the question, and leaves the turn
+/// suspended exactly where it was: the two armies are still standing on one tile
+/// and neither record has been touched. [`finish_battle`] is the other end.
+///
+/// Answers `false` when there is no question to fight or the armies could not be
+/// mustered, and the caller should then fall back to [`answer_battle`], which
+/// settles it the way a headless turn would.
+pub fn take_the_field(game: &mut Game) -> bool {
+    let Some(q) = pending_question(game) else { return false };
+    let seed = if q.is_siege {
+        siege_seed(&game.kingdom)
+    } else {
+        battle_seed(
+            &game.kingdom,
+            Encounter { mover: q.attacker, occupant: q.defender, county: q.county },
+        )
+    };
+    let Some(runner) =
+        engagement::begin_fight(&mut game.kingdom, q.attacker, q.defender, q.castle_level, seed)
+    else {
+        return false;
+    };
+    game.battle = Some(Box::new(crate::battlefield::LiveBattle::new(
+        runner,
+        q.attacker,
+        q.defender,
+        q.county,
+        q.castle_level,
+        game.player,
+        q.choice_owner,
+    )));
+    true
+}
+
+/// **The battle the player was watching is over.**
+///
+/// Takes the live battle off [`Game`] and settles the suspended question with
+/// it, which produces the [`TurnStep::Report`] screen `0x13` draws. The two ways
+/// out of a battle land here differently, and the difference is the original's:
+///
+/// * **it ended** — `Battle_CheckOutcome` (`0x00477DFC`) — and the casualties
+///   the simulation produced are written back;
+/// * **the player retreated or autocalculated** — `FUN_0043BE65`, which runs
+///   `Battle_AutoResolve` and **never calls `Battle_WriteBackCasualties`**. So
+///   every man killed so far is unkilled, and the result is computed from the
+///   armies as they walked on. Reproduced by dropping the runner on the floor
+///   and answering [`Answer::Decline`], which is the same autocalc.
+pub fn finish_battle(game: &mut Game) -> TurnStep {
+    let Some(live) = game.battle.take() else { return TurnStep::Stuck };
+    if live.autocalc {
+        return answer_battle(game, Answer::Decline);
+    }
+    let seed = 0;
+    let report = engagement::resolve_fought(
+        &mut game.kingdom,
+        live.attacker,
+        live.defender,
+        live.county,
+        live.castle_level,
+        seed,
+        live.runner,
+    );
+    let Some(p) = game.turn.as_mut() else { return TurnStep::Stuck };
+    p.question = None;
+    let staged = p.pending_assault.take();
+    if staged.is_some() {
+        // The siege pump parked its assault on the question; the battle has now
+        // been fought, so the pump must be let go of it rather than settling it
+        // a second time.
+        p.pending_assault = None;
+    }
+    record(p, report);
+    advance(game, Resume::Start, true)
 }
 
 /// **The player has finished looking at screen `0x13`.** Carries the suspended
@@ -611,8 +696,12 @@ fn pump_siege(game: &mut Game) {
     let seed = siege_seed(&game.kingdom);
     // A refusal is not a battle and cannot be asked about: the siege has
     // already been lifted by `siege::assault` and there is nothing to fight.
+    let level = match assault {
+        l2_kingdom::siege::Assault::Battle { castle_level, .. } => Some(castle_level),
+        _ => None,
+    };
     let question = SiegePhase::settlement(&game.kingdom, assault).and_then(|(a, d, s)| {
-        (s == l2_kingdom::battle::Settlement::Prompt).then(|| question_for(game, a, d, true))
+        (s == l2_kingdom::battle::Settlement::Prompt).then(|| question_for(game, a, d, level))
     });
     match question {
         Some(q) => {
@@ -649,7 +738,7 @@ fn raise_battle(game: &mut Game, e: Encounter, interactive: bool) {
         game.kingdom.options.fight_humans_only_byte,
     );
     if interactive && settlement == l2_kingdom::battle::Settlement::Prompt {
-        let q = question_for(game, e.mover, e.occupant, false);
+        let q = question_for(game, e.mover, e.occupant, None);
         let p = game.turn.as_mut().expect("raised inside a turn");
         p.question = Some(Question { county: e.county, ..q });
         return;
@@ -657,13 +746,19 @@ fn raise_battle(game: &mut Game, e: Encounter, interactive: bool) {
     let answer = game.field_policy;
     settle_question(
         game,
-        Question { county: e.county, ..question_for(game, e.mover, e.occupant, false) },
+        Question { county: e.county, ..question_for(game, e.mover, e.occupant, None) },
         answer,
     );
 }
 
 /// Read the two records into a [`Question`] while both still exist.
-fn question_for(game: &Game, attacker: usize, defender: usize, is_siege: bool) -> Question {
+fn question_for(
+    game: &Game,
+    attacker: usize,
+    defender: usize,
+    castle_level: Option<u8>,
+) -> Question {
+    let is_siege = castle_level.is_some();
     let units = &game.kingdom.campaign.units;
     let read = |id: usize| {
         units.get(id).map_or((0u8, 0i32, 0u8, false, [0; l2_kingdom::unit::TROOP_TYPES]), |u| {
@@ -698,6 +793,7 @@ fn question_for(game: &Game, attacker: usize, defender: usize, is_siege: bool) -
         attacker_roster,
         defender_roster,
         choice_owner,
+        castle_level,
     }
 }
 
