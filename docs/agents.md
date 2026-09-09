@@ -125,6 +125,35 @@ Prefer short focused sessions with the game over keeping it open across a long
 investigation, and if a task genuinely needs it open for a long stretch, say so in the
 report so the cost is visible.
 
+## Never drive the real mouse or keyboard to test our engine
+
+**An agent testing our engine does not touch the OS input queue.** Synthetic input moves
+the cursor and steals focus on a machine somebody is sitting at — this was found the way
+these things are always found, by the person whose mouse jumped.
+
+There is no reason to reach for it, because **everything our engine does is reachable as a
+value**. `Event::Click { x, y }`, `Event::Pointer`, `Event::KeyDown`, handed to
+`Machine::handle` with a `Ctx`; `crates/l2-game/tests/screens.rs` and `tests/machine.rs`
+are both written that way already. For a visual result, render into a `Canvas` and inspect
+the pixels — there is an ignored test that dumps PNGs on demand. No window, no focus, no
+cursor.
+
+`tools/input.ps1` stays legitimate for driving the **original** game as an oracle, which is
+what it was written for. Even there, reach for it last: `tools/screen.ps1`'s `printwindow`
+method captures a background window **without** focus, so most oracle work never needs the
+desktop at all. An agent that believes it needs synthetic input against `Lords2.exe` should
+**ask first**, because the cost lands on whoever is at the machine and they cannot tell an
+agent's mouse from a fault.
+
+**The general principle, which is the part worth carrying elsewhere: prefer the mechanism
+that needs nothing of the world.** An in-process event cannot be disturbed by focus, a
+screen lock, a resolution change or a person moving the mouse. It is also faster,
+deterministic, and runnable in CI — which the OS route can never be. That is the same
+reasoning behind reading a struct definition rather than enumerating fields by hand, and
+behind a check that runs on every push rather than a rule an agent is asked to remember:
+**the mechanism with fewer dependencies on the world is usually also the more accurate
+one**, and where the two pull apart it is worth noticing why.
+
 ## Concurrent agents: unique scratch paths, and count before and after
 
 Two agents picked the same scratchpad filename on the same day, and one spliced the other's
