@@ -36,7 +36,7 @@
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_game::screens::{army, divide, map};
+use l2_game::screens::{army, battle, divide, map};
 use l2_game::Game;
 use l2_kingdom::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
@@ -664,6 +664,32 @@ fn a_siege_laid_on_the_map_is_carried_to_its_assault_by_ending_the_turn() {
 
     press(&mut m, &mut g, &a, 'e');
 
+    // **The turn now stops and asks**, which it did not used to: the besieger
+    // is the human's, so `battle::settlement` says `Prompt` and phase 2 parks
+    // its assault on screen `0x12` instead of settling it silently. The player
+    // has to answer before the campaign moves again.
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::BattlePrompt),
+        "the assault should have raised the prompt",
+    );
+    assert!(
+        g.kingdom.campaign.units.get(garrison).is_some()
+            && g.kingdom.campaign.units.get(besieger).is_some(),
+        "and nothing is resolved while the question is on the table",
+    );
+
+    // Decline — the autocalc, which is what this test always ran.
+    click(&mut m, &mut g, &a, on(battle::widget_rect(battle::DECLINE)));
+    assert_eq!(m.top_id(), Some(ScreenId::BattleResult), "then the result screen");
+    click(&mut m, &mut g, &a, on(battle::ok_rect()));
+    // The map's own `update` picks the suspended turn back up the moment the
+    // result screen is gone.
+    for _ in 0..4 {
+        tick(&mut m, &mut g, &a);
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the turn finished");
+
     assert!(
         g.kingdom.campaign.units.get(garrison).is_none()
             || g.kingdom.campaign.units.get(besieger).is_none(),
@@ -677,6 +703,155 @@ fn a_siege_laid_on_the_map_is_carried_to_its_assault_by_ending_the_turn() {
             .is_none_or(|u| u.besieging_county == 0),
         "and the siege link is broken either way",
     );
+}
+
+// ---------------------------------------------------------------------------
+// "Will you take the field?"
+// ---------------------------------------------------------------------------
+
+/// Put the player's army next to an enemy's and march it in, so the turn's unit
+/// sweep raises a battle.
+fn a_battle_is_about_to_happen() -> (Game, Assets, Machine, usize, usize) {
+    let (mut g, a, m) = on_the_map();
+    let (mine, theirs) = adjacent_pair(|x| x as usize == BORDER_1_2 - 1);
+    let attacker = army_at(&mut g, 1, 1, 400, mine);
+    let defender = army_at(&mut g, 2, 2, 200, theirs);
+    // The order is given through `l2-kingdom` rather than through two clicks:
+    // the map screen's second click on an *enemy* army is a selection, not an
+    // attack order, and what is under test here is the prompt rather than the
+    // route into it.
+    let map = g.kingdom.campaign.map.clone();
+    l2_kingdom::movement::order_move(
+        &map,
+        &mut g.kingdom.campaign.units,
+        attacker,
+        theirs,
+        l2_kingdom::movement::Routing::Direct,
+    )
+    .expect("a path one tile long");
+    (g, a, m, attacker, defender)
+}
+
+/// **The player is asked, and the campaign does not move while he thinks.**
+///
+/// This is the gap the whole prompt closes: `end_turn` used to answer
+/// `Answer::Decline` for him, because there was no screen to ask on. Ending the
+/// turn now stops on screen `0x12` with both armies still standing.
+#[test]
+fn ending_a_turn_into_a_battle_asks_the_player_before_anything_is_decided() {
+    let (mut g, a, mut m, attacker, defender) = a_battle_is_about_to_happen();
+    press(&mut m, &mut g, &a, 'e');
+
+    assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt), "the prompt should be up");
+    assert!(
+        g.kingdom.campaign.units.get(attacker).is_some()
+            && g.kingdom.campaign.units.get(defender).is_some(),
+        "neither army may be touched while the question is on the table",
+    );
+    // And the question knows who is asking and what each side is bringing.
+    let q = l2_game::turn::pending_question(&g).expect("a question");
+    assert_eq!(q.choice_owner, 1, "the local player holds the choice");
+    assert_eq!(q.attacker_men, 400);
+    assert_eq!(q.defender_men, 200);
+    assert!(!q.is_siege);
+}
+
+/// **Both answers reach the simulation, and they are different battles.**
+///
+/// Taking the field runs `l2-sim`; declining runs the autocalc. The test that
+/// they are genuinely two paths is that the report says so — a caveat-free
+/// assertion that the button is wired to the thing it names.
+#[test]
+fn the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled() {
+    use l2_game::engagement::Resolution;
+
+    for (thumb, want_fought) in
+        [(battle::TAKE_THE_FIELD, true), (battle::DECLINE, false)]
+    {
+        let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
+        press(&mut m, &mut g, &a, 'e');
+        assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt));
+        click(&mut m, &mut g, &a, on(battle::widget_rect(thumb)));
+
+        assert_eq!(m.top_id(), Some(ScreenId::BattleResult), "the result screen follows");
+        let r = l2_game::turn::pending_report(&g).expect("a settled battle");
+        match (r.resolution, want_fought) {
+            (Resolution::Fought { ticks, .. }, true) => assert!(ticks > 0),
+            (Resolution::Autocalc, false) => {}
+            (other, _) => panic!("{other:?} for thumb at {:?}", thumb.0),
+        }
+        // Whichever way it went, one army is gone and one is not.
+        assert_ne!(
+            r.attacker_men.1 == 0,
+            r.defender_men.1 == 0,
+            "exactly one side should have been destroyed: {:?} {:?}",
+            r.attacker_men,
+            r.defender_men
+        );
+
+        // The corner dismisses it and the turn carries on to its end.
+        click(&mut m, &mut g, &a, on(battle::ok_rect()));
+        for _ in 0..4 {
+            tick(&mut m, &mut g, &a);
+        }
+        assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the turn finished");
+        assert!(!l2_game::turn::turn_in_flight(&g), "nothing left suspended");
+    }
+}
+
+/// A right release on the prompt is `Battle_Decline`, and there is no timeout:
+/// the gate that would impose one returns 0 unless `g_multiplayer`, so a
+/// single-player prompt waits for ever.
+#[test]
+fn a_right_release_declines_and_nothing_times_out() {
+    let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
+    press(&mut m, &mut g, &a, 'e');
+    // A hundred ticks with nothing clicked: the prompt is still there and the
+    // turn is still suspended.
+    for _ in 0..100 {
+        tick(&mut m, &mut g, &a);
+    }
+    assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt), "the prompt timed out");
+    send(&mut m, &mut g, &a, Event::RightClick { x: 0, y: 0 });
+    let r = l2_game::turn::pending_report(&g).expect("declining still fights it");
+    assert_eq!(r.resolution, l2_game::engagement::Resolution::Autocalc);
+}
+
+/// The prompt draws inside its own window and nowhere else — the same
+/// assertion the siege screen carries, for the same reason.
+#[test]
+fn the_prompt_paints_inside_its_window_and_over_nothing_above_it() {
+    let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
+    let mut before = l2_view::Canvas::screen();
+    {
+        let ctx = Ctx { game: &mut g, assets: &a };
+        m.draw(&ctx, &mut before);
+    }
+    press(&mut m, &mut g, &a, 'e');
+    assert_eq!(m.top_id(), Some(ScreenId::BattlePrompt));
+    let mut after = l2_view::Canvas::screen();
+    {
+        let ctx = Ctx { game: &mut g, assets: &a };
+        m.draw(&ctx, &mut after);
+    }
+
+    let window = battle::window();
+    let (mut inside, mut above) = (0usize, 0usize);
+    for y in 0..480usize {
+        for x in 0..640usize {
+            if before.at(x, y) == after.at(x, y) {
+                continue;
+            }
+            let (px, py) = (x as i32, y as i32);
+            if window.contains(px, py) {
+                inside += 1;
+            } else if py < window.y {
+                above += 1;
+            }
+        }
+    }
+    assert!(inside > 500, "the prompt drew almost nothing: {inside} pixels");
+    assert_eq!(above, 0, "it painted above its own window");
 }
 
 // ---------------------------------------------------------------------------

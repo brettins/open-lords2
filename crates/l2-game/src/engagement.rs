@@ -40,12 +40,16 @@
 //!   either, so a battle with an unattended player would stand still forever.
 //!   [`fight`] issues the one order a player always issues — every unit at the
 //!   enemy's end of the field — and lets the AI side think for itself.
-//! * **Missiles do not fly.** `l2-sim` resolves a missile hit but nothing
-//!   drives reload and flight (`l2-sim`'s own module docs say so), so an army
-//!   of archers fights as an army of men with bows they do not use. This is
-//!   the single largest reason a fought battle here and a fought battle there
-//!   would not agree, and it is why [`resolve`]'s fixture test uses the
-//!   autocalc path, which does close exactly.
+//!
+//! > This list used to carry a fourth entry: *"Missiles do not fly. `l2-sim`
+//! > resolves a missile hit but nothing drives reload and flight, so an army of
+//! > archers fights as an army of men with bows they do not use. This is the
+//! > single largest reason a fought battle here and a fought battle there would
+//! > not agree."* It was, and it is closed. `l2-sim` flies them, and the
+//! > measurement that said so was the fixture: the same position that was won
+//! > by the player with 56 men of 178 is now lost by him, which is what the
+//! > saved game records. `tests/seam.rs` asserts the verdict rather than
+//! > excusing it.
 //! * **Mercenaries lose their band.** `FUN_0047F474` tells a mercenary figure
 //!   from a levied one by a flag on the figure record; `l2_sim::Figure` has no
 //!   such flag, so a band that goes into a fought battle comes out folded into
@@ -108,6 +112,77 @@ pub struct BattleReport {
     /// after-battle roster (screen `0x13` draws exactly this).
     pub attacker_men: (i32, i32),
     pub defender_men: (i32, i32),
+    /// The county the battle was fought in — the besieged one for an assault.
+    pub county: u8,
+    /// Whether this was a siege assault. Three of `L2.eng` group 82's seven
+    /// banners are unreachable without it, and so is the branch in
+    /// [`battle::return_to_campaign`].
+    pub is_siege: bool,
+    /// The two realms, **captured before the loser was destroyed**.
+    ///
+    /// [`Verdict`] names two unit *slots* and [`battle::return_to_campaign`]
+    /// empties the loser's, so by the time a screen reads this report the only
+    /// place the loser's realm still exists is here. It is what
+    /// [`BattleReport::outcome`] needs, and without it three of the seven
+    /// banners cannot be chosen.
+    pub attacker_owner: u8,
+    pub defender_owner: u8,
+    /// **The two rosters, before and after** — the seven troop counts each side
+    /// took onto the field and the seven it brought off.
+    ///
+    /// `FUN_004224E7` is the painter both battle screens share, and mode 1 —
+    /// the one screen `0x13` passes — prints the *before* count in parentheses
+    /// beside the *after* count on every one of its seven rows. It reads the
+    /// before counts out of `DAT_00568420` / `DAT_0056843C`, two arrays screen
+    /// `0x12` filled on its way past. This is those two arrays, kept on the
+    /// report rather than in a global, because the losing record is gone by the
+    /// time anybody draws them.
+    pub attacker_roster: (Roster, Roster),
+    pub defender_roster: (Roster, Roster),
+}
+
+/// One army's seven campaign troop counts — peasant, crossbowman, maceman,
+/// swordsman, pikeman, archer, knight, in the order every table in the game
+/// agrees on.
+pub type Roster = [i32; TROOP_TYPES];
+
+impl BattleReport {
+    /// The realm that held the field.
+    pub fn winner_owner(&self) -> u8 {
+        if self.verdict.attacker_won {
+            self.attacker_owner
+        } else {
+            self.defender_owner
+        }
+    }
+
+    /// The realm that did not.
+    pub fn loser_owner(&self) -> u8 {
+        if self.verdict.attacker_won {
+            self.defender_owner
+        } else {
+            self.attacker_owner
+        }
+    }
+
+    /// **Which of `L2.eng` group 82's seven heading/body pairs this battle
+    /// draws** for `local_player` — [`l2_kingdom::battle::outcome`], which is
+    /// `FUN_00478419`.
+    ///
+    /// It is a method rather than a field because the answer depends on who is
+    /// looking: the same battle is *won* to one peer, *lost* to the other and
+    /// [`Outcome::Bystander`](l2_kingdom::battle::Outcome::Bystander) to a
+    /// third. A field on the report would have to pick one of them, and in a
+    /// lockstep game every peer holds the same report.
+    pub fn outcome(&self, local_player: u8) -> l2_kingdom::battle::Outcome {
+        battle::outcome(
+            self.verdict,
+            self.is_siege,
+            local_player,
+            self.winner_owner(),
+            self.loser_owner(),
+        )
+    }
 }
 
 /// Whether the player took the field, when they were asked.
@@ -207,36 +282,105 @@ pub fn resolve_siege(
 /// must come from simulation state — a battle is lockstep state like any other.
 /// Returns one report per assault fought, in cursor order.
 pub fn run_siege_phase(kingdom: &mut Kingdom, answer: Answer, seed: u64) -> Vec<BattleReport> {
-    let mut cursor = {
-        let Kingdom { counties, campaign, .. } = kingdom;
-        l2_kingdom::siege::start_phase(counties, &mut campaign.units)
-    };
+    let mut phase = SiegePhase::begin(kingdom);
     let mut reports = Vec::new();
-    // The cursor only ever advances, so this cannot spin: at worst it looks at
-    // every unit slot once and yields at most one assault a slot.
-    for round in 0..=l2_kingdom::MAX_UNITS {
-        let ready = {
-            let Kingdom { campaign, .. } = kingdom;
-            l2_kingdom::siege::tick_phase(&mut cursor, &mut campaign.units)
-        };
-        let Some(army) = ready else { break };
-        let assault = {
-            let Kingdom { counties, campaign, .. } = kingdom;
-            l2_kingdom::siege::assault(counties, &mut campaign.units, army)
-        };
-        // A refusal is not a battle: message `0x119` and the siege is lifted,
-        // which `siege::assault` has already done.
-        if let Some(report) =
-            resolve_siege(kingdom, assault, answer, seed.wrapping_add(round as u64))
-        {
+    while let Some(assault) = phase.next(kingdom) {
+        if let Some(report) = phase.settle(kingdom, assault, answer, seed) {
             reports.push(report);
         }
-        // Whatever happened, this slot must not be looked at again with the
-        // same state — the original relies on the link being gone, and an
-        // assault that was refused has had it broken too.
-        cursor.at += 1;
     }
     reports
+}
+
+/// **Turn phase 2, one assault at a time** — the pump [`run_siege_phase`] runs
+/// to exhaustion in a loop, exposed so a caller that has a screen can stop
+/// between two assaults and ask the player about each.
+///
+/// It is the same code either way: `run_siege_phase` *is* a `while let` over
+/// this, so the two cannot drift apart and the phase's tests cover both.
+///
+/// **[`SiegePhase::next`] has already launched the assault it hands back.**
+/// `Siege_LaunchAssault` breaks the siege link whichever way the assault goes,
+/// so a caller that takes a value from `next` and never settles it has lifted a
+/// siege and fought nothing. The pair is not optional.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SiegePhase {
+    cursor: l2_kingdom::siege::SiegeCursor,
+    /// Which assault of this phase the next one is, mixed into its seed so two
+    /// assaults in one phase do not fight the same battle.
+    round: usize,
+}
+
+impl SiegePhase {
+    /// `Siege_StartPhase`: break the pairs that no longer agree and seed the
+    /// cursor.
+    pub fn begin(kingdom: &mut Kingdom) -> SiegePhase {
+        let Kingdom { counties, campaign, .. } = kingdom;
+        SiegePhase { cursor: l2_kingdom::siege::start_phase(counties, &mut campaign.units), round: 0 }
+    }
+
+    /// How many live besieging armies the phase started with — `g_siegeCount`.
+    pub fn count(&self) -> u32 {
+        self.cursor.count
+    }
+
+    /// The next assault, or `None` once the cursor has run off the end.
+    ///
+    /// The cursor only ever advances, so a loop over this cannot spin: at worst
+    /// it looks at every unit slot once and yields at most one assault a slot.
+    pub fn next(&mut self, kingdom: &mut Kingdom) -> Option<l2_kingdom::siege::Assault> {
+        if self.round > l2_kingdom::MAX_UNITS {
+            return None;
+        }
+        let army = {
+            let Kingdom { campaign, .. } = kingdom;
+            l2_kingdom::siege::tick_phase(&mut self.cursor, &mut campaign.units)?
+        };
+        let Kingdom { counties, campaign, .. } = kingdom;
+        Some(l2_kingdom::siege::assault(counties, &mut campaign.units, army))
+    }
+
+    /// Settle what [`SiegePhase::next`] handed back, and advance the cursor
+    /// past it.
+    ///
+    /// A refusal is not a battle: message `0x119`, the siege is lifted, and
+    /// `siege::assault` has already done it — so this answers `None`.
+    ///
+    /// Whatever happened, the slot must not be looked at again with the same
+    /// state: the original relies on the link being gone, and an assault that
+    /// was refused has had it broken too. That is the `cursor.at += 1`, and it
+    /// is what makes the phase terminate.
+    pub fn settle(
+        &mut self,
+        kingdom: &mut Kingdom,
+        assault: l2_kingdom::siege::Assault,
+        answer: Answer,
+        seed: u64,
+    ) -> Option<BattleReport> {
+        let report = resolve_siege(kingdom, assault, answer, seed.wrapping_add(self.round as u64));
+        self.cursor.at += 1;
+        self.round += 1;
+        report
+    }
+
+    /// Whether the assault `next` handed back is one a human is in — the
+    /// question [`l2_kingdom::battle::settlement`] answers, asked before the
+    /// battle rather than inside it.
+    pub fn settlement(
+        kingdom: &Kingdom,
+        assault: l2_kingdom::siege::Assault,
+    ) -> Option<(usize, usize, Settlement)> {
+        let l2_kingdom::siege::Assault::Battle { attacker, defender, .. } = assault else {
+            return None;
+        };
+        let s = battle::settlement(
+            &kingdom.campaign.units,
+            attacker,
+            defender,
+            kingdom.options.fight_humans_only_byte,
+        );
+        Some((attacker, defender, s))
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -251,6 +395,12 @@ fn resolve_battle(
 ) -> Option<BattleReport> {
     let before = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.men);
     let (attacker_before, defender_before) = (before(kingdom, attacker), before(kingdom, defender));
+    // Read now, not later: `return_to_campaign` destroys the loser's record, so
+    // after it there is no realm to read off the losing slot at all.
+    let owner_of = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.owner);
+    let (attacker_owner, defender_owner) = (owner_of(kingdom, attacker), owner_of(kingdom, defender));
+    let roster = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or([0; TROOP_TYPES], |u| u.troops);
+    let (a_before, d_before) = (roster(kingdom, attacker), roster(kingdom, defender));
 
     let settlement = battle::settlement(
         &kingdom.campaign.units,
@@ -270,6 +420,10 @@ fn resolve_battle(
 
     let attacker_after = before(kingdom, attacker);
     let defender_after = before(kingdom, defender);
+    // Read **before** `return_to_campaign` empties the loser's record — after
+    // it, the losing roster is seven zeros however the battle went, and the
+    // screen would be unable to tell a wiped army from a missing one.
+    let (a_after, d_after) = (roster(kingdom, attacker), roster(kingdom, defender));
 
     // `g_battleWithdrawal` is raised in exactly one place in the original —
     // `UnitOrder_SiegeAttKnight` — and `l2-sim` reports it the same way, as the
@@ -312,6 +466,12 @@ fn resolve_battle(
         defenders_returned,
         attacker_men: (attacker_before, attacker_after),
         defender_men: (defender_before, defender_after),
+        county,
+        is_siege: castle_level.is_some(),
+        attacker_owner,
+        defender_owner,
+        attacker_roster: (a_before, a_after),
+        defender_roster: (d_before, d_after),
     })
 }
 

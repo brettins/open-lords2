@@ -44,6 +44,7 @@
 //! [`Machine::draw`]: crate::screen::Machine::draw
 
 pub mod army;
+pub mod battle;
 pub mod conquest;
 pub mod county;
 pub mod divide;

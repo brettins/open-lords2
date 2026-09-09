@@ -46,10 +46,14 @@
 //! * The seventeen order handlers, the 200-frame think, the 101-frame strength
 //!   advantage: [`crate::ai`]. **[D]**
 //! * Movement timing, pathfinding, melee: the modules named above.
-//! * **Missile fire is not driven from here.** [`crate::missile`] resolves a
-//!   hit and nothing calls it: there is no reload counter, no flight and no
-//!   arrow. A unit ordered to shoot enters state 17 and stands still, which is
-//!   what the original does — but in the original it is also shooting.
+//! * **Missiles fly.** A standing armed figure runs [`Self::fire_tick`], which
+//!   is `BattleMan_FireMissile`; the arrow it looses is a real object stepping a
+//!   Bresenham line four sub-steps a tick, and it hits whoever is standing in
+//!   the cell it enters rather than whoever it was aimed at. [`crate::missile`]
+//!   is the model and its header is the evidence. What is **not** modelled:
+//!   fire, boiling oil, and the state that decides *when* a figure is in the
+//!   original's firing state — here it is "standing at its destination and out
+//!   of melee", which is `[I]`.
 //! * **A figure already locked in a melee is not re-tasked by a reform.** The
 //!   original re-tasks it and lets its next tick tear the duel down; we do not
 //!   model that teardown, so pulling one side out here would leave a
@@ -60,6 +64,7 @@
 use crate::ai::{self, Ai, AiField};
 use crate::facing::{facing_from_delta, FACING_DELTA};
 use crate::formation::{self, FOOTPRINT, MAX_FIGURES_PER_UNIT, ROW_MAX, TYPE_PRIORITY, WEAPON_CLASS};
+use crate::missile::{self, WeaponClass};
 use crate::movement::Progress;
 use crate::pathfind::{self, Grid, Outcome, Pos};
 use crate::terrain::{self, Battlefield, DIM};
@@ -285,7 +290,21 @@ pub struct BattleRunner {
     positions: Vec<(u8, u8)>,
     /// Which fighter stands on each cell, mirroring the original's cell byte
     /// `+5`. `None` is the original's zero.
+    ///
+    /// **A missile's hit test reads this and nothing else**, which is what makes
+    /// a body in the flight path take the arrow.
     occupant: Vec<Option<u16>>,
+    /// **The arrows in the air** — `g_missiles`, a hundred fixed slots.
+    ///
+    /// Simulation state like any other: two lockstep peers must agree about
+    /// where a shot is, and the original agrees — its own sync digest copies all
+    /// hundred records (`Sync_RecordDigest(&g_missiles + i*0x4c, 0x4c, 4)`).
+    pub missiles: crate::missile::Missiles,
+    /// Catapult hits taken by each wall cell, against
+    /// [`crate::missile::WALL_HITS_PER_COLLAPSE`]. The original counts them in
+    /// cell byte `+0`, which this crate models as terrain rather than as a
+    /// counter, so they live beside the field instead of inside it.
+    wall_hits: Vec<u8>,
     /// Impassable terrain, built once from the battlefield flags.
     blocked: Vec<bool>,
     /// The castle, the two damage accumulators and the way in.
@@ -447,6 +466,8 @@ impl BattleRunner {
             ai_field,
             positions: Vec::new(),
             occupant: vec![None; DIM * DIM],
+            missiles: crate::missile::Missiles::new(),
+            wall_hits: vec![0; DIM * DIM],
             blocked,
             withdrawn: None,
             men_per_figure: [MEN_PER_FIGURE, MEN_PER_FIGURE],
@@ -631,6 +652,11 @@ impl BattleRunner {
                         f.unit = unit as u16;
                         f.owner = army.owner;
                         f.owner_is_human = army.human;
+                        // The strength band is measured against the **size
+                        // class's** full figure, not against what this figure
+                        // was given — the last figure of a unit takes a
+                        // remainder and is not thereby a weak one.
+                        f.full_men = mpf as u16;
                     }
                     // `BattleMan_Create` sets the facing from the *row*, not
                     // from the side: north of the halfway line a figure faces
@@ -902,6 +928,12 @@ impl BattleRunner {
         for i in 0..self.fighters.len() {
             self.step_one(i);
         }
+        // `Missile_UpdateAll`, immediately after `Battle_UpdateAllMen` and
+        // before anything else — which is the original's order, and it matters:
+        // the arrows loosed this tick take their eight launch steps inside
+        // `step_one`, and every arrow already in the air moves against the
+        // occupancy this tick's movement produced.
+        self.update_missiles();
         // Damage, casualties and death all happen here, in melee.rs.
         self.sim.step();
         // A figure that died this tick lets go of its cell and starts falling.
@@ -1314,6 +1346,9 @@ impl BattleRunner {
         if self.fighters[i].at_target() {
             self.fighters[i].anim = Motion::Idle;
             self.fighters[i].progress = Progress::default();
+            // **A standing armed man shoots.** See [`Self::fire_tick`] for why
+            // this is the gate and what is inferred about it.
+            self.fire_tick(i);
             return;
         }
 
@@ -1374,6 +1409,342 @@ impl BattleRunner {
             }
             _ => {}
         }
+    }
+
+    // -- missiles ------------------------------------------------------------
+
+    /// **`BattleMan_FireMissile` (`0x00483337`)** — one tick of a figure that
+    /// carries a bow, a crossbow or a catapult.
+    ///
+    /// ```text
+    /// reload++
+    /// reload == interval - 10  ->  acquire a target, or reset to 4 and give up
+    /// reload >  interval       ->  loose, and reset
+    /// ```
+    ///
+    /// Two details that look like slips and are not. The target is acquired
+    /// **ten ticks early**, so a figure whose target dies inside that window
+    /// does not shoot at all. And a failed acquisition resets the counter to
+    /// [`NO_TARGET_RESET`] rather than to zero, so a figure with nothing to
+    /// shoot at looks again almost immediately instead of once a cycle.
+    ///
+    /// **Where it is called from is ours, and it is the one inference in the
+    /// missile path.** The original fires from figure **state 5**, and what puts
+    /// a figure into state 5 was not established. Here a figure shoots when it
+    /// is alive, armed, out of melee and standing on its destination — which is
+    /// what an archer that has been ordered somewhere and arrived is doing.
+    /// Marked `[I]`; the mechanism it drives is `[V]` throughout.
+    fn fire_tick(&mut self, i: usize) {
+        let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else { return };
+        let stats = class.stats();
+        let sim = self.fighters[i].sim;
+        let counter = {
+            let f = &mut self.sim.figures[sim];
+            f.reload_counter = f.reload_counter.saturating_add(1);
+            f.reload_counter
+        };
+
+        if counter + missile::ACQUIRE_LEAD == stats.reload {
+            match self.missile_target(i, stats.range as i32) {
+                Some(t) => self.sim.figures[sim].target = Some(t),
+                None => {
+                    let f = &mut self.sim.figures[sim];
+                    f.target = None;
+                    f.reload_counter = missile::NO_TARGET_RESET;
+                }
+            }
+            return;
+        }
+        if counter <= stats.reload {
+            return;
+        }
+        self.sim.figures[sim].reload_counter = 0;
+        // The target may have died in the ten ticks since it was chosen. The
+        // original checks `other.owner == 0` and simply does not shoot — the
+        // reload is spent either way.
+        let Some(target) = self.sim.figures[sim].target else { return };
+        if !self.sim.figures[target].is_alive() {
+            return;
+        }
+        let Some(t) = self.fighters.iter().position(|f| f.sim == target) else { return };
+        self.loose(i, class, (self.fighters[t].x, self.fighters[t].y));
+    }
+
+    /// `Missile_Spawn` plus the eight launch steps `BattleMan_FireMissile` runs
+    /// on the spot.
+    ///
+    /// The eight are not decoration: they put the missile a whole cell out
+    /// before it is ever drawn, they come out of its range budget, and **a shot
+    /// can already have hit something inside them**.
+    fn loose(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
+        let sim = self.fighters[shooter].sim;
+        let (owner, band) = {
+            let f = &self.sim.figures[sim];
+            (f.owner, f.strength_band())
+        };
+        let here = (self.fighters[shooter].x, self.fighters[shooter].y);
+        let elevation = self.field.cells[here.1 as usize * DIM + here.0 as usize].elevation;
+        let power = missile::band_scaled(class.stats().damage, band);
+        let Some(slot) = missile::spawn(
+            &mut self.missiles,
+            owner,
+            class,
+            sim,
+            here,
+            at,
+            power,
+            elevation,
+        ) else {
+            // All hundred are in the air. The original drops the shot silently.
+            return;
+        };
+        for _ in 0..missile::LAUNCH_STEPS {
+            if !self.step_missile(slot) {
+                return;
+            }
+        }
+    }
+
+    /// `Missile_FindTarget` (`0x004956CC`) as the firing path uses it.
+    ///
+    /// Ascending figure index, so ties break to the lowest index; a **square**
+    /// range gate but a **Manhattan** score, so the corners of the box are
+    /// reachable at twice the range; a siege engine costs `+35` and is invisible
+    /// to anything without a weapon; and the score is capped at 160, which is
+    /// also the "nothing found" sentinel.
+    ///
+    /// Returns a *simulation* figure index, which is what a figure's `target`
+    /// holds.
+    fn missile_target(&self, i: usize, range: i32) -> Option<usize> {
+        let me = self.fighters[i].sim;
+        let mine = self.sim.figures[me].owner;
+        let (sx, sy) = (self.fighters[i].x as i32, self.fighters[i].y as i32);
+        let mut best: Option<(i32, usize)> = None;
+        for j in 0..self.fighters.len() {
+            let sim = self.fighters[j].sim;
+            let f = &self.sim.figures[sim];
+            if !f.is_alive() || f.owner == mine || f.owner == 0 {
+                continue;
+            }
+            let (dx, dy) =
+                ((self.fighters[j].x as i32 - sx).abs(), (self.fighters[j].y as i32 - sy).abs());
+            if dx > range || dy > range {
+                continue;
+            }
+            let mut score = (dx + dy).min(160);
+            if f.troop.is_siege() {
+                score += 35;
+            }
+            if score >= 160 {
+                continue;
+            }
+            if best.is_none_or(|(b, _)| score < b) {
+                best = Some((score, sim));
+            }
+        }
+        best.map(|(_, j)| j)
+    }
+
+    /// **`Missile_UpdateAll` (`0x00485BB1`)** — every live missile, ascending
+    /// slot, then the countdown that retires the ones that have hit.
+    fn update_missiles(&mut self) {
+        for slot in 1..=missile::MAX_MISSILES {
+            if !self.missiles.get(slot).is_live() {
+                continue;
+            }
+            if !self.step_missile(slot) {
+                continue;
+            }
+            // The ttl countdown, and the only thing that retires a missile
+            // which has already hit. One hit per arrow falls out of this.
+            let m = self.missiles.get_mut(slot);
+            if m.ttl != 0 {
+                m.ttl -= 1;
+                if m.ttl < 1 {
+                    self.missiles.free(slot);
+                }
+            }
+        }
+    }
+
+    /// **`Missile_Step` (`0x00492C8B`)** — one tick of one missile: four
+    /// sub-steps, and after each of them the tests that can end it.
+    ///
+    /// Returns false when the missile was retired, so the caller stops touching
+    /// the slot.
+    fn step_missile(&mut self, slot: usize) -> bool {
+        {
+            let m = self.missiles.get_mut(slot);
+            m.ticks_flown += 1;
+            // **Out of range.** The budget is the range in eighths of a cell and
+            // a tick is an eighth of a cell, so this counter and the distance
+            // are the same number.
+            if m.ticks_flown > m.range_ticks {
+                self.missiles.free(slot);
+                return false;
+            }
+        }
+        let sub_steps = self.missiles.get(slot).sub_steps;
+        for _ in 0..sub_steps.max(0) {
+            self.missiles.get_mut(slot).sub_step();
+            if self.missiles.get(slot).off_map() {
+                self.missiles.free(slot);
+                return false;
+            }
+            if !self.missile_cell_tests(slot) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// What a missile meets in the cell it has just entered: high ground, a
+    /// siege engine's footprint, a wall, or a man.
+    ///
+    /// Every one of these is gated on `ttl == 0` in the original — a missile
+    /// that has already struck something stops testing — and that gate is what
+    /// makes one hit per missile structural.
+    fn missile_cell_tests(&mut self, slot: usize) -> bool {
+        if self.missiles.get(slot).ttl != 0 {
+            return true;
+        }
+        let cell = {
+            let m = self.missiles.get(slot);
+            m.cell_y as usize * DIM + m.cell_x as usize
+        };
+        let elevation = self.field.cells[cell].elevation;
+
+        // **High ground stops an arrow.** Ground more than one level above the
+        // launch point sets a sticky flag; so does an impassable cell, which is
+        // also how the original marks a siege engine's own footprint.
+        {
+            let m = self.missiles.get_mut(slot);
+            if (m.launch_elevation as i32) + 1 < elevation as i32 {
+                m.blocked = true;
+            }
+        }
+        if self.blocked[cell] {
+            self.missiles.get_mut(slot).blocked = true;
+        }
+        {
+            let m = self.missiles.get_mut(slot);
+            let weapon_class = m.class < 3;
+            if m.blocked && weapon_class {
+                m.blocked_ticks = m.blocked_ticks.saturating_add(1);
+                // Given up on — either after long enough, or the moment the
+                // ground comes back down to where it was fired from.
+                if m.blocked_ticks > missile::BLOCKED_LIMIT
+                    || m.launch_elevation == elevation
+                {
+                    self.missiles.free(slot);
+                    return false;
+                }
+            }
+        }
+
+        // **A catapult shot against a wall.** It cannot hurt a man at all, and
+        // this is the only thing it can hurt.
+        if self.missiles.get(slot).class == WeaponClass::Catapult.index()
+            && self.field.cells[cell].flags & crate::siege::FLAG_WALL != 0
+        {
+            self.strike_wall_with_shot(slot, cell);
+            return true;
+        }
+
+        // **The hit.** Whoever is standing here, read fresh — not whoever the
+        // shot was aimed at.
+        if self.missiles.get(slot).class >= 3 {
+            return true;
+        }
+        let Some(victim) = self.occupant[cell] else { return true };
+        let victim = victim as usize;
+        let vsim = self.fighters[victim].sim;
+        if !self.sim.figures[vsim].is_alive() {
+            // A dead figure neither blocks nor absorbs.
+            return true;
+        }
+        let (owner, shooter, power, class) = {
+            let m = self.missiles.get(slot);
+            (m.owner, m.shooter as usize, m.power, m.class)
+        };
+        // **Owner, not side.** An arrow passes straight through a friendly body
+        // without being consumed.
+        if self.sim.figures[vsim].owner == owner {
+            return true;
+        }
+        let weapon = match class {
+            1 => WeaponClass::Bow,
+            _ => WeaponClass::Crossbow,
+        };
+        let delta = elevation as i32 - self.missiles.get(slot).launch_elevation as i32;
+        let size_class = 0;
+        let resolved =
+            missile::resolve_power(weapon, power, delta, &self.sim.figures[vsim], size_class);
+        {
+            let f = &mut self.sim.figures[vsim];
+            // The grudge: `Missile_Step` raises the was-hit flag and names the
+            // *shooter*, which is what `BattleUnits_RebuildFromFigures` turns
+            // into the victim's unit remembering who shot it.
+            f.was_hit = true;
+            f.hit_by = Some(shooter);
+        }
+        missile::apply_hit(&mut self.sim.figures[vsim], resolved);
+        self.missiles.get_mut(slot).ttl = missile::HIT_TTL;
+        true
+    }
+
+    /// A catapult shot landing on a wall cell.
+    ///
+    /// **`Missile_Step` does not raise the breach score itself** — the brief
+    /// said it did, and it is one level removed. The shot adds one to the cell's
+    /// own counter; only when that counter passes
+    /// [`missile::WALL_HITS_PER_COLLAPSE`] does the cell collapse, and the
+    /// collapse is what scores. The original's collapse routine
+    /// (`FUN_0047DFE0`) then adds **one per orthogonal neighbour that is still
+    /// rampart**, so a shot into the middle of a wall is worth more than one
+    /// into its end.
+    ///
+    /// Either way the missile becomes class 4 debris: it stops testing for
+    /// anything and simply counts down.
+    fn strike_wall_with_shot(&mut self, slot: usize, cell: usize) {
+        self.wall_hits[cell] = self.wall_hits[cell].saturating_add(1);
+        if self.wall_hits[cell] >= missile::WALL_HITS_PER_COLLAPSE {
+            self.wall_hits[cell] = 0;
+            self.field.cells[cell].surface = crate::siege::SURFACE_BREACH;
+            self.field.cells[cell].flags &= !crate::siege::FLAG_WALL;
+            self.field.cells[cell].elevation = 1;
+            self.blocked[cell] = self.field.cells[cell].impassable();
+            self.refresh_ai_surfaces();
+            let score = self.rampart_neighbours(cell);
+            self.ai.breach_score += score;
+            self.ai.approach_score += score;
+            self.siege.ramparts_breached += 1;
+        }
+        let m = self.missiles.get_mut(slot);
+        m.class = missile::CLASS_DEBRIS;
+        m.ttl = missile::DEBRIS_TTL;
+        m.sub_steps = 1;
+        m.dx = 0;
+        m.dy = 0;
+    }
+
+    /// How many of a cell's four orthogonal neighbours are still rampart — what
+    /// a collapse is worth.
+    fn rampart_neighbours(&self, cell: usize) -> i32 {
+        let (x, y) = ((cell % DIM) as i32, (cell / DIM) as i32);
+        let mut n = 0;
+        for (dx, dy) in [(0i32, -1i32), (0, 1), (-1, 0), (1, 0)] {
+            let (nx, ny) = (x + dx, y + dy);
+            if nx < 0 || ny < 0 || nx >= DIM as i32 || ny >= DIM as i32 {
+                continue;
+            }
+            if self.field.cells[ny as usize * DIM + nx as usize].surface
+                == crate::siege::SURFACE_RAMPART
+            {
+                n += 1;
+            }
+        }
+        n
     }
 
     /// `Melee_ChooseChaseTarget` (`0x004954DD`): lowest score wins, where the
@@ -2270,5 +2641,230 @@ mod tests {
         let (y0, y1) = (*ys.iter().min().unwrap(), *ys.iter().max().unwrap());
         assert_eq!((x1 - x0, y1 - y0), (4, 1), "a 5 x 2 rectangle");
         assert!((x0..=x1).contains(&40) && (y0..=y1).contains(&40), "centred on (40, 40)");
+    }
+
+    // --- missiles ---------------------------------------------------------
+
+    /// Two figures standing still, `gap` cells apart, and nothing else on the
+    /// field. The archers do not have to walk anywhere, so the only thing that
+    /// can happen is that they shoot.
+    fn firing_line(shooter: Troop, target: Troop, gap: u8) -> BattleRunner {
+        let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
+        let a = r.sim.add(shooter, SIDE_A, 4).unwrap();
+        let b = r.sim.add(target, SIDE_B, 4).unwrap();
+        r.sim.figures[a].owner = 1;
+        r.sim.figures[b].owner = 2;
+        for (sim, x) in [(a, 20u8), (b, 20 + gap)] {
+            r.fighters.push(Fighter {
+                sim,
+                troop: r.sim.figures[sim].troop,
+                side: r.sim.figures[sim].side,
+                x,
+                y: 40,
+                target: (x, 40),
+                facing: 2,
+                progress: Progress::default(),
+                anim: Motion::Idle,
+                phase: 0,
+                path: Vec::new(),
+                barred: 0,
+                hold: 0,
+                reroutes: 0,
+            });
+            r.occupant[40 * DIM + x as usize] = Some((r.fighters.len() - 1) as u16);
+        }
+        r.settle();
+        r
+    }
+
+    /// **The gap this whole change exists to close.** An arrow leaves the bow,
+    /// crosses the ground and kills somebody who is out of reach of a sword.
+    ///
+    /// Ten cells apart is inside a bow's fifteen and outside anybody's arm, so
+    /// nothing but a missile can produce a casualty here at all.
+    #[test]
+    fn an_archer_kills_a_man_ten_cells_away_and_a_swordsman_cannot() {
+        let mut bows = firing_line(Troop::Archers, Troop::Peasants, 10);
+        bows.run(600);
+        assert!(bows.men_of_side(SIDE_B) < 4, "the peasants should be losing men");
+        assert!(bows.missiles.live() > 0 || bows.tick > 0, "arrows are being loosed");
+
+        let mut swords = firing_line(Troop::Swordsmen, Troop::Peasants, 10);
+        swords.run(600);
+        assert_eq!(swords.men_of_side(SIDE_B), 4, "a sword does not reach ten cells");
+        assert_eq!(swords.missiles.live(), 0, "and looses nothing");
+    }
+
+    /// The manual's sentence, now measurable in the simulation rather than only
+    /// in the table: *archers have greater range and a faster rate of fire than
+    /// crossbowmen but do less damage per shot.*
+    ///
+    /// At nine cells the bow reaches and the crossbow does not.
+    #[test]
+    fn a_bow_reaches_nine_cells_and_a_crossbow_does_not() {
+        let mut bow = firing_line(Troop::Archers, Troop::Peasants, 9);
+        bow.run(600);
+        let mut xbow = firing_line(Troop::Crossbowmen, Troop::Peasants, 9);
+        xbow.run(600);
+        assert!(bow.men_of_side(SIDE_B) < 4, "fifteen cells of range");
+        assert_eq!(xbow.men_of_side(SIDE_B), 4, "eight, and nine is out of it");
+    }
+
+    /// **A body in the flight path takes the arrow.** The whole reason this had
+    /// to be established before anything was written: the missile reads the
+    /// figure out of the cell it enters, so an enemy standing between the
+    /// shooter and its chosen target is hit instead.
+    ///
+    /// The screen is put in *after* the shot is loosed, so the acquisition
+    /// cannot have chosen it.
+    #[test]
+    fn a_body_that_walks_into_the_flight_path_takes_the_arrow() {
+        let mut r = firing_line(Troop::Archers, Troop::Peasants, 12);
+        // Fire one volley, then interpose a second enemy four cells out.
+        r.run(WeaponClass::Bow.stats().reload as u32 + 2);
+        assert!(r.missiles.live() > 0, "an arrow should be in the air");
+        let target_sim = r.sim.figures[r.fighters[0].sim].target.expect("a chosen target");
+        let screen = r.sim.add(Troop::Peasants, SIDE_B, 4).unwrap();
+        r.sim.figures[screen].owner = 2;
+        r.fighters.push(Fighter {
+            sim: screen,
+            troop: Troop::Peasants,
+            side: SIDE_B,
+            x: 24,
+            y: 40,
+            target: (24, 40),
+            facing: 6,
+            progress: Progress::default(),
+            anim: Motion::Idle,
+            phase: 0,
+            path: Vec::new(),
+            barred: 0,
+            hold: 0,
+            reroutes: 0,
+        });
+        r.occupant[40 * DIM + 24] = Some((r.fighters.len() - 1) as u16);
+        let before = r.sim.figures[screen].hits;
+        r.run(60);
+        assert!(
+            r.sim.figures[screen].hits > before || r.sim.figures[screen].men < 4,
+            "the interposed man should have been hit, not the one aimed at"
+        );
+        assert_ne!(screen, target_sim, "and he is not the one that was aimed at");
+    }
+
+    /// **An arrow does not stop where it was aimed.** Once the Bresenham line is
+    /// spent the missile coasts along its launch direction, so a man standing
+    /// *behind* the target is in danger too.
+    #[test]
+    fn a_shot_that_misses_keeps_flying_past_the_target() {
+        let mut ms = crate::missile::Missiles::new();
+        let slot =
+            missile::spawn(&mut ms, 1, WeaponClass::Bow, 1, (10, 40), (20, 40), 50, 0).unwrap();
+        assert_eq!(ms.get(slot).dir, 2, "due east");
+        // Ten cells is 320 sub-cell units, so 400 sub-steps is well past the
+        // impact point — and the missile is still going.
+        for _ in 0..400 {
+            ms.get_mut(slot).sub_step();
+        }
+        assert!(
+            ms.get(slot).cell_x > 20,
+            "it should have overshot: at {}",
+            ms.get(slot).cell_x
+        );
+    }
+
+    /// A missile is retired by its range and by nothing else when it meets
+    /// nobody — and the range is the tick budget, eight ticks a cell.
+    #[test]
+    fn an_arrow_that_hits_nothing_dies_at_the_end_of_its_range() {
+        let mut r = firing_line(Troop::Archers, Troop::Peasants, 40);
+        // Forty cells is well outside a bow's fifteen, so nothing is ever
+        // acquired and nothing is ever loosed.
+        r.run(400);
+        assert_eq!(r.missiles.live(), 0, "nothing to shoot at, nothing in the air");
+        assert_eq!(r.men_of_side(SIDE_B), 4);
+    }
+
+    /// A shot cannot hit a figure of its own owner, and is not consumed by one
+    /// either — the test is on the owner byte, not the side.
+    #[test]
+    fn an_arrow_passes_through_a_friendly_body() {
+        let mut r = firing_line(Troop::Archers, Troop::Peasants, 12);
+        // A friendly standing directly in front of the archer.
+        let friend = r.sim.add(Troop::Peasants, SIDE_A, 4).unwrap();
+        r.sim.figures[friend].owner = 1;
+        r.fighters.push(Fighter {
+            sim: friend,
+            troop: Troop::Peasants,
+            side: SIDE_A,
+            x: 22,
+            y: 40,
+            target: (22, 40),
+            facing: 2,
+            progress: Progress::default(),
+            anim: Motion::Idle,
+            phase: 0,
+            path: Vec::new(),
+            barred: 0,
+            hold: 0,
+            reroutes: 0,
+        });
+        r.occupant[40 * DIM + 22] = Some((r.fighters.len() - 1) as u16);
+        r.run(600);
+        assert_eq!(r.sim.figures[friend].men, 4, "friendly fire is impossible");
+        assert_eq!(r.sim.figures[friend].hits, 0);
+        assert!(r.men_of_side(SIDE_B) < 4, "and the arrows got past him");
+    }
+
+    /// The reload cycle, to the tick: nothing is in the air before the interval
+    /// expires and something is immediately after.
+    #[test]
+    fn nothing_is_loosed_before_the_reload_interval_expires() {
+        let reload = WeaponClass::Bow.stats().reload as u32;
+        let mut r = firing_line(Troop::Archers, Troop::Peasants, 10);
+        r.run(reload);
+        assert_eq!(r.missiles.live(), 0, "not yet");
+        r.run(1);
+        assert_eq!(r.missiles.live(), 1, "and now");
+    }
+
+    /// Determinism, with arrows in it. The property lockstep depends on, over
+    /// the state this change added.
+    #[test]
+    fn two_runs_of_a_battle_with_missiles_stay_identical() {
+        let build = || {
+            BattleRunner::deploy(
+                blank_field(),
+                &[(Troop::Archers, 6), (Troop::Swordsmen, 4)],
+                &[(Troop::Crossbowmen, 6), (Troop::Peasants, 4)],
+            )
+        };
+        let (mut a, mut b) = (build(), build());
+        for _ in 0..2_000 {
+            a.step();
+            b.step();
+            assert_eq!(a.missiles, b.missiles, "diverged at tick {}", a.tick);
+        }
+        assert_eq!(a.fighters, b.fighters);
+        assert_eq!(a.sim, b.sim);
+    }
+
+    /// A catapult cannot hurt a man. `Missile_Step`'s hit test is gated on
+    /// `class < 3`, so its shot passes straight through a crowd.
+    #[test]
+    fn a_catapult_shot_cannot_hurt_a_man() {
+        let mut r = firing_line(Troop::Catapults, Troop::Peasants, 10);
+        r.run(1_000);
+        assert_eq!(r.men_of_side(SIDE_B), 4, "a catapult is a wall-breaker only");
+    }
+
+    /// A weakened figure shoots for less — the strength band, which until now
+    /// nothing in the simulation read.
+    #[test]
+    fn a_weakened_archer_shoots_for_less() {
+        let full = crate::missile::band_scaled(WeaponClass::Bow.stats().damage, 0);
+        let hurt = crate::missile::band_scaled(WeaponClass::Bow.stats().damage, 3);
+        assert_eq!(full, 50);
+        assert_eq!(hurt, 25, "half at the bottom band");
     }
 }

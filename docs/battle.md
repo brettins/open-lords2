@@ -33,7 +33,7 @@ Ghidra database.
 | **units** | `0x00566520` | `0x34` | 1 … 80 | what the player selects, orders and sees a banner for |
 | **figures** | `0x00554480` | `0x1B0` | 1 … 80 | the drawn men; each stands for `g_menPerFigure` real soldiers |
 | battlefield | `0x005440E0` | `8` | 80 × 80 | one cell |
-| missiles | `0x0057A100` | `0x4C` | 1 … 100 | arrows, bolts, shot, fire, falling men |
+| missiles | `0x0057A100` | `0x4C` | 1 … 100 | arrows, bolts, catapult shot and its debris, burning cells, boiling oil — classes 1, 2, 3, 4, 5 and 7, and **there is no class 6**. This row said *"falling men"* and was wrong; §14.7 corrects it |
 
 **[V]** All four counts are loop bounds in the binary: `BattleMen_ClearAll` and
 `BattleUnits_ClearAll` both run `for (i = 1; i < 0x51; i++)`, `Missile_UpdateAll` runs
@@ -576,6 +576,45 @@ figure's `missileDamage` scaled by its strength band, and resets.
 **[V]** `g_missileStats` (`0x004D97B0`), and the manual again: *"archers have greater range
 and a faster rate of fire than crossbowmen but do less damage per shot"* — 15 > 8 cells,
 50 < 100 ticks, 50 < 200 damage. Three independent agreements from one sentence.
+
+#### A shot genuinely traverses, and can be intercepted
+
+**[V]**, and it is the question everything else about missiles turns on. A shot is **not**
+resolved at launch and animated afterwards. `Missile_Step`'s hit test is:
+
+```c
+g_otherBattleMan = g_battlefield[missile.cellOffset].figure;   /* cell byte +5 */
+if (missile.class < 3 && g_otherBattleMan != 0
+    && g_battleMen[g_otherBattleMan].state != 2                /* not dead */
+    && missile.owner != g_battleMen[g_otherBattleMan].owner)   /* owner, not side */
+```
+
+The victim is read out of the cell the missile has **just entered**, fresh, every sub-step.
+Nothing anywhere in the 0x4C-byte record remembers who the shot was aimed at — `+0x06` is the
+*shooter* — so an arrow cannot check whether it hit the right man, and does not. Five
+consequences, all of them visible in play:
+
+* **A body in the flight path takes the arrow.** Anyone who has walked into it is hit
+  instead, which is what makes a screening line work.
+* **A miss keeps flying.** When the Bresenham line is exhausted the missile switches to
+  `FUN_00494265` and coasts on in its launch direction until range, the map edge or somebody
+  else stops it. Overshoot can kill a second rank.
+* **A target that dies or walks away is not tracked.** The impact point is frozen at launch.
+* **Friendly fire is impossible**, and a friendly body does not stop the arrow either: the
+  test is on the **owner** byte, not the side. *[I]* — if a battle can ever hold two owners
+  on one side, allies would be both targetable and shootable; whether it can was not
+  established.
+* **One hit per missile is structural, not a rule.** The whole impact block is gated on
+  `ttl == 0`, and a hit sets `ttl = 2`, which `Missile_UpdateAll` counts down to nothing.
+
+**Blocking is real too.** Ground more than one level above the launch point, or a cell with
+`flags & 0x80` (which `FUN_0049207E` stamps over a siege engine's 3 × 3 footprint), sets a
+sticky `blocked` flag. A blocked arrow or bolt is discarded once `blockedTicks` passes `0x20`
+— the counter is seeded `(shooterIndex & 0x10) + 4`, so 4 or 20, and a blocked volley gives
+up raggedly rather than all at once — or the moment the ground comes back down to the launch
+elevation. Catapults are exempt.
+
+#### The damage
 
 `Missile_Step` (`0x00492C8B`) advances the missile 4 sub-steps per tick and, on entering a
 cell holding a live enemy figure, resolves the hit:
@@ -1498,13 +1537,66 @@ neighbours shuffle together.
 
 `Missile_SetupLine` (`0x00493CB9`), called by `Missile_Spawn`, writes `|dx|` to
 missile `+0x20`, `|dy|` to `+0x24` and `2 * min − max` to the error term at
-`+0x28`, then snaps the flight direction `+0x2E` to the nearer octant when one
-axis is more than twice the other. `Missile_StepError` (`0x00493B61`) is one
-error update per sub-step, and `Missile_StepTowardTargetX` / `…Y` move the
-1/32-cell position one unit at a time. `Missile_OffMap` retires a missile that
-leaves 0…79 in either axis — the battlefield bound again. `Missile_LinkToCell`
-and `Missile_ClearCellLists` are the two ends of the per-cell missile list §3
-records at cell byte `+6`; the link walk gives up after ten.
+`+0x28` — **and 0 when the two are equal**, the perfect diagonal — then snaps
+the flight direction `+0x2E` to the nearer octant when one axis is more than
+twice the other. The snap moves the *direction* only, never the position; it
+matters because `dir` is what the missile coasts along once its line is spent.
+`Missile_StepError` (`0x00493B61`) is one error update per sub-step over the
+**remaining** counts rather than the original ones (they shrink together, so the
+slope it re-derives is the same slope), and it decrements the major axis.
+`Missile_StepTowardTargetX` / `…Y` move the 1/32-cell position one unit at a
+time. `Missile_OffMap` retires a missile that leaves 0…79 in either axis — the
+battlefield bound again. `Missile_LinkToCell` and `Missile_ClearCellLists` are
+the two ends of the per-cell missile list §3 records at cell byte `+6`; the link
+walk gives up after ten.
+
+**That list is for drawing and nothing else.** Cell `+6` has exactly three
+touchers in the whole binary — the two above and the renderer `FUN_004BEED4`,
+which walks `head → +0x04 → …` blitting each missile. Hit detection does not use
+it: `Missile_Step` reads cell byte `+5`, the figure, directly.
+
+#### The timing is one number wearing two hats
+
+**[V]**, and it is the elegant part. Four sub-steps a tick, one sub-step is
+1/32 of a cell, so a tick is exactly **⅛ of a cell** — eight ticks to cross one.
+`+0x36` (`ticksFlown`) counts up once per tick and is compared against `+0x38`,
+which is loaded with the raw `g_missileStats` range **in eighths of a cell**. So
+the same number is both the distance and the tick budget, and `range >> 3` is
+the range in cells with no conversion anywhere: bow 120 = 15 cells, crossbow
+64 = 8, catapult 160 = 20.
+
+`BattleMan_FireMissile` also runs **eight `Missile_Step`s on the spot** before
+the missile is linked to a cell or drawn. Eight ticks is thirty-two sub-steps is
+one cell: a missile is born a whole cell out from its shooter, those eight come
+out of its range budget, and **a shot can already have hit something before
+anybody sees it**.
+
+#### `Missile_Step` does not raise the breach score
+
+**Corrected.** It was reasonable to read it as doing so and it does not. A class-3
+(catapult) shot entering a surface-4 cell adds **one** to that cell's own counter
+in byte `+0` and becomes class-4 debris; only when the counter passes `0x0F` —
+the **sixteenth** hit — does `FUN_0047DFE0` run, and *that* is what turns the
+cell to rubble and adds `g_siegeBreachScore` **one per orthogonal neighbour that
+is still surface 5**, so 0 to 4 a collapse. The other writers of the score are
+the hand and ram gate breaches; none of them is on the missile path.
+
+*Open, and worth someone's time:* `docs/battle.md` and `crates/l2-sim/src/siege.rs`
+read surface **4** as *what a breach leaves behind* (`Siege_FindCellSurface4`
+hunts for it) and **5** as the rampart. The catapult path shoots **at** surface 4
+and scores per adjacent surface 5, which does not fit that reading — it fits
+4 = the wall face and 5 = the walkway. Not resolved here; `l2_sim::siege`'s
+castle raster is ours, so nothing in this tree turns on it yet.
+
+#### Class 7 is boiling oil, not a falling man
+
+**Corrected.** §0 and `docs/symbols.json` both call missile class 7 a *falling
+figure*. The only spawner of class 7 in the binary is `FUN_0047A814`, whose only
+callers are the two boiling-oil paths, and what it does is paint a cross of
+burning cells around itself every tick — 16 sub-steps, 16 ticks of range, zero
+power, invisible to the renderer. There is **no class 6**, and no missile class
+anywhere corresponds to a man thrown off a wall. Classes 4 and 5 are catapult
+debris and a burning cell.
 
 ### 14.8 One thing that stayed coherent and unanchored
 

@@ -141,6 +141,27 @@ pub struct Figure {
     pub stats: TroopStats,
     /// Hits absorbed before one man dies, from the same table.
     pub hits_per_casualty: u16,
+    /// Figure record `+0x180` — **the reload counter**, which
+    /// `BattleMan_FireMissile` counts up once a tick.
+    ///
+    /// Ten ticks before it reaches the weapon's reload interval the figure
+    /// acquires a target; when it passes the interval it looses a missile and
+    /// resets. A figure with no missile weapon never touches it.
+    pub reload_counter: u16,
+    /// **The full complement one figure of this battle stands for** — the
+    /// men-per-figure scale, not this figure's own men.
+    ///
+    /// `BattleMan_RecomputeStrength` compares a figure's men against three
+    /// thresholds loaded from `g_strengthBandTable` *by battlefield size class*,
+    /// so the comparison is against the scale rather than against what this
+    /// figure started with. It is carried per figure because a figure carries
+    /// everything else it is judged by, and because the two sides of one battle
+    /// can be on different scales (`docs/battle.md` §5.1).
+    ///
+    /// Defaults to the figure's own men, which is right for the skirmish case
+    /// where every figure is full; [`crate::runner::BattleRunner`] overwrites it
+    /// with the side's scale when it raises an army.
+    pub full_men: u16,
 }
 
 impl Figure {
@@ -172,6 +193,46 @@ impl Figure {
             targeted: 0,
             stats,
             hits_per_casualty: table.hits_per_casualty(troop),
+            reload_counter: 0,
+            full_men: men,
+        }
+    }
+
+    /// **The strength band, 0 … 3** — `BattleMan_RecomputeStrength`,
+    /// `docs/battle.md` §5.3.
+    ///
+    /// A figure that has lost men fights and shoots worse. The three thresholds
+    /// are 75 %, 50 % and 3/16 of a full figure, which is exactly what
+    /// `g_strengthBandTable` holds at every size class the ladder can produce:
+    /// `3, 2, 1` of four men, `12, 8, 3` of sixteen, `768, 512, 192` of 1,024.
+    /// **[V]** on the three fractions; the table itself is not in this tree, and
+    /// deriving it from the scale is what makes an arbitrary
+    /// [`Figure::full_men`] work.
+    ///
+    /// ```
+    /// # use l2_sim::{Figure, Troop, SIDE_A};
+    /// let mut f = Figure::new(Troop::Archers, SIDE_A, 4);
+    /// assert_eq!(f.strength_band(), 0);
+    /// f.men = 3; assert_eq!(f.strength_band(), 0, "three of four is still 75 %");
+    /// f.men = 2; assert_eq!(f.strength_band(), 1);
+    /// f.men = 1; assert_eq!(f.strength_band(), 2);
+    /// ```
+    ///
+    /// **Only the missile path reads it.** [`crate::melee`] still swings at band
+    /// 0 — its own comment says so — so wiring the melee column of
+    /// `g_meleeAttackTable` in is outstanding work and not something this method
+    /// quietly did.
+    pub fn strength_band(&self) -> u8 {
+        let full = self.full_men.max(1) as u32;
+        let men = self.men as u32;
+        if men * 4 >= full * 3 {
+            0
+        } else if men * 2 >= full {
+            1
+        } else if men * 16 >= full * 3 {
+            2
+        } else {
+            3
         }
     }
 

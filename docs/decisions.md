@@ -1994,6 +1994,76 @@ a single message. The pattern from C46 holds exactly: every one of these was a *
 a measurement — "castle job" beside a slot number, "tick" beside a frame index, `ink.text`
 beside `0x3F` — and in every case the measurement was already in the file.
 
+**C53 — A missile is not a hit that is animated. It is an object that traverses, and it
+strikes whoever is standing in the cell it enters — not whoever it was aimed at.**
+
+`docs/mechanics.md` carried *"missiles are computed and never fired — a hit resolves,
+nothing flies"* for a long time, and the cost of it was measured the moment the
+campaign–battle seam landed: sixty archers fought as sixty men carrying unused bows, and the
+fought path disagreed with the fixture oracle while the autocalc reproduced it to the man.
+The seam test therefore asserted that the books balanced and **deliberately not the winner**.
+
+**The question that had to be settled before a line could be written** was whether the
+original resolves a shot at launch and merely animates it, or whether the arrow genuinely
+traverses and can be blocked. It changes the answer completely: the first is a distance
+check and a damage roll, the second is a hundred-slot array of objects in the lockstep
+state. It is the second, and the evidence is one line of `Missile_Step`:
+
+```c
+g_otherBattleMan = g_battlefield[missile.cellOffset].figure;
+```
+
+The victim is read out of the cell the missile has **just entered**, fresh, every sub-step.
+**Nothing anywhere in the 0x4C-byte record remembers who the shot was aimed at** — `+0x06`
+is the *shooter* — so an arrow cannot check whether it hit the right man, and does not. A
+body in the flight path takes it; a miss coasts on past the target and can kill a second
+rank; a target that dies or walks away is not tracked; and the friend/foe test is on the
+**owner** byte rather than the side, so a friendly body neither takes the arrow nor stops it.
+
+Three more facts that were not guessable and are now `[V]`. **The timing is one number
+wearing two hats**: four sub-steps a tick at 1/32 of a cell each is exactly ⅛ of a cell a
+tick, and the range in `g_missileStats` is stored in *eighths of a cell* — so the same
+number is the distance and the tick budget, and `range >> 3` is the range in cells with no
+conversion anywhere. **A missile is born a cell out**: `BattleMan_FireMissile` runs eight
+`Missile_Step`s on the spot before the arrow is ever drawn, and a shot can already have hit
+something before anybody sees it. And **one hit per missile is structural rather than a
+rule**: every impact test is gated on `ttl == 0`, and a hit sets `ttl = 2`.
+
+**The fixture is the check, and it moved.** The same saved position, the same seed, the same
+eleven counts a side: the fought battle used to be **won by the player with 56 men of 178**
+against a saved game in which he lost and both armies were destroyed. It is now lost by him,
+the militia holding the field with 8 men of 182 where the autocalc's ladder walks 36 home.
+`crates/l2-game/tests/seam.rs` asserts the verdict now, and the caveat is gone with the gap
+it described.
+
+**Two things the brief and this tree had wrong, found on the way.** `Missile_Step` does not
+raise `g_siegeBreachScore`; it adds **one** to a wall cell's own counter, and only the
+sixteenth hit collapses the cell — `FUN_0047DFE0`, which is what scores, one point per
+orthogonal neighbour still standing. And missile **class 7 is boiling oil, not a falling
+man**: `docs/battle.md` §0 and `docs/symbols.json` both said *"falling men"*, the only
+spawner in the binary is the oil path, and there is no class 6 at all.
+
+**C54 — The completeness check for the *battle* checksum did not exist, and writing one
+found `Fighter::progress` outside it.**
+
+C39 established the rule — *completeness must be derived, not remembered* — and derived a
+check over `l2-kingdom`'s save. Nothing did the same for `l2-sim`, whose lockstep encoder is
+a hand-written list in `crates/l2-sim/tests/lockstep.rs`, and a hand-written list cannot fail
+for a field nobody put in it.
+
+Adding the missile array was the occasion to write one. It reads the field names of `Missile`
+and `Fighter` out of the source and requires each to appear in the encoder; its first run
+failed on **`Fighter::progress`**, the sub-cell walk counter. Two peers that disagreed about
+how far a figure was through its current cell would commit to the next cell on different
+ticks — and every checksum they exchanged up to that point would have agreed. Exactly C39's
+shape, one crate over, found the moment the check was derived rather than remembered.
+
+The exemption table has C39's polarity: inclusion is the default, a line is a claim with a
+reason attached, and a line naming a field that no longer exists fails too. The missile array
+is hashed **slot by slot over all hundred**, live and free alike, which is C39's *second*
+property — a whole record can go missing from a sweep and no amount of field checking sees
+it.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
