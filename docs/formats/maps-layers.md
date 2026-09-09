@@ -406,7 +406,8 @@ anywhere in the code, not just in the one live dump.
 **Bit `0x40` of `bank` was missing from this table.** It is a run-time draw bit
 like `0x80`, and `Map_RenderIso`'s two half-row loops make its meaning exact:
 `bank & 0x80` calls the building-overlay blitter and `bank & 0x40` calls
-`Map_DrawCountyFlag`. **[V]**
+`Map_DrawPathMarker`. **[V]** — the path-preview ball, not a flag: the name this line
+carried was corrected in `docs/decisions.md` C49.
 
 ### 5.4 Byte +0, `content` — the tile's occupant  **[V]**
 

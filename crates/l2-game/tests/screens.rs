@@ -26,6 +26,7 @@ use l2_game::screens::village::{self as village_screen, VillageScreen};
 use l2_game::Game;
 use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
+use l2_view::campaign;
 use l2_view::chrome;
 use l2_view::village;
 use l2_view::{text, Canvas};
@@ -210,9 +211,11 @@ fn the_near_view_is_a_window_of_england_and_not_the_whole_map() {
     let distinct = used.iter().filter(|u| **u).count();
     assert!(distinct > 32, "only {distinct} palette entries in the whole frame");
 
-    // `Map_InitMode` pins the opening viewport at row 0x4A, col 0x14, so this
-    // is a fixed number rather than a range: **two** of England's fourteen
-    // counties are on screen when the game opens.
+    // The opening viewport is fixed — `Map_InitMode`'s row 0x4A, col 0x14,
+    // then `Game_SetupRealmsAndCounties`'s centre on the player's own town
+    // (C48, see [`the_map_opens_on_the_players_own_county`]) — so this is a
+    // number rather than a range: **two** of England's fourteen counties are on
+    // screen when the game opens.
     let counts = pick_counts(&screen);
     assert_eq!(visible_counties(&screen), 2, "eight lattice columns hold two counties, not 14");
     for (id, n) in counts.iter().enumerate().skip(15) {
@@ -223,6 +226,248 @@ fn the_near_view_is_a_window_of_england_and_not_the_whole_map() {
     assert_eq!(screen.county_at(map::PANEL.x, 200), 0, "the panel is not the map");
     assert_eq!(screen.county_at(200, map::TOP_BAR - 1), 0, "nor is the menu bar");
     assert_eq!(screen.county_at(200, 474), 0, "nor below the near viewport");
+}
+
+/// **The map opens where the player's own county is, and an army raised there
+/// is on the screen.** Corrections C47 and C48.
+///
+/// A player reported *"I raised an army and nothing appeared on the map"*, and
+/// two separate faults each put his army out of shot on the England fixture:
+///
+/// * **C48** — we stopped at `Map_InitMode`'s row `0x4A` / column `0x14`, and
+///   the original does not: `Game_SetupRealmsAndCounties` (`0x0049BD99`) ends
+///   with `FUN_00432746(g_playerStartTable[g_localPlayer * 2])`, which centres
+///   on the player's own town. County 8's town is fourteen lattice columns
+///   outside the eight the near view holds, so the player opened the game
+///   looking at somebody else's country.
+/// * **C47** — `muster_tile` scanned the whole map for the county's lowest
+///   free road tile. `County_FindFreeRoadTile` (`0x00428007`) searches a box of
+///   radius 1, 2 then 3 **around the county's anchor**, so the original never
+///   puts a new army more than three tiles from the county's centre.
+///
+/// Both are measured here rather than described: the town has a pixel, the
+/// army's tile is within three of the anchor and has a pixel, and removing the
+/// unit changes that many pixels and no others.
+#[test]
+fn the_map_opens_on_the_players_own_county_and_a_raised_army_is_in_shot() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+
+    // The town the original centres on is on screen, and so is the anchor the
+    // muster searches around.
+    let anchor = {
+        let c = &game.kingdom.counties[county as usize];
+        (c.anchor_x, c.anchor_y)
+    };
+    assert!(
+        l2_view::campaign::tile_centre(
+            screen.viewport(),
+            screen.zoom(),
+            anchor.0 as usize,
+            anchor.1 as usize
+        )
+        .is_some(),
+        "the county the game opens on has to be in the viewport it opens at",
+    );
+    assert!(
+        pick_counts(&screen)[county as usize] > 0,
+        "and the pick plane agrees the player's county is what he is looking at",
+    );
+
+    // Raise an army the way the raise screen does.
+    let realm = game.kingdom.realms[game.player as usize].clone();
+    let basket = l2_kingdom::LevyBasket::seed(&realm, 300);
+    let id = game.raise_army(county, &basket, 10, None).expect("the county can raise one");
+    let (ux, uy) = game.kingdom.campaign.units.get(id).map(|u| (u.x, u.y)).expect("the army");
+    assert!(
+        (ux as i32 - anchor.0 as i32).abs() <= 3 && (uy as i32 - anchor.1 as i32).abs() <= 3,
+        "C47: ({ux}, {uy}) is more than three tiles from the anchor {anchor:?}",
+    );
+
+    let at = l2_view::campaign::tile_centre(
+        screen.viewport(),
+        screen.zoom(),
+        ux as usize,
+        uy as usize,
+    );
+    let (cx, cy) = at.expect("an army raised in the county the map is centred on is in shot");
+
+    // And it is *drawn*: taking the unit away changes pixels, all of them
+    // around the tile the unit stands on.
+    let with = draw(&mut screen, &mut game, &assets);
+    game.kingdom.campaign.units.remove(id);
+    let without = draw(&mut screen, &mut game, &assets);
+    let moved: Vec<(i32, i32)> = with
+        .pixels
+        .iter()
+        .zip(without.pixels.iter())
+        .enumerate()
+        .filter(|(_, (a, b))| a != b)
+        .map(|(i, _)| ((i % with.width) as i32, (i / with.width) as i32))
+        .collect();
+    assert!(!moved.is_empty(), "the army painted nothing at all");
+    // `Map_DrawArmies` anchors the figure's **bottom centre** on the tile's
+    // bottom vertex — `tileOrigin + (halfPitch, halfPitch)`, which at the near
+    // zoom is `tileCentre + (1, 15)` — and the army frames are 53 x 44. So the
+    // ink hangs upwards from just below the tile centre, and this box is that
+    // rectangle with a pixel of slack rather than a guess.
+    let frame = (53, 44);
+    for (x, y) in &moved {
+        assert!(
+            (x - cx).abs() <= frame.0 / 2 + 2
+                && *y <= cy + campaign::NEAR.tile_h / 2 + 1
+                && *y >= cy + campaign::NEAR.tile_h / 2 - frame.1 - 4,
+            "the army's ink is at ({x}, {y}), nowhere near its tile ({cx}, {cy})",
+        );
+    }
+}
+
+/// **The county town flies a waving flag in its owner's colours.** C49.
+///
+/// The player: *"each county's town square would have a coloured flag waving on
+/// it."* `FUN_004071A0` draws it from `Flags1a.pl8` at frame
+/// `(shield − 1) * 8 + phase`, placed at `tileOrigin + (0x1A, −0x1C)` with no
+/// centring, and the phase is a global counter mod `0x80` shifted right by four
+/// — eight frames, 16 ms apiece, 2.05 s a wave.
+///
+/// All three halves are measured: the flag paints, it paints **inside the
+/// 32 × 24 rectangle that offset names** and nowhere else, and advancing the
+/// phase changes the picture.
+#[test]
+fn the_county_town_flies_its_owners_flag_and_it_waves() {
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+
+    let with = draw(&mut screen, &mut game, &assets);
+    // The original's own guard: `shieldIndex` is clamped 1..5 and a zero flies
+    // nothing. Taking every realm's shield away is therefore the same picture
+    // with the flags removed, and nothing else moved.
+    for r in game.kingdom.realms.iter_mut() {
+        r.shield_index = 0;
+    }
+    let without = draw(&mut screen, &mut game, &assets);
+    let moved: Vec<(i32, i32)> = with
+        .pixels
+        .iter()
+        .zip(without.pixels.iter())
+        .enumerate()
+        .filter(|(_, (a, b))| a != b)
+        .map(|(i, _)| ((i % with.width) as i32, (i / with.width) as i32))
+        .collect();
+    assert!(!moved.is_empty(), "no county on screen flew a flag");
+
+    // Every changed pixel has to lie in one of the flag rectangles: the town
+    // block's north-west tile, offset by `flag_at`, 32 x 24.
+    let mut boxes: Vec<(i32, i32)> = Vec::new();
+    for id in game.kingdom.county_ids() {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        let Some(&tile) = MapScreen::town(&ctx, id as u8).first() else { continue };
+        let (tx, ty) = l2_kingdom::map::coords(tile);
+        let (row, col) = campaign::tile_to_cell(tx as usize, ty as usize);
+        let (sx, sy) = campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
+        boxes.push((sx + campaign::NEAR.flag_at.0, sy + campaign::NEAR.flag_at.1));
+    }
+    for (x, y) in &moved {
+        assert!(
+            boxes
+                .iter()
+                .any(|(bx, by)| (bx..&(bx + 32)).contains(&x) && (by..&(by + 24)).contains(&y)),
+            "flag ink at ({x}, {y}) is outside every 32 x 24 flag rectangle",
+        );
+    }
+
+    // And it waves: one full phase of ticks repaints it. `flag_tick` runs
+    // 0..0x7F and the phase is `tick >> 4`, so sixteen ticks is one frame.
+    let (mut game, assets) = world!();
+    let mut screen = MapScreen::new();
+    let a = draw(&mut screen, &mut game, &assets);
+    let mut moved_by_the_wave = 0;
+    for _ in 0..16 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        Screen::update(&mut screen, &mut ctx);
+    }
+    let b = draw(&mut screen, &mut game, &assets);
+    moved_by_the_wave += a.diff_count(&b);
+    assert!(moved_by_the_wave > 0, "sixteen ticks must advance the wave by one frame");
+    let _ = county;
+}
+
+/// **A merchant is drawn, and clicking one opens the merchant.** C50.
+///
+/// The player: *"I don't see the merchants on the map and of course I can't
+/// click them."* Both halves were true. The figure was a square marker in
+/// `ink.dim`, because a merchant's owner byte is **6** and `Ink::realm` has six
+/// entries — and the click fell into `NOT YOUR UNIT` for the same reason.
+///
+/// `Map_Click`'s merchant arm never reads the unit's owner. Its guard is
+/// `g_counties[pickedCounty].owner == g_localPlayer`, so the question is whose
+/// **county** the merchant is standing in, and this asserts it both ways.
+#[test]
+fn a_merchant_is_drawn_and_opens_the_merchant_screen_from_the_county_it_is_in() {
+    let (mut game, assets) = world!();
+    let mine = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let (merchant, _) = game
+        .kingdom
+        .campaign
+        .units
+        .iter()
+        .find(|(_, u)| u.kind == l2_kingdom::UnitKind::Merchant)
+        .map(|(id, u)| (id, u.owner))
+        .expect("the fixture ships six merchants");
+    assert_eq!(
+        game.kingdom.campaign.units.get(merchant).map(|u| u.owner),
+        Some(6),
+        "every merchant in the game is ownerless, which is why the guard cannot be its owner",
+    );
+
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+
+    // Stand it on a tile of the player's own county that is in shot. The
+    // county's anchor is in shot because the map opened on it (C48).
+    let (ax, ay) = {
+        let c = &game.kingdom.counties[mine as usize];
+        (c.anchor_x, c.anchor_y)
+    };
+    {
+        let u = game.kingdom.campaign.units.get_mut(merchant).expect("the merchant");
+        u.x = ax;
+        u.y = ay;
+        u.county = mine;
+    }
+    let (cx, cy) =
+        campaign::tile_centre(screen.viewport(), screen.zoom(), ax as usize, ay as usize)
+            .expect("the anchor is in shot");
+
+    // It paints. `Sprite1a.pl8` frames 0 … 47 are the merchant's, 40 x 32.
+    let with = draw(&mut screen, &mut game, &assets);
+    let put_back = game.kingdom.campaign.units.remove(merchant).expect("the merchant");
+    let without = draw(&mut screen, &mut game, &assets);
+    assert!(with.diff_count(&without) > 0, "the merchant painted nothing");
+    game.kingdom.campaign.units.put(merchant, put_back);
+
+    // And clicking it opens screen 0x08.
+    let t = send(&mut screen, &mut game, &assets, Event::Click { x: cx, y: cy });
+    assert_eq!(t, Transition::Push(ScreenId::Shell(0x08)), "the merchant screen");
+
+    // The same merchant in somebody else's county is a refusal, not a trade.
+    let theirs = (1..=game.kingdom.county_count as u8)
+        .find(|&id| id != mine && !game.is_players(id))
+        .expect("England has counties the player does not own");
+    game.kingdom.campaign.units.get_mut(merchant).expect("the merchant").county = theirs;
+    let t = send(&mut screen, &mut game, &assets, Event::Click { x: cx, y: cy });
+    assert_eq!(t, Transition::Stay, "a merchant in a county you do not own opens nothing");
 }
 
 /// Zooming out reaches the rest of the map, and scrolling moves the near view.
@@ -1515,6 +1760,33 @@ fn shoot() {
     }
     let canvas = draw(&mut screen, &mut game, &assets);
     save_png(&canvas, &assets, "county_town");
+
+    // **The things on the map a player said were missing**: an army raised in
+    // his own county, a merchant standing beside it, and the town's flag.
+    {
+        let realm = game.kingdom.realms[game.player as usize].clone();
+        let basket = l2_kingdom::LevyBasket::seed(&realm, 300);
+        let _ = game.raise_army(county, &basket, 10, None);
+        let (ax, ay) = {
+            let c = &game.kingdom.counties[county as usize];
+            (c.anchor_x, c.anchor_y)
+        };
+        let merchant = game
+            .kingdom
+            .campaign
+            .units
+            .iter()
+            .find(|(_, u)| u.kind == l2_kingdom::UnitKind::Merchant)
+            .map(|(id, _)| id);
+        if let Some(u) = merchant.and_then(|id| game.kingdom.campaign.units.get_mut(id)) {
+            u.x = ax.saturating_sub(1);
+            u.y = ay;
+            u.county = county;
+        }
+        let mut screen = MapScreen::new();
+        let canvas = draw(&mut screen, &mut game, &assets);
+        save_png(&canvas, &assets, "units_and_flags");
+    }
 
     // And the four panels, each from its own quadrant of the strip.
     for panel in county::PANELS {

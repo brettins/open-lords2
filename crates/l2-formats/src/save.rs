@@ -411,6 +411,7 @@ impl Save {
             strength: self.u8_at(base + 0x04)?,
             is_human: self.u8_at(base + 0x05)? != 0,
             lord: self.u8_at(base + 0x07)?,
+            shield_index: self.u8_at(base + 0x0A)?,
             tax_hap_empire: self.i8_at(base + 0x28)?,
             county_count: self.u8_at(base + 0x29)?,
             rank: self.u8_at(base + 0x2B)?,
@@ -570,6 +571,12 @@ pub struct Realm {
     pub strength: u8,
     pub is_human: bool,
     pub lord: u8,
+    /// `+0x0A` — which shield and flag colour this realm flies.
+    /// `Game_SetupRealmsAndCounties` initialises it to the realm id, so a default
+    /// game has `shield_index == index`; a custom game's colour picker
+    /// (`0x0049CE1F`, a free-slot pool) permutes it, which is the only case
+    /// where the two differ.
+    pub shield_index: u8,
     pub tax_hap_empire: i8,
     /// `+0x29` — owned counties. **One each for realms 1..=5 in the shipped
     /// save**, which is the same correction the county owner bytes carry, read

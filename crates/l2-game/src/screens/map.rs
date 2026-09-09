@@ -17,7 +17,7 @@
 //! Every one of those numbers is decompiled, not designed: `Map_SetZoom`'s
 //! `pitch * cols + viewX` comes out 480 at both zooms, the `Misc_cty.pl8`
 //! right-column frames are 162 wide and tile `y` 24 … 480 with no gap, and
-//! `Map_DrawCountyFlag` clips the map to `x < 478`, `y < 474`.
+//! `Map_DrawPathMarker` clips the map to `x < 478`, `y < 474`.
 //!
 //! # What is the original's, and what is ours
 //!
@@ -309,6 +309,21 @@ pub struct MapScreen {
     /// Set when `update` moved the map, so [`Machine`](crate::screen::Machine)
     /// knows to repaint without an event having arrived.
     scrolled: bool,
+    /// Whether the opening centre-on-the-player's-county has been done.
+    ///
+    /// See [`MapScreen::open_on_the_player`] for why the map does not simply
+    /// stay where `Map_InitMode` put it.
+    opened: bool,
+    /// `DAT_0057D378`, the map's animation tick, and `DAT_0057D390`, the flag's
+    /// wave phase, which is that counter mod `0x80` shifted right by four.
+    ///
+    /// `FUN_004CFB08` advances the counter once per **16 ms** of `GetTickCount`
+    /// and then draws a frame, so a flag holds each of its eight frames for
+    /// 16 × 16 ms and the whole wave takes 2.05 seconds. Our fixed tick is 16 ms
+    /// (`main::TICK`) and nothing below this crate reads a clock, so the counter
+    /// is stepped by [`Screen::update`] and the arithmetic is the original's.
+    flag_tick: u8,
+    flag_phase: u8,
     /// **`g_selectedUnit`, and the map is in move-order mode while it is set.**
     ///
     /// `Map_Click`'s army branch is three lines: a picked unit of type 1 that is
@@ -354,8 +369,62 @@ impl MapScreen {
             pointer: (CANVAS_W / 2, CANVAS_H / 2),
             pointer_in: false,
             scrolled: false,
+            opened: false,
+            flag_tick: 0,
+            flag_phase: 0,
             selected_unit: None,
         }
+    }
+
+    /// **Open the map where the player's own county is** — correction C48.
+    ///
+    /// `Map_InitMode` puts the scroll origin at row `0x4A`, column `0x14`, and
+    /// we reproduced that faithfully and stopped there. The original does not:
+    /// the last thing `Game_SetupRealmsAndCounties` (`0x0049BD99`) does, after
+    /// every realm has its county and its starting garrison, is
+    ///
+    /// ```c
+    /// FUN_00432746(g_playerStartTable[g_localPlayer * 2]);   /* 0x00432746 */
+    ///     -> if (county.townTile) { Map_CentreOnTile(county.townTile);
+    ///                               g_selectedCounty = county; }
+    /// ```
+    ///
+    /// so a new game opens looking at **the player's own town**, not at row
+    /// `0x4A`. Ours opened on a stretch of England the player owned nothing in:
+    /// on the turn-one fixture the near view is eight lattice columns wide and
+    /// county 8's town is fourteen columns outside it, so his county, his
+    /// merchants and the army he raised were all off the side of the screen.
+    /// That is the second half of *"I raised an army and nothing appeared"*;
+    /// the first half is `l2_kingdom::levy::muster_tile`, C47.
+    ///
+    /// **Two departures, both deliberate.** The original does this at
+    /// `Game_NewGame` time and we do it the first time the campaign screen is
+    /// built, because a screen is constructed from a [`ScreenId`] with no game
+    /// in hand. And it centres on the *start* county from `g_playerStartTable`,
+    /// which a loaded position does not carry; we centre on the selected county
+    /// when it is the player's and otherwise on his lowest-numbered one, which
+    /// is the same county on turn one.
+    ///
+    /// The guard is the original's too: `FUN_00432746` does nothing at all when
+    /// the county's town tile is zero, so a position with no town — every
+    /// synthetic map in the test suite — stays exactly where `Map_InitMode`
+    /// left it.
+    fn open_on_the_player(&mut self, ctx: &Ctx) {
+        self.opened = true;
+        let g = &ctx.game;
+        let county = if g.is_players(g.selected) {
+            g.selected
+        } else {
+            match g.kingdom.county_ids().into_iter().find(|&c| g.is_players(c as u8)) {
+                Some(c) => c as u8,
+                None => return,
+            }
+        };
+        // `g_counties[c].townTile`, whose zero means "no town".
+        let Some(&tile) = Self::town(ctx, county).first() else { return };
+        let (x, y) = l2_kingdom::map::coords(tile);
+        self.centre_on_tile(x as usize, y as usize);
+        self.saved = self.view;
     }
 
     /// Which of a set of candidate tiles a pixel is on, if any.
@@ -485,6 +554,9 @@ impl MapScreen {
     /// plane that only exists after the first repaint is a pick plane that
     /// works everywhere except in the tests.
     fn ensure(&mut self, ctx: &Ctx) {
+        if !self.opened {
+            self.open_on_the_player(ctx);
+        }
         // The turn count is in the key because [`town_graphics`] depends on
         // every county's population, which the end of a turn moves.
         let key = (ctx.game.map_slot, self.zoom.id, self.view, ctx.game.kingdom.turn_count);
@@ -634,6 +706,35 @@ impl MapScreen {
     ///   all, it opens the siege screen instead. Two routes to one decision, and
     ///   only one of them asks.
     fn click_unit(&mut self, ctx: &mut Ctx, unit: usize) -> Transition {
+        // **The merchant arm, and its guard is the county's owner rather than
+        // the merchant's.** `Map_Click` tests `kind != 1` first, then `kind !=
+        // 3`, and the merchant branch is
+        //
+        // ```c
+        // else if (g_counties[g_pickedTileCounty].owner == g_localPlayer) {
+        //     DAT_00553C64 = g_pickedTileUnit;                  /* the trading unit */
+        //     if (g_counties[g_pickedTileCounty].townTile != 0) {
+        //         g_selectedCounty = g_pickedTileCounty;
+        //         Map_CentreOnTile(g_counties[...].townTile);
+        //         g_screenId = 8;
+        //     }
+        // } else Msg_Enqueue(..., 0x70, ...);
+        // ```
+        //
+        // A unit's owner byte is read **exactly once** in the whole 1,263-byte
+        // function, on the `kind == 1` path, and never here. That matters,
+        // because **every merchant in the game carries owner 6** — `ownerless`.
+        // `Merchant_SpawnAll` passes 6 to `Unit_Spawn` unconditionally, nothing
+        // rewrites it, and all six of the England fixture's merchants have it.
+        // So a guard on the *merchant's* owner could never fire, and "your
+        // merchant" — which `docs/screens.md` §6 and `docs/symbols.md` both said
+        // — is not a thing that exists. A merchant belongs to nobody and is
+        // clickable while it stands in a county you own. C50.
+        if ctx.game.kingdom.campaign.units.get(unit).map(|u| u.kind)
+            == Some(l2_kingdom::UnitKind::Merchant)
+        {
+            return self.click_merchant(ctx, unit);
+        }
         if !ctx.game.is_players_unit(unit) {
             self.status = "NOT YOUR UNIT".into();
             return Transition::Stay;
@@ -666,6 +767,40 @@ impl MapScreen {
             .map_or((0, 0), |u| (u.men, u.moves_left()));
         self.status = format!("{men} MEN, {left} MOVES - CLICK A TILE TO MARCH");
         Transition::Stay
+    }
+
+    /// **`Map_Click`'s merchant arm**, and where it stops.
+    ///
+    /// The guard, the centre-on-the-town and the `townTile != 0` refusal are
+    /// the original's (quoted in [`MapScreen::click_unit`]). What it opens is
+    /// screen `0x08`, which in this tree is still a **shell**: it draws
+    /// `Merchant.pl8` under `Merchant.256` and does not trade. So the route is
+    /// real and the destination is a picture — and that is deliberate, because
+    /// the alternative is inventing a trading interface.
+    ///
+    /// `DAT_00553C64`, which the original sets here, has **exactly one writer
+    /// in the whole binary — this line** — and two readers, both in the
+    /// merchant screen's price arithmetic. So the trading screen is reachable
+    /// only by clicking a merchant on the map, and when `0x08` grows a trade
+    /// this is the call that has to carry the unit into it.
+    fn click_merchant(&mut self, ctx: &mut Ctx, unit: usize) -> Transition {
+        let county = ctx.game.kingdom.campaign.units.get(unit).map_or(0, |u| u.county);
+        if !ctx.game.is_players(county) {
+            // `Msg_Enqueue(…, 0x70, …)` — the same refusal the flag arms use
+            // for somebody else's county.
+            self.status = "THAT MERCHANT IS NOT IN ONE OF YOUR COUNTIES".into();
+            return Transition::Stay;
+        }
+        let Some(&town) = Self::town(ctx, county).first() else {
+            // `if (townTile != 0)`: no town, no trade, and no message either.
+            self.status = "THAT COUNTY HAS NO TOWN TO TRADE IN".into();
+            return Transition::Stay;
+        };
+        let (x, y) = l2_kingdom::map::coords(town);
+        ctx.game.select(county);
+        self.centre_on_tile(x as usize, y as usize);
+        self.selected_unit = None;
+        Transition::Push(ScreenId::Shell(0x08))
     }
 
     /// **`Map_ConfirmMoveOrder`** — the second click, the one that places the
@@ -777,6 +912,7 @@ impl MapScreen {
         match self.view.scrolled(dir, &self.zoom) {
             Some(v) => {
                 self.view = v;
+                self.opened = true;
                 true
             }
             None => false,
@@ -788,6 +924,11 @@ impl MapScreen {
     /// the map before it opens anything over it (`docs/decisions.md` C22).
     pub fn centre_on_tile(&mut self, x: usize, y: usize) {
         self.view = Viewport::centred_on_tile(x, y, &self.zoom);
+        // Somebody has said where to look, so the opening centre
+        // ([`MapScreen::open_on_the_player`]) must not override it on the first
+        // paint. It is a *default* for a screen nobody has positioned, not a
+        // thing that happens to every campaign screen once.
+        self.opened = true;
     }
 
     fn centre_on_county(&mut self, anchor: (usize, usize)) {
@@ -1191,6 +1332,15 @@ impl Screen for MapScreen {
     /// one step per fixed tick, which is ours because the original's is a frame
     /// rate and nothing below this crate may read a clock.
     fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+        // `Map_DrawFrame`: `if (0x7F < tick) tick = 0; phase = tick >> 4;`
+        // Only a change of phase is a repaint, so a still map with flags on it
+        // costs eight frames every 2.05 seconds rather than sixty a second.
+        self.flag_tick = (self.flag_tick + 1) & 0x7F;
+        let phase = self.flag_tick >> 4;
+        if phase != self.flag_phase {
+            self.flag_phase = phase;
+            self.scrolled = true;
+        }
         // The brush popup is modal, and a modal popup that scrolled the map out
         // from under its own target would be worse than one that does not.
         if self.picked_field.is_some() {
@@ -1295,6 +1445,10 @@ impl Screen for MapScreen {
             }
         }
 
+        // `Map_DrawFrame`'s order: the terrain, then the building/flag pass,
+        // then the unit sprites — so a flag is over the town and under an army
+        // walking past it.
+        draw_flags(self, canvas, ctx, clip);
         draw_path_preview(self, canvas, ctx, clip);
         draw_units(self, canvas, ctx, clip);
 
@@ -1353,17 +1507,28 @@ fn unit_marker_half(zoom: &Zoom, unit: &l2_kingdom::Unit) -> i32 {
     base + unit.size_class() as i32
 }
 
-/// **Ours.** Every unit on the map, as a square in its owner's colour.
+/// **`Map_DrawArmies` (`0x00408438`)** — every unit on the map, as the figure
+/// the original draws.
 ///
-/// The original draws a walking figure from one of five colour-coded sheets
-/// (`Sprite1a.pl8` and friends, `spriteFrame = bank + 3*facing + walkPhase`),
-/// and we do not have those placed. A square in the realm colour says *there is
-/// something of that lord's here and it is this big*, which is all a march order
-/// needs, and it cannot be mistaken for the game's art. `docs/decisions.md` C21.
+/// The sheet, the frame and the placement are all the original's:
+/// `Sprite1a.pl8` for armies, mobs **and merchants**, `Sprite1b.pl8` for
+/// transports alone, `frame = bank + 3*((facing+1)&7) + walk` for the first two
+/// and `6*((facing+1)&7) + phase` for the other two, anchored on the tile's
+/// bottom vertex. See [`l2_kingdom::Unit::sprite_frame`] and
+/// [`campaign::draw_unit`] for the arithmetic and for the one piece left out —
+/// the sixteen-step walk interpolation, which needs a sub-tile step counter we
+/// do not keep.
 ///
-/// A **garrisoned** unit is drawn hollow: it is inside the castle, excluded from
-/// the county's troop count and cannot be given a move order, and a solid marker
-/// would say it was standing on the tile.
+/// **What is still ours** is the *selection* and the *state marks*: the
+/// original shows a selected army by flood-filling its reachable tiles, and it
+/// marks a besieger with `Flags1a.pl8` frame `0x82`. A garrisoned unit is drawn
+/// hollow because it is inside the castle rather than standing on the tile —
+/// the original draws it not at all and flies a flag over the castle instead
+/// (see [`draw_flags`]).
+///
+/// The square marker is the fallback for an install with no `Sprite?a.pl8`, and
+/// for the placeholder assets the tests use. It says *there is something here*
+/// without claiming to be the game's art. `docs/decisions.md` C21.
 fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
     for (id, unit) in ctx.game.kingdom.campaign.units.iter() {
@@ -1373,30 +1538,132 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
             continue;
         };
         let h = unit_marker_half(&screen.zoom, unit);
-        let colour = ink
-            .realm
-            .get(unit.owner as usize)
-            .copied()
-            .unwrap_or(ink.dim);
-        fill_clipped(canvas, cx - h - 1, cy - h - 1, h * 2 + 3, ink.background, clip);
-        if unit.is_garrisoned() {
-            // Hollow: the ring only.
+        // A garrisoned unit is inside the castle. The original does not draw it
+        // on the map at all; we draw a hollow marker so that the player can see
+        // his garrison is there, and never the figure, which would say it was
+        // standing outside.
+        let drawn = !unit.is_garrisoned()
+            && campaign::draw_unit(
+                canvas,
+                &ctx.assets.map,
+                screen.view,
+                &screen.zoom,
+                (unit.x as usize, unit.y as usize),
+                campaign::UnitSprite {
+                    sheet: unit.sprite_sheet(),
+                    frame: unit.sprite_frame(0),
+                    nudge: unit.sprite_nudge(),
+                },
+                clip,
+            );
+        if !drawn {
+            let colour = ink.realm.get(unit.owner as usize).copied().unwrap_or(ink.dim);
+            fill_clipped(canvas, cx - h - 1, cy - h - 1, h * 2 + 3, ink.background, clip);
             fill_clipped(canvas, cx - h, cy - h, h * 2 + 1, colour, clip);
-            fill_clipped(canvas, cx - h + 1, cy - h + 1, (h * 2 - 1).max(1), ink.background, clip);
-        } else {
-            fill_clipped(canvas, cx - h, cy - h, h * 2 + 1, colour, clip);
+            if unit.is_garrisoned() {
+                fill_clipped(
+                    canvas,
+                    cx - h + 1,
+                    cy - h + 1,
+                    (h * 2 - 1).max(1),
+                    ink.background,
+                    clip,
+                );
+            }
         }
         // The selection ring: `g_selectedUnit`, and the map is taking orders
-        // for it.
+        // for it. **Ours** — the original flood-fills the reachable tiles.
         if screen.selected_unit == Some(id) {
             let r = h + 3;
             widget::frame(canvas, Rect::new(cx - r, cy - r, r * 2 + 1, r * 2 + 1), ink.highlight);
         }
         // A besieger carries a second, smaller mark: it is camped rather than
         // standing, and clicking it opens the siege screen rather than ordering
-        // a march.
+        // a march. The original's is `Flags1a.pl8` frame `0x82` with the seasons
+        // left printed under it (`FUN_00407F82`); ours is a dot.
         if unit.besieging_county != 0 {
             fill_clipped(canvas, cx - 1, cy - h - 4, 3, ink.bad, clip);
+        }
+    }
+}
+
+/// **`FUN_004071A0`'s two flags** — the county town's owner-coloured banner and
+/// the castle's garrison banner, both waving.
+///
+/// A player who has played the original: *"each county's town square would have
+/// a coloured flag waving on it, and castles with armies in them have a flag."*
+/// Both are in `FUN_004071A0` (`0x004071A0`), the pass `Map_DrawFrame` runs
+/// between the terrain and the unit sprites, gated on the runtime tile record's
+/// **bank bit `0x80`** — which `County_FindTownTile` and `County_FindCastleTile`
+/// set on their anchor quadrants. The branch inside then splits on plane 0:
+///
+/// ```c
+/// if      (flags & 0x40)  /* the town  */ { quadrant 0: county.shield;  quadrant 2: merc offer }
+/// else if (flags & 0x80)  /* the castle*/ { if (content <= 0x14 || !county.garrisonUnit) return;
+///                                           shield = units[county.garrisonUnit].shield; }
+/// frame = shield * 8 - 8 + phase;
+/// ```
+///
+/// Three things worth stating because each is a decision:
+///
+/// * **The colour is the frame index**, not a palette remap — `Flags1a.pl8`'s
+///   first forty frames are five shields by eight wave phases, and `shield = 5,
+///   phase = 7` lands on the fortieth exactly.
+/// * **The castle flag carries the *garrison's* shield, not the county's.** A
+///   captured castle whose garrison is still somebody else's flies the
+///   garrison's colours, and the two flags of one county can disagree.
+/// * **`content == 0x14` returns**: `0x14` is the bare castle plot and
+///   `0x15 … 0x19` are castle types 1 … 5, so an unbuilt castle flies nothing
+///   even with a garrison standing on it.
+///
+/// **`docs/screens.md` §5 attributed all of this to `FUN_004081A6`, which is
+/// not the flag at all** — it is the gold path-preview ball, and its `bank`
+/// bit `0x40` is the path mark `Path_MarkPreviewTiles` sets. C49.
+fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+    let k = &ctx.game.kingdom;
+    let phase = screen.flag_phase;
+    let mut flag = |tile: usize, frame: usize| {
+        let (x, y) = l2_kingdom::map::coords(tile);
+        campaign::draw_flag(
+            canvas,
+            &ctx.assets.map,
+            screen.view,
+            &screen.zoom,
+            (x as usize, y as usize),
+            frame,
+            clip,
+        );
+    };
+    for id in k.county_ids() {
+        let county = &k.counties[id];
+        // The town's 2 x 2 block. Plane-3 quadrant 0 is its north-west tile —
+        // the lowest tile index, and the top of the diamond — and quadrant 2 is
+        // the north-east one.
+        let town = MapScreen::town(ctx, id as u8);
+        let shield = k.realms.get(county.owner as usize).map_or(0, |r| r.shield_index);
+        if let (Some(&nw), Some(frame)) = (town.first(), campaign::flag_frame(shield, phase)) {
+            flag(nw, frame);
+        }
+        // `county.mercenaryOffer != 0` puts frame 0x81 on the north-east
+        // quadrant — a standing band, advertised on the map.
+        if county.mercenary_offer != 0 {
+            if let Some(&ne) = town.get(1) {
+                flag(ne, campaign::MERCENARY_MARKER_FRAME);
+            }
+        }
+        // The castle: built, and holding a garrison.
+        if county.castle_type == 0 || county.garrison_unit == 0 {
+            continue;
+        }
+        let garrison_shield =
+            k.campaign.units.get(county.garrison_unit).map_or(0, |u| u.shield);
+        let Some(frame) = campaign::flag_frame(garrison_shield, phase) else { continue };
+        let castle = MapScreen::settlements(ctx, id as u8)
+            .into_iter()
+            .find(|&t| industry::map_toggle_for_graphic(k.campaign.map.terrain[t])
+                == Some(industry::MapToggle::Castle));
+        if let Some(tile) = castle {
+            flag(tile, frame);
         }
     }
 }

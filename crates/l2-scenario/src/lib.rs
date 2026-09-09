@@ -353,6 +353,9 @@ pub struct RealmState {
     pub strength: u8,
     pub is_human: bool,
     pub lord: u8,
+    /// Realm `+0x0A` — the shield and flag colour. A default game sets it to
+    /// the realm id; a custom game's colour picker permutes it.
+    pub shield_index: u8,
     pub county_count: u8,
     pub rank: u8,
     pub score: i32,
@@ -638,6 +641,7 @@ impl Scenario {
                 strength: r.strength,
                 is_human: r.is_human,
                 lord: r.lord,
+                shield_index: r.shield_index,
                 county_count: r.county_count,
                 rank: r.rank,
                 score: r.score,
@@ -823,6 +827,14 @@ impl Scenario {
             realm.strength = r.strength;
             realm.is_human = r.is_human || id == self.local_player as usize;
             realm.lord = r.lord;
+            // **The banner colour, and it is a default rather than a read.**
+            // `Game_SetupRealms` (`0x0049C5xx`) initialises every realm with
+            // `g_realms[i].shieldIndex = i`, and only a custom game's colour
+            // picker permutes it (`0x0049CE1F` walks a free-slot pool), which is
+            // why a default game read either way comes out the same. Taken from
+            // the save's own byte at realm `+0x0A` rather than assumed, so a
+            // custom game's flags are its own colours and not the realm order.
+            realm.shield_index = r.shield_index;
             realm.county_count = r.county_count;
             realm.rank = r.rank;
             realm.score = r.score;

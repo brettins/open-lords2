@@ -144,7 +144,7 @@ Three independent readings agree on those numbers:
 * `DAT_00553254 = (rows+1)·rowStep + viewY` — 474 and 408. **[D]**
 * `FUN_00429BA4`, the screen→tile hit test, accepts
   `y ∈ [rowStep + viewY, rowStep·rows + rowStep + viewY)` — 24 … 474 and 24 … 408. **[D]**
-* `FUN_004081A6`, which draws the county flag, calls
+* `FUN_004081A6`, the path-preview marker (C49; it is not the county flag), calls
   `Clip_Vertical(0x18, 0x1DA)` — **24 … 474** literally. **[D]**
 
 ### 1.4 A clip rectangle reproduces all five blit modes  **[V]**
@@ -265,9 +265,9 @@ The resource table is 20-byte `{char name[16]; u32 size;}` records at **`0x004DA
 | 2 | `roads1a.pl8` | `0x0057D344` | bank `0x08` |
 | 3 | `town1a.pl8` | `0x0055409C` | bank `0x0C` |
 | 4 | `castle1a.pl8` | `0x0056898C` | bank `0x10` |
-| 5 | `sprite1a.pl8` | `0x00553224` | armies (`FUN_00408438`) |
-| 6 | `sprite1b.pl8` | `0x0056D8BC` | armies, second sheet |
-| 7 | `flags1a.pl8` | `0x0055CE5C` | county flags (`FUN_004081A6`) |
+| 5 | `sprite1a.pl8` | `0x00553224` | armies, mobs **and merchants** (`FUN_00408438`) |
+| 6 | `sprite1b.pl8` | `0x0056D8BC` | transports, and only transports |
+| 7 | `flags1a.pl8` | `0x0055CE5C` | the two flags (`FUN_004071A0`) **and** the path balls (`FUN_004081A6`) — §5.1 |
 
 Rows 0–4 are exactly the five banks `Map_DrawTile` selects on `plane1 & 0x1c`, in order —
 an independent confirmation of `maps-layers.md` §1.1 from the loader rather than from the
@@ -475,17 +475,97 @@ cursor `DAT_00591524` / `DAT_00591528`.
 | `Map_DrawTile` `0x004063C1` | the terrain diamond | one of the five banks |
 | `FUN_00406673` | the diamond's apex ("overhang") rows | same |
 | `FUN_0042A7F1` | an off-map surround tile | `base` bank, frame = lattice byte − 0x0FFF0000 |
-| `FUN_004071A0` | settlements and their state (`flags & 0x80`) | `base`/`town`/`castle` |
-| `FUN_004081A6` | the **county flag** on a castle tile (`flags & 0x40`) | `flags1a.pl8`, frame `castleLevel + 0x38`, or 0x4E |
-| `FUN_00408438` | **armies** | `sprite1a`/`sprite1b`, offset by an 8-rotation × 16 table per zoom at `0x004D8108` … `0x004D8388` |
+| `FUN_004071A0` | settlements and their state, **and the two waving flags** (bank `& 0x80`) | `base`/`town`/`castle`, `flags1a.pl8` |
+| `FUN_004081A6` | the **path-preview balls** (bank `& 0x40`) | `flags1a.pl8`, frame `0x38 + cost`, or `0x4E` |
+| `FUN_00408438` | **every unit** — armies, mobs, merchants and transports | `sprite1a` for all but a transport, offset by an 8-rotation × 16 table per zoom at `0x004D8108` … `0x004D8388` |
 | `FUN_00408C50` | a debug number over each tile | gated on `DAT_005BB4A4/A5` |
+
+**Rows two and three were both wrong until a player asked where his flags were, and both
+are `docs/decisions.md` C49 and C50.** `FUN_004081A6` is not the county flag: it is the gold
+ball on an ordered path, its `0x40` is the **bank** byte's transient path mark rather than
+plane 0's county town, and `docs/armies.md` §2.3 has had it right under the name
+`Map_DrawPathMarker` the whole time. §1.3's third bullet quotes this function for its clip
+rectangle — the numbers are right and the attribution is not.
+
+### 5.1 The two flags  **[V]**
+
+`FUN_004071A0` runs between the terrain and the unit sprites (`Map_DrawFrame` calls
+`Map_RenderIso`, then `FUN_00405602`, then `FUN_00405487`), gated on the runtime tile
+record's **bank bit `0x80`**, which `County_FindTownTile` and `County_FindCastleTile` set on
+their anchor quadrants. It then branches on plane 0:
+
+```c
+if      (flags & 0x40)  /* the town   */ { part 0: shield = county +0x07;
+                                           part 2: mercenaryOffer ? frame 0x81 : return; }
+else if (flags & 0x80)  /* the castle */ { if (content == 0x14) return;      /* unbuilt */
+                                           if (!county.garrisonUnit) return; /* +0x1BC  */
+                                           shield = units[garrisonUnit].shield; }
+frame = shield * 8 - 8 + phase;      /* == (shield - 1) * 8 + phase */
+```
+
+`Flags1a.pl8`'s frames `0x00 … 0x27` are forty 32 × 24 pictures laid out five rows by eight
+columns: **five shields × eight wave phases**, and `shield = 5, phase = 7` lands on frame 39
+exactly, with frame 40 beginning an unrelated block. **The colour is in the frame index**;
+there is no palette remap. `shield` is a realm's `shieldIndex`, clamped 1 … 5, so a zero
+shield flies nothing — and the castle's shield is the **garrison's**, not the county's, so a
+captured castle holding somebody else's garrison flies their colours.
+
+`content == 0x14` is the bare castle plot and `0x15 … 0x19` are castle types 1 … 5
+(`FUN_0046826C` stamps `0x14 + castleType`), which is the same line `Map_Click`'s ladder
+draws at "13 … 20 is nothing, 21 and up is the castle" (§6).
+
+Placement is `tileOrigin + (0x1A, −0x1C)` at the near zoom and `(6, −0x15)` at the far one,
+blitted **with no centring at all** — the frame record's `cx`/`cy` are atlas coordinates and
+the function never reads them. The mercenary marker sits at `(0x10, −0x12)`.
+
+**The wave is one global counter.** `FUN_004CFB08` advances `DAT_0057D378` once per 16 ms of
+`GetTickCount` and then draws a frame; `Map_DrawFrame` wraps it at `0x80` and sets
+`DAT_0057D390 = tick >> 4`. Eight frames, 256 ms each, a 2.05-second loop, every flag on the
+map in step.
+
+### 5.2 The unit sprites  **[V]**
+
+`Map_DrawArmies` walks the tile's whole occupancy list and draws **every** unit on it, not
+only armies. The sheet is chosen by `kind == 4` alone — a transport uses `g_spriteSheetB` and
+everything else, **merchants included**, uses `g_spriteSheetA`.
+
+The frame is read straight out of the record's `+0x07`, which the type's tick handler wrote:
+
+```c
+Army_Tick / Mob_Tick:            frame = bank + 3 * ((facing + 1) & 7) + g_unitWalkFrames[phase];
+Merchant_Tick / Transport_Tick:  frame =        6 * ((facing + 1) & 7) + phase;
+```
+
+with `g_unitWalkFrames` (`0x004D6A78`) = `0, 1, 2, 1`, `g_merchantWalkFrames` (`0x004D6AB8`)
+= `0 … 5`, and `bank` one of `0x48`/`0x60`/`0x78` by army size or `0x90` for a peasant mob.
+**The rotation is `facing + 1`, not `facing`**, in all four handlers.
+
+`Sprite1a.pl8`'s 168 frames decompose exactly: `0 … 47` are the 40 × 32 merchant, 8 facings ×
+6 phases; `48 … 71` are a 3 × 4 dead block; `72 … 95`, `96 … 119` and `120 … 143` are the
+three 53 × 44 army banks; `144 … 167` is the mob's. `Sprite1b.pl8` is 48 frames and nothing
+else — the transport bank, which is why sheet B needs no base.
+
+The anchor is `tileOrigin + (g_mapTileHalfStep, g_mapHalfPitch)`, and **both of those are 30
+at the near zoom and 6 at the far one** — `Map_SetZoom` writes them from one literal — so on
+a 58 × 30 (or 10 × 6) tile the anchor is the diamond's bottom vertex, one pixel right of
+centre. Then a per-kind nudge (`(0, −4)` for an army or a mob, `(−4, −2)` for a merchant or a
+transport) and `x -= w/2; y -= h`, so the figure hangs upwards and reads as standing *on* the
+tile.
+
+The 8 × 16 tables at `0x004D8108` … `0x004D8388` are six `i8` arrays indexed
+`[direction][+0x149]`: index 0 is zero and index 1 is the full previous-tile delta, ramping
+back to zero at 15. They **drag the sprite backwards toward the tile it stepped out of**
+while a step plays out, which is the walk animation; the unit's own `x`/`y` are already at
+the destination.
 
 County **borders are in the tile data**, not an overlay: `maps-layers.md` §2.1 — plane-0
 bit `0x02` switches the tile to the `roads` bank's boundary frames. There is no separate
 outline pass, and the yellow "selected county" outline our engine draws is ours.
 
-The army sprite direction is `unitFacing − mapRotation` mod 8 (`FUN_00408438`), which is
-the one place the rotation feature reaches past the lattice.
+The **walk table's** direction is `unitFacing − mapRotation` mod 8 (`FUN_00408438`), which
+is the one place the rotation feature reaches past the lattice. The *frame's* rotation is a
+different quantity and does not involve the map at all — it is `(facing + 1) & 7`, baked
+into `+0x07` by the tick handler (§5.2).
 
 ---
 
@@ -518,7 +598,7 @@ at `0x00522F91` — and `g_pickedTileGraphic`, which is just `g_tiles[tile]`. Th
 | what was clicked | what happens |
 |---|---|
 | your army (unit type 1) | its orders, or siege preparation (screen `0x1D`) |
-| your merchant (unit type 3) | the merchant (screen `0x08`) |
+| a merchant (unit type 3) **standing in a county you own** | the merchant (screen `0x08`), after centring on that county's town |
 | flags bit **0x80** — an industry building | that industry is **toggled on or off** (`Industry_ToggleFromMap`), the industry chosen by a ladder on the tile *graphic*: 0 … 3 iron, 4 … 6 stone, 7 … 9 weapons, 10 … 12 wood, 21+ castle |
 | flags bit **0x40** — the county town | the **village** (screen `0x02`) |
 | flags bit **0x20** — farmland | the **field brush** (screen `0x04`) |
@@ -570,6 +650,14 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
 * the clip-rectangle derivation of §1.4, asserted rather than assumed —
   `campaign::tests::the_clip_rectangle_swallows_exactly_the_columns_the_half_blitters_drop`
   goes red if the clip is moved to 480;
+* **the unit sprites and the two flags**, from `Sprite1a/1b.pl8` and `Flags1a.pl8`, with the
+  original's frame arithmetic, its anchor and its 16 ms wave counter (§5.1, §5.2);
+* **`Map_Click`'s merchant arm**, guarded on the *county's* owner as the original guards it,
+  centring on that county's town and opening screen `0x08` — which is still a shell that
+  draws and does not trade;
+* the map opening on the player's own town, which is `Game_SetupRealmsAndCounties`'s tail
+  call `FUN_00432746(g_playerStartTable[g_localPlayer * 2])` and not `Map_InitMode`
+  (`docs/decisions.md` C48);
 * **two of `Map_Click`'s three plane-0 arms**: a click on one of your own settlement tiles
   toggles that industry, and a click on one of your own fields opens the brush. Both are
   gated exactly as the original gates them, and both reach the rules
@@ -597,8 +685,8 @@ into the gitignored `out/` so it can be looked at.
   tile banks hold palette index 0, which the original writes as black and we skip, because
   `DecodedFrame::opaque` cannot tell those from the transparent corners;
 * the county **outline** and the county **marker squares** — invented, no original
-  equivalent; the original draws a `Flags1a.pl8` county flag over the castle tile, which we
-  do not place;
+  equivalent. The flags themselves *are* placed now (§5.1): the town's owner-coloured
+  banner, the mercenary-offer marker beside it, and the castle's garrison banner;
 * the **field markers** and the words on the brush's buttons. The original does not mark
   fields: it repaints the tile artwork itself, `FUN_0046D7F4` choosing a graphics bank and
   frame from the same terrain value it writes. We do not, because that ladder's bank byte
@@ -609,8 +697,15 @@ into the gitignored `out/` so it can be looked at.
   (`Map_PickTile`). We hit-test the diamonds of the tiles that can mean something — the
   selected county's fields and settlements — which is right where it answers and silent
   elsewhere;
-* **armies** (`Map_DrawArmies`), **flags** (`Map_DrawCountyFlag`) and settlement state on
-  the map;
+* **settlement state** on the map — `FUN_004071A0`'s industry-shut-down marker
+  (`Flags1a.pl8` frames `0x28 … 0x37`, cycled on its own 16-step counter) and the field
+  overlay block at `0x55 … 0x66`;
+* the **walk interpolation** — `Map_DrawArmies` looks the sprite's sub-tile offset up in the
+  8 × 16 tables at `0x004D8108` … `0x004D8388` by unit `+0x149`, and we keep no step counter,
+  so every unit is drawn at rest (§5.2);
+* the **besieger's banner** (`Flags1a.pl8` frame `0x82` with the seasons left under it,
+  `FUN_00407F82`) and the **selection flood fill** the original paints for an army under
+  orders. Ours are a dot and a ring;
 * the File / Options / Help menus, their drop-downs, and everything the right column puts
   *inside* frames 55 / 66 / 56 / 58 — our own numbers go on a dark backing over frame 56,
   which is the one plain part of the column, so they read as an overlay;

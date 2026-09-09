@@ -55,12 +55,12 @@ use crate::canvas::{Canvas, Clip, Tags};
 use crate::sheet::Sheet;
 
 /// Height of the menu bar, and the top of the map viewport. `Screen_DrawMenuBar`
-/// fills 640 × 24, and `Map_DrawCountyFlag` clips the map to
+/// fills 640 × 24, and `Map_DrawPathMarker` clips the map to
 /// `Clip_Vertical(0x18, …)`.
 pub const TOP_BAR_H: i32 = 24;
 
 /// Left edge of the right-hand panel, and the map's right clip.
-/// `Map_DrawCountyFlag` calls `Clip_Horizontal(g_mapViewX, 0x1DE)`; the panel's
+/// `Map_DrawPathMarker` calls `Clip_Horizontal(g_mapViewX, 0x1DE)`; the panel's
 /// `Misc_cty` frames are 162 wide and are drawn at 478, and 478 + 162 = 640.
 pub const PANEL_X: i32 = 478;
 pub const PANEL_W: i32 = 162;
@@ -104,6 +104,19 @@ pub struct Zoom {
     /// them. `Gfx_LoadCountyMode` loads exactly these five, in this order, from
     /// consecutive `g_resourceTable` entries.
     pub banks: [&'static str; 5],
+    /// `g_spriteSheetA` and `g_spriteSheetB` — resource table entries 5 and 6
+    /// of the zoom's block. `Map_DrawArmies` picks **B for a transport and A
+    /// for everything else**, and that is the whole of the choice.
+    pub sprites: [&'static str; 2],
+    /// `g_flagsSheet` — entry 7. Not seasonal: entries 7, 15, 23 and 31 all
+    /// name `flags1a.pl8`, and `Flags1b/c/d.pl8` ship and are never loaded.
+    pub flags: &'static str,
+    /// Where a flag goes, as an offset from the **tile origin** — the top-left
+    /// of the diamond's bounding box, which is `cell_to_screen`'s answer.
+    /// `FUN_004071A0` adds this and blits the frame there with no further
+    /// centring: the frame's `cx`/`cy` fields are atlas coordinates and the
+    /// function never reads them.
+    pub flag_at: (i32, i32),
 }
 
 /// Zoom 0: 58 × 30 tiles, eight lattice columns on screen.
@@ -121,6 +134,9 @@ pub const NEAR: Zoom = Zoom {
     view_y: 9,
     scroll_step: 1,
     banks: ["Base1a.pl8", "Mtns1a.pl8", "Roads1a.pl8", "Town1a.pl8", "Castle1a.pl8"],
+    sprites: ["Sprite1a.pl8", "Sprite1b.pl8"],
+    flags: "Flags1a.pl8",
+    flag_at: (0x1A, -0x1C),
 };
 
 /// Zoom 2: 10 × 6 tiles, forty lattice columns on screen. The original pins the
@@ -139,6 +155,9 @@ pub const FAR: Zoom = Zoom {
     view_y: 21,
     scroll_step: 4,
     banks: ["Base2a.pl8", "Mtns2a.pl8", "Roads2a.pl8", "Town2a.pl8", "Castle2a.pl8"],
+    sprites: ["Sprite2a.pl8", "Sprite2b.pl8"],
+    flags: "Flags2a.pl8",
+    flag_at: (6, -0x15),
 };
 
 /// The two zooms the campaign screen actually has, near first.
@@ -334,32 +353,164 @@ impl Lattice {
     }
 }
 
-/// The five tile banks at both zooms, decoded on demand.
+/// The five tile banks, the two sprite sheets and the flag sheet at both zooms,
+/// decoded on demand.
 pub struct MapAssets {
     sets: [Vec<Sheet>; 2],
+    sprites: [Vec<Sheet>; 2],
+    flags: [Option<Sheet>; 2],
 }
 
 impl MapAssets {
     /// Load through a caller-supplied reader, so this works equally against a
     /// plain directory and against the mod overlay's case-insensitive VFS.
+    ///
+    /// The five tile banks are required — without them there is no map. The
+    /// sprite and flag sheets are **optional**, and everything that draws from
+    /// them falls back to a marker of ours when they are missing, so a partial
+    /// install still shows where its units are.
     pub fn load<F>(mut read: F) -> Result<MapAssets, String>
     where
         F: FnMut(&str) -> Result<Vec<u8>, String>,
     {
         let mut sets = [Vec::new(), Vec::new()];
+        let mut sprites = [Vec::new(), Vec::new()];
+        let mut flags = [None, None];
         for zoom in ZOOMS {
             for name in zoom.banks {
                 let bytes = read(name)?;
                 sets[zoom.set].push(Sheet::new(bytes).map_err(|e| format!("{name}: {e}"))?);
             }
+            for name in zoom.sprites {
+                if let Some(s) = read(name).ok().and_then(|b| Sheet::new(b).ok()) {
+                    sprites[zoom.set].push(s);
+                }
+            }
+            flags[zoom.set] = read(zoom.flags).ok().and_then(|b| Sheet::new(b).ok());
         }
-        Ok(MapAssets { sets })
+        Ok(MapAssets { sets, sprites, flags })
     }
 
     pub fn bank(&self, zoom: &Zoom, index: usize) -> Option<&Sheet> {
         self.sets.get(zoom.set)?.get(index)
     }
+
+    /// `g_spriteSheetA` (0) or `g_spriteSheetB` (1) for this zoom.
+    pub fn sprite_sheet(&self, zoom: &Zoom, index: usize) -> Option<&Sheet> {
+        self.sprites.get(zoom.set)?.get(index)
+    }
+
+    /// `g_flagsSheet` for this zoom.
+    pub fn flag_sheet(&self, zoom: &Zoom) -> Option<&Sheet> {
+        self.flags.get(zoom.set)?.as_ref()
+    }
 }
+
+/// **`Map_DrawArmies` (`0x00408438`) — one unit's figure standing on a tile.**
+///
+/// The original's placement, statement for statement:
+///
+/// ```c
+/// x = walkTableX[dir * 16 + stepAccum] + g_mapTileHalfStep;   /* 30 / 6 */
+/// y = walkTableY[dir * 16 + stepAccum] + g_mapHalfPitch;      /* 30 / 6 */
+/// switch (kind) { case 1: case 2: y -= 4; break;
+///                 case 3: case 4: y -= 2; x -= 4; break; }
+/// drawX += x;  drawY += y;
+/// drawX -= spriteWidth / 2;  drawY -= spriteHeight;
+/// ```
+///
+/// `g_mapTileHalfStep` and `g_mapHalfPitch` are **both** 30 at the near zoom and
+/// both 6 at the far one — `Map_SetZoom` writes them from the same literal — and
+/// the near tile is 58 × 30 and the far one 10 × 6, so the anchor is the
+/// diamond's **bottom vertex, one pixel right of centre**, and the figure hangs
+/// upwards from it. That is why a unit reads as standing *on* the tile rather
+/// than floating in it.
+///
+/// **The walk table is not applied here.** `0x004D8108` … `0x004D8388` are six
+/// 8 × 16 `i8` tables that drag the sprite back toward the tile it stepped out
+/// of while `+0x149` counts 0 … 15; index 0 is zero in all of them, which is a
+/// unit at rest, and our units have no sub-tile step state to index with. So we
+/// draw every unit at rest, and a unit mid-step would sit at its destination
+/// tile in the original for the same reason it does here — it is only the
+/// interpolation that is missing.
+///
+/// Returns false when the sheet or the frame is missing, so the caller can fall
+/// back to a marker of its own.
+#[allow(clippy::too_many_arguments)]
+pub fn draw_unit(
+    canvas: &mut Canvas,
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    sprite: UnitSprite,
+    clip: Clip,
+) -> bool {
+    let Some(sheet) = assets.sprite_sheet(zoom, sprite.sheet) else { return false };
+    let Some(decoded) = sheet.frame(sprite.frame) else { return false };
+    let (row, col) = tile_to_cell(tile.0, tile.1);
+    let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    let (nx, ny) = sprite.nudge;
+    let x = sx + zoom.half_pitch + nx - decoded.width as i32 / 2;
+    let y = sy + zoom.half_pitch + ny - decoded.height as i32;
+    canvas.blit_clipped(&decoded, x, y, clip);
+    true
+}
+
+/// Which sheet, which frame and which per-kind nudge one unit draws with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnitSprite {
+    /// 0 for `g_spriteSheetA`, 1 for `g_spriteSheetB`. `Map_DrawArmies` picks B
+    /// for `kind == 4` — a transport — and A for everything else.
+    pub sheet: usize,
+    pub frame: usize,
+    /// The per-kind `(x, y)` the original adds before centring.
+    pub nudge: (i32, i32),
+}
+
+/// **`FUN_004071A0`'s flag** — an owner-coloured banner over a tile.
+///
+/// Placed at `tileOrigin + Zoom::flag_at` with **no centring at all**: the
+/// function adds the offset to the draw cursor and blits, and never reads the
+/// frame record's `cx`/`cy`, which are atlas coordinates. Near zoom that is
+/// `(+26, −28)` — up and to the right of the diamond's top-left, so the flag
+/// flies above the tile.
+pub fn draw_flag(
+    canvas: &mut Canvas,
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    frame: usize,
+    clip: Clip,
+) -> bool {
+    let Some(sheet) = assets.flag_sheet(zoom) else { return false };
+    let Some(decoded) = sheet.frame(frame) else { return false };
+    let (row, col) = tile_to_cell(tile.0, tile.1);
+    let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    canvas.blit_clipped(&decoded, sx + zoom.flag_at.0, sy + zoom.flag_at.1, clip);
+    true
+}
+
+/// **The waving flag's frame** — `shield * 8 - 8 + phase`, i.e.
+/// `(shield − 1) * 8 + phase`.
+///
+/// `Flags1a.pl8`'s first 40 frames are 32 × 24 and lie on the artist's sheet as
+/// five rows of eight: **five shields × eight wave phases**, and `shield = 5,
+/// phase = 7` lands on frame 39, the last of them. The colour is in the frame
+/// index; there is no palette remap. `shield` is the realm's `shieldIndex`,
+/// clamped 1 … 5 by the original, so a zero shield has no flag.
+pub const FLAG_PHASES: u8 = 8;
+
+pub fn flag_frame(shield: u8, phase: u8) -> Option<usize> {
+    (1..=5).contains(&shield).then(|| {
+        (shield as usize - 1) * FLAG_PHASES as usize + (phase % FLAG_PHASES) as usize
+    })
+}
+
+/// `Flags1a.pl8` frame `0x81`, the mercenary-offer marker, drawn on the town
+/// block's north-east quadrant when the county has a band standing.
+pub const MERCENARY_MARKER_FRAME: usize = 0x81;
 
 /// Where a lattice cell's tile is drawn, given the viewport.
 ///
@@ -598,7 +749,7 @@ mod tests {
     fn the_viewport_starts_under_the_menu_bar_and_ends_where_the_binary_says() {
         assert_eq!(NEAR.top(), TOP_BAR_H);
         assert_eq!(FAR.top(), TOP_BAR_H);
-        assert_eq!(NEAR.bottom(), 474, "Clip_Vertical(0x18, 0x1DA) in Map_DrawCountyFlag");
+        assert_eq!(NEAR.bottom(), 474, "Clip_Vertical(0x18, 0x1DA) in Map_DrawPathMarker");
         assert_eq!(FAR.bottom(), 408);
     }
 

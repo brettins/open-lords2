@@ -1680,6 +1680,204 @@ saying plainly: **on questions about the interface, somebody who has played the 
 better oracle than the decompiler**, because the decompiler tells you what is drawn and he
 tells you what it looks like.
 
+**C47 — A new army was put on the county's lowest-numbered road tile. The original puts it
+within three tiles of the county's centre, and never looks at the county at all.**
+
+The player: *"I raised an army and nothing appeared on the map."* Two independent faults put
+it out of shot and this is the first of them.
+
+`crates/l2-kingdom/src/levy.rs`'s `muster_tile` scanned all 4,096 tiles row-major for the
+first free road tile **whose county id matched**, and called that `County_FindFreeRoadTile`.
+The real one (`0x00428007`) is four lines:
+
+```c
+County_FindFreeRoadTile(county):
+    for r in 1..=3: if Map_FindFreeRoadTileNear(county.anchorX, county.anchorY, r) return 1;
+    return 0;
+```
+
+and `Map_FindFreeRoadTileNear` (`0x0046CFBD`) scans the `(2r+1)²` box around that point,
+clipped to the map, row-major, accepting the first tile with `tile.unit == 0` and plane-0 bit
+`0x01`. `County_FindFreeOpenTile` (`0x00428078`) is the same walk with `(flags & 0xFD) == 0`.
+**[D]**, and the two functions are byte-for-byte the same shape.
+
+Three facts follow, and all three were wrong here:
+
+* **The search is bounded at radius 3.** A county is tens of tiles across and the near view
+  is eight lattice columns wide, so our tile was routinely off the side of the screen. On the
+  England fixture the player's county 8 has its anchor at (22, 36) and our muster tile was
+  (30, 33) — fourteen lattice columns from the viewport's left edge. The original's is
+  (23, 35), one tile from the anchor.
+* **The county is never tested.** A county whose anchor sits near a border can raise its army
+  onto a neighbour's tile, and the original allows it.
+* **The fallback is not "passable".** `& 0xFD == 0` admits bare ground and the county-boundary
+  bit and nothing else — not farmland, not rough ground, not a settlement, not a road. The
+  road pass is the only way an army lands on a road, and a county boxed in by its own fields
+  has nowhere to stand.
+
+`Unit_Spawn`'s own precondition, `(tile.flags & 0xFC) == 0`, is stricter still than the road
+finder's and is now reproduced: a road tile that also carries farmland or a settlement passes
+the finder and fails the spawn, and `Army_Create` returns 0 — message `0xDD`, the same
+refusal as nowhere to stand.
+
+**The shape.** The name was right, the address was right, and the body was written from the
+name. That is C28 again, and what exposed it was not a re-reading but a player looking at his
+own screen.
+
+**C48 — The campaign map opened at `Map_InitMode`'s scroll origin and stopped there. The
+original centres it on the player's own town before the first frame.**
+
+The second half of *"nothing appeared on the map"*, and it is why the player also could not
+find his merchants or his county.
+
+`docs/screens.md` §1.5 records `Map_InitMode`'s opening state — near zoom, row `0x4A`, column
+`0x14` — and `crates/l2-game` reproduced it exactly. It is not the whole of the original's
+bring-up. The last two statements of `Game_SetupRealmsAndCounties` (`0x0049BD99`), after every
+realm has its county, its gold and its starting garrison, are
+
+```c
+FUN_00432746(g_playerStartTable[g_localPlayer * 2]);
+FUN_0046dfd5(g_playerStartTable[g_localPlayer * 2]);
+```
+
+and `FUN_00432746` (`0x00432746`) is
+
+```c
+DAT_0053f0dc = g_counties[county].townTile;
+if (DAT_0053f0dc != 0) { Map_CentreOnTile(DAT_0053f0dc); g_selectedCounty = county; }
+```
+
+So **a new game opens looking at the player's own town**, not at row `0x4A`. Ours opened on a
+stretch of England the player owned nothing in: eight lattice columns, and county 8's town
+fourteen columns outside them.
+
+Two departures, both deliberate and both at the call site. The original does this at
+`Game_NewGame` time; we do it the first time the campaign screen is built, because a screen is
+constructed from a `ScreenId` with no game in hand. And it centres on the *start* county from
+`g_playerStartTable`, which a loaded position does not carry, so we centre on the selected
+county when it is the player's and otherwise on his lowest-numbered one — the same county on
+turn one. The zero guard is the original's: a county with no town tile moves nothing, which is
+every synthetic map in the test suite.
+
+**One thing this cost, and it is the interesting half.** A lazily-applied default silently
+overrode explicit positioning: two existing tests centre the map on a tile and then click it,
+and the first `ensure` recentred underneath them. An explicit `centre_on_tile` or a scroll now
+counts as "positioned", so the opening centre is a default for a screen nobody has placed
+rather than something that happens to every campaign screen once. A default that outranks an
+instruction is a bug wherever it appears, and here it took two red tests to say so.
+
+**C49 — `FUN_004081A6` was called `Map_DrawCountyFlag` in four documents and `symbols.json`.
+It is the gold path-preview ball. The county flag is in a different function, off a
+different bit, in a different plane.**
+
+The player: *"each county's town square would have a coloured flag waving on it, and castles
+with armies in them have a flag."* Neither was drawn, and the entry point recorded for both
+was the wrong function.
+
+`0x004081A6` draws `Flags1a.pl8` frames `0x38 + cost` on tiles carrying **bank** bit `0x40`
+— which `Path_MarkPreviewTiles` (`0x004A91BA`) sets on each step of the local player's
+ordered path and `FUN_0046C6BA` clears grid-wide. `docs/armies.md` §2.3 had that right and
+called it `Map_DrawPathMarker`; `docs/screens.md` §5, §1.3, `docs/formats/maps-layers.md`
+§5.3 and `symbols.json` all carried "the county flag on a castle tile, frame
+`castleLevel + 0x38`". Every clause of that is wrong, and the frame arithmetic it quotes is
+the path ball's.
+
+The flags are **`FUN_004071A0`**, gated on **bank bit `0x80`**, which
+`County_FindTownTile` and `County_FindCastleTile` set on their anchor quadrants. Inside, the
+branch is on **plane 0**, and the two `0x40`s are in different bytes: bank `0x40` is the
+transient path mark, plane-0 `0x40` is the county town.
+
+```c
+if      (flags & 0x40)  /* the town   */ { part 0: shield = county.shieldIndex;   /* +0x07 */
+                                           part 2: mercenaryOffer ? frame 0x81 : return; }
+else if (flags & 0x80)  /* the castle */ { if (content == 0x14) return;           /* no castle */
+                                           if (!county.garrisonUnit) return;      /* +0x1BC   */
+                                           shield = units[county.garrisonUnit].shield; }
+frame = shield * 8 - 8 + phase;
+```
+
+**The colour is the frame index.** `Flags1a.pl8`'s first forty frames are 32 × 24 and lie on
+the artist's sheet as five rows of eight — **five shields × eight wave phases** — and
+`shield = 5, phase = 7` lands on frame 39, the last of them, with frame 40 starting an
+unrelated block. There is no palette remap. **[V]**, and the arithmetic closing on the frame
+count is what makes it verified rather than plausible.
+
+Three consequences worth keeping:
+
+* **The castle's flag carries the *garrison's* shield, not the county's**, so a captured
+  castle still holding somebody else's garrison flies their colours and a county's two flags
+  can disagree.
+* **`content == 0x14` returns.** `0x14` is the bare castle plot and `0x15 … 0x19` are castle
+  types 1 … 5 (`FUN_0046826C` stamps `0x14 + castleType`), so an unbuilt castle flies nothing
+  however large its garrison. Our `industry::map_toggle_for_graphic` already draws that line
+  in the same place — 13 … 20 is nothing, 21 and up is the castle — which is an independent
+  confirmation from a ladder read out of `Map_Click`.
+* **The town's 2 × 2 carries two markers**, on plane-3 quadrants 0 and 2: the owner's flag
+  and, when the county has a band standing, `Flags1a.pl8` frame `0x81` — the mercenary offer,
+  advertised on the map.
+
+**The wave is a global counter, not a per-tile phase.** `FUN_004CFB08` advances
+`DAT_0057D378` once per **16 ms** of `GetTickCount` and then draws a frame; `Map_DrawFrame`
+wraps it at `0x80` and sets `DAT_0057D390 = tick >> 4`. Eight frames, 256 ms apiece, a
+2.05-second wave, and every flag on the map is in step. Our fixed tick is 16 ms already, so
+the counter is stepped by `Screen::update` and the arithmetic is carried across unchanged —
+and only a *change of phase* asks for a repaint, so a still map with flags on it costs eight
+frames every two seconds rather than sixty a second.
+
+**Why it went unnoticed for so long.** The name was in `symbols.json` with a `[verified]`
+comment, and four documents cited the comment rather than the function. The bit was right
+(`0x40`), the sheet was right (`Flags1a.pl8`), the clip rectangle quoted from it in §1.3 was
+right — everything checkable at a glance agreed, and the one thing nobody checked was what
+the frames were for. C46's rule again, one level up: **a frame index is a measurement and
+the word beside it is a guess**, and here the guess had propagated into four documents
+before anything looked at the artwork.
+
+**C50 — "your merchant". There is no such thing: every merchant in the game is ownerless,
+and the guard is whose *county* it is standing in.**
+
+The player: *"I don't see the merchants on the map and of course I can't click them."* Both
+halves were true, and both came from the same wrong idea.
+
+`docs/screens.md` §6 and `symbols.json`'s `Map_Click` entry both say *"your merchant (unit
+type 3) opens screen `0x08`"*. `Map_Click` (`0x0043CE1A`) reads a **unit's** owner byte
+exactly once in its 1,263 bytes, on the `kind == 1` path, and never on the merchant path.
+The merchant arm's guard is `g_counties[g_pickedTileCounty].owner == g_localPlayer`, and it
+additionally does nothing at all — not even the refusal message — when that county has no
+town tile.
+
+That matters because **`Merchant_SpawnAll` (`0x00427ED0`) passes 6 to `Unit_Spawn`
+unconditionally**, 6 being `Army_Create`'s ownerless marker, and nothing ever rewrites it:
+all six merchants of the England turn-one fixture and all three of the siege fixtures carry
+owner 6. A guard on the merchant's owner could never have fired. So the sentence was not
+merely imprecise — it described a control path that does not exist, and our engine
+implemented it faithfully: `click_unit` answered `NOT YOUR UNIT` for every merchant on the
+map, for ever.
+
+**A merchant belongs to nobody. It is county infrastructure**, and five independent things
+say so: the spawn, the saves, the three functions that never read its owner,
+`County_RecountMerchants` (`0x00451061`) filing merchants under a *county* with no realm
+touched, and `L2.eng` 31/12 in the game's own words — *"Merchants allow a county to buy
+needed supplies and raise revenue by selling goods."*
+
+**The other half — not seeing them — was ours, and it was the same mistake wearing a
+different hat.** Units were drawn as squares in `Ink::realm[owner]`, and `Ink::realm` has six
+entries, `0 ..= 5`. Owner **6** fell off the end into `ink.dim`, so every merchant in the
+game was a small beige square on beige-and-green terrain. The fix is not a brighter square:
+`Map_DrawArmies` (`0x00408438`) draws merchants from **`Sprite1a.pl8`, the same sheet as the
+armies** — only a transport uses sheet B — and its frames 0 … 47 are a 40 × 32 merchant, 8
+facings × 6 walk frames. Those are placed now, and so are the armies' three size banks.
+
+Two arithmetic corrections fall out, both against `docs/screens.md` §5:
+
+* the rotation is **`(facing + 1) & 7`**, not `facing`, in all four tick handlers;
+* the sheet is chosen by **`kind == 4` alone**, not "armies use `sprite1a`/`sprite1b`".
+
+`0x08` is still a shell in this tree: the route is real, it centres the map on the town the
+way the original does, and it lands on a screen that draws `Merchant.pl8` and does not trade.
+That is deliberate. `DAT_00553C64`, which the original sets on this line, has exactly one
+writer in the whole binary — this line — and two readers, both in the merchant screen's price
+arithmetic, so when `0x08` grows a trade this is the call that has to carry the unit into it.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

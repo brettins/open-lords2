@@ -457,7 +457,9 @@ its boundary, and none is.
 * `docs/formats/maps-layers.md` §5.3 lists the run-time-only bits of the `bank` byte as
   `0x01`, `0x20` and `0x80`. Bit `0x40` is missing and is not idle: it has nine clears and
   six tests, and in `Map_RenderIso`'s two half-row loops `bank & 0x40` is the sole condition
-  for calling **`Map_DrawCountyFlag`**, exactly as `bank & 0x80` is for the building overlay.
+  for calling **`Map_DrawPathMarker`**, exactly as `bank & 0x80` is for the building overlay.
+  (That function was named `Map_DrawCountyFlag` when this was written; C49 corrected it. The
+  bit census below was right and the name it reported was not.)
 
 **And a negative result about the method, which cost a wrong claim.** A census of the bit
 masks applied to each plane in the corpus is a **lower bound only**. It said the tile `flags`

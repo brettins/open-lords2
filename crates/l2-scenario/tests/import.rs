@@ -511,3 +511,27 @@ fn a_unit_type_that_names_no_handler_is_refused() {
         );
     }
 }
+
+/// **Realm `+0x0A` is the shield index, and a default game sets it to the realm
+/// id.** Read rather than assumed: the importer used to fill this field with the
+/// realm id on the strength of `Game_SetupRealmsAndCounties` doing so, which is
+/// true of a *default* game and not of one whose colour picker has run
+/// (`0x0049CE1F` walks a free-slot pool). Now that `l2-formats` reads the byte,
+/// this asserts the assumption it replaced — so if a fixture ever carries a
+/// permuted set, it says so here rather than silently changing every flag.
+#[test]
+fn the_shield_index_of_a_default_game_is_the_realm_id() {
+    let save = l2_testkit::england!();
+    let s = Scenario::from_save(&save).unwrap();
+    for (id, realm) in s.realms.iter().enumerate().take(6).skip(1) {
+        if !realm.in_play {
+            continue;
+        }
+        assert_eq!(
+            realm.shield_index, id as u8,
+            "realm {id} flies shield {} - a permuted colour set, which is legal but has \
+             never been seen in a fixture",
+            realm.shield_index
+        );
+    }
+}
