@@ -1521,6 +1521,50 @@ text over them. The comment claiming they were a status line had been in the fil
 sidebar was written, and it was never checked against the hotspot table sitting three
 sections away in a document this repository already had.
 
+**C44 — The custom game's twelve drop-downs do not write `g_optDifficulty` and its
+neighbours. They write a different block, and one function stands between the two.**
+
+The setup screen's twelve options had never reached a game — every one was local screen
+state — and the obvious repair was twelve assignments into the `g_opt*` globals
+`l2-formats` already imports. That would have been wrong for **seven of the twelve**, and
+wrong in a way nothing would have caught for forty turns.
+
+Three functions, all **[V]**:
+
+| | | |
+|---|---|---|
+| `Setup_SetOption` | `0x00433BA2` | twelve arms, each writing one global in `0x0053F288 … 0x0053F2B4` — a **second** block, a hundred bytes above `g_optDifficulty` |
+| `Setup_DefaultOptions` | `0x004AE539` | writes all twelve at once |
+| `Setup_CommitOptions` | `0x00499DC3` | runs at *Start*, and turns those twelve into the eleven values a game is played with |
+
+Only five of the twelve are direct copies. One is arithmetic —
+`g_aiLordCount = (Nobles + 2) - humanPlayers` — and **five go through a lookup table**:
+`g_timeLimitSeconds` (`0x004DBBF8`), `g_startingGold` (`0x004DBC18`), `g_startArmoury`
+(`0x004DC070`), `g_startTroops` (`0x004DC110`) and `g_countyStatus` (`0x004DC0D0`). A
+*Time limit* of *"4 mins"* is index 3 and **240**; wiring the index to `g_optTimeLimit`
+would have produced a three-second turn.
+
+Three things fell out of reading it that were not the point:
+
+1. **The *Defaults* button is not twelve zeroes.** It is `[0, 0, 3, 0, 0, 0, 3, 2, 2, 1, 6, 1]`
+   — five lords, a keep, some weapons, a thousand crowns, a medium county — and this tree's
+   *Defaults* wrote zeroes, which is a game the original never offers.
+2. **`docs/kingdom.md` §8.5 and `l2_game::victory` name the wrong campaign column.**
+   Column `+0x0C` was marked **[D]** *"the opponent count"* because it runs 1, 1, 2, 3, 4, 4,
+   5, 5. `Setup_CommitOptions` assigns that global from the *Starting Castle* drop-down, so
+   the column is the **castle**, climbing wooden → royal up the ladder; the opponent count is
+   `+0x1C`, which runs 1, 2, 3, 4, 4, 4, 4, 4. Both are corrected, and the hypothesis
+   `g_startForcesSetting` is promoted to `g_startWeapons`.
+3. **`g_optFightHumansOnly` is in no saved block, and the original therefore cannot reload
+   it.** Adding `0x0053F284` to `l2-formats`' global list turned the battle fixtures red
+   with `NotSaved`; the block table covers seven four-byte entries in that range and this is
+   not one of them. `docs/bugs.md` has it. The old comment in `l2-scenario` said the option
+   was merely *not exposed*; it is not *saved*, which is a different and worse thing.
+
+The lesson is C25's and C29's again in a third shape: **a global's name tells you what
+somebody thought it was, and the function that writes it tells you what it is.** Every one
+of the twelve had a plausible destination one block away.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

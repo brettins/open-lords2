@@ -1803,9 +1803,31 @@ counter **only on a win**, so a loss replays the same country.
 Campaign two is Australia (52), Central Am. (53), S. America (45), U.S.A. (44), Imperium (41)
 and The World (42), all on difficulty 2 — **six** maps, because `Setup_ChooseCampaign` starts
 its counter at **2** and the same `< 8` test ends it. The purse **resets to 5,000 at the top
-of each difficulty tier** rather than falling monotonically, and a fourth column running
-1, 1, 2, 3, 4, 4, 5, 5 is **[D]** the opponent count. Rows 8 and 9 of both tables are zeroed
-padding, which is what makes the eighth win's one-past-the-end read harmless.
+of each difficulty tier** rather than falling monotonically. Rows 8 and 9 of both tables are
+zeroed padding, which is what makes the eighth win's one-past-the-end read harmless.
+
+**All eight columns are named, and the fourth is a correction.** This table used to read the
+column running 1, 1, 2, 3, 4, 4, 5, 5 as **[D]** *the opponent count*. It is not: the eight
+columns are exactly the eight globals `Setup_CommitOptions` writes, because **a campaign map
+is the custom game with its twelve options chosen for you** — §10 has them — and this column
+is `g_startCastle`. The opponent count is the *last* column, `+0x1C`, which runs
+1, 2, 3, 4, 4, 4, 4, 4. Both climb and both stop just short of five, which is how the wrong
+reading survived. `docs/decisions.md` C44. **[V]**
+
+| offset | global | track A |
+|---|---|---|
+| `+0x00` | `g_scenarioIndex` | 17, 12, 2, 5, 0, 3, 7, 4 |
+| `+0x04` | `g_optDifficulty` | 0, 0, 1, 1, 2, 2, 2, 2 |
+| `+0x08` | `g_startingGoldChosen` | 5000, 2500, 5000, 2500, 5000, 2500, 1000, 1000 |
+| `+0x0C` | `g_startCastle` | 1, 1, 2, 3, 4, 4, 5, 5 — wooden up to royal |
+| `+0x10` | `g_startCountyStatus` | 1, 1, 1, 0, 2, 1, 0, 0 |
+| `+0x14` | `g_startWeapons` | 1, 1, 1, 1, 1, 1, 1, 1 — *few*, every map |
+| `+0x18` | `g_startArmySize` | 0 on every row of both tracks: **a campaign never starts you with an army** |
+| `+0x1C` | `g_aiLordCount` | 1, 2, 3, 4, 4, 4, 4, 4 |
+
+`Campaign_LoadEntry` also **forces four options after reading the row**: `g_optTimeLimit = 0`,
+`g_optFightHumansOnly = 1`, and advanced farming, exploration and army-eating all off. So a
+campaign map ignores whatever the custom-game screen last set for those five. **[V]**
 
 ### 8.6 The five farming styles
 
@@ -2493,3 +2515,113 @@ pass of the season now, and it rebuilds all five field counts from the map. Writ
 grain fields — a county with no field tiles has no fields, whatever its record says. That is
 the original's rule (§7.2) and it is the correct one; it is written here because two tests
 in `l2-mods` were quietly relying on the old behaviour.
+
+---
+
+## 15. Starting a game — the custom game's twelve options  **[V]**
+
+The setup screen's custom-game page has twelve drop-downs. **They do not write
+`g_optDifficulty` and its neighbours.** They write a second block at
+`0x0053F288 … 0x0053F2B4`, and `Setup_CommitOptions` (`0x00499DC3`) turns those twelve
+selections into the eleven values a game is played with at the moment *Start* is pressed.
+Only five are direct copies; one is arithmetic and five go through a lookup table.
+`docs/decisions.md` C44 is the reading and `crates/l2-game/src/setup.rs` is the
+implementation.
+
+| # | label (group 102) | values (group 103) | selection | commits to |
+|---:|---|---|---|---|
+| 0 | Advanced Farming | off, on | `0x0053F29C` | `g_optAdvancedFarming` |
+| 1 | Exploration | off, on | `0x0053F2A4` | `g_optExploration` |
+| 2 | Nobles | two … five | `0x0053F288` | `g_aiLordCount` = `(n + 2) − humans` |
+| 3 | Armies Eat | no, yes | `0x0053F2A0` | `g_optArmiesEat` |
+| 4 | Difficulty | easy … impossible | `0x0053F290` | `g_optDifficulty` |
+| 5 | Army Size | no army … large | `0x0053F298` | `g_startArmySize` → `g_startTroops` |
+| 6 | Starting Castle | none … royal | `0x0053F2B0` | `g_startCastle` → `county.castleType` |
+| 7 | Weapons | none … many | `0x0053F294` | `g_startWeapons` → `g_startArmoury` |
+| 8 | Crowns | 100 … 5000 | `0x0053F2A8` | `g_startingGoldChosen` = `g_startingGold[n]` |
+| 9 | County Status | weak, medium, strong | `0x0053F2AC` | `g_startCountyStatus` → `g_countyStatus` |
+| 10 | Time limit | 30 secs … no limit | `0x0053F28C` | `g_optTimeLimit` = `g_timeLimitSeconds[n]` |
+| 11 | Fight? | humans, all | `0x0053F2B4` | `g_optFightHumansOnly`, **inverted** — 0 shows *humans* |
+
+### 15.1 The five tables
+
+Read out of a GOG `Lords2.exe`, and **each has exactly as many rows as its drop-down has
+strings**, which is the check that could have failed.
+
+* `g_timeLimitSeconds` `0x004DBBF8` — `30, 60, 120, 240, 480, 600, 0`. Seven, and the last is
+  a plain 0, not a sentinel.
+* `g_startingGold` `0x004DBC18` — `100, 500, 1000, 2500, 5000`; literally the five strings.
+  Also the campaign table's purse column.
+* `g_startArmoury` `0x004DC070` — four rows of six, in `Realm::weapons` order:
+  `{0,0,0,0,0,0}`, `{0,0,25,0,25,0}`, `{0,0,50,50,50,0}`, `{100,100,100,100,100,0}`.
+* `g_countyStatus` `0x004DC0D0` — three rows of `{grain, herd, population, health, happiness}`:
+  `{10, 40, 167, 45, 41}`, `{0, 95, 417, 65, 65}`, `{500, 330, 1181, 85, 85}`. **Medium
+  really does start with no grain.** Its health of 65 is independently `STARTING_HEALTH_METER`,
+  which `l2-scenario` derived from the save without knowing about this table.
+* `g_startTroops` `0x004DC110` — four rows of seven, in `Unit::troops` order:
+  `{0,0,0,0,0,0,0}`, `{0,0,0,25,0,25,0}`, `{0,0,0,50,50,50,0}`, `{0,0,0,100,100,100,0}`.
+
+The three adjacent tables **close**: `g_startArmoury` is `4 × 0x18` and ends at `0x004DC0D0`
+where `g_countyStatus` begins; `3 × 0x14` ends at `0x004DC10C`, four bytes short of
+`g_startTroops`. Rows 0, 1 and 2 of the troops table are the armoury's shifted one slot
+right — same weapons, peasants at index 0 — and **row 3 is not**: *many* weapons is 100 of
+each of five types (500) while *large* is 100 each of swords, pikes and bows (300). Take both
+and 200 weapons sit unused in the armoury.
+
+### 15.2 The defaults are not zeroes
+
+`Setup_DefaultOptions` (`0x004AE539`) — the *Defaults* button — writes
+`[0, 0, 3, 0, 0, 0, 3, 2, 2, 1, 6, 1]`: **five lords, a keep, some weapons, a thousand
+crowns, a medium county, no time limit and *all* battles fought**. A network game differs in
+exactly two: a four-minute limit and *humans* only.
+
+### 15.3 The map decides how many lords there can be
+
+`g_playerStartCount` is the number of castle tiles on the map carrying a plane-4 marker
+(`Map_LoadPlanes` → `PlayerStart_Record`), and across the shipped maps it is **5, 4 or 2**.
+
+Three things happen on every change of scenario, and all three are needed:
+
+1. `Setup_NoblesFromMap` (`0x004AE5E2`) **sets** *Nobles* from the seat count — under 3 picks
+   *two*, under 4 *three*, under 5 *four*, else *five*. It is a set, not a clamp, so the lord
+   count follows the map **in both directions**.
+2. `FUN_00433999` shortens the open drop-down to `g_playerStartCount − 1` rows, so the choice
+   cannot be re-broken afterwards.
+3. `Setup_RecountAiLords` (`0x00433CC1`) recomputes `g_aiLordCount` and re-runs
+   `Realms_AssignLords`.
+
+**Asking for fewer lords than the map seats is well-defined.** `Realms_AssignLords` hands a
+lord to at most `g_aiLordCount` non-human realms and writes `strength = 0` into the rest;
+`PlayerStart_Compact` (`0x0049BC5F`) bubbles the surplus start slots down; and
+`Game_SetupRealmsAndCounties` (`0x0049BD99`) skips every realm without a lord entirely — no
+county, no gold, no armoury. The unclaimed start counties stay neutral and, like every other
+neutral county, get 100 extra grain.
+
+**Asking for more people than the map seats does nothing at all.** The *Start* handler's
+guard is `if (humanPlayers <= g_playerStartCount)`, with no message and no refusal — the
+button is simply inert. It can only fire in a network game.
+
+### 15.4 What a new game does with them — `Game_SetupRealmsAndCounties` `0x0049BD99`
+
+Every county takes its stores, population, health and happiness from the county-status row.
+Every realm **with a lord** takes its start county from `g_playerStartTable`, the treasury
+from the crowns row, **50 each of iron, wood and stone unconditionally**, the armoury row,
+a garrison raised by `Army_Create` from the troops row, and the castle. Then every *unowned*
+county gets 100 more grain.
+
+**One line in it is where difficulty and equipment meet:** an AI realm gets
+`g_optDifficulty * 20` extra in `weapons[4]` on top of its armoury row, and a person gets
+none. Together with the free gold per turn and the goods grants (§8), the raised defence's
+strength (`25 / 40 / 50 / 60`), the capture happiness penalty (`difficulty * 20 + 10`) and
+`Map_PlaceStartingFields`' field layout (`docs/decisions.md` C29: eight pasture at the
+easiest setting, four and the rest wild at the hardest), the difficulty setting reaches
+**six** separate places. None of them is visible on turn one.
+
+### 15.5 Six of the twelve are saved. Six are not.
+
+`Save_Write`'s block table covers seven four-byte entries in `0x0053F2xx`: `g_optDifficulty`,
+`g_campaignMap`, `g_optAdvancedFarming`, `g_optArmiesEat`, `g_optExploration`,
+`g_aiLordCount` and `g_optTimeLimit`. Nothing else in the range — **not the twelve
+selections, and not `g_optFightHumansOnly`**. Five of the unsaved ones are spent while the
+world is built and are genuinely not needed again. `g_optFightHumansOnly` is not; see
+`docs/bugs.md`.

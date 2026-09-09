@@ -30,20 +30,38 @@
 //! eight 32-bit words per entry, read by `FUN_00499E5D`:
 //!
 //! ```text
-//! +0x00 -> g_scenarioIndex   +0x10 -> DAT_0053F27C
-//! +0x04 -> g_optDifficulty   +0x14 -> DAT_0053F270
-//! +0x08 -> DAT_0053F278      +0x18 -> DAT_0053F274
-//! +0x0C -> DAT_0053F280      +0x1C -> DAT_0053F268
+//! +0x00 -> g_scenarioIndex        +0x10 -> g_startCountyStatus
+//! +0x04 -> g_optDifficulty        +0x14 -> g_startWeapons
+//! +0x08 -> g_startingGoldChosen   +0x18 -> g_startArmySize
+//! +0x0C -> g_startCastle          +0x1C -> g_aiLordCount
 //! ```
 //!
-//! The first three are named because their values name them: column 0 indexes
+//! **All eight are named now, and one of the names is a correction.** The
+//! campaign table writes exactly the globals `Setup_CommitOptions`
+//! (`0x00499DC3`) writes — the campaign is the custom game with its options
+//! chosen for you — so naming that function's destinations named this table's
+//! columns for free. `crate::setup` is where each one goes and
+//! `docs/decisions.md` C44 is the whole reading.
+//!
+//! The first three were already legible from their values: column 0 indexes
 //! `L2.eng` group 101 and produces *Quaintville, Rose, Ireland, Italy, England,
 //! France, Crusades, Germany* — a campaign ladder — column 1 is 0, 0, 1, 1, 2, 2,
-//! 2, 2, and column 2 is 5000 / 2500 / 1000, which is exactly the starting-gold
-//! dropdown's own table at `0x004DBC18`. Column 3 runs 1, 1, 2, 3, 4, 4, 5, 5 and
-//! is **[D]** the opponent count — five is the most realms there are — but it is
-//! not verified and is carried unnamed. Columns 4 to 7 are carried and not
-//! guessed at.
+//! 2, 2, and column 2 is 5000 / 2500 / 1000, which is exactly the *Crowns*
+//! drop-down's own table at `0x004DBC18`.
+//!
+//! **Column 3 is not the opponent count.** It runs 1, 1, 2, 3, 4, 4, 5, 5, which
+//! is why it was carried as **[D]** *"the opponent count — five is the most
+//! realms there are"*. It is `g_startCastle`: the *Starting Castle* option, a
+//! wooden keep on Quaintville climbing to a royal one on Germany. **The opponent
+//! count is column 7**, which runs 1, 2, 3, 4, 4, 4, 4, 4 — one lord on the first
+//! map, four from the fourth on. The two columns both climb and both stop at 5
+//! and 4, which is how a plausible reading survived being written down.
+//!
+//! Columns 4, 5 and 6 are the county status, the weapons and the army size, and
+//! they say something about the campaign: **`g_startArmySize` is 0 on every row
+//! of both tracks**, so no campaign map ever starts you with an army, and
+//! `g_startWeapons` is 1 — *few* — on every row but Italy's and the Crusades',
+//! where it is 0.
 //!
 //! **The second track starts at index 2**, which is not a typo:
 //! `FUN_00433461` sets `DAT_0053F258 = 2` when the campaign hotspot is 1 and 0
@@ -70,12 +88,46 @@ pub struct CampaignMap {
     pub scenario: usize,
     /// `g_optDifficulty`, 0..=2.
     pub difficulty: u8,
-    /// `DAT_0053F278` — the starting treasury, 5000 / 2500 / 1000.
+    /// `g_startingGoldChosen` — the starting treasury, 5000 / 2500 / 1000.
     pub gold: i32,
-    /// `DAT_0053F280`, `DAT_0053F27C`, `DAT_0053F270`, `DAT_0053F274`,
-    /// `DAT_0053F268`, in the order `FUN_00499E5D` assigns them. Carried
-    /// verbatim and deliberately unnamed — see the module docs.
+    /// `g_startCastle`, `g_startCountyStatus`, `g_startWeapons`,
+    /// `g_startArmySize`, `g_aiLordCount`, in the order `Campaign_LoadEntry`
+    /// assigns them — which is the order of the four accessors below.
+    ///
+    /// Kept as one array rather than five fields because they are still read
+    /// verbatim out of the table and written verbatim back; the accessors say
+    /// what each slot is.
     pub options: [i32; 5],
+}
+
+impl CampaignMap {
+    /// The castle this map starts you with, 0..=5. Column `+0x0C`, and
+    /// `docs/decisions.md` C44 is why it is not the opponent count.
+    pub fn castle(&self) -> u8 {
+        self.options[0].clamp(0, 5) as u8
+    }
+
+    /// The county-status row, 0..=2 — weak, medium, strong.
+    pub fn county_status(&self) -> usize {
+        self.options[1].clamp(0, 2) as usize
+    }
+
+    /// The armoury row, 0..=3 — none, few, some, many.
+    pub fn weapons(&self) -> usize {
+        self.options[2].clamp(0, 3) as usize
+    }
+
+    /// The garrison row, 0..=3 — no army, small, medium, large. **0 on every
+    /// row of both tracks.**
+    pub fn army_size(&self) -> usize {
+        self.options[3].clamp(0, 3) as usize
+    }
+
+    /// How many AI lords this map is played against. Column `+0x1C`, and *this*
+    /// is the opponent count.
+    pub fn ai_lords(&self) -> i32 {
+        self.options[4]
+    }
 }
 
 /// Which of the two campaigns. `DAT_0053F640`, set from the hotspot the person
@@ -302,6 +354,7 @@ mod tests {
     fn the_campaign_gets_harder_tier_by_tier_and_poorer_inside_each_tier() {
         let mut difficulty = 0;
         let mut gold = i32::MAX;
+        let mut castle = 0;
         let mut opponents = 0;
         for m in TRACK_FIRST {
             assert!(m.difficulty >= difficulty, "difficulty went backwards");
@@ -309,15 +362,32 @@ mod tests {
                 gold = i32::MAX; // a new tier; the purse starts again
             }
             assert!(m.gold <= gold, "the purse went up inside one difficulty tier");
-            // Column 3, the one carried unnamed: whatever it is, it never falls
-            // and never exceeds the number of realms there are.
-            assert!(m.options[0] >= opponents && m.options[0] <= 5);
+            // **Both of these climb, which is why they were confusable.**
+            // Column 3 is the castle you start with and column 7 is how many
+            // lords you start against; `docs/decisions.md` C44.
+            assert!(m.castle() >= castle && m.castle() <= 5);
+            assert!(m.ai_lords() >= opponents && m.ai_lords() <= 4);
             difficulty = m.difficulty;
             gold = m.gold;
-            opponents = m.options[0];
+            castle = m.castle();
+            opponents = m.ai_lords();
         }
         assert_eq!(difficulty, 2, "the last map is on the hardest setting");
         assert_eq!(gold, 1000, "with the smallest purse");
+        assert_eq!(castle, 5, "and a royal castle to hold");
+        assert_eq!(opponents, 4, "against four lords");
+    }
+
+    /// **No campaign map starts you with an army, on either track.** Column 6
+    /// is `g_startArmySize` and it is 0 on all fourteen real rows, which is what
+    /// makes it distinguishable from the three columns beside it that do move.
+    #[test]
+    fn the_campaign_never_starts_you_with_a_garrison() {
+        for m in TRACK_FIRST.iter().chain(TRACK_SECOND[2..].iter()) {
+            assert_eq!(m.army_size(), 0, "map {} raises an army", m.scenario);
+            assert!(m.county_status() <= 2, "map {}", m.scenario);
+            assert!(m.weapons() <= 3, "map {}", m.scenario);
+        }
     }
 
     #[test]

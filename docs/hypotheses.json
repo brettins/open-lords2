@@ -517,14 +517,6 @@
       "caveat": "Consistent everywhere it appears. Not promoted because the trade screen was not read end to end here - only the transaction underneath it."
     },
     {
-      "addr": "0x0053F270",
-      "name": "g_startForcesSetting",
-      "section": "kingdom",
-      "confidence": "role",
-      "basis": "Indexes g_startArmoury (stride 0x18) and, alongside g_startTroops's own index, seeds a new game's armoury.",
-      "caveat": "Both tables have exactly four meaningful rows, so the setting takes four values, which matches a new-game option. Which option, and whether 0..3 runs weakest to strongest, is inferred from the rows being monotonic and nothing else."
-    },
-    {
       "addr": "0x0055307C",
       "name": "g_rampartCellsBreached",
       "section": "battle",

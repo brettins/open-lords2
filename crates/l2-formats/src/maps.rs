@@ -163,6 +163,43 @@ impl<'a> MapSlot<'a> {
         }
         (1..=MAX_COUNTY_ID).filter(|&i| seen[i as usize]).count()
     }
+
+    /// **How many lords this map seats** — `g_playerStartCount`.
+    ///
+    /// `Map_LoadPlanes` (`0x00467770`) dispatches every tile whose
+    /// [`Plane::Marker`] byte is non-zero on the *flags* byte, and the two arms
+    /// are different tables: a `0x40` tile — the county town — appends to a
+    /// merchant route, and a `0x80` tile — the castle — is a player start.
+    /// `PlayerStart_Record` (`0x0049BBE8`) then writes
+    /// `g_playerStartTable[marker]` and counts it.
+    ///
+    /// So a start is *a castle tile carrying a marker*, and this counts them.
+    /// The number decides how many lords the custom game may be played with:
+    /// picking a map calls `FUN_004AE5E2(g_playerStartCount)`, which sets the
+    /// *Nobles* drop-down from it, and the drop-down is shortened to match.
+    ///
+    /// **Distinct markers, not tiles.** The table is indexed by the marker, so
+    /// two castle tiles carrying the same marker are one seat with the second
+    /// overwriting the first — which the original's own counter gets wrong,
+    /// counting it twice. Counting the markers is the reading that matches what
+    /// the table can hold, and [`tests`] checks the shipped maps give 5, 4 or 2
+    /// either way.
+    pub fn player_start_count(&self) -> usize {
+        let mut seen = [false; 256];
+        for y in 0..PLANE_DIM {
+            for x in 0..PLANE_DIM {
+                let marker = self.at(Plane::Marker, x, y);
+                // [`flags::SETTLEMENT`] is bit `0x80`. `docs/decisions.md` C25
+                // renamed what the two bits mean without renaming the two
+                // constants: `0x40` is the county town and `0x80` is the castle
+                // or industry site. It is the `0x80` arm that records a start.
+                if marker != 0 && self.flags_at(x, y) & flags::SETTLEMENT != 0 {
+                    seen[marker as usize] = true;
+                }
+            }
+        }
+        seen[1..].iter().filter(|&&s| s).count()
+    }
 }
 
 #[cfg(test)]

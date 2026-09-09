@@ -300,17 +300,47 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   for themselves, and therefore do not eat from county stores. When foraging is on, building
   large castles and keeping your army inside is an effective way of avoiding starvation
   problems."* The garrison exemption is modelled — `l2_kingdom::unit`, `l2_kingdom::ration`.
-- 🕳 **Exploration — read, shown, and ignored.** The game states the rule itself, in `L2.eng`
-  group 218 index 3: *"When Exploration is turned on, the world outside your county is
-  blacked out. It is gradually revealed as your armies move through and conquer new counties."*
-  That is the specification. `l2_formats::save` imports `opt_exploration` from the save and
-  the setup screen draws the switch, but `l2_kingdom::kingdom::Options` has no field for it
-  and **there is no fog of war anywhere in the engine**. Nothing between the save and the
-  simulation carries it.
-- 🕳 **No option on the setup screen starts a game with the setting it shows.** All twelve
-  are local state on `l2_game::screens::setup` and none of them reaches `Options`; the two
-  that *are* implemented get their values from a loaded save or from a test. Whoever wires
-  the new-game path wires all twelve.
+- 🕳 **Exploration — wired end to end, and the fog itself is not built.** The game states the
+  rule itself, in `L2.eng` group 218 index 3: *"When Exploration is turned on, the world
+  outside your county is blacked out. It is gradually revealed as your armies move through
+  and conquer new counties."* That is the specification.
+
+  **The switch now reaches the engine.** `l2_kingdom::kingdom::Options::exploration` exists,
+  the setup screen sets it, `l2-scenario` imports it from a save and `l2_kingdom::save`
+  version 12 stores it — so the setting is carried, and a game that was started with fog on
+  says so. **The behaviour is not implemented**: no rule and no painter reads the flag, and
+  the setup page prints `NOT IMPLEMENTED: EXPLORATION` under its grid while it is on
+  (`docs/decisions.md` C21). The switch is honest rather than finished.
+
+  **What building it would take is now known and is smaller than it looks.** The original's
+  seen bit is **`Tile.bank` bit `0x20`** (`docs/records.json`) — a run-time bit the map file
+  never carries, *"tested only when `g_optExploration` is 1"*. So the state is one bit per
+  tile on a plane that already exists, and the work is (a) setting it as units move and
+  counties change hands, and (b) the campaign renderer honouring it. (a) belongs with
+  `l2_kingdom::movement` and is simulation state that the lockstep digest must cover; (b) is
+  `l2-view`'s. Neither is written.
+
+- ✅ **The setup screen's twelve options start the game they show.** This used to read *"no
+  option on the setup screen starts a game with the setting it shows"* — all twelve were
+  local screen state. They now go through `l2_game::setup`, which is
+  `Setup_SetOption`/`Setup_DefaultOptions`/`Setup_CommitOptions` and their five value tables;
+  `docs/kingdom.md` §15 is the whole table and `docs/decisions.md` C44 is the reading. The
+  six that are *rules* reach `Options`; the six that are *starting conditions* — gold,
+  castle, armoury, garrison, county stores, lord count — are applied to the world by
+  `Settings::apply_to`.
+
+  Two things in that list are still short of the original, and both are marked on the page:
+
+  - 🕳 **The starting garrison is not raised.** *Army Size* commits a row of `g_startTroops`
+    and `Game_SetupRealmsAndCounties` hands it to `Army_Create`; ours does not, because
+    raising an army needs a muster tile and the county's food passes re-run around it, and
+    that is `l2_kingdom::levy`'s single path rather than a second one at setup.
+  - 🕳 **A new game cannot start on a map other than the save's.** The map list picks a slot
+    and the slot's seat count really does drive the lord count, but building a *world* from a
+    `L2_maps.dat` slot is `Map_InitScenario` — the planes, `Map_PlaceStartingFields`,
+    `Counties_PlaceSites`, the dwelling plots, `Merchant_PickStartCounties` — and none of it
+    is written. `l2-scenario` can only build a kingdom from a save's `TILES` block. **This is
+    the largest single thing between here and "playable from start to finish".**
 
 ### The wider game
 - ✅ Random events: a 256-slot deck, 24 distinct, and the bug that exempts even-numbered counties

@@ -61,6 +61,8 @@ fn furnished(seed: u64) -> Game {
         advanced_farming: true,
         armies_eat: true,
         fight_humans_only_byte: 0,
+        exploration: true,
+        time_limit: 240,
     };
     assert!(k.set_county_count(14));
     k.season = 1;

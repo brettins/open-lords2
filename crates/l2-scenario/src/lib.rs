@@ -663,15 +663,21 @@ impl Scenario {
                 difficulty: g.opt_difficulty.clamp(0, 3) as u8,
                 advanced_farming: g.opt_advanced_farming != 0,
                 armies_eat: g.opt_armies_eat != 0,
-                // NOT read from the save. `l2-formats` exposes five option
-                // globals and `g_optFightHumansOnly` (0x0053F284) is not among
-                // them, so an imported game gets the game's default rather than
-                // the setting the save was played with. That is a real gap -
-                // the option decides whether a battle against an AI is fought
-                // or auto-resolved - and it is written here rather than hidden
-                // behind a `..Default::default()`, which would have made it
-                // invisible.
+                // **NOT read from the save, and now we know why.** This used to
+                // say `l2-formats` merely did not expose `g_optFightHumansOnly`
+                // (0x0053F284). Adding it to that list turned the battle
+                // fixtures red with `NotSaved`, and the block table says the
+                // reason: **the original does not save this option.** Seven
+                // four-byte entries cover 0x0053F23C, F258, F25C, F260, F264,
+                // F268 and F26C, and 0x0053F284 is in none of them.
+                //
+                // So an imported game *cannot* know what it was played with,
+                // and neither can the original — reloading takes whatever is in
+                // memory. Taking the game's default is the honest answer to a
+                // question the file does not answer. `docs/bugs.md`.
                 fight_humans_only_byte: l2_kingdom::battle::FIGHT_HUMANS_ONLY_DEFAULT,
+                exploration: g.opt_exploration != 0,
+                time_limit: g.opt_time_limit,
             },
             clock: Clock {
                 season: g.season as u8,

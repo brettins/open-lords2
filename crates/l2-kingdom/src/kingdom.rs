@@ -42,8 +42,14 @@ use crate::unrest;
 use crate::weather;
 use l2_net::Pcg32;
 
-/// The three game options `docs/kingdom.md` §9 reads out of the England turn-one fixture,
-/// and the only ones any rule in this crate branches on.
+/// **The game options a new game is started with**, as the setup screen's twelve
+/// drop-downs leave them.
+///
+/// Six of the twelve are rules that live for the length of a game and so live
+/// here; the other six are *starting conditions* — how much gold, which castle,
+/// what garrison — which are spent once when the world is built and are
+/// `l2_game::setup`'s, not this crate's. `docs/kingdom.md` §10 has the whole
+/// table and which global each one is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Options {
     /// `g_optDifficulty`, 0..=2 in the England turn-one fixture (0), and 0..=3 in the
@@ -61,6 +67,32 @@ pub struct Options {
     /// as `FUN_004A6A30` does. [`crate::battle::FIGHT_HUMANS_ONLY_DEFAULT`] is
     /// the game's default.
     pub fight_humans_only_byte: u8,
+    /// `g_optExploration` (`0x0053F264`), the *Exploration* drop-down.
+    ///
+    /// **Carried, and deliberately read by no rule in this crate.** `L2.eng`
+    /// group 218 index 3 says what it does: *"When Exploration is turned on,
+    /// the world outside your county is blacked out. It is gradually revealed
+    /// as your armies move through and conquer new counties."* That is a
+    /// per-viewer visibility layer over the campaign map — the original keeps
+    /// its seen bit in the *tile record's* `bank` byte (`0x20`,
+    /// `docs/records.json`), which this crate's [`crate::map::CampaignMap`]
+    /// does not even store — so nothing in the economy or the war can branch on
+    /// it. It is here because it is a property of *this game* that a save must
+    /// carry, exactly as `g_optExploration` is one of the globals
+    /// `Save_Write` stores.
+    ///
+    /// **The behaviour is not implemented.** `docs/mechanics.md` has the gap.
+    pub exploration: bool,
+    /// `g_optTimeLimit` (`0x0053F26C`) — **seconds**, 0 for no limit.
+    ///
+    /// Not the *Time limit* drop-down's index: `Setup_CommitOptions`
+    /// (`0x00499DC3`) puts the index through `g_timeLimitSeconds`
+    /// (`0x004DBBF8`) = `30, 60, 120, 240, 480, 600, 0`, so what a game runs on
+    /// is a duration and the seven strings are its labels. Carried for the same
+    /// reason as [`Options::exploration`]: a wall clock is not a rule, but it
+    /// is a setting the game was started with. `Setup_StartGame` copies it into
+    /// the turn timer as the game begins.
+    pub time_limit: i32,
 }
 
 impl Default for Options {
@@ -71,6 +103,8 @@ impl Default for Options {
             advanced_farming: false,
             armies_eat: false,
             fight_humans_only_byte: crate::battle::FIGHT_HUMANS_ONLY_DEFAULT,
+            exploration: false,
+            time_limit: 0,
         }
     }
 }

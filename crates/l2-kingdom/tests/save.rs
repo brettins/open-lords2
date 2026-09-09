@@ -94,6 +94,8 @@ fn furnished(seed: u64) -> Kingdom {
         advanced_farming: true,
         armies_eat: true,
         fight_humans_only_byte: 1,
+        exploration: true,
+        time_limit: 120,
     };
     assert!(k.set_county_count(14));
 
@@ -543,7 +545,9 @@ fn the_trailer_is_the_state_checksum() {
 fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     let mut c = l2_net::Canonical::hashing();
     l2_net::Encode::encode(&Kingdom::new(1), &mut c);
-    assert_eq!(c.finish().len, 56_566, "the state encoding changed - bump VERSION?");
+    // 56,566 at VERSION 11; +5 at 12 for `Options::exploration` (one byte) and
+    // `Options::time_limit` (four).
+    assert_eq!(c.finish().len, 56_571, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

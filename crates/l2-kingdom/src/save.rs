@@ -215,7 +215,20 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   `the_version_is_ahead_of_its_own_changelog` — added by the branch above,
 ///   independently and for the same reason — failed the merge both times and
 ///   named the duplicate. That is the entry above working exactly as it says.
-pub const VERSION: u32 = 11;
+/// * 12 — **`Options::exploration` and `Options::time_limit`**, the last two of
+///   the six *rule* options the setup screen sets. Both are globals the
+///   original's own `Save_Write` stores (`g_optExploration` `0x0053F264`,
+///   `g_optTimeLimit` `0x0053F26C`) and both were being read out of a `.sav` by
+///   `l2_formats::save::Globals` and then dropped on the floor, because
+///   `Options` had nowhere to put them. Neither is read by a rule in this
+///   crate — exploration's behaviour is unimplemented (`docs/mechanics.md`) and
+///   a wall clock is not a rule — but a game that was started with a four
+///   minute turn limit and no fog is a different game from one that was not,
+///   and a save that cannot say which is a save that guesses.
+///
+///   **Refusal rather than default.** A version 11 save carries neither, and
+///   defaulting both to off would silently claim a setting the file never made.
+pub const VERSION: u32 = 12;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -402,6 +415,8 @@ impl Encode for Kingdom {
         out.bool(self.options.advanced_farming);
         out.bool(self.options.armies_eat);
         out.u8(self.options.fight_humans_only_byte);
+        out.bool(self.options.exploration);
+        out.i32(self.options.time_limit);
 
         // The generator is part of the state (docs/netcode.md D-3), so it is
         // part of the save and part of the checksum.
@@ -569,6 +584,8 @@ fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, Loa
         advanced_farming: input.bool()?,
         armies_eat: input.bool()?,
         fight_humans_only_byte: input.u8()?,
+        exploration: input.bool()?,
+        time_limit: input.i32()?,
     };
     k.rng = input.decode()?;
 
