@@ -1001,24 +1001,132 @@ fn clicking_a_mine_switches_that_industry_off_and_on_again() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Looking at the screen
+// ---------------------------------------------------------------------------
+
+/// **PNG, not raw RGBA.** `docs/decisions.md` C21's conclusion is *show screens
+/// early, to someone who knows the game*, and it cost this project a whole map
+/// screen to learn. A `.rgb` dump does not do that — it needs a converter and a
+/// remembered width before anyone can glance at it, which is enough friction
+/// that nobody glances.
+///
+/// So these forty lines write a real PNG with no dependency: a stored-block
+/// zlib stream (compression 0), which is legal deflate, plus the two checksums
+/// PNG requires. It is bigger than the raw dump and it opens in anything.
+mod png {
+    fn crc32(data: &[u8]) -> u32 {
+        let mut table = [0u32; 256];
+        for (i, e) in table.iter_mut().enumerate() {
+            let mut c = i as u32;
+            for _ in 0..8 {
+                c = if c & 1 != 0 { 0xEDB8_8320 ^ (c >> 1) } else { c >> 1 };
+            }
+            *e = c;
+        }
+        let mut c = 0xFFFF_FFFFu32;
+        for &b in data {
+            c = table[((c ^ b as u32) & 0xFF) as usize] ^ (c >> 8);
+        }
+        c ^ 0xFFFF_FFFF
+    }
+
+    fn adler32(data: &[u8]) -> u32 {
+        let (mut a, mut b) = (1u32, 0u32);
+        for &x in data {
+            a = (a + x as u32) % 65521;
+            b = (b + a) % 65521;
+        }
+        (b << 16) | a
+    }
+
+    fn chunk(out: &mut Vec<u8>, kind: &[u8; 4], body: &[u8]) {
+        out.extend_from_slice(&(body.len() as u32).to_be_bytes());
+        let mut all = kind.to_vec();
+        all.extend_from_slice(body);
+        out.extend_from_slice(&all);
+        out.extend_from_slice(&crc32(&all).to_be_bytes());
+    }
+
+    /// 8-bit truecolour, one row filter byte of 0 per scanline.
+    pub fn encode(w: usize, h: usize, rgb: &[u8]) -> Vec<u8> {
+        let mut raw = Vec::with_capacity(h * (1 + w * 3));
+        for y in 0..h {
+            raw.push(0);
+            raw.extend_from_slice(&rgb[y * w * 3..(y + 1) * w * 3]);
+        }
+        let mut z = vec![0x78, 0x01];
+        for (i, block) in raw.chunks(65_535).enumerate() {
+            let last = (i + 1) * 65_535 >= raw.len();
+            z.push(u8::from(last));
+            z.extend_from_slice(&(block.len() as u16).to_le_bytes());
+            z.extend_from_slice(&(!(block.len() as u16)).to_le_bytes());
+            z.extend_from_slice(block);
+        }
+        z.extend_from_slice(&adler32(&raw).to_be_bytes());
+
+        let mut out = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+        let mut ihdr = Vec::new();
+        ihdr.extend_from_slice(&(w as u32).to_be_bytes());
+        ihdr.extend_from_slice(&(h as u32).to_be_bytes());
+        ihdr.extend_from_slice(&[8, 2, 0, 0, 0]);
+        chunk(&mut out, b"IHDR", &ihdr);
+        chunk(&mut out, b"IDAT", &z);
+        chunk(&mut out, b"IEND", &[]);
+        out
+    }
+}
+
+fn save_png(canvas: &Canvas, assets: &Assets, name: &str) {
+    let mut rgba = vec![0u8; 640 * 480 * 4];
+    canvas.to_rgba(&assets.palette, &mut rgba);
+    let rgb: Vec<u8> = rgba.chunks_exact(4).flat_map(|p| [p[0], p[1], p[2]]).collect();
+    std::fs::create_dir_all("out").unwrap();
+    std::fs::write(format!("out/{name}.png"), png::encode(640, 480, &rgb)).unwrap();
+}
+
 /// Not a test: a way to look at the screen. `cargo test -p l2-game --test
-/// screens shoot -- --ignored` writes raw RGBA into `out/`, which `.gitignore`
+/// screens shoot -- --ignored` writes PNGs into `out/`, which `.gitignore`
 /// excludes. Renders of the game's own artwork are derived assets and must
 /// never be committed (CLAUDE.md rule 1).
+///
+/// Five shots: the map at both zooms, then a fallow field clicked, its brush
+/// popup, and the field after the grain button — which is the whole feature in
+/// three pictures.
 #[test]
 #[ignore]
 fn shoot() {
     let (mut game, assets) = world!();
-    std::fs::create_dir_all("out").unwrap();
     let mut screen = MapScreen::new();
     for (name, zoomed) in [("near", false), ("far", true)] {
         if zoomed {
             send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
         }
         let canvas = draw(&mut screen, &mut game, &assets);
-        let mut rgba = vec![0u8; 640 * 480 * 4];
-        canvas.to_rgba(&assets.palette, &mut rgba);
-        let rgb: Vec<u8> = rgba.chunks_exact(4).flat_map(|p| [p[0], p[1], p[2]]).collect();
-        std::fs::write(format!("out/campaign_{name}.rgb"), &rgb).unwrap();
+        save_png(&canvas, &assets, &format!("campaign_{name}"));
     }
+
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    game.select(county);
+    let (tile, _) = game
+        .kingdom
+        .field_tiles(county as usize)
+        .into_iter()
+        .find(|&(_, k)| k == l2_kingdom::field::FieldType::Fallow)
+        .expect("a fallow field");
+
+    let mut screen = MapScreen::new();
+    let (x, y) = on_screen(&mut screen, tile);
+    let canvas = draw(&mut screen, &mut game, &assets);
+    save_png(&canvas, &assets, "brush_before");
+
+    send(&mut screen, &mut game, &assets, Event::Click { x, y });
+    let canvas = draw(&mut screen, &mut game, &assets);
+    save_png(&canvas, &assets, "brush_open");
+
+    send(&mut screen, &mut game, &assets, Event::Click { x: 328, y: 208 });
+    let canvas = draw(&mut screen, &mut game, &assets);
+    save_png(&canvas, &assets, "brush_after");
 }
