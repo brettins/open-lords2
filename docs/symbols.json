@@ -4421,6 +4421,38 @@
       "confidence": "verified",
       "signature": "void NetCmd_WriteMoveOrder(void)",
       "comment": "g_netCmdWriters[0x29]: g_localPlayer (1), a 4-byte value from FUN_00446E21, g_selectedUnit (1), g_moveTargetX (2), g_moveTargetY (2) - ten bytes, matching g_netCmdLength[0x29] exactly. Its reader at 0x00443A2D deserialises the same five fields in the same order and both then call the command journal at 0x00447136 with sub-opcode 0x0C. This is the whole payload of a campaign move order, and therefore the whole input a lockstep peer needs to reproduce one."
+    },
+    {
+      "addr": "0x00465214",
+      "name": "Unit_TickNone",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Unit_TickNone(void)",
+      "comment": "g_unitTickTable[0]: an eleven-byte function that returns. Dead - Units_Tick sends kind 0 to the record-clearer before it indexes the table, so slot 0 is never called. Named so the table reads as six entries of which two (0 and 5) are inert, rather than as a gap."
+    },
+    {
+      "addr": "0x00465486",
+      "name": "PeasantMob_Tick",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void PeasantMob_Tick(void)",
+      "comment": "g_unitTickTable[2], the revolting-peasant tick, and the answer to which of the four unit types a given sweep serves. moveAllowance 10 (not the army's 15), sprite base -0x70 = 0x90 with the army's three-frame walk table, county recount on a border crossing, then FUN_004ABD0F and Unit_Step. It opens with `if (menTotal < 0x1E) destroy` - and that is the ONLY `menTotal < 0x1E` in the whole corpus, so the 'below 30 men it is destroyed on the map' rule in docs/armies.md section 0 belongs to peasant mobs, not to armies. Army_Tick has no such test, and L2.eng 148, which that row cites, only says 'impractical to create an army of less than 50 men'."
+    },
+    {
+      "addr": "0x00465622",
+      "name": "Merchant_Tick",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Merchant_Tick(void)",
+      "comment": "g_unitTickTable[3]. moveAllowance 10, county byte assigned from the tile with no border event at all - a merchant crossing a frontier greets nobody and triggers no recount - then the cooldown decrement and Unit_Step. Its sprite is facing*6 plus g_merchantWalkFrames[walkPhase], a SIX-frame cycle over eight facings rather than the army's three, and the arithmetic closes at 47. Verified on the battle fixtures three for three: merchants at facing 6, 6 and 2 carry spriteFrame 42, 42 and 18, and ((facing+1)&7)*6 gives exactly those."
+    },
+    {
+      "addr": "0x00465761",
+      "name": "Transport_Tick",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Transport_Tick(void)",
+      "comment": "g_unitTickTable[4], and it is Merchant_Tick again - same 319 bytes, same body, statement for statement. A transport ticks exactly like a merchant; the two types differ only in what the arrival handlers do with them. Worth naming separately because the duplication is the finding: a reimplementation that shares one tick between types 3 and 4 is faithful, and one that invents a difference is not."
     }
   ],
   "globals": [
@@ -7069,6 +7101,13 @@
       "section": "kingdom",
       "confidence": "verified",
       "comment": "The industry record index Map_Click derives from a clicked building's graphic before calling Industry_ToggleFromMap: graphic below 4 -> record 1, below 7 -> 3, below 10 -> 2, below 0x0D -> 0, and 0x15 or above -> 4. The first four rungs are the same terrain groups Unit_TrampleTile ruins and County_PlaceResourceSites places, agreeing a third time; the fifth rung, record 4 for the castle graphics, has no counterpart in either and is not explained."
+    },
+    {
+      "addr": "0x004D6AB8",
+      "name": "g_merchantWalkFrames",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "i32[6] = {0, 1, 2, 3, 4, 5}, the walk-frame cycle Merchant_Tick and Transport_Tick index with unit +0x1B. Six frames per facing against the army's three-frame ping-pong at g_unitWalkFrames, and the sprite arithmetic closes: ((facing+1)&7)*6 + phase covers 0..47 with nothing left over. The three merchants in the battle fixtures sit at frames 42, 42 and 18, which is that formula at phase 0 for facings 6, 6 and 2."
     }
   ]
 }

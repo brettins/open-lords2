@@ -41,7 +41,8 @@ byte is `+0x08`.
 | movement budget | **15 points a season**, the same for every army | [V] `Army_Tick` writes 15 unconditionally; the panel prints `15 − used` |
 | step cost | **1** on a road, **3** on open ground, **6** across a standing field | [V] two unrelated codings agree — §2.2 |
 | maximum army | **1500 men** | [V] the literal `0x5DD` in `Army_Combine` |
-| minimum army | **50** men to raise; below **30** it is destroyed on the map | [V] `L2.eng` 148 *"impractical to create an army of less than 50 men"* |
+| minimum army | **50** men to raise | [V] `L2.eng` 148 *"impractical to create an army of less than 50 men"* |
+| ~~below 30 an army is destroyed~~ | **wrong — that rule is the peasant mob's** | [V] §2.1a: the only `men < 30` test in the binary is in `PeasantMob_Tick`, and `Army_Tick` has none |
 | wage | `men / 4` for a human owner | [V] already in `kingdom.md` §7.4 — §6.4 here connects it to something |
 | mercenary bands | **12**, one per nationality, fixed sizes and prices | [V] six static tables that close arithmetically — §5.1 |
 
@@ -201,6 +202,40 @@ Player-ordered movement happens during phase 4 (the players' turn); `Units_Tick`
 (`0x004650B0`) is driven from the frame loop and dispatches each unit through
 `g_unitTickTable[type]` (`0x004D6A50`). **Slot 5 of that table is NULL** while the dispatcher
 accepts types up to 5, so a type-5 unit would call address 0. Nothing spawns one. [D]
+
+### 2.1a One array, four things — which handler is whose
+
+The document's headline is that armies, peasant mobs, merchants and transports share
+`g_units`. This is where they stop sharing. All four tick handlers are now named, and the
+table is short enough to be the answer:
+
+| type | handler | allowance | sprite | walk table | on crossing a border |
+|---:|---|---:|---|---|---|
+| 0 | `Unit_TickNone` `0x00465214` | — | — | — | dead: `Units_Tick` clears kind 0 before it indexes |
+| **1** army | `Army_Tick` `0x0046521F` | **15** | `0x48`/`0x60`/`0x78` by men, `+3×facing` | `g_unitWalkFrames` (3) | `Unit_EnterCounty` **and** a troop recount |
+| **2** mob | `PeasantMob_Tick` `0x00465486` | 10 | `0x90 + 3×facing` | `g_unitWalkFrames` (3) | a troop recount, then `FUN_004ABD0F` |
+| **3** merchant | `Merchant_Tick` `0x00465622` | 10 | `6×facing` | `g_merchantWalkFrames` (6) | **nothing** |
+| **4** transport | `Transport_Tick` `0x00465761` | 10 | `6×facing` | `g_merchantWalkFrames` (6) | **nothing** |
+| 5 | NULL | | | | |
+
+Four things fall out, and three of them change something:
+
+* **Types 3 and 4 are the same function twice.** 319 bytes each, statement for statement
+  identical. A transport ticks exactly like a merchant, and a reimplementation that shares
+  one routine between them is faithful.
+* **`Army_Tick` is the only handler that fires a border event.** Merchants and transports
+  assign the county byte and move on — no greeting, no invasion message, no recount. The mob
+  recounts but does not greet.
+* **The "below 30 men an army is destroyed" rule is not an army rule.** `PeasantMob_Tick`
+  opens with `if (men < 30) destroy`, and `men < 0x1E` appears **exactly once** in the whole
+  2,452-function corpus. `Army_Tick` has no such test, and `L2.eng` 148 — which §0 cited for
+  both halves of that row — only ever says *"impractical to create an army of less than 50
+  men"*. §0 is corrected.
+* **The merchant sprite is a six-frame cycle**, `g_merchantWalkFrames` (`0x004D6AB8`) =
+  `{0,1,2,3,4,5}`, against the army's three-frame ping-pong. `((facing+1) & 7) × 6 + phase`
+  covers `0 … 47` with nothing left over, and the three merchants in the battle fixtures sit
+  at frames **42, 42 and 18** for facings 6, 6 and 2 — which is that formula, exactly, three
+  for three. **[V]** on data the game wrote.
 
 ### 2.2 The cost of a step — two codings that agree
 
