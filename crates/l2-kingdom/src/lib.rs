@@ -216,6 +216,7 @@ pub mod report;
 pub mod save;
 pub mod tables;
 pub mod tax;
+pub mod territory;
 pub mod unit;
 pub mod unrest;
 pub mod victory;

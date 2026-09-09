@@ -53,6 +53,23 @@ pub const GRAIN_MAX_SACKS_PER_FIELD: i32 = 10;
 pub const GRAIN_LABOUR_DIVISOR_ADVANCED: i32 = 5;
 pub const GRAIN_LABOUR_DIVISOR_BASIC: i32 = 2;
 
+/// `Grain_Grow` (`0x0044D15A`) and `Grain_Harvest` (`0x0044D1E5`) cap the crop
+/// at `labour * this`, and their multiplier is **not** the sowing divisor.
+///
+/// `Rules_InitConstants` (`0x004983B7`) writes four numbers where this crate
+/// had two: `g_grainLabourDivisorAdv = 5` (`0x005533BC`), `0x00553538 = 10`,
+/// `0x00553218 = 3` and `g_grainLabourDivisor = 2` (`0x0057D34C`). Each of the
+/// three grain steps picks between *its own* advanced value and the **same**
+/// basic value, so with *Advanced Farming* off all three read
+/// [`GRAIN_LABOUR_DIVISOR_BASIC`] — once as a divisor and twice as a
+/// multiplier. That coincidence is the original's, and it is why there are two
+/// new constants here and not four. **`[V]`**
+pub const GRAIN_GROW_PER_WORKER_ADVANCED: i32 = 10;
+
+/// …and the harvest's, which is far tighter: **three sacks a reaper**, out of a
+/// workforce `Grain_Harvest` has already halved. `docs/kingdom.md` §7.1.
+pub const GRAIN_HARVEST_PER_WORKER_ADVANCED: i32 = 3;
+
 /// A field is fully reclaimed at 800, and `Field_ReclaimTick` (`0x0044C093`)
 /// moves it by at most 200 a season. 200/800 is exactly the manual's *"you
 /// will never be able to reclaim more than a quarter of a field in a single
@@ -596,6 +613,19 @@ impl Commodity {
 /// not run yet.
 pub const INDUSTRY_ORDER: [Commodity; 4] =
     [Commodity::Weapons, Commodity::Iron, Commodity::Stone, Commodity::Wood];
+
+/// The order `County_RefreshEstimates` (`0x004485A5`) refreshes the four
+/// industry *ceilings* in — **iron, stone, wood, weapons**, which is neither
+/// [`INDUSTRY_ORDER`] nor the record order.
+///
+/// It does not matter, because no industry's ceiling reads another's, and it is
+/// written down because the four argument lists it comes from are a second,
+/// independent reading of [`COMMODITY`]: `(1, 4, 15, 1)`, `(3, 5, 15, 2)`,
+/// `(0, 6, 20, 1)`, `(2, 7, 15, 4)` are `(record, job, base efficiency,
+/// divisor)` and every one of the twelve numbers agrees with that table.
+/// **`[V]`**
+pub const INDUSTRY_ESTIMATE_ORDER: [Commodity; 4] =
+    [Commodity::Iron, Commodity::Stone, Commodity::Wood, Commodity::Weapons];
 
 /// The nine assignable labour slots at county `+0xC4 + job*0x0C`.
 ///
@@ -1652,7 +1682,16 @@ pub struct GrainTable {
     pub yield_per_sack: i32,
     pub max_sacks_per_field: i32,
     pub labour_divisor_advanced: i32,
+    /// The one value all three grain steps share when *Advanced Farming* is
+    /// off — `g_grainLabourDivisor`, a single global read by `Grain_Sow`,
+    /// `Grain_Grow` and `Grain_Harvest` alike.
     pub labour_divisor_basic: i32,
+    /// `Grain_Grow`'s sacks a worker with *Advanced Farming* on.
+    /// [`GRAIN_GROW_PER_WORKER_ADVANCED`].
+    pub grow_per_worker_advanced: i32,
+    /// `Grain_Harvest`'s, applied to **half** the reapers.
+    /// [`GRAIN_HARVEST_PER_WORKER_ADVANCED`].
+    pub harvest_per_worker_advanced: i32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1993,6 +2032,8 @@ impl Tables {
             max_sacks_per_field: GRAIN_MAX_SACKS_PER_FIELD,
             labour_divisor_advanced: GRAIN_LABOUR_DIVISOR_ADVANCED,
             labour_divisor_basic: GRAIN_LABOUR_DIVISOR_BASIC,
+            grow_per_worker_advanced: GRAIN_GROW_PER_WORKER_ADVANCED,
+            harvest_per_worker_advanced: GRAIN_HARVEST_PER_WORKER_ADVANCED,
         },
         field: FieldTable {
             progress_max: FIELD_PROGRESS_MAX,

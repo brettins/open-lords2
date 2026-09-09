@@ -194,7 +194,7 @@ impl TurnMachine {
 
 /// One pass of the end-of-season pipeline.
 ///
-/// `Season_Advance` (`0x00448440`) calls 28 functions in a fixed order.
+/// `Season_Advance` (`0x00448440`) calls 29 functions in a fixed order.
 /// `docs/kingdom.md` §3.4 identifies the ones below and abridges the rest; the
 /// **`[V]`** in that section is on the call list and its order, and the
 /// one-line descriptions are **`[D]`/`[I]`**.
@@ -218,9 +218,21 @@ pub enum Pass {
     HappinessUpdate,
     /// `Unrest_UpdateAll` — revolt counter.
     UnrestUpdate,
+    /// `Realm_SecedeIsolatedCounties` — every realm keeps only its most
+    /// populous contiguous block of counties; everything cut off declares
+    /// independence. `docs/kingdom.md` §6.1, [`crate::territory`].
+    SecedeIsolatedCounties,
+    /// `County_RecountFieldsAll` (`FUN_00469B51`) — every county's five field
+    /// counts, rebuilt from the map. **The first of the estimate inputs**, and
+    /// the reason it is a pass of its own: the counts are a cache, and the
+    /// reclamation that runs two passes later turns a finished field into
+    /// fallow on the map without touching them.
+    CountyRecountFields,
     /// `Fertility_Update` — fertility.
     FertilityUpdate,
-    /// `Field_ReclaimTick` — the field reclamation that follows it.
+    /// `Field_ReclaimTick`, and the `Field_ReclaimEstimate` that is its tail
+    /// call. Together with [`Pass::FertilityUpdate`] this is
+    /// `Fields_SeasonTick` (`0x0044BF7A`).
     FieldReclaim,
     /// `Grain_SeasonTick` — sow / grow / harvest.
     GrainSeasonTick,
@@ -228,14 +240,31 @@ pub enum Pass {
     HerdSeasonTick,
     /// One of `Industry_Produce`'s four runs.
     Industry(crate::tables::Commodity),
-    /// `Castle_BuildTick` — castle construction.
+    /// `Castle_BuildTick` — castle construction, and `Castle_BuildEstimate`
+    /// behind it.
     CastleBuildTick,
+    /// `Labour_AllocateAll` (`0x0044F699`) — **reassign every peasant, from
+    /// scratch**, the first of the season's two.
+    ///
+    /// It sits here because everything above it has just moved a ceiling: the
+    /// field recount, reclamation, the grain and herd ticks, the four
+    /// industries and the castle each refresh their own estimate as their last
+    /// act, and this is the first pass that reads them. `docs/kingdom.md` §14.
+    LabourAllocate,
     /// `Migration_UpdateAll` — emigrants and immigrants.
     MigrationUpdate,
     /// `Population_UpdateAll` — births, deaths, new population.
     PopulationUpdate,
     /// `Score_RankRealms` — scores and the ranking.
     ScoreRank,
+    /// `Labour_AllocateAll` a **second** time, after the population pass and
+    /// the army recount have changed how many people a county holds.
+    ///
+    /// This one is what keeps [`crate::labour::allocate`]'s invariant true at
+    /// the *end* of the season rather than only in the middle of it: the nine
+    /// job records sum to the population, exactly, every season. A pipeline
+    /// with only the first allocation leaves every newborn in no job at all.
+    LabourAllocateAgain,
     /// The history ring.
     History,
     /// `Ration_Apply` again, as next season's preview.
@@ -244,6 +273,15 @@ pub enum Pass {
     /// not reproduce for player-owned counties: the stored `rationAchieved` is
     /// **the next season's** level, not the one that was applied.
     RationPreview,
+    /// `Panels_RefreshAll`'s middle statement — `County_RefreshEstimates` for
+    /// every county, on `g_seasonNext`.
+    ///
+    /// **This is the pass that made wiring the allocator possible.**
+    /// `Season_Advance` never calls `County_RefreshEstimates` directly, and for
+    /// a long time this crate read that as "it does not run in the season". It
+    /// does: `Panels_RefreshAll` is `Season_Advance`'s *last* call and this is
+    /// the middle of its three. `docs/kingdom.md` §3.4.
+    RefreshEstimates,
     /// `Mercenary_AdvanceAll` — every band walks one county and may offer
     /// itself. **Turn phase 7, not `Season_Advance`**, and it runs *before*
     /// [`Pass::UnitsResetMoves`]. See [`is_in_season_advance`].
@@ -301,7 +339,7 @@ pub enum Pass {
 ///
 ///    **`docs/armies.md` §2.1 has these two the wrong way round**, giving
 ///    `Units_ResetMoves` first. Corrected there.
-pub const SEASON_PIPELINE: [Pass; 25] = [
+pub const SEASON_PIPELINE: [Pass; 30] = [
     Pass::Clock,
     Pass::EventRoll,
     Pass::Weather,
@@ -311,6 +349,8 @@ pub const SEASON_PIPELINE: [Pass; 25] = [
     Pass::HealthUpdate,
     Pass::HappinessUpdate,
     Pass::UnrestUpdate,
+    Pass::SecedeIsolatedCounties,
+    Pass::CountyRecountFields,
     Pass::FertilityUpdate,
     Pass::FieldReclaim,
     Pass::GrainSeasonTick,
@@ -320,11 +360,14 @@ pub const SEASON_PIPELINE: [Pass; 25] = [
     Pass::Industry(crate::tables::Commodity::Stone),
     Pass::Industry(crate::tables::Commodity::Wood),
     Pass::CastleBuildTick,
+    Pass::LabourAllocate,
     Pass::MigrationUpdate,
     Pass::PopulationUpdate,
     Pass::ScoreRank,
+    Pass::LabourAllocateAgain,
     Pass::History,
     Pass::RationPreview,
+    Pass::RefreshEstimates,
     Pass::MercenaryAdvance,
     Pass::UnitsResetMoves,
 ];

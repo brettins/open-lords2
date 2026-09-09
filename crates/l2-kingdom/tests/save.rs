@@ -423,6 +423,19 @@ fn every_part_of_the_state_reaches_the_bytes() {
         ("fields_fallow", Box::new(|k: &mut Kingdom| k.counties[2].fields_fallow = 5)),
         ("fields_cattle", Box::new(|k: &mut Kingdom| k.counties[2].fields_cattle = 5)),
         ("fields_grain", Box::new(|k: &mut Kingdom| k.counties[2].fields_grain = 5)),
+        // **Six County fields were outside this list**, found by matching the
+        // struct's fields against the ones these closures touch. All six are
+        // encoded and decoded correctly, so nothing was broken — but that is
+        // luck, and it is exactly the state C30 describes: the list looked
+        // complete and covered six fewer fields than the struct has. Two of them
+        // (`fields_grain_sown`, `sow_shortfall`) arrived in the same merge that
+        // added these lines.
+        ("castle_switch", Box::new(|k: &mut Kingdom| k.counties[2].castle_switch = true)),
+        ("field_tiles", Box::new(|k: &mut Kingdom| k.counties[2].field_tiles[19] = 4095)),
+        ("fields_waste", Box::new(|k: &mut Kingdom| k.counties[2].fields_waste = 7)),
+        ("fields_reclaiming", Box::new(|k: &mut Kingdom| k.counties[2].fields_reclaiming = 3)),
+        ("fields_grain_sown", Box::new(|k: &mut Kingdom| k.counties[2].fields_grain_sown = 4)),
+        ("sow_shortfall", Box::new(|k: &mut Kingdom| k.counties[2].sow_shortfall = true)),
         ("fertility", Box::new(|k: &mut Kingdom| k.counties[2].fertility = -5)),
         ("weather", Box::new(|k: &mut Kingdom| k.counties[2].weather = Weather::Flooding)),
         ("dryness", Box::new(|k: &mut Kingdom| k.counties[2].dryness = -5)),

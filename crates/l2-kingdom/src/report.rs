@@ -17,6 +17,16 @@ pub const MSG_UNREST_WARNING: u16 = 0x92;
 /// 1, 2, 3 and 4.
 pub const MSG_UNREST_LEVEL: [u16; 4] = [0x96, 0x97, 0x98, 0x99];
 
+/// `Territory_SecedeMinorBlocks` raises `0x7F` — `L2.eng` group 127,
+/// *"Deeming itself too far from the heart of your empire, this county has
+/// declared independence and thrown out your officials."* — when **exactly
+/// one** county was cut off.
+pub const MSG_COUNTY_SECEDED: u16 = 0x7F;
+
+/// …and `0x80`, group 128 *"Your lands divide."*, when more than one was.
+/// `docs/kingdom.md` §6.1.
+pub const MSG_LANDS_DIVIDE: u16 = 0x80;
+
 /// The three messages `Army_Starve` (`0x004ACE5E`) raises, by starvation stage.
 ///
 /// `0x116` = `L2.eng` group 278 *"Unfed troops."*, `0x117` = 279 *"Starving
@@ -44,6 +54,12 @@ pub enum Message {
     Event { county: u8, kind: crate::event::EventKind },
     /// A castle finished building.
     CastleBuilt { county: u8, castle_type: u8 },
+    /// **One** county was too far from the heart of the empire and declared
+    /// independence. `crate::territory`.
+    CountySeceded { realm: u8, county: u8 },
+    /// *"Your lands divide."* — more than one county went at once, and the
+    /// original's message names none of them.
+    LandsDivide { realm: u8, counties: u8 },
     /// An army could not be fed. `stage` is the starvation counter *after* the
     /// step, 1..=5, and it selects the message: 1 warns, 2..=4 desert, 5 is the
     /// army perishing. `docs/armies.md` §3.3b. See [`crate::unit::starve`].
@@ -62,6 +78,8 @@ impl Message {
             // up: see `crate::event`.
             Message::Event { kind, .. } => Some(kind.id()),
             Message::Bankrupt { action, .. } => action.message_id(),
+            Message::CountySeceded { .. } => Some(MSG_COUNTY_SECEDED),
+            Message::LandsDivide { .. } => Some(MSG_LANDS_DIVIDE),
             Message::ArmyStarving { stage, .. } => Some(match stage {
                 1 => MSG_ARMY_UNFED,
                 2..=4 => MSG_ARMY_STARVING,
@@ -107,8 +125,11 @@ impl SeasonReport {
             | Message::Revolt { county: c }
             | Message::Event { county: c, .. }
             | Message::CastleBuilt { county: c, .. }
-            | Message::ArmyStarving { county: c, .. } => *c == county,
-            Message::Bankrupt { .. } => false,
+            | Message::ArmyStarving { county: c, .. }
+            | Message::CountySeceded { county: c, .. } => *c == county,
+            // *"Your lands divide."* names no county — the original's message
+            // carries only the realm.
+            Message::Bankrupt { .. } | Message::LandsDivide { .. } => false,
         })
     }
 }

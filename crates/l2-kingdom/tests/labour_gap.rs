@@ -1,88 +1,118 @@
-//! **The labour allocator is not in the season pipeline, and here is the list
-//! of what has to land before it can be.**
+//! **The labour allocator is in the season pipeline now, and this is what it
+//! took.** The file that used to record the gap records the closing of it.
 //!
 //! ```text
 //! cargo test -p l2-kingdom --test labour_gap
 //! ```
 //!
-//! `crates/l2-kingdom/src/labour.rs` reproduces `Labour_Allocate`
-//! (`FUN_0044F6E7`) exactly and rebuilds all fourteen counties' worker counts
-//! from the England turn-one save. It is called from
-//! [`l2_kingdom::field::set_type`] and [`l2_kingdom::Kingdom::toggle_industry`],
-//! where the original calls it, and **not** from `Season_Advance`, where the
-//! original also calls it — twice.
+//! # What the gap was
 //!
-//! # Why not, precisely
+//! `crates/l2-kingdom/src/labour.rs` reproduced `Labour_Allocate`
+//! (`0x0044F6E7`) exactly and rebuilt all fourteen counties' worker counts from
+//! the England turn-one save, and it ran only where a **click** reached it.
+//! `Season_Advance` calls it twice and this crate called it never, so from turn
+//! 2 a county's nine job records stopped summing to its population — the very
+//! invariant that established the `0x0C` labour-record stride.
 //!
-//! `Season_Advance` (`0x00448440`) does not call `County_RefreshEstimates` at
-//! all before its two `Labour_AllocateAll`s. It does not have to: **each
-//! estimate is the tail call of the pass that invalidates it.**
+//! The reason was not the allocator. It was that
+//! **`Season_Advance` never calls `County_RefreshEstimates`**, so each of the
+//! nine ceilings the allocator reads has to be refreshed by the pass that
+//! invalidates it, as that pass's **tail call**:
 //!
 //! | ceiling | refreshed at the end of | this crate's pass |
 //! |---|---|---|
-//! | the five field counts | `FUN_00469B51`, its own pipeline entry | **missing** |
-//! | reclamation | `Field_ReclaimEstimate`, after `Field_ReclaimTick` | `FieldReclaim` |
-//! | grain | `Grain_LabourEstimate`, last line of `Grain_SeasonTick` | `GrainSeasonTick` |
-//! | cattle | `Herd_LabourEstimate`, last line of `Herd_SeasonTick` | `HerdSeasonTick` |
-//! | four industries | `Industry_LabourEstimate`, inside `Industry_ProduceAll` | `Industry(_)` |
-//! | castle | `Castle_BuildEstimate`, both arms of `Castle_BuildTick` | `CastleBuildTick` |
+//! | the five field counts | `FUN_00469B51`, its own pipeline entry | [`Pass::CountyRecountFields`] |
+//! | reclamation | `Field_ReclaimEstimate`, after `Field_ReclaimTick` | [`Pass::FieldReclaim`] |
+//! | grain | `Grain_LabourEstimate`, last line of `Grain_SeasonTick` | [`Pass::GrainSeasonTick`] |
+//! | cattle | `Herd_LabourEstimate`, last line of `Herd_SeasonTick` | [`Pass::HerdSeasonTick`] |
+//! | four industries | `Industry_LabourEstimate`, inside `Industry_ProduceAll` | [`Pass::RefreshEstimates`] |
+//! | castle | `Castle_BuildEstimate`, both arms of `Castle_BuildTick` | [`Pass::RefreshEstimates`] |
 //!
-//! So wiring the allocator is not one function; it is six tail calls, and three
-//! of the six cannot be written honestly yet:
+//! …plus the one that made the whole thing possible: **`County_RefreshEstimates`
+//! *does* run every season**, once per county, as the middle statement of
+//! `Panels_RefreshAll`, which is `Season_Advance`'s *last* call. It is
+//! [`Pass::RefreshEstimates`]. `docs/kingdom.md` §3.4.
+//!
+//! # The three that could not be written, and what each needed
 //!
 //! * **grain outside the sowing season.** `Grain_Grow` and `Grain_Harvest` are
-//!   not this crate's [`l2_kingdom::land::grow`] and
-//!   [`l2_kingdom::land::harvest`]: the original caps the crop at
-//!   `labour * divisor` *every* season and applies fertility at the growing
-//!   step, and it carries **one** crop word where `County::crop` carries three.
-//! * **the four industries.** `Industry_LabourEstimate`'s weapons pass reads
-//!   the owning **realm's** wood and iron, so `County_RefreshEstimates` is not
-//!   a `&mut County` function at all.
+//!   now [`l2_kingdom::land::grow_step`] and
+//!   [`l2_kingdom::land::harvest_step`], which cap the crop at
+//!   `labour * multiplier` and apply fertility at the growing step. The crop
+//!   model changed with them: [`County::crop`] is **seed, standing crop,
+//!   harvest** and not three growth stages.
+//! * **the four industries.** `Industry_LabourEstimate` reads the owning
+//!   *realm*, so [`l2_kingdom::field::refresh_estimates`] takes one — and the
+//!   blacksmith's share of the stockpile is
+//!   [`l2_kingdom::industry::weapon_shares`], `FUN_0044F15B`, which was `[D]`
+//!   and is now traced.
 //! * **the castle.** `Castle_BuildEstimate`'s ceiling is 0 until the build's
-//!   materials have all been delivered, and this crate debits them up front and
-//!   holds none of the six fields that track the delivery.
+//!   materials have been delivered; this crate debits them **up front**, so
+//!   the gate is permanently open and the ceiling is the work outstanding.
+//!   `[I]` on the model, not on the arithmetic — see
+//!   [`l2_kingdom::industry::castle_labour_estimate`].
 //!
-//! And one thing that would make wiring it a **silent no-op** rather than a
-//! wrong number, which is worse: [`l2_kingdom::land::reclaim_fields`] advances
-//! every started field by a flat quarter whatever the county's reclamation
-//! labour is. The original spends `labour[2]` as a budget. Put people on
-//! reclamation today and nothing at all happens.
+//! And the one that would have made wiring the allocator a **silent no-op**:
+//! [`l2_kingdom::land::reclaim_fields`] now spends `labour[2]` as a budget, the
+//! way `Field_ReclaimTick` does, instead of advancing every started field by a
+//! flat quarter. Putting people on reclamation now does something.
 //!
-//! # What this file is for
+//! # What is still open
 //!
-//! `docs/decisions.md` C12: *a test that passes before and after the change is
-//! not testing the thing its name claims.* These assert the gap itself, so the
-//! first person to close half of it gets a red build and this list to read.
+//! One thing, and it is named in [`the_castle_ceiling_still_rests_on_an_inferred_model`]:
+//! the six words at county `+0x1CC … +0x1E0` that track a castle's material
+//! *delivery* are not in [`County`], because this crate has no delivery to
+//! track. Everything else in `County_RefreshEstimates` is reproduced.
 
-use l2_kingdom::phase::SEASON_PIPELINE;
-use l2_kingdom::tables::{Season, Tables, JOB_CATTLE_FARMING, JOB_GRAIN_FARMING};
-use l2_kingdom::{field, land, County, Kingdom};
+use l2_kingdom::county::LABOUR_UNSET;
+use l2_kingdom::phase::{Pass, SEASON_PIPELINE};
+use l2_kingdom::tables::{
+    Season, Tables, JOB_BLACKSMITH, JOB_CASTLE_BUILDING, JOB_CATTLE_FARMING, JOB_COUNT,
+    JOB_FIELD_RECLAMATION, JOB_GRAIN_FARMING, JOB_IRON_MINING, JOB_STONE_QUARRYING,
+    JOB_WOOD_CUTTING,
+};
+use l2_kingdom::{industry, land, County, Kingdom, Realm};
 
-/// The pipeline has no allocation pass and no field recount, and the original's
-/// has both. **When you add either, this goes red — read the module docs above
-/// before deleting it.**
+/// The pipeline has an allocation pass — twice — and a field recount, and the
+/// original's has both.
 #[test]
-fn the_season_pipeline_still_has_neither_a_recount_nor_an_allocation() {
+fn the_season_pipeline_allocates_twice_and_recounts_the_fields() {
     let names: Vec<String> = SEASON_PIPELINE.iter().map(|p| format!("{p:?}")).collect();
     let joined = names.join(" ");
+    assert!(joined.contains("LabourAllocate"), "{joined}");
+    assert!(joined.contains("CountyRecountFields"), "{joined}");
+    assert_eq!(SEASON_PIPELINE.len(), 30, "and the length is written down too");
+
+    // The order is the rule, and it is this: everything that moves a ceiling
+    // runs before the first allocation.
+    let at = |p: Pass| p.order();
+    for pass in [
+        Pass::CountyRecountFields,
+        Pass::FieldReclaim,
+        Pass::GrainSeasonTick,
+        Pass::HerdSeasonTick,
+        Pass::CastleBuildTick,
+    ] {
+        assert!(at(pass) < at(Pass::LabourAllocate), "{pass:?} must refresh before allocation");
+    }
     assert!(
-        !joined.contains("Labour"),
-        "the allocator is in the pipeline now; six estimate tail calls have to be in it too — \
-         see this file's module documentation.\n{joined}"
+        at(Pass::PopulationUpdate) < at(Pass::LabourAllocateAgain),
+        "and the second allocation is what counts the newborns"
     );
     assert!(
-        !joined.contains("Recount"),
-        "`FUN_00469B51` is in the pipeline now, which is the first of the six.\n{joined}"
+        at(Pass::LabourAllocateAgain) < at(Pass::RefreshEstimates),
+        "Panels_RefreshAll is the last call of all"
     );
-    assert_eq!(SEASON_PIPELINE.len(), 25, "and the length is written down too");
 }
 
-/// Three of the nine ceilings are computed, six are not. Named one by one, so
-/// that filling one in is a one-line edit here and not a rewrite.
+/// **All nine ceilings are refreshed now**, where three were before. Named one
+/// by one, because the identity of the missing ones was the whole content of
+/// this file's first version.
 #[test]
-fn exactly_three_of_the_nine_ceilings_are_refreshed_when_a_field_is_painted() {
+fn every_one_of_the_nine_ceilings_is_refreshed() {
     let t = &Tables::DEFAULT;
     let mut c = County::new();
+    c.owner = 1;
     c.population = 400;
     c.pop_band = c.compute_pop_band();
     c.herd = 60;
@@ -90,82 +120,141 @@ fn exactly_three_of_the_nine_ceilings_are_refreshed_when_a_field_is_painted() {
     c.fields_grain = 4;
     c.grain = 500;
     c.herd_crowding = land::herd_crowding(t, c.herd, c.fields_cattle);
+    // A castle under construction, so the ninth ceiling has something to say.
+    c.castle_building = 1;
+    c.castle_degraded = true;
 
-    // Every ceiling starts at the "never estimated" sentinel.
-    c.labour_useful = [l2_kingdom::county::LABOUR_UNSET; 9];
+    c.labour_useful = [LABOUR_UNSET; JOB_COUNT];
     let map = l2_kingdom::CampaignMap::empty();
-    field::refresh_estimates(&mut c, &map, Season::Spring, t, false);
+    let realm = Realm::new();
+    l2_kingdom::field::refresh_estimates(
+        &mut c,
+        &map,
+        Season::Spring,
+        t,
+        false,
+        &realm,
+        industry::WeaponShare::UNSHARED,
+    );
 
-    let refreshed: Vec<usize> = (0..9)
-        .filter(|&j| c.labour_useful[j] != l2_kingdom::county::LABOUR_UNSET)
-        .collect();
+    let refreshed: Vec<usize> =
+        (0..JOB_COUNT).filter(|&j| c.labour_useful[j] != LABOUR_UNSET).collect();
     assert_eq!(
         refreshed,
         vec![
             JOB_GRAIN_FARMING,
             JOB_CATTLE_FARMING,
-            l2_kingdom::tables::JOB_FIELD_RECLAMATION
+            JOB_FIELD_RECLAMATION,
+            JOB_CASTLE_BUILDING,
+            JOB_IRON_MINING,
+            JOB_STONE_QUARRYING,
+            JOB_WOOD_CUTTING,
+            JOB_BLACKSMITH,
         ],
-        "grain, cattle and reclamation are the three `County_RefreshEstimates` passes \
-         this crate can reproduce; the four industries and the castle are not"
+        "eight of the nine; the ninth is Idle townsfolk, which has no ceiling"
     );
+    assert!(c.labour_useful[JOB_CASTLE_BUILDING] > 0, "a castle is being built");
+    assert!(c.labour_useful[JOB_WOOD_CUTTING] > 0, "an owned county can cut wood");
 }
 
-/// And the grain ceiling is only computed for the season the sowing happens in.
+/// And the grain ceiling is a real number in **every** season, where it used to
+/// be the sowing season's alone.
 #[test]
-fn the_grain_ceiling_is_the_sowing_seasons_and_the_other_three_are_absent() {
+fn the_grain_ceiling_is_computed_in_all_four_seasons() {
     let t = &Tables::DEFAULT;
     let mut c = County::new();
     c.population = 200;
     c.pop_band = c.compute_pop_band();
     c.fields_grain = 4;
+    c.fields_grain_sown = 4;
     c.grain = 500;
+    c.crop[1] = 480; // a standing crop for the two growing steps and the harvest
 
-    assert!(
-        land::grain_labour_estimate(t, &c, Season::Spring, false).is_some(),
-        "Grain_Sow is `sacks_per_field`, which this crate has"
-    );
-    for season in [Season::Summer, Season::Autumn, Season::Winter] {
+    for season in [Season::Spring, Season::Summer, Season::Autumn, Season::Winter] {
+        let grain = land::grain_labour_estimate(t, &c, season, false)
+            .unwrap_or_else(|| panic!("{season:?} still has no grain ceiling"));
+        assert!(grain.useful > 0, "{season:?} should want somebody on the fields");
         assert_eq!(
-            land::grain_labour_estimate(t, &c, season, false),
-            None,
-            "{season:?} needs Grain_Grow / Grain_Harvest, which are not this crate's \
-             `grow` and `harvest` — see the module documentation"
+            grain.wanted, grain.useful,
+            "grain's floor and ceiling come from one loop variable, so they agree \
+             whenever the search found anything at all"
         );
     }
+
+    // The only `None` left is the original's own guard: a county with nobody
+    // in it writes no estimate at all.
+    c.pop_band = 0;
+    assert_eq!(land::grain_labour_estimate(t, &c, Season::Summer, false), None);
 }
 
-/// **The consequence, stated as a measurement rather than as a worry.**
-///
-/// Nothing redistributes labour between seasons, so a county whose population
-/// grows leaves the extra people in no job at all and the nine records stop
-/// summing to the population. That is the invariant that proved the `0x0C`
-/// stride in the first place, and this records exactly how fast it breaks.
+/// **The invariant, as a measurement.** The nine job records sum to the
+/// population, exactly, in every season — which is what proved the `0x0C`
+/// stride in the first place, and what this crate could not hold from turn 2.
 #[test]
-fn the_nine_records_stop_summing_to_the_population_from_the_second_season() {
+fn the_nine_records_sum_to_the_population_every_season() {
     let mut k = Kingdom::new(11);
     assert!(k.set_county_count(1));
+    k.realms[1].strength = 3;
     let c = &mut k.counties[1];
     c.owner = 1;
     c.population = 400;
     c.pop_band = c.compute_pop_band();
     c.herd = 60;
     c.fields_cattle = 8;
+    c.grain = 2000;
     c.labour_useful[JOB_CATTLE_FARMING] = 400;
     l2_kingdom::labour::allocate(c);
     assert_eq!(c.labour.iter().sum::<i32>(), c.population, "season one closes");
 
-    let mut broke_at = None;
-    for season in 1..=6 {
+    for season in 1..=12 {
         k.advance_season();
         let c = &k.counties[1];
-        if c.labour.iter().sum::<i32>() != c.population && broke_at.is_none() {
-            broke_at = Some(season);
-        }
+        assert_eq!(
+            c.labour.iter().sum::<i32>(),
+            c.population,
+            "season {season}: {:?} against a population of {}",
+            c.labour,
+            c.population
+        );
+        assert!(c.labour.iter().all(|&n| n >= 0), "season {season}: nobody is negative");
     }
-    assert!(
-        broke_at.is_some(),
-        "the sum still closes after six seasons, which would mean the allocator is \
-         running — read this file's module documentation"
+}
+
+/// **The one thing still inferred**, stated so that closing it is a change to
+/// this test and not a rediscovery.
+///
+/// `Castle_BuildEstimate` computes `min(100 - Pct(woodDelivered, woodNeeded),
+/// 100 - Pct(stoneDelivered, stoneNeeded))` from six words at county
+/// `+0x1CC … +0x1E0` and returns a ceiling of **0** until that reaches 100.
+/// [`County`] has none of them, because [`industry::order_castle`] takes the
+/// whole cost out of the realm the moment the castle is ordered — which is
+/// `docs/kingdom.md` §7.5's reading and is why the gate is permanently open
+/// here. The arithmetic given a complete delivery is reproduced; the delivery
+/// is not modelled.
+#[test]
+fn the_castle_ceiling_still_rests_on_an_inferred_model() {
+    let t = &Tables::DEFAULT;
+    let mut c = County::new();
+    assert_eq!(
+        industry::castle_labour_estimate(t, &c),
+        (l2_kingdom::county::LABOUR_NO_FLOOR, 0),
+        "no build, no ceiling"
     );
+
+    let mut realm = Realm::new();
+    realm.wood = 100_000;
+    realm.stone = 100_000;
+    assert!(industry::order_castle(t, &mut c, &mut realm, 1));
+    let (_, ceiling) = industry::castle_labour_estimate(t, &c);
+    assert_eq!(
+        ceiling,
+        industry::castle_workforce(t, 1),
+        "the whole workforce is outstanding the season it is ordered — and in the original \
+         it would be 0 until the wood and stone had been carted in"
+    );
+
+    // …and it counts down as the work is done, which is the half that is the
+    // original's arithmetic rather than this crate's model.
+    c.castle_progress = ceiling / 4;
+    assert_eq!(industry::castle_labour_estimate(t, &c).1, ceiling - ceiling / 4);
 }

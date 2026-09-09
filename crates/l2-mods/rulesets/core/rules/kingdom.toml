@@ -51,6 +51,12 @@ yield_per_sack = 12
 max_sacks_per_field = 10
 labour_divisor_advanced = 5
 labour_divisor_basic = 2
+# ...and these two are MULTIPLIERS, on the same line of the same
+# branch: Grain_Grow and Grain_Harvest cap the standing crop at
+# labour * this. With Advanced Farming off all three read
+# labour_divisor_basic, which is one global in the original.
+grow_per_worker_advanced = 10
+harvest_per_worker_advanced = 3
 
 [kingdom.field]
 progress_max = 800

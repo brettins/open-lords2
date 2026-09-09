@@ -434,7 +434,7 @@ rather than balance and stays in the engine.
 | Table | Rows | Keys |
 |---|---|---|
 | `kingdom.food` | — | `dairy_per_head`, `food_per_head`, `food_per_sack` |
-| `kingdom.grain` | — | `yield_per_sack`, `max_sacks_per_field`, `labour_divisor_advanced`, `labour_divisor_basic` |
+| `kingdom.grain` | — | `yield_per_sack`, `max_sacks_per_field`, `labour_divisor_advanced`, `labour_divisor_basic`, `grow_per_worker_advanced`, `harvest_per_worker_advanced` |
 | `kingdom.field` | — | `progress_max`, `reclaim_per_season` |
 | `kingdom.event` | — | `population_cap_pct`, `first_year` |
 | `kingdom.season.<id>` | `none`, `spring`, `summer`, `autumn`, `winter` | `index`, `death_rate`, `dryness` |
@@ -496,6 +496,21 @@ Three things worth knowing before you rebalance:
 - **The labour divisors run backwards from how they read.** The *smaller*
   divisor demands *more* labour, so turning Advanced Farming off makes sowing
   harder.
+- **Two of the six grain keys are multipliers and four names look alike.**
+  `labour_divisor_*` divides in `Grain_Sow`'s "can this be tended?" test;
+  `grow_per_worker_advanced` (10) and `harvest_per_worker_advanced` (3)
+  *multiply* — `Grain_Grow` and `Grain_Harvest` cap the standing crop at
+  `labour × this`. With Advanced Farming **off** all three steps read
+  `labour_divisor_basic`, because in the original they are one global read
+  three ways, so lowering that one number makes sowing easier and growing and
+  reaping harder at the same time. `docs/kingdom.md` §7.1.
+- **Raising `yield_per_sack` does not raise the harvest proportionally**, and
+  a mod that expects it to will be surprised. The yield is inside the sowing
+  labour test, so a fourfold yield makes each sack four times as hungry for
+  farmhands and the county sows less of it; the crop is then capped twice more
+  by the growing and harvesting rates. Quadrupling the file's number roughly
+  doubles what reaches the barn
+  (`crates/l2-mods/tests/simulation.rs`, `the_last_kingdom_mod_in_the_load_order_...`).
 - **`kingdom.ai.gold_grant` rows 1–3 are all zeros and that is a gap, not a
   rule.** Only the endpoints are documented. Row 0 being zeros *is* a rule: the
   human's lord byte is 0, so the human gets nothing.

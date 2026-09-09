@@ -507,6 +507,16 @@ fn encode_message(out: &mut Canonical, message: &Message) {
             out.u8(county);
             out.i32(stage);
         }
+        Message::CountySeceded { realm, county } => {
+            out.u8(8);
+            out.u8(realm);
+            out.u8(county);
+        }
+        Message::LandsDivide { realm, counties } => {
+            out.u8(9);
+            out.u8(realm);
+            out.u8(counties);
+        }
     }
 }
 
@@ -540,6 +550,8 @@ fn decode_message(input: &mut Reader<'_>) -> Result<Result<Message, LoadError>, 
             county: input.u8()?,
             stage: input.i32()?,
         }),
+        8 => Ok(Message::CountySeceded { realm: input.u8()?, county: input.u8()? }),
+        9 => Ok(Message::LandsDivide { realm: input.u8()?, counties: input.u8()? }),
         other => Err(LoadError::BadMessage(other)),
     })
 }

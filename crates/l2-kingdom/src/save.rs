@@ -103,7 +103,23 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   the lockstep checksum. A version 5 save does not carry it, and the option
 ///   changes whether a battle is fought or auto-resolved — so this is a refusal
 ///   rather than a default, on the same grounds as version 5.
-pub const VERSION: u32 = 6;
+/// * 7 — **the grain year got a memory**: `fields_grain_sown` (county `+0x202`)
+///   and `sow_shortfall` (`+0x1A7`). `Grain_Grow` and `Grain_Harvest` scale the
+///   standing crop by the grain fields still standing *against the fields that
+///   were sown*, so a save that dropped the second number would resume a
+///   half-grown crop with no basis to measure it against. A version 5 save has
+///   both missing, and defaulting `fields_grain_sown` to 0 would silently mean
+///   "no fields were sown" — which is not a default, it is a different game.
+///
+///   **This arrived as its own version 6.** Two branches bumped 5 → 6 in
+///   parallel, each adding different fields, and the merged encoding is neither
+///   of their version 6s — so it is 7. A version 6 save is a real thing that
+///   exists (it carries `fight_humans_only_byte` and *not* these two), which is
+///   why the number had to move rather than the two entries being folded
+///   together. Nothing checks for this collision the way
+///   `tools/decisions/corrections.js` checks correction numbers; the changelog
+///   above is the only thing that catches it, and only if it is read.
+pub const VERSION: u32 = 7;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -700,6 +716,8 @@ impl Encode for County {
         for stage in &self.crop {
             out.i32(*stage);
         }
+        out.i32(self.fields_grain_sown);
+        out.bool(self.sow_shortfall);
         out.i32(self.herd);
         out.i32(self.herd_crowding);
         out.i32(self.herd_births_expected);
@@ -824,6 +842,8 @@ impl Decode for County {
         for stage in 0..c.crop.len() {
             c.crop[stage] = input.i32()?;
         }
+        c.fields_grain_sown = input.i32()?;
+        c.sow_shortfall = input.bool()?;
         c.herd = input.i32()?;
         c.herd_crowding = input.i32()?;
         c.herd_births_expected = input.i32()?;

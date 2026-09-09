@@ -121,16 +121,14 @@ pub fn efficiency_ramp(
 /// For **weapons** it is a real quantity: the realm's wood and iron each
 /// divided by a denominator the driver computes across the whole realm, so
 /// every county's blacksmith gets a share of one stockpile rather than the
-/// first county emptying it. `[D]` on the denominators (`0x0057C904` and
-/// `0x0056D628`, written by `FUN_0044F15B`, which was not traced); this crate
-/// takes the caller's `weapon_share` for that and defaults it to 1, which is
-/// the single-county case.
+/// first county emptying it. Those two denominators are [`WeaponShare`], and
+/// they are no longer `[D]`.
 pub fn resource_limit(
     t: &Tables,
     county: &County,
     c: Commodity,
     realm: &Realm,
-    weapon_share: i32,
+    weapon_share: WeaponShare,
 ) -> i32 {
     let record = &county.industry[c.index()];
     if !record.enabled {
@@ -139,20 +137,19 @@ pub fn resource_limit(
     if c == Commodity::Weapons {
         let weapon = county.weapon_type.min(WEAPON_TYPE_COUNT - 1);
         let (wood, iron) = (t.weapon[weapon].wood, t.weapon[weapon].iron);
-        let share = weapon_share.max(1);
         // Written the way the original writes it — `(stock * cost / share) /
         // cost`, multiplying by the cost and dividing by it again. That is not
         // a no-op once `share` exceeds 1: it rounds the share down to a whole
         // weapon's worth of stock. Kept rather than cancelled.
-        let quota = |stock: i32, cost: i32| {
-            ((stock as i64 * cost as i64 / share as i64) / cost as i64) as i32
+        let quota = |stock: i32, cost: i32, share: i32| {
+            ((stock as i64 * cost as i64 / share.max(1) as i64) / cost as i64) as i32
         };
         let mut limit = RESOURCE_LIMIT_UNLIMITED;
         if wood != 0 {
-            limit = limit.min(quota(realm.wood, wood));
+            limit = limit.min(quota(realm.wood, wood, weapon_share.wood));
         }
         if iron != 0 {
-            limit = limit.min(quota(realm.iron, iron));
+            limit = limit.min(quota(realm.iron, iron, weapon_share.iron));
         }
         return limit.max(0);
     }
@@ -162,12 +159,173 @@ pub fn resource_limit(
     RESOURCE_LIMIT_UNLIMITED
 }
 
+/// The two denominators `FUN_0044F15B` (`0x0044F15B`) computes before every
+/// weapons `resourceLimit`, and the answer to a `[D]` this module carried.
+///
+/// ```c
+/// woodShare = ironShare = 0;
+/// for (c = 1; c <= countyCount; c++)
+///     if (counties[c].owner == realm && counties[c].industry[2].enabled
+///         && counties[c].labour[7].workers > 0) {
+///         woodShare += weaponCost[counties[c].weaponType].wood;
+///         ironShare += weaponCost[counties[c].weaponType].iron;
+///     }
+/// if (woodShare < 1) woodShare = 1;
+/// if (ironShare < 1) ironShare = 1;
+/// ```
+///
+/// **They are summed *costs*, not a county count** — which is why
+/// [`WeaponShare::SINGLE_SMITH`] is not the right default and this crate's old
+/// `weapon_share: 1` was not either. A lone smithy forging crossbows at 6 wood
+/// and 10 iron divides by 6 and by 10, so its limit is `realm.wood / 6` and
+/// `realm.iron / 10` — the number of crossbows the stockpile can actually pay
+/// for. The old default gave it the whole stockpile and relied on
+/// [`produce_with_share`]'s affordability clamp to bring it back down to the
+/// same number.
+///
+/// Two counties forging *different* weapons therefore split the stockpile in
+/// proportion to what each weapon costs, not evenly. **`[V]`**
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WeaponShare {
+    pub wood: i32,
+    pub iron: i32,
+}
+
+impl WeaponShare {
+    /// `1` and `1` — the value that makes [`resource_limit`] hand a smithy the
+    /// **whole** stockpile. It is what this crate used to pass everywhere; it
+    /// is the identity, not the single-county case, and it is kept only for
+    /// tests that want the unbounded limit.
+    pub const UNSHARED: WeaponShare = WeaponShare { wood: 1, iron: 1 };
+
+    /// The share of a realm whose only smithy is this county's — its own
+    /// weapon's costs, which is what the sum comes to.
+    pub fn single_smith(t: &Tables, weapon_type: usize) -> WeaponShare {
+        let weapon = weapon_type.min(WEAPON_TYPE_COUNT - 1);
+        WeaponShare {
+            wood: t.weapon[weapon].wood.max(1),
+            iron: t.weapon[weapon].iron.max(1),
+        }
+    }
+
+    /// Alias for [`WeaponShare::UNSHARED`], named for what it is not.
+    pub const SINGLE_SMITH: WeaponShare = WeaponShare::UNSHARED;
+}
+
+/// `FUN_0044F15B` — [`WeaponShare`] for one realm, summed over the counties
+/// whose blacksmith is switched on **and staffed**. An idle smithy takes no
+/// share, so switching one off gives the rest of the realm more iron.
+pub fn weapon_shares(
+    t: &Tables,
+    counties: &[County],
+    county_count: usize,
+    realm: u8,
+) -> WeaponShare {
+    let mut share = WeaponShare { wood: 0, iron: 0 };
+    for c in counties.iter().take(county_count + 1).skip(1) {
+        if c.owner != realm
+            || !c.industry[Commodity::Weapons.index()].enabled
+            || c.labour[t.commodity[Commodity::Weapons.index()].job] <= 0
+        {
+            continue;
+        }
+        let weapon = c.weapon_type.min(WEAPON_TYPE_COUNT - 1);
+        share.wood += t.weapon[weapon].wood;
+        share.iron += t.weapon[weapon].iron;
+    }
+    WeaponShare { wood: share.wood.max(1), iron: share.iron.max(1) }
+}
+
 /// What one commodity's pass would produce, before it is credited anywhere.
-pub fn output(t: &Tables, county: &County, c: Commodity, realm: &Realm, weapon_share: i32) -> i32 {
+pub fn output(
+    t: &Tables,
+    county: &County,
+    c: Commodity,
+    realm: &Realm,
+    weapon_share: WeaponShare,
+) -> i32 {
     let record = &county.industry[c.index()];
     let workers = county.labour[t.commodity[c.index()].job].max(0);
     let raw = pct(workers / t.commodity[c.index()].divisor, record.efficiency);
     raw.min(resource_limit(t, county, c, realm, weapon_share)).max(0)
+}
+
+/// `Industry_LabourEstimate` (`0x0044F318`) — **one industry's labour
+/// ceiling.**
+///
+/// Returns `(wanted, useful)`, and the wanted floor is always `-1`: no industry
+/// has one.
+///
+/// ```c
+/// wanted[slot] = -1; useful[slot] = 0;
+/// if (owner == 0) return;                      /* a neutral county mines nothing */
+/// limit = resourceLimit(county, industry, owner, 0);
+/// if (limit <= 0 || popBand == 0) return;
+/// if (industry != weapons) { useful[slot] = 100000; return; }
+/// best = -1;
+/// for (w = 0; w < population + popBand; w += popBand) {     /* one icon at a time */
+///     n = min(w, population);
+///     made = min(Pct(n / divisor, efficiencyRamp(county, industry, n, base)), limit);
+///     if (best < made) { best = made; useful[slot] = n; }
+/// }
+/// ```
+///
+/// **Three things this makes concrete.** The owner test is why an unowned
+/// county's wood ceiling is 0 and an owned one's is 100,000, which is the whole
+/// difference between the shipped save's county of foresters and its county of
+/// idlers. The search steps by **`popBand`**, one peasant icon, not by one
+/// person — so the blacksmith's ceiling is always a multiple of the icon size.
+/// And the blacksmith is the only industry with a real ceiling at all: wood,
+/// iron and stone are bounded by [`RESOURCE_LIMIT_UNLIMITED`]'s 999 units of
+/// output rather than by any worker count.
+///
+/// `weapon_share` is [`weapon_shares`] for the owning realm; the original calls
+/// `FUN_0044F15B` afresh inside every `resourceLimit`, so it is the *current*
+/// state of the realm's smithies each time.
+pub fn labour_estimate(
+    t: &Tables,
+    county: &County,
+    c: Commodity,
+    realm: &Realm,
+    weapon_share: WeaponShare,
+    advanced_farming: bool,
+) -> (i32, i32) {
+    const NONE: (i32, i32) = (crate::county::LABOUR_NO_FLOOR, 0);
+    if county.owner == 0 || county.pop_band == 0 {
+        return NONE;
+    }
+    let limit = resource_limit(t, county, c, realm, weapon_share);
+    if limit <= 0 {
+        return NONE;
+    }
+    if c != Commodity::Weapons {
+        return (crate::county::LABOUR_NO_FLOOR, crate::county::LABOUR_UNBOUNDED);
+    }
+
+    let row = t.commodity[c.index()];
+    let record = &county.industry[c.index()];
+    let band = county.pop_band.max(1);
+    let mut best = -1;
+    let mut ceiling = 0;
+    let mut trial = 0;
+    while trial < county.population + band {
+        let workers = trial.min(county.population);
+        let efficiency = efficiency_ramp(
+            t,
+            record.efficiency,
+            workers,
+            record.capacity,
+            row.base_efficiency,
+            advanced_farming,
+        );
+        let made = pct(workers / row.divisor, efficiency).min(limit);
+        if best < made {
+            best = made;
+            ceiling = workers;
+        }
+        trial += band;
+    }
+    (crate::county::LABOUR_NO_FLOOR, ceiling)
 }
 
 /// One `Industry_Produce` pass: ramp the efficiency, produce, credit the realm,
@@ -180,15 +338,14 @@ pub fn output(t: &Tables, county: &County, c: Commodity, realm: &Realm, weapon_s
 ///
 /// Weapons are the one commodity that *spends*: the blacksmith's output is
 /// capped by what [`WEAPON_COST`] can be paid for out of the realm's wood and
-/// iron. **`[I]`, and unchanged from before this module knew what
-/// `resourceLimit` was.** The original debits `made * cost` from each
-/// stockpile with **no clamp at all** — it relies on [`resource_limit`]'s
-/// realm-wide share to keep the total demand inside the stock, and that share's
-/// denominator (`FUN_0044F15B`) was not traced. So with a share of 1 the limit
-/// is effectively the whole stockpile and this affordability clamp is what
-/// actually binds. It is kept because a negative stockpile is worse than a
-/// small divergence, and it is flagged here rather than presented as the
-/// original's rule.
+/// iron. The original debits `made * cost` from each stockpile with **no clamp
+/// at all** — it relies on [`resource_limit`]'s realm-wide share to keep the
+/// total demand inside the stock, and now that [`weapon_shares`] is the real
+/// denominator that reliance holds: `(stock * cost / Σcost) / cost` is at most
+/// `stock / Σcost`, so the whole realm's smithies together can never ask for
+/// more wood or iron than there is. The clamp below is therefore **provably
+/// redundant** against a correct share, and it is kept only as a floor against
+/// a caller that passes [`WeaponShare::UNSHARED`].
 pub fn produce(
     t: &Tables,
     county: &mut County,
@@ -196,7 +353,8 @@ pub fn produce(
     c: Commodity,
     advanced_farming: bool,
 ) {
-    produce_with_share(t, county, realm, c, advanced_farming, 1)
+    let share = WeaponShare::single_smith(t, county.weapon_type);
+    produce_with_share(t, county, realm, c, advanced_farming, share)
 }
 
 /// [`produce`], with the realm-wide weapon share [`resource_limit`] describes.
@@ -206,7 +364,7 @@ pub fn produce_with_share(
     realm: &mut Realm,
     c: Commodity,
     advanced_farming: bool,
-    weapon_share: i32,
+    weapon_share: WeaponShare,
 ) {
     let index = c.index();
     // The snapshot the panel's "produced this season" line is the difference
@@ -456,6 +614,16 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
     realm.stone -= stone;
     county.castle_building = castle_type;
     county.castle_progress = 0;
+    // `+0x1C3` — **a castle is under construction.** Four independent readers
+    // all mean that: `Labour_Allocate` will not staff castle building without
+    // it, `Castle_BuildEstimate` computes nothing without it,
+    // `Industry_LabourEstimate` shows the outstanding wood and stone only with
+    // it, and `Tax_CollectAll` charges the *lower* of the standing and the
+    // building castle while it is set. Nothing in this crate used to write it,
+    // so the castle-building job had a ceiling of zero for ever and no county
+    // could build anything. `[D]` on the name — `County::castle_degraded` is
+    // what `docs/kingdom.md` called it before the readers were traced.
+    county.castle_degraded = true;
     true
 }
 
@@ -478,8 +646,43 @@ pub fn build_tick(t: &Tables, county: &mut County, id: u8, out: &mut Vec<Message
     county.castle_type = county.castle_building;
     county.castle_building = 0;
     county.castle_progress = 0;
+    county.castle_degraded = false;
     out.push(Message::CastleBuilt { county: id, castle_type: county.castle_type });
     true
+}
+
+/// `Castle_BuildEstimate` (`0x00450E46`) — the **castle** labour ceiling.
+///
+/// ```c
+/// wanted[3] = -1; useful[3] = 0;
+/// if (!castleUnderConstruction) return;
+/// delivered = min(100 - Pct(woodDelivered, woodNeeded),
+///                 100 - Pct(stoneDelivered, stoneNeeded));
+/// useful[3] = (delivered < 100) ? 0 : workRemaining;
+/// seasonsLeft = (delivered < 100 || workers < 1) ? 100
+///             : DivCeil(workRemaining, workers);
+/// ```
+///
+/// **The materials clause cannot be reproduced and does not need to be.** The
+/// original tracks a delivery against a requirement in six words this crate
+/// does not have (`+0x1CC` … `+0x1E0`); [`order_castle`] takes the whole cost
+/// out of the realm the moment the castle is ordered, which is the reading
+/// `docs/kingdom.md` §7.5 records and which makes the delivery permanently
+/// complete. So the gate is open whenever a build is under way, and the
+/// ceiling is the work outstanding. **`[I]`**, and it is the *model* that is
+/// inferred, not the arithmetic: given up-front delivery this is what
+/// `Castle_BuildEstimate` computes.
+///
+/// The ceiling is a *cumulative* figure — the whole remaining workforce, not a
+/// per-season share — so a county that can staff it finishes the castle in one
+/// season and one that cannot puts everybody it has on the walls.
+pub fn castle_labour_estimate(t: &Tables, county: &County) -> (i32, i32) {
+    if !county.castle_degraded || county.castle_building == 0 {
+        return (crate::county::LABOUR_NO_FLOOR, 0);
+    }
+    let remaining =
+        (castle_workforce(t, county.castle_building) - county.castle_progress).max(0);
+    (crate::county::LABOUR_NO_FLOOR, remaining)
 }
 
 // ---------------------------------------------------------------------------
@@ -708,17 +911,17 @@ mod tests {
         let realm = Realm::new();
         let mut c = County::new();
         for cm in [Commodity::Wood, Commodity::Iron, Commodity::Stone] {
-            assert_eq!(resource_limit(T, &c, cm, &realm, 1), 999);
+            assert_eq!(resource_limit(T, &c, cm, &realm, WeaponShare::UNSHARED), 999);
         }
 
         c.industry[Commodity::Iron.index()].has_resource = false;
-        assert_eq!(resource_limit(T, &c, Commodity::Iron, &realm, 1), 0, "no ore in the ground");
+        assert_eq!(resource_limit(T, &c, Commodity::Iron, &realm, WeaponShare::UNSHARED), 0, "no ore in the ground");
 
         c.industry[Commodity::Wood.index()].enabled = false;
-        assert_eq!(resource_limit(T, &c, Commodity::Wood, &realm, 1), 0, "switched off");
+        assert_eq!(resource_limit(T, &c, Commodity::Wood, &realm, WeaponShare::UNSHARED), 0, "switched off");
 
         c.industry[Commodity::Stone.index()].disabled_seasons = 2;
-        assert_eq!(resource_limit(T, &c, Commodity::Stone, &realm, 1), 0, "counting down");
+        assert_eq!(resource_limit(T, &c, Commodity::Stone, &realm, WeaponShare::UNSHARED), 0, "counting down");
     }
 
     /// 999 is a literal, not a saturating value: a county with enough workers
@@ -728,7 +931,7 @@ mod tests {
         let realm = Realm::new();
         let mut c = advanced_county(0);
         c.labour[Commodity::Wood.job()] = 100_000;
-        assert_eq!(output(T, &c, Commodity::Wood, &realm, 1), 999);
+        assert_eq!(output(T, &c, Commodity::Wood, &realm, WeaponShare::UNSHARED), 999);
     }
 
     /// The blacksmith's limit is the realm's stock of what the weapon costs,
@@ -740,13 +943,67 @@ mod tests {
         let mut realm = Realm::new();
         realm.wood = 600;
         realm.iron = 300;
-        assert_eq!(resource_limit(T, &c, Commodity::Weapons, &realm, 1), 300, "the iron is scarcer");
-        assert_eq!(resource_limit(T, &c, Commodity::Weapons, &realm, 3), 100, "three counties share");
+        let unshared = WeaponShare::UNSHARED;
+        assert_eq!(
+            resource_limit(T, &c, Commodity::Weapons, &realm, unshared),
+            300,
+            "the iron is scarcer"
+        );
+        assert_eq!(
+            resource_limit(T, &c, Commodity::Weapons, &realm, WeaponShare { wood: 18, iron: 30 }),
+            10,
+            "three smithies forging crossbows split the 300 iron three ways, at 10 a crossbow"
+        );
 
         // A bow costs no iron, so an ironless realm is not limited by it.
         c.weapon_type = 4;
         realm.iron = 0;
-        assert_eq!(resource_limit(T, &c, Commodity::Weapons, &realm, 1), 600);
+        assert_eq!(resource_limit(T, &c, Commodity::Weapons, &realm, unshared), 600);
+    }
+
+    /// **The real denominator is a sum of costs, not a count of counties.**
+    /// `FUN_0044F15B`, and the answer to the `[D]` this module carried.
+    #[test]
+    fn the_weapon_share_sums_the_costs_of_every_staffed_smithy() {
+        let mut counties = vec![County::new(); 4];
+        for (id, weapon) in [(1usize, 0usize), (2, 1), (3, 0)] {
+            counties[id].owner = 1;
+            counties[id].weapon_type = weapon;
+            counties[id].labour[T.commodity[Commodity::Weapons.index()].job] = 40;
+        }
+        // Crossbow (6, 10), mace (4, 4), crossbow (6, 10).
+        assert_eq!(weapon_shares(T, &counties, 3, 1), WeaponShare { wood: 16, iron: 24 });
+
+        // An unstaffed smithy takes no share at all.
+        counties[2].labour[T.commodity[Commodity::Weapons.index()].job] = 0;
+        assert_eq!(weapon_shares(T, &counties, 3, 1), WeaponShare { wood: 12, iron: 20 });
+
+        // Neither does a switched-off one, nor another realm's.
+        counties[3].industry[Commodity::Weapons.index()].enabled = false;
+        counties[1].owner = 2;
+        assert_eq!(weapon_shares(T, &counties, 3, 1), WeaponShare { wood: 1, iron: 1 });
+    }
+
+    /// A realm with one smithy divides by that weapon's own costs, so its
+    /// limit is exactly what the stockpile can pay for — the number the
+    /// affordability clamp in [`produce`] used to be doing on its own.
+    #[test]
+    fn a_lone_smithy_is_limited_to_what_the_stockpile_can_buy() {
+        let mut c = County::new();
+        c.owner = 1;
+        c.weapon_type = 0; // 6 wood, 10 iron
+        c.labour[T.commodity[Commodity::Weapons.index()].job] = 10;
+        let mut realm = Realm::new();
+        realm.wood = 600;
+        realm.iron = 300;
+        let counties = vec![County::new(), c.clone()];
+        let share = weapon_shares(T, &counties, 1, 1);
+        assert_eq!(share, WeaponShare { wood: 6, iron: 10 });
+        assert_eq!(
+            resource_limit(T, &c, Commodity::Weapons, &realm, share),
+            30,
+            "300 iron at 10 a crossbow"
+        );
     }
 
     // --- production --------------------------------------------------------
@@ -758,7 +1015,7 @@ mod tests {
         let mut c = worker_county(Commodity::Iron.job(), 30);
         c.industry[Commodity::Iron.index()].efficiency = 15;
         let realm = Realm::new();
-        assert_eq!(output(T, &c, Commodity::Iron, &realm, 1), 4, "Pct(30 / 1, 15)");
+        assert_eq!(output(T, &c, Commodity::Iron, &realm, WeaponShare::UNSHARED), 4, "Pct(30 / 1, 15)");
     }
 
     /// *"Iron and wood harvest at twice the quantity of stone"* — the divisor
@@ -768,9 +1025,9 @@ mod tests {
         let mut c = advanced_county(200);
         c.industry[Commodity::Wood.index()].efficiency = 15; // level the bases
         let realm = Realm::new();
-        let iron = output(T, &c, Commodity::Iron, &realm, 1);
-        let stone = output(T, &c, Commodity::Stone, &realm, 1);
-        let wood = output(T, &c, Commodity::Wood, &realm, 1);
+        let iron = output(T, &c, Commodity::Iron, &realm, WeaponShare::UNSHARED);
+        let stone = output(T, &c, Commodity::Stone, &realm, WeaponShare::UNSHARED);
+        let wood = output(T, &c, Commodity::Wood, &realm, WeaponShare::UNSHARED);
         assert_eq!(iron, 30);
         assert_eq!(stone, 15);
         assert_eq!(iron, stone * 2);
@@ -824,7 +1081,14 @@ mod tests {
         let mut r = Realm::new();
         r.wood = 1000;
         r.iron = 40;
-        assert_eq!(output(T, &c, Commodity::Weapons, &r, 1), 15, "the workers allow 15");
+        assert_eq!(
+            output(T, &c, Commodity::Weapons, &r, WeaponShare::UNSHARED),
+            15,
+            "the workers allow 15"
+        );
+        // …and against the realm's real share it is already 4, because the
+        // share is the weapon's own cost: 40 iron at 10 a crossbow.
+        assert_eq!(output(T, &c, Commodity::Weapons, &r, WeaponShare::single_smith(T, 0)), 4);
 
         produce(T, &mut c, &mut r, Commodity::Weapons, true);
         assert_eq!(r.weapons[0], 4);

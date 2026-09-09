@@ -925,33 +925,30 @@ fn ten_more_seasons_conserve_the_clock_and_the_labour_and_do_not_stand_still() {
         assert_eq!(k.year, year0 + rolls, "season {step}");
         assert_eq!(k.year_next, k.year + 1, "season {step}");
 
-        // **A finding, pinned rather than papered over.** The identity worth
-        // asserting is `sum(labour) == population`. It holds on the imported
-        // kingdom - see
-        // [`every_countys_nine_labour_records_sum_to_its_population`] - and it
-        // **fails from the first `advance_season` on**: after one season county
-        // 1 holds 449 people and 435 assigned jobs, and by season 8 it has
-        // shrunk to fewer people than it has jobs.
+        // **The identity, on the real position, for ten seasons.** The nine job
+        // records sum to the population, exactly, in every county in every
+        // season - which is the invariant that established the `0x0C` labour
+        // stride in the first place.
         //
-        // `FUN_0044F6E7` reallocates every county's workers after the
-        // population moves. Our `advance_season` does not, so the allocation
-        // never reruns at all: every county's labour is frozen at the figure
-        // the import produced, ten seasons later, and that is what is asserted
-        // here. Writing the allocator is production work and not this task's;
-        // when somebody does write it, **this assertion goes red and this
-        // comment says why** - change it to `== c.population` and delete the
-        // paragraph.
+        // This assertion used to read `== labour0[n]`, pinning the *gap*:
+        // `Season_Advance` reallocates every county's workers twice and this
+        // crate did it never, so after one season county 1 held 449 people and
+        // 435 assigned jobs. [`Pass::LabourAllocate`] and
+        // [`Pass::LabourAllocateAgain`] are in the pipeline now, behind the six
+        // estimate tail calls they need - see
+        // `crates/l2-kingdom/tests/labour_gap.rs`.
         //
-        // The previous version of this test asserted nine ranges that were all
-        // clamps our own code had just applied, and would never have seen this.
-        for (n, id) in s.county_ids().enumerate() {
+        // The version before *that* asserted nine ranges that were all clamps
+        // our own code had just applied, and would never have seen either.
+        for id in s.county_ids() {
             let c = &k.counties[id];
             let assigned: i32 = c.labour.iter().sum();
             assert!(c.labour.iter().all(|&j| j >= 0), "county {id} season {step}");
             assert_eq!(
-                assigned, labour0[n],
-                "county {id} season {step}: labour is frozen at the import's allocation, \
-                 because the allocator does not rerun"
+                assigned, c.population,
+                "county {id} season {step}: every peasant is in exactly one of the nine \
+                 records - {:?}",
+                c.labour
             );
         }
     }
