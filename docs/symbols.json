@@ -4571,14 +4571,6 @@
       "comment": "Screen 0x08's widget pass. Draws one price plaque for the good under the pointer, at that good's own position out of g_goodsStall, and erases the last one first - so at most one is ever on screen and two goods may claim the same 128x64 box (grain's and stone's do). The plaque is a 8x4-cell box, the group 6 name centred in it, and BOTH PRICES side by side at (x+0x24, y+0x22): the stall price, then stall + max(1, Pct(stall, merchant morale)), the same arithmetic as Trade_BeginGood written out a second time. It is throttled by a countdown at 0x0053EF54 that is set to 500 on entry and after every change, so the plaque does not chase a moving pointer."
     },
     {
-      "addr": "0x004D2B70",
-      "name": "g_goodsStall",
-      "section": "ui",
-      "confidence": "verified",
-      "signature": "int g_goodsStall[14][5]",
-      "comment": "Where each good sits on the merchant's stall: 14 rows of {x, y, goodId, unread, iconFrame} indexed as base + (good-1)*20. The third column holds the row's own good id, which makes the reading self-checking - fourteen for fourteen. Column 4 is the icon frame Trade_DrawPanel draws after \"and N ...\" and 0 suppresses that whole clause; it is 0 for exactly sheep, ale and wool, the three goods you never hold. Column 3 is 0/1/2 on the same three-way split and NOTHING IN THE BINARY READS IT. [V] SHEEP AND WOOL ARE AT (0,0) - they have no place on the stall at all, which with the missing Merchant_Trade branch, the price of zero and their absence from mercgrid.pl8 makes four independent statements that the two goods are not in the game."
-    },
-    {
       "addr": "0x0046921D",
       "name": "County_EnsurePasture",
       "section": "kingdom",
@@ -9260,6 +9252,13 @@
       "section": "sound",
       "confidence": "verified",
       "comment": "The 0/1 toggle picking battle1 or battle2 for a field battle. Stepped before use, so the first battle of a session gets battle2."
+    },
+    {
+      "addr": "0x004D2B70",
+      "name": "g_goodsStall",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "int[14][5]. Where each good sits on the merchant's stall: 14 rows of {x, y, goodId, unread, iconFrame} indexed as base + (good-1)*20. The third column holds the row's own good id, which makes the reading self-checking - fourteen for fourteen. Column 4 is the icon frame Trade_DrawPanel draws after \"and N ...\" and 0 suppresses that whole clause; it is 0 for exactly sheep, ale and wool, the three goods you never hold. Column 3 is 0/1/2 on the same three-way split and NOTHING IN THE BINARY READS IT. [V] SHEEP AND WOOL ARE AT (0,0) - they have no place on the stall at all, which with the missing Merchant_Trade branch, the price of zero and their absence from mercgrid.pl8 makes four independent statements that the two goods are not in the game."
     }
   ]
 }

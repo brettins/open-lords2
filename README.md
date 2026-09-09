@@ -38,7 +38,7 @@ how two wrong rules once survived **932 passing tests** *(that figure is deliber
 it is the size of the suite at the moment `docs/decisions.md` C26 describes, and correcting
 it to today's number would destroy the thing it records)*. And of the executable's
 <!--fig:binary-functions-->2,452<!--/fig--> functions, we have identified
-**<!--fig:functions-->751<!--/fig-->**, plus <!--fig:globals-->479<!--/fig--> globals; most
+**<!--fig:functions-->750<!--/fig-->**, plus <!--fig:globals-->480<!--/fig--> globals; most
 of the program is still dark.
 
 ## The idea that shapes everything
