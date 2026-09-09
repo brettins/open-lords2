@@ -107,7 +107,8 @@ reaches zero the figure enters the dead state and is removed.
 |---|---|---|---|---|
 | `+0x09` | u8 | selected | [V] | debug-panel label. |
 | `+0x0A` | u8 | selctd seen | [V] | debug-panel label. |
-| `+0x0C` | u8 | — | [D] | animation phase, seeded at creation as `(index*9 + x*16) & 0x3F + 0xB4` so identical figures do not march in lockstep. |
+| `+0x0B` | u8 | fidget tick | [V] | counts up once per frame in `Anim_StandA2`. |
+| `+0x0C` | u8 | fidget period | [V] | seeded once in `BattleMan_Create` as `((index*9 + x*16) & 0x3F) + 0xB4`, so 180 … 243. **This is not an animation phase** — §13.8 was right that the handlers step `+0x0E` instead, and this is what `+0x0C` is actually for: when `+0x0B` passes it, `Anim_StandA2` resets `+0x0B` and turns `facingDrawn` one step, left on an even map x and right on an odd one. A standing figure shifts its feet every 180–243 frames and no two neighbours do it together. One writer, two readers (`Anim_StandA2` and `Anim_StandA3`). |
 | `+0x12` | u8 | troopType | [V] | 0 … 10, the `TROOPS*.ENG` column order: peasant, crossbowman, maceman, swordsman, pikeman, archer, knight, catapult, siege tower, ram, oil. |
 | `+0x13` | u8 | ownerIsHuman | [I] | 1 when the owning realm's byte `+0x05` is set. Same source as unit `+0x01`. **This byte changes the damage this figure takes** — §6.2. |
 | `+0x14` | u8 | mercenary | [D] | set for the mercenary contingent of an army. |
@@ -127,7 +128,7 @@ reaches zero the figure enters the dead state and is removed.
 |---|---|---|---|---|
 | `+0x2F` | u8 | **dly state** | [V] | the state to return to after a delay. |
 | `+0x30` | u8 | **delay** | [V] | debug-panel label. |
-| `+0x31` | i8 | **state** | [V] | 0 … 17, index into `g_manStateTable` (`0x004D9170`). Known: **2 dead**, **4 melee**, **5 idle/firing**, **6 blocked**, **7 look for a melee**, 9 siege-wall movement, **12 siege engine attacking**, **17 closing to attack**. Initialised to 5 for troop types 0–6 and 11 for 7–10. |
+| `+0x31` | i8 | **state** | [V] | 0 … 17, index into `g_manStateTable` (`0x004D9170`). **All eighteen slots are now named — §14.2.** Initialised to 5 for troop types 0–6 and 11 for 7–10. The bound is the game's own: every one of the eleven per-troop tick handlers tests `state < 0 || state > 0x11` and calls `BattleMan_Destroy` outside it. |
 | `+0x32` | i8 | **walking** | [V] | sub-cell progress; +2 per step, a cell is crossed at 17. |
 | `+0x33` | i8 | — | [D] | tick counter against the move delay. |
 | `+0x34` | u8 | — | [D] | bit 0 "ready to leave this cell", bit 1 "was interrupted". |
@@ -1016,8 +1017,9 @@ sheets**; set B is identical but with `a3_horse` and the `a3` sheets.
   `TROOPS*.ENG` column order and troop types 0 … 6. **[V]**
 * `Battle_Start` loads set A (`a2`); the skirmish and roster screens load set B
   (`a3`). Both sets have their own animation handlers, and the `a3` handlers
-  give different poses-per-facing, so **which set the battlefield uses at which
-  zoom is not settled** — `crates/l2-view` draws `a2` at 32 pixels.
+  give different poses-per-facing. **Settled, and the answer is that the battle
+  state machine never uses `a3` at all: all six `a3` handlers are unreachable
+  code.** §14.4. `crates/l2-view` draws `a2` at 32 pixels, which is right.
 
 `0x00480F8B` then writes a sprite-sheet pointer into each figure at `+0x00`,
 choosing by troop type and by figure byte `+0x2E` — **`+0x2E` is what selects
@@ -1030,27 +1032,42 @@ army A's bank from army B's**. Knights also get a horse sheet pointer at `+0x04`
 
 ```
 frame = facing * N + pose
-  pose 0 … 5            attacking, one pose every 4 ticks over a 24-tick loop
-  pose 6 …              walking, from a per-troop cycle table
-  pose <idle>           standing
+  pose 0 … 5            walking, one pose every 4 ticks over a 24-tick loop
+  pose 6 …              striking, from a per-troop cycle table
+  pose N-1              standing
+  pose 10 … 12          drawing a bow          (crossbowmen and archers only)
 
-8 * N + 0 … 5           six further shared frames
+8 * N + 0 … 5           collapsing, six frames
 8 * N + 6 …             dying: 4 half-facings of 3 frames
 ```
 
-| troop | N | idle pose | walk cycle | dying base |
-|---|---:|---:|---|---:|
-| peasants | 10 | 9 | `0,0,1,1,2,2,1,1,0,0` | 86 |
-| crossbowmen | 13 | 9 | `0,0,1,1,2,2,1,1,0,0` | 110 |
-| macemen | 12 | 11 | `0,1,2,3,4,4,3,2,1,0` | 102 |
-| swordsmen | 12 | 11 | `0,1,2,3,4,4,3,2,1,0` | 102 |
-| pikemen | 8 | 7 | `0,0,1,1,1,1,1,0,0,0` | 70 |
-| archers | 13 | 9 | `0,0,1,1,2,2,1,1,0,0` | 110 |
+**Corrected: walking and striking were the wrong way round here**, and §13.8's
+`+0x18` / `+0x19` row carried the same swap. §14.5 gives the evidence.
 
-from `0x00486249` (idle and walking), `0x00486D83` (attacking) and `0x00487908`
-(dying), which all write the frame index to figure `+0x10`. Walk cycles are at
-`0x004D9A00`, `0x004D9A28` and `0x004D9A50`, stepped every fourth tick of a
-forty-tick loop; dying is `base + (facing & 6) / 2 * 3 + phase / 32`.
+| troop | N | standing pose | strike cycle | strike frames | collapse base | dying base |
+|---|---:|---:|---|---|---:|---:|
+| peasants | 10 | 9 | `0,0,1,1,2,2,1,1,0,0` | 6 … 8 | 80 | 86 |
+| crossbowmen | 13 | 9 | `0,0,1,1,2,2,1,1,0,0` | 6 … 8 | 104 | 110 |
+| macemen | 12 | 11 | `0,1,2,3,4,4,3,2,1,0` | 6 … 10 | 96 | 102 |
+| swordsmen | 12 | 11 | `0,1,2,3,4,4,3,2,1,0` | 6 … 10 | 96 | 102 |
+| pikemen | 8 | 7 | `0,0,1,1,1,1,1,0,0,0` | 6 … 7 | 64 | 70 |
+| archers | 13 | 9 | `0,0,1,1,2,2,1,1,0,0` | 6 … 8 | 104 | 110 |
+
+from `Anim_WalkA2` (`0x00486D83`, walking), `Anim_StrikeA2` (`0x00486249`,
+striking and standing), `Anim_StandA2` (`0x004872AE`, standing with the fidget),
+`Anim_CollapseA2` (`0x00487CE4`), `Anim_DyingA2` (`0x00487908`) and
+`Anim_DrawBowA2` (`0x0048804A`), which all write the frame index to figure
+`+0x10`. Strike cycles are `g_strikeCycleMace` (`0x004D9A00`), `g_strikeCycleBow`
+(`0x004D9A28`) and `g_strikeCyclePike` (`0x004D9A50`), stepped every fourth tick
+of a forty-tick loop; dying is `base + (facing & 6) / 2 * 3 + phase / 32`.
+
+**The layout closes with nothing spare.** Peasants: 0–5 walk, 6–8 strike (the
+cycle's maximum is 2), 9 stand — ten. Macemen: 0–5, 6–10 (maximum 4), 11 —
+twelve. Crossbowmen and archers: 0–5, 6–8, 9, and **10–12 the bow draw**, which
+is exactly where `Anim_DrawBowA2`'s otherwise unexplained `+ 10` puts it —
+thirteen. Pikemen at N = 8 are the one squeeze: the cycle's maximum is 1, so the
+strike's second frame is the standing pose. Getting the two blocks the wrong way
+round leaves the `+ 10` with nowhere to point.
 
 **Why this is more than a decompiler reading.** Every one of the **36** shipped
 `a2` sheets that is not a knight — six colours by six troop types — has exactly
@@ -1112,7 +1129,7 @@ New, and not in section 2 or section 3:
 | figure `+0x0E` | [V] | **animation phase**. Counts up and wraps at a bound the state handler chooses: `0x27` walking, `0x17` attacking, `0x5F` dying |
 | figure `+0x10` | [V] | **sprite frame index**, what the renderer draws |
 | figure `+0x11` | [V] | horse frame index, knights only |
-| figure `+0x19` | [D] | a **second** facing byte. `+0x18` drives the sub-cell offset and the attack animation; `+0x19` drives the idle and walking frame and is the column of the knight table. `+0x0D` is a copy of it, written at the end of every animation handler |
+| figure `+0x19` | [V] | a **second** facing byte. `+0x18` drives the sub-cell offset and the **walk** frame; `+0x19` drives the **strike** frame and is the column of the knight table. `+0x0D` is a copy of it, written at the end of every animation handler. **Corrected:** this row used to attach `+0x18` to the attack and `+0x19` to the walk, which is the same swap §14.5 corrects in the frame layout — `Anim_WalkA2` reads `dirc`, `Anim_StrikeA2` reads `dirc2` |
 | cell `+2` bit `0x01` | [V] | dirty; the renderer clears it after drawing |
 | cell `+2` bit `0x02` | [V] | set on the viewport border |
 | cell `+2` bits `0x1C` | [V] | tileset selector: 0 picks `t32_bat1`, 4 picks `t32_bat2`. `Battlefield_BuildFromSkr` clears them, so a field battle only ever uses the first |
@@ -1120,13 +1137,18 @@ New, and not in section 2 or section 3:
 
 Section 2.1's `+0x0C` — "animation phase, seeded as `(index*9 + x*16) & 0x3F +
 0xB4`" — is **not** the counter the animation handlers step; they step `+0x0E`.
-What `+0x0C` is for was not established.
+**It is now established:** `+0x0C` is the *fidget period* and `+0x0B` its
+counter, and §2.1 has been rewritten. See also §14.5, which corrects the frame
+layout above.
 
 ### 13.9 What is not established here
 
 * **The frame rate.** Still open, as section 11 says. Poses advance every four
   ticks and a walk cycle is forty ticks, but nothing converts a tick to a second.
-* **Which sprite set (`a2` or `a3`) the battlefield uses at which zoom.**
+* ~~**Which sprite set (`a2` or `a3`) the battlefield uses at which zoom.**~~
+  Settled: the `a3` animation handlers are unreachable — §14.4.
+* **Why `Anim_DrawBowA2` reads `g_mapRotation`**, which is the *campaign* map's
+  orientation. §14.8. It is the only function in the battle that does.
 * **The LFSR seed** a battle starts from, and therefore which grass tile any
   particular cell gets.
 * **Missiles, siege engines and the panel.** `A2_miss.pl8`, `Engine.pl8`,
@@ -1157,3 +1179,255 @@ cargo run -p l2-view -- --battle "F:\games\Lords of the Realm II" 1
 Ghidra scripts live in `ghidra_scripts_view/` (`VBDecomp`, `VBRefs`, `VBDump`,
 `VBCallArg`), kept separate from `ghidra_scripts_battle/` so parallel agents do
 not edit the same files.
+
+---
+
+## 14. The dispatch tables, read end to end
+
+Sections 1–13 were assembled function by function. This one was assembled by
+**constraint propagation**: pick something that cannot lie — a dispatch table
+read out of the file — and let each slot's index constrain what the function in
+it can be. Where the prediction held, the survivor became an anchor for its
+neighbours. Where it failed, the failure is recorded, because that is the only
+part of the method that is evidence about the method.
+
+The anchors this section rests on, in order of how much work they did:
+
+1. **`g_troopTickTable` and `g_manStateTable`, read out of `Lords2.exe`.** A
+   slot index is a fact, not a guess.
+2. **The frame counts of the shipped `.pl8` sheets.** Numbers from outside the
+   binary, which is the one thing `decisions.md` C3 could not have had.
+3. **The `Cell_TryEnter` return vocabulary**, already **[V]** in §3.
+4. **`BattleDebug_Panel`'s own field labels**, §0.
+
+### 14.1 `g_troopTickTable` names itself
+
+`0x004D9140`, eleven function pointers and a null. Slot *t* is the per-frame
+handler for troop type *t*, and each one reloads that type's constants into the
+figure before tail-calling `g_manStateTable[state]`. The constants are §6.1's
+table, and **all eleven handlers agree with all eleven rows**:
+
+| # | function | name | recovery | heavy blow | armour |
+|---:|---|---|---:|---:|---:|
+| 0 | `0x004825D1` | `TroopTick_Peasant` | 6 | 0 | 0 |
+| 1 | `0x004826B0` | `TroopTick_Crossbowman` | 8 | 0 | 12 |
+| 2 | `0x00482789` | `TroopTick_Maceman` | 12 | 300 | 12 |
+| 3 | `0x00482862` | `TroopTick_Swordsman` | 12 | 100 | 35 |
+| 4 | `0x0048293B` | `TroopTick_Pikeman` | 30 | 0 | 35 |
+| 5 | `0x00482A14` | `TroopTick_Archer` | 6 | 0 | 0 |
+| 6 | `0x00482AED` | `TroopTick_Knight` | 16 | 200 | 25 |
+| 7 | `0x00482BC6` | `TroopTick_Catapult` | 20 | 0 | 33 |
+| 8 | `0x00482CA8` | `TroopTick_SiegeTower` | 15 | 0 | 35 |
+| 9 | `0x00482D8A` | `TroopTick_BatteringRam` | 30 | 0 | 50 |
+| 10 | `0x00482E6C` | `TroopTick_Oil` | 8 | 0 | 40 / 25 |
+
+**[V]** — a check that could have failed eleven times over. A wrong table order
+scatters the constants across the wrong troops; a wrong reading of §6.1 would
+disagree somewhere. Neither happens.
+
+They also settle the `animSet` column §2.2 records as **[D]**: 1, 1, 2, 3, 2, 1,
+4, 0, 0, 0, 0. That maps one-to-one onto §6.1's exchange lengths — animSet 1 is
+40 ticks, 2 and 3 are 80, 4 is 120, 0 is a siege engine with no exchange.
+
+### 14.2 `g_manStateTable` has eighteen slots and all eighteen are named
+
+`0x004D9170`. The bound is the game's own: every tick handler above tests
+`state < 0 || state > 0x11` and calls `BattleMan_Destroy` outside it, and slot
+18 is the first entry of `g_battleUnitOrderField` — the two tables are adjacent.
+
+| # | function | name | Ev |
+|---:|---|---|---|
+| 0 | `0x00482F86` | `BattleMan_StateNone` — `ret` | [V] |
+| 1 | `0x00482F91` | `BattleMan_StateDelay` | [V] |
+| 2 | `0x004830E9` | `BattleMan_StateDead` | [V] |
+| 3 | `0x0048314E` | `BattleMan_StateWalk` | [V] |
+| 4 | `0x004831D8` | `BattleMan_StateMelee` | [V] |
+| 5 | `0x004832EA` | `BattleMan_StateIdle` | [V] |
+| 6 | `0x00483A88` | `BattleMan_StateAttackWall` | [V] |
+| 7 | `0x00483CE1` | `BattleMan_LookForMelee` | [V] |
+| 8 | `0x00483E55` | `BattleMan_StateChase` | [V] |
+| 9 | `0x00483FE1` | `BattleMan_StateFillMoat` | [V] |
+| 10 | `0x004842C6` | `BattleMan_StateEngineWalk` | [I] |
+| 11 | `0x0048437E` | `BattleMan_StateEngineHalt` | [I] |
+| 12 | `0x004843BC` | `BattleMan_StateEngineFire` | [V] |
+| 13 | `0x004849FC` | `BattleMan_StateEngineWork` | [I] |
+| 14 | `0x00484A0C` | `BattleMan_StateRamGate` | [V] |
+| 15 | `0x00484B89` | `BattleMan_StateEngineDead` | [V] |
+| 16 | `0x00484BEE` | `BattleMan_StateUnused16` — `ret` | [I] |
+| 17 | `0x00484BF9` | `BattleMan_StateCloseToAttack` | [V] |
+
+The **[I]** rows live in `docs/hypotheses.json`, not `symbols.json`.
+
+**§2.2's state list had two entries wrong**, and both are the kind of error a
+propagating network catches rather than a reading does:
+
+* **State 6 is not "blocked".** It is a figure hitting the castle wall it just
+  walked into. A figure gets there from `BattleMan_Step` when
+  `BattleMan_TryStepDir` returns **5**, and §3 already established **[V]** that
+  `Cell_TryEnter` returns 5 for cell flag `0x20` against a non-zero side.
+* **State 9 is the moat fill**, not "siege-wall movement". `docs/battle-ai.md`
+  §5 already said so; §2.2 was never reconciled with it.
+
+Two more states carry the game's own vocabulary. **State 1 is the wait state**:
+it counts `delay` (`+0x30`) down and restores `dly state` (`+0x2F`) — the two
+labels `BattleDebug_Panel` prints — and `BattleMan_Step` is the writer at the
+other end, saving the current state and setting `delay` to `(other & 1) + 1`
+when a friendly figure blocks the step. **State 2 is a corpse**: it steps the
+collapse animation and counts `+0x173` to 80 before freeing the slot, and state
+15 is its siege-engine twin at 120. `+0x173` is a field §2.3 does not list.
+
+### 14.3 How a castle actually comes down
+
+Not written down anywhere before. Two accumulators, and they are not
+interchangeable:
+
+| | counter | fed when | threshold | effect |
+|---|---|---|---:|---|
+| rampart | `g_wallHitsRampart` `0x00554034` | the figure stands on surface **5** | 5,000 | that patch becomes surface 4, the counter **resets**, `g_rampartCellsBreached` + 1 |
+| gate | `g_wallHitsGate` `0x00568DA4` | anything else | 20,000 | one-shot: `g_gateBreached` = 1, and `g_siegeApproachScore` and `g_siegeBreachScore` both + 4 |
+
+A man on foot adds **1** per frame; a battering ram in state 14 adds **20**. So
+one ram opens a gate in a thousand frames where a lone swordsman needs twenty
+thousand. The gate counter never resets, so a siege gets exactly one of those
+breaches; the rampart counter does, so a wall can be chewed through repeatedly.
+Surface 4 is what `Siege_FindCellSurface4` then hunts for, which is how the
+order layer learns the wall is down.
+
+State 14 is reachable **only by a ram**, and that is a fact rather than a
+reading: `BattleMan_TryStepDir` sends any siege engine to `Cell_TryEnterEngine`,
+whose two leaf tests — `Cell_TryEnterEngineOrtho` and `Cell_TryEnterEngineDiag`,
+sweeping the engine's three-cell leading edge from `g_engineEdgeOrtho` and
+`g_engineEdgeDiag` — return `6` for a cell flagged `0x20` or `0x40` **only when
+`troopType == 9`**. `Cell_TryEnter` itself never returns 6, and `6` is the one
+value `BattleMan_Step` turns into state 14.
+
+`Cell_TryEnter` also carries a flag §3 does not list: **`0x08` is impassable for
+side 4 and merely occupied for side 0**, and it raises `0x00553F3C` on the way
+past. A side-4 figure entering a **surface-7** cell — the bridge — calls
+`0x0048551D` first.
+
+### 14.4 The six `a3` animation handlers are unreachable code
+
+Twelve animation functions sit in `0x00486249 … 0x00488240` in six adjacent
+pairs, reached through six sixteen-byte thunks at `0x004861E9 … 0x00486239`.
+Every thunk calls the *first* of a pair. The second of every pair has **no
+caller and no table entry anywhere in the binary**, and is otherwise the same
+code with four constants substituted.
+
+| a2, live | a3, unreachable | what changes |
+|---|---|---|
+| `Anim_StrikeA2` `0x00486249` | `Anim_StrikeA3` `0x004867CC` | N 12/13/8/10 → 7/8/5/6 |
+| `Anim_WalkA2` `0x00486D83` | `Anim_WalkA3` `0x0048702F` | phase wrap `0x17` → `0x0B` |
+| `Anim_StandA2` `0x004872AE` | `Anim_StandA3` `0x004875F7` | the same N substitution |
+| `Anim_DyingA2` `0x00487908` | `Anim_DyingA3` `0x00487AF6` | base 102/110/70/86 → 57/65/41/49 |
+| `Anim_CollapseA2` `0x00487CE4` | `Anim_CollapseA3` `0x00487EB1` | base 96/104/64/80 → 56/64/40/48 |
+| `Anim_DrawBowA2` `0x0048804A` | `Anim_DrawBowA3` `0x00488240` | N 13 → 8, base +10 → +6 |
+
+**This is the shape of C3 — six things matching six other things — so it is
+anchored outside the binary, in the shipped art:**
+
+* The `a3` sheets hold `8 * N + 13` frames for N = 6, 8, 7, 7, 5, 8: `A3*_psnt`
+  61, `A3*_cros` 77, `A3*_mace` 69, `A3*_swor` 69, `A3*_pike` 53, `A3*_arch` 77.
+  Those are exactly the six frames-per-facing the `a3` handlers use.
+* `Anim_DyingA3`'s bases are `8 * N + 1`, and `13 − 1 = 12` = four half-facings
+  of three dying frames, the same twelve as `a2`.
+* `Anim_CollapseA3`'s bases are `8 * N + 0` and it plays **one** frame, not the
+  six `a2` plays — which is all the remaining space allows.
+* `Anim_StrikeA3` writes `horseFrame = dirc` where `a2` writes `dirc * 6`.
+  `A3_horse.pl8` has **8** frames; `A2_horse.pl8` has 48.
+
+Five identities over four troop groups, none of them from the code. The **[V]**
+claim is that these are the `a3` handlers *and* that nothing calls them. What is
+**not** established is why they were compiled in: the skirmish and roster screens
+do load the `a3` sheets (§13.4), so something draws them — not this state machine.
+
+### 14.5 Walking and striking were the wrong way round
+
+§13.5 is corrected above. Five agreements, no two of the same kind:
+
+1. `Anim_WalkA2` gives poses 0…5 over a 24-tick loop and is called at the **top**
+   of `BattleMan_StateWalk` and `BattleMan_StateChase` — the two states that walk.
+2. `Anim_StrikeA2` gives poses from base 6 and is called at the top of
+   `BattleMan_StateMelee` and `BattleMan_StateAttackWall` — the two that hit.
+3. `BattleMan_StateMelee` calls `Anim_WalkA2` **only** when `BattleMan_Step`
+   reports the figure moved; `BattleMan_StateWalk` calls `Anim_StandA2` when it
+   did not. Under the old labelling a walking figure would play the attack every
+   frame and a duelling figure would attack only while shuffling sideways.
+4. `Anim_StrikeA2` plays the cycle only while the figure holds the **attacker**
+   role (`+0x185 == 1`) and otherwise shows the standing pose — §6.1's
+   attacker/defender mechanic, drawn.
+5. The index space closes only one way round. Crossbowmen and archers have
+   N = 13: walk 0–5, strike 6–8, stand 9, **bow draw 10–12**. That is where
+   `Anim_DrawBowA2`'s `+ 10` points, and there is nowhere else for it to point.
+
+`Anim_WalkA2` reads `dirc` (`+0x18`); `Anim_StrikeA2` reads `dirc2` (`+0x19`).
+§13.8's row had those two the other way round as well, for the same reason.
+
+The five cycle tables and four draw curves tile `0x004D9A00 … 0x004D9C08`
+exactly — five of `0x28` then four of `0x50` — which is a second reason to
+believe the `a3` pairing: the `a3` tables are in the block, sized like the
+others, and nothing reads them.
+
+### 14.6 `+0x0C` is the fidget period
+
+§13.8 recorded that `+0x0C` is seeded at creation and is not the counter the
+animation steps, and left it there. It has one writer (`BattleMan_Create`) and
+two readers, both `Anim_Stand*`. `+0x0B` counts up each frame and, when it
+passes `+0x0C`, resets and turns `facingDrawn` one step — one way on an even map
+x, the other on an odd one. The seed is `((index * 9 + x * 16) & 0x3F) + 0xB4`,
+so **180 to 243 frames**. A rank of men standing still shuffles, and no two
+neighbours shuffle together.
+
+### 14.7 The missile flight is a Bresenham line
+
+`Missile_SetupLine` (`0x00493CB9`), called by `Missile_Spawn`, writes `|dx|` to
+missile `+0x20`, `|dy|` to `+0x24` and `2 * min − max` to the error term at
+`+0x28`, then snaps the flight direction `+0x2E` to the nearer octant when one
+axis is more than twice the other. `Missile_StepError` (`0x00493B61`) is one
+error update per sub-step, and `Missile_StepTowardTargetX` / `…Y` move the
+1/32-cell position one unit at a time. `Missile_OffMap` retires a missile that
+leaves 0…79 in either axis — the battlefield bound again. `Missile_LinkToCell`
+and `Missile_ClearCellLists` are the two ends of the per-cell missile list §3
+records at cell byte `+6`; the link walk gives up after ten.
+
+### 14.8 One thing that stayed coherent and unanchored
+
+`Anim_DrawBowA2` is **the only function in the battle that reads
+`g_mapRotation`** — the *campaign* map's orientation, 0/2/4/6 — and it rotates
+the figure's facing by it before choosing a frame. Two readings fit equally
+well: the battlefield honours a rotation nothing else in §13 implements, or the
+routine is a paste from the campaign unit renderer (which does
+`facing − g_mapRotation` on the same idiom) and only its `== 0` branch ever
+runs. Nothing in the corpus separates them. **Recorded, not narrated** — it is in
+`docs/hypotheses.json` under `corrections`, and settling it needs either the
+16-pixel renderer read or a live battle.
+
+### 14.9 A correction that belongs to another document
+
+`g_deterministicBattle` (`0x00553030`) is almost certainly **the multiplayer
+flag**, and the battle layer is where that became visible. It is written to 1 in
+exactly one place — after a DirectPlay session opens in `FUN_004B7250` — and to
+0 on every failure and teardown path; `Lords2.exe` imports `DPLAYX.dll`;
+`FUN_0043EDA0` builds and sends a network packet and returns immediately unless
+this global is set; and `FUN_0043B593` uses it to choose between calling
+`Battle_Start` locally and sending network message `0x3C`, whose serialiser
+(`0x00444A2F`) packs `g_battleApproachLane` and `g_battleRallyGroup` — the two
+values §8 of `docs/battle-ai.md` says are randomised in single player and
+advanced cyclically otherwise. Both facts are explained by "this is a network
+game" and only one of them is explained by "battles are deterministic".
+
+Not renamed here: it is read by more than a hundred functions across the county,
+setup and diplomacy screens, and four agents are appending to `symbols.json`.
+The evidence is in `docs/hypotheses.json` under `corrections`.
+
+### 14.10 Reproduction
+
+```bash
+# every dispatch table in this section, straight out of the PE
+node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9140 12
+node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9170 18
+node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9a00 50
+
+# the a2/a3 frame identity, from the shipped art rather than the binary
+node tools/battle/sheetframes.js "F:/games/Lords of the Realm II"
+```

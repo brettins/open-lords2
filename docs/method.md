@@ -333,7 +333,96 @@ The same run found `g_battleMen` and `g_battleUnits` are **81** records, not the
 `symbols.json` comments say: every sweep is `for (i = 1; i < 0x51; i++)`, so index 80 is
 live, and nothing else in the binary claims the storage behind it.
 
-## 8. What "done" means
+## 9. Two tiers of name, and the file that keeps them apart
+
+`docs/symbols.json` is 465 functions with a deliberately high verified ratio, and
+**that ratio is the only thing that makes it worth reading.** A bulk pass over a
+subsystem produces far more plausible names than checked ones — §7.3 measured the
+gap at 89% for subject and 58% for role — so pouring a whole pass into it would
+destroy the property that makes it useful.
+
+So there are two files:
+
+| | `docs/symbols.json` | `docs/hypotheses.json` |
+|---|---|---|
+| what goes in | **[V]** a check that could have failed, recorded in the comment | **[I]** a plausible name and the reason to think it |
+| extra fields | — | `basis`, `confidence` |
+| applied to Ghidra | yes, by `ApplySymbols` | **no** |
+| in `docs/symbols.md` | yes, regenerated | no |
+| in the decompiled corpus | yes, the function reads by name | no, it stays `FUN_...` |
+
+An entry is **promoted** when somebody runs a real check: move it across and
+delete it from `hypotheses.json` in the same commit, with the check in the
+comment. Nothing is promoted by having sat there a while.
+
+`hypotheses.json` also carries a **`corrections`** array, for claims elsewhere
+that a pass believes are wrong but did not rewrite — because the entry belongs to
+another subsystem, or because another agent is appending to the same file. Each
+correction carries its evidence and a `notDoneBecause`. That is not a to-do list;
+it is the alternative to either silently leaving a known error in place or
+reaching into somebody else's file mid-flight.
+
+### 9.1 What "a check that could have failed" means in practice
+
+The bar is not "I read the function and it does that". It is: **name a
+consequence of the guess that the evidence could have contradicted, and go and
+look.** From the battle pass, in ascending order of strength:
+
+* **A dispatch table read out of the file.** The slot index is a fact. Eleven
+  functions in `g_troopTickTable` wrote eleven sets of constants and every set
+  matched the troop on that row of `docs/battle.md` §6.1 — a wrong table order
+  scatters them, so the agreement is evidence and not a restatement.
+* **Arithmetic that closes with nothing left over.** A figure's sprite sheet
+  splits into walk, strike, stand and — for bowmen only — a draw block, and the
+  bow animation's otherwise unexplained `+ 10` lands exactly in the gap the other
+  three leave. There is one way to fit it.
+* **Numbers from outside the binary.** Six animation functions pairing with six
+  others is the shape of C3. What made it evidence was the *shipped art*: the a3
+  sheets hold `8 * N + 13` frames for exactly the six N the a3 handlers use, and
+  `A3_horse.pl8` has 8 frames against `A2_horse.pl8`'s 48, matching
+  `horseFrame = dirc` against `dirc * 6`. The binary cannot have arranged that.
+
+### 9.2 Constraint propagation, and its failure mode
+
+Naming a subsystem one function at a time costs the same for the thousandth as
+for the first. Naming it as a graph does not: **a guess is a set of predictions
+about its neighbours**, and each prediction that holds makes the next one
+cheaper. If X is the fight-or-autocalc prompt, its callers are battle initiation
+and its callees are the autocalc path; go and check.
+
+The danger is the one C3 names, and propagation makes it *worse*, not better: a
+network of mutually supporting wrong guesses feels more convincing the larger it
+grows, because every new member is consistent with all the others. Two rules:
+
+* **Never let a region float free of an anchor.** An anchor is something that
+  cannot lie — a table read out of the file, a string the game displays, a
+  saved-game value, a frame count in the shipped art, an invariant that closes.
+  A cluster that is coherent and touches nothing external is **[I]** at best, and
+  saying so is the deliverable.
+* **Say where the network stayed coherent and unanchored.** The battle pass ended
+  with exactly one: the bow-draw animation reads the *campaign* map's rotation
+  and nothing else in the battle does. Two stories fit and no evidence separates
+  them, so it is written down as unresolved rather than narrated into place. That
+  paragraph is worth more than the fifty names around it, because it is the one
+  place the next person should look first.
+
+### 9.3 The tool is a convenience over the corpus, not an authority
+
+`anchor.js` shipped a bug in its C-literal parser: `'\b'` came back as the letter
+`b` (0x62) rather than backspace (0x08). It produced six screen ids that do not
+exist, **self-consistently, joined across three dispatchers**, and was caught only
+because `docs/screens-county.md` already held the right ids. That is C3 living
+inside the tooling, which is worse than C3 in an analysis, because every agent
+inherits it and each one's coherence corroborates the others'.
+
+So: **anything small and enumerated — state bytes, unit kinds, order ids, troop
+indices — is exactly what gets written as a char escape**, and a figure taken
+through a tool should be confirmed against the corpus text or the bytes. The
+corpus is the evidence; the tools are grep with structure.
+
+---
+
+## 10. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
