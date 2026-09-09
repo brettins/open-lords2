@@ -480,6 +480,129 @@ fn a_merchant_is_drawn_and_opens_the_merchant_screen_from_the_county_it_is_in() 
     assert_eq!(t, Transition::Stay, "a merchant in a county you do not own opens nothing");
 }
 
+/// **A merchant is clickable across its whole tile and its whole figure, and a
+/// different county being selected changes nothing.**
+///
+/// The player: *"there seems to be some weird thing where a certain county is
+/// 'selected', and if I click a merchant while the map has a different county
+/// selected it will open up the tax window."* The selection was innocent. The
+/// hit test asked the unit's nine-pixel *marker* box while the figure drawn is
+/// 40 × 32 on a 58 × 30 tile — so most clicks on a merchant missed the unit arm
+/// entirely and fell through to our own "a second click on the selected county
+/// opens its panel", which is the tax window.
+///
+/// `Map_ResolvePick` (`0x0046D5FE`) has no such problem: `g_pickedTileUnit =
+/// g_tiles[t].unit`, so the whole tile is the merchant. This sweeps both — the
+/// tile's diamond and the figure's opaque pixels — with an unrelated county
+/// selected throughout, and requires every one of them to reach the merchant.
+#[test]
+fn a_merchant_is_clickable_over_its_whole_tile_whichever_county_is_selected() {
+    let (mut game, assets) = world!();
+    let mine = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let elsewhere = (1..=game.kingdom.county_count as u8)
+        .find(|&id| id != mine)
+        .expect("England has more than one county");
+    let merchant = game
+        .kingdom
+        .campaign
+        .units
+        .iter()
+        .find(|(_, u)| u.kind == l2_kingdom::UnitKind::Merchant)
+        .map(|(id, _)| id)
+        .expect("the fixture ships six merchants");
+
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+    let (ax, ay) = {
+        let c = &game.kingdom.counties[mine as usize];
+        (c.anchor_x, c.anchor_y)
+    };
+    {
+        let u = game.kingdom.campaign.units.get_mut(merchant).expect("the merchant");
+        u.x = ax;
+        u.y = ay;
+        u.county = mine;
+    }
+    // **A different county is selected for the whole sweep.** That is the
+    // player's condition, and it must make no difference.
+    game.select(elsewhere);
+    draw(&mut screen, &mut game, &assets);
+
+    let (cx, cy) =
+        campaign::tile_centre(screen.viewport(), screen.zoom(), ax as usize, ay as usize)
+            .expect("the anchor is in shot");
+    let zoom = *screen.zoom();
+    let (hw, hh) = (zoom.tile_w / 2, zoom.tile_h / 2);
+
+    let hits = |screen: &MapScreen, game: &mut Game, pts: &[(i32, i32)]| {
+        let mut ok = 0;
+        for &(x, y) in pts {
+            let ctx = Ctx { game, assets: &assets };
+            if screen.unit_at(&ctx, x, y) == Some(merchant) {
+                ok += 1;
+            }
+        }
+        ok
+    };
+
+    // Half the diamond's rows, on its centre line and near its two side
+    // vertices — points the old marker box could not reach.
+    let mut ground = Vec::new();
+    for dy in -hh + 2..hh - 1 {
+        let span = hw - (dy.abs() * hw) / hh;
+        for dx in [-span + 2, 0, span - 2] {
+            ground.push((cx + dx, cy + dy));
+        }
+    }
+    assert!(ground.len() > 60, "the diamond is 58 x 30 and this samples it");
+    assert_eq!(
+        hits(&screen, &mut game, &ground),
+        ground.len(),
+        "every pixel of the merchant's own tile is the merchant"
+    );
+
+    // And the figure, which stands up over the tiles behind its own.
+    let sprite = {
+        let u = game.kingdom.campaign.units.get(merchant).expect("the merchant");
+        campaign::UnitSprite {
+            sheet: u.sprite_sheet(),
+            frame: u.sprite_frame(0),
+            nudge: u.sprite_nudge(),
+        }
+    };
+    let rect = campaign::unit_sprite_rect(
+        &assets.map,
+        screen.viewport(),
+        &zoom,
+        (ax as usize, ay as usize),
+        sprite,
+    );
+    if let Some((ox, oy, art)) = rect {
+        assert!(art.height as i32 > zoom.tile_h, "the figure is taller than its tile");
+        let mut figure = Vec::new();
+        for dy in 0..art.height as i32 {
+            for dx in 0..art.width as i32 {
+                if art.opaque[dy as usize * art.width as usize + dx as usize] {
+                    figure.push((ox + dx, oy + dy));
+                }
+            }
+        }
+        assert!(figure.len() > 200, "the merchant is a figure, not a dot");
+        assert_eq!(
+            hits(&screen, &mut game, &figure),
+            figure.len(),
+            "every painted pixel of the merchant is the merchant"
+        );
+    }
+
+    // The selection is untouched by the sweep, and the click still trades.
+    assert_eq!(game.selected, elsewhere, "hit-testing selects nothing");
+    let t = send(&mut screen, &mut game, &assets, Event::Click { x: cx, y: cy });
+    assert_eq!(t, Transition::Push(ScreenId::Merchant(merchant)), "and it opens the merchant");
+}
+
 /// Zooming out reaches the rest of the map, and scrolling moves the near view.
 /// Both halves matter: a viewport that could not move would be the minimap the
 /// user complained about, in a smaller rectangle.

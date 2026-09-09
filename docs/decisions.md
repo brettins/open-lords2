@@ -2206,6 +2206,44 @@ they compare two independent recordings of one fact (the record against the map,
 region against the frame it should hold, every painted pixel against the toggle it should
 reach), and each of them fails on the code as it stood.
 
+**C58 — A unit is picked by its *tile*, not by the marker we drew on it. Ours asked a
+nine-pixel box on a 58 × 30 diamond, so most clicks on a merchant missed it — and our own
+"a second click opens the county" caught them.**
+
+The player, in the same session as C57: *"there seems to be some weird thing where a certain
+county is 'selected', and if I click a merchant while the map has a different county selected
+it will open up the tax window."*
+
+**The selection is innocent.** `Map_Click` consults `g_selectedCounty` for exactly one thing,
+and it is not a hit test: the site and merchant arms compare it with the picked county in
+order to decide whether to *re-centre* first. The pick itself is positional throughout.
+
+**The hit test was the defect, and it is C57's defect again.** `Map_ResolvePick`
+(`0x0046D5FE`) reads `g_pickedTileUnit = g_tiles[t].unit` — **the whole tile is the unit**.
+Ours hit-tested the little square marker instead, `unit_marker_half + 1` around the tile
+centre, which is nine pixels across at the near zoom; the merchant that is actually drawn is
+a 40 × 32 figure from `Sprite1a.pl8`. So a click on the visible merchant usually resolved to
+no unit at all, fell past the settlement, town and field arms, and landed on ours. Fixed the
+same way and for the same reason: **the tile first, which is the original's entire answer**,
+then the drawn figure's opacity mask, because `Map_DrawArmies` anchors a sprite on the tile's
+*bottom vertex* and it therefore stands up over the tiles behind it. The tile wins whenever
+it holds a unit, so the fallback can add an answer and can never move one.
+
+**What a click on empty ground does in the original: nothing.** This was asked as a separate
+question and it has a flat answer — `Map_Click` has **no county-selection arm**. Its only
+writes to `g_selectedCounty` are inside the merchant, town and industry-site branches, beside
+a `Map_CentreOnTile`. Selecting a county from the map is entirely ours, and so is the second
+click that opens its panel.
+
+**That is worth stating on its own, because it is the amplifier under both reports.** In the
+original a hit test that misses costs nothing — the click falls off the end of the function
+and the player clicks again two pixels lower. In ours a miss *does something*: it selects,
+and a second miss opens a modal county panel. Every geometric shortfall anywhere on the map
+is therefore converted into a visible wrong screen. The convenience is kept for now — the
+county strip needs a selection and the original's routes to one are the strip and the minimap
+— but it should be read as a standing multiplier on hit-test accuracy rather than as a free
+extra.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

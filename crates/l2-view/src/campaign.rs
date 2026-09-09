@@ -457,6 +457,32 @@ pub fn draw_unit(
     true
 }
 
+/// Where [`draw_unit`] would put a unit's figure, and the frame it would use.
+///
+/// The same arithmetic, factored out so that a **hit test** can ask where the
+/// figure actually is rather than guessing at a box around the tile centre. A
+/// sprite is anchored on the tile's bottom vertex and is taller than the tile,
+/// so most of it stands over the tiles behind — see `docs/decisions.md` C57 and C58.
+/// `None` when the sheet or the frame is missing, which is a caller's cue to
+/// fall back on whatever it draws instead of the figure.
+pub fn unit_sprite_rect(
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    sprite: UnitSprite,
+) -> Option<(i32, i32, l2_formats::pl8::DecodedFrame)> {
+    let decoded = assets.sprite_sheet(zoom, sprite.sheet)?.frame(sprite.frame)?;
+    let (row, col) = tile_to_cell(tile.0, tile.1);
+    let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    let (nx, ny) = sprite.nudge;
+    Some((
+        sx + zoom.half_pitch + nx - decoded.width as i32 / 2,
+        sy + zoom.half_pitch + ny - decoded.height as i32,
+        decoded,
+    ))
+}
+
 /// Which sheet, which frame and which per-kind nudge one unit draws with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UnitSprite {

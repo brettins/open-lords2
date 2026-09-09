@@ -632,6 +632,19 @@ construction for "which tile can the player see here", and *not* the same algori
 * **`Map_Click` does nothing at all at the far zoom.** The whole dispatcher is inside
   `if (g_mapZoom != 2)`.
 
+**And the unit is picked from the tile, not from the figure.** `g_pickedTileUnit =
+g_tiles[t].unit` — one byte on the tile record — so a click anywhere on a unit's diamond is
+that unit and a click on the part of its sprite that overhangs its neighbours is not.
+`docs/decisions.md` C58: ours asked the unit's drawn marker instead, which is nine pixels
+across, and a 40 × 32 merchant was therefore mostly unclickable.
+
+**There is no county-selection arm.** `Map_Click` writes `g_selectedCounty` only inside the
+merchant, town and industry-site branches, always beside a `Map_CentreOnTile`, and a click on
+ordinary ground falls off the end of the function having done nothing. Selecting a county by
+clicking the map, and our second click opening its panel, are **both ours** — and because
+they are, every hit-test shortfall on this screen turns into a visibly wrong screen rather
+than into nothing happening. That is the amplifier under both C57 and C58.
+
 **What is then done with the tile is `Map_Click` (`0x0043CE1A`)**, 1,263 bytes, and it is
 where most of this interface is actually reached from. `Map_ResolvePick` (`0x0046D5FE`)
 hands it the picked county, that county's owner, `g_pickedTileFlags` — the attribute plane

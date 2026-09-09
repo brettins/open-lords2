@@ -766,25 +766,81 @@ impl MapScreen {
         None
     }
 
-    /// The unit whose marker covers a pixel — `g_pickedTileUnit`.
+    /// **`g_pickedTileUnit` — the unit standing on the tile a pixel is in.**
     ///
-    /// It asks the *marker*, not the tile, so that a click on a drawn army is
-    /// the army whatever the projection thinks of the pixel. Walked in ascending
-    /// slot order, so two units on adjacent tiles resolve the same way twice.
+    /// `Map_ResolvePick` (`0x0046D5FE`) reads it out of the tile record —
+    /// `g_pickedTileUnit = g_tiles[t].unit` — so in the original a click
+    /// **anywhere on a unit's tile** is that unit. This asked the unit's little
+    /// *marker* instead, a box `unit_marker_half + 1` around the tile centre,
+    /// which at near zoom is nine pixels across on a diamond that is 58 × 30.
+    ///
+    /// That is what a player reported as *"if I click a merchant while the map
+    /// has a different county selected it will open up the tax window"*: the
+    /// click missed the box, fell past the unit arm and past the settlement,
+    /// town and field arms, and landed on our own "a second click on the
+    /// selected county opens it". Same shape as the mine (`docs/decisions.md`
+    /// C57) and the same cause — a hit test smaller than the thing drawn. C58.
+    ///
+    /// So: **the tile first, which is the original's whole answer**, and then
+    /// the drawn figure, because `Map_DrawArmies` anchors a sprite on the
+    /// tile's *bottom vertex* and it therefore stands up over the tiles behind
+    /// it — pixels the original would resolve to a tile with no unit on it.
+    /// Ours can add an answer there; it can never move one, because the tile
+    /// wins whenever it has a unit.
     pub fn unit_at(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
         if !self.map_clip().contains(x, y) {
             return None;
         }
-        ctx.game.kingdom.campaign.units.iter().find_map(|(id, u)| {
-            let (cx, cy) = campaign::tile_centre(
-                self.view,
-                &self.zoom,
-                u.x as usize,
-                u.y as usize,
-            )?;
-            let r = unit_marker_half(&self.zoom, u) + 1;
-            ((x - cx).abs() <= r && (y - cy).abs() <= r).then_some(id)
+        let units = &ctx.game.kingdom.campaign.units;
+        if let Some((tx, ty)) = self.pick_tile(x, y) {
+            // Ascending slot order, so two units sharing a tile — which the
+            // original's single `tile.unit` byte cannot even express — resolve
+            // the same way twice. `docs/netcode.md` §3.
+            if let Some(id) = units.iter().find(|(_, u)| u.x == tx && u.y == ty).map(|(id, _)| id) {
+                return Some(id);
+            }
+        }
+        units.iter().find_map(|(id, u)| {
+            if u.is_garrisoned() {
+                // Drawn as a hollow marker, not a figure — there is no sprite
+                // to hit-test, so the marker box is the whole of it.
+                let (cx, cy) = campaign::tile_centre(self.view, &self.zoom, u.x as usize, u.y as usize)?;
+                let r = unit_marker_half(&self.zoom, u) + 1;
+                return ((x - cx).abs() <= r && (y - cy).abs() <= r).then_some(id);
+            }
+            self.unit_sprite_covers(ctx, u, x, y).then_some(id)
         })
+    }
+
+    /// Whether a pixel lands on a unit's drawn figure, at
+    /// [`campaign::draw_unit`]'s own placement and against the frame's own
+    /// opacity mask. Falls back to the marker box when the sprite sheets are
+    /// missing, which is the case in every test that runs without an install.
+    fn unit_sprite_covers(&self, ctx: &Ctx, u: &l2_kingdom::Unit, x: i32, y: i32) -> bool {
+        let Some((cx, cy)) =
+            campaign::tile_centre(self.view, &self.zoom, u.x as usize, u.y as usize)
+        else {
+            return false;
+        };
+        let sprite = campaign::UnitSprite {
+            sheet: u.sprite_sheet(),
+            frame: u.sprite_frame(0),
+            nudge: u.sprite_nudge(),
+        };
+        match campaign::unit_sprite_rect(&ctx.assets.map, self.view, &self.zoom, (u.x as usize, u.y as usize), sprite) {
+            Some((ox, oy, decoded)) => {
+                let (dx, dy) = (x - ox, y - oy);
+                dx >= 0
+                    && dy >= 0
+                    && dx < decoded.width as i32
+                    && dy < decoded.height as i32
+                    && decoded.opaque[dy as usize * decoded.width as usize + dx as usize]
+            }
+            None => {
+                let r = unit_marker_half(&self.zoom, u) + 1;
+                (x - cx).abs() <= r && (y - cy).abs() <= r
+            }
+        }
     }
 
     /// The army the map is currently giving orders to, if it is still an army.
