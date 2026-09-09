@@ -5517,7 +5517,7 @@
       "name": "Setup_SetOption",
       "section": "ui",
       "confidence": "verified",
-      "signature": "void __cdecl Setup_SetOption(int which, int value)",
+      "signature": "void Setup_SetOption(int which, int value)",
       "comment": "The custom game's twelve drop-downs, all of them: one if/else if chain on the option index writing one of g_setupOpt* at 0x0053F288..0x0053F2B4. Called from FUN_00433A23 with the clicked row minus one, then calls Setup_RecountAiLords. NOT the g_opt* block - these are the twelve selections, and Setup_CommitOptions turns them into what a game runs on."
     },
     {
@@ -5549,7 +5549,7 @@
       "name": "Setup_NoblesFromMap",
       "section": "ui",
       "confidence": "verified",
-      "signature": "void __cdecl Setup_NoblesFromMap(int playerStarts)",
+      "signature": "void Setup_NoblesFromMap(int playerStarts)",
       "comment": "Sets g_setupOptNobles from a map's seat count - under 3 picks two, under 4 three, under 5 four, otherwise five. Called with g_playerStartCount from all three ways of changing the scenario and from the Defaults button, so the lord count follows the map in both directions. FUN_00433999 shortens the open list to g_playerStartCount - 1 rows at the same time."
     },
     {
