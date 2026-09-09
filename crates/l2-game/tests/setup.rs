@@ -128,18 +128,58 @@ fn start_carries_all_twelve_settings_into_the_game() {
     assert_eq!(game.kingdom.realms[player].gold, STARTING_GOLD[4]);
     assert_eq!(game.kingdom.realms[player].weapons, START_ARMOURY[3]);
     assert_eq!(game.kingdom.realms[player].iron, setup::STARTING_MATERIALS);
+    // **The stores are read one season later than they used to be**, because
+    // *Start* now does what `Game_NewGame` does and runs the first
+    // `Season_Advance` before handing the world over — a new game begins in
+    // Winter 1268, not in the Autumn 1267 the county-status row is written
+    // into. So the row is checked where the season leaves it visible:
+    // `pop_last` is the population the pass started from, which is the row's.
     for id in game.kingdom.county_ids() {
         let c = &game.kingdom.counties[id];
-        assert_eq!(c.herd, COUNTY_STATUS[2].herd, "county {id}");
-        assert_eq!(c.population, COUNTY_STATUS[2].population, "county {id}");
+        assert_eq!(c.pop_last, COUNTY_STATUS[2].population, "county {id}");
         if c.owner != 0 {
             assert_eq!(c.castle_type, 5, "a royal castle in county {id}");
-            assert_eq!(c.grain, COUNTY_STATUS[2].grain);
-        } else {
-            // The one place setup treats a neutral county differently.
-            assert_eq!(c.grain, COUNTY_STATUS[2].grain + setup::UNOWNED_COUNTY_GRAIN_BONUS);
         }
     }
+    assert_eq!(game.kingdom.season, 4, "Winter");
+    assert_eq!(game.kingdom.year, 1268);
+    assert_eq!(game.kingdom.turn_count, 1);
+}
+
+/// **The *County Status* row reaches the land**, measured through the season
+/// rather than around it.
+///
+/// The three rows differ by a factor of eight in the herd and seven in the
+/// population, and one season of eating does not close that — so the ordering
+/// survives, and asserting the ordering asserts the setting arrived without
+/// asserting a number the season is entitled to move.
+#[test]
+fn the_county_status_row_still_orders_the_counties_after_the_first_season() {
+    let Some(dir) = install() else {
+        l2_testkit::skip!("no game install, so no L2_maps.dat and no L2.eng");
+    };
+    let platform = Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::load(&platform.vfs).expect("assets load");
+    let mut totals = Vec::new();
+    for row in 0..3usize {
+        // **From an empty game, not from the fixture.** *Start* replaces the
+        // whole world now, so a new game needs no save at all — which is the
+        // property this whole commit is about, asserted in passing.
+        let mut game = Game::new(scenario::SEED);
+        let mut screen = SetupScreen::new(SetupPage::Custom);
+        tick(&mut screen, &mut game, &assets);
+        choose(&mut screen, &mut game, &assets, option::COUNTY_STATUS, row);
+        let t = press_start(&mut screen, &mut game, &assets);
+        assert_eq!(t, Transition::Push(ScreenId::Campaign), "row {row} did not start");
+        let herd: i32 = game.kingdom.county_ids().map(|id| game.kingdom.counties[id].herd).sum();
+        let pop: i32 = game.kingdom.county_ids().map(|id| game.kingdom.counties[id].pop_last).sum();
+        totals.push((herd, pop));
+    }
+    let [weak, medium, strong] = <[(i32, i32); 3]>::try_from(totals).unwrap();
+    assert!(weak.0 < medium.0 && medium.0 < strong.0, "the herd: {weak:?} {medium:?} {strong:?}");
+    assert!(weak.1 < medium.1 && medium.1 < strong.1, "the population");
+    // …and the population really is the row's, fourteen counties of it.
+    assert_eq!(strong.1, 14 * COUNTY_STATUS[2].population);
 }
 
 #[test]

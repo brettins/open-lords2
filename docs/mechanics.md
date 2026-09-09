@@ -360,12 +360,19 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
     and `Game_SetupRealmsAndCounties` hands it to `Army_Create`; ours does not, because
     raising an army needs a muster tile and the county's food passes re-run around it, and
     that is `l2_kingdom::levy`'s single path rather than a second one at setup.
-  - 🕳 **A new game cannot start on a map other than the save's.** The map list picks a slot
-    and the slot's seat count really does drive the lord count, but building a *world* from a
-    `L2_maps.dat` slot is `Map_InitScenario` — the planes, `Map_PlaceStartingFields`,
-    `Counties_PlaceSites`, the dwelling plots, `Merchant_PickStartCounties` — and none of it
-    is written. `l2-scenario` can only build a kingdom from a save's `TILES` block. **This is
-    the largest single thing between here and "playable from start to finish".**
+  - ✅ **A new game starts on the map the list names.** This entry used to be the largest
+    single thing between here and *"playable from start to finish"*, and it said so.
+    `Map_InitScenario` is written — `l2_scenario::newgame`: the planes, the county
+    adjacency, `Counties_PlaceSites` with its town, dwelling plots, resource sites and
+    blacksmith, `Map_PlaceStartingFields`' difficulty ladder, `County_CollectFieldTiles`,
+    `Merchant_PickStartCounties` and the six merchants. All 44 shipped maps start and take a
+    turn, and England built from `L2_maps.dat` reproduces England read from a save on every
+    fact the map decides. `docs/decisions.md` C61.
+  - 🕳 **The castle on the plot is the castle work's.** The world builder stamps the *bare*
+    plot, terrain `0x14`, which is `County_FindCastleTile`; raising the chosen level on it
+    is `FUN_0046826C`, keyed on the castle's level and build percentage rather than on the
+    map. Until that lands, a new game's start counties have the castle level the options
+    committed and a plot on the ground rather than a keep.
 
 ### The wider game
 - ✅ Random events: a 256-slot deck, 24 distinct, and the bug that exempts even-numbered counties

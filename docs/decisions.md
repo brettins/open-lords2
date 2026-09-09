@@ -2526,6 +2526,81 @@ C46 named: *a measurement and a word beside it that nobody checked agreed* — 9
 40 × 32, `tile_w` beside `pitch`, "one tick" beside 50 ms, and a turn described as a loop
 when the thing it models is a frame.
 
+**C61 — A person can pick Ireland and play Ireland. Building the second world constructor
+found five things about the first, and the fifth is the one worth keeping.**
+
+`Map_InitScenario` (`0x004676E0`) is written: `crates/l2-scenario/src/newgame.rs`. Pressing
+*Start* on the custom page now runs `Game_NewGame`'s own three steps in its own order — the
+world, then the twelve options, then one immediate `Season_Advance` — so the slot the map
+list highlights is the world the campaign screen opens on, from an empty `Game` and with no
+save anywhere in the path. All 44 shipped maps start and take a turn
+(`crates/l2-game/tests/newgame.rs`). The line the setup page drew about itself,
+*"NOT IMPLEMENTED: STARTING ON A MAP OTHER THAN THE SAVE'S"*, is gone.
+
+**The check is the two constructors held against each other.** England out of
+`L2_maps.dat` and England out of `lastturn.sav` are two readings of one map from two files
+authored separately, and they agree exactly on everything the map decides: **fourteen town
+anchors, fourteen adjacency lists, 280 field tiles, 56 industry resource bytes, six merchant
+routes, six merchant start counties and six merchants**. The county plane matches on all
+4,096 tiles; the flags plane differs on exactly the 56 dwelling-plot bits, which is one
+season of `County_UpdateDwellings`; and the terrain plane differs on **67 tiles in six
+classes, every one of which names the pass that made it** — 42 field tiles the season grew
+or the lord repainted, 5 wood sites stepped from idle to working (exactly the five owned
+counties), and 20 castle tiles stamped from the bare plot `0x14` to a standing keep `0x17`
+by `FUN_0046826C`, which is keyed on the castle's *level* and is deliberately not the world
+builder's.
+
+**Four corrections to what was written down.**
+
+* **`FUN_00497E65` is `PlayerStart_Shuffle`, and it is why which realm you play changes
+  every game.** `docs/environment.md` recorded the realm→county assignment as *rolled per
+  game* — an observation, from two independently created England saves disagreeing — and
+  deliberately excluded it from the fixture's fingerprint. This is the code: between
+  `Mercenary_Init` and `PlayerStart_Compact`, it re-deals the live start-table entries into
+  each other's slots with a random offset and a forward probe. The start *counties* never
+  move; only who gets which. Reproduced on our own `Pcg32`, because the original's two
+  31-bit LFSRs are not in any save — the shape is the original's and the stream cannot be.
+* **`FUN_0046DA4B` is `County_CollectFieldTiles`, and twenty fields per county is a fact
+  about the map rather than a cap on a counter.** It fills `g_countyFieldTiles` from the
+  map and, when a county has a twenty-first farm tile, **razes it**: terrain 0, frame 6,
+  flags zeroed, bank back to base. It stops being farmland before the first season runs. No
+  shipped map reaches the branch, which is why nothing had ever noticed it; the branch is
+  exercised on a synthetic slot.
+* **`County_PlaceBlacksmith` does not give every county a blacksmith.** `symbols.json` said
+  the weapons site *"is derived rather than authored, which is why every county has one"*.
+  433 of 434 do. County 4 of slot 8 (Africa) has **no tile whose flags byte is zero at
+  all** — its 57 tiles are every one of them road, boundary, rough, plot, farmland, town or
+  site — and the candidate test is `flags == 0` exactly, so the original's own guard
+  refuses. That county can never make a weapon. C21's shape again: a plausible generalisation
+  written beside a correct mechanism, and nobody counted.
+* **A new game opens at zero tax in every county.** `County_Reset` (`0x00451150`) sets the
+  population, the ration, the split, the dryness, the shares and the stores, and writes **no
+  tax rate**; the county record was zeroed wholesale by `FUN_0046EA28` in `Game_NewGame`'s
+  preamble and nothing else puts one there. The England turn-one fixture's own bytes agree —
+  `taxRate` is 0 in all fourteen counties. `symbols.json`'s `[inferred]` comment on
+  `County_Reset` said *"tax 50"*, which is `dryness = 0x32` read one line off.
+
+**And the fifth, which is a defect of ours and the reason this entry is worth reading.**
+`County::farm_style` (`+0x1FE`) — the field `AI_ManageFields(0)` dispatches the *unowned*
+counties on — **was never imported at all.** Every loaded game's fourteen counties arrived
+at style 0 and every neutral county was farmed as a style-0 lord would farm it, whatever the
+file said. It is imported now, and the map path seeds it the way `County_Reset` does,
+`countyId & 1`; the two agree on 12 of England's 14, the two that differ being counties whose
+lord had overwritten the seed by turn one. That agreement is also what says the offset is
+right.
+
+**The pattern, and it is the fifth instance.** After the four county fields missing from the
+save encoder *and* the digest (C30), the four industry records `l2-scenario` skipped, and the
+garrison relation stored on the unit and read off the county (C59), this one has a new face:
+**a field can reach `CountyState` and stop there.** Deleting the single line of
+`Scenario::skeleton` that carries `farm_style` into the county left the entire
+two-constructor diff green — because a diff of two `CountyState`s cannot see the step *after*
+`CountyState`. Two constructors agreeing is `CLAUDE.md`'s warning one level out: it proves
+the seam is symmetric, not that the seam reaches the simulation. So the diff reports three
+verdicts and not two — **agree**, **differ, because…**, and **both silent**, the last being a
+finding — and it re-checks every field it calls *agreed* on the `Kingdom`, where the rules
+read it. Both ablations now go red; six were run and all six do.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

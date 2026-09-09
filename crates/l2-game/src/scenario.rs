@@ -29,6 +29,8 @@ use l2_formats::maps::{MapSlot, PLANE_DIM};
 use l2_formats::save::Save;
 use l2_kingdom::tables::Tables;
 use l2_mods::vfs::Vfs;
+use l2_kingdom::realm::MAX_REALMS;
+use l2_scenario::newgame::{MapError, NewGame};
 use l2_scenario::{ImportError, Scenario};
 
 use crate::game::Game;
@@ -74,6 +76,8 @@ pub enum Error {
     /// The save opened but an address the interface needs is not in a saved
     /// block.
     Save(l2_formats::SaveError),
+    /// A map slot that could not be made into a world.
+    Map(MapError),
 }
 
 impl core::fmt::Display for Error {
@@ -82,6 +86,7 @@ impl core::fmt::Display for Error {
             Error::Missing { name, detail } => write!(f, "{name}: {detail}"),
             Error::Import(e) => write!(f, "{e}"),
             Error::Save(e) => write!(f, "{e}"),
+            Error::Map(e) => write!(f, "{e}"),
         }
     }
 }
@@ -155,6 +160,100 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
         .find(|&id| game.kingdom.counties[id].owner == game.player)
         .unwrap_or(0) as u8;
 
+    Ok(game)
+}
+
+/// **A new game on a chosen `L2_maps.dat` slot.**
+///
+/// The other constructor. [`load`] reads a world the original built and this
+/// one builds a world, which is what *New Game* has needed since the setup
+/// screen learned to choose a map. `l2_scenario::newgame` is the whole of
+/// `Map_InitScenario`; what is left here is the application's part, and it is
+/// the same three things [`from_save`] does — find the file through the mod
+/// overlay, keep `g_scenarioIndex`, and seed the interface's own state.
+///
+/// # The order is `Game_NewGame`'s
+///
+/// 1. `Map_InitScenario` and `County_Reset` — [`Scenario::from_map`];
+/// 2. `Game_SetupRealmsAndCounties`' option half —
+///    [`crate::setup::Settings::apply_to`], which the caller runs next because
+///    it is the caller who has the settings;
+/// 3. one immediate `Season_Advance` — [`l2_kingdom::Kingdom::start_new_game`],
+///    which is why a new game begins in **Winter 1268** and not in the Autumn
+///    1267 this function returns.
+///
+/// Steps 2 and 3 are the caller's on purpose: this returns the world, and the
+/// twelve options are not the world.
+///
+/// # The seed
+///
+/// `seed` decides one thing — which realm gets which start county, dealt by
+/// `FUN_00497E65`. It is a parameter rather than a constant because a network
+/// game's seed comes from the lobby and both peers must build the same world
+/// from it (`docs/netcode.md`). The single-player path passes [`SEED`], so a
+/// new game on a given map is reproducible today; a seed the player can see and
+/// change is the lobby's to add.
+pub fn new_game(
+    assets: &crate::game::Assets,
+    slot: usize,
+    settings: &crate::setup::Settings,
+    human_players: usize,
+    seed: u64,
+    tables: Tables,
+) -> Result<Game, Error> {
+    let map = assets.slot(slot).ok_or_else(|| Error::Missing {
+        name: "L2_maps.dat".into(),
+        detail: format!("has no slot {slot}"),
+    })?;
+    // `Setup_CommitOptions` keeps `DAT_0053F268 = nobles - humanPlayers`, so the
+    // number of realms with a lord is that plus the people.
+    let lords = (settings.ai_lords.max(0) as usize + human_players).clamp(1, MAX_REALMS - 1);
+    let setup = NewGame {
+        slot,
+        options: settings.kingdom_options(),
+        lords,
+        // One person, realm 1. `g_localPlayer` is the lobby's in a network
+        // game and there is no lobby.
+        local_player: 1,
+        seed,
+    };
+    let scenario = Scenario::from_map(&map, &setup).map_err(Error::Map)?;
+
+    let mut game = Game::new(seed);
+    game.kingdom = scenario.kingdom_with_tables(seed, tables);
+    game.player = scenario.local_player;
+    game.map_slot = slot;
+
+    // **`Scenario::kingdom` opens the happiness average on this season's
+    // happiness and `County_Reset` opens it on zero.** The difference is one
+    // extra sample in the empire-happiness average, and it belongs to the
+    // save's constructor rather than to this one: a loaded game is mid-year and
+    // a new game is not.
+    for id in game.kingdom.county_ids() {
+        game.kingdom.counties[id].happiness_sum = 0;
+        game.kingdom.counties[id].happiness_avg = 0;
+    }
+
+    // The shield colour is the realm id at new game — `Game_SetupRealms` seeds
+    // `shieldIndex = i` and only a custom game's colour picker permutes it,
+    // which this build has no screen for.
+    for (id, slot) in game.realm_colour.iter_mut().enumerate() {
+        *slot = game.kingdom.realms.get(id).map(|r| r.shield_index).unwrap_or(0);
+    }
+    for id in scenario.county_ids() {
+        if let Some(c) = &scenario.counties[id] {
+            game.anchor_x[id] = c.anchor.0;
+            game.anchor_y[id] = c.anchor.1;
+        }
+    }
+    for (id, realm) in game.kingdom.realms.iter().enumerate() {
+        game.gold_last[id] = realm.gold;
+    }
+    game.selected = game
+        .kingdom
+        .county_ids()
+        .find(|&id| game.kingdom.counties[id].owner == game.player)
+        .unwrap_or(0) as u8;
     Ok(game)
 }
 

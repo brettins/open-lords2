@@ -497,6 +497,27 @@ side: it writes `frame = base + ((frame + 0xB0) & 3)` with `base` 104 for pastur
 (`content 0x14`), 84 for fallow (`content 1`) and 80 for wild (`content 0`), the mix
 chosen by difficulty. Two functions, one table.
 
+### 5.6 Twenty fields per county is a property of the map, not a cap  **[V]**
+
+`County_CollectFieldTiles` (`0x0046DA4B`) is the last thing `Map_InitScenario` does, and it
+fills `g_countyFieldTiles` — 17 rows of twenty `i32` byte offsets — by sweeping the tile array
+in ascending order and dropping each farmland tile (`0x20`) into its county's first free slot.
+
+**The twentieth slot is a wall, and what will not fit is destroyed.** The `else` of *"is there
+a free slot"* writes `content = 0`, `frame = 6`, **`flags = 0`** and clears the bank back to
+base: the tile stops being farmland at all, before the first season runs. So a county cannot
+have twenty-one fields in the way a county cannot have five dwelling plots (§8) — except that
+this one has a defined outcome instead of a corrupted neighbour.
+
+No shipped map reaches the branch: the largest county on the 44 maps has twenty farm tiles or
+fewer, which is why it has never been visible. It is exercised on a synthetic slot in
+`crates/l2-scenario/tests/newgame.rs`, and it is one of only **two** places where the runtime
+flags plane differs from the file's — the other being `County_PlaceBlacksmith`, which *adds*
+bit `0x80` to a tile the file gave no flags at all, one per county. Over England, that pair is
+the whole of the difference: 14 blacksmiths added and nothing razed. See `docs/decisions.md`
+C61, which also records that county 4 of slot 8 gets no blacksmith because it has no `flags == 0`
+tile for one to stand on.
+
 **Not yet drawn.** `crates/l2-game`'s field brush still paints markers of our own
 rather than the game's artwork, which was the right call when the mapping was
 unread; it is read now, and the sparse `campaign::Overrides` plane C41 added is

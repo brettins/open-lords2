@@ -37,7 +37,8 @@ crates/l2-game/src/screens/map.rs	C58	c583727df160
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
-crates/l2-game/src/screens/setup.rs	C21	061497c61678
+crates/l2-game/src/screens/setup.rs	C21	8b9ebc1ffbf5
+crates/l2-game/src/screens/setup.rs	C21	9c04dd669ff9
 crates/l2-game/src/screens/setup.rs	C21	f030e5ba689c
 crates/l2-game/src/screens/shells.rs	C22	6210d0b3625b
 crates/l2-game/src/screens/shells.rs	C45	971440fb6fdf
@@ -130,7 +131,11 @@ crates/l2-mods/src/units.rs	C11	82a3e3450631
 crates/l2-mods/tests/simulation.rs	C11	b927dbbbca77
 crates/l2-mods/tests/simulation.rs	C12	84283df43fd5
 crates/l2-scenario/src/lib.rs	C57	14b498ed2873
+crates/l2-scenario/src/newgame.rs	C25	5198b008d5c4
+crates/l2-scenario/src/newgame.rs	C25	f78fd48882c8
+crates/l2-scenario/src/newgame.rs	C41	b844f3c01eef
 crates/l2-scenario/tests/import.rs	C26	bdddd4567993
+crates/l2-scenario/tests/newgame.rs	C23	4b471e07b88e
 crates/l2-sim/src/ai.rs	C15	0b1357346ad8
 crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab
@@ -230,6 +235,7 @@ docs/decisions.md	C20	d72be6cb64ab
 docs/decisions.md	C21	7cb6452b0185
 docs/decisions.md	C21	7e1ce2bf6129
 docs/decisions.md	C21	8ab6f5823eaf
+docs/decisions.md	C21	cf853a4e6a34
 docs/decisions.md	C21	e643c79f1b0f
 docs/decisions.md	C22	d5fb664c5a6b
 docs/decisions.md	C22	e2c2d7647114
@@ -269,6 +275,7 @@ docs/decisions.md	C30	3c37996daf9c
 docs/decisions.md	C30	7ce287aa9814
 docs/decisions.md	C30	8d6cdbb83ba1
 docs/decisions.md	C30	8ff9c88d60f5
+docs/decisions.md	C30	d4eccf6a1e2a
 docs/decisions.md	C30	dfdae8119bd5
 docs/decisions.md	C31	0e0873a0f0a9
 docs/decisions.md	C31	2ec3a519a744
@@ -309,6 +316,7 @@ docs/decisions.md	C57	a01e03e89d00
 docs/decisions.md	C58	146714b7fa85
 docs/decisions.md	C58	cf211d06686a
 docs/decisions.md	C59	611dbc328c24
+docs/decisions.md	C59	d158413c5a3c
 docs/decisions.md	C7	3c72ce757143
 docs/decisions.md	C8	490a0a7ca7d4
 docs/decisions.md	C8	553fa7149d4e
@@ -322,6 +330,7 @@ docs/formats/maps-layers.md	C41	87c5e3e5dc40
 docs/formats/maps-layers.md	C41	89650dc3b322
 docs/formats/maps-layers.md	C41	991fc29daae8
 docs/formats/maps-layers.md	C49	22534dc6eb84
+docs/formats/maps-layers.md	C61	dfe3d7ab34b9
 docs/formats/pl8.md	C5	7da3bb460200
 docs/hypotheses.json	C3	6d7b9bc8a5c3
 docs/hypotheses.json	C3	80313a1ef950
@@ -354,6 +363,7 @@ docs/mechanics.md	C51	6132fb2e84ab
 docs/mechanics.md	C53	216e64d25fc6
 docs/mechanics.md	C54	fea22479a2bf
 docs/mechanics.md	C59	fe83a2625080
+docs/mechanics.md	C61	7279b6269dde
 docs/method.md	C21	4fd02f68abf9
 docs/method.md	C3	588652ea16c6
 docs/method.md	C38	5300e90cb318
@@ -380,6 +390,8 @@ docs/plan.md	C32	759df38b58c2
 docs/plan.md	C32	c9b6bccd6393
 docs/plan.md	C45	546a5f993a1b
 docs/plan.md	C46	8269936b6754
+docs/plan.md	C61	3c12bfd5b5df
+docs/plan.md	C61	67ee0db471b9
 docs/records.json	C25	25ca0e0c5124
 docs/records.json	C3	6cef8ac01b2c
 docs/records.json	C53	332340f37944
@@ -436,6 +448,9 @@ docs/symbols.json	C59	5e3d7047e62c
 docs/symbols.json	C59	6c9af806edc8
 docs/symbols.json	C59	a26c63971b4a
 docs/symbols.json	C59	c8ebd509d2ab
+docs/symbols.json	C61	0113a0edf8eb
+docs/symbols.json	C61	5cfabe4adeb4
+docs/symbols.json	C61	791602fd7580
 docs/symbols.md	C20	607a21e04411
 docs/symbols.md	C20	bd8dc0cc37c2
 docs/symbols.md	C22	663d0fc4172b
@@ -464,6 +479,9 @@ docs/symbols.md	C59	64a497c25e59
 docs/symbols.md	C59	71e2db0c83cf
 docs/symbols.md	C59	af8f4f7bf789
 docs/symbols.md	C59	eaf97ce0085e
+docs/symbols.md	C61	2c4c65a13ecb
+docs/symbols.md	C61	4a48534f8c9f
+docs/symbols.md	C61	e62a9adc5549
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611
 tools/audit/rva.js	C14	99231cda993c
 tools/audit/rva.js	C16	e4312831d7d6

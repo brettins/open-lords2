@@ -44,6 +44,18 @@
 //! reproduction come out right. `crates/l2-kingdom/tests/reproduction.rs`
 //! measures exactly what that costs: one county of fourteen.
 
+//!
+//! # Two constructors, not one
+//!
+//! [`Scenario::from_save`] reads a world the original had already built.
+//! [`Scenario::from_map`] — [`newgame`] — **builds** one, out of an
+//! `L2_maps.dat` slot and the twelve custom-game settings, which is what the
+//! *New Game* button needs. Both produce the same plain data, so
+//! [`Scenario::starting_kingdom`] cannot tell them apart and
+//! `crates/l2-scenario/tests/newgame.rs` can diff England built both ways.
+
+pub mod newgame;
+
 use l2_formats::save::{Save, SaveError, COUNTY_BASE, COUNTY_STRIDE};
 use l2_kingdom::county::{County, MAX_COUNTY_ID, MAX_FIELDS};
 use l2_kingdom::map::MAP_TILES;
@@ -84,6 +96,21 @@ const INDUSTRY_SHARE: u32 = 0x08;
 /// `+0x1B0` — the castle-building switch `Industry_ToggleFromMap` flips and
 /// `Labour_Allocate` gates castle building on.
 const CASTLE_SWITCH: u32 = 0x1B0;
+
+/// `+0x1FE` — the county's farming style, which is
+/// [`l2_kingdom::county::County::farm_style`].
+///
+/// **This was not imported at all until the map-file constructor needed it,
+/// and that is a defect of its own.** `AI_ManageFields(0)` dispatches the
+/// *unowned* counties on it and `Ai_ManageCountyFarms` overwrites it with the
+/// owning lord's style every pass — so a loaded game's fourteen counties all
+/// arrived at style 0 and every neutral county farmed as a style-0 lord would,
+/// whatever the file said. `County_Reset` (`0x00451150`) seeds it to
+/// `countyId & 1` at new game, and `docs/symbols.md` records that the England
+/// turn-one fixture holds only 0, 1 and 9 here — the exact value set
+/// `AI_PERSONALITY_FARM_STYLE` produces, which is what says the offset is
+/// right.
+const FARM_STYLE: u32 = 0x1FE;
 
 /// `+0x290 + c*0x18` — the four industry records, and the three bytes of each
 /// that say whether it can run: `+5` the resource, `+6` the countdown, `+7` the
@@ -398,6 +425,10 @@ pub struct CountyState {
     /// counts are a cache and there is nothing to recount from. See
     /// [`l2_kingdom::field`].
     pub field_tiles: [u16; MAX_FIELDS],
+    /// `+0x1FE` — how this county farms. See [`FARM_STYLE`]: it is read by the
+    /// neutral counties' own AI pass and was left at zero on every load until
+    /// the map constructor made the omission visible.
+    pub farm_style: u8,
 }
 
 /// One realm's imported state.
@@ -685,6 +716,8 @@ impl Scenario {
                     .i8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + INDUSTRY_SHARE)?
                     as i32,
                 field_tiles: read_field_tiles(save, c.index)?,
+                farm_style: save
+                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + FARM_STYLE)?,
             });
         }
 
@@ -940,6 +973,8 @@ impl Scenario {
             c.labour_useful = s.labour_useful;
             c.labour_share = s.labour_share;
             c.industry_share = s.industry_share;
+            // `+0x1FE`. Not carried at all until now — see [`FARM_STYLE`].
+            c.farm_style = s.farm_style;
             // `FUN_0044D913` is called from everywhere a county's herd or
             // pasture can change, county setup included, so a county always
             // arrives with its crowding already computed. Deriving it here

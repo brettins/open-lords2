@@ -3474,7 +3474,7 @@
       "name": "County_PlaceBlacksmith",
       "section": "units",
       "confidence": "verified",
-      "comment": "Places the weapons industry site (record 2) on the plain tile of the county nearest one of its farm fields. The blacksmith is derived rather than authored, which is why every county has one.",
+      "comment": "Places the weapons industry site (record 2) on the county tile whose flags byte is exactly 0 - not a road, not a field, not a boundary - that is 4-adjacent to one of the county own farm fields and nearest the town anchor, ties going to the first in row-major order. It also ADDS plane-0 bit 0x80 to a tile the file gave no flags at all, which with the razed fields is one of only two places the runtime flags plane is not the file. [V] The blacksmith is derived rather than authored, and this comment used to say that is why every county has one: 433 of 434 do. County 4 of slot 8 (Africa) has no tile with flags == 0 at all - its 57 tiles are all road, boundary, rough, plot, farmland, town or site - so the original local_14 stays 0, its guard refuses, and that county can never make a weapon. Measured over all 44 shipped maps in crates/l2-scenario/tests/newgame.rs. See decisions.md C61.",
       "signature": "void County_PlaceBlacksmith(uint county)"
     },
     {
@@ -5952,6 +5952,30 @@
       "confidence": "verified",
       "signature": "undefined4 File_Exists(char * name)",
       "comment": "Open, close, and on failure chdir to the install and retry - returns 0 missing, 1 found here, 2 found after the chdir. Not a sound function, but both music pickers open with it and reading it as \"is this playing\" inverts both ladders."
+    },
+    {
+      "addr": "0x00467CA6",
+      "name": "County_BuildNeighbours",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void County_BuildNeighbours(void)",
+      "comment": "Builds every county zero-terminated adjacency list at county +0x5C and its count at +0x5B, once, from Map_InitScenario. Sweeps the 64x64 grid y outer x inner and, for each tile of a county in 1..17, appends each of its four 4-adjacent tiles other county to the list if it is not already there, stopping at sixteen entries. [V] The order is the scan order and not a sort, which matters because the list is walked by index in half a dozen places. Reproduced in l2_scenario::newgame::adjacency, whose output equals the England turn-one save stored lists for all fourteen counties - two files authored separately."
+    },
+    {
+      "addr": "0x0046DA4B",
+      "name": "County_CollectFieldTiles",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void County_CollectFieldTiles(int clearProgress)",
+      "comment": "Fills g_countyFieldTiles - 17 rows of twenty i32 byte offsets - from the map, at the end of Map_InitScenario, and clears the twenty u16 at county +0x90 when the argument is 1. Sweeps tiles in ascending byte-offset order and puts each farmland tile (plane-0 bit 0x20) of a county in 1..17 in that county first free slot. [V] AND THE TWENTY-SLOT TABLE RAZES WHAT WILL NOT FIT: a county twenty-first farm tile takes content 0, frame 6, flags 0 and its bank cleared back to base - it stops being farmland at all, before the first season runs. So twenty fields per county is a fact about the map rather than a cap on a counter. No shipped map exercises the razing branch; crates/l2-scenario/tests/newgame.rs exercises it on a synthetic slot. See decisions.md C61."
+    },
+    {
+      "addr": "0x00497E65",
+      "name": "PlayerStart_Shuffle",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void PlayerStart_Shuffle(void)",
+      "comment": "Re-deals the live entries of g_playerStartTable into each other slots, from Game_NewGame between Mercenary_Init and PlayerStart_Compact. For each source entry i it draws a random offset, pos = (rand & 3) + 1 + i wrapping at the live count, then probes forward for a free destination. [V] THIS IS WHY WHICH REALM YOU PLAY IS DIFFERENT EVERY GAME: docs/environment.md records the realm-to-county assignment as rolled per game, from two independently created England turn-one saves disagreeing about it, and this is the code that rolls it. The start counties themselves never move - they are the map plane-4 markers. Its second half deals a 48-entry table into DAT_0057CAE0 and fills DAT_00553080 with 0, 100 or 6 + 5n per entry; neither destination has been traced and neither is a player start. Reproduced in l2_scenario::newgame::shuffle_starts on our own Pcg32 - the shape is the original, the stream cannot be. See decisions.md C61."
     }
   ],
   "globals": [
