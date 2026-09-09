@@ -69,14 +69,19 @@ both fall out of a file we did not write.
 
 ## 1. Screens are a byte, and the byte is `g_screenId`
 
-**[D]** `g_screenId` (`0x004EAC50`) selects the whole interface. Three parallel
+**[D]** `g_screenId` (`0x004EAC50`) selects the whole interface. **Four** parallel
 `if`/`else if` chains switch on it and on nothing else:
 
 | what | function | what it does |
 |---|---|---|
 | draw | `Screen_Draw` (`0x0040F1A0`) | 39 cases; calls the screen's painter |
 | overlay | `Screen_DrawWidgets` (`0x004BA26E`) | per-screen widget lists and animations |
-| input | `Screen_HandleInput` (`0x004BA9C8`) | per-screen widget hit-test tables |
+| input | `Screen_HandleInput` (`0x004BA9C8`) | per-screen widget hit-test tables — **left button only** |
+| **back** | **`FUN_0042FF10` (`0x0042FF10`)**, unnamed in `symbols.json` | per-screen *right*-button and tick handling: how every screen is **left**. §2.6 |
+
+An earlier revision of this section said there were three and that nothing else dispatched on
+`g_screenId`. The fourth is the largest of them and the only one that reads the right mouse
+button at all, which is why right-click looked like it did nothing in the original.
 
 The cases, named from the `L2.eng` groups each painter draws and the PL8 files each loads.
 **[V]** for every row that names a group; **[D]** for the rest.
@@ -85,7 +90,7 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 |---:|---|---|---|
 | 0x00 | `Screen_DrawCampaign` `0x0040F5FD` | the campaign map | group 34 — season and year |
 | 0x02 | `Village_Draw` `0x00412143` | **the village** — the county's own picture, and where peasants are moved. **An inset over the campaign map**, 363 × 320 at (64, 64) — §3.1 | groups 22 (fertility), 66 (weather); `villani1/villani2/vill/villtops.pl8` |
-| 0x04 | `0x0041B032` | the map information panel: `UnitPanel_Draw` when a unit is picked, `FUN_0041BEFE` otherwise, and that branches on the same `g_pickedTileFlags` bits `Map_Click` does. **[D]**, and what it draws is not read | |
+| 0x04 | `0x0041B032` | the map information panel: `UnitPanel_Draw` when a unit is picked, `FUN_0041BEFE` otherwise. **Reached by right-clicking the map** — §2.6 — and `Readme.txt`'s "right-click an army for its county of origin" errata is `UnitPanel_Draw`'s group 31 index 9 line | group 31 index 9, *"An army from"*, then group 100 at `homeCounty + scenarioIndex*20` |
 | 0x05 | *(no painter)* | **the village's rubber band** — §6.4 | `Village_BandStart` / `Village_BandRelease` |
 | 0x06 | *(no painter)* | **the village carrying a selection** — §6.4 | `Village_Drop` |
 | 0x08 | `Screen_Merchant` `0x00415FB7` | the merchant | `merchant.256` + `merchant.pl8`, `mercgrid.pl8` |
@@ -231,18 +236,59 @@ completely different things depending on whether you own it. **[D]**
 
 ### 2.1 Owned
 
-| what | where | field |
-|---|---|---|
-| county name, centred in 160 px | (480, 165) | `L2.eng` group 100, index `scenarioIndex*20 + countyId` |
-| population | (508, 189) | `+0x24` |
-| happiness | (602, 189) | `+0x0C` |
-| *"Tax"*, centred in 76 px | (480, 213) | group 61 index 0 |
-| tax rate, with a `%` | (506, 226) | `+0xB9` |
-| *"Ration"*, centred in 76 px | (564, 213) | group 61 index 1 |
-| ration achieved, centred in 76 px | (564, 226) | `+0x15D` as group 21, **red when it differs from `+0x15E`** |
-| health thermometer | (552, 181) | `Misc_cty.pl8` frame `0x46 + healthBand`, 14 × 59 |
+| what | where | font | colour | field |
+|---|---|---|---|---|
+| county name, centred in 160 px | (480, 165) | **body, `Fntl2_14`** | `0x3F` | `L2.eng` group 100, index `scenarioIndex*20 + countyId` |
+| population, **left-aligned** | (508, 189) | small | `0x3F` | `+0x24` |
+| happiness, **left-aligned** | (602, 189) | small | `0x3F` | `+0x0C` |
+| *"Tax"*, centred in 76 px | (480, 213) | small | `0x3F` | group 61 index 0 |
+| tax rate, with a `%` | (506, 226) | small | `0x3F` | `+0xB9` |
+| *"Ration"*, centred in 76 px | (564, 213) | small | `0x3F` | group 61 index 1 |
+| ration achieved, centred in 76 px | (564, 226) | small | `0x3F` / `0xF9` | `+0x15D` as group 21, **red when it differs from `+0x15E`** |
+| health thermometer | (552, 181) | — | — | `Misc_cty.pl8` frame `0x46 + healthBand`, 14 × 59 |
 
-All of it in the 9-pixel font (`Fntl2_9.pl8`), which is the only place that font is used.
+The 9-pixel font (`Fntl2_9.pl8`) is used here and **nowhere else in the game** — but not for
+all of it. The county name is the 14-pixel body font, and `DAT_005AEA40` is set to 1 after
+it and cleared after the numbers, so **the name is embossed and every number below it is
+flat**. An earlier revision of this table said "all of it in the 9-pixel font" and gave both
+numbers as bare coordinates; the 602 was then read as a right anchor. `Ui_DrawNumber` has no
+anchoring argument — the population's call and the happiness's differ only in value and x —
+so both are left origins. `docs/decisions.md` C42.
+
+Verbatim, so nothing here has to be re-derived:
+
+```c
+Pl8_DrawFrameHere(g_miscCtySheet,0x37,0x1de,0x9c);      /* 55, 162x94  -> (478,156) */
+Ui_DrawCentred(100, g_scenarioIndex*0x14 + g_selectedCounty, 0x1e0,0xa5,0xa0,&g_fontBody,0x3f);
+DAT_005aea40 = 1;                                        /* emboss off */
+Ui_DrawNumber(pop,       ' ', " ", 0x1fc,0xbd,&g_fontSmall,0x3f);
+Ui_DrawNumber(happiness, ' ', " ", 0x25a,0xbd,&g_fontSmall,0x3f);
+Ui_DrawCentred(0x3d,0, 0x1e0,0xd5,0x4c,&g_fontSmall,0x3f);              /* "Tax"    */
+Ui_DrawNumber(taxRate,   ' ', "%", 0x1fa,0xe2,&g_fontSmall,0x3f);
+Ui_DrawCentred(0x3d,1, 0x234,0xd5,0x4c,&g_fontSmall,0x3f);              /* "Ration" */
+local_8 = (rationAchieved == rationWanted) ? 0x3f : 0xf9;
+Ui_DrawCentred(0x15, rationAchieved, 0x234,0xe2,0x4c,&g_fontSmall,local_8);
+DAT_005aea40 = 0;
+Pl8_DrawFrame(g_miscCtySheet, healthBand + 0x46, 0x228,0xb5);           /* 14x59 -> (552,181) */
+```
+
+Group 100 is **twenty strings per map slot**: index 0 is the map's own name ("Here Be
+Dragons!" for England), 1 … 14 its counties, 15 … 19 unused `CTY0` padding, so slot 1 begins
+at index 20. `scenarioIndex * 20 + countyId` lands on the county with no off-by-one.
+
+**Two more things this plate carries**, neither of which was in this section:
+
+* **The 162 × 52 plate below it** — `Misc_cty` frame `0x42` (66) at (478, 250) — is drawn by
+  `CountyStrip_Draw`, not by `Screen_DrawCampaign`, and it holds the **farm/industry labour
+  split slider**: thumb frame `0x3D` (9 × 33) at (`share/2 + 532`, 262), or frame `0x55`
+  (13 × 37) two pixels up and left when the castle job has workers. `FUN_00439122` hit-tests
+  `x 478 … 639, y 257 … 296`: left of x = 531 steps the share down by four, right of x = 594
+  up by four, and on the track it is `((x - 531) * 2) & 0xFC` — masked, so the slider is not
+  continuous — clamped to 0 … 100.
+* **The job rows** on the 162 × 128 plate at y = 302, laid out by `FUN_0040FEC1` into up to
+  three farm rows and four industry rows at row heights 60 / 45 / 30 depending on the count,
+  and clicked by `CountyStrip_JobClick` (`0x00438E3B`): farm left of x = 560, industry right
+  of it, `row = (y - 302) / rowHeight`, opening screen `0x0F`.
 
 ### 2.2 Unowned
 
@@ -280,17 +326,189 @@ The five buttons in the 162 × 30 strip at y = 430 are hotspot table `g_sidebarB
 (`0x004DC680`), and the full-width button at y = 460 is **end turn**
 (`Turn_End`, `0x0043AC23`, which writes 999 into the realm's `+0x00`):
 
-| button | x range | action |
-|---|---|---|
-| 1 | 478 … 511 | the county's army / hire mercenaries (screen 0x17) |
-| 2 | 512 … 543 | the court (screen 0x09) |
-| 3 | 544 … 575 | send supplies (screen 0x18) |
-| 4 | 576 … 607 | `0x00436A88` |
-| 5 | 608 … 639 | `0x0043611B` |
-| end turn | 478 … 639, y 460 … 479 | `Turn_End` |
+| button | x range | sets | action |
+|---|---|---|---|
+| 1 | 478 … 510 | `g_screenId = 0x17` | **raise an army** — `Levy_SetPercent(sel, g_levyPercent)`, `FUN_004AA90A(sel, g_levyMen)`, and the mercenary band loaded on top when `county.mercenaryOffer != 0`. Refused with message `0x70` if the county is not yours |
+| 2 | 512 … 542 | `= 0x09` | the court. Ungated |
+| 3 | 544 … 574 | `= 0x18` | send supplies. Gated on ownership |
+| 4 | 576 … 606 | `= 0x1B` | **castle building** (`FUN_00436A88`). Gated |
+| 5 | 608 … 638 | `= 0x0B` | **the other lords** (`FUN_0043611B`). Ungated |
+| end turn | 478 … 639, y 460 … 479 | — | `Turn_End`, which writes 999 into the realm's `+0x00` |
 
 The table's five rectangles start at x-offsets 0, 34, 66, 98, 130 and end at 33, 65, 97,
-129, 161. `34 + 32 × 4 = 162`. It closes.
+129, 161, and `Hotspot_Test` (`0x0040E3EE`) is **half-open** — `x0 + off <= mx < x1 + off` —
+so the widths are 33, 31, 31, 31, 31 with a one-pixel dead column between each pair.
+`34 + 32 × 4 = 162`. It closes.
+
+Screen `0x17` is the **raise-army** screen and not merely the mercenary offer: `L2.eng`
+group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads
+*"Raising an army in"*, and the mercenary band is a conditional sub-panel worth three extra
+window rows. `crates/l2-game/src/screens/shells.rs` calls it "Hire mercenaries", which names
+the smaller half.
+
+The strip also carries **no text of its own**. The only caption in the bottom fifty pixels
+is the End Turn one, `Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall, 0x16)` — group
+4, centred in 162 at (478, 462), in the 9-pixel font — and it is **suppressed once the turn
+has been ended**, because `Screen_DrawEndTurn` (`0x0041A734`) guards it on
+`g_realms[g_localPlayer].aiStep < 999`. `docs/decisions.md` C43 is what we had there
+instead.
+
+### 2.5 The four minimap mode buttons  **[V]**
+
+`Minimap_Draw` (`0x00410AA9`) draws a 29 × 123 strip — `Misc_cty` frame `0x5C`, or `0x5B`
+whenever a mode is active — at (611, 32), and `g_minimapModeButtons` (`0x004DC620`) is four
+hotspots tested at offset (610, 32) by `FUN_0043292D`. All four go to
+`Minimap_ModeButton` (`0x0043AB76`):
+
+| id | rect | what |
+|---:|---|---|
+| 1 | x 610 … 636, y 32 … 62 | `g_minimapMode = 1` — the labour rating, county `+0x03` |
+| 2 | x 610 … 636, y 64 … **97** | `= 2` — the food rating, county `+0x02` |
+| 3 | x 610 … 636, y 96 … 126 | `= 3` — happiness, county `+0x01` |
+| 4 | x 610 … 636, y 128 … 158 | mode 0 → `Map_ToggleZoom()`; any other mode → back to mode 0 |
+
+The fourth is **the zoom toggle**, which `docs/screens.md` §7 records us having replaced
+with a key. While a mode is active ids 1–3 do nothing at all and only id 4 responds; a
+right-click anywhere in `x >= 478, y 24 … 152` also clears it (`FUN_00439079`).
+
+Record 1's `y1` is `0x42` (66) where the pattern wants `0x3F` (63), so band 2 is 34 pixels
+tall and overlaps band 3's first two rows. `Hotspot_Test` returns on the first match, so
+y 96 and 97 select mode 2. That is the original's own data.
+
+The ratings themselves come from `FUN_00451BBA`, which `Minimap_DrawOverlay` calls before
+painting: happiness `/ 20`; the food rating 0 when achieved is below wanted and otherwise
+1 … 5 by achieved; the labour rating 0 if job 0 or 1 is understaffed, 6 if nobody is
+surplus, else 5. The overlay skips any county rated above 5 or not the local player's and
+indexes a **second** ramp, `g_minimapRatingRamp` (`0x004D28F8`) — not the realm ramp at
+`0x004D2900` that `l2-view` already transcribes.
+
+---
+
+## 2.6 The right mouse button, which is how you leave almost everything  **[V]**
+
+**Player-reported and then confirmed from the code.** He said *"right click would close a
+bunch of popups in the game"*, which turned out to understate it: the right button is the
+game's universal *back*, and the game says so in its own words — `Screen_SliderBox`
+(`0x0040CD58`) prints `L2.eng` group 12 index 0, **"Click Right to Exit"**, under the value
+spinner's caption.
+
+### The dispatcher this document did not know about
+
+§1 says three functions switch on `g_screenId` and nothing else does. **There is a fourth**,
+and it is the one that decides how every screen is *left*: `FUN_0042FF10` (`0x0042FF10`),
+unnamed in `symbols.json`, ~8 KB, called once per frame:
+
+```c
+Screen_HitRegion();
+iVar2 = FUN_0047685d();                                  /* the message scroll  */
+if ((iVar2 == 0) && (iVar2 = Screen_HandleInput(), iVar2 == 0)) {
+  if ((DAT_0052afa8 == 0) || (DAT_004e6900 == '\0')) {
+     ...one hand-written arm per g_screenId...           /* the "back" branches */
+  }
+  ...
+}
+```
+
+`Screen_HandleInput` (`0x004BA9C8`) contains **no reference to any right-button global at
+all**; nor do `Hotspot_Test` or `Widget_Test`, both of which test only the left button's
+press, release or held flags. Every right-button behaviour in the game is in the function
+above, copy-pasted about forty times: there is no shared helper.
+
+### The button flags
+
+`FUN_004B3441`'s window procedure sets `DAT_004EABC2` bit 0 for the left button and bit 1
+for the right; `FUN_004B191E` derives the per-frame edges from it.
+
+| global | meaning |
+|---|---|
+| `DAT_004EAFB4` | left **pressed** this frame — 38 reads, the one this document already used |
+| `DAT_004E65D8` | left **released** this frame |
+| `DAT_004EABE0` | right **pressed** this frame — 8 reads |
+| **`DAT_004E6900`** | **right released this frame — 56 reads, and the one that does all the work** |
+| `DAT_004EA4B4`, `DAT_004EA51C` | right double-click and right debounced-single — computed every frame, **never read** |
+
+The asymmetry is real: the right button acts on *release* almost everywhere. The five reads
+of the right *press* are the two battle-master sheets, `Minimap_Click` (which returns
+immediately while the right button is down, so a right-click on the minimap deliberately
+does not re-centre), `BattleMap_Click` (right-down switches to scrolling the battle view),
+and `FUN_0040E12E`, the drop-down menu's modal loop, which spins `while (DAT_004EABE0 == 0)`
+so a right press cancels an open menu.
+
+### What it closes
+
+`FUN_0047685D` runs before anything else on every screen: if a message scroll is up, a right
+release dismisses it and the click is consumed. That is one right-click dismissing a popup
+regardless of what is on screen, and it is probably the behaviour the player remembers most.
+
+Then the per-screen arms. Right-release closes, or steps back one level, on `0x02`, `0x04`,
+`0x06`, `0x08`, `0x09`, `0x0A`, `0x0B`, `0x0C`, `0x0D`, `0x0F`, `0x10`, `0x11`, `0x13`,
+`0x14`, `0x15`, `0x16`, `0x17`, `0x18`, `0x19`, `0x1A`, `0x1B`, `0x1D`, `0x1F` (pages 3, 9,
+0xA, 0xD), `0x20`, `0x21`, `0x25`, `0x26`, `0x28`, `0x2A`, `0x2B`, `0x31`, `0x32`, `0x35`,
+`0x36`, `0x39`, `0x42` and `0x43`. Five of them go *back one* rather than to the map:
+`0x0C → 0x08`, `0x0D → 0x0A`, `0x11 → 0x04`, `0x17 → 0x0A`, `0x2A → 0x29`.
+
+The four county panels are all the same shape — `0x14`'s arm, verbatim:
+
+```c
+if (g_screenId == '\x14') {
+  if ((DAT_00553fc8 == 0) && ((DAT_0055403c == 0 || (DAT_00553018 != 0)))) {
+    if ( FUN_0043292d() == 0 && FUN_00432967() == 0 &&      /* minimap modes, sidebar   */
+         CountyStrip_Click() == 0 && FUN_00439122() == 0 && /* the strip, the split     */
+         CountyStrip_JobClick() == 0 && FUN_00439079() == 0 ) {
+      if (DAT_004e6900 == '\0') { if (FUN_0040e7e4()) { g_screenId = 0; g_redrawRequest = 2; } }
+      else                      {                       g_screenId = 0; g_redrawRequest = 2;   }
+    }
+  }
+  else { g_screenId = '\0'; g_redrawRequest = 2; }          /* the turn ended under it  */
+}
+```
+
+Two things follow that §2.3 does not say. **The guards are tested first**, and every one of
+them fires on a *left* click, so clicking the strip or the sidebar while a panel is open
+**switches** panel rather than closing it — which is how you go from population to tax
+without a trip via the map. And the outer condition is not a keyboard test: `DAT_0055403C`
+is what `Turn_End` writes, `DAT_00553FC8` is the multiplayer turn state and `DAT_00553018`
+is the F12 debug override, so its `else` **force-closes the panel when the turn ends under
+it**. `0x19` is identical plus a `Ration_SliderClick()` guard, so dragging the ration slider
+does not dismiss the panel.
+
+**So a panel has three ways out and none of them is a key**: the tick (`FUN_0040E7E4`, a
+left release inside the 24 × 24 box the last `Ui_OkButton` call stashed), a right release
+anywhere, and a click on the campaign minimap — `FUN_0042FF10`'s tail runs `Minimap_Click`
+from any screen and closes to the map on a hit. The only `VK_ESCAPE` handler in the game
+quits it (`Menu_Quit`, or the main-loop exit flag); **no key dismisses a panel**, verified by
+absence.
+
+The one exception to all of it is **screen `0x1E`, the yes/no box**, which appears nowhere in
+`FUN_0042FF10` and has no `Ui_OkButton`. It is served solely by `Screen_HandleInput`'s
+`g_confirmWidgets` tick and cross: the confirmation box is genuinely modal and must be
+answered.
+
+### What it opens
+
+On the campaign map the same button does the reverse. `FUN_0042FF10`'s `g_screenId == 0` arm
+has exactly three right-button branches, in this order:
+
+1. `FUN_00439079` — right release in `x >= 478`, `24 <= y < 153` with a minimap mode active:
+   clear the mode and swallow the click.
+2. a message scroll is up: `Msg_Dismiss()`.
+3. `Map_PickTile` found a tile: **`g_screenId = 4; FUN_0043CAF4();`**
+
+`FUN_0043CAF4` (`0x0043CAF4`) calls `Map_ResolvePick` and remembers whatever was under the
+cursor, and the painter branches on it: `UnitPanel_Draw` (`0x0041B19D`) for a unit,
+`FUN_0041BEFE` for a bare tile. It is gated on neither ownership nor hitting anything.
+
+**`Readme.txt`'s errata is this panel**: *"Disbanding Armies (pg75) Right-clicking on an army
+accesses an information pop-up that includes the army's county of origin."* The line it names
+is two `Eng_DrawString` calls — group 31 index 9, *"An army from"*, then group 100 at
+`unit.homeCounty + scenarioIndex * 20` — inside the branch that requires the unit to be an
+army of the local player's, so the county of origin shows for your own armies only. Screen
+`0x04` carries its own tick at `Ui_OkButton(0x1AC, 0x1B6, 0)` and its own right-release arm,
+so the same button opens it and closes it.
+
+**Loose end.** `DAT_0052AFA8` gates the whole per-screen chain as a one-shot "swallow the
+next right release", and **nothing in the corpus ever writes it a non-zero value**. Either
+its writer is outside the decompiled range or it is vestigial; it is not guessed at here.
 
 ---
 

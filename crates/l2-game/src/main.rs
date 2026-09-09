@@ -28,7 +28,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use l2_game::game::Assets;
-use l2_game::input::{Event as GameEvent, Key};
+use l2_game::input::{window, Event as GameEvent, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::setup::SetupPage;
 use l2_game::{scenario, Game};
@@ -95,16 +95,53 @@ impl App {
     /// The only floating-point arithmetic in the application, and it stops
     /// here: what a screen receives is an integer pixel. A float that reached
     /// the simulation would be a float that differed between machines.
+    ///
+    /// The arithmetic itself is [`l2_game::input::window::to_canvas`], which is
+    /// a pure function of the window's size and is tested there against the
+    /// window size the scrolling bug was reported from. It lives in the library
+    /// rather than here because **a transform that can only be checked by
+    /// opening a window is a transform that stops being checked**, and because
+    /// this is the one piece of arithmetic every click in the game passes
+    /// through.
+    ///
+    /// `pixels` has an inverse of its own, `window_pos_to_pixel`. We do not use
+    /// it: it answers `Err` for a position outside the picture, and *that
+    /// position is exactly the one that matters* — the cursor pushed into the
+    /// letterbox border, which the original would have read as the edge of the
+    /// screen.
     fn to_canvas(&self, x: f64, y: f64) -> (i32, i32) {
-        match self.pixels.as_ref() {
-            Some(p) => {
-                let (px, py) = p
-                    .window_pos_to_pixel((x as f32, y as f32))
-                    .unwrap_or_else(|pos| p.clamp_pixel_pos(pos));
-                (px as i32, py as i32)
+        match self.window.as_ref() {
+            Some(w) => {
+                let size = w.inner_size();
+                window::to_canvas(size.width.max(1), size.height.max(1), x, y)
             }
             None => (x as i32, y as i32),
         }
+    }
+
+    /// **F5 — resize the window to an exact multiple of 640 × 480.**
+    ///
+    /// The key is the original's, not ours: with `g_optFullScreen` clear the
+    /// game draws the caption *"(F5 key re-sizes window to 640x480)"*, so it
+    /// shipped a key that snaps the window back to a whole scale. Ours snaps to
+    /// the **largest whole scale that still fits the window the player has**,
+    /// which is 1× when the window is small and 2× or 3× on a modern display;
+    /// the original had only 1× to snap to. That widening is ours and this is
+    /// where it is written down.
+    ///
+    /// Integer scaling stays. A 1996 sprite game at a fractional scale gets
+    /// pixels of two different widths in the same row, which is visible on
+    /// every diagonal in the tile art; borders are the honest cost of not
+    /// doing that, and this key is how the player makes them go away.
+    fn snap_to_whole_scale(&mut self) {
+        let Some(w) = self.window.clone() else { return };
+        let size = w.inner_size();
+        let (ww, wh) = window::snapped(size.width.max(1), size.height.max(1));
+        let want = winit::dpi::PhysicalSize::new(ww, wh);
+        if want == size {
+            return;
+        }
+        let _ = w.request_inner_size(want);
     }
 
     fn deliver(&mut self, event: GameEvent) {
@@ -191,7 +228,11 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => self.present(),
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
-                if let Some(key) = translate(&event.logical_key) {
+                // F5 never reaches a screen: it is about the window, and the
+                // window is this file's business alone.
+                if event.logical_key == WinitKey::Named(NamedKey::F5) {
+                    self.snap_to_whole_scale();
+                } else if let Some(key) = translate(&event.logical_key) {
                     self.deliver(GameEvent::KeyDown(key));
                 }
             }
@@ -200,6 +241,7 @@ impl ApplicationHandler for App {
                 self.last_cursor = (x, y);
                 self.deliver(GameEvent::Pointer { x, y });
             }
+            WindowEvent::CursorLeft { .. } => self.deliver(GameEvent::PointerLeft),
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
                 button: MouseButton::Left,
@@ -215,6 +257,16 @@ impl ApplicationHandler for App {
             } => {
                 let (x, y) = self.last_cursor;
                 self.deliver(GameEvent::Release { x, y });
+            }
+            // The original acts on the right button's **release** everywhere,
+            // never its press — see `input::Event::RightClick`.
+            WindowEvent::MouseInput {
+                state: ElementState::Released,
+                button: MouseButton::Right,
+                ..
+            } => {
+                let (x, y) = self.last_cursor;
+                self.deliver(GameEvent::RightClick { x, y });
             }
             _ => {}
         }

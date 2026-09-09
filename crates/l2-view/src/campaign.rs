@@ -65,6 +65,11 @@ pub const TOP_BAR_H: i32 = 24;
 pub const PANEL_X: i32 = 478;
 pub const PANEL_W: i32 = 162;
 
+/// The bits of the plane-1 byte that select a tile bank: `bank = (b & 0x1c) >> 2`.
+/// `Map_ResolvePick` (`0x0046D5FE`) tests `(tile.bank & 0x1c) == 4`, and
+/// `FUN_004063C1` switches on the same mask.
+pub const BANK_MASK: u8 = 0x1c;
+
 /// The palette `Screen_DrawCampaign` installs: `Palette_Set(g_paletteBase01)`,
 /// and `0x005691F0` is entry 0 of the startup preload table, `Base01.256`.
 pub const PALETTE: &str = "Base01.256";
@@ -380,6 +385,62 @@ pub fn tile_centre(view: Viewport, zoom: &Zoom, x: usize, y: usize) -> Option<(i
     zoom.clip().contains(cx, cy).then_some((cx, cy))
 }
 
+/// **Tile graphics the game rewrites after the map file is read.**
+///
+/// `L2_maps.dat` is not what the original renders. `Counties_PlaceSites`
+/// (`0x00468D4F`) runs over every county at load and stamps new bank/frame
+/// bytes into the runtime tile records, and the population pass re-stamps some
+/// of them **every season** — so the on-disk bytes for those tiles are a
+/// placeholder that the original never shows on screen.
+///
+/// The one that matters, and the one that sent a player looking for his town:
+/// a county town's 2 × 2 block is stored as `Town1a.pl8` frames 0 … 3, and
+/// **`Town1a.pl8` frames 0 … 3 are the quarry artwork** — four dark excavated
+/// pits. `County_PlaceResourceSites` is the proof: it reads that same bank and
+/// treats frame 0 as the stone quarry, 20 as wood and 30 as iron. The town is
+/// re-stamped to frames 47 … 50, 51 … 54 or 55 … 58 by the county's population,
+/// and until it is, a town renders as four quarries.
+///
+/// A sparse plane rather than a rewritten `MapSlot`, because the map file is
+/// the user's own and this crate has no business holding a mutated copy of it:
+/// `None` everywhere means "draw the file", and the caller fills in only the
+/// tiles it can account for.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Overrides {
+    /// `(bank byte, frame)` per tile index `y * 64 + x`, empty when nothing is
+    /// overridden at all.
+    at: Vec<Option<(u8, u8)>>,
+}
+
+impl Overrides {
+    pub fn new() -> Overrides {
+        Overrides { at: Vec::new() }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.at.is_empty()
+    }
+
+    /// Override one tile. `bank` is the **plane-1 byte**, not the bank index —
+    /// the same value the file stores, so a caller copies rather than converts.
+    pub fn set(&mut self, x: usize, y: usize, bank: u8, frame: u8) {
+        if x >= PLANE_DIM || y >= PLANE_DIM {
+            return;
+        }
+        if self.at.is_empty() {
+            self.at = vec![None; PLANE_DIM * PLANE_DIM];
+        }
+        self.at[y * PLANE_DIM + x] = Some((bank, frame));
+    }
+
+    pub fn get(&self, x: usize, y: usize) -> Option<(u8, u8)> {
+        if x >= PLANE_DIM || y >= PLANE_DIM {
+            return None;
+        }
+        *self.at.get(y * PLANE_DIM + x)?
+    }
+}
+
 /// Paint the viewport, stamping county ids into `tags`. Returns tiles drawn.
 ///
 /// The traversal is `Map_RenderIso`'s: `rows + 1` lattice rows starting at
@@ -387,6 +448,7 @@ pub fn tile_centre(view: Viewport, zoom: &Zoom, x: usize, y: usize) -> Option<(i
 /// than by a special blitter. An aligned row draws `cols` cells; an offset row
 /// draws `cols + 1`, because shifting left by half a pitch exposes one more
 /// column on the right.
+#[allow(clippy::too_many_arguments)]
 pub fn draw(
     canvas: &mut Canvas,
     map: &MapSlot,
@@ -395,6 +457,7 @@ pub fn draw(
     view: Viewport,
     zoom: &Zoom,
     tags: &mut Tags,
+    overrides: &Overrides,
 ) -> usize {
     let clip = zoom.clip();
     let mut drawn = 0;
@@ -408,8 +471,18 @@ pub fn draw(
             let (sx, sy) = cell_to_screen(view, zoom, row, col);
             match lattice.tile(row, col) {
                 Some((x, y)) => {
-                    let bank = (map.at(Plane::GfxBank, x, y) / 4) as usize;
-                    let frame = map.at(Plane::GfxIndex, x, y) as usize;
+                    let (bank_byte, frame) = overrides
+                        .get(x, y)
+                        .unwrap_or((map.at(Plane::GfxBank, x, y), map.at(Plane::GfxIndex, x, y)));
+                    // `Map_ResolvePick` reads the bank as `tile.bank & 0x1c`,
+                    // and the mask is not decoration: at run time the same byte
+                    // also carries `0x01`, `0x20`, `0x40` and `0x80`, which
+                    // `County_FindTownTile` and `FUN_0046ac22` set. Nothing on
+                    // disk has them — 0 of 180,224 tiles — so this changed no
+                    // pixel, and it is the difference between a renderer that
+                    // works on the file and one that works on the game's state.
+                    let bank = ((bank_byte & BANK_MASK) >> 2) as usize;
+                    let frame = frame as usize;
                     let county = map.county_at(x, y);
                     if blit_cell(canvas, assets, zoom, bank, frame, sx, sy, clip, tags, county) {
                         drawn += 1;

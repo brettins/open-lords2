@@ -48,7 +48,7 @@ impl IndexScreen {
 
         push("-- IMPLEMENTED --".into(), None);
         push("0x00 CAMPAIGN MAP".into(), Some(ScreenId::Campaign));
-        push("0x14/15/16/19 COUNTY PANELS".into(), Some(ScreenId::County(1)));
+        push("0x14/15/16/19 COUNTY PANELS".into(), Some(ScreenId::County(1, crate::screens::county::Panel::Tax)));
         // `0x02` is being written by another agent. This is the hook and
         // nothing else: no `ScreenId` for it is invented here, because the
         // agent that owns the screen owns its id.
@@ -237,7 +237,7 @@ mod tests {
         let s = IndexScreen::new();
         let dests: Vec<ScreenId> = s.rows.iter().filter_map(|r| r.to).collect();
         assert!(dests.contains(&ScreenId::Campaign));
-        assert!(dests.contains(&ScreenId::County(1)));
+        assert!(dests.contains(&ScreenId::County(1, crate::screens::county::Panel::Tax)));
         assert!(dests.contains(&ScreenId::Conquest));
         assert!(dests.contains(&ScreenId::SaveLoad(SaveLoadMode::Load)));
         assert!(dests.contains(&ScreenId::SaveLoad(SaveLoadMode::Save)));

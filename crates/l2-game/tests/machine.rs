@@ -9,6 +9,7 @@
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
+use l2_game::screens::county::Panel;
 use l2_game::screens::menu::MenuScreen;
 use l2_game::Game;
 use l2_view::Canvas;
@@ -136,7 +137,7 @@ fn only_the_top_screen_is_offered_input() {
 
     // Now put the county panel on top and press the same key.
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Enter));
-    assert_eq!(m.top_id(), Some(ScreenId::County(1)));
+    assert_eq!(m.top_id(), Some(ScreenId::County(1, Panel::Tax)));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Char('E')));
     assert_eq!(
         game.kingdom.turn_count, after_map,
@@ -148,7 +149,7 @@ fn only_the_top_screen_is_offered_input() {
 fn the_county_panel_sets_the_tax_rate_of_the_players_county_and_not_of_another() {
     let (mut game, assets) = world();
     game.selected = 1;
-    let mut m = Machine::new(ScreenId::County(1));
+    let mut m = Machine::new(ScreenId::County(1, Panel::Tax));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
     assert_eq!(game.kingdom.counties[1].tax_rate, 2);
@@ -156,7 +157,7 @@ fn the_county_panel_sets_the_tax_rate_of_the_players_county_and_not_of_another()
     assert_eq!(game.kingdom.counties[1].tax_rate, 1);
 
     // County 2 is unowned, so the same keys change nothing.
-    let mut m = Machine::new(ScreenId::County(2));
+    let mut m = Machine::new(ScreenId::County(2, Panel::Tax));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
     assert_eq!(game.kingdom.counties[2].tax_rate, 0);
 }
@@ -165,7 +166,7 @@ fn the_county_panel_sets_the_tax_rate_of_the_players_county_and_not_of_another()
 fn the_county_panels_second_row_sets_the_ration_level() {
     let (mut game, assets) = world();
     game.kingdom.counties[1].ration_wanted = 3;
-    let mut m = Machine::new(ScreenId::County(1));
+    let mut m = Machine::new(ScreenId::County(1, Panel::Tax));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Down)); // to the ration row
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
     assert_eq!(game.kingdom.counties[1].ration_wanted, 4);
@@ -181,7 +182,7 @@ fn the_county_panels_second_row_sets_the_ration_level() {
 #[test]
 fn every_screen_paints_the_whole_canvas_rather_than_leaving_it_blank() {
     let (mut game, assets) = world();
-    for id in [ScreenId::Menu, ScreenId::Campaign, ScreenId::County(1)] {
+    for id in [ScreenId::Menu, ScreenId::Campaign, ScreenId::County(1, Panel::Tax)] {
         let mut m = Machine::new(id);
         let canvas = draw(&mut m, &mut game, &assets);
         let ink = &assets.ink;

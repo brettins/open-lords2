@@ -1397,6 +1397,129 @@ rungs 1 and 2 of `classify_occupied`'s ladder are now unreachable by constructio
 by comment. The check is cheap and is now written down —
 `a_merchant_walks_through_whatever_is_standing_in_its_way` walks six mover/blocker pairs and
 asserts which four pass.
+**C41 — `L2_maps.dat` is not what the game draws. Every county town on the map was rendered
+as four stone quarries, because that is literally what the file says and the original
+overwrites it before the first frame.**
+
+A player looked at his county and said *"there is no town square, just 4 quarries where it
+should be"*. He was describing the pixels exactly.
+
+The town's 2 × 2 block is stored as bank `0x0c` (`Town1a.pl8`), frames 0 … 3
+(`maps-layers.md` §1.2's own worked example). We rendered the file. **`Town1a.pl8` frames
+0 … 3 are the quarry artwork** — four dark excavated pits — and that is not a coincidence
+of appearance, it is how the game itself identifies a quarry:
+`County_PlaceResourceSites` (`0x00468E61`) scans for `bank & 0x1c == 0x0c` and reads the
+frame, `frame == 0` giving stone, `20` wood and `30` iron.
+
+The stored frames are a placeholder. `Counties_PlaceSites` (`0x00468D4F`) runs
+`County_FindTownTile` first, which calls `FUN_0046AC22('/', 2, county, 0x0c, 0)` and stamps
+`bank &= 0xE3; bank |= 0x0c; frame = quadTable[part] + base`, and the population pass
+re-stamps it **every season**:
+
+| county population | town frames |
+|---|---|
+| `< 0x321` (801) | 47 … 50 (`'/'`) |
+| `< 0x4B1` (1201) | 51 … 54 (`'3'`) |
+| otherwise | 55 … 58 (`'7'`) |
+
+So the town is a **village whose size is its population**, redrawn as the county grows, and
+the frames the file holds are never on screen in the original at all.
+
+**What we do now, and what it costs.** `l2-view` gains a sparse
+[`campaign::Overrides`](../crates/l2-view/src/campaign.rs) plane — `None` everywhere means
+"draw the file" — and the map screen fills in the towns from the counties' populations.
+That is one of the rewrites `Counties_PlaceSites` performs; the others (the castle into
+bank `0x10`, the four resource sites) are not reproduced, and any of them may turn out to be
+drawing a placeholder too. The plane exists so that finding the next one is a fill rather
+than a redesign.
+
+Two documentation errors fall out of it, both in `docs/formats/maps-layers.md`:
+
+- §2's table labels bit `0x40` *"castle site"* and `0x80` *"settlement"*, which is C25's
+  swap surviving in the one place that mattered most, because that table is the reader's
+  map of the file. `County_FindTownTile` (`0x00467FD1`) scans `0x40`; `County_FindCastleTile`
+  (`0x00468121`) scans `0x80` and stamps terrain `0x14`.
+- §5.4 explains the 47 … 50 rewrite as *"the game was started with Starting Castle: keep"*.
+  It is not a castle option; 47 / 51 / 55 are the three **village sizes** and the selector is
+  the county's population.
+
+**What made it findable, and what did not.** Nothing in the workspace could have caught
+this: two of our own implementations agreeing proves nothing, and here we had only one, and
+it agreed with the file. It took somebody who has played the game looking at a screenshot.
+That is the third time — C21 and C22 were the others — and the pattern is now explicit
+enough to state: **a renderer verified against its input file is verified against the wrong
+thing.** The oracle is the running game's framebuffer, and until we diff against it, a
+player's eye is the only instrument we have.
+
+**C42 — The county strip's happiness figure was right-anchored on a coordinate that is a
+left origin, and its two captions were dimmed where the original draws them in the same
+colour as everything else.**
+
+`CountyStrip_Draw` (`0x0040F7D3`) draws the two numbers with the same function and the same
+argument shape:
+
+```c
+Ui_DrawNumber(pop,       ' ', " ", 0x1fc, 0xbd, &g_fontSmall, 0x3f);
+Ui_DrawNumber(happiness, ' ', " ", 0x25a, 0xbd, &g_fontSmall, 0x3f);
+```
+
+**`Ui_DrawNumber` has no anchoring argument.** The calls differ in their value and their x
+and in nothing else, so if `0x1FC` is where the population starts — and it is, immediately
+right of the plate's peasant icon — then `0x25A` is where the happiness starts. We drew it
+so that it *ended* at 602, which put a two-digit number on top of the plate's heart and
+would have walked a three-digit one further left still. `docs/screens-county.md` §2.1's
+table gives both as bare coordinates, and the ambiguity was resolved by guessing.
+
+Two more from the same function, both in §2.1:
+
+- **The county name is `g_fontBody` (`Fntl2_14.pl8`)**, not the strip's 9-pixel font. §2.1
+  ends *"all of it in the 9-pixel font, which is the only place that font is used"* — the
+  second half is right and the first is not. `DAT_005AEA40` is set to 1 *after* the name and
+  cleared after the numbers, so the name is embossed and the numbers are flat.
+- **The *Tax* and *Ration* captions are colour `0x3F`**, the same as every number beside
+  them. Ours were drawn in the dim ink, which against the plate's own texture is very nearly
+  invisible — a legibility bug produced entirely by inventing an emphasis the original does
+  not have.
+
+**What made it findable.** A screenshot of the running game, cropped and enlarged four
+times. The layout was already asserted to the pixel by
+`the_county_strip_shows_the_saves_numbers_where_the_original_puts_them`, and that test
+passed throughout, because it asserted the coordinate we had chosen rather than the one the
+call gives. C28's lesson at a smaller scale: a test written from the same reading as the
+code confirms the reading, not the behaviour.
+
+**C43 — The campaign sidebar's five buttons were one button of ours, drawn over.**
+
+`crates/l2-game/src/screens/map.rs` said, of the 162 × 30 strip at (478, 430): *"the
+original puts a status line here, not a button; we use it to open the county panel"*. The
+original puts **five buttons** there — `g_sidebarButtons` (`0x004DC680`), dispatched by
+`Sidebar_Button` (`0x0043AE30`) — and the artwork for all five is painted into `Misc_cty`
+frame `0x39`, which we were already drawing and then writing *COUNTY PANEL* and a status
+line across.
+
+| id | rect | sets | what |
+|---:|---|---|---|
+| 1 | x 478 … 510 | `g_screenId = 0x17` | raise an army, after `Levy_SetPercent` |
+| 2 | x 512 … 542 | `= 0x09` | the court |
+| 3 | x 544 … 574 | `= 0x18` | send supplies |
+| 4 | x 576 … 606 | `= 0x1B` | castle building |
+| 5 | x 608 … 638 | `= 0x0B` | the other lords |
+
+`docs/screens-county.md` §2.4 had the table and named the last two only by the address they
+dispatch to; both are read now. All five are `screens::shells` entries, so all five are
+wired.
+
+The same click sweep carries two more controls the sidebar was swallowing: the
+**farm/industry labour split slider** (`FUN_00439122`, x 478 … 639, y 257 … 296), which is
+the one control on the campaign screen that moves peasants in bulk and was reported as *"I
+can't assign peasants"*; and the **four minimap mode buttons** (`g_minimapModeButtons`,
+`0x004DC620`), of which the fourth is the zoom toggle `docs/screens.md` §7 records us having
+replaced with a key.
+
+**What made it findable.** A player said the icons in the bottom right did nothing and had
+text over them. The comment claiming they were a status line had been in the file since the
+sidebar was written, and it was never checked against the hotspot table sitting three
+sections away in a document this repository already had.
 
 ## Open questions
 

@@ -23,9 +23,11 @@
 //!
 //! # What is still ours, and says so
 //!
-//! * **The font.** The original draws `Fntl2_14.pl8` for body lines,
-//!   `Fntl2_22.pl8` for headings and `Fntl2_9.pl8` for the strip. We draw our
-//!   own 5 × 7 font at the original's coordinates.
+//! * **The font, on the four panels.** The original draws `Fntl2_14.pl8` for
+//!   body lines and `Fntl2_22.pl8` for headings; the panels still use our own
+//!   5 × 7 font at the original's coordinates. **The strip does not** — it is
+//!   `Fntl2_9.pl8`, which is the only place in the game that font is used, and
+//!   [`draw_strip`] draws it where the install has it.
 //! * **The history graph.** `Ui_HistoryGraph` fills 402 × 155 of both the
 //!   population and the happiness panel from `g_countyHistory` — 400 turns ×
 //!   16 counties × 8 bytes, and part of the save. `l2-kingdom` keeps no
@@ -37,8 +39,10 @@
 //! [overlays](crate::screen::Screen::is_overlay) and the machine paints the map
 //! screen beneath them, which is the same correction the village needed —
 //! `docs/decisions.md` C22.)*
-//! * **The strings.** Ours, transcribed from the `L2.eng` group each row names.
-//!   Nothing here reads `L2.eng`; the workspace has no decoder for it.
+//! * **The strings on the panels.** Ours, transcribed from the `L2.eng` group
+//!   each row names. The strip reads `L2.eng` properly — group 100 for the
+//!   county's name, 61 for its two captions and 21 for the ration level — and
+//!   falls back to the transcriptions when the install has no `L2.eng`.
 //! * **The bottom strip** reads BACK TO MAP. The original's is End Turn, which
 //!   is the map screen's business.
 //!
@@ -191,6 +195,16 @@ impl Panel {
     }
 }
 
+/// `CountyStrip_Click` (`0x00438CEB`) itself: which panel a pixel opens, or
+/// `None` for the outer guard and for the thermometer's dead band.
+///
+/// **This is the whole navigation into the four panels** — §2.3 — so it lives
+/// here as one function rather than as four rectangles the caller loops over,
+/// and the campaign map and the county screen both call it.
+pub fn panel_at(x: i32, y: i32) -> Option<Panel> {
+    PANELS.into_iter().find(|p| p.strip_hotspot().contains(x, y))
+}
+
 // -------------------------------------------------- the ration split slider
 //
 // `Panel_RationSlider` (`0x00411FDE`) draws it and `Ration_SliderClick`
@@ -284,11 +298,10 @@ pub struct CountyScreen {
 }
 
 impl CountyScreen {
-    /// Opens on the tax panel. The original opens on whichever quadrant was
-    /// clicked and has no default; this has to start somewhere, and tax is the
-    /// order the player gives most.
-    pub fn new(county: u8) -> CountyScreen {
-        CountyScreen { county, panel: Panel::Tax }
+    /// Opens on the panel the strip quadrant that was clicked names, which is
+    /// the only way the original opens any of them ([`panel_at`]).
+    pub fn new(county: u8, panel: Panel) -> CountyScreen {
+        CountyScreen { county, panel }
     }
 
     pub fn county(&self) -> u8 {
@@ -355,7 +368,7 @@ impl CountyScreen {
 
 impl Screen for CountyScreen {
     fn id(&self) -> ScreenId {
-        ScreenId::County(self.county)
+        ScreenId::County(self.county, self.panel)
     }
 
     fn title(&self, _ctx: &Ctx) -> String {
@@ -364,6 +377,23 @@ impl Screen for CountyScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
+            // **`Ui_DrawBox` panels are dismissed by the right button**, and the
+            // game says so in its own words: `Screen_SliderBox` prints `L2.eng`
+            // group 12 index 0, *"Click Right to Exit"*, under its caption.
+            // `FUN_0042FF10`'s arm for each of `0x14`, `0x15`, `0x16` and
+            // `0x19` is the same shape — the strip, the sidebar and the ration
+            // slider are tested first, so a click on those *switches* panel
+            // rather than closing it, and only then does a right release set
+            // `g_screenId = 0`.
+            //
+            // It closes from *anywhere*, the strip included: every guard in
+            // that chain tests a left press or a left release, so none of them
+            // consumes a right one.
+            //
+            // The Escape and Enter keys are **ours**. The original has no
+            // keyboard route out of a panel at all — its only `VK_ESCAPE`
+            // handler quits the game.
+            Event::RightClick { .. } => return Transition::Pop,
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => return Transition::Pop,
             Event::KeyDown(Key::Up) => {
                 self.panel = PANELS[(self.panel_index() + PANELS.len() - 1) % PANELS.len()];
@@ -382,11 +412,9 @@ impl Screen for CountyScreen {
                 // The strip's four quadrants, exactly as CountyStrip_Click
                 // splits them. Tested first because the strip never overlaps a
                 // panel: every panel window ends at x = 464 at the latest.
-                for p in PANELS {
-                    if p.strip_hotspot().contains(x, y) {
-                        self.panel = p;
-                        return Transition::Stay;
-                    }
+                if let Some(p) = panel_at(x, y) {
+                    self.panel = p;
+                    return Transition::Stay;
                 }
                 if self.split_click(ctx, x, y) {
                     return Transition::Stay;
@@ -418,7 +446,7 @@ impl Screen for CountyScreen {
 
         let mine = ctx.game.is_players(self.county);
         draw_right_column(canvas, ctx.assets, mine);
-        self.draw_strip(ctx, canvas);
+        draw_strip(ctx, canvas, self.county, Some(self.panel));
         self.draw_panel(ctx, canvas);
 
         // OURS: the original's bottom strip ends the turn.
@@ -438,66 +466,220 @@ fn draw_right_column(canvas: &mut Canvas, assets: &Assets, own: bool) {
     widget::panel(canvas, &assets.ink, Rect::new(478, chrome::PANEL_TOP_Y, 162, 480 - 24));
 }
 
-impl CountyScreen {
-    /// The county strip: what `CountyStrip_Draw` puts in the 162 × 94 plate, at
-    /// its own coordinates.
-    fn draw_strip(&self, ctx: &Ctx, canvas: &mut Canvas) {
-        let ink = &ctx.assets.ink;
-        let Some(c) = ctx.game.kingdom.counties.get(self.county as usize) else { return };
-        let mine = ctx.game.is_players(self.county);
+// -------------------------------------------------------- drawing the strip
+//
+// A free function, not a method, because **the campaign map draws it too**.
+// `Screen_DrawCampaign` puts `CountyStrip_Draw` in the sidebar of the map
+// itself; until now our map screen drew a box of our own numbers over the jobs
+// plate below it and left this plate empty, which is the thing a player looks
+// at every turn and the one place the original's own layout was going spare.
 
-        // Ui_DrawCentred(group 100, ..., 0x1E0, 0xA5, 0xA0): the county's name,
-        // centred across 160 pixels. Ours reads "COUNTY n" — the names are in
-        // L2.eng group 100 and we do not read L2.eng.
-        text::draw_centred(canvas, 478 + 80, 165, &format!("COUNTY {}", self.county), ink.text);
-
-        if !mine {
-            // Group 15, "Sovereign land / of", then the owner's name out of
-            // g_playerNames. We have the realm number and not the name.
-            let owner = if c.owner == 0 {
-                "UNCLAIMED".to_string()
-            } else {
-                format!("REALM {}", c.owner)
-            };
-            text::draw_centred(canvas, 478 + 80, 240, "SOVEREIGN LAND", ink.dim);
-            text::draw_centred(canvas, 478 + 80, 260, &owner, ink.text);
-            text::draw_centred(canvas, 478 + 80, 290, "NOT YOURS", ink.bad);
-            return;
+/// The one line of text the strip's font draws.
+///
+/// `CountyStrip_Draw` uses **`Fntl2_9.pl8`**, and it is the only caller of that
+/// font in the whole game (`docs/screens-county.md` §2.1). We draw it where the
+/// install has it and fall back to our own 5 × 7 font where it does not, so the
+/// *layout* is the original's on every machine and the *letters* are only ours
+/// on a machine with no game.
+///
+/// `colour` is a resolved palette index rather than one of `shell::font`'s
+/// constants, because one of the rules here is a colour: the achieved ration is
+/// **red when it differs from the wanted one**. That rule is the original's; the
+/// index we spell red with is ours, out of [`Ink`].
+fn strip_text(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) {
+    match ctx.assets.shell.small.as_ref() {
+        Some(f) => {
+            // `CountyStrip_Draw` sets `DAT_005AEA40 = 1` for the whole numeric
+            // block and clears it after, and that global switches
+            // `Ui_DrawText`'s emboss **off**. The strip's numbers are flat.
+            let style = crate::shell::font::Style { colour, shadow: None, caps: None };
+            f.draw(canvas, x, y, s, &style);
         }
-
-        // (0x1FC, 0xBD) and (0x25A, 0xBD).
-        text::draw(canvas, 508, 189, &c.population.to_string(), ink.text);
-        text::draw_right(canvas, 602, 189, &c.happiness.to_string(), ink.text);
-        // Group 61, centred in 76 pixels at (0x1E0, 0xD5) and (0x234, 0xD5).
-        text::draw_centred(canvas, 480 + 38, 213, g86::STRIP_TAX, ink.dim);
-        text::draw_centred(canvas, 564 + 38, 213, g86::STRIP_RATION, ink.dim);
-        // (0x1FA, 0xE2), and the ration level centred in 76 at (0x234, 0xE2).
-        text::draw(canvas, 506, 226, &format!("{}%", c.tax_rate), ink.text);
-        // "Red when it differs from rationWanted" is the original's own rule.
-        let colour = if c.ration_achieved == c.ration_wanted { ink.text } else { ink.bad };
-        text::draw_centred(canvas, 564 + 38, 226, ration_name(c.ration_achieved), colour);
-
-        // Pl8_DrawFrameHere(g_miscCtySheet, band + 0x46, 0x228, 0xB5) — the
-        // five-level health thermometer, in the dead band the hotspot leaves.
-        let band = c.health_band.min(4);
-        let drawn = ctx.assets.chrome.as_ref().is_some_and(|ch| {
-            ch.draw_misc(canvas, THERMOMETER_FRAME + band as usize, THERMOMETER.0, THERMOMETER.1)
-        });
-        if !drawn {
-            // OURS: a five-segment bar where the thermometer goes.
-            for i in 0..5i32 {
-                let lit = 4 - i <= band as i32;
-                let y = THERMOMETER.1 + i * 12;
-                let colour = if lit { ink.good } else { ink.border };
-                canvas.fill_rect(THERMOMETER.0, y, THERMOMETER_W, 10, colour);
-            }
+        None => {
+            text::draw(canvas, x, y, s, colour);
         }
+    }
+}
 
-        // OURS: the original's quadrants are invisible, because it is a mouse
-        // game. A one-pixel outline is how a keyboard player sees where it is.
-        widget::frame(canvas, self.panel.strip_hotspot(), ink.highlight);
+/// The same, centred in `width` from `x` — `Ui_DrawCentred`, which clamps the
+/// offset at zero rather than letting a long string start left of its box.
+///
+/// Public under a longer name because the End Turn caption is drawn in this
+/// font too (`Screen_DrawEndTurn`), and it is the map screen that draws it.
+pub fn strip_centred_at(
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    x: i32,
+    y: i32,
+    width: i32,
+    s: &str,
+    colour: u8,
+) {
+    strip_centred(ctx, canvas, x, y, width, s, colour)
+}
+
+fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: &str, colour: u8) {
+    let w = match ctx.assets.shell.small.as_ref() {
+        Some(f) => f.width(s),
+        None => text::width(s),
+    };
+    strip_text(ctx, canvas, x + ((width - w) / 2).max(0), y, s, colour);
+}
+
+/// One line in the **body** font (`Fntl2_14.pl8`), centred in `width` from `x`.
+///
+/// The strip's own font is the 9-pixel one, but the county's name and the
+/// three "sovereign land of …" lines are drawn with `g_fontBody`, embossed —
+/// `DAT_005AEA40` is only set for the numeric block between them.
+fn body_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, w: i32, s: &str, colour: u8) {
+    match ctx.assets.shell.body.as_ref() {
+        Some(f) => {
+            f.draw_centred(canvas, x, y, w, s, &crate::shell::font::Style::new(colour));
+        }
+        None => {
+            text::draw_centred(canvas, x + w / 2, y, s, colour);
+        }
+    }
+}
+
+/// The county's name: `L2.eng` group 100, index `scenarioIndex * 20 + countyId`
+/// — and `g_scenarioIndex` *is* the map slot ([`crate::game::Game::map_slot`]).
+///
+/// Falls back to `COUNTY n` for an install with no `L2.eng`, which is also what
+/// the tests run against.
+pub fn county_name(ctx: &Ctx, id: u8) -> String {
+    let index = ctx.game.map_slot * 20 + id as usize;
+    let name = ctx.assets.shell.text(100, index);
+    if name.is_empty() {
+        format!("COUNTY {id}")
+    } else {
+        name.to_string()
+    }
+}
+
+/// One `L2.eng` string with a fallback, for the two the strip needs by name.
+fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
+    let s = ctx.assets.shell.text(group, index);
+    if s.is_empty() {
+        fallback.to_string()
+    } else {
+        s.to_string()
+    }
+}
+
+/// The ration level's name — `L2.eng` group 21, which is what `CountyStrip_Draw`
+/// indexes with county `+0x15D`.
+fn ration_label(ctx: &Ctx, level: i32) -> String {
+    let level = level.clamp(0, RATION_LEVEL_COUNT as i32 - 1);
+    eng(ctx, 21, level as usize, ration_name(level))
+}
+
+/// **The county strip: what `CountyStrip_Draw` (`0x0040F7D3`) puts in the
+/// 162 × 94 plate at (478, 156), at its own coordinates.**
+///
+/// `focus` outlines one quadrant. That outline is ours — the original's
+/// quadrants are invisible because it is a mouse game — and it is drawn only
+/// when a panel is actually open, so the map's sidebar carries none.
+pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Panel>) {
+    let ink = &ctx.assets.ink;
+    let Some(c) = ctx.game.kingdom.counties.get(county as usize) else { return };
+    let mine = ctx.game.is_players(county);
+
+    // `Ui_DrawCentred(100, scenarioIndex*0x14 + county, 0x1E0, 0xA5, 0xA0,
+    // &g_fontBody, 0x3F)` — the county's name, centred across 160 pixels at
+    // (480, 165), and **in the 14-pixel body font, not the strip's 9-pixel
+    // one**. `docs/screens-county.md` §2.1 says "all of it in the 9-pixel
+    // font"; the name is the exception, and `DAT_005AEA40` is set to 1 only
+    // *after* it, so the name is embossed and the numbers below it are not.
+    //
+    // The unowned plate is 162 × 274 rather than 162 × 94 and puts the name
+    // fifteen pixels lower, at `0xB4`; that is the original's own difference,
+    // not a rounding of ours.
+    let name = county_name(ctx, county);
+    let name_y = if mine { 165 } else { 180 };
+    body_centred(ctx, canvas, 480, name_y, 160, &name, ink.text);
+
+    if !mine {
+        // `Ui_DrawCentred(0xF, 0, 0x1E0, 0xF0, 0xA0, &g_fontBody, realm+0x08)`
+        // and index 1 sixteen pixels below it, then the owner's name out of
+        // `g_playerNames` (`0x00553D54`, stride 0x2C) at (480, 280) — all three
+        // in the *realm's own colour*. We have the realm number and not the
+        // name, and our realm colours are `Ink`'s rather than the save's byte.
+        let owner = if c.owner == 0 {
+            "UNCLAIMED".to_string()
+        } else {
+            format!("REALM {}", c.owner)
+        };
+        let colour = ink.realm.get(c.owner as usize).copied().unwrap_or(ink.text);
+        body_centred(ctx, canvas, 480, 240, 160, &eng(ctx, 15, 0, "SOVEREIGN LAND"), colour);
+        body_centred(ctx, canvas, 480, 260, 160, &eng(ctx, 15, 1, "OF"), colour);
+        body_centred(ctx, canvas, 480, 280, 160, &owner, colour);
+        return;
     }
 
+    // `Ui_DrawNumber(pop, ' ', " ", 0x1FC, 0xBD, &g_fontSmall, 0x3F)` and the
+    // identical call for happiness at `0x25A`.
+    //
+    // **Both are left origins.** `Ui_DrawNumber` takes no anchoring argument —
+    // the two calls differ only in their value and their x — so the happiness
+    // figure starts at 602 rather than ending there. We right-anchored it,
+    // which put a two-digit number on top of the plate's heart and would have
+    // put a three-digit one further left still. See `docs/decisions.md` C42.
+    strip_text(ctx, canvas, 508, 189, &c.population.to_string(), ink.text);
+    strip_text(ctx, canvas, 602, 189, &c.happiness.to_string(), ink.text);
+    // Group 61, centred in 76 pixels at (0x1E0, 0xD5) and (0x234, 0xD5), and
+    // **in colour 0x3F, the same as the numbers** — the captions are not dimmed
+    // in the original and ours were unreadable against the plate.
+    strip_centred(ctx, canvas, 480, 213, 76, &eng(ctx, 61, 0, g86::STRIP_TAX), ink.text);
+    strip_centred(ctx, canvas, 564, 213, 76, &eng(ctx, 61, 1, g86::STRIP_RATION), ink.text);
+    // (0x1FA, 0xE2), and the ration level centred in 76 at (0x234, 0xE2).
+    strip_text(ctx, canvas, 506, 226, &format!("{}%", c.tax_rate), ink.text);
+    // "Red when it differs from rationWanted" is the original's own rule.
+    let colour = if c.ration_achieved == c.ration_wanted { ink.text } else { ink.bad };
+    strip_centred(ctx, canvas, 564, 226, 76, &ration_label(ctx, c.ration_achieved), colour);
+
+    // Pl8_DrawFrameHere(g_miscCtySheet, band + 0x46, 0x228, 0xB5) — the
+    // five-level health thermometer, in the dead band the hotspot leaves.
+    let band = c.health_band.min(4);
+    let drawn = ctx.assets.chrome.as_ref().is_some_and(|ch| {
+        ch.draw_misc(canvas, THERMOMETER_FRAME + band as usize, THERMOMETER.0, THERMOMETER.1)
+    });
+    if !drawn {
+        // OURS: a five-segment bar where the thermometer goes.
+        for i in 0..5i32 {
+            let lit = 4 - i <= band as i32;
+            let y = THERMOMETER.1 + i * 12;
+            let colour = if lit { ink.good } else { ink.border };
+            canvas.fill_rect(THERMOMETER.0, y, THERMOMETER_W, 10, colour);
+        }
+    }
+
+    // `Pl8_DrawFrame(g_miscCtySheet, 0x3D, share / 2 + 0x214, 0x106)` — the
+    // farm/industry split's thumb, on the 162 × 52 plate at (478, 250) that
+    // `CountyStrip_Draw` paints as its last act. It is drawn *here* rather than
+    // by the map screen because the county panels repaint the whole sidebar
+    // over the map, and a thumb only the map drew would vanish whenever a panel
+    // was open.
+    //
+    // The original swaps to frame `0x55`, two pixels up and left, when the
+    // castle job has workers; which of `l2-kingdom`'s nine job slots that test
+    // reads is not settled, so we always draw the plain thumb.
+    let share = c.industry_share.clamp(0, 100);
+    let (tx, ty) = (share / 2 + 532, 262);
+    let thumb =
+        ctx.assets.chrome.as_ref().is_some_and(|ch| ch.draw_misc(canvas, 0x3D, tx, ty));
+    if !thumb {
+        canvas.fill_rect(tx, ty, 9, 33, ink.highlight);
+    }
+
+    // OURS: the original's quadrants are invisible. A one-pixel outline is how
+    // a keyboard player sees which of the four is open.
+    if let Some(p) = focus {
+        widget::frame(canvas, p.strip_hotspot(), ink.highlight);
+    }
+}
+
+impl CountyScreen {
     fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let (bx, by, cols, rows) = self.panel.box_cells();

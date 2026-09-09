@@ -34,8 +34,16 @@ use crate::input::Event;
 pub enum ScreenId {
     Menu,
     Campaign,
-    /// The county panel, for one county id.
-    County(u8),
+    /// A county panel — the original's `0x14`, `0x15`, `0x16` and `0x19` — for
+    /// one county id.
+    ///
+    /// **The panel is part of the identity**, because in the original the four
+    /// are four different screen ids and the *only* route into any of them is
+    /// the quadrant of the county strip drawn above it
+    /// (`docs/screens-county.md` §2.3). A `County(id)` with no panel had to
+    /// guess one, and guessed tax; the player then had no way to reach the
+    /// other three, because the map screen never offered him the strip at all.
+    County(u8, crate::screens::county::Panel),
     /// The village, for one county id — the original's screen `0x02`.
     Village(u8),
     /// The job popup, for one county and one of its nine labour slots — the
@@ -102,6 +110,18 @@ pub trait Screen {
         Transition::Stay
     }
 
+    /// Whether the last [`Screen::update`] changed what is on screen.
+    ///
+    /// Input already forces a repaint — [`Machine::handle`] marks the machine
+    /// dirty for every event — so this exists for the one thing that changes
+    /// without an event arriving: **edge scrolling**, where the pointer is held
+    /// still against the edge of the window and the map moves under it. Taking
+    /// the flag rather than reading it keeps a still screen costing nothing,
+    /// which is the property [`Machine::update`] was written to preserve.
+    fn take_redraw(&mut self) -> bool {
+        false
+    }
+
     /// The `.256` this screen runs under, if it is not the campaign palette.
     ///
     /// A [`Canvas`] is a plane of palette *indices* and means nothing without
@@ -150,7 +170,9 @@ impl ScreenId {
         match self {
             ScreenId::Menu => Box::new(crate::screens::menu::MenuScreen::new()),
             ScreenId::Campaign => Box::new(crate::screens::map::MapScreen::new()),
-            ScreenId::County(id) => Box::new(crate::screens::county::CountyScreen::new(id)),
+            ScreenId::County(id, panel) => {
+                Box::new(crate::screens::county::CountyScreen::new(id, panel))
+            }
             ScreenId::Village(id) => Box::new(crate::screens::village::VillageScreen::new(id)),
             ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
             ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
@@ -233,6 +255,9 @@ impl Machine {
     pub fn update(&mut self, ctx: &mut Ctx) {
         let Some(top) = self.stack.last_mut() else { return };
         let t = top.update(ctx);
+        if top.take_redraw() {
+            self.dirty = true;
+        }
         if t != Transition::Stay {
             self.apply(t);
             self.dirty = true;

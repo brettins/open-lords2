@@ -150,10 +150,24 @@ these 16 classes; no class overlaps another's index range:
 | `0x12` | roads | 116 | 38–40 | reserved plot on a boundary tile **[I]** |
 | `0x20` | roads | 5,339 | **80 only** | farm field **[V]** |
 | `0x22` | roads | 192 | 81–83 | farm field on a boundary tile **[I]** |
-| `0x40` | town | 1,736 | 0–3 | castle site, 2×2 **[V]** |
-| `0x80` | base | 1,681 | 6–21 | settlement, 2×2 on grass **[V]** |
-| `0x80` | town | 725 | 0, 20, 30 | extra settlement tile **[V]** |
+| `0x40` | town | 1,736 | 0–3 | **the county town**, 2×2 — and these frames are a placeholder, see below **[V]** |
+| `0x80` | base | 1,681 | 6–21 | castle plot / resource site, 2×2 on grass **[V]** |
+| `0x80` | town | 725 | 0, 20, 30 | resource site: 0 stone, 20 wood, 30 iron **[V]** |
 | `0x82` | roads | 55 | 38–40 | settlement tile on a boundary **[V]** |
+
+**Two of those labels were the wrong way round until `docs/decisions.md` C25 and C41.**
+Bit `0x40` is the county town — `County_FindTownTile` (`0x00467FD1`) scans for it and
+`Map_Click`'s `0x40` arm opens the village — and bit `0x80` is the castle and the four
+resource sites; `County_FindCastleTile` (`0x00468121`) scans for `0x80` and stamps terrain
+`0x14` over it. The `0x80`/town rows' frames 0, 20 and 30 are not "extra settlement tiles":
+`County_PlaceResourceSites` (`0x00468E61`) reads exactly those three values as stone, wood
+and iron.
+
+**The `0x40` row's frames 0–3 are never drawn.** They are the quarry artwork — frame 0 is
+the same stone quarry the line above identifies — and `Counties_PlaceSites` (`0x00468D4F`)
+overwrites the block at load, and again every season, with 47–50, 51–54 or 55–58 by the
+county's population. A renderer that draws the file puts four quarries where every town
+belongs, which is what ours did; `docs/decisions.md` C41 is the whole of it.
 
 The regularity is the argument: bit `0x02` never changes what a tile *is*, only
 which graphic range it draws from. Every category has a "plain" range and a
@@ -413,10 +427,16 @@ castle.
 The 70 plane-0 differences are all load-time edits: `0x10 → 0x00` on 55 tiles
 (the reserved plots, whose terrain index was copied to +6), `0x12 → 0x02` on 1,
 and `0x00 → 0x80` on 14 — one per county — which simultaneously moved to bank
-`0x0c` frame 10. Castle sites were rewritten from `Town` frames 0/1/2/3 to
-47/48/49/50, which is exactly the 2×2 group `Town1a.pl8` frames 47–50 (the game
-was started with "Starting Castle: keep"); `Town1a.pl8` has two more such
-groups, 51–54 and 55–58, presumably the other castle options. Six tiles whose
+`0x0c` frame 10. **County towns** were rewritten from `Town` frames 0/1/2/3 to
+47/48/49/50, which is exactly the 2×2 group `Town1a.pl8` frames 47–50.
+
+An earlier revision of this paragraph called those tiles "castle sites" and explained the
+rewrite as *"the game was started with Starting Castle: keep"*, guessing that 51–54 and
+55–58 were "the other castle options". **Both halves are wrong** and `docs/decisions.md`
+C41 has the code: the tiles are towns, and the three groups are the three **village sizes**,
+chosen by the county's population (`< 801` → 47, `< 1201` → 51, otherwise 55) and
+re-stamped every season by the population pass. The observation was right; the story
+attached to it was invented, which is C21's shape in a caption. Six tiles whose
 plane 0 was exactly `0x01` received the values 1…6 in byte +5 — six numbered
 road tiles in six different counties, purpose unknown.
 

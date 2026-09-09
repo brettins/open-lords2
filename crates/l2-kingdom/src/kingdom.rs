@@ -979,6 +979,31 @@ impl Kingdom {
         on
     }
 
+    /// **The farm/industry labour split**, as the campaign sidebar's slider
+    /// sets it — `FUN_00439122` writes county `+0x2C` and the county is
+    /// reallocated underneath it.
+    ///
+    /// The reallocation is [`toggle_industry`](Self::toggle_industry)'s, and
+    /// for the same reason: [`crate::labour::allocate`] reads
+    /// [`crate::county::County::industry_share`] to size the industry pool, so
+    /// moving the split without re-running it leaves every job's headcount
+    /// describing the split the player just left.
+    pub fn set_industry_share(&mut self, county: usize, share: i32) -> bool {
+        if county == 0 || county > self.county_count {
+            return false;
+        }
+        let share = share.clamp(0, 100);
+        if self.counties[county].industry_share == share {
+            return false;
+        }
+        self.counties[county].industry_share = share;
+        for _ in 0..2 {
+            crate::labour::allocate(&mut self.counties[county]);
+            self.refresh_estimates(county);
+        }
+        true
+    }
+
     /// The map tiles that are one county's fields, with what each is being
     /// used for — what a screen needs to draw the brush's targets.
     pub fn field_tiles(&self, county: usize) -> Vec<(usize, crate::field::FieldType)> {

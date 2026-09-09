@@ -173,7 +173,14 @@ impl Screen for JobScreen {
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         match event {
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
+            // `FUN_0042FF10`'s `0x0F` arm: the tick **or** a right release
+            // closes the popup, and it returns to whichever screen opened it —
+            // the village when `DAT_005533F4` is zero, the campaign map's
+            // sidebar otherwise. `Transition::Pop` is both, because the stack
+            // remembers what our `g_screenId` cannot.
+            Event::KeyDown(Key::Escape)
+            | Event::KeyDown(Key::Enter)
+            | Event::RightClick { .. } => Transition::Pop,
             Event::Click { x, y } if JobScreen::ok_button(self.job).contains(x, y) => {
                 Transition::Pop
             }
