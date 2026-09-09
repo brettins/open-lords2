@@ -174,6 +174,45 @@ The integrator repeats the check at merge time — union-merging by address, the
 an address or a name that appears twice — but that is a second line of defence. The agent
 doing the edit is the one who can still tell what it meant to write.
 
+**The check verifies that a citation resolves, not that it resolves to the *right*
+correction** — and those are very different. A renumber done by search-and-replace drags
+unrelated citations along: they all resolve, the lint passes, and each one now silently
+points at somebody else's correction. **That happened four times in one session.** Once for
+real, when renaming a correction to C36 took `kingdom.md`'s reference to the secession tie
+with it; then three more times while renumbering colliding corrections, stranding four
+citations at C36 and later six at C38 — with the lint reporting *"276 citations, all
+resolve"* each time. Every one was found by a person reading.
+
+So there is a third rule, and it is a **lockfile**: `tools/decisions/citations.lock` records,
+for every citation, a hash of the words around it with the C-numbers blanked. A dragged
+citation keeps its words and changes its number, which is exactly what that compares. Adding
+or rewording a citation makes the lockfile stale and asks you to regenerate it; a *drag*
+fails loudly and names the line to put back.
+
+    node tools/decisions/corrections.js --relock
+
+**Why a lockfile and not the obvious alternative, which is worth more than the mechanism.**
+The first proposal was to make citations self-describing — write `C34 (secession-tie)`, so a
+dragged citation carries its old slug against its new number and fails immediately. It was
+refuted by measuring rather than by arguing:
+
+* **80 of 261 citations are shapes that would not survive it.** Lists especially:
+  *"C10, C12, C17 and C20 are four instances of one mechanism"* becomes unreadable when every
+  number carries a parenthetical, and these documents are written to be read.
+* **Half the slugs derived from headings say nothing** — `files-fail`, `names-doing`,
+  `reading-five`.
+* And the detail that ended it: **two slugs embed a different correction's number.** C16's
+  heading opens by referring to C14 and C20's to C12, so the mechanical slugs come out
+  `c14-second` and `c12-second`. **A disambiguation scheme derived from the thing being
+  disambiguated can inherit its ambiguity**, and a slug that names the wrong correction is
+  worse than no slug at all.
+
+The lockfile costs 10 KB, has no migration, changes nothing about how a citation is written,
+and flagged the real historical failure with zero false positives across a merge that moved
+seven citations and drifted every line number in the tree. That is the general lesson too:
+**when two mechanisms are proposed, measure them against a failure that actually happened**
+rather than reasoning about which is more elegant.
+
 **An honest note about the paragraph above, because the record is worth more than the rule
 looking effective.** The protocol in this section was written after four collisions and then
 did not prevent the fifth — but it was never actually tested: the branch that collided had

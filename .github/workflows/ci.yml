@@ -60,7 +60,12 @@ jobs:
       # first, and five collisions happened in one day. This also catches the
       # other half: a citation of a correction that does not exist, which is
       # what `l2-kingdom` carried for weeks until C26 exposed it by accident.
-      - name: Correction numbers are unique and every citation resolves
+      # Three rules: no duplicate correction number, every citation resolves, and
+      # no citation changed number while the words around it did not. That last one
+      # is a lockfile - tools/decisions/citations.lock - because the first two pass
+      # happily on a citation dragged along by a renumber, which happened four times
+      # in one session. Regenerate with: node tools/decisions/corrections.js --relock
+      - name: Correction numbers are unique, resolve, and were not dragged
         run: node tools/decisions/corrections.js --check
 
   # Everything except `l2-game` is dependency-free on purpose: deterministic

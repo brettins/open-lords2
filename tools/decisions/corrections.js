@@ -33,10 +33,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const repo = path.resolve(__dirname, '..', '..');
 const logPath = path.join(repo, 'docs', 'decisions.md');
+const lockPath = path.join(__dirname, 'citations.lock');
 const check = process.argv.includes('--check');
+const relock = process.argv.includes('--relock');
 
 const fail = m => { console.error('corrections: ' + m); process.exit(1); };
 
@@ -105,7 +108,13 @@ const citations = [];
       // its own heading is a definition, not a citation
       if (isLog && new RegExp(`^\\*\\*C${n} — `).test(s.slice(m.index - 2, m.index + 40))) continue;
       const line = s.slice(0, m.index).split(/\r?\n/).length;
-      citations.push({ rel, line, n, historical: HISTORICAL.test(win) });
+      // The words either side, with every C-number blanked so the fingerprint
+      // does NOT move when the number does. That is the whole trick of rule 3.
+      const ctx = (s.slice(Math.max(0, m.index - 120), m.index) + '|'
+        + s.slice(m.index + m[0].length, m.index + 120))
+        .replace(/\bC\d{1,3}\b/g, '#').replace(/\s+/g, ' ').trim().toLowerCase();
+      const fp = crypto.createHash('sha1').update(ctx).digest('hex').slice(0, 12);
+      citations.push({ rel, line, n, fp, historical: HISTORICAL.test(win) });
     }
   }
 })(repo);
@@ -122,6 +131,111 @@ if (dangling.length) {
   console.error('If the reference is deliberately historical, say so in the surrounding text');
   console.error('("frozen", "superseded", "used to be") and this check will leave it alone.');
   process.exit(1);
+}
+
+// ---- rule 3: a citation whose number moved while its words did not ---------
+//
+// Rules 1 and 2 verify that a citation *resolves*. They cannot see whether it
+// resolves to the RIGHT correction, and a renumber done by search-and-replace
+// drags unrelated citations along: they all resolve, and they are all wrong.
+// That happened FOUR times in one session — once for real, and three more times
+// while renumbering colliding corrections — with rule 2 reporting "all citations
+// resolve" every time. Every one was found by a person reading.
+//
+// So each citation is fingerprinted by the words around it, with C-numbers
+// blanked. A dragged citation keeps its fingerprint and changes its number,
+// which is precisely what this compares. Replayed against the real failure it
+// flagged that one citation and nothing else, across a merge that moved seven
+// citations and drifted every line number in the tree.
+
+const lockLine = c => `${c.rel}\tC${c.n}\t${c.fp}`;
+const LOCK_HEADER = [
+  '# Citation fingerprints — see tools/decisions/corrections.js, rule 3.',
+  '#',
+  '# One line per correction citation: file, the number it cites, and a hash of',
+  '# the words around it with every C-number blanked. A citation whose number',
+  '# changes while its words do not is a citation dragged along by somebody',
+  '# renumbering a heading, and that is what this file exists to catch.',
+  '#',
+  '# Regenerate with:  node tools/decisions/corrections.js --relock',
+  '# Generated. Do not hand-edit except to accept a single deliberate change.',
+  '',
+].join('\n');
+
+const current = citations.map(lockLine).sort();
+
+if (relock) {
+  // Show any drag being recorded rather than swallowing it: --relock is how a
+  // deliberate correction is accepted, so it must not be a silent way past a
+  // real one.
+  if (fs.existsSync(lockPath)) {
+    const was = new Map(fs.readFileSync(lockPath, 'utf8').split(/\r?\n/)
+      .filter(l => l && !l.startsWith('#'))
+      .map(l => { const [rel, n, fp] = l.split('\t'); return [rel + '\t' + fp, n]; }));
+    const moved = citations.filter(c => was.has(c.rel + '\t' + c.fp) && was.get(c.rel + '\t' + c.fp) !== 'C' + c.n);
+    if (moved.length) {
+      console.log(`corrections: recording ${moved.length} citation(s) whose number changed`);
+      console.log('  while the words around them did not. If any of these was not deliberate,');
+      console.log('  it is a dragged citation — undo it rather than keeping this lockfile.\n');
+      for (const c of moved)
+        console.log(`  ${c.rel}:${c.line}  ${was.get(c.rel + '\t' + c.fp)} -> C${c.n}`);
+      console.log('');
+    }
+  }
+  fs.writeFileSync(lockPath, LOCK_HEADER + current.join('\n') + '\n');
+  console.log(`corrections: relocked ${current.length} citations`);
+  process.exit(0);
+}
+
+if (!fs.existsSync(lockPath)) {
+  fail('tools/decisions/citations.lock is missing.\n'
+    + '  Create it with:  node tools/decisions/corrections.js --relock');
+}
+
+{
+  const lockLines = fs.readFileSync(lockPath, 'utf8').split(/\r?\n/).filter(l => l && !l.startsWith('#'));
+  const locked = new Map(lockLines.map(l => {
+    const [rel, n, fp] = l.split('\t');
+    return [rel + '\t' + fp, n];
+  }));
+
+  const dragged = [];
+  for (const c of citations) {
+    const key = c.rel + '\t' + c.fp;
+    if (locked.has(key) && locked.get(key) !== 'C' + c.n)
+      dragged.push({ ...c, was: locked.get(key) });
+  }
+
+  if (dragged.length) {
+    console.error(`corrections: ${dragged.length} citation(s) changed number while their surrounding words did not.\n`);
+    console.error('  **This looks like a dragged citation** — a renumber that took an unrelated');
+    console.error('  reference with it. Such a citation still resolves, so rule 2 passes and the');
+    console.error('  reference now silently points at somebody else\'s correction.\n');
+    for (const d of dragged) {
+      console.error(`  ${d.rel}:${d.line}   ${d.was} -> C${d.n}`);
+      console.error(`      was: ${d.rel}\t${d.was}\t${d.fp}`);
+      console.error(`      now: ${lockLine(d)}`);
+    }
+    console.error('\n  Read each one and decide which correction it MEANS.');
+    console.error('  If the old number was right, put it back.');
+    console.error('  If this is a deliberate correction of a citation that was wrong, accept it:');
+    console.error('      node tools/decisions/corrections.js --relock');
+    console.error('  (or edit the line above in tools/decisions/citations.lock by hand).');
+    process.exit(1);
+  }
+
+  const lockedSet = new Set(lockLines);
+  const currentSet = new Set(current);
+  const added = current.filter(l => !lockedSet.has(l));
+  const gone = lockLines.filter(l => !currentSet.has(l));
+  if (added.length || gone.length) {
+    console.error('corrections: tools/decisions/citations.lock is out of date '
+      + `(${added.length} added, ${gone.length} removed).`);
+    console.error('  No dragged citation was found — this is the ordinary case of citations');
+    console.error('  being written, moved or reworded. A stale lockfile protects nothing, so:');
+    console.error('      node tools/decisions/corrections.js --relock');
+    process.exit(1);
+  }
 }
 
 // ---- report ----------------------------------------------------------------
