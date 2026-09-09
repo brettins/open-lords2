@@ -224,3 +224,61 @@ fn counts_that_the_documentation_quotes_still_hold() {
     assert_eq!(shape1_with_rows, 32, "docs say 32 - Batlfix2 24 plus 2 each in Town1a-d");
     assert_eq!(non_iso_family_with_iso_frames, 18, "docs say 18 iso files outside family 2");
 }
+
+/// A rectangle that declares overhang rows reserves them whether or not it
+/// stores them.
+///
+/// This is the contract every caller of `decode` relies on, and it was broken
+/// in a way nothing here could see: the canvas height was decided on the *byte
+/// span*, so a frame that stored its rows came back `h + rows` tall and a frame
+/// that declared the same rows and stored none came back `h` tall. The two body
+/// fonts sit on opposite sides of that split — `Fntl2_14.pl8` stores 47 blocks
+/// of overhang rows (45 of them nothing but `00 <width>`, one skip run covering
+/// a wholly transparent row) while `Fntl2_9.pl8` declares exactly the same
+/// counts and stores nothing at all — so no single rule at the call site could
+/// be right about both. `Fntl2_14`'s `rows = 3` glyphs drew three pixels low on
+/// every management screen until a player compared our text with the original's
+/// and named the letters.
+///
+/// The invariant is cheap, file-wide and has no opinion about pixels, which is
+/// what makes it worth pinning.
+#[test]
+fn a_rectangle_reserves_the_rows_it_declares_whether_or_not_it_stores_them() {
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+
+    let (mut checked, mut declaring) = (0usize, 0usize);
+    for path in files_with_ext(&dir, "pl8") {
+        let bytes = fs::read(&path).expect("read pl8");
+        let Ok(pl8) = Pl8::parse(&bytes) else { continue };
+        // RLE files have no bare rectangle for the rows to sit above, and
+        // shape 1 ignores the count outright - both are settled elsewhere.
+        if pl8.storage == Storage::Rle {
+            continue;
+        }
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        for (i, f) in pl8.frames.iter().enumerate() {
+            if f.shape != Shape::Rect {
+                continue;
+            }
+            let Ok(decoded) = pl8.decode(i) else { continue };
+            checked += 1;
+            if f.overhang_rows > 0 {
+                declaring += 1;
+            }
+            assert_eq!(
+                decoded.height,
+                f.height + f.overhang_rows as u16,
+                "{name} frame {i}: a shape-0 canvas is the record's height plus \
+                 its declared overhang rows, stored or not",
+            );
+            assert_eq!(decoded.width, f.width, "{name} frame {i}: width is untouched");
+        }
+    }
+
+    println!("shape-0 rectangles checked: {checked}, of which declaring rows: {declaring}");
+    // Both sides of the split must be present, or the assertion above passes
+    // vacuously.
+    assert!(declaring >= 100, "expected both fonts' worth of declared rows, saw {declaring}");
+}

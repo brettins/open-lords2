@@ -90,8 +90,34 @@ accent on a glyph or the sloped top edge of a hill tile. `Glyph_Draw` (`0x00402A
 shifts the destination down by that row count before clipping, reserving exactly those
 rows. 70 frames across four files store them, and all 70 land byte-exact.
 
-Some shape-0 frames declare rows and store nothing, so decide structurally: if the bare
-rectangle lands exactly on the next frame's offset there is no stored overhang.
+**Declaring the rows and storing them are two different questions, and only the
+second one is structural.** A shape-0 frame *always* reserves the rows it declares:
+its canvas is `width × (height + rows)` with the rectangle at row `rows`, whether
+or not any bytes for those rows exist. Whether they exist is decided by the byte
+span — if the bare rectangle lands exactly on the next frame's offset, nothing is
+stored and the reserved rows stay transparent.
+
+Both cases are common and the two body fonts are one of each:
+
+| File | shape-0 frames declaring rows | stored? |
+|---|---|---|
+| `Fntl2_14.pl8` | 47 | yes — 45 wholly transparent, 2 (`v`, `w`) inked |
+| `Fntl2_9.pl8` | 47 | no |
+| `Font_c2.pl8` | 47 | no |
+| `Font_10.pl8` | 7 | yes, all transparent |
+| `T16_bat1.pl8` | 8 | yes, inked |
+| `T32_bat.pl8` | 8 | yes, inked |
+
+A stored-but-transparent row is six bytes for a nine-pixel-wide glyph, not
+twenty-seven: three RLE rows reading `00 09 00 09 00 09`, one skip run each. The
+flat surplus is what it looks like — the rows really are there and really are
+empty, and the exporter wrote them rather than eliding them.
+
+Deciding the canvas height on the byte span instead cost a visible bug: it made
+`Fntl2_14`'s glyphs `h + rows` tall and `Fntl2_9`'s only `h`, so no caller could
+apply `Glyph_Draw`'s `y += rows` correctly for both, and every `rows = 3` letter
+of the body font drew three pixels low. A player caught it by opening the original
+next to our demo. `crates/l2-formats/tests/corpus.rs` now pins the contract.
 
 ## Encodings
 

@@ -112,9 +112,26 @@ pub struct FrameInfo {
     pub trailing: [u8; 8],
 }
 
+/// A frame's pixels on its own canvas.
+///
+/// **The canvas already includes the overhang rows, always.** For a shape-0
+/// rectangle declaring `overhang_rows`, `height` is the record's height plus
+/// that count and the rectangle sits at canvas row `overhang_rows`; the rows
+/// above it are either the frame's stored artwork or transparent. That holds
+/// whether or not the file bothered to store them, so a caller must **never**
+/// add `overhang_rows` again — doing so drew the whole `overhang = 3` half of
+/// `Fntl2_14.pl8` three pixels below the baseline, which a player caught by
+/// comparing our text with the original's.
+///
+/// What the canvas does not decide is where its *anchor* is, and the two
+/// consumers differ: `Glyph_Draw` puts the canvas top at the line top, while
+/// the map blitter anchors the tile and lets the chevrons extrude above it
+/// (`l2_view::campaign` subtracts `height - tile_h`). Both read the same
+/// canvas; only the caller knows which edge it is placing.
 #[derive(Debug, Clone)]
 pub struct DecodedFrame {
     pub width: u16,
+    /// Record height **plus** any reserved overhang rows - see above.
     pub height: u16,
     /// Palette indices, row-major, `width * height` entries.
     pub indices: Vec<u8>,
@@ -249,15 +266,24 @@ impl<'a> Pl8<'a> {
             info.shape,
             Shape::DiamondFull | Shape::DiamondLeft | Shape::DiamondRight
         );
-        // A rectangle only carries stored overhang when the bytes are really
-        // there; some frames declare rows and store nothing. Decide structurally
-        // - does the bare rectangle land exactly on the next frame's offset?
-        let rect_overhang = info.shape == Shape::Rect
-            && rows > 0
-            && self.storage != Storage::Rle
-            && start + w * h != boundary;
+        // A rectangle that declares rows *reserves* them whether or not it
+        // stores them. Those are two different questions and conflating them
+        // was a real bug: `Fntl2_14.pl8` stores its rows (mostly `00 <width>`,
+        // one skip run covering a wholly transparent row) while `Fntl2_9.pl8`
+        // declares exactly the same counts and stores nothing at all. Deciding
+        // the canvas height on the byte span made one font's frames `h + rows`
+        // tall and the other's `h`, so no caller could be right about both, and
+        // every `rows = 3` glyph in the body font drew three pixels low.
+        //
+        // Reserving unconditionally is also what the engine does: `Glyph_Draw`
+        // (0x00402A14) adds byte 0x0D to `y` before it clips, for every frame,
+        // without looking at how many bytes the frame occupies.
+        let reserves_overhang = info.shape == Shape::Rect && self.storage != Storage::Rle;
+        // Whether the rows are actually *stored* stays structural: does the
+        // bare rectangle land exactly on the next frame's offset?
+        let stored_rect_overhang = reserves_overhang && rows > 0 && start + w * h != boundary;
 
-        let overhang = if iso_overhang || rect_overhang { rows } else { 0 };
+        let overhang = if iso_overhang || reserves_overhang { rows } else { 0 };
         // A region map is stored at 1/8 resolution, so its canvas is not the
         // record's width and height.
         let (canvas_w, canvas_h) = if info.shape == Shape::RegionMap {
@@ -304,7 +330,7 @@ impl<'a> Pl8<'a> {
             match info.shape {
                 Shape::Rect => {
                     let after = self.decode_rect(start, w, h, overhang, &mut indices, &mut opaque)?;
-                    if overhang > 0 {
+                    if stored_rect_overhang {
                         self.decode_rle_rows(index, after, w, overhang, &mut indices, &mut opaque)?
                     } else {
                         after
