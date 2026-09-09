@@ -115,6 +115,22 @@ mod globals {
     pub const OPT_ARMIES_EAT: u32 = 0x0053_F260;
     pub const OPT_EXPLORATION: u32 = 0x0053_F264;
     pub const OPT_TIME_LIMIT: u32 = 0x0053_F26C;
+    /// **The six option globals in this block are the six that `Save_Write`
+    /// stores, and there are not more.** The custom game sets twelve; the block
+    /// table covers `0x0053F23C`, `0x0053F258`, `0x0053F25C`, `0x0053F260`,
+    /// `0x0053F264`, `0x0053F268` and `0x0053F26C` and nothing else in the
+    /// range. So `g_optFightHumansOnly` (`0x0053F284`) is **not saved**, nor
+    /// are the starting gold, castle, armoury, garrison or county-status
+    /// globals, nor the twelve selections at `0x0053F288`.
+    ///
+    /// Five of those are spent while the world is built and are genuinely not
+    /// needed afterwards. `g_optFightHumansOnly` is not: it decides every turn
+    /// whether a battle the person is not in is fought or auto-resolved, and a
+    /// reloaded game takes whatever value happens to be in memory. Asking for
+    /// it returns [`SaveError::NotSaved`], which is how this was found — the
+    /// battle fixtures went red the moment it was added to this list.
+    /// `docs/bugs.md`.
+    pub const AI_LORDS: u32 = 0x0053_F268;
     pub const MERCHANT_COUNT: u32 = 0x0055_30B4;
     pub const WEATHER_COUNTY: u32 = 0x0055_4020;
 }
@@ -537,6 +553,7 @@ impl Save {
             opt_armies_eat: self.i32_at(globals::OPT_ARMIES_EAT)?,
             opt_exploration: self.i32_at(globals::OPT_EXPLORATION)?,
             opt_time_limit: self.i32_at(globals::OPT_TIME_LIMIT)?,
+            ai_lords: self.i32_at(globals::AI_LORDS)?,
             merchant_count: self.i32_at(globals::MERCHANT_COUNT)?,
             weather_county: self.i32_at(globals::WEATHER_COUNTY)?,
         })
@@ -725,7 +742,17 @@ pub struct Globals {
     pub opt_advanced_farming: i32,
     pub opt_armies_eat: i32,
     pub opt_exploration: i32,
+    /// `g_optTimeLimit` — **seconds**, not the drop-down's index. 0 is no limit.
     pub opt_time_limit: i32,
+    /// `0x0053F268` — **how many AI lords the game was started with.**
+    ///
+    /// `Setup_CommitOptions` (`0x00499DC3`) computes it as
+    /// `(nobles + 2) - humanPlayers` from the *Nobles* drop-down, and
+    /// `Realms_AssignLords` hands out at most this many lords and writes
+    /// `strength = 0` into every realm past it. It is the only one of the six
+    /// *starting condition* options that survives into the save at all — see
+    /// the note on [`Globals::opt_exploration`]'s neighbours below.
+    pub ai_lords: i32,
     pub merchant_count: i32,
     pub weather_county: i32,
 }

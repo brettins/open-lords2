@@ -309,6 +309,44 @@ is a real behaviour."*
 | **B55** | **The realm message variant goes negative for a human.** `lord * 4 + rot − 4` with lord byte 0. | — | `realm.rs:365`, reproduced with a wrapping subtraction *"so the shape of the expression stays visible"* |
 | **D1 →** | The score's gold bracket pays 50 flat rather than 50/100/200. That is **dead code**, not a behavioural bug, and it is §5's D1 — the shipped *behaviour* is what we reproduce, and it is the one entry already switchable by data (§6.1). | [V] from the bytes | `tables.rs:1315` |
 
+## 2.6a Starting and reloading a game
+
+### B55a — Two of the game's own options do not survive a save, and one of them still matters
+
+**[V] on the block table, [D] on calling it a mistake.**
+
+`Save_Write` walks a table of `{address, length}` records at `0x004DE960`; a global not in it
+is not in the file. Seven four-byte entries fall in the option block `0x0053F2xx`:
+`g_optDifficulty`, `g_campaignMap`, `g_optAdvancedFarming`, `g_optArmiesEat`,
+`g_optExploration`, `g_aiLordCount` and `g_optTimeLimit`. **`g_optFightHumansOnly`
+(`0x0053F284`) is not one of them**, and neither are the twelve custom-game selections at
+`0x0053F288` or the five committed starting-condition globals.
+
+Most of that is harmless: the starting gold, castle, armoury, garrison and county status are
+spent once while the world is built and are never read again, so there is nothing to
+remember. **`g_optFightHumansOnly` is different** — it is read on every battle for the rest of
+the game (`FUN_004A6A30`: when it is 0 and the local player is not a participant, the fight is
+auto-resolved instead of prompting), and it is a setting the person deliberately chose. Load a
+saved game in a fresh session and the flag is whatever `Setup_DefaultOptions` last wrote,
+which in a single-player game is *all* — so a game explicitly started on *humans only* comes
+back fighting every AI-versus-AI battle by hand.
+
+`g_optTimeLimit` being saved while the drop-down that set it is not is the same asymmetry
+landing the right way round: the committed *value* is stored, the *index* is not, which is all
+that is needed.
+
+**How it was found**, and this is the useful half: `l2-formats` had a comment saying the
+option was merely *not exposed*, and adding `0x0053F284` to its list of globals turned the
+battle fixtures red with `NotSaved { va: 5501572 }` on the first run. The save reader refuses
+an address in no block rather than returning a plausible number from the wrong offset, which
+is `save.rs`'s design doing exactly its job. `docs/decisions.md` C44.
+
+**What we do.** `l2-scenario` takes `FIGHT_HUMANS_ONLY_DEFAULT` on import and says at the
+field that the file does not answer the question — the honest reproduction, since the original
+cannot answer it either. `l2_kingdom::save` (**our** format, version 12) stores it, along with
+`exploration` and `time_limit`, so a game saved by this engine does not lose them. That is a
+divergence and a deliberate one: it is our save format, and D11 already separates the two.
+
 ## 2.7 Multiplayer — catalogue only
 
 ### B56 — The shipped build silences one of its own eight checksum blocks

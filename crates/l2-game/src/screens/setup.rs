@@ -50,18 +50,30 @@
 //! group 102, twelve bases, twelve counts, 45 of 46 strings used, and no
 //! remainder. None of that was chosen by us.
 //!
-//! # What this page does not do
+//! # What this page does, and the one thing it still does not
 //!
-//! Nothing here starts a game with the settings it shows. The options carry
-//! their own selection so the drop-downs behave, and the transitions are the
-//! page graph read out of `FUN_00432B05` and `FUN_00432CC8`; everything past
-//! *Start* is [`Transition::Push`] into the campaign as the demo already had
-//! it. That is the honest boundary and it is marked at the call site.
+//! **The twelve options reach the game now.** This section used to say the
+//! opposite. [`crate::setup`] is what each of them means — and the reason it is
+//! a module rather than twelve assignments is that the drop-downs do **not**
+//! write `g_optDifficulty` and its neighbours: they write a separate block at
+//! `0x0053F288`, and `Setup_CommitOptions` (`0x00499DC3`) turns those twelve
+//! selections into the eleven values a game runs on, five of them through a
+//! lookup table and one by arithmetic. [`SetupScreen::start`] runs the same two
+//! steps in the same order the original's *Start* handler does.
+//!
+//! **What is still missing is the map.** Choosing a slot in the list sets it,
+//! and the slot's own seat count really does drive the *Nobles* drop-down in
+//! both directions — but building a *world* from a `L2_maps.dat` slot is
+//! `Map_InitScenario`, which this workspace has not written, so the world a
+//! game starts in is still the one [`crate::scenario`] read out of a save. The
+//! page says so on itself rather than starting one map while the list names
+//! another.
 
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::setup::SetupOptions;
 use crate::shell::{self, font, Pen};
 
 /// `g_setupPage` (`0x005530F0`). The thirteen values `FUN_0041E7E1` switches on.
@@ -277,18 +289,18 @@ const OPTION_LABEL_W: i32 = 100;
 
 /// Page 7's three buttons — *"Cancel"*, *"Start"*, *"Defaults"* — centred in
 /// 76 pixels at `y = 0xC6`. Page 8 adds *"Load"* at `x = 399`.
-const CUSTOM_BUTTONS: [(i32, usize); 4] = [(0xA5, 12), (0xF3, 13), (0x141, 14), (399, 15)];
-const CUSTOM_BUTTON_Y: i32 = 0xC6;
+pub const CUSTOM_BUTTONS: [(i32, usize); 4] = [(0xA5, 12), (0xF3, 13), (0x141, 14), (399, 15)];
+pub const CUSTOM_BUTTON_Y: i32 = 0xC6;
 const CUSTOM_BUTTON_W: i32 = 0x4C;
 
 /// The map list on the custom-game pages: `misc_sel.pl8` frame 0x10 at
 /// `(0x1F0, 9)`, five rows of 16 pixels of group 101 from `(0x1F2, 0x8E)`, the
 /// selected row filled 105 × 16 from `(0x1F0, 0x8D)`.
-const MAP_LIST_X: i32 = 0x1F0;
+pub const MAP_LIST_X: i32 = 0x1F0;
 const MAP_LIST_TEXT_X: i32 = 0x1F2;
-const MAP_LIST_Y: i32 = 0x8D;
-const MAP_LIST_ROW: i32 = 0x10;
-const MAP_LIST_ROWS: usize = 5;
+pub const MAP_LIST_Y: i32 = 0x8D;
+pub const MAP_LIST_ROW: i32 = 0x10;
+pub const MAP_LIST_ROWS: usize = 5;
 const MAP_LIST_W: i32 = 0x69;
 /// Group 101 has sixty entries, one per map slot.
 pub const MAP_COUNT: usize = 60;
@@ -304,10 +316,14 @@ pub struct SetupScreen {
     under: SetupPage,
     /// Which of the twelve options is open: `DAT_0055306C`.
     open: usize,
-    /// The twelve settings. Ours — the original keeps them in `g_opt*` globals
-    /// that nothing in this workspace reads yet — so that the drop-downs
-    /// actually change something and the interface can be walked.
-    options: [usize; 12],
+    /// **The twelve settings, and they now reach the game.**
+    ///
+    /// This used to be a bare `[usize; 12]` with a comment saying nothing read
+    /// it. It is [`SetupOptions`] — `0x0053F288 … 0x0053F2B4`, the block
+    /// `Setup_SetOption` writes — and pressing *Start* puts it through
+    /// [`SetupOptions::commit`] and applies the result. `crate::setup` is what
+    /// each of the twelve does.
+    options: SetupOptions,
     /// Which of the five shields page 4 has picked. Realm `+0x0A` in the
     /// original, one-based there and zero-based here because this is an index
     /// into the five frame pairs and nothing else yet.
@@ -317,6 +333,23 @@ pub struct SetupScreen {
     /// chosen one yet, so this is local until *Start* is wired.
     map_top: usize,
     map: usize,
+    /// `g_playerStartCount` for [`SetupScreen::map`] — how many lords that map
+    /// seats. `Map_LoadPlanes` recomputes it every time the scenario changes
+    /// and three call sites then push it into the *Nobles* drop-down, so it is
+    /// cached beside the map rather than asked for at every hit test.
+    ///
+    /// **Five until a map has been read**, which is what an install without
+    /// `L2_maps.dat` leaves it at: the full drop-down, and no seat count
+    /// invented from nothing.
+    player_starts: usize,
+    /// Whether [`SetupScreen::player_starts`] has been read for
+    /// [`SetupScreen::map`] yet. The file is [`Ctx`]'s and the constructor has
+    /// no `Ctx`, so the first read happens on the first tick.
+    map_read: bool,
+    /// What the last *Start* could not honour, as `L2.eng` group 102 indices —
+    /// [`crate::setup::Settings::unhonoured`]. Drawn under the grid, in our own
+    /// font. `docs/decisions.md` C21.
+    unhonoured: Vec<usize>,
 }
 
 impl SetupScreen {
@@ -326,11 +359,47 @@ impl SetupScreen {
             selected: 0,
             under: SetupPage::Custom,
             open: 0,
-            options: [0; 12],
+            options: SetupOptions::new(),
             shield: 0,
             map_top: 0,
             map: 0,
+            player_starts: 5,
+            map_read: false,
+            unhonoured: Vec::new(),
         }
+    }
+
+    /// The twelve selections, for a test or a caller that wants to know what
+    /// the screen would start.
+    pub fn options(&self) -> &SetupOptions {
+        &self.options
+    }
+
+    /// The map slot the list has selected — `g_scenarioIndex`.
+    pub fn map(&self) -> usize {
+        self.map
+    }
+
+    /// How many lords the selected map seats.
+    pub fn player_starts(&self) -> usize {
+        self.player_starts
+    }
+
+    /// `Map_LoadPlanes`'s side effect on the option block: read the seat count
+    /// off the chosen map and set *Nobles* from it.
+    ///
+    /// **Both halves, or neither.** A map whose planes cannot be read leaves
+    /// the seat count alone rather than reporting zero seats, because zero
+    /// would silently drive the lord count to two.
+    fn read_map(&mut self, ctx: &Ctx) {
+        self.map_read = true;
+        let Some(slot) = ctx.assets.slot(self.map) else { return };
+        let seats = slot.player_start_count();
+        if seats == 0 {
+            return;
+        }
+        self.player_starts = seats;
+        self.options.set_nobles_from_map(seats);
     }
 
     pub fn page(&self) -> SetupPage {
@@ -339,7 +408,22 @@ impl SetupScreen {
 
     /// The value of option `i`, as an index into `L2.eng` group 103.
     pub fn option_value(&self, i: usize) -> usize {
-        OPTION_BASE[i] + self.options[i].min(OPTION_COUNT[i] - 1)
+        OPTION_BASE[i] + self.options.get(i)
+    }
+
+    /// How many rows option `i`'s open list shows.
+    ///
+    /// Everything but *Nobles* shows its whole run. *Nobles* is shortened to
+    /// the map's seat count — `FUN_00433999`: `DAT_00553FB4 =
+    /// g_playerStartCount - 1` when the map seats fewer than five — which is
+    /// how the original stops a person asking for more lords than the map has
+    /// castles for.
+    fn rows(&self, i: usize) -> usize {
+        if i == crate::setup::option::NOBLES {
+            SetupOptions::nobles_rows_for_map(self.player_starts)
+        } else {
+            OPTION_COUNT[i]
+        }
     }
 
     /// The clickable rectangles of the page, in the order the painter draws
@@ -396,9 +480,10 @@ impl SetupScreen {
                 }
             }
             SetupPage::Dropdown => {
-                let (x, y, rows) = OPTION_LIST[self.open];
-                let y = self.dropdown_y(y, rows);
-                for i in 0..OPTION_COUNT[self.open] {
+                let n = self.rows(self.open);
+                let (x, y, _) = OPTION_LIST[self.open];
+                let y = self.dropdown_y(y, n);
+                for i in 0..n {
                     v.push((
                         Rect::new(x, y + 16 + i as i32 * 16, OPTION_BOX_W, 16),
                         Action::Choose(i),
@@ -421,9 +506,15 @@ impl SetupScreen {
     /// `FUN_0041FDD6` shifts the *Nobles* drop-down up by one row per item so
     /// that a list opened from the bottom row of the grid still fits on the
     /// screen. It is the only option that gets the treatment.
-    fn dropdown_y(&self, y: i32, rows: i32) -> i32 {
-        if self.open == 2 {
-            y - (rows - 2 - 1) * 16
+    ///
+    /// **`rows` is the item count, `DAT_00553FB4`** — the same number the
+    /// painter loops over, not the geometry table's count-plus-two. That
+    /// matters now that the count can be shortened: on a map that seats three
+    /// lords the list is two rows and rides two rows lower, exactly as the
+    /// original's does, because both read the one variable.
+    fn dropdown_y(&self, y: i32, rows: usize) -> i32 {
+        if self.open == crate::setup::option::NOBLES {
+            y - (rows as i32 - 1) * 16
         } else {
             y
         }
@@ -441,11 +532,11 @@ impl SetupScreen {
         self.hotspots().len()
     }
 
-    fn activate(&mut self) -> Transition {
+    fn activate(&mut self, ctx: &mut Ctx) -> Transition {
         let Some(&(_, action)) = self.hotspots().get(self.selected) else {
             return Transition::Stay;
         };
-        self.act(action)
+        self.act(action, ctx)
     }
 
     /// The page graph, read out of `FUN_00432B05` (page 1) and `FUN_00432CC8`
@@ -459,30 +550,37 @@ impl SetupScreen {
     /// two readings is wrong, and nothing in the decompilation settles it. The
     /// destinations below are keyed to the **captions**, which are [V], not to
     /// the ids.
-    fn act(&mut self, action: Action) -> Transition {
+    fn act(&mut self, action: Action, ctx: &mut Ctx) -> Transition {
         match action {
-            Action::Item(i) => self.item(i),
+            Action::Item(i) => self.item(i, ctx),
             Action::Open(i) => {
                 self.under = self.page;
                 self.open = i;
                 self.page = SetupPage::Dropdown;
-                self.selected = self.options[i];
+                self.selected = self.options.get(i);
                 Transition::Stay
             }
             Action::Choose(v) => {
-                self.options[self.open] = v;
+                // `FUN_00433A23`: `Setup_SetOption(open, row - 1)`, then back to
+                // the page underneath.
+                self.options.set(self.open, v);
                 self.page = self.under;
                 self.selected = 0;
                 Transition::Stay
             }
             Action::Map(row) => {
+                // `FUN_00433905`: the row sets `g_scenarioIndex`, the planes are
+                // loaded, and the seat count that comes out of them sets
+                // *Nobles*. All three, or the lord count is left claiming a
+                // number the new map cannot seat.
                 self.map = (self.map_top + row).min(MAP_COUNT - 1);
+                self.read_map(ctx);
                 Transition::Stay
             }
         }
     }
 
-    fn item(&mut self, i: usize) -> Transition {
+    fn item(&mut self, i: usize, ctx: &mut Ctx) -> Transition {
         match (self.page, i) {
             // Page 1. "Single player" opens page 2; "Multiple players" opens
             // page 4 (or page 10 with no disc); "Lords of Magic?" plays an
@@ -503,16 +601,24 @@ impl SetupScreen {
                 Transition::Stay
             }
             (SetupPage::Shield, 5) => self.go(SetupPage::Title),
-            (SetupPage::Shield, 6) => self.start(),
+            (SetupPage::Shield, 6) => self.start(ctx),
             // Page 5: either campaign. Page 6: full game or skirmish.
             (SetupPage::Campaign, _) => self.go(SetupPage::Shield),
             (SetupPage::GameType, 0) => self.go(SetupPage::Shield),
             (SetupPage::GameType, 1) => self.go(SetupPage::Skirmish),
             // Pages 7 and 8: "Cancel", "Start", "Defaults", "Load".
             (SetupPage::Custom | SetupPage::CustomMulti, 0) => self.go(SetupPage::Options),
-            (SetupPage::Custom | SetupPage::CustomMulti, 1) => self.start(),
+            (SetupPage::Custom | SetupPage::CustomMulti, 1) => self.start(ctx),
+            // *Defaults*: `Setup_DefaultOptions` (`0x004AE539`) and then
+            // `FUN_004AE5E2(g_playerStartCount)`, which is the click handler's
+            // own order — the twelve go back to the game's defaults and the map
+            // then overrules *Nobles* again. **It is not twelve zeroes**, which
+            // is what this used to write: six of the twelve defaults are not 0,
+            // so the button was resetting to a game the original never offers.
             (SetupPage::Custom | SetupPage::CustomMulti, 2) => {
-                self.options = [0; 12];
+                self.options = SetupOptions::new();
+                self.options.set_nobles_from_map(self.player_starts);
+                self.unhonoured.clear();
                 Transition::Stay
             }
             (SetupPage::Custom | SetupPage::CustomMulti, _) => self.go(SetupPage::Load),
@@ -534,10 +640,51 @@ impl SetupScreen {
         Transition::Stay
     }
 
-    /// The boundary. The setup screen chooses a scenario; nothing in this
-    /// workspace can yet build a world from that choice, so *Start* enters the
-    /// campaign the scenario loader already put in `Game`.
-    fn start(&mut self) -> Transition {
+    /// ***Start*, and the twelve settings now go with it.**
+    ///
+    /// The original's own order is `FUN_004335F0`'s hotspot-2 arm:
+    ///
+    /// ```text
+    /// if (humanPlayers <= g_playerStartCount) {
+    ///     Setup_CommitOptions();      /* 0x00499DC3 - the twelve into the eleven */
+    ///     Setup_StartGame();          /* 0x004329EC - which calls Game_NewGame  */
+    /// }
+    /// ```
+    ///
+    /// — and the guard is real: **pressing *Start* on a map that seats fewer
+    /// lords than there are people does nothing at all.** No message, no
+    /// refusal; the button is simply inert. Reproduced, because a person who
+    /// meets it in the original meets a button that does not work and a
+    /// reimplementation that helpfully explained itself would be a different
+    /// program. In a single-player game there is one person and every shipped
+    /// map seats at least two, so it never fires here.
+    ///
+    /// # What it can and cannot do
+    ///
+    /// [`crate::setup::Settings::apply_to`] is `FUN_0049BD99` over the world
+    /// [`crate::scenario`] built: the stores, the treasury, the armoury, the
+    /// castle and the lord count all take the settings shown. **What it cannot
+    /// do is change the map.** Building a world from a `L2_maps.dat` slot means
+    /// `Map_InitScenario` — the planes, the starting fields, the industry
+    /// sites, the dwelling plots, the merchant routes — and none of that
+    /// exists here; the only world this workspace can build is the one a save
+    /// carries. So the map list chooses a slot, the slot's seat count really
+    /// does drive the lord count, and starting on a *different* slot is the
+    /// gap. `docs/mechanics.md` has it, and the page says so on itself rather
+    /// than starting England while the list says Ireland.
+    fn start(&mut self, ctx: &mut Ctx) -> Transition {
+        // One person, in this build. `DAT_00553F98` is the lobby's count and
+        // there is no lobby.
+        const HUMAN_PLAYERS: usize = 1;
+        if !self.map_read {
+            self.read_map(ctx);
+        }
+        if HUMAN_PLAYERS > self.player_starts {
+            return Transition::Stay;
+        }
+        let settings = self.options.commit(HUMAN_PLAYERS);
+        self.unhonoured = settings.unhonoured();
+        settings.apply_to(ctx.game);
         Transition::Push(ScreenId::Campaign)
     }
 }
@@ -573,12 +720,27 @@ impl Screen for SetupScreen {
         Some(self.page.palette())
     }
 
-    fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
+    /// `Map_LoadPlanes`'s effect on the option block, once, on the first tick.
+    ///
+    /// The original loads the planes the moment the custom page is opened and
+    /// again on every change of scenario, and `g_playerStartCount` falls out of
+    /// that load. The constructor has no [`Ctx`] and so no `L2_maps.dat`, so
+    /// the first read waits for the first tick — which is also what makes a
+    /// screen built in a test with no install work: it never gets a slot, and
+    /// the seat count stays at its five.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        if !self.map_read {
+            self.read_map(ctx);
+        }
+        Transition::Stay
+    }
+
+    fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let n = self.count().max(1);
         match event {
             Event::KeyDown(Key::Up) => self.selected = (self.selected + n - 1) % n,
             Event::KeyDown(Key::Down) => self.selected = (self.selected + 1) % n,
-            Event::KeyDown(Key::Enter) | Event::KeyDown(Key::Space) => return self.activate(),
+            Event::KeyDown(Key::Enter) | Event::KeyDown(Key::Space) => return self.activate(ctx),
             // Ours: the demo's index of every screen. `screens::index` says
             // why it exists and marks itself as not the game's.
             Event::KeyDown(Key::Char('I')) => return Transition::Push(ScreenId::Index),
@@ -607,7 +769,7 @@ impl Screen for SetupScreen {
             Event::Click { x, y } => {
                 if let Some((i, action)) = self.at(x, y) {
                     self.selected = i;
-                    return self.act(action);
+                    return self.act(action, ctx);
                 }
             }
             _ => {}
@@ -883,14 +1045,46 @@ impl SetupScreen {
             // any state in this workspace, so neither is drawn; the page is
             // otherwise page 7 with a fourth button.
         }
+        self.paint_gaps(canvas, pen);
+    }
+
+    /// **What this build cannot honour, said on the page.**
+    ///
+    /// `docs/decisions.md` C21: a switch wired to nothing must not look
+    /// finished. Two things go here — an option whose behaviour does not exist
+    /// (*Exploration*), and the map, which the list can select and the world
+    /// builder cannot yet build.
+    ///
+    /// **In our own font, never the original's**, for the same reason
+    /// [`Screen::draw`]'s missing-background line is: nothing the original
+    /// never drew may appear in its typeface, or a screenshot stops being
+    /// evidence of anything.
+    fn paint_gaps(&self, canvas: &mut Canvas, pen: &Pen) {
+        let mut y = 462;
+        let mut say = |line: &str| {
+            l2_view::text::draw(canvas, MAP_LIST_X - 180, y, line, font::HIGHLIGHT);
+            y += 9;
+        };
+        for &i in &self.unhonoured {
+            let label = pen.assets.text(GROUP_OPTIONS, i).to_string();
+            say(&format!("NOT IMPLEMENTED: {}", label.to_uppercase()));
+        }
+        if self.map != 0 {
+            say("NOT IMPLEMENTED: STARTING ON A MAP OTHER THAN THE SAVE'S");
+        }
     }
 
     /// Page 9: the box the option opens, over the page underneath.
     fn paint_dropdown(&self, canvas: &mut Canvas, pen: &Pen, _ctx: &Ctx) {
-        let (x, y, rows) = OPTION_LIST[self.open];
-        let y = self.dropdown_y(y, rows);
-        pen.window(canvas, x, y, 6, rows, 1);
-        for i in 0..OPTION_COUNT[self.open] {
+        // `DAT_00553FB4` is the item count and the box is that plus the two
+        // border cells — the painter and the hit test read the one number, so a
+        // *Nobles* list shortened to the map cannot draw four rows and accept
+        // three.
+        let n = self.rows(self.open);
+        let (x, y, _) = OPTION_LIST[self.open];
+        let y = self.dropdown_y(y, n);
+        pen.window(canvas, x, y, 6, n as i32 + 2, 1);
+        for i in 0..n {
             let s = pen.assets.text(GROUP_VALUES, OPTION_BASE[self.open] + i).to_string();
             let colour = if i == self.selected { font::HIGHLIGHT } else { font::TEXT };
             pen.body_centred(canvas, x + 1, y + 16 + i as i32 * 16, 0x60, &s, colour);

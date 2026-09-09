@@ -11,6 +11,7 @@
 CLAUDE.md	C5	b0903798b42f
 README.md	C23	05c1d7fce551
 README.md	C26	9648f42b9cac
+crates/l2-formats/src/maps.rs	C25	795dd2e31c53
 crates/l2-formats/tests/battle_fixtures.rs	C23	24f9d69c852a
 crates/l2-formats/tests/save.rs	C1	93f2edca7e60
 crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609
@@ -24,11 +25,17 @@ crates/l2-game/src/screens/map.rs	C22	9269ad59f313
 crates/l2-game/src/screens/map.rs	C25	23e8c28769c0
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
+crates/l2-game/src/screens/setup.rs	C21	061497c61678
+crates/l2-game/src/screens/setup.rs	C21	f030e5ba689c
 crates/l2-game/src/screens/shells.rs	C22	6210d0b3625b
 crates/l2-game/src/screens/village.rs	C22	81b65db0836a
+crates/l2-game/src/setup.rs	C21	1a85f7a2d857
 crates/l2-game/src/turn.rs	C35	820d88d9976c
 crates/l2-game/src/turn.rs	C35	87cde1fdbcb4
 crates/l2-game/src/turn.rs	C35	90db6b8f5bcd
+crates/l2-game/src/victory.rs	C44	81209403d144
+crates/l2-game/src/victory.rs	C44	eb2da78efce9
+crates/l2-game/src/victory.rs	C44	fa73148cbb7c
 crates/l2-game/tests/screens.rs	C21	1523306009a2
 crates/l2-game/tests/screens.rs	C22	1d39d618c245
 crates/l2-game/tests/screens.rs	C42	3c40a931b48c
@@ -157,6 +164,7 @@ docs/bugs.md	C31	18772c7679b0
 docs/bugs.md	C31	d4548fdca7c1
 docs/bugs.md	C33	970cde363d20
 docs/bugs.md	C38	3a2b93b33329
+docs/bugs.md	C44	76f06582a66b
 docs/decisions.md	C10	1026d11e7d3f
 docs/decisions.md	C10	6307927dc59c
 docs/decisions.md	C10	ff432eaffe58
@@ -187,6 +195,7 @@ docs/decisions.md	C23	99e73b072814
 docs/decisions.md	C24	b6deda781733
 docs/decisions.md	C25	04e93d465fea
 docs/decisions.md	C25	1cb6c94e684e
+docs/decisions.md	C25	279621d20313
 docs/decisions.md	C25	2b0966c01658
 docs/decisions.md	C25	3e669c6c4204
 docs/decisions.md	C25	542068b1deb2
@@ -199,6 +208,7 @@ docs/decisions.md	C26	1824d81774d5
 docs/decisions.md	C26	5357aea2a649
 docs/decisions.md	C28	d54a0560329e
 docs/decisions.md	C28	dae0adb9b022
+docs/decisions.md	C29	3a43aa0e9083
 docs/decisions.md	C29	6ba0c8d5c8ee
 docs/decisions.md	C29	e3058bcc0c36
 docs/decisions.md	C3	73b73488d9b3
@@ -239,6 +249,7 @@ docs/formats/pl8.md	C5	7da3bb460200
 docs/hypotheses.json	C3	6d7b9bc8a5c3
 docs/kingdom.md	C12	ea411ce7f8a2
 docs/kingdom.md	C16	b5ee9c5eb7a2
+docs/kingdom.md	C29	2c4e4b24a052
 docs/kingdom.md	C3	840abeb8509b
 docs/kingdom.md	C3	95fbb7f03470
 docs/kingdom.md	C33	b9ec6f2c7beb
@@ -248,13 +259,17 @@ docs/kingdom.md	C36	20f9abde8feb
 docs/kingdom.md	C36	4f5705e1dfb0
 docs/kingdom.md	C36	74334a3867c1
 docs/kingdom.md	C4	7e5078901b50
+docs/kingdom.md	C44	1116d13898b2
+docs/kingdom.md	C44	a2de7d3fedbe
 docs/kingdom.md	C5	9ed204668bd1
 docs/kingdom.md	C8	2c6596b7ae81
 docs/kingdom.md	C8	6683b7f42ddb
+docs/mechanics.md	C21	efba23978cff
 docs/mechanics.md	C22	0c47beed33b6
 docs/mechanics.md	C26	811398837c72
 docs/mechanics.md	C27	6a66e90a3f82
 docs/mechanics.md	C33	ee15b2bcca4b
+docs/mechanics.md	C44	4a8c86312733
 docs/method.md	C21	4fd02f68abf9
 docs/method.md	C3	588652ea16c6
 docs/method.md	C38	5300e90cb318

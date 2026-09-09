@@ -38,6 +38,7 @@ pub mod saves;
 pub mod scenario;
 pub mod screen;
 pub mod screens;
+pub mod setup;
 pub mod shell;
 pub mod turn;
 pub mod victory;

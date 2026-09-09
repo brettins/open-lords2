@@ -5511,6 +5511,62 @@
       "confidence": "verified",
       "signature": "void SiegePrep_Proceed(int unit)",
       "comment": "A one-line thunk to Siege_LaunchAssault, called by SiegePrep_Button when the engines are ready."
+    },
+    {
+      "addr": "0x00433BA2",
+      "name": "Setup_SetOption",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void __cdecl Setup_SetOption(int which, int value)",
+      "comment": "The custom game's twelve drop-downs, all of them: one if/else if chain on the option index writing one of g_setupOpt* at 0x0053F288..0x0053F2B4. Called from FUN_00433A23 with the clicked row minus one, then calls Setup_RecountAiLords. NOT the g_opt* block - these are the twelve selections, and Setup_CommitOptions turns them into what a game runs on."
+    },
+    {
+      "addr": "0x00433CC1",
+      "name": "Setup_RecountAiLords",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Setup_RecountAiLords(void)",
+      "comment": "g_aiLordCount = (g_setupOptNobles + 2) - g_netHumanPlayers, then Realms_AssignLords. Run after every option change and after every scenario change, so the lord count always agrees with the Nobles drop-down and the lobby."
+    },
+    {
+      "addr": "0x00499DC3",
+      "name": "Setup_CommitOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Setup_CommitOptions(void)",
+      "comment": "The step between the setup screen and the game, called from the Start button immediately before Setup_StartGame. Reads the twelve selections at 0x0053F288.. and writes the eleven values a game is played with: five straight through (advanced farming, exploration, armies eat, difficulty, fight humans only), one by arithmetic (the AI lord count), and five through a table - g_timeLimitSeconds, g_startingGold, g_startArmoury, g_startTroops and g_countyStatus. So a drop-down wired straight to g_optDifficulty would be wrong for five of the twelve."
+    },
+    {
+      "addr": "0x004AE539",
+      "name": "Setup_DefaultOptions",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Setup_DefaultOptions(void)",
+      "comment": "The Defaults button on the custom-game page, and NOT twelve zeroes: nobles 3 (five), difficulty 0, weapons 2 (some), army size 0, advanced farming 0, armies eat 0, exploration 0, crowns 2 (1000), county status 1 (medium), castle 3 (keep), and time limit 6 (no limit) / fight 1 (all) in a single-player game against 3 (4 mins) / 0 (humans) in a network game."
+    },
+    {
+      "addr": "0x004AE5E2",
+      "name": "Setup_NoblesFromMap",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void __cdecl Setup_NoblesFromMap(int playerStarts)",
+      "comment": "Sets g_setupOptNobles from a map's seat count - under 3 picks two, under 4 three, under 5 four, otherwise five. Called with g_playerStartCount from all three ways of changing the scenario and from the Defaults button, so the lord count follows the map in both directions. FUN_00433999 shortens the open list to g_playerStartCount - 1 rows at the same time."
+    },
+    {
+      "addr": "0x0049BD99",
+      "name": "Game_SetupRealmsAndCounties",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Game_SetupRealmsAndCounties(void)",
+      "comment": "The starting position, from Game_NewGame after Map_InitScenario. Every county takes grain, herd, population, health and happiness from g_countyStatus[g_startCountyStatus]; every realm with a lord takes its start county out of g_playerStartTable, gold from g_startingGoldChosen, 50 each of iron, wood and stone, weapons from g_startArmoury[g_startWeapons] with difficulty * 20 extra in slot 4 for an AI, a garrison raised by Army_Create from g_startTroops[g_startArmySize], and the castle from g_startCastle. A realm with no lord is skipped entirely. Finally every unowned county gets 100 more grain."
+    },
+    {
+      "addr": "0x0049BC5F",
+      "name": "PlayerStart_Compact",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void PlayerStart_Compact(void)",
+      "comment": "Drops the player-start slots above the number of live realms by bubbling the table down, so a game with fewer lords than the map seats leaves the extra start counties unowned rather than off the end of the array."
     }
   ],
   "globals": [
@@ -8509,6 +8565,153 @@
       "section": "units",
       "confidence": "verified",
       "comment": "Personality record +0xA0, stride 0xF0 from g_aiPersonality at 0x004D8A58, read by Siege_Prepare and by nothing else. The four shipped values are 8, 9, 7, 7 for the Knight, Baron, Countess and Bishop: 8 orders four siege towers, 9 one battering ram, 7 three catapults plus a ram against a stone or royal castle after season 2, and every arm keeps the default two towers. Three of the four values are exactly the three constants the function tests, and the fourth repeats one. docs/diplomacy.md section 8.4 listed +0xA0 among eleven personality fields that were never traced."
+    },
+    {
+      "addr": "0x0053F268",
+      "name": "g_aiLordCount",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "How many AI lords are in the game: (Nobles + 2) - humanPlayers, from Setup_RecountAiLords, or the campaign table's +0x1C column. Realms_AssignLords hands out at most this many lords and writes strength = 0 into every realm past it, so it is what decides how many realms exist. One of only seven globals in the 0x0053F2xx block that Save_Write stores."
+    },
+    {
+      "addr": "0x0053F270",
+      "name": "g_startWeapons",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Row of g_startArmoury the game starts on, 0..3 - the committed Weapons option. Campaign maps take it from the table's +0x14 column, which is 1 on every row of both tracks. Not saved."
+    },
+    {
+      "addr": "0x0053F274",
+      "name": "g_startArmySize",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Row of g_startTroops the starting garrison is raised from, 0..3 - the committed Army Size option; 0 raises no army at all, which is the test Game_SetupRealmsAndCounties makes. Campaign maps take it from +0x18, which is 0 on every row of both tracks, so a campaign never starts you with an army. Not saved."
+    },
+    {
+      "addr": "0x0053F278",
+      "name": "g_startingGoldChosen",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "The starting treasury in crowns - g_startingGold[Crowns] from Setup_CommitOptions, or the campaign table's +0x08 column, which is where docs/kingdom.md 8.5's 5000 / 2500 / 1000 comes from. Written into every realm's gold. Not saved."
+    },
+    {
+      "addr": "0x0053F27C",
+      "name": "g_startCountyStatus",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Row of g_countyStatus every county starts on, 0..2 - the committed County Status option, weak / medium / strong. Campaign maps take it from +0x10. Not saved."
+    },
+    {
+      "addr": "0x0053F280",
+      "name": "g_startCastle",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "The castle type every start county is given, 0..5 - none, wooden, bailey, keep, stone, royal - the committed Starting Castle option, or the campaign table's +0x0C column, which runs 1, 1, 2, 3, 4, 4, 5, 5 up track A. An earlier reading of that column as the opponent count was wrong: the opponent count is +0x1C. Not saved."
+    },
+    {
+      "addr": "0x0053F288",
+      "name": "g_setupOptNobles",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 2, Nobles: 0..3 for two, three, four and five lords. Written by Setup_SetOption and by Setup_NoblesFromMap; read by Setup_RecountAiLords. Not saved."
+    },
+    {
+      "addr": "0x0053F28C",
+      "name": "g_setupOptTimeLimit",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 10, Time limit: an index 0..6 into g_timeLimitSeconds, not a duration. Default 6 (no limit) single-player, 3 (4 mins) networked. Not saved."
+    },
+    {
+      "addr": "0x0053F290",
+      "name": "g_setupOptDifficulty",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 4, Difficulty: 0..3, easy to impossible. Copied straight into g_optDifficulty by Setup_CommitOptions. Not saved - g_optDifficulty is."
+    },
+    {
+      "addr": "0x0053F294",
+      "name": "g_setupOptWeapons",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 7, Weapons: 0..3, none / few / some / many. Becomes g_startWeapons. Not saved."
+    },
+    {
+      "addr": "0x0053F298",
+      "name": "g_setupOptArmySize",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 5, Army Size: 0..3, no army / small / medium / large. Becomes g_startArmySize. Not saved."
+    },
+    {
+      "addr": "0x0053F29C",
+      "name": "g_setupOptAdvancedFarming",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 0, Advanced Farming: 0 off, 1 on. Copied into g_optAdvancedFarming. Not saved."
+    },
+    {
+      "addr": "0x0053F2A0",
+      "name": "g_setupOptArmiesEat",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 3, Armies Eat: 0 no, 1 yes. Copied into g_optArmiesEat. Not saved."
+    },
+    {
+      "addr": "0x0053F2A4",
+      "name": "g_setupOptExploration",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 1, Exploration: 0 off, 1 on. Copied into g_optExploration. Not saved."
+    },
+    {
+      "addr": "0x0053F2A8",
+      "name": "g_setupOptCrowns",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 8, Crowns: an index 0..4 into g_startingGold, whose five values 100 / 500 / 1000 / 2500 / 5000 are the five strings themselves. Not saved."
+    },
+    {
+      "addr": "0x0053F2AC",
+      "name": "g_setupOptCountyStatus",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 9, County Status: 0..2, weak / medium / strong. Becomes g_startCountyStatus. Not saved."
+    },
+    {
+      "addr": "0x0053F2B0",
+      "name": "g_setupOptCastle",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 6, Starting Castle: 0..5, none / wooden / bailey / keep / stone / royal. Becomes g_startCastle. Not saved."
+    },
+    {
+      "addr": "0x0053F2B4",
+      "name": "g_setupOptFight",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Custom game drop-down 11, Fight?: 0 humans, 1 all. Copied into g_optFightHumansOnly, which is why that flag displays inverted. Default is 1 in a single-player game and 0 in a network game. Not saved - and neither is g_optFightHumansOnly."
+    },
+    {
+      "addr": "0x004DBBF8",
+      "name": "g_timeLimitSeconds",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Seven i32 the Time limit drop-down indexes: 30, 60, 120, 240, 480, 600, 0. Seven values for L2.eng group 103's seven strings \"30 secs\" .. \"no limit\", and the last is 0 rather than a sentinel of its own."
+    },
+    {
+      "addr": "0x004DBC18",
+      "name": "g_startingGold",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Five i32 the Crowns drop-down indexes: 100, 500, 1000, 2500, 5000 - literally the five strings. Also the source of the campaign table's purse column."
+    },
+    {
+      "addr": "0x004DC0D0",
+      "name": "g_countyStatus",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Three rows of five i32, stride 0x14, the County Status option indexes: {grain, herd, population, healthMeter, happiness} = {10, 40, 167, 45, 41} weak, {0, 95, 417, 65, 65} medium, {500, 330, 1181, 85, 85} strong. Medium really does start with no grain. It sits exactly between g_startArmoury (which ends at 0x004DC0D0) and g_startTroops (0x004DC110), three tables closing with no overlap and a four-byte gap."
     }
   ]
 }
