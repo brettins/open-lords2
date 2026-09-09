@@ -298,6 +298,12 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B73", Unswitchable("a discarded result and two identical arms: nothing to reproduce")),
     ("B74", Unwired("l2_kingdom::ai_army::action_allowed")),
     ("B75", Unwired("l2_kingdom::ai_army::aim_tile")),
+    // Reproduced, single-player arm only, because that is the only arm that
+    // exists here: the network half of the split is a multiplayer behaviour and
+    // docs/netcode.md is the one place the original is not the authority. Not
+    // switchable -- turning it off would mean inventing the write-back the solo
+    // path does not do, which is a different game rather than a fixed bug.
+    ("B76", Unswitchable("single-player arm reproduced; the other arm is multiplayer")),
 ];
 
 /// How many rows `l2_game::game::PRESENTATION` has.

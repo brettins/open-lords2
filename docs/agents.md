@@ -770,7 +770,7 @@ The practical test, before adding to any exhaustive list: **would a reader scann
 have a real question to answer?** If most lines have no question, the list is measuring the wrong
 set.
 
-## A correct experiment can produce a wrong inference, and twice today one did
+## A correct experiment can produce a wrong inference, and it has four times now
 
 Every other entry under this heading is a tool returning **wrong output**. These two returned
 **right output** and were read to mean something it could not mean, which is a different failure
@@ -807,10 +807,23 @@ an encoder omission, so no encoder check could ever have caught either. Both wer
 **importer**, building a struct from a `.sav`, on a path that never touches `encode`. The proof
 target was neither available nor in scope.
 
-None of the three was carelessness. All three were **confident reasoning about which check covers
+None of these was carelessness. All of them were **confident reasoning about which check covers
 what, done without checking** — which is the same act the whole project exists to avoid when the
 subject is `Lords2.exe`, applied to our own tools instead, where it feels like knowledge rather
 than inference because we wrote them.
+
+**A fourth, and the first that travelled in a BRIEF rather than in a tool's output.** An agent
+reported that retreat and autocalc discard casualties. True — of the solo retreat arm. It was
+repeated as *"every casualty we have fought so far is unkilled"*, which is a statement about the
+seam, and briefed onward in that form. Measured: the forty-turn run kills 1,951 men and always
+did, `Battle_WriteBackCasualties` has five call sites, we implement it, and ablating ours turns
+three tests red. **A true statement about one branch, promoted to a statement about the**
+**subsystem** — and the promotion happened in prose, between people, where none of the tool
+checks in this file can reach. `docs/decisions.md` C71.
+
+The defence is the same one and it is cheap: **name the branch.** "Retreat, in single player,
+discards casualties" is the same finding and cannot be promoted by accident, because the scope
+is in the sentence.
 
 **What generalises.** Before running an ablation, say which artefact you expect to fail and *why
 it is downstream of the thing you are testing*. If the answer is "the digest", check whether the
@@ -1038,6 +1051,42 @@ Two other things fell out of the enumeration and belong here rather than in a co
   `0x12`'s arm has no right-button test at all, so `battle.rs`'s right-click-to-Decline is ours.
   Neither was found by looking for errors; both fell out of reading a screen exhaustively. That is
   the argument for enumeration in one sentence.
+
+## Citing an oracle is not reading it
+
+`CLAUDE.md` promotes the shipped `Readme.txt` to a first-class oracle: it is the v1.03 patch's
+rules errata, it post-dates the manual, and it wins wherever they disagree. That promotion was
+right and it has paid for itself repeatedly.
+
+It did not stop this.
+
+`Readme.txt` says an army is destroyed when it has *"less than 50 men **after** retreating."*
+**This project has quoted that sentence twice** — in two different documents, both times as
+supporting evidence — while implementing the test on the total **before** the halving. The
+citation was accurate. The order of operations in it was never used, because nobody was reading
+the sentence for its order of operations; they were reading it for the number 50, which they
+already had.
+
+That is the failure, and it is not carelessness:
+
+> **A citation is retrieved to support a claim you already hold, so it is read for the part that
+> supports it and skimmed for the rest.** The parts you did not need are exactly the parts that
+> would have corrected you.
+
+The corrected reading — `Army_WithdrawCasualties` (`0x004AD8CC`) halves every line *above* the
+`menTotal < 50` branch, so an 80-man army becomes 40 and is destroyed — was found in the binary,
+by an agent adding a missing writer, and only then recognised in the sentence that had been on
+file all along. `docs/decisions.md` C71.
+
+**The practice.** When an oracle is cited for a fact, **quote the whole sentence into the code or
+the document, and then read the quoted text once more against what is being written** — not
+against the claim it was fetched for. On this project the oracles are short: a `Readme.txt`
+paragraph, an `L2.eng` string, a decompiled function of forty lines. There is no excuse for
+reading a clause of one.
+
+And the sharper version, for a `Readme.txt` line especially: **the words "after", "before",
+"each", "total" and "remaining" are where the mechanics live.** Those are the words a reader
+skims when they are looking for a number.
 
 ## Prior art first
 

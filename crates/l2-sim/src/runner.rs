@@ -901,6 +901,14 @@ impl BattleRunner {
             let BattleRunner { units, sim, positions, ai_field, ai, .. } = self;
             ai::update_all_units(units, &mut sim.figures, positions, ai_field, ai)
         };
+        // `g_battleWithdrawal`, raised inside an order handler by the one thing
+        // in the binary that raises it — see [`ai::Ai::withdrawal`]. The
+        // original writes a global that `Battle_CheckOutcome` reads directly;
+        // it is carried onto the runner so [`Self::conclusion`] has one place
+        // to look whether the AI or a caller pulled the lever.
+        if let Some(side) = self.ai.withdrawal {
+            self.withdrawn = Some(side);
+        }
 
         let ordered: Vec<usize> = before
             .iter()

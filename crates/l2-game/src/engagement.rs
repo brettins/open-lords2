@@ -465,19 +465,47 @@ fn resolve_battle(
     // point of C31.
     let withdrawal = matches!(resolution, Resolution::Fought { cause: End::Withdrawal, .. });
 
+    let aftermath = {
+        let Kingdom { counties, realms, campaign, options, tables, .. } = kingdom;
+        battle::return_to_campaign(
+            tables,
+            counties,
+            realms,
+            &mut campaign.units,
+            &mut campaign.names,
+            verdict,
+            county,
+            castle_level.is_some(),
+            withdrawal,
+            options.difficulty,
+        )
+    };
+
+    // **`Realm_RecountStrength` (`0x0049B42B`) on the loser's realm** is the
+    // last thing both of `Battle_ReturnToCampaign`'s branches do, and it is
+    // *not* here: it needs the county count and the local player, and neither
+    // is a battle rule. [`Aftermath::loser_owner`] carries the argument out to
+    // [`crate::turn`], which has a [`crate::game::Game`] and does it — the same
+    // division as the diplomatic offence, which `l2-kingdom` reports rather
+    // than applies.
+
+    // A loser that **withdrew** is still standing, and it walked off having
+    // paid `Army_WithdrawCasualties`. The two `after` numbers above were read
+    // before that charge, so re-read the survivor: everything else is either
+    // untouched or a record that no longer exists.
+    let (attacker_after, defender_after, a_after, d_after) =
+        if aftermath.withdrawal_casualties.is_some() && aftermath.loser_siege_lifted {
+            (
+                before(kingdom, attacker),
+                before(kingdom, defender),
+                roster(kingdom, attacker),
+                roster(kingdom, defender),
+            )
+        } else {
+            (attacker_after, defender_after, a_after, d_after)
+        };
+
     let Kingdom { counties, realms, campaign, options, tables, .. } = kingdom;
-    let aftermath = battle::return_to_campaign(
-        tables,
-        counties,
-        realms,
-        &mut campaign.units,
-        &mut campaign.names,
-        verdict,
-        county,
-        castle_level.is_some(),
-        withdrawal,
-        options.difficulty,
-    );
     // `Defence_Disband` runs **after** the return, at the end of screen `0x13`
     // and immediately after `Battle_ReturnToCampaign(0)` on the silent path. A
     // defence that lost has already been destroyed and this finds nothing; a
@@ -1100,6 +1128,74 @@ mod tests {
                 assert_eq!(u.besieging_county, 0);
                 assert_eq!(u.besieged_by, 0);
             }
+        }
+    }
+
+    /// **A besieger that gives up — the whole withdrawal path, on the road a
+    /// player can actually reach.**
+    ///
+    /// `UnitOrder_SiegeAttKnight` (`0x0048D9CE`) is the only writer of
+    /// `g_battleWithdrawal` in the binary: an AI besieger whose whole force is
+    /// knights, in front of a wall nothing has breached, stops trying. It is
+    /// the only lever in the game that reaches
+    /// [`l2_kingdom::battle::withdraw_casualties`], and until the clause was
+    /// added to `l2-sim` neither existed — which is why the campaign had never
+    /// implemented the half of `Battle_ReturnToCampaign` behind it.
+    ///
+    /// The catapult is not decoration: with no siege engine at all
+    /// `Battle_CheckOutcome`'s *assault repulsed* arm fires first and the
+    /// question never gets asked. One engine keeps `g_siegeEngineCount`
+    /// non-zero, the breach score stays 0, and the knights think.
+    #[test]
+    fn an_all_knight_ai_besieger_withdraws_and_is_charged_for_it() {
+        let (mut k, a, d) = siege_kingdom(2, [1, 0, 0]);
+        {
+            // Swap the roles round: the besieger is the AI's and the castle is
+            // the player's, so the battle is one the player is asked about and
+            // the AI's own knights are the only figures the census sees.
+            let au = k.campaign.units.get_mut(a).unwrap();
+            au.owner = 2;
+            au.owner_is_human = false;
+            au.troops = [0; TROOP_TYPES];
+            au.troops[TroopType::Knight.index()] = 400;
+            au.men = 400;
+            let du = k.campaign.units.get_mut(d).unwrap();
+            du.owner = 1;
+            du.owner_is_human = true;
+        }
+        k.counties[3].owner = 1;
+
+        let assault = l2_kingdom::siege::assault(&k.counties, &mut k.campaign.units, a);
+        let report = resolve_siege(&mut k, assault, Answer::TakeTheField, 0x5A11).expect("a siege");
+
+        assert_eq!(
+            report.resolution,
+            Resolution::Fought { ticks: report_ticks(&report), cause: End::Withdrawal },
+            "the knights gave up: {:?}",
+            report.resolution
+        );
+        assert!(!report.verdict.attacker_won, "a withdrawal hands the field to the other side");
+
+        // **`Army_WithdrawCasualties` was charged**, and it is half the line.
+        assert_eq!(report.aftermath.withdrawal_casualties, Some(200));
+        assert!(!report.aftermath.loser_destroyed, "two hundred knights is over fifty");
+        assert!(report.aftermath.loser_siege_lifted);
+        let survivor = k.campaign.units.get(a).expect("it walked off the field");
+        assert_eq!(survivor.troops[TroopType::Knight.index()], 200);
+        assert_eq!(survivor.men, 200);
+        assert_eq!(survivor.besieging_county, 0, "and it lost the siege, not its life");
+        assert_eq!(k.counties[3].owner, 1, "the castle held");
+        // The report's "after" numbers are the ones the retreat left, not the
+        // ones the army walked onto the field with.
+        assert_eq!(report.attacker_men, (400, 200));
+    }
+
+    /// The ticks of whatever the report says, so the assertion above can name
+    /// the *cause* without pinning the length of the battle.
+    fn report_ticks(r: &BattleReport) -> u32 {
+        match r.resolution {
+            Resolution::Fought { ticks, .. } | Resolution::Stalled { ticks } => ticks,
+            Resolution::Autocalc => 0,
         }
     }
 

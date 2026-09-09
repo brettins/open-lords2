@@ -307,6 +307,49 @@ is a real behaviour."*
 | **B50** | **Figures are drawn centred using the sprite *width* for both axes**, so a 48-pixel man sits eight pixels left of and sixteen above his cell's corner. | — | `l2-view/src/scene.rs:191` — *"reproduced rather than corrected"* |
 | **B69** | **Whether you can order an attack depends on a figure index left over from another sweep.** `Battle_UpdateHover` (`0x0047ED9B`) counts the local player's selected non-siege figures into `DAT_00565404`, which gates `g_battleHoverEnemy` and so gates the attack cursor and the attack order. Its loop tests `g_battleMen[local_8].owner` and `.selected` — and then `g_battleMen[**g_curBattleMan**].troopType`, a *different global*, for the third clause. `g_curBattleMan` is the shared sweep index 74 functions share and every one of them leaves it at `0x51`, one record past the end of the 80-record array. | **[V] at instruction level**: `a1 f8 e8 53 00` (`mov eax,[g_curBattleMan]`) where the two clauses either side use `mov eax,[ebp-4]`. **[I]** on the effect: `0x554480 + 81 × 0x1B0` is `0x562000`, past `.data`'s raw extent and so in zeroed BSS, where `troopType` reads 0 and the clause is true — so the count is probably right in play and the bug invisible. | **Not reproduced**, deliberately: `battlefield.rs`'s `update_hover` uses the loop variable, and says so. Reproducing an out-of-bounds read of a byte we do not model would be reproducing the *address*, not the behaviour. |
 
+### B76 — Leaving a battle early throws the battle away, and only in single player
+
+**What the original does.** Retreat (`0x0043BA29`) and Autocalc (`0x0043BD67`) both open a
+confirm box, and every *yes* reaches `FUN_0043BE65` — 129 bytes that are
+`Battle_AutoResolve()` and the return to the campaign, with **no call to
+`Battle_WriteBackCasualties`**. `Battle_AutoResolve` reads the *campaign* records at
+`+0x16C`, which nothing has written since `Battle_Start`, so the strength ladder is applied
+to the two armies **as they marched onto the field**. Every man killed in the battle so far
+is unkilled.
+
+Except on one of the two paths, in one configuration. `FUN_0043BDCD`, the Autocalc confirm's
+own callback, splits on `g_multiplayer`:
+
+```c
+if (g_confirmAnswer == 1) {
+    if (g_multiplayer == 0) { FUN_0043be65(); }               /* discard        */
+    else { Battle_WriteBackCasualties(); ... Net_SendCommand(0x33,0); ... }
+}
+```
+
+**Why it is a bug.** The same button means two different things depending on whether anybody
+else is playing: in a network game the casualties are kept, in a single-player game they are
+thrown away. Whichever half was intended, both cannot be. The Retreat confirms
+(`FUN_0043BAF9`, `FUN_0043BB68`) have no such arm at all — they reach
+`FUN_0043BBD7` → `FUN_0043BE65` in both modes — so a *retreat* discards even in
+multiplayer, which makes the asymmetry autocalc-only and harder to read as design.
+
+**Evidence.** **[V]** — the four functions read end to end, and
+`Battle_WriteBackCasualties` has exactly five call sites in the whole binary: this one, two
+in `Battle_CheckOutcome`'s post-banner arm, two in `FUN_004782C5`'s, and nothing else.
+**[I]** on calling it a mistake rather than a network-protocol requirement.
+
+**A second rule falls out of the same reading, and it is not a bug.** Because
+`Battle_AutoResolve`'s **first statement clears `g_battleWithdrawal`**, pressing *Retreat*
+does not perform a retreat: it auto-resolves, and a player who loses the ladder has his army
+**destroyed** rather than withdrawn with half its men (`armies.md` §7.4a). The withdrawal
+rules are reachable only from `UnitOrder_SiegeAttKnight`.
+
+**Reproduced?** **Yes, the single-player arm**, which is the only one that exists here:
+`l2_game::turn::finish_battle` drops the runner and re-runs the autocalc from the campaign
+records. The multiplayer arm is catalogue-only until replication lands, and §6.4 is where a
+switch would go. `armies.md` §7.1.
+
 ## 2.6 Victory, defeat and the score
 
 | | the original's bug | evidence | our code |

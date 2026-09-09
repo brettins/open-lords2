@@ -3393,6 +3393,140 @@ enumeration here reaches the same six by a different route. The totals differ �
 §15.11 states the rule and says where the difference most likely is. Two enumerations agreeing
 on a sub-count they were not aligned on is worth more than either total.
 
+**CNEW-withdrawal — "Nobody dies" was three-quarters false, and the quarter that was true was
+a rule with no writer.**
+
+The brief this began from read: *"Retreat and autocalc discard the battle. Both confirms reach
+`FUN_0043BE65` = `Battle_AutoResolve` + return; neither calls `Battle_WriteBackCasualties`.
+**Every casualty so far is unkilled**"* — and concluded that the campaign–battle seam is
+one-directional and *"every fought war on this project is meaningless, including the
+forty-turn AI war test."*
+
+**The premise is right about the binary and wrong about what follows from it**, and one probe
+measures it:
+
+* `Battle_WriteBackCasualties` (`0x0047F474`) has **five call sites**. `FUN_0043BE65` is not
+  one of them, exactly as reported — but `Battle_CheckOutcome`'s post-banner arm and
+  `FUN_004782C5` are, and those are how a battle **fought to its end** returns. That path was
+  already implemented (`engagement::conclude_fight` → `write_back`) and is asserted by three
+  tests; ablating the write-back turns all three red, which is the check that says so.
+* An **AI-versus-AI battle never enters the simulation at all.** `Battle_ChooseSettlement`
+  returns 0 when neither owner is human, and the autocalc's whole purpose is to write the
+  survivors into the campaign records. So the forty-turn AI war was never affected: it fights
+  **five battles and kills 1,951 men** over forty turns of the England fixture, and did
+  before this branch as well as after it. Every row of both worlds is byte-identical before
+  and after — which is the honest answer to *"what does the map look like with casualties
+  applied"*, and it is *nothing changed, because nothing there was broken.*
+* Only the **early exit** discards, and there it is the original's own behaviour — with an
+  asymmetry nobody had noticed: `FUN_0043BDCD`'s multiplayer arm calls
+  `Battle_WriteBackCasualties` first and its single-player arm does not. `docs/bugs.md`
+  B76.
+
+**What was genuinely missing is one function and one clause, and they were missing
+together.**
+
+`g_battleWithdrawal` has exactly one writer in the binary — `UnitOrder_SiegeAttKnight`
+(`0x0048D9CE`), three statements at the top of the think:
+`if (g_aiMenTotal <= g_aiMenKnight && g_siegeBreachScore == 0) { withdraw }`. **That clause
+was absent from `l2-sim`'s handler.** With it absent, `End::Withdrawal` could not arise in a
+played game, so:
+
+* `Battle_ReturnToCampaign`'s withdrawal branch was unreachable, and
+* **`Army_WithdrawCasualties` (`0x004AD8CC`) — which was in no document and no symbol file —
+  could not be noticed as missing.** It halves every troop line, wipes any line under eleven,
+  spares the mercenary band, and clears the path and the move state; and it runs **above** the
+  whole loser branch, so `menTotal < 50` reads the *halved* total. `crates/l2-kingdom` tested
+  the threshold against the unhalved one, so an 80-man army survived at 80 where the original
+  halves it to 40 and destroys it. The shipped `Readme.txt` says it in English — *"any army
+  that would have less than 50 men **after** retreating is eliminated instead"* — and this
+  project had quoted that sentence twice while implementing the other order.
+* The absence also produced a **stall**: with the clause removed, the fought siege that now
+  ends in a withdrawal at a couple of hundred ticks instead runs to `MAX_TICKS` and returns
+  `Resolution::Stalled { ticks: 12000 }` — an all-knight besieger with no way in and, until
+  now, no way out.
+
+**The shape of it is C27 again and worth naming.** Three artefacts said the rule existed —
+`symbols.json`'s comment on `g_battleWithdrawal`, C31 and C38, and
+`l2_kingdom::victory::recount_strength`'s own doc comment listing *"the two arms of the
+post-battle resolution"* among its four callers — and in a played game **not one of them
+could fire**, because the single thing upstream that raises the flag had never been written.
+A rule documented, tested and unreachable looks exactly like a rule that works.
+`Realm_RecountStrength` is called from `turn::record` now, and the withdrawal clause and
+`withdraw_casualties` are ablation-checked in both directions.
+
+**C71 — "Every casualty in every battle is unkilled" was wrong, and what it hid was better than
+what it claimed: a function in no document that halves a retreating army *before* the rule that
+destroys it.**
+
+**The premise, and it came from us.** A brief went out saying that retreat and autocalc discard
+casualties and that *"every casualty we have fought so far is unkilled."* It was repeated from an
+agent's report, restated by the coordinator, and acted on.
+
+**Measured, it is false and always was.** The forty-turn England run fights **five battles and
+kills 1,951 men**. Every one of them is an autocalc, because an AI-versus-AI battle never enters
+the simulation at all — and writing survivors into the campaign records is the autocalc's entire
+purpose. The before/after table is identical on every row.
+
+`Battle_WriteBackCasualties` has **five call sites**, we implement it, and ablating our
+`write_back` turns **three** tests red: `taking_the_field_runs_the_real_simulation_and_hands_the_result_back`,
+`the_same_position_can_be_fought_for_real_and_still_comes_back`, and
+`the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled`. (Counted with `--no-fail-fast`; the
+first run stopped after one crate and reported a single failure, which is its own small lesson
+about reading an ablation.)
+
+The original claim was true of **exactly one path** — the solo retreat arm — and was stated as
+though it were the seam. **A true statement about one branch, promoted to a statement about the
+subsystem**, is the third instance this week of a correct observation producing a wrong
+inference, and the first where the promotion happened in a *brief* rather than in a tool's
+output. `docs/agents.md` carries all three together, because the pattern is now clearly not
+confined to tools.
+
+**What was actually missing.** `Army_WithdrawCasualties` (`0x004AD8CC`) — in no document, no
+`symbols.json` entry, and no line of our code. It halves every troop line, **wipes any line under
+11**, leaves mercenaries untouched, and — this is the part that matters — it runs **above** the
+loser branch, so the `menTotal < 50` test reads the **halved** total.
+
+We tested the unhalved one. **An 80-man army survived where the original halves it to 40 and
+destroys it.**
+
+**And the shipped `Readme.txt` says so, in English, and we have quoted that sentence twice.**
+*"less than 50 men **after** retreating."* `CLAUDE.md` promotes `Readme.txt` to a first-class
+oracle precisely because it post-dates the manual and corrects it; this project cited it twice
+while implementing the opposite order of operations. **Citing an oracle is not the same as reading
+it**, and that is a short lesson with its own entry in `docs/agents.md`.
+
+**It was unreachable, and that is C27's eighth instance.** `g_battleWithdrawal` has exactly one
+writer in the binary, `UnitOrder_SiegeAttKnight`, and we had every other line of that function and
+not the three that raise the flag. So `End::Withdrawal` was reachable only from two unit tests,
+and the **entire withdrawal half of `Battle_ReturnToCampaign` was dead code** — written, correct,
+and impossible to enter.
+
+This is the first of the eight found by **adding a writer** rather than by chasing a reader, and
+the difference is worth keeping. The other seven were found by asking *"who writes this field?"*
+and getting no answer. Here the field had a writer in the original that we had simply not
+transcribed, so the question *"is this reachable?"* had a comfortable answer — *yes, from the
+tests* — and the missing piece was three lines inside a function we thought we had finished.
+Adding it also removed a stall: a fought siege that previously ran to `MAX_TICKS` and came back
+`Stalled { ticks: 12000 }`.
+
+**A call graph that did not exist.** `victory.rs`'s doc comment has listed the two post-battle
+sites among `Realm_RecountStrength`'s callers since the day it was written, **and nothing called
+it.** Not a stale comment — a comment that was never true, describing a call graph as though it
+were the code beneath it. It is called on the loser's realm now.
+
+**And a genuine defect of the original's, catalogued rather than fixed.** The retreat/autocalc
+split is on `g_multiplayer`: the network arm writes casualties back first and the solo arm does
+not. Same button, two meanings. Worse, because the autocalc clears the withdrawal flag before it
+runs, **pressing Retreat does not retreat** — you auto-resolve, and losing destroys your army.
+That is behaviour, it is in `docs/bugs.md`, and it is not ours to correct.
+
+**Three things left open and declared rather than quietly handled**, which is why this entry
+trusts the rest: mercenary figures lose their band on a fought battle because `l2_sim::Figure`
+carries no flag for it; the loser-survives branch clears a link the original leaves
+half-connected, marked deliberate by an earlier decision; and `engagement::resolve*` called
+directly does not recount the losing realm, though all four roads a player can take go through
+the path that does.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
