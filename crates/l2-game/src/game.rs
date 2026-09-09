@@ -307,6 +307,61 @@ impl Game {
         self.is_county(id) && self.kingdom.counties[id as usize].owner == self.player
     }
 
+    /// Whether the player may give this **unit** orders.
+    ///
+    /// Ownership, not type: a player's merchant does not exist (merchants are
+    /// realm 6's), but a peasant mob or a transport of the player's realm is
+    /// theirs to move, and the original's map click does not check the type
+    /// either.
+    pub fn is_players_unit(&self, unit: usize) -> bool {
+        self.kingdom.campaign.units.get(unit).is_some_and(|u| u.owner == self.player)
+    }
+
+    /// `Unit_OrderMove` (`0x004A7EEC`) — **the player's move order**, and the
+    /// way anything on the campaign map is set walking from outside the turn
+    /// machine.
+    ///
+    /// Three things it is, each of which is a rule rather than a convenience:
+    ///
+    /// * **[`Routing::Direct`]**, because a human order uses the cost map as it
+    ///   stands. Road-hugging is what the game does for its own units — the AI's
+    ///   armies, the merchants, the transports — and
+    ///   [`l2_kingdom::movement::Routing::PreferRoads`] records that asymmetry.
+    /// * **it starts the unit immediately**, `moving = 2` in the original, so
+    ///   the army walks on the next tick whatever phase is current. There is no
+    ///   phase for player movement, which is the finding
+    ///   [`crate::turn`] is built on.
+    /// * **the cost map is rebuilt for the order**, inside
+    ///   [`l2_kingdom::movement::order_move`], so a tile trampled two steps ago
+    ///   is already impassable to this one.
+    ///
+    /// Returns the number of steps ordered, or `None` if the unit is not the
+    /// player's or no path reaches the tile. A refusal changes nothing.
+    pub fn order_unit_move(&mut self, unit: usize, dest: (u8, u8)) -> Option<usize> {
+        if !self.is_players_unit(unit) {
+            return None;
+        }
+        l2_kingdom::movement::order_move(
+            &self.kingdom.campaign.map,
+            &mut self.kingdom.campaign.units,
+            unit,
+            dest,
+            l2_kingdom::movement::Routing::Direct,
+        )
+    }
+
+    /// The player's units, in ascending slot order — what a map screen would
+    /// draw and cycle through.
+    pub fn player_units(&self) -> Vec<usize> {
+        self.kingdom
+            .campaign
+            .units
+            .iter()
+            .filter(|(_, u)| u.owner == self.player)
+            .map(|(id, _)| id)
+            .collect()
+    }
+
     /// Select a county, or clear the selection with 0. An id that is not a
     /// county on this map is refused rather than stored.
     pub fn select(&mut self, id: u8) -> bool {

@@ -183,6 +183,41 @@ unit's index into **byte +5 of the runtime tile record**.
 > six start counties are **14, 5, 13, 11, 12, 4** — six different counties, six
 > merchants, matching the observation exactly. **[V] code, [V] the six-road-tile
 > observation, [I] the specific county list, which was not recorded in that run.**
+>
+> ### The county list is **[V]** now — the save holds all of it
+>
+> `g_merchantRoutes` (`0x00567970`), `g_merchantStartCounty` (`0x00569518`) and
+> `g_merchantCount` (`0x005530B4`) all fall inside saved blocks, so
+> `england-turn1.sav` can be read directly instead of simulated. It says:
+>
+> ```text
+> merchantCount 6      startCounty 14, 5, 13, 11, 12, 4
+> route 0  14  4  7  8  2
+> route 1   5 12  6  3  8  2  1
+> route 2  14 11 13  5 10  9  7  3  1
+> route 3  11 12  6 10  4  9  3  1
+> route 4  14 11  5 13 12 10  2
+> route 5  13  6  4  9  7  8
+> ```
+>
+> **The prediction was 14, 5, 13, 11, 12, 4 and the file says 14, 5, 13, 11, 12, 4.**
+> Six for six, from a simulation of `Merchant_PickStartCounties`' odd dedup walk
+> written before anyone looked. That upgrades the list to **[V]** and, more
+> usefully, it is an independent check on the *walk* — a six-way match is not
+> something a wrong reading of that loop produces.
+>
+> The same save's unit array carries the other half: exactly six units, in slots
+> **1 … 6**, all type 3, all owner 6, each standing in the county its row begins
+> with, `hasNoDestination = 1` and `routeCursor = 1`. So §2.3's *"the route row
+> is `unitIndex − 1`"* — the coupling that only works because merchants get the
+> first slots — is checkable against shipped bytes, and it holds.
+>
+> One thing that falls out and matters elsewhere: **`moveAllowance` (`+0x154`) is
+> 0 in all six records.** It is written by the tick handler every frame and
+> never persisted, which is the direct evidence for
+> [`armies.md`](../armies.md) §2.1a's "tick-maintained rather than initial"
+> reading — and a warning for any loader, because a unit restored from a save
+> and never ticked cannot move at all.
 
 Merchant count per map, from the simulation (an upper bound — a spawn also
 requires a free tile, which is never a problem on the shipped maps but is not

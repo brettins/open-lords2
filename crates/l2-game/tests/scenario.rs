@@ -261,3 +261,63 @@ fn every_realm_in_the_save_flies_a_colour_the_banner_frames_have() {
     seen.dedup();
     assert_eq!(seen.len(), 5, "the five realms fly five different colours");
 }
+
+/// **The imported map is real terrain, and it is still real terrain after a
+/// turn has been played.**
+///
+/// `Kingdom::new` builds an empty `CampaignMap` and for a long time nothing
+/// overwrote it, so every imported game did its pathfinding, its field
+/// crossing and its trampling over 4,096 blank tiles. The planes come out of
+/// block 0 of the save now. This checks both halves of that: that the tiles
+/// arrive, and that **ending a turn does not lose them** — which is the half a
+/// season pipeline could quietly break, because the map is the one piece of
+/// simulation state that the economy writes to and never reads back.
+#[test]
+fn the_imported_map_is_real_terrain_and_survives_a_played_turn() {
+    let mut game = game!();
+
+    let counted = |g: &l2_game::Game| {
+        let m = &g.kingdom.campaign.map;
+        let land = m.county.iter().filter(|&&c| c != 0).count();
+        let roads = (0..l2_kingdom::MAP_TILES)
+            .filter(|&i| m.flags[i] & l2_kingdom::map::flags::ROAD != 0)
+            .count();
+        (land, roads)
+    };
+
+    let (land, roads) = counted(&game);
+    assert!(land > 1000, "{land} tiles belong to a county — the map is not blank");
+    assert!(roads > 0, "{roads} road tiles — a merchant has somewhere to walk");
+
+    // Every county the save names has an anchor inside its own territory,
+    // which is what the merchant and transport re-targets steer for.
+    for id in 1..=game.kingdom.county_count {
+        let c = &game.kingdom.counties[id];
+        assert_eq!(
+            game.kingdom.campaign.map.county_at(c.anchor_x, c.anchor_y) as usize,
+            id,
+            "county {id}'s anchor is not in county {id}"
+        );
+    }
+
+    l2_game::turn::end_turn(&mut game).expect("the turn comes round");
+
+    let (land_after, roads_after) = counted(&game);
+    assert_eq!(land_after, land, "the county plane survived the season");
+    assert_eq!(roads_after, roads, "and so did the roads");
+}
+
+/// A turn ends on the shipped position without anything getting stuck.
+///
+/// The unit phases wait on the unit array now rather than answering `true`, so
+/// a turn that never terminates is a live failure mode rather than an
+/// impossible one. The England position carries no armies, so this is the
+/// *empty* case — the one where every wait has to settle on its own.
+#[test]
+fn a_turn_on_the_shipped_position_settles_every_phase() {
+    let mut game = game!();
+    let outcome = l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+    assert!(outcome.ticks < l2_game::turn::MAX_TICKS, "{} ticks", outcome.ticks);
+    assert_eq!(game.kingdom.turn.phase, l2_kingdom::Phase::NeutralCounties);
+    assert!(outcome.pending_battles.is_empty(), "nobody is at war on turn one");
+}

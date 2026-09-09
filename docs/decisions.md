@@ -995,6 +995,59 @@ in for a subsystem, and a flag named in one place was assumed to mean the same t
 another. **A `[V]` on a branch is not a `[V]` on the rule the branch belongs to**, and the
 cheapest defence is the one this correction used: grep every site that touches the flag, and
 count them.
+**C35 — Phase 2 is not army movement, and nothing on the campaign map moves inside a phase
+at all.**
+
+`kingdom.md` §3.1's table has read *"phase 2 — army movement, including battle resolution —
+waits for armies (unit type 1)"* since the phase machine was first traced, and
+`crates/l2-kingdom`'s `Phase::ArmyMovement.wait()` was written from it as
+`PhaseWait::Units(UnitKind::Army)`. Both are wrong, and the second was wrong in a way that
+would have been very hard to see: with no units in the array the predicate is vacuously
+true, so the phase settled correctly for the wrong reason for as long as there was nothing
+to move.
+
+`Turn_Tick`'s phase-2 arm, in full:
+
+```c
+if (g_turnPhaseStep % 100 == 2) {
+    if (Siege_TickPhase() == 0) Turn_AdvancePhase();
+    else { DAT_0055403C = 0; Siege_LaunchAssault(g_siegeCursor); }
+}
+```
+
+No unit sweep, no type-1 predicate, nothing that reads `moving`. The three phases that
+*do* wait on units call `FUN_004A4F5B(type)` (3 and 6) or `FUN_004A4E3D(2, 6)` (5), and
+phase 2 calls neither; its first step, `Siege_StartPhase` (`0x004A82B9`), touches only
+`besiegedBy`, `besiegingCounty` and `garrisonUnit`. Phase 2 is the three-function siege
+machine `armies.md` §2.1 already described correctly — validate, build, assault — and §3.1's
+row was never reconciled with it. Two documents in this tree disagreed about the same phase
+and the newer, more specific one was right.
+
+**The larger half.** Asking where army movement *is*, if it is not phase 2, answers a
+question nobody had asked: `Units_Tick` (`0x004650B0`) has exactly one call site, and it is
+the frame loop, immediately after `Turn_Tick` —
+
+```c
+if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490D(); Turn_Tick(); Units_Tick(); }
+```
+
+— and it never reads `g_turnPhase`. **Every unit that is walking takes a step on every tick
+of the whole turn.** The phases only *originate* the game's own move orders — transports in
+3, mobs in 5, merchants in 6 — and then wait for them to stop; a player's order does not
+involve a phase at all, because `Unit_OrderMove` sets the unit walking directly.
+
+This is a structural fact rather than a detail, and building the mover as a phase handler —
+which is what §3.1 invited, and what this work started out doing — would have produced a
+game where an army ordered during the player's turn stood still until the phase came round
+again. `crates/l2-kingdom/src/units_tick.rs` is the reading, `kingdom.md` §3.1 is corrected,
+and `PhaseWait::Sieges` replaces the unit wait on phase 2.
+
+**What made it findable.** The phase-2 row carried **[D]**, derived from "the unit type each
+phase waits on", and §3.1 says so in as many words. The derivation is right for 3, 5 and 6
+and the marking was honest; what was missing was that a **[D]** row disagreeing with a
+**[V]** section elsewhere in the same repository is a contradiction somebody has to spend,
+not a difference of emphasis. C13's shape once more: the summary and the branch disagreed
+and the summary was load-bearing.
 
 **C32 — Nothing detected a winner, and the victory condition everybody had written down
 was a paraphrase that changed what it says.**

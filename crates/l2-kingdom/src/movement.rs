@@ -392,6 +392,42 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
     Some(steps)
 }
 
+/// The **two-pass** order every non-player mover uses: road-hugging first, and
+/// the direct route only if the road route will not fit.
+///
+/// ```c
+/// Move_FloodFill(0, x, y, 1);                       /* prefer roads */
+/// if (Move_ExtractPath(0, destX, destY)) {
+///     if (g_pathLen < 150) Path_CopyToUnit(0, unit);
+///     else { Move_FloodFill(0, x, y, 0);            /* plain costs */
+///            if (Move_ExtractPath(0, destX, destY)) Path_CopyToUnit(0, unit); }
+/// }
+/// ```
+///
+/// Three callers run it statement for statement — the transport re-target
+/// (`FUN_00429418`, turn phase 3), `Merchant_AdvanceAll` (phase 6), and the
+/// AI's army walk — against [`order_move`] with [`Routing::Direct`], which is
+/// what a *human* order does. So [`Routing::PreferRoads`]'s doc comment is
+/// exactly right that "AI armies prefer roads and the player's do not", and the
+/// rule is wider than armies: **everything the game moves for itself hugs
+/// roads.**
+///
+/// The 150 is [`crate::unit::MAX_PATH`], the capacity of the unit's stored
+/// path. [`extract_path`] already clamps there rather than overrunning the way
+/// the original's `Unit_OrderMove` does, so the retry is triggered by the
+/// clamp being *reached* — a road route that comes back at exactly the cap is
+/// the one that could not be represented.
+///
+/// Returns the number of steps ordered, or `None` if neither pass produced a
+/// path.
+pub fn order_move_by_road(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8)) -> Option<usize> {
+    let by_road = order_move(map, units, id, dest, Routing::PreferRoads);
+    match by_road {
+        Some(steps) if steps < crate::unit::MAX_PATH => Some(steps),
+        _ => order_move(map, units, id, dest, Routing::Direct).or(by_road),
+    }
+}
+
 /// What [`try_enter`] makes of the tile a unit is about to step onto — the
 /// return codes of `Unit_TryEnterTile` (`0x00466C3C`), named.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

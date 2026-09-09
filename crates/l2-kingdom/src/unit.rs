@@ -334,11 +334,37 @@ pub struct Unit {
     /// `Defence_Disband` never touches it — which is the same outcome by a
     /// different route, and is quoted verbatim in [`crate::conquest`].
     ///
-    /// A merchant carries its own county in the same byte; that is a different
-    /// meaning for a different unit type, like `+0x14F` and `+0x164`.
-    /// `docs/armies.md` §8.1. `[V]` — written by one site, read by three, and
-    /// `battle-during.sav` slot 6 carries a 1.
+    /// A merchant or transport carries a county in the same byte; that is a
+    /// different meaning for a different unit type, like `+0x14F` and `+0x164`.
+    /// See [`Unit::cargo_county`], which is that meaning and arrived from the
+    /// other side — the two readings were traced independently and agree that
+    /// the byte is per-type. `docs/armies.md` §8.1. `[V]` — written by one
+    /// site, read by three, and `battle-during.sav` slot 6 carries a 1.
     pub defence_mark: u8,
+    /// `+0x167` on a **transport** — where the load is going.
+    ///
+    /// Not the same field as [`Unit::dest_county`], which is where the *current
+    /// path* ends and changes every leg. This one is set once when the
+    /// transport is created and two functions read it: the phase-3 re-target
+    /// (`FUN_00429418`) points the transport at this county's anchor every
+    /// single turn, and `Transport_Deliver` (`0x00429436`) unloads only when
+    /// `cargo_county == county` and then destroys the unit.
+    ///
+    /// > **The same byte, and [`Unit::defence_mark`] is the other meaning.**
+    /// > The two were traced independently — one from
+    /// > `Army_AttackCounty` and `Battle_ReturnToCampaign`, one from the
+    /// > phase-3 transport re-target — and they agree that `+0x167` is a
+    /// > per-type reuse of the kind `docs/armies.md` §1 marks *sh*. It is the
+    /// > third such byte; `+0x14F` and `+0x164` are the two that document
+    /// > already lists, and §1.5 has `+0x167` among the offsets *"not
+    /// > traced"*. It is traced twice over now, once per type.
+    /// >
+    /// > **Two fields rather than one**, because we are not byte-compatible
+    /// > with the original's record and nothing is gained by aliasing them: an
+    /// > army has no cargo and a transport is never a county's defence, so
+    /// > keeping them apart means no code can read the wrong one. The cost is
+    /// > one byte per unit in the save.
+    pub cargo_county: u8,
 }
 
 impl Unit {
@@ -375,6 +401,7 @@ impl Unit {
             besieging_county: 0,
             besieged_by: 0,
             defence_mark: 0,
+            cargo_county: 0,
         }
     }
 

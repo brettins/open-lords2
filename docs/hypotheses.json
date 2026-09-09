@@ -390,15 +390,6 @@
       "promotion": "Read it, and check the result against a hand-computed path onto a county town in the England fixture."
     },
     {
-      "addr": "0x004A4E3D",
-      "name": "Unit_AbandonOrders",
-      "section": "units",
-      "confidence": "both",
-      "comment": "One of the three callers of Siege_Break, and it passes g_movingUnit.",
-      "basis": "The Siege_Break call and the argument. Body not read.",
-      "promotion": "Read it. It is 286 bytes and it is the only unread member of a three-caller set whose other two are verified."
-    },
-    {
       "addr": "0x00476710",
       "name": "Merchant_OpenScreen",
       "section": "units",
