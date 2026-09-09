@@ -59,6 +59,9 @@ pub enum ScreenId {
     SaveLoad(crate::screens::saveload::Mode),
     /// A screen that is drawn and not yet driven, named by its `g_screenId`.
     Shell(u8),
+    /// `g_screenId` `0x1B` — **the castle chooser**, for one county. Five
+    /// picture buttons and an OK; see [`crate::screens::castle`].
+    Castle(u8),
     /// `g_screenId` `0x1D` — the siege-preparation screen, for one besieging
     /// army. See [`crate::screens::siege`].
     Siege(usize),
@@ -240,6 +243,9 @@ impl ScreenId {
             ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),
             ScreenId::SaveLoad(mode) => {
                 Box::new(crate::screens::saveload::SaveLoadScreen::new(mode))
+            }
+            ScreenId::Castle(county) => {
+                Box::new(crate::screens::castle::CastleScreen::new(county))
             }
             ScreenId::Siege(unit) => Box::new(crate::screens::siege::SiegeScreen::new(unit)),
             ScreenId::RaiseArmy(county) => {

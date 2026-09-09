@@ -124,6 +124,14 @@ pub enum Contact {
     /// [`Contact::Battle`] and is reported separately only because the caller
     /// has to change the county's owner afterwards.
     Castle { unit: usize, county: u8, outcome: Attack },
+    /// **An army reached the castle building itself**, and
+    /// [`conquest::reach_castle_building`] garrisoned it or laid siege.
+    ///
+    /// A different tile from [`Contact::Castle`] and a different rule: that one
+    /// is the county *town* (plane-0 bit `0x40`) and takes the county; this is
+    /// the castle's own 2×2 block (bit `0x80` with a castle standing on it) and
+    /// is the only way into either a garrison or a siege.
+    CastleBuilding { unit: usize, county: u8, arrival: conquest::CastleArrival },
     /// A unit's next tile is held by somebody it will not fight — its own side,
     /// an ally, or a merchant. The move simply ends.
     ///
@@ -251,6 +259,21 @@ impl Kingdom {
                 self.year,
             );
             out.contacts.push(Contact::Castle { unit: id, county, outcome });
+            return;
+        }
+
+        if let Some(county) = step.reached_castle_building {
+            let arrival = conquest::reach_castle_building(
+                &self.tables,
+                &self.campaign.map,
+                &mut self.counties,
+                &self.realms,
+                &mut self.campaign.units,
+                id,
+                county,
+                self.season,
+            );
+            out.contacts.push(Contact::CastleBuilding { unit: id, county, arrival });
             return;
         }
 

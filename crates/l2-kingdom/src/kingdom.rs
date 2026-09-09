@@ -893,14 +893,92 @@ impl Kingdom {
         }
     }
 
+    /// `Castle_BuildTick` (`0x004508DE`) over every county, plus the two things
+    /// it does that [`industry::build_tick`] cannot reach: the free garrison a
+    /// finished castle comes with, and the tile the castle is drawn on.
     fn castle_build_tick(&mut self, report: &mut SeasonReport) {
         for id in 1..=self.county_count {
+            let owner = self.counties[id].owner as usize;
             let mut messages = Vec::new();
-            industry::build_tick(&self.tables, &mut self.counties[id], id as u8, &mut messages);
+            let (mut realm, has_realm) = match self.realms.get(owner) {
+                Some(r) => (r.clone(), true),
+                None => (Realm::new(), false),
+            };
+            let done = industry::build_tick(
+                &self.tables,
+                &mut self.counties[id],
+                &mut realm,
+                id as u8,
+                &mut messages,
+            );
+            if has_realm {
+                self.realms[owner] = realm;
+            }
             for m in messages {
                 report.message(m);
             }
+            // `Castle_StampTile` runs on **every** season the castle is under
+            // way, not only on the one it finishes: the scaffolding at 49% and
+            // the half-built walls at 50% are different pictures, and so is the
+            // finished castle. The terrain byte is the half this crate owns.
+            if self.counties[id].castle_degraded != 0 || done.is_some() {
+                crate::map::stamp_castle_terrain(
+                    &mut self.campaign.map,
+                    id as u8,
+                    self.counties[id].castle_type,
+                );
+            }
+            let Some(done) = done else { continue };
+            if done.free_archers > 0 {
+                self.raise_free_garrison(id as u8, done.free_archers);
+            }
         }
+    }
+
+    /// `Castle_RaiseFreeGarrison` (`0x004A551B`) — the archers a new castle
+    /// comes with, mustered and marched straight inside.
+    ///
+    /// The original tops the realm's **bow** stock up by exactly the number it
+    /// is about to hand out, so `Levy_ConsumeWeapons` takes them back and the
+    /// men cost nothing. Reproduced rather than short-circuited, because the
+    /// order matters if the realm is short of bows: the top-up happens first,
+    /// so it never is.
+    fn raise_free_garrison(&mut self, county: u8, archers: i32) {
+        let owner = self.counties[county as usize].owner;
+        let Some(realm) = self.realms.get_mut(owner as usize) else { return };
+        let bow = crate::unit::TroopType::Archer.weapon_slot().unwrap_or(4);
+        realm.weapons[bow] += archers;
+        let mut basket = crate::levy::LevyBasket::seed(realm, archers);
+        basket.equip(crate::unit::TroopType::Archer, archers);
+        let map = self.campaign.map.clone();
+        let muster = crate::levy::Muster {
+            realm: owner,
+            county,
+            year: self.year,
+            happiness_cost: 0,
+        };
+        let Ok(unit) = crate::levy::create_army(
+            &self.tables,
+            &map,
+            &mut self.counties,
+            &mut self.realms,
+            &mut self.campaign.units,
+            &mut self.campaign.names,
+            &basket,
+            muster,
+        ) else {
+            return;
+        };
+        let realms = self.realms.clone();
+        crate::conquest::garrison_apply(
+            &self.tables,
+            &map,
+            &mut self.counties,
+            &realms,
+            &mut self.campaign.units,
+            unit,
+            county,
+        );
     }
 
     fn migration_update(&mut self) {

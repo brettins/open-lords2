@@ -248,7 +248,25 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   *This entry was written as 13 with `VERSION` at 12 on `main`. Per the
 ///   standing hazard above, assume the number has moved: a merge that finds 13
 ///   taken renumbers this entry and the constant together.*
-pub const VERSION: u32 = 13;
+/// * 14 — **the castle's build record**: `County::castle_percent`,
+///   `castle_work_left`, `castle_work_total`, `castle_stone_owed`,
+///   `castle_stone_total`, `castle_wood_owed` and `castle_wood_total`, in place
+///   of the single `castle_progress` counter this crate invented. County
+///   `+0x1C4` and `+0x1CC … +0x1E0` in the original, and the reason the swap is
+///   a version rather than a rename is that **the model changed with them**:
+///   the materials are drawn down season by season rather than paid up front,
+///   the work counts down rather than up, and `castle_building` holds the
+///   castle you *had* rather than the one you are getting
+///   (`County::castle_building`). A version 13 save's `castle_progress` cannot
+///   be translated into any of them — the same number means "work done" there
+///   and nothing here — and its `castle_building` byte means the opposite of
+///   what this build would read.
+///
+///   **Refusal rather than a translation**, and this one is not conservatism:
+///   `castle_degraded` had **no reachable writer** before this version, so
+///   every version 13 save in existence has it zero in every county and a
+///   castle nobody could have started. There is nothing to preserve.
+pub const VERSION: u32 = 14;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -868,7 +886,13 @@ impl Encode for County {
         out.bool(self.castle_ruined);
         out.u8(self.castle_level_left);
         out.bool(self.castle_switch);
-        out.i32(self.castle_progress);
+        out.u8(self.castle_percent);
+        out.i32(self.castle_work_left);
+        out.i32(self.castle_work_total);
+        out.i32(self.castle_stone_owed);
+        out.i32(self.castle_stone_total);
+        out.i32(self.castle_wood_owed);
+        out.i32(self.castle_wood_total);
         out.i32(self.event_population_pct);
         out.i32(self.event_grain_pct);
         out.i32(self.event_herd_pct);
@@ -995,7 +1019,13 @@ impl Decode for County {
         c.castle_ruined = input.bool()?;
         c.castle_level_left = input.u8()?;
         c.castle_switch = input.bool()?;
-        c.castle_progress = input.i32()?;
+        c.castle_percent = input.u8()?;
+        c.castle_work_left = input.i32()?;
+        c.castle_work_total = input.i32()?;
+        c.castle_stone_owed = input.i32()?;
+        c.castle_stone_total = input.i32()?;
+        c.castle_wood_owed = input.i32()?;
+        c.castle_wood_total = input.i32()?;
         c.event_population_pct = input.i32()?;
         c.event_grain_pct = input.i32()?;
         c.event_herd_pct = input.i32()?;

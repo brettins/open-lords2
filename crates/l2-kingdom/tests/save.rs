@@ -264,7 +264,13 @@ fn furnished(seed: u64) -> Kingdom {
         c.castle_ruined = id % 2 == 1;
         c.castle_level_left = (id % 5) as u8;
         c.castle_switch = id % 3 == 1;
-        c.castle_progress = n * 13 + 1;
+        c.castle_percent = (n % 101) as u8;
+        c.castle_work_left = n * 13 + 1;
+        c.castle_work_total = n * 17 + 2;
+        c.castle_stone_owed = n * 3 + 4;
+        c.castle_stone_total = n * 5 + 6;
+        c.castle_wood_owed = n * 7 + 8;
+        c.castle_wood_total = n * 11 + 9;
 
         c.event_population_pct = 33 + n;
         c.event_grain_pct = 34 + n;
@@ -553,8 +559,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // 56,566 at VERSION 11; +5 at 12 for `Options::exploration` (one byte) and
     // `Options::time_limit` (four); +164 at 13 for the merchant's books —
     // `County::purse` over 17 county slots (68) and the four `Realm` trade
-    // accumulators over 6 realm slots (96).
-    assert_eq!(c.finish().len, 56_735, "the state encoding changed - bump VERSION?");
+    // accumulators over 6 realm slots (96); +357 at 14 for the castle's build
+    // record — `castle_progress` (4 bytes) out and seven fields (25) in, over
+    // 17 county slots, which is 21 apiece.
+    assert_eq!(c.finish().len, 57_092, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

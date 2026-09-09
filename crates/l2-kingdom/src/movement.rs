@@ -590,6 +590,15 @@ pub struct Step {
     /// ruleset and the name counters, and a stepper that took all of those
     /// would be a stepper nothing could test in isolation.
     pub reached_castle: Option<u8>,
+    /// **The army reached the castle *building*** — a settlement tile carrying
+    /// a standing castle, `Unit_Step`'s other code-6 handler.
+    ///
+    /// `Unit_ReachCastleBuilding` (`0x004686A0`) splits on ownership: the
+    /// county is the army's, so it garrisons; it is not, so it lays siege. Both
+    /// need the realm array and one of them opens a screen, so this is reported
+    /// rather than resolved — the same division [`Step::reached_castle`]
+    /// already makes. See [`crate::conquest::reach_castle_building`].
+    pub reached_castle_building: Option<u8>,
     /// A field was destroyed, and this is the county that lost it.
     pub field_destroyed: Option<u8>,
     /// A resource site was ruined: the county, and which of its four industry
@@ -606,6 +615,7 @@ impl Step {
             moved: false,
             entered_county: None,
             reached_castle: None,
+            reached_castle_building: None,
             field_destroyed: None,
             site_ruined: None,
             offence: None,
@@ -667,9 +677,28 @@ pub fn step(
             return Some(out);
         }
         Entry::Settlement => {
-            let t = trample(map, counties, realms, units, id, nx, ny);
-            out.charged = t.0;
-            out.site_ruined = t.1;
+            // **Code 6 is two handlers, not one**, and this arm only had the
+            // first — so an army that walked into a castle *trampled* it:
+            //
+            // ```c
+            // if (terrain < 0x10)                     Unit_TrampleTile(...);
+            // if (0x14 < terrain && terrain < 0x1A)   Unit_ReachCastleBuilding(...);
+            // ```
+            //
+            // Two disjoint ranges with a gap between them: `0x10 … 0x14` — an
+            // occupied dwelling and the bare castle plot — does neither.
+            // `Unit_ReachCastleBuilding` (`0x004686A0`) is the whole route into
+            // both garrisoning and besieging, and without it a county's castle
+            // could never be manned and never be besieged from the map. `[V]`
+            let t = map.terrain_at(nx, ny);
+            if t < terrain::DWELLING {
+                let r = trample(map, counties, realms, units, id, nx, ny);
+                out.charged = r.0;
+                out.site_ruined = r.1;
+            }
+            if (terrain::CASTLE_FROM..=terrain::CASTLE_TO).contains(&t) {
+                out.reached_castle_building = Some(tile_county);
+            }
             units.get_mut(id)?.moving = false;
             return Some(out);
         }

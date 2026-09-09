@@ -316,8 +316,14 @@ is *"very nearly the real screen"* already, and it is the oracle for seven zero 
 But `Merchant_Trade` is implemented **nowhere** — `l2-kingdom` has `GOOD_SELL_PRICE` and no
 transaction — so this is a rule to write, not only a screen to fill. It is also the only exit
 for iron, stone and timber, the only entrance for bought weapons, and the only source of ale.
-The castle chooser is five buttons and an OK (§8), and it is the door to castles, which are
-the door to sieges.
+**The castle chooser is done.** It is `crates/l2-game/src/screens/castle.rs`: five picture
+buttons and an OK, at the original's own widget-table rectangles, reached from the sidebar's
+CASTLE button. It matters more than its size suggested — `castle_degraded` had **no writer a
+player could reach**, so no county in this engine had ever built a castle, and the four
+traced rules that read the field were holding up an invented writer that had the meaning of
+`castleBuilding` backwards (`docs/decisions.md` C63). `crates/l2-game/tests/castles.rs`
+drives the whole route as `Event` values: order a castle, watch it go up over seasons, march
+an army into it, have an enemy march up to it and end the turn into the assault.
 
 **7 — The AI's remaining steps.** Armies first (7, 9, 11) and merchants (10), because those
 are the ones the expired constraint was blocking; then castles (6) and industry (12), which

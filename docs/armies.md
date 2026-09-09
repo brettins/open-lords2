@@ -813,6 +813,35 @@ from the record index, not from anything that names the tile.
 
 The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could not reach.
 
+> ### 4.0.0 How a siege is laid at all, and why it nearly could not be  **[V]**
+>
+> Everything below begins at `Army_BeginSiege`, and this document never said what calls it.
+> The answer is `Unit_Step`'s **code-6** branch, which is **two handlers on two disjoint
+> terrain ranges**:
+>
+> ```c
+> if (terrain < 0x10)                      Unit_TrampleTile(unit, tile);
+> if (0x14 < terrain && terrain < 0x1A)    Unit_ReachCastleBuilding(unit, tile);
+> ```
+>
+> Terrain `0x10 … 0x14` — an occupied dwelling and the **bare castle plot** — does neither,
+> which is what lets an army walk across a plot with no castle on it. Above `0x14` the tile
+> is a standing castle (§ *the content ladder*, `docs/formats/maps-layers.md`) and
+> `Unit_ReachCastleBuilding` (`0x004686A0`) splits on ownership: yours → `Army_Garrison`,
+> theirs → `Army_BeginSiege`. **There is no other route into either.**
+>
+> **And a garrison is not standing on its castle tile.** `Unit_LinkToTile` (`0x0046EDDF`)
+> opens `if (kind != 1 || garrisonCounty == 0)` and does nothing otherwise, and
+> `Army_GarrisonApply` calls `Unit_UnlinkFromTile` on its way in — so an army inside a
+> castle is deliberately kept out of the tile's occupancy chain. That is not cosmetic:
+> `Unit_TryEnterTile` tests occupancy **before** any tile flag, so a garrison that occupied
+> its own tile would turn every siege into a field battle fought on open ground. It is also
+> why the original draws a flag over the castle and not the unit.
+>
+> Both facts were missing from our engine at once, and together they meant **a siege could
+> only ever be laid by a test that laid it itself**. `crates/l2-game/tests/castles.rs` drives
+> the whole route from the map now.
+
 > ### There is a siege in the fixtures now, and it closes every number below.
 >
 > This section was written entirely from the decompiler because no saved game held a castle

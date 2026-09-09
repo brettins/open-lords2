@@ -580,7 +580,13 @@ pub fn free_archers(t: &Tables, castle_type: u8) -> i32 {
     }
 }
 
-/// `(wood, stone)` to build a castle type, and the workforce it consumes.
+/// `g_castleMaterial` (`0x004D89C0`) — `(wood, stone)` to build a castle type
+/// 1..=5, from scratch.
+///
+/// **The column order is read from code, not assumed.** `Castle_Order` takes
+/// the `+0` word out of `realm.wood` and the `+4` word out of `realm.stone`, so
+/// a wooden palisade really is 400 wood and 40 stone and a royal castle 800
+/// wood and 3,000 stone. `[V]`
 pub fn castle_cost(t: &Tables, castle_type: u8) -> (i32, i32) {
     t.castle.cost[(castle_type.max(1) as usize - 1).min(t.castle.cost.len() - 1)]
 }
@@ -594,101 +600,314 @@ pub fn castle_workforce(t: &Tables, castle_type: u8) -> i32 {
     t.castle.workforce[(castle_type.max(1) as usize - 1).min(t.castle.workforce.len() - 1)].0
 }
 
-/// Order a castle: debit the realm's wood and stone and mark the county as
-/// building. Returns `false` — changing nothing — if the realm cannot pay.
+/// Why the castle chooser's OK button refused — `FUN_00436B59`'s two guards,
+/// and they are the **only** two.
 ///
-/// **Where the resources are debited is a choice, not a finding.**
-/// `docs/kingdom.md` §7.5 gives the five cost tables and §3.4 names
-/// `Castle_BuildTick` as a pass, and nothing says whether the cost is taken up
-/// front or drawn down each season. Up front is the reading that cannot leave a
-/// half-built castle owing resources a realm has since spent.
-pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_type: u8) -> bool {
+/// There is deliberately no *"you cannot afford it"*: see [`order_castle`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CastleRefusal {
+    /// Not a castle type at all.
+    NoSuchType,
+    /// The type picked is the one already standing. Message `0x93` = `L2.eng`
+    /// **147**.
+    AlreadyBuilt,
+    /// The type picked is **smaller** than the one standing. Message `0x122` =
+    /// `L2.eng` **290**. You may never knock a castle down to build a lesser
+    /// one.
+    Downgrade,
+}
+
+/// The chooser's OK guard, separated from the act so a screen can print the
+/// right refusal and the AI can ask before ordering.
+pub fn castle_refusal(t: &Tables, county: &County, castle_type: u8) -> Option<CastleRefusal> {
     if castle_type == 0 || castle_type as usize > t.castle.cost.len() {
+        return Some(CastleRefusal::NoSuchType);
+    }
+    if county.castle_type == castle_type {
+        return Some(CastleRefusal::AlreadyBuilt);
+    }
+    if castle_type < county.castle_type {
+        return Some(CastleRefusal::Downgrade);
+    }
+    None
+}
+
+/// `Castle_Order` (`0x00436D02`) — **order a castle**, which is the only thing
+/// that ever sets [`County::castle_degraded`] to
+/// [`crate::siege::CASTLE_DEGRADED_BUILDING`].
+///
+/// ```c
+/// wood = g_castleMaterial[p].wood;  stone = g_castleMaterial[p].stone;
+/// if (county.castleType != 0) {                      /* an upgrade */
+///     county.castleBuilding = county.castleType;     /* remember what stands */
+///     wood  -= g_castleMaterial[castleType - 1].wood;
+///     stone -= g_castleMaterial[castleType - 1].stone;
+///     if (wood  < 0) { realm.wood  -= wood;  wood  = 0; }   /* a refund */
+///     if (stone < 0) { realm.stone -= stone; stone = 0; }
+/// }
+/// county.castleType     = p + 1;
+/// county.castleRuined   = 0;
+/// county.castleDegraded = 1;
+/// county.castleSwitch   = 1;
+/// county.workLeft = county.workTotal = g_castleWorkforce[p];
+/// county.stoneTotal = stone;  county.woodTotal = wood;  county.percent = 0;
+/// Castle_StampTile(county, p);  Castle_EvictTile(county);
+/// Labour_ToggleIndustryShare(county, 3, 1);
+/// county.stoneOwed = take(realm.stone, stone);      /* what the realm cannot
+/// county.woodOwed  = take(realm.wood,  wood);          pay now stays owing */
+/// ```
+///
+/// Three things here contradict what this module used to say, and all three are
+/// read from the function rather than chosen:
+///
+/// * **There is no affordability test.** You may order a royal castle with an
+///   empty treasury; it simply takes forever, because
+///   [`castle_labour_estimate`]'s ceiling is zero until the materials are all
+///   delivered. The old *"returns `false` if the realm cannot pay"* was ours.
+/// * **The cost is a difference, and a *lower* castle refunds.** Upgrading a
+///   Norman keep (200 wood, 1,000 stone) to a stone castle (400, 2,000) costs
+///   200 wood and 1,000 stone. Upgrading a motte and bailey (800 wood, 80
+///   stone) to a Norman keep costs **1,000 stone and gives 600 wood back** —
+///   the negative arm is reachable on the shipped table and is not an overflow
+///   guard.
+/// * **`castleType` moves immediately.** See [`County::castle_building`].
+///
+/// Returns `false`, changing nothing, for either of [`castle_refusal`]'s two
+/// guards. It does **not** stamp the map: that is
+/// [`crate::map::castle_tile_stamp`], which the caller applies because the tile
+/// planes are not the county's to write.
+pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_type: u8) -> bool {
+    if castle_refusal(t, county, castle_type).is_some() {
         return false;
     }
-    let (wood, stone) = castle_cost(t, castle_type);
-    if realm.wood < wood || realm.stone < stone {
-        return false;
+    let (mut wood, mut stone) = castle_cost(t, castle_type);
+    if county.castle_type != 0 {
+        county.castle_building = county.castle_type;
+        let (had_wood, had_stone) = castle_cost(t, county.castle_type);
+        wood -= had_wood;
+        stone -= had_stone;
+        // A negative difference is paid back into the store. `realm.wood -=
+        // wood` with `wood` negative, exactly as the original writes it.
+        if wood < 0 {
+            realm.wood -= wood;
+            wood = 0;
+        }
+        if stone < 0 {
+            realm.stone -= stone;
+            stone = 0;
+        }
     }
-    realm.wood -= wood;
-    realm.stone -= stone;
-    county.castle_building = castle_type;
-    county.castle_progress = 0;
-    // `+0x1C3` — **a castle is under construction.** Four independent readers
+    county.castle_type = castle_type;
+    county.castle_ruined = false;
+    // `+0x1C3` — **a castle is under construction.** Five independent readers
     // all mean that: `Labour_Allocate` will not staff castle building without
-    // it, `Castle_BuildEstimate` computes nothing without it,
+    // it, [`castle_labour_estimate`] computes nothing without it,
     // `Industry_LabourEstimate` shows the outstanding wood and stone only with
-    // it, and `Tax_CollectAll` charges the *lower* of the standing and the
-    // building castle while it is set. Nothing in this crate used to write it,
-    // so the castle-building job had a ceiling of zero for ever and no county
-    // could build anything.
-    //
-    // **It is a byte with three values and not a flag**, which the siege work
-    // settled: 1 is *a castle is being built or upgraded* and 2 is *a castle is
-    // being repaired after a siege*. `Siege_LaunchAssault` fights a different
-    // castle for each, and the castle-build season pass sends a different
-    // message. Every reader above tests it against zero, so widening it changes
-    // none of them. See [`crate::siege::CASTLE_DEGRADED_BUILDING`].
+    // it, `Tax_CollectAll` charges the *standing* castle while it is set, and
+    // [`crate::map::castle_tile_stamp`] draws scaffolding rather than a castle.
+    // **Nothing a player could reach used to write it**, so the castle-building
+    // job had a ceiling of zero for ever and no county could build anything.
     county.castle_degraded = crate::siege::CASTLE_DEGRADED_BUILDING;
+    // `+0x1B0` — the map's castle-building switch, thrown **on** by the order.
+    // It is the third of its three writers in the original and the only one
+    // that is not a click.
+    county.castle_switch = true;
+    county.castle_work_left = castle_workforce(t, castle_type);
+    county.castle_work_total = county.castle_work_left;
+    county.castle_stone_total = stone;
+    county.castle_wood_total = wood;
+    county.castle_percent = 0;
+    county.castle_stone_owed = take_from(&mut realm.stone, stone);
+    county.castle_wood_owed = take_from(&mut realm.wood, wood);
     true
 }
 
-/// `Castle_BuildTick` — accumulate this season's workforce, and complete the
-/// castle when it reaches [`CASTLE_WORKFORCE`].
+/// Take as much of `want` out of `store` as it holds, and answer what is still
+/// owed. The shape `Castle_Order` and `Castle_DeliverMaterials` both use.
+fn take_from(store: &mut i32, want: i32) -> i32 {
+    if *store < want {
+        let owed = want - *store;
+        *store = 0;
+        owed
+    } else {
+        *store -= want;
+        0
+    }
+}
+
+/// `Castle_DeliverMaterials` (`0x00450CCD`) — **the season's cart of wood and
+/// stone**, taken off the realm and set against what the county still owes.
 ///
-/// **`[I]` throughout.** §3.4 names the pass and §7.5 gives the workforce table;
-/// the *rate* — which job slot supplies the workers, and whether the workforce
-/// is a per-season requirement or a cumulative one — is not in the document.
-/// Cumulative is the reading that makes a 2,500-workforce royal castle a
-/// multi-season project rather than an impossible one.
-pub fn build_tick(t: &Tables, county: &mut County, id: u8, out: &mut Vec<Message>) -> bool {
-    if county.castle_building == 0 {
-        return false;
+/// Runs before the labour is spent, and takes whatever is there: a realm with
+/// 10 stone in the store delivers 10. This is why a castle ordered on an empty
+/// treasury is not refused but simply crawls.
+pub fn deliver_castle_materials(county: &mut County, realm: &mut Realm) {
+    if county.castle_degraded == 0 {
+        return;
     }
-    county.castle_progress += county.labour[t.job.castle_building].max(0);
-    if county.castle_progress < castle_workforce(t, county.castle_building) {
-        return false;
+    county.castle_wood_owed = take_from(&mut realm.wood, county.castle_wood_owed);
+    county.castle_stone_owed = take_from(&mut realm.stone, county.castle_stone_owed);
+}
+
+/// `FUN_00450FB4` — **how much of the materials bill has actually arrived**, as
+/// a percentage, and the gate on every hand that could work on the castle.
+///
+/// ```c
+/// min(100 - Pct(woodOwed, woodTotal), 100 - Pct(stoneOwed, stoneTotal))
+/// ```
+///
+/// Zero when nothing is under construction. Note the `Pct(0, 0) == 0`
+/// convention: a castle that costs no wood at all is 100% delivered in wood.
+pub fn castle_materials_percent(county: &County) -> i32 {
+    if county.castle_degraded == 0 {
+        return 0;
     }
-    county.castle_type = county.castle_building;
-    county.castle_building = 0;
-    county.castle_progress = 0;
+    let wood = 100 - crate::math::pct_of(county.castle_wood_owed, county.castle_wood_total);
+    let stone = 100 - crate::math::pct_of(county.castle_stone_owed, county.castle_stone_total);
+    wood.min(stone)
+}
+
+/// What finishing a castle asks the caller to do — the two things
+/// `Castle_BuildTick` does that need the unit array, which this module cannot
+/// reach.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CastleComplete {
+    /// Archers the castle comes with, already netted against the castle it
+    /// replaced and already refused if the county is too small to spare them.
+    /// Zero for a repair and for an upgrade that gains nothing.
+    pub free_archers: i32,
+    /// True when this was a **repair** after a siege rather than new work —
+    /// message `0xA3` variant 1 rather than variant 0.
+    pub repaired: bool,
+}
+
+/// `Castle_BuildTick` (`0x004508DE`) — **one season of castle work in one
+/// county**, season pass 3.4.
+///
+/// ```c
+/// if (castleDegraded == 0) { Castle_BuildEstimate(county); return; }
+/// if (county.owner == 0) return;                 /* not even the estimate */
+/// workers = labour[3].workers;
+/// Castle_DeliverMaterials(county);
+/// percent = 100 - Pct(workLeft, workTotal);
+/// if (materialsPercent > 99) {
+///     spend = min(workers, workLeft);  workLeft -= spend;
+///     percent = 100 - Pct(workLeft, workTotal);
+///     if (percent > 99 && workLeft != 0) percent = 99;   /* never round up to done */
+/// }
+/// county.percent = percent;
+/// if (percent > 99) { ...complete... }
+/// Castle_StampTile(county, castleType - 1);
+/// Castle_BuildEstimate(county);
+/// ```
+///
+/// Returns `Some` on the season the castle is finished. **`castleType` is not
+/// promoted here** — it moved when the castle was ordered — so all completion
+/// does is clear [`County::castle_degraded`], hand out the free archers and
+/// switch the castle job off.
+pub fn build_tick(
+    t: &Tables,
+    county: &mut County,
+    realm: &mut Realm,
+    id: u8,
+    out: &mut Vec<Message>,
+) -> Option<CastleComplete> {
+    if county.castle_degraded == 0 || county.owner == 0 {
+        return None;
+    }
+    let workers = county.labour[t.job.castle_building].max(0);
+    deliver_castle_materials(county, realm);
+    let mut percent = 100 - crate::math::pct_of(county.castle_work_left, county.castle_work_total);
+    if castle_materials_percent(county) > 99 {
+        let spend = workers.min(county.castle_work_left);
+        county.castle_work_left -= spend;
+        percent = 100 - crate::math::pct_of(county.castle_work_left, county.castle_work_total);
+        // **Never let the rounding finish a castle that still has work in it.**
+        if percent > 99 && county.castle_work_left != 0 {
+            percent = 99;
+        }
+    }
+    county.castle_percent = percent.clamp(0, 100) as u8;
+    if county.castle_percent <= 99 {
+        return None;
+    }
+
+    let repaired = county.castle_degraded == crate::siege::CASTLE_DEGRADED_DAMAGED;
+    let free_archers = if repaired { 0 } else { free_garrison_archers(t, county) };
     county.castle_degraded = 0;
+    // `Labour_ToggleIndustryShare(county, 3, 0)` — the builders go back to the
+    // fields the moment the castle tops out.
+    county.castle_switch = false;
     out.push(Message::CastleBuilt { county: id, castle_type: county.castle_type });
-    true
+    Some(CastleComplete { free_archers, repaired })
+}
+
+/// `Castle_RaiseFreeGarrison` (`0x004A551B`) — how many archers a finished
+/// castle comes with.
+///
+/// ```c
+/// archers = g_castleFreeArchers[castleType - 1];
+/// if (castleBuilding != 0) archers -= g_castleFreeArchers[castleBuilding - 1];
+/// if (archers <= 0) return 0;
+/// if (archers > county.population / 2) return 0;
+/// ```
+///
+/// So an **upgrade** yields only the difference — a motte and bailey (150) to a
+/// Norman keep (150) yields nothing at all — and a county that would have to
+/// give up more than half its people gives up none. The men are equipped as
+/// archers out of a bow stock the function tops up itself, which is what makes
+/// them free.
+pub fn free_garrison_archers(t: &Tables, county: &County) -> i32 {
+    if county.castle_type == 0 {
+        return 0;
+    }
+    let free = |ty: u8| t.castle.free_archers[(ty as usize - 1).min(t.castle.free_archers.len() - 1)];
+    let mut archers = free(county.castle_type);
+    if county.castle_building != 0 {
+        archers -= free(county.castle_building);
+    }
+    if archers <= 0 || archers > county.population / 2 {
+        return 0;
+    }
+    archers
 }
 
 /// `Castle_BuildEstimate` (`0x00450E46`) — the **castle** labour ceiling.
 ///
 /// ```c
 /// wanted[3] = -1; useful[3] = 0;
-/// if (!castleUnderConstruction) return;
-/// delivered = min(100 - Pct(woodDelivered, woodNeeded),
-///                 100 - Pct(stoneDelivered, stoneNeeded));
-/// useful[3] = (delivered < 100) ? 0 : workRemaining;
-/// seasonsLeft = (delivered < 100 || workers < 1) ? 100
-///             : DivCeil(workRemaining, workers);
+/// if (castleDegraded == 0) return;
+/// useful[3] = (materialsPercent < 100) ? 0 : workLeft;
 /// ```
 ///
-/// **The materials clause cannot be reproduced and does not need to be.** The
-/// original tracks a delivery against a requirement in six words this crate
-/// does not have (`+0x1CC` … `+0x1E0`); [`order_castle`] takes the whole cost
-/// out of the realm the moment the castle is ordered, which is the reading
-/// `docs/kingdom.md` §7.5 records and which makes the delivery permanently
-/// complete. So the gate is open whenever a build is under way, and the
-/// ceiling is the work outstanding. **`[I]`**, and it is the *model* that is
-/// inferred, not the arithmetic: given up-front delivery this is what
-/// `Castle_BuildEstimate` computes.
+/// **The materials clause is real and it bites.** This module used to say it
+/// *"cannot be reproduced and does not need to be"*, on the reading that the
+/// whole cost was taken up front; it is not, so the gate is shut for every
+/// season the county is still owed a stick of wood, and the builders stand
+/// idle. That is the difference between a castle you can order and a castle you
+/// can order *and not build*.
 ///
-/// The ceiling is a *cumulative* figure — the whole remaining workforce, not a
-/// per-season share — so a county that can staff it finishes the castle in one
-/// season and one that cannot puts everybody it has on the walls.
-pub fn castle_labour_estimate(t: &Tables, county: &County) -> (i32, i32) {
-    if county.castle_degraded == 0 || county.castle_building == 0 {
+/// The ceiling is a *cumulative* figure — the whole remaining work, not a
+/// per-season share — so a county that can staff it finishes in one season and
+/// one that cannot puts everybody it has on the walls.
+pub fn castle_labour_estimate(_t: &Tables, county: &County) -> (i32, i32) {
+    if county.castle_degraded == 0 || castle_materials_percent(county) < 100 {
         return (crate::county::LABOUR_NO_FLOOR, 0);
     }
-    let remaining =
-        (castle_workforce(t, county.castle_building) - county.castle_progress).max(0);
-    (crate::county::LABOUR_NO_FLOOR, remaining)
+    (crate::county::LABOUR_NO_FLOOR, county.castle_work_left.max(0))
+}
+
+/// County `+0x1A6` — the seasons the castle panel says the work will take.
+/// **100** stands for *"not in this lifetime"*: no materials, or nobody on it.
+pub fn castle_seasons_left(t: &Tables, county: &County) -> i32 {
+    if county.castle_degraded == 0 {
+        return 0;
+    }
+    let workers = county.labour[t.job.castle_building];
+    if castle_materials_percent(county) < 100 || workers < 1 {
+        return 100;
+    }
+    crate::math::div_ceil(county.castle_work_left, workers)
 }
 
 // ---------------------------------------------------------------------------
@@ -1277,25 +1496,78 @@ mod tests {
 
     // --- castles -----------------------------------------------------------
 
-    #[test]
-    fn a_castle_cannot_be_ordered_without_the_wood_and_the_stone() {
+    fn owned(pop: i32) -> County {
         let mut c = County::new();
+        c.owner = 1;
+        c.population = pop;
+        c
+    }
+
+    /// **A castle you cannot afford is ordered anyway** — `Castle_Order` has no
+    /// affordability guard at all. What an empty store buys you is a debt and a
+    /// labour ceiling of zero.
+    #[test]
+    fn a_castle_can_be_ordered_with_nothing_in_the_store() {
+        let mut c = owned(2_000);
         let mut r = Realm::new();
         r.wood = 199;
-        r.stone = 1000;
-        assert!(!order_castle(T, &mut c, &mut r, 3), "a keep needs 200 wood");
-        assert_eq!(c.castle_building, 0);
-        assert_eq!(r.wood, 199, "and nothing is spent on a refused order");
+        r.stone = 0;
+        assert!(order_castle(T, &mut c, &mut r, 3), "a keep is ordered on credit");
+        assert_eq!(c.castle_type, 3, "and castleType moves at once");
+        assert_eq!(c.castle_degraded, crate::siege::CASTLE_DEGRADED_BUILDING);
+        assert_eq!((r.wood, r.stone), (0, 0), "everything there was is taken");
+        assert_eq!((c.castle_wood_owed, c.castle_stone_owed), (1, 1_000), "the rest is owed");
+        assert_eq!(castle_materials_percent(&c) < 100, true);
+        assert_eq!(castle_labour_estimate(T, &c).1, 0, "and nobody may work on it");
 
-        r.wood = 200;
+        // The stone arrives over two seasons; the ceiling opens the moment the
+        // last stick of it does.
+        r.stone = 400;
+        r.wood = 50;
+        deliver_castle_materials(&mut c, &mut r);
+        assert_eq!((c.castle_wood_owed, c.castle_stone_owed), (0, 600));
+        assert_eq!(castle_labour_estimate(T, &c).1, 0, "still short of stone");
+        r.stone = 600;
+        deliver_castle_materials(&mut c, &mut r);
+        assert_eq!(castle_labour_estimate(T, &c).1, 800, "the keep's whole workforce");
+    }
+
+    /// The two refusals the chooser's OK button has, and they are the only two.
+    #[test]
+    fn a_castle_may_never_be_replaced_by_a_smaller_one() {
+        let mut c = owned(2_000);
+        c.castle_type = 3;
+        assert_eq!(castle_refusal(T, &c, 3), Some(CastleRefusal::AlreadyBuilt));
+        assert_eq!(castle_refusal(T, &c, 2), Some(CastleRefusal::Downgrade));
+        assert_eq!(castle_refusal(T, &c, 1), Some(CastleRefusal::Downgrade));
+        assert_eq!(castle_refusal(T, &c, 4), None);
+        assert_eq!(castle_refusal(T, &c, 6), Some(CastleRefusal::NoSuchType));
+        let mut r = Realm::new();
+        assert!(!order_castle(T, &mut c, &mut r, 2));
+        assert_eq!(c.castle_degraded, 0, "a refusal changes nothing");
+    }
+
+    /// **An upgrade pays the difference, and a cheaper column pays you back.**
+    /// A motte and bailey is 800 wood and 80 stone; a Norman keep is 200 and
+    /// 1,000. So the upgrade costs 920 stone and *refunds* 600 wood.
+    #[test]
+    fn upgrading_pays_the_difference_and_refunds_what_the_new_castle_needs_less_of() {
+        let mut c = owned(2_000);
+        c.castle_type = 2;
+        let mut r = Realm::new();
+        r.wood = 0;
+        r.stone = 10_000;
         assert!(order_castle(T, &mut c, &mut r, 3));
-        assert_eq!(c.castle_building, 3);
-        assert_eq!((r.wood, r.stone), (0, 0));
+        assert_eq!(c.castle_building, 2, "the motte and bailey is what still stands");
+        assert_eq!(c.castle_type, 3);
+        assert_eq!(r.wood, 600, "600 wood came back out of the old castle");
+        assert_eq!(r.stone, 10_000 - 920);
+        assert_eq!((c.castle_wood_owed, c.castle_stone_owed), (0, 0));
     }
 
     #[test]
     fn a_royal_castle_takes_several_seasons_of_workers() {
-        let mut c = County::new();
+        let mut c = owned(2_000);
         let mut r = Realm::new();
         r.wood = 10_000;
         r.stone = 10_000;
@@ -1304,23 +1576,62 @@ mod tests {
 
         let mut out = Vec::new();
         for season in 1..5 {
-            assert!(!build_tick(T, &mut c, 1, &mut out), "season {season} is too early");
+            assert!(build_tick(T, &mut c, &mut r, 1, &mut out).is_none(), "season {season}");
+            assert!(c.castle_percent < 100, "and it says so: {}", c.castle_percent);
         }
-        assert!(build_tick(T, &mut c, 1, &mut out), "2500 workforce, 500 a season");
+        let done = build_tick(T, &mut c, &mut r, 1, &mut out).expect("2500 at 500 a season");
         assert_eq!(c.castle_type, 5);
-        assert_eq!(c.castle_building, 0);
+        assert_eq!(c.castle_degraded, 0);
+        assert_eq!(c.castle_percent, 100);
+        assert_eq!(done.free_archers, 300, "a royal castle's own garrison");
+        assert!(!done.repaired);
         assert_eq!(out, vec![Message::CastleBuilt { county: 1, castle_type: 5 }]);
+    }
+
+    /// **The rounding may never finish a castle.** 2,500 of work at 2,499 done
+    /// is 99.96%, and `PctOf` would call that 100.
+    #[test]
+    fn a_castle_one_man_short_is_ninety_nine_percent_and_not_a_hundred() {
+        let mut c = owned(2_000);
+        let mut r = Realm::new();
+        r.wood = 10_000;
+        r.stone = 10_000;
+        assert!(order_castle(T, &mut c, &mut r, 5));
+        c.labour[T.job.castle_building] = 2_499;
+        let mut out = Vec::new();
+        assert!(build_tick(T, &mut c, &mut r, 1, &mut out).is_none());
+        assert_eq!(c.castle_work_left, 1);
+        assert_eq!(c.castle_percent, 99, "clamped, not rounded up");
+        assert_eq!(c.castle_degraded, crate::siege::CASTLE_DEGRADED_BUILDING);
+    }
+
+    /// An upgrade's free garrison is the **difference**, and a county too small
+    /// to spare the men gets none.
+    #[test]
+    fn the_free_garrison_is_what_the_upgrade_adds_and_a_small_county_gets_none() {
+        let mut c = owned(2_000);
+        c.castle_type = 3; // a keep, 150 archers
+        c.castle_building = 2; // over a motte and bailey, also 150
+        assert_eq!(free_garrison_archers(T, &c), 0, "an upgrade that adds nothing");
+        c.castle_type = 4; // a stone castle, 200
+        assert_eq!(free_garrison_archers(T, &c), 50);
+        c.castle_building = 0;
+        assert_eq!(free_garrison_archers(T, &c), 200, "a new castle brings all of them");
+        c.population = 399;
+        assert_eq!(free_garrison_archers(T, &c), 0, "more than half the county");
     }
 
     #[test]
     fn a_county_not_building_anything_does_nothing() {
-        let mut c = County::new();
+        let mut c = owned(2_000);
+        let mut r = Realm::new();
         let mut out = Vec::new();
         for _ in 0..10 {
-            assert!(!build_tick(T, &mut c, 1, &mut out));
+            assert!(build_tick(T, &mut c, &mut r, 1, &mut out).is_none());
         }
         assert!(out.is_empty());
-        assert_eq!(c.castle_progress, 0);
+        assert_eq!(c.castle_work_left, 0);
+        assert_eq!(c.castle_percent, 0);
     }
 
     #[test]

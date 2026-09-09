@@ -281,6 +281,11 @@ pub enum SidebarAction {
 pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
     match id {
         0x17 => ScreenId::RaiseArmy(county),
+        // `Castle_OpenScreen` (`0x00436A88`) is the same shape: it refuses a
+        // county that is not the local player's with message 0x70 — the gate
+        // already in `handle` — and otherwise sets `g_screenId = 0x1B` for
+        // `g_selectedCounty`.
+        0x1B => ScreenId::Castle(county),
         _ => ScreenId::Shell(id),
     }
 }
@@ -407,7 +412,7 @@ pub struct MapScreen {
     /// scrolling cost one repaint rather than one per frame.
     base: Canvas,
     tags: Tags,
-    built: Option<(usize, u8, Viewport, u32)>,
+    built: Option<(usize, u8, Viewport, u32, u64)>,
     /// The two 128 × 128 rasters for this slot, decoded once.
     minimap: Option<Minimap>,
     minimap_slot: Option<usize>,
@@ -955,7 +960,17 @@ impl MapScreen {
         }
         // The turn count is in the key because [`town_graphics`] depends on
         // every county's population, which the end of a turn moves.
-        let key = (ctx.game.map_slot, self.zoom.id, self.view, ctx.game.kingdom.turn_count);
+        //
+        // **And the castles are in it too**, because ordering one changes the
+        // picture on the map in the middle of a turn and a cache keyed on the
+        // turn alone would show the bare plot until the next one.
+        let key = (
+            ctx.game.map_slot,
+            self.zoom.id,
+            self.view,
+            ctx.game.kingdom.turn_count,
+            Self::castle_key(ctx),
+        );
         if self.built == Some(key) {
             return;
         }
@@ -1013,8 +1028,72 @@ impl MapScreen {
                 let stored = slot.at(Plane::GfxIndex, x as usize, y as usize);
                 out.set(x as usize, y as usize, TOWN_BANK, base + stored);
             }
+            Self::castle_graphics(ctx, id as u8, &mut out);
         }
         out
+    }
+
+    /// Every county's castle state, folded into one number, so that the painted
+    /// map is rebuilt the moment a castle is ordered or a season of work moves
+    /// its picture on. Not a hash of anything iterated in an unordered way —
+    /// see `docs/netcode.md` — it is a fold over `county_ids` in order.
+    fn castle_key(ctx: &Ctx) -> u64 {
+        let k = &ctx.game.kingdom;
+        let mut n: u64 = 0;
+        for id in k.county_ids() {
+            let c = &k.counties[id];
+            n = n
+                .wrapping_mul(0x100_0001)
+                .wrapping_add(c.castle_type as u64)
+                .wrapping_mul(0x101)
+                .wrapping_add(c.castle_degraded as u64)
+                .wrapping_mul(0x101)
+                .wrapping_add(c.castle_percent as u64);
+        }
+        n
+    }
+
+    /// **Put the castle there at all.** `Castle_StampTile` (`0x0046826C`), the
+    /// half of it that is artwork.
+    ///
+    /// A county's castle is **not in `L2_maps.dat`**. Unlike the mine, the
+    /// quarry and the forest — which the file stores as real pictures and
+    /// `County_PlaceResourceSites` merely flags — the castle plot is plain
+    /// ground in the base bank, and every castle you have ever seen on the
+    /// original's campaign map was stamped in at run time. Ours drew the plain
+    /// ground, so **no county's castle was on the map**.
+    ///
+    /// The frame is chosen from the *castle's state*, which is why this lives
+    /// with the map screen's per-turn cache rather than in a load-time pass:
+    /// three appearances per level, twenty frames apart, and a castle going up
+    /// changes picture twice on its way.
+    ///
+    /// Bank `0x10` is `(0x10 & 0x1C) >> 2 == 4`, `Castle1a.pl8` / `Castle2a.pl8`
+    /// — and the `a` there is the **season**, swapped whole by
+    /// `Gfx_LoadCountyMode` with the frame indices unchanged, so these numbers
+    /// are season-independent. The install ships `Castle1a … Castle1d` and
+    /// `Castle2a … Castle2d`, the same four-suffix shape as `Base`, `Mtns`,
+    /// `Roads` and `Town`. `[V]`
+    fn castle_graphics(ctx: &Ctx, county: u8, out: &mut campaign::Overrides) {
+        let c = &ctx.game.kingdom.counties[county as usize];
+        let Some(stamp) =
+            l2_kingdom::map::castle_stamp(c.castle_type, c.castle_degraded, c.castle_percent)
+        else {
+            return;
+        };
+        // The block's own order is index order over the 2×2, which is what
+        // `Map_StampBlock` walks: north-west, north-east, south-west,
+        // south-east. `castle_tiles` returns them in tile-index order, which is
+        // the same walk.
+        for (quadrant, tile) in
+            l2_kingdom::map::castle_tiles(&ctx.game.kingdom.campaign.map, county)
+                .into_iter()
+                .take(4)
+                .enumerate()
+        {
+            let (x, y) = l2_kingdom::map::coords(tile);
+            out.set(x as usize, y as usize, stamp.bank, stamp.frames[quadrant]);
+        }
     }
 
     fn ensure_minimap(&mut self, ctx: &Ctx) {
@@ -2009,6 +2088,32 @@ impl Screen for MapScreen {
                     // ever reaching the terrain dispatch below. That order is
                     // the rule: an army standing on your own farmland is an
                     // army, not a field.
+                    // **A castle is a move *target*, not a unit**, and it is
+                    // tested first because the garrison inside it stands on the
+                    // castle tile.
+                    //
+                    // `Map_HoverUnitTarget` collects a plane-0 `0x80` tile with
+                    // terrain above `0x14` as a target for the selected army —
+                    // as `g_hoverGarrisonCounty` when the county is the mover's
+                    // and as `g_hoverSiegeCounty` when it is not, raising
+                    // `L2.eng` 10/7 *"Garrison castle?"* or 10/8 *"Besiege
+                    // castle?"*. The original never offers the garrison itself,
+                    // because **it does not draw a garrisoned unit at all** — it
+                    // flies a flag over the castle instead. Ours draws a hollow
+                    // marker so a player can see his men are in there, and that
+                    // marker sat on top of the only route to a siege: clicking
+                    // an enemy castle selected its garrison, and there was no
+                    // way to order an army to besiege anything.
+                    let castle_target = self.pick_tile(x, y).filter(|&(tx, ty)| {
+                        let map = &ctx.game.kingdom.campaign.map;
+                        map.has(tx, ty, l2_kingdom::map::flags::SETTLEMENT)
+                            && map.terrain_at(tx, ty) > l2_kingdom::map::terrain::CASTLE_PLOT
+                    });
+                    if let (Some(unit), Some(dest)) = (self.selected_unit, castle_target) {
+                        if ctx.game.is_players_unit(unit) {
+                            return self.order_march(ctx, unit, dest);
+                        }
+                    }
                     if let Some(unit) = self.unit_at(&Ctx { game: ctx.game, assets: ctx.assets }, x, y)
                     {
                         return self.click_unit(ctx, unit);

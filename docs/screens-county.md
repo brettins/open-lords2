@@ -108,7 +108,7 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x18 | `Screen_SendSupplies` `0x0041AD5D` | send supplies to another county | group 33 |
 | 0x19 | `Panel_Ration` `0x00411B72` | **rations** | groups 20, 21, 87 |
 | 0x1A | `Screen_DiploDialog` `0x0041789B` | **the seven diplomacy dialogs**, on `g_diploKind` — §10.4 | group 72 |
-| 0x1B | `0x00419789` | castle building | `cas_back.256` + `cas_back.pl8`, `caspics.pl8`, `cas_bits.pl8` |
+| 0x1B | `Screen_CastleBuild` `0x00419789` | **the castle chooser** — five picture buttons and an OK, and the only way a castle is ever ordered. §11 | group 71; `cas_back.256` + `cas_back.pl8`, `caspics.pl8`, `cas_bits.pl8` |
 | 0x1C | `0x0041E1DD` | **the campaign interstitial** — *not* the front end; §1.1 | group 36, group 101; `gateway.pl8`, `panels2.pl8` |
 | 0x1D | `0x00421F14` | siege preparations | group 83; `sgeplans.pl8` |
 | 0x1F | `0x0041E7E1` | **the front end**, and game setup: thirteen sub-pages on `g_setupPage` (`0x005530F0`) — §1.2 | groups 11, 39, 40, 101, 102, 103 |
@@ -1826,3 +1826,70 @@ and (368, 208) — level with the name field, whose rectangle ends at x = 232 �
 The deciding argument is that **one table serves two screens whose boxes are at different
 origins**, which an absolute table cannot do. It is still an inference; it is marked as one
 in the module that acts on it.
+
+---
+
+## 11. `0x1B`, the castle chooser — five picture buttons and an OK  **[V]**
+
+The door to castles, which are the door to sieges. It was a shell; it is
+`crates/l2-game/src/screens/castle.rs` now.
+
+### 11.1 The two widget tables
+
+Neither had been decoded, and between them they are the whole interface:
+
+| table | records | handler | what |
+|---|---|---|---|
+| `g_castleTypeWidgets` `0x004DC818` | 5, **kind 1** (a rectangle: `x1, y1, x2, y2`) | `CastleBuild_Select` `0x00436B22` | the five castle pictures, hotspot ids 0 … 4 |
+| `g_castleBuildWidgets` `0x004DDB80` | 2, kind 5 (a sprite) | `CastleBuild_Confirm` `0x00436B59` | tick frame 29 at (432, 440), hotspot 1; cross frame 31 at (472, 444), hotspot 0 |
+
+```text
+(17, 270)-(95, 415)   (96, 270)-(209, 415)   (210, 270)-(290, 415)
+(291, 270)-(414, 415) (415, 270)-(618, 415)
+```
+
+**They tile x 17 … 618 with no gap and no overlap**, and their widths differ — 79, 114, 81,
+124, 204 — because each is as wide as its castle's picture in `caspics.pl8`. That is also
+what says the table was decoded at the right base address: a mis-aligned read does not
+produce five abutting rectangles. `the_five_castle_strips_tile_the_row_exactly` asserts it.
+
+`CastleBuild_Select` is a bare `DAT_0056D898 = g_uiHotspotId` with **no guard**, so a player
+may select a castle smaller than the one he has and learns otherwise only from the OK button.
+
+### 11.2 What the panel draws, and the two refusals
+
+`Screen_CastleBuildPanel` (`0x004198AA`), redrawn only when `DAT_005440B8` is set:
+
+```text
+Blit_Raster(caspics.pl8[type], 0x9E, 0x14, 0x140, 200)   the big picture
+FUN_0040328E(71, sel + 1, 0x1F6, 0x18)        "Wooden palisade." … "Royal castle."
+Ui_DrawNumber(stone, '@', 0x230, 0x60) + 71/6            "of stone needed,"
+Ui_DrawNumber(wood,  '@', 0x230, 0x80) + 71/7            "of wood needed."
+Eng_DrawString(71, 8, 0x20C, 0xB4) + workforce + 71/9    "will take N to build."
+Ui_DrawBox(0x70, 0x1AC, 0x1A, 3) + 71/0x10 + bonus       "Boosts tax revenues by N%"
+Eng_DrawString(71, 0xF, 0xE0, 0x1C8)                     "Start construction?"
+Ui_DrawBox(8, 200, 8, 3) + 71/0xB + cap + 71/0xC         "Barracks for N troops."
+```
+
+**The stone and the wood are net of the castle already standing** — the panel subtracts
+`g_castleMaterial[existing type]`, the same difference `Castle_Order` charges, and it can
+come out negative because upgrading to a stonier castle refunds wood. It is printed as it
+comes.
+
+`CastleBuild_Confirm` has exactly **two** guards, and both close the screen rather than
+staying on it:
+
+| condition | message | `L2.eng` |
+|---|---|---|
+| the type picked is the one standing | `0x93` | 147/1 *"already of the type you are proposing to change it to!!"* |
+| the type picked is smaller | `0x122` | 290/1 *"Your current castle is stronger than the one you propose to upgrade to, my lord."* |
+
+**There is no third guard** — no affordability test at all. `docs/kingdom.md` §7.5.1 has what
+ordering a castle you cannot pay for actually does.
+
+### 11.3 The way in
+
+`Castle_OpenScreen` (`0x00436A88`), the sidebar's fourth button (§6's table, x 576 … 606). It
+refuses a county that is not `g_localPlayer`'s with message `0x70`, seeds `DAT_0056D898` from
+`castleType - 1` (0 on a bare plot), and sets `g_screenId = 0x1B`. On the way out, with
+animations on, it plays `Castle1.smk … Castle5.smk` — one construction movie per type.

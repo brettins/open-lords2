@@ -529,7 +529,7 @@ pub fn build_castles(
     let gold_ladder = p.castle_gold;
     let in_progress = counties[1..=county_count.min(counties.len() - 1)]
         .iter()
-        .filter(|c| c.owner == realm_id && c.castle_building != 0)
+        .filter(|c| c.owner == realm_id && c.castle_degraded != 0)
         .count() as i32;
     if in_progress >= concurrent {
         return started;
@@ -598,15 +598,14 @@ pub fn largest_castle_affordable(ladder: &[i32; AI_CASTLE_LADDER_LEN], gold: i32
 /// [`County::castle_switch`], and the pair of writes says what it is: *this
 /// county's castle-building job slot is live*.
 ///
-/// **One departure, stated.** The original reads county `+0x1D4`/`+0x1D0`, the
-/// wood and stone a build still needs. This crate debits a castle's whole cost
-/// up front ([`crate::industry::order_castle`]), so it has no such counter and
-/// a literal transcription would read both as zero and switch forestry and
-/// quarrying off as well. The condition is therefore evaluated as *"a build in
-/// progress still needs its wood and stone"*, which is true for all five castle
-/// types in [`crate::tables::CASTLE_COST`] and is what the original computes on
-/// the first season of any build. `[I]`, and it is the up-front debit that
-/// makes it so rather than anything read out of the binary.
+/// **The departure this used to record is closed.** It said the original reads
+/// county `+0x1D4`/`+0x1D0` — the wood and stone a build still owes — and that
+/// this crate had no such counter because it debited the whole cost up front.
+/// The up-front debit was ours and it was wrong; the counters exist
+/// ([`County::castle_wood_owed`]), and [`castle_allows`] reads them. So an AI
+/// realm that has already delivered all the stone for its keep switches its
+/// quarries off and leaves the forests running, which the constant could not
+/// say.
 ///
 /// The third loop is the labour re-allocation, which the caller does — this
 /// crate's [`crate::labour::allocate`] is county-local and the caller already
@@ -641,11 +640,12 @@ pub fn choose_industry(
         if counties[id].owner != realm_id {
             continue;
         }
-        let building = counties[id].castle_building != 0;
+        let building = counties[id].castle_degraded != 0;
         for slot in 0..counties[id].industry.len() {
             let record = &counties[id].industry[slot];
             let free = record.has_resource && record.disabled_seasons == 0;
-            counties[id].industry[slot].enabled = free && (!building || castle_allows(slot));
+            counties[id].industry[slot].enabled =
+                free && (!building || castle_allows(slot, &counties[id]));
         }
         counties[id].castle_switch = true;
     }
@@ -653,12 +653,30 @@ pub fn choose_industry(
 
 /// The industry slots a county with a castle going up may still run.
 ///
-/// Iron (`1`) and weapons (`2`) are switched off outright; wood (`0`) and stone
-/// (`3`) survive because the build still wants them. See [`choose_industry`]
-/// for why the two "still wants" tests are constants here.
-fn castle_allows(slot: usize) -> bool {
+/// Iron and weapons are switched off outright; wood and stone survive **only
+/// while the build still owes some**, which is county `+0x1D4` and `+0x1D0`
+/// read literally:
+///
+/// ```c
+/// castleDegraded == 0
+///   || (slot != 1 && slot != 2
+///       && (slot != 0 || county.woodOwed  > 0)
+///       && (slot != 3 || county.stoneOwed > 0))
+/// ```
+///
+/// The old comment here recorded a departure — this crate had no owed-materials
+/// counters, so both tests were evaluated as constants. It has them now, so
+/// this is the original rather than a stand-in for it, and it is the third
+/// independent confirmation that `+0x1D4` is wood and `+0x1D0` stone: the two
+/// tests are keyed on industry slots 0 and 3, which `Industry_Produce` fixes as
+/// wood and stone. `[V]`
+fn castle_allows(slot: usize, county: &County) -> bool {
     use crate::tables::Commodity;
-    slot != Commodity::Iron as usize && slot != Commodity::Weapons as usize
+    match slot {
+        s if s == Commodity::Wood as usize => county.castle_wood_owed > 0,
+        s if s == Commodity::Stone as usize => county.castle_stone_owed > 0,
+        _ => false,
+    }
 }
 
 /// Step 13 — `AI_Taunt` (`0x004A13A6`).
@@ -1280,7 +1298,12 @@ mod tests {
         counties[3].population = 699; // below lord 1's floor of 700
         let started = build_castles(T, &mut counties, 3, &mut realms, 2);
         assert_eq!(started, vec![1]);
-        assert_eq!(counties[1].castle_building, 5, "lord 1 reaches the royal castle");
+        // **`castle_type`, not `castle_building`.** The order moves the type at
+        // once and leaves `castle_building` holding what stood there before —
+        // nothing, on a bare plot. See [`County::castle_building`].
+        assert_eq!(counties[1].castle_type, 5, "lord 1 reaches the royal castle");
+        assert_eq!(counties[1].castle_building, 0, "and there was no castle before it");
+        assert_eq!(counties[1].castle_degraded, 1, "the work is under way");
     }
 
     /// **The concurrency limit is read once, before the loop.** The Countess
@@ -1384,7 +1407,9 @@ mod tests {
         assert!(counties[1].industry.iter().all(|i| i.enabled), "no castle: all four run");
         assert!(counties[1].castle_switch, "and the castle job slot is switched on regardless");
 
-        counties[1].castle_building = 2;
+        counties[1].castle_degraded = 1;
+        counties[1].castle_wood_owed = 100;
+        counties[1].castle_stone_owed = 100;
         for slot in 0..4 {
             counties[1].industry[slot].has_resource = true;
         }
@@ -1394,6 +1419,18 @@ mod tests {
         assert!(counties[1].industry[Commodity::Stone as usize].enabled, "and stone");
         assert!(!counties[1].industry[Commodity::Iron as usize].enabled, "iron is off");
         assert!(!counties[1].industry[Commodity::Weapons as usize].enabled, "and so is the smithy");
+
+        // **And once the stone has all been delivered the quarries go off too.**
+        // That is the half the old constant could not express, and it is the
+        // literal `slot != 3 || county.stoneOwed > 0`.
+        counties[1].castle_stone_owed = 0;
+        for slot in 0..4 {
+            counties[1].industry[slot].has_resource = true;
+        }
+        realm.weapon_rota = 0;
+        choose_industry(T, &mut counties, 1, &mut realm, 2);
+        assert!(counties[1].industry[Commodity::Wood as usize].enabled, "still owes wood");
+        assert!(!counties[1].industry[Commodity::Stone as usize].enabled, "the stone is all there");
     }
 
     /// A seasonally disabled industry stays off whatever else is true.
