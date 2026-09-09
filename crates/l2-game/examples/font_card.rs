@@ -146,7 +146,7 @@ fn baseline(f: &Font, y: i32) -> Option<usize> {
     let mut probe = Canvas::new(64, y as usize + 64);
     let flat = Style { colour: font::TEXT, shadow: None, caps: None };
     f.draw(&mut probe, 2, y, "l", &flat);
-    (0..probe.height).filter(|&r| (0..probe.width).any(|x| probe.at(x, r) != 0)).next_back()
+    (0..probe.height).rfind(|&r| (0..probe.width).any(|x| probe.at(x, r) != 0))
 }
 
 fn grey_ramp() -> Vec<u8> {

@@ -373,8 +373,7 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
             let mut canvas = Canvas::new(48, 48);
             f.draw(&mut canvas, 2, 2, &c.to_string(), &flat);
             let bottom = (0..canvas.height)
-                .filter(|&y| (0..canvas.width).any(|x| canvas.at(x, y) != 0))
-                .next_back()
+                .rfind(|&y| (0..canvas.width).any(|x| canvas.at(x, y) != 0))
                 .unwrap_or_else(|| panic!("{name}: '{c}' drew nothing"));
             let over = records[font::GLYPH_MAP[c as usize - 0x20] as usize - 1];
             bottoms.push((c, over, bottom));
