@@ -18,7 +18,7 @@
       "name": "Battle_UpdateStrengthAdvantage",
       "confidence": "verified",
       "signature": "void Battle_UpdateStrengthAdvantage(void)",
-      "comment": "Recomputed every 101 frames from Battle_UpdateAllUnits. Sums surviving men over all live figures, weighted 1/2/3/3/2/2/4 by troop type 0..6 and 1 for siege engines, split by figure byte +0x13 (owner is human). Leaves (aiMen * 100 / humanMen) - 100 in g_aiStrengthAdvantage, plus a -10..+21 jitter when g_deterministicBattle is zero. Every order handler branches on that one number."
+      "comment": "Recomputed every 101 frames from Battle_UpdateAllUnits. Sums surviving men over all live figures, weighted 1/2/3/3/2/2/4 by troop type 0..6 and 1 for siege engines, split by figure byte +0x13 (owner is human). Leaves (aiMen * 100 / humanMen) - 100 in g_aiStrengthAdvantage, plus a -10..+21 jitter when g_multiplayer is zero. Every order handler branches on that one number."
     },
     {
       "addr": "0x00488DFE",
@@ -772,7 +772,7 @@
     },
     {
       "addr": "0x00553030",
-      "name": "g_deterministicBattle",
+      "name": "g_multiplayer",
       "confidence": "inferred",
       "comment": "Read by well over a hundred functions across the binary. Where it matters here: when it is zero Battle_Start picks g_battleApproachLane and g_battleRallyGroup at random and Battle_UpdateStrengthAdvantage adds its jitter; when it is non-zero both become deterministic cycles and the jitter is dropped. Sync_Checksum and Turn_AllRealmsDone also read it, and Troops_Load uses the side-neutral TROOPS.ENG when it is set. Everything is consistent with \"this is a networked game, so nothing may diverge\" - which is a reading, not a proof."
     },

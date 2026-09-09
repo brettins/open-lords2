@@ -1403,23 +1403,36 @@ runs. Nothing in the corpus separates them. **Recorded, not narrated** — it is
 `docs/hypotheses.json` under `corrections`, and settling it needs either the
 16-pixel renderer read or a live battle.
 
-### 14.9 A correction that belongs to another document
+### 14.9 `g_deterministicBattle` was the wrong name, and the battle layer is where that showed
 
-`g_deterministicBattle` (`0x00553030`) is almost certainly **the multiplayer
-flag**, and the battle layer is where that became visible. It is written to 1 in
-exactly one place — after a DirectPlay session opens in `FUN_004B7250` — and to
-0 on every failure and teardown path; `Lords2.exe` imports `DPLAYX.dll`;
-`FUN_0043EDA0` builds and sends a network packet and returns immediately unless
-this global is set; and `FUN_0043B593` uses it to choose between calling
-`Battle_Start` locally and sending network message `0x3C`, whose serialiser
-(`0x00444A2F`) packs `g_battleApproachLane` and `g_battleRallyGroup` — the two
-values §8 of `docs/battle-ai.md` says are randomised in single player and
-advanced cyclically otherwise. Both facts are explained by "this is a network
-game" and only one of them is explained by "battles are deterministic".
+`0x00553030` is **the multiplayer flag** — a network game is in progress — and it
+is now `g_multiplayer` in `docs/symbols.json`, `[V]`. The battle layer is where
+the old name became visibly wrong, so the evidence is recorded here:
 
-Not renamed here: it is read by more than a hundred functions across the county,
-setup and diplomacy screens, and four agents are appending to `symbols.json`.
-The evidence is in `docs/hypotheses.json` under `corrections`.
+* It is written to **1 in exactly one place**, `FUN_004B7250`, immediately after
+  `FUN_004B7585` succeeds, and to **0 on every failure and teardown path** there
+  and in `FUN_004B743B`. Both teardowns then call `vtable+0x24` on the interface
+  pointer at `0x004E2A2C`, which `FUN_004B8243` fills from `DirectPlayCreate`.
+  `Lords2.exe` imports `DPLAYX.dll`.
+* `Net_SendCommand` (`0x0043EDA0`) **returns immediately unless it is set**, so
+  every one of the 112 network opcodes is dead in single player.
+* `FUN_0043B593` uses it to choose between calling `Battle_Start` locally and
+  sending network message `0x3C`, whose serialiser (`0x00444A2F`) packs
+  `g_battleApproachLane` and `g_battleRallyGroup` — the two values §8 of
+  `docs/battle-ai.md` says are randomised in single player and advanced
+  cyclically otherwise.
+
+**The determinism is a consequence, not the subject.** Cycling those two values,
+dropping `Battle_UpdateStrengthAdvantage`'s jitter and loading the side-neutral
+`TROOPS.ENG` are all things a *networked* game must do so that peers cannot
+diverge. The old name asserted the opposite direction of causation and invited
+the reading that the original has a determinism switch one could lean on. It
+does not; it has a network session, and determinism is what the session costs
+it. Nothing in `docs/netcode.md` ever cited the flag — its case for lockstep is
+made from first principles about our own engine — so no argument there had to be
+withdrawn, but the flag is now positive evidence *for* that case rather than a
+name that happened to agree with it: the original ships commands, not state
+(`docs/armies.md` §8c), and checksums the result (`Sync_Checksum`).
 
 ### 14.10 Reproduction
 

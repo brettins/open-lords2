@@ -307,11 +307,16 @@ pub struct Ai {
     pub approach_lane: usize,
     pub rally_group: usize,
     pub is_siege: bool,
-    /// `g_deterministicBattle`. When set, the jitter is dropped entirely — the
-    /// original's own answer to "this is a networked game, so nothing may
-    /// diverge". **[I]**: read by well over a hundred functions, never traced
-    /// to where it is set.
-    pub deterministic: bool,
+    /// `g_multiplayer` (`0x00553030`) — **a network game is in progress**. When
+    /// set, the jitter is dropped entirely and the two selectors above advance
+    /// cyclically instead of at random: the original's own answer to "this is a
+    /// networked game, so nothing may diverge". `[V]`.
+    ///
+    /// It was called `deterministic` here, after the name the global carried in
+    /// `symbols.json`, and that name asserted the wrong thing — the flag is
+    /// about the wire and the determinism is what the wire costs. See
+    /// `docs/battle.md` §14.9.
+    pub multiplayer: bool,
     /// The frozen generator. Advanced only by
     /// [`update_strength_advantage`](Ai::update_strength_advantage).
     pub rng: Pcg32,
@@ -366,7 +371,7 @@ impl Ai {
             approach_lane: 0,
             rally_group: 0,
             is_siege: false,
-            deterministic: false,
+            multiplayer: false,
             rng: Pcg32::from_seed(seed),
             approach_score: 0,
             breach_score: 0,
@@ -442,7 +447,7 @@ impl Ai {
             }
         }
         self.strength_advantage = pct_of(ai_men, human_men) - 100;
-        if !self.deterministic {
+        if !self.multiplayer {
             self.strength_advantage += (self.rng.next_u32() & 0x1F) as i32 - 10;
         }
     }
@@ -2014,10 +2019,10 @@ mod tests {
         ///
         /// The number is written on the last frame before the handler reads it,
         /// which is the only way to hold it steady: the recompute would
-        /// otherwise overwrite it every 101 frames. `deterministic` is set so
+        /// otherwise overwrite it every 101 frames. `multiplayer` is set so
         /// the jitter cannot move it either.
         fn think_at(&mut self, advantage: i32) -> Action {
-            self.ai.deterministic = true;
+            self.ai.multiplayer = true;
             for _ in 0..(THINK_INTERVAL - 1) {
                 self.frame();
             }
@@ -2059,7 +2064,7 @@ mod tests {
     #[test]
     fn a_unit_thinks_once_every_two_hundred_frames_and_not_before() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         for _ in 0..199 {
             fx.frame();
             assert_eq!(fx.action(), Action::NoThink, "thought early");
@@ -2082,7 +2087,7 @@ mod tests {
     #[test]
     fn a_unit_in_melee_stops_thinking_entirely() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         fx.figures[0].state = State::Melee;
         for _ in 0..1_000 {
             fx.frame();
@@ -2108,7 +2113,7 @@ mod tests {
         ] {
             let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
             fx.ai.is_siege = true;
-            fx.ai.deterministic = true;
+            fx.ai.multiplayer = true;
             let u = fx
                 .units
                 .create(3, false, side, CATEGORY_OF_TROOP[troop.index()])
@@ -2133,7 +2138,7 @@ mod tests {
     fn the_two_fast_siege_defenders_think_every_hundred_frames() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
         fx.ai.is_siege = true;
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         let foot = fx.units.create(3, false, SIDE_A, 2).unwrap();
         let melee = fx.units.create(3, false, SIDE_A, 3).unwrap();
         for (i, u) in [foot, melee].into_iter().enumerate() {
@@ -2153,7 +2158,7 @@ mod tests {
     #[test]
     fn a_human_controlled_unit_is_never_given_an_order() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         fx.frames(2_000);
         assert_eq!(fx.units.get(fx.human_unit).orders, 0);
         assert_eq!(fx.ai.last_action[fx.human_unit], Action::NoThink);
@@ -2165,13 +2170,13 @@ mod tests {
     #[test]
     fn the_strength_advantage_is_weighted_ai_men_over_weighted_human_men() {
         let mut fx = Fixture::new(Troop::Knights, Troop::Peasants, 4);
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         fx.ai.update_strength_advantage(&fx.figures);
         // 4 figures x 8 men: knights weigh 4, peasants 1, so 128 v 32 = 400 %.
         assert_eq!(fx.ai.strength_advantage, 300);
 
         let mut even = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
-        even.ai.deterministic = true;
+        even.ai.multiplayer = true;
         even.ai.update_strength_advantage(&even.figures);
         assert_eq!(even.ai.strength_advantage, 0, "identical armies are even");
     }
@@ -2180,7 +2185,7 @@ mod tests {
     #[test]
     fn an_unopposed_army_reads_minus_one_hundred() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         for f in fx.figures.iter_mut().filter(|f| f.owner_is_human) {
             f.take_hits(60_000);
         }
@@ -2230,12 +2235,12 @@ mod tests {
         assert_ne!(roll(7), roll(8));
     }
 
-    /// The deterministic-battle flag drops the jitter entirely, which is the
+    /// The multiplayer flag drops the jitter entirely, which is the
     /// original's own answer to "this is a networked game".
     #[test]
-    fn the_deterministic_flag_removes_the_jitter_and_the_draw() {
+    fn the_multiplayer_flag_removes_the_jitter_and_the_draw() {
         let mut ai = Ai::new(99);
-        ai.deterministic = true;
+        ai.multiplayer = true;
         let before = ai.rng.clone();
         let figures: Vec<Figure> = Vec::new();
         for _ in 0..20 {
@@ -2389,7 +2394,7 @@ mod tests {
         fx.ai.engagement_budget = 100; // stay out of the two escalation branches
         fx.ai.men_missile = 100;
         fx.ai.men_total = 100;
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
 
         // The grudge lasts 50 frames, so it has to be created inside the last
         // 50 of the 200 the unit waits.
@@ -2431,7 +2436,7 @@ mod tests {
     fn the_two_escalations_raise_the_counter_by_three_and_by_twenty() {
         let escalate = |budget: i32, missile: i32| {
             let mut fx = Fixture::new(Troop::Swordsmen, Troop::Peasants, 4);
-            fx.ai.deterministic = true;
+            fx.ai.multiplayer = true;
             fx.ai.engagement_budget = budget;
             fx.ai.men_total = 800;
             fx.ai.men_missile = missile;
@@ -2456,7 +2461,7 @@ mod tests {
     fn a_winning_archer_unit_never_backs_away_however_often_it_is_hit() {
         let hit_ten_times = |advantage: i32| {
             let mut fx = Fixture::new(Troop::Archers, Troop::Peasants, 4);
-            fx.ai.deterministic = true;
+            fx.ai.multiplayer = true;
             for _ in 0..(THINK_INTERVAL - 20) {
                 fx.frame();
             }
@@ -2577,7 +2582,7 @@ mod tests {
         let sortied = |advantage: i32| {
             let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
             fx.ai.is_siege = true;
-            fx.ai.deterministic = true;
+            fx.ai.multiplayer = true;
             let def = fx.units.create(3, false, SIDE_A, 4).unwrap(); // knight
             let mut f = Figure::new(Troop::Knights, SIDE_A, 4);
             f.unit = def as u16;
@@ -2601,7 +2606,7 @@ mod tests {
     fn the_first_wall_missile_unit_holds_its_slot_for_the_entire_battle() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
         fx.ai.is_siege = true;
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         let u = fx.units.create(3, false, SIDE_A, 9).unwrap();
         let mut f = Figure::new(Troop::Archers, SIDE_A, 4);
         f.unit = u as u16;
@@ -2624,7 +2629,7 @@ mod tests {
     #[test]
     fn a_catapult_in_a_field_battle_is_never_given_an_order() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         let u = fx.units.create(3, false, SIDE_B, 5).unwrap();
         let mut f = Figure::new(Troop::Catapults, SIDE_B, 4);
         f.unit = u as u16;
@@ -2648,7 +2653,7 @@ mod tests {
         let found = |wall_distance: i32| {
             let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
             fx.ai.is_siege = true;
-            fx.ai.deterministic = true;
+            fx.ai.multiplayer = true;
             fx.field.surface = vec![0u8; CELLS];
             let (cx, cy) = (30usize, 55usize);
             fx.field.surface[(cy as i32 - wall_distance) as usize * DIM + cx] = 4;
@@ -2674,7 +2679,7 @@ mod tests {
     fn a_catapult_that_has_found_its_wall_stops_advancing_its_script() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
         fx.ai.is_siege = true;
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         fx.field.surface = vec![0u8; CELLS];
         fx.field.surface[50 * DIM + 30] = 4;
         let u = fx.units.create(3, false, SIDE_B, 5).unwrap();
@@ -2701,7 +2706,7 @@ mod tests {
         let outcome = |advantage: i32| {
             let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
             fx.ai.is_siege = true;
-            fx.ai.deterministic = true;
+            fx.ai.multiplayer = true;
             fx.ai.approach_score = 10;
             fx.ai.breach_score = 5;
             let u = fx.units.create(3, false, SIDE_B, 2).unwrap();
@@ -2725,7 +2730,7 @@ mod tests {
     fn the_castle_layout_flag_jumps_the_approach_script_to_a_hundred() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
         fx.ai.is_siege = true;
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         fx.field.castle_layout_flag = true;
         let u = fx.units.create(3, false, SIDE_B, 2).unwrap();
         let mut f = Figure::new(Troop::Pikemen, SIDE_B, 4);
@@ -2748,7 +2753,7 @@ mod tests {
     #[test]
     fn the_five_hundred_frame_countdown_reforms_and_runs_for_human_units_too() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         let mut who = Vec::new();
         for _ in 0..500 {
             who = fx.frame();
@@ -2763,7 +2768,7 @@ mod tests {
     #[test]
     fn a_small_human_unit_is_exempt_and_so_is_one_that_has_charged() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 3);
-        fx.ai.deterministic = true;
+        fx.ai.multiplayer = true;
         let mut who = Vec::new();
         for _ in 0..500 {
             who = fx.frame();

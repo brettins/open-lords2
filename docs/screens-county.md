@@ -1180,7 +1180,7 @@ Five of these have a second, independent anchor, which is why the block is **[V]
   import, which is not a matter of opinion.
 
 **The four advanced rules are frozen in a network game.** Each of their four handlers is
-`if (g_deterministicBattle == 0) { flip } else { tip 0x32; g_screenId = g_menuPrevScreen; }`.
+`if (g_multiplayer == 0) { flip } else { tip 0x32; g_screenId = g_menuPrevScreen; }`.
 `Opt_ToggleArmyForaging` additionally re-runs `Ration_Apply` and `County_RefreshEstimates`
 over every county, because the rule changes this turn's food.
 

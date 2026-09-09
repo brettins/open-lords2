@@ -585,7 +585,7 @@ to anyone"*, **242** *"does not belong to us"*, **243** *"does not have an enemy
 **244** *"is part of our alliance"*, **219** *"You cannot ally with this player until they end
 their current treaty"*.
 
-**In multiplayer it does not call `Diplo_Post` at all.** When `g_deterministicBattle` is set it
+**In multiplayer it does not call `Diplo_Post` at all.** When `g_multiplayer` is set it
 issues net command `0x48` or `0x49`, and `FUN_00448308` — a handler with no callers in the
 decompilation, i.e. dispatched from a command table — calls `Diplo_Post` on every peer.
 `FUN_00448339` is the gold half. That is the seam `docs/netcode.md` will need. **[D]**

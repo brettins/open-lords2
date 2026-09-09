@@ -731,16 +731,21 @@ AI attacks in every battle within about 30 points of even.
 `battle.md` §6.4 names) to pick `g_battleApproachLane` (0…3) and `g_battleRallyGroup`
 (0 or 1) once per battle.
 
-**[I]** Both are gated on `g_deterministicBattle` (`0x00553030`) being zero. When it is
+**[V]** Both are gated on `g_multiplayer` (`0x00553030`) being zero. When it is
 non-zero, `Battle_Start` advances both selectors cyclically instead and the jitter is
-dropped entirely. That global is read by well over a hundred functions across the binary,
-including `Sync_Checksum` and `Turn_AllRealmsDone`, and `Troops_Load` switches to the
-side-neutral `TROOPS.ENG` when it is set. Everything is consistent with "this is a
-networked game, so nothing may diverge" — which is a reading, and the flag was not traced to
-where it is set.
+dropped entirely. `Sync_Checksum` and `Turn_AllRealmsDone` read the same global, and
+`Troops_Load` switches to the side-neutral `TROOPS.ENG` when it is set.
 
-Either way: **the battle AI is not deterministic in single-player**, and any differential
-test against the original will have to account for that.
+**That flag has been traced, and it was misnamed.** It was `g_deterministicBattle` here for
+months and `[I]` on the grounds that nothing had found where it is written. It is written to
+1 in exactly one place — after a DirectPlay session opens — and to 0 on every teardown, so
+it is **the multiplayer flag**, and the cyclic selectors and the dropped jitter are what a
+networked game must do rather than a determinism mode the game offers. `docs/battle.md`
+§14.9 has the evidence.
+
+Either way, and this is the part that does not change: **the battle AI is not deterministic
+in single-player**, and any differential test against the original will have to account for
+that.
 
 ---
 

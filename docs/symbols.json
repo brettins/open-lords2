@@ -1287,7 +1287,7 @@
       "section": "battleai",
       "confidence": "verified",
       "signature": "void Battle_UpdateStrengthAdvantage(void)",
-      "comment": "Recomputed every 101 frames from Battle_UpdateAllUnits. Sums surviving men over all live figures, weighted 1/2/3/3/2/2/4 by troop type 0..6 and 1 for siege engines, split by figure byte +0x13 (owner is human). Leaves (aiMen * 100 / humanMen) - 100 in g_aiStrengthAdvantage, plus a -10..+21 jitter when g_deterministicBattle is zero. Every order handler branches on that one number."
+      "comment": "Recomputed every 101 frames from Battle_UpdateAllUnits. Sums surviving men over all live figures, weighted 1/2/3/3/2/2/4 by troop type 0..6 and 1 for siege engines, split by figure byte +0x13 (owner is human). Leaves (aiMen * 100 / humanMen) - 100 in g_aiStrengthAdvantage, plus a -10..+21 jitter when g_multiplayer is zero. Every order handler branches on that one number."
     },
     {
       "addr": "0x00488DFE",
@@ -4380,7 +4380,7 @@
       "section": "diplomacy",
       "confidence": "verified",
       "signature": "void Mp_DropDepartedPlayers(void)",
-      "comment": "Season pass 1. For each realm that is marked human, has no lord, and whose slot in the 6 x 0x2C connection table at 0x00553D50 has gone to zero, calls Realm_Eliminate, decrements the player count at 0x00553F98, and sets lord = 6 - the knocked-out value. [V] Such a realm still holds its counties, so Realm_Eliminate takes the second branch and sends group 258, \"This player has left the game\", which is the case this pass exists to produce. The gate is g_deterministicBattle, whose name is only inferred and is probably a network-game flag; that reading is not settled here."
+      "comment": "Season pass 1. For each realm that is marked human, has no lord, and whose slot in the 6 x 0x2C connection table at 0x00553D50 has gone to zero, calls Realm_Eliminate, decrements the player count at 0x00553F98, and sets lord = 6 - the knocked-out value. [V] Such a realm still holds its counties, so Realm_Eliminate takes the second branch and sends group 258, \"This player has left the game\", which is the case this pass exists to produce. The gate is g_multiplayer, whose name is only inferred and is probably a network-game flag; that reading is not settled here."
     },
     {
       "addr": "0x004284CE",
@@ -4910,7 +4910,7 @@
       "section": "units",
       "confidence": "verified",
       "signature": "void MoveOrder_Confirm(void)",
-      "comment": "The plain move-order callback, and also the no-dialog path. Refuses with message 0x11E - L2.eng 286, 'This shire contains a garrisoned castle my lord. We must lay siege to that, to gain control of the county.' - when g_hoverCountyTownCounty names a county whose castle holds a garrison. That is the user-facing half of Army_AttackCounty's siege gate, stated in the game's own words. Otherwise Unit_OrderMove, or network command 0x29 under g_deterministicBattle."
+      "comment": "The plain move-order callback, and also the no-dialog path. Refuses with message 0x11E - L2.eng 286, 'This shire contains a garrisoned castle my lord. We must lay siege to that, to gain control of the county.' - when g_hoverCountyTownCounty names a county whose castle holds a garrison. That is the user-facing half of Army_AttackCounty's siege gate, stated in the game's own words. Otherwise Unit_OrderMove, or network command 0x29 under g_multiplayer."
     },
     {
       "addr": "0x004A9372",
@@ -4982,7 +4982,7 @@
       "section": "units",
       "confidence": "verified",
       "signature": "void Army_DisbandConfirm(void)",
-      "comment": "The 'Disband army?' yes-callback: Army_Disband, or network command 0x2E under g_deterministicBattle."
+      "comment": "The 'Disband army?' yes-callback: Army_Disband, or network command 0x2E under g_multiplayer."
     },
     {
       "addr": "0x00438681",
@@ -4998,7 +4998,7 @@
       "section": "units",
       "confidence": "verified",
       "signature": "void Army_GarrisonConfirm(void)",
-      "comment": "Yes-callback of the confirmation Army_Garrison stashes its arguments for: restores g_screenId from g_screenIdSaved and runs Army_GarrisonApply, or sends network command 0x34 under g_deterministicBattle. Its twin one function later does the same for a siege with command 0x35, and that pairing is how those two opcodes are identified."
+      "comment": "Yes-callback of the confirmation Army_Garrison stashes its arguments for: restores g_screenId from g_screenIdSaved and runs Army_GarrisonApply, or sends network command 0x34 under g_multiplayer. Its twin one function later does the same for a siege with command 0x35, and that pairing is how those two opcodes are identified."
     },
     {
       "addr": "0x004A7DAF",
@@ -5006,7 +5006,7 @@
       "section": "units",
       "confidence": "verified",
       "signature": "void Army_BeginSiegeConfirm(void)",
-      "comment": "Yes-callback for 'Besiege castle?': Siege_Link, or network command 0x35 under g_deterministicBattle."
+      "comment": "Yes-callback for 'Besiege castle?': Siege_Link, or network command 0x35 under g_multiplayer."
     },
     {
       "addr": "0x0043EDA0",
@@ -5014,7 +5014,7 @@
       "section": "units",
       "confidence": "verified",
       "signature": "void Net_SendCommand(byte op, int dest)",
-      "comment": "The deterministic-play command sender, and the reason every campaign action in the binary is written twice - once as a direct call and once as Net_SendCommand(op, 0) under g_deterministicBattle. Looks the opcode up in g_netCmdLength (0xFF is not a command and errors), calls g_netCmdWriters[op] to serialise the payload, stamps opcode, length and a sequence number that wraps 1..39 into a 0x104-byte slot at 0x00512FB0, and sends the packet once for eleven listed opcodes and three times - with flag bits 0x40 then 0x80 - for all the others. Two invariants close: all 112 entries of g_netCmdWriters are real function starts, and opcode 0x29's writer emits 1+4+1+2+2 bytes, exactly the 10 g_netCmdLength records for it. The campaign-map opcodes are 0x29 move order, 0x2C move-and-combine, 0x2E disband, 0x34 garrison, 0x35 begin siege, 0x3A toggle industry from the map."
+      "comment": "The multiplayer command sender, and the reason every campaign action in the binary is written twice - once as a direct call and once as Net_SendCommand(op, 0) under g_multiplayer. Looks the opcode up in g_netCmdLength (0xFF is not a command and errors), calls g_netCmdWriters[op] to serialise the payload, stamps opcode, length, checksum and a sequence number that wraps 1..39 into the matching 0x104-byte slot of g_netSendRing, and sends the packet once for eleven listed opcodes and three times - with flag bits 0x40 then 0x80 - for all the others. Two invariants close: all 112 entries of g_netCmdWriters are real function starts, and opcode 0x29's writer emits 1+4+1+2+2 bytes, exactly the 10 g_netCmdLength records for it. The campaign-map opcodes are 0x29 move order, 0x2C move-and-combine, 0x2E disband, 0x34 garrison, 0x35 begin siege, 0x3A toggle industry from the map."
     },
     {
       "addr": "0x004401BA",
@@ -6217,10 +6217,10 @@
     },
     {
       "addr": "0x00553030",
-      "name": "g_deterministicBattle",
+      "name": "g_multiplayer",
       "section": "battleai",
-      "confidence": "inferred",
-      "comment": "Read by well over a hundred functions across the binary. Where it matters here: when it is zero Battle_Start picks g_battleApproachLane and g_battleRallyGroup at random and Battle_UpdateStrengthAdvantage adds its jitter; when it is non-zero both become deterministic cycles and the jitter is dropped. Sync_Checksum and Turn_AllRealmsDone also read it, and Troops_Load uses the side-neutral TROOPS.ENG when it is set. Everything is consistent with \"this is a networked game, so nothing may diverge\" - which is a reading, not a proof."
+      "confidence": "verified",
+      "comment": "A network game is in progress. Read by 155 sites across the county, setup, battle and diplomacy screens. Written to 1 in exactly ONE place - FUN_004B7250, immediately after FUN_004B7585 succeeds - and to 0 on every failure and teardown path there and in FUN_004B743B, both of which then call vtable+0x24 on the DirectPlay interface at 0x004E2A2C; FUN_004B8243 fills that pointer from DirectPlayCreate and Lords2.exe imports DPLAYX.dll. Net_SendCommand returns immediately unless it is set, so all 112 network opcodes are dead in single player, and FUN_0043B593 branches on it to choose between calling Battle_Start locally and sending message 0x3C. RENAMED from g_deterministicBattle, which asserted the wrong thing: the flag is about the wire, not about determinism. Its determinism-shaped effects are consequences - when it is set Battle_Start advances g_battleApproachLane and g_battleRallyGroup cyclically instead of at random, Battle_UpdateStrengthAdvantage drops its jitter, and Troops_Load reads the side-neutral TROOPS.ENG - because a networked game may not diverge. Sync_Checksum and Turn_AllRealmsDone read it too."
     },
     {
       "addr": "0x00554090",
@@ -7837,7 +7837,7 @@
       "name": "g_netCmdLength",
       "section": "units",
       "confidence": "verified",
-      "comment": "u8[112]: the payload length of each deterministic-play command, 0xFF for an opcode that is not one. Valid opcodes run 0x01..0x61; 0x00 and 0x62..0x6F are all 0xFF. Net_SendCommand rejects a 0xFF opcode outright. Opcode 0x29's 10 matches its writer's 1+4+1+2+2 exactly, which is what makes the table's reading a finding rather than a guess."
+      "comment": "u8[112]: the payload length of each network command, 0xFF for an opcode that is not one. Valid opcodes run 0x01..0x61; 0x00 and 0x62..0x6F are all 0xFF. Net_SendCommand rejects a 0xFF opcode outright. Opcode 0x29's 10 matches its writer's 1+4+1+2+2 exactly, which is what makes the table's reading a finding rather than a guess."
     },
     {
       "addr": "0x004D57F0",
@@ -7845,6 +7845,27 @@
       "section": "units",
       "confidence": "verified",
       "comment": "void(*)(void)[112], the per-opcode payload serialisers Net_SendCommand calls. Every one of the 112 entries is a real function start in the decompiled corpus - a mechanical check that could have failed - and each writer's matching reader is the next function in address order, ending where the next opcode's writer begins. The campaign-map entries are 0x29 NetCmd_WriteMoveOrder, 0x2C move-and-combine, 0x2E disband, 0x34 garrison, 0x35 begin siege, 0x3A toggle industry."
+    },
+    {
+      "addr": "0x00512FB0",
+      "name": "g_netSendRing",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The outgoing packet ring Net_SendCommand builds into: FORTY slots of 0x104 bytes, 0x00512FB0..0x0051584F, of which the sequence counter g_netSendSlot uses only 1..39 - slot 0 is allocated and never written. The extent is arithmetic that closes exactly: 0x00512FB0 + 40 * 0x104 = 0x00515850, and 0x00515850 is the next address anything in the binary references - nothing at all is referenced between +0x104 and there. Slot layout: +0 opcode, +1 the declared payload length from g_netCmdLength, +2 a checksum, +3 the sequence number, which the triple-send path ORs with 0x40 and then 0x80 to mark the two duplicates; +4.. the payload, written through the cursor g_netSendCursor. The checksum at 0x00440038 sums length bytes starting at slot+4, and the sender is handed length+4 bytes from the slot base, so the four header bytes and the payload account for the whole packet. Settles a name recorded twice: the battle pass called this g_netSendRing and the campaign-map pass g_netPacketBuf, and they disagreed 39 against 40 because those are two different true counts - forty slots exist, thirty-nine are in rotation."
+    },
+    {
+      "addr": "0x00512F4C",
+      "name": "g_netSendSlot",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "The g_netSendRing slot the next packet goes in, and the sequence number stamped into its +3. Net_SendCommand increments it after each command and resets it to 1 when it passes 0x27, so it cycles 1..39 and slot 0 of the forty-slot ring is never used. FUN_0043F01D, the session reset, writes it twice while opening a game. This wrap test is what fixes the ring's slot count."
+    },
+    {
+      "addr": "0x00512F8C",
+      "name": "g_netSendCursor",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "Where the next byte of the packet payload goes. Net_SendCommand points it at g_netSendRing slot + 4 before calling the opcode's writer, and Net_WriteField appends through it and advances it - two sites, a writer and its reader, and nothing else touches it. The +4 is the same four header bytes the checksum at 0x00440038 skips."
     },
     {
       "addr": "0x0053FA24",
