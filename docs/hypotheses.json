@@ -1,0 +1,162 @@
+{
+  "_note": [
+    "The [I] tier. Names and record fields that a filter or a neighbour produced and that",
+    "nothing has yet checked. Same shape as docs/symbols.json plus two required keys:",
+    "",
+    "  basis      what generated it - which filter, which caller, which neighbouring name.",
+    "  confidence one line saying what would have to be true, and what would refute it.",
+    "",
+    "Nothing here is applied to Ghidra and nothing here may be cited as a finding.",
+    "docs/symbols.json is at a deliberately high verified ratio and this file exists so",
+    "that bulk work can happen without diluting it. Promotion is one direction only:",
+    "run a check that could have failed, then move the entry across and record the check",
+    "in its comment. If the check refutes it, delete the entry - do not soften it.",
+    "",
+    "The rate to expect is measured in docs/method.md section 7.3: the subject filter runs",
+    "89% correct and the role hypothesis on top of it 58%. So roughly two in five of the",
+    "roles below are wrong, and the value of the file is that it says which two in five",
+    "are worth checking first rather than that it is right.",
+    "",
+    "See docs/method.md section 7.6."
+  ],
+  "program": "Lords2.exe",
+  "imageBase": "0x00400000",
+  "functions": [
+    {
+      "addr": "0x00428471",
+      "name": "Merchant_SeasonTick",
+      "section": "kingdom",
+      "basis": "Position in Season_Advance's call list, between County_RecountMerchants and Army_RecountCountyTroops, and its address - it sits between Merchant_AdvanceAll (0x004280E9) and Merchant_ResetStall (0x0042847C) in the merchant neighbourhood.",
+      "confidence": "The body is eleven bytes and returns. So the name is a guess at what was removed, and it cannot be checked from this binary at all: an empty function has no evidence in it. Recorded because a reader of Season_Advance needs to know the slot is deliberately empty rather than missing, not because the name is worth anything.",
+      "comment": "A season pass that does nothing. Called only from Season_Advance."
+    },
+    {
+      "addr": "0x004AD39A",
+      "name": "Army_ProcessPendingDisbands",
+      "section": "units",
+      "basis": "First call in Wages_PayAll, ahead of Army_Starve. Walks every kind-1 unit, calls FUN_004ABA5A on it, and destroys any whose county byte is above 16.",
+      "confidence": "The stray-army half is directly readable and near-certain; the disband half rests on FUN_004ABA5A, which returns an army's men to its home county's population when unit +0x167 is 1 and clears the flag when it is more - so +0x167 looks like a disband request with a one-season delay, and that reading is unchecked. Cross-subsystem: this belongs to whoever owns armies, not to the season pipeline. Refuted if +0x167 turns out to be set anywhere other than a disband order.",
+      "comment": "Retires armies at the top of the wage pass: honours pending disbands, then destroys any army standing outside every county."
+    },
+    {
+      "addr": "0x004ABA5A",
+      "name": "Army_DisbandPending",
+      "section": "units",
+      "basis": "Sole caller is FUN_004AD39A. Reads unit +0x167: at 1 it adds menTotal back to the home county's population and popArmy and destroys the unit; above 1 it decrements the flag to 0 instead.",
+      "confidence": "The effect is plain; what is not established is what sets +0x167, and therefore whether this is a disband order, a garrison return, or something else. Find the writer of +0x167 and this either promotes or dies.",
+      "comment": "Returns an army's men to its home county and destroys it, when unit +0x167 says one is pending."
+    }
+  ],
+  "fields": [
+    {
+      "record": "County",
+      "off": "0x15C",
+      "type": "u8",
+      "name": "merchantFlag",
+      "basis": "County_RecountMerchants zeroes it alongside +0x1A4 and +0x1A5, the two merchant fields.",
+      "confidence": "Zero in every county of every fixture, and nothing else in the corpus writes it, so the zeroing is all the evidence there is. It sits immediately before rationAchieved (+0x15D), so a width error here would be visible; it is a byte. Refuted if a writer turns up outside the merchant code."
+    },
+    {
+      "record": "County",
+      "off": "0x203",
+      "type": "u8",
+      "name": "fieldsOther",
+      "basis": "County_RecountFields buckets tile graphics 0, 23 and 24 here, next to the three named field tallies.",
+      "confidence": "Zero in all fourteen counties of the England fixture, so the reproduction that verified the other four tallies could not verify this one - a bucket that never fires is a bucket whose meaning is unknown. Graphic 0 is an empty slot; 23 and 24 are not identified. Needs a save with those tiles."
+    },
+    {
+      "record": "County",
+      "off": "0x204",
+      "type": "u8",
+      "name": "fieldsReclaimable",
+      "basis": "County_RecountFields buckets tile graphic 25 and above here; Field_SetType switches the reclamation labour share on exactly when it is non-zero.",
+      "confidence": "The gate in Field_SetType is direct and strong - this counts land the county can reclaim. What is not checked is the graphic band: it is 0 in every fixture, so no save demonstrates which tiles land in it. Promote when a save with wasteland exists."
+    },
+    {
+      "record": "County",
+      "off": "0x1FE",
+      "type": "u8",
+      "name": "farmStyle",
+      "basis": "Ai_ManageCountyFarms writes it from g_aiPersonality's farmStyle and immediately dispatches on 0, 1 and 9.",
+      "confidence": "Strong: the fixture holds only 0, 1 and 9, exactly the dispatched values. Left here rather than promoted because unowned counties also carry 1, and Ai_ManageCountyFarms only writes AI-owned ones, so something at map load writes it too and has not been found. The name may be too narrow."
+    },
+    {
+      "record": "County",
+      "off": "0x1F4",
+      "type": "i32",
+      "name": "purse",
+      "basis": "Merchant_Trade credits and debits it instead of realm gold when the realm argument is 0.",
+      "confidence": "Readable but never exercised: 0 in every fixture, because no unowned county has traded. The claim that an unowned county has a treasury of its own is a real one and it is untested."
+    },
+    {
+      "record": "County",
+      "off": "0x198",
+      "type": "i32",
+      "name": "armyFoodSoldiers"
+    },
+    {
+      "record": "County",
+      "off": "0x19C",
+      "type": "i32",
+      "name": "armyFoodForagers",
+      "basis": "Ration_Apply adds +0x198 + +0x19C to the county's food requirement when g_optArmiesEat is on, and Panel_Ration draws that same sum against L2.eng 87/8 'men foraging in the county.'. The orphaned ration group 62 has 'Soldiers', 'Foragers', 'take' and 'steal' as four separate strings, which is where the split into two fields comes from.",
+      "confidence": "That the pair exists and sums into the food bill is certain. Which of the two is soldiers and which is foragers is a guess off the dead string group, and is a coin flip. Both are 0 in every fixture - no fixture has an army standing in a county with Armies Eat on."
+    },
+    {
+      "record": "Realm",
+      "off": "0x104",
+      "type": "i32",
+      "name": "spentThisSeason"
+    },
+    {
+      "record": "Realm",
+      "off": "0x108",
+      "type": "i32",
+      "name": "spentTotal"
+    },
+    {
+      "record": "Realm",
+      "off": "0x10C",
+      "type": "i32",
+      "name": "receivedThisSeason"
+    },
+    {
+      "record": "Realm",
+      "off": "0x110",
+      "type": "i32",
+      "name": "receivedTotal",
+      "basis": "Merchant_Trade adds the crown amount to +0x104 and +0x108 on a purchase and to +0x10C and +0x110 on a sale.",
+      "confidence": "That two accumulators run on spending and two on income is certain. Which of each pair is the season figure and which the running total is not: nothing in the corpus resets either, and all four are 0 in every fixture because no fixture has traded. If neither is ever reset, the pair is something else entirely - two panels rather than two horizons."
+    }
+  ],
+  "globals": [
+    {
+      "addr": "0x00553D50",
+      "name": "g_playerSlots",
+      "section": "diplomacy",
+      "basis": "Mp_DropDepartedPlayers tests slot +0x00 for zero; Realm_Eliminate clears +0x00, +0x25, +0x26 and sets +0x27. Stride 0x2C, six entries, one per realm.",
+      "confidence": "A per-realm table whose first word means 'this realm is still attached' is the only reading that makes both functions work. What the table actually holds - a network peer, a save slot, a controller - is not established, and the name presumes the first."
+    },
+    {
+      "addr": "0x00553F98",
+      "name": "g_playerCount",
+      "section": "diplomacy",
+      "basis": "Decremented by Mp_DropDepartedPlayers each time a realm is dropped.",
+      "confidence": "One writer, one direction. Nothing here shows what increments it or who reads it."
+    },
+    {
+      "addr": "0x0056D8AC",
+      "name": "g_tradeGood",
+      "section": "kingdom",
+      "basis": "Indexes g_merchantStall in the trade panel and selects the branch in the good-to-stock switch.",
+      "confidence": "Consistent everywhere it appears. Not promoted because the trade screen was not read end to end here - only the transaction underneath it."
+    },
+    {
+      "addr": "0x0053F270",
+      "name": "g_startForcesSetting",
+      "section": "kingdom",
+      "basis": "Indexes g_startArmoury (stride 0x18) and, alongside g_startTroops's own index, seeds a new game's armoury.",
+      "confidence": "Both tables have exactly four meaningful rows, so the setting takes four values, which matches a new-game option. Which option, and whether 0..3 runs weakest to strongest, is inferred from the rows being monotonic and nothing else."
+    }
+  ]
+}

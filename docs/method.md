@@ -333,11 +333,47 @@ The same run found `g_battleMen` and `g_battleUnits` are **81** records, not the
 `symbols.json` comments say: every sweep is `for (i = 1; i < 0x51; i++)`, so index 80 is
 live, and nothing else in the binary claims the storage behind it.
 
+### 7.6 Two tiers, so that bulk work cannot dilute the verified one
+
+`docs/symbols.json` is at a deliberately high verified ratio, and the temptation with any
+filter that produces names in bulk is to pour them in and mark them `inferred`. That trades
+a file you can trust for a file you have to audit.
+
+So there are two files and one rule.
+
+| | file | what it costs to add | what it costs to cite |
+|---|---|---|---|
+| **`[V]` verified** | `docs/symbols.json` | a check that could have failed, written into the `comment` | nothing — it is a finding |
+| **`[I]` hypothesis** | `docs/hypotheses.json` | a `basis` and a `confidence` line | it may not be cited as a finding at all |
+
+`hypotheses.json` has the same shape as `symbols.json`, plus a `fields` array for record
+offsets, plus two required keys on every entry:
+
+* **`basis`** — what generated it. Which filter, which caller, which neighbouring name. Not
+  the reasoning, the *source*, so that when the basis turns out to be unreliable everything
+  resting on it can be found in one grep.
+* **`confidence`** — one line saying what would have to be true, and **what would refute it**.
+  An entry whose confidence line does not name a way of being wrong is not a hypothesis, it
+  is a wish; write the refutation or do not write the entry.
+
+Nothing in `hypotheses.json` is applied to Ghidra, so a wrong name there cannot propagate
+into the corpus and become a fact by repetition — which is the exact mechanism behind C3.
+
+**Promotion is one direction and it is not free.** Run a check that could have failed, move
+the entry to `symbols.json`, and put the check in its comment. If the check goes the other
+way, *delete* the entry. Do not soften it, do not relabel it "partially confirmed": a
+refuted hypothesis that stays on the page is worse than one that was never written, because
+the next reader has no way to tell it apart from the ones nobody has looked at yet.
+
+The rate to expect is §7.3's: the subject filter runs 89% and the role hypothesis on top of
+it 58%. About two in five of the roles in that file are wrong. Its value is that it says
+which ones to check first, not that it is right.
+
 ## 8. What "done" means
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — 465 of 2,452 functions so far, about 19%.
+always more of the binary to name — 498 of 2,452 functions so far, about 20%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the
