@@ -325,6 +325,81 @@ One consolation worth recording, because it is the reason to keep doing this: th
 the draft proposed. Every time this project has actually read the binary rather than reasoned from
 an absence, the answer has been less work than the guess.
 
+## C-numbers: the protocol assumes a serial writer, and we have eight
+
+Six collisions now. The first four produced the protocol — *read the file, take the highest
+number, add one* — and the fifth happened anyway. The sixth was today, three ways at once:
+three branches all correctly read `C60` as the highest and all correctly chose `C61`. **Not one
+agent did anything wrong.** They branched from the same head within an hour of each other, which
+is what we asked them to do.
+
+That is the diagnosis, and it rules out a whole class of answers. *"Check the highest number
+first"* is already the protocol. *"Check again before committing"* loses to any branch that
+commits after you check. No instruction fixes a race, because the thing being raced for is
+allocated by reading a file that the other racer has not written yet.
+
+### Why allocating at write does not work either
+
+The obvious repair is a registry — a `NEXT` file, or reserved ranges handed out when an agent is
+spawned. Both were considered and both are worse than they look.
+
+- **A `NEXT` file** moves the race without removing it: two branches read `61`, both write `62`,
+  and now the registry conflicts as well as the log.
+- **Reserved ranges** — a block of five consecutive numbers to one agent, the next five to the
+  next — do remove the race, because the coordinator allocates them serially at spawn time. They
+  cost **gaps**. An agent given five numbers and using two leaves three permanently missing, and
+  a numbered log with holes in it invites every future reader to ask what was deleted. The log's
+  value is that it reads as a complete sequence.
+- **One file per correction** — one markdown file per entry, named for its number and assembled
+  by a script — makes the
+  collision *mechanical* rather than textual — two files claiming the same number is trivially detectable —
+  but it does not prevent it, and it costs a build step on the project's most-read document.
+
+### The proposal: assign at merge, not at write
+
+**Move the numbering to the one moment when serialisation is already free.** There is exactly one
+serial actor in this system and it is the merge: one integrator, one `main`, one commit at a
+time. Everything upstream of that is concurrent by design.
+
+So an agent never chooses a number. It writes a **placeholder**:
+
+```markdown
+**CNEW-hover — We reproduce artwork and skip behaviour.**
+```
+
+and cites it the same way in its own prose — `docs/decisions.md` CNEW-hover — for as long as the
+branch lives. The suffix is the agent's own word, needs to be unique only within its branch, and
+exists so that one branch can add several corrections.
+
+At merge, `node tools/decisions/corrections.js --assign` walks the branch's headings in the order
+they appear in `decisions.md`, maps each distinct placeholder to the next free number, rewrites
+**every occurrence across the whole tree** — headings, prose, `symbols.json` comments, Rust doc
+comments, test names — and relocks the citations. One command, no chasing.
+
+**And the check that makes it structural rather than a habit: `--check` fails if any `CNEW`
+survives anywhere on `main`.** That is what stops the placeholder from being merged unassigned,
+and it is the whole enforcement. It goes red on ordinary work, in CI, on the commit that would
+have introduced the problem — which is the property *"read the highest number first"* never had.
+
+What it costs: an agent's own branch reads `CNEW-hover` instead of `C61` while the work is in
+flight. That is a branch, and it is correct that a number which has not been allocated does not
+appear.
+
+What it does not fix, said plainly: **two agents writing corrections about the same thing.** That
+is a content collision, not a numbering one, and no tool resolves it — it is the coordinator
+knowing what is in flight. Today's three were three genuinely different subjects that happened to
+want the same integer, which is the case this removes entirely.
+
+### Why this is written here and not just done
+
+Two renumbers were done by hand today. Both were clean because no file cited both colliding
+entries — the citation lockfile caught one drag on `symbols.md:307` and confirmed the rest — but
+that was luck about which documents the branches touched, not a property of the method. The next
+collision will be between two branches that both cite the same file, and the hand method's
+failure mode there is a citation quietly renumbered to point at the wrong correction: a wrong
+pointer into the log the project trusts most, which is the failure mode recorded above under
+*The correction log can be wrong*.
+
 ## A tool that degrades silently is worse the more people use it
 
 `tools/oracle/decompile-all.ps1` **exits non-zero** when `ApplySymbols` or
