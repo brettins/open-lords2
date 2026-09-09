@@ -413,6 +413,113 @@ failure mode there is a citation quietly renumbered to point at the wrong correc
 pointer into the log the project trusts most, which is the failure mode recorded above under
 *The correction log can be wrong*.
 
+## A file that looks like data is usually a claim, and claims cannot be merged positionally
+
+Six branches landed in one evening. Nine merge defects came with them and **all nine are the same
+mistake**: a file was treated as a list of lines or a list of entries, when what it actually held
+was an assertion about the current state of the project. Every one of them was made by choosing
+the resolution a careful person would choose.
+
+This is written once, with all nine in front of it, because it will be harder to assemble later
+and because the individual anecdotes each look like carelessness. They are not. The pattern is
+that **positional merging is correct for data and wrong for claims, and the two are
+indistinguishable by looking at the file.**
+
+### The near-miss, which is the centrepiece
+
+`docs/symbols.json` came up with nine conflict hunks. Every one of them was a lie: **the `ours`
+body of each hunk sat under the *wrong entry's* `name`.** Git had aligned two arrays that were
+ordered differently, so the diff paired unrelated records —
+
+```
+      "name": "Move_BuildCostMap",
+<<<<<<< ours
+      "comment": "Places the weapons industry site (record 2) on the county tile whose flags…"
+=======
+      "comment": "Rebuilds the 64x64 i16 campaign movement cost map g_moveCost from the map…"
+>>>>>>> theirs
+```
+
+— `County_PlaceBlacksmith`'s comment, offered as a candidate body for `Move_BuildCostMap`.
+`County_Reset`'s, offered for `Path_SearchSiege`. Nine of them.
+
+Resolving those textually — taking a side, taking the union, taking the newer — would have
+produced **a symbol database that parses, reads plausibly, and lies about what functions do**, in
+the file this project consults to decide what the binary is. It is the stolen doc comment from
+`FIELD_TRAMPLE_OFFENCE`, at scale, in the worst possible place.
+
+The correct resolution was not textual at all. `symbols.json` is a database keyed by address, so
+it was merged **by address**, three-way against the merge base: base 757 entries, ours 806,
+theirs 763, merged 812 — and **no address had been changed on both sides**. There was never a
+conflict. There were only two arrays in different orders.
+
+### What saved it was `JSON.parse` failing, and that is a near-miss report
+
+The union produced invalid JSON, the parse threw, and the throw is the only reason any of this
+was looked at. **A syntactic check caught a semantic disaster by luck.**
+
+That is worth its own rule, because the temptation is to file it as the check working:
+
+> **When a check catches something outside what it was built to catch, treat it as a near-miss
+> report, not a success.** The next instance will differ by whatever made this one syntactically
+> invalid, and nothing will fire.
+
+Had the two orderings happened to produce valid JSON — one entry moved rather than several, or a
+conflict that closed its braces evenly — the file would have been committed, `symbols_md.js` would
+have regenerated `symbols.md` from it without complaint, both would have been green, and the
+project would have carried a wrong comment on a right address until somebody read that function
+again. **It is not a defence to rely on again**, which is why `symbols.json` and
+`hypotheses.json` now merge by key through a driver rather than by anyone remembering to.
+
+### The nine, and what caught each
+
+| # | what was merged positionally | what it actually asserted | what caught it |
+|---|---|---|---|
+| 1 | `--theirs` on `shells.rs` | *these screens are not built yet* — so an older copy **un-builds** them | a test: *"CASTLE is both a shell and a screen"* |
+| 2 | union of two `symbols.json` runs | *this hypothesis was promoted* — a union turns a move back into a copy | `symbols_md.js`, four times, one at a time |
+| 3 | a test naming shell `0x1B` | *`0x1B` is still unbuilt* — it broke **on success** | itself, correctly |
+| 4 | union across `GATED_TOTAL` | a scalar, not a list | the compiler: two `const`s of one name |
+| 5 | two `C63` headings | *this correction is C63* | **nothing.** A grep on a hunch |
+| 6 | `FIELD_TRAMPLE_OFFENCE`'s doc | *this prose describes this constant* | **nothing.** Reading it |
+| 7 | two `quirks:` initialisers | a field, not a line | the compiler |
+| 8 | nine `symbols.json` hunks | *this comment describes this address* | `JSON.parse`, by luck |
+| 9 | B-numbers in `docs/bugs.md` | *this number identifies this defect* | the quirks catalogue |
+
+Three of the nine had **no defence at all** and were found by a person looking. Two were caught
+by the compiler, which is the cheap case and the argument for making mistakes unrepresentable
+rather than checkable. The rest were caught by checks built for other purposes.
+
+### The B-numbers, and an instruction that read as complete
+
+`docs/bugs.md`'s numbering was **already broken before this evening**: `B66` named both §2.3's
+`Diplo_ActionAllowed` row and §2.6a's sound-flag entry, and nobody had noticed. A branch then
+added a third `B66`, and another added six defects as **table rows** numbered `B62`…`B67` that
+collided with six existing `###` headings.
+
+That last one was missed at its merge because the check run was *"grep the `###` headings"* — and
+the collision was in table rows. The instruction that prompted it was *"note the B-number range
+against what the other branches took"*, which reads as complete while naming no artefact.
+**An instruction to check something is only as good as its specificity**; "check the B-numbers"
+and "check every line matching `^### B` and every line matching `^| \*\*B`" are different
+instructions, and only one of them can be followed wrongly.
+
+Quote this beside `C61`'s **six** claimants when arguing for assigning numbers at merge. The
+C-space collided six times in one day and was noticed every time; the B-space had been quietly
+wrong for weeks and was noticed only when a check finally read the file **as data** rather than
+as prose.
+
+### What to do instead
+
+1. **Merge keyed files by key.** `symbols.json` and `hypotheses.json` have a merge driver.
+   Anything with a stable id and an unstable order belongs there too.
+2. **Ask what the file asserts before choosing a side.** If the answer is *"what is true right
+   now"* — what is unbuilt, what was promoted, which number means which defect — then neither
+   side is safe and the resolution has to be derived rather than picked.
+3. **A union is safe for a list and unsafe for anything else.** Twice tonight a union was applied
+   across a scalar, in files whose surrounding lines genuinely were a list.
+4. **Compile, then test, then read.** The compiler caught two of these, tests caught two, and
+   three had no automated defence whatever. Budget the reading.
+
 ## Prefer a shape that cannot be wrong to a check that notices when it is
 
 Almost everything in this file is the same remedy: **two artefacts, maintained by different

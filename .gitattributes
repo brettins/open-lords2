@@ -37,3 +37,30 @@
 *.bmp  binary
 *.jpg  binary
 *.bundle binary
+
+# **The symbol databases merge by key, never by line.**
+#
+# `docs/symbols.json` once produced nine conflict hunks in which the `ours` body
+# of every hunk sat under the *wrong entry's* `name` — git had aligned two
+# arrays that were ordered differently, so the diff paired unrelated records and
+# offered `County_PlaceBlacksmith`'s comment as a candidate body for
+# `Move_BuildCostMap`. Nothing was wrong with the data: the two branches had
+# touched different addresses and only the order differed. A textual resolution
+# would have produced a symbol database that parses, reads plausibly, and lies.
+#
+# What caught it was `JSON.parse` failing on the union — a syntactic check
+# catching a semantic disaster by luck, which is not a defence to rely on twice.
+# `docs/agents.md`, *A file that looks like data is usually a claim*.
+#
+# The driver also honours a DELETION on one side, which is what
+# `docs/hypotheses.json` needs: promotion is a move, not a copy, and a naive
+# union turns every promotion back into a copy — it did, four times, in one
+# evening.
+#
+# `merge=l2json` needs the driver registered per clone; git will not run a
+# driver a repository merely asks for. `tools/symbols/install-merge-driver.sh`
+# does it. WITHOUT that registration git falls back to the ordinary text merge,
+# which is safe because it is loud: the conflict markers appear as before.
+docs/symbols.json    merge=l2json
+docs/hypotheses.json merge=l2json
+docs/records.json    merge=l2json
