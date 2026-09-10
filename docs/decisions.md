@@ -4114,8 +4114,110 @@ had no `pairs` field to omit. The destructure protects the fields we know about 
 about the ones we never modelled — which is the same sentence as C61's denominator being a
 *place*, and as *a check on existence is not a check on meaning*.
 
+**CNEW-revolt — Twenty revolts in a hundred turns, and every one of them was a message and
+nothing else.**
+
+`docs/plan.md` §2.5 asked for the hundred-turn game because *"every rule that fires only
+when a realm holds more than one county has no oracle at all"*. The first thing it found was
+not a multi-county rule at all. It was that **`County_RaiseRevolt` (`0x004AC185`) is not
+implemented**, and had never been: `crates/l2-kingdom/src/unrest.rs` reset the counter,
+pushed a `Message::Revolt`, and returned — with a comment saying *"raising the mob is a unit
+operation and therefore not this crate's"*, addressed to a caller that did not exist.
+
+**What that cost, measured rather than argued.** A hundred turns of the England fixture, the
+unplayed human realm left to starve as the control:
+
+| | before | after |
+|---|---|---|
+| the person's realm | **in play on turn 100**, one county, population **0** since turn 22 | eliminated on turn 24 |
+| `g_gameOutcome` | never left `InPlay` | `Lost` on turn 24 |
+| peasant mobs ever on the map | 0 | 67 sightings |
+| battles in a hundred turns | 0 | 17 |
+| counties changing hands | 0 | 2 |
+| the largest realm | 3 counties | **7** |
+
+The last row is the one that matters for §2.5: **a realm holding four or more counties is
+now reachable in an ordinary England game, without a hand-dealt board.** It never was
+before, and that is why §2.5 could describe the multi-county rules as having no oracle
+*and* no way in.
+
+**Reading the function properly cost four more corrections**, all `[V]` from
+`Unrest_UpdateAll` (`0x0044AA41`) and all written up in `docs/kingdom.md` §6. Two of them
+were tests of ours asserting the opposite of the binary, both sourced from prose rather than
+from the function — the C58 shape again:
+
+1. **AI-owned counties revolt too.** The call sits at `LAB_0044ADF3` *inside* the AI branch;
+   the human branch reaches it with a `goto`. `unrest.rs` had a test called
+   `an_ai_county_never_raises_a_mob`, citing `docs/kingdom.md` §6.
+2. **It fires only on a season the counter went up** — `if (before < after)` on both
+   branches. So a county whose mob could not be placed sits at 4 for ever.
+3. **The warning season and the ladder season are exclusive.** `Msg_Enqueue(0x92)` is the
+   `if` and the whole ladder is its `else`, so a revolt lands on the **fifth** season below
+   25, not the fourth. The manual says *"more than four seasons"* — read whole, it agrees,
+   and `docs/kingdom.md` §6 had taken *"more than"* to mean *"at least"*. That is
+   `docs/agents.md`'s *citing an oracle is not reading it*, on the same sentence a second
+   time.
+4. **A human county's unrest counter is cleared outright at happiness 25.** `unrest.rs`
+   asserted it was sticky and called the stickiness *"real in the documented rules"*. No
+   document said it.
+
+Three and four together make revolt considerably rarer — five *consecutive* seasons, not
+five seasons spread over a reign — which is visible in the numbers: the same hundred turns
+raises 2 revolts under the corrected ladder where it raised 20 under the old one.
+
+**What generalises.** The old code's comment is the artefact worth keeping: *"not this
+crate's"* named a real architectural boundary, was true when it was written, and became a
+missing feature the moment nobody owned the other side of it. `docs/plan.md` §2.4 records
+the same failure in `ai.rs` — *"reproducing them here would mean inventing a unit model"*,
+written the day before `l2-kingdom` acquired a unit model. **A comment that defers work to a
+caller should name the caller**, because a deferral with no addressee is indistinguishable
+from a decision not to do it.
+
+**CNEW-weather-climate — `WEATHER_JITTER_BOUND` had been settled twice and the log still
+said it was invented.**
+
+`docs/plan.md` §2.7 calls it *"the one constant in `l2-kingdom` with no evidence behind
+it"*, and the Open questions list below said the same. Both were stale:
+`crates/l2-kingdom/src/weather.rs` has carried the derivation since the day it was traced —
+`Rand_Advance` (`0x00404A46`) masks its LFSRs with `0x7F` and `Weather_UpdateAll` shifts by
+3, so the draw is 0…127 and the jitter 0…15 — and `docs/audit-method.md` re-derived it
+independently a second time and recorded that the decision log was stale. **The constant is
+128 and it is right.** Re-read a third time here from the two functions, because a claim
+believed on the strength of two agreeing summaries is C13's shape.
+
+The interesting half is what the same paragraph *left* open and nobody chased:
+**`localModifier` — `FUN_00449D6E` — returned zero in our code and was marked "never
+traced".** It is a per-county term worth up to 12 a season on the dryness accumulator, and
+weather drives sowing, growth, harvest and the herd every season for a hundred seasons,
+which is §2.7's own argument for why it matters. It is traced now (`docs/kingdom.md` §7.3):
+a climate band 0…4 cut out of the county's **index** by `County_Reset` (`0x00451150`), read
+by nothing else, with a Summer ladder that skips band 3 and a dead `−24` arm
+(`docs/bugs.md` BNEW-summer-climate).
+
+**Two things to carry.** First: an open question is a claim about the present and goes stale
+like any other — this one had been false for weeks in a list nobody re-reads, and the
+mechanism that caught it was an agent being told to settle something already settled.
+Second, and sharper: **the paragraph that was stale and the paragraph that was live were the
+same paragraph.** A single entry closed the half that was easy to check and left the half
+that was not, and the closed half is what everyone read. An open question that names two
+things should be two entries.
+
 ## Open questions
 
+- **`County.purse` on an unowned county has never been non-zero in any game we can drive.**
+  Not in a hundred turns of England, not in a hundred of a fourteen-county empire, not on
+  any of the forty-four shipped maps. It needs the save `docs/oracle-requests.md` §6 asks
+  for, and it is the longest-outstanding oracle request in the project.
+- **Bankruptcy has never fired.** `Realm::bankrupt_stage` reached 0 — not 1 — in every run
+  above. The AI lords are handed free gold every turn and never overspend it, and an
+  unplayed human raises no army, so nothing we can drive ourselves ever misses a wage.
+  Six of the ladder's messages are therefore unreachable code by construction rather than by
+  defect. `docs/oracle-requests.md` §3.
+- **The empire tax term is a human-only mechanic in practice.** The highest tax rate any AI
+  lord set in a hundred turns of England is **12**, and `TAX_HAPPINESS_OTHER` is flat zero
+  below 20. So the whole table above its first row can only be reached by a person, which
+  makes `docs/oracle-requests.md` §1 the only route to evidence about it — a played game of
+  ours cannot generate one however long it runs.
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
   shipped `TROOPS*.ENG` an oracle for it was tried and does not work: the non-Normal rows
   are hand-authored leftovers (402 of 3,080 populated in `TROOPS.ENG`, ratios running 1.20
@@ -4133,10 +4235,12 @@ about the ones we never modelled — which is the same sentence as C61's denomin
   time.**~~ **Closed, and it was a defect rather than a simplification.** The six words at
   county `+0x1CC … +0x1E0` are on `County` now, `Castle_DeliverMaterials` (`0x00450CCD`)
   carts them in season by season, and `Castle_BuildEstimate`'s gate shuts. C63.
-- `WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**. `docs/kingdom.md` §7.3
-  gives the weather jitter as `random/8` with no stated range, which is not implementable —
-  the constant is the one number in that crate with no evidence behind it, and it is marked
-  as such at its definition. It needs tracing before any weather behaviour is trusted.
+- ~~`WEATHER_JITTER_BOUND` in `crates/l2-kingdom` is **invented**.~~ **Closed, and it was
+  closed twice before anyone noticed** — see CNEW-weather-climate. `Rand_Advance`
+  (`0x00404A46`) publishes `g_rand7B = g_randStateB & 0x7F` and `Weather_UpdateAll` divides
+  it by 8, so the draw is 0…127 and the jitter 0…15. The constant is 128 and is right. What
+  *was* still open in the same paragraph, and is now closed too, is `localModifier` —
+  `FUN_00449D6E`, `docs/kingdom.md` §7.3.
 - The four map planes whose meaning is inferred rather than proven (graphics bank,
   descriptor index, multi-tile object part), and the exact tile → lattice mapping,
   whose best affine fit reaches only 72%.

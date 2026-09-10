@@ -85,11 +85,25 @@
 //!    `& 0xF` that ignores the map's size and falls through to *"the county
 //!    after last season's"* when it overshoots. See
 //!    [`weather::WEATHER_JITTER_BOUND`] and [`weather::chosen_county`]. §7.3's
-//!    `localModifier` (`FUN_00449D6E`) is still named and never traced.
+//!    `localModifier` (`FUN_00449D6E`) is traced too now — a climate band cut
+//!    out of the county's *index*, applied in Summer and Winter only, with a
+//!    hole at band 3 that is `docs/bugs.md` BNEW-summer-climate. See
+//!    [`weather::local_modifier`] and [`weather::climate_band`].
 //!
 //! 5. **§6's AI unrest ladder has a hole.** *"happiness >= 41 resets it to 0;
 //!    11 … 40 walks it down; below 1 walks it up"* says nothing about 1..=10.
 //!    Reproduced literally, as a dead band, in [`unrest`].
+//!
+//! 4a. **§6 reads as though only a human's counties revolt, and three more
+//!    things about that pass were wrong.** The revolt call is reached from both
+//!    ladders; it fires only on a season the counter rose; a human county's
+//!    warning season and its ladder season are exclusive, so a revolt lands on
+//!    the *fifth* season below 25; and a human county's counter is cleared
+//!    outright at happiness 25 rather than being sticky. All four are corrected
+//!    in `docs/kingdom.md` §6 and reproduced in [`unrest`], which also now
+//!    implements `County_RaiseRevolt` — until this week a revolt raised no mob,
+//!    took no people and left the county in the realm's hands.
+//!    `docs/decisions.md` CNEW-revolt.
 //!
 //! 6. **§5's `deaths = pop` on a county that dies out stores a negative death
 //!    count.** The expression is quoted from decompiled C and is almost
