@@ -635,17 +635,158 @@ pub const CASTLE_DEGRADED_BUILDING: u8 = 1;
 /// > already under way, so **a wooden castle is repaired in wood and a stone
 /// > one in stone**, and a siege on a half-built castle makes the job bigger.
 /// >
-/// > It is not reproduced because every number in it comes from two battle-side
-/// > damage accumulators (`DAT_0057A0D8`, `DAT_0056D648`) that `l2-sim`'s
-/// > [`SiegeState`](../../l2_sim/siege/struct.SiegeState.html) does not have,
-/// > and the autocalc path — which is how most sieges settle — produces no wall
-/// > damage at all. Mapping them would have been a guess, so it is written down
-/// > instead. Until it lands, three readers of this constant
-/// > ([`assault_castle_level`], [`crate::industry::build_tick`]'s `repaired`
-/// > branch, and `Castle_StampTile`'s scaffolding arm) are reachable only from
-/// > their own tests, which is `docs/decisions.md` C27's shape and is said here
-/// > so the next reader does not have to rediscover it.
+/// > **This is [`record_castle_damage`] now**, and the note that used to stand
+/// > here — *"not reproduced, because every number comes from two battle-side
+/// > accumulators `l2-sim` does not have"* — is out of date in the part that
+/// > matters and was right about the rest. `l2-sim` keeps both accumulators;
+/// > the autocalc really does produce nothing, and that is the rule rather than
+/// > a gap: `Battle_AutoResolve` never touches either global, so a siege the
+/// > player declines to watch leaves the castle unmarked and the three readers
+/// > below are reached only by a siege somebody **fought**.
 pub const CASTLE_DEGRADED_DAMAGED: u8 = 2;
+
+/// **What a siege left on a castle** — county `+0x1E4` … `+0x1F1`, the six
+/// values `Siege_RecordCastleDamage` (`0x004784CA`) writes and `FUN_004787A4`
+/// (`0x004787A4`) reads back into the battle when the *next* assault opens on
+/// the same castle.
+///
+/// That pairing is the whole reason these are stored rather than consumed. A
+/// besieger thrown off a half-wrecked castle comes back to a half-wrecked
+/// castle: the moat it filled is still filled, the walls it opened are still
+/// open, and the gate it broke is still broken. Without the round trip the six
+/// numbers would be write-only, which is `docs/decisions.md` C27's shape and
+/// the exact hole this type exists to avoid re-opening.
+///
+/// It is deliberately **not** `l2_sim::CastleDamage`, though the fields are the
+/// same six: `l2-kingdom` is below `l2-sim` in nothing and beside it in the
+/// dependency graph, and `docs/plan.md`'s one-way rule says neither simulation
+/// learns the other exists. `l2-game`'s `engagement` module owns the
+/// conversion, because it is the only crate that can see both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SiegeScars {
+    /// `+0x1E4` — `DAT_0057A0D8`, **moat cells filled in**. Five man-seasons
+    /// of digging each and not a stick of wood; see [`record_castle_damage`].
+    pub moat_filled: u16,
+    /// `+0x1E6` — `DAT_0056D648`, **rampart cells left hanging by a
+    /// collapse**. This is the number the repair is billed in wood or stone.
+    pub wall_damage: u16,
+    /// `+0x1E8` — `g_siegeBreachScore` as the battle ended.
+    pub breach_score: i32,
+    /// `+0x1EC` — `g_siegeApproachScore` as the battle ended.
+    pub approach_score: i32,
+    /// `+0x1F0` — `_DAT_0055307C`, rampart patches down.
+    pub ramparts_breached: u8,
+    /// `+0x1F1` — `_DAT_00569588`, the gate is open. Set by the
+    /// twenty-thousandth hit and by the garrison's own drawbridge.
+    pub gate_open: bool,
+}
+
+impl SiegeScars {
+    /// `Siege_RecordCastleDamage`'s opening `if`: it does nothing at all unless
+    /// one of the two accumulators is non-zero.
+    pub fn any(&self) -> bool {
+        self.moat_filled != 0 || self.wall_damage != 0
+    }
+}
+
+/// Wood owed per point of [`SiegeScars::wall_damage`], **below castle level
+/// 2** — a palisade or a motte and bailey, which are made of wood.
+pub const REPAIR_WOOD_PER_WALL: i32 = 10;
+/// Stone owed per point, at level 2 and above.
+pub const REPAIR_STONE_PER_WALL: i32 = 15;
+/// Man-seasons per point of [`SiegeScars::wall_damage`], either way.
+pub const REPAIR_WORK_PER_WALL: i32 = 15;
+/// Man-seasons per moat cell filled in — the digging, and the only thing the
+/// moat costs.
+pub const REPAIR_WORK_PER_MOAT: i32 = 5;
+
+/// **Bill the repair** — `Siege_RecordCastleDamage` (`0x004784CA`), called from
+/// `Battle_ReturnToCampaign`'s siege arm and the **only** writer of
+/// [`CASTLE_DEGRADED_DAMAGED`] in the whole binary.
+///
+/// ```c
+/// if (!g_battleIsSiege || (DAT_0057A0D8 == 0 && DAT_0056D648 == 0)) return;
+/// county[+0x1E4 .. +0x1F1] = the six numbers the battle finished with;
+/// if (g_castleLevel < 2) { woodOwed  += wallDamage * 10; woodTotal  += same; }
+/// else                   { stoneOwed += wallDamage * 15; stoneTotal += same; }
+/// workLeft += moatFilled * 5 + wallDamage * 15;  workTotal += same;
+/// county.castleLevelLeft = g_castleLevel;
+/// county.castleDegraded  = 2;
+/// county.castlePercent   = 0;
+/// ```
+///
+/// Four things follow, and three of them are visible to a player.
+///
+/// * **A castle is repaired in the material it is made of.** Wood below level
+///   2, stone at 2 and above, and never both. `docs/bugs.md` B69.
+/// * **The `+=` is real.** The original writes plain `=` when
+///   `castleDegraded != 1` and `x = x + y` when it is 1, so besieging a castle
+///   that is *already being built* makes the job bigger than the castle was —
+///   the scaffolding's bill and the siege's are added together and paid once.
+/// * **Filling in the moat costs work and no materials.** `moatFilled` is only
+///   ever multiplied by 5 into the work total; it never reaches the wood or
+///   stone line. So a besieger who shovels the ditch full and is then thrown
+///   off has cost the defender labour and nothing else.
+/// * **`castlePercent` is reset to 0**, which is what puts the scaffolding
+///   back on the map tile: `Castle_StampTile` reads `< 50` as scaffolding.
+///
+/// > **`docs/symbols.md` calls `DAT_0057A0D8` `breachDamage` and that is a
+/// > misnomer** — the whole binary holds three writers of it and the only one
+/// > that adds is the moat fill. The parameter is named for what writes it.
+/// > `CNEW-moat-damage`.
+///
+/// Answers whether anything was billed.
+pub fn record_castle_damage(county: &mut County, castle_level: u8, scars: SiegeScars) -> bool {
+    if !scars.any() {
+        return false;
+    }
+    let already_building = county.castle_degraded == CASTLE_DEGRADED_BUILDING;
+    let add = |slot: &mut i32, amount: i32| {
+        *slot = if already_building { *slot + amount } else { amount };
+    };
+
+    county.siege_scars = scars;
+
+    let wall = scars.wall_damage as i32;
+    if castle_level < 2 {
+        let bill = wall * REPAIR_WOOD_PER_WALL;
+        add(&mut county.castle_wood_owed, bill);
+        add(&mut county.castle_wood_total, bill);
+    } else {
+        let bill = wall * REPAIR_STONE_PER_WALL;
+        add(&mut county.castle_stone_owed, bill);
+        add(&mut county.castle_stone_total, bill);
+    }
+    let work = scars.moat_filled as i32 * REPAIR_WORK_PER_MOAT + wall * REPAIR_WORK_PER_WALL;
+    add(&mut county.castle_work_left, work);
+    add(&mut county.castle_work_total, work);
+
+    county.castle_level_left = castle_level;
+    county.castle_degraded = CASTLE_DEGRADED_DAMAGED;
+    county.castle_percent = 0;
+    true
+}
+
+/// **The other half of the round trip** — `FUN_004787A4` (`0x004787A4`), which
+/// `Battle_Start` runs on the way *into* an assault.
+///
+/// ```c
+/// if (county.castleDegraded == 2) { the six globals = county[+0x1E4 .. +0x1F1]; }
+/// else                            { county[+0x1E4 .. +0x1F1] = 0; }
+/// ```
+///
+/// So a castle carries its scars into the next assault, and a castle that is
+/// *not* mid-repair has them cleared — which is what stops a rebuilt castle
+/// inheriting the last siege's open gate. Both arms matter and only the first
+/// one is obvious.
+pub fn scars_for_assault(county: &mut County) -> SiegeScars {
+    if county.castle_degraded == CASTLE_DEGRADED_DAMAGED {
+        county.siege_scars
+    } else {
+        county.siege_scars = SiegeScars::default();
+        SiegeScars::default()
+    }
+}
 
 /// **Which castle is actually fought** — `Siege_LaunchAssault`'s opening, and
 /// not simply `castleType`.

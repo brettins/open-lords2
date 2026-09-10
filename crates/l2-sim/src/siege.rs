@@ -50,6 +50,30 @@
 //! ram cannot climb onto a rampart, so the only counter it can ever feed is the
 //! gate's.
 //!
+//! # The ditch, and the two numbers the county is billed
+//!
+//! A besieger who cannot cross the moat cannot touch the wall, so the first
+//! thing a siege does is shovel the ditch full — [`fill_moat_cell`],
+//! `FUN_0047DD86`, once per cell and **four loads a cell**, because the fill
+//! counter lives in the cell's own terrain byte and the castle builder seeded
+//! that with the water id 11 against a threshold of 15.
+//!
+//! Filling it feeds [`SiegeState::moat_filled`]; a catapult bringing a wall
+//! down feeds [`SiegeState::wall_damage`]. Those two are everything
+//! `Siege_RecordCastleDamage` (`0x004784CA`) bills a repair from, and they are
+//! **not** billed alike: the ditch costs the defender five man-seasons of
+//! digging a cell and no materials at all, while the wall costs fifteen *and*
+//! the wood or stone the castle is made of. `docs/bugs.md` B69.
+//!
+//! # And the garrison has a verb of its own
+//!
+//! [`lower_drawbridge`] — `FUN_00496B9F`, battlefield button 2. It is the only
+//! thing in a siege that the *defender* initiates, and the price of it is that
+//! it sets the same three globals a ram's twenty-thousandth blow sets: the
+//! besieger's AI reads an open gate either way. That is the Readme's *"within a
+//! siege, drawbridges can not be closed once they have been opened"*, from the
+//! inside.
+//!
 //! # And the way in is not a counter at all
 //!
 //! Cell flag **`0x08`** is the third way a siege ends and it was in no document
@@ -68,14 +92,19 @@ use crate::terrain::{Battlefield, Cell, DIM};
 /// §14.2, where state 6 was corrected from *"blocked"* to *"hitting the wall
 /// it just walked into"*.
 pub const FLAG_WALL: u8 = 0x20;
-/// Cell flag `0x40` — **the drawbridge**. The defender's drawbridge routine
-/// (`0x00496B9F`) scans for one of these and does nothing at all if none
-/// exists.
+/// Cell flag `0x40` — **the drawbridge**. [`lower_drawbridge`]
+/// (`FUN_00496B9F`, `0x00496B9F`) scans for one of these and does nothing at
+/// all if none exists.
 ///
 /// The shipped `Readme.txt` says which castles have one: *"Note that only the
 /// Stone and Royal castles have drawbridges."* That is levels **3 and 4**, and
 /// it explains why the routine is written as a search that can fail. `[V]` —
 /// the errata and the code agree, from opposite ends.
+///
+/// **And the game names the flag itself.** The button that calls the routine,
+/// `FUN_0043BBE7`, refuses with `L2.eng` group **111** *"No drawbridge!"* when
+/// the castle is under level 3 and group **157** *"Drawbridge is down."* when
+/// it has already fired. `[V]` — `docs/formats/eng.md` §5.
 pub const FLAG_DRAWBRIDGE: u8 = 0x40;
 /// Cell flag `0x08` — **the way in**. See the module header: a side-4 figure
 /// reaching one wins the siege outright.
@@ -96,6 +125,17 @@ pub const SURFACE_GROUND: u8 = 3;
 /// onto one of these into the moat-fill state.
 pub const SURFACE_WATER: u8 = 2;
 
+/// **What a breach is left standing at: nothing.** `FUN_0047DFE0`, the routine
+/// a catapult shot runs when its fourth hit brings a wall cell down, writes
+/// `elevation = 0` over that cell — a collapsed wall is rubble at ground level,
+/// not a step.
+///
+/// It is a named constant because getting it wrong is invisible and fatal:
+/// `movement::can_step_elevation` allows a difference of one, so a breach left
+/// at the wall's own height is a hole nobody can walk through, and a siege runs
+/// for ever with its gate open. `[V]` — the literal in the collapse routine.
+pub const BREACH_ELEVATION: u8 = 0;
+
 /// Hits one rampart patch absorbs before it becomes [`SURFACE_BREACH`] and the
 /// counter resets. `g_wallHitsRampart` (`0x00554034`).
 pub const RAMPART_HITS: u32 = 5_000;
@@ -109,6 +149,65 @@ pub const RAM_HITS_PER_FRAME: u32 = 20;
 pub const WALL_HITS_PER_MAN: u32 = 1;
 /// Both progress scores gain this when the gate goes.
 pub const GATE_BREACH_SCORE: i32 = 4;
+
+// ---------------------------------------------------------------------------
+// The moat
+// ---------------------------------------------------------------------------
+
+/// `g_moatFillSteps` — how many loads of earth one moat cell swallows before
+/// [`fill_moat_cell`] turns it into ground. `0x0F`, written once at
+/// `0x004975...`; the original keeps the running count in the cell's **terrain**
+/// byte, which is why [`fill_moat_cell`] zeroes it on the way past. `[V]` — the
+/// literal in the binary.
+pub const MOAT_FILL_STEPS: u8 = 15;
+
+/// Frames one figure spends on each of those fifteen loads.
+///
+/// **`BattleMan_StateFillMoat` (`0x00483FE1`) is faster for an AI.** The
+/// original picks the threshold with `ownerIsHuman ? 100 : 0x50` and then tests
+/// `threshold < counter`, so a human's man is 101 frames a load and an AI's 81.
+/// That is a fifth ownerIsHuman asymmetry, on top of the four
+/// `docs/battle.md` §6.2 lists, and it is reproduced rather than levelled.
+/// `[V]`.
+pub const MOAT_TICKS_PER_LOAD_HUMAN: u8 = 100;
+pub const MOAT_TICKS_PER_LOAD_AI: u8 = 0x50;
+
+/// Surface **1** — what a filled-in moat cell becomes. `FUN_0047DD86` writes
+/// `surface = 1, flags = 0, frame &= 0x0F`.
+pub const SURFACE_FILLED: u8 = 1;
+
+// ---------------------------------------------------------------------------
+// The drawbridge
+// ---------------------------------------------------------------------------
+
+/// The patch `FUN_00496B9F` lays down: **7 rows of 4 cells**, anchored at the
+/// first `flags & FLAG_DRAWBRIDGE` cell in row-major order and running south
+/// and east from it. The inner loop steps one cell east four times and the
+/// outer adds `0x260` — 76 cells — which is exactly one row on an 80-wide
+/// field. `[V]`.
+pub const DRAWBRIDGE_ROWS: usize = 7;
+pub const DRAWBRIDGE_COLS: usize = 4;
+
+/// `DAT_004D9E18` — the 28 tile frames the drawbridge patch is drawn with,
+/// row-major, one per cell of the 7 × 4.
+///
+/// **Read out of `Lords2.exe` rather than out of a listing** (`docs/decisions.md`
+/// C3, and the reading-comprehension failure recorded in `docs/battle.md`
+/// §8.2a): the original indexes it `(&DAT_004D9E18)[i * 4]`, so it is 28
+/// **`i32`s**, 112 bytes, at file offset `0xD8018`. Frame 197 is the filler —
+/// eighteen of the twenty-eight cells are it — and the other six trace the
+/// bridge's shape into the corner nearest the gate. A table whose values were
+/// *all* distinct, or all the same, would both have refuted the reading; this
+/// one does neither. `[V]`.
+pub const DRAWBRIDGE_FRAMES: [u8; DRAWBRIDGE_ROWS * DRAWBRIDGE_COLS] = [
+    198, 198, 198, 198, //
+    198, 198, 197, 197, //
+    198, 196, 197, 197, //
+    198, 195, 197, 197, //
+    193, 194, 197, 197, //
+    192, 197, 197, 197, //
+    197, 197, 197, 197, //
+];
 
 /// The siege half of a battle's state — the two accumulators, the two
 /// one-shots, and the flag that says an attacker got in.
@@ -134,10 +233,64 @@ pub struct SiegeState {
     pub gate_breached: bool,
     /// `DAT_00553F3C` — a side-4 figure reached a [`FLAG_KEEP`] cell.
     pub broke_in: bool,
-    /// Whether the drawbridge routine has already fired. It is a one-shot latch
-    /// and the Readme says so: *"Within a siege, drawbridges can not be closed
-    /// once they have been opened."*
+    /// `DAT_0052AF9C` — whether [`lower_drawbridge`] has already fired. It is a
+    /// one-shot latch and the Readme says so: *"Within a siege, drawbridges can
+    /// not be closed once they have been opened."*
     pub drawbridge_down: bool,
+    /// **`DAT_0057A0D8` — moat cells filled in**, and the first of the two
+    /// numbers `Siege_RecordCastleDamage` (`0x004784CA`) bills the repair from.
+    ///
+    /// > **`docs/symbols.md` calls this `breachDamage` and that is a
+    /// > misnomer.** The whole binary holds three writers of `DAT_0057A0D8`:
+    /// > `Battle_Start` zeroes it, `FUN_004787A4` restores it from the county,
+    /// > and **`FUN_0047DD86` — the moat fill — adds one**. Nothing about a
+    /// > breach touches it. It counts cells of water that were shovelled full,
+    /// > which is why it costs the county **work and no materials**: five
+    /// > man-seasons a cell to dig out again, and not a stick of wood.
+    /// > `CNEW-moat-damage`. `[V]` — an exhaustive search for writers.
+    pub moat_filled: u16,
+    /// **`DAT_0056D648` — rampart cells left hanging by a collapse**, and the
+    /// second number in the bill. `FUN_0047DFE0` adds one for each of the four
+    /// orthogonal neighbours of a collapsing wall cell that is still
+    /// [`SURFACE_RAMPART`], so a shot into the middle of a wall costs the
+    /// defender twice what a shot into its end does. This is the number the
+    /// repair is charged in **wood or stone** — `docs/bugs.md` B69. `[V]`.
+    pub wall_damage: u16,
+}
+
+/// What one siege did to the castle: the pair
+/// [`SiegeState::moat_filled`] / [`SiegeState::wall_damage`], plus the two
+/// progress scores and the two one-shots the county stores between assaults.
+///
+/// It exists so that `l2-kingdom` can bill the repair without depending on
+/// `l2-sim` — `docs/plan.md`'s one-way rule — and so that the autocalc path can
+/// hand over an honest **nothing**: `Battle_AutoResolve` never touches an
+/// accumulator, so a siege that was calculated rather than fought does no
+/// damage at all and `Siege_RecordCastleDamage` returns at its first `if`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CastleDamage {
+    /// [`SiegeState::moat_filled`] — `+0x1E4`.
+    pub moat_filled: u16,
+    /// [`SiegeState::wall_damage`] — `+0x1E6`.
+    pub wall_damage: u16,
+    /// `g_siegeBreachScore` — `+0x1E8`.
+    pub breach_score: i32,
+    /// `g_siegeApproachScore` — `+0x1EC`.
+    pub approach_score: i32,
+    /// `_DAT_0055307C` — `+0x1F0`, how many rampart patches have come down.
+    pub ramparts_breached: u8,
+    /// `_DAT_00569588` — `+0x1F1`, the gate is open. Set by the twenty-thousandth
+    /// hit **and by [`lower_drawbridge`]**, which is the same state reached from
+    /// the inside.
+    pub gate_open: bool,
+}
+
+impl CastleDamage {
+    /// Whether `Siege_RecordCastleDamage` would do anything at all:
+    /// `if (g_battleIsSiege != 0 && (DAT_0057A0D8 != 0 || DAT_0056D648 != 0))`.
+    pub fn any(&self) -> bool {
+        self.moat_filled != 0 || self.wall_damage != 0
+    }
 }
 
 impl SiegeState {
@@ -193,6 +346,133 @@ pub fn strike_wall(state: &mut SiegeState, standing_on: u8, is_ram: bool) -> Wal
         return WallBlow::GateBreached;
     }
     WallBlow::Absorbed
+}
+
+/// **Lower the drawbridge** — `FUN_00496B9F` (`0x00496B9F`), the whole of it.
+///
+/// The garrison's fifth verb, and the one the battlefield's third button
+/// exists for. `FUN_0043BBE7` guards it four ways — a siege, the local player
+/// owning army B, `g_castleLevel >= 3`, and the latch — and then this happens:
+///
+/// ```c
+/// scan row-major for the first cell with flags & 0x40
+/// for 7 rows: for 4 cells:
+///     flags = 0; surface = 3; frame = DAT_004D9E18[i];
+///     flags2 |= 1; flags2 &= 0xE3;
+/// _DAT_00569588 = 1;                  /* the gate is open */
+/// DAT_0052AF9C  = 1;                  /* and it stays open */
+/// g_siegeApproachScore += 4;
+/// g_siegeBreachScore   += 4;
+/// Path_BuildTerrainTemplate(); Path_BuildElevation();
+/// ```
+///
+/// # Three things this is not
+///
+/// * **It is not siege-engine placement.** The hand-off this was built from
+///   said it was. The game names it itself: the button's two refusals are
+///   `L2.eng` 111 *"No drawbridge!"* and 157 *"Drawbridge is down."*, the
+///   guard is level 3 and up, and the shipped `Readme.txt` says *"only the
+///   Stone and Royal castles have drawbridges."* Four sources, one verb.
+///   `CNEW-drawbridge-not-engines`.
+/// * **It is not a hole in the wall for the besieger.** It sets the *same*
+///   two globals a twenty-thousandth ram hit sets — `_DAT_00569588` and both
+///   scores by 4 — so as far as every AI order handler is concerned **the
+///   garrison has opened its own gate**. That is the price of a sally, and it
+///   is why the Readme says a drawbridge cannot be closed again.
+/// * **It does not fire when there is no drawbridge cell.** The latch is set
+///   *inside* the `if`, so a level-3 castle whose layout happens to carry no
+///   `0x40` cell leaves the button live. Reproduced.
+///
+/// > **The original's scan has a missing `break`.** `bVar1 = true; break;`
+/// > leaves only the inner loop, and the outer one then re-tests the same cell
+/// > for every remaining row, breaking immediately each time. The *answer* is
+/// > unaffected — the offset stops at the first `0x40` cell either way — but
+/// > `g_foundTileX` / `g_foundTileY` are left at `(0, 0x50)` rather than at the
+/// > cell, which is a battlefield-wide scratch pair other routines read.
+/// > Nothing was found that reads them between here and their next write.
+/// > `docs/bugs.md` `CNEW-drawbridge-scan`. `[V]` on the control flow, `[I]`
+/// > that it is harmless.
+///
+/// Returns the anchor cell when it fired, so a caller can rebuild whatever it
+/// derives from the field. `flags2` — cell byte `+2` — is **not** written:
+/// [`Cell`] does not carry it, because nothing in this engine reads it.
+pub fn lower_drawbridge(field: &mut Battlefield, state: &mut SiegeState) -> Option<usize> {
+    if state.drawbridge_down {
+        return None;
+    }
+    let anchor = field.cells.iter().position(|c| c.flags & FLAG_DRAWBRIDGE != 0)?;
+    let (ax, ay) = (anchor % DIM, anchor / DIM);
+    for row in 0..DRAWBRIDGE_ROWS {
+        for col in 0..DRAWBRIDGE_COLS {
+            let (x, y) = (ax + col, ay + row);
+            // The original walks a flat offset with no bound check at all and
+            // would run off the end of the array; we stop at the edge instead.
+            // `docs/bugs.md` N4's reasoning: an overrun is not behaviour.
+            if x >= DIM || y >= DIM {
+                continue;
+            }
+            let c = &mut field.cells[y * DIM + x];
+            c.flags = 0;
+            c.surface = SURFACE_GROUND;
+            c.gfx = DRAWBRIDGE_FRAMES[row * DRAWBRIDGE_COLS + col];
+        }
+    }
+    state.drawbridge_down = true;
+    state.gate_breached = true;
+    Some(anchor)
+}
+
+/// **One moat cell is filled in** — `FUN_0047DD86` (`0x0047DD86`), reached from
+/// `BattleMan_StateFillMoat` once a figure has tipped [`MOAT_FILL_STEPS`] loads
+/// into it.
+///
+/// ```c
+/// surface = 1; flags = 0; frame &= 0x0F;
+/// for each of the four orthogonal neighbours:
+///     if its surface is 3, 5 or 4  ->  g_siegeApproachScore += 1
+/// DAT_0057A0D8 += 1;
+/// ```
+///
+/// So the approach score is worth **up to four** for a cell that opens onto
+/// castle ground on every side and nothing at all for one out in the water,
+/// which is what makes the besieger's fill work inward. The accumulator goes up
+/// by one whatever the neighbours say, and that is the number the county is
+/// billed five man-seasons of digging for.
+///
+/// Returns the approach score gained.
+pub fn fill_moat_cell(field: &mut Battlefield, state: &mut SiegeState, cell: usize) -> i32 {
+    {
+        let c = &mut field.cells[cell];
+        c.surface = SURFACE_FILLED;
+        c.flags = 0;
+        c.gfx &= 0x0F;
+        // The terrain byte was the fill counter; the original zeroes it at the
+        // call site, immediately before this.
+        c.terrain = crate::terrain::id::OPEN;
+    }
+    let mut score = 0;
+    for n in orthogonal_neighbours(cell) {
+        if matches!(
+            field.cells[n].surface,
+            SURFACE_GROUND | SURFACE_RAMPART | SURFACE_BREACH
+        ) {
+            score += 1;
+        }
+    }
+    state.moat_filled = state.moat_filled.saturating_add(1);
+    score
+}
+
+/// The four orthogonal neighbours of a cell, clipped at the field edge — the
+/// order `FUN_0047DD86` and `FUN_0047DFE0` both read them in: north, east,
+/// south, west.
+pub fn orthogonal_neighbours(cell: usize) -> impl Iterator<Item = usize> {
+    let (x, y) = ((cell % DIM) as i32, (cell / DIM) as i32);
+    [(0i32, -1i32), (1, 0), (0, 1), (-1, 0)].into_iter().filter_map(move |(dx, dy)| {
+        let (nx, ny) = (x + dx, y + dy);
+        (nx >= 0 && ny >= 0 && nx < DIM as i32 && ny < DIM as i32)
+            .then_some(ny as usize * DIM + nx as usize)
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -276,15 +556,31 @@ pub fn our_castle(level: u8) -> Battlefield {
         }
     }
 
-    // The gate, in the middle of the wall facing the besieger, and the
-    // drawbridge in front of it where the level has one.
-    let gate = (cx, cy + half);
+    // **The gatehouse**, in the middle of the wall facing the besieger, where
+    // the level has one — *"only the Stone and Royal castles have
+    // drawbridges."*
+    //
+    // It is `DRAWBRIDGE_COLS` wide and three deep so that the patch
+    // [`lower_drawbridge`] lays down lands on it: the routine anchors on the
+    // **first** `0x40` cell in row-major order and runs 7 × 4 south and east
+    // from there, so the block's north-west corner has to be the north-west
+    // corner of the patch. Four wall cells, then the moat, then three cells of
+    // open ground — which is a bridge across the ditch and a hole in the wall,
+    // in one stroke, and is exactly what the four bytes the original writes
+    // amount to.
+    //
+    // While it is up the cells are flagged `0x40`, which `Cell_TryEnter`
+    // refuses to **both** sides: a raised drawbridge is a shut gate.
     if level >= 3 {
-        for step in 1..=2 {
-            let (x, y) = (gate.0, gate.1 + step);
-            if (0..DIM as i32).contains(&y) {
+        let gate_x = cx - DRAWBRIDGE_COLS as i32 / 2;
+        for dy in 0..3i32 {
+            for dx in 0..DRAWBRIDGE_COLS as i32 {
+                let (x, y) = (gate_x + dx, cy + half + dy);
+                if !(0..DIM as i32).contains(&x) || !(0..DIM as i32).contains(&y) {
+                    continue;
+                }
                 let c = &mut cells[at(x, y)];
-                c.flags = (c.flags & !flag::IMPASSABLE) | FLAG_DRAWBRIDGE;
+                c.flags = FLAG_DRAWBRIDGE;
                 c.terrain = id::OPEN;
                 c.surface = SURFACE_GROUND;
                 c.elevation = 0;
@@ -292,9 +588,20 @@ pub fn our_castle(level: u8) -> Battlefield {
         }
     }
 
-    // The way in — one cell, in the middle of the bailey.
+    // **The way in** — one cell, in the middle of the bailey, and it is left at
+    // the bailey's own elevation.
+    //
+    // > It used to stand at 3 against a bailey of 1, and that made the third
+    // > way a siege can end unreachable. `Formation_SlotIsUsable` rejects a
+    // > slot more than one below the destination's elevation and
+    // > `Formation_RectIsClear` rejects a rectangle whose slots are not *at*
+    // > it, so an order onto a keep two levels above its own courtyard is an
+    // > order no figure is ever given — the besiegers walk into the bailey,
+    // > find nowhere to stand, and the battle runs for ever with the gate open
+    // > and two men of the garrison alive in a corner. Found by fighting one to
+    // > the end, which nothing had done. The elevation was ours to begin with;
+    // > `docs/decisions.md` `CNEW-keep-unreachable`.
     cells[at(cx, cy)].flags |= FLAG_KEEP;
-    cells[at(cx, cy)].elevation = 3;
 
     let mut field = Battlefield {
         cells,

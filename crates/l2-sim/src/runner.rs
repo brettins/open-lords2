@@ -113,6 +113,18 @@ pub struct Fighter {
     /// How many times this figure has been re-routed — `routed`, `+0x166`.
     /// Not morale; see `docs/battle.md` §8.3.
     pub reroutes: u16,
+    /// **The moat cell this figure is shovelling into** — figure record
+    /// `+0x190`, with `+0x18F` folded into the `Option`.
+    ///
+    /// The original latches it inside `Cell_TryEnter`: a figure in state 9
+    /// whose step is refused *because the destination is water* keeps the
+    /// destination and starts tipping. Ours latches it in
+    /// [`BattleRunner::fill_moat_tick`] for the same reason and at the same
+    /// moment — the step it cannot take.
+    pub moat_cell: Option<u32>,
+    /// Figure record `+0x18E` — frames since the last load went in, against
+    /// [`crate::siege::MOAT_TICKS_PER_LOAD_HUMAN`] or its AI twin.
+    pub moat_load: u8,
 }
 
 impl Fighter {
@@ -508,6 +520,20 @@ impl BattleRunner {
             u.target_x = x as i16;
             u.target_y = y as i16;
             u.withdrawing = false;
+            // **`g_battleUnits[unit].field_0x13 = 1`** — the reform gate, set by
+            // `BattleUnit_Order` on every order and cleared by `BattleUnit_Reform`
+            // once it has been honoured.
+            //
+            // > It was set by nothing here, which left one figure state
+            // > permanently out of a player's reach. `Formation_SendFigure`
+            // > refuses to re-issue a destination to a figure **in state 9**
+            // > *unless the gate is set* — that is what stops a reform pulling
+            // > men out of the ditch every 500 frames — so with the gate never
+            // > set, a man ordered to fill a moat in could never be ordered to
+            // > do anything else for the rest of the battle. `[V]` — the
+            // > original sets it unconditionally at `0x004A...`'s order tail and
+            // > clears it again only for a *non-human* unit under one arm.
+            u.reform_gate = true;
             if u.in_melee {
                 u.order_lock = crate::unit::ORDER_LOCK;
             }
@@ -679,6 +705,8 @@ impl BattleRunner {
                         barred: 0,
                         hold: 0,
                         reroutes: 0,
+                        moat_cell: None,
+                        moat_load: 0,
                     });
                 }
                 left -= unit_men;
@@ -1057,6 +1085,16 @@ impl BattleRunner {
         }
         let (footprint, cols) = self.unit_geometry(unit, &members);
         let target = self.unit_dest(unit);
+        // **`DAT_00553FE4` — "this unit was ordered onto water".**
+        // `Formation_RectIsClear` caches it off the *unit's destination* and
+        // then rejects the rectangle for the same reason, so every figure of a
+        // unit sent at the moat enters state 9 while walking to a **dry** slot
+        // beside it. Passed down rather than kept in a global, but it has to be
+        // the destination's surface and not the slot's — see
+        // [`Self::send_figure`], where reading the slot's is what made state 9
+        // unreachable.
+        let dest_is_water =
+            self.field.at(target.0 as usize, target.1 as usize).surface == crate::siege::SURFACE_WATER;
         if self.rect_is_clear(unit, target, members.len(), footprint, cols) {
             let rect = formation::compute_rect(target, members.len(), footprint, cols);
             let mut assigned = vec![false; members.len()];
@@ -1066,10 +1104,10 @@ impl BattleRunner {
                     continue;
                 };
                 assigned[k] = true;
-                self.send_figure(unit, members[k], x, y);
+                self.send_figure(unit, members[k], x, y, dest_is_water);
             }
         } else {
-            self.assign_searched_slots(unit, &members, target);
+            self.assign_searched_slots(unit, &members, target, dest_is_water);
         }
         self.units.get_mut(unit).reform_gate = false;
     }
@@ -1146,7 +1184,13 @@ impl BattleRunner {
     /// (`0x0048A672`), whose field-battle half is reproduced: a cell holding an
     /// enemy figure is usable, a cell holding another friendly unit's figure is
     /// not, and an impassable empty cell is not.
-    fn assign_searched_slots(&mut self, unit: usize, members: &[usize], target: (i16, i16)) {
+    fn assign_searched_slots(
+        &mut self,
+        unit: usize,
+        members: &[usize],
+        target: (i16, i16),
+        dest_is_water: bool,
+    ) {
         let mut assigned = vec![false; members.len()];
         let mut claimed: Vec<(i32, i32)> = Vec::with_capacity(members.len());
         for _ in 0..members.len() {
@@ -1158,7 +1202,7 @@ impl BattleRunner {
                 break;
             };
             assigned[k] = true;
-            self.send_figure(unit, members[k], x, y);
+            self.send_figure(unit, members[k], x, y, dest_is_water);
         }
     }
 
@@ -1217,7 +1261,25 @@ impl BattleRunner {
 
     /// `Formation_SendFigure` (`0x00489B8D`): one figure's destination and the
     /// state it walks there in.
-    fn send_figure(&mut self, unit: usize, fighter: usize, x: i32, y: i32) {
+    ///
+    /// `dest_is_water` is `DAT_00553FE4`, and it is **the unit's ordered
+    /// destination, not this figure's slot**.
+    ///
+    /// > **That distinction is the whole of why the moat had never once been
+    /// > filled in.** This function used to read `cell.surface == 2` off the
+    /// > slot it was sending the figure to, which reads like the same thing and
+    /// > is not: a slot is only ever chosen by `Formation_SlotIsUsable` or by
+    /// > the formation rectangle, and **both of them reject an impassable empty
+    /// > cell** — which every moat cell is. So the water branch could not be
+    /// > reached from any order, by the player or by the AI, and
+    /// > `State::FillingMoat` had no writer at all. The original instead caches
+    /// > the flag in `Formation_RectIsClear` off the *unit's* destination and
+    /// > then rejects the rectangle for the same reason, so a unit ordered at
+    /// > the ditch has every one of its figures enter state 9 while walking to a
+    /// > **dry** slot beside it; `BattleMan_Step`'s state-9 arm then latches
+    /// > whatever impassable cell stops it. `docs/decisions.md`
+    /// > `CNEW-moat-unreachable`. `[V]` — two functions and one global.
+    fn send_figure(&mut self, unit: usize, fighter: usize, x: i32, y: i32, dest_is_water: bool) {
         let sim = self.fighters[fighter].sim;
         let gate = self.units.get(unit).reform_gate;
         let state = self.sim.figures[sim].state;
@@ -1247,10 +1309,12 @@ impl BattleRunner {
         let mut dest = (x as u8, y as u8);
         let mut new_state = State::Idle;
         if !troop.is_siege() {
-            if cell.surface == 2 {
+            if dest_is_water {
                 // Water: fill the moat in. Knights alone are returned unchanged
                 // — `docs/battle-ai.md` §5, and `L2.eng` group 214 index 3 is
-                // the corroborating help text.
+                // the corroborating help text. The original's `return` here is
+                // total: a knight given a moat order keeps whatever destination
+                // and state it already had.
                 if troop == Troop::Knights {
                     return;
                 }
@@ -1300,6 +1364,15 @@ impl BattleRunner {
         self.fighters[i].phase = self.fighters[i].phase.wrapping_add(1);
         if self.fighters[i].hold > 0 {
             self.fighters[i].hold -= 1;
+        }
+
+        // **The moat, before anything else.** State 9 is a whole slot of
+        // `g_manStateTable`, so the original never reaches the melee search or
+        // the mover while a figure is tipping earth; only when it has nothing
+        // to tip into does the handler fall through to walking. `true` here is
+        // "it is busy shovelling".
+        if self.fill_moat_tick(i) {
+            return;
         }
 
         // A duel is a *mutual* lock. Break it when the other half is gone —
@@ -1733,13 +1806,21 @@ impl BattleRunner {
             self.wall_hits[cell] = 0;
             self.field.cells[cell].surface = crate::siege::SURFACE_BREACH;
             self.field.cells[cell].flags &= !crate::siege::FLAG_WALL;
-            self.field.cells[cell].elevation = 1;
+            self.field.cells[cell].elevation = crate::siege::BREACH_ELEVATION;
             self.blocked[cell] = self.field.cells[cell].impassable();
             self.refresh_ai_surfaces();
             let score = self.rampart_neighbours(cell);
             self.ai.breach_score += score;
             self.ai.approach_score += score;
             self.siege.ramparts_breached += 1;
+            // **The wall-damage accumulator**, and it is the *same* count.
+            // `FUN_0047DFE0` writes the two in one statement per neighbour —
+            // `g_siegeBreachScore++; FUN_0048EE46(nb); DAT_0056D648++;` — four
+            // times over, so the number the county is billed in wood or stone
+            // is exactly the number the besieger's AI is rewarded with.
+            // `docs/bugs.md` B69.
+            self.siege.wall_damage =
+                self.siege.wall_damage.saturating_add(score.max(0) as u16);
         }
         let m = self.missiles.get_mut(slot);
         m.class = missile::CLASS_DEBRIS;
@@ -1747,6 +1828,235 @@ impl BattleRunner {
         m.sub_steps = 1;
         m.dx = 0;
         m.dy = 0;
+    }
+
+    /// **Lower the drawbridge** — `FUN_00496B9F` (`0x00496B9F`), from the
+    /// battlefield's third button.
+    ///
+    /// # This is simulation, not display
+    ///
+    /// It rewrites cell flags and surfaces, which is what `Cell_TryEnter` and
+    /// the pathfinder read, and it moves two AI scores. Two lockstep peers that
+    /// disagreed about whether it had fired would be walking their figures
+    /// through different castles within the tick. So it is **a player order
+    /// that enters the simulation**, and `docs/netcode.md`'s rule applies to
+    /// it: the original agrees, and says so in the only way it can — the
+    /// button's own handler sends `Net_SendCommand(0x45, 0)` instead of calling
+    /// this whenever `g_multiplayer` is set, so the *order* crosses the wire
+    /// and every peer runs the routine itself.
+    ///
+    /// Answers `true` when the bridge came down. `false` means there was no
+    /// `0x40` cell on the field or it is already down, and — reproduced from
+    /// the original, where the latch is set *inside* the search's `if` — a
+    /// castle with no drawbridge cell leaves the button live rather than
+    /// spending it.
+    ///
+    /// // arm: 0x00496B9F/lower-drawbridge
+    pub fn lower_drawbridge(&mut self) -> bool {
+        if !self.siege.is_siege {
+            return false;
+        }
+        let Some(_anchor) = crate::siege::lower_drawbridge(&mut self.field, &mut self.siege) else {
+            return false;
+        };
+        // `g_siegeApproachScore += 4; g_siegeBreachScore += 4;` — the same four
+        // the twenty-thousandth ram hit is worth, because it is the same event
+        // seen from the other side of the gate.
+        self.ai.approach_score += crate::siege::GATE_BREACH_SCORE;
+        self.ai.breach_score += crate::siege::GATE_BREACH_SCORE;
+        // `Path_BuildTerrainTemplate(); Path_BuildElevation();` — the two
+        // pathfinder planes the routine rebuilds, which here is the blocked
+        // map and the AI's copy of the surfaces.
+        for (c, cell) in self.field.cells.iter().enumerate() {
+            self.blocked[c] = cell.impassable();
+        }
+        self.refresh_ai_surfaces();
+        true
+    }
+
+    /// **What this siege did to the castle**, for
+    /// `Siege_RecordCastleDamage` (`0x004784CA`) on the campaign side.
+    ///
+    /// The six values that function copies out of battle globals and into the
+    /// county record, gathered in one place so that `l2-kingdom` can bill the
+    /// repair without ever seeing a battlefield. A field battle answers all
+    /// zeroes, and so does a siege in which nobody filled a ditch or knocked a
+    /// wall down — which is the same *nothing* the autocalc path produces, and
+    /// is why a calculated assault leaves the castle unmarked.
+    pub fn castle_damage(&self) -> crate::siege::CastleDamage {
+        crate::siege::CastleDamage {
+            moat_filled: self.siege.moat_filled,
+            wall_damage: self.siege.wall_damage,
+            breach_score: self.ai.breach_score,
+            approach_score: self.ai.approach_score,
+            ramparts_breached: self.siege.ramparts_breached.min(u8::MAX as u32) as u8,
+            gate_open: self.siege.gate_breached,
+        }
+    }
+
+    /// **What the last siege on this castle left** — `FUN_004787A4`
+    /// (`0x004787A4`), the **last statement but one of
+    /// `Battlefield_BuildCastle`**, so it overwrites the fresh scores
+    /// `Battle_Start` had just written.
+    ///
+    /// A besieger thrown off a half-wrecked castle comes back to find its
+    /// progress where it left it: the two accumulators, both scores, the
+    /// ramparts already down and a gate already open.
+    ///
+    /// > **It restores the *numbers* and not the field.** The moat is water
+    /// > again, the breaches are walls again, and only the six counters carry
+    /// > over — plus the castle *level*, which `assault_castle_level` lowers on
+    /// > the campaign side. That asymmetry is the original's and it has a
+    /// > consequence worth naming: because the two accumulators come back
+    /// > non-zero, the **next** assault's `Siege_RecordCastleDamage` fires even
+    /// > if nothing new is damaged, and bills the same repair a second time on
+    /// > top of the first. `docs/bugs.md` `CNEW-siege-rebilled`. `[V]` on the
+    /// > round trip, `[I]` that nobody meant the double bill.
+    pub fn restore_castle_damage(&mut self, d: crate::siege::CastleDamage) {
+        self.siege.moat_filled = d.moat_filled;
+        self.siege.wall_damage = d.wall_damage;
+        self.siege.ramparts_breached = d.ramparts_breached as u32;
+        self.siege.gate_breached = d.gate_open;
+        self.ai.breach_score = d.breach_score;
+        self.ai.approach_score = d.approach_score;
+    }
+
+    /// Whether this battlefield has a drawbridge at all — what
+    /// `FUN_00496B9F`'s scan is looking for, asked without spending the latch.
+    pub fn has_drawbridge(&self) -> bool {
+        self.field.cells.iter().any(|c| c.flags & crate::siege::FLAG_DRAWBRIDGE != 0)
+    }
+
+    /// **`BattleMan_StateFillMoat` (`0x00483FE1`)** — slot 9 of
+    /// `g_manStateTable`, one figure, one frame.
+    ///
+    /// ```c
+    /// if (latched) {
+    ///     Anim_Dying();                       /* the shovelling animation */
+    ///     if (cell.surface == 2) {
+    ///         if (cell.terrain < g_moatFillSteps) {
+    ///             if (++load > (ownerIsHuman ? 100 : 0x50)) { load = 0; cell.terrain++; }
+    ///         } else { cell.terrain = 0; Moat_Fill(cell); unlatch; }
+    ///     } else unlatch;
+    /// }
+    /// ```
+    ///
+    /// > **A moat cell takes four loads, not fifteen**, and the reason is that
+    /// > the counter does not start at zero. `Battlefield_BuildCastle` writes
+    /// > `terrain = 11` — the water id — into every moat cell and `terrain = 1`
+    /// > into everything else (`docs/battle.md` §3.0), and *this* is what reads
+    /// > the byte back: it counts it up to `g_moatFillSteps`, which is 15. So
+    /// > the cell's own terrain id is the fill counter's starting value, and a
+    /// > moat is four loads deep at 101 frames each. `[V]` on both numbers,
+    /// > `[I]` that the reuse is deliberate rather than a happy accident — on a
+    /// > castle battlefield the terrain byte holds nothing else.
+    ///
+    /// The handler's **tail** matters as much as its body, and is the second
+    /// half of why nothing ever came out of the ditch:
+    ///
+    /// ```c
+    /// if (!latched) {
+    ///     if (FUN_004926FB(cur) == 0) { state = 5; }        /* no ditch left  */
+    ///     else { Anim_Walk(); BattleMan_Step(0); … }        /* go to the next */
+    /// }
+    /// ```
+    ///
+    /// `FUN_004926FB` answers 1 if the figure's own destination is already
+    /// water, and otherwise hunts radii 1…19 for a cell that is and **retargets
+    /// the figure at it**. So a man who has filled one cell walks to the next
+    /// one by himself, and only when there is no water within nineteen cells
+    /// does he leave state 9. Without that tail a figure sat on the cell it had
+    /// just filled for the rest of the battle, and — because
+    /// `Formation_SendFigure` will not re-issue to state 9 — could not be
+    /// ordered off it either.
+    ///
+    /// Returns `true` while the figure is busy, which is what stops the rest of
+    /// the tick.
+    fn fill_moat_tick(&mut self, i: usize) -> bool {
+        let sim = self.fighters[i].sim;
+        if self.sim.figures[sim].state != State::FillingMoat {
+            return false;
+        }
+        let unlatch = |s: &mut Self| {
+            s.fighters[i].moat_cell = None;
+            s.fighters[i].moat_load = 0;
+        };
+        let Some(cell) = self.fighters[i].moat_cell.map(|c| c as usize) else {
+            // Not tipping into anything. Is there still a ditch to walk to?
+            let (tx, ty) = self.fighters[i].target;
+            if self.field.at(tx as usize, ty as usize).surface == crate::siege::SURFACE_WATER {
+                return false;
+            }
+            match self.nearest_water(self.fighters[i].x, self.fighters[i].y) {
+                Some((x, y)) => {
+                    if self.fighters[i].target != (x, y) {
+                        self.fighters[i].target = (x, y);
+                        self.fighters[i].path.clear();
+                        self.fighters[i].barred = 0;
+                    }
+                }
+                // `state = 5`. The ditch is full, or what is left of it is out
+                // of reach; the figure goes back to being a soldier.
+                None => self.sim.figures[sim].state = State::Idle,
+            }
+            return false;
+        };
+        if self.field.cells[cell].surface != crate::siege::SURFACE_WATER {
+            unlatch(self);
+            return false;
+        }
+        // `Anim_Dying` is the animation the original plays here, and this is
+        // its only caller in the whole binary — a man bent double over a
+        // shovel, reused.
+        self.fighters[i].anim = Motion::Dying;
+        if self.field.cells[cell].terrain < crate::siege::MOAT_FILL_STEPS {
+            let human = self.sim.figures[self.fighters[i].sim].owner_is_human;
+            let per_load = if human {
+                crate::siege::MOAT_TICKS_PER_LOAD_HUMAN
+            } else {
+                crate::siege::MOAT_TICKS_PER_LOAD_AI
+            };
+            self.fighters[i].moat_load = self.fighters[i].moat_load.saturating_add(1);
+            if self.fighters[i].moat_load > per_load {
+                self.fighters[i].moat_load = 0;
+                self.field.cells[cell].terrain += 1;
+            }
+            return true;
+        }
+        self.field.cells[cell].terrain = 0;
+        let score = crate::siege::fill_moat_cell(&mut self.field, &mut self.siege, cell);
+        self.ai.approach_score += score;
+        self.blocked[cell] = self.field.cells[cell].impassable();
+        self.refresh_ai_surfaces();
+        unlatch(self);
+        true
+    }
+
+    /// `FUN_00496768` through `FUN_004926FB` — the **nearest cell of surface 2**
+    /// within nineteen, by the expanding-radius scan `Siege_FindCellSurface5`
+    /// uses for the rampart.
+    fn nearest_water(&self, x: u8, y: u8) -> Option<(u8, u8)> {
+        let (x, y) = (x as i32, y as i32);
+        for radius in 1..20i32 {
+            let mut best: Option<(i32, u8, u8)> = None;
+            for cy in (y - radius).max(0)..=(y + radius).min(DIM as i32 - 1) {
+                for cx in (x - radius).max(0)..=(x + radius).min(DIM as i32 - 1) {
+                    if self.field.at(cx as usize, cy as usize).surface
+                        != crate::siege::SURFACE_WATER
+                    {
+                        continue;
+                    }
+                    let d = (cx - x).abs() + (cy - y).abs();
+                    if best.is_none_or(|(b, _, _)| d < b) {
+                        best = Some((d, cx as u8, cy as u8));
+                    }
+                }
+            }
+            if let Some((_, cx, cy)) = best {
+                return Some((cx, cy));
+            }
+        }
+        None
     }
 
     /// How many of a cell's four orthogonal neighbours are still rampart — what
@@ -1831,6 +2141,27 @@ impl BattleRunner {
             return;
         }
         if self.blocked[dst] {
+            // **`BattleMan_Step`'s state-9 arm.** `Cell_TryEnter` answered 2 —
+            // impassable — and the original asks this *before* it reroutes:
+            //
+            // ```c
+            // if (state == 9 && DAT_004EEA94 == 2) {
+            //     man.field_0x190 = DAT_004EEAD4;   /* the cell it could not enter */
+            //     man.field_0x18F = 1;
+            //     return 0;
+            // }
+            // ```
+            //
+            // So a figure sent to fill the moat in latches onto **whatever
+            // stopped it**, water or not — there is no surface test here. The
+            // handler's own first statement unlatches it again if the cell
+            // turns out not to be water, which is why the original can afford
+            // to be this blunt, and it is reproduced blunt.
+            if self.sim.figures[self.fighters[i].sim].state == State::FillingMoat {
+                self.fighters[i].moat_cell = Some(dst as u32);
+                self.fighters[i].moat_load = 0;
+                return;
+            }
             self.request_path(i);
             return;
         }
@@ -1933,7 +2264,7 @@ impl BattleRunner {
                     // this is how the order layer learns the wall is open.
                     self.field.cells[dst].surface = crate::siege::SURFACE_BREACH;
                     self.field.cells[dst].flags &= !FLAG_WALL;
-                    self.field.cells[dst].elevation = 1;
+                    self.field.cells[dst].elevation = crate::siege::BREACH_ELEVATION;
                     self.blocked[dst] = self.field.cells[dst].impassable();
                     self.refresh_ai_surfaces();
                     self.ai.breach_score += 1;
@@ -1942,6 +2273,14 @@ impl BattleRunner {
                 crate::siege::WallBlow::GateBreached => {
                     self.field.cells[dst].surface = crate::siege::SURFACE_BREACH;
                     self.field.cells[dst].flags &= !(FLAG_WALL | FLAG_DRAWBRIDGE);
+                    // **A breach is at ground level, and this arm did not say
+                    // so.** It left the cell at the wall's own elevation, and
+                    // `movement::can_step_elevation` allows a step of at most
+                    // one — so a besieger standing on the ground outside a
+                    // two-high wall could smash the gate open and still not
+                    // walk through it. Nothing caught it because nothing had
+                    // ever fought a siege to its end.
+                    self.field.cells[dst].elevation = crate::siege::BREACH_ELEVATION;
                     self.blocked[dst] = self.field.cells[dst].impassable();
                     self.refresh_ai_surfaces();
                     self.ai.breach_score += crate::siege::GATE_BREACH_SCORE;
@@ -3118,6 +3457,8 @@ mod tests {
                 barred: 0,
                 hold: 0,
                 reroutes: 0,
+                moat_cell: None,
+                moat_load: 0,
             });
             r.occupant[40 * DIM + x as usize] = Some((r.fighters.len() - 1) as u16);
         }
@@ -3189,6 +3530,8 @@ mod tests {
             barred: 0,
             hold: 0,
             reroutes: 0,
+            moat_cell: None,
+            moat_load: 0,
         });
         r.occupant[40 * DIM + 24] = Some((r.fighters.len() - 1) as u16);
         let before = r.sim.figures[screen].hits;
@@ -3256,6 +3599,8 @@ mod tests {
             barred: 0,
             hold: 0,
             reroutes: 0,
+            moat_cell: None,
+            moat_load: 0,
         });
         r.occupant[40 * DIM + 22] = Some((r.fighters.len() - 1) as u16);
         r.run(600);

@@ -3547,6 +3547,110 @@ something other than the thing being bounded. Here it was a neighbouring symbol'
 
 `g_netCmdHandlers` is now in `symbols.json` and both counts are corrected.
 
+**CNEW-drawbridge-not-engines — `FUN_00496B9F` is the garrison lowering its drawbridge, and
+the hand-off called it siege-engine placement.**
+
+The brief this work was done from described `FUN_00496B9F` as *"siege-engine placement, and
+it is the thing to implement"*, from a correct reading of what the function *writes*: a 7 × 4
+patch over the first `flags & 0x40` cell, surface 3, frames from `DAT_004D9E18`, four on both
+siege scores, pathfinding rebuilt. Every one of those is true. The verb was wrong, and four
+independent sources say so:
+
+* the button that calls it, `FUN_0043BBE7`, has three refusals and the game wrote all three —
+  `L2.eng` group 110 *"Sieges only!"*, group **111 *"No drawbridge!"*** and group **157
+  *"Drawbridge is down."***;
+* its guard is `g_castleLevel < 3`, and the shipped `Readme.txt` says *"only the Stone and
+  Royal castles have drawbridges"* — the same two castles;
+* the Readme also says *"within a siege, drawbridges can not be closed once they have been
+  opened"*, which is `DAT_0052AF9C`, the one-shot latch the routine sets;
+* the routine sets `_DAT_00569588` and adds 4 to both scores, which are **exactly** the three
+  writes `BattleMan_StateRamGate` makes on the twenty-thousandth gate hit. The garrison
+  opening its own gate is indistinguishable, to the besieger's AI, from the besieger breaking
+  it — which is what makes the Readme's sentence a rule rather than an interface quirk.
+
+`crates/l2-sim/src/siege.rs` already read `0x40` as the drawbridge and cited the Readme for
+it; the hand-off and the code disagreed and nothing compared them. The lesson is not that a
+decompiler reading was wrong — it was right about every byte — but that **naming a verb from
+what a function writes, without asking what the game calls it, is a different act from
+reading it**, and `L2.eng` is the cheapest check there is. `docs/formats/eng.md` §5 is
+indexed by group for exactly this, and the answer was two lines of it.
+
+**CNEW-moat-unreachable — the moat-fill state had no writer, because the flag was read off
+the wrong cell.**
+
+`State::FillingMoat` was in `l2-sim` from the start, `crate::ai`'s `Order_ToBreachOrStaging`
+ordered units at the ditch, and **not one figure ever entered the state**, in any battle, by
+any route. `Formation_SendFigure` tested `cell.surface == 2` on the **slot it was sending the
+figure to** — which reads like the same thing as the original's `DAT_00553FE4` and is not. A
+slot is chosen either by the formation rectangle or by `Formation_SlotIsUsable`, and *both of
+them reject an impassable empty cell*, which every moat cell is. The water branch was
+unreachable by construction.
+
+The original caches the flag in `Formation_RectIsClear`, off the **unit's ordered
+destination**, and then rejects the rectangle for the same reason — so a unit sent at the
+ditch has *every* figure enter state 9 while walking to a **dry** slot beside it, and
+`BattleMan_Step`'s state-9 arm latches whatever impassable cell stops it.
+
+Two more halves were missing with it, and each alone was enough to keep the state inert:
+
+* **the handler's tail.** `FUN_004926FB` retargets a figure that has finished a cell at the
+  nearest water within nineteen, and only when there is none left does it drop to state 5.
+  Without it a man stood on the cell he had just filled for the rest of the battle.
+* **the reform gate.** `BattleUnit_Order` sets `g_battleUnits[unit].field_0x13 = 1` on every
+  order, and `Formation_SendFigure` refuses to re-issue to a state-9 figure *unless* it is
+  set. Nothing here set it, so a man ordered to fill a ditch could never be ordered to do
+  anything else again.
+
+This is C27's shape three times over in one feature, and the reason none of the three showed
+up is the same: **nothing had ever fought a siege to its end.** The `l2-sim` tests ran 600
+frames to enumerate handlers; the seam tests asserted that a result came back. The first test
+that watched one for sixty thousand frames found all three in an afternoon, plus
+`CNEW-keep-unreachable` below.
+
+**CNEW-keep-unreachable — the third way a siege can end could not be reached, and the
+elevation was ours.**
+
+`crates/l2-sim/src/siege.rs`'s `our_castle` put the `FLAG_KEEP` cell at elevation 3 in a
+bailey of elevation 1. `Formation_RectIsClear` rejects a rectangle whose slots are not *at*
+the destination's elevation and `Formation_SlotIsUsable` rejects a slot more than one below
+it, so an order onto that cell was an order no figure was ever given: the besiegers walked
+into the bailey, found nowhere to stand and stopped. `Battle_CheckOutcome`'s third arm —
+*"getting one man to the keep's door ends the siege"* — was documented, implemented, and
+unreachable.
+
+The elevation was invented here rather than read, so it is corrected here rather than
+catalogued in `docs/bugs.md`. Two neighbouring numbers were the same kind of thing and both
+are cited now: a breach is left at `BREACH_ELEVATION` = 0 because `Wall_Collapse`
+(`0x0047DFE0`) writes `elevation = 0`, and the gate-breach arm had been leaving it at the
+wall's own height — a hole in a two-high wall that a man on the ground cannot step through,
+because `can_step_elevation` allows one.
+
+**CNEW-defender-choice — a player besieged by an AI could not end his turn.**
+
+`turn::question_for` computed `g_battleChoiceOwner` as a paraphrase of
+`Battle_ChooseSettlement` (`0x004A6A30`), and the paraphrase tested the **defender's**
+`ownerIsHuman` where the original tests the **attacker's**. The original is two `if`s and the
+second overrides the first:
+
+```c
+if (units[armyA].owner == localPlayer) choiceOwner = 1;
+if (units[armyB].owner == localPlayer) choiceOwner = units[armyA].ownerIsHuman ? 2 : 1;
+```
+
+— *a human defender attacked by an AI holds the choice himself*, and only two humans put it
+in the other man's hands. Ours handed that defender a **2**, which is the *"your opponent has
+the choice"* notice, and `Battle_ChooseSettlement` writes `DAT_00554408 = 2` — the widget
+count — only under 1. So the prompt came up with **no buttons**. In the original a
+bystander's prompt waits for the multiplayer answer timeout; single player has no such
+timeout, and ours has no timeout at all. The turn was suspended, two armies stood on one
+tile, and there was no input that would move the game on.
+
+It was unreachable until phase 2 could raise a siege prompt, which landed the same week — the
+defect and its route arrived from different directions and neither agent could see the
+other's half. It is also the gate on every garrison verb there is: the drawbridge button
+lives on the battlefield, and until this was right no besieged human could reach the
+battlefield.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

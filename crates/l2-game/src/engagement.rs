@@ -139,6 +139,15 @@ pub struct BattleReport {
     /// time anybody draws them.
     pub attacker_roster: (Roster, Roster),
     pub defender_roster: (Roster, Roster),
+    /// **What the assault did to the castle** — the six numbers
+    /// `Siege_RecordCastleDamage` (`0x004784CA`) bills the repair from, kept on
+    /// the report so a screen can say *"the walls are breached"* without
+    /// re-reading a county that may since have changed hands.
+    ///
+    /// All zeroes for a field battle, and all zeroes for a siege that was
+    /// **calculated** rather than fought: the accumulators only move while men
+    /// are shovelling and shot is landing.
+    pub castle_damage: l2_sim::CastleDamage,
 }
 
 /// One army's seven campaign troop counts — peasant, crossbowman, maceman,
@@ -440,12 +449,21 @@ fn resolve_battle(
     );
     let take_the_field = settlement == Settlement::Prompt && answer == Answer::TakeTheField;
 
+    // **The repair bill, read before the runner is consumed.**
+    // `Siege_RecordCastleDamage` (`0x004784CA`) is billed from the battle's own
+    // accumulators, and [`conclude_fight`] takes the runner by value, so the six
+    // numbers are lifted off it here.
+    let mut castle_damage = fought.as_ref().map(|r| r.castle_damage()).unwrap_or_default();
+
     let (verdict, resolution) = if let Some(runner) = fought {
         // **The player watched it.** Everything after this point is the same
         // code the headless path runs; only the ticks came from somewhere else.
         conclude_fight(kingdom, attacker, defender, runner)
     } else if take_the_field {
-        fight(kingdom, attacker, defender, castle_level, seed)?
+        let (runner, verdict, resolution) =
+            fight(kingdom, attacker, defender, castle_level, seed)?;
+        castle_damage = runner;
+        (verdict, resolution)
     } else {
         let verdict =
             battle::auto_resolve(&mut kingdom.campaign.units, attacker, defender, castle_level)?;
@@ -464,6 +482,42 @@ fn resolve_battle(
     // cause of the conclusion. Nothing else can set it, which is the whole
     // point of C31.
     let withdrawal = matches!(resolution, Resolution::Fought { cause: End::Withdrawal, .. });
+
+    // **Bill the repair, before the county can change hands.**
+    // `Siege_RecordCastleDamage` (`0x004784CA`) has exactly **one** caller and
+    // it is not `Battle_ReturnToCampaign`, whatever `docs/symbols.md` says —
+    // it is `FUN_004782C5`, the outcome banner's frame counter, at the moment
+    // the 5,000 frames run out:
+    //
+    // ```c
+    // if (screen == '+' && ++DAT_00568470 > 5000) {
+    //     if (!skirmish && !multiplayer) Siege_RecordCastleDamage();
+    //     if (choiceOwner == 1 && !skirmish) Battle_WriteBackCasualties();
+    //     if (!skirmish) Battle_ReturnToCampaign(1);
+    // }
+    // ```
+    //
+    // Three rules come out of that call site and each of them is visible:
+    //
+    // * **Only a battle somebody watched to its end bills a repair.**
+    //   `Battle_Decline` and the retreat/autocalc button both leave for the
+    //   report screen without ever reaching this counter, so a player who
+    //   knocks a wall down and then presses Autocalc un-knocks it down — the
+    //   same un-doing the casualty write-back suffers on that path, and for the
+    //   same reason.
+    // * **It runs before the write-back and before the return**, so the county
+    //   is billed while it still belongs to the defender and the *conqueror*
+    //   inherits both the wreck and the bill. That ordering is why this block
+    //   sits above `return_to_campaign` rather than below it.
+    // * **`g_multiplayer` skips it entirely**, which cannot be right and is not
+    //   reproduced: a peer that billed and a peer that did not would hold
+    //   different counties. `docs/netcode.md` — the original's sync is the
+    //   defect being replaced, not a model.
+    if let Some(level) = castle_level {
+        if let Some(c) = kingdom.counties.get_mut(county as usize) {
+            l2_kingdom::siege::record_castle_damage(c, level, to_scars(castle_damage));
+        }
+    }
 
     let aftermath = {
         let Kingdom { counties, realms, campaign, options, tables, .. } = kingdom;
@@ -534,7 +588,39 @@ fn resolve_battle(
         defender_owner,
         attacker_roster: (a_before, a_after),
         defender_roster: (d_before, d_after),
+        castle_damage,
     })
+}
+
+/// **The one place the two simulations' castle records meet.**
+///
+/// `l2_sim::CastleDamage` and `l2_kingdom::siege::SiegeScars` are the same six
+/// county fields written twice, in two crates that must not see each other —
+/// `docs/plan.md`'s one-way rule. This module is the only crate that depends on
+/// both, so this is the only place the conversion can live, and it is a
+/// field-for-field copy so that a reader can check it at a glance.
+fn to_scars(d: l2_sim::CastleDamage) -> l2_kingdom::siege::SiegeScars {
+    l2_kingdom::siege::SiegeScars {
+        moat_filled: d.moat_filled,
+        wall_damage: d.wall_damage,
+        breach_score: d.breach_score,
+        approach_score: d.approach_score,
+        ramparts_breached: d.ramparts_breached,
+        gate_open: d.gate_open,
+    }
+}
+
+/// The other direction — [`l2_kingdom::siege::scars_for_assault`]'s answer, put
+/// back into a battle that is opening on the same castle.
+fn from_scars(s: l2_kingdom::siege::SiegeScars) -> l2_sim::CastleDamage {
+    l2_sim::CastleDamage {
+        moat_filled: s.moat_filled,
+        wall_damage: s.wall_damage,
+        breach_score: s.breach_score,
+        approach_score: s.approach_score,
+        ramparts_breached: s.ramparts_breached,
+        gate_open: s.gate_open,
+    }
 }
 
 /// **Raise both campaign records into `l2-sim`, run the battle, and write the
@@ -563,7 +649,7 @@ fn fight(
     defender: usize,
     castle_level: Option<u8>,
     seed: u64,
-) -> Option<(Verdict, Resolution)> {
+) -> Option<(l2_sim::CastleDamage, Verdict, Resolution)> {
     let mut runner = begin_fight(kingdom, attacker, defender, castle_level, seed)?;
     // The original's frame loop asks `FUN_00477DFC` every frame; asking every
     // hundredth costs at most ninety-nine ticks of a battle that is already
@@ -574,7 +660,9 @@ fn fight(
             break;
         }
     }
-    Some(conclude_fight(kingdom, attacker, defender, runner))
+    let damage = runner.castle_damage();
+    let (verdict, resolution) = conclude_fight(kingdom, attacker, defender, runner);
+    Some((damage, verdict, resolution))
 }
 
 /// **Raise the battle and stop**, so that somebody else can supply the ticks.
@@ -629,6 +717,18 @@ pub fn begin_fight(
         ),
         None => BattleRunner::deploy_muster(blank_field(), seed, a, d),
     };
+
+    // **What the last siege on this castle left.** `FUN_004787A4` is the last
+    // statement but one of `Battlefield_BuildCastle`, so it runs *after* the
+    // fresh scores and overwrites them — which is why this sits below
+    // `deploy_siege` rather than being an argument to it.
+    if castle_level.is_some() {
+        let besieged = kingdom.campaign.units.get(attacker)?.besieging_county;
+        if let Some(c) = kingdom.counties.get_mut(besieged as usize) {
+            let scars = l2_kingdom::siege::scars_for_assault(c);
+            runner.restore_castle_damage(from_scars(scars));
+        }
+    }
 
     // A human side gets no order handler — `Battle_UpdateAllUnits` guards on
     // it — so without this it stands where it deployed until the other side

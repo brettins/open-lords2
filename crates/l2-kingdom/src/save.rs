@@ -316,7 +316,30 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   that had no quirks and so was faithful. It is refused anyway, because *"the
 ///   default happens to be correct this time"* is the reasoning that makes the
 ///   next widening wrong.
-pub const VERSION: u32 = 14;
+///
+/// * 15 — **`County::siege_scars`**, the six values county `+0x1E4` … `+0x1F1`
+///   holds between two assaults on the same castle: the moat cells filled in,
+///   the wall damage, the two progress scores, the ramparts down and whether
+///   the gate is open. [`crate::siege::record_castle_damage`] writes them at
+///   the end of a fought siege and [`crate::siege::scars_for_assault`] hands
+///   them back to the next one.
+///
+///   **They are state, not a report.** A besieger thrown off a half-wrecked
+///   castle comes back to a half-wrecked castle, and a save that dropped them
+///   would quietly rebuild the walls over a load. Two of the six also carry the
+///   repair the county is *already* paying for, so a version 14 save reloaded
+///   with them defaulted would show a castle mid-repair with no reason for it.
+///
+///   **Refusal rather than default**, on the standing reasoning — and here the
+///   default would have been right for a different reason worth writing down:
+///   a version 14 save was written by a build in which the accumulators had no
+///   writer at all, so the scars really were zero. It is refused anyway,
+///   because a version 14 save could also have `castle_degraded == 2` from
+///   nothing, which is a state this version cannot produce.
+///
+///   *Written as 15 with `VERSION` at 14 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 15;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -948,6 +971,13 @@ impl Encode for County {
         out.u8(self.castle_degraded);
         out.bool(self.castle_ruined);
         out.u8(self.castle_level_left);
+        // The scars, `VERSION` 15.
+        out.u16(self.siege_scars.moat_filled);
+        out.u16(self.siege_scars.wall_damage);
+        out.i32(self.siege_scars.breach_score);
+        out.i32(self.siege_scars.approach_score);
+        out.u8(self.siege_scars.ramparts_breached);
+        out.bool(self.siege_scars.gate_open);
         out.bool(self.castle_switch);
         out.u8(self.castle_percent);
         out.i32(self.castle_work_left);
@@ -1081,6 +1111,13 @@ impl Decode for County {
         c.castle_degraded = input.u8()?;
         c.castle_ruined = input.bool()?;
         c.castle_level_left = input.u8()?;
+        // The scars, `VERSION` 15.
+        c.siege_scars.moat_filled = input.u16()?;
+        c.siege_scars.wall_damage = input.u16()?;
+        c.siege_scars.breach_score = input.i32()?;
+        c.siege_scars.approach_score = input.i32()?;
+        c.siege_scars.ramparts_breached = input.u8()?;
+        c.siege_scars.gate_open = input.bool()?;
         c.castle_switch = input.bool()?;
         c.castle_percent = input.u8()?;
         c.castle_work_left = input.i32()?;
