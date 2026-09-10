@@ -22,10 +22,19 @@
 //!
 //! The two things a test may place are the two a scenario places: the map, and
 //! armies that already exist. One thing is placed that a scenario would not,
-//! and it is called out where it happens — **the AI does not order siege
-//! engines**, anywhere in this workspace, so a level-3 assault has to be given
-//! its catapult through `siege::order_engine`, which is the same call the
-//! player's own siege screen makes.
+//! and it is called out where it happens — the besieger here is **staged**
+//! rather than marched in, so nothing has run `Siege_Prepare` on it and its
+//! catapult has to be given through `siege::order_engine`, which is the same
+//! call the player's own siege screen makes.
+//!
+//! > **This paragraph used to say the AI never orders siege engines anywhere in
+//! > the workspace.** That was a conclusion drawn from `order_engine`'s three
+//! > callers all being the player's, and `order_engine` is the siege screen's
+//! > `+` and `−` buttons — the original's AI does not press those either. The
+//! > AI's path is `Siege_Prepare` (`0x004A7EB5`), reached from
+//! > `Unit_ReachCastleBuilding` when an army *walks onto* the castle, and it
+//! > has been implemented all along. `crates/l2-kingdom/tests/ai_siege.rs`
+//! > travels that road; what was missing was a test that did, not the code.
 
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key, Rect};

@@ -214,7 +214,7 @@ fn filling_a_moat_cell_scores_the_approach_and_bills_only_the_digging() {
         .filter(|&n| {
             matches!(
                 r.field.cells[n].surface,
-                siege::SURFACE_GROUND | siege::SURFACE_RAMPART | siege::SURFACE_BREACH
+                siege::SURFACE_GROUND | siege::SURFACE_BAILEY | siege::SURFACE_RAMPART_WALK
             )
         })
         .count() as i32;

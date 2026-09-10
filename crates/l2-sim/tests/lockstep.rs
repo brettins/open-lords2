@@ -835,6 +835,20 @@ impl Simulation for RunnerNetBattle {
         out.u64(increment);
         out.i32(self.runner.ai.strength_advantage);
         out.i32(self.runner.ai.advantage_timer);
+        // **The two siege accumulators and the defence posts are simulation
+        // state, not bookkeeping.** Both scores are read by every siege order
+        // handler, so two peers that disagreed about them would be giving
+        // different orders within the tick; and the defence-post table now
+        // *grows during the battle* — `Wall_Collapse` files each rampart
+        // neighbour it leaves hanging, and it is the table's only appender
+        // (`docs/battle.md` §14.3d) — so it stopped being a constant of the
+        // battlefield the moment a catapult could fire.
+        out.i32(self.runner.ai.approach_score);
+        out.i32(self.runner.ai.breach_score);
+        out.i32(self.runner.ai.ramparts_breached);
+        for post in self.runner.ai_field.defence_posts {
+            out.u32(post as u32);
+        }
         out.end_section();
     }
 }
