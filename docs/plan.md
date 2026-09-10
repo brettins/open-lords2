@@ -25,27 +25,29 @@ stale counts as current — one of them mine. Numbers that are frozen measuremen
 ## 0.0 Starting position — read this first
 
 **Written at the end of a session in which ten agents worked in parallel and one integrator
-landed fourteen merges.** It is not a summary of that evening; it is where the next person
+landed twenty merges.** It is not a summary of that evening; it is where the next person
 starts. It goes stale the moment the queue moves, so **check it against `git log` and
 `git branch` before trusting a line of it.**
 
 ### The branches that are waiting, and what each is
 
-**Every one of these is a deliberate stopping point, not abandoned work.** The agents were told
-to commit and hand off; several stopped mid-task on purpose and said so in the commit message.
-Read the message before assuming a branch is unfinished by accident.
+**Seven of the nine listed here have since landed** — `fonts-chrome-title`,
+`draws-map`, `setup-shield-colour`, `armoury-walker-village-merc`, `shared-ground` and
+`input-model`, on top of `village-idle`'s first two commits and the audio branch. What is left is
+three, and **none of the three is left for want of time**:
 
-| branch | what it is | state |
+| branch | what it is | why it is still out |
 |---|---|---|
-| `input-model` | **The gesture-kind gap** — extends `arms.json`'s schema to record what *kind* each gesture is | see below; **changes what the arm figures mean** |
-| `setup-shield-colour` | The player's colour choice carried into the world; `Realms_AssignLords` reproduced whole | clean, both suites green, one placeholder |
-| `fonts-chrome-title` | *"The fonts load. The chrome never asked for them."* | clean |
-| `shared-ground` | Four windows put back on the game's own ground, and the other 44 classified | clean, suite green |
-| `industry-sites` | The 17 sidebar industry rows, wheels turning, the toggle narration | **no tests of its own — see the debt below** |
-| `draws-map` | The reclamation forecast and the sign column | clean |
-| `armoury-walker-village-merc` | A soldier walks over and takes the weapon | three commits, one a handoff |
-| `village-idle` | The ration level control drawn out of `L2.eng` | three commits, last is a handoff |
-| `merchant-pacing` | `Unit_StepOnce`'s sub-tile counter | **8 tests red — do not merge as-is** |
+| `merchant-pacing` | `Unit_StepOnce`'s sub-tile counter | **8 tests red** — held for cause, see below |
+| `industry-sites` | The 17 sidebar industry rows, wheels, toggle narration | **no tests of its own** — held for cause, see below |
+| `village-idle` (last 3) | The ration level control, the panel's words out of `L2.eng` | **eight-file conflict** including `CLAUDE.md`, `county.rs` and `tests/screens.rs` |
+
+`village-idle`'s tail is the only one held for merge difficulty rather than for cause, and it is
+**not a hard conflict, only a wide one**: it collides with the same `county.rs` panel that two
+other branches rewrote tonight, and with `CLAUDE.md`'s `eng.md` row, which now says the thing
+that branch's last commit was written to say — *a group with one consumer is that screen's
+vocabulary*. Read both sides before resolving; the two are arguing for the same conclusion from
+different evidence, and a positional merge would keep one argument and drop the other.
 
 ### The two that need a decision rather than a merge
 
