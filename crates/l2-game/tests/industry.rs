@@ -420,3 +420,68 @@ fn a_turning_wheel_changes_the_screen_and_a_stopped_one_changes_nothing() {
         drift.first()
     );
 }
+
+/// **The wheel's phase is not in the kingdom**, and this asks it the only way
+/// that is actually available.
+///
+/// `armoury.rs`'s
+/// `a_hundred_ticks_of_the_armoury_leave_the_kingdom_byte_identical` encodes the
+/// kingdom, ticks, and requires the bytes back. **That form does not work on
+/// this screen**, and finding out why is most of the value here:
+/// `MapScreen::update` also runs `turn::tick_units_only`, so a thousand ticks of
+/// the campaign map legitimately move merchants and the encoding legitimately
+/// changes. A byte-identity assertion here would have been red for a reason
+/// with nothing to do with industry.
+///
+/// So the claim is stated as a **difference between two runs that differ only in
+/// the wheels' phase**. Two copies of the same position, the same number of
+/// ticks, and two screens whose industry counters are seven ticks apart —
+/// `MapScreen::industry_tick` and every site's frame are the display state
+/// `docs/netcode.md` D-12 says nothing below `l2-game` may read. If the phase
+/// reached the kingdom, the two encodings would differ.
+///
+/// The original has no such constraint: its animation frame lives in the tile
+/// record, which is both the simulation's map and the renderer's. That is the
+/// one place this branch departs from it, in storage and not in behaviour, and
+/// this is the assertion that keeps the departure honest.
+///
+/// **Ablation.** Write the stepped frame back into
+/// `ctx.game.kingdom.campaign.map.terrain` from `step_industry` — exactly what
+/// the original does — and this goes red while every other test in this file
+/// stays green.
+#[test]
+fn two_maps_whose_wheels_are_out_of_phase_reach_the_same_kingdom() {
+    const N: u32 = 400;
+
+    // A screen warmed on a throwaway copy of the position, so that its industry
+    // counter and its site frames run ahead of a fresh one. **47 and not 7**: the
+    // slowest rung is 40 ticks, so a seven-tick lead moves no wheel at all and
+    // both screens then take the same number of steps from the same frame. The
+    // assertion below caught exactly that, which is why it is written first.
+    let (mut warm, assets) = world!();
+    let mut ahead = MapScreen::new();
+    tick(&mut ahead, &mut warm, &assets, 47);
+
+    let (mut a, _assets_a) = world!();
+    let mut fresh = MapScreen::new();
+    tick(&mut fresh, &mut a, &assets, N);
+
+    let (mut b, _assets_b) = world!();
+    tick(&mut ahead, &mut b, &assets, N);
+
+    let frames = |s: &MapScreen| -> Vec<u8> {
+        s.industry_sites_for_test().into_iter().map(|(_, _, _, f)| f).collect()
+    };
+    assert_ne!(
+        frames(&fresh),
+        frames(&ahead),
+        "the two screens' wheels ended in the same phase, so this test compares two \
+         identical worlds and asserts nothing"
+    );
+    assert_eq!(
+        l2_kingdom::save::encode(&a.kingdom),
+        l2_kingdom::save::encode(&b.kingdom),
+        "two runs of {N} ticks over the same position reached different kingdoms, and the \
+         only thing that differed between them was where the industry wheels were"
+    );
+}
