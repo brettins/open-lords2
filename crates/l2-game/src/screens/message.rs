@@ -47,9 +47,14 @@
 //! # What this screen deliberately does not do
 //!
 //! * **Voice.** `Msg_PlayVoice` (`0x004B35C1`) is a `.wav` lookup and belongs to
-//!   the audio branch; the timer values that trigger it (`0x7C6`, `0x776`,
-//!   `0x708`, `0x76C`, `0x5A`) are recorded in [`crate::message`] and nothing
-//!   here consumes them yet.
+//!   the audio branch, and it is built: [`crate::audio::voice_tick`] is the
+//!   per-category schedule and [`crate::audio::Director`] fires it. The five
+//!   timer values (`0x7C6`, `0x776`, `0x708`, `0x76C`, `0x5A`) were cited here
+//!   as *"recorded in `crate::message`"* and **had never been written there** --
+//!   a citation that did not resolve, which is a rule with no way in wearing a
+//!   doc comment. They live beside `voice_tick` now, with the category each one
+//!   belongs to, which was the half nobody had recorded. `docs/decisions.md`
+//!   CNEW-voice.
 //! * **The Smacker.** Categories `0x0D` and `0x0E` play `cap_cty<n>.smk` and
 //!   `0x004F0340` when `g_optAnimations` is on, and *dismiss themselves from
 //!   inside the draw* to do it. We have no video player; the unanimated branch
