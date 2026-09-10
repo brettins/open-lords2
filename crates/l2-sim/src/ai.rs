@@ -156,8 +156,6 @@ pub struct AiField {
     /// `0x00542CD4`, the castle layout flag two handlers jump their `orders` to
     /// 100 on. **[I]**
     pub castle_layout_flag: bool,
-    /// `0x0055307C`, the moat flag. **[I]**
-    pub moat_flag: i32,
     /// `0x0056D590`, the castle index; 13 picks the primary objective. **[I]**
     pub castle_index: u8,
     /// Cell surface bytes, `y * 80 + x`. Empty means "no battlefield supplied",
@@ -186,7 +184,6 @@ impl AiField {
             layout: 0,
             orientation: 0,
             castle_layout_flag: false,
-            moat_flag: 0,
             castle_index: 0,
             surface: Vec::new(),
             elevation: Vec::new(),
@@ -324,6 +321,33 @@ pub struct Ai {
     /// The mechanism is read; the names are **[I]**.
     pub approach_score: i32,
     pub breach_score: i32,
+    /// **`_DAT_0055307C` — how many ways through the outer wall there are**,
+    /// mirrored from [`crate::SiegeState::ramparts_breached`] every frame.
+    ///
+    /// # It is not the moat flag, and this field used to say it was
+    ///
+    /// `AiField` carried it as `moat_flag`, `[I]`, on the strength of nothing.
+    /// The binary is unambiguous and there are only six sites:
+    ///
+    /// * **initialised** by `Battlefield_BuildCastle` — hard-coded to 1 for
+    ///   campaign castle levels **0 and 3** and 0 for the rest, or, on the
+    ///   skirmish path, from a twenty-entry table at `0x004D4A98` whose values
+    ///   are `1 0 0 0 0 1 0 0 1 0 1 0 0 0 0 0 0 1 1 1` — a per-layout flag,
+    ///   one per castle raster;
+    /// * **incremented** by `BattleMan_StateAttackWall` and
+    ///   `BattleMan_StateRamGate`, in each case at the 5,000-hit rampart
+    ///   threshold, beside `Wall_Smash` and the counter reset. Nothing else
+    ///   writes it — `Wall_Collapse` does **not**;
+    /// * **read** three times: `BattleMan_StateRamGate` sends a ram away
+    ///   (`1 < it`), and `Order_ToCastleObjective` and
+    ///   `UnitOrder_SiegeDefMissile` branch on `it < 1`.
+    ///
+    /// So it counts gaps in the wall, it is seeded because two of the five
+    /// castle layouts ship with one, and no moat function in the binary
+    /// touches it. `[V]` on the writers and readers, `[I]` on *"a gap"* as
+    /// against some other per-layout property that a rampart breach also
+    /// creates.
+    pub ramparts_breached: i32,
     /// `g_attackersOnWall`, recounted every frame. **[I]**
     pub attackers_on_wall: i32,
     /// `g_siegeEngineCount`: live figures of troop type 7, 8 or 9. **[D]**
@@ -398,6 +422,7 @@ impl Ai {
             rng: Pcg32::from_seed(seed),
             approach_score: 0,
             breach_score: 0,
+            ramparts_breached: 0,
             attackers_on_wall: 0,
             siege_engine_count: 0,
             drawbridge_down: false,
@@ -871,7 +896,7 @@ impl World<'_> {
     /// `Order_ToCastleObjective`: one of the two cells the castle builder
     /// recorded.
     fn to_castle_objective(&mut self, cur: usize, mode: usize) {
-        let cell = if mode == 1 || self.field.moat_flag >= 1 || self.field.castle_index == 13 {
+        let cell = if mode == 1 || self.ai.ramparts_breached >= 1 || self.field.castle_index == 13 {
             self.field.castle_objective[0]
         } else {
             self.field.castle_objective[1]
@@ -1398,7 +1423,7 @@ fn siege_att_missile(w: &mut World, cur: usize) {
             } else if !w.shoot_at_unit(cur, 0) {
                 w.to_nearest_wall_cell(cur);
             }
-        } else if w.field.moat_flag < 1 {
+        } else if w.ai.ramparts_breached < 1 {
             w.ai.rot_missile_objective += 1;
             if w.ai.rot_missile_objective < 6 {
                 w.to_castle_objective(cur, 0);

@@ -382,15 +382,6 @@
       "promotion": "Read Net_ResolveDest."
     },
     {
-      "addr": "0x0055307C",
-      "name": "g_rampartCellsBreached",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "How many rampart cells this siege has knocked through.",
-      "basis": "incremented beside g_wallHitsRampart every time a rampart cell is converted to surface 4",
-      "caveat": "The mechanism is read; the name is a guess at what the count is for. BattleMan_StateRamGate reads it back and sends the figure to state 11 once it passes 1."
-    },
-    {
       "addr": "0x00553D50",
       "name": "g_playerSlots",
       "section": "diplomacy",

@@ -27,7 +27,7 @@
 //! | the flags | `0x20` wall, `0x40` drawbridge, `0x08` the way in — all three from `Cell_TryEnter` |
 //! | the accumulators | 5,000 per rampart patch, 20,000 for the gate, `docs/battle.md` §14.3 |
 //! | the rates | 1 per frame per man, **20** for a battering ram |
-//! | the surfaces | 5 rampart, 4 what a breach leaves behind, 2 the moat |
+//! | the surfaces | **8 an intact wall, 5 the bailey and what a smashed wall joins, 4 the rampart walk, 9 a collapsed wall, 2 the moat** — this row said the opposite and was wrong; see the table below the flags |
 //! | the counters | approach, breach, attackers-on-wall, live engines |
 //! | who may attack what | state 14 is reachable **only** by troop type 9 |
 //!
@@ -35,13 +35,21 @@
 //!
 //! Two counters, and they are not interchangeable:
 //!
-//! * a figure standing on **surface 5** — up on the rampart — feeds
-//!   [`SiegeState::rampart_hits`]. At [`RAMPART_HITS`] that patch becomes
-//!   surface 4, the counter **resets**, and another patch can be chewed
-//!   through. A wall can be breached repeatedly.
+//! * a figure standing on **surface 5** — the bailey, or a stretch of wall
+//!   already opened — feeds [`SiegeState::rampart_hits`]. At [`RAMPART_HITS`]
+//!   [`smash_walls`] opens **every wall cell in the 9 × 9 around the attacker**,
+//!   the counter **resets**, and another patch can be chewed through. A wall
+//!   can be breached repeatedly, and each breach is nine cells wide.
 //! * a figure standing anywhere else feeds [`SiegeState::gate_hits`]. At
-//!   [`GATE_HITS`] the gate opens **once and for all** and both progress
-//!   scores gain 4. There is exactly one of those in a battle.
+//!   [`GATE_HITS`] the gate opens **once and for all**, the same 9 × 9 comes
+//!   down, and both progress scores gain 4. There is exactly one of those in a
+//!   battle.
+//!
+//! > **The 9 × 9 is the whole of why a besieger can win.** Until it was found,
+//! > a breach was one cell wide, and 848 men queueing at a one-cell hole is
+//! > indistinguishable from a besieger who cannot press an assault home. The
+//! > original's two wall-attack states both call `Wall_Smash`
+//! > (`FUN_0049694F`) with a radius of **4**, and so does the gate.
 //!
 //! A man on foot adds 1 a frame and a ram adds 20, so one ram opens a gate in a
 //! thousand frames where a lone swordsman needs twenty thousand. The Readme's
@@ -110,33 +118,175 @@ pub const FLAG_DRAWBRIDGE: u8 = 0x40;
 /// reaching one wins the siege outright.
 pub const FLAG_KEEP: u8 = 0x08;
 
-/// Surface **5** — the rampart. What a figure has to be standing on for its
-/// blows to count against [`RAMPART_HITS`], and what
-/// [`crate::ai`]'s breach score counts around a newly opened cell.
-pub const SURFACE_RAMPART: u8 = 5;
-/// Surface **4** — what a breached rampart patch becomes, and what
-/// `Siege_FindCellSurface4` hunts for. It is how the order layer learns the
-/// wall is down.
-pub const SURFACE_BREACH: u8 = 4;
-/// Surface **3** — passable castle ground, including the patch the drawbridge
-/// routine lays down.
+// ---------------------------------------------------------------------------
+// The surfaces — cell byte `+7`
+// ---------------------------------------------------------------------------
+//
+// **This block was inverted, and every constant in it has moved.** The reading
+// it replaces was that 5 was "the rampart" and 4 "what a breach leaves
+// behind"; the binary says the opposite of the second half and something else
+// again about the first. `docs/decisions.md` `C99` has the whole of
+// it. What settled it was an exhaustive search for **writers** of `surface` —
+// there are 36 in the binary and they fall into three groups: the castle
+// builder's escape codes, the flood classifier that runs immediately after it,
+// and the three routines a siege runs on a wall.
+//
+// | surface | written by | meaning |
+// |---:|---|---|
+// | 1 | classifier `FUN_0047E7B2`, flooded from the two map corners | the open field |
+// | 2 | `Battlefield_BuildCastle`, terrain `0xEE` | water — the moat |
+// | 3 | classifier `FUN_0047E668`; `Siege_LowerDrawbridge` | ground-level ground outside the castle, and the bridge patch |
+// | **4** | classifier `FUN_0047E52D` — raised ground beside a 5 | **the rampart walk.** What `Siege_FindCellSurface4` hunts |
+// | **5** | classifier `FUN_0047E387`, flooded from the keep door and the bridge — **and `Wall_Smash`** | the bailey, and what an opened wall joins |
+// | 6 | build code 6, classifier `FUN_0047E263` | the keep, and the `0x08` way in |
+// | 7 | build code 7 | the bridge |
+// | **8** | build code 8, with flag `0x20` | **an intact, breakable wall** |
+// | **9** | `Wall_Collapse` | a wall cell a catapult brought down |
+// | 0x0B | build code 9, with flag `0x40` | the raised drawbridge |
+// | 0x0E | build code 10 | the classifier's placeholder; nothing survives it |
+// | 10, 0x11 | the oil and fire effects | burning |
+
+/// Surface **8** — **an intact castle wall**, the cell that carries
+/// [`FLAG_WALL`].
+///
+/// `Battlefield_BuildCastle`'s structure code 8 writes it together with flags
+/// `0x20 | 0x04` and **elevation 1**, and `BattleMan_StateAttackWall` reads it:
+/// the handler keeps swinging while `Cell_NeighbourHasSurface(x, y-1, off, 8)`
+/// — or its two diagonal siblings — still finds one, and drops back to `dly
+/// state` when none is left. That test is the whole reason this value has to be
+/// distinguishable from what a smashed wall becomes. `[V]`.
+pub const SURFACE_WALL: u8 = 8;
+/// Surface **5** — **the bailey, and what an opened wall joins.**
+///
+/// Two writers and they mean the same thing. The castle build's flood
+/// classifier seeds it from the keep's `0x08` door and from the bridge and
+/// floods it across every low cell it can reach, so 5 is *the ground inside*.
+/// [`smash_walls`] then writes it over every wall cell it opens, which puts the
+/// hole in the same region as the courtyard behind it.
+///
+/// It is also the test that chooses between the two damage accumulators:
+/// `BattleMan_StateAttackWall` charges [`RAMPART_HITS`] when **the attacker is
+/// standing on a 5** and [`GATE_HITS`] otherwise. So a besieger outside chews
+/// the gate at 20,000, and one who is already through chews the next wall at
+/// 5,000 — which is what makes a breach spread. `[V]`.
+pub const SURFACE_BAILEY: u8 = 5;
+/// Surface **4** — **the rampart walk**, the raised ground the garrison posts
+/// on and the only surface any order handler searches for by value.
+///
+/// `Siege_FindCellSurface4` (`0x00496566`) is that search, and its four callers
+/// are `Order_ToNearestWallCell`, `Order_ToWallBelowKeep`,
+/// `Order_ToWallNearPreferredTarget` and `Order_ToWallNearAvoidedTarget` —
+/// every one of them a defender putting a unit *on the wall*. The classifier
+/// writes it onto cells of non-zero elevation adjacent to the bailey. `[V]`.
+///
+/// > It used to be called `SURFACE_BREACH` and set to what a breach leaves
+/// > behind. Nothing in the binary ever writes 4 outside the classifier.
+pub const SURFACE_RAMPART_WALK: u8 = 4;
+/// Surface **9** — **a wall cell a catapult brought down**, [`collapse_wall`].
+/// Distinct from [`SURFACE_BAILEY`], which is what a *smashed* wall becomes:
+/// the two routines are different and leave different marks, and only the
+/// second joins the courtyard region the AI walks through.
+pub const SURFACE_COLLAPSED: u8 = 9;
+/// Surface **3** — ground-level ground outside the castle, and the surface
+/// `Siege_LowerDrawbridge` writes over its 7 × 4 patch.
 pub const SURFACE_GROUND: u8 = 3;
 /// Surface **2** — water. `Formation_SendFigure` sends any non-knight ordered
-/// onto one of these into the moat-fill state.
+/// onto one of these into the moat-fill state, and `FUN_00496768` — the search
+/// behind `Order_ToBreachOrStaging`'s first arm — hunts for it.
 pub const SURFACE_WATER: u8 = 2;
+/// Surface **1** — the open field the two armies deploy on.
+pub const SURFACE_FIELD: u8 = 1;
+/// Surface **6** — the keep, and the cell that carries [`FLAG_KEEP`].
+pub const SURFACE_KEEP: u8 = 6;
+/// Surface **0x0B** — a **raised** drawbridge, the cell that carries
+/// [`FLAG_DRAWBRIDGE`]. `Battlefield_BuildCastle`'s structure code 9 writes it
+/// with `flags = 0x40` and elevation 0; both [`lower_drawbridge`] and
+/// [`smash_walls`] overwrite it.
+pub const SURFACE_DRAWBRIDGE: u8 = 0x0B;
 
-/// **What a breach is left standing at: nothing.** `FUN_0047DFE0`, the routine
-/// a catapult shot runs when its fourth hit brings a wall cell down, writes
-/// `elevation = 0` over that cell — a collapsed wall is rubble at ground level,
-/// not a step.
+/// **`g_siegeApproachScore` starts a fresh siege at 500 — unless the castle
+/// has a moat, when it starts at 0.** Every siege order handler branches on it,
+/// and the pair is the whole shape of the besieger's opening move.
 ///
-/// It is a named constant because getting it wrong is invisible and fatal:
-/// `movement::can_step_elevation` allows a difference of one, so a breach left
-/// at the wall's own height is a hole nobody can walk through, and a siege runs
-/// for ever with its gate open. `[V]` — the literal in the collapse routine.
+/// Three writes in `Battlefield_BuildCastle`, in this order:
+///
+/// 1. `g_siegeApproachScore = 500`, before the layout raster is read;
+/// 2. the raster's second pass hands terrain byte `0xEE` — a **moat** cell — to
+///    `FUN_0047DCCE`, whose first statement is `g_siegeApproachScore = 0`. So
+///    one ditch cell anywhere on the field puts it back to zero;
+/// 3. as the last statement but one, `Siege_RestoreCastleDamage`
+///    (`0x004787A4`), which restores the county's stored scores **only when
+///    `castleDegraded == 2`** — only on a *repeat* assault. A first assault
+///    keeps whatever 1 and 2 left.
+///
+/// Read against `Order_ToBreachOrStaging`'s three arms — under 16 hunt the
+/// ditch, 16 to 400 fall back on staging, over 400 **do nothing at all** — the
+/// two values are one design:
+///
+/// * **a moated castle opens at 0**, so the besieger's whole ladder is spent
+///   shovelling, and `Moat_Fill`'s one-to-four points a cell is what
+///   eventually carries it past the `approach_score < 3` gate and opens the
+///   assault;
+/// * **a dry castle opens at 500**, the approach is already *done*, and the
+///   only thing holding the ladder shut is `breach_score == 0` — which the
+///   siege engines are there to answer.
+///
+/// > `docs/battle.md` §16.1 says the restore "overwrites the fresh
+/// > `g_siegeApproachScore = 500` that `Battle_Start` wrote a moment earlier".
+/// > All three halves of that are wrong: the 500 is the castle builder's, the
+/// > restore only fires on a repeat assault, and what actually overwrites it is
+/// > the moat.
+///
+/// It is load-bearing rather than cosmetic. Four attacker handlers open with
+/// `approach_score < 3 || breach_score == 0`; start a **dry** castle at 0 and
+/// the besieger never leaves the approach ladder however long the battle runs,
+/// and start a **moated** one at 500 and nobody ever fills the ditch. `[V]`.
+pub const APPROACH_SCORE_START: i32 = 500;
+
+/// [`APPROACH_SCORE_START`] or zero, by whether this battlefield has a ditch —
+/// the two-line consequence of the three writes that constant documents.
+pub fn approach_score_at_build(field: &Battlefield) -> i32 {
+    if field.cells.iter().any(|c| c.surface == SURFACE_WATER) {
+        0
+    } else {
+        APPROACH_SCORE_START
+    }
+}
+
+/// **`_DAT_0055307C`'s starting value, by campaign castle level.**
+///
+/// `Battlefield_BuildCastle` writes it as
+/// `(g_castleLevel == 0 || g_castleLevel == 3) ? 1 : 0` — so **the palisade
+/// and the stone castle ship with a gap in the outer wall and the other three
+/// do not**, which is a statement about two of the five layout rasters and not
+/// about castle size. The skirmish path reads the same quantity out of a
+/// twenty-entry table at `0x004D4A98`, one entry per skirmish castle, holding
+/// `1 0 0 0 0 1 0 0 1 0 1 0 0 0 0 0 0 1 1 1`. Seven of twenty.
+///
+/// `[V]` on the values. Our own castle has no such gap — [`our_castle`] draws
+/// an unbroken ring — so seeding this is the layout property arriving without
+/// the layout, and it is seeded anyway because the *counter* is the original's
+/// and the AI reads it.
+pub const RAMPART_GAP_AT_BUILD: [u8; 5] = [1, 0, 0, 1, 0];
+
+/// **A wall stands one cell high.** `Battlefield_BuildCastle`'s structure code
+/// 8 writes `elevation = 1`, and it is a named constant because
+/// `movement::can_step_elevation` allows a difference of exactly one: a wall
+/// built two high is a wall nobody can walk onto even after it has been
+/// smashed open, and the siege then runs for ever with a hole in it. `[V]` —
+/// the literal in the builder.
+pub const WALL_ELEVATION: u8 = 1;
+
+/// **What a *collapsed* wall is left standing at: nothing.** `FUN_0047DFE0`,
+/// the routine a catapult shot runs when its fourth hit brings a wall cell
+/// down, writes `elevation = 0` over that cell.
+///
+/// [`smash_walls`] deliberately does **not** do this — the original leaves the
+/// elevation alone there — which is why [`WALL_ELEVATION`] has to be 1.
+/// `[V]` — the literal in the collapse routine.
 pub const BREACH_ELEVATION: u8 = 0;
 
-/// Hits one rampart patch absorbs before it becomes [`SURFACE_BREACH`] and the
+/// Hits one rampart patch absorbs before it becomes [`SURFACE_BAILEY`] and the
 /// counter resets. `g_wallHitsRampart` (`0x00554034`).
 pub const RAMPART_HITS: u32 = 5_000;
 /// Hits the gate absorbs. `g_wallHitsGate` (`0x00568DA4`) — **one-shot**: it
@@ -252,7 +402,7 @@ pub struct SiegeState {
     /// **`DAT_0056D648` — rampart cells left hanging by a collapse**, and the
     /// second number in the bill. `FUN_0047DFE0` adds one for each of the four
     /// orthogonal neighbours of a collapsing wall cell that is still
-    /// [`SURFACE_RAMPART`], so a shot into the middle of a wall costs the
+    /// [`SURFACE_BAILEY`], so a shot into the middle of a wall costs the
     /// defender twice what a shot into its end does. This is the number the
     /// repair is charged in **wood or stone** — `docs/bugs.md` B69. `[V]`.
     pub wall_damage: u16,
@@ -300,7 +450,12 @@ impl SiegeState {
     }
 
     pub fn castle(level: u8) -> SiegeState {
-        SiegeState { is_siege: true, castle_level: level, ..SiegeState::default() }
+        SiegeState {
+            is_siege: true,
+            castle_level: level,
+            ramparts_breached: u32::from(RAMPART_GAP_AT_BUILD[level.min(4) as usize]),
+            ..SiegeState::default()
+        }
     }
 }
 
@@ -309,7 +464,7 @@ impl SiegeState {
 pub enum WallBlow {
     /// Absorbed by the running total.
     Absorbed,
-    /// A rampart patch came down: this cell becomes [`SURFACE_BREACH`].
+    /// A rampart patch came down: [`smash_walls`] opens the 9 × 9 around the attacker.
     RampartBreached,
     /// The gate went. Both progress scores gain [`GATE_BREACH_SCORE`].
     GateBreached,
@@ -324,7 +479,7 @@ pub enum WallBlow {
 /// `Cell_TryEnterEngine` returning 6 only for `troopType == 9`.
 pub fn strike_wall(state: &mut SiegeState, standing_on: u8, is_ram: bool) -> WallBlow {
     let hits = if is_ram { RAM_HITS_PER_FRAME } else { WALL_HITS_PER_MAN };
-    if standing_on == SURFACE_RAMPART {
+    if standing_on == SURFACE_BAILEY {
         state.rampart_hits += hits;
         if state.rampart_hits >= RAMPART_HITS {
             state.rampart_hits = 0;
@@ -346,6 +501,115 @@ pub fn strike_wall(state: &mut SiegeState, standing_on: u8, is_ram: bool) -> Wal
         return WallBlow::GateBreached;
     }
     WallBlow::Absorbed
+}
+
+/// **Open the wall** — `Wall_Smash`, `FUN_0049694F` (`0x0049694F`), which both
+/// wall-attack states call with a radius of **4** the moment either
+/// accumulator crosses its threshold.
+///
+/// ```c
+/// Sound_PlayFile("bathit2.wav");
+/// for every cell of the (2*r+1) square around (x, y), clipped at the field edge:
+///     if (flags & 0x20) { flags &= ~0x20; surface = 5; frame[+0x280] += 0x10; }
+///     if (flags & 0x40) { flags  =  0;    surface = 5; frame       += 0x28; }
+/// Path_BuildTerrainTemplate(); Path_BuildStepCost();
+/// ```
+///
+/// # This is the routine that makes an assault possible
+///
+/// A breach is **nine cells wide**, not one. Our `strike_castle` used to open
+/// the single cell the attacker had walked into, and a single-cell gap in a
+/// castle wall is a funnel that a few dozen figures cannot clear: they arrive,
+/// the first one blocks it, the pathfinder marks a friendly-occupied cell 998,
+/// and the rest stand outside for as long as you care to run the simulation.
+/// Fought at scale that is exactly the observation the branch started from —
+/// *848 men outside, two garrison figures alive, 400,000 frames*.
+///
+/// # Three details that are the original's and not obvious
+///
+/// * **The elevation is not touched.** A smashed wall stays at the height the
+///   builder gave it, which is [`WALL_ELEVATION`] — one — and
+///   `movement::can_step_elevation` allows exactly that. It is
+///   [`collapse_wall`], the catapult's routine, that flattens a cell.
+/// * **A wall and a drawbridge both become [`SURFACE_BAILEY`]**, so the hole
+///   joins the courtyard region rather than becoming a category of its own.
+///   That is what puts a besieger who is standing in it onto the *rampart*
+///   accumulator, and it is why a breach spreads at 5,000 hits rather than
+///   20,000.
+/// * **The wall's graphic bump lands one row south** — `frame[+0x280] += 0x10`
+///   — while the drawbridge's lands on the cell itself. Reproduced, because
+///   the two are not the same offset in the original and there is no reason to
+///   believe that is an accident. [`Cell`] carries no `flags2`, so the two
+///   `|= 1` writes are dropped; nothing in this engine reads that byte.
+///
+/// Returns how many cells were opened, which is 0 when the square held no wall
+/// at all.
+pub fn smash_walls(field: &mut Battlefield, x: i32, y: i32, radius: i32) -> usize {
+    let mut opened = 0;
+    for cy in (y - radius).max(0)..=(y + radius).min(DIM as i32 - 1) {
+        for cx in (x - radius).max(0)..=(x + radius).min(DIM as i32 - 1) {
+            let c = cy as usize * DIM + cx as usize;
+            let flags = field.cells[c].flags;
+            if flags & FLAG_WALL != 0 {
+                field.cells[c].flags &= !FLAG_WALL;
+                field.cells[c].surface = SURFACE_BAILEY;
+                // The frame bump is on the cell one row **south**, which is
+                // where the original writes it.
+                if cy + 1 < DIM as i32 {
+                    let s = (cy as usize + 1) * DIM + cx as usize;
+                    field.cells[s].gfx = field.cells[s].gfx.wrapping_add(0x10);
+                }
+                opened += 1;
+            }
+            if field.cells[c].flags & FLAG_DRAWBRIDGE != 0 {
+                field.cells[c].flags = 0;
+                field.cells[c].surface = SURFACE_BAILEY;
+                field.cells[c].gfx = field.cells[c].gfx.wrapping_add(0x28);
+                opened += 1;
+            }
+        }
+    }
+    opened
+}
+
+/// The radius `BattleMan_StateAttackWall` and `BattleMan_StateRamGate` both
+/// pass to [`smash_walls`]. Four, so the square is 9 × 9. `[V]` — the literal
+/// at all three call sites.
+pub const SMASH_RADIUS: i32 = 4;
+
+/// **A catapult brings a wall cell down** — `Wall_Collapse`, `FUN_0047DFE0`
+/// (`0x0047DFE0`).
+///
+/// ```c
+/// surface = 9; flags = 2; elevation = 0; flags2 = (flags2 & 0xE3) | 4;
+/// for each of the four orthogonal neighbours still at surface 5:
+///     g_siegeBreachScore++;  FUN_0048EE46(nb);  DAT_0056D648++;
+/// ```
+///
+/// It is **not** [`smash_walls`] and leaves a different mark: surface
+/// [`SURFACE_COLLAPSED`] rather than [`SURFACE_BAILEY`], the elevation
+/// flattened to [`BREACH_ELEVATION`], and `flags` set to 2 outright rather than
+/// having a bit cleared — so a collapsed cell carries neither [`FLAG_WALL`] nor
+/// [`FLAG_DRAWBRIDGE`] and is passable.
+///
+/// Returns the number of neighbours billed, which is both the breach score
+/// gained and the wall damage the county pays for. `docs/bugs.md` B69: those
+/// two are the *same* count, written in one statement per neighbour.
+pub fn collapse_wall(field: &mut Battlefield, state: &mut SiegeState, cell: usize) -> i32 {
+    {
+        let c = &mut field.cells[cell];
+        c.surface = SURFACE_COLLAPSED;
+        c.flags = 2;
+        c.elevation = BREACH_ELEVATION;
+    }
+    let mut billed = 0;
+    for n in orthogonal_neighbours(cell) {
+        if field.cells[n].surface == SURFACE_BAILEY {
+            billed += 1;
+        }
+    }
+    state.wall_damage = state.wall_damage.saturating_add(billed as u16);
+    billed
 }
 
 /// **Lower the drawbridge** — `FUN_00496B9F` (`0x00496B9F`), the whole of it.
@@ -454,7 +718,7 @@ pub fn fill_moat_cell(field: &mut Battlefield, state: &mut SiegeState, cell: usi
     for n in orthogonal_neighbours(cell) {
         if matches!(
             field.cells[n].surface,
-            SURFACE_GROUND | SURFACE_RAMPART | SURFACE_BREACH
+            SURFACE_GROUND | SURFACE_BAILEY | SURFACE_RAMPART_WALK
         ) {
             score += 1;
         }
@@ -486,12 +750,13 @@ pub fn orthogonal_neighbours(cell: usize) -> impl Iterator<Item = usize> {
 /// One concentric keep, laid out around the defender's deployment marker:
 ///
 /// ```text
-///                 . . . . . . . . . . . . . .      open ground
-///             ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~      the moat, from level 2 up
-///             # # # # # # # # # # # # # # # #      the curtain wall, surface 5
-///             #  . . . . . . . . . . . . .  #      the bailey, surface 3
-///             #  . . . . . K . . . . . . .  #      K: the way in, flag 0x08
-///             # # # # # G # # # # # # # # # #      G: the gate, flag 0x20
+///                 . . . . . . . . . . . . . .      the open field, surface 1
+///             ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~      the moat, surface 2, from level 2 up
+///             # # # # # # # # # # # # # # # #      the curtain wall, surface 8, flag 0x20, elevation 1
+///             # r r r r r r r r r r r r r r #      the rampart walk, surface 4, elevation 1
+///             # r . . . . . . . . . . . . r #      the bailey, surface 5, elevation 0
+///             # r . . . . K . . . . . . . r #      K: the way in, flag 0x08, surface 6
+///             # # # # # G # # # # # # # # # #      G: the gatehouse, flag 0x40
 ///                       ^ the drawbridge, level 3 and up
 /// ```
 ///
@@ -501,6 +766,23 @@ pub fn orthogonal_neighbours(cell: usize) -> impl Iterator<Item = usize> {
 ///
 /// The two deployment markers are the field's: the garrison starts inside, the
 /// besieger on the far side of the wall.
+///
+/// # The surfaces here were the inverse of the binary's, and it was fatal
+///
+/// This layout used to make the wall `surface = 5` at **elevation 2** and the
+/// bailey `surface = 3` at elevation 1. Three things followed and all three
+/// broke the siege:
+///
+/// * a wall two cells high is a wall nobody can step onto after it has been
+///   opened — `movement::can_step_elevation` allows a difference of one, and
+///   the original's builder writes [`WALL_ELEVATION`];
+/// * `Siege_FindCellSurface4`, the only search any order handler runs by
+///   surface value, had nothing to find, so **no defender ever posted on the
+///   wall**;
+/// * a besieger standing outside on a 5 fed the *rampart* accumulator at 5,000
+///   rather than the gate's 20,000, which is the wrong one by a factor of four.
+///
+/// The layout is still ours. The five values in it are the binary's.
 pub fn our_castle(level: u8) -> Battlefield {
     use crate::terrain::{flag, id};
 
@@ -510,8 +792,11 @@ pub fn our_castle(level: u8) -> Battlefield {
     let half = 6 + level as i32 * 2;
     let (cx, cy) = (40i32, 24i32);
 
+    // The open field. Surface 1 is what the castle build's flood classifier
+    // reaches from the two map corners, and it is what everything that is not
+    // the castle ends up as.
     let mut cells = vec![
-        Cell { terrain: id::OPEN, flags: 0, gfx: 0, elevation: 0, surface: 0 };
+        Cell { terrain: id::OPEN, flags: 0, gfx: 0, elevation: 0, surface: SURFACE_FIELD };
         DIM * DIM
     ];
     let at = |x: i32, y: i32| (y as usize) * DIM + (x as usize);
@@ -538,20 +823,52 @@ pub fn our_castle(level: u8) -> Battlefield {
         }
     }
 
-    // The bailey and the curtain wall.
+    // A ring of ground-level apron immediately outside the moat — surface 3,
+    // which is what the classifier writes for elevation-0 ground beside the
+    // castle, and what `Moat_Fill` counts as one point of approach score for
+    // each neighbour it opens onto.
+    let apron = half + if level >= 2 { 2 } else { 1 };
+    for y in (cy - apron)..=(cy + apron) {
+        for x in (cx - apron)..=(cx + apron) {
+            if !(0..DIM as i32).contains(&x) || !(0..DIM as i32).contains(&y) {
+                continue;
+            }
+            if (x - cx).abs() == apron || (y - cy).abs() == apron {
+                cells[at(x, y)].surface = SURFACE_GROUND;
+            }
+        }
+    }
+
+    // The bailey, the rampart walk, and the curtain wall.
     for y in (cy - half)..=(cy + half) {
         for x in (cx - half)..=(cx + half) {
             if !(0..DIM as i32).contains(&x) || !(0..DIM as i32).contains(&y) {
                 continue;
             }
+            // **Two cells in, not one.** The ring immediately inside the wall
+            // has to be bailey, because `Wall_Collapse` scores a breach only
+            // for the orthogonal neighbours of the collapsed cell that are at
+            // [`SURFACE_BAILEY`] — put anything else against the wall's inner
+            // face and a catapult can knock the whole curtain down for a
+            // breach score of **zero**, which is a besieger whose engines
+            // achieve nothing. Measured, not reasoned: four collapsed cells,
+            // `breach_score` 0, 100,000 frames.
+            let on_walk =
+                (x - cx).abs() == half - 2 || (y - cy).abs() == half - 2;
             let c = &mut cells[at(x, y)];
             if on_ring(x, y) {
-                c.surface = SURFACE_RAMPART;
-                c.elevation = 2;
+                c.surface = SURFACE_WALL;
+                c.elevation = WALL_ELEVATION;
                 c.flags |= FLAG_WALL;
+            } else if on_walk {
+                // Surface 4 — the one surface an order handler searches for.
+                // Without it `Siege_FindCellSurface4` never finds anything and
+                // four defender actions are dead.
+                c.surface = SURFACE_RAMPART_WALK;
+                c.elevation = WALL_ELEVATION;
             } else {
-                c.surface = SURFACE_GROUND;
-                c.elevation = 1;
+                c.surface = SURFACE_BAILEY;
+                c.elevation = 0;
             }
         }
     }
@@ -582,7 +899,7 @@ pub fn our_castle(level: u8) -> Battlefield {
                 let c = &mut cells[at(x, y)];
                 c.flags = FLAG_DRAWBRIDGE;
                 c.terrain = id::OPEN;
-                c.surface = SURFACE_GROUND;
+                c.surface = SURFACE_DRAWBRIDGE;
                 c.elevation = 0;
             }
         }
@@ -602,6 +919,7 @@ pub fn our_castle(level: u8) -> Battlefield {
     // > the end, which nothing had done. The elevation was ours to begin with;
     // > `docs/decisions.md` `C82`.
     cells[at(cx, cy)].flags |= FLAG_KEEP;
+    cells[at(cx, cy)].surface = SURFACE_KEEP;
 
     let mut field = Battlefield {
         cells,
@@ -650,12 +968,23 @@ pub fn our_castle_ai_field(field: &Battlefield, level: u8) -> crate::AiField {
     ];
     f.castle_index = 13;
     f.layout = 1;
-    f.moat_flag = i32::from(level >= 2);
     f.castle_layout_flag = level >= 3;
 
     // Four approach lanes onto the gate wall, at six stand-off distances.
+    //
+    // **The furthest of these has to stay inside the ditch search's reach**,
+    // and it did not. `Order_ToBreachOrStaging`'s first arm hunts for a
+    // surface-2 cell within a radius of 12 to 19 of the unit and **does nothing
+    // at all** when it finds none — so a unit parked further out than that from
+    // the moat never shovels, never raises the approach score, never passes the
+    // `approach_score < 3` gate, and never assaults. The ladder alternates
+    // staging with the ditch hunt precisely on the assumption that staging is
+    // close enough, and ours was 21 cells beyond the water: measured, 848 men
+    // sat in the field for 200,000 frames with a full ditch in front of them.
+    // Six rings two cells apart, the outermost `h + 12` from the centre, keeps
+    // every rung of the ladder inside the search.
     for (step, row) in f.castle_approach.iter_mut().enumerate() {
-        let back = h + 6 + (5 - step as i16) * 3;
+        let back = h + 2 + (5 - step as i16) * 2;
         for (lane, point) in row.iter_mut().enumerate() {
             *point = (cx + (lane as i16 - 2) * (h / 2).max(1), cy + back);
         }
@@ -672,10 +1001,16 @@ pub fn our_castle_ai_field(field: &Battlefield, level: u8) -> crate::AiField {
         f.wall_slot[1][slot as usize] = (cx + along, cy + h - 1);
         f.wall_slot[2][slot as usize] = (cx + (if slot % 2 == 0 { -h } else { h }), cy + along);
     }
-    for (n, post) in f.defence_posts.iter_mut().enumerate() {
-        let along = -h + (n as i16 * (2 * h)) / 19;
-        *post = (cy + h) as usize * DIM + (cx + along).clamp(0, DIM as i16 - 1) as usize;
-    }
+    // **The defence posts start empty, and that is the original's.** This used
+    // to spread twenty of them along the gate wall. `FUN_0048EE46` — the
+    // twenty-entry table's only appender in the whole binary — is called from
+    // `Wall_Collapse` and from nowhere else, once per rampart neighbour left
+    // hanging by a catapult shot. So a castle nobody has bombarded has no
+    // defence posts, `Siege_ClaimDefencePost` returns 0 for every unit, and the
+    // garrison's handlers take their `cellOffset == 0` arm — the wall slots —
+    // for the whole of that siege. The posts are *the holes*, and they arrive
+    // when the holes do.
+    f.defence_posts = [0; 20];
     f
 }
 
@@ -687,20 +1022,48 @@ mod tests {
     /// stands rather than by what it hits.
     #[test]
     fn a_man_on_the_rampart_chews_the_wall_and_a_man_on_the_ground_chews_the_gate() {
-        let mut s = SiegeState::castle(3);
+        // Level 1: one of the three campaign levels that ship with no gap in
+        // the wall, so the counter starts at zero. See
+        // [`RAMPART_GAP_AT_BUILD`].
+        let mut s = SiegeState::castle(1);
+        assert_eq!(s.ramparts_breached, 0);
         for _ in 0..RAMPART_HITS - 1 {
-            assert_eq!(strike_wall(&mut s, SURFACE_RAMPART, false), WallBlow::Absorbed);
+            assert_eq!(strike_wall(&mut s, SURFACE_BAILEY, false), WallBlow::Absorbed);
         }
-        assert_eq!(strike_wall(&mut s, SURFACE_RAMPART, false), WallBlow::RampartBreached);
+        assert_eq!(strike_wall(&mut s, SURFACE_BAILEY, false), WallBlow::RampartBreached);
         assert_eq!(s.rampart_hits, 0, "the rampart counter resets");
         assert_eq!(s.ramparts_breached, 1);
         assert_eq!(s.gate_hits, 0, "and the gate is untouched");
 
         // A wall can be chewed through repeatedly; the gate cannot.
         for _ in 0..RAMPART_HITS {
-            strike_wall(&mut s, SURFACE_RAMPART, false);
+            strike_wall(&mut s, SURFACE_BAILEY, false);
         }
         assert_eq!(s.ramparts_breached, 2);
+    }
+
+    /// **`_DAT_0055307C` is seeded from the castle level, and it is not the
+    /// moat flag.** `Battlefield_BuildCastle` writes 1 at campaign levels 0 and
+    /// 3 and 0 at the rest — which is not the level ordering a moat would give
+    /// and not the ordering castle size would give either.
+    #[test]
+    fn two_of_the_five_castles_start_with_a_gap_in_the_wall() {
+        assert_eq!(RAMPART_GAP_AT_BUILD, [1, 0, 0, 1, 0]);
+        for level in 0..=4u8 {
+            assert_eq!(
+                SiegeState::castle(level).ramparts_breached,
+                u32::from(RAMPART_GAP_AT_BUILD[level as usize]),
+                "level {level}"
+            );
+        }
+        // And it moves in the *opposite* direction to the moat, which is what
+        // rules out the name it used to carry: the moat appears from level 2
+        // up, the gap at 0 and 3.
+        for level in 0..=4u8 {
+            let moated = our_castle(level).cells.iter().any(|c| c.surface == SURFACE_WATER);
+            assert_eq!(moated, level >= 2, "level {level} moat");
+        }
+        assert!(RAMPART_GAP_AT_BUILD[0] == 1 && RAMPART_GAP_AT_BUILD[2] == 0);
     }
 
     /// A ram is worth twenty men, and that is the whole reason to build one.
@@ -763,7 +1126,7 @@ mod tests {
         for level in 0..=4u8 {
             let field = our_castle(level);
             let wall = field.cells.iter().filter(|c| c.flags & FLAG_WALL != 0).count();
-            let rampart = field.cells.iter().filter(|c| c.surface == SURFACE_RAMPART).count();
+            let rampart = field.cells.iter().filter(|c| c.surface == SURFACE_WALL).count();
             let keep = field.cells.iter().filter(|c| c.flags & FLAG_KEEP != 0).count();
             assert_eq!(wall, rampart, "every wall cell is a rampart and vice versa");
             assert!(wall > 0, "level {level} has a wall");

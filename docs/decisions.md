@@ -4484,6 +4484,206 @@ test over every overlay we can build rather than a record per screen —
 `no_overlay_swallows_the_campaign_minimap` — because a list of screens is a thing that goes
 stale and a quantifier is not.
 
+**C99 — The castle's surface model was inverted, and a besieger could not win because of it.**
+
+`crates/l2-sim/src/siege.rs` carried `SURFACE_RAMPART = 5` and `SURFACE_BREACH = 4`, described as
+*"the rampart"* and *"what a breached rampart patch becomes, and what `Siege_FindCellSurface4`
+hunts for"*. An exhaustive search for **writers** of cell byte `+7` — 36 of them in the corpus —
+settles all of it, and the second half of that sentence is false.
+
+| surface | written by | what it is |
+|---:|---|---|
+| 1 | classifier `FUN_0047E7B2`, flooded from the two map corners | the open field |
+| 2 | `Battlefield_BuildCastle`, terrain byte `0xEE` | the moat |
+| 3 | classifier `FUN_0047E668`; `Siege_LowerDrawbridge`'s patch | ground-level ground outside |
+| **4** | classifier `FUN_0047E52D` — raised ground beside a 5 | **the rampart walk** |
+| **5** | classifier `FUN_0047E387`, flooded from the keep door and the bridge — **and `Wall_Smash`** | the bailey, and what an opened wall joins |
+| 6 | build code 6, classifier `FUN_0047E263` | the keep and its `0x08` door |
+| 7 | build code 7 | the bridge |
+| **8** | build code 8, with flag `0x20` | **an intact, breakable wall** |
+| **9** | `Wall_Collapse` (`FUN_0047DFE0`) | a wall cell a catapult brought down |
+| 0x0B | build code 9, with flag `0x40` | the raised drawbridge |
+
+Three of those are decisive on their own. `BattleMan_StateAttackWall` keeps swinging while
+`Cell_NeighbourHasSurface(x, y-1, off, 8)` still finds wall to the north — so **8** is the standing
+wall. `Wall_Collapse` writes surface **9**, not 4. And **nothing anywhere writes surface 4 outside
+the classifier**, so *"what a breach leaves behind"* cannot be 4.
+
+What survives from the old reading is the one place it was load-bearing and right: the accumulator
+test really is `standing_on == 5`. But 5 is not the rampart — it is *the inside*, and a smashed
+wall joins it. Read that way the two thresholds stop looking arbitrary: **a besieger outside chews
+the gate at 20,000, and one who is already through chews the next wall at 5,000**, which is what
+makes a breach spread.
+
+Two of our own numbers followed the correction. `our_castle`'s wall stood at **elevation 2** where
+the builder's structure code 8 writes **1** — and the height rule allows exactly one, so an opened
+wall two cells high is a hole nobody can walk through. And the rampart walk sat directly against
+the wall's inner face, where `Wall_Collapse` bills only neighbours at surface 5 — so a catapult
+could bring the whole curtain down for a breach score of **zero**. Both were ours; both are
+corrected; ablating either turns the new siege tests red.
+
+**C100 — A breach is nine cells wide, and ours was one.**
+
+`FUN_0049694F` is called from three places — both wall-attack states at the 5,000 rampart threshold
+and again at the 20,000 gate threshold — always as `FUN_0049694F(mapX, mapY, 4)`, centred on the
+**attacker**. It sweeps the 9 × 9 square that radius describes and, for **every** cell in it
+carrying flag `0x20` or `0x40`, clears the flag and writes surface 5. It does not touch the
+elevation; that is `Wall_Collapse`'s job and a different routine.
+
+Ours opened the single cell the attacker had walked into. A one-cell gap in a castle wall is a
+funnel, and the whole of the reported *"848 men outside, two garrison figures alive, 400,000
+frames"* is consistent with it. The name is now `siege::smash_walls`, with `SMASH_RADIUS = 4`
+beside it, and `siege::collapse_wall` is the catapult's separate routine.
+
+A detail worth keeping because it is not the kind of thing anyone would invent: the wall's graphic
+bump lands **one row south** of the smashed cell (`frame[+0x280] += 0x10`) while the drawbridge's
+lands on the cell itself (`frame += 0x28`).
+
+**C101 — A fresh siege opens at approach score 500, and the moat is what puts it back to zero.**
+
+`docs/battle.md` §16.1 said `Siege_RestoreCastleDamage` *"overwrites the fresh
+`g_siegeApproachScore = 500` that `Battle_Start` wrote a moment earlier"*. All three halves of that
+are wrong. The 500 is written by **`Battlefield_BuildCastle`**, not `Battle_Start`; the restore
+fires **only when `castleDegraded == 2`**, that is on a *repeat* assault, and otherwise zeroes the
+county's fields and leaves the globals alone; and what actually overwrites it is the **moat** —
+the raster's second pass hands terrain byte `0xEE` to `FUN_0047DCCE`, whose first statement is
+`g_siegeApproachScore = 0`.
+
+So there are two opening positions, and read against `Order_ToBreachOrStaging`'s three arms — under
+16 hunt the ditch, 16 to 400 fall back on staging, over 400 **do nothing at all** — they are one
+design:
+
+* **a moated castle opens at 0**, the besieger's whole approach ladder is spent shovelling, and
+  `Moat_Fill`'s one-to-four points a cell is what carries it past the `approach_score < 3` gate
+  that four attacker handlers open with;
+* **a dry castle opens at 500**, the approach is already done, and the only thing holding the
+  ladder shut is `breach_score == 0` — which the siege engines are there to answer.
+
+We started every siege at 0. On a dry castle that is a besieger who never leaves the approach
+ladder however long the battle runs.
+
+**C102 — `_DAT_0055307C` counts gaps in the wall; it is not the moat flag.**
+
+`crates/l2-sim`'s `AiField` carried it as `moat_flag`, `[I]`, on the strength of nothing. Six sites
+in the binary and they agree:
+
+* **initialised** by `Battlefield_BuildCastle` to `(castleLevel == 0 || castleLevel == 3) ? 1 : 0`,
+  or on the skirmish path from a twenty-entry table at `0x004D4A98` holding
+  `1 0 0 0 0 1 0 0 1 0 1 0 0 0 0 0 0 1 1 1` — one entry per castle raster, seven of twenty set;
+* **incremented** by `BattleMan_StateAttackWall` and `BattleMan_StateRamGate`, in both cases at the
+  5,000-hit rampart threshold, beside `Wall_Smash` and the counter reset. `Wall_Collapse` does
+  **not** touch it, and ours did;
+* **read** three times: `BattleMan_StateRamGate` sends a ram away at `1 < it`, and
+  `Order_ToCastleObjective` and `UnitOrder_SiegeDefMissile` branch on `it < 1`.
+
+The seed rules the old name out on its own: the moat appears from castle level 2 upward and this is
+set at levels **0 and 3**. `[V]` on the writers and readers; `[I]` on reading it as *"a gap"*
+rather than some other per-layout property that a rampart breach also creates. It lives on
+`SiegeState` — the county carries it between assaults at `+0x1F0` — and is mirrored onto the AI
+every frame.
+
+**And we already knew.** Filing this name tripped `symbols_md.js`'s promotion check, because
+`docs/hypotheses.json` had carried `0x0055307C` since the first battle pass as
+**`g_rampartCellsBreached`** — *"how many rampart cells this siege has knocked through"* — with an
+honest caveat saying the mechanism was read and the purpose was a guess. That is the right answer,
+near enough, written down weeks before `crates/l2-sim` called the same address `moat_flag`.
+
+Nothing could have brought them together. The hypothesis register is keyed by **address**; the
+field on `AiField` is keyed by **name and offset**, and no check in the tree relates a struct
+field to the global it mirrors. So the project simultaneously held a good reading and a bad one
+about the same four bytes, in two files that are both maintained, both checked, and never checked
+*against each other* — and the bad one was the one the code ran on. It surfaced only because
+promotion happens to be a move rather than a copy, which is a rule written for an entirely
+different reason.
+
+> **A contradiction between two documents is invisible until someone needs both.** The register of
+> guesses and the code that acts on them are exactly such a pair, and the thing that finally
+> connected them was a check about bookkeeping. `docs/agents.md` carries this one.
+
+**C103 — `Path_LineIsClear` is not a line, not a predicate, and not free of side effects — and that is where 848 men were stuck.**
+
+`docs/battle.md` §8.3 describes it as an early out: *"if the target is adjacent or
+`Path_LineIsClear` succeeds, no search happens at all"*. True, and it hides three properties that
+together are the difference between an army that presses an assault and one that stands in a field:
+
+1. it seeds `g_pathCost` from the blocked template **and calls `Path_BuildBlockedMap`**, which
+   writes 998 under every *friendly* figure — so a comrade in the way is an obstacle here exactly
+   as terrain is;
+2. it is **two greedy walkers**, not a Bresenham line. Both set out from the start; each step takes
+   the eight-way direction toward the target and, when that cell is taken, rotates — one clockwise,
+   the other anticlockwise, up to eight tries — so the walk *slips around* whatever is in the way.
+   Eighty rounds of the pair, then it gives up;
+3. and **it leaves its cost field behind**. When `Path_Search` skips the flood fill because this
+   succeeded, `BattleMan_Step` runs `Path_Extract` on that field anyway and the figure comes away
+   with the walked route, detours and all.
+
+Ours was a strict Bresenham returning a bare `bool`, ignoring friendly figures, and
+`pathfind::search` answered `NoSearchNeeded` **with an empty cost field**. So a figure whose next
+step was taken by a comrade asked for a path, was told none was needed, and got nothing — and then
+tried the same blocked step again, every frame, for ever, with `barred` at 0. One figure does that
+invisibly. An army packed in front of a breach does it as a permanent deadlock: measured at **45
+besiegers frozen in a block eight cells wide for 200,000 frames**, every one of them `Walking`,
+every path empty.
+
+`Grid::walk_line` is now that walk. It is applied at exactly one site — the `NoSearchNeeded` arm of
+`BattleRunner::request_path`, which is only ever reached because a step was refused — and
+deliberately **not** wired into `pathfind::search` as a general replacement for the line test.
+Doing that was tried first and it is the more faithful change; it also moves every field battle,
+and `battle-after.sav`'s fought verdict flips. The narrow form keeps that fixture exact and fixes
+the deadlock, and the difference between the two is recorded here rather than lost.
+
+**C104 — The mover never enforced the height rule, so the one constant the wall depends on could not be wrong.**
+
+`docs/battle.md` §7 marks it `[V]`: *"a step is only allowed when the two cells' elevations differ
+by at most 1, unless the destination's elevation is exactly 5."* `movement::can_step_elevation` has
+said so since it was written and **nothing called it** — the pathfinder enforced the rule with its
+own copy and `BattleRunner::enter` did not, so a figure walking straight at its target, which is
+what a figure does whenever no search runs, climbed cliffs.
+
+It is inert on a `.skr` field, where `Battlefield_BuildFromSkr` never writes byte `+4` and every
+cell is at elevation 0, which is why no field-battle test could see it. It is not inert on a
+castle, and it is the reason `WALL_ELEVATION` is load-bearing: with the mover enforcing height, a
+wall built one cell too high is a wall nobody can walk through after it is opened, and the siege
+tests go red. Without it, the constant is decoration.
+
+**C105 — The garrison's twenty defence posts are the holes a catapult has made, and we invented twenty of them at deployment.**
+
+`FUN_0048EE46` appends a cell to the twenty-entry table at `DAT_00553C80` that
+`Siege_ClaimDefencePost` reserves from. It is the table's **only** appender in the whole binary,
+and its only caller is `Wall_Collapse` — once per orthogonal neighbour left hanging by a catapult
+shot. So a castle nobody has bombarded has **no defence posts at all**, `Siege_ClaimDefencePost`
+returns 0 for every unit, and the garrison's handlers take their `cellOffset == 0` arm — the wall
+slots — for the whole of that siege. `our_castle_ai_field` spread twenty posts along the gate wall
+at deployment; it now leaves them empty and the collapse routine fills them.
+
+**C106 — "The AI never orders siege engines" was a true statement about the wrong function.**
+
+The hand-off that opened this branch reported that `siege::order_engine` has three callers and all
+three are the player's, and concluded that *"an AI besieging a level-3 castle can never assault at
+all."* The premise is exact and the conclusion is false. `order_engine` is the siege screen's `+`
+and `−` buttons (`0x0043B681` / `0x0043B741`) — the original's AI does not press those either. The
+AI's path is four calls above it:
+
+```
+Unit_ReachCastleBuilding  0x004686A0   an army walks onto a castle tile
+  Army_BeginSiege         0x004A7CA2   four guards, no else
+    Siege_Link            0x004A7E0A   the two back-pointers
+      Siege_Prepare       0x004A7EB5   clear the records, and for an AI, order
+```
+
+All four are implemented and `l2_kingdom::siege::prepare` is faithful, doctrine byte included. What
+was missing was **anything that travelled the road**: every siege test in the workspace staged its
+besieger by hand and therefore had to order the engines by hand too, and one of them wrote the
+conclusion above into its module header, from where it was briefed onward as a fact about the
+engine. `crates/l2-kingdom/tests/ai_siege.rs` now walks an AI army onto a castle and asserts the
+order that comes out — 4 towers, or 2 towers and a ram, or 3 catapults and 2 towers, by the lord's
+`+0xA0` — and the l2-game header is corrected.
+
+It is the same shape as C71: **a true statement about one branch, promoted to a statement about the
+subsystem, in prose, between agents, where no check in the tree can reach it.** The defence is the
+same and it is one word — name the function. *"No AI calls `order_engine`"* is the same finding and
+cannot be promoted by accident.
+
 
 ## Open questions
 

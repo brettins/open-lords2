@@ -202,7 +202,7 @@ own side: both callers of the isometric grid renderer pass
 | `+4` | [V] | **elevation**. Governs missile damage (§6.2) and blocks movement between cells more than 1 apart (§7). |
 | `+5` | [V] | index of the figure standing here, 0 for none. |
 | `+6` | [V] | head of the linked list of missiles in this cell. |
-| `+7` | [V] | surface type: 7 bridge, **10 and 17 burning**, 15 woodland, 4/5/6 read by `BattleUnit_Order` for siege structures. |
+| `+7` | [V] | surface type. **Every value is now traced from its writers — §3.2.** In one line: 1 the open field, 2 the moat, 3 ground beside the castle, **4 the rampart walk**, **5 the bailey and what a smashed wall joins**, 6 the keep, 7 the bridge, **8 an intact wall**, **9 a wall a catapult brought down**, 0x0B a raised drawbridge, 10 and 17 burning, 15 woodland. |
 
 **[V] `Battlefield_BuildFromSkr` never writes byte `+4`.** On a `.skr` battlefield every
 cell is at elevation 0, so the elevation rules in §6.2 and §7 are inert there. Elevation
@@ -272,6 +272,58 @@ and `0x0E` are written here and appear nowhere in §3's list, and `flags` bits `
 `0x08` — undocumented above — are set on six of the eight codes. Each code also records a
 landmark: code 6 remembers the first such cell in `DAT_00553274` (offset by one row for a
 human attacker), code 8 the first in `DAT_00553EE4` and the fifth in `DAT_0053E9D4`.
+
+### 3.2 The surface byte, end to end — and two of its values were the wrong way round  **[V]**
+
+Byte `+7` was the last plane nobody had enumerated, and `crates/l2-sim` carried a reading of it
+that was inverted. Settling it needed an exhaustive search for **writers**, of which there are 36,
+and they fall into three groups: `Battlefield_BuildCastle`'s structure codes (§3.0.1), a **flood
+classifier** that runs immediately afterwards, and the three routines a siege runs on a wall.
+
+**The classifier had not been read at all.** `FUN_0047E230` is the last thing but three that
+`Battlefield_BuildCastle` calls, and it is six flood fills in a fixed order, each looping until
+nothing changes:
+
+| # | function | fills | from |
+|---|---|---|---|
+| 1 | `FUN_0047E263` | **6** | a cell of surface `0x0E`, or surface 0 above elevation 3, next to a 6 |
+| 2 | `FUN_0047E387` | **5** | any remaining `0x0E`; and surface 0 below elevation 2 next to the keep's `0x08` door, the bridge, or another 5 |
+| 3 | `FUN_0047E52D` | **4** | surface 0 at non-zero elevation next to a 5 or a 4 |
+| 4 | `FUN_0047E668` | **3** | surface 0 at elevation 0 next to a 4 or a 3, eight-way |
+| 5 | `FUN_0047E7B2` | **1** | seeded at cells `(0,0)` and `(0,79)` and flooded outward |
+| 6 | `FUN_0047E926` | 3 or 6 | whatever is left, by its neighbour |
+
+So the surfaces are **concentric zones**, numbered inward, and the table in §3 now reads:
+
+| surface | what it is |
+|---:|---|
+| 1 | the open field |
+| 2 | the moat |
+| 3 | ground-level ground beside the castle, and the patch `Siege_LowerDrawbridge` lays down |
+| **4** | **the rampart walk** — the raised castle ground `Siege_FindCellSurface4` hunts |
+| **5** | **the bailey**, and what `Wall_Smash` leaves where it opens a wall |
+| 6 | the keep, and the `0x08` cell §14.3a calls the way in |
+| 7 | the bridge |
+| **8** | **an intact, breakable wall** — the cell that carries flag `0x20` |
+| **9** | **a wall cell a catapult brought down** — `Wall_Collapse`, flags 2, elevation 0 |
+| 0x0B | a **raised** drawbridge — the cell that carries flag `0x40` |
+| 0x0E | the classifier's placeholder; nothing survives pass 2 |
+| 10, 17 | burning (§6.3) |
+
+Three readings are decisive and each is a single unambiguous site:
+
+* `BattleMan_StateAttackWall` keeps swinging while `Cell_NeighbourHasSurface(x, y−1, off, **8**)`
+  — or its two diagonal siblings — still finds wall to the north, and drops back to `dly state`
+  when none is left. **8 is the standing wall.**
+* `FUN_0047DFE0` writes `surface = **9**`, `flags = 2`, `elevation = 0`. **A collapsed wall is 9.**
+* **Nothing anywhere writes surface 4 outside the classifier**, so 4 cannot be *"what a breach
+  leaves behind"*, which is what `crates/l2-sim` called it. `docs/decisions.md` `C99`.
+
+And one consequence worth carrying, because it makes §14.3's two thresholds stop looking
+arbitrary: the accumulator test is *the attacker is standing on a 5*, and 5 is **the inside**. A
+besieger still outside chews the gate at 20,000; one who is already through a breach — which
+`Wall_Smash` has joined to the bailey by writing 5 over it — chews the next wall at 5,000. That is
+what makes a breach spread.
 
 ### 3.1 This settles two open questions in `skr.md`
 
@@ -846,7 +898,8 @@ four times (`barred`) and its `hold it` timer has expired.
 **[V]** Mechanics, in order:
 
 * an early out: if the target is adjacent (`Dist_Chebyshev < 2`) or `Path_LineIsClear`
-  succeeds, no search happens at all;
+  succeeds, no search happens at all — **but see §8.3a, because that sentence is true and
+  misleading**;
 * the cost field is seeded from a blocked-cell template and the visit counters zeroed;
 * the start cell is set to cost 1 and pushed; the loop runs until the destination has a
   cost or the queue empties;
@@ -894,6 +947,43 @@ end.
 So `routed` (`+0x166`) is incremented once per call to this machinery, and `barred`
 (`+0x176`) counts consecutive failures. **[V]** The names are the game's own, from the
 debug panel, and the fields are only touched by the mover.
+
+### 8.3a `Path_LineIsClear` is not a line, not a predicate, and not free of side effects  **[V]**
+
+`0x004710F2`, and the early out above describes it as line of sight, which is what its name says
+and what everyone including us built. It is none of the three, and the difference is what decides
+whether an army can press through a gap.
+
+* **It marks friendly figures.** It opens by copying the blocked template over `g_pathCost` and
+  calling `Path_BuildBlockedMap` — the routine that writes **998** under every friendly figure — and
+  then tests that array as it walks. A comrade in the way blocks it exactly as terrain does. The
+  destination is the one exception: a 998 there is cleared to 0 first, so walking *onto* an occupied
+  cell is allowed and the mover settles it by swapping or waiting.
+* **It is two greedy walkers, not a line.** Both set out from the start. Each step takes the
+  eight-way direction toward the target and, when that cell is taken, rotates — walker A clockwise,
+  walker B anticlockwise, up to eight tries — so the walk *slips around* obstacles rather than
+  stopping at them. It runs 80 rounds of the pair and then gives up. On an open field it is a
+  straight line; against a wall with a gap in it, it can round the wall.
+* **It leaves its cost field behind, and the caller uses it.** When `Path_Search` skips the flood
+  fill because this succeeded, `BattleMan_Step` runs `Path_Extract` on `g_pathCost` **anyway** — so
+  the figure comes away with the walked route, comrade-avoiding detours and all. There is no branch
+  in which a blocked figure is given nothing.
+
+That third property is the one with teeth, and `docs/decisions.md` `C103` records what
+its absence cost: a figure whose next step was taken by a comrade asked for a path, was told none
+was needed, was handed an empty one, and retried the same blocked step for ever with `barred` at 0.
+An army pressing a breach does that as a permanent deadlock — 45 figures frozen for 200,000 frames.
+
+**And the whole block below `local_10 == 2 || local_10 == 3` in `BattleMan_Step` is worth reading
+for two more things this section does not have.** Before it re-routes at all, the mover calls
+`FUN_004904EC` — a **side-step**: it re-derives the direction to the target and tries it and its
+two rotations, up to five each way, taking the first that `BattleMan_TryStepDir` accepts. It is
+guarded by `field_0x169 < 2`, and `field_0x169` is the Chebyshev distance to the target set a few
+lines above — so **a figure only side-steps within one cell of where it is going**, which is a
+figure shuffling for a slot rather than one navigating. And after the search, `Path_DetourTooLong`
+can make the figure **give up and stand where it is** by setting `tgX, tgY` to its own position.
+Neither is reproduced; both are recorded here rather than in a correction, because neither has been
+shown to matter yet.
 
 ---
 
@@ -1394,8 +1484,18 @@ interchangeable:
 
 | | counter | fed when | threshold | effect |
 |---|---|---|---:|---|
-| rampart | `g_wallHitsRampart` `0x00554034` | the figure stands on surface **5** | 5,000 | that patch becomes surface 4, the counter **resets**, `g_rampartCellsBreached` + 1 |
-| gate | `g_wallHitsGate` `0x00568DA4` | anything else | 20,000 | one-shot: `g_gateBreached` = 1, and `g_siegeApproachScore` and `g_siegeBreachScore` both + 4 |
+| rampart | `g_wallHitsRampart` `0x00554034` | the figure stands on surface **5** — the bailey, or a stretch already opened (§3.2) | 5,000 | **`Wall_Smash` opens the whole 9 × 9 around the attacker**, the counter **resets**, `_DAT_0055307C` + 1 |
+| gate | `g_wallHitsGate` `0x00568DA4` | anything else | 20,000 | one-shot: `_DAT_00569588` = 1, the **same 9 × 9** comes down, and `g_siegeApproachScore` and `g_siegeBreachScore` both + 4 |
+
+> **Both thresholds call `FUN_0049694F(mapX, mapY, 4)` — `Wall_Smash` — and this row used to say
+> *"that patch becomes surface 4"*, which is wrong twice.** It is not one patch: the radius is 4,
+> so the square is 9 × 9 and *every* cell in it carrying flag `0x20` or `0x40` is opened. And it is
+> not surface 4: the routine writes **5**, joining the hole to the bailey behind it. The elevation
+> is deliberately left alone — flattening a cell is `Wall_Collapse`'s job and a different function.
+> `docs/decisions.md` `C100`. A one-cell breach is a funnel an army cannot press through, and
+> `crates/l2-sim` had one.
+>
+> `_DAT_0055307C` is not the moat flag either — see §14.3c.
 
 A man on foot adds **1** per frame; a battering ram in state 14 adds **20**. So
 one ram opens a gate in a thousand frames where a lone swordsman needs twenty
@@ -1460,6 +1560,28 @@ The same document settles two more readings in this chapter:
   mover enforces that, and it is recorded here as **unlocated** rather than
   implemented: the handler stops advancing its script on the wall-found path,
   which is not the same rule.
+
+### 14.3c `_DAT_0055307C` counts gaps in the wall, and it is seeded per castle  **[V]**
+
+Six sites, and they settle a field `crates/l2-sim` had called *"the moat flag"* on no evidence:
+
+* **initialised** by `Battlefield_BuildCastle` as `(g_castleLevel == 0 || g_castleLevel == 3) ? 1 : 0`
+  on the campaign path, and on the other path from a twenty-entry `int32` table at `0x004D4A98`
+  holding `1 0 0 0 0 1 0 0 1 0 1 0 0 0 0 0 0 1 1 1` — one entry per castle layout, seven of twenty
+  set. Two sibling flags are seeded from the same place: `DAT_00542CD4` (the layout flag two order
+  handlers jump `orders` to 100 on) from `0x004D4AD8`, and `DAT_0057CB48` from `0x004D4A18`;
+* **incremented** by `BattleMan_StateAttackWall` and `BattleMan_StateRamGate`, in both cases at the
+  5,000 rampart threshold, beside `Wall_Smash` and the counter reset. **`Wall_Collapse` does not
+  touch it**;
+* **read** three times — `BattleMan_StateRamGate` sends a ram off the wall at `1 < it`, and
+  `Order_ToCastleObjective` and `UnitOrder_SiegeDefMissile` both branch on `it < 1`;
+* and **carried between assaults** at county `+0x1F0` by the pair `Siege_RecordCastleDamage` /
+  `Siege_RestoreCastleDamage`.
+
+The seed rules the old name out on its own: a moat appears from castle level 2 upward and this is
+set at levels **0 and 3**. `[V]` on the writers and readers; `[I]` on *"a gap in the outer wall"*
+as against some other per-layout property a rampart breach also creates.
+`docs/decisions.md` `C102`.
 
 ### 14.4 The six `a3` animation handlers are unreachable code
 
@@ -1576,17 +1698,29 @@ anybody sees it**.
 **Corrected.** It was reasonable to read it as doing so and it does not. A class-3
 (catapult) shot entering a surface-4 cell adds **one** to that cell's own counter
 in byte `+0` and becomes class-4 debris; only when the counter passes `0x0F` —
-the **sixteenth** hit — does `FUN_0047DFE0` run, and *that* is what turns the
-cell to rubble and adds `g_siegeBreachScore` **one per orthogonal neighbour that
-is still surface 5**, so 0 to 4 a collapse. The other writers of the score are
+the **sixteenth** hit — does `Wall_Collapse` (`FUN_0047DFE0`) run, and *that* is
+what brings the cell down — surface **9**, elevation **0**, so a besieger can walk
+over it — and adds `g_siegeBreachScore` **one per orthogonal neighbour still in
+the bailey at surface 5** (C99), so 0 to 4 a collapse. The other writers of the score are
 the hand and ram gate breaches; none of them is on the missile path.
 
-*Open, and worth someone's time:* `docs/battle.md` and `crates/l2-sim/src/siege.rs`
-read surface **4** as *what a breach leaves behind* (`Siege_FindCellSurface4`
-hunts for it) and **5** as the rampart. The catapult path shoots **at** surface 4
-and scores per adjacent surface 5, which does not fit that reading — it fits
-4 = the wall face and 5 = the walkway. Not resolved here; `l2_sim::siege`'s
-castle raster is ours, so nothing in this tree turns on it yet.
+**Resolved, by C99, and the resolution is not what this paragraph guessed.** What
+stood here was an open question: our surface model read **4** as *what a breach
+leaves behind* and **5** as the rampart, the catapult path shoots **at** 4 and
+scores per adjacent **5**, and that does not fit. The observation was right and
+both proposed answers were wrong. An exhaustive search for writers of cell byte
+`+7` settles it — **4 is the rampart walk, 5 is the bailey, 8 is the standing
+wall and 9 is what this routine leaves** — so `Wall_Collapse` bills the besieger
+one point per neighbour that is *inside*, and the whole model was inverted.
+`docs/decisions.md` `C99`.
+
+Two things about how it sat here are worth more than the answer. It was closed by
+a branch that came looking for something else, five weeks after it was written;
+and while it stood, the paragraph immediately above it went on describing the
+score as *"one per orthogonal neighbour that is still surface 5"* with **the wrong
+gloss on 5 three lines away from a note saying that gloss did not fit.** Marking a
+reading as doubtful does not stop it being read. That is the same mechanism as
+`docs/audit.md` F21 and the stale font comment — see `docs/agents.md`.
 
 #### Class 7 is boiling oil, not a falling man
 
@@ -2031,9 +2165,27 @@ frame counter — which runs it at frame 5001, then `Battle_WriteBackCasualties`
 * `g_multiplayer` skips it entirely, which is not reproduced — see `docs/netcode.md`.
 
 `Siege_RestoreCastleDamage` (`0x004787A4`) is the other half, and it is the **last statement
-but one of `Battlefield_BuildCastle`** — so it overwrites the fresh `g_siegeApproachScore =
-500` that `Battle_Start` wrote a moment earlier. A besieger thrown off a half-wrecked castle
-comes back to its own progress. It restores the *numbers* and not the field.
+but one of `Battlefield_BuildCastle`**. A besieger thrown off a half-wrecked castle comes back to
+its own progress. It restores the *numbers* and not the field.
+
+> **This paragraph used to end *"so it overwrites the fresh `g_siegeApproachScore = 500` that
+> `Battle_Start` wrote a moment earlier"*, and all three halves of that are wrong.** The 500 is
+> `Battlefield_BuildCastle`'s own, written before the layout raster is read. The restore is guarded
+> by `if (g_counties[g_battleCounty].castleDegraded == 2)` — it fires only on a **repeat** assault,
+> and on a first one it zeroes the county's six fields and leaves the globals alone. And what does
+> overwrite the 500 is the **moat**: the raster's second pass hands terrain byte `0xEE` to
+> `FUN_0047DCCE`, whose first statement is `g_siegeApproachScore = 0`, so one ditch cell anywhere
+> on the field puts it back to zero.
+>
+> The pair is a design rather than an accident, and reads straight against
+> `Order_ToBreachOrStaging`'s three arms — under 16 hunt the ditch, 16 to 400 fall back on staging,
+> over 400 do nothing at all. **A moated castle opens at 0**, so the besieger's whole approach
+> ladder is spent shovelling and `Moat_Fill`'s one-to-four points a cell is what eventually carries
+> it past the `approach_score < 3` gate that four attacker handlers open with. **A dry castle opens
+> at 500**, the approach is already done, and the only thing holding the ladder shut is
+> `breach_score == 0` — which the siege engines answer. Start a dry castle at 0, as
+> `crates/l2-sim` did, and the besieger never leaves the ladder however long the battle runs.
+> `docs/decisions.md` `C101`.
 
 ### 16.2 The moat fill, and why it is four loads  **[V]**
 
@@ -2106,8 +2258,26 @@ The scan is missing a `break` on its outer loop; the offset is unaffected and
 
 ### 16.4 A breach is at ground level  **[V]**
 
-`Wall_Collapse` writes `elevation = 0` over the cell it brings down, and `Wall_SmashAround`
-(`0x0049694F`) — the radius-4 square both wall-hitting states run on their threshold —
-turns every `0x20` cell in a 9 × 9 into `surface = 5` rubble. A breach is not a step. It
-matters because §7's rule allows a difference of one: a hole left at a two-high wall's own
-height is a hole nobody can walk through, and the siege runs for ever with its gate open.
+Two different routines, and they leave different marks:
+
+* **`Wall_Smash` (`0x0049694F`)** — the radius-4 square both wall-hitting states run on their
+  threshold — turns every `0x20` cell in the 9 × 9 into `surface = 5`, joining the hole to the
+  bailey, and every `0x40` cell likewise. **It does not touch the elevation.** A smashed wall
+  stands at the height `Battlefield_BuildCastle`'s structure code 8 gave it, which is **1**, and
+  §7's rule allows exactly one — so it is walkable from the field outside and from the courtyard
+  inside. Build the wall two high and it is a hole nobody can walk through, and the siege runs for
+  ever with its gate open. That was ours and it is `docs/decisions.md` `C99`.
+* **`Wall_Collapse` (`0x0047DFE0`)** — one cell, from a catapult's fourth hit — writes
+  `surface = 9`, `flags = 2` and `elevation = 0`. *That* is the routine that flattens, and it is
+  also the one that bills: one point of `g_siegeBreachScore` and one of `DAT_0056D648` for each
+  orthogonal neighbour still at surface 5, plus a call to `FUN_0048EE46` filing that neighbour in
+  the garrison's defence-post table (§14.3d).
+
+### 14.3d The defence posts are the holes  **[V]**
+
+`FUN_0048EE46` appends a cell to the twenty-entry table at `DAT_00553C80` that
+`Siege_ClaimDefencePost` (`0x0048ED95`) reserves from. It is the table's **only** appender in the
+binary, and its only caller is `Wall_Collapse`. So a castle nobody has bombarded has no defence
+posts at all, `Siege_ClaimDefencePost` returns 0 for every unit, and the garrison's handlers take
+their `cellOffset == 0` arm — the wall slots — for the whole of that siege. The posts are the holes,
+and they arrive when the holes do. `docs/decisions.md` `C105`.

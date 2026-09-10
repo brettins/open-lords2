@@ -6695,6 +6695,14 @@
       "comment": "The siege battlefield builder; the third writer of the cell array. Its LAST STATEMENT BUT ONE is Siege_RestoreCastleDamage (0x004787A4), which is why a rebuilt castle does not start a repeat assault from scratch: the six county fields overwrite the g_siegeApproachScore = 500 and g_siegeBreachScore = 0 that Battle_Start wrote a moment earlier."
     },
     {
+      "addr": "0x0047DCCE",
+      "name": "Battlefield_PlaceMoatCell",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_PlaceMoatCell(void)",
+      "comment": "The raster's handler for castle terrain byte 0xEE. Its FIRST statement is g_siegeApproachScore = 0, and that is the whole of C101: Battlefield_BuildCastle opens a fresh siege at 500, and this puts it back to zero, so a MOATED castle costs the besieger his entire approach ladder in shovelling and a DRY one starts with the approach already done. Then frame = 0, plays sound 0x0B, flags2 &= 0xE3 | 4, flags |= 0x10, surface = 2. docs/decisions.md C101."
+    },
+    {
       "addr": "0x0047DD86",
       "name": "Moat_Fill",
       "section": "battle",
@@ -6708,7 +6716,47 @@
       "section": "battle",
       "confidence": "verified",
       "signature": "void Wall_Collapse(int cellOffset)",
-      "comment": "A wall cell comes down under catapult fire. Reached only from Missile_Step, when a class-3 shot lands on a cell whose elevation is 1..3 and whose surface is 4, and only once that cell's terrain byte - counted up one per shot - passes 0x0F. Writes surface = 9, flags = 2, ELEVATION = 0 (a breach is rubble at ground level, not a step, which matters because a step of more than one level is refused), flags2 &= 0xE3 | 4. Then, for each of the four orthogonal neighbours still at surface 5 - rampart - it adds one to g_siegeBreachScore, calls FUN_0048EE46 on that neighbour, and adds one to DAT_0056D648. So a shot into the middle of a wall is worth twice one into its end, and the number the county is billed in wood or stone is exactly the number the besieger's AI is rewarded with."
+      "comment": "A wall cell comes down under catapult fire. Reached only from Missile_Step, when a class-3 shot lands on a cell whose elevation is 1..3 and whose surface is 4, and only once that cell's terrain byte - counted up one per shot - passes 0x0F. Writes surface = 9, flags = 2, ELEVATION = 0 (a breach is rubble at ground level, not a step, which matters because a step of more than one level is refused), flags2 &= 0xE3 | 4. Then, for each of the four orthogonal neighbours still at surface 5 - the bailey, i.e. inside (C99) - it adds one to g_siegeBreachScore, calls FUN_0048EE46 on that neighbour, and adds one to DAT_0056D648. So a shot into the middle of a wall is worth twice one into its end, and the number the county is billed in wood or stone is exactly the number the besieger's AI is rewarded with."
+    },
+    {
+      "addr": "0x0047E263",
+      "name": "Battlefield_ClassifyKeep",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_ClassifyKeep(void)",
+      "comment": "Flood classifier: writes surface 6, the keep and its 0x08 door. One of the five passes that between them define what the castle surface numbers MEAN; read together they invert the model l2-sim carried. docs/decisions.md C99."
+    },
+    {
+      "addr": "0x0047E387",
+      "name": "Battlefield_ClassifyBailey",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_ClassifyBailey(void)",
+      "comment": "Flood classifier: writes surface 5, flooded from the keep door and the bridge. Surface 5 is THE BAILEY - the inside - not the rampart, which is what l2-sim had. Wall_Smash writes 5 over an opened wall precisely so the hole joins the inside. The accumulator test standing_on == 5 was right for the wrong reason: a besieger already through chews the next wall at 5,000 while one still outside chews the gate at 20,000, and that is what makes a breach spread. docs/decisions.md C99."
+    },
+    {
+      "addr": "0x0047E52D",
+      "name": "Battlefield_ClassifyRampartWalk",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_ClassifyRampartWalk(void)",
+      "comment": "Flood classifier: writes surface 4, raised ground beside a 5 - the rampart walk. This is the ONLY writer of surface 4 in the entire image, which is what rules out the old reading of 4 as \"what a breach leaves behind\": a breach leaves 5 (Wall_Smash) or 9 (Wall_Collapse), never 4. docs/decisions.md C99."
+    },
+    {
+      "addr": "0x0047E668",
+      "name": "Battlefield_ClassifyOutsideGround",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_ClassifyOutsideGround(void)",
+      "comment": "Flood classifier: writes surface 3, ground-level ground outside the wall. Siege_LowerDrawbridge patches its cell to 3 as well. docs/decisions.md C99."
+    },
+    {
+      "addr": "0x0047E7B2",
+      "name": "Battlefield_ClassifyField",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Battlefield_ClassifyField(void)",
+      "comment": "Flood classifier: writes surface 1, the open field, flooded from the two map corners. docs/decisions.md C99."
     },
     {
       "addr": "0x0047EBE8",
@@ -7672,6 +7720,14 @@
       "comment": "A twenty-entry (cell, unit) reservation table. Returns the cell already reserved for this unit, or reserves the first free non-empty entry for it. Stops two defending units posting to the same place."
     },
     {
+      "addr": "0x0048EE46",
+      "name": "DefencePost_Append",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void DefencePost_Append(int cellOffset)",
+      "comment": "The only appender to g_defencePosts in the whole binary, and its only caller is Wall_Collapse - once per orthogonal neighbour left hanging by a catapult shot. So the garrison's defence posts ARE the holes, a castle nobody has bombarded has NONE, and Siege_ClaimDefencePost returns 0 for every unit until a wall comes down. Scans slots 0..0x12 for the first zero; if all are taken it writes _DAT_00553D18, which is slot 19 - so the twentieth post is an overflow slot overwritten again and again rather than a twentieth post. docs/decisions.md C105."
+    },
+    {
       "addr": "0x0048EF45",
       "name": "Enemy_NearestUnit",
       "section": "battleai",
@@ -7890,11 +7946,11 @@
     },
     {
       "addr": "0x0049694F",
-      "name": "Wall_SmashAround",
+      "name": "Wall_Smash",
       "section": "battle",
       "confidence": "verified",
-      "signature": "void Wall_SmashAround(int x, int y, int radius)",
-      "comment": "A 2*radius+1 square around a figure, clipped at the map edge, with every wall cell in it knocked flat. Plays bathit2.wav, then per cell: flags & 0x20 (wall) -> clear 0x20, surface = 5, the cell one row SOUTH gets frame += 0x10 and flags2 |= 1; flags & 0x40 (drawbridge) -> flags = 0, surface = 5, frame += 0x28, flags2 |= 1. Ends with Path_BuildTerrainTemplate and Path_BuildStepCost. Its two callers are BattleMan_StateAttackWall and BattleMan_StateRamGate, both at radius 4, on the 5000th rampart hit and the 20000th gate hit - so a breach is a nine-by-nine hole rather than one cell, and what it leaves behind is rampart you can walk on."
+      "signature": "void Wall_Smash(int x, int y, int radius)",
+      "comment": "A 2*radius+1 square around a figure, clipped at the map edge, with every wall cell in it knocked flat. Plays bathit2.wav, then per cell: flags & 0x20 (wall) -> clear 0x20, surface = 5, the cell one row SOUTH gets frame += 0x10 and flags2 |= 1; flags & 0x40 (drawbridge) -> flags = 0, surface = 5, frame += 0x28, flags2 |= 1. Ends with Path_BuildTerrainTemplate and Path_BuildStepCost. Its two callers are BattleMan_StateAttackWall and BattleMan_StateRamGate, both at radius 4, on the 5000th rampart hit and the 20000th gate hit - so a breach is a nine-by-nine hole rather than one cell, and what it leaves behind is surface 5 - the BAILEY, so the hole joins the inside of the castle. It does not touch the elevation; bringing a cell down to ground level is Wall_Collapse. docs/decisions.md C99, C100."
     },
     {
       "addr": "0x00496B9F",
@@ -9869,6 +9925,13 @@
       "section": "battle",
       "confidence": "inferred",
       "comment": "Four ints, 0/10/20/35: the first g_troopsTable row for each battle category."
+    },
+    {
+      "addr": "0x004D4A98",
+      "name": "g_rasterGapSeed",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Twenty dwords, one per castle raster, read only by the skirmish path of Battlefield_BuildCastle to seed g_wallGapCount: 1 0 0 0 0 1 0 0 1 0 1 0 0 0 0 0 0 1 1 1 - seven of twenty set. docs/decisions.md C102."
     },
     {
       "addr": "0x004D4B98",
@@ -12230,6 +12293,13 @@
       "comment": "Zeroed by Battle_Start. A field melee handler adds 3 when the side's engagement count passes its budget byte and 20 when the AI's missile troops fall below an eighth of its army; every unengaged melee unit counts it down by 1 per think. While it is non-zero every AI melee unit goes into free pursuit and every missile unit closes half the distance, so it is a commitment counter rather than a hold."
     },
     {
+      "addr": "0x0055307C",
+      "name": "g_wallGapCount",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Gaps in the castle wall, NOT the moat flag - l2-sim carried it as moat_flag on the strength of nothing. Seeded by Battlefield_BuildCastle to 1 at castle levels 0 and 3 (a moat appears from level 2 up, which rules the old name out on its own), or on the skirmish path from g_rasterGapSeed. Incremented by BattleMan_StateAttackWall and BattleMan_StateRamGate at the 5,000-hit rampart threshold beside Wall_Smash; Wall_Collapse does NOT touch it, and ours did. Read three times: a ram is sent away at 1 < it, and Order_ToCastleObjective and UnitOrder_SiegeDefMissile branch on it < 1. Persists across assaults through County +0x1F0. docs/decisions.md C102."
+    },
+    {
       "addr": "0x005530B0",
       "name": "g_pickedCounty",
       "section": "diplomacy",
@@ -12382,6 +12452,20 @@
       "section": "battle",
       "confidence": "verified",
       "comment": "Army B's living men - the twin of g_battleMenA, counted the same way, drawn beside it, and the other of Battle_CheckOutcome's two field-battle end conditions."
+    },
+    {
+      "addr": "0x00553C80",
+      "name": "g_defencePosts",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Twenty pairs of dwords - [cellOffset, claimedBy] at stride 8 - that Siege_ClaimDefencePost reserves from. Filled ONLY by DefencePost_Append, whose only caller is Wall_Collapse, so this table is empty for the whole of a siege in which no wall has come down and the garrison takes its cellOffset == 0 arm (the wall slots) instead. our_castle_ai_field used to spread twenty posts along the gate wall at deployment; it now leaves them empty. docs/decisions.md C105."
+    },
+    {
+      "addr": "0x00553C84",
+      "name": "g_defencePostClaimant",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The second dword of each g_defencePosts pair: the unit holding that post, or 0. Siege_ClaimDefencePost scans for a post whose cell is set and whose claimant is not. Named separately because the decompiler addresses the two halves as unrelated globals; they are one table of pairs."
     },
     {
       "addr": "0x00553D24",
@@ -13096,6 +13180,13 @@
       "section": "map",
       "confidence": "verified",
       "comment": "Highest county id on the loaded map, i.e. the county count. Set by Map_LoadPlanes as max(plane5) over ids below 0x11."
+    },
+    {
+      "addr": "0x0056D648",
+      "name": "g_castleDamageCells",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The repair bill. Wall_Collapse adds one per orthogonal neighbour it bills the besieger for, so the number the county pays and the number the attacking AI is rewarded with are the same number. Battle_End writes it to County +0x1E6 and multiplies it into the repair costs at +0x1D4 and +0x1E0 (x10) and +0x1D0 (x15). Also one of the two conditions - with DAT_0057A0D8 - under which a siege writes castle damage back to the county at all."
     },
     {
       "addr": "0x0056D65C",

@@ -443,6 +443,12 @@ impl BattleRunner {
             runner.siege = crate::siege::SiegeState::castle(level);
             runner.ai.is_siege = true;
             runner.ai_field = crate::siege::our_castle_ai_field(&runner.field, level);
+            // **A fresh siege opens with the approach score at 500 on a dry
+            // castle and 0 on a moated one** —
+            // [`crate::siege::APPROACH_SCORE_START`] has the three writes and
+            // why the pair decides whether a besieger ever assaults at all.
+            runner.ai.approach_score = crate::siege::approach_score_at_build(&runner.field);
+            runner.ai.ramparts_breached = runner.siege.ramparts_breached as i32;
         }
         // Side 4 first, then side 0 — the order fixes figure indices, and figure
         // indices are the simulation order.
@@ -1018,13 +1024,18 @@ impl BattleRunner {
             }
             if f.side == SIDE_B
                 && self.field.cells[f.y as usize * DIM + f.x as usize].surface
-                    == crate::siege::SURFACE_RAMPART
+                    == crate::siege::SURFACE_BAILEY
             {
                 on_wall += 1;
             }
         }
         self.ai.attackers_on_wall = on_wall;
         self.ai.siege_engine_count = engines;
+        // `_DAT_0055307C`, which lives in [`crate::SiegeState`] because the
+        // county carries it between assaults, mirrored where the order
+        // handlers can read it. See [`crate::Ai::ramparts_breached`] for why
+        // it is not the moat flag.
+        self.ai.ramparts_breached = self.siege.ramparts_breached as i32;
     }
 
     // -- reforming ----------------------------------------------------------
@@ -1804,23 +1815,26 @@ impl BattleRunner {
         self.wall_hits[cell] = self.wall_hits[cell].saturating_add(1);
         if self.wall_hits[cell] >= missile::WALL_HITS_PER_COLLAPSE {
             self.wall_hits[cell] = 0;
-            self.field.cells[cell].surface = crate::siege::SURFACE_BREACH;
-            self.field.cells[cell].flags &= !crate::siege::FLAG_WALL;
-            self.field.cells[cell].elevation = crate::siege::BREACH_ELEVATION;
-            self.blocked[cell] = self.field.cells[cell].impassable();
-            self.refresh_ai_surfaces();
-            let score = self.rampart_neighbours(cell);
+            // `Wall_Collapse` (`FUN_0047DFE0`) — surface 9, flags 2, elevation
+            // 0, and one point of breach score *and* one of wall damage for
+            // each of the four orthogonal neighbours still at
+            // [`crate::siege::SURFACE_BAILEY`]. Those two are the *same* count,
+            // written in one statement per neighbour — `docs/bugs.md` B69.
+            //
+            // > Two corrections here. It used to write
+            // > `SURFACE_BREACH` (4), and 4 is not what a collapse leaves; and
+            // > it used to raise `ramparts_breached`, which is `_DAT_0055307C`
+            // > and which the collapse routine **does not touch** — only the
+            // > two wall-attack states do, at their 5,000 threshold.
+            let score = crate::siege::collapse_wall(&mut self.field, &mut self.siege, cell);
+            self.rebuild_blocked();
             self.ai.breach_score += score;
             self.ai.approach_score += score;
-            self.siege.ramparts_breached += 1;
-            // **The wall-damage accumulator**, and it is the *same* count.
-            // `FUN_0047DFE0` writes the two in one statement per neighbour —
-            // `g_siegeBreachScore++; FUN_0048EE46(nb); DAT_0056D648++;` — four
-            // times over, so the number the county is billed in wood or stone
-            // is exactly the number the besieger's AI is rewarded with.
-            // `docs/bugs.md` B69.
-            self.siege.wall_damage =
-                self.siege.wall_damage.saturating_add(score.max(0) as u16);
+            // `FUN_0048EE46` files each billed neighbour in the twenty-entry
+            // defence-post table the garrison's handlers claim from. It is the
+            // table's **only** appender, so a castle nobody has shot at has no
+            // defence posts at all.
+            self.register_defence_posts(cell);
         }
         let m = self.missiles.get_mut(slot);
         m.class = missile::CLASS_DEBRIS;
@@ -2059,25 +2073,6 @@ impl BattleRunner {
         None
     }
 
-    /// How many of a cell's four orthogonal neighbours are still rampart — what
-    /// a collapse is worth.
-    fn rampart_neighbours(&self, cell: usize) -> i32 {
-        let (x, y) = ((cell % DIM) as i32, (cell / DIM) as i32);
-        let mut n = 0;
-        for (dx, dy) in [(0i32, -1i32), (0, 1), (-1, 0), (1, 0)] {
-            let (nx, ny) = (x + dx, y + dy);
-            if nx < 0 || ny < 0 || nx >= DIM as i32 || ny >= DIM as i32 {
-                continue;
-            }
-            if self.field.cells[ny as usize * DIM + nx as usize].surface
-                == crate::siege::SURFACE_RAMPART
-            {
-                n += 1;
-            }
-        }
-        n
-    }
-
     /// `Melee_ChooseChaseTarget` (`0x004954DD`): lowest score wins, where the
     /// score is the Chebyshev distance, **halved** if the enemy carries a
     /// missile weapon, plus that enemy's `targeted` count. No range limit at
@@ -2139,6 +2134,25 @@ impl BattleRunner {
         // the three answers differently for the two sides.
         if self.siege.is_siege && self.strike_castle(i, dst) {
             return;
+        }
+        // **The height rule, which the mover did not have.**
+        // `docs/battle.md` §7: *"a step is only allowed when the two cells'
+        // elevations differ by at most 1, unless the destination's elevation is
+        // exactly 5"*, marked `[V]`. [`crate::movement::can_step_elevation`]
+        // has said so since it was written and **nothing called it** — the
+        // pathfinder enforced the rule and the mover did not, so a figure
+        // walking straight at its target (which is what a figure does when the
+        // line is clear, and no search ever runs) climbed cliffs. It is inert
+        // on a `.skr` field, where every cell is at elevation 0, and it is the
+        // difference between a castle wall and a ramp everywhere else.
+        {
+            let src = self.fighters[i].y as usize * DIM + self.fighters[i].x as usize;
+            let (a, b) =
+                (self.field.cells[src].elevation as i32, self.field.cells[dst].elevation as i32);
+            if !crate::movement::can_step_elevation(a, b) {
+                self.request_path(i);
+                return;
+            }
         }
         if self.blocked[dst] {
             // **`BattleMan_Step`'s state-9 arm.** `Cell_TryEnter` answered 2 —
@@ -2257,32 +2271,41 @@ impl BattleRunner {
                 .surface;
             let blow = crate::siege::strike_wall(&mut self.siege, standing, is_ram);
             self.fighters[i].anim = Motion::Attacking;
+            // **Both thresholds open a 9 × 9, and it is the same call.**
+            // `FUN_0049694F(mapX, mapY, 4)` — `Wall_Smash` — centred on the
+            // *attacker's* cell rather than on the cell it was trying to
+            // enter, which is the original's argument list exactly. Every wall
+            // cell in the square loses `0x20` and becomes
+            // [`crate::siege::SURFACE_BAILEY`]; the elevation is left alone,
+            // which is why a wall is built one high.
+            //
+            // > This used to open the single destination cell. A one-cell hole
+            // > in a castle wall is a funnel: the first figure through it
+            // > occupies the cell, the pathfinder marks a friendly-occupied
+            // > cell 998, and everybody else waits outside for ever. That is
+            // > the whole of *"848 men could not reach two figures through an
+            // > open gate"*. `docs/decisions.md` `C100`.
+            let (ax, ay) = (self.fighters[i].x as i32, self.fighters[i].y as i32);
             match blow {
                 crate::siege::WallBlow::RampartBreached => {
-                    // The patch the attacker was standing beside comes down.
-                    // Surface 4 is what `Siege_FindCellSurface4` hunts for, so
-                    // this is how the order layer learns the wall is open.
-                    self.field.cells[dst].surface = crate::siege::SURFACE_BREACH;
-                    self.field.cells[dst].flags &= !FLAG_WALL;
-                    self.field.cells[dst].elevation = crate::siege::BREACH_ELEVATION;
-                    self.blocked[dst] = self.field.cells[dst].impassable();
-                    self.refresh_ai_surfaces();
+                    crate::siege::smash_walls(
+                        &mut self.field,
+                        ax,
+                        ay,
+                        crate::siege::SMASH_RADIUS,
+                    );
+                    self.rebuild_blocked();
                     self.ai.breach_score += 1;
                     self.ai.approach_score += 1;
                 }
                 crate::siege::WallBlow::GateBreached => {
-                    self.field.cells[dst].surface = crate::siege::SURFACE_BREACH;
-                    self.field.cells[dst].flags &= !(FLAG_WALL | FLAG_DRAWBRIDGE);
-                    // **A breach is at ground level, and this arm did not say
-                    // so.** It left the cell at the wall's own elevation, and
-                    // `movement::can_step_elevation` allows a step of at most
-                    // one — so a besieger standing on the ground outside a
-                    // two-high wall could smash the gate open and still not
-                    // walk through it. Nothing caught it because nothing had
-                    // ever fought a siege to its end.
-                    self.field.cells[dst].elevation = crate::siege::BREACH_ELEVATION;
-                    self.blocked[dst] = self.field.cells[dst].impassable();
-                    self.refresh_ai_surfaces();
+                    crate::siege::smash_walls(
+                        &mut self.field,
+                        ax,
+                        ay,
+                        crate::siege::SMASH_RADIUS,
+                    );
+                    self.rebuild_blocked();
                     self.ai.breach_score += crate::siege::GATE_BREACH_SCORE;
                     self.ai.approach_score += crate::siege::GATE_BREACH_SCORE;
                 }
@@ -2301,6 +2324,44 @@ impl BattleRunner {
             return true;
         }
         false
+    }
+
+    /// `FUN_0048EE46` — file a cell in the twenty-entry defence-post table.
+    ///
+    /// **`Wall_Collapse` is the table's only appender**, which is a fact about
+    /// the garrison and not bookkeeping: `Siege_ClaimDefencePost` returns 0
+    /// until a catapult has actually knocked a hole in something, so every
+    /// defender handler's `cellOffset == 0` arm — the wall slots — is what a
+    /// garrison uses for the whole of an unbombarded siege, and the defence
+    /// posts are *the holes*. The original files the four **billed
+    /// neighbours**, not the collapsed cell.
+    ///
+    /// The original's loop writes past the end of the nineteen slots it scans
+    /// into a twentieth word when the table is full; that overrun is not
+    /// behaviour and the table simply stays full here. `docs/bugs.md` N4.
+    fn register_defence_posts(&mut self, cell: usize) {
+        for n in crate::siege::orthogonal_neighbours(cell) {
+            if self.field.cells[n].surface != crate::siege::SURFACE_BAILEY {
+                continue;
+            }
+            if self.ai_field.defence_posts.contains(&n) {
+                continue;
+            }
+            if let Some(free) = self.ai_field.defence_posts.iter_mut().find(|p| **p == 0) {
+                *free = n;
+            }
+        }
+    }
+
+    /// Re-derive the pathfinder's blocked map and the AI's surface copy from
+    /// the battlefield — the pair `Path_BuildTerrainTemplate` and
+    /// `Path_BuildStepCost` that `Wall_Smash` ends with, plus our own copy of
+    /// the surfaces.
+    fn rebuild_blocked(&mut self) {
+        for (c, cell) in self.field.cells.iter().enumerate() {
+            self.blocked[c] = cell.impassable();
+        }
+        self.refresh_ai_surfaces();
     }
 
     /// The AI reads the surfaces out of its own copy, so a breach has to reach
@@ -2402,9 +2463,41 @@ impl BattleRunner {
                     f.barred = 0;
                 }
             }
-            // Adjacent or in clear line of sight: nothing to route around, so
-            // the block is transient. Wait rather than counting a failure.
-            Outcome::NoSearchNeeded => {}
+            // **The line is clear and the figure still could not move**, which
+            // means a comrade is standing in the one cell it wanted. This arm
+            // used to do nothing at all, and *nothing* is a deadlock: the
+            // figure retries the same taken step, frame after frame, with
+            // `barred` at 0 and an empty path, and nothing anywhere times it
+            // out. One figure does that invisibly. An army pressing a breach
+            // does it as a permanent jam — measured at 45 besiegers frozen in a
+            // block eight cells wide for 200,000 frames, every one `Walking`.
+            //
+            // The original has no such hole, because **`Path_LineIsClear` is
+            // not a predicate**: it seeds `g_pathCost` through
+            // `Path_BuildBlockedMap` — which marks friendly figures 998 — walks
+            // two greedy walkers that *rotate around* whatever is in the way,
+            // and **leaves the cost field behind**. `BattleMan_Step` then runs
+            // `Path_Extract` on it whether or not the flood fill ran, so the
+            // figure comes away with the walked route, comrade-avoiding
+            // detours and all. [`pathfind::Grid::walk_line`] is that walk, read
+            // out of `0x004710F2`.
+            //
+            // It is applied **only here** — where the straight line is clear
+            // and the step was refused anyway — because that is the only
+            // position in which the two readings differ. A figure that is not
+            // blocked never asks for a path at all.
+            Outcome::NoSearchNeeded => {
+                if let Some(cost) = grid.walk_line(start, dest) {
+                    let walked = pathfind::Search { outcome: Outcome::Found, cost };
+                    let mut path = pathfind::extract(&grid, &walked, start, dest);
+                    path.reverse();
+                    let f = &mut self.fighters[i];
+                    if !path.is_empty() {
+                        f.path = path;
+                        f.barred = 0;
+                    }
+                }
+            }
             Outcome::Unreachable => f.barred = f.barred.saturating_add(1),
         }
     }
@@ -3213,13 +3306,24 @@ mod tests {
         let before = gap(&r);
         // First order at frame 1000, then forty cells at 36 ticks a cell for a
         // swordsman: contact lands a little after 2400.
-        r.run(3_000);
+        //
+        // > **Contact is watched for, not sampled at frame 3,000.** It used to
+        // > be `any(anim == Attacking)` on the state at exactly 3,000, and that
+        // > is a snapshot of an emergent timing rather than the claim the test
+        // > is named for. It went red the day blocked figures started detouring
+        // > around each other instead of standing still — because the armies
+        // > closed *sooner* and the whole fight was over by 3,000, with every
+        // > survivor already `Dying`. The claim is *"they close and they
+        // > fight"*; sampling one frame tests *"they are still fighting at this
+        // > particular frame"*, which is a different and much weaker thing.
+        let mut engaged = false;
+        for _ in 0..30 {
+            r.run(100);
+            engaged |= r.fighters.iter().any(|f| f.anim == Motion::Attacking);
+        }
         let after = gap(&r);
         assert!(after < before, "the armies did not close: {before} -> {after}");
-        assert!(
-            r.fighters.iter().any(|f| f.anim == Motion::Attacking),
-            "nobody ever engaged"
-        );
+        assert!(engaged, "nobody ever engaged");
     }
 
     /// The cadence, which is the AI's most distinctive property: a unit decides
