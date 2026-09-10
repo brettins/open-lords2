@@ -145,7 +145,9 @@ impl TurnOutcome {
 pub fn end_turn(game: &mut Game) -> Option<TurnOutcome> {
     // The non-interactive path: nothing may stop to ask, so every prompt is
     // answered by the policy and the machine cannot come back holding a
-    // question. `Ask` reaching here would be a caller using the wrong door.
+    // question. `Ask` reaching here would be a caller using the wrong door, and
+    // so would a suspended idle battle — [`turn_in_flight`] is how a caller asks
+    // whether either is outstanding, and both come back `None` here.
     match advance(game, Resume::Start, false) {
         TurnStep::Done(outcome) => Some(*outcome),
         _ => None,
@@ -423,26 +425,84 @@ pub fn tick_turn(game: &mut Game) -> TurnStep {
 /// player who sits on the map gets no extra movement out of it;
 /// `Pass::UnitsResetMoves` at the end of the season is what starts it again.
 ///
-/// A battle raised here is settled by the standing policy rather than by a
-/// prompt: this is not a turn, there is no [`TurnProgress`] to suspend, and a
-/// screen `0x12` raised from an idle frame would have nothing to carry on
-/// afterwards. Returns how many tiles were entered, so a caller can decide
-/// whether the frame needs repainting.
+/// # A battle raised here goes through the same gate, and this is the bug that
+/// made it
+///
+/// This used to read: *"A battle raised here is settled by the standing policy
+/// rather than by a prompt: this is not a turn, there is no [`TurnProgress`] to
+/// suspend, and a screen `0x12` raised from an idle frame would have nothing to
+/// carry on afterwards."*
+///
+/// **Every word of that was true and the conclusion was wrong.** A player
+/// reported it as *"it was me attacking a town and it just immediately
+/// resolved."* He had ordered the march and then watched it, which is this
+/// door — so his battle met `game.field_policy`, [`Answer::Decline`], the
+/// autocalc, and no screen was raised at all. The three seam tests that cover
+/// the prompt all press End Turn in the same breath as the order, so the army
+/// only ever arrived inside the turn machine and none of them could see it.
+/// `docs/decisions.md` CNEW-watched.
+///
+/// `Battle_ChooseSettlement` (`0x004A6A30`) has no opinion about which frame an
+/// army arrived on. `Units_Tick` is called from the frame loop next to
+/// `Turn_Tick` (`docs/decisions.md` C35), `Unit_EnterOccupiedTile` and
+/// `Army_AttackCounty` call the gate from inside it, and the gate raises
+/// `g_screenId = 0x12` on the spot — the campaign then stands still because
+/// `Units_Tick`'s own latch abandons the sweep, not because a turn is in
+/// flight. So the three settlements are answered here exactly as they are
+/// inside a turn, and the suspension is [`TurnProgress::idle`].
+///
+/// Returns how many tiles were entered, so a caller can decide whether the
+/// frame needs repainting.
 pub fn tick_units_only(game: &mut Game) -> usize {
     let moved = game.kingdom.tick_units();
     let stepped = moved.stepped;
     if let Some(e) = moved.battle() {
-        let answer = game.field_policy;
-        let attack = Attack::Battle { attacker: e.mover, defender: e.occupant };
-        let seed = battle_seed(&game.kingdom, e);
-        // Through [`record`] like every other battle, so the losing realm is
-        // recounted here too. There is no [`TurnProgress`] on this path, so the
-        // report itself has nowhere to go and `record` drops it — the recount
-        // is the half that must not be dropped with it.
-        let report = engagement::resolve(&mut game.kingdom, attack, e.county, answer, seed);
-        record(game, report);
+        raise_idle_battle(game, e);
     }
     stepped
+}
+
+/// `Battle_ChooseSettlement` for a battle raised outside a turn. See
+/// [`tick_units_only`].
+fn raise_idle_battle(game: &mut Game, e: Encounter) {
+    use l2_kingdom::battle::Settlement;
+    let settlement = l2_kingdom::battle::settlement(
+        &game.kingdom.campaign.units,
+        e.mover,
+        e.occupant,
+        game.kingdom.options.fight_humans_only_byte,
+    );
+    if settlement == Settlement::Silently || game.turn.is_some() {
+        // **Nobody's but the lords'**, and the gate's own return of 0: no
+        // screen, no report, the autocalc and on with the frame. Through
+        // [`record`] like every other battle, so the losing realm is recounted
+        // here too — there is no [`TurnProgress`] on this path, so the report
+        // itself has nowhere to go and `record` drops it, and the recount is
+        // the half that must not be dropped with it.
+        //
+        // The `game.turn.is_some()` half is a guard rather than a rule: the map
+        // screen does not run this sweep while a turn is in flight, and
+        // clobbering a suspended turn with an idle one would lose a season.
+        let attack = Attack::Battle { attacker: e.mover, defender: e.occupant };
+        let seed = battle_seed(&game.kingdom, e);
+        let answer = game.field_policy;
+        let report = engagement::resolve(&mut game.kingdom, attack, e.county, answer, seed);
+        record(game, report);
+        return;
+    }
+    // A person is in it. Suspend the campaign the way a turn's battle does, and
+    // mark the suspension as *not a turn* so that answering it winds nothing on.
+    game.turn = Some(TurnProgress { idle: true, ..TurnProgress::default() });
+    let q = Question { county: e.county, ..question_for(game, e.mover, e.occupant, None) };
+    if settlement == Settlement::Prompt {
+        game.turn.as_mut().expect("just installed").question = Some(q);
+        return;
+    }
+    // `Settlement::Reported` — *Fight humans only?* is on and the other side is
+    // the AI's. The autocalc runs and the player is **told** on screen `0x13`
+    // rather than asked on `0x12`. The report used to be dropped here too.
+    let answer = game.field_policy;
+    settle_question(game, q, answer);
 }
 
 /// Whether a turn is suspended waiting on an answer.
@@ -458,6 +518,11 @@ pub fn pending_report(game: &Game) -> Option<&BattleReport> {
 
 /// Whether a turn is in flight at all — which is the state a caller must not
 /// start a second one from, and must not save from.
+///
+/// It is also true while a battle raised on an ordinary frame is suspended
+/// ([`TurnProgress::idle`]), and that is deliberate on both counts: the map must
+/// not run its unit sweep while a question is on the table — `Units_Tick`'s own
+/// latch — and End Turn must not be reachable underneath the prompt.
 pub fn turn_in_flight(game: &Game) -> bool {
     game.turn.is_some()
 }
@@ -515,6 +580,17 @@ struct Tail {
 /// yet delivered — and the only safe thing to do with it is finish it.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TurnProgress {
+    /// **This is not a turn.** A battle raised by [`tick_units_only`] on an
+    /// ordinary frame suspends the campaign in exactly the same fields — a
+    /// [`Question`] for screen `0x12`, an `unseen` report for `0x13` — because
+    /// the two screens and their three doors are the same ones. What it must
+    /// never do is enter the phase machine: the player was watching his army
+    /// walk, not ending his season, and winding a turn on because he answered a
+    /// battle would advance the calendar behind his back.
+    ///
+    /// So [`advance`] drops the progress instead of ticking when this is set
+    /// and there is nothing left to show. See [`tick_units_only`].
+    idle: bool,
     ticks: u32,
     steps: usize,
     contacts: Vec<Contact>,
@@ -582,6 +658,15 @@ fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
             };
             settle_question(game, q, a);
             continue;
+        }
+
+        // **An idle-frame battle is over and there was never a turn behind
+        // it.** Falling through to the stage machine here is what would turn
+        // *"he answered the prompt"* into *"the season advanced"*. See
+        // [`TurnProgress::idle`].
+        if game.turn.as_ref().is_some_and(|p| p.idle) {
+            game.turn = None;
+            return TurnStep::Running;
         }
 
         let stage = match game.turn.as_ref() {
