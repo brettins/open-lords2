@@ -1745,6 +1745,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x00472E46/battle-phase-swallows-messages",
+      "status": "missing",
+      "group": "messages",
+      "screen": "0x29",
+      "gesture": "frame",
+      "addr": "0x00472E46",
+      "what": "Msg_Pump’s FIRST test, inside the screen ladder rather than beside it: it dismisses any open message and skips the pull, the countdown and the draw whenever g_battlePhase is 2. So while a battle is actually running, an open message is closed at once and no new one is ever pulled -- the whole pump is skipped for the duration.",
+      "note": "NOT BUILT, and it sits oddly against 0x0047685D/message-scroll-dismiss, which is recorded under the battlefield group on the grounds that a battle can raise messages (the siege gate button enqueues three). Both are true and they do not meet: the gate button’s messages go into the ring during phase 2 and are pulled when the phase leaves 2, which is when the battle ends. Nothing here has been driven against the original to check what a player actually sees, so the arm is recorded rather than guessed at. Building it needs a battle-phase byte the message code can read, which our LiveBattle has and Machine::pump_messages does not consult.",
+      "evidence": "V"
+    },
+    {
       "id": "0x00472E46/pump-screen-ladder",
       "status": "reproduced",
       "group": "messages",

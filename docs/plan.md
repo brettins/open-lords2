@@ -32,8 +32,8 @@ the goal is not met — not "mostly met".
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
    arms enumerated so far we reproduce **<!--fig:arms-reproduced-->134<!--/fig--> of
-   <!--fig:arms-live-->168<!--/fig--> live arms (<!--fig:arms-pct-->80<!--/fig-->%)** — so
-   **<!--fig:arms-missing-->34<!--/fig-->** gestures a player can make get no answer — with
+   <!--fig:arms-live-->169<!--/fig--> live arms (<!--fig:arms-pct-->79<!--/fig-->%)** — so
+   **<!--fig:arms-missing-->35<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->5<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
    counting: **<!--fig:arms-inventions-->25<!--/fig-->** inventions are on file. An invention is
