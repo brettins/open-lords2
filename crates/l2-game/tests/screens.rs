@@ -4395,3 +4395,81 @@ fn the_cattle_row_draws_its_forecast_with_a_sign() {
         }
     }
 }
+
+/// **The End Turn label goes away while the turn runs, and comes back.**
+///
+/// A player: *"in the original, the text 'END TURN' would disappear when you
+/// click it, until the new turn was ready."* `Screen_DrawEndTurn`
+/// (`0x0041A734`) blits the strip unconditionally and draws the label only when
+/// `g_realms[g_localPlayer].aiStep < 999` — `Turn_End` (`0x0043AC23`) sets that
+/// to 999 on the click and `Turn_BeginPlayersTurn` puts it back to 0 at the top
+/// of the next turn. So it is a **conditional draw**, and the interval is
+/// exactly *turn in flight*.
+///
+/// The assertion is idempotence rather than a pixel count, for the reason
+/// `docs/agents.md` gives: draw the page, copy it, draw again, require equality.
+/// Text is an opaque blit, so a second draw over itself changes nothing — but
+/// only if it was there the first time. No threshold, and nothing to re-tune
+/// when the artwork changes.
+///
+/// Three states, and the middle one is the claim:
+///
+/// 1. **idle** — the label is on the strip;
+/// 2. **turn in flight** — it is not, and the strip is otherwise unchanged;
+/// 3. **turn finished** — it is back.
+///
+/// Ablating the `if !turn::turn_in_flight(...)` guard fails claim 2.
+#[test]
+fn the_end_turn_label_disappears_while_the_turn_runs() {
+    let (mut game, assets) = world!();
+    game.select(8);
+    let mut screen = MapScreen::new();
+
+    // The band the label is centred in: `Ui_DrawCentred(4, 0, 0x1DE, 0x1CE,
+    // 0xA2, ...)`, so x 478..640 and the strip's own twenty rows from y 460.
+    let label_band = |canvas: &Canvas| -> Vec<u8> {
+        let mut out = Vec::new();
+        for y in 460..480usize {
+            for x in 478..640usize {
+                out.push(canvas.at(x, y));
+            }
+        }
+        out
+    };
+
+    // 1 — idle. The label is there, and drawing the whole screen twice over
+    // itself changes nothing.
+    let idle = draw(&mut screen, &mut game, &assets);
+    let idle_again = draw(&mut screen, &mut game, &assets);
+    assert_eq!(label_band(&idle), label_band(&idle_again), "an idle repaint is idempotent");
+
+    // 2 — end the turn and catch it in flight. `run_turn` would carry it all the
+    // way through, so this steps once and checks the state it left.
+    send(&mut screen, &mut game, &assets, Event::Click { x: 500, y: 470 });
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        screen.update(&mut ctx);
+    }
+    assert!(
+        l2_game::turn::turn_in_flight(&game),
+        "the click should have started a turn, or this test asserts nothing",
+    );
+    let running = draw(&mut screen, &mut game, &assets);
+    assert_ne!(
+        label_band(&idle),
+        label_band(&running),
+        "the End Turn strip is unchanged while the turn runs, so the label never went",
+    );
+
+    // 3 — and it comes back when the turn is ready. The strip's band must match
+    // the idle one exactly: the label returns, in the same place, in the same
+    // colour, on the same plate.
+    run_turn(&mut screen, &mut game, &assets);
+    assert!(!l2_game::turn::turn_in_flight(&game), "the turn should have finished");
+    let done = draw(&mut screen, &mut game, &assets);
+    assert_eq!(
+        label_band(&idle),
+        label_band(&done),
+        "the label did not come back the way it went",
+    );
+}

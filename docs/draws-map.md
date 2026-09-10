@@ -511,6 +511,57 @@ also found; recorded here because it lands on this screen. The grain row's *stor
 — and `county::draw_produce_rows` right-anchors it through `body_right`. A second, separate
 defect on the same row, and the one that would have been mistaken for this one.
 
+### 5.11 The End Turn label is a conditional draw, and its flag drives two more
+
+> *"In the original, the text 'END TURN' would disappear when you click it, until the new turn
+> was ready."*
+
+Four explanations fitted that report — a pressed frame, the sidebar's own gate removing the
+button, an overdraw, or a conditional draw. `Screen_DrawEndTurn` (`0x0041A734`) settles it in
+two lines:
+
+```c
+Pl8_DrawFrameHere(g_miscCtySheet, 0x3B, 0x1DE, 0x1CC);          /* the strip, unconditionally */
+if (g_realms[g_localPlayer].aiStep < 999)
+    Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall, 0x16);
+```
+
+**The strip is opaque artwork, so blitting it is the erase, and the label is simply not put
+back.** One draw call, conditionally made — which is the one in §2's listing, and ours made it
+unconditionally.
+
+**The flag is `aiStep`, and it is a per-realm turn program counter rather than a boolean.**
+`Turn_BeginPlayersTurn` sets every living realm's to 0 and a dead realm's to 999, counting the
+rest into `g_realmsActive`; `AI_RunTurnStep` walks it up and parks it at 999 when that realm is
+finished; **`Turn_End` (`0x0043AC23`) — this button's own handler — sets the local player's to
+999 the instant it is clicked.** So `999` means *"this realm's turn is over"*, and the label's
+absence is exactly the interval between the click and the next turn beginning. The player's
+sentence, verbatim.
+
+**And the answer to *what else keys off it* is the reason this is not one small item.** Three
+draws share the flag, and together they are the original's entire "the turn is being processed"
+feedback:
+
+| draw | condition | ours |
+|---|---|---|
+| the End Turn label | `aiStep < 999` | **now reproduced** |
+| **each realm's menu-bar banner** | `strength != 0 && aiStep < 999` | no — we test `in_play` |
+| the turn timer (§5.6) | `g_optTimeLimit > 0` and `aiStep == 999` | no |
+
+The middle row is new and is worth more than the label: **a realm's banner vanishes from the
+menu bar as that realm finishes its turn, and the bar refills as the new turn begins** — a live
+five-realm progress indicator across the top of the screen. `docs/screens.md` §4.2 describes
+that loop as *"each realm 1…5 that is alive"*, which is half of its test. Reproducing it needs a
+per-realm turn counter this workspace does not keep, so it is reported rather than built.
+
+**One thing about this draw is worth recording beyond the map.** It could not have been
+reproduced two days ago: the turn only recently began to be *paced over frames*, so until then
+there was no interval to be inside, and the absence of a busy indicator was unobservable. A
+player noticed it within hours of the pacing becoming real. **Some draws are gated on the
+simulation being slow enough to see** — and the inventory cannot tell you which, because a
+conditional draw looks the same whether or not its condition ever holds for a visible length of
+time.
+
 ---
 
 ## 6. What could not be exercised, and why

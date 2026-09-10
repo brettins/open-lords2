@@ -3306,14 +3306,58 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // `Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall, 0x16)` — `L2.eng`
     // group 4, centred in 162 pixels at (478, 462), in the strip's own 9-pixel
     // font. We had it two lines lower and in words of ours.
-    let end = if screen.focus == Focus::EndTurn {
-        ink.highlight
-    } else {
-        ink.text
-    };
-    let label = ctx.assets.shell.text(4, 0);
-    let label = if label.is_empty() { "END TURN" } else { label };
-    county::strip_centred_at(ctx, canvas, PANEL_X, 462, PANEL_W, label, end);
+    //
+    // # The label goes away while the turn runs, and that is a *conditional
+    // draw*, not a pressed frame
+    //
+    // A player: *"in the original, the text 'END TURN' would disappear when you
+    // click it, until the new turn was ready."* He is exactly right, and the
+    // original's shape is one line:
+    //
+    // ```c
+    // Pl8_DrawFrameHere(g_miscCtySheet, 0x3B, 0x1DE, 0x1CC);       /* the strip, always */
+    // if (g_realms[g_localPlayer].aiStep < 999)
+    //     Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall, 0x16);
+    // ```
+    //
+    // The strip is opaque artwork and is blitted unconditionally, so drawing it
+    // *is* the erase; the label is simply not put back. **The button does not
+    // move, is not redrawn pressed, and is not removed by the sidebar's own
+    // gate** — the other three explanations that fitted the report.
+    //
+    // **The flag is `aiStep`, and it is a per-realm turn program counter rather
+    // than a boolean.** `Turn_BeginPlayersTurn` sets every living realm's to 0
+    // and a dead one's to 999; `AI_RunTurnStep` walks it up and parks it at 999
+    // when that realm is finished; `Turn_End` (`0x0043AC23`) sets the local
+    // player's to 999 the instant this button is clicked. So **999 means "this
+    // realm's turn is over"** and the label's absence is the interval between
+    // the click and the next turn beginning — the player's sentence, verbatim.
+    //
+    // `turn::turn_in_flight` is that interval here, and the mapping is exact
+    // rather than approximate: `game.turn` is `Some` from the click until the
+    // turn completes, which is when `Turn_BeginPlayersTurn` would clear the
+    // counter. **This is a draw that only became possible to reproduce when the
+    // turn started being paced over frames** — before that there was no
+    // interval to be inside.
+    //
+    // **Two other things read the same flag and we reproduce neither**, which is
+    // why this is not one small item: `Screen_DrawMenuBar`'s banner loop is
+    // `strength != 0 && aiStep < 999`, so **each realm's banner vanishes from
+    // the menu bar as that realm finishes its turn** and the bar refills as the
+    // new one begins; and `FUN_0041A639`'s turn timer is gated on
+    // `aiStep == 999`. Together they are the original's whole "the turn is being
+    // processed" feedback, and ours is the End Turn label alone.
+    // `docs/draws-map.md` §5.11.
+    if !turn::turn_in_flight(&ctx.game) {
+        let end = if screen.focus == Focus::EndTurn {
+            ink.highlight
+        } else {
+            ink.text
+        };
+        let label = ctx.assets.shell.text(4, 0);
+        let label = if label.is_empty() { "END TURN" } else { label };
+        county::strip_centred_at(ctx, canvas, PANEL_X, 462, PANEL_W, label, end);
+    }
 }
 
 #[cfg(test)]
