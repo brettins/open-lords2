@@ -361,8 +361,16 @@ pub fn labour_estimate(
 /// output the real workforce would make at the efficiency a full workforce
 /// would earn.** With *Advanced Farming* off the ramp is a flat 80 either way
 /// and the two are the same number; with it on, an understaffed mine's forecast
-/// is optimistic by exactly the ramp's difference. `docs/bugs.md` BNEW-forecast.
+/// differs by exactly the ramp's difference. `docs/bugs.md` BNEW-forecast.
 /// It is reproduced, because it is what the player is shown.
+///
+/// **The difference has a fixed sign, and it is the opposite of the one the
+/// word "full" suggests.** [`efficiency_ramp`] scales its increment by
+/// `capacity * 100 / n`, so it is non-increasing in `n`; the staffing is a
+/// subset of the population, so `ramp(population) <= ramp(workers)` and the row
+/// **understates**. This was written as *optimistic* here and in
+/// `docs/bugs.md` before anybody put an inequality on it —
+/// `crates/l2-kingdom/tests/industry_forecast.rs` is that inequality.
 ///
 /// # What is deliberately not here, and why
 ///

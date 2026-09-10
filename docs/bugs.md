@@ -1626,7 +1626,16 @@ on the line before and used only for the efficiency write.
 So the number the sidebar's industry row draws is *"what the real workforce would make at the
 efficiency a full workforce would have earned"* — a mixture of two staffings. With **Advanced
 Farming off** the ramp is a flat 80 either way and the two are the same number; with it on, an
-understaffed mine's forecast is optimistic by exactly the difference the ramp makes.
+understaffed mine's forecast differs by exactly the difference the ramp makes.
+
+**And the sign of that difference is fixed, which the first draft of this entry had backwards.**
+`Industry_EfficiencyRamp` scales its increment by `capacity * 100 / n`, so it is
+**non-increasing in `n`** — a larger trial earns a *smaller* efficiency. The staffing is a
+subset of the population, so `ramp(population) <= ramp(workers)` always, and the row therefore
+**understates**: a mine whose `capacity` sits between its miners and its people forecasts less
+than it will make. It was written here as *optimistic*, from the word "full" rather than from the
+ramp. `crates/l2-kingdom/tests/industry_forecast.rs` asserts the inequality, so the word cannot
+drift back.
 
 **Reproduced**, and not switchable: it is what the player is shown, the row would be a
 different number without it, and there is no second reading of the sequence to prefer.
