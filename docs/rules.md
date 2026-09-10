@@ -630,18 +630,31 @@ belongs to a different screen from the one he was describing.
 
 ### What we implement, and what we do not
 
-`l2_scenario::newgame::assign_lords` reproduces step 2's **lord** half against `LORD_CHOICE`
-and hard-codes the **shield** half as `shield = realm`. That is correct for every game where
-the human is realm 1 and takes shield 1, and wrong for the other four colours — it is the
-default mistaken for the rule, in code. The gap is latent rather than live: `NewGame` has no
-shield field at all, so nothing can yet pick a colour to break it. Closing it needs the
-setup page's chosen shield carried into `NewGame` and the walk written as first-unused.
-`docs/mechanics.md` carries the gap.
+`l2_scenario::newgame::assign_lords` is now the whole walk: the human's chosen shield marked
+taken, realms 1 … 5 in order each taking the lowest free shield, then the lord out of
+`LORD_CHOICE` keyed by that shield. `NewGame::shield` carries the choice, setup page 4's
+click writes it (`FUN_00432EE6` → `FUN_00432FAB`, `docs/arms.json`
+`0x00432EE6/pick-shield`), and it travels beside the seed rather than on
+`l2_game::setup::Settings` — because a campaign row rewrites all twelve options and must
+not rewrite the colour.
 
-**No fixture can settle this.** All eleven `.sav` files this project keeps have the human on
-shield 1 or shield 5 — never a middle colour — so none of them exercises a collision that
-the two readings disagree about. The table above is derived from the walk, which is why it is
-marked **[V]** and why it was not read off a save.
+**This section used to say the opposite, and the sentence that mattered was the excuse.**
+It read *"hard-codes the shield half as `shield = realm` … the gap is latent rather than
+live: `NewGame` has no shield field at all, so nothing can yet pick a colour to break it."*
+The picker had been on the screen the whole time; what it lacked was a reader. A player:
+*"I picked a colour and it didn't get honoured once the game opened."*
+`docs/decisions.md` CNEW-shield-colour.
+
+**No fixture can settle the table above.** All eleven `.sav` files this project keeps have
+the human on shield 1 or shield 5 — never a middle colour — so none of them exercises a
+collision that the two readings disagree about, and it is marked **[V]** from the walk
+rather than read off a save. What *can* be checked, and now is, is the road: four tests in
+`crates/l2-game/tests/newgame.rs` drive page 4 with real coordinates, take each of the five
+colours in turn, press *Continue* and then *Start*, and compare the realms against this
+table typed out by hand. The one row a save can confirm — the default — is checked against
+`england-turn1.sav` in `crates/l2-scenario/tests/newgame.rs`, which now diffs both the
+shields and the lords of the world built from `L2_maps.dat` against the world the original
+program wrote.
 
 ---
 

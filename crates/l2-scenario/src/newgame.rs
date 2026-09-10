@@ -206,6 +206,16 @@ pub enum MapError {
     StartCounty { marker: usize, county: u8 },
     /// `g_localPlayer` outside `1..=5`, or above the lord count.
     LocalPlayer(u8),
+    /// A chosen shield outside `1..=5`.
+    ///
+    /// **A refusal rather than `FUN_004171EE`'s clamp**, and deliberately the
+    /// opposite of what [`crate::Scenario::from_save`] does with the realm
+    /// colour byte it reads out of a file. That byte is somebody else's and a
+    /// clamp there would hide a misread offset; this one is *ours*, chosen on a
+    /// screen that can only produce 1 … 5, so a value outside the range is a
+    /// carry we got wrong and quietly turning it into blue would hide exactly
+    /// the class of defect this field exists to fix.
+    Shield(u8),
 }
 
 impl core::fmt::Display for MapError {
@@ -223,6 +233,7 @@ impl core::fmt::Display for MapError {
                 write!(f, "start {marker} names county {county}, which is not on this map")
             }
             MapError::LocalPlayer(p) => write!(f, "g_localPlayer is {p}"),
+            MapError::Shield(s) => write!(f, "shield {s}, and the five colours are 1..=5"),
         }
     }
 }
@@ -251,6 +262,19 @@ pub struct NewGame {
     pub lords: usize,
     /// `g_localPlayer`.
     pub local_player: u8,
+    /// **The colour the person picked on setup page 4**, 1 … 5 — red, yellow,
+    /// black, magenta, blue.
+    ///
+    /// The original keeps it twice: `g_playerNames + realm * 0x2C + 0x25`,
+    /// which is what `Realms_AssignLords` reads, and `g_realms[p].shieldIndex`,
+    /// which is what everything that *draws* reads. `FUN_00432FAB`
+    /// (`0x00432FAB`) writes both from the clicked shield and `FUN_004978AD`
+    /// seeds both at 1, which is why a game nobody touches the page of is red.
+    ///
+    /// **It is the human's choice and it moves every AI**, because
+    /// [`assign_lords`] hands the AIs the shields the humans left and then
+    /// picks each AI's *lord from its shield*. `docs/rules.md` §7a.
+    pub shield: u8,
     /// The seed [`shuffle_starts`] draws from.
     ///
     /// **Which realm gets which start county is rolled**, and this is the
@@ -271,6 +295,9 @@ impl Default for NewGame {
             options: Options::default(),
             lords: 5,
             local_player: 1,
+            // `FUN_004978AD`'s seed: shield 1, red. A default game is the one
+            // §7a's first row describes.
+            shield: 1,
             seed: 0,
         }
     }
@@ -1034,32 +1061,56 @@ fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapE
     Ok(seats)
 }
 
-/// `Realms_AssignLords` (`0x0049CAAA`)'s lord half.
+/// What [`assign_lords`] decides for each realm: its shield, then its lord.
 ///
-/// Realm 1 is the person and takes no lord. Each AI realm takes its colour
-/// slot's first candidate from [`LORD_CHOICE`] that no earlier realm has taken.
+/// One struct rather than two arrays because **the second is a function of the
+/// first** and a caller that could take one without the other would be able to
+/// build a realm whose colour and lord disagree — which is exactly the state
+/// `shield = realm` used to produce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Assignment {
+    /// Realm `+0x0A`, `shieldIndex`, 1 … 5. **Zero means the walk gave this
+    /// realm nothing** — it is above the lord count — and the caller falls back
+    /// to `FUN_0049C995`'s seed rather than inventing a colour.
+    shield: [u8; MAX_REALMS],
+    /// Realm `+0x28`, the lord id. Zero for a human and for a realm out of
+    /// play, which is what the original writes at the top of every iteration.
+    lord: [u8; MAX_REALMS],
+}
+
+/// `Realms_AssignLords` (`0x0049CAAA`) — **the shield first, by position, and
+/// then the lord from the shield.**
 ///
-/// # `shield = realm` is the default, not the rule
+/// # The arrow runs colour → lord, and no lord is ever consulted
 ///
-/// This line used to read *"the colour slot is the realm id, because
-/// `Game_SetupRealms` seeds `shieldIndex = i` and only a custom game's colour
-/// picker permutes it."* The effect is right and the mechanism is not, and the
-/// difference is visible the moment a person picks a colour that is not red.
+/// 1. Mark every **human's** chosen shield taken. The original reads
+///    `g_playerNames + realm * 0x2C + 0x25`, guarded by `+0x26 == 0` (a person
+///    rather than a slot the AI fills), and page 4's `FUN_00432FAB` is what
+///    wrote it.
+/// 2. Walk realms **1 … 5 in realm order**, skipping humans and stopping when
+///    `g_aiLordCount` lords have been handed out. Each AI takes **the lowest
+///    shield nobody has taken**; a realm past the lord count gets no shield and
+///    `strength = 0`.
+/// 3. Then `lord = g_lordChoice[(g_scenarioIndex & 3) * 0x14 + shield * 4 + n]`
+///    for `n` = 0 … 3, the first candidate no earlier realm has taken.
 ///
-/// `Realms_AssignLords` marks every **human's** chosen shield as taken — off
-/// setup page 4, stored at `g_playerNames + realm * 0x2C + 0x25` — and then
-/// walks realms 1 … 5 giving each AI **the lowest shield nobody has taken**.
-/// With the human on realm 1 holding shield 1 those are 2, 3, 4, 5, which is
-/// the realm id; with the human holding shield 2 they are 1, 3, 4, 5, and every
-/// AI's colour *and lord* moves. The lord is a function of the colour, not the
-/// other way round, so a displaced colour is a displaced lord.
+/// **This line used to read `let shield = realm`, under a doc comment that
+/// stated that as the *mechanism*** — *"the colour slot is the realm id,
+/// because `Game_SetupRealms` seeds `shieldIndex = i` and only a custom game's
+/// colour picker permutes it."* The seed is real (`FUN_0049C995`) and the
+/// conclusion drawn from it was not: the seed is what an *untouched* page 4
+/// leaves, and `Realms_AssignLords` overwrites it for every AI on every run.
+/// A sentence that explains a default as a rule is a sentence nobody re-reads,
+/// which is why the line outlived four documents describing the real walk.
+/// `docs/decisions.md` CNEW-shield-colour.
 ///
-/// **The gap is latent, not live.** [`NewGame`] carries no chosen shield, so
-/// nothing can yet ask for a colour this would get wrong. Closing it means
-/// carrying the setup page's shield into [`NewGame`] and replacing
-/// `let shield = realm` below with the first-unused walk. `docs/rules.md` §7a
-/// has the full table, including what the Knight actually gets when you take
-/// yellow, and `docs/mechanics.md` carries the gap.
+/// # The consequence a player will check
+///
+/// Take **yellow** and the Knight does not fall back to red: he becomes the
+/// **black** lord and the **Baron** becomes the red one, because red's
+/// candidate list names the Baron first and the walk reaches red before black.
+/// `docs/rules.md` §7a has all five rows and
+/// `crates/l2-game/tests/newgame.rs` drives the setup screen to each of them.
 ///
 /// **`[D]` on the group.** The original picks the deterministic group 0 when
 /// `DAT_0055302C == 1` and `(g_scenarioIndex & 3)` otherwise, and what
@@ -1067,29 +1118,51 @@ fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapE
 /// because it is the one a single-player custom game reaches unless that flag
 /// is set, and because it is the only reading under which the four groups exist
 /// for a reason.
-fn assign_lords(slot: usize, lords: usize) -> [u8; MAX_REALMS] {
-    let group = slot & 3;
-    let mut lord = [0u8; MAX_REALMS];
-    let mut used = [false; 8];
-    for realm in 2..=lords.min(MAX_REALMS - 1) {
-        // The default arrangement only — see this function's note. The real
-        // walk gives each AI the lowest shield no human has taken, which is the
-        // realm id exactly when the person is realm 1 holding shield 1.
-        let shield = realm;
+fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
+    let group = setup.slot & 3;
+    let human = setup.local_player as usize;
+    // `g_aiLordCount` — `Setup_CommitOptions` keeps *Nobles* minus the people,
+    // and this build has one person.
+    let ai_lords = lords.saturating_sub(1);
+
+    let mut a = Assignment { shield: [0; MAX_REALMS], lord: [0; MAX_REALMS] };
+    // `acStack_14[6]` and `acStack_20[8]`, both zeroed at entry.
+    let mut shield_taken = [false; 6];
+    let mut lord_taken = [false; 8];
+
+    // Step 1. The human's shield is taken before anybody walks.
+    if human >= 1 && human < MAX_REALMS {
+        a.shield[human] = setup.shield;
+        shield_taken[setup.shield as usize] = true;
+    }
+
+    // Step 2. Realms 1 … 5 in realm order.
+    let mut given = 0usize;
+    for realm in 1..MAX_REALMS {
+        if realm == human || given >= ai_lords {
+            // A human keeps the shield he chose and takes no lord; a realm past
+            // the lord count is the `strength = 0` limb and takes neither.
+            continue;
+        }
+        given += 1;
+        let Some(shield) = (1..=5u8).find(|s| !shield_taken[*s as usize]) else { continue };
+        shield_taken[shield as usize] = true;
+        a.shield[realm] = shield;
+        // Step 3. And now the lord, out of that shield's four candidates.
         for n in 0..4usize {
-            let at = group * 0x14 + shield * 4 + n;
+            let at = group * 0x14 + shield as usize * 4 + n;
             let candidate = LORD_CHOICE.get(at).copied().unwrap_or(0);
             if candidate == 0 {
                 continue;
             }
-            if !used[candidate as usize & 7] {
-                lord[realm] = candidate;
-                used[candidate as usize & 7] = true;
+            if !lord_taken[candidate as usize & 7] {
+                a.lord[realm] = candidate;
+                lord_taken[candidate as usize & 7] = true;
                 break;
             }
         }
     }
-    lord
+    a
 }
 
 // ------------------------------------------------------------- County_Reset
@@ -1235,8 +1308,11 @@ impl Scenario {
         if setup.local_player as usize > lords {
             return Err(MapError::LocalPlayer(setup.local_player));
         }
+        if !(1..=5).contains(&setup.shield) {
+            return Err(MapError::Shield(setup.shield));
+        }
         let seats = start_counties(w, lords, setup.seed)?;
-        let lord = assign_lords(setup.slot, lords);
+        let assigned = assign_lords(setup, lords);
 
         let mut counties: Vec<Option<CountyState>> = vec![None; MAX_COUNTIES];
         for id in 1..=w.county_count {
@@ -1257,7 +1333,15 @@ impl Scenario {
         let mut realms = vec![RealmState::default(); MAX_REALMS];
         for id in 1..MAX_REALMS {
             let realm = &mut realms[id];
-            realm.shield_index = id as u8;
+            // **The walk's shield where it gave one, and `FUN_0049C995`'s seed
+            // where it did not.** That seed — `shieldIndex = i` for realms
+            // 1 … 5, run when the lobby is reset — is what a realm above the
+            // lord count keeps, because `Realms_AssignLords` skips it. It is
+            // the *default* and not the rule; reading it as the rule is what
+            // this whole change is undoing, so it is written where it applies
+            // and nowhere else.
+            realm.shield_index =
+                if assigned.shield[id] != 0 { assigned.shield[id] } else { id as u8 };
             if id > lords {
                 // `Realms_AssignLords` writes `strength = 0` and hands out no
                 // lord; `Game_SetupRealmsAndCounties` then skips the realm
@@ -1267,7 +1351,10 @@ impl Scenario {
             realm.in_play = true;
             realm.strength = 1;
             realm.is_human = id == setup.local_player as usize;
-            realm.lord = if realm.is_human { 0 } else { lord[id] };
+            // The walk already leaves a human at 0 — `g_realms[i].lord = 0` is
+            // the first statement of every iteration — so this is the walk's
+            // answer and not a second rule beside it.
+            realm.lord = assigned.lord[id];
             realm.county_count = 1;
             let Some(&county) = seats.get(id - 1) else { continue };
             let Some(c) = counties.get_mut(county as usize).and_then(|c| c.as_mut()) else {
@@ -1551,19 +1638,66 @@ mod tests {
         assert_eq!(s.clock, Clock { season: 3, season_next: 4, year: 1267, turn_count: 0 });
     }
 
-    /// The lord table is real data and each realm gets a different lord.
+    /// The lord table is real data and each realm gets a different lord —
+    /// **whichever of the five colours the person takes**.
     #[test]
-    fn the_lords_are_distinct_for_every_scenario_group() {
+    fn the_lords_are_distinct_for_every_scenario_group_and_every_colour() {
         for slot in 0..8usize {
-            let lords = assign_lords(slot, 5);
-            let given: Vec<u8> = (2..=5).map(|r| lords[r]).collect();
-            assert!(given.iter().all(|&l| l != 0), "slot {slot} left a realm lordless");
-            for (i, a) in given.iter().enumerate() {
-                for b in given.iter().skip(i + 1) {
-                    assert_ne!(a, b, "slot {slot} gave one lord twice");
+            for shield in 1..=5u8 {
+                let a = assign_lords(&NewGame { slot, shield, ..NewGame::default() }, 5);
+                let given: Vec<u8> = (1..=5).filter(|&r| r != 1).map(|r| a.lord[r]).collect();
+                assert!(
+                    given.iter().all(|&l| l != 0),
+                    "slot {slot} shield {shield} left a realm lordless"
+                );
+                for (i, x) in given.iter().enumerate() {
+                    for y in given.iter().skip(i + 1) {
+                        assert_ne!(x, y, "slot {slot} shield {shield} gave one lord twice");
+                    }
                 }
+                assert_eq!(a.lord[1], 0, "the person has no AI lord");
+                // And five realms fly five different colours, with the person
+                // on the one they asked for.
+                assert_eq!(a.shield[1], shield, "the person did not get the colour they picked");
+                let mut flown = (1..=5).map(|r| a.shield[r]).collect::<Vec<_>>();
+                flown.sort_unstable();
+                assert_eq!(flown, vec![1, 2, 3, 4, 5], "slot {slot} shield {shield}");
             }
-            assert_eq!(lords[1], 0, "the person has no AI lord");
+        }
+    }
+
+    /// **A realm above the lord count gets no shield from the walk**, so the
+    /// caller is the only thing that can decide what it flies. Written here
+    /// because a zero that quietly became colour 1 would be invisible from
+    /// [`Scenario::from_map_world`], where every realm ends up with a colour
+    /// either way.
+    #[test]
+    fn the_walk_hands_out_exactly_one_shield_per_lord() {
+        let a = assign_lords(&NewGame { lords: 3, shield: 4, ..NewGame::default() }, 3);
+        assert_eq!(a.shield[1], 4, "the person's own choice");
+        assert_eq!(a.shield[2], 1, "the lowest colour nobody took");
+        assert_eq!(a.shield[3], 2);
+        assert_eq!(a.shield[4], 0, "out of play, and the walk says nothing about it");
+        assert_eq!(a.shield[5], 0);
+        assert_eq!(a.lord[4], 0);
+    }
+
+    /// **A colour outside the five is refused rather than clamped**, for the
+    /// reason [`MapError::Shield`] gives: it can only get here by our own carry
+    /// being wrong, and a clamp would turn that into a plausible blue.
+    #[test]
+    fn a_shield_outside_the_five_is_refused() {
+        let w = world();
+        for bad in [0u8, 6, 255] {
+            let setup = NewGame { lords: 1, shield: bad, ..NewGame::default() };
+            assert_eq!(Scenario::from_map_world(&w, &setup), Err(MapError::Shield(bad)));
+        }
+        // And every one of the five is accepted, so the guard is a range and
+        // not a rejection of everything that is not the default.
+        for good in 1..=5u8 {
+            let setup = NewGame { lords: 1, shield: good, ..NewGame::default() };
+            let s = Scenario::from_map_world(&w, &setup).expect("shield {good} builds");
+            assert_eq!(s.realms[1].shield_index, good);
         }
     }
 

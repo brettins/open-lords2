@@ -586,11 +586,18 @@ fn every_shipped_map_survives_twenty_turns() {
         let settings =
             l2_game::setup::SetupOptions::new().commit(1, l2_kingdom::Quirks::default());
         let settings = l2_game::setup::Settings { ai_lords: lords as i32 - 1, ..settings };
+        // **A different colour on every map**, cycling 1 … 5 across the 44.
+        // The shield moves which realm flies which colour *and which lord sits
+        // behind it*, so a constant here would play forty-four games of the
+        // one arrangement `docs/rules.md` §7a's first row describes and leave
+        // the other four rows never simulated at all.
+        let shield = (slot % 5 + 1) as u8;
         let mut game = l2_game::scenario::new_game(
             &assets,
             slot,
             &settings,
             1,
+            shield,
             l2_game::scenario::SEED,
             Tables::DEFAULT,
         )

@@ -564,10 +564,18 @@ fn a_castle_garrison_reaches_the_county_it_is_standing_in() {
 /// **Realm `+0x0A` is the shield index, and a default game sets it to the realm
 /// id.** Read rather than assumed: the importer used to fill this field with the
 /// realm id on the strength of `Game_SetupRealmsAndCounties` doing so, which is
-/// true of a *default* game and not of one whose colour picker has run
-/// (`0x0049CE1F` walks a free-slot pool). Now that `l2-formats` reads the byte,
-/// this asserts the assumption it replaced — so if a fixture ever carries a
-/// permuted set, it says so here rather than silently changing every flag.
+/// true of a *default* game and not of one whose colour picker has run. Now
+/// that `l2-formats` reads the byte, this asserts the assumption it replaced —
+/// so if a fixture ever carries a permuted set, it says so here rather than
+/// silently changing every flag.
+///
+/// **The free-slot pool this used to cite as `0x0049CE1F` is inside
+/// `Realms_AssignLords` (`0x0049CAAA`, 935 bytes, so `0x0049CE1F` is its tail
+/// and not a function).** It is now written out in
+/// `l2_scenario::newgame::assign_lords`, and `docs/rules.md` §7a is what it
+/// produces for each of the five colours a person can take. An interior address
+/// with no name beside it is a citation nobody can follow, which is why this one
+/// went five months without anybody noticing the walk it named was unwritten.
 #[test]
 fn the_shield_index_of_a_default_game_is_the_realm_id() {
     let save = l2_testkit::england!();
