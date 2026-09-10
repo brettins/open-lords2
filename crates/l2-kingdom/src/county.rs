@@ -96,6 +96,15 @@ pub const LABOUR_CEILING_IGNORED: i32 = 99_999;
 /// nobody, rather than everybody.
 pub const LABOUR_UNSET: i32 = 999_999;
 
+/// **The grain-to-livestock split's range**, and the widget's geometry is the
+/// same number by construction: `Ration_SliderClick` (`0x0043A379`) clamps
+/// `mouseX - 224` to `0 … 100` over a track exactly 100 pixels wide.
+///
+/// It is here rather than in `l2-game` because
+/// [`Kingdom::set_ration_split`](crate::Kingdom::set_ration_split) clamps to it
+/// up to a hundred times in one drag; the screen re-exports it.
+pub const MAX_RATION_SPLIT: i32 = 100;
+
 /// A county cannot neighbour more counties than there are counties. The
 /// original stores the count at `+0x5A` and the ids from `+0x5C`; the array
 /// length is not stated, so this is the tightest bound the county array itself
@@ -402,7 +411,7 @@ pub struct County {
     /// `+0x15E` — what the player asked for.
     pub ration_wanted: i32,
     /// `+0x15F` — percentage of the food requirement taken from livestock
-    /// rather than grain.
+    /// rather than grain. Clamped to `0 ..= `[`MAX_RATION_SPLIT`].
     pub ration_split: i32,
     /// `+0x178` — sacks eaten. See `docs/kingdom.md` §4.3 for what does and
     /// does not reproduce.

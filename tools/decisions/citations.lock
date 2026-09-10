@@ -120,6 +120,7 @@ crates/l2-game/tests/military.rs	C67	bba176fa8c3d
 crates/l2-game/tests/options.rs	C26	7899982bcf4c
 crates/l2-game/tests/options.rs	C30	716f251c5193
 crates/l2-game/tests/scenario.rs	C83	18e9dfa98edd
+crates/l2-game/tests/screens.rs	C118	40be2b77649b
 crates/l2-game/tests/screens.rs	C21	1523306009a2
 crates/l2-game/tests/screens.rs	C22	1d39d618c245
 crates/l2-game/tests/screens.rs	C42	3c40a931b48c
@@ -362,6 +363,7 @@ docs/decisions.md	C10	1026d11e7d3f
 docs/decisions.md	C10	6307927dc59c
 docs/decisions.md	C10	ff432eaffe58
 docs/decisions.md	C107	3efb7eed35ff
+docs/decisions.md	C118	7cc36ed680a5
 docs/decisions.md	C12	2fd0874b7e4b
 docs/decisions.md	C12	4134e4bde263
 docs/decisions.md	C12	439c2f1bab58
@@ -646,6 +648,8 @@ docs/symbols.json	C102	3246f2be2937
 docs/symbols.json	C102	a540abe57c9f
 docs/symbols.json	C105	0b1960f7de0a
 docs/symbols.json	C105	9c93a2827d4d
+docs/symbols.json	C119	4c018b84adad
+docs/symbols.json	C119	5dd6eaacaef4
 docs/symbols.json	C20	01f6f924103e
 docs/symbols.json	C20	7ddb8e5c217a
 docs/symbols.json	C22	936f7d5bda76
@@ -707,6 +711,8 @@ docs/symbols.md	C102	36cc489ab4e3
 docs/symbols.md	C102	5f63b7e4c754
 docs/symbols.md	C105	1b589a0615a6
 docs/symbols.md	C105	c425aadeeece
+docs/symbols.md	C119	6a212003419f
+docs/symbols.md	C119	e81dc4b37eec
 docs/symbols.md	C20	d50fe7b21adc
 docs/symbols.md	C20	f78855d335cd
 docs/symbols.md	C22	76e2e999ec4b

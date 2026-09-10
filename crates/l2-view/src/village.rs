@@ -221,6 +221,12 @@ pub const BAND_H: i32 = 0x178;
 /// surplus icons use.
 pub const ICON_VALUE: [u8; 9] = [4, 8, 10, 14, 16, 18, 20, 22, 2];
 
+/// Where the nine dwords above start, so a test can read them back out of the
+/// user's own executable rather than trusting the transcription.
+///
+/// It is nine **dwords**, not nine bytes: 4 8 10 14 16 18 20 22 2.
+pub const ICON_VALUE_VA: u32 = 0x004D_6808;
+
 /// The icon for a worker the job **wants and has not got**. Never selectable —
 /// `Village_BoxSelect` skips value 1 explicitly, because those people are not
 /// there to be moved.

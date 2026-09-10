@@ -127,6 +127,34 @@ Feeding a county happens in one pass:
 So it is a dial, not a queue, and it really is per county: in the shipped England save four
 counties sit at 0% livestock and ten at 100%.
 
+### The slider does nothing when the herd is big enough, and that is correct
+
+**A county whose cattle can feed it on dairy alone eats nothing at all, and the dial has
+nothing to divide.** Step 2 subtracts `herd × 5` people before step 3 runs; if that covers
+the population, the remaining requirement is zero, no grain is eaten, no beast is killed, and
+**every position of the slider produces the same numbers**. The thumb moves and the panel does
+not, in the original exactly as here.
+
+England, turn one, county 8 is that county: 435 people and 101 head, so 505 mouths' worth of
+dairy against 435 mouths. A player moved the slider there, saw nothing change, and reported it
+as broken. It is not — but you cannot tell that from the panel unless you read the **Fed** row,
+whose third number is *people fed by the standing herd*, and which will be showing the whole
+population.
+
+The slider also **refuses to sit on a value that changes nothing**, which is the other half of
+why it feels odd. If the county *is* eating its herd, moving the dial re-runs the food pass on
+the spot; if the new setting kills the same number of beasts as the old one, the game walks the
+value one point at a time looking for a setting that actually differs:
+
+* dragging **the track** and finding nothing puts the dial **back where it was** — it springs
+  back under the cursor;
+* clicking **an arrow** does not stop at one point. It keeps stepping in the same direction
+  until the number of beasts changes, so a single click can move the dial a long way.
+
+Neither is a bug and both are `Ration_SetSplit` (`0x0043A5A9`); the point of the search is that
+a dial with a hundred positions and perhaps six distinct outcomes should not let you park it
+between two of them.
+
 **A correction, because this section used to say otherwise.** It said the player could
 reorder five foods, on the strength of the ration-screen text *"Click on a food to swap its
 priority"* and the five foods beside it — *"Dairy produce feeds"*, *"Grain feeds"*, *"Sheep
@@ -306,6 +334,39 @@ identical populations.
 figures in the cluster that cannot be picked up, and the job's own panel prints its worker
 count in red. Past the useful ceiling the surplus is drawn in the idle figure instead. Both
 are how the interface says "you have this wrong" without a word of text.
+
+**And "the idle figure" is meant literally: it is the same picture.** A worker past his job's
+ceiling and an idle townsman are drawn with the *same sprite*, out of the game's own icon
+table. So a mine full of surplus men and an empty square full of idle ones look identical,
+which is not a mistake — it is the interface saying they amount to the same thing.
+
+### Switching an industry off, and switching it on again by accident
+
+Each of a county's four industry sites — wood, iron, stone, the smithy — has an **on/off
+switch of its own**, thrown by clicking the site on the map. Off is a real state and not
+merely "nobody is working here": the production pass reads the switch, and a site that is off
+is told its useful ceiling is **nought**, so the seasonal reallocation will not staff it and
+anybody you put there is surplus.
+
+**Dragging peasants onto the site turns it back on.** That is the part nobody guesses. The
+drop is accepted — the men land in the job — and the same call sets the switch, provided the
+county actually has that resource. So in practice you cannot hold a site switched off *with
+men on it*: putting men on it is how you switch it on. A player described the off state as
+*"basically the same as not having anyone on the mining area"*, which is the right description
+of what you can observe and the wrong description of the mechanism — the switch is real, it
+gates production, and it is simply impossible to see it clear and staffed at the same time.
+
+Two corollaries worth knowing:
+
+* **The resource is the guard and the switch is the effect.** Dropping men on a quarry in a
+  county that has no stone does nothing at all — no switch, no production — and those men sit
+  there drawn as idle figures for ever. That is the one case where a staffed site really is
+  dead.
+* **Castle building has the same switch**, at a different address, and it is thrown the same
+  two ways: by clicking the castle on the map, and by dropping peasants on the castle cluster.
+
+The tile panel — right-click a site on the map — says whether it is operational, which is a
+read-out of exactly this switch.
 
 ---
 

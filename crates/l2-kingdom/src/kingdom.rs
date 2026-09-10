@@ -1210,6 +1210,132 @@ impl Kingdom {
         true
     }
 
+    /// **The grain-to-livestock split, and it is not a setter.**
+    /// `Ration_SetSplit` (`0x0043A5A9`), whole.
+    ///
+    /// A player reported the ration panel's slider as *"moves but is
+    /// inoperable"*. It was writing the field and stopping, and every number on
+    /// the panel stayed where it was until the turn ended — so the thumb
+    /// travelled and nothing else did. The original does four more things, and
+    /// three of them are visible:
+    ///
+    /// ```c
+    /// old = rationSplit;  dir = sign(split - old);
+    /// rationSplit = split;
+    /// was = herdEaten;
+    /// Ration_Apply(county, g_season);                       /* the food pass, NOW */
+    /// if (herd && herdEaten && dir && split != 0 && split != 100 && herdEaten == was) {
+    ///     rationSplit = old;                                /* ... the search ... */
+    ///     do {
+    ///         if (++n > 100) goto done;
+    ///         rationSplit = clamp(rationSplit + dir, 0, 100);
+    ///         Ration_Apply(county, g_season);
+    ///         if (herdEaten != was) goto done;
+    ///     } while (rationSplit != split || sweep == 0);
+    ///     rationSplit = old; Ration_Apply(county, g_season); /* give up: spring back */
+    /// }
+    /// done:
+    /// Labour_Allocate(county); County_RefreshEstimates(county, g_seasonNext);   /* twice */
+    /// Labour_Allocate(county); County_RefreshEstimates(county, g_seasonNext);
+    /// if (g_selectedCounty == county) Panel_Ration();
+    /// ```
+    ///
+    /// **The slider refuses to sit on a value that changes nothing.** If the
+    /// county has a herd, the herd is being eaten, the value moved, the
+    /// *requested* split is strictly inside 0…100, and `herdEaten` came out
+    /// unchanged, it puts the old value back and walks one point at a time
+    /// towards the request, re-running the food pass at every step, and stops at
+    /// the first split that actually moves `herdEaten`.
+    ///
+    /// **`sweep` is what tells a track jump from an arrow**, and it changes the
+    /// ending. `Ration_SliderClick` passes 1 for a click on the track and 0 for
+    /// an arrow:
+    ///
+    /// * **track jump** (`sweep`): the loop stops when it reaches the requested
+    ///   value, and if nothing changed on the way the split is **restored** —
+    ///   the thumb springs back to where it was.
+    /// * **arrow step** (`!sweep`): `(rationSplit != split) || (sweep == 0)` is
+    ///   *always* true, so the walk does not stop at the requested value. It
+    ///   keeps going in the same direction until `herdEaten` moves or a hundred
+    ///   steps are spent — so **one click of an arrow can move the split by far
+    ///   more than one**, and it does not spring back.
+    ///
+    /// **`Ration_Apply` does not spend.** It writes `rationAchieved`,
+    /// `herdEaten`, `grainEaten`, the two `available` fields and the happiness
+    /// delta, and the store is debited by the season. So the pass called here up
+    /// to a hundred times is [`crate::ration::preview`] and **not**
+    /// [`crate::ration::apply`], whose name matches the original's and whose
+    /// behaviour does not — reaching for the same-named function would have had
+    /// a drag eat the county's herd a hundred times over.
+    ///
+    /// Returns whether the split ended anywhere other than where it started,
+    /// which is what a caller needs to know to decide whether to repaint.
+    pub fn set_ration_split(&mut self, county: usize, split: i32, sweep: bool) -> bool {
+        if county == 0 || county > self.county_count {
+            return false;
+        }
+        let split = split.clamp(0, crate::county::MAX_RATION_SPLIT);
+        let armies_eat = self.options.armies_eat;
+        let old = self.counties[county].ration_split;
+        let dir = match split.cmp(&old) {
+            std::cmp::Ordering::Less => -1,
+            std::cmp::Ordering::Greater => 1,
+            std::cmp::Ordering::Equal => 0,
+        };
+        let was = self.counties[county].herd_eaten;
+
+        {
+            let c = &mut self.counties[county];
+            c.ration_split = split;
+        }
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+
+        let stuck = {
+            let c = &self.counties[county];
+            c.herd != 0
+                && c.herd_eaten != 0
+                && dir != 0
+                && split != 0
+                && split != crate::county::MAX_RATION_SPLIT
+                && c.herd_eaten == was
+        };
+        if stuck {
+            self.counties[county].ration_split = old;
+            let mut steps = 0;
+            loop {
+                steps += 1;
+                if steps > 100 {
+                    break;
+                }
+                {
+                    let c = &mut self.counties[county];
+                    c.ration_split = (c.ration_split + dir).clamp(0, crate::county::MAX_RATION_SPLIT);
+                }
+                crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat);
+                if self.counties[county].herd_eaten != was {
+                    break;
+                }
+                // The `do … while` condition, and the whole of the difference
+                // between the two gestures.
+                if self.counties[county].ration_split == split && sweep {
+                    self.counties[county].ration_split = old;
+                    crate::ration::preview(
+                        &self.tables,
+                        &mut self.counties[county],
+                        armies_eat,
+                    );
+                    break;
+                }
+            }
+        }
+
+        for _ in 0..2 {
+            crate::labour::allocate(&mut self.counties[county]);
+            self.refresh_estimates(county);
+        }
+        self.counties[county].ration_split != old
+    }
+
     /// The map tiles that are one county's fields, with what each is being
     /// used for — what a screen needs to draw the brush's targets.
     pub fn field_tiles(&self, county: usize) -> Vec<(usize, crate::field::FieldType)> {
@@ -1710,5 +1836,165 @@ mod tests {
         assert_eq!(k.history.len(), 1, "one season, one line");
         k.advance_season();
         assert_eq!(k.history.len(), 2);
+    }
+
+    // --- the ration split ---------------------------------------------------
+
+    /// A county that eats some of its herd and some of its grain, which is the
+    /// only state in which the slider's search does anything at all.
+    fn a_county_that_eats_both() -> Kingdom {
+        let mut k = Kingdom::new(9);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        let c = &mut k.counties[1];
+        c.owner = 1;
+        c.population = 2000;
+        c.pop_band = 80;
+        // The standing herd feeds five people a head for free, so it has to be
+        // small enough that there is a requirement left to split.
+        c.herd = 100;
+        c.grain = 900;
+        c.ration_wanted = 3;
+        c.ration_split = 50;
+        k
+    }
+
+    /// **The write is not the behaviour.** `Ration_SetSplit` runs the food pass
+    /// on the spot, so the numbers the panel prints move with the slider — and
+    /// a slider whose effect is invisible is what a player reported as *"moves
+    /// but is inoperable"*.
+    ///
+    /// The old test asserted `ration_split == 37` and passed, and the slider was
+    /// broken the whole time: it was checking the field the gesture writes, and
+    /// the defect was the absence of everything after the write.
+    #[test]
+    fn moving_the_split_moves_the_numbers_the_panel_prints() {
+        let mut k = a_county_that_eats_both();
+        k.set_ration_split(1, 100, true);
+        let (herd_all, grain_all) = (k.counties[1].herd_eaten, k.counties[1].grain_eaten);
+
+        k.set_ration_split(1, 0, true);
+        let (herd_none, grain_none) = (k.counties[1].herd_eaten, k.counties[1].grain_eaten);
+
+        assert!(herd_all > 0, "all-livestock eats the herd");
+        assert_eq!(herd_none, 0, "all-grain eats none of it");
+        assert!(grain_none > grain_all, "and the grain takes the whole requirement instead");
+        // Ablation: delete the `ration::preview` call in `set_ration_split` and
+        // every one of these is whatever the last season left, so all four
+        // comparisons collapse.
+    }
+
+    /// **The store is not touched.** `Ration_Apply` computes and records; the
+    /// season spends. A drag runs it up to a hundred times, so if this were
+    /// [`crate::ration::apply`] the county would be eaten alive by its own
+    /// slider.
+    #[test]
+    fn dragging_the_split_does_not_feed_anybody() {
+        let mut k = a_county_that_eats_both();
+        let (herd, grain) = (k.counties[1].herd, k.counties[1].grain);
+        for split in 0..=100 {
+            k.set_ration_split(1, split, true);
+        }
+        assert_eq!((k.counties[1].herd, k.counties[1].grain), (herd, grain));
+    }
+
+    /// **A track jump that changes nothing springs back**, and an arrow does
+    /// not. The two gestures differ only in `sweep`, and a player can see it.
+    ///
+    /// The search runs when the county has a herd, is eating some of it, the
+    /// value moved, the request is strictly inside 0…100, and `herdEaten` came
+    /// out unchanged. It then walks one point at a time from the old value
+    /// towards the request looking for a split that moves `herdEaten`.
+    ///
+    /// * with `sweep`, reaching the request having found nothing **restores the
+    ///   old split**;
+    /// * without it, `(rationSplit != split) || (sweep == 0)` never terminates
+    ///   the walk at the request, so it carries on in the same direction — one
+    ///   click of an arrow can move the split a long way, and it does not spring
+    ///   back.
+    #[test]
+    fn a_track_jump_springs_back_where_an_arrow_keeps_walking() {
+        // Chosen so that one point of split is below the rounding: thirty
+        // people, two head of dairy feeding ten of them, so twenty people-worth
+        // left to split. `pct(20, 50)` and `pct(20, 51)` are both 10, and ten
+        // people-worth is one head either way — so a one-point move changes
+        // nothing and the search is forced to run. Without that the guard
+        // `herd_eaten != 0` is false, the search never fires, and this test
+        // passes while asserting nothing, which is what its first draft did.
+        let mut k = Kingdom::new(11);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        {
+            let c = &mut k.counties[1];
+            c.owner = 1;
+            c.population = 30;
+            c.pop_band = 2;
+            c.herd = 2;
+            c.grain = 100;
+            c.ration_wanted = 3;
+            c.ration_split = 50;
+        }
+        k.set_ration_split(1, 50, true); // settle herd_eaten for where we start
+        let settled = k.counties[1].ration_split;
+        let eaten = k.counties[1].herd_eaten;
+        assert_eq!(settled, 50);
+        assert!(eaten > 0, "the search only runs on a county that is eating its herd");
+
+        let mut track = k.clone();
+        let mut arrow = k.clone();
+        track.set_ration_split(1, settled + 1, true);
+        arrow.set_ration_split(1, settled + 1, false);
+
+        assert_eq!(
+            track.counties[1].ration_split, settled,
+            "a track jump that finds no split worth having puts the old one back",
+        );
+        assert_eq!(track.counties[1].herd_eaten, eaten, "and the numbers with it");
+        assert!(
+            arrow.counties[1].ration_split > settled + 1,
+            "an arrow does not stop at the request: it walks on until the herd moves, and \
+             ended at {} rather than past {}",
+            arrow.counties[1].ration_split,
+            settled + 1,
+        );
+        assert_ne!(
+            arrow.counties[1].herd_eaten, eaten,
+            "and it stops at the first split that changes something",
+        );
+    }
+
+
+    /// The search is bounded, and the bound is the original's hundred steps.
+    /// Nothing here may loop for ever on a county whose herd never moves.
+    #[test]
+    fn the_search_terminates_on_a_county_whose_herd_never_changes() {
+        let mut k = Kingdom::new(12);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        {
+            let c = &mut k.counties[1];
+            c.owner = 1;
+            c.population = 100;
+            c.pop_band = 4;
+            c.herd = 1;
+            c.grain = 1000;
+            c.ration_wanted = 3;
+            c.ration_split = 40;
+        }
+        k.set_ration_split(1, 60, true);
+        assert!((0..=100).contains(&k.counties[1].ration_split));
+        k.set_ration_split(1, 20, false);
+        assert!((0..=100).contains(&k.counties[1].ration_split));
+    }
+
+    /// Another realm's county is refused, and the refusal is the rule's rather
+    /// than the screen's: `Ration_SliderClick` opens
+    /// `if (counties[sel].owner != g_localPlayer) return 0;`, and
+    /// `Game::set_ration_split` is the gate here.
+    #[test]
+    fn the_split_of_a_county_out_of_range_is_refused() {
+        let mut k = a_county_that_eats_both();
+        assert!(!k.set_ration_split(0, 50, true), "county 0 is not a county");
+        assert!(!k.set_ration_split(99, 50, true), "and neither is one past the count");
     }
 }
