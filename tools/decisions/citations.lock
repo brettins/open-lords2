@@ -67,6 +67,7 @@ crates/l2-game/src/screens/map.rs	C58	c583727df160	2a1ff4d5966d
 crates/l2-game/src/screens/map.rs	C61	4ec0e911ae60	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	56e0155cb915	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	9e7ed2c574ff	60611046b40d
+crates/l2-game/src/screens/map.rs	C61	dff9cc319bb0	60611046b40d
 crates/l2-game/src/screens/message.rs	C126	9a44222a16e1	1b2c97c7731a
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc

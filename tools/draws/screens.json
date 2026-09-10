@@ -2323,10 +2323,15 @@
     "ours_objects": 12,
     "real": 11,
     "placeholder": 1,
-    "literals_ours": [],
+    "literals_ours": [
+      "THE GAME'S OWN FONTS DID NOT LOAD. — the loud half of a silent fallback, and drawn only when a face is actually missing. Every Pen method degrades to l2_view::text per call and says nothing, so a checkout that cannot read Fntl2_14.pl8 draws a complete, correct, illegible front end; a player reported it as \"all caps of that font is ridiculous\" and there was no way, from the picture, to tell it from a font we had chosen. ShellAssets::load complains to stderr, which nobody who double-clicks an executable ever sees.",
+      "MISSING: {} — the file names, from ShellAssets::missing_fonts, which is the same list the stderr complaint uses so the two cannot disagree. Drawn only when a face is missing.",
+      "THIS IS OUR 5X7 DEBUG FONT, NOT THE GAME'S. — self-evidencing: the banner is drawn in the very face it warns about, so if you can read it you are looking at the problem. Drawn only when a face is missing."
+    ],
     "missing": [],
     "invented": [
-      "the build stamp (crate::build_id), drawn in our own 5x7 font at the bottom of the page. Deliberate and documented at the site: a player spent an evening reporting already-fixed defects against a binary four merges old. It is the only page-1 mark that is not the original's."
+      "the build stamp (crate::build_id), drawn in the game's own Fntl2_9.pl8 — its plain face, not one of the two blackletter ones — at the bottom of the page. Deliberate and documented at the site: a player spent an evening reporting already-fixed defects against a binary four merges old. It is the only page-1 mark that is not the original's.",
+      "the missing-fonts banner, drawn only when Fntl2_9/14/22 did not load and never otherwise. See literals_ours."
     ],
     "excluded": "the three Blit_* inside Sprite_GenFrame, which are the implementation of one window border; Gfx_MarkSpriteDirty and Gfx_MarkAllDirty, which move no pixels.",
     "eng": {

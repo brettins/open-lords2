@@ -162,7 +162,7 @@ the goal is not met — not "mostly met".
    <!--fig:draws-original-->1,012<!--/fig--> draw calls and we make
    <!--fig:draws-ours-->397<!--/fig-->: <!--fig:draws-pct-->39<!--/fig-->%.
    <!--fig:draws-missing-->56<!--/fig--> things the original draws are enumerated as missing,
-   and **<!--fig:draws-inventions-->37<!--/fig--> things we draw that it does not** — the
+   and **<!--fig:draws-inventions-->38<!--/fig--> things we draw that it does not** — the
    figure that answers row 2 for pictures rather than gestures, and the one nobody had.
    `docs/draws.md`, via `tools/draws/screendraws.js` and `tools/draws/screens.json`.
 
@@ -177,9 +177,9 @@ the goal is not met — not "mostly met".
 
    **And the half a call count cannot see.** Of our marks on those 51 screens,
    <!--fig:draws-real-->420<!--/fig--> go through the game's own artwork and
-   <!--fig:draws-placeholder-->81<!--/fig--> are our 5 × 7 debug font and our own rectangles
-   — <!--fig:draws-real-pct-->84<!--/fig-->% real — with
-   <!--fig:draws-literals-->17<!--/fig--> English captions written in our own source where the
+   <!--fig:draws-placeholder-->84<!--/fig--> are our 5 × 7 debug font and our own rectangles
+   — <!--fig:draws-real-pct-->83<!--/fig-->% real — with
+   <!--fig:draws-literals-->20<!--/fig--> English captions written in our own source where the
    original fetches an `L2.eng` string. Six modules drew **nothing at all** through the game's
    fonts or artwork. **A screen can reproduce every draw call and still be entirely
    placeholder**, and until this audit nothing was counting that. `docs/draws.md` §8.
@@ -907,7 +907,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,104<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,111<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

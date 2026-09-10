@@ -461,9 +461,61 @@ pub const LOAD_OUTLINES: [Rect; 3] = [
     Rect::new(0x78, 0x11E, 0x180, 0x1C),
 ];
 
+/// **Say on the screen when the game's own fonts did not load.**
+///
+/// # A silent fallback is the worst shape of defect on this project
+///
+/// Every [`Pen`] method falls back to `l2_view::text`, our 5 × 7 debug font,
+/// when the face it wants is `None` — per call, and without a word. So a
+/// checkout that cannot read `Fntl2_14.pl8` renders the *entire* front end in a
+/// squat all-capitals face, with every call site perfectly correct and nothing
+/// anywhere to say why. A player reported exactly that:
+///
+/// > *"all caps of that font is ridiculous"*
+///
+/// and there was no way, from the picture, to tell it from a font we had
+/// chosen. The code did the wrong thing, correctly, and said nothing.
+///
+/// `ShellAssets::load` complains to **stderr**, which is the right place for a
+/// developer and no place at all for somebody who double-clicked an executable.
+/// This is the same sentence on the first screen he sees, in the debug font
+/// itself — so the banner is drawn in the very face it is complaining about,
+/// which is the only self-evidencing form available: if you can read the
+/// warning, you are looking at the font it warns about.
+///
+/// Nothing is drawn when the fonts are there, which is the ordinary case and
+/// the one this must not clutter.
+pub fn missing_fonts_banner(ctx: &Ctx, canvas: &mut Canvas) {
+    let missing = ctx.assets.shell.missing_fonts();
+    if missing.is_empty() {
+        return;
+    }
+    let ink = &ctx.assets.ink;
+    l2_view::text::draw(canvas, 4, 4, "THE GAME'S OWN FONTS DID NOT LOAD.", ink.bad);
+    l2_view::text::draw(canvas, 4, 14, &format!("MISSING: {}", missing.join(", ")), ink.bad);
+    l2_view::text::draw(canvas, 4, 24, "THIS IS OUR 5X7 DEBUG FONT, NOT THE GAME'S.", ink.bad);
+}
+
 /// Page 1's four items, as `L2.eng` group 11 indices — *"Single player"*,
 /// *"Multiple players"*, *"Lords of Magic?"*, *"Exit game"*.
 pub const TITLE_ITEMS: [usize; 4] = [2, 3, 47, 4];
+
+/// **`FUN_0041EA14`: `Ui_DrawCentred(11, 0, 0x80, 0x1E, 0x180, &g_fontHeading,
+/// 0x3F)`** — the game's own name, *"Lords of the Realm 2"*, on the page a
+/// player actually reaches.
+///
+/// This was `0x20`, two pixels low, while the subtitle beside it at `0x3A` was
+/// right — which is the shape a transcription takes when one argument is read
+/// off the painter and its neighbour is not. `crate::screens::menu` draws a
+/// title too and **is not reached by the application**; `main.rs` boots to
+/// `ScreenId::Setup(SetupPage::Title)`, so this is the one that is seen.
+pub const TITLE_X: i32 = 0x80;
+pub const TITLE_Y: i32 = 0x1E;
+pub const TITLE_W: i32 = 0x180;
+/// The subtitle under it — `L2.eng` 11/1, *"The siege is on"*, in the **body**
+/// font and **flat**: `FUN_0041EA14` sets `DAT_005AEA40` around this line alone
+/// and leaves the heading above it embossed.
+pub const SUBTITLE_Y: i32 = 0x3A;
 /// Page 2's five — *"Play Now!"*, *"Load a game"*, *"Skirmish!"*,
 /// *"Custom game"*, *"Back"*.
 pub const OPTION_ITEMS: [usize; 5] = [6, 7, 19, 8, 9];
@@ -1437,11 +1489,19 @@ impl SetupScreen {
         match page {
             SetupPage::Title => {
                 pen.window_from(canvas, BOX_SHEET, 0xA0, 10, 0x14, 0xF);
-                head.eng_heading_centred(canvas, GROUP, 0, 0x80, 0x20, 0x180, font::TEXT);
-                pen.eng_centred(canvas, GROUP, 1, 0x80, 0x3A, 0x180, font::TEXT);
+                head.eng_heading_centred(canvas, GROUP, 0, TITLE_X, TITLE_Y, TITLE_W, font::TEXT);
+                pen.eng_centred(canvas, GROUP, 1, TITLE_X, SUBTITLE_Y, TITLE_W, font::TEXT);
                 for (i, s) in TITLE_ITEMS.iter().enumerate() {
                     self.draw_item(canvas, pen, i, item_rect(i), GROUP, *s);
                 }
+                // **The one thing on this page that must not be quiet.**
+                // Every `Pen` method degrades to the 5 × 7 debug font per call
+                // and says nothing, so a checkout that cannot read its fonts
+                // draws a complete, correct, illegible front end. The load-time
+                // complaint goes to stderr, which a player double-clicking an
+                // executable never sees. This is the same sentence on the first
+                // screen he does.
+                missing_fonts_banner(ctx, canvas);
                 // **Ours, and the one caption on this screen that has to be.**
                 // Not the original's — see [`crate::build_id`], which exists
                 // because a player spent an evening reporting three defects
