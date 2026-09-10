@@ -31,6 +31,8 @@
 //! unlimited limit are typed out as the numbers the decompilation has, and the
 //! arithmetic is written out longhand.
 
+use l2_kingdom::industry::MapToggle;
+use l2_kingdom::tables::Commodity;
 use l2_scenario::Scenario;
 use l2_testkit::england;
 
@@ -56,7 +58,7 @@ const UNLIMITED: i32 = 999;
 
 /// **The forecast a real county carries after a real season.**
 ///
-/// Three claims, and the third is the one that needed the road:
+/// Four claims, and the last two are the ones that needed the road:
 ///
 /// 1. every county's forecast is exactly `min(999, (workers / divisor) * 80 /
 ///    100)` for the three unmetered commodities, or zero when one of the four
@@ -66,14 +68,27 @@ const UNLIMITED: i32 = 999;
 ///    trampling forecasts **nothing**, and the write is the function's *first*
 ///    statement so a stale number cannot survive;
 /// 3. at least one county forecasts a **non-zero** number, which is what says
-///    the value arrived rather than that every branch returned early.
+///    the value arrived rather than that every branch returned early;
+/// 4. and a forecast that *was* non-zero goes back to zero when the player
+///    switches the industry off — because
+///    `*(undefined4 *)(county * 0x300 + 0x53fc58 + industry * 0x18) = 0;` is
+///    `Industry_LabourEstimate`'s **first** statement, outside every guard, so
+///    a county that fails one of them forecasts nothing rather than keeping
+///    last season's number.
 ///
-/// **Ablation.** Delete the `crate::industry::preview(…)` call at the foot of
-/// `field::refresh_estimates`'s industry loop and claim 3 goes red — the
+/// **Ablation, and the reason claim 4 exists.** Deleting the
+/// `crate::industry::preview(…)` call at the foot of
+/// `field::refresh_estimates`'s industry loop turns claims 1 and 3 red — the
 /// forecast stays at `Industry::new()`'s zero for every county on the map.
-/// Deleting the `next_season = 0` line instead leaves claims 1 and 3 green and
-/// turns claim 2 red on a switched-off county, which is the half that line is
-/// the whole of.
+///
+/// Deleting the `next_season = 0` line inside `preview` was **green** against
+/// the first three claims, and that is not a fact about the line: on England
+/// turn one every guarded county starts at zero and stays there, so nothing in
+/// the position can tell "written to zero" from "never written". Claim 4 is
+/// what makes that ablation red, and it needs a county whose forecast is
+/// non-zero *first* — which is why it goes through
+/// [`l2_kingdom::Kingdom::toggle_industry`], the map click's own road, rather
+/// than clearing a flag by hand.
 #[test]
 fn a_season_of_england_writes_every_county_s_industry_forecast() {
     let save = england!();
@@ -136,6 +151,21 @@ fn a_season_of_england_writes_every_county_s_industry_forecast() {
         non_zero > 0,
         "every one of {checked} forecasts is zero — nothing wrote the tail, or every \
          county failed a guard"
+    );
+
+    // Claim 4. Wood is the industry the England position has switched on, so it
+    // is the only one that can be switched *off* from a non-zero forecast.
+    let id = (1..=kingdom.county_count)
+        .find(|&id| kingdom.counties[id].industry[0].next_season != 0)
+        .expect("`non_zero` above says at least one county forecasts something");
+    let before = kingdom.counties[id].industry[0].next_season;
+    let on = kingdom.toggle_industry(id, MapToggle::Industry(Commodity::Wood));
+    assert!(!on, "county {id}'s forest was already off, so the toggle proved nothing");
+    assert_eq!(
+        kingdom.counties[id].industry[0].next_season, 0,
+        "county {id} was forecasting {before} and the player switched the forest off; \
+         `Industry_LabourEstimate` zeroes the word before its first guard, so a stale \
+         number cannot survive a switch"
     );
 }
 
