@@ -146,6 +146,7 @@ use crate::screens::county;
 use crate::screens::menubar;
 use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::turn;
+use crate::shell::font;
 use crate::widget;
 
 /// The menu bar: `Screen_DrawMenuBar`'s 640 × 24 strip at y 0.
@@ -1998,6 +1999,23 @@ pub fn season_name(season: u8) -> &'static str {
     }
 }
 
+/// **The season as the game spells it** — `L2.eng` group 29, indexed by
+/// `g_season` directly.
+///
+/// The group is five strings: `"No Season"`, `"Spring"`, `"Summer"`, `"Autumn"`,
+/// `"Winter"`, and [`l2_kingdom::tables::Season`] is 1-based for exactly that
+/// reason, so index 0 is reachable and means what it says. Falls back to
+/// [`season_name`]'s English on an install with no `L2.eng` — the same four
+/// words here, and not the same in a localised install, which is the whole
+/// point of reading them out of the file.
+pub fn season_text(assets: &crate::game::Assets, season: u8) -> String {
+    let s = assets.shell.text(SEASON_GROUP, season as usize);
+    if s.is_empty() {
+        return season_name(season).to_string();
+    }
+    s.to_string()
+}
+
 impl Screen for MapScreen {
     fn id(&self) -> ScreenId {
         ScreenId::Campaign
@@ -3211,6 +3229,22 @@ fn fill_clipped(canvas: &mut Canvas, x: i32, y: i32, side: i32, colour: u8, clip
     }
 }
 
+/// `Ui_DrawYear(g_year, 0x168, 6, 3)` — where the year starts, and the row every
+/// one of the bar's three readings sits on.
+const CLOCK_X: i32 = 0x168;
+const CLOCK_Y: i32 = 6;
+/// `Eng_DrawString(0x1D, g_season, g_penAdvance + 0x16C, …)` — the season's
+/// **base**, which the year's own width is added to. Four pixels right of
+/// [`CLOCK_X`], and that four is the original's, not a rounding of ours.
+const SEASON_X: i32 = 0x16C;
+/// `L2.eng` group 29: `"No Season"`, `"Spring"`, `"Summer"`, `"Autumn"`,
+/// `"Winter"` — indexed by `g_season` with no adjustment.
+pub const SEASON_GROUP: usize = 29;
+/// `Ui_DrawCount(gold, 0, 500, 6, …)` — the treasury, and its group 8 noun
+/// index. 0/1 is *"Crown."* / *"Crowns."*.
+const GOLD_X: i32 = 500;
+const GOLD_NOUN: usize = 0;
+
 /// `Screen_DrawMenuBar`, as far as we can reproduce it.
 ///
 /// **The original's:** the 640 × 24 background tiled from `Panels.pl8` frames
@@ -3222,7 +3256,36 @@ fn fill_clipped(canvas: &mut Canvas, x: i32, y: i32, side: i32, colour: u8, clip
 /// measures them — see [`menubar`](crate::screens::menubar). This comment used
 /// to say they were not, which was true and was nineteen input arms.
 ///
-/// **Ours:** the clock and treasury are our font at the original's x positions.
+/// **And so are the year, the season and the treasury**, which used to be the
+/// line here: *"ours: the clock and treasury are our font at the original's x
+/// positions."* A player read that off the screen —
+///
+/// > *"still placeholder font in the top right for gold and summer"*
+///
+/// — and he was looking at two `l2_view::text::draw` calls in the 5 × 7 debug
+/// font, on the busiest chrome in the game. Reading the tail of
+/// `Screen_DrawMenuBar` back turned up three things beyond the face:
+///
+/// ```c
+/// g_penAdvance = 0;
+/// Ui_DrawYear(g_year, 0x168, 6, 3);
+/// Eng_DrawString(0x1D, g_season, g_penAdvance + 0x16C, 6, &g_fontBody, 0x3F);
+/// ...
+/// Ui_DrawCount(g_realms[g_localPlayer].gold, 0, 500, 6, &g_fontBody, 0x3F);
+/// ```
+///
+/// * **the year comes first and the season after it**, placed by the pen rather
+///   than by a coordinate. We drew `"{season} {year}"`, in that order, at 360.
+/// * **the treasury is a count, not a caption**: `Ui_DrawCount(gold, 0, …)`
+///   draws the number and then `L2.eng` group 8's *"Crown."* / *"Crowns."*. We
+///   drew the word `GOLD`, which is not in `L2.eng` at all.
+/// * **`g_fontBody` is `Fntl2_14.pl8`**, one of the game's two *blackletter*
+///   faces — so "the right font" here is the display one, not the plain one,
+///   which is the opposite of where [`crate::build_id`] lands and worth stating
+///   because the instinct is to reach for legibility. Verified twice:
+///   `docs/symbols.md` `0x005AF8F0`, and the preload table at `0x004D9FC0`
+///   gives `fntl2_14.pl8` a buffer of `0x36B0` bytes, which is exactly
+///   `g_fontHeading - g_fontBody`.
 fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
     let ink = &ctx.assets.ink;
     let game = &ctx.game;
@@ -3248,11 +3311,34 @@ fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
         None => widget::panel(canvas, ink, Rect::new(0, 0, canvas.width as i32, TOP_BAR)),
     }
 
-    // Our text, at the original's coordinates: the year and season at x 360 and
-    // the treasury at x 500, both 6 pixels down.
-    let clock = format!("{} {}", season_name(k.season), k.year);
-    text::draw(canvas, 360, 6, &clock, ink.text);
-    text::draw(canvas, 500, 6, &format!("GOLD {}", game.gold()), ink.text);
+    // `Screen_DrawMenuBar` touches neither `DAT_005AEA40` nor `DAT_0058FE2C`
+    // around these three, so it is the ordinary embossed body pen — the same
+    // one `menubar::draw_titles` uses two lines below.
+    let pen = crate::shell::Pen {
+        assets: &ctx.assets.shell,
+        ink,
+        chrome: ctx.assets.chrome.as_ref(),
+        shadow: Some(font::SHADOW),
+        caps: None,
+    };
+
+    // `Ui_DrawYear(g_year, 0x168, 6, 3)` — style 3 is
+    // `Ui_DrawNumber(year, ' ', " ", x, y, &g_fontBody, 0x3F)`, the bare number
+    // with a leading and a trailing space and no BC/AD.
+    let after_year = pen.number(canvas, CLOCK_X, CLOCK_Y, k.year, false, font::TEXT);
+    // `Eng_DrawString(0x1D, g_season, g_penAdvance + 0x16C, 6, &g_fontBody, 0x3F)`.
+    //
+    // **`g_penAdvance` is a width and `Pen::number` returns an absolute x** —
+    // the confusion `docs/decisions.md` C61 records four agents making seven
+    // times. The subtraction is written out rather than folded away so the line
+    // reads the way the decompilation does.
+    let advance = after_year - CLOCK_X;
+    let season = season_text(ctx.assets, k.season);
+    pen.body(canvas, SEASON_X + advance, CLOCK_Y, &season, font::TEXT);
+    // `Ui_DrawCount(g_realms[g_localPlayer].gold, 0, 500, 6, &g_fontBody, 0x3F)`
+    // — the number, then group 8 index 0 or 1, *"Crown."* or *"Crowns."*.
+    pen.count(canvas, GOLD_X, CLOCK_Y, game.gold(), GOLD_NOUN, true, font::TEXT);
+
     // `Ui_DrawMenuTitles(&g_menuBarItems, 3)`. Nothing here is open — the
     // drop-down is its own screen and draws its own title lit.
     menubar::draw_titles(ctx, canvas, None);

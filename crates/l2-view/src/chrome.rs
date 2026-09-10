@@ -588,22 +588,98 @@ impl Chrome {
     /// five 13 × 16 banner frames at the end of the file, which is what it did
     /// the first time anybody drew a box in set 1: the custom-game screen's
     /// twelve option boxes came out full of shields.
+    /// # Set 2 is a box with **no top rail**, and it is the menu drop-down's
+    ///
+    /// `Ui_DrawBoxBorder`'s style is not only a frame offset. Style 2 changes
+    /// the *shape*, in two places and nowhere else — read back off `0x00409934`:
+    ///
+    /// ```c
+    /// if (r == 0 && c == 0)         frame = style == 2 ? 0x1C : 0;  /* left edge, not a corner */
+    /// if (r == 0 && c == cols - 1)  frame = style == 2 ? 0x28 : 1;  /* right edge, not a corner */
+    /// if (r == 0 && style != 2)     frame = 4 + (c - 1) % 12;       /* the top rail: skipped */
+    /// ```
+    ///
+    /// and its one caller, `FUN_00409429`, completes the picture by filling the
+    /// interior **from the box's own `y`**, one row taller than `Ui_DrawBox`:
+    ///
+    /// ```c
+    /// Ui_DrawBoxBorder(2, x, y, cols, rows);
+    /// Ui_DrawBoxInterior(x + 0x10, y, cols - 2, rows - 1);   /* not y + 0x10, not rows - 2 */
+    /// ```
+    ///
+    /// So the drop-down's parchment reaches the menu bar it hangs from and its
+    /// left and right edges run all the way up. We drew set 1's artwork for it —
+    /// a **closed** box with a full 16-pixel top rail at `y = 24` — and the
+    /// first caption's origin is `y = 38`, fourteen pixels down. A player read
+    /// the result off the screen exactly:
+    ///
+    /// > *"the text in the menus at the top when I open the menu is slightly
+    /// > high — it's clipping into the 'fold' of the scroll at the top, and
+    /// > there's a bit of empty space from the last bit of text to the bottom
+    /// > 'fold' of the scroll"*
+    ///
+    /// **Both halves are this one difference, and neither is a row-pitch
+    /// error.** The item pitch is a data column in `g_menuBarItems`' item tables
+    /// — 0, 20, 40, … — which `screens::menubar` already carries, and every
+    /// caption is where `Eng_DrawString(group, index, x + 0x10, item.y + y +
+    /// 0x20, …)` puts it. What moved was the plate around them: a rail that
+    /// should not exist ate the top of the block, and the sixteen pixels it
+    /// occupied are what make the space under the last row look unbalanced.
+    ///
+    /// `screens::menubar` was asking for set 2 all along and saying so in its
+    /// header — *"our `Pen::window` only models two of the original's three
+    /// border sets, so set 2 draws with set 1's artwork. Recorded rather than
+    /// faked."* The record was accurate, it was in the file, and it did not
+    /// cause the work to happen: `docs/agents.md`, *a correct explanation
+    /// sitting directly above the omission it describes*.
     pub fn draw_box(&self, canvas: &mut Canvas, x: i32, y: i32, cols: i32, rows: i32, set: usize) {
         let base = if set == 0 { 0 } else { panels::SET_B };
+        let open_top = set == 2;
         let cell = panels::CELL;
         for r in 0..rows {
             for c in 0..cols {
                 let (px, py) = (x + c * cell, y + r * cell);
-                let interior = r > 0 && r < rows - 1 && c > 0 && c < cols - 1;
+                // **Where the interior starts, which is what set 2 moves.**
+                // `Ui_DrawBox` insets it a cell in both directions;
+                // `FUN_00409429` insets it horizontally only and makes it one
+                // row taller, so row 0's middle cells are parchment, not rail.
+                let interior = if open_top {
+                    r < rows - 1 && c > 0 && c < cols - 1
+                } else {
+                    r > 0 && r < rows - 1 && c > 0 && c < cols - 1
+                };
+                if interior {
+                    // The texture's own row index: the interior's first row,
+                    // not the box's second.
+                    let tr = if open_top { r as usize } else { r as usize - 1 };
+                    let frame = panels::TEXTURE
+                        + (c as usize - 1) % panels::TEXTURE_DIM
+                        + (tr % panels::TEXTURE_DIM) * panels::TEXTURE_DIM;
+                    self.draw_panel_frame(canvas, frame, px, py);
+                    continue;
+                }
                 let frame = if r == 0 && c == 0 {
-                    panels::CORNER_TL
+                    if open_top {
+                        panels::EDGE_LEFT
+                    } else {
+                        panels::CORNER_TL
+                    }
                 } else if r == 0 && c == cols - 1 {
-                    panels::CORNER_TR
+                    if open_top {
+                        panels::EDGE_RIGHT
+                    } else {
+                        panels::CORNER_TR
+                    }
                 } else if r == rows - 1 && c == 0 {
                     panels::CORNER_BL
                 } else if r == rows - 1 && c == cols - 1 {
                     panels::CORNER_BR
                 } else if r == 0 {
+                    // `if (r == 0 && style != 2)` — style 2 has no top rail at
+                    // all, and the cell belongs to the interior above.
+                    if open_top {
+                        continue;
+                    }
                     panels::EDGE_TOP + (c as usize - 1) % panels::EDGE_LEN
                 } else if r == rows - 1 {
                     panels::EDGE_BOTTOM + (c as usize - 1) % panels::EDGE_LEN
@@ -612,12 +688,9 @@ impl Chrome {
                 } else if c == cols - 1 {
                     panels::EDGE_RIGHT + (r as usize - 1) % panels::EDGE_LEN
                 } else {
-                    panels::TEXTURE
-                        + (c as usize - 1) % panels::TEXTURE_DIM
-                        + ((r as usize - 1) % panels::TEXTURE_DIM) * panels::TEXTURE_DIM
+                    continue;
                 };
-                let frame = if interior { frame } else { frame + base };
-                self.draw_panel_frame(canvas, frame, px, py);
+                self.draw_panel_frame(canvas, frame + base, px, py);
             }
         }
     }

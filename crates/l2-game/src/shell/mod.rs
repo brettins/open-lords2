@@ -197,13 +197,7 @@ impl ShellAssets {
     /// degradation is still the right behaviour: the game must run on a bare
     /// checkout. What was wrong is that it happened without a word.
     fn complain_about_what_is_missing(&self) {
-        let mut missing: Vec<&str> = Vec::new();
-        if self.body.is_none() {
-            missing.push(font::BODY);
-        }
-        if self.heading.is_none() {
-            missing.push(font::HEADING);
-        }
+        let mut missing: Vec<&str> = self.missing_fonts();
         if self.eng.is_none() {
             missing.push("L2.eng");
         }
@@ -221,6 +215,34 @@ impl ShellAssets {
             font::BODY,
             font::HEADING,
         );
+    }
+
+    /// **Which of the game's three faces did not load** — the file names, or
+    /// empty.
+    ///
+    /// It exists so that the *painter* and the *complaint* ask the same
+    /// question. They used to be two lists: `complain_about_what_is_missing`
+    /// checked `body` and `heading` and **not `small`**, so an install missing
+    /// `Fntl2_9.pl8` alone said nothing at all and drew the build stamp — the
+    /// one caption whose whole job is to be read back into a bug report — in
+    /// the 5 × 7 font, silently. That is the same defect this method was added
+    /// to announce, one file down.
+    ///
+    /// `docs/agents.md`: *two artefacts that must agree* is the pattern that
+    /// catches things; one method both of them call is the shape where the
+    /// mistake cannot be made at all.
+    pub fn missing_fonts(&self) -> Vec<&'static str> {
+        let mut missing = Vec::new();
+        if self.body.is_none() {
+            missing.push(font::BODY);
+        }
+        if self.heading.is_none() {
+            missing.push(font::HEADING);
+        }
+        if self.small.is_none() {
+            missing.push(font::SMALL);
+        }
+        missing
     }
 
     /// Nothing at all: what the tests run against, and what an install missing
@@ -913,6 +935,22 @@ mod tests {
         let mut c = Canvas::screen();
         assert!(!background(&mut c, &a, "Gateway.pl8"));
         assert_eq!(c.count(0), 640 * 480, "and it drew nothing at all");
+    }
+
+    /// **All three faces are announced, and `Fntl2_9.pl8` was the one that was
+    /// not.** The complaint checked `body` and `heading`; `small` draws the
+    /// build stamp and the county strip, and its absence was silent.
+    ///
+    /// Ablated by deleting the `small` arm of `missing_fonts`: the list comes
+    /// back with two names and this goes red naming the third. Verified.
+    #[test]
+    fn a_bare_shell_names_every_font_it_could_not_load() {
+        let missing = ShellAssets::empty().missing_fonts();
+        assert_eq!(
+            missing,
+            vec![font::BODY, font::HEADING, font::SMALL],
+            "every face a Pen or a painter falls back from has to be in this list"
+        );
     }
 
     #[test]

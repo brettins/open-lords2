@@ -1034,10 +1034,22 @@ fn the_map_chrome_shows_the_clock_the_treasury_and_the_selected_county() {
     let canvas = draw(&mut screen, &mut game, &assets);
     let ink = &assets.ink;
 
-    let clock = find_text(&canvas, "WINTER 1268", ink.text).expect("the season and the year");
-    assert_eq!(clock, (360, 6), "the original draws the clock at x 360, y 6");
-    let gold = find_text(&canvas, "GOLD 1000", ink.text).expect("the treasury");
-    assert_eq!(gold, (500, 6), "and the treasury at x 500");
+    // **The year, then the season, in `g_fontBody` — not our 5 × 7 font, and
+    // not in that order.** This used to look for `"WINTER 1268"` in `ink.text`,
+    // which is what the two `l2_view::text::draw` calls at the tail of
+    // `draw_menu_bar` drew and what a player called *"still placeholder font in
+    // the top right for gold and summer"*. `Screen_DrawMenuBar` draws
+    // `Ui_DrawYear(g_year, 0x168, 6, 3)` and puts the season at
+    // `g_penAdvance + 0x16C`, both in `&g_fontBody` at colour `0x3F`.
+    let clock = find_body(&canvas, &assets, " 1268 ", font::TEXT).expect("the year");
+    assert_eq!(clock, (360, 6), "the original draws the year at x 360, y 6");
+    let season = find_body(&canvas, &assets, "Winter", font::TEXT).expect("the season");
+    assert!(season.0 > clock.0, "the season follows the year, at g_penAdvance + 0x16C");
+    // `Ui_DrawCount(gold, 0, 500, 6, &g_fontBody, 0x3F)` — the number and then
+    // `L2.eng` group 8's *"Crowns."*. `GOLD` was a word of ours.
+    let gold = find_body(&canvas, &assets, "1000 ", font::TEXT).expect("the treasury");
+    assert_eq!(gold.1, 6, "and the treasury on the same row");
+    assert!(find_body(&canvas, &assets, "Crowns.", font::TEXT).is_some(), "with its noun");
     assert!(find_text(&canvas, "TURN 1", ink.dim).is_some());
     assert!(find_text(&canvas, "COUNTIES 1/14", ink.dim).is_some());
 
@@ -1057,8 +1069,9 @@ fn the_map_chrome_shows_the_clock_the_treasury_and_the_selected_county() {
     );
 
     // The near-misses. If the search could match anything it would match these.
-    assert!(find_text(&canvas, "WINTER 1269", ink.text).is_none());
-    assert!(find_text(&canvas, "GOLD 1001", ink.text).is_none());
+    assert!(find_body(&canvas, &assets, " 1269 ", font::TEXT).is_none());
+    assert!(find_body(&canvas, &assets, "1001 ", font::TEXT).is_none());
+    assert!(find_body(&canvas, &assets, "Summer", font::TEXT).is_none());
     assert!(find_strip(&canvas, &assets, "436", STRIP_INK).is_none());
 }
 
@@ -1756,7 +1769,9 @@ fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
     let mut screen = MapScreen::new();
     game.select(8);
     let before = draw(&mut screen, &mut game, &assets);
-    assert!(find_text(&before, "WINTER 1268", assets.ink.text).is_some());
+    // The year and the season, in the face `Screen_DrawMenuBar` passes.
+    assert!(find_body(&before, &assets, " 1268 ", font::TEXT).is_some());
+    assert!(find_body(&before, &assets, "Winter", font::TEXT).is_some());
     assert!(find_text(&before, "TURN 1", assets.ink.dim).is_some());
 
     let population = game.kingdom.counties[8].population;
@@ -1777,9 +1792,9 @@ fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
     assert_eq!(game.gold_last[game.player as usize], gold, "and the treasury is remembered");
 
     let after = draw(&mut screen, &mut game, &assets);
-    assert!(find_text(&after, "SPRING 1268", assets.ink.text).is_some(), "the clock moved");
+    assert!(find_body(&after, &assets, "Spring", font::TEXT).is_some(), "the clock moved");
     assert!(find_text(&after, "TURN 2", assets.ink.dim).is_some());
-    assert!(find_text(&after, "WINTER 1268", assets.ink.text).is_none());
+    assert!(find_body(&after, &assets, "Winter", font::TEXT).is_none());
     assert!(before.diff_count(&after) > 0);
 
     let shown = game.kingdom.counties[8].population.to_string();
