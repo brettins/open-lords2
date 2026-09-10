@@ -340,6 +340,69 @@ Two practical consequences:
   fixtures exist for this; a hand-built `Kingdom` carries whatever `new()` gives it, and
   `new()` agrees with every wrong reading equally.
 
+## A correct explanation sitting directly above the omission it describes
+
+This is a new one, and it is not a missing reader or a missing writer. **The comment was
+right. It was load-bearing. It was in the file. And it did not cause the work to happen.**
+
+`crate::field`'s module docs had already worked out why the original's estimate round runs
+twice — and said so, in a paragraph that reasons carefully and reaches the correct answer:
+
+> *"That looked like a fixpoint and it is not one: reading the five estimate bodies, no ceiling
+> depends on the current assignment … What the second round is for is the `Herd_UpdateCrowding`
+> in the middle, which does move an estimate's input, **and the panel forecasts, which the
+> estimates fill from whatever the allocator last decided.**"*
+
+Twenty lines below it, `grain_labour_estimate` ports the search loop of
+`Grain_LabourEstimate` and stops. **The four things the tail writes — the sowing, growth and
+harvest forecasts and the signed change the sidebar draws — were carried by nothing**, and a
+player found the hole by looking at the screen: *"Sidebar doesn't show grain being planted as
+a negative number."*
+
+> **Knowing why a pass exists is not the same as carrying what it writes.**
+
+It belongs beside *a comment that defers work to a caller must name the caller* and *a
+document that promises "until X" keeps promising it long after X* — three shapes of the same
+thing, and the reason they are worth grouping is that **none of them is a missing comment.**
+Every one is prose that is accurate, that a reviewer would nod at, and that describes work
+which then did not get done. The usual defence on this project — write it down, cite it,
+cross-reference it — is the thing that already happened.
+
+**What would actually have caught it**, in rising order of cost:
+
+* **Port a function's tail with its loop, or say at the loop that you did not.** The omission
+  is invisible because `grain_labour_estimate` is a *complete-looking* function: it takes the
+  right arguments, returns a sensible type, and reads as finished. A one-line
+  `// NOT PORTED: the tail's four writes` at the return would have made the next reader's
+  question *"why not?"* instead of no question at all.
+* **Ask what *reads* the thing the comment says a pass is for.** The paragraph names the panel
+  forecasts as the reason for the second round. Nothing in the workspace read a panel forecast,
+  and nothing anywhere said so. That is `docs/decisions.md` C30 and the `farm_style` case from
+  a third direction: **a producer that is protected and a consumer that is absent look
+  identical from the producer's end** — and here even the *explanation* was written from the
+  producer's end.
+* **Count the pictures.** `docs/draws-map.md` had this counted as a missing draw call hours
+  before the report arrived. That is the instrument, and it worked; but note what it counted —
+  a *call site in the painter*, not a value in the simulation. It found the right defect for a
+  reason one level away from the cause.
+
+**And a second instance the same evening, with the same shape and a worse outcome.**
+`docs/formats/maps-layers.md` §5.5 carried, as **[V]**: *"The third parameter is dead … all
+sixteen call sites pass zero — including the two that forward a parameter (`FUN_00469D21`,
+whose only callers are `Grain_SeasonTick` and `Herd_UpdateCrowding`, and both pass `'\0'`)."*
+There are twenty-four call sites; `Herd_UpdateCrowding` passes zero and **`Grain_SeasonTick`
+passes a computed variant**, which is the only thing in the picture that says how grown a
+wheat field is. The renderer dropped the term *because the document said to*, and a player
+said *"the wheat fields don't show the wheat growing."*
+
+That one is already covered by *name the branch* — a true statement about one of two callers,
+promoted to a statement about both — but it is worth reading beside the first, because the two
+together make the sharper point: **a document is an input to the code, not only a record of
+it.** A wrong `[V]` does not merely fail to help; it actively produces the defect, and it does
+so through a careful person who checked the reference. The correction log knows this about
+itself (*"the correction log can be wrong, and it is believed harder than anything else"*);
+the format documents are believed exactly as hard and have no such warning on them.
+
 ## The correction log can be wrong, and it is believed harder than anything else
 
 The five failures below this heading are tools returning clean, plausible, wrong answers. This

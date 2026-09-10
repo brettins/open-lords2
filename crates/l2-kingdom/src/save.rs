@@ -355,7 +355,38 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   defaulted inbox would produce a kingdom that looks entirely coherent — the
 ///   standings, alliances and grudges all present and correct — with the mail
 ///   silently thrown away. A wrong load that looks right is the one to refuse.
-pub const VERSION: u32 = 15;
+/// * 16 — **the grain row's three forecasts**, [`crate::county::County`]'s
+///   `grain_sown_expected`, `grain_grown_expected` and `grain_change_expected`,
+///   which are `Grain_LabourEstimate`'s tail (`0x0044D374`). Twelve bytes a
+///   county over 17 slots, +204.
+///
+///   A player: *"Sidebar doesn't show grain being planted as a negative
+///   number."* These are the numbers that say so — in Spring the change is
+///   `−sown − eaten` — and until this version nothing in the workspace computed
+///   any of them. `docs/decisions.md` CNEW-grain-forecast.
+///
+///   **This entry is the first one where the default would have been harmless,
+///   and it is refused anyway — but for a weaker reason than the others, and
+///   the difference is worth stating rather than hiding.** Entries 12 … 15
+///   refuse because a defaulted load produces *a state this version cannot
+///   otherwise produce*, or one that changes what the simulation computes. These
+///   three do neither: they are **derived**, recomputed from scratch by every
+///   estimate round, and nothing anywhere reads them except the painter. A
+///   version 15 save loaded with them zeroed would show one blank produce row
+///   until the turn ended and then be correct for ever.
+///
+///   They are carried anyway for one reason: **nothing re-runs the estimate
+///   round on load**, so "until the turn ended" is a real interval a player
+///   would see, and a blank row is the exact defect they exist to fix. The
+///   format has no widening mechanism — `decode` is `if version != VERSION
+///   { Err }` and always has been — so carrying them *is* a bump, and there was
+///   never a third option to weigh.
+///
+///   The rule this sharpens rather than erodes: **refuse when a default is a
+///   state the writer could not have produced, or when it feeds the
+///   simulation.** A derived display field is neither, and if the format ever
+///   grows widening, this is the entry that should take it.
+pub const VERSION: u32 = 16;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1088,6 +1119,9 @@ impl Encode for County {
         out.i32(self.herd_births_expected);
         out.i32(self.herd_deaths_expected);
         out.i32(self.herd_change_expected);
+        out.i32(self.grain_sown_expected);
+        out.i32(self.grain_grown_expected);
+        out.i32(self.grain_change_expected);
         for industry in &self.industry {
             industry.encode(out);
         }
@@ -1231,6 +1265,9 @@ impl Decode for County {
         c.herd_births_expected = input.i32()?;
         c.herd_deaths_expected = input.i32()?;
         c.herd_change_expected = input.i32()?;
+        c.grain_sown_expected = input.i32()?;
+        c.grain_grown_expected = input.i32()?;
+        c.grain_change_expected = input.i32()?;
         for slot in 0..c.industry.len() {
             c.industry[slot] = Industry::decode(input)?;
         }

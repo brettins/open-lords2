@@ -425,6 +425,19 @@ pub fn refresh_estimates(
         county.labour_wanted[JOB_GRAIN_FARMING] = grain.wanted;
         county.labour_useful[JOB_GRAIN_FARMING] = grain.useful;
     }
+    // **`Grain_LabourEstimate`'s tail, which is one function in the original and
+    // two here.** The estimate above is its search loop; this is what it writes
+    // afterwards — the sowing, growth and harvest forecasts and the signed
+    // change the sidebar's grain row draws. It runs unconditionally because the
+    // original's `+0x22C = 0` is *outside* the `popBand` guard, so an empty
+    // county forecasts nothing rather than keeping last season's number.
+    //
+    // It is called from here rather than from a season tick because this is
+    // where the original computes it: `County_RefreshEstimates` runs **after**
+    // `Labour_Allocate` in each of the round's two passes, and the tail reads
+    // `labour[0].workers` — the allocator's answer, not the search's.
+    // `docs/decisions.md` CNEW-grain-forecast.
+    crate::land::grain_preview(tables, county, season_next, advanced_farming);
     if county.pop_band != 0 {
         county.labour_useful[JOB_CATTLE_FARMING] =
             crate::land::herd_labour_estimate(tables, county, season_next.index());

@@ -1492,3 +1492,89 @@ fn the_flags_sheet_damage_and_mob_banner_blocks_are_where_sprite_topit_says() {
     }
     assert_ne!(size(0x81), (16, 42), "0x81 is the mercenary marker, not a ninth phase");
 }
+
+/// **The wheat ripens, and the file says which way.**
+///
+/// A player: *"The wheat fields don't show the wheat growing."*
+/// [`campaign::field_variant`] is the fix; this is the artwork that makes the
+/// direction a measurement rather than a story. `Grain_SeasonTick` writes the
+/// crop's density band — 2, 3, 7 or 11 — onto every grain tile and derives
+/// `Terrain_Set`'s variant from it, and **all four bands share base 88**, so
+/// the variant is the only thing in the picture that moves.
+///
+/// Three claims, each refutable by the user's own `Roads1a.pl8`:
+///
+/// 1. frames **88 … 103** are sixteen tile-sized diamonds — four variants of
+///    four variations — and **104** is where the next base begins, so the run
+///    ends exactly where `field_base` says it does;
+/// 2. the count of **ripe-gold** pixels rises strictly with the variant at every
+///    one of the four `stored & 3` positions. That is *"a riper field has more
+///    ripe wheat in it"* stated as something the file can contradict, and it is
+///    what makes the band → variant mapping the right way round rather than
+///    merely consistent;
+/// 3. the blocks on either side — fallow at 84 … 87 and pasture at 104 … 107 —
+///    carry almost none of it, which bounds the run from outside.
+///
+/// "Gold" is read off the shipped palette rather than named: `r > 140`,
+/// `g > 110`, `b < 110`, `r >= g` — and the *ramp* is what is asserted rather
+/// than any count, because our palette widens 6-bit VGA by 255/63 where the
+/// original multiplies by 4 and an absolute threshold would sit on that seam.
+/// Ablating the `+ field_variant(terrain) * 4`
+/// in [`campaign::field_frame`] does not fail this test — it is about the sheet,
+/// not about us — which is why `a_fields_picture_follows_its_crop_state` asserts
+/// the arithmetic and this asserts what the arithmetic is *for*.
+#[test]
+fn the_four_wheat_variants_ripen_and_the_block_ends_where_the_next_base_begins() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("skipping: no install");
+        return;
+    };
+    let sheet = Sheet::new(read(&dir, "Roads1a.pl8").expect("Roads1a.pl8")).expect("parse");
+    let palette = l2_formats::Palette::from_bytes(&read(&dir, "Base01.256").expect("Base01.256"))
+        .expect("the shipped palette");
+
+    let gold = |frame: usize| -> usize {
+        let f = sheet.frame(frame).unwrap_or_else(|| panic!("no frame {frame}"));
+        // The diamond is 58 wide; the height is 30 **plus** whatever apex rows
+        // the frame reserves, and some of this run reserves four. That is the
+        // overhang byte `maps-layers.md` §1.1a measured, not a different size.
+        assert_eq!(f.width, 58, "frame {frame} is not a tile diamond");
+        assert!(f.height >= 30, "frame {frame} is shorter than a tile");
+        f.indices
+            .iter()
+            .zip(f.opaque.iter())
+            .filter(|(_, &o)| o)
+            .filter(|(&v, _)| {
+                let [r, g, b] = palette.rgb(v);
+                r > 140 && g > 110 && b < 110 && r >= g
+            })
+            .count()
+    };
+
+    // 2 — four rising ramps, one per stored variation.
+    for variation in 0..4usize {
+        let ramp: Vec<usize> = (0..4).map(|v| gold(88 + v * 4 + variation)).collect();
+        for w in ramp.windows(2) {
+            assert!(
+                w[1] > w[0],
+                "variation {variation}: the gold does not rise across the variants: {ramp:?}",
+            );
+        }
+        // 3 — and the neighbours are not wheat.
+        assert!(
+            gold(84 + variation) < ramp[0],
+            "fallow frame {} is as gold as the youngest wheat",
+            84 + variation,
+        );
+        assert!(
+            gold(104 + variation) < ramp[0],
+            "pasture frame {} is as gold as the youngest wheat",
+            104 + variation,
+        );
+    }
+
+    // 1 — the block is sixteen frames and it ends at 104.
+    assert_eq!(l2_view::campaign::field_base(2).0, 88);
+    assert_eq!(l2_view::campaign::field_base(0x13).0, 104);
+    assert_eq!(88 + 4 * 4, 104, "four variants of four variations tile the gap exactly");
+}

@@ -4227,6 +4227,60 @@ both say right-aligned. The grain row's *store* is therefore centred in 60 pixel
 and `county::draw_produce_rows` right-anchors it. Found independently by the other draw audit;
 recorded here because it lands on this row.
 
+**CNEW-wheat-variant — a `[V]` claim in a format document produced a player-visible defect,
+and the renderer was right to trust it.**
+
+> *"The wheat fields don't show the wheat growing."*
+
+`docs/formats/maps-layers.md` §5.5 said `Terrain_Set`'s third parameter — `variant`, which
+shifts the frame by a whole four-frame block — is **dead**, on the grounds that all sixteen
+call sites pass zero, *"including the two that forward a parameter (`FUN_00469D21`, whose only
+callers are `Grain_SeasonTick` and `Herd_UpdateCrowding`, and both pass `'\0'`)."*
+`l2_view::campaign::field_graphic` was written to that and computed
+`base + (storedFrame & 3)`, with no variant term.
+
+There are **twenty-four** call sites. Twenty-three pass a literal zero. `Herd_UpdateCrowding`
+passes zero. **`Grain_SeasonTick` does not:**
+
+```c
+band    = FUN_0044CF6F(county.crop[2], county.fieldsGrain);   /* 2, 3, 7 or 11 */
+variant = band < 3 ? 0 : (band - 3) / 4 + 1;                  /* 0, 1, 2 or 3  */
+FUN_00469D21(county, band, variant, 2, 0xE);
+```
+
+**And the two halves of this bug are not independent, which is the part worth keeping.** All
+four density bands fall in `2 … 0x12`, whose base is 88 — so the `content` byte carries *no*
+information about the crop's stage and the variant carries all of it. Our season pass also had
+no counterpart for that repaint at all, so `content` never moved either; **fixing either half
+alone would have changed no pixel**, and a fix aimed at the obvious half would have looked
+like a failure and sent the next person somewhere else.
+
+The artwork closes it, and it is the kind of check this project trusts: `Roads1a.pl8` frames
+88 … 103 are sixteen 58-wide diamonds, four variants of four variations, and the ripe-gold
+pixel count rises strictly with the variant at every one of the four positions —
+36/34/36/33, 45/43/46/43, 54/50/55/49, 71/70/72/69 — while the fallow block before (84 … 87)
+and the pasture block after (104 … 107) carry two to eleven. Four blocks of four from 88 end
+at 103, and 104 is exactly where `field_base`'s next base begins.
+
+**Three things generalise.**
+
+**One — the claim was checked on one of two branches and stated about both.** That is the
+*name the branch* rule from `docs/agents.md`, and *"`Herd_UpdateCrowding` passes zero"* is a
+finding that cannot be promoted by accident.
+
+**Two — a wrong `[V]` in a format document is worse than a wrong correction, because nothing
+warns you.** `docs/decisions.md` carries a standing note that the correction log can be wrong
+and is believed harder than anything else. The format documents are believed exactly as hard,
+are consulted by more code, and have no such note. This one did not merely fail to help: **it
+produced the defect**, through a careful person who looked the reference up.
+
+**Three — an existing test was written to the falsehood and defended it.**
+`a_fields_picture_follows_its_crop_state` asserted `frame == base + variant` for terrain
+`0x05`, a value the game never writes to a farm tile, and would have gone red on the fix. A
+test whose subject is a documented claim inherits the claim's errors, and the tell here was
+available: **the value it asserted on was one nothing in the game produces.** A ladder test
+that walks unreachable rungs is testing the document, not the game.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

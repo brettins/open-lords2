@@ -3200,15 +3200,51 @@ fn a_fields_picture_follows_its_crop_state() {
         .expect("the map slot")
         .at(l2_formats::maps::Plane::GfxIndex, fx as usize, fy as usize);
 
-    // Every state in the ladder gives a frame in its own block, and the variant
-    // — the two low bits the file stored — never moves.
-    let variant = stored & 3;
-    for terrain in [0x00u8, 0x01, 0x05, 0x14, 0x17, 0x18, 0x19, 0x1C, 0x1F] {
+    // Every state in the ladder gives a frame in its own block, and the tile's
+    // own variation — the two low bits the file stored — never moves.
+    //
+    // **`0x05` used to be in this list and it was asserting a falsehood.** The
+    // list is now the values the game can actually write to a farm tile —
+    // `Terrain_Set`'s twenty-four call sites pass `0`, `1`, `2 … 0x0E` through
+    // `FUN_00469D21`, `0x13 … 0x16`, `0x17`, `0x18` and `0x19 … 0x1C` — and the
+    // crop states are handled by their own claim below, because they are the
+    // one place `Terrain_Set`'s third parameter is not zero.
+    let variation = stored & 3;
+    for terrain in [0x00u8, 0x01, 0x02, 0x14, 0x17, 0x18, 0x19, 0x1C, 0x1F] {
         let (bank, frame) = campaign::field_graphic(terrain, stored);
         let (base, layer) = campaign::field_base(terrain);
-        assert_eq!(frame, base + variant, "terrain {terrain:#04X} keeps its variant");
+        assert_eq!(frame, base + variation, "terrain {terrain:#04X} keeps its variation");
         assert_eq!(bank & campaign::BANK_MASK, layer, "terrain {terrain:#04X} bank layer");
     }
+
+    // **The wheat grows, and the variant is the only thing that says so.**
+    //
+    // A player: *"The wheat fields don't show the wheat growing."*
+    // `Grain_SeasonTick` writes the crop's density band onto every grain tile —
+    // `FUN_0044CF6F` returns **2, 3, 7 or 11** and nothing else — and derives
+    // `Terrain_Set`'s variant from it as `band < 3 ? 0 : (band - 3) / 4 + 1`.
+    // All four bands share base 88, so `base + variation` is the *same picture*
+    // at every stage: without the variant term the field is drawn just-sown all
+    // year. `docs/formats/maps-layers.md` §5.5 called that parameter dead, and
+    // this is the assertion that says otherwise.
+    let bands = [2u8, 3, 7, 11];
+    let mut frames = Vec::new();
+    for (n, band) in bands.iter().enumerate() {
+        assert_eq!(
+            campaign::field_base(*band).0,
+            88,
+            "every crop band shares base 88, which is why the variant is load-bearing",
+        );
+        assert_eq!(campaign::field_variant(*band), n as u8, "band {band} is variant {n}");
+        let frame = campaign::field_frame(*band, stored);
+        assert_eq!(frame, 88 + variation + 4 * n as u8);
+        frames.push(frame);
+    }
+    frames.sort_unstable();
+    frames.dedup();
+    assert_eq!(frames.len(), 4, "the four crop bands are four different pictures");
+    // And the run ends where the next base begins: 88 + 4 blocks of 4 = 104.
+    assert_eq!(campaign::field_base(0x13).0, 104);
     // Harvested stubble is in the **base** bank and everything else is in
     // roads — the one place the ladder crosses banks.
     assert_eq!(campaign::field_base(0x17).1, campaign::BANK_BASE);

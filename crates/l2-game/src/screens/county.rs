@@ -1269,7 +1269,7 @@ fn draw_produce_rows(
         // says what it would take. **CNEW-grain-forecast.**
         let (delta, delta_dy) = match slot {
             1 => (Some(c.herd_change_expected), 0x139),
-            0 => (None, 0x139),
+            0 => (Some(c.grain_change_expected), 0x139),
             _ => (None, 0x133),
         };
         if let Some(v) = delta {

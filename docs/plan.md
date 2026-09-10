@@ -44,8 +44,51 @@ the goal is not met — not "mostly met".
    §2.5.
 5. **A number in a saved game differs from the original's** for the same inputs.
 
-The first two have instruments. The third has none. The fourth has a partial one. The fifth is
-what the fixtures do.
+The first two have instruments. **The third now has one, and it has fired ahead of the player
+twice in one evening.** The fourth has a partial one. The fifth is what the fixtures do.
+
+### The third row's instrument, and what it still cannot see
+
+`docs/draws-map.md` is the campaign map's draw-call inventory — **139 calls, 121 live, 59
+reproduced (49 %)**, derived by `tools/draws/mapdraws.js` rather than typed. Beside it,
+`docs/arms.json` reports **20 of 25** input arms on the same two screen ids. So:
+
+> **On the screen a player spends most of the game looking at, we answer four gestures in five
+> and draw one picture in two.**
+
+That asymmetry is the whole case for the row. It is invisible from the input side, invisible to
+every test, and it is the shape of both reports that started the audit — *"I see placeholder
+shit everywhere"* and *"why do the pastures not have cows in them?"* Neither is an arm.
+
+**Twice on 9 September the inventory named a defect before the player did**, and after a week
+in which every player-visible defect was explained *after* he found it, that is the row
+changing state rather than the row being ticked:
+
+* §5.5 counted the eight `Ui_DrawDelta` calls as missing. Hours later: *"Sidebar doesn't show
+  grain being planted as a negative number."* The listing could then say which of three causes
+  it was — the value never arrives — by reading rather than guessing.
+* §5.5 also counted the sidebar's five **industry** rows as undrawn, 21 of 31 row-painter draw
+  calls missing. He asked about the icons the same evening.
+
+**What it still cannot see, stated because a partial instrument that is trusted whole is worse
+than none:**
+
+* **It is one screen.** Twenty-two others have no inventory, and `0x04` — two painters, eleven
+  layouts — is measured at 174 draw calls against our 24.
+* **It counts calls, not correctness.** A call we make at the wrong coordinate, in the wrong
+  font, or with the wrong frame counts as reproduced. `Ui_DrawNumberRight` centring where its
+  name says it right-aligns was found by *reading*, not by the count, and the count did not
+  move when it was fixed.
+* **It cannot see a draw that is *right* and never runs.** The wheat's growth was a
+  reproduced-looking call whose input never changed. Nothing in a draw-call count is capable
+  of noticing that, and the check that would have — *does this picture ever change over a
+  played game?* — does not exist. That is the next instrument, and it is the one the fourth
+  row wants too.
+* **It cannot see a per-frame animation that never advances.** There is an existing assertion
+  that a hundred ticks leave `Kingdom` byte-identical, which is the *correct* invariant for
+  display state and says nothing whatever about whether the display moved. A true check about
+  the wrong claim — `docs/agents.md`'s standing pattern, and the reason the industry sites
+  being static was reported by a person rather than by us.
 
 **The third row is the most valuable line in this file and it must not disappear when it
 improves.** *"A screen showing the wrong thing — instrument: none"* is the only entry that tells
@@ -656,7 +699,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,973<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,976<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

@@ -661,6 +661,46 @@ pub struct County {
     pub herd_births_expected: i32,
     pub herd_deaths_expected: i32,
     pub herd_change_expected: i32,
+    /// `+0x230`, `+0x2FC` and `+0x22C` — **the grain row's three forecasts**,
+    /// and `crop[2]` is the fourth.
+    ///
+    /// A player: *"Sidebar doesn't show grain being planted as a negative
+    /// number."* He is right, and he is describing **Spring**. These are the
+    /// numbers that say so, and until now nothing in this workspace computed
+    /// any of them — which is why the sign question never arose.
+    ///
+    /// They are the **tail** of `Grain_LabourEstimate` (`0x0044D374`), after the
+    /// search loop that [`crate::land::grain_labour_estimate`] reproduces:
+    ///
+    /// ```c
+    /// staff = county.labour[0].workers;                 /* the real staffing */
+    /// county.field_0x230 = Grain_Sow(county, staff, county.grain);
+    /// if (season == 4)                county.crop[2]     = Grain_Harvest(county, staff, crop[1]);
+    /// if (season == 2 || season == 3) county.field_0x2FC = Grain_Grow   (county, staff, crop[1]);
+    ///
+    /// if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
+    /// else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
+    /// else                  county.field_0x22C = -county.grainEaten;
+    /// ```
+    ///
+    /// **The forecast is not a by-product of the search and cannot be recovered
+    /// from it.** The loop calls `Grain_Sow(county, workers, grain − grainEaten)`
+    /// and the tail calls `Grain_Sow(county, staff, grain)` — a different third
+    /// argument and a different worker count. That is the whole reason
+    /// [`crate::land::grain_preview`] exists as a second pass rather than as a
+    /// value the estimate returns.
+    ///
+    /// **Encoded, deliberately, and the argument is worth keeping.** They are
+    /// *derived* — every estimate round recomputes them from state the digest
+    /// already carries — so they cannot diverge on their own and could have been
+    /// left out. They are in anyway, for the reason the three cattle fields
+    /// above them are: **nothing re-runs the estimate round on load**, so a
+    /// reloaded game would show a blank produce row until the next turn ended,
+    /// and a blank row is exactly the defect this field exists to fix. A field
+    /// that is cheap to carry and visible when absent is carried.
+    pub grain_sown_expected: i32,
+    pub grain_grown_expected: i32,
+    pub grain_change_expected: i32,
     /// `+0x290 + c*0x18` — per-commodity production records.
     pub industry: [Industry; 4],
     /// **Engine state.** Which weapon the blacksmith is making.
@@ -807,6 +847,9 @@ impl County {
             herd_births_expected: 0,
             herd_deaths_expected: 0,
             herd_change_expected: 0,
+            grain_sown_expected: 0,
+            grain_grown_expected: 0,
+            grain_change_expected: 0,
             industry: [
                 Industry::new(Commodity::Wood),
                 Industry::new(Commodity::Iron),

@@ -792,6 +792,16 @@ impl Kingdom {
         let quirks = self.options.quirks;
         for id in 1..=self.county_count {
             land::grain_season_tick(&self.tables, &mut self.counties[id], season, advanced, quirks);
+            // **The repaint `Grain_SeasonTick` ends with**, which had no
+            // counterpart until a player said the wheat never grows. It writes
+            // the crop-density band onto every grain tile of the county, and
+            // that byte is what `l2_view::campaign::field_variant` reads back.
+            land::grain_repaint_fields(id, &self.counties[id], &mut self.campaign.map);
+            // **The repaint  ends with**, which had no
+            // counterpart until a player said the wheat never grows. It writes
+            // the crop-density band onto every grain tile of the county, and
+            // that byte is what  reads back.
+            land::grain_repaint_fields(id, &self.counties[id], &mut self.campaign.map);
             if let Some(grain) = land::grain_labour_estimate(
                 &self.tables,
                 &self.counties[id],
