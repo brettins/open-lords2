@@ -442,13 +442,18 @@ mod g87 {
 pub struct CountyScreen {
     county: u8,
     panel: Panel,
+    /// The ration slider is being dragged: the left button went down inside it
+    /// and has not come up. `Ration_SliderClick` fires on `g_mouseLeftDown &&
+    /// g_mouseInputChanged`, which is a held button and a moved pointer, so a
+    /// screen driven by discrete events needs to remember the first half.
+    slider_held: bool,
 }
 
 impl CountyScreen {
     /// Opens on the panel the strip quadrant that was clicked names, which is
     /// the only way the original opens any of them ([`panel_at`]).
     pub fn new(county: u8, panel: Panel) -> CountyScreen {
-        CountyScreen { county, panel }
+        CountyScreen { county, panel, slider_held: false }
     }
 
     pub fn county(&self) -> u8 {
@@ -486,22 +491,59 @@ impl CountyScreen {
         }
     }
 
-    fn split_click(&self, ctx: &mut Ctx, x: i32, y: i32) -> bool {
+    /// **`Ration_SliderClick` (`0x0043A379`) — and it is a drag, not a click.**
+    ///
+    /// ```c
+    /// if (counties[sel].owner != g_localPlayer) return 0;
+    /// if (g_mouseLeftReleased) return 0;                    /* the release does nothing */
+    /// if (!g_mouseLeftDoubleClick && !(g_mouseLeftDown && g_mouseInputChanged)) return 0;
+    /// ```
+    ///
+    /// So it fires **while the button is held and the pointer has moved**, and
+    /// the release is explicitly ignored. `held` is that condition; the caller
+    /// passes it for both a press and a drag, which is what makes the thumb
+    /// follow the cursor instead of jumping once per click.
+    ///
+    /// The two gestures do not end the same way, and `g_uiHotspotArg` is what
+    /// tells them apart: **1 for a jump on the track, 0 for an arrow.** A track
+    /// jump that changes nothing springs back; an arrow keeps walking. The rule
+    /// is [`l2_kingdom::Kingdom::set_ration_split`] and the flag is `sweep`
+    /// there.
+    ///
+    /// One more thing the original does that reads oddly and is deliberate:
+    /// the arrows only step on a **press** (`g_mouseLeftPressed ||
+    /// g_mouseLeftDoubleClick`), so holding the button down on an arrow and
+    /// wiggling does not repeat — but holding it on the **track** does, because
+    /// the track branch reads `mouseX` every frame.
+    fn split_click(&self, ctx: &mut Ctx, x: i32, y: i32, pressed: bool) -> bool {
         if self.panel != Panel::Ration {
             return false;
         }
         let Some(c) = ctx.game.kingdom.counties.get(self.county as usize) else { return false };
         let current = c.ration_split;
-        let next = if split_down_button().contains(x, y) {
-            current - 1
+        // The track is read on every frame of the drag; the arrows step only on
+        // the press that started it.
+        let (next, sweep) = if split_track().contains(x, y) {
+            (x - SLIDER_TRACK_X, true)
+        } else if split_down_button().contains(x, y) {
+            if !pressed {
+                return true;
+            }
+            (current - 1, false)
         } else if split_up_button().contains(x, y) {
-            current + 1
-        } else if split_track().contains(x, y) {
-            x - SLIDER_TRACK_X
+            if !pressed {
+                return true;
+            }
+            (current + 1, false)
         } else {
             return false;
         };
-        ctx.game.set_ration_split(self.county, next.clamp(0, MAX_RATION_SPLIT));
+        let next = next.clamp(0, MAX_RATION_SPLIT);
+        // `if (rationSplit == local_10) return 1;` — the arm consumes the input
+        // and does not re-run the food pass for a value that has not moved.
+        if next != current {
+            ctx.game.set_ration_split(self.county, next, sweep);
+        }
         true
     }
 }
@@ -556,6 +598,23 @@ impl Screen for CountyScreen {
             return Transition::Pass;
         }
         match event {
+            // **The slider is dragged.** `Ration_SliderClick` returns 0 on the
+            // release and fires on `g_mouseLeftDown && g_mouseInputChanged` —
+            // held and moved — so the thumb follows the cursor for as long as
+            // the button is down. Ours was reachable only from a press, which
+            // is the fourth place our input model differs from the original's
+            // by *category* rather than by coordinate.
+            //
+            // The release ends the drag and does nothing else, exactly as the
+            // first line of the original's ladder says.
+            Event::Release { .. } => {
+                self.slider_held = false;
+                return Transition::Stay;
+            }
+            Event::Pointer { x, y } if self.slider_held => {
+                self.split_click(ctx, x, y, false);
+                return Transition::Stay;
+            }
             // **`Ui_DrawBox` panels are dismissed by the right button**, and the
             // game says so in its own words: `Screen_SliderBox` prints `L2.eng`
             // group 12 index 0, *"Click Right to Exit"*, under its caption.
@@ -609,7 +668,8 @@ impl Screen for CountyScreen {
                 // guard, and the reason the ration panel's arm is one line
                 // longer than the other three.
                 // arm: 0x0043A379/ration-split-slider
-                if self.split_click(ctx, x, y) {
+                if self.split_click(ctx, x, y, true) {
+                    self.slider_held = true;
                     return Transition::Stay;
                 }
                 // `Screen_HandleInput`'s widget tables: `g_taxWidgets`
@@ -1232,14 +1292,28 @@ impl CountyScreen {
                 text::draw(canvas, 240, 186, health_name(c.health_band), ink.text);
                 happiness_delta(canvas, ink, 340, 186, c.d_hap_health);
                 self.draw_split_slider(ctx, canvas, c.ration_split);
-                // The Fed row's three fields — county +0x16C, +0x170 and
-                // +0x174 — are not in l2-kingdom at all, so there is nothing to
-                // put here. docs/screens-county.md §8.4.
+                // **The Fed row, which used to say "NOT SIMULATED".** Its three
+                // fields are county `+0x170`, `+0x174` and `+0x16C`, and this
+                // module had them down as *"not in l2-kingdom at all, so there
+                // is nothing to put here"*. They are `grainEaten * foodPerSack`,
+                // `herdEaten * foodPerHead` and `herd * dairyPerHead` — products
+                // of three fields that were always there. See
+                // [`l2_kingdom::ration::people_fed`].
+                //
+                // **Three numbers, not two, and the third is the one that
+                // explains the panel**: the standing herd feeds five people a
+                // head without being slaughtered, so a county with more dairy
+                // than mouths eats nothing at all and its slider has nothing to
+                // divide. That number is what says so.
+                let (by_grain, by_meat, by_dairy) =
+                    l2_kingdom::ration::people_fed(&ctx.game.kingdom.tables, c);
                 text::draw(canvas, 160, 286, g87::FED, ink.dim);
-                text::draw(canvas, 208, 286, "NOT SIMULATED", ink.bad);
+                number_centred(canvas, ink, 208, 286, by_grain);
+                number_centred(canvas, ink, 266, 286, by_meat);
+                number_centred(canvas, ink, 324, 286, by_dairy);
                 text::draw(canvas, 144, 308, g87::EATEN, ink.dim);
-                text::draw_right(canvas, 208, 308, &c.grain_eaten.to_string(), ink.text);
-                text::draw_right(canvas, 266, 308, &c.herd_eaten.to_string(), ink.text);
+                number_centred(canvas, ink, 208, 308, c.grain_eaten);
+                number_centred(canvas, ink, 266, 308, c.herd_eaten);
             }
         }
 
@@ -1304,6 +1378,27 @@ impl CountyScreen {
         text::draw_centred(canvas, r.centre_x(), mid - 10, &format!("{what} HISTORY"), ink.dim);
         text::draw_centred(canvas, r.centre_x(), mid + 2, "NOT SIMULATED", ink.bad);
     }
+}
+
+/// **`Ui_DrawNumberRight` centres, and its name is a false claim.**
+///
+/// It is `Ui_NumberToBuffer` followed by `FUN_004025D7`, which is
+/// `Ui_DrawText(s, x + max(0, (width - textWidth) / 2), y, …)` — and
+/// `Ui_DrawCentred` calls **the same function**. So the ration panel's five
+/// numbers are centred in a 64-pixel column at `x`, not right-aligned to it,
+/// and this module right-aligned them because the symbol said *right*.
+///
+/// `docs/symbols.json`'s entry is `[V]` and its comment says *"right-aligned
+/// inside width"*, which is the opposite of the body — so the verification
+/// carried the error. Twenty call sites in the original inherit it; two are on
+/// this panel.
+///
+/// `x` is the column's left edge and the width is the original's `0x40`.
+fn number_centred(canvas: &mut Canvas, ink: &l2_view::Ink, x: i32, y: i32, value: i32) {
+    const COLUMN: i32 = 0x40;
+    let s = value.to_string();
+    let w = text::width(&s);
+    text::draw(canvas, x + ((COLUMN - w) / 2).max(0), y, &s, ink.text);
 }
 
 fn ration_name(level: i32) -> &'static str {

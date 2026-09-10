@@ -45,7 +45,12 @@ pub use l2_kingdom::tables::MAX_TAX_RATE;
 /// `Ration_SliderClick` (`0x0043A379`) clamps `mouseX - 224` to `0 … 100` and
 /// the track is exactly 100 pixels wide, so the field's range and the widget's
 /// geometry are the same number.
-pub const MAX_RATION_SPLIT: i32 = 100;
+///
+/// **Re-exported**: the rule moved to `l2-kingdom` with
+/// [`l2_kingdom::Kingdom::set_ration_split`], and a bound the rule clamps to a
+/// hundred times per drag belongs beside the rule rather than beside the
+/// widget.
+pub use l2_kingdom::county::MAX_RATION_SPLIT;
 
 /// **The machine's preferences** — the original's `g_options` block, minus the
 /// parts that are the world's.
@@ -1033,16 +1038,26 @@ impl Game {
     /// The third order the original's ration panel gives, and the only one of
     /// the three that is a slider rather than a pair of arrows.
     ///
-    /// **What this does not reproduce:** `Ration_SetSplit` (`0x0043A5A9`) also
-    /// re-runs the county's food pass and, when the new split changes nothing,
-    /// walks back towards the old value hunting for one that does. We write the
-    /// field and stop, because our food pass only runs at end of turn.
-    pub fn set_ration_split(&mut self, id: u8, split: i32) -> bool {
+    /// **`sweep` is 1 for a jump on the track and 0 for an arrow**, and it is
+    /// `Ration_SliderClick`'s `g_uiHotspotArg`. The two gestures end
+    /// differently and a player can see the difference, so it is a parameter
+    /// and not a detail — see [`l2_kingdom::Kingdom::set_ration_split`], which
+    /// is the whole of the rule.
+    ///
+    /// This used to write the field and stop, and its own doc comment said so:
+    /// *"we write the field and stop, because our food pass only runs at end of
+    /// turn."* A player reported the result as **"rations slider moves but is
+    /// inoperable"**, which it was — the thumb travelled and every number on
+    /// the panel stayed where it was. The original re-runs the food pass on the
+    /// spot, searches for a split that actually changes something, reallocates
+    /// the county twice and repaints the panel.
+    ///
+    /// Returns whether the split ended anywhere other than where it started.
+    pub fn set_ration_split(&mut self, id: u8, split: i32, sweep: bool) -> bool {
         if !self.is_players(id) {
             return false;
         }
-        self.kingdom.counties[id as usize].ration_split = split.clamp(0, MAX_RATION_SPLIT);
-        true
+        self.kingdom.set_ration_split(id as usize, split, sweep)
     }
 
     /// Move peasants from one job to another — the village screen's only order.

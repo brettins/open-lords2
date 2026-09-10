@@ -64,6 +64,35 @@ pub fn food_from_dairy(t: &Tables, herd: i32) -> i32 {
     herd.max(0).saturating_mul(t.food.dairy_per_head)
 }
 
+/// **The ration panel's *Fed* row: how many people each source actually fed.**
+///
+/// `FUN_0044E...`'s three lines, which the panel then prints at (0xD0, 0x11E),
+/// (0x10A, 0x11E) and (0x144, 0x11E):
+///
+/// ```c
+/// county[+0x16C] = county.herd      * g_dairyPerHead;   /* the standing herd  */
+/// county[+0x170] = county.grainEaten * g_foodPerSack;   /* the grain eaten    */
+/// county[+0x174] = county.herdEaten  * g_foodPerHead;   /* the beasts killed  */
+/// ```
+///
+/// The three are stored on the county in the original and are **derived here**,
+/// because every input is already a field and a fourth copy of a product is a
+/// fourth thing that can go stale. Returned in the panel's own left-to-right
+/// order: grain, meat, dairy.
+///
+/// `screens/county.rs` printed the words **"NOT SIMULATED"** across this row,
+/// on the grounds that the three offsets are *"not in l2-kingdom at all, so
+/// there is nothing to put here"*. They were products of fields that were.
+/// A player read the result as *"no information about feeding peasants is
+/// available"*, which is exactly what it said.
+pub fn people_fed(t: &Tables, county: &County) -> (i32, i32, i32) {
+    (
+        county.grain_eaten.max(0).saturating_mul(t.food.food_per_sack),
+        county.herd_eaten.max(0).saturating_mul(t.food.food_per_head),
+        food_from_dairy(t, county.herd),
+    )
+}
+
 /// `Food_HeadsForPeople` — one slaughtered animal feeds ten.
 pub fn heads_for_people(t: &Tables, people: i32) -> i32 {
     div_ceil(people, t.food.food_per_head)

@@ -4685,6 +4685,168 @@ same and it is one word — name the function. *"No AI calls `order_engine`"* is
 cannot be promoted by accident.
 
 
+**CNEW-slider-writes-nothing — the test existed, was well named, passed, and the control was
+broken the whole time.**
+
+A player: *"Rations slider moves but is inoperable, no information about feeding peasants is
+available."* Two sentences, one cause.
+
+`crates/l2-game/tests/screens.rs` has had
+`the_ration_split_slider_sets_the_field_the_original_sets` for weeks. It clicks the track,
+asserts `ration_split == 37`, steps the caps, and passes. It is about the right screen, the
+right gesture and the right field, and it is **useless**, because `Ration_SetSplit`
+(`0x0043A5A9`) is not a setter and the whole defect was in the part after the write:
+
+```c
+rationSplit = split;
+Ration_Apply(county, g_season);                    /* the food pass, on the spot */
+...the search...
+Labour_Allocate; County_RefreshEstimates;          /* twice */
+Panel_Ration();                                    /* repaint */
+```
+
+Ours wrote the field and returned — and said so, in its own doc comment, under the heading
+*"What this does not reproduce"*. So the thumb travelled and every number on the panel stayed
+where it was, which to a player is indistinguishable from a control the game ignored.
+
+**This is the thirteenth accidental pass this week and the first where the check was exactly
+about the right field.** The others were proxies — a pixel count that measured the artwork, a
+marker rule that agreed with the data by luck. This one names the field the gesture writes,
+and the gesture *does* write it. The rule it breaks is subtler than *state the predicate you
+mean*: it is that **the claim was the effect and we asserted the cause**, and for a control
+the two are only the same thing if something downstream is listening.
+
+The replacement asserts the effect and masks out the thumb: draw the panel, drag the slider,
+draw again, and require pixels to differ **outside the slider's own rectangle**. The mask is
+the point — a thumb that moves is what the player could already see.
+
+**And the fixture could not demonstrate it, which is a rule rather than an inconvenience.**
+England turn one, county 8: 435 people, 101 head. The standing herd feeds five people a head
+*without being slaughtered*, so 505 mouths' worth of dairy covers 435 and the county eats
+nothing — `herd_eaten` and `grain_eaten` are zero at **every** split. The slider there is inert
+in the original too. So the test cuts the herd and says why; and `docs/rules.md` now has the
+rule, because a player who moves that dial and sees nothing has found a fact about his county
+and not a bug. Very possibly *this* player, on *this* county.
+
+**CNEW-numberright-centres — a `[V]` symbol whose comment asserts the opposite of its body,
+and twenty call sites inheriting it.**
+
+`Ui_DrawNumberRight` (`0x004030C6`) is `Ui_NumberToBuffer` and then `FUN_004025D7`:
+
+```c
+FUN_004025D7(s, x, y, width, font, colour) {
+    local_c = (width - TextWidth(s, font)) / 2;
+    if (local_c < 0) local_c = 0;
+    Ui_DrawText(s, local_c + x, y, font, colour);
+}
+```
+
+That is **centring inside `width`**. `Ui_DrawCentred` (`0x00402C5E`) calls the same function
+with the same arguments. The two are one alignment under two names, and only one of the names
+is true.
+
+`docs/symbols.json` carries it as `[V]` with the comment *"Ui_DrawNumber, right-aligned inside
+width"* — so the error is not merely in the name, it is **inside the verification**. That is
+the tenth instance of *a name is a claim* and the first where the claim was in the tier that
+exists to stop claims. The lesson to carry: **`[V]` records that somebody read it, not that
+somebody read it correctly**, and a wrong name with a wrong verified comment is the most
+expensive object this project can produce — it is believed twice, once for the name and once
+for the tier, and there is nothing left to contradict it.
+
+It reached us the way it always does. `screens/county.rs` right-aligned the ration panel's
+number columns because the symbol said *right*; the numbers sit in 64-pixel columns at
+x `0xD0`, `0x10A` and `0x144` and belong centred in them. Two of the twenty call sites are on
+that one panel. The rest are unaudited and the correction is the coordinator's to make in
+`symbols.json`.
+
+Found by reading the callee, prompted by a player who could not read a panel. Three
+independent readings now agree; two of the three are on unmerged branches, and the claim that
+`docs/draws.md` already carried it was checked and is false — the finding is real and its
+stated location was not, which is worth recording because *checking the artefact rather than
+taking the assertion* is the only reason this entry says what it says.
+
+**CNEW-not-simulated — the row that said `NOT SIMULATED` was three multiplications of fields
+we already had.**
+
+The ration panel's **Fed** row is three numbers, and `screens/county.rs` printed the words
+*"NOT SIMULATED"* across it with a comment explaining that county `+0x16C`, `+0x170` and
+`+0x174` are *"not in l2-kingdom at all, so there is nothing to put here"*.
+
+They are not fields. They are products:
+
+```c
+county[+0x16C] = county.herd       * g_dairyPerHead;   /* fed by the standing herd */
+county[+0x170] = county.grainEaten * g_foodPerSack;    /* fed by the grain eaten   */
+county[+0x174] = county.herdEaten  * g_foodPerHead;    /* fed by the beasts killed */
+```
+
+Every input was already a `County` field and every constant already in `Tables` —
+`ration::food_from_dairy` **is** the first line. They are derived here rather than stored,
+because a fourth copy of a product is a fourth thing that can go stale.
+
+The player's second sentence was *"no information about feeding peasants is available"*, and
+that row is literally the information about feeding peasants. **The absence was recorded, in a
+comment, next to the words on the screen — and read as a conclusion rather than as a
+question.** That is the failure worth naming: an honest `NOT SIMULATED` is a better state than
+a silent gap, and it is still a state nobody re-examined, because a comment saying *there is
+nothing to put here* answers the question it also raises.
+
+The third number is the one that matters, and it is why this entry is filed beside
+CNEW-slider-writes-nothing rather than as a cosmetic fix: *people fed by the standing herd* is
+what tells a player his county eats nothing, which is what makes his slider inert. **The panel
+had the answer to the complaint about the panel, and we were not drawing it.**
+
+**CNEW-drop-switches-it-on — dropping peasants on a switched-off industry turns it on, and
+that is why our quarry looked full of idlers.**
+
+A player: *"when I put peasants into a quarry they show as idle, which should be impossible."*
+
+The drawing is faithful. `Village_RebuildIcons` (`0x0045161E`) draws every worker past a zero
+useful ceiling in the **surplus** frame, and `g_peasantIcons[8]` — idle townsfolk — is the
+*same frame*, out of the shipped table at `0x004D6808`. Surplus and idle are one picture, and
+he was reading it correctly.
+
+What we were missing is one line upstream. `Labour_Move` (`0x00439B52`) opens with
+`FUN_00439CC2(county, from, to)`, which reads **only the destination**:
+
+```c
+if      (to == 6 && industry[0].hasResource) rec = 0;   /* wood  */
+else if (to == 5 && industry[3].hasResource) rec = 3;   /* stone */
+else if (to == 4 && industry[1].hasResource) rec = 1;   /* iron  */
+else if (to == 7 && industry[2].hasResource) rec = 2;   /* smithy */
+if (rec != 999) { county[+0x297 + rec*0x18] = 1; Industry_UpdateSiteTile(county, rec); }
+if (to == 3) county.field_0x1B0 = 1;                    /* and the castle switch */
+```
+
+**The drop switches the industry on**, and `+0x1B0` — which `labour.rs` documented as *"a
+switch the player throws by clicking the castle on the map"* — has a second writer nobody had
+found. So the state we put the county in, off *and* staffed, is one the original cannot reach
+by this route, and the surplus icons are the honest picture of a state that is ours.
+
+**The evidence path is the entry.** The player's first account was *"it does let you drop
+peasants off in a turned-off industry, IIRC"* — flagged as recollection. He then corrected
+himself to *"it boots those people and reassigns them"*, which was **wrong in the other
+direction**. Settled at the byte: the drop is accepted, nobody is booted, and the switch flips.
+He then ran the experiment in his own copy — *"if I add people back in, it says it's
+operational"* — and that agrees with the byte, from a direction the decompiler cannot reach.
+
+Three things follow, and the third is the one to keep:
+
+* **A memory that fits is not evidence.** This is the second time a remembered detail from him
+  has reversed; the first was the tower and ram costs, where the arithmetic closed either way.
+  He flagged both himself, which is why the process worked.
+* **A correction is still a lead.** The corrected version was wronger than the original and was
+  offered with more confidence, because a correction sounds like the end of a process.
+* **A running copy of the game is a third kind of oracle and we barely use it.** We have the
+  binary as a static oracle and `Readme.txt` as a documentary one; a person who can perform an
+  experiment is the only one who can answer *what does it say on screen*. His observation cost
+  him thirty seconds and settled what an hour of reading had left at `[D]`.
+  `docs/oracle-requests.md` asks him for saves; it should ask him for **observations** too.
+
+The tile panel's *"operational"* / *"not operational"* line is a read-out of this same byte and
+is one of the ~150 draw calls that panel is missing. Handed to the map-draw agent rather than
+built here.
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**
