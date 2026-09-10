@@ -3,7 +3,7 @@
 //   node tools/decisions/corrections.js            report
 //   node tools/decisions/corrections.js --check    exit 1 on a duplicate or a dangling citation
 //
-// Two rules, both from things that actually happened:
+// Five rules, all from things that actually happened:
 //
 //  1. NO DUPLICATE NUMBER in docs/decisions.md. Agents run concurrently, all
 //     read the same log, and all reach for the next free number. This happened
@@ -57,6 +57,16 @@ lines.forEach((L, i) => {
 });
 
 if (headings.size === 0) fail('found no **C<n> — ...** headings in docs/decisions.md at all');
+
+// **What each number currently NAMES**, hashed from the heading's own words.
+// Rule 5 compares a citation against this rather than against the number, which
+// is the difference between "does it resolve?" and "does it resolve to the
+// thing it meant?".
+const headingFp = new Map();
+for (const [n, hs] of headings) {
+  const text = hs[0].text.replace(/\s+/g, ' ').trim().toLowerCase();
+  headingFp.set(n, crypto.createHash('sha1').update(text).digest('hex').slice(0, 12));
+}
 
 const numbers = [...headings.keys()].sort((a, b) => a - b);
 const nextFree = Math.max(...numbers) + 1;
@@ -212,14 +222,21 @@ if (placeholders.length) {
 // flagged that one citation and nothing else, across a merge that moved seven
 // citations and drifted every line number in the tree.
 
-const lockLine = c => `${c.rel}\tC${c.n}\t${c.fp}`;
+const lockLine = c =>
+  `${c.rel}\tC${c.n}\t${c.fp}\t${headingFp.get(c.n) || '-'}`;
 const LOCK_HEADER = [
-  '# Citation fingerprints — see tools/decisions/corrections.js, rule 3.',
+  '# Citation fingerprints — see tools/decisions/corrections.js, rules 3 and 5.',
   '#',
-  '# One line per correction citation: file, the number it cites, and a hash of',
-  '# the words around it with every C-number blanked. A citation whose number',
-  '# changes while its words do not is a citation dragged along by somebody',
-  '# renumbering a heading, and that is what this file exists to catch.',
+  '# One line per correction citation, with FOUR fields:',
+  '#',
+  '#   file, the number it cites, a hash of the words around it with every',
+  '#   C-number blanked, and a hash of the HEADING that number currently names.',
+  '#',
+  '# The third field catches a citation DRAGGED by a renumber: its number moved',
+  '# and its words did not (rule 3). The fourth catches the opposite and rarer',
+  '# case, a citation LEFT BEHIND by one: nothing about the citation changed at',
+  '# all, but the entry sitting on that number is now a different entry (rule 5).',
+  '# Both still resolve, so rule 2 passes on either.',
   '#',
   '# Regenerate with:  node tools/decisions/corrections.js --relock',
   '# Generated. Do not hand-edit except to accept a single deliberate change.',
@@ -258,10 +275,13 @@ if (!fs.existsSync(lockPath)) {
 
 {
   const lockLines = fs.readFileSync(lockPath, 'utf8').split(/\r?\n/).filter(l => l && !l.startsWith('#'));
-  const locked = new Map(lockLines.map(l => {
-    const [rel, n, fp] = l.split('\t');
-    return [rel + '\t' + fp, n];
-  }));
+  const locked = new Map();
+  const lockedHeading = new Map();
+  for (const l of lockLines) {
+    const [rel, n, fp, hfp] = l.split('\t');
+    locked.set(rel + '\t' + fp, n);
+    lockedHeading.set(rel + '\t' + fp, hfp || '-');
+  }
 
   const dragged = [];
   for (const c of citations) {
@@ -285,6 +305,52 @@ if (!fs.existsSync(lockPath)) {
     console.error('  If this is a deliberate correction of a citation that was wrong, accept it:');
     console.error('      node tools/decisions/corrections.js --relock');
     console.error('  (or edit the line above in tools/decisions/citations.lock by hand).');
+    process.exit(1);
+  }
+
+  // ---- rule 5: a citation left behind by a renumber ----------------------
+  //
+  // Rule 3 catches the citation a renumber DRAGGED. This catches the one it
+  // LEFT: the file, the number and the words are all untouched, and the entry
+  // that number names is now somebody else's.
+  //
+  // It has happened. A `C61 -> C63` renumber during a merge left `campaign.rs`
+  // and `village.rs` still saying `C61`, which on `main` is now a different
+  // correction entirely — and this tool reported "all citations resolve"
+  // throughout, because they do. The lint checked that a citation resolves, not
+  // that it resolves to the thing it meant.
+  //
+  // The fix is cheap and it is the fourth field of the lockfile: remember which
+  // HEADING each citation was pointing at, and object when the heading under it
+  // changes. It also argues for a habit — **assign placeholders before
+  // renumbering anything, not during**, because the two operations interleave
+  // badly and this check cannot tell you which of them was the mistake.
+  const behind = [];
+  for (const c of citations) {
+    const key = c.rel + '\t' + c.fp;
+    const was = lockedHeading.get(key);
+    if (!was || was === '-') continue;
+    if (locked.get(key) !== 'C' + c.n) continue;   // rule 3's case, already reported
+    const now = headingFp.get(c.n);
+    if (now && now !== was) behind.push({ ...c, wasFp: was, nowFp: now });
+  }
+  if (behind.length) {
+    console.error(
+      `corrections: ${behind.length} citation(s) still name C-numbers whose ENTRY has changed.\n`,
+    );
+    console.error('  **This looks like a citation left behind by a renumber.** Nothing about');
+    console.error('  the citation moved — same file, same number, same words — but the');
+    console.error('  correction sitting on that number is not the one it was written against.');
+    console.error('  It still resolves, which is why rule 2 is silent.\n');
+    for (const b of behind) {
+      const h = headings.get(b.n);
+      console.error(`  ${b.rel}:${b.line}  cites C${b.n}, which now reads:`);
+      console.error(`      ${(h ? h[0].text : '(missing)').slice(0, 90)}`);
+    }
+    console.error('\n  Read each one and point it at the number its correction actually has now.');
+    console.error('  If the entry was legitimately rewritten in place and the citation is still');
+    console.error('  right, accept it:');
+    console.error('      node tools/decisions/corrections.js --relock');
     process.exit(1);
   }
 

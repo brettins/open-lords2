@@ -1187,6 +1187,14 @@ Three statements, from three unrelated parts of the project:
   registry appears in the document. It has no opinion about whether the comment beside it is
   true, which is how `Wall_Collapse` carried *"surface 5 — rampart"* for weeks after the project
   had established that 5 is the bailey.
+* **And a citation that resolves is not a citation that is right.** `corrections.js` checked that
+  every `C`-number in the tree names an entry that exists. A `C61 -> C63` renumber left two files
+  still saying `C61`, which by then was a different correction entirely, and the tool reported
+  *"all citations resolve"* throughout — because they did. The lockfile now remembers **which
+  heading** each citation was pointing at, so the entry moving under a citation is caught as well
+  as the citation moving under an entry (rules 3 and 5). The pair is worth studying: the same
+  renumber can drag one citation and strand another, and until both fields existed only half of
+  it was visible.
 
 The shape is one shape. **Every check we have is exhaustive over a set, and the interesting
 failures are outside the set.** A green check therefore licenses a statement of the form *"nothing
