@@ -1376,6 +1376,66 @@ And the sharper version, for a `Readme.txt` line especially: **the words "after"
 "each", "total" and "remaining" are where the mechanics live.** Those are the words a reader
 skims when they are looking for a number.
 
+## The correction that identifies a class must enumerate the class
+
+Nearly everything above is about a check that fails to fire. This one is about a *fix* that
+fires exactly once and looks complete.
+
+> **Naming a category and fixing one member of it is the most expensive kind of half-finished
+> work, because the name makes it look finished.**
+
+The case. A player reported the ration panel's slider as *"moves but is inoperable"*. Reading
+the binary produced a good correction and a genuine category: **a control in this game
+recomputes and repaints — `Ration_SetSplit` runs the food pass on the spot, searches,
+reallocates the county twice and calls `Panel_Ration()` — so a setter that only sets is not
+the control.** The slider was fixed, the category was written down, and the work read as done.
+
+An hour later the same player reported the **tax** panel, three feet away, with two symptoms
+in one sentence. Same widget-table shape, same missing call, same panel group.
+`Tax_IncreaseCounty` is `taxRate++`, `Tax_RecomputePreview`, `Panel_Tax()`, and ours wrote the
+field and returned.
+
+**The correction named the class and fixed one member.** Nothing in it was wrong; what was
+missing is the step after — *now list the others*. Five setters, four lines of grep:
+
+| ours | the original | state when the table was written |
+|---|---|---|
+| `set_ration_split` | `Ration_SetSplit` | fixed |
+| `set_tax_rate` | `Tax_IncreaseCounty` | broken, reported by a player |
+| `set_ration` | `Ration_IncreaseCounty` | **not read** |
+| `set_industry_share` | `FUN_00439122` | already correct |
+| `toggle_industry` | `Industry_ToggleFromMap` | already correct |
+
+The third row was filed **`open`, not "probably fine"**, and reading it the next morning took
+ten minutes and found the same defect a third time — on the same panel as the first. **Nobody
+reported that one.** There is no player sentence for it, because the enumeration got there
+first, and that is the entire argument: the third instance was the cheapest of the three to
+find and would have been the most expensive to ship, since by then three copies of one
+omission would have looked like a fact about our architecture.
+
+### Two habits this leaves
+
+**File the unread members `open`.** An unread member of an enumerated class is a *known*
+unknown, and every expensive thing in this document is the other kind. `open` costs a row in a
+table and buys the difference between "we checked" and "nobody has looked", which is the only
+thing the next reader actually needs from you.
+
+**Write down the members you looked at and cleared.** The ration path has `ration::preview`
+and `ration::apply` — the same name as the original's single `Ration_Apply`, opposite
+behaviour on the store, and reaching for the wrong one would have had a drag eat the county's
+herd a hundred times over. The tax path was checked for the same trap and has none. *Looking
+and finding nothing is the half of a check that normally goes unwritten*, and an empty result
+recorded is worth almost as much as a finding, because it stops the next agent spending the
+same twenty minutes.
+
+### Where the boundary is
+
+This is not an instruction to chase every neighbour of every fix. The trigger is narrow and
+mechanical: **if your correction contains a sentence of the form "X in this game always does
+Y", then before you finish, list the Xs.** A class small enough to name is nearly always small
+enough to enumerate — there were five — and if it is not, saying so in the correction is
+itself the finding.
+
 ## Prior art first
 
 Before commissioning a reverse-engineering task, spend five minutes searching for existing

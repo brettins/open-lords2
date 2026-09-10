@@ -5478,8 +5478,9 @@ test whose subject is a documented claim inherits the claim's errors, and the te
 available: **the value it asserted on was one nothing in the game produces.** A ladder test
 that walks unreachable rungs is testing the document, not the game.
 
-**C125 — the same omission on the panel next door, and the
-first fix did not generalise because nobody asked whether it should.**
+**C125 — the correction that identifies a class must enumerate the
+class. Naming a category and fixing one member of it is the most expensive kind of
+half-finished work, because the name makes it look finished.**
 
 An hour after *"rations slider moves but is inoperable"*, the same player: *"'People pay 0
 crowns' on the tax thing always says 0 crowns. And the happiness bonus/minus on the tax screen
@@ -5503,11 +5504,24 @@ Panel_Tax (0x0041152F)             draws exactly those three, plus the realm's e
 
 Ours wrote `tax_rate` and returned. `tax_shown` had **one writer in the whole tree**,
 `tax::collect`, which runs in the season pass — so it is zero until the first collection and
-afterwards describes last season's rate. Both happiness terms had `tax::recompute_preview`,
-whose own doc comment says it runs *"inside County_MakeIndependent, County_SetOwner and every
-tax control"* — and **no tax control called it.** The documentation of the wiring was correct
-and the wiring was absent, which is the same shape as `Unit::mission` and `County::farm_style`
-and is now the third instance on a *function* rather than a field.
+afterwards describes last season's rate.
+
+**And the other half is a new species of the documented-and-absent bug.** Both happiness terms
+had `tax::recompute_preview`, whose own doc comment says it runs *"inside
+`County_MakeIndependent`, `County_SetOwner` and every tax control"* — and **no tax control
+called it.** `Unit::mission` and `County::farm_style` were the first two instances and both
+were *fields nothing wrote*; this is the first on a **function nothing calls**, and the two are
+not equally survivable:
+
+> **A field nothing writes is invisible. A function nothing calls has a comment claiming
+> otherwise** — and the comment is what carries it through review, because a reader who opens
+> `recompute_preview` finds an accurate account of when it runs and no reason to check.
+
+The remedy is the same one this project keeps arriving at from different directions: the claim
+*"this runs from every tax control"* is a **second artefact**, and it agreed with nothing.
+Grepping the callers of a function whose comment names its callers takes ten seconds and is
+now the habit — it is the same act as reading a decompilation against a claim rather than for
+it.
 
 **The generalisation is the finding.** The ration correction identified a category — *a
 control in this game recomputes and repaints; a setter that only sets is not the control* —
@@ -5523,12 +5537,23 @@ control for it:
 |---|---|---|---|
 | `set_ration_split` | `Ration_SetSplit` | food pass, search, allocate ×2, repaint | fixed |
 | `set_tax_rate` | `Tax_IncreaseCounty` | `Tax_RecomputePreview`, repaint | fixed here |
-| `set_ration` | `Ration_SetWanted` | **not yet read** | open |
+| `set_ration` | `Ration_IncreaseCounty` (`0x0043A23F`) | `Ration_Apply`, `County_RefreshEstimates`, repaint — **once each, not twice** | fixed, and found by this table |
 | `set_industry_share` | `FUN_00439122` | allocate ×2 — already done | correct |
 | `toggle_industry` | `Industry_ToggleFromMap` | allocate ×2 — already done | correct |
 
-`set_ration` is the one left and it is the third control on the same panel. It is *open*
-rather than *believed fine*, which is the distinction this entry exists to make.
+**`set_ration` was the row that paid for the table.** It was filed *open* rather than
+*believed fine* — an unread member of an enumerated class is a known unknown, and this project
+has repeatedly been bitten by the other kind — and reading it the next morning took ten
+minutes and found the same defect a third time. Nobody reported it; there is no player
+sentence for this one, because the enumeration got there first. That is the whole argument for
+enumerating: **the third instance was the cheapest to find and would have been the most
+expensive to have shipped**, since by then the pattern would have looked like a fact about our
+architecture rather than three copies of one omission.
+
+Its one asymmetry is kept: the level change runs `Ration_Apply` and
+`County_RefreshEstimates` **once each**, where `Ration_SetSplit` runs them twice. That is the
+original's, and the reason is legible — the split's search can leave the county's labour
+describing a split it walked away from, and a level change cannot.
 
 **One half of the report is not a defect and is now asserted so.** `taxHapOther` is
 `g_taxHappinessOther[rate]` and that table is **flat zero from 0 to 19**. Over the range a
@@ -5555,7 +5580,6 @@ the store — and reaching for the wrong one would have had a drag eat the count
 hundred times. The tax path has no such pair: `recompute_preview` computes and `collect`
 banks, the names say which, and only `collect` credits a realm. Recorded because *looking and
 finding nothing* is the half of a check that usually goes unwritten.
-
 
 **C126 — The narrator is 84 % of the game's audio, and one trigger reaches all of him.**
 
@@ -5784,6 +5808,61 @@ for stone, wood, iron and weapons read `industry[2]`, `industry[4]`, `industry[1
 one in all four or `docs/records.json`'s `Industry` base is wrong; nothing settles it. Four
 confidently wrong numbers on screen would be worse than four blanks, so they stay blank and the
 record layout is the prerequisite.
+
+**CNEW-strings-are-the-spec — we read these panels' numbers out of the binary and wrote their
+words ourselves, and the words are where the game explains itself.**
+
+A player: *"Also sorely missing: 'All your people are fed by dairy.'"*
+
+**That string does not exist.** Every one of `L2.eng`'s 317 groups was searched for *dairy*,
+*fed by* and *all your people*: the hits are group 8's *"Dairy maid"*, three event texts, one
+tip, and **group 62** — *"No dairy produce"*, *"Dairy produce feeds"*, *"RATIONS MET."* —
+which is the ration screen `docs/rules.md` already records as **cut**, with a food-priority
+mechanic the shipped game does not have. So this is the third remembered detail from him
+tonight that does not survive checking, and the third time checking was cheap. He is right
+about the *behaviour* every time and the discipline holds: **a memory that fits is not
+evidence.**
+
+**But the report was still right about the panel**, which is why this entry exists rather than
+a one-line reply. `Panel_Ration` (`0x00411B72`) is the **only consumer of group 87 in the whole
+binary** — enumerated, not assumed — and it draws seven of that group's twelve strings. Our
+panel drew **none of them**. Its whole vocabulary was hard-coded in our own words:
+
+```rust
+mod g87 { pub const TITLE: &str = "RATION"; pub const WANTED: &str = "WANTED:"; … }
+```
+
+and so is the tax panel's, the population panel's and the happiness panel's. **The numbers
+were treated as the mechanism and the text as a skin over it**, and that is exactly backwards
+for a game whose panels explain their own rules in words. It is a habit rather than an
+oversight, and it is the honest answer to the player's standing question *"have we compared
+our functionality to the binary?"*: for these panels, we compared the arithmetic and not the
+sentences.
+
+> **A screen's strings are part of its specification, not a skin over it.** A group with one
+> consumer *is* that screen's vocabulary, and reading the painter without reading the group is
+> reading half the function.
+
+**The count, the way the draw audits give it.** `Panel_Ration` makes **26** content draws — 24
+unconditional and 2 more when *Armies eat* is on. Before this branch we made **12** of them.
+Now **18**, and the six added are the `Misc_cty` frames that say what each column is; without
+them the Fed and Eaten rows are unlabelled numbers, which is most of what *"no information
+about feeding peasants is available"* actually meant. **Still missing: the two *Armies eat*
+draws** (`+0x19C + +0x198` and 87/8, *"men foraging in the county."*), which need a field pair
+we do not carry.
+
+**And five of group 87's twelve strings are drawn by nothing at all** — 6 and 7, both
+*"Feeds"*, and 9, 10, 11: *"growing"*, *"harvested"*, *"planted"*. Same shape as
+`docs/bugs.md` B82 and B83, established the same way, and filed there.
+
+**What this does not change.** `docs/rules.md`'s caveat — that a player cannot tell his county
+is fed entirely on dairy except by reading the Fed row — **stands**, because the panel says it
+with a *number* and not a sentence. That number is the Fed row's third figure,
+`herd × dairyPerHead`, which C120 added an hour earlier: when it equals the
+population, all your people are fed by dairy. So the player was asking for a readout that does
+exist, in the form the game actually uses, and which we had just started drawing. The two
+findings are one condition with two readouts — and wiring them together is what makes the
+panel able to answer the question that started this whole thread.
 
 ## Open questions
 
