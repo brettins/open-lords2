@@ -25,13 +25,24 @@ subagent, so it stays short. Read the linked document before working in that are
    input arms, and every miss was a behaviour nobody had looked for.
    `docs/decisions.md` C61, `docs/arms.json` for the inventory.
 
+6. **A screen's strings are part of its specification, not a skin over it.** Measured: four
+   county panels had their numbers read out of the decompilation and their words written by
+   us — `"RATION"`, `"WANTED:"`, `"PEOPLE PAY"` — where the original draws
+   `Eng_DrawString(group, index)`. `Panel_Ration` is the **only consumer of `L2.eng` group 87
+   in the whole binary** and draws seven of its twelve strings, and we drew none of them, so
+   a player met a panel of unlabelled numbers and reported *"no information about feeding
+   peasants is available."* **A group with one consumer *is* that screen's vocabulary;
+   reading the painter without reading the group is reading half the function.**
+   `docs/decisions.md` CNEW-strings-are-the-spec.
+
 ## Where to look
 
 | Before you… | Read |
 |---|---|
 | **need to know what the game actually does** | **`docs/rules.md` — the mechanics in plain language, with the real numbers. Start here; everything else is written to help you *find* things in the binary rather than to explain them.** |
 | **wonder whether the game already answers your question** | **`Readme.txt` in the install — the v1.03 patch's rules errata, with manual page references. It is the game correcting its own manual and it post-dates it, so it wins wherever they disagree. A first-class oracle alongside `L2.eng`; `docs/mechanics.md` says what it settles.** |
-| **want a lead on any screen, panel, message or refusal** | **`docs/formats/eng.md` §5 — every one of `L2.eng`'s 317 string groups mapped to the mechanic and the code that draws it. Index 0 of a group is a label the game wrote about itself, so this is 317 self-written summaries with the function beside each.**<br>**And a group with one consumer is that screen's *vocabulary*, not just a naming lead.** We read these panels' numbers out of the binary and then wrote their words ourselves — nine English captions on the castle screen where the original fetches group 71, `"TOTAL MEN"` where it fetches 8/72, `"NOT SIMULATED"` over three products it already had. The ration panel is now wired through its own group; **the tax, population and happiness panels are not.** If a screen has a group, draw its words from the group. |
+| **want a lead on any screen, panel, message or refusal** | **`docs/formats/eng.md` §5 — every one of `L2.eng`'s 317 string groups mapped to the mechanic and the code that draws it. Index 0 of a group is a label the game wrote about itself, so this is 317 self-written summaries with the function beside each.** |
+| **draw a panel, or wonder what it should SAY** | **`docs/formats/eng.md` §5 again, used the other way. A group with one consumer *is* that screen's vocabulary, not just a naming lead — the group is part of the screen's **specification**, not a skin over it. See rule 6.** **Two branches reached that from different evidence and neither is redundant.** One counted the *painter's* side: nine English captions on the castle screen where the original fetches group 71, `"TOTAL MEN"` where it fetches 8/72, `"NOT SIMULATED"` over three products it already had. The other counted the *group's*: `Panel_Ration` is the only consumer of group 87 in the whole binary and draws seven of its twelve strings, and we drew none. **Every one of those now reads the player's own file, with our transcription as the fallback** — a status line here goes stale the moment somebody fixes it, so check `line_text`/`Pen::eng` call sites rather than believing this sentence. If a screen has a group, draw its words from the group. |
 | run any command | `docs/environment.md` |
 | work on a file format | **`docs/formats/` — and treat a `[V]` here as a claim, not a fact. These documents are an *input* to the code, not only a record of it: a wrong `[V]` does not fail to help, it **produces** the defect, through a careful person who checked the reference. `maps-layers.md` §5.5 said `Terrain_Set`'s variant parameter was dead — *"all sixteen call sites pass zero"* — and there are twenty-four, one of which computes it; the wheat never grew because of that sentence. `docs/decisions.md` C124. The correction log warns that it is believed too hard; these are believed just as hard and carry no such warning.** |
 | read or name the binary | `docs/symbols.md` |

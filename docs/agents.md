@@ -1376,6 +1376,75 @@ And the sharper version, for a `Readme.txt` line especially: **the words "after"
 "each", "total" and "remaining" are where the mechanics live.** Those are the words a reader
 skims when they are looking for a number.
 
+## A test that asserts the defect is not an accidental pass — it is worse
+
+This document catalogues thirteen checks that passed for the wrong reason. Every one of them
+was a check that **could not fail**: a pixel count measuring the artwork, a marker rule
+agreeing with today's data, a geometry check comparing two of our own constants. The remedy
+was always to make the check capable of failing.
+
+This one is different in kind and needs saying separately, because the remedy does not apply:
+
+> **A test that asserts the defect is a check that would have failed on the *correct* code.**
+> It does not pass for the wrong reason. It passes for exactly the right reason, against the
+> wrong claim.
+
+The case. `Game::set_ration` wrote `ration_wanted` and returned, where
+`Ration_IncreaseCounty` (`0x0043A23F`) calls `Ration_Apply` and repaints — so in the original
+the *achieved* level moves the instant you press the arrow. And
+`orders_are_clamped_to_the_ranges_the_rules_have` contained:
+
+```rust
+let achieved = g.kingdom.counties[1].ration_achieved;
+g.set_ration(1, -3);
+assert_eq!(
+    g.kingdom.counties[1].ration_achieved, achieved,
+    "what the player asks for (+0x15E) is not what the county managed to feed (+0x15D)"
+);
+```
+
+The *sentence* is true — the two fields are genuinely different things. The *assertion* is
+false, and it was derived from the code rather than from the binary: someone observed that our
+setter left `ration_achieved` alone, recognised a real distinction that explains it, and wrote
+the observation down as a requirement. Fixing the code turned the test red, which is how it
+was found.
+
+**Nothing in this file would have caught it.** Ablation cannot: deleting the line the assertion
+is about makes it fail, correctly, because the assertion *is* about live code. Two artefacts
+that must agree cannot: the code and the test agreed perfectly. The only thing that finds it is
+the thing that found it — implementing what the binary does and watching a test object.
+
+### What it means for practice
+
+**A test written by reading our own code is a description, not a specification.** It records
+what we do. That is worth something — it catches regressions — but it must not be written in
+the voice of a rule, because the next reader cannot tell the two apart, and a red test is
+normally evidence that the *change* is wrong.
+
+So, when a fix turns an old test red:
+
+1. **Read what the old test claimed, against the binary, before assuming the fix is wrong.**
+   Here the rule cited in the message (`+0x15E` is not `+0x15D`) was true and the assertion
+   built on it was not — a correct premise carried into a wrong requirement, which is the
+   shape that survives review.
+2. **If the old assertion was a description, replace it with the claim it was reaching for**
+   rather than deleting it. The distinction it named is real, so the new test asserts it a way
+   that does not depend on the bug: ask for triple rations with an empty larder and require
+   `wanted == 5, achieved == 0`.
+
+### And the vacuous pass caught in the act, in the same test
+
+That replacement failed on its first run for an unrelated reason worth recording: `two_counties()`
+builds a county with **no population**, and a county with nobody in it is fed at *Triple*
+trivially, because the requirement is zero. The assertion `achieved == 0` read `5`.
+
+Had the numbers happened to line up, it would have passed while measuring nothing — the same
+family as the sweep test three functions away whose first draft never fired its search because
+the county's herd was not being eaten. **Both were caught by running the test and reading the
+number rather than the verdict**, which is the cheapest habit in this document and the one that
+keeps paying: a test that passes on the first attempt against a state you did not deliberately
+construct deserves thirty seconds of *why*.
+
 ## The correction that identifies a class must enumerate the class
 
 Nearly everything above is about a check that fails to fire. This one is about a *fix* that

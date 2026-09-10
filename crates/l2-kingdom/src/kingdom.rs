@@ -1231,9 +1231,16 @@ impl Kingdom {
     /// Panel_Ration();
     /// ```
     ///
-    /// **One pass each, where `Ration_SetSplit` runs two.** That is the original's
-    /// own asymmetry and it is kept: the split's search can leave the county's
-    /// labour describing a split it walked away from, and a level change cannot.
+    /// **One pass each, where `Ration_SetSplit` runs two. Do not tidy this into
+    /// symmetry.** It is the original's asymmetry, it is deliberate, and the
+    /// reason is legible: the split's search walks the value up to a hundred
+    /// times and can leave the county's labour describing a split it then
+    /// walked away from, so that control re-runs the pair to settle it. A level
+    /// change moves once and has nothing to settle.
+    ///
+    /// Written here rather than only in the correction because the next reader
+    /// of these two functions will see `for _ in 0..2` beside a bare call and
+    /// reach for the loop.
     ///
     /// The recompute is unconditional — the guard is only on the increment — so
     /// a click at the cap still re-applies and repaints. Ours wrote

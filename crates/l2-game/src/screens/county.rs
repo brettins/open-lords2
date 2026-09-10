@@ -1383,8 +1383,21 @@ pub fn county_name(ctx: &Ctx, id: u8) -> String {
 ///
 /// All four county panels hard-coded their words — `"RATION"`, `"WANTED:"`,
 /// `"PEOPLE PAY"` — where the original draws `Eng_DrawString(group, index)`.
-/// The ration panel is wired through here now; the other three are not, and
-/// that is recorded rather than left to be noticed.
+///
+/// **The ration panel is wired through here. The other three are not, and this
+/// is the list**, so that "recorded" does not become "left":
+///
+/// | panel | `g_screenId` | group | painter | state |
+/// |---|---|---|---|---|
+/// | ration | `0x19` | 87 | `Panel_Ration` (`0x00411B72`) | wired |
+/// | tax | `0x15` | 86 | `Panel_Tax` (`0x0041152F`) | **hard-coded** |
+/// | population | `0x14` | 73 | | **hard-coded** |
+/// | happiness | `0x16` | 85 | | **hard-coded** |
+///
+/// The ration panel's own numbers say what the other three are likely to cost:
+/// wiring it went from **12 of `Panel_Ration`'s 26 content draws to 18**, and
+/// six of the six added were *labels* — the frames that turn three unlabelled
+/// numbers into a Fed row. `CLAUDE.md` rule 6.
 ///
 /// The honest account of how that happened, because it is a habit and not an
 /// oversight: **we read these panels' numbers out of the binary and wrote their
@@ -2029,6 +2042,14 @@ impl CountyScreen {
                 // slaughtered, so a county with more dairy than mouths eats
                 // nothing at all and its slider has nothing to divide. That
                 // number is what says so.
+                //
+                // **It is the same condition as the slider's inertness, read a
+                // second way**, and the two were found an hour apart as separate
+                // complaints — *"the slider is inoperable"* and *"sorely
+                // missing: 'All your people are fed by dairy'"*. There is no
+                // such sentence in `L2.eng`; this figure reaching the county's
+                // population **is** the game saying it, and it is why the two
+                // reports have one fix. `docs/rules.md` §4.
                 //
                 // Drawn through [`Pen`] rather than the 5 x 7 font, and centred
                 // rather than right-aligned: `Ui_DrawNumberRight` **centres**

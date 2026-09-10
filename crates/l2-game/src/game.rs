@@ -20,7 +20,7 @@ use l2_formats::maps::{MapSet, MapSlot};
 use l2_formats::Palette;
 use l2_kingdom::county::{LABOUR_CEILING_IGNORED, MAX_COUNTIES};
 use l2_kingdom::realm::MAX_REALMS;
-use l2_kingdom::tables::{JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT};
+use l2_kingdom::tables::JOB_IDLE_TOWNSFOLK;
 use l2_kingdom::{Kingdom, SeasonReport};
 use l2_mods::vfs::Vfs;
 use l2_view::campaign::{self, MapAssets};
@@ -1244,6 +1244,9 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // The clamp lives in `Kingdom::set_ration_wanted` now, so the lib no longer
+    // names this constant — only the test that pins the cap does.
+    use l2_kingdom::tables::RATION_LEVEL_COUNT;
 
     fn two_counties() -> Game {
         let mut g = Game::new(7);
