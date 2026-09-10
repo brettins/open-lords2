@@ -281,9 +281,31 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
         if realm.in_play && held == 0 && realm.strength == 0 {
             return Err(format!("realm {r} is in play with strength 0"));
         }
-        // `Diplo_ReconcileAlliances` runs every turn and an alliance is
-        // symmetric and exclusive (`docs/diplomacy.md`).
-        if realm.ally != 0 {
+        // **`Diplo_ReconcileAlliances` (`0x004A1847`) runs every turn — it does
+        // now — and it guarantees less than this check used to demand.**
+        //
+        // Its loop `continue`s on `strength == 0` before it looks at that
+        // realm's `ally` byte at all, so **a dead realm's `ally` is stale by
+        // construction**: realm 2 dies pointing at realm 5, realm 5's own
+        // pairing is dropped on the next pass, and realm 2 goes on naming 5 for
+        // ever. Reading a corpse's byte as an assertion about the living is
+        // what this check was doing, and it is why it fired.
+        //
+        // The two halves it still asserts, both of which the original really
+        // does maintain, are about **realms in play**:
+        //
+        // * an in-play realm's pairing is symmetric — the reconcile pass writes
+        //   `ally` back on the partner (it *repairs* a one-sided pairing rather
+        //   than dropping it, which is `l2_kingdom::diplomacy`'s own correction
+        //   to `docs/diplomacy.md` §4.1);
+        // * an in-play realm is not allied to a **lower-numbered** dead realm,
+        //   because the `handled` array the loop is filling can only ever see
+        //   indices below the one being walked. A *higher*-numbered dead
+        //   partner survives, and that asymmetry is the original's — see
+        //   `docs/bugs.md` and `reconcile_alliances`, where it is reproduced
+        //   deliberately. Asserting it away here would be asserting our own
+        //   repair of a defect we chose to keep.
+        if realm.in_play && realm.ally != 0 {
             let other = &k.realms[realm.ally as usize];
             if other.ally != r as u8 {
                 return Err(format!(
@@ -291,8 +313,12 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
                     realm.ally, realm.ally, other.ally
                 ));
             }
-            if !other.in_play {
-                return Err(format!("realm {r} is allied to {}, which is out of play", realm.ally));
+            if !other.in_play && (realm.ally as usize) < r {
+                return Err(format!(
+                    "realm {r} is allied to {}, which is out of play and below it — \
+                     `Diplo_ReconcileAlliances` drops exactly this pairing",
+                    realm.ally
+                ));
             }
         }
         for other in 1..l2_kingdom::MAX_REALMS {
