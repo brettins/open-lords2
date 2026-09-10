@@ -752,15 +752,43 @@ impl Kingdom {
         }
     }
 
+    /// `Unrest_UpdateAll` (`0x0044AA41`), including the call it makes at the
+    /// bottom that this pass used to skip.
+    ///
+    /// The counter is reset **only when a mob was actually placed** —
+    /// `if (3 < unrest && County_RaiseRevolt(c)) unrest = 0;`. A county with no
+    /// free tile within three of its anchor therefore sits at 4 for ever, and
+    /// that is the original's behaviour, not a shortcut. `crate::unrest`'s
+    /// module docs have the three corrections this call site came with.
     fn unrest_update(&mut self, report: &mut SeasonReport) {
         let quirks = self.options.quirks;
+        let year = self.year;
         for id in 1..=self.county_count {
             let human = self.owner_is_human(self.counties[id].owner);
             let mut messages = Vec::new();
-            unrest::update(&mut self.counties[id], id as u8, human, quirks, &mut messages);
+            let wants_revolt =
+                unrest::update(&mut self.counties[id], id as u8, human, quirks, &mut messages);
             for m in messages {
                 report.message(m);
             }
+            if !wants_revolt {
+                continue;
+            }
+            let Some((_slot, men)) = unrest::raise_revolt(
+                &self.campaign.map,
+                &self.counties[id],
+                &mut self.campaign.units,
+                id,
+                year,
+            ) else {
+                continue;
+            };
+            // `County_MakeIndependent` first — its `Labour_Allocate` deals the
+            // population the mob has not yet been taken out of — then the debit.
+            self.make_county_independent(id);
+            self.counties[id].population -= men;
+            self.counties[id].unrest = 0;
+            report.message(Message::Revolt { county: id as u8 });
         }
     }
 

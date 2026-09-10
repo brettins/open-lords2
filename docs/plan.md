@@ -344,12 +344,46 @@ larger version of the same exposure and, unlike turn one, is not covered by a re
 test that could go red. The fix is §5's first ask and should be made now rather than when the
 code is ready for it.
 
+> **Partly instrumented, and the first run paid for itself.**
+> `crates/l2-game/tests/long_game.rs` plays a hundred turns of England, a hundred of a
+> hand-dealt fourteen-county empire, and twenty on each of the forty-four shipped maps,
+> checking eight invariants after every turn and censusing which rules have fired at all.
+> **Nothing broke** — no invariant violation anywhere, and a game saved at turn 50 and
+> reloaded reaches the same turn 100 as one played straight through.
+>
+> What it found is what was *missing*. `County_RaiseRevolt` (`0x004AC185`) had never been
+> implemented, so twenty revolts in a hundred turns were a message and nothing else; with it
+> in, England's largest realm reaches **seven** counties instead of three, the person's realm
+> is eliminated on turn 24, and the multi-county rules are reachable in an ordinary game for
+> the first time. `docs/decisions.md` C90.
+>
+> **Six rules still have no way in at all**, and no amount of playing our own engine will
+> give them one: bankruptcy (the AI never misses a wage), army starvation, transports, a
+> declared war on England, `County.purse`, and any tax rate above 19 — the highest an AI
+> lord ever set in a hundred turns is **12**. Those are §5's list, and
+> `docs/oracle-requests.md` is the version of it written for the person holding the game.
+
 ### 2.6 Save and load is a precondition of the goal, not a feature of it
 
 Nobody plays a hundred turns in one sitting. "Start to finish" spans sessions by definition,
 so the item listed last on every plan for months is the one the goal most directly requires.
 
 ### 2.7 `WEATHER_JITTER_BOUND` is invented, and it compounds
+
+> **Closed, and it had been closed twice already.** The bound is **128** and it is right:
+> `Rand_Advance` (`0x00404A46`) masks its LFSRs with `0x7F`, `Weather_UpdateAll` shifts by
+> three, so the draw is 0…127 and the jitter 0…15. `weather.rs` has carried that derivation
+> since the day it was traced and `docs/audit-method.md` re-derived it independently; this
+> section and `docs/decisions.md`'s open-questions list were both stale.
+>
+> **What was actually still open in the same paragraph was `localModifier`**, which returned
+> zero and was marked *"never traced"* — a per-county term worth up to 12 a season, which is
+> the compounding this section is about. It is `FUN_00449D6E`: a climate band 0…4 cut out of
+> the county's **index** by `County_Reset`, applied in Summer and Winter only, with a hole at
+> band 3 and a dead arm (`docs/bugs.md` B92). `docs/kingdom.md` §7.3.
+> `docs/decisions.md` C91, whose lesson is that **an open question naming
+> two things should be two entries** — the half that was easy to check got closed and the
+> half that mattered did not.
 
 `docs/decisions.md` records it: `docs/kingdom.md` §7.3 gives the weather jitter as `random/8`
 with no stated range, which is not implementable, so this is the one constant in `l2-kingdom`
@@ -592,6 +626,12 @@ names them.**
 
 ## 5. The oracle asks — cheap, high-yield, and not a nice-to-have
 
+> **`docs/oracle-requests.md` is this section rewritten for the person who has the game**:
+> ten numbered things to do and save, in plain language, with what each would settle and why
+> it cannot be got any other way. It is longer than this list because it says *how*, and it
+> is ordered by what the hundred-turn game proved we cannot reach on our own rather than by
+> what we happened to want. Hand that file over; keep this one for arguing about priority.
+
 Several things cannot be verified without saves that do not exist. This costs a person with
 the game about twenty minutes, and it has already paid: **three battle saves produced today
 caught a bug in code merged hours earlier.** C21 puts it more strongly — *the cheapest oracle
@@ -677,7 +717,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,974<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,982<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

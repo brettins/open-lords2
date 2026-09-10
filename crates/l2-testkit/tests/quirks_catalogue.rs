@@ -328,6 +328,10 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // Not reproduced and not switchable: the accept-alliance prompt is not
     // built, because Msg_DrawWindow window layouts have never been read.
     ("B90", Unswitchable("the prompt it lives in is not built")),
+    // Summer's climate ladder skips band 3 and has an unreachable arm.
+    // Reproduced literally with the hole named, and not wired: switching it
+    // would change the weather every county gets, which is a rule.
+    ("B92", Unwired("crates/l2-kingdom/src/weather.rs::local_modifier")),
 ];
 
 /// How many rows `l2_game::game::PRESENTATION` has.

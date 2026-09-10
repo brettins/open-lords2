@@ -46,6 +46,7 @@ subagent, so it stays short. Read the linked document before working in that are
 | spawn or coordinate agents | `docs/agents.md` |
 | ask what state the project is in | `docs/status.html` |
 | **wonder what we are building, or argue with the order** | **`docs/plan.md` — the goal, what would falsify it, and what is in flight** |
+| **have the original in front of you and five minutes** | **`docs/oracle-requests.md` — the ten questions four hundred turns proved we cannot answer ourselves. An oracle request nobody is routed to is a request that does not get made.** |
 | wonder whether a documented number is true | `docs/audit.md` |
 
 **`docs/netcode.md` binds code you might not think of as networking.** Deterministic

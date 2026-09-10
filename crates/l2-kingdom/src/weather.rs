@@ -54,8 +54,22 @@
 //! differential test, which would need the LFSR seeds out of a running game
 //! anyway.
 //!
-//! **`localModifier(c)` is still not traced.** It is `FUN_00449D6E`, called for
-//! the chosen county and for each of its neighbours, and it is zero here.
+//! # `localModifier(c)`, traced
+//!
+//! It is `FUN_00449D6E` — [`local_modifier`] — and it is not zero any more.
+//! Read for the hundred-turn game (`docs/plan.md` §2.5), because weather drives
+//! sowing, growth, harvest and the herd every season for a hundred seasons and
+//! a term that is wrong by up to 12 a season is not survivable there.
+//!
+//! It reads county `+0x21E`, a **climate band 0…4**, and returns a swing that
+//! depends on the band and on the season. The band is set once, in
+//! `County_Reset` (`0x00451150`), **from the county's index and nothing else** —
+//! see [`climate_band`] — and no other function in the binary writes it. So it
+//! is a property of where a county sits in the scenario's own ordering, and on
+//! most maps that ordering runs roughly north to south.
+//!
+//! Only the chosen county and its neighbours get it, so it is a *local* term on
+//! top of the regional push, and it runs in **Summer and Winter only**. `[V]`
 
 use crate::county::County;
 use crate::math::clamp;
@@ -96,12 +110,82 @@ pub const WEATHER_JITTER_SHIFT: u32 = 3;
 /// gets the local swing: `& 0xF`, so 0..=15.
 pub const WEATHER_COUNTY_MASK: u32 = 0xF;
 
-/// **Never traced.** `Weather_UpdateAll` adds a per-county modifier to the
-/// chosen county and to each of its neighbours; it is `FUN_00449D6E`, and
-/// `docs/kingdom.md` §7.3 names it and nothing more. Zero until somebody reads
-/// it out of the binary.
-pub fn local_modifier(_county: &County) -> i32 {
-    0
+/// **`County_Reset` (`0x00451150`), county `+0x21E`.** A climate band 0…4, cut
+/// straight out of the county's index at new-game:
+///
+/// ```c
+/// if      (id < 4)  band = 0;   /* counties 1..3   */
+/// else if (id < 6)  band = 1;   /* counties 4..5   */
+/// else if (id < 10) band = 2;   /* counties 6..9   */
+/// else if (id < 12) band = 3;   /* counties 10..11 */
+/// else              band = 4;   /* counties 12 up  */
+/// ```
+///
+/// **Nothing else in the binary writes `+0x21E`** — one writer, one reader
+/// ([`local_modifier`]) — so it is derived here rather than stored. A saved
+/// game holds the byte, and the byte is always this function of the index, so
+/// the two cannot disagree and there is no importer to forget it
+/// (`docs/agents.md`, *a field is only tested if something a test reads was
+/// written by something the game runs*). `[V]`
+pub fn climate_band(county_id: usize) -> u8 {
+    match county_id {
+        0..=3 => 0,
+        4..=5 => 1,
+        6..=9 => 2,
+        10..=11 => 3,
+        _ => 4,
+    }
+}
+
+/// **`FUN_00449D6E`** — the local swing `Weather_UpdateAll` adds to the chosen
+/// county and to each of its neighbours, on top of the regional push.
+///
+/// ```c
+/// if (season == Summer) {
+///     if (band == 0) return   4;
+///     if (band == 1) return   2;
+///     if (band == 2) return  -8;
+///     if (band == 4) return -12;
+///     if (band == 4) return -24;     /* unreachable: the test above it */
+/// } else if (season == Winter) {
+///     if (band == 1) return  -2;
+///     if (band == 2) return  -4;
+///     if (band == 3) return  -6;
+///     if (band == 4) return -10;
+/// }
+/// return 0;
+/// ```
+///
+/// **Summer's ladder has a hole and a dead arm, and they are the same slip.**
+/// The five bands plainly want `+4, +2, −8, −12, −24`; the fourth test reads
+/// `band == 4` where it should read `band == 3`, so **band 3 falls through to
+/// zero** and band 4 takes band 3's −12 while the −24 arm can never run.
+/// Reproduced literally — `docs/bugs.md` B92. Winter's ladder is
+/// complete: band 0 has no arm because its value is the fall-through 0.
+///
+/// Spring and Autumn get nothing at all, which is why the two mild seasons are
+/// the same everywhere on the map and the two extreme ones are not.
+pub fn local_modifier(county_id: usize, season: Season) -> i32 {
+    let band = climate_band(county_id);
+    match season {
+        Season::Summer => match band {
+            0 => 4,
+            1 => 2,
+            2 => -8,
+            // `band == 3` is the slip: the original tests 4 twice, so 3 gets
+            // nothing and 4 gets the −12 that was written for 3.
+            4 => -12,
+            _ => 0,
+        },
+        Season::Winter => match band {
+            1 => -2,
+            2 => -4,
+            3 => -6,
+            4 => -10,
+            _ => 0,
+        },
+        _ => 0,
+    }
 }
 
 /// The season's push on every county's dryness, jitter included.
@@ -205,7 +289,7 @@ pub fn update_all(
         push(&mut counties[id], delta);
     }
 
-    let local = delta + local_modifier(&counties[chosen]);
+    let local = delta + local_modifier(chosen, season);
     push(&mut counties[chosen], local);
 
     let neighbours: Vec<u8> = counties[chosen].neighbours().to_vec();
@@ -214,7 +298,10 @@ pub fn update_all(
         if n == 0 || n > county_count {
             continue;
         }
-        let swing = delta / 2 + local_modifier(&counties[n]);
+        // `delta / 2` truncates toward zero, which in Winter — the one season
+        // with a negative push — means a neighbour is wetted by one less than
+        // half. That is C's division and therefore the original's.
+        let swing = delta / 2 + local_modifier(n, season);
         push(&mut counties[n], swing);
     }
 
@@ -341,9 +428,16 @@ mod tests {
         assert_eq!(readings.len(), 2, "one county swung twice; the rest moved together");
     }
 
-    /// The local swing: the chosen county gets `2 x delta`, each of its
-    /// neighbours `delta + delta/2`. Tested on a fully connected kingdom, so
-    /// the answer does not depend on *which* county was drawn.
+    /// The local swing: the chosen county gets `2 × delta + localModifier`,
+    /// each of its neighbours `delta + delta/2 + localModifier`. Tested on a
+    /// fully connected kingdom of counties 1…3, so the answer does not depend
+    /// on *which* county was drawn — and all three sit in [`climate_band`] 0,
+    /// so they share one modifier.
+    ///
+    /// **This is the assertion that goes red if [`local_modifier`] returns to
+    /// zero**, which is what it did until `FUN_00449D6E` was read: delete the
+    /// `+ local_modifier(...)` from either arm of [`update_all`] and the
+    /// counts come out 0 instead of 1 and 2.
     #[test]
     fn the_chosen_county_swings_twice_and_its_neighbours_by_half_again() {
         let mut rng = Pcg32::from_seed(3);
@@ -358,14 +452,63 @@ mod tests {
         // Recover the delta this pass will use without disturbing the stream.
         let delta = seasonal_delta(T, Season::Summer, &mut rng.clone());
         assert!(delta > 0);
+        // Counties 1..3 are band 0, and band 0 in Summer is +4.
+        let local = local_modifier(1, Season::Summer);
+        assert_eq!(local, 4, "counties 1..3 are climate band 0");
 
         update_all(T, &mut c, 3, Season::Summer, true, &mut rng, &mut 1);
 
         let readings: Vec<i32> = (1..=3).map(|i| c[i].dryness).collect();
-        let chosen = 20 + 2 * delta;
-        let neighbour = 20 + delta + delta / 2;
-        assert_eq!(readings.iter().filter(|&&d| d == chosen).count(), 1);
-        assert_eq!(readings.iter().filter(|&&d| d == neighbour).count(), 2);
+        let chosen = 20 + 2 * delta + local;
+        let neighbour = 20 + delta + delta / 2 + local;
+        assert_eq!(readings.iter().filter(|&&d| d == chosen).count(), 1, "{readings:?}");
+        assert_eq!(readings.iter().filter(|&&d| d == neighbour).count(), 2, "{readings:?}");
+    }
+
+    /// **`County_Reset`'s index ladder**, written out so that a change to it is
+    /// a change to a table rather than to a `match` nobody reads.
+    #[test]
+    fn the_climate_band_is_cut_out_of_the_county_index() {
+        let expected = [
+            (1, 0u8), (2, 0), (3, 0),
+            (4, 1), (5, 1),
+            (6, 2), (7, 2), (8, 2), (9, 2),
+            (10, 3), (11, 3),
+            (12, 4), (13, 4), (14, 4), (16, 4),
+        ];
+        for (id, band) in expected {
+            assert_eq!(climate_band(id), band, "county {id}");
+        }
+    }
+
+    /// **`FUN_00449D6E` in full, including the arm that cannot run.**
+    ///
+    /// Summer's fourth test reads `band == 4` where the ladder wants `band ==
+    /// 3`, so band 3 gets nothing and the −24 arm is dead. Spring and Autumn
+    /// return zero for every band, which is why the local swing is a
+    /// Summer-and-Winter term only.
+    #[test]
+    fn the_summer_climate_ladder_skips_band_three_and_never_reaches_minus_24() {
+        // county id -> band: 1 -> 0, 4 -> 1, 6 -> 2, 10 -> 3, 12 -> 4.
+        let summer = [(1usize, 4i32), (4, 2), (6, -8), (10, 0), (12, -12)];
+        for (id, expected) in summer {
+            assert_eq!(local_modifier(id, Season::Summer), expected, "county {id} in Summer");
+        }
+        assert!(
+            (1..=16).all(|id| local_modifier(id, Season::Summer) != -24),
+            "the -24 arm repeats the test above it and can never run"
+        );
+
+        let winter = [(1usize, 0i32), (4, -2), (6, -4), (10, -6), (12, -10)];
+        for (id, expected) in winter {
+            assert_eq!(local_modifier(id, Season::Winter), expected, "county {id} in Winter");
+        }
+
+        for season in [Season::Spring, Season::Autumn] {
+            for id in 1..=16 {
+                assert_eq!(local_modifier(id, season), 0, "{} county {id}", season.name());
+            }
+        }
     }
 
     /// Summer dries the land out fastest and Winter is the only season that

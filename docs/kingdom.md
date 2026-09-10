@@ -837,10 +837,48 @@ happiness, on two different ladders depending on whether the owner is human:
 At 4 it calls `County_RaiseRevolt` (`0x004AC185`), and resets the counter **only if that
 returned 1**.
 
-**[V] against the manual**, which is unusually specific here: *"When any county's happiness
-rating drops below 25 and stays there for more than four seasons, its population will
-revolt."* The threshold is 25 for a human-owned county and the counter needs four seasons
-below it. Both halves of the sentence are in the code.
+### Four things the summary above leaves out, and every one of them we had wrong
+
+`0x0044AA41` was read line by line for the hundred-turn game (`docs/plan.md` §2.5), because
+a hundred turns of England raised twenty revolts and none of them did anything.
+`docs/decisions.md` C90. All four are **[V]** from the function's own body.
+
+**One. Both ladders reach the revolt.** The call sits at `LAB_0044ADF3`, physically inside
+the **AI** branch; the human branch reaches it with a `goto`. One block, two callers. The
+bullets above read as though the revolt belonged to the human ladder, and
+`crates/l2-kingdom/src/unrest.rs` carried a test called `an_ai_county_never_raises_a_mob`
+citing this section for it. **An AI lord's counties revolt too — in silence, because the
+four `Msg_Enqueue` calls are in the human branch only.** The asymmetry that is real is the
+*ladder*: an AI county climbs only below happiness 1 where a human's climbs below 25.
+
+**Two. It fires only on a season the counter went up.** Both branches guard it with
+`if (before < after)`. So a county left at 4 because the mob could not be placed **never
+tries again**, which is the mechanism behind the "sits at maximum unrest indefinitely"
+sentence below rather than a separate fact.
+
+**Three. The warning season and the ladder season are exclusive.** `Msg_Enqueue(0x92)` is
+the `if`, and the **entire** ladder — climb, reset, and the four `0x96`…`0x99` messages — is
+its `else`:
+
+```c
+if (happiness < 0x1e && !warned) { warned = 1; Msg_Enqueue(0x92); }
+else                             { ...the whole ladder... }
+```
+
+So the first season a county drops below 30 costs it a message and no counter movement at
+all, and the counter starts on the second. **A revolt therefore lands on the fifth season,
+not the fourth** — which is what the manual says, read whole: *"drops below 25 and stays
+there for **more than four seasons**"*. This document's *"the counter needs four seasons
+below it"* took *"more than"* to mean *"at least"*, and `docs/agents.md`'s *citing an oracle
+is not reading it* is about exactly this sentence.
+
+**Four. A human county's counter is cleared outright at happiness 25.** The ladder's `else`
+is `unrest = 0`, the same shape as the AI ladder's `≥ 41` arm. It is **not** sticky; one
+good season wipes it. `unrest.rs` asserted the opposite and called the stickiness *"real in
+the documented rules"* — no document said it.
+
+Together, three and four make revolt much harder to reach than we had it: a county needs
+**five consecutive seasons** below 25, not five seasons below 25 spread over a reign.
 
 **What a revolt actually does.** `County_RaiseRevolt` finds a free road tile in the county,
 or failing that a free open tile; spawns a **kind-2 unit** — revolting peasants, the ones
@@ -1260,7 +1298,35 @@ draws fall through to *"the county after last season's"*. The local swing theref
 steadily around the map about an eighth of the time rather than jumping. `g_weatherCounty`
 (`0x00554020`) is its own four-byte save block. **[V]**
 
-`localModifier` is `FUN_00449D6E` and is **still not traced**.
+### `localModifier` is `FUN_00449D6E`, and it is traced now
+
+It reads county **`+0x21E`**, a climate band 0 … 4, and returns a swing that depends on the
+band and on the season:
+
+| band | counties | Summer | Winter | Spring, Autumn |
+|---:|---|---:|---:|---:|
+| 0 | 1 … 3 | **+4** | 0 | 0 |
+| 1 | 4 … 5 | **+2** | −2 | 0 |
+| 2 | 6 … 9 | **−8** | −4 | 0 |
+| 3 | 10 … 11 | **0** ← | −6 | 0 |
+| 4 | 12 up | **−12** | −10 | 0 |
+
+**[V]**, `0x00449D6E`. Two things fall out of it and both are the rule rather than a
+transcription slip:
+
+* **The band is cut out of the county's index**, once, in `County_Reset` (`0x00451150`):
+  `id < 4 → 0`, `< 6 → 1`, `< 10 → 2`, `< 12 → 3`, else `4`. **Nothing else in the binary
+  writes `+0x21E`** — one writer, one reader — so it is derived rather than stored in
+  `crates/l2-kingdom/src/weather.rs::climate_band`, and a saved game's byte cannot disagree
+  with it.
+* **Summer's ladder has a hole at band 3 and a dead arm at the bottom**, and they are the
+  same slip: the fourth test reads `field == 4` where the ladder wants `field == 3`, so band
+  3 falls through to zero and band 4 takes the −12 written for band 3 while the −24 arm can
+  never run. `docs/bugs.md` B92. Winter's ladder is complete; band 0's zero
+  is the fall-through.
+
+Spring and Autumn get nothing at all, which is why the two mild seasons are identical across
+the map and the two extreme ones are not.
 
 **`dryness` is a signed byte and the accumulation wraps.** Nothing clamps it before the
 band ladder reads it, so a long enough run of Summers rolls it through +127 into −128 and

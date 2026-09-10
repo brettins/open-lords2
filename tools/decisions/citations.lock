@@ -89,6 +89,10 @@ crates/l2-game/tests/arms.rs	C61	6bc2bab5881e
 crates/l2-game/tests/audio_install.rs	C1	afd71632a6e6
 crates/l2-game/tests/diplomacy.rs	C26	287743d8f84c
 crates/l2-game/tests/diplomacy.rs	C62	bcbec6054c4e
+crates/l2-game/tests/long_game.rs	C26	8f66e1f9a1a8
+crates/l2-game/tests/long_game.rs	C26	b81c294dcd29
+crates/l2-game/tests/long_game.rs	C27	5e967af981b8
+crates/l2-game/tests/long_game.rs	C27	c0900980b820
 crates/l2-game/tests/merchant.rs	C50	444a9e4940bc
 crates/l2-game/tests/merchant.rs	C53	7cd616c516aa
 crates/l2-game/tests/military.rs	C35	0578d12796f0
@@ -128,6 +132,7 @@ crates/l2-kingdom/src/lib.rs	C11	40b20e35a6aa
 crates/l2-kingdom/src/lib.rs	C61	32da975bdde2
 crates/l2-kingdom/src/lib.rs	C62	2dc2468a0675
 crates/l2-kingdom/src/lib.rs	C62	2dea38655850
+crates/l2-kingdom/src/lib.rs	C90	3fc5a8b2b598
 crates/l2-kingdom/src/map.rs	C25	28b0c4932b46
 crates/l2-kingdom/src/mercenary.rs	C3	5338c04f3210
 crates/l2-kingdom/src/movement.rs	C25	c507242adac1
@@ -151,7 +156,8 @@ crates/l2-kingdom/src/territory.rs	C34	9a3dae26c192
 crates/l2-kingdom/src/units_tick.rs	C35	37946754ead6
 crates/l2-kingdom/src/units_tick.rs	C40	127ebcf1fbc7
 crates/l2-kingdom/src/units_tick.rs	C40	c5db1b114558
-crates/l2-kingdom/src/unrest.rs	C3	332edead8f75
+crates/l2-kingdom/src/unrest.rs	C3	e8e842b34b46
+crates/l2-kingdom/src/unrest.rs	C90	cd32726caf90
 crates/l2-kingdom/tests/defence.rs	C12	8eedf132d18b
 crates/l2-kingdom/tests/fields.rs	C23	00c611a35590
 crates/l2-kingdom/tests/fields.rs	C24	55fea2f1d2e9
@@ -328,6 +334,7 @@ docs/decisions.md	C12	729dde396cc4
 docs/decisions.md	C12	a388b50da6e9
 docs/decisions.md	C13	09c4dae65b2c
 docs/decisions.md	C13	6ecd926bb63e
+docs/decisions.md	C13	7868cb038a6c
 docs/decisions.md	C13	9a48a53e9996
 docs/decisions.md	C14	19873f4c7f74
 docs/decisions.md	C14	9228b35094b8
@@ -438,6 +445,7 @@ docs/decisions.md	C58	117a0bc239b7
 docs/decisions.md	C58	11ed95e47ec9
 docs/decisions.md	C58	146714b7fa85
 docs/decisions.md	C58	4d7747b50e07
+docs/decisions.md	C58	5601434ca24f
 docs/decisions.md	C58	72baa1f834c4
 docs/decisions.md	C58	c9cba72f3595
 docs/decisions.md	C58	cf211d06686a
@@ -461,8 +469,8 @@ docs/decisions.md	C61	cb0091f01fac
 docs/decisions.md	C61	f258c8cb9698
 docs/decisions.md	C61	f6aa494f4261
 docs/decisions.md	C62	caa3cf750af3
-docs/decisions.md	C63	6bf7e86683ab
 docs/decisions.md	C63	d00f4e770141
+docs/decisions.md	C63	e109827c0f76
 docs/decisions.md	C68	5ae933e2d6e4
 docs/decisions.md	C68	9851f67b9928
 docs/decisions.md	C68	b9a8c332de66
@@ -473,6 +481,7 @@ docs/decisions.md	C82	08962931dab3
 docs/decisions.md	C9	2ac3bc41f8d2
 docs/decisions.md	C9	72e3f741f15b
 docs/decisions.md	C9	99e56fdcae4b
+docs/decisions.md	C91	4a0deb20ef90
 docs/diplomacy.md	C26	cc112f11d1ea
 docs/diplomacy.md	C3	d4bc35a985fd
 docs/draws-map.md	C72	230aae5fabd7
@@ -508,6 +517,7 @@ docs/kingdom.md	C5	9ed204668bd1
 docs/kingdom.md	C53	422c2cc39a38
 docs/kingdom.md	C8	2c6596b7ae81
 docs/kingdom.md	C8	6683b7f42ddb
+docs/kingdom.md	C90	cab1f0e798c1
 docs/mechanics.md	C21	efba23978cff
 docs/mechanics.md	C22	0c47beed33b6
 docs/mechanics.md	C26	811398837c72
@@ -535,6 +545,7 @@ docs/netcode.md	C39	ebf3b4632de2
 docs/netcode.md	C62	194b1c4f05c3
 docs/netcode.md	C62	734aca7757ca
 docs/netcode.md	C8	7d0d61b3a9f8
+docs/oracle-requests.md	C26	0e5b3c2b1cc0
 docs/plan.md	C11	42457d7739ce
 docs/plan.md	C21	e07a03ef7613
 docs/plan.md	C22	e96ddb30aaa7
@@ -553,6 +564,8 @@ docs/plan.md	C61	98105227f26e
 docs/plan.md	C62	3c12bfd5b5df
 docs/plan.md	C68	d466865faa21
 docs/plan.md	C84	e2d871e502c3
+docs/plan.md	C90	f3a1e6345242
+docs/plan.md	C91	4389a37bbc43
 docs/records.json	C25	d4374fcfca46
 docs/records.json	C3	6cef8ac01b2c
 docs/records.json	C53	4cfab70e56f7

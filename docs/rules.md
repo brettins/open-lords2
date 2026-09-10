@@ -344,12 +344,31 @@ in silence. Nothing else about the rule treats you differently from them.
 **Or the peasants take it.** A human-owned county whose happiness stays under 25 climbs an
 unrest counter one step a season, with a warning at each step — *"Murmurs of unrest."*,
 *"Trouble in the county."*, *"Uproar in the shire."*, *"Revolution in your lands."* At the
-fourth step **30% of the population walks out as an armed mob** and the county goes neutral.
-The mob is unarmed peasants and it wanders the map like any other army.
+fourth step **30% of the population walks out** and the county goes neutral. The mob is
+unarmed peasants and it wanders the map like any other army.
 
-An AI-owned county is judged on a different ladder — it only climbs below happiness 1, and
-recovers between 11 and 40 — so the peasants rise against you far more readily than against
-them.
+Four details that decide whether you ever actually see one:
+
+- **The clock starts on the second bad season, not the first.** The season a county first
+  drops below **30** it gets a warning and nothing else — the warning and the counter are
+  alternatives in the code, not both. So the revolt lands on the **fifth** consecutive
+  season below 25, which is what the manual means by *"more than four seasons"*.
+- **One good season wipes the counter completely.** Get the county back to happiness 25 and
+  the count goes to zero, not down by one. A county you rescue and then neglect again starts
+  from scratch.
+- **A revolt needs somewhere to stand.** The mob is placed on a free road tile, or failing
+  that a free patch of open ground, within three tiles of the county's centre. If every
+  such tile is occupied the county simply stays at maximum unrest and never rises.
+- **AI-owned counties revolt too**, and their lord is not told — the four warning messages
+  are the human's only. What differs is the ladder, not the outcome: an AI county climbs
+  only below happiness 1 and recovers between 11 and 40, so the peasants rise against you
+  far more readily than against them.
+
+> **How well is this known?** The mechanism is read out of the binary and the *"more than
+> four seasons"* half is the manual's own words. What nobody has ever watched is a real one:
+> `docs/oracle-requests.md` §2 asks for four saves around a revolt, and it is the most
+> discriminating request on that list precisely because all four bullets above were changed
+> in one sitting on the strength of a decompilation.
 
 **And your army can leave you.** Miss the wages and your mercenaries go at once; miss them
 again and your men start deserting; miss them for six seasons and *"Furious at their ill
