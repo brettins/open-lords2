@@ -59,18 +59,30 @@
 //! release that would take it to `0x29` — are dead code and are deliberately not
 //! built.
 //!
-//! # The yes/no box is ours for now
+//! # The yes/no box: everything but the screen it lives on
 //!
 //! Two of the five buttons open `Ui_OpenConfirm` (`0x0040E6F2`), which is screen
 //! `0x1E`, a screen this tree does not have. The prompt indices are the
 //! original's — `L2.eng` group 10, index 12 *"Retreat from field?"*, 11
 //! *"Surrender castle?"*, 9 *"Autocalc battle?"* — and so is the geometry, a
 //! 14 × 8 cell box at `(g_confirmX − 16, g_confirmY − 16)` with the thumbs at
-//! `+ (64, 46)` and `+ (112, 50)`. What is ours is that it is drawn by this
-//! screen instead of by `Screen_ConfirmBox` on a screen of its own.
+//! `+ (64, 46)` and `+ (112, 50)`. **What is ours is that it is drawn by this
+//! screen instead of by `Screen_ConfirmBox` on a screen of its own** — and that
+//! is now the only thing left that is: the ground is `Screen_ConfirmBox`'s own
+//! `FUN_004093E0(…, 0xE, 8)` in border set 1 rather than a plate of ours, and
+//! the two pictures are `g_confirmWidgets`' frames 29 and 31 rather than the
+//! close corner and its neighbour.
+//!
+//! # The outcome banner, and the half of it that is not built
+//!
+//! `Screen_BattleOutcome` (`0x00423241`) has two arms and only the short one is
+//! reproduced. The animated arm is gated on `g_optAnimations`, draws a taller
+//! window with a 402 × 194 recess at (39, 72) for a Smacker clip and moves its
+//! text down 168 pixels; this engine has neither the flag nor the clip. The
+//! third arm — `g_battleChoiceOwner == 0`, a battle between two other realms —
+//! is the neutral pair 12/13, which [`outcome_pair`] already selects.
 
 use l2_sim::runner::Formation;
-use l2_view::chrome::system;
 use l2_view::{text, Canvas};
 
 use crate::battlefield::{
@@ -90,12 +102,40 @@ pub const GROUP_PAUSED: usize = 32;
 /// `L2.eng` group 82 — the seven outcome heading/body pairs, drawn on `0x2B`.
 pub const GROUP_BANNER: usize = 82;
 
+/// **The border set every one of these boxes is drawn in.** `FUN_004093E0` is
+/// `Ui_DrawBoxBorder(1, …)` followed by `Ui_DrawBoxInterior` inset a cell —
+/// the four-argument form is *always* set 1, and both painters below use it.
+pub const BOX_SET: usize = 1;
+
 /// `Ui_OpenConfirm(prompt, 0xA0, 0xA0, …)` and `Screen_ConfirmBox`
 /// (`0x0040CCFA`): a 14 × 8 cell box at `(0xA0 − 0x10, 0xA0 − 0x10)`.
 pub const CONFIRM_BOX: Rect = Rect::new(0xA0 - 0x10, 0xA0 - 0x10, 14 * 16, 8 * 16);
+pub const CONFIRM_COLS: i32 = 14;
+pub const CONFIRM_ROWS: i32 = 8;
 /// `g_confirmWidgets` (`0x004DD310`), offset by `(g_confirmX, g_confirmY)`.
 pub const CONFIRM_YES: Rect = Rect::new(0xA0 + 64, 0xA0 + 46, 32, 32);
 pub const CONFIRM_NO: Rect = Rect::new(0xA0 + 112, 0xA0 + 50, 32, 32);
+/// **Frames 29 and 31, and they are not a tick and a cross**: decoded, the pair
+/// is a mailed hand with its thumb up and its thumb down. Every yes/no in the
+/// game draws these two. `docs/screens-county.md` §4.2, and the symbol comment
+/// on `g_confirmWidgets` says the same from the table's own bytes.
+pub const CONFIRM_YES_FRAME: usize = 29;
+pub const CONFIRM_NO_FRAME: usize = 31;
+
+/// `Screen_BattleOutcome` (`0x00423241`)'s short window —
+/// `FUN_004093E0(0x10, 0x90, 0x1C, 0x0A)` — and the three things inside it.
+pub const OUTCOME_BOX: Rect = Rect::new(0x10, 0x90, 0x1C * 16, 0x0A * 16);
+pub const OUTCOME_COLS: i32 = 0x1C;
+pub const OUTCOME_ROWS: i32 = 0x0A;
+/// `Ui_OkButton(0x1A0, 0x100, 0)`. **Decorative**: `Screen_FrameInput`'s `0x2B`
+/// arm never calls `Ui_OkButtonClicked`, so the only way off the original's
+/// outcome screen is a right-click. The picture is an instruction, not a
+/// target, and ours is the same picture for the same reason.
+pub const OUTCOME_OK: (i32, i32) = (0x1A0, 0x100);
+/// `Eng_DrawString(0x52, pair*2, 0x30, 0xA8, &g_fontHeading, 0x3F)`.
+pub const OUTCOME_HEAD: (i32, i32) = (0x30, 0xA8);
+/// `FUN_0040328E(0x52, pair*2 + 1, 0x30, 0xE0, 0x180, 100, 0, 0, …)`.
+pub const OUTCOME_BODY: (i32, i32, i32) = (0x30, 0xE0, 0x180);
 
 /// The battlefield, for as long as [`crate::game::Game::battle`] is `Some`.
 pub struct BattlefieldScreen {
@@ -419,29 +459,61 @@ impl Screen for BattlefieldScreen {
         }
 
         // --- the outcome banner --------------------------------------------
+        //
+        // `Screen_BattleOutcome` (`0x00423241`), the un-animated arm:
+        //
+        // ```text
+        //   FUN_004093E0(0x10, 0x90, 0x1C, 0x0A)      the window, border set 1
+        //   Ui_OkButton(0x1A0, 0x100, 0)
+        //   Eng_DrawString(0x52, pair*2,     0x30, 0xA8, heading)
+        //   FUN_0040328E (0x52, pair*2 + 1,  0x30, 0xE0, 0x180, 100, …)
+        // ```
+        //
+        // **All four of those numbers were ours.** The box was a 416 × 128
+        // `fill_rect` of `ink.background` at (32, 96) with an outline over it,
+        // and the two strings were laid out inside it by eye. The window is
+        // 448 × 160 at (16, 144); the heading starts at (48, 168) and the body
+        // is wrapped to 384 at (48, 224). The corner picture was absent
+        // entirely.
+        //
+        // **NOT PORTED: the animated arm.** `g_optAnimations` selects a taller
+        // window at (0x10, 0x30, 0x1C, 0x16) with a 402 × 194
+        // `Ui_DrawInsetRect` recess at (39, 72) for a Smacker clip and its text
+        // 168 pixels lower. This engine has no counterpart to that flag and no
+        // clip to put in the recess, so only the short window is drawn.
         if live.mode == Mode::Outcome {
             let pair = outcome_pair(ctx, live);
             let head = ctx.assets.shell.text(GROUP_BANNER, pair * 2).to_string();
             let body = ctx.assets.shell.text(GROUP_BANNER, pair * 2 + 1).to_string();
-            let box_r = Rect::new(0x20, 0x60, 416, 128);
-            canvas.fill_rect(box_r.x, box_r.y, box_r.w, box_r.h, ink.background);
-            crate::widget::frame(canvas, box_r, ink.border);
+            p.window(canvas, OUTCOME_BOX.x, OUTCOME_BOX.y, OUTCOME_COLS, OUTCOME_ROWS, BOX_SET);
+            p.ok_button(canvas, OUTCOME_OK.0, OUTCOME_OK.1, 0);
             let head = if head.is_empty() { "THE BATTLE IS OVER.".into() } else { head };
-            p.heading(canvas, box_r.x + 16, box_r.y + 24, &head, font::TEXT);
+            p.heading(canvas, OUTCOME_HEAD.0, OUTCOME_HEAD.1, &head, font::TEXT);
             if !body.is_empty() {
-                p.body_wrapped(canvas, box_r.x + 16, box_r.y + 64, box_r.w - 32, &body, font::TEXT);
+                p.body_wrapped(canvas, OUTCOME_BODY.0, OUTCOME_BODY.1, OUTCOME_BODY.2, &body, font::TEXT);
             }
         }
 
         // --- the yes/no box --------------------------------------------------
+        //
+        // `Screen_ConfirmBox` (`0x0040CCFA`) is three statements and the first
+        // is the ground: `FUN_004093E0(g_confirmX − 0x10, g_confirmY − 0x10,
+        // 0xE, 8)` — the shared box in **border set 1**, not a plate of ours.
+        // The geometry above was already the original's; the ground was a
+        // `fill_rect` of `ink.background`, which is the one colour that looks
+        // right under our own palette and is a hole under the game's.
         if let Some(prompt) = self.confirm {
-            canvas.fill_rect(CONFIRM_BOX.x, CONFIRM_BOX.y, CONFIRM_BOX.w, CONFIRM_BOX.h, ink.background);
-            crate::widget::frame(canvas, CONFIRM_BOX, ink.border);
+            p.window(canvas, CONFIRM_BOX.x, CONFIRM_BOX.y, CONFIRM_COLS, CONFIRM_ROWS, BOX_SET);
             let s = ctx.assets.shell.text(GROUP_CONFIRM, prompt).to_string();
             let s = if s.is_empty() { ours_confirm(prompt).to_string() } else { s };
             p.body(canvas, 0xA0 + 0x10, 0xA0 + 0x10, &s, font::TEXT);
+            // `g_confirmWidgets` (`0x004DD310`) carries frames **29 and 31** —
+            // a mailed hand thumb up and thumb down. This drew `system::OK` and
+            // `system::OK + 2`, which are the close corner and its neighbour:
+            // the right sheet, the wrong frames, and a canvas diff would have
+            // passed on either.
             for (r, frame, label) in
-                [(CONFIRM_YES, system::OK, "YES"), (CONFIRM_NO, system::OK + 2, "NO")]
+                [(CONFIRM_YES, CONFIRM_YES_FRAME, "YES"), (CONFIRM_NO, CONFIRM_NO_FRAME, "NO")]
             {
                 let drawn = ctx
                     .assets

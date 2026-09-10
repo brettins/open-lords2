@@ -55,11 +55,17 @@
     },
     "missing": [],
     "invented": [],
-    "notes": "\"The other lords\". A 60-row thermometer and four menu layouts. docs/draws.md §2.",
+    "notes": "\"The other lords\". A 61-row thermometer and four menu layouts. docs/draws.md §2. WHAT WAS FIXED IN THE SHARED-GROUND PASS: 0x0B was the last painter in this module still drawing entirely in our own rectangles and our own 5x7 font, under a module header that already described the original correctly line by line — docs/agents.md, 'a correct explanation sitting directly above the omission it describes'. Every ground on the screen was wrong and each in a different way: the window was a widget::panel where FUN_004093E0 draws a Panels.pl8 box in border set 1; each lord card was a FILLED panel where Ui_DrawInsetRect is four lines and no fill, which is C61's armoury hole again and invisible under our own palette because ink.panel IS the parchment colour there; and the menu had ONE FILLED BOX PER ROW where the original has no such box at all — it draws a single Ui_DrawInsetRect(0xD0, 0x60, 0xE8, h) behind the whole menu whose height is the layout's, and six System.pl8 frame-64 widget pictures over it. THE THERMOMETER IS ONLY DRAWN FOR AN AI RIVAL: the whole block sits inside `if (g_realms[realm].isHuman == 0)`, so a human rival was being given a bar of a standing nothing maintains. Its geometry is also the painter's now rather than a rescaling of it: a 10 x 63 Ui_DrawInsetRect recess with an 8 x 61 column inside it, one row per point of standing from +30 down to -30, filled downward from the standing's own row, and the colour chosen once from the standing (0xFA at >= +11, 0xF9 at <= -11, else 0xFC) rather than per row.",
     "original": 38,
-    "literals_ours": [
-      "OK — an invention, and DiplomacyScreen's alone: Ui_OkButton draws System.pl8 frame 0x33, an arrow pointing into a hole, and no letters. ComposeScreen (0x1A) shares this module and now draws frames 29/31 instead."
+    "literals_ours": [],
+    "removed_this_pass": [
+      "widget::button 'OK' at Ui_OkButton(0x1A8, 0x1A6, 0) — System.pl8 frame 0x33, an arrow pointing into a hole, and no letters. The last of the three this module carried; ComposeScreen (0x1A) had already lost its own.",
+      "the three widget::panel grounds — the window, the lord card and the per-row menu box — replaced by Pen::window (set 1), Pen::inset and one Pen::inset behind the whole menu",
+      "L2.eng group 7, the lord's TITLE, drawn where the painter draws g_playerNames — both in the heading at (0xD0, 0x3D) and on every card at (0x20, slot*100 + 0x83). The same defect ComposeScreen and screens/county.rs had already been corrected for. Group 7 survives on the card as the no-Faces.pl8 fallback and is named as ours at the site.",
+      "every fetched L2.eng string .to_uppercase()'d — a spelling the game does not have — and drawn unwrapped where FUN_0040328E wraps at 0xA0",
+      "the letters A, W and M for the allied / at-war / mail icons, which are Sprite_WGenSprite frames 13, 14 and 15 of the faces.pl8 the painter has just read. The letters survive as the no-sheet fallback."
     ],
+    "unexercised": "No fixture has an alliance, a war, an unanswered letter or a non-zero standing, so three of the four menu layouts (Allied, AlliedElsewhere, Dispatched), the three status icons and every thermometer colour but the middle one are driven only from hand-built state. C26. And nothing here has been drawn against a human rival, which is the branch that decides whether a thermometer appears at all.",
     "reachable": true
   },
   {

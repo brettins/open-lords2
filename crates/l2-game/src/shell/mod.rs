@@ -762,6 +762,35 @@ impl<'a> Pen<'a> {
         inset_rect(canvas, r.x, r.y, r.w, r.h);
     }
 
+    /// `FUN_00403CF4(x, y, w, h, colour)` — **a one-pixel rectangle outline in
+    /// one palette index**, which is four `FUN_00403A8F` line draws.
+    ///
+    /// It is a primitive of the original's and not a widget of ours, which is
+    /// the whole reason it lives here rather than staying [`crate::widget::frame`].
+    /// The two functions are the same four `fill_rect`s; what differs is the
+    /// **colour argument**, and that is what decides whether a call reproduces
+    /// something or invents it. `FUN_00403CF4` takes a literal palette index out
+    /// of the painter — `Diplo_DrawLordCard`'s selected card is `0xF9` inside
+    /// `0x3F` — where `widget::frame` takes one of the interface's own `Ink`
+    /// colours, which mean nothing under the game's palettes.
+    ///
+    /// So: **`pen.outline` where the decompilation shows the call, with its own
+    /// literal; `widget::frame` only as the picture-is-missing fallback.** The
+    /// draw audit counts the first as real and the second as ours, and until
+    /// this method existed there was no way to write the first — three of
+    /// `screendraws.js`'s leaves (`FUN_00403CF4`, `FUN_0040437D`,
+    /// `FUN_00403A8F`) count on the original's side and had no counterpart on
+    /// ours.
+    pub fn outline(&self, canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32, colour: u8) {
+        if w < 1 || h < 1 {
+            return;
+        }
+        canvas.fill_rect(x, y, w, 1, colour);
+        canvas.fill_rect(x, y + h - 1, w, 1, colour);
+        canvas.fill_rect(x, y, 1, h, colour);
+        canvas.fill_rect(x + w - 1, y, 1, h, colour);
+    }
+
     /// `Ui_DrawNumber(value, lead, suffix, x, y, font, colour)`.
     ///
     /// `lead` is either a space or `'@'`, **the blank alignment glyph** — a
