@@ -576,7 +576,7 @@ impl Screen for RaiseArmyScreen {
             // callers as *"every door into the armoury"*, `Sidebar_Button` and
             // `RaiseArmy_Continue` being the other two. No man is levied and no
             // gold is spent until *Create* on the armoury.
-            // arm: 0x0042FF10/levy-right-commits
+            // arm: 0x0042FF10/levy-right-commits right-release
             Event::KeyDown(Key::Escape) => Transition::Pop,
             Event::RightClick { .. } | Event::KeyDown(Key::Enter) => self.open_armoury(ctx),
             Event::KeyDown(Key::Left) => {

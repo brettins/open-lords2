@@ -1001,25 +1001,64 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
     assert!(pick_counts(&screen)[county as usize] > 0, "county {county} is now in view");
 }
 
-/// The selection is visible: outlining a county changes the picture, and
-/// outlining a different one changes it differently.
+/// **The selection is not drawn on the map at all**, which is the assertion
+/// that could not exist while our yellow outline did.
+///
+/// The original draws no selection over the terrain: its borders live in the
+/// tile data — `docs/formats/maps-layers.md` §2.1, plane-0 bit `0x02` — and its
+/// *selection* is which county the right panel describes. Ours outlined the
+/// selected county in the highlight colour, which is why a player wrote *"still
+/// a weird yellow outline around the county that is selected on the real
+/// map."*
+///
+/// This is the inverse of the test it replaces, and it is a stronger claim than
+/// *"the outline is gone"*: it says the **map area is byte-identical** under
+/// two different selections, so any future selection paint — an outline, a
+/// tint, a halo — fails it, not only the one that was removed. The right column
+/// is deliberately outside the window, because that is where the selection
+/// legitimately shows.
+///
+/// **The two counties are derived, not named**, and neither is the player's.
+/// That is not a convenience: the field markers under [`brush`] are drawn for
+/// the *selected* county when the player owns it, and they are the visible half
+/// of a different invention — `ours/brush-popup-on-the-map`, which is on file
+/// and deliberately kept. Naming two counties by number would have made this
+/// test a statement about one fixture's ownership roll, which
+/// `docs/environment.md` says is rolled per game.
 #[test]
-fn the_selected_county_is_outlined_on_the_map() {
+fn the_selection_is_not_drawn_on_the_map() {
     let (mut game, assets) = world!();
     let mut screen = MapScreen::new();
 
-    game.select(0);
-    let none = draw(&mut screen, &mut game, &assets);
-    game.select(8);
-    let eight = draw(&mut screen, &mut game, &assets);
-    game.select(11);
-    let eleven = draw(&mut screen, &mut game, &assets);
+    let foreign: Vec<u8> = game
+        .kingdom
+        .county_ids()
+        .filter(|&id| !game.is_players(id as u8))
+        .map(|id| id as u8)
+        .take(2)
+        .collect();
+    assert_eq!(foreign.len(), 2, "the world needs two counties the player does not own");
 
-    assert!(none.diff_count(&eight) > 100, "an outline must be visible");
-    assert!(eight.diff_count(&eleven) > 100, "and it must follow the selection");
-    assert!(
-        eight.count(assets.ink.highlight) > none.count(assets.ink.highlight),
-        "the outline is drawn in the highlight colour"
+    game.select(foreign[0]);
+    let a = draw(&mut screen, &mut game, &assets);
+    game.select(foreign[1]);
+    let b = draw(&mut screen, &mut game, &assets);
+
+    // `Map_SetZoom` gives the map 480 pixels at every zoom and the right column
+    // the rest.
+    let mut differ = 0;
+    for y in 0..480usize {
+        for x in 0..480usize {
+            if a.at(x, y) != b.at(x, y) {
+                differ += 1;
+            }
+        }
+    }
+    assert_eq!(
+        differ, 0,
+        "selecting county {} instead of {} changed {differ} pixels of the map. \
+         The original draws no selection over the terrain at all.",
+        foreign[1], foreign[0],
     );
 }
 
@@ -4069,9 +4108,21 @@ fn a_county_panel_still_closes_on_its_corner_and_on_the_right_button() {
     let (mut game, assets) = world!();
     game.select(8);
 
+    // **On the release.** `Ui_OkButtonClicked` (`0x0040E7E4`) opens
+    // `if (g_mouseLeftReleased == 0) return 0;`, and this test used to drive a
+    // press — which passed, because ours answered on the press too. It is the
+    // shape a player reported from the other side: *"the game waited on
+    // mouse-up."*
     let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
     let ok = Panel::Tax.ok_button();
-    send_stack(&mut m, &mut game, &assets, Event::Click { x: ok.centre_x(), y: ok.y + 4 });
+    let (okx, oky) = (ok.centre_x(), ok.y + 4);
+    send_stack(&mut m, &mut game, &assets, Event::Click { x: okx, y: oky });
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::County(8, Panel::Tax)),
+        "the PRESS on the corner does nothing — the original tests the release",
+    );
+    send_stack(&mut m, &mut game, &assets, Event::Release { x: okx, y: oky });
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "Ui_OkButtonClicked's 24 x 24 corner");
 
     let mut m = over_the_map(ScreenId::County(8, Panel::Tax));

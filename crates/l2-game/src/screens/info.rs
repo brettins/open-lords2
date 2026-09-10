@@ -479,9 +479,9 @@ impl Screen for InfoScreen {
         let Event::Click { x, y } = event else {
             return match event {
                 // The same button opens and closes it.
-                // arm: 0x0042FF10/info-right-close
+                // arm: 0x0042FF10/info-right-close right-release
                 Event::RightClick { .. } => Transition::Pop,
-                // arm: ours/info-keyboard-close
+                // arm: ours/info-keyboard-close key
                 Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
                 // **`Map_EdgeScroll` is the SECOND guard of the `0x04` arm and a
                 // scroll CLOSES the panel**: pushing the pointer into the edge
@@ -504,7 +504,7 @@ impl Screen for InfoScreen {
                 // so the gesture works at the edge of the window. That is
                 // [`crate::screens::map::MapScreen::edge_direction`]'s own
                 // argument and this is the same predicate.
-                // arm: 0x0042FF10/info-edge-scroll-closes
+                // arm: 0x0042FF10/info-edge-scroll-closes pointer
                 Event::Pointer { x, y } if !ctx.game.map_zoom_far && at_screen_edge(x, y) => {
                     Transition::Pop
                 }
@@ -524,18 +524,18 @@ impl Screen for InfoScreen {
         // 128 × 128 minimap is not. See `screens/court.rs` at the same arm and
         // `docs/arms.json` `0x0042FF10/minimap-closes-the-surface`, which is the
         // campaign map's half of it.
-        // arm: 0x0042FF10/minimap-under-the-info-panel
+        // arm: 0x0042FF10/minimap-under-the-info-panel left-press
         if l2_view::chrome::minimap_hit_area().contains(x, y) {
             return Transition::Pass;
         }
-        // arm: 0x0042FF10/info-ok
+        // arm: 0x0042FF10/info-ok left-release
         if OK.contains(x, y) {
             return Transition::Pop;
         }
         // `FUN_00438990` — the brush, on left **release**, and every button
         // closes the panel afterwards because `Field_SetType` sets
         // `g_screenId = 0`.
-        // arm: 0x00438990/field-brush
+        // arm: 0x00438990/field-brush left-release
         if let Some(ids) = self.brush(ctx) {
             let xs: &[i32] = if ids.len() == 3 { &BRUSH_FIELD_X } else { &BRUSH_WASTE_X };
             for (i, &bx) in xs.iter().enumerate() {
@@ -566,7 +566,7 @@ impl Screen for InfoScreen {
         //
         // `FUN_00438ACC` opens `if (g_mapZoom != 2)` and does nothing at the far
         // zoom, which is [`crate::game::Game::map_zoom_far`] here.
-        // arm: 0x00438A91/info-garrison-widget
+        // arm: 0x00438A91/info-garrison-widget left-press
         if GARRISON_WIDGET.contains(x, y) && !ctx.game.map_zoom_far {
             if let Some(unit) = self.garrison(&Ctx { game: ctx.game, assets: ctx.assets }) {
                 self.target = Target::Unit(unit);
@@ -597,7 +597,7 @@ impl Screen for InfoScreen {
                     // asks `L2.eng` 10/13 *"Lift the siege?"* through
                     // `Ui_OpenConfirm` first, and we have no confirm box. It is
                     // named in `docs/arms.json` rather than silently dropped.
-                    // arm: 0x00437002/info-move
+                    // arm: 0x00437002/info-move left-press
                     (0, false) => {
                         ctx.game.begin_move_order = Some(id);
                         Transition::Pop
@@ -622,7 +622,7 @@ impl Screen for InfoScreen {
                     // reproduced** — `Ui_OpenConfirm(6, …)` is `L2.eng` 10/6 —
                     // and neither is the message scroll, so the refusal is a
                     // status line of ours.
-                    // arm: 0x00437002/info-disband
+                    // arm: 0x00437002/info-disband left-press
                     (1, _) => match ctx.game.disband_army(id) {
                         Ok((county, men)) => {
                             let name = super::county::county_name(&*ctx, county);
@@ -644,7 +644,7 @@ impl Screen for InfoScreen {
                     // `0x0042FF10/back-one-rather-than-to-the-map`, whose note
                     // said ours reached the campaign map "because we have no
                     // unit panel to go back to". There is one now.
-                    // arm: 0x004378B3/info-split
+                    // arm: 0x004378B3/info-split left-press
                     (2, _) => Transition::Push(ScreenId::Divide(id)),
                     _ => Transition::Stay,
                 };

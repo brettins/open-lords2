@@ -327,7 +327,7 @@ impl Screen for JobScreen {
             //
             // Passing only the raster, and not the whole column, is the
             // difference between reproducing the arm and inventing five more.
-            // arm: 0x0042FF10/minimap-under-the-job-popup
+            // arm: 0x0042FF10/minimap-under-the-job-popup left-press
             Event::Click { x, y } if l2_view::chrome::minimap_hit_area().contains(x, y) => {
                 Transition::Pass
             }
@@ -336,10 +336,10 @@ impl Screen for JobScreen {
             // the village when `DAT_005533F4` is zero, the campaign map's
             // sidebar otherwise. `Transition::Pop` is both, because the stack
             // remembers what our `g_screenId` cannot.
-            // arm: 0x0042FF10/job-popup-closes
+            // arm: 0x0042FF10/job-popup-closes right-release
             Event::RightClick { .. } => Transition::Pop,
             // **Ours, and counted.** `0x0F`'s arm reads no key at all.
-            // arm: ours/job-popup-keyboard
+            // arm: ours/job-popup-keyboard key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             Event::Click { x, y } if JobScreen::ok_button(self.job).contains(x, y) => {
                 Transition::Pop

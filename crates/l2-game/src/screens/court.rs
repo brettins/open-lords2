@@ -237,7 +237,7 @@ impl Screen for CourtScreen {
             //
             // Only the raster, not the column — see `screens/job.rs` at the
             // same arm.
-            // arm: 0x0042FF10/minimap-under-the-court
+            // arm: 0x0042FF10/minimap-under-the-court left-press
             Event::Click { x, y } if l2_view::chrome::minimap_hit_area().contains(x, y) => {
                 Transition::Pass
             }
@@ -250,13 +250,13 @@ impl Screen for CourtScreen {
             // player presses a button that visibly exists.
             Event::Click { x, y } if NOBLES_BUTTON.contains(x, y) => Transition::Stay,
             // `Ui_OkButtonClicked()` — left release in the 24 x 24 corner box.
-            // arm: 0x0042FF10/court-ok
+            // arm: 0x0042FF10/court-ok left-release
             Event::Click { x, y } if OK.contains(x, y) => Transition::Pop,
             // `g_mouseRightReleased`, anywhere.
-            // arm: 0x0042FF10/court-right
+            // arm: 0x0042FF10/court-right right-release
             Event::RightClick { .. } => Transition::Pop,
             // **Ours**: the arm has no keyboard test.
-            // arm: ours/court-keyboard-close
+            // arm: ours/court-keyboard-close key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             _ => Transition::Stay,
         }

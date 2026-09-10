@@ -971,7 +971,7 @@ pub fn overlay(ctx: &Ctx, canvas: &mut Canvas, anim: &Anim) {
 /// Returns whether the rack opens. The order is the original's and it is the
 /// point: the walk is fired for the *previous* selection, before it is
 /// overwritten. See [`Walker`].
-// arm: 0x004358B0/armoury-rack-click
+// arm: 0x004358B0/armoury-rack-click left-press
 pub fn click_rack(game: &mut crate::game::Game, troop: u8) -> bool {
     let slot = troop as usize;
     if game.levy.basket.slots.get(slot).is_none_or(|s| s.available <= 0) {

@@ -1281,38 +1281,6 @@ fn blit_cell(
     true
 }
 
-/// Outline every pixel of `county` that touches something else, in `colour`.
-///
-/// **This is ours.** The original has no county outline: its borders are in the
-/// tile data — `maps-layers.md` §2.1, plane-0 bit `0x02` switches the tile to
-/// the `roads` bank's boundary frames — and its *selection* is not drawn on the
-/// map at all, it is which county the right panel describes.
-///
-/// Done on the tag plane rather than on tile geometry, so the outline follows
-/// the shape the player can see. Returns the number of pixels painted.
-pub fn outline(canvas: &mut Canvas, tags: &Tags, county: u8, colour: u8, clip: Clip) -> usize {
-    if county == 0 {
-        return 0;
-    }
-    let mut painted = 0;
-    for y in 0..tags.height as i32 {
-        for x in 0..tags.width as i32 {
-            if tags.at(x, y) != county || !clip.contains(x, y) {
-                continue;
-            }
-            let edge = tags.at(x - 1, y) != county
-                || tags.at(x + 1, y) != county
-                || tags.at(x, y - 1) != county
-                || tags.at(x, y + 1) != county;
-            if edge {
-                canvas.set(x as usize, y as usize, colour);
-                painted += 1;
-            }
-        }
-    }
-    painted
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

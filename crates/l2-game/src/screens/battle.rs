@@ -523,7 +523,7 @@ impl Screen for BattlePromptScreen {
             // `Battle_Start` (`0x004778A0`). It raises the battlefield; it does
             // **not** settle the battle.
             //
-            // arm: 0x004BA9C8/prompt-fight
+            // arm: 0x004BA9C8/prompt-fight left-release
             Event::Click { x, y } if widget_rect(TAKE_THE_FIELD).contains(x, y) => {
                 if turn::take_the_field(ctx.game) {
                     Transition::Replace(ScreenId::Battlefield)
@@ -537,7 +537,7 @@ impl Screen for BattlePromptScreen {
             // `DAT_004DDBB0[1]`, hotspot id 0 → `Battle_Decline`
             // (`0x0043B622`), which is `Battle_AutoResolve` and the report.
             //
-            // arm: 0x004BA9C8/prompt-decline
+            // arm: 0x004BA9C8/prompt-decline left-release
             Event::Click { x, y } if widget_rect(DECLINE).contains(x, y) => {
                 BattlePromptScreen::answer(ctx, Answer::Decline)
             }
@@ -652,7 +652,7 @@ impl Screen for BattleResultScreen {
     /// right-click-to-Decline on `0x12` look reasonable. There are no keys on
     /// either; Escape and Enter used to be here and were ours.
     ///
-    /// // arm: 0x0042FF10/dismiss-report
+    /// // arm: 0x0042FF10/dismiss-report right-release
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let dismiss = matches!(event, Event::RightClick { .. })
             || matches!(event, Event::Click { x, y } if ok_rect().contains(x, y));

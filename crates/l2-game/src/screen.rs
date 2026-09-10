@@ -563,7 +563,7 @@ impl Machine {
     /// countdown out into the screen instead cost the message one tick of life:
     /// invisible in single player, where the timer is clamped and never expires,
     /// and a measurable 399 against 400 in a network game.
-    // arm: 0x00472E46/pump-screen-ladder
+    // arm: 0x00472E46/pump-screen-ladder frame
     fn pump_messages(&mut self, ctx: &mut Ctx) {
         if self.top_id() == Some(ScreenId::Message) {
             // The countdown half. When it expires the window closes and the

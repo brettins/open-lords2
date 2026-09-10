@@ -167,7 +167,7 @@ impl Screen for MessageScreen {
         match event {
             // `else { Msg_Dismiss(); return 1; }` — the whole of the
             // right-button branch, with no category test in front of it.
-            // arm: 0x0047685D/message-scroll-dismiss
+            // arm: 0x0047685D/message-scroll-dismiss right-release
             Event::RightClick { .. } => leave(ctx),
             Event::Click { x, y } => {
                 // The five `Widget_Test` calls, in the original's order:
@@ -188,7 +188,7 @@ impl Screen for MessageScreen {
                         if frame.ok_hitbox().contains(x, y) {
                             // `FUN_004B18E3()` consumes the click so the screen
                             // underneath cannot also act on it, then dismisses.
-                            // arm: 0x0047685D/message-ok-dismiss
+                            // arm: 0x0047685D/message-ok-dismiss left-press
                             return leave(ctx);
                         }
                     }
@@ -203,7 +203,7 @@ impl Screen for MessageScreen {
             // procedure has no arm for one either. A demo that can be driven
             // from the keyboard is worth more than the omission is faithful,
             // and this is counted rather than hidden.
-            // arm: ours/message-keyboard-dismiss
+            // arm: ours/message-keyboard-dismiss key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => leave(ctx),
             Event::Pointer { x, y } => {
                 self.pointer = (x, y);
@@ -586,7 +586,7 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         //   Msg_Dismiss();
         //   if (hotspot != 0) Diplo_PayForHelp(myAlly, me, g_diploHelpCounty, g_diploHelpPrice);
         // **Declining does nothing at all** — not even a letter back.
-        // arm: 0x004367FF/pay-for-help-prompt
+        // arm: 0x004367FF/pay-for-help-prompt left-press-repeat
         Prompt::PayForHelp => {
             message::dismiss(ctx.game);
             if yes {
@@ -612,7 +612,7 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         // **The guard is the finding.** Declining an AI's offer in single player
         // runs *nothing*: no refusal, no grudge, no letter. The offer lapses
         // when the offering realm clears `offer_pending` on its next turn.
-        // arm: 0x00436872/accept-alliance-prompt
+        // arm: 0x00436872/accept-alliance-prompt left-press-repeat
         Prompt::AcceptAlliance => {
             let offerer = ctx.game.messages.open().map_or(0, |r| r.from);
             message::dismiss(ctx.game);
@@ -629,7 +629,7 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         // are network commands and not composer kinds, and `Net_SendCommand`
         // (`0x49`) is their only consumer. In a single-player game the two
         // handlers therefore do nothing but dismiss.
-        // arm: 0x004368FD/answer-help-request
+        // arm: 0x004368FD/answer-help-request left-press-repeat
         Prompt::AnswerHelpRequest | Prompt::AnswerAttackRequest => {
             message::dismiss(ctx.game);
             Transition::Pop
@@ -643,7 +643,7 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         // without closing the window, so the prompt is still up and has to be
         // closed with the corner button or the right button. Reproduced;
         // `docs/bugs.md` B94.
-        // arm: 0x004376BB/garrison-split-prompt
+        // arm: 0x004376BB/garrison-split-prompt left-press-repeat
         Prompt::Garrison => {
             if !yes {
                 return Transition::Pass;

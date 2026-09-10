@@ -5979,3 +5979,69 @@ as the land. That is `Realms_AssignLords` checked against a game the original pr
 rather than against our own reading of the same two tables. It can only confirm the default
 row — every `.sav` this project keeps has the human on shield 1 or 5 — and it is the only row
 any file on this machine can confirm.
+
+**C131 — We reproduce *which* gestures a screen answers and not *what kind*
+each one is, and 151-of-211 could not see the difference.**
+
+A player reported three things in one breath — the yes/no gauntlets fire instantly where
+the game waited and depressed visibly, and holding a spinner does not accelerate — and
+every arm he named was on file as `reproduced`. It was not three bugs. `docs/arms.json`
+had 211 records whose entire vocabulary was *does this arm exist*, and no field for
+press-versus-release, auto-repeat, or a pressed frame.
+
+**The original has one answer and it is a byte.** Two hit-testers — `Widget_Test`
+(`0x0040DA1E`) and `Hotspot_Test` (`0x0040E3EE`) — walk arrays of 24-byte records and read
+a **kind** at `+0x0F`. Five kinds: hotspot 1 press, hotspot 2 press-then-every-320 ms,
+hotspot 3 **release**, widget 4 press-with-accelerating-repeat, widget 5
+**press-now-act-in-twenty-frames**. `docs/input.md` is the whole model. Three things fall
+out of it:
+
+* **One mechanism serves every spinner in the game.** Armoury, supplies, divide, gift,
+  tax, rations, castle, siege, save/load scroll — all `Widget_Test` kind 4, one 30 ms
+  clock and one hand-authored 48-byte ramp at `0x004D2748`. There is no second
+  implementation to find.
+* **The gauntlet is kind 5**, and its twenty-frame delay with the button visibly down is
+  what reads as *"the game waited on mouse-up"*. It is not a release at all.
+* **`Ui_OkButtonClicked` (`0x0040E7E4`) genuinely is a release**, on all twenty-six of
+  `Screen_FrameInput`'s calls, and all four of ours answered on the press.
+
+**The schema change, and why it is not a second taxonomy.** `gesture` already existed and
+had drifted into three different things: a kind (`left-press`), a *position in a table*
+(`button-0` … `button-5`, fourteen records), and not-a-gesture (`draw`, `timer`). It is
+now a **closed vocabulary of the original's own kinds**, the marker in the code carries
+it, and the check is set equality on **(id, gesture) pairs** — so an arm answered with the
+wrong kind stops counting as reproduced.
+
+**The half that matters is the third check.** The first two compare two artefacts one
+person maintains in one sitting, which `docs/agents.md` names as the pattern that lies. The
+third reads the **kind byte out of the player's own `Lords2.exe`** and classifies 39
+records from it. It found three wrong the day it was written, and it is install-gated, so
+it is silent — not green — where it cannot see. Its blind spot is arms dispatched from
+`Screen_FrameInput`'s ladder rather than from a table, and **that is exactly where all four
+wrong `Ui_OkButtonClicked` arms were.**
+
+**C132 — A removal recorded in the input inventory left its other half in the
+painter, and the inventory is keyed on input.**
+
+The campaign map's county-selection arm was removed as an invention, correctly, and
+recorded. Its **visual** half — the yellow outline round the selected county — stayed, and
+a player reported it four merges later: *"still a weird yellow outline around the county
+that is selected on the real map."*
+
+Nobody was careless. `screens/map.rs` carried the comment *"Ours: the selected county
+outlined on the shape the player can see. The original has no such outline"*, accurately,
+directly above the draw call, and the module header listed it under *"ours, and it should
+look it."* This is the shape `docs/agents.md` records as *a correct explanation sitting
+directly above the omission it describes*, and the specific mechanism is worth adding to
+that list: **`docs/arms.json` is keyed on the input ladder, so an invention whose surviving
+half is a *draw* is outside the set it is exhaustive over.** The removal was recorded in the
+one instrument that could not see what was left.
+
+There is now an `ours/map-selected-county-outline` record with gesture `draw` and
+`removed: true`, and the assertion that could not exist while the outline did:
+`the_selection_is_not_drawn_on_the_map` requires the whole 480 × 480 map area to be
+**byte-identical** under two different selections — a stronger claim than *the outline is
+gone*, because any future selection paint fails it. The two counties it compares are
+derived rather than named, because the field markers under `brush` are drawn for the
+selected county when the player owns it and are the visible half of a *different*
+invention that is deliberately kept.

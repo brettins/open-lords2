@@ -142,12 +142,12 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->153<!--/fig--> of
-   <!--fig:arms-live-->177<!--/fig--> live arms (<!--fig:arms-pct-->86<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->154<!--/fig--> of
+   <!--fig:arms-live-->178<!--/fig--> live arms (<!--fig:arms-pct-->87<!--/fig-->%)** — so
    **<!--fig:arms-missing-->24<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->6<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
-   counting: **<!--fig:arms-inventions-->30<!--/fig-->** inventions are on file. An invention is
+   counting: **<!--fig:arms-inventions-->31<!--/fig-->** inventions are on file. An invention is
    worse than an omission, because nothing looks broken.
 3. **A screen shows something the original does not, or fails to show something it does.**
    **This row has two instruments now, built independently by two agents who did not read
@@ -167,7 +167,7 @@ the goal is not met — not "mostly met".
    `docs/draws.md`, via `tools/draws/screendraws.js` and `tools/draws/screens.json`.
 
    Set either beside the input measurement, where `arms.json` marks
-   <!--fig:arms-pct-->86<!--/fig--> % of arms reproduced:
+   <!--fig:arms-pct-->87<!--/fig--> % of arms reproduced:
 
    > **We answer four gestures in five and we draw two pictures in five.**
 
@@ -272,7 +272,7 @@ weakened rather than met, and this list is the one place in the project where no
 catch that.
 
 **The honest caveat on the headline, stated here rather than in a footnote:** `arms.json` covers
-**<!--fig:arms-groups-done-->12<!--/fig--> of <!--fig:arms-groups-->15<!--/fig-->** enumerated
+**<!--fig:arms-groups-done-->12<!--/fig--> of <!--fig:arms-groups-->16<!--/fig-->** enumerated
 groups, and those two are the battlefield and the battle seam. It is not yet the project's
 number. The wider, coarser measurement is `docs/decisions.md` C61's — **80 of 185 arms across
 three other screen groups, 43%** — taken by a different counting rule and superseded in detail by
@@ -912,7 +912,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,136<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,145<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

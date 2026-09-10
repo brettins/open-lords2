@@ -65,6 +65,7 @@ use l2_kingdom::divide::{SplitBasket, SplitInto, SplitRefusal};
 use l2_kingdom::unit::{ALL_TROOP_TYPES, TroopType};
 use l2_view::{text, Canvas};
 
+use crate::press::Press;
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
@@ -221,7 +222,7 @@ pub const SPLIT_CROSS: Rect = Rect::new(336, 424, 32, 32);
 ///
 /// **The band is the exception and it is the original's**: hotspot id 7 swaps
 /// the whole band rather than one man of it, in both directions.
-// arm: ours/divide-click-moves-ten
+// arm: ours/divide-click-moves-ten left-press
 pub const CLICK_MEN: i32 = 10;
 
 /// What the screen did before it closed.
@@ -252,6 +253,19 @@ pub struct DivideScreen {
     pub outcome: Divided,
     status: String,
     seeded: bool,
+    /// **The held `<` / `>` button**, and the acceleration that goes with it.
+    ///
+    /// Sixteen of this screen's eighteen widgets are `Widget_Test` **kind 4**
+    /// — read out of `g_splitWidgets` (`0x004DD388`) in the player's own
+    /// `Lords2.exe`, byte `+0x0F` of each record — which means the original
+    /// repeats them while the button is down, on the ramp in
+    /// [`crate::press::REPEAT_GATE`]. Ours fired once per click, which is the
+    /// half of *"holding on a button doesn't seem to make it go up faster"*
+    /// that lives on this screen.
+    ///
+    /// The index is `row * 2` for a parent button and `row * 2 + 1` for a
+    /// daughter one, which is the order `g_splitWidgets` itself is in.
+    press: Press,
 }
 
 impl DivideScreen {
@@ -263,6 +277,7 @@ impl DivideScreen {
             outcome: Divided::None,
             status: String::new(),
             seeded: false,
+            press: Press::new(),
         }
     }
 
@@ -364,8 +379,16 @@ impl Screen for DivideScreen {
     }
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        let read = Ctx { game: ctx.game, assets: ctx.assets };
-        self.seed(&read);
+        {
+            let read = Ctx { game: ctx.game, assets: ctx.assets };
+            self.seed(&read);
+        }
+        // arm: 0x0040DA1E/widget-auto-repeat left-press-repeat
+        if let Some(widget) = self.press.tick() {
+            let (row, to_parent) = (widget / 2, widget % 2 == 0);
+            self.row = row;
+            self.move_men(row, to_parent, CLICK_MEN);
+        }
         Transition::Stay
     }
 
@@ -390,13 +413,13 @@ impl Screen for DivideScreen {
             // **The right release was missing entirely** — this screen had no
             // right-button arm at all, so the button every other window in the
             // game closes with did nothing here.
-            // arm: 0x0042FF10/back-one-rather-than-to-the-map
+            // arm: 0x0042FF10/back-one-rather-than-to-the-map right-release
             Event::RightClick { .. } => Transition::Pop,
             // **Ours, and counted.** `Screen_HandleInput` names no key on this
             // screen and the window procedure has no `0x11` case, so every one
             // of these is an invention. Kept, because the arrows are the only
             // way to move one man at a time now that a click moves ten.
-            // arm: ours/divide-keyboard
+            // arm: ours/divide-keyboard key
             Event::KeyDown(Key::Escape) => Transition::Pop,
             Event::KeyDown(Key::Up) => {
                 self.row = self.row.saturating_sub(1);
@@ -421,36 +444,65 @@ impl Screen for DivideScreen {
                 // eight rows, `g_uiHotspotId` carrying the slot. Row 7 is the
                 // mercenary band and swaps whole rather than by one, in the
                 // function itself.
-                // arm: 0x00437D65/divide-to-parent
-                // arm: 0x00437E9E/divide-to-daughter
+                // arm: 0x00437D65/divide-to-parent left-press-repeat
+                // arm: 0x00437E9E/divide-to-daughter left-press-repeat
                 for row in 0..=MERC_ROW {
                     if parent_button(row).contains(x, y) {
                         self.row = row;
+                        self.press.press(row * 2);
                         self.move_men(row, true, CLICK_MEN);
                         return Transition::Stay;
                     }
                     if daughter_button(row).contains(x, y) {
                         self.row = row;
+                        self.press.press(row * 2 + 1);
                         self.move_men(row, false, CLICK_MEN);
                         return Transition::Stay;
                     }
                 }
-                // arm: 0x00437AFB/divide-confirm
+                // arm: 0x00437AFB/divide-confirm left-press-delayed
                 if SPLIT_TICK.contains(x, y) {
                     return self.split(ctx);
                 }
                 // The cross is the same handler reading `g_uiHotspotId == 0`,
                 // and it lands on `0x04` rather than on the map.
-                // arm: 0x00437AFB/divide-cancel
+                // arm: 0x00437AFB/divide-cancel left-press-delayed
                 if SPLIT_CROSS.contains(x, y) {
                     return Transition::Pop;
                 }
+                Transition::Stay
+            }
+            // The hold ends when the button comes up, and it also ends when the
+            // pointer slides off the widget — the original never says so
+            // because it re-runs the hit test every frame and simply stops
+            // matching. [`Press::pointer`] is that, said out loud.
+            Event::Release { x, y } => {
+                self.press.release();
                 // `Ui_OkButtonClicked()` — the corner picture, and the third of
                 // this screen's three exits. It also writes `g_screenId = 0x04`.
-                // arm: 0x0040E7E4/divide-ok
+                //
+                // **On the RELEASE**, which is the whole of `Ui_OkButtonClicked`
+                // (`0x0040E7E4`): `if (g_mouseLeftReleased == 0) return 0;` and
+                // then a 24 x 24 box. `Screen_FrameInput` calls it twenty-six
+                // times, so it is the single most-used way out of anything in
+                // the game, and every one of ours answered on the press.
+                // arm: 0x0040E7E4/divide-ok left-release
                 if OK.contains(x, y) {
                     return Transition::Pop;
                 }
+                Transition::Stay
+            }
+            Event::Pointer { x, y } => {
+                let over = (0..=MERC_ROW).find_map(|row| {
+                    if parent_button(row).contains(x, y) {
+                        Some(row * 2)
+                    } else if daughter_button(row).contains(x, y) {
+                        Some(row * 2 + 1)
+                    } else {
+                        None
+                    }
+                });
+                self.press.pointer(over);
                 Transition::Stay
             }
             _ => Transition::Stay,

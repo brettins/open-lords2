@@ -132,15 +132,15 @@ impl Screen for AboutScreen {
         match event {
             // `Ui_OkButtonClicked()` — a **left release** in the 24 x 24 box at
             // the position the last `Ui_OkButton` stashed.
-            // arm: 0x0042FF10/about-ok
+            // arm: 0x0042FF10/about-ok left-release
             Event::Click { x, y } if OK.contains(x, y) => Transition::Pop,
             // `g_mouseRightReleased`, anywhere on the screen. It is not
             // restricted to the box, and it is tested *before* the OK.
-            // arm: 0x0042FF10/about-right
+            // arm: 0x0042FF10/about-right right-release
             Event::RightClick { .. } => Transition::Pop,
             // **Ours.** The original's arm has no keyboard test at all; the
             // demo needs a way out that does not require a mouse.
-            // arm: ours/about-keyboard-close
+            // arm: ours/about-keyboard-close key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             // A left click anywhere else does nothing, which is the original:
             // the arm consults `Ui_OkButtonClicked` and no other rectangle.

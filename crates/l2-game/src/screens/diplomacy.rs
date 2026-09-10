@@ -372,7 +372,7 @@ impl Screen for DiplomacyScreen {
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let Event::Click { x, y } = event else {
             return match event {
-                // arm: 0x0042FF10/diplo-right-exit
+                // arm: 0x0042FF10/diplo-right-exit right-release
                 //
                 // `Screen_FrameInput`'s `0x0B` arm: `if (rightReleased) {
                 // g_screenId = 0; }` **before** it even asks about the corner
@@ -381,19 +381,19 @@ impl Screen for DiplomacyScreen {
                 // `docs/agents.md` records this project as systematically
                 // missing.
                 Event::RightClick { .. } => Transition::Pop,
+                // `Ui_OkButtonClicked` — the corner picture
+                // `Ui_OkButton(0x1A8, 0x1A6)` drew, hit-tested as a **24 x 24**
+                // box at that origin **on the left button's release**, which is
+                // the function's first statement and was ours to get right:
+                // this answered on the press. Our rectangle is the 32-pixel
+                // button.
+                // arm: 0x0040E7E4/diplo-ok left-release
+                Event::Release { x, y } if OK.contains(x, y) => Transition::Pop,
                 Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
                 _ => Transition::Stay,
             };
         };
-        // arm: 0x0040E7E4/diplo-ok
-        //
-        // `Ui_OkButtonClicked` — the corner picture `Ui_OkButton(0x1A8, 0x1A6)`
-        // drew, hit-tested as a **24 × 24** box at that origin on the left
-        // button's *release*. Ours is the 32-pixel button rectangle.
-        if OK.contains(x, y) {
-            return Transition::Pop;
-        }
-        // arm: 0x004369BD/diplo-pick-lord
+        // arm: 0x004369BD/diplo-pick-lord left-press
         //
         // `FUN_004369BD` walks the same cards the painter stacked and hit-tests
         // each card rectangle; the first hit becomes `g_diploTarget`. It runs
@@ -409,7 +409,7 @@ impl Screen for DiplomacyScreen {
             if !menu_widget(slot).contains(x, y) {
                 continue;
             }
-            // arm: 0x00436141/diplo-open-compose
+            // arm: 0x00436141/diplo-open-compose left-press-delayed
             //
             // The six widget handlers — `Diplo_OpenGift`, `…Compliment`,
             // `…Insult`, `…Alliance`, `…AskHelp`, `…AskAttack` — are one arm
@@ -972,7 +972,7 @@ impl Screen for ComposeScreen {
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let Event::Click { x, y } = event else {
             return match event {
-                // arm: 0x0042FF10/compose-right-exit
+                // arm: 0x0042FF10/compose-right-exit right-release
                 //
                 // The `0x1A` arm's right-release, and note **where it goes**:
                 // `g_screenId = 0`, the campaign map, not back to `0x0B`. Only
@@ -985,7 +985,7 @@ impl Screen for ComposeScreen {
                 _ => Transition::Stay,
             };
         };
-        // arm: 0x0043B4CB/compose-pick-county
+        // arm: 0x0043B4CB/compose-pick-county left-press
         //
         // `FUN_0043B4CB(0x60, 0xB0)` — a 128 × 128 county raster drawn at
         // (96, 176), read straight out of `g_minimapCounty`. It is tested
@@ -1000,11 +1000,11 @@ impl Screen for ComposeScreen {
             }
         }
         let (send, cancel) = self.buttons();
-        // arm: 0x00436408/diplo-send
+        // arm: 0x00436408/diplo-send left-press-delayed
         if send.contains(x, y) {
             return self.send(ctx);
         }
-        // arm: 0x00436408/diplo-cancel
+        // arm: 0x00436408/diplo-cancel left-press-delayed
         //
         // Hotspot 0 of the same handler, and it is the whole of the function's
         // first statement: `g_screenId = 0xB`, back to the lord cards.
@@ -1012,7 +1012,7 @@ impl Screen for ComposeScreen {
             return Transition::Pop;
         }
         if self.kind == Kind::Gift {
-            // arm: 0x00436372/diplo-gift-step
+            // arm: 0x00436372/diplo-gift-step left-press-repeat
             if GIFT_MORE.contains(x, y) {
                 let ctx: &Ctx = ctx;
                 self.step_gift(ctx, GIFT_STEP);

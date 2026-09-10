@@ -300,7 +300,7 @@ impl Cart {
     }
 
     /// `FUN_0043B1CA` — take from the cart, put back in the county.
-    // arm: 0x0043B1CA/supplies-minus
+    // arm: 0x0043B1CA/supplies-minus left-press-repeat
     pub fn minus(&mut self, id: usize) {
         let p = self.pair(id);
         if p.1 <= BULK_ABOVE {
@@ -315,7 +315,7 @@ impl Cart {
     }
 
     /// `FUN_0043B27A` — take from the county, put in the cart.
-    // arm: 0x0043B27A/supplies-plus
+    // arm: 0x0043B27A/supplies-plus left-press-repeat
     pub fn plus(&mut self, id: usize) {
         let p = self.pair(id);
         if p.0 <= BULK_ABOVE {
@@ -330,7 +330,7 @@ impl Cart {
     }
 
     /// `FUN_0043B32A` — the icon. Everything in, or everything out.
-    // arm: 0x0043B32A/supplies-all
+    // arm: 0x0043B32A/supplies-all left-press
     pub fn toggle(&mut self, id: usize) {
         let p = self.pair(id);
         if p.1 == 0 {
@@ -444,7 +444,7 @@ impl Screen for SuppliesScreen {
         // `Screen_FrameInput`'s epilogue: a press in the minimap raster
         // selects that county and returns to the map. The shell wrapper did
         // this for all seven shells; graduating them lost it.
-        // arm: 0x0042FF10/minimap-under-supplies
+        // arm: 0x0042FF10/minimap-under-supplies left-press
         if let Event::Click { x, y } = event {
             if l2_view::chrome::minimap_hit_area().contains(x, y) {
                 return Transition::Pass;
@@ -453,10 +453,10 @@ impl Screen for SuppliesScreen {
         let Event::Click { x, y } = event else {
             return match event {
                 // `Screen_FrameInput`'s only other gesture on this screen.
-                // arm: 0x0042FF10/supplies-right
+                // arm: 0x0042FF10/supplies-right right-release
                 Event::RightClick { .. } => Transition::Pop,
                 // **Ours.**
-                // arm: ours/supplies-keyboard-close
+                // arm: ours/supplies-keyboard-close key
                 Event::KeyDown(Key::Escape) => Transition::Pop,
                 _ => Transition::Stay,
             };
@@ -481,17 +481,17 @@ impl Screen for SuppliesScreen {
             }
         }
         if THUMB_UP.contains(x, y) {
-            // arm: 0x0043B04C/supplies-dispatch
+            // arm: 0x0043B04C/supplies-dispatch left-press-delayed
             return self.dispatch(ctx);
         }
         if THUMB_DOWN.contains(x, y) {
-            // arm: 0x0043B04C/supplies-cancel
+            // arm: 0x0043B04C/supplies-cancel left-press-delayed
             self.outcome = Dispatch::Cancelled;
             return Transition::Pop;
         }
         // `FUN_0043B412(0x60, 0x68)` — the minimap pick, which is the only
         // way the destination ever moves.
-        // arm: 0x0043B412/supplies-pick
+        // arm: 0x0043B412/supplies-pick left-press
         if MINIMAP_HIT.contains(x, y) {
             // `Minimap::county_at` subtracts the SIDEBAR hit origin, so the
             // pixel is rebased onto it here rather than a second reader of the

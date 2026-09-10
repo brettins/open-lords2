@@ -117,11 +117,21 @@
 //! `Lords2.exe`, and the End Turn strip's rectangle.
 //!
 //! **Ours, and it should look it:** every word of text (our 5 × 7 font, not the
-//! game's `Fntl2_*.pl8`), the yellow county outline, the county marker squares,
-//! the keys that scroll, and the layout of the numbers inside the right panel's
-//! frames. The original also *measures* the selected county — `Map_DrawFrame`
-//! tallies how much of the viewport each county fills and takes the maximum —
-//! and we do not; here the selection only changes when the player clicks.
+//! game's `Fntl2_*.pl8`), the county marker squares, the keys that scroll, and
+//! the layout of the numbers inside the right panel's frames. The original also
+//! *measures* the selected county — `Map_DrawFrame` tallies how much of the
+//! viewport each county fills and takes the maximum — and we do not; here the
+//! selection only changes when the player clicks.
+//!
+//! **The yellow outline round the selected county was ours and is gone.** It
+//! used to be on that list, and being on the list is what let it stay: the
+//! county-selection arm and the outline were one invention with two halves, the
+//! arm was removed and the paint was not, and a player reported the leftover
+//! four merges later — *"still a weird yellow outline around the county that is
+//! selected on the real map."* The lesson is not that somebody was careless.
+//! **The removal was recorded in the input inventory, and the surviving half
+//! was in the painter, where the input inventory does not look.**
+//! `docs/decisions.md` C132.
 //!
 //! # Picking
 //!
@@ -197,7 +207,7 @@ pub const END_TURN_BUTTON: Rect =
 /// The sixth record is **End Turn**, `(0, 30) … (161, 49)` at that offset, whose
 /// handler is `Turn_End` rather than `Sidebar_Button`; it is [`END_TURN_BUTTON`]
 /// here and its own arm.
-// arm: 0x00432967/sidebar-hit-test
+// arm: 0x00432967/sidebar-hit-test left-press
 pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
     // `Levy_SetPercent(sel, g_levyPercent); FUN_004AA90A(sel, g_levyMen);
     // g_screenId = 0x17`, and the mercenary band is loaded on top of it when
@@ -722,16 +732,16 @@ impl MapScreen {
     fn minimap_mode_button(&mut self, ctx: &mut Ctx, button: usize) {
         if self.minimap_mode == MinimapMode::Owner {
             match MinimapMode::from_button(button) {
-                // arm: 0x0043AB76/minimap-mode-set
+                // arm: 0x0043AB76/minimap-mode-set left-press
                 Some(mode) => {
                     self.minimap_mode = mode;
                     self.status = format!("MINIMAP {}", minimap_mode_name(mode));
                 }
-                // arm: 0x0043AB76/minimap-zoom-toggle
+                // arm: 0x0043AB76/minimap-zoom-toggle left-press
                 None => self.toggle_zoom(ctx),
             }
         } else if button == 3 {
-            // arm: 0x0043AB76/minimap-mode-clear
+            // arm: 0x0043AB76/minimap-mode-clear left-press
             self.minimap_mode = MinimapMode::Owner;
             self.status = "MINIMAP OWNERS".into();
         }
@@ -754,7 +764,7 @@ impl MapScreen {
         if x < PANEL_X || !(0x18..0x99).contains(&y) || self.minimap_mode == MinimapMode::Owner {
             return false;
         }
-        // arm: 0x00439079/right-clears-minimap-mode
+        // arm: 0x00439079/right-clears-minimap-mode right-release
         self.minimap_mode = MinimapMode::Owner;
         self.status = "MINIMAP OWNERS".into();
         true
@@ -1007,7 +1017,7 @@ impl MapScreen {
 
     /// The rectangle of one brush button, `i` counting from the left of the
     /// menu that is open.
-    // arm: 0x00438990/tile-panel-hotspots
+    // arm: 0x00438990/tile-panel-hotspots left-release
     fn brush_button(menu_len: usize, i: usize) -> Rect {
         // The two-button menu uses the *right-hand* two columns, which is what
         // the hotspot table holds: x 304 and 368, not 240 and 304.
@@ -2256,7 +2266,7 @@ impl Screen for MapScreen {
                 // It is here rather than in the message screen because it is
                 // here in the original: the scroll's own arm returned zero and
                 // let the click through, and this is what the click found.
-                // arm: 0x00476710/map-click-dismiss
+                // arm: 0x00476710/map-click-dismiss left-release
                 if ctx.game.messages.is_open() {
                     ctx.game.messages.dismiss_unless_question();
                     return Transition::Stay;
@@ -2270,7 +2280,7 @@ impl Screen for MapScreen {
                 // **screen `0x04`**, the information panel a RIGHT click opens,
                 // at a runtime row offset. There is no popup on screen 0.
                 // `docs/arms.json` `ours/brush-popup-on-the-map`.
-                // arm: ours/brush-popup-on-the-map
+                // arm: ours/brush-popup-on-the-map left-press
                 if let Some(picked) = self.picked_field.clone() {
                     for (i, &b) in picked.menu.iter().enumerate() {
                         if Self::brush_button(picked.menu.len(), i).contains(x, y) {
@@ -2312,7 +2322,7 @@ impl Screen for MapScreen {
                     // `docs/arms.json` `0x0042FF10/force-close-on-turn-end` is
                     // the general arm and stays `missing`: this is one screen's
                     // corner of it, not the guard.
-                    // arm: 0x0043AC23/end-turn
+                    // arm: 0x0043AC23/end-turn left-press
                     let t = self.end_turn(ctx);
                     return if t == Transition::Stay { Transition::Reveal } else { t };
                 } else if let Some(b) = SIDEBAR_BUTTONS.iter().find(|b| b.rect().contains(x, y)) {
@@ -2323,11 +2333,11 @@ impl Screen for MapScreen {
                     // and the two that are not are the court and the lords.
                     // Each of the five is an arm of its own: `Sidebar_Button`
                     // (`0x0043AE30`) is a five-way `if` on `g_uiHotspotId`.
-                    // arm: 0x0043AE30/sidebar-levy
-                    // arm: 0x0043AE30/sidebar-court
-                    // arm: 0x0043AE30/sidebar-supplies
-                    // arm: 0x0043AE30/sidebar-castle
-                    // arm: 0x0043AE30/sidebar-lords
+                    // arm: 0x0043AE30/sidebar-levy left-press
+                    // arm: 0x0043AE30/sidebar-court left-press
+                    // arm: 0x0043AE30/sidebar-supplies left-press
+                    // arm: 0x0043AE30/sidebar-castle left-press
+                    // arm: 0x0043AE30/sidebar-lords left-press
                     let SidebarAction::Screen(id) = b.action;
                     let gated = matches!(id, 0x17 | 0x18 | 0x1B);
                     if gated && !ctx.game.is_players(ctx.game.selected) {
@@ -2340,12 +2350,12 @@ impl Screen for MapScreen {
                     // module's header carried as *"not reproduced"*. It saves
                     // `g_screenId` into `g_menuPrevScreen` and writes `0x32`,
                     // which is a push here.
-                    // arm: 0x0040DECA/open-dropdown
+                    // arm: 0x0040DECA/open-dropdown left-press
                     return Transition::Push(ScreenId::MenuBar(title));
                 } else if let Some(i) =
                     MINIMAP_MODE_BUTTONS.iter().position(|r| r.contains(x, y))
                 {
-                    // arm: 0x0043292D/minimap-mode-buttons
+                    // arm: 0x0043292D/minimap-mode-buttons left-press
                     self.minimap_mode_button(ctx, i);
                 } else if SPLIT_SLIDER.contains(x, y)
                     && ctx.game.is_players(ctx.game.selected)
@@ -2358,7 +2368,7 @@ impl Screen for MapScreen {
                     // `if (g_counties[g_selectedCounty].owner == g_localPlayer)`
                     // — and this tested only `selected != 0`, so the slider
                     // moved another lord's peasants.
-                    // arm: 0x00439122/split-slider
+                    // arm: 0x00439122/split-slider drag
                     self.slider_held = true;
                     self.drag_split(ctx, x);
                 } else if let Some(job) = self.job_row_at(&*ctx, x, y) {
@@ -2366,7 +2376,7 @@ impl Screen for MapScreen {
                     // rows on the 162 × 128 plate at y = 302, which open the job
                     // popup for that row. Another of this module's header's
                     // three "not reproduced" lines.
-                    // arm: 0x00438E3B/job-rows
+                    // arm: 0x00438E3B/job-rows left-press
                     return Transition::Push(ScreenId::Job(ctx.game.selected, job));
                 } else if let Some(panel) = county::panel_at(x, y) {
                     // **The county strip is a 2 x 2 hotspot and it is the whole
@@ -2376,10 +2386,10 @@ impl Screen for MapScreen {
                     // on this screen at all, which is why a player could reach
                     // tax and nothing else: our own COUNTY PANEL button opened
                     // the county screen on its own default.
-                    // arm: 0x00438CEB/strip-population
-                    // arm: 0x00438CEB/strip-happiness
-                    // arm: 0x00438CEB/strip-tax
-                    // arm: 0x00438CEB/strip-ration
+                    // arm: 0x00438CEB/strip-population left-press
+                    // arm: 0x00438CEB/strip-happiness left-press
+                    // arm: 0x00438CEB/strip-tax left-press
+                    // arm: 0x00438CEB/strip-ration left-press
                     if ctx.game.selected != 0 {
                         return Transition::Push(ScreenId::County(ctx.game.selected, panel));
                     }
@@ -2401,7 +2411,7 @@ impl Screen for MapScreen {
                     // `g_screenId` is `0x05` or `0x06` — the village's two drag
                     // screens — which is why the village keeps a peasant drag
                     // rather than losing it to a stray click on the minimap.
-                    // arm: 0x0043253A/minimap-click
+                    // arm: 0x0043253A/minimap-click left-press
                     self.ensure_minimap(ctx);
                     let county = self.minimap.as_ref().map_or(0, |m| m.county_at(x, y));
                     if county != 0 && ctx.game.select(county) {
@@ -2413,7 +2423,7 @@ impl Screen for MapScreen {
                         self.centre_on_county(anchor);
                         self.status = format!("COUNTY {county} SELECTED");
                     }
-                    // arm: 0x0042FF10/minimap-closes-the-surface
+                    // arm: 0x0042FF10/minimap-closes-the-surface left-press
                     return Transition::Reveal;
                 } else if self.map_clip().contains(x, y) {
                     self.ensure(ctx);
@@ -2442,7 +2452,7 @@ impl Screen for MapScreen {
                     // the picked tile with the same `col - 4`, `(row & ~1) - 12`
                     // arithmetic as `Map_CentreOnTile`, which is
                     // [`MapScreen::centre_on_tile`].
-                    // arm: 0x0042FF10/map-zoom-in-at-tile
+                    // arm: 0x0042FF10/map-zoom-in-at-tile left-press
                     if self.selected_unit.is_none() && self.zoom.id == FAR.id {
                         if let Some((tx, ty)) = self.pick_tile(x, y) {
                             self.set_zoom(ctx, NEAR);
@@ -2732,11 +2742,15 @@ impl Screen for MapScreen {
 
         canvas.pixels.copy_from_slice(&self.base.pixels);
 
-        // Ours: the selected county outlined on the shape the player can see.
-        // The original has no such outline (see the module docs).
-        if game.selected != 0 {
-            campaign::outline(canvas, &self.tags, game.selected, ink.highlight, clip);
-        }
+        // **The yellow outline used to be drawn here, and it is gone.** It was
+        // the visual half of the county-selection arm this module's header
+        // records removing, and it survived that removal by being in the
+        // painter rather than in the input ladder — `docs/agents.md`'s second
+        // place behaviour hides. The original draws no selection on the map at
+        // all: its borders are in the tile data (plane-0 bit `0x02`, the
+        // `roads` bank's boundary frames) and its *selection* is which county
+        // the right panel describes. `the_selection_is_not_drawn_on_the_map`
+        // is the assertion that could not exist while it did.
 
         // Ours: one marker per county in view, at its anchor tile, coloured by
         // owner. The original draws a county flag from `Flags1a.pl8` over the
