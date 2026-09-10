@@ -1072,3 +1072,17 @@ Three targets, in the order I would take them:
 
 Everything in §2 is a finding rather than an opinion, and each names the file or address it
 came from. Those are the claims to check first if you think this plan points the wrong way.
+
+## 0.0a Two loose ends recorded before the session ended
+
+Neither of these was written down anywhere but in session messages, and a finding that
+lives in a brief is one context window from gone.
+
+* **Two names earned and not filed.** `FUN_00432EE6` → `Setup_ShieldClick` and
+  `FUN_00432FAB` → `Setup_ClaimShield`, from the shield-choice work on branch
+  `setup-shield-colour`. They belong in `docs/symbols.json`, which is lead-owned, which is
+  why the agent that earned them correctly left them alone.
+* **`lobby::Player` has no `shield` field.** `docs/netcode.md` D-3b carries the argument:
+  it goes in `Start` beside the seed, **not** in `Hello` — a per-seat value that is
+  legitimately different on every peer needs host *arbitration*, not a mismatch refusal.
+  Writing the field is small; the reasoning is the part that took the work.
