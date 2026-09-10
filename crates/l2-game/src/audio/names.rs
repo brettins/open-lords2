@@ -240,12 +240,34 @@ pub fn lord_voice(group: u16, variant: u8) -> Option<String> {
 /// `g_msgVoice100` and `200 ..= 284` at `g_msgVoice200`, one file each. Both
 /// are `S<group padded to 3>_01.wav`, so again a convention rather than a
 /// transcription.
+///
+/// **The upper bound is 284 and it used to be 299 here.** `g_msgVoice200` is
+/// 85 entries and `docs/symbols.md` says so; this file said `200 ..= 299`,
+/// which invents fifteen groups. The install settles it independently: the
+/// highest `S2xx` file that ships is `S284_02.wav`, and nothing above it
+/// exists. Asserted in `tests/audio_install.rs`.
 pub fn system_voice(group: u16) -> Option<String> {
-    if (100..=169).contains(&group) || (200..=299).contains(&group) {
+    if (100..=169).contains(&group) || (200..=284).contains(&group) {
         Some(format!("S{group:03}_01.wav"))
     } else {
         None
     }
+}
+
+/// **`Msg_PlayVoice` (`0x004B35C1`) itself** — the group and variant of the
+/// message on screen to the file that speaks it.
+///
+/// Three of its four tables, in the order the function tests them: the
+/// diplomatic band has a lord and a take, everything in the two system bands
+/// has one clip, and everything else is silent. (The fourth, `g_msgVoiceS010`,
+/// is reached by `FUN_004B36C0` rather than by this function — see the module
+/// note.)
+///
+/// **Silence is the common case and is not a failure.** 109 groups of the
+/// hundreds `L2.eng` holds have a system clip; a group outside all three bands
+/// is a message the narrator simply does not read, and `None` is that.
+pub fn message_voice(group: u16, variant: u8) -> Option<String> {
+    lord_voice(group, variant).or_else(|| system_voice(group))
 }
 
 #[cfg(test)]

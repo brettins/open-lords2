@@ -5556,6 +5556,79 @@ hundred times. The tax path has no such pair: `recompute_preview` computes and `
 banks, the names say which, and only `collect` credits a realm. Recorded because *looking and
 finding nothing* is the half of a check that usually goes unwritten.
 
+
+**C126 — The narrator is 84 % of the game's audio, and one trigger reaches all of him.**
+
+A player, on being asked what he was missing: *"that guy's voice acting is half the
+personality of the game."* Measured against his install, he understates it. **646 of the
+771 shipped `.wav` files are somebody speaking** — 449 lord takes and 197 system clips —
+against 10 music tracks and roughly 70 effects. The voice is not a feature of this game's
+audio. It is the audio.
+
+We now reach **543** of them, from 0. The change is small and the number is large for one
+reason worth generalising: **the voice hangs off a single trigger, and the trigger is a
+table lookup rather than a constant.** `Msg_PlayVoice` (`0x004B35C1`) maps `(group,
+variant)` to a filename through four tables; every other sound primitive in the binary is
+called with a literal or a slot number. So sixteen of the 134 trigger sites carry 543 of
+the 771 files, and the other 118 carry 12.
+
+**That is a criticism of every 1:1 count this project keeps.** Input arms, draw calls and
+sound triggers all weight their rows equally, because equality inside a list is what makes
+a denominator meaningful. A player weights them by what he notices, and the two orderings
+are not close. `docs/audio-triggers.md` now carries a second column saying what each row
+*carries*; it cost one column and it changed the work order. The count stays the
+denominator — it is still the only thing that cannot be argued with — but it should not be
+the only number quoted.
+
+**The mechanism, which is the part that would have been guessed wrong.** `Msg_DrawWindow`
+(`0x0047309E`) is 10,915 bytes and is not a painter: it dismisses, enqueues, sets its own
+timer and plays its own sound from inside the draw. There is no call site to put a voice
+beside. All sixteen `Msg_PlayVoice` calls are guarded by `g_messageTimer == <constant>`,
+and the timer counts **down** from 2000 at one per tick, so the trigger is a *countdown
+reaching a value*. Five constants, and they are one rule and a delay:
+
+* `0x7C6` is 1990 against a start of 2000; `0x5A` is 90 against the tip's clamped 100.
+  **Both are ten ticks after the window opened** — the tip needed a constant of its own
+  because its timer starts differently, not because its rule differs.
+* `0x776` (90 ticks), `0x76C` (100) and `0x708` (200) belong to exactly the categories that
+  play a **fanfare** on the opening frame. The voice waits for the trumpet rather than
+  talking over it, and the longest wait is the one that also plays a lord's sting at 90.
+
+Equality rather than a threshold is what the port uses too, and it is the better shape
+here: the timer decrements by one per tick, so each value occurs once per window, a `==`
+fires exactly once, and there is no memo to keep and nothing to reset when a window is
+dismissed early.
+
+**Two artefacts said this was already recorded and neither was.**
+`crates/l2-game/src/screens/message.rs` lists the five constants and says they are
+*"recorded in `crate::message`"*. They had never been written there — a citation that does
+not resolve, which is a rule with no way in wearing a doc comment, and it survived because
+the sentence reads like a hand-off. And **which category takes which constant** was not
+recorded anywhere, which is the only half a caller actually needs. Both are fixed at
+`audio::voice_tick`.
+
+**Three corrections fell out of reading the function.**
+
+* `names::system_voice` accepted `200 ..= 299` and `g_msgVoice200` is 85 entries,
+  `200 ..= 284`. Fifteen invented groups. `docs/symbols.md` was right; the install settles
+  it independently, since the highest `S2xx` file that ships is `S284_02.wav`.
+* **The narrator reads a notice as a *chain*.** `FUN_004B3ACD(group)` walks a five-wide
+  table at `0x004E1E40` and plays `S201_02.wav + (n − 1) × 0x10` one clip at a time as each
+  finishes, gated on `Sound_OneShotBusy()` and a 1,000 ms gap. That is why `S010_13.wav`
+  exists. We play `_01` and stop, and that is now written down as a gap rather than left to
+  look like completeness.
+* The first enumeration of sound trigger sites counted 121 and missed `FUN_004262cf`
+  entirely — a 28-byte forwarder onto `Sound_PlaySlot` with 13 callers of its own, all
+  battlefield sounds. A wrapper is what a single-pass grep loses.
+
+**And one thing that worked.** `audio::before_the_campaign` is exhaustive over `ScreenId`
+with no `_` arm, so that adding a screen cannot compile until somebody says whether music
+plays behind it. The message window was the first screen added after it landed, and the
+branch that added `ScreenId::Message` had to answer — and left a comment saying why a
+message never changes the music. That is the *"make the mistake unrepresentable"* pattern
+paying out on its first real encounter, in a place where the failure would otherwise have
+been silent for weeks.
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**

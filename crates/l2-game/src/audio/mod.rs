@@ -45,69 +45,82 @@
 //!
 //! # What this does not do
 //!
-//! **Read this before believing the layer plays anything.** The list below was
-//! wrong when it was written — it claimed the pointer click, which has never
-//! had a call site — and the sentence above it claimed music, which
-//! [`scene`] could not reach. Both are corrected here, and the count is the
-//! honest measure: of the install's **771** `.wav` files, this layer can
-//! currently reach **11** — `scroll1`…`scroll5`, `battle1`…`battle4`,
-//! `ff_msg.wav` and `ff_batl.wav`.
+//! **Read this before believing the layer plays anything.** This list was wrong
+//! twice: it claimed the pointer click, which has never had a call site, and
+//! the sentence above it claimed music, which [`scene`] could not reach. So the
+//! counts here are **measured by `tests/audio_wiring.rs`, not typed**, and a
+//! new call site moves them by itself.
 //!
-//! **That number is measured, not typed**, and the first time it *was* typed it
-//! said 12: `battle5.wav` ships and decodes and nothing can ask for it, because
-//! the counter that selects it is `DAT_0057A0F0` — the third battle mode
-//! [`track::BattleKind`] declines to guess at.
-//! `tests/audio_wiring.rs::eleven_of_the_installs_771_sounds_are_reachable`
-//! drives every scene the policy can produce and reads [`Audio::heard`], so a
-//! new call site moves the number by itself.
+//! Of the install's **771** `.wav` files, this layer can reach **555**:
 //!
-//! **By the six classes the original divides its sound into, one and a half
-//! work.** That is a more useful sentence than *"audio is broken"* and it is
-//! the one to keep current:
+//! | | files | how |
+//! |---|---:|---|
+//! | the narrator | **543** | 448 lord takes + 95 system clips, via [`Director`] and [`voice_tick`] |
+//! | music | 9 | `scroll1`…`scroll5`, `battle1`…`battle4` |
+//! | fanfares | 3 | `ff_msg`, `ff_batl`, `ff_capt` |
 //!
-//! | class | the original's call site | ours |
-//! |---|---|---|
-//! | **Music** | `Music_StartCampaign` `0x00499ACA`, `Music_StartBattle` `0x00477B2F` | **✅ both** — [`scene`] and [`Audio::follow`] |
-//! | **Event fanfares** | `Sound_PlayFile` at four sites | **◐ 2 of 4** — `ff_msg`, `ff_batl` |
-//! | The pointer click | `Widget_Test` `0x0040DA1E`, slot 1 | ✗ |
-//! | The two sample banks | `Sound_PlaySlot` `0x00426120` | ✗ |
-//! | Message narration | `Msg_PlayVoice` `0x004B35C1` | ✗ |
-//! | Troop cries | `FUN_00499CB1` | ✗ |
+//! **The narrator is 84 % of the game's audio by file count** — 646 of the 771
+//! files are somebody speaking — which is why a player calls the voice acting
+//! *"half the personality of the game"*. It went from 0 to 543 in one change,
+//! and that is not because the change was large: it is because the whole class
+//! hangs off one trigger, and the trigger is a countdown rather than an event.
 //!
-//! The four that do not, in the order a player notices them:
+//! **A previous count here said 12 and was wrong at 11**, by reading the battle
+//! table instead of driving it — `battle5.wav` ships, decodes, and cannot be
+//! asked for, because the counter that selects it is `DAT_0057A0F0`, the third
+//! battle mode [`track::BattleKind`] declines to guess at.
 //!
-//! * **The pointer click.** `Widget_Test` (`0x0040DA1E`) plays slot 1,
-//!   `click3.wav`, on every widget press — **one** call site in the original,
-//!   because the whole game shares one hit-tester. Ours do not: 26 screen
-//!   modules each match `Event::Click` against their own rectangles, so there
-//!   is no single place to put it, and nothing above them can tell a press that
-//!   landed on a widget from one that landed on grass. Playing it on every
-//!   click would be an invention and a worse one than silence. **The enabling
-//!   change is in the screen layer, not here**: `Screen::handle` would have to
-//!   say whether it consumed the event at a widget, and then this is one call.
-//! * **The two sample banks.** [`names::KINGDOM_BANK`] and
+//! **By the six classes the original divides its sound into, three work.**
+//! That is a more useful sentence than *"audio is broken"*, and
+//! `docs/audio-triggers.md` is the enumeration behind it — **134 trigger sites,
+//! generated rather than typed**:
+//!
+//! | class | the original's call site | sites | ours |
+//! |---|---|---:|---|
+//! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **✅** — [`voice_tick`] |
+//! | **Music** | `Music_StartCampaign` `0x00499ACA`, `Music_StartBattle` `0x00477B2F` | 14 | **✅ both** — [`scene`] |
+//! | **Event fanfares** | `Sound_PlayFile` at four sites | 49 | **◐ 3 of 4** — all but `ff_lose` |
+//! | The pointer click | `Widget_Test` `0x0040DA1E`, slot 1 | (of the 49) | ✗ |
+//! | The two sample banks | `Sound_PlaySlot` `0x00426120` | 49 | ✗ |
+//! | Troop cries | `Sound_PlayTroopCry` `0x00499CB1` | 6 | ✗ |
+//!
+//! The three that do not, in the order a player notices them:
+//!
+//! * **The pointer click.** `Sound_RestartSlot(1)` — `click3.wav` — on every
+//!   widget press, from **four sites behind three hit-testers**: `Widget_Test`
+//!   (`0x0040DA1E`) twice, and `FUN_0040D6AD` and `FUN_0040D7B8`, which open
+//!   with the same two lines. (An earlier draft of this note said *one* site
+//!   behind one hit-tester; `docs/audio-triggers.md` records the correction,
+//!   and it matters to whoever reconciles them.) Ours are 26 screen modules
+//!   each matching `Event::Click` against their own rectangles, so there is no
+//!   single place to put it and nothing above them can tell a press that landed
+//!   on a widget from one that landed on grass. Playing it on every click would
+//!   be an invention and a worse one than silence. **The enabling change is in
+//!   the screen layer, not here**: `Screen::handle` would have to say whether
+//!   it consumed the event at a widget, and then this is one call.
+//! * **The two sample banks — 49 of the original's 134 trigger sites, and the
+//!   largest single thing missing.** [`names::KINGDOM_BANK`] and
 //!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
 //!   their 29 slots ship, and **nothing calls [`Audio::play_effect_if_idle`]**.
 //!   The village's work sounds, the marching army, the merchant's cart, the
-//!   peasant mob, every sword and every arrow are in there.
-//! * **The voices, including the industry toggle a player asked about.**
-//!   [`names::lord_voice`] and [`names::system_voice`] generate the names of all
-//!   448 lord takes and the system lines, and [`Audio::play_speech`] plays them;
-//!   what is missing is `Msg_PlayVoice`'s trigger, which belongs to the message
-//!   window. Switching an industry from the map is a *message*, not a sound
-//!   effect: `Industry_ToggleFromMap` (`0x0043D309`) ends with
-//!   `Msg_Enqueue(0, g_localPlayer, local_10 + 0xE6, 0, 4, 0, 0, 0)` where
-//!   `local_10` is `industry * 2 + on` for the four industries and `-1`/`-2` for
-//!   the castle switch — so `L2.eng` **228** and **229** are *Building off/on*
-//!   and **230**…**237** are the four industries, and `S228_01.wav`…`S237_01.wav`
-//!   all ship. `[V]`, from the decompilation; `docs/formats/eng.md` had the
-//!   extent right and marked it `[D]`. `l2_kingdom::industry::toggle_from_map`
-//!   makes the state change and **raises no message**, so there is nothing for a
-//!   voice to hang on yet. Two dependencies, in this order: the enqueue, then
-//!   the message window.
+//!   peasant mob, every sword and every arrow are in there. The clip-clop a
+//!   player asked for is `Unit_MoveInFacing` (`0x00466D84`) calling
+//!   `Sound_PlaySlot(0xb)` **on every step of every moving unit** — a rate, not
+//!   a trigger, and it works only because `Sound_PlaySlot` drops the request
+//!   when that buffer is still playing, which is exactly what
+//!   [`Audio::play_effect_if_idle`] is. See `docs/audio-triggers.md`.
+//! * **The narrator's *chained* takes**, which is the part of the voice class
+//!   that is still missing. `FUN_004B3ACD(group)` walks a five-wide table at
+//!   `0x004E1E40` and plays `S201_02.wav + (n - 1) * 0x10` **one clip at a time
+//!   as each finishes**, gated on `Sound_OneShotBusy()` and a 1,000 ms gap — so
+//!   a notice is read as a *sequence* of takes rather than one. That is why
+//!   `S010_13.wav` exists. Wiring it needs the mixer to answer *"is a one-shot
+//!   still playing?"*, which [`mixer::Mixer::is_playing`] can, and a per-message
+//!   cursor, which nothing keeps. Two more siblings play from tables of their
+//!   own: `FUN_004B3B92(lord - 1)` is the sting a letter plays 90 ticks in,
+//!   `S246_02.wav + lord * 0x10`, and `FUN_004B36C0` reads `g_msgVoiceS010`.
 //! * **`ff_lose.wav`** needs a gate rather than a call site — see
-//!   [`names::fanfare::AFTER_BATTLE`] — and **`ff_capt.wav`** is
-//!   `Msg_DrawWindow`'s conquest band, which needs the message window too.
+//!   [`names::fanfare::AFTER_BATTLE`]. It is the only fanfare left.
 
 pub mod mixer;
 pub mod names;
@@ -595,6 +608,89 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
     }
 }
 
+/// **When the narrator speaks, by message category** — `Msg_DrawWindow`'s
+/// (`0x0047309E`) voice schedule, and the answer is a *tick of the message
+/// timer* rather than an event.
+///
+/// # The draw is the behaviour, so the trigger is a countdown
+///
+/// `Msg_DrawWindow` is 10,915 bytes and it is not a painter: it dismisses,
+/// enqueues, sets its own timer and plays its own sound, all from inside the
+/// draw. So there is no call site to put a voice beside. Every one of its
+/// sixteen `Msg_PlayVoice` calls is guarded by `g_messageTimer == <constant>`,
+/// and `g_messageTimer` counts **down** from [`crate::message::TIMER_START`]
+/// (2000), one per tick. `[V]`.
+///
+/// | category | ticks after opening | constant |
+/// |---|---:|---|
+/// | `0x02`, `0x03`, `0x05`…`0x09`, `0x0F`, `0x10`, `0x11`, `0x12` | 10 | `0x7C6` |
+/// | `0x00` notice, `0x0D` capture (unanimated) | 90 | `0x776` |
+/// | `0x0E` ending (unanimated) | 100 | `0x76C` |
+/// | `0x01` letter, `0x0A` pay prompt, `0x0B` alliance prompt | 200 | `0x708` |
+/// | `0x04` tip | 10 | `0x5A`, against a timer clamped to 100 |
+/// | `0x13` help | — | silent |
+///
+/// **The five constants are one rule and a delay.** `0x7C6` is 1990 against a
+/// start of 2000 and `0x5A` is 90 against the tip's clamped 100: *both are ten
+/// ticks after the window opened*, which is why the tip needed a constant of
+/// its own rather than a different rule. The three larger delays are the
+/// categories that play a **fanfare** on the opening frame — the voice waits
+/// for the trumpet instead of talking over it, and the longest wait, 200 ticks,
+/// is the one that also plays a lord's sting at 90.
+///
+/// `docs/audio-triggers.md` has the enumeration this came out of. The five
+/// values were already on file — `crates/l2-game/src/screens/message.rs` lists
+/// them and says they are *"recorded in `crate::message`"*, where they had
+/// never been written — but **which category takes which** was not, and that is
+/// the half a caller needs.
+///
+/// # Categories `0x0C` and `0x14` are absent on purpose
+///
+/// `Msg_DrawWindow` delegates them to `Msg_DrawDiplomacy` (`0x00475E07`) and
+/// `Msg_DrawBeyondLetter` (`0x00476488`), which carry a voice call of their own
+/// on their own schedule. Reading those two is a separate job and inventing a
+/// tick for them would be worse than the silence. `docs/audio-triggers.md`
+/// records them as unread rather than as absent.
+pub fn voice_tick(category: u8) -> Option<i32> {
+    use crate::message::category as c;
+    Some(match category {
+        c::NOTICE | c::CAPTURE => 0x776,
+        c::LETTER | c::PAY_PROMPT | c::ALLIANCE_PROMPT => 0x708,
+        c::ENDING => 0x76C,
+        // The tip's timer is clamped to `TIP_TIMER` on the frame it opens, so
+        // ten ticks in is 90 rather than 1990. Same rule, different start.
+        c::TIP => 0x5A,
+        c::COUNTY_PORTRAIT
+        | c::COUNTY_NOTICE
+        | c::EVENT
+        | c::COUNTY_TALL
+        | c::GARRISON_PROMPT
+        | c::CASTLE => 0x7C6,
+        n if (c::PARAGRAPHS_FIRST..=c::PARAGRAPHS_LAST).contains(&n) => 0x7C6,
+        // `HELP`, and the two that delegate to a painter of their own.
+        _ => return None,
+    })
+}
+
+/// **The fanfare a message window opens with**, on the frame the timer is still
+/// [`crate::message::TIMER_START`] — `Msg_DrawWindow`'s five `Sound_PlayFile`
+/// calls, which is all of them. `[V]`.
+///
+/// `ff_capt.wav` is the conquest band and the guard is on the *group*, not the
+/// category: `0x71 < group && group < 0x7F`, which is `L2.eng` 114…126. That is
+/// the one place in the audio layer where a group decides a sound, and it is
+/// why [`names::fanfare::CAPTURED`] had no caller until now.
+fn open_fanfare(category: u8, group: u16) -> Option<&'static str> {
+    use crate::message::category as c;
+    match category {
+        c::NOTICE if (0x72..=0x7E).contains(&group) => Some(names::fanfare::CAPTURED),
+        c::LETTER | c::PAY_PROMPT | c::ALLIANCE_PROMPT | c::CAPTURE => {
+            Some(names::fanfare::MESSAGE)
+        }
+        _ => None,
+    }
+}
+
 /// **Everything audible, decided from the world after the tick that made it.**
 ///
 /// One direction only: [`Director::listen`] reads the game and the screen stack
@@ -619,9 +715,6 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
 /// times a second.
 #[derive(Debug, Default)]
 pub struct Director {
-    /// `game.turns_played` as it stood at the last tick, so that the end of a
-    /// turn can be noticed without anything having to report it.
-    turns_heard: u32,
     /// Whether the battle prompt was already up at the last tick, so
     /// `ff_batl.wav` sounds once when the battle is announced rather than sixty
     /// times a second while the player decides.
@@ -680,25 +773,44 @@ impl Director {
         }
         self.prompt_heard = prompt_up;
 
-        // **There is no end-of-turn sound in the original**, and this is not
-        // one. Nothing on the `Turn_End` / `Season_Advance` / phase-7 path
-        // plays anything, the End Turn button is silent, and both call sites of
-        // the end-of-turn screen fade carry no sound either.
+        // **The message window, which is where nearly all of the game's audio
+        // lives.** 646 of the install's 771 files are somebody speaking, and
+        // every one of them is played from `Msg_DrawWindow` (`0x0047309E`) or a
+        // sibling it delegates to.
         //
-        // What a player hears at the end of a turn is the *message window*
-        // opening: `Msg_DrawWindow` (`0x0047309E`) plays `ff_msg.wav` on the
-        // frame `g_messageTimer` reaches 2000, and a turn ends in a run of
-        // message windows. So the chime belongs to the window.
+        // **There is no end-of-turn sound in the original**, and the chime a
+        // player hears at the end of a turn is a message window opening.
+        // Nothing on the `Turn_End` / `Season_Advance` / phase-7 path plays
+        // anything, the End Turn button is silent, and both call sites of the
+        // end-of-turn screen fade carry no sound either.
         //
-        // We have no message windows yet, so this fires **once per turn that
-        // produced any message** rather than once per window. It is an
-        // approximation and it is written down as one: when the message windows
-        // exist, the call belongs on the window and this goes away.
-        if game.turns_played != self.turns_heard {
-            self.turns_heard = game.turns_played;
-            let spoke = game.last_report.as_ref().is_some_and(|r| !r.messages.is_empty());
-            if spoke {
-                audio.play_effect(names::fanfare::MESSAGE);
+        // Until the message window existed this fired once per *turn that
+        // produced any message*, from `game.turns_played`, and said in a
+        // comment that it was an approximation. It is gone: the window is real
+        // and the trigger is the original's own, which is the message timer
+        // reaching a value rather than anything happening.
+        //
+        // **Equality, not a threshold, and that is deliberate.** The timer
+        // decrements by one per tick (`MessageQueue::tick`), so each value
+        // occurs exactly once per window and a `==` fires exactly once with no
+        // memo to keep and nothing to reset when a window is dismissed early.
+        // It is also precisely what the original tests. If the timer ever steps
+        // by more than one this goes quiet rather than firing twice, which is
+        // the failure worth having of the two.
+        if let Some(record) = game.messages.open() {
+            let timer = game.messages.timer();
+            if timer == crate::message::TIMER_START {
+                if let Some(fanfare) = open_fanfare(record.category, record.group) {
+                    audio.play_effect(fanfare);
+                }
+            }
+            if voice_tick(record.category) == Some(timer) {
+                // `Msg_PlayVoice(g_messageGroup, g_messageVariant)`. A group
+                // outside the three bands has no clip, and that is a message
+                // the narrator does not read rather than a failure.
+                if let Some(name) = names::message_voice(record.group, record.variant) {
+                    audio.play_speech(&name);
+                }
             }
         }
     }

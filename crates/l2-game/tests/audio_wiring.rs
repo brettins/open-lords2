@@ -31,6 +31,7 @@ use l2_game::audio::{self, Audio, Scene};
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
+use l2_game::message;
 use l2_game::screens::setup::SetupPage;
 use l2_game::Game;
 
@@ -258,6 +259,158 @@ fn pressing_start_on_the_title_screen_makes_a_noise() {
     assert_eq!(audio.music_name(), before, "the track restarted under a steady scene");
 }
 
+/// **The narrator speaks, and he speaks once.**
+///
+/// A player: *"that guy's voice acting is half the personality of the game."*
+/// He is right about the proportion — **646 of the install's 771 files are
+/// somebody talking**, 449 lord takes and 197 system clips.
+///
+/// `Msg_DrawWindow` (`0x0047309E`) is not a painter: it dismisses, enqueues,
+/// sets its own timer and plays its own sound from inside the draw, so there is
+/// no call site to hang a voice on. The trigger is the message timer reaching a
+/// value, and this drives the **real queue through the real pump** — enqueue,
+/// `Machine::update`, which is where `pump_messages` lives — and counts what
+/// came out.
+#[test]
+fn a_message_window_speaks_ten_ticks_after_it_opens() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no voice clips to speak");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+    let mut game = world();
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    let mut audio = Audio::headless(&platform.vfs);
+    let mut director = audio::Director::new();
+
+    // Group 130 is a plain notice with a system clip, `S130_01.wav`. Category
+    // `0x03` takes the ten-tick schedule.
+    let mut rec = message::Record::default();
+    rec.group = 130;
+    rec.category = message::category::COUNTY_NOTICE;
+    rec.to = game.player;
+    assert!(game.messages.enqueue(rec, game.player), "the record was accepted");
+
+    // The tick the *voice* landed on, by name. Counting `heard()` wholesale
+    // would count `scroll1.wav` too — the music starts on the first `listen`,
+    // which is correct and is not what this test is about.
+    let mut spoke_at = Vec::new();
+    let mut was_heard = false;
+    for _ in 0..40 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+        let timer = game.messages.timer();
+        director.listen(&mut audio, &machine, &game);
+        let now = audio.heard().contains(&"s130_01.wav");
+        if now && !was_heard {
+            spoke_at.push(timer);
+        }
+        was_heard = now;
+    }
+    assert!(
+        machine.ids().contains(&ScreenId::Message),
+        "the pump never opened a window: {:?}",
+        machine.ids()
+    );
+    assert_eq!(
+        spoke_at,
+        vec![0x7C6],
+        "the voice should land exactly once, on the tick Msg_DrawWindow tests"
+    );
+    assert!(audio.heard().contains(&"s130_01.wav"), "heard {:?}", audio.heard());
+}
+
+/// **The Speech switch has to silence him, and only him.**
+///
+/// `Sound_PlayFile(name, 1, 0)` — the `1` is what gates every voice line on
+/// `g_optSpeech` rather than on `g_optSoundEffects`, so the Sounds page's third
+/// row is a separate switch from its second. A narrator that ignored it would
+/// be a poor first impression of the feature.
+#[test]
+fn the_speech_switch_silences_the_narrator_and_leaves_the_music_alone() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+    let mut game = world();
+    // `Opt_ToggleSpeech` (`0x00434A9A`), the Sounds page's third row.
+    game.prefs.speech = false;
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    let mut audio = Audio::headless(&platform.vfs);
+    let mut director = audio::Director::new();
+
+    let mut rec = message::Record::default();
+    rec.group = 130;
+    rec.category = message::category::COUNTY_NOTICE;
+    rec.to = game.player;
+    game.messages.enqueue(rec, game.player);
+    for _ in 0..40 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+        director.listen(&mut audio, &machine, &game);
+    }
+    assert!(
+        !audio.heard().contains(&"s130_01.wav"),
+        "Speech: Off did not silence the narrator - heard {:?}",
+        audio.heard()
+    );
+    // And the music is on a different switch, so it is still playing.
+    assert_eq!(audio.music_name().as_deref(), Some("scroll1.wav"));
+
+    // Turn it back on and the next window speaks.
+    game.prefs.speech = true;
+    let mut rec2 = message::Record::default();
+    rec2.group = 131;
+    rec2.category = message::category::COUNTY_NOTICE;
+    rec2.to = game.player;
+    game.messages.enqueue(rec2, game.player);
+    message::dismiss(&mut game);
+    for _ in 0..40 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+        director.listen(&mut audio, &machine, &game);
+    }
+    assert!(audio.heard().contains(&"s131_01.wav"), "heard {:?}", audio.heard());
+}
+
+/// **The ten industry lines a player asked for by name.**
+///
+/// `Industry_ToggleFromMap` (`0x0043D309`) ends with
+/// `Msg_Enqueue(0, g_localPlayer, local_10 + 0xE6, …)`, `local_10` being
+/// `industry * 2 + on` for the four industries and `-1`/`-2` for the castle
+/// switch. **We supply the voice; the enqueue is the industry branch's.** So
+/// this asserts the half that is ours — that every one of those ten groups
+/// resolves to a clip that ships — and it will start speaking the moment the
+/// message arrives, with no further change here.
+#[test]
+fn the_industry_toggle_groups_all_have_a_voice_that_ships() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let mut audio = Audio::headless(&platform.vfs);
+    // 228/229 are the castle switch, 230..237 the four industries off and on.
+    let labels = [
+        "Building off", "Building on", "Forestry off", "Forestry on",
+        "Mining off", "Mining on", "Blacksmith off", "Blacksmith on",
+        "Quarrying off", "Quarrying on",
+    ];
+    for (i, label) in labels.iter().enumerate() {
+        let group = 228 + i as u16;
+        let name = l2_game::audio::names::message_voice(group, 0)
+            .unwrap_or_else(|| panic!("group {group} ({label}) has no voice"));
+        assert_eq!(name, format!("S{group}_01.wav"));
+        audio.play_speech(&name);
+        assert!(
+            audio.heard().contains(&name.to_ascii_lowercase().as_str()),
+            "group {group} ({label}) -> {name} did not decode"
+        );
+    }
+}
+
 /// **How much of the game's audio the engine can actually play, measured.**
 ///
 /// 771 files ship. The number that matters is how many of them any code path
@@ -274,7 +427,45 @@ fn pressing_start_on_the_title_screen_makes_a_noise() {
 /// A new call site makes this go red with the name it added, which is the only
 /// way this count stays true.
 #[test]
-fn eleven_of_the_installs_771_sounds_are_reachable() {
+fn the_voice_class_is_84_percent_of_the_games_audio() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let mut audio = Audio::headless(&platform.vfs);
+
+    // Every name `Msg_PlayVoice` can produce, asked for through the real
+    // `play_speech`. The three bands are the original's tables: 170..=197 have
+    // a lord and sixteen takes, 100..=169 and 200..=284 have one clip each.
+    for group in 100..=300u16 {
+        for variant in 0..16u8 {
+            if let Some(name) = l2_game::audio::names::message_voice(group, variant) {
+                audio.play_speech(&name);
+            }
+        }
+    }
+    let spoken = audio.heard().len();
+    assert_eq!(
+        spoken, 543,
+        "the narrator's reachable performance moved: {spoken} clips"
+    );
+    // 448 lord takes and 95 system clips. The system bands cover 155 groups and
+    // only 95 of them ship an `_01`, which is not a gap in the tables - a group
+    // with no clip is a message the narrator does not read.
+    assert_eq!(audio.heard().iter().filter(|n| n.starts_with('s')).count(), 95);
+    assert_eq!(spoken - 95, 448);
+
+    // **What is still out of reach in this class**, so the number is not read
+    // as "the voice is done": groups whose narration is a *chain* of takes.
+    // `FUN_004B3ACD(group)` walks a five-wide table at `0x004E1E40`, playing
+    // `S201_02.wav + (n - 1) * 0x10` one clip at a time as each finishes, and
+    // nothing here calls it - so `S010_13.wav` and its like are named by the
+    // binary and unreachable by us.
+    assert!(!audio.heard().contains(&"s010_13.wav"), "the chained takes are not wired");
+}
+
+#[test]
+fn the_music_and_fanfares_are_twelve_more() {
     let Some(dir) = l2_testkit::install_dir() else {
         l2_testkit::skip!("no game install, so nothing to open");
     };
@@ -299,6 +490,9 @@ fn eleven_of_the_installs_771_sounds_are_reachable() {
     // And the two fanfares `Director::listen` fires, by the same names it uses.
     audio.play_effect(l2_game::audio::names::fanfare::MESSAGE);
     audio.play_effect(l2_game::audio::names::fanfare::BATTLE);
+    // `ff_capt.wav`, which `Msg_DrawWindow` plays for the conquest band and
+    // which had no caller until the message window arrived.
+    audio.play_effect(l2_game::audio::names::fanfare::CAPTURED);
 
     assert_eq!(
         audio.heard(),
@@ -308,6 +502,7 @@ fn eleven_of_the_installs_771_sounds_are_reachable() {
             "battle3.wav",
             "battle4.wav",
             "ff_batl.wav",
+            "ff_capt.wav",
             "ff_msg.wav",
             "scroll1.wav",
             "scroll2.wav",
@@ -319,7 +514,7 @@ fn eleven_of_the_installs_771_sounds_are_reachable() {
          ADDED this is good news and the number in crates/l2-game/src/audio/mod.rs, \
          docs/mechanics.md and docs/decisions.md C116 moves with it."
     );
-    assert_eq!(audio.heard().len(), 11, "11 of 771");
+    assert_eq!(audio.heard().len(), 12, "12 of 771 outside the voice class");
 
     // `battle5.wav` ships and decodes; nothing can ask for it. That is not a
     // gap in the wiring, it is `DAT_0057A0F0` being unidentified, and
