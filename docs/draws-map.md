@@ -723,8 +723,19 @@ That leaves these arms enumerated but not observed, and I have not inferred past
 * **the burning dwelling** (arm 3) — needs an enemy army to have razed a `0x10` plot;
 * **the wrecked-industry animation** (arm 5c) — needs `Unit_TrampleTile` *and* three seasons
   of `disabledSeasons`;
-* **the working-industry animation rates** (arm 5b) — needs four different output bands in
-  one county over time;
+* ~~**the working-industry animation rates** (arm 5b) — needs four different output bands in
+  one county over time;~~ **Exercised.** `crates/l2-game/tests/industry.rs`.
+
+  **And the premise of this bullet was wrong, which is worth more than the bullet.** It was
+  written as *"every fixture is turn one, so only the idle appearance can be seen"*, from
+  `map.rs`'s own test asserting `terrain == 1` on an iron tile. That is true of iron.
+  **England turn one has all five owned counties' forests switched on** — their site tiles
+  hold terrain **11**, which is `INDUSTRY_IDLE[wood] + 1`, the value
+  `Industry_UpdateSiteTile` writes for *enabled* and the one arm 5b animates. So the working
+  appearance was on the shipped fixture the whole time, and the bottom and top **bands** are
+  reachable from it without staging: `total − totalSnapshot` is 0 before a season and 173
+  after one. Only the two middle bands need a number written by hand. A true statement about
+  one commodity, read as a statement about the map — `docs/agents.md`, *name the branch*;
 * **the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
   campaign map, which the battle triple does not carry;
 * **a garrison whose shield differs from the county's** — the case §4's missing guard is

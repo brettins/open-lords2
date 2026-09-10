@@ -276,3 +276,147 @@ fn a_site_the_player_switched_off_stops_turning() {
         after[&tile]
     );
 }
+
+// ---------------------------------------------------------------- the pixels
+
+/// A window over which the map's **other two** clocks return to the phase they
+/// started on: `Map_DrawFrame` wraps the flag counter at `0x80` and the herd
+/// counter at `0x60`, so a multiple of 384 is a whole number of both. Two frames
+/// this far apart differ only by what the industry wheels did.
+///
+/// **768 and not 384, and the reason is the trap this whole file is about.** An
+/// unproductive site is on the 640 ms rung — one step every 40 ticks — and
+/// wood's working run is nine frames long, so 384 ticks is *exactly nine steps
+/// of a nine-frame cycle* and the wheel comes back to the frame it started on.
+/// The first draft of this test asserted that the screen changed, watched the
+/// wheel turn all the way round, and reported that the wheel does not reach the
+/// screen. The frame assertion below is what turns that into a failure that
+/// names its own cause.
+const CYCLE: u32 = 768;
+
+fn draw_map(screen: &mut MapScreen, game: &mut l2_game::Game, assets: &Assets) -> l2_view::Canvas {
+    let mut canvas = l2_view::Canvas::screen();
+    let ctx = Ctx { game, assets };
+    screen.draw(&ctx, &mut canvas);
+    canvas
+}
+
+fn tick(screen: &mut MapScreen, game: &mut l2_game::Game, assets: &Assets, n: u32) {
+    for _ in 0..n {
+        let mut ctx = Ctx { game, assets };
+        screen.update(&mut ctx);
+    }
+}
+
+/// Every pixel at which two screen canvases differ.
+fn differences(a: &l2_view::Canvas, b: &l2_view::Canvas) -> Vec<(i32, i32)> {
+    a.pixels
+        .iter()
+        .zip(b.pixels.iter())
+        .enumerate()
+        .filter(|(_, (p, q))| p != q)
+        .map(|(i, _)| ((i % 640) as i32, (i / 640) as i32))
+        .collect()
+}
+
+/// **The wheel reaches the screen, and only in its own tile.**
+///
+/// `docs/agents.md`: *a canvas diff passes on a garbage sprite or the wrong
+/// frame of the right sheet*, so this is not *"some pixels changed"*. It is two
+/// claims that fail in opposite directions:
+///
+/// * with one site working and every other switched off, `CYCLE` ticks change
+///   the picture, and **every** pixel that changed lies inside that site's own
+///   tile rectangle. A wheel drawn at the wrong tile, or an override that
+///   repainted the map, fails the second half. Measured: 196 pixels move, in a
+///   45 × 36 box inside a 58 × 60 rectangle.
+/// * with that last site switched off too, `CYCLE` ticks leave the frame
+///   **byte-identical**. That is the idempotence form `docs/agents.md` prefers
+///   to a threshold: no number to tune, and nothing to re-tune when the artwork
+///   changes.
+///
+/// **Ablation.** Delete `MapScreen::add_industry_graphics`'s `out.set(…)` and
+/// the first claim goes red — the sites then draw the frame `L2_maps.dat`
+/// stores and the wheel turns invisibly, which is exactly the defect this
+/// branch was written to fix. Dropping `industry_key` from the base plane's
+/// repaint key goes red the same way, on the cache rather than on the override.
+#[test]
+fn a_turning_wheel_changes_the_screen_and_a_stopped_one_changes_nothing() {
+    let (mut game, assets) = world!();
+    let sites = working_sites(&game);
+    let (tile, county, commodity) = *sites.first().expect("a working site on the fixture");
+
+    // Every other site switched off, so anything that moves in the frame is this
+    // one. `Industry_ToggleFromMap`'s own road, not a flag.
+    for &(t, id, c) in &sites {
+        if t != tile {
+            game.kingdom.toggle_industry(id, MapToggle::Industry(Commodity::ALL[c]));
+        }
+    }
+
+    let (x, y) = l2_kingdom::map::coords(tile);
+    let mut screen = MapScreen::new();
+    screen.centre_on_tile(x as usize, y as usize);
+    // One tick to build the site list and settle the frames, then the pair.
+    tick(&mut screen, &mut game, &assets, 1);
+
+    let frame_of = |s: &MapScreen| {
+        s.industry_sites_for_test().into_iter().find(|&(t, ..)| t == tile).expect("the site").3
+    };
+    let before = draw_map(&mut screen, &mut game, &assets);
+    let frame_before = frame_of(&screen);
+    tick(&mut screen, &mut game, &assets, CYCLE);
+    let frame_after = frame_of(&screen);
+    let after = draw_map(&mut screen, &mut game, &assets);
+
+    // The precondition, stated so that a window which happens to be a whole
+    // number of the wheel's own cycle fails *here*, where it names the cause,
+    // rather than below, where it would read as "the wheel does not reach the
+    // screen".
+    assert_ne!(
+        frame_before, frame_after,
+        "{CYCLE} ticks is a whole number of this wheel's cycle, so it is back on frame \
+         {frame_before} and the pixel claim below would be asserting nothing"
+    );
+
+    let moved = differences(&before, &after);
+    assert!(
+        !moved.is_empty(),
+        "county {county}'s site went from frame {frame_before} to {frame_after} and not \
+         one pixel of the screen changed"
+    );
+
+    // The site's own diamond, plus one tile's height of overhang above it —
+    // `Town1a.pl8`'s mine is 58 x 47 against a 58 x 30 tile, so the headframe is
+    // drawn above the diamond and `campaign::draw` subtracts the difference.
+    let (row, col) = l2_view::campaign::tile_to_cell(x as usize, y as usize);
+    let (tx, ty) = l2_view::campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
+    let z = screen.zoom();
+    let (x0, x1) = (tx, tx + z.tile_w);
+    let (y0, y1) = (ty - z.tile_h, ty + z.tile_h);
+    for &(px, py) in &moved {
+        assert!(
+            (x0..x1).contains(&px) && (y0..y1).contains(&py),
+            "a pixel at ({px}, {py}) changed, and the only thing moving is the site at \
+             tile {tile}, whose rectangle is x {x0}..{x1}, y {y0}..{y1} — {} pixels moved \
+             in all",
+            moved.len()
+        );
+    }
+
+    // And the other direction: switch the last one off, and nothing moves.
+    let on = game.kingdom.toggle_industry(county, MapToggle::Industry(Commodity::ALL[commodity]));
+    assert!(!on, "county {county}'s site should now be off");
+    tick(&mut screen, &mut game, &assets, 1);
+
+    let still = draw_map(&mut screen, &mut game, &assets);
+    tick(&mut screen, &mut game, &assets, CYCLE);
+    let still_again = draw_map(&mut screen, &mut game, &assets);
+    let drift = differences(&still, &still_again);
+    assert!(
+        drift.is_empty(),
+        "with every site switched off, {CYCLE} ticks moved {} pixels — the first at {:?}",
+        drift.len(),
+        drift.first()
+    );
+}
