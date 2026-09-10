@@ -45,10 +45,69 @@
 //!
 //! # What this does not do
 //!
-//! Music, the two message fanfares and the pointer click. Not the troop
-//! voices, not the village's work sounds, not the lord voices — the tables for
-//! all three are recovered and written down in [`names`], and what remains is
-//! call sites in screens two other agents are inside. See the report.
+//! **Read this before believing the layer plays anything.** The list below was
+//! wrong when it was written — it claimed the pointer click, which has never
+//! had a call site — and the sentence above it claimed music, which
+//! [`scene`] could not reach. Both are corrected here, and the count is the
+//! honest measure: of the install's **771** `.wav` files, this layer can
+//! currently reach **11** — `scroll1`…`scroll5`, `battle1`…`battle4`,
+//! `ff_msg.wav` and `ff_batl.wav`.
+//!
+//! **That number is measured, not typed**, and the first time it *was* typed it
+//! said 12: `battle5.wav` ships and decodes and nothing can ask for it, because
+//! the counter that selects it is `DAT_0057A0F0` — the third battle mode
+//! [`track::BattleKind`] declines to guess at.
+//! `tests/audio_wiring.rs::eleven_of_the_installs_771_sounds_are_reachable`
+//! drives every scene the policy can produce and reads [`Audio::heard`], so a
+//! new call site moves the number by itself.
+//!
+//! **By the six classes the original divides its sound into, one and a half
+//! work.** That is a more useful sentence than *"audio is broken"* and it is
+//! the one to keep current:
+//!
+//! | class | the original's call site | ours |
+//! |---|---|---|
+//! | **Music** | `Music_StartCampaign` `0x00499ACA`, `Music_StartBattle` `0x00477B2F` | **✅ both** — [`scene`] and [`Audio::follow`] |
+//! | **Event fanfares** | `Sound_PlayFile` at four sites | **◐ 2 of 4** — `ff_msg`, `ff_batl` |
+//! | The pointer click | `Widget_Test` `0x0040DA1E`, slot 1 | ✗ |
+//! | The two sample banks | `Sound_PlaySlot` `0x00426120` | ✗ |
+//! | Message narration | `Msg_PlayVoice` `0x004B35C1` | ✗ |
+//! | Troop cries | `FUN_00499CB1` | ✗ |
+//!
+//! The four that do not, in the order a player notices them:
+//!
+//! * **The pointer click.** `Widget_Test` (`0x0040DA1E`) plays slot 1,
+//!   `click3.wav`, on every widget press — **one** call site in the original,
+//!   because the whole game shares one hit-tester. Ours do not: 26 screen
+//!   modules each match `Event::Click` against their own rectangles, so there
+//!   is no single place to put it, and nothing above them can tell a press that
+//!   landed on a widget from one that landed on grass. Playing it on every
+//!   click would be an invention and a worse one than silence. **The enabling
+//!   change is in the screen layer, not here**: `Screen::handle` would have to
+//!   say whether it consumed the event at a widget, and then this is one call.
+//! * **The two sample banks.** [`names::KINGDOM_BANK`] and
+//!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
+//!   their 29 slots ship, and **nothing calls [`Audio::play_effect_if_idle`]**.
+//!   The village's work sounds, the marching army, the merchant's cart, the
+//!   peasant mob, every sword and every arrow are in there.
+//! * **The voices, including the industry toggle a player asked about.**
+//!   [`names::lord_voice`] and [`names::system_voice`] generate the names of all
+//!   448 lord takes and the system lines, and [`Audio::play_speech`] plays them;
+//!   what is missing is `Msg_PlayVoice`'s trigger, which belongs to the message
+//!   window. Switching an industry from the map is a *message*, not a sound
+//!   effect: `Industry_ToggleFromMap` (`0x0043D309`) ends with
+//!   `Msg_Enqueue(0, g_localPlayer, local_10 + 0xE6, 0, 4, 0, 0, 0)` where
+//!   `local_10` is `industry * 2 + on` for the four industries and `-1`/`-2` for
+//!   the castle switch — so `L2.eng` **228** and **229** are *Building off/on*
+//!   and **230**…**237** are the four industries, and `S228_01.wav`…`S237_01.wav`
+//!   all ship. `[V]`, from the decompilation; `docs/formats/eng.md` had the
+//!   extent right and marked it `[D]`. `l2_kingdom::industry::toggle_from_map`
+//!   makes the state change and **raises no message**, so there is nothing for a
+//!   voice to hang on yet. Two dependencies, in this order: the enqueue, then
+//!   the message window.
+//! * **`ff_lose.wav`** needs a gate rather than a call site — see
+//!   [`names::fanfare::AFTER_BATTLE`] — and **`ff_capt.wav`** is
+//!   `Msg_DrawWindow`'s conquest band, which needs the message window too.
 
 pub mod mixer;
 pub mod names;
@@ -129,6 +188,26 @@ pub struct Audio {
     /// as it lasts.
     scene: Option<Scene>,
     options: Options,
+    /// **Whether a file is worth decoding at all**, which is not the same
+    /// question as whether a device is open and used to be conflated with it.
+    ///
+    /// A machine whose sound card refused a stream should not read and decode
+    /// 3.8 MB every time the ladder changes track — that is what the guard was
+    /// for. But [`Audio::headless`] has no device *and does* want the decode,
+    /// because mixing into a buffer nobody hears is the only way to assert on
+    /// what a player would hear without a sound card. So the two are separate
+    /// fields and the guard says what it means.
+    decodes: bool,
+    /// **Every file this layer has actually opened.** Not a cache and not a
+    /// policy — a record of what travelled the road, which is the only
+    /// trustworthy answer to *"how much of the game's audio can we play?"*.
+    ///
+    /// The alternative is to type the number into a document, and the first
+    /// time it was typed it was wrong: `battle5.wav` is in the table, ships,
+    /// and is **unreachable**, because the counter that selects it is
+    /// `DAT_0057A0F0` — the third battle mode [`BattleKind`] deliberately does
+    /// not name. A set collected by driving beats a set assembled by reading.
+    heard: std::collections::BTreeSet<String>,
 }
 
 impl Audio {
@@ -144,6 +223,8 @@ impl Audio {
             battle: BattleCycle::default(),
             scene: None,
             options: Options::default(),
+            decodes: false,
+            heard: std::collections::BTreeSet::new(),
         }
     }
 
@@ -151,6 +232,38 @@ impl Audio {
     /// see. **Never fails**; on any problem it reports once on stderr and
     /// returns something silent.
     pub fn open(vfs: &l2_mods::vfs::Vfs) -> Audio {
+        let mut audio = Audio::index(vfs);
+        match start_device(Arc::clone(&audio.mixer)) {
+            Ok(stream) => {
+                audio.stream = Some(stream);
+                audio.decodes = true;
+            }
+            Err(e) => eprintln!("sound: no output device ({e}); running silent"),
+        }
+        if audio.files.is_empty() {
+            eprintln!("sound: no .wav files in the install; running silent");
+        }
+        audio
+    }
+
+    /// **Everything but the sound card**: the install's files are indexed and
+    /// decoded and the mixer runs, but no device is opened and nothing is
+    /// audible. [`Audio::mix`] is where the result comes out.
+    ///
+    /// This exists so that a test can assert on *what a player would hear* —
+    /// samples, from a real file, chosen by the real policy — on a machine
+    /// somebody is sitting at. `docs/agents.md`: prefer the mechanism that
+    /// needs nothing of the world. Reaching for a device instead would make the
+    /// assertion depend on a sound card, on CI having one, and on nobody
+    /// minding the noise, and it would still not be able to check the samples.
+    pub fn headless(vfs: &l2_mods::vfs::Vfs) -> Audio {
+        let mut audio = Audio::index(vfs);
+        audio.decodes = true;
+        audio
+    }
+
+    /// The files the vfs can see, with no device.
+    fn index(vfs: &l2_mods::vfs::Vfs) -> Audio {
         let mut audio = Audio::silent();
         for name in vfs.entries_with_extension("wav") {
             if let Some(path) = vfs.resolve(name) {
@@ -160,14 +273,20 @@ impl Audio {
                 audio.files.insert(name.to_ascii_lowercase(), path.to_path_buf());
             }
         }
-        match start_device(Arc::clone(&audio.mixer)) {
-            Ok(stream) => audio.stream = Some(stream),
-            Err(e) => eprintln!("sound: no output device ({e}); running silent"),
-        }
-        if audio.files.is_empty() {
-            eprintln!("sound: no .wav files in the install; running silent");
-        }
         audio
+    }
+
+    /// **The buffer the device callback would have been handed** — interleaved
+    /// stereo `f32` at the mixer's rate, one call per callback's worth.
+    ///
+    /// The stream `start_device` builds does exactly this and then spreads it
+    /// over the device's channel count, so this is the whole of what is
+    /// audible and the only thing worth asserting on.
+    pub fn mix(&mut self, out: &mut [f32]) {
+        match self.mixer.lock() {
+            Ok(mut m) => m.fill(out),
+            Err(_) => out.iter_mut().for_each(|s| *s = 0.0),
+        }
     }
 
     /// Whether a device is open. For the start-up line and for tests; nothing
@@ -179,6 +298,14 @@ impl Audio {
     /// How many `.wav` files were found.
     pub fn file_count(&self) -> usize {
         self.files.len()
+    }
+
+    /// **Every file this layer has actually opened, sorted.**
+    ///
+    /// The answer to *"how much of the game's 771 sounds does the engine
+    /// reach?"*, measured rather than asserted. See the field.
+    pub fn heard(&self) -> Vec<&str> {
+        self.heard.iter().map(String::as_str).collect()
     }
 
     pub fn options(&self) -> Options {
@@ -327,7 +454,7 @@ impl Audio {
     /// The cache stores the *failure* too, as `None`, so that a missing file is
     /// looked for once rather than on every click.
     fn load(&mut self, name: &str) -> Option<Arc<Sound>> {
-        if self.stream.is_none() {
+        if !self.decodes {
             return None;
         }
         let key = name.to_ascii_lowercase();
@@ -335,6 +462,9 @@ impl Audio {
             return hit.clone();
         }
         let sound = self.decode(&key).map(Arc::new);
+        if sound.is_some() {
+            self.heard.insert(key.clone());
+        }
         // Music is not cached: five tracks at ~7 MB decoded each is 35 MB held
         // for the sake of a track change that happens twice an hour.
         let is_music = names::MUSIC_SCROLL.contains(&key.as_str())
@@ -383,9 +513,37 @@ impl Audio {
 /// county track. `[V]`, and the player confirmed it by ear: *"the scroll wavs
 /// are the bg music for the map/county management screen"*.
 ///
-/// The front end is read off the **bottom** of the stack rather than the top,
-/// because the load screen opened from the title is still the front end while
-/// the same screen opened mid-game is not.
+/// # The question is *"has `Game_NewGame` run"*, and it is asked of the whole stack
+///
+/// **This function returned `FrontEnd` for every state a running game can be
+/// in, for the entire life of the audio layer, and no music has ever played.**
+/// It asked whether the screen at the *bottom* of the stack is a setup page —
+/// and `SetupScreen`'s Start button returns `Transition::Push(ScreenId::Campaign)`,
+/// so the title screen stays at the bottom of the stack for the whole session.
+/// The predicate meant *"is the front end still up?"*; what it implemented was
+/// *"was the front end ever up?"*, and those agree only in a machine built by
+/// hand — which is exactly what the test that covered it built. `C116`.
+///
+/// So the stack is asked as a whole, and the arms are the original's three
+/// music phases rather than a screen id:
+///
+/// | our stack | `g_battlePhase` | what the original calls |
+/// |---|---|---|
+/// | anything is `ScreenId::Battlefield` | 2 | `Music_StartBattle` (`0x00477B2F`), from `Battle_Start` (`0x004778A0`) |
+/// | everything is a front-end screen | — | nothing; neither picker has been reached yet |
+/// | anything else | 0 | `Music_StartCampaign` (`0x00499ACA`), from `Game_NewGame` (`0x004992F1`) |
+///
+/// `[V]` from the decompilation: `Battle_Start` opens with
+/// `Sound_LoadBattleBank(); Music_StartBattle();` and `Game_NewGame` ends with
+/// `Sound_LoadKingdomBank(); Gfx_LoadCountyMode(); …; Music_StartCampaign();`.
+/// Nothing before `Game_NewGame` reaches either picker, which is what makes the
+/// front end silent — not a rule about the title screen.
+///
+/// `before_the_campaign` is exhaustive over [`crate::screen::ScreenId`] with no `_` arm, so
+/// a new screen does not compile until somebody has said which side of
+/// `Game_NewGame` it is on. That is the only defence that would have caught the
+/// original defect, because every check that *reads* this function agreed with
+/// it.
 ///
 /// # The share is recomputed here rather than read
 ///
@@ -407,7 +565,19 @@ impl Audio {
 /// it back.
 pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
     use crate::screen::ScreenId;
-    if let Some(ScreenId::Setup(_)) = machine.ids().first() {
+    let ids = machine.ids();
+    // `g_battlePhase == 2`. The battlefield is three screen ids in the original
+    // (`0x29` field, `0x2A` drag, `0x2B` outcome) and one of ours, and the
+    // phase outlives all of them: panels open over the field while the battle
+    // music keeps playing, so this asks the stack rather than its top.
+    if ids.iter().any(|id| matches!(id, ScreenId::Battlefield)) {
+        let kind = match game.battle.as_ref().is_some_and(|b| b.is_siege()) {
+            true => BattleKind::Siege,
+            false => BattleKind::Field,
+        };
+        return Scene::Battle(kind);
+    }
+    if ids.iter().copied().all(before_the_campaign) {
         return Scene::FrontEnd;
     }
     let county_count = game
@@ -422,6 +592,170 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
             county_count as i32,
             game.kingdom.county_count as i32,
         ),
+    }
+}
+
+/// **Everything audible, decided from the world after the tick that made it.**
+///
+/// One direction only: [`Director::listen`] reads the game and the screen stack
+/// and tells the audio layer what should be true. It never writes to either,
+/// and nothing it does is visible to the next tick — so the recording of a
+/// session and a replay of it are the same simulation whether or not the
+/// machine had a sound card. That is `docs/netcode.md` D-3, and it is why this
+/// takes `&Machine` and `&Game` rather than `&mut`.
+///
+/// # Why this is a type in the library and not six lines in `main.rs`
+///
+/// It *was* six lines in `main.rs`, and the consequence is the reason this file
+/// exists in the shape it does: **a binary's code cannot be called by a test**,
+/// so the only test available was one that re-typed the same six lines beside
+/// its assertions and then checked them. That test passes with `main.rs`
+/// deleted. `docs/agents.md` — *two artefacts that must agree and are
+/// maintained by the same person at the same time is the pattern that lies* —
+/// and re-typing a function into its own test is the purest form of it.
+///
+/// The two edge counters are the state that forces it to be a type at all: a
+/// fanfare must sound when something *becomes* true, and `listen` runs sixty
+/// times a second.
+#[derive(Debug, Default)]
+pub struct Director {
+    /// `game.turns_played` as it stood at the last tick, so that the end of a
+    /// turn can be noticed without anything having to report it.
+    turns_heard: u32,
+    /// Whether the battle prompt was already up at the last tick, so
+    /// `ff_batl.wav` sounds once when the battle is announced rather than sixty
+    /// times a second while the player decides.
+    prompt_heard: bool,
+}
+
+impl Director {
+    pub fn new() -> Director {
+        Director::default()
+    }
+
+    /// One tick's worth of sound. Call after the simulation tick that produced
+    /// the state, and never from inside one.
+    pub fn listen(
+        &mut self,
+        audio: &mut Audio,
+        machine: &crate::screen::Machine,
+        game: &crate::Game,
+    ) {
+        use crate::screen::ScreenId;
+
+        // **The three switches on the Sounds page**, which had no effect on
+        // anything audible until this line: `screens::options` writes
+        // `game.prefs.music` / `.effects` / `.speech` — the original's
+        // `g_optMusic` (`0x0053F218`), `g_optSoundEffects` (`0x0053F214`) and
+        // `g_optSpeech` (`0x0053F20C`), flipped by `Opt_ToggleMusic`
+        // (`0x004349A4`) and its two neighbours — while [`Audio`] kept a second
+        // copy of the same three flags that nothing ever wrote. Two
+        // representations of one setting, and the one the player could reach
+        // was the one nobody read.
+        //
+        // Pushed rather than shared, and in this direction only: the audio
+        // layer must not be reachable from a screen. Guarded on inequality
+        // because the setter takes the mixer's lock and the answer changes
+        // about once an hour.
+        let want = Options {
+            music: game.prefs.music,
+            effects: game.prefs.effects,
+            speech: game.prefs.speech,
+        };
+        if want != audio.options() {
+            audio.set_options(want);
+        }
+
+        audio.follow(scene(machine, game));
+
+        // **`ff_batl.wav`, when a battle is announced.**
+        // `Battle_ChooseSettlement` (`0x004A6A30`) plays it on the branch that
+        // pushes screen `0x12` — the one where at least one side is human —
+        // and takes no other sound with it, so this is the whole of that call
+        // site. Our prompt appears on exactly that branch, so the screen
+        // arriving *is* the event.
+        let prompt_up = machine.ids().iter().any(|id| matches!(id, ScreenId::BattlePrompt));
+        if prompt_up && !self.prompt_heard {
+            audio.play_effect(names::fanfare::BATTLE);
+        }
+        self.prompt_heard = prompt_up;
+
+        // **There is no end-of-turn sound in the original**, and this is not
+        // one. Nothing on the `Turn_End` / `Season_Advance` / phase-7 path
+        // plays anything, the End Turn button is silent, and both call sites of
+        // the end-of-turn screen fade carry no sound either.
+        //
+        // What a player hears at the end of a turn is the *message window*
+        // opening: `Msg_DrawWindow` (`0x0047309E`) plays `ff_msg.wav` on the
+        // frame `g_messageTimer` reaches 2000, and a turn ends in a run of
+        // message windows. So the chime belongs to the window.
+        //
+        // We have no message windows yet, so this fires **once per turn that
+        // produced any message** rather than once per window. It is an
+        // approximation and it is written down as one: when the message windows
+        // exist, the call belongs on the window and this goes away.
+        if game.turns_played != self.turns_heard {
+            self.turns_heard = game.turns_played;
+            let spoke = game.last_report.as_ref().is_some_and(|r| !r.messages.is_empty());
+            if spoke {
+                audio.play_effect(names::fanfare::MESSAGE);
+            }
+        }
+    }
+}
+
+/// **Is this a screen that can be up before `Game_NewGame` has run?**
+///
+/// Exhaustive on purpose, with no `_` arm: adding a [`ScreenId`] is a compile
+/// error here until somebody has said whether the campaign music should be
+/// playing behind it. Every line is a real question, which is the test
+/// `docs/agents.md` asks of an exhaustive list before it is worth having.
+///
+/// The `true` side is small and closed. `SetupPage` covers all thirteen front
+/// end pages including `SetupPage::Load`, so *"the load screen opened from the
+/// title is still the front end"* holds without a special case —
+/// [`ScreenId::SaveLoad`] is the in-game one (`g_screenId` `0x35`/`0x36`) and
+/// is a different screen. [`ScreenId::Menu`] is the placeholder front end the
+/// application no longer starts on, and [`ScreenId::Index`] is ours and is
+/// pushed from the title by `I`; over a running game both sit *above*
+/// [`ScreenId::Campaign`], so the stack still answers `Campaign`.
+fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
+    use crate::screen::ScreenId as S;
+    match id {
+        S::Setup(_) | S::Menu | S::Index => true,
+        S::Campaign
+        | S::County(..)
+        | S::Village(..)
+        | S::Job(..)
+        | S::Conquest
+        | S::Diplomacy
+        | S::DiploCompose(..)
+        | S::SaveLoad(_)
+        | S::Castle(_)
+        | S::Siege(_)
+        | S::RaiseArmy(_)
+        | S::Armoury(_)
+        | S::Rack(..)
+        | S::Divide(_)
+        | S::Merchant(_)
+        | S::Trade(..)
+        | S::BattlePrompt
+        | S::BattleResult
+        // The message scroll. It is an overlay the game paints over whatever is
+        // underneath -- Msg_DrawWindow is called from the screen ladder, not
+        // from a screen of its own -- so a message is never the reason music
+        // starts or stops, and it can only be up once a game is running. This
+        // arm exists because the exhaustive match made somebody answer the
+        // question, which is the whole point of it having no wildcard.
+        | S::Message
+        | S::Options(_)
+        | S::Battlefield
+        | S::MenuBar(_)
+        | S::About
+        | S::Court
+        | S::Supplies(_)
+        | S::Ratings
+        | S::Info(_) => false,
     }
 }
 
