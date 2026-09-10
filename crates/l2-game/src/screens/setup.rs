@@ -937,7 +937,7 @@ impl SetupScreen {
                 // its four arms: arriving at page 4 from the title menu is
                 // **not** a campaign, whatever the last visit set.
                 //
-                // arm: 0x00432B05/multiplayer-clears-campaign
+                // arm: 0x00432B05/multiplayer-clears-campaign left-release
                 self.campaign = false;
                 self.go(SetupPage::Shield)
             }
@@ -967,7 +967,7 @@ impl SetupScreen {
             // [`crate::victory::Track::first_map`], which is where it was
             // already read out of this function.
             //
-            // arm: 0x00433461/choose-campaign
+            // arm: 0x00433461/choose-campaign left-press
             (SetupPage::Campaign, i) => {
                 self.track = if i == 1 {
                     crate::victory::Track::Second
@@ -1024,7 +1024,7 @@ impl SetupScreen {
     /// `docs/decisions.md` C117.
     fn go(&mut self, page: SetupPage) -> Transition {
         if page == SetupPage::Shield && self.page != SetupPage::Shield {
-            // arm: 0x00432B05/name-field-open
+            // arm: 0x00432B05/name-field-open left-release
             self.name = begin_name(&self.saved_name);
         }
         self.page = page;
@@ -1119,7 +1119,7 @@ impl SetupScreen {
     /// this arm has none, which is right: a campaign row's map and lord count
     /// come from the same table and cannot disagree.
     ///
-    /// arm: 0x00433155/continue
+    /// arm: 0x00433155/continue left-press
     fn continue_pressed(&mut self, ctx: &mut Ctx) -> Transition {
         if !self.campaign {
             // `DAT_0055302C` picks between page 7/8 and page 11/12 here. This
@@ -1224,7 +1224,7 @@ impl SetupScreen {
         let local = ctx.game.player as usize;
         for realm in 0..l2_kingdom::realm::MAX_REALMS {
             let name = if realm == local {
-                // arm: 0x0049BAE9/name-to-playernames
+                // arm: 0x0049BAE9/name-to-playernames left-release
                 self.name.commit(text::PLAYER_NAME_LEN)
             } else {
                 let lord = ctx.game.kingdom.realms[realm].lord as usize;
@@ -1302,7 +1302,7 @@ impl Screen for SetupScreen {
         // Doing it per keystroke is the same thing at the only moments the
         // buffer can have changed.
         if self.page == SetupPage::Shield {
-            // arm: 0x004BA9C8/setup-name
+            // arm: 0x004BA9C8/setup-name key
             let metrics = text::FontMetrics::of(&ctx.assets.shell);
             if self.name.event(event, &metrics) {
                 self.saved_name = self.name.commit(text::PLAYER_NAME_LEN);
@@ -1317,18 +1317,18 @@ impl Screen for SetupScreen {
         // cannot drive from the keyboard is worse, not more faithful — and the
         // records are `ours/setup-*` in `docs/arms.json`.
         match event {
-            // arm: ours/setup-key-up
+            // arm: ours/setup-key-up key
             Event::KeyDown(Key::Up) => self.selected = (self.selected + n - 1) % n,
-            // arm: ours/setup-key-down
+            // arm: ours/setup-key-down key
             Event::KeyDown(Key::Down) => self.selected = (self.selected + 1) % n,
-            // arm: ours/setup-key-activate
+            // arm: ours/setup-key-activate key
             Event::KeyDown(Key::Enter) | Event::KeyDown(Key::Space) => return self.activate(ctx),
             // Ours: the demo's index of every screen. `screens::index` says
             // why it exists and marks itself as not the game's.
             //
-            // arm: ours/setup-key-index
+            // arm: ours/setup-key-index key
             Event::KeyDown(Key::Char('I')) => return Transition::Push(ScreenId::Index),
-            // arm: ours/setup-key-escape
+            // arm: ours/setup-key-escape key
             Event::KeyDown(Key::Escape) => {
                 // Whatever the page is, Escape is its own way back — the
                 // original's Back button where there is one, and out of the

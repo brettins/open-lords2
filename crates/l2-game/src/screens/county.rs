@@ -947,8 +947,30 @@ impl Screen for CountyScreen {
             //
             // The release ends the drag and does nothing else, exactly as the
             // first line of the original's ladder says.
-            Event::Release { .. } => {
+            Event::Release { x, y } => {
                 self.slider_held = false;
+                // `Ui_OkButtonClicked` (`0x0040E7E4`) — the 24 x 24 corner
+                // picture the panel's own `Ui_OkButton` call stashed, **on the
+                // release**: its first statement is
+                // `if (g_mouseLeftReleased == 0) return 0;`. Ours tested it on
+                // the press, which is one of four such arms and the reason
+                // `docs/arms.json` now records a gesture KIND rather than only
+                // an arm's existence.
+                //
+                // **The BACK TO MAP button that used to be tested here is gone.**
+                // It was ours, it was drawn at (478, 460), and that is the
+                // original's **End Turn** strip to the pixel — record 5 of
+                // `g_sidebarButtons`. So a rectangle of ours sat on top of a
+                // live control of the game's. The column now passes down and
+                // the strip ends the turn.
+                // arm: 0x0040E7E4/panel-corner-closes left-release
+                if self
+                    .panel
+                    .ok_button_for(ctx.game.kingdom.options.armies_eat)
+                    .contains(x, y)
+                {
+                    return Transition::Pop;
+                }
                 return Transition::Stay;
             }
             Event::Pointer { x, y } if self.slider_held => {
@@ -968,7 +990,7 @@ impl Screen for CountyScreen {
             // that chain tests a left press or a left release, so none of them
             // consumes a right one.
             //
-            // arm: 0x0042FF10/panel-right-closes
+            // arm: 0x0042FF10/panel-right-closes right-release
             Event::RightClick { .. } => return Transition::Pop,
             // **Ours, and counted.** The original has no keyboard route out of a
             // panel and none into another one: its only `VK_ESCAPE` handler
@@ -977,7 +999,7 @@ impl Screen for CountyScreen {
             // nothing else, and recorded in `docs/arms.json` as an invention
             // rather than left as a comment admitting a choice — which is what
             // `docs/decisions.md` C61 found nine of.
-            // arm: ours/county-panel-keyboard
+            // arm: ours/county-panel-keyboard key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => return Transition::Pop,
             Event::KeyDown(Key::Up) => {
                 self.panel = PANELS[(self.panel_index() + PANELS.len() - 1) % PANELS.len()];
@@ -998,20 +1020,12 @@ impl Screen for CountyScreen {
                 // live control of the game's, which is the same defect a player
                 // reported about the five sidebar icons a fortnight ago. The
                 // column now passes down and the strip ends the turn.
-                // arm: 0x0040E7E4/panel-corner-closes
-                if self
-                    .panel
-                    .ok_button_for(ctx.game.kingdom.options.armies_eat)
-                    .contains(x, y)
-                {
-                    return Transition::Pop;
-                }
                 // The strip's four quadrants are in the column and went down
                 // with it, so nothing is tested for them here.
                 // `Ration_SliderClick` (`0x0043A379`) — `0x19`'s own extra
                 // guard, and the reason the ration panel's arm is one line
                 // longer than the other three.
-                // arm: 0x0043A379/ration-split-slider
+                // arm: 0x0043A379/ration-split-slider left-press
                 if self.split_click(ctx, x, y, true) {
                     self.slider_held = true;
                     return Transition::Stay;
@@ -1019,7 +1033,7 @@ impl Screen for CountyScreen {
                 // `Screen_HandleInput`'s widget tables: `g_taxWidgets`
                 // (`0x004DD790`) and `g_rationWidgets` (`0x004DD7C0`), two
                 // records each, up then down.
-                // arm: 0x004BA9C8/tax-and-ration-arrows
+                // arm: 0x004BA9C8/tax-and-ration-arrows left-press
                 if self.panel.increase_button().is_some_and(|r| r.contains(x, y)) {
                     self.adjust(ctx, 1);
                 } else if self.panel.decrease_button().is_some_and(|r| r.contains(x, y)) {

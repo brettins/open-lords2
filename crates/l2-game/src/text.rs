@@ -406,7 +406,7 @@ impl TextField {
     /// overwrite is bounded only by the caret reaching `max_len`, insert also
     /// needs the *length* to be under it. On a full field they agree.
     ///
-    // arm: 0x00401D26/overwrite-default
+    // arm: 0x00401D26/overwrite-default key
     fn put(&mut self, c: char, m: &dyn Metrics) {
         self.clamp(m);
         if self.state == State::Full {
@@ -497,40 +497,40 @@ impl TextField {
     /// is stepped by the screen that owns it and by nothing else.
     pub fn event(&mut self, event: Event, m: &dyn Metrics) -> bool {
         match event {
-            // arm: 0x004B29BE/wm-char
+            // arm: 0x004B29BE/wm-char key
             Event::Text(c) => self.type_char(c, m),
             Event::KeyDown(key) => match key {
-                // arm: 0x00401C70/backspace
+                // arm: 0x00401C70/backspace key
                 Key::Backspace => {
                     self.backspace(m);
                     true
                 }
-                // arm: 0x00401DC8/delete
+                // arm: 0x00401DC8/delete key
                 Key::Delete => {
                     self.delete(m);
                     true
                 }
-                // arm: 0x00401CBC/caret-left
+                // arm: 0x00401CBC/caret-left key
                 Key::Left => {
                     self.left();
                     true
                 }
-                // arm: 0x00401CDA/caret-right
+                // arm: 0x00401CDA/caret-right key
                 Key::Right => {
                     self.right();
                     true
                 }
-                // arm: 0x00401CFC/caret-home
+                // arm: 0x00401CFC/caret-home key
                 Key::Home => {
                     self.home();
                     true
                 }
-                // arm: 0x00401D11/caret-end
+                // arm: 0x00401D11/caret-end key
                 Key::End => {
                     self.end();
                     true
                 }
-                // arm: 0x00401CA3/toggle-insert
+                // arm: 0x00401CA3/toggle-insert key
                 Key::Insert => {
                     self.toggle_insert();
                     true
@@ -592,7 +592,7 @@ impl TextField {
     /// text, where that character is the terminator and `FUN_004015B9` returns
     /// zero, the underline is a two-pixel stub.
     ///
-    // arm: 0x0040ACCE/caret
+    // arm: 0x0040ACCE/caret timer
     pub fn draw_caret(&self, canvas: &mut Canvas, x: i32, y: i32, colour: u8, m: &dyn Metrics) {
         if !self.caret_lit() {
             return;

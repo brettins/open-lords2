@@ -475,7 +475,7 @@ impl SaveLoadScreen {
     /// `mode == Save`, which was a restriction we invented; clicking a row
     /// still fills the field, so the mouse route is unchanged.
     fn edit(&mut self, event: Event, ctx: &Ctx) -> bool {
-        // arm: 0x004BA9C8/saveload-name
+        // arm: 0x004BA9C8/saveload-name key
         let m = crate::text::FontMetrics::of(&ctx.assets.shell);
         if !self.name.event(event, &m) {
             return false;
@@ -528,7 +528,7 @@ impl Screen for SaveLoadScreen {
             // Escape arm is `Menu_Quit` or `g_backOut = 1`, neither of which
             // knows this box exists.
             //
-            // arm: ours/saveload-key-escape
+            // arm: ours/saveload-key-escape key
             Event::KeyDown(Key::Escape) => Transition::Pop,
             // **Enter is the confirm button, and that is the original's.**
             // `VK_RETURN` runs `Edit_Confirm` (`0x00401C5B`), whose whole body
@@ -538,7 +538,7 @@ impl Screen for SaveLoadScreen {
             // convenience of ours until the keyboard path was read; it turns
             // out to be an arm.
             //
-            // arm: 0x00401C5B/enter-confirms
+            // arm: 0x00401C5B/enter-confirms key
             Event::KeyDown(Key::Enter) => self.confirm(ctx),
             // **Space no longer confirms, and could not**: the field takes it
             // above as a character, on both screens, which is what the original
@@ -549,7 +549,7 @@ impl Screen for SaveLoadScreen {
             // Ours. The original scrolls the list from the two arrow *widgets*
             // and from nothing else.
             //
-            // arm: ours/saveload-key-scroll
+            // arm: ours/saveload-key-scroll key
             Event::KeyDown(Key::Up) => {
                 self.scroll(-(SCROLL_STEP as i32));
                 Transition::Stay

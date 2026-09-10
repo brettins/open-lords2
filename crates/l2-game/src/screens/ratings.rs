@@ -418,7 +418,7 @@ impl Screen for RatingsScreen {
             //
             // Only the raster, not the column — see `screens/job.rs` at the
             // same arm.
-            // arm: 0x0042FF10/minimap-under-the-ratings
+            // arm: 0x0042FF10/minimap-under-the-ratings left-press
             Event::Click { x, y } if l2_view::chrome::minimap_hit_area().contains(x, y) => {
                 Transition::Pass
             }
@@ -428,10 +428,10 @@ impl Screen for RatingsScreen {
             // The original goes *forward* to `0x2F`, the rank screen, which is
             // not built; `0x2F` returns to the skirmish setup page, which is
             // where popping lands too.
-            // arm: 0x0042FF10/ratings-any-press
+            // arm: 0x0042FF10/ratings-any-press left-press
             Event::Click { .. } | Event::RightClick { .. } => Transition::Pop,
             // **Ours.**
-            // arm: ours/ratings-keyboard-close
+            // arm: ours/ratings-keyboard-close key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             _ => Transition::Stay,
         }

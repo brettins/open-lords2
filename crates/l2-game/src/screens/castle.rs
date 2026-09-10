@@ -433,7 +433,7 @@ impl Screen for CastleScreen {
                 // `g_screenId = 0`, so the **corner** picture closes to the map
                 // and orders nothing. It is a third way out that this screen
                 // drew and did not answer.
-                // arm: 0x0042FF10/castle-corner-ok
+                // arm: 0x0042FF10/castle-corner-ok left-release
                 if CORNER_OK.contains(x, y) {
                     self.choice = CastleChoice::Cancelled;
                     return Transition::Pop;

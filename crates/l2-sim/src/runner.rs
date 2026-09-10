@@ -1865,7 +1865,7 @@ impl BattleRunner {
     /// castle with no drawbridge cell leaves the button live rather than
     /// spending it.
     ///
-    /// // arm: 0x00496B9F/lower-drawbridge
+    /// // arm: 0x00496B9F/lower-drawbridge left-press
     pub fn lower_drawbridge(&mut self) -> bool {
         if !self.siege.is_siege {
             return false;

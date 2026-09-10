@@ -845,13 +845,13 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// run once per frame, and the difference is recorded here rather than hidden.
 pub fn show(game: &mut Game) -> bool {
     let Some(record) = game.messages.open().copied() else { return false };
-    // arm: 0x0047309E/tip-timer-clamp
+    // arm: 0x0047309E/tip-timer-clamp draw
     game.messages.clamp_tip_timer();
     if !game.messages.just_opened() {
         return true;
     }
     match record.category {
-        // arm: 0x0047309E/alliance-offer-lapses
+        // arm: 0x0047309E/alliance-offer-lapses draw
         category::ALLIANCE_PROMPT => {
             let ally = game.kingdom.realms.get(game.player as usize).map_or(0, |r| r.ally);
             if ally != 0 {
@@ -859,7 +859,7 @@ pub fn show(game: &mut Game) -> bool {
                 return false;
             }
         }
-        // arm: 0x0047309E/ending-sets-outcome
+        // arm: 0x0047309E/ending-sets-outcome draw
         category::ENDING => {
             let step = victory::outcome_of(
                 record.as_ending(),
@@ -879,7 +879,7 @@ pub fn show(game: &mut Game) -> bool {
         }
         // The diplomatic letter carries the same alliance guard for group 0xF8
         // only — `Msg_DrawDiplomacy`'s `iVar2 == 3` arm.
-        // arm: 0x00475E07/letter-alliance-lapses
+        // arm: 0x00475E07/letter-alliance-lapses draw
         category::DIPLOMACY if record.group == 0xF8 => {
             let ally = game.kingdom.realms.get(game.player as usize).map_or(0, |r| r.ally);
             if ally != 0 {

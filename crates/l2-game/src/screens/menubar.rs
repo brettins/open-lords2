@@ -450,37 +450,37 @@ impl DropdownScreen {
         match item {
             // `Menu_NewGame`: `Ui_OpenConfirm(1, …)` — group 10 index 1. Screen
             // 0x1E is not built, so this is refused rather than guessed at.
-            // arm: 0x0040DECA/file-new-game
+            // arm: 0x0040DECA/file-new-game left-press
             Item::NewGame => {
                 self.status = "NEW GAME NEEDS THE CONFIRM BOX (SCREEN 0x1E)".into();
                 Transition::Stay
             }
-            // arm: 0x0040DECA/file-load
+            // arm: 0x0040DECA/file-load left-press
             Item::Load => Transition::Replace(ScreenId::SaveLoad(Mode::Load)),
-            // arm: 0x0040DECA/file-save
+            // arm: 0x0040DECA/file-save left-press
             Item::Save => Transition::Replace(ScreenId::SaveLoad(Mode::Save)),
             // `Menu_Quit`: `Ui_OpenConfirm(0, …)`, *"Exit the game?"*. With no
             // confirm box we quit outright, which is the answer the box would
             // have carried and not the box.
-            // arm: 0x0040DECA/file-quit
+            // arm: 0x0040DECA/file-quit left-press
             Item::Quit => Transition::Quit,
-            // arm: 0x0040DECA/options-and-help-pages
+            // arm: 0x0040DECA/options-and-help-pages left-press
             Item::Options(page) => Transition::Replace(ScreenId::Options(page)),
             // `Ui_OpenSlider` on one option — screen `0x21`, the value spinner.
             // We have the two values on the options pages instead, and no
             // spinner; the item says so.
-            // arm: 0x0040DECA/options-sliders
+            // arm: 0x0040DECA/options-sliders left-press
             Item::Slider(what) => {
                 self.status = format!("{what} IS ON THE ADVANCED PAGE - NO SPINNER (SCREEN 0x21)");
                 Transition::Stay
             }
             // Five consecutive message ids, 0x123 … 0x127, through `Msg_Enqueue`.
-            // arm: 0x0040DECA/help-topics
+            // arm: 0x0040DECA/help-topics left-press
             Item::Help(id) => {
                 self.status = format!("HELP MESSAGE 0x{id:03X} NEEDS THE MESSAGE SCROLL");
                 Transition::Stay
             }
-            // arm: 0x0040DECA/help-about
+            // arm: 0x0040DECA/help-about left-press
             Item::About => Transition::Replace(ScreenId::About),
         }
     }
@@ -515,14 +515,14 @@ impl Screen for DropdownScreen {
             // the button up switches the open menu; then the item under the
             // pointer is recomputed. Both are the same call, in that order.
             Event::Pointer { x, y } => {
-                // arm: 0x0040DD92/slide-between-titles
+                // arm: 0x0040DD92/slide-between-titles hover
                 if let Some(t) = title_at(&*ctx, x, y) {
                     if t != self.menu {
                         self.menu = t;
                         self.status.clear();
                     }
                 }
-                // arm: 0x0040DD92/hover-item
+                // arm: 0x0040DD92/hover-item hover
                 self.hover = self.item_at(&*ctx, x, y);
             }
             // The button-down half: an item under the pointer runs, anything
@@ -532,7 +532,7 @@ impl Screen for DropdownScreen {
             Event::Click { x, y } => {
                 self.hover = self.item_at(&*ctx, x, y);
                 match self.hover {
-                    // arm: 0x0040DD92/pick-item
+                    // arm: 0x0040DD92/pick-item left-press
                     Some(i) => {
                         let item = MENUS[self.menu].items[i].2;
                         let t = self.run(ctx, item);
@@ -544,16 +544,16 @@ impl Screen for DropdownScreen {
                             other => other,
                         };
                     }
-                    // arm: 0x0040DF62/close-on-miss
+                    // arm: 0x0040DF62/close-on-miss left-press
                     None => return Transition::Pop,
                 }
             }
             // `if (FUN_0040DD92(...) == 0 && g_mouseRightReleased) FUN_0040DF62();`
-            // arm: 0x0042FF10/dropdown-right-close
+            // arm: 0x0042FF10/dropdown-right-close right-release
             Event::RightClick { .. } => return Transition::Pop,
             // **Ours.** The original has no key here: the window procedure's
             // Escape arm is `Menu_Quit` and never reaches screen 0x32.
-            // arm: ours/dropdown-escape-closes
+            // arm: ours/dropdown-escape-closes key
             Event::KeyDown(Key::Escape) => return Transition::Pop,
             _ => {}
         }

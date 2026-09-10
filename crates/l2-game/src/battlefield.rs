@@ -463,7 +463,7 @@ impl LiveBattle {
     /// records it; the byte it reads is in zeroed BSS, so the clause is true in
     /// practice and the corrected reading is the one that matches play.
     ///
-    /// // arm: 0x0047ED9B/hover
+    /// // arm: 0x0047ED9B/hover hover
     pub fn update_hover(&mut self) {
         let (x, y) = self.pointer;
         self.hover = Hover::default();
@@ -511,7 +511,7 @@ impl LiveBattle {
     /// it is above y 184 — which is the overview panel, where a click really
     /// does order.
     ///
-    /// // arm: 0x004B99C0/cursor
+    /// // arm: 0x004B99C0/cursor hover
     pub fn cursor(&self) -> Cursor {
         if self.mode == Mode::Drag {
             return Cursor::Arrow;
@@ -573,7 +573,7 @@ impl LiveBattle {
     /// `docs/decisions.md` C60. Without it the battle camera would move 62 cells
     /// a second.
     ///
-    /// // arm: 0x00432221/battle-edge-scroll
+    /// // arm: 0x00432221/battle-edge-scroll hover-at-edge
     pub fn edge_scroll(&mut self) -> bool {
         let Some(dir) = self.edge_direction() else {
             self.scroll_wait = 0;
@@ -611,7 +611,7 @@ impl LiveBattle {
     /// — can therefore never be taken. The pause sound in the shipped game is
     /// dead code. `docs/bugs.md` D38.
     ///
-    /// // arm: 0x0043B9A1/pause
+    /// // arm: 0x0043B9A1/pause left-press
     pub fn press_pause(&mut self) -> bool {
         if self.choice_owner == 0 {
             return false;
@@ -629,7 +629,7 @@ impl LiveBattle {
     /// the campaign. The prompt index is what tells them apart to the player and
     /// nothing downstream reads which was answered except `DAT_005653F4`.
     ///
-    /// // arm: 0x0043BA29/retreat
+    /// // arm: 0x0043BA29/retreat left-press
     pub fn press_retreat(&mut self) -> Option<usize> {
         if self.choice_owner != 1 {
             return None;
@@ -667,7 +667,7 @@ impl LiveBattle {
     /// means a level-3 castle whose layout carries no `0x40` cell leaves the
     /// button live.
     ///
-    /// // arm: 0x0043BBE7/sally
+    /// // arm: 0x0043BBE7/sally left-press
     pub fn press_sally(&mut self, garrison_is_local: bool) -> Result<(), u16> {
         if self.choice_owner == 0 {
             return Err(0);
@@ -697,7 +697,7 @@ impl LiveBattle {
     /// `FUN_0043BD02` (`0x0043BD02`) → `FUN_0047A76D` (`0x0047A76D`) — **the
     /// charge**, and it is available exactly once in a battle.
     ///
-    /// // arm: 0x0043BD02/charge
+    /// // arm: 0x0043BD02/charge left-press
     pub fn press_charge(&mut self) -> bool {
         if self.choice_owner == 0 || self.charged {
             return false;
@@ -711,7 +711,7 @@ impl LiveBattle {
     /// `FUN_0043BD67` (`0x0043BD67`) — `Ui_OpenConfirm(9)`, *"Autocalc
     /// battle?"*.
     ///
-    /// // arm: 0x0043BD67/autocalc
+    /// // arm: 0x0043BD67/autocalc left-press
     pub fn press_autocalc(&mut self) -> Option<usize> {
         if self.choice_owner != 1 {
             return None;
@@ -738,7 +738,7 @@ impl LiveBattle {
     /// whatever is standing under the press, which is the one thing this arm
     /// does that a player never sees.
     ///
-    /// // arm: 0x0043BF07/begin-drag
+    /// // arm: 0x0043BF07/begin-drag left-press
     pub fn press_field(&mut self, x: i32, y: i32) -> bool {
         if self.mode != Mode::Field || !VIEW.contains(x, y) {
             return false;
@@ -758,7 +758,7 @@ impl LiveBattle {
     /// It is skipped entirely while the battle is paused in a multiplayer game,
     /// which is the one clause here that has no single-player effect.
     ///
-    /// // arm: 0x0043BF07/drag-update
+    /// // arm: 0x0043BF07/drag-update drag
     pub fn drag_to(&mut self, x: i32, y: i32) -> bool {
         let Some(d) = self.drag.as_mut() else { return false };
         if d.px == (x, y) {
@@ -806,7 +806,7 @@ impl LiveBattle {
     /// fired. Getting this backwards would make a finished box also issue an
     /// order at the corner it was released on.
     ///
-    /// // arm: 0x0043BF07/commit-drag
+    /// // arm: 0x0043BF07/commit-drag left-release
     pub fn release_field(&mut self, x: i32, y: i32) -> bool {
         let Some(d) = self.drag.take() else { return false };
         self.mode = Mode::Field;
@@ -842,7 +842,7 @@ impl LiveBattle {
     /// without this clause the second click of a fast double click would leave
     /// the drag open for ever.
     ///
-    /// // arm: 0x0043BF07/double-click-commits
+    /// // arm: 0x0043BF07/double-click-commits double-click
     pub fn double_click_field(&mut self, x: i32, y: i32) -> bool {
         if self.mode != Mode::Drag {
             return false;
@@ -858,7 +858,7 @@ impl LiveBattle {
     /// and never a destination), the button must have been *released*, something
     /// must be selected, and the battle must not be paused.
     ///
-    /// // arm: 0x0043C57D/order
+    /// // arm: 0x0043C57D/order left-release
     pub fn order_at(&mut self, x: i32, y: i32) -> bool {
         if !VIEW.contains(x, y) || !self.hover.on_field {
             return false;
@@ -888,7 +888,7 @@ impl LiveBattle {
     /// first fifty are clickable**, whatever the layout and however many you
     /// hold: the loop breaks at `0x31 < local_c`.
     ///
-    /// // arm: 0x0043C2A9/banner-drop
+    /// // arm: 0x0043C2A9/banner-drop left-press
     pub fn click_banner(&mut self, x: i32, y: i32) -> bool {
         let picked = self.runner.selected_fighters(self.owner);
         let layout = BannerLayout::for_count(picked.len());
@@ -916,7 +916,7 @@ impl LiveBattle {
     /// tests `0x1E1`, so **a right click on the panel's leftmost column
     /// deselects**. Reproduced.
     ///
-    /// // arm: 0x0043C2A9/right-deselect
+    /// // arm: 0x0043C2A9/right-deselect right-release
     pub fn right_deselect(&mut self, x: i32, y: i32) -> bool {
         if x >= 0x1E1 && (0x18..=0xB7).contains(&y) {
             return false;
@@ -940,7 +940,7 @@ impl LiveBattle {
     ///   **order to that cell**, at battlefield scale, from a 2-pixel click;
     /// * anything else, including the right button → **look there**.
     ///
-    /// // arm: 0x00432443/overview
+    /// // arm: 0x00432443/overview left-press
     pub fn click_overview(&mut self, x: i32, y: i32, right: bool) -> bool {
         if !OVERVIEW.contains(x, y) {
             return false;
@@ -962,7 +962,7 @@ impl LiveBattle {
     /// `FUN_0043C885` (`0x0043C885`) — **Ctrl and a digit stores the
     /// selection**.
     ///
-    /// // arm: 0x0043C885/store-group
+    /// // arm: 0x0043C885/store-group key
     pub fn store_group(&mut self, digit: u8) -> bool {
         let Some(slot) = group_slot(digit) else { return false };
         self.groups[slot] = Some(self.runner.selected_fighters(self.owner));
@@ -976,7 +976,7 @@ impl LiveBattle {
     /// the function by scanning for the first selected figure and putting the
     /// viewport's corner seven cells above and left of it.
     ///
-    /// // arm: 0x0043C910/recall-group
+    /// // arm: 0x0043C910/recall-group key
     pub fn recall_group(&mut self, digit: u8) -> bool {
         let Some(slot) = group_slot(digit) else { return false };
         let Some(members) = self.groups[slot].clone() else { return false };
@@ -1000,7 +1000,7 @@ impl LiveBattle {
     /// the selection last became, which may no longer be the whole selection.
     /// Reproduced, including the missing regroup.
     ///
-    /// // arm: 0x0043C77A/formation
+    /// // arm: 0x0043C77A/formation key
     pub fn key_formation(&mut self, formation: Formation) -> bool {
         if self.paused || self.current_unit == 0 {
             return false;
@@ -1015,7 +1015,7 @@ impl LiveBattle {
     /// `Battle_CheckOutcome` (`0x00477DFC`) raises `0x2B` and then counts
     /// `DAT_00568470` up to 5000 before it returns to the campaign.
     ///
-    /// // arm: 0x00477DFC/outcome-timer
+    /// // arm: 0x00477DFC/outcome-timer timer
     pub fn tick_outcome(&mut self) -> bool {
         if self.mode != Mode::Outcome {
             return false;
@@ -1027,7 +1027,7 @@ impl LiveBattle {
     /// `Screen_FrameInput`'s `0x2B` arm — **a right release skips the banner**,
     /// by setting the counter one past its limit.
     ///
-    /// // arm: 0x0042FF10/skip-outcome
+    /// // arm: 0x0042FF10/skip-outcome right-release
     pub fn skip_outcome(&mut self) -> bool {
         if self.mode != Mode::Outcome {
             return false;

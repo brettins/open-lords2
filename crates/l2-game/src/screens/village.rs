@@ -258,7 +258,7 @@ impl VillageScreen {
     }
 
     /// `Village_BoxSelect` (`0x0043958A`).
-    // arm: 0x0043958A/box-select
+    // arm: 0x0043958A/box-select drag
     fn box_select(&mut self, ctx: &Ctx) {
         self.selected = [false; ICONS_PER_CLUSTER];
         self.drag_cluster = 0;
@@ -491,8 +491,8 @@ impl Screen for VillageScreen {
             //
             // Escape is ours and mirrors whichever of the two applies; the
             // original has no key here at all.
-            // arm: 0x0042FF10/village-right-leaves
-            // arm: 0x0042FF10/carry-right-cancels
+            // arm: 0x0042FF10/village-right-leaves right-release
+            // arm: 0x0042FF10/carry-right-cancels right-release
             Event::RightClick { .. } => {
                 if self.phase == Phase::Carry {
                     self.clear_drag();
@@ -509,7 +509,7 @@ impl Screen for VillageScreen {
             }
             // **Ours, and counted.** No key reaches screen `0x02`, `0x05` or
             // `0x06` in the original.
-            // arm: ours/village-keyboard
+            // arm: ours/village-keyboard key
             Event::KeyDown(Key::Escape) => {
                 if self.phase == Phase::Idle {
                     return Transition::Pop;
@@ -542,7 +542,7 @@ impl Screen for VillageScreen {
             // `Village_ClickJob` in `Screen_FrameInput`'s screen-`0x02` ladder,
             // which is the order kept here: a drag in progress wins, then the
             // double click, then — only once it has settled — the job popup.
-            // arm: 0x00439DF0/double-click-balances
+            // arm: 0x00439DF0/double-click-balances double-click
             Event::DoubleClick { x, y } => {
                 self.pointer = (x, y);
                 // The pending single click is cancelled outright: the original
@@ -558,24 +558,30 @@ impl Screen for VillageScreen {
             }
             Event::Click { x, y } => {
                 self.pointer = (x, y);
-                // arm: 0x004399B0/drop
+                // arm: 0x004399B0/drop left-press
                 if self.phase == Phase::Carry {
                     self.drop_on(ctx, x, y);
                     return Transition::Stay;
                 }
-                // arm: 0x0040E7E4/village-corner-closes
-                if VillageScreen::ok_button(VillageScreen::top_y(&*ctx)).contains(x, y) {
-                    return Transition::Pop;
-                }
-                // arm: 0x004393EB/band-start
+                // arm: 0x004393EB/band-start left-press
                 if VillageScreen::in_band_area(&*ctx, x, y) {
                     self.anchor = Some((x, y));
                 }
             }
             Event::Release { x, y } => {
                 self.pointer = (x, y);
+                // `Ui_OkButtonClicked` (`0x0040E7E4`) is `if
+                // (g_mouseLeftReleased == 0) return 0;` and then a 24 x 24 box
+                // at the position `Ui_OkButton` last drew — **the release, not
+                // the press**, on all twenty-six of `Screen_FrameInput`'s
+                // calls. Ours answered on the press here, which is a player's
+                // *"the game waited on mouse-up"* from the other side.
+                // arm: 0x0040E7E4/village-corner-closes left-release
+                if VillageScreen::ok_button(VillageScreen::top_y(&*ctx)).contains(x, y) {
+                    return Transition::Pop;
+                }
                 match self.phase {
-                    // arm: 0x00439541/band-release
+                    // arm: 0x00439541/band-release left-release
                     Phase::Band => {
                         // `FUN_00439541`: something selected means carry it,
                         // nothing means the band was for nothing.
@@ -597,7 +603,7 @@ impl Screen for VillageScreen {
                         // where it lands. Ownership is not tested: you cannot
                         // reach the village of a county you do not hold in the
                         // first place.
-                        // arm: 0x0043A123/click-opens-the-job-popup
+                        // arm: 0x0043A123/click-opens-the-job-popup left-release
                         if self.anchor.take().is_some() {
                             self.pending_click = Some((x, y, Self::CLICK_SETTLE_TICKS));
                         }

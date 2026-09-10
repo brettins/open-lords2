@@ -97,7 +97,7 @@ use crate::input::Event;
 /// `docs/arms.json` counts **per implementation** and this is the
 /// implementation: the six functions themselves are the campaign map's and are
 /// recorded against their own addresses there.
-// arm: 0x0042FF10/inset-runs-the-sidebar-guards
+// arm: 0x0042FF10/inset-runs-the-sidebar-guards left-press
 pub fn belongs_to_the_right_column(event: Event) -> bool {
     let x = match event {
         Event::Click { x, .. } | Event::Release { x, .. } | Event::Pointer { x, .. } => x,

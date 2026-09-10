@@ -115,7 +115,7 @@ impl BattlefieldScreen {
 
     /// The five buttons, in table order — `FUN_004329A4`'s `Hotspot_Test`.
     ///
-    /// // arm: 0x004329A4/buttons
+    /// // arm: 0x004329A4/buttons left-press
     fn press_button(&mut self, ctx: &mut Ctx, b: Button) -> Transition {
         let is_siege = ctx.game.battle.as_ref().is_some_and(|l| l.is_siege());
         let garrison_is_local = ctx
@@ -234,7 +234,7 @@ impl Screen for BattlefieldScreen {
                     // so a release on the very frame the pointer leaves still
                     // commits.
                     //
-                    // // arm: 0x0042FF10/drag-leaves-field
+                    // // arm: 0x0042FF10/drag-leaves-field hover
                     if !live.hover.on_field {
                         live.mode = Mode::Field;
                         live.drag = None;
@@ -309,7 +309,7 @@ impl Screen for BattlefieldScreen {
                     // it, because the cancel is a screen change and nothing
                     // else.
                     //
-                    // // arm: 0x0042FF10/cancel-drag
+                    // // arm: 0x0042FF10/cancel-drag right-release
                     Mode::Drag => {
                         live.mode = Mode::Field;
                         live.drag = None;
