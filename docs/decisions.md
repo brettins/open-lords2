@@ -4685,6 +4685,118 @@ same and it is one word — name the function. *"No AI calls `order_engine`"* is
 cannot be promoted by accident.
 
 
+**CNEW-campaign-start — The campaign's *Start* button is a different button, and the world it was starting was the player's own autosave.**
+
+A player reported it in one line: *"Original campaign no longer puts me in the first
+starting map for some reason."*
+
+**Where the map comes from.** The original campaign's first map is `L2_maps.dat` slot
+**17, Quaintville** — four counties, two players. Three independent sources agree, which
+is worth listing because each one alone would have been a claim:
+
+1. `Campaign_LoadEntry` (`0x00499E5D`) reads column `+0x00` of row `g_campaignMap` of
+   `g_campaignTableA` (`0x004D8E18`), and row 0 of that column is **17**. `L2.eng` group
+   101 index 17 is *"Quaintville"* and `L2_maps.dat` slot 17 has four counties.
+2. The shipped `Readme.txt` — the v1.03 errata, and `CLAUDE.md`'s first-class oracle —
+   says it in words: *"Quaintville (pg128) … The new map is an 'N' shaped map for **2
+   players only** and contains **4 counties**. **This is the first map of the campaign
+   (Play Now!!).**"* Two players only matches `g_aiLordCount = 1` on that row exactly.
+3. The install's `old_turn.sav`, written by `Lords2.exe` itself part-way through a
+   campaign, carries `g_scenarioIndex = 17` and `g_countyCount = 4`.
+
+**What we were doing instead.** `SetupScreen::start` built the world from the *map list's*
+slot, and the campaign never touches the map list, so it started slot **0, England** —
+the campaign's **fifth** map.
+
+**Why the word "no longer" is the whole of the finding, and it is not the story the brief
+had.** The brief supposed that before C62 every path gave England turn one and that the
+campaign's first map coincided with it. It did not. Before C62, *Start* built no world at
+all: it applied the settings to whatever `Game` already held, and what `Game` held was
+`crate::scenario::load`'s read of the install's **`lastturn.sav`** at boot. The player had
+spent the day playing the campaign in the original, so his `lastturn.sav` **was
+Quaintville**. Our engine was not starting the campaign; it was resuming his own saved
+game, and it happened to be exactly the right map. The startup line he quoted —
+`4 counties, 1 owned by realm 1, Autumn 1269` — is `main.rs` printing that save, and the
+year is the proof: no fresh start can be in 1269, because `Game_NewGame`'s single
+`Season_Advance` lands in Winter 1268.
+
+So this is `docs/environment.md`'s own warning arriving in a place nobody had put it:
+
+> **`lastturn.sav` inside a game install is the rolling autosave.** … Nine tests treated
+> one particular `lastturn.sav` as a fixed fixture, called it "the shipped save", and went
+> red the first time somebody played for ten minutes.
+
+Nine *tests* were fixed by naming fixtures. The **application** still boots from that
+file, so the correct behaviour of a feature depended on what the person had last played in
+a different program. That is a coincidence that cannot be tested for and does not survive
+being noticed.
+
+**The arm, and it is a branch rather than a button.** `FUN_00433155`'s hotspot-2 arm —
+page 4's *Continue*:
+
+```c
+else if (g_uiHotspotId == 2 && (g_multiplayer == 0 || DAT_0057C940 != 0)) {
+    if (DAT_0057D320 == 1) {        /* a campaign was chosen on page 5 */
+        Campaign_LoadEntry();       /* 0x00499E5D — the row, not the map list */
+        Setup_StartGame();          /* 0x004329EC */
+    } else {                        /* a custom game or a skirmish */
+        ...g_setupPage = 7 / 8 / 0xB / 0xC, picked by DAT_0055302C...
+    }
+}
+```
+
+Both limbs were wrong. The campaign limb did not exist, and the `else` limb **started a
+game**, where the original walks on to the page that chooses one. `DAT_0057D320` is set by
+`Setup_ChooseCampaign` (`0x00433461`) and cleared by `FUN_00432B05` and three arms of
+`FUN_00432CC8`; it is now `SetupScreen::campaign`, and the counter and track it also
+writes are `Campaign::new(track)`, which this project had already read out of that same
+function months ago and never called.
+
+**`Campaign_LoadEntry` is not `Setup_CommitOptions`.** The eight columns of a campaign row
+*are* the committed globals, written straight over whatever the custom page last set, and
+five more options are forced: `g_optTimeLimit = 0` and `g_optFightHumansOnly = 1` before
+the row, `g_optAdvancedFarming`, `g_optExploration` and `g_optArmiesEat` zeroed after it.
+`CampaignMap::settings` is that function. One column means something different on the two
+paths — `g_startingGoldChosen` is a *value* in the table (5000) and an *index* on the
+custom path — which is why this could not be written as "look the twelve up and commit
+them".
+
+**Why neither `tests/newgame.rs` nor `tests/setup.rs` caught it, which is the more useful
+half.** Not because they passed for an accidental reason: because **there was nothing
+there to pass**. Every test in both files begins `SetupScreen::new(SetupPage::Custom)` and
+presses page 7's *Start*. **No test in the workspace had ever pressed page 4's
+*Continue*.** `tests/text.rs` reaches page 4 and only types into it. The campaign side had
+no coverage at all, and `crate::victory::Campaign::current()` — the accessor that turns
+the counter into a map — had **no caller outside `victory.rs`'s own unit tests**. That is
+`docs/agents.md`'s *"a field is only tested if something a test reads was written by
+something the game runs"*, one level up: a whole *table*, correctly read out of the binary,
+correctly unit-tested against itself, and wired to nothing.
+
+The lesson generalises past this bug. A unit test of a data table proves the table was
+transcribed; it says nothing about whether anything reads it. **When a table is added, the
+thing to ask is not "is it right?" but "what calls it in a game?"** — and if the answer is
+"the tests", that is the finding.
+
+**Two documented claims falsified on the way.**
+
+- `screens/setup.rs`'s `go` and `docs/arms.json`'s `0x00432B05/name-field-open` both said
+  arriving at page 4 *from page 5 or 6* does not re-seed the name field, "because those
+  arms set the page and nothing else". `Setup_ChooseCampaign`'s third statement is
+  `Edit_Begin(&g_options, 0x10, 0xC0, 0)`. All four writers of `g_setupPage = 4` re-seed;
+  the asymmetry does not exist. The code was already right — only the sentence about it was
+  wrong, which is exactly why it survived: nothing behaved differently.
+- `docs/symbols.json` calls `Setup_ChooseCampaign` *"Setup page 4"*. It is page **5**'s
+  handler; page 4 is where it goes.
+
+**Open, and not resolved by guessing.** `Readme.txt` line 147 says of the campaign: *"The
+'custom' settings for each of these maps are preset, **except for the advanced settings of
+Farming, Foraging and Exploration, which you can use or not at your pleasure.**"* Those
+three are exactly the three `Campaign_LoadEntry` zeroes. Either they are changeable from
+the in-game options screen after the map loads, or the errata is describing the intent
+rather than the build. We reproduce the binary, which zeroes them; the sentence is recorded
+here so the next person to open that screen can settle it.
+
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**

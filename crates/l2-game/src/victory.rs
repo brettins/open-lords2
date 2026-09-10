@@ -128,6 +128,62 @@ impl CampaignMap {
     pub fn ai_lords(&self) -> i32 {
         self.options[4]
     }
+
+    /// **`Campaign_LoadEntry` (`0x00499E5D`), as a [`crate::setup::Settings`].**
+    ///
+    /// This is the half of that function that is not the map load, and the
+    /// reason it returns a `Settings` rather than a `SetupOptions` is the whole
+    /// point of the function: **a campaign map does not go through
+    /// `Setup_CommitOptions`.** The eight columns of the row *are* the committed
+    /// globals — `g_scenarioIndex`, `g_optDifficulty`, `g_startingGoldChosen`,
+    /// `g_startCastle`, `g_startCountyStatus`, `g_startWeapons`,
+    /// `g_startArmySize`, `g_aiLordCount` — written straight over whatever the
+    /// custom-game screen last committed. `crate::setup` §"The twelve" has the
+    /// pairing; `docs/kingdom.md` §8.5 has the table.
+    ///
+    /// **Five options are forced, and the forcing brackets the row.** Two
+    /// before it and three after, in the original's own order:
+    ///
+    /// ```text
+    /// g_optTimeLimit = 0;  g_optFightHumansOnly = 1;
+    ///     ...the eight columns...
+    /// g_optAdvancedFarming = 0;  g_optExploration = 0;  g_optArmiesEat = 0;
+    /// ```
+    ///
+    /// So a campaign map ignores what the custom page last set for those five,
+    /// and there is **no time limit and no fighting the AI's battles for it** on
+    /// any of the fourteen. **[V]**
+    ///
+    /// `g_startingGoldChosen` is a *value* here and an index on the custom path
+    /// — the row holds 5000, not `STARTING_GOLD`'s index 4 — which is the one
+    /// place the two paths disagree about what a column means, and the reason
+    /// this cannot be written as "look the twelve up and commit them".
+    ///
+    /// `quirks` is ours and is [`crate::setup::Settings`]'s own note.
+    pub fn settings(&self, quirks: l2_kingdom::Quirks) -> crate::setup::Settings {
+        use crate::setup::{COUNTY_STATUS, START_ARMOURY, START_TROOPS};
+        crate::setup::Settings {
+            // The three the tail of `Campaign_LoadEntry` zeroes.
+            advanced_farming: false,
+            exploration: false,
+            armies_eat: false,
+            difficulty: self.difficulty,
+            // …and the two its head forces.
+            fight_humans_only_byte: 1,
+            time_limit: 0,
+            quirks,
+            gold: self.gold,
+            castle_type: self.castle(),
+            armoury: START_ARMOURY[self.weapons()],
+            garrison: START_TROOPS[self.army_size()],
+            county: COUNTY_STATUS[self.county_status()],
+            // **Already the AI count**, so there is no `- humanPlayers` here.
+            // `Setup_CommitOptions` subtracts the people because its source is
+            // *Nobles*, which counts everybody; this column is `g_aiLordCount`
+            // itself and is stored into the same global with no arithmetic.
+            ai_lords: self.ai_lords(),
+        }
+    }
 }
 
 /// Which of the two campaigns. `DAT_0053F640`, set from the hotspot the person

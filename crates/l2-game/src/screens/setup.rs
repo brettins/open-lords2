@@ -61,13 +61,36 @@
 //! lookup table and one by arithmetic. [`SetupScreen::start`] runs the same two
 //! steps in the same order the original's *Start* handler does.
 //!
-//! **What is still missing is the map.** Choosing a slot in the list sets it,
-//! and the slot's own seat count really does drive the *Nobles* drop-down in
-//! both directions — but building a *world* from a `L2_maps.dat` slot is
-//! `Map_InitScenario`, which this workspace has not written, so the world a
-//! game starts in is still the one [`crate::scenario`] read out of a save. The
-//! page says so on itself rather than starting one map while the list names
-//! another.
+//! **The map is built now too** — `l2_scenario::newgame` is `Map_InitScenario`
+//! — so the slot the list names is the world a custom game opens in. This
+//! section used to say that was missing; it was, until C62.
+//!
+//! # There are two Start buttons and they are not the same button
+//!
+//! **This is what the campaign-start defect was**, and it is worth stating at
+//! the top of the file because reading the front end as *one* way of beginning
+//! a game is what caused it.
+//!
+//! | | the arm | what it starts |
+//! |---|---|---|
+//! | page 7/8, *Start* | `FUN_004335F0` hotspot 2 | `Setup_CommitOptions` then `Setup_StartGame` — the **map list's** slot, with the twelve options |
+//! | page 4, *Continue* | `FUN_00433155` hotspot 2 | `Campaign_LoadEntry` then `Setup_StartGame` — the **campaign table's** row, with the row's options — *and only if a campaign was chosen* |
+//!
+//! `DAT_0057D320` ([`SetupScreen::campaign`]) is what tells them apart, and
+//! `FUN_00433155`'s other limb starts nothing at all: it walks on to page 7, 8,
+//! 11 or 12. Reading that button as *Start* made *Play Now!* build the map
+//! list's untouched slot 0, England, when the campaign's first map is slot 17,
+//! Quaintville. `docs/decisions.md` CNEW-campaign-start.
+//!
+//! # One divergence still here, and it is the page graph
+//!
+//! `FUN_00432CC8` sends *Custom game* and *Skirmish!* to page **4** as well —
+//! with `DAT_0055302C` at 2 or 3 — so in the original every route to a game
+//! passes through the shield page and *Continue* is what leaves it. Ours sends
+//! them straight to pages 7 and 12. That is **[not reproduced]** and recorded
+//! rather than quietly correct: it is the same reading of page 4 that hid the
+//! campaign start, and closing it is the rest of `front-end-pages` in
+//! `docs/arms.json`.
 
 use l2_view::Canvas;
 
@@ -198,6 +221,9 @@ pub const GROUP_OPTIONS: usize = 102;
 /// Group 103, their 46 values.
 pub const GROUP_VALUES: usize = 103;
 
+/// `DAT_00553F98`, the lobby's head count. One person, in this build.
+const HUMAN_PLAYERS: usize = 1;
+
 /// `panels2.pl8` — the box kit these pages draw their windows from. It has the
 /// same frame layout as `Panels.pl8` (`docs/screens-county.md` §4.1).
 const BOX_SHEET: &str = "Panels2.pl8";
@@ -208,17 +234,17 @@ const ICON_SHEET: &str = "Misc_sel.pl8";
 
 /// A menu item on pages 1, 2 and 4: `FUN_00403EE4(x, y, 192, 24)` with the
 /// label centred in the same 192 pixels, four below the top.
-const ITEM_W: i32 = 0xC0;
-const ITEM_H: i32 = 0x18;
+pub const ITEM_W: i32 = 0xC0;
+pub const ITEM_H: i32 = 0x18;
 /// Pages 1 and 2 put every item at the same x.
-const ITEM_X: i32 = 0xE0;
+pub const ITEM_X: i32 = 0xE0;
 /// And step them 36 apart from y = 91: `0x5B, 0x7F, 0xA3, 0xC7, 0xEB`.
-const ITEM_Y: i32 = 0x5B;
-const ITEM_STEP: i32 = 0x24;
+pub const ITEM_Y: i32 = 0x5B;
+pub const ITEM_STEP: i32 = 0x24;
 /// The label sits five pixels into the recess.
 const ITEM_TEXT: i32 = 5;
 
-fn item_rect(index: usize) -> Rect {
+pub fn item_rect(index: usize) -> Rect {
     Rect::new(ITEM_X, ITEM_Y + index as i32 * ITEM_STEP, ITEM_W, ITEM_H)
 }
 
@@ -231,7 +257,7 @@ pub const OPTION_ITEMS: [usize; 5] = [6, 7, 19, 8, 9];
 
 /// Page 4's two buttons, from `FUN_0041F01F`: *"Back"* at `(0x70, 0xD7)` and
 /// *"Continue"* at `(0x150, 0xD7)`, both 192 × 24.
-const SHIELD_BUTTONS: [(i32, i32, usize); 2] = [(0x70, 0xD7, 9), (0x150, 0xD7, 11)];
+pub const SHIELD_BUTTONS: [(i32, i32, usize); 2] = [(0x70, 0xD7, 9), (0x150, 0xD7, 11)];
 
 /// The five shields: `x = 0x70 + 0x58 i`, `y = 0x8C`, from `FUN_0041F1DD`.
 /// `Pl8_DrawFrameHere(panels2, 0xCC, 0xD0, 0x48)` — the 224 x 32 recess the
@@ -249,10 +275,10 @@ const SHIELD_Y: i32 = 0x8C;
 /// Pages 5 and 6 share a geometry: `FUN_00403EE4(0x6E, 0x74, 0xA4, 0x18)` and
 /// the same 164 × 24 again at `x = 0x16E`, with the label centred in 160
 /// pixels from two inside each recess.
-const PAIR_X: [i32; 2] = [0x6E, 0x16E];
+pub const PAIR_X: [i32; 2] = [0x6E, 0x16E];
 const PAIR_TEXT_X: [i32; 2] = [0x70, 0x170];
-const PAIR_Y: i32 = 0x74;
-const PAIR_W: i32 = 0xA4;
+pub const PAIR_Y: i32 = 0x74;
+pub const PAIR_W: i32 = 0xA4;
 const PAIR_TEXT_W: i32 = 0xA0;
 
 // ------------------------------------------------- the custom game's tables
@@ -347,9 +373,14 @@ pub struct SetupScreen {
     /// original, one-based there and zero-based here because this is an index
     /// into the five frame pairs and nothing else yet.
     shield: usize,
-    /// The top row of the map list, and the selected map. `g_scenarioIndex`
-    /// *is* the map slot (`Game::map_slot`), but the setup screen has not
-    /// chosen one yet, so this is local until *Start* is wired.
+    /// The top row of the map list, and the selected map — `g_scenarioIndex`,
+    /// which *is* the map slot (`Game::map_slot`).
+    ///
+    /// **Zero is a real value here and it is where the list sits untouched**,
+    /// which is England. A campaign does not read this: `Campaign_LoadEntry`
+    /// *writes* it, from the campaign row, the same way it writes the global —
+    /// so [`SetupScreen::start_campaign`] sets it rather than leaving a stale
+    /// slot beside the world it just built.
     map_top: usize,
     map: usize,
     /// `g_playerStartCount` for [`SetupScreen::map`] — how many lords that map
@@ -390,6 +421,22 @@ pub struct SetupScreen {
     /// lose what was typed; [`SetupScreen::go`] does the `Edit_Begin` at
     /// exactly the moments the original does.
     name: crate::text::TextField,
+    /// **`DAT_0057D320` — whether *Continue* on page 4 starts a campaign.**
+    ///
+    /// Page 4 is reached from four places and the button at the bottom of it
+    /// means something different depending on which. This is the flag the
+    /// original uses to tell them apart, and it is written by every one of
+    /// those arms: `Setup_ChooseCampaign` (`0x00433461`) sets it to **1**, and
+    /// `FUN_00432B05` (page 1) and three arms of `FUN_00432CC8` (page 2) set it
+    /// to **0**. [`SetupScreen::continue_pressed`] is what reads it.
+    ///
+    /// Without it, our page 4 started the map list's slot whichever way the
+    /// person had arrived — so *Play Now!* built England instead of
+    /// Quaintville. `docs/decisions.md` CNEW-campaign-start.
+    campaign: bool,
+    /// `g_campaignTrack` (`DAT_0053F640`) — which of the two campaigns page 5
+    /// chose. `Setup_ChooseCampaign` stores the hotspot here.
+    track: crate::victory::Track,
     /// The persisted `g_options` name — what the field is seeded *from*, and
     /// where a commit goes back to.
     ///
@@ -415,6 +462,8 @@ impl SetupScreen {
             map_read: false,
             unhonoured: Vec::new(),
             failure: None,
+            campaign: false,
+            track: crate::victory::Track::First,
             name: begin_name(text::DEFAULT_PLAYER_NAME),
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
         }
@@ -648,7 +697,15 @@ impl SetupScreen {
             // page 4 (or page 10 with no disc); "Lords of Magic?" plays an
             // advertisement we have no player for; "Exit game" quits.
             (SetupPage::Title, 0) => self.go(SetupPage::Options),
-            (SetupPage::Title, 1) => self.go(SetupPage::Shield),
+            (SetupPage::Title, 1) => {
+                // `FUN_00432B05` opens with `DAT_0057D320 = 0` before any of
+                // its four arms: arriving at page 4 from the title menu is
+                // **not** a campaign, whatever the last visit set.
+                //
+                // arm: 0x00432B05/multiplayer-clears-campaign
+                self.campaign = false;
+                self.go(SetupPage::Shield)
+            }
             (SetupPage::Title, 2) => self.go(SetupPage::NoCd),
             (SetupPage::Title, 3) => Transition::Quit,
             // Page 2.
@@ -663,9 +720,28 @@ impl SetupScreen {
                 Transition::Stay
             }
             (SetupPage::Shield, 5) => self.go(SetupPage::Title),
-            (SetupPage::Shield, 6) => self.start(ctx),
+            (SetupPage::Shield, 6) => self.continue_pressed(ctx),
             // Page 5: either campaign. Page 6: full game or skirmish.
-            (SetupPage::Campaign, _) => self.go(SetupPage::Shield),
+            //
+            // **`Setup_ChooseCampaign` (`0x00433461`)**, and it does three
+            // things this used to do none of: it stores the hotspot in
+            // `g_campaignTrack`, it starts `g_campaignMap` at that track's first
+            // row — `Campaign::new` — and it raises `DAT_0057D320` so that
+            // *Continue* on page 4 loads a campaign row instead of the map
+            // list's slot. The counter is not kept here; it is
+            // [`crate::victory::Track::first_map`], which is where it was
+            // already read out of this function.
+            //
+            // arm: 0x00433461/choose-campaign
+            (SetupPage::Campaign, i) => {
+                self.track = if i == 1 {
+                    crate::victory::Track::Second
+                } else {
+                    crate::victory::Track::First
+                };
+                self.campaign = true;
+                self.go(SetupPage::Shield)
+            }
             (SetupPage::GameType, 0) => self.go(SetupPage::Shield),
             (SetupPage::GameType, 1) => self.go(SetupPage::Skirmish),
             // Pages 7 and 8: "Cancel", "Start", "Defaults", "Load".
@@ -699,14 +775,18 @@ impl SetupScreen {
     /// **Every arrival at page 4 re-seeds the name field**, because every one
     /// of the original's does.
     ///
-    /// `FUN_00432B05` (page 1 → 4, *Multiple players*) and `FUN_00432CC8`
-    /// (page 2 → 4, both of its two arms) each set `g_setupPage = 4` and then
-    /// immediately run `Edit_Begin(&g_options, 0x10, 0xC0, 0)` and
-    /// `Edit_RecomputeLength`. Arriving from page 5 or 6 does **not** — those
-    /// two arms set the page and nothing else, so a name typed on the way in
-    /// through the campaign chooser survives the round trip. That asymmetry is
-    /// the original's and is reproduced by seeding from
-    /// [`SetupScreen::saved_name`], which only a commit moves.
+    /// `FUN_00432B05` (page 1 → 4, *Multiple players*), `FUN_00432CC8` (page 2
+    /// → 4, both of its two arms) **and `Setup_ChooseCampaign` (page 5 → 4)**
+    /// each set `g_setupPage = 4` and then immediately run
+    /// `Edit_Begin(&g_options, 0x10, 0xC0, 0)` and `Edit_RecomputeLength`.
+    ///
+    /// **Corrected: there is no exception, and this comment used to claim
+    /// one.** It said "arriving from page 5 or 6 does not — those two arms set
+    /// the page and nothing else", and `Setup_ChooseCampaign`'s third statement
+    /// is that very `Edit_Begin` call. All four writers of `g_setupPage = 4`
+    /// re-seed, which is what the code below has always done, so the code was
+    /// right and the sentence describing it was not.
+    /// `docs/decisions.md` CNEW-campaign-start.
     fn go(&mut self, page: SetupPage) -> Transition {
         if page == SetupPage::Shield && self.page != SetupPage::Shield {
             // arm: 0x00432B05/name-field-open
@@ -761,7 +841,6 @@ impl SetupScreen {
     fn start(&mut self, ctx: &mut Ctx) -> Transition {
         // One person, in this build. `DAT_00553F98` is the lobby's count and
         // there is no lobby.
-        const HUMAN_PLAYERS: usize = 1;
         if !self.map_read {
             self.read_map(ctx);
         }
@@ -774,10 +853,96 @@ impl SetupScreen {
         // See [`crate::screens::options`].
         let settings = self.options.commit(HUMAN_PLAYERS, ctx.game.kingdom.options.quirks);
         self.unhonoured = settings.unhonoured();
+        let slot = self.map;
+        self.new_game(ctx, slot, settings, None)
+    }
+
+    /// ***Continue*, at the bottom of page 4 — `FUN_00433155`'s hotspot-2
+    /// arm.**
+    ///
+    /// This button is not the custom game's *Start* and it was being treated as
+    /// though it were. The original's arm branches first:
+    ///
+    /// ```text
+    /// else if (g_uiHotspotId == 2 && (g_multiplayer == 0 || DAT_0057C940 != 0)) {
+    ///     if (DAT_0057D320 == 1) {        /* a campaign */
+    ///         Campaign_LoadEntry();       /* 0x00499E5D — the row, not the list */
+    ///         Setup_StartGame();          /* 0x004329EC */
+    ///     } else {                        /* a custom game or a skirmish */
+    ///         ...g_setupPage = 7 / 8 / 0xB / 0xC...
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// **Two things were wrong with reading it as *Start*.** The campaign limb
+    /// never ran, so *Play Now!* started the map list's slot — slot 0, England,
+    /// which is the campaign's **fifth** map — and the other limb started a
+    /// game at all, where the original walks on to the page that chooses one.
+    ///
+    /// **There is no seat-count guard here.** `FUN_004335F0`'s
+    /// `humanPlayers <= g_playerStartCount` test guards the *custom* Start and
+    /// this arm has none, which is right: a campaign row's map and lord count
+    /// come from the same table and cannot disagree.
+    ///
+    /// arm: 0x00433155/continue
+    fn continue_pressed(&mut self, ctx: &mut Ctx) -> Transition {
+        if !self.campaign {
+            // `DAT_0055302C` picks between page 7/8 and page 11/12 here. This
+            // build has one person and no skirmish setup, so the one live
+            // destination is the custom page.
+            return self.go(SetupPage::Custom);
+        }
+        self.start_campaign(ctx)
+    }
+
+    /// **`Campaign_LoadEntry` (`0x00499E5D`) and then `Setup_StartGame`.**
+    ///
+    /// The map a campaign starts on is **not** the map list's slot and not
+    /// slot 0: it is column `+0x00` of row `g_campaignMap` of the track's table,
+    /// which for the original campaign's first map is slot **17,
+    /// Quaintville** — four counties against one lord. `crate::victory` holds
+    /// the table and [`crate::victory::CampaignMap::settings`] is the rest of
+    /// `Campaign_LoadEntry`.
+    ///
+    /// The counter is `Campaign::new(track)`, which is
+    /// [`crate::victory::Track::first_map`] — 0 for the first campaign and
+    /// **2** for the second, exactly as `Setup_ChooseCampaign` sets it.
+    ///
+    /// **The campaign goes onto the new game, not the old one.** `new_game`
+    /// returns a whole fresh [`crate::game::Game`], whose `campaign` field is a
+    /// default `Campaign::new(Track::First)`; the track and counter chosen on
+    /// page 5 have to be written over it or the second campaign would play the
+    /// first campaign's maps from its second win onward. That is the same
+    /// three-globals-survive rule `crate::victory`'s header states, arriving at
+    /// the one moment the world is replaced.
+    fn start_campaign(&mut self, ctx: &mut Ctx) -> Transition {
+        let campaign = crate::victory::Campaign::new(self.track);
+        let Some(row) = campaign.current() else {
+            self.failure = Some("the campaign has no first map".into());
+            return Transition::Stay;
+        };
+        let settings = row.settings(ctx.game.kingdom.options.quirks);
+        self.unhonoured = settings.unhonoured();
+        // `g_scenarioIndex` is one global, so the list follows the campaign's
+        // choice rather than keeping a stale one beside it.
+        self.map = row.scenario;
+        self.map_read = false;
+        self.new_game(ctx, row.scenario, settings, Some(campaign))
+    }
+
+    /// `Setup_StartGame` → `Game_NewGame`, shared by both of page 4's and
+    /// page 7's routes into it, so that neither can drift from the other.
+    fn new_game(
+        &mut self,
+        ctx: &mut Ctx,
+        slot: usize,
+        settings: crate::setup::Settings,
+        campaign: Option<crate::victory::Campaign>,
+    ) -> Transition {
         let tables = ctx.game.kingdom.tables;
         match crate::scenario::new_game(
             ctx.assets,
-            self.map,
+            slot,
             &settings,
             HUMAN_PLAYERS,
             crate::scenario::SEED,
@@ -791,6 +956,9 @@ impl SetupScreen {
                 self.failure = Some(e.to_string());
                 return Transition::Stay;
             }
+        }
+        if let Some(c) = campaign {
+            ctx.game.campaign = c;
         }
         settings.apply_to(ctx.game);
         self.name_the_lords(ctx);

@@ -138,6 +138,11 @@
       "complete": true,
       "note": "Declared at merge, not by the branch: its eleven arms named this group and nothing declared it, which every_group_an_arm_names_is_declared caught. That test exists because the merge driver once dropped five declarations silently, and it earned itself on the next branch through. 0x1A could not be identified in docs/screens-county.md until this work; the 0x00 arm is the sidebar LORDS button that opens 0x0B."
     },
+    "front-end-pages": {
+      "what": "The MOUSE on setup screen 0x1F -- the page graph, and which button starts which kind of game",
+      "complete": false,
+      "note": "Opened because the campaign started on the wrong map for a merge and nothing could have caught it: the front end's thirteen pages had no arm records at all, only the `front-end-keys` group beside them, which is about keys we invented. The three here are the ones the campaign start needed -- 0x00433461 sets the flag, 0x00432B05 clears it, 0x00433155 branches on it. The remaining page arms (FUN_00432CC8's five, FUN_004335F0's four, FUN_0043338E, FUN_00433551, the map list and the twelve drop-downs) are NOT enumerated, which is why `complete` is false. docs/decisions.md CNEW-campaign-start."
+    },
     "front-end-keys": {
       "what": "The keyboard on setup screen 0x1F and the save/load box 0x35/0x36",
       "complete": true,
@@ -1006,13 +1011,50 @@
       "evidence": "V"
     },
     {
+      "id": "0x00432B05/multiplayer-clears-campaign",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-release",
+      "addr": "0x00432B05",
+      "what": "FUN_00432B05 opens with DAT_0057D320 = 0 before any of its four hotspot arms, so reaching page 4 from the title menu is not a campaign whatever the previous visit set. FUN_00432CC8 clears it the same way on its hotspots 3, 4 and 5, and raises it on hotspot 2, the load box.",
+      "note": "The clearing half of 0x00433461/choose-campaign. A flag that is set and never cleared makes every later Continue a campaign start, which is the same defect in the other direction.",
+      "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x00432B05/name-field-open",
       "status": "reproduced",
       "group": "text",
       "screen": "0x1F",
       "gesture": "left-release",
       "addr": "0x00432B05",
-      "what": "Arriving at page 4 SEEDS the field with the name you already have: both hotspot arms that open it -- FUN_00432B05's hotspot 2 and FUN_00432CC8's hotspots 3 and 5 -- run `Edit_Begin(&g_options, 0x10, 0xC0, 0); Edit_RecomputeLength();` immediately after setting g_setupPage = 4.\n\nAND THE ASYMMETRY IS REAL: arriving at page 4 from page 5 or page 6 does NOT re-seed, because those arms set the page and nothing else. So a name typed on the way in through the campaign chooser survives the round trip and a name typed before going out to the title menu does not.",
+      "what": "Arriving at page 4 SEEDS the field with the name you already have: EVERY arm that writes g_setupPage = 4 runs `Edit_Begin(&g_options, 0x10, 0xC0, 0); Edit_RecomputeLength();` immediately after -- FUN_00432B05's hotspot 2, FUN_00432CC8's hotspots 3 and 5, AND Setup_ChooseCampaign (0x00433461), which is page 5.",
+      "note": "CORRECTED, and the correction is an absence that was never looked for. This record used to end 'AND THE ASYMMETRY IS REAL: arriving at page 4 from page 5 or page 6 does NOT re-seed, because those arms set the page and nothing else', and crates/l2-game/src/screens/setup.rs repeated it in SetupScreen::go's doc comment. Setup_ChooseCampaign's THIRD STATEMENT is that very Edit_Begin call. There are four writers of page 4 and all four re-seed; the claimed asymmetry does not exist. The code was already right -- go() re-seeds on every arrival -- so nothing behaved differently and only the sentence was wrong, which is why it survived. docs/decisions.md CNEW-campaign-start.",
+      "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00433155/continue",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-release",
+      "addr": "0x00433155",
+      "what": "PAGE 4, THE CONTINUE BUTTON -- FUN_00433155's hotspot 2, and it is a BRANCH rather than a Start. `if (DAT_0057D320 == 1) { Campaign_LoadEntry(); Setup_StartGame(); }` else it walks on to the page that chooses a game: 7 or 8 for a custom game, 0xB or 0xC for a skirmish, picked by DAT_0055302C. Hotspot 1 is Back to page 1. There is NO `humanPlayers <= g_playerStartCount` guard on this arm -- that guard is FUN_004335F0's, the custom page's Start.",
+      "note": "Both limbs were wrong before. The campaign limb did not exist, and the else limb started a game. The else limb is asserted separately by tests/newgame.rs continue_without_a_campaign_opens_the_custom_page, so that ignoring the flag and starting a campaign unconditionally cannot pass the campaign tests.",
+      "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00433461/choose-campaign",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-release",
+      "addr": "0x00433461",
+      "what": "PAGE 5, EITHER RECESS -- Setup_ChooseCampaign. Six writes: g_campaignTrack = the hotspot; g_campaignMap = 2 for hotspot 1 and 0 otherwise; DAT_0057D320 = 1, which is what makes Continue on page 4 a campaign start; DAT_0055302C = 1; g_setupPage = 4; and Edit_Begin on the name field.",
+      "note": "THE DAT_0057D320 WRITE IS THE ONE THAT HAD NO COUNTERPART HERE, and without it page 4's Continue started the map list's slot -- which is 0, England, when nobody has touched the list. So the original campaign opened on its FIFTH map. docs/decisions.md CNEW-campaign-start.",
       "ours": "crates/l2-game/src/screens/setup.rs",
       "evidence": "V"
     },
