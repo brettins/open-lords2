@@ -389,7 +389,23 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   state the writer could not have produced, or when it feeds the
 ///   simulation.** A derived display field is neither, and if the format ever
 ///   grows widening, this is the entry that should take it.
-pub const VERSION: u32 = 16;
+/// * 17 — **the industry rows' forecast**,
+///   [`crate::county::Industry::next_season`], which is
+///   `Industry_LabourEstimate`'s tail (`0x0044F318`). Four bytes on each of
+///   four records a county, over 17 slots: **+272**.
+///
+///   Entry 16's twin, found the same way and one function along: a search loop
+///   we ported and a tail we did not. The five sidebar industry rows stood
+///   behind a box of ours reading `INDUSTRY / NOT DRAWN` on the reading that
+///   *"three of them are flat icons"* — they are, and each still draws a
+///   `Ui_DrawDelta` of this number, which `L2.eng` group 220 calls *"Wood
+///   produced next season"*.
+///
+///   Carried rather than defaulted for entry 16's own reason and no stronger
+///   one: nothing re-runs the estimate round on load, so a zeroed forecast is a
+///   blank row a player would actually see. `docs/decisions.md`
+///   CNEW-industry-tail.
+pub const VERSION: u32 = 17;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1294,6 +1310,7 @@ impl Encode for Industry {
         out.bool(self.enabled);
         out.i32(self.disabled_seasons);
         out.i32(self.total);
+        out.i32(self.next_season);
     }
 }
 
@@ -1307,6 +1324,7 @@ impl Decode for Industry {
             enabled: input.bool()?,
             disabled_seasons: input.i32()?,
             total: input.i32()?,
+            next_season: input.i32()?,
         })
     }
 }

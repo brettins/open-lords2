@@ -172,6 +172,38 @@ pub struct Industry {
     /// The running total at `+0x2A0`, which the pass adds this season's output
     /// to rather than replacing.
     pub total: i32,
+    /// **What the sidebar's industry row forecasts for next season**, and the
+    /// value `Ui_DrawDelta` draws beside the icon.
+    ///
+    /// # It is not at `+0x2A0 + c*0x18`, and the offset is the whole story
+    ///
+    /// The four strip painters read commodity `c`'s number from county
+    /// **`+0x2A8 + c*0x18`** — which is the *head word* of [`Industry`] record
+    /// `c + 1`, four bytes this document's own record layout leaves unnamed. So
+    /// the four values are a second per-commodity `i32` array, interleaved with
+    /// the production records and shifted one whole record along:
+    ///
+    /// | commodity | forecast at | inside record |
+    /// |---|---|---|
+    /// | wood `[0]` | `+0x2A8` | iron's head |
+    /// | iron `[1]` | `+0x2C0` | weapons' head |
+    /// | weapons `[2]` | `+0x2D8` | stone's head |
+    /// | stone `[3]` | `+0x2F0` | one past the array, still inside the county |
+    ///
+    /// A county is 768 = `0x300` bytes, so `0x2F0` is **in bounds** — this is an
+    /// array at `0x2A8`, not an overrun. Wood's own record head, `+0x290`, is
+    /// [`County::weapon_type`] and belongs to nothing here.
+    ///
+    /// Three independent readings agree, which is what makes this `[V]` rather
+    /// than arithmetic: `Unit_TrampleTile` (`0x0046873F`) zeroes
+    /// `industry[1].disabledSeasons`, `industry[1].efficiency` **and**
+    /// `*(int*)(industry + 2)` in one arm — one commodity, three fields, at the
+    /// shifted offset; `Industry_LabourEstimate` (`0x0044F318`) opens by
+    /// zeroing `county[0x2A8 + industry*0x18]` and closes by writing the
+    /// forecast there; and `FUN_00410502` reads it back for the row.
+    ///
+    /// Written by [`crate::industry::preview`].
+    pub next_season: i32,
 }
 
 impl Industry {
@@ -184,6 +216,7 @@ impl Industry {
             enabled: true,
             disabled_seasons: 0,
             total: 0,
+            next_season: 0,
         }
     }
 }

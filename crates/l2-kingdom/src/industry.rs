@@ -329,6 +329,95 @@ pub fn labour_estimate(
     (crate::county::LABOUR_NO_FLOOR, ceiling)
 }
 
+/// **`Industry_LabourEstimate`'s tail** — the number the sidebar's industry row
+/// draws, and the second instance of `docs/decisions.md` C123's shape.
+///
+/// [`labour_estimate`] above is the search loop. This is what the original
+/// writes *after* it, and the whole of it had no carrier in this workspace:
+///
+/// ```c
+/// county[0x2A8 + industry*0x18] = 0;                    /* before the guard */
+/// if (owner == 0) return;
+/// limit = resourceLimit(county, industry, owner, 0);
+/// if (limit <= 0 || popBand == 0) return;
+/// for (...) { local_28 = efficiencyRamp(county, industry, n, base); ... }   /* the loop */
+/// iVar3   = efficiencyRamp(county, industry, labour[slot].workers, base);
+/// county.industry[industry].efficiency = (char)iVar3;                       /* NOT PORTED */
+/// made    = Pct(labour[slot].workers / divisor, local_28);
+/// if (made > limit) made = limit;
+/// county[0x2A8 + industry*0x18] = made;                 /* [County::next_season] */
+/// ```
+///
+/// # The efficiency it multiplies by is the loop's, not the one it just
+/// computed
+///
+/// `local_28` is assigned **inside** the search loop and read after it, so it
+/// holds the ramp at the loop's *last* trial — and the loop always ends with
+/// `n == population`, whatever the county's actual staffing is. `iVar3`, the
+/// ramp at the real worker count, is computed on the line before and used only
+/// for the efficiency write.
+///
+/// So the row forecasts `Pct(workers / divisor, ramp(population))`: **the
+/// output the real workforce would make at the efficiency a full workforce
+/// would earn.** With *Advanced Farming* off the ramp is a flat 80 either way
+/// and the two are the same number; with it on, an understaffed mine's forecast
+/// is optimistic by exactly the ramp's difference. `docs/bugs.md` BNEW-forecast.
+/// It is reproduced, because it is what the player is shown.
+///
+/// # What is deliberately not here, and why
+///
+/// * **The efficiency write-back.** The original's estimate pass *mutates*
+///   `industry[c].efficiency`, and `County_RefreshEstimates` runs **four times**
+///   inside `Industry_ToggleFromMap` alone, on top of the ramp
+///   [`produce`] already applies each season. Porting it changes production
+///   numbers on every path in the game, which is a simulation change needing
+///   its own validation and not the sidebar's business. Named here rather than
+///   left silent: `docs/decisions.md` CNEW-industry-tail.
+/// * **County `+0x280` / `+0x284`** — for weapons only, the wood and iron the
+///   forecast would cost (`weaponCost[type] * made`). Nothing in this workspace
+///   reads them and no draw call in `docs/draws-map.md` does either.
+/// * **County `+0x288` / `+0x28C`** — copies of the castle's outstanding wood
+///   and stone, written by the wood and stone passes. Same reason.
+pub fn preview(
+    t: &Tables,
+    county: &mut County,
+    c: Commodity,
+    realm: &Realm,
+    weapon_share: WeaponShare,
+    advanced_farming: bool,
+) {
+    let index = c.index();
+    // `*(undefined4 *)(county * 0x300 + 0x53fc58 + industry * 0x18) = 0;` is
+    // the function's **first** statement, outside every guard — so a county
+    // that fails one of the three tests below forecasts nothing rather than
+    // keeping last season's number.
+    county.industry[index].next_season = 0;
+    if county.owner == 0 || county.pop_band == 0 {
+        return;
+    }
+    let limit = resource_limit(t, county, c, realm, weapon_share);
+    if limit <= 0 {
+        return;
+    }
+    let row = t.commodity[index];
+    // `local_28` at the loop's exit. The trial that sets it last is always the
+    // one with `n == population`: the loop runs `w = 0, band, 2*band, …` while
+    // `w < population + band` and clamps `n = min(w, population)`, so the final
+    // `n` is `population` for every population and every band, including zero.
+    let loop_efficiency = efficiency_ramp(
+        t,
+        county.industry[index].efficiency,
+        county.population,
+        county.industry[index].capacity,
+        row.base_efficiency,
+        advanced_farming,
+    );
+    let workers = county.labour[row.job].max(0);
+    // `if (limit < made) made = limit;` and nothing else — no floor, because
+    // neither term can be negative.
+    county.industry[index].next_season = pct(workers / row.divisor, loop_efficiency).min(limit);
+}
+
 /// One `Industry_Produce` pass: ramp the efficiency, produce, credit the realm,
 /// and add to the county's running total.
 ///
@@ -997,6 +1086,53 @@ pub fn toggle_from_map(county: &mut County, what: MapToggle, quirks: Quirks) -> 
             county.castle_switch = !was;
             county.castle_switch
         }
+    }
+}
+
+/// **`Industry_ToggleFromMap`'s last statement**, and the thing a player asked
+/// for by name: *"there's no message saying or visually showing mining on /
+/// mining off."*
+///
+/// ```c
+/// if (g_counties[county].owner == g_localPlayer) {
+///     DAT_0053F0A0 = g_mouseX; DAT_0053F09C = g_mouseY;
+///     Msg_Enqueue(0, g_localPlayer, local_10 + 0xE6, 0, '\x04', '\0', '\0', 0);
+/// }
+/// ```
+///
+/// `local_10` is `industry * 2` with `+ 1` added when the switch ends **on**,
+/// so the four industries take `0xE6 …0xED`; the castle arm never computes
+/// `industry * 2` at all and writes `-1` for on and `-2` for off by hand,
+/// landing on `0xE4` and `0xE5` underneath them.
+///
+/// **`L2.eng` groups 228 … 237 are ten consecutive one-string groups** and they
+/// land in exactly that order, which is an independent confirmation of the
+/// commodity numbering — the *strings* say wood is 0 and stone is 3, with no
+/// reference to the labour ladder:
+///
+/// | group | string | |
+/// |---|---|---|
+/// | 228 / 229 | *Building off* / *Building on* | the castle switch |
+/// | 230 / 231 | *Forestry off* / *Forestry on* | wood, `industry 0` |
+/// | 232 / 233 | *Mining off* / *Mining on* | iron, `industry 1` |
+/// | 234 / 235 | *Blacksmith off* / *Blacksmith on* | weapons, `industry 2` |
+/// | 236 / 237 | *Quarrying off* / *Quarrying on* | stone, `industry 3` |
+///
+/// Read out of the player's own `L2.eng`, not from a table here. All ten
+/// `S2xx_01.wav` narrations ship with the game, and the message is what a voice
+/// hangs on: `Msg_DrawWindow`'s category-4 arm speaks at `g_messageTimer ==
+/// 0x5A`.
+///
+/// The category is **`0x04`, the floating tip** — placed at the cursor, with no
+/// OK button, dismissed only by its own hundred-tick timer. So this is not a
+/// scroll the player has to close; it is a label that appears by the mouse and
+/// goes away.
+pub fn toggle_message_group(what: MapToggle, on: bool) -> u16 {
+    match what {
+        // `local_10 = industry * 2; if (enabled) local_10++;`
+        MapToggle::Industry(c) => 0xE6 + (c.index() as u16) * 2 + u16::from(on),
+        // `local_10 = on ? -1 : -2`, added to the same `0xE6`.
+        MapToggle::Castle => 0xE6 - 2 + u16::from(on),
     }
 }
 

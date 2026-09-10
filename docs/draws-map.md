@@ -95,11 +95,11 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_004100AF` | `0x004100AF` | strip row: cattle | live | 5 | 4 |
 | `FUN_0041023A` | `0x0041023A` | strip row: grain | live | 5 | 4 |
 | `FUN_004103C5` | `0x004103C5` | strip row: reclamation | live | 4 | 2 |
-| `FUN_00410502` | `0x00410502` | strip row: stone | live | 2 | 0 |
-| `FUN_00410598` | `0x00410598` | strip row: wood | live | 2 | 0 |
-| `FUN_0041062E` | `0x0041062E` | strip row: iron | live | 2 | 0 |
-| `FUN_004106C4` | `0x004106C4` | strip row: weapons | live | 3 | 0 |
-| `CountyStrip_DrawCastleIcon` | `0x004107D1` | strip row: castle | live | 8 | 0 |
+| `FUN_00410502` | `0x00410502` | strip row: iron² | live | 2 | 2 |
+| `FUN_00410598` | `0x00410598` | strip row: stone² | live | 2 | 2 |
+| `FUN_0041062E` | `0x0041062E` | strip row: wood² | live | 2 | 2 |
+| `FUN_004106C4` | `0x004106C4` | strip row: weapons | live | 3 | 3 |
+| `CountyStrip_DrawCastleIcon` | `0x004107D1` | strip row: castle | live | 8 | 8 |
 | `Minimap_Draw` | `0x00410AA9` | the minimap plate | live | 6 | 6 |
 | `Minimap_DrawOverlay` | `0x00410CBD` | its county tint | live | 1 | 1 |
 | `Screen_DrawEndTurn` | `0x0041A734` | the End Turn strip | live | 2 | 2 |
@@ -115,6 +115,12 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_00406BBA` | `0x00406BBA` | a second tall-tile pass | dead | 1 | — |
 | `FUN_0041424A` | `0x0041424A` | zoom-1 left edge | dead | 5 | — |
 | `FUN_0041432B` | `0x0041432B` | zoom-2 left edge | dead | 2 | — |
+
+² **These three names were the wrong way round in this table until the rows were
+built from it.** It read stone, wood, iron; `CountyStrip_Draw`'s dispatch is on the
+**labour slot** — 4 iron to `0x00410502`, 5 stone to `0x00410598`, 6 wood to
+`0x0041062E` — and `Unit_TrampleTile`'s four arms agree from the other side. The counts
+were right and only the names moved. `docs/decisions.md` CNEW-strip-painters.
 
 ¹ `FUN_00405602`'s single fill is inside `if (g_mapZoom == 1)`, which `docs/screens.md` §2.2
 proves unreachable. **120 live and 9 dead** is the tighter reading; the script cannot see

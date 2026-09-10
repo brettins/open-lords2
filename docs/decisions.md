@@ -6045,3 +6045,78 @@ gone*, because any future selection paint fails it. The two counties it compares
 derived rather than named, because the field markers under `brush` are drawn for the
 selected county when the player owns it and are the visible half of a *different*
 invention that is deliberately kept.
+
+**CNEW-strip-painters — `docs/draws-map.md` names three of the sidebar's industry painters in the wrong order, and the code that reads it would have drawn the wrong icons.**
+
+The campaign-map audit's §2 listing has `FUN_00410502` as *strip row: stone*, `FUN_00410598`
+as *wood* and `FUN_0041062E` as *iron*. All three are wrong, and the fourth and fifth
+(`FUN_004106C4` weapons, `CountyStrip_DrawCastleIcon`) are right.
+
+Two readings from different directions settle it, and neither is the listing's:
+
+* **`CountyStrip_Draw`'s own dispatch.** `FUN_0040FEC1` fills the right-hand list with
+  **labour slots** — 6 wood cutting, 4 iron mining, 5 stone quarrying, 7 blacksmith, 3 castle
+  — and the walk is `if (slot == 4) FUN_00410502(); else if (slot == 5) FUN_00410598(); else
+  if (slot == 6) FUN_0041062E();`. So `0x00410502` is **iron**, `0x00410598` is **stone** and
+  `0x0041062E` is **wood**.
+* **`Unit_TrampleTile` (`0x0046873F`).** Its four arms each touch three fields of one
+  commodity, and the third is the forecast word the row draws: the iron arm zeroes
+  `industry[1].disabledSeasons`, `industry[1].efficiency` and `*(int*)(industry + 2)` — and
+  `*(int*)(industry + 2)` is what `FUN_00410502` passes to `Ui_DrawDelta`.
+
+This is the shape `CLAUDE.md`'s table now warns about for `docs/formats/`, arriving in a
+document that has no such warning on it: **a listing is an input to the code.** The three
+rows were about to be drawn from it, and the visible result would have been an iron icon over
+the stone row's number in a county that had all three — a defect no test in this workspace
+could see, because nothing here knows what a quarry looks like.
+
+The listing's *counts* are unaffected — 2, 2, 2, 3, 8, seventeen in all — so the audit's
+headline number stands and only the three names move.
+
+**CNEW-industry-tail — the same tail, one function along: `Industry_LabourEstimate` writes four things and we carried none of them.**
+
+C123 is `Grain_LabourEstimate` (`0x0044D374`): a search loop we ported faithfully and a tail
+we stopped before, whose four writes are what the sidebar's grain row draws. **The industry
+rows are the identical defect in the identical shape**, and it was found by asking what
+`FUN_00410502`'s `Ui_DrawDelta` argument was rather than by looking for it.
+
+`Industry_LabourEstimate` (`0x0044F318`) ends:
+
+```c
+iVar3 = Industry_EfficiencyRamp(county, industry, labour[slot].workers, base);
+county.industry[industry].efficiency = (char)iVar3;                       /* still not ported */
+made = Pct(labour[slot].workers / divisor, local_28);
+if (made > limit) made = limit;
+county[0x2A8 + industry*0x18] = made;                                     /* now ported */
+if (industry == 2) { county.field_0x280 = weaponCost[type].wood * made;   /* not ported */
+                     county.field_0x284 = weaponCost[type].iron * made; }
+```
+
+**The forecast's offset is the interesting part.** It is not `+0x2A0 + c*0x18`, the record's
+own `total`; it is `+0x2A8 + c*0x18` — the **head word of record `c + 1`**, four bytes the
+record layout leaves unnamed. So the four values are a second per-commodity array interleaved
+with the production records and shifted one whole record along, and stone's lands at `+0x2F0`,
+which is inside a 768-byte county and not an overrun. `Unit_TrampleTile` groups the two
+offsets in one arm per commodity, which is what makes this `[V]` rather than arithmetic.
+
+**And `+0x290`, wood's own record head, is the weapon type.** `FUN_004106C4` picks the
+blacksmith's icon as `county[+0x290] + 0x30` and `Industry_LabourEstimate` indexes
+`&g_weaponCost + county[+0x290] * 8` with the same byte. `County::weapon_type` has carried
+the comment *"**Engine state.** Which weapon the blacksmith is making"* with no offset since
+it was written; it has one.
+
+**Two of the four writes are deliberately still missing, and the efficiency one is the
+expensive one.** The estimate pass *mutates* `industry[c].efficiency`, on top of the ramp
+`Industry_Produce` applies each season — and `County_RefreshEstimates` runs **four times**
+inside `Industry_ToggleFromMap` alone. Porting it changes production numbers on every path in
+the game. That is a simulation change needing its own validation and its own fixture, not a
+side effect of drawing a sidebar, so it is named at the loop rather than left silent —
+`docs/agents.md`: *"port a function's tail with its loop, or say at the loop that you did
+not."*
+
+**A third thing fell out of the same function and is not built either.**
+`Industry_ProduceAll` writes `industry[c].capacity = labour[slot].workers` after every pass.
+`County::industry[].capacity` is documented here as *"written by the industry driver from
+county `+0x108`, whose meaning was not traced"* — it is the worker count, and it is the
+divisor of the efficiency ramp's overstaffing term. Same class of change, same reason for not
+making it now.

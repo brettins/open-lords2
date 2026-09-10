@@ -153,7 +153,8 @@
       "text::draw_centred \"NOT SIMULATED\" inside it"
     ],
     "literals_ours": [
-      "NOT SIMULATED — an honest diagnostic of ours, in our own 5 x 7 font: g_countyHistory has no counterpart in l2-kingdom, so the graph recess says so. Drawn on the population and happiness panels and again over the ration panel's Fed row."
+      "NOT SIMULATED — an honest diagnostic of ours, in our own 5 x 7 font: g_countyHistory has no counterpart in l2-kingdom, so the graph recess says so. Drawn on the population and happiness panels and again over the ration panel's Fed row.",
+      "SMITH — an honest fallback of ours, in our own 5 x 7 font, for an install with no Misc_cty.pl8: the county strip's blacksmith row is FUN_004106C4's weaponType + 0x30, and with no sheet there is no icon to draw. Its four neighbours (WOOD, IRON, WEAPONS, STONE), CASTLE and NEEDS are the same fallback reached through INDUSTRY_LABEL and draw_strip_icon; SEASON/SEASONS and NEEDED fall back only when L2.eng is absent, where the game's own group 8 and 71/18 supply them."
     ],
     "excluded": "FUN_004050C0(), which is Map_DrawFrame() behind a 16 ms throttle — one whole campaign-map frame under the inset. Ours is Screen::is_overlay plus the map screen on the stack. Also excluded: draw_strip, which is CountyStrip_Draw and belongs to the map's sidebar, not to this painter.",
     "eng": {

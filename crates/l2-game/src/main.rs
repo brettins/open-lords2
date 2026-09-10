@@ -47,7 +47,11 @@ const CANVAS_W: u32 = l2_view::canvas::WIDTH as u32;
 const CANVAS_H: u32 = l2_view::canvas::HEIGHT as u32;
 
 /// One fixed simulation tick. The only clock in the application.
-const TICK: Duration = Duration::from_millis(16);
+///
+/// The number itself is [`l2_game::TICK_MS`], because a screen reproducing an
+/// animation quoted in milliseconds has to convert to ticks and there must be
+/// one place that says how long a tick is.
+const TICK: Duration = Duration::from_millis(l2_game::TICK_MS as u64);
 
 /// How long after a left press a second one is a **double** click.
 ///

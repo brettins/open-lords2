@@ -988,6 +988,18 @@ impl Kingdom {
                 shares[owner],
             );
         }
+        // `Industry_ProduceAll` follows **every** `Industry_Produce` with an
+        // `Industry_UpdateSiteTile` for the same commodity, in the same county
+        // loop. It is what turns a mine's picture back off when its last worker
+        // is taken away, and what un-wrecks a trampled one the season its
+        // countdown expires — the branch inside `Industry_Produce` calls the
+        // same function.
+        for id in 1..=self.county_count {
+            if self.counties[id].owner == 0 {
+                continue;
+            }
+            self.update_industry_site(id, commodity);
+        }
     }
 
     /// `Castle_BuildTick` (`0x004508DE`) over every county, plus the two things
@@ -1192,7 +1204,53 @@ impl Kingdom {
             crate::labour::allocate(&mut self.counties[county]);
             self.refresh_estimates(county);
         }
+        // `Industry_UpdateSiteTile(county, industry)` — the original's
+        // second-to-last statement, and the *visible* half of the switch. A
+        // player: *"there's no message saying or visually showing mining on /
+        // mining off."* The message is the caller's; this is the picture.
+        if let crate::industry::MapToggle::Industry(c) = what {
+            self.update_industry_site(county, c);
+        }
         on
+    }
+
+    /// **`Industry_UpdateSiteTile` (`0x0044EDC2`)**, the half of it that is
+    /// terrain.
+    ///
+    /// ```c
+    /// if (hasResource == 0 || disabledSeasons != 0) return;
+    /// g_tiles[site].content = base + (enabled != 0);      /* 1 iron, 4 stone, 7 weapons, 10 wood */
+    /// if (total - totalSnapshot < 1)
+    ///     g_tiles[site].frame = idleFrame;                /* 30 iron, 0 stone, 10 weapons, 20 wood */
+    /// ```
+    ///
+    /// **The `content` write is the on/off appearance**, and it is a whole
+    /// terrain value rather than a flag: an enabled site is `base + 1` and
+    /// `Sprite_TopIt` animates exactly that value. So *"on"* is **motion**, not
+    /// a different picture — see
+    /// [`l2_view::campaign::industry_frames`](../../l2_view/campaign/fn.industry_frames.html).
+    ///
+    /// The frame reset is the other half and lives in the view, because this
+    /// crate holds no graphics: a site with no output this season shows its
+    /// idle frame, which is where the wheel starts from again.
+    ///
+    /// The guard matters and is easy to miss. A **wrecked** site — three
+    /// seasons on the countdown — is left exactly as `Unit_TrampleTile` wrote
+    /// it, so switching a trampled mine on and off changes nothing on the map
+    /// until the countdown expires and `Industry_Produce`'s own call here
+    /// repaints it.
+    pub fn update_industry_site(&mut self, county: usize, c: crate::tables::Commodity) {
+        let Some(record) = self.counties.get(county).map(|k| k.industry[c.index()]) else {
+            return;
+        };
+        if !record.has_resource || record.disabled_seasons != 0 {
+            return;
+        }
+        let Some(tile) = crate::map::industry_site(&self.campaign.map, county as u8, c) else {
+            return;
+        };
+        let base = crate::map::terrain::INDUSTRY_IDLE[c.index()];
+        self.campaign.map.terrain[tile] = base + u8::from(record.enabled);
     }
 
     /// **The farm/industry labour split**, as the campaign sidebar's slider

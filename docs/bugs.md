@@ -1601,3 +1601,34 @@ no observable difference to preserve: the defect's entire effect is a value in a
 emptiness test does not consult, in a slot the next write replaces wholesale. Recorded
 because the *next* reader of that function will see the mismatched indices and have to work
 out whether it matters, and this is the answer.
+
+### BNEW-forecast — the industry row forecasts at a full workforce's efficiency, whatever the workforce is
+
+`Industry_LabourEstimate` (`0x0044F318`) computes two efficiencies and multiplies by the
+wrong one.
+
+```c
+for (w = 0; w < population + popBand; w += popBand) {
+    n = min(w, population);
+    local_28 = Industry_EfficiencyRamp(county, industry, n, base);   /* the loop's */
+    …
+}
+iVar3 = Industry_EfficiencyRamp(county, industry, labour[slot].workers, base);  /* the real one */
+county.industry[industry].efficiency = (char)iVar3;
+made = Pct(labour[slot].workers / divisor, local_28);                /* …and it uses the loop's */
+```
+
+`local_28` is assigned inside the search loop and read after it, so it holds the ramp at the
+loop's **last** trial — and the loop always ends with `n == population`, for every population
+and every band, including zero. `iVar3`, the ramp at the county's actual staffing, is computed
+on the line before and used only for the efficiency write.
+
+So the number the sidebar's industry row draws is *"what the real workforce would make at the
+efficiency a full workforce would have earned"* — a mixture of two staffings. With **Advanced
+Farming off** the ramp is a flat 80 either way and the two are the same number; with it on, an
+understaffed mine's forecast is optimistic by exactly the difference the ramp makes.
+
+**Reproduced**, and not switchable: it is what the player is shown, the row would be a
+different number without it, and there is no second reading of the sequence to prefer.
+`l2_kingdom::industry::preview` carries it with the derivation of why `local_28` is always the
+full-population ramp.

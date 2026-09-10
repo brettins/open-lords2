@@ -1189,6 +1189,99 @@ pub fn field_frame(terrain: u8, stored_frame: u8) -> u8 {
     field_base(terrain).0 + (stored_frame & 3) + field_variant(terrain) * 4
 }
 
+// ------------------------------------------------------- the industry sites
+
+/// **`Sprite_TopIt` arm 5 — one industry site's four frame numbers**, in
+/// commodity order (wood, iron, weapons, stone) so it indexes the way
+/// `County::industry` does.
+///
+/// Each entry is `(idle, first working, last working, wrecked)`, and all
+/// sixteen numbers are literals read out of the four arms of `Sprite_TopIt`
+/// (`0x004071A0`) and `Industry_UpdateSiteTile` (`0x0044EDC2`), which supplies
+/// the idle column:
+///
+/// | commodity | idle | working run | wrecked |
+/// |---|---:|---|---:|
+/// | wood | 20 | 20 … 28 | 29 |
+/// | iron | 30 | 30 … 45 | 46 |
+/// | weapons | 10 | 10 … 18 | 19 |
+/// | stone | **0** | 1 … 4 | 9 |
+///
+/// **Stone is the one whose idle frame is outside its working run**, and it is
+/// not a slip: `Industry_UpdateSiteTile` writes 0 and `Sprite_TopIt`'s stone arm
+/// wraps `if (frame > 4) frame = 1`, so a quarry switched on shows its idle
+/// picture for one pulse and then never again until it stops. Everything else
+/// starts on the first frame of its own run.
+///
+/// Every number lands inside `Town1a.pl8`'s 61 frames, which is the check
+/// `docs/draws-map.md` §3.1 makes on the same table — and it is also why
+/// `L2_maps.dat` storing 0, 20 and 30 is the *idle* frame in every case and not
+/// three unrelated pictures.
+pub const INDUSTRY_FRAMES: [(u8, u8, u8, u8); 4] =
+    [(20, 20, 28, 29), (30, 30, 45, 46), (10, 10, 18, 19), (0, 1, 4, 9)];
+
+/// One step of an industry site's wheel — `Sprite_TopIt`'s arm 5b, whole.
+///
+/// ```c
+/// frame++;
+/// if (frame > last) frame = first;
+/// tile.frame = frame;
+/// ```
+///
+/// It is a **rewrite of the tile's own terrain frame** and draws no overlay at
+/// all, which is why a working mine and an idle one are the same sprite sheet,
+/// the same bank and the same position: the only difference on screen is that
+/// one of them is moving. A reader looking for the "on" picture will not find
+/// one.
+pub fn industry_step(commodity: usize, frame: u8) -> u8 {
+    let (_, first, last, _) = INDUSTRY_FRAMES[commodity.min(3)];
+    let next = frame.saturating_add(1);
+    if next > last {
+        first
+    } else {
+        next
+    }
+}
+
+/// **How fast the wheel turns, which is a mechanic and not decoration.**
+///
+/// `Sprite_TopIt` chooses the pulse from `total − totalSnapshot` — the
+/// commodity's output *this season* — and the bands are the original's
+/// literals:
+///
+/// ```c
+/// n = county.industry[k].total - county.industry[k].totalSnapshot;
+/// if      (n < 0x0A) step = DAT_0058FD08;   /* 640 ms */
+/// else if (n < 0x19) step = DAT_0057D3C8;   /* 320 ms */
+/// else if (n < 0x32) step = g_pulse160;     /* 160 ms */
+/// else               step = g_pulse80;      /*  80 ms */
+/// ```
+///
+/// The four globals are four rungs of `Tick_Pulses`' (`0x004BBC80`) divider
+/// chain: a 20 ms `timeGetTime` gate feeds an 80 ms pulse, which feeds counters
+/// firing every 2, 4 and 8 of it. `g_pulse80` and `g_pulse160` are already
+/// named in `docs/symbols.json`; `DAT_0057D3C8` is the fourth counter and
+/// `DAT_0058FD08` the eighth, so 320 ms and 640 ms.
+///
+/// **So the busier the mine, the faster its wheel turns — eight times faster at
+/// the top band than at the bottom — and the picture is the only place the
+/// player is told.** A site switched on but unstaffed produces nothing and
+/// therefore still turns, at the slowest rate; a site switched *off* has no
+/// working terrain and does not turn at all.
+///
+/// Returned in milliseconds so the caller can convert to whatever tick it has.
+pub fn industry_period_ms(output: i32) -> u32 {
+    if output < 0x0A {
+        640
+    } else if output < 0x19 {
+        320
+    } else if output < 0x32 {
+        160
+    } else {
+        80
+    }
+}
+
 /// Paint the viewport, stamping county ids into `tags`. Returns tiles drawn.
 ///
 /// The traversal is `Map_RenderIso`'s: `rows + 1` lattice rows starting at
