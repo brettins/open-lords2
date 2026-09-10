@@ -290,6 +290,29 @@ pub struct Unit {
     /// `+0x14D` — the tile just entered was a road, which is what makes the
     /// step cost 1 instead of 3.
     pub on_road: bool,
+    /// `+0x149` — **how far across the current tile the unit is**, 0…16.
+    ///
+    /// `Unit_StepOnce` (`0x0046634D`) adds [`SUBTILE_STEP_SOLO`] to this on
+    /// every tick it is admitted by [`Unit::sub_frame`], and only when it
+    /// reaches [`SUBTILE_SPAN`] is the next tile actually entered. It is
+    /// **not** a display value: it is the whole of a unit's speed, and without
+    /// it a unit crosses one tile per tick. See [`crate::units_tick`].
+    pub sub_tile: u8,
+    /// `+0x14A` — the divider in front of [`Unit::sub_tile`], reset every time
+    /// it admits a tick.
+    ///
+    /// `Unit_StepOnce` admits one when `sub_frame` exceeds 0 on a road and 3
+    /// off one, which is where a road's fourfold speed comes from — the
+    /// **cost** difference (1 against 3) is a separate rule and is charged in
+    /// [`crate::movement::step`].
+    pub sub_frame: u8,
+    /// `+0x14B` bit 0 — **the unit is standing on the edge of the next tile**
+    /// and the coming tick commits it.
+    ///
+    /// `Unit_Step`'s loop tests this before the budget check and the waypoint
+    /// advance, which is why a unit only notices it has run out of moves at a
+    /// tile boundary rather than part-way across one.
+    pub at_tile_edge: bool,
     /// `+0x14F` *sh* — index into `L2.eng` group `93 + owner`, 0…23. For a
     /// merchant the same byte is the route number.
     pub name_index: u8,
@@ -446,6 +469,9 @@ impl Unit {
             path: Vec::new(),
             moving: false,
             on_road: false,
+            sub_tile: 0,
+            sub_frame: 0,
+            at_tile_edge: false,
             name_index: 0,
             needs_destination: true,
             dest_county: 0,

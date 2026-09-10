@@ -1292,6 +1292,48 @@ pub const STEP_COST_ROAD: i32 = 1;
 /// Every step that is not a road step. `Unit_StepOnce`'s `ADD EAX, 3`.
 pub const STEP_COST_OPEN: i32 = 3;
 
+/// **How far a unit has to get across a tile before it enters the next one.**
+///
+/// `Unit_StepOnce` (`0x0046634D`) keeps a sub-tile accumulator in `+0x149` and
+/// only calls `Unit_NeighbourTile` — the thing that actually moves the unit —
+/// on the tick the accumulator reaches this. `[V]`:
+///
+/// ```c
+/// if ((char)g_units[g_movingUnit].field_0x149 < '\x10') {  local_8 = 1;  }
+/// else { field_0x14b |= 1; field_0x149 = 0; local_8 = 2; }
+/// ```
+///
+/// See [`crate::units_tick`] for what the three numbers here work out to in
+/// ticks a tile, and why leaving them out is the difference between a march
+/// and a teleport.
+pub const SUBTILE_SPAN: u8 = 0x10;
+
+/// What one admitted tick adds to the accumulator **in single player**.
+/// `Unit_StepOnce`'s `if (g_multiplayer == 0) field_0x149 += 2; else += 4;`.
+pub const SUBTILE_STEP_SOLO: u8 = 2;
+
+/// And in a network game — **twice the speed**, which is a simulation
+/// difference and not a display one.
+///
+/// It is unreachable today: nothing below `l2-game` knows whether the session
+/// is networked, and threading `g_multiplayer` into `Kingdom` would put a
+/// session property into the lockstep digest. Both peers of a network game
+/// take the same arm, so the value agrees where it matters; what does not yet
+/// exist is a way to *select* it. **Named rather than dropped** — a unit that
+/// walked at half speed the day multiplayer landed would be a defect nobody
+/// would think to look for here.
+pub const SUBTILE_STEP_NET: u8 = 4;
+
+/// How many ticks the accumulator waits between admissions: none on a road,
+/// three off one.
+///
+/// `Unit_StepOnce`'s `cVar1 = onRoad ? 0 : 3`, tested as
+/// `if (cVar1 < ++field_0x14a)`. So a road tile is entered four times as often
+/// as an open one **on top of** costing a third as much
+/// ([`STEP_COST_ROAD`] against [`STEP_COST_OPEN`]) — two independent
+/// mechanisms, and only the second one was here.
+pub const SUBTILE_DIVIDER: [u8; 2] = [3, 0];
+
 /// `Unit_CrossField` (`0x0046673C`) charges this **before** `Unit_StepOnce`'s
 /// general `+3`, so a standing field costs `3 + 3 = 6` — and
 /// `Move_BuildCostMap` stores a single literal `6` for the same tile. Two

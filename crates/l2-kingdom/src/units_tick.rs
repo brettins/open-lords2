@@ -308,6 +308,11 @@ impl Kingdom {
             if !self.campaign.units.get(id).is_some_and(|u| u.moving) {
                 continue;
             }
+            // **`Unit_StepOnce`'s other arm**, and the one that decides how
+            // fast anything on the campaign map goes. See [`cross_sub_tile`].
+            if !cross_sub_tile(&mut self.campaign.units, id) {
+                continue;
+            }
             self.step_one(id, &mut out);
             if out.battle().is_some() {
                 break;
@@ -739,6 +744,70 @@ pub fn refresh_allowances(units: &mut Units) {
     for (_, u) in units.iter_mut() {
         u.move_allowance = u.kind.move_allowance();
     }
+}
+
+/// **One tick of walking across the tile the unit is on.** Answers whether the
+/// far edge was reached, which is when — and only when — the next tile is
+/// entered.
+///
+/// This is `Unit_StepOnce` (`0x0046634D`)'s **`(field_0x14b & 1) == 0` arm**,
+/// and [`crate::movement::step`] is its other one. The original is one
+/// function with two halves picked by a latch; here the halves are in the two
+/// crates that already own them — the driver decides *when* a tile is entered,
+/// the mover decides *what happens* when it is — and [`Unit::at_tile_edge`] is
+/// the latch, in the unit record, where the original keeps it.
+///
+/// ```c
+/// cVar1 = onRoad ? 0 : 3;
+/// if (cVar1 < ++field_0x14a) {
+///     field_0x14a = 0;
+///     field_0x149 += (g_multiplayer == 0) ? 2 : 4;
+///     if (field_0x149 >= 0x10) { field_0x14b |= 1; field_0x149 = 0; return 2; }
+/// }
+/// return 1;                       /* still crossing: no tile is entered */
+/// ```
+///
+/// # What it costs a tile, and why this is the whole of the defect
+///
+/// Sixteen has to be reached in steps of two, so **eight admissions a tile**;
+/// off a road only one tick in four is admitted and on a road every one is.
+/// Single player, therefore:
+///
+/// | | admissions | ticks a tile |
+/// |---|---:|---:|
+/// | road | 8 | **8** |
+/// | anything else | 8 | **32** |
+///
+/// A merchant on the England position walks a ten-tile road route, so its leg
+/// takes eighty ticks rather than ten. Without this function it took ten — one
+/// tile every tick, which at our 16 ms tick is sixty-two tiles a second, and
+/// what a player described as *"they move insanely fast"*. `docs/decisions.md`
+/// **CNEW-subtile**.
+///
+/// **It is not a display value and it must not be moved above this crate.**
+/// The tick a unit arrives on decides which tick a battle starts on, which
+/// county changes hands first, and when a phase's wait comes true; two peers
+/// that disagreed about it would be playing different games
+/// (`docs/netcode.md` §5). It is in the save and therefore in the digest.
+fn cross_sub_tile(units: &mut Units, id: usize) -> bool {
+    let Some(u) = units.get_mut(id) else { return false };
+    // Already at the edge — the original leaves the latch set when a step is
+    // refused, and the retry commits without re-crossing the tile.
+    if u.at_tile_edge {
+        return true;
+    }
+    u.sub_frame = u.sub_frame.wrapping_add(1);
+    if u.sub_frame <= crate::tables::SUBTILE_DIVIDER[usize::from(u.on_road)] {
+        return false;
+    }
+    u.sub_frame = 0;
+    u.sub_tile = u.sub_tile.saturating_add(crate::tables::SUBTILE_STEP_SOLO);
+    if u.sub_tile < crate::tables::SUBTILE_SPAN {
+        return false;
+    }
+    u.at_tile_edge = true;
+    u.sub_tile = 0;
+    true
 }
 
 #[cfg(test)]

@@ -389,7 +389,27 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   state the writer could not have produced, or when it feeds the
 ///   simulation.** A derived display field is neither, and if the format ever
 ///   grows widening, this is the entry that should take it.
-pub const VERSION: u32 = 16;
+/// * 17 — **the sub-tile counter**: [`crate::unit::Unit`]'s `sub_tile`,
+///   `sub_frame` and `at_tile_edge`, which are `Unit_StepOnce`'s `+0x149`,
+///   `+0x14A` and `+0x14B` bit 0. Three bytes a unit over 150 slots, +450.
+///
+///   They are how far across its current tile a walking unit is, and until
+///   this version nothing in the workspace had them: a unit entered a tile on
+///   **every** tick instead of every eighth (road) or thirty-second (open
+///   ground). A player: *"the merchants don't move right when you click End
+///   Turn, and then… move insanely fast."* `docs/decisions.md` **CNEW-subtile**.
+///
+///   **Refusal rather than default, and this one is squarely inside the rule
+///   entry 16 sharpened**: a defaulted load feeds the simulation directly. A
+///   version 16 save taken mid-turn has units part-way across tiles; zeroing
+///   the counter hands each of them up to thirty-one ticks of free progress or
+///   takes it away, which moves *which tick* an army arrives on, which moves
+///   which of two armies reaches a castle first. It is not a display field and
+///   it is not derived.
+///
+///   *Written as 17 with `VERSION` at 16 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 17;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -868,6 +888,9 @@ impl Encode for crate::unit::Unit {
         }
         out.bool(self.moving);
         out.bool(self.on_road);
+        out.u8(self.sub_tile);
+        out.u8(self.sub_frame);
+        out.bool(self.at_tile_edge);
         out.u8(self.name_index);
         out.bool(self.needs_destination);
         out.u8(self.dest_county);
@@ -951,6 +974,9 @@ impl Decode for crate::unit::Unit {
         }
         u.moving = input.bool()?;
         u.on_road = input.bool()?;
+        u.sub_tile = input.u8()?;
+        u.sub_frame = input.u8()?;
+        u.at_tile_edge = input.bool()?;
         u.name_index = input.u8()?;
         u.needs_destination = input.bool()?;
         u.dest_county = input.u8()?;
