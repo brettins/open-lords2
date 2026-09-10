@@ -166,7 +166,7 @@ impl ShellAssets {
                 palettes.insert(key(name), p);
             }
         }
-        ShellAssets {
+        let loaded = ShellAssets {
             eng: read("L2.eng").and_then(|b| Eng::parse(b).ok()),
             body: read(font::BODY).and_then(|b| Font::new(b, 16).ok()),
             heading: read(font::HEADING).and_then(|b| Font::new(b, 24).ok()),
@@ -175,7 +175,52 @@ impl ShellAssets {
             palettes,
             merchant_grid: read_grid(&read, "mercgrid.pl8"),
             armoury_grid: read_grid(&read, "arm_grid.pl8"),
+        };
+        loaded.complain_about_what_is_missing();
+        loaded
+    }
+
+    /// **Say so when the interface files did not load, because the game does
+    /// not look broken without them — it looks badly made.**
+    ///
+    /// Every `Pen` method falls back to `l2_view::text`, our 5 × 7 debug font,
+    /// when `body` or `heading` is `None`. That fallback is per-call and
+    /// silent, so a checkout that cannot find its install renders the *entire*
+    /// front end in a squat all-capitals font with every call site perfectly
+    /// correct. A player reported precisely that as *"the title screen is
+    /// illegible, all caps of that font is ridiculous"*, and there was nothing
+    /// anywhere — no log line, no screen, no exit code — to distinguish it from
+    /// a font we had chosen.
+    ///
+    /// This is `docs/agents.md`'s *a tool that degrades silently is worse the
+    /// more people use it*, in the shipped program rather than in a script. The
+    /// degradation is still the right behaviour: the game must run on a bare
+    /// checkout. What was wrong is that it happened without a word.
+    fn complain_about_what_is_missing(&self) {
+        let mut missing: Vec<&str> = Vec::new();
+        if self.body.is_none() {
+            missing.push(font::BODY);
         }
+        if self.heading.is_none() {
+            missing.push(font::HEADING);
+        }
+        if self.eng.is_none() {
+            missing.push("L2.eng");
+        }
+        if missing.is_empty() {
+            return;
+        }
+        eprintln!(
+            "lords2: could not load {} - the interface will be drawn in the 5x7 debug font \
+             and captions will be our own English rather than the game's.",
+            missing.join(", "),
+        );
+        eprintln!(
+            "lords2: this is what a missing or unreadable game install looks like. Point \
+             LORDS2_DIR at a Lords of the Realm II directory containing {} and {}.",
+            font::BODY,
+            font::HEADING,
+        );
     }
 
     /// Nothing at all: what the tests run against, and what an install missing

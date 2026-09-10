@@ -29,11 +29,22 @@ use crate::shell::Pen;
 /// `build.rs` never fails — it falls back to `NO GIT` — so this is always set.
 pub const ID: &str = env!("L2_BUILD_ID");
 
-/// Where it sits: hard against the bottom-left of the 640 × 480 canvas, below
-/// everything any screen draws. The setup pages centre their window at
-/// `y = 0x14 … 0xF` rows, and the conquest and menu screens end at `y = 440`.
+/// Where it sits: hard against the bottom-left, below everything any screen
+/// draws. The setup pages centre their window at `y = 0x14 … 0xF` rows, and
+/// the conquest and menu screens end at `y = 440`.
+///
+/// **The y is computed, not written.** It was the literal 468, chosen against
+/// a 480-line canvas and the 7-pixel debug font — and once the real
+/// `Fntl2_14.pl8` was drawing it, the stamp hung off the bottom of the screen
+/// and a player reported it as *"half obscured by the bottom of the screen"*.
+/// The test meant to protect it asserted the stamp was **painted**, by drawing
+/// it twice and requiring the two canvases to be identical — which is equally
+/// true of text painted entirely out of view. *"Is it drawn"* and *"can it be
+/// seen"* are different claims, and only the second is what anybody wanted.
 const X: i32 = 4;
-const Y: i32 = 468;
+/// The gap left below the stamp. The top edge is derived from the font
+/// actually in use, so a taller font moves the line **up** rather than off.
+const BOTTOM_MARGIN: i32 = 2;
 
 /// One line, in the dim ink, over whatever is already there.
 ///
@@ -41,5 +52,22 @@ const Y: i32 = 468;
 /// [`Pen::flat`] so it takes no emboss and reads as a caption rather than as
 /// part of the game's own furniture.
 pub fn draw(canvas: &mut Canvas, pen: &Pen) {
-    pen.flat().body(canvas, X, Y, &format!("BUILD {ID}"), pen.ink.dim);
+    let s = format!("BUILD {ID}");
+    pen.flat().body(canvas, X, top_edge(pen, &s), &s, pen.ink.dim);
+}
+
+/// The top edge that puts the stamp's **last row** at
+/// `canvas::HEIGHT - BOTTOM_MARGIN`, measured with whichever font will draw it.
+///
+/// The fallback 5 × 7 font is 7 tall and `Fntl2_14.pl8` is taller, so a
+/// literal that fits one clips the other — which is exactly what shipped.
+/// Reading the height off the font that is about to be used is the shape that
+/// cannot be wrong; a constant here is a claim about an asset that may not
+/// even be loaded.
+pub fn top_edge(pen: &Pen, s: &str) -> i32 {
+    let h = match &pen.assets.body {
+        Some(f) => f.height(s),
+        None => l2_view::text::GLYPH_H,
+    };
+    l2_view::canvas::HEIGHT as i32 - BOTTOM_MARGIN - h
 }

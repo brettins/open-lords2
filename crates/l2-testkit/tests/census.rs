@@ -100,13 +100,6 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/save.rs", "executable", 1),
     ("crates/l2-formats/tests/save.rs", "saves", 18),
     ("crates/l2-formats/tests/save_england_turn1.rs", "england", 13),
-    // **Two install-gated tests inside a source file rather than a test file**,
-    // and the first entry of that shape here. They assert all sixteen menu-bar
-    // drop-down captions and its three titles against the player's own
-    // `L2.eng`, and that none of our fallback strings is ever what a player
-    // with the game sees. `docs/agents.md` records *"our own labels drawn where
-    // the menu bar's words are"* as one of five defects that existed **only**
-    // against real assets, which is why these are gated rather than mocked.
     ("crates/l2-game/src/screens/menubar.rs", "install", 2),
     ("crates/l2-game/tests/ai_war.rs", "england", 2),
     ("crates/l2-game/tests/armoury.rs", "england", 6),
@@ -128,7 +121,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/screens.rs", "england", 68),
     ("crates/l2-game/tests/screens.rs", "install", 2),
     ("crates/l2-game/tests/seam.rs", "fixture", 3),
-    ("crates/l2-game/tests/setup.rs", "england", 8),
+    ("crates/l2-game/tests/setup.rs", "england", 9),
     ("crates/l2-game/tests/setup.rs", "install", 1),
     ("crates/l2-game/tests/shell.rs", "install", 3),
     ("crates/l2-game/tests/text.rs", "install", 3),
@@ -150,7 +143,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
 /// The total the inventory adds up to, stated separately so that a change
 /// which moves a test between two files still has to be acknowledged as a
 /// change in how much of this suite exists on CI.
-const GATED_TOTAL: usize = 296;
+const GATED_TOTAL: usize = 297;
 
 /// The workspace root, from this crate's manifest.
 fn repo_root() -> PathBuf {
