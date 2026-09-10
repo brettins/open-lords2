@@ -1400,6 +1400,18 @@
           "comment": "0 human, 1..5 an AI lord, 6 knocked out. Indexes g_aiPersonality and g_aiGoldGrant - NOT the realm id or the shield."
         },
         {
+          "off": "0x008",
+          "type": "u8",
+          "name": "pen",
+          "comment": "Palette index this realm writes its own text in - g_realmColour[shieldIndex*2], written once at new game and never recomputed. CountyStrip_Draw passes it to Ui_DrawText for all three Sovereign land of ... lines. Shield 1..5 gives 0x0E red, 0xFB yellow, 0x3A near-black, 0x05 magenta, 0x04 blue."
+        },
+        {
+          "off": "0x009",
+          "type": "u8",
+          "name": "penHighlight",
+          "comment": "The brighter half of the g_realmColour pair - 0x0F, 0x0D, 0x20, 0xFD, 0xF0 for shields 1..5. Written beside pen and read by nothing in the decompiled corpus."
+        },
+        {
           "off": "0x00A",
           "type": "u8",
           "name": "shieldIndex",

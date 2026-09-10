@@ -552,7 +552,7 @@ pub const DEAD_COUNTER_PERIODS: [(u32, usize); 2] = [(PULSE_SLOW_MS, 21), (PULSE
 /// frames are not desynchronised — they are looking at the same county.
 ///
 /// It is deliberately not `Copy`: a clock that can be duplicated is a clock
-/// that gets stepped twice. `docs/decisions.md` C61.
+/// that gets stepped twice. `docs/decisions.md` C63.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AnimationClock {
     /// Milliseconds accumulated, modulo the slow pulse, so this never grows.

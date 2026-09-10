@@ -59,8 +59,26 @@ pub struct Ink {
     /// A number that moved the way the player wants, and one that did not.
     pub good: u8,
     pub bad: u8,
-    /// One per realm, index 0 being "unowned". Presentation only — which lord
-    /// flies which colour in the original is not established here.
+    /// One per realm, index 0 being "unowned". **Ours, and a fallback only.**
+    ///
+    /// # Do not colour a realm with this
+    ///
+    /// It is indexed by the **realm id**, and a realm id has no colour: the
+    /// human picks a shield and the AI lords take the slots that are left
+    /// (`Realms_AssignLords`), so the same realm number flies different colours
+    /// in different games — six of this project's eleven save fixtures have
+    /// realm 1 on shield 5.
+    ///
+    /// The game's own tables are keyed by the shield and there are two of them,
+    /// one per purpose: [`crate::chrome::MINIMAP_REALM_RAMP`] for tinting land
+    /// and [`crate::chrome::REALM_PEN`] for drawing text. Use those. This
+    /// exists so that a world with no shields — a placeholder, a test that
+    /// never loaded a save — draws something visibly ours rather than borrowing
+    /// one of the game's five real colours and looking finished.
+    ///
+    /// The county strip used this for the *Sovereign land of …* lines and a
+    /// player reported the result: *"the counties seem to have the right
+    /// colours … but the text doesn't match that."* `docs/decisions.md` C112.
     pub realm: [u8; 6],
 }
 

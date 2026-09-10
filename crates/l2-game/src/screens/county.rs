@@ -1316,12 +1316,21 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
         // in one plate is the original's own arrangement, and ours had
         // collapsed them into one.
         //
-        // The *colour* is still ours: `g_realms[owner].field_0x8` is a palette
-        // byte out of the save and we have the realm number instead. Only the
-        // emboss is read out of the binary here.
+        // **All three take the same pen**, and that is worth stating because it
+        // is the natural place to expect a difference. `CountyStrip_Draw`
+        // computes `colour` once and passes it to all of them — the banner, the
+        // "of", and the lord's name — so the grey is the *emboss* and the
+        // realm's colour is the *pen*, on every line:
         //
-        // **The third line is a name now.** It read `REALM 3` because nothing
-        // in this workspace filled `g_playerNames`; the front end fills it at
+        // ```c
+        // colour = g_realms[owner].field_0x8;
+        // Ui_DrawCentred(0xf, 0, 0x1e0, 0xf0,  0xa0, &g_fontBody, colour);
+        // Ui_DrawCentred(0xf, 1, 0x1e0, 0x104, 0xa0, &g_fontBody, colour);
+        // FUN_004025d7(&g_playerNames + owner * 0x2c, 0x1e0, 0x118, 0xa0, &g_fontBody, colour);
+        // ```
+        //
+        // **The third line is a name.** It read `REALM 3` because nothing in
+        // this workspace filled `g_playerNames`; the front end fills it at
         // *Start* — the local player's from what was typed on setup page 4, an
         // AI lord's from `L2.eng` group 7 — so the line says *SOVEREIGN LAND /
         // OF / THE BARON* the way the original's does.
@@ -1334,7 +1343,26 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
             n if n.is_empty() => format!("REALM {}", c.owner),
             n => n,
         };
-        let colour = ink.realm.get(c.owner as usize).copied().unwrap_or(ink.text);
+        // **The pen is keyed by the realm's shield, not by its id**, and that
+        // was the bug a player reported as *"the sovereign land text has the
+        // wrong colours … the counties seem to have the right colours … but the
+        // text doesn't match that"*. This drew from `Ink::realm` — a table of
+        // our own, indexed by the **realm number** — while the minimap tint,
+        // the menu-bar banner and the campaign flag all go through the shield.
+        // Two keys and three tables for one fact.
+        //
+        // The shield is what the *human picks*; the AI lords take the slots
+        // left over. So a realm id has no colour of its own, and ten of the
+        // twenty-five realms across this project's eleven save fixtures fly a
+        // shield that is not their id — which is how the wrong key was caught.
+        // `docs/decisions.md` C112.
+        let shield = ctx.game.kingdom.realms.get(c.owner as usize).map_or(0, |r| r.shield_index);
+        // The fallback is `Ink`'s and is **visibly** ours: a world with no
+        // shields is a placeholder world, and it should not borrow one of the
+        // game's five real colours to look finished. See
+        // `l2_view::chrome::realm_pen` on why this does not clamp to 1.
+        let colour = l2_view::chrome::realm_pen(shield)
+            .unwrap_or_else(|| ink.realm.get(c.owner as usize).copied().unwrap_or(ink.text));
         let style = crate::shell::font::Style {
             colour,
             shadow: Some(crate::shell::font::SHADOW_GREY),

@@ -1719,7 +1719,11 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     // `CountyStrip_Draw`'s unowned branch: the name at (480, 180) rather than
     // 165, then group 15's two lines and the owner at 240 / 260 / 280 — all
     // four in the body font and in the owning realm's own colour.
-    let realm5 = assets.ink.realm[5];
+    // **The pen is the realm's shield colour**, `g_realmColour[shield]`, which
+    // is what `CountyStrip_Draw` passes for all three lines. Not `Ink::realm`
+    // and not the realm id — see `sovereign_lines` below and C62.
+    let shield = game.kingdom.realms[5].shield_index;
+    let realm5 = l2_view::chrome::realm_pen(shield).expect("realm 5 flies a shield");
     let name = county::county_name(&Ctx { game: &mut game, assets: &assets }, 1);
     assert_eq!(
         find_body(&canvas, &assets, &name, STRIP_INK).map(|p| p.1),
@@ -3748,7 +3752,8 @@ fn the_county_name_keeps_the_parchment_emboss_and_the_sovereign_lines_do_not() {
         Some(parchment),
         "the county's name is embossed in the parchment pair — the original's own bug"
     );
-    let realm5 = assets.ink.realm[5];
+    let realm5 = l2_view::chrome::realm_pen(game.kingdom.realms[5].shield_index)
+        .expect("realm 5 flies a shield");
     let banner = assets.shell.text(15, 0).to_string();
     let banner = if banner.is_empty() { "SOVEREIGN LAND".to_string() } else { banner };
     assert_eq!(
@@ -4429,5 +4434,86 @@ fn the_grazing_clock_changes_the_picture_and_cannot_change_the_world() {
         l2_kingdom::save::checksum(&game.kingdom),
         before,
         "drawing the map moved the simulation",
+    );
+}
+
+/// **The Sovereign land lines are drawn in the owning realm's shield colour,
+/// and the colour follows the shield rather than the realm id.**
+///
+/// A player, on a build with the previous code: *"The sovereign land text has
+/// the wrong colours. When I start, the counties seem to have the right colours
+/// — with Bishop being magenta, the Knight being yellow, the Countess being
+/// blue, the Baron is black (at least, because I picked red) — but the text
+/// doesn't match that."*
+///
+/// He is describing two things that should agree and did not. The minimap tint,
+/// the menu-bar banner and the campaign flag all go through the realm's
+/// **shield index**; these three lines went through `Ink::realm`, a table of our
+/// own invention indexed by the **realm number**. `CountyStrip_Draw` passes
+/// `g_realms[owner].field_0x8`, which `Realms_AssignLords` fills from
+/// `g_realmColour[shieldIndex]`.
+///
+/// **Changing the shield is what makes this a test of the key** rather than of
+/// the table. A fixed table keyed by the realm id passes any check that only
+/// ever looks at one game; it fails the moment the same realm flies a different
+/// colour, which is exactly what happens when a different human picks red.
+/// `docs/decisions.md` C112.
+#[test]
+fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
+    let (mut game, assets) = world!();
+    if assets.shell.body.is_none() {
+        l2_testkit::skip!("no Fntl2_14.pl8, so there is nothing to read a pen off");
+    }
+    assert_eq!(game.kingdom.counties[1].owner, 5, "county 1 belongs to realm 5");
+    let banner = assets.shell.text(15, 0).to_string();
+    let banner = if banner.is_empty() { "SOVEREIGN LAND".to_string() } else { banner };
+
+    // Every shield in turn, on the *same* county and the *same* realm. Only the
+    // shield moves, so only the key can explain the colour.
+    let mut seen = Vec::new();
+    for shield in 1..=5u8 {
+        game.kingdom.realms[5].shield_index = shield;
+        let mut screen = CountyScreen::new(1, Panel::Tax);
+        let canvas = draw(&mut screen, &mut game, &assets);
+        let pen = l2_view::chrome::realm_pen(shield).expect("1..=5 has a pen");
+
+        assert!(
+            find_body(&canvas, &assets, &banner, pen).is_some(),
+            "shield {shield}: the banner is not drawn in its pen {pen:#04X}"
+        );
+        // …and not in any of the other four. That is what rules out a table
+        // that happens to agree on one entry.
+        for other in 1..=5u8 {
+            let wrong = l2_view::chrome::realm_pen(other).expect("1..=5");
+            if wrong == pen {
+                continue;
+            }
+            assert!(
+                find_body(&canvas, &assets, &banner, wrong).is_none(),
+                "shield {shield}: the banner is also drawn in shield {other}'s pen {wrong:#04X}"
+            );
+        }
+        // The lord's name line takes the same pen as the banner — the original
+        // computes `colour` once and passes it to all three calls, so a
+        // per-line pen would be ours and not its.
+        assert!(
+            find_body(&canvas, &assets, "REALM 5", pen).is_some(),
+            "shield {shield}: the lord's name is not in the same pen as the banner"
+        );
+        seen.push(pen);
+    }
+    seen.sort_unstable();
+    seen.dedup();
+    assert_eq!(seen.len(), 5, "five shields must give five different pens");
+
+    // And the emboss underneath is still the grey pair, unchanged by any of it.
+    game.kingdom.realms[5].shield_index = 5;
+    let mut screen = CountyScreen::new(1, Panel::Tax);
+    let canvas = draw(&mut screen, &mut game, &assets);
+    let pen = l2_view::chrome::realm_pen(5).expect("shield 5");
+    assert_eq!(
+        emboss_at(&canvas, &assets, &banner, pen),
+        Some(l2_game::shell::font::SHADOW_GREY),
+        "the pen changed and the emboss did not"
     );
 }

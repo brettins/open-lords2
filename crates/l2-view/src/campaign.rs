@@ -208,7 +208,7 @@ pub const NEAR: Zoom = Zoom {
 ///
 /// so `base + (season - 1) * 8` lands on the same five filenames whichever
 /// season it is. Read out of the table at `0x004DA050` in the shipped binary,
-/// not inferred. **[V]** — `docs/decisions.md` C61.
+/// not inferred. **[V]** — `docs/decisions.md` C63.
 ///
 /// The dead files are not even consistent with the live one: `Town2a.pl8` has
 /// **61** frames and `Town2b/c/d.pl8` have **94**, and their frame records do

@@ -5264,6 +5264,117 @@ The tile panel's *"operational"* / *"not operational"* line is a read-out of thi
 is one of the ~150 draw calls that panel is missing. Handed to the map-draw agent rather than
 built here.
 
+**C112 — Three tables and two keys for one fact, and the player could see it because two of
+them were on screen at the same time.**
+
+A player, on a build with C63 in it: *"The sovereign land text has the wrong colours. When I
+start, the counties seem to have the right colours — with Bishop being magenta, the Knight
+being yellow, the Countess being blue, the Baron is black (at least, because I picked red) —
+but the text doesn't match that."*
+
+**The report's shape is what makes it strong.** He is not saying a colour looks wrong; he is
+saying two things that name the same realm disagree, and one of them is right. That rules out
+half the space before anything is read: the *data* reaching the screen is fine, because the
+minimap is drawing it correctly, so the fault is in the second consumer.
+
+**What the binary does.** `CountyStrip_Draw` passes `g_realms[owner].field_0x8` as the pen for
+all three *Sovereign land of …* lines. `+0x08` is a palette index, filled at new game from
+`g_realmColour` — ten bytes at `0x004DC1D0`, five `(pen, highlight)` pairs, indexed by the
+realm's **shield**. Its five pens are red, yellow, near-black, magenta and blue, which is the
+player's list exactly.
+
+**What we did.** `Ink::realm` — a table of six colours we invented, whose own doc comment said
+*"Presentation only — which lord flies which colour in the original is not established here"* —
+indexed by the **realm id**. So the county strip had a different table *and* a different key
+from everything else on the same screen. The minimap tint, the menu-bar banner and the
+campaign flag all go through the shield; the strip was the one consumer that did not.
+
+**The key is the interesting half.** A wrong table is a transcription error and a wrong key is
+a model error, and this was both. `Realms_AssignLords` (`0x0049CAAA`) walks realms 1 … 5 and
+gives each AI the *first unused* shield, the humans' picks having been marked first — so the
+human's choice shifts every AI's colour, and no realm id has a colour of its own. The player
+said this himself in five words, in the parenthesis: *"(at least, because I picked red)"*. He
+was telling us the assignment was contingent on his own choice, which is precisely the
+property a table keyed by realm id cannot have.
+
+**How it was settled without a second playthrough.** The eleven `.sav` fixtures are two
+different games. In `england-turn1.sav` realm *n* flies shield *n*, so it cannot distinguish
+the two keys — and that is the save almost every test on this project runs against. The
+battle triple and the turn pair have **realm 1 flying shield 5**, and there realm 1's stored
+pen is `0x04`, blue, which is shield 5's. Over all eleven, `+0x08` equals
+`g_realmColour[+0x0A]` for 25 of 25 realms, **ten of them with id ≠ shield**. The test asserts
+that separating count rather than only the equality, because a check that passes for the wrong
+reason on the only fixture anybody runs is exactly the failure this correction is about.
+
+**A `[V]` on the thing I was asked to check, that came back the other way.** The suggestion
+reaching me was that the lord's *name* line might take a different pen from the two lines
+above it, which would have explained a uniform grey looking wrong. It does not:
+`CountyStrip_Draw` computes `colour` once and passes the same local to all three calls. The
+grey is the emboss and the realm's colour is the pen, on every line. The fix was one level up
+from where it was expected to be, and saying so is cheaper than a change that makes the
+symptom go away for the wrong reason.
+
+**The clamp that would have hidden it, and the one place it belongs.**
+`chrome::realm_colour` clamps a raw shield to 1 … 5 before using it as a *frame index*,
+because there is no such thing as "no frame" — and a zero clamped up to 1 renders as a
+plausible wrong colour that survives a canvas diff. A **pen** has an honest answer for "we do
+not know this realm's colour", so `chrome::realm_pen` returns `Option` and the caller falls
+back to something visibly ours. Same byte, two consumers, and only one of them can afford to
+guess.
+
+**The rule.** *A fact the game stores once should reach the screen through one table and one
+key.* We had three tables — the minimap ramp, the pen pairs, and `Ink::realm` — for one thing,
+and the third existed only because nobody had looked for the second. C5's lesson at the scale
+of a palette: the table was already in the binary, already in `symbols.json` with its five
+pairs written out, and had been there since somebody read `Realms_AssignLords`. Nothing
+connected it to the screen that needed it.
+
+**And the same player, a message later, on how the colours are handed out:** *"the game will
+always try to give the Knight yellow, the Countess blue, the Bishop purple/pink — I can't
+remember for Baron — and it'll move a noble's colour around if you pick it."* Every colour is
+right and the Baron he could not remember is black. The framing is the interesting part,
+because it is a **true description and a false rule**, and it took a third reading to see that
+the arrow points the other way.
+
+The suggestion reaching me was that this would be one of two things: pure first-unused walked
+in *lord* order, or preference-then-fallback. It is neither. `Realms_AssignLords` assigns the
+**shield first**, by position — the lowest colour no human has taken, walking realms 1 … 5 —
+and then picks the **lord from the colour**, out of `g_lordChoice`, four candidates per shield.
+No lord is consulted and none has a preference. A default England game looks like ownership
+because group 0's lists lead slot 2 with the Knight, 3 with the Baron, 4 with the Bishop and 5
+with the Countess.
+
+The two readings part exactly where he said they would, and neither of the two guesses
+survives: **take yellow and the Knight does not move to another colour of his own — he becomes
+the black lord, and the Baron becomes the red one**, because red's list names the Baron first
+and the walk reaches red before black. Over the five colours a person can take, "the Knight
+gets yellow" holds in four and fails in the fifth. That is what makes it a good description and
+a bad rule, and it is the shape `docs/rules.md` now carries in both halves.
+
+**He was remembering a real table, and it exists.** `g_battleLordShield` (`0x004D4CA8`) is two
+words per lord, `{preferred, alternate}` — Knight yellow else magenta, Baron red else blue,
+Countess blue else red, Bishop magenta else yellow — and `FUN_0042BA40` reads it as *"if the
+human has my colour, take my other one"*. Genuine preference-then-fallback, three of his four
+colours in its first column, and it governs the **custom battle** and nothing else. A player
+whose description matches a table that exists but belongs to a different screen is not
+misremembering; he is reporting from the part of the game he last saw it in, and the useful
+response is to find both tables rather than to pick one.
+
+**What no fixture could settle.** All eleven `.sav` files here have the human on shield 1 or
+shield 5 — never a middle colour — so not one of them exercises a collision the readings
+disagree about. The eleven-save check that settled the *key* in the paragraphs above is
+silent on the *walk*, and saying which of two questions a body of evidence answers is the
+whole of not over-claiming from it. The walk is read from the walk; `docs/rules.md` §7a's
+table is derived and marked so, and the row a fixture *can* confirm — the England default —
+is asserted against `england-turn1.sav` as the one anchor the derivation has.
+
+**One thing this leaves behind.** `l2_scenario::newgame::assign_lords` hard-codes
+`shield = realm`, which is the default mistaken for the rule, in code, with a doc comment that
+said so as a mechanism. The comment is corrected and the gap is recorded rather than closed:
+`NewGame` has no shield field, so nothing can yet pick a colour to break it, and closing it is
+the setup screen's work rather than this one's.
+
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**
@@ -5318,7 +5429,7 @@ built here.
 - The type-4 apex pair, where the stored data and the shipped blitter disagree.
 - PL8 header fields at 0x04, 0x06, 0x07.
 
-**C112 — The message queue cannot be simulation state, and the binary is
+**C122 — The message queue cannot be simulation state, and the binary is
 what says so.**
 
 `docs/netcode.md` asks every new piece of state which side of the lockstep line it is on, and

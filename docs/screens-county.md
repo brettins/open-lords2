@@ -364,6 +364,56 @@ Frame 0x3A, the county name, and — for a county held by another realm — grou
 *"Sovereign land / of"*, and the owner's name read out of `g_playerNames` (`0x00553D54`,
 stride 0x2C), all in that realm's own colour (realm `+0x08`).
 
+#### 2.2a Realm `+0x08` is the realm's **pen**, and it is keyed by the shield **[V]**
+
+Worth its own heading, because a player reported the colours as wrong and the reason was
+that we had invented a table where the game has one.
+
+`CountyStrip_Draw` computes the colour **once** and passes it to all three lines — the
+banner, the *"of"*, and the lord's name — so there is no per-line pen and the grey emboss
+(§B64) is the emboss, not the colour:
+
+```c
+colour = g_realms[owner].field_0x8;
+Ui_DrawCentred(0xf, 0, 0x1e0, 0xf0,  0xa0, &g_fontBody, colour);
+Ui_DrawCentred(0xf, 1, 0x1e0, 0x104, 0xa0, &g_fontBody, colour);
+FUN_004025d7(&g_playerNames + owner * 0x2c, 0x1e0, 0x118, 0xa0, &g_fontBody, colour);
+```
+
+`+0x08` is a **palette index**, and it is filled from `g_realmColour` — ten bytes at
+`0x004DC1D0`, five `(pen, highlight)` pairs, indexed **from two bytes lower** so the 1-based
+shield lands on the first pair:
+
+| shield | pen `+0x08` | | highlight `+0x09` |
+|---|---|---|---|
+| 1 | `0x0E` | rgb(170, 0, 0) — red | `0x0F` |
+| 2 | `0xFB` | rgb(255, 255, 0) — yellow | `0x0D` |
+| 3 | `0x3A` | rgb(36, 36, 36) — near black | `0x20` |
+| 4 | `0x05` | rgb(130, 0, 130) — magenta | `0xFD` |
+| 5 | `0x04` | rgb(0, 0, 130) — blue | `0xF0` |
+
+**The key is the shield, not the realm id, and that distinction is the whole of the bug.**
+`Realms_AssignLords` (`0x0049CAAA`) walks realms 1 … 5 and gives each AI the *first unused*
+shield, the humans' picks having been marked first — so a player who takes red makes realm 1
+red **in that game only**. Verified against every saved game this project keeps: realm `+0x08`
+equals `g_realmColour[+0x0A]` for 25 of 25 realms across the eleven fixtures, and **ten of
+those realms fly a shield that is not their id** (`england-turn1.sav` has realm 1 on shield 1,
+but the battle and turn-pair fixtures have realm 1 on shield **5**, drawing blue). A table
+keyed by the realm number agrees with the first of those and disagrees with the rest.
+
+Two functions write the field and both derive it the same way — `Realms_AssignLords` at new
+game and `FUN_0042BA40` when a custom battle invents an opponent — and nothing else reads the
+table or writes the field, which is why `l2_view::chrome::realm_pen` derives the pen from the
+shield instead of carrying a second copy of it in the save.
+
+**It is a different table from the minimap's.** `MINIMAP_REALM_RAMP` (`0x004D2900`) is four
+shades per shield for tinting land; this is two pens per shield for drawing text. They agree
+on the colour *family* for every shield and share not one index in three of the five rows. The
+thing they share is the **key**, and the county strip was the one place on screen not using
+it — the minimap tint, the menu-bar banner and the campaign flag all did.
+
+`docs/decisions.md` C112.
+
 ### 2.3 The 2 × 2 hotspot, which is the whole navigation
 
 `CountyStrip_Click` (`0x00438CEB`) **[V]**:
