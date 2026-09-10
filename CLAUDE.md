@@ -19,9 +19,11 @@ subagent, so it stays short. Read the linked document before working in that are
 5. **If we implement a feature, find its equivalent in the binary's functions.** Rule 4's
    other half: 4 governs what we may *claim*, this governs what we may *build*. Name the
    function the behaviour reproduces, in the code, beside it — not just the screen's painter.
-   *"We could not find it"* is a finding to report, not a licence to invent. Measured once:
-   we reproduce **80 of 185** of the original's input arms, and every miss was a behaviour
-   nobody had looked for. `docs/decisions.md` C61.
+   *"We could not find it"* is a finding to report, not a licence to invent. Measured, and
+   the number is generated rather than typed: we reproduce
+   **<!--fig:arms-reproduced-->151<!--/fig--> of <!--fig:arms-live-->175<!--/fig-->** live
+   input arms, and every miss was a behaviour nobody had looked for.
+   `docs/decisions.md` C61, `docs/arms.json` for the inventory.
 
 ## Where to look
 
@@ -31,7 +33,7 @@ subagent, so it stays short. Read the linked document before working in that are
 | **wonder whether the game already answers your question** | **`Readme.txt` in the install — the v1.03 patch's rules errata, with manual page references. It is the game correcting its own manual and it post-dates it, so it wins wherever they disagree. A first-class oracle alongside `L2.eng`; `docs/mechanics.md` says what it settles.** |
 | **want a lead on any screen, panel, message or refusal** | **`docs/formats/eng.md` §5 — every one of `L2.eng`'s 317 string groups mapped to the mechanic and the code that draws it. Index 0 of a group is a label the game wrote about itself, so this is 317 self-written summaries with the function beside each.** |
 | run any command | `docs/environment.md` |
-| work on a file format | `docs/formats/` |
+| work on a file format | **`docs/formats/` — and treat a `[V]` here as a claim, not a fact. These documents are an *input* to the code, not only a record of it: a wrong `[V]` does not fail to help, it **produces** the defect, through a careful person who checked the reference. `maps-layers.md` §5.5 said `Terrain_Set`'s variant parameter was dead — *"all sixteen call sites pass zero"* — and there are twenty-four, one of which computes it; the wheat never grew because of that sentence. `docs/decisions.md` C124. The correction log warns that it is believed too hard; these are believed just as hard and carry no such warning.** |
 | read or name the binary | `docs/symbols.md` |
 | touch the battle simulation | `docs/battle.md` |
 | touch the kingdom economy | `docs/kingdom.md` |

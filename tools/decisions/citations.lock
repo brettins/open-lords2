@@ -8,8 +8,9 @@
 # Regenerate with:  node tools/decisions/corrections.js --relock
 # Generated. Do not hand-edit except to accept a single deliberate change.
 .github/workflows/ci.yml	C26	8ee8f43c4642
+CLAUDE.md	C124	9cf9ee1c286d
 CLAUDE.md	C5	b0903798b42f
-CLAUDE.md	C61	30548a1bfcb5
+CLAUDE.md	C61	a1ddbd36b46d
 README.md	C23	05c1d7fce551
 README.md	C26	9648f42b9cac
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53
@@ -145,8 +146,10 @@ crates/l2-kingdom/src/conquest.rs	C21	0fc3f0194453
 crates/l2-kingdom/src/county.rs	C53	e8fb6191353a
 crates/l2-kingdom/src/diplomacy.rs	C62	8f8a093f4110
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2
+crates/l2-kingdom/src/field.rs	C123	9757bf8fd453
 crates/l2-kingdom/src/kingdom.rs	C62	24c0c9697884
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992
+crates/l2-kingdom/src/land.rs	C123	1ee3f35bfdd6
 crates/l2-kingdom/src/levy.rs	C47	7a585921e1bb
 crates/l2-kingdom/src/lib.rs	C11	40b20e35a6aa
 crates/l2-kingdom/src/lib.rs	C61	32da975bdde2
@@ -161,6 +164,7 @@ crates/l2-kingdom/src/phase.rs	C35	234e7ea17154
 crates/l2-kingdom/src/population.rs	C20	11223ff82fe2
 crates/l2-kingdom/src/ration.rs	C3	316be8511779
 crates/l2-kingdom/src/realm.rs	C3	806d5d4cf93c
+crates/l2-kingdom/src/save.rs	C123	763bc3ea2e6d
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8
@@ -287,6 +291,7 @@ docs/agents.md	C26	7697f324cec8
 docs/agents.md	C28	10efd3fa0517
 docs/agents.md	C3	e000add2bbbd
 docs/agents.md	C30	3eacfb3de1f8
+docs/agents.md	C30	ddb8a60098db
 docs/agents.md	C31	67d7b3757ddd
 docs/agents.md	C34	f2c33fb8f901
 docs/agents.md	C36	5f5b8e281e9a
@@ -444,6 +449,7 @@ docs/decisions.md	C30	8ff9c88d60f5
 docs/decisions.md	C30	94db0b4a1797
 docs/decisions.md	C30	d4eccf6a1e2a
 docs/decisions.md	C30	dfdae8119bd5
+docs/decisions.md	C30	e2a709dc232b
 docs/decisions.md	C31	0e0873a0f0a9
 docs/decisions.md	C31	2ec3a519a744
 docs/decisions.md	C31	5f584bd374cc
@@ -484,6 +490,7 @@ docs/decisions.md	C52	20de3ea3d5cb
 docs/decisions.md	C52	5e26cd0befa4
 docs/decisions.md	C52	7927c7868f8b
 docs/decisions.md	C57	2abd57a143c3
+docs/decisions.md	C57	9ed753446c7a
 docs/decisions.md	C57	a01e03e89d00
 docs/decisions.md	C58	117a0bc239b7
 docs/decisions.md	C58	11ed95e47ec9
@@ -493,14 +500,17 @@ docs/decisions.md	C58	5601434ca24f
 docs/decisions.md	C58	72baa1f834c4
 docs/decisions.md	C58	c9cba72f3595
 docs/decisions.md	C58	cf211d06686a
+docs/decisions.md	C58	f75f36fbdb52
 docs/decisions.md	C59	611dbc328c24
 docs/decisions.md	C59	8d056fe8fc64
 docs/decisions.md	C59	d158413c5a3c
 docs/decisions.md	C59	d88243f2b8df
 docs/decisions.md	C59	f8f78fa7b192
+docs/decisions.md	C60	5f4562a8144d
 docs/decisions.md	C61	072b0a786f93
 docs/decisions.md	C61	324c3ac59d0a
 docs/decisions.md	C61	33bb2b912640
+docs/decisions.md	C61	503f7a590102
 docs/decisions.md	C61	572422b44b0b
 docs/decisions.md	C61	676bc25c9e2f
 docs/decisions.md	C61	78184451a7a7
@@ -532,10 +542,13 @@ docs/decisions.md	C9	99e56fdcae4b
 docs/decisions.md	C91	4a0deb20ef90
 docs/diplomacy.md	C26	cc112f11d1ea
 docs/diplomacy.md	C3	d4bc35a985fd
+docs/draws-map.md	C123	9135c786184e
+docs/draws-map.md	C30	40a6a7104696
 docs/draws-map.md	C72	230aae5fabd7
 docs/draws-map.md	C77	cfea9c21de5f
 docs/formats/eng.md	C3	f56e526bf0e2
 docs/formats/eng.md	C61	4cbf794a0efc
+docs/formats/maps-layers.md	C124	4e7d57a30bb2
 docs/formats/maps-layers.md	C25	4ebf3f639877
 docs/formats/maps-layers.md	C41	87c5e3e5dc40
 docs/formats/maps-layers.md	C41	89650dc3b322

@@ -1122,16 +1122,71 @@ pub fn field_base(terrain: u8) -> (u8, u8) {
 /// crate has no such blitter, so it is carried rather than acted on:
 /// [`Overrides`] stores the plane-1 byte and a caller reading it back should
 /// see what the game's own tile record would hold.
+/// **`Terrain_Set`'s third parameter, and it is not dead.** This is the wheat.
+///
+/// A player: *"The wheat fields don't show the wheat growing."* He is right, and
+/// the reason is a `[V]` claim in `docs/formats/maps-layers.md` §5.5 that says
+/// *"The third parameter is dead … all sixteen call sites in the shipped binary
+/// pass zero — including the two that forward a parameter (`FUN_00469D21`, whose
+/// only callers are `Grain_SeasonTick` and `Herd_UpdateCrowding`, and both pass
+/// `'\0'`)."*
+///
+/// **`Herd_UpdateCrowding` passes `'\0'`. `Grain_SeasonTick` does not.** Its
+/// last three lines:
+///
+/// ```c
+/// band = FUN_0044CF6F(county.crop[2], county.fieldsGrain);   /* 2, 3, 7 or 11 */
+/// variant = band < 3 ? 0 : (band - 3) / 4 + 1;               /* 0, 1, 2 or 3  */
+/// FUN_00469D21(county, band, variant, 2, 0xE);   /* every grain tile of the county */
+/// ```
+///
+/// and `FUN_0044CF6F` is four sacks-per-field bands — `< 1` field or crop → 2,
+/// `< 0x29` → 3, `< 0x51` → 7, else 11. So a growing crop moves the tile's
+/// `content` through **2, 3, 7, 11** and its variant through **0, 1, 2, 3**.
+///
+/// **The content byte alone carries none of that.** All four values fall in
+/// `2 … 0x12`, whose base is 88 — so `base + (stored & 3)` is the same four
+/// frames at every stage of growth, and a renderer that drops the variant draws
+/// a just-sown field all year. That is the defect, and it means the two halves
+/// of this bug are not independent: fixing the season pass without this would
+/// change no pixel either.
+///
+/// **The variant is recoverable from the terrain byte**, so no new state is
+/// needed: the only writer that ever produces a non-zero one is the line above,
+/// and it writes the band it derives the variant from. Twenty-three of the
+/// twenty-four `Terrain_Set` call sites pass a literal `'\0'`; the
+/// twenty-fourth is `FUN_00469D21`, and this is the arithmetic of its one
+/// caller that does not.
+///
+/// **The artwork closes it.** `Roads1a.pl8` frames 88 … 103 are sixteen 58 × 30
+/// diamonds, and the count of ripe-gold pixels rises with the variant at every
+/// one of the four `stored & 3` positions — 36/34/36/33, then 45/43/46/43, then
+/// 54/50/55/49, then 71/70/72/69 — while the fallow block before them (84 … 87)
+/// and the pasture block after (104 … 107) have two to seven each. Four blocks
+/// of four starting at 88 end at 103, and 104 is exactly where the next base
+/// begins. `crates/l2-view/tests/install.rs` asserts the ramp. **[V]**
+pub fn field_variant(terrain: u8) -> u8 {
+    // `band < 3 ? 0 : (band - 3) / 4 + 1`, over the range `Terrain_Set` gives
+    // base 88. Everything else in the game passes a literal zero.
+    if (3..=0x12).contains(&terrain) {
+        (terrain - 3) / 4 + 1
+    } else {
+        0
+    }
+}
+
 pub fn field_graphic(terrain: u8, stored_frame: u8) -> (u8, u8) {
     let (base, layer) = field_base(terrain);
     let bank = ((((BANK_ROADS | 1) & 0xE3) | layer) & 0x7F)
         | if (0x0F..0x17).contains(&terrain) { 0x80 } else { 0 };
-    (bank, base + (stored_frame & 3))
+    (bank, field_frame(terrain, stored_frame))
 }
 
 /// The frame alone, for a caller that already knows the bank.
+///
+/// `Terrain_Set`: `frame = ((frame - oldBase) & 3) + base + variant * 4`.
 pub fn field_frame(terrain: u8, stored_frame: u8) -> u8 {
-    field_base(terrain).0 + (stored_frame & 3)
+    field_base(terrain).0 + (stored_frame & 3) + field_variant(terrain) * 4
 }
 
 /// Paint the viewport, stamping county ids into `tags`. Returns tiles drawn.

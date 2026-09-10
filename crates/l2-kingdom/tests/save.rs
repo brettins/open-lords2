@@ -338,6 +338,11 @@ fn furnished(seed: u64) -> Kingdom {
         c.herd_births_expected = 36 + n;
         c.herd_deaths_expected = 37 + n;
         c.herd_change_expected = -38 - n;
+        // The grain row's three forecasts, VERSION 16. The change is negative
+        // because in Spring it always is: -sown - eaten.
+        c.grain_sown_expected = 39 + n;
+        c.grain_grown_expected = 40 + n;
+        c.grain_change_expected = -41 - n;
 
         for slot in 0..c.industry.len() {
             let s = slot as i32;
@@ -631,7 +636,7 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     //
     // +238 at version 15 for `County::siege_scars`: fourteen bytes a county —
     // two `u16`, two `i32`, a `u8` and a `bool` — over 17 county slots.
-    assert_eq!(c.finish().len, 57_709, "the state encoding changed - bump VERSION?");
+    assert_eq!(c.finish().len, 57_913, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

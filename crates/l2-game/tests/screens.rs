@@ -3359,15 +3359,51 @@ fn a_fields_picture_follows_its_crop_state() {
         .expect("the map slot")
         .at(l2_formats::maps::Plane::GfxIndex, fx as usize, fy as usize);
 
-    // Every state in the ladder gives a frame in its own block, and the variant
-    // — the two low bits the file stored — never moves.
-    let variant = stored & 3;
-    for terrain in [0x00u8, 0x01, 0x05, 0x14, 0x17, 0x18, 0x19, 0x1C, 0x1F] {
+    // Every state in the ladder gives a frame in its own block, and the tile's
+    // own variation — the two low bits the file stored — never moves.
+    //
+    // **`0x05` used to be in this list and it was asserting a falsehood.** The
+    // list is now the values the game can actually write to a farm tile —
+    // `Terrain_Set`'s twenty-four call sites pass `0`, `1`, `2 … 0x0E` through
+    // `FUN_00469D21`, `0x13 … 0x16`, `0x17`, `0x18` and `0x19 … 0x1C` — and the
+    // crop states are handled by their own claim below, because they are the
+    // one place `Terrain_Set`'s third parameter is not zero.
+    let variation = stored & 3;
+    for terrain in [0x00u8, 0x01, 0x02, 0x14, 0x17, 0x18, 0x19, 0x1C, 0x1F] {
         let (bank, frame) = campaign::field_graphic(terrain, stored);
         let (base, layer) = campaign::field_base(terrain);
-        assert_eq!(frame, base + variant, "terrain {terrain:#04X} keeps its variant");
+        assert_eq!(frame, base + variation, "terrain {terrain:#04X} keeps its variation");
         assert_eq!(bank & campaign::BANK_MASK, layer, "terrain {terrain:#04X} bank layer");
     }
+
+    // **The wheat grows, and the variant is the only thing that says so.**
+    //
+    // A player: *"The wheat fields don't show the wheat growing."*
+    // `Grain_SeasonTick` writes the crop's density band onto every grain tile —
+    // `FUN_0044CF6F` returns **2, 3, 7 or 11** and nothing else — and derives
+    // `Terrain_Set`'s variant from it as `band < 3 ? 0 : (band - 3) / 4 + 1`.
+    // All four bands share base 88, so `base + variation` is the *same picture*
+    // at every stage: without the variant term the field is drawn just-sown all
+    // year. `docs/formats/maps-layers.md` §5.5 called that parameter dead, and
+    // this is the assertion that says otherwise.
+    let bands = [2u8, 3, 7, 11];
+    let mut frames = Vec::new();
+    for (n, band) in bands.iter().enumerate() {
+        assert_eq!(
+            campaign::field_base(*band).0,
+            88,
+            "every crop band shares base 88, which is why the variant is load-bearing",
+        );
+        assert_eq!(campaign::field_variant(*band), n as u8, "band {band} is variant {n}");
+        let frame = campaign::field_frame(*band, stored);
+        assert_eq!(frame, 88 + variation + 4 * n as u8);
+        frames.push(frame);
+    }
+    frames.sort_unstable();
+    frames.dedup();
+    assert_eq!(frames.len(), 4, "the four crop bands are four different pictures");
+    // And the run ends where the next base begins: 88 + 4 blocks of 4 = 104.
+    assert_eq!(campaign::field_base(0x13).0, 104);
     // Harvested stubble is in the **base** bank and everything else is in
     // roads — the one place the ladder crosses banks.
     assert_eq!(campaign::field_base(0x17).1, campaign::BANK_BASE);
@@ -4515,5 +4551,167 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
         emboss_at(&canvas, &assets, &banner, pen),
         Some(l2_game::shell::font::SHADOW_GREY),
         "the pen changed and the emboss did not"
+    );
+}
+
+
+/// **The cattle row's forecast, and the sign is the claim.**
+///
+/// A player, mid-session: *"Sidebar doesn't show grain being planted as a
+/// negative number."* `docs/draws-map.md` §5.10 has the diagnosis — the grain
+/// row's value is county `+0x22C` and nothing in this workspace computes it —
+/// and this is the **cattle** row, whose value does exist
+/// ([`l2_kingdom::land::herd_preview`] is `Herd_LabourEstimate`'s tail) and
+/// which therefore proves the drawing half before the expensive half lands on
+/// it.
+///
+/// `Ui_DrawDelta` (`0x00402E0C`) is asserted in the three ways it can be wrong,
+/// and each is a different line of it:
+///
+/// 1. **a negative forecast draws `-n` in `colourNeg`** — `0xF9`, the ninth
+///    argument at all eight produce-row call sites;
+/// 2. **a positive one draws `+n` in `colourPos`** — `0xFA`, and the `'+'` is
+///    not decoration: the sign is the only thing on the row that says which way
+///    the herd is going;
+/// 3. **zero draws nothing at all**, because every produce row passes `mode`
+///    0 and the function's first line is
+///    `if ((value != 0) || (mode != 0))`.
+///
+/// The search is [`find_font_text`], so it is the **glyphs of the user's own
+/// `Fntl2_9.pl8`** being matched at a colour, not a description of them — and
+/// claim 3 is the one that cannot pass by accident, because it requires the
+/// *absence* of a pattern the same run has just proved the renderer can draw.
+///
+/// Ablations, all three run: making the lead always `'+'` fails claim 1;
+/// dropping the `value == 0` early return fails claim 3 (a `+0` appears);
+/// swapping `DELTA_POS` and `DELTA_NEG` fails 1 and 2 together.
+#[test]
+fn the_cattle_row_draws_its_forecast_with_a_sign() {
+    let (mut game, assets) = world!();
+    // `colourPos` and `colourNeg`, typed from the call site in `FUN_004100AF`
+    // rather than imported from the constants under test.
+    const POS: u8 = 0xFA;
+    const NEG: u8 = 0xF9;
+
+    let county = 8;
+    game.select(county as u8);
+    // The row is only drawn when `FUN_0040FEC1` lists it, which is
+    // `fieldsCattle != 0 || herd != 0`.
+    game.kingdom.counties[county].fields_cattle = 4;
+    game.kingdom.counties[county].herd = 400;
+
+    let mut screen = MapScreen::new();
+    let shown = |game: &mut Game, s: &str, colour: u8| -> Option<(i32, i32)> {
+        let canvas = draw(&mut MapScreen::new(), game, &assets);
+        let f = assets.shell.small.as_ref().expect("Fntl2_9.pl8");
+        find_font_text(&canvas, f, s, colour)
+    };
+    let _ = &mut screen;
+
+    // 1 — the herd is shrinking. This is the player's complaint, on the row
+    // whose data path is complete.
+    game.kingdom.counties[county].herd_change_expected = -7;
+    let neg = shown(&mut game, "-7 ", NEG).expect("a shrinking herd shows -7");
+    assert!(
+        neg.0 >= 478 && neg.1 >= 302,
+        "the delta belongs on the produce plate at (478, 302), not at {neg:?}",
+    );
+    // And it is not drawn in the positive colour, which is the half that would
+    // survive a swapped pair.
+    assert!(shown(&mut game, "-7 ", POS).is_none(), "a negative delta is 0xF9, not 0xFA");
+
+    // 2 — growing, and the '+' is drawn.
+    game.kingdom.counties[county].herd_change_expected = 7;
+    let pos = shown(&mut game, "+7 ", POS).expect("a growing herd shows +7");
+    assert_eq!(pos.1, neg.1, "both signs sit on the same row");
+    assert!(shown(&mut game, "7 ", NEG).is_none(), "a positive delta is 0xFA, not 0xF9");
+
+    // 3 — and a quiet season draws nothing. Neither sign, in either colour.
+    game.kingdom.counties[county].herd_change_expected = 0;
+    for s in ["+0 ", "-0 ", "0 "] {
+        for c in [POS, NEG] {
+            assert!(
+                shown(&mut game, s, c).is_none(),
+                "mode 0 with a zero value draws nothing at all, but {s:?} appeared in {c:#04x}",
+            );
+        }
+    }
+}
+
+/// **The End Turn label goes away while the turn runs, and comes back.**
+///
+/// A player: *"in the original, the text 'END TURN' would disappear when you
+/// click it, until the new turn was ready."* `Screen_DrawEndTurn`
+/// (`0x0041A734`) blits the strip unconditionally and draws the label only when
+/// `g_realms[g_localPlayer].aiStep < 999` — `Turn_End` (`0x0043AC23`) sets that
+/// to 999 on the click and `Turn_BeginPlayersTurn` puts it back to 0 at the top
+/// of the next turn. So it is a **conditional draw**, and the interval is
+/// exactly *turn in flight*.
+///
+/// The assertion is idempotence rather than a pixel count, for the reason
+/// `docs/agents.md` gives: draw the page, copy it, draw again, require equality.
+/// Text is an opaque blit, so a second draw over itself changes nothing — but
+/// only if it was there the first time. No threshold, and nothing to re-tune
+/// when the artwork changes.
+///
+/// Three states, and the middle one is the claim:
+///
+/// 1. **idle** — the label is on the strip;
+/// 2. **turn in flight** — it is not, and the strip is otherwise unchanged;
+/// 3. **turn finished** — it is back.
+///
+/// Ablating the `if !turn::turn_in_flight(...)` guard fails claim 2.
+#[test]
+fn the_end_turn_label_disappears_while_the_turn_runs() {
+    let (mut game, assets) = world!();
+    game.select(8);
+    let mut screen = MapScreen::new();
+
+    // The band the label is centred in: `Ui_DrawCentred(4, 0, 0x1DE, 0x1CE,
+    // 0xA2, ...)`, so x 478..640 and the strip's own twenty rows from y 460.
+    let label_band = |canvas: &Canvas| -> Vec<u8> {
+        let mut out = Vec::new();
+        for y in 460..480usize {
+            for x in 478..640usize {
+                out.push(canvas.at(x, y));
+            }
+        }
+        out
+    };
+
+    // 1 — idle. The label is there, and drawing the whole screen twice over
+    // itself changes nothing.
+    let idle = draw(&mut screen, &mut game, &assets);
+    let idle_again = draw(&mut screen, &mut game, &assets);
+    assert_eq!(label_band(&idle), label_band(&idle_again), "an idle repaint is idempotent");
+
+    // 2 — end the turn and catch it in flight. `run_turn` would carry it all the
+    // way through, so this steps once and checks the state it left.
+    send(&mut screen, &mut game, &assets, Event::Click { x: 500, y: 470 });
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        screen.update(&mut ctx);
+    }
+    assert!(
+        l2_game::turn::turn_in_flight(&game),
+        "the click should have started a turn, or this test asserts nothing",
+    );
+    let running = draw(&mut screen, &mut game, &assets);
+    assert_ne!(
+        label_band(&idle),
+        label_band(&running),
+        "the End Turn strip is unchanged while the turn runs, so the label never went",
+    );
+
+    // 3 — and it comes back when the turn is ready. The strip's band must match
+    // the idle one exactly: the label returns, in the same place, in the same
+    // colour, on the same plate.
+    run_turn(&mut screen, &mut game, &assets);
+    assert!(!l2_game::turn::turn_in_flight(&game), "the turn should have finished");
+    let done = draw(&mut screen, &mut game, &assets);
+    assert_eq!(
+        label_band(&idle),
+        label_band(&done),
+        "the label did not come back the way it went",
     );
 }

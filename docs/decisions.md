@@ -5375,6 +5375,109 @@ said so as a mechanism. The comment is corrected and the gap is recorded rather 
 the setup screen's work rather than this one's.
 
 
+**C123 — the sidebar's four grain forecasts are the tail of a function we
+ported only the loop of, and a player found it the same afternoon the audit counted it.**
+
+> *"Sidebar doesn't show grain being planted as a negative number."*
+
+He is right, and he is describing **Spring**. `Grain_LabourEstimate` (`0x0044D374`) is a
+search loop followed by a tail, and `l2_kingdom::land::grain_labour_estimate` reproduces the
+loop, returns `GrainEstimate { wanted, useful }` and stops. The tail writes four things
+nothing in this workspace computes — `+0x230` (what sowing will cost), `crop[2]` (the harvest
+forecast), `+0x2FC` (the growth forecast) and `+0x22C`, the **signed** number the sidebar's
+grain row draws:
+
+```c
+if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
+else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
+else                  county.field_0x22C = -county.grainEaten;
+```
+
+In Spring that is `−sown − eaten` and cannot be positive. **So this is not a formatting bug.**
+`Ui_DrawDelta` (`0x00402E0C`) is perfectly capable of a negative — it draws `-value` with a
+`'-'` lead in `colourNeg`, a `'+'` lead when positive and a blank `'@'` at zero, all as one
+`Ui_DrawText` with no separate minus mark — and the number simply never reaches it.
+
+**Two things about this are worth more than the fix.**
+
+**One: the reason for the doubled estimate round was already understood, and the values it
+exists to produce were still dropped.** `crate::field`'s module docs say the
+`Labour_Allocate` / `Herd_UpdateCrowding` / `County_RefreshEstimates` round runs twice "for …
+the panel forecasts, which the estimates fill from whatever the allocator last decided."
+These are those forecasts. Knowing *why* a pass exists is not the same as carrying what it
+writes, and the port is faithful right up to the line where the interface starts — which is
+exactly the seam C30 is about, seen from the drawing side. The forecast is not recoverable
+from the estimate either: the loop calls `Grain_Sow(county, workers, grain − grainEaten)` and
+the tail calls `Grain_Sow(county, staff, grain)`.
+
+**Two: an instrument on this project got ahead of the player for the first time.**
+`docs/draws-map.md` §5.5 counted the eight `Ui_DrawDelta` calls as missing hours before the
+report arrived, and §5.10 could answer *which of three things is wrong* by reading rather than
+by guessing. Every previous defect on this screen — C57, C58, C60, C61 — was explained after
+he found it. `docs/plan.md` §0's row *"a screen showing the wrong thing — instrument: none"*
+now has one, and this is the evidence that it works.
+
+**And a second defect on the same row, which is the one that would have been mistaken for
+it.** `Ui_DrawNumberRight` (`0x004030C6`) ends in `FUN_004025D7`, which computes
+`x + (width − textWidth) / 2`: it **centres**. Its name and its `docs/symbols.json` comment
+both say right-aligned. The grain row's *store* is therefore centred in 60 pixels from x 480
+and `county::draw_produce_rows` right-anchors it. Found independently by the other draw audit;
+recorded here because it lands on this row.
+
+**C124 — a `[V]` claim in a format document produced a player-visible defect,
+and the renderer was right to trust it.**
+
+> *"The wheat fields don't show the wheat growing."*
+
+`docs/formats/maps-layers.md` §5.5 said `Terrain_Set`'s third parameter — `variant`, which
+shifts the frame by a whole four-frame block — is **dead**, on the grounds that all sixteen
+call sites pass zero, *"including the two that forward a parameter (`FUN_00469D21`, whose only
+callers are `Grain_SeasonTick` and `Herd_UpdateCrowding`, and both pass `'\0'`)."*
+`l2_view::campaign::field_graphic` was written to that and computed
+`base + (storedFrame & 3)`, with no variant term.
+
+There are **twenty-four** call sites. Twenty-three pass a literal zero. `Herd_UpdateCrowding`
+passes zero. **`Grain_SeasonTick` does not:**
+
+```c
+band    = FUN_0044CF6F(county.crop[2], county.fieldsGrain);   /* 2, 3, 7 or 11 */
+variant = band < 3 ? 0 : (band - 3) / 4 + 1;                  /* 0, 1, 2 or 3  */
+FUN_00469D21(county, band, variant, 2, 0xE);
+```
+
+**And the two halves of this bug are not independent, which is the part worth keeping.** All
+four density bands fall in `2 … 0x12`, whose base is 88 — so the `content` byte carries *no*
+information about the crop's stage and the variant carries all of it. Our season pass also had
+no counterpart for that repaint at all, so `content` never moved either; **fixing either half
+alone would have changed no pixel**, and a fix aimed at the obvious half would have looked
+like a failure and sent the next person somewhere else.
+
+The artwork closes it, and it is the kind of check this project trusts: `Roads1a.pl8` frames
+88 … 103 are sixteen 58-wide diamonds, four variants of four variations, and the ripe-gold
+pixel count rises strictly with the variant at every one of the four positions —
+36/34/36/33, 45/43/46/43, 54/50/55/49, 71/70/72/69 — while the fallow block before (84 … 87)
+and the pasture block after (104 … 107) carry two to eleven. Four blocks of four from 88 end
+at 103, and 104 is exactly where `field_base`'s next base begins.
+
+**Three things generalise.**
+
+**One — the claim was checked on one of two branches and stated about both.** That is the
+*name the branch* rule from `docs/agents.md`, and *"`Herd_UpdateCrowding` passes zero"* is a
+finding that cannot be promoted by accident.
+
+**Two — a wrong `[V]` in a format document is worse than a wrong correction, because nothing
+warns you.** `docs/decisions.md` carries a standing note that the correction log can be wrong
+and is believed harder than anything else. The format documents are believed exactly as hard,
+are consulted by more code, and have no such note. This one did not merely fail to help: **it
+produced the defect**, through a careful person who looked the reference up.
+
+**Three — an existing test was written to the falsehood and defended it.**
+`a_fields_picture_follows_its_crop_state` asserted `frame == base + variant` for terrain
+`0x05`, a value the game never writes to a farm tile, and would have gone red on the fix. A
+test whose subject is a documented claim inherits the claim's errors, and the tell here was
+available: **the value it asserted on was one nothing in the game produces.** A ladder test
+that walks unreachable rungs is testing the document, not the game.
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**

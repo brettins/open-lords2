@@ -594,11 +594,44 @@ otherwise, and `base` and `layer` come from a ladder on the new terrain:
   those are the values `County_RecountFields` buckets as *being reclaimed*. The table above
   reads as if `0x13 … 0x16` were exhaustive; it is not wrong about those four and it was
   silent about the rest. **[V]**
-* **The third parameter is dead.** `variant * 4` shifts the frame by a whole four-frame
-  block, and **all sixteen call sites in the shipped binary pass zero** — including the two
-  that forward a parameter (`FUN_00469D21`, whose only callers are `Grain_SeasonTick` and
-  `Herd_UpdateCrowding`, and both pass `'\0'`). So the term contributes nothing to any
-  picture the game draws, and the frame is exactly `base + (storedFrame & 3)`. **[V]**
+* ~~**The third parameter is dead.**~~ **FALSE, and it is the wheat.** This bullet read:
+  *"`variant * 4` shifts the frame by a whole four-frame block, and all sixteen call sites in
+  the shipped binary pass zero — including the two that forward a parameter (`FUN_00469D21`,
+  whose only callers are `Grain_SeasonTick` and `Herd_UpdateCrowding`, and both pass
+  `'\0'`). So the term contributes nothing to any picture the game draws, and the frame is
+  exactly `base + (storedFrame & 3)`."* It was marked **[V]**.
+
+  A player: *"The wheat fields don't show the wheat growing."* He is describing this bullet.
+
+  There are **twenty-four** call sites, not sixteen. Twenty-three pass a literal `'\0'`. The
+  twenty-fourth is `FUN_00469D21`'s forward, and of *its* two callers `Herd_UpdateCrowding`
+  passes `'\0'` and **`Grain_SeasonTick` does not**:
+
+  ```c
+  band    = FUN_0044CF6F(county.crop[2], county.fieldsGrain);   /* 2, 3, 7 or 11 */
+  variant = band < 3 ? 0 : (band - 3) / 4 + 1;                  /* 0, 1, 2 or 3  */
+  FUN_00469D21(county, band, variant, 2, 0xE);   /* every grain tile of the county */
+  ```
+
+  `FUN_0044CF6F` is four sacks-per-field bands, `< 1` → 2, `< 0x29` → 3, `< 0x51` → 7, else
+  11. **All four bands fall in `2 … 0x12`, so all four share base 88** — the `content` byte
+  carries no information about the crop's stage at all, and the *variant* carries every bit
+  of it. A renderer that drops the term draws a just-sown field in every season, which is
+  exactly what ours did.
+
+  Measured against the shipped `Roads1a.pl8`: frames 88 … 103 are sixteen 58-wide diamonds,
+  four variants of four variations, and the ripe-gold pixel count rises strictly with the
+  variant at every one of the four positions — 36/34/36/33, 45/43/46/43, 54/50/55/49,
+  71/70/72/69 — while fallow (84 … 87) and pasture (104 … 107) carry 2 … 11. Four blocks of
+  four from 88 end at 103 and 104 is where the next base begins. **[V]**
+  `crates/l2-view/tests/install.rs::the_four_wheat_variants_ripen_and_the_block_ends_where_the_next_base_begins`.
+
+  **How the claim came to be `[V]`, because that is the transferable part.** It was checked
+  on *one* of the two functions that forward the parameter and stated about both. That is
+  `docs/agents.md`'s *"a true statement about one branch, promoted to a statement about the
+  subsystem"*, and the defence there is the same: **name the branch.** *"`Herd_UpdateCrowding`
+  passes zero"* is the finding, and it cannot be promoted by accident.
+  `docs/decisions.md` C124.
 
 **A pasture is drawn twice, and §5.5a is the second time.** Everything below is exact for
 the diamond and silent about the animals on top of it.

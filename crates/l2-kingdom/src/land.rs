@@ -807,6 +807,155 @@ pub fn herd_preview(t: &Tables, county: &mut County, season_next: u8) {
     county.herd_change_expected = g.net() - county.herd_eaten;
 }
 
+/// **`FUN_0044CF6F` — the crop's density band**, and the only producer of a
+/// non-zero `Terrain_Set` variant in the game.
+///
+/// ```c
+/// if (crop < 1 || fieldsGrain < 1)      return 2;
+/// if (crop / fieldsGrain < 0x29)        return 3;
+/// if (crop / fieldsGrain < 0x51)        return 7;
+///                                       return 11;
+/// ```
+///
+/// Four bands at 41 and 81 sacks a field, and the value **is** the terrain byte
+/// `Grain_SeasonTick` then writes onto every grain tile of the county. `[D]`
+pub fn grain_crop_band(crop: i32, fields_grain: i32) -> u8 {
+    if crop < 1 || fields_grain < 1 {
+        return 2;
+    }
+    match crop / fields_grain {
+        d if d < 0x29 => 3,
+        d if d < 0x51 => 7,
+        _ => 11,
+    }
+}
+
+/// **`Grain_SeasonTick`'s last two lines (`0x0044C8AE`), which had no
+/// counterpart at all.**
+///
+/// A player: *"The wheat fields don't show the wheat growing."* This is half the
+/// answer — the other half is [`l2_view::campaign::field_variant`], and
+/// **neither half alone changes a pixel**, which is why the bug survived a
+/// season pass this project believes it has read.
+///
+/// ```c
+/// band = FUN_0044CF6F(county.crop[2], county.fieldsGrain);
+/// variant = band < 3 ? 0 : (band - 3) / 4 + 1;
+/// FUN_00469D21(county, band, variant, 2, 0xE);
+/// ```
+///
+/// `FUN_00469D21(county, terrain, variant, lo, hi)` sweeps the whole tile array
+/// in index order and calls `Terrain_Set(tile, terrain, variant)` on every tile
+/// of that county carrying plane-0 bit `0x20` whose current `content` is in
+/// `lo ..= hi`. So the repaint is bounded to tiles that are *already* growing
+/// grain — a fallow or a pasture tile in the same county is untouched — and the
+/// crop's stage is written onto the map rather than kept only in `crop[]`.
+///
+/// **The one wrinkle, reproduced:** its shortfall arm.
+///
+/// ```c
+/// if (lo == 2 && county.sowShortfall && notTheFirstTileThisSweep)
+///     Terrain_Set(tile, 2, '\0');       /* this one gets nothing */
+/// else
+///     Terrain_Set(tile, terrain, variant);
+/// ```
+///
+/// `sowShortfall` is `Grain_Sow`'s *"could not afford one sack a field and fell
+/// back to a token handful"* flag. When it is set, **the first grain tile in
+/// index order takes the whole crop's appearance and every other one is
+/// repainted bare.** That is the game showing a failed sowing as one green field
+/// among the empty ones, and it is a picture that is a rule — the same shape as
+/// the pasture herd and the mine's animation rate. `[D]`
+pub fn grain_repaint_fields(county_id: usize, county: &County, map: &mut crate::map::CampaignMap) {
+    let band = grain_crop_band(county.crop[2], county.fields_grain);
+    let variant = if band < 3 { 0 } else { (band - 3) / 4 + 1 };
+    let _ = variant; // carried by the terrain byte; see `field_variant`.
+    let mut seen = false;
+    for tile in 0..map.terrain.len() {
+        if map.county[tile] as usize != county_id {
+            continue;
+        }
+        if map.flags[tile] & crate::map::flags::FARMLAND == 0 {
+            continue;
+        }
+        if !(2..=0x0E).contains(&map.terrain[tile]) {
+            continue;
+        }
+        let painted = if county.sow_shortfall && seen { 2 } else { band };
+        crate::field::paint_tile(map, tile, painted);
+        seen = true;
+    }
+}
+
+/// **`Grain_LabourEstimate`'s tail (`0x0044D374`) — the grain row's forecast.**
+///
+/// A player: *"Sidebar doesn't show grain being planted as a negative number."*
+/// This is the number that would have said so, and until this function existed
+/// nothing in the workspace computed it. `docs/decisions.md` C123
+/// has the whole of it; the short version is that
+/// [`grain_labour_estimate`] ports the **search loop** of `Grain_LabourEstimate`
+/// and the original writes four more things after the loop ends:
+///
+/// ```c
+/// staff = county.labour[0].workers;
+/// county.field_0x230 = Grain_Sow(county, staff, county.grain);
+/// if (season == 4)                county.crop[2]     = Grain_Harvest(county, staff, crop[1]);
+/// if (season == 2 || season == 3) county.field_0x2FC = Grain_Grow   (county, staff, crop[1]);
+///
+/// if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
+/// else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
+/// else                  county.field_0x22C = -county.grainEaten;
+/// ```
+///
+/// **In Spring the answer is `−sown − eaten` and cannot be positive**, which is
+/// the player's sentence with the arithmetic under it: sowing spends grain, so
+/// the store's forecast for the season you are about to enter is a loss twice
+/// over.
+///
+/// # Three things that are easy to get wrong here, and one that was
+///
+/// * **The tail is not a by-product of the loop.** The loop calls
+///   `Grain_Sow(county, workers, grain − grainEaten)` over every possible
+///   staffing; the tail calls `Grain_Sow(county, staff, grain)` — the *actual*
+///   allocation and the *undiminished* store. Two different questions, and
+///   folding them would produce a plausible wrong number.
+/// * **`crop[2]` and `+0x2FC` are written only in their own seasons** and keep
+///   their previous value otherwise, so this is not a "recompute everything"
+///   pass. Winter's arm then reads the `crop[2]` it has just written.
+/// * **`+0x22C` is zeroed before the `popBand` guard**, so an empty county
+///   forecasts nothing rather than keeping last season's number. The same shape
+///   as [`herd_preview`], and the same reason.
+/// * **This is why the estimate round runs twice.** `crate::field`'s module docs
+///   worked that out — *"the panel forecasts, which the estimates fill from
+///   whatever the allocator last decided"* — and then the port carried none of
+///   them. Knowing why a pass exists is not the same as carrying what it writes.
+///
+/// `[D]`, read out of `0x0044D374` and matched against the row that draws it.
+pub fn grain_preview(t: &Tables, county: &mut County, season_next: Season, advanced_farming: bool) {
+    county.grain_change_expected = 0;
+    if county.pop_band == 0 {
+        return;
+    }
+    let staff = county.labour[crate::tables::JOB_GRAIN_FARMING];
+    county.grain_sown_expected =
+        sow_seed(t, county.fields_grain, county.grain, staff, advanced_farming).0;
+    match season_next {
+        Season::Winter => {
+            county.crop[2] = harvest_step(t, county, staff, county.crop[1], advanced_farming);
+        }
+        Season::Summer | Season::Autumn => {
+            county.grain_grown_expected =
+                grow_step(t, county, staff, county.crop[1], advanced_farming);
+        }
+        Season::Spring => {}
+    }
+    county.grain_change_expected = match season_next {
+        Season::Spring => -county.grain_sown_expected - county.grain_eaten,
+        Season::Winter => county.crop[2] - county.grain_eaten,
+        _ => -county.grain_eaten,
+    };
+}
+
 /// `Herd_SeasonTick` (`0x0044D60D`) — births and deaths from
 /// [`herd_growth`], then the weather's percentage swing and the random-event
 /// modifier, then a fresh [`herd_crowding`] and next season's forecast.

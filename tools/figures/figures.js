@@ -266,6 +266,12 @@ const TARGETS = [
   // frozen measurement and says so - plan-review.md's numbers especially, which
   // are the evidence for a dated review and must never be rewritten.
   path.join('docs', 'plan.md'),
+  // **CLAUDE.md is loaded by every session and every subagent**, which makes a
+  // stale number in it the most widely believed number in the project. Rule 5
+  // quoted "80 of 185" arms with no marker on it — the measurement from the day
+  // C61 was written — long after the inventory had more than doubled. A figure
+  // in the most-read file is the last one anybody thinks to check.
+  'CLAUDE.md',
 ];
 const MARKER = /<!--fig:([a-z0-9-]+)-->([\s\S]*?)<!--\/fig-->/g;
 

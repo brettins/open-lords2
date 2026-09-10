@@ -1148,17 +1148,101 @@ fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: 
 /// **Flat, not embossed.** Each produce row sets `DAT_005AEA40 = 1` around its
 /// number and clears it after — the same switch the strip's own figures are
 /// drawn under — and that global turns `Ui_DrawText`'s emboss off.
-fn body_right(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, w: i32, s: &str, colour: u8) {
-    match ctx.assets.shell.body.as_ref() {
-        Some(f) => {
-            let style = crate::shell::font::Style { colour, shadow: None, caps: None };
-            f.draw_right(canvas, x + w, y, s, &style);
-        }
-        None => {
-            let width = text::width(s);
-            text::draw(canvas, x + w - width, y, s, colour);
-        }
+/// **`Ui_DrawDelta` (`0x00402E0C`) — the produce rows' signed forecast.**
+///
+/// A player: *"Sidebar doesn't show grain being planted as a negative number."*
+/// This is the routine that would have. The original, in full:
+///
+/// ```c
+/// if (value == 0 && mode == 0) return;                     /* nothing at all */
+/// Ui_DrawText(prefix, x, y, font, value < 0 ? colourNeg : colourPos);
+/// if      (mode == 2) Ui_DrawNumber( value, '@', suffix, x + g_penAdvance, …, colourPos);
+/// else if (value < 0) Ui_DrawNumber(-value, '-', suffix, x + g_penAdvance, …, colourNeg);
+/// else if (value < 1) Ui_DrawNumber( value, '@', suffix, x + g_penAdvance, …, colourPos);
+/// else                Ui_DrawNumber( value, '+', suffix, x + g_penAdvance, …, colourPos);
+/// ```
+///
+/// Four things in it are worth having exactly, and three of them are the sort a
+/// reimplementation drops without noticing:
+///
+/// * **The minus is a lead *character*, not a mark.** `Ui_DrawNumber` writes it
+///   over `g_numberBuffer[0]`, the slot `Ui_NumberToBuffer(value, 1, 0)` leaves
+///   free for a sign, so sign and digits go out in one `Ui_DrawText`. There is
+///   no separate glyph to place or to lose.
+/// * **A positive value carries an explicit `'+'`.** Only the *sign* tells the
+///   player which way a forecast runs; the row has no other cue.
+/// * **`mode == 0` and a value of zero draw nothing whatever.** All eight
+///   produce rows pass mode 0. That is why an absent delta has read as a quiet
+///   row rather than as an obvious hole — a county with nothing happening looks
+///   the same either way.
+/// * **The colour is the sign too**: `0xFA` positive, `0xF9` negative, at every
+///   one of the eight call sites.
+///
+/// The prefix and the suffix are a single space at all eight — read out of
+/// `Lords2.exe` at `0x004D3D40 … 0x004D3D84`, where the only one that is not
+/// `" "` is the tax rate's `"%"`. They are drawn as two separate strings, so
+/// [`TRAILING`](crate::shell::TRAILING)'s four pixels fall between
+/// the prefix and the number and **not** between the number and its suffix.
+/// Concatenating the three into one string would lose those four pixels, which
+/// is the whole reason this is not a `format!`.
+///
+/// **Ours:** the font. The original uses `g_font10` — preload entry 5,
+/// `font_10` — and this workspace loads `fntl2_9`, `fntl2_14` and `fntl2_22`
+/// and not that one. The 9-pixel font is the closest we have and the row is a
+/// pixel short because of it; loading `font_10` is its own job.
+fn strip_delta(ctx: &Ctx, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
+    // `if ((value != 0) || (mode != 0))` — every produce row passes mode 0.
+    if value == 0 {
+        return;
     }
+    let colour = if value < 0 { DELTA_NEG } else { DELTA_POS };
+    let lead = if value < 0 { '-' } else { '+' };
+    // `Ui_DrawText(prefix, x, y, font, colour)`, then the number at
+    // `x + g_penAdvance` — which is the prefix's width plus `Ui_DrawText`'s own
+    // four trailing pixels, not the prefix's width alone.
+    let prefix = " ";
+    let advance = match ctx.assets.shell.small.as_ref() {
+        Some(f) => f.width(prefix),
+        None => text::width(prefix),
+    } + crate::shell::TRAILING;
+    strip_text(ctx, canvas, x, y, prefix, colour);
+    // `Ui_DrawNumber(|value|, lead, suffix, …)` — one string, lead in slot 0.
+    strip_text(ctx, canvas, x + advance, y, &format!("{lead}{} ", value.abs()), colour);
+}
+
+/// `Ui_DrawDelta`'s `colourPos`, the eighth argument at all eight produce-row
+/// call sites.
+const DELTA_POS: u8 = 0xFA;
+
+/// `Ui_DrawDelta`'s `colourNeg`, the ninth. It is the same index
+/// [`font::HIGHLIGHT`](crate::shell::font::HIGHLIGHT) carries and they are kept
+/// apart on purpose: that one is *"this is the thing you are looking at"* and
+/// this one is *"this number is negative"*, and a rename of either must not
+/// drag the other.
+const DELTA_NEG: u8 = 0xF9;
+
+/// **`Ui_DrawNumberRight` (`0x004030C6`) centres.** It is not right-aligned and
+/// it never was: its tail is `FUN_004025D7(buf, x, y, width, font, colour)`,
+/// whose whole body is
+///
+/// ```c
+/// Ui_DrawText(str, x + max(0, (width - Ui_TextWidth(str, font)) / 2), y, font, colour);
+/// ```
+///
+/// The name is the original's shape rather than ours — `docs/symbols.json`'s
+/// comment said *"Ui_DrawNumber, right-aligned inside width"* and that comment
+/// is corrected on this branch. Two draw audits found it independently in the
+/// same week, which is the usual sign that a name has been believed instead of
+/// read.
+///
+/// It lands here: the produce rows' stock figure was anchored at x = 540 and
+/// belongs centred between 480 and 540. This helper used to be `body_right` and
+/// used to do that, which is the same defect the row's missing delta was
+/// reported alongside — *"grain not shown as a negative"* and *"grain in the
+/// wrong place"* would have looked like one complaint.
+fn body_centred_in(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, w: i32, s: &str, colour: u8) {
+    let style = crate::shell::font::Style { colour, shadow: None, caps: None };
+    body_centred_styled(ctx, canvas, x, y, w, s, style);
 }
 
 /// Centred in `width` from `x`, with the emboss pair chosen by the caller — because
@@ -1509,13 +1593,57 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 ///   flat), and the two that do — the blacksmith and the castle — pick their
 ///   frame from county `+0x290`, an unnamed byte, and from `+0x1B0`. Neither is
 ///   settled, so neither is drawn.
-/// * **The seasonal deltas.** Every drawer follows its icon with a
-///   `Ui_DrawDelta` of the change since last season, out of a per-commodity i32
-///   this project has mis-attributed: the strip reads commodity `c`'s at county
-///   `0x2A8 + c * 0x18`, which `docs/records.json` currently gives to
-///   `Industry[c + 1]`'s unnamed head word — and the stone row reads `0x2F0`,
+/// * **The seasonal deltas** — and a player found the hole before this comment
+///   was rewritten: *"Sidebar doesn't show grain being planted as a negative
+///   number."* He is right, and he is describing **Spring**.
+///
+///   Every drawer follows its icon with a `Ui_DrawDelta` (`0x00402E0C`), which
+///   is a *signed* number: `value < 0` draws `Ui_DrawNumber(-value, '-', …)` in
+///   `colourNeg` (`0xF9`), `value > 0` gets a `'+'` lead in `colourPos`
+///   (`0xFA`), and zero gets `'@'`, the blank glyph that keeps a zero
+///   column-aligned. The minus is **not a separate mark** — it overwrites
+///   `g_numberBuffer[0]`, the slot `Ui_NumberToBuffer(value, 1, 0)` leaves free
+///   for a sign, and the whole string goes out in one `Ui_DrawText`. With
+///   `mode == 0`, which is what all eight rows pass, a value of zero draws
+///   **nothing at all**.
+///
+///   **It is not "the change since last season".** The tooltip layer says so in
+///   the game's own words — `L2.eng` group 220 index 15 is *"Cattle, and change
+///   next season"* and 16 is *"Wheat, and change next season"* — and the code
+///   agrees: `County_RefreshEstimates(county, g_seasonNext)`.
+///
+///   **The grain row's value is county `+0x22C`, and this workspace never
+///   computes it.** `Grain_LabourEstimate` (`0x0044D374`) writes it in a tail
+///   *after* the search loop [`l2_kingdom::land::grain_labour_estimate`]
+///   reproduces:
+///
+///   ```c
+///   staff = county.labour[0].workers;                    /* the real staffing */
+///   county.field_0x230 = Grain_Sow(county, staff, county.grain);
+///   if (season == 4) county.crop[2]      = Grain_Harvest(county, staff, county.crop[1]);
+///   if (season == 2 || season == 3) county.field_0x2FC = Grain_Grow(county, staff, county.crop[1]);
+///
+///   if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
+///   else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
+///   else                  county.field_0x22C = -county.grainEaten;
+///   ```
+///
+///   So in **Spring** the row is `−(sown) − eaten`, which cannot be anything but
+///   negative — the player's sentence, exactly. Our port returns
+///   `GrainEstimate { wanted, useful }` and stops at the loop, so all four of
+///   those writes are missing, and **the sign question never arises because the
+///   number never arrives.** It cannot be recovered from the estimate either:
+///   the loop calls `Grain_Sow(county, workers, grain − grainEaten)` and the
+///   tail calls `Grain_Sow(county, staff, grain)` — a different third argument.
+///   `crate::field`'s module docs already say the estimate round runs twice
+///   "for … the panel forecasts, which the estimates fill from whatever the
+///   allocator last decided"; these are those forecasts.
+///
+///   The four industry rows read a different quantity again — commodity `c`'s
+///   i32 at county `0x2A8 + c * 0x18`, which `docs/records.json` gives to
+///   `Industry[c + 1]`'s unnamed head word, and the stone row reads `0x2F0`,
 ///   one whole record past the end of a four-record array. Reported, not
-///   guessed at.
+///   guessed at. `docs/draws-map.md` §5.10.
 fn draw_produce_rows(
     ctx: &Ctx,
     canvas: &mut Canvas,
@@ -1562,17 +1690,43 @@ fn draw_produce_rows(
                 widget::frame(canvas, Rect::new(x - 2, y + dy - 2, 44, 32), ink.realm[2]);
             }
         }
+        // **The row's forecast for next season.** `Ui_DrawDelta(value, 0, " ",
+        // " ", 0x204, pitch*row + dy, &g_font10, 0xFA, 0xF9)` — the same `x` at
+        // all three farm rows, and `dy` `0x139` for the two that have a stock
+        // and `0x133` for reclamation, which has a countdown instead.
+        //
+        // **Only the cattle row draws one.** Its value is
+        // `Herd_LabourEstimate`'s tail — `(births − deaths) − herdEaten` — and
+        // [`l2_kingdom::land::herd_preview`] is that tail, ported, written on
+        // every season tick and carried in the save. Grain's is county `+0x22C`
+        // and reclamation's `+0x20C`; neither is computed anywhere in this
+        // workspace, so neither row can draw one yet, and the doc comment above
+        // says what it would take. **C123.**
+        let (delta, delta_dy) = match slot {
+            1 => (Some(c.herd_change_expected), 0x139),
+            0 => (Some(c.grain_change_expected), 0x139),
+            _ => (None, 0x133),
+        };
+        if let Some(v) = delta {
+            strip_delta(ctx, canvas, v, 0x204, y + delta_dy);
+        }
         // `Ui_DrawNumberRight(store, ' ', …, 0x1E0, y + 0x14D, 0x3C,
-        // &g_fontBody, 0x3F)` — the store itself, right-anchored in sixty
-        // pixels from x = 480. Reclamation's number is a field this project has
-        // not named, so that row carries none.
+        // &g_fontBody, 0x3F)` — the store itself.
+        //
+        // **`Ui_DrawNumberRight` centres.** Its tail is `FUN_004025D7`, which
+        // computes `x + (width − textWidth) / 2`; the name and the
+        // `docs/symbols.json` comment both said right-aligned and both were
+        // wrong, found independently by two draw audits. So this is centred in
+        // sixty pixels from x = 480, not anchored at 540.
+        // Reclamation's number is a field this project has not named, so that
+        // row carries none.
         let store = match slot {
             0 => Some(c.grain),
             1 => Some(c.herd),
             _ => None,
         };
         if let Some(v) = store {
-            body_right(ctx, canvas, 480, y + 0x14D, 0x3C, &v.to_string(), strip_ink);
+            body_centred_in(ctx, canvas, 480, y + 0x14D, 0x3C, &v.to_string(), strip_ink);
         }
     }
 }

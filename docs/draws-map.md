@@ -370,8 +370,8 @@ wrong: `FUN_00477320` divides `(mouseY − 0x130)` by that pitch to find the row
 
 We draw the left list (`county::draw_produce_rows`, and the blue idle ring in it) and none of
 the right one — a decision already recorded there, resting on two county bytes nobody has
-named. The **eight `Ui_DrawDelta` calls** — every row's change since last season — are absent
-on both sides, for the same reason.
+named. The **eight `Ui_DrawDelta` calls** — every row's forecast for *next* season — are
+absent on both sides, and §5.10 is what one of them turned out to be worth.
 
 ### 5.6 Three widgets are drawn over the map from `Battle_Frame` and are in no document
 
@@ -423,6 +423,144 @@ banks and draws only mountains, towns and castles — the tall things. Its two r
 `FUN_0040619D` and `FUN_004062FB`, have **no callers at all**, and neither does it. It
 honours `g_optExploration`, so it post-dates the fog. `[I]` a scrapped
 "repaint the tall stuff over the units" pass.
+
+---
+
+### 5.10 The instrument got ahead of the player, once, by about four hours
+
+**This is the first time on this project that a check has predicted a player-visible defect
+instead of explaining one afterwards**, and it is worth stating plainly because the whole
+argument for building this inventory was that nothing we had could see a wrong picture.
+
+§5.5 counted the eight `Ui_DrawDelta` calls as missing on 9 September. Later the same day,
+mid-session and without having seen any of this:
+
+> *"Sidebar doesn't show grain being planted as a negative number."*
+
+That is `FUN_0041023A`'s fourth draw call, row 4 of the grain row's five, sitting in this
+document's missing column. Three things had to be told apart to say so rather than guess it.
+
+**One — the row does draw a signed number, and the minus is not a separate mark.**
+`Ui_DrawDelta` (`0x00402E0C`):
+
+```c
+if (value == 0 && mode == 0) return;                    /* nothing at all */
+Ui_DrawText(prefix, x, y, font, value < 0 ? colourNeg : colourPos);
+if      (mode == 2) Ui_DrawNumber( value, '@', suffix, x + g_penAdvance, y, font, colourPos);
+else if (value < 0) Ui_DrawNumber(-value, '-', suffix, x + g_penAdvance, y, font, colourNeg);
+else if (value < 1) Ui_DrawNumber( value, '@', suffix, x + g_penAdvance, y, font, colourPos);
+else                Ui_DrawNumber( value, '+', suffix, x + g_penAdvance, y, font, colourPos);
+```
+
+The sign is a **lead character**: `Ui_DrawNumber` writes it over `g_numberBuffer[0]`, the
+slot `Ui_NumberToBuffer(value, 1, 0)` deliberately leaves free for one, and the digits and
+the sign go out in a single `Ui_DrawText`. So there is no minus glyph to have omitted, and
+the `Pen` absolute-versus-advance hazard is ruled out on the same read: `Ui_DrawDelta` saves
+`g_penAdvance`, zeroes it, lets the prefix advance it, places the number at
+`x + g_penAdvance`, and **adds the saved value back** on the way out. Correct advance
+semantics, and the only place on this screen that does that dance.
+
+Two things beyond the sign are worth having: a positive delta gets an explicit **`'+'`**, and
+zero gets **`'@'`**, a blank glyph that holds the column. And all eight rows pass `mode = 0`,
+so **a zero delta draws nothing whatever** — which is why the absence has read as a quiet
+row rather than as an obvious hole.
+
+**Two — but the value never arrives, so the sign question never comes up.** The grain row
+reads county `+0x22C`. Its only writer is the **tail** of `Grain_LabourEstimate`
+(`0x0044D374`), after the search loop:
+
+```c
+staff = county.labour[0].workers;                        /* the real staffing, not the search */
+county.field_0x230 = Grain_Sow(county, staff, county.grain);          /* what sowing will cost */
+if (season == 4)                county.crop[2]      = Grain_Harvest(county, staff, county.crop[1]);
+if (season == 2 || season == 3) county.field_0x2FC   = Grain_Grow   (county, staff, county.crop[1]);
+
+if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
+else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
+else                  county.field_0x22C = -county.grainEaten;
+```
+
+**In Spring the row is `−sown − eaten`, which cannot be anything but negative.** That is the
+player's sentence with the arithmetic under it. `l2_kingdom::land::grain_labour_estimate`
+reproduces the loop faithfully, returns `GrainEstimate { wanted, useful }` and **stops** —
+all four of those writes are missing from this workspace, and `County` has no field to hold
+any of them. Nor can the number be recovered from the estimate: the loop calls
+`Grain_Sow(county, workers, grain − grainEaten)` and the tail calls
+`Grain_Sow(county, staff, grain)`, a different third argument.
+
+`crate::field`'s module docs already worked out *why* the estimate round runs twice — *"for …
+the panel forecasts, which the estimates fill from whatever the allocator last decided."*
+**These are those forecasts.** The reason for the doubled round was understood and the four
+values it exists to produce were never carried, which is `docs/decisions.md` C30's shape from
+the drawing side once more: *a field is only tested if something a test reads was written by
+something the game runs.* **C123.**
+
+**Three — and the tooltip layer says which row it belongs on.** §5.1's group 220 is the check
+on whether the right value is in the right row, and it also corrects this document: index 15
+is *"Cattle, **and change next season**"* and 16 is *"Wheat, **and change next season**"*. So
+the delta is a **forecast for the coming season**, not a change since the last one — and the
+code agrees, `County_RefreshEstimates(county, g_seasonNext)`. §5.5 and `county.rs` both said
+"since last season" and both are corrected.
+
+**One more thing fell out of reading these two routines, and it is not this bug.**
+`Ui_DrawNumberRight` (`0x004030C6`) ends in `FUN_004025D7`, which computes
+`x + (width − textWidth) / 2` — it **centres**. The name and its `docs/symbols.json` comment
+(*"Ui_DrawNumber, right-aligned inside width"*) are both wrong, which the other draw audit
+also found; recorded here because it lands on this screen. The grain row's *store* is
+`Ui_DrawNumberRight(grain, ' ', …, 0x1E0, y, 0x3C, …)` — **centred in 60 pixels from x 480**
+— and `county::draw_produce_rows` right-anchors it through `body_right`. A second, separate
+defect on the same row, and the one that would have been mistaken for this one.
+
+### 5.11 The End Turn label is a conditional draw, and its flag drives two more
+
+> *"In the original, the text 'END TURN' would disappear when you click it, until the new turn
+> was ready."*
+
+Four explanations fitted that report — a pressed frame, the sidebar's own gate removing the
+button, an overdraw, or a conditional draw. `Screen_DrawEndTurn` (`0x0041A734`) settles it in
+two lines:
+
+```c
+Pl8_DrawFrameHere(g_miscCtySheet, 0x3B, 0x1DE, 0x1CC);          /* the strip, unconditionally */
+if (g_realms[g_localPlayer].aiStep < 999)
+    Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall, 0x16);
+```
+
+**The strip is opaque artwork, so blitting it is the erase, and the label is simply not put
+back.** One draw call, conditionally made — which is the one in §2's listing, and ours made it
+unconditionally.
+
+**The flag is `aiStep`, and it is a per-realm turn program counter rather than a boolean.**
+`Turn_BeginPlayersTurn` sets every living realm's to 0 and a dead realm's to 999, counting the
+rest into `g_realmsActive`; `AI_RunTurnStep` walks it up and parks it at 999 when that realm is
+finished; **`Turn_End` (`0x0043AC23`) — this button's own handler — sets the local player's to
+999 the instant it is clicked.** So `999` means *"this realm's turn is over"*, and the label's
+absence is exactly the interval between the click and the next turn beginning. The player's
+sentence, verbatim.
+
+**And the answer to *what else keys off it* is the reason this is not one small item.** Three
+draws share the flag, and together they are the original's entire "the turn is being processed"
+feedback:
+
+| draw | condition | ours |
+|---|---|---|
+| the End Turn label | `aiStep < 999` | **now reproduced** |
+| **each realm's menu-bar banner** | `strength != 0 && aiStep < 999` | no — we test `in_play` |
+| the turn timer (§5.6) | `g_optTimeLimit > 0` and `aiStep == 999` | no |
+
+The middle row is new and is worth more than the label: **a realm's banner vanishes from the
+menu bar as that realm finishes its turn, and the bar refills as the new turn begins** — a live
+five-realm progress indicator across the top of the screen. `docs/screens.md` §4.2 describes
+that loop as *"each realm 1…5 that is alive"*, which is half of its test. Reproducing it needs a
+per-realm turn counter this workspace does not keep, so it is reported rather than built.
+
+**One thing about this draw is worth recording beyond the map.** It could not have been
+reproduced two days ago: the turn only recently began to be *paced over frames*, so until then
+there was no interval to be inside, and the absence of a busy indicator was unobservable. A
+player noticed it within hours of the pacing becoming real. **Some draws are gated on the
+simulation being slow enough to see** — and the inventory cannot tell you which, because a
+conditional draw looks the same whether or not its condition ever holds for a visible length of
+time.
 
 ---
 
