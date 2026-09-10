@@ -269,6 +269,13 @@ fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
         WinitKey::Named(NamedKey::ArrowDown) => Key::Down,
         WinitKey::Named(NamedKey::ArrowLeft) => Key::Left,
         WinitKey::Named(NamedKey::ArrowRight) => Key::Right,
+        // The four the window procedure dispatches into the edit buffer and
+        // nothing else dispatches at all: `VK_HOME`, `VK_END`, `VK_INSERT`,
+        // `VK_DELETE`. See `l2_game::text`.
+        WinitKey::Named(NamedKey::Home) => Key::Home,
+        WinitKey::Named(NamedKey::End) => Key::End,
+        WinitKey::Named(NamedKey::Insert) => Key::Insert,
+        WinitKey::Named(NamedKey::Delete) => Key::Delete,
         WinitKey::Character(s) if ctrl => Key::ctrl_letter(s.chars().next()?),
         WinitKey::Character(s) => Key::letter(s.chars().next()?),
         _ => return None,
@@ -338,8 +345,25 @@ impl ApplicationHandler for App {
                 // window is this file's business alone.
                 if event.logical_key == WinitKey::Named(NamedKey::F5) {
                     self.snap_to_whole_scale();
-                } else if let Some(key) = translate(&event.logical_key, self.ctrl) {
-                    self.deliver(GameEvent::KeyDown(key));
+                } else {
+                    if let Some(key) = translate(&event.logical_key, self.ctrl) {
+                        self.deliver(GameEvent::KeyDown(key));
+                    }
+                    // **And `WM_CHAR` after `WM_KEYDOWN`, as Windows sends
+                    // them.** The original's window procedure handles the two
+                    // messages in separate arms: virtual keys drive the
+                    // hotkeys, characters drive `Edit_TypeChar`. `winit` gives
+                    // us the character in `text`, already shifted and already
+                    // through the layout, which is what `WM_CHAR` carries.
+                    //
+                    // Control-held keys produce no `WM_CHAR` worth having —
+                    // `Ctrl+A` is `0x01` — and the original's control arm is a
+                    // `WM_KEYDOWN` one, so they are suppressed here.
+                    if !self.ctrl {
+                        for c in event.text.iter().flat_map(|t| t.chars()) {
+                            self.deliver(GameEvent::Text(c));
+                        }
+                    }
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {

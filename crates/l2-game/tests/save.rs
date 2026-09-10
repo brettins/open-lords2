@@ -346,7 +346,14 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     use l2_game::screens::saveload::{CONFIRM, LIST};
 
     temp_saves();
-    let name = "SCREENTEST";
+    // **What is typed and what is saved are different strings now**, and the
+    // difference is the point. The save box is `Edit_Begin(&DAT_004EA130, 8,
+    // 0xA0, 1)` — **kind 1**, a DOS file name — so `Edit_TypeChar` runs
+    // `A`–`Z` through `0x004011B0` and lower-cases them. Typing `SCREENTEST`
+    // gives `screentest`, which is what the original's own file box does and
+    // what its file list shows.
+    let typed_name = "SCREEN TEST";
+    let name = "screen test";
     let _ = saves::remove(name);
 
     let (mut game, assets) = bare();
@@ -354,9 +361,17 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
 
     // Save: type a name, then press the tick. Nothing here reaches into the
     // screen's fields; it is clicks and keys.
+    //
+    // **`Event::Text`, not `Event::KeyDown`.** They are `WM_CHAR` and
+    // `WM_KEYDOWN` and the field reads the first, exactly as the original's
+    // does — `Key::Char` is folded to upper case for the hotkey matchers, so a
+    // field fed from it could never produce a lower-case letter at all. This
+    // test drove the old hand-rolled field through the hotkey message and is
+    // the reason that distinction is now enforced rather than assumed. The
+    // space in the middle is deliberate: a space is a character here, not a
+    // confirm, and driving it proves the field takes it.
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
-    let mut typed: Vec<Event> =
-        name.chars().map(|c| Event::KeyDown(Key::letter(c))).collect();
+    let mut typed: Vec<Event> = typed_name.chars().map(Event::Text).collect();
     typed.push(click_widget(CONFIRM));
     drive(&mut m, &mut game, &assets, &typed);
     assert!(m.should_quit() || m.depth() == 0, "the save screen closes when it has saved");

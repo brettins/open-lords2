@@ -213,9 +213,37 @@ pub struct SaveLoadScreen {
     top: usize,
     /// The highlighted row, as an index into [`SaveLoadScreen::entries`].
     selected: Option<usize>,
-    /// The edit buffer the name field shows — `DAT_004EA130`.
-    name: String,
+    /// **The edit buffer the name field shows — `DAT_004EA130`.**
+    ///
+    /// This was a `String` with a `push` and a `pop` and no caret, and it was
+    /// the only text field in the workspace. It is [`crate::text::TextField`]
+    /// now, which is the original's own editor, so this screen gained Delete,
+    /// Home, End, the left and right arrows, insert mode, a blinking caret and
+    /// the character filter in one change. `docs/arms.json`, group `text`.
+    name: crate::text::TextField,
     status: Status,
+}
+
+/// `Edit_Begin(&DAT_004EA130, 8, 0xA0, 1)` — the save box's own arguments, and
+/// **one of the three is deliberately not the original's.**
+///
+/// * **kind 1**, the file-name kind: `A`–`Z` are lower-cased and `,` `.` `?`
+///   `!` are refused outright. Reproduced. A name this field accepts is a name
+///   the file layer never has to sanitise, which is why the original has the
+///   kind at all.
+/// * **160 pixels**, on a 192-pixel plate. Reproduced: it is what stops a name
+///   from drawing out of its recess, and that is as true of our plate as of
+///   theirs.
+/// * **eight characters — not reproduced.** Eight is a DOS 8.3 file name, and
+///   the game appends the extension itself (`SaveLoad_Tick` copies twelve bytes
+///   of the buffer and calls `FUN_004AF675` to add `.sav`, `.svb` or `.sva`).
+///   Our saves are `.l2sav` files in `%APPDATA%` and [`saves::MAX_NAME`] is 64;
+///   holding a person to eight characters on a filesystem that has not had that
+///   limit since 1995 would be superstition rather than fidelity, which is the
+///   line this module's header already draws about the scroll clamp. **In
+///   practice the pixel limit bites first** and a name never gets near 64.
+fn begin_name(seed: &str) -> crate::text::TextField {
+    crate::text::TextField::begin(seed, saves::MAX_NAME, 0xA0, crate::text::Kind::Filename)
 }
 
 impl SaveLoadScreen {
@@ -228,7 +256,7 @@ impl SaveLoadScreen {
             entries,
             top: 0,
             selected: None,
-            name: String::new(),
+            name: begin_name(""),
             status: Status::Idle,
         };
         // Loading opens on the first file, because loading *is* choosing one.
@@ -255,7 +283,12 @@ impl SaveLoadScreen {
 
     /// What the name field holds — the typed name in save mode, the selected
     /// file's in load mode.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> String {
+        self.name.text()
+    }
+
+    /// The field itself, for a test that wants to look at the caret.
+    pub fn name_field(&self) -> &crate::text::TextField {
         &self.name
     }
 
@@ -302,7 +335,7 @@ impl SaveLoadScreen {
     fn select(&mut self, i: usize) {
         let Some(entry) = self.entries.get(i) else { return };
         self.selected = Some(i);
-        self.name = entry.name.clone();
+        self.name = begin_name(&entry.name);
     }
 
     /// The confirm button - `g_saveLoadWidgets` frame 29, a mailed hand with
@@ -312,8 +345,19 @@ impl SaveLoadScreen {
     fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         match self.mode {
             Mode::Load => {
-                let Some(i) = self.selected.filter(|&i| i < self.entries.len()) else {
-                    self.status = Status::Failed("NO SAVED GAME IS SELECTED".into());
+                // **The path comes from the edit buffer, not from the
+                // highlighted row.** `SaveLoad_Tick` (`0x004AD9F0`) is
+                // `Str_Copy(0x4EA130, 0x4EAD60, 0xC); Path_AddExtension(…)` —
+                // twelve bytes of the *typed* name — and clicking a row is what
+                // puts a name into the buffer. So one road, and the mouse joins
+                // it upstream. Ours read `selected` and ignored what was typed.
+                let name = self.name.text().trim().to_string();
+                let Some(i) = self.entries.iter().position(|e| e.name == name) else {
+                    self.status = Status::Failed(if name.is_empty() {
+                        "NO SAVED GAME IS SELECTED".into()
+                    } else {
+                        format!("{name:?} IS NOT A SAVED GAME")
+                    });
                     return Transition::Stay;
                 };
                 let tables = ctx.game.kingdom.tables;
@@ -333,7 +377,7 @@ impl SaveLoadScreen {
                 }
             }
             Mode::Save => {
-                let name = self.name.trim().to_string();
+                let name = self.name.text().trim().to_string();
                 if !saves::is_valid_name(&name) {
                     self.status = Status::Failed(format!("{name:?} IS NOT A SAVE NAME"));
                     return Transition::Stay;
@@ -353,23 +397,23 @@ impl SaveLoadScreen {
         }
     }
 
-    /// `MAX_NAME` is counted in **bytes**, because that is what
-    /// [`saves::is_valid_name`] checks and what the original's 65-byte list
-    /// records hold. A field that let a name past its own validator would be a
-    /// field whose confirm always fails.
-    fn type_char(&mut self, c: char) {
-        if self.mode != Mode::Save || self.name.len() + c.len_utf8() > saves::MAX_NAME {
-            return;
+    /// **One event into the name field**, and it is live on **both** screens.
+    ///
+    /// `Screen_HandleInput`'s arm is `else if (g_screenId == '5' || g_screenId
+    /// == '6')` — one arm for `0x35` and `0x36` together — so the original lets
+    /// a person **type the name of the game they want to load**, and
+    /// `SaveLoad_Tick` builds the path out of the edit buffer either way rather
+    /// than out of the highlighted row. Ours refused every keystroke unless
+    /// `mode == Save`, which was a restriction we invented; clicking a row
+    /// still fills the field, so the mouse route is unchanged.
+    fn edit(&mut self, event: Event, ctx: &Ctx) -> bool {
+        // arm: 0x004BA9C8/saveload-name
+        let m = crate::text::FontMetrics::of(&ctx.assets.shell);
+        if !self.name.event(event, &m) {
+            return false;
         }
-        self.name.push(c);
         self.status = Status::Idle;
-    }
-
-    fn backspace(&mut self) {
-        if self.mode == Mode::Save {
-            self.name.pop();
-            self.status = Status::Idle;
-        }
+        true
     }
 }
 
@@ -388,29 +432,56 @@ impl Screen for SaveLoadScreen {
 
     /// A `Ui_DrawBox` window over whatever opened it. Same as the four county
     /// panels: `Screen_SaveLoad` clears nothing.
+    /// The caret's blink, and nothing else. `Edit_DrawCaret` counts frames of
+    /// its own; `docs/netcode.md` does not let anything below the renderer read
+    /// a clock, so it is a tick here. See [`crate::text`].
+    fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+        self.name.tick();
+        Transition::Stay
+    }
+
     fn is_overlay(&self) -> bool {
         true
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        // **The field first, on both screens.** See [`SaveLoadScreen::edit`].
+        // It takes `WM_CHAR` and the six editing keys and nothing else, so
+        // Escape, Enter and the four navigation arrows below still arrive —
+        // except Left and Right, which the original spends on the caret here
+        // and which this screen was spending on the file list. The list keeps
+        // Up and Down, which the original spends on nothing at all.
+        if self.edit(event, ctx) {
+            return Transition::Stay;
+        }
         match event {
+            // Ours. `SaveLoad_Cancel` (`0x00434308`) is the cross widget and
+            // nothing reaches it from the keyboard; the window procedure's
+            // Escape arm is `Menu_Quit` or `g_backOut = 1`, neither of which
+            // knows this box exists.
+            //
+            // arm: ours/saveload-key-escape
             Event::KeyDown(Key::Escape) => Transition::Pop,
+            // **Enter is the confirm button, and that is the original's.**
+            // `VK_RETURN` runs `Edit_Confirm` (`0x00401C5B`), whose whole body
+            // is `g_saveLoadConfirm = 100` — the identical assignment the
+            // confirm widget's handler `FUN_004342F3` makes. `SaveLoad_Tick`
+            // reads that latch and does the load or the save. This was a
+            // convenience of ours until the keyboard path was read; it turns
+            // out to be an arm.
+            //
+            // arm: 0x00401C5B/enter-confirms
             Event::KeyDown(Key::Enter) => self.confirm(ctx),
-            Event::KeyDown(Key::Backspace) => {
-                self.backspace();
-                Transition::Stay
-            }
-            // Space is a character in a save name, not a shortcut. Every other
-            // screen in this crate treats it as "confirm"; a text field cannot.
-            Event::KeyDown(Key::Space) if self.mode == Mode::Save => {
-                self.type_char(' ');
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Space) => self.confirm(ctx),
-            Event::KeyDown(Key::Char(c)) if self.mode == Mode::Save => {
-                self.type_char(c);
-                Transition::Stay
-            }
+            // **Space no longer confirms, and could not**: the field takes it
+            // above as a character, on both screens, which is what the original
+            // does — a space is a legal character in a name and `VK_SPACE` has
+            // no `WM_KEYDOWN` arm at all. It used to confirm here, and with the
+            // field live it would have done both.
+            //
+            // Ours. The original scrolls the list from the two arrow *widgets*
+            // and from nothing else.
+            //
+            // arm: ours/saveload-key-scroll
             Event::KeyDown(Key::Up) => {
                 self.scroll(-(SCROLL_STEP as i32));
                 Transition::Stay
@@ -419,17 +490,11 @@ impl Screen for SaveLoadScreen {
                 self.scroll(SCROLL_STEP as i32);
                 Transition::Stay
             }
-            Event::KeyDown(Key::Left) | Event::KeyDown(Key::Right) => {
-                let by = if event == Event::KeyDown(Key::Left) { -1 } else { 1 };
-                // `clamp` panics when its bounds cross, which is what an empty
-                // list would do here — the reason this is a `checked` walk and
-                // not one.
-                if let (Some(i), false) = (self.selected, self.entries.is_empty()) {
-                    let last = self.entries.len() as i32 - 1;
-                    self.select((i as i32 + by).clamp(0, last) as usize);
-                }
-                Transition::Stay
-            }
+            // **Left and Right walked the file list here and no longer do.**
+            // They are `Edit_Left` and `Edit_Right` in the original — caret
+            // keys, taken by the field above — and a screen that spent them on
+            // a list would leave a person unable to move the caret in the one
+            // place the game has a caret. Clicking a row still selects it.
             Event::Click { x, y } => {
                 if widget_rect(CANCEL).contains(x, y) {
                     return Transition::Pop;
@@ -474,14 +539,20 @@ impl Screen for SaveLoadScreen {
             inset_rect(canvas, x, y, w, h);
         }
 
-        // The name field. In save mode it is an edit buffer with a caret; in
-        // load mode it shows what the highlighted row is called, which is what
-        // `DAT_004EA130` holds there too.
-        let shown = match self.mode {
-            Mode::Save => format!("{}_", self.name),
-            Mode::Load => self.name.clone(),
-        };
-        pen.body(canvas, NAME.0, NAME.1, &shown, font::TEXT);
+        // **The name field, with the original's caret rather than a trailing
+        // underscore.**
+        //
+        // The underscore was a stand-in and it was wrong twice over: it was
+        // drawn in save mode only, when the original's edit arm covers both
+        // screens; and `Ui_DrawText` maps `0x5F` to a space
+        // (`if (ch == 0x5F) ch = 0x20;`), so on an install with the real fonts
+        // it drew **nothing at all** — a blank where the caret should be. The
+        // caret is `Edit_DrawCaret` (`0x0040ACCE`) now: it blinks, it sits at
+        // the caret rather than at the end, and it changes shape with insert
+        // mode.
+        pen.body(canvas, NAME.0, NAME.1, &self.name.text(), font::TEXT);
+        let caret_colour = if a.body.is_some() { font::TEXT } else { pen.ink.text };
+        self.name.draw_caret(canvas, NAME.0, NAME.1, caret_colour, &crate::text::FontMetrics::of(a));
 
         // The list: three columns, ten rows, thirty names.
         for i in 0..PAGE {

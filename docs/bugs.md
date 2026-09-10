@@ -501,6 +501,75 @@ than the assumption.
 
 ## 2.10 Screens and navigation
 
+### B79 — Typing your name over the default one leaves the tail of it behind
+
+**[V]**, and it is the first thing anybody meets in the game, so it is worth being sure about.
+
+`Edit_Insert` (`0x00401D26`) has two branches and the *overwrite* one is the default:
+
+```c
+if (!g_editActive) return;
+Edit_Clamp();
+if (g_editState == 2) return;                     /* full: dropped in silence */
+if (g_editInsert == 0) { buf[caret++] = ch; }     /* OVERWRITE — g_editInsert starts at 0 */
+else if (g_editLength < g_editMaxLen) { shift right; buf[caret++] = ch; }
+```
+
+`g_editInsert` is `0x005C9280`, it is BSS, and the **only** thing in the binary that writes it
+is `Edit_ToggleInsert` (`0x00401CA3`) on `VK_INSERT` — `Edit_Begin` does not reset it. So a
+fresh game starts in overwrite.
+
+Setup page 4 seeds the field with the name you already have (`Edit_Begin(&g_options, 0x10,
+0xC0, 0)`, and `g_options`'s name field defaults to `Player1`) and puts the caret at 0. So:
+
+| you type | you get |
+|---|---|
+| `Richard` | `Richard` — seven over seven, and it looks like it works |
+| `Ed` | **`Edayer1`** |
+| `Ed`, then Delete five times | `Ed` |
+| Insert, then `Ed` | `EdPlayer1` |
+
+**Reproduced on purpose.** It is not a crash and not a rules bug; it is what the shipped game
+does, and a person who has played the original and types `Ed` expects `Edayer1`. The two ways
+out — `VK_DELETE` and `VK_INSERT` — are both the original's and both are wired, which is the
+main reason those four keys were added at all rather than only backspace.
+
+**Not switchable, and the test is the one in §6.3:** flipping it cannot change a number in a
+saved game, only which characters a person ends up storing, and they can see it happening while
+they type. It is not presentation either — it changes a stored string — so it is neither, and
+that is fine: a quirk needs a switch only when somebody wants it switched.
+
+**Where:** `crates/l2-game/src/text.rs`, `TextField::put`; `docs/arms.json`
+`0x00401D26/overwrite-default`; tested in `crates/l2-game/tests/text.rs`.
+
+### B80 — The End key cancels a save you have just confirmed
+
+**[V]**, single player, and nobody would find it by playing carefully.
+
+The window procedure's `VK_END` arm calls **two** functions:
+
+```c
+case 0x23:                 /* VK_END */
+  Edit_End();              /* 0x00401D11 — caret to the end of the text     */
+  Chat_Close();            /* 0x004360F2 — and this is the interesting half */
+```
+
+and `Chat_Close`'s whole body is `g_chatTimer = 0; g_saveLoadConfirm = 0; g_redrawRequest = 2;`.
+
+`g_saveLoadConfirm` (`0x005CD41C`) is the save/load box's confirm latch: `VK_RETURN`
+(`Edit_Confirm`, `0x00401C5B`) and the tick widget (`FUN_004342F3`) both set it to 100, and
+`SaveLoad_Tick` (`0x004AD9F0`) is what reads it, builds the path and does the work — **150
+frames later**, because the same block sets `g_fileOpDelay = 0x96`. So there is a window of
+about two and a half seconds after pressing Enter in which End throws the save away.
+
+**Neither half is guarded on `g_multiplayer`**, so this is reachable in a single-player game on
+a real save box. The two counters are cleared by one function because chat and the save box are
+the only two things Return arms, and nothing ever separated them again.
+
+**Not reproduced, and the reason is structural rather than a choice:** our save is immediate and
+has no latch to cancel. `docs/arms.json` records it as `0x004360F2/end-cancels-confirm`,
+`missing`, so that a future change which gives the save a delay has the arm waiting for it.
+
 ### B63 — Closing a screen opened over the village closes the village with it
 
 **Reported by a player, checked by the same player in the original.** *"Things that open a

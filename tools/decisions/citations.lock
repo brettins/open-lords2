@@ -19,7 +19,7 @@ crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609
 crates/l2-game/src/battlefield.rs	C60	ba6ce8d9adf0
 crates/l2-game/src/battlefield.rs	C61	9fa3719be417
 crates/l2-game/src/battlefield.rs	C61	e5b8ebac6d3d
-crates/l2-game/src/game.rs	C30	7a6ba0a3e919
+crates/l2-game/src/game.rs	C30	fdf7eaac6540
 crates/l2-game/src/game.rs	C61	243e22401be3
 crates/l2-game/src/game.rs	C62	1f489b238ce0
 crates/l2-game/src/input.rs	C61	39c868ef7985
@@ -195,6 +195,7 @@ crates/l2-sim/tests/oracle.rs	C17	0f5dbd453b42
 crates/l2-sim/tests/oracle.rs	C20	d336abeab0e5
 crates/l2-testkit/src/lib.rs	C1	365a5efbf069
 crates/l2-testkit/src/pe.rs	C16	e5cf5db27aa8
+crates/l2-testkit/tests/encoding.rs	C30	130487bc012d
 crates/l2-testkit/tests/encoding.rs	C65	5ad0593919a3
 crates/l2-testkit/tests/encoding.rs	C65	6485e961d057
 crates/l2-testkit/tests/encoding.rs	C65	8f3915e3cbfa
@@ -357,6 +358,7 @@ docs/decisions.md	C30	4b4c737d87d7
 docs/decisions.md	C30	7ce287aa9814
 docs/decisions.md	C30	8d6cdbb83ba1
 docs/decisions.md	C30	8ff9c88d60f5
+docs/decisions.md	C30	94db0b4a1797
 docs/decisions.md	C30	d4eccf6a1e2a
 docs/decisions.md	C30	dfdae8119bd5
 docs/decisions.md	C31	0e0873a0f0a9
@@ -412,9 +414,11 @@ docs/decisions.md	C59	f8f78fa7b192
 docs/decisions.md	C61	072b0a786f93
 docs/decisions.md	C61	324c3ac59d0a
 docs/decisions.md	C61	33bb2b912640
+docs/decisions.md	C61	572422b44b0b
 docs/decisions.md	C61	78184451a7a7
 docs/decisions.md	C61	af1e7ea10593
 docs/decisions.md	C61	b465e0d2cdee
+docs/decisions.md	C61	cb0091f01fac
 docs/decisions.md	C61	f6aa494f4261
 docs/decisions.md	C62	caa3cf750af3
 docs/decisions.md	C63	6bf7e86683ab

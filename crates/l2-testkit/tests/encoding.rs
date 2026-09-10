@@ -165,6 +165,64 @@ fn codec_bodies() -> BTreeMap<String, Codec> {
     out
 }
 
+/// **Codecs that are a pair of free functions rather than a trait impl**, named
+/// one by one because there is no keyword to scan for.
+///
+/// `Game` is the whole of the list today and it is the reason the list exists:
+/// `l2_game::save` writes a saved game with `encode`/`encode_prefix` and reads
+/// it with `decode`/`decode_prefix`, and **`impl Encode for Game` does not
+/// exist**, so until now the type at the top of every saved file was the one
+/// type this check made no claim about at all. It was found by adding a field
+/// to `Game` and watching the check stay green.
+///
+/// Both halves of each pair are concatenated, because the field list is split
+/// across them: `kingdom` is named in the outer function and everything else in
+/// the prefix.
+///
+/// **This is the shape to copy if another such codec appears.** A free-function
+/// codec is not a worse design — the prefix genuinely is not a `Canonical`
+/// value — it is just invisible to a scanner that looks for `impl Encode`, and
+/// the cost of that invisibility is `docs/decisions.md` C30's whole family.
+const FREE_FUNCTION_CODECS: &[(&str, &str, &[&str], &[&str])] = &[(
+    "Game",
+    "l2-game",
+    &["fn encode(game: &Game)", "fn encode_prefix("],
+    &["fn decode(", "fn decode_prefix("],
+)];
+
+/// Add [`FREE_FUNCTION_CODECS`] to what `codec_bodies` found.
+fn free_function_codecs(out: &mut BTreeMap<String, Codec>) {
+    let files = rust_files();
+    for (ty, krate, enc_heads, dec_heads) in FREE_FUNCTION_CODECS {
+        let mut enc = String::new();
+        let mut dec = String::new();
+        for path in &files {
+            if crate_of(path) != *krate {
+                continue;
+            }
+            let Ok(src) = std::fs::read_to_string(path) else { continue };
+            for (heads, into) in [(enc_heads, &mut enc), (dec_heads, &mut dec)] {
+                for head in heads.iter() {
+                    let Some(at) = src.find(head) else { continue };
+                    let Some(body) = block_after(&src, at) else { continue };
+                    into.push('\n');
+                    into.push_str(body);
+                }
+            }
+        }
+        assert!(
+            !enc.is_empty() && !dec.is_empty(),
+            "{ty}'s free-function codec did not resolve — the heads in \
+             FREE_FUNCTION_CODECS have been renamed, and a check that silently \
+             stops checking is worse than no check"
+        );
+        let e = out.entry(ty.to_string()).or_default();
+        e.krate = krate.to_string();
+        e.encode = Some(enc);
+        e.decode = Some(dec);
+    }
+}
+
 /// `struct T { … }`'s field names, plus the ones excused by `not-encoded:`.
 fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> {
     // **Resolve inside the codec's own crate first.** `l2_kingdom::unit::Unit`
@@ -208,7 +266,18 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
                     continue;
                 }
                 let Some((lhs, _)) = t.split_once(':') else { continue };
-                let lhs = lhs.trim().trim_start_matches("pub ").trim();
+                // **`pub(crate)` counts.** Stripping only `pub ` left a
+                // `pub(crate) turn: …` field with a parenthesis in its name,
+                // which the alphanumeric guard below then dropped in silence —
+                // so a restricted field was invisible to this check for exactly
+                // as long as nobody looked. Found while bringing `Game` in.
+                let lhs = lhs.trim();
+                let lhs = lhs
+                    .strip_prefix("pub(crate) ")
+                    .or_else(|| lhs.strip_prefix("pub(super) "))
+                    .or_else(|| lhs.strip_prefix("pub "))
+                    .unwrap_or(lhs)
+                    .trim();
                 if lhs.is_empty()
                     || !lhs.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
                     || lhs.chars().next().is_some_and(|c| c.is_ascii_uppercase())
@@ -228,6 +297,29 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
         }
     }
     None
+}
+
+/// A codec body with its **comments removed**.
+///
+/// [`mentions`] matches text, and until this existed the text it matched
+/// included the prose. That is not a nicety: the check was ablated by deleting
+/// the loop that encodes `Game::player_names`, and it **stayed green**, because
+/// the comment above the deleted loop still said the words `player_names`. The
+/// better a field is documented at its encoder, the less this check was able to
+/// say about it — which is exactly backwards, and is `docs/agents.md`'s *"a
+/// check that passes for an accidental reason is indistinguishable from one
+/// that passes for the right reason"* with the accident being good writing.
+///
+/// Line comments only. A `/* */` inside a codec body would need brace-safe
+/// scanning and there are none; if one appears, this comment is where to say so.
+fn without_comments(body: &str) -> String {
+    body.lines()
+        .map(|line| match line.find("//") {
+            Some(at) => &line[..at],
+            None => line,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn mentions(body: &str, field: &str) -> bool {
@@ -274,8 +366,9 @@ const UNVERIFIABLE: &[&str] = &[
 /// be named in both.
 #[test]
 fn every_field_of_an_encodable_struct_is_encoded_and_decoded() {
-    let bodies = codec_bodies();
+    let mut bodies = codec_bodies();
     assert!(bodies.len() >= 15, "found only {} codec impls; the scanner is broken", bodies.len());
+    free_function_codecs(&mut bodies);
 
     let mut missing: Vec<String> = Vec::new();
     let mut checked = 0usize;
@@ -287,6 +380,8 @@ fn every_field_of_an_encodable_struct_is_encoded_and_decoded() {
         // A type with only one half is an enum wire format or a hand-rolled
         // pair; this check is about structs whose field list is the contract.
         let (Some(enc), Some(dec)) = (enc, dec) else { continue };
+        // **Code, not prose.** See `without_comments`.
+        let (enc, dec) = (&without_comments(enc), &without_comments(dec));
         let Some((fields, excused)) = struct_fields(ty, &c.krate) else {
             unverifiable.push(format!("{ty} ({})", c.krate));
             continue;

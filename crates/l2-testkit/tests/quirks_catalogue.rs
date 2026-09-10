@@ -304,6 +304,13 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // switchable -- turning it off would mean inventing the write-back the solo
     // path does not do, which is a different game rather than a fixed bug.
     ("B76", Unswitchable("single-player arm reproduced; the other arm is multiplayer")),
+    // The two text-entry defects, both reproduced in `l2_game::text` and both
+    // behavioural in the sense that they change what a saved game is called --
+    // but neither reaches the simulation or the digest, because a filename is
+    // not state the rules read. Unwired rather than presentation: a switch for
+    // either would change what the field CONTAINS, not which pixels show it.
+    ("B79", Unwired("crates/l2-game/src/text.rs, the overwrite branch")),
+    ("B80", Unwired("crates/l2-game/src/text.rs, the End-key arm")),
 ];
 
 /// How many rows `l2_game::game::PRESENTATION` has.
