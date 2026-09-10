@@ -471,6 +471,117 @@ Three rules that catch people out:
 Alliances are exclusive — one at a time — and decay on their own through a grudge counter.
 Two warnings, and then war permanently.
 
+
+## 7a. Which lord flies which colour — the description and the rule
+
+**A player, from play:** *"the game will always try to give the Knight yellow, the Countess
+blue, the Bishop purple/pink — I can't remember for Baron — and it'll move a noble's colour
+around if you pick it."*
+
+Every colour in that sentence is right, and the Baron he could not remember is **black**. But
+the sentence is a true description of what you see and a **false description of the rule**,
+and the two come apart the moment you pick a colour in the middle. This section gives both
+halves, because the description is the useful one at the table and the rule is the one a
+reimplementation has to build.
+
+### What you see
+
+Start England, take red, and you get exactly what he describes:
+
+| shield | colour | lord |
+|---:|---|---|
+| 1 | red | *you* |
+| 2 | yellow | the Knight |
+| 3 | black | the Baron |
+| 4 | magenta | the Bishop |
+| 5 | blue | the Countess |
+
+Confirmed against `england-turn1.sav`: realms 2 … 5 hold shields 2 … 5 and lords 1, 2, 4, 3
+— Knight, Baron, Bishop, Countess — which is this table exactly.
+
+### What the game actually does  **[V]**
+
+`Realms_AssignLords` (`0x0049CAAA`), in order:
+
+1. Mark every **human's** chosen shield as taken. The colour comes off setup page 4,
+   *"Choose your title and your shield"*, and is stored in the player-name record at
+   `g_playerNames + realm * 0x2C + 0x25`.
+2. Walk realms **1 … 5 in realm order**. For each realm that is not human, and while there
+   are AI lords left to hand out:
+   - **give it the lowest shield 1 … 5 that nobody has taken yet**, and mark it taken;
+   - then **choose its lord from that shield**: `g_lordChoice[(scenario & 3) * 0x14 +
+     shield * 4 + n]` for `n` = 0 … 3, taking the first lord no earlier realm has taken.
+3. Copy the shield's two text pens out of `g_realmColour` into realm `+0x08` and `+0x09`
+   (§2.2a of `docs/screens-county.md`).
+
+**The causality runs colour → lord, not lord → colour.** No lord has a preference and none
+is consulted; the shield is handed out by *position in the walk*, and the lord is a function
+of the shield. A default England game looks like preference because `g_lordChoice`'s group 0
+leads slot 2 with the Knight, slot 3 with the Baron, slot 4 with the Bishop and slot 5 with
+the Countess — the appearance of ownership is the table's first column, not a rule.
+
+### Where the two readings come apart
+
+**Take yellow — shield 2 — and the Knight does not move to another colour. He becomes the
+black lord, and the Baron becomes the red one:**
+
+| you take | realm 2 | realm 3 | realm 4 | realm 5 |
+|---|---|---|---|---|
+| 1 red | Knight yellow | Baron black | Bishop magenta | Countess blue |
+| **2 yellow** | **Baron red** | **Knight black** | Bishop magenta | Countess blue |
+| 3 black | Baron red | Knight yellow | Bishop magenta | Countess blue |
+| 4 magenta | Baron red | Knight yellow | **Countess black** | **Bishop blue** |
+| 5 blue | Baron red | Knight yellow | Countess black | Bishop magenta |
+
+Read down the Knight's column and *"the game always tries to give the Knight yellow"* holds
+in four rows out of five — which is why it is a good description. Read row 2 and it fails,
+and it fails in a way no preference rule would produce: the Knight ends up on the colour that
+was left when the walk reached him, and it is the **Baron** who takes red because red's own
+candidate list names him first.
+
+The derivation, for row 2: shields taken = {2}. Realm 2 is the first AI, takes the lowest
+free shield, **1**; slot 1's list is `[Baron, Knight, Countess, Bishop]`, so it is the Baron.
+Realm 3 takes 3; slot 3's list is also `[Baron, Knight, …]`, the Baron is gone, so it is the
+Knight.
+
+### The one place a lord *does* own a colour  **[V]**
+
+There is a genuine per-lord preference table, and it is not on this path.
+`g_battleLordShield` (`0x004D4CA8`) is two words per lord — `{preferred, alternate}` — and
+`FUN_0042BA40`, which invents an opponent for a **custom battle**, reads it as *"if the human
+already has my preferred colour, take my alternate"*:
+
+| lord | prefers | falls back to |
+|---|---|---|
+| Knight | 2 yellow | 4 magenta |
+| Baron | 1 red | 5 blue |
+| Countess | 5 blue | 1 red |
+| Bishop | 4 magenta | 2 yellow |
+
+That is preference-then-fallback, exactly the mechanism the player described — and three of
+his four colours are in its first column. It governs the skirmish and nothing else. Checked
+against the fixtures: the battle triple and the turn pair all have the human on shield 5 and
+the Baron on shield 1, which is the Baron's preferred colour taken because the human's 5 is
+not it.
+
+**So the player was remembering a real table.** It is per-lord, it is in the binary, and it
+belongs to a different screen from the one he was describing.
+
+### What we implement, and what we do not
+
+`l2_scenario::newgame::assign_lords` reproduces step 2's **lord** half against `LORD_CHOICE`
+and hard-codes the **shield** half as `shield = realm`. That is correct for every game where
+the human is realm 1 and takes shield 1, and wrong for the other four colours — it is the
+default mistaken for the rule, in code. The gap is latent rather than live: `NewGame` has no
+shield field at all, so nothing can yet pick a colour to break it. Closing it needs the
+setup page's chosen shield carried into `NewGame` and the walk written as first-unused.
+`docs/mechanics.md` carries the gap.
+
+**No fixture can settle this.** All eleven `.sav` files this project keeps have the human on
+shield 1 or shield 5 — never a middle colour — so none of them exercises a collision that
+the two readings disagree about. The table above is derived from the walk, which is why it is
+marked **[V]** and why it was not read off a save.
+
 ---
 
 ## 8. Battle

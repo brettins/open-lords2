@@ -1037,9 +1037,29 @@ fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapE
 /// `Realms_AssignLords` (`0x0049CAAA`)'s lord half.
 ///
 /// Realm 1 is the person and takes no lord. Each AI realm takes its colour
-/// slot's first candidate from [`LORD_CHOICE`] that no earlier realm has taken;
-/// the colour slot is the realm id, because `Game_SetupRealms` seeds
-/// `shieldIndex = i` and only a custom game's colour picker permutes it.
+/// slot's first candidate from [`LORD_CHOICE`] that no earlier realm has taken.
+///
+/// # `shield = realm` is the default, not the rule
+///
+/// This line used to read *"the colour slot is the realm id, because
+/// `Game_SetupRealms` seeds `shieldIndex = i` and only a custom game's colour
+/// picker permutes it."* The effect is right and the mechanism is not, and the
+/// difference is visible the moment a person picks a colour that is not red.
+///
+/// `Realms_AssignLords` marks every **human's** chosen shield as taken — off
+/// setup page 4, stored at `g_playerNames + realm * 0x2C + 0x25` — and then
+/// walks realms 1 … 5 giving each AI **the lowest shield nobody has taken**.
+/// With the human on realm 1 holding shield 1 those are 2, 3, 4, 5, which is
+/// the realm id; with the human holding shield 2 they are 1, 3, 4, 5, and every
+/// AI's colour *and lord* moves. The lord is a function of the colour, not the
+/// other way round, so a displaced colour is a displaced lord.
+///
+/// **The gap is latent, not live.** [`NewGame`] carries no chosen shield, so
+/// nothing can yet ask for a colour this would get wrong. Closing it means
+/// carrying the setup page's shield into [`NewGame`] and replacing
+/// `let shield = realm` below with the first-unused walk. `docs/rules.md` §7a
+/// has the full table, including what the Knight actually gets when you take
+/// yellow, and `docs/mechanics.md` carries the gap.
 ///
 /// **`[D]` on the group.** The original picks the deterministic group 0 when
 /// `DAT_0055302C == 1` and `(g_scenarioIndex & 3)` otherwise, and what
@@ -1052,6 +1072,9 @@ fn assign_lords(slot: usize, lords: usize) -> [u8; MAX_REALMS] {
     let mut lord = [0u8; MAX_REALMS];
     let mut used = [false; 8];
     for realm in 2..=lords.min(MAX_REALMS - 1) {
+        // The default arrangement only — see this function's note. The real
+        // walk gives each AI the lowest shield no human has taken, which is the
+        // realm id exactly when the person is realm 1 holding shield 1.
         let shield = realm;
         for n in 0..4usize {
             let at = group * 0x14 + shield * 4 + n;

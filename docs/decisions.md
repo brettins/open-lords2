@@ -4914,6 +4914,51 @@ of a palette: the table was already in the binary, already in `symbols.json` wit
 pairs written out, and had been there since somebody read `Realms_AssignLords`. Nothing
 connected it to the screen that needed it.
 
+**And the same player, a message later, on how the colours are handed out:** *"the game will
+always try to give the Knight yellow, the Countess blue, the Bishop purple/pink — I can't
+remember for Baron — and it'll move a noble's colour around if you pick it."* Every colour is
+right and the Baron he could not remember is black. The framing is the interesting part,
+because it is a **true description and a false rule**, and it took a third reading to see that
+the arrow points the other way.
+
+The suggestion reaching me was that this would be one of two things: pure first-unused walked
+in *lord* order, or preference-then-fallback. It is neither. `Realms_AssignLords` assigns the
+**shield first**, by position — the lowest colour no human has taken, walking realms 1 … 5 —
+and then picks the **lord from the colour**, out of `g_lordChoice`, four candidates per shield.
+No lord is consulted and none has a preference. A default England game looks like ownership
+because group 0's lists lead slot 2 with the Knight, 3 with the Baron, 4 with the Bishop and 5
+with the Countess.
+
+The two readings part exactly where he said they would, and neither of the two guesses
+survives: **take yellow and the Knight does not move to another colour of his own — he becomes
+the black lord, and the Baron becomes the red one**, because red's list names the Baron first
+and the walk reaches red before black. Over the five colours a person can take, "the Knight
+gets yellow" holds in four and fails in the fifth. That is what makes it a good description and
+a bad rule, and it is the shape `docs/rules.md` now carries in both halves.
+
+**He was remembering a real table, and it exists.** `g_battleLordShield` (`0x004D4CA8`) is two
+words per lord, `{preferred, alternate}` — Knight yellow else magenta, Baron red else blue,
+Countess blue else red, Bishop magenta else yellow — and `FUN_0042BA40` reads it as *"if the
+human has my colour, take my other one"*. Genuine preference-then-fallback, three of his four
+colours in its first column, and it governs the **custom battle** and nothing else. A player
+whose description matches a table that exists but belongs to a different screen is not
+misremembering; he is reporting from the part of the game he last saw it in, and the useful
+response is to find both tables rather than to pick one.
+
+**What no fixture could settle.** All eleven `.sav` files here have the human on shield 1 or
+shield 5 — never a middle colour — so not one of them exercises a collision the readings
+disagree about. The eleven-save check that settled the *key* in the paragraphs above is
+silent on the *walk*, and saying which of two questions a body of evidence answers is the
+whole of not over-claiming from it. The walk is read from the walk; `docs/rules.md` §7a's
+table is derived and marked so, and the row a fixture *can* confirm — the England default —
+is asserted against `england-turn1.sav` as the one anchor the derivation has.
+
+**One thing this leaves behind.** `l2_scenario::newgame::assign_lords` hard-codes
+`shield = realm`, which is the default mistaken for the rule, in code, with a doc comment that
+said so as a mechanism. The comment is corrected and the gap is recorded rather than closed:
+`NewGame` has no shield field, so nothing can yet pick a colour to break it, and closing it is
+the setup screen's work rather than this one's.
+
 
 ## Open questions
 
