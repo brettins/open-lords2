@@ -1399,3 +1399,96 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
         opaque_per_band[0], opaque_per_band[1], opaque_per_band[2],
     );
 }
+
+/// **`Flags1a.pl8`'s two blocks that `docs/draws-map.md` identified, asserted against the
+/// player's own file — with every index a literal out of the decompilation.**
+///
+/// Neither block is drawn by this engine yet, and that is exactly why they are pinned now:
+/// the expensive mistake on this screen has always been building the *right* mechanism onto
+/// the *wrong* frame block (`docs/decisions.md` C49 lost four documents to it), and a block
+/// boundary is something the file can refute before any code exists.
+///
+/// **Nothing here is computed from one of our constants.** Every number below is typed from
+/// `Sprite_TopIt` (`0x004071A0`) and `Map_DrawArmies` (`0x00408438`) — which is the trap the
+/// cattle offset fell into once, where the probe was derived from the constant it was
+/// testing and ablation therefore proved nothing.
+///
+/// Three claims:
+///
+/// 1. **The herd ladder saturates; it does not overflow.** `Sprite_TopIt`'s farm arm is
+///    `frame = (content - 0x14) * 6 + phase + 0x55` guarded by
+///    `if (2 < (byte)(content - 0x14)) return`, and `phase` is `DAT_0057D388 >> 4` with the
+///    counter wrapped at `0x60`, so `0 … 5`. The largest index reachable is therefore
+///    `2*6 + 5 + 0x55 = 0x66`, and **`0x66` must be the last `58 × 30` frame of the run**
+///    while `0x67` must not be one. That is the whole of the answer to *"is the three-band
+///    graphic against the four-band meter a live out-of-bounds?"* — it is not.
+///
+/// 2. **`0x28 … 0x37` is one sixteen-frame `32 × 24` block**, the damage animation
+///    `Sprite_TopIt` draws over a razed dwelling (`flags 0x10`, `content 0x13`) and over an
+///    industry site shut down for three seasons or more. `0x27` before it is the last of the
+///    forty flag frames and `0x38` after it is the first `15 × 15` path ball, so the block's
+///    two boundaries are both checkable, and an index off by one breaks a size.
+///
+/// 3. **`0x79 … 0x80` is one eight-frame block** — the peasant mob's banner,
+///    `Map_DrawArmies`' `frame = 0x79 + phase` for `unit.kind == 2`, with eight phases
+///    because `DAT_0057D390` is `DAT_0057D378 >> 4` wrapped at `0x80`. `0x78` before it is
+///    the last of the `2 × 2` stubs the herd test already names, and `0x81` after it is the
+///    mercenary marker `Sprite_TopIt` draws on the town's north-east quadrant.
+///
+///    **The frames are `16 × 42`, and the first draft of this test said `32 × 24`** — the
+///    size of the *realm* flags at the head of the sheet, assumed rather than read. The
+///    file said so on the first run. Recorded because it is the whole argument for
+///    asserting a block you have not built yet: a tall narrow standard on a pole is a
+///    different picture from a wide waving banner, and nothing but the sheet was ever
+///    going to say which.
+#[test]
+fn the_flags_sheet_damage_and_mob_banner_blocks_are_where_sprite_topit_says() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("skipping: no install");
+        return;
+    };
+    let bytes = read(&dir, "Flags1a.pl8").expect("Flags1a.pl8");
+    let sheet = Sheet::new(bytes).expect("parse");
+    let size = |i: usize| {
+        let f = sheet.frame(i).unwrap_or_else(|| panic!("Flags1a.pl8 has no frame {i:#04x}"));
+        (f.width, f.height)
+    };
+
+    // 1 — the herd ladder's top, from Sprite_TopIt's own arithmetic.
+    let top = 2 * 6 + 5 + 0x55;
+    assert_eq!(top, 0x66, "(content-0x14)*6 + phase + 0x55 tops out at 0x66");
+    assert_eq!(size(top), (58, 30), "frame 0x66 is the last full-tile meadow");
+    assert_ne!(size(top + 1), (58, 30), "frame 0x67 must be past the end of the meadows");
+
+    // 2 — the damage block, and both of its boundaries.
+    assert_eq!(size(0x27), (32, 24), "0x27 is the fortieth flag frame");
+    for f in 0x28..=0x37 {
+        assert_eq!(size(f), (32, 24), "frame {f:#04x} is not part of the damage block");
+    }
+    assert_eq!(size(0x38), (15, 15), "0x38 is the first path ball, not damage");
+
+    // The animation burns down: warm pixels fall away and grey rises. Palette-free, so it
+    // cannot be fooled by a different Base01.256 - "warm" is the run of orange/brown entries
+    // 0xC0..0xD8 the flame is drawn from, read off the sheet rather than from a name.
+    let warm = |i: usize| {
+        let f = sheet.frame(i).expect("frame");
+        f.indices
+            .iter()
+            .zip(f.opaque.iter())
+            .filter(|(&v, &o)| o && (0xC0..=0xD8).contains(&v))
+            .count()
+    };
+    assert!(
+        warm(0x2E) > warm(0x37),
+        "the damage animation should end colder than its middle: {} then {}",
+        warm(0x2E),
+        warm(0x37),
+    );
+
+    // 3 — the mob banner, eight phases, after the 2x2 stubs.
+    assert_eq!(size(0x78), (2, 2), "0x78 is the last of the vestigial stubs");
+    for f in 0x79..=0x80 {
+        assert_eq!(size(f), (16, 42), "frame {f:#04x} is not part of the mob banner");
+    }
+    assert_ne!(size(0x81), (16, 42), "0x81 is the mercenary marker, not a ninth phase");
+}

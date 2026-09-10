@@ -229,8 +229,17 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
 /// returns on the first match, so y 96 and 97 select mode 2. **That is the
 /// original's own data**, transcribed rather than tidied.
 /// What our status line calls each overlay. **Ours** — the original labels them
-/// only with the button icons and the badge, and `L2.eng` has no strings for
-/// them.
+/// only with the button icons and the badge.
+///
+/// **`L2.eng` does have words for them, and this comment said it did not.** The
+/// original's tooltip layer (`FUN_00476E95`, gated on `g_optToolTips`) resolves
+/// the three mode buttons through `FUN_00477320` to hotspot ids 2, 3 and 4 and
+/// draws group **220** at those indices: *"Labour, red if needed, purple if
+/// idle."*, *"Ration status"* and *"Overall happiness"* — with *"Overview map"*
+/// on the fourth button and *"Return census map to empire mode"* (index 31) once
+/// an overlay is up. `docs/draws-map.md` §5.1, **CNEW-tooltips**. Ours are still
+/// ours, because a status line is not a tooltip; the point is that the wording
+/// exists to be used when the tooltip layer is built.
 fn minimap_mode_name(mode: MinimapMode) -> &'static str {
     match mode {
         MinimapMode::Owner => "OWNERS",

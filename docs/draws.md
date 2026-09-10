@@ -135,6 +135,10 @@ are wrong in ways that look plausible.
 * **The campaign map.** It is the screen the player looks at for 95% of a session, it has
   the most drawing by far, and it was not enumerated here. Any cost estimate that does not
   include it is an estimate of the easy part.
+  **Done: `docs/draws-map.md`**, in this file's §5 shape — a listing beside the code with the
+  number derived by `tools/draws/mapdraws.js` rather than typed. **139 draw calls, 121 live,
+  59 reproduced**, against 20 of 25 input arms on the same two screen ids: *we answer four
+  gestures in five and draw one picture in two.* The day it cost was the day estimated.
 * **Whether the `L2.eng` check would have caught the armoury's group 16 in practice.** It
   would have caught the *index* being absent. Group 16 index 6 exists — it is a mercenary
   nationality — so the check passes and the screen is still filed under the wrong group. The
