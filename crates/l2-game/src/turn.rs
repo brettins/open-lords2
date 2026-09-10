@@ -813,21 +813,50 @@ fn question_for(
         })
     };
     let (attacker_owner, attacker_men, besieged, a_human, attacker_roster) = read(attacker);
-    let (defender_owner, defender_men, _, d_human, defender_roster) = read(defender);
+    // The defender's `ownerIsHuman` is deliberately **not** read:
+    // `Battle_ChooseSettlement` never looks at it, and reading it is what the
+    // paraphrase below replaced got wrong.
+    let (defender_owner, defender_men, _, _, defender_roster) = read(defender);
     let county = if is_siege { besieged } else { units.get(defender).map_or(0, |u| u.county) };
-    // `g_battleChoiceOwner`. A player who owns neither army is only told about
-    // the battle; otherwise the attacker holds the choice, and the defender is
-    // told that his opponent holds it.
+    // **`g_battleChoiceOwner`**, and this is `Battle_ChooseSettlement`
+    // (`0x004A6A30`) rather than a paraphrase of it, because the paraphrase was
+    // wrong in the one case that mattered:
+    //
+    // ```c
+    // g_battleChoiceOwner = 0;
+    // if (units[armyA].owner == localPlayer) g_battleChoiceOwner = 1;
+    // if (units[armyB].owner == localPlayer)
+    //     g_battleChoiceOwner = units[armyA].ownerIsHuman ? 2 : 1;
+    // ```
+    //
+    // Two `if`s, not an `else if` chain, and **the B arm overrides the A arm**.
+    // Read it out loud: *a human defender attacked by an AI holds the choice
+    // himself.* Only two humans put the choice in the other man's hands.
+    //
+    // > **What this cost.** The version here tested `!d_human` where the
+    // > original tests `!a_human`, so a human whose castle an AI besieged was
+    // > handed `choice_owner = 2` — the *"your opponent has the choice"* notice,
+    // > which `Battle_ChooseSettlement` draws with **zero widgets**
+    // > (`DAT_00554408 = 2` only under `choiceOwner == 1`). In the original a
+    // > bystander's prompt waits for the multiplayer answer timeout; single
+    // > player has no such timeout, so ours waited for ever with the turn
+    // > suspended and both armies standing on one tile. **A player besieged by
+    // > an AI could not end his turn.** It was unreachable until phase 2 could
+    // > raise a siege prompt, which is the shape `docs/agents.md` C27 keeps
+    // > describing: a defect nobody could get to is a defect nobody finds.
+    // > `docs/decisions.md` `C80`.
+    //
+    // It is also the gate on every garrison verb there is: the defender's
+    // drawbridge button lives on the battlefield, and until this was right no
+    // besieged human could reach the battlefield at all.
     let me = game.player;
-    let choice_owner = if me != attacker_owner && me != defender_owner {
-        0
-    } else if me == defender_owner && a_human {
-        2
-    } else if me == attacker_owner || !d_human {
-        1
-    } else {
-        2
-    };
+    let mut choice_owner = 0u8;
+    if me == attacker_owner {
+        choice_owner = 1;
+    }
+    if me == defender_owner {
+        choice_owner = if a_human { 2 } else { 1 };
+    }
     Question {
         attacker,
         defender,

@@ -283,6 +283,15 @@ fn furnished(seed: u64) -> Kingdom {
         c.castle_degraded = (id % 3) as u8;
         c.castle_ruined = id % 2 == 1;
         c.castle_level_left = (id % 5) as u8;
+        // What the last siege left on this castle — `VERSION` 15.
+        c.siege_scars = l2_kingdom::siege::SiegeScars {
+            moat_filled: (n % 97 + 1) as u16,
+            wall_damage: (n % 53 + 2) as u16,
+            breach_score: n * 3 + 11,
+            approach_score: n * 5 + 13,
+            ramparts_breached: (id % 7 + 1) as u8,
+            gate_open: id % 2 == 0,
+        };
         c.castle_switch = id % 3 == 1;
         c.castle_percent = (n % 101) as u8;
         c.castle_work_left = n * 13 + 1;
@@ -598,7 +607,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // sure it does.
     // and +8 at the same version for `Options::quirks`, a u64 bitfield on the
     // kingdom. THREE branches bumped to 14 on the same day; every delta applies.
-    assert_eq!(c.finish().len, 57_232, "the state encoding changed - bump VERSION?");
+    //
+    // +238 at version 15 for `County::siege_scars`: fourteen bytes a county —
+    // two `u16`, two `i32`, a `u8` and a `bool` — over 17 county slots.
+    assert_eq!(c.finish().len, 57_470, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

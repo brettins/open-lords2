@@ -311,6 +311,13 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // either would change what the field CONTAINS, not which pixels show it.
     ("B79", Unwired("crates/l2-game/src/text.rs, the overwrite branch")),
     ("B80", Unwired("crates/l2-game/src/text.rs, the End-key arm")),
+    // Both from the siege battle, both reproduced and neither wired: a repeat
+    // assault billing the same repair twice is a rule the original has, and
+    // switching it would change what a siege costs; the drawbridge search
+    // missing a break is a defect with no observable consequence, because the
+    // scan finds the same cell either way.
+    ("B84", Unwired("crates/l2-sim/src/runner.rs, the repair bill")),
+    ("B85", Unswitchable("no observable difference: the scan finds the same cell")),
 ];
 
 /// How many rows `l2_game::game::PRESENTATION` has.

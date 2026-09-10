@@ -274,15 +274,6 @@
       "comment": "Siege-engine frames while the engine is doing its job. Reads g_horseWalkCycle.",
       "basis": "the sibling of Anim_EngineMove; called by the firing and dying engine states",
       "caveat": "Same shape as Anim_EngineMove with a longer animPhase range (0xA0 up for a catapult once swingTimer passes 100, 0x8F down for a ram) and the horse cycle table. That the longer animation is the working one is inference from the callers."
-    },
-    {
-      "addr": "0x0049694F",
-      "name": "Siege_BreachCells",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "Converts the cells around (x, y) to surface 4 - the breached-wall surface Siege_FindCellSurface4 then looks for.",
-      "basis": "called by BattleMan_StateAttackWall and BattleMan_StateRamGate at exactly the two damage thresholds, with (x, y, 4)",
-      "caveat": "The third argument is 4 and the two callers are the wall-damage accumulators, so \"turn this patch of wall into surface 4\" is the only reading that fits. The extent it paints was not read; docs/battle-ai.md 9 records the same uncertainty for the neighbouring 0x00496B9F."
     }
   ],
   "fields": [

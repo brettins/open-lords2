@@ -505,6 +505,12 @@ pub struct County {
     /// down, read only when [`County::castle_degraded`] is 2.
     /// [`crate::siege::assault_castle_level`] is its one reader here.
     pub castle_level_left: u8,
+    /// `+0x1E4` … `+0x1F1` — **what the last siege left**, written by
+    /// [`crate::siege::record_castle_damage`] and read back by
+    /// [`crate::siege::scars_for_assault`] when the next assault opens on the
+    /// same castle. See [`crate::siege::SiegeScars`] for why the round trip is
+    /// the point.
+    pub siege_scars: crate::siege::SiegeScars,
     /// `+0x1B0` — **the castle-building switch**, thrown from the map the same
     /// way an industry is: [`crate::industry::toggle_from_map`] with
     /// [`crate::industry::MapToggle::Castle`].
@@ -768,6 +774,7 @@ impl County {
             castle_degraded: 0,
             castle_ruined: false,
             castle_level_left: 0,
+            siege_scars: crate::siege::SiegeScars::default(),
             castle_switch: false,
             castle_percent: 0,
             castle_work_left: 0,

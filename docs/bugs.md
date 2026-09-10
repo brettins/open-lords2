@@ -761,19 +761,78 @@ short opens it, four sticks short (`Pct(4, 400) == 1`) shuts it.
 
 ### B69 — A siege bills the repair in the material the castle is made of
 
-**Identified and not yet reproduced.** **[V].**
+**Reproduced.** **[V].**
 
 `Siege_RecordCastleDamage` (`0x004784CA`) is the only writer of `castleDegraded = 2`, and it
 bills the repair from `g_castleLevel`: below 2 — a palisade or a motte and bailey — it charges
 `wallDamage * 10` in **wood**, and at 2 or above `wallDamage * 15` in **stone**, with the work
-at `breachDamage * 5 + wallDamage * 15` either way. When a build was already under way it
+at `moatFilled * 5 + wallDamage * 15` either way. When a build was already under way it
 **adds** to the existing totals, so besieging a half-built castle makes the job bigger than
 the castle was.
 
-Not in this tree: every number comes from two battle-side accumulators `l2-sim` does not
-keep, and the autocalc path produces no wall damage at all. Written down here and on
-`l2_kingdom::siege::CASTLE_DEGRADED_DAMAGED` so that the three readers of that constant are
-known to be reachable only from their own tests.
+> **The entry used to say *"identified and not yet reproduced"*, and the reason it gave was
+> half right.** *"Every number comes from two battle-side accumulators `l2-sim` does not
+> keep"* — it keeps both now, as `SiegeState::moat_filled` and `SiegeState::wall_damage`,
+> written by the moat fill and by a catapult's wall collapse.
+>
+> *"And the autocalc path produces no wall damage at all"* — that half is **not** a gap, it
+> is the rule, and it is stronger than it looked. `Siege_RecordCastleDamage` has exactly one
+> caller and it is **not** `Battle_ReturnToCampaign`: it is `FUN_004782C5`, the outcome
+> banner's frame counter, which runs it at frame 5001 and then the write-back and then the
+> return. `Battle_Decline`, the Retreat button and the Autocalc button all leave for screen
+> `0x13` without passing that counter. So **a battle you gave up on un-does the castle
+> damage exactly as it un-does the casualties**, and a repair is billed only for a siege
+> somebody watched to its end. `crates/l2-game/tests/siege_battle.rs` asserts both halves —
+> the bill after the banner, and no bill after the Autocalc button — through played clicks.
+>
+> **`docs/symbols.md` called the first accumulator `breachDamage` and that is a misnomer.**
+> `DAT_0057A0D8` has three writers in the whole binary: `Battle_Start` zeroes it,
+> `Siege_RestoreCastleDamage` restores it from the county, and **`Moat_Fill` adds one**.
+> Nothing about a breach touches it. It counts cells of ditch shovelled full, which is why
+> it only ever reaches the *work* line — five man-seasons of digging a cell, and not a stick
+> of wood.
+
+The three readers of `l2_kingdom::siege::CASTLE_DEGRADED_DAMAGED` are reachable from a
+played route now, which is what the note on that constant existed to ask for.
+
+### B84 — a repeat assault bills the same repair twice
+
+**Reproduced, and flagged rather than fixed.** **[V]** on the round trip, **[I]** that nobody
+meant it.
+
+`Siege_RestoreCastleDamage` (`0x004787A4`) is the last statement but one of
+`Battlefield_BuildCastle`, and when the county is mid-repair it copies the *previous* siege's
+two accumulators back into `DAT_0057A0D8` and `DAT_0056D648`. Nothing zeroes them again. So
+the next assault on the same castle opens with both non-zero, `Siege_RecordCastleDamage`'s
+first `if` passes however peacefully that assault went, and the whole of the first siege's
+bill is added to the totals a second time.
+
+Reproduced because it is the round trip that makes the six stored fields *state* rather than
+a write-only report, and the double bill falls out of the same three statements. A switch
+would have to decide which of the two the restore is for, and nothing in the binary says.
+
+### B85 — the drawbridge search is missing a `break`
+
+**Reproduced, because there is nothing to reproduce.** **[V]** on the control flow, **[I]**
+that it is harmless.
+
+`Siege_LowerDrawbridge` (`0x00496B9F`) scans for the first cell flagged `0x40` with
+
+```c
+for (y = 0; y < 0x50; y++)
+    for (x = 0; x < 0x50; x++) {
+        if (flags[off] & 0x40) { found = true; break; }
+        off += 8;
+    }
+```
+
+The `break` leaves only the **inner** loop, and the offset is not advanced on the iteration
+that broke — so every remaining row re-tests the same cell, finds `0x40` again and breaks
+again. The answer is unaffected: the offset stops at the first such cell either way. What it
+leaves behind is `g_foundTileX = 0` and `g_foundTileY = 0x50`, a battlefield-wide scratch
+pair that half the siege code writes before reading. Nothing was found that reads them
+between here and their next write, which is why this is `[I]` rather than a second entry in
+§2.
 
 ### B68 — Building a castle stops a county mining, and only the AI knows
 

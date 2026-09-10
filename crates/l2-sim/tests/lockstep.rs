@@ -718,7 +718,47 @@ impl Simulation for RunnerNetBattle {
             // exchanged before that agreed.
             out.u32(f.progress.tick_counter);
             out.u32(f.progress.substep);
+            // **The moat.** Which cell a figure is shovelling into, and how far
+            // through the current load it is, decide when a ditch stops being
+            // water — and a filled ditch changes what the pathfinder can reach
+            // for *both* armies. Two peers that disagreed about either would be
+            // walking men through different castles a few hundred frames later.
+            out.u32(f.moat_cell.unwrap_or(u32::MAX));
+            out.u8(f.moat_load);
         }
+        out.end_section();
+
+        // **The castle.** `SiegeState`'s doc comment has claimed since it was
+        // written that it "is part of the lockstep checksum for the same reason
+        // everything else there is". It was not — nothing here mentioned it,
+        // and the census below only walks `Missile` and `Fighter`, so the claim
+        // could not fail. It is true now and the census walks `SiegeState` too.
+        //
+        // The **battlefield itself** goes in with it, folded rather than
+        // written out cell by cell because this runs once a tick over 6,400
+        // cells. On a field battle nothing here ever changes and the fold is a
+        // constant; in a siege the moat fills in, walls come down and the
+        // drawbridge drops, and every one of those changes what the pathfinder
+        // can reach for both armies.
+        out.section("siege");
+        let s = &self.runner.siege;
+        out.u8(s.is_siege as u8);
+        out.u8(s.castle_level);
+        out.u32(s.rampart_hits);
+        out.u32(s.gate_hits);
+        out.u32(s.ramparts_breached);
+        out.u8(s.gate_breached as u8);
+        out.u8(s.broke_in as u8);
+        out.u8(s.drawbridge_down as u8);
+        out.u16(s.moat_filled);
+        out.u16(s.wall_damage);
+        let mut fold: u64 = 0xcbf2_9ce4_8422_2325;
+        for c in &self.runner.field.cells {
+            for b in [c.terrain, c.flags, c.gfx, c.elevation, c.surface] {
+                fold = (fold ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3);
+            }
+        }
+        out.u64(fold);
         out.end_section();
 
         out.section("figures");
@@ -975,7 +1015,11 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let encoder = std::fs::read_to_string(root.join("tests/lockstep.rs")).expect("this file");
     let mut all: Vec<(String, String)> = Vec::new();
-    for (file, want) in [("src/missile.rs", "Missile"), ("src/runner.rs", "Fighter")] {
+    for (file, want) in [
+        ("src/missile.rs", "Missile"),
+        ("src/runner.rs", "Fighter"),
+        ("src/siege.rs", "SiegeState"),
+    ] {
         let src = std::fs::read_to_string(root.join(file)).expect(file);
         let fields = fields_of(&src, want);
         assert!(fields.len() >= 5, "{want} parsed as {} fields - the parser broke", fields.len());

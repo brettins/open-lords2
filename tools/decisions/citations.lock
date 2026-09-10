@@ -19,6 +19,7 @@ crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609
 crates/l2-game/src/battlefield.rs	C60	ba6ce8d9adf0
 crates/l2-game/src/battlefield.rs	C61	9fa3719be417
 crates/l2-game/src/battlefield.rs	C61	e5b8ebac6d3d
+crates/l2-game/src/battlefield.rs	C79	76ceb5b70be2
 crates/l2-game/src/game.rs	C30	fdf7eaac6540
 crates/l2-game/src/game.rs	C61	243e22401be3
 crates/l2-game/src/game.rs	C62	1f489b238ce0
@@ -64,6 +65,7 @@ crates/l2-game/src/setup.rs	C21	1a85f7a2d857
 crates/l2-game/src/setup.rs	C62	a935365ea2c1
 crates/l2-game/src/shell/mod.rs	C61	4852635e7bff
 crates/l2-game/src/shell/mod.rs	C61	bf7c15012e16
+crates/l2-game/src/turn.rs	C27	c7f2d16a69e2
 crates/l2-game/src/turn.rs	C35	5d5f3b924ebe
 crates/l2-game/src/turn.rs	C35	820d88d9976c
 crates/l2-game/src/turn.rs	C35	87cde1fdbcb4
@@ -72,6 +74,7 @@ crates/l2-game/src/turn.rs	C35	dcd60927a9fb
 crates/l2-game/src/turn.rs	C35	fc388a7cfe62
 crates/l2-game/src/turn.rs	C71	05f7c4015c63
 crates/l2-game/src/turn.rs	C71	eaac43d0b670
+crates/l2-game/src/turn.rs	C80	a56b43c8f6c4
 crates/l2-game/src/victory.rs	C44	81209403d144
 crates/l2-game/src/victory.rs	C44	eb2da78efce9
 crates/l2-game/src/victory.rs	C44	fa73148cbb7c
@@ -97,6 +100,7 @@ crates/l2-game/tests/screens.rs	C48	38f59896d07f
 crates/l2-game/tests/screens.rs	C48	a3f70d784d36
 crates/l2-game/tests/screens.rs	C61	0666dfecda29
 crates/l2-game/tests/shell.rs	C22	df2346f350a7
+crates/l2-game/tests/siege_battle.rs	C35	7b2f7bc2325e
 crates/l2-game/tests/turn.rs	C19	2b27ff0ebcc9
 crates/l2-kingdom/src/ai.rs	C13	b6951068455b
 crates/l2-kingdom/src/ai_farm.rs	C3	5a9c96365a5c
@@ -124,7 +128,7 @@ crates/l2-kingdom/src/population.rs	C20	11223ff82fe2
 crates/l2-kingdom/src/ration.rs	C3	316be8511779
 crates/l2-kingdom/src/realm.rs	C3	806d5d4cf93c
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b
-crates/l2-kingdom/src/siege.rs	C27	1d9816cd2737
+crates/l2-kingdom/src/siege.rs	C27	582945d2a444
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8
 crates/l2-kingdom/src/tables.rs	C10	ca6d41e102b2
 crates/l2-kingdom/src/tables.rs	C11	09ae49121c2b
@@ -191,7 +195,11 @@ crates/l2-sim/src/ai.rs	C16	eeb3a03b55e2
 crates/l2-sim/src/ai.rs	C71	4fa25e346302
 crates/l2-sim/src/ai.rs	C71	9a7d14ae22d0
 crates/l2-sim/src/formation.rs	C12	e3d9b0d9caab
+crates/l2-sim/src/runner.rs	C81	195b94310c14
+crates/l2-sim/src/siege.rs	C3	0f9889cc0837
+crates/l2-sim/src/siege.rs	C82	16205fca466f
 crates/l2-sim/src/troop.rs	C11	f3ee142fc544
+crates/l2-sim/tests/drawbridge.rs	C26	f6ed5dd293d3
 crates/l2-sim/tests/lockstep.rs	C39	1983d0f73f54
 crates/l2-sim/tests/lockstep.rs	C39	6cb87bcb548b
 crates/l2-sim/tests/oracle.rs	C10	51e2435705b4
@@ -280,6 +288,10 @@ docs/battle.md	C12	c0753f7ef8f6
 docs/battle.md	C3	4a58ff6915b0
 docs/battle.md	C3	d55c548092ec
 docs/battle.md	C61	09767b006ebe
+docs/battle.md	C79	e380330a9cbd
+docs/battle.md	C80	0c46527ebbb5
+docs/battle.md	C81	f478ef4e4736
+docs/battle.md	C82	f8c7cc490157
 docs/bugs.md	C1	573fb4c46bcc
 docs/bugs.md	C12	1126d2682b1f
 docs/bugs.md	C13	9a58c0fd9984
@@ -341,6 +353,7 @@ docs/decisions.md	C25	fcf38cc5919b
 docs/decisions.md	C26	1824d81774d5
 docs/decisions.md	C26	5357aea2a649
 docs/decisions.md	C27	251c3e5931bb
+docs/decisions.md	C27	6c197dcf7e68
 docs/decisions.md	C27	95bf59280ccd
 docs/decisions.md	C27	d8fd9b6745ad
 docs/decisions.md	C28	86890c8b2fbc
@@ -438,6 +451,7 @@ docs/decisions.md	C63	d00f4e770141
 docs/decisions.md	C7	3c72ce757143
 docs/decisions.md	C8	490a0a7ca7d4
 docs/decisions.md	C8	553fa7149d4e
+docs/decisions.md	C82	08962931dab3
 docs/decisions.md	C9	2ac3bc41f8d2
 docs/decisions.md	C9	72e3f741f15b
 docs/decisions.md	C9	99e56fdcae4b

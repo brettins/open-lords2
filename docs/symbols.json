@@ -4487,7 +4487,15 @@
       "name": "Siege_RecordCastleDamage",
       "section": "battle",
       "confidence": "verified",
-      "comment": "The end-of-siege bookkeeper, called from Battle_ReturnToCampaign's siege arm, and the ONLY writer of county +0x1C3 to 2. Returns unless g_battleIsSiege and one of the two damage accumulators is non-zero. Stores the battle's breach and approach scores into +0x1E4..+0x1F1 (which Castle_BuildTick zeroes on completion), then bills the repair: castleLevel < 2 charges wood +0x1D4/+0x1E0 = wallDamage*10, otherwise stone +0x1D0/+0x1DC = wallDamage*15, and work +0x1CC/+0x1D8 = breachDamage*5 + wallDamage*15 - ADDING to whatever a build already under way had owed. So a wooden castle is repaired in wood and a stone one in stone. Finally +0x1F9 = g_castleLevel, castleDegraded = 2, +0x1C4 = 0."
+      "comment": "The end-of-siege bookkeeper, and the ONLY writer of county +0x1C3 to 2. Returns unless g_battleIsSiege and one of the two damage accumulators is non-zero. Stores the two accumulators and the two progress scores into +0x1E4..+0x1F1, then bills the repair: castleLevel < 2 charges wood +0x1D4/+0x1E0 = wallDamage*10, otherwise stone +0x1D0/+0x1DC = wallDamage*15, and work +0x1CC/+0x1D8 = moatFilled*5 + wallDamage*15 - ADDING to whatever a build already under way had owed. So a wooden castle is repaired in wood and a stone one in stone. Finally +0x1F9 = g_castleLevel, castleDegraded = 2, +0x1C4 = 0. TWO CORRECTIONS, both from reading the call site and every writer of the two globals. (1) It is NOT called from Battle_ReturnToCampaign. It has exactly one caller, FUN_004782C5 - the outcome-banner frame counter - which runs it at frame 5001 immediately BEFORE Battle_WriteBackCasualties and Battle_ReturnToCampaign(1), and only when !skirmish && !multiplayer. So only a battle watched to its banner bills a repair: a decline, a retreat or the autocalc button leaves for screen 0x13 without passing this counter, and un-does the castle damage exactly as it un-does the casualties. (2) DAT_0057A0D8 is NOT breachDamage. Its only incrementing writer in the binary is FUN_0047DD86, the moat fill; it counts cells of ditch shovelled full, which is why it is only ever multiplied into the WORK line and never into wood or stone."
+    },
+    {
+      "addr": "0x004787A4",
+      "name": "Siege_RestoreCastleDamage",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "The other half of Siege_RecordCastleDamage's round trip, and the last statement but one of Battlefield_BuildCastle - so it overwrites the fresh g_siegeApproachScore = 500 that Battle_Start had just written. When castleDegraded == 2 it copies county +0x1E4..+0x1F1 back into DAT_0057A0D8, DAT_0056D648, g_siegeBreachScore, g_siegeApproachScore, _DAT_0055307C and _DAT_00569588; otherwise it ZEROES those six county fields, which is what stops a rebuilt castle inheriting the last siege's open gate. It restores the numbers and not the field: the ditch is water again and the breaches are walls again. Because the two accumulators come back non-zero, the next assault's Siege_RecordCastleDamage fires even when nothing new is damaged and bills the same repair a second time on top of the first - docs/bugs.md B84.",
+      "signature": "void Siege_RestoreCastleDamage(void)"
     },
     {
       "addr": "0x00478987",
@@ -4567,7 +4575,23 @@
       "section": "battle",
       "confidence": "inferred",
       "signature": "void Battlefield_BuildCastle(int castle)",
-      "comment": "The siege battlefield builder; the third writer of the cell array."
+      "comment": "The siege battlefield builder; the third writer of the cell array. Its LAST STATEMENT BUT ONE is Siege_RestoreCastleDamage (0x004787A4), which is why a rebuilt castle does not start a repeat assault from scratch: the six county fields overwrite the g_siegeApproachScore = 500 and g_siegeBreachScore = 0 that Battle_Start wrote a moment earlier."
+    },
+    {
+      "addr": "0x0047DD86",
+      "name": "Moat_Fill",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Moat_Fill(int cellOffset)",
+      "comment": "One cell of the ditch is shovelled full. Reached only from BattleMan_StateFillMoat (state 9), once the cell's TERRAIN byte - which the castle builder seeded with the water id 11 and which is being reused as the fill counter - has reached g_moatFillSteps (15). So a moat cell takes FOUR loads, not fifteen. Writes surface = 1, flags = 0, frame &= 0x0F, then adds one to g_siegeApproachScore for each of the four orthogonal neighbours whose surface is 3, 5 or 4 (so a cell against the castle scores up to four and one out in open water scores nothing, which is what makes the fill work inward), and adds ONE to DAT_0057A0D8. That increment is the only one in the binary, which is what fixes DAT_0057A0D8's meaning: cells of ditch filled in, billed at five man-seasons each by Siege_RecordCastleDamage and never in wood or stone. Ends with a sweep re-tiling every remaining surface-2 cell and Path_BuildTerrainTemplate."
+    },
+    {
+      "addr": "0x0047DFE0",
+      "name": "Wall_Collapse",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Wall_Collapse(int cellOffset)",
+      "comment": "A wall cell comes down under catapult fire. Reached only from Missile_Step, when a class-3 shot lands on a cell whose elevation is 1..3 and whose surface is 4, and only once that cell's terrain byte - counted up one per shot - passes 0x0F. Writes surface = 9, flags = 2, ELEVATION = 0 (a breach is rubble at ground level, not a step, which matters because a step of more than one level is refused), flags2 &= 0xE3 | 4. Then, for each of the four orthogonal neighbours still at surface 5 - rampart - it adds one to g_siegeBreachScore, calls FUN_0048EE46 on that neighbour, and adds one to DAT_0056D648. So a shot into the middle of a wall is worth twice one into its end, and the number the county is billed in wood or stone is exactly the number the besieger's AI is rewarded with."
     },
     {
       "addr": "0x0047EBE8",
@@ -5738,6 +5762,30 @@
       "confidence": "verified",
       "signature": "int Siege_FindCellSurface4(int x, int y, int radius, int maxElevation)",
       "comment": "Nearest cell of surface 4 within a square radius whose elevation is at most maxElevation, left in g_foundWallX / g_foundWallY. Distance is Manhattan when maxElevation is 4 and min(|dx|,|dy|) otherwise. How catapults, siege towers and the wall-bound defenders find the wall."
+    },
+    {
+      "addr": "0x00496768",
+      "name": "Siege_FindCellSurface2",
+      "section": "battleai",
+      "confidence": "verified",
+      "signature": "bool Siege_FindCellSurface2(int x, int y, int radius)",
+      "comment": "Nearest cell of the ditch - surface 2 - within a square radius, left in g_foundTileX / g_foundTileY. The state-9 moat handler's two callers of it (FUN_004926FB and FUN_004927FA) walk radii 1..19, which is what sends a man who has just filled one cell of ditch to the next one, and what drops him back to state 5 when there is none left within nineteen."
+    },
+    {
+      "addr": "0x0049694F",
+      "name": "Wall_SmashAround",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Wall_SmashAround(int x, int y, int radius)",
+      "comment": "A 2*radius+1 square around a figure, clipped at the map edge, with every wall cell in it knocked flat. Plays bathit2.wav, then per cell: flags & 0x20 (wall) -> clear 0x20, surface = 5, the cell one row SOUTH gets frame += 0x10 and flags2 |= 1; flags & 0x40 (drawbridge) -> flags = 0, surface = 5, frame += 0x28, flags2 |= 1. Ends with Path_BuildTerrainTemplate and Path_BuildStepCost. Its two callers are BattleMan_StateAttackWall and BattleMan_StateRamGate, both at radius 4, on the 5000th rampart hit and the 20000th gate hit - so a breach is a nine-by-nine hole rather than one cell, and what it leaves behind is rampart you can walk on."
+    },
+    {
+      "addr": "0x00496B9F",
+      "name": "Siege_LowerDrawbridge",
+      "section": "battle",
+      "confidence": "verified",
+      "signature": "void Siege_LowerDrawbridge(void)",
+      "comment": "The garrison lowers its own drawbridge - battlefield button 2, FUN_0043BBE7, guarded on a siege, the local player owning army B, g_castleLevel >= 3 and the DAT_0052AF9C latch. THE GAME NAMES THE VERB ITSELF: the button's three refusals are L2.eng 110 'Sieges only!', 111 'No drawbridge!' and 157 'Drawbridge is down.', the level guard is exactly the shipped Readme's 'only the Stone and Royal castles have drawbridges', and the routine's own search is for cells flagged 0x40. It scans the 80x80 field row-major for the FIRST such cell, then writes a 7-row by 4-column patch running south and east from it - flags = 0, surface = 3, frame = DAT_004D9E18[i] (28 int32s at file offset 0xD8018, fifteen of them the filler 197), flags2 |= 1 then &= 0xE3 - and finishes with _DAT_00569588 = 1, DAT_0052AF9C = 1, both siege scores += 4, Path_BuildTerrainTemplate and Path_BuildElevation. Those are exactly the globals a twenty-thousandth ram hit sets, so as far as the besieger's AI is concerned the garrison has opened its own gate, which is the mechanical reason the Readme says a drawbridge cannot be closed again. In skirmish (DAT_0057A0F0) the level guard is replaced by DAT_004D4B18[castleIndex], which is 1 at indices 5, 6 and 9. The scan is missing a break on its outer loop; the offset is unaffected but g_foundTileX/Y are left at (0, 0x50)."
     },
     {
       "addr": "0x00496D76",

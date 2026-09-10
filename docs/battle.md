@@ -1982,8 +1982,132 @@ the cross-check this section could otherwise not have.
   (`FUN_004238B8` / `FUN_004239D5`) is handed a count clamped to `0x50`, and the
   fifty-slot layout has fifty entries; whether it reads past the table for
   banners 50 … 79 was not checked.
-* **`FUN_00496B9F`'s rules** — the siege gate. Traced far enough to state the
-  button's four guards and no further; it belongs with the siege work.
 * **Why surface 15 specifically** makes a missile unit stop short (§15.6).
 * **`DAT_00553C6C`**, which gates the whole selection and order path, and is
   written where nothing here looked.
+
+---
+
+## 16. The ditch, the drawbridge, and what a siege bills the county
+
+The three things a siege *does to the castle*, as opposed to to the men in it. All three
+were named in earlier sections and none of them had been followed to the end; doing so
+turned up four defects of our own, which are `C81`,
+`C82`, `C79` and `C80` in
+`docs/decisions.md`.
+
+### 16.1 Two accumulators, and only one of them costs materials  **[V]**
+
+`Siege_RecordCastleDamage` (`0x004784CA`) bills a repair out of two globals, and the whole
+of what they mean is which function increments them:
+
+| global | incremented by | what it counts | billed as |
+|---|---|---|---|
+| `DAT_0057A0D8` | `Moat_Fill` (`0x0047DD86`), **once per cell** | cells of ditch shovelled full | **work only** — 5 man-seasons a cell |
+| `DAT_0056D648` | `Wall_Collapse` (`0x0047DFE0`), **once per rampart neighbour** | rampart cells left hanging by a collapse | 15 man-seasons **and** the material |
+
+```c
+if (castleLevel < 2) wood  += wallDamage * 10;   /* a palisade is repaired in wood  */
+else                 stone += wallDamage * 15;   /* a keep in stone                 */
+work += moatFilled * 5 + wallDamage * 15;
+```
+
+> **`docs/symbols.md` called `DAT_0057A0D8` `breachDamage`.** It is a misnomer and it was
+> load-bearing: read that way, filling a ditch in looks like knocking a wall down, and the
+> asymmetry — *shovelling the moat costs the defender labour and not a stick of wood* —
+> disappears. The correction is an exhaustive search for writers: three, of which one adds,
+> and it is the moat fill. `docs/bugs.md` B69.
+
+**The bill is drawn from one place and it is not `Battle_ReturnToCampaign`.**
+`Siege_RecordCastleDamage` has exactly one caller — `FUN_004782C5`, the outcome banner's
+frame counter — which runs it at frame 5001, then `Battle_WriteBackCasualties`, then
+`Battle_ReturnToCampaign(1)`. So:
+
+* **only a battle watched to its banner bills a repair.** Declining, retreating and the
+  Autocalc button all leave for screen `0x13` without reaching that counter, so giving up
+  un-does the castle damage exactly as it un-does the casualties;
+* the county is billed **before** it can change hands, so a conqueror inherits the wreck and
+  the bill;
+* `g_multiplayer` skips it entirely, which is not reproduced — see `docs/netcode.md`.
+
+`Siege_RestoreCastleDamage` (`0x004787A4`) is the other half, and it is the **last statement
+but one of `Battlefield_BuildCastle`** — so it overwrites the fresh `g_siegeApproachScore =
+500` that `Battle_Start` wrote a moment earlier. A besieger thrown off a half-wrecked castle
+comes back to its own progress. It restores the *numbers* and not the field.
+
+### 16.2 The moat fill, and why it is four loads  **[V]**
+
+`BattleMan_StateFillMoat` (`0x00483FE1`), slot 9:
+
+```c
+if (latched) {
+    Anim_Dying();                                    /* the shovelling animation */
+    if (cell.surface == 2) {
+        if (cell.terrain < g_moatFillSteps)          /* 15 */
+            if (++load > (ownerIsHuman ? 100 : 0x50)) { load = 0; cell.terrain++; }
+        else { cell.terrain = 0; Moat_Fill(cell); unlatch; }
+    } else unlatch;
+}
+if (!latched) {
+    if (Siege_FindCellSurface2(cur) == 0) state = 5;  /* no ditch left within 19 */
+    else { Anim_Walk(); BattleMan_Step(0); }          /* go to the next one      */
+}
+```
+
+**A moat cell takes four loads, not fifteen**, and the reason is that the counter does not
+start at zero. `Battlefield_BuildCastle` writes `terrain = 11` — the water id — into every
+moat cell and `terrain = 1` into everything else (§3.0), and *this* is what reads the byte
+back. So the cell's own terrain id is the fill counter's starting value.
+
+**A fifth `ownerIsHuman` asymmetry**, to add to §6.2's four: the threshold is `100` for a
+human's man and `0x50` for an AI's, tested `threshold < counter`, so 101 frames a load
+against 81. Four loads is 404 frames against 324 — an AI fills a ditch a quarter faster than
+a person does.
+
+`DAT_00553FE4` is the flag that puts a figure in state 9, and **it is the unit's ordered
+destination and not the figure's slot**. `Formation_RectIsClear` caches
+`(destination.surface == 2)` and then rejects the rectangle for the same reason, so a unit
+sent at the ditch has *every* figure enter state 9 while walking to a **dry** slot beside
+it. Reading it off the slot instead is what made the state unreachable here for as long as
+it existed: no slot is ever chosen on water, because both slot choosers reject an impassable
+empty cell.
+
+### 16.3 The drawbridge — `Siege_LowerDrawbridge` (`0x00496B9F`)  **[V]**
+
+Battlefield button 2, the garrison's own. `FUN_0043BBE7` guards it four ways — a siege, the
+local player owning **army B**, `g_castleLevel >= 3`, and the `DAT_0052AF9C` latch — and
+refuses with `L2.eng` 110 *"Sieges only!"*, 111 *"No drawbridge!"* or 157 *"Drawbridge is
+down."*. In multiplayer it sends `Net_SendCommand(0x45, 0)` instead of calling the routine,
+which is the original agreeing that this is an **order that enters the simulation**.
+
+The routine scans row-major for the first `flags & 0x40` cell and writes a **7-row by
+4-column** patch running south and east from it: `flags = 0`, `surface = 3`,
+`frame = DAT_004D9E18[i]`, `flags2 |= 1` then `&= 0xE3`. Then `_DAT_00569588 = 1`,
+`DAT_0052AF9C = 1`, four on each siege score, and the two pathfinding planes rebuilt.
+
+`DAT_004D9E18` is **28 `int32`s at file offset `0xD8018`**, read out of `Lords2.exe`:
+
+```
+198 198 198 198 | 198 198 197 197 | 198 196 197 197 | 198 195 197 197
+193 194 197 197 | 192 197 197 197 | 197 197 197 197
+```
+
+Fifteen cells of the filler 197 and thirteen tracing the bridge into the corner nearest the
+gate. That shape is the check on the *reading*: 28 `int32`s misread as bytes, or bytes as
+`int32`s, would be uniform or noise.
+
+**Those three writes are the same three `BattleMan_StateRamGate` makes on the
+twenty-thousandth gate hit.** So the besieger's AI cannot tell a garrison that has opened its
+own gate from a gate it broke itself — which is the mechanical reading of the Readme's
+*"within a siege, drawbridges can not be closed once they have been opened."*
+
+The scan is missing a `break` on its outer loop; the offset is unaffected and
+`g_foundTileX`/`Y` are left at `(0, 0x50)`. `docs/bugs.md` `B85`.
+
+### 16.4 A breach is at ground level  **[V]**
+
+`Wall_Collapse` writes `elevation = 0` over the cell it brings down, and `Wall_SmashAround`
+(`0x0049694F`) — the radius-4 square both wall-hitting states run on their threshold —
+turns every `0x20` cell in a 9 × 9 into `surface = 5` rubble. A breach is not a step. It
+matters because §7's rule allows a difference of one: a hole left at a two-high wall's own
+height is a hole nobody can walk through, and the siege runs for ever with its gate open.

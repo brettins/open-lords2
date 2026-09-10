@@ -637,12 +637,35 @@ impl LiveBattle {
         Some(if self.is_siege() { 11 } else { 12 })
     }
 
-    /// `FUN_0043BBE7` (`0x0043BBE7`) — the siege gate.
+    /// `FUN_0043BBE7` (`0x0043BBE7`) — **lower the drawbridge**, the garrison's
+    /// own button.
+    ///
+    /// ```c
+    /// if (g_battleChoiceOwner == 0) return;
+    /// if (!g_battleIsSiege)                          Msg_Enqueue(0x6E);   /* Sieges only! */
+    /// else if (localPlayer != units[armyB].owner)    Msg_Enqueue(0x6F);   /* No drawbridge! */
+    /// else if (g_castleLevel < 3)                    Msg_Enqueue(0x6F);
+    /// else if (DAT_0052AF9C != 0)                    Msg_Enqueue(0x9D);   /* Drawbridge is down. */
+    /// else if (!g_multiplayer) FUN_00496B9F(); else Net_SendCommand(0x45, 0);
+    /// ```
+    ///
+    /// **The three messages are what name the verb**: `L2.eng` group 110
+    /// *"Sieges only!"*, group 111 *"No drawbridge!"* and group 157
+    /// *"Drawbridge is down."* — so `FUN_00496B9F` lowers a drawbridge and
+    /// nothing else. The hand-off this was built from called it siege-engine
+    /// placement; it is not, and `docs/decisions.md` `C79`
+    /// records how the mistake was caught.
+    ///
+    /// **`army B` is the garrison**, `docs/battle.md` §4.3 — so this is a
+    /// defender's verb, and it is why a besieged human being unable to reach the
+    /// battlefield at all made the whole button dead. See
+    /// `crate::turn`'s `choice_owner`.
     ///
     /// Returns the `L2.eng` message the original enqueues when it refuses, or
-    /// `None` when it acts. **The rules behind `FUN_00496B9F` are the siege
-    /// agent's**; this arm is the button and its four guards, which are the
-    /// battlefield's.
+    /// `Ok` when the bridge went down. `sallied` is set **only when the routine
+    /// actually fired**, which is the original's placement of the latch and
+    /// means a level-3 castle whose layout carries no `0x40` cell leaves the
+    /// button live.
     ///
     /// // arm: 0x0043BBE7/sally
     pub fn press_sally(&mut self, garrison_is_local: bool) -> Result<(), u16> {
@@ -657,6 +680,14 @@ impl LiveBattle {
         }
         if self.sallied {
             return Err(0x9D);
+        }
+        // The order enters the simulation here, and only here. It is not a
+        // display flag: it rewrites cell flags and surfaces, so two peers that
+        // disagreed about it would be pathing through different castles.
+        if !self.runner.lower_drawbridge() {
+            // No `0x40` cell on the field. The original's latch is inside the
+            // search's `if`, so the button is not spent either.
+            return Err(0x6F);
         }
         self.sallied = true;
         self.redraw = true;
