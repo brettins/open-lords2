@@ -988,6 +988,17 @@ impl MapScreen {
         Self::settlements(ctx, county)
     }
 
+    /// **Every industry site's tile and the frame its wheel is showing**, so a
+    /// test can watch the wheel turn without reaching into private state or
+    /// re-deriving the site list beside the code that derives it.
+    ///
+    /// `(tile, county, commodity, frame)`, in [`MapScreen::rebuild_industry_sites`]'s
+    /// own order. The list is empty until the first
+    /// [`MapScreen::step_industry`], which is the first `update`.
+    pub fn industry_sites_for_test(&self) -> Vec<(usize, u8, usize, u8)> {
+        self.industry_sites.iter().map(|s| (s.tile, s.county, s.commodity, s.frame)).collect()
+    }
+
     /// **Which settlement tile a pixel is on — the ground first, then the
     /// building standing on it.**
     ///

@@ -1,0 +1,278 @@
+//! **The industry sites on the campaign map: the wheel, its rate, and the
+//! pixels.**
+//!
+//! ```text
+//! LORDS2_DIR="F:\games\Lords of the Realm II" LORDS2_FIXTURES="E:\dev\lords2-fixtures" \
+//!   cargo test -p l2-game --test industry
+//! ```
+//!
+//! `Sprite_TopIt`'s (`0x004071A0`) arm 5 rewrites an industry tile's **own**
+//! terrain frame and draws no overlay at all, so *"this mine is running"* is
+//! entirely that its picture moves — and **how fast it moves is a mechanic**,
+//! banded from the season's output onto four rungs of `Tick_Pulses`
+//! (`0x004BBC80`). A player is told how busy a mine is by nothing else.
+//!
+//! # Which of the three appearances these reach
+//!
+//! `docs/draws-map.md` §6 names three: *idle*, *working* (the animated one) and
+//! *wrecked*. The branch that added them reported that every fixture is turn one
+//! and only *idle* could be exercised.
+//!
+//! **That is wrong, and the fixture is better than it was given credit for.**
+//! England turn one has the five owned counties' **forests switched on** —
+//! terrain 11, which is `INDUSTRY_IDLE[wood] + 1`, the *working* value — so
+//! working is reachable without staging anything, and switching one off with
+//! `Kingdom::toggle_industry` reaches idle by the map click's own road. What is
+//! still out of reach here is **wrecked**: it needs `Unit_TrampleTile` and three
+//! seasons of `disabled_seasons`, and no test in this file claims it.
+
+use std::path::PathBuf;
+
+use l2_game::game::Assets;
+use l2_game::scenario;
+use l2_game::screen::{Ctx, Screen};
+use l2_game::screens::map::MapScreen;
+use l2_kingdom::industry::MapToggle;
+use l2_kingdom::tables::{Commodity, Tables};
+use l2_mods::Platform;
+
+fn install() -> Option<PathBuf> {
+    l2_testkit::install_dir()
+}
+
+macro_rules! world {
+    () => {{
+        let Some(dir) = install() else {
+            l2_testkit::skip!("no game install, so there are no assets to draw with");
+        };
+        let platform = Platform::builder().base(&dir).build().expect("the install mounts");
+        let assets = Assets::load(&platform.vfs).expect("assets load");
+        let save = l2_testkit::england!();
+        let game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+        (game, assets)
+    }};
+}
+
+/// **`Tick_Pulses`' four rungs, in milliseconds**, and the bands
+/// `Sprite_TopIt` picks between them with.
+///
+/// ```c
+/// n = county.industry[k].total - county.industry[k].totalSnapshot;
+/// if      (n < 0x0A) step = DAT_0058FD08;   /* 640 ms — the eighth counter */
+/// else if (n < 0x19) step = DAT_0057D3C8;   /* 320 ms — the fourth */
+/// else if (n < 0x32) step = g_pulse160;
+/// else               step = g_pulse80;
+/// ```
+///
+/// Typed here rather than read from [`l2_view::campaign::industry_period_ms`],
+/// because a probe computed from the constant under test cannot fail when the
+/// constant is ablated — `docs/agents.md`, *how to ablate wrongly*, one.
+const PULSE_MS: [u32; 4] = [640, 320, 160, 80];
+
+/// The band edges, from the same three comparisons: `0x0A`, `0x19`, `0x32`.
+/// One output either side of each, so a band that is off by one goes red.
+const BAND_EDGES: [(i32, usize); 8] =
+    [(0, 0), (9, 0), (10, 1), (24, 1), (25, 2), (49, 2), (50, 3), (173, 3)];
+
+/// How many of **our** ticks each rung is, at `l2_game::TICK_MS`. Asserted
+/// against `TICK_MS` below rather than divided out of it, so that a change to
+/// the frame rate is a red test and not a silently rescaled expectation.
+const EVERY: [u32; 4] = [40, 20, 10, 5];
+
+/// The window every count below is taken over. A multiple of all four rungs, so
+/// no band is measured across a partial period.
+const TICKS: u32 = 240;
+
+/// Step one screen `n` times and report how many times each site's frame
+/// changed, keyed by tile.
+fn turns_of_each_wheel(
+    screen: &mut MapScreen,
+    game: &mut l2_game::Game,
+    assets: &Assets,
+    n: u32,
+) -> std::collections::BTreeMap<usize, u32> {
+    let mut last: std::collections::BTreeMap<usize, u8> =
+        screen.industry_sites_for_test().into_iter().map(|(t, _, _, f)| (t, f)).collect();
+    let mut turns: std::collections::BTreeMap<usize, u32> =
+        last.keys().map(|&t| (t, 0)).collect();
+    for _ in 0..n {
+        {
+            let mut ctx = Ctx { game, assets };
+            screen.update(&mut ctx);
+        }
+        for (tile, _, _, frame) in screen.industry_sites_for_test() {
+            // Every site gets a row whether or not it ever moves — a wheel that
+            // stood still is the assertion in
+            // [`a_site_the_player_switched_off_stops_turning`], and a missing
+            // key would be an absence rather than a zero.
+            turns.entry(tile).or_insert(0);
+            let seen = last.entry(tile).or_insert(frame);
+            if *seen != frame {
+                *turns.entry(tile).or_insert(0) += 1;
+                *seen = frame;
+            }
+        }
+    }
+    turns
+}
+
+/// Every working site on the map, as the *terrain* says — the same test
+/// `step_industry` makes, but written out from `Industry_UpdateSiteTile`'s
+/// `content = base + (enabled != 0)` rather than borrowed from
+/// `l2_kingdom::map::industry_state`.
+fn working_sites(game: &l2_game::Game) -> Vec<(usize, usize, usize)> {
+    // `Industry_UpdateSiteTile`'s four bases, in commodity order: wood 10,
+    // iron 1, weapons 7, stone 4.
+    const BASE: [u8; 4] = [10, 1, 7, 4];
+    let map = &game.kingdom.campaign.map;
+    let mut out = Vec::new();
+    for id in 1..=game.kingdom.county_count {
+        for c in Commodity::ALL {
+            let Some(tile) = l2_kingdom::map::industry_site(map, id as u8, c) else { continue };
+            if map.terrain[tile] == BASE[c.index()] + 1 {
+                out.push((tile, id, c.index()));
+            }
+        }
+    }
+    out
+}
+
+/// **The rate is the mechanic: the busier the site, the faster the wheel.**
+///
+/// Two halves, and the first is the road.
+///
+/// * **From the simulation.** The England position's five forests are switched
+///   on and have produced nothing, so `total - totalSnapshot` is 0 and every
+///   wheel is on the 640 ms rung. End one season with the game's own pass and
+///   county 1 has cut 173 wood, which is past `0x32`: the same wheel is now on
+///   the 80 ms rung and turns **eight times as often**. Nothing here writes
+///   `Industry::output`.
+/// * **From the table.** Then one output either side of each of the three band
+///   edges — `0x0A`, `0x19`, `0x32` — staged on the record, because no fixture
+///   reaches the middle two bands and a boundary that is off by one is exactly
+///   what a test of a banded rate is for.
+///
+/// The counts are `TICKS / EVERY[band]` with both typed from the decompilation:
+/// **no expression in this test mentions
+/// [`l2_view::campaign::industry_period_ms`]**, which is the constant being
+/// ablated.
+///
+/// **Ablation.** Flatten `industry_period_ms`'s four arms to a single `640` and
+/// the second half goes red on six of its eight outputs and the first half on
+/// its ratio. Flattening it to `80` fails them the other way. Widening one band
+/// edge by one — `n < 0x0A` to `n <= 0x0A` — fails exactly the `(10, 1)` row,
+/// which is the row that edge exists for.
+#[test]
+fn a_busy_site_turns_its_wheel_eight_times_as_often_as_an_idle_one() {
+    let (mut game, assets) = world!();
+
+    // The premise of `EVERY`. A frame rate that moved would otherwise rescale
+    // every expectation below without saying so.
+    assert_eq!(l2_game::TICK_MS, 16, "`EVERY` is `PULSE_MS` in 16 ms ticks");
+    for (rung, ms) in PULSE_MS.iter().enumerate() {
+        assert_eq!(ms / l2_game::TICK_MS, EVERY[rung], "rung {rung}");
+        assert_eq!(TICKS % EVERY[rung], 0, "rung {rung} does not divide the window");
+    }
+
+    // The five owned counties' forests are switched on in the shipped position
+    // — this is the *working* appearance, on the fixture, with nothing staged.
+    let sites = working_sites(&game);
+    assert!(
+        !sites.is_empty(),
+        "England turn one has no working industry site, so this test cannot see a wheel"
+    );
+    let (tile, county, commodity) = sites[0];
+    assert_eq!(
+        game.kingdom.counties[county].industry[commodity].output, 0,
+        "county {county} has produced nothing yet, which is the bottom band"
+    );
+
+    let mut screen = MapScreen::new();
+    let slow = turns_of_each_wheel(&mut screen, &mut game, &assets, TICKS);
+    assert_eq!(
+        slow[&tile],
+        TICKS / EVERY[0],
+        "an on-but-unproductive site is on the 640 ms rung: {} turns in {TICKS} ticks",
+        TICKS / EVERY[0]
+    );
+
+    // The season, by the game's own road — `Industry_ProduceAll` is what writes
+    // `output`, and `Industry_UpdateSiteTile` runs behind it.
+    game.kingdom.advance_season();
+    let produced = game.kingdom.counties[county].industry[commodity].output;
+    assert!(
+        produced >= 0x32,
+        "county {county} cut {produced} — the season did not reach the top band, so the \
+         ratio below is not the one being claimed"
+    );
+
+    let mut screen = MapScreen::new();
+    let fast = turns_of_each_wheel(&mut screen, &mut game, &assets, TICKS);
+    assert_eq!(
+        fast[&tile],
+        TICKS / EVERY[3],
+        "a site producing {produced} is on the 80 ms rung: {} turns in {TICKS} ticks",
+        TICKS / EVERY[3]
+    );
+    assert_eq!(
+        fast[&tile],
+        slow[&tile] * 8,
+        "eight rungs apart is eight times the turns — {} against {}",
+        fast[&tile],
+        slow[&tile]
+    );
+
+    // And the table, one output either side of every edge.
+    for (output, band) in BAND_EDGES {
+        let (mut game, assets) = world!();
+        for &(_, id, c) in &working_sites(&game) {
+            game.kingdom.counties[id].industry[c].output = output;
+        }
+        let mut screen = MapScreen::new();
+        let turns = turns_of_each_wheel(&mut screen, &mut game, &assets, TICKS);
+        assert_eq!(
+            turns[&tile],
+            TICKS / EVERY[band],
+            "output {output} belongs on the {} ms rung, so the wheel should turn {} \
+             times in {TICKS} ticks and it turned {}",
+            PULSE_MS[band],
+            TICKS / EVERY[band],
+            turns[&tile]
+        );
+    }
+}
+
+/// **A site that is switched off does not turn at all**, and switching it off is
+/// a map click rather than a flag.
+///
+/// `Industry_UpdateSiteTile` writes `content = base + (enabled != 0)`, so "off"
+/// is a terrain value `Sprite_TopIt`'s arm 5b never animates — the whole of the
+/// on/off appearance. This is the half that makes the test above a claim about
+/// *industry* and not about a counter: a wheel that turned on every site
+/// whatever its switch would pass the rate test and fail this one.
+///
+/// **Ablation.** Delete the `if !working { … continue; }` guard in
+/// `MapScreen::step_industry` and this goes red while the rate test stays green.
+#[test]
+fn a_site_the_player_switched_off_stops_turning() {
+    let (mut game, assets) = world!();
+    let sites = working_sites(&game);
+    let (tile, county, commodity) = *sites.first().expect("a working site on the fixture");
+
+    let mut screen = MapScreen::new();
+    let before = turns_of_each_wheel(&mut screen, &mut game, &assets, TICKS);
+    assert!(before[&tile] > 0, "the wheel was not turning before the switch was touched");
+
+    // `Industry_ToggleFromMap` (`0x0043D309`), which is what a click on the site
+    // reaches. It writes the enable byte *and* calls `Industry_UpdateSiteTile`.
+    let on = game.kingdom.toggle_industry(county, MapToggle::Industry(Commodity::ALL[commodity]));
+    assert!(!on, "the toggle should have switched county {county}'s site off");
+
+    let mut screen = MapScreen::new();
+    let after = turns_of_each_wheel(&mut screen, &mut game, &assets, TICKS);
+    assert_eq!(
+        after[&tile], 0,
+        "a switched-off site turned {} times in {TICKS} ticks",
+        after[&tile]
+    );
+}
