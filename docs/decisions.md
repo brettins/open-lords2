@@ -3664,6 +3664,134 @@ not reading.** Comments are not code. And when such a check is extended to a new
 ablation *for that type* — the general "does the check work" was answered years of tests ago
 and says nothing about whether it works here.
 
+**C76 — the county sidebar, the menu bar, and three arms that were wrong rather than missing**
+
+The input audit put the campaign-side chrome — the right column, the menu bar, the four
+county panels and screens `0x04` … `0x13` — at **64 of 114** arms. This is the pass on it,
+and the shape of what was found is the finding rather than the count.
+
+**A one-line "not reproduced" in a table hid twenty-one arms.**
+`crates/l2-game/src/screens/map.rs`'s header carried three rows reading *"**not
+reproduced:** the menu bar's three titles — `Menu_OpenDropdown`"*, *"…right release clears
+the minimap mode"* and *"…the sidebar's job rows"*. The first of those three lines is
+**sixteen menu items over three drop-downs plus four dispatch arms**, because
+`g_menuBarItems` (`0x004DC428`) is three 16-byte records pointing at three item tables and
+screen `0x32` has an arm of its own. A row of a table is a unit of *writing*, not a unit of
+*work*, and nothing in the project could see the difference until `docs/arms.json` counted
+one record per arm.
+
+**Three arms were WRONG rather than absent, and that is the number nobody had.**
+
+1. **A right click while carrying peasants left the village.** `0x06`'s arm is
+   `g_screenId = 0x02; g_villageDragCluster = 0;` — *put them back and stay*. Ours popped
+   the screen from every phase, so a player who changed his mind lost the village with the
+   selection. It looked right because leaving on a right click is exactly what the *idle*
+   village does.
+2. **The farm/industry slider's up zone started one pixel late**, `x > 594` against the
+   original's `x >= 594`, so one column of the track did the wrong thing; and it had **no
+   ownership gate at all**, where `Labour_SplitSliderDrag`'s second line is
+   `if (county.owner == g_localPlayer)`. Ours moved another lord's peasants.
+3. **A left click anywhere closed a shell.** All twenty-six close tests in
+   `Screen_FrameInput` are `Ui_OkButtonClicked`'s 24 × 24 corner box; there is no screen in
+   the game where clicking the middle of a panel dismisses it. Screen `0x04` — the
+   information panel a right click on the map opens — could not be *read*, because the
+   click that opened it was followed by the click that closed it.
+
+**And one control of ours was painted on top of one of the game's.** The county panels drew
+a BACK TO MAP button at (478, 460), 162 × 20, and hit-tested it first. That rectangle is
+`g_sidebarButtons` record 5 to the pixel — **End Turn**. It is the same defect a player
+reported a fortnight ago about the five sidebar icons, made again, in the same column, by a
+different screen. Removed.
+
+**The county panels swallowed the whole right-hand column**, which is the largest single
+gap. `Screen_FrameInput`'s arms for `0x14`, `0x15`, `0x16` and `0x19` open with the *same
+six guards* the village's arm opens with, every one of them hit-testing `x >= 0x1DE`, and
+every one of them **ahead of the panel's own two ways out**. The village had them
+(`Transition::Pass`, C59) and the panels did not, so with a panel open the minimap, the five
+sidebar buttons, the split slider, the produce rows and End Turn were all dead. One shared
+predicate now answers for both.
+
+**`Transition::Reveal`, and the arm that needed it.** `Screen_FrameInput` has an *epilogue*
+that runs after every per-screen arm on every screen id but `0x12`:
+`if ((leftPressed || rightPressed) && FUN_004323FE()) { if (g_screenId == 0x0F)
+Sound_StopOneShot(); if (g_battlePhase == 0) g_screenId = 0; }`. So **the minimap is not the
+campaign map's control, it is the game's**: a press on the raster from any management screen
+re-centres the map and drops the whole surface. Our stack had no way to say *"I acted and
+everything above me closes"* — `Push`, `Pop` and `Replace` all move the acting screen — so
+that is a fifth transition, and it is `g_screenId = 0` with a stack underneath rather than a
+convenience. `Minimap_Click` refusing screens `0x05` and `0x06` outright is its own guard and
+is why a peasant drag cannot be lost to a stray click.
+
+**Two visual defects fell out of making the column live.** Opening a county panel repainted
+the seven `Misc_cty` column plates over the map's, which **blanked the minimap** — harmless
+while the column was dead, a control you can click and cannot see now that it is not. And
+the menu bar's three titles start at x = 10, where our TURN and COUNTIES lines were: two
+lines of ours were sitting on the way into every menu in the game, invisible with the real
+fonts loaded because `Ui_DrawMenuTitles` measures the captions and ours were drawn first.
+Both are the same mistake as the BACK TO MAP button and all three were found by making the
+original's control work, not by looking at the screen.
+
+**Where the denominator is wrong, and it is not wrong in our favour.** C61 counted *"the
+arms of `Screen_FrameInput`"*, which is a **place**. Every input the game dispatches from
+somewhere else scored zero without ever appearing as a miss. Three such places are now known
+and each was found by somebody looking outside the dispatcher: the **window procedure**,
+where the whole keyboard lives ungated by `g_screenId`; **`Screen_HandleInput`**, whose
+`0x0F` arm holds six hotspots that appear only when the job is the blacksmith and are *the
+only control on any job popup* (`0x004BA9C8/blacksmith-weapon-choice`); and
+**`Screen_DrawWidgets`**, the draw pass, where hover lives — and where
+`Ui_DrawMenuTitles` writes the menu bar's own hit boxes back into its table, so the bar
+cannot be hit-tested until it has been painted. `docs/arms.json`'s `_note` now says this
+where the number is taken.
+
+**A stray NUL byte in `crates/l2-game/src/screens/map.rs`** — a `'\0'` pasted verbatim out
+of the decompiler into a doc comment — made `grep` treat the file as binary and hide every
+`// arm:` marker in it from a plain search. `rustc` accepted it and so did the arms test,
+which reads the file with `read_to_string`; only the human-facing tool lied. Replaced with
+the two characters it was meant to be.
+
+**And the keyed merge driver guards the array and not the scalars beside it.** Rebasing this
+work onto `main` merged `docs/arms.json`'s `arms` array by `id` exactly as intended — *"114
+arms, no entry changed on both sides"*, and it was right — and then took the other side's
+`groups` object and `_note` wholesale, **discarding five group declarations and twenty-one
+lines of prose that existed on only one side**. Every test in `crates/l2-game/tests/arms.rs`
+stayed green, because every one of them reads the `arms` array and nothing else. That is the
+same shape as the `addr`-versus-`id` key defect the driver was hardened against an hour
+earlier, one level up: the *entries* are keyed and the *object they sit in* is not. It was
+caught only because the group count was read by hand afterwards.
+
+**What `xref.js` settles, now that it runs from a worktree.** Two exhaustiveness questions
+that an enumeration of one dispatcher cannot answer:
+
+* **`g_mouseRightReleased` has exactly eight readers in the corpus**, and on the campaign-side
+  chrome only three of them matter: `Screen_FrameInput`, `FUN_0047685D` (the message scroll)
+  and `FUN_00439079` (the minimap overlay). `Battle_UnitPanelClicked` is the battlefield's;
+  `FUN_004B191E` is the frame poll that *computes* the flag; and `FUN_0040E680`,
+  `FUN_004B1F4A` and `FUN_004B1FEC` are all the same thing — **modal spin loops** that wait
+  for any button to come up, used for splash pauses. So *"the right button lives in
+  `Screen_FrameInput`"* is now checked rather than assumed for this group, which is the one
+  claim the audit's second pattern rests on.
+* **`Hotspot_Test` has nine callers and `Widget_Test` four.** Every one is accounted for
+  except `FUN_00437107` (`0x00437107`, 199 bytes), which tests a two-record table at
+  `0x004DC5F0` plus a rect at (16, 400, 240, 64) for the selected army — **and has no caller
+  at all in the corpus.** It is not filed in `docs/arms.json`, because "xref found no caller"
+  is a failure to find and not the exhaustive check `dead` requires; it is written down here
+  as a lead, and it is the shape of a second unit panel.
+
+None of the twenty-one `FUN_` addresses this pass rests on is named in `docs/symbols.json`
+even after the 211-name refresh, so every one of them was read as a body rather than trusted
+as a name. They are the obvious next batch for the naming campaign: `FUN_0040DD92`,
+`FUN_0040DF62`, `FUN_0040E099`, `FUN_0040FEC1`, `FUN_00437002`, `FUN_00438990`,
+`FUN_00438A91`, `FUN_00438B02`, `FUN_00439079`, `FUN_0043A950`, `FUN_0043A997`,
+`FUN_0043B412`, `FUN_0043B4CB`, `FUN_004323FE`, `FUN_0043CAF4` and `FUN_0047685D`.
+
+`every_group_an_arm_names_is_declared` closes the specific hole in both directions — an arm
+filed under a group nobody declared, and a group nobody files under — and it was ablated by
+deleting one declaration. The general hole is the driver's and is left for whoever owns it;
+the file's own `_note` now tells the next person to check `groups` and `_note` by hand after
+any merge. A `group` carries the owner and the `complete` flag, so an arm whose group has
+quietly vanished is precisely the arm that stops being counted, in the file whose entire
+purpose is counting.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

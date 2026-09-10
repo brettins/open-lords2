@@ -557,6 +557,13 @@ if (g_screenId == '\x14') {
 }
 ```
 
+**Built, and it was the largest single gap in this document's area.** `CountyScreen::handle`
+tested the four strip quadrants itself and swallowed everything else in the column, so with a
+panel open the minimap, the five sidebar buttons, the split slider, the produce rows and End
+Turn were all dead. It is one predicate now — `crates/l2-game/src/screens/mod.rs`'s
+`belongs_to_the_right_column`, shared with the village, whose arm opens with the same six —
+and `docs/arms.json` `0x0042FF10/inset-runs-the-sidebar-guards` is the record.
+
 Two things follow that §2.3 does not say. **The guards are tested first**, and every one of
 them fires on a *left* click, so clicking the strip or the sidebar while a panel is open
 **switches** panel rather than closing it — which is how you go from population to tax
@@ -1621,6 +1628,19 @@ node tools/oracle/widgets.js ref 434d33         # who *points at* a function
 ```
 
 ### 10.1 The menu bar is three tables of function pointers, and every one is accounted for **[V]**
+
+**Built.** `crates/l2-game/src/screens/menubar.rs` is this section: the three measured
+titles, the sixteen items, screen `0x32` and its four arms. Six of the sixteen reach a
+screen — load, save, quit and the four option pages — and the rest refuse in one line naming
+the screen or the message id they want, because the confirm box (`0x1E`), the value spinner
+(`0x21`) and the message scroll are not built. `docs/arms.json` group `menu-bar`, and
+`docs/decisions.md` C76 on what one *"not reproduced"* table row was hiding.
+
+**One thing the geometry forces and it is worth stating here.** `Ui_DrawMenuTitles` writes
+each caption's measured right edge *back into the table* at draw time, so the bar cannot be
+hit-tested until it has been painted — the hit boxes are an output of the draw pass. Any
+reimplementation that lays the titles out from constants will get the dead 32-pixel gaps
+wrong, and any that hit-tests before drawing will hit nothing on the first frame.
 
 `g_menuBarItems` (`0x004DC428`) is three 16-byte records. Read as shorts and dwords:
 

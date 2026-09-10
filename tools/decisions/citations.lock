@@ -33,6 +33,8 @@ crates/l2-game/src/screens/castle.rs	C27	e6bab7a842a1
 crates/l2-game/src/screens/county.rs	C22	11557e27ba54
 crates/l2-game/src/screens/county.rs	C22	19162a21321c
 crates/l2-game/src/screens/county.rs	C42	bd3303c98be3
+crates/l2-game/src/screens/county.rs	C59	d92177ac30ca
+crates/l2-game/src/screens/county.rs	C61	ff65e4062d2c
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb
 crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c
 crates/l2-game/src/screens/map.rs	C21	d7e286680856
@@ -48,6 +50,7 @@ crates/l2-game/src/screens/map.rs	C61	4ec0e911ae60
 crates/l2-game/src/screens/map.rs	C61	56e0155cb915
 crates/l2-game/src/screens/map.rs	C61	9e7ed2c574ff
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9
+crates/l2-game/src/screens/mod.rs	C59	554190cefe45
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28
 crates/l2-game/src/screens/options.rs	C62	65a8bf182816
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
@@ -57,6 +60,7 @@ crates/l2-game/src/screens/setup.rs	C21	f030e5ba689c
 crates/l2-game/src/screens/shells.rs	C22	746cddad9eff
 crates/l2-game/src/screens/shells.rs	C45	971440fb6fdf
 crates/l2-game/src/screens/village.rs	C22	81b65db0836a
+crates/l2-game/src/screens/village.rs	C76	cddc3e0e2856
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857
 crates/l2-game/src/setup.rs	C62	a935365ea2c1
 crates/l2-game/src/shell/mod.rs	C61	4852635e7bff
@@ -263,6 +267,8 @@ docs/armies.md	C40	48ac95a9d767
 docs/armies.md	C59	1cbb270593d9
 docs/armies.md	C61	0f02362fcf6e
 docs/arms.json	C61	39d63dd72f38
+docs/arms.json	C61	4018a5b62162
+docs/arms.json	C76	113584e50fba
 docs/audit.md	C4	137a29e56031
 docs/audit.md	C4	27ad00fc666e
 docs/audit.md	C4	fad246d96439
@@ -410,12 +416,14 @@ docs/decisions.md	C58	cf211d06686a
 docs/decisions.md	C59	611dbc328c24
 docs/decisions.md	C59	8d056fe8fc64
 docs/decisions.md	C59	d158413c5a3c
+docs/decisions.md	C59	d88243f2b8df
 docs/decisions.md	C59	f8f78fa7b192
 docs/decisions.md	C61	072b0a786f93
 docs/decisions.md	C61	324c3ac59d0a
 docs/decisions.md	C61	33bb2b912640
 docs/decisions.md	C61	572422b44b0b
 docs/decisions.md	C61	78184451a7a7
+docs/decisions.md	C61	7fc43d028377
 docs/decisions.md	C61	af1e7ea10593
 docs/decisions.md	C61	b465e0d2cdee
 docs/decisions.md	C61	cb0091f01fac
@@ -523,6 +531,7 @@ docs/screens-county.md	C46	9aadfb874c22
 docs/screens-county.md	C57	29da3728fc03
 docs/screens-county.md	C59	aec4d2276a51
 docs/screens-county.md	C61	675bbac0eace
+docs/screens-county.md	C76	982107e9770f
 docs/screens.md	C22	29997cfa2796
 docs/screens.md	C25	6e23d74e76ec
 docs/screens.md	C48	63058cefc7e7

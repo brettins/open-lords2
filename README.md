@@ -29,7 +29,7 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 | **Sieges** | built, both halves — and the 14 siege battle AI handlers are reachable at last. The castle's *layout* on the battlefield is ours, not the original's, and says so |
 | Merchants, diplomacy, armies | documented in detail, implemented barely or not at all |
 
-**<!--fig:tests-->1,903<!--/fig--> tests pass**, and roughly a third of them assert things
+**<!--fig:tests-->1,917<!--/fig--> tests pass**, and roughly a third of them assert things
 read out of the original binary rather than out of our own heads.
 
 Two honest caveats. The one shipped save we test against exercises a narrow slice of the

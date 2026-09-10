@@ -245,3 +245,78 @@ fn the_inventory_uses_the_defined_statuses_and_the_marker_shape() {
          If it is genuinely worth keeping, change this assertion deliberately and say why."
     );
 }
+
+/// **Every `group` an arm names is declared in `groups`.**
+///
+/// This exists because a merge ate five declarations without failing anything.
+/// The keyed JSON driver merges the `arms` **array** by `id` — it does that
+/// correctly, and it says so — and then takes one side's `groups` object and
+/// `_note` wholesale. On the first concurrent rebase of this file that dropped
+/// five group declarations and twenty-one lines of prose, in the file whose
+/// entire purpose is counting, and every test above stayed green because every
+/// one of them reads the `arms` array and nothing else.
+///
+/// A `group` is *"the unit somebody can claim complete, with an owner"*. An arm
+/// filed under a group that does not exist has no owner and no completeness
+/// flag, so it is exactly the arm that stops being counted.
+#[test]
+fn every_group_an_arm_names_is_declared() {
+    let root = repo_root();
+    let text = std::fs::read_to_string(root.join("docs/arms.json")).expect("docs/arms.json");
+
+    // The `groups` object's keys are the two-space-indented `"name": {` lines
+    // inside it, and the `arms` array's are six-space-indented `"group": "x"`.
+    // A scan rather than a parser, for the reason `records` gives.
+    let mut declared: BTreeSet<String> = BTreeSet::new();
+    let mut in_groups = false;
+    for line in text.lines() {
+        if line.starts_with("  \"groups\": {") {
+            in_groups = true;
+            continue;
+        }
+        if in_groups {
+            if line == "  }," || line == "  }" {
+                in_groups = false;
+                continue;
+            }
+            if let Some(rest) = line.strip_prefix("    \"") {
+                if let Some((name, tail)) = rest.split_once("\":") {
+                    if tail.trim_start().starts_with('{') {
+                        declared.insert(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    assert!(!declared.is_empty(), "no groups parsed — the scanner lost the file");
+
+    let mut used: BTreeSet<String> = BTreeSet::new();
+    for line in text.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("\"group\": \"") {
+            if let Some((value, _)) = rest.split_once('"') {
+                used.insert(value.to_string());
+            }
+        }
+    }
+    assert!(used.len() > 1, "only {} groups used — the scanner lost the file", used.len());
+
+    let undeclared: Vec<&String> = used.difference(&declared).collect();
+    assert!(
+        undeclared.is_empty(),
+        "these arms name a group that docs/arms.json does not declare:\n  {}\n\
+         A declaration carries the owner and the `complete` flag, so an arm without one is \
+         an arm nobody can claim or finish. If a merge dropped them, put them back; the \
+         keyed driver does not guard anything outside the `arms` array.",
+        undeclared.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n  "),
+    );
+
+    // And the other way, which is the cheaper half of the same mistake: a group
+    // nobody files under is a group whose arms went somewhere else.
+    let unused: Vec<&String> = declared.difference(&used).collect();
+    assert!(
+        unused.is_empty(),
+        "these groups are declared and no arm is filed under them:\n  {}",
+        unused.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n  "),
+    );
+}

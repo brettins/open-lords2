@@ -70,7 +70,37 @@
     "taxonomy of the interface. Any taxonomy is derivable from `screen`, so `group` carries the",
     "thing that is not derivable: who enumerated this, and whether they finished. C61 measured",
     "three groups, but those three were an artefact of how one evening happened to split across",
-    "three agents, which is the worst possible reason to freeze a taxonomy."
+    "three agents, which is the worst possible reason to freeze a taxonomy.",
+    "",
+    "WHAT THE DENOMINATOR EXCLUDES, and this is the most important paragraph in the file.",
+    "C61 counted \"the arms of Screen_FrameInput\". That is a PLACE, not a category, so every",
+    "input the game dispatches from anywhere else scored zero WITHOUT EVER APPEARING AS A MISS.",
+    "Three such places are now known and each was found by somebody looking outside the",
+    "dispatcher rather than by the count going down:",
+    "",
+    "  * the WINDOW PROCEDURE (0x004B29BE). WM_CHAR is one statement, Edit_TypeChar(ch), with no",
+    "    test of g_screenId at all, and the seven editing keys are equally ungated WM_KEYDOWN",
+    "    cases. The whole keyboard is one flag, g_editActive.",
+    "  * Screen_HandleInput (0x004BA9C8), the widget tables -- LEFT BUTTON ONLY, it names no",
+    "    right-button global anywhere. 0x004BA9C8/blacksmith-weapon-choice is one of these and",
+    "    is the only control on any job popup; screen 0x0F's arm in the dispatcher has no hint",
+    "    of it.",
+    "  * Screen_DrawWidgets (0x004BA26E), the DRAW pass, which is where hover lives: screen",
+    "    0x10's whole overlay arm is Map_HoverUnitTarget recomputing the route under the cursor,",
+    "    and Ui_DrawMenuTitles writes the menu bar's hit boxes back into its own table at draw",
+    "    time, so the bar cannot be hit-tested until it has been painted.",
+    "",
+    "So a percentage taken over this file is a percentage of what has been ENUMERATED, and the",
+    "enumeration is still shaped by where somebody looked. Say so wherever the number is quoted.",
+    "",
+    "A WARNING ABOUT THE MERGE, paid for once. The keyed driver merges the `arms` ARRAY by `id`",
+    "correctly -- it said so, and it was right. It then took the OTHER side's `groups` object and",
+    "`_note` wholesale and DISCARDED five group declarations and twenty-one lines of prose that",
+    "existed on only one side. The array is guarded and the scalars beside it are not, in the file",
+    "whose entire purpose is counting. After any merge or rebase that touches this file, check",
+    "`groups` and `_note` by hand, and check that every `group` an arm names is declared: the",
+    "check in crates/l2-game/tests/arms.rs reads the `arms` array and nothing else, so a group",
+    "that has quietly lost its declaration fails no test."
   ],
   "version": 1,
   "marker": "// arm: <id>",
@@ -94,6 +124,31 @@
       "what": "The keyboard on setup screen 0x1F and the save/load box 0x35/0x36",
       "complete": true,
       "note": "Recorded because enumerating the text fields meant reading these ladders anyway, and what it turned up is that THE FRONT END HAS NO KEYBOARD AT ALL in the original: not one of Screen_HandleInput's thirteen g_setupPage arms tests a key, and the window procedure has no g_screenId == 0x1F case. Every `ours/setup-*` and `ours/saveload-*` record below is therefore an invention, and they are KEPT rather than removed -- a menu a person cannot drive from the keyboard is worse, not more faithful. They are here so the count is honest, which is the whole point of the `invention` status."
+    },
+    "menu-bar": {
+      "what": "g_menuBarItems (0x004DC428) and screen 0x32 -- three titles, sixteen items",
+      "complete": true,
+      "note": "Enumerated from the table rather than from any painter: `node tools/oracle/widgets.js menu 4dc428 3` names all sixteen handlers, and Ui_DrawMenuTitles, Menu_HitTitle, Menu_OpenDropdown, FUN_0040DD92, FUN_0040E099 and FUN_0040DF62 are the six functions between them. The battlefield's own Menu_OpenDropdown call is 0x0040DECA/battle-menu-bar and stays in the battlefield group."
+    },
+    "right-column": {
+      "what": "x >= 478: the minimap, its four mode icons, the county strip, the split slider, the produce rows, the five sidebar buttons and End Turn",
+      "complete": true,
+      "note": "The six guards Screen_FrameInput runs at the head of the arms for 0x00, 0x02, 0x14, 0x15, 0x16 and 0x19, plus Minimap_Click, which the EPILOGUE runs on every screen id but 0x12. Counted per implementation: the six functions are recorded once each against their own addresses, and 0x0042FF10/inset-runs-the-sidebar-guards is the separate arm that an inset's ladder runs them at all."
+    },
+    "county-panels": {
+      "what": "0x14 population, 0x15 tax, 0x16 happiness, 0x19 rations",
+      "complete": true,
+      "note": "All four arms are the same shape and are read in docs/screens-county.md 2.6; 0x19 alone inserts Ration_SliderClick. The four PANELS themselves are drawn by four painters and their widget tables are Screen_HandleInput's, not Screen_FrameInput's."
+    },
+    "village": {
+      "what": "0x02 the village, 0x05 the rubber band, 0x06 carrying peasants, 0x0F the job popup",
+      "complete": true,
+      "note": "Three screen ids for one gesture -- press, drag, release, second click -- and the popup either of two screens can open. docs/screens-county.md 6.4."
+    },
+    "management-screens": {
+      "what": "0x04 and the close arms of 0x08 .. 0x13",
+      "complete": false,
+      "note": "The CLOSE arms are enumerated and the two panels behind 0x04 are not: FUN_00438990, FUN_00438A91 and FUN_00437002 are three hotspot tables nobody has driven. The screens themselves belong to the merchant, armoury, diplomacy and army agents; what is here is the chrome around them."
     }
   },
   "arms": [
@@ -211,6 +266,40 @@
       "evidence": "V"
     },
     {
+      "id": "0x0040DD92/hover-item",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "hover",
+      "addr": "0x0040DD92",
+      "what": "FUN_0040E099 recomputes DAT_00522CB0, the highlighted row, every frame the button is up. The row is x .. x + 0x90 -- 144 pixels wide WHATEVER THE CAPTION SAYS -- and 15 tall in a 20-pixel pitch, so the five pixels between two rows highlight nothing.",
+      "note": "The only hover arm in the whole management interface. Every other screen in this group acts on a press or a release.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DD92/pick-item",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DD92",
+      "what": "With the button DOWN and a row highlighted: g_screenId = g_menuPrevScreen FIRST, then the item's handler. The ordering is what lets a handler that sets a screen id win and a handler that does not leave the player where he was.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DD92/slide-between-titles",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "hover",
+      "addr": "0x0040DD92",
+      "what": "With the button UP, FUN_0040DD92 runs Menu_HitTitle again: a pointer that reaches a DIFFERENT title while a menu is open switches the open menu to it. No click involved.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0040DECA/battle-menu-bar",
       "status": "missing",
       "group": "battlefield",
@@ -219,6 +308,156 @@
       "addr": "0x0040DECA",
       "what": "Menu_OpenDropdown(&g_menuBarItems, 3) -- File, Options and Help are live during a battle, so a player can save, load, quit or open the options from the battlefield.",
       "note": "The same arm is missing on the campaign map (crates/l2-game/src/screens/map.rs's table). Saving mid-battle is a question nobody has answered: Screen_HandleInput has no 0x29 arm and Menu_SaveGame does not test g_battlePhase.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/file-load",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "L2.eng 1.2: Menu_LoadGame globs *.sav and sets g_screenId = 0x35. Ours reaches crates/l2-game/src/screens/saveload.rs, which was previously reachable only by the L key -- a key of ours standing in for this item.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/file-new-game",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "File menu item 1, L2.eng 1.1: Menu_NewGame -> Ui_OpenConfirm(1, ...), L2.eng group 10 index 1.",
+      "note": "The ITEM is reproduced and its handler is not: screen 0x1E, the one yes/no box that serves fifteen questions in the whole game, is not built, so this refuses with a line naming the screen it wants. Recorded as reproduced because the input arm -- title, row, hit test, dispatch -- is the thing this file counts; docs/decisions.md C76 says what the missing half costs.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/file-quit",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "L2.eng 1.4: Menu_Quit -> Ui_OpenConfirm(0, ...), 'Exit the game?'.",
+      "note": "Quits outright, because there is no confirm box to carry the question. That is the answer the box would have returned and not the box; the same missing screen as file-new-game.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/file-save",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "L2.eng 1.3: Menu_SaveGame sets g_screenId = 0x36 after stashing the current screen in g_screenIdSaved, which is what SaveLoad_Cancel puts back.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/help-about",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "L2.eng 3.7: Menu_About sets g_screenId = 0x25, which is a shell whose `unfinished` reads 'nothing -- this is the whole screen'.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/help-topics",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "Five items, L2.eng 3.2 .. 3.6, each Msg_Enqueue with one of FIVE CONSECUTIVE message ids 0x123 .. 0x127.",
+      "note": "The consecutive ids are the independent check on the table: they were read off five separate handlers and came out in the item order with no gaps. The message scroll is not built, so each says which id it wanted.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/open-dropdown",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "Menu_OpenDropdown(&g_menuBarItems, 3). Menu_HitTitle (0x0040E00A) picks the title under the pointer; on a hit it saves g_screenId into g_menuPrevScreen, writes 0x32 and calls Menu_SaveBackdrop. The titles are MEASURED, not placed: Ui_DrawMenuTitles writes each caption's pen-after into the record and the next title starts 32 pixels further on, so a title's hit box is exactly the width of its own word in the 14-pixel body font and the gap between two titles is dead.",
+      "note": "This is the arm docs/screens.md and crates/l2-game/src/screens/map.rs both carried as 'not reproduced' in a table row -- one row for nineteen arms. It sits INSIDE the turn-ended gate while Sidebar_ButtonClicked, two guards above it, sits outside: the sidebar keeps working after End Turn and the menu bar does not.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/options-and-help-pages",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "Four items over two menus that are one arm here because they are one line of code: Menu_AdvancedOptions -> 0x39, Menu_SoundOptions -> 0x42, Menu_DisplayOptions -> 0x43 and Menu_GameHelp -> 0x31. All four screens exist (crates/l2-game/src/screens/options.rs) and had no way in but the index screen.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DECA/options-sliders",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DECA",
+      "what": "L2.eng 2.4 and 2.5: Menu_GameSpeed passes &g_optGameSpeed and Menu_ScrollSpeed passes &g_optScrollSpeed to the value spinner, screen 0x21 -- the screen that prints L2.eng group 12 index 0, 'Click Right to Exit'.",
+      "note": "Menu_ScrollSpeed is the row that proves the whole table was read rather than assembled: g_optScrollSpeed was named months earlier for unrelated reasons and the caption above it turns out to be 'Scroll Speed'. The items dispatch; screen 0x21 is not built, so both say so.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040DF62/close-on-miss",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "left-press",
+      "addr": "0x0040DF62",
+      "what": "A press with no row highlighted closes the drop-down unconditionally -- including a press back on the title that opened it, which is what makes the bar behave like a menu bar.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040E7E4/panel-corner-closes",
+      "status": "reproduced",
+      "group": "county-panels",
+      "screen": "0x14, 0x15, 0x16, 0x19",
+      "gesture": "left-release",
+      "addr": "0x0040E7E4",
+      "what": "Ui_OkButtonClicked -- a left release inside the 24x24 box at (DAT_0055CE78, DAT_0057C8A0), which is wherever the last Ui_OkButton call drew the corner picture. Ui_OkButton is the only writer of those two globals and stashes only its LAST call, so on a screen that draws two corner pictures only the second is clickable.",
+      "note": "The picture is a cursor arrow going into a black hole, not a tick: of System.pl8's 84 frames, 0x33 and 0x10 are the 4th and 5th darkest at 15.3% and 11.5% near-black against a median 1.2%. docs/screens-county.md 2.7.",
+      "ours": "crates/l2-game/src/screens/county.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040E7E4/shell-corner-closes",
+      "status": "reproduced",
+      "group": "management-screens",
+      "screen": "0x04, 0x09, 0x0B, 0x25, 0x2E",
+      "gesture": "left-release",
+      "addr": "0x0040E7E4",
+      "what": "Ui_OkButtonClicked's 24x24 box at the position the shell's own Ui_OkButton call stashed. A shell whose table row has no `ok` has no corner picture in the original either and is left by the right button alone -- 0x18 is one.",
+      "note": "THIS ARM WAS WRONG, not missing: it was `Event::Click { .. }` unqualified, so a left click ANYWHERE closed a shell. Screen 0x04, the information panel a right-click on the map opens, could not be read at all -- the click that opened it was followed by the click that closed it. Third wrong arm.",
+      "ours": "crates/l2-game/src/screens/shells.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040E7E4/village-corner-closes",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x02",
+      "gesture": "left-release",
+      "addr": "0x0040E7E4",
+      "what": "Ui_OkButton(0x180, g_villageTopY + 0x118, 1) -- mode 1, the bevelled corner picture -- and Ui_OkButtonClicked's 24x24 box on it.",
+      "ours": "crates/l2-game/src/screens/village.rs",
       "evidence": "V"
     },
     {
@@ -233,6 +472,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/back-one-rather-than-to-the-map",
+      "status": "missing",
+      "group": "management-screens",
+      "screen": "0x0C, 0x0D, 0x11",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "Five of the 19 right-close arms step back ONE level rather than to the map: 0x0C -> 0x08 (trade goods to the merchant), 0x0D -> 0x0A (a weapon's rack to the armoury), 0x11 -> 0x04 (army division to the information panel), 0x17 -> 0x0A, 0x2A -> 0x29. The other fourteen write the literal 0.",
+      "note": "0x11 -> 0x04 is the one that matters for this group: army division returns to the INFORMATION PANEL, which is the screen its Split button was on. Our stack pops to whatever pushed it, which is right for 0x0C and 0x0D and reaches the campaign map for 0x11, because we have no unit panel to go back to.",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/cancel-drag",
       "status": "reproduced",
       "group": "battlefield",
@@ -241,6 +491,18 @@
       "addr": "0x0042FF10",
       "what": "A right release goes back to 0x29. It does NOT undo the box -- the live selection is left exactly as the last pointer motion made it, because the cancel is a screen change and nothing else.",
       "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/carry-right-cancels",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x06",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "While CARRYING peasants, a right release is `g_screenId = 0x02; g_villageDragCluster = 0; FUN_004120E0(); FUN_00432893(1);` -- it puts the selection back and STAYS IN THE VILLAGE. 0x05, the rubber band, has no right-button arm at all: the band ends on the release of the left button and nothing else.",
+      "note": "A WRONG ARM, not a missing one, and the second one this file has found. Ours popped the screen from every phase, so a player who picked peasants up and changed his mind lost the village as well as the selection -- and nothing looked broken, because leaving on a right click is what the idle village really does.",
+      "ours": "crates/l2-game/src/screens/village.rs",
       "evidence": "V"
     },
     {
@@ -277,6 +539,131 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/dropdown-right-close",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "The whole of Screen_FrameInput's 0x32 arm: `if (FUN_0040DD92(&g_menuBarItems, 3) == 0 && g_mouseRightReleased) FUN_0040DF62();`.",
+      "note": "A right PRESS also cancels, by a different route: FUN_0040E12E, the drop-down's own modal loop, spins `while (DAT_004EABE0 == 0)`. That is one of only five reads of the right press flag in the binary and is not reproduced -- we have no modal loop.",
+      "ours": "crates/l2-game/src/screens/menubar.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/force-close-on-turn-end",
+      "status": "missing",
+      "group": "right-column",
+      "screen": "29 of the 49 arms",
+      "gesture": "timer",
+      "addr": "0x0042FF10",
+      "what": "TWENTY-NINE arms open with `if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))` and force-close. DAT_0055403C is what Turn_End writes, DAT_00553FC8 is the multiplayer sync-wait latch and DAT_00553018 is the F12 debug override. A THIRD OF THIS FUNCTION'S JOB is tearing every open panel down when the turn ends or the network blocks, with no user input involved at all.",
+      "note": "Not a gesture, and it is in this file because it is the guard that runs before every gesture in the group. Missing because our End Turn resolves the turn synchronously, so no panel can be open while it runs; it becomes reachable the moment turns are asynchronous, which is the whole of docs/netcode.md.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/inset-runs-the-sidebar-guards",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x02, 0x14, 0x15, 0x16, 0x19",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "The arms for the village and for all four county panels open with the SAME SIX GUARDS in the same order -- Minimap_ModeButtonClicked, Sidebar_ButtonClicked, CountyStrip_Click, Labour_SplitSliderDrag, CountyStrip_JobClick, FUN_00439079 -- before a single verb of their own, and every one of the six hit-tests x >= 0x1DE. So the whole right-hand column stays live under an inset and nothing else does: Map_Click is in NEITHER ladder, and a click on the strip of campaign map either side of the village does nothing at all.",
+      "note": "One record for six guards on five screens, because this file counts per implementation and the implementation is one predicate, crates/l2-game/src/screens/mod.rs::belongs_to_the_right_column. It was reproduced for the village and NOT for the four panels, which swallowed the whole column; a player with the tax panel open could not touch the minimap, the sidebar, the slider or the produce rows. Clicking the strip under a panel SWITCHES panel, which is how you go from population to tax without a trip via the map.",
+      "ours": "crates/l2-game/src/screens/mod.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/job-popup-closes",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x0F",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "0x0F's whole arm: `if (Ui_OkButtonClicked() || rightReleased) { g_screenId = DAT_005533F4 ? 0 : 0x02; DAT_005533F4 = 0; Sound_StopOneShot(); }`. The popup returns to whichever screen opened it, and DAT_005533F4 is a flag the two CALL SITES set -- Village_ClickJob writes 0, CountyStrip_JobClick writes 1 -- rather than a memory of where the interface was.",
+      "note": "0x0F has NO turn-ended guard, which 29 of the 49 arms do have. The Sound_StopOneShot half is not reproduced: the popup's voice clip is not played.",
+      "ours": "crates/l2-game/src/screens/job.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/levy-right-commits",
+      "status": "missing",
+      "group": "management-screens",
+      "screen": "0x17",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "0x17's arm is the exception to 'right-click closes': a right release does NOT go to the map. It sets g_screenId = 0x0A -- the armoury -- and runs FUN_004AA90A(g_selectedCounty, g_levyMen), which COMMITS the levy. The Ui_OkButtonClicked branch beside it goes to 0 instead and does not commit.",
+      "note": "So the two ways out of the raise-army screen do OPPOSITE things, and the one a player reaches by habit is the one that acts. Recorded here because it was found while enumerating this group; screen 0x17 belongs to the army agent.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/map-message-scroll-dismiss",
+      "status": "missing",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "Guard 7 of the 0x00 arm: `if (g_messageGroup != 0 && rightReleased) { Msg_Dismiss(); FUN_0045270A(); }` -- a right release with a message scroll up dismisses it and swallows the click, BEFORE the tile arms below. Distinct from FUN_0047685D, which is every screen's and tests a 48x48 box round the scroll.",
+      "note": "Missing because there is no message scroll. It is the reason a right-click on the map does not always open the information panel.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/map-zoom-in-at-tile",
+      "status": "missing",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "`if (picked && leftPressed && g_mapZoom == 2) { g_screenId = 0; Map_ZoomInAtTile(); return; }` -- at the far zoom a left PRESS on a tile zooms the map in on it, and the arm RETURNS rather than falling through to Map_Click. So at zoom 2 the left button does not select anything; it zooms.",
+      "note": "Ours has zoom on the Z key and on minimap button 4 and no click arm at all, so at the far zoom our left click does what the original's near-zoom click does. Found by enumeration; not implemented here because the zoom state machine is the campaign map's.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/minimap-closes-the-surface",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "any",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "Screen_FrameInput's EPILOGUE, which runs after every per-screen arm on every screen id but 0x12: `if ((leftPressed || rightPressed) && FUN_004323FE()) { if (g_screenId == 0x0F) Sound_StopOneShot(); if (g_battlePhase == 0) g_screenId = 0; }`. FUN_004323FE is Minimap_Click outside a battle and BattleMap_Click inside one. So a press on the minimap raster from ANY management screen re-centres the map and DROPS THE WHOLE MANAGEMENT SURFACE.",
+      "note": "The reach of this arm is the finding: the minimap is not the campaign map's control, it is the game's. Reproduced by Transition::Reveal, a new machine verb meaning 'I acted and everything above me closes' -- which is what `g_screenId = 0` is when there is a stack underneath. The county panels, the job popup and the shells pass the press down; the village's two drag phases do not, which is Minimap_Click's own guard rather than an omission.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/minimap-under-a-shell",
+      "status": "reproduced",
+      "group": "management-screens",
+      "screen": "0x04, 0x09, 0x0B, 0x18, 0x25",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "The epilogue's minimap arm again, on every shell that is an overlay over the campaign map.",
+      "ours": "crates/l2-game/src/screens/shells.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/minimap-under-the-job-popup",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x0F",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "The epilogue's minimap arm, and 0x0F is the screen it NAMES: `if (g_screenId == 0x0F) { Sound_StopOneShot(); FUN_0041438C(); }` before the close. Only the raster is live -- 0x0F's own arm runs none of the six sidebar guards -- so passing the whole column down would have been five inventions.",
+      "ours": "crates/l2-game/src/screens/job.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/panel-right-closes",
+      "status": "reproduced",
+      "group": "county-panels",
+      "screen": "0x14, 0x15, 0x16, 0x19",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "After the six guards, a right release sets g_screenId = 0. It closes from ANYWHERE, the strip included: every guard in the chain tests a left press or a left release, so none of them consumes a right one.",
+      "ours": "crates/l2-game/src/screens/county.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/prompt-timeout",
       "status": "missing",
       "group": "seam",
@@ -288,6 +675,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/shell-right-closes",
+      "status": "reproduced",
+      "group": "management-screens",
+      "screen": "0x04, 0x09, 0x0B, 0x18, 0x25, 0x2E",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "Every one of these ids has a right-release arm in Screen_FrameInput, and L2.eng group 12 index 0 -- 'Click Right to Exit', printed under the value spinner's caption -- is the game saying so in English. Right-close is 19 of the 49 arms and 36% of the function's body.",
+      "ours": "crates/l2-game/src/screens/shells.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/skip-outcome",
       "status": "reproduced",
       "group": "battlefield",
@@ -296,6 +694,17 @@
       "addr": "0x0042FF10",
       "what": "A right release sets DAT_00568470 = 0x1389 -- 5001, one past the limit Battle_CheckOutcome counts it up to -- so it SKIPS the outcome banner rather than dismissing it. The whole of 0x2B's arm.",
       "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/village-right-leaves",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x02",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "On the idle village a right release sets g_screenId = 0 and takes the village with it. One of three ways out, the others being the corner picture and the sidebar's own destinations.",
+      "ours": "crates/l2-game/src/screens/village.rs",
       "evidence": "V"
     },
     {
@@ -321,6 +730,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x00432221/info-panel-edge-scroll-leaves",
+      "status": "missing",
+      "group": "management-screens",
+      "screen": "0x04",
+      "gesture": "hover-at-edge",
+      "addr": "0x00432221",
+      "what": "0x04's arm runs Map_EdgeScroll SECOND, and a scroll CLOSES THE PANEL: `if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }`. Pushing the pointer into the edge of the screen with the information panel up dismisses it.",
+      "note": "One of the few arms where a hover is a navigation. Missing because the shell has no edge-scroll test; the campaign map underneath does not get the pointer while a shell is up.",
+      "evidence": "V"
+    },
+    {
       "id": "0x00432443/overview",
       "status": "reproduced",
       "group": "battlefield",
@@ -329,6 +749,41 @@
       "addr": "0x00432443",
       "what": "BattleMap_Click: the 160x160 panel at (480, 24), two pixels a cell over the whole 80x80 field. Left button with a selection, no oil selected and unpaused ORDERS to that cell; anything else, the right button included, puts the camera there. Reached from Screen_FrameInput's EPILOGUE, so it is live on 0x29, 0x2A and 0x2B alike.",
       "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043253A/minimap-click",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x0043253A",
+      "what": "Minimap_Click: x 480..607, y 25..152, reads g_minimapCounty[(x-480) + (y-25)*128] and, for a non-zero county with a town tile, selects it and calls Map_CentreOnTile. It returns 1 -- CONSUMED -- for any press inside the rectangle, county or no county.",
+      "note": "Two guards worth having written down. It returns 0 outright while g_mouseRightPressed is set, so a right-click on the minimap deliberately does not re-centre; and it returns 0 outright on screens 0x05 and 0x06, THE VILLAGE'S TWO DRAG SCREENS, so a stray click on the minimap cannot lose a peasant drag.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043292D/minimap-mode-buttons",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x0043292D",
+      "what": "Hotspot_Test(0x262, 0x20, &g_minimapModeButtons, 4) -- the four icons in the 29x123 strip at (611, 32). Record 1's y1 is 0x42 where the pattern wants 0x3F, so band 2 is 34 pixels tall and overlaps band 3's first two rows; Hotspot_Test returns on the first match, so y 96 and 97 select mode 2. That is the original's own data.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432967/sidebar-hit-test",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x00432967",
+      "what": "Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6) and nothing else. SIX records, not five: the sixth is End Turn at (0,30)..(161,49), whose handler is Turn_End rather than Sidebar_Button. The five buttons' rectangles start at x offsets 0, 34, 66, 98, 130 and end at 33, 65, 97, 129, 161, and Hotspot_Test is half-open, so there is a one-pixel dead column between each pair.",
+      "note": "Guard 3 of the 0x00 arm and OUTSIDE the turn-ended gate, so the whole strip outlives End Turn while the menu bar, the minimap modes, the county strip, the split slider and the produce rows -- all of which are inside it -- do not. Nothing in our engine yet distinguishes the two, because our End Turn resolves the turn synchronously.",
+      "ours": "crates/l2-game/src/screens/map.rs",
       "evidence": "V"
     },
     {
@@ -373,6 +828,309 @@
       "addr": "0x004360F2",
       "what": "VK_END's SECOND half, and it is genuinely odd: Chat_Close clears g_chatTimer AND g_saveLoadConfirm, so pressing End after Enter on the save box CANCELS THE PENDING SAVE. The two counters are cleared by one function because chat and the save box are the only two things Return arms, and nothing separates them again.",
       "note": "Reachable in single player -- neither half is guarded on g_multiplayer -- so this is a real key a person can press on a real save box, not a multiplayer-only arm. Missing because our save is immediate and has no latch to cancel; a save that took 150 frames the way SaveLoad_Tick's does would need it.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00437002/unit-panel-buttons",
+      "status": "missing",
+      "group": "management-screens",
+      "screen": "0x04",
+      "gesture": "left-press",
+      "addr": "0x00437002",
+      "what": "The information panel's UNIT half: for a type-1 unit of the local player's, three 40x40 buttons at (48, 352), (112, 352) and (176, 352) -- Panel_MoveButton, Panel_DisbandButton, Panel_SplitButton -- or, for a GARRISONED army, the same table with FUN_004374C4 in the first slot instead.",
+      "note": "This is the door to screens 0x10 and 0x11 in the original. Ours goes straight from a map click into move-order mode, which is what Panel_MoveButton does with its two siblings unbuilt, and reaches 0x11 by the A key. So the DESTINATIONS are reproduced and the panel that holds them is not.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00438990/tile-panel-hotspots",
+      "status": "reproduced",
+      "group": "management-screens",
+      "screen": "0x04",
+      "gesture": "left-release",
+      "addr": "0x00438990",
+      "what": "The information panel's TILE half. Gated on plane-0 flag 0x20, no unit on the tile, the county being the local player's, and the tile graphic not being 0x17 or 0x18. Then one of two hotspot tables by graphic: DAT_004DC4D0, three records at (240,184) (304,184) (368,184) 48x48 with hotspot ids 1, 2 and 19, for graphics 1..0x18; or DAT_004DC530, two records at (304,184) and (368,184) with ids 25 and 0, for everything else. Both dispatch to FUN_00438B02 and both are tested at a runtime y offset, DAT_00553D2C * 16.",
+      "note": "THE TABLE IS REPRODUCED AND THE SCREEN IT LIVES ON IS NOT. The five buttons' geometry -- 48 x 48 on the row y 184..232, three at x 240/304/368 for a field and the LAST TWO of the same three for waste -- and all five destinations through Field_SetType are ours out of the executable (crates/l2-kingdom/tests/oracle.rs reads them). What is not reproduced is where it stands: the original draws it on SCREEN 0x04, at a runtime row offset (DAT_00553D2C << 4), reached by right-clicking the map; ours is a popup on screen 0. See ours/brush-popup-on-the-map.",
+      "evidence": "D",
+      "ours": "crates/l2-game/src/screens/map.rs"
+    },
+    {
+      "id": "0x00438A91/tile-panel-widgets",
+      "status": "missing",
+      "group": "management-screens",
+      "screen": "0x04",
+      "gesture": "left-press",
+      "addr": "0x00438A91",
+      "what": "Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) -- a widget table whose COUNT is a runtime global the painter writes, so how many widgets the panel has depends on what was picked. Record 0 is FUN_00438ACC at (336, 382), frame 25, which is the tick.",
+      "evidence": "D"
+    },
+    {
+      "id": "0x00438CEB/strip-happiness",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x00438CEB",
+      "what": "Top-right: mx 568..629, my 182..211 -> screen 0x16. The dead band 548..567 between the two columns is 19 pixels wide and the health thermometer is 14 wide at x = 552, so the bar sits inside it with two pixels to spare each side and is deliberately not clickable.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00438CEB/strip-population",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x00438CEB",
+      "what": "CountyStrip_Click's top-left quadrant: mx 488..547, my 182..211 -> screen 0x14. The outer guard is mx > 487 && mx < 630 && my > 181 && my < 241.",
+      "note": "The four quadrants are four records rather than one because they are a ladder with four outcomes, which is this file's counting rule -- the same rule that makes the battlefield's five buttons five records under one hit test.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00438CEB/strip-ration",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x00438CEB",
+      "what": "Bottom-right: my 212..240 -> screen 0x19. Population, tax, happiness and rations are four separate windows and this 2x2 is the whole menu; nothing else opens any of them.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00438CEB/strip-tax",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x00438CEB",
+      "what": "Bottom-left: my 212..240 -> screen 0x15.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00438E3B/job-rows",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x00438E3B",
+      "what": "CountyStrip_JobClick: the 162x128 plate at y = 302, farm jobs left of x = 0x230 and industry right of it, row = (y - 0x12E) / pitch, and the row's stored value IS the labour slot. It sets g_jobPanelJob = slot + 1, dismisses any message, sets DAT_005533F4 = 1 (meaning 'opened from the map, so close to the map') and opens screen 0x0F. Gated on ownership; a row index past the end of its column's list returns 0 rather than falling through to the other column.",
+      "note": "The two lists and the two pitches are FUN_0040FEC1 and CountyStrip_Draw: the farm column is cattle, grain, reclamation with pitch 0x3C or 0x2D, and the industry column is wood, iron, stone, weapons, castle -- gated on industry[n].enabled, the byte Industry_ToggleFromMap XORs -- with pitch 0x3C, 0x2D or 0x1E. crates/l2-game/src/screens/county.rs holds both and draw_produce_rows now reads the same list it hit-tests.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00439079/right-clears-minimap-mode",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "right-release",
+      "addr": "0x00439079",
+      "what": "A right release in x >= 0x1DE, 0x18 <= y < 0x99 with a minimap overlay up clears the overlay and SWALLOWS the click; with no overlay up it returns 0 and the arm falls through. The rectangle is the minimap and its button strip, not the whole column: y stops at 152, four pixels above the county strip's plate.",
+      "note": "It is guard 2 of the 0x00 arm and guard 6 of the village's and of all four county panels'. Only the campaign map's copy is reproduced: an overlay screen cannot see the map's minimap mode, so with a panel open the panel's own right-release closes it first. That is a divergence and it is written here rather than left implicit.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00439122/split-slider",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "drag",
+      "addr": "0x00439122",
+      "what": "Labour_SplitSliderDrag: hit box x 0x1DE..0x27F, y 0x101..0x128, gated on the county being the local player's. It is a DRAG -- it acts while the button is DOWN and the pointer MOVED, and returns 1 without doing anything on the release. Three zones, half-open: x < 0x213 steps the share down by four, x < 0x252 sets it to ((x - 0x213) * 2) & 0xFC, and 0x252 or more steps it up by four; clamped 0..100, and it skips the recompute when the value did not change.",
+      "note": "TWO WRONG ARMS were found here rather than a missing one. Ours tested `x > 594` for the up zone where the original tests `x >= 594`, so the column at x = 594 landed on the track instead of stepping; and ours gated on `selected != 0` where the original gates on OWNERSHIP, so the slider moved another lord's peasants. Both fixed. Neither looked broken.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004393EB/band-start",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x02",
+      "gesture": "left-press",
+      "addr": "0x004393EB",
+      "what": "Village_BandStart arms the band on a press inside x 0..0x1FF, y top..top+0x178 and returns 1 -- taking the interface to 0x05 -- once the pointer is NINE OR MORE pixels from where the button went down. Below nine it is still a click.",
+      "ours": "crates/l2-game/src/screens/village.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00439541/band-release",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x05",
+      "gesture": "left-release",
+      "addr": "0x00439541",
+      "what": "Village_BandRelease: on the button being released, 2 (to 0x06, carrying) when the band caught somebody and 1 (back to 0x02) when it did not.",
+      "ours": "crates/l2-game/src/screens/village.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043958A/box-select",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x05",
+      "gesture": "drag",
+      "addr": "0x0043958A",
+      "what": "Village_BoxSelect marks every icon inside the rubber band, every frame. Two rules that are not obvious from outside: a band reaching into a SECOND cluster abandons the whole selection, and shortfall icons -- value 1, the figures that stand for workers the job wants and has not got -- are skipped explicitly and cannot be picked up.",
+      "ours": "crates/l2-game/src/screens/village.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004399B0/drop",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x06",
+      "gesture": "left-press",
+      "addr": "0x004399B0",
+      "what": "Village_Drop sees the NEXT press and drops there. Where a drop lands is not a rectangle: Village_GridAt reads vill_gd8.pl8 at ((x - 0x40) >> 3) + ((y - top) >> 3) * 0x2D, and the shipped file is 1,824 bytes = 24 + 45 x 40 exactly.",
+      "ours": "crates/l2-game/src/screens/village.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00439DF0/double-click-balances",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x02",
+      "gesture": "double-click",
+      "addr": "0x00439DF0",
+      "what": "Village_DoubleClick, between Village_BandStart and Village_ClickJob in the ladder: a job below its floor fills from the idle pool and a job above its ceiling empties into it, and a double click on the idle cluster itself sheds every job and only then fills every job. Windows decides what a double click is -- WM_LBUTTONDBLCLK arrives INSTEAD OF the second WM_LBUTTONDOWN.",
+      "ours": "crates/l2-game/src/screens/village.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043A123/click-opens-the-job-popup",
+      "status": "reproduced",
+      "group": "village",
+      "screen": "0x02",
+      "gesture": "left-release",
+      "addr": "0x0043A123",
+      "what": "A press that never travelled nine pixels is a click, and a click opens screen 0x0F for whatever cluster it landed on -- but not for 300 MILLISECONDS. Village_ClickJob is gated on DAT_004EABF0, which the frame poll sets only when a pending click has stood that long, and a double click clears the pending click in the poll itself. The popup opening a fraction late is deliberate.",
+      "ours": "crates/l2-game/src/screens/village.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043A379/ration-split-slider",
+      "status": "reproduced",
+      "group": "county-panels",
+      "screen": "0x19",
+      "gesture": "left-press",
+      "addr": "0x0043A379",
+      "what": "Ration_SliderClick, and it is 0x19's ONE difference from the other three panels: it is inserted as an extra guard after Sidebar_ButtonClicked, so dragging the ration split does not dismiss the panel. Caps at 200 and 325 step by one, the track 224..323 jumps to mouseX - 224.",
+      "ours": "crates/l2-game/src/screens/county.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AB76/minimap-mode-clear",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "button-4",
+      "addr": "0x0043AB76",
+      "what": "In any mode but 0, id 4 turns the overlay off -- and is the ONLY button that responds at all. Same hotspot as the zoom toggle, a different verb by state, which is why they are two records.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AB76/minimap-mode-set",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "button-1",
+      "addr": "0x0043AB76",
+      "what": "In mode 0 only, ids 1..3 set g_minimapMode to the labour, food or happiness rating. THE FOUR ARE NOT RADIO BUTTONS: while any mode is up, ids 1..3 do nothing at all, so going from food to happiness takes two clicks and not one.",
+      "note": "The artwork says it from the other side -- Misc_cty frame 0x5C, drawn in mode 0, carries four buttons and frame 0x5B, drawn while a mode is up, carries a colour bar and one.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AB76/minimap-zoom-toggle",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "button-4",
+      "addr": "0x0043AB76",
+      "what": "In mode 0, id 4 is g_screenId = 0 and Map_ToggleZoom -- the campaign map's zoom control, which docs/screens.md section 7 records us having replaced with the Z key.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AC23/end-turn",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x0043AC23",
+      "what": "Record 5 of g_sidebarButtons -- the full-width button at (478, 460) -- whose handler is Turn_End, which writes 999 into the realm's +0x00.",
+      "note": "Its caption is suppressed once the turn has been ended: Screen_DrawEndTurn guards it on g_realms[g_localPlayer].aiStep < 999.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AE30/sidebar-castle",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "button-4",
+      "addr": "0x0043AE30",
+      "what": "FUN_00436A88 (Castle_OpenScreen): the ownership refusal, then g_screenId = 0x1B.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AE30/sidebar-court",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "button-2",
+      "addr": "0x0043AE30",
+      "what": "g_screenId = 9. UNGATED -- the court is the realm's, not the county's, and it is one of only two buttons in the strip that do not test ownership.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AE30/sidebar-levy",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "button-1",
+      "addr": "0x0043AE30",
+      "what": "Levy_SetPercent(sel, g_levyPercent), FUN_004AA90A(sel, g_levyMen), g_screenId = 0x17, and the mercenary band loaded on top when county.mercenaryOffer != 0. Refused with Msg_Enqueue(..., 0x70, ...) for a county that is not yours.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AE30/sidebar-lords",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "button-5",
+      "addr": "0x0043AE30",
+      "what": "FUN_0043611B: g_screenId = 0x0B, the other lords. Ungated, like the court.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043AE30/sidebar-supplies",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x00",
+      "gesture": "button-3",
+      "addr": "0x0043AE30",
+      "what": "g_screenId = 0x18, and it seeds the basket before it goes: the county's grain and herd into DAT_005678C0 + player*0x18, the county id into DAT_00553C78, and Sound_PlayFile(s033_01.wav). Gated on ownership.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043B412/supplies-county-picker",
+      "status": "missing",
+      "group": "management-screens",
+      "screen": "0x18",
+      "gesture": "left-press",
+      "addr": "0x0043B412",
+      "what": "Send supplies is a MINIMAP: FUN_0043B412(0x60, 0x68) reads g_minimapCounty over a 128x128 box at (96, 104) and writes the county under the pointer into DAT_00553C78, which is the destination. A press on a blank pixel returns 0 and the arm's right-release close runs instead.",
+      "note": "Screen 0x1A, the diplomacy dialogs, has the same shape with a different function: FUN_0043B4CB(0x60, 0xB0), a 128x128 box at (96, 176), gated on g_diploKind >= 5, writing g_pickedCounty. Two screens pick a county off a minimap and neither is built.",
       "evidence": "V"
     },
     {
@@ -665,60 +1423,14 @@
       "evidence": "V"
     },
     {
-      "id": "0x004BA9C8/prompt-decline",
-      "status": "reproduced",
-      "group": "seam",
-      "screen": "0x12",
-      "gesture": "left-release",
-      "addr": "0x004BA9C8",
-      "what": "DAT_004DDBB0[1], the thumb down at (372, 116), hotspot id 0 -> Battle_Decline, which is Battle_AutoResolve and the report. The table holds exactly these two records: g_sliderWidgets begins 48 bytes on at 0x004DDBE0, and the count DAT_00554408 is 2 when g_battleChoiceOwner == 1 and 0 otherwise.",
-      "ours": "crates/l2-game/src/screens/battle.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x004BA9C8/prompt-fight",
-      "status": "reproduced",
-      "group": "seam",
-      "screen": "0x12",
-      "gesture": "left-release",
-      "addr": "0x004BA9C8",
-      "what": "DAT_004DDBB0[0], the thumb up at (332, 116), hotspot id 1 -> FUN_0043B593 -> Battle_Start. It RAISES THE BATTLEFIELD; it does not settle the battle.",
-      "ours": "crates/l2-game/src/screens/battle.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x004BA9C8/setup-name",
-      "status": "reproduced",
-      "group": "text",
-      "screen": "0x1F",
-      "gesture": "key",
-      "addr": "0x004BA9C8",
-      "what": "FIELD 1 OF 7 -- THE LORD'S NAME. Screen_HandleInput's g_setupPage == 4 arm: `g_editActive = 1; Edit_RecomputeLength(); Chat_Timeout(); if (g_messageGroup == 0 && DAT_0055CD78 == 0) Edit_Commit(&g_options, 0x1F);`. The commit runs EVERY FRAME the page is up rather than on a button, and the two guards are a message box and an open drop-down over the page.\n\nThe limits are Edit_Begin's: SIXTEEN characters, 192 pixels, kind 0. The destination is g_options + 0 (0x0053F1E0), the persisted settings block, whose name field is 31 bytes and defaults to 'Player1' -- so the commit width (31) and the edit width (16) are different numbers and the smaller one is what a person meets.",
-      "note": "This is the field a player reported missing: 'I can't type my name in the start menu?'",
-      "ours": "crates/l2-game/src/screens/setup.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x004BA9C8/saveload-name",
-      "status": "reproduced",
-      "group": "text",
-      "screen": "0x35",
-      "gesture": "key",
-      "addr": "0x004BA9C8",
-      "what": "FIELD 2 OF 7 -- THE SAVED GAME'S FILE NAME. Screen_HandleInput's arm is `else if (g_screenId == '5' || g_screenId == '6')`, ONE arm for both screens, so the original lets a person type the name of the game they want to LOAD as well as the one they want to save. SaveLoad_Tick builds the path out of the edit buffer either way -- `Str_Copy(0x4EA130, 0x4EAD60, 0xC); Path_AddExtension(...)` -- and never out of the highlighted row; clicking a row is what puts a name INTO the buffer.\n\nEdit_Begin's limits here are EIGHT characters, 160 pixels, KIND 1 -- a DOS 8.3 name, so A-Z is lower-cased and , . ? ! are refused, the game supplying .sav, .svb or .sva itself.",
-      "note": "Two of the three limits are reproduced and the eight is not: our saves are .l2sav files in %APPDATA% and saves::MAX_NAME is 64. Holding a person to eight characters on a filesystem that has not had that limit since 1995 is superstition rather than fidelity -- the same line this module already draws about the scroll clamp. The 160-pixel limit still bites first.",
-      "ours": "crates/l2-game/src/screens/saveload.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x004BA9C8/setup-load-name",
+      "id": "0x004BA9C8/blacksmith-weapon-choice",
       "status": "missing",
-      "group": "text",
-      "screen": "0x1F",
-      "gesture": "key",
+      "group": "village",
+      "screen": "0x0F",
+      "gesture": "left-press",
       "addr": "0x004BA9C8",
-      "what": "FIELD 3 OF 7 -- the front end's own load box, g_setupPage == 3. The same field as 0x004BA9C8/saveload-name with the same limits and the same destination buffer (DAT_004EA130, eight characters, kind 1), reached by FUN_00432CC8's hotspot 2, which also picks the extension by game mode: .sav single player, .svb multiplayer client, .sva multiplayer host.",
-      "note": "Missing because our SetupPage::Load is still a shell that draws three empty recesses -- it has no file list and no field. The screen 0x35/0x36 version of the same box is built.",
+      "what": "THE JOB POPUP HAS SIX HOTSPOTS AND ONLY WHEN THE JOB IS THE BLACKSMITH. Screen_HandleInput opens `if (g_screenId == 0x0F && g_jobPanelJob == 8) Hotspot_Test(0, 0x18, &DAT_004DCA10, 6)` -- six large irregular rectangles over the smithy picture, ids 0..5, all dispatching to FUN_0043A950, which writes the id into DAT_005530B8 and calls FUN_0043A997(g_selectedCounty, id). That is WHICH WEAPON THE SMITHY MAKES, and it is the only control on any job popup. The overlay pass has the matching arm: Screen_DrawWidgets draws FUN_00413526 for the same job and nothing for the other eight.",
+      "note": "Found by looking OUTSIDE Screen_FrameInput, which is the shape the text-entry agent named: 0x0F's arm in the dispatcher is Ui_OkButtonClicked and a right-release test, so an enumeration of that function alone scores this zero without it ever appearing as a miss. One arm and not six by this file's counting rule -- a table of N identical widgets hit-tested in one call.",
       "evidence": "V"
     },
     {
@@ -753,6 +1465,129 @@
       "what": "FIELD 6 OF 7 -- the same field on the multiplayer skirmish page, g_setupPage == 11. Byte-for-byte the same three statements as 0x004BA9C8/mp-custom-name, under a different page guard, which is why it is a second arm and not the same one.",
       "note": "Missing because there is no multiplayer.",
       "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/prompt-decline",
+      "status": "reproduced",
+      "group": "seam",
+      "screen": "0x12",
+      "gesture": "left-release",
+      "addr": "0x004BA9C8",
+      "what": "DAT_004DDBB0[1], the thumb down at (372, 116), hotspot id 0 -> Battle_Decline, which is Battle_AutoResolve and the report. The table holds exactly these two records: g_sliderWidgets begins 48 bytes on at 0x004DDBE0, and the count DAT_00554408 is 2 when g_battleChoiceOwner == 1 and 0 otherwise.",
+      "ours": "crates/l2-game/src/screens/battle.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/prompt-fight",
+      "status": "reproduced",
+      "group": "seam",
+      "screen": "0x12",
+      "gesture": "left-release",
+      "addr": "0x004BA9C8",
+      "what": "DAT_004DDBB0[0], the thumb up at (332, 116), hotspot id 1 -> FUN_0043B593 -> Battle_Start. It RAISES THE BATTLEFIELD; it does not settle the battle.",
+      "ours": "crates/l2-game/src/screens/battle.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/saveload-name",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "0x35",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 2 OF 7 -- THE SAVED GAME'S FILE NAME. Screen_HandleInput's arm is `else if (g_screenId == '5' || g_screenId == '6')`, ONE arm for both screens, so the original lets a person type the name of the game they want to LOAD as well as the one they want to save. SaveLoad_Tick builds the path out of the edit buffer either way -- `Str_Copy(0x4EA130, 0x4EAD60, 0xC); Path_AddExtension(...)` -- and never out of the highlighted row; clicking a row is what puts a name INTO the buffer.\n\nEdit_Begin's limits here are EIGHT characters, 160 pixels, KIND 1 -- a DOS 8.3 name, so A-Z is lower-cased and , . ? ! are refused, the game supplying .sav, .svb or .sva itself.",
+      "note": "Two of the three limits are reproduced and the eight is not: our saves are .l2sav files in %APPDATA% and saves::MAX_NAME is 64. Holding a person to eight characters on a filesystem that has not had that limit since 1995 is superstition rather than fidelity -- the same line this module already draws about the scroll clamp. The 160-pixel limit still bites first.",
+      "ours": "crates/l2-game/src/screens/saveload.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/setup-load-name",
+      "status": "missing",
+      "group": "text",
+      "screen": "0x1F",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 3 OF 7 -- the front end's own load box, g_setupPage == 3. The same field as 0x004BA9C8/saveload-name with the same limits and the same destination buffer (DAT_004EA130, eight characters, kind 1), reached by FUN_00432CC8's hotspot 2, which also picks the extension by game mode: .sav single player, .svb multiplayer client, .sva multiplayer host.",
+      "note": "Missing because our SetupPage::Load is still a shell that draws three empty recesses -- it has no file list and no field. The screen 0x35/0x36 version of the same box is built.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/setup-name",
+      "status": "reproduced",
+      "group": "text",
+      "screen": "0x1F",
+      "gesture": "key",
+      "addr": "0x004BA9C8",
+      "what": "FIELD 1 OF 7 -- THE LORD'S NAME. Screen_HandleInput's g_setupPage == 4 arm: `g_editActive = 1; Edit_RecomputeLength(); Chat_Timeout(); if (g_messageGroup == 0 && DAT_0055CD78 == 0) Edit_Commit(&g_options, 0x1F);`. The commit runs EVERY FRAME the page is up rather than on a button, and the two guards are a message box and an open drop-down over the page.\n\nThe limits are Edit_Begin's: SIXTEEN characters, 192 pixels, kind 0. The destination is g_options + 0 (0x0053F1E0), the persisted settings block, whose name field is 31 bytes and defaults to 'Player1' -- so the commit width (31) and the edit width (16) are different numbers and the smaller one is what a person meets.",
+      "note": "This is the field a player reported missing: 'I can't type my name in the start menu?'",
+      "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/tax-and-ration-arrows",
+      "status": "reproduced",
+      "group": "county-panels",
+      "screen": "0x15, 0x19",
+      "gesture": "left-press",
+      "addr": "0x004BA9C8",
+      "what": "Screen_HandleInput's widget tables rather than Screen_FrameInput's arms: g_taxWidgets (0x004DD790) and g_rationWidgets (0x004DD7C0), two 24-byte records each, up then down, with the UP arrow to the LEFT of the pair.",
+      "note": "Screen_HandleInput is the LEFT BUTTON ONLY -- it names no right-button global anywhere in 3,832 bytes -- which is why every right-button behaviour in the game is copy-pasted forty times into Screen_FrameInput instead.",
+      "ours": "crates/l2-game/src/screens/county.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "ours/brush-popup-on-the-map",
+      "status": "invention",
+      "removed": false,
+      "group": "management-screens",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "what": "The field brush appears as a popup ON THE CAMPAIGN MAP, opened by a left click on a field tile, and a click anywhere else dismisses it.",
+      "why": "In the original the brush is part of the INFORMATION PANEL, screen 0x04, which a RIGHT click opens -- FUN_00438990 is one of that arm's three guards and its y offset is the panel's own row. There is no popup on screen 0 at all. Kept because screen 0x04 is a shell and the brush is the only way a player can set a field; recorded so that building 0x04 properly is known to have this to remove.",
+      "ours": "crates/l2-game/src/screens/map.rs"
+    },
+    {
+      "id": "ours/county-back-to-map-button",
+      "status": "invention",
+      "removed": true,
+      "group": "county-panels",
+      "screen": "0x14, 0x15, 0x16, 0x19",
+      "gesture": "left-press",
+      "what": "A BACK TO MAP button of ours, drawn and hit-tested at (478, 460) 162x20, closed the open county panel.",
+      "why": "That rectangle is g_sidebarButtons record 5 TO THE PIXEL -- the original's End Turn button. So an invented control of ours was painted over a live control of the game's and tested ahead of it, which is the same defect a player reported about the five sidebar icons. Removed, and the column is passed down to the map screen instead."
+    },
+    {
+      "id": "ours/county-panel-keyboard",
+      "status": "invention",
+      "removed": false,
+      "group": "county-panels",
+      "screen": "0x14, 0x15, 0x16, 0x19",
+      "gesture": "key",
+      "what": "Escape and Enter close a panel; Up and Down cycle the four panels; Left and Right move the open panel's own value.",
+      "why": "The original has no keyboard route out of a panel, none between them, and none into them: the four are four screen ids with no ordering at all, and the only VK_ESCAPE handler in the binary quits the game. Kept because a keyboard player has nothing else; recorded so the count of 'things we do that the original does not' can be taken.",
+      "ours": "crates/l2-game/src/screens/county.rs"
+    },
+    {
+      "id": "ours/dropdown-escape-closes",
+      "status": "invention",
+      "removed": false,
+      "group": "menu-bar",
+      "screen": "0x32",
+      "gesture": "key",
+      "what": "Escape closes an open drop-down.",
+      "why": "No key reaches screen 0x32 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Kept because a menu that can only be dismissed with the mouse traps a keyboard player, and counted here rather than left as a comment admitting a choice.",
+      "ours": "crates/l2-game/src/screens/menubar.rs"
+    },
+    {
+      "id": "ours/job-popup-keyboard",
+      "status": "invention",
+      "removed": false,
+      "group": "village",
+      "screen": "0x0F",
+      "gesture": "key",
+      "what": "Escape and Enter close the job popup.",
+      "why": "0x0F's arm reads Ui_OkButtonClicked and the right-release flag and no key.",
+      "ours": "crates/l2-game/src/screens/job.rs"
     },
     {
       "id": "ours/prompt-bystander-any-click",
@@ -880,6 +1715,38 @@
       "what": "Up moves the highlight to the previous item.",
       "why": "The original's front end has no keyboard at all -- see the group note. KEPT: a menu a person cannot drive from the keyboard is worse, not more faithful.",
       "ours": "crates/l2-game/src/screens/setup.rs"
+    },
+    {
+      "id": "ours/shell-any-click-closes",
+      "status": "invention",
+      "removed": true,
+      "group": "management-screens",
+      "screen": "0x04, 0x09, 0x0B, 0x18, 0x25, 0x2E",
+      "gesture": "left-press",
+      "what": "A left click anywhere on a shell closed it.",
+      "why": "There is no screen in the game where a click on the middle of a panel dismisses it: all 26 of Screen_FrameInput's close tests are Ui_OkButtonClicked's 24x24 corner box. The comment above it read 'Every one of these closes and nothing else. That is the whole truth about a shell' -- an admission that it was a choice, which docs/decisions.md C61 says is not a flag. Replaced by the corner box."
+    },
+    {
+      "id": "ours/shell-keyboard-closes",
+      "status": "invention",
+      "removed": false,
+      "group": "management-screens",
+      "screen": "0x04, 0x09, 0x0B, 0x18, 0x25, 0x2E",
+      "gesture": "key",
+      "what": "Escape, Enter and Space close a shell.",
+      "why": "No arm in this table reads a key. Kept because 0x18 has no corner picture at all and a player who reaches it from the index screen would otherwise be stuck; counted here rather than argued about in a comment.",
+      "ours": "crates/l2-game/src/screens/shells.rs"
+    },
+    {
+      "id": "ours/village-keyboard",
+      "status": "invention",
+      "removed": false,
+      "group": "village",
+      "screen": "0x02, 0x05, 0x06",
+      "gesture": "key",
+      "what": "Escape leaves the idle village and cancels a drag in progress; Enter leaves.",
+      "why": "No key reaches any of the village's three screen ids in the original.",
+      "ours": "crates/l2-game/src/screens/village.rs"
     }
   ]
 }
