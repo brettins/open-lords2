@@ -2226,6 +2226,23 @@ impl Screen for MapScreen {
             // All the release does is end the drag.
             Event::Release { .. } => self.slider_held = false,
             Event::Click { x, y } => {
+                // **`Map_Click`'s outermost guard, and it is the whole
+                // function.** `Map_Click` (`0x0043CE1A`) is
+                // `if (g_messageGroup == 0) { …all 1,263 bytes of it… } else
+                // { Msg_DismissUnlessQuestion(); }` — so with a message scroll
+                // up, a left click on the map closes it and **the map does
+                // nothing else**: no tile picked, no county selected, no
+                // village, no army ordered. A *question* survives, which is
+                // what stops a stray click from silently declining an alliance.
+                //
+                // It is here rather than in the message screen because it is
+                // here in the original: the scroll's own arm returned zero and
+                // let the click through, and this is what the click found.
+                // arm: 0x00476710/map-click-dismiss
+                if ctx.game.messages.is_open() {
+                    ctx.game.messages.dismiss_unless_question();
+                    return Transition::Stay;
+                }
                 // The brush popup is modal over the map, the way
                 // `Hotspot_Test` makes it: while it is up its buttons are
                 // tested first and a click anywhere else dismisses it.

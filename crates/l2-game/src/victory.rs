@@ -75,7 +75,7 @@
 //! end-of-campaign screen rather than garbage. Verified by reading the bytes, not
 //! assumed.
 
-use l2_kingdom::victory::{self, Ending, Outcome, OutcomeStep, Ranking};
+use l2_kingdom::victory::{Outcome, Ranking};
 
 /// How many maps a campaign is. `FUN_0041E1DD` and the screen `0x1C` click
 /// handler both test `DAT_0053F258 < 8`.
@@ -208,17 +208,20 @@ pub struct Campaign {
     pub map: usize,
     /// `DAT_0053F0C4`.
     pub outcome: Outcome,
-    /// The ending messages raised and not yet shown, oldest first.
-    ///
-    /// The original has one message ring for everything; this is only the
-    /// category-`0x0E`-and-friends subset the ending chain raises, because
-    /// nothing else in this workspace has a queue yet. When one lands, this
-    /// becomes a filter over it.
-    pub pending: Vec<Ending>,
     /// What the last `Score_RankRealms` left behind. [`l2_kingdom::victory::outcome_of`]
     /// reads `opponents_remaining` out of it.
     pub ranking: Ranking,
 }
+
+// **`Campaign::pending` is gone, and that is the point of this branch.**
+//
+// It used to be a `Vec<Ending>` with the note *"the original has one message
+// ring for everything … when one lands, this becomes a filter over it."* One has
+// landed: [`crate::message::MessageQueue`], on [`crate::Game`]. The endings now
+// go into the ring every other message goes into, are pulled by `Msg_Pump`,
+// **displayed**, and act on being **dismissed** — which is what `docs/plan.md`
+// says the win is and what nothing here could do while there was a second queue
+// nothing drew.
 
 impl Campaign {
     pub fn new(track: Track) -> Campaign {
@@ -236,49 +239,6 @@ impl Campaign {
     /// Whether the eighth map has been won. `DAT_0053F258 < 8`, negated.
     pub fn is_complete(&self) -> bool {
         self.map >= CAMPAIGN_LENGTH
-    }
-
-    /// Raise one ending message. `Msg_Enqueue`.
-    pub fn raise(&mut self, msg: Ending) {
-        self.pending.push(msg);
-    }
-
-    /// Show the queued messages, in order, until one ends the game.
-    ///
-    /// This is `Msg_DrawWindow`'s category-`0x0E` arm run over the queue.
-    /// **The game stops at the first message that sets a non-zero outcome**,
-    /// because in the original dismissing that message is what enters screen
-    /// `0x1C` — nothing behind it in the ring is ever shown.
-    ///
-    /// [`OutcomeStep::EnqueueVictory`] appends group 225 to the queue and carries
-    /// on, exactly as the original does, so the victory arrives one message later
-    /// rather than immediately.
-    ///
-    /// Returns the outcome, which is also left in [`Campaign::outcome`].
-    pub fn settle(&mut self, local_player: u8, quirks: l2_kingdom::Quirks) -> Outcome {
-        let mut i = 0;
-        while i < self.pending.len() {
-            let msg = self.pending[i];
-            i += 1;
-            if !msg.sets_outcome() {
-                continue;
-            }
-            match victory::outcome_of(msg, local_player, self.ranking, quirks) {
-                OutcomeStep::Set(o) => {
-                    self.outcome = o;
-                    if o.is_over() {
-                        self.pending.drain(..i);
-                        return o;
-                    }
-                }
-                OutcomeStep::EnqueueVictory => {
-                    self.outcome = Outcome::InPlay;
-                    self.pending.push(victory::victory_message(local_player));
-                }
-            }
-        }
-        self.pending.clear();
-        self.outcome
     }
 
     /// `FUN_00497879` — the step from the last message into screen `0x1C`.
@@ -319,10 +279,12 @@ pub enum ConquestBranch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use l2_kingdom::victory::{MSG_AI_ELIMINATED, MSG_DEFEAT, MSG_VICTORY};
+    use l2_kingdom::victory::{
+        self as victory, Ending, MSG_AI_ELIMINATED, MSG_DEFEAT, MSG_VICTORY,
+    };
 
     fn ending(group: u16, from: u8) -> Ending {
-        Ending { group, from, to: 0, category: victory::CATEGORY_ENDING }
+        Ending { group, from, to: 0, category: victory::CATEGORY_ENDING, variant: 0 }
     }
 
     #[test]
@@ -435,59 +397,74 @@ mod tests {
     }
 
     // --- the queue ---------------------------------------------------------
+    //
+    // These used to drive `Campaign::settle` over a private `Vec<Ending>`. They
+    // now drive the **real ring** on a real [`crate::Game`], through the same
+    // [`crate::message::show`] and [`crate::message::dismiss`] the message
+    // screen calls — because a queue only one code path can reach is the thing
+    // this branch existed to remove.
+
+    use crate::message::{self, Record};
+    use crate::Game;
+
+    fn game_with(opponents: u8) -> Game {
+        let mut g = Game::new(0x51EED);
+        g.player = 1;
+        g.campaign.ranking = Ranking { opponents_remaining: opponents, ..Ranking::default() };
+        g
+    }
+
+    fn post(g: &mut Game, msg: Ending) {
+        let player = g.player;
+        g.messages.enqueue(Record::from(msg), player);
+    }
 
     #[test]
     fn an_ai_dying_while_others_live_ends_nothing() {
-        let mut c = Campaign::new(Track::First);
-        c.ranking = Ranking { opponents_remaining: 2, ..Ranking::default() };
-        c.raise(ending(MSG_AI_ELIMINATED, 3));
-        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::InPlay);
-        assert!(c.pending.is_empty(), "a message that ends nothing is still shown and discarded");
+        let mut g = game_with(2);
+        post(&mut g, ending(MSG_AI_ELIMINATED, 3));
+        assert_eq!(message::drain(&mut g), Outcome::InPlay);
+        assert!(g.messages.is_empty(), "a message that ends nothing is still shown and discarded");
     }
 
     #[test]
     fn my_own_defeat_notice_loses_the_game() {
-        let mut c = Campaign::new(Track::First);
-        c.ranking = Ranking { opponents_remaining: 2, ..Ranking::default() };
-        c.raise(ending(MSG_DEFEAT, 1));
-        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::Lost);
-        assert_eq!(c.outcome, Outcome::Lost);
-        assert_eq!(c.outcome.value(), 11);
+        let mut g = game_with(2);
+        post(&mut g, ending(MSG_DEFEAT, 1));
+        assert_eq!(message::drain(&mut g), Outcome::Lost);
+        assert_eq!(g.campaign.outcome, Outcome::Lost);
+        assert_eq!(g.campaign.outcome.value(), 11);
     }
 
     /// The mainline win: the last AI's obituary, with nobody left, becomes a
-    /// victory one message later.
+    /// victory one message later — and the victory arrives **through the ring**,
+    /// enqueued by the arm that displayed the obituary.
     #[test]
     fn the_last_ai_dying_wins_the_game_through_an_enqueued_victory() {
-        let mut c = Campaign::new(Track::First);
-        c.ranking = Ranking { opponents_remaining: 0, ..Ranking::default() };
-        c.raise(ending(MSG_AI_ELIMINATED, 3));
-        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::Won);
-        assert_eq!(c.outcome.value(), 10);
+        let mut g = game_with(0);
+        post(&mut g, ending(MSG_AI_ELIMINATED, 3));
+        assert_eq!(message::drain(&mut g), Outcome::Won);
+        assert_eq!(g.campaign.outcome.value(), 10);
     }
 
     #[test]
     fn a_victory_message_stops_the_queue_dead() {
-        let mut c = Campaign::new(Track::First);
-        c.ranking = Ranking { opponents_remaining: 1, ..Ranking::default() };
-        c.raise(ending(MSG_VICTORY, 0));
-        c.raise(ending(MSG_DEFEAT, 1));
-        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::Won);
-        assert_eq!(c.pending.len(), 1, "the message behind it is never shown");
-        assert_eq!(c.pending[0].group, MSG_DEFEAT);
+        let mut g = game_with(1);
+        post(&mut g, ending(MSG_VICTORY, 0));
+        post(&mut g, ending(MSG_DEFEAT, 1));
+        assert_eq!(message::drain(&mut g), Outcome::Won);
+        assert_eq!(g.messages.queued(), 1, "the message behind it is never shown");
+        assert!(!g.messages.is_open());
     }
 
     /// Group 195 travels as category 1 and so cannot touch the outcome.
     #[test]
     fn the_ai_coronation_taunt_does_not_end_a_game() {
-        let mut c = Campaign::new(Track::First);
-        c.ranking = Ranking { opponents_remaining: 1, ..Ranking::default() };
-        c.raise(Ending {
-            group: victory::MSG_AI_CROWNED,
-            from: 3,
-            to: 0,
-            category: 1,
-        });
-        assert_eq!(c.settle(1, l2_kingdom::Quirks::FAITHFUL), Outcome::InPlay);
+        let mut g = game_with(1);
+        post(
+            &mut g,
+            Ending { group: victory::MSG_AI_CROWNED, from: 3, to: 0, category: 1, variant: 0 },
+        );
+        assert_eq!(message::drain(&mut g), Outcome::InPlay);
     }
 }

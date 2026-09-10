@@ -21,10 +21,12 @@ crates/l2-game/src/battlefield.rs	C60	ba6ce8d9adf0
 crates/l2-game/src/battlefield.rs	C61	9fa3719be417
 crates/l2-game/src/battlefield.rs	C61	e5b8ebac6d3d
 crates/l2-game/src/battlefield.rs	C79	76ceb5b70be2
+crates/l2-game/src/game.rs	C27	a05c7d46ae7e
 crates/l2-game/src/game.rs	C30	fdf7eaac6540
 crates/l2-game/src/game.rs	C61	243e22401be3
 crates/l2-game/src/game.rs	C62	1f489b238ce0
 crates/l2-game/src/input.rs	C61	39c868ef7985
+crates/l2-game/src/save.rs	C113	292ef2506465
 crates/l2-game/src/scenario.rs	C83	d0e421a3fd81
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7
 crates/l2-game/src/screens/army.rs	C45	056ecffec256
@@ -671,7 +673,7 @@ docs/symbols.json	C72	eca0027aa8d3
 docs/symbols.json	C73	1c3e9e9c9026
 docs/symbols.json	C73	a7a0a127db4b
 docs/symbols.json	C92	861554397288
-docs/symbols.json	C94	c925b2d5ea48
+docs/symbols.json	C94	06be8a0af925
 docs/symbols.json	C94	fb393e25f46e
 docs/symbols.json	C97	910f68184eb2
 docs/symbols.json	C99	3afecce4a5a4
@@ -736,7 +738,7 @@ docs/symbols.md	C73	92bca9e765dd
 docs/symbols.md	C73	bdcf70f27755
 docs/symbols.md	C92	bdb00cb1a706
 docs/symbols.md	C94	1b58b44eb124
-docs/symbols.md	C94	22fa7fd2ca8f
+docs/symbols.md	C94	ea26de68ce16
 docs/symbols.md	C97	1231fc13c889
 docs/symbols.md	C99	2cad917d144f
 docs/symbols.md	C99	41bb3c4633b9

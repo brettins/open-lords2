@@ -4902,3 +4902,81 @@ between an honest scaffold and an invention is whether it says which it is.
 - `Title.pl8` decodes with correct geometry but no shipped palette colours it.
 - The type-4 apex pair, where the stored data and the shipped blitter disagree.
 - PL8 header fields at 0x04, 0x06, 0x07.
+
+**C112 — The message queue cannot be simulation state, and the binary is
+what says so.**
+
+`docs/netcode.md` asks every new piece of state which side of the lockstep line it is on, and
+a message *queue* looks like the simulation's: the rules fill it, it is ordered, and it
+outlives a frame. It is not, and the argument is one line of `Msg_Enqueue` (`0x00472BC5`):
+
+```c
+enqueue = (to == 0) || (to == g_localPlayer);
+```
+
+All three of that function's `isHuman` branches compute that same predicate before the record
+is copied into the ring. **A letter addressed to realm 3 is never put in realm 1's ring at
+all**, so two peers of one game hold different rings by construction — not by drift, not by
+timing, but because the filter reads `g_localPlayer`. A ring inside
+`Canonical::hash_of(kingdom)` would desync every network game on the first letter an AI wrote
+to somebody.
+
+So `l2_kingdom` keeps *producing* `diplomacy::Letter` values, which are identical on every
+peer, and `Game::messages` — beside the levy and the live battle — is where one peer's copy
+of them lands. It is in the **save** (`l2_game::save`, which is per-peer) and out of the
+**digest** (`l2_kingdom`, which is not), and those are different files for exactly this
+reason.
+
+The general shape is worth keeping: **the question is not "is this state durable" but "would
+two peers compute it identically"**, and a filter on `g_localPlayer` answers it before any
+reasoning about what the data means.
+
+**C113 — A field that was always empty stopped being always empty, and
+the save format had a note saying so.**
+
+`l2_game::save` version 2 wrote the ending messages as a list of their own, under the comment
+*"The queue is empty at every point a person can save — `turn::end_turn` settles it — but it
+is written anyway."* The comment was true and the reason it was true was that **nothing
+displayed the messages**: `Campaign::settle` ran the whole queue instantly at the end of the
+turn, with no window and no click.
+
+Building `Msg_DrawWindow` made it false. Endings are now pulled off the ring one at a time and
+settled by being dismissed, so a person really can save on the campaign map with three
+obituaries queued behind the one on screen — and a save that dropped them is a save that can
+never be won. Version 4 stores the whole ring and the record on screen with its timer.
+
+Two things to carry:
+
+* **A "this is always empty" note is a claim about the rest of the system**, and it goes stale
+  when the rest of the system changes rather than when the file does. The note was correct, was
+  written by someone careful, and named the exact reason it was correct — which is what made
+  it possible to notice that the reason had gone.
+* The field was written anyway *because* a silently dropped field is a field somebody loses a
+  game to. That instinct was right and cost eleven bytes.
+
+**C114 — An arm filed as `missing` cannot run, and two enumerations from
+different directions are what found it.**
+
+`docs/arms.json` carried `0x0042FF10/map-message-scroll-dismiss` as **missing**: guard 7 of
+`Screen_FrameInput`'s screen-`0x00` arm, *"a right release with a message scroll up dismisses
+it and swallows the click"*. It is unreachable. `Screen_FrameInput`'s ladder is
+
+```c
+iVar2 = Msg_HandleInput();                       /* 0x0047685D */
+if ((iVar2 == 0) && (Screen_HandleInput() == 0)) { …the fifty arms, guard 7 among them… }
+```
+
+and `Msg_HandleInput` returns 1 for exactly `g_messageGroup != 0 && g_mouseRightReleased != 0`
+— which is guard 7's own condition, tested earlier, with the same `Msg_Dismiss` behind it. So
+reaching guard 7 requires the negation of its own predicate. Neither global can move in
+between: `g_messageGroup` is written only by `Msg_Pump` (one caller, `Battle_Frame`) and
+`Msg_Dismiss`, and `g_mouseRightReleased` only by the per-frame sampler `FUN_004B191E`.
+
+Nothing is lost — it is a duplicate of an arm that already ran — and nothing should be built
+for it. It is filed `dead` now.
+
+**What generalises is how it was found**, and it is the same method as the `0x28` battlefield
+screen: the arm inventory was built by reading each screen's handlers, and this one was
+found by reading the *message* system's handlers instead and noticing that the two lists
+overlapped. **One enumeration is a claim; two from different directions is evidence** — and
+the direction that finds a dead arm is never the direction the arm is filed under.

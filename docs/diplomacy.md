@@ -840,9 +840,10 @@ Stated plainly, because a wrong map is worse than a small one.
 * **The message-record fields `+0x12`, `+0x13` and `+0x14`** are named from what the diplomacy
   callers put in them; the other ~130 `Msg_Enqueue` call sites use them differently and those
   uses were not read.
-* **`Msg_DrawWindow` is 10,915 bytes and was read only for its text and voice lookups.** The
-  per-category window layouts — where the portrait sits, which buttons exist, how the alliance
-  and pay prompts are answered — are not written down.
+* ~~**`Msg_DrawWindow` is 10,915 bytes and was read only for its text and voice lookups.**~~
+  **Closed** — §11. Twenty category arms, the five widget tables that answer them, and three
+  arms that are not drawing at all. The two prompts a person answers a lord with are reachable
+  now; `crates/l2-game/tests/messages.rs` accepts an alliance and pays for help by clicking.
 * ~~**The AI-to-AI half is unobservable and untested.**~~ It is observable now, in *our*
   engine — §10.8 is forty turns of it — but that is our arithmetic agreeing with itself and
   not evidence about the original. It remains unobserved **in the game**.
@@ -978,3 +979,86 @@ the editor when you open the Baron's.
 > decompilation corpus was rebuilt with 211 more function names — not because any of the new
 > names is in this function, but because re-reading is the only thing that has ever caught
 > this class of error. `docs/agents.md`.
+
+---
+
+## 11. Answering a lord — the message window, and where the answer lives
+
+§2's diagram ends at `Msg_Pump ──► Msg_DrawWindow`, and §9 recorded that the 10,915 bytes on
+the far side of that arrow had never been read for anything but their strings. They have been
+now. This section is the half of diplomacy that is not *writing* to a lord.
+
+### 11.1 Two of the seven kinds arrive as a question, and only two
+
+Of everything in this document, exactly **two** things put a decision in front of the player
+rather than a notice:
+
+| the message | `L2.eng` | category | widget table | handler |
+|---|---|---|---|---|
+| *"Accept alliance ?"* | 180 | `0x0B` | `0x004DDAC0` | `Diplo_AcceptAllianceClicked` (`0x00436872`) |
+| *"Pay -"* | 185 (help), 188 (attack) | `0x0A` | `0x004DDA90` | `Diplo_PayHelpClicked` (`0x004367FF`) |
+
+Three more prompts exist on the **diplomatic letter** (category `0x0C`, `Msg_DrawDiplomacy`),
+and two of them are the *ally's* answer to a request the player made — groups `0xFA` and
+`0xFB`, handlers `Diplo_ReplyHelpClicked` and `Diplo_ReplyAttackClicked`. Both set
+`g_diploKind` to a value **beyond the composer's seven** (7 and 8 for help, 9 and 10 for
+attack) and post `Net_SendCommand(0x49)`, and nothing else consumes those numbers: **in a
+single-player game they dismiss the letter and do nothing.** That is not a gap in the
+reading; it is the branch the original takes with `g_multiplayer` clear.
+
+The third is group `0xF8`, an alliance offer arriving inside a letter, and it re-uses the
+category-`0x0B` table — one table, two categories, one handler.
+
+### 11.2 Declining an AI's offer runs nothing at all
+
+`Diplo_AcceptAllianceClicked`'s guard is worth quoting because it is easy to read past:
+
+```c
+Msg_Dismiss();
+DAT_0056D678 = g_uiHotspotId;
+if ((g_realms[DAT_0057C8B8].isHuman != 0) || (g_uiHotspotId != 0)) {
+    if (g_multiplayer == 0) { if (g_uiHotspotId == 1) Diplo_FormAlliance(g_localPlayer, DAT_0057C8B8); }
+    else Net_SendCommand(0x47, 0);
+}
+```
+
+An **AI** offer **declined** fails both halves of the outer test, so nothing runs: no refusal
+letter, no grudge, no standing change, no `offer_pending` clear. The offer simply lapses when
+the offering realm reaches §4's courtship step on its next turn. §5's grudge table is not
+involved, and a player who says no pays nothing for it.
+
+`DAT_0057C8B8` is **not** a diplomacy global. `Msg_DrawWindow` writes it, from the
+category-`0x0B` arm, to whichever realm's letter is on screen — beside the shield and the
+portrait. So the *drawing* code is what tells the *answering* code who is asking.
+
+### 11.3 An offer that arrives too late is never seen
+
+`Msg_DrawWindow`'s category-`0x0B` arm opens with
+
+```c
+if (g_realms[g_localPlayer].ally != 0) { Msg_Dismiss(); return; }
+```
+
+and `Msg_DrawDiplomacy` carries the same guard for group `0xF8`. So a second lord's offer,
+queued behind the first, **closes itself the frame it would have been drawn** — the player
+never sees it and never declines it. Two AI realms courting in the same season is not rare
+(§4 has no exclusion between them), so this is the ordinary case rather than a corner.
+
+It is also the clearest instance of a thing worth knowing about this function generally:
+**three of its arms are not drawing at all**, and none of them is visible from the category
+switch. The other two are the ending's outcome ladder and the floating tip's timer clamp.
+
+### 11.4 The price is read at the click, not at the offer
+
+`Diplo_PayHelpClicked` passes `g_diploHelpCounty` and `g_diploHelpPrice` — the two globals
+`Diplo_ReplyHelpRequest` set when it *composed* the message (§3). They are single globals, not
+fields of the message, so **a second pay-prompt queued behind the first quotes the second
+one's price on both windows.** Reproduced; `Kingdom::diplomacy` holds the same two values in
+the same way.
+
+### 11.5 Where it is
+
+`crates/l2-game/src/message.rs` is the ring and the rules; `crates/l2-game/src/screens/message.rs`
+is the window and the arms; `crates/l2-game/tests/messages.rs` plays every route above with
+`Event` values. `docs/arms.json`'s `messages` group has one record per arm, including the four
+that are not built and why.

@@ -621,6 +621,26 @@ pub struct Game {
     /// not-encoded: presentation. Which zoom a person is looking at cannot
     /// change a number in the world.
     pub map_zoom_far: bool,
+    /// **The message ring and the window over it.** `g_messageQueue`,
+    /// `g_messageGroup`, `g_messageTimer` and their cursors.
+    ///
+    /// Here rather than in [`Kingdom`] and **out of the digest on purpose**:
+    /// `Msg_Enqueue` keeps a record only when `to == 0 || to == g_localPlayer`,
+    /// so two peers of one game hold different rings by construction. See
+    /// [`crate::message`], which has the whole argument.
+    ///
+    /// not-encoded: per-peer display state. The original saves from the campaign
+    /// map with `Msg_Pump` running, so a save is written between messages and
+    /// never during one.
+    pub messages: crate::message::MessageQueue,
+    /// **`g_multiplayer`** (`0x00553D18`). False in every game this workspace
+    /// can start; it is here because two rules branch on it and neither is
+    /// reachable without it — `Msg_Pump`'s 399-tick message timeout, and the
+    /// battle prompt's answer timeout. A flag nothing can set is a rule nothing
+    /// can test, which is `docs/decisions.md`'s C27 in miniature.
+    ///
+    /// not-encoded: a property of the session, not of the world.
+    pub multiplayer: bool,
 }
 
 /// `g_levyPercent`, `g_levyMen`, `g_levyHappinessCost`, `g_levyBasket` and
@@ -692,6 +712,8 @@ impl Game {
             battle: None,
             begin_move_order: None,
             map_zoom_far: false,
+            messages: crate::message::MessageQueue::new(),
+            multiplayer: false,
         }
     }
 
@@ -770,9 +792,22 @@ impl Game {
             self.player,
         );
         if let Some(msg) = msg {
-            self.campaign.raise(msg);
+            self.post_ending(msg);
         }
         self.rank_realms();
+    }
+
+    /// `Msg_Enqueue` for one of the ending chain's letters.
+    ///
+    /// **The filter is the interesting part and it is not ours.** `recount_realm`
+    /// raises an AI's obituary with `to == 0` and your own defeat with
+    /// `to == g_localPlayer`, and `Msg_Enqueue` keeps a record only when
+    /// `to == 0 || to == g_localPlayer` — so a *second human* in a network game
+    /// is told nothing, which `l2_kingdom::victory::recount_strength` already
+    /// records and which this is the other half of. See [`crate::message`].
+    fn post_ending(&mut self, msg: l2_kingdom::victory::Ending) {
+        let player = self.player;
+        self.messages.enqueue(crate::message::Record::from(msg), player);
     }
 
     /// `Score_RankRealms`, with its three globals kept.
@@ -786,7 +821,7 @@ impl Game {
             &mut out,
         );
         for msg in out {
-            self.campaign.raise(msg);
+            self.post_ending(msg);
         }
     }
 

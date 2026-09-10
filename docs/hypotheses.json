@@ -182,15 +182,6 @@
       "promotion": "Read it, and check the result against a hand-computed path onto a county town in the England fixture."
     },
     {
-      "addr": "0x00476710",
-      "name": "Merchant_OpenScreen",
-      "section": "units",
-      "confidence": "subject",
-      "comment": "Map_Click's branch for clicking a type-3 unit that is the local player's.",
-      "basis": "Position in Map_Click's dispatch only, against an existing symbols.json comment that says the merchant branch opens screen 0x08. Body not read.",
-      "promotion": "Read it and check it sets g_screenId to 8."
-    },
-    {
       "addr": "0x004842C6",
       "name": "BattleMan_StateEngineWalk",
       "section": "battle",

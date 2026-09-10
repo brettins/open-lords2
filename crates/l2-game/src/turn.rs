@@ -700,7 +700,20 @@ fn finish_tick(game: &mut Game, interactive: bool) -> Option<TurnOutcome> {
     // deliberately does not own, because the pass does not know who the local
     // player is.
     game.rank_realms();
-    let outcome = game.campaign.settle(game.player, game.kingdom.options.quirks);
+    // **The headless door shows its own messages.** `crate::message::drain` is
+    // `Msg_Pump` + the window's first-frame arms + `Msg_Dismiss`, run to
+    // exhaustion with no window and no click, and it is the *same* ladder the
+    // message screen walks one click at a time. `end_turn` cannot raise a
+    // screen, so a game driven through it still ends — and ends the same way.
+    //
+    // `turn::begin_turn`, the interactive door, does **not** call this: there
+    // the map screen is up, `Machine::update` pumps, and the person presses the
+    // corner button. See `docs/arms.json`, group `messages`.
+    let outcome = if interactive {
+        game.campaign.outcome
+    } else {
+        crate::message::drain(game)
+    };
     // **The turn is over, so the progress goes.** Every scrap of it moves into
     // the outcome — nothing is left on the `Game`, because a `Game` carrying a
     // finished turn's leavings is a `Game` that no longer round-trips through a

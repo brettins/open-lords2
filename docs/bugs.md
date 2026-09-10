@@ -1511,3 +1511,72 @@ make this unreachable, and it is a twenty-minute read for whoever needs the answ
 county holds a garrison, because our count is a function of the target rather than a global
 left over from a previous paint. Reproducing it would mean modelling the leftover, which is
 a global we do not have and a switch nobody has asked for.
+
+### B94 — *"No"* on the garrison prompt does not close the prompt
+
+`L2.eng` group 166, *"Cannot garrison castle."*, arrives as message category `0x11` when an
+army is ordered into a castle that cannot hold it, and it carries a thumb-up / thumb-down
+pair from the widget table at `0x004DDB50`. Both buttons run one handler, `FUN_004376BB`
+(`0x004376BB`), and its first two statements are outside the test:
+
+```c
+void FUN_004376bb(void) {
+    g_screenId = 0;                 /* the campaign map          */
+    g_redrawRequest = 2;
+    if (g_uiHotspotId != 0) {       /* ...only the thumb-UP...   */
+        …seed the levy basket from the army…
+        Msg_Dismiss();              /* ...dismisses the window   */
+        g_screenId = 0x11;          /* ...and opens the divide screen */
+        …
+    }
+}
+```
+
+So **the thumb-down puts you back on the campaign map with the prompt still on it.** The
+scroll has to be closed a second time, with the corner button or the right button — both of
+which work, so nothing is stuck; the button just does not do the one thing a *No* looks like
+it should.
+
+It is a placement rather than a missing call: `Msg_Dismiss` is *in* the function, two lines
+inside the branch it should be above. The sibling prompts do it the other way round —
+`Diplo_PayHelpClicked` and `FUN_00436872` both open with `Msg_Dismiss()` before they look at
+the hotspot at all — which is what makes this look like a slip rather than a design.
+
+**Reproduced**, in `crates/l2-game/src/screens/message.rs`: the `Prompt::Garrison` arm returns
+`Transition::Pass` for the thumb-down, leaving the scroll up. A switch would go on `Options`
+rather than `Assets` — it changes which screen is on top and whether a later click lands on
+the map or on the scroll, and the divide screen it leads to spends men.
+
+### B95 — The message ring's slot clear ignores the slot it is given
+
+`FUN_00472B40` (`0x00472B40`) takes a ring index and clears one 24-byte record. It uses the
+index for **one** of the seven fields:
+
+```c
+void __cdecl FUN_00472b40(int param_1) {
+  *(undefined4 *)(&g_messageQueue + 8 + param_1 * 0x18) = 0;              /* group   */
+  *(undefined4 *)(&g_messageQueue + 0xC + g_messageQueueTail * 0x18) = 0; /* variant */
+  *(undefined4 *)(&g_messageQueue + 0x14 + g_messageQueueTail * 0x18) = 0;/* payload */
+  (&g_messageQueue)[0x12 + g_messageQueueTail * 0x18] = 0;                /* county  */
+  (&g_messageQueue)[0x13 + g_messageQueueTail * 0x18] = 0;                /* spare   */
+  (&g_messageQueue)[0x11 + g_messageQueueTail * 0x18] = 0;                /* category*/
+  *(undefined4 *)(&g_messageQueue + 4 + g_messageQueueTail * 0x18) = 0;   /* from    */
+}
+```
+
+Six of the seven clear `g_messageQueueTail`'s slot whatever they were asked for. It has two
+callers and **it is harmless in both**, which is why it has probably never been seen:
+
+* `Msg_Pump` passes `g_messageQueueTail` itself, so the argument and the global agree and the
+  clear is correct.
+* `Msg_Reset` sets `g_messageQueueTail = 0` and then loops `i` from 0 to 49. The group field
+  is therefore cleared in every slot — and `group == 0` *is* the emptiness test `Msg_Pump`
+  makes — while the other six are cleared fifty times in slot 0. Every slot ends up empty; a
+  few of them keep a stale sender and county that nothing will ever read, because the next
+  `Msg_Enqueue` overwrites all 24 bytes with a `memcpy`.
+
+**Not reproduced, and not reproducible.** `MessageQueue::reset` writes a fresh ring. There is
+no observable difference to preserve: the defect's entire effect is a value in a field the
+emptiness test does not consult, in a slot the next write replaces wholesale. Recorded
+because the *next* reader of that function will see the mismatched indices and have to work
+out whether it matters, and this is the answer.

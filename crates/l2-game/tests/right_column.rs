@@ -125,8 +125,38 @@ fn the_right_columns_geometry_is_the_exes_own_tables() {
 
 /// A world with one county owned, enough to build any of these screens.
 fn world() -> (Game, Assets) {
+    // `Game::new` takes a SEED, not a realm count.
     let mut g = Game::new(7);
     g.player = 1;
+
+    // **Every realm holds a county, so nobody is eliminated on the first
+    // pass.** This fixture used to give land to the human alone, which left
+    // every other lord already dead — a won position before the test began.
+    //
+    // Nothing could notice. The ending ladder is the only writer of the
+    // outcome during play and it runs off the message ring, so until the
+    // message window landed there was no ring, no obituaries, and no victory:
+    // the fixture sat in a finished game for the whole of every test and was
+    // never told. With messages built, End Turn here produces obituaries and
+    // then the conquest screen, and this test — which is about a press
+    // reaching the map through an open panel — was being decided by an
+    // ending rule it has nothing to do with.
+    //
+    // The lesson is the fixture one: **a fixture in a degenerate state tests
+    // the degenerate state**, and it stays invisible for exactly as long as
+    // the rule that would object is unimplemented.
+    // Realms 2..5 each hold one, and the human holds county 1 because that is
+    // the one every screen in this file is built against.
+    for realm in 2..g.kingdom.realms.len() as u8 {
+        g.kingdom.counties[realm as usize].owner = realm;
+        // `Realm::in_play` is what the ranking counts, **not** county
+        // ownership. Giving a realm land is not the same as it being alive, and
+        // the two are only ever equal because the loader sets both — which is
+        // why a hand-built fixture can hold land for six lords and still be a
+        // won game.
+        g.kingdom.realms[realm as usize].in_play = true;
+    }
+    g.kingdom.realms[1].in_play = true;
     g.kingdom.counties[1].owner = 1;
     g.selected = 1;
     (g, Assets::placeholder())
@@ -266,12 +296,30 @@ fn end_turn_works_through_an_open_county_panel() {
         l2_game::turn::turn_in_flight(&g),
         "the press reached the map and started nothing; End Turn was not run",
     );
+    // **A message suspends the turn, and that is faithful.** The turn is wound
+    // by the map screen's own `update`, so once `Msg_Pump` pulls a record and
+    // pushes `ScreenId::Message` the map stops ticking until the scroll is
+    // dismissed — which is how the original shows obituaries one click at a
+    // time. Before the message window existed there was nothing to dismiss and
+    // this loop needed no input; now it does, so it dismisses like a player.
+    // The right button is the arm that closes any scroll with no rectangle and
+    // no category test in front of it.
+    let mut dismissed = 0;
     for _ in 0..400 {
         if !l2_game::turn::turn_in_flight(&g) {
             break;
         }
         let mut ctx = Ctx { game: &mut g, assets: &a };
+        if m.top_id() == Some(ScreenId::Message) {
+            m.handle(Event::RightClick { x: 320, y: 240 }, &mut ctx);
+            dismissed += 1;
+            continue;
+        }
         m.update(&mut ctx);
     }
-    assert_eq!(g.turns_played, 1, "and the turn did not finish");
+    assert_eq!(
+        g.turns_played, 1,
+        "and the turn did not finish after dismissing {dismissed} message(s); top is {:?}",
+        m.top_id(),
+    );
 }

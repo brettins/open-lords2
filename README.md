@@ -29,7 +29,7 @@ Early. It runs, and it is nowhere near the whole game. The honest inventory:
 | **Sieges** | built, both halves — and the 14 siege battle AI handlers are reachable at last. The castle's *layout* on the battlefield is ours, not the original's, and says so |
 | Merchants, diplomacy, armies | documented in detail, implemented barely or not at all |
 
-**<!--fig:tests-->2,025<!--/fig--> tests pass**, and roughly a third of them assert things
+**<!--fig:tests-->2,065<!--/fig--> tests pass**, and roughly a third of them assert things
 read out of the original binary rather than out of our own heads.
 
 Two honest caveats. The one shipped save we test against exercises a narrow slice of the
@@ -38,7 +38,7 @@ how two wrong rules once survived **932 passing tests** *(that figure is deliber
 it is the size of the suite at the moment `docs/decisions.md` C26 describes, and correcting
 it to today's number would destroy the thing it records)*. And of the executable's
 <!--fig:binary-functions-->2,452<!--/fig--> functions, we have identified
-**<!--fig:functions-->1,283<!--/fig-->**, plus <!--fig:globals-->572<!--/fig--> globals; most
+**<!--fig:functions-->1,290<!--/fig-->**, plus <!--fig:globals-->572<!--/fig--> globals; most
 of the program is still dark.
 
 ## The idea that shapes everything

@@ -123,6 +123,11 @@
   "version": 1,
   "marker": "// arm: <id>",
   "groups": {
+    "army-division": {
+      "what": "g_screenId 0x11 -- the army-division screen, both places its input lives",
+      "complete": true,
+      "note": "Enumerated from BOTH sides, which is the only reason it is right: Screen_FrameInput's 0x11 arm (three exits, no verb) and Screen_HandleInput's widget table g_splitWidgets (0x004DD388, 16 or 18 records), decoded out of the player's own Lords2.exe with tools/oracle/widgets.js. Reading the painter alone -- which is what had been done -- put every hit box in this module 88 pixels from where the game tests it, and left three buttons of ours on the screen, one of them on top of the original's confirm."
+    },
     "battlefield": {
       "what": "g_screenId 0x28, 0x29, 0x2A, 0x2B -- the real-time battle",
       "complete": true,
@@ -153,6 +158,11 @@
       "complete": true,
       "note": "Enumerated from the table rather than from any painter: `node tools/oracle/widgets.js menu 4dc428 3` names all sixteen handlers, and Ui_DrawMenuTitles, Menu_HitTitle, Menu_OpenDropdown, FUN_0040DD92, FUN_0040E099 and FUN_0040DF62 are the six functions between them. The battlefield's own Menu_OpenDropdown call is 0x0040DECA/battle-menu-bar and stays in the battlefield group."
     },
+    "messages": {
+      "what": "THE MESSAGE SCROLL. Msg_DrawWindow (0x0047309E, 10915 bytes), its 50-slot ring, and every arm that dismisses or answers one.",
+      "complete": true,
+      "note": "It is not a screen: g_screenId does not change when a message opens, the window is painted by Msg_Pump from Battle_Frame, and Msg_HandleInput (0x0047685D) is the FIRST thing Screen_FrameInput does on every screen id there is. Enumerated from four directions rather than one, because a dispatcher that switches on a category byte hides everything that is not in the switch: (1) Msg_HandleInput's own ladder, which is the right release, five Widget_Test calls and one 48x48 box; (2) the five widget TABLES in .rdata, decoded with tools/oracle/widgets.js, which is the only way to reach a handler nobody calls by name; (3) the arms INSIDE Msg_DrawWindow that are not drawing at all -- two dismissals, one enqueue and a timer clamp; (4) the two callers outside it, Msg_Pump's screen ladder and Map_Click's whole-body guard. Directions 3 and 4 are eight of the fourteen records here and none of them is visible from the category switch."
+    },
     "panels": {
       "what": "g_screenId 0x04, 0x09, 0x0B, 0x18, 0x25 and 0x2E -- the last six shells, and the two painters of 0x04",
       "complete": true,
@@ -177,11 +187,6 @@
       "what": "0x02 the village, 0x05 the rubber band, 0x06 carrying peasants, 0x0F the job popup",
       "complete": true,
       "note": "Three screen ids for one gesture -- press, drag, release, second click -- and the popup either of two screens can open. docs/screens-county.md 6.4."
-    },
-    "army-division": {
-      "what": "g_screenId 0x11 -- the army-division screen, both places its input lives",
-      "complete": true,
-      "note": "Enumerated from BOTH sides, which is the only reason it is right: Screen_FrameInput's 0x11 arm (three exits, no verb) and Screen_HandleInput's widget table g_splitWidgets (0x004DD388, 16 or 18 records), decoded out of the player's own Lords2.exe with tools/oracle/widgets.js. Reading the painter alone -- which is what had been done -- put every hit box in this module 88 pixels from where the game tests it, and left three buttons of ours on the screen, one of them on top of the original's confirm."
     }
   },
   "arms": [
@@ -778,13 +783,13 @@
     },
     {
       "id": "0x0042FF10/map-message-scroll-dismiss",
-      "status": "missing",
+      "status": "dead",
       "group": "right-column",
       "screen": "0x00",
       "gesture": "right-release",
       "addr": "0x0042FF10",
-      "what": "Guard 7 of the 0x00 arm: `if (g_messageGroup != 0 && rightReleased) { Msg_Dismiss(); FUN_0045270A(); }` -- a right release with a message scroll up dismisses it and swallows the click, BEFORE the tile arms below. Distinct from FUN_0047685D, which is every screen's and tests a 48x48 box round the scroll.",
-      "note": "Missing because there is no message scroll. It is the reason a right-click on the map does not always open the information panel. OWNERSHIP: left to the message-window branch deliberately. This arm is every screen's rather than one screen's, so building it inside a screen module would be the wrong home; it belongs beside Msg_DrawWindow with the scroll itself. The input-arms branch did not touch it.",
+      "what": "Guard 7 of the 0x00 arm: `if (g_messageGroup != 0 && rightReleased) { Msg_Dismiss(); Gfx_MarkMapViewDirty(); }` -- a right release with a message scroll up dismisses it and swallows the click, BEFORE the tile arms below.",
+      "note": "DEAD, and it was filed as `missing`. It cannot run. Screen_FrameInput's ladder is `iVar2 = Msg_HandleInput(); if (iVar2 == 0 && Screen_HandleInput() == 0) { ...this guard... }`, and Msg_HandleInput (0x0047685D) returns 1 for exactly `g_messageGroup != 0 && g_mouseRightReleased != 0` -- which is this guard's condition, tested earlier, with the same Msg_Dismiss behind it. So reaching guard 7 requires the negation of its own predicate. Neither global can change in between: g_messageGroup is written only by Msg_Pump (one caller, Battle_Frame) and Msg_Dismiss, and g_mouseRightReleased only by the per-frame sampler FUN_004B191E, neither of which is on this path. It is a duplicate of an arm that already ran, so nothing is lost by it being dead and nothing should be built for it. Found while building 0x0047685D/message-scroll-dismiss; two enumerations from different directions disagreeing is what caught it.",
       "evidence": "V"
     },
     {
@@ -1108,23 +1113,37 @@
       "group": "diplomacy",
       "evidence": "V",
       "id": "0x004367FF/pay-for-help-prompt",
-      "status": "missing",
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/message.rs",
       "screen": "0x00",
       "gesture": "left-press",
       "addr": "0x004367FF",
       "what": "Diplo_PayHelpClicked -- the accept button on the category-10 message window an ally raises when it answers a help or attack request with Pay -. It calls Diplo_PayForHelp(myAlly, me, g_diploHelpCounty, g_diploHelpPrice), which moves the gold, increments the multiple and points the ally's targetCounty at the county.",
-      "note": "The RULE is built -- l2_kingdom::diplomacy::pay_for_help, with the price and county on Kingdom::diplomacy -- and the PROMPT is not: Msg_DrawWindow is 10,915 bytes and only its text and voice lookups have ever been read, so there is no window on screen to click. This and 0x00436872 are the only two places a person answers a lord rather than writing to one, and both are unreachable."
+      "note": "The RULE was built first -- l2_kingdom::diplomacy::pay_for_help, with the price and county on Kingdom::diplomacy -- and the PROMPT is now built too: Msg_DrawWindow category 10 is crates/l2-game/src/screens/message.rs. This and 0x00436872 are the only two places a person answers a lord rather than writing to one, and both are now reachable as Event values: raise the letter, Machine::update pumps it, and Event::Click on the thumb-up at (352, 184) pays. The widget positions came out of the TABLE at 0x004DDA90 rather than out of any painter -- tools/oracle/widgets.js -- because a function pointer at +0x08 is invisible to a caller-graph search and this handler has no named caller at all."
     },
     {
       "group": "diplomacy",
       "evidence": "V",
       "id": "0x00436872/accept-alliance-prompt",
-      "status": "missing",
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/message.rs",
       "screen": "0x00",
       "gesture": "left-press",
       "addr": "0x00436872",
       "what": "The Accept alliance ? prompt's two buttons (L2.eng group 180, message category 0x0B). Hotspot 1 calls Diplo_FormAlliance(g_localPlayer, DAT_0057C8B8) -- and DAT_0057C8B8 is not a diplomacy global: Msg_DrawWindow writes it to whichever realm's letter is currently on screen, beside its portrait and name, so for this prompt it is the offering lord. Hotspot 0 declines. Note the guard is (offerer is human) || (hotspot != 0), so declining an AI's offer in single player runs NOTHING at all -- not even a refusal message. The offer simply lapses when the offering realm clears offerPending at the top of its next turn.",
-      "note": "Blocked on the same unread Msg_DrawWindow as 0x004367FF."
+      "note": "Built with 0x004367FF: one widget table (0x004DDAC0) serves both message category 0x0B and the diplomatic letter of group 0xF8, which is why one Prompt::AcceptAlliance covers two categories. The (offerer is human) || (hotspot != 0) guard is reproduced, so declining an AI offer in single player really does nothing -- and a test drives it and asserts the realms are unchanged, because a rule that does nothing is indistinguishable from a rule nobody wired up unless something asserts the nothing."
+    },
+    {
+      "id": "0x004368FD/answer-help-request",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "left-press",
+      "addr": "0x004368FD",
+      "what": "The reply widgets on a diplomatic letter of group 0xFA (`Plea for help`, table 0x004DDAF0) and 0xFB (`Launch an attack.`, table 0x004DDB20), handlers FUN_004368FD and FUN_0043695D. Each dismisses, copies the letter's sender and county into g_diploTarget / g_pickedCounty, zeroes g_diploGold, sets g_diploKind to one of two values by hotspot -- 7/8 for help, 9/10 for attack -- and posts Net_SendCommand(0x49).",
+      "note": "ONE RECORD FOR TWO HANDLERS, per this file's per-implementation rule; they differ only in the two kind bytes. AND THE KINDS ARE NOT COMPOSER KINDS: l2_kingdom::diplomacy::Kind stops at 6 and these are 7..10, whose only consumer is Net_SendCommand -- so in a SINGLE-PLAYER game both handlers do nothing but dismiss the letter, which is what ours does. That is not a gap in the reproduction; it is the branch the original takes with g_multiplayer clear.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/message.rs"
     },
     {
       "id": "0x004369BD/diplo-pick-lord",
@@ -1184,6 +1203,18 @@
       "what": "The GARRISONED table (0x004DC5A8) replaces the move button with FUN_004374C4: find a free tile near the castle with Map_FindFreeTileNear, move the army out, clear county.garrisonUnit and unit.garrisonCounty, and start a battle if the county was besieged - or Army_Destroy the army if no tile is free. Multiplayer command 0x36.",
       "note": "Unnamed in docs/symbols.json and it is a real action. Army_LeaveCastle is earned. A sortie is the only way a garrison gets out.",
       "evidence": "V"
+    },
+    {
+      "id": "0x004376BB/garrison-split-prompt",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "left-press",
+      "addr": "0x004376BB",
+      "what": "The two widgets of table 0x004DDB50, on message category 0x11 -- L2.eng group 166, `Cannot garrison castle.`, raised when an army is ordered into a castle that cannot hold it. Yes seeds the levy basket from the army and opens screen 0x11, the divide screen; No returns to the campaign map.",
+      "note": "NO IS NOT A DISMISSAL, and that is the finding. The handler's first two statements run before the hotspot test -- `g_screenId = 0; g_redrawRequest = 2;` -- and Msg_Dismiss is INSIDE the `if (hotspot != 0)`. So pressing the thumb-down puts you back on the map with the prompt still up, and it has to be closed with the corner button or the right button. Reproduced deliberately; docs/bugs.md B94.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/message.rs"
     },
     {
       "id": "0x004378B3/info-split",
@@ -1800,15 +1831,133 @@
       "evidence": "V"
     },
     {
-      "id": "0x0047685D/message-scroll-dismiss",
+      "id": "0x00472E46/battle-phase-swallows-messages",
       "status": "missing",
+      "group": "messages",
+      "screen": "0x29",
+      "gesture": "frame",
+      "addr": "0x00472E46",
+      "what": "Msg_Pump’s FIRST test, inside the screen ladder rather than beside it: it dismisses any open message and skips the pull, the countdown and the draw whenever g_battlePhase is 2. So while a battle is actually running, an open message is closed at once and no new one is ever pulled -- the whole pump is skipped for the duration.",
+      "note": "NOT BUILT, and it sits oddly against 0x0047685D/message-scroll-dismiss, which is recorded under the battlefield group on the grounds that a battle can raise messages (the siege gate button enqueues three). Both are true and they do not meet: the gate button’s messages go into the ring during phase 2 and are pulled when the phase leaves 2, which is when the battle ends. Nothing here has been driven against the original to check what a player actually sees, so the arm is recorded rather than guessed at. Building it needs a battle-phase byte the message code can read, which our LiveBattle has and Machine::pump_messages does not consult.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00472E46/pump-screen-ladder",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "frame",
+      "addr": "0x00472E46",
+      "what": "Msg_Pump runs only on g_screenId 0x00, 0x27, 0x29 and 0x0F-with-g_jobPanelJob-8; on ANY OTHER SCREEN its else branch is `if (g_messageGroup != 0) Msg_Dismiss();`. Opening the village, a county panel or the armoury with a letter on screen throws the letter away unread.",
+      "note": "A frame arm rather than a gesture, and recorded because it is what makes the scroll behave like part of the map rather than part of the interface: it is why walking into a screen loses a message. Msg_Pump has ONE caller, Battle_Frame (0x004B99C0), so this belongs to the frame driver and to no screen -- which is why it is reproduced in Machine::update rather than in a screen module.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screen.rs"
+    },
+    {
+      "id": "0x0047309E/alliance-offer-lapses",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "draw",
+      "addr": "0x0047309E",
+      "what": "Msg_DrawWindow's category-0x0B arm opens `if (g_realms[g_localPlayer].ally != 0) { Msg_Dismiss(); DAT_0058FE2C = 0; return; }` -- an Accept alliance ? prompt that arrives when you already have an ally closes ITSELF, before it is drawn and before the player sees it.",
+      "note": "A DISMISSAL INSIDE A DRAW FUNCTION. It matters because two AI realms can both offer in the same season: the second offer is silently swallowed rather than queued behind the first, so accepting one really does end the round of courtship. Msg_DrawDiplomacy carries the same guard for its own alliance arm; that is the separate record 0x00475E07/letter-alliance-lapses.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/message.rs"
+    },
+    {
+      "id": "0x0047309E/capture-smacker",
+      "status": "missing",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "draw",
+      "addr": "0x0047309E",
+      "what": "Categories 0x0D and 0x0E, when g_optAnimations is 1 and the timer is above 0x7C6: the window draws once, calls Msg_Dismiss ON ITSELF, stops the music and plays a Smacker -- cap_cty1/2/3.smk in rotation for a captured county, 0x004F0340 for an ending -- then restarts the campaign music if the video did not play and finally calls Msg_PlayVoice with the group and variant it saved off at the top of the function.",
+      "note": "Missing because there is no video player. The UNANIMATED branch of both categories is built and is the branch the original takes with animations off, so the messages themselves are reachable. Worth recording as an arm rather than as a drawing gap because it is a THIRD dismissal inside the draw and because the outcome ladder is duplicated inside it -- an ending with animations on sets DAT_0053F0C4 from the animated branch, not the timer-2000 one.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0047309E/ending-sets-outcome",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "draw",
+      "addr": "0x0047309E",
+      "what": "Msg_DrawWindow's category-0x0E arm, at g_messageTimer == 2000 -- the frame the window opens. It clears DAT_0053F0C4, then: group 0xE1 sets 10; otherwise, with opponents left and the message about me, 11; otherwise, with NO opponents left, it calls Msg_Enqueue(0, g_localPlayer, 0xE1, 0, 0x0E, ...) -- IT PUSHES A MESSAGE ONTO THE RING IT IS BEING DRAWN FROM. Msg_Dismiss then reads the outcome and enters screen 0x1C.",
+      "note": "THE MAINLINE WIN IS AN ARM OF THE DRAW. docs/plan.md states it as `any ending message displayed while g_opponentsRemaining is zero enqueues group 225, and the game is won when THAT is dismissed`, and this is that sentence: displayed sets the outcome, dismissed acts on it. It is the only writer of DAT_0053F0C4 during play, it is written out TWICE in the function (once in the animated branch and once in the unanimated one, identically), and nothing about the category switch suggests an arm of it can end the game. Ours runs in the message screen's `update` rather than its `draw`, because Screen::draw takes &Ctx and cannot mutate; the ordering is unchanged.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/message.rs"
+    },
+    {
+      "id": "0x0047309E/tip-timer-clamp",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "draw",
+      "addr": "0x0047309E",
+      "what": "Msg_DrawWindow's category-0x04 arm ends `if (999 < g_messageTimer) g_messageTimer = 100;` -- the floating tip is the only message whose life is set by the DRAW rather than by Msg_Pump, and it is the only one with no Ui_OkButton, so it is the only message a player cannot close.",
+      "note": "The clamp is in the draw and not in the pull, which has a visible consequence: a tip enqueued on a screen Msg_Pump does not run on keeps its full 2000 and is dismissed by the screen ladder instead. Reproduced; nothing in this workspace enqueues a category-4 message yet, because Tip_Update (0x00476AA7) and g_optTipScreens are a separate subsystem.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/message.rs"
+    },
+    {
+      "id": "0x00475E07/letter-alliance-lapses",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "draw",
+      "addr": "0x00475E07",
+      "what": "The same guard on the diplomatic letter: Msg_DrawDiplomacy dismisses without drawing when the letter is group 0xF8 (arm 3, `Offer of alliance.`) and the local player already has an ally.",
+      "note": "The decompilation of this one reads `if ((local_c == 3) && (g_realms[g_localPlayer].ally != 0))` with local_c UNINITIALISED -- a decompiler artefact: the arm index is `g_messageGroup - 0xF5`, computed lower down and hoisted above its own assignment. Read as the group test, which is what the eleven-arm switch below it uses the same value for. Recorded because reading it literally would make this look like undefined behaviour rather than a guard.",
+      "evidence": "I",
+      "ours": "crates/l2-game/src/message.rs"
+    },
+    {
+      "id": "0x00476710/map-click-dismiss",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "0x00",
+      "gesture": "left-release",
+      "addr": "0x00476710",
+      "what": "Msg_DismissUnlessQuestion: `if (category != 0x11 && category != 10 && category != 0x0B && category != 0x0C) Msg_Dismiss();`. One caller, and it is the else of Map_Click's OUTERMOST guard -- Map_Click's entire 1,263-byte body is `if (g_messageGroup == 0) { ...the whole campaign map click... } else { this }`. So with a message up, a left click on the map closes it and the map does NOTHING ELSE: no tile picked, no county selected, no village, no army orders.",
+      "note": "Not in Msg_DrawWindow, not in Msg_HandleInput, and not reachable from either: found by asking who calls the four-line function next to Msg_Dismiss. The four categories it refuses are exactly the four Msg_HandleInput runs a Widget_Test for, which is a correspondence that could have failed and did not -- a question survives a stray click on the map and a notice does not.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/map.rs"
+    },
+    {
+      "id": "0x00476768/quit-to-shell-groups",
+      "status": "dead",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "left-press",
+      "addr": "0x00476768",
+      "what": "Msg_Dismiss opens with `if (group == 0xEF || group == 0xEE || group == 0x9F || group == 0x9E) { Log_Write('OK :exited from game flow.'); g_screenId = 0x26; Music_Stop(0); g_quitRequest = 3; }` -- dismissing one of those four messages QUITS THE GAME rather than closing a window.",
+      "note": "Dead: groups 158, 159, 238 and 239 are the demo's Congratulations / Defeat posters and NOTHING IN THE BINARY ENQUEUES ANY OF THEM -- docs/formats/eng.md marks all four dead in this build. Building it would be a dead-reproduced arm, which crates/l2-game/tests/arms.rs asserts stays empty. Recorded so the next reader of Msg_Dismiss does not build it.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0047685D/message-ok-dismiss",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "left-press",
+      "addr": "0x0047685D",
+      "what": "A LEFT PRESS in a 48x48 box round the corner button closes the message: `Rect_Contains(DAT_005681DC - 0xC, DAT_0056950C - 0xC, 0x30, 0x30)`, then FUN_004B18E3 to consume the click, then Msg_Dismiss. The box is TWICE the 24x24 picture Ui_OkButton drew, where every other screen in the game hit-tests the picture itself through Ui_OkButtonClicked (0x0040E7E4).",
+      "note": "THE DRAW CREATES THIS HOTSPOT AND THE INPUT ARM CANNOT SEE WHERE. Ui_OkButton stashes its own x and y into DAT_0055CE78/DAT_0057C8A0, Msg_DrawWindow's last two statements copy those into DAT_005681DC/DAT_0056950C, and this tests the copy. Two consequences fall straight out of that and neither is visible from the input side: a category that draws no Ui_OkButton has NO left-click target at all (category 0x04, the floating tip, is one and a category byte with no arm is the other), and the hotspot survives one frame after the layout changes because it is last frame's copy.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/message.rs"
+    },
+    {
+      "id": "0x0047685D/message-scroll-dismiss",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
       "gesture": "right-release",
       "addr": "0x0047685D",
-      "what": "The first thing Screen_FrameInput does on EVERY screen: a right release inside a 48x48 box round the message scroll dismisses it and SWALLOWS THE CLICK, so it never reaches the screen's own arms. A battle can raise messages (the siege gate button enqueues three of them), so this is reachable here.",
-      "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed. OWNERSHIP: left to the message-window branch deliberately. This arm is every screen's rather than one screen's, so building it inside a screen module would be the wrong home; it belongs beside Msg_DrawWindow with the scroll itself. The input-arms branch did not touch it.",
-      "evidence": "V"
+      "what": "The first thing Screen_FrameInput does on EVERY screen: a right release with a message scroll up dismisses it and SWALLOWS THE CLICK, so it never reaches the screen's own arms. A battle can raise messages (the siege gate button enqueues three of them), so this is reachable here.",
+      "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed. CORRECTED WHEN IT WAS BUILT: this record used to say `a right release INSIDE A 48x48 BOX round the message scroll`. There is no box on this arm. Msg_HandleInput's right-button branch is `else { Msg_Dismiss(); return 1; }` with no rectangle and no category test in front of it -- the 48x48 box belongs to the LEFT press, and is 0x0047685D/message-ok-dismiss. The consequence is a behaviour the wrong reading hides: a right click ANYWHERE closes an unanswered alliance offer, and closing it is neither yes nor no.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/message.rs"
     },
     {
       "id": "0x00477DFC/outcome-timer",
@@ -1917,6 +2066,17 @@
       "what": "WM_CHAR's WHOLE ARM is Edit_TypeChar(ch) -- 0x00401A20 -- with no test of g_screenId, so every printable character a person types anywhere in the game goes into the one edit buffer. Whether it LANDS is g_editActive's business, not this arm's.\n\nTHE CHARACTER SET, exactly, in the chain's own order: space always; , . ? ! only when the field's kind is 0; - always; 0-9 always; a-z always; A-Z always, LOWER-CASED by 0x004011B0 when the kind is not 0; 0x80-0x9A, 0xA0-0xA7 and 0xE1 always. Everything else is dropped in SILENCE -- no beep, no message -- and that includes the apostrophe, the ampersand, every bracket and all of 0xA8-0xE0. A person typing O'Neill gets ONeill.",
       "note": "Ours arrives as Event::Text rather than Event::KeyDown, which is the same split Windows makes: WM_KEYDOWN carries a key and WM_CHAR carries a character. It has to be, because Key::Char is folded to upper case for the hotkeys and a name typed through it would come out RICHARD.",
       "ours": "crates/l2-game/src/text.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004B35C1/message-voice",
+      "status": "missing",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "draw",
+      "addr": "0x004B35C1",
+      "what": "Msg_PlayVoice(group, variant) on the frame the timer hits a per-category value: 0x7C6 for most, 0x776 for a plain notice and a lord's letter, 0x708 for the two prompts, 0x76C for an ending, 0x5A for a tip. Groups 170..197 index g_msgVoiceLord by (group - 170) * 0x100 + variant * 0x10 into Kt/Bn/Ct/Bp <group>_<1..4>.wav; everything else has one file.",
+      "note": "Missing because audio is another branch's. The trigger timers are the interesting half and are recorded in crates/l2-game/src/message.rs so that branch does not have to re-read the function: they are five different values in one function and they are what makes a lord speak AFTER his letter has been on screen for a moment rather than as it opens.",
       "evidence": "V"
     },
     {
@@ -2200,6 +2360,17 @@
       "what": "Escape and Enter close the job popup.",
       "why": "0x0F's arm reads Ui_OkButtonClicked and the right-release flag and no key.",
       "ours": "crates/l2-game/src/screens/job.rs"
+    },
+    {
+      "id": "ours/message-keyboard-dismiss",
+      "status": "invention",
+      "removed": false,
+      "group": "messages",
+      "screen": "every",
+      "gesture": "key",
+      "what": "Escape or Enter closes the message scroll.",
+      "why": "Msg_HandleInput tests no key, and the window procedure (0x004B29BE) has no arm that reaches the message system either -- its WM_KEYDOWN cases are the seven editing keys and the control-group digits. KEPT rather than removed, on the same argument as the front end's keyboard: a modal window a person cannot leave without a mouse is worse, not more faithful. Counted here so the number of inventions stays honest.",
+      "ours": "crates/l2-game/src/screens/message.rs"
     },
     {
       "id": "ours/prompt-bystander-any-click",
