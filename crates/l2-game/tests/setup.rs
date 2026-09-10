@@ -462,7 +462,7 @@ fn every_pixel_of_the_build_stamp_is_inside_the_visible_canvas() {
 
     let s = format!("BUILD {}", l2_game::build_id::ID);
     let top = l2_game::build_id::top_edge(&pen, &s);
-    let height = match &assets.shell.body {
+    let height = match &assets.shell.small {
         Some(f) => f.height(&s),
         None => l2_view::text::GLYPH_H,
     };
