@@ -4276,3 +4276,86 @@ fn the_grazing_clock_changes_the_picture_and_cannot_change_the_world() {
         "drawing the map moved the simulation",
     );
 }
+
+/// **The cattle row's forecast, and the sign is the claim.**
+///
+/// A player, mid-session: *"Sidebar doesn't show grain being planted as a
+/// negative number."* `docs/draws-map.md` §5.10 has the diagnosis — the grain
+/// row's value is county `+0x22C` and nothing in this workspace computes it —
+/// and this is the **cattle** row, whose value does exist
+/// ([`l2_kingdom::land::herd_preview`] is `Herd_LabourEstimate`'s tail) and
+/// which therefore proves the drawing half before the expensive half lands on
+/// it.
+///
+/// `Ui_DrawDelta` (`0x00402E0C`) is asserted in the three ways it can be wrong,
+/// and each is a different line of it:
+///
+/// 1. **a negative forecast draws `-n` in `colourNeg`** — `0xF9`, the ninth
+///    argument at all eight produce-row call sites;
+/// 2. **a positive one draws `+n` in `colourPos`** — `0xFA`, and the `'+'` is
+///    not decoration: the sign is the only thing on the row that says which way
+///    the herd is going;
+/// 3. **zero draws nothing at all**, because every produce row passes `mode`
+///    0 and the function's first line is
+///    `if ((value != 0) || (mode != 0))`.
+///
+/// The search is [`find_font_text`], so it is the **glyphs of the user's own
+/// `Fntl2_9.pl8`** being matched at a colour, not a description of them — and
+/// claim 3 is the one that cannot pass by accident, because it requires the
+/// *absence* of a pattern the same run has just proved the renderer can draw.
+///
+/// Ablations, all three run: making the lead always `'+'` fails claim 1;
+/// dropping the `value == 0` early return fails claim 3 (a `+0` appears);
+/// swapping `DELTA_POS` and `DELTA_NEG` fails 1 and 2 together.
+#[test]
+fn the_cattle_row_draws_its_forecast_with_a_sign() {
+    let (mut game, assets) = world!();
+    // `colourPos` and `colourNeg`, typed from the call site in `FUN_004100AF`
+    // rather than imported from the constants under test.
+    const POS: u8 = 0xFA;
+    const NEG: u8 = 0xF9;
+
+    let county = 8;
+    game.select(county as u8);
+    // The row is only drawn when `FUN_0040FEC1` lists it, which is
+    // `fieldsCattle != 0 || herd != 0`.
+    game.kingdom.counties[county].fields_cattle = 4;
+    game.kingdom.counties[county].herd = 400;
+
+    let mut screen = MapScreen::new();
+    let shown = |game: &mut Game, s: &str, colour: u8| -> Option<(i32, i32)> {
+        let canvas = draw(&mut MapScreen::new(), game, &assets);
+        let f = assets.shell.small.as_ref().expect("Fntl2_9.pl8");
+        find_font_text(&canvas, f, s, colour)
+    };
+    let _ = &mut screen;
+
+    // 1 — the herd is shrinking. This is the player's complaint, on the row
+    // whose data path is complete.
+    game.kingdom.counties[county].herd_change_expected = -7;
+    let neg = shown(&mut game, "-7 ", NEG).expect("a shrinking herd shows -7");
+    assert!(
+        neg.0 >= 478 && neg.1 >= 302,
+        "the delta belongs on the produce plate at (478, 302), not at {neg:?}",
+    );
+    // And it is not drawn in the positive colour, which is the half that would
+    // survive a swapped pair.
+    assert!(shown(&mut game, "-7 ", POS).is_none(), "a negative delta is 0xF9, not 0xFA");
+
+    // 2 — growing, and the '+' is drawn.
+    game.kingdom.counties[county].herd_change_expected = 7;
+    let pos = shown(&mut game, "+7 ", POS).expect("a growing herd shows +7");
+    assert_eq!(pos.1, neg.1, "both signs sit on the same row");
+    assert!(shown(&mut game, "7 ", NEG).is_none(), "a positive delta is 0xFA, not 0xF9");
+
+    // 3 — and a quiet season draws nothing. Neither sign, in either colour.
+    game.kingdom.counties[county].herd_change_expected = 0;
+    for s in ["+0 ", "-0 ", "0 "] {
+        for c in [POS, NEG] {
+            assert!(
+                shown(&mut game, s, c).is_none(),
+                "mode 0 with a zero value draws nothing at all, but {s:?} appeared in {c:#04x}",
+            );
+        }
+    }
+}

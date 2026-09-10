@@ -157,7 +157,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void Ui_DrawNumberRight(int value, char lead, char * suffix, int x, int y, int width, void * font, int colour)",
-      "comment": "Ui_DrawNumber, right-aligned inside width."
+      "comment": "MISNAMED, and the comment was wrong with it: it CENTRES. Ui_DrawNumber's buffer, then FUN_004025D7, whose whole body is Ui_DrawText(str, x + max(0, (width - textWidth) / 2), y, font, colour). The name is kept because it is the shape the original's call sites use and renaming it would strand every citation; read it as 'the number, laid out inside width'. Two draw audits found this independently in one week - the campaign sidebar's produce-row stock figure was anchored at x=540 and belongs centred between 480 and 540. docs/draws-map.md section 5.10."
     },
     {
       "addr": "0x00403DEB",
