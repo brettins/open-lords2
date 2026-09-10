@@ -26,6 +26,121 @@
 //!
 //! [`Shell::unfinished`]: crate::screens::shells::Shell::unfinished
 //!
+//! # The four painters, address by address
+//!
+//! They are one shape four times over: `FUN_004093E0` (which is
+//! `Ui_DrawBoxBorder(1, …)` plus `Ui_DrawBoxInterior` inset one cell), a
+//! heading, N label rows, N state words out of group 18 or 19, and
+//! `Ui_OkButton`. Every coordinate below is a literal in the painter.
+//!
+//! ```text
+//! Screen_HelpOptions():                                         0x004154EA
+//!   g_helpOptWidgetCount = 3
+//!   FUN_004093E0(0x60, 0x80, 0x16, 0x0B)     border set 1 at (96, 128) 352x176
+//!   Eng_DrawString(45, 3, 0x80, 0x100, body)    "Start game help"  (128, 256)
+//!   Ui_OkButton(0x194, 0x106, 0)                                   (404, 262)
+//!   Eng_DrawString(45, 0, 0x80, 0x94,  heading) "Help Options"     (128, 148)
+//!   Eng_DrawString(45, 1, 0x80, 0xC0,  body)    "Tip screens"      (128, 192)
+//!   Eng_DrawString(45, 2, 0x80, 0xE0,  body)    "Tool tips"        (128, 224)
+//!   Eng_DrawString(18, tipScreens ? 0 : 1, 0x120, 0xC0, body)      (288, 192)
+//!   Eng_DrawString(18, toolTips   ? 0 : 1, 0x120, 0xE0, body)      (288, 224)
+//!
+//! Screen_AdvancedOptions():                                     0x00414F68
+//!   FUN_004093E0(0x30, 0x60, 0x18, 0x0D)      set 1 at (48, 96)     384x208
+//!   Eng_DrawString(50, 0, 0x40, 0x74,  heading) "Advanced options." (64, 116)
+//!   Eng_DrawString(50, 1, 0x60, 0xA0,  body)   "Advanced farming"   (96, 160)
+//!   Eng_DrawString(50, 2, 0x60, 0xC0,  body)   "Army foraging"      (96, 192)
+//!   Eng_DrawString(50, 3, 0x60, 0xE0,  body)   "Exploration"        (96, 224)
+//!   Eng_DrawString(50, 4, 0x60, 0x100, body)   "Fight humans only?" (96, 256)
+//!   Eng_DrawString(18, advancedFarming ? 0 : 1, 0x140, 0xA0, body) (320, 160)
+//!   Eng_DrawString(18, armiesEat       ? 0 : 1, 0x140, 0xC0, body) (320, 192)
+//!   Eng_DrawString(18, exploration     ? 0 : 1, 0x140, 0xE0, body) (320, 224)
+//!   Eng_DrawString(18, fightHumansOnly ? 1 : 0, 0x140, 0x100, body)  <- INVERTED
+//!   g_advancedOptWidgetCount = 4
+//!   Ui_OkButton(0x188, 0x100, 0)                                  (392, 256)
+//!
+//! Screen_SoundOptions():                                        0x0041515C
+//!   FUN_004093E0(0x30, 0x60, 0x18, 0x0C)      set 1 at (48, 96)     384x192
+//!   Eng_DrawString(51, 0, 0x40, 0x74, heading) "Sounds"             (64, 116)
+//!   Eng_DrawString(51, 1, 0x60, 0xA0, body)    "Music"              (96, 160)
+//!   Eng_DrawString(51, 2, 0x60, 0xC0, body)    "Sound effects"      (96, 192)
+//!   Eng_DrawString(51, 3, 0x60, 0xE0, body)    "Speech"             (96, 224)
+//!   Eng_DrawString(19, music   ? 0 : 1, 0x140, 0xA0, body)         (320, 160)
+//!   Eng_DrawString(19, effects ? 0 : 1, 0x140, 0xC0, body)         (320, 192)
+//!   Eng_DrawString(19, speech  ? 0 : 1, 0x140, 0xE0, body)         (320, 224)
+//!   g_soundOptWidgetCount = 3
+//!   Ui_OkButton(0x188, 0xF0, 0)                                    (392, 240)
+//!
+//! Screen_DisplayOptions():                                      0x004152EA
+//!   FUN_004093E0(0x30, 0x90, 0x18, 0x0A)      set 1 at (48, 144)    384x160
+//!   Eng_DrawString(52, 2, 0x60, 0xF0, body)    "Full screen"        (96, 240)
+//!   Eng_DrawString(18, fullScreen == 1 ? 0 : 1, 0x140, 0xF0, body) (320, 240)
+//!   if (!fullScreen)
+//!     Eng_DrawString(52, 3, 0x48, 0x108, body) "(F5 key re-sizes…)" (72, 264)
+//!   g_displayOptWidgetCount = 2
+//!   Ui_OkButton(0x188, 0x100, 0)                                   (392, 256)
+//!   Eng_DrawString(52, 0, 0x40, 0xA4, heading) "Display options"    (64, 164)
+//!   Eng_DrawString(52, 1, 0x60, 0xD0, body)    "Animations"         (96, 208)
+//!   Eng_DrawString(19, animations ? 0 : 1, 0x140, 0xD0, body)      (320, 208)
+//! ```
+//!
+//! The Display painter draws its rows **out of order** — the second row and its
+//! state word first, then the F5 note, then the widget count and the OK button,
+//! and only then the heading and the first row. Nothing overlaps, so the order
+//! does not show; it is transcribed as it is so that a future reader comparing
+//! this listing with `fn.js` does not think a line is missing.
+//!
+//! # The state word on row four of the Advanced panel is **inverted**
+//!
+//! Three of that panel's four rows read `if (flag == 0) "No" else "Yes"`. The
+//! fourth, *"Fight humans only?"*, reads `if (g_optFightHumansOnly == 0) "Yes"
+//! else "No"` — the opposite. `[V]`, and it is the binary's, not a slip here:
+//! `FUN_004A6A30` auto-resolves a battle the local player is not in **when the
+//! byte is 0**, so the byte is really *"fight everything"* and the panel is
+//! printing its negation. [`Setting::FightHumansOnly`] keeps the byte and turns
+//! the sense round in exactly one place.
+//!
+//! # Every widget count is a variable, and all four are honest
+//!
+//! `Widget_Draw` is passed `g_helpOptWidgetCount`, `g_advancedOptWidgetCount`,
+//! `g_soundOptWidgetCount` and `g_displayOptWidgetCount` rather than a literal,
+//! which is the shape that hid `g_sendSuppliesWidgets`' cut sheep row. **It is
+//! not hiding anything here.** `xref.js touches` finds exactly three functions
+//! per count — the painter, which writes it, and `Screen_DrawWidgets` and
+//! `Screen_HandleInput`, which only read it — and the tables decoded out of
+//! `.data` are exactly as long as the value written:
+//!
+//! ```text
+//!   g_advancedOptWidgets 0x004DDC10  4 records, then g_soundOptWidgets    count 4
+//!   g_soundOptWidgets    0x004DDC70  3 records, then g_displayOptWidgets  count 3
+//!   g_displayOptWidgets  0x004DDCB8  2 records, then g_helpOptWidgets     count 2
+//!   g_helpOptWidgets     0x004DDCE8  3 records, then an unnamed table     count 3
+//! ```
+//!
+//! The one thing that turned up is **next door**: `0x004DDD30`, immediately
+//! after `g_helpOptWidgets`' three records and before `g_saveLoadWidgets` at
+//! `0x004DDD78`, holds **three more 24-byte records** — `(376, 176)`,
+//! `(376, 216)` and `(376, 256)`, frame 19, kind 4, handlers `0x0043441C`,
+//! `0x004344BA` and `0x004344D6`. The last two are one line each,
+//! `g_confirmAnswer = 1` and `g_confirmAnswer = 0`; the first is the callback
+//! `Menu_Quit` hands to `Ui_OpenConfirm(0, …)`, *"Exit the game?"*. **No
+//! `Widget_Draw` or `Widget_Test` call site anywhere in the image names
+//! `0x004DDD30`** — `grep` over the whole decompilation finds the address only
+//! in `.data` — so those three buttons exist, cost 72 bytes, and are drawn by
+//! nothing. Recorded here rather than guessed at, and not reproduced.
+//!
+//! Reading `FUN_0043441C` for that settles something else, which belongs to
+//! screen `0x45` rather than here and is written down because nothing else
+//! records it: **answering *yes* to *"Exit the game?"* does not exit.** While
+//! `DAT_0053F644` is under 3 it increments it, sets `g_screenId = 0x45` and
+//! checks that `lom.256` is on disk — the Lords of Magic advertisement — and
+//! only sets `g_quitRequest` if the file is *missing*. `Screen_FrameInput`'s
+//! whole `0x45` arm is *any mouse release sets `g_quitRequest = 1`*, so **the
+//! advertisement is the last thing the game shows and a click on it is the
+//! exit.** `[V]` In multiplayer (`DAT_00568464`) it leaves the net game and
+//! goes to `0x1F` page 1 instead, and *no* to the box restores
+//! `g_screenIdSaved`.
+//!
 //! # The rows, and where every number comes from
 //!
 //! Each panel is a `Ui_DrawBox`, a heading, N label rows, and one **24 × 24
@@ -114,6 +229,37 @@ pub enum Page {
     Quirks,
 }
 
+/// `L2.eng` group 50 — *"Advanced options."* and its four rows. **Verified
+/// against the words**, not against the indices existing: index 0 is
+/// *"Advanced options."*, 1 *"Advanced farming"*, 2 *"Army foraging"*, 3
+/// *"Exploration"*, 4 *"Fight humans only?"*, and the group holds exactly five
+/// strings.
+pub const GROUP_ADVANCED: usize = 50;
+/// `L2.eng` group 51 — *"Sounds"*, *"Music"*, *"Sound effects"*, *"Speech"*.
+/// Exactly four strings. Verified against the words.
+pub const GROUP_SOUND: usize = 51;
+/// `L2.eng` group 52 — *"Display options"*, *"Animations"*, *"Full screen"*,
+/// *"(F5 key re-sizes window to 640x480)"*. Exactly four. Verified against the
+/// words.
+pub const GROUP_DISPLAY: usize = 52;
+/// `L2.eng` group 45 — *"Help Options"*, *"Tip screens"*, *"Tool tips"*,
+/// *"Start game help"*. Exactly four. Verified against the words.
+pub const GROUP_HELP: usize = 45;
+
+/// `L2.eng` group 18 — **`Yes` / `No` / `Cancel`**, three strings. Index 2 is
+/// drawn by none of these four painters.
+pub const GROUP_YES_NO: usize = 18;
+/// `L2.eng` group 19 — **`On` / `Off` / `Cancel`**, three strings, and again
+/// index 2 is unused here.
+pub const GROUP_ON_OFF: usize = 19;
+
+/// Group 52 index 3, the windowed-mode hint, and the one row of these four
+/// panels that is drawn conditionally.
+pub const DISPLAY_F5_NOTE: usize = 3;
+/// The F5 note's own baseline — `Eng_DrawString(52, 3, 0x48, 0x108, body)`,
+/// which is 24 pixels left of every other row on the panel.
+pub const DISPLAY_F5_NOTE_AT: (i32, i32) = (0x48, 0x108);
+
 /// A row's state word comes from one of two `L2.eng` groups, and one panel uses
 /// both.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,8 +273,8 @@ pub enum Words {
 impl Words {
     pub fn group(self) -> usize {
         match self {
-            Words::YesNo => 18,
-            Words::OnOff => 19,
+            Words::YesNo => GROUP_YES_NO,
+            Words::OnOff => GROUP_ON_OFF,
         }
     }
 
@@ -385,10 +531,10 @@ impl Page {
     /// The `L2.eng` group whose index 0 is the heading.
     pub fn group(self) -> Option<usize> {
         match self {
-            Page::Advanced => Some(50),
-            Page::Sound => Some(51),
-            Page::Display => Some(52),
-            Page::Help => Some(45),
+            Page::Advanced => Some(GROUP_ADVANCED),
+            Page::Sound => Some(GROUP_SOUND),
+            Page::Display => Some(GROUP_DISPLAY),
+            Page::Help => Some(GROUP_HELP),
             Page::Quirks => None,
         }
     }
@@ -835,22 +981,31 @@ impl OptionsScreen {
         }
 
         // Group 52 index 3 — *"(F5 key re-sizes window to 640x480)"* — is drawn
-        // only while the game is windowed. We are always windowed.
+        // only while the game is windowed (`if (g_optFullScreen == 0)`). We are
+        // always windowed, so it is always drawn.
+        //
+        // **The original draws it in `0x3F` like every other row**; it is dimmed
+        // here because this engine has no F5 resize, and that is a divergence
+        // rather than a transcription. `Eng_DrawString(52, 3, 0x48, 0x108,
+        // &g_fontBody, 0x3F)`.
         if self.page == Page::Display {
-            let note = a.text(group, 3).to_string();
-            pen.body(canvas, 0x48, 0x108, &note, font::DISABLED);
+            let note = a.text(group, DISPLAY_F5_NOTE).to_string();
+            pen.body(
+                canvas,
+                DISPLAY_F5_NOTE_AT.0,
+                DISPLAY_F5_NOTE_AT.1,
+                &note,
+                font::DISABLED,
+            );
         }
 
         // Ours, in our own font, so it cannot be mistaken for the game's words.
         if unsupported {
-            let (_, y, _, rows, _) = self.page.window();
-            l2_view::text::draw(
-                canvas,
-                self.page.window().0,
-                y + rows * 16 + 6,
-                "GREYED: THIS ENGINE IS A WINDOW, AND L2HELP.HLP IS WIN3.1",
-                ctx.assets.ink.dim,
-            );
+            let (x, y, _, rows, _) = self.page.window();
+            // On one line so that `crates/l2-game/tests/draws.rs`' caption
+            // scanner can see it: it reads the first quoted run on the line the
+            // call is on, and a `rustfmt`-split literal is invisible to it.
+            l2_view::text::draw(canvas, x, y + rows * 16 + 6, "GREYED: THIS ENGINE IS A WINDOW, AND L2HELP.HLP IS WIN3.1", ctx.assets.ink.dim);
         }
     }
 
@@ -884,13 +1039,7 @@ impl OptionsScreen {
 
         // The mark. This page is **ours**, and it says so on itself in our own
         // font — the rule `crates/l2-game/src/screens/index.rs` already follows.
-        l2_view::text::draw(
-            canvas,
-            QUIRK_PARENT.0,
-            0x1C4,
-            "OURS - THE ORIGINAL HAS NO SUCH PAGE. SEE DOCS/BUGS.MD",
-            ink.dim,
-        );
+        l2_view::text::draw(canvas, QUIRK_PARENT.0, 0x1C4, "OURS: THE ORIGINAL HAS NO SUCH PAGE. SEE DOCS/BUGS.MD", ink.dim);
     }
 }
 

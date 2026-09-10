@@ -31,21 +31,55 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->122<!--/fig--> of
-   <!--fig:arms-live-->158<!--/fig--> live arms (<!--fig:arms-pct-->77<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->123<!--/fig--> of
+   <!--fig:arms-live-->159<!--/fig--> live arms (<!--fig:arms-pct-->77<!--/fig-->%)** — so
    **<!--fig:arms-missing-->36<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->3<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
    counting: **<!--fig:arms-inventions-->24<!--/fig-->** inventions are on file. An invention is
    worse than an omission, because nothing looks broken.
-3. **A screen shows something the original does not, or fails to show something it does.** This
-   is the least measured of the three and §2.10 is about that.
+3. **A screen shows something the original does not, or fails to show something it does.**
+   This now has a **partial** instrument, and the row stays because the instrument is
+   partial. `docs/draws.md` is the draw-call audit and `tools/draws/screens.json` is its
+   inventory: across the <!--fig:draws-screens-->51<!--/fig--> screens enumerated so far the
+   original makes <!--fig:draws-original-->1,012<!--/fig--> draw calls and we make
+   <!--fig:draws-ours-->397<!--/fig-->, which is <!--fig:draws-pct-->39<!--/fig-->%.
+   <!--fig:draws-missing-->56<!--/fig--> things the original draws are enumerated as
+   missing, and **<!--fig:draws-inventions-->37<!--/fig--> things we draw that it does
+   not** — the figure that answers row 2 for pictures rather than gestures, and the one
+   nobody had.
+
+   **And the half a call count cannot see:** of our marks on those screens,
+   <!--fig:draws-real-->421<!--/fig--> go through the game's own artwork and
+   <!--fig:draws-placeholder-->79<!--/fig--> are our 5 × 7 debug font and our own
+   rectangles — <!--fig:draws-real-pct-->84<!--/fig-->% real — with
+   <!--fig:draws-literals-->19<!--/fig--> English captions written in our source where the
+   original fetches an `L2.eng` string. **A screen can reproduce every draw call and still
+   be entirely placeholder**, which is what a player meant by *"placeholder shit
+   everywhere"* about screens whose counts were fine. `docs/draws.md` §8.
+
+   **What it still cannot see, and this is the part that must not be dropped:**
+   * **Whether a draw is *correct*.** The unit is the call site. A sprite drawn at the
+     right coordinate from the wrong frame of the right sheet counts as reproduced, and a
+     canvas diff passes on it.
+   * **The campaign map**, which is the screen a player looks at for 95% of a session. It
+     is a separate job with its own tool (`tools/draws/mapdraws.js`) and is excluded from
+     every number above.
+   * **Meaning, as opposed to existence.** The `L2.eng` check asks whether a group and
+     index resolve, not whether they are the *right* group — the armoury was filed under
+     group 16 and group 16 index 6 exists, so the check passes on a wrong screen.
+   * **Anything a later turn shows.** C26: every shipped fixture is turn one with one
+     county per realm.
+
+   §2.10 is the argument that produced it.
 4. **The hundred-turn game diverges** — a rule that is right on turn one and wrong on turn forty.
    §2.5.
 5. **A number in a saved game differs from the original's** for the same inputs.
 
-The first two have instruments. The third has none. The fourth has a partial one. The fifth is
-what the fixtures do.
+The first two have instruments. **The third now has a partial one**, listed with what it
+cannot see — it was *"instrument: none"* until the draw-call audit, and the four bullets
+under it are the reason it is still a falsification condition rather than a tick. The
+fourth has a partial one. The fifth is what the fixtures do.
 
 **The third row is the most valuable line in this file and it must not disappear when it
 improves.** *"A screen showing the wrong thing — instrument: none"* is the only entry that tells
@@ -656,7 +690,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,973<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,000<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

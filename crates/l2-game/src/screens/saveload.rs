@@ -5,25 +5,79 @@
 //! again. They are screens now, and every coordinate below was read out of the
 //! painter rather than chosen.
 //!
-//! # The painter, and what it actually draws
+//! # The painter, address by address
 //!
 //! `Screen_SaveLoad(saving)` (`0x00414819`) is **one painter with a mode flag**
 //! — the two `g_screenId` values differ only in which of `L2.eng` group 40's
 //! first two strings is used as the heading, *"Loading a conquest."* or
-//! *"Saving a conquest."* Its whole body is:
+//! *"Saving a conquest."* `Screen_Draw` calls `Screen_SaveLoad(0)` for `0x35`
+//! and `Screen_SaveLoad(1)` for `0x36`, so **the argument is the string index**.
 //!
-//! ```c
-//! Ui_DrawBox(0x10, 0x90, 0x1C, 0x14);
-//! Eng_DrawString(40, saving, 0x20, 0xA0, &g_fontHeading, 0x3F);
-//! Ui_DrawInsetRect(0x20, 200,   400,   0x100);   // the whole lower area
-//! Ui_DrawInsetRect(0x28, 0xD0,  0xC0,  0x20);    // the name field
-//! Ui_DrawInsetRect(0x28, 0xF8,  0x160, 0xA4);    // the file list
-//! Ui_DrawInsetRect(0x28, 0x1A4, 0x180, 0x1C);    // the status line
-//! SaveLoad_DrawStatus();
+//! ```text
+//! Screen_SaveLoad(saving):                                      0x00414819
+//!   FUN_004B1DE0()                                     the clip reset, not a draw
+//!   Ui_DrawBox(0x10, 0x90, 0x1C, 0x14)      the window at (16, 144), 448 x 320
+//!   Gfx_MarkAllDirty()
+//!   Eng_DrawString(40, saving, 0x20, 0xA0, heading, 0x3F)          (32, 160)
+//!   FUN_00403CF4(0x20, 200,   400,   0x100, 0x3F)   (32, 200)  400 x 256
+//!   FUN_00403CF4(0x28, 0xD0,  0xC0,  0x20,  0x3F)   (40, 208)  192 x 32
+//!   FUN_00403CF4(0x28, 0xF8,  0x160, 0xA4,  0x3F)   (40, 248)  352 x 164
+//!   FUN_00403CF4(0x28, 0x1A4, 0x180, 0x1C,  0x3F)   (40, 420)  384 x 28
+//!   DAT_004E65DC = 999
+//!   SaveLoad_DrawStatus()                    twelve of the fourteen draws
+//!
+//! SaveLoad_DrawStatus(selected, frontEnd):                      0x004149EC
+//!   origin = frontEnd ? (0x60, 0x0A) : (0x10, 0x90)
+//!   two blanks at (org + 0x1C, org + 0x42) and (+ 0x4C), 10 x 1 cells
+//!   Ui_DrawText(g_editBuffer, org + 0x20, org + 0x48, body, 0x3F)
+//!   FUN_0040ACCE(0x5AF8F0, 0x3F)                     Edit_DrawCaret
+//!   one blank at (org + 0x1E, org + 0x6A), 21 x 10 cells       the list well
+//!   for i in top .. count:  Ui_DrawText(name[i], x, y, body, i == sel ? 0x20 : 0x3F)
+//!   one blank at (org + 0x20, org + 0x118), 21 x 1 cells       the status well
+//!   if (DAT_0057D3C4)
+//!     error   -> Eng_DrawString(40, 4, org + 0x20, org + 0x11A, body, 0x3F)
+//!     0x35    -> Eng_DrawString(40, 2, …)      "Loading game. Please wait."
+//!     0x1F    -> Eng_DrawString(40, 2, …)      the front end also only loads
+//!     else    -> Eng_DrawString(40, 3, …)      "Saving game. Please wait."
 //! ```
 //!
-//! and `SaveLoad_DrawStatus` (`0x004149EC`) fills those rectangles. **[V]**,
-//! from the two functions' own bodies. The list is the interesting part:
+//! **[V]** from the two functions' own bodies.
+//!
+//! ## `FUN_00403CF4` is not `Ui_DrawInsetRect`, and this module used to say it was
+//!
+//! The four rectangles were transcribed here as `Ui_DrawInsetRect(x, y, w, h)`
+//! (`0x00403DEB`) — colour `0x10` on the top and right and `0x1F` on the bottom
+//! and left, a *lit* recess. The painter calls **`FUN_00403CF4(x, y, w, h,
+//! colour)`** instead, which is four `FUN_00403A8F` lines **all in the one
+//! colour the caller passes**, and every one of the four call sites passes
+//! `0x3F`. So all four are **flat single-colour outlines**, not recesses, and
+//! [`rect_outline`] is that. The two functions are 249 and 247 bytes and sit
+//! seventeen bytes apart; the mistake was reading the name and not the body.
+//!
+//! The two-tone one *is* in this screen's family — the front end's twin
+//! `FUN_004148E4` opens with `FUN_00403EE4(0x70, 0x42, 400, 0x100)`, whose
+//! colours are `0x35` top and right and `0x28` bottom and left, a **third**
+//! bevel that is neither of the other two.
+//!
+//! ## The status flag reaches every place it should — checked
+//!
+//! `0x35` and `0x36` are one painter and one flag, so *"a load screen that says
+//! Save somewhere"* is the defect to look for. There are exactly two places the
+//! mode is read and **they read two different variables**:
+//!
+//! * the heading reads the painter's `saving` **argument**;
+//! * the status line reads **`g_screenId`** directly, and its ladder is
+//!   `0x35 → 2`, `0x1F → 2`, *anything else* `→ 3`.
+//!
+//! Both are right, because `Screen_Draw` is the only thing that sets either and
+//! it sets them together. It is worth writing down that they are not the same
+//! source: the `else` arm means every screen id that is not `0x35` or `0x1F`
+//! gets *"Saving game."*, which is correct today only because `0x36` is the
+//! sole remaining caller. `SaveLoad_DrawStatus` is reached from three places —
+//! `Screen_SaveLoad`, `FUN_004148E4` (the front end's page 3) and
+//! `Screen_DrawWidgets` — and never from a fourth.
+//!
+//! The list is the interesting part:
 //!
 //! ```c
 //! x = box.x + 0x20; y = box.y + 0x6C;              // (48, 252)
@@ -143,7 +197,11 @@ pub const BOX_ROWS: i32 = 0x14;
 /// `Eng_DrawString(40, saving, 0x20, 0xA0, &g_fontHeading, 0x3F)`.
 pub const HEADING: (i32, i32) = (0x20, 0xA0);
 
-/// The four `Ui_DrawInsetRect(x, y, w, h)` calls, in the painter's order.
+/// The colour every one of the painter's four rectangles is drawn in —
+/// `FUN_00403CF4(…, 0x3F)`, four times, with no second colour anywhere.
+pub const OUTLINE: u8 = 0x3F;
+
+/// The four `FUN_00403CF4(x, y, w, h, 0x3F)` calls, in the painter's order.
 pub const INSETS: [(i32, i32, i32, i32); 4] = [
     (0x20, 200, 400, 0x100),
     (0x28, 0xD0, 0xC0, 0x20),
@@ -175,6 +233,16 @@ pub const SCROLL_STEP: usize = COLS;
 /// `Ui_DrawBoxInterior(box.x + 0x20, box.y + 0x118, 0x15, 1)` and the text two
 /// pixels into it.
 pub const STATUS: (i32, i32) = (BOX_X + 0x20, BOX_Y + 0x11A);
+
+/// **`FUN_004B414A`'s width unit is sixteen pixels.** It writes
+/// `g_spriteWidth` iterations of four dwords per row, and four dwords is
+/// sixteen bytes, so a `g_spriteWidth` of 6 paints 96 pixels. `[V]` from the
+/// body at `0x004B414A`. Getting this wrong is worth a factor of sixteen and it
+/// was got wrong here once.
+pub const HIGHLIGHT_CELL: i32 = 16;
+/// `g_spriteWidth = 6` for the selected file's bar — 96 pixels, inside a
+/// 120-pixel column.
+pub const HIGHLIGHT_W: i32 = 6 * HIGHLIGHT_CELL;
 
 /// The four `g_saveLoadWidgets` records, **box-relative** — see this module's
 /// header. `(x, y, System.pl8 frame, side)`.
@@ -535,8 +603,10 @@ impl Screen for SaveLoadScreen {
         let heading = a.text(GROUP, self.mode.heading_index()).to_string();
         pen.heading(canvas, HEADING.0, HEADING.1, &heading, font::TEXT);
 
+        // `FUN_00403CF4(x, y, w, h, 0x3F)`, four times — flat outlines in one
+        // colour, not the two-tone `Ui_DrawInsetRect` this module used to draw.
         for (x, y, w, h) in INSETS {
-            inset_rect(canvas, x, y, w, h);
+            rect_outline(canvas, x, y, w, h, OUTLINE);
         }
 
         // **The name field, with the original's caret rather than a trailing
@@ -560,9 +630,16 @@ impl Screen for SaveLoadScreen {
             let r = Self::row_rect(i);
             if self.selected == Some(self.top + i) {
                 // `g_spriteWidth = 6; g_spriteHeight = 0x10; FUN_004B414A(x - 2,
-                // y - 1, 0x3F)` — a 6 x 16 mark to the left of the row, and the
-                // row itself in colour 0x20 rather than 0x3F.
-                canvas.fill_rect(r.x - 2, r.y - 1, 6, ROW_H, ink.highlight);
+                // y - 1, 0x3F)`, then the row's own text in colour 0x20.
+                //
+                // **`g_spriteWidth` is in units of sixteen pixels, not pixels.**
+                // `FUN_004B414A` writes `g_spriteWidth` iterations of four
+                // dwords per row — sixteen bytes each — so 6 is a **96-pixel**
+                // bar, not a six-pixel one, and it runs *behind* the name
+                // rather than sitting to its left. This module drew a
+                // six-pixel tick until the primitive was read. See
+                // [`HIGHLIGHT_CELL`].
+                canvas.fill_rect(r.x - 2, r.y - 1, HIGHLIGHT_W, ROW_H, ink.highlight);
                 pen.body(canvas, r.x, r.y, &entry.name, font::DISABLED);
             } else {
                 pen.body(canvas, r.x, r.y, &entry.name, font::TEXT);
@@ -607,17 +684,27 @@ fn ours(detail: &str) -> String {
     format!("OURS: {detail}")
 }
 
-/// `Ui_DrawInsetRect(x, y, w, h)` (`0x00403DEB`): **[V]** colour `0x10` along
-/// the top and right edges and `0x1F` along the bottom and left — the opposite
-/// lighting to `shell::button_recess`, which is why one reads as recessed and
-/// the other as raised.
-pub fn inset_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
-    const DARK: u8 = 0x10;
-    const LIGHT: u8 = 0x1F;
-    canvas.fill_rect(x, y, w, 1, DARK);
-    canvas.fill_rect(x + w - 1, y, 1, h, DARK);
-    canvas.fill_rect(x, y + h - 1, w, 1, LIGHT);
-    canvas.fill_rect(x, y, 1, h, LIGHT);
+/// **`FUN_00403CF4(x, y, w, h, colour)`** — four `FUN_00403A8F` lines, **all in
+/// the caller's one colour**, so a flat outline and not a bevel. `[V]` from the
+/// body:
+///
+/// ```c
+/// FUN_00403A8F(x,         y,         x + w - 1, y,         c);   /* top    */
+/// FUN_00403A8F(x,         y + h - 1, x + w - 1, y + h - 1, c);   /* bottom */
+/// FUN_00403A8F(x,         y,         x,         y + h - 1, c);   /* left   */
+/// FUN_00403A8F(x + w - 1, y,         x + w - 1, y + h - 1, c);   /* right  */
+/// ```
+///
+/// It is **not** `Ui_DrawInsetRect` (`0x00403DEB`), which takes four arguments
+/// and lights `0x10` / `0x1F` on opposite corners; `shell::inset_rect` is that
+/// one and three other screens use it. This module drew the save box's four
+/// rectangles through it until the painter's call was read rather than its
+/// name.
+pub fn rect_outline(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32, colour: u8) {
+    canvas.fill_rect(x, y, w, 1, colour);
+    canvas.fill_rect(x, y + h - 1, w, 1, colour);
+    canvas.fill_rect(x, y, 1, h, colour);
+    canvas.fill_rect(x + w - 1, y, 1, h, colour);
 }
 
 #[cfg(test)]

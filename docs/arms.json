@@ -538,6 +538,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/castle-corner-ok",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x1B",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Ui_OkButtonClicked() in the corner box at (612, 452) -> g_screenId = 0, Gfx_LoadCountyMode(), g_redrawRequest = 1. A THIRD way off the castle chooser beside the thumb-up and thumb-down, and it orders nothing. Guarded on g_mouseRightReleased == 0; the right button takes the same exit. Found by the draw-call audit: we drew the corner picture and did not answer it.",
+      "ours": "crates/l2-game/src/screens/castle.rs",
+      "evidence": "V"
+    },
+    {
       "group": "diplomacy",
       "evidence": "V",
       "id": "0x0042FF10/compose-letter-text",

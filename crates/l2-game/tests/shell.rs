@@ -325,6 +325,104 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
         assert!(e.get(ratings::GROUP, i).is_some(), "ratings: group 37 has no {i}");
     }
     assert_eq!(e.get(ratings::GROUP, ratings::BEFORE), Some("Before"), "and nothing draws it");
+
+    // **The compose dialogs' own strings, checked against the words and not
+    // only for existence.** `docs/draws.md` §6: the armoury was filed under
+    // group 16 and group 16 index 6 exists, so an existence check passed on a
+    // screen that was wrong. Every index below is a literal argument to an
+    // `Eng_DrawString` in `Diplo_DrawGiftGold` (`0x00417960`),
+    // `Diplo_DrawLetter` (`0x00417AEF`) or `Diplo_DrawCountyRequest`
+    // (`0x00417CEF`), and the sentence it makes is the sentence the dialog is.
+    assert_eq!(e.get(diplomacy::GROUP, diplomacy::GIFT_TO), Some("Send gift of gold to"));
+    assert_eq!(e.get(diplomacy::GROUP, diplomacy::LAST_GIFT), Some("Last gift was"));
+    assert_eq!(e.get(diplomacy::GROUP, diplomacy::GIFT_OF), Some("Gift of"));
+    assert_eq!(e.get(diplomacy::GROUP, diplomacy::DISPATCH), Some("Dispatch ?"));
+    // 72/11 + kind - 1, the four letters, in `g_diploKind` order.
+    let letters: Vec<&str> =
+        (0..4).map(|k| e.get(diplomacy::GROUP, diplomacy::LETTER_BASE + k).unwrap()).collect();
+    assert_eq!(
+        letters,
+        vec![
+            "Give a compliment to",
+            "Insult",
+            "Ask for an alliance with",
+            "End alliance with"
+        ],
+        "g_diploKind 1..=4"
+    );
+    // 72/15 + k, and the prompt pair that follows it.
+    assert_eq!(e.get(diplomacy::GROUP, diplomacy::REQUEST_BASE), Some("Plead for help from"));
+    assert_eq!(
+        e.get(diplomacy::GROUP, diplomacy::REQUEST_BASE + 1),
+        Some("Plan strategic attack with")
+    );
+    for k in 0..2 {
+        assert!(e.get(diplomacy::GROUP, diplomacy::REQUEST_PROMPT + k).is_some());
+        assert!(e.get(diplomacy::GROUP, diplomacy::REQUEST_PICKED + k).is_some());
+    }
+    // `Ui_DrawCount(value, 0, …)`: group 8's crown pair, singular then plural.
+    // The **plural** is what a zero amount takes, which is the half a
+    // reimplementation gets wrong.
+    assert_eq!(e.get(l2_game::shell::COUNT_NOUN_GROUP, diplomacy::CROWN_NOUN), Some("Crown."));
+    assert_eq!(e.get(l2_game::shell::COUNT_NOUN_GROUP, diplomacy::CROWN_NOUN + 1), Some("Crowns."));
+
+    // **The front end, page by page.** Every one of these is the literal
+    // argument to a `Ui_DrawCentred` or `Eng_DrawString` in the thirteen
+    // painters, so the words are the check and not the existence.
+    assert_eq!(e.get(setup::GROUP, 1), Some("\"The siege is on\""), "page 1's subtitle");
+    let title: Vec<&str> =
+        setup::TITLE_ITEMS.iter().map(|&i| e.get(setup::GROUP, i).unwrap()).collect();
+    assert_eq!(
+        title,
+        vec!["Single player", "Multiple players", "Lords of Magic?", "Exit game"],
+        "page 1, in FUN_0041EAA3's own order"
+    );
+    let options: Vec<&str> =
+        setup::OPTION_ITEMS.iter().map(|&i| e.get(setup::GROUP, i).unwrap()).collect();
+    assert_eq!(
+        options,
+        vec!["Play Now!", "Load a game", "Skirmish!", "Custom game", "Back"],
+        "page 2, in FUN_0041ECE6's own order"
+    );
+    assert_eq!(e.get(setup::GROUP, 10), Some("Choose your title and your shield."), "page 4");
+    // Page 4's two buttons, then pages 7 and 8's four, from FUN_0041F01F and
+    // FUN_0041F6C7 / FUN_0041F77A.
+    assert_eq!(e.get(setup::GROUP, 9), Some("Back"));
+    assert_eq!(e.get(setup::GROUP, 11), Some("Continue"));
+    let buttons: Vec<&str> =
+        setup::CUSTOM_BUTTONS.iter().map(|&(_, i)| e.get(setup::GROUP, i).unwrap()).collect();
+    assert_eq!(buttons, vec!["Cancel", "Start", "Defaults", "Load"], "pages 7 and 8");
+    // Page 5 and page 6 share group 39 and differ only in which pair they draw.
+    assert_eq!(e.get(setup::GROUP_EXPANSION, 0), Some("Expansion pack installed, choose:-"));
+    assert_eq!(e.get(setup::GROUP_EXPANSION, 4), Some("Original campaign"), "page 5");
+    assert_eq!(e.get(setup::GROUP_EXPANSION, 5), Some("The new campaign"), "page 5");
+    assert_eq!(e.get(setup::GROUP_EXPANSION, 1), Some("Full game"), "page 6, host only");
+    assert_eq!(e.get(setup::GROUP_EXPANSION, 2), Some("Skirmish"), "page 6, host only");
+    assert_eq!(
+        e.get(setup::GROUP_EXPANSION, 3),
+        Some("Please wait while the session creator decides what type of game to play."),
+        "page 6 as a joiner sees it - the arm this engine does not draw"
+    );
+    // Page 3 and page 13, and **the string page 3 used to draw and must not**:
+    // 40/8 belongs to the skirmish file box, 40/5 is page 3's heading, and the
+    // status line under page 3's list is 40/2, drawn only mid-load.
+    assert_eq!(e.get(setup::GROUP_FILE, 5), Some("Loading a game."), "page 3's heading");
+    assert_eq!(e.get(setup::GROUP_FILE, 2), Some("Loading game. Please wait."), "and its status");
+    assert_eq!(e.get(setup::GROUP_FILE, 6), Some("Click on a skirmish file to load."), "page 13");
+    assert_eq!(e.get(setup::GROUP_FILE, 8), Some("Right click to exit."), "page 13, not page 3");
+    // Pages 11, 12 and 13's three captions, and the one this engine cannot
+    // reach: 39 "Norm." replaces 38 "Cust." while DAT_0056899C is set.
+    assert_eq!(e.get(setup::GROUP, 36), Some("Go"));
+    assert_eq!(e.get(setup::GROUP, 37), Some("Back"));
+    assert_eq!(e.get(setup::GROUP, 38), Some("Cust."));
+    assert_eq!(e.get(setup::GROUP, 39), Some("Norm."), "the arm on DAT_0056899C");
+    // Page 10, whose five indices are 16, 17, 18, 48, 49 - not 16..=20.
+    assert_eq!(e.get(setup::GROUP, 16), Some("No Lords of the Realm CD"));
+    assert_eq!(e.get(setup::GROUP, 48), Some("Siege Pack"), "drawn in colour 1, not 0x3F");
+    assert!(e.get(setup::GROUP, 49).unwrap().contains("Siege pack CD"));
+    // The scenario list's rows come out of group 101, sixty map names.
+    assert_eq!(e.get(setup::GROUP_MAPS, 0), Some("England"));
+    assert_eq!(e.group(setup::GROUP_MAPS).len(), setup::MAP_COUNT, "one name per map slot");
 }
 
 #[test]

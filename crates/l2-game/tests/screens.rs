@@ -26,6 +26,7 @@ use l2_game::screens::menubar;
 use l2_game::screens::options::Page as OptionsPage;
 use l2_game::screens::saveload::Mode as SaveLoadMode;
 use l2_game::screens::village::{self as village_screen, VillageScreen};
+use l2_game::shell::font;
 use l2_game::Game;
 use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
@@ -213,10 +214,21 @@ fn find_strip(canvas: &Canvas, assets: &Assets, s: &str, colour: u8) -> Option<(
     }
 }
 
-/// One line of the strip drawn in the **body** font — the county's name, and
-/// the three "sovereign land of …" lines on a county you do not hold.
+/// One line of the strip drawn in the **body** font — the county's name, the
+/// three "sovereign land of …" lines on a county you do not hold, and every
+/// body line of the four county panels since they graduated to [`Pen`].
 fn find_body(canvas: &Canvas, assets: &Assets, s: &str, colour: u8) -> Option<(i32, i32)> {
     match assets.shell.body.as_ref() {
+        Some(f) => find_font_text(canvas, f, s, colour),
+        None => find_text(canvas, s, colour),
+    }
+}
+
+/// The same in the **heading** font, `Fntl2_22.pl8` — which the county panels'
+/// titles and their three plain-number rows are drawn in
+/// (`Eng_DrawString(…, &g_fontHeading, …)`).
+fn find_heading(canvas: &Canvas, assets: &Assets, s: &str, colour: u8) -> Option<(i32, i32)> {
+    match assets.shell.heading.as_ref() {
         Some(f) => find_font_text(canvas, f, s, colour),
         None => find_text(canvas, s, colour),
     }
@@ -1421,28 +1433,47 @@ fn the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should
     );
     assert_eq!(m.depth(), 2, "and it landed at the map's depth, not on top of the tax panel");
 
+    // **The panel is drawn in the game's own fonts and from the game's own
+    // `L2.eng`** — so the strings here are the file's words, lower case and
+    // all, and the search is [`find_body`]/[`find_heading`] rather than the
+    // 5 x 7 probe. It used to be our own transcriptions in our own font.
     let canvas = draw_stack(&mut m, &mut game, &assets);
     assert_eq!(
-        find_text(&canvas, "LAST SEASON", ink.text),
+        find_heading(&canvas, &assets, "Last season", font::TEXT),
         Some((48, 266)),
         "group 73 index 1, at Eng_DrawString(0x49, 1, 0x30, 0x10A)"
     );
     assert_eq!(
-        find_text(&canvas, "417", ink.text),
-        Some((336 - text::width("417"), 266)),
-        "and its value right-anchored at 0x150"
+        find_heading(&canvas, &assets, "417", font::TEXT),
+        Some((336, 266)),
+        "and its value **left**-aligned from 0x150 — Ui_DrawNumber does not measure"
     );
-    assert_eq!(find_text(&canvas, "BIRTHS", ink.dim), Some((48, 298)), "0x12A");
-    assert_eq!(find_text(&canvas, "DEATHS", ink.dim), Some((48, 314)), "0x13A");
-    assert_eq!(find_text(&canvas, "ARMY", ink.dim), Some((48, 330)), "0x14A");
-    assert_eq!(find_text(&canvas, "THIS SEASON", ink.highlight), Some((48, 386)), "0x182");
-    assert!(find_text(&canvas, "435", ink.highlight).is_some(), "this season's population");
+    assert_eq!(find_body(&canvas, &assets, "Births", font::TEXT), Some((48, 298)), "0x12A");
+    assert_eq!(find_body(&canvas, &assets, "Deaths", font::TEXT), Some((48, 314)), "0x13A");
+    assert_eq!(find_body(&canvas, &assets, "Army", font::TEXT), Some((48, 330)), "0x14A");
+    assert_eq!(
+        find_heading(&canvas, &assets, "This Season", font::TEXT),
+        Some((48, 386)),
+        "0x182"
+    );
+    assert_eq!(
+        find_heading(&canvas, &assets, "435", font::TEXT),
+        Some((336, 386)),
+        "this season's population, left-aligned from 0x150"
+    );
+    // `Eng_DrawString(100, slot * 0x14 + county, pen + 0x16, 0x38, heading)` —
+    // the county's own name after the title, which the panel used to omit.
+    assert!(
+        find_heading(&canvas, &assets, "Population in", font::TEXT).is_some(),
+        "group 73 index 0 at (20, 56)"
+    );
 
     // The graph is a labelled stub, because g_countyHistory is not simulated.
+    // Both of its lines are **ours**, in our own font, and say so.
     assert!(find_text(&canvas, "NOT SIMULATED", ink.bad).is_some());
 
     // And the tax panel is gone, which is what "one panel at a time" means.
-    assert!(find_text(&canvas, "TAX RATE", ink.dim).is_none());
+    assert!(find_body(&canvas, &assets, "Tax rate", font::TEXT).is_none());
 }
 
 /// A zero row draws **no number at all** — `Ui_DrawDelta(value, 0, ...)`
@@ -1457,18 +1488,47 @@ fn a_zero_delta_row_draws_its_label_and_no_number() {
 
     game.kingdom.counties[8].births = 0;
     let blank = draw(&mut screen, &mut game, &assets);
-    assert!(find_text(&blank, "BIRTHS", ink.dim).is_some(), "the label is still drawn");
-    assert!(find_text(&blank, "+0", ink.good).is_none(), "and nothing beside it");
-    assert!(find_text(&blank, "0", ink.good).is_none());
+    assert!(
+        find_body(&blank, &assets, "Births", font::TEXT).is_some(),
+        "the label is still drawn"
+    );
+    assert!(find_body(&blank, &assets, "+0", font::TEXT).is_none(), "and nothing beside it");
 
     game.kingdom.counties[8].births = 63;
     let filled = draw(&mut screen, &mut game, &assets);
+
+    // **The strong form: the two frames differ only inside the births row.**
+    // A bare "0" is no longer a usable near-miss, because every line on the
+    // panel is now drawn in the one colour the painter passes (0x3F) and some
+    // other number on it contains the digit. This says the same thing without
+    // depending on what else is on the page: turning births from 0 to 63 puts
+    // ink in the births row and nowhere else, so the blank frame's own value
+    // cell was empty.
+    let band = 294..312;
+    let outside: usize = (0..filled.height)
+        .filter(|y| !band.contains(&(*y as i32)))
+        .map(|y| {
+            (0..filled.width).filter(|x| blank.at(*x, y) != filled.at(*x, y)).count()
+        })
+        .sum();
+    assert_eq!(outside, 0, "births changed something outside its own row");
+    assert!(
+        (0..filled.width)
+            .any(|x| band.clone().any(|y| blank.at(x, y as usize) != filled.at(x, y as usize))),
+        "and it did change its own row"
+    );
+
+    // **Left-aligned from 0x150, plus the four pixels `Ui_DrawText` advances
+    // for `Ui_DrawDelta`'s empty prefix.** It used to be right-anchored *to*
+    // 336, which is what `docs/screens-county.md` §5.1 says and neither
+    // `Ui_DrawNumber` nor `Ui_DrawDelta` does.
     assert_eq!(
-        find_text(&filled, "+63", ink.good),
-        Some((336 - text::width("+63"), 298)),
+        find_body(&filled, &assets, "+63", font::TEXT),
+        Some((340, 298)),
         "a non-zero row draws a signed number in the value column"
     );
     assert!(blank.diff_count(&filled) > 0, "and the two frames differ");
+    let _ = ink;
 }
 
 /// Setting the tax rate changes the record *and* what is on the screen. Both
@@ -1487,8 +1547,9 @@ fn setting_the_tax_rate_changes_the_county_and_the_picture() {
 
     let after = draw(&mut screen, &mut game, &assets);
     assert!(before.diff_count(&after) > 0);
-    assert!(find_text(&after, "7%", assets.ink.highlight).is_some());
-    assert!(find_text(&after, "0%", assets.ink.highlight).is_none());
+    // `Ui_DrawNumber(taxRate, ' ', "%", 0x100, 0xA8, body, 0x3F)`.
+    assert!(find_body(&after, &assets, "7%", font::TEXT).is_some());
+    assert!(find_body(&after, &assets, "0%", font::TEXT).is_none());
 
     // Down moves to the ration panel, and Right there does not touch the tax.
     send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Down));
@@ -1517,9 +1578,9 @@ fn the_tax_rate_stops_at_the_originals_own_ceiling_of_fifty() {
     assert_eq!(MAX_TAX_RATE, 50, "and the constant is the reading, not a round number");
 
     let canvas = draw(&mut screen, &mut game, &assets);
-    assert!(find_text(&canvas, "50%", assets.ink.highlight).is_some());
-    assert!(find_text(&canvas, "51%", assets.ink.highlight).is_none(), "a near miss");
-    assert!(find_text(&canvas, "60%", assets.ink.highlight).is_none());
+    assert!(find_body(&canvas, &assets, "50%", font::TEXT).is_some());
+    assert!(find_body(&canvas, &assets, "51%", font::TEXT).is_none(), "a near miss");
+    assert!(find_body(&canvas, &assets, "60%", font::TEXT).is_none());
 }
 
 /// The ration panel's slider is the third order the original's county panels

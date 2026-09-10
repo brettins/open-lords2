@@ -139,11 +139,61 @@ function fromShells() {
   return (body.match(/^\s{4}Shell \{$/gm) || []).length;
 }
 
+// The draw-call audit — `docs/draws.md`, and the instrument `docs/plan.md` §0's
+// third falsification condition did not have.
+//
+// **Two halves, and they are measured differently on purpose.**
+//
+// The *original's* count cannot be recomputed here: the decompiled corpus is
+// gitignored and CI has none. So it is stored in `tools/draws/screens.json` by
+// `node tools/draws/screendraws.js --write`, whose `--check` recomputes it
+// against the corpus for anybody who has one and skips loudly for anybody who
+// does not. This file's job is only that no document quotes a number
+// `screens.json` does not hold.
+//
+// *Our* half needs nothing but `crates/`, so it is recomputed here every run —
+// including the split that the draw count cannot see: **how many of our marks
+// go through the game's own artwork, and how many are our 5 x 7 debug font and
+// our own rectangles.** A screen can reproduce every draw call and still be
+// entirely placeholder, which is what a player meant by *"placeholder shit
+// everywhere"* on screens whose counts were fine.
+function fromDraws() {
+  const p = path.join(repo, 'tools', 'draws', 'screens.json');
+  const inv = JSON.parse(fs.readFileSync(p, 'utf8'));
+  const original = inv.reduce((n, r) => n + (r.original || 0), 0);
+  const missing = inv.reduce((n, r) => n + (r.missing || []).length, 0);
+  const invented = inv.reduce((n, r) => n + (r.invented || []).length, 0);
+
+  const { ourSites, ourKinds } = require(path.join(repo, 'tools', 'draws', 'screendraws.js'));
+  // A module can serve two screens (`0x35`/`0x36` are one painter and one
+  // flag), and its marks are a property of the file. Count each file once.
+  const modules = [...new Set(inv.map(r => r.module).filter(Boolean))];
+  let ours = 0, real = 0, placeholder = 0, literals = 0;
+  for (const m of modules) {
+    ours += (ourSites(m) || []).length;
+    const k = ourKinds(m);
+    if (k) { real += k.real; placeholder += k.placeholder; literals += k.literals.length; }
+  }
+  return {
+    screens: inv.length,
+    original,
+    ours,
+    missing,
+    invented,
+    real,
+    placeholder,
+    literals,
+    pct: original ? Math.round((Math.min(ours, original) / original) * 100) : 0,
+    realPct: real + placeholder ? Math.round((real / (real + placeholder)) * 100) : 0,
+  };
+}
+
 function figures() {
   const sym = fromSymbols();
   const cargo = fromCargo();
   const arms = fromArms();
   const shells = fromShells();
+  const draws = fromDraws();
   const pct = Math.round((sym.functions / BINARY_FUNCTIONS) * 100);
   return {
     tests: group(cargo.tests),
@@ -161,6 +211,16 @@ function figures() {
     'arms-groups': group(arms.groups),
     'arms-groups-done': group(arms.groupsDone),
     shells: group(shells),
+    'draws-screens': group(draws.screens),
+    'draws-original': group(draws.original),
+    'draws-ours': group(draws.ours),
+    'draws-missing': group(draws.missing),
+    'draws-inventions': group(draws.invented),
+    'draws-pct': String(draws.pct),
+    'draws-real': group(draws.real),
+    'draws-placeholder': group(draws.placeholder),
+    'draws-real-pct': String(draws.realPct),
+    'draws-literals': group(draws.literals),
     // A date that does not move while the content does is worse than no date,
     // so the stamp is regenerated with everything else. Spelled out rather than
     // taken from toLocaleDateString, which gives "Sept" on some ICU versions

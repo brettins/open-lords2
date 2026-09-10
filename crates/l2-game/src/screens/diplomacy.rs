@@ -105,6 +105,7 @@ use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::shell::{font, Pen};
 use crate::widget;
 
 /// `L2.eng` group 72 — *"Diplomacy."*, and every label on both screens.
@@ -451,10 +452,95 @@ pub const LETTER_CANCEL: Rect = Rect::new(324, 296, 32, 32);
 pub const COUNTY_SEND: Rect = Rect::new(320, 244, 32, 32);
 pub const COUNTY_CANCEL: Rect = Rect::new(356, 248, 32, 32);
 
+/// **The three tables are three windows onto one array**, and that is why none
+/// of them hides a record.
+///
+/// Decoded out of `Lords2.exe`, `0x004DD9D0` is a contiguous run of 24-byte
+/// widgets: records 0…3 are the gift's four, records 4…5 *are* `0x004DDA30`
+/// (`0x004DD9D0 + 4 × 24`) and records 6…7 *are* `0x004DDA60`
+/// (`+ 6 × 24`). Every slice is exactly as long as the count its
+/// `Screen_DrawWidgets` arm passes, so the `g_sendSuppliesWidgets` failure —
+/// eight records, six ever drawn — has no counterpart here. The run continues
+/// past the compose dialogs into other screens' tick/cross pairs at
+/// `0x004DDA90` and beyond, whose handlers (`FUN_004367FF`, `FUN_00436872`,
+/// `FUN_004368FD`) are message replies rather than anything `0x1A` draws.
+/// **[V]** `tools/oracle/widgets.js widgets 4dd9d0 8`.
+pub const WIDGET_TABLE: u32 = 0x004D_D9D0;
+
+/// The button-sheet frames those records name. `System.pl8`, and the pairing
+/// is the one `tools/oracle/widgets.js` anchors on this very table:
+/// **frame 68 is plus** — its record carries hotspot id 1, and `FUN_00436372`
+/// reads `if (id == 1) g_diploGold += 10` — and **66 is minus**.
+pub const PLUS_FRAME: usize = 68;
+pub const MINUS_FRAME: usize = 66;
+/// 29 and 31 are the mailed hand, thumb up and thumb down. **Not a tick and a
+/// cross** — `docs/screens-county.md` §4.2 decoded them.
+pub const THUMB_UP_FRAME: usize = 29;
+pub const THUMB_DOWN_FRAME: usize = 31;
+/// Every record in the three slices is `size` 32.
+pub const WIDGET_DIM: i32 = 32;
+
 /// The three windows, `FUN_004093E0(x, y, cols, rows)` from the three painters.
+/// `FUN_004093E0` is `Ui_DrawBoxBorder(**1**, …)` plus `Ui_DrawBoxInterior`
+/// inset a cell, so the border set is 1 on all three.
 pub const GIFT_WINDOW: Rect = Rect::new(0x40, 0xA0, 0x16 * 16, 0x0B * 16);
 pub const LETTER_WINDOW: Rect = Rect::new(0x10, 0x90, 0x1C * 16, 0x0D * 16);
 pub const COUNTY_WINDOW: Rect = Rect::new(0x30, 0x80, 0x18 * 16, 0x0F * 16);
+pub const WINDOW_SET: usize = 1;
+
+/// `Ui_OkButton(x, y, 0)` — **a third button on every one of the seven**, and
+/// one this module drew nothing for until the draw-call audit counted them.
+/// It is `System.pl8` frame `0x33`, the cursor-into-a-hole close picture, and
+/// it sits to the right of the thumb pair inside the same window.
+pub const GIFT_OK: Rect = Rect::new(0x178, 0x126, 24, 24);
+pub const LETTER_OK: Rect = Rect::new(0x1A8, 0x136, 24, 24);
+pub const COUNTY_OK: Rect = Rect::new(0x188, 0x146, 24, 24);
+
+// ------------------------------------------- the compose dialogs' own strings
+//
+// Every one of these is a literal argument to an `Eng_DrawString` in
+// `Diplo_DrawGiftGold`, `Diplo_DrawLetter` or `Diplo_DrawCountyRequest`, and
+// the words are checked against `L2.eng` in `crates/l2-game/tests/shell.rs`.
+// **The check is on existence and these indices are verified against the
+// words**, which is the stronger claim and the one group 16 failed.
+
+/// 72/10 *"Send gift of gold to"*, with the target's name after it.
+pub const GIFT_TO: usize = 10;
+/// 72/23 *"Last gift was"*.
+pub const LAST_GIFT: usize = 23;
+/// 72/18 *"Gift of"*.
+pub const GIFT_OF: usize = 18;
+/// 72/17 *"Dispatch ?"* — the caption over the thumb pair, and **all three**
+/// dialogs draw it, at three different places.
+pub const DISPATCH: usize = 17;
+/// 72/11 + (kind − 1): *"Give a compliment to"*, *"Insult"*, *"Ask for an
+/// alliance with"*, *"End alliance with"*.
+pub const LETTER_BASE: usize = 11;
+/// 72/15 + k: *"Plead for help from"*, *"Plan strategic attack with"*.
+pub const REQUEST_BASE: usize = 15;
+/// 72/19 + k while no county is picked: *"Choose the county you want help
+/// in."* / *"…attacked."*
+pub const REQUEST_PROMPT: usize = 19;
+/// 72/21 + k once one is, with the county's name after it.
+pub const REQUEST_PICKED: usize = 21;
+/// `Eng_DrawString(100, g_scenarioIndex * 0x14 + county, …)` — the county
+/// names, twenty per scenario.
+pub const COUNTY_NAME_GROUP: usize = 100;
+/// `Ui_DrawCount(value, **0**, …)`, so `L2.eng` group 8 index 0 *"Crown."* or
+/// index 1 *"Crowns."* — the noun the amount is drawn with.
+pub const CROWN_NOUN: usize = 0;
+
+/// `FUN_00417BD3`'s draft box: `Ui_DrawBoxInterior(0x20, 0xC0, 0x1A, 6)` and
+/// `Ui_DrawInsetRect(0x20, 0xC0, 0x1A0, 0x60)` over the top of it, the same
+/// 416 × 96 twice.
+pub const LETTER_DRAFT: Rect = Rect::new(0x20, 0xC0, 0x1A0, 0x60);
+/// `FUN_0040352F(draft, 0x30, 200, 0x180, body, 0x3F)` — the text inside it,
+/// wrapped at 384 pixels from (48, 200).
+pub const LETTER_DRAFT_TEXT: (i32, i32, i32) = (0x30, 200, 0x180);
+
+/// `FUN_00410C71(county, 0x60, 0xB0)` blits the raster at `(x − 2, y + 3)`.
+/// [`PICKER`] is the rectangle the hit test uses, which is the unadjusted one.
+pub const PICKER_DRAW: (i32, i32) = (PICKER.x - 2, PICKER.y + 3);
 
 /// Why a send was refused, each one an `L2.eng` group of its own with
 /// *"Message not sent."* at index 0. `Diplo_SendClicked`'s order is preserved,
@@ -603,6 +689,21 @@ impl ComposeScreen {
         self.target
     }
 
+    /// One widget record, drawn the way `Widget_Draw` draws it: the button
+    /// sheet's frame at the record's own `(x, y)`.
+    ///
+    /// **`Widget_Draw` is shared and excluded from the draw-call denominator,
+    /// but a record is one thing on the screen**, so the four the gift dialog
+    /// carries and the two the other six carry are counted separately —
+    /// `tools/audit/draws-F.json`. Our own recess stands in when the sheet is
+    /// missing, so the button is still a button on a bare install and is
+    /// visibly not the original's.
+    fn widget(&self, pen: &Pen, canvas: &mut Canvas, frame: usize, r: Rect) {
+        if !pen.system_frame(canvas, frame, r.x, r.y) {
+            crate::shell::button_recess(canvas, r.x, r.y, WIDGET_DIM, WIDGET_DIM);
+        }
+    }
+
     /// The two widgets every shape has, by shape.
     fn buttons(&self) -> (Rect, Rect) {
         match self.kind {
@@ -722,20 +823,42 @@ impl Screen for ComposeScreen {
         let ink = &ctx.assets.ink;
         let a = &ctx.assets.shell;
         let me = ctx.game.player;
-        let name = ctx
-            .game
-            .kingdom
-            .realms
-            .get(self.target as usize)
-            .map(|r| a.text(7, r.lord.min(4) as usize).to_uppercase())
-            .unwrap_or_default();
+        // **[V]** Each of the three painters brackets everything it draws in
+        // `DAT_0058FE2C = 1`, which is the drop-capital switch: `A` … `Z` come
+        // out in colour 1 rather than the caller's `0x3F`. `DAT_005AEA40` — the
+        // emboss kill the *front end* uses — is never touched here, and `0x1A`
+        // is neither `0x1C` nor `0x1F`, so `Ui_DrawText`'s shadow pair is the
+        // ordinary [`font::SHADOW`]. Both facts are `docs/screens-county.md`
+        // §4.4's four emboss details, applied rather than quoted.
+        let pen = Pen {
+            assets: a,
+            ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            shadow: Some(font::SHADOW),
+            caps: Some(1),
+        };
+        // `Ui_DrawText(&g_playerNames + target * 0x2C, …)`. **Not `L2.eng`
+        // group 7.** This module drew the lord's *title* here — *"The Baron"* —
+        // which is what `Game_NewGame` copies into `g_playerNames` for an AI
+        // lord but is not what the field holds once a person has typed a name
+        // on setup page 4. `screens/county.rs` settled the same question the
+        // same way, and carries the same fallback for a world that never came
+        // through the front end.
+        let name = match ctx.game.player_names[self.target as usize].as_str() {
+            n if n.is_empty() => format!("REALM {}", self.target),
+            n => n,
+        };
 
         match self.kind {
+            // ---------------------------------------- Diplo_DrawGiftGold
             Kind::Gift => {
-                widget::panel(canvas, ink, GIFT_WINDOW);
-                // 72/10 "Send gift of gold to" + the name.
-                let line = format!("{} {name}", a.text(GROUP, 10).to_uppercase());
-                text::draw(canvas, 0x60, 0xB8, &line, ink.text);
+                pen.window(canvas, GIFT_WINDOW.x, GIFT_WINDOW.y, 0x16, 0x0B, WINDOW_SET);
+                pen.ok_button(canvas, GIFT_OK.x, GIFT_OK.y, 0);
+                // `Eng_DrawString(72, 10, 0x60, 0xB8)` and the name at
+                // `g_penAdvance + 0x60` — two draws, not one formatted string,
+                // because the pen advance is what puts the four-pixel gap in.
+                let w = pen.eng(canvas, GROUP, GIFT_TO, 0x60, 0xB8, font::TEXT);
+                pen.body(canvas, w, 0xB8, &name, font::TEXT);
                 // 72/23 "Last gift was" + pair[me][target].bestGift — read from
                 // **my** record about them, which is the one `Diplo_ReplyGift`
                 // never writes. See the test below: the ratchet the AI judges
@@ -747,55 +870,86 @@ impl Screen for ComposeScreen {
                     .realms
                     .get(me as usize)
                     .map_or(0, |r| r.pair(self.target).best_gift);
-                let line = format!("{} {best}", a.text(GROUP, 23).to_uppercase());
-                text::draw(canvas, 0x60, 0xD8, &line, ink.dim);
-                // 72/18 "Gift of" and the amount at 0x100.
-                text::draw(canvas, 0x60, 0xF8, &a.text(GROUP, 18).to_uppercase(), ink.text);
-                text::draw(canvas, 0x100, 0xF8, &format!("{}", self.gold), ink.highlight);
-                text::draw(canvas, 0xA0, 0x120, &a.text(GROUP, 17).to_uppercase(), ink.text);
-                widget::button(canvas, ink, GIFT_MORE, "+", true);
-                widget::button(canvas, ink, GIFT_LESS, "-", true);
+                let w = pen.eng(canvas, GROUP, LAST_GIFT, 0x60, 0xD8, font::TEXT);
+                // `Ui_DrawCount` is a number *and* a group 8 noun, and the
+                // noun was missing: the line read "Last gift was 40" where the
+                // original reads "Last gift was 40 Crowns."
+                pen.count(canvas, w, 0xD8, best, CROWN_NOUN, true, font::TEXT);
+                pen.eng(canvas, GROUP, GIFT_OF, 0x60, 0xF8, font::TEXT);
+                pen.count(canvas, 0x100, 0xF8, self.gold, CROWN_NOUN, true, font::TEXT);
+                pen.eng(canvas, GROUP, DISPATCH, 0xA0, 0x120, font::TEXT);
+                self.widget(&pen, canvas, PLUS_FRAME, GIFT_MORE);
+                self.widget(&pen, canvas, MINUS_FRAME, GIFT_LESS);
             }
+            // ------------------------------------ Diplo_DrawCountyRequest
             Kind::AskHelp | Kind::AskAttack => {
-                widget::panel(canvas, ink, COUNTY_WINDOW);
-                let row = if self.kind == Kind::AskHelp { 15 } else { 16 };
-                let line = format!("{} {name}", a.text(GROUP, row).to_uppercase());
-                text::draw(canvas, 0x50, 0x98, &line, ink.text);
+                let k = usize::from(self.kind == Kind::AskAttack);
+                pen.window(canvas, COUNTY_WINDOW.x, COUNTY_WINDOW.y, 0x18, 0x0F, WINDOW_SET);
+                pen.ok_button(canvas, COUNTY_OK.x, COUNTY_OK.y, 0);
+                let w = pen.eng(canvas, GROUP, REQUEST_BASE + k, 0x50, 0x98, font::TEXT);
+                pen.body(canvas, w, 0x98, &name, font::TEXT);
+                // `FUN_00410C71(g_pickedCounty, 0x60, 0xB0)`, and with no
+                // county picked the original passes **`0x14`**, not 0:
+                //
+                // ```c
+                // if (g_pickedCounty == 0) FUN_00410c71(0x14, 0x60, 0xb0);
+                // else                     FUN_00410c71(g_pickedCounty, …);
+                // ```
+                //
+                // Transcribed rather than tidied. **[I]** the effect is
+                // *nothing lit*, because group 100 gives twenty county names
+                // per scenario and county 20 is the last of them — England has
+                // fourteen — so on most maps the highlight lands on a county
+                // that does not exist. A map that really has twenty would light
+                // its last one, and no fixture here has one.
+                if let Some(m) = ctx.assets.minimap(ctx.game.map_slot) {
+                    let owner =
+                        |c: u8| ctx.game.kingdom.counties.get(c as usize).map_or(0, |c| c.owner);
+                    let lit = if self.county == 0 { 20 } else { self.county };
+                    l2_view::chrome::draw_minimap_at(
+                        canvas,
+                        &m,
+                        PICKER_DRAW,
+                        lit,
+                        &l2_view::chrome::MinimapTint::Owner(&owner),
+                    );
+                }
                 // 72/19 or 20 while no county is picked; 21 or 22 plus the
                 // county's own name once one is.
                 if self.county == 0 {
-                    let row = if self.kind == Kind::AskHelp { 19 } else { 20 };
-                    text::draw(canvas, 0x50, 0x140, &a.text(GROUP, row).to_uppercase(), ink.text);
+                    pen.eng(canvas, GROUP, REQUEST_PROMPT + k, 0x50, 0x140, font::TEXT);
                 } else {
-                    let row = if self.kind == Kind::AskHelp { 21 } else { 22 };
+                    let w = pen.eng(canvas, GROUP, REQUEST_PICKED + k, 0x50, 0x140, font::TEXT);
                     let index = super::army::county_name_index(ctx, self.county);
-                    let line = format!(
-                        "{} {}",
-                        a.text(GROUP, row).to_uppercase(),
-                        a.text(100, index).to_uppercase()
-                    );
-                    text::draw(canvas, 0x50, 0x140, &line, ink.text);
+                    pen.eng(canvas, COUNTY_NAME_GROUP, index, w, 0x140, font::TEXT);
                 }
-                text::draw(canvas, 0x140, 0xE0, &a.text(GROUP, 17).to_uppercase(), ink.text);
+                pen.eng(canvas, GROUP, DISPATCH, 0x140, 0xE0, font::TEXT);
             }
+            // ------------------------------------------ Diplo_DrawLetter
             _ => {
-                widget::panel(canvas, ink, LETTER_WINDOW);
+                pen.window(canvas, LETTER_WINDOW.x, LETTER_WINDOW.y, 0x1C, 0x0D, WINDOW_SET);
+                pen.ok_button(canvas, LETTER_OK.x, LETTER_OK.y, 0);
                 // 72/11 + (kind - 1): "Give a compliment to", "Insult",
                 // "Ask for an alliance with", "End alliance with".
-                let row = 11 + self.kind.byte() as usize - 1;
-                let line = format!("{} {name}", a.text(GROUP, row).to_uppercase());
-                text::draw(canvas, 0x30, 0xA8, &line, ink.text);
-                // `FUN_00417BD3` — the draft box: `Ui_DrawInsetRect(0x20, 0xC0,
-                // 0x1A0, 0x60)` with the 199-character buffer in it.
-                let box_rect = Rect::new(0x20, 0xC0, 0x1A0, 0x60);
-                widget::panel(canvas, ink, box_rect);
-                text::draw(canvas, 0x30, 0xC8, &self.draft.to_uppercase(), ink.text);
-                text::draw(canvas, 0x70, 0x130, &a.text(GROUP, 17).to_uppercase(), ink.text);
+                let row = LETTER_BASE + self.kind.byte() as usize - 1;
+                let w = pen.eng(canvas, GROUP, row, 0x30, 0xA8, font::TEXT);
+                pen.body(canvas, w, 0xA8, &name, font::TEXT);
+                // `FUN_00417BD3`, which is drawn **twice a frame**: once by
+                // `Diplo_DrawLetter` and again by `Screen_DrawWidgets`'s
+                // `0x1A` arm, so the draft repaints without the dialog being
+                // repainted. Parchment first, then the recess over it, then the
+                // wrapped text — the original's order, and the reason the box
+                // is not a hole in the window.
+                pen.box_interior(canvas, LETTER_DRAFT.x, LETTER_DRAFT.y, 0x1A, 6);
+                pen.inset(canvas, LETTER_DRAFT);
+                let (dx, dy, dw) = LETTER_DRAFT_TEXT;
+                pen.body_wrapped(canvas, dx, dy, dw, &self.draft, font::TEXT);
+                pen.eng(canvas, GROUP, DISPATCH, 0x70, 0x130, font::TEXT);
             }
         }
         let (send, cancel) = self.buttons();
-        widget::button(canvas, ink, send, "OK", true);
-        widget::button(canvas, ink, cancel, "X", true);
+        self.widget(&pen, canvas, THUMB_UP_FRAME, send);
+        self.widget(&pen, canvas, THUMB_DOWN_FRAME, cancel);
     }
 }
 
@@ -896,5 +1050,75 @@ mod tests {
         for r in [GIFT_MORE, GIFT_LESS, GIFT_SEND, GIFT_CANCEL] {
             assert!(r.x >= GIFT_WINDOW.x && r.y >= GIFT_WINDOW.y, "{r:?} is outside the window");
         }
+    }
+
+    /// **The three widget tables are three windows onto one array**, and that
+    /// is why none of them hides a record the way `g_sendSuppliesWidgets` does.
+    ///
+    /// Decoded, `0x004DD9D0` runs: `(184,240,f68) (216,240,f66) (288,280,f29)
+    /// (324,284,f31) (288,292,f29) (324,296,f31) (320,244,f29) (356,248,f31)`.
+    /// The addresses are 24 apart, so `0x004DDA30` is record **4** and
+    /// `0x004DDA60` is record **6** — and 4 + 2 = 6, 6 + 2 = 8. Each slice ends
+    /// exactly where the next begins.
+    #[test]
+    fn the_three_widget_tables_are_three_slices_of_one_array() {
+        const REC: u32 = 24;
+        assert_eq!(WIDGET_TABLE + 4 * REC, 0x004D_DA30, "the letters' table is record 4");
+        assert_eq!(WIDGET_TABLE + 6 * REC, 0x004D_DA60, "the requests' table is record 6");
+        // Four, then two, then two: no gap and no overhang.
+        assert_eq!(0x004D_DA30 + 2 * REC, 0x004D_DA60);
+    }
+
+    /// The pair the whole `widgets.js` convention note is anchored on, written
+    /// down here so it cannot drift back: **68 is plus.**
+    #[test]
+    fn frame_sixty_eight_is_the_plus() {
+        // `FUN_00436372` reads `if (g_uiHotspotId == 1) g_diploGold += 10`, and
+        // the record carrying hotspot id 1 is the frame-68 one at (184, 240).
+        assert_eq!(PLUS_FRAME, 68);
+        assert_eq!(MINUS_FRAME, 66);
+        assert_eq!(GIFT_MORE, Rect::new(184, 240, WIDGET_DIM, WIDGET_DIM));
+        assert_eq!(GIFT_STEP, 10);
+    }
+
+    /// **All three `Ui_OkButton` calls are in different branches**, so the
+    /// "only the last one is clickable" quirk cannot bite here.
+    ///
+    /// `Ui_OkButton` stashes `(x, y)` into `DAT_0055CE78` / `DAT_0057C8A0` and
+    /// keeps only the last call's, so a painter drawing two makes one dead.
+    /// `Screen_DiploDialog` is an `if` / `else if` chain on `g_diploKind` —
+    /// one arm per frame — so exactly one is drawn and exactly one is live.
+    #[test]
+    fn each_dialog_draws_exactly_one_close_button_inside_its_own_window() {
+        for (ok, w) in
+            [(GIFT_OK, GIFT_WINDOW), (LETTER_OK, LETTER_WINDOW), (COUNTY_OK, COUNTY_WINDOW)]
+        {
+            assert!(ok.x >= w.x && ok.y >= w.y, "{ok:?} starts outside {w:?}");
+            assert!(ok.x + ok.w <= w.x + w.w && ok.y + ok.h <= w.y + w.h, "{ok:?} leaves {w:?}");
+        }
+        // And the three are distinct, which is what makes them three branches
+        // rather than one constant drawn three times.
+        assert_ne!(GIFT_OK, LETTER_OK);
+        assert_ne!(LETTER_OK, COUNTY_OK);
+    }
+
+    /// Every `L2.eng` index this half of the module draws is inside group 72's
+    /// own run, and the four letter kinds map onto `g_diploKind` 1..=4.
+    #[test]
+    fn the_compose_indices_are_the_painters_literal_arguments() {
+        assert_eq!(GIFT_TO, 10);
+        assert_eq!(LAST_GIFT, 23);
+        assert_eq!(GIFT_OF, 18);
+        assert_eq!(DISPATCH, 17);
+        // `Eng_DrawString(0x48, kind + 0xB, …)` with kind = g_diploKind - 1.
+        for (k, kind) in
+            [Kind::Compliment, Kind::Insult, Kind::OfferAlliance, Kind::EndAlliance]
+                .iter()
+                .enumerate()
+        {
+            assert_eq!(LETTER_BASE + kind.byte() as usize - 1, 11 + k);
+        }
+        // `Eng_DrawString(0x48, kind + 0xF)` / `+ 0x13` / `+ 0x15`, k in 0..2.
+        assert_eq!((REQUEST_BASE, REQUEST_PROMPT, REQUEST_PICKED), (15, 19, 21));
     }
 }

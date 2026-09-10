@@ -4114,6 +4114,170 @@ had no `pairs` field to omit. The destructure protects the fields we know about 
 about the ones we never modelled — which is the same sentence as C61's denominator being a
 *place*, and as *a check on existence is not a check on meaning*.
 
+**CNEW-fontstale — A comment promised "until the real font is decoded", the font was
+decoded, and whole screens went on being written in our debug font for months.**
+
+The draw-call audit (`docs/draws.md` §8) set out to count what each screen draws and found
+something the count cannot see: **a screen can reproduce every draw call the original makes
+and still be entirely placeholder.** Six screen modules — `castle.rs`, `diplomacy.rs`,
+`siege.rs`, `job.rs`, `menu.rs`, `menubar.rs` — put **nothing at all** on the canvas through
+the game's own fonts or artwork. Every mark on them is `l2_view::text`'s hand-authored 5 × 7
+bitmap font and `widget::panel`/`frame`/`button`'s rectangles. `castle.rs` also draws nine
+English captions written in our source — *"SELECT A CASTLE TO BUILD"*, *"1 SEASON TO
+BUILD."*, *"BOOSTS TAX REVENUES BY %"* — where `Screen_CastleBuild` fetches `L2.eng` group
+71, and `menu.rs` draws the game's own title as *"LORDS OF THE REALM II"* when `L2.eng`
+group 11 index 0 says *"Lords of the Realm 2"* — a string `crates/l2-game/tests/shell.rs`
+has asserted for weeks.
+
+**Nobody did anything wrong.** `crates/l2-view/src/text.rs`'s header said, in as many words:
+
+> *"the original's glyphs live in `Font_c2.pl8` … that file is an open question … so the
+> interface draws its own letters **until the real font is decoded**."*
+
+By then `crates/l2-game/src/shell/font.rs` had decoded it: `Fntl2_14.pl8` and
+`Fntl2_22.pl8`, through the 128-byte character-to-frame table at `0x004D71D0` that
+`Glyph_Draw` (`0x00402A14`) indexes, with a mapping that checks itself on descenders. And
+`Font_c2.pl8` was never the file the game draws from — `docs/audit.md` records that
+`font_c2` does not appear among `Lords2.exe`'s strings at all and shares 103 of its 108
+frame records with `Fntl2_9.pl8`.
+
+**The chain is fully traceable and every link is a document.** `docs/audit.md` F21 had
+already found this project's own *Open questions* list stale in **four of its six bullets**,
+one of them the `Font_c2` RLE puzzle, marked *resolved* by `docs/formats/pl8-failures.md`
+§5. Nobody removed the bullet. `text.rs`'s header cited it. Screens written afterwards read
+that header and reached for the 5 × 7 font. An audit found the staleness, a comment
+inherited it, and a third of the interface was drawn in the wrong font behind a green suite.
+
+> **A document that promises *"until X"* keeps promising it long after X.** Nothing goes red
+> when the named condition is met, because the condition is in prose. This is the sibling of
+> *prefer a shape that cannot be wrong to a check that notices when it is*: the remedy is
+> not to write better comments but to **make the consequence a number somebody prints**.
+> `tools/draws/screendraws.js` prints the split per module and
+> `tools/figures/figures.js` keeps it out of anyone's typing, so the day the real font
+> landed the number would have moved on its own.
+
+The stale bullet is struck from *Open questions* below in the same change, because leaving
+it is the whole defect.
+
+**CNEW-okword — We draw the word "OK" where the original draws a picture of an arrow going
+into a hole.**
+
+`Ui_OkButton` (`0x0040D1BC`) sets `DAT_005C9288 = 0x33` and blits `System.pl8` frame `0x33`
+— decoded, and measured rather than described: of that sheet's 84 frames it is among the
+darkest, 15.3 % near-black against a median frame's 1.2 %, because it is a cursor arrow
+pointing into a small black hole. **It is not a tick, and it contains no letters at all.**
+A dozen of our screens draw the literal characters `OK` in that corner, and several draw
+`X`, `YES`, `NO`, `CLOSE`, `MAX`, `ALL`, `AUTO`, `SPLIT`, `DISBAND` and `CANCEL` on buttons
+whose originals are `Widget_Draw` frames — the tick at 29, the cross at 31, plus at 68,
+minus at 66.
+
+This is a third kind of invention and it needed its own name, because the two we had do not
+fit: it is not a *wrong string* (there is no string) and not a *missing draw* (something is
+drawn). It is **text in a place that has none**, and it is invisible to every check that
+compares what a screen shows against what a screen should show, because both agree there is
+a button there.
+
+`tools/draws/screens.json`'s `literals_ours` is where each of these now carries a verdict,
+and `crates/l2-game/tests/draws.rs` asserts set equality between that list and the source in
+both directions, so the category cannot grow quietly — `docs/agents.md`'s rule for naming a
+thing that should not happen.
+
+**And a quirk found in the same reading, already sitting in the symbol comment and acted on
+nowhere.** `Ui_OkButton` stashes **only the last call's** position into `DAT_0055CE78` /
+`DAT_0057C8A0`, which `FUN_0040E7E4` hit-tests on a left release. So **a screen that draws
+two OK buttons makes only the second one clickable.** `Screen_BattleOutcome` draws three,
+`Screen_DiploDialog` three, `Armoury_LoadScreen` and `Panel_JobDetail` two each. Whether
+those are branches (one per frame, and the quirk is harmless) or successive calls in one
+pass (and two corners are dead) is a per-screen question the audit records rather than
+assumes.
+
+**CNEW-merchant-dead-widgets — Two buttons on the merchant's stall, with their count zeroed
+and their handler gutted to a `return`. The cut sheep row, in a second place and a shorter
+story.**
+
+The pilot found that `g_sendSuppliesWidgets` holds **eight** records and every caller passes
+**six**, so two buttons exist in the data and are never drawn — findable only by reading the
+table rather than the call. The audit was told to look for another and found one, and it is
+the same shape reached from the other end.
+
+`Screen_DrawWidgets`' `0x08` arm is
+`Widget_Draw(0, 0, &DAT_004DD808, DAT_00569500)`. Three facts close it, each independently
+readable:
+
+* **`DAT_004DD808` is exactly two 24-byte records**, bounded by `DAT_004DD838` where the
+  trade screen's table begins — two buttons at (256, 452) and (288, 452), frames 27 and 25,
+  hotspot ids 0 and 1, on the stall's bottom bar left of the corner picture.
+* **`DAT_00569500` is written `0` by `Screen_Merchant` and by nothing else in the image.**
+  Its only other appearances are the two reads above — the draw and the hit test.
+* **`FUN_0043527B`, the handler both records point at, is eleven bytes:**
+  `void f(void) { return; }`. Nothing points at it but those two `.data` slots.
+
+So the count is zero, the picture is never drawn, the hit test never fires, and the handler
+does nothing if it did. **We draw neither, which is what the original does** — this is
+recorded as a *finding about the game*, not a defect of ours, and it is here rather than in
+`docs/bugs.md` for that reason.
+
+Worth setting beside the supplies row, because the pair says something the single instance
+does not: **cut content leaves different fossils depending on when it was cut.** There the
+records survive at full length and the *count* was shortened; here the count was zeroed and
+the *handler* was replaced with a stub. An audit that only checked "is the table longer than
+the count?" would have found the first and walked past the second.
+
+**CNEW-penabs — Seven instances of one confusion in an afternoon, and it is the shape of the
+API rather than anybody's carelessness.**
+
+`Pen::body` returns `x + advance + TRAILING` — an **absolute** x, so that a caller can chain
+runs. The original's equivalent is `g_penAdvance`, which is the **width the label
+advanced** — a relative number — and every painter writes
+`Eng_DrawString(g, i, g_penAdvance + 0x28, …)` with the label's own x added back.
+
+So a faithful transcription of a painter produces `pen.body(canvas, X + w, …)`, and that is
+wrong by exactly `X`. The draw-call audit found it seven times in one afternoon, by four
+different agents, in four files none of them shared:
+
+* **`Pen::count` itself**, which drew its noun `x` pixels right of its number on every
+  screen that used it. Measured: `number(x = 100, 5)` returns 116 and `count(x = 100, 5)`
+  put the noun at **216**.
+* **`court.rs`** — the lord's name **80 pixels** right of where the game puts it.
+* **`ratings.rs`** — *"Scored"* and the score walked off the block.
+* **`info.rs`**, four times: the army's home county, its year formed, its wages and its
+  moves left.
+
+**Not one of these had a test, and none could have had a useful one**, because each draws a
+label and a value and nothing after them: there is no second thing for the misplaced text to
+collide with, and a canvas diff has nothing to compare against. It is
+`docs/agents.md`'s *a test that drives the picture from the wrong field passes for ever*
+with no test at all — the defect is visible only to somebody holding the original's
+coordinate beside ours, which is precisely what a draw-call listing is.
+
+**The fix applied is the seven call sites. The fix that would end it is a type.** `Pen`'s
+methods should return a `PenX(i32)` that cannot be added to an `i32`, so `X + w` stops
+compiling — `docs/agents.md`, *ask whether the mistake can be made unrepresentable before
+asking what would notice it*. That was not done in this change because six agents held the
+screen modules open at the time and a signature change across all of them was the wrong
+thing to land mid-flight. It is the right next move and it is small.
+
+**CNEW-deadmenu — `screens/menu.rs` is a whole screen of ours that the shipped binary cannot
+reach, and it was inflating the audit's placeholder count.**
+
+`crates/l2-game/src/main.rs` boots to `ScreenId::Setup(SetupPage::Title)` — the *real* front
+end, which `setup.rs` reproduces with 41 draws through the game's own artwork and is the
+healthiest module in the whole draw audit. Nothing outside `crates/l2-game/tests/machine.rs`
+ever pushes `ScreenId::Menu`. So `menu.rs` — a two-item main menu of ours, drawn entirely in
+the 5 × 7 font, carrying the misspelled title above — is an **invention that is also dead**.
+
+That pairing is why the draw inventory carries `reachable` beside every record, and it is
+the same hole `docs/agents.md` records for screen `0x28`: *counting arms cannot tell you
+whether a screen is reachable*, and every arm audited on a screen nothing selects counted
+toward a denominator it should not have been in. A draw audit has the identical hole and has
+it in **both** directions — a painter in the binary that no `mov byte ptr [g_screenId],
+imm8` can select, and a screen of ours no transition reaches.
+
+`screens/index.rs` is the contrast worth keeping: it is also ours, also drawn in the 5 × 7
+font, and it is **correct**, because it is titled as ours on its own face so that a
+screenshot of it can never be mistaken for something the original drew. The difference
+between an honest scaffold and an invention is whether it says which it is.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
@@ -4142,7 +4306,12 @@ about the ones we never modelled — which is the same sentence as C61's denomin
   whose best affine fit reaches only 72%.
 - 23 files that use supported encodings but fail the end-offset invariant, pinned in
   `KNOWN_FAILING`.
-- `Font_c2.pl8` declares RLE but its frames occupy exactly `width × height`.
+- ~~`Font_c2.pl8` declares RLE but its frames occupy exactly `width × height`.~~
+  **Closed**, and it had been closed for a long time: `docs/formats/pl8-failures.md` §5
+  settles it, `docs/audit.md` F21 flagged this very bullet as stale, and nobody struck it.
+  Leaving it here is not harmless — `crates/l2-view/src/text.rs` cited it as the reason the
+  interface drew its own letters, and a third of our screen modules were written in a 5 × 7
+  debug font on the strength of that. CNEW-fontstale.
 - `Title.pl8` decodes with correct geometry but no shipped palette colours it.
 - The type-4 apex pair, where the stored data and the shipped blitter disagree.
 - PL8 header fields at 0x04, 0x06, 0x07.

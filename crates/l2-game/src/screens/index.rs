@@ -93,7 +93,15 @@ impl IndexScreen {
         push("0x04 MAP INFO: A UNIT".into(), Some(ScreenId::Info(crate::screens::info::Target::Unit(1))));
         push("0x04 MAP INFO: A TILE".into(), Some(ScreenId::Info(crate::screens::info::Target::Tile(0))));
         push("0x09 THE COURT".into(), Some(ScreenId::Court));
-        push("0x0B DIPLOMACY".into(), Some(ScreenId::Diplomacy));
+        // `0x0B` is listed once, above, as *"THE OTHER LORDS"*. It used to be
+        // listed here a second time as *"DIPLOMACY"*, and `screen.rs` matched
+        // it twice to go with it — the pilot's second finding recurring
+        // (`docs/draws.md` §2, *a screen was in the index twice*). The two
+        // names are also why the audit was told to verify every screen name
+        // against its painter: *the court* is the realm's balance sheet and
+        // *the other lords* is the diplomacy screen, and the pair had been
+        // filed together on the strength of sitting next to each other in the
+        // sidebar.
         push("0x18 SEND SUPPLIES".into(), Some(ScreenId::Supplies(1)));
         push("0x25 ABOUT".into(), Some(ScreenId::About));
         push("0x2E BATTLE MASTER RATINGS".into(), Some(ScreenId::Ratings));

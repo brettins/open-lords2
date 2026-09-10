@@ -35,8 +35,9 @@
 //!
 //! ```text
 //! Screen_Armoury(firstFrame):                                     0x00417EA7
-//!   File_ReadChunk("armoury.256", g_displayPalette, 0x300)
-//!   FUN_00408FCB("armoury.pl8", 0x1E0)              the 640 x 480 background
+//!   File_ReadChunk("armoury.256", g_displayPalette, 0x300)   NOT a draw
+//!   FUN_00408FCB("armoury.pl8", 0x1E0)   THE 640 x 480 BACKDROP - a draw:
+//!       g_screenStride * 0x1E0 bytes from offset 0x18 into g_backBufferBits
 //!   File_ReadChunk("arm_grid.pl8", &g_villageGrid, 0x12D8)   the 80 x 60 hit map
 //!   Ui_OkButton(640 - 0x1C, 480 - 0x70, 1)                        (612, 368)
 //!   File_ReadChunk(g_armouryItemSheets[realm.shieldIndex], DAT_0056D5B8, 0x4B320)
@@ -115,7 +116,34 @@
 //! carried a `RAISE` button of ours because this screen was a shell; it is gone,
 //! and the door it stood in front of is this one.
 //!
-//! # `0x0D`, one weapon
+//! # `0x0D`, one weapon — and `Screen_Draw` has no arm for it
+//!
+//! **Verified against `Screen_Draw` (`0x0040F1A0`): there is no `'\r'` case.**
+//! `0x0D` is painted exactly once, by `Armoury_ClickRack` calling
+//! `Armoury_LoadScreen` on the way in, and after that only
+//! `Screen_DrawWidgets`' `0x0D` arm runs:
+//!
+//! ```c
+//! Armoury_RestoreWalkerStrip(); Armoury_DrawTorches(); Armoury_DrawRacks();
+//! FUN_00418E2D(); Armoury_DrawWalker();
+//! Widget_Draw(0x60, 4, &g_armouryBuyWidgets, 4);
+//! ```
+//!
+//! So `FUN_00418E2D` is in that arm *as well as* in the painter — which is what
+//! makes the count and the spare update when a button is pressed, on a screen
+//! nothing repaints. The armoury's own racks are redrawn under the panel every
+//! frame too, which is why the room does not go stale behind it.
+//!
+//! ## Two corner pictures, one of them dead
+//!
+//! `Ui_OkButton` (`0x0040D1BC`) **stashes only the last call's position** into
+//! `DAT_0055CE78`/`DAT_0057C8A0`, and `Ui_OkButtonClicked` hit-tests a 24 × 24
+//! box at whatever is stashed. `Screen_Armoury` stashed (612, 368) on the way
+//! in; `Armoury_LoadScreen` then stashes (0x1E4, 0x58). So on `0x0D` the
+//! armoury's corner picture is **still painted at (612, 368) and is not
+//! clickable** — the panel's is the only live one. [`RackScreen`] tests
+//! [`RACK_OK`] and nothing else, which reproduces that; it is said here because
+//! it looks like an omission and is not.
 //!
 //! ```text
 //! Armoury_LoadScreen():                                         0x004184C6
@@ -176,6 +204,43 @@
 //!
 //! They are listed rather than drawn so that the next reader knows the room is
 //! meant to move.
+//!
+//! # The denominator, for the draw audit
+//!
+//! `0x0A`: **twelve** draws — the backdrop, four in `Screen_Armoury`'s own
+//! body, one in `Armoury_DrawWallItems`, three in `Armoury_DrawRacks` (**one of
+//! them dead**, slot 7), and three in the `Screen_DrawWidgets` arm (two torches
+//! and the walker). We draw eight, and the three we do not are the animations
+//! above.
+//!
+//! **`FUN_00408FCB("armoury.pl8", 0x1E0)` is a draw**, and counting it as a
+//! file load is the mistake this section was written with. It reads
+//! `g_screenStride * height` bytes from offset `0x18` **straight into
+//! `g_backBufferBits`**, and `Armoury.pl8` is 307,224 bytes = 640 × 480 + 24 —
+//! so the file *is* the picture, not a sheet to pick frames out of. Eleven
+//! painters in the binary call it. [`page`]'s `shell::background` is its
+//! counterpart and is counted on our side too.
+//!
+//! The `.256` beside it is **not** a draw and the two are easy to conflate:
+//! `File_ReadChunk("armoury.256", &DAT_004EA8A0, 0x300)` puts 768 bytes into a
+//! palette buffer and `Palette_Set` points the hardware at it. No pixel moves.
+//!
+//! `0x0D`: **sixteen** — four in `Armoury_LoadScreen`, six in `FUN_00418E2D`,
+//! and six more in the widget arm (torches, racks, walker); plus the four
+//! widget records. It draws no backdrop of its own: it is a window over the
+//! room `0x0A` already painted. `tools/audit/draws-B.json` carries the whole
+//! reckoning.
+//!
+//! Excluded on both, and this is the whole exclusion list: the four
+//! `FUN_004B3F0A` strip *saves* (they copy the backdrop out, they do not draw),
+//! the `.256` read and `Palette_Set` above, `File_ReadChunk("arm_grid.pl8")`
+//! which is a hit map, `Gfx_MarkSpriteDirty`, and the `Blit_*` family, which is
+//! the implementation of every primitive above rather than a draw of its own.
+//!
+//! **Neither screen draws `L2.eng` 31/21 *"Morale"***, or any of group 31 —
+//! checked by reading every one of the seven functions above rather than by
+//! grepping for the string. `docs/armies.md` rests a `[V]` on unit `+0x166`
+//! against that label, and nothing in this module resources it.
 
 use l2_kingdom::levy::{self, LevyRefusal};
 use l2_kingdom::tables::WEAPON_TYPE_COUNT;
@@ -433,12 +498,15 @@ pub fn page(ctx: &Ctx, canvas: &mut Canvas, buttons: bool) {
         if let Some(f) = a.sheet(sheet).and_then(|s| s.frame(frame)) {
             canvas.blit(&f, sx, sy);
         } else {
-            // No artwork: name the rack where its picture would have stood, so
-            // that the row is still readable and still visibly ours.
+            // **Ours**, and only with no artwork: name the rack where its
+            // picture would have stood, so the row is still readable and still
+            // visibly ours.
             let name = TroopType::from_index(slot).map_or("", |t| t.name());
             text::draw(canvas, sx, sy + 40, &name.to_uppercase(), ink.dim);
         }
-        text::draw(canvas, nx, ny, &format!("{}", basket.slots[slot].chosen + extra), ink.text);
+        // `Ui_DrawNumber(v, '@', &DAT_004D403C, x, y, &g_fontBody, 0x3F)` —
+        // the game's own body font, not our 5 × 7 one.
+        pen.number(canvas, nx, ny, basket.slots[slot].chosen + extra, true, font::TEXT);
     }
 
     // The three labels, in their own hundred-pixel column.
@@ -591,15 +659,17 @@ impl Screen for ArmouryScreen {
         // **Nothing else is drawn round the three buttons**: the painter draws
         // three words and the hotspots are invisible, so a frame of ours here
         // would be an invented interface on a screen that does not have one.
-        let drawn = ctx
-            .assets
-            .chrome
-            .as_ref()
-            .is_some_and(|c| c.draw_system(canvas, l2_view::chrome::system::OK_ALT, OK.x, OK.y));
-        if !drawn {
-            shell::button_recess(canvas, OK.x, OK.y, OK.w, OK.h);
-        }
+        let pen = Pen {
+            assets: &ctx.assets.shell,
+            ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            shadow: Some(font::SHADOW),
+            caps: None,
+        };
+        pen.ok_button(canvas, OK.x, OK.y, 1);
 
+        // **Ours**, both of them: one line of feedback and one warning that the
+        // hit map is missing. The original draws neither.
         if !self.status.is_empty() {
             text::draw(canvas, 8, 8, &self.status, ink.dim);
         }
@@ -773,38 +843,46 @@ impl Screen for RackScreen {
         let x = pen.body(canvas, SPARE_AT.0, SPARE_AT.1, &format!("{spare}"), font::TEXT);
         pen.eng(canvas, GROUP, SPARE, x, SPARE_AT.1, font::TEXT);
 
-        // The four buttons. **The pictures are the original's frames and we do
-        // not have them decoded**, so the boxes are the original's and the
-        // labels are ours, in our own font.
+        // The four buttons. `Widget_Draw(0x60, 4, &g_armouryBuyWidgets, 4)`
+        // draws them out of the **button sheet** at the frames the records
+        // carry — 68, 66, 58, 60 — and our own labelled boxes are the fallback
+        // for an install without it, not the picture.
         for (i, button) in BUTTONS.iter().enumerate() {
+            let r = button_box(i);
+            if pen.system_frame(canvas, BUTTON_FRAMES[i], r.x, r.y) {
+                continue;
+            }
+            // **Ours**, no artwork only.
             let label = match button {
                 Button::EquipOne => "+1",
                 Button::UnequipOne => "-1",
                 Button::UnequipAll => "NONE",
                 Button::EquipAll => "ALL",
             };
-            widget::button(canvas, ink, button_box(i), label, false);
+            widget::button(canvas, ink, r, label, false);
         }
 
-        let drawn = ctx.assets.chrome.as_ref().is_some_and(|c| {
-            c.draw_system(canvas, l2_view::chrome::system::OK, RACK_OK.x, RACK_OK.y)
-        });
-        if !drawn {
-            shell::button_recess(canvas, RACK_OK.x, RACK_OK.y, RACK_OK.w, RACK_OK.h);
-        }
+        // `Ui_OkButton(0x1E4, 0x58, 0)`.
+        pen.ok_button(canvas, RACK_OK.x, RACK_OK.y, 0);
     }
 }
 
-/// `Ui_DrawCount`'s noun: `L2.eng` group 8 at `0x34 + t * 2`, plural unless the
-/// count is one. Falls back to our own name when `L2.eng` is not installed.
+/// `Ui_DrawCount`'s noun: `L2.eng` group 8 at `0x34 + t * 2`, singular at **±1**
+/// and plural at everything else including zero. Falls back to our own name
+/// when `L2.eng` is not installed.
+///
+/// The `-1` arm is `Ui_DrawCount`'s (`0x0041AB67`) and not
+/// `Ui_DrawUnitNoun`'s (`0x0041AC3E`), which takes the singular only at exactly
+/// 1 — the rack panel draws the first, the army-division rows the second, and
+/// they are two different ladders in the binary. [`shell::count_noun`].
 fn noun(a: &shell::ShellAssets, troop: usize, n: i32, ty: Option<TroopType>) -> String {
-    let index = NOUN_BASE + troop * 2 + usize::from(n != 1);
+    let index = shell::count_noun(n, NOUN_BASE + troop * 2);
     let s = a.text(NOUN_GROUP, index);
     if !s.is_empty() {
         return s.to_string();
     }
     let name = ty.map_or("", |t| t.name());
-    if n == 1 {
+    if index % 2 == 0 {
         name.to_string()
     } else {
         format!("{name}s")

@@ -508,9 +508,23 @@ impl Screen for InfoScreen {
                     // **Outside the ownership gate**: the name, "An army from"
                     // and the county. This is the correction the module docs
                     // record.
+                    // **`w`, not `HEADING_X + w`.** The original writes
+                    // `g_penAdvance = 0; Eng_DrawString(31, 9, 0x28, …);
+                    // Eng_DrawString(100, county, g_penAdvance + 0x28, …)` —
+                    // `g_penAdvance` is the *width the label advanced*, so
+                    // `g_penAdvance + 0x28` is the label's x plus its width.
+                    // Our `Pen` returns that sum already, so adding the x again
+                    // pushed all four of this panel's chained lines a label's
+                    // origin to the right. Four sites here, one on the court,
+                    // one inside `Pen::count` itself and one on the ratings
+                    // sheet: **seven instances of one confusion**, and it is
+                    // structural rather than careless — every coordinate in the
+                    // decompilation except `g_penAdvance` is absolute, so
+                    // transcribing a painter faithfully produces it.
+                    // `docs/decisions.md` CNEW-penabs.
                     let w = pen.eng(canvas, UNIT_GROUP, ARMY_FROM, HEADING_X, l.y(0x4A), font::TEXT);
                     let name = super::county::county_name(ctx, u.home_county);
-                    pen.body(canvas, HEADING_X + w, l.y(0x4A), &name, font::TEXT);
+                    pen.body(canvas, w, l.y(0x4A), &name, font::TEXT);
                 } else {
                     // 31/6 is suppressed for an army by `local_20 != 6`; every
                     // other kind draws its heading here.
@@ -530,13 +544,13 @@ impl Screen for InfoScreen {
                 }
                 if u.kind == UnitKind::Army && u.owner == ctx.game.player {
                     let w = pen.eng(canvas, UNIT_GROUP, FORMED, HEADING_X, l.y(0xA0), font::TEXT);
-                    pen.number(canvas, HEADING_X + w, l.y(0xA0), u.year_formed, false, font::TEXT);
+                    pen.number(canvas, w, l.y(0xA0), u.year_formed, false, font::TEXT);
                     let w = pen.eng(canvas, UNIT_GROUP, WAGES, 0xF8, l.y(0xA0), font::TEXT);
-                    pen.count(canvas, 0xF8 + w, l.y(0xA0), u.wages, 0, false, font::TEXT);
+                    pen.count(canvas, w, l.y(0xA0), u.wages, 0, false, font::TEXT);
                     if u.garrison_county == 0 {
                         let left = (MOVE_ALLOWANCE - u.moves_used as i32).max(0);
                         let w = pen.number(canvas, 0xF8, l.y(0x170), left, true, font::TEXT);
-                        pen.eng(canvas, UNIT_GROUP, MOVES_LEFT, 0xF8 + w, l.y(0x170), font::TEXT);
+                        pen.eng(canvas, UNIT_GROUP, MOVES_LEFT, w, l.y(0x170), font::TEXT);
                     }
                     // The three buttons, and the sortie frame when garrisoned.
                     let first = if u.garrison_county == 0 { icon::MOVE } else { icon::SORTIE };

@@ -37,22 +37,68 @@
 //! `rows` of `0x10` or `0x0D`:
 //!
 //! ```text
-//! Ui_DrawBox(0x50, base - 0x10, 0x1E, rows + 1)
-//! Eng_DrawString(69, 0x10, 0x70, base - 8)          "Raising an army in"
-//! Eng_DrawString(100, scenario*20 + county, pen, base - 8)   ... + the county's name
-//! Ui_DrawInsetRect(0xC3, base + 0x28, 0x6F, 4)      the slider's well
-//! system 0x51 (0x80, base+0x10)   0x4E (0xB9, base+0x21)     the left icon and arrow
-//! system 0x50 (levyPercent + 0xC4, base + 0x1A)              THE KNOB
-//! system 0x4F (0x132, base+0x21)  0x52 (0x145, base+0x10)    the right arrow and icon
-//! Ui_DrawNumber(population - levyMen, 0x80,  base + 0x44)    who stays
-//! Ui_DrawNumber(levyMen,              0x145, base + 0x44)    who marches
-//! for i in 0..6:  weapon icon (0x70 + i*0x48, y - 4), stock (0x90 + i*0x48, y)
-//!                 where y = base + (rows - 4) * 0x10
-//! 69/10 + 69/11 + happiness - cost      at (0x188, base + 0x18 / + 0x30)
-//! 69/12 + 69/13 + happiness             the same place when the cost is zero
-//! Ui_DrawNumber(realm + 0x138) + 69/14  at (0x70,  (rows-2)*0x10 + base + 4)
-//! Eng_DrawString(69, 9)                 at (0x180, the same row)
+//! Screen_RaiseArmy():                                            0x00418653
+//!   DAT_00522F58 = offer ? (gold >= price ? 3 : 1) : 1   publish the widget count
+//!   Ui_DrawBox(0x50, base - 0x10, 0x1E, rows + 1)
+//!   Eng_DrawString(69, 0x10, 0x70, base - 8, body)     "Raising an army in"
+//!   Eng_DrawString(100, scenario*20 + county, pen, base - 8)   + the county's name
+//!   Ui_DrawInsetRect(0xC3, base + 0x28, 0x6F, 4)          the slider's well
+//!   system 0x51 (0x80, base+0x10)   0x4E (0xB9, base+0x21)  the left icon and arrow
+//!   system 0x50 (levyPercent + 0xC4, base + 0x1A)              THE KNOB
+//!   system 0x4F (0x132, base+0x21)  0x52 (0x145, base+0x10) the right arrow and icon
+//!   Ui_DrawNumber(population - levyMen, '@', 0x80,  base + 0x44)   who stays
+//!   Ui_DrawNumber(levyMen,              '@', 0x145, base + 0x44)   who marches
+//!   for i in 0..6:  weapon icon (0x70 + i*0x48, y - 4)
+//!                   Ui_DrawNumber(realm.weapons[i], ' ', 0x90 + i*0x48, y)
+//!                   where y = base + (rows - 4) * 0x10
+//!   cost >= 1 -> 69/10 "Happiness will" (0x188, base+0x18)
+//!                69/11 "be"            (0x188, base+0x30)
+//!                Ui_DrawNumber(happiness - cost, pen + 0x188, base + 0x30)
+//!   cost <  1 -> 69/12 "Happiness stays" and 69/13 "at" in the same two places,
+//!                Ui_DrawNumber(happiness,        pen + 0x188, base + 0x30)
+//!   Pl8_DrawFrame(system, 0x53, pen + 0x188, base + 0x30)   AFTER either number
+//!   no offer:
+//!     FUN_0040328E(69, 4, 0x80, base + 0x60, 400, 100, body)  wrapped, 400 wide
+//!     Ui_DrawInsetRect(0x70, base + 0x58, 0x1A0, 0x32)   ... and the well AFTER it
+//!   an offer:
+//!     Ui_DrawInsetRect(0x70, base + 0x58, 0x1A0, 0x60)
+//!     Ui_DrawNumber(band.men, '@', 0x70, base + 0x60, HEADING)
+//!     Eng_DrawString(16, band, pen + 0x70, base + 0x60, HEADING)  the nationality
+//!     Ui_DrawUnitNoun(band.men, 0x34 + troop*2, pen + 0x70, …, HEADING)
+//!     Ui_DrawNumber(band.price,  '@', 0x70,      base + 0x7C, body)
+//!     Eng_DrawString(69, 0, pen + 0x70, …)               "crowns to hire."
+//!     Ui_DrawNumber(band.men / 2, '@', pen + 0x70, …, body)
+//!     Eng_DrawString(69, 1, pen + 0x70, …)          "crowns seasonal wages."
+//!     gold < price -> FUN_0040328E(69, 3, 0x80, base + 0x94, 400, 100, body)
+//!     otherwise    -> Eng_DrawString(69, 15, 0x72, base + 0x92, body)  "You have"
+//!                     Ui_DrawCount(realm.gold, 0, pen + 0x72, base + 0x92, body)
+//!                     Eng_DrawString(69, 2, 0x92, base + 0xA4, body)
+//!                                                     "Hire mercenaries ?"
+//!                     Eng_DrawString(18, hire ? 0 : 1, 0x1D0, base + 0x98, HEADING)
+//!   Ui_DrawNumber(realm + 0x138, '@', 0x70, (rows-2)*0x10 + base + 4, body)
+//!   Eng_DrawString(69, 14, pen + 0x70, the same row)      "Total weapons"
+//!   Eng_DrawString(69,  9, 0x180,      the same row)      "Continue"
 //! ```
+//!
+//! Thirty-eight draw calls, and **every `Eng_DrawString` group was checked
+//! against the words** rather than against the index existing: 69 is the
+//! raise-army/armoury group, 16 the nationalities, 18 *"Yes"*/*"No"*/*"Cancel"*
+//! and 100 the county names. Group 16 is the trap this audit exists for — the
+//! armoury was filed under it and 16/6 *does* exist, so an existence check
+//! passes on a screen that is wrong. Here 16 really is the nationality table
+//! and the index really is the band id.
+//!
+//! **`Pl8_DrawFrame(&g_systemSheet, 0x53, …)` is drawn on both happiness
+//! branches**, after whichever number was printed, on `base + 0x30`. It is
+//! outside the `if`/`else` in the painter and it was missing here entirely.
+//! [`HAPPINESS_ICON`]; **what the picture is has not been established** — it is
+//! the frame after the slider's five (`0x4E`…`0x52`) and nothing else in the
+//! binary draws it.
+//!
+//! **`Ui_DrawCount` uses the heading font for the band's headline line** — the
+//! count, the nationality and the troop noun at `base + 0x60` are all
+//! `g_fontHeading`, and everything below them is `g_fontBody`. This module drew
+//! the whole block in the body font.
 //!
 //! **`g_levyPercent + 0xC4` is the knob's x**, which closes with the slider
 //! handler's `g_levyPercent = mouseX - 0xC4` over a 101-pixel track: the two
@@ -92,8 +138,23 @@
 //!
 //! # The three widgets, and the two that are a pair
 //!
-//! `DAT_004DD340`, drawn and tested at an offset of `(0, 0x10)` when the county
-//! has an offer and `(0, 0)` when it has not, with a count of 1 or 3:
+//! `DAT_004DD340` is **three** 24-byte records — the next table,
+//! `DAT_004DD388`, begins at `0x004DD340 + 3 * 24` — so `DAT_00522F58`'s
+//! maximum of 3 reaches the end of it and nothing hides behind the count here.
+//! **`Screen_RaiseArmy`'s own prologue is what publishes the count**, before it
+//! draws anything: 1 with no offer, 1 with an offer the treasury cannot meet,
+//! 3 otherwise. `Screen_HandleInput` reads the same global, so the tick and the
+//! cross are untestable as well as invisible on the poor branch.
+//!
+//! It is drawn and tested at an offset of `(0, 0x10)` when the county has an
+//! offer and `(0, 0)` when it has not — **sixteen pixels down when there is an
+//! offer** — and that offset is not decoration. The label the *Continue* button
+//! belongs to, `69/9`, is on `(rows - 2) * 0x10 + base + 4`, which is 340
+//! without an offer and **356** with one, because `rows` goes `0x0D → 0x10`
+//! while `base` goes `0xA0 → 0x80`. The record's own y is 336 either way. So
+//! the offset is exactly the distance the label moved, and the button stays
+//! four pixels above its own caption on both layouts. [`widget_offset`], and
+//! the test below pins both numbers.
 //!
 //! | x | y | frame | handler | |
 //! |---:|---:|---:|---|---|
@@ -127,6 +188,25 @@
 //! inside `Battle_AutoResolve`. [`l2_kingdom::LevyBasket::auto_equip`] keeps
 //! the rule for the AI and this screen no longer offers it.
 //!
+//! # The denominator, for the draw audit
+//!
+//! **Thirty-eight** call sites of the 26 pixel primitives: thirty-seven in
+//! `Screen_RaiseArmy`'s own body plus the one `Ui_DrawText` inside
+//! `FUN_0040328E`, which the painter reaches from two places. We draw all
+//! thirty-eight, and all one-or-three widget records.
+//!
+//! Excluded: the armoury page beneath (`Screen_Draw` paints it and it is
+//! counted under `screens/armoury.rs`), `FUN_004B1DE0`, `Gfx_MarkAllDirty` and
+//! the `Blit_*` family.
+//!
+//! Still ours, and only these: **the status line** under the window, and two
+//! no-artwork placeholders — a four-letter troop name where a weapon icon
+//! would be, and a filled rectangle for the slider knob. A `<n>%` read-out of
+//! ours, which the original does not draw at all, was removed.
+//!
+//! **This screen draws no `L2.eng` group 31**, so it does not resource
+//! `docs/armies.md`'s `[V]` on unit `+0x166` against 31/21 *"Morale"*.
+//!
 //! # Where the state lives
 //!
 //! Not here. The slider's percentage, the headcount, the happiness cost, the
@@ -145,12 +225,52 @@ use crate::shell::{self, font, Pen};
 use crate::widget;
 
 /// `L2.eng` group 69 — this screen's own text, shared with the armoury.
+///
+/// **Verified against the words**, not against the indices existing. The
+/// thirteen this screen draws, in the file's own order:
+///
+/// ```text
+///  0 "crowns to hire."          1 "crowns seasonal wages."
+///  2 "Hire mercenaries ?"       3 "You cannot afford to hire these mercenaries."
+///  4 "There are no mercenaries currently available for hire in the county."
+///  9 "Continue"               10 "Happiness will"     11 "be"
+/// 12 "Happiness stays"        13 "at"                 14 "Total weapons"
+/// 15 "You have"               16 "Raising an army in"
+/// ```
+///
+/// 5 belongs to the rack panel and 6, 7, 8 to the armoury's three captions;
+/// the group has seventeen strings and this screen and `armoury.rs` draw all
+/// of them between them.
 pub const GROUP: usize = 69;
+pub const CROWNS_TO_HIRE: usize = 0;
+pub const CROWNS_WAGES: usize = 1;
+pub const HIRE_QUESTION: usize = 2;
+pub const CANNOT_AFFORD: usize = 3;
+pub const NO_MERCENARIES: usize = 4;
+pub const CONTINUE: usize = 9;
+pub const HAPPINESS_WILL: usize = 10;
+pub const HAPPINESS_BE: usize = 11;
+pub const HAPPINESS_STAYS: usize = 12;
+pub const HAPPINESS_AT: usize = 13;
+pub const TOTAL_WEAPONS: usize = 14;
+pub const YOU_HAVE: usize = 15;
+pub const RAISING_IN: usize = 16;
+
 /// `L2.eng` group 16 — the twelve nationalities, indexed by band id.
+/// **Verified against the words**: `16/1` is *"Scottish"*, `16/12` *"Angevin"*.
+/// Index 0 is *"No mercenaries in the army."* and the painter's `offer != 0`
+/// guard means this screen never reaches it. This is the group the armoury was
+/// wrongly filed under, and 16/6 existing is why an existence check did not
+/// catch that.
 pub const GROUP_NATIONALITY: usize = 16;
-/// `L2.eng` group 18 — *"Yes"* and *"No"*, in that order (index 0 is *"Yes"*:
-/// the painter draws 18/1 when the hire flag is clear).
+/// `L2.eng` group 18 — *"Yes"*, *"No"*, *"Cancel"*. Index 0 is *"Yes"*: the
+/// painter draws 18/1 when the hire flag is clear. Index 2 is not drawn here.
 pub const GROUP_YESNO: usize = 18;
+/// `L2.eng` group 8 — the noun table. `Ui_DrawCount(gold, 0)` takes 0/1
+/// *"Crown."*/*"Crowns."*; `Ui_DrawUnitNoun(men, 0x34 + t*2)` the troop nouns.
+pub const NOUN_GROUP: usize = 8;
+pub const NOUN_BASE: usize = 0x34;
+pub const CROWN_NOUN: usize = 0;
 
 /// The painter's one local: `0x80` when the county has a mercenary offer,
 /// `0xA0` when it has not. Everything on the screen is placed off it.
@@ -234,6 +354,28 @@ pub const SLIDER_LEFT_ARROW: usize = 0x4E;
 pub const SLIDER_KNOB: usize = 0x50;
 pub const SLIDER_RIGHT_ARROW: usize = 0x4F;
 pub const SLIDER_RIGHT_ICON: usize = 0x52;
+
+/// `Pl8_DrawFrame(&g_systemSheet, 0x53, g_penAdvance + 0x188, base + 0x30)` —
+/// drawn on **both** happiness branches, after the number.
+///
+/// **What the picture is has not been established.** It is the frame
+/// immediately after the slider's five and no other function in the
+/// decompiled corpus passes `0x53` to `Pl8_DrawFrame`, so there is no second
+/// call site to read it against. Named rather than described.
+pub const HAPPINESS_ICON: usize = 0x53;
+
+/// The three records of `DAT_004DD340`, in table order: **Continue** (frame 33,
+/// 24 pixels, `FUN_00435CBF`), then the tick (29) and the cross (31), both
+/// `FUN_00435C89` and told apart by the hotspot id. The tick and the cross are
+/// 32 pixels; Continue is 24.
+pub const CONTINUE_FRAME: usize = 33;
+pub const HIRE_YES_FRAME: usize = 29;
+pub const HIRE_NO_FRAME: usize = 31;
+/// `DAT_004DD340` is three records long, and `DAT_00522F58` is 1 or 3.
+pub const WIDGET_RECORDS: usize = 3;
+pub const WIDGETS_NO_OFFER: usize = 1;
+pub const WIDGETS_UNAFFORDABLE: usize = 1;
+pub const WIDGETS_AFFORDABLE: usize = 3;
 
 /// `FUN_0040328E(group, index, x, y, 400, 100, 0, 0, …)` — the wrapped
 /// paragraph's column. Both of this screen's two long sentences use it, and
@@ -485,7 +627,7 @@ impl Screen for RaiseArmyScreen {
         // 100 at `scenarioIndex * 20 + county` — the painter chains them on
         // `g_penAdvance`, and so do we now that [`Pen::body`] returns where it
         // stopped rather than how far it went.
-        let x = pen.eng(canvas, GROUP, 0x10, RACK_X, b - 8, font::TEXT);
+        let x = pen.eng(canvas, GROUP, RAISING_IN, RACK_X, b - 8, font::TEXT);
         pen.eng(canvas, COUNTY_NAMES, county_name_index(ctx, self.county), x, b - 8, font::TEXT);
 
         // The slider. `Ui_DrawInsetRect` is four lines and no fill — see
@@ -511,9 +653,12 @@ impl Screen for RaiseArmyScreen {
         let county = ctx.game.kingdom.counties.get(self.county as usize);
         let population = county.map_or(0, |c| c.population);
         let happiness = county.map_or(0, |c| c.happiness);
-        text::draw(canvas, 0x80, b + 0x44, &format!("{}", population - levy.men), ink.text);
-        text::draw_right(canvas, 0x145 + 40, b + 0x44, &format!("{}", levy.men), ink.highlight);
-        text::draw(canvas, WELL_X, b + 0x14, &format!("{}%", levy.percent), ink.dim);
+        // Both are plain `Ui_DrawNumber` at the coordinate given — **left
+        // aligned**, in the body font. This module drew the second of them
+        // right-aligned to `0x145 + 40`, which is 40 pixels of drift on the
+        // number a player reads to decide how many men to take.
+        pen.number(canvas, 0x80, b + 0x44, population - levy.men, true, font::TEXT);
+        pen.number(canvas, 0x145, b + 0x44, levy.men, true, font::TEXT);
 
         // The six weapon stocks: `arm_it_<colour>.pl8` frames 15..20 with the
         // realm's stock printed 0x20 to the right of each.
@@ -536,57 +681,80 @@ impl Screen for RaiseArmyScreen {
             match sheet.and_then(|s| s.frame(ICON_FRAME_BASE + i)) {
                 Some(f) => canvas.blit(&f, x, y - 4),
                 None => {
+                    // **Ours**, and only when the sheet is not installed: the
+                    // troop's name where its icon would have been.
                     let n = troop.name().to_uppercase();
                     text::draw(canvas, x, y - 18, &n[..4.min(n.len())], ink.dim);
                 }
             }
-            text::draw(canvas, x + RACK_NUMBER_DX, y, &format!("{stock}"), ink.text);
+            // `Ui_DrawNumber(stock, ' ', …)` — a **space** lead here, not the
+            // '@' the rest of the screen uses.
+            pen.number(canvas, x + RACK_NUMBER_DX, y, stock, false, font::TEXT);
         }
 
         // The happiness pair. The painter picks 69/10 + 69/11 when the levy
-        // costs something and 69/12 + 69/13 when it does not, and prints the
-        // county's happiness *after* the cost on the first branch.
+        // costs something and 69/12 + 69/13 when it does not, and the number is
+        // **chained on to the second word, on that word's own line** — not on a
+        // line of its own sixteen pixels lower, which is where this module put
+        // it. Then `system` frame 0x53 after the number, on both branches.
         let (a, c, value) = if levy.happiness_cost < 1 {
-            (12, 13, happiness)
+            (HAPPINESS_STAYS, HAPPINESS_AT, happiness)
         } else {
-            (10, 11, happiness - levy.happiness_cost)
+            (HAPPINESS_WILL, HAPPINESS_BE, happiness - levy.happiness_cost)
         };
         pen.eng(canvas, GROUP, a, 0x188, b + 0x18, font::TEXT);
-        pen.eng(canvas, GROUP, c, 0x188, b + 0x30, font::TEXT);
-        text::draw(canvas, 0x188, b + 0x40, &format!("{value}"), ink.text);
+        let x = pen.eng(canvas, GROUP, c, 0x188, b + 0x30, font::TEXT);
+        let x = pen.number(canvas, x, b + 0x30, value, true, font::TEXT);
+        pen.system_frame(canvas, HAPPINESS_ICON, x, b + 0x30);
 
         // The mercenary block.
         let well = merc_well(on);
         shell::inset_rect(canvas, well.x, well.y, well.w, well.h);
         if on {
             let rules = &ROSTER[band as usize];
-            let nationality = {
-                let s = ctx.assets.shell.text(GROUP_NATIONALITY, band as usize);
-                if s.is_empty() { rules.nationality } else { s }
-            };
-            pen.body(
-                canvas,
-                0x70,
-                b + 0x60,
-                &format!("{} {} {}", rules.men, nationality, rules.troop.name()),
-                font::TEXT,
-            );
+            // **The headline line is the heading font**, all three pieces of
+            // it: the count, `L2.eng` 16/band, and the group 8 troop noun that
+            // `Ui_DrawUnitNoun` picks. This module drew the whole line in the
+            // body font with our own troop name in place of the noun.
+            let x = pen.heading(canvas, 0x70, b + 0x60, &format!("{} ", rules.men), font::TEXT);
+            let s = ctx.assets.shell.text(GROUP_NATIONALITY, band as usize).to_string();
+            let s = if s.is_empty() { rules.nationality.to_string() } else { s };
+            let x = pen.heading(canvas, x, b + 0x60, &s, font::TEXT);
+            // `Ui_DrawUnitNoun` is singular only at exactly 1 — unlike
+            // `Ui_DrawCount`, which also takes it at −1.
+            let index = NOUN_BASE + rules.troop.index() * 2 + usize::from(rules.men != 1);
+            let s = ctx.assets.shell.text(NOUN_GROUP, index).to_string();
+            let s = if s.is_empty() { format!("{}s", rules.troop.name()) } else { s };
+            pen.heading(canvas, x, b + 0x60, &s, font::TEXT);
+
             // 69/0 "crowns to hire." and 69/1 "crowns seasonal wages.", with
             // `men / 2` for the second — this screen's own number.
-            let x = pen.body(canvas, 0x70, b + 0x7C, &format!("{}", rules.price), font::TEXT);
-            let x = pen.eng(canvas, GROUP, 0, x, b + 0x7C, font::TEXT);
-            let x = pen.body(canvas, x, b + 0x7C, &format!("{}", rules.men / 2), font::TEXT);
-            pen.eng(canvas, GROUP, 1, x, b + 0x7C, font::TEXT);
+            let x = pen.number(canvas, 0x70, b + 0x7C, rules.price, true, font::TEXT);
+            let x = pen.eng(canvas, GROUP, CROWNS_TO_HIRE, x, b + 0x7C, font::TEXT);
+            let x = pen.number(canvas, x, b + 0x7C, rules.men / 2, true, font::TEXT);
+            pen.eng(canvas, GROUP, CROWNS_WAGES, x, b + 0x7C, font::TEXT);
 
             if !self.affordable(ctx) {
                 // 69/3, wrapped the same way: `FUN_0040328E(0x45, 3, 0x80,
                 // base + 0x94, 400, 100, …)`.
-                let s = ctx.assets.shell.text(GROUP, 3).to_string();
+                let s = ctx.assets.shell.text(GROUP, CANNOT_AFFORD).to_string();
                 pen.body_wrapped(canvas, 0x80, b + 0x94, PARAGRAPH_W, &s, font::TEXT);
             } else {
-                pen.eng(canvas, GROUP, 2, 0x92, b + 0xA4, font::TEXT);
+                // 69/15 "You have" and `Ui_DrawCount(gold, 0)` — the treasury
+                // and *"Crown."* / *"Crowns."*. **This pair was missing**; the
+                // module docs described it and the painter did not draw it, so
+                // the player was asked to buy without being told what he had.
+                let x = pen.eng(canvas, GROUP, YOU_HAVE, 0x72, b + 0x92, font::TEXT);
+                let gold = ctx.game.gold();
+                let x = pen.number(canvas, x, b + 0x92, gold, true, font::TEXT);
+                // `Ui_DrawCount` takes the singular at **±1**, not just at 1.
+                let noun = shell::count_noun(gold, CROWN_NOUN);
+                pen.eng(canvas, NOUN_GROUP, noun, x, b + 0x92, font::TEXT);
+
+                pen.eng(canvas, GROUP, HIRE_QUESTION, 0x92, b + 0xA4, font::TEXT);
                 // The word is a read-out; the tick and the cross are the
-                // buttons.
+                // buttons, and they are records 1 and 2 of the widget table —
+                // frames 29 and 31 of the button sheet, not labels of ours.
                 let yes_no = if levy.hire { 0 } else { 1 };
                 let t = ctx.assets.shell.text(GROUP_YESNO, yes_no).to_string();
                 let label = if t.is_empty() {
@@ -596,15 +764,20 @@ impl Screen for RaiseArmyScreen {
                 };
                 let r = hire_readout(on);
                 pen.heading(canvas, r.x, r.y + 2, &label, font::TEXT);
-                widget::button(canvas, ink, hire_yes(on), "YES", levy.hire);
-                widget::button(canvas, ink, hire_no(on), "NO", !levy.hire);
+                let (yes, no) = (hire_yes(on), hire_no(on));
+                if !pen.system_frame(canvas, HIRE_YES_FRAME, yes.x, yes.y) {
+                    widget::frame(canvas, yes, if levy.hire { ink.highlight } else { ink.border });
+                }
+                if !pen.system_frame(canvas, HIRE_NO_FRAME, no.x, no.y) {
+                    widget::frame(canvas, no, if levy.hire { ink.border } else { ink.highlight });
+                }
             }
         } else {
             // 69/4, and it really is wrapped: `FUN_0040328E(0x45, 4, 0x80,
             // base + 0x60, 400, 100, 0, 0, …)` — a 400-pixel column, which is
             // what the sentence needs and what drawing it as one line does not
             // give it.
-            let s = ctx.assets.shell.text(GROUP, 4).to_string();
+            let s = ctx.assets.shell.text(GROUP, NO_MERCENARIES).to_string();
             pen.body_wrapped(canvas, 0x80, b + 0x60, PARAGRAPH_W, &s, font::TEXT);
         }
 
@@ -612,12 +785,15 @@ impl Screen for RaiseArmyScreen {
         // beside the button that leaves for the armoury.
         let fy = footer_row(on);
         let total: i32 = realm.weapons.iter().sum();
-        let x = pen.body(canvas, RACK_X, fy, &format!("{total}"), font::TEXT);
-        pen.eng(canvas, GROUP, 14, x, fy, font::TEXT);
-        pen.eng(canvas, GROUP, 9, CONTINUE_LABEL_X, fy, font::TEXT);
+        let x = pen.number(canvas, RACK_X, fy, total, true, font::TEXT);
+        pen.eng(canvas, GROUP, TOTAL_WEAPONS, x, fy, font::TEXT);
+        pen.eng(canvas, GROUP, CONTINUE, CONTINUE_LABEL_X, fy, font::TEXT);
         let cont = continue_button(on);
-        widget::frame(canvas, cont, ink.highlight);
+        if !pen.system_frame(canvas, CONTINUE_FRAME, cont.x, cont.y) {
+            widget::frame(canvas, cont, ink.highlight);
+        }
 
+        // **Ours**: one line of feedback, below the original's window.
         text::draw(canvas, BOX_X, w.y + w.h + 4, &self.status, ink.dim);
     }
 }
@@ -697,6 +873,35 @@ mod tests {
         // The two positions differ by exactly the table offset and nothing
         // else: the original moves the widget table, not the widget.
         assert_eq!(continue_button(true).y - continue_button(false).y, 0x10);
+    }
+
+    /// **The sixteen-pixel widget offset is the distance the caption moved.**
+    /// Both sides are pinned from the decompilation rather than computed from
+    /// the constants they check: `DAT_004DD340` record 0 sits at y 336, the
+    /// caption row is `(rows - 2) * 0x10 + base + 4`, and the difference is the
+    /// offset `Screen_DrawWidgets` passes.
+    #[test]
+    fn the_widget_offset_is_exactly_how_far_the_continue_caption_moved() {
+        assert_eq!(footer_row(false), 340, "(0x0D - 2) * 0x10 + 0xA0 + 4");
+        assert_eq!(footer_row(true), 356, "(0x10 - 2) * 0x10 + 0x80 + 4");
+        assert_eq!(footer_row(true) - footer_row(false), widget_offset(true));
+        assert_eq!(widget_offset(false), 0);
+        // And the button stays four pixels above its own caption either way.
+        for on in [true, false] {
+            assert_eq!(footer_row(on) - continue_button(on).y, 4);
+        }
+    }
+
+    /// The count the painter's prologue publishes never runs off the end of the
+    /// table — `g_sendSuppliesWidgets`'s eight records against a count of six
+    /// is the failure this is the check for, in the other direction.
+    #[test]
+    fn the_widget_count_never_exceeds_the_tables_three_records() {
+        for n in [WIDGETS_NO_OFFER, WIDGETS_UNAFFORDABLE, WIDGETS_AFFORDABLE] {
+            assert!(n <= WIDGET_RECORDS, "DAT_00522F58 = {n} reads past DAT_004DD340");
+        }
+        assert_eq!(WIDGETS_AFFORDABLE, WIDGET_RECORDS, "the rich branch draws all three");
+        assert_eq!(WIDGETS_NO_OFFER, 1, "and the other two draw Continue alone");
     }
 
     /// The corner picture is the armoury's, because the armoury is the painter

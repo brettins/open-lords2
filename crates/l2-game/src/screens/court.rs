@@ -288,7 +288,22 @@ impl Screen for CourtScreen {
         // them yet and `screens/battle.rs` has the same hole, so this is the
         // same stand-in it uses rather than a second invention.
         let name = format!("LORD {player}");
-        pen.heading(canvas, NAME_X + w, HEADING_AT.1, &name, font::TEXT);
+        // **`NAME_X - HEADING_AT.0`, not `NAME_X`.** The original is
+        // `Ui_DrawText(name, g_penAdvance + 0x52, 0x44, heading)`, and
+        // `g_penAdvance` is the width the label advanced — a *relative* number.
+        // `Pen::heading` returns the **absolute** next x, which already has
+        // `HEADING_AT.0` (`0x50`) in it, so adding `NAME_X` (`0x52`) put the
+        // lord's name at `g_penAdvance + 0xA2`: **80 pixels right** of where the
+        // game puts it. The two pixels the original nudges by are `0x52 - 0x50`.
+        //
+        // Third instance of one mistake in one afternoon — `Pen::count` and
+        // `ratings.rs` had it too — and it is not carelessness: **every `Pen`
+        // method returns an absolute x while every coordinate in the
+        // decompilation beside `g_penAdvance` is relative**, so transcribing the
+        // painter faithfully produces this bug. See the `Pen` docs; making it
+        // unrepresentable wants a newtype and is `docs/decisions.md`
+        // CNEW-penabs.
+        pen.heading(canvas, w + (NAME_X - HEADING_AT.0), HEADING_AT.1, &name, font::TEXT);
 
         pen.inset(canvas, WELL);
 

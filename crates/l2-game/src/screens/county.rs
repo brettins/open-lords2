@@ -25,28 +25,227 @@
 //! with the original's own rows in the original's own order, using the
 //! original's `Panels.pl8` box kit and `System2.pl8` buttons.
 //!
+//! # The painters, address by address
+//!
+//! Transcribed from the decompilation, coordinates resolved to decimal in the
+//! trailing comment. Every one of the four opens with `FUN_004050C0()`, which
+//! is `Map_DrawFrame()` behind a 16 ms throttle — **the campaign map beneath
+//! the inset, repainted every frame**. It is excluded from the counts below
+//! and from `tools/audit/draws-A.json`; our equivalent is
+//! [`Screen::is_overlay`] plus the map screen sitting under us on the stack.
+//!
+//! ```text
+//! Panel_Population():                                           0x004110B1
+//!   FUN_004050C0()                       -> Map_DrawFrame()      [excluded]
+//!   Ui_DrawBox(0x10, 0x30, 0x1C, 0x17)        (16, 48) 448 x 368
+//!   Eng_DrawString(73, 0, 0x14, 0x38, heading)  "Population in"    (20, 56)
+//!   Eng_DrawString(100, slot*20 + county, pen + 0x16, 0x38, heading)
+//!   Ui_HistoryGraph(0x20, 0x54, 0)         (32, 84) 402 x 155, mode 0 -> peak
+//!   Ui_DrawYear(DAT_00553228, 0x20, 0xF0, 3)     first year in the window
+//!   Ui_DrawText("-", pen + 0x20, 0xF0, body)                     (32, 240)
+//!   Ui_DrawYear(g_year, 0x58, 0xF0, 3)                           (88, 240)
+//!   Eng_DrawString(73, 8, 0xB0, 0xF0, body) "Greatest population"(176, 240)
+//!   Ui_DrawNumber(peak, '@', "", pen + 0xB0, 0xF0, body)   the graph's return
+//!   Eng_DrawString(73, 9, pen + 0xB0, 0xF0, body)              "people."
+//!   Eng_DrawString(73, 1, 0x30, 0x10A, heading) "Last season"    (48, 266)
+//!   Ui_DrawNumber(county.popLast, '@', "", 0x150, 0x10A, heading)(336, 266)
+//!   Eng_DrawString(73, 2, 0x30, 0x12A, body)    "Births"         (48, 298)
+//!   Ui_DrawDelta(county.births,  0, "", "", 0x150, 0x12A, body, 0x3F, 0xF9)
+//!   Eng_DrawString(73, 3, 0x30, 0x13A, body)    "Deaths"         (48, 314)
+//!   Ui_DrawDelta(-county.deaths, 0, ..., 0x150, 0x13A, ...)
+//!   Eng_DrawString(73, 4, 0x30, 0x14A, body)    "Army"           (48, 330)
+//!   Ui_DrawDelta(county.popArmy, 0, ..., 0x150, 0x14A, ...)
+//!   if emigrants == 0:
+//!     Eng_DrawString(73, 10, 0x30, 0x15A, body) "No emigration."  (48, 346)
+//!   else:
+//!     Eng_DrawString(73, 5, 0x30, 0x15A, body)  "Emigrants to"
+//!     Eng_DrawString(100, slot*20 + emigrantDestination, pen + 0x30, 0x15A)
+//!     Ui_DrawDelta(-county.emigrants, 0, ..., 0x150, 0x15A, ...)
+//!   if immigrants == 0:
+//!     Eng_DrawString(73, 11, 0x30, 0x16A, body) "No immigration." (48, 362)
+//!   else:
+//!     Eng_DrawString(73, 6, 0x30, 0x16A, body)  "Total immigrants"
+//!     Ui_DrawDelta(county.immigrants, 0, ..., 0x150, 0x16A, ...)
+//!   Eng_DrawString(73, 7, 0x30, 0x182, heading) "This Season"     (48, 386)
+//!   Ui_DrawNumber(county.population, '@', "", 0x150, 0x182, heading)
+//!   Ui_OkButton(0x1B4, 0x184, 0)                                (436, 388)
+//! ```
+//!
+//! ```text
+//! Panel_Happiness():                                            0x004116FB
+//!   FUN_004050C0()                                               [excluded]
+//!   Ui_DrawBox(0x10, 0x30, 0x1C, 0x18)        (16, 48) 448 x 384
+//!   Eng_DrawString(85, 0, 0x14, 0x38, heading)  "Happiness in"     (20, 56)
+//!   Eng_DrawString(100, slot*20 + county, pen + 0x16, 0x38, heading)
+//!   Ui_HistoryGraph(0x20, 0x54, 1)                (32, 84), mode 1
+//!   Ui_DrawYear(DAT_00553228, 0x20, 0xF0, 3)                     (32, 240)
+//!   Ui_DrawText("-", pen + 0x20, 0xF0, body)
+//!   Ui_DrawYear(g_year, 0x58, 0xF0, 3)                           (88, 240)
+//!   Eng_DrawString(85, 8, 0xB0, 0xF1, body)  "Average happiness" (176, 241)
+//!   Ui_DrawNumber(county.happinessAvg, '@', "", pen + 0xB0, 0xF1, body)
+//!   Pl8_DrawFrame(Misc_cty, 0x17, pen + 0xB0, 0xEF)      the face, 20 x 18
+//!   Eng_DrawString(85, 1, 0x30, 0x10C, heading) "Last season"    (48, 268)
+//!   Ui_DrawNumber(county.happinessLast, '@', "", 0x150, 0x10C, heading)
+//!   Pl8_DrawFrame(Misc_cty, 0x17, pen + 0x150, 0x10F)            the face
+//!   Eng_DrawString(85, 2, 0x30, 0x12A, body) "From taxes"        (48, 298)
+//!   Ui_DrawDelta(county.shownTax,    0, ..., 0x150, 0x12A, ...)
+//!   Eng_DrawString(85, 3, 0x30, 0x13A, body) "From ration"       (48, 314)
+//!   Ui_DrawDelta(county.shownRation, 0, ..., 0x150, 0x13A, ...)
+//!   Eng_DrawString(85, 4, 0x30, 0x14A, body) "From health"       (48, 330)
+//!   Ui_DrawDelta(county.shownHealth, 0, ..., 0x150, 0x14A, ...)
+//!   Eng_DrawString(85, 5, 0x30, 0x15A, body) "From army"         (48, 346)
+//!   Ui_DrawDelta(county.shownArmy,   0, ..., 0x150, 0x15A, ...)
+//!   Eng_DrawString(85, 6, 0x30, 0x16A, body) "From ale"          (48, 362)
+//!   Ui_DrawDelta(county.shownAle,    0, ..., 0x150, 0x16A, ...)
+//!   Eng_DrawString(85, 9, 0x30, 0x17A, body) "From events"       (48, 378)
+//!   Ui_DrawDelta(county.shownEvents, 0, ..., 0x150, 0x17A, ...)
+//!   Eng_DrawString(85, 7, 0x30, 0x192, heading) "This Season"    (48, 402)
+//!   Ui_DrawNumber(county.happiness, '@', "", 0x150, 0x192, heading)
+//!   Pl8_DrawFrame(Misc_cty, 0x17, pen + 0x150, 0x195)            the face
+//!   Ui_OkButton(0x1B4, 0x194, 0)                                (436, 404)
+//! ```
+//!
+//! ```text
+//! Panel_Tax():                                                  0x0041152F
+//!   FUN_004050C0()                                               [excluded]
+//!   Ui_DrawBox(0x50, 0x90, 0x14, 0x09)       (80, 144) 320 x 144
+//!   Pl8_DrawFrame(Misc_cty, 0x3E, 0x140, 0xA0)      the vignette (320, 160)
+//!   Eng_DrawString(86, 1, 0x60, 0xA8, body)     "Tax rate"       (96, 168)
+//!   Ui_DrawNumber(county.taxRate, ' ', "%", 0x100, 0xA8, body)  (256, 168)
+//!   Eng_DrawString(86, 2, 0x60, 0xC8, body)     "People pay"     (96, 200)
+//!   Ui_DrawCount(county.taxShown, 0, pen + 0x60, 0xC8, body) "Crown/Crowns."
+//!   Eng_DrawString(86, 3, 0x60, 0xE8, body)     "This county"    (96, 232)
+//!   Ui_DrawHappinessDelta(realm.taxHapEmpire + county.dHapTaxLocal,
+//!                         0xF0, 0xE8, body, 0x3F, 0xF9)         (240, 232)
+//!   Eng_DrawString(86, 4, 0x60, 0x100, body)    "Other counties" (96, 256)
+//!   Ui_DrawHappinessDelta(county.taxHapOther, 0xF0, 0x100, ...)  (240, 256)
+//!   Ui_OkButton(0x174, 0x104, 0)                                (372, 260)
+//!   [Screen_DrawWidgets 0x15] Widget_Draw(0, 0, &g_taxWidgets, 2)
+//! ```
+//!
+//! **`L2.eng` 86/0 *"Tax in"* is drawn by nothing.** The painter's four
+//! `Eng_DrawString` sites pass 1, 2, 3 and 4, and a grep of the whole corpus for
+//! `(0x56,` finds exactly those four. It is the same shape as 31/21 *"Morale"*
+//! and as the court's 70/1 *"Arms"*: a caption the original left in the file.
+//! [`g86::TITLE_NEVER_DRAWN`] names it so nobody goes looking, and **we used to
+//! draw it** — a "TAX IN" heading of ours at (96, 152) that the game has never
+//! put on that panel.
+//!
+//! ```text
+//! Panel_Ration():                                               0x00411B72
+//!   rows = g_optArmiesEat ? 0x11 : 0x0F
+//!   FUN_004050C0()                                               [excluded]
+//!   Ui_DrawBox(0x80, 0x60, 0x12, rows)      (128, 96) 288 x 240 or 288 x 272
+//!   Ui_DrawCentred(87, 0, 0x80, 0x68, 0x120, heading)  "Ration" (128, 104) w288
+//!   Eng_DrawString(87, 1, 0x90, 0x88, body)     "Wanted:"       (144, 136)
+//!   Eng_DrawString(21, county.rationWanted, 0xF0, 0x88, body)   (240, 136)
+//!   Eng_DrawString(87, 2, 0x90, 0xA1, body)     "Achieved:"     (144, 161)
+//!   Eng_DrawString(21, county.rationAchieved, 0xF0, 0xA1, body, colour)
+//!                                     colour 0xF9 when it differs from wanted
+//!   Ui_DrawHappinessDelta(county.dHapRation, 0x154, 0xA1, ...)  (340, 161)
+//!   Eng_DrawString(87, 3, 0x90, 0xBA, body)     "Health:"       (144, 186)
+//!   Eng_DrawString(20, county.healthBand, 0xF0, 0xBA, body)     (240, 186)
+//!   Ui_DrawHappinessDelta(county.dHapHealth, 0x154, 0xBA, ...)  (340, 186)
+//!   Pl8_DrawFrame(Misc_cty, 0x21, 0x90,  0xDC)   grain, 36 x 27 (144, 220)
+//!   Pl8_DrawFrame(Misc_cty, 0x26, 0x172, 0xDC)   cattle, 37 x 24(370, 220)
+//!   Pl8_DrawFrame(Misc_cty, 0x21, 0xE0,  0x100)  grain          (224, 256)
+//!   Pl8_DrawFrame(Misc_cty, 0x26, 0x11C, 0x100)  cattle         (284, 256)
+//!   Pl8_DrawFrame(Misc_cty, 0x2A, 0x158, 0x100)  the third, 23 x 19 (344, 256)
+//!   Pl8_DrawFrame(Misc_cty, 0x18, 0x90,  0x11A)  8 x 18         (144, 282)
+//!   Eng_DrawString(87, 5, 0xA0, 0x11E, body)     "Fed"          (160, 286)
+//!   Eng_DrawString(87, 4, 0x90, 0x134, body)     "Eaten"        (144, 308)
+//!   Ui_DrawNumberRight(county.grainEaten, ' ', "", 0xD0,  0x134, 0x40, body)
+//!   Ui_DrawNumberRight(county +0x170,     ' ', "", 0xD0,  0x11E, 0x40, body)
+//!   Ui_DrawNumberRight(county.herdEaten,  ' ', "", 0x10A, 0x134, 0x40, body)
+//!   Ui_DrawNumberRight(county +0x174,     ' ', "", 0x10A, 0x11E, 0x40, body)
+//!   Ui_DrawNumberRight(county +0x16C,     ' ', "", 0x144, 0x11E, 0x40, body)
+//!   Ui_OkButton(0x184, rows * 0x10 + 0x44, 0)      (388, 308) or (388, 340)
+//!   if g_optArmiesEat:
+//!     Ui_DrawNumber(county.friendly + county.enemy, ' ', "", 0x88, 0x150, body)
+//!     Eng_DrawString(87, 8, pen + 0x88, 0x150, body)
+//!                              "men foraging in the county."    (136, 336)
+//!   [Screen_DrawWidgets 0x19] Widget_Draw(0, 0, &g_rationWidgets, 2)
+//!                             Panel_RationSlider()
+//! ```
+//!
+//! # Two things this file used to get wrong about alignment, and both are the
+//! same mistake
+//!
+//! * **`Ui_DrawNumber` and `Ui_DrawDelta` draw *left*-aligned from their `x`.**
+//!   `Ui_NumberToBuffer` formats into a buffer and `Ui_DrawText` puts it at `x`;
+//!   nothing measures it. `docs/screens-county.md` §5.1 says *"values
+//!   right-anchored from x = 336"* and that is wrong — 336 is where the digits
+//!   **start**. The `'@'` lead is a blank glyph that reserves one character's
+//!   width for a sign, which is how a `+7` and a `7` line up; it is not
+//!   right-alignment.
+//! * **`Ui_DrawNumberRight` centres.** Its whole body after building the string
+//!   is `FUN_004025D7`, the same helper `Ui_DrawCentred` calls, and that is
+//!   `x + max(0, (width - textWidth) / 2)`. The ration panel's five calls pass
+//!   width `0x40`, and the proof is in the artwork rather than in the C: the
+//!   three "Fed" columns start at x 208, 266 and 324, so their centres are 240,
+//!   298 and 356 — and the three icons above them are drawn at 224 (36 wide),
+//!   284 (37 wide) and 344 (23 wide), whose centres are 242, 302 and 355. The
+//!   numbers sit under their pictures. Right-aligned they would *end* at 208,
+//!   266 and 324 and stand left of every icon. `docs/screens-county.md` §5.4
+//!   calls them right-aligned; they are not.
+//!
 //! # What is still ours, and says so
 //!
-//! * **The font, on the four panels.** The original draws `Fntl2_14.pl8` for
-//!   body lines and `Fntl2_22.pl8` for headings; the panels still use our own
-//!   5 × 7 font at the original's coordinates. **The strip does not** — it is
-//!   `Fntl2_9.pl8`, which is the only place in the game that font is used, and
-//!   [`draw_strip`] draws it where the install has it.
-//! * **The history graph.** `Ui_HistoryGraph` fills 402 × 155 of both the
-//!   population and the happiness panel from `g_countyHistory` — 400 turns ×
-//!   16 counties × 8 bytes, and part of the save. `l2-kingdom` keeps no
-//!   history, so that rectangle is an empty recess that says so. It is a stub
-//!   and it is meant to look like one.
+//! * **The history graph, and it is a whole picture.** `Ui_HistoryGraph`
+//!   (`0x004156A7`) was never read until this audit; here is all of it.
+//!
+//!   ```text
+//!   Ui_HistoryGraph(x, y, mode) -> peak:                       0x004156A7
+//!     File_ReadChunk("graphs.pl8", scratch, 200000, 0)
+//!     Ui_DrawInsetRect(x, y, 0x192, 0x9B)              402 x 155 recess
+//!     Sprite_WGenSprite(mode == 0 ? 0 : 1, x + 1, y + 1)
+//!                              Graphs.pl8 frame 0 or 1, both 402 x 153
+//!     a     = Table_Lookup(g_historyLength, 0x004D29F8, 10, 0x16)
+//!     pitch = *(int*)(0x004D2AC0 + a * 4)
+//!     peak  = max over g_historyLength turns from g_historyHead, wrapping 400
+//!     div   = Table_Lookup(peak, 0x004D2A48, 0x0F, 100)
+//!     for i in 0 .. g_historyLength:                 one bar per turn
+//!       Sprite_WGenHSprite(i & 1 ? a : a + 1,
+//!                          x + 1 + pitch * i + pitch / 2,
+//!                          y + 0x9A - value / div)
+//!   ```
+//!
+//!   The two tables are read out of `Lords2.exe` and they agree with the
+//!   artwork, which is the check that makes this more than a transcription:
+//!   `0x004D29F8` is the (threshold, value) ladder `<10 -> 2, <20 -> 4, <30 ->
+//!   6, <40 -> 8, <50 -> 10, <60 -> 12, <80 -> 14, <100 -> 16, <130 -> 18,
+//!   <200 -> 20`, default `22`, and `0x004D2AC0` indexed by that answer gives
+//!   pitches `40, 20, 12, 10, 8, 6, 5, 4, 3, 2, 1`. `Graphs.pl8` has **24
+//!   frames**: 0 and 1 are the two 402 × 153 backgrounds, and 2 … 23 are bar
+//!   sprites 100 pixels tall in eleven equal-width pairs — 48, 26, 16, 12, 10,
+//!   8, 6, 5, 4, 3, 2 — one pair per pitch class, alternating so neighbouring
+//!   bars are distinguishable. `0x004D2A48` is the vertical divisor ladder,
+//!   fifteen pairs from `<101 -> 1` to `<5000 -> 50`, default 100.
+//!
+//!   `l2-kingdom` keeps no history array (`docs/screens-county.md` §7 has the
+//!   layout: 400 turns × 16 counties × 8 bytes at `0x0056D8C0`), and
+//!   `Graphs.pl8` is not one of the sheets `l2-view` loads, so the rectangle is
+//!   an empty recess that says so. It is a stub and it is meant to look like
+//!   one, and what is missing is now written down rather than merely absent.
+//! * **The two years under the graph.** `Ui_DrawYear(DAT_00553228, …)` prints
+//!   the year at the head of the history window; with no history there is no
+//!   such year, and drawing only the right-hand one would be worse than
+//!   drawing neither. Both are recorded missing.
 //! *(**Fixed.** This list used to carry a fourth entry: "what is behind the
 //! panels — the original has the campaign map there; the map screen is another
 //! file, so this one paints a flat ground." It no longer does. The panels are
 //! [overlays](crate::screen::Screen::is_overlay) and the machine paints the map
 //! screen beneath them, which is the same correction the village needed —
 //! `docs/decisions.md` C22.)*
-//! * **The strings on the panels.** Ours, transcribed from the `L2.eng` group
-//!   each row names. The strip reads `L2.eng` properly — group 100 for the
-//!   county's name, 61 for its two captions and 21 for the ration level — and
-//!   falls back to the transcriptions when the install has no `L2.eng`.
+//! *(**Fixed.** This list used to carry: "the strings on the panels — ours,
+//! transcribed from the `L2.eng` group each row names", and, above it, "the
+//! font on the four panels — the panels still use our own 5 × 7 font at the
+//! original's coordinates". Both are gone. All four panels now draw through
+//! [`Pen`](crate::shell::Pen), which is `Fntl2_14.pl8` and `Fntl2_22.pl8` read
+//! through `g_glyphWidths`, and every string is fetched from the install's own
+//! `L2.eng` at the group and index the painter passes. The transcriptions stay
+//! as the **fallback** for a machine with no game, which is what
+//! [`draw_strip`] has always done and what the tests run against.)*
 //! *(**Fixed.** This list used to carry a fifth entry: "the bottom strip reads
 //! BACK TO MAP; the original's is End Turn, which is the map screen's
 //! business." It was a rectangle of ours drawn over — and hit-tested ahead of —
@@ -66,11 +265,12 @@ use l2_kingdom::tables::{
     HEALTH_BAND_NAMES, JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT, RATION_NAMES,
 };
 use l2_view::chrome::{self, misc_cty, system};
-use l2_view::{text, Canvas, Ink};
+use l2_view::{text, Canvas};
 
 use crate::game::{MAX_RATION_SPLIT, MAX_TAX_RATE};
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::shell::{font, Pen, TRAILING};
 use crate::widget;
 
 /// The four panels, in the order Up and Down cycle them.
@@ -156,10 +356,23 @@ const PRODUCE_ICONS: [(usize, Option<usize>, usize); 3] = [
     (misc_cty::RINGED_PAIRS[2].0, None, misc_cty::RINGED_PAIRS[2].1),
 ];
 
-/// Both graph panels put their labels at x = 48 and right-anchor their values
-/// at x = 336 (`0x30` and `0x150`).
+/// Both graph panels put their labels at x = 48 (`0x30`) and **start** their
+/// values at x = 336 (`0x150`).
+///
+/// **Not right-anchored.** `Ui_DrawNumber` and `Ui_DrawDelta` both end in a
+/// plain `Ui_DrawText(buffer, x, …)` and nothing measures the string; the `'@'`
+/// lead is a zero-width glyph that reserves the sign column so a `+7` and a `7`
+/// line up, which is what makes the column *look* right-anchored in a
+/// screenshot. `docs/screens-county.md` §5.1 says *"values right-anchored from
+/// x = 336"* and it is wrong.
 const LABEL_X: i32 = 48;
-const VALUE_RIGHT: i32 = 336;
+const VALUE_LEFT: i32 = 336;
+
+/// `Panel_Ration`'s three food columns: `Ui_DrawNumberRight(…, x, y, 0x40, …)`,
+/// which **centres** the number in those 64 pixels. Grain, cattle and the third
+/// source, under the icon row at (224, 256), (284, 256) and (344, 256).
+const FOOD_COL_X: [i32; 3] = [0xD0, 0x10A, 0x144];
+const FOOD_COL_W: i32 = 0x40;
 
 impl Panel {
     /// The panel's window in pixels — the rectangle `Ui_DrawBox` covers.
@@ -169,11 +382,22 @@ impl Panel {
     }
 
     fn box_cells(self) -> (i32, i32, i32, i32) {
+        self.box_cells_for(false)
+    }
+
+    /// The same with *Armies Eat* known, which is the one option that changes a
+    /// panel's shape: `Panel_Ration` opens
+    /// `rows = g_optArmiesEat == 1 ? 2 : 0; Ui_DrawBox(0x80, 0x60, 0x12, rows + 0xF)`,
+    /// making room for the foraging line at y = 336. Everything else ignores it.
+    fn box_cells_for(self, armies_eat: bool) -> (i32, i32, i32, i32) {
         match self {
             Panel::Population => POPULATION_BOX,
             Panel::Happiness => HAPPINESS_BOX,
             Panel::Tax => TAX_BOX,
-            Panel::Ration => RATION_BOX,
+            Panel::Ration => {
+                let (x, y, cols, rows) = RATION_BOX;
+                (x, y, cols, if armies_eat { rows + 2 } else { rows })
+            }
         }
     }
 
@@ -192,6 +416,13 @@ impl Panel {
     /// panel from anywhere (`docs/screens-county.md` §2.6), so the game offers
     /// two ways out and so do we. §2.7; the name `OK` is ours and is kept.
     pub fn ok_button(self) -> Rect {
+        self.ok_button_for(false)
+    }
+
+    /// The same, with the ration panel's *Armies Eat* height applied — its
+    /// corner is `Ui_OkButton(0x184, rows * 0x10 + 0x44, 0)` and `rows` is the
+    /// box's own, so turning the option on moves the button 32 pixels down.
+    pub fn ok_button_for(self, armies_eat: bool) -> Rect {
         let (x, y) = match self {
             // Ui_OkButton(0x1B4, 0x184, 0)
             Panel::Population => (436, 388),
@@ -199,8 +430,11 @@ impl Panel {
             Panel::Happiness => (436, 404),
             // Ui_OkButton(0x174, 0x104, 0)
             Panel::Tax => (372, 260),
-            // Ui_OkButton(0x184, (0 + 0xF) * 0x10 + 0x44, 0)
-            Panel::Ration => (388, 308),
+            // Ui_OkButton(0x184, rows * 0x10 + 0x44, 0)
+            Panel::Ration => {
+                let (_, _, _, rows) = self.box_cells_for(armies_eat);
+                (388, rows * 0x10 + 0x44)
+            }
         };
         Rect::new(x, y, system::OK_DIM, system::OK_DIM)
     }
@@ -358,84 +592,190 @@ pub fn panel_at(x: i32, y: i32) -> Option<Panel> {
 // (`0x0043A379`) hit-tests it. The caps are drawn at 200 and 324 and are 24
 // wide, the track runs 224 … 323, and the knob is drawn at `220 + value`.
 
-const SLIDER_Y: i32 = 216;
+/// **Two y's, not one, and this file used to have one.** `Panel_RationSlider`
+/// draws the knob at `0xD8` = 216 and both caps at `0xDC` = 220, and
+/// `Ration_SliderClick` hit-tests all three boxes at `0xDC` — so a single
+/// constant of 216 put every control four pixels above where the game has it,
+/// drawn *and* clickable.
+const SLIDER_KNOB_Y: i32 = 216;
+const SLIDER_CTRL_Y: i32 = 220;
 const SLIDER_CAP_LEFT_X: i32 = 200;
 const SLIDER_CAP_RIGHT_X: i32 = 324;
 const SLIDER_TRACK_X: i32 = 224;
 const SLIDER_TRACK_W: i32 = 100;
 const SLIDER_KNOB_ORIGIN: i32 = 220;
+/// The three track colours, which are the original's own literal arguments:
+/// `FUN_00403A8F(…, 0x10)` for the top line, `FUN_0040437D(…, 0x3F)` for the
+/// 100 × 4 fill, `FUN_00403A8F(…, 0x1F)` for the bottom. They used to be
+/// [`Ink`](l2_view::Ink) values of ours.
+const TRACK_TOP: u8 = 0x10;
+const TRACK_FILL: u8 = 0x3F;
+const TRACK_BOTTOM: u8 = 0x1F;
 
 /// `(200, 0xDC, 0x18, 0x18)` — steps the split down by one.
 pub fn split_down_button() -> Rect {
-    Rect::new(SLIDER_CAP_LEFT_X, SLIDER_Y, system::SLIDER_CAP, system::SLIDER_CAP)
+    Rect::new(SLIDER_CAP_LEFT_X, SLIDER_CTRL_Y, system::SLIDER_CAP, system::SLIDER_CAP)
 }
 
 /// `(0x145, 0xDC, 0x18, 0x18)` — up by one. 0x145 is 325, one pixel right of
 /// where the cap is drawn; that off-by-one is the original's.
 pub fn split_up_button() -> Rect {
-    Rect::new(SLIDER_CAP_RIGHT_X + 1, SLIDER_Y, system::SLIDER_CAP, system::SLIDER_CAP)
+    Rect::new(SLIDER_CAP_RIGHT_X + 1, SLIDER_CTRL_Y, system::SLIDER_CAP, system::SLIDER_CAP)
 }
 
 /// `(0xE0, 0xDC, 0x66, 0x18)` — a click here jumps the split to `mouseX - 224`.
 pub fn split_track() -> Rect {
-    Rect::new(SLIDER_TRACK_X, SLIDER_Y, 102, system::SLIDER_CAP)
+    Rect::new(SLIDER_TRACK_X, SLIDER_CTRL_Y, 102, system::SLIDER_CAP)
 }
 
-// -------------------------------------------------------------------- labels
+// ----------------------------------------------------- the `L2.eng` strings
 //
-// Ours, transcribed from the `L2.eng` group each panel draws. The workspace has
-// no `L2.eng` decoder, so these are copies rather than reads, and they are
-// upper case because our font has no lower case.
+// One constant per `(group, index)` the four painters pass, carrying our own
+// transcription as the fallback for a machine with no game.
 
-/// `L2.eng` group 73 — the population panel.
+/// One `L2.eng` reference: the group, the index the painter passes, and our
+/// transcription of it.
+///
+/// **State the limit where the constant lives**, because a check on existence
+/// is not a check on meaning. A coordinator check that every `(group, index)`
+/// below resolves in the player's own `L2.eng` proves that the file has *a*
+/// string there — it would have passed on the armoury's group 16. What makes
+/// these right is the second half, done here: every index below was read out of
+/// the shipped `L2.eng` and matched by its **words** to the row the painter
+/// draws it on, and the four groups are complete (73 has twelve strings and the
+/// painter draws all twelve; 85 has ten and draws all ten; 86 has five and
+/// draws four; 87 has twelve and draws seven).
+#[derive(Clone, Copy)]
+pub struct Line {
+    pub group: usize,
+    pub index: usize,
+    /// Upper case because our fallback font has no lower case.
+    pub ours: &'static str,
+}
+
+const fn line(group: usize, index: usize, ours: &'static str) -> Line {
+    Line { group, index, ours }
+}
+
+/// `L2.eng` group 8 index 0/1 — *"Crown."* / *"Crowns."*, which the tax panel's
+/// `Ui_DrawCount(taxShown, 0, …)` picks between.
+const CROWN_NOUN: usize = 0;
+/// `L2.eng` group 20, indexed by county `+0x09` — the five health words.
+const GROUP_HEALTH_BANDS: usize = 20;
+/// `L2.eng` group 21, indexed by county `+0x15D`/`+0x15E` — the six ration
+/// levels, *None* … *Triple*.
+const GROUP_RATION_LEVELS: usize = 21;
+
+/// `L2.eng` group 73 — the population panel, `Panel_Population`.
 mod g73 {
-    pub const TITLE: &str = "POPULATION IN";
-    pub const LAST: &str = "LAST SEASON";
-    pub const BIRTHS: &str = "BIRTHS";
-    pub const DEATHS: &str = "DEATHS";
-    pub const ARMY: &str = "ARMY";
-    pub const EMIGRANTS: &str = "EMIGRANTS TO";
-    pub const IMMIGRANTS: &str = "TOTAL IMMIGRANTS";
-    pub const THIS: &str = "THIS SEASON";
-    pub const GREATEST: &str = "GREATEST POPULATION";
-    pub const NO_EMIGRATION: &str = "NO EMIGRATION.";
-    pub const NO_IMMIGRATION: &str = "NO IMMIGRATION.";
+    use super::{line, Line};
+    pub const GROUP: usize = 73;
+    pub const TITLE: Line = line(GROUP, 0, "POPULATION IN");
+    pub const LAST: Line = line(GROUP, 1, "LAST SEASON");
+    pub const BIRTHS: Line = line(GROUP, 2, "BIRTHS");
+    pub const DEATHS: Line = line(GROUP, 3, "DEATHS");
+    pub const ARMY: Line = line(GROUP, 4, "ARMY");
+    pub const EMIGRANTS: Line = line(GROUP, 5, "EMIGRANTS TO");
+    pub const IMMIGRANTS: Line = line(GROUP, 6, "TOTAL IMMIGRANTS");
+    pub const THIS: Line = line(GROUP, 7, "THIS SEASON");
+    pub const GREATEST: Line = line(GROUP, 8, "GREATEST POPULATION");
+    /// Drawn **after** the graph's peak: *"Greatest population" 456 "people."*
+    #[allow(dead_code, reason = "named because it is not drawn; the graph has no peak here")]
+    pub const PEOPLE: Line = line(GROUP, 9, "PEOPLE.");
+    pub const NO_EMIGRATION: Line = line(GROUP, 10, "NO EMIGRATION.");
+    pub const NO_IMMIGRATION: Line = line(GROUP, 11, "NO IMMIGRATION.");
 }
 
-/// `L2.eng` group 85 — the happiness panel.
+/// `L2.eng` group 85 — the happiness panel, `Panel_Happiness`.
 mod g85 {
-    pub const TITLE: &str = "HAPPINESS IN";
-    pub const LAST: &str = "LAST SEASON";
-    pub const FROM_TAXES: &str = "FROM TAXES";
-    pub const FROM_RATION: &str = "FROM RATION";
-    pub const FROM_HEALTH: &str = "FROM HEALTH";
-    pub const FROM_ARMY: &str = "FROM ARMY";
-    pub const FROM_ALE: &str = "FROM ALE";
-    pub const THIS: &str = "THIS SEASON";
-    pub const AVERAGE: &str = "AVERAGE HAPPINESS";
-    pub const FROM_EVENTS: &str = "FROM EVENTS";
+    use super::{line, Line};
+    pub const GROUP: usize = 85;
+    pub const TITLE: Line = line(GROUP, 0, "HAPPINESS IN");
+    pub const LAST: Line = line(GROUP, 1, "LAST SEASON");
+    pub const FROM_TAXES: Line = line(GROUP, 2, "FROM TAXES");
+    pub const FROM_RATION: Line = line(GROUP, 3, "FROM RATION");
+    pub const FROM_HEALTH: Line = line(GROUP, 4, "FROM HEALTH");
+    pub const FROM_ARMY: Line = line(GROUP, 5, "FROM ARMY");
+    pub const FROM_ALE: Line = line(GROUP, 6, "FROM ALE");
+    pub const THIS: Line = line(GROUP, 7, "THIS SEASON");
+    pub const AVERAGE: Line = line(GROUP, 8, "AVERAGE HAPPINESS");
+    pub const FROM_EVENTS: Line = line(GROUP, 9, "FROM EVENTS");
 }
 
-/// `L2.eng` group 86 — the tax panel; and group 61, the strip's two captions.
+/// `L2.eng` group 86 — the tax panel, `Panel_Tax`.
 mod g86 {
-    pub const TITLE: &str = "TAX IN";
-    pub const RATE: &str = "TAX RATE";
-    pub const PEOPLE_PAY: &str = "PEOPLE PAY";
-    pub const THIS_COUNTY: &str = "THIS COUNTY";
-    pub const OTHER_COUNTIES: &str = "OTHER COUNTIES";
-    pub const STRIP_TAX: &str = "TAX";
-    pub const STRIP_RATION: &str = "RATION";
+    use super::{line, Line};
+    pub const GROUP: usize = 86;
+    /// **Index 0, *"Tax in"*, is drawn by nothing.** The painter's four
+    /// `Eng_DrawString` sites pass 1, 2, 3 and 4, and those four are the only
+    /// literal `(0x56,` in the whole corpus. It is the tax panel's counterpart
+    /// of the court's *"Arms"* and of 31/21 *"Morale"*: a caption left in the
+    /// file. Named so the next reader does not go looking, and **never passed
+    /// to [`Pen::eng`](crate::shell::Pen::eng)** — drawing it is what this file
+    /// used to do wrong.
+    #[allow(dead_code, reason = "named precisely so that it is never drawn")]
+    pub const TITLE_NEVER_DRAWN: Line = line(GROUP, 0, "TAX IN");
+    pub const RATE: Line = line(GROUP, 1, "TAX RATE");
+    pub const PEOPLE_PAY: Line = line(GROUP, 2, "PEOPLE PAY");
+    pub const THIS_COUNTY: Line = line(GROUP, 3, "THIS COUNTY");
+    pub const OTHER_COUNTIES: Line = line(GROUP, 4, "OTHER COUNTIES");
 }
 
-/// `L2.eng` group 87 — the ration panel.
+/// `L2.eng` group 87 — the ration panel, `Panel_Ration`.
 mod g87 {
-    pub const TITLE: &str = "RATION";
-    pub const WANTED: &str = "WANTED:";
-    pub const ACHIEVED: &str = "ACHIEVED:";
-    pub const HEALTH: &str = "HEALTH:";
-    pub const EATEN: &str = "EATEN";
-    pub const FED: &str = "FED";
+    use super::{line, Line};
+    pub const GROUP: usize = 87;
+    pub const TITLE: Line = line(GROUP, 0, "RATION");
+    pub const WANTED: Line = line(GROUP, 1, "WANTED:");
+    pub const ACHIEVED: Line = line(GROUP, 2, "ACHIEVED:");
+    pub const HEALTH: Line = line(GROUP, 3, "HEALTH:");
+    pub const EATEN: Line = line(GROUP, 4, "EATEN");
+    pub const FED: Line = line(GROUP, 5, "FED");
+    /// The *Armies Eat* line, drawn only when that option is on.
+    pub const FORAGING: Line = line(GROUP, 8, "MEN FORAGING IN THE COUNTY.");
+    /// **Indices 6, 7, 9, 10 and 11 — *"Feeds"*, *"Feeds"*, *"growing"*,
+    /// *"harvested"*, *"planted"* — have no literal call site anywhere in the
+    /// corpus.** Whether some caller reaches them through a computed group is
+    /// not established; `Msg_DrawWindow` takes its group from a table. Recorded
+    /// rather than guessed.
+    #[allow(dead_code, reason = "an inventory of absences, asserted in tests")]
+    pub const UNDRAWN: [usize; 5] = [6, 7, 9, 10, 11];
 }
+
+/// `L2.eng` group 61 — the county strip's two captions, which are **not** the
+/// tax panel's group and used to be filed as though they were.
+mod g61 {
+    use super::{line, Line};
+    pub const GROUP: usize = 61;
+    pub const STRIP_TAX: Line = line(GROUP, 0, "TAX");
+    pub const STRIP_RATION: Line = line(GROUP, 1, "RATION");
+}
+
+// ------------------------------------------- the sheet frames the panels draw
+//
+// `Misc_cty.pl8` in campaign mode — `Pen::misc_frame`, which is
+// `Pl8_DrawFrame(g_miscCtySheet, …)`.
+
+/// `Ui_DrawHappinessDelta`'s face, 20 × 18, and the three plain happiness
+/// numbers on `Panel_Happiness` each get one too.
+const FRAME_FACE: usize = 0x17;
+/// `Panel_Ration`: an 8 × 18 glyph at (144, 282), left of *"Fed"*.
+const FRAME_FED_MARK: usize = 0x18;
+/// `Panel_Ration`: the grain sack, 36 × 27. Drawn twice — at the slider's left
+/// end and over the first Fed/Eaten column.
+const FRAME_GRAIN: usize = 0x21;
+/// `Panel_Ration`: cattle, 37 × 24. Drawn twice, the same way.
+const FRAME_CATTLE: usize = 0x26;
+/// `Panel_Ration`: the third food column's icon, 23 × 19. `Misc_cty` frame
+/// `0x2A` has not been decoded to a picture here; `docs/screens-county.md` §5.4
+/// calls it sheep, which is **[D]** and not checked.
+const FRAME_THIRD_FOOD: usize = 0x2A;
+/// `Panel_Tax`: the vignette at (320, 160).
+const FRAME_TAX_VIGNETTE: usize = 0x3E;
+/// `Ui_DrawHappinessDelta` puts its closing bracket at `pen + 0x14`, which is
+/// exactly [`FRAME_FACE`]'s width — so the face's box is 20 pixels wide whether
+/// or not the sheet is there, and the bracket lands in the same place.
+const FACE_W: i32 = 0x14;
 
 // ---------------------------------------------------------------- the screen
 
@@ -600,7 +940,11 @@ impl Screen for CountyScreen {
                 // reported about the five sidebar icons a fortnight ago. The
                 // column now passes down and the strip ends the turn.
                 // arm: 0x0040E7E4/panel-corner-closes
-                if self.panel.ok_button().contains(x, y) {
+                if self
+                    .panel
+                    .ok_button_for(ctx.game.kingdom.options.armies_eat)
+                    .contains(x, y)
+                {
                     return Transition::Pop;
                 }
                 // The strip's four quadrants are in the column and went down
@@ -805,7 +1149,7 @@ fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
 /// indexes with county `+0x15D`.
 fn ration_label(ctx: &Ctx, level: i32) -> String {
     let level = level.clamp(0, RATION_LEVEL_COUNT as i32 - 1);
-    eng(ctx, 21, level as usize, ration_name(level))
+    eng(ctx, GROUP_RATION_LEVELS, level as usize, ration_name(level))
 }
 
 /// **The county strip: what `CountyStrip_Draw` (`0x0040F7D3`) puts in the
@@ -953,8 +1297,8 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // Group 61, centred in 76 pixels at (0x1E0, 0xD5) and (0x234, 0xD5), and
     // **in colour 0x3F, the same as the numbers** — the captions are not dimmed
     // in the original and ours were unreadable against the plate.
-    strip_centred(ctx, canvas, 480, 213, 76, &eng(ctx, 61, 0, g86::STRIP_TAX), strip_ink);
-    strip_centred(ctx, canvas, 564, 213, 76, &eng(ctx, 61, 1, g86::STRIP_RATION), strip_ink);
+    strip_centred(ctx, canvas, 480, 213, 76, &line_text(ctx, g61::STRIP_TAX), strip_ink);
+    strip_centred(ctx, canvas, 564, 213, 76, &line_text(ctx, g61::STRIP_RATION), strip_ink);
     // (0x1FA, 0xE2), and the ration level centred in 76 at (0x234, 0xE2).
     strip_text(ctx, canvas, 506, 226, &format!("{}%", c.tax_rate), strip_ink);
     // "Red when it differs from rationWanted" is the original's own rule, and
@@ -1143,167 +1487,283 @@ fn draw_produce_rows(
 }
 
 impl CountyScreen {
-    fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas) {
-        let ink = &ctx.assets.ink;
-        let (bx, by, cols, rows) = self.panel.box_cells();
-        let drawn = ctx.assets.chrome.as_ref().is_some_and(|ch| {
-            ch.draw_box(canvas, bx, by, cols, rows, 0);
-            ch.panels().frame_count() >= 196
-        });
-        if !drawn {
-            // OURS: a flat panel, for an install with no Panels.pl8.
-            widget::panel(canvas, ink, self.panel.window());
+    /// The pen every panel draws through: `Fntl2_14.pl8` and `Fntl2_22.pl8`,
+    /// embossed with [`font::SHADOW`] — which is what `Ui_DrawText` picks for
+    /// every screen id but `0x1C` and `0x1F`.
+    fn pen<'a>(&self, ctx: &'a Ctx) -> Pen<'a> {
+        Pen {
+            assets: &ctx.assets.shell,
+            ink: &ctx.assets.ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            shadow: Some(font::SHADOW),
+            caps: None,
         }
+    }
+
+    fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas) {
+        let pen = self.pen(ctx);
+        let ink = &ctx.assets.ink;
+        let armies_eat = ctx.game.kingdom.options.armies_eat;
+        let (bx, by, cols, rows) = self.panel.box_cells_for(armies_eat);
+        // `Ui_DrawBox(x, y, cols, rows)`, border set 0. `Pen::window` falls back
+        // to a flat plate of ours where the install has no `Panels.pl8`.
+        pen.window(canvas, bx, by, cols, rows, 0);
 
         let Some(c) = ctx.game.kingdom.counties.get(self.county as usize) else { return };
         match self.panel {
             Panel::Population => {
-                text::draw(canvas, 20, 56, g73::TITLE, ink.highlight);
+                // `Eng_DrawString(73, 0, 0x14, 0x38, heading)` and then the
+                // county's name — group 100 — immediately after it, which this
+                // panel used to omit entirely.
+                let x = pen.heading(canvas, 20, 56, &line_text(ctx, g73::TITLE), font::TEXT);
+                pen.heading(canvas, x + 2, 56, &county_name(ctx, self.county), font::TEXT);
+
                 self.draw_graph_stub(ctx, canvas, "POPULATION");
-                text::draw(canvas, 176, 240, g73::GREATEST, ink.dim);
-                row(canvas, ink, 266, g73::LAST, &c.pop_last.to_string(), ink.text);
-                delta_row(canvas, ink, 298, g73::BIRTHS, c.births);
-                delta_row(canvas, ink, 314, g73::DEATHS, -c.deaths);
-                delta_row(canvas, ink, 330, g73::ARMY, c.army);
+
+                // `Eng_DrawString(73, 8, 0xB0, 0xF0)` — and the two things that
+                // follow it, the graph's peak and 73/9 *"people."*, need the
+                // history array to have a peak at all. See the module docs.
+                pen.body(canvas, 176, 240, &line_text(ctx, g73::GREATEST), font::TEXT);
+
+                heading_row(&pen, canvas, 266, &line_text(ctx, g73::LAST), c.pop_last);
+                let rows: [(i32, Line, i32); 3] = [
+                    (298, g73::BIRTHS, c.births),
+                    (314, g73::DEATHS, -c.deaths),
+                    (330, g73::ARMY, c.army),
+                ];
+                for (y, label, value) in rows {
+                    delta_row(&pen, canvas, y, &line_text(ctx, label), value);
+                }
                 if c.emigrants == 0 {
-                    text::draw(canvas, LABEL_X, 346, g73::NO_EMIGRATION, ink.dim);
+                    pen.body(canvas, LABEL_X, 346, &line_text(ctx, g73::NO_EMIGRATION), font::TEXT);
                 } else {
-                    delta_row(canvas, ink, 346, g73::EMIGRANTS, -c.emigrants);
+                    // The original draws the destination county's **name**
+                    // between the label and the number: `Eng_DrawString(100,
+                    // slot * 20 + emigrantDestination, pen + 0x30, 0x15A)`.
+                    let x =
+                        pen.body(canvas, LABEL_X, 346, &line_text(ctx, g73::EMIGRANTS), font::TEXT);
+                    pen.body(canvas, x, 346, &county_name(ctx, c.emigrant_destination), font::TEXT);
+                    delta_value(&pen, canvas, 346, -c.emigrants);
                 }
                 if c.immigrants == 0 {
-                    text::draw(canvas, LABEL_X, 362, g73::NO_IMMIGRATION, ink.dim);
+                    let s = line_text(ctx, g73::NO_IMMIGRATION);
+                    pen.body(canvas, LABEL_X, 362, &s, font::TEXT);
                 } else {
-                    delta_row(canvas, ink, 362, g73::IMMIGRANTS, c.immigrants);
+                    delta_row(&pen, canvas, 362, &line_text(ctx, g73::IMMIGRANTS), c.immigrants);
                 }
-                row(canvas, ink, 386, g73::THIS, &c.population.to_string(), ink.highlight);
+                heading_row(&pen, canvas, 386, &line_text(ctx, g73::THIS), c.population);
             }
             Panel::Happiness => {
-                text::draw(canvas, 20, 56, g85::TITLE, ink.highlight);
+                let x = pen.heading(canvas, 20, 56, &line_text(ctx, g85::TITLE), font::TEXT);
+                pen.heading(canvas, x + 2, 56, &county_name(ctx, self.county), font::TEXT);
+
                 self.draw_graph_stub(ctx, canvas, "HAPPINESS");
-                text::draw(canvas, 176, 241, g85::AVERAGE, ink.dim);
-                text::draw(
-                    canvas,
-                    176 + text::width(g85::AVERAGE) + 8,
-                    241,
-                    &c.happiness_avg.to_string(),
-                    ink.text,
-                );
-                row(canvas, ink, 268, g85::LAST, &c.happiness_last.to_string(), ink.text);
-                delta_row(canvas, ink, 298, g85::FROM_TAXES, c.shown_tax);
-                delta_row(canvas, ink, 314, g85::FROM_RATION, c.shown_ration);
-                delta_row(canvas, ink, 330, g85::FROM_HEALTH, c.shown_health);
-                delta_row(canvas, ink, 346, g85::FROM_ARMY, c.shown_army);
-                delta_row(canvas, ink, 362, g85::FROM_ALE, c.shown_ale);
-                delta_row(canvas, ink, 378, g85::FROM_EVENTS, c.shown_events);
-                row(canvas, ink, 402, g85::THIS, &c.happiness.to_string(), ink.highlight);
+
+                // 85/8 at (176, 241), the number after it, then the face.
+                let x = pen.body(canvas, 176, 241, &line_text(ctx, g85::AVERAGE), font::TEXT);
+                let x = pen.body(canvas, x, 241, &c.happiness_avg.to_string(), font::TEXT);
+                pen.misc_frame(canvas, FRAME_FACE, x, 239);
+
+                heading_row_face(&pen, canvas, 268, &line_text(ctx, g85::LAST), c.happiness_last);
+                let rows: [(i32, Line, i32); 6] = [
+                    (298, g85::FROM_TAXES, c.shown_tax),
+                    (314, g85::FROM_RATION, c.shown_ration),
+                    (330, g85::FROM_HEALTH, c.shown_health),
+                    (346, g85::FROM_ARMY, c.shown_army),
+                    (362, g85::FROM_ALE, c.shown_ale),
+                    (378, g85::FROM_EVENTS, c.shown_events),
+                ];
+                for (y, label, value) in rows {
+                    delta_row(&pen, canvas, y, &line_text(ctx, label), value);
+                }
+                heading_row_face(&pen, canvas, 402, &line_text(ctx, g85::THIS), c.happiness);
             }
             Panel::Tax => {
-                text::draw(canvas, 96, 152, g86::TITLE, ink.highlight);
-                text::draw(canvas, 96, 168, g86::RATE, ink.dim);
-                text::draw(canvas, 256, 168, &format!("{}%", c.tax_rate), ink.highlight);
-                text::draw(canvas, 96, 200, g86::PEOPLE_PAY, ink.dim);
-                text::draw(
-                    canvas,
-                    96 + text::width(g86::PEOPLE_PAY) + 8,
-                    200,
-                    &format!("{} CROWNS", c.tax_shown),
-                    ink.text,
-                );
-                text::draw(canvas, 96, 232, g86::THIS_COUNTY, ink.dim);
+                // **No title.** `L2.eng` 86/0 *"Tax in"* is drawn by nothing —
+                // see [`g86::TITLE_NEVER_DRAWN`] and the module docs. A "TAX IN"
+                // heading of ours used to stand here at (96, 152).
+                pen.misc_frame(canvas, FRAME_TAX_VIGNETTE, 320, 160);
+                pen.body(canvas, 96, 168, &line_text(ctx, g86::RATE), font::TEXT);
+                // `Ui_DrawNumber(taxRate, ' ', "%", 0x100, 0xA8, body)` — the
+                // lead is a real space and the suffix is the per-cent sign.
+                pen.body(canvas, 256, 168, &format!(" {}%", c.tax_rate), font::TEXT);
+
+                let x = pen.body(canvas, 96, 200, &line_text(ctx, g86::PEOPLE_PAY), font::TEXT);
+                // `Ui_DrawCount(taxShown, 0, …)` — the number and then group 8's
+                // *"Crown."* / *"Crowns."*. We used to write "CROWNS" ourselves.
+                pen.count(canvas, x, 200, c.tax_shown, CROWN_NOUN, true, font::TEXT);
+
+                pen.body(canvas, 96, 232, &line_text(ctx, g86::THIS_COUNTY), font::TEXT);
                 let empire = ctx
                     .game
                     .kingdom
                     .realms
                     .get(c.owner as usize)
                     .map_or(0i32, |r| r.tax_hap_empire as i32);
-                happiness_delta(canvas, ink, 240, 232, c.d_hap_tax_local + empire);
-                text::draw(canvas, 96, 256, g86::OTHER_COUNTIES, ink.dim);
-                happiness_delta(canvas, ink, 240, 256, c.tax_hap_other);
+                happiness_delta(&pen, canvas, 240, 232, c.d_hap_tax_local + empire);
+                pen.body(canvas, 96, 256, &line_text(ctx, g86::OTHER_COUNTIES), font::TEXT);
+                happiness_delta(&pen, canvas, 240, 256, c.tax_hap_other);
             }
             Panel::Ration => {
-                text::draw_centred(canvas, 128 + 144, 104, g87::TITLE, ink.highlight);
-                text::draw(canvas, 144, 136, g87::WANTED, ink.dim);
-                text::draw(canvas, 240, 136, ration_name(c.ration_wanted), ink.highlight);
-                text::draw(canvas, 144, 161, g87::ACHIEVED, ink.dim);
-                let colour = if c.ration_achieved == c.ration_wanted { ink.text } else { ink.bad };
-                text::draw(canvas, 240, 161, ration_name(c.ration_achieved), colour);
-                happiness_delta(canvas, ink, 340, 161, c.d_hap_ration);
-                text::draw(canvas, 144, 186, g87::HEALTH, ink.dim);
-                text::draw(canvas, 240, 186, health_name(c.health_band), ink.text);
-                happiness_delta(canvas, ink, 340, 186, c.d_hap_health);
+                // `Ui_DrawCentred(87, 0, 0x80, 0x68, 0x120, heading, 0x3F)`.
+                pen.heading_centred(canvas, 128, 104, 288, &line_text(ctx, g87::TITLE), font::TEXT);
+                pen.body(canvas, 144, 136, &line_text(ctx, g87::WANTED), font::TEXT);
+                pen.body(canvas, 240, 136, &ration_label(ctx, c.ration_wanted), font::TEXT);
+
+                pen.body(canvas, 144, 161, &line_text(ctx, g87::ACHIEVED), font::TEXT);
+                // **Red when it differs from wanted** — the painter's own
+                // `local_8`, `0x3F` or `0xF9`.
+                let colour = if c.ration_achieved == c.ration_wanted {
+                    font::TEXT
+                } else {
+                    font::HIGHLIGHT
+                };
+                pen.body(canvas, 240, 161, &ration_label(ctx, c.ration_achieved), colour);
+                happiness_delta(&pen, canvas, 340, 161, c.d_hap_ration);
+
+                pen.body(canvas, 144, 186, &line_text(ctx, g87::HEALTH), font::TEXT);
+                pen.body(canvas, 240, 186, &health_label(ctx, c.health_band), font::TEXT);
+                happiness_delta(&pen, canvas, 340, 186, c.d_hap_health);
+
+                // The slider's two flanking icons, then the three food columns'
+                // icons, then the mark left of "Fed". Six `Pl8_DrawFrame`s the
+                // panel used to draw none of.
+                pen.misc_frame(canvas, FRAME_GRAIN, 144, 220);
+                pen.misc_frame(canvas, FRAME_CATTLE, 370, 220);
+                for (frame, x) in
+                    [(FRAME_GRAIN, 224), (FRAME_CATTLE, 284), (FRAME_THIRD_FOOD, 344)]
+                {
+                    pen.misc_frame(canvas, frame, x, 256);
+                }
+                pen.misc_frame(canvas, FRAME_FED_MARK, 144, 282);
+
                 self.draw_split_slider(ctx, canvas, c.ration_split);
-                // The Fed row's three fields — county +0x16C, +0x170 and
-                // +0x174 — are not in l2-kingdom at all, so there is nothing to
-                // put here. docs/screens-county.md §8.4.
-                text::draw(canvas, 160, 286, g87::FED, ink.dim);
-                text::draw(canvas, 208, 286, "NOT SIMULATED", ink.bad);
-                text::draw(canvas, 144, 308, g87::EATEN, ink.dim);
-                text::draw_right(canvas, 208, 308, &c.grain_eaten.to_string(), ink.text);
-                text::draw_right(canvas, 266, 308, &c.herd_eaten.to_string(), ink.text);
+
+                pen.body(canvas, 160, 286, &line_text(ctx, g87::FED), font::TEXT);
+                pen.body(canvas, 144, 308, &line_text(ctx, g87::EATEN), font::TEXT);
+                // **`Ui_DrawNumberRight` centres in `width`** — see the module
+                // docs. Five calls, all width 0x40.
+                let w = FOOD_COL_W;
+                pen.number_centred(canvas, FOOD_COL_X[0], 308, w, c.grain_eaten, font::TEXT);
+                pen.number_centred(canvas, FOOD_COL_X[1], 308, w, c.herd_eaten, font::TEXT);
+                // OURS, and it is a diagnostic rather than a caption: the "Fed"
+                // row reads county `+0x170`, `+0x174` and `+0x16C`, and
+                // `l2-kingdom` has none of the three.
+                // `docs/screens-county.md` §8.4.
+                text::draw(canvas, FOOD_COL_X[0], 286, "NOT SIMULATED", ink.bad);
+
+                if armies_eat {
+                    // `Ui_DrawNumber(+0x19C + +0x198, ' ', "", 0x88, 0x150)`
+                    // then 87/8.
+                    let men = c.friendly_troops + c.enemy_troops;
+                    let x = pen.body(canvas, 136, 336, &format!(" {men} "), font::TEXT);
+                    pen.body(canvas, x, 336, &line_text(ctx, g87::FORAGING), font::TEXT);
+                }
             }
         }
 
-        self.draw_buttons(ctx, canvas);
+        self.draw_buttons(ctx, canvas, armies_eat);
     }
 
-    /// The tick, and the two arrows the two order panels have.
-    fn draw_buttons(&self, ctx: &Ctx, canvas: &mut Canvas) {
+    /// The corner picture, and the two arrows the two order panels have.
+    fn draw_buttons(&self, ctx: &Ctx, canvas: &mut Canvas, armies_eat: bool) {
+        let pen = self.pen(ctx);
         let ink = &ctx.assets.ink;
-        let chrome = ctx.assets.chrome.as_ref();
-        let ok = self.panel.ok_button();
-        if !chrome.is_some_and(|ch| ch.draw_system(canvas, system::OK, ok.x, ok.y)) {
-            widget::button(canvas, ink, ok, "CLOSE", false);
-        }
+        let ok = self.panel.ok_button_for(armies_eat);
+        pen.ok_button(canvas, ok.x, ok.y, 0);
         let live = ctx.game.is_players(self.county);
         for (rect, frame, label) in [
             (self.panel.increase_button(), system::ARROW_UP, "+"),
             (self.panel.decrease_button(), system::ARROW_DOWN, "-"),
         ] {
             let Some(r) = rect else { continue };
-            if !chrome.is_some_and(|ch| ch.draw_system(canvas, frame, r.x, r.y)) {
+            // `Widget_Draw` picks record `+0x04` **plus one** while the press
+            // timer at `+0x0D` runs, so each arrow has a pressed picture — frames
+            // 0x16 and 0x18 — that we never show. Recorded, not built: nothing
+            // in this engine carries a widget press timer.
+            if !pen.system_frame(canvas, frame, r.x, r.y) {
                 widget::button(canvas, ink, r, label, live);
             }
         }
     }
 
-    /// `Panel_RationSlider`: two caps, a 100-pixel track, and a knob at
-    /// `220 + split`.
+    /// `Panel_RationSlider` (`0x00411FDE`), which is drawn from
+    /// `Screen_DrawWidgets`'s `0x19` arm rather than from `Panel_Ration`:
+    ///
+    /// ```text
+    ///   Ui_DrawBoxInterior(0xDC, 0xD8, 8, 2)         (220, 216) 128 x 32
+    ///   Pl8_DrawFrame(System, 0x4A, 200,   0xDC)     left cap   (200, 220)
+    ///   Pl8_DrawFrame(System, 0x4B, 0x144, 0xDC)     right cap  (324, 220)
+    ///   FUN_00403A8F(0xE0, 0xE5, 0x143, 0xE5, 0x10)  line  (224,229)-(323,229)
+    ///   FUN_0040437D(0xE0, 0xE6, 100, 4, 0x3F)       fill  (224,230) 100 x 4
+    ///   FUN_00403A8F(0xE0, 0xEA, 0x143, 0xEA, 0x1F)  line  (224,234)-(323,234)
+    ///   Pl8_DrawFrame(System, 0x4C, 0xDC + split, 0xD8)  the knob at y 216
+    /// ```
+    ///
+    /// **The caps sit at y = 220 and the knob at y = 216**, and this file used
+    /// to draw both at 216 — which also put all three hit boxes four pixels
+    /// high, because `Ration_SliderClick` (`0x0043A379`) tests
+    /// `(200, 0xDC, 24, 24)`, `(0x145, 0xDC, 24, 24)` and
+    /// `(0xE0, 0xDC, 0x66, 24)`, every one of them at **0xDC = 220**.
     fn draw_split_slider(&self, ctx: &Ctx, canvas: &mut Canvas, split: i32) {
+        let pen = self.pen(ctx);
         let ink = &ctx.assets.ink;
-        let chrome = ctx.assets.chrome.as_ref();
-        // The original draws a line at y 229 in colour 0x10, a 100 x 4 fill at
-        // y 230 in 0x3F and a second line at y 234 in 0x1F. The colours are
-        // ours; the geometry is the original's.
-        canvas.fill_rect(SLIDER_TRACK_X, 229, SLIDER_TRACK_W, 1, ink.border);
-        canvas.fill_rect(SLIDER_TRACK_X, 230, SLIDER_TRACK_W, 4, ink.panel);
-        canvas.fill_rect(SLIDER_TRACK_X, 234, SLIDER_TRACK_W, 1, ink.dim);
-        let caps = chrome.is_some_and(|ch| {
-            let l = ch.draw_system(canvas, system::SLIDER_CAP_LEFT, SLIDER_CAP_LEFT_X, SLIDER_Y);
-            let r = ch.draw_system(canvas, system::SLIDER_CAP_RIGHT, SLIDER_CAP_RIGHT_X, SLIDER_Y);
+        // The parchment well the whole control sits in, which we drew none of.
+        pen.box_interior(canvas, 220, SLIDER_KNOB_Y, 8, 2);
+        // The three track lines. The colours are the original's literals.
+        canvas.fill_rect(SLIDER_TRACK_X, 229, SLIDER_TRACK_W, 1, TRACK_TOP);
+        canvas.fill_rect(SLIDER_TRACK_X, 230, SLIDER_TRACK_W, 4, TRACK_FILL);
+        canvas.fill_rect(SLIDER_TRACK_X, 234, SLIDER_TRACK_W, 1, TRACK_BOTTOM);
+        let caps = {
+            let l = pen.system_frame(
+                canvas,
+                system::SLIDER_CAP_LEFT,
+                SLIDER_CAP_LEFT_X,
+                SLIDER_CTRL_Y,
+            );
+            let r = pen.system_frame(
+                canvas,
+                system::SLIDER_CAP_RIGHT,
+                SLIDER_CAP_RIGHT_X,
+                SLIDER_CTRL_Y,
+            );
             l && r
-        });
+        };
         if !caps {
             widget::button(canvas, ink, split_down_button(), "<", false);
             widget::button(canvas, ink, split_up_button(), ">", false);
         }
         let knob_x = SLIDER_KNOB_ORIGIN + split.clamp(0, MAX_RATION_SPLIT);
-        if !chrome.is_some_and(|ch| ch.draw_system(canvas, system::SLIDER_KNOB, knob_x, SLIDER_Y)) {
-            canvas.fill_rect(knob_x, SLIDER_Y, system::SLIDER_KNOB_W, 32, ink.highlight);
+        if !pen.system_frame(canvas, system::SLIDER_KNOB, knob_x, SLIDER_KNOB_Y) {
+            canvas.fill_rect(knob_x, SLIDER_KNOB_Y, system::SLIDER_KNOB_W, 32, ink.highlight);
         }
     }
 
-    /// **A stub, and it looks like one.** `Ui_HistoryGraph` fills this
-    /// rectangle from `g_countyHistory`; `l2-kingdom` has no history array, so
-    /// there is nothing to plot.
+    /// **A stub, and it looks like one.** [`Ui_HistoryGraph`'s whole
+    /// picture](self#what-is-still-ours-and-says-so) needs `g_countyHistory`
+    /// and `Graphs.pl8`; `l2-kingdom` has no history array and `l2-view` does
+    /// not load that sheet, so there is nothing to plot.
+    ///
+    /// The recess itself is real — `Ui_DrawInsetRect(0x20, 0x54, 0x192, 0x9B)`
+    /// is the graph's own first call and is drawn here at its own coordinates.
+    /// The two lines inside it are ours and say so.
     fn draw_graph_stub(&self, ctx: &Ctx, canvas: &mut Canvas, what: &str) {
         let ink = &ctx.assets.ink;
         let Some(r) = self.panel.graph_rect() else { return };
         canvas.fill_rect(r.x, r.y, r.w, r.h, ink.background);
-        widget::frame(canvas, r, ink.border);
+        self.pen(ctx).inset(canvas, r);
         let mid = r.y + r.h / 2;
+        // OURS, both of them: a diagnostic, in our own 5 x 7 font, so that a
+        // screenshot cannot be mistaken for the original's graph.
         text::draw_centred(canvas, r.centre_x(), mid - 10, &format!("{what} HISTORY"), ink.dim);
         text::draw_centred(canvas, r.centre_x(), mid + 2, "NOT SIMULATED", ink.bad);
     }
+}
+
+/// One `L2.eng` string, from the install if it has one and from our own
+/// transcription if it does not.
+fn line_text(ctx: &Ctx, l: Line) -> String {
+    eng(ctx, l.group, l.index, l.ours)
 }
 
 fn ration_name(level: i32) -> &'static str {
@@ -1313,45 +1773,100 @@ fn ration_name(level: i32) -> &'static str {
         .unwrap_or("?")
 }
 
-fn health_name(band: u8) -> &'static str {
-    HEALTH_BAND_NAMES.get(band as usize).copied().unwrap_or("?")
+/// `Eng_DrawString(20, healthBand, …)` — the five health words, with
+/// [`HEALTH_BAND_NAMES`] as the fallback.
+fn health_label(ctx: &Ctx, band: u8) -> String {
+    let ours = HEALTH_BAND_NAMES.get(band as usize).copied().unwrap_or("?");
+    eng(ctx, GROUP_HEALTH_BANDS, band as usize, ours)
 }
 
-/// A label in the panel's left column and a value right-anchored in its value
-/// column — x = 48 and x = 336, which is what both graph panels use.
-fn row(canvas: &mut Canvas, _ink: &Ink, y: i32, label: &str, value: &str, colour: u8) {
-    text::draw(canvas, LABEL_X, y, label, colour);
-    text::draw_right(canvas, VALUE_RIGHT, y, value, colour);
+/// A `Ui_DrawNumber(v, '@', "", 0x150, y, heading)` row: the label in the left
+/// column and the value **left-aligned from x = 336**, both in the 22-pixel
+/// font, which is what the three plain rows on the two graph panels are.
+fn heading_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
+    pen.heading(canvas, LABEL_X, y, label, font::TEXT);
+    pen.heading(canvas, VALUE_LEFT, y, &value.to_string(), font::TEXT);
 }
 
-/// `Ui_DrawDelta(value, 0, ...)`, including the part that is easy to miss:
-/// **a zero row draws no number at all**, rather than a `0`.
-fn delta_row(canvas: &mut Canvas, ink: &Ink, y: i32, label: &str, value: i32) {
-    text::draw(canvas, LABEL_X, y, label, ink.dim);
+/// The same with `Pl8_DrawFrame(Misc_cty, 0x17, pen + 0x150, y + 3)` after it —
+/// the happiness panel's *Last season* and *This Season* rows both carry the
+/// face, three pixels below the text's own line.
+fn heading_row_face(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
+    pen.heading(canvas, LABEL_X, y, label, font::TEXT);
+    let x = pen.heading(canvas, VALUE_LEFT, y, &value.to_string(), font::TEXT);
+    pen.misc_frame(canvas, FRAME_FACE, x, y + 3);
+}
+
+/// `Ui_DrawDelta(value, 0, "", "", 0x150, y, body, 0x3F, 0xF9)` — the label and
+/// the value.
+fn delta_row(pen: &Pen, canvas: &mut Canvas, y: i32, label: &str, value: i32) {
+    pen.body(canvas, LABEL_X, y, label, font::TEXT);
+    delta_value(pen, canvas, y, value);
+}
+
+/// The value half on its own, for the emigration row, which puts a county name
+/// between the label and the number.
+///
+/// Three things it is easy to get wrong and all three are the original's:
+/// **a zero draws nothing at all** — mode 0 with `value == 0` returns before the
+/// first `Ui_DrawText` — the digits are **left-aligned from `x`** rather than
+/// right-anchored to it, and the empty prefix still advances the pen by
+/// [`TRAILING`], so they start four pixels right of it.
+fn delta_value(pen: &Pen, canvas: &mut Canvas, y: i32, value: i32) {
     if value == 0 {
         return;
     }
-    let colour = if value < 0 { ink.bad } else { ink.good };
-    text::draw_right(canvas, VALUE_RIGHT, y, &widget::signed(value), colour);
+    let colour = if value < 0 { font::HIGHLIGHT } else { font::TEXT };
+    let sign = if value < 0 { '-' } else { '+' };
+    pen.body(canvas, VALUE_LEFT + TRAILING, y, &format!("{sign}{}", value.abs()), colour);
 }
 
-/// `Ui_DrawHappinessDelta`: `( ±n <face> )`. The face is `Misc_cty` frame 0x17
-/// and we do not draw it; everything else is the original's shape.
-fn happiness_delta(canvas: &mut Canvas, ink: &Ink, x: i32, y: i32, value: i32) {
-    let colour = if value < 0 { ink.bad } else { ink.good };
-    text::draw(canvas, x, y, &format!("({})", widget::signed(value)), colour);
+/// `Ui_DrawHappinessDelta` (`0x0041AC95`), whole:
+///
+/// ```text
+///   Ui_DrawText("(", x, y, font, 0x3F)              pen = w("(") + 4
+///   pen -= 4
+///   Ui_DrawDelta(value, 1, "", "", x + pen, y, font, colourPos, colourNeg)
+///   Pl8_DrawFrame(g_miscCtySheet, 0x17, x + pen, y - 2)
+///   Ui_DrawText(")", x + pen + 0x14, y, font, 0x3F)
+/// ```
+///
+/// So it is `( ±n ☺ )`, the bracket sits at `x`, and the closing bracket is
+/// [`FACE_W`] = 20 pixels past the face — which is exactly the face's own width
+/// in `Misc_cty.pl8`, so the gap is the picture's and not a guess. **Mode 1
+/// never suppresses a zero**, unlike the panel rows: a zero draws `0` with the
+/// blank sign column.
+fn happiness_delta(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32, value: i32) {
+    let after_bracket = pen.body(canvas, x, y, "(", font::TEXT) - TRAILING;
+    let colour = if value < 0 { font::HIGHLIGHT } else { font::TEXT };
+    let sign = match value.signum() {
+        -1 => "-",
+        1 => "+",
+        _ => "",
+    };
+    let face_x =
+        pen.body(canvas, after_bracket + TRAILING, y, &format!("{sign}{}", value.abs()), colour);
+    pen.misc_frame(canvas, FRAME_FACE, face_x, y - 2);
+    pen.body(canvas, face_x + FACE_W, y, ")", font::TEXT);
 }
 
 /// Geometry tests. The canvas tests that read numbers back off the pixels live
 /// in `tests/screens.rs`, because they need the shipped install.
 ///
-/// **Six mutations were checked against these and those**, each turning exactly
-/// one test red and no others:
+/// **Nine mutations were checked against these and those**, each turning
+/// exactly one test red and no others. The last three are this audit's, and
+/// every literal in the assertion is pinned from the decompilation rather than
+/// computed from the constant it is about — which is the trap `docs/agents.md`
+/// records: *ablating a constant while computing your probe from that same
+/// constant tests nothing at all*.
 ///
 /// | mutation | test that went red |
 /// |---|---|
 /// | `MAX_TAX_RATE` 50 → 51 | `the_tax_rate_stops_at_the_originals_own_ceiling_of_fifty` |
-/// | `delta_row`'s zero guard removed | `a_zero_delta_row_draws_its_label_and_no_number` |
+/// | `delta_value`'s zero guard removed | `a_zero_delta_row_draws_its_label_and_no_number` |
+/// | the value column right-anchored again | `a_zero_delta_row_draws_its_label_and_no_number` |
+/// | `SLIDER_CTRL_Y` 220 → 216 | `the_split_sliders_controls_are_four_pixels_below_its_knob` |
+/// | `JobScreen::ok_button`'s blacksmith arm removed | `the_blacksmith_is_the_one_job_that_is_not_this_window` |
 /// | `HOT_X_LEFT_END` 548 → 560 | `the_strip_quadrants_fit_the_plate_and_leave_the_thermometer_unclickable` |
 /// | `Chrome::load` preferring `System2.pl8` | `the_ration_split_slider_sets_the_field_the_original_sets` |
 /// | the population panel's first row y 266 → 267 | `the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should` |
@@ -1475,6 +1990,99 @@ mod tests {
                 "{p:?} at {w:?} overlaps the strip column at x = {}",
                 STRIP.x
             );
+        }
+    }
+
+    /// **The split slider's two y's**, which were one until this audit.
+    ///
+    /// `Panel_RationSlider` draws the knob at `0xD8` and the caps at `0xDC`;
+    /// `Ration_SliderClick` (`0x0043A379`) hit-tests `(200, 0xDC, 24, 24)`,
+    /// `(0x145, 0xDC, 24, 24)` and `(0xE0, 0xDC, 0x66, 24)`. The literals here
+    /// are pinned from the decompilation rather than computed from the
+    /// constants, which is the difference between a test and a restatement.
+    #[test]
+    fn the_split_sliders_controls_are_four_pixels_below_its_knob() {
+        assert_eq!(SLIDER_KNOB_Y, 0xD8, "Pl8_DrawFrame(System, 0x4C, …, 0xD8)");
+        assert_eq!(SLIDER_CTRL_Y, 0xDC, "Rect_Contains(200, 0xDC, 0x18, 0x18)");
+        for r in [split_down_button(), split_up_button(), split_track()] {
+            assert_eq!(r.y, 0xDC, "every hit box in Ration_SliderClick is at 0xDC");
+            assert_eq!(r.h, 0x18);
+        }
+        assert_eq!(split_down_button().x, 200);
+        assert_eq!(split_up_button().x, 0x145, "0x145, one pixel right of the cap");
+        assert_eq!(split_track().x, 0xE0);
+        assert_eq!(split_track().w, 0x66);
+    }
+
+    /// **`Armies Eat` makes the ration panel two cells taller and moves its
+    /// corner picture 32 pixels down.** `Panel_Ration` opens
+    /// `rows = g_optArmiesEat ? 2 : 0`, draws `Ui_DrawBox(0x80, 0x60, 0x12,
+    /// rows + 0xF)` and ends with `Ui_OkButton(0x184, (rows + 0xF) * 0x10 +
+    /// 0x44, 0)`.
+    #[test]
+    fn armies_eat_is_the_one_option_that_changes_a_panels_shape() {
+        assert_eq!(Panel::Ration.box_cells_for(false), (0x80, 0x60, 0x12, 0x0F));
+        assert_eq!(Panel::Ration.box_cells_for(true), (0x80, 0x60, 0x12, 0x11));
+        assert_eq!(Panel::Ration.ok_button_for(false).y, 0x0F * 0x10 + 0x44);
+        assert_eq!(Panel::Ration.ok_button_for(true).y, 0x11 * 0x10 + 0x44);
+        // And no other panel notices.
+        for p in [Panel::Population, Panel::Happiness, Panel::Tax] {
+            assert_eq!(p.box_cells_for(false), p.box_cells_for(true), "{p:?}");
+            assert_eq!(p.ok_button_for(false), p.ok_button_for(true), "{p:?}");
+        }
+    }
+
+    /// **`Ui_DrawNumberRight` centres, and the artwork is the proof.**
+    ///
+    /// The three "Fed" columns are drawn with width `0x40` from x 208, 266 and
+    /// 324; the three icons above them are `Misc_cty` frames `0x21` (36 wide),
+    /// `0x26` (37) and `0x2A` (23) at x 224, 284 and 344. Centred, each number
+    /// lands within a few pixels of its own picture. Right-aligned — which is
+    /// what `docs/symbols.json` calls the function and what
+    /// `docs/screens-county.md` §5.4 repeats — every number would *end* left of
+    /// every icon, which is the assertion below.
+    #[test]
+    fn the_ration_panels_numbers_centre_under_their_icons() {
+        const ICON_X: [i32; 3] = [224, 284, 344];
+        const ICON_W: [i32; 3] = [36, 37, 23];
+        for i in 0..3 {
+            let centre = FOOD_COL_X[i] + FOOD_COL_W / 2;
+            let icon_centre = ICON_X[i] + ICON_W[i] / 2;
+            assert!(
+                (centre - icon_centre).abs() <= 4,
+                "column {i}: number centres at {centre}, icon at {icon_centre}"
+            );
+            // The falsification: right-alignment would put the number's right
+            // edge at FOOD_COL_X[i], left of the icon's own left edge.
+            assert!(FOOD_COL_X[i] < ICON_X[i], "column {i} would be left of its icon");
+        }
+    }
+
+    /// The five `L2.eng` groups these panels draw, and the indices that are
+    /// **not** drawn — because a constant that names an absence is the only
+    /// thing that stops the next reader re-discovering it.
+    #[test]
+    fn the_groups_are_the_painters_literal_arguments() {
+        assert_eq!((g73::GROUP, g85::GROUP, g86::GROUP, g87::GROUP), (73, 85, 86, 87));
+        assert_eq!(g61::GROUP, 61, "the strip's captions are group 61, not the tax panel's");
+        assert_eq!((GROUP_HEALTH_BANDS, GROUP_RATION_LEVELS), (20, 21));
+        assert_eq!(CROWN_NOUN, 0, "L2.eng 8/0 and 8/1, Crown. / Crowns.");
+
+        // 86/0 "Tax in" has no call site in the whole corpus; the painter's
+        // four are 1, 2, 3 and 4.
+        assert_eq!(g86::TITLE_NEVER_DRAWN.index, 0);
+        for l in [g86::RATE, g86::PEOPLE_PAY, g86::THIS_COUNTY, g86::OTHER_COUNTIES] {
+            assert_ne!(l.index, g86::TITLE_NEVER_DRAWN.index);
+        }
+        // 73/9 "people." belongs to the graph's peak, which needs a history
+        // array we do not have; it is named and not drawn.
+        assert_eq!(g73::PEOPLE.index, 9);
+        // And the five ration strings nothing reaches by a literal group.
+        for i in g87::UNDRAWN {
+            for l in [g87::TITLE, g87::WANTED, g87::ACHIEVED, g87::HEALTH, g87::EATEN, g87::FED] {
+                assert_ne!(l.index, i, "87/{i} is in UNDRAWN and also drawn");
+            }
+            assert_ne!(g87::FORAGING.index, i);
         }
     }
 }
