@@ -586,6 +586,41 @@ pub struct Game {
     /// not-encoded: session state, and the paragraph above is the whole
     /// argument — the original cannot save inside a battle either.
     pub battle: Option<Box<crate::battlefield::LiveBattle>>,
+    /// **`Map_BeginMoveSelection`, asked for by something that is not the map.**
+    ///
+    /// `Panel_MoveButton` (`0x004371CE`) is two statements — `g_screenId = 0`
+    /// and `Map_BeginMoveSelection()` — because in the original the selection
+    /// is a global and the screen is a byte. Ours has neither: move-order mode
+    /// is [`crate::screens::map::MapScreen`]'s own state, and the information
+    /// panel that holds the button is a *different screen* with no handle on
+    /// it. So the panel writes the request here and pops, and the map picks it
+    /// up on its next tick — which is the same two steps in the same order.
+    ///
+    /// `None` almost always: it is consumed by the frame after it is written.
+    ///
+    /// not-encoded: session state. It cannot outlive the frame that set it, and
+    /// the original's `g_selectedUnit` is not saved either.
+    pub begin_move_order: Option<usize>,
+    /// **`g_mapZoom` (`0x0057CB18`), projected out of the campaign map.**
+    ///
+    /// The zoom is a global in the original and three arms that are *not* on
+    /// the campaign map read it: `Map_EdgeScroll` returns 0 at the far zoom, so
+    /// `Screen_FrameInput`'s `0x04` arm cannot close the information panel by
+    /// edge-scrolling there, and `FUN_00438ACC` and `FUN_0043893C` both open
+    /// `if (g_mapZoom != 2)`. An overlay in our stack cannot see
+    /// [`crate::screens::map::MapScreen`] at all, so without this those guards
+    /// could not be reproduced and would have been silently dropped.
+    ///
+    /// **One authority, one projection**, the same shape as
+    /// [`Game::presentation_quirks`] → [`Assets::quirks`]: `MapScreen::zoom` is
+    /// the authority and every write mirrors into this, so nothing reads a
+    /// second copy that drifted. `crates/l2-game/tests/right_column.rs` asserts
+    /// the projection holds, which is what stops it becoming a field the map
+    /// forgets to write.
+    ///
+    /// not-encoded: presentation. Which zoom a person is looking at cannot
+    /// change a number in the world.
+    pub map_zoom_far: bool,
 }
 
 /// `g_levyPercent`, `g_levyMen`, `g_levyHappinessCost`, `g_levyBasket` and
@@ -655,6 +690,8 @@ impl Game {
             presentation_quirks: Quirks::default(),
             levy: LevyOrder::default(),
             battle: None,
+            begin_move_order: None,
+            map_zoom_far: false,
         }
     }
 

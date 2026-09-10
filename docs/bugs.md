@@ -1473,3 +1473,41 @@ for.
 
 **We do not reproduce it.** Our command layer has one arrival discipline and no second
 tick to confuse it with; `docs/netcode.md` §*The original's command layer* says why.
+
+### B93 — the tile panel's one widget survives the tile that gave it a count
+
+`Screen_FrameInput`'s `0x04` arm runs `FUN_00438A91`, which is exactly one statement:
+
+```c
+Widget_Test(8, 0x20, &g_tilePanelWidgets, DAT_00568474);
+```
+
+The **count is a runtime global**, and the only thing in the binary that writes it is
+`TileInfo_DrawCastle` (`0x0041DA2F`), on its first line:
+
+```c
+DAT_00568474 = (uint)(g_counties[g_pickedTileCounty].garrisonUnit != 0);
+```
+
+`TileInfo_DrawCastle` runs only for a **castle tile**. Every other tile takes a different
+branch of `TileInfo_Draw` and writes nothing, so the count keeps whatever the last castle
+panel left in it — and the panel is repainted from `Screen_Draw` every frame, so the value
+is as durable as the session.
+
+So: right-click a castle with a garrison in it (the count becomes 1), close the panel,
+right-click a *field*, and the *"View these troops?"* widget is still hit-tested at
+(344, 414) with nothing drawn there. `FUN_00438ACC` then sets
+`g_pickedTileUnit = g_counties[g_pickedTileCounty].garrisonUnit` for **the field's** county
+and repaints — so an invisible 24 × 24 box on the field panel flips it to that county's
+garrison, or to unit 0 if it has none.
+
+**`[I]`, and the inference is narrow.** The two writes and the one read were enumerated and
+there is no third; what has *not* been established is whether `Widget_Test` refuses a record
+`Widget_Draw` has not touched this frame — the record carries a state byte at `+0x0C` and a
+press timer at `+0x0D`, and neither's lifecycle was read. That is the one thing that would
+make this unreachable, and it is a twenty-minute read for whoever needs the answer.
+
+**Not reproduced.** Ours offers the widget only when the panel's own tile is a castle whose
+county holds a garrison, because our count is a function of the target rather than a global
+left over from a previous paint. Reproducing it would mean modelling the leftover, which is
+a global we do not have and a switch nobody has asked for.

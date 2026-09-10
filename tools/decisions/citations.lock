@@ -554,8 +554,8 @@ docs/plan.md	C27	e7d20517c30b
 docs/plan.md	C28	34b11ce8cc30
 docs/plan.md	C28	cde824a84877
 docs/plan.md	C29	185d470bb5fd
-docs/plan.md	C3	349526f60cfe
-docs/plan.md	C3	bdd2fbb580a9
+docs/plan.md	C3	bba7346136ca
+docs/plan.md	C3	e65e8be748cd
 docs/plan.md	C32	759df38b58c2
 docs/plan.md	C45	546a5f993a1b
 docs/plan.md	C46	8269936b6754
@@ -587,6 +587,7 @@ docs/screens-county.md	C57	29da3728fc03
 docs/screens-county.md	C59	aec4d2276a51
 docs/screens-county.md	C61	675bbac0eace
 docs/screens-county.md	C76	982107e9770f
+docs/screens-county.md	C97	6fb9495168cb
 docs/screens.md	C22	29997cfa2796
 docs/screens.md	C25	6e23d74e76ec
 docs/screens.md	C48	63058cefc7e7
@@ -643,6 +644,10 @@ docs/symbols.json	C72	6e925fbc1c1c
 docs/symbols.json	C72	eca0027aa8d3
 docs/symbols.json	C73	1c3e9e9c9026
 docs/symbols.json	C73	a7a0a127db4b
+docs/symbols.json	C92	861554397288
+docs/symbols.json	C94	c925b2d5ea48
+docs/symbols.json	C94	fb393e25f46e
+docs/symbols.json	C97	910f68184eb2
 docs/symbols.md	C20	d50fe7b21adc
 docs/symbols.md	C20	f78855d335cd
 docs/symbols.md	C22	76e2e999ec4b
@@ -691,6 +696,10 @@ docs/symbols.md	C72	5fc9a7735491
 docs/symbols.md	C72	64c244fb6c65
 docs/symbols.md	C73	92bca9e765dd
 docs/symbols.md	C73	bdcf70f27755
+docs/symbols.md	C92	bdb00cb1a706
+docs/symbols.md	C94	1b58b44eb124
+docs/symbols.md	C94	22fa7fd2ca8f
+docs/symbols.md	C97	1231fc13c889
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611
 tools/audit/rva.js	C14	99231cda993c
 tools/audit/rva.js	C16	e4312831d7d6
@@ -710,6 +719,7 @@ tools/decisions/corrections.js	C61	9bd71bb6b68f
 tools/oracle/anchor.js	C3	64f970433d76
 tools/oracle/kingdom.ps1	C16	179704412b64
 tools/oracle/logstrings.js	C72	eddd2090b75a
+tools/oracle/reaches.js	C94	8cd21268ccc0
 tools/oracle/runtime.ps1	C10	c77e1ac33816
 tools/oracle/runtime.ps1	C10	eeb0822b279d
 tools/oracle/tables.ps1	C3	a6bada1093d5

@@ -2294,6 +2294,14 @@
       "comment": "THE ONLY WRITER of county +0x1C3 to 1, and the whole castle-ordering rule. level is 0-based. If castleType != 0 it copies castleType into castleBuilding (so +0x1C1 is the castle that WAS there, not the one being built) and subtracts g_castleMaterial[castleType-1] from the new cost, refunding a negative difference into the realm. Then castleType = level+1 IMMEDIATELY, castleRuined = 0, castleDegraded = 1, +0x1B0 = 1, +0x1CC = +0x1D8 = g_castleWorkforce[level], +0x1DC = stone total, +0x1E0 = wood total, +0x1C4 = 0; Castle_StampTile, Castle_EvictTile, Labour_ToggleIndustryShare(county, 3, 1); then it takes what the realm HAS and leaves the rest owing in +0x1D0 (stone) and +0x1D4 (wood). THERE IS NO AFFORDABILITY GUARD."
     },
     {
+      "addr": "0x00437107",
+      "name": "MoveOrder_StripClicked",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int MoveOrder_StripClicked(void)",
+      "comment": "DEAD, established to the exhaustive standard rather than by failing to find a caller: three scans over the whole 1.3 MB image -- every E8 rel32, every E9 rel32 and every absolute dword -- all zero, with the tool controlled first against five functions known to be reached. That control is the point; one of the five, Army_LeaveCastle, has no call at all and is live. docs/decisions.md C94, and this is the standard docs/arms.json's `dead` status cites."
+    },
+    {
       "addr": "0x004371CE",
       "name": "Panel_MoveButton",
       "section": "units",
@@ -2324,6 +2332,14 @@
       "confidence": "verified",
       "signature": "void Army_DisbandConfirm(void)",
       "comment": "The 'Disband army?' yes-callback: Army_Disband, or network command 0x2E under g_multiplayer."
+    },
+    {
+      "addr": "0x004374C4",
+      "name": "Army_LeaveCastle",
+      "section": "units",
+      "confidence": "verified",
+      "signature": "void Army_LeaveCastle(void)",
+      "comment": "The garrison's Leave button, and the function that made the reachability tool earn its place. It has NO CALL ANYWHERE in the image -- not an E8, not an E9, not an absolute dword in code -- and it is live: its address sits in a hotspot table, which is how the button reaches it. A call scan alone would have declared a working control dead. See tools/oracle/reaches.js and docs/decisions.md C94."
     },
     {
       "addr": "0x004378B3",
@@ -10541,11 +10557,25 @@
       "comment": "The confirmation box's two widgets, frames 29 and 31 at (64, 46) and (112, 50) relative to the box origin. Decoded, the pair is a mailed hand with its thumb UP and its thumb DOWN, not a tick and a cross; every yes/no pair in the game draws these two frames. docs/screens-county.md 4.2."
     },
     {
+      "addr": "0x004DD388",
+      "name": "g_splitWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The army-division screen's widget table. Record 0 is the CONFIRM TICK, and our own CANCEL at (264, 446) 100 x 18 was sitting on top of it -- so aiming at the bottom of the game's split got our cancel. The test written to prevent exactly that asserted against `OK`, the corner picture, rather than this table: accurate about the rectangle it named, and the name was wrong. docs/decisions.md C92."
+    },
+    {
       "addr": "0x004DD538",
       "name": "g_sendSuppliesWidgets",
       "section": "ui",
       "confidence": "verified",
       "comment": "Six widget records for screen 0x18: yes and no at (320, 342) and (360, 346), then two rows of a minus/plus pair at x 216 and 296, y 264 and 300, hotspot ids 0 and 2."
+    },
+    {
+      "addr": "0x004DD640",
+      "name": "g_tilePanelWidgets",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "The map information panel's widget table (screen 0x04). Decoded out of the shipped executable rather than transcribed, which is how the strip's true height was settled: Hotspot_Test is half-open on y as well as x, so the sidebar strip is 29 pixels and not 30 and End Turn is 161 x 19 and not 162 x 20 -- y 459, x 639 and y 479 are dead. docs/decisions.md C97."
     },
     {
       "addr": "0x004DD790",

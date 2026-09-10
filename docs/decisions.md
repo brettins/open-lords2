@@ -4266,6 +4266,225 @@ same paragraph.** A single entry closed the half that was easy to check and left
 that was not, and the closed half is what everyone read. An open question that names two
 things should be two entries.
 
+**C92 — the third invented hotspot sitting on a live control, and the
+test written to catch it named the wrong rectangle.**
+
+`docs/decisions.md` already has two: a COUNTY PANEL button of ours over the five
+`g_sidebarButtons` icons, which a player reported as *"the icons in the bottom right do
+nothing and have text over them"*, and a BACK TO MAP button at (478, 460) 162 × 20 on the
+four county panels, which is `g_sidebarButtons` **record 5 — End Turn** — to the pixel and
+hit-tested first. The brief for this branch asked for a third. There is one.
+
+`screens/divide.rs` drew three buttons of its own — SPLIT, DISBAND and CANCEL, 18 pixels
+tall at y 446 — below the original's window. CANCEL is (264, 446) 100 × 18. `g_splitWidgets`
+(`0x004DD388`) record 0 is **the confirm tick**, 32 × 32 at (288, 420). They overlap in a
+32 × 6 strip, and ours was tested first: aiming at the bottom two rows of the game's *split*
+got our *cancel*.
+
+**The part worth carrying is not the overlap; it is the check.** That module had a test
+named `our_own_buttons_do_not_sit_on_anything_the_painter_drew`, and its body is
+
+```rust
+assert!(r.x + r.w <= OK.x, "{r:?} runs into the original's tick");
+```
+
+`OK` is `Ui_OkButton(0x1AC, 0x1B4, 0)` — the **corner picture** at (428, 436). The tick is
+somewhere else entirely, and nothing in the module knew it existed. So the check was
+accurate about the rectangle it named, the name was wrong, and it passed. That is the
+*"passes for an accidental reason"* family in `docs/agents.md` with a new member, and the
+sharpest one yet, because unlike the build-stamp test it was written *specifically* to
+prevent this and still did not.
+
+The replacement names no rectangle. `crates/l2-game/tests/right_column.rs` and
+`divide.rs`'s `no_two_hotspots_on_this_screen_overlap` enumerate every box the screen tests
+and compare them pairwise, and the geometry is asserted against the **player's own
+`Lords2.exe`** rather than against our reading of a painter. A check that has to name a
+thing can name the wrong thing; a check that quantifies over everything cannot.
+
+**C93 — every control on screen `0x11` was 88 pixels from where the game
+tests it, and the whole screen's input was in a function nobody had read.**
+
+`Screen_FrameInput`'s `0x11` arm is **three exits and no verb**: the turn-ended latch, a
+right release, and `Ui_OkButtonClicked`, all three writing `g_screenId = 0x04`. Every button
+on the army-division screen is `Screen_HandleInput`'s
+
+```c
+else if (g_screenId == '\x11') Widget_Test(0, 0, &DAT_004DD388, DAT_0055321C);
+```
+
+— which is the **second of the three places input hides** that `docs/arms.json`'s `_note`
+names, and which nothing had decoded. So `divide.rs` derived its hit boxes from the painter
+above it, `Screen_SplitArmyRows` (`0x00419354`), whose two `Pl8_DrawFrame(g_miscCtySheet,
+t + 0x2F, 0xA8 | 0x158, …)` calls it read as *"the parent's button"* and *"the daughter's
+button"*.
+
+They are the troop-type **pictures**. The buttons are at x **256 and 288**, in the 32-pixel
+gutter between the parent's number and the daughter's icon, and had nothing over them. The
+`y` was right and always had been, which is what made it look correct: `row_y(row) - 8` is
+the table's `row * 0x20 + 0x78` exactly, so eight rows lined up perfectly at the wrong `x`.
+
+This is the **fifth** hit-box defect on this project and the first where the *y* agreeing is
+what hid the *x* disagreeing. The general form has not changed since the 58 × 47 sprite on
+the 58 × 30 tile: **a painter says where a picture goes and a table says where a click
+lands, and on this game they are routinely different places.** `map.rs`'s header carries the
+standing warning; the new sentence to add to it is that a *partial* agreement between the
+two is more dangerous than none, because it reads as confirmation.
+
+`node tools/oracle/widgets.js widgets 4dd388 18` is eighteen lines and would have said so at
+any point in the last month.
+
+**C94 — `FUN_00437107` is a cut control strip for move-order mode, and settling
+it needed a scan of the image rather than of the corpus.**
+
+It had been left unfiled on purpose: `xref.js` found no caller, and *"xref found no caller"*
+is not the exhaustive check `docs/arms.json`'s `dead` status requires. It looked like a
+second unit panel — a `Hotspot_Test` over a two-record table for the selected army, behind
+the same *kind 1, owned by the local player* guards `FUN_00437002` uses.
+
+It is not. The tell is one global: `FUN_00437002` tests `g_pickedTileUnit`, *"the unit index
+on the tile `Map_ResolvePick` just resolved"*, and `FUN_00437107` tests **`g_selectedUnit`**,
+*"the unit a move order is being given to"* — which is screen `0x10`'s state and nothing
+else's. Decoding its table settles it: `0x004DC5F0` is two 32 × 32 boxes at (104, 408) and
+(184, 408), whose handlers are `if (g_mapZoom != 2) { g_screenId = 4; FUN_0041B032(); }` —
+*open the information panel* — and `g_screenId = 0` — *cancel*. `Rect_Contains(0x10, 400,
+0xF0, 0x40)` is the 240 × 64 frame around both, returning 1 so the strip swallows clicks
+that miss its buttons. **An on-screen strip with an INFO button and a CANCEL button, shown
+while an army is picked**, which shipped as right-click-to-cancel instead.
+
+**How it was settled, because the method is the transferable part.** `xref.js` reads the
+decompiled corpus, so it can only see calls the decompiler recovered; `widgets.js ref` scans
+the image for the address as a dword, which is how a handler reaches a table. Neither alone
+is exhaustive. Three scans over the **whole 1.3 MB file** are:
+
+* every `E8` whose `rel32` resolves to `0x00437107` — **zero**;
+* every `E9` likewise — **zero**;
+* every dword anywhere equal to `0x00437107` — **zero**.
+
+Those three cover the ways x86 reaches a function: a direct relative call or jump, or an
+absolute address stored somewhere. A byte scan **over-approximates** — it reports any offset
+whose bytes would decode that way, whether or not it is an instruction boundary — and that
+is the right direction, because it makes *zero* a proof rather than a hint.
+
+And it was **controlled before it was believed**, which is the half that is usually skipped:
+run against five functions known to be reached, it finds `FUN_00437002` at `0x430586`,
+`FUN_00438A91` at `0x430574`, `FUN_0043B412` at `0x430D03`, `FUN_0043B4CB` at `0x4308E7` —
+and `FUN_004374C4` with no call at all and **one dword, in the garrisoned hotspot table at
+`0x4DC5B0`**, which is exactly the case a call scan alone would have called dead. A tool
+whose first run returns "nothing found" is a tool nobody has seen working;
+`docs/agents.md`'s *"read the first three findings of every new tool's first run"* has a
+mirror image, and this is it. `tools/oracle/reaches.js`.
+
+The cluster is dead as a whole: the table is named in one place in the corpus, inside this
+function, and each of its two handlers is pointed at exactly once, from that table.
+
+**C95 — `docs/arms.json` counts arms and had four filed twice, and one
+of the pairs disagreed about whether we had built it.**
+
+Two agents enumerated screens `0x04`, `0x17` and `0x18` from two directions — one from
+`Screen_FrameInput`'s ladder, one from the widget and hotspot tables — and both filed
+records. The ids differ, so **set equality against the markers is perfectly happy**: the
+check the file is built around cannot see this at all.
+
+The pair that shows what it costs:
+
+| id | group | status |
+|---|---|---|
+| `0x0043B412/supplies-county-picker` | management-screens | `missing` |
+| `0x0043B412/supplies-pick` | panels | `reproduced` |
+
+Same address, same screen, same call, opposite verdicts — and the `missing` one was on the
+worklist for this branch as an arm to build, which is how it was found. The other three
+pairs were `unit-panel-buttons` against `info-move`/`info-disband`,
+`tile-panel-widgets` against `info-garrison-widget`, and `info-panel-edge-scroll-leaves`
+against `info-edge-scroll-closes`.
+
+All four are folded, each survivor carrying a `merged` field with the other's text so the
+second reading is not lost. The `_note` now says to grep the file for an `addr` before
+adding a record. **A duplicate cannot be checked mechanically here**, because the file's
+whole design is that one function holds many arms — `Screen_FrameInput` alone is 49 of them
+— so *"two records share an address"* is the normal case and not the defect. What would
+catch it is the thing that caught this one: somebody trying to build an arm and finding it
+already built.
+
+The counts moved 185 → 193 records: −4 folded, +12 new, and **13 records that said
+`missing` now say `reproduced`, of which one was already implemented and only lacked a
+marker.** That last is worth its own sentence, and it is the next entry.
+
+**C96 — the raise-army screen's right release was reproduced, recorded
+as missing, and described as doing something it does not do.**
+
+`docs/arms.json` `0x0042FF10/levy-right-commits` read: *"a right release … sets
+`g_screenId = 0x0A` — the armoury — and runs `FUN_004AA90A(g_selectedCounty, g_levyMen)`,
+which **COMMITS the levy** … So the two ways out of the raise-army screen do OPPOSITE
+things, and the one a player reaches by habit is the one that acts."*
+
+Two errors, and they are different in kind.
+
+**The function does not commit anything.** `FUN_004AA90A` has since been named `Levy_Seed`,
+and its body zeroes the eight basket slots, fills their available counts from the realm's
+weapon stocks and puts the levied headcount into slots 0 and 7. Its own comment names its
+three callers as *"every door into the armoury"* — `Sidebar_Button`, `RaiseArmy_Continue`
+and this arm. It **prepares the armoury** for the number the slider chose. No man is levied
+and no gold spent until *Create*, which is a button on the armoury and is
+`Army_RaiseConfirm`. The record was written from the call site and the name it had at the
+time, and `FUN_004AA90A` supports any story you like.
+
+**And we already did it.** `RaiseArmyScreen::handle`'s right-click arm calls
+`Game::seed_levy_basket` and replaces itself with the armoury — the arm, its side effect and
+its destination, all three. It had no `// arm:` marker, so it counted as a miss, in the file
+whose purpose is counting misses.
+
+That is the failure mode of the marker rule stated plainly: **set equality catches a record
+with no code and code with no record, and is silent about a record whose status is simply
+wrong.** Eleven of this branch's thirteen conversions were real work; one was a marker; one
+was a duplicate. A `missing` record is a claim about our own tree and nothing checks it —
+the cheapest available remedy is that anybody picking an arm off the worklist reads our
+source for it first, which takes a minute and would have saved this one an afternoon.
+
+**C97 — the sidebar strip is 29 pixels tall and we had 30, because a plate's
+height is not a hotspot's.**
+
+`SidebarButton::rect` computed its height as `PANEL_END_TURN_Y − PANEL_STATUS_Y` — the
+distance between two `Misc_cty` plates, which is 30. `g_sidebarButtons` records 0…4 are
+`(x, 0) … (x, 29)` at the table's `0x1AE` offset, and `Hotspot_Test` is half-open on **both**
+axes:
+
+```c
+if (mx < x0 + ox || x1 + ox <= mx || my < y0 + oy || y1 + oy <= my) /* miss */
+```
+
+So the strip is y 430 … 458 and **y 459 belongs to nothing** — the same one-pixel gutter the
+table leaves between each pair of icons, once, horizontally across the whole strip. End Turn
+is record 5, `(0, 30) … (161, 49)`: **161 × 19**, not the plate's 162 × 20, so its last
+column and its last row are dead too.
+
+Nobody would ever notice, and that is the point of writing it down: it was found by a check
+that reads the table out of the player's own `Lords2.exe` and compares it with our constants,
+and the module's *own* unit test had asserted the opposite — `assert_eq!(r.y + r.h,
+END_TURN_BUTTON.y, "does not meet the end-turn strip")`. Two of our constants agreeing is
+what that test measured. `docs/agents.md`'s rule about two artefacts maintained by the same
+person in the same commit, in a file that had already been corrected twice for exactly this
+kind of thing.
+
+**C98 — the arm was reproduced on four screens and absent on the
+fifth, which is worse than absent on all five.**
+
+`Screen_FrameInput`'s epilogue runs `Minimap_Click` on **every** screen id but `0x12` and
+drops the management surface on a hit. It is recorded per screen — the court, the job popup,
+send supplies and the ratings each have a record — and the information panel `0x04` had
+none, so it swallowed the press. A control that works from everywhere else did not work from
+there, which is precisely the shape a player reports as *"sometimes the minimap doesn't
+work"* and nobody can reproduce.
+
+The enumeration that produced the per-screen records was of *shells*, and `0x04` graduated
+out of that table before it ran. So the miss is not an oversight in reading the binary; it
+is an arm that was **lost at a graduation**, which is the same failure `docs/agents.md`
+records for the shell wrapper that used to do this generically for all seven. There is now a
+test over every overlay we can build rather than a record per screen —
+`no_overlay_swallows_the_campaign_minimap` — because a list of screens is a thing that goes
+stale and a quantifier is not.
+
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**

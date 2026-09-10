@@ -426,6 +426,13 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         turn: None,
         levy: crate::game::LevyOrder::default(),
         battle: None,
+        // The same argument again, and a fifth and sixth field it covers: a
+        // move order asked for from the information panel cannot outlive the
+        // frame that asked, and the zoom a person was looking at is
+        // presentation. A loaded game opens at the near zoom because
+        // `MapScreen::new` does, and this is that projection's starting value.
+        begin_move_order: None,
+        map_zoom_far: false,
         map_slot: map_slot as usize,
         realm_colour,
         player_names,

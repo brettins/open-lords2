@@ -92,6 +92,24 @@
     "",
     "So a percentage taken over this file is a percentage of what has been ENUMERATED, and the",
     "enumeration is still shaped by where somebody looked. Say so wherever the number is quoted.",
+    "AND WHAT ELSE IT EXCLUDES, measured rather than guessed. NINE of the twenty-seven modules in",
+    "crates/l2-game/src/screens/ carry NO `// arm:` marker and no record here at all: armoury.rs,",
+    "castle.rs, conquest.rs, index.rs, menu.rs, merchant.rs, options.rs, shells.rs and siege.rs.",
+    "Two of those are ours (index, menu) and shells.rs is a table. The rest are BUILT SCREENS with",
+    "input handlers nobody has enumerated, so 0x08, 0x0A, 0x0C, 0x0D, 0x1B, 0x1D and 0x21 score zero",
+    "the same way Screen_HandleInput did -- without ever appearing as a miss. divide.rs (0x11) was",
+    "the tenth until this branch, and reading it cost THREE arms found WRONG rather than missing:",
+    "sixteen hit boxes 88 pixels from the table, one invented button on top of the original's",
+    "confirm, and no right-button arm at all. The rate on the one module that has been read is the",
+    "best evidence available about the nine that have not. Run",
+    "`grep -L \"// arm:\" crates/l2-game/src/screens/*.rs` before quoting any percentage.",
+    "AND A COUNTING HAZARD THIS FILE HAS ALREADY HIT: two agents enumerating the same screen from",
+    "two directions produce two records for one arm, under two groups, sometimes with different",
+    "statuses -- 0x0043B412/supplies-county-picker was `missing` while 0x0043B412/supplies-pick was",
+    "`reproduced`, for the same call on the same screen. Four such pairs were folded on this branch.",
+    "Nothing checks it: the ids differ, so set equality is happy. Before adding a record, grep the",
+    "file for its `addr` and read what is already there.",
+    "",
     "",
     "A WARNING ABOUT THE MERGE, paid for once. The keyed driver merges the `arms` ARRAY by `id`",
     "correctly -- it said so, and it was right. It then took the OTHER side's `groups` object and",
@@ -128,7 +146,7 @@
     "management-screens": {
       "what": "0x04 and the close arms of 0x08 .. 0x13",
       "complete": false,
-      "note": "The CLOSE arms are enumerated and the two panels behind 0x04 are not: FUN_00438990, FUN_00438A91 and FUN_00437002 are three hotspot tables nobody has driven. The screens themselves belong to the merchant, armoury, diplomacy and army agents; what is here is the chrome around them."
+      "note": "The two panels behind 0x04 are driven now -- FUN_00437002's three buttons and FUN_00438A91's garrison widget are crates/l2-game/src/screens/info.rs -- and four of this group's records were second copies of records the `panels` and `army-division` groups already held; they are folded in, each survivor carrying a `merged` field with the text. What is left open is FUN_004374C4, the sortie, which needs a battle started from a click. The screens themselves belong to the merchant, armoury, diplomacy and army agents."
     },
     "menu-bar": {
       "what": "g_menuBarItems (0x004DC428) and screen 0x32 -- three titles, sixteen items",
@@ -159,6 +177,11 @@
       "what": "0x02 the village, 0x05 the rubber band, 0x06 carrying peasants, 0x0F the job popup",
       "complete": true,
       "note": "Three screen ids for one gesture -- press, drag, release, second click -- and the popup either of two screens can open. docs/screens-county.md 6.4."
+    },
+    "army-division": {
+      "what": "g_screenId 0x11 -- the army-division screen, both places its input lives",
+      "complete": true,
+      "note": "Enumerated from BOTH sides, which is the only reason it is right: Screen_FrameInput's 0x11 arm (three exits, no verb) and Screen_HandleInput's widget table g_splitWidgets (0x004DD388, 16 or 18 records), decoded out of the player's own Lords2.exe with tools/oracle/widgets.js. Reading the painter alone -- which is what had been done -- put every hit box in this module 88 pixels from where the game tests it, and left three buttons of ours on the screen, one of them on top of the original's confirm."
     }
   },
   "arms": [
@@ -447,6 +470,17 @@
       "ours": "crates/l2-game/src/screens/diplomacy.rs"
     },
     {
+      "id": "0x0040E7E4/divide-ok",
+      "status": "reproduced",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "addr": "0x0040E7E4",
+      "what": "Ui_OkButtonClicked -- the corner picture Ui_OkButton(0x1AC, 0x1B4, 0) stashed, and the third of this screen's three exits. It writes g_screenId = 0x04 like the other two and splits nothing.",
+      "ours": "crates/l2-game/src/screens/divide.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0040E7E4/panel-corner-closes",
       "status": "reproduced",
       "group": "county-panels",
@@ -505,14 +539,15 @@
     },
     {
       "id": "0x0042FF10/back-one-rather-than-to-the-map",
-      "status": "missing",
+      "status": "reproduced",
       "group": "management-screens",
       "screen": "0x0C, 0x0D, 0x11",
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "Five of the 19 right-close arms step back ONE level rather than to the map: 0x0C -> 0x08 (trade goods to the merchant), 0x0D -> 0x0A (a weapon's rack to the armoury), 0x11 -> 0x04 (army division to the information panel), 0x17 -> 0x0A, 0x2A -> 0x29. The other fourteen write the literal 0.",
-      "note": "0x11 -> 0x04 is the one that matters for this group: army division returns to the INFORMATION PANEL, which is the screen its Split button was on. Our stack pops to whatever pushed it, which is right for 0x0C and 0x0D and reaches the campaign map for 0x11, because we have no unit panel to go back to.",
-      "evidence": "V"
+      "note": "0x11 was the one that was wrong and it is right now: the information panel PUSHES the division screen instead of replacing it, so popping it lands on 0x04. 0x0C and 0x0D already popped to their openers, 0x17 -> 0x0A is army.rs's Replace(Armoury) and 0x2A -> 0x29 is the battlefield's. The marker is on divide.rs's right release, which did not exist at all before -- screen 0x11 had no right-button arm, so the button every other window in the game closes with did nothing there.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/divide.rs"
     },
     {
       "id": "0x0042FF10/cancel-drag",
@@ -650,14 +685,16 @@
     },
     {
       "id": "0x0042FF10/info-edge-scroll-closes",
-      "status": "missing",
+      "status": "reproduced",
       "group": "panels",
       "screen": "0x04",
       "gesture": "pointer",
       "addr": "0x0042FF10",
       "what": "Map_EdgeScroll() returning non-zero CLOSES the panel. Holding the cursor at the edge of the screen with the information panel up puts you back on the map.",
-      "note": "Nobody would guess this one. It is in the same ladder as the OK and the right-release and it is not a click at all.",
-      "evidence": "V"
+      "note": "Needed Game::map_zoom_far to be reproducible at all: Map_EdgeScroll returns 0 at the far zoom, so the gesture does nothing there, and an overlay in our stack cannot see MapScreen. Its other refusal -- g_messageGroup != 0 -- is vacuous until there is a message scroll.",
+      "evidence": "V",
+      "merged": "0x00432221/info-panel-edge-scroll-leaves (management-screens) was a second record for this arm and was folded in here. Its text: 0x04's arm runs Map_EdgeScroll SECOND, and a scroll CLOSES THE PANEL: `if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }`. Pushing the pointer into the edge of the screen with the information panel up dismisses it.",
+      "ours": "crates/l2-game/src/screens/info.rs"
     },
     {
       "id": "0x0042FF10/info-ok",
@@ -718,14 +755,15 @@
     },
     {
       "id": "0x0042FF10/levy-right-commits",
-      "status": "missing",
+      "status": "reproduced",
       "group": "management-screens",
       "screen": "0x17",
       "gesture": "right-release",
       "addr": "0x0042FF10",
-      "what": "0x17's arm is the exception to 'right-click closes': a right release does NOT go to the map. It sets g_screenId = 0x0A -- the armoury -- and runs FUN_004AA90A(g_selectedCounty, g_levyMen), which COMMITS the levy. The Ui_OkButtonClicked branch beside it goes to 0 instead and does not commit.",
-      "note": "So the two ways out of the raise-army screen do OPPOSITE things, and the one a player reaches by habit is the one that acts. Recorded here because it was found while enumerating this group; screen 0x17 belongs to the army agent.",
-      "evidence": "V"
+      "what": "0x17's arm is the exception to \"right click closes\": a right release does NOT go to the map. It sets g_screenId = 0x0A -- the armoury -- and runs Levy_Seed(g_selectedCounty, g_levyMen). The Ui_OkButtonClicked branch beside it goes to 0 instead. So the two ways out of the raise-army screen do different things, and the one a player reaches by habit is the one that goes FORWARD.",
+      "note": "CORRECTED. This record said the right release \"COMMITS the levy\". It does not: Levy_Seed (0x004AA90A) zeroes the eight basket slots, fills their available counts from the realm's weapon stocks and puts the headcount in slots 0 and 7 -- it PREPARES THE ARMOURY for the number the slider chose. Its own comment names its three callers as \"every door into the armoury\": Sidebar_Button, RaiseArmy_Continue and this arm. No man is levied and no gold spent until Create on the armoury (Army_RaiseConfirm). Reproduced all along by RaiseArmyScreen::open_armoury, which calls Game::seed_levy_basket and replaces itself with the armoury; it had no marker, so it counted as a miss.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/army.rs"
     },
     {
       "id": "0x0042FF10/map-message-scroll-dismiss",
@@ -735,19 +773,20 @@
       "gesture": "right-release",
       "addr": "0x0042FF10",
       "what": "Guard 7 of the 0x00 arm: `if (g_messageGroup != 0 && rightReleased) { Msg_Dismiss(); FUN_0045270A(); }` -- a right release with a message scroll up dismisses it and swallows the click, BEFORE the tile arms below. Distinct from FUN_0047685D, which is every screen's and tests a 48x48 box round the scroll.",
-      "note": "Missing because there is no message scroll. It is the reason a right-click on the map does not always open the information panel.",
+      "note": "Missing because there is no message scroll. It is the reason a right-click on the map does not always open the information panel. OWNERSHIP: left to the message-window branch deliberately. This arm is every screen's rather than one screen's, so building it inside a screen module would be the wrong home; it belongs beside Msg_DrawWindow with the scroll itself. The input-arms branch did not touch it.",
       "evidence": "V"
     },
     {
       "id": "0x0042FF10/map-zoom-in-at-tile",
-      "status": "missing",
+      "status": "reproduced",
       "group": "right-column",
       "screen": "0x00",
       "gesture": "left-press",
       "addr": "0x0042FF10",
       "what": "`if (picked && leftPressed && g_mapZoom == 2) { g_screenId = 0; Map_ZoomInAtTile(); return; }` -- at the far zoom a left PRESS on a tile zooms the map in on it, and the arm RETURNS rather than falling through to Map_Click. So at zoom 2 the left button does not select anything; it zooms.",
-      "note": "Ours has zoom on the Z key and on minimap button 4 and no click arm at all, so at the far zoom our left click does what the original's near-zoom click does. Found by enumeration; not implemented here because the zoom state machine is the campaign map's.",
-      "evidence": "V"
+      "note": "The arm RETURNS, so Map_Click and every tile arm below it are unreachable at zoom 2. Guarded on there being no move-order selection, because the arm is inside the g_screenId == 0 ladder and 0x10 has its own four-line arm with no zoom test. Map_ZoomInAtTile's centring is Map_CentreOnTile's, which is MapScreen::centre_on_tile.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/map.rs"
     },
     {
       "id": "0x0042FF10/minimap-closes-the-surface",
@@ -784,6 +823,18 @@
       "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12: a press inside the raster selects that county, recentres the map and sets g_screenId = 0. The shell wrapper reproduced it once for all seven shells; graduating them lost it, so it is per screen now because the screens are. Only the raster is passed, not the whole column -- see screens/job.rs at the same arm.",
       "evidence": "V",
       "ours": "crates/l2-game/src/screens/court.rs"
+    },
+    {
+      "id": "0x0042FF10/minimap-under-the-info-panel",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "Screen_FrameInput's epilogue -- Minimap_Click on every screen id but 0x12 -- is live under the information panel, and the panel swallowed it. A press in the 128x128 raster selects that county, recentres the map and drops the panel.",
+      "note": "FOUND WRONG, not missing: the arm existed on the court, the job popup, send supplies and the ratings and was absent here, so the one control that works from everywhere did not work from 0x04. ONLY the raster: 0x04's arm does not run the six sidebar guards -- the village's and the four county panels' do -- so the sidebar, the county strip and the split slider really are dead with this panel up.",
+      "ours": "crates/l2-game/src/screens/info.rs",
+      "evidence": "V"
     },
     {
       "id": "0x0042FF10/minimap-under-the-job-popup",
@@ -895,17 +946,6 @@
       "addr": "0x00432221",
       "what": "Screen_FrameInput's 0x28 arm opens with Map_EdgeScroll().",
       "why": "Screen 0x28 is unreachable. Every immediate write of g_screenId in Lords2.exe was enumerated -- 212 `mov byte ptr [0x004EAC50], imm8` sites, values 0x00..0x45 -- and 0x28 is absent while 0x29, 0x2A and 0x2B are present; no decompiled function assigns it, and the indirect writes (g_screenIdSaved, g_menuPrevScreen) can only restore a value g_screenId already held.",
-      "evidence": "V"
-    },
-    {
-      "id": "0x00432221/info-panel-edge-scroll-leaves",
-      "status": "missing",
-      "group": "management-screens",
-      "screen": "0x04",
-      "gesture": "hover-at-edge",
-      "addr": "0x00432221",
-      "what": "0x04's arm runs Map_EdgeScroll SECOND, and a scroll CLOSES THE PANEL: `if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }`. Pushing the pointer into the edge of the screen with the information panel up dismisses it.",
-      "note": "One of the few arms where a hover is a navigation. Missing because the shell has no edge-scroll test; the campaign map underneath does not get the pointer while a shell is up.",
       "evidence": "V"
     },
     {
@@ -1088,34 +1128,39 @@
     },
     {
       "id": "0x00437002/info-disband",
-      "status": "missing",
+      "status": "reproduced",
       "group": "panels",
       "screen": "0x04",
       "gesture": "left-press",
       "addr": "0x00437002",
       "what": "Record 1, (112,352)-(152,392) -> Panel_DisbandButton (0x0043733A).",
-      "evidence": "V"
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/info.rs",
+      "note": "The rule was already l2_kingdom::divide::disband and Game::disband_army, driven by a button of OURS on screen 0x11 (ours/divide-disband-button, now removed). This is its real home. The refusal CLOSES the panel, which reads wrong and is the original's: Panel_DisbandButton's else branch enqueues message 0x91 and writes g_screenId = 0. NOT reproduced: Ui_OpenConfirm(6, ...) -- L2.eng 10/6 \"Disband army?\" -- so ours disbands without asking."
     },
     {
       "id": "0x00437002/info-move",
-      "status": "missing",
+      "status": "reproduced",
       "group": "panels",
       "screen": "0x04",
       "gesture": "left-press",
       "addr": "0x00437002",
       "what": "Hotspot_Test on g_infoUnitButtons (0x004DC560) record 0, (48,352)-(88,392) plus the popup row -> Panel_MoveButton (0x004371CE), which is g_screenId = 0x10, the map in move-order mode.",
-      "note": "KIND 1: these three fire on PRESS while the brush on the same screen fires on RELEASE.",
-      "evidence": "V"
+      "note": "Panel_MoveButton is g_screenId = 0 then Map_BeginMoveSelection(). Move-order mode is MapScreen's own state here and the panel is a different screen, so the request goes on Game::begin_move_order and MapScreen::update takes it on the next tick -- the same two steps in the same order. NOT reproduced: the besieging case, where the original asks L2.eng 10/13 \"Lift the siege?\" through Ui_OpenConfirm first. We have no confirm box; ours marches.",
+      "evidence": "V",
+      "merged": "0x00437002/unit-panel-buttons (management-screens) was a second record for this arm and was folded in here. Its text: The information panel's UNIT half: for a type-1 unit of the local player's, three 40x40 buttons at (48, 352), (112, 352) and (176, 352) -- Panel_MoveButton, Panel_DisbandButton, Panel_SplitButton -- or, for a GARRISONED army, the same table with FUN_004374C4 in the first slot instead.",
+      "ours": "crates/l2-game/src/screens/info.rs"
     },
     {
-      "id": "0x00437002/unit-panel-buttons",
-      "status": "missing",
-      "group": "management-screens",
-      "screen": "0x04",
+      "id": "0x00437107/dead-move-order-strip",
+      "status": "dead",
+      "group": "army-division",
+      "screen": "0x10",
       "gesture": "left-press",
-      "addr": "0x00437002",
-      "what": "The information panel's UNIT half: for a type-1 unit of the local player's, three 40x40 buttons at (48, 352), (112, 352) and (176, 352) -- Panel_MoveButton, Panel_DisbandButton, Panel_SplitButton -- or, for a GARRISONED army, the same table with FUN_004374C4 in the first slot instead.",
-      "note": "This is the door to screens 0x10 and 0x11 in the original. Ours goes straight from a map click into move-order mode, which is what Panel_MoveButton does with its two siblings unbuilt, and reaches 0x11 by the A key. So the DESTINATIONS are reproduced and the panel that holds them is not.",
+      "addr": "0x00437107",
+      "what": "A CUT CONTROL STRIP FOR MOVE-ORDER MODE. FUN_00437107 tests, for g_selectedUnit -- \"the unit a move order is being given to\", which is screen 0x10's state and NOT g_pickedTileUnit -- that it is kind 1 and the local player's, then Hotspot_Test(0, 0, &DAT_004DC5F0, 2) and, failing that, Rect_Contains(0x10, 400, 0xF0, 0x40). The two records are 32 x 32 at (104, 408) and (184, 408): FUN_0043893C is `if (g_mapZoom != 2) { g_screenId = 4; FUN_0041B032(); }` -- open the information panel -- and FUN_0043896A is `g_screenId = 0` -- cancel. The 240 x 64 rectangle at (16, 400) that holds both is the strip's own frame, and returning 1 for it is the strip swallowing clicks that miss its buttons.",
+      "why": "EXHAUSTIVE, and by the standard the battlefield agent set rather than by an xref miss. Three enumerations over the WHOLE 1.3 MB image, not over the corpus: (1) every `E8 rel32` whose target resolves to 0x00437107 -- zero; (2) every `E9 rel32` -- zero; (3) every dword anywhere in the file equal to 0x00437107, which is how a handler reaches a widget or hotspot table -- zero. Those three are exhaustive over the ways x86 reaches a function. The method was CONTROLLED on five functions known to be called: FUN_00437002 (one call at 0x430586), FUN_00438A91 (0x430574), FUN_0043B412 (0x430D03), FUN_0043B4CB (0x4308E7) and FUN_004374C4 (one dword, in the garrisoned hotspot table at 0x4DC5B0). And the cluster is dead as a whole: the table at 0x004DC5F0 is named in one place in the corpus, inside this function, and its two handlers are each pointed at exactly once, from that table. The scan is tools/oracle/reaches.js, which prints the three counts separately and was CONTROLLED before it was believed -- see its header for why running it on a function you know is called is not optional.",
+      "note": "NOT a second unit panel, which is what it looked like. The tell is g_selectedUnit: the unit panel's three buttons are all keyed on g_pickedTileUnit, and this one is keyed on the move-order selection. So the original once had an on-screen strip in move-order mode with an INFO button and a CANCEL button, and shipped with right-click-to-cancel instead. Do not build it.",
       "evidence": "V"
     },
     {
@@ -1138,6 +1183,53 @@
       "addr": "0x004378B3",
       "what": "Record 2, (176,352)-(216,392) -> Panel_SplitButton, which opens the army-division screen 0x11.",
       "ours": "crates/l2-game/src/screens/info.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00437AFB/divide-cancel",
+      "status": "reproduced",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "addr": "0x00437AFB",
+      "what": "The same handler with g_uiHotspotId == 0 -- the CROSS at (336, 424), frame 31. Army_SplitConfirm opens `g_screenId = 0; ... if (g_uiHotspotId == 0) g_screenId = 4;`, so the cross goes back to the information panel and splits nothing.",
+      "note": "Two records for one function because the ladder has two distinct outcomes, which is this file's counting rule. OUR CANCEL BUTTON OVERLAPPED THIS TICK: ours/divide-cancel-button was 100 x 18 at (264, 446) and record 0 is 32 x 32 at (288, 420), so a 32 x 6 strip of the confirm was our cancel.",
+      "ours": "crates/l2-game/src/screens/divide.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00437AFB/divide-confirm",
+      "status": "reproduced",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "addr": "0x00437AFB",
+      "what": "g_splitWidgets record 0 -- the TICK at (288, 420), 32 square, System.pl8 frame 29, hotspot id 1. Army_SplitConfirm resums both totals, then: with no destination county the minimum a side is 0x32 and the cap 5000; with one, the minimum is ZERO and the cap that castle's garrison limit less the garrison already inside. Then Army_Split.",
+      "note": "KIND 5, so Widget_Test defers the handler by 20 frames. Not reproduced: the delay.",
+      "ours": "crates/l2-game/src/screens/divide.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00437D65/divide-to-parent",
+      "status": "reproduced",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "addr": "0x00437D65",
+      "what": "SplitScreen_ToParent -- eight widgets at (256, row * 0x20 + 0x78), 24 square, g_uiHotspotId carrying the slot: slot[id].available -= 1, slot[id].chosen += 1, then both totals resummed. Hotspot 7 is the mercenary band and swaps it WHOLE rather than by one.",
+      "note": "Ours hit-tested x 0xA8 -- the troop-type picture -- and not 256. See ours/divide-click-moves-ten for the other half of this button.",
+      "ours": "crates/l2-game/src/screens/divide.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00437E9E/divide-to-daughter",
+      "status": "reproduced",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "addr": "0x00437E9E",
+      "what": "The same function the other way, at x 288. Ours hit-tested 0x158, the daughter column's picture.",
+      "ours": "crates/l2-game/src/screens/divide.rs",
       "evidence": "V"
     },
     {
@@ -1166,23 +1258,16 @@
     },
     {
       "id": "0x00438A91/info-garrison-widget",
-      "status": "missing",
+      "status": "reproduced",
       "group": "panels",
       "screen": "0x04",
       "gesture": "left-press",
       "addr": "0x00438A91",
       "what": "Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) - the \"View these troops?\" button at (344, 414) on a castle tile - runs FUN_00438ACC, which sets g_pickedTileUnit = county.garrisonUnit and repaints. It flips the panel from the tile half to the unit half WITHOUT leaving screen 0x04.",
-      "evidence": "V"
-    },
-    {
-      "id": "0x00438A91/tile-panel-widgets",
-      "status": "missing",
-      "group": "management-screens",
-      "screen": "0x04",
-      "gesture": "left-press",
-      "addr": "0x00438A91",
-      "what": "Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) -- a widget table whose COUNT is a runtime global the painter writes, so how many widgets the panel has depends on what was picked. Record 0 is FUN_00438ACC at (336, 382), frame 25, which is the tick.",
-      "evidence": "D"
+      "evidence": "V",
+      "merged": "0x00438A91/tile-panel-widgets (management-screens) was a second record for this arm and was folded in here. Its text: Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) -- a widget table whose COUNT is a runtime global the painter writes, so how many widgets the panel has depends on what was picked. Record 0 is FUN_00438ACC at (336, 382), frame 25, which is the tick.",
+      "ours": "crates/l2-game/src/screens/info.rs",
+      "note": "Kept as a mutation of the panel's target rather than a transition, because g_screenId never moves. FUN_00438ACC opens `if (g_mapZoom != 2)`, which is Game::map_zoom_far here. NOTE, not reproduced and worth a bug number: DAT_00568474 is written only by TileInfo_DrawCastle, so on a NON-castle panel the count is whatever the last castle tile left there and the widget is still hit-tested at (344, 414). [I] -- read out of the painter, not observed."
     },
     {
       "id": "0x00438CEB/strip-happiness",
@@ -1501,17 +1586,6 @@
       "evidence": "V"
     },
     {
-      "id": "0x0043B412/supplies-county-picker",
-      "status": "missing",
-      "group": "management-screens",
-      "screen": "0x18",
-      "gesture": "left-press",
-      "addr": "0x0043B412",
-      "what": "Send supplies is a MINIMAP: FUN_0043B412(0x60, 0x68) reads g_minimapCounty over a 128x128 box at (96, 104) and writes the county under the pointer into DAT_00553C78, which is the destination. A press on a blank pixel returns 0 and the arm's right-release close runs instead.",
-      "note": "Screen 0x1A, the diplomacy dialogs, has the same shape with a different function: FUN_0043B4CB(0x60, 0xB0), a 128x128 box at (96, 176), gated on g_diploKind >= 5, writing g_pickedCounty. Two screens pick a county off a minimap and neither is built.",
-      "evidence": "V"
-    },
-    {
       "id": "0x0043B412/supplies-pick",
       "status": "reproduced",
       "group": "panels",
@@ -1520,7 +1594,8 @@
       "addr": "0x0043B412",
       "what": "A press inside (96, 104)-(224, 232) reads g_minimapCounty and sets the destination county. The picture is blitted at (94, 107), so the hit test is two and three pixels off its own image - the same disagreement Minimap_Draw has on the campaign sidebar, from the same pair of constants.",
       "ours": "crates/l2-game/src/screens/supplies.rs",
-      "evidence": "V"
+      "evidence": "V",
+      "merged": "0x0043B412/supplies-county-picker (management-screens) was a second record for this arm and was folded in here. Its text: Send supplies is a MINIMAP: FUN_0043B412(0x60, 0x68) reads g_minimapCounty over a 128x128 box at (96, 104) and writes the county under the pointer into DAT_00553C78, which is the destination. A press on a blank pixel returns 0 and the arm's right-release close runs instead."
     },
     {
       "group": "diplomacy",
@@ -1721,7 +1796,7 @@
       "gesture": "right-release",
       "addr": "0x0047685D",
       "what": "The first thing Screen_FrameInput does on EVERY screen: a right release inside a 48x48 box round the message scroll dismisses it and SWALLOWS THE CLICK, so it never reaches the screen's own arms. A battle can raise messages (the siege gate button enqueues three of them), so this is reachable here.",
-      "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed.",
+      "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed. OWNERSHIP: left to the message-window branch deliberately. This arm is every screen's rather than one screen's, so building it inside a screen module would be the wrong home; it belongs beside Msg_DrawWindow with the scroll itself. The input-arms branch did not touch it.",
       "evidence": "V"
     },
     {
@@ -2021,6 +2096,66 @@
       "what": "Escape and Enter close the court.",
       "why": "The 0x09 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
       "ours": "crates/l2-game/src/screens/court.rs"
+    },
+    {
+      "id": "ours/divide-cancel-button",
+      "status": "invention",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "what": "A CANCEL button of ours at (264, 446) 100 x 18.",
+      "note": "Removed, AND IT OVERLAPPED A LIVE CONTROL: the original's confirm tick is 32 x 32 at (288, 420), so x 288..320 by y 446..452 was our cancel sitting on the game's split. Third instance of an invented hotspot placed in the original's coordinate space without checking what is there -- after the sidebar icons and the county panels' BACK TO MAP. The test that was supposed to catch it, our_own_buttons_do_not_sit_on_anything_the_painter_drew, asserted `r.x + r.w <= OK.x` and called OK \"the original's tick\"; OK is the corner picture at (428, 436), so the check passed and named the wrong rectangle.",
+      "removed": true,
+      "ours": null,
+      "evidence": "V"
+    },
+    {
+      "id": "ours/divide-click-moves-ten",
+      "status": "invention",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "what": "A click on a row button moves TEN men. SplitScreen_ToParent moves exactly one.",
+      "note": "KEPT, and it is a behaviour rather than a widget, which is why it is a record and not a comment. The original's widget is kind 4 and repeats while held; our event loop does not deliver key or button repeat here. The mercenary row is the exception in both: hotspot 7 swaps the band whole, in the original's own function.",
+      "removed": false,
+      "ours": "crates/l2-game/src/screens/divide.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "ours/divide-disband-button",
+      "status": "invention",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "what": "A DISBAND button of ours at (140, 446) 116 x 18, on a screen the original has no disband on at all.",
+      "note": "Removed. Panel_DisbandButton is record 1 of g_infoUnitButtons on screen 0x04 and is 0x00437002/info-disband now. The rule it drove was always the original's; only the button was ours.",
+      "removed": true,
+      "ours": null,
+      "evidence": "V"
+    },
+    {
+      "id": "ours/divide-keyboard",
+      "status": "invention",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "key",
+      "what": "Escape leaves; Up and Down pick a row; Left and Right move one man; Enter splits.",
+      "note": "KEPT. Screen_HandleInput names no key on 0x11 and the window procedure has no 0x11 case, so the whole keyboard here is ours. The arrows are the only way to move ONE man now that a click moves ten. The D key, which disbanded, is gone with the button.",
+      "removed": false,
+      "ours": "crates/l2-game/src/screens/divide.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "ours/divide-split-button",
+      "status": "invention",
+      "group": "army-division",
+      "screen": "0x11",
+      "gesture": "left-press",
+      "what": "A SPLIT button of ours, drawn and hit-tested at (16, 446) 116 x 18, ran Army_SplitConfirm's rule.",
+      "note": "Removed. It is the TICK, g_splitWidgets record 0 at (288, 420) -- see 0x00437AFB/divide-confirm. The module said the three buttons sat \"beside the original's tick rather than over it\"; it meant the OK corner picture, and the tick is somewhere else.",
+      "removed": true,
+      "ours": null,
+      "evidence": "V"
     },
     {
       "id": "ours/dropdown-escape-closes",
