@@ -757,6 +757,21 @@ fn the_soldier_and_the_torches_are_painted_where_the_animation_says() {
                 &format!("{what}: torch {i}"),
             );
         }
+
+        // And the weapon turning in the panel's own well, which is the third
+        // animation and the one that was drawing frame 0 for ever. **This was
+        // added because ablating it found nothing**: every assertion above is
+        // about the room, and the well is on the panel.
+        if screen != ScreenId::Armoury(county) {
+            expect(
+                &c,
+                armoury::WEAPON_SHEETS[slot as usize - 1],
+                g.levy.anim.weapon as usize,
+                armoury::WEAPON_AT.0,
+                armoury::WEAPON_AT.1,
+                "the rack panel: the weapon in the well",
+            );
+        }
     }
 }
 
