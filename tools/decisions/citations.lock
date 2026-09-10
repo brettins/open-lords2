@@ -21,6 +21,7 @@ crates/l2-game/src/battlefield.rs	C60	ba6ce8d9adf0
 crates/l2-game/src/battlefield.rs	C61	9fa3719be417
 crates/l2-game/src/battlefield.rs	C61	e5b8ebac6d3d
 crates/l2-game/src/battlefield.rs	C79	76ceb5b70be2
+crates/l2-game/src/build_id.rs	C107	357dac9ad6ce
 crates/l2-game/src/game.rs	C27	a05c7d46ae7e
 crates/l2-game/src/game.rs	C30	fdf7eaac6540
 crates/l2-game/src/game.rs	C61	243e22401be3
@@ -74,11 +75,13 @@ crates/l2-game/src/setup.rs	C21	1a85f7a2d857
 crates/l2-game/src/setup.rs	C62	a935365ea2c1
 crates/l2-game/src/shell/mod.rs	C61	4852635e7bff
 crates/l2-game/src/shell/mod.rs	C61	bf7c15012e16
+crates/l2-game/src/turn.rs	C115	42714a7de34c
 crates/l2-game/src/turn.rs	C27	c7f2d16a69e2
 crates/l2-game/src/turn.rs	C35	5d5f3b924ebe
 crates/l2-game/src/turn.rs	C35	820d88d9976c
 crates/l2-game/src/turn.rs	C35	87cde1fdbcb4
 crates/l2-game/src/turn.rs	C35	90db6b8f5bcd
+crates/l2-game/src/turn.rs	C35	a2a891aeed42
 crates/l2-game/src/turn.rs	C35	dcd60927a9fb
 crates/l2-game/src/turn.rs	C35	fc388a7cfe62
 crates/l2-game/src/turn.rs	C62	4fea74e6f685
@@ -433,6 +436,7 @@ docs/decisions.md	C31	bf01f8accf17
 docs/decisions.md	C31	e0e1f8d052f8
 docs/decisions.md	C31	ed3eab8182c3
 docs/decisions.md	C35	4db77be25399
+docs/decisions.md	C35	9399f462578b
 docs/decisions.md	C35	d51ccf1cf570
 docs/decisions.md	C36	278739b8f0b8
 docs/decisions.md	C36	77721e6dffe1

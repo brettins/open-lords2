@@ -4849,6 +4849,75 @@ font, and it is **correct**, because it is titled as ours on its own face so tha
 screenshot of it can never be mistaken for something the original drew. The difference
 between an honest scaffold and an invention is whether it says which it is.
 
+**C115 — Two features that are each right, and a seam between them that nobody
+tested, because every test of it presses End Turn in the same breath as the order.**
+
+A player: *"It was me attacking a town and it just immediately resolved."* He marched his
+army onto an enemy county and the autocalc settled it — no *"Will you take the field?"*, no
+battlefield, no report. Screen `0x12` had been working for days and every test of it was
+green.
+
+**The cause is an `and` nobody wrote down.** Two changes landed in the same week:
+
+* **`turn::tick_units_only`** — `Units_Tick` on an ordinary frame, so an army the player has
+  just ordered walks away while he watches instead of standing still until End Turn. Right,
+  and it is the original's own shape: `Units_Tick` is called from the frame loop beside
+  `Turn_Tick` and never reads `g_turnPhase` (C35).
+* **A turn is paced over frames**, with `TurnStep::Running` and a `resume_turn` per frame.
+  Also right.
+
+Between them, the army now **arrives before End Turn is pressed**. `tick_units_only`'s battle
+arm carried a note that read as a complete argument — *"this is not a turn, there is no
+`TurnProgress` to suspend, and a screen `0x12` raised from an idle frame would have nothing
+to carry on afterwards"* — and every clause of it was true. The conclusion was not.
+`Battle_ChooseSettlement` (`0x004A6A30`) has no opinion about which frame an army arrived on:
+`Unit_EnterOccupiedTile` and `Army_AttackCounty` call it from inside `Units_Tick`, and it
+writes `g_screenId = 0x12` on the spot. What stops the campaign afterwards is `Units_Tick`'s
+own latch abandoning the sweep, **not** a turn being in flight. There is no "idle frame" in
+the original for a battle to be raised on; there is one frame loop, and the gate is in it.
+
+So the whole of ours was the wrong half of the door: the player's battle met
+`Game::field_policy`, which is `Answer::Decline`, which *is* the autocalc — and `record` then
+dropped the report on the floor too, because there was no `TurnProgress` to hang it on. A
+decline and a never-asked look identical from the campaign afterwards, which is exactly what
+he saw.
+
+**Why eight passing tests could not see it.** `military.rs`'s prompt fixture
+(`a_battle_is_about_to_happen`) gives the march order and the very next event is `press 'e'`.
+So does the siege one. So does every test in `siege_battle.rs`. The army is therefore *always*
+inside the turn machine when it arrives, and the door that a player actually uses was never
+opened by anything. `docs/agents.md`'s hand-staged-fixture entry is the same failure one step
+out: there, every siege test staged its besieger instead of marching one; here, every prompt
+test ends the turn instead of watching one. **The fixture was not wrong about the state — it
+was wrong about the frame.**
+
+That is the generalisable half, and it is not "write more tests":
+
+> **When two features are landed a week apart and each is tested alone, the thing neither
+> test covers is the *ordering* they made newly possible.** Ask what became reachable that
+> was not reachable before, not what changed.
+
+Nothing changed in the prompt, the gate, or the turn loop. What changed is that an army can
+now arrive at an enemy on a frame where no turn exists — a state that was unrepresentable
+the day the prompt was written, and therefore not something its tests could have omitted.
+
+**The fix names the gate rather than the frame.** `tick_units_only` answers all three of
+`Battle_ChooseSettlement`'s settlements exactly as a turn does — `Silently` autocalcs and
+shows nothing, `Reported` autocalcs and shows `0x13`, `Prompt` raises `0x12` — and suspends
+the campaign in a `TurnProgress` marked `idle`, which carries the question and the unseen
+report and **may not enter the phase machine**. That last word is load-bearing: a player who
+answers a battle he was watching must not have his season wound on behind him, and
+`answering_a_watched_battle_settles_it_and_does_not_end_the_turn` is the assertion, ablated
+by deleting the `idle` guard in `advance`.
+
+**One thing the report of this was wrong about, recorded because the number is quoted.** The
+brief pinned `battle-after.sav` at *"3,900 ticks, defender (182, 8)"*. It reproduces at
+**3,100 ticks, defender (182, 22)** — on `main`, unchanged by any of this, verified by
+running `tests/seam.rs` against `main`'s `turn.rs` in the same tree. The verdict, the
+attacker's `(178, 0)` and the militia holding the field are all exactly as pinned; only the
+two numbers that nothing asserts have drifted, which is what happens to a figure that lives
+in prose. `tests/seam.rs` prints them and asserts the verdict, which is the right division.
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**
