@@ -236,10 +236,15 @@ than none:**
 
 * **It is one screen.** Twenty-two others have no inventory, and `0x04` — two painters, eleven
   layouts — is measured at 174 draw calls against our 24.
-* **It counts calls, not correctness.** A call we make at the wrong coordinate, in the wrong
-  font, or with the wrong frame counts as reproduced. `Ui_DrawNumberRight` centring where its
-  name says it right-aligns was found by *reading*, not by the count, and the count did not
-  move when it was fixed.
+* **It counts calls, not correctness — and that is now measured rather than feared.** A call
+  we make at the wrong coordinate, in the wrong font, or with the wrong frame counts as
+  reproduced. Of the eighteen sidebar draws read back line-by-line against their call sites,
+  **three were four pixels wrong** — the population, the happiness and the tax rate, every one
+  of them dropping `Ui_DrawNumber`'s sign column — and **every test in the tree passed, two of
+  them while asserting the wrong coordinate and quoting the right call site.** A player found
+  it. So `reproduced` is coverage, not fidelity, and the fix is the same third verdict
+  `arms.json` is acquiring: `reproduced` / `placed` / `absent`. Until that pass runs, **59 of
+  121 is an upper bound.** `docs/draws-map.md` §5a.
 * **It cannot see a draw that is *right* and never runs.** The wheat's growth was a
   reproduced-looking call whose input never changed. Nothing in a draw-call count is capable
   of noticing that, and the check that would have — *does this picture ever change over a
@@ -907,7 +912,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,111<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,113<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

@@ -1194,8 +1194,8 @@
         {
           "off": "0x258",
           "type": "i32",
-          "name": "herdChangeFromFarming",
-          "comment": "L2.eng 77 Change due to farming."
+          "name": "herdOverallChange",
+          "comment": "L2.eng 77 index 28 'Overall change': (births - deaths) - herdEaten, written by Herd_LabourEstimate's tail and drawn by the campaign sidebar's cattle row. RENAMED from herdChangeFromFarming, which cited index 7. Panel_JobCattle draws THREE lines - 77/7 'Change due to farming' from births-deaths computed inline and never stored, 77/27 'Change due to eating' from -herdEaten, and 77/28 from this field. The old name made a reader conclude slaughter was excluded from the sidebar's figure, which it is not. docs/decisions.md C128."
         },
         {
           "off": "0x25C",

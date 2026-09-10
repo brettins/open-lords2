@@ -1148,6 +1148,75 @@ fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: 
 /// **Flat, not embossed.** Each produce row sets `DAT_005AEA40 = 1` around its
 /// number and clears it after — the same switch the strip's own figures are
 /// drawn under — and that global turns `Ui_DrawText`'s emboss off.
+/// **`Ui_DrawNumber` (`0x00402F64`) — a number with its sign column.**
+///
+/// A player: *"Happiness # and population # in the sidebar are slightly left of
+/// where they should be."* **Four pixels left, both of them, and the tax rate
+/// too.** The cause is one character:
+///
+/// ```c
+/// Ui_NumberToBuffer(value, 1, 0);            /* digits from index 1 */
+/// if (lead != '\0') g_numberBuffer = lead;   /* index 0 */
+/// ... append suffix ...
+/// Ui_DrawText(&g_numberBuffer, x, y, font, colour);
+/// ```
+///
+/// `Ui_NumberToBuffer`'s `start = 1` **leaves index 0 free for a sign**, and
+/// every call site fills it — the strip's three pass `' '`. So the string drawn
+/// at `x` is `" 435 "`, not `"435"`, and the digits begin one space-advance to
+/// the right of `x`. We drew the bare digits at the same `x` and were short by
+/// exactly [`SPACE_ADVANCE`](crate::shell::font::SPACE_ADVANCE) = 4.
+///
+/// **The lead is a column, not padding**, and this workspace already knew that
+/// one level down: `SPACE_ADVANCE`'s own doc comment says `'@'` is *"an
+/// invisible sign column that still occupies its place in a column of
+/// numbers"*. `Ui_DrawDelta` uses that column for `'-'`, `'+'` and `'@'` so
+/// that a rising and a falling forecast line up; a plain `Ui_DrawNumber` leaves
+/// it blank and keeps the same left edge. Drawing the digits without it silently
+/// opts out of the alignment the whole sidebar is built on.
+///
+/// **The discriminating prediction, because a second cause fitted the report.**
+/// Right-anchoring where the original centres would displace a two-digit
+/// happiness *further* than a three-digit population. This displaces both by
+/// **the same four pixels**, because a lead is one character whatever the value
+/// is — and these two are `Ui_DrawNumber`, which has no anchoring argument at
+/// all, so the anchoring hypothesis could not apply to them. `Ui_DrawNumberRight`
+/// is the one that centres, and it is [`body_number_centred`] below.
+///
+/// `lead` is `'\0'` for a caller that wants no column — which the original
+/// treats as *terminate immediately*, since index 0 is the NUL the buffer was
+/// cleared to, so no shipped call site passes it.
+fn strip_number(
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    value: i32,
+    lead: char,
+    suffix: &str,
+    x: i32,
+    y: i32,
+    colour: u8,
+) {
+    strip_text(ctx, canvas, x, y, &format!("{lead}{value}{suffix}"), colour);
+}
+
+/// **`Ui_DrawNumberRight` (`0x004030C6`) — the same buffer, laid out in a
+/// width.** Its tail is `FUN_004025D7`, which **centres**; see
+/// [`body_centred_in`]. The lead column is `Ui_DrawNumber`'s, so it widens the
+/// string and moves the digits half a space right of a bare centring.
+fn body_number_centred(
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    value: i32,
+    lead: char,
+    suffix: &str,
+    x: i32,
+    y: i32,
+    w: i32,
+    colour: u8,
+) {
+    body_centred_in(ctx, canvas, x, y, w, &format!("{lead}{value}{suffix}"), colour);
+}
+
 /// **`Ui_DrawDelta` (`0x00402E0C`) — the produce rows' signed forecast.**
 ///
 /// A player: *"Sidebar doesn't show grain being planted as a negative number."*
@@ -1467,15 +1536,15 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     // figure starts at 602 rather than ending there. We right-anchored it,
     // which put a two-digit number on top of the plate's heart and would have
     // put a three-digit one further left still. See `docs/decisions.md` C42.
-    strip_text(ctx, canvas, 508, 189, &c.population.to_string(), strip_ink);
-    strip_text(ctx, canvas, 602, 189, &c.happiness.to_string(), strip_ink);
+    strip_number(ctx, canvas, c.population, ' ', " ", 508, 189, strip_ink);
+    strip_number(ctx, canvas, c.happiness as i32, ' ', " ", 602, 189, strip_ink);
     // Group 61, centred in 76 pixels at (0x1E0, 0xD5) and (0x234, 0xD5), and
     // **in colour 0x3F, the same as the numbers** — the captions are not dimmed
     // in the original and ours were unreadable against the plate.
     strip_centred(ctx, canvas, 480, 213, 76, &line_text(ctx, g61::STRIP_TAX), strip_ink);
     strip_centred(ctx, canvas, 564, 213, 76, &line_text(ctx, g61::STRIP_RATION), strip_ink);
     // (0x1FA, 0xE2), and the ration level centred in 76 at (0x234, 0xE2).
-    strip_text(ctx, canvas, 506, 226, &format!("{}%", c.tax_rate), strip_ink);
+    strip_number(ctx, canvas, c.tax_rate as i32, ' ', "%", 506, 226, strip_ink);
     // "Red when it differs from rationWanted" is the original's own rule, and
     // the colour it picks is `0xF9` rather than `0x3F`.
     let colour = if c.ration_achieved == c.ration_wanted { strip_ink } else { strip_bad };
@@ -1705,10 +1774,29 @@ fn draw_produce_rows(
         let (delta, delta_dy) = match slot {
             1 => (Some(c.herd_change_expected), 0x139),
             0 => (Some(c.grain_change_expected), 0x139),
-            _ => (None, 0x133),
+            _ => (Some(c.reclaim_fields_finishing), 0x133),
         };
         if let Some(v) = delta {
             strip_delta(ctx, canvas, v, 0x204, y + delta_dy);
+        }
+        // **The reclamation row's second figure**, and it is the only produce row
+        // with one: `Ui_DrawNumber(county +0x214, ' ', " ", 0x20A, y + 0x143,
+        // &g_font10, 0xFA)`, drawn **only when it is non-zero** — the original's
+        // own `if`, so a county reclaiming nothing shows a bare icon rather than
+        // a zero. `Field_ReclaimEstimate`'s tail computes it as *seasons until
+        // the nearest-to-finished field is done*, rounded up, from the full
+        // reclamation staffing.
+        if slot == 2 && c.reclaim_seasons_to_next != 0 {
+            strip_number(
+                ctx,
+                canvas,
+                c.reclaim_seasons_to_next,
+                ' ',
+                " ",
+                0x20A,
+                y + 0x143,
+                DELTA_POS,
+            );
         }
         // `Ui_DrawNumberRight(store, ' ', …, 0x1E0, y + 0x14D, 0x3C,
         // &g_fontBody, 0x3F)` — the store itself.
@@ -1726,7 +1814,7 @@ fn draw_produce_rows(
             _ => None,
         };
         if let Some(v) = store {
-            body_centred_in(ctx, canvas, 480, y + 0x14D, 0x3C, &v.to_string(), strip_ink);
+            body_number_centred(ctx, canvas, v, ' ', " ", 480, y + 0x14D, 0x3C, strip_ink);
         }
     }
 }
