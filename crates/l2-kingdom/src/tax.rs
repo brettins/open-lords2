@@ -145,7 +145,35 @@ pub fn sum_empire_happiness(
 /// It runs as `Panels_RefreshAll`'s third statement — once per county at the
 /// very end of every season — and again inside `County_MakeIndependent`,
 /// `County_SetOwner` and every tax control.
+///
+/// # It writes three fields and this wrote two
+///
+/// The missing one is **`taxShown` (`+0xC0`)**, which is `L2.eng` 86/2,
+/// *"People pay"* — the number on the tax panel. Verbatim:
+///
+/// ```c
+/// iVar3 = Pct(g_counties[county].population, castleMultiplier);
+/// iVar3 = Pct(iVar3, g_counties[county].taxRate);
+/// g_counties[county].taxShown    = iVar3;
+/// g_counties[county].dHapTaxLocal = 5 - g_counties[county].taxRate;
+/// g_counties[county].taxHapOther  = g_taxHappinessOther[g_counties[county].taxRate];
+/// ```
+///
+/// So the only writer of `tax_shown` here was [`collect`], which runs at the
+/// end of a season — and a player reported *"'People pay 0 crowns' on the tax
+/// thing always says 0 crowns"*, which is exactly what a field written once a
+/// season and read by a live panel looks like.
+///
+/// **`taxShown` and `taxCollected` are the same arithmetic minus one guard, and
+/// that is how the two differ.** `Tax_RecomputePreview` has **no suppression
+/// test**; [`collect`] opens `if (county.taxSuppressed) base = 0`. So the panel
+/// keeps showing what the county *would* pay while the treasury banks nothing.
+/// `docs/kingdom.md` §1.3 lists the two fields side by side and says it does not
+/// know how they ever differ; this is how. `[D]` — a reading of the two
+/// functions, not an observation.
 pub fn recompute_preview(t: &Tables, county: &mut County) {
+    let base = tax_base(t, effective_castle_type(county));
+    county.tax_shown = pct(pct(county.population, base), county.tax_rate);
     county.d_hap_tax_local = FREE_TAX_RATE - county.tax_rate;
     county.tax_hap_other = empire_contribution(t, county.tax_rate);
 }

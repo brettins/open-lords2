@@ -4847,6 +4847,84 @@ The tile panel's *"operational"* / *"not operational"* line is a read-out of thi
 is one of the ~150 draw calls that panel is missing. Handed to the map-draw agent rather than
 built here.
 
+**CNEW-tax-is-the-ration-panel-again — the same omission on the panel next door, and the
+first fix did not generalise because nobody asked whether it should.**
+
+An hour after *"rations slider moves but is inoperable"*, the same player: *"'People pay 0
+crowns' on the tax thing always says 0 crowns. And the happiness bonus/minus on the tax screen
+is also stuck and not adjusting."* Two symptoms, one missing call, and it is the one that had
+just been added one door along.
+
+**What the original does, arm by arm**, because the player also asked *"have we compared our
+functionality to the binary?"* and the answer should be written where the next panel can use
+it:
+
+```c
+Tax_Increase (0x0043AA32)          if (taxRate < 0x32) Tax_IncreaseCounty(sel);
+Tax_IncreaseCounty (0x0043AA83)    taxRate++;  Tax_RecomputePreview(county);  Panel_Tax();
+Tax_RecomputePreview (0x0044B80B)  taxShown     = Pct(Pct(population, castleMult), taxRate);
+                                   dHapTaxLocal = 5 - taxRate;
+                                   taxHapOther  = g_taxHappinessOther[taxRate];
+                                   Tax_SumEmpireHappiness(owner);
+                                   FUN_0044BA35();          /* the empire-wide sum of taxShown */
+Panel_Tax (0x0041152F)             draws exactly those three, plus the realm's empire term
+```
+
+Ours wrote `tax_rate` and returned. `tax_shown` had **one writer in the whole tree**,
+`tax::collect`, which runs in the season pass — so it is zero until the first collection and
+afterwards describes last season's rate. Both happiness terms had `tax::recompute_preview`,
+whose own doc comment says it runs *"inside County_MakeIndependent, County_SetOwner and every
+tax control"* — and **no tax control called it.** The documentation of the wiring was correct
+and the wiring was absent, which is the same shape as `Unit::mission` and `County::farm_style`
+and is now the third instance on a *function* rather than a field.
+
+**The generalisation is the finding.** The ration correction identified a category — *a
+control in this game recomputes and repaints; a setter that only sets is not the control* —
+and then fixed one instance of it. The tax panel was three feet away, has the same two arrows
+in the same widget table (`g_taxWidgets`, `0x004DD790`), and was broken in the same way. The
+right move after CNEW-slider-writes-nothing was to grep for the other setters, and the reason
+it did not happen is that the correction read as *finished*.
+
+So, the sweep that should have run then, run now — every `Game::set_*` against the original's
+control for it:
+
+| ours | the original | recomputes? | state |
+|---|---|---|---|
+| `set_ration_split` | `Ration_SetSplit` | food pass, search, allocate ×2, repaint | fixed |
+| `set_tax_rate` | `Tax_IncreaseCounty` | `Tax_RecomputePreview`, repaint | fixed here |
+| `set_ration` | `Ration_SetWanted` | **not yet read** | open |
+| `set_industry_share` | `FUN_00439122` | allocate ×2 — already done | correct |
+| `toggle_industry` | `Industry_ToggleFromMap` | allocate ×2 — already done | correct |
+
+`set_ration` is the one left and it is the third control on the same panel. It is *open*
+rather than *believed fine*, which is the distinction this entry exists to make.
+
+**One half of the report is not a defect and is now asserted so.** `taxHapOther` is
+`g_taxHappinessOther[rate]` and that table is **flat zero from 0 to 19**. Over the range a
+player actually uses, the *Other counties* line does not move and the panel is right. C26
+recorded the flatness; what it did not record is that this makes the line *look* identical to
+the genuinely-stuck one beside it, which is why one sentence reported both.
+`the_empire_tax_happiness_term_is_flat_until_the_rate_reaches_twenty` pins it so nobody
+"fixes" it, and `docs/rules.md` tells a player why the two lines behave differently.
+
+**And a question `docs/kingdom.md` §1.3 asked and gave up on, answered in passing.** It lists
+`taxShown` and `taxCollected` together and says it does not know how the two ever differ.
+`Tax_RecomputePreview` has **no suppression test**; `Tax_Collect` zeroes the base when the
+county's tax is suppressed. That is the whole of it: a suppressed county goes on telling the
+player what his people *would* pay while the treasury banks nothing. `[D]`.
+
+**What was checked and is not wrong.** `Panel_Tax` draws with `Ui_DrawNumber` and
+`Ui_DrawCount`, not `Ui_DrawNumberRight`, so the centring correction does not reach this
+panel. Eighteen call sites elsewhere remain unaudited; that is a separate sweep and this is
+not part of it.
+
+**The trap that was watched for and is not present.** The ration path has `ration::preview`
+and `ration::apply` — same name as the original's single `Ration_Apply`, opposite behaviour on
+the store — and reaching for the wrong one would have had a drag eat the county's herd a
+hundred times. The tax path has no such pair: `recompute_preview` computes and `collect`
+banks, the names say which, and only `collect` credits a realm. Recorded because *looking and
+finding nothing* is the half of a check that usually goes unwritten.
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**

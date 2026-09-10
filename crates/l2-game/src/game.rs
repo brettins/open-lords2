@@ -1010,12 +1010,20 @@ impl Game {
 
     /// Set a county's tax rate, clamped. Returns false, and changes nothing,
     /// for a county the player does not hold.
+    /// **`Tax_IncreaseCounty` (`0x0043AA83`) and `Tax_DecreaseCounty`**, whose
+    /// second statement is `Tax_RecomputePreview` and whose third is a repaint.
+    /// See [`l2_kingdom::Kingdom::set_tax_rate`].
+    ///
+    /// This wrote the rate and stopped — the same omission as the ration
+    /// slider, on the panel next door, found the same evening by the same
+    /// player: *"'People pay 0 crowns' on the tax thing always says 0 crowns.
+    /// And the happiness bonus/minus on the tax screen is also stuck and not
+    /// adjusting."* Two symptoms, one missing call.
     pub fn set_tax_rate(&mut self, id: u8, rate: i32) -> bool {
         if !self.is_players(id) {
             return false;
         }
-        self.kingdom.counties[id as usize].tax_rate = rate.clamp(0, MAX_TAX_RATE);
-        true
+        self.kingdom.set_tax_rate(id as usize, rate)
     }
 
     /// Set a county's wanted ration level, clamped to the six the table holds.

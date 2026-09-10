@@ -98,6 +98,17 @@ The terms:
 An **unowned** county gets a flat bonus that an owned one does not, which is why the shipped
 save has owned counties at 72 and unowned at 77.
 
+**The tax panel's two happiness lines behave differently on purpose, and one of them looks
+broken.** *This county* is `5 − rate` plus your realm's empire term, and it moves on every
+click of the arrow. *Other counties* is the table above — **flat zero from rate 0 to 19** — so
+over the whole range most players use, it sits at nothing and does not budge. That is the
+panel being right rather than stuck. The line only starts moving once you are taxing above a
+fifth, which is also the point at which your *other* counties begin to resent it.
+
+It is worth knowing that this half of the mechanic is effectively **human-only**: the highest
+rate an AI lord sets in a hundred turns of our own long game is 12, so nothing an AI does ever
+leaves the flat part of the table.
+
 Two things worth knowing because they surprise people:
 
 - **Taxing at 19% costs your other counties nothing at all.** The empire-wide penalty is
