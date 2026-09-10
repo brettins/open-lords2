@@ -22,6 +22,117 @@ stale counts as current — one of them mine. Numbers that are frozen measuremen
 
 ---
 
+## 0.0 Starting position — read this first
+
+**Written at the end of a session in which ten agents worked in parallel and one integrator
+landed fourteen merges.** It is not a summary of that evening; it is where the next person
+starts. It goes stale the moment the queue moves, so **check it against `git log` and
+`git branch` before trusting a line of it.**
+
+### The branches that are waiting, and what each is
+
+**Every one of these is a deliberate stopping point, not abandoned work.** The agents were told
+to commit and hand off; several stopped mid-task on purpose and said so in the commit message.
+Read the message before assuming a branch is unfinished by accident.
+
+| branch | what it is | state |
+|---|---|---|
+| `input-model` | **The gesture-kind gap** — extends `arms.json`'s schema to record what *kind* each gesture is | see below; **changes what the arm figures mean** |
+| `setup-shield-colour` | The player's colour choice carried into the world; `Realms_AssignLords` reproduced whole | clean, both suites green, one placeholder |
+| `fonts-chrome-title` | *"The fonts load. The chrome never asked for them."* | clean |
+| `shared-ground` | Four windows put back on the game's own ground, and the other 44 classified | clean, suite green |
+| `industry-sites` | The 17 sidebar industry rows, wheels turning, the toggle narration | **no tests of its own — see the debt below** |
+| `draws-map` | The reclamation forecast and the sign column | clean |
+| `armoury-walker-village-merc` | A soldier walks over and takes the weapon | three commits, one a handoff |
+| `village-idle` | The ration level control drawn out of `L2.eng` | three commits, last is a handoff |
+| `merchant-pacing` | `Unit_StepOnce`'s sub-tile counter | **8 tests red — do not merge as-is** |
+
+### The two that need a decision rather than a merge
+
+**`merchant-pacing` is a good branch that is not landable.** The finding is real and large: we
+were missing half of `Unit_StepOnce` — the sub-tile counter that must reach 16 before a tile is
+entered — so every unit crossed a tile every tick instead of every 8th on a road or 32nd on open
+ground. A merchant's whole route finished in eleven frames at the tail of a 47-frame turn.
+
+It leaves **8 tests red in `military.rs`, and the cause is a fixture shape rather than the fix**:
+all eight press End Turn in the same breath as a march order, and nothing in the seven phases
+waits for a march that now takes 8 frames a tile. **That is the same fixture defect that hid the
+watched-battle bug** (C115) — every prompt fixture puts the army inside the turn machine before
+it arrives. The branch carries a `march()` helper that fixed the identical two failures in
+`castles.rs`; applied to `military.rs` it went 9 red to 8, and the agent **reverted rather than
+leave a half-measure.** That was the right call and the next person should not undo it — the job
+is the fixtures, not the branch.
+
+Two things in it that must not be lost if it sits: the original's tick rate is **read, not
+guessed** (`Battle_Frame` runs the tick a computed number of times per frame; at the shipped
+default that is 12 ms against our 16, **so the tick rate was never the problem — only
+ticks-per-tile**), and `long_game.rs`'s mutiny and tax-≥-20 assertions were **removed, not
+stretched**, because they are unreached at any horizon to 1200 turns once interception is
+genuinely hard. **Bankruptcy moved from turn 144 to 480.** That is a real change in the shape of
+the long game: the late-game evidence gathered before it was gathered in a **faster world than
+the game actually has**, and anything resting on it should be re-checked.
+
+Its placeholder for the sub-tile counter is cited from six places and unwritten, so rule 4 will
+refuse the branch until somebody assigns it — which is correct, and is why the tag is not spelled
+out here: the check cannot tell a real placeholder from prose about one, and it is right not to
+try.
+
+**`industry-sites` has no tests of its own, and its author says so plainly** rather than hiding
+it. The commit message names the three it wanted, each with its ablation and the trap to avoid.
+The player is looking at exactly those rows. **If it is landed, the debt is landed with it and
+belongs in this file by name** — a branch merged with its own admission of missing tests is how a
+gap becomes permanent. Two document corrections in it matter more than the feature:
+`docs/draws-map.md` §2 attributes the iron, stone and wood painters to the wrong addresses, and
+the `INDUSTRY / NOT DRAWN` box's stated reason was **checkable and false in both halves**.
+
+> **A placeholder that explains itself is asserting a finding, and nothing checks it.**
+
+That is the third tonight — after `NOT SIMULATED` (which was three multiplications of fields we
+already had, C120) and the font comment (C107).
+
+### The one cross-cutting finding that is not yet in the tree
+
+**The gesture-kind gap.** `docs/arms.json` records *which* gestures a screen answers. It does not
+record **what kind** each is — press versus release, drag, auto-repeat, the pressed frame. Four
+independent findings pointed at it before anyone named it, and a player found three defects that
+are all this one gap. `input-model` extends the schema for it.
+
+**When it lands, `151 of 211` changes meaning**, and `CLAUDE.md`'s rule 5 quotes that pair
+through `figures.js`. The number and the schema must move together; a count whose unit changed
+silently is worse than a stale one.
+
+It is the third member of a family this session named twice more:
+
+* **A count can be true and misleading by weighting.** Sixteen of the 134 sound triggers carry
+  543 of the 771 files, because one primitive is a table lookup and the rest take a constant
+  (C126). A 1:1 count weights every row equally and a player does not.
+* **A denominator can be incomplete.** The campaign map's draw audit **cannot see
+  `battlefield.rs`** — no record names it as a module — so §0's `59 of 121` is an upper bound
+  *and* its denominator has a hole.
+
+All three say the same thing: **quote the second column, not only the count.**
+
+### Standing numbers, and the one that is unaudited
+
+At `dcde777`: **2,104 tests**, C1..C126, 826 citations, 1,290 functions and 573 globals named,
+53 generated figures, `GATED_TOTAL` 324. Five checks green.
+
+**One live debt with a player report attached.** `Ui_DrawNumberRight` **centres** — the name is a
+false claim and the `[V]` comment asserted the opposite of the body (C119). Two panels are fixed.
+**Eighteen call sites beyond them are unaudited**, and a player has reported the sidebar's
+happiness and population numbers sitting left, which is exactly that fingerprint. That sweep
+wants an owner and is the cheapest player-visible win on this list.
+
+### What is recorded and what is not
+
+Everything cited by a `C`-number is in `docs/decisions.md` and checked. **What is *not* in the
+tree is the reasoning in the coordinator's briefs**, and several findings above existed only
+there until this section was written. If a brief tells you something load-bearing,
+**land it in a document in the same commit as the work** — this file, `agents.md`, or the
+correction log. A finding that lives in a message is a finding one context window from gone.
+
+---
+
 ## 0. What would prove we have not got there
 
 **A goal with no failing condition is a mood.** Revision 4 could be satisfied by opinion; this one
