@@ -27,7 +27,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use l2_game::audio::{names, Audio};
+use l2_game::audio::Audio;
 use l2_game::game::Assets;
 use l2_game::input::{window, Event as GameEvent, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
@@ -86,9 +86,11 @@ struct App {
     /// `docs/netcode.md`'s lockstep argument rests on, held by the type
     /// system rather than by remembering.
     audio: Audio,
-    /// `game.turns_played` as it stood at the last tick, so that the end of a
-    /// turn can be noticed without anything having to report it.
-    turns_heard: u32,
+    /// **What decides what is audible**, and the edge counters it needs to
+    /// notice that something has *become* true. It lives in the library so that
+    /// a test runs this code rather than a copy of it —
+    /// `crates/l2-game/tests/audio_wiring.rs`.
+    director: l2_game::audio::Director,
     /// `DAT_004DF3A8` — whether Control is held. The window procedure keeps the
     /// same latch and its digit arm dispatches on it: with Control, store a
     /// battle control group; without, recall one.
@@ -210,50 +212,18 @@ impl App {
         self.listen();
     }
 
-    /// **Everything audible, decided from the world after the tick that made
-    /// it.**
+    /// **Everything audible**, which is [`l2_game::audio::Director::listen`]
+    /// and nothing else.
     ///
-    /// One direction only: this reads the game and the screen stack and tells
-    /// the audio layer what should be true. It never writes to either, and
-    /// nothing it does is visible to the next tick — so the recording of a
-    /// session and a replay of it are the same simulation whether or not the
-    /// machine had a sound card.
-    ///
-    /// Asking for a track that is already playing is free, so this runs sixty
-    /// times a second and the music does not restart.
+    /// The body used to be here. Being in a binary meant no test could call it,
+    /// so the only test available was one that re-typed the same lines beside
+    /// its own assertions — a test that passes with this file deleted. See the
+    /// `Director` doc comment for the whole of that argument.
     fn listen(&mut self) {
-        self.audio.follow(l2_game::audio::scene(&self.machine, &self.game));
-
-        // **There is no end-of-turn sound in the original**, and this is not
-        // one. Nothing on the `Turn_End` / `Season_Advance` / phase-7 path
-        // plays anything, the End Turn button is silent, and both call sites
-        // of the end-of-turn screen fade carry no sound either.
-        //
-        // What a player hears at the end of a turn is the *message window*
-        // opening: `Msg_DrawWindow` (`0x0047309E`) plays `ff_msg.wav` on the
-        // frame `g_messageTimer` reaches 2000, and a turn ends in a run of
-        // message windows. So the chime belongs to the window.
-        //
-        // We have no message windows yet, so this fires **once per turn that
-        // produced any message** rather than once per window. It is an
-        // approximation and it is written down as one: when the message
-        // windows exist, the call belongs on the window and this goes away.
-        // The other two thirds of the sound — the units marching, which is
-        // `audio::play_effect_if_idle`, and the narration — are not wired at
-        // all.
-        if self.game.turns_played != self.turns_heard {
-            self.turns_heard = self.game.turns_played;
-            let spoke = self
-                .game
-                .last_report
-                .as_ref()
-                .is_some_and(|r| !r.messages.is_empty());
-            if spoke {
-                self.audio.play_effect(names::fanfare::MESSAGE);
-            }
-        }
+        self.director.listen(&mut self.audio, &self.machine, &self.game);
     }
 }
+
 
 /// `ctrl` is the window procedure's `DAT_004DF3A8` — `0x004B29BE` latches
 /// `VK_CONTROL` on key-down and clears it on key-up, and its digit arm calls a
@@ -489,7 +459,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         game,
         assets,
         audio,
-        turns_heard: 0,
+        director: l2_game::audio::Director::new(),
         // The front end, as the original has it: `g_screenId` 0x1F, page 1.
         // `screens::menu` is the two-item placeholder it replaces; it is still
         // there, and `tests/machine.rs` still drives it, but the application

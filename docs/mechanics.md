@@ -586,11 +586,30 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   and one lookup table. No new file format: an `RT_CURSOR` is a `.cur` with the 22-byte
   directory swapped for a 4-byte hotspot. The pointer is not simulation state, so it costs
   nothing in `docs/netcode.md` terms.
-- ✅ **Sound: the music plays.** 771 `.wav` files, 396 MB. The layer is
-  `crates/l2-game/src/audio`, and it is in `l2-game` for the same reason `winit` is
-  (`docs/netcode.md` D-3). **A sound can only ever read the world**: `Audio` is not in
-  `Ctx`, so no screen can reach it, and the event loop derives what should be audible
-  from what already happened.
+- ✅ **Sound: the music plays — and for weeks this line was wrong.** 771 `.wav` files,
+  396 MB. The layer is `crates/l2-game/src/audio`, and it is in `l2-game` for the same
+  reason `winit` is (`docs/netcode.md` D-3). **A sound can only ever read the world**:
+  `Audio` is not in `Ctx`, so no screen can reach it, and the event loop derives what
+  should be audible from what already happened.
+
+  **The number that keeps this row honest is 11 of 771**, and it is measured rather than
+  typed — `audio_wiring.rs::eleven_of_the_installs_771_sounds_are_reachable` drives every
+  scene the policy can produce and reads back what was opened. That is what the engine can
+  reach by any path: `Scroll1‑5`, `Battle1‑4`, `ff_msg.wav` and `ff_batl.wav`. **`Battle5`
+  is not among them**: it ships, it decodes, and the counter that selects it is
+  `DAT_0057A0F0`, the unidentified third battle mode, so nothing can ask for it. The count
+  was written as 12 first, by reading the table instead of driving it. It was
+  **0 of 771** from the day the layer landed until a player said he heard nothing —
+  `audio::scene` derived the music from the *bottom* of the screen stack, and the front
+  end is pushed under the campaign rather than replaced by it, so it answered *"front
+  end"* forever. `docs/decisions.md` CNEW-bottom. Everything below this paragraph is
+  about the original and was never in doubt; what was in doubt was whether anything
+  called it, which is the question this row now answers with a fraction instead of a
+  tick.
+
+  Of the rest, the one a player notices first is `click3.wav`: `Widget_Test`
+  (`0x0040DA1E`) plays it on every widget press from a single call site, and we have no
+  single hit-tester to put it in. That is a widget-layer job, not an audio one.
 
   | | files | size | |
   |---|---:|---:|---|

@@ -4685,6 +4685,78 @@ same and it is one word — name the function. *"No AI calls `order_engine`"* is
 cannot be promoted by accident.
 
 
+
+### **CNEW-bottom — The music has never played, because the front end is pushed under the game rather than replaced by it.**
+
+A player reported *"not hearing any sound."* The start-up line said `sound: on (771 wav files
+found)`, so the device opened and the install was found. Nothing was wrong below `audio::scene`:
+
+```rust
+if let Some(ScreenId::Setup(_)) = machine.ids().first() {
+    return Scene::FrontEnd;
+}
+```
+
+`SetupScreen`'s Start button returns `Transition::Push(ScreenId::Campaign)`, not `Replace`. So the
+title screen stays at the **bottom** of the stack for the whole session, `scene` answers `FrontEnd`
+in every state a running game can be in, and `follow` calls `stop_music` sixty times a second.
+**No music has played since the audio layer landed**, on any screen, in any game.
+
+The predicate meant *"is the front end still up?"*. What it implemented was *"was the front end
+ever up?"*. Those two agree on exactly one kind of machine — one built by hand with a single screen
+on it — and that is what the test was:
+
+```rust
+// Through the real entry point, on a real machine, from the real save.
+let machine = Machine::new(ScreenId::Campaign);
+```
+
+The comment is the finding. Every word of it is false about the *stack*, and the assertion it
+guards is correct about everything else — the save loads, the share is 7 %, the ladder answers
+`Scroll1`. It is `docs/agents.md`'s *a test that drives the picture from the wrong field*, with a
+stack instead of a field, and it is C27's tenth instance: a rule with no way in, behind a green
+suite.
+
+**Three things this changes about how the audio layer is checked**, and the third is the one worth
+carrying:
+
+1. `scene` now asks the **whole** stack, in the original's own three phases: anything is
+   `ScreenId::Battlefield` → `Music_StartBattle` (`0x00477B2F`), which `Battle_Start`
+   (`0x004778A0`) opens with; every screen is a front-end screen → silence, because nothing before
+   `Game_NewGame` reaches either picker; otherwise → `Music_StartCampaign` (`0x00499ACA`), which
+   `Game_NewGame` ends with. `[V]` from the decompilation, read at the time of writing.
+2. `before_the_campaign` is **exhaustive over `ScreenId` with no `_` arm**, so adding a screen does
+   not compile until somebody has said whether music plays behind it. That is the only defence that
+   would have caught this, because every check that *read* `scene` agreed with it. Verified by
+   adding a variant: the compiler names `audio/mod.rs` first.
+3. **`App::listen` moved out of the binary into `audio::Director`.** It had been six lines in
+   `main.rs`, and an integration test cannot link a binary — so the only test available was one
+   that *re-typed* those six lines beside its own assertions. That test passes with `main.rs`
+   deleted. `docs/agents.md` warns about two artefacts maintained by the same person at the same
+   time; re-typing a function into its own test is the purest form of it, and it is invisible
+   because the copy is correct.
+
+The link that still cannot be typechecked — that `main.rs` calls the director at all — is held by
+a source-text check with a message that says so. Ablating the call turns exactly that test red and
+leaves the other six green, which is the honest picture of what it is worth.
+
+**And the count, which nobody had quoted — and which was wrong the first time it was.** Of the
+install's 771 `.wav` files the engine could reach **0** before this and can reach **11** after it:
+five campaign tracks, **four** battle tracks, `ff_msg.wav` and `ff_batl.wav`.
+
+The draft of this paragraph said **12**, counting `battle1`…`battle5` out of the table. `Battle5`
+ships, decodes, and is unreachable: the counter that selects it is `DAT_0057A0F0`, the third battle
+mode `BattleKind` deliberately does not name because it is unidentified. Reading a table is not
+driving it, which is the same lesson as everything above, arrived at from the other end — and it is
+why `Audio` now records what it actually opened and
+`audio_wiring.rs::eleven_of_the_installs_771_sounds_are_reachable` drives every scene the policy
+can produce and asserts the *set*. A new call site moves the number by itself; a name that stops
+being reachable goes red carrying its own name.
+
+The loudest of what remains is `click3.wav` — `Widget_Test` (`0x0040DA1E`) plays it on every widget
+press from one call site, because the original has one hit-tester and we have one per screen. It is
+not an audio change.
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**

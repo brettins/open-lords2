@@ -197,7 +197,16 @@ fn england_turn_one_would_play_scroll1() {
     assert_eq!(realm.county_count, 1, "the England start is one county");
     assert_eq!(game.kingdom.county_count, 14);
 
-    // Through the real entry point, on a real machine, from the real save.
+    // **Not a real machine, and the comment here used to claim it was.**
+    //
+    // `Machine::new(ScreenId::Campaign)` is a stack the application cannot
+    // produce: it starts on `Setup(Title)` and the Start button *pushes* the
+    // campaign, so the setup screen is at the bottom for the whole session.
+    // `audio::scene` asked what was at the bottom, this test agreed with it,
+    // and no music played for the life of the audio layer. The stack is left
+    // hand-built here on purpose — what this test is about is the *inputs* the
+    // save carries, and `tests/audio_wiring.rs` is what drives the real one.
+    // `docs/decisions.md` CNEW-bottom.
     let machine = l2_game::screen::Machine::new(l2_game::screen::ScreenId::Campaign);
     let scene = l2_game::audio::scene(&machine, &game);
     assert_eq!(
@@ -213,7 +222,8 @@ fn england_turn_one_would_play_scroll1() {
     // is a note rather than a requirement - but it is why the note exists.
     assert_eq!(realm.share_of_map_pct, 0, "the derived field is not populated on import");
 
-    // The front end, off the bottom of the stack, is silent.
+    // The front end is silent — the one clause of this test that was true of
+    // the running game as well as of this fixture.
     let front = l2_game::screen::Machine::new(l2_game::screen::ScreenId::Setup(
         l2_game::screens::setup::SetupPage::Title,
     ));

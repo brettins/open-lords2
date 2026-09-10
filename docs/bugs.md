@@ -494,16 +494,37 @@ it is the only one of the eighteen with an obvious caller sitting right beside a
 that ought to be it. Two adjacent identical literals is what a copy-paste looks like in
 `.data`.
 
-**Evidence.** **[V]** on the two call sites and on the executable containing no reference to
-`ff_win.wav`, asserted over the user's own install by
+**And it is sharper than "one fanfare for both", which is what the heading above assumed.**
+**[V]**, read out of the decompilation while wiring the audio layer up — the two sites are
+not *win* and *lose*. They are the same case twice:
+
+```c
+if (g_battleLoser == g_battleArmyA) {
+  if (g_units[g_battleArmyB].owner == g_localPlayer) Sound_PlayFile("ff_lose.wav", 0, 0);
+} else if (g_battleLoser == g_battleArmyB) {
+  if (g_units[g_battleArmyA].owner == g_localPlayer) Sound_PlayFile("ff_lose.wav", 0, 0);
+}
+```
+
+Each arm names the army that did **not** lose. So a fanfare sounds exactly when the local
+player **wins**, and **nothing at all** sounds when he loses — the game has no defeat
+fanfare, and the file it plays for a victory is the one called *lose*. The original defect
+is therefore two defects: the wrong file, and a missing sound on the other outcome.
+
+**Evidence.** **[V]** on the two call sites, on their gates, and on the executable
+containing no reference to `ff_win.wav`, asserted over the user's own install by
 `l2-game/tests/audio_install.rs::the_shipped_sounds_the_executable_never_names_are_the_eighteen_we_wrote_down`.
 **[I]** that it is a mistake rather than a late decision to use one fanfare for both — but
 a decision would have deleted the file, and it is still in the box.
 
-**Reproduced?** **Not yet applicable.** There is no post-battle fanfare in our code because
-there is no battle screen. `crates/l2-game/src/audio/names.rs` names the constant
-`fanfare::AFTER_BATTLE` rather than `LOSE`, so whoever wires it up meets the fact rather
-than the assumption.
+**Reproduced?** **No, and it is now blocked on a value rather than on a screen.** The claim
+that there is no battle screen is stale — `ScreenId::BattleResult` is built. What
+`audio::Director` cannot see is *who won*: the `BattleReport` travels inside
+`turn::TurnStep::Report` and is never parked on the `Game`, so the fanfare's gate is out of
+reach. Firing it on every battle would add a sound the original never makes, on the one
+outcome it is silent for, so it is left unwired. `crates/l2-game/src/audio/names.rs` names
+the constant `fanfare::AFTER_BATTLE` rather than `LOSE`, and now carries the gate beside it,
+so whoever wires it up meets both facts rather than the assumption.
 
 ## 2.10 Screens and navigation
 

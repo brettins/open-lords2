@@ -178,6 +178,32 @@ pub mod fanfare {
     pub const BATTLE: &str = "ff_batl.wav";
     /// `Battle_ReturnToCampaign` (`0x004AB383`), **both** of its two sites.
     /// See the module note on `Ff_win.wav`. `[V]`
+    ///
+    /// **And both sites play it to the *winner*.** `[V]`, read from the
+    /// decompilation while wiring this up, because it decides the gate a call
+    /// site here would need:
+    ///
+    /// ```c
+    /// if (g_battleLoser == g_battleArmyA) {
+    ///   if (g_units[g_battleArmyB].owner == g_localPlayer) Sound_PlayFile("ff_lose.wav", 0, 0);
+    /// } else if (g_battleLoser == g_battleArmyB) {
+    ///   if (g_units[g_battleArmyA].owner == g_localPlayer) Sound_PlayFile("ff_lose.wav", 0, 0);
+    /// }
+    /// ```
+    ///
+    /// Each arm names the army that did **not** lose, so the local player hears
+    /// a fanfare exactly when he wins and hears nothing at all when he loses —
+    /// and the fanfare he hears is the one called *lose*, while `Ff_win.wav`
+    /// ships unreferenced. That makes the defect sharper than "the wrong file
+    /// is played at both sites": there is no losing fanfare, and the winning
+    /// one is misnamed.
+    ///
+    /// **Not wired**, and deliberately: `main.rs`'s `listen` can see the
+    /// [`crate::screen::ScreenId::BattleResult`] screen arrive but not who won,
+    /// because the [`crate::engagement::BattleReport`] travels inside
+    /// `turn::TurnStep::Report` and is never parked on the [`crate::Game`].
+    /// Playing it on every battle would add a sound the original never makes,
+    /// on the one outcome it is silent for. It needs the verdict, not a call.
     pub const AFTER_BATTLE: &str = "ff_lose.wav";
 }
 
