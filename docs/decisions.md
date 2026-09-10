@@ -4178,6 +4178,55 @@ sits inside `if (g_mapZoom != 2)`. Ours draws a status line of its own there ins
 Cheap to close, and worth closing first of the four: it is the only one of this audit's
 findings that needs no fixture the project does not have. `docs/draws-map.md` §5.4.
 
+**CNEW-grain-forecast — the sidebar's four grain forecasts are the tail of a function we
+ported only the loop of, and a player found it the same afternoon the audit counted it.**
+
+> *"Sidebar doesn't show grain being planted as a negative number."*
+
+He is right, and he is describing **Spring**. `Grain_LabourEstimate` (`0x0044D374`) is a
+search loop followed by a tail, and `l2_kingdom::land::grain_labour_estimate` reproduces the
+loop, returns `GrainEstimate { wanted, useful }` and stops. The tail writes four things
+nothing in this workspace computes — `+0x230` (what sowing will cost), `crop[2]` (the harvest
+forecast), `+0x2FC` (the growth forecast) and `+0x22C`, the **signed** number the sidebar's
+grain row draws:
+
+```c
+if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
+else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
+else                  county.field_0x22C = -county.grainEaten;
+```
+
+In Spring that is `−sown − eaten` and cannot be positive. **So this is not a formatting bug.**
+`Ui_DrawDelta` (`0x00402E0C`) is perfectly capable of a negative — it draws `-value` with a
+`'-'` lead in `colourNeg`, a `'+'` lead when positive and a blank `'@'` at zero, all as one
+`Ui_DrawText` with no separate minus mark — and the number simply never reaches it.
+
+**Two things about this are worth more than the fix.**
+
+**One: the reason for the doubled estimate round was already understood, and the values it
+exists to produce were still dropped.** `crate::field`'s module docs say the
+`Labour_Allocate` / `Herd_UpdateCrowding` / `County_RefreshEstimates` round runs twice "for …
+the panel forecasts, which the estimates fill from whatever the allocator last decided."
+These are those forecasts. Knowing *why* a pass exists is not the same as carrying what it
+writes, and the port is faithful right up to the line where the interface starts — which is
+exactly the seam C30 is about, seen from the drawing side. The forecast is not recoverable
+from the estimate either: the loop calls `Grain_Sow(county, workers, grain − grainEaten)` and
+the tail calls `Grain_Sow(county, staff, grain)`.
+
+**Two: an instrument on this project got ahead of the player for the first time.**
+`docs/draws-map.md` §5.5 counted the eight `Ui_DrawDelta` calls as missing hours before the
+report arrived, and §5.10 could answer *which of three things is wrong* by reading rather than
+by guessing. Every previous defect on this screen — C57, C58, C60, C61 — was explained after
+he found it. `docs/plan.md` §0's row *"a screen showing the wrong thing — instrument: none"*
+now has one, and this is the evidence that it works.
+
+**And a second defect on the same row, which is the one that would have been mistaken for
+it.** `Ui_DrawNumberRight` (`0x004030C6`) ends in `FUN_004025D7`, which computes
+`x + (width − textWidth) / 2`: it **centres**. Its name and its `docs/symbols.json` comment
+both say right-aligned. The grain row's *store* is therefore centred in 60 pixels from x 480
+and `county::draw_produce_rows` right-anchors it. Found independently by the other draw audit;
+recorded here because it lands on this row.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the
