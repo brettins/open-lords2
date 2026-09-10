@@ -54,6 +54,21 @@ pub enum ScreenId {
     Setup(crate::screens::setup::SetupPage),
     /// `g_screenId` `0x1C` — the campaign interstitial.
     Conquest,
+    /// `g_screenId` `0x0B` — **the other lords**: one card per rival and the
+    /// action menu. See [`crate::screens::diplomacy`].
+    ///
+    /// The rival being looked at is **not** part of the identity, unlike the
+    /// county on a county panel: `g_diploTarget` is a global the screen owns
+    /// and changes under itself when a card is clicked, and there is only ever
+    /// one of these open.
+    Diplomacy,
+    /// `g_screenId` `0x1A` — one of the seven compose dialogs, for one rival
+    /// and one message kind.
+    ///
+    /// Both are part of the identity because both are what the painter
+    /// dispatches on: `Screen_DiploDialog` switches on `g_diploKind` and every
+    /// line of every shape names `g_diploTarget`.
+    DiploCompose(u8, u8),
     /// `g_screenId` `0x35` and `0x36` — loading and saving a conquest. One
     /// painter with a mode flag, so one screen with a mode.
     SaveLoad(crate::screens::saveload::Mode),
@@ -137,9 +152,6 @@ pub enum ScreenId {
     /// `g_screenId` `0x09` — **the court**, the realm's balance sheet. Not a
     /// diplomacy screen; see [`crate::screens::court`].
     Court,
-    /// `g_screenId` `0x0B` — **diplomacy**, the lord cards and the action menu.
-    /// See [`crate::screens::diplomacy`].
-    Diplomacy,
     /// `g_screenId` `0x18` — **send supplies**, from one county to another.
     /// The destination is part of the identity because the screen opens with it
     /// equal to the source and the player moves it with the minimap. See
@@ -328,6 +340,12 @@ impl ScreenId {
             ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
             ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
             ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),
+            ScreenId::Diplomacy => {
+                Box::new(crate::screens::diplomacy::DiplomacyScreen::new())
+            }
+            ScreenId::DiploCompose(target, kind) => {
+                Box::new(crate::screens::diplomacy::ComposeScreen::new(target, kind))
+            }
             ScreenId::SaveLoad(mode) => {
                 Box::new(crate::screens::saveload::SaveLoadScreen::new(mode))
             }

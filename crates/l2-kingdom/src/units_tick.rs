@@ -250,6 +250,12 @@ impl Kingdom {
             }
             return Garrison::TooMany;
         }
+        // Already the garrison: nothing to join. See
+        // [`crate::conquest::reach_castle_building`] for why this guard is here
+        // and why the original has none.
+        if sitting_slot == unit {
+            return Garrison::Joined { into: sitting_slot };
+        }
         if sitting_slot != 0 {
             let _ = crate::unit::combine(&mut self.campaign.units, sitting_slot, unit);
             let realms = self.realms.clone();
@@ -335,6 +341,17 @@ impl Kingdom {
             out.stepped += 1;
         }
         if let Some(o) = step.offence {
+            // `Unit_CrossField` (`0x0046673C`) and `Unit_BurnDwelling`
+            // (`0x00468AE2`) both call `Diplo_Offend` **inline**, in the middle
+            // of the step, and this is the same place. `Step::offence` stays as
+            // a report because the caller may want to say something about it;
+            // what it no longer is, is the only thing that happens.
+            crate::diplomacy::offend(
+                &mut self.realms,
+                o.against,
+                o.by,
+                o.amount.clamp(i8::MIN as i32, i8::MAX as i32) as i8,
+            );
             out.offences.push(o);
         }
         // `Army_Tick` and `PeasantMob_Tick` recount the county's troops on a

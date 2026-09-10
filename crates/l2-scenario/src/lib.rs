@@ -450,6 +450,13 @@ pub struct RealmState {
     pub stone: i32,
     pub wood: i32,
     pub weapons: [i32; l2_kingdom::tables::WEAPON_TYPE_COUNT],
+    /// `+0x84 + other * 0x10` — this realm's view of each other realm.
+    ///
+    /// **Carried at last.** `l2_formats::save::Realm` did not read these 96
+    /// bytes at all, so every load ran `Diplo_Init` and a mid-game save came
+    /// back with the diplomatic matrix reset — every alliance and every grudge
+    /// gone. `docs/decisions.md` C83.
+    pub pairs: [l2_kingdom::realm::Pair; l2_kingdom::realm::MAX_REALMS],
 }
 
 /// A whole starting position, as plain data.
@@ -740,6 +747,25 @@ impl Scenario {
             .realms()?
             .iter()
             .map(|r| RealmState {
+                // The 96 bytes at `+0x84` that nothing read until C83.
+                pairs: {
+                    let mut p = [l2_kingdom::realm::Pair::default(); l2_kingdom::realm::MAX_REALMS];
+                    for (i, slot) in p.iter_mut().enumerate() {
+                        let f = r.pairs[i];
+                        *slot = l2_kingdom::realm::Pair {
+                            standing: f.standing,
+                            allied: f.allied,
+                            grudge: f.grudge,
+                            warnings_sent: f.warnings_sent,
+                            at_war: f.at_war,
+                            compliments_from: f.compliments_from,
+                            best_gift: f.best_gift,
+                            has_mail: f.has_mail,
+                            help_price_multiple: f.help_price_multiple,
+                        };
+                    }
+                    p
+                },
                 in_play: r.in_play(),
                 strength: r.strength,
                 is_human: r.is_human,
@@ -1035,6 +1061,7 @@ impl Scenario {
                 stone,
                 wood,
                 weapons,
+                pairs,
             } = r;
             let realm = &mut k.realms[id];
             realm.in_play = *in_play;
@@ -1058,6 +1085,11 @@ impl Scenario {
             realm.stone = *stone;
             realm.wood = *wood;
             realm.weapons = *weapons;
+            // **The diplomatic matrix, carried instead of re-initialised.**
+            // `scenario::from_save` ran `Diplo_Init` because nothing read
+            // these bytes; a mid-game save came back with every alliance and
+            // every grudge gone. `docs/decisions.md` C83.
+            realm.pairs = *pairs;
         }
 
         for id in self.county_ids() {

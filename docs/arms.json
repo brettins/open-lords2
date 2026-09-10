@@ -110,6 +110,41 @@
       "complete": true,
       "note": "Enumerated arm by arm from Screen_FrameInput, Screen_Draw and the window proc."
     },
+    "county-panels": {
+      "what": "0x14 population, 0x15 tax, 0x16 happiness, 0x19 rations",
+      "complete": true,
+      "note": "All four arms are the same shape and are read in docs/screens-county.md 2.6; 0x19 alone inserts Ration_SliderClick. The four PANELS themselves are drawn by four painters and their widget tables are Screen_HandleInput's, not Screen_FrameInput's."
+    },
+    "diplomacy": {
+      "what": "0x0B the lord cards and the action menu, 0x1A the seven compose dialogs",
+      "complete": true,
+      "note": "Declared at merge, not by the branch: its eleven arms named this group and nothing declared it, which every_group_an_arm_names_is_declared caught. That test exists because the merge driver once dropped five declarations silently, and it earned itself on the next branch through. 0x1A could not be identified in docs/screens-county.md until this work; the 0x00 arm is the sidebar LORDS button that opens 0x0B."
+    },
+    "front-end-keys": {
+      "what": "The keyboard on setup screen 0x1F and the save/load box 0x35/0x36",
+      "complete": true,
+      "note": "Recorded because enumerating the text fields meant reading these ladders anyway, and what it turned up is that THE FRONT END HAS NO KEYBOARD AT ALL in the original: not one of Screen_HandleInput's thirteen g_setupPage arms tests a key, and the window procedure has no g_screenId == 0x1F case. Every `ours/setup-*` and `ours/saveload-*` record below is therefore an invention, and they are KEPT rather than removed -- a menu a person cannot drive from the keyboard is worse, not more faithful. They are here so the count is honest, which is the whole point of the `invention` status."
+    },
+    "management-screens": {
+      "what": "0x04 and the close arms of 0x08 .. 0x13",
+      "complete": false,
+      "note": "The CLOSE arms are enumerated and the two panels behind 0x04 are not: FUN_00438990, FUN_00438A91 and FUN_00437002 are three hotspot tables nobody has driven. The screens themselves belong to the merchant, armoury, diplomacy and army agents; what is here is the chrome around them."
+    },
+    "menu-bar": {
+      "what": "g_menuBarItems (0x004DC428) and screen 0x32 -- three titles, sixteen items",
+      "complete": true,
+      "note": "Enumerated from the table rather than from any painter: `node tools/oracle/widgets.js menu 4dc428 3` names all sixteen handlers, and Ui_DrawMenuTitles, Menu_HitTitle, Menu_OpenDropdown, FUN_0040DD92, FUN_0040E099 and FUN_0040DF62 are the six functions between them. The battlefield's own Menu_OpenDropdown call is 0x0040DECA/battle-menu-bar and stays in the battlefield group."
+    },
+    "panels": {
+      "what": "g_screenId 0x04, 0x09, 0x0B, 0x18, 0x25 and 0x2E -- the last six shells, and the two painters of 0x04",
+      "complete": true,
+      "note": "Enumerated out of Screen_FrameInput, Screen_HandleInput, Screen_DrawWidgets and the four widget/hotspot tables in .rdata, one screen at a time, before any of them was built. 0x0F is not here: it was a stale duplicate row of screens/job.rs and its arms belong to that screen."
+    },
+    "right-column": {
+      "what": "x >= 478: the minimap, its four mode icons, the county strip, the split slider, the produce rows, the five sidebar buttons and End Turn",
+      "complete": true,
+      "note": "The six guards Screen_FrameInput runs at the head of the arms for 0x00, 0x02, 0x14, 0x15, 0x16 and 0x19, plus Minimap_Click, which the EPILOGUE runs on every screen id but 0x12. Counted per implementation: the six functions are recorded once each against their own addresses, and 0x0042FF10/inset-runs-the-sidebar-guards is the separate arm that an inset's ladder runs them at all."
+    },
     "seam": {
       "what": "0x12 and 0x13, the prompt and the report either side of a battle",
       "complete": true,
@@ -120,40 +155,10 @@
       "complete": true,
       "note": "THE GAME HAS SEVEN TEXT FIELDS. Enumerated exhaustively and from the direction that cannot miss one: `g_editActive` (0x005AEB78) is the single flag that decides whether a keystroke reaches the edit buffer at all, Screen_HandleInput CLEARS it at the top of every frame, and exactly seven of its arms set it again. Every one of those seven is a record below, and there is no eighth because there is no eighth writer of the flag in the binary. A second enumeration from a different direction agrees, and closes exactly: Edit_Commit (0x0040210C) -- the OTHER end, where the buffer is copied out to wherever the field belongs -- also has exactly SEVEN call sites, and they are the same seven places, each one two lines below its `g_editActive = 1`. Four distinct destination buffers between them, because three of the seven share DAT_00553E80. (Edit_Begin, the third end, has 23 call sites over 14 seed strings, and is NOT a count of fields: a seed is the text a field opens with, and most of those 14 are string literals in .rdata.)\n\nTHE DISPATCH IS THE WINDOW PROCEDURE (0x004B29BE), not Screen_FrameInput and not Screen_HandleInput -- which is why an audit that read the screen ladders found no text entry to count. WM_CHAR (0x102) is one statement, Edit_TypeChar(ch), with NO screen test; the seven editing keys are WM_KEYDOWN (0x100) cases and are equally ungated. The whole editor is one 2000-byte buffer at 0x005CD550 with a caret, two limits and a kind, and the sixteen functions between 0x00401984 and 0x0040210C are all of it.\n\nARMS ARE COUNTED PER IMPLEMENTATION here as everywhere: the seven editing keys are ONE record each even though every field is edited by the same seven, because crates/l2-game/src/text.rs has one function each. The seven FIELDS are seven records because they are seven guards in seven places."
     },
-    "front-end-keys": {
-      "what": "The keyboard on setup screen 0x1F and the save/load box 0x35/0x36",
-      "complete": true,
-      "note": "Recorded because enumerating the text fields meant reading these ladders anyway, and what it turned up is that THE FRONT END HAS NO KEYBOARD AT ALL in the original: not one of Screen_HandleInput's thirteen g_setupPage arms tests a key, and the window procedure has no g_screenId == 0x1F case. Every `ours/setup-*` and `ours/saveload-*` record below is therefore an invention, and they are KEPT rather than removed -- a menu a person cannot drive from the keyboard is worse, not more faithful. They are here so the count is honest, which is the whole point of the `invention` status."
-    },
-    "menu-bar": {
-      "what": "g_menuBarItems (0x004DC428) and screen 0x32 -- three titles, sixteen items",
-      "complete": true,
-      "note": "Enumerated from the table rather than from any painter: `node tools/oracle/widgets.js menu 4dc428 3` names all sixteen handlers, and Ui_DrawMenuTitles, Menu_HitTitle, Menu_OpenDropdown, FUN_0040DD92, FUN_0040E099 and FUN_0040DF62 are the six functions between them. The battlefield's own Menu_OpenDropdown call is 0x0040DECA/battle-menu-bar and stays in the battlefield group."
-    },
-    "right-column": {
-      "what": "x >= 478: the minimap, its four mode icons, the county strip, the split slider, the produce rows, the five sidebar buttons and End Turn",
-      "complete": true,
-      "note": "The six guards Screen_FrameInput runs at the head of the arms for 0x00, 0x02, 0x14, 0x15, 0x16 and 0x19, plus Minimap_Click, which the EPILOGUE runs on every screen id but 0x12. Counted per implementation: the six functions are recorded once each against their own addresses, and 0x0042FF10/inset-runs-the-sidebar-guards is the separate arm that an inset's ladder runs them at all."
-    },
-    "county-panels": {
-      "what": "0x14 population, 0x15 tax, 0x16 happiness, 0x19 rations",
-      "complete": true,
-      "note": "All four arms are the same shape and are read in docs/screens-county.md 2.6; 0x19 alone inserts Ration_SliderClick. The four PANELS themselves are drawn by four painters and their widget tables are Screen_HandleInput's, not Screen_FrameInput's."
-    },
     "village": {
       "what": "0x02 the village, 0x05 the rubber band, 0x06 carrying peasants, 0x0F the job popup",
       "complete": true,
       "note": "Three screen ids for one gesture -- press, drag, release, second click -- and the popup either of two screens can open. docs/screens-county.md 6.4."
-    },
-    "management-screens": {
-      "what": "0x04 and the close arms of 0x08 .. 0x13",
-      "complete": false,
-      "note": "The CLOSE arms are enumerated and the two panels behind 0x04 are not: FUN_00438990, FUN_00438A91 and FUN_00437002 are three hotspot tables nobody has driven. The screens themselves belong to the merchant, armoury, diplomacy and army agents; what is here is the chrome around them."
-    },
-    "panels": {
-      "what": "g_screenId 0x04, 0x09, 0x0B, 0x18, 0x25 and 0x2E -- the last six shells, and the two painters of 0x04",
-      "complete": true,
-      "note": "Enumerated out of Screen_FrameInput, Screen_HandleInput, Screen_DrawWidgets and the four widget/hotspot tables in .rdata, one screen at a time, before any of them was built. 0x0F is not here: it was a stale duplicate row of screens/job.rs and its arms belong to that screen."
     }
   },
   "arms": [
@@ -431,6 +436,17 @@
       "evidence": "V"
     },
     {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0040E7E4/diplo-ok",
+      "status": "reproduced",
+      "screen": "0x0B",
+      "gesture": "left-release",
+      "addr": "0x0040E7E4",
+      "what": "Ui_OkButtonClicked over the corner picture Ui_OkButton(0x1A8, 0x1A6) drew -- a 24x24 box tested on the LEFT button's RELEASE -- closes the screen back to the campaign map.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
       "id": "0x0040E7E4/panel-corner-closes",
       "status": "reproduced",
       "group": "county-panels",
@@ -522,6 +538,28 @@
       "evidence": "V"
     },
     {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0042FF10/compose-letter-text",
+      "status": "missing",
+      "screen": "0x1A",
+      "gesture": "type",
+      "addr": "0x0042FF10",
+      "what": "Screen_HandleInput's 0x1A arm, when the widget test declines and g_diploKind is 1..4, sets DAT_005AEB78 = 1 and calls FUN_0040210C(g_diploLetterDraft + (kind - 1) * 200, 199). FUN_0040210C is a bounded copy OUT OF DAT_005CD550, the game's one shared text-edit buffer that FUN_00401D26(ch) inserts typed characters into at cursor DAT_005BB4A8 -- so the four 200-byte buffers at 0x0053F2B8 are snapshots harvested from a single editor once a frame, not four independent fields. Diplo_OpenCompliment and its three siblings run the copy the other way (FUN_00402009) when the dialog opens, and Diplo_SendClicked copies the finished one into g_diploLetter + localPlayer * 0xCA, which is saved with the game and drawn to the recipient by Msg_DrawWindow.",
+      "note": "Not built here: text entry is a separate branch's. ComposeScreen carries the draft as a String so that branch has somewhere to write, and the send already copies it. The `what` above was corrected after the decompilation corpus was rebuilt with 211 more names: the first reading called FUN_0040210C 'the keyboard entry field', which is the harvest rather than the entry."
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0042FF10/compose-right-exit",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "The 0x1A arm's right release: g_screenId = 0, the campaign map -- NOT back to 0x0B. Tested after the county picker, so a right click over the map still leaves.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
       "id": "0x0042FF10/court-ok",
       "status": "reproduced",
       "group": "panels",
@@ -555,26 +593,15 @@
       "evidence": "V"
     },
     {
-      "id": "0x0042FF10/diplo-ok",
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0042FF10/diplo-right-exit",
       "status": "reproduced",
-      "group": "panels",
-      "screen": "0x0B",
-      "gesture": "left-release",
-      "addr": "0x0042FF10",
-      "what": "Ui_OkButtonClicked() in the 24 x 24 box at (424, 422) -> g_screenId = 0.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0042FF10/diplo-right",
-      "status": "reproduced",
-      "group": "panels",
       "screen": "0x0B",
       "gesture": "right-release",
       "addr": "0x0042FF10",
-      "what": "A right release anywhere -> g_screenId = 0.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs",
-      "evidence": "V"
+      "what": "Screen_FrameInput's 0x0B arm: a right release sets g_screenId = 0 without consulting the corner button at all. Right-click exits -- the gesture docs/agents.md records this project as systematically missing.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
     },
     {
       "id": "0x0042FF10/dismiss-report",
@@ -983,16 +1010,70 @@
       "evidence": "V"
     },
     {
-      "id": "0x00436141/diplo-action",
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436141/diplo-open-compose",
       "status": "reproduced",
-      "group": "panels",
       "screen": "0x0B",
       "gesture": "left-press",
       "addr": "0x00436141",
-      "what": "Widget_Test(0, 0, &g_diploWidgets, g_diploWidgetCount) - six 32 x 32 buttons at x 400, y 102/152/202/252/302/352 - each opening screen 0x1A with g_diploKind 0..6. Widget 3 serves BOTH \"Offer an alliance.\" and \"Terminate alliance.\": Diplo_OpenAlliance re-tests ally == target and picks kind 4 over 3.",
-      "note": "ONE record for six widgets, per the counting rule: one table hit-tested in one call. The six differ only in the kind byte they hand to 0x1A, which is a different screen and a different agent. KIND 5, so the original defers 20 frames.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs",
-      "evidence": "V"
+      "what": "The six g_diploWidgets handlers -- Diplo_OpenGift 0x00436141, OpenCompliment 0x0043618B, OpenInsult 0x004361DA, OpenAlliance 0x00436229, OpenAskHelp 0x004362CA, OpenAskAttack 0x0043631E. One record because they differ only in the g_diploKind they set and the draft buffer they clear. Diplo_OpenAlliance is the one with a decision in it: it picks kind 4 over kind 3 exactly when the target is already this realm's ally, so ONE widget serves group 72 rows 5 and 6.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436372/diplo-gift-step",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "left-press",
+      "addr": "0x00436372",
+      "what": "The gift dialog's plus and minus at (184, 240) and (216, 240), hotspots 1 and 0 of one handler: ten crowns a click, clamped to [0, my gold] on EVERY click -- so an amount already set follows the treasury down when something else spends it.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436408/diplo-cancel",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "left-press",
+      "addr": "0x00436408",
+      "what": "The same handler's hotspot 0, the cross, and it is the function's first statement: g_screenId = 0x0B, back to the lord cards. It lands somewhere DIFFERENT from the corner button and the right release on the same screen, both of which go to the campaign map.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436408/diplo-send",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "left-press",
+      "addr": "0x00436408",
+      "what": "Diplo_SendClicked hotspot 1, the tick. It closes the screen and copies the draft into the player's g_diploLetter slot BEFORE it validates, so all six of its refusals -- L2.eng 240, 241, 242, 243, 244 and 219 -- are messages on the map rather than a red light on the dialog. Then Diplo_Post, or net command 0x48/0x49 in multiplayer.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x004367FF/pay-for-help-prompt",
+      "status": "missing",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x004367FF",
+      "what": "Diplo_PayHelpClicked -- the accept button on the category-10 message window an ally raises when it answers a help or attack request with Pay -. It calls Diplo_PayForHelp(myAlly, me, g_diploHelpCounty, g_diploHelpPrice), which moves the gold, increments the multiple and points the ally's targetCounty at the county.",
+      "note": "The RULE is built -- l2_kingdom::diplomacy::pay_for_help, with the price and county on Kingdom::diplomacy -- and the PROMPT is not: Msg_DrawWindow is 10,915 bytes and only its text and voice lookups have ever been read, so there is no window on screen to click. This and 0x00436872 are the only two places a person answers a lord rather than writing to one, and both are unreachable."
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x00436872/accept-alliance-prompt",
+      "status": "missing",
+      "screen": "0x00",
+      "gesture": "left-press",
+      "addr": "0x00436872",
+      "what": "The Accept alliance ? prompt's two buttons (L2.eng group 180, message category 0x0B). Hotspot 1 calls Diplo_FormAlliance(g_localPlayer, DAT_0057C8B8) -- and DAT_0057C8B8 is not a diplomacy global: Msg_DrawWindow writes it to whichever realm's letter is currently on screen, beside its portrait and name, so for this prompt it is the offering lord. Hotspot 0 declines. Note the guard is (offerer is human) || (hotspot != 0), so declining an AI's offer in single player runs NOTHING at all -- not even a refusal message. The offer simply lapses when the offering realm clears offerPending at the top of its next turn.",
+      "note": "Blocked on the same unread Msg_DrawWindow as 0x004367FF."
     },
     {
       "id": "0x004369BD/diplo-pick-lord",
@@ -1440,6 +1521,17 @@
       "what": "A press inside (96, 104)-(224, 232) reads g_minimapCounty and sets the destination county. The picture is blitted at (94, 107), so the hit test is two and three pixels off its own image - the same disagreement Minimap_Draw has on the campaign sidebar, from the same pair of constants.",
       "ours": "crates/l2-game/src/screens/supplies.rs",
       "evidence": "V"
+    },
+    {
+      "group": "diplomacy",
+      "evidence": "V",
+      "id": "0x0043B4CB/compose-pick-county",
+      "status": "reproduced",
+      "screen": "0x1A",
+      "gesture": "left-press",
+      "addr": "0x0043B4CB",
+      "what": "Diplo_PickCountyFromMap(0x60, 0xB0) -- the 128x128 county raster on the ask-for-help and ask-for-attack dialogs, indexed straight out of g_minimapCounty. Guarded by g_diploKind >= 5, and a pixel whose county is 0 is NOT a hit, so a click on the sea inside the map falls through to the corner button behind it.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
     },
     {
       "id": "0x0043B9A1/pause",
@@ -1929,17 +2021,6 @@
       "what": "Escape and Enter close the court.",
       "why": "The 0x09 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
       "ours": "crates/l2-game/src/screens/court.rs"
-    },
-    {
-      "id": "ours/diplomacy-keyboard-close",
-      "status": "invention",
-      "removed": false,
-      "group": "panels",
-      "screen": "0x0B",
-      "gesture": "key",
-      "what": "Escape and Enter close the diplomacy screen.",
-      "why": "The 0x0B arm has no keyboard test. Same reason as ours/info-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/diplomacy.rs"
     },
     {
       "id": "ours/dropdown-escape-closes",

@@ -565,6 +565,19 @@ pub fn garrison_apply(
     county: u8,
 ) -> Option<usize> {
     let sitting = counties.get(county as usize)?.garrison_unit;
+    // **An army that is already this county's garrison is not a newcomer.**
+    // `Army_GarrisonApply` reaches `Army_Combine(sitting, army)` with no test
+    // that the two are different slots, and `Army_Combine` has none either — so
+    // the original would double the garrison's men and then free the record it
+    // had just doubled. It is not reachable from the original's *map*, because
+    // a garrisoned army has no orders to give; it became reachable **here** the
+    // moment diplomacy started aiming armies, and it arrived as a panic inside
+    // `unit::combine` (`units.remove(from)` then `get_mut(into)` on the slot
+    // just emptied). Refused rather than reproduced: reproducing it means
+    // reproducing a use-after-free.
+    if sitting != 0 && sitting == army {
+        return Some(army);
+    }
     let castle_type = counties[county as usize].castle_type;
     if let Some(u) = units.get_mut(army) {
         u.needs_destination = true;

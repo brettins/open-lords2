@@ -31,12 +31,12 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->117<!--/fig--> of
-   <!--fig:arms-live-->150<!--/fig--> live arms (<!--fig:arms-pct-->78<!--/fig-->%)** — so
-   **<!--fig:arms-missing-->33<!--/fig-->** gestures a player can make get no answer — with
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->122<!--/fig--> of
+   <!--fig:arms-live-->158<!--/fig--> live arms (<!--fig:arms-pct-->77<!--/fig-->%)** — so
+   **<!--fig:arms-missing-->36<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->3<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
-   counting: **<!--fig:arms-inventions-->25<!--/fig-->** inventions are on file. An invention is
+   counting: **<!--fig:arms-inventions-->24<!--/fig-->** inventions are on file. An invention is
    worse than an omission, because nothing looks broken.
 3. **A screen shows something the original does not, or fails to show something it does.** This
    is the least measured of the three and §2.10 is about that.
@@ -56,7 +56,7 @@ acquiring a partial instrument is a condition that has been quietly weakened rat
 and this list is the one place in the project where that would not be caught by anything.
 
 **The honest caveat on the headline, stated here rather than in a footnote:** `arms.json` covers
-**<!--fig:arms-groups-done-->9<!--/fig--> of <!--fig:arms-groups-->10<!--/fig-->** enumerated
+**<!--fig:arms-groups-done-->10<!--/fig--> of <!--fig:arms-groups-->11<!--/fig-->** enumerated
 groups, and those two are the battlefield and the battle seam. It is not yet the project's
 number. The wider, coarser measurement is `docs/decisions.md` C61's — **80 of 185 arms across
 three other screen groups, 43%** — taken by a different counting rule and superseded in detail by
@@ -455,7 +455,7 @@ sidebar screens**, and **the last seven shells plus the pasture cattle**.
 
 ```text
   DONE ─┬─ victory & defeat            in flight ─┬─ A  keyboard text entry
-        ├─ the battle's end                       ├─ B  diplomacy  ← now blocking
+        ├─ the battle's end                       ├─ B  diplomacy  ← built, see below
         ├─ a turn moves things                    ├─ C  the siege battle screen
         ├─ raise army                             ├─ D  battle casualty write-back
         ├─ the merchant                           ├─ E  the naming campaign
@@ -483,6 +483,18 @@ is diplomacy.** So AI step 10, the raid, is implemented, dispatched, tested and 
 a played game** (`docs/decisions.md` C68). That is C27's seventh instance and the first where the
 missing writer is an unbuilt *subsystem* rather than a missing line. A test holds both halves and
 goes red the day it changes.
+
+**And diplomacy is built** — `crates/l2-kingdom/src/diplomacy.rs`, AI turn steps 1 and 2, and
+the player's side on screens `0x0B` and `0x1A`. **The measurement above was right and
+incomplete**, which is the part worth carrying: with the module built and nothing else, forty
+turns of England still produced *no standing below −10 anywhere on the map*, because
+`Diplo_Offend`'s four call sites are not in the diplomacy code at all — they are in the mover
+and in the battle return, two of them already sitting here as reported values with doc comments
+saying *"for a caller that has a diplomacy layer to drive"*. C68's test went red exactly as
+designed **and would have stayed green with the step 2 dispatch deleted.** A test written to
+fire when a gap closes inherits the gap's framing, which is always *"is the field non-zero"*;
+it should be replaced rather than merely satisfied. `docs/decisions.md` C84, and
+`docs/diplomacy.md` §10 is the nine things implementing the document corrected in it.
 
 **The siege battle screen is a one-way door, and it arrived in the place nobody was watching.**
 §2.3 warned about exactly this for the campaign–battle seam and it was settled there. It was not
@@ -644,7 +656,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,930<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,973<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

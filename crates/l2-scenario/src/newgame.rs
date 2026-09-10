@@ -1287,6 +1287,12 @@ impl Scenario {
 impl Default for RealmState {
     fn default() -> RealmState {
         RealmState {
+            // A NEW game: `Game_NewGame` runs `Diplo_Init` after the realms
+            // are set up, so the opening matrix is written there rather than
+            // here. Default is the right thing to carry -- the values depend on
+            // which realms are in play and which are people, and this
+            // constructor knows neither yet.
+            pairs: Default::default(),
             in_play: false,
             strength: 0,
             is_human: false,

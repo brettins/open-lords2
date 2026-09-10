@@ -428,6 +428,33 @@ impl Save {
                 }
                 w
             },
+            // **`+0x84 … +0xE3`, and nothing read it until now.** The whole
+            // diplomatic matrix — every alliance, every grudge — was in the
+            // file and dropped on the floor, so `scenario::from_save` ran
+            // `Diplo_Init` instead. Right for a turn-one fixture, and wrong for
+            // every later save: a player who loaded a mid-game file found the
+            // AI had forgotten every war.
+            //
+            // Found because somebody built the consumer. `docs/decisions.md`
+            // C83.
+            pairs: {
+                let mut p = [DiploPair::default(); REALM_RECORDS];
+                for (other, slot) in p.iter_mut().enumerate() {
+                    let at = base + 0x84 + (other * 0x10) as u32;
+                    *slot = DiploPair {
+                        standing: self.i8_at(at)?,
+                        allied: self.u8_at(at + 1)? != 0,
+                        grudge: self.u8_at(at + 2)?,
+                        warnings_sent: self.u8_at(at + 3)?,
+                        at_war: self.u8_at(at + 4)? != 0,
+                        compliments_from: self.u8_at(at + 5)?,
+                        best_gift: self.i32_at(at + 8)?,
+                        has_mail: self.u8_at(at + 0x0C)? != 0,
+                        help_price_multiple: self.u8_at(at + 0x0D)?,
+                    };
+                }
+                p
+            },
         })
     }
 
@@ -561,6 +588,37 @@ impl Save {
     }
 }
 
+/// One realm's view of one other realm — realm `+0x84 + other * 0x10`.
+///
+/// **Read out of the file's own bytes rather than shaped to fit
+/// `l2_kingdom::realm::Pair`.** The stride and the five offsets come from the
+/// original's access pattern; the two structures agreeing is then evidence,
+/// where building one from the other would have proved only that we ported our
+/// understanding twice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DiploPair {
+    /// `+0x00` — the standing, `Diplo_Init`'s 5 for an in-play AI and 0 for a
+    /// human, moved by the +1-a-turn heal and by `Diplo_Offend`.
+    pub standing: i8,
+    /// `+0x01` — set and cleared in pairs.
+    pub allied: bool,
+    /// `+0x02` — accumulates while allied.
+    pub grudge: u8,
+    /// `+0x03` — the warning ladder, 0 … 3.
+    pub warnings_sent: u8,
+    /// `+0x04` — at war.
+    pub at_war: bool,
+    /// `+0x05` — how many compliments the other realm has sent this one.
+    pub compliments_from: u8,
+    /// `+0x08` — the largest single gift ever received from them.
+    pub best_gift: i32,
+    /// `+0x0C` — a letter from them is waiting in this realm's inbox.
+    pub has_mail: bool,
+    /// `+0x0D` — starts at 1 and rises each time this realm is paid to help
+    /// them, so the price of help doubles, trebles, quadruples.
+    pub help_price_multiple: u8,
+}
+
 /// A realm as the England turn-one fixture holds it. Index 0 is never a realm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Realm {
@@ -590,6 +648,9 @@ pub struct Realm {
     pub stone: i32,
     pub wood: i32,
     pub weapons: [i32; WEAPON_TYPES],
+    /// `+0x84 + other * 0x10` — this realm's view of each other realm.
+    /// Index 0 is unused, matching the realm array.
+    pub pairs: [DiploPair; REALM_RECORDS],
 }
 
 impl Realm {

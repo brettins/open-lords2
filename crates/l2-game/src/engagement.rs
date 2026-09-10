@@ -574,6 +574,19 @@ fn resolve_battle(
         options.difficulty,
     );
 
+    // `Diplo_Offend(loserOwner, winnerOwner, 20)` — `Battle_ReturnToCampaign`
+    // (`0x004AB383`) calls it inline and `battle::return_to_campaign` reports
+    // it instead, because `l2-kingdom` had no diplomacy layer when that was
+    // written. It has one now, and this is where the report is spent.
+    //
+    // **Losing a battle is the single largest thing that moves an AI's
+    // opinion**, and until this line existed nothing in a played game moved one
+    // at all: forty turns of England left every AI-to-AI standing saturated at
+    // +30 by `AI_Diplomacy`'s heal, with no war target anywhere on the map.
+    if let Some((loser, winner)) = aftermath.offence {
+        l2_kingdom::diplomacy::offend(realms, loser, winner, battle::BATTLE_OFFENCE as i8);
+    }
+
     Some(BattleReport {
         settlement,
         resolution,

@@ -13,6 +13,7 @@ CLAUDE.md	C61	30548a1bfcb5
 README.md	C23	05c1d7fce551
 README.md	C26	9648f42b9cac
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53
+crates/l2-formats/src/save.rs	C83	69ef8566a965
 crates/l2-formats/tests/battle_fixtures.rs	C23	24f9d69c852a
 crates/l2-formats/tests/save.rs	C1	93f2edca7e60
 crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609
@@ -24,6 +25,7 @@ crates/l2-game/src/game.rs	C30	fdf7eaac6540
 crates/l2-game/src/game.rs	C61	243e22401be3
 crates/l2-game/src/game.rs	C62	1f489b238ce0
 crates/l2-game/src/input.rs	C61	39c868ef7985
+crates/l2-game/src/scenario.rs	C83	d0e421a3fd81
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7
 crates/l2-game/src/screens/army.rs	C45	056ecffec256
 crates/l2-game/src/screens/army.rs	C61	cda5b05eea52
@@ -36,6 +38,7 @@ crates/l2-game/src/screens/county.rs	C22	19162a21321c
 crates/l2-game/src/screens/county.rs	C42	bd3303c98be3
 crates/l2-game/src/screens/county.rs	C59	d92177ac30ca
 crates/l2-game/src/screens/county.rs	C61	ff65e4062d2c
+crates/l2-game/src/screens/diplomacy.rs	C26	d7d30139b2b8
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb
 crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c
 crates/l2-game/src/screens/map.rs	C21	d7e286680856
@@ -72,16 +75,20 @@ crates/l2-game/src/turn.rs	C35	87cde1fdbcb4
 crates/l2-game/src/turn.rs	C35	90db6b8f5bcd
 crates/l2-game/src/turn.rs	C35	dcd60927a9fb
 crates/l2-game/src/turn.rs	C35	fc388a7cfe62
+crates/l2-game/src/turn.rs	C62	4fea74e6f685
 crates/l2-game/src/turn.rs	C71	05f7c4015c63
 crates/l2-game/src/turn.rs	C71	eaac43d0b670
 crates/l2-game/src/turn.rs	C80	a56b43c8f6c4
 crates/l2-game/src/victory.rs	C44	81209403d144
 crates/l2-game/src/victory.rs	C44	eb2da78efce9
 crates/l2-game/src/victory.rs	C44	fa73148cbb7c
+crates/l2-game/tests/ai_war.rs	C26	1e92346b988f
 crates/l2-game/tests/armoury.rs	C21	7b180bf100d0
 crates/l2-game/tests/armoury.rs	C58	b9ae26438b9f
 crates/l2-game/tests/arms.rs	C61	6bc2bab5881e
 crates/l2-game/tests/audio_install.rs	C1	afd71632a6e6
+crates/l2-game/tests/diplomacy.rs	C26	287743d8f84c
+crates/l2-game/tests/diplomacy.rs	C62	bcbec6054c4e
 crates/l2-game/tests/merchant.rs	C50	444a9e4940bc
 crates/l2-game/tests/merchant.rs	C53	7cd616c516aa
 crates/l2-game/tests/military.rs	C35	0578d12796f0
@@ -91,6 +98,7 @@ crates/l2-game/tests/military.rs	C61	db2d2b21a1c9
 crates/l2-game/tests/military.rs	C67	bba176fa8c3d
 crates/l2-game/tests/options.rs	C26	7899982bcf4c
 crates/l2-game/tests/options.rs	C30	716f251c5193
+crates/l2-game/tests/scenario.rs	C83	18e9dfa98edd
 crates/l2-game/tests/screens.rs	C21	1523306009a2
 crates/l2-game/tests/screens.rs	C22	1d39d618c245
 crates/l2-game/tests/screens.rs	C42	3c40a931b48c
@@ -111,6 +119,7 @@ crates/l2-kingdom/src/battle.rs	C38	0e75ae65c153
 crates/l2-kingdom/src/battle.rs	C71	0c621cbb0ebd
 crates/l2-kingdom/src/conquest.rs	C21	0fc3f0194453
 crates/l2-kingdom/src/county.rs	C53	e8fb6191353a
+crates/l2-kingdom/src/diplomacy.rs	C62	8f8a093f4110
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2
 crates/l2-kingdom/src/kingdom.rs	C62	24c0c9697884
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992
@@ -185,6 +194,8 @@ crates/l2-scenario/src/lib.rs	C57	14b498ed2873
 crates/l2-scenario/src/lib.rs	C62	578b7d16171a
 crates/l2-scenario/src/lib.rs	C62	94a85e9708ab
 crates/l2-scenario/src/lib.rs	C62	c1277f214127
+crates/l2-scenario/src/lib.rs	C83	823e19cc9775
+crates/l2-scenario/src/lib.rs	C83	a2b09d917c54
 crates/l2-scenario/src/newgame.rs	C25	5198b008d5c4
 crates/l2-scenario/src/newgame.rs	C25	f78fd48882c8
 crates/l2-scenario/src/newgame.rs	C41	b844f3c01eef
@@ -436,6 +447,7 @@ docs/decisions.md	C59	f8f78fa7b192
 docs/decisions.md	C61	072b0a786f93
 docs/decisions.md	C61	324c3ac59d0a
 docs/decisions.md	C61	33bb2b912640
+docs/decisions.md	C61	35e4240789b5
 docs/decisions.md	C61	572422b44b0b
 docs/decisions.md	C61	78184451a7a7
 docs/decisions.md	C61	7fc43d028377
@@ -444,10 +456,14 @@ docs/decisions.md	C61	af1e7ea10593
 docs/decisions.md	C61	b465e0d2cdee
 docs/decisions.md	C61	c728831f88b3
 docs/decisions.md	C61	cb0091f01fac
+docs/decisions.md	C61	f258c8cb9698
 docs/decisions.md	C61	f6aa494f4261
 docs/decisions.md	C62	caa3cf750af3
 docs/decisions.md	C63	6bf7e86683ab
 docs/decisions.md	C63	d00f4e770141
+docs/decisions.md	C68	5ae933e2d6e4
+docs/decisions.md	C68	9851f67b9928
+docs/decisions.md	C68	b9a8c332de66
 docs/decisions.md	C7	3c72ce757143
 docs/decisions.md	C8	490a0a7ca7d4
 docs/decisions.md	C8	553fa7149d4e
@@ -455,6 +471,7 @@ docs/decisions.md	C82	08962931dab3
 docs/decisions.md	C9	2ac3bc41f8d2
 docs/decisions.md	C9	72e3f741f15b
 docs/decisions.md	C9	99e56fdcae4b
+docs/diplomacy.md	C26	cc112f11d1ea
 docs/diplomacy.md	C3	d4bc35a985fd
 docs/formats/eng.md	C3	f56e526bf0e2
 docs/formats/eng.md	C61	4cbf794a0efc
@@ -530,6 +547,7 @@ docs/plan.md	C61	2c1a090ffa29
 docs/plan.md	C61	98105227f26e
 docs/plan.md	C62	3c12bfd5b5df
 docs/plan.md	C68	d466865faa21
+docs/plan.md	C84	e2d871e502c3
 docs/records.json	C25	d4374fcfca46
 docs/records.json	C3	6cef8ac01b2c
 docs/records.json	C53	4cfab70e56f7

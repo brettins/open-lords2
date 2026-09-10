@@ -1126,6 +1126,12 @@ fn the_five_sidebar_buttons_each_open_the_screen_the_original_opens() {
                 "{} is not gated",
                 b.name,
             );
+            // The ungated two are the court (`0x09`, still a shell) and the
+            // lords (`0x0B`, which has graduated) — so this asks
+            // `sidebar_destination` too rather than assuming a shell. The
+            // ungating is the point: **the diplomacy screen is about realms,
+            // not counties**, and `FUN_0043611B` has no county gate at all.
+            assert_eq!(t, Transition::Push(map::sidebar_destination(id, 1)), "{} is not gated", b.name);
         }
     }
 }

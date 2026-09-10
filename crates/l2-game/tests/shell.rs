@@ -285,16 +285,23 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
     assert_eq!(e.get(court::GROUP, court::COURT_OF), Some("Court of"));
     assert_eq!(e.get(court::GROUP, court::ARMS), Some("Arms"), "and nothing draws it");
 
-    for i in [
-        diplomacy::GIFT,
-        diplomacy::COMPLIMENT,
-        diplomacy::INSULT,
-        diplomacy::OFFER_ALLIANCE,
-        diplomacy::END_ALLIANCE,
-        diplomacy::ASK_HELP,
-        diplomacy::ASK_ATTACK,
-        diplomacy::DISPATCHED,
-    ] {
+    // **Every row the screen can draw, taken from the screen rather than from a
+    // list beside it.** This used to name eight constants belonging to a stub;
+    // the stub was replaced by the real screen in the same merge and its
+    // constants went with it. Asking `Menu::rows()` means a menu that gains a
+    // row is covered here without anyone remembering — the difference between a
+    // test that checks the screen and one that checks a copy of what it was.
+    let rows: std::collections::BTreeSet<usize> = [
+        diplomacy::Menu::NoAlly,
+        diplomacy::Menu::Allied,
+        diplomacy::Menu::AlliedElsewhere,
+        diplomacy::Menu::Dispatched,
+    ]
+    .iter()
+    .flat_map(|m| m.rows().iter().copied())
+    .collect();
+    assert!(rows.len() >= 8, "only {} distinct rows across the four menus", rows.len());
+    for i in rows {
         assert!(e.get(diplomacy::GROUP, i).is_some(), "diplomacy: group 72 has no {i}");
     }
     assert_eq!(e.get(diplomacy::GROUP, 0), Some("Diplomacy."), "which is the screen's name");

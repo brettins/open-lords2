@@ -252,6 +252,30 @@ fn the_originals_own_save_is_not_mistaken_for_ours() {
 /// Set once for the whole process — `std::env::set_var` is process-global, so
 /// two tests setting *different* directories would race. They all share this
 /// one and use distinct names instead.
+/// **The lock every test that reads the whole listing must hold.**
+///
+/// `LORDS2_SAVES` is process-global, so all these tests share one directory and
+/// use distinct names — which is enough for *"is my file there?"* and not enough
+/// for anything that depends on the listing's SHAPE. `saves::list()` is sorted,
+/// so a test that finds its own row and then clicks that row is reading an index
+/// another test can move by writing a file between the two statements.
+///
+/// That is what made `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
+/// fail roughly one run in ten under `cargo test --workspace` and pass every
+/// time in isolation. It cost two merges' worth of "is this real?" before it was
+/// worth fixing: **a test that fails once in a while is one people learn to
+/// re-run, and the signal is gone long before the test is.**
+///
+/// A mutex rather than a directory each, because the directory is chosen by a
+/// process-global environment variable and two tests setting different ones
+/// would race harder than the thing being fixed.
+fn listing_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    // A poisoned lock means another test panicked while holding it; the
+    // directory is still usable and the panic is that test's own failure.
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn temp_saves() -> PathBuf {
     use std::sync::Once;
     static ONCE: Once = Once::new();
@@ -285,6 +309,7 @@ fn a_save_written_to_disk_reads_back_as_the_same_game() {
 #[test]
 fn the_listing_is_sorted_by_name_and_not_by_whatever_the_file_system_says() {
     temp_saves();
+    let _listing = listing_lock();
     let game = furnished(3);
     let names = ["zzz sorted", "aaa sorted", "mmm sorted"];
     for n in names {
@@ -352,6 +377,7 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     // `A`–`Z` through `0x004011B0` and lower-cases them. Typing `SCREENTEST`
     // gives `screentest`, which is what the original's own file box does and
     // what its file list shows.
+    let _listing = listing_lock();
     let typed_name = "SCREEN TEST";
     let name = "screen test";
     let _ = saves::remove(name);

@@ -515,3 +515,32 @@ fn a_merchant_walks_its_route_over_the_frames_of_a_turn_rather_than_teleporting(
     assert_eq!(stepped.kingdom.turn_count, at_once.kingdom.turn_count);
     eprintln!("the turn took {ticks} frames and every merchant was watched across them");
 }
+
+/// **A loaded save keeps its diplomatic matrix**, and this is the test that
+/// could not have been written against the turn-one fixture.
+///
+/// `l2_formats::save::Realm` did not read `+0x84 … +0xE3` at all, so
+/// `scenario::from_save` re-ran `Diplo_Init` on every load and a mid-game file
+/// came back with every alliance and every grudge gone — which a player would
+/// have experienced as the AI forgetting a war it was fighting.
+///
+/// **The turn-one fixture cannot fail this.** `Diplo_Init` opens an in-play AI
+/// realm at 5 and England turn one *is* 5 everywhere, so asserting against it
+/// would have proved nothing. The mid-game saves the player produced are the
+/// only oracle: `siege-lastturn.sav` carries **18**, thirteen turns of the
+/// +1-a-turn heal, and `Diplo_Init` would put it back to 5.
+///
+/// `docs/decisions.md` C83.
+#[test]
+fn a_mid_game_save_keeps_the_standing_it_was_saved_with() {
+    let save = l2_testkit::fixture!("siege-lastturn.sav");
+    let game = scenario::from_save(&save, Tables::DEFAULT).expect("the save loads");
+
+    // Realm 2's view of realm 3, which the file holds at 18.
+    let standing = game.kingdom.realms[2].pairs[3].standing;
+    assert_ne!(
+        standing, 5,
+        "the standing is Diplo_Init's opening value, so the pair block was not carried",
+    );
+    assert_eq!(standing, 18, "the file's own byte, thirteen turns of healing above the opening 5");
+}

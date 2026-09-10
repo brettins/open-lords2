@@ -77,6 +77,14 @@ impl IndexScreen {
         // the map the unit is a merchant at morale 100 and the prices double.
         push("0x08 THE MERCHANT".into(), Some(ScreenId::Merchant(1)));
         push("0x0C TRADE GOODS (GRAIN)".into(), Some(ScreenId::Trade(1, 1)));
+        push("0x0B THE OTHER LORDS".into(), Some(ScreenId::Diplomacy));
+        // The compose dialog has three shapes and the index reaches all three,
+        // because they are three painters and three widget tables rather than
+        // three states of one. Rival 2 is a stand-in the same way unit 1 is
+        // above: from the index there is no `g_diploTarget` to take.
+        push("0x1A   DISPATCH A GIFT".into(), Some(ScreenId::DiploCompose(2, 0)));
+        push("0x1A   A LETTER".into(), Some(ScreenId::DiploCompose(2, 1)));
+        push("0x1A   ASK AN ALLY FOR HELP".into(), Some(ScreenId::DiploCompose(2, 5)));
         push("0x35 LOAD A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Load)));
         push("0x36 SAVE A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Save)));
         // The last seven shells. Four take no argument; the other three take a

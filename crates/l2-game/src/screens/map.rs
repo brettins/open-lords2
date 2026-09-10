@@ -310,10 +310,17 @@ pub fn sidebar_destination(id: u8, county: u8) -> ScreenId {
         // Hotspot 3. The destination opens equal to the source and the minimap
         // is the only thing that moves it.
         0x18 => ScreenId::Supplies(county),
-        // Hotspot 5, `FUN_0043611B` — also ungated, and it does not touch
-        // `g_diploTarget`; the painter's prologue heals a stale one.
+        // `FUN_0043611B` — the LORDS button — is a bare `g_screenId = 0x0B`
+        // with no county in it at all, because the diplomacy screen is about
+        // realms rather than counties. `Diplo_DrawScreen` picks its own target
+        // through `Diplo_DefaultTarget`.
+        // It does not touch `g_diploTarget`; the painter's prologue heals a
+        // stale one.
         0x0B => ScreenId::Diplomacy,
-        // There is no sixth hotspot, so this arm is unreachable from the strip.
+        //
+        // There is no sixth hotspot, so the fall-through is unreachable from
+        // the strip. It went to a shell until the table was emptied; the map
+        // is the honest destination for an id nothing claims.
         _ => ScreenId::Campaign,
     }
 }

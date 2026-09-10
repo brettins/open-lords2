@@ -318,6 +318,16 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // scan finds the same cell either way.
     ("B84", Unwired("crates/l2-sim/src/runner.rs, the repair bill")),
     ("B85", Unswitchable("no observable difference: the scan finds the same cell")),
+    // The five diplomacy defects. Four are reproduced in l2_kingdom::diplomacy
+    // or the screen and none is wired to a switch; the fifth cannot be
+    // reproduced because the prompt it lives in is not built.
+    ("B86", Unwired("crates/l2-kingdom/src/diplomacy.rs::ai_diplomacy")),
+    ("B87", Unwired("crates/l2-kingdom/src/diplomacy.rs::reconcile_alliances")),
+    ("B88", Unwired("crates/l2-kingdom/src/diplomacy.rs::reconcile_alliances")),
+    ("B89", Unwired("crates/l2-game/src/screens/diplomacy.rs::refusal")),
+    // Not reproduced and not switchable: the accept-alliance prompt is not
+    // built, because Msg_DrawWindow window layouts have never been read.
+    ("B90", Unswitchable("the prompt it lives in is not built")),
 ];
 
 /// How many rows `l2_game::game::PRESENTATION` has.

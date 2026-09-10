@@ -152,6 +152,20 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
         game.gold_last[id] = realm.gold;
     }
 
+    // **The pair block is carried now, so this no longer runs.**
+    //
+    // `l2_formats::save::Realm` did not read `+0x84 … +0xE3` at all, so every
+    // load re-ran `Diplo_Init` -- right for the England turn-one fixture, where
+    // nothing has moved, and wrong for every later save: a player who loaded a
+    // mid-game file found the AI had forgotten every war.
+    //
+    // The fixtures can tell the difference, which is why this is asserted
+    // rather than inferred. `Diplo_Init` opens an in-play AI at 5;
+    // `siege-lastturn.sav` carries 18, `old_turn.sav` 8 and `battle-after.sav`
+    // 10 -- the +1-a-turn heal, thirteen turns of it in the first. A test that
+    // could only be run against turn one could not have failed.
+    // `docs/decisions.md` C83.
+
     // Open on a county the player holds, if any. Ascending, so two peers with
     // the same save open on the same county.
     game.selected = game

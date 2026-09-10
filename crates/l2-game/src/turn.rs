@@ -1124,9 +1124,12 @@ pub fn drive_ai(kingdom: &mut Kingdom, granted: &mut bool) {
 
 /// Dispatch one AI handler.
 ///
-/// **Twelve of the fourteen run.** One of the two that do not is empty in the
-/// shipped binary; the other two are the diplomacy steps, which need a
-/// `l2_kingdom::diplomacy` that does not exist yet.
+/// **All fourteen run.** One of them is empty in the shipped binary and is
+/// empty here for the same reason.
+///
+/// > This used to read *"twelve of the fourteen; the other two are the
+/// > diplomacy steps, which need a `l2_kingdom::diplomacy` that does not exist
+/// > yet"*. It exists.
 ///
 /// > This used to read: *"Four of the fourteen are implemented in
 /// > `l2-kingdom`; the other ten drive armies, merchants, diplomacy and map
@@ -1137,6 +1140,19 @@ pub fn drive_ai(kingdom: &mut Kingdom, granted: &mut bool) {
 /// > `l2_kingdom::ai_army` is the five steps it was blocking.
 fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut bool) {
     match step {
+        // The two diplomacy steps. Their letters are dropped here for the same
+        // reason the taunt's are — `l2-game` has no letter screen yet — and
+        // everything they change about the simulation has already happened by
+        // the time they return: a standing moved, an alliance formed or broken,
+        // a war target named. Those four fields are what AI step 10 and the
+        // *assist ally* mission read, and until `l2_kingdom::diplomacy` existed
+        // nothing wrote any of them. `docs/decisions.md` C62.
+        AiStep::Diplomacy => {
+            kingdom.run_ai_inbox(realm);
+        }
+        AiStep::ConsiderWar => {
+            kingdom.run_ai_diplomacy(realm);
+        }
         AiStep::SetTaxRates => {
             kingdom.run_ai_tax_rates(realm);
             // **The grant runs once a turn, not once per realm**, and that is a
@@ -1192,8 +1208,12 @@ fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut boo
         AiStep::UpdateTotals => update_totals(kingdom, realm),
         // An empty function in the shipped binary. Named, and it does nothing
         // here for the same reason it does nothing there.
+        //
+        // **There is no `_ =>` arm below this**, and that is deliberate: the
+        // wildcard was what let the two diplomacy steps sit undispatched
+        // without the compiler having anything to say. A fifteenth handler
+        // would now be a compile error rather than silence.
         AiStep::Nothing => {}
-        _ => {}
     }
 }
 
