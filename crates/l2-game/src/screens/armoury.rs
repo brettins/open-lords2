@@ -191,19 +191,33 @@
 //! (`docs/kingdom.md` §7.4); the armoury is where men pick them up. The four
 //! renamed functions say so.
 //!
-//! # What is not here
+//! # The room moves, and this is what moves in it
 //!
-//! Three animations, all of them presentation and none of them a rule:
+//! Three animations, all of them presentation and none of them a rule. They
+//! were listed here and not drawn until a player said *"the animations when you
+//! pick a weapon to assign during an army doesn't happen — usually a dude comes
+//! and grabs a weapon."* He is describing the second one and he is right about
+//! the trigger as well as the picture.
 //!
-//! * `FUN_00419243` — `armtorch.pl8` at (0x9A, 0x76) and (0x19A, 0x76), the
-//!   second thirteen frames behind the first: **two guttering torches**;
-//! * `FUN_00418FC5` / `FUN_004190DB` — a soldier of the type just equipped
-//!   walking in from x = −80 along y = 0xD8, out of `trp_xb_r.pl8` and its
-//!   sixty siblings, with the four saved strips restored behind him;
-//! * `DAT_005AEA48` — the weapon on `0x0D` turning through its 24 frames.
+//! * `Armoury_DrawTorches` (`0x00419243`) — `armtorch.pl8` at (0x9A, 0x76) and
+//!   (0x19A, 0x76), the second thirteen frames behind the first: **two
+//!   guttering torches**, [`TORCH_AT`];
+//! * `Armoury_DrawWalker` (`0x004190DB`) with `FUN_004AABD8` (`0x004AABD8`) —
+//!   **the soldier who walks over and takes the weapon**, [`Walker`];
+//! * `DAT_005AEA48` — the weapon on `0x0D` turning through its 24 frames, which
+//!   is [`Anim::weapon`] and is drawn by [`RackScreen`].
 //!
-//! They are listed rather than drawn so that the next reader knows the room is
-//! meant to move.
+//! All three run off `Tick_Pulses` (`0x004BBC80`) — a 20 ms gate feeding a
+//! chain of dividers — and the armoury takes the 20 ms pulse and the 80 ms one.
+//! [`Anim`] is that clock and [`overlay`] is the pass that draws it.
+//!
+//! **`Armoury_RestoreWalkerStrip` (`0x00418FC5`) erases; it does not draw.**
+//! `docs/hypotheses.json` filed it as `Armoury_DrawPanel` and had the role
+//! right and the verb wrong. It is why `Screen_Armoury` saves four strips of
+//! backdrop at `y 0xD8`: the walker is a blit over a *restored* background
+//! rather than a composited sprite, and the strip is the piece of room he can
+//! have dirtied. [`walker_strip`] is that choice, and it says there why our own
+//! full repaint means the call is not made.
 //!
 //! # The denominator, for the draw audit
 //!
@@ -433,6 +447,384 @@ pub fn button_box(i: usize) -> Rect {
     Rect::new(RACK_BOX_X + BUTTON_X[i], RACK_BOX_Y + BUTTON_Y, BUTTON_DIM, BUTTON_DIM)
 }
 
+// --------------------------------------------------- the room, in motion
+
+/// One fixed simulation tick in milliseconds — `main::TICK`.
+///
+/// **A constant, not a clock.** Nothing here asks how long a frame took; the
+/// number exists so an interval the original states in milliseconds can be
+/// converted to the whole ticks this crate is allowed to count.
+/// `screens::map` carries its own copy for the same reason and both are the
+/// same one number in `main.rs`; they are separate because neither module may
+/// depend on the other and `docs/netcode.md` forbids either from reading a
+/// clock instead.
+const TICK_MS: u32 = 16;
+
+/// **`Tick_Pulses` (`0x004BBC80`) is the interface's animation clock**, and the
+/// armoury takes two of its eight pulses.
+///
+/// A 20 ms `timeGetTime` gate steps a counter; **every fourth step — 80 ms —
+/// sets `g_pulse80`** and advances six further dividers. The armoury reads the
+/// 20 ms pulse (`DAT_0058FCB0`) for the walking soldier's *position* and the
+/// 80 ms one for every frame index on either screen:
+///
+/// | counter | wrap | what it drives |
+/// |---|---|---|
+/// | `DAT_0057CB10` | 8 | the soldier's walk cycle |
+/// | `DAT_005AEA54` | 13 | the two torches, the second at `+13` |
+/// | `DAT_005AEA48` | 24 | the weapon turning in the rack panel's well |
+///
+/// The last two are the *divider chain's own counters*, reused as frame
+/// indices — which is why they wrap at 13 and 24 rather than at a power of two,
+/// and why `Armtorch.pl8` has exactly 26 frames and `Arm_*.pl8` exactly 24.
+///
+/// **Four documents called `Tick_Pulses` "once a frame and wrapped".** That
+/// describes the call site. The rates are in the function, and this is where
+/// they land on a screen.
+pub const PULSE_MS: u32 = 20;
+
+/// `if (3 < DAT_005AEB2C)` — four 20 ms steps make the 80 ms pulse.
+pub const PULSE80_DIVIDER: u8 = 4;
+
+/// `DAT_005AEA54`'s wrap: `if (0xC < n) n = 0`. `Armtorch.pl8` is 13 frames of
+/// 77 × 49 followed by 13 of 77 × 48 — the two torches, and the second's
+/// `+0x0D` is exactly the first block's length.
+pub const TORCH_FRAMES: u8 = 13;
+
+/// `DAT_005AEA48`'s wrap: `if (0x17 < n) n = 0`, and every `Arm_<weapon>.pl8`
+/// holds exactly 24 frames of 100 × 100.
+pub const WEAPON_FRAMES: u8 = 24;
+
+/// `Armoury_DrawTorches` (`0x00419243`): `armtorch.pl8` at these two positions,
+/// the second drawn at frame `+ TORCH_SECOND`.
+pub const TORCH_SHEET: &str = "Armtorch.pl8";
+pub const TORCH_AT: [(i32, i32); 2] = [(0x9A, 0x76), (0x19A, 0x76)];
+pub const TORCH_SECOND: usize = 0x0D;
+
+/// **The walking soldier's geometry**, all of it out of `Armoury_DrawWalker`
+/// (`0x004190DB`) and `FUN_004AABD8` (`0x004AABD8`).
+///
+/// He starts off the left edge at `-0x50`, takes four pixels every 20 ms —
+/// **200 pixels a second** — and the walk is over at `0x280`, one screen width.
+pub const WALKER_START_X: i32 = -0x50;
+pub const WALKER_END_X: i32 = 0x280;
+pub const WALKER_STEP: i32 = 4;
+pub const WALKER_Y: i32 = 0xD8;
+
+/// **`g_armouryWalkStopX` (`0x004DE6F0`)** — where the soldier stops, by basket
+/// slot, and the reason this animation is *about* something.
+///
+/// Read against [`WALL`], the six weapons hanging on the walls: crossbow at
+/// x 59 stops him at 45, mace at 157 at 120, sword at 496 at 490, pike at 199
+/// at 170, bow at 373 at 380, armour at 290 at 270. **He walks to the weapon
+/// and takes it off the wall.** `[V]` — two independent tables in the binary,
+/// neither of which mentions the other, agreeing to within the width of a man.
+pub const WALKER_STOP_X: [i32; 8] = [0, 45, 120, 490, 170, 380, 270, 50];
+
+/// The soldier's three runs of frames, and the whole of the animation.
+///
+/// `Trp_xb_r.pl8` and its twenty-nine siblings hold **exactly 21 frames of
+/// 89 × 158** — and 8 + 5 + 8 is 21, which is the artwork agreeing with the
+/// arithmetic in `Armoury_DrawWalker` without either being asked. `158` is
+/// `0x9E`, the height of the four strips `Screen_Armoury` saves, so a strip
+/// is exactly one soldier tall. `[V]`
+pub const WALK_PHASES: u8 = 8;
+/// `DAT_0052F008 = DAT_005681F8 / 3 + 8` — five frames, each held three 80 ms
+/// pulses, so the pickup takes about 1.1 seconds.
+pub const PICKUP_FIRST: usize = 8;
+pub const PICKUP_LAST: usize = 0x0C;
+pub const PICKUP_HOLD: u8 = 3;
+/// `DAT_0052F008 = DAT_0057CB10 + 0xD` — the same eight phases, carrying it.
+pub const CARRY_FIRST: usize = 0x0D;
+
+/// **`Screen_Armoury`'s four saved strips**, `(x, width)` at `y = `
+/// [`WALKER_Y`] and height [`STRIP_H`].
+///
+/// `FUN_004B3F0A` copies **dwords**, so `g_spriteWidth` of `0x3C` is 240
+/// pixels and `0x28` is 160; the second argument is `640 - width * 4`, the
+/// row remainder, which is what pins the unit down. The four buffer offsets
+/// step by `0x2508` in `undefined4` units — `60 × 158` dwords — which is the
+/// same number from the other end.
+pub const STRIPS: [(i32, i32); 4] = [(0, 240), (0xA0, 240), (0x140, 240), (0x1E0, 160)];
+pub const STRIP_H: i32 = 0x9E;
+
+/// **`Armoury_RestoreWalkerStrip` (`0x00418FC5`) — it erases, it does not
+/// draw.** `docs/hypotheses.json` had it as `Armoury_DrawPanel`, which had the
+/// role right and the verb wrong.
+///
+/// The four-way choice is on the soldier's own x: under `0xA0` the first strip,
+/// under `0x140` the second, under `0x1E0` the third, otherwise the fourth. So
+/// **the walker is a blit over a restored background, not a composited
+/// sprite** — that is why the strips exist and why there are four of them
+/// rather than one 640-pixel one.
+///
+/// **It is not called from [`overlay`], and this says so rather than leaving a
+/// reader to wonder.** Our page is repainted whole every frame (the original
+/// paints `Screen_Armoury` once and never clears again), so the erase has
+/// already happened by the time the walker is drawn. What is reproduced here is
+/// the *shape* and the rectangle, which
+/// `crates/l2-game/tests/armoury.rs` asserts covers him — all but the five
+/// pixels of his right shoulder that stand outside it at each band boundary,
+/// which is the original's own smear and is measured there rather than assumed.
+pub fn walker_strip(x: i32) -> Rect {
+    let (sx, w) = match x {
+        _ if x < 0xA0 => STRIPS[0],
+        _ if x < 0x140 => STRIPS[1],
+        _ if x < 0x1E0 => STRIPS[2],
+        _ => STRIPS[3],
+    };
+    Rect::new(sx, WALKER_Y, w, STRIP_H)
+}
+
+/// **`g_armouryWalkerSheets` (`0x004DE450`)** — thirty sheets, `0x10` bytes
+/// apart, `0x70` (seven slots) per shield colour, indexed by
+/// `[shieldIndex][basketSlot]`.
+///
+/// Slot 0 and slot 1 both name the crossbowman, exactly as [`ITEM_SHEETS`]
+/// names red twice: the tables are indexed by a 1-based slot and a 1-based
+/// shield and each pads its zeroth entry with its first. The order after that
+/// is the basket's — crossbow, mace, sword, pike, archer, knight — which is
+/// **not** [`WALL`]'s order and not [`RACKS`]'s x order.
+#[rustfmt::skip]
+pub const WALKER_SHEETS: [[&str; 7]; 6] = [
+    ["Trp_xb_r.pl8", "Trp_xb_r.pl8", "Trp_ma_r.pl8", "Trp_sw_r.pl8", "Trp_pi_r.pl8", "Trp_ar_r.pl8", "Trp_kn_r.pl8"],
+    ["Trp_xb_r.pl8", "Trp_xb_r.pl8", "Trp_ma_r.pl8", "Trp_sw_r.pl8", "Trp_pi_r.pl8", "Trp_ar_r.pl8", "Trp_kn_r.pl8"],
+    ["Trp_xb_y.pl8", "Trp_xb_y.pl8", "Trp_ma_y.pl8", "Trp_sw_y.pl8", "Trp_pi_y.pl8", "Trp_ar_y.pl8", "Trp_kn_y.pl8"],
+    ["Trp_xb_k.pl8", "Trp_xb_k.pl8", "Trp_ma_k.pl8", "Trp_sw_k.pl8", "Trp_pi_k.pl8", "Trp_ar_k.pl8", "Trp_kn_k.pl8"],
+    ["Trp_xb_p.pl8", "Trp_xb_p.pl8", "Trp_ma_p.pl8", "Trp_sw_p.pl8", "Trp_pi_p.pl8", "Trp_ar_p.pl8", "Trp_kn_p.pl8"],
+    ["Trp_xb_b.pl8", "Trp_xb_b.pl8", "Trp_ma_b.pl8", "Trp_sw_b.pl8", "Trp_pi_b.pl8", "Trp_ar_b.pl8", "Trp_kn_b.pl8"],
+];
+
+/// `File_ReadChunk(…)`'s fallback when the colour-and-slot read fails —
+/// `s_trp_xb_b_pl8_004DE8E8`, the blue crossbowman.
+pub const WALKER_FALLBACK: &str = "Trp_xb_b.pl8";
+
+/// The sheet one walk is drawn from, clamped the way the original's index
+/// arithmetic is bounded rather than the way it would overflow.
+pub fn walker_sheet(shield_index: u8, slot: u8) -> &'static str {
+    let colour = (shield_index as usize).min(WALKER_SHEETS.len() - 1);
+    let s = slot as usize;
+    if s >= WALKER_SHEETS[colour].len() {
+        return WALKER_FALLBACK;
+    }
+    WALKER_SHEETS[colour][s]
+}
+
+/// **The soldier who walks over and takes the weapon.**
+///
+/// A player, on `BUILD 3F9C11E`: *"The animations when you pick a weapon to
+/// assign during an army doesn't happen — usually a dude comes and grabs a
+/// weapon."* He is right about the picture and, it turns out, about the
+/// trigger: this is fired by leaving a rack, not by entering one.
+///
+/// # When he appears, which is not where you would look for it
+///
+/// `Armoury_ClickRack` (`0x004358B0`) is three statements and the **first**
+/// one starts the walk:
+///
+/// ```c
+/// FUN_004AABD8(g_selectedCounty, g_armourySelectedType);   /* the OLD rack */
+/// g_armourySelectedType = g_uiHotspotId;                   /* now the new  */
+/// g_levyBasket[id].latch = g_levyBasket[id].chosen;
+/// ```
+///
+/// so the type handed to the starter is **the rack the player is leaving**, and
+/// `FUN_004AABD8`'s own guard is `latch[t] < chosen[t]` — the latch being what
+/// `Armoury_ClickRack` wrote when that rack was *opened*. Put together: a
+/// soldier walks only when the player assigned at least one man to the weapon
+/// he was looking at, and he walks when the player moves on. He is of the type
+/// just equipped, he stops under that weapon, he takes it down and he carries
+/// it off the right-hand side.
+///
+/// The latch is `g_levyBasket + 0x0C`. **Nothing else in the binary reads or
+/// writes it** — `Armoury_ClickRack` and `FUN_004AABD8` are its only two
+/// references — so it is presentation state that happens to be stored in the
+/// basket, and it is here rather than in [`l2_kingdom::LevyBasket`] for that
+/// reason. `[V]`, by grep over the whole decompilation.
+///
+/// # None of it may reach the simulation
+///
+/// Every field here is display state. It lives on [`crate::game::LevyOrder`],
+/// which is session state the save does not carry and the lockstep digest
+/// cannot see (`docs/netcode.md`); a hundred ticks of this leave
+/// [`l2_kingdom::Kingdom`] byte-identical, which
+/// `crates/l2-game/tests/armoury.rs` asserts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Walker {
+    /// `DAT_005679D0` — non-zero while a soldier is on the floor.
+    pub active: bool,
+    /// `DAT_0056D630` — his x. `Armoury_DrawWalker` blits at it with no
+    /// centring at all, so the sprite spans `x … x + 89`.
+    pub x: i32,
+    /// `DAT_0052F008` — the frame to draw, and the only thing the painter reads.
+    pub frame: usize,
+    /// `DAT_0057CB10` — the eight-phase walk cycle, stepped on the 80 ms pulse.
+    cycle: u8,
+    /// `DAT_005681F8` — the pickup counter. It is **1** while he is still
+    /// walking in, counts up while he is taking the weapon down, and is put
+    /// back to 0 at the end of that, which is what lets him walk again.
+    pickup: u8,
+    /// `DAT_00568228` — [`WALKER_STOP_X`] for his slot.
+    stop_x: i32,
+    /// The basket slot he belongs to; [`walker_sheet`] turns it into a sheet.
+    pub slot: u8,
+    /// `g_levyBasket[t] + 0x0C` — what `chosen` was when rack `t` was opened.
+    latch: [i32; 8],
+}
+
+impl Default for Walker {
+    fn default() -> Walker {
+        Walker {
+            active: false,
+            x: WALKER_START_X,
+            frame: 0,
+            cycle: 0,
+            pickup: 0,
+            stop_x: 0,
+            slot: 0,
+            latch: [0; 8],
+        }
+    }
+}
+
+impl Walker {
+    /// `Armoury_ClickRack`'s third statement: `latch[t] = chosen[t]`.
+    pub fn latch(&mut self, slot: u8, chosen: i32) {
+        if let Some(v) = self.latch.get_mut(slot as usize) {
+            *v = chosen;
+        }
+    }
+
+    /// **`FUN_004AABD8` (`0x004AABD8`)** — start a walk, or decline to.
+    ///
+    /// ```c
+    /// if (0 < type && latch[type] < chosen[type] && walkActive < 1) { … }
+    /// ```
+    ///
+    /// Three guards and all three matter: slot 0 is the unequipped peasants and
+    /// has no weapon to fetch, a rack the player looked at without assigning
+    /// anybody sends nobody, and a walk already in progress is not restarted.
+    /// Returns whether a soldier set off, which is what the test ablates.
+    pub fn start(&mut self, slot: u8, chosen: i32) -> bool {
+        if slot == 0 || self.active {
+            return false;
+        }
+        if self.latch.get(slot as usize).is_none_or(|&l| l >= chosen) {
+            return false;
+        }
+        self.active = true;
+        self.x = WALKER_START_X;
+        self.frame = 0;
+        self.cycle = 0;
+        self.pickup = 1;
+        self.slot = slot;
+        self.stop_x = WALKER_STOP_X.get(slot as usize).copied().unwrap_or(0);
+        true
+    }
+
+    /// **`Armoury_DrawWalker`'s state half**, one 20 ms pulse of it.
+    ///
+    /// ```c
+    /// if (walkActive < 1) return;
+    /// if (0x280 <= x) { walkActive = 0; return; }
+    /// if (pulse20) {
+    ///     if (pulse80) {
+    ///         if (stopX <= x && pickup != 0) pickup++;
+    ///         cycle = (cycle + 1) & 7;
+    ///     }
+    ///     if (x < stopX || pickup == 0) { x += 4; frame = cycle + (x < stopX ? 0 : 0xD); }
+    ///     else { frame = pickup / 3 + 8; if (0xC < frame) { cycle = 0; pickup = 0; } }
+    /// }
+    /// draw(frame, x, 0xD8);
+    /// ```
+    ///
+    /// The last two lines are the seam and they are written out rather than
+    /// tidied: the frame that *overflows* the pickup run is `0x0D`, which is
+    /// also the first carrying-walk frame, so the reset happens under a picture
+    /// that is already correct and the join is invisible.
+    fn pulse(&mut self, pulse80: bool) {
+        if !self.active {
+            return;
+        }
+        if self.x >= WALKER_END_X {
+            self.active = false;
+            return;
+        }
+        if pulse80 {
+            if self.stop_x <= self.x && self.pickup != 0 {
+                self.pickup = self.pickup.saturating_add(1);
+            }
+            self.cycle = (self.cycle + 1) % WALK_PHASES;
+        }
+        if self.x < self.stop_x || self.pickup == 0 {
+            let carrying = self.x >= self.stop_x;
+            self.x += WALKER_STEP;
+            self.frame = self.cycle as usize + if carrying { CARRY_FIRST } else { 0 };
+        } else {
+            self.frame = (self.pickup / PICKUP_HOLD) as usize + PICKUP_FIRST;
+            if self.frame > PICKUP_LAST {
+                self.cycle = 0;
+                self.pickup = 0;
+            }
+        }
+    }
+}
+
+/// **The armoury's animation state** — the counters `Tick_Pulses` owns and the
+/// soldier `Armoury_ClickRack` sends.
+///
+/// It is one struct because the original's `Screen_DrawWidgets` arm is one
+/// three-call line shared by `0x0A` and `0x0D`, and because only the top screen
+/// of our stack gets a tick: the rack panel is pushed *over* the armoury, so if
+/// this lived on either screen the other's would stop. Both step this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Anim {
+    /// Milliseconds of fixed tick accumulated toward the next 20 ms pulse.
+    /// **Not a clock**: [`TICK_MS`] is a constant and this counts ticks.
+    acc_ms: u32,
+    /// `DAT_005AEB2C`, the 20 ms counter whose fourth step is `g_pulse80`.
+    div: u8,
+    /// `DAT_005AEA54`, 0…12 — the torches.
+    pub torch: u8,
+    /// `DAT_005AEA48`, 0…23 — the weapon turning in the rack panel's well.
+    pub weapon: u8,
+    pub walker: Walker,
+}
+
+impl Anim {
+    /// One fixed tick. Returns whether anything on screen changed, which is
+    /// what `Screen::take_redraw` is for: a still armoury with no soldier in
+    /// it still has two torches, so this is true roughly every fifth tick and
+    /// not every one.
+    ///
+    /// **The quantisation is ours and this is it.** The original's gate is
+    /// 20 ms of `timeGetTime` and our tick is 16 ms, which does not divide it;
+    /// nothing below `main.rs` may read a clock, so ticks are accumulated and a
+    /// pulse is taken whenever 20 ms of them have gone by. Over any 80 ms —
+    /// five ticks — that is exactly four pulses and exactly one `g_pulse80`, so
+    /// the rate is the original's and only the jitter, ±1 tick, is ours.
+    pub fn tick(&mut self) -> bool {
+        self.acc_ms += TICK_MS;
+        let mut moved = false;
+        while self.acc_ms >= PULSE_MS {
+            self.acc_ms -= PULSE_MS;
+            self.div += 1;
+            let pulse80 = self.div >= PULSE80_DIVIDER;
+            if pulse80 {
+                self.div = 0;
+                self.torch = (self.torch + 1) % TORCH_FRAMES;
+                self.weapon = (self.weapon + 1) % WEAPON_FRAMES;
+                moved = true;
+            }
+            if self.walker.active {
+                self.walker.pulse(pulse80);
+                moved = true;
+            }
+        }
+        moved
+    }
+}
+
 // ------------------------------------------------------------- the painter
 
 /// **The whole static page**, shared by `0x0A` and by the first frame of
@@ -516,6 +908,84 @@ pub fn page(ctx: &Ctx, canvas: &mut Canvas, buttons: bool) {
     }
 }
 
+/// **`Screen_DrawWidgets`' `0x0A` arm, which is the whole of the moving room.**
+///
+/// ```c
+/// 0x0A:  Armoury_RestoreWalkerStrip(); Armoury_DrawTorches(); Armoury_DrawWalker();
+/// 0x0D:  Armoury_RestoreWalkerStrip(); Armoury_DrawTorches(); Armoury_DrawRacks();
+///        FUN_00418E2D(); Armoury_DrawWalker();
+/// ```
+///
+/// One pass, both screens, run after the page rather than as part of it —
+/// `Screen_Draw` has **no `'\r'` case at all**, so `0x0D` is painted once on
+/// the way in and this arm is the only thing that runs on it afterwards.
+///
+/// The restore is [`walker_strip`] and is not called here; the racks and
+/// `FUN_00418E2D` are the rack panel's own repaint and are in [`RackScreen`].
+/// What is left is the two torches and the soldier, and both screens get them
+/// because our rack panel is an overlay drawn over the armoury, which is the
+/// same sharing.
+pub fn overlay(ctx: &Ctx, canvas: &mut Canvas, anim: &Anim) {
+    let a = &ctx.assets.shell;
+
+    // `Armoury_DrawTorches` — one sheet, two positions, thirteen frames apart.
+    if let Some(sheet) = a.sheet(TORCH_SHEET) {
+        for (i, &(x, y)) in TORCH_AT.iter().enumerate() {
+            let frame = anim.torch as usize + i * TORCH_SECOND;
+            if let Some(f) = sheet.frame(frame) {
+                canvas.blit(&f, x, y);
+            }
+        }
+    }
+
+    // `Armoury_DrawWalker` — the blit half. No centring: the original passes
+    // `DAT_0056D630` straight to `Pl8_DrawFrameClipped`, and the negative x he
+    // starts at is why the call is the clipped one.
+    let w = &anim.walker;
+    if !w.active {
+        return;
+    }
+    let shield = ctx.game.kingdom.realms.get(ctx.game.player as usize).map_or(0, |r| r.shield_index);
+    let sheet = walker_sheet(shield, w.slot);
+    if let Some(f) =
+        a.sheet(sheet).or_else(|| a.sheet(WALKER_FALLBACK)).and_then(|s| s.frame(w.frame))
+    {
+        canvas.blit(&f, w.x, WALKER_Y);
+    }
+}
+
+/// **`Armoury_ClickRack` (`0x004358B0`) in full**, which is one function in the
+/// original and has to be one here too: the rack row is live on *both* screens,
+/// so ours is reached from [`ArmouryScreen`] and from [`RackScreen`], and only
+/// one of them may carry the marker.
+///
+/// ```c
+/// if (g_levyBasket[id].available <= 0) return;      /* an empty rack is inert */
+/// FUN_004AABD8(county, g_armourySelectedType);      /* the rack being LEFT    */
+/// g_armourySelectedType = id;
+/// g_screenId = 0x0D;
+/// g_levyBasket[id].latch = g_levyBasket[id].chosen;
+/// Armoury_LoadScreen();
+/// ```
+///
+/// Returns whether the rack opens. The order is the original's and it is the
+/// point: the walk is fired for the *previous* selection, before it is
+/// overwritten. See [`Walker`].
+// arm: 0x004358B0/armoury-rack-click
+pub fn click_rack(game: &mut crate::game::Game, troop: u8) -> bool {
+    let slot = troop as usize;
+    if game.levy.basket.slots.get(slot).is_none_or(|s| s.available <= 0) {
+        return false;
+    }
+    let leaving = game.levy.rack;
+    let chosen = game.levy.basket.slots.get(leaving as usize).map_or(0, |s| s.chosen);
+    game.levy.anim.walker.start(leaving, chosen);
+    game.levy.rack = troop;
+    let now = game.levy.basket.slots[slot].chosen;
+    game.levy.anim.walker.latch(troop, now);
+    true
+}
+
 // --------------------------------------------------------- 0x0A, the room
 
 /// Screen `0x0A` for one county's levy.
@@ -526,6 +996,10 @@ pub struct ArmouryScreen {
     /// What the last *Create* did, for a test that wants to know without
     /// reading the kingdom.
     pub outcome: Raised,
+    /// Set when [`Anim::tick`] moved something, so the machine repaints without
+    /// an event having arrived — the torches gutter on a screen nobody is
+    /// touching. Same mechanism as the campaign map's edge scroll.
+    redraw: bool,
 }
 
 /// What the *Create* button did.
@@ -538,7 +1012,7 @@ pub enum Raised {
 
 impl ArmouryScreen {
     pub fn new(county: u8) -> ArmouryScreen {
-        ArmouryScreen { county, status: String::new(), outcome: Raised::None }
+        ArmouryScreen { county, status: String::new(), outcome: Raised::None, redraw: false }
     }
 
     pub fn county(&self) -> u8 {
@@ -561,13 +1035,11 @@ impl ArmouryScreen {
     /// rack is inert: the guard is on `available`, the stock the realm owns,
     /// not on `chosen`.
     fn open_rack(&mut self, ctx: &mut Ctx, troop: u8) -> Transition {
-        let slot = troop as usize;
-        if ctx.game.levy.basket.slots.get(slot).is_none_or(|s| s.available <= 0) {
-            let name = TroopType::from_index(slot).map_or("", |t| t.name());
+        if !click_rack(ctx.game, troop) {
+            let name = TroopType::from_index(troop as usize).map_or("", |t| t.name());
             self.status = format!("NO {} IN THE ARMOURY", name.to_uppercase());
             return Transition::Stay;
         }
-        ctx.game.levy.rack = troop;
         Transition::Push(ScreenId::Rack(self.county, troop))
     }
 
@@ -651,8 +1123,22 @@ impl Screen for ArmouryScreen {
         }
     }
 
+    /// **`Tick_Pulses` runs whatever screen is up**, so both armoury screens
+    /// step the same counters. Only the top screen of our stack is ticked, and
+    /// the rack panel is pushed over this one — so this arm covers `0x0A` and
+    /// [`RackScreen`]'s covers `0x0D`, and neither can stall the other.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        self.redraw |= ctx.game.levy.anim.tick();
+        Transition::Stay
+    }
+
+    fn take_redraw(&mut self) -> bool {
+        core::mem::take(&mut self.redraw)
+    }
+
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         page(ctx, canvas, true);
+        overlay(ctx, canvas, &ctx.game.levy.anim);
         let ink = &ctx.assets.ink;
 
         // The corner picture, mode 1 — `Ui_OkButton(640 - 0x1C, 480 - 0x70, 1)`.
@@ -687,11 +1173,14 @@ pub struct RackScreen {
     /// `DAT_00553F20`, 1…6. Held here as well as on the order because the
     /// screen is identified by it.
     troop: u8,
+    /// See [`ArmouryScreen`] — the weapon in the well turns, and the soldier
+    /// walks, on a screen nobody is touching.
+    redraw: bool,
 }
 
 impl RackScreen {
     pub fn new(county: u8, troop: u8) -> RackScreen {
-        RackScreen { county, troop }
+        RackScreen { county, troop, redraw: false }
     }
 
     pub fn troop(&self) -> u8 {
@@ -789,10 +1278,7 @@ impl Screen for RackScreen {
                 // and are not.
                 let read = Ctx { game: ctx.game, assets: ctx.assets };
                 if let Some(troop) = ArmouryScreen::rack_at(&read, x, y) {
-                    if troop != self.troop
-                        && ctx.game.levy.basket.slots[troop as usize].available > 0
-                    {
-                        ctx.game.levy.rack = troop;
+                    if troop != self.troop && click_rack(ctx.game, troop) {
                         return Transition::Replace(ScreenId::Rack(self.county, troop));
                     }
                     return Transition::Stay;
@@ -809,6 +1295,17 @@ impl Screen for RackScreen {
         }
     }
 
+    /// See [`ArmouryScreen`]: the panel is on top, so the panel is what steps
+    /// the room's clock while it is open.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        self.redraw |= ctx.game.levy.anim.tick();
+        Transition::Stay
+    }
+
+    fn take_redraw(&mut self) -> bool {
+        core::mem::take(&mut self.redraw)
+    }
+
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let a = &ctx.assets.shell;
         let ink = &ctx.assets.ink;
@@ -822,11 +1319,15 @@ impl Screen for RackScreen {
         let w = rack_window();
         pen.window(canvas, w.x, w.y, RACK_BOX_COLS, RACK_BOX_ROWS, 0);
 
-        // The weapon's own picture, frame 0 of its 24, in the four-line
-        // `Ui_DrawInsetRect` well the painter opens for it.
+        // The weapon's own picture in the four-line `Ui_DrawInsetRect` well the
+        // painter opens for it. **It turns.** `Armoury_LoadScreen` draws frame
+        // 0 once on the way in and `FUN_00418E2D` then draws `DAT_005AEA48`
+        // every frame — the divider-chain counter that wraps at 24, which is
+        // exactly how many frames each `Arm_<weapon>.pl8` holds.
         shell::inset_rect(canvas, WEAPON_WELL.x, WEAPON_WELL.y, WEAPON_WELL.w, WEAPON_WELL.h);
         let slot = (self.troop as usize).saturating_sub(1).min(WEAPON_TYPE_COUNT - 1);
-        if let Some(f) = a.sheet(WEAPON_SHEETS[slot]).and_then(|s| s.frame(0)) {
+        let turn = ctx.game.levy.anim.weapon as usize;
+        if let Some(f) = a.sheet(WEAPON_SHEETS[slot]).and_then(|s| s.frame(turn)) {
             canvas.blit(&f, WEAPON_AT.0, WEAPON_AT.1);
         }
 

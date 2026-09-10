@@ -686,6 +686,18 @@ pub struct LevyOrder {
     /// `DAT_00553F20` — the rack the player last opened, 1…6, or 0 for none.
     /// `FUN_004AA90A` clears it whenever the basket is re-seeded.
     pub rack: u8,
+    /// **The armoury's animation state** — `DAT_005679D0`, `DAT_0056D630`,
+    /// `DAT_0052F008`, `DAT_0057CB10`, `DAT_005681F8`, `DAT_00568228` and the
+    /// two frame counters `Tick_Pulses` steps for the torches and the turning
+    /// weapon. Six more globals the armoury and the rack panel share, which is
+    /// exactly why they are here beside the other five.
+    ///
+    /// **Display state, and it must stay that way.** Nothing in
+    /// [`l2_kingdom::Kingdom`] reads it and nothing writes it from the
+    /// simulation; it is on `LevyOrder` because `LevyOrder` is already session
+    /// state the save resets and the lockstep digest cannot see
+    /// (`docs/netcode.md`). See [`crate::screens::armoury::Anim`].
+    pub anim: crate::screens::armoury::Anim,
 }
 
 impl Game {
