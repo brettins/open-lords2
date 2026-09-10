@@ -129,7 +129,8 @@ crates/l2-game/tests/options.rs	C26	7899982bcf4c	e8179d1f76a8
 crates/l2-game/tests/options.rs	C30	716f251c5193	50fdf5e17ba0
 crates/l2-game/tests/scenario.rs	C83	18e9dfa98edd	88ac11ea6de0
 crates/l2-game/tests/screens.rs	C112	a5a80ad18330	0dbcd00423ed
-crates/l2-game/tests/screens.rs	C118	40be2b77649b	cd0e7b0adc57
+crates/l2-game/tests/screens.rs	C118	3de9b4c34a46	cd0e7b0adc57
+crates/l2-game/tests/screens.rs	C125	7451a8225f45	8649ef15f163
 crates/l2-game/tests/screens.rs	C21	1523306009a2	f7bf296341ff
 crates/l2-game/tests/screens.rs	C22	1d39d618c245	0364b53a921d
 crates/l2-game/tests/screens.rs	C42	3c40a931b48c	a2ac3547bb32
@@ -153,6 +154,7 @@ crates/l2-kingdom/src/county.rs	C53	e8fb6191353a	cad36ab11dbf
 crates/l2-kingdom/src/diplomacy.rs	C62	8f8a093f4110	ebb6a7ec3711
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2	006e7d0b71a7
 crates/l2-kingdom/src/field.rs	C123	9757bf8fd453	3a5cc2fec37d
+crates/l2-kingdom/src/kingdom.rs	C26	952c32e6e678	e8179d1f76a8
 crates/l2-kingdom/src/kingdom.rs	C62	24c0c9697884	ebb6a7ec3711
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992	68e4eb2d2a1f
 crates/l2-kingdom/src/land.rs	C123	1ee3f35bfdd6	3a5cc2fec37d
@@ -382,6 +384,7 @@ docs/decisions.md	C10	6307927dc59c	68e4eb2d2a1f
 docs/decisions.md	C10	ff432eaffe58	68e4eb2d2a1f
 docs/decisions.md	C107	3efb7eed35ff	eb231bef7ee5
 docs/decisions.md	C118	7cc36ed680a5	cd0e7b0adc57
+docs/decisions.md	C118	c29564560940	cd0e7b0adc57
 docs/decisions.md	C12	2fd0874b7e4b	bb0dd488f9d2
 docs/decisions.md	C12	4134e4bde263	bb0dd488f9d2
 docs/decisions.md	C12	439c2f1bab58	bb0dd488f9d2
@@ -427,6 +430,7 @@ docs/decisions.md	C25	faa4dd8295f4	5d466f0cb89c
 docs/decisions.md	C25	fcf38cc5919b	5d466f0cb89c
 docs/decisions.md	C26	1824d81774d5	e8179d1f76a8
 docs/decisions.md	C26	5357aea2a649	e8179d1f76a8
+docs/decisions.md	C26	8f6a35ed9d62	e8179d1f76a8
 docs/decisions.md	C27	12183fbed103	1db64332cb22
 docs/decisions.md	C27	251c3e5931bb	1db64332cb22
 docs/decisions.md	C27	6c197dcf7e68	1db64332cb22

@@ -1220,6 +1220,56 @@ impl Kingdom {
         true
     }
 
+    /// **The tax rate, and it is not a setter either.**
+    /// `Tax_IncreaseCounty` (`0x0043AA83`) and its twin, whole:
+    ///
+    /// ```c
+    /// if (taxRate < 0x32) taxRate++;      /* 50 is the player's ceiling */
+    /// Tax_RecomputePreview(county);       /* taxShown, both happiness terms */
+    /// Panel_Tax();                        /* repaint */
+    /// ```
+    ///
+    /// and `Tax_RecomputePreview` itself ends with `Tax_SumEmpireHappiness(owner)`
+    /// and `FUN_0044BA35`, the empire-wide sum of `taxShown` that the court
+    /// prints. **Every tax control in the original recomputes and repaints**,
+    /// exactly like the ration slider — and this is the second panel found with
+    /// the same omission, which is the finding rather than the fix.
+    ///
+    /// Ours wrote `taxRate` and stopped, so `tax_shown` kept whatever the last
+    /// season's [`crate::tax::collect`] left in it (zero, before the first
+    /// collection) and both happiness terms went stale the moment the rate
+    /// moved. A player reported both halves in one sentence.
+    ///
+    /// **Watch which term is expected to move.** `d_hap_tax_local` is `5 - rate`
+    /// and moves on every click; `tax_hap_other` is `g_taxHappinessOther[rate]`,
+    /// which is **flat zero from rate 0 to 19**, so the *Other counties* line
+    /// genuinely does not budge over most of the range a player uses. That is
+    /// the panel being right, and `docs/rules.md` says so.
+    ///
+    /// Returns whether the rate moved.
+    pub fn set_tax_rate(&mut self, county: usize, rate: i32) -> bool {
+        if county == 0 || county > self.county_count {
+            return false;
+        }
+        let rate = rate.clamp(0, crate::tables::MAX_TAX_RATE);
+        let moved = self.counties[county].tax_rate != rate;
+        self.counties[county].tax_rate = rate;
+        crate::tax::recompute_preview(&self.tables, &mut self.counties[county]);
+        // `Tax_SumEmpireHappiness(owner)` — the realm's own term is a sum over
+        // its counties, so one county's rate moves every county's *This county*
+        // line. Recomputed here rather than left to the season for the same
+        // reason the rest of this function exists.
+        let quirks = self.options.quirks;
+        crate::tax::sum_empire_happiness(
+            &self.tables,
+            &mut self.counties,
+            &mut self.realms,
+            self.county_count,
+            quirks,
+        );
+        moved
+    }
+
     /// **The grain-to-livestock split, and it is not a setter.**
     /// `Ration_SetSplit` (`0x0043A5A9`), whole.
     ///
@@ -1846,6 +1896,102 @@ mod tests {
         assert_eq!(k.history.len(), 1, "one season, one line");
         k.advance_season();
         assert_eq!(k.history.len(), 2);
+    }
+
+
+    // --- the tax rate -------------------------------------------------------
+
+    /// **`Tax_RecomputePreview` writes three fields and the panel draws all
+    /// three**, so a tax control that only writes the rate leaves the whole
+    /// panel stale. A player reported both halves of that in one sentence:
+    /// *"'People pay 0 crowns' on the tax thing always says 0 crowns. And the
+    /// happiness bonus/minus on the tax screen is also stuck."*
+    ///
+    /// `tax_shown` had exactly one writer, [`crate::tax::collect`], which runs
+    /// once a season — so before the first collection it is zero and after it it
+    /// describes last season's rate.
+    #[test]
+    fn moving_the_tax_rate_moves_what_people_pay_and_the_local_happiness() {
+        let mut k = Kingdom::new(21);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        {
+            let c = &mut k.counties[1];
+            c.owner = 1;
+            c.population = 1000;
+        }
+        k.set_tax_rate(1, 0);
+        assert_eq!(k.counties[1].tax_shown, 0, "nobody pays anything at a rate of nothing");
+
+        k.set_tax_rate(1, 20);
+        let paid = k.counties[1].tax_shown;
+        assert!(paid > 0, "at a fifth, a thousand people pay something");
+        assert_eq!(
+            k.counties[1].d_hap_tax_local, 5 - 20,
+            "5 - rate, and it moves on every click",
+        );
+
+        k.set_tax_rate(1, 40);
+        assert!(k.counties[1].tax_shown > paid, "and twice the rate is more crowns");
+        assert_eq!(k.counties[1].d_hap_tax_local, 5 - 40);
+        // Ablation: drop the `tax_shown` line from `tax::recompute_preview` and
+        // the second and fourth assertions fail with 0.
+    }
+
+    /// **The *Other counties* line really is stuck, and the panel is right.**
+    ///
+    /// `taxHapOther` is `g_taxHappinessOther[rate]`, a table, and the table is
+    /// flat zero from 0 to 19. Every county in every fixture sits at rate 0 and
+    /// the highest an AI reaches in a hundred turns is 12, so **most of this
+    /// mechanic is human-only and no run of ours exercises it** —
+    /// `docs/decisions.md` C26.
+    ///
+    /// This is the half of the player's report that is not a defect, and it is
+    /// asserted so that nobody "fixes" it later.
+    #[test]
+    fn the_empire_tax_happiness_term_is_flat_until_the_rate_reaches_twenty() {
+        let mut k = Kingdom::new(22);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        k.counties[1].owner = 1;
+        k.counties[1].population = 1000;
+        for rate in 0..20 {
+            k.set_tax_rate(1, rate);
+            assert_eq!(
+                k.counties[1].tax_hap_other, 0,
+                "rate {rate} is inside the flat part of g_taxHappinessOther",
+            );
+        }
+        k.set_tax_rate(1, 20);
+        assert_ne!(
+            k.counties[1].tax_hap_other, 0,
+            "and twenty is where the table finally moves",
+        );
+    }
+
+    /// **`taxShown` ignores suppression and `taxCollected` does not**, which is
+    /// the whole of how the two fields differ — `docs/kingdom.md` §1.3 lists
+    /// them side by side and says it does not know.
+    ///
+    /// `Tax_RecomputePreview` has no suppression test in it; `Tax_Collect`
+    /// zeroes the base. So a suppressed county goes on telling the player what
+    /// his people *would* pay while the treasury banks nothing. `[D]`.
+    #[test]
+    fn a_suppressed_county_still_shows_what_people_would_pay() {
+        let mut k = Kingdom::new(23);
+        k.set_county_count(2);
+        k.realms[1].in_play = true;
+        {
+            let c = &mut k.counties[1];
+            c.owner = 1;
+            c.population = 1000;
+            c.tax_suppressed = true;
+        }
+        k.set_tax_rate(1, 30);
+        assert!(k.counties[1].tax_shown > 0, "the panel shows the rate's worth");
+        let banked = crate::tax::collect(&k.tables, &mut k.counties[1], 0);
+        assert_eq!(banked, 0, "and the treasury gets none of it");
+        assert_eq!(k.counties[1].tax_collected, 0);
     }
 
     // --- the ration split ---------------------------------------------------

@@ -1707,6 +1707,59 @@ fn moving_the_ration_slider_changes_a_number_on_the_panel_in_the_same_frame() {
     );
 }
 
+/// **The tax panel is the ration panel again**, and this is the same test one
+/// door along: press the arrow, and require the panel to differ **outside the
+/// arrows themselves**.
+///
+/// `Tax_IncreaseCounty` (`0x0043AA83`) is `taxRate++`, `Tax_RecomputePreview`,
+/// `Panel_Tax()`. Ours wrote the rate and returned, so *"People pay"* kept the
+/// zero it was born with and both happiness lines kept last season's.
+///
+/// Ablation, which was run: drop the `tax_shown` line from
+/// `tax::recompute_preview` and this fails; drop the whole
+/// `Kingdom::set_tax_rate` body back to a bare write and it fails harder.
+#[test]
+fn stepping_the_tax_rate_changes_the_panel_in_the_same_frame() {
+    let (mut game, assets) = world!();
+    let county = 8;
+    assert_eq!(game.kingdom.counties[county].owner, game.player);
+    assert_eq!(game.kingdom.counties[county].tax_rate, 0, "the fixture starts at nothing");
+
+    let mut screen = CountyScreen::new(county as u8, Panel::Tax);
+    let up = Panel::Tax.increase_button().expect("the tax panel has arrows");
+
+    let before = draw(&mut screen, &mut game, &assets);
+    for _ in 0..10 {
+        send(&mut screen, &mut game, &assets, Event::Click { x: up.centre_x(), y: up.y + 4 });
+    }
+    let after = draw(&mut screen, &mut game, &assets);
+    assert_eq!(game.kingdom.counties[county].tax_rate, 10);
+
+    // Everything except the two arrows' own row, so the difference is a number
+    // and not the control.
+    let mut changed = 0usize;
+    for y in 0..l2_view::canvas::HEIGHT {
+        for x in 0..l2_view::canvas::WIDTH {
+            let (xi, yi) = (x as i32, y as i32);
+            let in_arrows = yi >= up.y - 4 && yi < up.y + up.h + 4 && xi >= up.x - 40;
+            if !in_arrows && before.at(x, y) != after.at(x, y) {
+                changed += 1;
+            }
+        }
+    }
+    assert!(
+        changed > 0,
+        "ten clicks of the tax arrow and nothing on the panel moved. \
+         Tax_RecomputePreview writes taxShown, dHapTaxLocal and taxHapOther, and \
+         Tax_IncreaseCounty calls it before it repaints. \
+         docs/decisions.md C125.",
+    );
+    assert!(
+        game.kingdom.counties[county].tax_shown > 0,
+        "and 'People pay' is what should have moved first",
+    );
+}
+
 /// County 1 belongs to realm 5. The strip says so, all four panels still open,
 /// and every order is refused — by the mouse as well as by the keyboard.
 #[test]
