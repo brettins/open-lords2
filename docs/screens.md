@@ -643,9 +643,18 @@ frame = shield * 8 - 8 + phase;      /* == (shield - 1) * 8 + phase */
 `Flags1a.pl8`'s frames `0x00 … 0x27` are forty 32 × 24 pictures laid out five rows by eight
 columns: **five shields × eight wave phases**, and `shield = 5, phase = 7` lands on frame 39
 exactly, with frame 40 beginning an unrelated block. **The colour is in the frame index**;
-there is no palette remap. `shield` is a realm's `shieldIndex`, clamped 1 … 5, so a zero
-shield flies nothing — and the castle's shield is the **garrison's**, not the county's, so a
+there is no palette remap. The castle's shield is the **garrison's**, not the county's, so a
 captured castle holding somebody else's garrison flies their colours.
+
+**Correction: only the *town* arm guards a zero shield, and this section said both did.**
+The town arm returns on `county.field_0x7 == '\0'` before it computes anything. The castle
+arm tests `garrisonUnit == 0` and then computes `shield * 8 - 8 + phase` with **no clamp at
+all** — there is no `1 … 5` clamp anywhere in `FUN_004071A0`; the clamp this paragraph was
+remembering is `FUN_004171EE`'s, on the menu bar's banners. A garrison whose `shield` is 0
+therefore asks for frame `−8 + phase`, the frame-record read fails the `dataOffset < 1`
+check, and the function writes `"ERR:top_it no data"` and sets `g_quitRequest = 1`. **[D]** —
+no shipped save on this machine has a zero-shield garrison, so it has not been observed.
+`docs/draws-map.md` §4, **C87**.
 
 `content == 0x14` is the bare castle plot and `0x15 … 0x19` are castle types 1 … 5
 (`FUN_0046826C` stamps `0x14 + castleType`), which is the same line `Map_Click`'s ladder
@@ -688,6 +697,23 @@ a 58 × 30 (or 10 × 6) tile the anchor is the diamond's bottom vertex, one pixe
 centre. Then a per-kind nudge (`(0, −4)` for an army or a mob, `(−4, −2)` for a merchant or a
 transport) and `x -= w/2; y -= h`, so the figure hangs upwards and reads as standing *on* the
 tile.
+
+**Every army and every mob carries a banner, and this section did not say so.**
+`Map_DrawArmies` does not stop at the figure. Still inside the same loop, after
+`x -= w/2; y -= h`:
+
+```c
+if (unit.kind == 1 && unit.shield != 0)  frame = (shield-1)*8 + phase, at (+0x12, -0x15)
+else if (unit.kind == 2)                 frame = 0x79 + phase,          at (+0x12, -0x12)
+```
+
+both out of `g_flagsSheet`, both marked with `Gfx_MarkTile32` and blitted with the same
+clip. At the far zoom the offsets are `(+0x18, −0x15)` and `(+4, −4)`. A **merchant** (kind
+3) and a **transport** (kind 4) get none — so an army's owner is legible on the map without
+clicking it, which is a thing our engine's coloured square is standing in for. And
+`Flags1a.pl8` frames **`0x79 … 0x80`** are the peasant mob's eight-phase banner, the block
+`maps-layers.md` §5.5a measured as sitting after the 2 × 2 stubs and left unnamed.
+`docs/draws-map.md` §5.3, **C88**. **[D]**
 
 The 8 × 16 tables at `0x004D8108` … `0x004D8388` are six `i8` arrays indexed
 `[direction][+0x149]`: index 0 is zero and index 1 is the full previous-tile delta, ramping
@@ -812,6 +838,17 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
 * the 24-pixel menu bar tiled from `Panels.pl8` 196…203 with the realm banners at
   `270 + 16i`, the framed-box kit, the `Misc_cty.pl8` right column, the far zoom's
   `Ui_DrawBox(0, 412, 30, 4)` strip, the End Turn rectangle;
+
+  **— but not the menu bar's bevel, and not the words inside the far-zoom strip.**
+  `Screen_DrawMenuBar` ends its background with `Ui_DrawBevelRect(0, 0, 0x280, 0x18)`, which
+  `Chrome::draw_menu_bar_background` does not draw. And `Screen_DrawCampaign` puts four
+  things in the far-zoom box, all at literal coordinates: `Eng_DrawString(101,
+  g_scenarioIndex, 0x40, 0x1A8)` — the map's name; `Eng_DrawString(34, 0, …, 0x1A8)` —
+  *"Year"*; `Ui_DrawYear(g_year, …, 0x1A8, 1)`; and `Eng_DrawString(34, 1, 0x50, 0x1C6)` —
+  ***"Click on the county you wish to view."*** So the far view reads *England · Year 1268*
+  over that instruction — the game saying in its own words what the far zoom is for, which
+  agrees with `Map_Click` doing nothing at zoom 2. Ours draws its own status line there.
+  `docs/draws-map.md` §5.4, **C89**;
 * the `MAPnn.PL8` minimap, its click rectangle, and its owner tint through the realm ramp
   read out of `Lords2.exe` at `0x004D2900`;
 * **all four minimap modes** (§3.3) — the labour, food and happiness overlays through the
@@ -828,9 +865,20 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   the clicked unit with it because `DAT_00553C64` is what the price is computed from. See
   `crates/l2-game/src/screens/merchant.rs`; the stall's hit test is `mercgrid.pl8` read as
   an 80 × 60 map of good ids, and the mouseover is the price plaque of
-  `Merchant_HoverPlaque` rather than any generic tooltip — **this engine has no generic
-  tooltip mechanism**, and `0x00553ECC`, the only candidate on file, turned out to be a
-  click guard on move-order mode (`docs/decisions.md` C54's neighbours in `symbols.md`);
+  `Merchant_HoverPlaque` rather than any generic tooltip — **ours has no generic tooltip
+  mechanism**, and `0x00553ECC`, the only candidate on file, turned out to be a
+  click guard on move-order mode (`docs/decisions.md` C54's neighbours in `symbols.md`).
+
+  **That sentence read as a claim about `Lords2.exe`, and about `Lords2.exe` it is false.**
+  `FUN_00476E95` is a generic tooltip layer: it runs every frame from `Battle_Frame`, is
+  gated on the `g_optToolTips` option, waits one second of `timeGetTime` with the pointer
+  still, resolves a hotspot id through the per-screen table `DAT_004D6FB8[g_screenId]`, and
+  draws `L2.eng` group 220 index *id* in a box beside the cursor. `docs/formats/eng.md` §5
+  has had it right all along — *"the 35 tool tips, index = hotspot id"*, `[V]`. **Twenty-four
+  of the thirty-five are the campaign sidebar**, resolved by `FUN_00477320` (1,082 bytes),
+  and they name the five sidebar buttons and every produce row in order — an independent
+  confirmation of `map.rs`'s `SIDEBAR_BUTTONS` and of `FUN_0040FEC1`'s two lists.
+  `docs/draws-map.md` §5.1, **C86**;
 * the map opening on the player's own town, which is `Game_SetupRealmsAndCounties`'s tail
   call `FUN_00432746(g_playerStartTable[g_localPlayer * 2])` and not `Map_InitMode`
   (`docs/decisions.md` C48);

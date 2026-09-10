@@ -239,6 +239,7 @@ crates/l2-view/src/village.rs	C57	fbc575f34d82
 crates/l2-view/src/village.rs	C61	9bff3d2af45d
 crates/l2-view/tests/install.rs	C1	b6dbfeba4b54
 crates/l2-view/tests/install.rs	C46	3ca8b1f138bc
+crates/l2-view/tests/install.rs	C49	cc53dbcb852e
 docs/agents.md	C1	d79ae046534d
 docs/agents.md	C12	15180248099e
 docs/agents.md	C14	50deea1020dd
@@ -342,6 +343,7 @@ docs/decisions.md	C21	7cb6452b0185
 docs/decisions.md	C21	7e1ce2bf6129
 docs/decisions.md	C21	8ab6f5823eaf
 docs/decisions.md	C21	cf853a4e6a34
+docs/decisions.md	C21	de0bb3510417
 docs/decisions.md	C21	e643c79f1b0f
 docs/decisions.md	C22	516958f577ba
 docs/decisions.md	C22	d5fb664c5a6b
@@ -447,8 +449,8 @@ docs/decisions.md	C59	f8f78fa7b192
 docs/decisions.md	C61	072b0a786f93
 docs/decisions.md	C61	324c3ac59d0a
 docs/decisions.md	C61	33bb2b912640
-docs/decisions.md	C61	35e4240789b5
 docs/decisions.md	C61	572422b44b0b
+docs/decisions.md	C61	676bc25c9e2f
 docs/decisions.md	C61	78184451a7a7
 docs/decisions.md	C61	7fc43d028377
 docs/decisions.md	C61	a43b37f5621b
@@ -473,6 +475,8 @@ docs/decisions.md	C9	72e3f741f15b
 docs/decisions.md	C9	99e56fdcae4b
 docs/diplomacy.md	C26	cc112f11d1ea
 docs/diplomacy.md	C3	d4bc35a985fd
+docs/draws-map.md	C72	230aae5fabd7
+docs/draws-map.md	C77	cfea9c21de5f
 docs/formats/eng.md	C3	f56e526bf0e2
 docs/formats/eng.md	C61	4cbf794a0efc
 docs/formats/maps-layers.md	C25	4ebf3f639877
@@ -481,6 +485,7 @@ docs/formats/maps-layers.md	C41	89650dc3b322
 docs/formats/maps-layers.md	C41	991fc29daae8
 docs/formats/maps-layers.md	C49	22534dc6eb84
 docs/formats/maps-layers.md	C62	dfe3d7ab34b9
+docs/formats/maps-layers.md	C72	dc9c27e0f1d9
 docs/formats/maps-layers.md	C77	d74664021785
 docs/formats/pl8.md	C5	7da3bb460200
 docs/hypotheses.json	C3	6d7b9bc8a5c3
@@ -574,11 +579,12 @@ docs/screens.md	C25	6e23d74e76ec
 docs/screens.md	C48	63058cefc7e7
 docs/screens.md	C49	a1b14839a0c8
 docs/screens.md	C50	0b13b32b4844
-docs/screens.md	C54	058651c9e443
+docs/screens.md	C54	1f7942092112
 docs/screens.md	C57	20afea58b682
 docs/screens.md	C58	1667c55aa79a
 docs/screens.md	C59	8f514d17c5d4
 docs/screens.md	C8	b62c9b07e307
+docs/screens.md	C86	1834c2946ad3
 docs/symbols.json	C20	01f6f924103e
 docs/symbols.json	C20	7ddb8e5c217a
 docs/symbols.json	C22	936f7d5bda76

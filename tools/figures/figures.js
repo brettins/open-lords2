@@ -139,10 +139,27 @@ function fromShells() {
   return (body.match(/^\s{4}Shell \{$/gm) || []).length;
 }
 
+// **The campaign map's draw calls** -- the instrument for `docs/plan.md` §0's
+// third falsification row, which read "instrument: none" from the day it was
+// written until this audit gave it one.
+//
+// Shelled out to rather than reimplemented: `mapdraws.js` holds the listing AND
+// cross-checks it against the area table in `docs/draws-map.md`, and a second
+// copy of that arithmetic here would be the duplicate-rule failure this project
+// has logged twice.
+function fromDraws() {
+  const out = execFileSync(process.execPath, [
+    path.join(repo, 'tools', 'draws', 'mapdraws.js'), '--figures',
+  ], { encoding: 'utf8' });
+  const last = out.trim().split(String.fromCharCode(10)).pop().trim();
+  return JSON.parse(last);
+}
+
 function figures() {
   const sym = fromSymbols();
   const cargo = fromCargo();
   const arms = fromArms();
+  const draws = fromDraws();
   const shells = fromShells();
   const pct = Math.round((sym.functions / BINARY_FUNCTIONS) * 100);
   return {
@@ -161,6 +178,10 @@ function figures() {
     'arms-groups': group(arms.groups),
     'arms-groups-done': group(arms.groupsDone),
     shells: group(shells),
+    'map-draws': group(draws.total),
+    'map-draws-live': group(draws.live),
+    'map-draws-ours': group(draws.ours),
+    'map-draws-pct': String(draws.pct),
     // A date that does not move while the content does is worse than no date,
     // so the stamp is regenerated with everything else. Spelled out rather than
     // taken from toLocaleDateString, which gives "Sept" on some ICU versions

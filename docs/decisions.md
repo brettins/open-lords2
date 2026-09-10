@@ -4114,6 +4114,70 @@ had no `pairs` field to omit. The destructure protects the fields we know about 
 about the ones we never modelled — which is the same sentence as C61's denominator being a
 *place*, and as *a check on existence is not a check on meaning*.
 
+**C86 — the original has a generic tooltip layer, and `docs/screens.md` said it
+did not.**
+
+`docs/screens.md` §7 ended a paragraph about the merchant's price plaque with *"**this
+engine has no generic tooltip mechanism**, and `0x00553ECC`, the only candidate on file,
+turned out to be a click guard."* It meant *our* engine. It reads as a claim about
+`Lords2.exe`, and about `Lords2.exe` it is false: `FUN_00476E95` runs every frame from
+`Battle_Frame`, gated on `g_optToolTips`, waits a second of `timeGetTime` with the pointer
+still, resolves a hotspot id through the per-screen table `DAT_004D6FB8[g_screenId]` and
+draws `L2.eng` group 220 index *id* beside the cursor. `docs/formats/eng.md` §5 has had it
+right, `[V]`, the whole time — **two documents, one wrong, and nobody had reason to read
+them together.**
+
+**Twenty-four of the thirty-five strings are the campaign sidebar**, resolved by
+`FUN_00477320` (1,082 bytes). They name the five sidebar buttons in order and every produce
+row in order — an independent confirmation of `map.rs`'s `SIDEBAR_BUTTONS` table and of
+`FUN_0040FEC1`'s two lists, arrived at from a completely different direction. That is the
+argument for the enumeration: *the game had written a description of the screen we were
+reverse-engineering by hand, in the file we already read for everything else.*
+`docs/draws-map.md` §5.1.
+
+**C87 — only the town arm guards a zero shield, and one document said both
+did.**
+
+`Sprite_TopIt`'s town arm returns on `county.field_0x7 == '\0'`. Its castle arm tests
+`garrisonUnit == 0` and then computes `shield * 8 - 8 + phase` with **no clamp anywhere in
+the function** — the `1 … 5` clamp `docs/screens.md` §5.1 credited it with is
+`FUN_004171EE`'s, on the menu bar's banners, a different function on a different sheet. A
+zero-shield garrison therefore asks for frame `−8 + phase`; the frame record fails the
+`dataOffset < 1` check and the function writes `"ERR:top_it no data"` and sets
+`g_quitRequest = 1`. **[D]** — no shipped save on this machine has one, so it is read and
+not observed. The shape is C21's: a clamp seen in one place and attributed to another.
+
+**C88 — every army and every mob carries a banner, and the section describing
+the unit sprites did not mention it.**
+
+`docs/screens.md` §5.2 gives `Map_DrawArmies`' sheet, frame arithmetic, anchor, per-kind
+nudge and walk tables. Still inside the same loop and after `x -= w/2; y -= h`, an army
+(kind 1) with a non-zero shield gets `Flags1a` frame `(shield−1)*8 + phase` at `(+0x12,
+−0x15)` and a peasant mob (kind 2) gets `0x79 + phase` at `(+0x12, −0x12)`; merchants and
+transports get none. So **`Flags1a.pl8` frames `0x79 … 0x80` are the mob's banner** — eight
+`16 × 42` standards, measured against the player's own file, in the block
+`maps-layers.md` §5.5a had left unnamed after the `2 × 2` stubs.
+
+**And the first draft of that measurement was wrong in the way this project's measurements
+usually are.** The test asserted `32 × 24`, the size of the realm flags at the head of the
+same sheet — a size assumed from a neighbour rather than read. It went red on its first run.
+That is the ablation rule paying out on a check whose subject cannot be ablated: *make it
+fail once and read what it says.* `docs/draws-map.md` §5.3.
+
+**C89 — the words in the far-zoom strip are the original's, and we
+replaced them with our own.**
+
+`docs/screens.md` §7 lists the far zoom's `Ui_DrawBox(0, 412, 30, 4)` among what we
+reproduce and says *"the box is the original's; the words in it are ours."* The words are
+the original's too: `Screen_DrawCampaign` puts four things in it — `L2.eng` group 101 at
+`g_scenarioIndex` (the map's name), group 34/0 (*"Year"*), `Ui_DrawYear`, and group 34/1,
+***"Click on the county you wish to view."*** So the far view is the game telling the player
+in its own words what the far zoom is for, which is also why `Map_Click`'s whole dispatcher
+sits inside `if (g_mapZoom != 2)`. Ours draws a status line of its own there instead.
+
+Cheap to close, and worth closing first of the four: it is the only one of this audit's
+findings that needs no fixture the project does not have. `docs/draws-map.md` §5.4.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

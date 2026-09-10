@@ -631,12 +631,21 @@ What is still open is whether the *season* moves a field's `content` on its own 
 economy's business, not this file's.
 
 ### 5.5a The cattle on a pasture — `Sprite_TopIt`'s farm arm (`0x004071A0`)  **[V]**
-> **It has a name now, and the name understates it.** `docs/symbols.json` calls
-> `0x004071A0` **`Sprite_TopIt`** — added by the naming campaign while this section was
-> being written. The name is not wrong, but it reads as one blitter, and the function is a
-> four-way dispatcher on plane 0 whose arms are the town flag, a dwelling, the pasture herd
-> and the industry/castle animation. Something like `Map_DrawTileOverlay` would carry that.
-> Flagged rather than renamed: the symbol database is the lead session's.
+> **It has a name now, and the name is the game's own — do not change it.** `docs/symbols.json`
+> calls `0x004071A0` **`Sprite_TopIt`**. An earlier revision of this paragraph proposed
+> renaming it `Map_DrawTileOverlay`, on the grounds that "Sprite_TopIt" reads as one blitter
+> while the function is a dispatcher. **That was wrong about where the name came from.**
+> `node tools/oracle/logstrings.js` prints this function's three `Log_Write` literals:
+> `"ERR:top_it no data "` and `"ERR:top_it bad data "` twice. `top_it` is the *original
+> authors'* name for it, in the same convention that gave us `write_sprite`, `gen_frame`,
+> `mos_frame` and `mos_blank` — `docs/decisions.md` C72. Replacing a name recovered from the
+> binary with a better-describing invention is the one trade this project does not make.
+>
+> The docstring is what needed fixing, and `docs/draws-map.md` §3 is it: the dispatcher has
+> **six** arms, not four — the town's flag, the town's mercenary marker, a *razed* dwelling,
+> the pasture herd, the four industry sites (which animate the terrain tile itself rather
+> than blitting an overlay) and the castle's garrison flag — behind a fog-of-war gate and an
+> early `(flags & 0xF0) == 0` return.
 
 
 §5.5 says the picture is *"a pure function of `(terrain, the frame the map file stored)`"*.

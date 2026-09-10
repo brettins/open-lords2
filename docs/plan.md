@@ -38,22 +38,43 @@ the goal is not met — not "mostly met".
 2. **We do something the original does not.** The other direction, and the half nobody was
    counting: **<!--fig:arms-inventions-->24<!--/fig-->** inventions are on file. An invention is
    worse than an omission, because nothing looks broken.
-3. **A screen shows something the original does not, or fails to show something it does.** This
-   is the least measured of the three and §2.10 is about that.
+3. **A screen shows something the original does not, or fails to show something it does.**
+   **This row has an instrument now, and it is the most alarming number in this file.** The
+   campaign map — the screen a player spends most of the game looking at — makes
+   **<!--fig:map-draws-->139<!--/fig--> draw calls, of which <!--fig:map-draws-live-->121<!--/fig-->
+   are live. We make <!--fig:map-draws-ours-->59<!--/fig--> of them: **<!--fig:map-draws-pct-->49<!--/fig--> %**.
+   We also make about 29 the original does not.
+
+   Set that beside the input measurement for the *same two screen ids*, where `arms.json` marks
+   20 of 25 reproduced — 80 %:
+
+   > **We answer four gestures in five and we draw one picture in two.**
+
+   That gap was invisible to every check this project had. It is also the shape of both of the
+   player's reports — *"placeholder shit everywhere"* and *"why do the pastures not have cows in
+   them?"* — and **neither of those is an arm.** `docs/draws-map.md`, and the numbers come from
+   `tools/draws/mapdraws.js` through `figures.js`, never typed.
 4. **The hundred-turn game diverges** — a rule that is right on turn one and wrong on turn forty.
    §2.5.
 5. **A number in a saved game differs from the original's** for the same inputs.
 
-The first two have instruments. The third has none. The fourth has a partial one. The fifth is
-what the fixtures do.
+The first **three** have instruments now. The fourth has a partial one; the fifth is what the
+fixtures do.
 
-**The third row is the most valuable line in this file and it must not disappear when it
-improves.** *"A screen showing the wrong thing — instrument: none"* is the only entry that tells
-you what to build next; the numbers above it tell you where you are. When the draw-call audit
-(§2.10) narrows it, the row does not become a tick — it names **which** instrument now covers it
-and **what that instrument still cannot see**. A falsification condition that vanishes on
-acquiring a partial instrument is a condition that has been quietly weakened rather than met,
-and this list is the one place in the project where that would not be caught by anything.
+**The third row was the most valuable line in this file when it read *"instrument: none"*, and
+the rule written here then was that it must not vanish on acquiring one.** It has not. What it
+now says is **which** instrument covers it and **what that instrument still cannot see**:
+
+* It covers **two screen ids of about fifty.** The campaign map was audited because it draws the
+  most; every other screen is unmeasured, and the pilot's estimate is ~15 screens at ~30 minutes
+  each.
+* It counts **static call sites**, so a ladder drawing a different frame per state is one call.
+  What is drawn *correctly* is a different question with no instrument at all.
+* And it inherits the three hiding places below, which is why its own misses cluster there.
+
+A falsification condition that vanishes on acquiring a partial instrument has been quietly
+weakened rather than met, and this list is the one place in the project where nothing else would
+catch that.
 
 **The honest caveat on the headline, stated here rather than in a footnote:** `arms.json` covers
 **<!--fig:arms-groups-done-->10<!--/fig--> of <!--fig:arms-groups-->11<!--/fig-->** enumerated
@@ -656,7 +677,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,973<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->1,974<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
