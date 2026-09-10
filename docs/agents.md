@@ -315,6 +315,58 @@ read is a check whose message is untested, and the message is most of the value 
 own convention is *fail with the fix in the message*, which is unverifiable until somebody has
 seen one fail.
 
+### How to ablate wrongly
+
+The practice above is cheap and it is **not automatic**. Five ways it goes wrong, all of them
+observed here, and the first is the one that limits the whole discipline.
+
+**One: compute the probe from the constant you are ablating.** A test asserted that the pasture
+cattle land at the original's `(+4, −4)` offset. It found its probe pixel by *applying that
+offset* — so deleting the constant moved the probe with it, and the test stayed green. It was
+asserting that the code agrees with itself, which it always will.
+
+> **Ablation works, and ablating a constant while computing your probe from that same constant
+> tests nothing at all.**
+
+This is the one entry that limits a practice the rest of this document recommends without
+qualification, so it is worth being exact about the cure: **pin the literal from the oracle.**
+The probe position is now a number read out of the decompilation, and no expression in the test
+mentions the constant under test. Anyone who adopts the ablation habit will meet this case, and
+it is not visible from the inside — the test is four lines long, it reads correctly, and it
+passes.
+
+**Two: ablate something the check deliberately excuses.** The encode/decode check carries a
+`not-encoded:` marker for fields outside the codec. Testing it by renaming a field that carried
+one produced a green run, which for a minute read as *the check is broken*. It was the check
+working. An accidental **fail-to-fail** is indistinguishable from a broken instrument, and the
+defence is to ablate something the check *claims*, not the nearest thing to hand.
+
+**Three: insert a probe between a doc comment and its field.** The second attempt at that same
+test added a field immediately below an existing doc comment — which, in Rust's model and in the
+scanner's, attaches that comment to the new field. The probe silently inherited the excuse and
+the check went on reporting the *old* field. Ablation by insertion moves whatever the insertion
+point owned; ablate by deletion where you can.
+
+**Four: read the count instead of the names.** `cargo test --workspace` stops at the first
+failing crate, so an ablation that should turn three tests red reports **one**. Use
+`--no-fail-fast`, and read *which* tests went red rather than how many. The identity of the
+failing test is the finding; the count is not.
+
+**Five: ablate the draw and forget the viewport.** The build stamp's test has now failed three
+times in three different ways, and it is the same feature each time. First it passed with the
+draw deleted, because it counted pixels on a page with full-screen artwork behind it. Then
+idempotence fixed that — and the stamp shipped **half off the bottom of the screen**, because
+identity of two canvases proves the text was *painted* and says nothing about whether the place
+it was painted is *presented*. The third version asserts every pixel the stamp writes falls
+inside the visible canvas, and is ablated by moving it ten pixels down.
+
+> **"Is it drawn" and "can it be seen" are different claims, and only one of them is what
+> anybody wanted.**
+
+Each of those three checks was true of what it measured. That is the pattern this whole document
+keeps circling, and one small feature has now demonstrated it three times: **the question is never
+whether the assertion holds, it is whether the assertion is the claim.**
+
 ## A test that drives the picture from the wrong field passes for ever
 
 The village screen had **eleven tests and not one asked what the county's own record
@@ -1051,6 +1103,171 @@ Two other things fell out of the enumeration and belong here rather than in a co
   `0x12`'s arm has no right-button test at all, so `battle.rs`'s right-click-to-Decline is ours.
   Neither was found by looking for errors; both fell out of reading a screen exhaustively. That is
   the argument for enumeration in one sentence.
+
+## Every instrument we have measures inside a boundary somebody drew, and none can see the boundary
+
+This is the most important entry in this file and it was the last to be written, because it is
+only visible once you have several instruments and notice they share a blind spot.
+
+Three statements, from three unrelated parts of the project:
+
+* **The arms denominator is a *place*.** `docs/arms.json` reports a percentage of the input arms
+  we reproduce, and that percentage is over *the functions somebody chose to mark up*. It was
+  labelled as coverage of the original's input handling. The measurement was correct and the
+  label overreached — the honest form names the place: *"of screens 0 and 0x10, we answer 20 of
+  25 gestures."*
+* **A completeness check over a struct is only as complete as the struct.** The exhaustive
+  `let RealmState { … } = r;` destructure cannot forget a field. It said nothing about `pairs`,
+  because `l2_formats::save::Realm` had no `pairs` field to forget — the hole was outside the
+  thing being checked exhaustively.
+* **A check on existence is not a check on meaning.** `symbols_md.js` proves every symbol in the
+  registry appears in the document. It has no opinion about whether the comment beside it is
+  true, which is how `Wall_Collapse` carried *"surface 5 — rampart"* for weeks after the project
+  had established that 5 is the bailey.
+
+The shape is one shape. **Every check we have is exhaustive over a set, and the interesting
+failures are outside the set.** A green check therefore licenses a statement of the form *"nothing
+inside this boundary is wrong"* — and it is read, always, as *"nothing is wrong."*
+
+There is no instrument for this and probably cannot be one, because an instrument that could see
+its own boundary would need a larger boundary. What there can be is a **habit of naming the
+boundary in the same sentence as the number**, so that the overreach has to be written down
+deliberately rather than happening by omission. `docs/plan.md` §0's third row does this, and it
+is the reason that row is worth more than the figures above it: it says which instrument covers
+it *and what that instrument still cannot see*.
+
+Two consequences worth stating separately.
+
+**A quantifier beats a list.** *"Every overlay we can build"* stays true when someone adds an
+overlay; *"the seven overlays"* silently stops covering the eighth. Where a check must enumerate,
+enumerate by construction, not by hand.
+
+**And counting arms cannot tell you whether a screen is reachable.** An arm audit over a screen
+nobody can open scores 100%. The boundary there is the word *screen*.
+
+## A document that promises "until X" keeps promising it long after X
+
+`crates/l2-view/src/text.rs` carried a header saying the interface draws its own letters *"until
+the real font is decoded."* The font had been decoded. Nobody struck the sentence, so every
+screen written after that point read the header, believed it, and reached for the 5×7 debug font
+— and the draw-call audit later found **six modules drawing nothing at all through the game's own
+fonts or artwork**: castle, diplomacy, siege, job, menu, menubar. `menu.rs` drew the game's own
+title as "LORDS OF THE REALM II" where `L2.eng` 11/0 says *"Lords of the Realm 2"* — a string
+`tests/shell.rs` had asserted for weeks, on the first screen anybody sees. A player reported it
+as *"the title screen is illegible."*
+
+`docs/audit.md` F21 had **already flagged the stale bullet that comment cited.** The flag was
+correct, it was filed, and it changed nothing, because flagging a document does not edit it.
+
+This is the fourth stale-document mechanism catalogued here, and the only one with a **tense** in
+it. The others go stale when the world changes around a statement of fact; this one is a promise
+about the future, and it expires *at a moment nobody is watching for* — the moment the promise is
+kept. Nothing about the sentence changes then. It reads exactly as well after as before.
+
+> **A comment that defers work to a caller must name the caller. A comment that defers work to a
+> future must name the condition that ends it — and something has to check that condition.**
+
+Pair those two. They are the same defect: a sentence handing responsibility somewhere it cannot
+be collected from. The practical rule is that *"until"*, *"for now"*, *"temporarily"* and
+*"pending"* are all load-bearing words, and a header that uses one should either carry the check
+that retires it or carry the issue number that will.
+
+## A contradiction between two documents is invisible until someone needs both
+
+`docs/hypotheses.json` had `0x0055307C` recorded as `g_rampartCellsBreached` — *"how many
+rampart cells this siege has knocked through"* — with an honest caveat saying the mechanism was
+read and the purpose was a guess. That is right. `crates/l2-sim` called the same four bytes
+`moat_flag`. That is wrong, and it is what the code ran on.
+
+Both files were maintained. Both were checked. Neither was checked **against the other**, and
+nothing could have brought them together: the hypothesis register is keyed by **address**, the
+struct field by **name and offset**, and no instrument in the tree relates a field to the global
+it mirrors. The project held a good reading and a bad reading of the same address for weeks.
+
+What surfaced it was `symbols_md.js` refusing a promotion — *promotion is a move, not a copy* — a
+rule written for bookkeeping reasons that had nothing to do with this. That is the generalisable
+part:
+
+> **Two artefacts that must agree is the pattern that catches things. Two artefacts that merely
+> overlap catch nothing, and will disagree indefinitely.**
+
+If two files can describe the same object, make one of them derive from the other, or make a
+check that joins them on whatever key they share. Absent that, assume they already disagree,
+because there is no evidence either way and no way to get any.
+
+## Merging is real work, and treating it as plumbing loses things silently
+
+Three losses, all mine, all at merge, none caught by a test:
+
+* A `--theirs` resolution **un-graduated castle building**, and another dropped `menubar`,
+  `belongs_to_the_right_column` and `Transition::Reveal`. Tests caught the first. Nothing caught
+  the second until it was looked for.
+* A naive union **glued one function's doc comment onto a different constant** —
+  `FIELD_TRAMPLE_OFFENCE`'s prose ended up over `CASTLE_TERRAIN`. Nothing caught that at all. It
+  compiles, it reads fluently, and it is a lie in the one place this project treats as
+  authoritative.
+* A merge **lost an input arm** — the campaign minimap dropped out of an overlay table during a
+  graduation — and it was found by a player, not by us.
+
+And the worst one, because it survived every check the project has: the `input-arms` merge
+committed **four conflict markers to `main`**, in `README.md`, `docs/plan.md` and twice in
+`docs/status.html`. Both sides of every hunk were **textually identical** — git had raised the
+conflict on surrounding context — so the resolution was a no-op and nothing read wrong.
+`figures.js` went on rewriting the marked number inside *both* halves and reporting success,
+which is exactly what it should do and exactly why it saw nothing. Four of the project's five
+checks looked at files that happened not to be hit. It was found by eye in a `git diff` run for
+an unrelated reason.
+
+`crates/l2-testkit/tests/conflict_markers.rs` closes that one. The general lesson does not close:
+**a merge conflict is a question about intent, and the resolution is an edit like any other
+edit.** Resolve by reading both sides and writing what you mean. `--ours` and `--theirs` are
+answers to a question nobody asked, and a union is a guess that the two sides are additive.
+
+## A check that names a specific object is only as good as the name
+
+`our_own_buttons_do_not_sit_on_anything_the_painter_drew` was written to stop us placing a widget
+on top of one of the original's. It worked. It was also **asserting against the wrong rectangle**:
+it named `OK` — the corner picture — while our CANCEL at (264, 446) was sitting squarely on
+record 0 of `g_splitWidgets`, the army-division screen's **confirm tick**. Aiming at the bottom of
+the game's split got our cancel instead.
+
+The check was accurate about the rectangle it named. **The name was not checked by anything**, and
+there is nothing in a string literal that can be wrong in a way a compiler or a test can see.
+
+> **A test that names its subject in prose has moved the assertion out of the tree and into the
+> name.**
+
+Where the subject can be derived — from the widget table, from the file, from the enumeration —
+derive it, and let the check quantify over everything rather than naming one thing. Where it
+genuinely must be named, the name deserves the same scepticism as a number: ask what would be
+different if it were wrong, and if the answer is *"nothing visible"*, that is the finding.
+
+## A hand-staged fixture can manufacture a finding, and it will be believed
+
+A siege test staged its besieger by hand: units placed, engines ordered, state set. It was a
+reasonable fixture and it was **wrong about ordering** — and because every siege test in the
+workspace staged its besieger the same way, none of them travelled the real road. One of them
+wrote *"the AI never orders siege engines, so an AI besieging a level-3 castle can never assault
+at all"* into its module header.
+
+That statement then went into a report, from the report into a brief, and from that brief into
+another agent's brief. It is false. The AI's path is `Unit_ReachCastleBuilding` →
+`Army_BeginSiege` → `Siege_Link` → `Siege_Prepare`, all four implemented and faithful all along.
+What was true — *"no AI calls `order_engine`"* — is a statement about **one function**, and
+`order_engine` is the siege screen's + and − buttons, which the original's AI does not press
+either.
+
+Two things to take from it.
+
+**A fixture that constructs the state a feature is supposed to produce cannot tell you whether
+the feature produces it.** The fix is a test that walks the road: an army moved onto a castle
+tile, and the order read out of what came back. That test did not exist for any siege in the
+workspace, which is why the hole was subsystem-wide rather than one test's oversight.
+
+**And name the function.** This is the same shape as C71 — a true statement about one branch,
+promoted to a statement about a subsystem, in prose, between agents, where no check in the tree
+can reach it. The whole defence is one word. *"No AI calls `order_engine`"* cannot be promoted by
+accident; *"the AI never orders siege engines"* already has been.
 
 ## Citing an oracle is not reading it
 
