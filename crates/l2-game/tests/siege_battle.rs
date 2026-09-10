@@ -82,6 +82,16 @@ fn run_until(
             return;
         }
         tick(m, g, a);
+        // **The message scroll is modal and never times out in single player**
+        // — `Msg_Pump` clamps the timer to 1 — so a loop that only ticks stops
+        // dead at the first thing the game tells the player. A siege raises
+        // several. Closing it is a right release, which is
+        // `0x0047685D/message-scroll-dismiss`; doing it as an `Event` rather
+        // than by calling `message::dismiss` is the point, because it is the
+        // player's own way out and this file drives nothing else by hand.
+        if m.top_id() == Some(ScreenId::Message) {
+            send(m, g, a, Event::RightClick { x: 320, y: 240 });
+        }
     }
     panic!("{what} never happened; the screen is {:?}", m.top_id());
 }
@@ -458,8 +468,19 @@ fn a_human_besieged_by_an_ai_holds_the_choice_and_the_turn_can_end() {
         m.top_id() == Some(ScreenId::BattleResult)
     });
     click(&mut m, &mut g, &a, on(battle::ok_rect()));
-    run_until(&mut m, &mut g, &a, "the rest of the turn", |_, g| {
-        !l2_game::turn::turn_in_flight(g)
+    // **Or the game is over, which in this two-county world it is.** The human
+    // surrenders his only castle, `County_ChangeOwner` recounts realm 1 at zero
+    // strength, and `Realm_RecountStrength` enqueues `L2.eng` group 224
+    // *"Defeat!"*. `Msg_Pump` shows that on the campaign map the moment the map
+    // is on top — **mid-turn, because the pump runs every frame** — and
+    // `Msg_Dismiss` reads `DAT_0053F0C4` and enters screen `0x1C`.
+    //
+    // So the turn is abandoned on the conquest screen, and this loop has to say
+    // so rather than wait for a tick that will not come: our turn is stepped by
+    // `MapScreen::update` and the original's by `App_IdleFrame`, which is a
+    // difference that only shows when a game ends in the middle of one.
+    run_until(&mut m, &mut g, &a, "the rest of the turn", |m, g| {
+        !l2_game::turn::turn_in_flight(g) || m.top_id() == Some(ScreenId::Conquest)
     });
     assert!(
         matches!(m.top_id(), Some(ScreenId::Campaign) | Some(ScreenId::Conquest)),

@@ -168,6 +168,21 @@ pub enum ScreenId {
     /// a value that had to guess would be a value that guessed. See
     /// [`crate::screens::info`].
     Info(crate::screens::info::Target),
+    /// **The message scroll.** Not a `g_screenId` at all: the original paints it
+    /// over whatever is up and leaves the screen id alone, and its input arm
+    /// (`Msg_HandleInput`, `0x0047685D`) runs *before* every per-screen arm.
+    ///
+    /// It is a screen here because our machine has exactly the two properties
+    /// that arrangement needs — an overlay draws over what is beneath it, and
+    /// the top screen gets first refusal — and because
+    /// [`Transition::Pass`] can say the thing that matters, which is that a
+    /// click the window does not want **falls through**. See
+    /// [`crate::screens::message`].
+    ///
+    /// The record it is about is on [`Game`], in `messages`, because in the
+    /// original it is in the data segment: the window is opened by the frame
+    /// driver and not by anything the player did.
+    Message,
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -394,6 +409,7 @@ impl ScreenId {
             }
             ScreenId::Ratings => Box::new(crate::screens::ratings::RatingsScreen::new()),
             ScreenId::Info(target) => Box::new(crate::screens::info::InfoScreen::new(target)),
+            ScreenId::Message => Box::new(crate::screens::message::MessageScreen::new()),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }
     }
@@ -490,8 +506,15 @@ impl Machine {
         self.dirty = true;
     }
 
-    /// One fixed tick of the top screen.
+    /// One fixed tick of the top screen — **and, before it, `Msg_Pump`.**
+    ///
+    /// `Msg_Pump` (`0x00472E46`) is not called by any screen: `Battle_Frame`
+    /// (`0x004B99C0`) calls it once a frame, which makes this — our frame
+    /// driver's per-tick step — the place it belongs. It is also why the screen
+    /// test inside it is a test of `g_screenId` rather than of anything the
+    /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
+        self.pump_messages(ctx);
         let Some(top) = self.stack.last_mut() else { return };
         let t = top.update(ctx);
         if top.take_redraw() {
@@ -499,6 +522,65 @@ impl Machine {
         }
         if t != Transition::Stay {
             self.apply(t);
+            self.dirty = true;
+        }
+    }
+
+    /// **`Msg_Pump`'s screen ladder** — which screens the message scroll runs
+    /// on, and what happens on the rest.
+    ///
+    /// ```c
+    /// if (g_screenId == 0x00 || g_screenId == 0x27 ||
+    ///     (g_screenId == 0x0F && g_jobPanelJob == 8) || g_screenId == 0x29) { … pump … }
+    /// else if (g_messageGroup != 0) Msg_Dismiss();
+    /// ```
+    ///
+    /// Two arms, and the second is the one nobody had written down: **opening
+    /// any other screen while a message is up closes it.** Walk into the village
+    /// with a letter on screen and the letter is gone.
+    ///
+    /// `0x27` has no screen here and `g_jobPanelJob` is the job slot **plus
+    /// one**, which is what `CountyStrip_JobClick` writes — so the panel that
+    /// pumps is slot 7.
+    ///
+    /// # `Msg_Pump` is one function and its two halves are exclusive
+    ///
+    /// ```c
+    /// if (g_messageTimer < 1) { …pull one record, timer = 2000… }
+    /// else                    { …count down, and maybe dismiss… }
+    /// if (g_messageGroup != 0) Msg_DrawWindow();
+    /// ```
+    ///
+    /// So the frame that opens a window **does draw it** — that trailing call is
+    /// not in either arm — and does **not** count its timer down. Both halves
+    /// are here, and the draw's own side effects are the message screen's
+    /// `update`, which the caller runs immediately after this. Splitting the
+    /// countdown out into the screen instead cost the message one tick of life:
+    /// invisible in single player, where the timer is clamped and never expires,
+    /// and a measurable 399 against 400 in a network game.
+    // arm: 0x00472E46/pump-screen-ladder
+    fn pump_messages(&mut self, ctx: &mut Ctx) {
+        if self.top_id() == Some(ScreenId::Message) {
+            // The countdown half. When it expires the window closes and the
+            // screen's own `update` pops itself on its first line.
+            if ctx.game.messages.advance(ctx.game.multiplayer) == crate::message::Tick::TimedOut {
+                self.dirty = true;
+            }
+            return;
+        }
+        let pumps = match self.top_id() {
+            Some(ScreenId::Campaign) => true,
+            Some(ScreenId::Battlefield) => true,
+            Some(ScreenId::Job(_, job)) => job + 1 == crate::message::PUMP_JOB,
+            _ => false,
+        };
+        if pumps {
+            // The pull half.
+            if ctx.game.messages.pull() {
+                self.push(ScreenId::Message);
+            }
+        } else if ctx.game.messages.is_open() {
+            crate::message::dismiss(ctx.game);
             self.dirty = true;
         }
     }

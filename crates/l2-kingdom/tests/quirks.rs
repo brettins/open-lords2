@@ -689,7 +689,8 @@ fn b53_dying_with_the_last_opponent_is_a_win_or_a_loss() {
     let (faithful, fixed) = pair(Quirk::MutualDestructionIsAWin);
 
     // My own defeat message, on the pass where no opponent is left either.
-    let mine = Ending { group: l2_kingdom::victory::MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING };
+    let mine =
+        Ending { group: l2_kingdom::victory::MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING, variant: 0 };
     let ranking = Ranking { opponents_remaining: 0, ..Ranking::default() };
 
     assert_eq!(
@@ -717,6 +718,7 @@ fn b53_an_ordinary_elimination_is_the_same_step_either_way() {
                 from,
                 to: 0,
                 category: CATEGORY_ENDING,
+                variant: 0,
             };
             let r = Ranking { opponents_remaining: opponents, ..Ranking::default() };
             assert_eq!(

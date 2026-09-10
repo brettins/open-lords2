@@ -150,6 +150,28 @@ pub struct Ending {
     /// ending message as [`CATEGORY_ENDING`], which is why the crowning of an AI
     /// cannot itself set an outcome.
     pub category: u8,
+    /// `Msg_Enqueue`'s `+0x0C` — **which of the group's strings the window
+    /// draws**, as `variant + 1` past the label at index 0.
+    ///
+    /// It matters here and it was missing: groups 194 and 195 hold **seventeen**
+    /// strings apiece — a label and sixteen lord-flavoured laments — and the
+    /// original picks one with [`voice_variant`], `lord * 4 + rotation - 4`. An
+    /// `Ending` with no variant draws the Knight's first line for every lord in
+    /// the game, for ever. Groups 224 and 225 pass 0 and have three and two
+    /// strings.
+    pub variant: u8,
+}
+
+/// `(voiceRotation - 4) + lord * 4` — the variant every lord-flavoured message
+/// in the game is enqueued with, and the reason `Realm` carries a rotation at
+/// `+0x159` at all.
+///
+/// Lords are 1..=4 and the rotation 0..=3, so this is 0..=15 in four contiguous
+/// blocks of four: **each lord has four things to say and says them in turn.**
+/// It is not clamped here for the same reason nothing clamps it there — a lord
+/// byte outside 1..=4 is a realm that was never set up.
+pub fn voice_variant(realm: &Realm) -> u8 {
+    (realm.lord as i32 * 4 + realm.voice_rotation as i32 - 4).clamp(0, 15) as u8
 }
 
 impl Ending {
@@ -236,14 +258,24 @@ pub fn recount_strength(
     // second human in a network game falls through both arms and is told
     // nothing, which is a real difference and not an oversight here.
     let msg = if local_player == realm {
+        // `Msg_Enqueue(g_localPlayer, g_localPlayer, 0xE0, 0, 0x0E, …)` —
+        // **variant 0**, so your own defeat is always group 224's first string.
         Some(Ending {
             group: MSG_DEFEAT,
             from: local_player,
             to: local_player,
             category: CATEGORY_ENDING,
+            variant: 0,
         })
     } else if !realms[id].is_human {
-        Some(Ending { group: MSG_AI_ELIMINATED, from: realm, to: 0, category: CATEGORY_ENDING })
+        // `Msg_Enqueue(realm, 0, 0xC2, (rotation - 4) + lord * 4, 0x0E, …)`.
+        Some(Ending {
+            group: MSG_AI_ELIMINATED,
+            from: realm,
+            to: 0,
+            category: CATEGORY_ENDING,
+            variant: voice_variant(&realms[id]),
+        })
     } else {
         None
     };
@@ -360,6 +392,7 @@ pub fn rank_and_crown(
                 // Category 1, not 0x0E: an AI's coronation is a taunt and
                 // cannot set an outcome.
                 category: 1,
+                variant: voice_variant(&realms[winner]),
             });
             advance_voice(&mut realms[winner]);
         } else {
@@ -370,6 +403,7 @@ pub fn rank_and_crown(
                     from: 0,
                     to: local_player,
                     category: CATEGORY_ENDING,
+                    variant: 0,
                 });
             }
         }
@@ -447,7 +481,7 @@ pub fn outcome_of(
 
 /// The message `Msg_DrawWindow` enqueues for [`OutcomeStep::EnqueueVictory`].
 pub fn victory_message(local_player: u8) -> Ending {
-    Ending { group: MSG_VICTORY, from: 0, to: local_player, category: CATEGORY_ENDING }
+    Ending { group: MSG_VICTORY, from: 0, to: local_player, category: CATEGORY_ENDING, variant: 0 }
 }
 
 #[cfg(test)]
@@ -677,14 +711,14 @@ mod tests {
 
     #[test]
     fn my_own_elimination_with_opponents_left_is_a_loss() {
-        let msg = Ending { group: MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING };
+        let msg = Ending { group: MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING, variant: 0 };
         let r = Ranking { opponents_remaining: 2, ..Ranking::default() };
         assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::Set(Outcome::Lost));
     }
 
     #[test]
     fn somebody_elses_elimination_ends_nothing() {
-        let msg = Ending { group: MSG_AI_ELIMINATED, from: 3, to: 0, category: CATEGORY_ENDING };
+        let msg = Ending { group: MSG_AI_ELIMINATED, from: 3, to: 0, category: CATEGORY_ENDING, variant: 0 };
         let r = Ranking { opponents_remaining: 2, ..Ranking::default() };
         assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::Set(Outcome::InPlay));
     }
@@ -692,7 +726,7 @@ mod tests {
     /// The mainline human victory: it is this branch, not `Score_RankRealms`.
     #[test]
     fn the_last_ais_death_notice_with_no_opponents_left_enqueues_the_victory() {
-        let msg = Ending { group: MSG_AI_ELIMINATED, from: 3, to: 0, category: CATEGORY_ENDING };
+        let msg = Ending { group: MSG_AI_ELIMINATED, from: 3, to: 0, category: CATEGORY_ENDING, variant: 0 };
         let r = Ranking { opponents_remaining: 0, ..Ranking::default() };
         assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::EnqueueVictory);
         // …and that message is then a win.
@@ -707,7 +741,7 @@ mod tests {
     /// reproduced.
     #[test]
     fn dying_at_the_same_moment_as_the_last_opponent_is_scored_a_win() {
-        let msg = Ending { group: MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING };
+        let msg = Ending { group: MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING, variant: 0 };
         let r = Ranking { opponents_remaining: 0, ..Ranking::default() };
         assert_eq!(
             outcome_of(msg, 1, r, Q),

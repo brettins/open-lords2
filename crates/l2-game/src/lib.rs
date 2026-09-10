@@ -45,6 +45,7 @@ pub mod build_id;
 pub mod engagement;
 pub mod game;
 pub mod input;
+pub mod message;
 pub mod save;
 pub mod saves;
 pub mod scenario;

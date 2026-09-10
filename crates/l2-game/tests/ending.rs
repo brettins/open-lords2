@@ -94,7 +94,13 @@ fn a_win_steps_the_campaign_on_to_the_next_map() {
     assert_eq!(g.campaign.current().map(|m| m.scenario), Some(17), "Quaintville");
 
     turn::end_turn(&mut g).expect("the machine comes round");
-    assert_eq!(g.campaign.enter_conquest_screen(), ConquestBranch::Won);
+    // **The step into 0x1C is `Msg_Dismiss`'s, not the turn's.** `crate::message::drain`
+    // is the headless stand-in for the frame loop and it dismisses the victory
+    // message, which is where `Campaign_EnterConquest` runs -- so the counter has
+    // already moved by the time `end_turn` returns and this asks for the BRANCH
+    // rather than stepping again. Calling `enter_conquest_screen` here a second
+    // time is what turned this test red, correctly.
+    assert_eq!(g.campaign.branch(), ConquestBranch::Won);
     assert_eq!(g.campaign.map, 1);
     assert_eq!(g.campaign.current().map(|m| m.scenario), Some(12), "Rose");
     // `FUN_00499E5D` takes the difficulty and the purse from the same row.
@@ -110,7 +116,7 @@ fn the_last_win_of_a_campaign_asks_for_the_long_branch() {
 
     turn::end_turn(&mut g).expect("the machine comes round");
     assert_eq!(g.outcome(), Outcome::Won);
-    assert_eq!(g.campaign.enter_conquest_screen(), ConquestBranch::Finished);
+    assert_eq!(g.campaign.branch(), ConquestBranch::Finished);
     assert!(g.campaign.is_complete());
 }
 
@@ -148,7 +154,7 @@ fn a_loss_replays_the_same_map() {
     let before = g.campaign.current();
 
     turn::end_turn(&mut g).expect("the machine comes round");
-    assert_eq!(g.campaign.enter_conquest_screen(), ConquestBranch::Lost);
+    assert_eq!(g.campaign.branch(), ConquestBranch::Lost);
     assert_eq!(g.campaign.map, 3);
     assert_eq!(g.campaign.current(), before, "the same country, to be fought again");
 }
@@ -172,7 +178,7 @@ fn a_turn_in_which_nobody_dies_ends_nothing() {
     assert_eq!(outcome.outcome, Outcome::InPlay);
     assert_eq!(outcome.outcome.value(), 0);
     assert!(!outcome.outcome.is_over());
-    assert!(g.campaign.pending.is_empty());
+    assert!(g.messages.is_empty(), "the ring was drained by the headless turn");
     assert_eq!(g.campaign.ranking.realms_in_play, 5);
     assert_eq!(g.campaign.ranking.opponents_remaining, 4);
     for realm in 1..=5 {
@@ -194,7 +200,7 @@ fn an_unfinished_game_stays_unfinished_over_several_turns() {
         let outcome = turn::end_turn(&mut g).expect("the machine comes round");
         assert_eq!(outcome.outcome, Outcome::InPlay, "turn {turn_no}");
         assert_eq!(g.campaign.map, 0, "turn {turn_no}");
-        assert!(g.campaign.pending.is_empty(), "turn {turn_no}");
+        assert!(g.messages.is_empty(), "turn {turn_no}");
     }
 }
 
@@ -210,7 +216,6 @@ fn the_conquest_screen_takes_its_branch_from_the_game() {
         let mut g = five_realms();
         give(&mut g, 1..=14, owner);
         turn::end_turn(&mut g).expect("the machine comes round");
-        g.campaign.enter_conquest_screen();
 
         let assets = l2_game::game::Assets::placeholder();
         let mut ctx = Ctx { game: &mut g, assets: &assets };

@@ -77,7 +77,12 @@ pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 /// * 3 — `g_playerNames`: six 31-byte lord names, in the realms section beside
 ///   the colours. Without it the name a person typed on setup page 4 lasted
 ///   until they saved.
-pub const VERSION: u32 = 3;
+/// * 4 — **the message ring**, in place of version 2's ending-message list. The
+///   endings are no longer a queue of their own: they go into `g_messageQueue`
+///   with every other message and are settled by being displayed and dismissed,
+///   so what has to survive a save is the whole ring and the record on screen.
+///   See [`crate::message`].
+pub const VERSION: u32 = 4;
 
 /// Magic, version, the prefix's length and the kingdom blob's length.
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
@@ -294,11 +299,15 @@ fn encode_prefix(game: &Game, out: &mut Canonical) {
     out.section("report");
     out.option(game.last_report.as_ref(), encode_report);
 
-    // The campaign: `DAT_0053F640`, `DAT_0053F258` and `DAT_0053F0C4`, plus the
-    // ending messages that have been raised and not yet shown. The queue is
-    // empty at every point a person can save — `turn::end_turn` settles it — but
-    // it is written anyway, because a field that is usually empty and silently
-    // dropped is a field somebody eventually loses a game to.
+    // The campaign: `DAT_0053F640`, `DAT_0053F258` and `DAT_0053F0C4`.
+    //
+    // **The ending messages are no longer here; the whole ring is, below.** They
+    // used to be a `Vec<Ending>` of their own with the note that the queue is
+    // empty at every point a person can save. That stopped being true the moment
+    // the messages were *shown* rather than settled headlessly: a person can now
+    // save on the campaign map with three obituaries still queued behind the one
+    // on screen, and a save that dropped them would be a save that can never be
+    // won. `docs/decisions.md` CNEW-msg-ring-in-the-save.
     out.section("campaign");
     let c = &game.campaign;
     out.u8(match c.track {
@@ -311,20 +320,82 @@ fn encode_prefix(game: &Game, out: &mut Canonical) {
     out.u8(c.ranking.trailer);
     out.u8(c.ranking.opponents_remaining);
     out.u8(c.ranking.realms_in_play);
-    out.u32(c.pending.len() as u32);
-    for msg in &c.pending {
-        out.u32(msg.group as u32);
-        out.u8(msg.from);
-        out.u8(msg.to);
-        out.u8(msg.category);
+
+    encode_messages(out, game);
+}
+
+/// **The message ring**, `g_messageQueue` and the window over it.
+///
+/// Written as a flat list of the records still waiting plus the one on screen,
+/// rather than as fifty slots and two cursors: the cursors are an implementation
+/// of a queue and the queue is what has to survive. Reloading rebuilds the ring
+/// from index 0, which is where `Msg_Reset` puts it.
+fn encode_messages(out: &mut Canonical, game: &Game) {
+    out.section("messages");
+    let q = &game.messages;
+    let open = q.open().copied();
+    out.u8(u8::from(open.is_some()));
+    if let Some(r) = open {
+        encode_record(out, &r);
+        out.u32(q.timer() as u32);
     }
+    let waiting = q.waiting();
+    out.u32(waiting.len() as u32);
+    for r in &waiting {
+        encode_record(out, r);
+    }
+}
+
+fn encode_record(out: &mut Canonical, r: &crate::message::Record) {
+    out.u8(r.to);
+    out.u8(r.from);
+    out.u32(r.group as u32);
+    out.u8(r.variant);
+    out.u8(r.category);
+    out.u8(r.county);
+    out.u8(r.spare);
+    out.u32(r.payload as u32);
+}
+
+fn decode_record(input: &mut Reader<'_>) -> Result<crate::message::Record, LoadError> {
+    Ok(crate::message::Record {
+        to: input.u8()?,
+        from: input.u8()?,
+        group: input.u32()? as u16,
+        variant: input.u8()?,
+        category: input.u8()?,
+        county: input.u8()?,
+        spare: input.u8()?,
+        payload: input.u32()? as i32,
+    })
+}
+
+fn decode_messages(input: &mut Reader<'_>) -> Result<crate::message::MessageQueue, LoadError> {
+    let mut q = crate::message::MessageQueue::new();
+    if input.u8()? != 0 {
+        let r = decode_record(input)?;
+        let timer = input.u32()? as i32;
+        q.reopen(r, timer);
+    }
+    let count = input.u32()? as usize;
+    if count > crate::message::RING {
+        return Err(bad_count(input, count, "queued messages"));
+    }
+    for _ in 0..count {
+        let r = decode_record(input)?;
+        // Straight into the ring: the peer filter already ran when the record
+        // was first enqueued, and re-running it against a game loaded by a
+        // different local player would silently drop messages the file holds.
+        q.restore(r);
+    }
+    Ok(q)
 }
 
 /// The campaign section, read back. Every field is range-checked, because a
 /// campaign counter past the table is an out-of-bounds map lookup.
 fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::victory::Campaign, LoadError> {
     use crate::victory::{Campaign, Track, CAMPAIGN_LENGTH};
-    use l2_kingdom::victory::{Ending, Outcome};
+    use l2_kingdom::victory::Outcome;
 
     let track = match input.u8()? {
         0 => Track::First,
@@ -344,20 +415,7 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::victory::Campaign, L
         opponents_remaining: input.u8()?,
         realms_in_play: input.u8()?,
     };
-    let count = input.u32()? as usize;
-    if count > MAX_REALMS * 4 {
-        return Err(bad_count(input, count, "ending message count"));
-    }
-    let mut pending = Vec::with_capacity(count);
-    for _ in 0..count {
-        pending.push(Ending {
-            group: input.u32()? as u16,
-            from: input.u8()?,
-            to: input.u8()?,
-            category: input.u8()?,
-        });
-    }
-    Ok(Campaign { track, map, outcome, pending, ranking })
+    Ok(Campaign { track, map, outcome, ranking })
 }
 
 fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadError> {
@@ -406,9 +464,13 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         Some(report) => Some(report?),
     };
     let campaign = decode_campaign(input)?;
+    let messages = decode_messages(input)?;
 
     Ok(Game {
         kingdom,
+        messages,
+        // `g_multiplayer` — session, not world. A save carries no session.
+        multiplayer: false,
         player,
         // **A save is between turns, always.** The original saves from the
         // campaign map and nowhere else, so a loaded game has no half-run turn,
