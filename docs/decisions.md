@@ -5916,3 +5916,66 @@ screen: the arm inventory was built by reading each screen's handlers, and this 
 found by reading the *message* system's handlers instead and noticing that the two lists
 overlapped. **One enumeration is a claim; two from different directions is evidence** — and
 the direction that finds a dead arm is never the direction the arm is filed under.
+
+**C130 — The picker worked, and every step after the click was
+missing.**
+
+A player: *"I picked a colour and it didn't get honoured once the game opened."*
+
+Setup page 4 drew five shields, hit-tested them, highlighted the one you clicked and stored it
+in `SetupScreen::shield`. **Nothing read that field.** `l2_scenario::newgame::assign_lords`
+took the slot and the lord count and computed the colour as `let shield = realm`, and
+`crate::scenario::new_game` then wrote `g_realm_colour` from the realm id it had just been
+given back. So the choice reached a field, was painted, and stopped.
+
+The line had a doc comment above it. It said:
+
+> *"the colour slot is the realm id, because `Game_SetupRealms` seeds `shieldIndex = i` and
+> only a custom game's colour picker permutes it."*
+
+That sentence is **a default written up as a mechanism**, and it is the whole of why this
+survived. The seed is real — `FUN_0049C995` does set `shieldIndex = i` for realms 1 … 5 — and
+the conclusion drawn from it is false twice over: `Realms_AssignLords` overwrites the seed for
+every AI on every run, and "only a custom game's colour picker permutes it, which this build
+has no screen for" was describing a screen that was on the title menu two clicks away.
+
+An earlier agent found the wrong reading and **corrected the comment without closing the
+hole**, leaving `// the default arrangement only — see this function's note` above the line and
+a paragraph explaining that the gap was *"latent rather than live: `NewGame` has no shield
+field at all, so nothing can yet pick a colour to break it."* Read from the world builder that
+is true. Read from the screen it is not, and the screen is where the player was. That paragraph
+was propagated verbatim into `docs/rules.md` §7a and `docs/mechanics.md`, so three documents
+agreed that nothing could ask for a colour while the thing asking was on screen.
+
+> **A gap called *latent* is a claim about every caller, and it is usually made by reading
+> only the callee.**
+
+That is the sibling of *a correct explanation sitting directly above the omission it
+describes* (`docs/agents.md`): both are prose that is accurate about the function in front of
+you and wrong about the system. The difference worth noting is the direction of the error.
+That entry is about knowing why a pass exists and not carrying what it writes — a producer
+read from the producer's end. This one is about knowing exactly what a value does and not
+asking **who supplies it**. Same asymmetry, other end.
+
+**What actually closed it**, and none of it was hard:
+
+* `NewGame::shield`, carried from the screen through `crate::scenario::new_game` beside the
+  seed and the head count — *not* on `setup::Settings`, because `Campaign_LoadEntry` rewrites
+  all twelve of those from the campaign row and would have silently wiped the colour on the
+  one route into a game that does not press the custom page's *Start*. There is a test for
+  exactly that route, and it is the only one that fails if the field is moved.
+* `assign_lords` written as the real walk, returning shields **and** lords in one struct so a
+  caller cannot take the lord without the colour it was chosen from.
+* Four tests that click a shield. **Nothing had ever clicked one.** Page 4 was reachable —
+  three campaign tests press its *Continue* — and the five hotspots beside that button had a
+  painter, a hit test and no test at all, which is `docs/agents.md`'s *"a field is only tested
+  if something a test reads was written by something the game runs"* with the writer present
+  and the reader absent.
+
+And one measurement worth keeping, because it is the strongest evidence the walk is right and
+it is not one of the new tests: `crates/l2-scenario/tests/newgame.rs` builds England from
+`L2_maps.dat` and from `england-turn1.sav` and now diffs the **shields and the lords** as well
+as the land. That is `Realms_AssignLords` checked against a game the original program set up,
+rather than against our own reading of the same two tables. It can only confirm the default
+row — every `.sav` this project keeps has the human on shield 1 or 5 — and it is the only row
+any file on this machine can confirm.

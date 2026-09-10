@@ -265,6 +265,13 @@ fn england_pair(save: &l2_formats::save::Save, maps: &[u8]) -> (Scenario, Scenar
         slot: ENGLAND,
         lords: 5,
         local_player: from_save.local_player,
+        // **The colour off the save, not a literal 1.** The map path now takes
+        // the person's chosen shield and it moves every AI's colour and lord
+        // with it, so handing it a guess would make the comparison below a
+        // comparison with a different game. The fixture happens to hold 1;
+        // reading it means a regenerated fixture that holds something else
+        // fails honestly instead of silently.
+        shield: from_save.realms[from_save.local_player as usize].shield_index,
         seed: SEED,
         options: from_save.options,
     };
@@ -288,6 +295,27 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     assert_eq!(a.county_count, b.county_count, "county count");
     assert_eq!(a.county_count, 14);
     assert_eq!(a.local_player, b.local_player);
+
+    // --------------------------------------------- the colours and the lords
+    //
+    // **`Realms_AssignLords` against a game the original itself set up.** The
+    // walk is otherwise checked only against itself — the reference
+    // implementation in `l2-view`'s install tests reads the same tables and
+    // does the same arithmetic — so this is the one place a save the *original
+    // program wrote* says what the answer is. It can only settle the default
+    // row of `docs/rules.md` §7a, because every `.sav` this project keeps has
+    // the human on shield 1 or 5; the middle colours have no fixture and say
+    // so at the table.
+    for id in 1..l2_kingdom::realm::MAX_REALMS {
+        assert_eq!(
+            a.realms[id].shield_index, b.realms[id].shield_index,
+            "realm {id} flies a different colour when the world is built from the map"
+        );
+        assert_eq!(
+            a.realms[id].lord, b.realms[id].lord,
+            "realm {id} has a different lord when the world is built from the map"
+        );
+    }
 
     // ------------------------------------------------------- the three planes
 

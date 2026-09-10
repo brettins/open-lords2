@@ -16,7 +16,7 @@
 .github/workflows/ci.yml	C26	8ee8f43c4642	e8179d1f76a8
 CLAUDE.md	C124	9cf9ee1c286d	38723617b085
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
-CLAUDE.md	C61	a1ddbd36b46d	60611046b40d
+CLAUDE.md	C61	78fcbce5ae0d	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
 README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
@@ -36,6 +36,7 @@ crates/l2-game/src/game.rs	C62	1f489b238ce0	ebb6a7ec3711
 crates/l2-game/src/input.rs	C61	39c868ef7985	60611046b40d
 crates/l2-game/src/main.rs	C117	5d9721284057	b20f3a227f0f
 crates/l2-game/src/save.rs	C113	292ef2506465	6fbe8ffeb1fb
+crates/l2-game/src/scenario.rs	C130	82b7defc561c	055c6c022450
 crates/l2-game/src/scenario.rs	C83	d0e421a3fd81	88ac11ea6de0
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7	0364b53a921d
 crates/l2-game/src/screens/army.rs	C45	056ecffec256	4d770bef92bd
@@ -237,6 +238,7 @@ crates/l2-scenario/src/lib.rs	C62	94a85e9708ab	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C62	c1277f214127	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C83	823e19cc9775	88ac11ea6de0
 crates/l2-scenario/src/lib.rs	C83	a2b09d917c54	88ac11ea6de0
+crates/l2-scenario/src/newgame.rs	C130	8f5827e5b176	055c6c022450
 crates/l2-scenario/src/newgame.rs	C25	5198b008d5c4	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C25	f78fd48882c8	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C41	b844f3c01eef	df664f2e9ea9
@@ -339,9 +341,10 @@ docs/armies.md	C40	3cddc0864ef1	d344563abef8
 docs/armies.md	C40	48ac95a9d767	d344563abef8
 docs/armies.md	C59	1cbb270593d9	37ab8ac1a2fc
 docs/armies.md	C61	0f02362fcf6e	60611046b40d
+docs/arms.json	C117	33768aee5b8d	b20f3a227f0f
 docs/arms.json	C117	7fa98dbec8bc	b20f3a227f0f
-docs/arms.json	C117	da91d10efb78	b20f3a227f0f
 docs/arms.json	C117	ffa664085e2c	b20f3a227f0f
+docs/arms.json	C130	1ab64b910457	055c6c022450
 docs/arms.json	C61	0625bd8a65f4	60611046b40d
 docs/arms.json	C61	39d63dd72f38	60611046b40d
 docs/arms.json	C76	113584e50fba	53e207ae069e
@@ -598,6 +601,7 @@ docs/kingdom.md	C8	2c6596b7ae81	bf400476a6df
 docs/kingdom.md	C8	6683b7f42ddb	bf400476a6df
 docs/kingdom.md	C90	cab1f0e798c1	f1599ed23aee
 docs/mechanics.md	C116	a1daf86a0b92	1c49feddd496
+docs/mechanics.md	C130	00a2c5080f8d	055c6c022450
 docs/mechanics.md	C21	efba23978cff	f7bf296341ff
 docs/mechanics.md	C22	0c47beed33b6	0364b53a921d
 docs/mechanics.md	C26	811398837c72	e8179d1f76a8
@@ -609,7 +613,7 @@ docs/mechanics.md	C51	6132fb2e84ab	01a74fef0862
 docs/mechanics.md	C53	216e64d25fc6	cad36ab11dbf
 docs/mechanics.md	C54	fea22479a2bf	0ffe2b0bd9ab
 docs/mechanics.md	C59	fe83a2625080	37ab8ac1a2fc
-docs/mechanics.md	C62	bce60380b4a6	ebb6a7ec3711
+docs/mechanics.md	C62	6ab24f8d7d17	ebb6a7ec3711
 docs/method.md	C21	4fd02f68abf9	f7bf296341ff
 docs/method.md	C3	588652ea16c6	35bf3a86555f
 docs/method.md	C38	5300e90cb318	cd66a8ec76e7
@@ -623,7 +627,7 @@ docs/netcode.md	C30	49a92704058e	50fdf5e17ba0
 docs/netcode.md	C30	7f2ab5869b39	50fdf5e17ba0
 docs/netcode.md	C39	ebf3b4632de2	9a04e88ad74b
 docs/netcode.md	C62	194b1c4f05c3	ebb6a7ec3711
-docs/netcode.md	C62	734aca7757ca	ebb6a7ec3711
+docs/netcode.md	C62	aa279b8b0e57	ebb6a7ec3711
 docs/netcode.md	C8	7d0d61b3a9f8	bf400476a6df
 docs/oracle-requests.md	C26	0e5b3c2b1cc0	e8179d1f76a8
 docs/plan.md	C11	42457d7739ce	07dfad15821c
@@ -651,6 +655,7 @@ docs/records.json	C25	d4374fcfca46	5d466f0cb89c
 docs/records.json	C3	6cef8ac01b2c	35bf3a86555f
 docs/records.json	C53	4cfab70e56f7	cad36ab11dbf
 docs/records.json	C54	b50a471f4705	0ffe2b0bd9ab
+docs/rules.md	C130	062c5dacb8d8	055c6c022450
 docs/rules.md	C26	ed34d4cfa431	e8179d1f76a8
 docs/screens-county.md	C112	55f12c7e2104	0dbcd00423ed
 docs/screens-county.md	C22	5291dc6a63dc	0364b53a921d
@@ -689,6 +694,8 @@ docs/symbols.json	C105	0b1960f7de0a	c2e0145299b3
 docs/symbols.json	C105	9c93a2827d4d	c2e0145299b3
 docs/symbols.json	C119	4c018b84adad	306c4c740506
 docs/symbols.json	C119	5dd6eaacaef4	306c4c740506
+docs/symbols.json	C130	3a2ba51373ac	055c6c022450
+docs/symbols.json	C130	9be57797da98	055c6c022450
 docs/symbols.json	C20	01f6f924103e	0ec8eeb4f874
 docs/symbols.json	C20	7ddb8e5c217a	0ec8eeb4f874
 docs/symbols.json	C22	936f7d5bda76	0364b53a921d
@@ -752,6 +759,8 @@ docs/symbols.md	C105	1b589a0615a6	c2e0145299b3
 docs/symbols.md	C105	c425aadeeece	c2e0145299b3
 docs/symbols.md	C119	6a212003419f	306c4c740506
 docs/symbols.md	C119	e81dc4b37eec	306c4c740506
+docs/symbols.md	C130	14ddbe8d366a	055c6c022450
+docs/symbols.md	C130	74cfc64ea960	055c6c022450
 docs/symbols.md	C20	d50fe7b21adc	0ec8eeb4f874
 docs/symbols.md	C20	f78855d335cd	0ec8eeb4f874
 docs/symbols.md	C22	76e2e999ec4b	0364b53a921d

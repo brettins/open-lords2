@@ -1130,6 +1130,14 @@
       "comment": "Screen 0x45. Loads lom.256 and lom.pl8 and installs the palette: the Lords of Magic advertisement the front end links to, and nothing else."
     },
     {
+      "addr": "0x0041EF57",
+      "name": "Setup_DrawShieldPage",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Setup_DrawShieldPage(void)",
+      "comment": "Setup page 4 - the gateway and panels2 backgrounds under L2.eng 11.10, \"Choose your title and your shield.\" Draws the five shields and the name plate; the hotspots it registers are handled by Setup_ShieldClick. NOT the campaign page: Setup_ChooseCampaign is page 5's handler and page 4 is where it goes."
+    },
+    {
       "addr": "0x0041F98B",
       "name": "ScenarioList_Draw",
       "section": "ui",
@@ -1815,6 +1823,22 @@
       "confidence": "verified",
       "signature": "void Setup_StartGame(void)",
       "comment": "The Start button. [V] In a single-player game it calls Game_NewGame and drops to g_screenId 0. It is also what the OK button on the conquest screen reaches while the campaign counter is below 8, which settles what carries across a campaign map boundary: nothing does. Each map of a campaign is a whole new game, and the only state that survives is g_campaignMap, g_campaignTrack and g_gameOutcome."
+    },
+    {
+      "addr": "0x00432EE6",
+      "name": "Setup_ShieldClick",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Setup_ShieldClick(void)",
+      "comment": "Setup page 4's shield hotspot handler, and it does TWO things: Setup_ClaimShield(g_uiHotspotId), then Realms_AssignLords() IMMEDIATELY - the original re-deals every AI's colour and lord on each click, while the page is still up, rather than at Start. Reproducing the re-deal per click is unnecessary and the reason is a shape rather than a divergence: assign_lords is a pure function of the slot, the lord count and this choice, so running it per click and running it once at world construction give the same world. docs/decisions.md C130."
+    },
+    {
+      "addr": "0x00432FAB",
+      "name": "Setup_ClaimShield",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void Setup_ClaimShield(int hotspot)",
+      "comment": "Claims a shield for the local player: if DAT_0057CB40[hotspot] is free, releases whichever entry the player already held, writes g_localPlayer into it, and sets his realm's shieldIndex from the table at DAT_004D5548. The claim table is THE MULTIPLAYER HALF and is not reproduced - it exists so two people cannot both be blue, and with one person the only occupied entry is his own. Its single-player consequence is that clicking the colour you already hold does nothing, which an assignment to the value it already holds reproduces exactly. docs/decisions.md C130."
     },
     {
       "addr": "0x00433461",

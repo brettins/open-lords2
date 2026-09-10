@@ -142,8 +142,8 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->151<!--/fig--> of
-   <!--fig:arms-live-->175<!--/fig--> live arms (<!--fig:arms-pct-->86<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->152<!--/fig--> of
+   <!--fig:arms-live-->176<!--/fig--> live arms (<!--fig:arms-pct-->86<!--/fig-->%)** — so
    **<!--fig:arms-missing-->24<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->6<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
@@ -760,7 +760,7 @@ arms enumeration is the evidence that the technique works. Doing both at once wo
 half-inventories and no finished one.
 
 **The naming campaign is in flight and is not on the critical path.**
-<!--fig:functions-->1,290<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig-->
+<!--fig:functions-->1,293<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig-->
 (<!--fig:functions-pct-->53<!--/fig-->%) are named. Most of the rest is CRT, allocator, string and
 DirectDraw glue, and naming it is not the goal — but under 1:1 the fraction matters more than it
 did, because an unnamed function is a behaviour nobody has looked for, and every miss this month
@@ -912,7 +912,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,113<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,119<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -1015,7 +1015,7 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->1,290<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->1,293<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
   <!--fig:functions-pct-->53<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and

@@ -1051,6 +1051,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x00432EE6/pick-shield",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-release",
+      "addr": "0x00432EE6",
+      "what": "PAGE 4, ONE OF THE FIVE SHIELDS -- FUN_00432EE6, which in single player is `FUN_00432FAB(g_uiHotspotId); Realms_AssignLords(); g_redrawRequest = 2;`. FUN_00432FAB (0x00432FAB) claims the colour: `if (claim[hotspot] == 0) { release every entry holding g_localPlayer; claim[hotspot] = g_localPlayer; g_playerNames[p].shield = DAT_004D5548[hotspot]; g_realms[p].shieldIndex = that; }`. DAT_004D5548 is the identity map 1..5, read at 0x004D5548. The Realms_AssignLords call is the point: the original re-deals every AI's colour AND LORD on every click, while page 4 is still up.",
+      "note": "THE CHOICE NOW REACHES THE WORLD, and the arm existed without it: our page 4 stored the click in a field that nothing downstream read, because l2_scenario::newgame::assign_lords hard-coded `shield = realm` under a doc comment stating that default as the mechanism. A player: 'I picked a colour and it didn't get honoured once the game opened.' Two halves are NOT reproduced and neither is single-player-visible: the claim table DAT_0057CB40, which is what stops two people in a lobby both being blue -- with one person the only occupied entry is his own, so its one consequence is that re-clicking your own colour is a no-op, which an assignment to the value already there is exactly; and the per-click Realms_AssignLords, which we run once at world construction instead. assign_lords is a pure function of (slot, lord count, shield), so the moment does not change the world, and nothing on page 4 draws a lord. docs/decisions.md C130, docs/rules.md 7a.",
+      "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x00433155/continue",
       "status": "reproduced",
       "group": "front-end-pages",

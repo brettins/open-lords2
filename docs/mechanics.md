@@ -368,16 +368,25 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
     `Merchant_PickStartCounties` and the six merchants. All 44 shipped maps start and take a
     turn, and England built from `L2_maps.dat` reproduces England read from a save on every
     fact the map decides. `docs/decisions.md` C62.
-  - 🕳 **You cannot choose your shield, and the colour walk is stubbed to its default.**
-    Setup page 4 is *"Choose your title and your shield"* and the original stores the
-    choice at `g_playerNames + realm * 0x2C + 0x25`; `NewGame` has no shield field, so
-    nothing carries it. `assign_lords` hard-codes `shield = realm`, which is what
-    `Realms_AssignLords` produces **only** when the person is realm 1 holding shield 1 —
-    the real walk gives each AI the lowest shield no human has taken, and because the lord
-    is chosen *from* the colour, a displaced colour is a displaced lord. Take yellow in the
-    original and the Knight becomes the black lord while the Baron becomes the red one.
-    Latent rather than live: with no picker there is nothing yet that can ask for it.
-    `docs/rules.md` §7a has the full table and both tests that pin it.
+  - ✅ **You pick a colour on page 4 and you get it.** This entry used to be a hole and it
+    was wrong about why: the picker was *there*, drawn and clickable, and had been since
+    the front end existed. What was missing was every step after the click. `NewGame` now
+    carries the chosen shield, `l2_scenario::newgame::assign_lords` is
+    `Realms_AssignLords`' real walk — mark every human's shield taken, then give each AI
+    in realm order **the lowest shield nobody has taken**, then pick that realm's lord
+    *from its shield* — and `crates/l2-game/tests/newgame.rs` drives page 4 with real
+    coordinates for all five colours. Take yellow and the Knight becomes the **black**
+    lord while the **Baron** becomes the red one, which is `docs/rules.md` §7a's second
+    row and the thing no fixture can check. The line that stood in the way read
+    `let shield = realm` under a doc comment stating that default as the mechanism;
+    `docs/decisions.md` C130.
+  - 🕳 **Two halves of the picker are still the lobby's.** `FUN_00432FAB`'s claim table
+    `DAT_0057CB40` — what stops two people both being blue — is not reproduced, and with
+    one person it has exactly one consequence, that re-clicking your own colour does
+    nothing. And the original re-runs `Realms_AssignLords` on **every click**
+    (`FUN_00432EE6`) rather than at *Start*; we run it once at world construction, which
+    is the same world because the walk is a pure function of the slot, the lord count and
+    the choice. Both are recorded in `docs/arms.json` at `0x00432EE6/pick-shield`.
   - 🕳 **The castle on the plot is the castle work's.** The world builder stamps the *bare*
     plot, terrain `0x14`, which is `County_FindCastleTile`; raising the chosen level on it
     is `FUN_0046826C`, keyed on the castle's level and build percentage rather than on the

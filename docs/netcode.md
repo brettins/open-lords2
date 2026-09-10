@@ -441,6 +441,38 @@ different game; a different stream is a different roll of the same dice.
 
 `docs/decisions.md` C62.
 
+#### D-3b — The chosen shield is world-building input, and it goes in `Start`, not `Hello`
+
+The second thing world construction reads that the map cannot answer for itself, and it looks
+like presentation until you follow it: **which colour each person picks on setup page 4.**
+`Realms_AssignLords` (`0x0049CAAA`) marks every human's shield taken, then hands each AI the
+lowest shield nobody holds *in realm order*, and then picks that realm's **lord** out of
+`g_lordChoice` keyed by the shield it just got. So the choice moves which realm flies which
+colour **and which of the four lords sits behind it** — a value in `RealmState`, in the save
+body, inside `Canonical::hash_of(kingdom)`. Two peers who disagree about it are playing
+different games from tick 0. `docs/rules.md` §7a.
+
+It therefore belongs **in `lobby::Start`, beside the seed and the roster** — concretely as a
+field on `lobby::Player`, next to the name, which is the other per-seat thing the host
+collects and broadcasts. `l2_game::scenario::new_game` already takes it as a parameter rather
+than reading it off a screen, for the same reason `shuffle_starts` takes its seed as one.
+
+**And it does *not* belong in the `Hello` handshake**, which is the mistake worth naming
+because it is where `quirks` correctly went. `Hello` carries things that must **match** —
+protocol, engine build, ruleset hash, quirk set — and refuses the session when they differ.
+A shield is the opposite shape: it is *per player* and every player's is deliberately
+different, so there is nothing to compare and refusing on a difference would refuse every
+game. What it needs instead is **arbitration**, which the original already does: `FUN_00432FAB`
+keeps a claim table (`DAT_0057CB40`) and simply ignores a click on a colour somebody else
+holds. The host owns that table for the same reason it owns the roster and the seed.
+
+The general form, since the two keep being confused: **agreement is not the same as
+identity.** A value every peer must hold *the same* goes in the handshake and refuses on
+mismatch; a value every peer must *know* — and which is legitimately different per seat —
+goes in the start command and is arbitrated by the host. Putting the second kind in the first
+makes peers who compute identical states refuse to play, which is D-12's own failure mode
+inverted, and it is the same argument that keeps presentation quirks out of `Hello`.
+
 ### D-4 — No hash-ordered iteration
 
 Never iterate a `HashMap` or `HashSet` in simulation code. Rust's default hasher

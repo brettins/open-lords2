@@ -458,6 +458,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         0,
         &l2_game::setup::SetupOptions::new().commit(1, l2_net::Quirks::default()),
         1,
+        // Red, which is `FUN_004978AD`'s seed and what page 4 shows before
+        // anybody clicks. This world is only what stands behind the title page.
+        1,
         scenario::SEED,
         tables,
     )?;

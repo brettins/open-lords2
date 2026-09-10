@@ -207,11 +207,28 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
 /// from it (`docs/netcode.md`). The single-player path passes [`SEED`], so a
 /// new game on a given map is reproducible today; a seed the player can see and
 /// change is the lobby's to add.
+///
+/// # The shield
+///
+/// `shield` is the colour the person picked on setup page 4, 1 … 5, and it sits
+/// beside `seed` and `human_players` on purpose: all three are **lobby** facts
+/// rather than option-grid ones. `settings` is the twelve values the custom
+/// page committed, and a campaign row overwrites every one of them — but not
+/// the colour, because page 4 is the page you pass *through* on the way to
+/// pressing anything. So the shield cannot live on [`crate::setup::Settings`]
+/// without being wiped by a campaign.
+///
+/// It changes the world rather than the picture: it moves which realm flies
+/// which colour **and which lord sits behind each realm**
+/// (`l2_scenario::newgame::assign_lords`, `docs/rules.md` §7a), so two lockstep
+/// peers must agree on it before tick 0 the same way they agree on the seed.
+/// `docs/netcode.md` D-3a.
 pub fn new_game(
     assets: &crate::game::Assets,
     slot: usize,
     settings: &crate::setup::Settings,
     human_players: usize,
+    shield: u8,
     seed: u64,
     tables: Tables,
 ) -> Result<Game, Error> {
@@ -229,6 +246,7 @@ pub fn new_game(
         // One person, realm 1. `g_localPlayer` is the lobby's in a network
         // game and there is no lobby.
         local_player: 1,
+        shield,
         seed,
     };
     let scenario = Scenario::from_map(&map, &setup).map_err(Error::Map)?;
@@ -248,9 +266,16 @@ pub fn new_game(
         game.kingdom.counties[id].happiness_avg = 0;
     }
 
-    // The shield colour is the realm id at new game — `Game_SetupRealms` seeds
+    // **The colour a realm flies is the one `Realms_AssignLords` gave it**, and
+    // this used to say it was the realm id: *"`Game_SetupRealms` seeds
     // `shieldIndex = i` and only a custom game's colour picker permutes it,
-    // which this build has no screen for.
+    // which this build has no screen for."* Two of those three clauses were
+    // wrong by the time anybody read them — the picker is setup page 4, this
+    // build has had it since the front end was drawn, and the seed is
+    // overwritten for every AI on every `Realms_AssignLords`. The player who
+    // reported *"I picked a colour and it didn't get honoured once the game
+    // opened"* was reporting this line's premise, not this line.
+    // `docs/decisions.md` C130.
     for (id, slot) in game.realm_colour.iter_mut().enumerate() {
         *slot = game.kingdom.realms.get(id).map(|r| r.shield_index).unwrap_or(0);
     }

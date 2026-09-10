@@ -533,9 +533,23 @@ pub const NAME_PLATE_Y: i32 = 0x48;
 pub const NAME_X: i32 = 0xD6;
 pub const NAME_Y: i32 = 0x50;
 
-const SHIELD_X: i32 = 0x70;
-const SHIELD_STEP: i32 = 0x58;
-const SHIELD_Y: i32 = 0x8C;
+pub const SHIELD_X: i32 = 0x70;
+pub const SHIELD_STEP: i32 = 0x58;
+pub const SHIELD_Y: i32 = 0x8C;
+/// The hit box `FUN_0041F1DD`'s frames occupy — roughly 60 × 65.
+pub const SHIELD_W: i32 = 60;
+pub const SHIELD_H: i32 = 65;
+
+/// `DAT_004D5548` — the five shield hotspots' colours, read out of the user's
+/// own executable and **the identity map**: `[_, 1, 2, 3, 4, 5]`, so hotspot
+/// `i` is shield `i`.
+///
+/// It is written down rather than folded away because it is the only thing that
+/// says the picker's left-to-right order *is* the shield numbering, and
+/// `FUN_00432FAB` indexes it rather than using the hotspot id directly — which
+/// is the shape of a table that could have been a permutation and is not.
+/// `[V]`, `tools/maps/pe.js` at `0x004D5548`.
+pub const SHIELD_OF_HOTSPOT: [u8; 6] = [1, 1, 2, 3, 4, 5];
 
 /// Pages 5 and 6 share a geometry: `FUN_00403EE4(0x6E, 0x74, 0xA4, 0x18)` and
 /// the same 164 × 24 again at `x = 0x16E`, with the label centred in 160
@@ -778,6 +792,19 @@ impl SetupScreen {
         self.map
     }
 
+    /// **The colour page 4 has picked, as the game numbers them** — 1 red,
+    /// 2 yellow, 3 black, 4 magenta, 5 blue.
+    ///
+    /// [`SetupScreen::shield`] is one-based because that is what
+    /// `g_realms[p].shieldIndex` and `g_playerNames + 0x25` hold and what
+    /// `g_realmColour` and `g_lordChoice` are indexed by; the field behind it
+    /// is zero-based because it is also a frame-pair index into `panels2.pl8`.
+    /// [`SHIELD_OF_HOTSPOT`] is the original's own table for the conversion and
+    /// it is the identity, so the two numberings differ by exactly one.
+    pub fn shield(&self) -> u8 {
+        SHIELD_OF_HOTSPOT[(self.shield + 1).min(5)]
+    }
+
     /// How many lords the selected map seats.
     pub fn player_starts(&self) -> usize {
         self.player_starts
@@ -842,9 +869,10 @@ impl SetupScreen {
             }
             SetupPage::Shield => {
                 for i in 0..5 {
-                    v.push((Rect::new(SHIELD_X + i * SHIELD_STEP, SHIELD_Y, 60, 65), {
-                        Action::Item(i as usize)
-                    }));
+                    v.push((
+                        Rect::new(SHIELD_X + i * SHIELD_STEP, SHIELD_Y, SHIELD_W, SHIELD_H),
+                        Action::Item(i as usize),
+                    ));
                 }
                 for (i, (x, y, _)) in SHIELD_BUTTONS.iter().enumerate() {
                     v.push((Rect::new(*x, *y, ITEM_W, ITEM_H), Action::Item(5 + i)));
@@ -1002,6 +1030,37 @@ impl SetupScreen {
             (SetupPage::Options, 3) => self.go(SetupPage::Custom),
             (SetupPage::Options, 4) => self.go(SetupPage::Title),
             // Page 4: five shields, then "Back" and "Continue".
+            //
+            // **`FUN_00432EE6` (`0x00432EE6`), and it does two things.**
+            // `FUN_00432FAB(g_uiHotspotId)` claims the colour and then
+            // `Realms_AssignLords()` runs **immediately**, on every click —
+            // the original re-deals the AI colours and lords while the page is
+            // still up, rather than at *Start*.
+            //
+            // ```c
+            // if ((&DAT_0057cb40)[hotspot] == '\0') {          /* free? */
+            //     for (i = 1; i < 6; i++)                      /* let mine go */
+            //         if ((&DAT_0057cb40)[i] == g_localPlayer) (&DAT_0057cb40)[i] = 0;
+            //     (&DAT_0057cb40)[hotspot] = g_localPlayer;    /* claim it */
+            //     (&DAT_00553d75)[g_localPlayer * 0x2c] = (&DAT_004d5548)[hotspot * 4];
+            //     g_realms[g_localPlayer].shieldIndex = (&DAT_00553d75)[...];
+            // }
+            // ```
+            //
+            // **The claim table is the multiplayer half and is not reproduced**
+            // — `DAT_0057CB40` exists so that two people cannot both be blue,
+            // and with one person the only occupied entry is his own. Its one
+            // single-player consequence is that clicking the colour you already
+            // hold does nothing, and an assignment to the value it already has
+            // is that, exactly.
+            //
+            // The re-deal is not run here either, and that is not a divergence
+            // but a shape: `assign_lords` is a pure function of the slot, the
+            // lord count and this choice, so running it per click and running
+            // it once at world construction give the same world. Nothing on
+            // page 4 draws a lord.
+            //
+            // arm: 0x00432EE6/pick-shield
             (SetupPage::Shield, 0..=4) => {
                 self.shield = i;
                 Transition::Stay
@@ -1232,6 +1291,12 @@ impl SetupScreen {
             slot,
             &settings,
             HUMAN_PLAYERS,
+            // **Page 4's choice, on both routes into here.** A campaign row
+            // rewrites every one of the twelve options and says nothing about
+            // the colour, which is right: page 4 is the page a campaign passes
+            // *through*, so the shield the person picked there survives
+            // `Campaign_LoadEntry` exactly as it survives `Setup_CommitOptions`.
+            self.shield(),
             crate::scenario::SEED,
             tables,
         ) {
