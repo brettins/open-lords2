@@ -4849,6 +4849,72 @@ font, and it is **correct**, because it is titled as ours on its own face so tha
 screenshot of it can never be mistaken for something the original drew. The difference
 between an honest scaffold and an invention is whether it says which it is.
 
+**C112 — Three tables and two keys for one fact, and the player could see it because two of
+them were on screen at the same time.**
+
+A player, on a build with C63 in it: *"The sovereign land text has the wrong colours. When I
+start, the counties seem to have the right colours — with Bishop being magenta, the Knight
+being yellow, the Countess being blue, the Baron is black (at least, because I picked red) —
+but the text doesn't match that."*
+
+**The report's shape is what makes it strong.** He is not saying a colour looks wrong; he is
+saying two things that name the same realm disagree, and one of them is right. That rules out
+half the space before anything is read: the *data* reaching the screen is fine, because the
+minimap is drawing it correctly, so the fault is in the second consumer.
+
+**What the binary does.** `CountyStrip_Draw` passes `g_realms[owner].field_0x8` as the pen for
+all three *Sovereign land of …* lines. `+0x08` is a palette index, filled at new game from
+`g_realmColour` — ten bytes at `0x004DC1D0`, five `(pen, highlight)` pairs, indexed by the
+realm's **shield**. Its five pens are red, yellow, near-black, magenta and blue, which is the
+player's list exactly.
+
+**What we did.** `Ink::realm` — a table of six colours we invented, whose own doc comment said
+*"Presentation only — which lord flies which colour in the original is not established here"* —
+indexed by the **realm id**. So the county strip had a different table *and* a different key
+from everything else on the same screen. The minimap tint, the menu-bar banner and the
+campaign flag all go through the shield; the strip was the one consumer that did not.
+
+**The key is the interesting half.** A wrong table is a transcription error and a wrong key is
+a model error, and this was both. `Realms_AssignLords` (`0x0049CAAA`) walks realms 1 … 5 and
+gives each AI the *first unused* shield, the humans' picks having been marked first — so the
+human's choice shifts every AI's colour, and no realm id has a colour of its own. The player
+said this himself in five words, in the parenthesis: *"(at least, because I picked red)"*. He
+was telling us the assignment was contingent on his own choice, which is precisely the
+property a table keyed by realm id cannot have.
+
+**How it was settled without a second playthrough.** The eleven `.sav` fixtures are two
+different games. In `england-turn1.sav` realm *n* flies shield *n*, so it cannot distinguish
+the two keys — and that is the save almost every test on this project runs against. The
+battle triple and the turn pair have **realm 1 flying shield 5**, and there realm 1's stored
+pen is `0x04`, blue, which is shield 5's. Over all eleven, `+0x08` equals
+`g_realmColour[+0x0A]` for 25 of 25 realms, **ten of them with id ≠ shield**. The test asserts
+that separating count rather than only the equality, because a check that passes for the wrong
+reason on the only fixture anybody runs is exactly the failure this correction is about.
+
+**A `[V]` on the thing I was asked to check, that came back the other way.** The suggestion
+reaching me was that the lord's *name* line might take a different pen from the two lines
+above it, which would have explained a uniform grey looking wrong. It does not:
+`CountyStrip_Draw` computes `colour` once and passes the same local to all three calls. The
+grey is the emboss and the realm's colour is the pen, on every line. The fix was one level up
+from where it was expected to be, and saying so is cheaper than a change that makes the
+symptom go away for the wrong reason.
+
+**The clamp that would have hidden it, and the one place it belongs.**
+`chrome::realm_colour` clamps a raw shield to 1 … 5 before using it as a *frame index*,
+because there is no such thing as "no frame" — and a zero clamped up to 1 renders as a
+plausible wrong colour that survives a canvas diff. A **pen** has an honest answer for "we do
+not know this realm's colour", so `chrome::realm_pen` returns `Option` and the caller falls
+back to something visibly ours. Same byte, two consumers, and only one of them can afford to
+guess.
+
+**The rule.** *A fact the game stores once should reach the screen through one table and one
+key.* We had three tables — the minimap ramp, the pen pairs, and `Ink::realm` — for one thing,
+and the third existed only because nobody had looked for the second. C5's lesson at the scale
+of a palette: the table was already in the binary, already in `symbols.json` with its five
+pairs written out, and had been there since somebody read `Realms_AssignLords`. Nothing
+connected it to the screen that needed it.
+
+
 ## Open questions
 
 - **`County.purse` on an unowned county has never been non-zero in any game we can drive.**

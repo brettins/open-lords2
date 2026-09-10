@@ -498,6 +498,16 @@ appeared. `environment.md`'s Paths table does not mention that directory at all.
   frame count, the canvas anchor `(X, Y)`, the size and the shape agree in every season.
   The only difference anywhere is the overhang-row byte on nine `Roads1?.pl8` crop frames,
   by one or two rows. `maps-layers.md` §1.1a; asserted install-gated.
+* **A realm's colour reached the screen through three tables and two keys.** The minimap
+  tint and the menu-bar banner used `MINIMAP_REALM_RAMP` keyed by the shield; the county
+  strip's *Sovereign land of …* lines used `Ink::realm`, a table of ours, keyed by the
+  **realm id**. The original has one key — the shield — and two tables, one per purpose:
+  the ramp for land, and `g_realmColour` (`0x004DC1D0`) for text pens. `g_realmColour` was
+  already in `symbols.json` with all five pairs written out and nothing had ever drawn with
+  it. Caught by a player seeing the two disagree on one screen; `docs/decisions.md` C112.
+  **The realm id is not a colour**: ten of the 25 realms across this project's eleven save
+  fixtures fly a shield that is not their id, and every test on the project runs against
+  the one fixture where they happen to agree.
 * **`maps-layers.md` §5.5's base ladder is presented as a table of ranges and its last row
   is a bare `else`.** Terrain `0x1D` and up — the reclamation values `County_RecountFields`
   buckets to `+0x204` — land on base 104 along with `0x13 … 0x16`. Not wrong about the four

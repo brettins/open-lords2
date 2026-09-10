@@ -401,6 +401,83 @@ pub fn realm_colour(raw: u8) -> u8 {
     raw.clamp(1, 5)
 }
 
+/// **`g_realmColour` — the two palette pens a realm writes its own text in.**
+/// **[V]**
+///
+/// A ten-byte table at `0x004DC1D0`, five `(pen, highlight)` pairs, and the
+/// binary indexes it **from two bytes lower** so that the shield is 1-based:
+/// `(&g_realmColour)[shieldIndex * 2]` with `g_realmColour` at `0x004DC1CE`.
+/// Here it is indexed by `shield - 1`; [`realm_pen`] does the conversion.
+///
+/// | shield | pen | | highlight | |
+/// |---|---|---|---|---|
+/// | 1 | `0x0E` | rgb(170, 0, 0) — red | `0x0F` | rgb(215, 0, 0) |
+/// | 2 | `0xFB` | rgb(255, 255, 0) — yellow | `0x0D` | rgb(194, 202, 113) |
+/// | 3 | `0x3A` | rgb(36, 36, 36) — near black | `0x20` | rgb(255, 255, 255) |
+/// | 4 | `0x05` | rgb(130, 0, 130) — magenta | `0xFD` | rgb(255, 0, 255) |
+/// | 5 | `0x04` | rgb(0, 0, 130) — blue | `0xF0` | rgb(0, 146, 255) |
+///
+/// # It is derived from the shield, and this reproduces the derivation
+///
+/// The pen is stored in the save, at realm `+0x08`, and **nothing computes it
+/// at draw time** — `CountyStrip_Draw` reads the byte. But it is only ever
+/// written from this table, from the shield, by the two functions that hand a
+/// realm its colour: `Realms_AssignLords` (`0x0049CAAA`) at new game and
+/// `FUN_0042BA40` when a custom battle invents an opponent. Both do
+///
+/// ```c
+/// g_realms[n].field_0x8 = (&g_realmColour)[g_realms[n].shieldIndex * 2];
+/// g_realms[n].field_0x9 = (&DAT_004dc1cf)[g_realms[n].shieldIndex * 2];
+/// ```
+///
+/// and `RefsTo` finds no other reader of the table and no other writer of the
+/// field. So deriving the pen from the shield cannot get out of step with the
+/// shield, which storing a second copy of it could. Checked against the user's
+/// own saves: over the eleven fixture `.sav` files, realm `+0x08` equals this
+/// table at `+0x0A` for **every realm in every one**, including the six where
+/// realm 1 flies shield 5 — which is what separates "keyed by the shield" from
+/// "keyed by the realm id".
+///
+/// # Why this matters more than a colour
+///
+/// The shield is what the **human picks**, and the AI lords take the slots that
+/// are left (`Realms_AssignLords` walks 1 … 5 and takes the first unused one).
+/// So no lord has a fixed colour and no realm id has one either: a player who
+/// takes red makes the realm-1 slot red *in that game*. Anything that colours a
+/// realm has to go through the shield, and a fixed table keyed by realm id will
+/// look right in the game it was written against and wrong in the next one.
+pub const REALM_PEN: [[u8; 2]; 5] =
+    [[0x0E, 0x0F], [0xFB, 0x0D], [0x3A, 0x20], [0x05, 0xFD], [0x04, 0xF0]];
+
+/// Where shield 1's pair sits, so a test can read the ten bytes back out of the
+/// user's own executable. The binary's own base is this **less two**.
+pub const REALM_PEN_VA: u32 = 0x004D_C1D0;
+
+/// The pen a realm writes its own text in, or `None` outside 1 … 5.
+///
+/// **This does not clamp, and [`realm_colour`] does.** The clamp there is
+/// `FUN_004171EE`'s, applied before using the byte as a *frame index*, where
+/// there is no such thing as "no frame". A pen has an honest answer for "we do
+/// not know this realm's colour", and it is not red: a zero shield that clamped
+/// up to 1 would render as a plausible wrong colour and survive a canvas diff,
+/// which is precisely the failure that hid this bug. The caller falls back
+/// visibly instead.
+///
+/// The original has no such case — it would index two bytes below the table and
+/// read `0x04`, `0x02` out of `g_lordChoice`'s tail — and it cannot reach it,
+/// because the lines that use the pen are drawn only for `owner != 0` and every
+/// realm in play has a shield.
+pub fn realm_pen(shield: u8) -> Option<u8> {
+    REALM_PEN.get(shield.checked_sub(1)? as usize).map(|p| p[0])
+}
+
+/// The brighter of the pair, realm `+0x09`. Nothing in this tree draws with it
+/// yet; it is here because it is the other half of the record and a reader who
+/// finds one will want the other.
+pub fn realm_pen_highlight(shield: u8) -> Option<u8> {
+    REALM_PEN.get(shield.checked_sub(1)? as usize).map(|p| p[1])
+}
+
 // -------------------------------------------------------------------- Chrome
 
 /// The interface sheets, loaded once.

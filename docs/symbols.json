@@ -10561,7 +10561,7 @@
       "name": "g_realmColour",
       "section": "diplomacy",
       "confidence": "inferred",
-      "comment": "Two palette bytes per colour slot, indexed by realm +0x0A (1..5), copied into realm +0x08 and +0x09 at new game: (14,15) (251,13) (58,32) (5,253) (4,240). The colour slot is handed out in realm order and is independent of which lord the realm gets."
+      "comment": "Two palette bytes per colour slot, indexed by realm +0x0A (1..5) as (&g_realmColour)[shield*2] - so this symbol sits TWO BYTES BELOW the data, which begins at 0x004DC1D0, and the bytes at 0x004DC1CE/CF are g_lordChoice tail rather than a shield-0 entry. The five pairs are (0x0E,0x0F) red, (0xFB,0x0D) yellow, (0x3A,0x20) near-black, (0x05,0xFD) magenta, (0x04,0xF0) blue, and ten zero bytes follow. Copied into realm +0x08 (the pen) and +0x09 (a brighter highlight) by its only two readers, Realms_AssignLords at new game and FUN_0042BA40 when a custom battle invents an opponent; nothing else reads the table and nothing else writes those fields, so the pen is a pure function of the shield. +0x08 is what CountyStrip_Draw passes to Ui_DrawText for all three Sovereign land lines. Verified against the eleven fixture saves: +0x08 == this table at +0x0A for 25 of 25 realms, including the ten whose realm id differs from their shield."
     },
     {
       "addr": "0x004DC1E0",

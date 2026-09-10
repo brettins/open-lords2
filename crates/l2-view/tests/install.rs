@@ -1492,3 +1492,128 @@ fn the_flags_sheet_damage_and_mob_banner_blocks_are_where_sprite_topit_says() {
     }
     assert_ne!(size(0x81), (16, 42), "0x81 is the mercenary marker, not a ninth phase");
 }
+
+/// **The realm pen table is `Lords2.exe`'s own ten bytes**, read back out of
+/// the user's copy at `0x004DC1D0`.
+///
+/// `l2_view::chrome::REALM_PEN` is a transcription, and a transcription that
+/// nothing checks is a table somebody eventually edits by eye. The stride is
+/// the part that is not guessable from the values: the binary indexes from
+/// **two bytes below** the data — `(&g_realmColour)[shieldIndex * 2]` with
+/// `g_realmColour` at `0x004DC1CE` — so that the 1-based shield lands on the
+/// first pair, and reading it the obvious way is off by one entry.
+#[test]
+fn the_realm_pen_table_matches_the_bytes_in_the_binary() {
+    let Some(dir) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - skipping");
+    };
+    let Some(exe) = read(&dir, "Lords2.exe") else {
+        l2_testkit::skip!("Lords2.exe not present - skipping");
+    };
+    let Some(base) = va_to_offset(&exe, chrome::REALM_PEN_VA) else {
+        panic!("{:#010X} is not in any section", chrome::REALM_PEN_VA);
+    };
+    let want: Vec<u8> = chrome::REALM_PEN.iter().flatten().copied().collect();
+    assert_eq!(&exe[base..base + want.len()], &want[..], "g_realmColour differs from ours");
+
+    // The two bytes the binary's own base points at are *not* part of this
+    // table — they are the tail of `g_lordChoice`. Asserting that pins the
+    // 1-based indexing: if the table really started at `0x004DC1CE` these would
+    // be shield 1's pen and they would have to be a colour pair.
+    assert_eq!(
+        &exe[base - 2..base],
+        &[0x04, 0x02][..],
+        "the two bytes below the table are g_lordChoice's tail, not a sixth pen"
+    );
+
+    // And the ten bytes are followed by zeros: five shields and no more.
+    assert!(
+        exe[base + want.len()..base + want.len() + 8].iter().all(|&b| b == 0),
+        "something follows the fifth pair"
+    );
+    eprintln!("realm pens: {} bytes match Lords2.exe at {:#010X}", want.len(), chrome::REALM_PEN_VA);
+}
+
+/// **The pen really is keyed by the shield**, checked against every saved game
+/// this project keeps — including the ones that separate the two candidate
+/// keys.
+///
+/// `l2_view::chrome::realm_pen` *derives* the pen from the shield rather than
+/// reading realm `+0x08` out of the save, because both writers in the binary
+/// derive it the same way and nothing else touches the field
+/// (`Realms_AssignLords` at new game, `FUN_0042BA40` for a custom battle). This
+/// is that claim tested against data: for every realm of every fixture, the
+/// byte the game stored at `+0x08` must equal our table indexed by `+0x0A`.
+///
+/// **The fixtures are what make this decisive rather than circular.** In
+/// `england-turn1.sav` realm *n* happens to fly shield *n*, so it cannot tell
+/// "keyed by the shield" from "keyed by the realm id" — and the realm id is
+/// exactly the wrong key our county strip was using. Six of the other fixtures
+/// have **realm 1 flying shield 5**, and there realm 1's stored pen is `0x04`,
+/// blue, which is shield 5's. That is the observation the fix rests on.
+#[test]
+fn every_saved_realms_stored_pen_is_its_shields_pen() {
+    let Some(dir) = l2_testkit::fixtures_dir() else {
+        l2_testkit::skip!("LORDS2_FIXTURES not set - skipping");
+    };
+    let Some(install) = asset_dir() else {
+        l2_testkit::skip!("LORDS2_DIR not set - the save schema comes from the executable");
+    };
+    let Some(exe) = read(&install, "Lords2.exe") else {
+        l2_testkit::skip!("Lords2.exe not present - skipping");
+    };
+
+    let mut realms_checked = 0;
+    let mut files_checked = 0;
+    // Did any fixture actually exercise a realm whose id differs from its
+    // shield? Without one this test would pass on the wrong key too.
+    let mut separating = 0;
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .expect("the fixture directory")
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.to_ascii_lowercase().ends_with(".sav"))
+        .collect();
+    names.sort();
+    for name in &names {
+        let Ok(bytes) = std::fs::read(dir.join(name)) else { continue };
+        // Loud, not silent: a save this cannot open is a schema problem, and
+        // skipping it quietly is how a test ends up asserting over nothing.
+        let save = l2_formats::save::Save::open(&exe, &bytes)
+            .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        files_checked += 1;
+        for index in 1..l2_formats::save::REALM_RECORDS {
+            let Ok(realm) = save.realm(index) else { continue };
+            if realm.shield_index == 0 {
+                continue;
+            }
+            let stored = save
+                .u8_at(
+                    l2_formats::save::REALM_BASE
+                        + (index * l2_formats::save::REALM_STRIDE) as u32
+                        + 0x08,
+                )
+                .expect("realm +0x08 is inside the realm block");
+            assert_eq!(
+                Some(stored),
+                chrome::realm_pen(realm.shield_index),
+                "{name}: realm {index} flies shield {} and stored pen {stored:#04X}",
+                realm.shield_index
+            );
+            if index as u8 != realm.shield_index {
+                separating += 1;
+            }
+            realms_checked += 1;
+        }
+    }
+    assert!(files_checked >= 1, "no fixture saves were readable");
+    assert!(
+        separating >= 2,
+        "no fixture has a realm whose id differs from its shield, so this cannot tell the \
+         two keys apart - it passed for the wrong reason"
+    );
+    eprintln!(
+        "realm pens: {realms_checked} realms across {files_checked} saves, {separating} of them \
+         with id != shield"
+    );
+}
