@@ -210,6 +210,24 @@ impl Layout {
 /// `Ui_OkButton(0x1AC, 0x1B6, 0)`, in **both** halves.
 pub const OK: Rect = Rect::new(0x1AC, 0x1B6, 24, 24);
 
+/// **`g_tilePanelWidgets` (`0x004DD640`) record 0 — *"View these troops?"***
+///
+/// `Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474)` and the matching
+/// `Widget_Draw`, so the record's own `(336, 382)` lands at **(344, 414)**,
+/// 24 square. `L2.eng` 71/14 is the caption above it.
+///
+/// The count is a **runtime global**: `TileInfo_DrawCastle` opens
+/// `DAT_00568474 = (g_counties[g_pickedTileCounty].garrisonUnit != 0)`, so the
+/// panel has one widget on a castle tile with a garrison and none anywhere
+/// else. There is **no ownership gate** — the branch above it draws either
+/// *"…currently stationed here."* for your own men or 71/19 *"Enemy troops are
+/// barracked here."* for somebody else's, and offers the button either way.
+pub const GARRISON_WIDGET: Rect = Rect::new(336 + 8, 382 + 0x20, 24, 24);
+/// `L2.eng` group 71 — the castle block of the tile half. 14 is *"View these
+/// troops?"*.
+pub const CASTLE_GROUP: usize = 0x47;
+pub const VIEW_THESE_TROOPS: usize = 0x0E;
+
 /// The heading's column, and the icon's.
 pub const HEADING_X: i32 = 0x28;
 pub const HEADING_DY: i32 = 0x40;
@@ -314,17 +332,62 @@ pub enum TileKind {
     Scrubland,
 }
 
+/// **The outermost pixel of a 640 × 480 screen**, which is what
+/// `Map_EdgeScroll` calls an edge: `x == 0 || x == width - 1`, and the same for
+/// `y`. See [`crate::screens::map::MapScreen::edge_direction`], which is the
+/// same predicate on the screen that owns the scroll.
+fn at_screen_edge(x: i32, y: i32) -> bool {
+    x <= 0 || y <= 0 || x >= l2_view::canvas::WIDTH as i32 - 1 || y >= l2_view::canvas::HEIGHT as i32 - 1
+}
+
 pub struct InfoScreen {
     target: Target,
+    /// One line of feedback about the last thing a button did. **Ours** — the
+    /// original answers a refused disband with a message scroll we have not
+    /// built.
+    status: String,
 }
 
 impl InfoScreen {
     pub fn new(target: Target) -> InfoScreen {
-        InfoScreen { target }
+        InfoScreen { target, status: String::new() }
     }
 
     pub fn target(&self) -> Target {
         self.target
+    }
+
+    /// The garrison this panel's tile would show, if its castle holds one.
+    ///
+    /// `FUN_00438ACC` is `g_pickedTileUnit = g_counties[g_pickedTileCounty]
+    /// .garrisonUnit`, and `TileInfo_DrawCastle` is what decides the widget
+    /// exists at all: a **castle tile** whose county has a garrison. Any owner.
+    pub fn garrison(&self, ctx: &Ctx) -> Option<usize> {
+        let Target::Tile(tile) = self.target else { return None };
+        let map = &ctx.game.kingdom.campaign.map;
+        if map.flags[tile] & l2_kingdom::map::flags::SETTLEMENT == 0
+            || map.terrain[tile] <= l2_kingdom::map::terrain::CASTLE_PLOT
+        {
+            return None;
+        }
+        let county = map.county[tile] as usize;
+        let unit = ctx.game.kingdom.counties.get(county).map_or(0, |c| c.garrison_unit);
+        (unit != 0).then_some(unit)
+    }
+
+    /// The three army buttons, and which of the two tables they come from.
+    ///
+    /// `FUN_00437002` picks between `g_infoUnitButtons` (`0x004DC560`) and the
+    /// garrisoned table (`0x004DC5A8`) on `unit.garrisonCounty`, behind three
+    /// guards: a unit is picked, it is **kind 1**, and its owner is the local
+    /// player. The two tables differ in one slot.
+    fn unit_buttons(&self, ctx: &Ctx) -> Option<(usize, bool)> {
+        let Target::Unit(id) = self.target else { return None };
+        let u = ctx.game.kingdom.campaign.units.get(id)?;
+        if u.kind != l2_kingdom::unit::UnitKind::Army || u.owner != ctx.game.player {
+            return None;
+        }
+        Some((id, u.garrison_county != 0))
     }
 
     /// Which of the eleven layouts this panel is using.
@@ -420,9 +483,51 @@ impl Screen for InfoScreen {
                 Event::RightClick { .. } => Transition::Pop,
                 // arm: ours/info-keyboard-close
                 Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
+                // **`Map_EdgeScroll` is the SECOND guard of the `0x04` arm and a
+                // scroll CLOSES the panel**: pushing the pointer into the edge
+                // of the screen with the information panel up puts you back on
+                // the map. It is not a click at all, and nobody would guess it.
+                //
+                // ```c
+                // if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }
+                // ```
+                //
+                // `Map_EdgeScroll` (`0x00432221`) returns 0 **at the far zoom**
+                // — `if (g_battlePhase == 0 && g_mapZoom == 2) return 0;` — so
+                // the gesture does nothing there, which is why this reads
+                // [`crate::game::Game::map_zoom_far`] rather than closing on
+                // any edge. Its other refusal, a message scroll being up, is
+                // vacuous here: we have no message scroll.
+                //
+                // The *edge* is the outermost pixel of a 640 × 480 screen;
+                // `main.rs` clamps a pointer in the letterbox border onto it,
+                // so the gesture works at the edge of the window. That is
+                // [`crate::screens::map::MapScreen::edge_direction`]'s own
+                // argument and this is the same predicate.
+                // arm: 0x0042FF10/info-edge-scroll-closes
+                Event::Pointer { x, y } if !ctx.game.map_zoom_far && at_screen_edge(x, y) => {
+                    Transition::Pop
+                }
                 _ => Transition::Stay,
             };
         };
+        // **The campaign minimap is live under this panel**, and it was not:
+        // `Screen_FrameInput`'s epilogue runs `Minimap_Click` on every press on
+        // every screen id but `0x12`, and closes the management surface on a
+        // hit. This screen swallowed the press instead, so the one control that
+        // works from everywhere did not work from here.
+        //
+        // **Only the raster, not the column.** `0x04`'s arm does not run the
+        // six sidebar guards — the village's and the four county panels' do,
+        // and this one does not — so the sidebar, the county strip and the
+        // split slider are all dead with the information panel up, and only the
+        // 128 × 128 minimap is not. See `screens/court.rs` at the same arm and
+        // `docs/arms.json` `0x0042FF10/minimap-closes-the-surface`, which is the
+        // campaign map's half of it.
+        // arm: 0x0042FF10/minimap-under-the-info-panel
+        if l2_view::chrome::minimap_hit_area().contains(x, y) {
+            return Transition::Pass;
+        }
         // arm: 0x0042FF10/info-ok
         if OK.contains(x, y) {
             return Transition::Pop;
@@ -451,20 +556,98 @@ impl Screen for InfoScreen {
                 }
             }
         }
-        // `FUN_00437002` — the three army buttons, on left **press**. Move and
-        // split have screens of their own; the sortie is `FUN_004374C4` and is
-        // not built.
-        if let Target::Unit(id) = self.target {
+        // **`FUN_00438A91` — the tile half's one widget.** It is tested between
+        // the brush and the unit buttons, and it is the only control on this
+        // screen that changes what the panel is *about* without leaving it:
+        // `FUN_00438ACC` writes the county's garrison into `g_pickedTileUnit`
+        // and calls the painter again, so the tile half becomes the unit half
+        // in place. `g_screenId` never moves, which is why this is a mutation
+        // of `self.target` and not a transition.
+        //
+        // `FUN_00438ACC` opens `if (g_mapZoom != 2)` and does nothing at the far
+        // zoom, which is [`crate::game::Game::map_zoom_far`] here.
+        // arm: 0x00438A91/info-garrison-widget
+        if GARRISON_WIDGET.contains(x, y) && !ctx.game.map_zoom_far {
+            if let Some(unit) = self.garrison(&Ctx { game: ctx.game, assets: ctx.assets }) {
+                self.target = Target::Unit(unit);
+                return Transition::Stay;
+            }
+        }
+        // **`FUN_00437002` — the three army buttons, on left *press*** while the
+        // brush above fires on release. Which three depends on
+        // `unit.garrisonCounty`: `g_infoUnitButtons` (`0x004DC560`) in the field
+        // and `0x004DC5A8` inside a castle, differing in the first slot only.
+        if let Some((id, garrisoned)) = self.unit_buttons(&Ctx { game: ctx.game, assets: ctx.assets })
+        {
             let l = self.layout(ctx);
             for (i, &bx) in BUTTON_X.iter().enumerate() {
-                if Rect::new(bx, l.y(BUTTON_DY - l.row * 16), BUTTON_DIM, BUTTON_DIM).contains(x, y)
+                if !Rect::new(bx, l.y(BUTTON_DY - l.row * 16), BUTTON_DIM, BUTTON_DIM).contains(x, y)
                 {
-                    return match i {
-                        // arm: 0x004378B3/info-split
-                        2 => Transition::Replace(ScreenId::Divide(id)),
-                        _ => Transition::Stay,
-                    };
+                    continue;
                 }
+                return match (i, garrisoned) {
+                    // **`Panel_MoveButton` (`0x004371CE`) — the door to screen
+                    // `0x10`.** Two statements: `g_screenId = 0` and
+                    // `Map_BeginMoveSelection()`. Ours has no global to write,
+                    // so the request goes on [`crate::game::Game`] and the map
+                    // picks it up on its next tick; the pop is the `g_screenId
+                    // = 0`.
+                    //
+                    // **The besieging case is not reproduced**: the original
+                    // asks `L2.eng` 10/13 *"Lift the siege?"* through
+                    // `Ui_OpenConfirm` first, and we have no confirm box. It is
+                    // named in `docs/arms.json` rather than silently dropped.
+                    // arm: 0x00437002/info-move
+                    (0, false) => {
+                        ctx.game.begin_move_order = Some(id);
+                        Transition::Pop
+                    }
+                    // `FUN_004374C4` — **leave the castle**, the garrisoned
+                    // table's first slot. Not built: see `docs/arms.json`
+                    // `0x004374C4/info-leave-castle`.
+                    (0, true) => {
+                        self.status = "THE SORTIE IS NOT BUILT".into();
+                        Transition::Stay
+                    }
+                    // **`Panel_DisbandButton` (`0x0043733A`)**, in both tables.
+                    // It picks the county the men would join — the home county,
+                    // or the one the army stands in when the home county has
+                    // changed hands — and asks *"Disband army?"* only when that
+                    // county is the owner's. Otherwise it raises message `0x91`,
+                    // `L2.eng` group 145, and closes the panel.
+                    //
+                    // [`l2_kingdom::divide::disband_county`] is the two clauses
+                    // and [`crate::game::Game::disband_army`] the whole of it,
+                    // including the refusal. **The confirm box is not
+                    // reproduced** — `Ui_OpenConfirm(6, …)` is `L2.eng` 10/6 —
+                    // and neither is the message scroll, so the refusal is a
+                    // status line of ours.
+                    // arm: 0x00437002/info-disband
+                    (1, _) => match ctx.game.disband_army(id) {
+                        Ok((county, men)) => {
+                            let name = super::county::county_name(&*ctx, county);
+                            self.status = format!("{men} MEN WENT HOME TO {name}");
+                            Transition::Pop
+                        }
+                        Err(_) => {
+                            self.status =
+                                "MARCH IT TO A COUNTY YOU RULE BEFORE DISBANDING".into();
+                            Transition::Pop
+                        }
+                    },
+                    // **`Panel_SplitButton` (`0x004378B3`)**, and it is a
+                    // `Push` rather than a `Replace` because `0x11` goes
+                    // **back to `0x04`**: every one of the division screen's
+                    // three ways out — the turn-ended latch, the right release
+                    // and the OK button — writes `g_screenId = 0x04` and not 0.
+                    // That is `docs/arms.json`
+                    // `0x0042FF10/back-one-rather-than-to-the-map`, whose note
+                    // said ours reached the campaign map "because we have no
+                    // unit panel to go back to". There is one now.
+                    // arm: 0x004378B3/info-split
+                    (2, _) => Transition::Push(ScreenId::Divide(id)),
+                    _ => Transition::Stay,
+                };
             }
         }
         Transition::Stay
@@ -603,6 +786,25 @@ impl Screen for InfoScreen {
                         font::TEXT,
                     );
                 }
+                // **`TileInfo_DrawCastle`'s widget** — 71/14 *"View these
+                // troops?"* over `Widget_Draw(8, 0x20, &g_tilePanelWidgets, …)`,
+                // whose count is 1 exactly when the county has a garrison.
+                if self.garrison(ctx).is_some() {
+                    pen.eng(
+                        canvas,
+                        CASTLE_GROUP,
+                        VIEW_THESE_TROOPS,
+                        BODY_X,
+                        l.y(0xC4),
+                        font::TEXT,
+                    );
+                    // `System.pl8` frame 25 is the tick, which is what the
+                    // record's `+4` carries; our own button is the fallback for
+                    // an install with no artwork.
+                    if !pen.system_frame(canvas, 25, GARRISON_WIDGET.x, GARRISON_WIDGET.y) {
+                        crate::widget::button(canvas, ink, GARRISON_WIDGET, "OK", true);
+                    }
+                }
                 l2_view::text::draw(
                     canvas,
                     4,
@@ -611,6 +813,12 @@ impl Screen for InfoScreen {
                     ink.dim,
                 );
             }
+        }
+        // **Ours.** The original answers a refused disband with message `0x91`
+        // on a scroll we have not built; this is the same sentence with nowhere
+        // else to go.
+        if !self.status.is_empty() {
+            l2_view::text::draw(canvas, 12, 452, &self.status, ink.highlight);
         }
     }
 }

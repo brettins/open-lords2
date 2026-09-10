@@ -37,7 +37,7 @@ use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::battlefield as bf;
-use l2_game::screens::{armoury, army, battle, divide, map};
+use l2_game::screens::{armoury, army, battle, divide, info, map};
 use l2_game::Game;
 use l2_kingdom::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
@@ -801,7 +801,7 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
     for _ in 0..12 {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
-    click(&mut m, &mut g, &a, on(divide::split_button()));
+    click(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
 
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the screen closed");
     assert_eq!(g.kingdom.campaign.units.len(), 2, "two armies now");
@@ -837,14 +837,40 @@ fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
     for _ in 0..3 {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
-    click(&mut m, &mut g, &a, on(divide::split_button()));
+    click(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
     assert_eq!(m.top_id(), Some(ScreenId::Divide(id)), "the screen stays up");
     assert_eq!(g.kingdom.campaign.units.len(), 1, "and nothing was split");
+}
+
+/// **Open the information panel on a tile** — the campaign map's right release,
+/// which is `g_screenId = 0x04`.
+fn right_click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
+    send(m, g, a, Event::RightClick { x: at.0, y: at.1 });
+}
+
+/// The information panel's unit half, and the three buttons that are the door
+/// to move-order mode, to a disband and to screen `0x11`.
+///
+/// `g_infoUnitButtons` (`0x004DC560`) record `i`, at `(48 | 112 | 176, 352)`,
+/// 40 square. `Layout { row: 2 }` for the player's own army is what puts them
+/// at their table y.
+fn info_button(i: usize) -> (i32, i32) {
+    on(l2_game::input::Rect::new(
+        info::BUTTON_X[i],
+        info::BUTTON_DY,
+        info::BUTTON_DIM,
+        info::BUTTON_DIM,
+    ))
 }
 
 /// **Disband: the men go home and the weapons go back to the treasury**, which
 /// is `Army_Disband` and the Readme's *"Any weapons they are carrying are
 /// returned to your treasury."*
+///
+/// It travels the original's road now: `Panel_DisbandButton` is record 1 of the
+/// **information panel's** table and not a button on the division screen, which
+/// is where a button of ours used to be. `docs/arms.json`
+/// `0x00437002/info-disband`.
 #[test]
 fn the_disband_button_returns_the_men_to_their_county_and_the_weapons_to_the_realm() {
     let (mut g, a, mut m) = on_the_map();
@@ -853,10 +879,13 @@ fn the_disband_button_returns_the_men_to_their_county_and_the_weapons_to_the_rea
     g.kingdom.campaign.units.get_mut(id).unwrap().troops = [100, 0, 0, 200, 0, 0, 0];
     let (pop, swords) = (g.kingdom.counties[1].population, g.kingdom.realms[1].weapons[2]);
 
-    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
-    press(&mut m, &mut g, &a, 'a');
-    tick(&mut m, &mut g, &a);
-    click(&mut m, &mut g, &a, on(divide::disband_button()));
+    right_click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::Info(l2_game::screens::info::Target::Unit(id))),
+        "the right release opens the unit half",
+    );
+    click(&mut m, &mut g, &a, info_button(1));
 
     assert_eq!(m.top_id(), Some(ScreenId::Campaign));
     assert!(g.kingdom.campaign.units.get(id).is_none(), "the army is gone");
@@ -867,6 +896,12 @@ fn the_disband_button_returns_the_men_to_their_county_and_the_weapons_to_the_rea
 /// The Readme's disband rule, both clauses, through the screen: an army whose
 /// home county has fallen *and* which is standing in enemy country is refused,
 /// with `L2.eng` group 145's own words for why.
+///
+/// **The refusal closes the panel**, which reads wrong and is the original's:
+/// `Panel_DisbandButton`'s else branch is `Msg_Enqueue(…, 0x91, …); g_screenId =
+/// 0;`. The message scroll is what the player is left looking at, and we have
+/// none, so the army standing untouched on the map is the whole of the answer
+/// here.
 #[test]
 fn an_army_with_no_friendly_county_to_go_to_cannot_disband() {
     let (mut g, a, mut m) = on_the_map();
@@ -879,13 +914,64 @@ fn an_army_with_no_friendly_county_to_go_to_cannot_disband() {
     }
     g.kingdom.counties[1].owner = 2; // and home has fallen
 
-    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
-    press(&mut m, &mut g, &a, 'a');
-    tick(&mut m, &mut g, &a);
-    click(&mut m, &mut g, &a, on(divide::disband_button()));
+    right_click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    click(&mut m, &mut g, &a, info_button(1));
 
-    assert_eq!(m.top_id(), Some(ScreenId::Divide(id)), "the screen stays up to say why");
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the panel closes either way");
     assert!(g.kingdom.campaign.units.get(id).is_some(), "and the army is still there");
+}
+
+/// **The Move button is the door to screen `0x10`**, and it is the original's
+/// only one from this panel: `Panel_MoveButton` writes `g_screenId = 0` and
+/// calls `Map_BeginMoveSelection()`. Ours carries the request on
+/// [`Game::begin_move_order`] and the map takes it on the next tick.
+///
+/// Ablating it: delete the `ctx.game.begin_move_order = Some(id)` line in
+/// `screens/info.rs` and the second assertion fails — the panel still closes,
+/// so a test that only checked the screen would pass.
+#[test]
+fn the_move_button_on_the_information_panel_starts_a_move_order() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, _) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+
+    right_click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    click(&mut m, &mut g, &a, info_button(0));
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the panel closed");
+    assert_eq!(g.begin_move_order, Some(id), "and asked for the selection");
+    tick(&mut m, &mut g, &a);
+    assert_eq!(g.begin_move_order, None, "which the map consumed");
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::Campaign),
+        "move-order mode is this screen with a selection, not another screen",
+    );
+}
+
+/// **The Split button pushes rather than replaces, so `0x11` goes back to
+/// `0x04`** — every one of the division screen's three exits writes
+/// `g_screenId = 0x04`, not 0. `docs/arms.json`
+/// `0x0042FF10/back-one-rather-than-to-the-map`.
+#[test]
+fn the_division_screen_returns_to_the_information_panel_and_not_to_the_map() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, _) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+
+    right_click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    click(&mut m, &mut g, &a, info_button(2));
+    assert_eq!(m.top_id(), Some(ScreenId::Divide(id)));
+    // The cross — `Army_SplitConfirm` with `g_uiHotspotId == 0`.
+    click(&mut m, &mut g, &a, on(divide::SPLIT_CROSS));
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::Info(l2_game::screens::info::Target::Unit(id))),
+        "back to the panel the Split button was on",
+    );
+    // And the right release out of `0x11` lands in the same place.
+    click(&mut m, &mut g, &a, info_button(2));
+    right_click(&mut m, &mut g, &a, (200, 200));
+    assert_eq!(m.top_id(), Some(ScreenId::Info(l2_game::screens::info::Target::Unit(id))));
 }
 
 

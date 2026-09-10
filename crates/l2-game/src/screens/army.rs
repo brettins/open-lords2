@@ -413,6 +413,28 @@ impl Screen for RaiseArmyScreen {
         match event {
             // The corner picture's other half: `Screen_FrameInput`'s `0x17` arm
             // sends a right release to the armoury, not to the map.
+            //
+            // **`0x17` is the exception to *"right click closes"*, and the two
+            // ways out do different things.** Verbatim:
+            //
+            // ```c
+            // if (!Levy_SliderClick()) {
+            //   if (!rightReleased) { if (Ui_OkButtonClicked()) { g_screenId = 0; ... } }
+            //   else { g_screenId = 0x0A; Levy_Seed(g_selectedCounty, g_levyMen); }
+            // }
+            // ```
+            //
+            // So the button a player reaches by habit goes **forward** to the
+            // armoury and the corner picture abandons the levy. `docs/arms.json`
+            // called the right release *"COMMITS the levy"*; it does not.
+            // `Levy_Seed` (`0x004AA90A`) zeroes the eight basket slots, fills
+            // their available counts from the realm's weapon stocks and puts the
+            // headcount in slots 0 and 7 — it **prepares the armoury** for the
+            // number the slider chose, and its own comment names its three
+            // callers as *"every door into the armoury"*, `Sidebar_Button` and
+            // `RaiseArmy_Continue` being the other two. No man is levied and no
+            // gold is spent until *Create* on the armoury.
+            // arm: 0x0042FF10/levy-right-commits
             Event::KeyDown(Key::Escape) => Transition::Pop,
             Event::RightClick { .. } | Event::KeyDown(Key::Enter) => self.open_armoury(ctx),
             Event::KeyDown(Key::Left) => {

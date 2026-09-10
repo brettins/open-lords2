@@ -158,14 +158,20 @@ pub const CANVAS_H: i32 = l2_view::canvas::HEIGHT as i32;
 /// The right column: `Misc_cty` frames 54 … 59 at x 478, 162 wide.
 pub const PANEL: Rect = Rect::new(PANEL_X, TOP_BAR, PANEL_W, 480 - TOP_BAR);
 
-/// The End Turn strip — `Misc_cty` frame 59 (162 × 20) at (478, 460), with
-/// `L2.eng` group 4 centred in it.
-pub const END_TURN_BUTTON: Rect = Rect::new(
-    PANEL_X,
-    chrome::PANEL_END_TURN_Y,
-    PANEL_W,
-    480 - chrome::PANEL_END_TURN_Y,
-);
+/// The End Turn strip — `Misc_cty` frame 59 at (478, 460), with `L2.eng` group
+/// 4 centred in it.
+///
+/// **The hit box is 161 × 19 and not 162 × 20**, and that is `g_sidebarButtons`
+/// record 5 rather than the plate: `(0, 30) … (161, 49)` at the table's
+/// (`0x1DE`, `0x1AE`) offset, with `Hotspot_Test` half-open on **both** axes —
+/// `my < y0 + off || y1 + off <= my` rejects. So the strip's own last column
+/// (x 639) and last row (y 479) are dead in the original, exactly like the
+/// one-pixel dead columns between the five icons above it, and ours had them
+/// live. Read out of the player's `Lords2.exe` in
+/// `crates/l2-game/tests/right_column.rs`; the artwork is 162 × 20 and the
+/// hotspot is not, which is why deriving this from the plate was wrong.
+pub const END_TURN_BUTTON: Rect =
+    Rect::new(PANEL_X, chrome::PANEL_END_TURN_Y, PANEL_W - 1, 19);
 
 /// **`g_sidebarButtons` (`0x004DC680`) — the five buttons in `Misc_cty` frame
 /// 57, the 162 × 30 strip at (478, 430).** `docs/screens-county.md` §2.4.
@@ -261,14 +267,21 @@ pub struct SidebarButton {
 
 impl SidebarButton {
     pub const fn rect(&self) -> Rect {
-        Rect::new(
-            PANEL_X + self.x,
-            chrome::PANEL_STATUS_Y,
-            self.w,
-            chrome::PANEL_END_TURN_Y - chrome::PANEL_STATUS_Y,
-        )
+        Rect::new(PANEL_X + self.x, chrome::PANEL_STATUS_Y, self.w, SIDEBAR_H)
     }
 }
+
+/// **29, not 30**, and the difference is a dead row.
+///
+/// Every one of the five records is `(x, 0) … (x, 29)` at the table's `0x1AE`
+/// offset and `Hotspot_Test` is half-open, so the strip is y 430 … 458 and
+/// **y 459 belongs to nothing** — the same one-pixel gutter the table leaves
+/// between each pair of icons horizontally, once, horizontally across the whole
+/// strip. This used to be `PANEL_END_TURN_Y − PANEL_STATUS_Y`, which is the
+/// distance between two *plates* and not the height of a *hotspot*, and it made
+/// the dead row live. See `crates/l2-game/tests/right_column.rs`, which reads
+/// the table out of the player's own copy.
+pub const SIDEBAR_H: i32 = 29;
 
 /// What one of them does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -696,7 +709,7 @@ impl MapScreen {
     /// has to be turned off first. The artwork agrees — `Misc_cty` frame `0x5B`,
     /// the strip drawn while a mode is up, has one button on it where frame
     /// `0x5C` has four.
-    fn minimap_mode_button(&mut self, button: usize) {
+    fn minimap_mode_button(&mut self, ctx: &mut Ctx, button: usize) {
         if self.minimap_mode == MinimapMode::Owner {
             match MinimapMode::from_button(button) {
                 // arm: 0x0043AB76/minimap-mode-set
@@ -705,7 +718,7 @@ impl MapScreen {
                     self.status = format!("MINIMAP {}", minimap_mode_name(mode));
                 }
                 // arm: 0x0043AB76/minimap-zoom-toggle
-                None => self.toggle_zoom(),
+                None => self.toggle_zoom(ctx),
             }
         } else if button == 3 {
             // arm: 0x0043AB76/minimap-mode-clear
@@ -1688,17 +1701,33 @@ impl MapScreen {
 
     /// `Map_ToggleZoom`: the campaign screen has two zooms and this is the only
     /// way between them.
-    fn toggle_zoom(&mut self) {
+    fn toggle_zoom(&mut self, ctx: &mut Ctx) {
         if self.zoom.id == NEAR.id {
             self.saved = self.view;
-            self.zoom = FAR;
+            self.set_zoom(ctx, FAR);
             self.view = Viewport::new(0x0C, 0x0E).clamped(&FAR);
             self.status = "ZOOMED OUT".into();
         } else {
-            self.zoom = NEAR;
+            self.set_zoom(ctx, NEAR);
             self.view = self.saved.clamped(&NEAR);
             self.status = "ZOOMED IN".into();
         }
+    }
+
+    /// **`Map_SetZoom` — the only place `self.zoom` is written after
+    /// construction, and the projection into [`crate::game::Game::map_zoom_far`]
+    /// rides on it.**
+    ///
+    /// `g_mapZoom` is a global in the original and is read from three arms that
+    /// are not on this screen: `Map_EdgeScroll`'s far-zoom refusal, which is
+    /// what decides whether the information panel closes on an edge hover, and
+    /// the `if (g_mapZoom != 2)` at the head of `FUN_00438ACC` and
+    /// `FUN_0043893C`. Our overlays cannot reach this screen, so the value has
+    /// to be somewhere they can see, and a projection written at the one write
+    /// site cannot drift from the thing it projects.
+    fn set_zoom(&mut self, ctx: &mut Ctx, zoom: Zoom) {
+        self.zoom = zoom;
+        ctx.game.map_zoom_far = zoom.id == FAR.id;
     }
 
     /// **`Map_EdgeScroll` — the direction the pointer's position asks for.**
@@ -2074,7 +2103,7 @@ impl Screen for MapScreen {
             Event::KeyDown(Key::Char('L')) => {
                 return Transition::Push(ScreenId::SaveLoad(SaveLoadMode::Load))
             }
-            Event::KeyDown(Key::Char('Z')) => self.toggle_zoom(),
+            Event::KeyDown(Key::Char('Z')) => self.toggle_zoom(ctx),
             Event::KeyDown(Key::Char('E')) | Event::KeyDown(Key::Space) => {
                 return self.end_turn(ctx)
             }
@@ -2273,7 +2302,7 @@ impl Screen for MapScreen {
                     MINIMAP_MODE_BUTTONS.iter().position(|r| r.contains(x, y))
                 {
                     // arm: 0x0043292D/minimap-mode-buttons
-                    self.minimap_mode_button(i);
+                    self.minimap_mode_button(ctx, i);
                 } else if SPLIT_SLIDER.contains(x, y)
                     && ctx.game.is_players(ctx.game.selected)
                 {
@@ -2344,6 +2373,40 @@ impl Screen for MapScreen {
                     return Transition::Reveal;
                 } else if self.map_clip().contains(x, y) {
                     self.ensure(ctx);
+                    // **At the far zoom the left button does not select
+                    // anything — it zooms in on the tile under it.**
+                    //
+                    // ```c
+                    // if (picked && leftPressed && g_mapZoom == 2) {
+                    //     g_screenId = 0; Map_ZoomInAtTile(); return;
+                    // }
+                    // ```
+                    //
+                    // The arm **returns** rather than falling through, so
+                    // `Map_Click` is unreachable at zoom 2 and every tile arm
+                    // below — the village, the industry switch, the field
+                    // brush, selecting a county — is dead there. Ours had no
+                    // click arm at all at the far zoom, so a click did what the
+                    // near zoom's click does, on a tile ten pixels wide.
+                    //
+                    // It sits inside the `g_screenId == 0` arm, so it is *not*
+                    // live in move-order mode (`0x10`), whose own four-line arm
+                    // has no zoom test: `self.selected_unit` is that screen id
+                    // here, and it is why this is guarded rather than first.
+                    //
+                    // `Map_ZoomInAtTile` (`0x004350A1`) centres the near view on
+                    // the picked tile with the same `col - 4`, `(row & ~1) - 12`
+                    // arithmetic as `Map_CentreOnTile`, which is
+                    // [`MapScreen::centre_on_tile`].
+                    // arm: 0x0042FF10/map-zoom-in-at-tile
+                    if self.selected_unit.is_none() && self.zoom.id == FAR.id {
+                        if let Some((tx, ty)) = self.pick_tile(x, y) {
+                            self.set_zoom(ctx, NEAR);
+                            self.centre_on_tile(tx as usize, ty as usize);
+                            self.status = "ZOOMED IN".into();
+                            return Transition::Stay;
+                        }
+                    }
                     // **Move-order mode is a screen, not a flag, and that is the
                     // whole reason this block is shaped the way it is.**
                     //
@@ -2524,6 +2587,18 @@ impl Screen for MapScreen {
     /// one step per fixed tick, which is ours because the original's is a frame
     /// rate and nothing below this crate may read a clock.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        // **`Panel_MoveButton`'s second statement.** The information panel
+        // (`0x04`) writes `g_screenId = 0` and then calls
+        // `Map_BeginMoveSelection()`; ours pops back to here and leaves the
+        // request on [`crate::game::Game::begin_move_order`], because the
+        // selection is this screen's state and not a global. Taken on the tick
+        // after the pop, which is the same frame ordering the original has —
+        // `Screen_FrameInput` runs last in a frame, so its navigation lands one
+        // frame late by construction.
+        if let Some(unit) = ctx.game.begin_move_order.take() {
+            let read = Ctx { game: ctx.game, assets: ctx.assets };
+            self.begin_move_selection(&read, unit);
+        }
         // **A turn left suspended by a battle screen is picked up here.** Only
         // the top screen is given a tick, so this runs the moment `0x12` or
         // `0x13` pops and not before — which is exactly when the campaign is
@@ -3325,11 +3400,24 @@ mod tests {
         assert_eq!(PANEL.y, TOP_BAR);
         for b in SIDEBAR_BUTTONS {
             let r = b.rect();
-            assert_eq!(r.y + r.h, END_TURN_BUTTON.y, "{b:?} does not meet the end-turn strip");
+            // **They do not meet.** `g_sidebarButtons` records 0…4 stop at
+            // y 458 and record 5 starts at 460, so y 459 is a dead row — and
+            // this assertion used to require the opposite, which is how the
+            // strip came to be a pixel taller than the table. The plates meet;
+            // the hotspots do not, and only the hotspots decide a click.
+            assert_eq!(
+                r.y + r.h + 1,
+                END_TURN_BUTTON.y,
+                "{b:?}: the table leaves one dead row above the end-turn strip",
+            );
             assert!(PANEL.contains(r.x, r.y), "{b:?} starts outside the sidebar");
             assert!(r.x + r.w <= PANEL.x + PANEL.w, "{b:?} runs past the screen edge");
         }
-        assert_eq!(END_TURN_BUTTON.y + END_TURN_BUTTON.h, 480);
+        // 479, not 480: record 5's `y1` is 49 at offset `0x1AE` and
+        // `Hotspot_Test` is half-open, so the bottom row of the screen is dead
+        // here too.
+        assert_eq!(END_TURN_BUTTON.y + END_TURN_BUTTON.h, 479);
+        assert_eq!(END_TURN_BUTTON.x + END_TURN_BUTTON.w, 639, "and the last column with it");
         // The map's clip is the zoom's, and it stops at 478 at both zooms.
         for z in [NEAR, FAR] {
             assert_eq!(z.clip().x1, PANEL.x);
@@ -3700,10 +3788,18 @@ mod tests {
     /// far view lands on the original's own fixed position.
     #[test]
     fn the_zoom_toggle_saves_and_restores_the_near_views_position() {
+        let assets = crate::game::Assets::placeholder();
+        let mut game = crate::Game::new(1);
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
         let mut s = MapScreen::new();
         s.view = Viewport::new(60, 30);
-        s.toggle_zoom();
+        s.toggle_zoom(&mut ctx);
         assert_eq!(s.zoom().id, FAR.id);
+        // **The projection**: `g_mapZoom` is a global three arms outside this
+        // screen read, and `Game::map_zoom_far` is where they read it. Asserted
+        // here rather than only in `tests/right_column.rs` because this is the
+        // function that writes it.
+        assert!(ctx.game.map_zoom_far, "the far zoom did not reach Game");
         assert_eq!(
             s.viewport(),
             Viewport::new(0, 14),
@@ -3712,8 +3808,9 @@ mod tests {
         // And the far view cannot be scrolled off that position.
         assert!(!s.scroll(Dir::E));
         assert!(!s.scroll(Dir::N));
-        s.toggle_zoom();
+        s.toggle_zoom(&mut ctx);
         assert_eq!(s.zoom().id, NEAR.id);
+        assert!(!ctx.game.map_zoom_far, "the near zoom did not reach Game");
         assert_eq!(s.viewport(), Viewport::new(60, 30), "back where it was");
         assert!(s.scroll(Dir::E), "and the near view scrolls again");
         assert_eq!(s.viewport(), Viewport::new(60, 31));

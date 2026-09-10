@@ -408,6 +408,17 @@ The table's five rectangles start at x-offsets 0, 34, 66, 98, 130 and end at 33,
 so the widths are 33, 31, 31, 31, 31 with a one-pixel dead column between each pair.
 `34 + 32 × 4 = 162`. It closes.
 
+**`Hotspot_Test` is half-open on `y` as well, and that costs a row.** The reject is
+`my < y0 + oy || y1 + oy <= my`, and the five records are `(x, 0) … (x, 29)` at the `0x1AE`
+offset — so the strip is **y 430 … 458, 29 pixels tall**, and *y 459 is dead*: the same
+one-pixel gutter the table leaves horizontally, once, across the whole strip. End turn is
+record 5, `(0, 30) … (161, 49)` — **161 × 19**, so its last column (x 639) and its last row
+(y 479) are dead too. The **plate** `Misc_cty` frame 59 really is 162 × 20 and the strip
+above it really is 162 × 30; the hotspots are one smaller in each direction, and deriving
+the hit box from the plate is what put a live pixel where the game has none.
+`crates/l2-game/tests/right_column.rs` reads both tables out of the player's own
+`Lords2.exe` and asserts our constants against them. `docs/decisions.md` CNEW-dead-row.
+
 Screen `0x17` is the **raise-army** screen and not merely the mercenary offer: `L2.eng`
 group 69 index `0x10`, which `Screen_RaiseArmy` (`0x00418653`) draws as its heading, reads
 *"Raising an army in"*, and the mercenary band is a conditional sub-panel worth three extra
