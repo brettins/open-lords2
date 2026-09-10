@@ -101,7 +101,7 @@
 
 use l2_kingdom::diplomacy::{group, Kind};
 use l2_kingdom::realm::MAX_REALMS;
-use l2_view::{text, Canvas};
+use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
@@ -113,9 +113,56 @@ pub const GROUP: usize = 72;
 
 /// `FUN_004093E0(0x10, 0x20, 0x1C, 0x1B)` — the window, in cells of 16.
 pub const WINDOW: Rect = Rect::new(0x10, 0x20, 0x1C * 16, 0x1B * 16);
+pub const WINDOW_COLS: i32 = 0x1C;
+pub const WINDOW_ROWS: i32 = 0x1B;
 
 /// `Ui_OkButton(0x1A8, 0x1A6, 0)`.
 pub const OK: Rect = Rect::new(0x1A8, 0x1A6, 32, 32);
+
+/// `Faces.pl8` — the sheet `Diplo_DrawScreen` reads before it stacks the cards,
+/// and the one every `Sprite_WGenSprite` on this screen draws out of. Frames
+/// `lord * 3 − 3` are the portraits (12 for a human rival) and 13, 14, 15 are
+/// the three status icons. **[I]** the icon frames: the *positions* are the
+/// painter's literals, the identification of 13/14/15 as allied, at-war and
+/// mail is the branch each is drawn under and has not been checked against the
+/// pictures.
+const FACES: &str = "Faces.pl8";
+/// `Sprite_WGenSprite(0x0D, 0x9E, slot*100 + 0x41)`.
+const ALLIED_ICON: usize = 13;
+/// `Sprite_WGenSprite(0x0E, 0x92, slot*100 + 0x41)`.
+const AT_WAR_ICON: usize = 14;
+/// `Sprite_WGenSprite(0x0F, 0x1E, slot*100 + 0x50)`.
+const MAIL_ICON: usize = 15;
+
+/// `Pl8_DrawFrame(g_miscCtySheet, shieldIndex + 0x55, …)` — the same
+/// `Misc_cty` banner run [`l2_view::chrome::misc_cty::BANNER`] names for the
+/// menu bar's realm flags.
+const SHIELD_BASE: usize = 0x55;
+
+/// `Pl8_DrawFrame(g_miscCtySheet, 0x1D, 0x140, 0x140)` — the picture in the
+/// window's bottom-right corner, drawn on **three of the four** menu layouts.
+const SEAL_FRAME: usize = 0x1D;
+const SEAL_AT: (i32, i32) = (0x140, 0x140);
+
+/// `Widget_Draw(0, 0, &g_diploWidgets, …)` — every one of the six records
+/// carries `System.pl8` frame 64. **[V]**
+/// `tools/oracle/widgets.js widgets 4dd940 6`.
+pub const MENU_FRAME: usize = 64;
+
+/// `Ui_DrawInsetRect(0xD0, 0x60, 0xE8, h)` — one recess behind the whole menu,
+/// and the only thing that varies is `h`. See [`Menu::inset_height`].
+pub const MENU_INSET_X: i32 = 0xD0;
+pub const MENU_INSET_Y: i32 = 0x60;
+pub const MENU_INSET_W: i32 = 0xE8;
+
+/// `FUN_0040328E(72, row, 0xE0, y, 0xA0, 100, …)` — the label, **wrapped** at
+/// 160 pixels.
+pub const MENU_LABEL_X: i32 = 0xE0;
+pub const MENU_LABEL_W: i32 = 0xA0;
+
+/// `FUN_00403CF4`'s two colours on the selected card: `0xF9` inside `0x3F`.
+const SELECTED_INNER: u8 = 0xF9;
+const SELECTED_OUTER: u8 = 0x3F;
 
 /// One lord card, for slot `n`: `Ui_DrawInsetRect(0x30, n*100 + 0x31, 0x52,
 /// 0x4E)`. The stride of 100 is the original's, and it is not the card's
@@ -136,6 +183,22 @@ pub const THERMOMETER_X: i32 = 0x88;
 /// written by different code. `docs/diplomacy.md` §1.1.
 pub const THERMOMETER_WARM: i8 = 11;
 pub const THERMOMETER_COLD: i8 = -11;
+
+/// The column inside the recess: `FUN_0040437D(0x89, slot*100 + 0x41, 8, 0x3D,
+/// 0x3F)`, so 8 wide and **61** rows — one row per point of standing from +30
+/// down to −30 inclusive.
+pub const THERMOMETER_FILL_W: i32 = 8;
+pub const THERMOMETER_FILL_H: i32 = 0x3D;
+/// `FUN_0040437D`'s four palette literals, in the painter's own order.
+pub const THERMOMETER_EMPTY: u8 = 0x3F;
+pub const THERMOMETER_HIGH: u8 = 0xFA;
+pub const THERMOMETER_MID: u8 = 0xFC;
+pub const THERMOMETER_LOW: u8 = 0xF9;
+
+/// `L2.eng` group 7 — the five lord titles. **Only a fallback here**: the
+/// painter draws `g_playerNames`, and this is what the card shows when there is
+/// no `Faces.pl8` to put a portrait in.
+pub const LORD_TITLE_GROUP: usize = 7;
 
 /// Which of the four menu layouts `g_diploMenuState` holds, and what each one
 /// offers. The indices are into `L2.eng` group 72.
@@ -185,6 +248,31 @@ impl Menu {
             Menu::AlliedElsewhere => &[2, 3, 4],
             Menu::Dispatched => &[24],
         }
+    }
+
+    /// `Ui_DrawInsetRect(0xD0, 0x60, 0xE8, h)` — the recess behind the menu, and
+    /// the height is the only thing the four arms vary about it.
+    ///
+    /// **The dispatched layout draws none**, which is the reason this returns an
+    /// option rather than a number: the one-line *"A message has been
+    /// dispatched, my Lord."* sits directly on the window's parchment.
+    pub fn inset_height(self) -> Option<i32> {
+        match self {
+            Menu::NoAlly => Some(0xD0),
+            Menu::Allied => Some(0x130),
+            Menu::AlliedElsewhere => Some(0xA0),
+            Menu::Dispatched => None,
+        }
+    }
+
+    /// Whether `Pl8_DrawFrame(g_miscCtySheet, 0x1D, 0x140, 0x140)` runs.
+    ///
+    /// **Three of the four, and the allied layout is the exception** — its
+    /// recess is `0x130` tall and reaches `0x60 + 0x130 = 0x190`, past the
+    /// picture's own `0x140`. Read out of the four arms rather than reasoned
+    /// about; the geometry is offered as the likely *why* and is not evidence.
+    pub fn draws_seal(self) -> bool {
+        self != Menu::Allied
     }
 
     /// What each row does. `Diplo_OpenAlliance` (`0x00436229`) is **one widget
@@ -341,96 +429,216 @@ impl Screen for DiplomacyScreen {
         Transition::Stay
     }
 
+    /// `Diplo_DrawScreen` (`0x00416CF3`), statement for statement.
+    ///
+    /// **This painter drew none of the original's ground.** Every rectangle on
+    /// it was a `widget::panel` of ours in the interface's own `Ink`: the
+    /// window, each lord card, and one filled box per menu row — and the last
+    /// of those is not a box the original has at all. It draws **one**
+    /// `Ui_DrawInsetRect` behind the whole menu, whose height is the layout's,
+    /// and the six pictures over it are `g_diploWidgets` records carrying
+    /// `System.pl8` frame **64**.
+    ///
+    /// The card is the sharper case and it is `docs/decisions.md` C61's
+    /// armoury bug again: `Ui_DrawInsetRect` is **four lines and no fill**, so
+    /// filling the card painted a hole in the window's parchment — invisible
+    /// under our palette, where `ink.panel` *is* the parchment colour, and
+    /// black under a real one.
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let a = &ctx.assets.shell;
-        widget::panel(canvas, ink, WINDOW);
+        // `Diplo_DrawScreen` sets neither `DAT_0058FE2C` (drop capitals) nor
+        // `DAT_005AEA40` (the emboss kill), and `0x0B` is neither `0x1C` nor
+        // `0x1F`, so the shadow pair is the ordinary one. The three compose
+        // painters below *do* set the caps flag, which is why their pen differs.
+        let pen = Pen {
+            assets: a,
+            ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            shadow: Some(font::SHADOW),
+            caps: None,
+        };
+        // `FUN_004093E0(0x10, 0x20, 0x1C, 0x1B)` — border set **1**.
+        pen.window(canvas, WINDOW.x, WINDOW.y, WINDOW_COLS, WINDOW_ROWS, WINDOW_SET);
+        // `Ui_OkButton(0x1A8, 0x1A6, 0)`: `System.pl8` frame `0x33`, an arrow
+        // pointing into a hole. **Not the word OK**, which is what this screen
+        // drew — the last of the three `Ui_OkButton` inventions the draw audit
+        // found, and the one its own inventory record names.
+        pen.ok_button(canvas, OK.x, OK.y, 0);
 
         let target = self.target(ctx);
-        let me = ctx.game.player;
         for (slot, realm) in DiplomacyScreen::cards(ctx).iter().enumerate() {
-            let r = card_rect(slot);
-            widget::panel(canvas, ink, r);
-            if *realm == target {
-                widget::frame(canvas, r, ink.highlight);
-            }
-            let rr = &ctx.game.kingdom.realms[*realm as usize];
-            // The portrait is `faces.pl8` frame `lord * 3 - 3`, or frame 12 for
-            // a human rival. We have no sheet loaded here, so the lord's name
-            // stands in for the face — `L2.eng` group 7 indexed by the lord
-            // byte, which is exactly what `Game_NewGame` copies into
-            // `g_playerNames` in the first place.
-            let name = a.text(7, rr.lord.min(4) as usize).to_uppercase();
-            text::draw(canvas, r.x + 4, r.y + 4, &name, ink.text);
-            let colour = ink.realm[(rr.shield_index.clamp(1, 5)) as usize];
-            widget::frame(canvas, Rect::new(r.x + 2, r.y + r.h - 14, 12, 10), colour);
-
-            // The three status icons, all read out of the **rival's** record
-            // indexed by me. `allied` and `atWar` are exclusive in the painter:
-            // an at-war icon is only drawn when the allied one was not.
-            let their = rr.pair(me);
-            let mut icons = String::new();
-            if their.allied {
-                icons.push('A');
-            } else if their.at_war {
-                icons.push('W');
-            }
-            if their.has_mail {
-                icons.push('M');
-            }
-            if !icons.is_empty() {
-                text::draw(canvas, r.x + r.w - 24, r.y + 4, &icons, ink.highlight);
-            }
-
-            // The thermometer, filled from +30 down to the standing, in the
-            // colour its band names.
-            let standing = their.standing;
-            let bar = Rect::new(THERMOMETER_X, r.y + 2, THERMOMETER_W, THERMOMETER_H);
-            widget::frame(canvas, bar, ink.border);
-            let fill = if standing >= THERMOMETER_WARM {
-                ink.good
-            } else if standing <= THERMOMETER_COLD {
-                ink.bad
-            } else {
-                ink.dim
-            };
-            let filled = (i32::from(standing) + 30) * THERMOMETER_H / 60;
-            if filled > 0 {
-                canvas.fill_rect(
-                    bar.x + 1,
-                    bar.y + THERMOMETER_H - filled,
-                    THERMOMETER_W - 2,
-                    filled,
-                    fill,
-                );
-            }
-            text::draw(canvas, bar.x - 4, bar.y + THERMOMETER_H + 2, &format!("{standing}"), ink.dim);
+            self.draw_card(&pen, ctx, canvas, slot, *realm, target);
         }
 
-        // The heading: the selected rival's name at (0xD0, 0x3D).
-        let heading = ctx
-            .game
-            .kingdom
-            .realms
-            .get(target as usize)
-            .map(|r| a.text(7, r.lord.min(4) as usize).to_uppercase())
-            .unwrap_or_default();
-        text::draw(canvas, 0xD0, 0x3D, &heading, ink.highlight);
+        // `Ui_DrawText(&g_playerNames + target * 0x2C, 0xD0, 0x3D,
+        // &g_fontHeading, 0x3F)` — **`g_playerNames`, not `L2.eng` group 7**,
+        // and the heading font. This screen drew the lord's *title* here, which
+        // is only what `Game_NewGame` seeds the field with; a person who typed
+        // a name on setup page 4 saw somebody else's. `ComposeScreen` below and
+        // `screens/county.rs` had already settled the same question.
+        pen.heading(canvas, 0xD0, 0x3D, &lord_name(ctx, target), font::TEXT);
 
         let menu = Menu::of(ctx, target);
+        // **One inset behind the whole menu, and its height is the layout's.**
+        // `Ui_DrawInsetRect(0xD0, 0x60, 0xE8, h)` with `h` `0xD0`, `0x130` or
+        // `0xA0`; the dispatched layout draws no inset at all.
+        if let Some(h) = menu.inset_height() {
+            pen.inset(canvas, Rect::new(MENU_INSET_X, MENU_INSET_Y, MENU_INSET_W, h));
+        }
+        // `Pl8_DrawFrame(g_miscCtySheet, 0x1D, 0x140, 0x140)` — drawn on three
+        // of the four layouts and **not on the allied one**, whose taller inset
+        // reaches down over that corner. Transcribed rather than tidied.
+        if menu.draws_seal() {
+            pen.misc_frame(canvas, SEAL_FRAME, SEAL_AT.0, SEAL_AT.1);
+        }
         for (slot, row) in menu.rows().iter().enumerate() {
-            let label = a.text(GROUP, *row).to_uppercase();
             if menu == Menu::Dispatched {
-                // Index 24 alone, and no widget under it.
-                text::draw(canvas, 0xE0, 0xA2, &label, ink.text);
+                // `FUN_0040328E(72, 24, 0xE0, 0xA2, 0xA0, 100, …)` — index 24
+                // alone, at the second row's y, and no widget under it.
+                let s = a.text(GROUP, *row).to_string();
+                pen.body_wrapped(canvas, MENU_LABEL_X, 0xA2, MENU_LABEL_W, &s, font::TEXT);
                 break;
             }
+            // `Widget_Draw(0, 0, &g_diploWidgets, g_diploWidgetCount)`: six
+            // records at (400, 102 + 50n), every one carrying `System.pl8`
+            // frame 64. **[V]** `tools/oracle/widgets.js widgets 4dd940 6`.
+            // Our own outline is the picture-is-missing fallback, not the
+            // picture — it used to be a filled panel standing in for it.
             let w = menu_widget(slot);
-            widget::panel(canvas, ink, w);
-            text::draw(canvas, 0xE0, menu_label_y(slot), &label, ink.text);
+            if !pen.system_frame(canvas, MENU_FRAME, w.x, w.y) {
+                widget::frame(canvas, w, ink.border);
+            }
+            // `FUN_0040328E(72, row, 0xE0, y, 0xA0, 100, …)` — **wrapped** at
+            // 160 pixels, and not uppercased: every string on this screen used
+            // to be `.to_uppercase()`d, which is a spelling the game does not
+            // have.
+            let s = a.text(GROUP, *row).to_string();
+            pen.body_wrapped(canvas, MENU_LABEL_X, menu_label_y(slot), MENU_LABEL_W, &s, font::TEXT);
+        }
+    }
+}
+
+/// `Diplo_DrawLordCard` (`0x004171EE`), statement for statement.
+impl DiplomacyScreen {
+    fn draw_card(
+        &self,
+        pen: &Pen,
+        ctx: &Ctx,
+        canvas: &mut Canvas,
+        slot: usize,
+        realm: u8,
+        target: u8,
+    ) {
+        let ink = pen.ink;
+        let me = ctx.game.player;
+        let r = card_rect(slot);
+        let rr = &ctx.game.kingdom.realms[realm as usize];
+        // `Ui_DrawInsetRect(0x30, slot*100 + 0x31, 0x52, 0x4E)` — **no fill.**
+        pen.inset(canvas, r);
+        // `Sprite_WGenSprite(lord*3 - 3, 0x31, slot*100 + 0x32)`, frame 12 for
+        // a human rival, out of the `faces.pl8` the painter has just read.
+        // [`super::message::face_frame`] is that rule, already ported.
+        let frame = super::message::face_frame(rr.lord, rr.is_human, realm);
+        let drew = pen
+            .assets
+            .sheet(FACES)
+            .and_then(|s| s.frame(frame))
+            .map(|b| canvas.blit(&b, r.x + 1, r.y + 1))
+            .is_some();
+        if !drew {
+            // OURS, and only with no `Faces.pl8`: the lord's title where his
+            // face belongs, so an install without the sheet still says who this
+            // card is.
+            let title = pen.assets.text(LORD_TITLE_GROUP, rr.lord.min(4) as usize).to_string();
+            pen.body(canvas, r.x + 4, r.y + 4, &title, font::TEXT);
+        }
+        // `Pl8_DrawFrame(g_miscCtySheet, shieldIndex + 0x55, 0x20,
+        // slot*100 + 0x37)` — the same `Misc_cty` banner run the menu bar draws
+        // its realm flags from, and the painter clamps the index to 1..=5
+        // **in the realm record** before using it.
+        let shield = rr.shield_index.clamp(1, 5);
+        if !pen.misc_frame(canvas, SHIELD_BASE + shield as usize, 0x20, r.y + 6) {
+            let colour = ink.realm[shield as usize];
+            canvas.fill_rect(0x20, r.y + 6, 12, 10, colour);
+        }
+        // `Ui_DrawText(&g_playerNames + realm * 0x2C, 0x20, slot*100 + 0x83,
+        // &g_fontBody, 0x3F)` — below the card, not inside it.
+        pen.body(canvas, 0x20, r.y + 0x52, &lord_name(ctx, realm), font::TEXT);
+        if realm == target {
+            // Two `FUN_00403CF4` outlines, one pixel apart, in the painter's
+            // own two palette indices — `0xF9` inside `0x3F`.
+            pen.outline(canvas, 0x2F, r.y - 1, 0x54, 0x50, SELECTED_INNER);
+            pen.outline(canvas, 0x2E, r.y - 2, 0x56, 0x52, SELECTED_OUTER);
         }
 
-        widget::button(canvas, ink, OK, "OK", true);
+        // The three status icons, all read out of the **rival's** record
+        // indexed by me, and all `Sprite_WGenSprite` frames of `faces.pl8`
+        // rather than letters. `allied` and `atWar` are exclusive in the
+        // painter: the at-war icon is only drawn when the allied one was not.
+        let their = rr.pair(me);
+        let mut icons: Vec<(usize, i32, i32, &str)> = Vec::new();
+        if their.has_mail {
+            icons.push((MAIL_ICON, 0x1E, r.y + 0x1F, "M"));
+        }
+        if their.allied {
+            icons.push((ALLIED_ICON, 0x9E, r.y + 0x10, "A"));
+        } else if their.at_war {
+            icons.push((AT_WAR_ICON, 0x92, r.y + 0x10, "W"));
+        }
+        for (frame, x, y, letter) in icons {
+            match pen.assets.sheet(FACES).and_then(|s| s.frame(frame)) {
+                Some(b) => canvas.blit(&b, x, y),
+                // OURS, and only with no `Faces.pl8`.
+                None => {
+                    pen.body(canvas, x, y, letter, font::HIGHLIGHT);
+                }
+            }
+        }
+
+        // **The thermometer is only drawn for an AI rival.** The painter's
+        // whole block is inside `if (g_realms[realm].isHuman == 0)`, which is
+        // the one thing about it this screen did not have — a human rival got a
+        // bar of a standing nothing maintains.
+        if rr.is_human {
+            return;
+        }
+        let standing = i32::from(their.standing);
+        // `Ui_DrawInsetRect(0x88, slot*100 + 0x40, 10, 0x3F)`, then
+        // `FUN_0040437D(0x89, slot*100 + 0x41, 8, 0x3D, 0x3F)` — the recess,
+        // then the whole column in the empty colour.
+        pen.inset(
+            canvas,
+            Rect::new(THERMOMETER_X, r.y + 0xF, THERMOMETER_W, THERMOMETER_H),
+        );
+        let (bx, by) = (THERMOMETER_X + 1, r.y + 0x10);
+        canvas.fill_rect(bx, by, THERMOMETER_FILL_W, THERMOMETER_FILL_H, THERMOMETER_EMPTY);
+        // The fill loop, transcribed: `for (v = 30; v > -31; v--)` filling row
+        // `30 - v` when `v <= standing`. So the column fills **downward from
+        // the standing's own row**, and the colour is chosen once from the
+        // standing rather than per row.
+        let colour = if standing >= i32::from(THERMOMETER_WARM) {
+            THERMOMETER_HIGH
+        } else if standing <= i32::from(THERMOMETER_COLD) {
+            THERMOMETER_LOW
+        } else {
+            THERMOMETER_MID
+        };
+        for row in 0..THERMOMETER_FILL_H {
+            if 30 - row <= standing {
+                canvas.fill_rect(bx, by + row, THERMOMETER_FILL_W, 1, colour);
+            }
+        }
+    }
+}
+
+/// `Ui_DrawText(&g_playerNames + realm * 0x2C, …)`, with the fallback
+/// `screens/county.rs` and [`ComposeScreen`] already use for a world that never
+/// came through the front end.
+fn lord_name(ctx: &Ctx, realm: u8) -> String {
+    match ctx.game.player_names.get(realm as usize).map(|n| n.as_str()) {
+        Some(n) if !n.is_empty() => n.to_string(),
+        _ => format!("REALM {realm}"),
     }
 }
 

@@ -53,6 +53,8 @@ crates/l2-game/src/screens/county.rs	C59	d92177ac30ca	37ab8ac1a2fc
 crates/l2-game/src/screens/county.rs	C61	ff65e4062d2c	60611046b40d
 crates/l2-game/src/screens/court.rs	C110	4001eefdd973	a4ab43902f60
 crates/l2-game/src/screens/diplomacy.rs	C26	d7d30139b2b8	e8179d1f76a8
+crates/l2-game/src/screens/diplomacy.rs	C61	5aa0f88f789e	60611046b40d
+crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
 crates/l2-game/src/screens/info.rs	C110	610d3cd4e224	a4ab43902f60
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c	f7bf296341ff
@@ -117,6 +119,7 @@ crates/l2-game/tests/audio_wiring.rs	C116	72ff009b041a	1c49feddd496
 crates/l2-game/tests/audio_wiring.rs	C116	f98ddc5b0bad	1c49feddd496
 crates/l2-game/tests/diplomacy.rs	C26	287743d8f84c	e8179d1f76a8
 crates/l2-game/tests/diplomacy.rs	C62	bcbec6054c4e	ebb6a7ec3711
+crates/l2-game/tests/ground.rs	C61	297b0f233ba7	60611046b40d
 crates/l2-game/tests/long_game.rs	C26	8f66e1f9a1a8	e8179d1f76a8
 crates/l2-game/tests/long_game.rs	C26	b81c294dcd29	e8179d1f76a8
 crates/l2-game/tests/long_game.rs	C27	5e967af981b8	1db64332cb22

@@ -309,6 +309,17 @@ const OURS = new Map(Object.entries({
   window_from: 'Ui_DrawBox, origin from a rect',
   box_interior: 'Ui_DrawBoxInterior',
   inset: 'Ui_DrawInsetRect',
+  // **The original's rectangle outline, which our side had no way to write.**
+  // `FUN_00403CF4` is in LEAF above, so it counts on the original's side; the
+  // only thing in this tree that drew one was `widget::frame`, which is counted
+  // as a placeholder — correctly, because it takes an `Ink` colour rather than
+  // the painter's literal. `Pen::outline` is the primitive with its palette
+  // index, so a call site can now be the original's rather than ours. The
+  // sibling leaves `FUN_0040437D` (a filled rectangle) and `FUN_00403A8F` (a
+  // line) still have no `Pen` counterpart and are drawn with a bare
+  // `canvas.fill_rect`, which this scanner cannot see at all — an asymmetry
+  // that under-reports our side, recorded here rather than papered over.
+  outline: 'FUN_00403CF4',
   body: 'Ui_DrawText, body font',
   heading: 'Ui_DrawText, heading font',
   body_centred: 'FUN_004025D7',

@@ -119,9 +119,14 @@ pub const PARENT_NUMBER_X: i32 = 0xD8;
 pub const DAUGHTER_ICON_X: i32 = 0x158;
 pub const DAUGHTER_NUMBER_X: i32 = 0x188;
 
-/// `Ui_DrawBoxInterior(0x18, 0x80, 0x1A, 0x12)` — the well the rows sit in.
+/// `Ui_DrawBoxInterior(0x18, 0x80, 0x1A, 0x12)` — the well the rows sit in,
+/// **in cells of 16**, because that is what the primitive takes.
+pub const ROWS_WELL_COLS: i32 = 0x1A;
+pub const ROWS_WELL_ROWS: i32 = 0x12;
+
+/// The same well in pixels, for the hit tests and the tests.
 pub fn rows_well() -> Rect {
-    Rect::new(0x18, 0x80, 0x1A * 16, 0x12 * 16)
+    Rect::new(0x18, 0x80, ROWS_WELL_COLS * 16, ROWS_WELL_ROWS * 16)
 }
 
 /// `Ui_OkButton(0x1AC, 0x1B4, 0)`.
@@ -466,9 +471,18 @@ impl Screen for DivideScreen {
         pen.eng(canvas, GROUP, 0, 0x68, 0x44, font::TEXT);
         pen.eng(canvas, GROUP, 1, 0x78, 0x1AE, font::TEXT);
 
+        // `Screen_SplitArmyRows`' first statement — `Ui_DrawBoxInterior(0x18,
+        // 0x80, 0x1A, 0x12)`, **the parchment field on its own**, tiled out of
+        // `Panels.pl8` frame `0x34` like every other well in the game.
+        //
+        // It used to be `fill_rect(ink.background)` with an outline of ours over
+        // it, which is `docs/decisions.md` C61's armoury hole exactly: under our
+        // own palette `ink.background` reads as a dark plate and looks
+        // deliberate, and under `Panels.pl8`'s it is a black rectangle in the
+        // middle of the window. The border half is right to be missing — this
+        // primitive has none.
         let well = rows_well();
-        canvas.fill_rect(well.x, well.y, well.w, well.h, ink.background);
-        widget::frame(canvas, well, ink.border);
+        pen.box_interior(canvas, well.x, well.y, ROWS_WELL_COLS, ROWS_WELL_ROWS);
 
         let band = self.basket.mercenaries;
         for (row, troop) in ALL_TROOP_TYPES.iter().enumerate() {
