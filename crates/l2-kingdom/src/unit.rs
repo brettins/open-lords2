@@ -312,6 +312,15 @@ pub struct Unit {
     /// `Unit_Step`'s loop tests this before the budget check and the waypoint
     /// advance, which is why a unit only notices it has run out of moves at a
     /// tile boundary rather than part-way across one.
+    ///
+    /// **It starts set, and that is not a detail.** `Unit_Spawn`
+    /// (`0x0046E1B0`) ends with `field_0x14b |= 1` on every unit it creates,
+    /// and `Army_Split` (`0x00437FD7`) sets it again on the half it makes — so
+    /// the *first* admitted tick of a unit's life commits a tile immediately
+    /// and only the tiles after it cost the full crossing. Started clear
+    /// instead, every unit in the game spends its first eight (or thirty-two)
+    /// ticks standing still, and six unit tests of the driver read that as a
+    /// stalled sweep. `docs/decisions.md` **CNEW-subtile**.
     pub at_tile_edge: bool,
     /// `+0x14F` *sh* — index into `L2.eng` group `93 + owner`, 0…23. For a
     /// merchant the same byte is the route number.
@@ -471,7 +480,8 @@ impl Unit {
             on_road: false,
             sub_tile: 0,
             sub_frame: 0,
-            at_tile_edge: false,
+            // `Unit_Spawn` (`0x0046E1B0`): `field_0x14b |= 1`.
+            at_tile_edge: true,
             name_index: 0,
             needs_destination: true,
             dest_county: 0,

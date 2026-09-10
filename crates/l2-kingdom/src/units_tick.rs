@@ -859,27 +859,60 @@ mod tests {
         k.campaign.units.spawn(u).expect("a free slot")
     }
 
-    /// A unit walks **one tile per tick**, not to exhaustion. Fifteen points on
-    /// a road is fifteen tiles, and it takes fifteen ticks.
+    /// A unit walks **one tile per crossing, and a crossing on a road is eight
+    /// ticks** — not to exhaustion, and not one tile a tick.
+    ///
+    /// **This test used to be called `a_unit_enters_one_tile_a_tick` and it
+    /// asserted the defect**, in its name, its doc comment and its numbers:
+    /// *"fifteen points on a road is fifteen tiles, and it takes fifteen
+    /// ticks."* Fifteen tiles is right and fifteen ticks was the whole of
+    /// `docs/decisions.md` **CNEW-subtile** — the missing half of
+    /// `Unit_StepOnce` (`0x0046634D`), which admits every tick on a road and
+    /// needs **eight** admissions to cross a sixteen-wide tile. It is left
+    /// here rather than deleted because a test that has to be rewritten to
+    /// make a fix pass is the strongest evidence that the fix is a change in
+    /// behaviour and not a tidy-up.
+    ///
+    /// The first tile is entered on the tick the order is walked, because
+    /// `Unit_Spawn` (`0x0046E1B0`) leaves `+0x14B` bit 0 set, so the arrivals
+    /// fall on ticks 1, 9, 17 … and the fifteenth on 113.
+    ///
+    /// **The 8 is typed here, not read from [`crate::tables::SUBTILE_SPAN`] or
+    /// [`crate::tables::SUBTILE_STEP_SOLO`]**, so that ablating either of those
+    /// constants cannot move this probe with it — `docs/agents.md`, *ablating a
+    /// constant while computing your probe from that same constant tests
+    /// nothing at all*.
     #[test]
-    fn a_unit_enters_one_tile_a_tick() {
+    fn a_unit_enters_one_tile_every_eight_ticks_on_a_road() {
         let mut k = kingdom();
         let id = army(&mut k, 1, 5, 10);
         movement::order_move(&k.campaign.map, &mut k.campaign.units, id, (20, 10), movement::Routing::Direct)
             .expect("a road runs the whole way");
 
-        let mut ticks = 0;
-        let mut xs = Vec::new();
-        while k.units_moving(UnitKind::Army) && ticks < 100 {
+        let mut ticks = 0usize;
+        // (the tick it happened on, the tile it arrived at) — one entry per
+        // tile actually entered, so a stall then a sprint cannot satisfy it.
+        let mut arrivals: Vec<(usize, u8)> = Vec::new();
+        while k.units_moving(UnitKind::Army) && ticks < 1000 {
             let t = k.tick_units();
             ticks += 1;
             assert!(t.stepped <= 1, "one unit, one tile");
-            xs.push(k.campaign.units.get(id).unwrap().x);
+            let x = k.campaign.units.get(id).unwrap().x;
+            if arrivals.last().map(|&(_, px)| px) != Some(x) {
+                arrivals.push((ticks, x));
+            }
         }
-        // 15 points, 1 a tile on a road: fifteen tiles in fifteen ticks, and
-        // the path runs out on the same step the budget does.
         assert_eq!(k.campaign.units.get(id).unwrap().x, 20);
-        assert_eq!(xs, (6..=20).collect::<Vec<u8>>(), "one tile a tick, in order");
+        assert_eq!(
+            arrivals.iter().map(|&(_, x)| x).collect::<Vec<u8>>(),
+            (6..=20).collect::<Vec<u8>>(),
+            "fifteen tiles, in order"
+        );
+        assert_eq!(
+            arrivals.iter().map(|&(t, _)| t).collect::<Vec<usize>>(),
+            (0..15).map(|n| 1 + n * 8).collect::<Vec<usize>>(),
+            "eight ticks a road tile, and the first one free"
+        );
         assert_eq!(k.campaign.units.get(id).unwrap().moves_used, 15);
     }
 
@@ -893,10 +926,20 @@ mod tests {
         movement::order_move(&k.campaign.map, &mut k.campaign.units, id, (8, 10), movement::Routing::Direct)
             .unwrap();
         assert!(k.units_moving(UnitKind::Army));
-        for _ in 0..10 {
+        // **This used to be `for _ in 0..10`**, which was long enough when a
+        // tile cost one tick and is not now. It is a `while` rather than a
+        // bigger number on purpose: a fixed count that happens to be large
+        // enough asserts nothing about *when* the wait drops, and the count is
+        // what rots the next time the pacing moves. 5 → 8 is three road tiles
+        // — the first on the tick the order is walked, eight for each of the
+        // two after it.
+        let mut ticks = 0usize;
+        while k.units_moving(UnitKind::Army) && ticks < 500 {
             k.tick_units();
+            ticks += 1;
         }
         assert!(!k.units_moving(UnitKind::Army));
+        assert_eq!(ticks, 17, "the wait drops on the tick the march ends, not later");
         assert_eq!(k.campaign.units.get(id).unwrap().tile(), (8, 10));
     }
 

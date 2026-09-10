@@ -585,9 +585,16 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         // it back; here it starts the next order from the near edge instead —
         // at worst fifteen-sixteenths of one tile's crossing, once, on the
         // first leg after a load. `docs/decisions.md` **CNEW-subtile**.
+        //
+        // The latch defaults **set**, which is `Unit_Spawn`'s own value
+        // (`0x0046E1B0`: `field_0x14b |= 1`) and the state the original leaves
+        // a unit in when it stops for want of moves — `Unit_Step`'s budget
+        // test is inside the latched arm, so a unit that ran out is standing
+        // on a tile edge by construction. Defaulting it clear would make every
+        // imported unit stand still for its first crossing.
         sub_tile: 0,
         sub_frame: 0,
-        at_tile_edge: false,
+        at_tile_edge: true,
         name_index: u.name_index,
         needs_destination: u.needs_destination,
         dest_county: u.dest_county,
