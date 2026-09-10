@@ -215,14 +215,15 @@ Ideally take one of their counties on the last turn, so its fields are yours to 
 
 **Save as:** `ai-farms.sav`.
 
-**Settles:** what the AI lords actually plant. Our engine gives each of the four lords a
-farming style, and in our own hundred-turn runs **two of them never lay a single grain
-field** — they feed enormous populations entirely on dairy cattle. That may be right; the
-lords do differ. But it is exactly the shape of a bug that hides behind a green test suite,
-and one save of a lord's county is enough to say which.
+**Settles:** three fields nobody has ever seen filled in — how much wasteland an AI county
+carries, how much of it is being reclaimed, and which farming style byte it holds.
 
-The same save answers three fields nobody has ever seen filled in: how much wasteland an
-AI county carries, how much it is reclaiming, and which farming style byte it holds.
+**And one thing you can answer without saving anything.** In our hundred-turn runs **two of
+the four lords never lay a single grain field**: the Knight and the Baron feed enormous
+populations entirely on dairy cattle, one county reaching sixteen thousand people on three
+thousand head and no grain at all. That looked like a bug and it is not — the lords' style
+table really is *graze, graze, plough, mix* — so the question is only whether it looks like
+that in play. **Have you ever seen an AI lord's county with no wheat in it?**
 
 ---
 
