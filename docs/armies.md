@@ -122,7 +122,7 @@ offset anything in the binary references. The 150 is the loop bound in `Path_Cop
 | `+0x15C` | i32 | **wages** | [V] | `L2.eng` 31/8 *"Wages"*. Written by `Wages_ForUnit`. §6.4. |
 | `+0x160` | i32 | cooldown | [D] | decremented once a tick while positive. |
 | `+0x164` | i16 | **yearFormed** *sh* | [V] | `L2.eng` 31/20 *"Formed"*, drawn through `Ui_DrawYear`. For a merchant this is the route cursor. |
-| `+0x166` | u8 | **morale** | [V] | `L2.eng` 31/21 *"Morale"*. Copied from the county's happiness when the army is raised; nothing was found that changes it afterwards. |
+| `+0x166` | u8 | **morale** | **[D]** | Copied from the county's happiness when the army is raised; nothing was found that changes it afterwards. **Demoted from `[V]`:** the second source was `L2.eng` 31/21 *"Morale"* as an army-panel label, and the draw-call audit establishes that **nothing in the binary draws 31/21**. The seven literal group-31 draws do not include index 21, and the one variable index — `UnitPanel_Draw`'s `local_20` — is pinned by a four-arm ladder to `{0, 2, 5}`. `docs/draws.md` §12. The *name* is still the best reading of the field; it just is not verified by a label the game never shows. |
 
 ### 1.3 Troops
 
@@ -1683,6 +1683,12 @@ the battle model that decides anything.** A field battle ends exactly two ways:
 There is **no morale break, no rout threshold and no clock.** And the two counters are the
 two numbers `Ui_DrawNumberRight` puts on the battle HUD, so the numbers that decide a
 battle are the numbers the player is looking at. `[V]`
+
+(That primitive **centres** its number in `width` rather than right-aligning it, whatever
+its name says — it and `Ui_DrawCentred` share the same tail, `FUN_004025D7`, which is
+`x + max(0, (width - textWidth) / 2)`. Nothing above depends on the alignment; it is noted
+here because this paragraph is one of the four places the wrong name was quoted.
+`docs/screens-county.md` §4, `docs/draws.md` §7.)
 
 Three further arms are sieges and are out of scope here: the escape-tile flag
 `DAT_00553F3C`; *assault repulsed, repeat*, where a castle under level 3 with no breach and

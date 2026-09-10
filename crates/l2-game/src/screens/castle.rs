@@ -26,28 +26,89 @@
 //! castles you point at. The selection is `DAT_0056D898`, a plain 0…4 that
 //! [`crate::screens::map`]'s sidebar seeds from the county's own castle.
 //!
-//! # What it draws, out of `Screen_CastleBuildPanel` (`0x004198AA`)
+//! # The painter, address by address
+//!
+//! Two functions, and **20 of the 22 draws are in the second one**, which
+//! `Screen_Draw` never calls: `Screen_DrawWidgets`' `0x1B` arm runs
+//! `Screen_CastleBuildPanel(); Widget_Draw(0, 0, &g_castleBuildWidgets, 2)`
+//! every frame. An enumeration that read the painter would report two.
 //!
 //! ```text
-//! Blit_Raster(caspics.pl8[type], 0x9E, 0x14, 0x140, 200)   the big picture
-//! FUN_0040328E(71, sel + 1, 0x1F6, 0x18)      "Wooden palisade." … "Royal castle."
-//! Ui_DrawNumber(stone, '@', 0x230, 0x60)   + 71/6  "of stone needed,"
-//! Ui_DrawNumber(wood,  '@', 0x230, 0x80)   + 71/7  "of wood needed."
-//! Eng_DrawString(71, 8, 0x20C, 0xB4)              "will take"
-//! Ui_DrawCount(workforce, 0x26, 0x1F2, 0xC4)      N man/men
-//! Ui_DrawCount(1, 0x42, 0x1FC, 0xD4)              1 season(s)
-//! Eng_DrawString(71, 9, 0x20C, 0xE4)              "to build."
-//! Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)                the tax plaque
-//! Eng_DrawString(71, 0x10, 0x90, 0x1B4) + g_castleTaxBonus[sel]  "Boosts tax revenues by N%"
-//! Eng_DrawString(71, 0xF, 0xE0, 0x1C8)            "Start construction?"
-//! Ui_DrawBox(8, 200, 8, 3)                        the barracks plaque
-//! Eng_DrawString(71, 0xB, 0xC, 0xD2) + cap + 71/0xC   "Barracks for N troops."
+//! Screen_CastleBuild(firstFrame):                              0x00419789
+//!   File_ReadChunk("cas_back.256", &DAT_004EA8A0, 0x300)   the palette only
+//!   FUN_00408FCB("cas_back.pl8", 0x1E0)      the backdrop: 640 x 480 raw
+//!   Ui_OkButton(stride - 0x1C, height - 0x1C, 1)    the corner OK (612, 452)
+//!   if (DAT_004D2DD0[sel] != 0):
+//!     FUN_0040AE12("caspics.pl8", buf, DAT_004D2DD0[sel] - 1)
+//!     Blit_Raster(buf, 0x9E, 0x14, 0x140, 200)   the big picture (158, 20)
+//!   File_ReadChunk("cas_bits.pl8", g_villani2Sheet, 150000)
+//!   DAT_005440B8 = 1;  Screen_CastleBuildPanel()
+//!
+//! Screen_CastleBuildPanel():   (only when DAT_005440B8)       0x004198AA
+//!   Pl8_DrawFrame(cas_bits, DAT_004D2DE8[sel])   frame sel, (19, 63) — the plate
+//!   Pl8_DrawFrame(cas_bits, DAT_004D2E28[sel])   frame 5+sel, over the chosen strip
+//!   FUN_0040328E(71, sel + 1, 0x1F6, 0x18, 0xA0, heading)
+//!                                  "Wooden palisade." … "Royal castle." (502, 24)
+//!   Pl8_DrawFrame(cas_bits, 0x0A, 0x208, 0x5C)      the stone caption (520, 92)
+//!   Ui_DrawNumber(stone, '@', "", 0x230, 0x60)                      (560, 96)
+//!   Pl8_DrawFrame(cas_bits, 0x0B, 0x208, 0x7C)       the wood caption (520, 124)
+//!   Ui_DrawNumber(wood,  '@', "", 0x230, 0x80)                      (560, 128)
+//!   if (standing != 0):
+//!     Pl8_DrawFrame(cas_bits, 0x0C, DAT_004D2E64[standing] - 10, 0x110)
+//!   Eng_DrawString(71, 8, 0x20C, 0xB4, body)         "will take"    (524, 180)
+//!   Ui_DrawCount(workforce, 0x26, 0x1F2, 0xC4, body)  N Builder(s)  (498, 196)
+//!   Ui_DrawCount(1, 0x42, 0x1FC, 0xD4, body)          1 Season      (508, 212)
+//!   Eng_DrawString(71, 9, 0x20C, 0xE4, body)         "to build."    (524, 228)
+//!   Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)          the tax plaque (112, 428) 416 x 48
+//!   Eng_DrawString(71, 0x10, 0x90, 0x1B4)   "Boosts tax revenues by" (144, 436)
+//!   Ui_DrawNumber(bonus, ' ', " %", pen + 0x90, 0x1B4)
+//!   Eng_DrawString(71, 0xF, 0xE0, 0x1C8)      "Start construction?"  (224, 456)
+//!   Ui_DrawBox(8, 200, 8, 3)             the barracks plaque (8, 200) 128 x 48
+//!   Eng_DrawString(71, 0xB, 0xC, 0xD2)        "Barracks for"          (12, 210)
+//!   Ui_DrawNumber(cap, '@', " ", 0xC, 0xE2)                           (12, 226)
+//!   Eng_DrawString(71, 0xC, pen + 0xE, 0xE2)  "troops."
 //! ```
+//!
+//! **`71/6` *"of stone needed,"* and `71/7` *"of wood needed."* are not on this
+//! screen.** `docs/screens-county.md` §11.2 attaches them to the two
+//! `Ui_DrawNumber` lines; the panel draws `cas_bits.pl8` frames `0x0A` and
+//! `0x0B` there instead — the captions are **artwork**, at x 520 with the
+//! number at x 560 after them. The two strings are alive elsewhere:
+//! `Castle_DrawStatusBlock` (`0x0041DEDB`), the map-information panel's castle
+//! block, is their only consumer. [`STONE_NEEDED`] and [`WOOD_NEEDED`] name
+//! them here so the next reader does not go looking on this screen.
+//!
+//! **Nor is `71/0` *"Select a castle to build"*.** Grepping every
+//! `Eng_DrawString`, `Ui_DrawCentred` and `FUN_0040328E` call with a **literal**
+//! group-71 index finds 6, 7, 8, 9, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11, 0x12
+//! and 0x13 — and neither 0 nor 0xA *"Build this castle"*. Index 0 of a group
+//! is the group's own label (`docs/formats/eng.md` §5) and this heading is
+//! painted into `cas_back.pl8`; 0xA is very likely a tooltip and is **[I]**.
+//! Our shell drew index 0 as a caption of our own, which was an invention twice
+//! over — the words and the font.
 //!
 //! **The stone and the wood are net of the castle already standing** — the panel
 //! subtracts `g_castleMaterial[existing type]` before printing, which is the
 //! same difference [`l2_kingdom::industry::order_castle`] charges, and it can
 //! come out negative. It is printed as it comes.
+//!
+//! # `caspics.pl8` has four pictures for five castles  **[V]**
+//!
+//! `DAT_004D2DD0` is `{1, 0, 2, 3, 4}`, one-based with **0 meaning none**, and
+//! the guard is `if (DAT_004D2DD0[sel] != 0)`. So selection 1, the motte and
+//! bailey, blits **no big picture at all** and the backdrop shows through. The
+//! shipped `Caspics.pl8` is 256,072 bytes, which is 72 of header and
+//! `4 x 320 x 200` exactly — four rasters for four used slots, so the table and
+//! the file close on each other and the gap is the original's, not a misread.
+//!
+//! # The five strips are hit rectangles over painted artwork
+//!
+//! `g_castleTypeWidgets` is tested with `Hotspot_Test`, never drawn: nothing in
+//! either function paints the row of five castles at y 270…415. They are in
+//! `cas_back.pl8`. What the panel *does* draw over them is one `cas_bits.pl8`
+//! frame per selection — [`SELECTED_MARK`], frames 5…9 at five different
+//! positions — and, when a castle already stands, frame `0x0C` at
+//! [`STANDING_MARK_X`]`[type] - 10`.
 //!
 //! # The OK button's two refusals, and the one it does not have
 //!
@@ -65,12 +126,140 @@
 //! store; see [`l2_kingdom::industry::order_castle`] for what that buys you.
 
 use l2_kingdom::industry::{self, CastleRefusal};
-use l2_kingdom::tables::CASTLE_NAMES;
 use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::widget;
+use crate::shell::{self, font, Pen};
+
+// ---------------------------------------------------------------------------
+// `L2.eng` group 71, and every index this screen draws
+// ---------------------------------------------------------------------------
+
+/// `L2.eng` group 71 — the literal first argument of all six `Eng_DrawString`
+/// sites in `Screen_CastleBuildPanel` and of its one `FUN_0040328E`.
+///
+/// **Verified against the words, not against the indices existing.** Group 71
+/// reads 0 *"Select a castle to build"*, 1…5 the five castle names in the order
+/// [`l2_kingdom::tables::CASTLE_COST`] costs them, 6 *"of stone needed,"*,
+/// 7 *"of wood needed."*, 8 *"will take"*, 9 *"to build."*, 0xB *"Barracks
+/// for"*, 0xC *"troops."*, 0xF *"Start construction?"*, 0x10 *"Boosts tax
+/// revenues by"*. Every one of those is a fragment of a sentence this panel
+/// assembles, which is the check `docs/draws.md` §6 says existence is not.
+pub const GROUP: usize = 71;
+
+/// **Not drawn by this screen, and by nothing else in the binary.** The heading
+/// is painted into `cas_back.pl8`; index 0 is the group's own label.
+pub const TITLE: usize = 0;
+/// 1…5, `FUN_0040328E(71, sel + 1, …)`.
+pub const NAME_BASE: usize = 1;
+/// **Not drawn here.** `Castle_DrawStatusBlock` (`0x0041DEDB`) draws it; this
+/// panel puts `cas_bits.pl8` frame [`STONE_CAPTION`] in its place.
+pub const STONE_NEEDED: usize = 6;
+/// **Not drawn here** — see [`STONE_NEEDED`]; the artwork is [`WOOD_CAPTION`].
+pub const WOOD_NEEDED: usize = 7;
+pub const WILL_TAKE: usize = 8;
+pub const TO_BUILD: usize = 9;
+pub const BARRACKS_FOR: usize = 0xB;
+pub const TROOPS: usize = 0xC;
+pub const START_CONSTRUCTION: usize = 0xF;
+pub const BOOSTS_TAX: usize = 0x10;
+
+/// `Ui_DrawCount(workforce, 0x26, …)` — `L2.eng` group 8 `0x26`/`0x27`,
+/// *"Builder"* / *"Builders"*. **[V]** against the words.
+pub const BUILDER_NOUN: usize = 0x26;
+/// `Ui_DrawCount(1, 0x42, …)` — group 8 `0x42`/`0x43`, *"Season"* /
+/// *"Seasons"*, and the value is the **literal 1**: every castle takes one
+/// season regardless of type, which is a rule stated only by this draw call.
+pub const SEASON_NOUN: usize = 0x42;
+
+// ---------------------------------------------------------------------------
+// the three sheets
+// ---------------------------------------------------------------------------
+
+/// `FUN_00408FCB("cas_back.pl8", 0x1E0)` — a raw 640 × 480 raster read straight
+/// into the display buffer. The shipped file is 307,224 bytes, which is
+/// `640 * 480 + 24`. The five castle pictures the player points at are in it.
+pub const BACKDROP: &str = "Cas_back.pl8";
+/// `FUN_0040AE12("caspics.pl8", …)` then `Blit_Raster` — the big preview.
+pub const PICS: &str = "Caspics.pl8";
+/// `File_ReadChunk("cas_bits.pl8", g_villani2Sheet, 150000)` — the plates, the
+/// selection marks and the two material captions.
+pub const BITS: &str = "Cas_bits.pl8";
+
+/// `DAT_004D2DD0` — the `caspics.pl8` frame for each selection, **one-based,
+/// and 0 means no picture**. Selection 1, the motte and bailey, has none.
+pub const PICTURE_FRAME: [usize; 5] = [1, 0, 2, 3, 4];
+
+/// `Blit_Raster(buf, 0x9E, 0x14, 0x140, 200)`.
+pub const PICTURE: Rect = Rect::new(0x9E, 0x14, 0x140, 200);
+
+/// `DAT_004D2DE8`, `{frame, x, y}` five times — `cas_bits.pl8` frames 0…4, all
+/// at **the same (19, 63)**: the name plate above the preview.
+pub const NAME_PLATE: [(usize, i32, i32); 5] =
+    [(0, 19, 63), (1, 19, 63), (2, 19, 63), (3, 19, 63), (4, 19, 63)];
+
+/// `DAT_004D2E28` — `cas_bits.pl8` frames 5…9, one per selection, each over its
+/// own strip in the row of five. **This is the only thing that marks the
+/// selection**, and its x values land inside [`TYPE_BOUNDS`]' five rectangles.
+pub const SELECTED_MARK: [(usize, i32, i32); 5] =
+    [(5, 24, 325), (6, 103, 297), (7, 231, 292), (8, 307, 277), (9, 462, 285)];
+
+/// `cas_bits.pl8` frame `0x0A` at (0x208, 0x5C) — the words *"of stone
+/// needed,"* as **artwork**, which is why [`STONE_NEEDED`] is unused here.
+pub const STONE_CAPTION: usize = 0x0A;
+/// The same for the wood, frame `0x0B` at (0x208, 0x7C).
+pub const WOOD_CAPTION: usize = 0x0B;
+pub const CAPTION_X: i32 = 0x208;
+pub const STONE_CAPTION_Y: i32 = 0x5C;
+pub const WOOD_CAPTION_Y: i32 = 0x7C;
+/// The two numbers, `Ui_DrawNumber(v, '@', "", 0x230, …)`.
+pub const MATERIAL_NUM_X: i32 = 0x230;
+pub const STONE_NUM_Y: i32 = 0x60;
+pub const WOOD_NUM_Y: i32 = 0x80;
+
+/// `cas_bits.pl8` frame `0x0C` — *the castle you already have*, drawn over its
+/// strip only when one stands.
+pub const STANDING_MARK: usize = 0x0C;
+/// `DAT_004D2E64`, indexed by the **standing castle type** 1…5, and the painter
+/// subtracts ten from it. Slot 0 is never read: `castleType == 0` skips the
+/// draw.
+pub const STANDING_MARK_X: [i32; 6] = [0, 52, 153, 253, 370, 538];
+pub const STANDING_MARK_DX: i32 = -10;
+pub const STANDING_MARK_Y: i32 = 0x110;
+
+/// `FUN_0040328E(71, sel + 1, 0x1F6, 0x18, 0xA0, 100, 0, 0, heading, 0x3F)` —
+/// the castle's name, wrapped at 160 pixels in the **22-pixel** font, which
+/// steps `0x18` a line rather than `0x10`.
+pub const NAME_AT: (i32, i32) = (0x1F6, 0x18);
+pub const NAME_WIDTH: i32 = 0xA0;
+pub const NAME_LINE: i32 = 0x18;
+
+/// The workforce sentence, four calls on four lines.
+pub const WILL_TAKE_AT: (i32, i32) = (0x20C, 0xB4);
+pub const WORKFORCE_AT: (i32, i32) = (0x1F2, 0xC4);
+pub const SEASON_AT: (i32, i32) = (0x1FC, 0xD4);
+pub const TO_BUILD_AT: (i32, i32) = (0x20C, 0xE4);
+
+/// `Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)` — border set **0**, in 16-pixel cells, so
+/// 416 × 48 at (112, 428).
+pub const TAX_PLAQUE: (i32, i32, i32, i32) = (0x70, 0x1AC, 0x1A, 3);
+pub const BOOSTS_TAX_AT: (i32, i32) = (0x90, 0x1B4);
+pub const START_AT: (i32, i32) = (0xE0, 0x1C8);
+/// `Ui_DrawBox(8, 200, 8, 3)` — 128 × 48 at (8, 200).
+pub const BARRACKS_PLAQUE: (i32, i32, i32, i32) = (8, 200, 8, 3);
+pub const BARRACKS_AT: (i32, i32) = (0xC, 0xD2);
+pub const GARRISON_AT: (i32, i32) = (0xC, 0xE2);
+
+/// `Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1)` — the corner
+/// picture, `System.pl8` frame `0x10`. It is drawn by `Screen_CastleBuild`
+/// itself and is **not** one of the two widgets below.
+pub const CORNER_OK: Rect = Rect::new(640 - 0x1C, 480 - 0x1C, 24, 24);
+
+/// `System.pl8` frames 29 and 31 — the mailed hand, thumb up and thumb down.
+/// Every yes/no pair in the game draws these two; `docs/screens-county.md` §4.2.
+pub const THUMB_UP: usize = 29;
+pub const THUMB_DOWN: usize = 31;
 
 /// `g_castleTypeWidgets` (`0x004DC818`) — the five picture strips, as
 /// `(x1, y1, x2, y2)` exactly as the kind-1 records hold them.
@@ -89,12 +278,14 @@ pub fn type_rect(level: usize) -> Rect {
 }
 
 /// `g_castleBuildWidgets` (`0x004DDB80`) record 0 — the tick, hotspot 1.
+///
+/// **The table is exactly two records long**, which is what the count of 2 the
+/// `0x1B` arm passes should be checked against: `0x004DDB80 + 2 * 24` is
+/// `0x004DDBB0`, and that is the base `Screen_DrawWidgets`' `0x12` arm passes.
+/// So unlike `g_sendSuppliesWidgets` there is **no cut row here**.
 pub const OK: Rect = Rect::new(432, 440, 32, 32);
 /// …and record 1, the cross, hotspot 0.
 pub const CANCEL: Rect = Rect::new(472, 444, 32, 32);
-
-/// `Blit_Raster(caspics.pl8[type], 0x9E, 0x14, 0x140, 200)`.
-pub const PICTURE: Rect = Rect::new(0x9E, 0x14, 0x140, 200);
 
 /// What the OK button did, for a caller that wants to know without reading the
 /// county back.
@@ -238,6 +429,15 @@ impl Screen for CastleScreen {
                     self.choice = CastleChoice::Cancelled;
                     return Transition::Pop;
                 }
+                // `Screen_FrameInput`'s `0x1B` arm: `Ui_OkButtonClicked()` →
+                // `g_screenId = 0`, so the **corner** picture closes to the map
+                // and orders nothing. It is a third way out that this screen
+                // drew and did not answer.
+                // arm: 0x0042FF10/castle-corner-ok
+                if CORNER_OK.contains(x, y) {
+                    self.choice = CastleChoice::Cancelled;
+                    return Transition::Pop;
+                }
                 for level in 0..5 {
                     if type_rect(level).contains(x, y) {
                         self.select(level);
@@ -250,65 +450,167 @@ impl Screen for CastleScreen {
         }
     }
 
+    /// Every line here is one call site of `Screen_CastleBuild` or
+    /// `Screen_CastleBuildPanel`, in the original's order, at the original's
+    /// coordinate, through the original's fonts and sheets. Nothing on this
+    /// screen is a caption of ours: the words it shows are `L2.eng` group 71
+    /// and the pictures are `cas_back.pl8`, `caspics.pl8` and `cas_bits.pl8`.
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        let a = &ctx.assets.shell;
         let ink = &ctx.assets.ink;
-        canvas.clear(ink.background);
-
-        // The big picture is `caspics.pl8` frame `DAT_004D2DD0[sel] - 1`, which
-        // we have no sheet loaded for; the rectangle is the original's.
-        widget::panel(canvas, ink, PICTURE);
+        let pen = Pen {
+            assets: a,
+            ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            shadow: Some(font::SHADOW),
+            caps: None,
+        };
         let level = self.level(ctx);
         let castle_type = level as u8 + 1;
-        let name = CASTLE_NAMES[castle_type as usize].to_uppercase();
-        text::draw(canvas, 0x1F6 - 180, 0x18, "SELECT A CASTLE TO BUILD", ink.highlight);
-        text::draw(canvas, PICTURE.x + 8, PICTURE.y + 8, &name, ink.highlight);
-
-        let t = &ctx.game.kingdom.tables;
-        let (wood, stone) = self.materials(ctx);
-        text::draw(canvas, 0x1D0, 0x60, &format!("{stone} OF STONE NEEDED,"), ink.text);
-        text::draw(canvas, 0x1D0, 0x80, &format!("{wood} OF WOOD NEEDED."), ink.text);
-
-        let work = industry::castle_workforce(t, castle_type);
-        text::draw(canvas, 0x1B0, 0xB4, &format!("WILL TAKE {work} MEN"), ink.text);
-        text::draw(canvas, 0x1B0, 0xC4, "1 SEASON TO BUILD.", ink.text);
-
-        // The barracks plaque, `Ui_DrawBox(8, 200, 8, 3)` — 128 x 48 at (8, 200).
-        let barracks = Rect::new(8, 200, 8 * 16, 3 * 16);
-        widget::panel(canvas, ink, barracks);
-        let cap = industry::garrison_cap(t, castle_type);
-        text::draw(canvas, 0x0C, 0xD2, "BARRACKS FOR", ink.text);
-        text::draw(canvas, 0x0C, 0xE2, &format!("{cap} TROOPS."), ink.text);
-
-        // The tax plaque, `Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)` — 416 x 48.
-        let tax = Rect::new(0x70, 0x1AC, 0x1A * 16, 3 * 16);
-        widget::panel(canvas, ink, tax);
-        let bonus = t.castle.tax_bonus_pct[level.min(5)];
-        text::draw(canvas, 0x90, 0x1B4, &format!("BOOSTS TAX REVENUES BY {bonus}%"), ink.text);
-        text::draw(canvas, 0xE0, 0x1C8, "START CONSTRUCTION?", ink.text);
-
-        // The five strips. The original blits the castle pictures here; ours
-        // draws the frames at the widget table's own rectangles and names them,
-        // and marks the one selected and the one already standing.
         let standing = ctx.game.kingdom.counties[self.county as usize].castle_type;
-        for strip in 0..5usize {
-            let r = type_rect(strip);
-            let chosen = strip == level;
-            widget::panel(canvas, ink, r);
-            if chosen {
-                widget::frame(canvas, r, ink.highlight);
-            }
-            let colour = if chosen { ink.highlight } else { ink.text };
-            text::draw(canvas, r.x + 4, r.y + 8, &format!("{}", strip + 1), colour);
-            if standing as usize == strip + 1 {
-                text::draw(canvas, r.x + 4, r.y + 24, "HERE", ink.text);
-            } else if (strip + 1) < standing as usize {
-                text::draw(canvas, r.x + 4, r.y + 24, "LESS", ink.dim);
+
+        // `FUN_00408FCB("cas_back.pl8", 0x1E0)`. **The five castle pictures and
+        // the "Select a castle to build" heading are in this image** — the
+        // painter draws neither, so with no install there is nothing to draw
+        // and the strips below say so instead.
+        let have_backdrop = shell::background(canvas, a, BACKDROP);
+        if !have_backdrop {
+            canvas.clear(ink.background);
+        }
+
+        // `Ui_OkButton(stride - 0x1C, height - 0x1C, 1)`, mode 1 = frame 0x10.
+        pen.ok_button(canvas, CORNER_OK.x, CORNER_OK.y, 1);
+
+        // `if (DAT_004D2DD0[sel] != 0) Blit_Raster(caspics[n - 1], 0x9E, 0x14, …)`
+        // — and for the motte and bailey it is zero, so nothing is blitted.
+        if let Some(frame) = PICTURE_FRAME[level].checked_sub(1) {
+            if let Some(f) = a.sheet(PICS).and_then(|s| s.frame(frame)) {
+                canvas.blit_opaque(&f, PICTURE.x, PICTURE.y);
             }
         }
 
-        widget::button(canvas, ink, OK, "OK", true);
-        widget::button(canvas, ink, CANCEL, "X", true);
+        // The two `cas_bits.pl8` plates: the name plate at (19, 63) and the
+        // mark over the chosen strip.
+        let bits = |canvas: &mut Canvas, frame: usize, x: i32, y: i32| {
+            if let Some(f) = a.sheet(BITS).and_then(|s| s.frame(frame)) {
+                canvas.blit(&f, x, y);
+            }
+        };
+        let (frame, x, y) = NAME_PLATE[level];
+        bits(canvas, frame, x, y);
+        let (frame, x, y) = SELECTED_MARK[level];
+        bits(canvas, frame, x, y);
+
+        // `FUN_0040328E(71, sel + 1, 0x1F6, 0x18, 0xA0, 100, 0, 0, heading, 0x3F)`
+        // — the castle's own name, wrapped at 160 pixels in the 22-pixel font,
+        // which steps 0x18 a line and not 0x10.
+        let name = a.text(GROUP, NAME_BASE + level).to_string();
+        let mut line = NAME_AT.1;
+        for part in heading_wrap(a, &name, NAME_WIDTH) {
+            pen.heading(canvas, NAME_AT.0, line, &part, font::TEXT);
+            line += NAME_LINE;
+        }
+
+        // The two materials: an artwork caption, then the number after it.
+        // **`71/6` and `71/7` are not drawn here** — see the module docs.
+        let t = &ctx.game.kingdom.tables;
+        let (wood, stone) = self.materials(ctx);
+        bits(canvas, STONE_CAPTION, CAPTION_X, STONE_CAPTION_Y);
+        pen.number(canvas, MATERIAL_NUM_X, STONE_NUM_Y, stone, true, font::TEXT);
+        bits(canvas, WOOD_CAPTION, CAPTION_X, WOOD_CAPTION_Y);
+        pen.number(canvas, MATERIAL_NUM_X, WOOD_NUM_Y, wood, true, font::TEXT);
+
+        // `if (castleType != 0) Pl8_DrawFrame(cas_bits, 0x0C, x[type] - 10, 0x110)`
+        if standing != 0 {
+            let x = STANDING_MARK_X[(standing as usize).min(5)] + STANDING_MARK_DX;
+            bits(canvas, STANDING_MARK, x, STANDING_MARK_Y);
+        }
+
+        // "will take" / N Builders / 1 Season / "to build.", four lines.
+        let work = industry::castle_workforce(t, castle_type);
+        pen.eng(canvas, GROUP, WILL_TAKE, WILL_TAKE_AT.0, WILL_TAKE_AT.1, font::TEXT);
+        pen.count(canvas, WORKFORCE_AT.0, WORKFORCE_AT.1, work, BUILDER_NOUN, true, font::TEXT);
+        pen.count(canvas, SEASON_AT.0, SEASON_AT.1, 1, SEASON_NOUN, true, font::TEXT);
+        pen.eng(canvas, GROUP, TO_BUILD, TO_BUILD_AT.0, TO_BUILD_AT.1, font::TEXT);
+
+        // `Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)` — border **set 0**, unlike the
+        // court's and the trade panel's `FUN_004093E0`, which is set 1.
+        pen.window(canvas, TAX_PLAQUE.0, TAX_PLAQUE.1, TAX_PLAQUE.2, TAX_PLAQUE.3, 0);
+        let bonus = t.castle.tax_bonus_pct[level.min(t.castle.tax_bonus_pct.len() - 1)];
+        let x = pen.eng(canvas, GROUP, BOOSTS_TAX, BOOSTS_TAX_AT.0, BOOSTS_TAX_AT.1, font::TEXT);
+        // `Ui_DrawNumber(bonus, ' ', " %", …)` — a leading space, not the blank
+        // glyph, and the per-cent sign is the suffix rather than the string's.
+        pen.body(canvas, x, BOOSTS_TAX_AT.1, &format!(" {bonus} %"), font::TEXT);
+        pen.eng(canvas, GROUP, START_CONSTRUCTION, START_AT.0, START_AT.1, font::TEXT);
+
+        // `Ui_DrawBox(8, 200, 8, 3)`, then "Barracks for" / N "troops." — and
+        // the number is on the **next line**, not after the label.
+        pen.window(
+            canvas,
+            BARRACKS_PLAQUE.0,
+            BARRACKS_PLAQUE.1,
+            BARRACKS_PLAQUE.2,
+            BARRACKS_PLAQUE.3,
+            0,
+        );
+        let cap = industry::garrison_cap(t, castle_type);
+        pen.eng(canvas, GROUP, BARRACKS_FOR, BARRACKS_AT.0, BARRACKS_AT.1, font::TEXT);
+        let x = pen.number(canvas, GARRISON_AT.0, GARRISON_AT.1, cap, true, font::TEXT);
+        // `Eng_DrawString(71, 0xC, g_penAdvance + 0xE, 0xE2, …)` — **`0xE`, two
+        // pixels right of the number's own column**, the same nudge the court's
+        // player name has.
+        pen.eng(canvas, GROUP, TROOPS, x + 2, GARRISON_AT.1, font::TEXT);
+
+        // `Widget_Draw(0, 0, &g_castleBuildWidgets, 2)` — the thumb up and the
+        // thumb down, drawn from `Screen_DrawWidgets` rather than the painter.
+        pen.system_frame(canvas, THUMB_UP, OK.x, OK.y);
+        pen.system_frame(canvas, THUMB_DOWN, CANCEL.x, CANCEL.y);
+
+        // ---- ours, and only when there is no artwork to point at -----------
+        //
+        // The five strips are `cas_back.pl8`'s pixels and `Hotspot_Test`'s
+        // rectangles; nothing paints them. With no install there is nothing at
+        // all in the row, so this names the five so the screen can be used —
+        // and it is **our** font, deliberately, so a screenshot says which.
+        if !have_backdrop {
+            for strip in 0..5usize {
+                let r = type_rect(strip);
+                let colour = if strip == level { ink.highlight } else { ink.dim };
+                text::draw(canvas, r.x + 4, r.y + 8, &format!("{}", strip + 1), colour);
+            }
+            text::draw(canvas, 4, 470, "CAS_BACK.PL8 IS NOT INSTALLED - STRIPS ARE OURS", ink.dim);
+        }
     }
+}
+
+/// `FUN_0040328E`'s wrap, measured in the **heading** font.
+///
+/// [`Pen::wrap`] measures with the body font, and this one call site passes
+/// `&g_fontHeading`; wrapping 22-pixel text against 14-pixel widths would put
+/// too much on a line. Kept local because this is the only heading-font wrap in
+/// the crate.
+fn heading_wrap(a: &crate::shell::ShellAssets, s: &str, width: i32) -> Vec<String> {
+    let measure = |t: &str| -> i32 {
+        match &a.heading {
+            Some(f) => f.width(t),
+            None => l2_view::text::width(t),
+        }
+    };
+    let mut out: Vec<String> = Vec::new();
+    let mut line = String::new();
+    for word in s.split_whitespace() {
+        let next = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
+        if !line.is_empty() && measure(&next) > width {
+            out.push(std::mem::take(&mut line));
+            line = word.to_string();
+        } else {
+            line = next;
+        }
+    }
+    if !line.is_empty() {
+        out.push(line);
+    }
+    out
 }
 
 #[cfg(test)]
@@ -333,6 +635,53 @@ mod tests {
         }
         assert_eq!(type_rect(0).x, 17);
         assert_eq!(type_rect(4).x + type_rect(4).w, 619);
+    }
+
+    /// **Three tables read at three base addresses agree with each other, five
+    /// times each.**
+    ///
+    /// `g_castleTypeWidgets` (`0x004DC818`) holds the five hit rectangles;
+    /// `DAT_004D2E28` holds the `cas_bits.pl8` selection mark for each
+    /// selection; `DAT_004D2E64` holds the *"you already have this one"* mark
+    /// for each standing castle type. Nothing in the binary relates them —
+    /// they are read by two different functions in two different passes — and
+    /// every one of the ten marks lands inside the strip it belongs to. A
+    /// mis-aligned read of any of the three would put a mark in the wrong
+    /// strip or off the row.
+    ///
+    /// The literals here are pinned from the decompilation rather than
+    /// computed from the constants, so ablating a constant reddens the test.
+    #[test]
+    fn the_two_mark_tables_land_inside_the_five_strips() {
+        let strips: [(i32, i32); 5] = [(17, 95), (96, 209), (210, 290), (291, 414), (415, 618)];
+        for (i, &(x0, x1)) in strips.iter().enumerate() {
+            // …and the pinned copy is the table's, so ablating TYPE_BOUNDS
+            // reddens this too rather than only the two mark tables.
+            assert_eq!((TYPE_BOUNDS[i].0, TYPE_BOUNDS[i].2), (x0, x1), "strip {i}");
+            let (_, mx, my) = SELECTED_MARK[i];
+            assert!((x0..=x1).contains(&mx), "selection mark {i} at x {mx} is not in {x0}..{x1}");
+            assert!((270..=415).contains(&my), "selection mark {i} at y {my} is off the row");
+            // The standing mark is indexed by castle **type**, so strip i is
+            // type i + 1, and the painter subtracts ten before drawing.
+            let sx = STANDING_MARK_X[i + 1] + STANDING_MARK_DX;
+            assert!((x0..=x1).contains(&sx), "standing mark {i} at x {sx} is not in {x0}..{x1}");
+        }
+        assert_eq!(STANDING_MARK_X[0], 0, "slot 0 is never read: castleType 0 skips the draw");
+    }
+
+    /// **`caspics.pl8` has four big pictures for five castles**, and the file
+    /// says so independently of the table: 256,072 bytes is 72 of header plus
+    /// `4 * 320 * 200`, and [`PICTURE`] is 320 × 200.
+    #[test]
+    fn the_motte_and_bailey_alone_has_no_big_picture() {
+        assert_eq!(PICTURE_FRAME, [1, 0, 2, 3, 4]);
+        assert_eq!(PICTURE_FRAME.iter().filter(|&&f| f == 0).count(), 1);
+        assert_eq!(PICTURE_FRAME[1], 0, "selection 1 is the motte and bailey");
+        let mut used: Vec<usize> =
+            PICTURE_FRAME.iter().filter(|&&f| f != 0).map(|&f| f - 1).collect();
+        used.sort_unstable();
+        assert_eq!(used, vec![0, 1, 2, 3], "four distinct frames, and no gap");
+        assert_eq!((PICTURE.w, PICTURE.h), (320, 200));
     }
 
     /// The OK and the cancel are clear of the strips and of each other.

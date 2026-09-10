@@ -133,6 +133,66 @@
 //! `0x2F` is not built. This screen therefore pops, which is where `0x2F`
 //! eventually returns to anyway, and the difference is recorded.
 //!
+//! # `0x2F`, the rank sheet — `Screen_BattleMasterRank` (`0x00421D09`)
+//!
+//! Read as part of the draw-call audit and **not built**, so that the next
+//! person to reach for it starts from the painter rather than the name.
+//! **Its six draw calls are all it has**, and the two `Screen_DrawWidgets`
+//! functions that looked like they might be hiding its content are not drawing
+//! functions at all:
+//!
+//! ```text
+//! Screen_BattleMasterRank():                                    0x00421D09
+//!   File_ReadChunk("score2.256", palette, 0x300, 0)
+//!   FUN_00408FCB("score2.pl8", 0x1E0)      a raw 640 x 480 page, like score1
+//!   Palette_Set(score2.256)
+//!   DAT_0058FE2C := 1; DAT_005AEA40 := 1   drop capitals on, emboss OFF
+//!   FUN_00403CF4(0x82, 10, 0x17C, 0x10E, 0x3F)   rectangle OUTLINE (130, 10)
+//!                                                          380 x 270
+//!   Ui_DrawCentred(37, 5, 0, 0x16, 0x280, heading)   "The skirmish masters!!"
+//!                                                  centred across all 640, y 22
+//!   DAT_0058FE2C := 0
+//!   for row in 0..10:
+//!     Ui_DrawText(DAT_0051FBC0 + row*0x20, 200, row*0x14 + 0x46, body)
+//!     Ui_DrawNumber(DAT_0051FD00 + row*4, ' ', " ", 400, row*0x14 + 0x46, body)
+//!   FUN_00403CF4(0x82, 300, 0x17C, 0xAA, 0x3F)   rectangle OUTLINE (130, 300)
+//!                                                          380 x 170
+//!   DAT_0058FE2C := 1
+//!   Ui_DrawCentred(38, DAT_0053E9E0, 0, 0x138, 0x280, heading)  the player's rank
+//!   DAT_0058FE2C := 0
+//!   for row in 0..5:
+//!     Ui_DrawText(g_playerNames[g_localPlayer], 200, row*0x14 + 0x168, body)
+//!     Ui_DrawNumber(DAT_0051FD28 + row*4, ' ', " ", 400, row*0x14 + 0x168, body)
+//!   DAT_005AEA40 := 0
+//! ```
+//!
+//! So it is **a top-ten table and the local player's own last five scores**,
+//! under `L2.eng` 37/5 *"The skirmish masters!!"* and a **group 38** heading —
+//! twelve strings, *"Rank of Private"* through *"Rank of Supreme commander"* —
+//! selected by `DAT_0053E9E0`. The ten names are a 32-byte-stride table at
+//! `0x0051FBC0` and the scores four-byte tables at `0x0051FD00` and
+//! `0x0051FD28`; `score.dat` is where they come from and nothing in this tree
+//! reads it.
+//!
+//! ## The two `Screen_DrawWidgets` calls draw nothing — **[V]**
+//!
+//! `Screen_DrawWidgets`' `0x2F` arm is `FUN_004360F2(); FUN_0043F24B();`, the
+//! *same two* as its `0x2E` arm, which made it look as though the rank sheet's
+//! real content lived in them. It does not. `FUN_004360F2` (41 bytes) clears
+//! `DAT_0057A0CC` and `DAT_005CD41C` and sets `g_redrawRequest = 2`;
+//! `FUN_0043F24B` (185 bytes) zeroes an 8 × 65 array at `0x005651E0` and two
+//! 65-entry arrays. **Neither contains a single draw call.** They are the
+//! skirmish's state teardown, re-run every frame for as long as either results
+//! screen is up — which is also why both screens repaint continuously.
+//!
+//! ## Two draw calls the extractor cannot see
+//!
+//! `FUN_00403CF4(x, y, w, h, colour)` is a **rectangle outline** — four
+//! `FUN_00403A8F` line draws — and it is not in the audit's list of 26 pixel
+//! primitives, so the mechanical count of this painter (6) is two short. The
+//! same blind spot costs `screens/siege.rs` eight, where the missing primitive
+//! is `FUN_0040437D`, the filled rectangle.
+//!
 //! # What is not here, and why
 //!
 //! **The skirmish itself.** This engine has a campaign battlefield and no
@@ -174,6 +234,13 @@ pub const SHIELD_X: i32 = 0x70;
 /// shields, measured from the file.
 pub const SHIELD_FRAME0: usize = 8;
 pub const NAME_AT: (i32, i32) = (0xD8, 10);
+/// `Ui_DrawNumber(score, ' ', " ", g_penAdvance + 0xEC, y - 5, &g_fontHeading)`
+/// against the name's own `g_penAdvance + 0xD8`, so the score starts **20
+/// pixels past** where *"Scored"* ended and five pixels higher.
+///
+/// It is the one figure on this screen in the **heading** font, which
+/// [`Pen::number`] cannot ask for; ours is body.
+pub const SCORE_DX: i32 = 0xEC - 0xD8;
 pub const SCORE_DY: i32 = 5;
 /// The label column, and the three row offsets from the block's top.
 pub const LABEL_X: i32 = 0x68;
@@ -407,11 +474,15 @@ impl Screen for RatingsScreen {
             // The lord names are not in this tree; `screens/battle.rs` has the
             // same hole and this is its stand-in rather than a second one.
             let name = format!("PLAYER {}", b + 1);
-            let w = pen.body(canvas, NAME_AT.0, top + NAME_AT.1, &name, font::TEXT);
-            let w = w + pen.eng(canvas, GROUP, SCORED, NAME_AT.0 + w, top + NAME_AT.1, font::TEXT);
+            // **[`Pen::body`] returns an absolute x, not a width** — see its
+            // own doc comment and `docs/decisions.md` C61. These three lines
+            // added it to `NAME_AT.0` a second time, which with the real fonts
+            // loaded put *"Scored"* and the score off the right of the block.
+            let x = pen.body(canvas, NAME_AT.0, top + NAME_AT.1, &name, font::TEXT);
+            let x = pen.eng(canvas, GROUP, SCORED, x, top + NAME_AT.1, font::TEXT);
             pen.number(
                 canvas,
-                NAME_AT.0 + w + 20,
+                x + SCORE_DX,
                 top + NAME_AT.1 - SCORE_DY,
                 points,
                 false,

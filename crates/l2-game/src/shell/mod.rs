@@ -435,6 +435,34 @@ pub const TRAILING: i32 = 4;
 /// types, 68 *"Grain"*, 70/71 *"Cow."*, 72/73 *"Total men"*.
 pub const COUNT_NOUN_GROUP: usize = 8;
 
+/// Which of `Ui_DrawCount`'s singular/plural pair a value takes.
+///
+/// **`|value| == 1`, not `value == 1`**, and this is a free function so that
+/// the rule can be asserted without a canvas, a font or an install. It is the
+/// exact ladder at `0x0041AB67`:
+///
+/// ```c
+/// if (value == 1)       Eng_DrawString(8, unitIndex,     ...);
+/// else if (value == -1) Eng_DrawString(8, unitIndex,     ...);
+/// else                  Eng_DrawString(8, unitIndex + 1, ...);
+/// ```
+///
+/// Three arms where two would do, because **minus one is singular**. We had
+/// only the first, so `-1` drew the plural — *"−1 Sacks."* where the original
+/// writes *"−1 Sack."* It is reachable: the trade screen's quantity is signed,
+/// and the map information panel draws
+/// `Ui_DrawCount(-g_counties[c].field_0x24C, 2, ...)` with the sign negated at
+/// the call site. Found by the draw-call audit reading the *primitive* rather
+/// than the screens that call it, which is the argument for auditing the leaves
+/// — `docs/draws.md` §7. **[V]**
+pub fn count_noun(value: i32, noun: usize) -> usize {
+    if value == 1 || value == -1 {
+        noun
+    } else {
+        noun + 1
+    }
+}
+
 impl<'a> Pen<'a> {
     /// The same pen with the emboss switched off — `DAT_005AEA40 = 1`, which
     /// is what the front end sets around every menu item and body line.
@@ -728,10 +756,22 @@ impl<'a> Pen<'a> {
         blank_lead: bool,
         colour: u8,
     ) -> i32 {
-        let w = self.number(canvas, x, y, value, blank_lead, colour);
-        let index = if value == 1 { noun } else { noun + 1 };
-        let s = self.assets.text(COUNT_NOUN_GROUP, index).to_string();
-        w + self.body(canvas, x + w, y, &s, colour)
+        // **`next`, not `x + next`.** Every pen method returns the *absolute*
+        // x the following glyph occupies — `body` is literally
+        // `x + f.draw(..) + TRAILING` — and this line added `x` to it a second
+        // time, so the noun landed `x` pixels right of the number instead of
+        // beside it. Measured: `number(x = 100, 5)` returns 116 and
+        // `count(x = 100, 5)` put its noun at **216**.
+        //
+        // It survived because the two live callers — the court's treasury line
+        // and three lines of the map information panel — draw a number and a
+        // noun and nothing after them, so there was nothing for the noun to
+        // collide with and nothing to compare it against. That is
+        // `docs/agents.md`'s *a test that drives the picture from the wrong
+        // field passes for ever*, in a place with no test at all.
+        let next = self.number(canvas, x, y, value, blank_lead, colour);
+        let s = self.assets.text(COUNT_NOUN_GROUP, count_noun(value, noun)).to_string();
+        self.body(canvas, next, y, &s, colour)
     }
 
     /// `Ui_DrawNumberRight(value, lead, suffix, x, y, width, font, colour)` —

@@ -30,6 +30,63 @@
 //! So `0x1C` is the screen between two campaign maps, and the front end proper
 //! is [`super::setup`] page 1. `docs/screens-county.md` is corrected.
 //!
+//! # The painter, address by address
+//!
+//! ```text
+//! Screen_DrawConquest():                                        0x0041E1DD
+//!   if (DAT_0055302C == 2) { FUN_004B11CE(); return; }        nothing at all
+//!   Music_Play(campaignMap < 8 ? "setup.wav" : "setup2.wav")
+//!   File_ReadChunk("gateway.256", 0x004EA8A0, 0x300, 0)          the palette
+//!   FUN_00408FCB("gateway.pl8", 0x1E0)             the whole 640 x 480 ground
+//!   File_ReadChunk("panels2.pl8", scratch, 160000, 0)
+//!   FUN_00409346(panels2, 0x70, 8, 0x1A, campaignMap < 8 ? 0x0E : 0x12)
+//!                                       (112, 8), 416 x 224 or 416 x 288
+//!   DAT_0058FE2C = 1                        drop capitals on for every line
+//!   won:                                              lost:
+//!     Ui_DrawCentred(36,  0, 0x70, 0x20, 0x1A0, hd)     (36,  4, … 0x20, hd)
+//!     Ui_DrawCentred(36,  1, 0x70, 0x40, 0x1A0, bd)     (36,  5, … 0x40, bd)
+//!     Ui_DrawCentred(101, g_campaignLastMap, … 0x58, hd)      the same line
+//!     Ui_DrawCentred(36,  2, 0x70, 0x80, 0x1A0, bd)     (36,  6, … 0x80, bd)
+//!     Ui_DrawCentred(36,  3, 0x70, 0x98, 0x1A0, bd)     (36,  7, … 0x98, bd)
+//!     Ui_DrawCentred(101, g_scenarioIndex, … 0xB0, hd)  (36,  8, … 0xB0, bd)
+//!   finished (g_campaignMap >= 8):
+//!     Ui_DrawCentred(36,  0, 0x70, 0x20, 0x1A0, hd)
+//!     Ui_DrawCentred(36,  1, 0x70, 0x40, 0x1A0, bd)
+//!     Ui_DrawCentred(101, g_campaignLastMap, 0x70, 0x58, 0x1A0, hd)
+//!     Ui_DrawCentred(36, 9..15, 0x70, 0x80 + 0x14n, 0x1A0, bd)   seven lines
+//!   Palette_Set(0x4EA8A0)
+//! ```
+//!
+//! **Twenty-two `Ui_DrawCentred` call sites and no other primitive**, split
+//! 6 / 6 / 10 across three branches that cannot both run, so the most this
+//! screen ever puts on the glass in one frame is ten lines and a window. All
+//! twenty-two are reproduced below, branch for branch.
+//!
+//! # Group 36 has nineteen strings and the painter draws sixteen
+//!
+//! Indices **16, 17 and 18** — *"You have mastered the first challenge."*,
+//! *"To continue your campaign however"*, *"you must buy Lords2 !!"* — are the
+//! **demo's** nag, and `grep` over the whole decompilation finds no consumer of
+//! group 36 outside this painter and no reference to those three indices at
+//! all. They are dead text in the retail build, the same shape as `L2.eng`
+//! 31/21 *"Morale"*. `[V]`
+//!
+//! # The background is one `read()`, not a draw call
+//!
+//! `FUN_00408FCB(name, lines)` (`0x00408FCB`) is
+//! `File_ReadChunk(name, g_backBufferBits, g_screenStride * lines, 0x18)` —
+//! it seeks 24 bytes into the `.pl8` and reads 640 × 480 bytes **straight into
+//! the back buffer**. There is no sprite decode, no blit and no clip: a
+//! full-screen `.pl8` is a raw image with a 24-byte header, and the eleven
+//! screens that call it (this one, the armoury, the two Battle Master pages,
+//! the castle chooser, the standings, the merchant, the trade goods, the Lords
+//! of Magic advertisement) each paint their whole ground with one `read`. `[V]`
+//!
+//! That is why `Screen_LordsOfMagicAd` (`0x0041E5D0`) makes **zero** draw
+//! calls and is still a full screen of artwork, and why a draw-call census over
+//! the twenty-six pixel primitives has to count backgrounds separately rather
+//! than treat a zero as a missing screen.
+//!
 //! # What the shell shows
 //!
 //! All three outcomes, because a shell with no campaign progress behind it has
@@ -43,10 +100,29 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 use crate::victory::ConquestBranch;
 
-/// `L2.eng` group 36.
+/// `L2.eng` group 36 — **nineteen strings, of which the painter draws sixteen**
+/// (0…15). Verified against the words: index 0 is *"Congratulations!!"*, 4
+/// *"You have lost."*, 9 *"The whole of Christendom (along with a"*.
 pub const GROUP: usize = 36;
-/// Group 101, the sixty map names.
+/// Group 101, the sixty map names. Verified against the words: index 0 is
+/// *"England"*, 6 *"Europe"*, and 24 onward are the placeholders *"map no
+/// 25"* … *"map no 60"*.
 pub const GROUP_MAPS: usize = 101;
+/// The highest index group 101 has, and the clamp every lookup here uses.
+pub const MAX_MAP: usize = 59;
+/// `File_ReadChunk("gateway.256", …)` then `FUN_00408FCB("gateway.pl8", 0x1E0)`
+/// — the palette and the whole 640 × 480 ground.
+pub const BACKGROUND: &str = "Gateway.pl8";
+/// The palette that goes with it.
+pub const PALETTE: &str = "Gateway.256";
+/// `File_ReadChunk("panels2.pl8", …)`, the sheet `FUN_00409346` takes the
+/// window's frame and interior out of.
+pub const WINDOW_SHEET: &str = "Panels2.pl8";
+/// The seven-line run of the campaign-end branch, and its 20-pixel pitch —
+/// `Ui_DrawCentred(36, 9 + n, 0x70, 0x80 + 0x14 * n, …)`.
+pub const FINISHED_FIRST: usize = 9;
+pub const FINISHED_LAST: usize = 15;
+pub const FINISHED_PITCH: i32 = 0x14;
 
 /// The window: `FUN_00409346(panels2, 0x70, 8, 0x1A, h)`, 26 cells wide from
 /// x = 112 — 416 pixels, centred on 640 with 112 either side — and 14 cells
@@ -138,7 +214,7 @@ impl Screen for ConquestScreen {
     }
 
     fn palette(&self) -> Option<&'static str> {
-        Some("Gateway.256")
+        Some(PALETTE)
     }
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
@@ -175,17 +251,19 @@ impl Screen for ConquestScreen {
             shadow: Some(font::SHADOW_GATEWAY),
             caps: Some(1),
         };
-        if !shell::background(canvas, a, "Gateway.pl8") {
+        // `FUN_00408FCB("gateway.pl8", 0x1E0)` — a 640 x 480 raw image read
+        // straight into the back buffer, not a sprite draw. See the header.
+        if !shell::background(canvas, a, BACKGROUND) {
             canvas.clear(ctx.assets.ink.background);
         }
         let rows = if self.outcome == Outcome::Finished { BOX_ROWS_LONG } else { BOX_ROWS_SHORT };
-        pen.window_from(canvas, "Panels2.pl8", BOX_X, BOX_Y, BOX_COLS, rows);
+        pen.window_from(canvas, WINDOW_SHEET, BOX_X, BOX_Y, BOX_COLS, rows);
 
         // The map just fought over. `DAT_00553E78` is the campaign's own
         // record of it, which this workspace does not keep; the map the
         // scenario loaded is the closest true thing to show, and it is the
         // same lookup — group 101 indexed by a map slot.
-        let map = ctx.game.map_slot.min(59);
+        let map = ctx.game.map_slot.min(MAX_MAP);
         let name = a.text(GROUP_MAPS, map).to_string();
 
         let head = |canvas: &mut Canvas, i: usize, y: i32| {
@@ -204,7 +282,7 @@ impl Screen for ConquestScreen {
                 body(canvas, 3, 0x98);
                 // The next map: `g_scenarioIndex`, which in the original has
                 // already been advanced by the time this is drawn.
-                let next = a.text(GROUP_MAPS, (map + 1).min(59)).to_string();
+                let next = a.text(GROUP_MAPS, (map + 1).min(MAX_MAP)).to_string();
                 pen.heading_centred(canvas, BOX_X, 0xB0, TEXT_W, &next, font::TEXT);
             }
             Outcome::Lost => {
@@ -220,8 +298,8 @@ impl Screen for ConquestScreen {
                 body(canvas, 1, 0x40);
                 pen.heading_centred(canvas, BOX_X, 0x58, TEXT_W, &name, font::TEXT);
                 // Seven lines, twenty apart, exactly as the painter lists them.
-                for (n, i) in (9..=15usize).enumerate() {
-                    body(canvas, i, 0x80 + n as i32 * 0x14);
+                for (n, i) in (FINISHED_FIRST..=FINISHED_LAST).enumerate() {
+                    body(canvas, i, 0x80 + n as i32 * FINISHED_PITCH);
                 }
             }
         }

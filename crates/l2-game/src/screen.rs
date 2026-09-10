@@ -386,9 +386,14 @@ impl ScreenId {
             }
             ScreenId::About => Box::new(crate::screens::about::AboutScreen::new()),
             ScreenId::Court => Box::new(crate::screens::court::CourtScreen::new()),
-            ScreenId::Diplomacy => {
-                Box::new(crate::screens::diplomacy::DiplomacyScreen::new())
-            }
+            // **`ScreenId::Diplomacy` was matched twice**, here and further up,
+            // both arms constructing the same screen. It is the pilot's second
+            // finding recurring — *a screen was in the index twice*
+            // (`docs/draws.md` §2) — and the only thing that noticed was
+            // rustc's `unreachable_patterns` warning, which had been printing
+            // on every build. The earlier arm is the one that runs; this one is
+            // removed. `screens/index.rs` listed the same screen twice as well,
+            // once as *"THE OTHER LORDS"* and once as *"DIPLOMACY"*.
             ScreenId::Supplies(to) => {
                 Box::new(crate::screens::supplies::SuppliesScreen::new(to))
             }

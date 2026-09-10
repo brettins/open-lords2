@@ -35,6 +35,196 @@
 //! **[V]** for every row that names an `L2.eng` group; the string reads as what
 //! the page is.
 //!
+//! # Which pages a single player can actually reach
+//!
+//! **[V]**, from every write of `g_setupPage` in the corpus, and it changes how
+//! two rows above should be read:
+//!
+//! * **Page 6 is multiplayer-only.** The two writers are the `g_multiplayer !=
+//!   0` arm of page 4's *Continue* handler and the net message handler
+//!   `FUN_00445F80`. A single player leaving page 4 goes straight to page 7
+//!   (custom) or page 12 (skirmish). So *"full game or skirmish"* is a question
+//!   put to a **host**, and its `g_netIsMaster == 0` arm — a smaller window and
+//!   the wrapped 39.3 *"Please wait while the session creator decides what type
+//!   of game to play."*, with no buttons at all — is what a **joiner** sees.
+//!   `g_netIsMaster` (`0x00553248`) is in `.bss`, so it is 0 until DirectPlay
+//!   writes it. Nothing in single player ever does.
+//! * **Page 8 is multiplayer-only** for the same reason, and pages 11 and 13
+//!   are only reached with `DAT_0055302C == 3` (the skirmish choice).
+//! * **Page 0 is not a page.** `FUN_0041E7E1`'s ladder has thirteen arms and
+//!   none of them is 0, and so does `Screen_DrawWidgets`'s. `g_setupPage` 0 is
+//!   the `.bss` initial value and every writer sets 1..=13.
+//! * **Pages 9 and 10 have a `Screen_Draw` arm and no `Screen_DrawWidgets`
+//!   arm, and both are reachable.** That combination is what made screen `0x28`
+//!   suspicious, and here it is benign: an open drop-down and the no-CD notice
+//!   are both static, so there is nothing for the per-frame pass to repaint.
+//!   Page 9 is written by `FUN_00432xxx`'s drop-down opener (`DAT_00553E5C =
+//!   g_setupPage; g_setupPage = 9`) and page 10 by two arms of the page-1
+//!   handler.
+//!
+//! # The painter, address by address
+//!
+//! Two ladders, and **both run**: `FUN_0041E7E1` from `Screen_Draw` on a
+//! repaint, and `Screen_DrawWidgets`'s own `0x1F` arm every frame. Coordinates
+//! resolved to decimal in the trailing comment.
+//!
+//! ```text
+//! FUN_0041E61D()                                            0x0041E61D
+//!   gateway.256 + gateway.pl8 + panels2.pl8   pages 1..6 and 10
+//!   custom.256 + custom.pl8                   pages 7..9
+//!   skirmish.256 + skirmish.pl8 / skircust.pl8  pages 11..13 on DAT_0056899C
+//!
+//! page 1  FUN_0041EA14()                                    0x0041EA14
+//!   FUN_00409346(panels2, 0xA0, 10, 0x14, 0x0F)  window (160,10) 320x240
+//!   Ui_DrawCentred(11, 0, 0x80, 0x1E, 0x180, heading)  "Lords of the Realm 2"
+//!   Ui_DrawCentred(11, 1, 0x80, 0x3A, 0x180, body)     "The siege is on"
+//!   FUN_0041EAA3()  — and again every frame from Screen_DrawWidgets:
+//!     4 x  FUN_00403EE4(0xE0, 0x5B + 0x24 n, 0xC0, 0x18)  recess (224, 91+36n)
+//!     4 x  Ui_DrawCentred(11, [2,3,47,4], 0xE0, +5, 0xC0, body, sel?0xF9:0x3F)
+//!
+//! page 2  FUN_0041EC8A()                                    0x0041EC8A
+//!   FUN_00409346(panels2, 0xB0, 10, 0x12, 0x12)  window (176,10) 288x288
+//!   Ui_DrawCentred(11, 5, 0xB0, 0x2D, 0x120, heading)  "Your options"
+//!   FUN_0041ECE6()  — five of the same rows, indices 6, 7, 19, 8, 9
+//!
+//! page 3  FUN_0041EF42() -> FUN_004148E4(5)                 0x004148E4
+//!   FUN_00409346(panels2, 0x60, 10, 0x1C, 0x15)  window (96,10) 448x336
+//!   Ui_DrawCentred(40, 5, 0x60, 0x22, 0x1C0, heading)  "Loading a game."
+//!   FUN_00403EE4(0x70, 0x42, 400, 0x100)         recess (112, 66) 400x256
+//!   FUN_00403CF4(0x78, 0x4A, 0xC0, 0x20, 0x3F)   outline (120, 74) 192x32
+//!   FUN_00403CF4(0x78, 0x72, 0x160, 0xA4, 0x3F)  outline (120,114) 352x164
+//!   FUN_00403CF4(0x78, 0x11E, 0x180, 0x1C, 0x3F) outline (120,286) 384x28
+//!   SaveLoad_DrawStatus()   — and again every frame; see below
+//!
+//! page 4  FUN_0041EF57()                                    0x0041EF57
+//!   FUN_00409346(panels2, 0x50, 10, 0x1E, 0x10)  window (80,10) 480x256
+//!                                  ... 0x0E rows for a net client
+//!   Ui_DrawCentred(11, 10, 0x50, 0x23, 0x1E0, heading)
+//!   FUN_0041F321()   the name plate:  panels2 frame 0xCC at (208, 72)
+//!                    Ui_DrawText(g_options, 0xD6, 0x50)     (214, 80)
+//!                    FUN_0040ACCE(caret) at (0xD6 + pen, 0x52)
+//!   FUN_0041F1DD()   for i in 1..6, x = 0x70 + 0x58(i-1):
+//!                      free:   panels2 frame 2i + 0xCB at (x, 0x8C)
+//!                      chosen: panels2 frame 0xD7 at (x + 4, 0x70), then free
+//!                      taken:  panels2 frame 2i + 0xCC at (x, 0x8C)
+//!   FUN_0041F01F()   two 192x24 recesses at (112, 215) and (336, 215),
+//!                    captions 11.9 "Back" and 11.11 "Continue"
+//!
+//! page 5  FUN_0041F592()                                    0x0041F592
+//!   FUN_00409346(panels2, 0x40, 0x32, 0x20, 8)   window (64,50) 512x128
+//!   Ui_DrawCentred(39, 0, 0x40, 0x50, 0x200, heading)
+//!   FUN_0041F5E8()   FUN_00403EE4(0x6E, 0x74, 0xA4, 0x18)  (110,116) 164x24
+//!                    Ui_DrawCentred(39, 4, 0x70, 0x7A, 0xA0)
+//!                    the same again at x = 0x16E with index 5
+//!
+//! page 6  FUN_0041F3E9()                                    0x0041F3E9
+//!   master: FUN_00409346(panels2, 0x40, 0x32, 0x20, 8) + Ui_DrawCentred(39,0)
+//!           FUN_0041F4A1()  the same two recesses, indices 1 and 2
+//!   client: FUN_00409346(panels2, 0x80, 0x32, 0x18, 6)  (128,50) 384x96
+//!           FUN_0040328E(39, 3, 0xA0, 0x50, 0x140, 100, …)  wrapped, no buttons
+//!
+//! page 7  FUN_0041F6C7(999)                                 0x0041F6C7
+//!   Pl8_DrawFrame(misc_sel, 0x0F, 0xA0, 0)       the top banner  (160, 0)
+//!   3 x Ui_DrawCentred(11, [12,13,14], [0xA5,0xF3,0x141], 0xC6, 0x4C)
+//!   ScenarioList_Draw()      0x0041F98B, gated on DAT_0057C948 > 0
+//!     Pl8_DrawFrame(misc_sel, 0x10, 0x1F0, 9)    the list plate  (496, 9)
+//!     FUN_00410C71(0, 0x1F0, 9)                  minimap at      (494, 12)
+//!     5 x FUN_0040437D(0x1F0, 0x8D + 16n, 0x69, 0x10, sel?0x3F:0x20)
+//!     5 x Eng_DrawString(101, DAT_0050A460[scroll+n], 0x1F2, 0x8E + 16n)
+//!     3 x FUN_0040437D(0x25C, 0xA3 + …, 0x14, …)  the scroll bar (604,163)
+//!   FUN_0041FBCB()           0x0041FBCB — Realms_AssignLords(), then per lord
+//!     Pl8_DrawFrame(misc_sel, 2 * shieldIndex - 2, 10, 0x5E n + 6)
+//!     Pl8_DrawFrame(misc_sel, lord + 9 (14 if human), 0x54, 0x5E n + 10)
+//!     FUN_004025D7(g_playerNames[r], 0, 0x5E n + 0x50, 0xA0, body, realm+0x8)
+//!     FUN_004B13ED(8, 0x5E n + 6, 0x91, 0x5A)     the "not ready" veil
+//!   FUN_0041F86D(999)        0x0041F86D, gated on DAT_0055CE94 > 0
+//!     12 x FUN_0040328E(102, i, x, labelY, 100, 100, …)   the label, wrapped
+//!     12 x FUN_004093E0(x, boxY, 6, 3)                    the value box, 96x48
+//!     12 x Ui_DrawCentred(103, base[i] + value, x + 1, boxY + 0x10, 0x60, 0xF9)
+//!     ... the option numbered by the argument is skipped; 999 skips none
+//!   FUN_0041FF75(0)          the eight-line chat log at (168, 8), 303x133
+//!   FUN_00420147(0)          the chat input line at (168, 150), 303x22
+//!     ... both open `if (g_multiplayer != 0)`, so both draw nothing on page 7
+//!
+//! page 8  FUN_0041F77A(999)                                 0x0041F77A
+//!   page 7 without the banner; 11.12 always, 11.13/14/15 only for a host
+//!
+//! page 9  FUN_0041FDD6()                                    0x0041FDD6
+//!   the page underneath first (DAT_00553E5C: 7, 8, 11 or 12), then
+//!   FUN_004093E0(x, y, 6, rows + 2)   from 0x004D3158, rows = DAT_00553FB4
+//!   rows x Ui_DrawCentred(103, base + n, x + 1, y + 0x10 + 16n, 0x60)
+//!   ... option 2 only: y -= (rows - 1) * 0x10, so Nobles opens upward
+//!
+//! page 10 FUN_00420428()                                    0x00420428
+//!   FUN_00409346(panels2, 0x50, 10, 0x1E, 0x13)  window (80,10) 480x304
+//!   Ui_DrawCentred(11, 16, 0x50, 0x24, 0x1E0, heading)
+//!   FUN_0040328E(11, 17, 0x80, 0x48, 0x180, …)   wrapped (128, 72)
+//!   FUN_0040328E(11, 18, 0x80, 0x78, 0x180, …)   wrapped (128, 120)
+//!   Eng_DrawString(11, 48, 0x80, 0xDC, body, **1**)  "Siege Pack" (128, 220)
+//!   FUN_0040328E(11, 49, 0x80, 0xF0, 0x180, …)   wrapped (128, 240)
+//!
+//! page 11 FUN_00420630()  page 12 FUN_0042051C()   0x00420630 / 0x0042051C
+//!   Ui_DrawCentred(11, 37, 0x1CD, 0x1B8, 0x38)   "Back"   (461, 440)
+//!   Ui_DrawCentred(11, 38 or **39**, 0x207, 0x1B8, 0x38)  "Cust." / "Norm."
+//!                                                 on DAT_0056899C  (519, 440)
+//!   Ui_DrawCentred(11, 36, 0x241, 0x1B8, 0x38)   "Go"     (577, 440)
+//!   page 11 also: Pl8_DrawFrame(misc_sel, 0, 0, 0)
+//!   both then: FUN_004207C3 (8), FUN_00420D40 (1, a 12-frame animation on a
+//!   100 ms timer at misc_sel 0x21 + n), and either FUN_00421231 + FUN_004209C1
+//!   (23) or FUN_0042130F + FUN_00420DE4 (19), on DAT_0056899C
+//!   Widget_Draw(0, 0, &DAT_004DE000, DAT_0056D5C0) only when DAT_0056899C == 1
+//!
+//! page 13 FUN_0042150B()                                    0x0042150B
+//!   the three captions again, this time 36 / 37 / 38 left to right
+//!   FUN_00421231(), FUN_004207C3()
+//!   Ui_DrawBox(0x60, 100, 0x1C, 0x12)   border set **0** — (96,100) 448x288
+//!   Ui_DrawCentred(40, 6, 0x60, 0x84, 0x1C0, heading)
+//!   FUN_00403CF4(0x78, 0xAC, 0x160, 0xA5, 0x3F)   outline (120,172) 352x165
+//!   Ui_DrawCentred(40, 8, 0x60, 0x164, 0x1C0, body)  "Right click to exit."
+//!   FUN_00414E06(999)   Ui_DrawBoxInterior(0x7E, 0xAE, 0x15, 0xB)
+//!                       FUN_00403CF4(0x78, 0xAC, 0x160, 0xA5, 0x3F) again
+//!                       up to 10 x Ui_DrawText(name, 0x80, 0xB0 + 16n)
+//!   Ui_OkButton(0x1F8, 0x164, 0)                            (504, 356)
+//!
+//! SaveLoad_DrawStatus()                                     0x004149EC
+//!   ... two arguments Ghidra did not detect: the selected row, and a flag
+//!   that is 1 on setup page 3 and 0 on screens 0x35 / 0x36. The flag picks
+//!   both the origin — (0x60, 10) here, (0x10, 0x90) there — and whether the
+//!   four plates come from panels2 (Sprite_GenBlank) or from the campaign
+//!   Panels.pl8 (Ui_DrawBoxInterior). It is the same evidence as the two
+//!   Widget_Draw offsets in Screen_DrawWidgets.
+//!   plate (124, 76) 160x16 ; plate (124, 86) ; plate (126, 116) 336x160
+//!   Ui_DrawText(g_editBuffer, 0x80, 0x52)  the file name being typed
+//!   FUN_0040ACCE(caret)
+//!   up to 30 x Ui_DrawText(name, 0x80 + 0x78 col, 0x76 + 16 row)  3 columns
+//!   FUN_004B414A(x - 2, y - 1, 0x3F)  the 6 x 16 selection bar
+//!   plate (128, 290) 336x16
+//!   Eng_DrawString(40, 2 / 3 / 4, 0x80, 0x124)  only while DAT_0057D3C4 != 0
+//!
+//! # What the scenario list draws when there are no scenarios
+//!
+//! **[V]**, and it is a real configuration: `FUN_0046A101` (`0x0046A101`)
+//! builds the list by asking, for each of the sixty map slots, whether
+//! `MAPnn.PL8` — `"map01.pl8" + (slot >> 2) * 0x10` — **opens**, in the working
+//! directory, then on the hard disk, then on the CD. Slots whose file is there
+//! are packed into `DAT_0050A460` and counted into `DAT_00554018`.
+//!
+//! So `ScenarioList_Draw` indexes group 101 *through* that table, and on a
+//! shipped install — eleven of the fifteen files, `Map01`…`Map06` and
+//! `MAP11`…`MAP15` — it holds slots 0…23 and 40…59, 44 of them. Row 24 shows
+//! group 101 index **40**, not 24. **This module still indexes group 101
+//! directly, so rows 24 and up name the wrong map on a real install.** The fix
+//! needs the packed table, which [`Ctx`]'s assets already have the evidence for
+//! (`Assets::minimap` returns `None` for a slot with no file), and it moves the
+//! meaning of every row — so it is recorded here rather than guessed at.
+//!
+//! With **no** `MAPnn.PL8` at all the table is sixty zeroes and the count is 0.
+//! The painter still draws its five rows: five bars, and `Eng_DrawString(101,
+//! 0, …)` five times — **five copies of *"England"***. The scroll bar divides
+//! by zero-safe `PctOf`, which returns 0, so all three segments come out zero
+//! and the thumb takes the whole 44-pixel track. Nothing says the list is
+//! empty; it looks like a list of five Englands.
+//!
 //! # The custom game's twelve options close exactly
 //!
 //! **[V]**, and this is the arithmetic. Three tables in `.data` describe the
@@ -222,6 +412,29 @@ fn item_rect(index: usize) -> Rect {
     Rect::new(ITEM_X, ITEM_Y + index as i32 * ITEM_STEP, ITEM_W, ITEM_H)
 }
 
+/// `FUN_00403CF4(x, y, w, h, colour)` — **a flat one-pixel rectangle in one
+/// colour**, four `FUN_00403A8F` line draws and nothing else.
+///
+/// It is not [`shell::inset_rect`] (two-tone, `0x10`/`0x1F`) and it is not
+/// [`shell::button_recess`] / `FUN_00403EE4` (two-tone the other way,
+/// `0x35`/`0x28`). Three different rectangles that all look like a border, and
+/// this module drew the wrong one of the three on pages 3 and 13 until the
+/// painters were read side by side.
+fn outline_rect(canvas: &mut Canvas, r: Rect, colour: u8) {
+    canvas.fill_rect(r.x, r.y, r.w, 1, colour);
+    canvas.fill_rect(r.x, r.y + r.h - 1, r.w, 1, colour);
+    canvas.fill_rect(r.x, r.y, 1, r.h, colour);
+    canvas.fill_rect(r.x + r.w - 1, r.y, 1, r.h, colour);
+}
+
+/// `FUN_004148E4`'s three `FUN_00403CF4` calls: the name field, the file list
+/// and the status line, inside the one `FUN_00403EE4` recess at (112, 66).
+pub const LOAD_OUTLINES: [Rect; 3] = [
+    Rect::new(0x78, 0x4A, 0xC0, 0x20),
+    Rect::new(0x78, 0x72, 0x160, 0xA4),
+    Rect::new(0x78, 0x11E, 0x180, 0x1C),
+];
+
 /// Page 1's four items, as `L2.eng` group 11 indices — *"Single player"*,
 /// *"Multiple players"*, *"Lords of Magic?"*, *"Exit game"*.
 pub const TITLE_ITEMS: [usize; 4] = [2, 3, 47, 4];
@@ -323,6 +536,28 @@ pub const MAP_LIST_ROWS: usize = 5;
 const MAP_LIST_W: i32 = 0x69;
 /// Group 101 has sixty entries, one per map slot.
 pub const MAP_COUNT: usize = 60;
+
+/// `ScenarioList_Draw`'s scroll bar: three stacked fills at x = 604, from
+/// y = 163, 20 wide, **44 pixels of track in total**.
+///
+/// The heights are `Pct(0x2C, PctOf(part, total))` for the three parts — above
+/// the window, the window itself, below it — and the *thumb* is given whatever
+/// the three roundings lost: `hb += 0x2C - ha - hb - hc`. A zero-height segment
+/// is skipped rather than drawn one pixel tall.
+pub const SCROLLBAR_X: i32 = 0x25C;
+pub const SCROLLBAR_Y: i32 = 0xA3;
+pub const SCROLLBAR_W: i32 = 0x14;
+pub const SCROLLBAR_H: i32 = 0x2C;
+
+/// `FUN_00410C71(0, 0x1F0, 9)` inside `ScenarioList_Draw` — the selected map's
+/// 128 x 128 minimap, blitted at `(x - 2, y + 3)` like every other caller of
+/// that helper.
+pub const MAP_THUMB: (i32, i32) = (MAP_LIST_X - 2, 9 + 3);
+
+/// `FUN_0042150B` → `FUN_00414E06`: the skirmish file list's outline, drawn
+/// twice, and the corner close button.
+pub const SKIRMISH_FILE_LIST: Rect = Rect::new(0x78, 0xAC, 0x160, 0xA5);
+pub const SKIRMISH_FILE_OK: (i32, i32) = (0x1F8, 0x164);
 
 // --------------------------------------------------------------- the screen
 
@@ -992,7 +1227,7 @@ impl Screen for SetupScreen {
             );
             l2_view::text::draw(canvas, 4, 4, &line, ctx.assets.ink.dim);
         }
-        self.paint(canvas, &pen, &head, base);
+        self.paint(ctx, canvas, &pen, &head, base);
         if self.page == SetupPage::Dropdown {
             self.paint_dropdown(canvas, &pen, ctx);
         }
@@ -1030,7 +1265,7 @@ impl SetupScreen {
         );
     }
 
-    fn paint(&self, canvas: &mut Canvas, pen: &Pen, head: &Pen, page: SetupPage) {
+    fn paint(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen, head: &Pen, page: SetupPage) {
         match page {
             SetupPage::Title => {
                 pen.window_from(canvas, BOX_SHEET, 0xA0, 10, 0x14, 0xF);
@@ -1053,18 +1288,35 @@ impl SetupScreen {
                 }
             }
             SetupPage::Load => {
-                // `FUN_004148E4(5)`: the box, the caption, one big recess and
-                // three inset rectangles — the name field, the file list and
-                // the description. The list itself is `FUN_004149EC`, which
-                // walks the save directory; a shell has no directory to walk,
-                // so the three rectangles are drawn empty and say so.
+                // `FUN_004148E4(5)`, transcribed. The box, the caption, one
+                // **recess** and three **outlines** — and the difference
+                // between the two was wrong here until the draw-call audit read
+                // the painter: `FUN_00403EE4` is the bevelled recess (top and
+                // right `0x35`, bottom and left `0x28`) and `FUN_00403CF4` is a
+                // flat one-pixel rectangle in a single colour. Only the outer
+                // frame is a recess; the name field, the file list and the
+                // status line are outlines in `0x3F`.
                 pen.window_from(canvas, BOX_SHEET, 0x60, 10, 0x1C, 0x15);
                 head.eng_heading_centred(canvas, GROUP_FILE, 5, 0x60, 0x22, 0x1C0, font::TEXT);
                 shell::button_recess(canvas, 0x70, 0x42, 400, 0x100);
-                for (x, y, w, h) in [(0x78, 0x4A, 0xC0, 0x20), (0x78, 0x72, 0x160, 0xA4), (0x78, 0x11E, 0x180, 0x1C)] {
-                    shell::button_recess(canvas, x, y, w, h);
+                for r in LOAD_OUTLINES {
+                    outline_rect(canvas, r, font::TEXT);
                 }
-                pen.eng_centred(canvas, GROUP_FILE, 8, 0x78, 0x124, 0x180, font::TEXT);
+                // **What used to be here was invented.** The line under the
+                // list read `L2.eng` 40/8 *"Right click to exit."*, which the
+                // original draws on **page 13** and never here.
+                // `SaveLoad_DrawStatus` puts 40/2 *"Loading game. Please
+                // wait."* at (128, 292) and only while `DAT_0057D3C4` — a
+                // frame countdown set to 150 or 400 when a load actually
+                // starts, and zeroed when the box opens — is running. An idle
+                // load box has an empty status line, so ours has one too.
+                //
+                // The rest of `SaveLoad_DrawStatus` is not drawn: the four
+                // `Panels2.pl8` plates, the file name being typed with its
+                // caret, and up to thirty save names in three columns from
+                // (128, 118). [`super::saveload`] is the same function on
+                // screens `0x35`/`0x36`; page 3 is that screen inside the front
+                // end's window, and joining them is a job on its own.
             }
             SetupPage::Shield => {
                 pen.window_from(canvas, BOX_SHEET, 0x50, 10, 0x1E, 0x10);
@@ -1115,7 +1367,7 @@ impl SetupScreen {
                 pen.body_wrapped(canvas, 0x80, 0xF0, 0x180, &t, font::TEXT);
             }
             SetupPage::Custom | SetupPage::CustomMulti | SetupPage::Dropdown => {
-                self.paint_custom(canvas, pen, page)
+                self.paint_custom(ctx, canvas, pen, page)
             }
             SetupPage::Skirmish | SetupPage::SkirmishMulti | SetupPage::SkirmishFile => {
                 self.paint_skirmish(canvas, pen, head, page)
@@ -1193,7 +1445,7 @@ impl SetupScreen {
     }
 
     /// Pages 7 and 8: the twelve options, the map list, the buttons.
-    fn paint_custom(&self, canvas: &mut Canvas, pen: &Pen, page: SetupPage) {
+    fn paint_custom(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen, page: SetupPage) {
         let a = pen.assets;
         if page == SetupPage::Custom {
             if let Some(s) = a.sheet(ICON_SHEET) {
@@ -1207,6 +1459,22 @@ impl SetupScreen {
             if let Some(f) = s.frame(0x10) {
                 canvas.blit(&f, MAP_LIST_X, 9);
             }
+        }
+        // **The thumbnail of the map the list is pointing at**, which nothing
+        // here drew. `ScenarioList_Draw`'s second statement is
+        // `FUN_00410C71(0, 0x1F0, 9)` — the same helper the send-supplies panel
+        // and the diplomacy county picker use, at the same `(x - 2, y + 3)`
+        // offset — so the plate is a frame round a live minimap and not a
+        // picture of one. County 0 is passed, so nothing is highlighted.
+        if let Some(m) = ctx.assets.minimap(self.map) {
+            let owner = |c: u8| ctx.game.kingdom.counties.get(c as usize).map_or(0, |c| c.owner);
+            l2_view::chrome::draw_minimap_at(
+                canvas,
+                &m,
+                MAP_THUMB,
+                0,
+                &l2_view::chrome::MinimapTint::Owner(&owner),
+            );
         }
         for row in 0..MAP_LIST_ROWS {
             let slot = self.map_top + row;
@@ -1231,6 +1499,7 @@ impl SetupScreen {
                 if chosen { font::DISABLED } else { font::TEXT },
             );
         }
+        self.paint_scrollbar(canvas);
         // The twelve options.
         let chrome = pen.chrome;
         for (i, &(x, boxy, labely)) in OPTION_CELLS.iter().enumerate() {
@@ -1259,14 +1528,61 @@ impl SetupScreen {
                 self.colour(12 + MAP_LIST_ROWS + i),
             );
         }
-        if page == SetupPage::CustomMulti {
-            // [I] Page 8 also draws the five player cards down the left edge
-            // (`FUN_0041FBCB`, `misc_sel` frames `2 * shield - 2` at x = 10,
-            // 94 apart) and the eight-line chat log at (0xA8, 8). Neither has
-            // any state in this workspace, so neither is drawn; the page is
-            // otherwise page 7 with a fourth button.
-        }
+        // **Both custom pages draw the five player cards, not only page 8.**
+        // This comment used to say page 8; `FUN_0041F6C7` — page 7's painter —
+        // calls `FUN_0041FBCB` with no guard, exactly as `FUN_0041F77A` does.
+        // The card is `misc_sel` frame `2 * shieldIndex - 2` at (10, 94n + 6),
+        // the lord's portrait frame `lord + 9` (14 for a human) at (84, 94n +
+        // 10), and the name centred in 160 pixels at y = 94n + 80 in the
+        // realm's own palette byte. `Realms_AssignLords` runs *inside* the
+        // painter, so the cards are the assignment as much as a picture of it.
+        //
+        // Not drawn: the front end has not assigned lords in this workspace and
+        // a card built from `Realm::default()` would be five copies of one
+        // face. The chat log (`FUN_0041FF75`) and the chat input line
+        // (`FUN_00420147`) are **multiplayer only** — both open with
+        // `if (g_multiplayer != 0)` — so on page 7 the original draws nothing
+        // for them either, and that is four call sites correctly absent rather
+        // than missing.
         self.paint_gaps(canvas, pen);
+    }
+
+    /// `ScenarioList_Draw`'s scroll bar, transcribed.
+    ///
+    /// Three stacked fills: the run above the window in `0x20`, the window in
+    /// `0x3F`, the run below in `0x20`. The thumb absorbs the rounding error of
+    /// all three percentages so the track is always exactly 44 pixels.
+    ///
+    /// **[V] with an empty list it is one full-length thumb**: `PctOf` returns
+    /// 0 when the total is 0, so all three heights come out 0 and the
+    /// correction hands the whole 44 to the middle segment.
+    fn paint_scrollbar(&self, canvas: &mut Canvas) {
+        // **The total is the one number here that is not the original's.**
+        // `ScenarioList_Draw` divides by `DAT_00554018`, which
+        // `FUN_0046A101` sets to *how many of the sixty slots have a
+        // `MAPnn.PL8` on disk* — 44 on a shipped install, because the game
+        // ships eleven of the fifteen files. We divide by all sixty. The
+        // module header says what it would take to have the real one.
+        let total = MAP_COUNT as i32;
+        let pct_of = |a: i32, b: i32| if b == 0 { 0 } else { a * 100 / b };
+        let pct = |x: i32, p: i32| p * x / 100;
+        let top = self.map_top as i32;
+        let rows = MAP_LIST_ROWS as i32;
+        let above = pct(SCROLLBAR_H, pct_of(top, total));
+        let below = pct(SCROLLBAR_H, pct_of(total - top - rows, total));
+        // `iVar2 + ((0x2C - iVar4) - iVar2 - iVar3)`, which is the window's own
+        // percentage plus whatever the three roundings lost — and simplifies to
+        // the track minus the other two, exactly.
+        let thumb = SCROLLBAR_H - above - below;
+        for (y, h, colour) in [
+            (SCROLLBAR_Y, above, font::DISABLED),
+            (SCROLLBAR_Y + above, thumb, font::TEXT),
+            (SCROLLBAR_Y + above + thumb, below, font::DISABLED),
+        ] {
+            if h != 0 {
+                canvas.fill_rect(SCROLLBAR_X, y, SCROLLBAR_W, h, colour);
+            }
+        }
     }
 
     /// **What this build cannot honour, said on the page.**
@@ -1330,11 +1646,27 @@ impl SetupScreen {
             pen.eng_centred(canvas, GROUP, items[i], *x, 0x1B8, 0x38, self.colour(i));
         }
         if page == SetupPage::SkirmishFile {
-            // `FUN_0042150B` opens `Ui_DrawBox(0x60, 100, 0x1C, 0x12)` over the
-            // skirmish page and draws group 40's file captions into it.
+            // `FUN_0042150B` opens `Ui_DrawBox(0x60, 100, 0x1C, 0x12)` — border
+            // set **0**, the only window on any of these pages that is not set
+            // 1 — over the skirmish page, and draws group 40's file captions
+            // into it. The rest is `FUN_00414E06(999)`: a parchment plate, the
+            // same outline again, and up to ten `.skr` names at (128, 176 + 16n)
+            // with the selected one on a `0x3F` bar. Nothing here reads a
+            // directory of skirmish files, so the rows are absent and the box
+            // they sit in is not.
             pen.window(canvas, 0x60, 100, 0x1C, 0x12, 0);
             head.eng_heading_centred(canvas, GROUP_FILE, 6, 0x60, 0x84, 0x1C0, font::TEXT);
+            outline_rect(canvas, SKIRMISH_FILE_LIST, font::TEXT);
             pen.eng_centred(canvas, GROUP_FILE, 8, 0x60, 0x164, 0x1C0, font::TEXT);
+            // `FUN_00414E06`'s own two, in its order: the parchment first and
+            // **the same outline again** over it. The plate is 336 x 176 and
+            // the outline 352 x 165, so the plate overhangs the bottom edge and
+            // the second draw puts it back — the original's overdraw, kept.
+            pen.box_interior(canvas, 0x7E, 0xAE, 0x15, 0xB);
+            outline_rect(canvas, SKIRMISH_FILE_LIST, font::TEXT);
+            // `Ui_OkButton(0x1F8, 0x164, 0)` — the last statement of the
+            // painter, and the only page of the thirteen that has one.
+            pen.ok_button(canvas, SKIRMISH_FILE_OK.0, SKIRMISH_FILE_OK.1, 0);
         }
     }
 }
@@ -1390,6 +1722,55 @@ mod tests {
         assert_eq!(item_rect(2).y, 0xA3);
         assert_eq!(item_rect(3).y, 0xC7);
         assert_eq!(item_rect(4).y, 0xEB);
+    }
+
+    /// **Three rectangles that all look like a border, and page 3 drew the
+    /// wrong one.** The load box's outer frame is `FUN_00403EE4`, a recess;
+    /// the three inside it are `FUN_00403CF4`, flat outlines. The sizes are the
+    /// painter's literal arguments.
+    #[test]
+    fn the_load_boxs_three_inner_rectangles_are_outlines_not_recesses() {
+        assert_eq!(LOAD_OUTLINES[0], Rect::new(0x78, 0x4A, 0xC0, 0x20), "the name field");
+        assert_eq!(LOAD_OUTLINES[1], Rect::new(0x78, 0x72, 0x160, 0xA4), "the file list");
+        assert_eq!(LOAD_OUTLINES[2], Rect::new(0x78, 0x11E, 0x180, 0x1C), "the status line");
+        // All three sit inside FUN_00403EE4(0x70, 0x42, 400, 0x100).
+        let recess = Rect::new(0x70, 0x42, 400, 0x100);
+        for r in LOAD_OUTLINES {
+            assert!(r.x >= recess.x && r.y >= recess.y, "{r:?} starts outside the recess");
+            assert!(r.x + r.w <= recess.x + recess.w, "{r:?} is wider than the recess");
+        }
+    }
+
+    /// `ScenarioList_Draw`'s scroll bar is 44 pixels of track whatever the
+    /// scroll position, because the thumb absorbs the rounding.
+    ///
+    /// **[V] and the empty case is the one that matters**: `PctOf` returns 0
+    /// when the total is 0, so a machine with no `MAPnn.PL8` gets a thumb the
+    /// full length of the track and five rows of *"England"*.
+    #[test]
+    fn the_scroll_bar_is_always_forty_four_pixels() {
+        let pct_of = |a: i32, b: i32| if b == 0 { 0 } else { a * 100 / b };
+        let pct = |x: i32, p: i32| p * x / 100;
+        for total in [0, 1, 5, 44, 60] {
+            for top in 0..=total.max(0) {
+                let above = pct(SCROLLBAR_H, pct_of(top, total));
+                let below =
+                    pct(SCROLLBAR_H, pct_of(total - top - MAP_LIST_ROWS as i32, total));
+                let thumb = SCROLLBAR_H - above - below;
+                assert_eq!(above + thumb + below, SCROLLBAR_H, "total {total} top {top}");
+                assert!(thumb > 0, "the thumb vanished at total {total} top {top}");
+            }
+        }
+        assert_eq!(SCROLLBAR_H, 0x2C);
+    }
+
+    /// The map thumbnail is drawn two pixels left and three down of the plate,
+    /// which is `FUN_00410C71`'s offset everywhere it is called — the
+    /// send-supplies panel and the diplomacy county picker use the same one.
+    #[test]
+    fn the_scenario_thumbnail_carries_the_same_offset_every_caller_of_that_helper_has() {
+        assert_eq!(MAP_THUMB, (MAP_LIST_X - 2, 12));
+        assert_eq!(MAP_LIST_X, 0x1F0);
     }
 
     #[test]

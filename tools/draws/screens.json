@@ -1,0 +1,2937 @@
+[
+  {
+    "screen": "0x25",
+    "name": "About",
+    "painter": "Screen_About",
+    "addr": "0x0041543F",
+    "roots": [
+      "Screen_About"
+    ],
+    "module": "about.rs",
+    "missing": [],
+    "invented": [],
+    "notes": "The pilot's first screen: the painter is 171 bytes and the screen was already complete. docs/draws.md §2.",
+    "original": 5,
+    "literals_ours": [],
+    "reachable": true
+  },
+  {
+    "screen": "0x09",
+    "name": "The court",
+    "painter": "Court_Draw",
+    "addr": "0x00416925",
+    "roots": [
+      "Court_Draw"
+    ],
+    "module": "court.rs",
+    "widgets": {
+      "table": "0x004DD928",
+      "records": 1,
+      "drawn": "DAT_00568468"
+    },
+    "missing": [],
+    "invented": [
+      "we fire the Greatest-nobles button immediately; Widget_Test kind 5 defers it 20 frames"
+    ],
+    "notes": "The realm's balance sheet, not a diplomacy screen. L2.eng 70/1 \"Arms\" is drawn by nothing.",
+    "original": 23,
+    "literals_ours": [],
+    "reachable": true
+  },
+  {
+    "screen": "0x0B",
+    "name": "Diplomacy",
+    "painter": "Diplo_DrawScreen",
+    "addr": "0x00416CF3",
+    "roots": [
+      "Diplo_DrawScreen",
+      "Diplo_DrawLordCard"
+    ],
+    "module": "diplomacy.rs",
+    "widgets": {
+      "table": "g_diploWidgets",
+      "records": 6,
+      "drawn": "g_diploWidgetCount, set to 0, 3, 4 or 6 by the painter's prologue"
+    },
+    "missing": [],
+    "invented": [],
+    "notes": "\"The other lords\". A 60-row thermometer and four menu layouts. docs/draws.md §2.",
+    "original": 38,
+    "literals_ours": [
+      "OK — an invention, and DiplomacyScreen's alone: Ui_OkButton draws System.pl8 frame 0x33, an arrow pointing into a hole, and no letters. ComposeScreen (0x1A) shares this module and now draws frames 29/31 instead."
+    ],
+    "reachable": true
+  },
+  {
+    "screen": "0x18",
+    "name": "Send supplies",
+    "painter": "Screen_SendSupplies",
+    "addr": "0x0041AD5D",
+    "roots": [
+      "Screen_SendSupplies",
+      "FUN_0041aea2"
+    ],
+    "module": "supplies.rs",
+    "widgets": {
+      "table": "g_sendSuppliesWidgets",
+      "records": 8,
+      "drawn": "6 — two records exist and are never drawn"
+    },
+    "missing": [],
+    "invented": [],
+    "notes": "The numbers are drawn outside the painter, in FUN_0041AEA2 from Screen_DrawWidgets. A complete cut sheep row.",
+    "original": 19,
+    "literals_ours": [],
+    "reachable": true
+  },
+  {
+    "screen": "0x2E",
+    "name": "Battle Master ratings",
+    "painter": "Screen_BattleMasterRatings",
+    "addr": "0x00421707",
+    "roots": [
+      "Screen_BattleMasterRatings"
+    ],
+    "module": "ratings.rs",
+    "missing": [],
+    "invented": [],
+    "notes": "7 x 3 twice, not 7 rows; the scoring rule is FUN_0042C64F and was undocumented anywhere.",
+    "original": 21,
+    "literals_ours": [
+      "NO SKIRMISH MODE: THESE ARE A BATTLE'S NUMBERS AND NOTHING FILLS THEM YET — ours, and honest: the Battle Master tables come from score.dat, which nothing in this tree reads. Not a caption standing in for an L2.eng string."
+    ],
+    "reachable": true
+  },
+  {
+    "screen": "0x04",
+    "name": "Map information",
+    "painter": "FUN_0041B032",
+    "addr": "0x0041B032",
+    "roots": [
+      "FUN_0041b032"
+    ],
+    "module": "info.rs",
+    "missing": [],
+    "invented": [],
+    "notes": "Two painters and eleven layouts: UnitPanel_Draw (0x0041B19D) for a unit, FUN_0041BEFE for a tile. Settled here: L2.eng 31/21 \"Morale\" is drawn by nothing — seven literal group-31 draws, none of them index 21, and the one variable index is pinned to {0,2,5} by a four-arm kind ladder — so docs/armies.md's [V] on unit +0x166 is demoted. UnitPanel_Draw also assigns local_14 five times (0x23..0x27) and reads it nowhere; what those five values index is unestablished and deliberately not guessed. docs/draws.md §12.",
+    "original": 174,
+    "literals_ours": [
+      "TILE HALF: THE GROUP 30 LADDER IS NOT ALL DRAWN YET — ours, and honest: a diagnostic saying which of the eleven layouts is unbuilt, not a caption standing in for an L2.eng string. Only found once the caption scanner learned to read a rustfmt-split call."
+    ],
+    "reachable": true
+  },
+  {
+    "screen": "0x14",
+    "name": "The population panel",
+    "painter": "Panel_Population",
+    "addr": "0x004110B1",
+    "module": "county.rs",
+    "reachable": true,
+    "also_drawn_by": [],
+    "original": 28,
+    "ours": 22,
+    "real": 20,
+    "placeholder": 3,
+    "widget_records": 0,
+    "missing": [
+      "Ui_HistoryGraph(0x20, 0x54, 0) — the whole 402x155 bar chart. We draw its own Ui_DrawInsetRect and a diagnostic inside it; g_countyHistory (400 turns x 16 counties x 8 bytes) is not in l2-kingdom and Graphs.pl8 is not one of l2-view's sheets",
+      "Ui_DrawYear(DAT_00553228, 0x20, 0xF0, 3) — the year at the head of the history window, which has no meaning without the history",
+      "Ui_DrawText(\"-\", pen + 0x20, 0xF0, body) — the axis separator between the two years",
+      "Ui_DrawYear(g_year, 0x58, 0xF0, 3) — the right-hand year; drawn alone it would say the graph is scaled when it is not",
+      "Ui_DrawNumber(peak, '@', \"\", pen + 0xB0, 0xF0, body) — Ui_HistoryGraph's return value, the greatest population on record",
+      "Eng_DrawString(73, 9, pen + 0xB0, 0xF0, body) — \"people.\", the second half of that sentence"
+    ],
+    "invented": [
+      "canvas.fill_rect over the graph rectangle, so the empty recess reads as empty rather than as whatever the map left there",
+      "text::draw_centred \"POPULATION HISTORY\" inside it",
+      "text::draw_centred \"NOT SIMULATED\" inside it"
+    ],
+    "literals_ours": [
+      "NOT SIMULATED — an honest diagnostic of ours, in our own 5 x 7 font: g_countyHistory has no counterpart in l2-kingdom, so the graph recess says so. Drawn on the population and happiness panels and again over the ration panel's Fed row."
+    ],
+    "excluded": "FUN_004050C0(), which is Map_DrawFrame() behind a 16 ms throttle — one whole campaign-map frame under the inset. Ours is Screen::is_overlay plus the map screen on the stack. Also excluded: draw_strip, which is CountyStrip_Draw and belongs to the map's sidebar, not to this painter.",
+    "eng": {
+      "groups": [
+        73,
+        100
+      ],
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11
+      ],
+      "not_drawn": [
+        9
+      ],
+      "verified_against_words": true
+    },
+    "sheets": [],
+    "constants_added": [
+      "g73::{GROUP, TITLE, LAST, BIRTHS, DEATHS, ARMY, EMIGRANTS, IMMIGRANTS, THIS, GREATEST, PEOPLE, NO_EMIGRATION, NO_IMMIGRATION} as Line { group, index, ours }",
+      "VALUE_LEFT (was VALUE_RIGHT)"
+    ],
+    "notes": "Group 73 has twelve strings and the painter draws all twelve. The panel now draws through Pen (Fntl2_22.pl8 for the four heading rows, Fntl2_14.pl8 for the six body rows) and reads every string from the install's own L2.eng, with our transcriptions as the fallback. Two things it did not draw at all before: the county's name after the title (Eng_DrawString(100, slot*20 + county, pen + 0x16, 0x38, heading)) and the emigration destination's name (group 100 again, at pen + 0x30). And the value column was right-anchored to x = 336; Ui_DrawNumber and Ui_DrawDelta are both plain Ui_DrawText at x, so 336 is where the digits start. **The scanner's blind spot, written down rather than left to it** (tests/draws.rs names this hole): four more strings of ours reach a drawing call in county.rs through something other than a bare literal argument, and none of them is visible to a scan for a quoted run between a call and its semicolon — the graph stub's format!(\"{what} HISTORY\") with what = POPULATION or HAPPINESS; the four one-character fallback captions '<', '>', '+' and '-' on the slider caps and the two arrows, which the scanner skips because they do not begin with a letter and which are drawn only where System.pl8 is missing; and the [GRAIN, DAIRY, RECLAIM] table in draw_strip's own no-artwork fallback, which reaches text::draw through a binding. All five are diagnostics or fallbacks of ours, none is on screen on a full install, and none is a caption standing in for an L2.eng string.",
+    "unexercised": "Emigration and immigration are both zero on every shipped fixture (C26: turn one, one county each), so the four-call emigration branch and the three-call immigration branch have never been drawn against real data. Nor has a non-zero g_historyLength, which is what would make the graph and its two years mean anything.",
+    "roots": [
+      "Panel_Population"
+    ]
+  },
+  {
+    "screen": "0x16",
+    "name": "The happiness panel",
+    "painter": "Panel_Happiness",
+    "addr": "0x004116FB",
+    "module": "county.rs",
+    "reachable": true,
+    "also_drawn_by": [],
+    "original": 29,
+    "ours": 25,
+    "real": 23,
+    "placeholder": 3,
+    "widget_records": 0,
+    "missing": [
+      "Ui_HistoryGraph(0x20, 0x54, 1) — the same picture in happiness mode, which is Graphs.pl8 frame 1 rather than frame 0",
+      "Ui_DrawYear(DAT_00553228, 0x20, 0xF0, 3)",
+      "Ui_DrawText(\"-\", pen + 0x20, 0xF0, body)",
+      "Ui_DrawYear(g_year, 0x58, 0xF0, 3)"
+    ],
+    "invented": [
+      "canvas.fill_rect over the graph rectangle",
+      "text::draw_centred \"HAPPINESS HISTORY\"",
+      "text::draw_centred \"NOT SIMULATED\""
+    ],
+    "literals_ours": [],
+    "excluded": "FUN_004050C0() = Map_DrawFrame(); draw_strip, which is the map's sidebar.",
+    "eng": {
+      "groups": [
+        85,
+        100
+      ],
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "not_drawn": [],
+      "verified_against_words": true
+    },
+    "sheets": [
+      {
+        "sheet": "Misc_cty.pl8",
+        "frames": [
+          23
+        ]
+      }
+    ],
+    "constants_added": [
+      "g85::{GROUP, TITLE, LAST, FROM_TAXES, FROM_RATION, FROM_HEALTH, FROM_ARMY, FROM_ALE, THIS, AVERAGE, FROM_EVENTS}",
+      "FRAME_FACE = 0x17, FACE_W = 0x14"
+    ],
+    "notes": "Group 85 has ten strings and the painter draws all ten. **Three happiness faces were missing entirely**: Misc_cty frame 0x17 (20 x 18) is drawn after each of the three plain numbers — average (pen + 0xB0, 0xEF), last season (pen + 0x150, 0x10F) and this season (pen + 0x150, 0x195) — as well as inside every Ui_DrawHappinessDelta. Also missing before: the county's name after the title. The value column had the same right-anchoring error as 0x14.",
+    "unexercised": "shownEvents is zero on every shipped fixture, so the From events row has never drawn a number. Ui_DrawDelta suppresses a zero, so the row is a label alone.",
+    "roots": [
+      "Panel_Happiness"
+    ]
+  },
+  {
+    "screen": "0x15",
+    "name": "The tax panel",
+    "painter": "Panel_Tax",
+    "addr": "0x0041152F",
+    "module": "county.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x15 arm: Widget_Draw(0, 0, &g_taxWidgets, 2)"
+    ],
+    "original": 11,
+    "ours": 11,
+    "real": 11,
+    "placeholder": 0,
+    "widget_records": 2,
+    "missing": [],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "FUN_004050C0() = Map_DrawFrame(); draw_strip; Widget_Draw itself, whose two records are counted separately.",
+    "eng": {
+      "groups": [
+        86,
+        8
+      ],
+      "indices": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "not_drawn": [
+        0
+      ],
+      "verified_against_words": true
+    },
+    "sheets": [
+      {
+        "sheet": "Misc_cty.pl8",
+        "frames": [
+          62,
+          23
+        ]
+      }
+    ],
+    "constants_added": [
+      "g86::{GROUP, TITLE_NEVER_DRAWN, RATE, PEOPLE_PAY, THIS_COUNTY, OTHER_COUNTIES}",
+      "CROWN_NOUN = 0 (L2.eng group 8)",
+      "FRAME_TAX_VIGNETTE = 0x3E"
+    ],
+    "notes": "**L2.eng 86/0 \"Tax in\" is drawn by nothing.** The painter's four Eng_DrawString sites pass 1, 2, 3 and 4, and a grep of the whole decompiled corpus for `(0x56,` finds exactly those four — the same shape as 31/21 \"Morale\" and the court's 70/1 \"Arms\". **We were drawing it**: a \"TAX IN\" heading of ours at (96, 152). It is gone and g86::TITLE_NEVER_DRAWN names it so the next reader does not go looking. Also newly drawn: Misc_cty frame 0x3E, the vignette at (320, 160), and the group-8 noun on the People pay line (we wrote \"CROWNS\" ourselves; the original is Ui_DrawCount, which takes \"Crown.\" at exactly 1 and \"Crowns.\" otherwise, zero included). g_taxWidgets (0x004DD790) really is two records — the table is a window into one shared widget pool, and 0x004DD7C0 (g_rationWidgets) is the same array plus 0x30, so records 2..5 belong to other screens. Widget_Draw draws frame + 1 while a record's press timer at +0x0D runs, so both arrows have a pressed picture (System.pl8 0x16 and 0x18) that nothing in this engine can show.",
+    "unexercised": "Every shipped fixture is at tax rate 0 in Winter 1268, so neither Ui_DrawHappinessDelta has ever been drawn with a non-zero value and the achieved-vs-wanted colour rule next door has never fired.",
+    "roots": [
+      "Panel_Tax"
+    ]
+  },
+  {
+    "screen": "0x19",
+    "name": "The ration panel",
+    "painter": "Panel_Ration",
+    "addr": "0x00411B72",
+    "module": "county.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x19 arm: Widget_Draw(0, 0, &g_rationWidgets, 2)",
+      "Screen_DrawWidgets 0x19 arm: Panel_RationSlider() (0x00411FDE), 4 further draw calls"
+    ],
+    "original": 33,
+    "ours": 27,
+    "real": 26,
+    "placeholder": 1,
+    "widget_records": 2,
+    "missing": [
+      "Ui_DrawNumberRight(county +0x170, ' ', \"\", 0xD0, 0x11E, 0x40, body) — the Fed row's grain column",
+      "Ui_DrawNumberRight(county +0x174, ' ', \"\", 0x10A, 0x11E, 0x40, body) — its cattle column",
+      "Ui_DrawNumberRight(county +0x16C, ' ', \"\", 0x144, 0x11E, 0x40, body) — its third column"
+    ],
+    "invented": [
+      "text::draw \"NOT SIMULATED\" over the Fed row, because the three fields it reads are not in l2-kingdom"
+    ],
+    "literals_ours": [],
+    "excluded": "FUN_004050C0() = Map_DrawFrame(); draw_strip; Widget_Draw itself. `original` here is Panel_Ration's 26 plus Panel_RationSlider's 4, because the slider is this screen's and is drawn every frame from Screen_DrawWidgets. Panel_RationSlider also makes three calls that are not among the 26 primitives — FUN_00403A8F twice (a line) and FUN_0040437D once (a filled rect) — and we draw all three.",
+    "eng": {
+      "groups": [
+        87,
+        21,
+        20
+      ],
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        8
+      ],
+      "not_drawn": [
+        6,
+        7,
+        9,
+        10,
+        11
+      ],
+      "verified_against_words": true
+    },
+    "sheets": [
+      {
+        "sheet": "Misc_cty.pl8",
+        "frames": [
+          33,
+          38,
+          42,
+          24,
+          23
+        ]
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          74,
+          75,
+          76
+        ]
+      }
+    ],
+    "constants_added": [
+      "g87::{GROUP, TITLE, WANTED, ACHIEVED, HEALTH, EATEN, FED, FORAGING, UNDRAWN}",
+      "GROUP_HEALTH_BANDS = 20, GROUP_RATION_LEVELS = 21",
+      "FRAME_GRAIN = 0x21, FRAME_CATTLE = 0x26, FRAME_THIRD_FOOD = 0x2A, FRAME_FED_MARK = 0x18",
+      "FOOD_COL_X = [0xD0, 0x10A, 0x144], FOOD_COL_W = 0x40",
+      "SLIDER_KNOB_Y = 216, SLIDER_CTRL_Y = 220, TRACK_TOP/TRACK_FILL/TRACK_BOTTOM"
+    ],
+    "notes": "**Ui_DrawNumberRight centres, and this panel is where the artwork proves it.** The three Fed columns are drawn width 0x40 from x 208, 266 and 324, so their centres are 240, 298 and 356; the three icons above them are Misc_cty 0x21 (36 wide) at 224, 0x26 (37) at 284 and 0x2A (23) at 344, whose centres are 242, 302 and 355. The numbers sit under their pictures. Right-aligned — which is what docs/symbols.json calls the function and docs/screens-county.md §5.4 repeats — every number would end left of every icon. We were right-aligning to 208 and 266. **Six Pl8_DrawFrames were missing entirely**: the grain sack and cattle flanking the slider at (144, 220) and (370, 220), the three column icons at y 256, and the 8 x 18 mark at (144, 282) left of \"Fed\". **The slider had one y where the original has two**: Panel_RationSlider draws the knob at 0xD8 = 216 and both caps at 0xDC = 220, and Ration_SliderClick (0x0043A379) hit-tests all three boxes at 0xDC — so a single constant of 216 put every control, drawn and clickable, four pixels high. Its Ui_DrawBoxInterior(0xDC, 0xD8, 8, 2) well was not drawn at all. **Armies Eat makes the box two cells taller** (Ui_DrawBox(0x80, 0x60, 0x12, rows + 0xF)) and moves Ui_OkButton 32 pixels down; we always drew the short one and now follow the option, and the foraging line (county +0x198 + +0x19C, then 87/8) is drawn. Group 87 indices 6, 7, 9, 10 and 11 — \"Feeds\", \"Feeds\", \"growing\", \"harvested\", \"planted\" — have **no literal call site anywhere in the corpus**; whether some caller reaches them through a computed group is not established.",
+    "unexercised": "Armies Eat is off in every shipped fixture, so the tall box, the moved corner picture and the foraging line have never been drawn. The achieved-differs-from-wanted red has never fired either: turn one always feeds what was asked.",
+    "roots": [
+      "Panel_Ration",
+      "Panel_RationSlider"
+    ]
+  },
+  {
+    "screen": "0x0F",
+    "name": "The job popup",
+    "painter": "Panel_JobDetail",
+    "addr": "0x00412B33",
+    "module": "job.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x0F arm: if (g_jobPanelJob == 8) FUN_00413526() — the forge fire, 1 draw call"
+    ],
+    "original": 114,
+    "ours": 5,
+    "real": 4,
+    "placeholder": 3,
+    "widget_records": 0,
+    "missing": [
+      "Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69) — the job's picture from iconvill.pl8, which l2-view does not load. Frames 0, 2, 3, 5, 6, 7, 8, 9 and 0x10 for jobs 1..9",
+      "Panel_JobGrain (0x00413590), 27 draw calls — the store, the fertility band, the weather and event effects, and either what will be sown or what is growing",
+      "Panel_JobCattle (0x00413B30), 29 — the herd, the crowding band, calf births and cow deaths expected",
+      "Panel_JobReclamation (0x004140F3), 6 — fields being reclaimed and seasons to the next",
+      "Castle_DrawStatusBlock via FUN_00414220, 13",
+      "Panel_JobIndustry (0x00412E6B), 12 — efficiency, output and consumption for jobs 5, 6 and 7",
+      "Panel_JobBlacksmith (0x00413155), 21 — a full-screen page over smithy.pl8 and hearth.pl8 with a 480 x 96 footer",
+      "FUN_00413526, 1 — the forge fire, hearth.pl8 frames 0..10 at (88, 157), advanced on g_pulse80"
+    ],
+    "invented": [
+      "text::draw \"THIS JOB'S OWN REPORT\" / \"NOT SIMULATED\" where the body painter's lines go",
+      "text::draw \"THE SMITHY IS A FULL PAGE\", on job 8 only"
+    ],
+    "literals_ours": [
+      "THIS JOB'S OWN REPORT — an honest diagnostic of ours labelling the 87 draw calls of body painter that are not built",
+      "NOT SIMULATED — an honest diagnostic of ours; the body painters read thirteen county fields docs/kingdom.md §1.3 does not have",
+      "THE SMITHY IS A FULL PAGE — an honest diagnostic of ours; job 8 is a different page in the original and we draw the small window for it"
+    ],
+    "excluded": "Panel_JobDetail does NOT call FUN_004050C0 — it is the one screen in this group that does not repaint the map beneath, so there is nothing excluded on that count. Widget_Draw has no 0x0F arm.",
+    "eng": {
+      "groups": [
+        74,
+        8
+      ],
+      "indices": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "not_drawn": [
+        0
+      ],
+      "verified_against_words": true
+    },
+    "sheets": [],
+    "constants_added": [
+      "JOB_GROUP = 74, COUNT_NOUN_GROUP = 8, WORKER_NOUN_0 = 32, WORKER_NOUN_STRIDE = 2",
+      "ICON_BOX (was ICON_RECESS), ICON_BOX_INK = 0x3F",
+      "BLACKSMITH = 7, BLACKSMITH_OK = (0x1C0, 0x1C0, 24, 24)",
+      "COUNT_RIGHT = 0x3F, COUNT_SHORT = 0xF9, COUNT_WASTED = 0xFC"
+    ],
+    "notes": "**This is nine panels sharing one painter and the number that says so is 5 against 113.** Per frame the original makes 5 (4 that run) plus whichever body painter the job selects: job 3 is 11 draws, job 2 is 34. The 113 is the union over all nine and is the wrong denominator for any one of them; `original` here is 113 + the Screen_DrawWidgets fire. **Job 8 is the blacksmith** (L2.eng 74/8) and it takes the other branch of every `if`: no Ui_DrawBox at (48, 96), no icon box, no group-74 title, no worker count — instead Screen_DrawMenuBar(), fire.wav, and a full-screen page. **The forge fire is self-verifying**: FUN_00413526 cycles frames 0..10 of whatever is in the scratch buffer, which at that moment is hearth.pl8, and Hearth.pl8 has exactly 17 frames — eleven 69 x 52 fire frames at 0..10 and six hearth pictures at 11..16, which is exactly the `weapon + 0xB` Panel_JobBlacksmith draws. The sheet's own frame table checks both halves. **The two Ui_OkButton call sites are the two arms of one if**, not two buttons, so the \"only the last call is clickable\" quirk in Ui_OkButton's symbol comment does not bite here; we now put the corner at (448, 448) for the blacksmith. Also corrected: FUN_00403CF4 is four line calls in colour 0x3F, an outline with no fill, not the recess this module drew; and the title and the worker noun now come from L2.eng rather than from JOB_NAMES and a table of ours.",
+    "unexercised": "Only jobs with peasants on them are reachable from the sidebar, and the shipped fixture has three farm rows and no industry. Jobs 4 through 8 have never been opened against real data, so neither the Wasted colour (0xFC) nor the blacksmith branch has been exercised.",
+    "roots": [
+      "Panel_JobDetail",
+      "FUN_00413526"
+    ]
+  },
+  {
+    "screen": "0x02",
+    "name": "The village",
+    "painter": "Village_Draw",
+    "addr": "0x00412143",
+    "module": "village.rs",
+    "owned_elsewhere": true,
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x02 arm: Village_Animate(), 6 draw calls"
+    ],
+    "original": 15,
+    "ours": null,
+    "real": 5,
+    "placeholder": 8,
+    "widget_records": 0,
+    "missing": [
+      "Eng_DrawString(66, weather * 2, 0x54, 0x4E, heading, colour) — the weather word at (84, 78)",
+      "Eng_DrawString(66, weather * 2 + 1, pen + 0x54, 0x54, body, colour) — its second half at y 84, in the body font and six pixels lower",
+      "Eng_DrawString(22, (fertility + 100) / 0x1D, 0x54, 0x6E, body, colour) — the fertility sentence at (84, 110)"
+    ],
+    "invented": [],
+    "excluded": "FUN_004050C0(), which Village_Draw calls only when its `reload` argument is non-zero. And note that draws.js under-counts this tree: Village_DrawPeasants and Village_DrawCluster are inside the tool's BLOCK closure (both are reachable from Screen_DrawCampaign), so the peasant clusters' Pl8_DrawFrame is not in the 10. `original` here is 10 + Village_Animate's 6.",
+    "eng": {
+      "groups": [
+        66,
+        22
+      ],
+      "indices": [],
+      "not_drawn": [],
+      "verified_against_words": true
+    },
+    "sheets": [],
+    "constants_added": [],
+    "notes": "**READ ONLY — reported, not edited.** One finding: the module's own comment says *\"the original's village carries no text at all\"*, and that is false. `Village_Draw` makes three `Eng_DrawString` calls, all gated on `g_optAdvancedFarming == 1` — the same gate that moves `g_villageTopY` from 0x40 to 0x84 and loads `villtops.pl8`, which this module already reproduces as `draw_tops`. The words are `L2.eng` group 66 (twelve strings, six weather pairs: Frost / \"- Many crops lost\", Drought, Sunny / \"- Boosts growing crops.\", Cloudy, Storms, Flooding / \"- All crops lost\") and group 22 (seven fertility sentences, index `(fertility + 100) / 29`). The **colour is a rule**: `0x3F` for weather < 4 and `0x20` — the disabled grey — for Storms and Flooding, so the two worst kinds of weather are printed greyed out. Both facts are verified against the shipped `L2.eng` and the decompilation. Second, smaller: `Ui_OkButton(0x180, g_villageTopY + 0x118, 1)` is **mode 1**, System.pl8 frame 0x10, not the 0x33 the county panels use — this module already passes `OK_ALT`, which is right. Its literal inventory is left to the module's owner: the scanner sees one caption in village.rs, \"CLOSE\" at widget::button, and that one is an invention — Ui_OkButton(0x180, top + 0x118, **1**) draws System.pl8 frame 0x10 and no letters. Four more of ours reach text::draw_centred through a binding and are invisible to the scan: \"CARRYING {n} - CLICK A JOB\", \"VILLAGE OF COUNTY {n}\", \"NO DROP GRID - VILL_GD8.PL8 MISSING\" and \"NOT YOURS\", plus the eight JOB_NAMES in the no-artwork cluster fallback. This record leaves module null so that tests/draws.rs does not hold another agent's file to my list.",
+    "unexercised": "Advanced Farming is off in every shipped fixture, so the three lines above, the villtops picture and the taller g_villageTopY have never been drawn against real data.",
+    "roots": [
+      "Village_Draw",
+      "Village_Animate"
+    ],
+    "literals_ours": [
+      "CLOSE — an invention, and only reached when the artwork is absent: the original’s corner is Ui_OkButton’s System.pl8 frame 0x33, which village.rs draws through ch.draw_system(OK_ALT) whenever the chrome loaded. The caption is the no-install fallback beside it."
+    ]
+  },
+  {
+    "screen": "0x0A",
+    "name": "The armoury",
+    "painter": "Screen_Armoury",
+    "addr": "0x00417EA7",
+    "reachable": true,
+    "reached_by": [
+      "FUN_00435CBF (Continue on 0x17) sets g_screenId = 10",
+      "Screen_FrameInput's 0x0D arm returns here via Screen_ArmouryRepaint (0x004180F6)"
+    ],
+    "also_drawn_by": [
+      "Screen_Armoury's own tree: Armoury_DrawWallItems (0x00418426) 1 site, Armoury_DrawRacks (0x004181EB) 3 sites",
+      "Screen_DrawWidgets 0x0A arm, every frame: Armoury_RestoreWalkerStrip (0 draws), Armoury_DrawTorches (2), Armoury_DrawWalker (1)",
+      "Screen_ArmouryRepaint (0x004180F6) is the same page without the three big File_ReadChunks - it still calls FUN_00408FCB, so it repaints the backdrop - called from Screen_FrameInput's 0x0D arm"
+    ],
+    "widgets": "none - 0x0A has no Widget_Draw arm at all; its three buttons are hotspot records in g_armouryHotspots and are drawn as three Ui_DrawCentred words with no box",
+    "original": 12,
+    "ours": 8,
+    "real": 7,
+    "placeholder": 3,
+    "literals_ours": [
+      "NO ARM_GRID.PL8 - RACKS ARE RECTANGLES — an honest diagnostic of ours, drawn only when arm_grid.pl8 is absent and the rack hit test has fallen back to rectangles"
+    ],
+    "missing": [
+      "Armoury_DrawTorches: Pl8_DrawFrame(armtorch, DAT_005AEA54, 0x9A, 0x76) and the same frame + 13 at (0x19A, 0x76), every frame",
+      "Armoury_DrawWalker: Pl8_DrawFrameClipped(trp_<weapon>_<colour>, frame, x, 0xD8) - the soldier who walks across after a rack is equipped"
+    ],
+    "invented": [
+      "a status line at (8, 8) in our 5 x 7 font - ours, a diagnostic",
+      "the arm_grid warning at (8, 20) - ours, a diagnostic",
+      "a troop name where a rack sprite would be, when the item sheet is not installed - a no-artwork placeholder, not drawn on a full install"
+    ],
+    "dead": [
+      "Armoury_DrawRacks slot 7: the guard is `if (6 < i) return`, so the totals rack - its Pl8_DrawFrame with the `13 + shieldIndex - 1` shield tint and its Ui_DrawNumber off DAT_0053F710 - is unreachable. Counted in `original` and deliberately not reproduced; crates/l2-game/src/screens/armoury.rs::tests::the_totals_rack_is_dead_code_in_the_original"
+    ],
+    "excluded": "the four FUN_004B3F0A strip SAVES (they copy the backdrop out, they do not draw); File_ReadChunk('armoury.256', &DAT_004EA8A0, 0x300) and the Palette_Set that follows it - 768 bytes into a palette buffer, no pixel moves; File_ReadChunk('arm_grid.pl8') which is a hit map; Gfx_MarkSpriteDirty; the Blit_* family. NOT excluded, and it was until this pass: FUN_00408FCB('armoury.pl8', 0x1E0) IS a draw - it reads g_screenStride * height bytes from offset 0x18 straight into g_backBufferBits, and Armoury.pl8 is 307,224 bytes = 640*480 + 24, so the file is the picture rather than a sprite sheet. Counted in `original` and in `ours`. The .pl8 backdrop and the .256 palette beside it are easy to conflate and only one of them draws.",
+    "eng": {
+      "group": 69,
+      "indices": [
+        6,
+        7,
+        8
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Armoury.pl8",
+        "frames": [],
+        "note": "not a sheet: 307,224 bytes of raw 640 x 480 backdrop read into the back buffer by FUN_00408FCB. One draw."
+      },
+      {
+        "sheet": "Arm_it_<colour>.pl8",
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ],
+        "note": "wall items 0..5 by weapon slot; rack portraits 6..12 by basket slot; 13 + shieldIndex - 1 is the dead slot 7"
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          16
+        ],
+        "note": "0x10 = Ui_OkButton mode 1"
+      },
+      {
+        "sheet": "armtorch.pl8",
+        "frames": [],
+        "note": "not drawn by us"
+      }
+    ],
+    "notes": "Fixed: the rack count under each portrait was drawn with l2_view::text (our 5 x 7 debug font) where the original draws Ui_DrawNumber(v, '@', ..., &g_fontBody, 0x3F); it now goes through Pen::number. The corner picture now goes through Pen::ok_button rather than a hand-rolled draw_system + recess.",
+    "unexercised": "no fixture has a county with a mercenary offer, so the `band men are added to the rack count` arm of Armoury_DrawRacks has never been driven from real data; no fixture has a realm with a non-red shield_index, so five of the six item sheets are untested.",
+    "module": "armoury.rs",
+    "roots": [
+      "Screen_Armoury",
+      "Armoury_DrawTorches",
+      "Armoury_DrawWalker",
+      "Armoury_RestoreWalkerStrip"
+    ]
+  },
+  {
+    "screen": "0x0D",
+    "name": "One weapon's rack",
+    "painter": "Armoury_LoadScreen",
+    "addr": "0x004184C6",
+    "reachable": true,
+    "reached_by": [
+      "Armoury_ClickRack (0x004358B0) sets g_screenId = 0x0D and calls Armoury_LoadScreen directly"
+    ],
+    "screen_draw_arm": false,
+    "also_drawn_by": [
+      "Armoury_LoadScreen's own tree: FUN_00418E2D (0x00418E2D) 6 sites - the animated weapon, the two wells, the chosen count and the spare",
+      "Screen_DrawWidgets 0x0D arm, every frame: Armoury_RestoreWalkerStrip (0), Armoury_DrawTorches (2), Armoury_DrawRacks (3), FUN_00418E2D (the same 6 again), Armoury_DrawWalker (1), Widget_Draw(0x60, 4, &g_armouryBuyWidgets, 4)"
+    ],
+    "widgets": "g_armouryBuyWidgets (0x004DD8C8): the table is EXACTLY 4 records - 0x004DD8C8 + 4*24 = 0x004DD928, which is the court's table - and the count passed is 4. Nothing hidden. 32 pixels square at y 44, x 176/208/240/272, drawn and tested at an offset of (0x60, 4). Frames 68, 66, 58, 60; handlers Levy_EquipOne, Levy_UnequipOne, Levy_UnequipAll, Levy_EquipAll. FRAME 68 IS THE PLUS and 66 the minus; docs/hypotheses.json and tools/oracle/widgets.js once had that pair the other way round.",
+    "original": 16,
+    "ours": 12,
+    "real": 10,
+    "placeholder": 1,
+    "literals_ours": [],
+    "missing": [
+      "FUN_00418E2D's Pl8_DrawFrame(weapon sheet, DAT_005AEA48, 0x66, 10) - the weapon turning through its 24 frames over the still one Armoury_LoadScreen drew",
+      "Armoury_DrawTorches, 2 sites",
+      "Armoury_DrawWalker, 1 site"
+    ],
+    "invented": [
+      "'+1' / '-1' / 'NONE' / 'ALL' on the four buttons - a no-artwork fallback only; with System.pl8 installed the records' own frames 68/66/58/60 are drawn and no word of ours appears"
+    ],
+    "excluded": "the seven File_ReadChunk arms; FUN_004B1DE0; Gfx_MarkSpriteDirty; the Blit_* family. The three Armoury_DrawRacks sites in the 0x0D arm are counted in `ours` because the armoury page is painted beneath this overlay - but they are the SAME sites already counted under 0x0A, so the group total double-counts them by three.",
+    "eng": {
+      "group": 69,
+      "indices": [
+        5
+      ]
+    },
+    "eng_via_helpers": {
+      "group": 8,
+      "indices": [
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65
+      ],
+      "note": "Ui_DrawCount(chosen, 0x34 + type*2) - the singular/plural pair for the selected troop type"
+    },
+    "sheets": [
+      {
+        "sheet": "Arm_cros|mace|swor|pike|bow|mail.pl8",
+        "frames": [
+          0
+        ],
+        "note": "frame 0 of a 24-frame 100 x 100 animation; the fall-through for an unrecognised type is arm_cros"
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          68,
+          66,
+          58,
+          60,
+          51
+        ],
+        "note": "0x33 = 51 is Ui_OkButton mode 0"
+      }
+    ],
+    "notes": "VERIFIED, and it changes what 'the painter' means here: Screen_Draw (0x0040F1A0) has NO arm for 0x0D. The screen is painted once by Armoury_ClickRack calling Armoury_LoadScreen on the way in, and from then on only Screen_DrawWidgets' 0x0D arm runs - which is why FUN_00418E2D is in that arm as well as in the painter. docs/screens-county.md was right. SECOND FINDING: Armoury_LoadScreen draws ONE Ui_OkButton, at (0x1E4, 0x58) - but Ui_OkButton (0x0040D1BC) stashes only the last call's position into DAT_0055CE78/DAT_0057C8A0, and Screen_Armoury has already stashed (612, 368). So on 0x0D the armoury's own corner picture is still on screen and is NOT clickable; only the rack panel's is. We reproduce that by accident of structure (RackScreen tests only RACK_OK) and it is now said out loud. The four buttons now draw the records' own frames through Pen::system_frame.",
+    "unexercised": "the weapon animation (DAT_005AEA48) has no counterpart here at all, so nothing exercises the second Pl8_DrawFrame; no fixture reaches this screen with a realm short of peasants, so Levy_EquipAll's `stops at whichever runs out first` arm is untested from the UI.",
+    "module": "armoury.rs",
+    "roots": [
+      "Armoury_LoadScreen",
+      "Armoury_DrawRacks",
+      "Armoury_DrawTorches",
+      "Armoury_DrawWalker",
+      "Armoury_RestoreWalkerStrip",
+      "FUN_00418e2d"
+    ]
+  },
+  {
+    "screen": "0x17",
+    "name": "Raise an army",
+    "painter": "Screen_RaiseArmy",
+    "addr": "0x00418653",
+    "reachable": true,
+    "reached_by": [
+      "Sidebar_Button (0x0043xxxx) hotspot id 1, gated on the county being the local player's - it seeds the levy first",
+      "FUN_00435AE8 id 2, the armoury's 'Change' caption (L2.eng 69/7)"
+    ],
+    "also_drawn_by": [
+      "Screen_Draw's own 0x17 arm calls Screen_Armoury(1) on the first frame - the whole armoury room, 9 draw sites INCLUDING the FUN_00408FCB backdrop, is this screen's background and is counted under 0x0A",
+      "Screen_DrawWidgets 0x17 arm: mercenaryOffer == 0 ? Widget_Draw(0, 0, &DAT_004DD340, DAT_00522F58) : Widget_Draw(0, 0x10, ...)",
+      "FUN_0040328E (the wrapped-paragraph helper) contributes one Ui_DrawText site, reached from two call sites"
+    ],
+    "widgets": "DAT_004DD340 is EXACTLY 3 records - 0x004DD340 + 3*24 = 0x004DD388, the army-division table - and DAT_00522F58 is 1 or 3, so the count reaches the end and nothing is hidden. THE COUNT IS SET BY THE PAINTER'S OWN PROLOGUE, before it draws anything: 1 with no offer, 1 with an offer the treasury cannot meet, 3 otherwise. Screen_HandleInput reads the same global, so on the poor branch the tick and cross are untestable as well as invisible. Records: 0 = Continue, frame 33, 24px at (480, 336), FUN_00435CBF; 1 = tick, frame 29, 32px at (352, 256), hotspot 1, FUN_00435C89; 2 = cross, frame 31, 32px at (400, 260), hotspot 0, same handler.",
+    "widget_y_offset": "VERIFIED and reproduced. The table is drawn and tested at (0, 0x10) when the county has an offer and (0, 0) when it has not. It is exactly the distance the Continue caption moved: L2.eng 69/9 is drawn on (rows - 2) * 0x10 + base + 4, which is 340 with no offer (rows 0x0D, base 0xA0) and 356 with one (rows 0x10, base 0x80). The record's own y is 336 either way, so the button stays four pixels above its caption on both layouts. crates/l2-game/src/screens/army.rs::tests::the_widget_offset_is_exactly_how_far_the_continue_caption_moved pins both numbers from the decompilation.",
+    "original": 39,
+    "ours": 38,
+    "real": 37,
+    "placeholder": 6,
+    "literals_ours": [],
+    "missing": [],
+    "invented": [
+      "a status line below the window in our 5 x 7 font - ours, a diagnostic",
+      "a four-character troop name where a weapon icon would be, when Arm_it_<colour>.pl8 is not installed - a no-artwork placeholder",
+      "a filled rectangle for the slider knob when System.pl8 is not installed - a no-artwork placeholder"
+    ],
+    "removed_this_pass": [
+      "a '<n>%' read-out at (0xC3, base + 0x14) that the original does not draw at all - the knob's position is the read-out",
+      "widget::button 'YES' and widget::button 'NO' with our own captions where the original draws the button sheet's tick and cross"
+    ],
+    "excluded": "the armoury page beneath (counted under 0x0A); FUN_004B1DE0; Gfx_MarkAllDirty; the Blit_* family. Sprite counting note: the two FUN_0040328E calls are counted as ONE site, the Ui_DrawText inside the helper, which is how draws.js counts it.",
+    "eng": {
+      "group": 69,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ]
+    },
+    "eng_other_groups": [
+      {
+        "group": 16,
+        "indices": "the band id, 1..12",
+        "verified_against_words": "16/1 is 'Scottish', 16/12 'Angevin'. THIS is the group's real use; the armoury was wrongly filed under it and 16/6 exists, which is why an existence check did not catch that."
+      },
+      {
+        "group": 18,
+        "indices": [
+          0,
+          1
+        ],
+        "verified_against_words": "'Yes' and 'No'; index 2 'Cancel' is not drawn here"
+      },
+      {
+        "group": 100,
+        "indices": "g_scenarioIndex * 0x14 + county",
+        "verified_against_words": "the county names, twenty per scenario"
+      },
+      {
+        "group": 8,
+        "indices": [
+          0,
+          1,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65
+        ],
+        "note": "Ui_DrawCount(gold, 0) takes 0/1 'Crown.'/'Crowns.'; Ui_DrawUnitNoun(men, 0x34 + troop*2) the band's troop noun"
+      }
+    ],
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          78,
+          79,
+          80,
+          81,
+          82,
+          83,
+          33,
+          29,
+          31
+        ],
+        "note": "0x4E..0x52 the slider, 0x53 the unidentified icon after the happiness number, 33/29/31 the three widget records"
+      },
+      {
+        "sheet": "Arm_it_<colour>.pl8",
+        "frames": [
+          15,
+          16,
+          17,
+          18,
+          19,
+          20
+        ],
+        "note": "the six weapon-stock icons"
+      }
+    ],
+    "notes": "Five defects fixed, all cited from the painter. (1) Ui_DrawNumber(levyMen, '@', ..., 0x145, base + 0x44) is LEFT-ALIGNED at 0x145; we drew it right-aligned to 0x145 + 40, 40 pixels of drift on the number the player uses to size the levy. (2) The happiness figure is chained on to 69/11 or 69/13 with g_penAdvance, on THAT word's line at base + 0x30; we drew it at (0x188, base + 0x40), a line of its own. (3) Pl8_DrawFrame(&g_systemSheet, 0x53, pen + 0x188, base + 0x30) is drawn on BOTH happiness branches and we drew nothing - HAPPINESS_ICON; what the picture is has not been established and is named rather than described. (4) 69/15 'You have' + Ui_DrawCount(gold, 0) at (0x72, base + 0x92) was missing entirely, so the player was asked to buy without being told what he had. (5) The band's headline line - count, nationality and troop noun at base + 0x60 - is g_fontHeading; we drew the whole block in the body font, and used our own troop name where the painter fetches L2.eng group 8.",
+    "unexercised": "C26: every shipped fixture is turn one with one county per realm, and NO fixture has a county with a non-zero mercenaryOffer. So the whole offer layout - base 0x80, rows 0x10, the inset well 0x60 tall, the three heading-font lines, the affordable/unaffordable split, DAT_00522F58 = 3, and the 16-pixel widget offset - has never been driven from a real save. It is exercised only from hand-built state, which is the shape crates/l2-game tests warn about.",
+    "module": "army.rs",
+    "roots": [
+      "Screen_RaiseArmy"
+    ]
+  },
+  {
+    "screen": "0x11",
+    "name": "Army division",
+    "painter": "Screen_ArmyDivision",
+    "addr": "0x004192B1",
+    "reachable": true,
+    "reached_by": [
+      "Panel_SplitButton (0x004378B3) - the unit panel's split button, refused with message 0x95 when movesUsed >= 1",
+      "FUN_004376BB - the same seeding reached from the move-order confirm, for a split INTO a castle"
+    ],
+    "also_drawn_by": [
+      "Screen_SplitArmyRows (0x00419354), called once from the painter AND again from Screen_DrawWidgets' 0x11 arm on every frame - 18 of the 23 draw sites are there",
+      "Screen_DrawWidgets 0x11 arm: Screen_SplitArmyRows(); Widget_Draw(0, 0, &DAT_004DD388, DAT_0055321C)"
+    ],
+    "widgets": "DAT_004DD388 is 18 records and DAT_0055321C is 0x10 or 0x12 - written by Panel_SplitButton and FUN_004376BB, both `mercBand == 0 ? 0x10 : 0x12`. 0x12 IS the table's own length, so nothing hides behind the count; 0x10 stops one arrow pair short, which is row 7, the mercenary band. Records: 0 = tick, frame 29, 32px at (288, 420), hotspot 1; 1 = cross, frame 31, 32px at (336, 424), hotspot 0, both Army_SplitConfirm (0x00437AFB). 2..17 = eight arrow pairs at y 120 + 32n: (256, y) frame 27 SplitScreen_ToParent (0x00437D65) and (288, y) frame 25 SplitScreen_ToDaughter (0x00437E9E), hotspot id = n.",
+    "original": 23,
+    "ours": 23,
+    "real": 21,
+    "placeholder": 2,
+    "literals_ours": [],
+    "missing": [],
+    "invented": [
+      "the DISBAND button - see literals_ours",
+      "a status line below the window entirely, at (16, 466), in our 5 x 7 font - ours, a diagnostic",
+      "a two-pixel caret left of the row the keyboard is on - ours; the original has no keyboard on this screen",
+      "CLICK_MEN = 10: the original's arrow moves ONE man per click and relies on the widget press timer to repeat"
+    ],
+    "removed_this_pass": [
+      "widget::button 'SPLIT' at (16, 446) and widget::button 'CANCEL' at (264, 446) - both invented; the original's split and cancel are widget records 0 and 1, the tick and the cross. The CANCEL button OVERLAPPED the tick's hit box (288..320, 420..452), so a click on the original's split control cancelled.",
+      "widget::button 'OK' where the original draws Ui_OkButton - System.pl8 frame 0x33, a cursor arrow pointing into a black hole, not a tick and not the word OK",
+      "the hard-coded English 'TOTAL MEN', where the painter draws Ui_DrawUnitNoun(1, 0x48) = L2.eng group 8 index 72",
+      "our own uppercased troop names where the painter draws Ui_DrawUnitNoun(2, 0x34 + t*2) - L2.eng group 8, always the PLURAL because the count is the literal 2",
+      "our own '>' and '<' buttons at x 0xA8 and 0x158 - which are the misc_cty DECORATION positions, 88 and 56 pixels from where Widget_Test looks"
+    ],
+    "excluded": "File_ReadChunk('icon_tmp.pl8'); FUN_004B1DE0; Gfx_MarkAllDirty and Gfx_MarkSpriteDirty; the Blit_* family. DENOMINATOR NOTE: draws.js reports 25 for this tree because it counts the three Blit_ClippedLeft/Right/Unclipped call sites inside Sprite_WGenSprite. The brief excludes blitters, so Sprite_WGenSprite is counted as ONE draw and the figure here is 23, not 25.",
+    "eng": {
+      "group": 17,
+      "indices": [
+        0,
+        1
+      ]
+    },
+    "eng_other_groups": [
+      {
+        "group": 8,
+        "indices": [
+          53,
+          55,
+          57,
+          59,
+          61,
+          63,
+          65,
+          72
+        ],
+        "verified_against_words": "the seven plurals 'Peasants'..'Knights' at 0x34 + t*2 + 1, and 72 'Total men'. Plus 0x34 + mercTroop*2 (+1) for the band's row."
+      },
+      {
+        "group": 16,
+        "indices": "unit.mercBand, 1..12",
+        "verified_against_words": "the nationalities; index 0 'No mercenaries in the army.' is unreachable here because the row is gated on the band having men"
+      }
+    ],
+    "sheets": [
+      {
+        "sheet": "Icon_tmp.pl8",
+        "frames": [
+          43
+        ],
+        "note": "0x2B, the split-button icon at (24, 64). screens/info.rs identified this frame independently by rendering it - two readings from opposite directions agreeing."
+      },
+      {
+        "sheet": "Misc_cty.pl8",
+        "frames": [
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53
+        ],
+        "note": "0x2F + t, drawn twice per row. 0x30..0x35 are the six weapon icons the court draws, so 0x2F is the peasant."
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          27,
+          25,
+          29,
+          31,
+          51
+        ],
+        "note": "the arrow pair, the tick and the cross, and Ui_OkButton mode 0"
+      }
+    ],
+    "notes": "This screen was the sharpest instance of the pilot's finding #1 in the group and the worst in the group by a distance: 4 of its 23 draw calls are in the named painter, 18 are in Screen_SplitArmyRows, and Screen_DrawWidgets calls that helper again every frame. It went from 3 real / 14 placeholder draws and 5 English captions of our own to 21 real / 2 and one caption, which is named as ours at the site. The row-7 band block also had two structural errors: the original draws ONE number, in whichever column holds the band, and puts the troop noun on a SECOND line indented to 0x58 - we drew two numbers on one line with our own words.",
+    "unexercised": "no fixture has an army carrying a mercenary band, so row 7 - the 0x12 widget count, the second arrow pair at y 344, the 0x184 totals row, the two-line band block and L2.eng group 16 on this screen - is driven only from hand-built state. C26.",
+    "module": "divide.rs",
+    "roots": [
+      "Screen_ArmyDivision",
+      "Screen_SplitArmyRows"
+    ]
+  },
+  {
+    "screen": "0x08",
+    "name": "The merchant's stall",
+    "painter": "Screen_Merchant",
+    "addr": "0x00415FB7",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x08 arm: Merchant_HoverPlaque() (0x0041608B), 5 draws",
+      "Screen_DrawWidgets 0x08 arm: Widget_Draw(0, 0, &DAT_004DD808, DAT_00569500) - and DAT_00569500 is always 0"
+    ],
+    "original": 6,
+    "ours": 6,
+    "widget_records": "DAT_004DD808 holds 2 records; the count passed is 0 every frame, so 0 are drawn and 0 are tested",
+    "missing": [
+      "the plaque's erase, FUN_004B3EC0(sprite bank, 0x200) at the *previous* good's (x, y) - a 128 x 64 restore of saved pixels into g_backBufferBits. We repaint the whole screen each frame instead, so nothing is left behind; recorded, not reproduced."
+    ],
+    "invented": [
+      "two lines in our own 5x7 font under the stall - a status line and a key hint - both named as ours at the site and listed in literals_ours"
+    ],
+    "literals_ours": [
+      "HOVER A WARE FOR ITS PRICES, CLICK IT TO TRADE - RIGHT-CLICK OR ESC LEAVES — ours: a hint for keys and buttons the original has no caption for; Screen_Merchant draws no string at all"
+    ],
+    "real": 6,
+    "placeholder": 2,
+    "excluded": "Widget_Draw itself; the Blit_* family as the implementation of the primitives; the merchant.256 palette load, which is 0x300 bytes into a palette buffer and not a draw",
+    "counts_the_background": "yes - FUN_00408FCB(\"merchant.pl8\", 0x1E0) reads 640 x 480 bytes from offset 0x18 straight into g_backBufferBits and is one call site that writes every pixel on the screen. See notes.",
+    "eng": {
+      "group": 68,
+      "indices": [],
+      "note": "Screen_Merchant calls Eng_DrawString not once. Merchant_HoverPlaque draws group 6 (the good's name) through Ui_DrawCentred, and no group 68 string appears on this screen at all - including 68/0 'Click on a price to trade with', which nothing in the binary draws."
+    },
+    "eng_also": {
+      "group": 6,
+      "indices": "1..=14, by the good under the pointer"
+    },
+    "sheets": [
+      {
+        "sheet": "Merchant.pl8",
+        "frames": [
+          0
+        ],
+        "note": "not a sprite sheet: 307,224 bytes = 640*480 + 24, a raw full-screen raster"
+      },
+      {
+        "sheet": "Mercgrid.pl8",
+        "frames": [],
+        "note": "never drawn - it is the 80 x 60 hit test, 4,824 bytes = 80*60 + 24"
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          "0x10 (Ui_OkButton mode 1)"
+        ]
+      },
+      {
+        "sheet": "Panels.pl8",
+        "frames": [
+          "border set 1 + interior, 8 x 4 cells (FUN_004093E0)"
+        ]
+      }
+    ],
+    "notes": "THE EXTREME CASE THE BRIEF PREDICTED, AND IT RESOLVES THE OTHER WAY. Screen_Merchant makes one call to a named pixel primitive and the grid is not 'somewhere else': merchant.pl8 IS the screen. Every ware, shelf and price frame is in one raw 640 x 480 raster that FUN_00408FCB reads directly into the display buffer, and mercgrid.pl8 is a parallel image of good ids that is never drawn. So the picture and the click map are the same artwork twice and there is no missing painter. DAT_004DD808 is two widget records - (256,452) frame 27 and (288,452) frame 25 - whose handler FUN_0043527B is an eleven-byte 'return;' and whose count is written 0 by Screen_Merchant and by nothing else in the binary (xref.js touches DAT_00569500 returns three functions and the other two only read it). Two buttons that were gutted rather than deleted: g_sendSuppliesWidgets' cut row in a second place, and a shorter story. C109. Also [V]: FUN_004B3EC0 writes into g_backBufferBits and FUN_004B3F0A reads out of it, with g_spriteWidth 0x20 counted in dwords (128 bytes) and stride 0x200 = 640 - 128, so the save/restore patch is exactly the plaque's own 128 x 64 box.",
+    "unexercised": "the hover plaque with a merchant of morale other than 100 - Merchant_SpawnAll writes 100 into every merchant and nothing writes it again, so no fixture can produce a price that is not exactly double; and C26, no shipped fixture has a realm holding stock of a good the stall sells.",
+    "module": "merchant.rs",
+    "roots": [
+      "Screen_Merchant",
+      "Merchant_HoverPlaque"
+    ]
+  },
+  {
+    "screen": "0x0C",
+    "name": "Trade goods",
+    "painter": "Screen_TradeGoods",
+    "addr": "0x00416308",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x0C arm: Trade_DrawPanel() (0x0041635F) - all 33 of the screen's draws, every frame",
+      "Screen_DrawWidgets 0x0C arm: Widget_Draw(0x30, 0x50, &DAT_004DD838, DAT_00553F58)"
+    ],
+    "original": 34,
+    "ours": 24,
+    "widget_records": "DAT_004DD838 holds exactly 6 records - 0x004DD838 + 6*24 = 0x004DD8C8, which is g_armouryBuyWidgets, so there is no cut row. DAT_00553F58 is written by Trade_DrawPanel itself: 4 with no quantity pending and 6 with one, so the tick and the cross appear only when there is something to agree to. Drawn and tested at an origin of (0x30, 0x50), which no other screen in this group has.",
+    "missing": [],
+    "invented": [
+      "two lines in our own 5x7 font under the window - a status line and a key hint - both named as ours at the site",
+      "Advice::fallback()'s four English paragraphs, which are only reached when L2.eng is absent"
+    ],
+    "literals_ours": [
+      "UP/DOWN 1  LEFT/RIGHT 10  M MAX BUY  S SELL ALL  ENTER AGREES - KEYS ARE OURS — ours: the whole keyboard is ours (C21); the original's only inputs are the six widgets and the corner OK"
+    ],
+    "real": 24,
+    "placeholder": 2,
+    "excluded": "Widget_Draw itself; the Blit_* family; the icontrad.pl8 read, which loads 160,000 bytes into the sprite bank at DAT_004EABEC and draws nothing until Sprite_WGenSprite is called",
+    "counts_the_background": "yes - FUN_00408FCB(\"merchant.pl8\", 0x1E0) again, and it is Screen_TradeGoods' ONLY draw",
+    "ours_counted_lower_for_a_reason": "10 of the 34 - 24 gap is the original writing each branch as its own call site (three headings, two price labels, two price counts, four advice paragraphs, two questions, two quantity signs, two total labels) where ours selects the index and calls once. Nothing on this screen is missing; the call-site rule simply counts a written-out ladder higher than a parameterised one. Counted as 'distinct things on the screen in one frame' the two agree: 17 with nothing pending, 22 with a quantity chosen.",
+    "eng": {
+      "group": 68,
+      "indices": [
+        1,
+        2,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "note": "Seventeen of group 68's twenty strings, ALL of them in this one function. Indices 0 'Click on a price to trade with', 3 'Buy' and 4 'Sell' have no call site with a literal index anywhere in the corpus - the same shape as L2.eng 31/21 'Morale'. Verified against the words, not against the indices existing."
+    },
+    "eng_also": [
+      {
+        "group": 6,
+        "indices": "1..=14, the good being traded"
+      },
+      {
+        "group": 8,
+        "indices": [
+          0,
+          1
+        ],
+        "note": "'Crown.' / 'Crowns.', from three Ui_DrawCount sites: the gold, the unit price and the total"
+      }
+    ],
+    "sheets": [
+      {
+        "sheet": "Merchant.pl8",
+        "frames": [
+          0
+        ],
+        "note": "the stall reused as the backdrop, which is why the panel needs no clear"
+      },
+      {
+        "sheet": "Icontrad.pl8",
+        "frames": [
+          "good - 1 (the well)",
+          "StallRow::icon 14..24 (the 'and N ...' clause)"
+        ]
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          21,
+          23,
+          72,
+          70,
+          29,
+          31,
+          "0x33 (Ui_OkButton mode 0)"
+        ]
+      },
+      {
+        "sheet": "Misc_cty.pl8",
+        "frames": [
+          "0x17, the happiness face inside Ui_DrawHappinessDelta"
+        ]
+      },
+      {
+        "sheet": "Panels.pl8",
+        "frames": [
+          "border set 1 + interior, 0x22 x 0x10 cells",
+          "interior only, 0x1D x 5 cells"
+        ]
+      }
+    ],
+    "notes": "Ui_DrawHappinessDelta on the TRADE screen turns out to be the ale preview and nothing else: the call is `if (good == 4 && g_alePreviewHappiness != 0)`, and it is four draws - an opening bracket, Ui_DrawDelta in mode 1 ('+N' in 0x3F, '-N' in 0xF9), Misc_cty.pl8 frame 0x17 (the happiness face) two pixels high, and a closing bracket a flat 0x14 further on. The field is g_alePreviewHappiness (0x0053E8C0), written by Ale_PreviewGain (0x00435673) from the PENDING crown total and capped at 5 - county.aleHappinessGiven, so the number beside 'Ale' is what the purchase would buy before it is made. It is the one county field on a screen otherwise entirely about the realm's purse. Two other things worth recording: 'Purchase?' is drawn in colour 0xF9 and 'Sale?' in 0xFC, the only place on this screen where colour carries meaning; and DAT_0058FE2C (the drop-capital colour) is on for the heading, the price line and the 'You have' line and off for the advice well.",
+    "fields_verified": "The panel's numbers are DAT_0057C8C0 (sell price = g_merchantStall[good], never moves), DAT_0055CD70 (buy price = sell + max(1, Pct(sell, clicked merchant's morale)), 0 markup for ale), DAT_00554170 (signed quantity, + buys and - sells), DAT_0053E9E4 (the floor, which is MINUS what the seller holds - the 'and N ...' clause prints -DAT_0053E9E4), DAT_0057A0FC (the ceiling, gold / buyPrice), g_tradeCrowns and g_realms[g_localPlayer].gold. Ours reads the same ones through l2_kingdom::trade; the sign trap is real and we had it right.",
+    "unexercised": "every state but qty == 0 on a good with no stock: C26 means no shipped fixture has a realm holding grain, iron, stone, wood or weapons at the moment a merchant is clicked, so the 'and N <icon>' clause, the price line, the tick and the cross and both questions have never been drawn against real artwork.",
+    "module": "merchant.rs",
+    "roots": [
+      "Screen_TradeGoods",
+      "Trade_DrawPanel"
+    ]
+  },
+  {
+    "screen": "0x1B",
+    "name": "The castle chooser",
+    "painter": "Screen_CastleBuild",
+    "addr": "0x00419789",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1B arm: Screen_CastleBuildPanel() (0x004198AA), 20 of the screen's 24 draws",
+      "Screen_DrawWidgets 0x1B arm: Widget_Draw(0, 0, &g_castleBuildWidgets, 2)"
+    ],
+    "original": 24,
+    "ours": 23,
+    "widget_records": "g_castleBuildWidgets (0x004DDB80) is exactly 2 records - 0x004DDB80 + 2*24 = 0x004DDBB0, which is the base Screen_DrawWidgets' 0x12 arm passes - so the count of 2 is the whole table and there is NO cut row here. g_castleTypeWidgets (0x004DC818) is 5 kind-1 rectangles, but it is passed to Hotspot_Test and never to Widget_Draw: the five 'picture buttons' are hit rectangles over painted artwork and are drawn by nothing.",
+    "missing": [],
+    "invented": [],
+    "literals_ours": [
+      "CAS_BACK.PL8 IS NOT INSTALLED - STRIPS ARE OURS — ours: a diagnostic, drawn only when the backdrop sheet is absent, because the five castle pictures live in that file and there is otherwise nothing at all in the row"
+    ],
+    "real": 23,
+    "placeholder": 0,
+    "placeholder_fallback_only": 6,
+    "excluded": "Widget_Draw itself; the Blit_* family; the cas_back.256 palette load",
+    "counts_the_background": "yes - FUN_00408FCB(\"cas_back.pl8\", 0x1E0), and there are TWO call sites of it, one per branch of `if (firstFrame == 1)`, reading the same file. Counted as two sites and one thing on the screen.",
+    "eng": {
+      "group": 71,
+      "indices": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        8,
+        9,
+        11,
+        12,
+        15,
+        16
+      ],
+      "note": "Verified against the words: 1..5 are the five castle names in cost order, 8 'will take', 9 'to build.', 0xB 'Barracks for', 0xC 'troops.', 0xF 'Start construction?', 0x10 'Boosts tax revenues by'. Every one is a fragment of a sentence this panel assembles, which is the check that existence is not."
+    },
+    "eng_also": [
+      {
+        "group": 8,
+        "indices": [
+          "0x26/0x27 Builder(s)",
+          "0x42/0x43 Season(s)"
+        ],
+        "note": "Ui_DrawCount(1, 0x42, ...) - the value is the LITERAL 1. Every castle takes one season whatever its type, and this draw call is the only place that rule is stated."
+      }
+    ],
+    "sheets": [
+      {
+        "sheet": "Cas_back.pl8",
+        "frames": [
+          0
+        ],
+        "note": "307,224 bytes = 640*480 + 24, a raw raster. The five castle pictures AND the 'Select a castle to build' heading are in it."
+      },
+      {
+        "sheet": "Caspics.pl8",
+        "frames": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "note": "256,072 = 72 + 4 * 320 * 200. FOUR pictures for FIVE castles; DAT_004D2DD0 = {1,0,2,3,4} and 0 means none, so the motte and bailey blits nothing."
+      },
+      {
+        "sheet": "Cas_bits.pl8",
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "sheet": "Panels.pl8",
+        "frames": [
+          "border set 0 + interior, 0x1A x 3 cells and 8 x 3 cells"
+        ]
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          29,
+          31,
+          "0x10 (Ui_OkButton mode 1)"
+        ]
+      }
+    ],
+    "contradicts_docs": [
+      "docs/screens-county.md 11.2 annotates the two Ui_DrawNumber lines '+ 71/6 of stone needed,' and '+ 71/7 of wood needed.'. Screen_CastleBuildPanel draws NEITHER string. It draws Cas_bits.pl8 frames 0x0A and 0x0B at (0x208, 0x5C) and (0x208, 0x7C) instead - the captions are artwork, at x 520, with the number at x 560 after them. 71/6 and 71/7 are alive elsewhere: Castle_DrawStatusBlock (0x0041DEDB), the map-information panel's castle block, is their only consumer.",
+      "docs/screens-county.md 11.2 lists Blit_Raster inside Screen_CastleBuildPanel. It is in Screen_CastleBuild.",
+      "docs/screens-county.md 11.2 lists neither of the two Pl8_DrawFrame calls that come from DAT_004D2DE8 and DAT_004D2E28, nor the third from DAT_004D2E64, nor the Ui_OkButton at (612, 452). Its listing is eight lines for a twenty-four-draw screen."
+    ],
+    "notes": "THREE INDEPENDENTLY READ TABLES AGREE FIVE TIMES EACH, which is what says all three were decoded at the right base address. g_castleTypeWidgets' five hit rectangles tile x 17..618 as (17,95) (96,209) (210,290) (291,414) (415,618); DAT_004D2E28's five Cas_bits selection marks sit at x 24, 103, 231, 307, 462 - one inside each strip, in order; DAT_004D2E64's five 'you already have this' marks sit at x 52-10, 153-10, 253-10, 370-10, 538-10 - again one inside each strip, in order. Nothing in the binary relates the three. the_two_mark_tables_land_inside_the_five_strips asserts it. Also [V]: Screen_FrameInput's 0x1B arm takes Ui_OkButtonClicked() as a close to the map, so the corner picture is a THIRD way out beside the thumb-up and the thumb-down; we drew it and did not answer it, and now do.",
+    "unexercised": "every castle type but 'none' and type 1. C26: every shipped fixture is turn one with no castle standing anywhere, so the `if (castleType != 0)` branches - the material subtraction that can go NEGATIVE, and the Cas_bits frame 0x0C standing mark - have no oracle. The motte-and-bailey no-picture case is [V] from the table and the file size, never from a running frame.",
+    "module": "castle.rs",
+    "roots": [
+      "Screen_CastleBuild",
+      "Screen_CastleBuildPanel"
+    ]
+  },
+  {
+    "screen": "0x31",
+    "name": "Help options",
+    "painter": "Screen_HelpOptions",
+    "addr": "0x004154EA",
+    "module": "options.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x31 arm: Widget_Draw(0, 0, &g_helpOptWidgets, g_helpOptWidgetCount) x3"
+    ],
+    "original": 10,
+    "original_reachable": 9,
+    "ours": 9,
+    "real": 8,
+    "placeholder": 1,
+    "widget_records": {
+      "original": 3,
+      "ours": 3
+    },
+    "missing": [],
+    "invented": [
+      "the GREYED legend under the panel, in our own 5x7 font, naming the two rows this engine cannot honour"
+    ],
+    "literals_ours": [
+      "GREYED: THIS ENGINE IS A WINDOW, AND L2HELP.HLP IS WIN3.1 — ours, and honest: a diagnostic naming the two rows this engine cannot honour. Declared on this record for the whole of options.rs.",
+      "OURS: THE ORIGINAL HAS NO SUCH PAGE. SEE DOCS/BUGS.MD — ours, and honest: the mark on the quirks page, which is ours and has no g_screenId."
+    ],
+    "excluded": "nothing; the painter is an overlay and clears nothing. Our pen.window is ONE call reproducing FUN_004093E0's Ui_DrawBoxBorder + Ui_DrawBoxInterior pair, which is the whole of the 9-vs-8 difference.",
+    "eng": {
+      "group": 45,
+      "indices": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "also": {
+        "group": 18,
+        "indices": [
+          0,
+          1
+        ]
+      }
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          25,
+          51
+        ]
+      }
+    ],
+    "notes": "g_helpOptWidgetCount is written 3 by the painter and by nothing else (xref.js touches finds only the painter, Screen_DrawWidgets and Screen_HandleInput). g_helpOptWidgets at 0x004DDCE8 holds exactly 3 records; the next 3 records at 0x004DDD30 are an UNNAMED and UNDRAWN table - see the 0x0043441C note. Group 45 verified against the words: 'Help Options', 'Tip screens', 'Tool tips', 'Start game help'.",
+    "unexercised": "no fixture opens the panel with g_optTipScreens or g_optToolTips clear, so the group 18 index 1 'No' arm is drawn only by our own tests",
+    "roots": [
+      "Screen_HelpOptions"
+    ]
+  },
+  {
+    "screen": "0x39",
+    "name": "Advanced options",
+    "painter": "Screen_AdvancedOptions",
+    "addr": "0x00414F68",
+    "module": "options.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x39 arm: Widget_Draw(0, 0, &g_advancedOptWidgets, g_advancedOptWidgetCount) x4"
+    ],
+    "original": 15,
+    "original_reachable": 12,
+    "ours": 11,
+    "real": 11,
+    "placeholder": 0,
+    "widget_records": {
+      "original": 4,
+      "ours": 4
+    },
+    "missing": [],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "as 0x31 - the window pair counted as one Pen::window call",
+    "eng": {
+      "group": 50,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "also": {
+        "group": 18,
+        "indices": [
+          0,
+          1
+        ]
+      }
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          25,
+          51
+        ]
+      }
+    ],
+    "notes": "THE FOURTH ROW'S STATE WORD IS INVERTED: three rows draw group 18 index (flag ? 0 : 1) and 'Fight humans only?' draws (g_optFightHumansOnly ? 1 : 0). Verified in the painter and consistent with FUN_004A6A30, which auto-resolves when the byte is 0. Group 50 verified against the words - note index 2 is 'Army foraging', not 'Armies eat', which is what the global is named.",
+    "unexercised": "nothing writes the four rule flags from a fixture; every value seen is Options::default()",
+    "roots": [
+      "Screen_AdvancedOptions"
+    ]
+  },
+  {
+    "screen": "0x42",
+    "name": "Sounds",
+    "painter": "Screen_SoundOptions",
+    "addr": "0x0041515C",
+    "module": "options.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x42 arm: Widget_Draw(0, 0, &g_soundOptWidgets, g_soundOptWidgetCount) x3"
+    ],
+    "original": 12,
+    "original_reachable": 10,
+    "ours": 9,
+    "real": 9,
+    "placeholder": 0,
+    "widget_records": {
+      "original": 3,
+      "ours": 3
+    },
+    "missing": [],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "as 0x31",
+    "eng": {
+      "group": 51,
+      "indices": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "also": {
+        "group": 19,
+        "indices": [
+          0,
+          1
+        ]
+      }
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          25,
+          51
+        ]
+      }
+    ],
+    "notes": "Three flags and no volumes, and that is the original: Ui_OpenSlider has exactly two live call sites (Menu_GameSpeed, Menu_ScrollSpeed). The third caller is Screen_SoundLevels_Dead, whose one caller passes mode 3, which draws a box and no numbers - so L2.eng group 12 indices 3, 4 and 5 ('Adjusting music level', 'Adjusting sound level', 'Number of samples') are unreachable strings.",
+    "unexercised": "none - the three prefs are ours and default true",
+    "roots": [
+      "Screen_SoundOptions"
+    ]
+  },
+  {
+    "screen": "0x43",
+    "name": "Display options",
+    "painter": "Screen_DisplayOptions",
+    "addr": "0x004152EA",
+    "module": "options.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x43 arm: Widget_Draw(0, 0, &g_displayOptWidgets, g_displayOptWidgetCount) x2"
+    ],
+    "original": 10,
+    "original_reachable": 9,
+    "ours": 9,
+    "real": 8,
+    "placeholder": 1,
+    "widget_records": {
+      "original": 2,
+      "ours": 2
+    },
+    "missing": [],
+    "invented": [
+      "the GREYED legend (shared with 0x31; drawn because 'Full screen' is an unsupported row)"
+    ],
+    "literals_ours": [],
+    "excluded": "as 0x31",
+    "eng": {
+      "group": 52,
+      "indices": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "also": {
+        "group": 18,
+        "indices": [
+          0,
+          1
+        ],
+        "group19": [
+          0,
+          1
+        ]
+      }
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          25,
+          51
+        ]
+      }
+    ],
+    "notes": "The painter draws its rows OUT OF ORDER - row 2 and its state word, then the F5 note, then the widget count and OK, then the heading and row 1. Nothing overlaps. Two different word groups on one panel: 'Animations' is group 19 On/Off and 'Full screen' is group 18 Yes/No. DIVERGENCE: the original draws group 52 index 3 in 0x3F; we dim it, because this engine has no F5 resize. Recorded at the call site.",
+    "unexercised": "g_optFullScreen is forced to 1 by Display_Init on any desktop that is not 8bpp, so the 'No' arm and the F5 note are together only in a windowed original nobody here can run",
+    "roots": [
+      "Screen_DisplayOptions"
+    ]
+  },
+  {
+    "screen": "0x1E",
+    "name": "The confirmation box",
+    "painter": "Screen_ConfirmBox",
+    "addr": "0x0040CCFA",
+    "module": null,
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1E arm: Screen_ConfirmBox(); Widget_Draw(g_confirmX, g_confirmY, &g_confirmWidgets, 2) - THE PAINTER HAS NO Screen_Draw ARM AT ALL and runs from the widget pass every frame"
+    ],
+    "original": 2,
+    "original_reachable": 3,
+    "ours": 0,
+    "real": 0,
+    "placeholder": 0,
+    "widget_records": {
+      "original": 2,
+      "ours": 0
+    },
+    "missing": [
+      "the whole screen - it is not built"
+    ],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "nothing",
+    "eng": {
+      "group": 10,
+      "indices": [
+        0,
+        1,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          29,
+          31
+        ]
+      }
+    ],
+    "notes": "ONE DIALOG FOR FIFTEEN QUESTIONS, and the fifteen are enumerated: 0 'Exit the game?', 1 'Start a new game?', 2 'Overwrite File?', 3 'Create this army?', 4 'Slaughter villagers?', 5 'Combine armies?', 6 'Disband army?', 7 'Garrison castle?', 8 'Besiege castle?', 9 'Autocalc battle?', 10 'Destroy field?', 11 'Surrender castle?', 12 'Retreat from field?', 13 'Lift the siege?', 14 'Quit? (no destination).'. THIRTEEN are reachable: Ui_OpenConfirm's thirteen literal call sites cover 0, 1 and 4..14, so INDEX 2 AND INDEX 3 ARE DRAWN BY NOTHING - the same shape as L2.eng 31/21 'Morale'. THE DIALOG MOVES (g_confirmX/g_confirmY) BUT NEVER DOES: every one of the thirteen call sites passes (0xA0, 0xA0). Answering yes to index 0 does not quit - FUN_0043441C sets g_screenId = 0x45, the Lords of Magic advertisement, and Screen_FrameInput's 0x45 arm quits on the next click.",
+    "unexercised": "not built, so nothing",
+    "roots": [
+      "Screen_ConfirmBox"
+    ]
+  },
+  {
+    "screen": "0x21",
+    "name": "The value spinner",
+    "painter": "Screen_SliderBox",
+    "addr": "0x0040CD58",
+    "module": null,
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x21 arm: Screen_SliderBox(); Widget_Draw(g_sliderX, g_sliderY, &g_sliderWidgets, 2) - again NO Screen_Draw ARM"
+    ],
+    "original": 8,
+    "original_reachable": 6,
+    "ours": 0,
+    "real": 0,
+    "placeholder": 0,
+    "widget_records": {
+      "original": 2,
+      "ours": 0
+    },
+    "missing": [
+      "the whole screen - it is not built"
+    ],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "nothing",
+    "eng": {
+      "group": 12,
+      "indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          35,
+          37,
+          51
+        ]
+      }
+    ],
+    "notes": "Group 12 has six strings: index 0 'Click Right to Exit' is the footer every frame, and 1..5 are the prompts. ONLY TWO OF THE FIVE ARE REACHABLE - Ui_OpenSlider's live call sites are Menu_GameSpeed (prompt 1) and Menu_ScrollSpeed (prompt 2), both passing (0xA0, 0xA0), step 10, max 100, min 0, format 1. Prompts 3, 4 and 5 belong to Screen_SoundLevels_Dead. Three format arms: 1 divides by ten and appends DAT_004D2778, 2 appends DAT_004D277C, else DAT_004D2780; only format 1 is ever passed, so two of the three Ui_DrawNumber sites are unreachable.",
+    "unexercised": "not built, so nothing",
+    "roots": [
+      "Screen_SliderBox"
+    ]
+  },
+  {
+    "screen": "0x35/0x36",
+    "name": "Loading and saving a conquest",
+    "painter": "Screen_SaveLoad",
+    "addr": "0x00414819",
+    "module": "saveload.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x35/0x36 arm: SaveLoad_DrawStatus(); Widget_Draw(0x10, 0x90, &g_saveLoadWidgets, 4)",
+      "FUN_004148E4 (0x004148E4) draws the SAME furniture at (0x60, 0x0A) for setup page 3, and SaveLoad_DrawStatus switches origin on its second argument"
+    ],
+    "original": 18,
+    "original_reachable": 14,
+    "ours": 14,
+    "real": 12,
+    "placeholder": 2,
+    "widget_records": {
+      "original": 4,
+      "ours": 4
+    },
+    "missing": [],
+    "invented": [
+      "the save directory path, in our 5x7 font, prefixed OURS:",
+      "the failure detail beneath group 40 index 4, in our 5x7 font, prefixed OURS:"
+    ],
+    "literals_ours": [],
+    "excluded": "the three repaint wells SaveLoad_DrawStatus draws before its text (Ui_DrawBoxInterior at org+0x42, +0x4C, +0x6A and +0x118, or Sprite_GenBlank from panels2 in the front-end mode). They are erases that exist because the original paints incrementally; we redraw the whole frame. Also excluded: Widget_Draw itself, counted as four records.",
+    "eng": {
+      "group": 40,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          29,
+          31,
+          35,
+          37
+        ]
+      }
+    ],
+    "notes": "TWO CORRECTIONS MADE. (1) The four rectangles are FUN_00403CF4(x, y, w, h, 0x3F) - four lines in ONE colour, a flat outline - and this module drew them as Ui_DrawInsetRect (0x00403DEB), which lights 0x10/0x1F on opposite corners. Different function, seventeen bytes apart. Fixed; the third bevel in the family is FUN_00403EE4, 0x35/0x28, which the front-end twin uses for its big area. NOTE draws.js does not count FUN_00403CF4 - it is a pixel primitive outside the 26 - so 'original' here is draws.js's 14 plus those 4. (2) g_spriteWidth is in SIXTEEN-PIXEL UNITS: FUN_004B414A writes g_spriteWidth iterations of four dwords per row. The selected file's bar is g_spriteWidth = 6, so 96 pixels behind the name, and this module drew a six-pixel tick beside it. Fixed. THE MODE FLAG REACHES EVERYWHERE: the heading reads the painter's argument, the status line reads g_screenId (0x35 -> 2, 0x1F -> 2, else 3), and Screen_Draw is the only thing that sets either. g_saveLoadWidgets holds exactly 4 records; the pair at (480, 256)/(480, 288) that looks like a fifth and sixth is g_skirmishFileWidgets at 0x004DDDD8. CAPTIONS: every English word this module puts on screen outside Fntl2_14 goes through fn ours(), which prefixes OURS:, and every one is built with format! on a line the caption scanner in crates/l2-game/tests/draws.rs cannot see (it reads the first quoted run on the line the text::draw call is on). They are: the save directory path, NO SAVE DIRECTORY ON THIS MACHINE, NO SAVED GAME IS SELECTED, <name> IS NOT A SAVED GAME, <name> IS NOT A SAVE NAME, and the error text a failed read or write returns. literals_ours is empty because the scanner sees none of them, and that hole is reported rather than papered over.",
+    "unexercised": "no fixture has a save directory with more than PAGE=30 entries, so the scroll arrows and g_fileListTop are exercised only by a synthetic list in the module's own tests; and nothing exercises DAT_0057D3C4 (the in-progress latch), so group 40 indices 2 and 3 are drawn by neither engine",
+    "roots": [
+      "Screen_SaveLoad",
+      "SaveLoad_DrawStatus"
+    ]
+  },
+  {
+    "screen": "0x1C",
+    "name": "The campaign interstitial",
+    "painter": "Screen_DrawConquest",
+    "addr": "0x0041E1DD",
+    "module": "conquest.rs",
+    "reachable": true,
+    "also_drawn_by": [],
+    "original": 25,
+    "original_reachable": 13,
+    "ours": 24,
+    "real": 24,
+    "placeholder": 0,
+    "widget_records": {
+      "original": 0,
+      "ours": 0
+    },
+    "missing": [],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "the three Blit_* inside Sprite_GenFrame (blitters are the implementation of the primitives, per the brief), which is why 25 and not draws.js 27 + 1. The gateway.256 PALETTE is excluded - 768 bytes into a palette buffer, no pixels - but FUN_00408FCB(\"gateway.pl8\", 0x1E0) IS counted as one draw: it reads 640x480 bytes straight into the back buffer.",
+    "eng": {
+      "group": 36,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "also": {
+        "group": 101,
+        "indices": "g_campaignLastMap and g_scenarioIndex, 0..59"
+      }
+    },
+    "sheets": [
+      {
+        "sheet": "Gateway.pl8",
+        "frames": [
+          "the whole 640x480 ground"
+        ]
+      },
+      {
+        "sheet": "Panels2.pl8",
+        "frames": [
+          "the window frame and interior via FUN_00409346"
+        ]
+      }
+    ],
+    "notes": "TWENTY-TWO Ui_DrawCentred CALL SITES AND NO OTHER TEXT PRIMITIVE, split 6/6/10 across three mutually exclusive branches, so the most the screen ever shows is ten lines plus two map names' worth of heading. WE DRAW ALL TWENTY-TWO, branch for branch, at the painter's own y values and in the painter's own fonts (heading for 0/4 and both map names, body for the rest); the Finished branch's seven lines step 0x14 from 0x80, verified. GROUP 36 HAS NINETEEN STRINGS AND INDICES 16, 17 AND 18 ARE DRAWN BY NOTHING IN THE IMAGE - 'You have mastered the first challenge.', 'To continue your campaign however', 'you must buy Lords2 !!', the demo's nag. Confirmed by grepping every reference to group 0x24 in the whole decompilation. THE HEADLINE FINDING FOR THE DENOMINATOR IS HERE: FUN_00408FCB(name, lines) = File_ReadChunk(name, g_backBufferBits, stride * lines, 0x18). A full-screen .pl8 is a RAW IMAGE WITH A 24-BYTE HEADER read into the frame buffer; there is no sprite decode and no blit. Eleven functions call it. That is why Screen_LordsOfMagicAd makes zero draw calls and is still a full screen of artwork.",
+    "unexercised": "C26 - every shipped fixture is turn one, so g_campaignMap is never 8 and the ten-line Finished branch has no oracle; ours cycles it from the keyboard instead. g_campaignLastMap (DAT_00553E78) is not in our workspace at all; we use ctx.game.map_slot, which is the closest true thing and is recorded as a divergence at the call site.",
+    "roots": [
+      "Screen_DrawConquest"
+    ]
+  },
+  {
+    "screen": "0x20",
+    "name": "The standings",
+    "painter": "Screen_GreatestNoble",
+    "addr": "0x0041593B",
+    "module": null,
+    "reachable": true,
+    "also_drawn_by": [],
+    "original": 11,
+    "original_reachable": 5,
+    "ours": 0,
+    "real": 0,
+    "placeholder": 0,
+    "widget_records": {
+      "original": 0,
+      "ours": 0
+    },
+    "missing": [
+      "the whole screen - it is not built; court.rs's own button says so on itself"
+    ],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "the three Blit_* inside Sprite_WGenSprite; the grtnoble.256 palette (768 bytes, no pixels); and the flags.pl8 read, which goes into scratch as a sheet rather than into the back buffer. FUN_00408FCB(\"grtnoble.pl8\", 0x1E0) IS counted as one draw.",
+    "eng": {
+      "group": 35,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Grtnoble.pl8",
+        "frames": [
+          "the ground"
+        ]
+      },
+      {
+        "sheet": "Flags.pl8",
+        "frames": [
+          "shieldIndex - 1, and frame 5 for the leader"
+        ]
+      }
+    ],
+    "notes": "SEVEN DRAW CALLS FOR A STANDINGS TABLE IS SUSPICIOUSLY FEW AND THE REASON IS THE DENOMINATOR, NOT A HELPER. Screen_DrawWidgets HAS NO 0x20 ARM (checked) and neither does anything else - the whole screen is in this one painter, called with firstFrame from Screen_Draw, and it reloads its background every frame. The rows the audit was looking for are FOUR FUN_00403A8F LINE DRAWS PER REALM inside the loop - x = base+0x17..0x1A, from (100 - pct)*2 + 0x89 down to 0x158, colours 0x10/0x12/0x14/0x12 - a four-pixel bar per realm. FUN_00403A8F IS NOT ONE OF THE 26 PRIMITIVES, so a bar chart of up to twenty lines counts as zero. The percentages come from FUN_00415BDC: it scores every realm on the current category with FUN_00415E42, then writes PctOf(score, leader) into DAT_00522C60[realm], clamped 0..100 - a percent-of-leader bar chart, and FUN_00415E42's seven scoring rules are undocumented anywhere. Group 35 verified against the words: 'Most counties,' ... 'Greatest noble,', 'undecided.'. Index 7 is drawn when DAT_00522C78 or DAT_00522C94 says the category is tied.",
+    "unexercised": "not built. And C26 bites hard here: every fixture is turn one with one county each, so every category is a five-way tie and index 7 'undecided.' is the only string the screen would ever show.",
+    "roots": [
+      "Screen_GreatestNoble"
+    ]
+  },
+  {
+    "screen": "0x32",
+    "name": "A menu-bar drop-down is open",
+    "painter": "Menu_RestoreBackdrop",
+    "addr": "0x0040C928",
+    "module": "menubar.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "FUN_0040C725 (0x0040C725) - THE DROP-DOWN'S REAL PAINTER, called from the application frame loop at 0x004B99C0, two lines after Screen_DrawMenuBar(), and guarded on g_screenId == 0x32 inside itself. NOT in Screen_Draw and NOT in Screen_DrawWidgets.",
+      "Screen_DrawMenuBar (0x004072B9) + Ui_DrawMenuTitles (0x0040C5B0) draw the bar itself every frame on every screen"
+    ],
+    "original": 4,
+    "original_reachable": 4,
+    "ours": 5,
+    "real": 4,
+    "placeholder": 1,
+    "widget_records": {
+      "original": 0,
+      "ours": 0
+    },
+    "missing": [],
+    "invented": [
+      "the refusal status line under the plate, in our 5x7 font, for the three menu items that reach nothing"
+    ],
+    "literals_ours": [],
+    "excluded": "Menu_SaveBackdrop / Menu_RestoreBackdrop's 400x180 band copy, which is a memcpy and not a draw; and the campaign map beneath.",
+    "eng": {
+      "group": 1,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "also": {
+        "group2": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "group3": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    },
+    "sheets": [
+      {
+        "sheet": "Panels.pl8",
+        "frames": [
+          "border set 2, twelve cells wide"
+        ]
+      }
+    ],
+    "notes": "THE HEADLINE. Menu_RestoreBackdrop makes ZERO draw calls because it is the ERASE - it puts back the 400x180 band at (0, 24) that Menu_SaveBackdrop took. The drop-down is drawn by FUN_0040C725, whose only caller is the frame loop at 0x004B99C0 and which no dispatch table mentions. THAT IS A FOURTH PLACE DRAWING HIDES, alongside the painter, Screen_DrawWidgets and the variable widget count. Three fixes made from its listing: (1) THE ORIGINAL DRAWS A PLATE - FUN_00409429(x, y + 0x12, 0x0C, (count * 0x15) / 16 + 2) = Ui_DrawBoxBorder(2, ...) + Ui_DrawBoxInterior, twelve cells = 192 pixels, BORDER SET TWO which no other screen in this crate asks for; this module had said the original drew the captions onto the bare map and we drew a recess of our own. (2) captions are at x + 0x10 and baseline title.y + item.y + 0x20; we drew them at x + 2. (3) the highlight is g_spriteWidth = 0x0B = 176 PIXELS at (x + 8, item.y + y + 0x1E), and the open title's plate is ((textWidth + 4) / 16 + 2) * 16 wide - both were drawn in pixels rather than sixteen-pixel units. The box is 192, the highlight 176 and FUN_0040E099's hit box 144: three widths for one row, all from the binary. 0x004B99C0 is named Battle_Frame in docs/symbols.json and is the APPLICATION frame loop - it calls Screen_Draw, Screen_DrawWidgets, Screen_DrawMenuBar, CountyStrip_Draw, Smk_PlayLoop, Msg_Pump and Cursor_Set. CAPTIONS: the three refusal lines are format! results passed to text::draw as a variable, so the caption scanner sees none of them; they are NEW GAME NEEDS THE CONFIRM BOX (SCREEN 0x1E), <what> IS ON THE ADVANCED PAGE. NO SPINNER (SCREEN 0x21) and HELP MESSAGE 0x123..0x127 NEEDS THE MESSAGE SCROLL. The sixteen item fallbacks and three title fallbacks are drawn ONLY when L2.eng is absent and are pinned against the real file by the two install-gated tests in the module.",
+    "unexercised": "the drop-down is live in exactly two of Screen_FrameInput's arms - g_screenId 0 and 0x29 - and on the campaign map it sits inside the turn-ended guard, so a drop-down after End Turn has no oracle here",
+    "roots": [
+      "Menu_RestoreBackdrop",
+      "FUN_0040c725"
+    ]
+  },
+  {
+    "screen": "0x44",
+    "name": "Smack file testing",
+    "painter": "FUN_00425A6A",
+    "addr": "0x00425A6A",
+    "module": null,
+    "reachable": false,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x44 arm: Widget_Draw(0, 0, &g_smackTestWidgets, 4)"
+    ],
+    "original": 5,
+    "original_reachable": 6,
+    "ours": 0,
+    "real": 0,
+    "placeholder": 0,
+    "widget_records": {
+      "original": 4,
+      "ours": 0
+    },
+    "missing": [
+      "the whole screen - a developer page, deliberately not built"
+    ],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "nothing",
+    "eng": {
+      "group": 89,
+      "indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          68,
+          66,
+          29,
+          31
+        ]
+      }
+    ],
+    "notes": "The brief's '?' resolves to 6: FUN_004093E0 (2), three Eng_DrawString and one Ui_DrawNumber. draws.js reported 0 only because the name was spelled FUN_00425A6A and the corpus spells it lowercase. Group 89 is three strings and they are 'Smack file testing', 'Test file', 'Start test?' - a developer page for stepping through the Smacker videos by index (g_smkTestIndex + 1). Reachable only if something sets g_screenId = 0x44; nothing in the shipped menus does.",
+    "unexercised": "not built",
+    "roots": [
+      "FUN_00425a6a"
+    ]
+  },
+  {
+    "screen": "0x45",
+    "name": "The Lords of Magic advertisement",
+    "painter": "Screen_LordsOfMagicAd",
+    "addr": "0x0041E5D0",
+    "module": null,
+    "reachable": true,
+    "also_drawn_by": [],
+    "original": 1,
+    "original_reachable": 1,
+    "ours": 0,
+    "real": 0,
+    "placeholder": 0,
+    "widget_records": {
+      "original": 0,
+      "ours": 0
+    },
+    "missing": [
+      "the whole screen - it is not built"
+    ],
+    "invented": [],
+    "literals_ours": [],
+    "excluded": "the .256 palette, which really is not a draw: File_ReadChunk(\"lom.256\", palbuf, 0x300) moves 768 bytes into a palette buffer and Palette_Set installs it, and no pixel changes. The .pl8 IS counted.",
+    "eng": {
+      "group": null,
+      "indices": []
+    },
+    "sheets": [
+      {
+        "sheet": "lom.pl8",
+        "frames": [
+          "the whole 640x480 ground"
+        ]
+      }
+    ],
+    "notes": "SETTLED, AND IT CHANGES THE DENOMINATOR FOR EVERYONE: a .256 + .pl8 full-screen background is NOT in the 26-primitive set and IS NOT DRAWN ELSEWHERE. FUN_00408FCB(name, lines) is File_ReadChunk(name, g_backBufferBits, g_screenStride * lines, 0x18) - an lseek 24 bytes in and a read of stride * lines bytes straight into the back buffer. No sprite decode, no blit, no clip. So Screen_LordsOfMagicAd's four statements (read lom.256 into the palette buffer, read lom.pl8 into the back buffer, Palette_Set, Gfx_MarkAllDirty) are a whole screen and exactly ONE draw call - the raster - once FUN_00408FCB is counted as the primitive it is. Every screen with a backdrop is undercounted by exactly one 'background' that has to be counted separately: the eleven callers are Screen_DrawConquest, Screen_GreatestNoble, Screen_Armoury, Screen_ArmouryRepaint, Screen_BattleMasterRank, Screen_BattleMasterRatings, Screen_CastleBuild, Screen_Merchant, Screen_TradeGoods, FUN_0041E61D and this one. HOW IT IS REACHED: FUN_0043441C, the callback Menu_Quit hands Ui_OpenConfirm(0, 'Exit the game?'), sets g_screenId = 0x45 when lom.256 is on disk - and quits immediately when it is not. Screen_FrameInput's whole 0x45 arm is 'any mouse release sets g_quitRequest = 1'. The advertisement is the last thing the game shows and a click on it is the exit.",
+    "unexercised": "not built; and nothing in this workspace ships lom.256, so even a reproduction would take the file-missing branch",
+    "roots": [
+      "Screen_LordsOfMagicAd"
+    ]
+  },
+  {
+    "screen": "ours/menu",
+    "name": "Our own bootstrap main menu",
+    "painter": null,
+    "addr": null,
+    "module": "menu.rs",
+    "reachable": false,
+    "also_drawn_by": [],
+    "original": 0,
+    "original_reachable": 0,
+    "ours": 7,
+    "real": 1,
+    "placeholder": 6,
+    "widget_records": {
+      "original": 0,
+      "ours": 0
+    },
+    "missing": [],
+    "invented": [
+      "the whole screen"
+    ],
+    "literals_ours": [
+      "AN OPEN REIMPLEMENTATION — ours, and honest: the original has no such line",
+      "OURS: UNREACHABLE. THE REAL FRONT END IS 0X1F PAGE 1 — ours, and honest: the mark this screen now carries about itself",
+      "ARROWS OR MOUSE TO CHOOSE, ENTER TO CONFIRM — ours, and honest: a keyboard hint the original has no line for"
+    ],
+    "excluded": "nothing",
+    "eng": {
+      "group": 11,
+      "indices": [
+        0
+      ]
+    },
+    "sheets": [],
+    "notes": "REACHABILITY VERIFIED, AND THE CLAIM STANDS: ScreenId::Menu is constructed in exactly one place, screen.rs's factory, and nothing outside crates/l2-game/tests/ pushes it. main.rs boots to ScreenId::Setup(SetupPage::Title), which is the real front end (0x1F page 1) and which screens/setup.rs reproduces. So this whole file is an invention on an unreachable screen - the pair docs/agents.md records for 0x28. FIXED HERE: it drew 'LORDS OF THE REALM II' in our 5x7 font, which is a MISSPELLING of L2.eng group 11 index 0, 'Lords of the Realm 2', a string crates/l2-game/tests/shell.rs has asserted for weeks; it now draws that string through the heading font, and carries a mark saying it is ours and unreachable, the way screens/index.rs does. RECOMMENDATION: delete the file and let screens/setup.rs be the front end. That touches screen.rs, screens/mod.rs and tests/machine.rs, none of which is this agent's, so it is reported rather than done. CAPTIONS NOT SEEN BY THE SCANNER, because they reach widget::button and text::draw_centred as variables: START CAMPAIGN and QUIT (inventions; the original front end draws L2.eng 11/2 \"Single player\" and 11/4 \"Exit game\"), SCENARIO LOADED: <n> COUNTIES, YEAR <y> (ours, a development status line) and the no-install title fallback.",
+    "unexercised": "everything - the shipped binary never reaches it",
+    "roots": []
+  },
+  {
+    "screen": "0x12",
+    "name": "A Battle is to be fought — the take-the-field prompt",
+    "painter": "Screen_BattlePrompt",
+    "addr": "0x00422D22",
+    "module": "battle.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x12 arm: Widget_Draw(0x20, 0x30, &DAT_004DDBB0, DAT_00554408) — the table holds EXACTLY 2 records (g_sliderWidgets begins 48 bytes on at 0x004DDBE0) and the count is written by Battle_ChooseSettlement (0x004A6A30) as 2 when g_battleChoiceOwner == 1 and 0 otherwise. The (0x20, 0x30) offset is the window's own origin, so the table's box-relative (300, 68) and (340, 68) land at (332, 116) and (372, 116). Decoded with widgets.js to 8 records to look for a hidden row: records 2 and 3 are g_sliderWidgets' arrows and 4..7 are g_advancedOptWidgets. Nothing is hidden behind the count.",
+      "Screen_DrawCampaign(1) repaints the map underneath — excluded"
+    ],
+    "original": 39,
+    "ours": 16,
+    "literals_ours": [
+      "FIGHT — ours by docs/decisions.md C21: the widget is System.pl8 frame 29, a mailed hand giving a thumb up, and a modern player has no legend for it. The original draws no caption on it.",
+      "AUTO — ours, the same, against frame 31, the thumb down."
+    ],
+    "missing": [],
+    "invented": [
+      "the FIGHT and AUTO legends under the two thumbs (C21, and they are outside the original's widget rectangles)"
+    ],
+    "excluded": "the campaign-map repaint beneath the panel (Screen_DrawCampaign, Screen_DrawMenuBar, Screen_DrawEndTurn); Widget_Draw itself, whose records are counted in the \"widgets\" field; the blitters (Blit_Unclipped/ClippedLeft/ClippedRight) and with them EVERY Sprite_WGenSprite call, because that wrapper reaches no other leaf and so is invisible to the counter — see notes; the .256 palette read beside a backdrop, which moves no pixels. Also excluded, and this is a BUG IN THE COUNTER rather than a decision: Screen_BattlePrompt and Screen_BattleResult are the only two painters in the audit that call Gfx_LoadCountyMode, and the path Gfx_LoadCountyMode -> Net_PumpReceive -> Net_OnSessionEvent -> Net_LeaveGame -> Smk_Skip -> Smk_OnFinished -> Screen_DrawBattlefield drops the walk into the whole screen ladder. Unpatched, screendraws.js reports 228 and 226 for these two. The stored 35 and 33 are what the SAME RULE gives with Net_PumpReceive added to SUBSTRATE_ROOTS. THE COORDINATOR MUST ADD IT OR --check WILL DISAGREE WITH THESE TWO RECORDS.",
+    "eng": {
+      "group": 80,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        7
+      ],
+      "also": "99/0 \"The people.\" for an ownerless side; 100 at map_slot*20 + county for the county name; 8 at 0x34 + troop*2 + 1 for the roster nouns and 0x48/0x49 \"Total men\". Group 80's 4, 5 and 6 — \"The army of\", \"The people of\", \"The bandits from\" — are drawn by nothing in the binary."
+    },
+    "sheets": [
+      {
+        "sheet": "Icon_tmp.pl8",
+        "frames": [
+          55,
+          56
+        ],
+        "note": "0x37 field battle, 0x38 siege, at (53, 69); plus 0x30 + shieldIndex at (122, 180) and (322, 180), where Battle_ChooseSettlement substitutes 6 for a zero shield, so 49..54."
+      },
+      {
+        "sheet": "Misc_cty.pl8",
+        "frames": [
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53
+        ],
+        "note": "0x2F + row, the seven troop icons, drawn twice a row at x 147 and 307."
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          29,
+          31
+        ],
+        "note": "the two thumb widgets, drawn by Widget_Draw, not by the painter."
+      }
+    ],
+    "notes": "Counted by tools/draws/screendraws.js rule: one call site of a leaf, loops once, unreachable branches once. THE TWO SCREENS SHARE HELPERS AND MUST NOT BE ADDED: 0x12 is 35 sites and 0x13 is 33, but their UNION is 45, not 68, because FUN_004224E7 (the seven-row roster, 23 sites) is walked once. Ours is one module for both, so the \"ours\" figure is battle.rs entire on both records. A further gap the counter cannot see: SPRITE_WGENSPRITE IS INVISIBLE TO IT. That wrapper (0x0040A682) is the sheet blit for a file read whole into the sprite buffer, and its only leaves are the three Blit_* clip states, which the counter correctly excludes as one logical blit seen three ways — with the effect that the wrapper reaches no leaf at all and its CALL SITES are never counted. These two painters make four each: the medallion (icon_tmp.pl8 frame 0x37, or 0x38 for a siege) and the two realm shields (frame 0x30 + shieldIndex). Screen_SiegePrep makes one, and the map information panel makes several. So the honest figure for 0x12 is 35 + 4. WHAT THIS AUDIT FIXED IN OUR PAINTER: the medallion and the two shields were not drawn at all (the module header said icon_tmp.pl8 was not modelled, and it is in crate::shell::SHEETS); the fourteen troop icons, Misc_cty.pl8 frames 0x2F + row at x 147 and 307, were not drawn at all; the noun column was 185 and FUN_004224E7 puts it at 0x3E + 0x7D = 187; the right-hand parenthesised column was 390 and the original puts it at 0x3E + 0x146 = 388; and Ui_DrawBevelRect is four lines and no fill, where ours filled the medallion recess first.",
+    "unexercised": "No shipped fixture reaches this screen. england-turn1.sav is turn one with one county per realm and no battle; the battle triple is the original's own memory dump of a battle in progress, which nothing in this crate loads into a Question. The siege heading (80/7), the bystander paragraphs (80/2 and 80/3) and the zero-widget bystander case have never been drawn against real data.",
+    "roots": [
+      "Screen_BattlePrompt"
+    ],
+    "widgets": 2
+  },
+  {
+    "screen": "0x13",
+    "name": "The Battle is decided — the after-battle report",
+    "painter": "Screen_BattleResult",
+    "addr": "0x00422FF1",
+    "module": "battle.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "NOTHING. Screen_DrawWidgets has no 0x13 arm — verified by reading every `g_screenId ==` test in it. So this screen has no widget table and no widget hit test: its OK corner is drawn by the painter's own Ui_OkButton(400, 400, 0) and tested by Screen_FrameInput's 0x13 arm through Ui_OkButtonClicked, and its other exit is a right-button release. For a screen the player must dismiss, that means the corner is the only mouse target on it and it is not a widget."
+    ],
+    "original": 37,
+    "ours": 16,
+    "literals_ours": [
+      "OK — ours: Ui_OkButton (0x0040D1BC) draws System.pl8 frame 0x33, an arrow into a hole, and no letters. This literal is the fallback drawn only where the sheet is missing."
+    ],
+    "missing": [],
+    "invented": [
+      "the L2.eng group 82 outcome banner. It belongs to screen 0x2B, which is not built; printing it here rather than nowhere is deliberate and is marked at the site."
+    ],
+    "excluded": "the campaign-map repaint beneath the panel (Screen_DrawCampaign, Screen_DrawMenuBar, Screen_DrawEndTurn); Widget_Draw itself, whose records are counted in the \"widgets\" field; the blitters (Blit_Unclipped/ClippedLeft/ClippedRight) and with them EVERY Sprite_WGenSprite call, because that wrapper reaches no other leaf and so is invisible to the counter — see notes; the .256 palette read beside a backdrop, which moves no pixels. Also excluded, and this is a BUG IN THE COUNTER rather than a decision: Screen_BattlePrompt and Screen_BattleResult are the only two painters in the audit that call Gfx_LoadCountyMode, and the path Gfx_LoadCountyMode -> Net_PumpReceive -> Net_OnSessionEvent -> Net_LeaveGame -> Smk_Skip -> Smk_OnFinished -> Screen_DrawBattlefield drops the walk into the whole screen ladder. Unpatched, screendraws.js reports 228 and 226 for these two. The stored 35 and 33 are what the SAME RULE gives with Net_PumpReceive added to SUBSTRATE_ROOTS. THE COORDINATOR MUST ADD IT OR --check WILL DISAGREE WITH THESE TWO RECORDS. Plus Defence_Disband, which the original calls from its draw function and which is a rule rather than a picture (crate::engagement runs it on the resolve path).",
+    "eng": {
+      "group": 81,
+      "indices": [
+        0,
+        8
+      ],
+      "also": "99/0, 100, 8 as 0x12; and group 82 for the banner, which is ours here. Group 81's 1..7 — \"The army of\" … \"have been annihilated.\" — are drawn by nothing in the binary."
+    },
+    "sheets": [
+      {
+        "sheet": "Icon_tmp.pl8",
+        "frames": [
+          55,
+          56
+        ],
+        "note": "the same medallion and shields as 0x12."
+      },
+      {
+        "sheet": "Misc_cty.pl8",
+        "frames": [
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53
+        ]
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          51
+        ],
+        "note": "0x33, Ui_OkButton's own frame."
+      }
+    ],
+    "notes": "The roster is FUN_004224E7 mode 1, nine sites where mode 0 draws seven — the two extra are the parenthesised before-counts at x 56 and x 388, read out of DAT_00568420 and DAT_0056843C, WHICH MODE 0 STASHED WHEN THE PROMPT WAS DRAWN. So the original s before-column on 0x13 is only correct because 0x12 ran first; ours keeps the before-roster on the report instead of in a global. Mode 2 of the same helper, seven more sites, is UnitPanel_Draw s two-column army panel and is reachable from neither of these screens. The \"ours\" figure is battle.rs entire, the same module as 0x12 — do not add the two.",
+    "unexercised": "As 0x12. Additionally: the siege heading 81/8 and every one of the seven group-82 banners is unexercised against real data — the unit test all_seven_outcome_banners_are_reachable_and_distinct drives them from constructed Verdicts, which is a test checking its own fixture.",
+    "roots": [
+      "Screen_BattleResult"
+    ],
+    "widgets": 0
+  },
+  {
+    "screen": "0x1D",
+    "name": "Siege preparations",
+    "painter": "Screen_SiegePrep",
+    "addr": "0x00421F14",
+    "module": "siege.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1D arm: Widget_Draw(0, 0, &g_siegePrepWidgets, 6). THE TABLE HOLDS EXACTLY SIX RECORDS — decoded to ten with widgets.js and records 6..9 are g_smackTestWidgets (0x004DDFA0), which docs/symbols.json describes independently as the Smacker test page's minus/plus at (208, 232), (240, 232) and yes/no at (288, 280), (324, 284). There is no cut sheep row here. The six are up/down pairs at x 38, tops at y 184, 252, 320 with the partner 26 pixels below, hotspot ids 0, 1, 2; System.pl8 frames 21 and 23 (Widget_Draw picks g_systemSheet because the size field is 0x18 and the cutover is `< 0x18`), and frame + 1 while the press timer at +0x0D runs."
+    ],
+    "original": 33,
+    "ours": 15,
+    "literals_ours": [
+      "NO L2.ENG: SIEGE PREPARATIONS — ours, a diagnostic drawn only when L2.eng is absent, in our own debug font, so a placeholder install does not show a blank window."
+    ],
+    "missing": [],
+    "invented": [
+      "the \"N OF cap\" line under each engine row — REMOVED by this audit; the original draws nothing there",
+      "the \"+\" and \"-\" captions on the six order widgets, drawn only where System.pl8 is missing"
+    ],
+    "excluded": "the campaign-map repaint beneath the panel (Screen_DrawCampaign, Screen_DrawMenuBar, Screen_DrawEndTurn); Widget_Draw itself, whose records are counted in the \"widgets\" field; the blitters (Blit_Unclipped/ClippedLeft/ClippedRight) and with them EVERY Sprite_WGenSprite call, because that wrapper reaches no other leaf and so is invisible to the counter — see notes; the .256 palette read beside a backdrop, which moves no pixels.",
+    "eng": {
+      "group": 83,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "also": "group 8 at 0x42/0x43 — \"Season\"/\"Seasons\" — through Ui_DrawCount. VERIFIED AGAINST THE WORDS, not against the indices existing: 83 reads \"Siege preparations.\", \"Catapults\", \"Siege towers\", \"Battering rams\", \"Siege will take\", \"to make ready.\", \"Lift siege\", \"Proceed\", \"- No engines to be built\". All nine are drawn; index 8 is drawn from three separate call sites, one per engine row."
+    },
+    "sheets": [
+      {
+        "sheet": "Sgeplans.pl8",
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "note": "castleType - 1 at (336, 64). WHICH PICTURE IS WHICH CASTLE LEVEL IS UNVERIFIED — it rests on the subtraction, and no fixture has a besieged county."
+      },
+      {
+        "sheet": "Misc_cty.pl8",
+        "frames": [
+          67,
+          68,
+          69
+        ],
+        "note": "0x43 + row, one per engine ordered, at (208 + n*step, rowY - 8), step 60/60/80."
+      },
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          21,
+          23
+        ],
+        "note": "drawn by Widget_Draw, not by the painter."
+      }
+    ],
+    "notes": "THE WORST SCREEN IN THE GROUP AND THE ONE THE AUDIT PAID FOR. Before this pass it drew NOTHING through the game's own assets: every line was l2_view::text::draw with the English typed into the source, against a painter that makes eleven Eng_DrawString calls and three Pl8_DrawFrames. Five defects fixed, each cited at its constant: (1) the window was border set 0 and FUN_004093E0 passes 1; (2) the percent bar's well was FILLED before it was framed and Ui_DrawInsetRect is four lines and no fill — the exact C61 black hole; (3) \"- No engines to be built\" was drawn at rowY - 0x10 and the original draws it at rowY + 0x10; (4) the engine sprites were at rowY - 0x10 and the original draws them at rowY - 8; (5) the module said the order buttons were Panels.pl8 frames and Widget_Draw takes them from g_systemSheet. THE DRAW-CALL EXTRACTOR UNDERCOUNTS THIS PAINTER BY EIGHT: FUN_0040437D (0x0040437D) is a filled rectangle — a loop of FUN_00403A8F horizontal lines — and is not in draws.js's list of 26 primitives. It is called eight times here: two per engine row for the percent trough (0xF9 empty, 0xFA fill) and one per button for its plate (0x18). draws.js reports 28; the true figure by the audit's own rule is 35. Two further captions of ours, \"+\" and \"-\", are not English and do not match the literals scan: they are the fallback drawn only where System.pl8 frames 21 and 23 are missing, and the original draws no caption on either widget.",
+    "unexercised": "NO FIXTURE HAS A BESIEGING ARMY. england-turn1.sav is turn one with one county per realm; nothing besieges anything. So the castle-plan frame, the three engine rows' sprites, the percent troughs, the \"- No engines\" branch and the Season/Seasons singular are all unexercised against real data — the screen's unit tests drive hotspot geometry and the engine cost table, not the drawing.",
+    "roots": [
+      "Screen_SiegePrep"
+    ],
+    "widgets": 6
+  },
+  {
+    "screen": "0x2B",
+    "name": "The battle outcome banner",
+    "painter": "Screen_BattleOutcome",
+    "addr": "0x00423241",
+    "module": null,
+    "reachable": true,
+    "also_drawn_by": [
+      "NOTHING. Screen_DrawWidgets has no 0x2B arm."
+    ],
+    "original": 13,
+    "ours": 0,
+    "literals_ours": [],
+    "missing": [
+      "the whole screen — it is not built. screens/battle.rs prints the group 82 heading under 0x13's own so the outcome is not silently lost, and says so."
+    ],
+    "invented": [],
+    "excluded": "the campaign-map repaint beneath the panel (Screen_DrawCampaign, Screen_DrawMenuBar, Screen_DrawEndTurn); Widget_Draw itself, whose records are counted in the \"widgets\" field; the blitters (Blit_Unclipped/ClippedLeft/ClippedRight) and with them EVERY Sprite_WGenSprite call, because that wrapper reaches no other leaf and so is invisible to the counter — see notes; the .256 palette read beside a backdrop, which moves no pixels. Plus FUN_004B1310, whatever plays inside the animated branch inset: the recess is counted, its contents are not.",
+    "eng": {
+      "group": 82,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "also": "all fourteen strings are drawn: seven heading/body pairs at 2n and 2n + 1."
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          51
+        ]
+      }
+    ],
+    "notes": "THE SEVEN OUTCOMES, SETTLED. Battle_SelectOutcomeBanner (0x00478419) writes g_battleOutcome and only ever writes 0..5 — `siege ? (localWon ? (Awon ? 2 : 4) : (Awon ? 5 : 3)) : (localWon ? 0 : 1)` — so six pairs come from the outcome and THE SEVENTH, 12/13 \"The conflict is over.\", is not an outcome value at all: it is the g_battleChoiceOwner == 0 branch, a battle between two other realms. All seven are reachable. docs/battle.md does not name them and that is a documentation gap: they are 0/1 won, 2/3 lost, 4/5 siege won, 6/7 siege lost, 8/9 siege lifted, 10/11 castle lost, 12/13 bystander. THE THREE Ui_OkButton CALLS ARE ONE PER BRANCH, NOT THREE BUTTONS, and the branches are mutually exclusive, so exactly one runs per paint. That matters because Ui_OkButton stashes only the last call's position into DAT_0055CE78/DAT_0057C8A0 for FUN_0040E7E4 to hit-test: a painter drawing three of them in sequence would leave only the third clickable. This one never does. Only two coordinates exist between the three calls — (416, 256) for the short window and (416, 352) for the tall animated one. Ten call sites; AT MOST FOUR RUN IN A FRAME. The animated branch is gated on g_optAnimations and draws a taller window, a 402 x 194 Ui_DrawInsetRect recess at (39, 72) for a video, and its text 168 pixels lower. AND THE THREE OK CORNERS ARE ALL DECORATIVE. Ui_OkButtonClicked (the reader of the DAT_0055CE78/DAT_0057C8A0 stash) is called from exactly one function, Screen_FrameInput, at twenty sites — and NOT ONE OF THEM IS IN THE 0x2B ARM. That arm is three lines: else if (g_screenId == 0x2B) { if (g_mouseRightReleased != 0) { DAT_00568470 = 0x1389; goto epilogue; } }. So the only way off this screen is a RIGHT-CLICK, exactly as on 0x2E, and the picture in the corner is an instruction rather than a target. That also disposes of the concern that a painter drawing three Ui_OkButtons leaves only the third clickable: none of them is, and in any case the three sit in mutually exclusive branches so only one is ever drawn.",
+    "unexercised": "Not built, so nothing. And nothing could exercise it: no fixture produces a battle outcome, and g_optAnimations has no counterpart in this tree.",
+    "roots": [
+      "Screen_BattleOutcome"
+    ],
+    "widgets": 0
+  },
+  {
+    "screen": "0x2F",
+    "name": "The Battle Master rank sheet — the top ten and the player's own five",
+    "painter": "Screen_BattleMasterRank",
+    "addr": "0x00421D09",
+    "module": null,
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x2F arm: FUN_004360F2(); FUN_0043F24B() — AND NEITHER DRAWS ANYTHING. FUN_004360F2 (41 bytes) clears DAT_0057A0CC and DAT_005CD41C and sets g_redrawRequest = 2; FUN_0043F24B (185 bytes) zeroes an 8 x 65 array at 0x005651E0 and two 65-entry arrays at 0x00553E80 and 0x00565440. Not one draw call between them. They are the skirmish's state teardown, re-run every frame, and the g_redrawRequest = 2 is why both results screens repaint continuously. The 0x2E arm is the same two functions, so NO drawing leaks between the ratings screen and the rank sheet in either direction."
+    ],
+    "original": 9,
+    "ours": 0,
+    "literals_ours": [],
+    "missing": [
+      "the whole screen — it is not built. screens/ratings.rs carries its painter listing so the next person starts from the decompilation."
+    ],
+    "invented": [],
+    "excluded": "the campaign-map repaint beneath the panel (Screen_DrawCampaign, Screen_DrawMenuBar, Screen_DrawEndTurn); Widget_Draw itself, whose records are counted in the \"widgets\" field; the blitters (Blit_Unclipped/ClippedLeft/ClippedRight) and with them EVERY Sprite_WGenSprite call, because that wrapper reaches no other leaf and so is invisible to the counter — see notes; the .256 palette read beside a backdrop, which moves no pixels. The score2.256 palette read is NOT counted; the score2.pl8 backdrop IS, through FUN_00408FCB.",
+    "eng": {
+      "group": 38,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "also": "37/5 \"The skirmish masters!!\" is the page title. Group 38 is twelve ranks, \"Rank of Private\" through \"Rank of Supreme commander\", selected by DAT_0053E9E0 — VERIFIED AGAINST THE WORDS."
+    },
+    "sheets": [
+      {
+        "sheet": "Score2.pl8",
+        "frames": [
+          0
+        ],
+        "note": "a raw 640 x 480 page like Score1.pl8, with Score2.256 as its palette. NEITHER IS IN crate::shell::SHEETS OR PALETTES — building this screen needs both added."
+      }
+    ],
+    "notes": "THE BRIEF'S HYPOTHESIS IS FALSIFIED: the rank sheet's content is not hiding in the two Screen_DrawWidgets functions, and none of the ratings screen's 0x2E drawing leaks onto it. Its six draw calls really are almost all it has — and the audit's extractor misses TWO MORE. FUN_00403CF4(x, y, w, h, colour) is a RECTANGLE OUTLINE, four FUN_00403A8F line draws, and is not one of draws.js's 26 primitives; it frames the top-ten table at (130, 10) 380 x 270 and the player's own table at (130, 300) 380 x 170, both in 0x3F. So the true figure is 8, not 6. Content: a ten-row high score table (names at a 32-byte stride from 0x0051FBC0, scores from 0x0051FD00) and the local player's own last five (his name repeated, scores from 0x0051FD28), with the pen at x 200 for the name and x 400 for the number, row pitch 0x14. Those tables come from score.dat, which nothing in this tree reads. DAT_005AEA40 := 1 for the whole painter, which is the EMBOSS OFF flag — Pen::flat — and DAT_0058FE2C := 1 only around the two Ui_DrawCentred headings, which is drop capitals. AND THE BACKDROP SETTLES THE OTHER HALF OF THE QUESTION: SCORE2.PL8 IS 307,224 BYTES = 640 * 480 + 24, a raw full-screen picture rather than a sprite sheet, read straight into the back buffer by FUN_00408FCB(name, 0x1E0). So this screen is one photograph plus nine draws: two rectangle outlines, two centred headings and two loops of a name and a number. It is \"we are missing one file\", not \"we are missing forty draws\" — but the file is not the whole gap: Score2.pl8 and Score2.256 are absent from crate::shell::SHEETS and PALETTES, and the ten names at 0x0051FBC0 and the two score tables at 0x0051FD00 and 0x0051FD28 come from score.dat, which nothing in this tree reads. Building it needs the two asset names, a score.dat reader and nothing else.",
+    "unexercised": "Not built. This engine has no Battle Master mode at all: no DAT_0057A0F0, no score.dat reader, no rank. See screens/ratings.rs's own closing section.",
+    "roots": [
+      "Screen_BattleMasterRank"
+    ],
+    "widgets": 0
+  },
+  {
+    "screen": "0x1A",
+    "name": "The compose dialogs — seven shapes on g_diploKind",
+    "painter": "Screen_DiploDialog",
+    "addr": "0x0041789B",
+    "module": "diplomacy.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1A arm, three ways on g_diploKind: kind == 0 -> Widget_Draw(0,0,&DAT_004DD9D0,4); kind < 5 -> FUN_00417BD3(kind-1) then Widget_Draw(0,0,&DAT_004DDA30,2); else Widget_Draw(0,0,&DAT_004DDA60,2).",
+      "FUN_00417BD3 (0x00417BD3) is drawn TWICE a frame for kinds 1..4 — once from Diplo_DrawLetter inside the painter and again from the widget arm — which is how the draft repaints without the dialog being repainted. It is the same shape as 0x18's numbers living in FUN_0041AEA2."
+    ],
+    "widget_tables": "THE THREE TABLES ARE THREE WINDOWS ONTO ONE ARRAY. 0x004DD9D0 is a contiguous run of 24-byte records: 0x004DDA30 is record 4 (0x004DD9D0 + 4*24) and 0x004DDA60 is record 6. Decoded to 8 records with widgets.js: (184,240,f68,id1) (216,240,f66,id0) both FUN_00436372; (288,280,f29,id1) (324,284,f31,id0) (288,292,f29) (324,296,f31) (320,244,f29) (356,248,f31) all FUN_00436408. Slice 0..3 is the gift's four, 4..5 the letters' two, 6..7 the requests' two — every slice exactly as long as the count passed, so there is NO hidden record here. The run continues past the dialogs at 0x004DDA90+ with tick/cross pairs whose handlers (FUN_004367FF, FUN_00436872 = Diplo_FormAlliance, FUN_004368FD) are message replies, not anything 0x1A draws. Eight records drawn, eight records exist.",
+    "original": 28,
+    "ours": 26,
+    "real": 26,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [
+      "the letter dialog's text caret — FUN_0040ACCE(0x5AF8F0, 0x3F) at the end of FUN_00417BD3, which blinks on a 16-frame counter at (g_penAdvance + 0x30, 200 + 0x0E). This screen carries the draft as a String and has no TextField, so there is nothing to place a caret from. It is the only one of the 27 we do not draw."
+    ],
+    "invented": [],
+    "excluded": "Widget_Draw itself (its 8 records are counted above, not in `original`); the diplomacy screen 0x0B underneath, which is NOT repainted — FUN_004B1DE0, the call that looks like a repaint at the top of two of the three painters, is `return;` and nothing else; the Blit_* under Sprite_WGenSprite and Minimap_DrawOverlay; Diplo_DrawLordCard (0x004171EE), which xref.js says has exactly ONE caller, Diplo_DrawScreen — it belongs to 0x0B and is not reachable from Screen_DiploDialog.",
+    "per_shape": {
+      "kind 0 gift (Diplo_DrawGiftGold 0x00417960)": "9 original / 9 ours. FUN_004093E0(0x40,0xA0,0x16,0x0B) window (64,160) 352x176; Ui_OkButton(0x178,0x126,0) (376,294); Eng_DrawString(72,10) + Ui_DrawText(name) at (96,184); Eng_DrawString(72,23) + Ui_DrawCount(bestGift,0) at (96,216); Eng_DrawString(72,18) at (96,248) + Ui_DrawCount(g_diploGold,0) at (256,248); Eng_DrawString(72,17) at (160,288).",
+      "kinds 1..4 letters (Diplo_DrawLetter 0x00417AEF)": "9 original / 8 ours. FUN_004093E0(0x10,0x90,0x1C,0x0D) (16,144) 448x208; Ui_OkButton(0x1A8,0x136,0) (424,310); Eng_DrawString(72, 11 + kind - 1) + Ui_DrawText(name) at (48,168); FUN_00417BD3: Ui_DrawBoxInterior(0x20,0xC0,0x1A,6) then Ui_DrawInsetRect(0x20,0xC0,0x1A0,0x60) — the same 416x96 twice, parchment then recess — then FUN_0040352F(draft, 0x30, 200, 0x180) and the caret; Eng_DrawString(72,17) at (112,304).",
+      "kinds 5..6 requests (Diplo_DrawCountyRequest 0x00417CEF)": "9 original / 9 ours. FUN_004093E0(0x30,0x80,0x18,0x0F) (48,128) 384x240; Ui_OkButton(0x188,0x146,0) (392,326); Eng_DrawString(72, 15 + k) + Ui_DrawText(name) at (80,152); FUN_00410C71(county, 0x60, 0xB0) — the minimap at (94,179), and with NO county picked the argument is 0x14, not 0; Eng_DrawString(72, 19 + k) or (72, 21 + k) + Eng_DrawString(100, slot*20 + county) at (80,320); Eng_DrawString(72,17) at (320,224)."
+    },
+    "reachability": "All seven kinds are reachable and exactly six functions write g_screenId = 0x1A: Diplo_OpenGift (0), Diplo_OpenCompliment (1), Diplo_OpenInsult (2), Diplo_OpenAlliance (4 if already this realm's ally, else 3), Diplo_OpenAskHelp (5), Diplo_OpenAskAttack (6). g_diploKind ALSO takes 7, 8, 9 and 10, written by FUN_004368FD and its sibling — but those are message-reply handlers that call Msg_Dismiss() and Net_SendCommand and never set g_screenId, so the painter's silent fall-through for kind > 6 is unreachable. Verified by enumerating every `g_diploKind =` and every `g_screenId = 0x1a` in the corpus.",
+    "eng": {
+      "group": 72,
+      "indices": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "also": "group 100 at g_scenarioIndex*0x14 + g_pickedCounty for the county's name; group 8 index 0/1 \"Crown.\"/\"Crowns.\" through Ui_DrawCount. Indices verified against the words in crates/l2-game/tests/shell.rs, not merely for existence — the group 16 failure in docs/draws.md §6 is exactly the check that would have passed here on the wrong group."
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          29,
+          31,
+          51,
+          66,
+          68
+        ],
+        "note": "29/31 the mailed hand thumb up and down (NOT a tick and a cross); 66 minus and 68 plus, and this table is the anchor that settles that pairing — the frame-68 record carries hotspot id 1 and FUN_00436372 reads `if (id == 1) g_diploGold += 10`; 51 = 0x33 is Ui_OkButton's arrow-into-a-hole."
+      },
+      {
+        "sheet": "Panels.pl8",
+        "frames": [],
+        "note": "the three windows are FUN_004093E0, border set 1, through Chrome::draw_box."
+      }
+    ],
+    "notes": "Ui_OkButton stashes only the LAST call's (x, y) into DAT_0055CE78 / DAT_0057C8A0, so a painter drawing two makes one dead. Screen_DiploDialog draws three — but they are three arms of one if/else-if chain on g_diploKind, so exactly one runs per frame and the quirk cannot bite here. Asserted in diplomacy.rs. WHAT WAS FIXED: this screen drew all twenty of its marks through l2_view::text::draw (our 5x7 debug font) and widget::panel/button (our own rectangles), with every fetched L2.eng string .to_uppercase()'d, and it drew the target's LORD TITLE (L2.eng group 7) where the original draws g_playerNames. It now draws through Pen — real fonts, real parchment, real button sheet — with DAT_0058FE2C's drop-capital colour 1 and the ordinary SHADOW pair (0x1A is neither 0x1C nor 0x1F, the two screens with the gateway shadow). Three draws that were absent are now present: the Ui_OkButton on all three shapes, the county picker's minimap, and Ui_DrawCount's group 8 noun, which turned \"Last gift was 40\" into \"Last gift was 40 Crowns.\"",
+    "unexercised": "C26 bites twice. (1) Every shipped fixture is turn one with no alliance, so g_diploMenuState is never 1 and kinds 5 and 6 cannot be opened by a person — the two request dialogs are drawn only by a test that constructs the screen directly. (2) pair[me][target].bestGift is written by nothing on the player's side in single player (Diplo_ReplyGift writes the AI's record), so the \"Last gift was\" line reads 0 Crowns in every state this workspace can reach; that is the original's behaviour and not our defect, and it is why the noun's plural branch matters more than its singular.",
+    "roots": [
+      "Screen_DiploDialog",
+      "FUN_00417bd3"
+    ]
+  },
+  {
+    "screen": "0x1F/1",
+    "name": "The title menu — the first screen of the original",
+    "painter": "FUN_0041EA14",
+    "addr": "0x0041EA14",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 1: FUN_0041EAA3() — the four items again, every frame, which is how the highlight follows the pointer"
+    ],
+    "original": 3,
+    "ours": 12,
+    "original_objects": 11,
+    "ours_objects": 12,
+    "real": 11,
+    "placeholder": 1,
+    "literals_ours": [],
+    "missing": [],
+    "invented": [
+      "the build stamp (crate::build_id), drawn in our own 5x7 font at the bottom of the page. Deliberate and documented at the site: a player spent an evening reporting already-fixed defects against a binary four merges old. It is the only page-1 mark that is not the original's."
+    ],
+    "excluded": "the three Blit_* inside Sprite_GenFrame, which are the implementation of one window border; Gfx_MarkSpriteDirty and Gfx_MarkAllDirty, which move no pixels.",
+    "eng": {
+      "group": 11,
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        47
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Panels2.pl8",
+        "frames": [],
+        "note": "the window is FUN_00409346(DAT_004EABEC, ...) and DAT_004EABEC holds panels2.pl8 on this page — the same 16-pixel cell layout as Panels.pl8."
+      }
+    ],
+    "notes": "Ui_DrawCentred(11,0) is drawn in the HEADING font with DAT_0058FE2C set and DAT_005AEA40 clear — embossed, capitals in colour 1 — and every other line on the page is drawn with DAT_005AEA40 set, i.e. flat. The heading is the only embossed thing on the front end. Item 3 of 4 is index 47 \"Lords of Magic?\", not index 4.",
+    "unexercised": "none — this page needs no game state.",
+    "roots": [
+      "FUN_0041ea14"
+    ]
+  },
+  {
+    "screen": "0x1F/2",
+    "name": "Your options",
+    "painter": "FUN_0041EC8A",
+    "addr": "0x0041EC8A",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 2: FUN_0041ECE6()"
+    ],
+    "original": 2,
+    "ours": 12,
+    "original_objects": 12,
+    "ours_objects": 12,
+    "real": 12,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [],
+    "invented": [],
+    "excluded": "as page 1.",
+    "eng": {
+      "group": 11,
+      "indices": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        19
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Panels2.pl8",
+        "frames": []
+      }
+    ],
+    "notes": "Window FUN_00409346(panels2, 0xB0, 10, 0x12, 0x12) — (176, 10), 288 x 288. Five items on the same 36-pixel pitch page 1 uses. Exact.",
+    "unexercised": "none.",
+    "roots": [
+      "FUN_0041ec8a"
+    ]
+  },
+  {
+    "screen": "0x1F/3",
+    "name": "Load a game — the save browser inside the front end",
+    "painter": "FUN_0041EF42 -> FUN_004148E4(5)",
+    "addr": "0x0041EF42",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 3: SaveLoad_DrawStatus(); Widget_Draw(0x60, 10, &g_saveLoadWidgets, 4). g_saveLoadWidgets (0x004DDD78) holds EXACTLY 4 records for that count — thumb up (304,64) f29, thumb down (352,64) f31, and the two list arrows (384,144) f35 delta -3 and (384,176) f37 delta +3, list id 1. Record 4 is where g_skirmishFileWidgets begins (0x004DDD78 + 4*24 = 0x004DDDD8), so nothing is hidden. The offset (0x60, 10) is the page's own window origin; screens 0x35/0x36 pass (0x10, 0x90) for the same table."
+    ],
+    "original": 0,
+    "ours": 6,
+    "original_objects": 19,
+    "ours_objects": 6,
+    "real": 6,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [
+      "the four Panels2.pl8 parchment plates SaveLoad_DrawStatus lays down: (124,76) 160x16, (124,86) 160x16, (126,116) 336x160 and (128,290) 336x16",
+      "the file name being typed — Ui_DrawText(g_editBuffer, 0x80, 0x52) — and its caret, FUN_0040ACCE",
+      "the save list itself: up to 30 names in three columns 120 apart from (128, 118), 16 apart down",
+      "FUN_004B414A(x-2, y-1, 0x3F) — the 6 x 16 selection bar behind the chosen name, which is a sprite fill and not a text colour",
+      "the status line Eng_DrawString(40, 2/3/4, 0x80, 0x124) — 'Loading game. Please wait.' / 'Saving game.' / 'File error. Operation canceled.' — gated on DAT_0057D3C4, a frame countdown set to 150 or 400 when an operation starts and zeroed when the box opens"
+    ],
+    "invented": [],
+    "removed": [
+      "L2.eng 40/8 'Right click to exit.' was drawn centred at (120, 292). The original draws 40/8 on PAGE 13, the skirmish file box, and never here. Removed."
+    ],
+    "excluded": "as page 1; and the FUN_004B414A sprite fill is counted as one draw, not as its blitter.",
+    "eng": {
+      "group": 40,
+      "indices": [
+        5
+      ],
+      "also": "the original also reaches 40/2, 40/3 and 40/4 through SaveLoad_DrawStatus, none of which we draw."
+    },
+    "sheets": [
+      {
+        "sheet": "Panels2.pl8",
+        "frames": []
+      }
+    ],
+    "notes": "SaveLoad_DrawStatus (0x004149EC) has TWO arguments Ghidra did not detect — the selected row and a flag. The flag is 1 on setup page 3 and 0 on screens 0x35/0x36, and it picks both the origin ((0x60,10) vs (0x10,0x90)) and whether the four plates come from panels2 via Sprite_GenBlank or from the campaign Panels.pl8 via Ui_DrawBoxInterior. The two Widget_Draw offsets in Screen_DrawWidgets are the same evidence from the other side. FIXED HERE: the three inner rectangles were drawn as bevelled recesses (shell::button_recess = FUN_00403EE4, top/right 0x35, bottom/left 0x28); the painter draws them with FUN_00403CF4, a flat one-pixel outline in a single colour. Three different rectangles in this binary all look like a border and this module had two of the three confused.",
+    "unexercised": "the whole of SaveLoad_DrawStatus. Our page 3 has no save directory behind it; crates/l2-game/src/screens/saveload.rs is the same function on screens 0x35/0x36 and joining the two is a job on its own.",
+    "roots": [
+      "FUN_0041ef42"
+    ]
+  },
+  {
+    "screen": "0x1F/4",
+    "name": "Choose your title and your shield",
+    "painter": "FUN_0041EF57",
+    "addr": "0x0041EF57",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 4: FUN_0041F321(); FUN_0041F1DD(); FUN_0041F01F() — the name field, the shields and the two buttons, all repainted every frame"
+    ],
+    "original": 3,
+    "ours": 9,
+    "original_objects": 15,
+    "ours_objects": 15,
+    "real": 15,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [],
+    "invented": [],
+    "excluded": "as page 1.",
+    "dead": [
+      "the SECOND window arm: FUN_00409346(panels2, 0x50, 10, 0x1E, 0x0E) — two rows shorter — is drawn when g_multiplayer != 0 && g_netIsMaster == 0",
+      "the TAKEN shield, panels2 frame 2i + 0xCC, drawn when another player has claimed that colour. Unreachable in single player, where DAT_0057CB40[i] is 0 for every i."
+    ],
+    "eng": {
+      "group": 11,
+      "indices": [
+        9,
+        10,
+        11
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Panels2.pl8",
+        "frames": [
+          204,
+          205,
+          207,
+          209,
+          211,
+          213,
+          206,
+          208,
+          210,
+          212,
+          214,
+          215
+        ],
+        "note": "204 (0xCC) the 224x32 name plate; 2i+0xCB free and 2i+0xCC taken, five pairs of ~60x65 shields; 215 (0xD7) the 54x27 chosen plaque. NOT Misc_sel.pl8: the painter blits from DAT_004EABEC, which holds panels2 here, and Misc_sel has only seventeen frames against these indices running to 215."
+      }
+    ],
+    "notes": "Object-for-object exact in single player, including the caret. The one place the original does more is the two branches above, both multiplayer.",
+    "unexercised": "the taken-shield frame and the shorter window; both need a second player.",
+    "roots": [
+      "FUN_0041ef57"
+    ]
+  },
+  {
+    "screen": "0x1F/5",
+    "name": "Original campaign, or the new one",
+    "painter": "FUN_0041F592",
+    "addr": "0x0041F592",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 5: FUN_0041F5E8()"
+    ],
+    "original": 2,
+    "ours": 6,
+    "original_objects": 6,
+    "ours_objects": 6,
+    "real": 6,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [],
+    "invented": [],
+    "excluded": "as page 1.",
+    "eng": {
+      "group": 39,
+      "indices": [
+        0,
+        4,
+        5
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Panels2.pl8",
+        "frames": []
+      }
+    ],
+    "notes": "Window FUN_00409346(panels2, 0x40, 0x32, 0x20, 8) — (64, 50) 512 x 128 — and two 164 x 24 recesses at (110, 116) and (366, 116) with the caption centred in 160 from two pixels inside. Exact.",
+    "unexercised": "none.",
+    "roots": [
+      "FUN_0041f592"
+    ]
+  },
+  {
+    "screen": "0x1F/6",
+    "name": "Full game, or skirmish — and it is a question put to a HOST",
+    "painter": "FUN_0041F3E9",
+    "addr": "0x0041F3E9",
+    "module": "setup.rs",
+    "reachable": false,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 6: FUN_0041F4A1(), itself guarded on g_netIsMaster != 0"
+    ],
+    "original": 4,
+    "ours": 6,
+    "original_objects": 6,
+    "ours_objects": 6,
+    "real": 6,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [
+      "the JOINER layout, two draws: FUN_00409346(panels2, 0x80, 0x32, 0x18, 6) — a 384 x 96 window instead of 512 x 128 — and FUN_0040328E(39, 3, 0xA0, 0x50, 0x140, ...) wrapped, 'Please wait while the session creator decides what type of game to play.' There are no buttons at all in that arm; FUN_0041F4A1 returns immediately."
+    ],
+    "invented": [],
+    "excluded": "as page 1.",
+    "eng": {
+      "group": 39,
+      "indices": [
+        0,
+        1,
+        2
+      ],
+      "also": "39/3 in the arm we do not draw."
+    },
+    "sheets": [
+      {
+        "sheet": "Panels2.pl8",
+        "frames": []
+      }
+    ],
+    "notes": "REACHABLE FALSE IS THE FINDING. Every write of g_setupPage = 6 in the corpus is on the g_multiplayer != 0 path: page 4's Continue handler (0x00430000:795, inside the `else` of `if (g_multiplayer == 0)`) and the net message handler FUN_00445F80. A single player leaving page 4 goes to page 7 or page 12. g_netIsMaster (0x00553248) is in .bss and starts at 0; only the DirectPlay code writes it, so on a single-player machine this page — if it could be reached — would draw the joiner layout. Our engine draws the HOST layout, which is right for the person the page is asked of. The module header now says so.",
+    "unexercised": "everything: there is no multiplayer session in this workspace.",
+    "roots": [
+      "FUN_0041f3e9"
+    ]
+  },
+  {
+    "screen": "0x1F/7",
+    "name": "The custom game, single player",
+    "painter": "FUN_0041F6C7",
+    "addr": "0x0041F6C7",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 7: ScenarioList_Draw(); FUN_0041F86D(999); FUN_0041FF75(0). All three are dirty-flag gated — DAT_0057C948, DAT_0055CE94 — and FUN_0041FF75 additionally on g_multiplayer != 0, so it draws NOTHING here."
+    ],
+    "original": 8,
+    "ours": 10,
+    "original_objects": 70,
+    "ours_objects": 55,
+    "real": 55,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [
+      "the five player cards, FUN_0041FBCB (0x0041FBCB) — 15 objects. Misc_sel frame 2*shieldIndex - 2 at (10, 94n + 6), the lord's portrait frame lord + 9 (14 for a human) at (84, 94n + 10), and the name centred in 160 pixels at y = 94n + 80 in the realm's own palette byte (realm +0x8). Realms_AssignLords() runs INSIDE the painter, so the cards are the assignment as much as a picture of it. PAGE 7 DRAWS THESE TOO — the module used to say page 8 only, and FUN_0041F6C7 calls FUN_0041FBCB with no guard.",
+      "FUN_004B13ED(8, 94n + 6, 0x91, 0x5A) — the veil over a human player who is not ready yet"
+    ],
+    "invented": [
+      "SetupScreen::paint_gaps — 'NOT IMPLEMENTED: <option>' and 'CANNOT START THIS MAP: <why>', in our own 5x7 font under the grid. Deliberate, docs/decisions.md C21, and drawn in our font precisely so a screenshot cannot mistake it for the original's."
+    ],
+    "excluded": "as page 1; the three Blit_* under Sprite_GenFrame; Widget_Draw is not used on this page at all — the twelve options and the five list rows are hit-tested by hand.",
+    "eng": {
+      "group": 11,
+      "indices": [
+        12,
+        13,
+        14
+      ],
+      "also": "group 101 the sixty map names, through the packed table DAT_0050A460; group 102 the twelve option labels, wrapped at 100 pixels; group 103 the 46 values."
+    },
+    "sheets": [
+      {
+        "sheet": "Misc_sel.pl8",
+        "frames": [
+          0,
+          15,
+          16
+        ],
+        "note": "15 (0x0F) the top banner at (160,0), page 7 only; 16 (0x10) the map-list plate at (496,9). Frame 0 is page 11's full-screen backdrop."
+      }
+    ],
+    "notes": "TWO THINGS WERE ADDED HERE. (1) The map thumbnail: ScenarioList_Draw's second statement is FUN_00410C71(0, 0x1F0, 9), the same minimap helper the send-supplies panel and the diplomacy county picker use, at the same (x-2, y+3) offset — so the plate is a frame round a LIVE minimap of the selected scenario and we drew nothing inside it. (2) The scroll bar: three stacked fills at (604, 163), 20 wide, 44 of track, heights Pct(0x2C, PctOf(part, total)) with the thumb taking the rounding. THE ROW ORDER IS STILL WRONG AND IS RECORDED RATHER THAN GUESSED: the original indexes group 101 THROUGH DAT_0050A460, which FUN_0046A101 (0x0046A101) fills by asking, for each of the sixty slots, whether 'map01.pl8' + (slot >> 2) * 0x10 opens — in the working directory, then the hard disk, then the CD — and packing the ones that do. A shipped install has eleven of the fifteen files (Map01..Map06, MAP11..MAP15), so the table is slots 0..23 and 40..59 and DAT_00554018 is 44. Row 24 therefore shows group 101 index 40, not 24. We index directly, so rows 24 and up name the wrong map on a real install, and our scroll bar divides by 60 rather than 44. Fixing it moves what every row SELECTS, not just what it says, so it is written down instead.",
+    "unexercised": "the player cards need Realms_AssignLords, which is new-game work this workspace does not do on the setup screen; a card built from Realm::default() would be five copies of one face.",
+    "roots": [
+      "FUN_0041f6c7",
+      "FUN_0041ff75"
+    ]
+  },
+  {
+    "screen": "0x1F/8",
+    "name": "The custom game, multiplayer",
+    "painter": "FUN_0041F77A",
+    "addr": "0x0041F77A",
+    "module": "setup.rs",
+    "reachable": false,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 8: ScenarioList_Draw(); FUN_0041F86D(999); FUN_0041FF75(0); FUN_00420147(0)"
+    ],
+    "original": 4,
+    "ours": 10,
+    "original_objects": 76,
+    "ours_objects": 56,
+    "real": 56,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [
+      "the five player cards, as page 7",
+      "the chat log, FUN_0041FF75(0): FUN_0040437D(0xA8, 8, 0x12F, 0x85, 0x3F) — a 303 x 133 well at (168, 8) — and eight lines of DAT_005651E0 at (174, 125 - 16n), each in the speaking realm's own colour, walked BACKWARDS from DAT_0055CD80 - 1 with wraparound at 8",
+      "the chat input line, FUN_00420147(0): a 303 x 22 well at (168, 150) and DAT_00553E80 at (174, 155) with a caret"
+    ],
+    "invented": [
+      "paint_gaps, as page 7"
+    ],
+    "excluded": "as page 7.",
+    "eng": {
+      "group": 11,
+      "indices": [
+        12,
+        13,
+        14,
+        15
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Misc_sel.pl8",
+        "frames": [
+          16
+        ],
+        "note": "page 8 does NOT draw frame 15 — the banner is page 7's alone, which our engine already had right."
+      }
+    ],
+    "notes": "Page 8 is page 7 without the banner and with a fourth button, 11/15 'Load' at x = 399, plus the two chat panels. The last three captions are drawn only when g_multiplayer != 0 && g_netIsMaster != 0, so a joiner sees 'Cancel' and nothing else. Reached only from the multiplayer arm of page 4's Continue.",
+    "unexercised": "everything multiplayer.",
+    "roots": [
+      "FUN_0041f77a"
+    ]
+  },
+  {
+    "screen": "0x1F/9",
+    "name": "An open drop-down, over the page underneath",
+    "painter": "FUN_0041FDD6",
+    "addr": "0x0041FDD6",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "NOTHING. Page 9 has no Screen_DrawWidgets arm — and that is correct rather than suspicious: an open list is static, so there is nothing for the per-frame pass to repaint. It is reachable: the drop-down opener writes DAT_00553E5C = g_setupPage then g_setupPage = 9, and the closer writes g_setupPage = DAT_00553E5C back."
+    ],
+    "original": 2,
+    "ours": 2,
+    "original_objects": 9,
+    "ours_objects": 9,
+    "real": 9,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [],
+    "invented": [],
+    "excluded": "the page underneath — FUN_0041F6C7(open) / FUN_0041F77A(open) / FUN_0042051C() / FUN_00420630() — which is that page's drawing and is counted there. Note the ARGUMENT: page 9 passes the open option's index so FUN_0041F86D skips its value box, which is why the list is not drawn on top of a box that is still there.",
+    "eng": {
+      "group": 103,
+      "indices": [],
+      "also": "OPTION_BASE[open] .. + rows, out of L2.eng group 103."
+    },
+    "sheets": [
+      {
+        "sheet": "Panels.pl8",
+        "frames": [],
+        "note": "FUN_004093E0, border set 1 — the campaign kit, not panels2, because this is a Ui_DrawBox and not a Sprite_GenFrame."
+      }
+    ],
+    "notes": "The box is rows + 2 cells tall, a border cell at each end, and rows is DAT_00553FB4 — the painter and the hit test read the ONE number, so a Nobles list shortened to the map cannot draw four rows and accept three. Option 2 (Nobles) alone subtracts (rows - 1) * 0x10 from y, so it opens UPWARD; SetupScreen::dropdown_y reproduces exactly that. Nine objects assumes a four-row list.",
+    "unexercised": "none — every option opens in the shell.",
+    "roots": [
+      "FUN_0041fdd6"
+    ]
+  },
+  {
+    "screen": "0x1F/10",
+    "name": "No Lords of the Realm CD",
+    "painter": "FUN_00420428",
+    "addr": "0x00420428",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "NOTHING — page 10 has no Screen_DrawWidgets arm, and like page 9 that is right: the page is four static paragraphs. It is reachable from two arms of the page-1 handler (DAT_0058FE10 != 0, and DAT_005C9A74 outside 1..2)."
+    ],
+    "original": 6,
+    "ours": 6,
+    "original_objects": 6,
+    "ours_objects": 6,
+    "real": 6,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [],
+    "invented": [],
+    "excluded": "as page 1.",
+    "eng": {
+      "group": 11,
+      "indices": [
+        16,
+        17,
+        18,
+        48,
+        49
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Panels2.pl8",
+        "frames": []
+      }
+    ],
+    "notes": "Exact, draw for draw. The one detail worth keeping: Eng_DrawString(11, 48, 0x80, 0xDC, body, **1**) — 'Siege Pack' is drawn in colour 1, not 0x3F, and it is the only string on any of the thirteen pages that is. The other three are FUN_0040328E paragraphs wrapped at 384 pixels.",
+    "unexercised": "none.",
+    "roots": [
+      "FUN_00420428"
+    ]
+  },
+  {
+    "screen": "0x1F/11",
+    "name": "Skirmish setup, multiplayer",
+    "painter": "FUN_00420630",
+    "addr": "0x00420630",
+    "module": "setup.rs",
+    "reachable": false,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, pages 11 and 12 (identical arms): FUN_0041FF75(1); FUN_00420147(1); FUN_00420D40(); and, only when DAT_0056899C == 1, Widget_Draw(0, 0, &DAT_004DE000, DAT_0056D5C0)."
+    ],
+    "widget_tables": "DAT_004DE000 holds 44 records and DAT_0056D5C0 takes exactly two values: 0x1C (28) and 0x2C (44). Decoded: records 0..13 are a left column of frame 1/3 pairs at x 95/111, y 106 + 30n, hotspot ids 0..6; records 14..27 are a right column of frame 5/7 pairs at x 134/150, same rows; records 28..35 and 36..43 are the same two columns for rows 7..10 at y 316..406. So 28 = seven rows, 44 = eleven rows. FUN_0043DC1D sets 0x2C when DAT_0053E91C == 2 and 0x1C otherwise, and the very next statement is `g_battleIsSiege = (DAT_0053E91C == 2)` — SO THE ELEVEN-ROW LAYOUT IS THE SIEGE ONE. Sixteen records that exist and are drawn only in a siege skirmish, which is a real state nothing here can reach. The whole table is used; nothing is hidden behind the count, but half of it is behind a state.",
+    "original": 6,
+    "ours": 1,
+    "original_objects": 41,
+    "ours_objects": 3,
+    "real": 3,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [
+      "Pl8_DrawFrame(misc_sel, 0, 0, 0) — the full-screen backdrop",
+      "FUN_004207C3 (8 draws), FUN_00420D40 (1: a twelve-frame animation on a 100 ms timer, misc_sel frame 0x21 + n at (178,244) or (270,206) on DAT_0056899C), and then either FUN_00421231 + FUN_004209C1 (23) or FUN_0042130F + FUN_00420DE4 (19) depending on DAT_0056899C",
+      "the chat log and input line, FUN_0041FF75(1) and FUN_00420147(1) — the page-11 geometry, a 433 x 40 well at (11, 8) with two lines, not page 7's eight",
+      "the 28 or 44 records of DAT_004DE000"
+    ],
+    "invented": [],
+    "excluded": "as page 1.",
+    "eng": {
+      "group": 11,
+      "indices": [
+        36,
+        37,
+        38,
+        39
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Misc_sel.pl8",
+        "frames": [
+          0,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44
+        ]
+      }
+    ],
+    "notes": "NOT YET ENUMERATED beyond the three captions. What IS established: the caption order is 37 'Back' at (461,440), 38 'Cust.' OR 39 'Norm.' at (519,440) on DAT_0056899C, 36 'Go' at (577,440) — our engine draws 37/38/36 and has no DAT_0056899C, so the 'Norm.' arm is missing; DAT_0056899C also picks skircust.pl8 over skirmish.pl8 for the background, so the two are one switch. Reachable only with DAT_0055302C == 3 (the skirmish choice) and g_multiplayer != 0.",
+    "unexercised": "the whole skirmish editor. l2-sim owns the battlefield and this page is its front end.",
+    "roots": [
+      "FUN_00420630"
+    ]
+  },
+  {
+    "screen": "0x1F/12",
+    "name": "Skirmish setup, single player",
+    "painter": "FUN_0042051C",
+    "addr": "0x0042051C",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 12 — the same arm as page 11, character for character"
+    ],
+    "original": 14,
+    "ours": 1,
+    "original_objects": 35,
+    "ours_objects": 3,
+    "real": 3,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [
+      "as page 11, minus the backdrop frame and the two chat panels: FUN_004207C3, FUN_00420D40, and either FUN_00421231 + FUN_004209C1 or FUN_0042130F + FUN_00420DE4."
+    ],
+    "invented": [],
+    "excluded": "as page 1.",
+    "eng": {
+      "group": 11,
+      "indices": [
+        36,
+        37,
+        38,
+        39
+      ]
+    },
+    "sheets": [
+      {
+        "sheet": "Misc_sel.pl8",
+        "frames": [
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44
+        ]
+      }
+    ],
+    "notes": "NOT YET ENUMERATED beyond the three captions. Reached from page 4's Continue when DAT_0055302C == 3 and g_multiplayer == 0 — so this, not page 11, is the skirmish page a single player sees, and it is the page 'Skirmish!' on page 2 leads to.",
+    "unexercised": "as page 11.",
+    "roots": [
+      "FUN_0042051c",
+      "FUN_0041ff75",
+      "FUN_00420147",
+      "FUN_00420d40"
+    ]
+  },
+  {
+    "screen": "0x1F/13",
+    "name": "The skirmish file box, over page 12",
+    "painter": "FUN_0042150B",
+    "addr": "0x0042150B",
+    "module": "setup.rs",
+    "reachable": true,
+    "also_drawn_by": [
+      "Screen_DrawWidgets 0x1F arm, page 13: FUN_00414E06(DAT_004E65DC); Widget_Draw(0, 0, &g_skirmishFileWidgets, 2). g_skirmishFileWidgets (0x004DDDD8) holds EXACTLY the two records the count asks for — (480,256) f35 delta -1 and (480,288) f37 delta +1, list id 2, the same SaveLoad_Scroll the load box uses with a five-row window instead of fifteen. Record 2 at 0x004DDE08 is a different table (frame 33 buttons at x = 224, handlers 0x00434C34 onward — the options screens). Nothing hidden."
+    ],
+    "original": 14,
+    "ours": 8,
+    "original_objects": 23,
+    "ours_objects": 10,
+    "real": 10,
+    "placeholder": 0,
+    "literals_ours": [],
+    "missing": [
+      "FUN_004207C3 (8 draws) and FUN_00421231 (1) — the skirmish page beneath, which this box is drawn over",
+      "FUN_00414E06's ten file rows: Ui_DrawText(name, 0x80, 0xB0 + 16n) with FUN_004B414A(0x7E, y-1, 0x3F) behind the selected one, and its text in colour 0x66 instead of 0x3F"
+    ],
+    "invented": [],
+    "excluded": "as page 1.",
+    "eng": {
+      "group": 40,
+      "indices": [
+        6,
+        8
+      ],
+      "also": "group 11 indices 36, 37, 38 again for the three captions, in a DIFFERENT left-to-right order from pages 11 and 12: 36 'Go' at (461,440), 37 'Back' at (519,440), 38 'Cust.' at (577,440)."
+    },
+    "sheets": [
+      {
+        "sheet": "System.pl8",
+        "frames": [
+          51
+        ],
+        "note": "Ui_OkButton(0x1F8, 0x164, 0) at (504, 356) — the ONLY one of the thirteen setup pages that draws a close button, and this module drew nothing for it."
+      }
+    ],
+    "notes": "THREE THINGS WERE ADDED. (1) Ui_DrawBox(0x60, 100, 0x1C, 0x12) is border set **0** — the only window on any of the thirteen that is not set 1, and our engine already had that right. (2) FUN_00403CF4(0x78, 0xAC, 0x160, 0xA5, 0x3F) — the file list's outline — is drawn TWICE, once by the painter and once by FUN_00414E06 after its parchment plate, because the plate (336 x 176) overhangs the outline (352 x 165) at the bottom and the second draw puts the edge back. The overdraw is kept. (3) the Ui_OkButton.",
+    "unexercised": "no directory of .skr files is read anywhere in this workspace, so the ten rows have nothing to show.",
+    "roots": [
+      "FUN_0042150b",
+      "FUN_00414e06"
+    ]
+  }
+]

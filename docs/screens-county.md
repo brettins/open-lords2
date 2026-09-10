@@ -692,12 +692,30 @@ their own bodies.
 | `Eng_DrawString` `0x00402D37` | `(group, index, x, y, font, colour)` | one `L2.eng` string |
 | `Ui_DrawCentred` `0x00402C5E` | `(group, index, x, y, width, font, colour)` | one `L2.eng` string, centred in `width` |
 | `Ui_DrawNumber` `0x00402F64` | `(value, lead, suffix, x, y, font, colour)` | a number with a **leading character** and a suffix |
-| `Ui_DrawNumberRight` `0x004030C6` | `(value, lead, suffix, x, y, width, font, colour)` | the same, right-aligned in `width` |
+| `Ui_DrawNumberRight` `0x004030C6` | `(value, lead, suffix, x, y, width, font, colour)` | the same, **centred** in `width` — the name is wrong; see below |
 | `Ui_DrawDelta` `0x00402E0C` | `(value, mode, prefix, suffix, x, y, font, colPos, colNeg)` | a signed number, **drawn as nothing at all when it is zero** |
 | `Ui_DrawCount` `0x0041AB67` | `(value, unitIndex, x, y, font, colour)` | a number plus a **singular/plural noun** |
 | `Ui_DrawHappinessDelta` `0x0041AC95` | `(value, x, y, font, colPos, colNeg)` | `( ±n ☺ )` — a signed number wrapped in brackets with the happiness face after it |
 | `Ui_DrawYear` `0x0041A900` | `(year, x, y, style)` | a year with **BC / AD** from group 26 |
 | `Ui_OkButton` `0x0040D1BC` | `(x, y, mode)` | the picture that closes a panel - a mouse pointer going into a black hole, button-sheet frame 0x33 (mode 0) or 0x10 (mode 1). Section 2.7 |
+
+**[V] `Ui_DrawNumberRight` centres. It does not right-align, and the name misled every
+document that quoted it** — this table, `symbols.json`, `symbols.md` and `armies.md`'s
+battle-HUD paragraph. It and `Ui_DrawCentred` end in the *same* four lines,
+`FUN_004025D7` (`0x004025D7`):
+
+```c
+iVar1  = FUN_004014f0(text, font);        // measure it
+local_c = (width - iVar1) / 2;            // centre it
+if (local_c < 0) local_c = 0;             // clamped, never negative
+Ui_DrawText(text, local_c + x, y, font, colour);
+```
+
+Right-alignment would be `x + width - iVar1`. The difference is half the slack — a number
+in a 56-pixel column lands about 28 pixels left of where the name promises — so a layout
+built from the name is wrong everywhere that primitive is used, and it is used on the court,
+the ration panel, the ratings sheet and the battle HUD. `docs/draws.md` §7; ours is
+`Pen::number_centred`, named for the behaviour rather than for the symbol.
 
 `Ui_DrawText` advances a pen width in `g_penAdvance` (`0x005CD404`), which every caller
 resets to 0 and then adds to the next x — that is how a label and its value are laid out
@@ -962,7 +980,7 @@ Window `Ui_DrawBox(16, 48, 28, 23)` → **(16, 48) to (464, 416)**, 448 × 368.
 | 362 | *"Total immigrants"* (73.6) — or *"No immigration."* (73.11) | `+0x40` |
 | 386 | *"This Season"* (73.7) | `+0x24` |
 
-Labels at x = 48, values right-anchored from x = 336. Button: `Ui_OkButton(436, 388, 0)`.
+Labels at x = 48, values **starting** at x = 336 — they are not right-anchored; see §4 on `Ui_DrawNumberRight`. Button: `Ui_OkButton(436, 388, 0)`.
 
 ### 5.2 Happiness — `Panel_Happiness` (`0x004116FB`), screen 0x16
 
@@ -1019,7 +1037,7 @@ height is 17 cells and it ends at y = 368 instead.
 | 186 | *"Health:"* (87.3); the band's name (group 20) at x = 240; `( ±n ☺ )` at x = 340 from `+0x10` |
 | 216 | the **grain ⇄ livestock slider** — §6.2 — flanked by a grain sack at x = 144 and cattle at x = 370 |
 | 256 | grain, cattle and sheep icons at x = 224, 284, 344 |
-| 286 | *"Fed"* (87.5) at x = 160; three right-aligned numbers at x = 208, 266, 324 from `+0x170`, `+0x174`, `+0x16C` |
+| 286 | *"Fed"* (87.5) at x = 160; three numbers **centred** in 64-pixel columns at x = 208, 266, 324 — `Ui_DrawNumberRight` centres, and the shipped icons prove it: they sit at 224, 284 and 344 with widths 36, 37 and 23, so their centres are 242 / 302 / 355 against the numbers’ 240 / 298 / 356. Right-aligned, every number would end left of its icon from `+0x170`, `+0x174`, `+0x16C` |
 | 308 | *"Eaten"* (87.4) at x = 144; two numbers at x = 208, 266 from `+0x178`, `+0x17C` |
 | 336 | with *Armies Eat*: `+0x198 + +0x19C`, then *"men foraging in the county."* (87.8) |
 
@@ -1820,11 +1838,20 @@ ally.
 
 Worth writing down because they turn an unread widget table into a legible one:
 
-* **Button sheet frame pairs.** 29 / 31 is yes and no, 35 / 37 a scroll pair, 68 / 66 a
-  minus and plus, 21 / 23 an up and down. Every yes/no pair found sits at (x, y) and
+* **Button sheet frame pairs.** 29 / 31 is yes and no, 35 / 37 a scroll pair, **68 is
+  *plus* and 66 is *minus***, 21 / 23 an up and down. Every yes/no pair found sits at (x, y) and
   (x + 40, y + 4) — the *no* is four pixels lower, on all six screens that use one.
   **29 / 31 are not a tick and a cross**: decoded, they are 32 × 32 pictures of a mailed
   hand with its thumb up and its thumb down. §4.2.
+
+  **This line said *"68 / 66 a minus and plus"* until the draw-call audit, and that is the
+  second time this project has written that pair down backwards.** `tools/oracle/widgets.js`
+  carries a note in its own header saying it made the same error and how it was settled —
+  and the correction did not reach here, so the wrong version survived in the document a
+  reader would actually consult. The anchor is a *body*, not a convention:
+  `FUN_00436372`, the diplomacy gift stepper's handler, reads
+  `if (g_uiHotspotId == 1) g_diploGold += 10;`, and the record carrying hotspot id 1 in
+  `0x004DD9D0` is the one whose frame is **68**. Quote the handler, not this bullet.
 * **Hotspot id 1 is confirm, 0 is cancel.** Both halves of a pair share one handler and read
   `g_uiHotspotId` to find out which was pressed. `Ui_ConfirmClicked`, `Diplo_SendClicked`,
   `SendSupplies_Close`, `CastleBuild_Close` and `SmackTest_Close` are all this shape.

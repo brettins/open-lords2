@@ -75,6 +75,16 @@ pub const GROUP: usize = 17;
 /// `L2.eng` group 8's troop nouns begin at index `0x34`, two apiece: singular
 /// then plural. `Ui_DrawUnitNoun(count, 0x34 + t*2)` picks between them.
 pub const NOUN_BASE: usize = 0x34;
+/// `Ui_DrawUnitNoun` reads its plural out of **group 8**, not this screen's
+/// group 17. The heading and the question are 17; every troop name is 8.
+pub const NOUN_GROUP: usize = 8;
+/// Group 8 index 72 — *"Total men"*. It was the string `"TOTAL MEN"` written
+/// in our own source, which is the third kind of invention `docs/arms.json`
+/// now carries: not a control we added, but a caption we wrote where the
+/// original fetches one.
+pub const TOTAL_MEN_NOUN: usize = 72;
+/// The mercenary band's nationality — group 16, indexed by the band.
+pub const GROUP_NATIONALITY: usize = 16;
 
 /// `Ui_DrawBox(8, 0x30, 0x1C, 0x1A)`.
 pub const BOX_X: i32 = 8;
@@ -170,6 +180,19 @@ pub const DAUGHTER_BUTTON_X: i32 = 288;
 pub fn parent_button(row: usize) -> Rect {
     Rect::new(PARENT_BUTTON_X, row_y(row) - 8, BUTTON_DIM, BUTTON_DIM)
 }
+
+/// The button-sheet frames records 2…17 carry. Frame 27 is the record whose
+/// handler is `SplitScreen_ToParent` (`0x00437D65`) and 25 is
+/// `SplitScreen_ToDaughter` (`0x00437E9E`) — the names come from the
+/// **handlers**, not from the pictures, which is the direction that cannot be
+/// got backwards.
+pub const TO_PARENT_FRAME: usize = 27;
+pub const TO_DAUGHTER_FRAME: usize = 25;
+
+/// `Ui_OkButton`'s picture: `System.pl8` frame 0x33, **an arrow into a hole**.
+/// It is not a tick and it is not the word "OK", which is what we drew there —
+/// a caption invented where the original draws artwork.
+pub const OK_FRAME: usize = 0x33;
 
 pub fn daughter_button(row: usize) -> Rect {
     Rect::new(DAUGHTER_BUTTON_X, row_y(row) - 8, BUTTON_DIM, BUTTON_DIM)
@@ -309,6 +332,19 @@ impl DivideScreen {
 
 }
 
+/// One row's pair of arrow records — `System.pl8` frames 27 and 25 at the
+/// geometry `g_splitWidgets` gives them. Falls back to our own outline when
+/// the sheet is not loaded, rather than to a letter in the debug font.
+fn arrows(pen: &Pen, canvas: &mut Canvas, row: usize) {
+    for (rect, frame) in
+        [(parent_button(row), TO_PARENT_FRAME), (daughter_button(row), TO_DAUGHTER_FRAME)]
+    {
+        if !pen.system_frame(canvas, frame, rect.x, rect.y) {
+            crate::widget::frame(canvas, rect, pen.ink.border);
+        }
+    }
+}
+
 impl Screen for DivideScreen {
     fn id(&self) -> ScreenId {
         ScreenId::Divide(self.unit)
@@ -439,58 +475,64 @@ impl Screen for DivideScreen {
             let y = row_y(row);
             let (left, right) =
                 (self.basket.parent[troop.index()], self.basket.daughter[troop.index()]);
-            let noun = ctx.assets.shell.text(8, NOUN_BASE + row * 2 + 1).to_string();
-            let label =
-                if noun.is_empty() { troop.name().to_uppercase() } else { noun.to_uppercase() };
-            text::draw(
-                canvas,
-                NOUN_X,
-                y,
-                &label,
-                if row == self.row { ink.highlight } else { ink.dim },
-            );
-            widget::button(canvas, ink, parent_button(row), ">", left > 0);
-            text::draw_right(canvas, PARENT_NUMBER_X + 32, y, &format!("{left}"), ink.text);
-            widget::button(canvas, ink, daughter_button(row), "<", right > 0);
-            text::draw_right(canvas, DAUGHTER_NUMBER_X + 32, y, &format!("{right}"), ink.text);
+            // `Ui_DrawUnitNoun(2, 0x34 + t*2, 0x18, y, body)` — the literal 2 is
+            // the painter's, so the plural is always the plural here.
+            let noun = ctx.assets.shell.text(NOUN_GROUP, NOUN_BASE + row * 2 + 1).to_string();
+            let label = if noun.is_empty() { format!("{}s", troop.name()) } else { noun };
+            pen.body(canvas, NOUN_X, y, &label, font::TEXT);
+            if row == self.row {
+                canvas.fill_rect(NOUN_X - 4, y, 2, 14, ink.highlight);
+            }
+            arrows(&pen, canvas, row);
+            pen.number(canvas, PARENT_NUMBER_X, y, left, true, font::TEXT);
+            pen.number(canvas, DAUGHTER_NUMBER_X, y, right, true, font::TEXT);
         }
 
         // Row 7 — the band, drawn only when there is one, exactly as the
         // painter's `bVar1` gates it.
         if let Some(m) = band {
             let y = row_y(MERC_ROW);
-            let nationality = ctx.assets.shell.text(16, m.band as usize).to_string();
+            let nationality = ctx.assets.shell.text(GROUP_NATIONALITY, m.band as usize).to_string();
             let label = if nationality.is_empty() {
-                l2_kingdom::mercenary::ROSTER[m.band as usize].nationality.to_uppercase()
+                l2_kingdom::mercenary::ROSTER[m.band as usize].nationality.to_string()
             } else {
-                nationality.to_uppercase()
+                nationality
             };
-            text::draw(
-                canvas,
-                NOUN_X,
-                y,
-                &format!("{} {}", label, m.troop.name().to_uppercase()),
-                if self.row == MERC_ROW { ink.highlight } else { ink.dim },
-            );
+            // The painter puts the nationality on one line and the troop noun
+            // on a **second**, indented — not the two joined with a space.
+            pen.body(canvas, NOUN_X, y, &label, font::TEXT);
+            let troop_noun = ctx
+                .assets
+                .shell
+                .text(NOUN_GROUP, NOUN_BASE + m.troop.index() * 2 + 1)
+                .to_string();
+            let troop_noun =
+                if troop_noun.is_empty() { format!("{}s", m.troop.name()) } else { troop_noun };
+            pen.body(canvas, NOUN_X + 0x40, y + 0x10, &troop_noun, font::TEXT);
+            if self.row == MERC_ROW {
+                canvas.fill_rect(NOUN_X - 4, y, 2, 14, ink.highlight);
+            }
             let (left, right) = if self.basket.mercenaries_leave {
                 (0, m.men())
             } else {
                 (m.men(), 0)
             };
-            widget::button(canvas, ink, parent_button(MERC_ROW), ">", left > 0);
-            text::draw_right(canvas, PARENT_NUMBER_X + 32, y, &format!("{left}"), ink.text);
-            widget::button(canvas, ink, daughter_button(MERC_ROW), "<", right > 0);
-            text::draw_right(canvas, DAUGHTER_NUMBER_X + 32, y, &format!("{right}"), ink.text);
+            arrows(&pen, canvas, MERC_ROW);
+            pen.number(canvas, PARENT_NUMBER_X, y, left, true, font::TEXT);
+            pen.number(canvas, DAUGHTER_NUMBER_X, y, right, true, font::TEXT);
         }
 
         // The two "Total men" lines, on the row the painter picks.
         let ty = totals_y(band.is_some());
-        text::draw(canvas, NOUN_X, ty, "TOTAL MEN", ink.text);
+        let total = ctx.assets.shell.text(NOUN_GROUP, TOTAL_MEN_NOUN).to_string();
+        let total = if total.is_empty() { "Total men".to_string() } else { total };
+        pen.body(canvas, NOUN_X, ty, &total, font::TEXT);
+        pen.number(canvas, PARENT_NUMBER_X, ty, self.basket.parent_total(), true, font::TEXT);
         text::draw_right(
             canvas,
-            PARENT_NUMBER_X + 32,
+            DAUGHTER_NUMBER_X + 32,
             ty,
-            &format!("{}", self.basket.parent_total()),
+            &format!("{}", self.basket.daughter_total()),
             ink.highlight,
         );
         text::draw_right(
@@ -501,7 +543,10 @@ impl Screen for DivideScreen {
             ink.highlight,
         );
 
-        widget::button(canvas, ink, OK, "OK", false);
+        // `Ui_OkButton(0x1AC, 0x1B4, 0)` — frame 0x33, an arrow into a hole.
+        if !pen.system_frame(canvas, OK_FRAME, OK.x, OK.y) {
+            widget::frame(canvas, OK, ink.border);
+        }
 
         // `Widget_Draw(0, 0, &g_splitWidgets, …)` records 0 and 1 — `System.pl8`
         // frames 29 and 31, the tick and the cross. **They are the original's,
@@ -509,10 +554,10 @@ impl Screen for DivideScreen {
         // draws nothing: SPLIT, DISBAND and CANCEL in our own font at y 446,
         // one of which overlapped this tick.
         if !pen.system_frame(canvas, 29, SPLIT_TICK.x, SPLIT_TICK.y) {
-            widget::button(canvas, ink, SPLIT_TICK, "OK", false);
+            widget::frame(canvas, SPLIT_TICK, ink.highlight);
         }
         if !pen.system_frame(canvas, 31, SPLIT_CROSS.x, SPLIT_CROSS.y) {
-            widget::button(canvas, ink, SPLIT_CROSS, "X", false);
+            widget::frame(canvas, SPLIT_CROSS, ink.border);
         }
         // **Ours**: the original answers a refusal with a message scroll.
         text::draw(canvas, 16, 452, &self.status, ink.dim);

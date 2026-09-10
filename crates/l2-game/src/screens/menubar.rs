@@ -57,14 +57,83 @@
 //! then the menu bar. So the five sidebar buttons keep working after End Turn
 //! and the menu bar does not.
 //!
-//! # The drop-down is screen `0x32`
+//! # The drop-down is screen `0x32`, and **its painter draws nothing**
 //!
 //! `Menu_OpenDropdown` saves `g_screenId` into `g_menuPrevScreen`, writes
 //! **`0x32`**, and calls `Menu_SaveBackdrop` (`0x0040C8D1`), which copies the
 //! **400 × 180 band at (0, 24)** so the painter can put it back. `Screen_Draw`'s
-//! `0x32` arm is `Menu_RestoreBackdrop` and nothing else — the drop-down is a
-//! screen that owns a rectangle, which is `docs/screens-county.md` §3.1's
-//! pattern for the third time.
+//! `0x32` arm is `Menu_RestoreBackdrop` (`0x0040C928`), which makes **zero**
+//! draw calls: it sets `g_drawX`/`g_drawY`/`g_spriteWidth`/`g_spriteHeight` and
+//! calls `FUN_004B3EC0`, the restore twin of the save. It is the *erase*, and
+//! nothing else.
+//!
+//! # So where is the drop-down drawn? **In the frame loop.**
+//!
+//! Not in `Screen_Draw` and not in `Screen_DrawWidgets` — which has no `0x32`
+//! arm either. `FUN_0040C725` (`0x0040C725`) is the painter, and its only
+//! caller is the application's own frame loop at `0x004B99C0`, two lines after
+//! `Screen_DrawMenuBar()`:
+//!
+//! ```c
+//! FUN_00472A31();
+//! Screen_DrawMenuBar();
+//! FUN_0040C725();            /* <- the open drop-down */
+//! FUN_0041423F();
+//! ```
+//!
+//! It runs every frame on every screen and guards *itself*:
+//! `if (g_screenId == 0x32 && DAT_00522CB4 != 0)`. **That is a fourth place
+//! drawing hides**, alongside the painter, `Screen_DrawWidgets` and the
+//! variable widget count — and it is the only one of the four where a screen's
+//! whole appearance lives in a function no dispatch table mentions.
+//!
+//! (`0x004B99C0` is named `Battle_Frame` in `docs/symbols.json` and is not a
+//! battle function: it calls `Screen_Draw`, `Screen_DrawWidgets`,
+//! `Screen_DrawMenuBar`, `CountyStrip_Draw`, `Smk_PlayLoop`, `Msg_Pump` and
+//! `Cursor_Set`. It is *the* frame. Reported, not renamed here.)
+//!
+//! ```text
+//! FUN_0040C725():                                               0x0040C725
+//!   if (g_screenId != 0x32 || DAT_00522CB4 == 0) return;
+//!   rec   = DAT_00522CAC                the 16-byte menu-bar record that is down
+//!   items = rec[+4]                     the 12-byte item table
+//!   x     = rec[+0]        the measured x Ui_DrawMenuTitles wrote back
+//!   y     = rec[+4 as short 2]  == 6
+//!   group = rec[+6]                     1, 2 or 3
+//!   count = rec[+0C]                    4, 5 or 7
+//!   g_spriteWidth  = 0x0C
+//!   g_spriteHeight = (count * 0x15) / 16 + 2                    cells
+//!   FUN_00409429(x, y + 0x12, 0x0C, g_spriteHeight)
+//!       = Ui_DrawBoxBorder(2, x, y + 18, 12, h)          192 px wide, set TWO
+//!         Ui_DrawBoxInterior(x + 16, y + 18, 10, h - 1)
+//!   for i in 1 ..= count:
+//!     iy = item.y + y + 0x20
+//!     if (i == DAT_00522CB0) {
+//!       g_spriteWidth = 0x0B; g_spriteHeight = 0x10;
+//!       FUN_004B414A(x + 8, item.y + y + 0x1E, 0x3F);     176 x 16 plate
+//!       Eng_DrawString(group, item.index, x + 0x10, iy, body, 0x18);
+//!     } else
+//!       Eng_DrawString(group, item.index, x + 0x10, iy, body, 0x3F);
+//!   Gfx_MarkSpriteDirty(x, y + 0x12, 0x0D, 0x0C, 2)
+//! ```
+//!
+//! **Four draw-call sites, two of them a border pair.** The three numbers this
+//! module had wrong before that listing was written:
+//!
+//! * **there is a plate.** This header used to say *"the original saves the
+//!   screen band and draws the captions straight onto it with no plate at
+//!   all"*. It draws a twelve-cell `Ui_DrawBoxBorder(2, …)` — border set
+//!   **two**, which no other screen in this crate uses — at `(x, 24)`;
+//! * **the captions are at `x + 16`**, not two pixels in, and their baseline is
+//!   `title.y + item.y + 32`, one pixel below the hit box's top;
+//! * **`g_spriteWidth` counts sixteen-pixel units.** `FUN_004B414A` writes
+//!   `g_spriteWidth` iterations of four dwords per row, so `0x0B` is a
+//!   **176**-pixel highlight and not an eleven-pixel one. The same unit bit
+//!   `screens/saveload.rs`, where a 96-pixel selection bar had been drawn six
+//!   pixels wide.
+//!
+//! The box is 192 wide, the highlight 176 and `FUN_0040E099`'s hit box 144.
+//! Three different widths for the same row, all read out of the binary.
 //!
 //! Its own arm, `Screen_FrameInput`'s `0x32`, is two lines:
 //!
@@ -90,9 +159,10 @@
 //!
 //! # What is ours
 //!
-//! * **The panel behind the items.** The original saves the screen band and
-//!   draws the captions straight onto it with no plate at all; we draw a recess
-//!   so the words are readable over the map. Marked where it is drawn.
+//! * **Nothing about the plate any more.** It was ours; it is the original's
+//!   `FUN_00409429(x, y + 0x12, 0x0C, h)` now. What remains ours is that our
+//!   `Pen::window` only models two of the original's three border sets, so set
+//!   2 draws with set 1's artwork. Recorded rather than faked.
 //! * **`Menu_NewGame` and `Menu_Quit` reach no confirmation box.** Both open
 //!   `Ui_OpenConfirm` in the original — prompts 1 and 0 of `L2.eng` group 10 —
 //!   and screen `0x1E` is not built. New Game is refused with a status line and
@@ -123,7 +193,46 @@ const ITEM_W: i32 = 0x90;
 const ITEM_H: i32 = 0x0F;
 const ITEM_TOP: i32 = 0x1F;
 /// The item table's own `y` column: 0, 20, 40, … with no gaps.
-const ITEM_PITCH: i32 = 20;
+pub const ITEM_PITCH: i32 = 20;
+
+/// **`FUN_004B414A`'s width unit** — it writes four dwords, sixteen bytes, per
+/// iteration of `g_spriteWidth`. `[V]` at `0x004B414A`.
+const PLATE_CELL: i32 = 16;
+
+/// `FUN_00409429(x, y + 0x12, 0x0C, h)` — the drop-down's plate. Twelve cells
+/// is 192 pixels; the offset from the title's `y` is 18.
+const PLATE_COLS: i32 = 0x0C;
+const PLATE_DY: i32 = 0x12;
+/// **Border set two.** `FUN_00409429` is `Ui_DrawBoxBorder(2, …)`, and this is
+/// the only screen in the crate that asks for it; `Pen::window` models sets 0
+/// and 1 and draws set 1's artwork for this.
+const PLATE_SET: usize = 2;
+/// `g_spriteHeight = (count * 0x15) / 16 + 2`, in cells.
+fn plate_rows(count: usize) -> i32 {
+    (count as i32 * 0x15) / PLATE_CELL + 2
+}
+
+/// `Eng_DrawString(group, index, x + 0x10, item.y + y + 0x20, body, colour)` —
+/// the caption is **sixteen pixels** into the plate, and its baseline is one
+/// pixel below the hit box's top edge.
+const CAPTION_DX: i32 = 0x10;
+const CAPTION_DY: i32 = 0x20;
+/// `g_spriteWidth = 0x0B; g_spriteHeight = 0x10; FUN_004B414A(x + 8,
+/// item.y + y + 0x1E, 0x3F)` — a **176 × 16** plate under the picked caption,
+/// eight pixels in from the box's left edge and two above the hit box.
+const HIGHLIGHT_W: i32 = 0x0B * PLATE_CELL;
+const HIGHLIGHT_H: i32 = 0x10;
+const HIGHLIGHT_DX: i32 = 8;
+const HIGHLIGHT_DY: i32 = 0x1E;
+/// The picked caption's colour. `Ui_DrawMenuTitles` uses the same `0x18` for the
+/// open *title*, which is how the two halves of the bar agree.
+const PICKED_INK: u8 = 0x18;
+/// `g_spriteHeight = 0x12` and `g_spriteWidth = (textWidth + 4) / 16 + 2` —
+/// the plate `Ui_DrawMenuTitles` puts under the **open title**, two pixels left
+/// and three up.
+const TITLE_PLATE_H: i32 = 0x12;
+const TITLE_PLATE_DX: i32 = -2;
+const TITLE_PLATE_DY: i32 = -3;
 
 /// What one drop-down item does when it is picked.
 ///
@@ -257,14 +366,23 @@ pub fn item_text(ctx: &Ctx, menu: usize, item: usize) -> String {
 /// 5 × 7 metrics, so the *rule* is the original's on every machine and only the
 /// pixel widths are ours on a machine with no game.
 pub fn titles(ctx: &Ctx) -> [Rect; 3] {
+    let captions = [title_text(ctx, 0), title_text(ctx, 1), title_text(ctx, 2)];
+    title_boxes(&captions, |s| match ctx.assets.shell.body.as_ref() {
+        Some(f) => f.width(s),
+        None => text::width(s),
+    })
+}
+
+/// **`Ui_DrawMenuTitles`' layout rule, on its own**, so that a test can drive
+/// it with the install's real `Fntl2_14.pl8` without building a whole [`Ctx`].
+///
+/// Start the pen at the first record's `x`; each title's box is its own drawn
+/// width at that pen; then advance by the width plus `g_penAdvance += 0x20`.
+pub fn title_boxes(captions: &[String; 3], measure: impl Fn(&str) -> i32) -> [Rect; 3] {
     let mut out = [Rect::new(0, 0, 0, 0); 3];
     let mut pen = BAR_X;
-    for (i, slot) in out.iter_mut().enumerate() {
-        let caption = title_text(ctx, i);
-        let w = match ctx.assets.shell.body.as_ref() {
-            Some(f) => f.width(&caption),
-            None => text::width(&caption),
-        };
+    for (slot, caption) in out.iter_mut().zip(captions) {
+        let w = measure(caption);
         *slot = Rect::new(pen, BAR_Y, w, TITLE_H);
         pen += w + TITLE_GAP;
     }
@@ -285,11 +403,17 @@ pub fn item_rect(titles: &[Rect; 3], menu: usize, item: usize) -> Rect {
     Rect::new(titles[menu].x, BAR_Y + row + ITEM_TOP, ITEM_W, ITEM_H)
 }
 
-/// The whole band the open drop-down covers, for the panel we draw behind it.
-/// **Ours** — the original saves and restores the screen instead.
-fn panel_rect(titles: &[Rect; 3], menu: usize) -> Rect {
-    let n = MENUS[menu].items.len() as i32;
-    Rect::new(titles[menu].x - 4, BAR_Y + ITEM_TOP - 4, ITEM_W + 8, (n - 1) * ITEM_PITCH + ITEM_H + 8)
+/// **The plate `FUN_00409429(x, y + 0x12, 0x0C, h)` draws**, in pixels:
+/// twelve cells wide from the open title's measured `x`, eighteen pixels below
+/// the bar's `y`, and `(count * 21) / 16 + 2` cells tall.
+pub fn plate_rect(titles: &[Rect; 3], menu: usize) -> Rect {
+    let rows = plate_rows(MENUS[menu].items.len());
+    Rect::new(
+        titles[menu].x,
+        BAR_Y + PLATE_DY,
+        PLATE_COLS * PLATE_CELL,
+        rows * PLATE_CELL,
+    )
 }
 
 /// **Screen `0x32` — a drop-down is open.**
@@ -439,33 +563,60 @@ impl Screen for DropdownScreen {
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let t = titles(ctx);
+        let pen = crate::shell::Pen {
+            assets: &ctx.assets.shell,
+            ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            // `FUN_0040C725` touches neither `DAT_005AEA40` nor `DAT_0058FE2C`
+            // around the captions, so this is the ordinary embossed body pen.
+            shadow: Some(font::SHADOW),
+            caps: None,
+        };
 
-        // OURS: the original saves the 400 x 180 band at (0, 24) and paints the
-        // captions straight onto whatever was there. We draw a recess, because
-        // a caption over the campaign map at our scale is unreadable.
-        let panel = panel_rect(&t, self.menu);
-        crate::widget::panel(canvas, ink, panel);
+        // `FUN_00409429(x, y + 0x12, 0x0C, (count * 0x15) / 16 + 2)` — the
+        // original's own plate. It used to be a `widget::panel` of ours, on the
+        // belief that the original drew the captions onto the bare map.
+        let plate = plate_rect(&t, self.menu);
+        pen.window(
+            canvas,
+            plate.x,
+            plate.y,
+            PLATE_COLS,
+            plate.h / PLATE_CELL,
+            PLATE_SET,
+        );
 
         for i in 0..MENUS[self.menu].items.len() {
-            let r = item_rect(&t, self.menu, i);
             let picked = self.hover == Some(i);
             if picked {
-                canvas.fill_rect(r.x, r.y, r.w, r.h, ink.highlight);
+                // 176 x 16 at (x + 8, item.y + y + 0x1E) — **not** the width of
+                // the hit box, which is 144, and not the width of the plate,
+                // which is 192.
+                canvas.fill_rect(
+                    plate.x + HIGHLIGHT_DX,
+                    BAR_Y + MENUS[self.menu].items[i].0 + HIGHLIGHT_DY,
+                    HIGHLIGHT_W,
+                    HIGHLIGHT_H,
+                    font::TEXT,
+                );
             }
             let caption = item_text(ctx, self.menu, i);
-            let colour = if picked { ink.background } else { ink.text };
-            match ctx.assets.shell.body.as_ref() {
-                Some(f) => {
-                    f.draw(canvas, r.x + 2, r.y, &caption, &font::Style::new(colour));
-                }
-                None => {
-                    text::draw(canvas, r.x + 2, r.y + 4, &caption, colour);
-                }
-            }
+            // `Eng_DrawString(group, index, x + 0x10, item.y + y + 0x20, body,
+            // picked ? 0x18 : 0x3F)`.
+            let colour = if picked { PICKED_INK } else { font::TEXT };
+            pen.body(
+                canvas,
+                plate.x + CAPTION_DX,
+                BAR_Y + MENUS[self.menu].items[i].0 + CAPTION_DY,
+                &caption,
+                colour,
+            );
         }
 
+        // **Ours**, and in our own 5 x 7 font so a screenshot cannot mistake it
+        // for the game's wording: what a refused item could not do.
         if !self.status.is_empty() {
-            text::draw(canvas, panel.x, panel.y + panel.h + 4, &self.status, ink.bad);
+            text::draw(canvas, plate.x, plate.y + plate.h + 4, &self.status, ink.bad);
         }
     }
 }
@@ -484,11 +635,24 @@ pub fn draw_titles(ctx: &Ctx, canvas: &mut Canvas, open: Option<usize>) {
         let caption = title_text(ctx, i);
         let lit = open == Some(i);
         if lit {
-            // `FUN_004B414A(x - 2, y - 3, 0x3F)` — the plate the open title
+            // `g_spriteWidth = (textWidth + 4) / 16 + 2; g_spriteHeight = 0x12;
+            // FUN_004B414A(x - 2, y - 3, 0x3F)` — the plate the open title
             // stands on, two left and three up, in the strip's own black.
-            canvas.fill_rect(r.x - 2, r.y - 3, r.w + 4, 18, font::TEXT);
+            //
+            // **`g_spriteWidth` is in sixteen-pixel units**, so the plate is
+            // rounded out to a whole number of cells and is always at least 32
+            // pixels wider than the word rather than four. This drew `w + 4`
+            // until `FUN_004B414A`'s body was read.
+            let cells = (r.w + 4) / PLATE_CELL + 2;
+            canvas.fill_rect(
+                r.x + TITLE_PLATE_DX,
+                r.y + TITLE_PLATE_DY,
+                cells * PLATE_CELL,
+                TITLE_PLATE_H,
+                font::TEXT,
+            );
         }
-        let colour = if lit { 0x18 } else { font::TEXT };
+        let colour = if lit { PICKED_INK } else { font::TEXT };
         match ctx.assets.shell.body.as_ref() {
             Some(f) => {
                 f.draw(canvas, r.x, r.y, &caption, &font::Style::new(colour));
@@ -538,6 +702,136 @@ mod tests {
             })
             .collect();
         assert_eq!(ids, vec![0x123, 0x124, 0x125, 0x126, 0x127]);
+    }
+
+    /// **The plate is the original's, and its height is the item count.**
+    /// `g_spriteHeight = (count * 0x15) / 16 + 2`, in cells: 4 items → 7,
+    /// 5 → 8, 7 → 11. Pinned as literals from the decompilation rather than
+    /// recomputed from `plate_rows`, which would test nothing.
+    #[test]
+    fn the_dropdown_plate_is_twelve_cells_wide_and_grows_with_the_item_count() {
+        assert_eq!(plate_rows(4), 7);
+        assert_eq!(plate_rows(5), 8);
+        assert_eq!(plate_rows(7), 11);
+        let t = [Rect::new(10, 6, 30, 12), Rect::new(72, 6, 50, 12), Rect::new(154, 6, 30, 12)];
+        let p = plate_rect(&t, 2);
+        assert_eq!((p.x, p.y, p.w, p.h), (154, 6 + 0x12, 192, 11 * 16));
+        // Three widths for one row, and they really are three.
+        assert_eq!(HIGHLIGHT_W, 176);
+        assert_eq!(ITEM_W, 144);
+        assert!(HIGHLIGHT_W < p.w && ITEM_W < HIGHLIGHT_W);
+        // Every caption sits inside the plate it is drawn on.
+        for i in 0..MENUS[2].items.len() {
+            let x = p.x + CAPTION_DX;
+            let y = BAR_Y + MENUS[2].items[i].0 + CAPTION_DY;
+            assert!(x > p.x && x < p.x + p.w, "caption {i} starts outside the plate");
+            assert!(y > p.y && y < p.y + p.h, "caption {i} at y {y} is outside the plate");
+        }
+    }
+
+    /// **The menu bar's words are `L2.eng`'s, on a machine that has the game.**
+    ///
+    /// `docs/agents.md` records *"our own labels drawn where the menu bar's
+    /// words are"* as one of five defects that existed **only** against real
+    /// assets, so this is asserted against the player's own `L2.eng` and not
+    /// against `MENUS`' fallbacks. Every string here is pinned as a literal.
+    #[test]
+    fn the_bar_draws_the_games_own_words_and_not_ours() {
+        let Some(dir) = l2_testkit::install_dir() else {
+            eprintln!("skipping: no game install");
+            return;
+        };
+        let bytes = std::fs::read(dir.join("L2.eng")).expect("L2.eng");
+        let eng = crate::shell::Eng::parse(bytes).expect("L2.eng parses");
+
+        // The three titles, index 0 of groups 1, 2 and 3.
+        assert_eq!(eng.get(1, 0), Some("File"));
+        assert_eq!(eng.get(2, 0), Some("Options"));
+        assert_eq!(eng.get(3, 0), Some("Help"));
+
+        // All sixteen items, in the tables' own order.
+        let expected: [&[&str]; 3] = [
+            &["New Game", "Load", "Save", "Quit"],
+            &["Advanced", "Sounds", "Display", "Game Speed", "Scroll Speed"],
+            &[
+                "Game Help",
+                "How do I...",
+                "Grow grain?",
+                "Build a castle?",
+                "Make Weapons?",
+                "Manage each turn.?",
+                "About",
+            ],
+        ];
+        for (m, want) in MENUS.iter().zip(expected) {
+            assert_eq!(
+                m.items.len(),
+                want.len(),
+                "group {} has {} items in the table",
+                m.group,
+                want.len()
+            );
+            // **The group holds the title plus exactly those items and no
+            // more.** A seventeenth string would mean a row we do not draw.
+            assert_eq!(
+                eng.group(m.group).len(),
+                want.len() + 1,
+                "group {} is one title and {} items",
+                m.group,
+                want.len()
+            );
+            for (n, &(_, index, _)) in m.items.iter().enumerate() {
+                assert_eq!(eng.get(m.group, index), Some(want[n]), "group {}", m.group);
+            }
+        }
+
+        // And none of the fallbacks is ever what a player with the game sees.
+        for (m, want) in MENUS.iter().zip(expected) {
+            assert_ne!(eng.get(m.group, 0), Some(m.fallback));
+            for (n, f) in m.item_fallbacks.iter().enumerate() {
+                assert_ne!(*f, want[n], "fallback {f:?} is the game's own word");
+            }
+        }
+    }
+
+    /// **The titles are measured in the game's own font**, which is what makes
+    /// the hit boxes right — `Ui_DrawMenuTitles` starts the pen at 10 and adds
+    /// the drawn width plus 32 after each. With `Fntl2_14.pl8` loaded the three
+    /// boxes must be three different widths, must not overlap, and must leave
+    /// exactly 32 pixels between one and the next.
+    #[test]
+    fn the_title_boxes_are_measured_with_fntl2_14() {
+        let Some(dir) = l2_testkit::install_dir() else {
+            eprintln!("skipping: no game install");
+            return;
+        };
+        let bytes = std::fs::read(dir.join(font::BODY)).expect("Fntl2_14.pl8");
+        let font = crate::shell::Font::new(bytes, 16).expect("Fntl2_14.pl8 decodes");
+        // The module's own rule, driven with the install's own font. The
+        // captions and every number asserted are literals out of `L2.eng` and
+        // `Ui_DrawMenuTitles`, so ablating `BAR_X`, `BAR_Y`, `TITLE_H` or
+        // `TITLE_GAP` turns this red.
+        let captions =
+            ["File".to_string(), "Options".to_string(), "Help".to_string()];
+        let boxes = title_boxes(&captions, |s| font.width(s));
+
+        assert_eq!(boxes[0].x, 10, "the first title starts at the record's own x");
+        for (i, b) in boxes.iter().enumerate() {
+            assert!(b.w > 0, "title {i} measured zero: the font did not load");
+            assert_eq!(b.y, 6, "every record's y is 6");
+            assert_eq!(b.h, 12, "Menu_HitTitle's height is a fixed 12");
+        }
+        for pair in boxes.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            assert_eq!(b.x - (a.x + a.w), 32, "g_penAdvance += 0x20 between titles");
+        }
+        // "Options" is the longest of the three in any reasonable typeface, and
+        // if all three came out equal the font is not being consulted at all.
+        assert!(boxes[1].w > boxes[2].w, "Options must be wider than Help");
+        // And the fallback metrics really are different metrics, so a machine
+        // with no game is not silently getting the same answer.
+        let fallback = title_boxes(&captions, l2_view::text::width);
+        assert_ne!(fallback[1].w, boxes[1].w, "the 5 x 7 font must not measure Fntl2_14's widths");
     }
 
     /// Every item row is 144 wide and 15 tall in a 20-pixel pitch, and the first

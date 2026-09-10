@@ -31,35 +31,70 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->135<!--/fig--> of
-   <!--fig:arms-live-->160<!--/fig--> live arms (<!--fig:arms-pct-->84<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->136<!--/fig--> of
+   <!--fig:arms-live-->161<!--/fig--> live arms (<!--fig:arms-pct-->84<!--/fig-->%)** — so
    **<!--fig:arms-missing-->25<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->4<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
    counting: **<!--fig:arms-inventions-->29<!--/fig-->** inventions are on file. An invention is
    worse than an omission, because nothing looks broken.
 3. **A screen shows something the original does not, or fails to show something it does.**
-   **This row has an instrument now, and it is the most alarming number in this file.** The
-   campaign map — the screen a player spends most of the game looking at — makes
+   **This row has two instruments now, built independently by two agents who did not read
+   each other's work, and between them they carry the most alarming numbers in this file.**
+
+   **The campaign map**, the screen a player spends most of a session looking at, makes
    **<!--fig:map-draws-->139<!--/fig--> draw calls, of which <!--fig:map-draws-live-->121<!--/fig-->
-   are live. We make <!--fig:map-draws-ours-->59<!--/fig--> of them: **<!--fig:map-draws-pct-->49<!--/fig--> %**.
-   We also make about 29 the original does not.
+   are live. We make <!--fig:map-draws-ours-->59<!--/fig--> of them:
+   <!--fig:map-draws-pct-->49<!--/fig-->%.** `docs/draws-map.md`, via `tools/draws/mapdraws.js`.
 
-   Set that beside the input measurement for the *same two screen ids*, where `arms.json` marks
-   20 of 25 reproduced — 80 %:
+   **The other <!--fig:draws-screens-->51<!--/fig--> screens** make
+   <!--fig:draws-original-->1,012<!--/fig--> draw calls and we make
+   <!--fig:draws-ours-->394<!--/fig-->: <!--fig:draws-pct-->39<!--/fig-->%.
+   <!--fig:draws-missing-->56<!--/fig--> things the original draws are enumerated as missing,
+   and **<!--fig:draws-inventions-->37<!--/fig--> things we draw that it does not** — the
+   figure that answers row 2 for pictures rather than gestures, and the one nobody had.
+   `docs/draws.md`, via `tools/draws/screendraws.js` and `tools/draws/screens.json`.
 
-   > **We answer four gestures in five and we draw one picture in two.**
+   Set either beside the input measurement, where `arms.json` marks
+   <!--fig:arms-pct-->84<!--/fig--> % of arms reproduced:
 
-   That gap was invisible to every check this project had. It is also the shape of both of the
-   player's reports — *"placeholder shit everywhere"* and *"why do the pastures not have cows in
-   them?"* — and **neither of those is an arm.** `docs/draws-map.md`, and the numbers come from
-   `tools/draws/mapdraws.js` through `figures.js`, never typed.
+   > **We answer four gestures in five and we draw two pictures in five.**
+
+   That gap was invisible to every check this project had, and it is the shape of the
+   player's reports — *"placeholder shit everywhere"*, *"why do the pastures not have cows in
+   them?"*, *"the title screen is illegible"* — **none of which is an arm.**
+
+   **And the half a call count cannot see.** Of our marks on those 51 screens,
+   <!--fig:draws-real-->418<!--/fig--> go through the game's own artwork and
+   <!--fig:draws-placeholder-->83<!--/fig--> are our 5 × 7 debug font and our own rectangles
+   — <!--fig:draws-real-pct-->83<!--/fig-->% real — with
+   <!--fig:draws-literals-->18<!--/fig--> English captions written in our own source where the
+   original fetches an `L2.eng` string. Six modules drew **nothing at all** through the game's
+   fonts or artwork. **A screen can reproduce every draw call and still be entirely
+   placeholder**, and until this audit nothing was counting that. `docs/draws.md` §8.
+
+   **What neither instrument can see, and this must not be dropped:**
+   * **Whether a draw is *correct*.** The unit is the call site. A sprite drawn at the right
+     coordinate from the wrong frame of the right sheet counts as reproduced, and a canvas
+     diff passes on it.
+   * **Whether the screen is reachable at all.** `menu.rs` was audited, found wrong, and
+     fixed — and nothing outside a test ever pushes `ScreenId::Menu`. An audit of a dead
+     screen scores like an audit of a live one.
+   * **Meaning, as opposed to existence.** The `L2.eng` check asks whether a group and index
+     resolve, not whether they are the *right* group — the armoury was filed under group 16,
+     and group 16 index 6 exists, so the check passes on a wrong screen.
+   * **Anything a later turn shows.** C26: every shipped fixture is turn one with one county
+     per realm, so 45 of 51 records carry an `unexercised` note.
+
+   §2.10 is the argument that produced them both.
 4. **The hundred-turn game diverges** — a rule that is right on turn one and wrong on turn forty.
    §2.5.
 5. **A number in a saved game differs from the original's** for the same inputs.
 
-The first **three** have instruments now. The fourth has a partial one; the fifth is what the
-fixtures do.
+The first **three** have instruments now. The third's are **partial**, and the bullets under it
+are the reason it is still a falsification condition rather than a tick — it read
+*"instrument: none"* until the two draw-call audits. The fourth has a partial one; the fifth is
+what the fixtures do.
 
 **The third row was the most valuable line in this file when it read *"instrument: none"*, and
 the rule written here then was that it must not vanish on acquiring one.** It has not. What it
@@ -717,7 +752,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->1,998<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,024<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

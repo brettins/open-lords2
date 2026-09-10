@@ -1,12 +1,45 @@
 //! A 5 x 7 bitmap font, and drawing a string into the indexed canvas.
 //!
-//! **This font is ours, not the game's.** The original's glyphs live in
-//! `Font_c2.pl8` and friends, and that file is an open question — it declares
-//! RLE while its frames occupy exactly `width x height`, and nothing maps a
-//! frame index to a character (`docs/decisions.md`, open questions). Guessing
-//! at that mapping to put a label on a button would be a decoding claim made
-//! for a cosmetic reason, so the interface draws its own letters until the
-//! real font is decoded. Every glyph below is hand-authored here.
+//! **This font is ours, not the game's.** Every glyph below is hand-authored
+//! here, and it is the right thing for a debug overlay, a diagnostic line and
+//! `screens/index.rs`, which is ours on purpose and says so.
+//!
+//! # It is the wrong thing for a screen, and this header used to say otherwise
+//!
+//! Until the draw-call audit it read: *"the original's glyphs live in
+//! `Font_c2.pl8` and friends, and that file is an open question … so the
+//! interface draws its own letters **until the real font is decoded**."*
+//!
+//! **The real font has been decoded.** `crates/l2-game/src/shell/font.rs` draws
+//! with `Fntl2_14.pl8` and `Fntl2_22.pl8` through the 128-byte
+//! character-to-frame table at `0x004D71D0` that `Glyph_Draw` (`0x00402A14`)
+//! indexes, and the mapping is self-checking: the frames it sends `g`, `j`,
+//! `p`, `q` and `y` to are exactly the frames in that file which are four
+//! pixels taller than their neighbours.
+//!
+//! **`Font_c2.pl8` was never the file the game draws from**, which is why
+//! waiting on it was waiting on the wrong thing twice over: `docs/audit.md`
+//! records that `font_c2` does **not** appear among `Lords2.exe`'s strings at
+//! all, that it shares 103 of its 108 frame records with `Fntl2_9.pl8`, and
+//! that the RLE puzzle this header cited as the open question was **resolved**
+//! (`docs/formats/pl8-failures.md` §5).
+//!
+//! That stale sentence outlived the thing it described, and the audit measured
+//! what it cost: **of the marks our screen modules put on the canvas, a third
+//! are still drawn in this 5 x 7 font** — whole screens of them, in
+//! `castle.rs`, `diplomacy.rs`, `siege.rs`, `job.rs`, `menu.rs` and
+//! `menubar.rs`, which draw *nothing at all* through the game's own artwork.
+//! Those screens fetch the right `L2.eng` strings and then draw them here.
+//! That is the *"placeholder shit everywhere"* a player reported, and no test
+//! could see it, because every one of those screens draws the right words at
+//! the right coordinate.
+//!
+//! **So: a caption a player is meant to read belongs in `shell::Pen`, not
+//! here.** `tools/draws/screendraws.js` counts the split per module and
+//! `docs/draws.md` §7 says why the count is the instrument. This font stays for
+//! the things that are honestly ours — and `docs/decisions.md` C107
+//! records that a document promising *"until X"* keeps promising it long after
+//! X, which is an argument for a counted number over a written intention.
 //!
 //! The shape is deliberately the same as everything else in this crate: the
 //! font writes palette indices into a `Vec<u8>`, so a test asserts on pixels
