@@ -76,20 +76,29 @@
 //!
 //! The four that do not, in the order a player notices them:
 //!
-//! * **The pointer click.** `Widget_Test` (`0x0040DA1E`) plays slot 1,
-//!   `click3.wav`, on every widget press — **one** call site in the original,
-//!   because the whole game shares one hit-tester. Ours do not: 26 screen
-//!   modules each match `Event::Click` against their own rectangles, so there
-//!   is no single place to put it, and nothing above them can tell a press that
-//!   landed on a widget from one that landed on grass. Playing it on every
-//!   click would be an invention and a worse one than silence. **The enabling
-//!   change is in the screen layer, not here**: `Screen::handle` would have to
-//!   say whether it consumed the event at a widget, and then this is one call.
-//! * **The two sample banks.** [`names::KINGDOM_BANK`] and
+//! * **The pointer click.** `Sound_RestartSlot(1)` — `click3.wav` — on every
+//!   widget press, from **four sites behind three hit-testers**: `Widget_Test`
+//!   (`0x0040DA1E`) twice, and `FUN_0040D6AD` and `FUN_0040D7B8`, which open
+//!   with the same two lines. (An earlier draft of this note said *one* site
+//!   behind one hit-tester; `docs/audio-triggers.md` records the correction,
+//!   and it matters to whoever reconciles them.) Ours are 26 screen modules
+//!   each matching `Event::Click` against their own rectangles, so there is no
+//!   single place to put it and nothing above them can tell a press that landed
+//!   on a widget from one that landed on grass. Playing it on every click would
+//!   be an invention and a worse one than silence. **The enabling change is in
+//!   the screen layer, not here**: `Screen::handle` would have to say whether
+//!   it consumed the event at a widget, and then this is one call.
+//! * **The two sample banks — 49 of the original's 134 trigger sites, and the
+//!   largest single thing missing.** [`names::KINGDOM_BANK`] and
 //!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
 //!   their 29 slots ship, and **nothing calls [`Audio::play_effect_if_idle`]**.
 //!   The village's work sounds, the marching army, the merchant's cart, the
-//!   peasant mob, every sword and every arrow are in there.
+//!   peasant mob, every sword and every arrow are in there. The clip-clop a
+//!   player asked for is `Unit_MoveInFacing` (`0x00466D84`) calling
+//!   `Sound_PlaySlot(0xb)` **on every step of every moving unit** — a rate, not
+//!   a trigger, and it works only because `Sound_PlaySlot` drops the request
+//!   when that buffer is still playing, which is exactly what
+//!   [`Audio::play_effect_if_idle`] is. See `docs/audio-triggers.md`.
 //! * **The voices, including the industry toggle a player asked about.**
 //!   [`names::lord_voice`] and [`names::system_voice`] generate the names of all
 //!   448 lord takes and the system lines, and [`Audio::play_speech`] plays them;
