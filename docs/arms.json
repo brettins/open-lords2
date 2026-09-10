@@ -192,6 +192,11 @@
       "what": "The MOUSE on setup screen 0x1F -- the page graph, and which button starts which kind of game",
       "complete": false,
       "note": "Opened because the campaign started on the wrong map for a merge and nothing could have caught it: the front end's thirteen pages had no arm records at all, only the `front-end-keys` group beside them, which is about keys we invented. The three here are the ones the campaign start needed -- 0x00433461 sets the flag, 0x00432B05 clears it, 0x00433155 branches on it. The remaining page arms (FUN_00432CC8's five, FUN_004335F0's four, FUN_0043338E, FUN_00433551, the map list and the twelve drop-downs) are NOT enumerated, which is why `complete` is false. docs/decisions.md C117."
+    },
+    "armoury": {
+      "what": "g_screenId 0x0A the armoury and 0x0D one weapon's rack",
+      "complete": false,
+      "note": "ONE arm, opened because the walking soldier had to be built and Armoury_ClickRack is what fires him. armoury.rs is one of the nine screen modules the file's own note names as carrying no marker at all, and it still is apart from this: the six rack hotspots, the three buttons of g_armouryHotspots, FUN_0043582A's grid and the four g_armouryBuyWidgets records are all implemented and none is recorded. Enumerating 0x0A and 0x0D is a job of its own; this is the arm this branch touched."
     }
   },
   "arms": [
@@ -1095,6 +1100,18 @@
       "addr": "0x004351C4",
       "what": "Widget_Test(0, 0, &g_courtWidgets, 1) - one 32 x 32 button at (336, 340), System.pl8 frame 64 - runs g_screenId = 0x20; Score_RankRealms(); FUN_0049D1E0(1..5), or Net_SendCommand(0x3B, 0) in multiplayer. It opens Screen_GreatestNoble (0x0041593B), the standings. L2.eng 70/6 \"Greatest nobles.\" at (136, 348) is its label.",
       "note": "KIND 5, so Widget_Test defers the handler by 20 frames. Screen 0x20 is not built, so the button is drawn and inert and the screen says so.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004358B0/armoury-rack-click",
+      "status": "reproduced",
+      "group": "armoury",
+      "screen": "0x0A, 0x0D",
+      "gesture": "click",
+      "addr": "0x004358B0",
+      "what": "CLICKING A WEAPON OPENS ITS RACK -- AND SENDS A SOLDIER TO FETCH THE LAST ONE. Armoury_ClickRack refuses when g_levyBasket[id].available <= 0, so an empty rack is inert; otherwise its FIRST statement is FUN_004AABD8(county, g_armourySelectedType), which is the rack being LEFT, before the assignment that overwrites it. FUN_004AABD8 then walks a soldier only when latch[t] < chosen[t], the latch being what this same function wrote at +0x0C when rack t was opened. So the animation fires on leaving a rack the player assigned somebody to, and the man is of that type.",
+      "note": "The row is live on BOTH screens -- Screen_FrameInput tests nine hotspot records on 0x0A and the first seven on 0x0D -- so this is one record and one function, per the file's counted-per-implementation rule. It was reached by two call sites of ours before this branch and neither did the latch or the walk.",
+      "ours": "crates/l2-game/src/screens/armoury.rs",
       "evidence": "V"
     },
     {

@@ -142,8 +142,8 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->152<!--/fig--> of
-   <!--fig:arms-live-->176<!--/fig--> live arms (<!--fig:arms-pct-->86<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->153<!--/fig--> of
+   <!--fig:arms-live-->177<!--/fig--> live arms (<!--fig:arms-pct-->86<!--/fig-->%)** — so
    **<!--fig:arms-missing-->24<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->6<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
@@ -160,7 +160,7 @@ the goal is not met — not "mostly met".
 
    **The other <!--fig:draws-screens-->51<!--/fig--> screens** make
    <!--fig:draws-original-->1,012<!--/fig--> draw calls and we make
-   <!--fig:draws-ours-->397<!--/fig-->: <!--fig:draws-pct-->39<!--/fig-->%.
+   <!--fig:draws-ours-->399<!--/fig-->: <!--fig:draws-pct-->39<!--/fig-->%.
    <!--fig:draws-missing-->56<!--/fig--> things the original draws are enumerated as missing,
    and **<!--fig:draws-inventions-->38<!--/fig--> things we draw that it does not** — the
    figure that answers row 2 for pictures rather than gestures, and the one nobody had.
@@ -176,7 +176,7 @@ the goal is not met — not "mostly met".
    them?"*, *"the title screen is illegible"* — **none of which is an arm.**
 
    **And the half a call count cannot see.** Of our marks on those 51 screens,
-   <!--fig:draws-real-->420<!--/fig--> go through the game's own artwork and
+   <!--fig:draws-real-->422<!--/fig--> go through the game's own artwork and
    <!--fig:draws-placeholder-->84<!--/fig--> are our 5 × 7 debug font and our own rectangles
    — <!--fig:draws-real-pct-->83<!--/fig-->% real — with
    <!--fig:draws-literals-->20<!--/fig--> English captions written in our own source where the
@@ -272,7 +272,7 @@ weakened rather than met, and this list is the one place in the project where no
 catch that.
 
 **The honest caveat on the headline, stated here rather than in a footnote:** `arms.json` covers
-**<!--fig:arms-groups-done-->12<!--/fig--> of <!--fig:arms-groups-->14<!--/fig-->** enumerated
+**<!--fig:arms-groups-done-->12<!--/fig--> of <!--fig:arms-groups-->15<!--/fig-->** enumerated
 groups, and those two are the battlefield and the battle seam. It is not yet the project's
 number. The wider, coarser measurement is `docs/decisions.md` C61's — **80 of 185 arms across
 three other screen groups, 43%** — taken by a different counting rule and superseded in detail by
@@ -912,7 +912,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,119<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,128<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

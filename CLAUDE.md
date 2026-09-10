@@ -21,7 +21,7 @@ subagent, so it stays short. Read the linked document before working in that are
    function the behaviour reproduces, in the code, beside it — not just the screen's painter.
    *"We could not find it"* is a finding to report, not a licence to invent. Measured, and
    the number is generated rather than typed: we reproduce
-   **<!--fig:arms-reproduced-->152<!--/fig--> of <!--fig:arms-live-->176<!--/fig-->** live
+   **<!--fig:arms-reproduced-->153<!--/fig--> of <!--fig:arms-live-->177<!--/fig-->** live
    input arms, and every miss was a behaviour nobody had looked for.
    `docs/decisions.md` C61, `docs/arms.json` for the inventory.
 

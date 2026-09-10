@@ -16,7 +16,7 @@
 .github/workflows/ci.yml	C26	8ee8f43c4642	e8179d1f76a8
 CLAUDE.md	C124	9cf9ee1c286d	38723617b085
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
-CLAUDE.md	C61	78fcbce5ae0d	60611046b40d
+CLAUDE.md	C61	cf8d77ef3e6d	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
 README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
@@ -342,7 +342,7 @@ docs/armies.md	C40	48ac95a9d767	d344563abef8
 docs/armies.md	C59	1cbb270593d9	37ab8ac1a2fc
 docs/armies.md	C61	0f02362fcf6e	60611046b40d
 docs/arms.json	C117	33768aee5b8d	b20f3a227f0f
-docs/arms.json	C117	7fa98dbec8bc	b20f3a227f0f
+docs/arms.json	C117	816ec3580916	b20f3a227f0f
 docs/arms.json	C117	ffa664085e2c	b20f3a227f0f
 docs/arms.json	C130	1ab64b910457	055c6c022450
 docs/arms.json	C61	0625bd8a65f4	60611046b40d

@@ -85,6 +85,50 @@ pub const SHEETS: &[&str] = &[
     "Arm_pike.pl8",
     "Arm_bow.pl8",
     "Arm_mail.pl8",
+    // 0x0A / 0x0D, the room in motion: two guttering torches and the soldier
+    // who walks over and takes the weapon down off the wall. `Armtorch.pl8` is
+    // 26 frames — thirteen per torch — and each `Trp_<weapon>_<colour>.pl8` is
+    // 21 of 89 × 158: eight walking in, five taking it down, eight carrying it
+    // out. See [`crate::screens::armoury::Walker`].
+    //
+    // **Thirty sheets, 3.3 MB, and the original reads exactly one of them.**
+    // `FUN_004AABD8` picks it by the local player's shield colour and the
+    // weapon just assigned, at the moment the walk starts — which is a read
+    // during a click, and this list is eager because a lazy cache would need
+    // interior mutability on a path `draw` may only see through `&`. What that
+    // costs is the read: `Sheet` decodes lazily, so a colour nobody plays is
+    // never turned into pixels.
+    "Armtorch.pl8",
+    "Trp_xb_r.pl8",
+    "Trp_ma_r.pl8",
+    "Trp_sw_r.pl8",
+    "Trp_pi_r.pl8",
+    "Trp_ar_r.pl8",
+    "Trp_kn_r.pl8",
+    "Trp_xb_y.pl8",
+    "Trp_ma_y.pl8",
+    "Trp_sw_y.pl8",
+    "Trp_pi_y.pl8",
+    "Trp_ar_y.pl8",
+    "Trp_kn_y.pl8",
+    "Trp_xb_k.pl8",
+    "Trp_ma_k.pl8",
+    "Trp_sw_k.pl8",
+    "Trp_pi_k.pl8",
+    "Trp_ar_k.pl8",
+    "Trp_kn_k.pl8",
+    "Trp_xb_p.pl8",
+    "Trp_ma_p.pl8",
+    "Trp_sw_p.pl8",
+    "Trp_pi_p.pl8",
+    "Trp_ar_p.pl8",
+    "Trp_kn_p.pl8",
+    "Trp_xb_b.pl8",
+    "Trp_ma_b.pl8",
+    "Trp_sw_b.pl8",
+    "Trp_pi_b.pl8",
+    "Trp_ar_b.pl8",
+    "Trp_kn_b.pl8",
     // 0x0B the other lords
     "Faces.pl8",
     // 0x1B castle building
