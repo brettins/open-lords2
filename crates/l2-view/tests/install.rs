@@ -902,6 +902,57 @@ fn the_panels_kit_in_the_file_has_the_shape_the_drawing_code_indexes() {
     eprintln!("panels: {} frames, kit boundaries match", pl8.frames.len());
 }
 
+/// **The icon table is the shipped one, and a man past his job's ceiling is
+/// drawn with the idle townsman's own sprite.**
+///
+/// A player reported *"when I put peasants into a quarry they show as idle,
+/// which should be impossible"*. The **drawing** is faithful and he was reading
+/// the picture correctly; what is missing is upstream of it. The quarry was
+/// switched off, so `County_RefreshEstimates` left its `labour_useful` at zero,
+/// and `Village_RebuildIcons` (`0x0045161E`) draws every worker past a zero
+/// ceiling in the **surplus** frame — which is `g_peasantIcons[8]`, the idle
+/// townsman's own frame, so the two are pixel-identical.
+///
+/// In the original that state is unreachable by this route: `FUN_00439CC2`,
+/// which `Labour_Move` calls on every drop, **switches the industry on** when
+/// men are dropped on a site whose resource the county has. We do not, so we
+/// reach a picture the original only ever shows for a county that has no such
+/// resource at all. `docs/arms.json` `0x00439CC2/drop-enables-the-industry` is
+/// the missing arm; this pins the drawing half so that fixing the input half
+/// cannot quietly change what the icons mean.
+///
+/// [`l2_view::village::ICON_VALUE`] was transcribed by hand and nothing checked
+/// it, which is the shape `docs/agents.md` warns about: a table of nine numbers
+/// with no oracle, in the crate that decides what the player sees. This reads
+/// the nine dwords back out of the user's own `Lords2.exe` and asserts the
+/// identity that caused the confusion, so it cannot be "tidied" by someone who
+/// thinks two jobs sharing a frame is a typo.
+#[test]
+fn the_icon_table_is_the_exes_own_and_surplus_is_the_idle_sprite() {
+    use l2_view::village as v;
+    let exe = l2_testkit::executable!();
+    let t = l2_testkit::pe::Table::at(&exe, v::ICON_VALUE_VA);
+    let shipped: Vec<i32> = t.i32s(v::ICON_VALUE.len());
+    let ours: Vec<i32> = v::ICON_VALUE.iter().map(|&b| b as i32).collect();
+    assert_eq!(
+        shipped, ours,
+        "g_peasantIcons at {:#010X} is not what l2_view::village::ICON_VALUE says",
+        v::ICON_VALUE_VA,
+    );
+    assert_eq!(
+        v::ICON_VALUE[l2_kingdom_job_idle()], v::ICON_SURPLUS,
+        "the idle townsman and the surplus worker are drawn with the same frame, and a \
+         player has already read one as the other. If this ever stops being true, \
+         docs/rules.md's paragraph on a switched-off industry is wrong.",
+    );
+}
+
+/// Slot 8. Spelled out rather than depending on `l2-kingdom`, which this crate
+/// does not and should not know about.
+fn l2_kingdom_job_idle() -> usize {
+    8
+}
+
 /// **`Misc_cty.pl8` frames 0 … 0x16 are the village's peasant icons**, which
 /// `docs/screens-county.md` §9 guessed, marked `[I]`, were "almost certainly
 /// the top menu bar".
