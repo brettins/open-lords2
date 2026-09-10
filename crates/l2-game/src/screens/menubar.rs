@@ -357,7 +357,7 @@ impl DropdownScreen {
                 Transition::Stay
             }
             // arm: 0x0040DECA/help-about
-            Item::About => Transition::Replace(ScreenId::Shell(0x25)),
+            Item::About => Transition::Replace(ScreenId::About),
         }
     }
 

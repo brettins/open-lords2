@@ -429,6 +429,12 @@ pub struct Pen<'a> {
 /// own, so without it the two halves touch. `[V]`
 pub const TRAILING: i32 = 4;
 
+/// **`L2.eng` group 8 is the noun table**, and `Ui_DrawCount`'s second argument
+/// is an index into it. Seventy-four strings in singular/plural pairs: 0/1
+/// *"Crown."*, 2/3 *"Sack."*, 4/5 *"Animal."*, `0x34 + t * 2` the seven troop
+/// types, 68 *"Grain"*, 70/71 *"Cow."*, 72/73 *"Total men"*.
+pub const COUNT_NOUN_GROUP: usize = 8;
+
 impl<'a> Pen<'a> {
     /// The same pen with the emboss switched off — `DAT_005AEA40 = 1`, which
     /// is what the front end sets around every menu item and body line.
@@ -667,6 +673,113 @@ impl<'a> Pen<'a> {
         match self.assets.sheet(sheet) {
             Some(s) => box_from(canvas, s, x, y, cols, rows),
             None => self.window(canvas, x, y, cols, rows, 0),
+        }
+    }
+
+    // --------------------------------------------------- numbers and plates
+    //
+    // The management screens are built out of four calls this crate did not
+    // have: `Ui_DrawNumber`, `Ui_DrawCount`, `Ui_DrawNumberRight` and
+    // `Ui_DrawInsetRect`, plus the two sheet blits every one of them uses.
+    // Five screens graduated in one session needing all six, so they live here
+    // rather than being copied.
+
+    /// `Ui_DrawInsetRect(x, y, w, h)` — the recessed well, in **pixels**.
+    pub fn inset(&self, canvas: &mut Canvas, r: crate::input::Rect) {
+        inset_rect(canvas, r.x, r.y, r.w, r.h);
+    }
+
+    /// `Ui_DrawNumber(value, lead, suffix, x, y, font, colour)`.
+    ///
+    /// `lead` is either a space or `'@'`, **the blank alignment glyph** — a
+    /// character the fonts draw as nothing but advance over, which is how the
+    /// original right-aligns a column without measuring it. `blank_lead` picks
+    /// between them. The suffix in every call this crate reproduces is a single
+    /// space, which is why a number and the word after it do not touch.
+    pub fn number(
+        &self,
+        canvas: &mut Canvas,
+        x: i32,
+        y: i32,
+        value: i32,
+        blank_lead: bool,
+        colour: u8,
+    ) -> i32 {
+        let lead = if blank_lead { "" } else { " " };
+        self.body(canvas, x, y, &format!("{lead}{value} "), colour)
+    }
+
+    /// `Ui_DrawCount(value, nounIndex, x, y, font, colour)` — a number and then
+    /// the `L2.eng` **group 8** noun that goes with it.
+    ///
+    /// Group 8 holds its nouns in pairs, singular then plural, and the original
+    /// picks `nounIndex` for one and `nounIndex + 1` for anything else —
+    /// including **zero**, which takes the plural. That is worth stating
+    /// because the obvious implementation gets it wrong: *"0 Crowns."*, not
+    /// *"0 Crown."*
+    #[allow(clippy::too_many_arguments)]
+    pub fn count(
+        &self,
+        canvas: &mut Canvas,
+        x: i32,
+        y: i32,
+        value: i32,
+        noun: usize,
+        blank_lead: bool,
+        colour: u8,
+    ) -> i32 {
+        let w = self.number(canvas, x, y, value, blank_lead, colour);
+        let index = if value == 1 { noun } else { noun + 1 };
+        let s = self.assets.text(COUNT_NOUN_GROUP, index).to_string();
+        w + self.body(canvas, x + w, y, &s, colour)
+    }
+
+    /// `Ui_DrawNumberRight(value, lead, suffix, x, y, width, font, colour)` —
+    /// which **does not right-align**.
+    ///
+    /// Its whole body after building the string is `FUN_004025D7`, and that is
+    /// `local_c = (width - textWidth) / 2; if (local_c < 0) local_c = 0;` — the
+    /// *same helper* `Ui_DrawCentred` calls. `docs/symbols.json` names it
+    /// *"Ui_DrawNumber, right-aligned inside width"* and that is wrong for
+    /// every caller in the binary. The name is kept here because it is the
+    /// name in the database; the behaviour is the code's. **[V]**
+    pub fn number_centred(
+        &self,
+        canvas: &mut Canvas,
+        x: i32,
+        y: i32,
+        width: i32,
+        value: i32,
+        colour: u8,
+    ) {
+        self.body_centred(canvas, x, y, width, &format!(" {value} "), colour);
+    }
+
+    /// `Pl8_DrawFrame(g_miscCtySheet, frame, x, y)` — the county sheet, which
+    /// is `Misc_cty.pl8` in campaign mode.
+    ///
+    /// **The slot is not always that file.** `g_miscCtySheet` (`0x005530C8`)
+    /// holds `misc_cty.pl8`, `misc_bat.PL8`, `misc_ske.PL8` or `misc_sel.PL8`
+    /// depending on `DAT_0053F050`, so a frame number is only meaningful with
+    /// the mode beside it. Everything drawn through *this* helper is campaign
+    /// mode; the skirmish screens name their sheet.
+    pub fn misc_frame(&self, canvas: &mut Canvas, frame: usize, x: i32, y: i32) -> bool {
+        self.chrome.is_some_and(|c| c.draw_misc(canvas, frame, x, y))
+    }
+
+    /// `Pl8_DrawFrame(g_systemSheet, frame, x, y)` — the button sheet.
+    pub fn system_frame(&self, canvas: &mut Canvas, frame: usize, x: i32, y: i32) -> bool {
+        self.chrome.is_some_and(|c| c.draw_system(canvas, frame, x, y))
+    }
+
+    /// `Ui_OkButton(x, y, mode)` — the corner picture that closes a panel, with
+    /// our own recess where the sheet is missing. Mode 0 is `System.pl8` frame
+    /// `0x33`, mode 1 is frame `0x10`.
+    pub fn ok_button(&self, canvas: &mut Canvas, x: i32, y: i32, mode: usize) {
+        let frame =
+            if mode == 0 { l2_view::chrome::system::OK } else { l2_view::chrome::system::OK_ALT };
+        if !self.system_frame(canvas, frame, x, y) {
+            button_recess(canvas, x, y, 24, 24);
         }
     }
 

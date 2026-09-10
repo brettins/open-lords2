@@ -1289,3 +1289,113 @@ fn a_click_on_the_drawn_army_resolves_to_the_tile_it_stands_on() {
     );
     eprintln!("army sprite {}x{}: {on_tile} of {total} opaque pixels pick their own tile", frame.width, frame.height);
 }
+
+/// **The cattle in the pastures, measured against `Flags1a.pl8` itself.**
+///
+/// `FUN_004071A0`'s farm arm picks
+/// `0x55 + (terrain - 0x14) * 6 + phase` for a stocked pasture and
+/// `0x67 + (terrain - 0x10) * 6 + phase` for the vestigial half nothing writes.
+/// Reading that ladder out of the decompiler gives you two frame numbers; it
+/// cannot tell you whether they point at cattle, and a canvas diff would pass
+/// on the wrong frame of the right sheet. So this asks the sheet.
+///
+/// Four claims, and each is one a measurement can refute:
+///
+/// 1. every frame [`campaign::herd_sprite`] can return for a **reachable**
+///    pasture is `58 × 30` — *exactly the near-zoom tile diamond*, so the
+///    sprite is a full-meadow overlay and not a small figure. Eighteen frames,
+///    three terrains by six phases, with no gap and no stray size;
+/// 2. every frame it returns for the **vestigial** half is a `2 × 2` stub — the
+///    art for that block was never drawn, which is the second, independent
+///    reason to believe nothing ever writes terrain `0x0F … 0x12` on a farm
+///    tile;
+/// 3. the three reachable groups carry **strictly more opaque pixels** as the
+///    crowding rises. That is the claim *"a more crowded meadow has more
+///    animals on it"* stated as something the file can contradict, and it is
+///    what makes the band → frame mapping the right way round rather than
+///    merely consistent;
+/// 4. `0x13`, the empty herd, and `0x0F` return **nothing at all** — bare grass
+///    for a county that has lost every animal.
+///
+/// Ablating the `* 6` in [`campaign::herd_sprite`] fails claim 1 (the ladder
+/// walks into the `2 × 2` stubs); ablating the `+ 0x55` fails it too; swapping
+/// the two group bases fails claim 3.
+#[test]
+fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
+    let Some(dir) = asset_dir() else {
+        eprintln!("skipping: no install");
+        return;
+    };
+    let bytes = read(&dir, "Flags1a.pl8").expect("Flags1a.pl8");
+    let sheet = Sheet::new(bytes).expect("parse");
+
+    // Claim 4, first, because the other three assume it.
+    for empty in [0x0Fu8, 0x13] {
+        for phase in 0..campaign::HERD_PHASES {
+            assert!(
+                campaign::herd_sprite(empty, phase).is_none(),
+                "terrain {empty:#04x} is pasture with no animals on it",
+            );
+        }
+    }
+
+    // Claims 1 and 3: the three reachable bands.
+    let tile = (l2_view::campaign::NEAR.tile_w as u16, l2_view::campaign::NEAR.tile_h as u16);
+    let mut opaque_per_band = Vec::new();
+    let mut frames_seen = Vec::new();
+    for terrain in 0x14u8..=0x16 {
+        let mut band = Vec::new();
+        for phase in 0..campaign::HERD_PHASES {
+            let (frame, at) = campaign::herd_sprite(terrain, phase).expect("a stocked pasture");
+            assert_eq!(at, campaign::HERD_AT, "terrain {terrain:#04x} is the 0x55 block");
+            let f = sheet
+                .frame(frame)
+                .unwrap_or_else(|| panic!("frame {frame:#04x} is missing from Flags1a.pl8"));
+            assert_eq!(
+                (f.width, f.height),
+                tile,
+                "frame {frame:#04x} is not a tile-sized meadow overlay",
+            );
+            band.push(f.opaque.iter().filter(|&&o| o).count());
+            frames_seen.push(frame);
+        }
+        // Six phases of one scene: the animals move, the meadow does not, so
+        // the frames are close in weight without being identical.
+        let (lo, hi) = (*band.iter().min().unwrap(), *band.iter().max().unwrap());
+        assert!(hi > 0, "terrain {terrain:#04x} draws nothing");
+        assert!(
+            hi - lo < hi / 4,
+            "terrain {terrain:#04x}'s six phases are not one scene animated: {band:?}",
+        );
+        opaque_per_band.push(band.iter().sum::<usize>() / band.len());
+    }
+    frames_seen.sort_unstable();
+    frames_seen.dedup();
+    assert_eq!(frames_seen.len(), 18, "three bands by six phases, all distinct");
+    assert_eq!(frames_seen[0], campaign::HERD_FIRST_FRAME);
+    assert_eq!(frames_seen[17], campaign::HERD_FIRST_FRAME + 17);
+
+    assert!(
+        opaque_per_band[0] < opaque_per_band[1] && opaque_per_band[1] < opaque_per_band[2],
+        "a more crowded meadow must carry more animals: {opaque_per_band:?}",
+    );
+
+    // Claim 2: the vestigial block is padding, not a second herd.
+    for terrain in 0x10u8..=0x12 {
+        for phase in 0..campaign::HERD_PHASES {
+            let (frame, at) = campaign::herd_sprite(terrain, phase).expect("the dead ladder");
+            assert_eq!(at, campaign::HERD_DEAD_AT);
+            let f = sheet.frame(frame).unwrap_or_else(|| panic!("frame {frame:#04x} missing"));
+            assert_eq!(
+                (f.width, f.height),
+                (2, 2),
+                "frame {frame:#04x} is real art, so the block is not vestigial after all",
+            );
+        }
+    }
+
+    eprintln!(
+        "Flags1a 0x55..0x66: 58x30 meadows, {} / {} / {} opaque pixels by band; 0x67..0x78 are 2x2 stubs",
+        opaque_per_band[0], opaque_per_band[1], opaque_per_band[2],
+    );
+}

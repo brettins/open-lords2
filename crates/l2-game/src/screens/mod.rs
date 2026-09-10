@@ -106,6 +106,7 @@ pub fn belongs_to_the_right_column(event: Event) -> bool {
     x >= l2_view::campaign::PANEL_X
 }
 
+pub mod about;
 pub mod armoury;
 pub mod army;
 pub mod battle;
@@ -113,15 +114,20 @@ pub mod battlefield;
 pub mod castle;
 pub mod conquest;
 pub mod county;
+pub mod court;
+pub mod diplomacy;
 pub mod divide;
 pub mod index;
+pub mod info;
 pub mod job;
 pub mod map;
 pub mod menu;
 pub mod menubar;
 pub mod merchant;
 pub mod options;
+pub mod ratings;
 pub mod saveload;
+pub mod supplies;
 pub mod setup;
 pub mod shells;
 pub mod siege;

@@ -57,8 +57,7 @@ crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
 crates/l2-game/src/screens/setup.rs	C21	8b9ebc1ffbf5
 crates/l2-game/src/screens/setup.rs	C21	9c04dd669ff9
 crates/l2-game/src/screens/setup.rs	C21	f030e5ba689c
-crates/l2-game/src/screens/shells.rs	C22	746cddad9eff
-crates/l2-game/src/screens/shells.rs	C45	971440fb6fdf
+crates/l2-game/src/screens/shells.rs	C45	0557ea4ec5f9
 crates/l2-game/src/screens/village.rs	C22	81b65db0836a
 crates/l2-game/src/screens/village.rs	C76	cddc3e0e2856
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857
@@ -97,6 +96,7 @@ crates/l2-game/tests/screens.rs	C47	944e764a1fca
 crates/l2-game/tests/screens.rs	C48	38f59896d07f
 crates/l2-game/tests/screens.rs	C48	a3f70d784d36
 crates/l2-game/tests/screens.rs	C61	0666dfecda29
+crates/l2-game/tests/shell.rs	C22	df2346f350a7
 crates/l2-game/tests/turn.rs	C19	2b27ff0ebcc9
 crates/l2-kingdom/src/ai.rs	C13	b6951068455b
 crates/l2-kingdom/src/ai_farm.rs	C3	5a9c96365a5c
@@ -125,6 +125,7 @@ crates/l2-kingdom/src/ration.rs	C3	316be8511779
 crates/l2-kingdom/src/realm.rs	C3	806d5d4cf93c
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b
 crates/l2-kingdom/src/siege.rs	C27	1d9816cd2737
+crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8
 crates/l2-kingdom/src/tables.rs	C10	ca6d41e102b2
 crates/l2-kingdom/src/tables.rs	C11	09ae49121c2b
 crates/l2-kingdom/src/tables.rs	C11	b50cc9ec171d
@@ -266,8 +267,8 @@ docs/armies.md	C40	3cddc0864ef1
 docs/armies.md	C40	48ac95a9d767
 docs/armies.md	C59	1cbb270593d9
 docs/armies.md	C61	0f02362fcf6e
+docs/arms.json	C61	0625bd8a65f4
 docs/arms.json	C61	39d63dd72f38
-docs/arms.json	C61	4018a5b62162
 docs/arms.json	C76	113584e50fba
 docs/audit.md	C4	137a29e56031
 docs/audit.md	C4	27ad00fc666e
@@ -287,6 +288,7 @@ docs/bugs.md	C31	d4548fdca7c1
 docs/bugs.md	C33	970cde363d20
 docs/bugs.md	C38	3a2b93b33329
 docs/bugs.md	C44	76f06582a66b
+docs/bugs.md	C47	678e0f3952ba
 docs/bugs.md	C53	89e746f595f9
 docs/bugs.md	C57	5cb182dec58c
 docs/bugs.md	C59	ee28fc662f04
@@ -424,8 +426,10 @@ docs/decisions.md	C61	33bb2b912640
 docs/decisions.md	C61	572422b44b0b
 docs/decisions.md	C61	78184451a7a7
 docs/decisions.md	C61	7fc43d028377
+docs/decisions.md	C61	a43b37f5621b
 docs/decisions.md	C61	af1e7ea10593
 docs/decisions.md	C61	b465e0d2cdee
+docs/decisions.md	C61	c728831f88b3
 docs/decisions.md	C61	cb0091f01fac
 docs/decisions.md	C61	f6aa494f4261
 docs/decisions.md	C62	caa3cf750af3
@@ -446,6 +450,7 @@ docs/formats/maps-layers.md	C41	89650dc3b322
 docs/formats/maps-layers.md	C41	991fc29daae8
 docs/formats/maps-layers.md	C49	22534dc6eb84
 docs/formats/maps-layers.md	C62	dfe3d7ab34b9
+docs/formats/maps-layers.md	C77	d74664021785
 docs/formats/pl8.md	C5	7da3bb460200
 docs/hypotheses.json	C3	6d7b9bc8a5c3
 docs/hypotheses.json	C3	80313a1ef950

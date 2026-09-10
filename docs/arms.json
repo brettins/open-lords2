@@ -149,6 +149,11 @@
       "what": "0x04 and the close arms of 0x08 .. 0x13",
       "complete": false,
       "note": "The CLOSE arms are enumerated and the two panels behind 0x04 are not: FUN_00438990, FUN_00438A91 and FUN_00437002 are three hotspot tables nobody has driven. The screens themselves belong to the merchant, armoury, diplomacy and army agents; what is here is the chrome around them."
+    },
+    "panels": {
+      "what": "g_screenId 0x04, 0x09, 0x0B, 0x18, 0x25 and 0x2E -- the last six shells, and the two painters of 0x04",
+      "complete": true,
+      "note": "Enumerated out of Screen_FrameInput, Screen_HandleInput, Screen_DrawWidgets and the four widget/hotspot tables in .rdata, one screen at a time, before any of them was built. 0x0F is not here: it was a stale duplicate row of screens/job.rs and its arms belong to that screen."
     }
   },
   "arms": [
@@ -438,18 +443,6 @@
       "evidence": "V"
     },
     {
-      "id": "0x0040E7E4/shell-corner-closes",
-      "status": "reproduced",
-      "group": "management-screens",
-      "screen": "0x04, 0x09, 0x0B, 0x25, 0x2E",
-      "gesture": "left-release",
-      "addr": "0x0040E7E4",
-      "what": "Ui_OkButtonClicked's 24x24 box at the position the shell's own Ui_OkButton call stashed. A shell whose table row has no `ok` has no corner picture in the original either and is left by the right button alone -- 0x18 is one.",
-      "note": "THIS ARM WAS WRONG, not missing: it was `Event::Click { .. }` unqualified, so a left click ANYWHERE closed a shell. Screen 0x04, the information panel a right-click on the map opens, could not be read at all -- the click that opened it was followed by the click that closed it. Third wrong arm.",
-      "ours": "crates/l2-game/src/screens/shells.rs",
-      "evidence": "V"
-    },
-    {
       "id": "0x0040E7E4/village-corner-closes",
       "status": "reproduced",
       "group": "village",
@@ -469,6 +462,29 @@
       "addr": "0x00420316",
       "what": "FIELD 7 OF 7 -- THE MULTIPLAYER CHAT LINE, and the only field that is not on a screen. Chat_Frame sets g_editActive from OUTSIDE Screen_HandleInput -- which is why the flag is cleared at the top of Screen_HandleInput only `if (g_chatTimer < 1)` -- commits to DAT_00553E80 at 64 characters and draws the line over whatever is underneath. Sixty-four characters, 470 pixels, kind 0, seeded empty.",
       "note": "Opened by Chat_Toggle on VK_RETURN, and it takes over Return, End and every printable key on ANY screen while it is up: 0x0043600C refuses only screens 0x0A, 0x0D and 0x17. Missing because there is no multiplayer.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/about-ok",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x25",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Ui_OkButtonClicked() in the 24 x 24 box at (404, 326) -> g_screenId = g_menuPrevScreen.",
+      "ours": "crates/l2-game/src/screens/about.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/about-right",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x25",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "A right release anywhere -> g_screenId = g_menuPrevScreen. It is TESTED FIRST, before the OK.",
+      "note": "Those two gestures are the entire input surface of screen 0x25: Screen_HandleInput has no 0x25 arm across all 26 of its arms, and Screen_DrawWidgets has none either.",
+      "ours": "crates/l2-game/src/screens/about.rs",
       "evidence": "V"
     },
     {
@@ -506,6 +522,28 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/court-ok",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x09",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Ui_OkButtonClicked() in the 24 x 24 box at (408, 344) -> g_screenId = 0.",
+      "ours": "crates/l2-game/src/screens/court.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/court-right",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x09",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "A right release anywhere -> g_screenId = 0.",
+      "ours": "crates/l2-game/src/screens/court.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/dead-0x28-right-to-field",
       "status": "dead",
       "group": "battlefield",
@@ -514,6 +552,28 @@
       "addr": "0x0042FF10",
       "what": "g_screenId = 0x29; DAT_0053F238 = 0; DAT_0053E9AC = 1.",
       "why": "See 0x00432221/dead-0x28-edge-scroll. Note it would UNPAUSE the battle, which is the only place other than the pause button that writes DAT_0053F238 to zero -- so whatever 0x28 was, leaving it started the fighting.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/diplo-ok",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0B",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Ui_OkButtonClicked() in the 24 x 24 box at (424, 422) -> g_screenId = 0.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/diplo-right",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0B",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "A right release anywhere -> g_screenId = 0.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs",
       "evidence": "V"
     },
     {
@@ -559,6 +619,50 @@
       "addr": "0x0042FF10",
       "what": "TWENTY-NINE arms open with `if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))` and force-close. DAT_0055403C is what Turn_End writes, DAT_00553FC8 is the multiplayer sync-wait latch and DAT_00553018 is the F12 debug override. A THIRD OF THIS FUNCTION'S JOB is tearing every open panel down when the turn ends or the network blocks, with no user input involved at all.",
       "note": "Not a gesture, and it is in this file because it is the guard that runs before every gesture in the group. Missing because our End Turn resolves the turn synchronously, so no panel can be open while it runs; it becomes reachable the moment turns are asynchronous, which is the whole of docs/netcode.md.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/info-edge-scroll-closes",
+      "status": "missing",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "pointer",
+      "addr": "0x0042FF10",
+      "what": "Map_EdgeScroll() returning non-zero CLOSES the panel. Holding the cursor at the edge of the screen with the information panel up puts you back on the map.",
+      "note": "Nobody would guess this one. It is in the same ladder as the OK and the right-release and it is not a click at all.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/info-ok",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Ui_OkButtonClicked() in the 24 x 24 box at (428, 438) closes the panel: g_screenId = 0; FUN_0043CC56().",
+      "ours": "crates/l2-game/src/screens/info.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/info-right-close",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "A right release anywhere closes it. The same button opens it from the map, which is the whole gesture: press right to look, press right to stop looking.",
+      "ours": "crates/l2-game/src/screens/info.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/info-turn-lost",
+      "status": "missing",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "none",
+      "addr": "0x0042FF10",
+      "what": "A state test, not a gesture: DAT_00553FC8 != 0, or DAT_0055403C != 0 with DAT_00553018 == 0, forces g_screenId = 0. The multiplayer sync latches close the panel out from under the player.",
+      "note": "Filed as an arm because it sits in the arm ladder and consumes the frame. The three flags are unnamed in docs/symbols.json.",
       "evidence": "V"
     },
     {
@@ -631,15 +735,28 @@
       "evidence": "V"
     },
     {
-      "id": "0x0042FF10/minimap-under-a-shell",
+      "id": "0x0042FF10/minimap-under-supplies",
       "status": "reproduced",
       "group": "management-screens",
-      "screen": "0x04, 0x09, 0x0B, 0x18, 0x25",
+      "screen": "0x0042FF10",
       "gesture": "left-press",
       "addr": "0x0042FF10",
-      "what": "The epilogue's minimap arm again, on every shell that is an overlay over the campaign map.",
-      "ours": "crates/l2-game/src/screens/shells.rs",
-      "evidence": "V"
+      "what": "A press in the minimap raster with this screen open drops it and selects the county.",
+      "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12: a press inside the raster selects that county, recentres the map and sets g_screenId = 0. The shell wrapper reproduced it once for all seven shells; graduating them lost it, so it is per screen now because the screens are. Only the raster is passed, not the whole column -- see screens/job.rs at the same arm.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/supplies.rs"
+    },
+    {
+      "id": "0x0042FF10/minimap-under-the-court",
+      "status": "reproduced",
+      "group": "management-screens",
+      "screen": "0x0042FF10",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "A press in the minimap raster with this screen open drops it and selects the county.",
+      "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12: a press inside the raster selects that county, recentres the map and sets g_screenId = 0. The shell wrapper reproduced it once for all seven shells; graduating them lost it, so it is per screen now because the screens are. Only the raster is passed, not the whole column -- see screens/job.rs at the same arm.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/court.rs"
     },
     {
       "id": "0x0042FF10/minimap-under-the-job-popup",
@@ -651,6 +768,18 @@
       "what": "The epilogue's minimap arm, and 0x0F is the screen it NAMES: `if (g_screenId == 0x0F) { Sound_StopOneShot(); FUN_0041438C(); }` before the close. Only the raster is live -- 0x0F's own arm runs none of the six sidebar guards -- so passing the whole column down would have been five inventions.",
       "ours": "crates/l2-game/src/screens/job.rs",
       "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/minimap-under-the-ratings",
+      "status": "reproduced",
+      "group": "management-screens",
+      "screen": "0x0042FF10",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "A press in the minimap raster with this screen open drops it and selects the county.",
+      "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12: a press inside the raster selects that county, recentres the map and sets g_screenId = 0. The shell wrapper reproduced it once for all seven shells; graduating them lost it, so it is per screen now because the screens are. Only the raster is passed, not the whole column -- see screens/job.rs at the same arm.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/ratings.rs"
     },
     {
       "id": "0x0042FF10/panel-right-closes",
@@ -675,14 +804,15 @@
       "evidence": "V"
     },
     {
-      "id": "0x0042FF10/shell-right-closes",
+      "id": "0x0042FF10/ratings-any-press",
       "status": "reproduced",
-      "group": "management-screens",
-      "screen": "0x04, 0x09, 0x0B, 0x18, 0x25, 0x2E",
-      "gesture": "right-release",
+      "group": "panels",
+      "screen": "0x2E",
+      "gesture": "left-press",
       "addr": "0x0042FF10",
-      "what": "Every one of these ids has a right-release arm in Screen_FrameInput, and L2.eng group 12 index 0 -- 'Click Right to Exit', printed under the value spinner's caption -- is the game saying so in English. Right-close is 19 of the 49 arms and 36% of the function's body.",
-      "ours": "crates/l2-game/src/screens/shells.rs",
+      "what": "EITHER button, PRESSED, ANYWHERE -> g_screenId = 0x2F. Three unusual things in three lines: the Ui_OkButton drawn at (516, 390) is never tested and is decorative; it fires on press rather than release, unlike essentially every other arm in the function; and it goes FORWARD to the rank screen rather than back, so 0x2E has no back door at all. The chain is 0x2E -> 0x2F -> 0x1F.",
+      "note": "One record for both buttons: the two lines are byte-identical and a player cannot tell the outcomes apart. 0x2F is not built, so ours pops - which is where 0x2F eventually returns to.",
+      "ours": "crates/l2-game/src/screens/ratings.rs",
       "evidence": "V"
     },
     {
@@ -694,6 +824,17 @@
       "addr": "0x0042FF10",
       "what": "A right release sets DAT_00568470 = 0x1389 -- 5001, one past the limit Battle_CheckOutcome counts it up to -- so it SKIPS the outcome banner rather than dismissing it. The whole of 0x2B's arm.",
       "ours": "crates/l2-game/src/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/supplies-right",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x18",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "A right release leaves. There is NO Ui_OkButton on this screen: the two thumbs and the right button are the only ways out.",
+      "ours": "crates/l2-game/src/screens/supplies.rs",
       "evidence": "V"
     },
     {
@@ -809,6 +950,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x004351C4/court-greatest-nobles",
+      "status": "missing",
+      "group": "panels",
+      "screen": "0x09",
+      "gesture": "left-press",
+      "addr": "0x004351C4",
+      "what": "Widget_Test(0, 0, &g_courtWidgets, 1) - one 32 x 32 button at (336, 340), System.pl8 frame 64 - runs g_screenId = 0x20; Score_RankRealms(); FUN_0049D1E0(1..5), or Net_SendCommand(0x3B, 0) in multiplayer. It opens Screen_GreatestNoble (0x0041593B), the standings. L2.eng 70/6 \"Greatest nobles.\" at (136, 348) is its label.",
+      "note": "KIND 5, so Widget_Test defers the handler by 20 frames. Screen 0x20 is not built, so the button is drawn and inert and the screen says so.",
+      "evidence": "V"
+    },
+    {
       "id": "0x0043600C/chat-toggle",
       "status": "missing",
       "group": "text",
@@ -831,6 +983,50 @@
       "evidence": "V"
     },
     {
+      "id": "0x00436141/diplo-action",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0B",
+      "gesture": "left-press",
+      "addr": "0x00436141",
+      "what": "Widget_Test(0, 0, &g_diploWidgets, g_diploWidgetCount) - six 32 x 32 buttons at x 400, y 102/152/202/252/302/352 - each opening screen 0x1A with g_diploKind 0..6. Widget 3 serves BOTH \"Offer an alliance.\" and \"Terminate alliance.\": Diplo_OpenAlliance re-tests ally == target and picks kind 4 over 3.",
+      "note": "ONE record for six widgets, per the counting rule: one table hit-tested in one call. The six differ only in the kind byte they hand to 0x1A, which is a different screen and a different agent. KIND 5, so the original defers 20 frames.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004369BD/diplo-pick-lord",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x0B",
+      "gesture": "left-press",
+      "addr": "0x004369BD",
+      "what": "Test (48, 49 + 100*slot, 82, 78) for each rival still in play and set g_diploTarget. THE ONLY place a player sets the target, and it works even in menu state 3, where there are no widgets at all - so a lord with a pending letter is never a dead end.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00437002/info-disband",
+      "status": "missing",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "left-press",
+      "addr": "0x00437002",
+      "what": "Record 1, (112,352)-(152,392) -> Panel_DisbandButton (0x0043733A).",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00437002/info-move",
+      "status": "missing",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "left-press",
+      "addr": "0x00437002",
+      "what": "Hotspot_Test on g_infoUnitButtons (0x004DC560) record 0, (48,352)-(88,392) plus the popup row -> Panel_MoveButton (0x004371CE), which is g_screenId = 0x10, the map in move-order mode.",
+      "note": "KIND 1: these three fire on PRESS while the brush on the same screen fires on RELEASE.",
+      "evidence": "V"
+    },
+    {
       "id": "0x00437002/unit-panel-buttons",
       "status": "missing",
       "group": "management-screens",
@@ -839,6 +1035,40 @@
       "addr": "0x00437002",
       "what": "The information panel's UNIT half: for a type-1 unit of the local player's, three 40x40 buttons at (48, 352), (112, 352) and (176, 352) -- Panel_MoveButton, Panel_DisbandButton, Panel_SplitButton -- or, for a GARRISONED army, the same table with FUN_004374C4 in the first slot instead.",
       "note": "This is the door to screens 0x10 and 0x11 in the original. Ours goes straight from a map click into move-order mode, which is what Panel_MoveButton does with its two siblings unbuilt, and reaches 0x11 by the A key. So the DESTINATIONS are reproduced and the panel that holds them is not.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004374C4/info-leave-castle",
+      "status": "missing",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "left-press",
+      "addr": "0x004374C4",
+      "what": "The GARRISONED table (0x004DC5A8) replaces the move button with FUN_004374C4: find a free tile near the castle with Map_FindFreeTileNear, move the army out, clear county.garrisonUnit and unit.garrisonCounty, and start a battle if the county was besieged - or Army_Destroy the army if no tile is free. Multiplayer command 0x36.",
+      "note": "Unnamed in docs/symbols.json and it is a real action. Army_LeaveCastle is earned. A sortie is the only way a garrison gets out.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004378B3/info-split",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "left-press",
+      "addr": "0x004378B3",
+      "what": "Record 2, (176,352)-(216,392) -> Panel_SplitButton, which opens the army-division screen 0x11.",
+      "ours": "crates/l2-game/src/screens/info.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00438990/field-brush",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "left-release",
+      "addr": "0x00438990",
+      "what": "Hotspot_Test on g_infoFieldBrush (0x004DC4D0, three ids 1/2/0x13) or the waste table (0x004DC530, two ids 0x19/0) -> FUN_00438B02 -> Field_SetType(county, tile, id), a sound per id, then g_screenId = 0. KIND 3, so it fires on RELEASE.",
+      "note": "The buttons are at y 376..424, not 184: g_uiPopupRow is always applied and always comes to +192 for both variants. crates/l2-game/src/screens/map.rs mod brush had this 192 pixels too high.",
+      "ours": "crates/l2-game/src/screens/info.rs",
       "evidence": "V"
     },
     {
@@ -852,6 +1082,16 @@
       "note": "THE TABLE IS REPRODUCED AND THE SCREEN IT LIVES ON IS NOT. The five buttons' geometry -- 48 x 48 on the row y 184..232, three at x 240/304/368 for a field and the LAST TWO of the same three for waste -- and all five destinations through Field_SetType are ours out of the executable (crates/l2-kingdom/tests/oracle.rs reads them). What is not reproduced is where it stands: the original draws it on SCREEN 0x04, at a runtime row offset (DAT_00553D2C << 4), reached by right-clicking the map; ours is a popup on screen 0. See ours/brush-popup-on-the-map.",
       "evidence": "D",
       "ours": "crates/l2-game/src/screens/map.rs"
+    },
+    {
+      "id": "0x00438A91/info-garrison-widget",
+      "status": "missing",
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "left-press",
+      "addr": "0x00438A91",
+      "what": "Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) - the \"View these troops?\" button at (344, 414) on a castle tile - runs FUN_00438ACC, which sets g_pickedTileUnit = county.garrisonUnit and repaints. It flips the panel from the tile half to the unit half WITHOUT leaving screen 0x04.",
+      "evidence": "V"
     },
     {
       "id": "0x00438A91/tile-panel-widgets",
@@ -1123,6 +1363,63 @@
       "evidence": "V"
     },
     {
+      "id": "0x0043B04C/supplies-cancel",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x18",
+      "gesture": "left-press",
+      "addr": "0x0043B04C",
+      "what": "The thumb-down at (360, 346): g_screenId = 0, send nothing.",
+      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043B04C/supplies-dispatch",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x18",
+      "gesture": "left-press",
+      "addr": "0x0043B04C",
+      "what": "The thumb-up at (320, 342). With a real destination: FUN_0043B145 -> Transport_Spawn, then the source county ration/labour/crowding/estimate passes twice. With the destination still equal to the source: Ui_OpenConfirm(0xE) - L2.eng 10/14, \"Quit? (no destination).\" - whose YES leaves without sending.",
+      "note": "Transport_Spawn drops the shipment SILENTLY if no free road or open tile exists near the county anchor: nothing spawns and nothing is deducted, and the screen has already closed.",
+      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043B1CA/supplies-minus",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x18",
+      "gesture": "left-press",
+      "addr": "0x0043B1CA",
+      "what": "Take out of the cart: if (cart < 11) move one, else move ten. The pool you draw FROM decides the step, so a count runs 1..10 and then jumps by tens.",
+      "note": "Two widget records, grain and cattle, one handler. Auto-repeat comes from Widget_Test kind 4 rather than from the handler.",
+      "ours": "crates/l2-kingdom/src/../../l2-game/src/screens/supplies.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043B27A/supplies-plus",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x18",
+      "gesture": "left-press",
+      "addr": "0x0043B27A",
+      "what": "Put into the cart, the same rule mirrored: if (left < 11) move one, else move ten.",
+      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043B32A/supplies-all",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x18",
+      "gesture": "left-press",
+      "addr": "0x0043B32A",
+      "what": "Hotspot_Test(0x40, 0x30, 0x004DC7E8, 2) - the two commodity ICONS at (254,264)-(284,293) and (254,294)-(284,323). An empty cart takes everything; a loaded one is emptied.",
+      "ours": "crates/l2-game/src/screens/supplies.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0043B412/supplies-county-picker",
       "status": "missing",
       "group": "management-screens",
@@ -1131,6 +1428,17 @@
       "addr": "0x0043B412",
       "what": "Send supplies is a MINIMAP: FUN_0043B412(0x60, 0x68) reads g_minimapCounty over a 128x128 box at (96, 104) and writes the county under the pointer into DAT_00553C78, which is the destination. A press on a blank pixel returns 0 and the arm's right-release close runs instead.",
       "note": "Screen 0x1A, the diplomacy dialogs, has the same shape with a different function: FUN_0043B4CB(0x60, 0xB0), a 128x128 box at (96, 176), gated on g_diploKind >= 5, writing g_pickedCounty. Two screens pick a county off a minimap and neither is built.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043B412/supplies-pick",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x18",
+      "gesture": "left-press",
+      "addr": "0x0043B412",
+      "what": "A press inside (96, 104)-(224, 232) reads g_minimapCounty and sets the destination county. The picture is blitted at (94, 107), so the hit test is two and three pixels off its own image - the same disagreement Minimap_Draw has on the campaign sidebar, from the same pair of constants.",
+      "ours": "crates/l2-game/src/screens/supplies.rs",
       "evidence": "V"
     },
     {
@@ -1360,6 +1668,16 @@
       "evidence": "V"
     },
     {
+      "id": "0x004B29BE/court-f2",
+      "status": "missing",
+      "group": "panels",
+      "screen": "0x09",
+      "gesture": "key",
+      "addr": "0x004B29BE",
+      "what": "F2 toggles DAT_00553E60, and ONLY while g_screenId == 9. A keyboard arm in the window procedure that is gated on this one screen; what the flag does was not traced.",
+      "evidence": "V"
+    },
+    {
       "id": "0x004B29BE/debug-add-hits",
       "status": "missing",
       "group": "battlefield",
@@ -1536,6 +1854,28 @@
       "evidence": "V"
     },
     {
+      "id": "0x004DD538/supplies-sheep-row",
+      "status": "dead",
+      "group": "panels",
+      "screen": "0x18",
+      "gesture": "left-press",
+      "addr": "0x0043B1CA",
+      "what": "g_sendSuppliesWidgets holds a COMPLETE seventh and eighth record - a minus/plus pair at (216, 296) and (296, 296) with hotspot id 1 and the same two spinner handlers - for a SHEEP row.",
+      "why": "Every caller passes count = 6, so Widget_Draw and Widget_Test never reach them. Established by reading all three call sites, not by failing to find one. The surviving rows carry ids 0 and 2, skipping 1, so the record slot the dead row would have written (+0x08/+0x0C) is a hole in the middle of the shipment record - and Transport_Spawn still loads it into unit.troops[1], which Transport_Deliver never adds back. Fourth independent piece of evidence for docs/bugs.md D20, and the most structural.",
+      "evidence": "V"
+    },
+    {
+      "id": "ours/about-keyboard-close",
+      "status": "invention",
+      "removed": false,
+      "group": "panels",
+      "screen": "0x25",
+      "gesture": "key",
+      "what": "Escape and Enter close the box.",
+      "why": "The 0x25 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
+      "ours": "crates/l2-game/src/screens/about.rs"
+    },
+    {
       "id": "ours/brush-popup-on-the-map",
       "status": "invention",
       "removed": false,
@@ -1568,6 +1908,28 @@
       "ours": "crates/l2-game/src/screens/county.rs"
     },
     {
+      "id": "ours/court-keyboard-close",
+      "status": "invention",
+      "removed": false,
+      "group": "panels",
+      "screen": "0x09",
+      "gesture": "key",
+      "what": "Escape and Enter close the court.",
+      "why": "The 0x09 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
+      "ours": "crates/l2-game/src/screens/court.rs"
+    },
+    {
+      "id": "ours/diplomacy-keyboard-close",
+      "status": "invention",
+      "removed": false,
+      "group": "panels",
+      "screen": "0x0B",
+      "gesture": "key",
+      "what": "Escape and Enter close the diplomacy screen.",
+      "why": "The 0x0B arm has no keyboard test. Same reason as ours/info-keyboard-close.",
+      "ours": "crates/l2-game/src/screens/diplomacy.rs"
+    },
+    {
       "id": "ours/dropdown-escape-closes",
       "status": "invention",
       "removed": false,
@@ -1577,6 +1939,17 @@
       "what": "Escape closes an open drop-down.",
       "why": "No key reaches screen 0x32 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Kept because a menu that can only be dismissed with the mouse traps a keyboard player, and counted here rather than left as a comment admitting a choice.",
       "ours": "crates/l2-game/src/screens/menubar.rs"
+    },
+    {
+      "id": "ours/info-keyboard-close",
+      "status": "invention",
+      "removed": false,
+      "group": "panels",
+      "screen": "0x04",
+      "gesture": "key",
+      "what": "Escape and Enter close the panel.",
+      "why": "The 0x04 arm has no keyboard test at all. Kept rather than removed because the demo index is reachable by keyboard and a screen with no key exit is a screen a keyboard user cannot leave; it is listed here so the count is honest.",
+      "ours": "crates/l2-game/src/screens/info.rs"
     },
     {
       "id": "ours/job-popup-keyboard",
@@ -1628,6 +2001,17 @@
       "gesture": "right-release",
       "what": "A right release on the take-the-field prompt ran Battle_Decline. Screen 0x12's arm has no right-button test of any kind.",
       "why": "'Right click exits' generalised from the screens where it is true. C61 found it by enumeration and this is its removal."
+    },
+    {
+      "id": "ours/ratings-keyboard-close",
+      "status": "invention",
+      "removed": false,
+      "group": "panels",
+      "screen": "0x2E",
+      "gesture": "key",
+      "what": "Escape and Enter leave the ratings screen.",
+      "why": "The 0x2E arm has no keyboard test. Same reason as ours/info-keyboard-close.",
+      "ours": "crates/l2-game/src/screens/ratings.rs"
     },
     {
       "id": "ours/report-escape-or-enter-dismisses",
@@ -1727,15 +2111,15 @@
       "why": "There is no screen in the game where a click on the middle of a panel dismisses it: all 26 of Screen_FrameInput's close tests are Ui_OkButtonClicked's 24x24 corner box. The comment above it read 'Every one of these closes and nothing else. That is the whole truth about a shell' -- an admission that it was a choice, which docs/decisions.md C61 says is not a flag. Replaced by the corner box."
     },
     {
-      "id": "ours/shell-keyboard-closes",
+      "id": "ours/supplies-keyboard-close",
       "status": "invention",
       "removed": false,
-      "group": "management-screens",
-      "screen": "0x04, 0x09, 0x0B, 0x18, 0x25, 0x2E",
+      "group": "panels",
+      "screen": "0x18",
       "gesture": "key",
-      "what": "Escape, Enter and Space close a shell.",
-      "why": "No arm in this table reads a key. Kept because 0x18 has no corner picture at all and a player who reaches it from the index screen would otherwise be stuck; counted here rather than argued about in a comment.",
-      "ours": "crates/l2-game/src/screens/shells.rs"
+      "what": "Escape leaves without sending.",
+      "why": "The 0x18 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
+      "ours": "crates/l2-game/src/screens/supplies.rs"
     },
     {
       "id": "ours/village-keyboard",

@@ -600,6 +600,9 @@ otherwise, and `base` and `layer` come from a ladder on the new terrain:
   `Herd_UpdateCrowding`, and both pass `'\0'`). So the term contributes nothing to any
   picture the game draws, and the frame is exactly `base + (storedFrame & 3)`. **[V]**
 
+**A pasture is drawn twice, and §5.5a is the second time.** Everything below is exact for
+the diamond and silent about the animals on top of it.
+
 **Why `& 3` is enough, stated as the invariant it is.** Every base above is a multiple of
 four *except* 130 and 134, and `oldBase` exists for precisely those two. So the low two bits
 of a farm tile's frame **never change for the life of the game**, whatever happens to the
@@ -626,6 +629,102 @@ requires four crop states to be four different pictures at the tile.
 
 What is still open is whether the *season* moves a field's `content` on its own — that is the
 economy's business, not this file's.
+
+### 5.5a The cattle on a pasture — `Sprite_TopIt`'s farm arm (`0x004071A0`)  **[V]**
+> **It has a name now, and the name understates it.** `docs/symbols.json` calls
+> `0x004071A0` **`Sprite_TopIt`** — added by the naming campaign while this section was
+> being written. The name is not wrong, but it reads as one blitter, and the function is a
+> four-way dispatcher on plane 0 whose arms are the town flag, a dwelling, the pasture herd
+> and the industry/castle animation. Something like `Map_DrawTileOverlay` would carry that.
+> Flagged rather than renamed: the symbol database is the lead session's.
+
+
+§5.5 says the picture is *"a pure function of `(terrain, the frame the map file stored)`"*.
+**For a pasture that is only half of it.** The terrain byte fixes the ground; the animals come
+from a second sheet in a second pass, and §5.5 was silent about them because the second pass
+was not read.
+
+**Bit `0x80` is what joins the two.** `Terrain_Set`'s last line is
+`if (0x0E < terrain && terrain < 0x17) bank |= 0x80;` — and `0x0F … 0x16` is *exactly* the
+pasture range of §5.4's table, so **a pasture is the only field state that gets a second blit
+at all**. §5.3 already recorded that `bank & 0x80` calls "the building-overlay blitter"; that
+blitter is `FUN_004071A0` and it has **four** arms, chosen by plane 0, not one:
+
+| plane-0 bit tested | arm |
+|---|---|
+| `0x40` | the county town: the owner's flag, and the mercenary marker on quadrant 2 |
+| `0x10` | a dwelling |
+| `0x20` | **farmland — the animals** |
+| else (`0x80`) | an industry site's animation, or a castle's garrison flag |
+
+The farm arm in full:
+
+```c
+if (g_mapZoom == 2)   return;             /* no animals at the far zoom */
+if (content < 0x0F)   return;
+if (0x16 < content)   return;
+if (content < 0x13) {                     /* the dead half, below      */
+    dx = 0; dy = 0;
+    if (2 < (byte)(content - 0x10)) return;
+    frame = (content - 0x10) * 6 + phase + 0x67;
+} else {
+    dx = 4; dy = -4;
+    if (2 < (byte)(content - 0x14)) return;
+    frame = (content - 0x14) * 6 + phase + 0x55;
+}
+if (edge == 1) dx -= g_mapTileHalfStep;   /* the left half-tile of an offset row */
+```
+
+then it blits `g_flagsSheet` frame `frame` at `(g_drawX + dx, g_drawY + dy)` — the same
+`Flags1a.pl8` the flags and the path markers come out of, and the frame record's `cx`/`cy`
+are never read, exactly as §5.3's flag note says.
+
+**`content == 0x0F` and `content == 0x13` fall through the unsigned compare and draw
+nothing.** `0x13 - 0x14` is `0xFF` as a byte. `0x13` is the value an **empty herd** gets, so
+a county that has lost every animal keeps its pasture and shows bare grass.
+
+**The frame is the herd count.** `Herd_UpdateCrowding` (`0x0044D913`) writes the terrain, on
+every pasture tile of the county at once through `FUN_00469D21(county, t, 0, 0x13, 0x16)`:
+
+| condition | `content` | `Flags1a.pl8` frames |
+|---|---|---|
+| `herd < 1` | `0x13` | **none** |
+| `herd / fieldsCattle < 11` | `0x14` | `0x55 … 0x5A` |
+| `… < 21` | `0x15` | `0x5B … 0x60` |
+| otherwise | `0x16` | `0x61 … 0x66` |
+
+So this is a **rule**, not a graphic, and it is not the same ladder as the crowding *meter*,
+which has four bands (11/21/31) where this has three: map states `0x15` and `0x16` cannot
+tell *"Herd overcrowded."* from *"Massive overcrowding!!"*. `docs/decisions.md` C77.
+
+**The sheet, measured.** `Flags1a.pl8` frames `0x55 … 0x66` are eighteen frames of
+**58 × 30** — the near-zoom diamond exactly, so the sprite is a full-meadow overlay — with
+opaque pixel counts of 344 / 706 / 930 by band. Frames `0x4F … 0x54` and `0x67 … 0x78` are
+**2 × 2 stubs**.
+
+**The `0x67` half is vestigial reclamation, not sheep.** The tile-info table at `0x004D2EC8`
+gives `content 0x0F … 0x12` `L2.eng` group 30 descriptions 40 … 43 and mode 20 — *the same
+four strings* it gives `0x19 … 0x1C`, the live reclamation ladder. And nothing writes
+`0x0F … 0x12` onto a farm tile: every one of `Terrain_Set`'s sixteen call sites was
+enumerated and they pass `0`, `1`, `2 … 0x0E`, `0x13 … 0x16`, `0x17`, `0x18`, `0x19 … 0x1C`
+and the brush's `{0, 1, 2, 0x13, 0x19}`. `County_UpdateDwellings` does write those four, but
+onto a tile carrying plane-0 bit `0x10`, which `FUN_004071A0` tests *before* `0x20`.
+
+**One correction to §5.4's parenthetical.** Its table calls `15 … 22` pasture, which is
+`County_RecountFields`' own bucketing and correct. But the binary holds **two disagreeing
+enumerations** for `0x0F … 0x12`: the recount counts them as pasture, the tile-info table
+calls them reclamation, and the AI's brush (`FUN_004697CD`, `FUN_0046988D`) tests pasture as
+`0x12 < t < 0x17` and cannot see them. Only `0x13 … 0x16` is live pasture.
+
+**Drawn.** `MapScreen::draw_herds` and `l2_view::campaign::draw_herd`, in the same pass as
+the flags. The phase is `_DAT_0057D38C` — `DAT_0057D388` wrapped at **`0x60`**, not a power
+of two, shifted right by four, so six phases — and `FUN_004CFB08` steps that counter behind a
+**16 ms `GetTickCount`** gate. **It is not `Tick_Pulses`**: the campaign map has its own
+clock and the village's 20 ms divider chain is a different rate. Tests:
+`l2-view/tests/install.rs::the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding`
+against a real `Flags1a.pl8`, and
+`l2-kingdom/tests/fields.rs::every_county_s_pasture_carries_the_picture_its_herd_calls_for`
+against the England save's own 107 pasture tiles.
 
 ### 5.6 Twenty fields per county is a property of the map, not a cap  **[V]**
 

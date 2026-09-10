@@ -1120,7 +1120,12 @@ fn the_five_sidebar_buttons_each_open_the_screen_the_original_opens() {
         if matches!(id, 0x17 | 0x18 | 0x1B) {
             assert_eq!(t, Transition::Stay, "{} is refused on another realm's county", b.name);
         } else {
-            assert_eq!(t, Transition::Push(ScreenId::Shell(id)), "{} is not gated", b.name);
+            assert_eq!(
+                t,
+                Transition::Push(map::sidebar_destination(id, game.selected)),
+                "{} is not gated",
+                b.name,
+            );
         }
     }
 }
@@ -1289,7 +1294,10 @@ fn the_right_button_closes_a_panel_and_opens_the_map_information_screen() {
     assert!(screen.map_clip().contains(px, py), "that pixel is on the map");
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     m.handle(Event::RightClick { x: px, y: py }, &mut ctx);
-    assert_eq!(m.top_id(), Some(ScreenId::Shell(0x04)), "the information panel");
+    assert!(
+        matches!(m.top_id(), Some(ScreenId::Info(_))),
+        "the information panel, and it now knows what the click resolved to",
+    );
 
     // And right-click again closes it, which is the same arm from the other
     // side: screen 0x04 has its own right-release branch back to the map.
@@ -3039,7 +3047,7 @@ fn a_screen_opened_over_the_village_takes_the_village_with_it_when_it_closes() {
     }
     assert_eq!(
         m.ids(),
-        vec![ScreenId::Campaign, ScreenId::Shell(0x09)],
+        vec![ScreenId::Campaign, ScreenId::Court],
         "the sidebar's screen replaced the village rather than stacking on it"
     );
 
@@ -3729,7 +3737,7 @@ fn a_county_panel_leaves_the_whole_sidebar_live_underneath_it() {
     let mut m = over_the_map(ScreenId::County(8, Panel::Tax));
     let court = map::SIDEBAR_BUTTONS[1].rect();
     send_stack(&mut m, &mut game, &assets, Event::Click { x: court.centre_x(), y: court.y + 4 });
-    assert_eq!(m.top_id(), Some(ScreenId::Shell(0x09)), "sidebar button 2 opens the court");
+    assert_eq!(m.top_id(), Some(ScreenId::Court), "sidebar button 2 opens the court");
     assert_eq!(m.depth(), 2, "and it replaced the panel rather than stacking on it");
 
     // 2. A minimap mode icon. The panel stays open; what changes is the map.
@@ -3804,7 +3812,17 @@ fn a_press_on_the_minimap_drops_whatever_is_open_over_the_map() {
     let hit = chrome::minimap_hit_area();
     let (mx, my) = (hit.x0 + 40, hit.y0 + 40);
 
-    for over in [ScreenId::County(8, Panel::Tax), ScreenId::Job(8, 0), ScreenId::Shell(0x09)] {
+    // The three graduated map overlays are here because graduating them out of
+    // the shell table LOST this arm: the wrapper reproduced it once for all
+    // seven shells and each screen now has to carry it. That regression was
+    // invisible until this test and the graduation met in one merge.
+    for over in [
+        ScreenId::County(8, Panel::Tax),
+        ScreenId::Job(8, 0),
+        ScreenId::Court,
+        ScreenId::Ratings,
+        ScreenId::Supplies(8),
+    ] {
         let mut m = over_the_map(over);
         send_stack(&mut m, &mut game, &assets, Event::Click { x: mx, y: my });
         assert_eq!(m.top_id(), Some(ScreenId::Campaign), "{over:?} gave way to the minimap");
@@ -4024,23 +4042,231 @@ fn the_produce_rows_map_to_labour_slots_by_column_and_pitch() {
     assert_eq!(county::job_row_at(&c, 477, 0x140), None, "one column left of the sidebar");
 }
 
-/// **A shell closes on its corner picture and on the right button, and on
-/// nothing else.** `docs/arms.json` `ours/shell-any-click-closes`, removed.
+/// herd.**
+///
+/// A player with the build in front of him: *"why do the pastures not have cows
+/// in them?"* Because `FUN_004071A0`'s overlay pass had three of its four arms
+/// and not the farm one.
+///
+/// A canvas diff would pass on a garbage sprite or on the wrong frame of the
+/// right sheet, so this asserts three things a diff cannot:
+///
+/// 1. **the herd sprite lands where the original puts it** — tile origin plus
+///    (+4, −4) — by requiring the pixels the sheet holds at a named position to
+///    be on the canvas at the position the placement predicts;
+/// 2. **it is not there before**. The base layer is painted first and compared,
+///    so what is being measured is the overlay pass rather than the meadow;
+/// 3. **the picture changes with the herd**, driven from `County::herd` through
+///    the season pass rather than by writing a terrain byte — which is
+///    `docs/agents.md`'s *"a field is only tested if something a test reads was
+///    written by something the game runs."*
 #[test]
-fn a_shell_closes_on_its_corner_and_not_on_a_click_anywhere() {
+fn the_pastures_have_cattle_in_them_and_the_herd_chooses_which() {
     let (mut game, assets) = world!();
-    let spec = l2_game::screens::shells::find(0x09).expect("the court is a shell");
-    let (ox, oy, _) = spec.ok.expect("the court draws a corner picture");
 
-    let mut m = over_the_map(ScreenId::Shell(0x09));
-    send_stack(&mut m, &mut game, &assets, Event::Click { x: ox + 12, y: oy + 12 });
-    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the corner closes it");
+    // A real pasture of the England position, and the county that grazes it.
+    let (county, tile) = {
+        let k = &game.kingdom;
+        (1..=k.county_count)
+            .find_map(|id| {
+                (0..l2_kingdom::MAX_FIELDS)
+                    .filter_map(|s| k.counties[id].field_tile(s))
+                    .find(|&t| {
+                        l2_kingdom::field::classify(k.campaign.map.terrain[t])
+                            == l2_kingdom::field::FieldType::Pasture
+                    })
+                    .map(|t| (id, t))
+            })
+            .expect("the England position has pastures")
+    };
+    let terrain = game.kingdom.campaign.map.terrain[tile];
+    assert!(
+        (0x14..=0x16).contains(&terrain),
+        "the original's own save already carries a stocked pasture here, not {terrain:#04X}",
+    );
 
-    let mut m = over_the_map(ScreenId::Shell(0x09));
-    send_stack(&mut m, &mut game, &assets, Event::Click { x: ox - 40, y: oy - 40 });
-    assert_eq!(m.top_id(), Some(ScreenId::Shell(0x09)), "a click inside the panel does not");
+    let (fx, fy) = l2_kingdom::map::coords(tile);
+    let mut screen = MapScreen::new();
+    screen.centre_on_tile(fx as usize, fy as usize);
+    let (frame_index, (dx, dy)) =
+        campaign::herd_sprite(terrain, 0).expect("a stocked pasture draws animals");
 
-    let mut m = over_the_map(ScreenId::Shell(0x09));
-    send_stack(&mut m, &mut game, &assets, Event::RightClick { x: 100, y: 100 });
-    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the right button does");
+    // **The offset is pinned against the decompilation, not against itself.**
+    // The first version of this test computed the probe pixel *from*
+    // `campaign::HERD_AT` and then asserted the sprite was there — so setting
+    // that constant to `(0, 0)` moved both sides of the comparison and the test
+    // stayed green. A check passing for an accidental reason, caught by
+    // ablating the exact line it claims to be about. `FUN_004071A0`'s farm arm
+    // is `local_30 = 4; local_34 = -4;` for content `0x14 … 0x16`, and that
+    // literal has to be written here or nothing anchors it.
+    assert_eq!((dx, dy), (4, -4), "FUN_004071A0 offsets a stocked pasture by (+4, -4)");
+    let sheet = assets.map.flag_sheet(screen.zoom()).expect("Flags1a.pl8");
+    let sprite = sheet.frame(frame_index).expect("the herd frame");
+
+    // Where `draw_herd` puts it, computed the way the caller does.
+    let (row, col) = campaign::tile_to_cell(fx as usize, fy as usize);
+    let (sx, sy) = campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
+    let (ox, oy) = (sx + dx, sy + dy);
+
+    // A pixel of the sprite that is opaque and not at its edge, so a one-pixel
+    // placement error moves it off.
+    let probe = (0..sprite.opaque.len())
+        .find(|&i| {
+            let (px, py) = (i % sprite.width as usize, i / sprite.width as usize);
+            sprite.opaque[i]
+                && px > 2
+                && py > 2
+                && px + 3 < sprite.width as usize
+                && py + 3 < sprite.height as usize
+        })
+        .expect("the herd sprite has an interior");
+    let (px, py) = (probe % sprite.width as usize, probe / sprite.width as usize);
+    let want = sprite.indices[probe];
+    let (tx, ty) = ((ox + px as i32) as usize, (oy + py as i32) as usize);
+
+    let mut with = Canvas::screen();
+    {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        screen.draw(&ctx, &mut with);
+    }
+    assert_eq!(
+        with.at(tx, ty),
+        want,
+        "the herd sprite is not at the tile origin plus {:?}",
+        (dx, dy),
+    );
+
+    // Claim 2: the meadow underneath is a different colour there, so what was
+    // asserted above is the overlay and not the terrain.
+    let mut without = Canvas::screen();
+    {
+        let slot = assets.slot(game.map_slot).expect("the map slot");
+        let lattice = campaign::Lattice::build(&slot);
+        let overrides = {
+            let ctx = Ctx { game: &mut game, assets: &assets };
+            MapScreen::tile_graphics(&ctx)
+        };
+        let mut tags = l2_view::Tags::screen();
+        campaign::draw(
+            &mut without,
+            &slot,
+            &lattice,
+            &assets.map,
+            screen.viewport(),
+            screen.zoom(),
+            &mut tags,
+            &overrides,
+            game.kingdom.season,
+        );
+    }
+    assert_ne!(
+        without.at(tx, ty),
+        want,
+        "the bare meadow already had this pixel, so the assertion above measures the artwork",
+    );
+
+    // Claim 3: kill the herd, run a season, and the animals go — through
+    // `Herd_UpdateCrowding`, not through a terrain byte a test wrote.
+    game.kingdom.counties[county].herd = 0;
+    game.kingdom.advance_season();
+    assert_eq!(
+        game.kingdom.campaign.map.terrain[tile],
+        l2_kingdom::field::terrain::PASTURE,
+        "an empty herd leaves bare pasture",
+    );
+    assert!(
+        campaign::herd_sprite(l2_kingdom::field::terrain::PASTURE, 0).is_none(),
+        "and nothing is drawn on it",
+    );
+    let mut empty = Canvas::screen();
+    {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        screen.draw(&ctx, &mut empty);
+    }
+    assert_ne!(empty.at(tx, ty), want, "the cattle are still on the map with no herd to draw");
+}
+
+/// **The herd's animation phase never reaches the simulation.**
+///
+/// `docs/netcode.md` D-12: an animation clock is display state.
+///
+/// **The first version of this test was wrong, and the way it was wrong is
+/// the one `docs/agents.md` warns about.** It ticked `MapScreen::update` a
+/// hundred times and required the kingdom's checksum not to move. It moved,
+/// and not because of the clock: `update` also runs `Units_Tick`, picks up a
+/// suspended turn and edge-scrolls. The experiment was structurally incapable
+/// of measuring the thing it was run to measure, and it returned a clean
+/// number either way.
+///
+/// So this asserts what is actually true and actually checkable, in two
+/// halves that are different in kind:
+///
+/// 1. **The compiler owns the safety.** `Screen::draw` takes `&Ctx`, so a
+///    renderer cannot reach the simulation at all - which is a stronger
+///    guarantee than any number this test could compare, and the reason the
+///    phase lives on the screen rather than on the `Kingdom`. Drawing the
+///    same world at every phase and comparing the checksum is a *witness* to
+///    that, not the proof.
+/// 2. **The clock has to actually animate**, or the phase is display state
+///    nobody would notice was broken. Six phases of a stocked pasture must
+///    produce more than one picture.
+#[test]
+fn the_grazing_clock_changes_the_picture_and_cannot_change_the_world() {
+    let (mut game, assets) = world!();
+    let tile = {
+        let k = &game.kingdom;
+        (1..=k.county_count)
+            .find_map(|id| {
+                (0..l2_kingdom::MAX_FIELDS)
+                    .filter_map(|s| k.counties[id].field_tile(s))
+                    .find(|&t| (0x14..=0x16).contains(&k.campaign.map.terrain[t]))
+            })
+            .expect("a stocked pasture")
+    };
+    let (fx, fy) = l2_kingdom::map::coords(tile);
+    let terrain = game.kingdom.campaign.map.terrain[tile];
+
+    // Six phases, six frames of one meadow. Distinct *frames* first, because
+    // that is the claim about the ladder rather than about the artwork.
+    let frames: Vec<usize> = (0..campaign::HERD_PHASES)
+        .map(|p| campaign::herd_sprite(terrain, p).expect("stocked").0)
+        .collect();
+    let mut distinct = frames.clone();
+    distinct.sort_unstable();
+    distinct.dedup();
+    assert_eq!(distinct.len(), 6, "the six phases are six frames: {frames:?}");
+    assert_eq!(
+        campaign::herd_sprite(terrain, campaign::HERD_PHASES).expect("stocked").0,
+        frames[0],
+        "and the seventh wraps to the first",
+    );
+
+    // And they are six different pictures on the sheet, not six names for one.
+    let mut screen = MapScreen::new();
+    screen.centre_on_tile(fx as usize, fy as usize);
+    if let Some(sheet) = assets.map.flag_sheet(screen.zoom()) {
+        let mut shapes: Vec<Vec<u8>> = frames
+            .iter()
+            .map(|&f| sheet.frame(f).expect("the frame").indices.clone())
+            .collect();
+        let before = shapes.len();
+        shapes.sort();
+        shapes.dedup();
+        assert_eq!(shapes.len(), before, "the six phases are one picture repeated");
+    }
+
+    // The witness: drawing at every phase leaves the world byte for byte the
+    // same. `draw` takes `&Ctx`, so this cannot fail without the signature
+    // changing first - which is the point.
+    let before = l2_kingdom::save::checksum(&game.kingdom);
+    for _ in 0..campaign::HERD_PHASES {
+        let mut canvas = Canvas::screen();
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        screen.draw(&ctx, &mut canvas);
+    }
+    assert_eq!(
+        l2_kingdom::save::checksum(&game.kingdom),
+        before,
+        "drawing the map moved the simulation",
+    );
 }

@@ -614,9 +614,21 @@ impl Chrome {
 ///
 /// `tint` is the mode: [`MinimapTint::Owner`] for the realm colours and
 /// [`MinimapTint::Rating`] for the three statistic overlays.
-pub fn draw_minimap(
+pub fn draw_minimap(canvas: &mut Canvas, minimap: &Minimap, selected: u8, tint: &MinimapTint) {
+    draw_minimap_at(canvas, minimap, (MINIMAP_X, MINIMAP_Y), selected, tint);
+}
+
+/// The same raster, at an origin the caller names.
+///
+/// **The send-supplies screen draws it somewhere else.** `FUN_00410A5D(county,
+/// 0x60, 0x68)` is the two opening statements of `Minimap_Draw` with a
+/// different origin — it blits at (94, 107) rather than the sidebar's (478, 28)
+/// — so the position is a parameter and [`draw_minimap`] is the sidebar's call
+/// with the sidebar's constants.
+pub fn draw_minimap_at(
     canvas: &mut Canvas,
     minimap: &Minimap,
+    (ox, oy): (i32, i32),
     selected: u8,
     tint: &MinimapTint,
 ) {
@@ -625,7 +637,7 @@ pub fn draw_minimap(
             let i = (y * MINIMAP_DIM + x) as usize;
             let shade = minimap.shades[i];
             let county = minimap.counties[i];
-            let (px, py) = (MINIMAP_X + x, MINIMAP_Y + y);
+            let (px, py) = (ox + x, oy + y);
             if shade == 0 {
                 // Index 0 is transparent: the blitter leaves the panel behind.
                 continue;

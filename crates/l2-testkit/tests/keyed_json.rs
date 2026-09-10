@@ -73,82 +73,23 @@ fn the_attributes_file_and_this_test_name_the_same_keyed_files() {
     );
 }
 
-/// **Every address-keyed array is in address order.**
+/// **Every keyed array is in its own key's order**, asked of the driver.
 ///
-/// Only the `addr` arrays are asserted, and deliberately: they are the large
-/// ones — 812 functions, 512 globals — and the only ones a diff has ever
-/// misaligned. `sections`, `claims` and `corrections` are short lists whose
-/// authors' order may mean something, so they are left alone rather than sorted
-/// on the assumption that it does not.
-#[test]
-fn every_address_keyed_array_is_in_address_order() {
-    let mut wrong = Vec::new();
-    let mut checked = 0usize;
-
-    for rel in KEYED {
-        let path = root().join(rel);
-        let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{rel}: {e}"));
-
-        // A text scan, not a parser, and that is not a shortcut: what is being
-        // asserted IS a property of the text -- the order entries appear in the
-        // file, which is exactly what a line-based diff aligns on. These files
-        // are written by `JSON.stringify(_, null, 2)`, so a top-level array
-        // opens at two spaces and its entries carry `"addr"` at six.
-        let mut current: Option<String> = None;
-        let mut addrs: Vec<String> = Vec::new();
-        let mut close = |name: &Option<String>, addrs: &mut Vec<String>, wrong: &mut Vec<String>, checked: &mut usize| {
-            if let (Some(name), false) = (name.as_ref(), addrs.is_empty()) {
-                *checked += 1;
-                if let Some(at) = addrs.windows(2).position(|w| w[0] > w[1]) {
-                    wrong.push(format!(
-                        "  {rel}: {name} is out of order at {} / {}",
-                        addrs[at],
-                        addrs[at + 1]
-                    ));
-                }
-            }
-            addrs.clear();
-        };
-
-        for line in text.lines() {
-            if let Some(rest) = line.strip_prefix("  \"") {
-                if let Some((name, tail)) = rest.split_once("\": [") {
-                    if tail.is_empty() {
-                        close(&current, &mut addrs, &mut wrong, &mut checked);
-                        current = Some(name.to_string());
-                        continue;
-                    }
-                }
-            }
-            if line == "  ]," || line == "  ]" {
-                close(&current, &mut addrs, &mut wrong, &mut checked);
-                current = None;
-                continue;
-            }
-            let t = line.trim();
-            if let Some(rest) = t.strip_prefix("\"addr\": \"") {
-                if let Some((value, _)) = rest.split_once('"') {
-                    addrs.push(value.to_ascii_lowercase());
-                }
-            }
-        }
-        close(&current, &mut addrs, &mut wrong, &mut checked);
-    }
-    assert!(checked >= 4, "only {checked} address-keyed arrays found; the scanner is broken");
-    assert!(
-        wrong.is_empty(),
-        "{} address-keyed array(s) are not in address order:\n{}\n\n\
-         Sorting them is not tidiness. Two branches that both keep these files \
-         in address order cannot produce a misaligned diff, whatever git does \
-         and whether or not the merge driver is registered — which is the only \
-         defence that works on a clone nobody configured. An unsorted array \
-         restores the failure that once offered one function's comment as a \
-         candidate body for another (docs/agents.md, and tools/symbols/merge-json.js \
-         sorts what it merges, so re-running a merge through the driver fixes this).",
-        wrong.len(),
-        wrong.join("\n"),
-    );
-}
+/// This test used to scan for `"addr"` lines itself and require them to
+/// ascend. That was right for `symbols.json` and **wrong for `arms.json`**,
+/// which carries both `id` and `addr` and is keyed by `id` because one address
+/// holds several arms — so sorting it correctly, by `id`, made this test fail.
+///
+/// The rule about what a file's key IS now lives in exactly one place,
+/// `KEY_FIELDS` in `merge-json.js`, and both the order check and the uniqueness
+/// check ask it. A Rust copy of that rule was a second list that could disagree
+/// with the first, which is the failure this whole area is about — and it did
+/// disagree, within a day of being written.
+///
+/// Why order matters at all: two branches that both keep a file in key order
+/// cannot produce a misaligned diff, whatever git does and whether or not the
+/// driver is registered. That is the half of the fix that removes the failure
+/// rather than handling it.
 
 /// **Every keyed array's key is actually unique**, asked of the driver itself.
 ///

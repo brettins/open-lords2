@@ -1340,3 +1340,42 @@ dependency, not in `Lords2.exe`.
 (*"reproducing an off-by-fifteen in a list of our own files would be superstition, not
 fidelity"*), our own checksum, `Pcg32` in place of the two LFSRs — the reason belongs at the
 code and in `decisions.md`. §3's N1, N2 and N3 have neither and should.
+
+### B81 — A supply shipment with nowhere to stand is lost, in silence
+
+`Transport_Spawn` (`0x004292AF`) looks for a free road tile near the source county's anchor
+and then any free open tile. If **neither** answers, it spawns nothing and — because the
+deduction is inside the same `if` — **deducts nothing**. There is no message, no refusal and
+no sound: `FUN_0043B04C` has already set `g_screenId = 0`, so the send-supplies screen closes
+on the way in and the player is looking at the map.
+
+The visible symptom is nothing at all. The grain and cattle stay in the source county, so the
+shipment simply did not happen, and the only way to tell is to notice that no cart appeared.
+
+**Reproduced**, as `l2_kingdom::supply::Sent::Nowhere`, and returned as a value rather than
+raised as an error: a shipment that evaporates *with a warning* is not the shipment the
+original loses. The three-tile search radius is `County_FindFree*Tile`'s own and is the same
+one `docs/decisions.md` C47 corrected for raising an army, so a county crowded enough to
+refuse an army will refuse a cart for the same reason and just as quietly.
+
+### B82 — `L2.eng` 37/1, *"Before"*, is drawn by nothing
+
+The Battle Master ratings screen has three rows per player. Two are labelled — 37/2
+*"Killed"* at the second row's y and 37/3 *"Kills"* at the third's — and the **first row has
+no label**, although the string for it sits in the file directly above them.
+
+Every group-37 access in the binary was enumerated: eight, all in
+`Screen_BattleMasterRatings` and `Screen_BattleMasterRank`, and **none uses index 1**. So
+unless `score1.pl8` paints the word into the background image, the top row of both blocks is
+a row of numbers with nothing saying what they are.
+
+Not reproduced *as a fix*: we draw what the painter draws, which is nothing, and
+`ratings::BEFORE` names the string so the next reader does not go hunting for the draw call.
+`shell.rs`'s eng test asserts the string exists, which is the other half of the claim.
+
+### B83 — `L2.eng` 70/1, *"Arms"*, is drawn by nothing either
+
+The same shape on the court screen. Group 70 is *"Gold, Arms, Iron, Stone, Wood"* and the
+painter draws Gold, Iron, Stone and Wood as labelled rows. The six weapon stocks below them
+are drawn as **icons with numbers under them and no heading**, and index 1 is never passed to
+anything. `court::ARMS` names it.
