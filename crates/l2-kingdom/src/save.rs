@@ -358,7 +358,10 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 /// * 16 — **the grain row's three forecasts**, [`crate::county::County`]'s
 ///   `grain_sown_expected`, `grain_grown_expected` and `grain_change_expected`,
 ///   which are `Grain_LabourEstimate`'s tail (`0x0044D374`). Twelve bytes a
-///   county over 17 slots, +204.
+///   county over 17 slots — **and the reclamation row's two**,
+///   `reclaim_fields_finishing` and `reclaim_seasons_to_next` (county `+0x20C`
+///   and `+0x214`), which are `Field_ReclaimEstimate`'s tail (`0x0044C278`).
+///   Twenty bytes a county over 17 slots: **+340**.
 ///
 ///   A player: *"Sidebar doesn't show grain being planted as a negative
 ///   number."* These are the numbers that say so — in Spring the change is
@@ -1122,6 +1125,8 @@ impl Encode for County {
         out.i32(self.grain_sown_expected);
         out.i32(self.grain_grown_expected);
         out.i32(self.grain_change_expected);
+        out.i32(self.reclaim_fields_finishing);
+        out.i32(self.reclaim_seasons_to_next);
         for industry in &self.industry {
             industry.encode(out);
         }
@@ -1268,6 +1273,8 @@ impl Decode for County {
         c.grain_sown_expected = input.i32()?;
         c.grain_grown_expected = input.i32()?;
         c.grain_change_expected = input.i32()?;
+        c.reclaim_fields_finishing = input.i32()?;
+        c.reclaim_seasons_to_next = input.i32()?;
         for slot in 0..c.industry.len() {
             c.industry[slot] = Industry::decode(input)?;
         }

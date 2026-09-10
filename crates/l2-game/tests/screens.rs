@@ -1032,15 +1032,16 @@ fn the_map_chrome_shows_the_clock_the_treasury_and_the_selected_county() {
     // **The county strip, in the map's own sidebar.** `Screen_DrawCampaign`
     // calls `CountyStrip_Draw` — the map screen used to leave that plate empty
     // and write a box of our own numbers over the jobs plate below it.
+    // `Ui_DrawNumber`'s `x` is the *string's* origin and the string opens with
+    // the sign column, so the digits sit one `SPACE_ADVANCE` right of the call
+    // site's literal. The strip's own test carries the whole argument.
+    let lead = l2_game::shell::font::SPACE_ADVANCE;
     let pop = find_strip(&canvas, &assets, "435", STRIP_INK).expect("the population");
-    assert_eq!(pop, (508, 189), "at CountyStrip_Draw's own coordinates");
+    assert_eq!(pop, (0x1FC + lead, 189), "at CountyStrip_Draw's own coordinates");
     assert_eq!(
         find_strip(&canvas, &assets, "72", STRIP_INK),
-        // **Left-aligned at 602, not right-anchored on it.** `Ui_DrawNumber`
-        // has no anchoring argument: the population's call and the happiness's
-        // differ only in their value and their x, so both are left origins.
-        // See `docs/decisions.md` C42.
-        Some((602, 189)),
+        // **Left origins, not right-anchored.** `docs/decisions.md` C42.
+        Some((0x25A + lead, 189)),
         "and the happiness beside it"
     );
 
@@ -1348,24 +1349,41 @@ fn the_county_strip_shows_the_saves_numbers_where_the_original_puts_them() {
     let c = &game.kingdom.counties[8];
     assert_eq!((c.population, c.happiness, c.ration_achieved), (435, 72, 3));
 
+    // **The `x` in a call site is where the *string* starts, and the string
+    // starts with a sign column.** `Ui_DrawNumber(value, lead, suffix, x, …)`
+    // builds `lead + digits + suffix`: `Ui_NumberToBuffer(value, 1, 0)` writes
+    // the digits from index **1** and the lead fills index 0. So a call at
+    // `0x1FC` puts the *digits* at `0x1FC + SPACE_ADVANCE`.
+    //
+    // These three assertions used to name the call site's own `x` and were four
+    // pixels short, all three, which a player saw: *"Happiness # and population
+    // # in the sidebar are slightly left of where they should be."*
+    //
+    // **The offset is the same for the two-digit happiness and the three-digit
+    // population, because a lead is one character whatever the value is.** That
+    // is the fingerprint separating this from the right-anchoring cause, which
+    // would have displaced the two by *different* amounts — and it could not
+    // have applied here anyway, since `Ui_DrawNumber` has no anchoring
+    // argument at all. `Ui_DrawNumberRight` is the one that centres.
+    let lead = l2_game::shell::font::SPACE_ADVANCE;
+    assert_eq!(lead, 4, "the sign column is four pixels wide");
     assert_eq!(
         find_strip(&canvas, &assets, "435", STRIP_INK),
-        Some((508, 189)),
-        "the population, at Ui_DrawNumber(pop, ' ', ..., 0x1FC, 0xBD)"
+        Some((0x1FC + lead, 189)),
+        "the population, at Ui_DrawNumber(pop, ' ', …, 0x1FC, 0xBD) plus its sign column"
     );
     assert_eq!(
         find_strip(&canvas, &assets, "72", STRIP_INK),
-        // **Left-aligned at 602, not right-anchored on it.** `Ui_DrawNumber`
-        // has no anchoring argument: the population's call and the happiness's
-        // differ only in their value and their x, so both are left origins.
-        // See `docs/decisions.md` C42.
-        Some((602, 189)),
-        "the happiness, right-anchored at 0x25A on the same line"
+        // **Left origins, not right-anchored.** `Ui_DrawNumber` has no
+        // anchoring argument: the population's call and the happiness's differ
+        // only in their value and their x. `docs/decisions.md` C42.
+        Some((0x25A + lead, 189)),
+        "the happiness, displaced by the same four pixels and not by more"
     );
     assert_eq!(
         find_strip(&canvas, &assets, "0%", STRIP_INK),
-        Some((506, 226)),
-        "the tax rate at 0x1FA"
+        Some((0x1FA + lead, 226)),
+        "the tax rate at 0x1FA — its suffix is '%' and its lead is still a space"
     );
     // The county's name comes out of `L2.eng` group 100 at
     // `scenarioIndex * 20 + id` and is drawn in the **body** font, so it is

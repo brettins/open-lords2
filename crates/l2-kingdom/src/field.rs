@@ -415,6 +415,11 @@ pub fn refresh_estimates(
     county.labour_wanted[JOB_FIELD_RECLAMATION] = LABOUR_NO_FLOOR;
     county.labour_useful[JOB_FIELD_RECLAMATION] =
         crate::land::reclaim_labour_estimate(tables, county, map);
+    // 's tail — the third of the evening. The loop above
+    // is its first half; this is the season it then simulates, which writes the
+    // two figures the sidebar's reclamation row draws.
+    //  CNEW-reclaim-forecast.
+    crate::land::reclaim_preview(tables, county, map);
 
     // Grain and the herd both write nothing at all in a county with no people —
     // `popBand == 0` is the original's guard on both — so a ceiling that was
@@ -442,6 +447,28 @@ pub fn refresh_estimates(
         county.labour_useful[JOB_CATTLE_FARMING] =
             crate::land::herd_labour_estimate(tables, county, season_next.index());
     }
+    // **`Herd_LabourEstimate`'s tail, and the same split as grain's above.**
+    //
+    // A player: *"I right now have −11 cattle. If I move it so the people are
+    // eating cattle, it still says −11 cattle in the sidebar."* He is right, and
+    // the number itself was never wrong — county `+0x258` (`herdOverallChange`,
+    // `L2.eng` 77/28 *"Overall change"*, and named `herdChangeFromFarming`
+    // after 77/7 until this was read) is
+    // `(births − deaths) − herdEaten`, so slaughter **is** in it, and the name
+    // is what misleads. What was wrong is *when it is computed*.
+    //
+    // `Herd_LabourEstimate` (`0x0044DD4D`) is one function: a search loop that
+    // fills the cattle ceiling, then a tail that re-runs `Herd_BirthsAndDeaths`
+    // at the **actual** staffing and writes the three forecast fields. The
+    // original calls it from **both** `Herd_SeasonTick`'s last line and
+    // `County_RefreshEstimates` — so every control that reallocates labour or
+    // re-applies the ration moves the forecast. We had the loop here and the
+    // tail in `herd_season_tick` alone, so the number only moved once a season.
+    //
+    // That is the third time this exact split has bitten: the loop is the part
+    // that looks like the function, and the tail is the part the interface
+    // reads. `docs/decisions.md` CNEW-cattle-forecast-stale.
+    crate::land::herd_preview(tables, county, season_next.index());
 
     for c in crate::tables::INDUSTRY_ESTIMATE_ORDER {
         let job = tables.commodity[c.index()].job;

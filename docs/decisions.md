@@ -4281,6 +4281,162 @@ test whose subject is a documented claim inherits the claim's errors, and the te
 available: **the value it asserted on was one nothing in the game produces.** A ladder test
 that walks unreachable rungs is testing the document, not the game.
 
+**CNEW-sign-column — every number in the game reserves a leading column, and dropping it put
+three sidebar figures four pixels left.**
+
+> *"Happiness # and population # in the sidebar are slightly left of where they should be —
+> not sure if we've compared that to the draw in the original or what makes it off."*
+
+`Ui_NumberToBuffer(value, 1, 0)` writes the digits from index **1**, leaving index 0 for a
+sign, and `Ui_DrawNumber` fills it from its `lead` argument before drawing the whole buffer at
+`x`. So the string at `0x1FC` is `" 435 "` and the **digits** start at `0x1FC + 4`. We drew the
+bare digits at `0x1FC`.
+
+**The column is deliberate and the binary says so 62 times.** Across `Ui_DrawNumber`'s 191 call
+sites the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each; never
+`'\0'`, which the function treats as *terminate immediately*. `'@'` is a glyph with no picture —
+an invisible sign column that still holds its place — and asking for one 62 times is only
+meaningful if numbers are meant to align on it. `crate::shell::font::SPACE_ADVANCE`'s doc
+comment had already said exactly that; the call sites simply did not use it.
+
+**Two things worth more than the four pixels.**
+
+**One — the report contained its own discriminating test, and the obvious cause was wrong.**
+`Ui_DrawNumberRight` had just been found to *centre* rather than right-align, which fitted the
+symptom and was the first thing to check. It is not the cause: right-anchoring would displace a
+two-digit happiness *further* than a three-digit population, and a lead displaces both by the
+same four pixels whatever the value. These two calls are `Ui_DrawNumber`, which has no
+anchoring argument at all. **When two causes fit a symptom, look for the one that predicts a
+different *pattern* rather than the one that predicts the same sign of error.**
+
+**Two — this is the draw-call inventory's `arms.json` moment.** All three figures sit inside a
+row `docs/draws-map.md` scored **18 of 18 reproduced**, because `reproduced` means *we make a
+corresponding draw* and never meant *where the original puts it*. That is precisely the gap the
+input inventory has between *the arm exists* and *the arm is the right gesture*, and it wants
+the same third verdict: `reproduced` / `placed` / `absent`. **Until that pass runs, 59 of 121 is
+an upper bound on fidelity and a fair count of coverage, and the two must not be quoted as one
+number.**
+
+The measured sample, reported as one sample because extrapolating it would be the same sin:
+**of the eighteen draws read back against their call sites, fifteen were placed and three were
+displaced.** Not zero. And nothing but a person reading was ever going to find it — all three
+passed every test in the tree, and **two of those tests asserted the wrong coordinate while
+correctly quoting the call site it came from**, which is the sharpest form of the hazard:
+*the call site's `x` is not the picture's `x`.*
+
+**CNEW-cattle-forecast-stale — four causes fitted, the binary picked one, and a name in our own
+records file had generated a second.**
+
+> *"I right now have −11 cattle. If I move it so the people are eating cattle, it still says
+> −11 cattle in the sidebar."*
+
+Four candidates were separable and all four were put to the binary rather than to our code.
+
+**1. Does the figure exclude slaughter? No — and the game's own labels settle it.**
+`Herd_LabourEstimate`'s tail writes `herdOverallChange = (births − deaths) − herdEaten`.
+`Panel_JobCattle` (`0x00413B30`) draws **three** lines out of `L2.eng` group 77:
+
+| label | index | value |
+|---|---:|---|
+| *"Change due to farming"* | 7 | `birthsExpected − deathsExpected`, **computed inline and never stored** |
+| *"Change due to eating"* | 27 | `−herdEaten` |
+| *"Overall change"* | 28 | **this field** |
+
+**`docs/records.json` named `+0x258` `herdChangeFromFarming` and cited index 7.** It is index
+28. Renamed `herdOverallChange`, 303 record fields before and after.
+
+That wrong name is not a footnote: **it is what made "the delta excludes slaughter" the leading
+hypothesis**, in a brief written by someone who had read the file. Third time in two days that a
+document acted as an *input to reasoning* rather than a record of it — after `maps-layers.md`'s
+dead variant produced the static wheat and `symbols.json`'s "right-aligned" produced a
+misplaced number. The pattern is worth stating once: **a wrong name in a data file is repeated
+by everyone downstream and interrogated by no one**, because a name is not a claim anybody
+thinks to check.
+
+**2. Is it recomputed when the split changes? No, and that is the bug.** `Herd_LabourEstimate`
+is one function — a search loop that fills the cattle ceiling, then the tail — and the original
+calls it from **both** `Herd_SeasonTick`'s last line and `County_RefreshEstimates`. We had the
+loop in `field::refresh_estimates` and the tail in `land::herd_season_tick` alone, so the
+forecast moved once a season and no control could move it. `herd_preview` now runs in
+`refresh_estimates` beside the estimate, exactly as `grain_preview` does.
+
+**This is the same split, in the same file, for the third time in one evening** — grain's
+forecast, the cattle forecast, and (harmlessly, so far) `Herd_UpdateCrowding` missing from the
+middle of `Kingdom::refresh_estimates`'s doubled round, which `field.rs`'s own module docs
+describe correctly two hundred lines above the code that omits it. **The loop is the part that
+looks like the function and the tail is the part the interface reads.**
+
+**3. Are our births wrong? No.** `herd_growth` matches `Herd_BirthsAndDeaths` constant for
+constant: bands `(10, 1, 1400) (20, 3, 900) (30, 5, 500) (40, 7, 200)`, staffing
+`PctOf(labour, herd*3)` capped at 200, understaffing `(100 − staffing) / 3` **added to the
+death rate**, the small-herd bonus `+10000 / +5000 / +2000` below 5 / 10 / 25 head and gated on
+full staffing, and the season multipliers.
+
+**One correction to the numbers quoted at me, because it changes what is plausible:** at low
+crowding deaths are **1 % of the herd, not 0.01 %** — the rate is per-ten-thousand and is
+applied to `herd × 100`, not to `herd`. Births at low crowding and full staffing are 14 %.
+
+**4. Is a −11 at low crowding representable? Yes, two ways, and neither is a bug.**
+
+* **Slaughter.** At low crowding and full staffing the natural net is `+13 %`, so a herd of ~100
+  with ~24 head eaten gives −11 exactly.
+* **Understaffing, which is invisible to crowding.** Crowding is `herd / fieldsCattle`;
+  staffing is `labour / (herd × 3)`. **A large pasture with few milkmaids reads *low crowding*
+  and is *badly understaffed* at the same time** — the two axes are independent, and at zero
+  staffing the death rate is `1 + 33 = 34`, i.e. **34 % of the herd**, with births at zero
+  because the small-herd bonus needs full staffing. Double-digit losses in the best crowding
+  band are the rules working.
+
+**And one thing the reports do not agree about.** *"Only getting 1 cow"* with *"lots of
+milkmaids"* is inconsistent with *low crowding*: at low crowding and full staffing births are
+14 % and a herd small enough to yield 1 would collect the small-herd bonus and yield 3 or 4.
+Births of exactly 1 fits **band 4** (rate 200, so 1 calf at 50 … 99 head), the worst band.
+Two anecdotes from possibly different counties should not be fused into one model — so the
+question to put back is *which county, and which crowding line did the panel show*, rather than
+a fifth candidate.
+
+**`docs/rules.md` owes a line either way**, because *"Cattle, and change next season"* invites
+the whole-change reading and the whole change is what it is — while the panel behind it splits
+that into three, and only the third matches the sidebar.
+
+**CNEW-reclaim-forecast — the third unwritten tail in one evening, and the three of them were
+one fix rather than three.**
+
+> *"The figure is missing in the sidebar — it draws the serf reclaiming, but not the +1 I'm
+> used to."*
+
+`Field_ReclaimEstimate` (`0x0044C278`) is a work-outstanding loop that fills the reclamation
+labour ceiling, **plus a tail** that simulates the coming season: it hands `labour[2].workers`
+out from the nearest-to-finished field, wrapping the twenty slots, 200 units per field, and
+counts each field that crosses 800 into `+0x20C`; then it divides the lead field's remaining
+work by the **full** staffing, rounded up, into `+0x214`. `reclaim_labour_estimate` ported the
+loop and stopped.
+
+**So the "+1" is a count of fields that will be *finished* next season** — fields, not units of
+work, which a small integer could equally have been. And it is a simulation rather than a
+division for one specific reason: **a field that finishes hands its surplus to the next**, so a
+big enough gang completes two in a season, which is the only way the figure ever exceeds 1.
+
+**The generalisation is the valuable part, and it changes the shape of the remaining work.**
+Cattle, grain and reclamation were **the same defect three times**: three estimate passes that
+`County_RefreshEstimates` calls, each a search loop followed by a tail, each ported as far as
+the loop. One fix repeated, not three investigations — and the fourth instance of the same
+split, `Herd_UpdateCrowding` missing from the middle of `Kingdom::refresh_estimates`'s doubled
+round, is sitting there harmlessly today.
+
+> **When a function is a loop followed by a tail, the loop is the part that looks like the
+> function and the tail is the part the interface reads.** A port that stops at the loop
+> compiles, passes, and is invisible until somebody looks at the screen.
+
+**The four industry rows are *not* the same fix**, and this is the thing to write down so
+nobody batches them in. Each reads an `i32` at the head of an `Industry` record, and the rows
+for stone, wood, iron and weapons read `industry[2]`, `industry[4]`, `industry[1]` and
+`industry[3]` — **each the record above the commodity its own row draws, and the wood row's
+`0x2F0` one whole record past the end of a four-record array.** Either the original is off by
+one in all four or `docs/records.json`'s `Industry` base is wrong; nothing settles it. Four
+confidently wrong numbers on screen would be worse than four blanks, so they stay blank and the
+record layout is the prerequisite.
+
 ## Open questions
 
 - **The difficulty curve 116/108/100/92/84 rests on the decompilation alone.** Making the

@@ -343,3 +343,128 @@ fn the_map_empties_when_the_herd_does() {
     // the lowest crate that can see both sides. This one must not reach for
     // `l2-view`: nothing in the simulation may depend on the renderer.
 }
+
+/// **The cattle forecast moves when an input to it moves.**
+///
+/// A player: *"I right now have −11 cattle. If I move it so the people are
+/// eating cattle, it still says −11 cattle in the sidebar."* The figure was
+/// never wrong — `Herd_LabourEstimate`'s tail writes
+/// `(births − deaths) − herdEaten`, so slaughter **is** in it, and `L2.eng`
+/// group 77 index 28 calls it *"Overall change"*. What was wrong is *when*:
+/// the tail ran only from `herd_season_tick`, so no control could move it.
+///
+/// The original calls `Herd_LabourEstimate` from **both** `Herd_SeasonTick`'s
+/// last line and `County_RefreshEstimates`; ours now does too.
+///
+/// **The assertion is the player's own diagnostic** — change an input the
+/// figure depends on and require the figure to change — which is the signal
+/// that found this, the tax panel's stuck number and the ration panel's before
+/// it. It deliberately does not assert a *value*: a test that pinned −11 would
+/// pass just as well with the forecast frozen, which is the whole defect.
+///
+/// Ablating the `herd_preview` call in `field::refresh_estimates` fails it.
+#[test]
+fn the_cattle_forecast_follows_the_labour_it_depends_on() {
+    let save = england!();
+    let scenario = Scenario::from_save(&save).expect("import");
+    let mut k = scenario.kingdom(1);
+    let cattle = l2_kingdom::tables::JOB_CATTLE_FARMING;
+    let county = k
+        .county_ids()
+        .find(|&id| k.counties[id].fields_cattle > 0 && k.counties[id].herd > 0)
+        .expect("a county with a herd");
+
+    // Staff the dairy fully and record the forecast.
+    k.counties[county].labour[cattle] = k.counties[county].herd * 3;
+    k.refresh_estimates(county);
+    let staffed = k.counties[county].herd_change_expected;
+
+    // Take every hand off it. Understaffing is added to the death rate — at
+    // zero staffing the band's 1 becomes 1 + 33 — so the forecast must fall.
+    k.counties[county].labour[cattle] = 0;
+    k.refresh_estimates(county);
+    let bare = k.counties[county].herd_change_expected;
+
+    assert_ne!(
+        staffed, bare,
+        "the forecast did not move when the dairy was emptied: {staffed} both times",
+    );
+    assert!(
+        bare < staffed,
+        "an unstaffed herd should forecast worse than a fully staffed one: {staffed} -> {bare}",
+    );
+    eprintln!("county {county}: herd {} forecasts {staffed} staffed, {bare} bare",
+        k.counties[county].herd);
+}
+
+/// **The reclamation row's two figures, and what the "+1" counts.**
+///
+/// A player: *"the figure is missing in the sidebar — it draws the serf
+/// reclaiming, but not the +1 I'm used to."* `Field_ReclaimEstimate`
+/// (`0x0044C278`) is a work-outstanding loop **plus a tail** that simulates the
+/// coming season, and only the loop was ported. The tail's `+0x20C` counts
+/// **fields that will be finished next season** — fields, not units of work,
+/// which is the thing a small integer could plausibly have been either of.
+///
+/// Three claims, and each is a different line of the tail:
+///
+/// 1. **a field one season's work from done finishes** — one field, one gang;
+/// 2. **the gang starts on the nearest-to-finished field**, so a field at 600
+///    completes before a field at 0 gets touched;
+/// 3. **a finished field hands its surplus on**, so a gang with enough labour
+///    finishes two in a season — which is the only way the figure ever reads
+///    more than 1, and the reason it is a simulation rather than a division.
+#[test]
+fn the_reclamation_forecast_counts_fields_finished_not_work_done() {
+    let save = england!();
+    let scenario = Scenario::from_save(&save).expect("import");
+    let mut k = scenario.kingdom(1);
+    let job = l2_kingdom::tables::JOB_FIELD_RECLAMATION;
+    let per_season = k.tables.field.reclaim_per_season;
+    let full = k.tables.field.progress_max;
+
+    let county = k.county_ids().find(|&id| k.counties[id].field_slots_used() >= 2).expect("fields");
+    // Two fields under reclamation: one nearly done, one untouched.
+    let slots: Vec<usize> =
+        (0..l2_kingdom::MAX_FIELDS).filter(|&s| k.counties[county].field_tile(s).is_some()).collect();
+    let (near, far) = (slots[0], slots[1]);
+    for &s in &[near, far] {
+        let tile = k.counties[county].field_tile(s).expect("a tile");
+        k.campaign.map.terrain[tile] = l2_kingdom::field::terrain::RECLAIM_FIRST;
+    }
+    k.counties[county].field_progress[near] = (full - per_season) as u16;
+    k.counties[county].field_progress[far] = 0;
+
+    // 1 and 2 — one gang's worth of labour finishes the near field only.
+    k.counties[county].labour[job] = per_season;
+    k.refresh_estimates(county);
+    assert_eq!(
+        k.counties[county].reclaim_fields_finishing, 1,
+        "one season's work on the nearest-to-finished field completes it and nothing else",
+    );
+    assert_eq!(
+        k.counties[county].reclaim_seasons_to_next, 1,
+        "and it is one season away",
+    );
+
+    // 3 — enough for both, and the near field's surplus carries to the far one.
+    // The far field needs a full 800, so this is deliberately generous: what is
+    // being asserted is that the count can exceed 1 at all.
+    k.counties[county].field_progress[far] = (full - per_season) as u16;
+    k.counties[county].labour[job] = per_season * 2;
+    k.refresh_estimates(county);
+    assert_eq!(
+        k.counties[county].reclaim_fields_finishing, 2,
+        "two gangs' worth finishes two fields, which is why this is a count and not a flag",
+    );
+
+    // And nothing being reclaimed forecasts nothing, rather than keeping the
+    // last answer — the original zeroes both before its guard.
+    for &s in &[near, far] {
+        let tile = k.counties[county].field_tile(s).expect("a tile");
+        k.campaign.map.terrain[tile] = l2_kingdom::field::terrain::FALLOW;
+    }
+    k.refresh_estimates(county);
+    assert_eq!(k.counties[county].reclaim_fields_finishing, 0);
+    assert_eq!(k.counties[county].reclaim_seasons_to_next, 0);
+}

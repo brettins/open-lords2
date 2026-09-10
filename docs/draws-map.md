@@ -18,6 +18,11 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 > switches and 8 are dead code. We reproduce 59 of the 121, and we make about 29 draws the
 > original does not.**
 
+**Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
+draw*, not *at the original's coordinates*. §5a has the measurement that forced the
+distinction: of the eighteen draws read back line-by-line against their call sites, **three
+were four pixels wrong** and every test in the tree passed.
+
 That is **49 %**. `docs/arms.json` holds **25** input arms for the same two screen ids
 (`0x00` and `0x10`) and marks **20** of them reproduced — **80 %**. So on the screen a player
 spends most of the game looking at:
@@ -370,8 +375,26 @@ wrong: `FUN_00477320` divides `(mouseY − 0x130)` by that pitch to find the row
 
 We draw the left list (`county::draw_produce_rows`, and the blue idle ring in it) and none of
 the right one — a decision already recorded there, resting on two county bytes nobody has
-named. The **eight `Ui_DrawDelta` calls** — every row's forecast for *next* season — are
-absent on both sides, and §5.10 is what one of them turned out to be worth.
+named. The **seven `Ui_DrawDelta` calls** — every row's forecast for *next* season — were
+absent on both sides, and §5.10 is what one of them turned out to be worth. *(This said
+"eight". `CountyStrip_DrawCastleIcon` has a `Ui_DrawNumber` and a `Ui_DrawUnitNoun` and no
+delta; the seven are cattle, grain, reclamation, stone, wood, iron and weapons.)*
+
+**Three are now drawn and the remaining four are blocked, which is not the split anyone
+expected.** Cattle, grain and reclamation were each **a tail of an estimate pass we had ported
+only the loop of** — `Herd_LabourEstimate`, `Grain_LabourEstimate`, `Field_ReclaimEstimate`,
+all three the same shape, all three in `County_RefreshEstimates`. So they were one fix repeated,
+not three investigations.
+
+The four industry rows are **not** the same fix and should not be attempted as one. Each reads
+an `i32` at the head of an `Industry` record, and the records they read are
+`industry[2]`, `industry[4]`, `industry[1]` and `industry[3]` for the stone, wood, iron and
+weapons rows respectively — **every one is the record above the commodity its row is for, and
+the wood row's `0x2F0` is one whole record past the end of a four-record array.** That is either
+an off-by-one in the original or a wrong base in `docs/records.json`, and it is unsettled;
+`crates/l2-game/src/screens/county.rs` has carried the observation for a while. **Guessing here
+would put four numbers on screen that are confidently wrong**, which is worse than four blanks.
+Settling the `Industry` base is the prerequisite and it is its own job.
 
 ### 5.6 Three widgets are drawn over the map from `Battle_Frame` and are in no document
 
@@ -561,6 +584,128 @@ player noticed it within hours of the pacing becoming real. **Some draws are gat
 simulation being slow enough to see** — and the inventory cannot tell you which, because a
 conditional draw looks the same whether or not its condition ever holds for a visible length of
 time.
+
+### 5.12 Every number in the game reserves a sign column, and we were dropping it
+
+> *"Happiness # and population # in the sidebar are slightly left of where they should be —
+> not sure if we've compared that to the draw in the original or what makes it off."*
+
+**Four pixels left, both of them, and the tax rate too.** The cause is one character:
+
+```c
+Ui_NumberToBuffer(value, 1, 0);            /* digits from index 1 */
+if (lead != '\0') g_numberBuffer = lead;   /* index 0 */
+/* ... append suffix ... */
+Ui_DrawText(&g_numberBuffer, x, y, font, colour);
+```
+
+`Ui_NumberToBuffer`'s `start = 1` **leaves index 0 free for a sign**, and every call site
+fills it. The strip's three pass `' '`, so the string drawn at `x` is `" 435 "` and the digits
+begin one `SPACE_ADVANCE` — four pixels — right of `x`. We drew the bare digits at the same
+`x`.
+
+**It is not the anchoring, and the report contained the test.** Right-anchoring where the
+original centres would displace the two-digit happiness *further* than the three-digit
+population. A lead is one character whatever the value is, so **this displaces both by exactly
+the same four pixels** — which is what the tests now assert, and what ablating the lead
+reverses. These two are `Ui_DrawNumber` anyway, which has no anchoring argument;
+`Ui_DrawNumberRight` is the one that centres (§5.10) and it is a different call.
+
+**The column is deliberate, and the binary says so 62 times.** Over the 191 `Ui_DrawNumber`
+call sites the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each.
+Never `'\0'` — which the function treats as *terminate immediately*, because index 0 is the NUL
+the buffer was cleared to. `'@'` is a glyph with no picture and no advance beyond the space, so
+those 62 sites are asking for **an invisible sign column that still holds its place**, which is
+only meaningful if the column is there to be aligned on. `SPACE_ADVANCE`'s own doc comment in
+`crate::shell::font` had already worked that out one level down; the strip's call sites simply
+did not use it.
+
+**Scope.** 352 call sites across the four number routines — `Ui_DrawNumber` 191,
+`Ui_DrawCount` 81, `Ui_DrawDelta` 59, `Ui_DrawNumberRight` 21. Every one has a lead. Fixed here
+are the campaign sidebar's five; the rest of the tree is a sweep somebody should run with
+`strip_number` / `body_number_centred` as the shape. **CNEW-sign-column.**
+
+---
+
+## 5a. The listing counts *whether* a draw happens, not *where it lands* — and that is now measured
+
+The player's aside is the more important half of his report: *"not sure if we've compared that
+to the draw in the original."* **We had not.** Population, happiness and the tax rate are all
+inside §2's `CountyStrip_Draw` row, which reads **18 of 18 reproduced** — and three of the
+eighteen were four pixels wrong the whole time.
+
+So the honest statement about this document's headline:
+
+> **`ours` means *we make a corresponding draw*. It does not mean *at the original's
+> coordinates, in the original's composition, with the original's frame*.**
+
+That is exactly the gap `docs/arms.json` has between *the arm exists* and *the arm is the right
+kind of gesture*, and it wants the same treatment: **a third verdict.** `reproduced` for a draw
+we make, `placed` for one whose coordinates and string composition have been read back against
+the call site's own literals, `absent` for the rest. Until that pass runs, **59 of 121 is an
+upper bound on fidelity and a fair count of coverage**, and the two should not be quoted as the
+same number.
+
+**The one measured sample, because a proposal with no measurement is a mood.** The eighteen
+`CountyStrip_Draw` draws are the only group read line-by-line against its call site so far:
+**fifteen were placed and three were displaced — 17 % wrong among draws counted as
+reproduced.** Extrapolating that would be exactly the sin this section is about, so it is one
+sample and it is reported as one. What it does establish is that the rate is **not zero**, and
+that nothing except a person reading was ever going to find it: all three passed every test in
+the tree, and two of those tests *asserted the wrong coordinate* while quoting the right call
+site.
+
+**Three things make a displaced draw invisible**, and they are worth stating because each
+defeats a different check:
+
+* **The call site's `x` is not the picture's `x`.** A test can quote `0x1FC`, assert `0x1FC`,
+  cite the decompilation, and be four pixels wrong — which two of ours did.
+* **A screenshot diff cannot be run**, because we have no reference render; the original is a
+  DirectDraw fullscreen app whose `PrintWindow` capture is black (`maps-layers.md` §7).
+* **Four pixels is under the threshold of noticing** for everyone except somebody who has
+  played the game for years. That is the same reason the pasture cattle and the wheat needed a
+  person: **the failures this project has left are the ones that look plausible.**
+
+### 5.13 The cattle row was right and stale, and a name in our own records file sent the search wrong
+
+> *"I right now have −11 cattle. If I move it so the people are eating cattle, it still says
+> −11 cattle in the sidebar."*
+
+Four causes fitted. The binary picked one, and the elimination is worth more than the fix.
+
+**The figure includes slaughter, and the game's own labels prove it.** `Panel_JobCattle`
+(`0x00413B30`) draws three lines from `L2.eng` group 77: index 7 *"Change due to farming"* from
+`births − deaths` **computed inline and never stored**, index 27 *"Change due to eating"* from
+`−herdEaten`, and index 28 *"Overall change"* from county `+0x258`. **The sidebar draws
+`+0x258`** — the overall change.
+
+**`docs/records.json` named `+0x258` `herdChangeFromFarming` and cited index 7.** It is index
+28. Renamed `herdOverallChange` (303 record fields before, 303 after). That wrong name is what
+made *"the delta excludes slaughter"* the leading hypothesis — **a wrong name in a data file is
+repeated by everyone downstream and interrogated by nobody**, because a name does not look like
+a claim. Third time in two days a document acted as an input to reasoning rather than a record
+of it, after the dead variant and the "right-aligned" comment.
+
+**The real cause: the tail again.** `Herd_LabourEstimate` is a search loop plus a tail, and the
+original calls it from **both** `Herd_SeasonTick`'s last line and `County_RefreshEstimates`. We
+had the loop in `refresh_estimates` and the tail in `herd_season_tick` alone, so the forecast
+moved once a season and no control could move it. Identical to §5.10's grain split, in the same
+file, on the same day — and a third quiet instance sits beside them: `Kingdom::refresh_estimates`
+omits `Herd_UpdateCrowding` from the middle of the doubled round that `field.rs`'s module docs
+describe correctly two hundred lines above it. Harmless today, because no control it serves
+moves the herd or the pasture count.
+
+**Our births are right.** `herd_growth` matches `Herd_BirthsAndDeaths` constant for constant.
+And **−11 is representable twice over without any bug**: on the England fixture, county 1 with
+74 head forecasts **−4 fully staffed and −29 with the dairy emptied** — the whole of the
+player's number sits inside that range. Understaffing is invisible to crowding, because
+crowding is `herd ÷ fields` and staffing is `labour ÷ (herd × 3)`; a large pasture with few
+milkmaids reads *Low herd crowding* and loses double digits.
+
+**Two numeric corrections fell out of it**, both now in `docs/rules.md`: the crowding table's
+deaths column read 0.01 % … 0.07 % and is **1 % … 7 %** — the rate is per ten thousand applied
+to `herd × 100` — and **spring gives half again as many calves, winter takes half again as many
+cows**, which nothing had recorded. **CNEW-cattle-forecast-stale.**
 
 ---
 

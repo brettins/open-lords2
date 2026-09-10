@@ -701,6 +701,27 @@ pub struct County {
     pub grain_sown_expected: i32,
     pub grain_grown_expected: i32,
     pub grain_change_expected: i32,
+    /// `+0x20C` and `+0x214` — **the reclamation row's two figures**, written by
+    /// [`crate::land::reclaim_preview`], which is `Field_ReclaimEstimate`'s
+    /// tail.
+    ///
+    /// A player: *"the figure is missing in the sidebar — it draws the serf
+    /// reclaiming, but not the +1 I'm used to."* The `+1` is
+    /// `reclaim_fields_finishing`, and it is a count of **fields that will be
+    /// finished next season**, not of work done: the original simulates the
+    /// coming season's labour over the twenty slots from the nearest-to-finished
+    /// field and counts each one that crosses 800. A field that finishes hands
+    /// its surplus to the next, so one gang can complete two.
+    ///
+    /// `reclaim_seasons_to_next` is the same row's second number, and it is
+    /// computed from the **full** staffing rather than from what the simulation
+    /// above had left over — the original re-reads `labour[2].workers`.
+    ///
+    /// Encoded on the same reasoning as the grain forecasts above: derived,
+    /// recomputed by every estimate round, and visibly blank for a turn if a
+    /// load defaulted them.
+    pub reclaim_fields_finishing: i32,
+    pub reclaim_seasons_to_next: i32,
     /// `+0x290 + c*0x18` — per-commodity production records.
     pub industry: [Industry; 4],
     /// **Engine state.** Which weapon the blacksmith is making.
@@ -850,6 +871,8 @@ impl County {
             grain_sown_expected: 0,
             grain_grown_expected: 0,
             grain_change_expected: 0,
+            reclaim_fields_finishing: 0,
+            reclaim_seasons_to_next: 0,
             industry: [
                 Industry::new(Commodity::Wood),
                 Industry::new(Commodity::Iron),

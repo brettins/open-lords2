@@ -343,6 +343,9 @@ fn furnished(seed: u64) -> Kingdom {
         c.grain_sown_expected = 39 + n;
         c.grain_grown_expected = 40 + n;
         c.grain_change_expected = -41 - n;
+        // The reclamation row, VERSION 16 as well.
+        c.reclaim_fields_finishing = 42 + n;
+        c.reclaim_seasons_to_next = 43 + n;
 
         for slot in 0..c.industry.len() {
             let s = slot as i32;
@@ -636,7 +639,7 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     //
     // +238 at version 15 for `County::siege_scars`: fourteen bytes a county —
     // two `u16`, two `i32`, a `u8` and a `bool` — over 17 county slots.
-    assert_eq!(c.finish().len, 57_913, "the state encoding changed - bump VERSION?");
+    assert_eq!(c.finish().len, 58_049, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

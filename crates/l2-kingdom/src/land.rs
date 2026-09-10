@@ -27,6 +27,7 @@
 //! **cattle fields do not enter the formula at all**.
 
 use crate::county::{County, MAX_FIELDS};
+use crate::field::FieldType;
 use crate::math::{clamp, pct, pct_of, per_myriad};
 use crate::tables::{HerdCrowdingRow, Season, Tables, Weather, HERD_CROWDING_COUNT};
 use l2_net::{Quirk, Quirks};
@@ -805,6 +806,127 @@ pub fn herd_preview(t: &Tables, county: &mut County, season_next: u8) {
     county.herd_births_expected = g.births;
     county.herd_deaths_expected = g.deaths;
     county.herd_change_expected = g.net() - county.herd_eaten;
+}
+
+/// **`Field_ReclaimEstimate`'s tail (`0x0044C278`) — the reclamation row's two
+/// figures**, and the third unwritten tail of the evening.
+///
+/// A player: *"the figure is missing in the sidebar — it draws the serf
+/// reclaiming, but not the +1 I'm used to."*
+///
+/// [`reclaim_labour_estimate`] ports the first loop — the work outstanding,
+/// which becomes the labour ceiling — and stops. The original then **simulates
+/// the coming season** and writes two more things:
+///
+/// ```c
+/// county.field_0x20C = 0;  county.field_0x214 = 0;
+/// if (county.reclaimLeadOr99 < 99) {
+///     Field_ReclaimLeadSlot(county);                 /* +0x210, the nearest-done field */
+///     left = county.labour[2].workers;
+///     slot = county.field_0x210;
+///     for (n = 0; n < 20; n++) {                     /* wrapping at 20 */
+///         if (this slot is a field under reclamation) {
+///             p = progress[slot];
+///             if (left < 201) { p += left; left = 0; } else { p += 200; left -= 200; }
+///             if (p > 799) { left += p - 800; county.field_0x20C += 1; }
+///             if (left < 1) break;
+///         }
+///         slot = (slot + 1) % 20;
+///     }
+///     left = county.labour[2].workers;               /* re-read, not the remainder */
+///     need = 800 - progress[county.field_0x210];
+///     if (left > 0) {
+///         if (left > 200) left = 200;
+///         county.field_0x214 = need / left + (need % left != 0);   /* round up */
+///     }
+/// }
+/// ```
+///
+/// **So `+0x20C` is a count of *fields finished next season*, not of work
+/// done** — the player's "+1" is one field completed — and `+0x214` is *"seasons
+/// to the next completed field"*, the number the same row draws beside it.
+///
+/// Three details worth having exactly, because each is a place a rewrite would
+/// differ and none of them is arbitrary:
+///
+/// * **The gang works the nearest-to-finished field first** and wraps around the
+///   twenty slots from there, so the labour is spent finishing rather than
+///   spread. `Field_ReclaimLeadSlot` (`0x0044C53B`) picks the highest progress,
+///   ties to the lowest slot.
+/// * **A field that finishes hands its surplus back** — `left += p - 800` — so
+///   one season's gang can complete two fields, which is how the figure ever
+///   reads more than 1.
+/// * **The per-field cap is 200**, a quarter of the 800 a field needs, and it
+///   applies per field per season rather than to the county's total.
+///
+/// `[D]`, read out of `0x0044C278`. **CNEW-reclaim-forecast.**
+pub fn reclaim_preview(t: &Tables, county: &mut County, map: &crate::map::CampaignMap) {
+    county.reclaim_fields_finishing = 0;
+    county.reclaim_seasons_to_next = 0;
+    let Some(lead) = reclaim_lead_slot(county, map) else { return };
+
+    // Taken up front so the loop below can write to `county` — the twenty slots
+    // do not change while a season is being simulated.
+    let mut is_reclaiming = [false; MAX_FIELDS];
+    for (slot, flag) in is_reclaiming.iter_mut().enumerate() {
+        *flag = county
+            .field_tile(slot)
+            .is_some_and(|tile| crate::field::classify(map.terrain[tile]) == FieldType::Reclaiming);
+    }
+
+    // The season simulated, from the lead slot, wrapping.
+    let mut left = county.labour[crate::tables::JOB_FIELD_RECLAMATION];
+    let mut slot = lead;
+    for _ in 0..MAX_FIELDS {
+        if is_reclaiming[slot] {
+            let mut p = county.field_progress[slot] as i32;
+            if left <= t.field.reclaim_per_season {
+                p += left;
+                left = 0;
+            } else {
+                p += t.field.reclaim_per_season;
+                left -= t.field.reclaim_per_season;
+            }
+            if p >= t.field.progress_max {
+                left += p - t.field.progress_max;
+                county.reclaim_fields_finishing += 1;
+            }
+            if left < 1 {
+                break;
+            }
+        }
+        slot = (slot + 1) % MAX_FIELDS;
+    }
+
+    // **The workers are re-read rather than carried on from the loop**, so this
+    // is *"at this staffing, how many seasons until the lead field is done"* and
+    // not *"after the work above"*. The original's own second `local_18 =
+    // labour[2].workers`.
+    let mut hands = county.labour[crate::tables::JOB_FIELD_RECLAMATION];
+    let need = t.field.progress_max - county.field_progress[lead] as i32;
+    if hands > 0 {
+        hands = hands.min(t.field.reclaim_per_season);
+        county.reclaim_seasons_to_next = need / hands + i32::from(need % hands != 0);
+    }
+}
+
+/// `Field_ReclaimLeadSlot` (`0x0044C53B`) — county `+0x210`, the field slot with
+/// the **highest** progress among those under reclamation, ties to the lowest
+/// slot. `None` when nothing is being reclaimed, which is the original's `99`
+/// sentinel from `FUN_0044C5FC` rather than its `0` default.
+fn reclaim_lead_slot(county: &County, map: &crate::map::CampaignMap) -> Option<usize> {
+    let mut best: Option<(usize, i32)> = None;
+    for slot in 0..MAX_FIELDS {
+        let Some(tile) = county.field_tile(slot) else { continue };
+        if crate::field::classify(map.terrain[tile]) != FieldType::Reclaiming {
+            continue;
+        }
+        let p = county.field_progress[slot] as i32;
+        if best.is_none_or(|(_, b)| p > b) {
+            best = Some((slot, p));
+        }
+    }
+    best.map(|(slot, _)| slot)
 }
 
 /// **`FUN_0044CF6F` — the crop's density band**, and the only producer of a

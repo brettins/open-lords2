@@ -156,16 +156,43 @@ Crowding matters too, and it is `herd ÷ pasture fields` in four bands:
 
 | head per field | the game says | births | deaths |
 |---:|---|---:|---:|
-| 1–10 | *Low herd crowding* | 14% | 0.01% |
-| 11–20 | *Average herd crowding* | 9% | 0.03% |
-| 21–30 | *Herd overcrowded* | 5% | 0.05% |
-| 31+, or no pasture | *Massive overcrowding!!* | 2% | 0.07% |
+| 1–10 | *Low herd crowding* | 14% | **1%** |
+| 11–20 | *Average herd crowding* | 9% | **3%** |
+| 21–30 | *Herd overcrowded* | 5% | **5%** |
+| 31+, or no pasture | *Massive overcrowding!!* | 2% | **7%** |
+
+*(The deaths column read 0.01% … 0.07% until it was checked against
+`Herd_BirthsAndDeaths`. The rate is per **ten thousand** and it is applied to `herd × 100`,
+not to `herd`, so it comes out as whole percent. A hundredfold error, and it made the whole
+table look like a births table with a rounding error attached.)*
 
 That is the whole point of the table: **an overcrowded herd dies seven times as fast and
-breeds a seventh as often.** Small herds that are fully staffed also get a birth bonus on
-top, so a handful of well-tended cattle recovers much faster than the percentage suggests.
+breeds a seventh as often** — and at the worst band births and deaths are within a whisker of
+each other, so an overcrowded herd barely grows at all. Small herds that are fully staffed
+also get a birth bonus on top, so a handful of well-tended cattle recovers much faster than
+the percentage suggests.
+
+**Births and deaths are also seasonal, which nothing here used to say.** *"Do births depend on
+the season?"* — yes, directly: **spring gives half again as many calves** and **winter takes
+half again as many cows**, applied on top of everything above. Nothing happens in summer or
+autumn beyond the ordinary rates.
+
+**Crowding and staffing are separate axes, and this is the thing that surprises people.**
+Crowding is `herd ÷ pasture fields`; staffing is `labourers ÷ (herd × 3)`. **A large pasture
+with few milkmaids reads *Low herd crowding* and is badly understaffed at the same time** — and
+because the shortfall is added to the *death* rate, that county can be losing double digits a
+season while the panel shows the best crowding line there is. At zero labourers the death rate
+reaches 34%.
 
 Crowding is also drawn on the map, so you can see it without opening a panel.
+
+**What the sidebar's cattle figure includes.** The campaign sidebar's cattle row is `L2.eng`
+group 220's *"Cattle, and change next season"*, and it is the **whole** change: births, minus
+deaths, minus the animals your people are about to eat. The cattle job popup splits the same
+arithmetic into the three lines it is made of — *Change due to farming* (births − deaths),
+*Change due to eating*, and *Overall change* — and **the sidebar shows the third.** So a
+negative number there with a healthy herd usually means your people are eating well, not that
+your cattle are dying.
 
 ### Fields are painted on the map, and you start with none sown
 
