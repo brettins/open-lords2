@@ -1443,3 +1443,32 @@ The same shape on the court screen. Group 70 is *"Gold, Arms, Iron, Stone, Wood"
 painter draws Gold, Iron, Stone and Wood as labelled rows. The six weapon stocks below them
 are drawn as **icons with numbers under them and no heading**, and index 1 is never passed to
 anything. `court::ARMS` names it.
+
+### B91 — one network command handler schedules against the *local* clock
+
+`NetCmd_Read_61` (`0x00446D4E`), the read half of network command `0x61`, unpacks the
+sender's due tick into `DAT_00542CC0` exactly as its ninety-six siblings do — and then
+passes `DAT_00553E70` to `NetJournal_Schedule` instead of it.
+
+```c
+Mem_CopyBytes(0x512f9c, 0x542cc0, 3);              /* the RECEIVED due tick   */
+...
+NetJournal_Schedule(0x2e, DAT_00553e70, ...);      /* the LOCALLY SENT one    */
+```
+
+`DAT_00553E70` is written only by the **write** halves, so on a receiving peer it holds
+whatever tick the last command *this* machine sent was scheduled for — or zero if it has
+sent none. Every other read half in the table passes `DAT_00542CC0`. It is a one-token
+copy-paste slip and it is the only one of its kind in 97 pairs, which is what identifies
+it as a slip rather than a design.
+
+**Two reasons the blast radius is small, and both are worth stating rather than leaving
+the entry sounding worse than it is.** No literal `Net_SendCommand(0x61, …)` call site
+exists anywhere in the binary, so the opcode may be unreachable in the shipped build; and
+deferred action `0x2E`, the one it schedules, is an eleven-byte empty stub. The observable
+effect is therefore a journal slot armed for the wrong tick and then retired doing nothing
+— unless something reaches the opcode through a computed argument, which was not searched
+for.
+
+**We do not reproduce it.** Our command layer has one arrival discipline and no second
+tick to confuse it with; `docs/netcode.md` §*The original's command layer* says why.

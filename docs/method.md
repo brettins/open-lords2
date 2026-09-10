@@ -660,7 +660,7 @@ that still needs its own check.
 
 The roadmap has eight phases and they have been advanced roughly in parallel, which is why
 "all phases complete" keeps not being true: every phase has an open-ended tail, and there is
-always more of the binary to name — <!--fig:functions-->974<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->40<!--/fig-->%.
+always more of the binary to name — <!--fig:functions-->1,274<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig--> functions so far, about <!--fig:functions-pct-->52<!--/fig-->%.
 
 Naming the remaining 90% is **not** the goal and mostly never will be: most of it is CRT,
 allocator, string and DirectDraw glue. The goal is a *playable, moddable engine*, and the

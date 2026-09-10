@@ -80,6 +80,20 @@ trailing block. An isometric file also routinely holds plain rectangles —
 | 3 | Diamond + left-half overhang | `height² + rows × height` |
 | 4 | Diamond + right-half overhang | `height² + rows × height` |
 
+**The map renderer dispatches on this byte, and only on 2, 3 and 4.** That is a second
+derivation of the table above, from the code rather than from the file, and it was done
+without reference to it. `Map_DrawTileApex` (`0x00406673`) loads the shape byte into
+`g_frameShape` (`0x00591568`) and picks an overhang blitter with a three-way test — `== 2`,
+`== 3`, `== 4` — and no default arm; the row pass at `0x00406BBA` does the same. So a
+shape-0 or shape-1 frame gets **no overhang pass at all**, which is exactly what "raw
+rectangle" and "isometric diamond only" mean. The blitters are named `ApexBlit_S2_*`,
+`ApexBlit_S3_*`, `ApexBlit_S4_*` and their `RowBlit_` twins, three zoom variants each.
+
+Shapes 3 and 4 share their blitter with a fifth argument of 2 or 0 where shape 2 has a
+separate routine per draw mode — the left-half and right-half cases differ by a parameter
+and the chevron case does not, which is the same asymmetry the encoding column shows
+(`rows × height` for both halves, `rows × width` for the chevron).
+
 **Shape 1 ignores the overhang count**, even when it is non-zero — 32 frames in the
 corpus declare rows and still hold exactly `height²`. Honouring the count there
 desynchronises the whole file.

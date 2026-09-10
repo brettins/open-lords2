@@ -839,6 +839,67 @@ in the shipped game. A checksum with a silenced field is exactly C30 again, in s
 else's code. Whatever we build, make the *coverage* of the digest a thing a test asserts,
 not a thing a reader has to notice.
 
+### The original's command layer, in full — verified
+
+The section above is about the original's *digest*. This one is about the thing the digest
+was checking, and it was dark until now: **`Lords2.exe` already implements input-delay
+lockstep**, and the whole of it fits in three tables and one 400-slot journal.
+
+```
+g_netCmdWriters   0x004D57F0   void(*)(void)[100]   serialise opcode i's payload
+g_netCmdHandlers  0x004D5980   void(*)(void)[100]   read it back on the receiving peer
+g_netCmdLength    0x004D5B90   u8[100]              payload bytes, 0xFF = not an opcode
+g_netActionTable  0x004D5C98   void(*)(void)[50]    the deferred actions, NEW
+g_netCmdJournal   0x0050D7C0   400 x 0x38 records   what is scheduled and for when
+```
+
+**The three extents close on each other, which is what makes them verified.**
+`0x004D57F0 + 100*4` is exactly `g_netCmdHandlers`; `0x004D5980 + 100*4` is exactly
+`g_syncBlocks`; and the run of consecutive dwords that are real function entry points is
+exactly 200 long, starting and stopping on those boundaries. That is the fix for the
+`g_netCmdWriters` reading recorded in `docs/agents.md` — *"all 112 entries are real
+function starts"*, where entries 100–111 were the first twelve of the handler table.
+`g_netActionTable` closes the same way from the other end: the run is 50 pointers long,
+and the highest action id any of the 62 `NetJournal_Schedule` call sites passes is `0x31`.
+
+**The shape of one command.** `Net_SendCommand(op, dest)` calls `g_netCmdWriters[op]`,
+which computes a **due tick** with `NetJournal_DueTick(delay)` — the largest game clock
+among the live human realms, plus a per-command delay — writes it and the payload into the
+send ring, and schedules the action locally through `NetJournal_Schedule`. The packet goes
+out; each peer's `Net_ApplyPacket` calls `g_netCmdHandlers[op]`, which reads the same
+fields in the same order and widths and schedules **the same action id for the same tick**.
+`NetJournal_RunDue(tick)` then executes every armed journal record whose tick has arrived.
+That is input delay, not rollback, and it is the same choice §4 makes independently.
+
+Two details worth carrying:
+
+* **The delay is per command, from a global.** Every write half passes `DAT_00544094`.
+  A single knob, not a per-packet estimate.
+* **Battle selection is reordered, not delayed further.** Inside a battle,
+  `NetJournal_RunDue` moves every record whose action id is `0x21`…`0x23` — the three
+  battle-selection actions — and whose first argument is not the battle's own realm to the
+  *end* of the run order. A remote peer's selection change can therefore never reorder the
+  local player's within one tick. It is a deterministic tiebreak of exactly the kind D-7
+  asks for, arrived at for a different reason.
+
+**And the part that is a warning rather than a model.** Of the 50 deferred actions, only
+**30 are ever scheduled**. All 62 call sites pass a literal id, so this is a count and not
+an estimate. The twenty that are never reached are the *economy* verbs —
+`Ration_IncreaseCounty`, `Tax_IncreaseCounty`, `Labour_Move`, `Merchant_Trade`,
+`Village_BalanceAll`, `Ration_SetSplit`, `Labour_SetIndustryShare`,
+`SiegePrep_AdjustOrder`, `Industry_ToggleFromMap` — and each of them **also** has an
+immediate path: opcode `0x23`'s read half writes `g_counties[i].taxRate` and calls
+`Tax_RecomputePreview` on the spot rather than journalling it. So the shipped build applies
+economy commands the instant the packet lands and campaign and battle commands on a shared
+future tick. **Two arrival disciplines in one command set is a desync generator**, because
+only one of them is ordered, and it is the more plausible explanation of the original's
+routine `Net play divergance count` than anything in the digest. Recorded here as a thing
+to *not* do: our `Command` enum takes one path.
+
+The names are in [`symbols.md`](symbols.md) §Networking; `tools/oracle/netcmds.js` prints
+the joined table — opcode, payload length, both halves, the action they schedule, and every
+function that sends that opcode.
+
 ### The replay harness — the part that pays for itself
 
 Because `step()` is pure (D-11), a session is fully described by

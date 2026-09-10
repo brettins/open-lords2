@@ -640,6 +640,7 @@ docs/symbols.md	C25	7d1520cc18d4
 docs/symbols.md	C25	9ecb948c728e
 docs/symbols.md	C29	167d43993680
 docs/symbols.md	C3	5ea09ce2b14d
+docs/symbols.md	C3	d1cc366232e8
 docs/symbols.md	C30	045b912580de
 docs/symbols.md	C31	6f4208f93455
 docs/symbols.md	C34	1d2ee3676454
@@ -675,8 +676,8 @@ docs/symbols.md	C72	21997549ac81
 docs/symbols.md	C72	4dd99474c46e
 docs/symbols.md	C72	5fc9a7735491
 docs/symbols.md	C72	64c244fb6c65
+docs/symbols.md	C73	92bca9e765dd
 docs/symbols.md	C73	bdcf70f27755
-docs/symbols.md	C73	c472a2560d07
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611
 tools/audit/rva.js	C14	99231cda993c
 tools/audit/rva.js	C16	e4312831d7d6

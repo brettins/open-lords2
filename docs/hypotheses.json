@@ -173,35 +173,6 @@
       "comment": "The county picker on the ask-for-help and ask-for-attack dialogs. Diplo_DrawCountyRequest draws the same map at the same (0x60, 0xB0) through FUN_00410C71, which is what ties the hit rectangle to the picture."
     },
     {
-      "addr": "0x00443A2D",
-      "name": "NetCmd_ReadMoveOrder",
-      "section": "units",
-      "confidence": "subject",
-      "signature": "void NetCmd_ReadMoveOrder(void)",
-      "comment": "The receiving half of network command 0x29: reads player (1), a 4-byte value, unit (1), x (2), y (2) and journals sub-opcode 0x0C.",
-      "basis": "It sits between g_netCmdWriters[0x29] and g_netCmdWriters[0x2A] in address order, uses Net_ReadField where its neighbour used Net_WriteField, reads the same five widths in the same order, and passes the same sub-opcode 0x0C to Net_JournalCommand. The writer half IS verified and is in symbols.json.",
-      "promotion": "The reader is never called from the command table, so its caller has to be found - presumably a dispatch keyed on the received opcode byte. Naming that dispatcher promotes every reader at once."
-    },
-    {
-      "addr": "0x00446E21",
-      "name": "Net_ResolveDest",
-      "section": "units",
-      "confidence": "both",
-      "comment": "Turns 0x00544094 into the 4-byte value NetCmd_WriteMoveOrder puts second in the packet, ahead of the unit index.",
-      "basis": "Position in the payload only. Not read.",
-      "promotion": "Read it."
-    },
-    {
-      "addr": "0x00447136",
-      "name": "Net_JournalCommand",
-      "section": "units",
-      "confidence": "role",
-      "signature": "void Net_JournalCommand(byte subop, int a, ...)",
-      "comment": "Records an executed deterministic command into a ring of 0x38-byte slots at 0x0050D7C0: a live flag, the sub-opcode, and twelve int arguments. Both the writer and the reader of every command opcode call it, so it sees each command exactly once per peer.",
-      "basis": "Read in full. The slot layout is unambiguous - 0x0050D7C6 flag, 0x0050D7C7 sub-opcode, 0x0050D7C0 + 4*n arguments, stride 0x38. Every command writer/reader pair traced so far ends in a call to it. What is inferred is the PURPOSE: 'journal' rather than 'apply'. Nothing in the function itself changes game state.",
-      "promotion": "Find the consumer of the 0x0050D7C0 ring. If it replays the slots, this is a journal; if it is only a debug overlay, the name is wrong. Either answer is a check that could fail."
-    },
-    {
       "addr": "0x00470678",
       "name": "Move_DistanceAcrossExpensive",
       "section": "units",
