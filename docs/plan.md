@@ -31,8 +31,8 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->148<!--/fig--> of
-   <!--fig:arms-live-->172<!--/fig--> live arms (<!--fig:arms-pct-->86<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->151<!--/fig--> of
+   <!--fig:arms-live-->175<!--/fig--> live arms (<!--fig:arms-pct-->86<!--/fig-->%)** — so
    **<!--fig:arms-missing-->24<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->6<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
@@ -112,7 +112,7 @@ weakened rather than met, and this list is the one place in the project where no
 catch that.
 
 **The honest caveat on the headline, stated here rather than in a footnote:** `arms.json` covers
-**<!--fig:arms-groups-done-->12<!--/fig--> of <!--fig:arms-groups-->13<!--/fig-->** enumerated
+**<!--fig:arms-groups-done-->12<!--/fig--> of <!--fig:arms-groups-->14<!--/fig-->** enumerated
 groups, and those two are the battlefield and the battle seam. It is not yet the project's
 number. The wider, coarser measurement is `docs/decisions.md` C61's — **80 of 185 arms across
 three other screen groups, 43%** — taken by a different counting rule and superseded in detail by
@@ -752,7 +752,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,077<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,081<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

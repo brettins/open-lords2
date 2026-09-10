@@ -27,6 +27,7 @@ crates/l2-game/src/game.rs	C30	fdf7eaac6540
 crates/l2-game/src/game.rs	C61	243e22401be3
 crates/l2-game/src/game.rs	C62	1f489b238ce0
 crates/l2-game/src/input.rs	C61	39c868ef7985
+crates/l2-game/src/main.rs	C117	5d9721284057
 crates/l2-game/src/save.rs	C113	292ef2506465
 crates/l2-game/src/scenario.rs	C83	d0e421a3fd81
 crates/l2-game/src/screen.rs	C22	e72ae3be53c7
@@ -64,6 +65,9 @@ crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28
 crates/l2-game/src/screens/options.rs	C62	65a8bf182816
 crates/l2-game/src/screens/ratings.rs	C61	4f4b84817209
 crates/l2-game/src/screens/saveload.rs	C21	57f507db2bc2
+crates/l2-game/src/screens/setup.rs	C117	831195fc9117
+crates/l2-game/src/screens/setup.rs	C117	bac19d4b1267
+crates/l2-game/src/screens/setup.rs	C117	f18a15ba8c91
 crates/l2-game/src/screens/setup.rs	C21	8b9ebc1ffbf5
 crates/l2-game/src/screens/setup.rs	C21	9c04dd669ff9
 crates/l2-game/src/screens/setup.rs	C21	ff32bca9654c
@@ -312,6 +316,9 @@ docs/armies.md	C40	3cddc0864ef1
 docs/armies.md	C40	48ac95a9d767
 docs/armies.md	C59	1cbb270593d9
 docs/armies.md	C61	0f02362fcf6e
+docs/arms.json	C117	7fa98dbec8bc
+docs/arms.json	C117	da91d10efb78
+docs/arms.json	C117	ffa664085e2c
 docs/arms.json	C61	0625bd8a65f4
 docs/arms.json	C61	39d63dd72f38
 docs/arms.json	C76	113584e50fba
@@ -498,7 +505,9 @@ docs/decisions.md	C61	c728831f88b3
 docs/decisions.md	C61	cb0091f01fac
 docs/decisions.md	C61	f258c8cb9698
 docs/decisions.md	C61	f6aa494f4261
+docs/decisions.md	C62	789a08c82088
 docs/decisions.md	C62	caa3cf750af3
+docs/decisions.md	C62	f35d8bee3341
 docs/decisions.md	C63	d00f4e770141
 docs/decisions.md	C63	e109827c0f76
 docs/decisions.md	C68	5ae933e2d6e4

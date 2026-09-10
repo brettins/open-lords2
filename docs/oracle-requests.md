@@ -1,4 +1,4 @@
-# Saved games we need, and exactly how to make them
+# What we need from somebody who has the game — saves, and answers
 
 **This is a list of things to do in the original game and then save.** It is written for
 somebody who knows how to play Lords of the Realm II, in plain language, with no reference
@@ -9,6 +9,41 @@ it is worth your time — **what it would settle**.
 the practical one: it exists because the hundred-turn game (`crates/l2-game/tests/long_game.rs`)
 measured which rules we can reach on our own and which we cannot, and **eleven of them we
 cannot reach at all.** Every request below is one of those.
+
+## Ask for observations too, not only saves
+
+This file was written asking for **files**, and that was too narrow. A save is the richest
+thing somebody can send, but it is also the most work, and it is not always the right
+instrument.
+
+**The evidence for that is a question we could not settle by reading.** Whether the quarry
+turns the stone industry *on* when it is dropped on a county had been read out of the
+decompilation twice and left at `[D]` after about an hour of work. A player dropped one in
+a live game and watched. **Thirty seconds, and it settled the byte from a direction the
+decompiler cannot reach** — and it reversed him in his own favour, because his *first*
+recollection had been right and his correction wrong.
+
+So a question of the form *"play this for ten seconds and tell me what you saw"* is a
+first-class request here, and often a better one than a save:
+
+* it costs the person seconds rather than twenty minutes, so it can be asked often;
+* it reaches **behaviour over time** — an animation, a sound, a number that moves while you
+  watch — which a save cannot carry at all, because a save is one instant;
+* it answers *"does this happen?"*, which is exactly the shape of most of what is left at
+  `[D]`, and needs no tooling on our side to read;
+* and the person answering **already knows the game**, so a recollection is evidence even
+  before it is checked. §10 is entirely questions of this kind and it is the cheapest
+  section in the file.
+
+Two cautions, both from things that happened. A recollection can be **a real memory of the
+wrong screen** — a player described a lord-to-colour preference table exactly, and it was
+genuine, and it belonged to the custom battle screen rather than to new-game setup. Ask
+*where* he saw it. And a description of what a control *does* is worth more than a
+description of what it *means*: *"I dropped it and the little chimney started smoking"* is
+a fact, and *"it turns the industry on"* is an interpretation of one.
+
+When an answer settles something, record it like any other oracle result — with what was
+asked, what was seen, and which reading it ruled out.
 
 ---
 

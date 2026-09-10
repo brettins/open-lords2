@@ -165,6 +165,16 @@ fn the_field_takes_the_keys_the_menu_would_otherwise_spend() {
 ///
 /// Install-gated because *Start* builds a world out of `L2_maps.dat` and
 /// refuses rather than half-starting one when it cannot.
+///
+/// **Page 4 is reached through the campaign chooser, and that is not
+/// incidental.** `FUN_00433155`'s *Continue* arm only starts a game when
+/// `DAT_0057D320` says a campaign was chosen; every other route out of page 4
+/// walks on to the page that picks a game. This test used to arrive from the
+/// title menu's *Multiple players*, which is one of the arms that **clears**
+/// that flag, so after that arm was reproduced it was pressing a button that
+/// correctly does not start anything. The name still has to survive the trip:
+/// `Setup_ChooseCampaign` re-seeds the field on arrival, so *"Aethelred"* is
+/// typed after page 4 is open, exactly as a person types it.
 #[test]
 fn start_puts_the_typed_name_into_the_realm() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -177,7 +187,12 @@ fn start_puts_the_typed_name_into_the_realm() {
     let mut screen = SetupScreen::new(SetupPage::Title);
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        screen.handle(Event::KeyDown(Key::Down), &mut ctx);
+        // "Single player", "Play Now!", then the left-hand campaign — the
+        // three items that are already highlighted, so Enter three times.
+        screen.handle(Event::KeyDown(Key::Enter), &mut ctx);
+        assert_eq!(screen.page(), SetupPage::Options);
+        screen.handle(Event::KeyDown(Key::Enter), &mut ctx);
+        assert_eq!(screen.page(), SetupPage::Campaign);
         screen.handle(Event::KeyDown(Key::Enter), &mut ctx);
         screen.update(&mut ctx);
     }

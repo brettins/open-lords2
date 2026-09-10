@@ -394,7 +394,7 @@ fn usage() -> ! {
     eprintln!("usage: l2-game <game dir> [--mods <dir>] [--no-sound]");
     eprintln!();
     eprintln!("  <game dir>   a Lords of the Realm II install: Lords2.exe, L2_maps.dat,");
-    eprintln!("               lastturn.sav and the tile sets. Never written to.");
+    eprintln!("               the fonts, the artwork and the tile sets. Never written to.");
     eprintln!("  --no-sound   do not open an audio device. The game already runs");
     eprintln!("               silent on a machine that has none; this is for a");
     eprintln!("               machine that has one and would rather it stayed quiet.");
@@ -433,9 +433,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tables = platform.kingdom_tables()?;
 
     let assets = Assets::load(&platform.vfs)?;
-    let game = scenario::load(&platform.vfs, tables)?;
+    // **A fresh world, not the install's autosave.**
+    //
+    // This used to be `scenario::load`, which reads `lastturn.sav` out of the
+    // game directory — the *original program's* rolling autosave. So what our
+    // engine started on was whatever the person last played in Lords of the
+    // Realm II, and for a while that made the campaign look correct: a player
+    // reported starting on the right map in the right season, and he was seeing
+    // his own saved game from another program. His `Autumn 1269` was the proof,
+    // because no fresh start can be in 1269 — `Game_NewGame`'s single
+    // `Season_Advance` lands in Winter 1268.
+    //
+    // **The feature was correct only because of what was in a file our code did
+    // not own.** `docs/environment.md` has warned about that file for weeks and
+    // nine *tests* were fixed by naming fixtures explicitly; the application was
+    // never looked at. When a class of bug is fixed across the tests, ask
+    // whether the product has the same bug.
+    //
+    // The front end is up from the first frame and `Setup`'s own *Start* builds
+    // the real game, so this world is only what stands behind the title page
+    // until then. `docs/decisions.md` C117.
+    let game = scenario::new_game(
+        &assets,
+        0,
+        &l2_game::setup::SetupOptions::new().commit(1, l2_net::Quirks::default()),
+        1,
+        scenario::SEED,
+        tables,
+    )?;
     println!(
-        "{} counties, {} owned by realm {}, {} {}",
+        "{} counties, {} owned by realm {}, {} {} - a NEW world; the front end starts the real one",
         game.kingdom.county_count,
         game.owned_by(game.player),
         game.player,
