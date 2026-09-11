@@ -544,7 +544,11 @@ const ON_THE_BASELINE: &str = "abcdefiklmnorstuvwxz";
 /// `mov dword [ebp-4], 0x005CBFB0` at `0x004998ED` — seven bytes, asserted here,
 /// because an address in a comment is a claim and these are the bytes.
 ///
-/// Ablated: `font::EIGHT` → `"Font_10.pl8"` — record 3 no longer matches.
+/// Ablated: `font::EIGHT` → `"Font_10.pl8"` — record 3 reads `"fnt_8.pl8"` and
+/// the constant does not. (The same ablation also makes
+/// [`every_font_puts_its_lowercase_on_one_baseline`] panic with a lowercase
+/// letter that draws nothing through `GLYPH_MAP` in `Font_10.pl8` — which is the
+/// measured reason that face is not loaded blindly beside this one.)
 #[test]
 fn the_preload_table_names_every_face_and_record_3_is_g_font8() {
     let exe = l2_testkit::executable!();
@@ -575,7 +579,7 @@ fn the_preload_table_names_every_face_and_record_3_is_g_font8() {
 /// `local_14 = 4` for all of them. `Font::width` charged 4 for `'@'`.
 ///
 /// Ablated: `Font::width`'s `None => 0` arm → `SPACE_ADVANCE` — the first
-/// assertion goes red by exactly four.
+/// assertion goes red by exactly four, 43 against 39.
 #[test]
 fn the_measure_charges_the_blank_sign_column_nothing_and_the_draw_charges_four() {
     let Some(dir) = install() else {

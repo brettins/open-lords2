@@ -724,10 +724,10 @@ fn find_on_row_from(
 /// space right by accident, the lead missing — digits **and** noun four left.
 ///
 /// Ablated twice, each red on its own assertion:
-/// * lead `'@'` → `' '`-less `""`-style `format!("{cap} ")` restored at the call
-///   site: the digits are found at `0x0C` and the noun at `0x0E + w + 8`;
-/// * suffix `" "` → `""`: the digits stay at `0x10` and the noun is found four
-///   pixels left of its expectation.
+/// * the old `pen.body(…, &format!("{cap} "))` restored at the call site — the
+///   digits are found at **12** where 16 is expected, the defect as it shipped;
+/// * suffix `" "` → `""` — the digits stay at 16 and the noun is found at **51**
+///   where 55 is expected.
 #[test]
 fn the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right() {
     use l2_game::screens::castle::CastleScreen;
@@ -776,9 +776,11 @@ fn the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right() {
 /// the nouns are asserted as well: a fix that adds the lead and keeps the
 /// invented space moves them.
 ///
-/// Ablated: the two calls put back to `'@'`-less `""` leads — the price is found
-/// at `0x70` and the wages four left; suffix `""` → `" "` — both nouns are found
-/// four right of their expectations.
+/// Ablated twice, each red on its own assertion:
+/// * the price put back to the old `pen.body(…, &format!("{} ", price))` — found
+///   at **112** where 116 is expected;
+/// * the price's suffix `""` → `" "` — the price stays at 116 and *"crowns to
+///   hire."* is found at **164** where 160 is expected.
 #[test]
 fn the_mercenary_price_line_moves_its_numbers_and_not_its_nouns() {
     use l2_game::screens::army::{self, RaiseArmyScreen};
@@ -838,8 +840,8 @@ fn the_mercenary_price_line_moves_its_numbers_and_not_its_nouns() {
 /// `DAT_004D41D8` is one space, and the row is 2 for an army of the local
 /// player's (`FUN_0041BEFE`). `CLAUDE.md` rule 6.
 ///
-/// Ablated: `Pen::year`'s style-0 arm deleted (falling through to style 3's bare
-/// number) — *"AD"* is not found on the row.
+/// Ablated: the call site's style `0` → `3`, the bare number the panel used to
+/// draw — *"AD"* is not found on the row (`None` where `Some(159)` is expected).
 #[test]
 fn the_unit_panel_says_the_year_an_army_was_formed_in_ad() {
     use l2_game::screens::info::{InfoScreen, Target};
@@ -892,7 +894,7 @@ fn the_unit_panel_says_the_year_an_army_was_formed_in_ad() {
 /// is measured, not assumed.
 ///
 /// Ablated: `Face::Heading` → `Face::Body` at the call site — the score is not
-/// found on row `0x69` in the heading face.
+/// found on row `0x69` in the heading face (`None` where `Some(422)` is expected).
 #[test]
 fn the_battle_master_score_is_in_the_heading_face() {
     use l2_game::screens::ratings::{self, Ratings};
