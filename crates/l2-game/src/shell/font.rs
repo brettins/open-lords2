@@ -89,10 +89,36 @@ pub const GLYPH_MAP_VA: u32 = 0x004D_71F0;
 /// The character the table starts at.
 pub const GLYPH_MAP_BASE: u8 = 0x20;
 
-/// What a character with no glyph advances. `FUN_004014F0` special-cases
-/// `' '` before the table lookup and adds 4; `Glyph_Draw` adds nothing at all
-/// for a zero entry, which is what makes `'@'` an invisible sign column that
-/// still occupies its place in a column of numbers.
+/// What a character with no glyph advances **when it is drawn**. **[V]**
+///
+/// `Ui_DrawText` (`0x00402637`) looks the character up before it draws
+/// anything, and for an empty entry it hard-codes the advance and never calls
+/// the blitter:
+///
+/// ```c
+/// local_c = local_c - 0x20;
+/// if ((&g_glyphWidths)[local_c] == '\0') { local_14 = 4; }   /* no Glyph_Draw */
+/// ...
+/// g_drawX += local_14;  g_penAdvance += local_14;
+/// ```
+///
+/// So `' '`, `'@'` and every other unmapped character move the pen four pixels
+/// and paint nothing. That is what makes `'@'` an invisible sign column that
+/// still holds its place — `Ui_DrawCount` (`0x0041AB67`) opens every count with
+/// one, and `Ui_DrawNumber`'s 62 `'@'` call sites use it to line up a column.
+///
+/// **This comment used to name `Glyph_Draw` as the mechanism**, and said it
+/// "adds nothing at all for a zero entry" — which is true of `Glyph_Draw`
+/// (`0x00402A14`, `return 0`) and beside the point, because `Ui_DrawText` does
+/// not reach it for those characters. Read literally, the old sentence said
+/// `'@'` advances zero, which is the opposite of its own conclusion.
+///
+/// **The measure disagrees with the draw.** `FUN_004014F0` (`0x004014F0`)
+/// charges 4 for `0x20` alone and **nothing** for any other empty entry, so a
+/// string holding `'@'` draws four pixels wider than it measures. [`Font::width`]
+/// charges 4 for both. That is only visible under centring, and no centred draw
+/// in this crate passes `'@'` — established by searching the call sites, not by
+/// a test. `docs/decisions.md` C155.
 pub const SPACE_ADVANCE: i32 = 4;
 
 /// The two shadow colours `Ui_DrawText` embosses with, on every screen but two.

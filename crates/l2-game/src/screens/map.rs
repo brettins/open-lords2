@@ -3701,7 +3701,10 @@ fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
     pen.body(canvas, SEASON_X + advance, CLOCK_Y, &season, font::TEXT);
     // `Ui_DrawCount(g_realms[g_localPlayer].gold, 0, 500, 6, &g_fontBody, 0x3F)`
     // — the number, then group 8 index 0 or 1, *"Crown."* or *"Crowns."*.
-    pen.count(canvas, GOLD_X, CLOCK_Y, game.gold(), GOLD_NOUN, true, font::TEXT);
+    // `Ui_DrawCount` opens the number with `'@'`, so the digits start at 504,
+    // not at 500; they were four pixels left until `Pen::count` stopped taking
+    // a lead of its caller's.
+    pen.count(canvas, GOLD_X, CLOCK_Y, game.gold(), GOLD_NOUN, font::TEXT);
 
     // `Ui_DrawMenuTitles(&g_menuBarItems, 3)`. Nothing here is open — the
     // drop-down is its own screen and draws its own title lit.

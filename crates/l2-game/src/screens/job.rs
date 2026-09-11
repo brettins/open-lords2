@@ -394,8 +394,11 @@ impl Screen for JobScreen {
         let singular = n.abs() == 1;
         let index = WORKER_NOUN_0 + self.job * WORKER_NOUN_STRIDE + usize::from(!singular);
         let ours = if singular { one } else { many };
-        let x = pen.body(canvas, NAME_X, COUNT_Y, &format!("{n} "), colour);
-        pen.body(canvas, x, COUNT_Y, &eng(ctx, COUNT_NOUN_GROUP, index, ours), colour);
+        // Through `Pen::count_with_noun` for `Ui_DrawCount`'s `'@'` lead and empty
+        // suffix. Built by hand as `"{n} "`, the digits sat four pixels left.
+        let noun = eng(ctx, COUNT_NOUN_GROUP, index, ours);
+        let face = crate::shell::Face::Body;
+        pen.count_with_noun(face, canvas, NAME_X, COUNT_Y, i32::from(n), &noun, colour);
 
         body_stub(canvas, ink, w, self.job);
 

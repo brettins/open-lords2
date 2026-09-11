@@ -319,12 +319,24 @@ impl Screen for CourtScreen {
             let label = a.text(GROUP, index).to_string();
             let w = pen.heading(canvas, STORE_LABEL_X, y, &label, font::TEXT);
             let _ = w;
+            // **All four values are in the heading face, like their labels.**
+            // `Court_Draw` (`0x00416925`) passes `&g_fontHeading` to every one:
+            //
+            //   Ui_DrawCount (gold,  0,        0xE0, 0x72, &g_fontHeading, 0x3F)
+            //   Ui_DrawNumber(iron,  ' ', " ", 0xE0, 0x90, &g_fontHeading, 0x3F)
+            //   Ui_DrawNumber(stone, ' ', " ", 0xE0, 0xAE, &g_fontHeading, 0x3F)
+            //   Ui_DrawNumber(wood,  ' ', " ", 0xE0, 0xCC, &g_fontHeading, 0x3F)
+            //
+            // We drew all four in the body face beside a heading-face label, and
+            // the three materials with no lead where the original has a space.
+            // Their suffixes are `&DAT_004D3F8C`, `…90` and `…94`, each one
+            // space, read out of the shipped exe. **[V]**
+            let face = crate::shell::Face::Heading;
             if row == 0 {
-                // `Ui_DrawCount(gold, 0, …)` — the number and then group 8's
-                // "Crown."/"Crowns.", which is why gold gets no icon.
-                pen.count(canvas, STORE_VALUE_X, y, value, CROWN_NOUN, true, font::TEXT);
+                // "Crown."/"Crowns." is why gold gets no icon.
+                pen.count_in(face, canvas, STORE_VALUE_X, y, value, CROWN_NOUN, font::TEXT);
             } else {
-                pen.number(canvas, STORE_VALUE_X, y, value, true, font::TEXT);
+                pen.number_in(face, canvas, STORE_VALUE_X, y, value, ' ', " ", font::TEXT);
                 pen.misc_frame(canvas, STORE_ICON_FRAME[row - 1], STORE_ICON_X, y);
             }
         }
@@ -359,13 +371,15 @@ impl Screen for CourtScreen {
         // The two footers: label, then value immediately after it.
         let wages = a.text(GROUP, WAGES).to_string();
         let w = pen.body(canvas, FOOTER_X, WAGES_Y, &wages, font::TEXT);
+        // `Ui_DrawCount(wages, 0, g_penAdvance + 100, 0x124, &g_fontBody, 0x3F)`.
+        // These two passed `blank_lead: false`, which drew the lead right and
+        // then an invented trailing space, so each noun sat four pixels right.
         pen.count(
             canvas,
             FOOTER_X + w,
             WAGES_Y,
             realm.map_or(0, |r| r.wages),
             CROWN_NOUN,
-            false,
             font::TEXT,
         );
 
@@ -377,7 +391,6 @@ impl Screen for CourtScreen {
             TAX_Y,
             tax_expected(ctx, player),
             CROWN_NOUN,
-            false,
             font::TEXT,
         );
 

@@ -849,18 +849,24 @@ impl Screen for InfoScreen {
                     // `troops[0]` is grain and `troops[2]` cattle — group 8
                     // nouns `0x44` and `0x46`, and the two `Misc_cty` icons.
                     pen.misc_frame(canvas, 0x21, 0x38, l.y(0xA0));
-                    pen.count(canvas, 0x60, l.y(0xA4), u.troops[0], 0x44, false, font::TEXT);
+                    pen.count(canvas, 0x60, l.y(0xA4), u.troops[0], 0x44, font::TEXT);
                     pen.misc_frame(canvas, 0x26, 0x104, l.y(0xA0));
-                    pen.count(canvas, 0x12E, l.y(0xA4), u.troops[2], 0x46, false, font::TEXT);
+                    pen.count(canvas, 0x12E, l.y(0xA4), u.troops[2], 0x46, font::TEXT);
                 }
                 if u.kind == UnitKind::Army && u.owner == ctx.game.player {
                     let w = pen.eng(canvas, UNIT_GROUP, FORMED, HEADING_X, l.y(0xA0), font::TEXT);
                     pen.number(canvas, w, l.y(0xA0), u.year_formed, false, font::TEXT);
                     let w = pen.eng(canvas, UNIT_GROUP, WAGES, 0xF8, l.y(0xA0), font::TEXT);
-                    pen.count(canvas, w, l.y(0xA0), u.wages, 0, false, font::TEXT);
+                    pen.count(canvas, w, l.y(0xA0), u.wages, 0, font::TEXT);
                     if u.garrison_county == 0 {
                         let left = (MOVE_ALLOWANCE - u.moves_used as i32).max(0);
-                        let w = pen.number(canvas, 0xF8, l.y(0x170), left, true, font::TEXT);
+                        // `Ui_DrawNumber(left, '@', &DAT_004D4228, 0xF8, …, body)`, and
+                        // `DAT_004D4228` is a NUL: the lead holds a column and there is
+                        // no suffix. The old `number(…, true)` dropped the one and
+                        // invented the other, so the digit sat four pixels left and
+                        // *"moves left"* landed where it should by coincidence. **[V]**
+                        let face = crate::shell::Face::Body;
+                        let w = pen.number_in(face, canvas, 0xF8, l.y(0x170), left, '@', "", font::TEXT);
                         pen.eng(canvas, UNIT_GROUP, MOVES_LEFT, w, l.y(0x170), font::TEXT);
                     }
                     // The three buttons, and the sortie frame when garrisoned.
@@ -875,13 +881,14 @@ impl Screen for InfoScreen {
                         let row = (t / 2) as i32 * 13;
                         let (cx, nx) = if t % 2 == 0 { (0x38, 0x58) } else { (0xF8, 0x118) };
                         pen.misc_frame(canvas, 0x2F + t, cx, l.y(0xBE + row));
+                        // `FUN_004224E7(unit, 0, 0x38, …, &g_fontBody, 2)` →
+                        // `Ui_DrawCount(troops[t], t * 2 + 0x34, …, body)`.
                         pen.count(
                             canvas,
                             nx,
                             l.y(0xC2 + row),
                             u.troops[t],
                             0x34 + t * 2,
-                            true,
                             font::TEXT,
                         );
                     }

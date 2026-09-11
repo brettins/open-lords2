@@ -110,7 +110,10 @@ crates/l2-game/src/screens/village.rs	C22	81b65db0836a	0364b53a921d
 crates/l2-game/src/screens/village.rs	C76	cddc3e0e2856	53e207ae069e
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857	f7bf296341ff
 crates/l2-game/src/setup.rs	C62	a935365ea2c1	ebb6a7ec3711
+crates/l2-game/src/shell/font.rs	C155	41ab7151f457	03caee7e7f69
+crates/l2-game/src/shell/mod.rs	C127	10bdaf3bab25	537ace9eca06
 crates/l2-game/src/shell/mod.rs	C140	ac3b5990aa16	e3a1ede42a95
+crates/l2-game/src/shell/mod.rs	C155	c841635f22d7	03caee7e7f69
 crates/l2-game/src/shell/mod.rs	C61	4852635e7bff	60611046b40d
 crates/l2-game/src/shell/mod.rs	C61	bf7c15012e16	60611046b40d
 crates/l2-game/src/turn.rs	C115	42714a7de34c	085c9b771281
@@ -492,7 +495,9 @@ docs/decisions.md	C125	91cc166c79af	6084e87aec70
 docs/decisions.md	C125	fd0154e63fec	6084e87aec70
 docs/decisions.md	C125	fd7b2d34aab5	6084e87aec70
 docs/decisions.md	C126	36dae66e2b1a	1b2c97c7731a
+docs/decisions.md	C127	4dac34b35550	537ace9eca06
 docs/decisions.md	C127	5569248811af	537ace9eca06
+docs/decisions.md	C127	8df849d7bf2a	537ace9eca06
 docs/decisions.md	C127	ce490bc6caac	537ace9eca06
 docs/decisions.md	C128	29a2b965ae04	3a8c5dae41c2
 docs/decisions.md	C129	0fb16b18e006	d7820532a89c
@@ -700,6 +705,7 @@ docs/draws-map.md	C151	231d685183a8	0701a5ebd6fc
 docs/draws-map.md	C152	8e56b75868a6	582988651236
 docs/draws-map.md	C153	28afca299795	c724d7afe0dd
 docs/draws-map.md	C153	ee15a56549e1	c724d7afe0dd
+docs/draws-map.md	C155	a8b1da7a71c0	03caee7e7f69
 docs/draws-map.md	C30	40a6a7104696	50fdf5e17ba0
 docs/draws-map.md	C72	230aae5fabd7	e2bb936cf01c
 docs/draws-map.md	C77	cfea9c21de5f	94789f222b99

@@ -405,7 +405,7 @@ fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: me
     x = pen.body(canvas, f.x + 0x6C, f.y + 0x40, &label(ctx, record.group), font::TEXT);
     if record.category == category::PAY_PROMPT {
         let price = ctx.game.kingdom.diplomacy.help_price;
-        pen.count(canvas, x, f.y + 0x40, price, 0, false, font::TEXT);
+        pen.count(canvas, x, f.y + 0x40, price, 0, font::TEXT);
     } else if record.spare != 0 {
         pen.body(canvas, x, f.y + 0x40, &lord_name(ctx, record.spare), font::TEXT);
     } else if record.county != 0 {

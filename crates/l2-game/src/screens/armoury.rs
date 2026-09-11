@@ -1336,7 +1336,12 @@ impl Screen for RackScreen {
         let held = ctx.game.levy.basket.slots[self.troop as usize].chosen;
         pen.box_interior(canvas, COUNT_WELL.x, COUNT_WELL.y, 0x0F, 2);
         let noun = noun(a, self.troop as usize, held, self.troop_type());
-        pen.heading(canvas, COUNT_AT.0, COUNT_AT.1, &format!("{held} {noun}"), font::TEXT);
+        // `Ui_DrawCount(chosen, sel * 2 + 0x34, 0xEC, 0x0D, &g_fontHeading, 0x3F)`
+        // — one of the only two heading-face counts in the binary. Built by hand
+        // as `"{held} {noun}"` it had no lead, so the digits and the noun both
+        // sat four pixels left of the original's.
+        let face = crate::shell::Face::Heading;
+        pen.count_with_noun(face, canvas, COUNT_AT.0, COUNT_AT.1, i32::from(held), &noun, font::TEXT);
 
         // `Ui_DrawNumber(spare) + 69/5` — "N more could still be raised."
         let spare = self.spare(ctx);

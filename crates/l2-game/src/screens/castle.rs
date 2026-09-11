@@ -529,8 +529,8 @@ impl Screen for CastleScreen {
         // "will take" / N Builders / 1 Season / "to build.", four lines.
         let work = industry::castle_workforce(t, castle_type);
         pen.eng(canvas, GROUP, WILL_TAKE, WILL_TAKE_AT.0, WILL_TAKE_AT.1, font::TEXT);
-        pen.count(canvas, WORKFORCE_AT.0, WORKFORCE_AT.1, work, BUILDER_NOUN, true, font::TEXT);
-        pen.count(canvas, SEASON_AT.0, SEASON_AT.1, 1, SEASON_NOUN, true, font::TEXT);
+        pen.count(canvas, WORKFORCE_AT.0, WORKFORCE_AT.1, work, BUILDER_NOUN, font::TEXT);
+        pen.count(canvas, SEASON_AT.0, SEASON_AT.1, 1, SEASON_NOUN, font::TEXT);
         pen.eng(canvas, GROUP, TO_BUILD, TO_BUILD_AT.0, TO_BUILD_AT.1, font::TEXT);
 
         // `Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)` — border **set 0**, unlike the
