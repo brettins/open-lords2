@@ -153,24 +153,68 @@
 //! here only one ever runs per frame, and the mechanical count of 2 is a count
 //! of *call sites*.
 //!
-//! **The five other bodies are not here.** `Panel_JobGrain`, `Panel_JobCattle`,
-//! `Panel_JobReclamation`, `Castle_DrawStatusBlock` and `Panel_JobIndustry` are
-//! about 4,000 bytes over 87 draw calls, drawing `L2.eng` groups **77** (grain,
-//! herd and reclamation vocabulary, 31 strings) and **76** (the industry
-//! efficiency lines, 9 strings) against county fields `+0x204`, `+0x214`,
-//! `+0x22C`, `+0x230`, `+0x24C`, `+0x270`, `+0x274`, `+0x278`, `+0x280`,
-//! `+0x284`, `+0x288`, `+0x28C` and `+0x2FC` — none of which `docs/kingdom.md`
-//! §1.3 has. The window, the head and the colour rule are the part that is
-//! read; [`body_stub`] says so.
+//! # The five bodies, and the words they are made of
+//!
+//! The five body painters below are the original's, call for call. Each draws
+//! **absolute** screen coordinates rather than box-relative ones, and each
+//! draws its words out of the player's own `L2.eng` — rule 6 — with our
+//! transcription only where the install has no file:
+//!
+//! | job (ours) | painter | calls | groups |
+//! |---|---|---:|---|
+//! | 0 grain | [`grain`] = `Panel_JobGrain` (`0x00413590`) | 27 | 77, 22, 8 |
+//! | 1 cattle | [`cattle`] = `Panel_JobCattle` (`0x00413B30`) | 29 | 77, 8 |
+//! | 2 reclamation | [`reclamation`] = `Panel_JobReclamation` (`0x004140F3`) | 6 | 77, 8 |
+//! | 3 castle | [`castle_status_block`] = `Castle_DrawStatusBlock` (`0x0041DEDB`) via `FUN_00414220` | 13 | 71, 8 |
+//! | 4, 5, 6 industry | [`industry`] = `Panel_JobIndustry` (`0x00412E6B`) | 12 | 76, 8 |
+//!
+//! **Group 77 has six consumers, 76 two and 71 four**, so none of them is this
+//! popup's alone; what makes them its vocabulary is that the popup draws them
+//! and nothing of ours drew them before. `docs/formats/eng.md` §5.
+//!
+//! Every `Ui_DrawCount` here is `'@'` and `""` (C155), and the three suffixes
+//! that are not were read out of the shipped exe: `Panel_JobIndustry`'s
+//! efficiency is `&DAT_004D3E74` = `"%"`, `Panel_JobReclamation`'s count is
+//! `&DAT_004D3EE0` = `""`, and `Castle_DrawStatusBlock`'s tax bonus is
+//! `&DAT_004D4290` = `" %"` beside a barracks figure of `&DAT_004D4294` = `" "`.
+//! Every zero row's `Ui_DrawNumber(0, '@', …)` and every `Ui_DrawDelta` prefix
+//! and suffix in the grain and cattle bodies — `&DAT_004D3EA4` …
+//! `&DAT_004D3EDC`, fifteen pointers — holds `" "`. **[V]**
+//!
+//! # `g_penAdvance`, and why the chains below are plain
+//!
+//! A line such as `Ui_DrawCount(v, 2, 0x40, y)` followed by
+//! `Eng_DrawString(77, 1, g_penAdvance + 0x40, y)` is one sentence: the second
+//! piece starts where the first ended. `Ui_DrawCount` (`0x0041AB67`) and
+//! `Ui_DrawDelta` (`0x00402E0C`) both **save `g_penAdvance`, zero it, draw, and
+//! add the saved value back**, so a count passed `x = g_penAdvance + 0x40`
+//! places its own noun from its own start and never counts the pen twice.
+//! Every [`Pen`] method returns the absolute x of the next glyph, which is that
+//! sum already. **[V]**, both bodies read.
+//!
+//! # What is still not drawn here
+//!
+//! * **The blacksmith**, job 7: `Panel_JobBlacksmith` is a full-screen page over
+//!   `smithy.pl8` and `hearth.pl8`, 21 calls, and it is recorded above.
+//!   [`smithy_stub`] says so on screen.
+//! * **The job's picture**, `Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)`:
+//!   `iconvill.pl8` is not a sheet this crate loads.
+//! * **`Castle_DrawStatusBlock`'s other caller**, `TileInfo_DrawCastle`
+//!   (`0x0041DA2F`), which draws it at `(8, 0x30, row)` for a castle under
+//!   construction on the player's own tile. `screens/info.rs`'s layout ladder
+//!   has no castle arm to call it from — it returns row `0x0A` for nothing.
 
 use l2_kingdom::county::County;
-use l2_kingdom::tables::{JOB_COUNT, JOB_NAMES};
+use l2_kingdom::tables::{
+    Commodity, Tables, JOB_CASTLE_BUILDING, JOB_CATTLE_FARMING, JOB_COUNT, JOB_FIELD_RECLAMATION,
+    JOB_GRAIN_FARMING, JOB_IRON_MINING, JOB_NAMES, JOB_STONE_QUARRYING, JOB_WOOD_CUTTING,
+};
 use l2_view::chrome::system;
 use l2_view::{text, Canvas, Ink};
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Pen};
+use crate::shell::{count_noun, font, Face, Pen};
 
 /// `Ui_DrawBox(0x30, 0x60, …)` — the window's origin and its width in cells.
 const BOX_X: i32 = 48;
@@ -400,9 +444,25 @@ impl Screen for JobScreen {
         let face = crate::shell::Face::Body;
         pen.count_with_noun(face, canvas, NAME_X, COUNT_Y, i32::from(n), &noun, colour);
 
-        // Our NOT SIMULATED stub: debug overlay only.
-        if ctx.game.prefs.debug_overlay {
-            body_stub(canvas, ink, w, self.job);
+        // `Panel_JobDetail`'s dispatch on `g_jobPanelJob`, zero-based here:
+        // one-based 5, 6 and 7 take `Panel_JobIndustry`, 9 takes nothing.
+        match self.job {
+            JOB_GRAIN_FARMING => grain(&pen, ctx, canvas, c),
+            JOB_CATTLE_FARMING => cattle(&pen, ctx, canvas, c),
+            JOB_FIELD_RECLAMATION => reclamation(&pen, ctx, canvas, c),
+            // `FUN_00414220` is `Castle_DrawStatusBlock(g_selectedCounty, -0x20,
+            // 0x40, 0)` and nothing else.
+            JOB_CASTLE_BUILDING => castle_status_block(&pen, ctx, canvas, c, -0x20, 0x40, 0),
+            JOB_IRON_MINING | JOB_STONE_QUARRYING | JOB_WOOD_CUTTING => {
+                industry(&pen, ctx, canvas, c, self.job)
+            }
+            // Ours: debug overlay only, as every "not built" stub is (C173).
+            BLACKSMITH => {
+                if ctx.game.prefs.debug_overlay {
+                    smithy_stub(canvas, ink, w)
+                }
+            }
+            _ => {}
         }
 
         // `Ui_OkButton(0x1A4, rows * 0x10 + 0x44, 0)` — or, for the blacksmith,
@@ -426,20 +486,543 @@ fn eng(ctx: &Ctx, group: usize, index: usize, fallback: &str) -> String {
     }
 }
 
-/// **A stub, and it looks like one.** The five body painters report sowing,
-/// herd forecasts, reclamation, efficiency and weapons; none of that is
-/// modelled at the fidelity the panel prints it. Every line here is **ours**,
-/// in our own 5 × 7 font, so that a screenshot cannot be mistaken for the
-/// original's page.
-fn body_stub(canvas: &mut Canvas, ink: &Ink, w: Rect, job: usize) {
-    let y = w.y + 80;
-    text::draw(canvas, w.x + 16, y, "THIS JOB'S OWN REPORT", ink.dim);
-    text::draw(canvas, w.x + 16, y + 14, "NOT SIMULATED", ink.bad);
-    if job == BLACKSMITH {
-        // And this one is not even this window — see the module docs.
-        text::draw(canvas, w.x + 16, y + 28, "THE SMITHY IS A FULL PAGE", ink.bad);
+/// **Ours, and it looks like it.** The blacksmith is `Panel_JobBlacksmith`, a
+/// full-screen page, and this module draws the small window for it instead —
+/// so the window says so, in our own 5 × 7 font, where a screenshot cannot
+/// mistake it for the original's page.
+fn smithy_stub(canvas: &mut Canvas, ink: &Ink, w: Rect) {
+    text::draw(canvas, w.x + 16, w.y + 80, "THE SMITHY IS A FULL PAGE", ink.bad);
+}
+
+// ------------------------------------------------------------ the five bodies
+
+/// **`L2.eng` group 77** — the grain, herd and reclamation forecast lines.
+/// Consumers in the binary: `Panel_JobGrain`, `Panel_JobCattle`,
+/// `Panel_JobReclamation`, `TileInfo_DrawGrain`, `TileInfo_DrawHerd` and
+/// `Msg_DrawWindow`'s event arm.
+pub const FORECAST_GROUP: usize = 77;
+/// **`L2.eng` group 76** — the industry lines. `Panel_JobIndustry` draws 0…3,
+/// `Panel_JobBlacksmith` 4…8.
+pub const INDUSTRY_GROUP: usize = 76;
+/// **`L2.eng` group 71** — castle selection and status; this body draws 6, 7,
+/// 8, 11, 12, 16 and 17.
+pub const CASTLE_GROUP: usize = 71;
+/// **`L2.eng` group 22** — the seven fertility phrases, index
+/// `(fertility + 100) / 29`.
+pub const FERTILITY_GROUP: usize = 22;
+
+/// Group 8's singular index for each count these bodies draw; `Ui_DrawCount`
+/// takes the plural one along for anything but ±1.
+pub const NOUN_SACK: usize = 2;
+pub const NOUN_ANIMAL: usize = 4;
+pub const NOUN_IRON: usize = 0x0C;
+pub const NOUN_STONE: usize = 0x0E;
+pub const NOUN_WOOD: usize = 0x10;
+pub const NOUN_BUILDER: usize = 0x26;
+pub const NOUN_SEASON: usize = 0x42;
+
+/// The ink of every line of every body: the painters' literal `0x3F`.
+const BODY_INK: u8 = font::TEXT;
+/// `Ui_DrawDelta`'s `colourNeg` at all six body call sites.
+const DELTA_NEG: u8 = 0xF9;
+
+/// Our transcription of group 77, for an install with no `L2.eng`.
+const OURS_77: [&str; 31] = [
+    "from",
+    "to be sown, yielding",
+    "in 4 seasons.",
+    "harvested in",
+    "sown in spring.",
+    "Calf births expected",
+    "Cow deaths expected",
+    "Change due to farming",
+    "Low herd crowding.",
+    "Average herd crowding.",
+    "Herd overcrowded.",
+    "Massive overcrowding!!",
+    "field being reclaimed",
+    "fields being reclaimed",
+    "Next field reclaimed in",
+    "No field reclamation with 0 labourers",
+    "gained last season, due to weather.",
+    "lost last season, due to weather.",
+    "Weather had no effect last season.",
+    "No outside events affected the herd this season.",
+    "died of disease.",
+    "taken by wolves.",
+    "had to be put down.",
+    "born, over expectations.",
+    "No outside factors affected stored grain.",
+    "eaten by rats.",
+    "found as surplus.",
+    "Change due to eating",
+    "Overall change",
+    "extra deaths.",
+    "extra births.",
+];
+
+/// Group 76, the same.
+const OURS_76: [&str; 9] = [
+    "Working with an efficiency of",
+    "will be produced next season.",
+    "will be used by the blacksmiths.",
+    "needed by castle builders.",
+    "Serfs working at",
+    "efficiency.",
+    "Will produce",
+    "next season.",
+    "Smiths working.",
+];
+
+/// Group 71, the same.
+const OURS_71: [&str; 20] = [
+    "Select a castle to build",
+    "Wooden palisade.",
+    "Motte and bailey.",
+    "Norman keep.",
+    "Stone castle.",
+    "Royal castle.",
+    "of stone needed,",
+    "of wood needed.",
+    "will take",
+    "to build.",
+    "Build this castle",
+    "Barracks for",
+    "troops.",
+    "currently stationed here.",
+    "View these troops?",
+    "Start construction?",
+    "Boosts tax revenues by",
+    "No castle building in progress.",
+    "Needed",
+    "Enemy troops are barracked here.",
+];
+
+/// Group 22, the same.
+const OURS_22: [&str; 7] = [
+    "Infertile - almost no production.",
+    "Very poor fertility - mainly weeds.",
+    "Poor fertility - crops grow less well.",
+    "Average fertility - no effect on crops.",
+    "Good fertility - crops are boosted.",
+    "Very High fertility - many extra crops.",
+    "Excellent fertility - bumper crop!",
+];
+
+/// Our transcription of one string these bodies draw.
+fn ours(group: usize, index: usize) -> &'static str {
+    let table: &[&str] = match group {
+        FORECAST_GROUP => &OURS_77,
+        INDUSTRY_GROUP => &OURS_76,
+        CASTLE_GROUP => &OURS_71,
+        FERTILITY_GROUP => &OURS_22,
+        COUNT_NOUN_GROUP => {
+            return match index {
+                2 => "Sack",
+                3 => "Sacks",
+                4 => "Animal",
+                5 => "Animals",
+                0x0C | 0x0E | 0x10 => "Tonne",
+                0x0D | 0x0F | 0x11 => "Tonnes",
+                0x26 => "Builder",
+                0x27 => "Builders",
+                0x42 => "Season",
+                0x43 => "Seasons",
+                _ => "",
+            }
+        }
+        _ => &[],
+    };
+    table.get(index).copied().unwrap_or("")
+}
+
+/// `Eng_DrawString(group, index, x, y, &g_fontBody, 0x3F)`. Returns the x the
+/// next piece of the sentence starts at.
+#[allow(clippy::too_many_arguments)]
+fn say(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, group: usize, index: usize, x: i32, y: i32) -> i32 {
+    let s = eng(ctx, group, index, ours(group, index));
+    pen.body(canvas, x, y, &s, BODY_INK)
+}
+
+/// `Ui_DrawCount(value, noun, x, y, &g_fontBody, 0x3F)`.
+#[allow(clippy::too_many_arguments)]
+fn count(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, value: i32, noun: usize, x: i32, y: i32) -> i32 {
+    let index = count_noun(value, noun);
+    let s = eng(ctx, COUNT_NOUN_GROUP, index, ours(COUNT_NOUN_GROUP, index));
+    pen.count_with_noun(Face::Body, canvas, x, y, value, &s, BODY_INK)
+}
+
+/// `Ui_DrawNumber(0, '@', " ", x, y, &g_fontBody, 0x3F)` — the zero every
+/// `Ui_DrawDelta` row draws instead when its value is zero, because mode 0
+/// would draw nothing at all.
+fn zero(pen: &Pen, canvas: &mut Canvas, x: i32, y: i32) {
+    pen.number_in(Face::Body, canvas, x, y, 0, '@', " ", BODY_INK);
+}
+
+/// `Ui_DrawDelta(value, 0, " ", " ", x, y, &g_fontBody, 0x3F, 0xF9)` — the
+/// prefix, then the magnitude with its sign as the lead character, both in the
+/// sign's colour. Every caller here tests zero first and draws [`zero`] 8
+/// pixels right instead (`0x130` against `0x128`), which is exactly where this
+/// one's digits land: the prefix is four pixels of space and four of
+/// `Ui_DrawText`'s trailer.
+fn delta(pen: &Pen, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
+    if value == 0 {
+        return;
+    }
+    let colour = if value < 0 { DELTA_NEG } else { BODY_INK };
+    let next = pen.body(canvas, x, y, " ", colour);
+    let (lead, shown) = if value < 0 { ('-', value.wrapping_neg()) } else { ('+', value) };
+    pen.number_in(Face::Body, canvas, next, y, shown, lead, " ", colour);
+}
+
+/// The weather's line, which `Panel_JobGrain` and `Panel_JobCattle` both write
+/// out in full at `y = 0xC0`, advanced farming only:
+///
+/// ```c
+/// g_penAdvance = 0;
+/// if (v < 1) {
+///   if (v < 0) { Ui_DrawCount(-v, noun, 0x40, 0xc0); Eng_DrawString(77, 0x11, pen + 0x40, 0xc0); }
+///   else       { Eng_DrawString(77, 0x12, 0x40, 0xc0); }
+/// } else       { Ui_DrawCount(v, noun, 0x40, 0xc0);  Eng_DrawString(77, 0x10, pen + 0x40, 0xc0); }
+/// ```
+fn weather_line(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, v: i32, noun: usize) {
+    const Y: i32 = 0xC0;
+    if v < 0 {
+        let at = count(pen, ctx, canvas, v.wrapping_neg(), noun, 0x40, Y);
+        say(pen, ctx, canvas, FORECAST_GROUP, 0x11, at, Y);
+    } else if v == 0 {
+        say(pen, ctx, canvas, FORECAST_GROUP, 0x12, 0x40, Y);
+    } else {
+        let at = count(pen, ctx, canvas, v, noun, 0x40, Y);
+        say(pen, ctx, canvas, FORECAST_GROUP, 0x10, at, Y);
     }
 }
+
+/// **`Panel_JobGrain` (`0x00413590`)**, 27 call sites. The store, the fertility
+/// band, what last season's event and weather did to the store, then either
+/// what will be sown (facing Spring) or what is growing and when it comes in,
+/// and the two signed rows.
+///
+/// ```text
+/// Ui_DrawCount(grain, 2, 0x130, 0x88)
+/// [adv] Eng_DrawString(22, (fertility + 100) / 0x1D, 0x80, 0x98)
+/// +0x278 == 0 ? 77/0x18 at (0x40, 0xB0)
+///             : Ui_DrawCount(+0x278, 2, 0x40, 0xB0) + 77/0x19 (event 0x87) or 77/0x1A (0x8B)
+/// [adv] the weather line on +0x24C
+/// g_seasonNext == 1:
+///   Ui_DrawCount(+0x230, 2, 0x40, 0xD8)                + 77/1
+///   Ui_DrawCount(+0x230 * g_grainYieldPerSack, 2, 0x40, 0xE8) + 77/2
+/// otherwise:
+///   Ui_DrawCount(season 4 ? crop[2] : +0x2FC, 2, 0x40, 0xD8) + 77/3
+///     + Ui_DrawCount(season 2 ? 3 : season 3 ? 2 : 1, 0x42, pen + 0x40, 0xD8)
+///   77/0 at (0x40, 0xE8) + Ui_DrawCount(crop[0], 2, pen + 0x40, 0xE8) + 77/4
+/// 77/0x1B at (0x40, 0x108); grainEaten == 0 ? Ui_DrawNumber(0, '@', " ", 0x130)
+///                                           : Ui_DrawDelta(-grainEaten, 0, " ", " ", 0x128)
+/// 77/0x1C at (0x40, 0x118); +0x22C == 0 ? the same zero : Ui_DrawDelta(+0x22C, …)
+/// ```
+fn grain(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
+    let k = &ctx.game.kingdom;
+    let advanced = k.options.advanced_farming;
+    count(pen, ctx, canvas, c.grain, NOUN_SACK, 0x130, 0x88);
+    if advanced {
+        // `(fertility + 100) / 0x1D`, C division; `+0x208` is -100…100, so the
+        // band is 0…6 and group 22 has exactly seven strings.
+        let band = (c.fertility + 100) / 0x1D;
+        say(pen, ctx, canvas, FERTILITY_GROUP, band.max(0) as usize, 0x80, 0x98);
+    }
+
+    // `+0x278` — what last season's random event did to the store.
+    const EVENT_Y: i32 = 0xB0;
+    if c.grain_event_change == 0 {
+        say(pen, ctx, canvas, FORECAST_GROUP, 0x18, 0x40, EVENT_Y);
+    } else {
+        let at = count(pen, ctx, canvas, c.grain_event_change, NOUN_SACK, 0x40, EVENT_Y);
+        // `county.eventId`, the county's own `+0x1AA`: *Rats* and *Grain
+        // found*. Any other id leaves the number with no words after it.
+        match c.event_id {
+            0x87 => {
+                say(pen, ctx, canvas, FORECAST_GROUP, 0x19, at, EVENT_Y);
+            }
+            0x8B => {
+                say(pen, ctx, canvas, FORECAST_GROUP, 0x1A, at, EVENT_Y);
+            }
+            _ => {}
+        }
+    }
+    if advanced {
+        weather_line(pen, ctx, canvas, c.grain_weather_change, NOUN_SACK);
+    }
+
+    if k.season_next == 1 {
+        let at = count(pen, ctx, canvas, c.grain_sown_expected, NOUN_SACK, 0x40, 0xD8);
+        say(pen, ctx, canvas, FORECAST_GROUP, 1, at, 0xD8);
+        // `+0x230 * g_grainYieldPerSack`, an i32 product in the original.
+        let yielded = c.grain_sown_expected.wrapping_mul(k.tables.grain.yield_per_sack);
+        let at = count(pen, ctx, canvas, yielded, NOUN_SACK, 0x40, 0xE8);
+        say(pen, ctx, canvas, FORECAST_GROUP, 2, at, 0xE8);
+    } else {
+        let seasons = match k.season_next {
+            2 => 3,
+            3 => 2,
+            _ => 1,
+        };
+        let crop = if k.season_next == 4 { c.crop[2] } else { c.grain_grown_expected };
+        let at = count(pen, ctx, canvas, crop, NOUN_SACK, 0x40, 0xD8);
+        let at = say(pen, ctx, canvas, FORECAST_GROUP, 3, at, 0xD8);
+        count(pen, ctx, canvas, seasons, NOUN_SEASON, at, 0xD8);
+        let at = say(pen, ctx, canvas, FORECAST_GROUP, 0, 0x40, 0xE8);
+        let at = count(pen, ctx, canvas, c.crop[0], NOUN_SACK, at, 0xE8);
+        say(pen, ctx, canvas, FORECAST_GROUP, 4, at, 0xE8);
+    }
+
+    say(pen, ctx, canvas, FORECAST_GROUP, 0x1B, 0x40, 0x108);
+    if c.grain_eaten == 0 {
+        zero(pen, canvas, 0x130, 0x108);
+    } else {
+        delta(pen, canvas, c.grain_eaten.wrapping_neg(), 0x128, 0x108);
+    }
+    say(pen, ctx, canvas, FORECAST_GROUP, 0x1C, 0x40, 0x118);
+    if c.grain_change_expected == 0 {
+        zero(pen, canvas, 0x130, 0x118);
+    } else {
+        delta(pen, canvas, c.grain_change_expected, 0x128, 0x118);
+    }
+}
+
+/// **`Panel_JobCattle` (`0x00413B30`)**, 29 call sites.
+///
+/// ```text
+/// Ui_DrawCount(herd, 4, 0x130, 0x88)
+/// herdCrowding 10 / 20 / 30 / else -> 77/8 / 9 / 10 / 11 at (0x40, 0xA0)
+/// +0x274 == 0 ? 77/0x13 at (0x40, 0xB0)
+///             : Ui_DrawCount(+0x274, 4, 0x40, 0xB0) + 77/0x14 (0x88) 0x15 (0x89) 0x16 (0x8C) 0x17 (0x8D)
+/// [adv] the weather line on +0x270
+/// 77/5 at (0x40, 0xD8), Ui_DrawCount(births expected, 4, 0x130, 0xD8)
+/// 77/6 at (0x40, 0xE8), Ui_DrawCount(deaths expected, 4, 0x130, 0xE8)
+/// 77/7 at (0x40, 0xF8), births == deaths ? zero at 0x130 : Ui_DrawDelta(births - deaths, …, 0x128)
+/// 77/0x1B at (0x40, 0x108), herdEaten == 0 ? zero : Ui_DrawDelta(-herdEaten, …)
+/// 77/0x1C at (0x40, 0x118), +0x258 == 0 ? zero : Ui_DrawDelta(+0x258, …)
+/// ```
+fn cattle(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
+    let advanced = ctx.game.kingdom.options.advanced_farming;
+    count(pen, ctx, canvas, c.herd, NOUN_ANIMAL, 0x130, 0x88);
+    let band = match c.herd_crowding {
+        10 => 8,
+        20 => 9,
+        30 => 10,
+        _ => 11,
+    };
+    say(pen, ctx, canvas, FORECAST_GROUP, band, 0x40, 0xA0);
+
+    // `+0x274` — what last season's random event did to the herd.
+    const EVENT_Y: i32 = 0xB0;
+    if c.herd_event_change == 0 {
+        say(pen, ctx, canvas, FORECAST_GROUP, 0x13, 0x40, EVENT_Y);
+    } else {
+        let at = count(pen, ctx, canvas, c.herd_event_change, NOUN_ANIMAL, 0x40, EVENT_Y);
+        let word = match c.event_id {
+            0x88 => Some(0x14),
+            0x89 => Some(0x15),
+            0x8C => Some(0x16),
+            0x8D => Some(0x17),
+            _ => None,
+        };
+        if let Some(index) = word {
+            say(pen, ctx, canvas, FORECAST_GROUP, index, at, EVENT_Y);
+        }
+    }
+    if advanced {
+        weather_line(pen, ctx, canvas, c.herd_weather_change, NOUN_ANIMAL);
+    }
+
+    say(pen, ctx, canvas, FORECAST_GROUP, 5, 0x40, 0xD8);
+    count(pen, ctx, canvas, c.herd_births_expected, NOUN_ANIMAL, 0x130, 0xD8);
+    say(pen, ctx, canvas, FORECAST_GROUP, 6, 0x40, 0xE8);
+    count(pen, ctx, canvas, c.herd_deaths_expected, NOUN_ANIMAL, 0x130, 0xE8);
+
+    say(pen, ctx, canvas, FORECAST_GROUP, 7, 0x40, 0xF8);
+    if c.herd_births_expected == c.herd_deaths_expected {
+        zero(pen, canvas, 0x130, 0xF8);
+    } else {
+        let farming = c.herd_births_expected.wrapping_sub(c.herd_deaths_expected);
+        delta(pen, canvas, farming, 0x128, 0xF8);
+    }
+    say(pen, ctx, canvas, FORECAST_GROUP, 0x1B, 0x40, 0x108);
+    if c.herd_eaten == 0 {
+        zero(pen, canvas, 0x130, 0x108);
+    } else {
+        delta(pen, canvas, c.herd_eaten.wrapping_neg(), 0x128, 0x108);
+    }
+    say(pen, ctx, canvas, FORECAST_GROUP, 0x1C, 0x40, 0x118);
+    if c.herd_change_expected == 0 {
+        zero(pen, canvas, 0x130, 0x118);
+    } else {
+        delta(pen, canvas, c.herd_change_expected, 0x128, 0x118);
+    }
+}
+
+/// **`Panel_JobReclamation` (`0x004140F3`)**, 6 call sites.
+///
+/// ```text
+/// g_penAdvance = 0;
+/// Ui_DrawNumber((byte) +0x204, '@', "", 0x40, 0xB8)
+/// Eng_DrawString(77, +0x204 == 1 ? 0xC : 0xD, pen + 0x40, 0xB8)
+/// +0x214 == 0 ? 77/0xF at (0x40, 200)
+///             : 77/0xE at (0x40, 200) + Ui_DrawCount(+0x214, 0x42, pen + 0x40, 200)
+/// ```
+fn reclamation(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
+    // `(uint)(byte)field_0x204` — the byte, whatever our wider field holds.
+    let fields = i32::from(c.fields_reclaiming as u8);
+    let at = pen.number_in(Face::Body, canvas, 0x40, 0xB8, fields, '@', "", BODY_INK);
+    say(pen, ctx, canvas, FORECAST_GROUP, if fields == 1 { 0x0C } else { 0x0D }, at, 0xB8);
+    if c.reclaim_seasons_to_next == 0 {
+        say(pen, ctx, canvas, FORECAST_GROUP, 0x0F, 0x40, 200);
+    } else {
+        let at = say(pen, ctx, canvas, FORECAST_GROUP, 0x0E, 0x40, 200);
+        count(pen, ctx, canvas, c.reclaim_seasons_to_next, NOUN_SEASON, at, 200);
+    }
+}
+
+/// **`Panel_JobIndustry` (`0x00412E6B`)**, 12 call sites, for iron, stone and
+/// wood. One-based jobs 5, 6 and 7 map to industry records 1, 3 and 0 and to
+/// group 8 nouns `0xC`, `0xE` and `0x10` — *Tonne*, three times over.
+///
+/// ```text
+/// [adv] Eng_DrawString(76, 0, 0x40, 0xA0) + Ui_DrawNumber((char) +0x294 + r*0x18, '@', "%", pen + 0x40, 0xA0)
+/// Ui_DrawCount(+0x2A8 + r*0x18, noun, 0x40, 0xB0) + 76/1
+/// iron:  Ui_DrawCount(+0x284, noun, 0x40, 0xC0) + 76/2
+/// stone: Ui_DrawCount(+0x28C, noun, 0x40, 0xC0) + 76/3
+/// wood:  Ui_DrawCount(+0x280, noun, 0x40, 0xC0) + 76/2
+///        Ui_DrawCount(+0x288, noun, 0x40, 0xD0) + 76/3
+/// ```
+///
+/// `+0x280 … +0x28C` are `Industry_LabourEstimate`'s four figures, which
+/// [`l2_kingdom::industry::panel_figures`] recomputes (C164): the blacksmiths'
+/// wood and iron, and the castle's wood and stone still owed. The painter's
+/// `g_jobPanelJob == 8` arm, which looks up a weapon's noun, is unreachable —
+/// `Panel_JobDetail` calls this for 5, 6 and 7 only.
+fn industry(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County, job: usize) {
+    let k = &ctx.game.kingdom;
+    let (record, noun) = match job {
+        JOB_IRON_MINING => (Commodity::Iron, NOUN_IRON),
+        JOB_STONE_QUARRYING => (Commodity::Stone, NOUN_STONE),
+        _ => (Commodity::Wood, NOUN_WOOD),
+    };
+    let r = &c.industry[record.index()];
+    if k.options.advanced_farming {
+        let at = say(pen, ctx, canvas, INDUSTRY_GROUP, 0, 0x40, 0xA0);
+        // `(int)*(char *)` — the efficiency byte, signed.
+        let efficiency = i32::from(r.efficiency as u8 as i8);
+        pen.number_in(Face::Body, canvas, at, 0xA0, efficiency, '@', "%", BODY_INK);
+    }
+    let at = count(pen, ctx, canvas, r.next_season, noun, 0x40, 0xB0);
+    say(pen, ctx, canvas, INDUSTRY_GROUP, 1, at, 0xB0);
+
+    let [smiths_wood, smiths_iron, castle_wood, castle_stone] =
+        l2_kingdom::industry::panel_figures(&k.tables, c);
+    match job {
+        JOB_IRON_MINING => {
+            let at = count(pen, ctx, canvas, smiths_iron, noun, 0x40, 0xC0);
+            say(pen, ctx, canvas, INDUSTRY_GROUP, 2, at, 0xC0);
+        }
+        JOB_STONE_QUARRYING => {
+            let at = count(pen, ctx, canvas, castle_stone, noun, 0x40, 0xC0);
+            say(pen, ctx, canvas, INDUSTRY_GROUP, 3, at, 0xC0);
+        }
+        _ => {
+            let at = count(pen, ctx, canvas, smiths_wood, noun, 0x40, 0xC0);
+            say(pen, ctx, canvas, INDUSTRY_GROUP, 2, at, 0xC0);
+            let at = count(pen, ctx, canvas, castle_wood, noun, 0x40, 0xD0);
+            say(pen, ctx, canvas, INDUSTRY_GROUP, 3, at, 0xD0);
+        }
+    }
+}
+
+/// **`Castle_DrawStatusBlock(county, x, y, row)` (`0x0041DEDB`)**, 13 call
+/// sites, at a caller-chosen origin. The job popup passes `(-0x20, 0x40, 0)`,
+/// so its column is `x + 0x60 = 0x40` and its first line `y + 0x68 = 0xA8`.
+///
+/// ```text
+/// 71/0x10 at (x+0x60, r+0x68) + Ui_DrawNumber(DAT_004D8A24[type], ' ', " %", pen + x+0x60)
+/// 71/0xB  at (x+0x60, r+0x78) + Ui_DrawNumber(DAT_004D8A0C[type], ' ', " ",  pen + x+0x60) + 71/0xC
+/// Ui_DrawCount(+0x1D0, 0xE,  x+0x60, r+0x90) + 71/6
+/// Ui_DrawCount(+0x1D4, 0x10, x+0x60, r+0xA0) + 71/7
+/// +0x1A6 == 0 ? 71/0x11 at (x+0x60, r+0xB0)
+///             : Ui_DrawCount(labour[3], 0x26, x+0x60, r+0xB0) + 71/8 + Ui_DrawCount(+0x1A6, 0x42, pen + x+0x60)
+/// ```
+///
+/// where `r = row * 0x10 + y`. `+0x1A6` is `Castle_BuildEstimate`'s byte, which
+/// [`l2_kingdom::industry::castle_seasons_left`] recomputes (C164); the byte's
+/// width is kept, so an estimate past 255 wraps as the original's store does.
+#[allow(clippy::too_many_arguments)]
+pub fn castle_status_block(
+    pen: &Pen,
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    c: &County,
+    x: i32,
+    y: i32,
+    row: i32,
+) {
+    let t = &ctx.game.kingdom.tables;
+    let left = x + 0x60;
+    let top = row * 0x10 + y;
+
+    let at = say(pen, ctx, canvas, CASTLE_GROUP, 0x10, left, top + 0x68);
+    let bonus = castle_word(t, CASTLE_TAX_BONUS_BASE + usize::from(c.castle_type));
+    pen.number_in(Face::Body, canvas, at, top + 0x68, bonus, ' ', " %", BODY_INK);
+
+    let at = say(pen, ctx, canvas, CASTLE_GROUP, 0x0B, left, top + 0x78);
+    let barracks = castle_word(t, CASTLE_BARRACKS_BASE + usize::from(c.castle_type));
+    let at = pen.number_in(Face::Body, canvas, at, top + 0x78, barracks, ' ', " ", BODY_INK);
+    say(pen, ctx, canvas, CASTLE_GROUP, 0x0C, at, top + 0x78);
+
+    let at = count(pen, ctx, canvas, c.castle_stone_owed, NOUN_STONE, left, top + 0x90);
+    say(pen, ctx, canvas, CASTLE_GROUP, 6, at, top + 0x90);
+    let at = count(pen, ctx, canvas, c.castle_wood_owed, NOUN_WOOD, left, top + 0xA0);
+    say(pen, ctx, canvas, CASTLE_GROUP, 7, at, top + 0xA0);
+
+    let seasons = l2_kingdom::industry::castle_seasons_left(t, c) as u8;
+    if seasons == 0 {
+        say(pen, ctx, canvas, CASTLE_GROUP, 0x11, left, top + 0xB0);
+    } else {
+        let builders = c.labour[JOB_CASTLE_BUILDING];
+        let at = count(pen, ctx, canvas, builders, NOUN_BUILDER, left, top + 0xB0);
+        let at = say(pen, ctx, canvas, CASTLE_GROUP, 8, at, top + 0xB0);
+        count(pen, ctx, canvas, i32::from(seasons), NOUN_SEASON, at, top + 0xB0);
+    }
+}
+
+/// **The castle tables as the original addresses them: one run of 28 words
+/// from `0x004D89E8`.** `CASTLE_WORKFORCE` is ten of them (to `0x004D8A10`),
+/// then `g_castleGarrisonCap` six, the tax bonuses six (`0x004D8A28`) and the
+/// free archers six (`0x004D8A40`).
+///
+/// `Castle_DrawStatusBlock` indexes two of them by `castleType` from a base one
+/// word low — `&DAT_004D8A0C + type * 4` and `&DAT_004D8A24 + type * 4` — which
+/// is right for types 1…5 and **reads the neighbouring table at type 0**: the
+/// barracks line then says `CASTLE_WORKFORCE[4].1`, **2500**, and the tax line
+/// the garrison table's trailing zero. Both words read out of the shipped exe
+/// at those addresses (`c4 09 00 00`, `00 00 00 00`). `[V]` on the bytes; that a
+/// player building a first castle sees *"Barracks for 2500 troops."* is `[I]`
+/// — the reading of the painter, not observed.
+fn castle_word(t: &Tables, index: usize) -> i32 {
+    let c = &t.castle;
+    let mut run = [0i32; 28];
+    for (i, &(a, b)) in c.workforce.iter().enumerate() {
+        run[i * 2] = a;
+        run[i * 2 + 1] = b;
+    }
+    run[10..16].copy_from_slice(&c.garrison_cap);
+    run[16..22].copy_from_slice(&c.tax_bonus_pct);
+    run[22..28].copy_from_slice(&c.free_archers);
+    run.get(index).copied().unwrap_or(0)
+}
+
+/// `&DAT_004D8A0C`, as a word of [`castle_word`]'s run.
+const CASTLE_BARRACKS_BASE: usize = (0x004D_8A0C - 0x004D_89E8) / 4;
+/// `&DAT_004D8A24`, the same.
+const CASTLE_TAX_BONUS_BASE: usize = (0x004D_8A24 - 0x004D_89E8) / 4;
 
 #[cfg(test)]
 mod tests {
@@ -532,6 +1115,25 @@ mod tests {
             );
             assert_eq!(JobScreen::ok_button(job).x, 0x1A4);
         }
+    }
+
+    /// **`Castle_DrawStatusBlock`'s two tables, as the painter indexes them.**
+    /// Every expected number is a literal: the words at `0x004D8A0C + type*4`
+    /// and `0x004D8A24 + type*4` read out of the shipped `Lords2.exe` —
+    /// `c4 09 00 00 96 00 00 00` and `00 00 00 00 32 00 00 00` — and the rest of
+    /// each row from `tools/oracle/kingdom.ps1`'s confirmed layout. Nothing here
+    /// is computed from [`castle_word`]'s own offsets.
+    #[test]
+    fn the_castle_block_reads_the_neighbouring_word_at_castle_type_zero() {
+        let t = Tables::DEFAULT;
+        let barracks: Vec<i32> =
+            (0..=5).map(|ty| castle_word(&t, CASTLE_BARRACKS_BASE + ty)).collect();
+        assert_eq!(barracks, [2500, 150, 200, 200, 400, 600], "&DAT_004D8A0C + type * 4");
+        let bonus: Vec<i32> =
+            (0..=5).map(|ty| castle_word(&t, CASTLE_TAX_BONUS_BASE + ty)).collect();
+        assert_eq!(bonus, [0, 50, 75, 100, 125, 150], "&DAT_004D8A24 + type * 4");
+        assert_eq!(CASTLE_BARRACKS_BASE, 9);
+        assert_eq!(CASTLE_TAX_BONUS_BASE, 15);
     }
 
     /// **`Ui_DrawCount(n, job * 2 + 0x1E)` on `L2.eng` group 8**, whose pairs

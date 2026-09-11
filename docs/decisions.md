@@ -9176,3 +9176,69 @@ never saw: the ending film's narrator line, `Msg_DrawWindow#21`. Its own comment
 `Msg_PlayVoice(DAT_004F0374, DAT_004F0354)`, so it is `stop_and_play_file(name, true)` by the same
 rule as every other `Msg_PlayVoice` site. C166's sentence about the one buffer being "set by
 `play_speech` and `play_file`" now says that `stop_and_play_file` took `play_speech`'s place, here.
+
+---
+
+**C177 — The job popup's five bodies drew nothing, the event letters drew no count, and a county with no castle has barracks for 2500.**
+
+C164 carried the figures and recorded three painters missing. They are built,
+each from its decompiled body, with every word out of the player's `L2.eng` and
+our transcription only as the fallback. **[V]** on every address, coordinate,
+lead and suffix below; each suffix pointer was read out of the shipped exe.
+
+| body | painter | calls | groups |
+|---|---|---:|---|
+| grain | `Panel_JobGrain` `0x00413590` | 27 | 77, 22, 8 |
+| cattle | `Panel_JobCattle` `0x00413B30` | 29 | 77, 8 |
+| reclamation | `Panel_JobReclamation` `0x004140F3` | 6 | 77, 8 |
+| castle | `Castle_DrawStatusBlock` `0x0041DEDB` via `FUN_00414220` | 13 | 71, 8 |
+| iron, stone, wood | `Panel_JobIndustry` `0x00412E6B` | 12 | 76, 8 |
+| event letters | `Msg_DrawWindow` category `0x0F`, `00470000.c:2067` | 3 + 8 | the event's own, 77, 8 |
+
+Every call site is reproduced except the event arm's two `Ui_DrawNumber(+0x2F8)`
+lines and the words chained after them (Plague, Wedding fever): `+0x2F8` stays
+excluded for C164's reason, and a word placed from a number that is not drawn
+cannot be placed. The blacksmith's full page (`Panel_JobBlacksmith`, 21 calls)
+and the job's `iconvill.pl8` picture remain unbuilt, as before.
+
+**Two things the reading turned up that are not the painters':**
+
+* **The event letter is unreachable in our engine.** `FUN_00448D7E` posts it —
+  `Msg_Enqueue(0, g_localPlayer, county.eventId, 0, 0x0F, county, 0, 0)`, once a
+  frame from the loop at `0x004B99C0`, for `g_selectedCounty` when its
+  `eventFired` is set and it is the local player's — and no function of ours
+  does; no `Message::Event` reaches the ring. The painter is tested by posting
+  the record directly. `frame_of`'s comment also states the arm's height rule
+  (`eventId < 0x12E ? 0xC0 : 0xE0`, the county's id, not the record's) and the
+  code ignores it; the eight events here are all below `0x12E`, so nothing drawn
+  moves, and it is recorded rather than fixed.
+* **`Castle_DrawStatusBlock` indexes two tables one word low.** `&DAT_004D8A0C +
+  type*4` and `&DAT_004D8A24 + type*4` are right for types 1…5; at type 0 they
+  read `CASTLE_WORKFORCE[4].1` and `g_castleGarrisonCap[5]` — bytes `c4 09 00 00`
+  and `00 00 00 00`. So the castle builders' popup of a county with no castle
+  says *"Boosts tax revenues by 0 %"* and *"Barracks for 2500 troops."*, and
+  `siege-aftersie.sav` holds such a county of the player's. `[V]` on the bytes
+  and the painter, `[I]` that a player sees it; reproduced, and not yet in
+  `docs/bugs.md`.
+
+**Measured and not chased:** an ordered castle with its materials delivered and
+an industry split of 100 is staffed by nobody, because castle building's share
+at `+0x130 + 3*4` is 0 after `order_castle` and wood cutting takes the county.
+Whether `Castle_Order` leaves that share alone too was not read.
+
+**Tests** — `crates/l2-game/tests/job_bodies.rs`, ten, each figure and word in its
+own box at the painter's coordinates. Stored non-zero: the grain store, eating
+and overall change; herd, births, deaths, slaughter, the overall change and all
+four crowding bands; industry output, efficiency and both blacksmith figures;
+castle types 1–5's bonus and barracks, and type 0's 2500. Made non-zero by the
+rule's own road: the sowing, the yield, `+0x2FC`, `crop[0]`, `crop[2]` (fields
+painted, seasons advanced), both materials owed and the hundred-season estimate
+(`order_castle`), `+0x278` and `+0x274` (`event::fire` and the season ticks),
+`+0x24C` and `+0x270` (a hand-set weather band and the tick). **Only ever zero:**
+field reclamation (`+0x204`, `+0x214`), the castle builders and so any finite
+estimate, stone's output, and the fertility band's input.
+
+Sixteen ablations went red at the box they name. **Two stayed green and are
+findings:** the iron popup reading the wood record passes, because every save
+here produces equal wood and iron at the same 80%; and reclamation's `'@'` lead
+as `' '` changes no pixel, both being glyph-less.
