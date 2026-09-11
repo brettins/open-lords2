@@ -133,6 +133,14 @@
 //! was in the painter, where the input inventory does not look.**
 //! `docs/decisions.md` C132.
 //!
+//! **And the assertion written to keep it gone was itself vacuous for a while.**
+//! `the_selection_is_not_drawn_on_the_map` compared the first two counties the
+//! player does not own — 1 and 2 — and the viewport this map opens on shows 8
+//! and 9. Putting the outline back turned nothing red. It sweeps the counties
+//! the pick plane says are *on screen* now, and the `assert!` that the visible
+//! set is non-empty is the part that stops it happening again.
+//! `docs/decisions.md` C138.
+//!
 //! # Picking
 //!
 //! A click on the map reads the tag plane, which is exact by construction: it
@@ -1704,6 +1712,7 @@ impl MapScreen {
     /// (`if (DAT_005691E0 != g_hoverTileOffset)`), and the flood fill is not
     /// re-run at all — it was done once when the army was picked, from where the
     /// army *was*.
+    // arm: 0x004A8E0B/hover-unit-target hover
     fn update_hover_path(&mut self, x: i32, y: i32) {
         if self.move_order.is_none() {
             return;
@@ -1764,6 +1773,7 @@ impl MapScreen {
             }
             ctx.game.kingdom.campaign.units.get(unit).is_some_and(|u| u.besieging_county != 0)
         };
+        // arm: 0x0043CE1A/siege-preparation left-release
         if besieging {
             self.cancel_move_selection();
             return Transition::Push(ScreenId::Siege(unit));
@@ -1779,6 +1789,7 @@ impl MapScreen {
         // for that tile because the fill's distance there is its own start. It
         // does nothing. **The cancel is the right button**, and the reason this
         // convenience existed is that we had never looked for it.
+        // arm: 0x0043CE1A/unit-orders left-release
         self.begin_move_selection(ctx, unit);
         let (men, left) = ctx
             .game
@@ -1802,6 +1813,8 @@ impl MapScreen {
     /// only by clicking a merchant on the map, and the unit id is carried into
     /// [`ScreenId::Merchant`] because the *price* depends on it: the markup is
     /// this merchant's own morale. See [`crate::screens::merchant`].
+    ///
+    /// // arm: 0x0043CE1A/merchant left-release
     fn click_merchant(&mut self, ctx: &mut Ctx, unit: usize) -> Transition {
         let county = ctx.game.kingdom.campaign.units.get(unit).map_or(0, |u| u.county);
         if !ctx.game.is_players(county) {
@@ -2408,6 +2421,7 @@ impl Screen for MapScreen {
                 // "click away to deselect" would be the same invention as the
                 // tax-panel convenience removed above, made in the opposite
                 // direction.
+                // arm: 0x0042FF10/move-order-right-cancels right-release
                 if self.selected_unit.is_some() {
                     self.cancel_move_selection();
                     self.status = "ORDERS CANCELLED".into();
@@ -2429,6 +2443,7 @@ impl Screen for MapScreen {
                         }
                     })
                     .unwrap_or(crate::screens::info::Target::Tile(0));
+                // arm: 0x0042FF10/map-right-opens-info right-release
                 return Transition::Push(ScreenId::Info(target));
             }
             // **Ours.** `winit` has no "the pointer left"; `main.rs` synthesises
@@ -2670,6 +2685,7 @@ impl Screen for MapScreen {
                             // The turn-ended latch's civilian cousin: the
                             // selection's owner changed under it.
                             self.cancel_move_selection();
+                        // arm: 0x0042FF10/move-order-confirm left-press
                         } else if let Some(dest) = self.pick_tile(x, y) {
                             return self.confirm_move_order(ctx, unit, dest);
                         } else {
@@ -2721,6 +2737,7 @@ impl Screen for MapScreen {
                     // farmland and opens the field brush. All three are gated
                     // on the county being the local player's.
                     if county != 0 && ctx.game.is_players(county) {
+                        // arm: 0x0043CE1A/industry-toggle left-release
                         if let Some(tile) = self.settlement_at(ctx, county, x, y) {
                             // **The industry arm selects the county first**, and
                             // it is the only one of the three flag arms that
@@ -2800,6 +2817,7 @@ impl Screen for MapScreen {
                         // the town in the middle. This arm was missing, so a
                         // click on the town fell through to "select the county"
                         // and the village had no route in but a key of ours.
+                        // arm: 0x0043CE1A/village left-release
                         if let Some(tile) = self.tile_at(x, y, Self::town(ctx, county).into_iter())
                         {
                             // `if (townTile != 0) { g_selectedCounty = picked;
@@ -2811,6 +2829,11 @@ impl Screen for MapScreen {
                             self.centre_on_tile(tx as usize, ty as usize);
                             return Transition::Push(ScreenId::Village(county));
                         }
+                        // The original's own route to the crop table — `_DAT_005681CC
+                        // = 3; g_screenId = 4`. Ours answers it with the popup
+                        // recorded as `ours/brush-popup-on-the-map`, which is why
+                        // there are two records and not one.
+                        // arm: 0x0043CE1A/field-brush left-release
                         let fields = ctx.game.kingdom.field_tiles(county as usize);
                         if let Some(tile) =
                             self.tile_at(x, y, fields.into_iter().map(|(t, _)| t))
@@ -2952,6 +2975,7 @@ impl Screen for MapScreen {
         self.scroll_wait = self.scroll_wait.saturating_sub(1);
         // `q >= 10` — speed 0 — is the original's own early return, and no
         // amount of waiting satisfies it.
+        // arm: 0x00432221/map-edge-scroll hover-at-edge
         if self.scroll_wait == 0 && every != u32::MAX {
             if let Some(dir) = self.edge_direction() {
                 self.scroll_wait = every;

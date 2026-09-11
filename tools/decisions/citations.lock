@@ -17,7 +17,7 @@
 CLAUDE.md	C124	9cf9ee1c286d	38723617b085
 CLAUDE.md	C133	ea1ee3c1202e	91fcca97cc98
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
-CLAUDE.md	C61	d769a5178b2d	60611046b40d
+CLAUDE.md	C61	e7875281399f	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
 README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
@@ -60,7 +60,8 @@ crates/l2-game/src/screens/diplomacy.rs	C61	5aa0f88f789e	60611046b40d
 crates/l2-game/src/screens/divide.rs	C61	e4415da101c2	60611046b40d
 crates/l2-game/src/screens/info.rs	C110	610d3cd4e224	a4ab43902f60
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
-crates/l2-game/src/screens/map.rs	C132	c11f0975c1c7	84bc50c0ddbe
+crates/l2-game/src/screens/map.rs	C132	3a974c32854e	84bc50c0ddbe
+crates/l2-game/src/screens/map.rs	C138	3ac5e2071333	7724e6665b90
 crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C21	d7e286680856	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C21	f00297685d46	f7bf296341ff
@@ -145,6 +146,8 @@ crates/l2-game/tests/scenario.rs	C83	18e9dfa98edd	88ac11ea6de0
 crates/l2-game/tests/screens.rs	C112	a5a80ad18330	0dbcd00423ed
 crates/l2-game/tests/screens.rs	C118	3de9b4c34a46	cd0e7b0adc57
 crates/l2-game/tests/screens.rs	C125	7451a8225f45	6084e87aec70
+crates/l2-game/tests/screens.rs	C132	bcc7335581ba	84bc50c0ddbe
+crates/l2-game/tests/screens.rs	C138	800999466b29	7724e6665b90
 crates/l2-game/tests/screens.rs	C21	1523306009a2	f7bf296341ff
 crates/l2-game/tests/screens.rs	C22	1d39d618c245	0364b53a921d
 crates/l2-game/tests/screens.rs	C42	34537294a71e	a2ac3547bb32
@@ -374,6 +377,7 @@ docs/arms.json	C117	816ec3580916	b20f3a227f0f
 docs/arms.json	C117	ffa664085e2c	b20f3a227f0f
 docs/arms.json	C130	1ab64b910457	055c6c022450
 docs/arms.json	C132	685e16261159	84bc50c0ddbe
+docs/arms.json	C139	abfdd95cb225	d11336df05e7
 docs/arms.json	C61	0625bd8a65f4	60611046b40d
 docs/arms.json	C61	39d63dd72f38	60611046b40d
 docs/arms.json	C76	113584e50fba	53e207ae069e
@@ -433,6 +437,11 @@ docs/decisions.md	C13	09c4dae65b2c	006e7d0b71a7
 docs/decisions.md	C13	6ecd926bb63e	006e7d0b71a7
 docs/decisions.md	C13	7868cb038a6c	006e7d0b71a7
 docs/decisions.md	C13	9a48a53e9996	006e7d0b71a7
+docs/decisions.md	C132	0d94b349191d	84bc50c0ddbe
+docs/decisions.md	C132	8e8a7046fb5f	84bc50c0ddbe
+docs/decisions.md	C132	9d42d57dfe34	84bc50c0ddbe
+docs/decisions.md	C132	a16103029f0c	84bc50c0ddbe
+docs/decisions.md	C132	c3d762cf2b9c	84bc50c0ddbe
 docs/decisions.md	C14	19873f4c7f74	687f69afd1c6
 docs/decisions.md	C14	9228b35094b8	687f69afd1c6
 docs/decisions.md	C14	c38454e0c7d3	687f69afd1c6
@@ -560,6 +569,7 @@ docs/decisions.md	C59	d88243f2b8df	37ab8ac1a2fc
 docs/decisions.md	C59	f8f78fa7b192	37ab8ac1a2fc
 docs/decisions.md	C60	5f4562a8144d	2f31848557d2
 docs/decisions.md	C61	072b0a786f93	60611046b40d
+docs/decisions.md	C61	1c9ef25a9ccd	60611046b40d
 docs/decisions.md	C61	324c3ac59d0a	60611046b40d
 docs/decisions.md	C61	33bb2b912640	60611046b40d
 docs/decisions.md	C61	503f7a590102	60611046b40d
@@ -572,6 +582,7 @@ docs/decisions.md	C61	af1e7ea10593	60611046b40d
 docs/decisions.md	C61	b465e0d2cdee	60611046b40d
 docs/decisions.md	C61	c728831f88b3	60611046b40d
 docs/decisions.md	C61	cb0091f01fac	60611046b40d
+docs/decisions.md	C61	d69570a53654	60611046b40d
 docs/decisions.md	C61	f258c8cb9698	60611046b40d
 docs/decisions.md	C61	f6aa494f4261	60611046b40d
 docs/decisions.md	C62	789a08c82088	ebb6a7ec3711
@@ -707,6 +718,7 @@ docs/screens-county.md	C59	aec4d2276a51	37ab8ac1a2fc
 docs/screens-county.md	C61	675bbac0eace	60611046b40d
 docs/screens-county.md	C76	982107e9770f	53e207ae069e
 docs/screens-county.md	C97	6fb9495168cb	f5f75acd2cda
+docs/screens.md	C139	af83add24e4f	d11336df05e7
 docs/screens.md	C22	29997cfa2796	0364b53a921d
 docs/screens.md	C25	6e23d74e76ec	5d466f0cb89c
 docs/screens.md	C48	63058cefc7e7	9e81512f4c0d

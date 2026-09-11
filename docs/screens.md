@@ -795,7 +795,22 @@ at `0x00522F91` — and `g_pickedTileGraphic`, which is just `g_tiles[tile]`. Th
 | flags bit **0x80** — an industry building | that industry is **toggled on or off** (`Industry_ToggleFromMap`), the industry chosen by a ladder on the tile *graphic*: 0 … 3 iron, 4 … 6 stone, 7 … 9 weapons, 10 … 12 wood, 21+ castle |
 | flags bit **0x40** — the county town | the **village** (screen `0x02`) |
 | flags bit **0x20** — farmland | the **field brush** (screen `0x04`) |
-| a county that is not yours | `Msg_Enqueue(…, 0x70, …)` |
+| a **settlement** or a **merchant** in a county that is not yours | `Msg_Enqueue(…, 0x70, …)` |
+
+**That last row used to read *"a county that is not yours"*, and it is two of the five arms
+and not all of them.** `[V]` from the decompilation: `Msg_Enqueue(0, g_localPlayer, 0x70, 0,
+0, 0, 0, 0)` appears in `Map_Click` exactly twice — the `else` of the `kind == 3` merchant
+guard, and the `else` of the flag-`0x80` settlement guard. The town (`0x40`) and farmland
+(`0x20`) arms carry their owner test *inside* the flag branch rather than beside it, so
+clicking a foreign county's town or fields produces **nothing at all** — no message, no
+refusal, no sound. `docs/arms.json` `0x0043CE1A/foreign-county-refusal`.
+
+**The whole of this table is now in the input inventory**, which it was not until
+`docs/decisions.md` C139: `docs/arms.json`'s `campaign-map` group holds
+`Map_Click`'s six live arms, the two screen-0 clauses either side of the call, and
+`Screen_FrameInput`'s four-clause `0x10` arm. Every arm in `Map_Click` is a **left-release** —
+the ladder calls it under `g_mouseLeftReleased` — and the confirm one screen id away on `0x10`
+is a left **press**.
 
 `g_screenId = 2` appears **exactly once in the binary** and it is in that table's fourth
 row — and the branch centres the map on the town and repaints one map frame *before*

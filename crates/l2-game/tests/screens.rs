@@ -1018,48 +1018,84 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
 /// is deliberately outside the window, because that is where the selection
 /// legitimately shows.
 ///
-/// **The two counties are derived, not named**, and neither is the player's.
+/// **The counties are derived, not named**, and none of them is the player's.
 /// That is not a convenience: the field markers under [`brush`] are drawn for
 /// the *selected* county when the player owns it, and they are the visible half
 /// of a different invention — `ours/brush-popup-on-the-map`, which is on file
 /// and deliberately kept. Naming two counties by number would have made this
 /// test a statement about one fixture's ownership roll, which
 /// `docs/environment.md` says is rolled per game.
+///
+/// # This test passed with the outline put back, and that is why it looks like
+/// this
+///
+/// The first version took the **first two** counties the player does not own —
+/// 1 and 2 on the England fixture — and required the map to be byte-identical
+/// between them. The map the fixture opens on shows counties **8 and 9**.
+/// Neither 1 nor 2 has a single pixel on screen, so the two canvases were
+/// identical for a reason that has nothing to do with what the painter draws,
+/// and re-adding the yellow outline turned **nothing** red. The claim
+/// `docs/decisions.md` C132 makes for it — *"a stronger claim than the outline
+/// is gone, because any future selection paint fails it"* — was false as
+/// written. `docs/decisions.md` C138.
+///
+/// So the shape here is: a **baseline** selection that is off-camera, and then
+/// every foreign county that is actually *on* camera selected in turn against
+/// it. The `assert!` that at least one county is visible is what stops the
+/// sweep being empty, which is the only way this can go vacuous again.
 #[test]
 fn the_selection_is_not_drawn_on_the_map() {
     let (mut game, assets) = world!();
     let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
 
-    let foreign: Vec<u8> = game
-        .kingdom
-        .county_ids()
-        .filter(|&id| !game.is_players(id as u8))
-        .map(|id| id as u8)
-        .take(2)
+    // Which counties the opening viewport actually shows, read off the pick
+    // plane — the same plane a click goes through, so "visible" here means the
+    // painter put pixels of it on screen.
+    let counts = pick_counts(&screen);
+    let foreign_and_visible: Vec<u8> = (1..=14u8)
+        .filter(|&id| counts[id as usize] > 0 && !game.is_players(id))
         .collect();
-    assert_eq!(foreign.len(), 2, "the world needs two counties the player does not own");
-
-    game.select(foreign[0]);
-    let a = draw(&mut screen, &mut game, &assets);
-    game.select(foreign[1]);
-    let b = draw(&mut screen, &mut game, &assets);
+    let foreign_and_hidden: Vec<u8> = (1..=14u8)
+        .filter(|&id| counts[id as usize] == 0 && !game.is_players(id))
+        .collect();
+    assert!(
+        !foreign_and_visible.is_empty(),
+        "nothing the player does not own is on screen, so this test would assert nothing. \
+         Visible: {:?}",
+        (0..=14u8).filter(|&id| counts[id as usize] > 0).collect::<Vec<_>>(),
+    );
+    let baseline = *foreign_and_hidden.first().expect("England has a county off the opening view");
 
     // `Map_SetZoom` gives the map 480 pixels at every zoom and the right column
     // the rest.
-    let mut differ = 0;
-    for y in 0..480usize {
-        for x in 0..480usize {
-            if a.at(x, y) != b.at(x, y) {
-                differ += 1;
+    let map_area = |a: &Canvas, b: &Canvas| {
+        let mut differ = 0;
+        for y in 0..480usize {
+            for x in 0..480usize {
+                if a.at(x, y) != b.at(x, y) {
+                    differ += 1;
+                }
             }
         }
+        differ
+    };
+
+    game.select(baseline);
+    let base = draw(&mut screen, &mut game, &assets);
+
+    for id in foreign_and_visible {
+        game.select(id);
+        let with = draw(&mut screen, &mut game, &assets);
+        let differ = map_area(&base, &with);
+        assert_eq!(
+            differ, 0,
+            "county {id} fills {} pixels of the viewport, and selecting it instead of the \
+             off-screen county {baseline} changed {differ} of them. The original draws no \
+             selection over the terrain at all.",
+            counts[id as usize],
+        );
     }
-    assert_eq!(
-        differ, 0,
-        "selecting county {} instead of {} changed {differ} pixels of the map. \
-         The original draws no selection over the terrain at all.",
-        foreign[1], foreign[0],
-    );
 }
 
 /// The menu bar reads the clock and the treasury out of the world, and the
