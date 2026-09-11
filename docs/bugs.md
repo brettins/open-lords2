@@ -880,6 +880,61 @@ anything. `docs/kingdom.md` §7.5.2, and
 `a_county_with_its_mines_running_never_gets_round_to_the_castle` in
 `crates/l2-game/tests/castles.rs`.
 
+## 2.11 The turn timer
+
+### BNEW-turn-timer-skips-a-turn — End a turn early and a slow turn can end the next one before you see it
+
+**What the original does.** `Turn_Tick`'s phase-4 arm (`0x0049A010`) is three clauses, in
+this order:
+
+```c
+if (-1 < DAT_005440C8 && 0 < g_optTimeLimit) {                                   /* count   */
+    DAT_005440C8 = g_optTimeLimit - (timeGetTime() - _DAT_00568D9C) / 1000;
+    if (DAT_005440C8 < 0) { DAT_005440C8 = -1; Turn_End(); Screen_DrawEndTurn(1); }
+}
+if (aiStep == 999 && 10000 < timeGetTime() - _DAT_004EE8C0) { ...; Turn_End(); }  /* resend  */
+if (1 < DAT_0055403C && g_realms[g_localPlayer].aiStep != 999) {                  /* restart */
+    ...; DAT_005440C8 = g_optTimeLimit; _DAT_00568D9C = timeGetTime();
+}
+```
+
+The start, `_DAT_00568D9C`, is written by that restart, by the start and load handlers and by
+`Battle_ReturnToCampaign(1)` — and by nothing while phases 5, 6, 7, 1, 2 and 3 run. So on the
+first frame of the person's next turn the count computes `limit − (the time he took + the time
+the turn took)`. If that is below zero it calls `Turn_End`, whose own guard is
+`aiStep != 999` — and `Turn_BeginPlayersTurn` cleared his counter to 0 when phase 7 wrapped to
+1, so it passes, and **his new turn is ended on its first frame.** The restart clause, after
+it, now sees 999 and does nothing. The turn after that gets the whole limit, because the count
+is −1 and the first clause is switched off.
+
+**When it bites.** Only after the person ends a turn **with time left** — running out writes
+−1, which switches the count off — and only when his thinking time and the turn's running time
+together pass `limit + 1` seconds. With *30 secs*: twenty seconds of play and a turn whose
+armies and merchants take twelve to walk.
+
+**A sibling on the same flag.** The phase-2 arm writes `DAT_0055403C = 0` before every
+`Siege_LaunchAssault` — anybody's, refused or fought. After a turn with a siege assault in it
+the restart never fires, so the person's next turn counts on from the old start rather than
+getting the limit back, and ends on its first frame when that is below zero.
+
+**Why it is a bug.** `[D]` on calling it one: nothing in a *Time limit* drop-down suggests a
+budget shared between turns, and the restart clause exists precisely to give each turn its own.
+The fix the code wants is the restart above the count, or the start moved in `Turn_End`.
+
+**Evidence.** **[D]** on the order, and on every writer of `DAT_005440C8`, `_DAT_00568D9C` and
+`DAT_0055403C`, which were enumerated. **[I]** that it is reachable in a real game: that
+depends on how long a turn takes on real hardware, which nobody has measured.
+`docs/oracle-requests.md` §12 is the thirty-second question that settles it.
+
+**Reproduced.** `crates/l2-game/src/turn_clock.rs`, `TurnClock::tick` — the three clauses in
+the original's order, with the turn's running time counted in ticks. Tests
+`a_turn_ended_early_hands_its_running_time_to_the_next_turn` and
+`a_siege_assault_leaves_the_next_turn_without_a_restart`.
+
+**Switching it off** is moving four lines. The clock is session state — not in the save, not
+in the lockstep digest — so a switch would cost no `VERSION` bump, only a home for the flag
+(§6.3a's reasoning, not §6.3's).
+
 ---
 
 # 3. The original's bugs we do **not** reproduce

@@ -520,6 +520,7 @@ impl Machine {
     /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
         self.pump_messages(ctx);
+        self.run_turn_clock(ctx);
         let Some(top) = self.stack.last_mut() else { return };
         let t = top.update(ctx);
         if top.take_redraw() {
@@ -590,6 +591,89 @@ impl Machine {
         }
     }
 
+    /// **`Turn_Tick`'s turn timer, and the frames after it runs out.**
+    ///
+    /// `Turn_Tick` (`0x0049A010`) is called from `Battle_Frame`'s loop whenever
+    /// `g_battlePhase == 0`, not from any screen, so the count goes on whether
+    /// the person is looking at the map, a county panel or the village. That
+    /// makes the frame driver its place, for the same reason it is `Msg_Pump`'s.
+    /// The clock itself is [`crate::turn_clock`].
+    ///
+    /// When it runs out it calls `Turn_End` (`0x0043AC23`), and three things
+    /// follow:
+    ///
+    /// 1. `Turn_End`'s first statement, `if (g_messageGroup != 0) Msg_Dismiss();`;
+    /// 2. from the next frame, `Screen_FrameInput` closes every screen whose arm
+    ///    carries the turn-ended guard — [`crate::turn_clock::closed_by_turn_end`],
+    ///    popped here top first for as long as the request stands;
+    /// 3. the turn begins. **Only the map can start one here**, so the request
+    ///    waits on [`crate::game::Game::turn_clock`] until the map is on top, and
+    ///    `MapScreen::update` carries it out through the End Turn button's own
+    ///    door.
+    ///
+    /// **Two differences, said rather than left to be found.** The original runs
+    /// the turn behind a screen the guard does not close — the job popup, an open
+    /// menu, the About box — and ours waits for the person to close it. And
+    /// `0x13`, the battle report, is closed by the guard there and not here:
+    /// popping it would leave the report unseen on the suspended turn and the map
+    /// would put it straight back.
+    // arm: 0x0049A010/turn-time-limit timer
+    fn run_turn_clock(&mut self, ctx: &mut Ctx) {
+        // `2 < g_appPhase` — a game is up, which here is a campaign map on the
+        // stack. The front end and the demo index have no turn to time.
+        if !self.stack.iter().any(|s| s.id() == ScreenId::Campaign) {
+            return;
+        }
+        let before = crate::turn_clock::shown(ctx.game);
+        let frame = crate::turn_clock::Frame::of(ctx.game);
+        if ctx.game.turn_clock.tick(frame) == crate::turn_clock::Tick::Expired
+            && ctx.game.messages.is_open()
+        {
+            // The message screen pops itself on its own update once its record
+            // is gone, so it is not popped here.
+            crate::message::dismiss(ctx.game);
+            self.dirty = true;
+        }
+        if ctx.game.turn_clock.end_turn_pending() {
+            let in_battle = ctx.game.battle.is_some();
+            while let Some(top) = self.stack.last() {
+                let id = top.id();
+                if id == ScreenId::BattleResult
+                    || !crate::turn_clock::closed_by_turn_end(id, in_battle)
+                {
+                    break;
+                }
+                self.stack.pop();
+                self.dirty = true;
+            }
+        }
+        // The number is whole seconds, so this is a repaint a second and not a
+        // repaint a tick.
+        if crate::turn_clock::shown(ctx.game) != before {
+            self.dirty = true;
+        }
+    }
+
+    /// **`FUN_0041A639` (`0x0041A639`) — the turn timer**, drawn over whatever is
+    /// up, after it.
+    ///
+    /// Not a painter's draw: `Battle_Frame` calls it once a frame near the end of
+    /// its tail, after the widgets and the message window, which is why it is
+    /// drawn here after the stack and not by the campaign map. Whether it is
+    /// drawn at all is `DAT_004D2E80[g_screenId]`, the table in
+    /// [`crate::turn_clock::SCREENS`].
+    fn draw_turn_timer(&self, ctx: &Ctx, canvas: &mut Canvas) {
+        if !self.stack.iter().any(|s| s.id() == ScreenId::Campaign) {
+            return;
+        }
+        let Some(id) = crate::turn_clock::timer_screen(self.stack.iter().map(|s| s.id())) else {
+            return;
+        };
+        if crate::turn_clock::drawn_over(id) {
+            crate::turn_clock::draw(ctx, canvas);
+        }
+    }
+
     /// Paint the stack from the last screen that is not an overlay upwards.
     ///
     /// An overlay is drawn over what was underneath, which is what the
@@ -607,6 +691,7 @@ impl Machine {
         for screen in &mut self.stack[from..] {
             screen.draw(ctx, canvas);
         }
+        self.draw_turn_timer(ctx, canvas);
     }
 
     /// The lowest screen that has to be painted for the top one to make sense.

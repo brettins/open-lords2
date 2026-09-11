@@ -15,7 +15,7 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 ## 0. The headline
 
 > **The campaign map makes 139 draw calls. 121 of them are live, 10 are behind debug
-> switches and 8 are dead code. We reproduce 59 of the 121, and we make about 29 draws the
+> switches and 8 are dead code. We reproduce 61 of the 121, and we make about 29 draws the
 > original does not.**
 
 **Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
@@ -23,7 +23,7 @@ draw*, not *at the original's coordinates*. §5a has the measurement that forced
 distinction: of the eighteen draws read back line-by-line against their call sites, **three
 were four pixels wrong** and every test in the tree passed.
 
-That is **49 %**. `docs/arms.json` holds **25** input arms for the same two screen ids
+That is **50 %**. `docs/arms.json` holds **25** input arms for the same two screen ids
 (`0x00` and `0x10`) and marks **20** of them reproduced — **80 %**. So on the screen a player
 spends most of the game looking at:
 
@@ -34,14 +34,14 @@ side, it is not visible from any test, and it is the shape both of the player's 
 *"I see placeholder shit everywhere"* and *"why do the pastures not have cows in them?"* —
 were about. Neither of those is an arm.
 
-The misses are not evenly spread. Three areas hold 48 of the 62, and each is one of
+The misses are not evenly spread. Three areas hold 46 of the 60, and each is one of
 `docs/draws.md` §3's three hiding places:
 
 | area | live | ours | missing | which hiding place |
 |---|---:|---:|---:|---|
 | `Sprite_TopIt`'s tile overlays | 18 | 4 | **14** | a ladder whose arms nobody enumerated |
 | the sidebar's produce and industry rows | 31 | 10 | **21** | a variable widget count |
-| drawn from `Battle_Frame`, not from a painter | 16 | 3 | **13** | outside the painter |
+| drawn from `Battle_Frame`, not from a painter | 16 | 5 | **11** | outside the painter |
 | everything else | 56 | 42 | 14 | — |
 
 ---
@@ -106,7 +106,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_0040C725` | `0x0040C725` | an open drop-down | live | 4 | 3 |
 | `FUN_00420316` | `0x00420316` | the multiplayer chat banner | live | 3 | 0 |
 | `FUN_0042476B` | `0x0042476B` | the network-wait glyph | live | 1 | 0 |
-| `FUN_0041A639` | `0x0041A639` | the turn timer | live | 2 | 0 |
+| `FUN_0041A639` | `0x0041A639` | the turn timer | live | 2 | 2 |
 | `FUN_0041A844` | `0x0041A844` | the multiplayer heartbeat | live | 2 | 0 |
 | **`FUN_00476E95`** | `0x00476E95` | **the tooltip** | live | 4 | 0 |
 | `FUN_00408C50` | `0x00408C50` | two per-tile debug numbers | debug | 2 | 0 |
@@ -440,7 +440,7 @@ frame function, which is `docs/draws.md` §3's first hiding place.
 
 | what | function | draws |
 |---|---|---|
-| **the turn timer** | `FUN_0041A639` | `Misc_cty` frame `0x60` at **(404, 430)** plus a right-anchored count at (424, 442), when `g_optTimeLimit > 0` and `DAT_004D2E80[g_screenId] == 0` |
+| **the turn timer** | `FUN_0041A639` | `Misc_cty` frame `0x60` at **(404, 430)** plus the seconds left, `' '` + digits + `" "`, **centred** in 50 pixels from (424, 442), when `g_battlePhase == 0 && 0 < DAT_005440C8 && (DAT_0055403C < 1 \|\| aiStep == 999) && 0 < g_optTimeLimit && DAT_004D2E80[g_screenId] == 0` — **reproduced**, `crate::turn_clock` |
 | **the multiplayer chat banner** | `FUN_00420316` | a shaded 480 × 32 plate at (0, 24) and two lines in the two realms' own colours, on a countdown that ends by forcing a full map redraw |
 | **the network-wait glyph** | `FUN_0042476B(10, 0x1E)` | `Panels.pl8` frame **`0x105`** — the file's one 48 × 48 glyph — at (10, 30) while a peer is behind, for at most 1,600 ms |
 | **the heartbeat** | `FUN_0041A844` | a 8 × 3 filled bar at (2, 476) and a 10 × 5 outline at (1, 475), recoloured every twelve frames from the tick counter |
@@ -608,7 +608,16 @@ feedback:
 |---|---|---|
 | the End Turn label | `aiStep < 999` | **now reproduced** |
 | **each realm's menu-bar banner** | `strength != 0 && aiStep < 999` | **now reproduced** — `turn::realm_turn_ended` |
-| the turn timer (§5.6) | `g_optTimeLimit > 0` and `aiStep == 999` | no |
+| the turn timer (§5.6) | `0 < g_optTimeLimit` and `DAT_0055403C < 1 \|\| aiStep == 999` | **now reproduced** — `crate::turn_clock` |
+
+**This row used to read `g_optTimeLimit > 0 and aiStep == 999`, and so did `docs/decisions.md`
+C140's.** That is one half of an `||` promoted to the whole guard, and it is exactly backwards
+for a countdown: it would draw the timer only once the person has ended his turn.
+`DAT_0055403C` is what `Turn_End` writes and the next turn's restart clears, so it is 0 for the
+whole of his own turn and the timer is up while he plays — and it *stays* up, frozen, after he
+presses End Turn, because then the other half holds. The timer is a per-turn limit on the
+person's own turn, in single player too when the custom game's *Time limit* is set;
+`docs/decisions.md` CNEW-turn-timer.
 
 The middle row is worth more than the label: **a realm's banner vanishes from the menu bar as
 that realm finishes its turn, and the bar refills as the new turn begins** — a live five-realm
@@ -845,5 +854,5 @@ Two things the pilot could not settle, that this screen can:
   `Sprite_TopIt`. Counting `DAT_005C9288 = …` is what turns that 1 into the 18 that matters.
   Any per-screen script that follows this one has to know that.
 * **The ratio is not a gate here either, and for a new reason.** 10 of 139 are debug-gated
-  and 8 are dead; a ratio computed without classifying them would read 42 % where the honest
-  figure is 49 %, and the classification is a judgement no script can make.
+  and 8 are dead; a ratio computed without classifying them would read 44 % where the honest
+  figure is 50 %, and the classification is a judgement no script can make.

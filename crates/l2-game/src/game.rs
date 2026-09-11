@@ -646,6 +646,18 @@ pub struct Game {
     ///
     /// not-encoded: a property of the session, not of the world.
     pub multiplayer: bool,
+    /// **The turn timer** — `DAT_005440C8` and the three globals beside it. See
+    /// [`crate::turn_clock`].
+    ///
+    /// Here rather than on the map screen because the original counts it in
+    /// `Turn_Tick`, which runs whatever screen is up, and because a screen
+    /// cannot outlive being replaced.
+    ///
+    /// not-encoded: session state. `Setup_StartGame` restarts the count on a
+    /// start and on a load, so a save that carried it would be carrying a number
+    /// the original throws away; and it is not the world's — the only thing it
+    /// can do to the world is press End Turn.
+    pub turn_clock: crate::turn_clock::TurnClock,
 }
 
 /// `g_levyPercent`, `g_levyMen`, `g_levyHappinessCost`, `g_levyBasket` and
@@ -731,6 +743,7 @@ impl Game {
             map_zoom_far: false,
             messages: crate::message::MessageQueue::new(),
             multiplayer: false,
+            turn_clock: crate::turn_clock::TurnClock::default(),
         }
     }
 

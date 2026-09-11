@@ -548,6 +548,17 @@ pub fn turn_in_flight(game: &Game) -> bool {
     game.turn.is_some()
 }
 
+/// **Whether the person has ended his turn and it is being run** — a turn in
+/// flight that is not a battle suspended on an ordinary frame.
+///
+/// [`turn_in_flight`] is true for both, and for the turn timer the difference
+/// is the whole question: `Turn_Tick` goes on counting under a battle prompt
+/// raised while the person was playing, because `g_battlePhase` is still 0 and
+/// nothing has called `Turn_End`. See [`crate::turn_clock`].
+pub fn players_turn_ended(game: &Game) -> bool {
+    game.turn.as_ref().is_some_and(|p| !p.idle)
+}
+
 /// **Whether a realm has finished its turn, as the menu bar's shield row asks
 /// it.**
 ///
@@ -899,6 +910,9 @@ fn pump_siege(game: &mut Game) {
         // The cursor ran off the end; phase 2 is done and the tick carries on.
         return;
     };
+    // `Turn_Tick`'s phase-2 arm: `DAT_0055403C = 0; Siege_LaunchAssault(…)`.
+    // The flag is the one the turn timer's restart waits on.
+    game.turn_clock.assault_launched();
     let seed = siege_seed(&game.kingdom);
     // A refusal is not a battle and cannot be asked about: the siege has
     // already been lifted by `siege::assault` and there is nothing to fight.

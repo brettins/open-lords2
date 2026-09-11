@@ -7254,5 +7254,90 @@ trap: every living realm's shield **must** be up during the person's own turn wi
 every counter at or past 999, so the literal port goes red on its first assertion.
 Its expected pixels are built from `Screen_DrawMenuBar`'s own literals — frame
 `0x55 + shield`, `x = 0x10E + 0x10 * slot` — and never through the function under
-test. `FUN_0041A639`'s turn timer, the third reader of the flag, is still not
-reproduced.
+test. `FUN_0041A639`'s turn timer, the third reader of the flag, is
+CNEW-turn-timer.
+
+**CNEW-turn-timer — The turn timer is a limit on the person's own turn, in single
+player too, and the guard two documents gave it was half of an `||`.**
+
+Found beside the shield row, which reads the same flag, and listed in C140 as one of
+`Ui_DrawNumberRight`'s undrawn sites. Nobody had reported it and nobody had asked what
+it was for.
+
+**What it is.** **[D]** unless marked. A time limit on the person's own turn. The
+setting is the custom game's *Time limit* drop-down, and the **single-player** page
+(`g_setupPage` 7, `FUN_0041F86D(999)`) draws it with the other eleven;
+`Setup_CommitOptions` turns the index into seconds through `g_timeLimitSeconds`;
+`Setup_DefaultOptions` picks *no limit* for one player and *4 mins* for a network game;
+`Campaign_LoadEntry` forces 0. So it is **not multiplayer-only and not a display** — a
+single-player custom game with a limit chosen has a countdown that ends turns — which is
+why this was built rather than routed to `docs/netcode.md`. Its network half (a
+2.5-second restart delay, a ten-second `Turn_End` resend) is not ported, and would be
+that document's to design.
+
+**What happens at zero.** `Turn_Tick`'s phase-4 arm (`0x0049A010`) recomputes
+`DAT_005440C8 = g_optTimeLimit − (timeGetTime() − _DAT_00568D9C) / 1000` and below zero
+writes −1 and calls `Turn_End` — the End Turn button's handler, which ends **the local
+player's** turn and nobody else's. A 30-second limit therefore ends the turn when **31**
+seconds have passed, and `0` is never drawn. `Turn_End` dismisses an open message; from
+the next frame `Screen_FrameInput` closes every screen whose arm carries the turn-ended
+guard. The count restarts on the first frame of the person's next turn, in the same arm.
+
+**Where it is drawn.** Not by a painter: `Battle_Frame` calls `FUN_0041A639` near the
+end of its tail. `Misc_cty` frame `0x60` at (404, 430), and
+`Ui_DrawNumberRight(DAT_005440C8, ' ', &DAT_004D41D0, 0x1A8, 0x1BA, 0x32, &g_fontBody,
+0x3F)`. `&DAT_004D41D0` is `" "` **[V]**, read from `.data`; the function centres
+(C119) and measures the whole buffer (C140), so it is `" 30 "` centred in fifty pixels.
+Which screens it is drawn over is `DAT_004D2E80[g_screenId] == 0`, seventy bytes read
+out of `.data` **[V]** with **one reader in the whole binary** — the timer's own
+vocabulary: the map and its insets yes, the pages no.
+
+**The guard was written down backwards.** C140's table row and `docs/draws-map.md` §5.11
+both gave it as `g_optTimeLimit > 0 && aiStep == 999`. The clause is
+`(DAT_0055403C < 1 || g_realms[g_localPlayer].aiStep == 999)`. `DAT_0055403C` is what
+`Turn_End` writes and the restart clears, so it is 0 through the person's own turn and
+the first half is what puts the timer up while he plays; the second half keeps the
+frozen number up after he ends it. A port of the documented guard draws a countdown only
+once there is nothing left to count. It is `docs/agents.md`'s *a true statement about one
+branch, promoted* — the branch this time being one operand of an `||`. §5.11 is
+corrected; C140's row is left for the integrator.
+
+**The trap is the one CNEW-shields-are-the-turn-clock found, and so is the mapping.** Our
+turn is the original's rotated, so nothing here reads `ai_step`. The person's
+`aiStep == 999` is `turn::players_turn_ended` — new, because `turn_in_flight` is also true
+for a battle raised on an ordinary frame, and `Turn_Tick` counts on under that prompt.
+
+**What was built.** `crate::turn_clock`: the countdown as a state machine over a `Frame`
+that reads nothing else, the screen table, and the two draws. `Machine::run_turn_clock`
+and `Machine::draw_turn_timer`, because the original's call sites are the frame loop;
+`MapScreen::update` carries the `Turn_End` out through the button's own `end_turn`,
+because only the map starts a turn here; the phase-2 pump clears the restart flag as
+`Turn_Tick` does before every assault. Session state on `Game` — not in the save, which
+is `Setup_StartGame`'s own behaviour on a load, and not in the digest. `docs/arms.json`
+`0x0049A010/turn-time-limit`; `docs/draws-map.md` 61 of 121.
+
+**A defect came with it, and it is reproduced.** The count runs *before* the restart in
+the same frame and the start is not moved while a turn runs, so ending a turn early and
+waiting on a slow one can end the next turn on its first frame. `docs/bugs.md`
+BNEW-turn-timer-skips-a-turn, **[I]** on reachability, and `docs/oracle-requests.md` §12
+is the thirty-second observation that settles it.
+
+**And a count in the inventory was high.** `docs/arms.json`'s
+`0x0042FF10/force-close-on-turn-end` said twenty-nine arms close; there are twenty-seven
+sites of the guard, twenty-six of which close. The timer makes that arm reachable in
+single player for the first time; the pop loop reproduces it for the interval between the
+clock's `Turn_End` and the map starting the turn, and the record stays `missing` for the
+turn itself.
+
+**Not reproduced**, each said in the module header: the count running on through the rest
+of phase 4 after the click, and the timer hiding during phases 1 … 3 — both artefacts of
+the rotation; the turn running behind a screen the guard does not close (ours waits for
+the map); `0x13` closed by the guard (ours would push it straight back);
+`FUN_004976A1`'s `+10` on an in-game load.
+
+**Tests.** Eight in the module, driven by `Frame` values alone; two through a whole
+`Machine` on the England fixture; one reading the table and the suffix out of
+`Lords2.exe`. Every expected literal is the decompilation's, not the module's. Seven
+ablations, each observed red: the guard as documented; the suffix emptied; the request
+deleted; the person's turn read off his `ai_step`; the pop loop deleted; `0x0B`'s byte
+zeroed; the restart moved above the count — which turns only the defect's own test red.
