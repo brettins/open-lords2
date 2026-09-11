@@ -270,10 +270,10 @@
       "prim": "Music_StartCampaign",
       "class": "music",
       "arg": "",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "the campaign bed, from its first sample",
+      "note": "The fail arm of castle1..5.smk. Scene::Film stops the bed while the film's screen is up -- held one tick when the film will not open -- and the next derivation starts it over."
     },
     {
       "id": "County_ChangeOwner#1",
@@ -1021,7 +1021,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "note": "County_ChangeOwner's capture letters. The film, its fail arm and the restart are all built (crate::message::animate, Scene::Film) and a posted category-0x0D record sounds it in tests/movies.rs -- but NOTHING IN THIS ENGINE POSTS ONE: County_ChangeOwner (0x004A72FE) raises groups 0x75..0x7E with category 0x0D and l2_kingdom::conquest::change_owner leaves the nine letters to a caller that does not exist. So no player can reach it, and a reproduced that cannot sound is the rot this file exists to stop."
     },
     {
       "id": "Msg_DrawWindow#16",
@@ -1032,7 +1032,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "Smacker playback. The animated capture and ending branches save the group and variant, dismiss the message, play cap_cty*.smk and speak AFTERWARDS from DAT_004F0374/DAT_004F0354. The trigger is the film ending, not a tick."
+      "note": "County_ChangeOwner's capture letters, as #15: built, and unreachable because nothing posts a category-0x0D record. And a correction: this note used to say the voice comes AFTER the film ends. It does not. Smk_Play returns as soon as Smk_Open has put the first frame up, so Msg_PlayVoice runs with the film's opening -- the narrator reads over it, whether or not the film opened. #21 is the same line in the ending branch and is reproduced."
     },
     {
       "id": "Msg_DrawWindow#17",
@@ -1065,7 +1065,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "note": "The fail arm of the animated ending's FAST-MEDIA branch -- the 502x314 well and the CD's smk_high films. g_fastMedia is set only when sierra.ini reports a CD faster than 4x on a CPU faster than 70 MHz (0x0040EE32); a hard-disk install has no sierra.ini and takes the slow branch, which is #20. The restart itself is the same Scene::Film arm as #20's; what is missing is the branch that would call it."
     },
     {
       "id": "Msg_DrawWindow#2",
@@ -1084,10 +1084,10 @@
       "prim": "Music_StartCampaign",
       "class": "music",
       "arg": "",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "the campaign bed, from its first sample",
+      "note": "The fail arm of the animated ending's slow-media film, the layout this install takes. Scene::Film stops the bed and the next derivation starts it over."
     },
     {
       "id": "Msg_DrawWindow#21",
@@ -1095,10 +1095,10 @@
       "prim": "Msg_PlayVoice",
       "class": "voice",
       "arg": "DAT_004f0374,DAT_004f0354",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. The animated capture and ending branches save the group and variant, dismiss the message, play cap_cty*.smk and speak AFTERWARDS from DAT_004F0374/DAT_004F0354. The trigger is the film ending, not a tick."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "530 files by group and variant",
+      "note": "The animated ending, with #16's correction: the voice runs as the film opens, not after it."
     },
     {
       "id": "Msg_DrawWindow#22",
@@ -1403,10 +1403,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup_wav_004d50e4,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "setup.wav",
+      "note": "Back on setup page 1 after lom.smk. Scene::Film stops setup.wav for the trailer and Scene::FrontEnd starts it again from the top."
     },
     {
       "id": "Smk_OnFinished#2",
@@ -1414,10 +1414,10 @@
       "prim": "Music_StartCampaign",
       "class": "music",
       "arg": "",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "the campaign bed, from its first sample",
+      "note": "A castle or capture or ending film ending with g_battlePhase 0. Over a battle Smk_OnFinished restarts nothing, and Audio::follow keeps the field silent until it is left."
     },
     {
       "id": "TileInfo_Draw#1",

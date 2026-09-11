@@ -161,11 +161,14 @@ pub struct BattlefieldScreen {
     /// gauntlet going down and the answer being given.
     press: Press,
     redraw: bool,
+    /// Whether this screen has seen the battle reach `0x2B` — the edge
+    /// `Battle_CheckOutcome` plays its film on.
+    outcome_seen: bool,
 }
 
 impl BattlefieldScreen {
     pub fn new() -> BattlefieldScreen {
-        BattlefieldScreen { confirm: None, press: Press::new(), redraw: true }
+        BattlefieldScreen { confirm: None, press: Press::new(), redraw: true, outcome_seen: false }
     }
 
     fn live<'a>(ctx: &'a mut Ctx) -> Option<&'a mut LiveBattle> {
@@ -422,11 +425,51 @@ impl Screen for BattlefieldScreen {
             // The gauntlet is down; the picture has to move while it is.
             self.redraw = true;
         }
+        // `Smk_OnFinished`'s one battle line: `if (g_screenId == 0x2B)
+        // DAT_00568470 = 0x1389;` — 5001, one past the banner's wait. The film
+        // *was* the wait, so the banner leaves with it. A film that failed to
+        // open never reaches `Smk_OnFinished`, and then the banner keeps its
+        // ordinary five thousand frames.
+        let after_film = matches!(ctx.game.films.finished, Some(crate::movie::Film::Battle { .. }));
+        if after_film {
+            ctx.game.films.finished = None;
+        }
         let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
+        if after_film {
+            live.skip_outcome();
+        }
         live.edge_scroll();
         live.tick();
         let done = live.mode == Mode::Outcome && live.outcome_ticks > battlefield::OUTCOME_FRAMES;
+        let raised = live.mode == Mode::Outcome && !self.outcome_seen;
+        let decides = live.choice_owner != 0;
         self.redraw |= live.take_redraw();
+        if raised {
+            self.outcome_seen = true;
+            // `Battle_CheckOutcome` (`0x00477DFC`), straight after it raises
+            // `0x2B` and paints the banner:
+            //
+            // ```c
+            // if (g_optAnimations != 0 && g_battleChoiceOwner != 0) {
+            //     Music_Stop(0);
+            //     Smk_Play(bat_win1.smk + (g_battleOutcome * 4 + DAT_0053F084) * 0x10,
+            //              0x27, 0x49, 0, g_screenId);
+            //     if (3 < ++DAT_0053F084) DAT_0053F084 = 0;
+            // }
+            // ```
+            //
+            // `[D]` on one guard it is inside: `g_siegeCount < 2 || !siege`
+            // decides whether there is a banner at all, and this engine has no
+            // count of the turn's sieges to put in it.
+            // arm: 0x00477DFC/outcome-film frame
+            if ctx.game.prefs.animations && decides {
+                if let Some(banner) = ctx.game.battle.as_deref().map(|l| outcome_banner(ctx.game, l)) {
+                    let take = ctx.game.films.next_battle() as usize;
+                    let file = crate::movie::BATTLE_FILMS[banner.min(5)][take];
+                    return Transition::Push(ScreenId::Movie(crate::movie::Film::Battle { file }));
+                }
+            }
+        }
         if done {
             return self.settle(ctx);
         }
@@ -514,13 +557,38 @@ impl Screen for BattlefieldScreen {
         // is wrapped to 384 at (48, 224). The corner picture was absent
         // entirely.
         //
-        // **NOT PORTED: the animated arm.** `g_optAnimations` selects a taller
-        // window at (0x10, 0x30, 0x1C, 0x16) with a 402 × 194
-        // `Ui_DrawInsetRect` recess at (39, 72) for a Smacker clip and its text
-        // 168 pixels lower. This engine has no counterpart to that flag and no
-        // clip to put in the recess, so only the short window is drawn.
-        if live.mode == Mode::Outcome {
-            let pair = outcome_pair(ctx, live);
+        // **And the animated arm**, when `g_optAnimations` is set and the local
+        // player decided the battle — the one the film plays in:
+        //
+        // ```text
+        //   FUN_0047703A(); FUN_004B1310();             the field dimmed
+        //   FUN_004093E0(0x10, 0x30, 0x1C, 0x16)        a taller window
+        //   Ui_DrawInsetRect(0x27, 0x48, 0x192, 0xC2)   the film's well
+        //   Ui_OkButton(0x1A0, 0x160, 0)
+        //   Eng_DrawString(0x52, pair*2,     0x30, 0x138, heading)
+        //   FUN_0040328E (0x52, pair*2 + 1,  0x30, 0x158, 0x180, 100, 0x20, 0x1A0, …)
+        // ```
+        //
+        // `FUN_0047703A` is unread, and `FUN_0040328E`'s last two numbers here
+        // differ from every other call of it and are not modelled.
+        let animated = ctx.game.prefs.animations && live.choice_owner != 0;
+        if live.mode == Mode::Outcome && animated {
+            let pair = outcome_banner(ctx.game, live);
+            let palette = ctx
+                .assets
+                .shell
+                .palette(l2_view::scene::TILE_PALETTE)
+                .unwrap_or(&ctx.assets.palette);
+            canvas.remap(&l2_view::canvas::shade_table(palette));
+            p.window(canvas, 0x10, 0x30, 0x1C, 0x16, BOX_SET);
+            crate::shell::inset_rect(canvas, 0x27, 0x48, 0x192, 0xC2);
+            p.ok_button(canvas, 0x1A0, 0x160, 0);
+            let head = ctx.assets.shell.text(GROUP_BANNER, pair * 2).to_string();
+            let body = ctx.assets.shell.text(GROUP_BANNER, pair * 2 + 1).to_string();
+            p.heading(canvas, 0x30, 0x138, &head, font::TEXT);
+            p.body_wrapped(canvas, 0x30, 0x158, 0x180, &body, font::TEXT);
+        } else if live.mode == Mode::Outcome {
+            let pair = outcome_banner(ctx.game, live);
             let head = ctx.assets.shell.text(GROUP_BANNER, pair * 2).to_string();
             let body = ctx.assets.shell.text(GROUP_BANNER, pair * 2 + 1).to_string();
             p.window(canvas, OUTCOME_BOX.x, OUTCOME_BOX.y, OUTCOME_COLS, OUTCOME_ROWS, BOX_SET);
@@ -593,26 +661,38 @@ fn ours_confirm(prompt: usize) -> &'static str {
     }
 }
 
-fn outcome_pair(ctx: &Ctx, live: &LiveBattle) -> usize {
-    let winner_is_mine = live
-        .conclusion
-        .map(|c| {
-            let side_b_won = c.winner == l2_sim::SIDE_B;
-            let mine = ctx
-                .game
-                .kingdom
-                .campaign
-                .units
-                .get(if side_b_won { live.attacker } else { live.defender })
-                .is_some_and(|u| u.owner == ctx.game.player);
-            mine
-        })
-        .unwrap_or(false);
-    match (live.is_siege(), winner_is_mine) {
-        (false, true) => 0,
-        (false, false) => 1,
-        (true, true) => 2,
-        (true, false) => 3,
+/// **`Battle_SelectOutcomeBanner` (`0x00478419`)** — which of group 82's pairs,
+/// and so which row of [`crate::movie::BATTLE_FILMS`].
+///
+/// ```c
+/// if (!siege) outcome = (local == winnerOwner) ? 0 : 1;
+/// else if (local == winnerOwner) outcome = (g_battleLoser == armyA) ? 2 : 4;
+/// else                           outcome = (g_battleLoser == armyA) ? 5 : 3;
+/// ```
+///
+/// `g_battleLoser` holds the **winner** despite its name, and army A is always
+/// the besieger, so a siege reads four ways: took the castle (2), held it (4),
+/// lost it (5), driven off it (3). **This used to collapse the four to two** —
+/// a won siege was always 2 and a lost one always 3 — so a player who held his
+/// castle was told he had taken it. Our attacker is `l2_sim::SIDE_B`
+/// (`engagement.rs` writes the attacker's survivors from that side), which is
+/// the original's army A. `Screen_BattleOutcome` shows the neutral pair 6 when
+/// `g_battleChoiceOwner` is 0, before either of these is consulted.
+fn outcome_banner(game: &crate::Game, live: &LiveBattle) -> usize {
+    if live.choice_owner == 0 {
+        return 6;
+    }
+    let Some(c) = live.conclusion else { return 1 };
+    let attacker_won = c.winner == l2_sim::SIDE_B;
+    let winner = if attacker_won { live.attacker } else { live.defender };
+    let mine = game.kingdom.campaign.units.get(winner).is_some_and(|u| u.owner == game.player);
+    match (live.is_siege(), mine, attacker_won) {
+        (false, true, _) => 0,
+        (false, false, _) => 1,
+        (true, true, true) => 2,
+        (true, true, false) => 4,
+        (true, false, true) => 5,
+        (true, false, false) => 3,
     }
 }
 

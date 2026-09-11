@@ -231,6 +231,11 @@
       "what": "g_screenId 0x00 and 0x10 -- Map_Click (0x0043CE1A), the campaign map's left-click dispatcher, and the four-clause 0x10 arm that is move-order mode.",
       "complete": false,
       "note": "THIS GROUP DID NOT EXIST, AND THE THREE DEFECTS THAT PRODUCED IT ALL LIVED IN IT. A player reported three things about selection on the campaign map -- an army that could not be deselected, a yellow outline round the selected county, and a click on grass opening the tax window. All three were fixed (C61 and C132) and NOT ONE of the arms involved was in this file: `right-column` covers x >= 478 and stops there, so Map_Click -- 1,263 bytes, the only writer of g_screenId = 2 in the binary, and the whole of what a left click on the map does -- scored zero WITHOUT EVER APPEARING AS A MISS. That is the _note's own \"the denominator is a PLACE, not a category\" happening to the campaign map, which is the screen the game opens on. `complete: false` because the enumeration here is Map_Click's own ladder, the 0x10 arm and the two screen-0 clauses either side of the Map_Click call; the rest of the screen-0 ladder is the `right-column` group's and the message scroll's. docs/decisions.md C139."
+    },
+    "films": {
+      "what": "g_screenId 0x22 -- a film is playing -- and 0x44, the Smacker test page. Every way a film ends early, and the input of the one screen that exists to play films.",
+      "complete": true,
+      "note": "Enumerated from the far end, which cannot miss one: Smk_Skip (0x0042DF30) is the only function that ends a film early -- Smk_CloseQuiet is WM_DESTROY's teardown and runs no Smk_OnFinished -- and it has exactly three callers: Screen_FrameInput's 0x22 arm (four ifs, four records), FUN_0043AD25 from Turn_Tick's end-of-season phase, and Net_LeaveGame. The start of a film is not an arm of this group: each of Smk_Play's seven callers is filed with the screen that raised it (front-end-pages, messages, battlefield) or not at all (CastleBuild_Confirm, whose module castle.rs is one of the unenumerated nine). Screen 0x44's two widget handlers are dead: an image-wide scan for `mov byte ptr [g_screenId], imm8` finds 52 immediates and no 0x44, and the other 48 stores copy a remembered screen, which cannot hold a value nothing wrote."
     }
   },
   "arms": [
@@ -745,6 +750,52 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/film-skip-key",
+      "status": "reproduced",
+      "group": "films",
+      "screen": "0x22",
+      "gesture": "key",
+      "addr": "0x0042FF10",
+      "what": "The 0x22 arm's fourth if: `if (DAT_004EABB4 != 0) Smk_Skip();`. DAT_004EABB4 is set by App_WndProc's WM_KEYDOWN case BEFORE it switches on the key, and cleared as Screen_FrameInput's last statement, so it is 'a key went down this frame' -- ANY key.",
+      "note": "Escape is also a key, and in the window procedure it does a second thing -- see 0x004B29BE/escape-quits-outside-the-game. Only the skip half is built.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/movie.rs"
+    },
+    {
+      "id": "0x0042FF10/film-skip-left-release",
+      "status": "reproduced",
+      "group": "films",
+      "screen": "0x22",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Screen_FrameInput's 0x22 arm, third if: `if (g_mouseLeftReleased != 0) Smk_Skip();`. A RELEASE ends a film, not a press, and Smk_Skip runs Smk_OnFinished exactly as the last frame does -- so during start-up it moves to the next film of intro.smk / imptitle.smk / credits.smk rather than out of the sequence.",
+      "note": "One compensation, recorded where it lives: castle.rs confirms on the press where CastleBuild_Confirm is a kind-5 widget firing twenty frames later, so the castle film ignores the release of the click that started it. FUN_00432B05 guards the same case by hand for lom.smk (`g_mouseLeftReleased = 0` before Smk_Play).",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/movie.rs"
+    },
+    {
+      "id": "0x0042FF10/film-skip-right-release",
+      "status": "reproduced",
+      "group": "films",
+      "screen": "0x22",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "The 0x22 arm's second if: `if (g_mouseRightReleased != 0) Smk_Skip();`.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/movie.rs"
+    },
+    {
+      "id": "0x0042FF10/film-skip-sync-latch",
+      "status": "missing",
+      "group": "films",
+      "screen": "0x22",
+      "gesture": "none",
+      "addr": "0x0042FF10",
+      "what": "The 0x22 arm's first if: `if (DAT_00553FC8 != 0) Smk_Skip();` -- the multiplayer sync-wait latch ends a film under the player.",
+      "note": "No network game exists here to set the latch.",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/force-close-on-turn-end",
       "status": "missing",
       "group": "right-column",
@@ -1136,6 +1187,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x00432B05/lords-of-magic",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-release",
+      "addr": "0x00432B05",
+      "what": "Setup page 1's third item, 'Lords of Magic?': the hotspot record at 0x004DCB78, third of the title page's four, carries hotspot id 4 and kind 3, so it fires on the RELEASE while its three neighbours are kind 1. FUN_00432B05's hotspot-4 arm is Music_Stop, g_mouseLeftReleased = 0, FUN_004B11CE and Smk_Play(\"lom.smk\", 0x46, 0x50, 0, g_screenId).",
+      "note": "This settles what screens/setup.rs had filed as unresolved -- 'id 4 plays lom.smk while the painter draws Lords of Magic? third' -- the ids are not the drawing order, the records are. The item used to open page 10.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/setup.rs"
+    },
+    {
       "id": "0x00432B05/multiplayer-clears-campaign",
       "status": "reproduced",
       "group": "front-end-pages",
@@ -1218,6 +1281,28 @@
       "note": "0x004DD310 is also the first record of the widget region, which is why the exe-gated check in crates/l2-game/tests/arms.rs uses this handler as its spot check on the scan's base: a wrong base decodes plausible rubbish rather than nothing.",
       "ours": "crates/l2-game/src/screens/battlefield.rs",
       "evidence": "V"
+    },
+    {
+      "id": "0x00434EF9/smack-test-step",
+      "status": "dead",
+      "group": "films",
+      "screen": "0x44",
+      "gesture": "left-press-repeat",
+      "addr": "0x00434EF9",
+      "what": "g_smackTestWidgets records 0 and 1, the minus and plus at (208, 232) and (240, 232): step g_smkTestIndex through the forty-name table at 0x004D4D60.",
+      "why": "Screen 0x44 has no writer. An image-wide scan of `mov byte ptr [g_screenId], imm8` (C6 05 50 AC 4E 00 xx) finds 52 distinct immediates and not 0x44; the 48 `mov [g_screenId], al` stores restore remembered screens.",
+      "evidence": "D"
+    },
+    {
+      "id": "0x00434F53/smack-test-replay",
+      "status": "dead",
+      "group": "films",
+      "screen": "0x44",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434F53",
+      "what": "g_smackTestWidgets records 2 and 3, the thumbs: hotspot 0 leaves to screen 0, hotspot 1 is Smk_ReplayIntro -- Music_Stop and Smk_Play(table[g_smkTestIndex], 0x27, 0x49). The only reach of every film the game never plays elsewhere.",
+      "why": "The same screen, and the same scan.",
+      "evidence": "D"
     },
     {
       "id": "0x004351C4/court-greatest-nobles",
@@ -1715,6 +1800,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x0043AD25/film-skip-season-end",
+      "status": "missing",
+      "group": "films",
+      "screen": "0x22",
+      "gesture": "frame",
+      "addr": "0x0043AD25",
+      "what": "FUN_0043AD25, which Turn_Tick's phase 7 runs before Season_Advance: on screen 0x22 it calls Smk_Skip, reloads the county art and draws screen 0. A capture film still playing when the season turns is cut off.",
+      "note": "Unreachable in ours rather than unbuilt: only the top screen is stepped, so a film on top pauses the turn and the season cannot turn under it. That is a divergence of its own -- the original's turn runs on while a capture film plays -- and it is the same one every message window already has here.",
+      "evidence": "V"
+    },
+    {
       "id": "0x0043AE30/sidebar-castle",
       "status": "reproduced",
       "group": "right-column",
@@ -2147,14 +2243,15 @@
     },
     {
       "id": "0x0047309E/capture-smacker",
-      "status": "missing",
+      "status": "reproduced",
       "group": "messages",
       "screen": "every",
       "gesture": "draw",
       "addr": "0x0047309E",
       "what": "Categories 0x0D and 0x0E, when g_optAnimations is 1 and the timer is above 0x7C6: the window draws once, calls Msg_Dismiss ON ITSELF, stops the music and plays a Smacker -- cap_cty1/2/3.smk in rotation for a captured county, 0x004F0340 for an ending -- then restarts the campaign music if the video did not play and finally calls Msg_PlayVoice with the group and variant it saved off at the top of the function.",
-      "note": "Missing because there is no video player. The UNANIMATED branch of both categories is built and is the branch the original takes with animations off, so the messages themselves are reachable. Worth recording as an arm rather than as a drawing gap because it is a THIRD dismissal inside the draw and because the outcome ladder is duplicated inside it -- an ending with animations on sets DAT_0053F0C4 from the animated branch, not the timer-2000 one.",
-      "evidence": "V"
+      "note": "Built: crate::message::animate is the branch and crate::screens::movie draws the taller window once and plays the film in its well. REACHABLE FOR ENDINGS ONLY: nothing in this engine posts a category-0x0D record -- County_ChangeOwner's nine capture letters (groups 0x75..0x7E) have no poster, l2_kingdom::conquest::change_owner leaves them to a caller -- so the capture half is exercised by a test that posts one and by no player. Worth recording as an arm rather than as a drawing gap because it is a THIRD dismissal inside the draw and because the outcome ladder is duplicated inside it -- an ending with animations on sets DAT_0053F0C4 from the animated branch, not the timer-2000 one; ours runs the shared ladder in `show` first, which is the same eleven lines. The ending film is FUN_00475B41's: win_game.smk for group 0xE1, else by lord and years since 1267 -- cart, pillory, jail, gallows, axe for a computer lord; jail, gallows, axe for a human.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/message.rs"
     },
     {
       "id": "0x0047309E/ending-sets-outcome",
@@ -2238,6 +2335,18 @@
       "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed. CORRECTED WHEN IT WAS BUILT: this record used to say `a right release INSIDE A 48x48 BOX round the message scroll`. There is no box on this arm. Msg_HandleInput's right-button branch is `else { Msg_Dismiss(); return 1; }` with no rectangle and no category test in front of it -- the 48x48 box belongs to the LEFT press, and is 0x0047685D/message-ok-dismiss. The consequence is a behaviour the wrong reading hides: a right click ANYWHERE closes an unanswered alliance offer, and closing it is neither yes nor no.",
       "evidence": "V",
       "ours": "crates/l2-game/src/screens/message.rs"
+    },
+    {
+      "id": "0x00477DFC/outcome-film",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x2B",
+      "gesture": "frame",
+      "addr": "0x00477DFC",
+      "what": "Battle_CheckOutcome, the frame it raises 0x2B: with g_optAnimations and g_battleChoiceOwner both set, Music_Stop and Smk_Play(bat_win1.smk + (g_battleOutcome * 4 + DAT_0053F084) * 0x10, 0x27, 0x49) over the animated banner, stepping DAT_0053F084 through 0..3. When the film ends Smk_OnFinished sets DAT_00568470 = 5001, so the banner leaves with it.",
+      "note": "Behaviour rather than input, filed beside 0x00477DFC/outcome-timer because it replaces that timer. The siege-count guard around the banner is not modelled.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/battlefield.rs"
     },
     {
       "id": "0x00477DFC/outcome-timer",
@@ -2361,6 +2470,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x004B29BE/escape-quits-outside-the-game",
+      "status": "missing",
+      "group": "films",
+      "screen": "every",
+      "gesture": "key",
+      "addr": "0x004B29BE",
+      "what": "App_WndProc's VK_ESCAPE case: `if (g_appPhase == 3) Menu_Quit(); else g_quitRequest = 1; return 0;`. g_appPhase is 1 through the start-up films and 2 on the front end, so Escape during the intro QUITS THE PROGRAM -- after setting DAT_004EABB4, which would otherwise have skipped the film.",
+      "note": "Filed here because a film is where a player meets it first, and not built because it is not a film arm: it is every front-end screen's Escape, and those carry inventions of their own (ours/setup-key-escape and its neighbours). Ours skips the film on Escape as on any key.",
+      "evidence": "V"
+    },
+    {
       "id": "0x004B29BE/wm-char",
       "status": "reproduced",
       "group": "text",
@@ -2381,6 +2501,17 @@
       "addr": "0x004B35C1",
       "what": "Msg_PlayVoice(group, variant) on the frame the timer hits a per-category value: 0x7C6 for most, 0x776 for a plain notice and a lord's letter, 0x708 for the two prompts, 0x76C for an ending, 0x5A for a tip. Groups 170..197 index g_msgVoiceLord by (group - 170) * 0x100 + variant * 0x10 into Kt/Bn/Ct/Bp <group>_<1..4>.wav; everything else has one file.",
       "note": "Missing because audio is another branch's. The trigger timers are the interesting half and are recorded in crates/l2-game/src/message.rs so that branch does not have to re-read the function: they are five different values in one function and they are what makes a lord speak AFTER his letter has been on screen for a moment rather than as it opens.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004B743B/film-skip-leave-game",
+      "status": "missing",
+      "group": "films",
+      "screen": "0x22",
+      "gesture": "none",
+      "addr": "0x004B743B",
+      "what": "Net_LeaveGame's SierraNW branch opens with Smk_Skip before it returns to setup page 1.",
+      "note": "No network game.",
       "evidence": "V"
     },
     {

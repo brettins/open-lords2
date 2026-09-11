@@ -515,6 +515,10 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // are in `l2_kingdom::save` where they belong.
         prefs: crate::game::Prefs::default(),
         presentation_quirks: crate::game::Quirks::default(),
+        // Which capture and battle film come next. Presentation, and not in
+        // any of the original's save blocks either; a loaded game starts both
+        // rotations over, as the original's start-up does.
+        films: crate::movie::Reel::default(),
     })
 }
 

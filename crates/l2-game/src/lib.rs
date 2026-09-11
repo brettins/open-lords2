@@ -57,6 +57,7 @@ pub mod engagement;
 pub mod game;
 pub mod input;
 pub mod message;
+pub mod movie;
 pub mod press;
 pub mod save;
 pub mod saves;

@@ -183,6 +183,12 @@ pub enum ScreenId {
     /// original it is in the data segment: the window is opened by the frame
     /// driver and not by anything the player did.
     Message,
+    /// **`g_screenId` `0x22` — a film is playing.** `Smk_Play` (`0x0042D91B`)
+    /// parks the screen id here and `Smk_OnFinished` puts back the one it was
+    /// told to return to. The film is the identity because each of `Smk_Play`'s
+    /// seven callers decides what the end of it does. See
+    /// [`crate::screens::movie`] and [`crate::movie`].
+    Movie(crate::movie::Film),
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -318,6 +324,17 @@ pub trait Screen {
         None
     }
 
+    /// **A palette that is not a file** — a film's, which changes as it plays.
+    ///
+    /// `Smk_PlayLoop` copies the film's 768 bytes into `g_paletteRgb` and
+    /// uploads them whenever a frame carries a palette, so while a film is up
+    /// *the whole screen* runs under it, the window it was raised over
+    /// included. When this answers `Some`, the presenter uses it in place of
+    /// [`Screen::palette`].
+    fn live_palette(&self) -> Option<l2_formats::Palette> {
+        None
+    }
+
     /// How far into the end-of-turn screen fade this screen is, or `None` for
     /// the ordinary full-brightness palette.
     ///
@@ -437,6 +454,7 @@ impl ScreenId {
             ScreenId::Ratings => Box::new(crate::screens::ratings::RatingsScreen::new()),
             ScreenId::Info(target) => Box::new(crate::screens::info::InfoScreen::new(target)),
             ScreenId::Message => Box::new(crate::screens::message::MessageScreen::new()),
+            ScreenId::Movie(film) => Box::new(crate::screens::movie::MovieScreen::new(film)),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }
     }
@@ -680,6 +698,12 @@ impl Machine {
     /// turns indices into colour.
     pub fn palette_name(&self) -> Option<&'static str> {
         self.stack.last().and_then(|s| s.palette())
+    }
+
+    /// The top screen's [`Screen::live_palette`], which outranks
+    /// [`Machine::palette_name`] when it answers.
+    pub fn live_palette(&self) -> Option<l2_formats::Palette> {
+        self.stack.last().and_then(|s| s.live_palette())
     }
 
     /// The end-of-turn fade phase of the top screen, or `None`. The presenter

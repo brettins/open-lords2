@@ -125,6 +125,7 @@ pub mod menu;
 pub mod menubar;
 pub mod merchant;
 pub mod message;
+pub mod movie;
 pub mod options;
 pub mod ratings;
 pub mod saveload;

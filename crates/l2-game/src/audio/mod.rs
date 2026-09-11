@@ -197,6 +197,16 @@ pub enum Scene {
     Campaign { county_count: u8, share_of_map_pct: i32 },
     /// A battle, of a kind that picks the pair.
     Battle(BattleKind),
+    /// **A film is up, and the bed is silent.** Every one of `Smk_Play`'s
+    /// callers stops the music first — `Music_Stop(0)` in `CastleBuild_Confirm`,
+    /// in both animated `Msg_DrawWindow` branches, in `Battle_CheckOutcome`, in
+    /// `FUN_00432B05`; and `App_WinMain` stops the `setup.wav` it has just
+    /// started before the intro opens. The film plays its own track instead.
+    ///
+    /// `over_battle` is whether the battlefield is under it, because
+    /// `Smk_OnFinished` restarts the campaign bed **only when `g_battlePhase`
+    /// is 0**: a battle that ended in a film stays silent until it is left.
+    Film { over_battle: bool },
 }
 
 /// The audio layer. One per process, owned by the event loop.
@@ -209,6 +219,9 @@ pub struct Audio {
     /// a `BTreeMap` rather than a `HashMap` so that a listing of what was
     /// found is in a stable order when something has to be printed.
     files: BTreeMap<String, PathBuf>,
+    /// The `.smk` files, the same way — a film's track is decoded out of the
+    /// film when the film opens. See [`Audio::play_film`].
+    films: BTreeMap<String, PathBuf>,
     /// Decoded one-shots. Only effects are cached — they are a few kilobytes
     /// each and there are a couple of dozen. Music is megabytes and is held
     /// only while it plays.
@@ -250,6 +263,7 @@ impl Audio {
             mixer: Arc::new(Mutex::new(Mixer::new(44_100))),
             stream: None,
             files: BTreeMap::new(),
+            films: BTreeMap::new(),
             cache: BTreeMap::new(),
             battle: BattleCycle::default(),
             scene: None,
@@ -302,6 +316,11 @@ impl Audio {
                 // the install's directory disagree about case, so the key is
                 // pinned lower-case here as well rather than trusted.
                 audio.files.insert(name.to_ascii_lowercase(), path.to_path_buf());
+            }
+        }
+        for name in vfs.entries_with_extension("smk") {
+            if let Some(path) = vfs.resolve(name) {
+                audio.films.insert(name.to_ascii_lowercase(), path.to_path_buf());
             }
         }
         audio
@@ -399,9 +418,36 @@ impl Audio {
                     Some(Scene::Battle(k)) if k == kind => {
                         self.music_name().and_then(current_battle_track)
                     }
+                    // `Battle_CheckOutcome` stopped the bed for its film and
+                    // `Smk_OnFinished` restarts nothing while `g_battlePhase`
+                    // is 2: the field stays silent until it is left, and the
+                    // counter is not stepped, because no battle started.
+                    Some(Scene::Film { over_battle: true }) => return,
                     _ => Some(self.battle.next(kind)),
                 }
             }
+            // **Silence, which is what makes the next derivation a restart.**
+            // Every caller of `Smk_Play` runs `Music_Stop(0)` first and then,
+            // on whichever arm follows — the film ending (`Smk_OnFinished`) or
+            // the film failing to open (the callers' own `if (!Smk_Play(…))`)
+            // — starts the bed again from its first sample: `Music_Play
+            // ("setup.wav")` back on setup page 1, `Music_StartCampaign()`
+            // everywhere else. Ours stops it here, so that when the film's
+            // screen goes [`Audio::play_music`] finds nothing playing and
+            // starts the track over rather than carrying on with it. A film
+            // that fails to open is held on the stack for one tick
+            // (`crate::screens::movie`) precisely so that this arm sees it.
+            //
+            // **Two of the eight such sites are not claimed, and not for want
+            // of this line.** `Msg_DrawWindow#15` is the capture film's fail
+            // arm, and nothing in this engine posts a category-`0x0D` letter:
+            // `County_ChangeOwner` raises groups `0x75`…`0x7E` with it and
+            // `l2_kingdom::conquest::change_owner` leaves them to a caller that
+            // does not exist yet. `Msg_DrawWindow#19` is the ending's
+            // *fast-media* fail arm, a layout this install never takes. Both
+            // would sound through this arm unchanged; neither can be reached.
+            // sfx: Smk_OnFinished#1,Smk_OnFinished#2,CastleBuild_Confirm#1,Msg_DrawWindow#20
+            Scene::Film { .. } => None,
         };
         self.scene = Some(scene);
         match want {
@@ -480,6 +526,55 @@ impl Audio {
         if let Ok(mut m) = self.mixer.lock() {
             m.play_effect_if_idle(key, sound);
         }
+    }
+
+    /// **A film's sound track, from its first sample** — what `SmackOpen` with
+    /// track 0 enabled starts, replacing any film already sounding.
+    ///
+    /// Decoded whole when the film opens: the longest track in the install is
+    /// `LOM.SMK`'s 2.66 MB of 8-bit PCM, and the intro's is 1.45 MB. Gated by
+    /// none of the three switches, for the reason [`mixer::Mixer`]'s `film`
+    /// field gives. A film with no file, or one that will not parse, is silent,
+    /// which is also what its picture is.
+    pub fn play_film(&mut self, name: &str) {
+        match self.decode_film(name) {
+            Some(sound) => {
+                if let Ok(mut m) = self.mixer.lock() {
+                    m.set_film(name.to_ascii_lowercase(), Arc::new(sound));
+                }
+            }
+            None => self.stop_film(),
+        }
+    }
+
+    /// `SmackClose`.
+    pub fn stop_film(&mut self) {
+        if let Ok(mut m) = self.mixer.lock() {
+            m.stop_film();
+        }
+    }
+
+    /// The film whose track is sounding.
+    pub fn film_name(&self) -> Option<String> {
+        self.mixer.lock().ok()?.film_name().map(str::to_owned)
+    }
+
+    fn decode_film(&mut self, name: &str) -> Option<Sound> {
+        if !self.decodes {
+            return None;
+        }
+        let key = name.to_ascii_lowercase();
+        let bytes = std::fs::read(self.films.get(&key)?).ok()?;
+        let smk = l2_smk::Smk::parse(bytes).ok()?;
+        let track = smk.header().track(0)?;
+        let pcm = smk.audio(0).ok()?;
+        self.heard.insert(key);
+        Some(Sound {
+            channels: track.channels(),
+            rate: track.rate,
+            // Unsigned 8-bit, centred on 128, exactly as the `.wav` files are.
+            samples: pcm.iter().map(|&b| ((b as i16) - 128) << 8).collect(),
+        })
     }
 
     /// Fire a speech clip — `FUN_00427990(name, 1, 0)`. Gated by the *speech*
@@ -612,6 +707,12 @@ impl Audio {
 pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
     use crate::screen::ScreenId;
     let ids = machine.ids();
+    // `g_screenId == 0x22`: whatever else is true, a film is playing and the
+    // bed is stopped. See [`Scene::Film`].
+    if matches!(machine.top_id(), Some(ScreenId::Movie(_))) {
+        let over_battle = ids.iter().any(|id| matches!(id, ScreenId::Battlefield));
+        return Scene::Film { over_battle };
+    }
     // `g_battlePhase == 2`. The battlefield is three screen ids in the original
     // (`0x29` field, `0x2A` drag, `0x2B` outcome) and one of ours, and the
     // phase outlives all of them: panels open over the field while the battle
@@ -962,6 +1063,42 @@ impl Director {
                 }
             }
         }
+        // **A film's own track, and the narrator over it.**
+        //
+        // `Smk_Open` starts the film's sound with its first frame and
+        // `SmackClose` ends it — at the last frame, on a skip, or when
+        // `Smk_OnFinished` opens the next film of the start-up sequence. So the
+        // edge is the film on the stack *changing*, not merely appearing.
+        let film_of = |ids: &[ScreenId]| {
+            ids.iter().find_map(|id| match id {
+                ScreenId::Movie(f) => Some(*f),
+                _ => None,
+            })
+        };
+        let (was, is) = (film_of(&self.stack), film_of(&now));
+        if was != is {
+            match is {
+                Some(film) => {
+                    audio.play_film(film.file());
+                    // `Msg_PlayVoice(DAT_004F0374, DAT_004F0354)` — the last
+                    // line of both animated message branches, after `Smk_Play`
+                    // has returned with the first frame up. So the narrator
+                    // reads the capture or the fall over the film's opening,
+                    // and he reads it whether or not the film opened.
+                    //
+                    // `#16`, the capture's copy of the same line, is served by
+                    // this code and is not claimed: no capture letter is ever
+                    // posted here — see the `Scene::Film` arm of `Audio::follow`.
+                    // sfx: Msg_DrawWindow#21
+                    if let Some((group, variant)) = film.voice() {
+                        if let Some(name) = names::message_voice(group, variant) {
+                            audio.play_speech(&name);
+                        }
+                    }
+                }
+                None => audio.stop_film(),
+            }
+        }
         self.stack = now;
 
         self.hear_the_click(audio, machine);
@@ -1169,6 +1306,11 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
     use crate::screen::ScreenId as S;
     match id {
         S::Setup(_) | S::Menu | S::Index => true,
+        // The intro, the logo, the credits and the trailer play before any game
+        // exists; the other four are raised by one. `scene` answers `Film`
+        // for all eight before it asks this, so the arm is here to be answered
+        // rather than to be reached.
+        S::Movie(film) => film.is_front_end(),
         S::Campaign
         | S::County(..)
         | S::Village(..)

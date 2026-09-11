@@ -1021,7 +1021,23 @@ impl SetupScreen {
                 self.campaign = false;
                 self.go(SetupPage::Shield)
             }
-            (SetupPage::Title, 2) => self.go(SetupPage::NoCd),
+            // `FUN_00432B05`'s hotspot 4 — *"Lords of Magic?"* — is the THIRD
+            // record of `DAT_004DCB48` and carries hotspot id 4, which is what
+            // settles the question the note on `act` used to leave open: the
+            // ids are not the drawing order, the records are. It is also the
+            // one **kind 3** record of the four (`node tools/oracle/widgets.js
+            // widgets 4dcb48 4`), so it fires on the release — see `handle`.
+            //
+            // ```c
+            // Music_Stop(0); g_mouseLeftReleased = 0; FUN_004B1897(); FUN_004B11CE();
+            // Smk_Play("lom.smk", 0x46, 0x50, 0, g_screenId);  g_redrawRequest = 2;
+            // ```
+            //
+            // Sierra's trailer for its 1997 game, and the reason `LOM.SMK` is
+            // the largest file in the install.
+            (SetupPage::Title, 2) => {
+                Transition::Push(ScreenId::Movie(crate::movie::Film::LordsOfMagic))
+            }
             (SetupPage::Title, 3) => Transition::Quit,
             // Page 2.
             (SetupPage::Options, 0) => self.go(SetupPage::Campaign),
@@ -1470,6 +1486,19 @@ impl Screen for SetupScreen {
             }
             Event::Click { x, y } => {
                 if let Some((i, action)) = self.at(x, y) {
+                    self.selected = i;
+                    // The one kind-3 record on the title page fires on the
+                    // release, below; its press only selects.
+                    if self.page == SetupPage::Title && action == Action::Item(2) {
+                        return Transition::Stay;
+                    }
+                    return self.act(action, ctx);
+                }
+            }
+            // `Hotspot_Test` kind 3: `DAT_004DCB48` record 2, hotspot id 4.
+            // arm: 0x00432B05/lords-of-magic left-release
+            Event::Release { x, y } if self.page == SetupPage::Title => {
+                if let Some((i, action @ Action::Item(2))) = self.at(x, y) {
                     self.selected = i;
                     return self.act(action, ctx);
                 }
