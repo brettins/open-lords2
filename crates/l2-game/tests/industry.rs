@@ -445,10 +445,24 @@ fn a_turning_wheel_changes_the_screen_and_a_stopped_one_changes_nothing() {
 /// one place this branch departs from it, in storage and not in behaviour, and
 /// this is the assertion that keeps the departure honest.
 ///
-/// **Ablation.** Write the stepped frame back into
-/// `ctx.game.kingdom.campaign.map.terrain` from `step_industry` — exactly what
-/// the original does — and this goes red while every other test in this file
-/// stays green.
+/// # Ablating it, and the two things that came out of trying
+///
+/// **`step_industry` cannot write to the kingdom at all**: it takes `&Ctx`, and
+/// the attempt is a borrow-check error rather than a red test. That is the
+/// stronger guarantee `docs/agents.md` asks for — *prefer a shape that cannot be
+/// wrong to a check that notices when it is* — and it means the leak has to be
+/// staged in `update`, where a `&mut Ctx` exists.
+///
+/// Two versions were tried there, and **the first was green**: writing each
+/// site's frame into its own county's `purse` leaks the phase into an encoded
+/// field and this test did not see it, because a county holds up to four sites
+/// and only the last writer survives — the two runs' last-per-county frames
+/// happened to coincide. Folding *every* frame into one encoded field is red.
+///
+/// So the honest scope: this asserts that the phase does not reach the encoding
+/// **in a way that survives to the end of the run**, which is what a lockstep
+/// peer would see. A leak that collides is a leak it cannot detect, and there is
+/// no cheap check that can.
 #[test]
 fn two_maps_whose_wheels_are_out_of_phase_reach_the_same_kingdom() {
     const N: u32 = 400;
