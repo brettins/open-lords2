@@ -173,7 +173,7 @@ use l2_view::Canvas;
 use crate::input::{Event, Key, Rect};
 use crate::press::{Kind, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Pen};
+use crate::shell::{font, Face, Pen};
 
 /// What the right click resolved to. **Part of the screen's identity**, because
 /// the original keeps it in `g_pickedTileUnit`/`DAT_0056795C` and picks the
@@ -334,6 +334,24 @@ pub const SUPPLY0: usize = 0x17;
 pub const HEALTH0: usize = 0x1B;
 /// 16/0 *"No mercenaries in the army."*, 16/1…12 the nationalities.
 pub const MERC_GROUP: usize = 16;
+
+/// **The unit half's heading-face lines**, every one `&g_fontHeading` in
+/// `UnitPanel_Draw` (`0x0041B19D`) and every y `R * 0x10 + k`.
+///
+/// The transport's 31/2 and its destination county sit at `(0x18, 0x30)`,
+/// sixteen pixels left of and sixteen above where the merchant's and the
+/// peasants' heading goes ([`HEADING_X`], [`HEADING_DY`]).
+pub const TRANSPORT_HEADING_AT: (i32, i32) = (0x18, 0x30);
+/// An army's name: `Eng_DrawString((char)owner + 0x5D, nameIndex, 0x28,
+/// R * 0x10 + 0x30, &g_fontHeading, 0x3F)`. `L2.eng` 94…98 are the five realms'
+/// 24 names each (`docs/formats/eng.md` §5).
+pub const ARMY_NAME_GROUP: usize = 0x5D;
+pub const ARMY_NAME_DY: i32 = 0x30;
+/// The mercenary line, inside the ownership gate and after everything else:
+/// 16/0 alone, or `Ui_DrawNumber(mercMen, '@', &DAT_004D422C, 0x38, …)`, 16/band
+/// and `Ui_DrawUnitNoun(mercMen, mercTroop * 2 + 0x34, …)`. `DAT_004D422C` is a
+/// NUL, read out of the image.
+pub const MERC_LINE_AT: (i32, i32) = (0x38, 0x130);
 
 /// **The county-town arm of the tile half**, and the only part of the group-30
 /// ladder this module draws.
@@ -1045,6 +1063,65 @@ impl Screen for InfoScreen {
                     _ => ENEMY_ARMY,
                 };
                 icon(frame, canvas);
+                // **The heading line, and every arm of it is `&g_fontHeading`.**
+                // We drew the merchant's, the peasants' and the transport's in the
+                // body face through `Pen::eng`, put the transport's at the
+                // others' place, and drew no army's name at all. `UnitPanel_Draw`:
+                //
+                // ```c
+                // if (local_20 == 2) {                                /* transport */
+                //   g_penAdvance = 0;
+                //   Eng_DrawString(0x1f, 2, 0x18, R * 0x10 + 0x30, &g_fontHeading, 0x3f);
+                //   Eng_DrawString(100, unit[+0x167] + g_scenarioIndex * 0x14,
+                //                  g_penAdvance + 0x18, R * 0x10 + 0x30, &g_fontHeading, 0x3f);
+                // } else if (local_20 != 6) {                         /* merchant, peasants */
+                //   Eng_DrawString(0x1f, local_20, 0x28, R * 0x10 + 0x40, &g_fontHeading, 0x3f);
+                // }
+                // ...                                                 /* kind == 1 */
+                // g_penAdvance = 0;
+                // Eng_DrawString((char)unit.owner + 0x5d, unit.nameIndex, 0x28,
+                //                R * 0x10 + 0x30, &g_fontHeading, 0x3f);
+                // ```
+                //
+                // `+0x167` on a transport is [`l2_kingdom::unit::Unit::cargo_county`].
+                match u.kind {
+                    UnitKind::Transport => {
+                        let y = l.y(TRANSPORT_HEADING_AT.1);
+                        let w = pen.eng_in(
+                            Face::Heading,
+                            canvas,
+                            UNIT_GROUP,
+                            heading,
+                            TRANSPORT_HEADING_AT.0,
+                            y,
+                            font::TEXT,
+                        );
+                        let name = super::county::county_name(ctx, u.cargo_county);
+                        pen.heading(canvas, w, y, &name, font::TEXT);
+                    }
+                    UnitKind::Army => {
+                        pen.eng_in(
+                            Face::Heading,
+                            canvas,
+                            ARMY_NAME_GROUP + u.owner as usize,
+                            u.name_index as usize,
+                            HEADING_X,
+                            l.y(ARMY_NAME_DY),
+                            font::TEXT,
+                        );
+                    }
+                    _ => {
+                        pen.eng_in(
+                            Face::Heading,
+                            canvas,
+                            UNIT_GROUP,
+                            heading,
+                            HEADING_X,
+                            l.y(HEADING_DY),
+                            font::TEXT,
+                        );
+                    }
+                }
                 if u.kind == UnitKind::Army {
                     // **Outside the ownership gate**: the name, "An army from"
                     // and the county. This is the correction the module docs
@@ -1066,10 +1143,6 @@ impl Screen for InfoScreen {
                     let w = pen.eng(canvas, UNIT_GROUP, ARMY_FROM, HEADING_X, l.y(0x4A), font::TEXT);
                     let name = super::county::county_name(ctx, u.home_county);
                     pen.body(canvas, w, l.y(0x4A), &name, font::TEXT);
-                } else {
-                    // 31/6 is suppressed for an army by `local_20 != 6`; every
-                    // other kind draws its heading here.
-                    pen.eng(canvas, UNIT_GROUP, heading, HEADING_X, l.y(HEADING_DY), font::TEXT);
                 }
                 if u.kind != UnitKind::Army {
                     let s = a.text(UNIT_GROUP, body).to_string();
@@ -1125,6 +1198,67 @@ impl Screen for InfoScreen {
                             0x34 + t * 2,
                             font::TEXT,
                         );
+                    }
+                    // **The mercenary line — `UnitPanel_Draw`'s last block, all
+                    // `&g_fontHeading`, and it was not drawn at all.**
+                    //
+                    // ```c
+                    // if (unit.mercMen == 0) {
+                    //   Eng_DrawString(0x10, 0, 0x38, R * 0x10 + 0x130, &g_fontHeading, 0x3f);
+                    // } else {
+                    //   g_penAdvance = 0;
+                    //   Ui_DrawNumber(mercMen, '@', &DAT_004d422c, 0x38, R * 0x10 + 0x130, &g_fontHeading, 0x3f);
+                    //   Eng_DrawString(0x10, mercBand, g_penAdvance + 0x38, …, &g_fontHeading, 0x3f);
+                    //   Ui_DrawUnitNoun(mercMen, mercTroop * 2 + 0x34, g_penAdvance + 0x38, …);
+                    // }
+                    // ```
+                    //
+                    // `Ui_DrawUnitNoun` (`0x0041AC3E`) is `value == 1 ? index : index + 1`
+                    // — no `-1` arm, unlike `Ui_DrawCount`, and none is needed for a byte.
+                    let y = l.y(MERC_LINE_AT.1);
+                    match u.mercenaries {
+                        Some(m) if m.men != 0 => {
+                            let w = pen.number_in(
+                                Face::Heading,
+                                canvas,
+                                MERC_LINE_AT.0,
+                                y,
+                                m.men(),
+                                '@',
+                                "",
+                                font::TEXT,
+                            );
+                            let w = pen.eng_in(
+                                Face::Heading,
+                                canvas,
+                                MERC_GROUP,
+                                m.band as usize,
+                                w,
+                                y,
+                                font::TEXT,
+                            );
+                            let noun = 0x34 + m.troop as usize * 2 + usize::from(m.men != 1);
+                            pen.eng_in(
+                                Face::Heading,
+                                canvas,
+                                crate::shell::COUNT_NOUN_GROUP,
+                                noun,
+                                w,
+                                y,
+                                font::TEXT,
+                            );
+                        }
+                        _ => {
+                            pen.eng_in(
+                                Face::Heading,
+                                canvas,
+                                MERC_GROUP,
+                                0,
+                                MERC_LINE_AT.0,
+                                y,
+                                font::TEXT,
+                            );
+                        }
                     }
                 }
             }
@@ -1209,10 +1343,12 @@ impl Screen for InfoScreen {
                     icon(COUNTY_TOWN_ICON, canvas);
                     // **`&g_fontHeading`, not the body face.** `TileInfo_Draw`
                     // passes `&g_fontHeading` to both of its `Eng_DrawString`
-                    // headings. The unit half above uses `Pen::eng`, which is
-                    // the *body* font, for the same slot — a divergence that
-                    // predates this arm and is not fixed here, because it is
-                    // five call sites in a half this change does not touch.
+                    // headings and to the county name's `Ui_DrawCentred` — three
+                    // calls, and its three delegates (`TileInfo_DrawGrain`,
+                    // `…Herd`, `…Castle`) pass it to none. This line used to say
+                    // the unit half drew *its* headings in body through
+                    // `Pen::eng`; it did, and now draws all eight of
+                    // `UnitPanel_Draw`'s heading-face calls in the heading face.
                     let s = a.text(TILE_GROUP, COUNTY_TOWN_HEADING).to_string();
                     pen.heading(canvas, HEADING_X, l.y(HEADING_DY), &s, font::TEXT);
                     let s = a.text(TILE_GROUP, COUNTY_TOWN_BODY).to_string();

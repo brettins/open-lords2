@@ -939,7 +939,13 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 
 * **String character set.** Treated as Latin-1 here. The German and French
   builds ship their own `.eng`; none is available to check, so whether the
-  engine is codepage-aware is unknown.
+  engine is codepage-aware is unknown. **What is known** **[V]**: the engine draws
+  the byte, not a decoded character — `Ui_DrawText` indexes `g_glyphWidths` with
+  `c - 0x20` — and that table's non-zero entries above `0x7F` sit exactly where code
+  page 437 puts *Ç ü é … Ü* and *á í ó ú ñ Ñ ª º* (**[I]** which is meant). The
+  shipped English file's only bytes above `0x7F` are nine `0xB7`s, one at the head of
+  each of 295/2…295/10, and `0xB7` has no glyph. `shell::Eng` returns each byte as the
+  `char` of the same number; it used to return `None` for all nine strings.
 * **Which of `troops.eng` / `troops2.eng` / `troops3.eng` applies when.** The two
   selecting globals were not traced.
 * ~~**`L2.eng` groups have no names.** A reimplementation has to hard-code the ids
