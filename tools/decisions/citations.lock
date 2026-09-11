@@ -396,6 +396,8 @@ crates/l2-testkit/tests/quirks_catalogue.rs	C62	0139b3d61739	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	158971b86058	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	6e16796702fc	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	bb3cf267d3c1	ebb6a7ec3711
+crates/l2-testkit/tests/work_ledger.rs	C1	3f8c8bf0f873	6b7e8edb019e
+crates/l2-testkit/tests/work_ledger.rs	C1	d0ededac0b63	6b7e8edb019e
 crates/l2-view/src/campaign.rs	C49	38f05e43397f	4ce32e6c42e0
 crates/l2-view/src/campaign.rs	C57	cc211f4ea532	3b42b65157bf
 crates/l2-view/src/campaign.rs	C58	f81f70509bd8	2a1ff4d5966d
@@ -826,6 +828,7 @@ docs/draws-map.md	C30	40a6a7104696	50fdf5e17ba0
 docs/draws-map.md	C72	230aae5fabd7	e2bb936cf01c
 docs/draws-map.md	C77	cfea9c21de5f	94789f222b99
 docs/environment.md	C154	80c321c1ed21	4f820bfd08c8
+docs/features.json	C123	feb2147250bb	3a5cc2fec37d
 docs/formats/eng.md	C3	f56e526bf0e2	35bf3a86555f
 docs/formats/eng.md	C61	4cbf794a0efc	60611046b40d
 docs/formats/maps-layers.md	C124	4e7d57a30bb2	38723617b085
@@ -1168,4 +1171,6 @@ tools/oracle/widgets.js	C3	31c16884e2e7	35bf3a86555f
 tools/oracle/widgets.js	C61	ef2b1baaad8a	60611046b40d
 tools/oracle/xref.js	C21	56cb3a0cadde	f7bf296341ff
 tools/oracle/xref.js	C3	dbc82d5dfc52	35bf3a86555f
+tools/pm/work.js	C123	90abb2a6741e	3a5cc2fec37d
+tools/pm/work.js	C123	d72adbcfbd64	3a5cc2fec37d
 tools/run/play.ps1	C154	4b1c5f1d7ddc	4f820bfd08c8

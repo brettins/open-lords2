@@ -58,6 +58,11 @@ fn the_ledger_passes_its_schema_and_says_it_did_not_compare_git() {
         "the schema half ran without saying that the git half did not — a skip \
          that prints nothing is a pass that means nothing:\n{stdout}"
     );
+    assert!(
+        stdout.contains("work: features: schema:") && stdout.contains("SKIP feature references and evidence"),
+        "docs/features.json's schema was not checked, or its skipped halves were \
+         not said to be skipped:\n{stdout}"
+    );
 }
 
 /// Git in a scratch repository, isolated from this machine's configuration so
@@ -290,4 +295,274 @@ fn a_broken_ledger_fails_and_names_every_broken_row() {
         !stderr.contains("work: fine:"),
         "the one well-formed row was reported, so the check is not about rows:\n{stderr}"
     );
+}
+
+// ---- the feature checklist and the player's page ----------------------------
+
+/// A ledger with a row for every section of the player's page, and prose in
+/// every row that must never reach that page.
+const PAGE_LEDGER: &str = r##"{
+  "about": "a fixture ledger with a row in every section of the player's page",
+  "states": {"in-flight": "a", "queued-merge": "b", "awaiting-user": "c", "open": "d", "deferred": "e", "abandoned": "f"},
+  "tracks": {"play": "p", "screens": "s", "presentation": "v", "instruments": "i", "process": "r"},
+  "items": [
+    {"id": "row-flight", "title": "Row in flight", "track": "screens", "system": "s", "state": "in-flight", "branch": "worktree-agent-fixture1", "depends_on": [], "source": "PROSE-SOURCE", "next": "PROSE-NEXT", "note": "PROSE-NOTE"},
+    {"id": "row-queued", "title": "Row queued", "track": "play", "system": "s", "state": "queued-merge", "branch": "worktree-agent-fixture2", "depends_on": [], "source": "PROSE-SOURCE", "next": "PROSE-NEXT", "note": "PROSE-NOTE"},
+    {"id": "row-asks", "title": "Try in the original: a question", "track": "instruments", "system": "s", "state": "awaiting-user", "branch": null, "depends_on": [], "source": "PROSE-SOURCE", "next": "PROSE-NEXT", "note": "PROSE-NOTE"},
+    {"id": "row-play", "title": "Row open in play", "track": "play", "system": "s", "state": "open", "branch": null, "depends_on": [], "source": "PROSE-SOURCE", "next": "PROSE-NEXT", "note": "PROSE-NOTE"},
+    {"id": "row-sound", "title": "Row open in sound", "track": "presentation", "system": "s", "state": "open", "branch": null, "depends_on": [], "source": "PROSE-SOURCE", "next": "PROSE-NEXT", "note": "PROSE-NOTE"},
+    {"id": "row-tool", "title": "Row open in process", "track": "process", "system": "s", "state": "open", "branch": null, "depends_on": [], "source": "PROSE-SOURCE", "next": "PROSE-NEXT", "note": "PROSE-NOTE"},
+    {"id": "row-parked", "title": "Row deferred", "track": "play", "system": "s", "state": "deferred", "branch": null, "depends_on": [], "source": "PROSE-SOURCE", "next": "PROSE-NEXT", "note": "PROSE-NOTE"},
+    {"id": "row-dropped", "title": "Row abandoned", "track": "process", "system": "s", "state": "abandoned", "branch": null, "depends_on": [], "source": "PROSE-SOURCE", "next": "PROSE-NEXT", "note": "PROSE-NOTE"}
+  ]
+}
+"##;
+
+/// A clean feature list with one feature in each status: two of five graded
+/// features done, one out of scope, and one missing feature no row covers.
+const PAGE_FEATURES: &str = r##"{
+  "about": "a fixture feature list",
+  "statuses": {"done": "a", "partial": "b", "missing": "c", "not-assessed": "d", "out-of-scope": "e"},
+  "areas": {"realm": "The realm", "war": "War"},
+  "features": [
+    {"id": "fx-done", "area": "realm", "name": "Taxes", "status": "done", "evidence": ["C1", "docs/decisions.md"], "gap": "", "rows": []},
+    {"id": "fx-done-too", "area": "war", "name": "Marching", "status": "done", "evidence": ["arms:g"], "gap": "", "rows": []},
+    {"id": "fx-partial", "area": "realm", "name": "Rations", "status": "partial", "evidence": ["crates/not-here.rs"], "gap": "one panel", "rows": ["row-play"]},
+    {"id": "fx-missing", "area": "war", "name": "Fog of war", "status": "missing", "evidence": [], "gap": "", "rows": []},
+    {"id": "fx-unknown", "area": "war", "name": "Ransom", "status": "not-assessed", "evidence": [], "gap": "", "rows": []},
+    {"id": "fx-scope", "area": "realm", "name": "Multiplayer", "status": "out-of-scope", "evidence": [], "gap": "", "rows": ["row-parked"]}
+  ]
+}
+"##;
+
+/// A feature list with one defect per feature, and one feature with none.
+const BROKEN_FEATURES: &str = r##"{
+  "about": "a feature list broken on purpose, one defect per feature",
+  "statuses": {"done": "a", "partial": "b", "missing": "c", "not-assessed": "d", "out-of-scope": "e"},
+  "areas": {"realm": "The realm"},
+  "features": [
+    {"id": "fine", "area": "realm", "name": "Taxes", "status": "done", "evidence": ["C1"], "gap": "", "rows": ["row-play"]},
+    {"id": "bad-status", "area": "realm", "name": "Rations", "status": "shipped", "evidence": ["C1"], "gap": "", "rows": []},
+    {"id": "bad-area", "area": "sky", "name": "Weather", "status": "missing", "evidence": [], "gap": "", "rows": ["row-play"]},
+    {"id": "done-by-vibes", "area": "realm", "name": "Ale", "status": "done", "evidence": [], "gap": "", "rows": []},
+    {"id": "vague-partial", "area": "realm", "name": "Cattle", "status": "partial", "evidence": ["C1"], "gap": "", "rows": ["row-play"]},
+    {"id": "no-rows", "area": "realm", "name": "Grain", "status": "done", "evidence": ["C1"], "gap": ""},
+    {"id": "loose-cite", "area": "realm", "name": "Happiness", "status": "done", "evidence": ["it works in my game"], "gap": "", "rows": []},
+    {"id": "long-name", "area": "realm", "name": "A name that runs on and on, well past the one line a feature gets", "status": "done", "evidence": ["C1"], "gap": "", "rows": []},
+    {"id": "twice", "area": "realm", "name": "Health", "status": "done", "evidence": ["C1"], "gap": "", "rows": []},
+    {"id": "twice", "area": "realm", "name": "Health", "status": "done", "evidence": ["C1"], "gap": "", "rows": []},
+    {"id": "gone-row", "area": "realm", "name": "Migration", "status": "missing", "evidence": [], "gap": "", "rows": ["landed-and-left"]}
+  ]
+}
+"##;
+
+/// The `id` of every row of a file kept one row per line, which both
+/// `docs/work.json` and `docs/features.json` are.
+fn row_ids(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|l| l.trim_start().strip_prefix("{\"id\": \""))
+        .filter_map(|rest| rest.split('"').next())
+        .map(str::to_string)
+        .collect()
+}
+
+/// **The feature checklist's schema goes red on the feature it is about, the
+/// ledger references only when they are compared, and a gap with no row is
+/// reported without failing.**
+///
+/// The same ablation-made-permanent as the ledger's own: each defect is
+/// asserted by the feature it names and the rule it breaks, not by a count.
+#[test]
+fn a_broken_feature_list_fails_and_names_every_broken_feature() {
+    let dir = std::env::temp_dir().join(format!("l2-work-features-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let ledger = dir.join("work.json");
+    let broken = dir.join("broken.json");
+    let clean = dir.join("clean.json");
+    std::fs::write(&ledger, PAGE_LEDGER).unwrap();
+    std::fs::write(&broken, BROKEN_FEATURES).unwrap();
+    std::fs::write(&clean, PAGE_FEATURES).unwrap();
+    let s = |p: &Path| p.to_str().expect("utf-8 temp path").to_string();
+    let (ledger, broken, clean) = (s(&ledger), s(&broken), s(&clean));
+
+    let schema = work(&["--check", "--schema", "--file", &ledger, "--features", &broken]);
+    let full = work(&["--check", "--file", &ledger, "--features", &broken]);
+    let reported = work(&["--check", "--schema", "--file", &ledger, "--features", &clean]);
+    let _ = std::fs::remove_dir_all(&dir);
+    let (Some(schema), Some(full), Some(reported)) = (schema, full, reported) else {
+        return; // no node on this machine; the CI job has one
+    };
+
+    let stdout = String::from_utf8_lossy(&schema.stdout);
+    let stderr = String::from_utf8_lossy(&schema.stderr);
+    assert!(!schema.status.success(), "a feature list with eight defects passed:\n{stderr}");
+    let said = |text: &str, id: &str, words: &str| {
+        text.lines().any(|l| l.starts_with(&format!("work: feature {id}: ")) && l.contains(words))
+    };
+    for (id, words) in [
+        ("bad-status", "unknown status \"shipped\""),
+        ("bad-area", "unknown area \"sky\""),
+        ("done-by-vibes", "is done and cites nothing"),
+        ("vague-partial", "is partial and does not say what is missing"),
+        ("no-rows", "missing field \"rows\""),
+        ("loose-cite", "is not a citation anybody can check"),
+        ("long-name", "a few words"),
+        ("twice", "duplicate id"),
+    ] {
+        assert!(said(&stderr, id, words), "no line names feature {id} with \"{words}\":\n{stderr}");
+    }
+    assert!(!stderr.contains("work: feature fine:"), "the well-formed feature was reported:\n{stderr}");
+    assert!(
+        !stderr.contains("work: feature gone-row:") && stdout.contains("SKIP feature references and evidence"),
+        "--schema compared the ledger references, or did not say it skipped them:\n{stdout}\n{stderr}"
+    );
+
+    let stderr = String::from_utf8_lossy(&full.stderr);
+    assert!(
+        said(&stderr, "gone-row", "cites ledger row \"landed-and-left\""),
+        "a feature citing a row that is not in the ledger was not named:\n{stderr}"
+    );
+    assert!(!stderr.contains("work: feature fine:"), "the well-formed feature was reported:\n{stderr}");
+
+    let stdout = String::from_utf8_lossy(&reported.stdout);
+    assert!(
+        reported.status.success(),
+        "a clean list whose only gap is a missing feature with no row FAILED -- that is to be reported, \
+         not refused:\n{stdout}\n{}",
+        String::from_utf8_lossy(&reported.stderr)
+    );
+    assert!(
+        stdout.contains("work:   fx-missing (missing) Fog of war") && !stdout.contains("work:   fx-partial"),
+        "the report should name the missing feature no row covers, and not the partial one that has a row:\n{stdout}"
+    );
+}
+
+/// **The player's page shows every feature and every unmerged row exactly
+/// once, a missing feature as missing, computed counts, and none of the prose.**
+///
+/// Built in a scratch repository whose `main` holds the inventories and the
+/// fixture checklist, so the page is generated exactly as it would be for the
+/// real `main`. Then the real `docs/features.json` and the real ledger are
+/// drawn through the same tool, and every one of their ids is counted.
+#[test]
+fn the_players_page_shows_every_feature_and_every_open_row_once_and_no_prose() {
+    let root = root();
+    let dir = std::env::temp_dir().join(format!("l2-work-page-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("temp dir");
+    let config = dir.join("empty.gitconfig");
+    std::fs::write(&config, "").unwrap();
+    let put = |rel: &str, body: &str| {
+        let p = repo.join(rel);
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, body).unwrap();
+    };
+    let files: [(&str, String); 9] = [
+        ("tools/pm/work.js", std::fs::read_to_string(root.join("tools/pm/work.js")).unwrap()),
+        ("tools/figures/figures.js", std::fs::read_to_string(root.join("tools/figures/figures.js")).unwrap()),
+        (
+            "docs/arms.json",
+            r#"{"arms": [{"id": "arm-0", "status": "reproduced", "group": "g", "gesture": "key"}, {"id": "arm-1", "status": "missing", "group": "g", "gesture": "key"}]}"#.into(),
+        ),
+        ("docs/audio.json", r#"{"sites": [{"id": "site#0", "status": "reproduced", "class": "file", "sound": null}]}"#.into()),
+        ("docs/stored-fields.json", r#"{"fields": [{"id": "County+0x000", "status": "imported"}]}"#.into()),
+        (
+            "crates/l2-game/tests/differential.rs",
+            "const COMPARED_TOTAL: usize = 10;\nconst AGREE_TOTAL: usize = 9;\nconst MOVED_TOTAL: usize = 4;\nconst MOVED_AGREE_TOTAL: usize = 3;\n".into(),
+        ),
+        ("crates/l2-testkit/tests/census.rs", "    (\"crates/x/tests/y.rs\", \"install\", 1),\nconst GATED_TOTAL: usize = 1;\n".into()),
+        ("docs/decisions.md", "**C1 — a fixture correction.**\n".into()),
+        ("docs/features.json", PAGE_FEATURES.into()),
+    ];
+    for (rel, body) in &files {
+        put(rel, body);
+    }
+    let git = |args: &[&str]| scratch_git(&repo, &config, args);
+    let Some(_) = git(&["init", "-q"]) else {
+        let _ = std::fs::remove_dir_all(&dir);
+        return; // no git on this machine
+    };
+    git(&["symbolic-ref", "HEAD", "refs/heads/main"]).expect("name the branch main");
+    let mut add = vec!["add", "--"];
+    add.extend(files.iter().map(|(rel, _)| *rel));
+    git(&add).expect("stage the fixture");
+    git(&["commit", "-q", "-m", "main"]).expect("commit the fixture");
+
+    let ledger = dir.join("work.json");
+    std::fs::write(&ledger, PAGE_LEDGER).unwrap();
+    let page = dir.join("out").join("page.html");
+    let detail = dir.join("out").join("detail.html");
+    let real_page = dir.join("out").join("real.html");
+    let node = |args: &[&std::ffi::OsStr]| {
+        Command::new("node")
+            .arg(repo.join("tools/pm/work.js"))
+            .args(args)
+            .current_dir(&repo)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", &config)
+            .output()
+            .ok()
+    };
+    let os = |s: &str| std::ffi::OsString::from(s);
+    let fixture = node(&[&os("--html"), page.as_os_str(), &os("--html-detail"), detail.as_os_str(), &os("--file"), ledger.as_os_str()]);
+    let check = node(&[&os("--check"), &os("--file"), ledger.as_os_str()]);
+    let real_ledger = root.join("docs/work.json");
+    let real_features = root.join("docs/features.json");
+    let real = node(&[&os("--html"), real_page.as_os_str(), &os("--file"), real_ledger.as_os_str(), &os("--features"), real_features.as_os_str()]);
+    let read = |p: &Path| std::fs::read_to_string(p).unwrap_or_default();
+    let (html, detail_html, real_html) = (read(&page), read(&detail), read(&real_page));
+    let _ = std::fs::remove_dir_all(&dir);
+    let (Some(fixture), Some(check), Some(real)) = (fixture, check, real) else {
+        return; // no node on this machine; the CI job has one
+    };
+    assert!(fixture.status.success(), "the page failed on the fixture:\n{}", String::from_utf8_lossy(&fixture.stderr));
+    assert!(real.status.success(), "the page failed on the real files:\n{}", String::from_utf8_lossy(&real.stderr));
+
+    let once = |page: &str, attr: &str, id: &str| page.matches(&format!("{attr}=\"{id}\"")).count() == 1;
+    for id in row_ids(PAGE_FEATURES) {
+        assert!(once(&html, "data-feature", &id), "feature {id} is not on the player's page exactly once");
+    }
+    for id in row_ids(PAGE_LEDGER) {
+        assert!(once(&html, "data-row", &id), "ledger row {id} is not on the player's page exactly once");
+    }
+    assert!(
+        html.contains(r#"data-feature="fx-missing" data-status="missing""#),
+        "the missing feature is not drawn as missing"
+    );
+    assert!(
+        html.contains(r#"data-done="2" data-of="5""#),
+        "the tally should count two of five graded features done, leaving the out-of-scope one out"
+    );
+    for prose in ["PROSE-SOURCE", "PROSE-NEXT", "PROSE-NOTE"] {
+        assert!(!html.contains(prose), "{prose} reached the player's page, which carries a row's title and nothing else");
+    }
+    assert!(
+        html.contains("<title>") && !html.contains("<html") && !html.contains("<body"),
+        "the page must carry a title and no document tags, so it publishes as an artifact"
+    );
+    assert!(
+        detail_html.contains("What is in flight, and what is left") && detail_html.contains("PROSE-NEXT"),
+        "--html-detail should still be the detailed page, next steps and all"
+    );
+
+    let stdout = String::from_utf8_lossy(&check.stdout);
+    let stderr = String::from_utf8_lossy(&check.stderr);
+    assert!(
+        stderr.contains("work: feature fx-partial: evidence \"crates/not-here.rs\" is not a file in main")
+            && !stderr.contains("work: feature fx-done:")
+            && !stderr.contains("work: feature fx-done-too:"),
+        "the evidence half should name the one citation main does not hold, and only that one:\n{stderr}"
+    );
+    assert!(stdout.contains("work:   fx-missing (missing) Fog of war"), "the unrecorded gap was not reported:\n{stdout}");
+
+    let real_features = row_ids(&std::fs::read_to_string(root.join("docs/features.json")).unwrap());
+    let real_rows = row_ids(&std::fs::read_to_string(root.join("docs/work.json")).unwrap());
+    assert!(!real_features.is_empty() && !real_rows.is_empty(), "no ids were read from the real files");
+    for id in real_features {
+        assert!(once(&real_html, "data-feature", &id), "docs/features.json's {id} is not on the page exactly once");
+    }
+    for id in real_rows {
+        assert!(once(&real_html, "data-row", &id), "docs/work.json's {id} is not on the page exactly once");
+    }
 }

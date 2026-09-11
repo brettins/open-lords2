@@ -60,9 +60,20 @@ to prevent is the one `plan.md` suffered — a status that looks current and is 
   has no agent branches, so this half **prints `SKIP` with the reason and the number of rows
   it did not compare** rather than reporting every branch missing.
 
-`--status` is the derived view as text and `--html <path>` writes the same view as one page
-for the player — generated, **never committed**, with the time and the `main` SHA on it so
-its own staleness is visible.
+`--status` is the derived view as text. `--html <path>` writes **the player's page**: the
+original game's features graded done / partial / missing / not assessed from
+**`docs/features.json`**, then what is in progress, what merges next, what waits on him, and
+the backlog and the numbers folded away — one line per item, a ledger row's title and
+nothing else. `--html-detail <path>` writes the full page for agents. Both are generated,
+**never committed**, with the time and the `main` SHA on them so their own staleness is
+visible. The player's first page printed every row's prose and had no feature list; he
+called it *"blabby rather than like a clear feature or project task list"*.
+
+**`docs/features.json` is a claim, so `--check` holds it to evidence.** A `done` feature must
+cite a correction, a path, or an `arms:`/`audio:` inventory entry, and the full check proves
+each exists on `main`; every ledger row a feature names must be in the ledger — **when a row
+merges and leaves, the feature citing it goes red and must be re-graded**. A missing or
+partial feature citing no row is reported, not failed: it is work nobody has written down.
 
 **A view that names `main X` computes everything from `main X`.** The first version read the
 systems inventories out of whatever checkout the tool sat in while its header said
