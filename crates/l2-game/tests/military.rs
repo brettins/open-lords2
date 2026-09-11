@@ -120,6 +120,75 @@ fn world() -> (Game, Assets) {
     (g, Assets::placeholder())
 }
 
+/// **A loaded game offers the band its save has standing in the county, refuses
+/// it at the original's price, and hires it once the treasury can pay.**
+///
+/// `siege-old_turn.sav` is the one save on this machine where a band stands in a
+/// county the player holds: the Irish — two hundred pikemen at 3,500 crowns — in
+/// county 1, whose realm holds 2,354. Until `g_mercBands` was imported, no
+/// loaded game offered any band: the kingdom had none in play and county
+/// `+0x1AD` was never read, so the marker C150 put back on the town tile pointed
+/// at nothing on every save.
+///
+/// Everything this reads was written by the import — the offer, the band, its
+/// price — except the treasury, which the test tops up to reach the hiring
+/// branch after watching the refusal.
+///
+/// **Ablation, run:** delete `k.campaign.mercenaries = self.mercenaries.clone()`
+/// from `Scenario::skeleton` and the hire attaches no band; delete
+/// `c.mercenary_offer = *mercenary_offer;` from `Scenario::kingdom_with_tables`
+/// and the county offers nothing.
+#[test]
+fn a_loaded_game_offers_and_hires_the_band_its_save_has_standing_in_the_county() {
+    use l2_game::screen::Screen;
+    let save = l2_testkit::fixture!("siege-old_turn.sav");
+    let mut g = l2_game::scenario::from_save(&save, l2_kingdom::tables::Tables::DEFAULT)
+        .expect("the fixture loads");
+    let a = Assets::placeholder();
+    let county = 1u8;
+    assert!(g.is_players(county), "the player holds county 1 in this save");
+    assert_eq!(g.kingdom.counties[1].mercenary_offer, 2, "the file's +0x1AD: the Irish band");
+
+    let mut screen = army::RaiseArmyScreen::new(county);
+    {
+        let mut ctx = Ctx { game: &mut g, assets: &a };
+        screen.update(&mut ctx);
+        assert_eq!(screen.offer(&ctx), 2, "the raise-army screen offers it");
+    }
+    let yes = army::hire_yes(true);
+    let (px, py) = (yes.x + yes.w / 2, yes.y + yes.h / 2);
+
+    // 2,354 crowns against 3,500 is 69/3's branch, where the tick is no button.
+    assert!(g.gold() < 3_500, "the save's treasury cannot meet the Irish price");
+    {
+        let mut ctx = Ctx { game: &mut g, assets: &a };
+        screen.handle(Event::Click { x: px, y: py }, &mut ctx);
+    }
+    assert!(!g.levy.hire, "a band the treasury cannot meet cannot be ticked");
+
+    let player = g.player as usize;
+    g.kingdom.realms[player].gold = 10_000;
+    {
+        let mut ctx = Ctx { game: &mut g, assets: &a };
+        screen.handle(Event::Click { x: px, y: py }, &mut ctx);
+    }
+    assert!(g.levy.hire, "and once it can, the tick hires");
+
+    let realm = g.kingdom.realms[player].clone();
+    let basket = l2_kingdom::LevyBasket::seed(&realm, 50);
+    let id = g.raise_army(county, &basket, 0, Some(2)).expect("the county raises an army with the band");
+    let unit = g.kingdom.campaign.units.get(id).expect("the army");
+    assert_eq!(
+        unit.mercenaries,
+        Some(l2_kingdom::Mercenaries { band: 2, troop: TroopType::Pikeman, men: 200 }),
+        "the Irish band is on the army"
+    );
+    assert_eq!(g.kingdom.realms[player].gold, 10_000 - 3_500, "at the Irish price");
+    let band = g.kingdom.campaign.mercenaries.get(2).expect("in play");
+    assert_eq!(band.hired_by as usize, id, "the band records its hirer");
+    assert_eq!(g.kingdom.counties[1].mercenary_offer, 0, "and the county's offer is gone");
+}
+
 fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
     let mut ctx = Ctx { game: g, assets: a };
     m.handle(e, &mut ctx);

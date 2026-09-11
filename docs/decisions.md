@@ -8453,3 +8453,80 @@ not sum to either figure, and that is not explained here.
 **Corrected at merge.** All four quotes above now say 190 and cite this entry: `docs/draws-map.md`
 §5a (where the four routines' total becomes 350), C127, C140 and `Ui_DrawNumberRight`'s
 `symbols.json` comment.
+
+---
+
+**C164 — no loaded game and no new game had a single mercenary
+band, and thirteen of C161' 64 exclusions are things a player can
+see.**
+
+C161 left county `+0x1AD` excluded as *"a cache of
+`g_mercenaryBands`, which no importer reads"*. Following it went further than an
+import gap: **`MercenaryBands::init` was called by nothing but tests**, so a new
+campaign had no bands either. `Game_NewGame` runs `Mercenary_Init` between
+`Merchant_SpawnAll` and `PlayerStart_Shuffle`; our new-game path had no line for
+it. On every game, loaded or new, the raise-army screen never offered a band and
+C150's marker on the town tile never had one to mark.
+
+**The table, `[V]` three ways, none of them resemblance to the roster.**
+`g_mercBands` (`0x00568DC0`) is saved as a block of exactly **260** bytes, 13 ×
+`0x14`: slot 0 and twelve bands. The six constant fields `Mercenary_Init` copies
+equal the roster in all **72 bands over 18 saves**, and every slot past
+`g_mercBandsInPlay` (`0x00554030`, also saved) is zero. And the walk checks
+itself on data the original wrote: county `+0x1AD` is `Mercenary_OfferInCounty`
+over the table in every county of every save — `siege-old_turn.sav` stands bands 2
+and 3 in county 1 and the byte is **2** — every offering band has just reloaded its
+countdown and stepped one past its county, and **one season of
+`Mercenary_AdvanceAll` over each of the four one-turn pairs lands on the next
+save's table exactly.** `england-turn1.sav` is `Mercenary_Init(14)` band for band.
+The hirer word is zero in every band of every save; its check is exercised only by
+a test that writes one.
+
+**A second defect behind the first.** `Kingdom::start_new_game` walks the whole
+pipeline, which carries the phase-7 walk; `Game_NewGame` is `Mercenary_Init(); …
+Season_Advance();` with no `Mercenary_AdvanceAll`. Harmless while no new game had
+bands, it would have had the Saxon band offering itself on turn one. It skips that
+pass now, and a test compares a map-built England after its opening season with
+the save. `Units_ResetMoves` and `Diplo_ReconcileAlliances` also run there and are
+not in `Game_NewGame` either `[D]`; both look like no-ops on a new game and were
+left alone.
+
+**The 64, classified against the decompilation rather than their reasons.**
+33 ignorable as stated. 13 ignorable with a wrong or incomplete reason, each
+rewritten — among them realm `+0x13C`, whose "armoury wall and levy" readers index
+`+0x13C + t*4` from `t = 1` and so read `+0x140` onward, a scanner artefact of
+`fields.js`; and `+0x18C`/`+0x190`, which are not copies of `+0x178`/`+0x17C` and
+differ from them in twelve and eighteen counties. **Five are rule inputs a loaded
+game loses, and each needs a mechanic we have not built:** `+0x15A`
+(`County_EnsurePasture` when cattle are bought), `+0x15B` (the field drought and
+flooding ruin), `+0x206` (`County_DestroyField`'s separate sown count), `+0x29C`
+(a trample does not reset the efficiency ramp's memory), realm `+0x2A` (the
+conquest letters). **Thirteen are player-visible.**
+
+**What moved.** Imported: `+0x1AD`; realm `+0x2D`, `Army_PickName`'s counters,
+modelled and encoded all along and never read, so a loaded game named its next
+army from a clean slate; and four new county fields at our `VERSION` 20 — what
+last season's weather and event did to the grain (`+0x24C`, `+0x278`) and the herd
+(`+0x270`, `+0x274`). Derived, each a function the code already had or now has:
+the ration panel's *Fed* row (`+0x16C`), the castle estimate (`+0x1A6`), the four
+industry figures (`+0x280`, `industry::panel_figures` — whose module docs said
+*"no draw call reads them"*, and `Panel_JobIndustry` draws all four) and the
+court's expected tax (realm `+0x15C`, now `Kingdom::tax_expected`). **242 rows:
+173 imported, 14 derived, 55 excluded.**
+
+**What a green run does not measure here.** Of the new claims, `+0x1A6`, `+0x24C`,
+`+0x270`, `+0x274` and `+0x278` are zero in every save — every county on this
+machine stands in *Cloudy* with no event live and no castle mid-build — so 63 of
+the 187 claimed rows are now compared only with zero, five of them these. The
+blacksmith pair of `+0x280` (sixteen and seven non-zero), realm `+0x15C` (23) and
+realm `+0x2D` are measured against real numbers.
+
+**Carried and still not drawn.** The grain, cattle and industry job popups' bodies
+are stubs; `Castle_DrawStatusBlock` has no painter; the eight county-event letters
+print no count. The figures are now there for those painters to read. County
+`+0x2F8`, the Plague and Wedding letters' figure, stays excluded for a stronger
+reason than a missing painter: `Population_UpdateAll` computes the event swing as
+`Pct(deaths or births, |p|) + 10`, capped at a fifth of the population, and
+`l2_kingdom::population` computes `Pct(population, p)` — a rule that differs from
+the original's `[D]`, and carrying the byte would print a number the rule did not
+apply.

@@ -60,6 +60,7 @@ use l2_formats::save::{Save, SaveError, COUNTY_BASE, COUNTY_STRIDE, REALM_BASE, 
 use l2_kingdom::county::{County, MAX_COUNTY_ID, MAX_FIELDS};
 use l2_kingdom::map::MAP_TILES;
 use l2_kingdom::merchant::{MerchantRoutes, ROUTES, ROUTE_SLOTS};
+use l2_kingdom::mercenary::{Band, MercenaryBands, MERCENARY_BANDS, ROSTER};
 use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::{health_band, Tables, Weather, JOB_COUNT};
 use l2_kingdom::unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS, TROOP_TYPES};
@@ -173,6 +174,44 @@ const PURSE: u32 = 0x1F4;
 const MERCHANT_VISITS: u32 = 0x1A0;
 const MERCHANT_COUNT: u32 = 0x1A4;
 const MERCHANT_UNIT: u32 = 0x1A5;
+
+/// `g_mercBands` (`0x00568DC0`) — **the twelve mercenary bands' live table**,
+/// stride `0x14`, slot 0 never a band — and `g_mercBandsInPlay`
+/// (`0x00554030`), how many of them this map uses.
+///
+/// **Neither was read, so a loaded game had no mercenaries at all.** The
+/// kingdom arrived with `MercenaryBands::none()`: no band in play, nothing to
+/// walk, and `Mercenary_AdvanceAll` a no-op for the rest of the game — so the
+/// raise-army screen never offered a band and the town square never showed one,
+/// on any save, for ever.
+///
+/// **`[V]`, three ways, none of them resemblance to the roster.**
+///
+/// * **The block closes.** `Save_Write`'s table saves `0x00568DC0` as a block of
+///   exactly **260** bytes, which is `13 × 0x14`: slot 0 and twelve bands, and
+///   not a byte either side.
+/// * **The six constant fields are the roster, in every band of every save.**
+///   `Mercenary_Init` (`0x004AC904`) copies `+0x02` start county, `+0x05` troop,
+///   `+0x07` reload, `+0x08` men, `+0x0C` price and `+0x10` the unread wage out
+///   of six static arrays; all eighteen saves on this machine hold exactly
+///   [`l2_kingdom::mercenary::ROSTER`] there, and every slot past the in-play
+///   count is zero. [`read_mercenaries`] refuses a save where they disagree,
+///   because the kingdom keeps those six in the roster rather than per band and
+///   would otherwise replace the file's values in silence.
+/// * **County `+0x1AD` is `Mercenary_OfferInCounty` over this table**, in every
+///   county of every save — including `siege-old_turn.sav`, where bands 2 and 3
+///   both stand in county 1 and the cache holds **2**, the lower-numbered one.
+///   And **one season of `Mercenary_AdvanceAll` over each of the four one-turn
+///   pairs on disk lands on the next save's table exactly.**
+///   `crates/l2-scenario/tests/import.rs` asserts all of it.
+///
+/// What no save settles: `+0x00`, the hiring unit, is **zero in every band of
+/// every save** — nobody on this machine ever hired one — so the importer's
+/// check that a hirer carries its band has only been exercised by a test that
+/// writes the byte.
+const MERCENARY_BANDS_VA: u32 = 0x0056_8DC0;
+const MERCENARY_BAND_STRIDE: u32 = 0x14;
+const MERCENARY_BANDS_IN_PLAY: u32 = 0x0055_4030;
 
 /// `+0x294 + c*0x18` — the four industry records, the three bytes of each that
 /// say whether it can run — `+1` the resource, `+2` the countdown, `+3` the
@@ -387,7 +426,14 @@ mod stored {
     pub const HERD_CHANGE_EXPECTED: u32 = 0x258;
     pub const HERD_BIRTHS_EXPECTED: u32 = 0x268;
     pub const HERD_DEATHS_EXPECTED: u32 = 0x26C;
+    pub const GRAIN_WEATHER_CHANGE: u32 = 0x24C;
+    pub const HERD_WEATHER_CHANGE: u32 = 0x270;
+    pub const HERD_EVENT_CHANGE: u32 = 0x274;
+    pub const GRAIN_EVENT_CHANGE: u32 = 0x278;
     pub const WEAPON_TYPE: u32 = 0x290;
+    pub const MERCENARY_OFFER: u32 = 0x1AD;
+    /// Realm `+0x2D`, twenty-four bytes: `Army_PickName`'s per-name counters.
+    pub const REALM_ARMY_NAMES: u32 = 0x02D;
     pub const LEVY_SURCHARGE: u32 = 0x2F4;
     pub const GRAIN_GROWN_EXPECTED: u32 = 0x2FC;
 }
@@ -454,6 +500,18 @@ pub enum ImportError {
     /// A unit owned by a realm that does not exist. Owner 6 is legal — it is
     /// what merchants and a county's own levied defence carry.
     UnitOwner { unit: usize, owner: u8 },
+    /// `g_mercBandsInPlay` outside `0..=12`. See [`MERCENARY_BANDS_VA`].
+    MercenaryBandCount(i32),
+    /// A band whose constant field disagrees with the roster `Mercenary_Init`
+    /// copied it from — which means the table is being read at the wrong
+    /// place, not that the band is unusual. See [`MERCENARY_BANDS_VA`].
+    MercenaryRoster { band: usize, field: &'static str, file: i32, roster: i32 },
+    /// A band offered in a county off the map, or hired by a slot that is not
+    /// an army carrying it.
+    MercenaryState { band: usize, field: &'static str, value: i32 },
+    /// County `+0x1AD` naming a band that is not in play. The raise-army
+    /// screen indexes the roster with this byte.
+    MercenaryOffer { county: usize, band: u8 },
 }
 
 impl core::fmt::Display for ImportError {
@@ -487,6 +545,20 @@ impl core::fmt::Display for ImportError {
             ),
             ImportError::UnitOwner { unit, owner } => {
                 write!(f, "unit {unit} is owned by realm {owner}, which is not a realm")
+            }
+            ImportError::MercenaryBandCount(n) => {
+                write!(f, "g_mercBandsInPlay is {n}, and there are twelve bands")
+            }
+            ImportError::MercenaryRoster { band, field, file, roster } => write!(
+                f,
+                "mercenary band {band}'s {field} is {file} in the file and {roster} in the roster \
+                 Mercenary_Init copies it from"
+            ),
+            ImportError::MercenaryState { band, field, value } => {
+                write!(f, "mercenary band {band}'s {field} is {value}, which names nothing it can")
+            }
+            ImportError::MercenaryOffer { county, band } => {
+                write!(f, "county {county} offers mercenary band {band}, which is not in play")
             }
         }
     }
@@ -636,6 +708,13 @@ pub struct CountyState {
     pub herd_change_expected: i32,
     pub herd_births_expected: i32,
     pub herd_deaths_expected: i32,
+    /// `+0x24C`, `+0x278`, `+0x270`, `+0x274` — what last season's weather and
+    /// random event did to the grain and the herd, which the grain and cattle
+    /// panels print. See [`l2_kingdom::county::County::grain_weather_change`].
+    pub grain_weather_change: i32,
+    pub grain_event_change: i32,
+    pub herd_weather_change: i32,
+    pub herd_event_change: i32,
     /// `+0x22C`, `+0x230`, `+0x2FC` — the grain row's forecast: the change the
     /// sidebar draws, the sowing, the growth.
     pub grain_change_expected: i32,
@@ -697,6 +776,12 @@ pub struct CountyState {
     /// `+0x290` — which weapon the blacksmith makes, and the frame the weapons
     /// row draws.
     pub weapon_type: usize,
+    /// `+0x1AD` — the mercenary band standing in this county, 0 for none:
+    /// `Mercenary_AdvanceAll`'s cache of `Mercenary_OfferInCounty`, which the
+    /// raise-army screen offers and the town square's marker draws. Carried
+    /// with [`Scenario::mercenaries`] and never without it — alone it would
+    /// advertise a band the kingdom could not hire. See [`MERCENARY_BANDS_VA`].
+    pub mercenary_offer: u8,
 }
 
 /// One realm's imported state.
@@ -767,6 +852,16 @@ pub struct RealmState {
     pub trade_spent_b: i32,
     pub trade_received_a: i32,
     pub trade_received_b: i32,
+    /// Realm `+0x2D` — `Army_PickName`'s twenty-four per-name counters, which
+    /// decide the name the next army this realm raises is given: the least-used
+    /// of the lord's twenty-four, `+2` a pick and `-1` a destroyed army.
+    ///
+    /// **Modelled, encoded, and never imported**, so a loaded game handed out
+    /// names from a clean slate — a second *"The Black Company"* beside the
+    /// first. `docs/stored-fields.json` had it excluded as *"not a field of
+    /// Realm"*, which was true: it is [`l2_kingdom::unit::ArmyNames`], a field
+    /// of the campaign.
+    pub army_names: [u8; l2_kingdom::unit::ARMY_NAME_SLOTS],
 }
 
 /// A whole starting position, as plain data.
@@ -797,6 +892,11 @@ pub struct Scenario {
     /// against 4,096 blank tiles. The planes are in the save — `g_tiles` is
     /// block 0 — and they are read here.
     pub map: CampaignMap,
+    /// `g_mercBands` and `g_mercBandsInPlay` — the twelve mercenary bands and
+    /// where each is in its walk. From a save, the file's table; from a map,
+    /// `Mercenary_Init`'s, which is what `Game_NewGame` runs after
+    /// `Merchant_SpawnAll`. See [`MERCENARY_BANDS_VA`].
+    pub mercenaries: MercenaryBands,
     /// `g_units` — **armies, revolting peasants, merchants and transports**, as
     /// `(slot, unit)` pairs in ascending slot order.
     ///
@@ -849,6 +949,83 @@ pub struct Scenario {
 /// * a `+0x0C` that disagrees with `x`/`y`. That one is the **self-checking
 ///   invariant**: the field is `(y * 64 + x) * 8`, and nothing but the right
 ///   stride makes it agree on every occupied slot of every save.
+/// `g_mercBands` and `g_mercBandsInPlay`, checked and converted. See
+/// [`MERCENARY_BANDS_VA`] for the layout and the evidence.
+///
+/// Only the four walk fields and the hirer are carried per band, because that
+/// is all [`MercenaryBands`] holds: the other six are `Mercenary_Init`'s copy of
+/// the static roster, and the kingdom reads them from
+/// [`l2_kingdom::mercenary::ROSTER`]. So the six are **compared** rather than
+/// imported, and a disagreement is a refusal — carrying the file's bands with
+/// the roster's prices would be a different game that looked like this one.
+///
+/// `hiredBy` is an `i16` in the original and a slot in ours; a negative or
+/// absent slot, or one that does not carry this band on its own `+0x197`, is
+/// the same refusal as a unit standing on the wrong tile. The slots past the
+/// in-play count are not read: `Mercenary_Init` never writes them, and every
+/// save on this machine holds zero there.
+fn read_mercenaries(
+    save: &Save,
+    county_count: usize,
+    units: &[(usize, Unit)],
+) -> Result<MercenaryBands, ImportError> {
+    let in_play = save.i32_at(MERCENARY_BANDS_IN_PLAY)?;
+    if !(0..=MERCENARY_BANDS as i32).contains(&in_play) {
+        return Err(ImportError::MercenaryBandCount(in_play));
+    }
+    let mut bands = MercenaryBands::none();
+    bands.set_in_play(in_play as usize);
+    for band in 1..=in_play as usize {
+        let at = MERCENARY_BANDS_VA + band as u32 * MERCENARY_BAND_STRIDE;
+        let rules = &ROSTER[band];
+        let constants = [
+            ("start county", save.u8_at(at + 0x02)? as i32, rules.start_county as i32),
+            ("troop type", save.u8_at(at + 0x05)? as i32, rules.troop.index() as i32),
+            ("reload", save.i8_at(at + 0x07)? as i32, rules.period as i32),
+            ("men", save.i32_at(at + 0x08)?, rules.men),
+            ("price", save.i32_at(at + 0x0C)?, rules.price),
+            ("listed wage", save.i32_at(at + 0x10)?, rules.listed_wage),
+        ];
+        for (field, file, roster) in constants {
+            if file != roster {
+                return Err(ImportError::MercenaryRoster { band, field, file, roster });
+            }
+        }
+        let hired_by = save.i16_at(at)?;
+        let b = Band {
+            hired_by: hired_by as u16,
+            offered_in: save.u8_at(at + 0x03)?,
+            next_county: save.u8_at(at + 0x04)?,
+            countdown: save.i8_at(at + 0x06)?,
+            reload: save.i8_at(at + 0x07)?,
+        };
+        if b.offered_in as usize > county_count {
+            return Err(ImportError::MercenaryState {
+                band,
+                field: "offered county",
+                value: b.offered_in as i32,
+            });
+        }
+        if hired_by != 0 {
+            let carried = units
+                .iter()
+                .find(|(slot, _)| *slot as i32 == hired_by as i32)
+                .filter(|(_, u)| u.kind == UnitKind::Army)
+                .and_then(|(_, u)| u.mercenaries)
+                .map(|m| m.band);
+            if carried != Some(band as u8) {
+                return Err(ImportError::MercenaryState {
+                    band,
+                    field: "hiring unit",
+                    value: hired_by as i32,
+                });
+            }
+        }
+        bands.set_band_raw(band, b);
+    }
+    Ok(bands)
+}
+
 fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
     let kind =
         UnitKind::from_byte(u.kind).ok_or(ImportError::UnitKind { unit: u.index, byte: u.kind })?;
@@ -1092,6 +1269,10 @@ impl Scenario {
                 herd_change_expected: save.i32_at(at(stored::HERD_CHANGE_EXPECTED))?,
                 herd_births_expected: save.i32_at(at(stored::HERD_BIRTHS_EXPECTED))?,
                 herd_deaths_expected: save.i32_at(at(stored::HERD_DEATHS_EXPECTED))?,
+                grain_weather_change: save.i32_at(at(stored::GRAIN_WEATHER_CHANGE))?,
+                grain_event_change: save.i32_at(at(stored::GRAIN_EVENT_CHANGE))?,
+                herd_weather_change: save.i32_at(at(stored::HERD_WEATHER_CHANGE))?,
+                herd_event_change: save.i32_at(at(stored::HERD_EVENT_CHANGE))?,
                 grain_change_expected: save.i32_at(at(stored::GRAIN_CHANGE_EXPECTED))?,
                 grain_sown_expected: save.i32_at(at(stored::GRAIN_SOWN_EXPECTED))?,
                 grain_grown_expected: save.i32_at(at(stored::GRAIN_GROWN_EXPECTED))?,
@@ -1160,6 +1341,7 @@ impl Scenario {
                 fields_grain_sown: save.u8_at(at(stored::FIELDS_GRAIN_SOWN))? as i32,
                 sow_shortfall: save.u8_at(at(stored::SOW_SHORTFALL))? != 0,
                 weapon_type: save.u8_at(at(stored::WEAPON_TYPE))? as usize,
+                mercenary_offer: save.u8_at(at(stored::MERCENARY_OFFER))?,
             });
         }
 
@@ -1210,6 +1392,13 @@ impl Scenario {
                 trade_spent_b: save.i32_at(at(0x108))?,
                 trade_received_a: save.i32_at(at(0x10C))?,
                 trade_received_b: save.i32_at(at(0x110))?,
+                army_names: {
+                    let mut row = [0u8; l2_kingdom::unit::ARMY_NAME_SLOTS];
+                    for (slot, n) in row.iter_mut().enumerate() {
+                        *n = save.u8_at(at(stored::REALM_ARMY_NAMES + slot as u32))?;
+                    }
+                    row
+                },
                 // The 96 bytes at `+0x84` that nothing read until C83.
                 pairs: {
                     let mut p = [l2_kingdom::realm::Pair::default(); l2_kingdom::realm::MAX_REALMS];
@@ -1249,6 +1438,18 @@ impl Scenario {
                     w
                 },
             });
+        }
+
+        let mut units = Vec::new();
+        for u in save.units()?.iter().filter(|u| u.is_live()) {
+            units.push((u.index, read_unit(u)?));
+        }
+        let mercenaries = read_mercenaries(save, county_count, &units)?;
+        for (id, c) in counties.iter().enumerate() {
+            let Some(c) = c else { continue };
+            if c.mercenary_offer != 0 && mercenaries.get(c.mercenary_offer).is_none() {
+                return Err(ImportError::MercenaryOffer { county: id, band: c.mercenary_offer });
+            }
         }
 
         Ok(Scenario {
@@ -1291,13 +1492,8 @@ impl Scenario {
             counties,
             realms,
             map: read_map(save)?,
-            units: {
-                let mut units = Vec::new();
-                for u in save.units()?.iter().filter(|u| u.is_live()) {
-                    units.push((u.index, read_unit(u)?));
-                }
-                units
-            },
+            mercenaries,
+            units,
             routes: {
                 let rows = save.merchant_routes()?;
                 let mut routes = MerchantRoutes::none();
@@ -1433,6 +1629,10 @@ impl Scenario {
                 herd_change_expected,
                 herd_births_expected,
                 herd_deaths_expected,
+                grain_weather_change,
+                grain_event_change,
+                herd_weather_change,
+                herd_event_change,
                 grain_change_expected,
                 grain_sown_expected,
                 grain_grown_expected,
@@ -1478,6 +1678,7 @@ impl Scenario {
                 fields_grain_sown,
                 sow_shortfall,
                 weapon_type,
+                mercenary_offer,
             } = s;
 
             c.population = *population;
@@ -1500,6 +1701,12 @@ impl Scenario {
             c.herd_change_expected = *herd_change_expected;
             c.herd_births_expected = *herd_births_expected;
             c.herd_deaths_expected = *herd_deaths_expected;
+            // Last season's weather and event figures, which the grain and
+            // cattle panels print and nothing recomputes on load.
+            c.grain_weather_change = *grain_weather_change;
+            c.grain_event_change = *grain_event_change;
+            c.herd_weather_change = *herd_weather_change;
+            c.herd_event_change = *herd_event_change;
             c.grain_change_expected = *grain_change_expected;
             c.grain_sown_expected = *grain_sown_expected;
             c.grain_grown_expected = *grain_grown_expected;
@@ -1556,6 +1763,10 @@ impl Scenario {
             c.fields_grain_sown = *fields_grain_sown;
             c.sow_shortfall = *sow_shortfall;
             c.weapon_type = *weapon_type;
+            // The band on offer, beside the table it names — `skeleton` carried
+            // `Scenario::mercenaries`. This byte is what the raise-army screen
+            // offers and the town square's marker is drawn from.
+            c.mercenary_offer = *mercenary_offer;
             for (slot, s) in industry.iter().enumerate() {
                 c.industry[slot].efficiency = s.efficiency;
                 c.industry[slot].capacity = s.capacity;
@@ -1719,6 +1930,10 @@ impl Scenario {
         let mut k = Kingdom::with_tables(seed, tables);
         k.campaign.map = self.map.clone();
         k.campaign.routes = self.routes.clone();
+        // `Mercenary_Hire` and `Mercenary_AdvanceAll` both index this table, and
+        // the county's `+0x1AD` names a slot in it: without it a loaded game has
+        // no band in play and the raise-army screen can never hire one.
+        k.campaign.mercenaries = self.mercenaries.clone();
         // **Slots, not order.** `Units::put` writes the slot the save recorded;
         // `Units::spawn` would take the lowest free one and quietly renumber
         // everything the moment a save had a hole in its array.
@@ -1757,6 +1972,7 @@ impl Scenario {
                 wood,
                 weapons,
                 pairs,
+                army_names,
                 // --- carried by `Scenario::kingdom`, not here -----------------
                 // Per-turn state a rewound starting position must not inherit.
                 ai_step: _,
@@ -1821,6 +2037,9 @@ impl Scenario {
             // these bytes; a mid-game save came back with every alliance and
             // every grudge gone. `docs/decisions.md` C83.
             realm.pairs = *pairs;
+            // Which names this realm's armies have used, so the next one raised
+            // after a load is not a repeat. Campaign state, beside the units.
+            k.campaign.names.set_counters(id as u8, *army_names);
         }
 
         for id in self.county_ids() {

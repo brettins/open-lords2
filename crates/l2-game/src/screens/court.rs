@@ -193,11 +193,7 @@ pub const DEFERRED_FRAMES: u8 = 0x14;
 /// The original's loop skips a county with `owner == 0`; ours skips it by
 /// asking for a match on `realm`, and realm 0 is not a realm.
 pub fn tax_expected(ctx: &Ctx, realm: u8) -> i32 {
-    let k = &ctx.game.kingdom;
-    (1..=k.county_count)
-        .filter(|&id| k.counties[id].owner == realm)
-        .map(|id| k.counties[id].tax_shown)
-        .sum()
+    ctx.game.kingdom.tax_expected(realm)
 }
 
 pub struct CourtScreen;

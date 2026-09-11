@@ -448,7 +448,26 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   until the *end* of that turn. A defaulted stall is a season of unowned
 ///   counties that cannot shop, which is exactly the defect being fixed.
 ///   `docs/decisions.md` C149.
-pub const VERSION: u32 = 19;
+/// * 20 — **what the weather and the random events did to the grain and the
+///   herd last season**: [`crate::county::County`]'s `grain_weather_change`
+///   (`+0x24C`), `grain_event_change` (`+0x278`), `herd_weather_change`
+///   (`+0x270`) and `herd_event_change` (`+0x274`). Sixteen bytes a county over
+///   17 slots: **+272**.
+///
+///   `Grain_SeasonTick` and `Herd_SeasonTick` store all four and the grain and
+///   cattle panels print them under `L2.eng` group 77 — *"eaten by rats."*,
+///   *"taken by wolves."*, *"gained last season, due to weather."* — and nothing
+///   in the workspace had them: `docs/stored-fields.json` carried them as
+///   excluded, *"not a field of County"*, which was true and was the gap.
+///
+///   Refused rather than defaulted on entry 16's weaker ground: they are display
+///   figures nothing reads back, but nothing recomputes them on load either, so
+///   a defaulted load prints *"no effect"* for a whole season in which the
+///   original prints a number.
+///
+///   *Written as 20 with `VERSION` at 19 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 20;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1190,6 +1209,10 @@ impl Encode for County {
         out.i32(self.herd_births_expected);
         out.i32(self.herd_deaths_expected);
         out.i32(self.herd_change_expected);
+        out.i32(self.grain_weather_change);
+        out.i32(self.grain_event_change);
+        out.i32(self.herd_weather_change);
+        out.i32(self.herd_event_change);
         out.i32(self.grain_sown_expected);
         out.i32(self.grain_grown_expected);
         out.i32(self.grain_change_expected);
@@ -1341,6 +1364,10 @@ impl Decode for County {
         c.herd_births_expected = input.i32()?;
         c.herd_deaths_expected = input.i32()?;
         c.herd_change_expected = input.i32()?;
+        c.grain_weather_change = input.i32()?;
+        c.grain_event_change = input.i32()?;
+        c.herd_weather_change = input.i32()?;
+        c.herd_event_change = input.i32()?;
         c.grain_sown_expected = input.i32()?;
         c.grain_grown_expected = input.i32()?;
         c.grain_change_expected = input.i32()?;

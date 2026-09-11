@@ -215,7 +215,7 @@ crates/l2-kingdom/src/field.rs	C128	0a9b768f788b	3a8c5dae41c2
 crates/l2-kingdom/src/field.rs	C129	d23917b734a0	d7820532a89c
 crates/l2-kingdom/src/field.rs	C136	0350cebe39a1	724c11b1e475
 crates/l2-kingdom/src/industry.rs	C123	37f6e80213ab	3a5cc2fec37d
-crates/l2-kingdom/src/industry.rs	C136	c5566f719892	724c11b1e475
+crates/l2-kingdom/src/industry.rs	C136	4fca8a2eb88c	724c11b1e475
 crates/l2-kingdom/src/kingdom.rs	C26	952c32e6e678	e8179d1f76a8
 crates/l2-kingdom/src/kingdom.rs	C62	24c0c9697884	ebb6a7ec3711
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992	68e4eb2d2a1f
@@ -238,7 +238,7 @@ crates/l2-kingdom/src/ration.rs	C3	316be8511779	35bf3a86555f
 crates/l2-kingdom/src/save.rs	C123	763bc3ea2e6d	3a5cc2fec37d
 crates/l2-kingdom/src/save.rs	C134	8c3c2ccdc448	d12cd2f96f79
 crates/l2-kingdom/src/save.rs	C136	78341762a0c9	724c11b1e475
-crates/l2-kingdom/src/save.rs	C149	9883292be64c	138117948441
+crates/l2-kingdom/src/save.rs	C149	47e6a1be6570	138117948441
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8	ed7ea7df1f23
@@ -313,7 +313,7 @@ crates/l2-scenario/src/lib.rs	C62	578b7d16171a	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C62	94a85e9708ab	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C62	c1277f214127	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C83	273a57cbe1a5	88ac11ea6de0
-crates/l2-scenario/src/lib.rs	C83	a2b09d917c54	88ac11ea6de0
+crates/l2-scenario/src/lib.rs	C83	c2c1a137a34e	88ac11ea6de0
 crates/l2-scenario/src/newgame.rs	C130	8f5827e5b176	055c6c022450
 crates/l2-scenario/src/newgame.rs	C25	5198b008d5c4	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C25	f78fd48882c8	5d466f0cb89c
@@ -441,6 +441,7 @@ docs/agents.md	C71	1c089ae91e0e	3d674af30522
 docs/agents.md	C71	51a864225631	3d674af30522
 docs/armies.md	C12	107ce66c22f6	bb0dd488f9d2
 docs/armies.md	C13	01136a71a801	006e7d0b71a7
+docs/armies.md	C164	c7aa8fd2f735	68f38e5b4b46
 docs/armies.md	C25	0e1a3d3b6e2c	5d466f0cb89c
 docs/armies.md	C25	1e8e9e32f5d7	5d466f0cb89c
 docs/armies.md	C25	79909c3b39f9	5d466f0cb89c
@@ -539,10 +540,10 @@ docs/decisions.md	C125	91cc166c79af	6084e87aec70
 docs/decisions.md	C125	fd0154e63fec	6084e87aec70
 docs/decisions.md	C125	fd7b2d34aab5	6084e87aec70
 docs/decisions.md	C126	36dae66e2b1a	1b2c97c7731a
-docs/decisions.md	C127	32683c7d3f69	537ace9eca06
 docs/decisions.md	C127	4dac34b35550	537ace9eca06
 docs/decisions.md	C127	5569248811af	537ace9eca06
 docs/decisions.md	C127	85ae6a28b2c3	537ace9eca06
+docs/decisions.md	C127	87c065c2d4c8	537ace9eca06
 docs/decisions.md	C127	8df849d7bf2a	537ace9eca06
 docs/decisions.md	C127	ce490bc6caac	537ace9eca06
 docs/decisions.md	C128	29a2b965ae04	3a8c5dae41c2
@@ -581,11 +582,11 @@ docs/decisions.md	C14	c38454e0c7d3	687f69afd1c6
 docs/decisions.md	C14	c6f19ebec36f	687f69afd1c6
 docs/decisions.md	C140	0dfe3406c4db	e3a1ede42a95
 docs/decisions.md	C140	25d50c2122c0	e3a1ede42a95
+docs/decisions.md	C140	288c0334d02a	e3a1ede42a95
 docs/decisions.md	C140	3728bc578edd	e3a1ede42a95
 docs/decisions.md	C140	911585df7be9	e3a1ede42a95
 docs/decisions.md	C140	a6467caca8ac	e3a1ede42a95
 docs/decisions.md	C140	b7b4a7e7ec56	e3a1ede42a95
-docs/decisions.md	C140	d65b361c2673	e3a1ede42a95
 docs/decisions.md	C142	0800e9b335b3	d13324698105
 docs/decisions.md	C142	0ff030d3046f	d13324698105
 docs/decisions.md	C142	19b387060801	d13324698105
@@ -596,6 +597,7 @@ docs/decisions.md	C146	e83c475249f2	97ed604f7efd
 docs/decisions.md	C147	cb863e5fc623	02e99ae849d5
 docs/decisions.md	C149	343974a9c489	138117948441
 docs/decisions.md	C15	e567688e5a9b	2a3830f6d22a
+docs/decisions.md	C150	6351417fad63	ac4a8b416cea
 docs/decisions.md	C151	f4e9d215993c	0701a5ebd6fc
 docs/decisions.md	C152	c3db7544bcee	582988651236
 docs/decisions.md	C153	9cf14b8ea09c	c724d7afe0dd
@@ -609,6 +611,8 @@ docs/decisions.md	C158	e761bba4fa89	3b5e22280a31
 docs/decisions.md	C16	78633c7375ce	2e6270fa32a9
 docs/decisions.md	C16	97dfcbde7cc9	2e6270fa32a9
 docs/decisions.md	C16	f21ffbab1965	2e6270fa32a9
+docs/decisions.md	C161	6e968c63f3ee	8b6af36909ef
+docs/decisions.md	C161	bd94546675a8	8b6af36909ef
 docs/decisions.md	C163	2510e92d9958	d043a04534f8
 docs/decisions.md	C163	2ae950ef80e9	d043a04534f8
 docs/decisions.md	C17	f0ab9c80c1a8	b9aaae4e270c

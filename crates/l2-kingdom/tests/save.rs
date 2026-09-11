@@ -341,6 +341,12 @@ fn furnished(seed: u64) -> Kingdom {
         c.herd_births_expected = 36 + n;
         c.herd_deaths_expected = 37 + n;
         c.herd_change_expected = -38 - n;
+        // Last season's weather and event figures, VERSION 20. The weather ones
+        // are signed; the event ones are magnitudes.
+        c.grain_weather_change = -44 - n;
+        c.grain_event_change = 45 + n;
+        c.herd_weather_change = -46 - n;
+        c.herd_event_change = 47 + n;
         // The grain row's three forecasts, VERSION 16. The change is negative
         // because in Spring it always is: -sown - eaten.
         c.grain_sown_expected = 39 + n;
@@ -663,7 +669,12 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // `County_RecountMerchants` writes all three and `Ai_BuyGood` reads the
     // first two as the gate and the price in front of every purchase an AI or
     // an unowned county makes.
-    assert_eq!(c.finish().len, 58_474, "the state encoding changed - bump VERSION?");
+    //
+    // +272 at version 20 for last season's weather and event figures —
+    // `grain_weather_change`, `grain_event_change`, `herd_weather_change` and
+    // `herd_event_change`, four `i32`s over 17 county slots — which the grain and
+    // cattle panels print under `L2.eng` group 77.
+    assert_eq!(c.finish().len, 58_746, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,
