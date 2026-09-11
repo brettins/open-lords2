@@ -245,12 +245,72 @@ function callsIn(fn) {
   // the name and its parenthesis meet. Comments are already gone, so this
   // cannot join a line into a `//` that would then swallow it.
   const joined = stripped.join('\n').replace(/\n\s*(?=\()/g, '').split('\n');
+  // **The scan runs over the whole body, not line by line, and it must not
+  // change what is counted.** The per-line version matched `\bname\s*\(`, and
+  // within one line `\s` can only be a space or a tab — so `[ \t]*` over the
+  // joined document finds exactly the same call sites, and `--check` confirms
+  // the totals did not move. What the document-wide form buys is the
+  // **argument list**: `tools/draws/drawcoords.js` needs the coordinates, and
+  // a call's arguments routinely run past the end of its own line.
+  const doc = joined.join('\n');
+  const starts = [0];
+  for (let i = 0; i < doc.length; i++) if (doc[i] === '\n') starts.push(i + 1);
+  const lineOf = off => {
+    let lo = 0, hi = starts.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= off) lo = mid; else hi = mid - 1; }
+    return lo;
+  };
   const out = [];
-  joined.forEach((text, i) => {
-    if (!text.trim()) return;
-    let m; CALL.lastIndex = 0;
-    while ((m = CALL.exec(text))) out.push({ line: i, name: m[1], text: text.trim() });
-  });
+  const DOC_CALL = /\b([A-Za-z_][A-Za-z0-9_]*)[ \t]*\(/g;
+  let m;
+  while ((m = DOC_CALL.exec(doc))) {
+    const i = lineOf(m.index);
+    out.push({ line: i, name: m[1], text: joined[i].trim(), args: splitArgs(balanced(doc, m.index + m[0].length - 1)) });
+  }
+  return out;
+}
+
+/**
+ * The text between a `(` at `open` and its matching `)`, or `null` if the
+ * parenthesis never closes. Character and string literals are skipped, because
+ * the decompiler writes `Ui_DrawNumber(v,' ',"%",…)` and both `','` and a `"("`
+ * would otherwise throw the depth count off.
+ */
+function balanced(s, open) {
+  let depth = 0;
+  for (let i = open; i < s.length; i++) {
+    const c = s[i];
+    if (c === '\\') { i++; continue; }
+    if (c === '"' || c === "'") {
+      const q = c;
+      for (i++; i < s.length && s[i] !== q; i++) if (s[i] === '\\') i++;
+      continue;
+    }
+    if (c === '(') depth++;
+    else if (c === ')') { if (--depth === 0) return s.slice(open + 1, i); }
+  }
+  return null;
+}
+
+/** Top-level commas only — `f(a, g(b, c), d)` is three arguments, not four. */
+function splitArgs(s) {
+  if (s === null) return null;
+  const out = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '\\') { i++; continue; }
+    if (c === '"' || c === "'") {
+      const q = c;
+      for (i++; i < s.length && s[i] !== q; i++) if (s[i] === '\\') i++;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === ')' || c === ']' || c === '}') depth--;
+    else if (c === ',' && depth === 0) { out.push(s.slice(start, i).trim()); start = i + 1; }
+  }
+  const tail = s.slice(start).trim();
+  if (tail || out.length) out.push(tail);
   return out;
 }
 function lookup(n) {
@@ -604,6 +664,9 @@ function main() {
 function allModules() {
   return fs.readdirSync(SCREENS_DIR).filter(f => f.endsWith('.rs') && f !== 'mod.rs');
 }
-module.exports = { originalSites, ourSites, ourKinds, allModules, inventory, OURS, LEAF };
+module.exports = {
+  originalSites, ourSites, ourKinds, allModules, inventory, OURS, LEAF,
+  balanced, splitArgs, corpusLoaded: () => byName.size > 0,
+};
 
 if (require.main === module) main();
