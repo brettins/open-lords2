@@ -686,9 +686,10 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
 ///    `'-'` and the ten digits have ink, `' '` and `'@'` are table zeros — and
 ///    the digits sit on one baseline.
 ///
-/// Ablated: pointing the test at `font::SMALL` turns claim 2 red on `'a'`
-/// (advance 8, not 3). Pointing it at `font::EIGHT` turns claim 1 red (150
-/// frames).
+/// Ablated, both run: pointing the test at `font::SMALL` turns claim 2 red on
+/// `'a'`, a frame 8 rows tall rather than 2; pointing it at `font::EIGHT` turns
+/// claim 1 red, 150 frames rather than 108. The *"Seasons"* ink bound was not
+/// separately observed red — the stub check ahead of it fires first.
 #[test]
 fn font_10_is_a_numeral_face_read_through_the_shared_table() {
     let Some(dir) = install() else {

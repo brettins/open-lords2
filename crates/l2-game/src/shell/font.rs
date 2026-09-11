@@ -244,7 +244,7 @@ pub const SMALL: &str = "Fntl2_9.pl8";
 /// player looks at every turn.** **[V]**
 ///
 /// `Res_LoadStatic`'s record 5. Its nine `.text` references outside the loader
-/// are all on the county strip's jobs plate: the eight `Ui_DrawDelta` forecasts
+/// are all on the county strip's jobs plate: the seven `Ui_DrawDelta` forecasts
 /// and the reclamation figure in `FUN_004100AF` … `FUN_004106C4`, and the
 /// castle's seasons in `CountyStrip_DrawCastleIcon`.
 ///

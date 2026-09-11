@@ -1432,22 +1432,26 @@ fn body_number_centred(
 ///   no separate glyph to place or to lose.
 /// * **A positive value carries an explicit `'+'`.** Only the *sign* tells the
 ///   player which way a forecast runs; the row has no other cue.
-/// * **`mode == 0` and a value of zero draw nothing whatever.** All eight
-///   produce rows pass mode 0. That is why an absent delta has read as a quiet
-///   row rather than as an obvious hole — a county with nothing happening looks
-///   the same either way.
+/// * **`mode == 0` and a value of zero draw nothing whatever.** All seven
+///   produce-row calls pass mode 0. That is why an absent delta has read as a
+///   quiet row rather than as an obvious hole — a county with nothing happening
+///   looks the same either way.
 /// * **The colour is the sign too**: `0xFA` positive, `0xF9` negative, at every
-///   one of the eight call sites.
+///   one of the seven call sites.
 ///
-/// The prefix and the suffix are a single space at all eight — read out of
-/// `Lords2.exe` at `0x004D3D40 … 0x004D3D84`, where the only one that is not
-/// `" "` is the tax rate's `"%"`. They are drawn as two separate strings, so
+/// **Seven, not eight** — three farm rows and four industry rows; the castle
+/// painter has no delta. This comment said eight, and so does
+/// `docs/draws-map.md` §5.5.
+///
+/// The prefix and the suffix are a single space at all seven — read out of
+/// `Lords2.exe` at `0x004D3D40 … 0x004D3D84`, eighteen pointers that all hold
+/// `" "`. They are drawn as two separate strings, so
 /// [`TRAILING`](crate::shell::TRAILING)'s four pixels fall between
 /// the prefix and the number and **not** between the number and its suffix.
 /// Concatenating the three into one string would lose those four pixels, which
 /// is the whole reason this is not a `format!`.
 ///
-/// **The face is `&g_font10`, the seventh argument at all eight**, drawn with
+/// **The face is `&g_font10`, the seventh argument at all seven**, drawn with
 /// the drop shadow its painters set ([`ten_text`]). This used to be
 /// `Fntl2_9.pl8` under a comment calling it ours, because `Font_10.pl8` was not
 /// loaded.
@@ -1472,7 +1476,7 @@ fn strip_delta(ctx: &Ctx, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
     ten_number(ctx, canvas, value.abs(), lead, " ", x + advance, y, colour);
 }
 
-/// `Ui_DrawDelta`'s `colourPos`, the eighth argument at all eight produce-row
+/// `Ui_DrawDelta`'s `colourPos`, the eighth argument at all seven produce-row
 /// call sites.
 const DELTA_POS: u8 = 0xFA;
 
@@ -1905,7 +1909,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 /// column-aligned. The minus is **not a separate mark** — it overwrites
 /// `g_numberBuffer[0]`, the slot `Ui_NumberToBuffer(value, 1, 0)` leaves free
 /// for a sign, and the whole string goes out in one `Ui_DrawText`. With
-/// `mode == 0`, which is what all eight rows pass, a value of zero draws
+/// `mode == 0`, which is what all seven calls pass, a value of zero draws
 /// **nothing at all**.
 ///
 /// **It is not "the change since last season".** The tooltip layer says so in

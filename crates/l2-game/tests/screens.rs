@@ -4974,7 +4974,7 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
 /// and each is a different line of it:
 ///
 /// 1. **a negative forecast draws `-n` in `colourNeg`** — `0xF9`, the ninth
-///    argument at all eight produce-row call sites;
+///    argument at all seven produce-row call sites;
 /// 2. **a positive one draws `+n` in `colourPos`** — `0xFA`, and the `'+'` is
 ///    not decoration: the sign is the only thing on the row that says which way
 ///    the herd is going;
@@ -5180,9 +5180,9 @@ fn ink_in(canvas: &Canvas, x: i32, y: i32, w: i32, h: i32, colour: u8) -> usize 
 /// already places the four rows in their bands; this pins the one pixel and
 /// asks the two things that test does not — the face and the shadow.
 ///
-/// Ablations: `draw_dropped` → `draw` in `ten_text` fails the shadow claim;
-/// `ctx.assets.shell.ten` → `small` in `ten_text` fails the `Font_10.pl8`
-/// search.
+/// Ablations, both run: deleting the shadow blit from `Font::draw_dropped`
+/// fails the shadow claim; `shell.ten` → `shell.small` in `ten_text` fails the
+/// `Font_10.pl8` search — and fails every other strip-number test with it.
 #[test]
 fn the_industry_forecast_is_a_dropped_font_10_number() {
     let (mut game, assets) = world!();
@@ -5229,10 +5229,13 @@ fn the_industry_forecast_is_a_dropped_font_10_number() {
 /// The castle is the column's only row, so `row` is 0 and `nudge` is 6 (the
 /// function's `DAT_0056D68C < 2`). Coordinates are typed from the lines above.
 ///
-/// Ablations: dropping the number's `' '` lead finds the digits at `0x23C`;
-/// drawing the noun through `ShellAssets::ten` loses it and its ink (with the
-/// `ten_text` assertion bypassed); `draw_dropped` → `draw` fails both shadow
-/// claims.
+/// Ablations, all run: drawing the number as `"{seasons} "` with no lead finds
+/// the digits at `(572, 320)`, not `(576, 320)`; pointing `small_dropped` at
+/// `shell.ten` loses the word (*"Seasons" is not on the castle cell*);
+/// deleting the shadow blit from `Font::draw_dropped` fails the number's shadow
+/// claim. Two assertions were never separately red and say so: the word's ink
+/// count cannot fail while its glyph search passes, and the word's shadow claim
+/// sits behind the number's, which fires first on the same ablation.
 #[test]
 fn the_castle_cell_puts_its_number_in_font_10_and_its_word_in_fntl2_9() {
     let (mut game, assets) = world!();
