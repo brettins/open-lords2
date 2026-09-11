@@ -392,6 +392,19 @@ only the loop of** — `Herd_LabourEstimate`, `Grain_LabourEstimate`, `Field_Rec
 all three the same shape, all three in `County_RefreshEstimates`. So they were one fix repeated,
 not three investigations.
 
+**And the repetition is what let the middle one ship untested.** Cattle and reclamation each
+got a test the same evening; grain — the row the player actually reported — got none at
+either layer, and `land::grain_preview` had no caller in any test in the workspace. Two
+neighbours reading as covered is what covered reads like. It is now
+`the_grain_forecast_is_the_sowing_loss_the_player_reported` (the four seasonal arms) and
+`the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel` (the whole road, and its
+two ablations fail at *different* assertions, which is the point of it), plus
+`the_reclamation_row_draws_both_of_its_figures_where_the_call_sites_put_them` for the one row
+that carries **two** numbers from two different routines — `Ui_DrawDelta` at `0x204`/`0x133`
+and `Ui_DrawNumber` at `0x20A`/`0x143`, which §2's table counts as one painter's four draws
+and which reading `CountyStrip_Draw` alone would give as one figure.
+`docs/decisions.md` CNEW-three-forecasts.
+
 The four industry rows are **not** the same fix and should not be attempted as one. Each reads
 an `i32` at the head of an `Industry` record, and the records they read are
 `industry[2]`, `industry[4]`, `industry[1]` and `industry[3]` for the stone, wood, iron and

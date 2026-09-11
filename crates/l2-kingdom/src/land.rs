@@ -1248,13 +1248,21 @@ pub struct GrainEstimate {
 /// **stored** band, not a freshly derived one — which is why `Field_SetType`
 /// calls `Herd_UpdateCrowding` before every refresh.
 ///
-/// The answer is *not* `herd * 3`. Staffing is
-/// `PctOf(labour, herd * 3)` capped at 200, deaths flatten at 100 % and births
-/// keep rising to 200 %, so the argmax is the first labour figure reaching
-/// **200 %** — about `6 * herd`, twice [`crate::tables::HERD_LABOUR_PER_HEAD`].
-/// **`[I]`** on that closed form and `[D]` on the loop; truncation inside
-/// `Pct(birthRate, staffing)` can land it a little below, which is exactly why
-/// the original searches.
+/// The answer is *not* `herd * 3`, and it is not reliably `herd * 6` either.
+/// Staffing is `PctOf(labour, herd * 3)` capped at 200, deaths flatten at 100 %
+/// and births keep rising to 200 %, so **six a head — twice
+/// [`crate::tables::HERD_LABOUR_PER_HEAD`] — is the ceiling's own ceiling.**
+/// That much is a `[V]` bound, asserted over every herd size 1 … 400 in all
+/// four seasons by `the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd`.
+///
+/// **Where it actually lands is lower, and for small herds it is three a head.**
+/// `births = herd * birthRate / 10000` truncates, so once the small-herd bonus
+/// has pushed `birthRate` up the integer stops moving long before staffing
+/// reaches 200 %, and the strict `<` takes the *first* argmax. A herd of five
+/// tops out at **15** milkmaids and a herd of one at **1** — which is the whole
+/// of a player's *"if I added more milk maids they were idle"*. That truncation
+/// is exactly why the original searches instead of dividing, and why this does
+/// too.
 ///
 /// A county with no people leaves the ceiling at
 /// [`crate::county::LABOUR_UNSET`] — the loop never runs and 999,999 is its
