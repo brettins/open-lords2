@@ -548,6 +548,62 @@ pub fn turn_in_flight(game: &Game) -> bool {
     game.turn.is_some()
 }
 
+/// **Whether a realm has finished its turn, as the menu bar's shield row asks
+/// it.**
+///
+/// `Screen_DrawMenuBar` (`0x00419C78`) draws one banner per realm under
+///
+/// ```c
+/// if ((g_realms[i].strength != 0) && (g_realms[i].aiStep < 999)) { ...draw...; slot++; }
+/// ```
+///
+/// and `aiStep == 999` is the original's *"this realm's turn is over"*:
+/// `Turn_End` (`0x0043AC23`) writes it for the local player the instant End
+/// Turn is clicked, `FUN_004479E9` writes it for a remote seat,
+/// `AI_RunTurnStep` parks an AI realm on it when that realm is finished, and
+/// `Turn_BeginPlayersTurn` (`0x0049B6D3`) clears every living realm back to 0.
+/// `Turn_End` also raises `DAT_0056D6A0`, which is half of
+/// `Screen_DrawMenuBar`'s own repaint guard — the button forces the bar to
+/// repaint so that the shield goes.
+///
+/// # Why this is not `ai_step < 999`
+///
+/// **Our turn is shaped differently, and a literal port inverts the row.** The
+/// original's phase 4 *is* the interactive phase: the person sits inside it with
+/// his counter parked at 1 while the AI realms step behind him. Ours parks the
+/// person on the map between turns, with the phase machine at phase 1, and runs
+/// the whole of phases 1 … 7 inside one press of End Turn — so when the person
+/// is playing, every realm's counter is already at or past 999 from the turn
+/// before. `ai_step < 999` would draw **no shields at all** exactly when the
+/// original draws all of them.
+///
+/// So the two halves are mapped separately, and each mapping is exact:
+///
+/// * **The local player's counter is [`turn_in_flight`].** `Turn_End` writes
+///   999 on the click and nothing clears it until the next turn begins, which is
+///   the interval `game.turn` is `Some` for. The End Turn caption in
+///   `screens::map` already reads the same flag this way, for
+///   `Screen_DrawEndTurn`'s `aiStep < 999`.
+/// * **An AI realm's counter is its own `ai_step`, inside a turn.** Outside one,
+///   nobody has finished: the map between turns is the original's phase 4 before
+///   anybody has pressed anything.
+///
+/// Not [`Realm::turn_done`](l2_kingdom::Realm::turn_done) either: that answers
+/// *"may phase 4 stop waiting on this realm?"*, and it says yes for any human
+/// at any time, which would take the person's own shield off the bar for good.
+pub fn realm_turn_ended(game: &Game, realm: usize) -> bool {
+    if !turn_in_flight(game) {
+        return false;
+    }
+    if realm == game.player as usize {
+        return true;
+    }
+    match game.kingdom.realms.get(realm) {
+        Some(r) => r.ai_step >= l2_kingdom::AI_STEP_DONE,
+        None => true,
+    }
+}
+
 /// What the caller is handing back to a suspended turn.
 ///
 /// A plain `Option<Answer>` could not express the difference between *"carry
@@ -1419,5 +1475,56 @@ fn update_totals(kingdom: &mut Kingdom, realm: u8) {
         armies,
         total_men,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use l2_kingdom::AI_STEP_DONE;
+
+    /// **`Screen_DrawMenuBar`'s `aiStep < 999`, mapped onto our turn.**
+    ///
+    /// Three claims, and the first is the trap: between turns every counter is
+    /// where a finished turn left it — 999 for the person, 1000 for an AI — and
+    /// yet nobody has ended anything, because the map between turns is the
+    /// original's phase 4 before anybody has pressed a button.
+    ///
+    /// Ablations, each observed red: replace the body with the literal
+    /// `ai_step >= AI_STEP_DONE` (claim 1 fails on every realm); replace it
+    /// with `Realm::turn_done()` (claim 1 fails on the person); drop the
+    /// `realm == game.player` arm (claim 2 fails — the person's counter is 0 in
+    /// the fixture below, as the original's never is after `Turn_End`).
+    #[test]
+    fn a_realm_has_ended_its_turn_only_inside_one() {
+        let mut game = Game::new(1);
+        game.player = 1;
+        for id in 1..=3 {
+            game.kingdom.realms[id].in_play = true;
+        }
+        game.kingdom.realms[1].is_human = true;
+
+        // 1 — between turns.
+        game.kingdom.realms[1].ai_step = AI_STEP_DONE;
+        game.kingdom.realms[2].ai_step = AI_STEP_DONE + 1;
+        game.kingdom.realms[3].ai_step = AI_STEP_DONE + 1;
+        assert!(!turn_in_flight(&game));
+        for id in 1..=3 {
+            assert!(
+                !realm_turn_ended(&game, id),
+                "realm {id}: nobody has ended a turn while the person is playing his"
+            );
+        }
+
+        // 2 — the person pressed End Turn. `Turn_End` wrote 999 for him, and
+        // his record's own counter is not what says so here.
+        game.turn = Some(TurnProgress::default());
+        game.kingdom.realms[1].ai_step = 0;
+        assert!(realm_turn_ended(&game, 1), "the person's turn ends on the click");
+
+        // 3 — and each AI realm ends on its own counter.
+        game.kingdom.realms[2].ai_step = 4;
+        assert!(!realm_turn_ended(&game, 2), "an AI still stepping has not finished");
+        assert!(realm_turn_ended(&game, 3), "an AI parked on 999 has");
+    }
 }
 

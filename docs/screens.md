@@ -563,8 +563,13 @@ two top corners with edge pieces and omits the top edge — an open-topped box.
   x = 10, then +32 px between items, `L2.eng` groups **1 = "File"**, **2 = "Options"**,
   **3 = "Help"** (each group's string 0 is the title and the rest are its items — 4, 5 and
   7 items, matching the table's trailing counts exactly). **[V]**
-* realm banners: for each realm 1…5 that is alive, `misc_cty` frame `realmColour + 0x55` at
-  `x = 270 + i·16, y = 4`. The colour byte is clamped to 1…5 by `FUN_004171EE`, so the
+* realm banners: for each realm 1…5 that is alive **and has not finished its turn** —
+  `strength != 0 && aiStep < 999` — `misc_cty` frame `realmColour + 0x55` at
+  `x = 270 + i·16, y = 4`, where `i` counts banners *drawn*, so the row closes up leftwards.
+  The shield row is the turn clock: `Turn_End` writes 999 for the person on the click, each AI
+  realm reaches it as it finishes, and all of them are back when the next turn begins. This
+  line used to say *"each realm that is alive"*, which is half the test.
+  `docs/draws-map.md` §5.11. **[V]** The colour byte is clamped to 1…5 by `FUN_004171EE`, so the
   frames used are **86…90**, and those five are 13 × 16 — which fits the 24-pixel bar,
   while frame 85 (13 × 37) does not. **[V]**
 * year at x = 360, y = 6 and the season name after it (`L2.eng` group 29:

@@ -70,6 +70,7 @@ crates/l2-game/src/screens/info.rs	C25	81871fcedfac	5d466f0cb89c
 crates/l2-game/src/screens/job.rs	C22	a4de81c932fb	0364b53a921d
 crates/l2-game/src/screens/map.rs	C132	3a974c32854e	84bc50c0ddbe
 crates/l2-game/src/screens/map.rs	C138	3ac5e2071333	7724e6665b90
+crates/l2-game/src/screens/map.rs	C152	7696e75f9d24	582988651236
 crates/l2-game/src/screens/map.rs	C21	5c7b42f3650c	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C21	d7e286680856	f7bf296341ff
 crates/l2-game/src/screens/map.rs	C21	f00297685d46	f7bf296341ff
@@ -487,7 +488,7 @@ docs/decisions.md	C127	5569248811af	537ace9eca06
 docs/decisions.md	C127	ce490bc6caac	537ace9eca06
 docs/decisions.md	C128	29a2b965ae04	3a8c5dae41c2
 docs/decisions.md	C129	0fb16b18e006	d7820532a89c
-docs/decisions.md	C129	82517a365df1	d7820532a89c
+docs/decisions.md	C129	8f46b5c34f19	d7820532a89c
 docs/decisions.md	C129	cf7a7ab3c1d1	d7820532a89c
 docs/decisions.md	C13	09c4dae65b2c	006e7d0b71a7
 docs/decisions.md	C13	6ecd926bb63e	006e7d0b71a7
@@ -682,6 +683,7 @@ docs/draws-map.md	C123	9135c786184e	3a5cc2fec37d
 docs/draws-map.md	C135	d88e188c416f	39859e3b9368
 docs/draws-map.md	C150	4406cd54f3f3	ac4a8b416cea
 docs/draws-map.md	C151	d45bc24703ec	0701a5ebd6fc
+docs/draws-map.md	C152	8e56b75868a6	582988651236
 docs/draws-map.md	C30	40a6a7104696	50fdf5e17ba0
 docs/draws-map.md	C72	230aae5fabd7	e2bb936cf01c
 docs/draws-map.md	C77	cfea9c21de5f	94789f222b99
