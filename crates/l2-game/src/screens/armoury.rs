@@ -1158,7 +1158,9 @@ impl Screen for ArmouryScreen {
 
         // **Ours**, both of them: one line of feedback and one warning that the
         // hit map is missing. The original draws neither.
-        if !self.status.is_empty() {
+        // The feedback line is debug overlay only; the missing-file warning
+        // below is a fallback a normal install never shows.
+        if ctx.game.prefs.debug_overlay && !self.status.is_empty() {
             text::draw(canvas, 8, 8, &self.status, ink.dim);
         }
         if !ctx.assets.shell.has_armoury_grid() {

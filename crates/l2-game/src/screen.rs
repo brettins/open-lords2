@@ -579,6 +579,24 @@ impl Machine {
     /// same machine it has always been for everything that does not pass.
     /// `docs/bugs.md` B63 catalogues the collapse and what a switch would cost.
     pub fn handle(&mut self, event: Event, ctx: &mut Ctx) {
+        // **Ours: Ctrl+D flips the debug overlay, on every screen, and no screen
+        // sees the key.** See [`crate::game::Prefs::debug_overlay`].
+        //
+        // Chosen because the original answers it with nothing at all: the
+        // window procedure (`0x004B29BE`) has `WM_KEYDOWN` arms for Backspace,
+        // Enter, Control, Escape, End, Home, the arrows, Insert, Delete, the
+        // digits, two keypad keys and F1 … F9, F11 and F12 — no letter — and the
+        // `WM_CHAR` it sends for Ctrl+D is `0x04`, which `Edit_TypeChar`
+        // (`0x00401A20`) rejects. F5 is `main.rs`'s window snap and is not
+        // delivered here. Taken before the stack so that a text field cannot
+        // swallow it and a screen that reads [`Key::CtrlChar`] — only the
+        // battlefield does, and only for the nine digits — never meets it.
+        // arm: ours/debug-overlay-toggle key
+        if event == Event::KeyDown(crate::input::Key::CtrlChar('D')) {
+            ctx.game.prefs.debug_overlay = !ctx.game.prefs.debug_overlay;
+            self.dirty = true;
+            return;
+        }
         for depth in (0..self.stack.len()).rev() {
             let t = self.stack[depth].handle(event, ctx);
             // **Before the transition, because the transition may drop the

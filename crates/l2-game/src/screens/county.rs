@@ -1780,8 +1780,8 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
     draw_industry_rows(ctx, canvas, c);
 
     // OURS: the original's quadrants are invisible. A one-pixel outline is how
-    // a keyboard player sees which of the four is open.
-    if let Some(p) = focus {
+    // a keyboard player sees which of the four is open — debug overlay only.
+    if let (Some(p), true) = (focus, ctx.game.prefs.debug_overlay) {
         widget::frame(canvas, p.strip_hotspot(), ink.highlight);
     }
 }
@@ -2540,9 +2540,12 @@ impl CountyScreen {
         self.pen(ctx).inset(canvas, r);
         let mid = r.y + r.h / 2;
         // OURS, both of them: a diagnostic, in our own 5 x 7 font, so that a
-        // screenshot cannot be mistaken for the original's graph.
-        text::draw_centred(canvas, r.centre_x(), mid - 10, &format!("{what} HISTORY"), ink.dim);
-        text::draw_centred(canvas, r.centre_x(), mid + 2, "NOT SIMULATED", ink.bad);
+        // screenshot cannot be mistaken for the original's graph. Debug overlay
+        // only — the empty recess is the honest picture without it.
+        if ctx.game.prefs.debug_overlay {
+            text::draw_centred(canvas, r.centre_x(), mid - 10, &format!("{what} HISTORY"), ink.dim);
+            text::draw_centred(canvas, r.centre_x(), mid + 2, "NOT SIMULATED", ink.bad);
+        }
     }
 }
 

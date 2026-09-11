@@ -1841,7 +1841,7 @@ impl SetupScreen {
         // `if (g_multiplayer != 0)` — so on page 7 the original draws nothing
         // for them either, and that is four call sites correctly absent rather
         // than missing.
-        self.paint_gaps(canvas, pen);
+        self.paint_gaps(canvas, pen, ctx.game.prefs.debug_overlay);
     }
 
     /// `ScenarioList_Draw`'s scroll bar, transcribed.
@@ -1893,13 +1893,17 @@ impl SetupScreen {
     /// [`Screen::draw`]'s missing-background line is: nothing the original
     /// never drew may appear in its typeface, or a screenshot stops being
     /// evidence of anything.
-    fn paint_gaps(&self, canvas: &mut Canvas, pen: &Pen) {
+    ///
+    /// **The *NOT IMPLEMENTED* lines are debug overlay only**; the refusal to
+    /// start a map is not, because without it the Start button silently does
+    /// nothing.
+    fn paint_gaps(&self, canvas: &mut Canvas, pen: &Pen, debug: bool) {
         let mut y = 462;
         let mut say = |line: &str| {
             l2_view::text::draw(canvas, MAP_LIST_X - 180, y, line, font::HIGHLIGHT);
             y += 9;
         };
-        for &i in &self.unhonoured {
+        for &i in self.unhonoured.iter().filter(|_| debug) {
             let label = pen.assets.text(GROUP_OPTIONS, i).to_string();
             say(&format!("NOT IMPLEMENTED: {}", label.to_uppercase()));
         }

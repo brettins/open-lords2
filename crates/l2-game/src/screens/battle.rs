@@ -668,9 +668,12 @@ impl Screen for BattlePromptScreen {
             // OURS: the thumbs are a mailed hand up and down and a modern
             // player has no legend for them. `docs/decisions.md` C21 — visibly
             // ours, in our own font, outside the original's widgets.
+            // Debug overlay only: the original's prompt has no such words.
             let dim = ctx.assets.ink.dim;
-            text::draw(canvas, TAKE_THE_FIELD.0 - 4, TAKE_THE_FIELD.1 + 34, "FIGHT", dim);
-            text::draw(canvas, DECLINE.0 - 4, DECLINE.1 + 34, "AUTO", dim);
+            if ctx.game.prefs.debug_overlay {
+                text::draw(canvas, TAKE_THE_FIELD.0 - 4, TAKE_THE_FIELD.1 + 34, "FIGHT", dim);
+                text::draw(canvas, DECLINE.0 - 4, DECLINE.1 + 34, "AUTO", dim);
+            }
         }
     }
 }

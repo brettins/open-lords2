@@ -1493,9 +1493,9 @@
       "gesture": "left-release",
       "addr": "0x00438990",
       "what": "The information panel's TILE half. Gated on plane-0 flag 0x20, no unit on the tile, the county being the local player's, and the tile graphic not being 0x17 or 0x18. Then one of two hotspot tables by graphic: DAT_004DC4D0, three records at (240,184) (304,184) (368,184) 48x48 with hotspot ids 1, 2 and 19, for graphics 1..0x18; or DAT_004DC530, two records at (304,184) and (368,184) with ids 25 and 0, for everything else. Both dispatch to FUN_00438B02 and both are tested at a runtime y offset, DAT_00553D2C * 16.",
-      "note": "THE TABLE IS REPRODUCED AND THE SCREEN IT LIVES ON IS NOT. The five buttons' geometry -- 48 x 48 on the row y 184..232, three at x 240/304/368 for a field and the LAST TWO of the same three for waste -- and all five destinations through Field_SetType are ours out of the executable (crates/l2-kingdom/tests/oracle.rs reads them). What is not reproduced is where it stands: the original draws it on SCREEN 0x04, at a runtime row offset (DAT_00553D2C << 4), reached by right-clicking the map; ours is a popup on screen 0. See ours/brush-popup-on-the-map.",
+      "note": "THE SAME ARM AS 0x00438990/field-brush, filed twice -- this file's own counting hazard -- while the table stood in a popup of ours on screen 0 at y 184, the row BEFORE the runtime offset. The popup is removed (ours/brush-popup-on-the-map) and the marker now sits beside field-brush's on screen 0x04's hit test in crates/l2-game/src/screens/info.rs, where both buttons of the map reach it. Kept as a record rather than folded because folding moves the generated arm counts CLAUDE.md quotes; an integrator may fold it.",
       "evidence": "D",
-      "ours": "crates/l2-game/src/screens/map.rs"
+      "ours": "crates/l2-game/src/screens/info.rs"
     },
     {
       "id": "0x00438A91/info-garrison-widget",
@@ -2036,8 +2036,8 @@
       "screen": "0x00",
       "gesture": "left-release",
       "addr": "0x0043CE1A",
-      "what": "Plane-0 flag 0x20 (farmland), county owned by g_localPlayer: _DAT_005681CC = 3 and g_screenId = 4, then FUN_0041B032. The mode byte is what makes the information panel draw the crop table instead of the tile panel.",
-      "note": "The ROUTE is the original's and the DESTINATION is not: we answer this click with a popup on the map rather than screen 0x04, which is recorded separately and deliberately kept as ours/brush-popup-on-the-map. Marked reproduced because the arm -- this click, on this tile, offering this menu -- is answered; the divergence is in the invention record, where it can be counted.",
+      "what": "Plane-0 flag 0x20 (farmland), no 0x80 or 0x40 on the tile, no unit of kind 1 or 3, county owned by g_localPlayer: _DAT_005681CC = 3; g_screenId = 4; FUN_0041B032(). That is SCREEN 0x04, THE INFORMATION PANEL -- the same screen the right release opens through FUN_0043CAF4, which ends in the same _DAT_005681CC = 3 and the same FUN_0041B032(), and FUN_0041B032 picks the tile half (FUN_0041BEFE -> TileInfo_Draw, then FUN_0041C996's brush) on g_pickedTileUnit == 0. So on your own field the left and the right button open ONE screen. A foreign field falls out of the bottom: the owner test is inside the flag arm, not beside it.",
+      "note": "CORRECTED. This record said the mode byte _DAT_005681CC 'is what makes the information panel draw the crop table instead of the tile panel'; nothing on that path reads it -- FUN_0041B032 decides on g_pickedTileUnit and DAT_0052AFB4 -- and both buttons write the same 3. And it was answered with a popup of ours on the map (ours/brush-popup-on-the-map, removed): a player reported the left click 'still brings up placeholder' while the right click opened the right screen. Now a Push of ScreenId::Info(Target::Tile) on Map_PickTile's tile, the tile the right button resolves. The two paths still differ in one thing, recorded rather than built here: FUN_0043CAF4 also selects and recentres on a county other than the selected one when no unit is picked, and Map_Click's farmland arm does not. crates/l2-game/tests/screens.rs a_left_click_on_your_own_field_opens_what_a_right_click_opens.",
       "ours": "crates/l2-game/src/screens/map.rs",
       "evidence": "V"
     },
@@ -2570,7 +2570,8 @@
     {
       "id": "ours/brush-popup-on-the-map",
       "status": "invention",
-      "removed": false,
+      "removed": true,
+      "removal": "REMOVED with the field markers it drew targets for. A player: 'Clicking on a field still brings up placeholder' -- and 'right click and left click on fields does the same thing in the real game.' Map_Click's farmland arm is g_screenId = 4 and FUN_0041B032, screen 0x04, which is built (crates/l2-game/src/screens/info.rs) with the brush on it, so the left click now pushes that screen. See 0x0043CE1A/field-brush.",
       "group": "management-screens",
       "screen": "0x00",
       "gesture": "left-press",
@@ -2609,6 +2610,17 @@
       "what": "Escape and Enter close the court.",
       "why": "The 0x09 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
       "ours": "crates/l2-game/src/screens/court.rs"
+    },
+    {
+      "id": "ours/debug-overlay-toggle",
+      "status": "invention",
+      "removed": false,
+      "group": "campaign-map",
+      "screen": "every screen",
+      "gesture": "key",
+      "what": "Ctrl+D flips Prefs::debug_overlay, which gates every marker, outline and line of our own 5 x 7 text the original does not draw: the owner squares on the town square, the field squares, the garrison marker, the selection ring, the besieger dot, the unit banner, TURN and COUNTIES, the sidebar's status line and its hover outline and caption, End Turn's hover colour, and the status lines, stubs and captions of the tile panel, armoury, army, battle prompt, court, county strip and history graph, division, job popup, drop-down, merchant and trade, options, ratings, save/load, setup and village. Off by default. Taken in Machine::handle before any screen sees the key.",
+      "why": "A player: 'also debug text everywhere, i'd like a toggle or hotkey'. The original has no such key and none of this to hide. Ctrl+D collides with nothing: the window procedure (0x004B29BE) has WM_KEYDOWN arms for no letter at all, and the WM_CHAR it produces, 0x04, is rejected by Edit_TypeChar (0x00401A20). F5 is main.rs's window snap. Not in the save and not in the digest -- it is a Prefs field. docs/environment.md names the key for players.",
+      "ours": "crates/l2-game/src/screen.rs"
     },
     {
       "id": "ours/divide-cancel-button",

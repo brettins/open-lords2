@@ -836,8 +836,11 @@ impl Screen for RaiseArmyScreen {
             widget::frame(canvas, cont, ink.highlight);
         }
 
-        // **Ours**: one line of feedback, below the original's window.
-        text::draw(canvas, BOX_X, w.y + w.h + 4, &self.status, ink.dim);
+        // **Ours**: one line of feedback, below the original's window. Debug
+        // overlay only.
+        if ctx.game.prefs.debug_overlay {
+            text::draw(canvas, BOX_X, w.y + w.h + 4, &self.status, ink.dim);
+        }
     }
 }
 

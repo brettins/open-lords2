@@ -660,17 +660,19 @@ impl Screen for MerchantScreen {
         // `Ui_OkButton(stride - 0x1C, height - 0x1C, 1)` — mode 1, frame 0x10.
         pen.ok_button(canvas, STALL_OK.x, STALL_OK.y, 1);
 
-        // ---- ours ---------------------------------------------------------
-        if !self.status.is_empty() {
-            text::draw(canvas, 4, 458, &self.status, ink.text);
+        // ---- ours, debug overlay only ---------------------------------------
+        if ctx.game.prefs.debug_overlay {
+            if !self.status.is_empty() {
+                text::draw(canvas, 4, 458, &self.status, ink.text);
+            }
+            text::draw(
+                canvas,
+                4,
+                470,
+                "HOVER A WARE FOR ITS PRICES, CLICK IT TO TRADE - RIGHT-CLICK OR ESC LEAVES",
+                ink.dim,
+            );
         }
-        text::draw(
-            canvas,
-            4,
-            470,
-            "HOVER A WARE FOR ITS PRICES, CLICK IT TO TRADE - RIGHT-CLICK OR ESC LEAVES",
-            ink.dim,
-        );
     }
 }
 
@@ -1043,15 +1045,17 @@ impl Screen for TradeScreen {
         // the handler would do anything, so there is no disabled frame.
         let _ = (floor, ceiling);
 
-        // ---- ours, below the original's window ---------------------------
-        text::draw(canvas, PANEL.x, PANEL.y + PANEL.h + 6, &self.status, ink.text);
-        text::draw(
-            canvas,
-            PANEL.x,
-            PANEL.y + PANEL.h + 18,
-            "UP/DOWN 1  LEFT/RIGHT 10  M MAX BUY  S SELL ALL  ENTER AGREES - KEYS ARE OURS",
-            ink.dim,
-        );
+        // ---- ours, below the original's window, debug overlay only --------
+        if ctx.game.prefs.debug_overlay {
+            text::draw(canvas, PANEL.x, PANEL.y + PANEL.h + 6, &self.status, ink.text);
+            text::draw(
+                canvas,
+                PANEL.x,
+                PANEL.y + PANEL.h + 18,
+                "UP/DOWN 1  LEFT/RIGHT 10  M MAX BUY  S SELL ALL  ENTER AGREES - KEYS ARE OURS",
+                ink.dim,
+            );
+        }
     }
 }
 

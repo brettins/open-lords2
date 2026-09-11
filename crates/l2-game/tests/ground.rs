@@ -95,7 +95,7 @@
 //! | our site | why it stays |
 //! |---|---|
 //! | `map.rs` × 4 `None =>` arms | the no-chrome fallback beside a real `draw_box` / `draw_misc` / `draw_menu_bar_background` |
-//! | `map.rs` the brush popup, its buttons | ours; the original has no such control — see `screens/map.rs`'s `brush` |
+//! | `map.rs` the brush popup, its buttons | **removed**: the left click on a field opens screen `0x04`, which draws the original's brush — `docs/arms.json` `ours/brush-popup-on-the-map` |
 //! | `map.rs` `draw_unit_banner` | ours, deliberately not the right column; `UnitPanel_Draw` `0x0041B19D` is screen `0x04` |
 //! | `map.rs` the INDUSTRY / NOT DRAWN plate | an honest diagnostic |
 //! | `village.rs`, `siege.rs`, `armoury.rs`, `army.rs`, `county.rs`, `info.rs`, `divide.rs` arrows | all `if !pen.system_frame(…)` fallbacks |

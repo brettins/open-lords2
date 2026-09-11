@@ -701,7 +701,10 @@ impl Screen for VillageScreen {
         // the 480 x 320 region the original saves and restores; that costs
         // nothing here because the map underneath is repainted every frame,
         // where the original would have had to restore it.
-        if let Some((x0, y0, x1, y1)) = self.band().filter(|_| self.phase == Phase::Band) {
+        //
+        // Debug overlay only, with the captions below.
+        let debug = ctx.game.prefs.debug_overlay;
+        if let Some((x0, y0, x1, y1)) = self.band().filter(|_| debug && self.phase == Phase::Band) {
             widget::frame(canvas, Rect::new(x0, y0, x1 - x0 + 1, y1 - y0 + 1), ink.highlight);
         }
 
@@ -713,19 +716,22 @@ impl Screen for VillageScreen {
             Phase::Carry => format!("CARRYING {} - CLICK A JOB", self.drag_count),
             _ => format!("VILLAGE OF COUNTY {}", self.county),
         };
-        text::draw_centred(canvas, mid, top + 4, &caption, ink.text);
+        if debug {
+            text::draw_centred(canvas, mid, top + 4, &caption, ink.text);
+        }
         let mut line = top + vill::SCENE_H - 12;
         let mut say = |canvas: &mut Canvas, s: &str, colour: u8| {
             text::draw_centred(canvas, mid, line, s, colour);
             line -= 12;
         };
+        // A missing file is a fallback's warning and stays; the rest is ours.
         if ctx.assets.village.as_ref().is_none_or(|a| !a.has_grid()) {
             say(canvas, "NO DROP GRID - VILL_GD8.PL8 MISSING", ink.bad);
         }
-        if !ctx.game.is_players(self.county) {
+        if debug && !ctx.game.is_players(self.county) {
             say(canvas, "NOT YOURS", ink.bad);
         }
-        if !self.status.is_empty() {
+        if debug && !self.status.is_empty() {
             say(canvas, &self.status, ink.dim);
         }
     }

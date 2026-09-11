@@ -1133,10 +1133,10 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
 /// legitimately shows.
 ///
 /// **The counties are derived, not named**, and none of them is the player's.
-/// That is not a convenience: the field markers under [`brush`] are drawn for
-/// the *selected* county when the player owns it, and they are the visible half
-/// of a different invention — `ours/brush-popup-on-the-map`, which is on file
-/// and deliberately kept. Naming two counties by number would have made this
+/// That is not a convenience: the field markers under `brush` were drawn for
+/// the *selected* county when the player owns it — the visible half of
+/// `ours/brush-popup-on-the-map`, since removed, and the markers now debug
+/// overlay only. Naming two counties by number would have made this
 /// test a statement about one fixture's ownership roll, which
 /// `docs/environment.md` says is rolled per game.
 ///
@@ -1239,8 +1239,10 @@ fn the_map_chrome_shows_the_clock_the_treasury_and_the_selected_county() {
     let gold = find_body(&canvas, &assets, "1000 ", font::TEXT).expect("the treasury");
     assert_eq!(gold.1, 6, "and the treasury on the same row");
     assert!(find_body(&canvas, &assets, "Crowns.", font::TEXT).is_some(), "with its noun");
-    assert!(find_text(&canvas, "TURN 1", ink.dim).is_some());
-    assert!(find_text(&canvas, "COUNTIES 1/14", ink.dim).is_some());
+    // `TURN n` and `COUNTIES n/m` are ours and are debug overlay now: a normal
+    // session draws neither (`the_debug_overlay_is_off_by_default_…`).
+    assert!(find_text(&canvas, "TURN 1", ink.dim).is_none());
+    assert!(find_text(&canvas, "COUNTIES 1/14", ink.dim).is_none());
 
     // **The county strip, in the map's own sidebar.** `Screen_DrawCampaign`
     // calls `CountyStrip_Draw` — the map screen used to leave that plate empty
@@ -1688,9 +1690,10 @@ fn the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should
         "group 73 index 0 at (20, 56)"
     );
 
-    // The graph is a labelled stub, because g_countyHistory is not simulated.
-    // Both of its lines are **ours**, in our own font, and say so.
-    assert!(find_text(&canvas, "NOT SIMULATED", ink.bad).is_some());
+    // The graph is a stub, because g_countyHistory is not simulated. Its two
+    // lines are **ours** and are debug overlay only, so by default the recess
+    // is empty.
+    assert!(find_text(&canvas, "NOT SIMULATED", ink.bad).is_none());
 
     // And the tax panel is gone, which is what "one panel at a time" means.
     assert!(find_body(&canvas, &assets, "Tax rate", font::TEXT).is_none());
@@ -2141,6 +2144,9 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
 #[test]
 fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
     let (mut game, assets) = world!();
+    // `TURN n` is our counter and debug overlay only; it is how this test reads
+    // the turn off the picture.
+    game.prefs.debug_overlay = true;
     let mut screen = MapScreen::new();
     game.select(8);
     let before = draw(&mut screen, &mut game, &assets);
@@ -2728,64 +2734,368 @@ fn on_screen(screen: &mut MapScreen, tile: usize) -> (i32, i32) {
         .expect("a tile the viewport was just centred on is in the viewport")
 }
 
-/// **A player clicks one of their own fields and paints it to grain.**
+/// One of `county`'s fields whose centre is on the map at the campaign screen's
+/// **opening** viewport, that picks back to itself and has no unit standing on
+/// it.
 ///
-/// Two clicks, both through `Screen::handle`: one on the tile, which is
-/// `Map_Click`'s farmland branch, and one on the grain button, which is the
-/// hotspot at `x 304 … 352, y 184 … 232`. Nothing here reaches into the
-/// simulation; the assertion is that the county's grain field count moved.
+/// **The ruler is a second `MapScreen` that has been drawn once**, because the
+/// map opens on the player's county lazily, on its first `ensure`
+/// (`MapScreen::open_on_the_player`): an undrawn probe is looking at the
+/// constructor's corner of England. The first version of this helper did not
+/// draw it and found no field of the player's in view at all. A [`Machine`]
+/// clicked in these tests is drawn first too, which is also what a player does.
+fn visible_field(
+    game: &mut Game,
+    assets: &Assets,
+    county: u8,
+    want: impl Fn(l2_kingdom::field::FieldType) -> bool,
+) -> Option<(usize, (i32, i32))> {
+    let mut probe = MapScreen::new();
+    draw(&mut probe, game, assets);
+    let clip = probe.map_clip();
+    game.kingdom.field_tiles(county as usize).into_iter().filter(|&(_, k)| want(k)).find_map(
+        |(tile, _)| {
+            let (tx, ty) = l2_kingdom::map::coords(tile);
+            let (x, y) =
+                campaign::tile_centre(probe.viewport(), probe.zoom(), tx as usize, ty as usize)?;
+            (clip.contains(x, y)
+                && probe.pick_tile(x, y) == Some((tx, ty))
+                && game.kingdom.campaign.units.at(tx, ty).is_none())
+            .then_some((tile, (x, y)))
+        },
+    )
+}
+
+/// **A left click on your own field opens what a right click opens**, and the
+/// grain button on it sows the field.
+///
+/// A player: *"Clicking on a field still brings up placeholder … right click
+/// and left click on fields does the same thing in the real game."*
+/// `Map_Click`'s farmland arm is `_DAT_005681CC = 3; g_screenId = 4;
+/// FUN_0041B032();` and the right button's `FUN_0043CAF4` ends in the same two
+/// statements, so both land on screen `0x04`'s tile half for the picked tile.
+/// The brush's grain button is `g_infoFieldBrush` record 1 at `(304, 376)`,
+/// 48 square — the literal from the table, not our constant.
+///
+/// Driven through the [`Machine`] at the pixel a player would click, on a field
+/// that is actually on screen. **Ablation, run:** deleting the `Push` in the
+/// farmland arm of `screens/map.rs` fails the second assertion — the left click
+/// stays on the campaign map.
 #[test]
-fn clicking_a_field_and_then_the_grain_button_sows_it() {
+fn a_left_click_on_your_own_field_opens_what_a_right_click_opens() {
+    use l2_game::screens::info::Target;
     let (mut game, assets) = world!();
-    let county = (1..=game.kingdom.county_count as u8)
-        .find(|&id| game.is_players(id))
+    let players: Vec<u8> =
+        (1..=game.kingdom.county_count as u8).filter(|&id| game.is_players(id)).collect();
+    let (county, tile, at) = players
+        .into_iter()
+        .find_map(|id| {
+            visible_field(&mut game, &assets, id, |k| k == l2_kingdom::field::FieldType::Fallow)
+                .map(|(t, at)| (id, t, at))
+        })
+        .expect("one of the player's fallow fields is in view at the opening viewport");
+    let grain_before = game.kingdom.counties[county as usize].fields_grain;
+    let panel = Some(ScreenId::Info(Target::Tile(tile)));
+
+    let mut right = Machine::new(ScreenId::Campaign);
+    draw_stack(&mut right, &mut game, &assets);
+    send_stack(&mut right, &mut game, &assets, Event::RightClick { x: at.0, y: at.1 });
+    assert_eq!(right.top_id(), panel, "the right button opens the information panel on that field");
+    assert_eq!(right.depth(), 2);
+    // The same button closes it, and the map under it keeps its viewport.
+    send_stack(&mut right, &mut game, &assets, Event::RightClick { x: at.0, y: at.1 });
+    assert_eq!(right.ids(), vec![ScreenId::Campaign]);
+
+    let mut left = Machine::new(ScreenId::Campaign);
+    draw_stack(&mut left, &mut game, &assets);
+    send_stack(&mut left, &mut game, &assets, Event::Click { x: at.0, y: at.1 });
+    assert_eq!(left.top_id(), panel, "and the left button opens the same screen, on the same tile");
+    assert_eq!(left.depth(), 2);
+
+    // The grain button, on the panel the left click opened.
+    send_stack(&mut left, &mut game, &assets, Event::Click { x: 328, y: 400 });
+    assert_eq!(
+        game.kingdom.counties[county as usize].fields_grain,
+        grain_before + 1,
+        "the button reached Field_SetType"
+    );
+    assert_eq!(game.kingdom.campaign.map.terrain[tile], l2_kingdom::field::terrain::GRAIN);
+    assert_eq!(left.ids(), vec![ScreenId::Campaign], "FUN_00438B02 ends in g_screenId = 0");
+
+    // **The owner test is inside the arm.** The same field in somebody else's
+    // hands: the left click falls out of `Map_Click`, and the right one still
+    // opens the panel, which has no owner test at all.
+    let other = (1..game.kingdom.realms.len() as u8)
+        .find(|&r| r != game.player)
+        .expect("there is another realm");
+    // The two machines that have already opened are reused: a fresh one would
+    // open on whichever county the player now holds and look somewhere else.
+    game.kingdom.counties[county as usize].owner = other;
+    send_stack(&mut left, &mut game, &assets, Event::Click { x: at.0, y: at.1 });
+    assert_eq!(left.ids(), vec![ScreenId::Campaign], "a foreign field opens nothing on the left button");
+    send_stack(&mut right, &mut game, &assets, Event::RightClick { x: at.0, y: at.1 });
+    assert_eq!(right.top_id(), panel, "and the right button still opens the panel");
+}
+
+/// **The field panel says what the field is, in the player's own words, with
+/// the field's own figures** — `TileInfo_Draw`'s farmland arm and its two
+/// reports, found in their own boxes.
+///
+/// Every `y` below is `row * 16 + k` with `row = 5` (`FUN_0041BEFE`, a real
+/// field of yours) or `0x11` (anybody else's), and every `k` and `x` is a
+/// literal of `TileInfo_Draw`, `TileInfo_DrawGrain` or `TileInfo_DrawHerd`, not
+/// a constant of `screens/info.rs`. The words are read out of `L2.eng` here and
+/// asserted to be the ones the indices name first, so an index off by one
+/// fails on the word and not on somebody's screen.
+///
+/// The fields are painted with the brush (`paint_field` is `Field_SetType`),
+/// so the forecasts on the panel are whatever `County_RefreshEstimates` made
+/// of that — nothing here writes a county figure.
+///
+/// **Ablations, run:** deleting the `draw_farmland` call in `InfoScreen::draw`
+/// fails at *"Farmland"*; deleting the mode's `pen.heading` fails at
+/// *"- Wheat."*; deleting `draw_grain_report`'s call fails at the store's noun,
+/// the report's first line.
+#[test]
+fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
+    use l2_game::screens::info::{InfoScreen, Target};
+    use l2_kingdom::field::FieldType;
+    let (mut game, assets) = world!();
+    let county = (1..=game.kingdom.county_count)
+        .find(|&id| game.kingdom.counties[id].owner == game.player)
         .expect("the player holds a county");
+    let fallow: Vec<usize> = game
+        .kingdom
+        .field_tiles(county)
+        .into_iter()
+        .filter(|&(_, k)| k == FieldType::Fallow)
+        .map(|(t, _)| t)
+        .collect();
+    assert!(fallow.len() >= 2, "county {county} has two fallow fields to sow and graze");
+    let (wheat, meadow) = (fallow[0], fallow[1]);
+    game.kingdom.paint_field(county, wheat, FieldType::Grain).expect("the grain brush");
+    game.kingdom.paint_field(county, meadow, FieldType::Pasture).expect("the pasture brush");
+
+    // The indices name these words in the player's file.
+    for (group, index, word) in [
+        (30, 6, "Farmland"),
+        (30, 19, "- Wheat."),
+        (30, 21, "- Cattle."),
+        (77, 1, "to be sown, yielding"),
+        (77, 2, "in 4 seasons."),
+        (77, 5, "Calf births expected"),
+        (77, 6, "Cow deaths expected"),
+        (77, 7, "Change due to farming"),
+        (77, 27, "Change due to eating"),
+        (77, 28, "Overall change"),
+    ] {
+        assert_eq!(assets.shell.text(group, index), word, "L2.eng {group}/{index}");
+    }
+
+    let panel = |game: &mut Game, tile: usize| {
+        let mut m = over_the_map(ScreenId::Info(Target::Tile(tile)));
+        draw_stack(&mut m, game, &assets)
+    };
+    let y = |row: i32, k: i32| row * 16 + k;
+    let t = font::TEXT;
+
+    // --- wheat ------------------------------------------------------------
+    let c = panel(&mut game, wheat);
+    assert_eq!(find_heading(&c, &assets, "Farmland", t), Some((0x28, y(5, 0x40))), "heading");
+    let mode = find_heading(&c, &assets, "- Wheat.", t).expect("the mode follows the heading");
+    assert!(mode.1 == y(5, 0x40) && mode.0 > 0x28, "on the heading's line and after it: {mode:?}");
+    // `Ui_DrawCount(grain, 2, 0x128, row*16 + 0x68)` — the store's noun, on
+    // the top line and right of the store's own column.
+    let sack = find_body(&c, &assets, "Sack", t).expect("the store's noun");
+    assert!(sack.1 == y(5, 0x68) && sack.0 > 0x128, "the store at (0x128, 0xB8): {sack:?}");
+    // The England position faces Spring, so the grain report is the sowing one.
+    assert_eq!(game.kingdom.season_next, 1);
+    let sown = find_body(&c, &assets, "to be sown, yielding", t).expect("the sowing line");
+    assert_eq!(sown.1, y(5, 0xC0));
+    assert_eq!(find_body(&c, &assets, "in 4 seasons.", t).map(|p| p.1), Some(y(5, 0xD0)));
+    assert_eq!(find_body(&c, &assets, "Change due to eating", t), Some((0x28, y(5, 0xE0))));
+    assert_eq!(find_body(&c, &assets, "Overall change", t), Some((0x28, y(5, 0xF0))));
+    // The table's wheat description is read and never drawn.
+    assert!(find_body(&c, &assets, "This wheat field", t).is_none());
+    assert!(find_text(&c, "TILE HALF", assets.ink.dim).is_none(), "and no placeholder");
+
+    // --- cattle -----------------------------------------------------------
+    let c = panel(&mut game, meadow);
+    let mode = find_heading(&c, &assets, "- Cattle.", t).expect("the pasture's mode");
+    assert_eq!(mode.1, y(5, 0x40));
+    assert_eq!(find_body(&c, &assets, "Calf births expected", t), Some((0x28, y(5, 0xC0))));
+    assert_eq!(find_body(&c, &assets, "Cow deaths expected", t), Some((0x28, y(5, 0xD0))));
+    assert_eq!(find_body(&c, &assets, "Change due to farming", t), Some((0x28, y(5, 0xE0))));
+    assert_eq!(find_body(&c, &assets, "Change due to eating", t), Some((0x28, y(5, 0xF0))));
+    assert_eq!(find_body(&c, &assets, "Overall change", t), Some((0x28, y(5, 0x100))));
+    let crowding = (8..=11)
+        .find_map(|i| find_body(&c, &assets, assets.shell.text(77, i), t))
+        .expect("fieldsCattle is not zero, so a crowding line is drawn");
+    assert_eq!(crowding, (0x68, y(5, 0x78)));
+
+    // --- somebody else's --------------------------------------------------
+    // The heading on the lower row the layout gives a foreign tile, and no
+    // report: both report painters open with the owner test.
+    let other = (1..game.kingdom.realms.len() as u8).find(|&r| r != game.player).expect("a rival");
+    game.kingdom.counties[county].owner = other;
+    let c = panel(&mut game, wheat);
+    assert_eq!(find_heading(&c, &assets, "Farmland", t), Some((0x28, y(0x11, 0x40))));
+    assert!(find_body(&c, &assets, "Overall change", t).is_none(), "no report on a rival's field");
+    let mut screen = InfoScreen::new(Target::Tile(wheat));
+    let ctx = Ctx { game: &mut game, assets: &assets };
+    assert_eq!(screen.layout(&ctx).row, 0x11);
+    let _ = &mut screen;
+}
+
+/// **`DAT_004D2EC8`, against the image**, row for row. The transcription in
+/// `screens::info::FARM_TILE_INFO` is two artefacts one person maintains; the
+/// player's `Lords2.exe` is not. Ablation: changing any one number of the table
+/// fails here naming the row.
+#[test]
+fn the_farmland_table_is_the_images_own() {
+    let exe = l2_testkit::executable!();
+    let u32_at = |o: usize| u32::from_le_bytes(exe[o..o + 4].try_into().expect("four bytes"));
+    let u16_at = |o: usize| u16::from_le_bytes(exe[o..o + 2].try_into().expect("two bytes"));
+    let pe = u32_at(0x3C) as usize;
+    let sections = u16_at(pe + 6) as usize;
+    let table = pe + 24 + u16_at(pe + 20) as usize;
+    let file_offset = |va: u32| -> usize {
+        let rva = va - 0x0040_0000;
+        for i in 0..sections {
+            let s = table + i * 40;
+            let (vsize, vaddr, raw) = (u32_at(s + 8), u32_at(s + 12), u32_at(s + 20));
+            if rva >= vaddr && rva < vaddr + vsize {
+                return (raw + (rva - vaddr)) as usize;
+            }
+        }
+        panic!("{va:#X} is in no section");
+    };
+    let base = file_offset(0x004D_2EC8);
+    for (row, want) in l2_game::screens::info::FARM_TILE_INFO.iter().enumerate() {
+        let got: Vec<usize> = (0..4).map(|col| u32_at(base + row * 16 + col * 4) as usize).collect();
+        assert_eq!(&got[..], &want[..], "DAT_004D2EC8 row {row:#04X}");
+    }
+}
+
+/// **The debug overlay is off by default, and Ctrl+D draws it.**
+///
+/// Two players' reports: *"these debug squares still on the town square on map
+/// and the fields"* and *"debug outlines and text for the 4 icons at the bottom
+/// right"*. The original draws nothing at either place — `Sprite_TopIt` puts
+/// the banner on the town's quadrant 0 and a herd on a pasture and nothing else,
+/// and `Sidebar_ButtonClicked` is a hit test that draws nothing — so by default
+/// neither may be on the canvas.
+///
+/// **Every absence is asserted at a place the overlay really draws on screen**:
+/// the same frame with the overlay on must show our square at that pixel, or the
+/// check is skipped for that tile — and at least one of each must remain, which
+/// is what stops the absence being vacuous (`docs/decisions.md` C138).
+///
+/// The square's shape is the literal one — a filled `(2h+1)²` block inside a
+/// one-pixel ring of the background — with `h` 2 for a county and 3 for a field.
+///
+/// **Ablations, run:** deleting `.filter(|_| debug)` on the county markers fails
+/// the first absence; deleting `debug &&` on the field markers the second;
+/// deleting the `, true` of the sidebar's focus guard the third; deleting the
+/// Ctrl+D arm in `Machine::handle` the first *presence*.
+#[test]
+fn the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it() {
+    let (mut game, assets) = world!();
+    assert!(!game.prefs.debug_overlay, "a normal session starts with it off");
+    // `open_on_the_player` centres on the selected county when it is the
+    // player's, so the county is selected *before* anything is drawn and the
+    // ruler is drawn after it.
+    let players: Vec<u8> =
+        (1..=game.kingdom.county_count as u8).filter(|&id| game.is_players(id)).collect();
+    let county = players
+        .into_iter()
+        .find(|&id| {
+            game.select(id);
+            visible_field(&mut game, &assets, id, |_| true).is_some()
+        })
+        .expect("one of the player's counties has a field in view once selected");
     game.select(county);
 
-    let (tile, kind) = game
+    let mut m = Machine::new(ScreenId::Campaign);
+    draw_stack(&mut m, &mut game, &assets);
+    let mut probe = MapScreen::new();
+    draw(&mut probe, &mut game, &assets);
+    let clip = probe.map_clip();
+    // The pointer over a sidebar icon, which is what drew our outline.
+    let b = map::SIDEBAR_BUTTONS[1].rect();
+    send_stack(&mut m, &mut game, &assets, Event::Pointer { x: b.x + b.w / 2, y: b.y + b.h / 2 });
+    let off = draw_stack(&mut m, &mut game, &assets);
+
+    send_stack(&mut m, &mut game, &assets, Event::KeyDown(Key::CtrlChar('D')));
+    assert!(game.prefs.debug_overlay, "Ctrl+D turns it on");
+    assert_eq!(m.ids(), vec![ScreenId::Campaign], "and no screen saw the key");
+    let on = draw_stack(&mut m, &mut game, &assets);
+
+    let background = assets.ink.background;
+    let square = |c: &Canvas, (cx, cy): (i32, i32), h: i32| -> bool {
+        let at = |x: i32, y: i32| c.at(x as usize, y as usize);
+        let ink = at(cx, cy);
+        ink != background
+            && (-h..=h).all(|dy| (-h..=h).all(|dx| at(cx + dx, cy + dy) == ink))
+            && (-h - 1..=h + 1).all(|d| {
+                at(cx + d, cy - h - 1) == background
+                    && at(cx + d, cy + h + 1) == background
+                    && at(cx - h - 1, cy + d) == background
+                    && at(cx + h + 1, cy + d) == background
+            })
+    };
+    let inside = |(x, y): (i32, i32), r: i32| clip.contains(x - r, y - r) && clip.contains(x + r, y + r);
+
+    // 1. The county squares, at each county's anchor tile.
+    let anchors: Vec<(i32, i32)> = game
+        .kingdom
+        .county_ids()
+        .filter_map(|id| {
+            let (ax, ay) = (game.anchor_x[id] as usize, game.anchor_y[id] as usize);
+            campaign::tile_centre(probe.viewport(), probe.zoom(), ax, ay)
+        })
+        .filter(|&p| inside(p, 3) && square(&on, p, 2))
+        .collect();
+    assert!(!anchors.is_empty(), "with the overlay on, a county square is on screen");
+    for &p in &anchors {
+        assert!(!square(&off, p, 2), "a county square at {p:?} with the overlay off");
+    }
+
+    // 2. The field squares, on the selected county's fields.
+    let fields: Vec<(i32, i32)> = game
         .kingdom
         .field_tiles(county as usize)
         .into_iter()
-        .find(|&(_, k)| k == l2_kingdom::field::FieldType::Fallow)
-        .expect("a fallow field to paint");
-    assert_eq!(kind, l2_kingdom::field::FieldType::Fallow);
-    let before = game.kingdom.counties[county as usize].fields_grain;
+        .filter_map(|(t, _)| {
+            let (tx, ty) = l2_kingdom::map::coords(t);
+            campaign::tile_centre(probe.viewport(), probe.zoom(), tx as usize, ty as usize)
+        })
+        .filter(|&p| inside(p, 4) && square(&on, p, 3))
+        .collect();
+    assert!(!fields.is_empty(), "with the overlay on, a field square is on screen");
+    for &p in &fields {
+        assert!(!square(&off, p, 3), "a field square at {p:?} with the overlay off");
+    }
 
-    let mut screen = MapScreen::new();
-    let (x, y) = on_screen(&mut screen, tile);
-    send(&mut screen, &mut game, &assets, Event::Click { x, y });
+    // 3. The sidebar icon's outline, all four edges in the highlight.
+    let hl = assets.ink.highlight;
+    let outlined = |c: &Canvas| {
+        let at = |x: i32, y: i32| c.at(x as usize, y as usize);
+        (b.x..b.x + b.w).all(|x| at(x, b.y) == hl && at(x, b.y + b.h - 1) == hl)
+            && (b.y..b.y + b.h).all(|y| at(b.x, y) == hl && at(b.x + b.w - 1, y) == hl)
+    };
+    assert!(outlined(&on), "the overlay outlines the icon under the pointer");
+    assert!(!outlined(&off), "and nothing outlines it by default");
 
-    // The grain button is the middle column of the three-button menu.
-    send(&mut screen, &mut game, &assets, Event::Click { x: 328, y: 208 });
-    assert_eq!(
-        game.kingdom.counties[county as usize].fields_grain,
-        before + 1,
-        "the click reached Field_SetType"
-    );
-    assert_eq!(
-        game.kingdom.campaign.map.terrain[tile],
-        l2_kingdom::field::terrain::GRAIN,
-        "and the map tile is the terrain the hotspot's id names"
-    );
-}
+    // 4. Our words under the menu bar.
+    assert!(find_text(&on, "TURN 1", assets.ink.dim).is_some());
+    assert!(find_text(&off, "TURN 1", assets.ink.dim).is_none());
 
-/// A click somewhere else while the popup is up dismisses it and paints
-/// nothing, which is what a modal hotspot table does.
-#[test]
-fn a_click_off_the_brush_popup_changes_nothing() {
-    let (mut game, assets) = world!();
-    let county = (1..=game.kingdom.county_count as u8)
-        .find(|&id| game.is_players(id))
-        .expect("the player holds a county");
-    game.select(county);
-    let (tile, _) = game.kingdom.field_tiles(county as usize)[0];
-    let before = game.kingdom.counties[county as usize].clone();
-
-    let mut screen = MapScreen::new();
-    let (x, y) = on_screen(&mut screen, tile);
-    send(&mut screen, &mut game, &assets, Event::Click { x, y });
-    send(&mut screen, &mut game, &assets, Event::Click { x: 40, y: 400 });
-    assert_eq!(game.kingdom.counties[county as usize], before);
+    // And off again is the default picture to the pixel.
+    send_stack(&mut m, &mut game, &assets, Event::KeyDown(Key::CtrlChar('D')));
+    assert!(!game.prefs.debug_overlay);
+    let again = draw_stack(&mut m, &mut game, &assets);
+    assert_eq!(again.diff_count(&off), 0, "Ctrl+D twice leaves exactly the default frame");
 }
 
 /// **A click on a county that is not yours paints nothing**, which is the owner
@@ -2969,11 +3279,19 @@ fn shoot() {
     let canvas = draw(&mut screen, &mut game, &assets);
     save_png(&canvas, &assets, "brush_before");
 
-    send(&mut screen, &mut game, &assets, Event::Click { x, y });
-    let canvas = draw(&mut screen, &mut game, &assets);
+    // The left click opens screen 0x04 on the field, and the brush is on it.
+    let opened = send(&mut screen, &mut game, &assets, Event::Click { x, y });
+    let target = l2_game::screens::info::Target::Tile(tile);
+    assert_eq!(opened, Transition::Push(ScreenId::Info(target)));
+    let mut panel = l2_game::screens::info::InfoScreen::new(target);
+    let mut canvas = draw(&mut screen, &mut game, &assets);
+    {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        panel.draw(&ctx, &mut canvas);
+    }
     save_png(&canvas, &assets, "brush_open");
 
-    send(&mut screen, &mut game, &assets, Event::Click { x: 328, y: 208 });
+    send(&mut panel, &mut game, &assets, Event::Click { x: 328, y: 400 });
     let canvas = draw(&mut screen, &mut game, &assets);
     save_png(&canvas, &assets, "brush_after");
 

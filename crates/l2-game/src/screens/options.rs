@@ -1011,7 +1011,9 @@ impl OptionsScreen {
             // On one line so that `crates/l2-game/tests/draws.rs`' caption
             // scanner can see it: it reads the first quoted run on the line the
             // call is on, and a `rustfmt`-split literal is invisible to it.
+            if ctx.game.prefs.debug_overlay {
             l2_view::text::draw(canvas, x, y + rows * 16 + 6, "GREYED: THIS ENGINE IS A WINDOW, AND L2HELP.HLP IS WIN3.1", ctx.assets.ink.dim);
+            }
         }
     }
 
@@ -1045,7 +1047,10 @@ impl OptionsScreen {
 
         // The mark. This page is **ours**, and it says so on itself in our own
         // font — the rule `crates/l2-game/src/screens/index.rs` already follows.
+        // Debug overlay only.
+        if ctx.game.prefs.debug_overlay {
         l2_view::text::draw(canvas, QUIRK_PARENT.0, 0x1C4, "OURS: THE ORIGINAL HAS NO SUCH PAGE. SEE DOCS/BUGS.MD", ink.dim);
+        }
     }
 }
 

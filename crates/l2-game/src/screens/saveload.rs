@@ -655,7 +655,10 @@ impl Screen for SaveLoadScreen {
             Status::Idle => {}
             Status::Failed(detail) => {
                 pen.eng(canvas, GROUP, ERROR_INDEX, STATUS.0, STATUS.1, font::TEXT);
-                text::draw(canvas, STATUS.0, STATUS.1 + 18, &ours(detail), ink.bad);
+                // Our detail under the original's sentence: debug overlay only.
+                if ctx.game.prefs.debug_overlay {
+                    text::draw(canvas, STATUS.0, STATUS.1 + 18, &ours(detail), ink.bad);
+                }
             }
         }
 
@@ -677,7 +680,9 @@ impl Screen for SaveLoadScreen {
             Some(d) => d.display().to_string().to_uppercase(),
             None => "NO SAVE DIRECTORY ON THIS MACHINE".into(),
         };
-        text::draw(canvas, BOX_X + 4, BOX_Y + BOX_ROWS * 16 - 12, &ours(&where_), ink.dim);
+        if ctx.game.prefs.debug_overlay {
+            text::draw(canvas, BOX_X + 4, BOX_Y + BOX_ROWS * 16 - 12, &ours(&where_), ink.dim);
+        }
     }
 }
 

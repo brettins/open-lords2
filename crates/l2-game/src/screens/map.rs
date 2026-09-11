@@ -151,7 +151,7 @@
 //! A click on the minimap goes through `MAPnn.PL8`'s own county raster, which
 //! *is* what the original does, and then centres the map on that county.
 
-use l2_kingdom::field::{self, BrushRefusal, FieldType};
+use l2_kingdom::field::FieldType;
 use l2_kingdom::industry;
 use l2_formats::maps::Plane;
 use l2_view::campaign::{self, Dir, Lattice, Viewport, Zoom, FAR, NEAR, PANEL_W, PANEL_X};
@@ -434,32 +434,22 @@ pub const MAP_AREA: Rect = Rect::new(0, TOP_BAR, PANEL_X, NEAR.bottom() - TOP_BA
 /// yet place.
 const MARKER: i32 = 2;
 
-/// The field brush popup, and how far it is from the original.
+/// **The field markers, which are debug overlay now.**
 ///
-/// **The original's:** which brushes exist, which menu a tile opens, and the
-/// button geometry — five 48 × 48 buttons on the row `y 184 … 232`, three at
-/// `x 240/304/368` for a field and two at `x 304/368` for waste. All of that is
-/// read out of `Lords2.exe` by `crates/l2-kingdom/tests/oracle.rs`, and the
-/// popup's vertical offset is `g_uiPopupRow << 4` in `FUN_00438990`.
+/// This module used to hold a brush *popup* of ours on the campaign map, opened
+/// by a left click on a field. It is gone: in the original that click is
+/// `Map_Click`'s farmland arm — `_DAT_005681CC = 3; g_screenId = 4;
+/// FUN_0041B032();` — which opens **screen `0x04`, the same information panel a
+/// right click opens**, and the brush is drawn and hit-tested there
+/// (`FUN_0041C996`, `FUN_00438990`). See [`crate::screens::info`].
 ///
-/// **Ours, and it should look it:** the buttons hold our words rather than the
-/// original's pictures, the frame is `widget::panel`, and the *targets* — the
-/// twenty field tiles — are drawn as small squares coloured by what the field
-/// is being used for. The original does not mark fields at all; it repaints the
-/// tile artwork itself (`FUN_0046D7F4` picks a graphics bank and frame from the
-/// same terrain value), and we deliberately do not, because that ladder's bank
-/// byte is only half understood and `docs/decisions.md` C21 is what happens
-/// when verified data is given invented presentation. A marker says *we know
-/// what this field is*; painted artwork would claim *this is what the game
-/// looked like*.
+/// What is left is the squares we drew on the county's fields, coloured by what
+/// each is used for. **The original draws nothing there** — `Sprite_TopIt`'s
+/// farm arm is the pasture herd and nothing else, and the crop is the tile's own
+/// artwork (`Terrain_Set`, which [`MapScreen::field_graphics`] reproduces) — so
+/// they are drawn only with [`crate::game::Prefs::debug_overlay`] on.
 mod brush {
-    /// One brush button, `BUTTON` on a side.
-    pub const BUTTON: i32 = 48;
-    /// The row the original puts them on, before its `g_uiPopupRow` offset.
-    pub const ROW_Y: i32 = 184;
-    /// The three x positions, of which the two-button menu uses the last two.
-    pub const COLUMNS: [i32; 3] = [240, 304, 368];
-    /// Half-width of a field marker. **Ours.**
+    /// Half-width of a field marker. **Ours**, debug overlay only.
     pub const FIELD_MARKER: i32 = 3;
 }
 
@@ -543,11 +533,6 @@ pub struct MapScreen {
     focus: Focus,
     /// One line of feedback about the last thing that happened. **Ours.**
     status: String,
-    /// The field brush popup, open over a tile the player clicked.
-    ///
-    /// `Map_Click` reaches `Field_SetType` exactly this way and no other: there
-    /// is no field control on any county panel. See [`brush`].
-    picked_field: Option<PickedField>,
     /// Where the pointer last was, in canvas pixels. **Edge scrolling needs a
     /// position that outlives the event that carried it**: the player holds the
     /// cursor still against the edge of the window and the map has to keep
@@ -679,16 +664,6 @@ const TICK_MS: u32 = 16;
 /// routine at `0x004AE310`. **[V]**
 pub const DEFAULT_SCROLL_SPEED: i32 = 60;
 
-/// A field tile the player has clicked, and the menu its terrain opens.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct PickedField {
-    county: u8,
-    tile: usize,
-    /// `FUN_00438990`'s choice between the two hotspot tables, made on the
-    /// tile's own terrain.
-    menu: &'static [FieldType],
-}
-
 /// **Move-order mode's whole state** — `g_screenId == 0x10`.
 ///
 /// `Map_BeginMoveSelection` (`0x0043723A`) runs `Move_FloodFill` **once**, when
@@ -741,7 +716,6 @@ impl MapScreen {
             minimap_slot: None,
             focus: Focus::None,
             status: "CLICK A COUNTY".into(),
-            picked_field: None,
             pointer: (CANVAS_W / 2, CANVAS_H / 2),
             pointer_in: false,
             scrolled: false,
@@ -1118,63 +1092,6 @@ impl MapScreen {
         // The arithmetic has to land back inside the block it came from; a town
         // that straddles the right edge of the 64-wide grid would wrap.
         town.contains(&tile).then_some(tile)
-    }
-
-    /// The rectangle of one brush button, `i` counting from the left of the
-    /// menu that is open.
-    // arm: 0x00438990/tile-panel-hotspots left-release
-    fn brush_button(menu_len: usize, i: usize) -> Rect {
-        // The two-button menu uses the *right-hand* two columns, which is what
-        // the hotspot table holds: x 304 and 368, not 240 and 304.
-        let first = brush::COLUMNS.len() - menu_len;
-        Rect::new(
-            brush::COLUMNS[first + i],
-            brush::ROW_Y,
-            brush::BUTTON,
-            brush::BUTTON,
-        )
-    }
-
-    /// The popup's frame — the smallest box holding its buttons, with a margin.
-    fn brush_panel(menu_len: usize) -> Rect {
-        let first = Self::brush_button(menu_len, 0);
-        let last = Self::brush_button(menu_len, menu_len - 1);
-        Rect::new(
-            first.x - 8,
-            first.y - 20,
-            last.x + last.w + 8 - (first.x - 8),
-            brush::BUTTON + 28,
-        )
-    }
-
-    /// `Field_SetType`, reached the way the original reaches it.
-    fn paint(&mut self, ctx: &mut Ctx, picked: &PickedField, brush: FieldType) {
-        match ctx
-            .game
-            .kingdom
-            .paint_field(picked.county as usize, picked.tile, brush)
-        {
-            Ok(()) => {
-                let c = &ctx.game.kingdom.counties[picked.county as usize];
-                self.status = format!(
-                    "{} - {} GRAIN {} PASTURE {} FALLOW",
-                    brush.name().to_uppercase(),
-                    c.fields_grain,
-                    c.fields_cattle,
-                    c.fields_fallow
-                );
-            }
-            // Every refusal is one of the original's own guards, and saying
-            // which is more useful than a beep.
-            Err(why) => {
-                self.status = match why {
-                    BrushRefusal::NotAField => "NOT ONE OF THIS COUNTY'S FIELDS".into(),
-                    BrushRefusal::Blighted => "THAT FIELD IS RUINED THIS SEASON".into(),
-                    BrushRefusal::WrongMenu => "NOT OFFERED ON THAT FIELD".into(),
-                };
-            }
-        }
-        self.picked_field = None;
     }
 
     pub fn zoom(&self) -> &Zoom {
@@ -2160,10 +2077,9 @@ impl MapScreen {
         // the treasury there would compare the end of the turn against the
         // frame before it and report a change of nothing.
         self.gold_at_turn_start = ctx.game.gold();
-        // The modal state has nowhere to land while the map is not taking
+        // The slider's drag has nowhere to land while the map is not taking
         // clicks. The unit *selection* is kept: an order placed and then
         // silently cancelled by the turn ending would be a surprise.
-        self.picked_field = None;
         self.slider_held = false;
         let step = turn::begin_turn(ctx.game);
         self.status = "ENDING THE TURN...".into();
@@ -2498,10 +2414,6 @@ impl Screen for MapScreen {
             // `return 0` does.
             Event::RightClick { x, y } if self.clear_minimap_mode(x, y) => {}
             Event::RightClick { x, y } if self.map_clip().contains(x, y) => {
-                if self.picked_field.take().is_some() {
-                    self.status = "NO CHANGE".into();
-                    return Transition::Stay;
-                }
                 // **This is how an army is deselected, and it was missing.**
                 //
                 // A player found it in a minute: *"you cannot deselect an
@@ -2575,27 +2487,6 @@ impl Screen for MapScreen {
                 // arm: 0x00476710/map-click-dismiss left-release
                 if ctx.game.messages.is_open() {
                     ctx.game.messages.dismiss_unless_question();
-                    return Transition::Stay;
-                }
-                // The brush popup is modal over the map, the way
-                // `Hotspot_Test` makes it: while it is up its buttons are
-                // tested first and a click anywhere else dismisses it.
-                // **Ours, and counted.** The brush's five buttons and all five
-                // destinations are the original's (see [`brush`]), but the
-                // *popup* is not: in the original the same table is drawn on
-                // **screen `0x04`**, the information panel a RIGHT click opens,
-                // at a runtime row offset. There is no popup on screen 0.
-                // `docs/arms.json` `ours/brush-popup-on-the-map`.
-                // arm: ours/brush-popup-on-the-map left-press
-                if let Some(picked) = self.picked_field.clone() {
-                    for (i, &b) in picked.menu.iter().enumerate() {
-                        if Self::brush_button(picked.menu.len(), i).contains(x, y) {
-                            self.paint(ctx, &picked, b);
-                            return Transition::Stay;
-                        }
-                    }
-                    self.picked_field = None;
-                    self.status = "NO CHANGE".into();
                     return Transition::Stay;
                 }
                 // **`Sidebar_ButtonClicked` is guard 3 and it is OUTSIDE the
@@ -2931,27 +2822,40 @@ impl Screen for MapScreen {
                             self.centre_on_tile(tx as usize, ty as usize);
                             return Transition::Push(ScreenId::Village(county));
                         }
-                        // The original's own route to the crop table — `_DAT_005681CC
-                        // = 3; g_screenId = 4`. Ours answers it with the popup
-                        // recorded as `ours/brush-popup-on-the-map`, which is why
-                        // there are two records and not one.
+                        // **`0x20` — farmland — opens screen `0x04`, the panel a
+                        // RIGHT click opens.** `Map_Click`'s third flag arm:
+                        //
+                        // ```c
+                        // if ((flags & 0x20) && g_counties[pickedCounty].owner == g_localPlayer) {
+                        //     _DAT_005681CC = 3; g_screenId = 4; FUN_0041B032();
+                        // }
+                        // ```
+                        //
+                        // and the right button's `FUN_0043CAF4` ends in the same
+                        // `_DAT_005681CC = 3` and the same `FUN_0041B032()`, which
+                        // picks the tile half on `g_pickedTileUnit == 0`. So on
+                        // your own field **the two buttons open one screen**, the
+                        // player's own words: *"right click and left click on
+                        // fields does the same thing in the real game."* Ours
+                        // opened a popup of our own here instead
+                        // (`ours/brush-popup-on-the-map`, removed); a left click
+                        // on somebody else's field falls out of the bottom, as the
+                        // original's owner test inside the arm makes it.
+                        //
+                        // The tile is `Map_PickTile`'s, the same one the right
+                        // button resolves, so the two gestures cannot disagree
+                        // about which field was meant.
                         // arm: 0x0043CE1A/field-brush left-release
-                        let fields = ctx.game.kingdom.field_tiles(county as usize);
-                        if let Some(tile) =
-                            self.tile_at(x, y, fields.into_iter().map(|(t, _)| t))
-                        {
-                            let terrain = ctx.game.kingdom.campaign.map.terrain[tile];
-                            match field::menu_for(terrain) {
-                                Some(menu) => {
-                                    self.picked_field = Some(PickedField { county, tile, menu });
-                                    self.status = format!(
-                                        "FIELD: {}",
-                                        field::classify(terrain).name().to_uppercase()
-                                    );
-                                }
-                                None => self.status = "THAT FIELD IS RUINED THIS SEASON".into(),
+                        if let Some((tx, ty)) = self.pick_tile(x, y) {
+                            let tile = l2_kingdom::map::index(tx, ty);
+                            let map = &ctx.game.kingdom.campaign.map;
+                            if map.flags[tile] & l2_kingdom::map::flags::FARMLAND != 0
+                                && ctx.game.is_players(map.county[tile])
+                            {
+                                return Transition::Push(ScreenId::Info(
+                                    crate::screens::info::Target::Tile(tile),
+                                ));
                             }
-                            return Transition::Stay;
                         }
                     }
                     // **And that is the end of `Map_Click`. There is no arm
@@ -3075,11 +2979,6 @@ impl Screen for MapScreen {
                 self.scrolled = true;
             }
         }
-        // The brush popup is modal, and a modal popup that scrolled the map out
-        // from under its own target would be worse than one that does not.
-        if self.picked_field.is_some() {
-            return Transition::Stay;
-        }
         // **`Map_ScrollThrottle` (`0x004BBBE3`)** — the map does not step on
         // every frame the pointer is at the edge. See
         // [`MapScreen::scroll_interval_ticks`].
@@ -3128,9 +3027,12 @@ impl Screen for MapScreen {
         // is the assertion that could not exist while it did.
 
         // Ours: one marker per county in view, at its anchor tile, coloured by
-        // owner. The original draws a county flag from `Flags1a.pl8` over the
-        // castle tile; we have not placed those yet.
-        for id in k.county_ids() {
+        // owner — **debug overlay only**. It stood in for the owner's banner
+        // before `draw_flags` placed it; `Sprite_TopIt` draws the banner on the
+        // town's quadrant 0 and **nothing** at our anchor, so a player saw a
+        // square on the town square the original never had.
+        let debug = game.prefs.debug_overlay;
+        for id in k.county_ids().filter(|_| debug) {
             let (ax, ay) = (game.anchor_x[id] as usize, game.anchor_y[id] as usize);
             // **In the dark, not at all.** This marker is ours, standing in for
             // the owner's banner `Sprite_TopIt` flies — and that banner is
@@ -3171,13 +3073,16 @@ impl Screen for MapScreen {
                 Some(c) => c.draw_box(canvas, 0, 412, 30, 4, 0),
                 None => widget::panel(canvas, ink, Rect::new(0, 412, 480, 64)),
             }
-            text::draw(canvas, 24, 432, &self.status, ink.text);
+            // Ours, in the original's box: debug overlay only.
+            if debug {
+                text::draw(canvas, 24, 432, &self.status, ink.text);
+            }
         }
 
         // Ours: the player's own county's fields, marked by what each is being
-        // used for, so the brush has visible targets. See [`brush`] for what
-        // the original does instead and why we do not.
-        if game.is_players(game.selected) {
+        // used for — **debug overlay only**, because the original draws nothing
+        // over a field but its own artwork and a herd. See [`brush`].
+        if debug && game.is_players(game.selected) {
             for (tile, kind) in k.field_tiles(game.selected as usize) {
                 // Ours, and kept out of the dark with everything else a tile
                 // carries. A county of the player's is seen from the moment it
@@ -3231,43 +3136,6 @@ impl Screen for MapScreen {
         draw_menu_bar(canvas, ctx);
         draw_right_panel(self, canvas, ctx);
         draw_unit_banner(self, canvas, ctx);
-
-        // Last, so it sits over everything: the brush popup.
-        if let Some(picked) = &self.picked_field {
-            let panel = Self::brush_panel(picked.menu.len());
-            widget::panel(canvas, ink, panel);
-            let terrain = k.campaign.map.terrain[picked.tile];
-            text::draw(
-                canvas,
-                panel.x + 8,
-                panel.y + 6,
-                &format!(
-                    "FIELD IS {}",
-                    field::classify(terrain).name().to_uppercase()
-                ),
-                ink.text,
-            );
-            for (i, &b) in picked.menu.iter().enumerate() {
-                let r = Self::brush_button(picked.menu.len(), i);
-                widget::panel(canvas, ink, r);
-                let swatch = 12;
-                fill_clipped(
-                    canvas,
-                    r.x + r.w / 2,
-                    r.y + 14,
-                    swatch,
-                    field_colour(ink, b),
-                    Clip::WHOLE,
-                );
-                text::draw(
-                    canvas,
-                    r.x + 4,
-                    r.y + r.h - 12,
-                    &b.name().to_uppercase(),
-                    ink.text,
-                );
-            }
-        }
     }
 }
 
@@ -3322,10 +3190,12 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
             continue;
         };
         let h = unit_marker_half(&screen.zoom, unit);
+        let debug = ctx.game.prefs.debug_overlay;
         // A garrisoned unit is inside the castle. The original does not draw it
-        // on the map at all; we draw a hollow marker so that the player can see
-        // his garrison is there, and never the figure, which would say it was
-        // standing outside.
+        // on the map at all — `draw_flags` flies the garrison's banner over the
+        // castle instead — so ours draws nothing either, and the hollow marker
+        // that used to say "your garrison is in there" is **debug overlay
+        // only**. Never the figure, which would say it was standing outside.
         let drawn = !unit.is_garrisoned()
             && campaign::draw_unit(
                 canvas,
@@ -3340,7 +3210,10 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
                 },
                 clip,
             );
-        if !drawn {
+        // The square is the fallback for an install with no sprite sheet, and a
+        // normal install never reaches it — except for a garrison, which is the
+        // overlay's.
+        if !drawn && (debug || !unit.is_garrisoned()) {
             let colour = ink.realm.get(unit.owner as usize).copied().unwrap_or(ink.dim);
             fill_clipped(canvas, cx - h - 1, cy - h - 1, h * 2 + 3, ink.background, clip);
             fill_clipped(canvas, cx - h, cy - h, h * 2 + 1, colour, clip);
@@ -3356,16 +3229,21 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
             }
         }
         // The selection ring: `g_selectedUnit`, and the map is taking orders
-        // for it. **Ours** — the original flood-fills the reachable tiles.
-        if screen.selected_unit == Some(id) {
+        // for it. **Ours**, debug overlay only — `Map_DrawArmies` draws the
+        // figure and its banner and nothing round them; the original's answer
+        // to "which army is picked" is the path under the cursor
+        // (`draw_path_preview`).
+        if debug && screen.selected_unit == Some(id) {
             let r = h + 3;
             widget::frame(canvas, Rect::new(cx - r, cy - r, r * 2 + 1, r * 2 + 1), ink.highlight);
         }
         // A besieger carries a second, smaller mark: it is camped rather than
         // standing, and clicking it opens the siege screen rather than ordering
         // a march. The original's is `Flags1a.pl8` frame `0x82` with the seasons
-        // left printed under it (`FUN_00407F82`); ours is a dot.
-        if unit.besieging_county != 0 {
+        // left printed under it (`FUN_00407F82`), over the *castle*; ours is a
+        // dot over the unit, where the original draws nothing, so it is debug
+        // overlay only and `FUN_00407F82` stays a missing draw.
+        if debug && unit.besieging_county != 0 {
             fill_clipped(canvas, cx - 1, cy - h - 4, 3, ink.bad, clip);
         }
     }
@@ -3599,6 +3477,10 @@ fn draw_path_preview(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: C
 /// right column belongs to the county strip. When `0x04` graduates, this stays:
 /// they answer different questions.
 fn draw_unit_banner(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
+    // Debug overlay only: the original draws nothing over the foot of the map.
+    if !ctx.game.prefs.debug_overlay {
+        return;
+    }
     let Some(id) = screen.selected_unit else { return };
     let Some(unit) = ctx.game.kingdom.campaign.units.get(id) else { return };
     let ink = &ctx.assets.ink;
@@ -3810,9 +3692,13 @@ fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
     // So they go **under** the bar, on the map's own top-left corner, where
     // nothing of the original's is drawn. Still ours, still marked, and now they
     // cannot hide a control.
-    text::draw(canvas, 6, 28, &format!("TURN {}", k.turn_count), ink.dim);
-    let held = format!("COUNTIES {}/{}", game.owned_by(game.player), k.county_count);
-    text::draw(canvas, 6, 38, &held, ink.dim);
+    //
+    // And now debug overlay only: the original draws nothing there at all.
+    if game.prefs.debug_overlay {
+        text::draw(canvas, 6, 28, &format!("TURN {}", k.turn_count), ink.dim);
+        let held = format!("COUNTIES {}/{}", game.owned_by(game.player), k.county_count);
+        text::draw(canvas, 6, 38, &held, ink.dim);
+    }
 }
 
 /// The right column: the original's seven `Misc_cty` frames, our numbers inside
@@ -3896,7 +3782,7 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
         // The strip, and the split slider's thumb on the plate below it — both
         // `CountyStrip_Draw`'s, both shared with the county screen.
         county::draw_strip(ctx, canvas, game.selected, None);
-    } else {
+    } else if game.prefs.debug_overlay {
         text::draw_centred(canvas, PANEL_X + 80, 200, "NO COUNTY SELECTED", ink.dim);
     }
 
@@ -3922,13 +3808,19 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // What is left here is the one status line this interface has, which is
     // ours and is marked so in §7's count.
     let x = PANEL_X + 8;
-    text::draw(canvas, x, chrome::PANEL_OWN_C_Y + 110, &screen.status, ink.dim);
+    if game.prefs.debug_overlay {
+        text::draw(canvas, x, chrome::PANEL_OWN_C_Y + 110, &screen.status, ink.dim);
+    }
 
     // **The five sidebar buttons.** `Misc_cty` frame 57 already drew them; all
-    // this adds is which one the pointer is over, because the original's
-    // feedback is a pressed frame in its own hotspot table and we do not have
-    // the pressed frames identified. Nothing is drawn over the icons.
-    if let Focus::Sidebar(i) = screen.focus {
+    // this adds is which one the pointer is over — an outline and a caption of
+    // ours. **Debug overlay only.** A player: *"still seeing debug outlines and
+    // text for the 4 icons at the bottom right … it's not in the OG."*
+    // `Sidebar_ButtonClicked` is one `Hotspot_Test`, which draws nothing, and
+    // `Screen_DrawCampaign` paints the strip as one frame with nothing over it.
+    // The original's words for these buttons are the tooltip layer's
+    // (`FUN_00476E95`, group 220), which is not built.
+    if let (Focus::Sidebar(i), true) = (screen.focus, game.prefs.debug_overlay) {
         let r = SIDEBAR_BUTTONS[i].rect();
         widget::frame(canvas, r, ink.highlight);
         text::draw_centred(canvas, r.centre_x(), r.y - 10, SIDEBAR_BUTTONS[i].name, ink.highlight);
@@ -3987,7 +3879,9 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // `docs/draws-map.md` §5.11, `docs/decisions.md`
     // C152 and C158.
     if !turn::turn_in_flight(&ctx.game) {
-        let end = if screen.focus == Focus::EndTurn {
+        // The hover colour is ours: `Screen_DrawEndTurn` passes `0x16` whatever
+        // the pointer does. Debug overlay only.
+        let end = if screen.focus == Focus::EndTurn && game.prefs.debug_overlay {
             ink.highlight
         } else {
             ink.text

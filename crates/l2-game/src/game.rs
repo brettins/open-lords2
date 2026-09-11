@@ -124,6 +124,25 @@ pub struct Prefs {
     /// is the parallel of the scroll throttle's; that it is the main loop's tick
     /// budget is **`[I]` and untraced**, so nothing here acts on it.
     pub game_speed: i32,
+    /// **Ours: the debug overlay** — every marker, outline and line of our own
+    /// 5 × 7 text that the original does not draw, on every screen. **Off by
+    /// default**, so a normal session shows what `Lords2.exe` shows and nothing
+    /// else. Ctrl+D flips it, from anywhere, in [`crate::screen::Machine::handle`].
+    ///
+    /// A player: *"debug text everywhere, i'd like a toggle or hotkey."* The
+    /// squares on the town square and the fields, the outline and caption over
+    /// the sidebar icons, the status lines and the *NOT SIMULATED* stubs were all
+    /// drawn unconditionally, so the only way to see the original's picture was
+    /// to read the source.
+    ///
+    /// **What it does not gate**, deliberately: a fallback that runs only when a
+    /// file of the install is missing (a normal install never shows one), the
+    /// title page's build stamp, which exists so a report names its build, and
+    /// the two screens that are wholly ours (`screens::index`, `screens::menu`).
+    ///
+    /// A preference, so never in the save, never in the digest and never below
+    /// this crate — the table above.
+    pub debug_overlay: bool,
 }
 
 impl Default for Prefs {
@@ -138,6 +157,8 @@ impl Default for Prefs {
             tool_tips: true,
             scroll_speed: 60,
             game_speed: 90,
+            // Ours, and off: see the field.
+            debug_overlay: false,
         }
     }
 }

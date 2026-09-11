@@ -648,8 +648,11 @@ impl Screen for DivideScreen {
         if !pen.system_frame(canvas, cross, SPLIT_CROSS.x, SPLIT_CROSS.y) {
             widget::frame(canvas, SPLIT_CROSS, ink.border);
         }
-        // **Ours**: the original answers a refusal with a message scroll.
-        text::draw(canvas, 16, 452, &self.status, ink.dim);
+        // **Ours**: the original answers a refusal with a message scroll. Debug
+        // overlay only.
+        if ctx.game.prefs.debug_overlay {
+            text::draw(canvas, 16, 452, &self.status, ink.dim);
+        }
     }
 }
 
