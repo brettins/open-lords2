@@ -1063,8 +1063,19 @@ untested; it is a candidate for §2 if anyone can show the AI plants for the wro
 **A documentation gap this exposes.** `rules.md` §2's pass table starts at "1 — Clock". There
 is a pass 0, and it is this one.
 
-## 4.2 Two more that read as bugs and are probably design
+## 4.2 Three more that read as bugs and are probably design
 
+* **A plague barely touches a healthy county, and a wedding's cap only bites on a small one.**
+  `Population_UpdateAll` (`0x00449EF3`) takes the event's percentage of the season's **deaths**
+  (plague) or **births** (wedding), adds 10, and caps the result at 20 % of the county. So a
+  Summer plague on a Perfect-health county, which was going to lose nobody, costs exactly ten;
+  and the cap, which looks written for a percentage of the whole county, only binds below a few
+  hundred people. It reads as design rather than a slip: `L2.eng` group 142 describes the
+  wedding as *"a jump in the number of children born"*, and the letters label the figure
+  *"extra deaths."* / *"extra births."* (group 77, indices 29 and 30). **[V]** on the arithmetic,
+  **[I]** on calling it intended. **This one was "fixed" by accident**: we took the percentage
+  of the county until `docs/decisions.md` C169, which is five times the plague
+  in the example the correction works.
 * **The AI stops making weapons the moment it starts a castle.** `AI_ChooseIndustry`
   (`FUN_0049E77D`) switches iron and the blacksmith off outright while a castle is going up,
   keeping forestry and quarrying only while the build still wants wood or stone. A real

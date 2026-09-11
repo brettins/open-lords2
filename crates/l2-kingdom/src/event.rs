@@ -285,8 +285,10 @@ pub fn deck_slot(slot: usize) -> Option<EventKind> {
 /// and the effect separately.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Effect {
-    /// Write an `i8` percentage into county `+0x1FB`. Applied to births and
-    /// deaths by `Population_UpdateAll`, capped at 20% of the county.
+    /// Write an `i8` percentage into county `+0x1FB`. `Population_UpdateAll`
+    /// takes it **of the season's deaths** (negative) **or births** (positive),
+    /// adds ten, and caps the result at 20% of the county —
+    /// [`crate::county::County::event_population_swing`].
     PopulationPct(i32),
     /// County `+0x1FC`, applied to the grain store by `Grain_SeasonTick`.
     GrainPct(i32),
@@ -345,9 +347,11 @@ impl EventKind {
     ///
     /// Four of the twenty-four are **seasonal**: *Rats*, *Grain found*,
     /// *Plague* and *Wedding fever* each read `g_season` and pick one of four
-    /// percentages. Nothing in `docs/kingdom.md` mentions that, and it is the
-    /// difference between a plague costing 20% of a county in Summer and 40% in
-    /// Winter.
+    /// percentages. Nothing in `docs/kingdom.md` mentioned that, and it is the
+    /// difference between a plague adding 20% to a county's deaths in Summer and
+    /// 40% in Winter — **of its deaths, not of its people**: `Population_UpdateAll`
+    /// takes the population percentage of the season's natural deaths or births
+    /// (C169).
     pub fn effect(self, season: Season) -> Effect {
         // Indexed Spring, Summer, Autumn, Winter — the order `g_season` is
         // 1..=4 in, so a table read is `[season.index() - 1]`.

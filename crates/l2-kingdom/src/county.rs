@@ -646,9 +646,29 @@ pub struct County {
     pub castle_wood_total: i32,
     /// `+0x1FB`, `+0x1FC`, `+0x1FD` — percentage swings to population, grain
     /// and herd from a random event.
+    ///
+    /// The population byte is a percentage of the season's **deaths** (when
+    /// negative) or **births** (when positive), not of the county — see
+    /// [`County::event_population_swing`].
     pub event_population_pct: i32,
     pub event_grain_pct: i32,
     pub event_herd_pct: i32,
+    /// `+0x2F8` — **the people a random event added to this season's births or
+    /// deaths**, which is the number *Plague* and *Wedding fever*'s letters
+    /// print: `Msg_DrawWindow` (`0x0047309E`) draws it with `Ui_DrawNumber`
+    /// before `L2.eng` group 77 index 29, *"extra deaths."*, or index 30,
+    /// *"extra births."*
+    ///
+    /// Written by `Population_UpdateAll` (`0x00449EF3`) in **every** county
+    /// every season — zero unless `+0x1FB` is non-zero — as
+    /// `Pct(deaths or births, |pct|) + 10`, capped at `Pct(population, 20)`.
+    /// [`crate::population::update_one`] is that code. `[V]`: those two
+    /// functions are the only readers and writers of the offset in the binary.
+    ///
+    /// **It outlives the percentage.** `+0x1FB` is spent and cleared inside the
+    /// season, and this is not touched again until the next population pass, so
+    /// a letter opened during the player's turn still reads it.
+    pub event_population_swing: i32,
     /// `g_countyFieldTiles + county * 0x50 + slot * 4` (`0x0053EA00`) — **the
     /// twenty map tiles that are this county's fields**, or 0 for an empty
     /// slot.
@@ -976,6 +996,7 @@ impl County {
             castle_wood_owed: 0,
             castle_wood_total: 0,
             event_population_pct: 0,
+            event_population_swing: 0,
             event_grain_pct: 0,
             event_herd_pct: 0,
             field_tiles: [0; MAX_FIELDS],

@@ -377,6 +377,14 @@ That ladder is the soft population cap players talk about: **at 2,000 people a c
 **Deaths** come from the health band plus the season, added together. A Diseased county in
 Winter loses **43%** of its people in a single season.
 
+**A plague adds to the deaths you were already going to have, not to your people.** It takes
+20% (Summer), 30% (Spring, Autumn) or 40% (Winter) *of the season's deaths*, adds ten, and
+never costs more than a fifth of the county. *Wedding fever* does the same to births, at 60%,
+50%, 40% and 30% from Spring to Winter. The letter's *"N extra deaths."* is exactly that
+number. So a healthy county in Summer, which was going to lose nobody, loses ten; a sick one
+in Winter can lose much more; and a village of forty loses its whole fifth. Only these two
+events move people.
+
 **Migration** moves people between neighbouring counties, driven by the happiness gap. The
 formula makes small gaps produce *nothing*: a county at 72 next to one at 77 moves nobody at
 all, which is why the England turn-one fixture's numbers work out with no migration in them.

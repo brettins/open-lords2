@@ -584,7 +584,6 @@ fn realm_fives_county_is_fed_on_slaughter_by_its_lords_sweep_from_the_rewound_st
 
     // Everything upstream of the ration term lands either way.
     assert_eq!(ours.pop_last, theirs.pop_last);
-    assert_eq!(ours.births, theirs.births, "the birth factor band is the same either way");
     assert_eq!(ours.shown_tax, theirs.shown_tax);
     assert_eq!(ours.tax_collected, theirs.tax_collected);
 }

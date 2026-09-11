@@ -465,10 +465,10 @@ fn b16_an_extinct_county_reports_negative_deaths_or_the_people_it_lost() {
 
     let run = |quirks: Quirks| {
         let mut c = County::new();
-        // One person, the worst health band (which adds 2 deaths outright) and
-        // no happiness: the pass takes the county under one and the `pop < 1`
-        // arm runs. Nothing here is asserted on - the assertions are on what
-        // `update_one` writes.
+        // One person, the worst health band and no happiness, in Winter. Births:
+        // Pct(1, Pct(100, 25)) = 0, floored to 1. Deaths: Pct(1, 35 + 8) = 0,
+        // floored to 1, +2 for Diseased, and +1 because the scaled birth rate
+        // of 25 is below 43. So 1 + 1 − 4 = −2, and the `pop < 1` arm runs.
         c.population = 1;
         c.health_band = 0;
         c.happiness = 0;
@@ -480,28 +480,29 @@ fn b16_an_extinct_county_reports_negative_deaths_or_the_people_it_lost() {
     let (pop_b, deaths_b) = run(fixed);
     assert_eq!(pop_a, 0);
     assert_eq!(pop_b, 0, "the county dies out either way — only the record differs");
-    assert_eq!(deaths_a, 0, "reproduced: the county lost its last person and recorded {deaths_a}");
+    assert_eq!(deaths_a, -2, "reproduced: the county lost its last person and recorded {deaths_a}");
     assert_eq!(deaths_b, 1, "fixed: the one person who died");
 }
 
-/// **Where B16's negative number actually comes from**, which is not where the
-/// catalogue entry reads as though it is.
+/// **B16 has one face, and `docs/bugs.md` describes it.**
 ///
-/// `docs/bugs.md` B16 says *"A county that dies out records a negative death
-/// count. `deaths = pop` with `pop` already negative."* On the season a county
-/// **loses its last person** the arithmetic lands on exactly 0, so the stored
-/// figure is 0 — wrong, but not negative. The negative number appears on the
-/// **next** season, when the pass runs again over a county that is already
-/// empty and drives it to −1.
+/// This test used to say the opposite — that the season a county loses its last
+/// person lands on exactly 0, and the negative number only appears the season
+/// after, over a county that is already empty — and backed it with a survey that
+/// found no negative case starting from a living county. **That was true of our
+/// arithmetic and not of the original's.** We sent the season's extra person to
+/// the births whenever the birth ladder's *unscaled* rate beat the death rate,
+/// and a county of one is on the ladder's 100% rung, which beats every death rate
+/// there is. `Population_UpdateAll` (`0x00449EF3`) compares the rate after
+/// happiness has scaled it (C170), so at low happiness the extra
+/// person is a death and the county records a negative count on the season it
+/// dies — exactly B16's *"`deaths = pop` with `pop` already negative"*.
 ///
-/// So the defect has two faces and the entry describes the second one. Both are
-/// switched by the same flag and both are asserted here, because a test that
-/// only exercised the season of death would have called the switch inert.
-/// Established by walking population 0..=400 × five health bands × five
-/// happiness values × four seasons × four event modifiers and finding that
-/// **every** negative case has `population == 0` going in.
+/// An empty county then goes on recording a negative number every season, and
+/// the fixed path never records one at all. The survey below is the old one
+/// turned round, so that the retraction is asserted rather than only written.
 #[test]
-fn b16_the_negative_number_appears_the_season_after_the_county_is_already_empty() {
+fn b16_the_negative_number_appears_on_the_season_the_county_dies() {
     let (faithful, fixed) = pair(Quirk::ExtinctCountyRecordsNegativeDeaths);
 
     let empty = |quirks: Quirks| {
@@ -512,29 +513,40 @@ fn b16_the_negative_number_appears_the_season_after_the_county_is_already_empty(
         l2_kingdom::population::update_one(T, &mut c, Season::Winter, quirks);
         c.deaths
     };
-    assert_eq!(empty(faithful), -1, "reproduced: minus one person died in an empty county");
+    // Births floored to 1; deaths floored to 1, +2, +1: 0 + 1 − 4.
+    assert_eq!(empty(faithful), -3, "reproduced: minus three people died in an empty county");
     assert_eq!(empty(fixed), 0, "fixed: nobody was there to die");
 
-    // And the survey behind the paragraph above: no negative case exists that
-    // did not start empty.
+    let mut alive_and_negative = 0usize;
     for population in 1..=400i32 {
         for health_band in 0..=4u8 {
             for happiness in [0, 25, 50, 75, 100] {
                 for season in [Season::Winter, Season::Spring, Season::Summer, Season::Autumn] {
-                    let mut c = County::new();
-                    c.population = population;
-                    c.health_band = health_band;
-                    c.happiness = happiness;
-                    l2_kingdom::population::update_one(T, &mut c, season, faithful);
-                    assert!(
-                        c.deaths >= 0,
-                        "a county of {population} went negative — B16's first face is reachable \
-                         after all, and this comment is now wrong"
-                    );
+                    for (quirks, reproduced) in [(faithful, true), (fixed, false)] {
+                        let mut c = County::new();
+                        c.population = population;
+                        c.health_band = health_band;
+                        c.happiness = happiness;
+                        l2_kingdom::population::update_one(T, &mut c, season, quirks);
+                        if !reproduced {
+                            assert!(
+                                c.deaths >= 0,
+                                "fixed: a county of {population} recorded {} deaths",
+                                c.deaths
+                            );
+                        } else if c.deaths < 0 {
+                            alive_and_negative += 1;
+                        }
+                    }
                 }
             }
         }
     }
+    assert!(
+        alive_and_negative > 0,
+        "reproduced: no living county recorded a negative count — the season of death \
+         lands on zero again, which is what comparing the unscaled birth rate did"
+    );
 }
 
 // ---------------------------------------------------------------------------

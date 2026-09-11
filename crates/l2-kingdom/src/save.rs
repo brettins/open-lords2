@@ -492,7 +492,23 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   branch known to be taking 20. Per the standing hazard above, assume the
 ///   number has moved: a merge that finds 20 taken renumbers this entry and the
 ///   constant together.* It merged as 21, after the mercenaries' 20.
-pub const VERSION: u32 = 21;
+///
+/// * 22 — **the population event's swing**:
+///   [`crate::county::County::event_population_swing`], county `+0x2F8`, four
+///   bytes a county over 17 slots: **+68**.
+///
+///   `Population_UpdateAll` (`0x00449EF3`) writes it in every county every
+///   season, and `Msg_DrawWindow` prints it in *Plague* and *Wedding fever*'s
+///   letters before *"extra deaths."* / *"extra births."* It is the one output
+///   of that pass nothing else re-derives: the percentage it came from is
+///   cleared inside the same season, so a defaulted load cannot reconstruct it.
+///   Carried rather than refused-on-absence for entry 16's reason — it feeds no
+///   rule. `docs/decisions.md` C169.
+///
+///   *Written as 20 with `VERSION` at 19 on `main`, while another queued branch
+///   was also taking 20. Per the standing hazard above, assume the number has
+///   moved.* It merged as 22, after the mercenaries' 20 and the tax ledger's 21.
+pub const VERSION: u32 = 22;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1210,6 +1226,8 @@ impl Encode for County {
         out.i32(self.castle_wood_owed);
         out.i32(self.castle_wood_total);
         out.i32(self.event_population_pct);
+        // The letter's figure, `VERSION` 20.
+        out.i32(self.event_population_swing);
         out.i32(self.event_grain_pct);
         out.i32(self.event_herd_pct);
         for tile in &self.field_tiles {
@@ -1362,6 +1380,7 @@ impl Decode for County {
         c.castle_wood_owed = input.i32()?;
         c.castle_wood_total = input.i32()?;
         c.event_population_pct = input.i32()?;
+        c.event_population_swing = input.i32()?;
         c.event_grain_pct = input.i32()?;
         c.event_herd_pct = input.i32()?;
         for slot in 0..c.field_tiles.len() {

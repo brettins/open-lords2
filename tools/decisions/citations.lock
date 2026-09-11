@@ -148,6 +148,7 @@ crates/l2-game/tests/audio_wiring.rs	C116	3ec5b1a44470	1c49feddd496
 crates/l2-game/tests/audio_wiring.rs	C116	f98ddc5b0bad	1c49feddd496
 crates/l2-game/tests/castles.rs	C115	8abcbf2c939a	085c9b771281
 crates/l2-game/tests/castles.rs	C115	f291bedec323	085c9b771281
+crates/l2-game/tests/differential.rs	C170	fcf69e74c64c	2bbb0887e7d4
 crates/l2-game/tests/diplomacy.rs	C26	287743d8f84c	e8179d1f76a8
 crates/l2-game/tests/diplomacy.rs	C62	bcbec6054c4e	ebb6a7ec3711
 crates/l2-game/tests/ground.rs	C61	297b0f233ba7	60611046b40d
@@ -239,6 +240,7 @@ crates/l2-kingdom/src/save.rs	C123	763bc3ea2e6d	3a5cc2fec37d
 crates/l2-kingdom/src/save.rs	C134	8c3c2ccdc448	d12cd2f96f79
 crates/l2-kingdom/src/save.rs	C136	78341762a0c9	724c11b1e475
 crates/l2-kingdom/src/save.rs	C149	47e6a1be6570	138117948441
+crates/l2-kingdom/src/save.rs	C169	ca68a8407d7d	4f087d2d4d89
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8	ed7ea7df1f23
@@ -322,6 +324,7 @@ crates/l2-scenario/src/newgame.rs	C25	5198b008d5c4	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C25	f78fd48882c8	5d466f0cb89c
 crates/l2-scenario/src/newgame.rs	C41	b844f3c01eef	df664f2e9ea9
 crates/l2-scenario/tests/import.rs	C128	d02d558f4289	3a8c5dae41c2
+crates/l2-scenario/tests/import.rs	C169	67a53e948bbb	4f087d2d4d89
 crates/l2-scenario/tests/import.rs	C26	bdddd4567993	e8179d1f76a8
 crates/l2-scenario/tests/newgame.rs	C142	690b3d3b4d32	d13324698105
 crates/l2-scenario/tests/newgame.rs	C23	4b471e07b88e	6ac2f322c3bd
@@ -504,6 +507,7 @@ docs/bugs.md	C1	573fb4c46bcc	6b7e8edb019e
 docs/bugs.md	C12	1126d2682b1f	bb0dd488f9d2
 docs/bugs.md	C13	9a58c0fd9984	006e7d0b71a7
 docs/bugs.md	C149	3aa89208c73e	138117948441
+docs/bugs.md	C169	35dbfa50c68c	4f087d2d4d89
 docs/bugs.md	C31	18772c7679b0	1d151b02cb56
 docs/bugs.md	C31	d4548fdca7c1	1d151b02cb56
 docs/bugs.md	C33	970cde363d20	564cc48dd837
@@ -625,7 +629,9 @@ docs/decisions.md	C161	6e968c63f3ee	8b6af36909ef
 docs/decisions.md	C161	bd94546675a8	8b6af36909ef
 docs/decisions.md	C163	2510e92d9958	d043a04534f8
 docs/decisions.md	C163	2ae950ef80e9	d043a04534f8
+docs/decisions.md	C169	c5ce93a241fa	4f087d2d4d89
 docs/decisions.md	C17	f0ab9c80c1a8	b9aaae4e270c
+docs/decisions.md	C170	59ae0f7705e2	2bbb0887e7d4
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
 docs/decisions.md	C21	7e1ce2bf6129	f7bf296341ff
@@ -731,6 +737,7 @@ docs/decisions.md	C57	a01e03e89d00	3b42b65157bf
 docs/decisions.md	C58	117a0bc239b7	2a1ff4d5966d
 docs/decisions.md	C58	11ed95e47ec9	2a1ff4d5966d
 docs/decisions.md	C58	146714b7fa85	2a1ff4d5966d
+docs/decisions.md	C58	1f58cfbb3916	2a1ff4d5966d
 docs/decisions.md	C58	4d7747b50e07	2a1ff4d5966d
 docs/decisions.md	C58	5601434ca24f	2a1ff4d5966d
 docs/decisions.md	C58	72baa1f834c4	2a1ff4d5966d
@@ -760,6 +767,7 @@ docs/decisions.md	C61	b465e0d2cdee	60611046b40d
 docs/decisions.md	C61	c728831f88b3	60611046b40d
 docs/decisions.md	C61	cb0091f01fac	60611046b40d
 docs/decisions.md	C61	d69570a53654	60611046b40d
+docs/decisions.md	C61	d9872049173b	60611046b40d
 docs/decisions.md	C61	f009d8fd1ba0	60611046b40d
 docs/decisions.md	C61	f258c8cb9698	60611046b40d
 docs/decisions.md	C61	f6aa494f4261	60611046b40d
@@ -773,6 +781,9 @@ docs/decisions.md	C63	e109827c0f76	34cab2e30849
 docs/decisions.md	C68	5ae933e2d6e4	31b47bd04305
 docs/decisions.md	C68	9851f67b9928	31b47bd04305
 docs/decisions.md	C68	b9a8c332de66	31b47bd04305
+docs/decisions.md	C69	0531725ace54	ad2368d8326e
+docs/decisions.md	C69	539afb5268c6	ad2368d8326e
+docs/decisions.md	C69	710d42f7dc95	ad2368d8326e
 docs/decisions.md	C7	3c72ce757143	dbcb4cc95939
 docs/decisions.md	C7	5c32cd8501ef	dbcb4cc95939
 docs/decisions.md	C71	1db7f31a4fc0	3d674af30522
@@ -826,6 +837,7 @@ docs/kingdom.md	C149	e18921e5ea82	138117948441
 docs/kingdom.md	C153	aa71562eb809	c724d7afe0dd
 docs/kingdom.md	C153	e5a5c4932ef8	c724d7afe0dd
 docs/kingdom.md	C16	b5ee9c5eb7a2	2e6270fa32a9
+docs/kingdom.md	C169	d5af712c9d5b	4f087d2d4d89
 docs/kingdom.md	C29	2c4e4b24a052	405b63debb8e
 docs/kingdom.md	C3	95fbb7f03470	35bf3a86555f
 docs/kingdom.md	C33	b9ec6f2c7beb	564cc48dd837

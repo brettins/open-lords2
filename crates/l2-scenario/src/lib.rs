@@ -435,6 +435,7 @@ mod stored {
     /// Realm `+0x2D`, twenty-four bytes: `Army_PickName`'s per-name counters.
     pub const REALM_ARMY_NAMES: u32 = 0x02D;
     pub const LEVY_SURCHARGE: u32 = 0x2F4;
+    pub const EVENT_POPULATION_SWING: u32 = 0x2F8;
     pub const GRAIN_GROWN_EXPECTED: u32 = 0x2FC;
 }
 
@@ -750,6 +751,11 @@ pub struct CountyState {
     pub event_fired: bool,
     pub event_id: u16,
     pub event_population_pct: i32,
+    /// `+0x2F8` — the figure *Plague* and *Wedding fever*'s letters print,
+    /// written by `Population_UpdateAll` every season. Excluded until
+    /// C169 because our population rule could not have produced
+    /// it; `l2_kingdom::county::County::event_population_swing`.
+    pub event_population_swing: i32,
     pub event_grain_pct: i32,
     pub event_herd_pct: i32,
     pub tax_suppressed: bool,
@@ -1305,6 +1311,7 @@ impl Scenario {
                 event_fired: save.u8_at(at(stored::EVENT_FIRED))? != 0,
                 event_id: save.u16_at(at(stored::EVENT_ID))?,
                 event_population_pct: save.i8_at(at(stored::EVENT_POPULATION_PCT))? as i32,
+                event_population_swing: save.i32_at(at(stored::EVENT_POPULATION_SWING))?,
                 event_grain_pct: save.i8_at(at(stored::EVENT_GRAIN_PCT))? as i32,
                 event_herd_pct: save.i8_at(at(stored::EVENT_HERD_PCT))? as i32,
                 tax_suppressed: save.u8_at(at(stored::TAX_SUPPRESSED))? != 0,
@@ -1660,6 +1667,7 @@ impl Scenario {
                 event_fired,
                 event_id,
                 event_population_pct,
+                event_population_swing,
                 event_grain_pct,
                 event_herd_pct,
                 tax_suppressed,
@@ -1740,6 +1748,7 @@ impl Scenario {
             c.event_fired = *event_fired;
             c.event_id = *event_id;
             c.event_population_pct = *event_population_pct;
+            c.event_population_swing = *event_population_swing;
             c.event_grain_pct = *event_grain_pct;
             c.event_herd_pct = *event_herd_pct;
             c.tax_suppressed = *tax_suppressed;

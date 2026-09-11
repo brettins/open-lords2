@@ -120,6 +120,11 @@ fn report(k: &Kingdom, label: &str) -> Vec<Scoreboard> {
     rows
 }
 
+/// Fields laid to grain across the given realms' counties, as they stand now.
+fn ai_grain_fields(k: &Kingdom, ai: &[u8]) -> i32 {
+    ai.iter().map(|&r| scoreboard(k, r).grain_fields).sum()
+}
+
 /// The four assertions the whole file exists for, applied to whichever realms
 /// the caller says are the AI's.
 ///
@@ -127,7 +132,11 @@ fn report(k: &Kingdom, label: &str) -> Vec<Scoreboard> {
 /// not that any one number is right — no oracle in this project can say what
 /// the AI's population should be in 1278 — but that a realm that has been left
 /// to run for ten years is recognisably still playing the game.
-fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8]) {
+///
+/// `planted_peak` is the most fields the AI realms held laid to grain at the end
+/// of any one turn, which the caller tracks while it plays: assertion 3 is about
+/// the whole game, not its last turn.
+fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8], planted_peak: i32) {
     let ai_rows: Vec<&Scoreboard> = rows.iter().filter(|s| ai.contains(&s.realm)).collect();
 
     // 1. Alive. A realm that has lost every county to another AI is a fair
@@ -152,10 +161,20 @@ fn assert_the_ai_is_playing(rows: &[Scoreboard], ai: &[u8]) {
     //    `l2_kingdom::ai_farm` an AI realm could add fallow fields and could
     //    never lay one to grain, so a game played to the end was played against
     //    realms that starve.
-    let planted: i32 = ai_rows.iter().map(|s| s.grain_fields).sum();
+    //
+    //    **Over the whole game, not at its last turn.** This used to count the
+    //    grain fields standing at turn 40, which was a stand-in that happened to
+    //    agree. In the synthetic world the conquering lord never lays grain on
+    //    its own counties, so the count was carried by one small realm's last
+    //    county. Correcting `Population_UpdateAll`'s extra person
+    //    (C170) moved a couple of people at turn 4. That realm
+    //    then lost the county at turn 35 instead of holding it, and the count
+    //    read zero — while realms 4 and 5 had kept 19 and 20 fields laid to
+    //    grain from turn 5 on. The defect was an AI that could *never* plant, so
+    //    *never* is what is asserted.
     assert!(
-        planted > 0,
-        "no AI realm has a single field laid to grain after {TURNS} turns — \
+        planted_peak > 0,
+        "no AI realm laid a single field to grain in {TURNS} turns — \
          the farming styles are not being dispatched"
     );
 
@@ -187,12 +206,14 @@ fn the_ai_realms_are_competing_after_forty_turns_of_england() {
     assert_eq!(ai.len(), 4, "four AI realms and one person");
 
     let before = report(&game.kingdom, "England, before");
+    let mut planted_peak = 0;
     for _turn in 1..=TURNS {
         l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+        planted_peak = planted_peak.max(ai_grain_fields(&game.kingdom, &ai));
     }
     let after = report(&game.kingdom, "England");
 
-    assert_the_ai_is_playing(&after, &ai);
+    assert_the_ai_is_playing(&after, &ai, planted_peak);
 
     // The map moved. Every realm starts on exactly one county
     // (`docs/plan.md` §2.5), so *any* change in the ownership spread is the
@@ -213,11 +234,14 @@ fn the_ai_realms_are_competing_after_forty_turns_of_england() {
 fn the_ai_realms_survive_forty_turns_of_a_world_built_by_hand() {
     let mut game = six_county_world();
     let ai = [2u8, 3, 4, 5];
+    let mut planted_peak = 0;
     for _turn in 1..=TURNS {
         l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+        planted_peak = planted_peak.max(ai_grain_fields(&game.kingdom, &ai));
     }
     let rows = report(&game.kingdom, "six counties");
-    assert_the_ai_is_playing(&rows, &ai);
+    eprintln!("most fields the AI realms held laid to grain at once: {planted_peak}");
+    assert_the_ai_is_playing(&rows, &ai, planted_peak);
 }
 
 /// **The AI's war is a pure function of where it started.** `docs/netcode.md`
