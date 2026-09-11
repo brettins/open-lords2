@@ -29,68 +29,47 @@ landed twenty merges.** It is not a summary of that evening; it is where the nex
 starts. It goes stale the moment the queue moves, so **check it against `git log` and
 `git branch` before trusting a line of it.**
 
-### The branches that are waiting, and what each is
+### The queue is empty, and both holds turned out to be stale
 
-**Seven of the nine listed here have since landed** — `fonts-chrome-title`,
-`draws-map`, `setup-shield-colour`, `armoury-walker-village-merc`, `shared-ground` and
-`input-model`, on top of `village-idle`'s first two commits and the audio branch. What is left is
-three, and **none of the three is left for want of time**:
+**Every branch has landed.** At `be3dfc4` there is nothing waiting: `village-idle`'s tail (the
+ration control and the strings finding), `merchant-pacing` (the sub-tile counter) and
+`industry-sites` (the five sidebar rows, the wheels, the toggle narration) are all on `main`,
+and `git branch` shows no branch ahead of it. The three-row table that stood here is gone
+because it is no longer true — check `git log` before trusting the paragraph that replaced it.
 
-| branch | what it is | why it is still out |
-|---|---|---|
-| `merchant-pacing` | `Unit_StepOnce`'s sub-tile counter | **8 tests red** — held for cause, see below |
-| `industry-sites` | The 17 sidebar industry rows, wheels, toggle narration | **no tests of its own** — held for cause, see below |
-| `village-idle` (last 3) | The ration level control, the panel's words out of `L2.eng` | **eight-file conflict** including `CLAUDE.md`, `county.rs` and `tests/screens.rs` |
+**Both of the two "held for cause" verdicts were wrong by the time anybody acted on them**, and
+that is the part worth keeping:
 
-`village-idle`'s tail is the only one held for merge difficulty rather than for cause, and it is
-**not a hard conflict, only a wide one**: it collides with the same `county.rs` panel that two
-other branches rewrote tonight, and with `CLAUDE.md`'s `eng.md` row, which now says the thing
-that branch's last commit was written to say — *a group with one consumer is that screen's
-vocabulary*. Read both sides before resolving; the two are arguing for the same conclusion from
-different evidence, and a positional merge would keep one argument and drop the other.
+* `merchant-pacing` was held on **"8 tests red in `military.rs`"**. The branch's own author had
+  already diagnosed it — a fixture defect, not the fix, the same shape as C115 — and had
+  reverted a half-measure rather than leave one. The fixtures were repaired and the branch was
+  green on arrival: 2,149 passing, verified independently rather than taken from the branch's
+  claim.
+* `industry-sites` was held on **"no tests of its own, and its author says so plainly"**. True of
+  its first commit and of nothing since: four later commits added `tests/industry.rs` (501 lines)
+  and `tests/industry_forecast.rs` (288), and the census grew by six install-gated tests.
 
-### The two that need a decision rather than a merge
+**A hold recorded against a branch is a claim with a timestamp, and this file has no timestamps.**
+Both entries were accurate when written and both were read months of work later as though they
+still were. If you hold a branch here, say what would lift the hold, in a form somebody can
+*check* rather than re-argue — "8 red in `military.rs`" is checkable, "no tests of its own" was
+checkable, and nobody checked either before quoting them.
 
-**`merchant-pacing` is a good branch that is not landable.** The finding is real and large: we
-were missing half of `Unit_StepOnce` — the sub-tile counter that must reach 16 before a tile is
-entered — so every unit crossed a tile every tick instead of every 8th on a road or 32nd on open
-ground. A merchant's whole route finished in eleven frames at the tail of a 47-frame turn.
+### What landed with debt, named rather than absorbed
 
-It leaves **8 tests red in `military.rs`, and the cause is a fixture shape rather than the fix**:
-all eight press End Turn in the same breath as a march order, and nothing in the seven phases
-waits for a march that now takes 8 frames a tile. **That is the same fixture defect that hid the
-watched-battle bug** (C115) — every prompt fixture puts the army inside the turn machine before
-it arrives. The branch carries a `march()` helper that fixed the identical two failures in
-`castles.rs`; applied to `military.rs` it went 9 red to 8, and the agent **reverted rather than
-leave a half-measure.** That was the right call and the next person should not undo it — the job
-is the fixtures, not the branch.
+`industry-sites` carries one narrowed claim that must not re-widen. Its test asks whether the
+industry wheel's animation phase reaches the encoded kingdom, and the honest scope is *narrower
+than the test's name suggests*: `step_industry` takes `&Ctx`, so it cannot write to the kingdom
+at all — the ablation is a borrow error rather than a red test. Staged in `update`, where a
+`&mut Ctx` exists, **the first leak tried was green**: a county holds up to four sites and only
+the last writer survives, so the two runs' last-per-county frames coincided. What is actually
+asserted is that the phase does not reach the encoding *in a way that survives to the end of the
+run* — which is what a lockstep peer would see, and no more. A leak that collides is one it
+cannot detect and there is no cheap check that can.
 
-Two things in it that must not be lost if it sits: the original's tick rate is **read, not
-guessed** (`Battle_Frame` runs the tick a computed number of times per frame; at the shipped
-default that is 12 ms against our 16, **so the tick rate was never the problem — only
-ticks-per-tile**), and `long_game.rs`'s mutiny and tax-≥-20 assertions were **removed, not
-stretched**, because they are unreached at any horizon to 1200 turns once interception is
-genuinely hard. **Bankruptcy moved from turn 144 to 480.** That is a real change in the shape of
-the long game: the late-game evidence gathered before it was gathered in a **faster world than
-the game actually has**, and anything resting on it should be re-checked.
-
-Its placeholder for the sub-tile counter is cited from six places and unwritten, so rule 4 will
-refuse the branch until somebody assigns it — which is correct, and is why the tag is not spelled
-out here: the check cannot tell a real placeholder from prose about one, and it is right not to
-try.
-
-**`industry-sites` has no tests of its own, and its author says so plainly** rather than hiding
-it. The commit message names the three it wanted, each with its ablation and the trap to avoid.
-The player is looking at exactly those rows. **If it is landed, the debt is landed with it and
-belongs in this file by name** — a branch merged with its own admission of missing tests is how a
-gap becomes permanent. Two document corrections in it matter more than the feature:
-`docs/draws-map.md` §2 attributes the iron, stone and wood painters to the wrong addresses, and
-the `INDUSTRY / NOT DRAWN` box's stated reason was **checkable and false in both halves**.
-
-> **A placeholder that explains itself is asserting a finding, and nothing checks it.**
-
-That is the third tonight — after `NOT SIMULATED` (which was three multiplications of fields we
-already had, C120) and the font comment (C107).
+That is a second instance of an ablation that passed for the wrong reason, and it was found only
+because somebody tried the ablation twice. **One green ablation is not evidence; it is a single
+sample of a function that can collide.**
 
 ### The one cross-cutting finding that is not yet in the tree
 
@@ -116,8 +95,23 @@ All three say the same thing: **quote the second column, not only the count.**
 
 ### Standing numbers, and the one that is unaudited
 
-At `dcde777`: **2,104 tests**, C1..C126, 826 citations, 1,290 functions and 573 globals named,
-53 generated figures, `GATED_TOTAL` 324. Five checks green.
+At `be3dfc4`: **2,158 tests**, C1..C136, 870 citations, 1,293 functions and 573 globals named,
+`GATED_TOTAL` 363. All checks green.
+
+**And the standing gap those numbers do not show.** Two of our inventories are *checked* against
+the tree and the rest are prose. `crates/l2-game/tests/arms.rs` asserts set equality in both
+directions between `docs/arms.json`'s `reproduced` records and the `// arm:` markers in
+`crates/`; `crates/l2-sim/tests/oracle.rs` opens `Lords2.exe` at its fixed `0x400000` base and
+compares three battle tables byte for byte against our constants. **`docs/draws.md`,
+`docs/draws-map.md` and `docs/audio-triggers.md` have no such check** — they are hand-marked and
+can rot exactly the way `input.rs`'s "the only reader of `g_mouseLeftDoubleClick`" rotted.
+
+**Nothing anywhere compares what the original and our engine *do*.** Everything we check is a set
+of names or a block of static data. There is no test that starts both from the same state, steps
+both, and compares — and the material for one is already on disk: `battle-before.sav` /
+`battle-after.sav` and the four `siege-*` saves are before-and-after pairs across a single End
+Turn. That is the largest missing instrument on this project and it needs no new reverse
+engineering to begin.
 
 **One live debt with a player report attached.** `Ui_DrawNumberRight` **centres** — the name is a
 false claim and the `[V]` comment asserted the opposite of the body (C119). Two panels are fixed.
