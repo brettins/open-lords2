@@ -915,11 +915,13 @@ fn the_panels_kit_in_the_file_has_the_shape_the_drawing_code_indexes() {
 ///
 /// In the original that state is unreachable by this route: `FUN_00439CC2`,
 /// which `Labour_Move` calls on every drop, **switches the industry on** when
-/// men are dropped on a site whose resource the county has. We do not, so we
-/// reach a picture the original only ever shows for a county that has no such
-/// resource at all. `docs/arms.json` `0x00439CC2/drop-enables-the-industry` is
-/// the missing arm; this pins the drawing half so that fixing the input half
-/// cannot quietly change what the icons mean.
+/// men are dropped on a site whose resource the county has. Ours did not, so it
+/// reached a picture the original only ever shows for a county that has no such
+/// resource at all. It does now — `l2_kingdom::Kingdom::move_labour`, and
+/// `crates/l2-game/tests/labour_move.rs` drives it through the village. (This
+/// comment named a `docs/arms.json` row for it that was never written: it is not
+/// an input arm but a call inside the drop's.) This pins the drawing half so
+/// that the input half cannot quietly change what the icons mean.
 ///
 /// [`l2_view::village::ICON_VALUE`] was transcribed by hand and nothing checked
 /// it, which is the shape `docs/agents.md` warns about: a table of nine numbers
