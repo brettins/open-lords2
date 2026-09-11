@@ -174,10 +174,17 @@ const MERCHANT_VISITS: u32 = 0x1A0;
 const MERCHANT_COUNT: u32 = 0x1A4;
 const MERCHANT_UNIT: u32 = 0x1A5;
 
-/// `+0x290 + c*0x18` — the four industry records, and the three bytes of each
-/// that say whether it can run: `+5` the resource, `+6` the countdown, `+7` the
-/// switch. Commodity order **wood, iron, weapons, stone**, which is
-/// `Industry_ToggleFromMap`'s own numbering.
+/// `+0x294 + c*0x18` — the four industry records, the three bytes of each that
+/// say whether it can run — `+1` the resource, `+2` the countdown, `+3` the
+/// switch — and `+0x14`, the forecast the sidebar's row draws. Commodity order
+/// **wood, iron, weapons, stone**, which is `Industry_ToggleFromMap`'s own
+/// numbering.
+///
+/// **The base was `+0x290`, with every offset four higher.** That read the same
+/// three bytes, and could not have named the fourth field, because under it
+/// `+0x2A8 + c*0x18` is the head of the *next* record. `+0x290` is the county's
+/// `weaponType` byte; the array runs `+0x294 … +0x2F3` and closes on
+/// `levySurcharge`. `docs/decisions.md` C153.
 ///
 /// **`[V]`, and it checks itself against the map.** `County_PlaceResourceSites`
 /// (`0x00468E61`) sets `+0x295` from the county's `Town`-bank tiles, so the byte
@@ -194,11 +201,12 @@ const MERCHANT_UNIT: u32 = 0x1A5;
 /// showed a mine**: the village picks the mine for cluster 0 only when the
 /// county has a mine *and no quarry*, and a county that claims both is a county
 /// with a quarry. `docs/decisions.md` C57.
-const INDUSTRY_BASE: u32 = 0x290;
+const INDUSTRY_BASE: u32 = 0x294;
 const INDUSTRY_STRIDE: u32 = 0x18;
-const INDUSTRY_HAS_RESOURCE: u32 = 5;
-const INDUSTRY_DISABLED_SEASONS: u32 = 6;
-const INDUSTRY_ENABLED: u32 = 7;
+const INDUSTRY_HAS_RESOURCE: u32 = 1;
+const INDUSTRY_DISABLED_SEASONS: u32 = 2;
+const INDUSTRY_ENABLED: u32 = 3;
+const INDUSTRY_NEXT_SEASON: u32 = 0x14;
 
 /// `g_countyFieldTiles` (`0x0053EA00`) — 17 × 20 × `u32`, **the map tiles that
 /// are each county's fields**, stored as byte offsets into [`TILES`].
@@ -270,12 +278,23 @@ fn county_i32(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError>
 }
 
 /// One county's four industry records, reduced to the three bytes that decide
-/// whether the industry can run at all. See [`INDUSTRY_BASE`].
+/// whether the industry can run at all and the forecast the sidebar draws. See
+/// [`INDUSTRY_BASE`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct IndustryState {
     pub has_resource: bool,
     pub disabled_seasons: i32,
     pub enabled: bool,
+    /// Record `+0x14`, county `+0x2A8 + c*0x18` — `Industry_LabourEstimate`'s
+    /// (`0x0044F318`) tail, and the word `Ui_DrawDelta` draws on the row.
+    ///
+    /// **Read, not recomputed on load**, for C142's reason: the original
+    /// restores a memory image and runs `County_RefreshEstimates` at the end of
+    /// a season or on a control, not on a load. Left out, a loaded game drew
+    /// **no** industry forecast in any county until its first season ended —
+    /// every one of the four at `Industry::new()`'s zero, which `Ui_DrawDelta`
+    /// with `mode == 0` draws as nothing at all.
+    pub next_season: i32,
 }
 
 fn read_industry(save: &Save, county: usize) -> Result<[IndustryState; 4], SaveError> {
@@ -287,6 +306,7 @@ fn read_industry(save: &Save, county: usize) -> Result<[IndustryState; 4], SaveE
             has_resource: save.u8_at(record + INDUSTRY_HAS_RESOURCE)? != 0,
             disabled_seasons: save.u8_at(record + INDUSTRY_DISABLED_SEASONS)? as i32,
             enabled: save.u8_at(record + INDUSTRY_ENABLED)? != 0,
+            next_season: save.i32_at(record + INDUSTRY_NEXT_SEASON)?,
         };
     }
     Ok(out)
@@ -462,10 +482,11 @@ pub struct CountyState {
     /// `+0x1B0` — the castle-building switch a click on the castle throws.
     /// See [`l2_kingdom::county::County::castle_switch`].
     pub castle_switch: bool,
-    /// `+0x295`, `+0x296` and `+0x297` of each of the four industry records,
-    /// in commodity order **wood, iron, weapons, stone**: whether the county
-    /// has the resource, how many seasons the industry is out of action, and
-    /// whether its switch is on. See [`INDUSTRY_BASE`].
+    /// `+0x295`, `+0x296`, `+0x297` and `+0x2A8` of each of the four industry
+    /// records (`+1`, `+2`, `+3` and `+0x14` of a record based at `+0x294`), in
+    /// commodity order **wood, iron, weapons, stone**: whether the county has
+    /// the resource, how many seasons the industry is out of action, whether its
+    /// switch is on, and next season's forecast. See [`INDUSTRY_BASE`].
     pub industry: [IndustryState; 4],
     pub fields_fallow: i32,
     pub fields_cattle: i32,
@@ -1267,10 +1288,15 @@ impl Scenario {
             // industry toggles all started in the wrong position. Everything
             // else in the record (`output`, `efficiency`, `capacity`,
             // `total`) is still `County::new()`'s.
+            //
+            // **And the forecast the row draws**, which a loaded game otherwise
+            // held at zero — so every industry row was blank until the first
+            // season ended. C153, and [`IndustryState::next_season`].
             for (slot, s) in s.industry.iter().enumerate() {
                 c.industry[slot].has_resource = s.has_resource;
                 c.industry[slot].disabled_seasons = s.disabled_seasons;
                 c.industry[slot].enabled = s.enabled;
+                c.industry[slot].next_season = s.next_season;
             }
             c.field_tiles = s.field_tiles;
             c.fertility = s.fertility;

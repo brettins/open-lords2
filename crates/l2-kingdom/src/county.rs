@@ -140,8 +140,9 @@ impl ChangeReason {
 /// cause — `changeReason` stays `None`. `docs/kingdom.md` §1.2.
 pub const CHANGE_REASON_MIN_PCT: i32 = 6;
 
-/// One commodity's production record, county `+0x290 + c*0x18`.
-/// `docs/kingdom.md` §1.3 and §7.4.
+/// One commodity's production record, county `+0x294 + c*0x18` — not `+0x290`,
+/// which is [`County::weapon_type`]. `docs/kingdom.md` §1.3 and §7.4,
+/// `docs/decisions.md` C153.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Industry {
     /// What the last `Industry_Produce` pass produced — the difference between
@@ -175,34 +176,36 @@ pub struct Industry {
     /// **What the sidebar's industry row forecasts for next season**, and the
     /// value `Ui_DrawDelta` draws beside the icon.
     ///
-    /// # It is not at `+0x2A0 + c*0x18`, and the offset is the whole story
+    /// County **`+0x2A8 + c*0x18`** — `+0x14`, the last field of this
+    /// commodity's **own** record, with the array based at `+0x294`:
     ///
-    /// The four strip painters read commodity `c`'s number from county
-    /// **`+0x2A8 + c*0x18`** — which is the *head word* of [`Industry`] record
-    /// `c + 1`, four bytes this document's own record layout leaves unnamed. So
-    /// the four values are a second per-commodity `i32` array, interleaved with
-    /// the production records and shifted one whole record along:
-    ///
-    /// | commodity | forecast at | inside record |
+    /// | commodity | forecast at | record |
     /// |---|---|---|
-    /// | wood `[0]` | `+0x2A8` | iron's head |
-    /// | iron `[1]` | `+0x2C0` | weapons' head |
-    /// | weapons `[2]` | `+0x2D8` | stone's head |
-    /// | stone `[3]` | `+0x2F0` | one past the array, still inside the county |
+    /// | wood `[0]` | `+0x2A8` | `[0] +0x14` |
+    /// | iron `[1]` | `+0x2C0` | `[1] +0x14` |
+    /// | weapons `[2]` | `+0x2D8` | `[2] +0x14` |
+    /// | stone `[3]` | `+0x2F0` | `[3] +0x14` |
     ///
-    /// A county is 768 = `0x300` bytes, so `0x2F0` is **in bounds** — this is an
-    /// array at `0x2A8`, not an overrun. Wood's own record head, `+0x290`, is
-    /// [`County::weapon_type`] and belongs to nothing here.
+    /// # This said it was the next record's head, and the base was wrong
     ///
-    /// Three independent readings agree, which is what makes this `[V]` rather
-    /// than arithmetic: `Unit_TrampleTile` (`0x0046873F`) zeroes
-    /// `industry[1].disabledSeasons`, `industry[1].efficiency` **and**
-    /// `*(int*)(industry + 2)` in one arm — one commodity, three fields, at the
-    /// shifted offset; `Industry_LabourEstimate` (`0x0044F318`) opens by
-    /// zeroing `county[0x2A8 + industry*0x18]` and closes by writing the
-    /// forecast there; and `FUN_00410502` reads it back for the row.
+    /// Under the `+0x290` base `docs/records.json` carried, `+0x2A8 + c*0x18`
+    /// looked like the head word of record `c + 1` — *"a second per-commodity
+    /// array … shifted one whole record along"* — and stone's `+0x2F0` looked
+    /// one past the end. The base was four bytes low. `+0x290` is
+    /// [`County::weapon_type`], a byte of its own, and the array runs
+    /// `+0x294 … +0x2F3`. `docs/decisions.md` C153.
     ///
-    /// Written by [`crate::industry::preview`].
+    /// `[V]`, three ways. `Industry_LabourEstimate` (`0x0044F318`) zeroes
+    /// `county[0x2A8 + industry*0x18]` before its first guard and writes the
+    /// forecast there last, with the commodity index. `Unit_TrampleTile`
+    /// (`0x0046873F`) zeroes it in the same arm as that commodity's own
+    /// `disabledSeasons` and `efficiency`. And every save on this machine stores
+    /// there the number record `c`'s own workers produce, never record
+    /// `c + 1`'s — `crates/l2-scenario/tests/import.rs`.
+    ///
+    /// Written by [`crate::industry::preview`], and **imported** from the file
+    /// by `l2-scenario` — a loaded game used to arrive with all four at zero and
+    /// draw no industry forecast until its first season ended.
     pub next_season: i32,
 }
 
@@ -802,7 +805,7 @@ pub struct County {
     /// load defaulted them.
     pub reclaim_fields_finishing: i32,
     pub reclaim_seasons_to_next: i32,
-    /// `+0x290 + c*0x18` — per-commodity production records.
+    /// `+0x294 + c*0x18` — per-commodity production records.
     pub industry: [Industry; 4],
     /// **Engine state.** Which weapon the blacksmith is making.
     /// `docs/kingdom.md` §7.4 says weapons are credited to

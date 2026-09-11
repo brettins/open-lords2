@@ -1843,10 +1843,10 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 /// it from the map brush to the glyph. **C123.**
 ///
 /// The four industry rows read a different quantity again — commodity `c`'s
-/// i32 at county `0x2A8 + c * 0x18`, which `docs/records.json` gives to
-/// `Industry[c + 1]`'s unnamed head word, and the stone row reads `0x2F0`,
-/// one whole record past the end of a four-record array. Reported, not
-/// guessed at. `docs/draws-map.md` §5.10.
+/// i32 at county `0x2A8 + c * 0x18`, the last field of its **own** `Industry`
+/// record — and are drawn by [`draw_industry_rows`]. This said the word was
+/// the next record's head and that stone's `0x2F0` ran past the array; the
+/// array's base was four bytes low. `docs/decisions.md` C153.
 fn draw_produce_rows(
     ctx: &Ctx,
     canvas: &mut Canvas,

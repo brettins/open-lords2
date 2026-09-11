@@ -410,18 +410,19 @@ forty-nine.** The row *pitch* being a function of the count is the same shape as
 `g_diploWidgets`' variable count, and the same reason a hit test written from the painter is
 wrong: `FUN_00477320` divides `(mouseY − 0x130)` by that pitch to find the row.
 
-We draw the left list (`county::draw_produce_rows`, and the blue idle ring in it) and none of
-the right one — a decision already recorded there, resting on two county bytes nobody has
-named. The **seven `Ui_DrawDelta` calls** — every row's forecast for *next* season — were
-absent on both sides, and §5.10 is what one of them turned out to be worth. *(This said
-"eight". `CountyStrip_DrawCastleIcon` has a `Ui_DrawNumber` and a `Ui_DrawUnitNoun` and no
-delta; the seven are cattle, grain, reclamation, stone, wood, iron and weapons.)*
+We draw both lists — `county::draw_produce_rows` with the blue idle ring in it, and
+`county::draw_industry_rows` since `ebf8dd5`. The **seven `Ui_DrawDelta` calls** — every
+row's forecast for *next* season — were absent on both sides, and §5.10 is what one of them
+turned out to be worth. *(This said "eight". `CountyStrip_DrawCastleIcon` has a
+`Ui_DrawNumber` and a `Ui_DrawUnitNoun` and no delta; the seven are cattle, grain,
+reclamation, stone, wood, iron and weapons.)*
 
-**Three are now drawn and the remaining four are blocked, which is not the split anyone
-expected.** Cattle, grain and reclamation were each **a tail of an estimate pass we had ported
-only the loop of** — `Herd_LabourEstimate`, `Grain_LabourEstimate`, `Field_ReclaimEstimate`,
-all three the same shape, all three in `County_RefreshEstimates`. So they were one fix repeated,
-not three investigations.
+**All seven are drawn.** Cattle, grain and reclamation were each **a tail of an estimate pass
+we had ported only the loop of** — `Herd_LabourEstimate`, `Grain_LabourEstimate`,
+`Field_ReclaimEstimate`, all three the same shape, all three in `County_RefreshEstimates` — so
+they were one fix repeated, not three investigations. The four industry rows were the same
+tail one function along (`Industry_LabourEstimate`, C136), and this section held them back as
+blocked on a layout question that turned out to have been a wrong base, below.
 
 **And the repetition is what let the middle one ship untested.** Cattle and reclamation each
 got a test the same evening; grain — the row the player actually reported — got none at
@@ -436,15 +437,38 @@ and `Ui_DrawNumber` at `0x20A`/`0x143`, which §2's table counts as one painter'
 and which reading `CountyStrip_Draw` alone would give as one figure.
 `docs/decisions.md` C151.
 
-The four industry rows are **not** the same fix and should not be attempted as one. Each reads
-an `i32` at the head of an `Industry` record, and the records they read are
-`industry[2]`, `industry[4]`, `industry[1]` and `industry[3]` for the stone, wood, iron and
-weapons rows respectively — **every one is the record above the commodity its row is for, and
-the wood row's `0x2F0` is one whole record past the end of a four-record array.** That is either
-an off-by-one in the original or a wrong base in `docs/records.json`, and it is unsettled;
-`crates/l2-game/src/screens/county.rs` has carried the observation for a while. **Guessing here
-would put four numbers on screen that are confidently wrong**, which is worse than four blanks.
-Settling the `Industry` base is the prerequisite and it is its own job.
+**All seven were also blank on a loaded game's first frame**, because nothing imported the
+words and the estimate round runs at a season's end. The four industry words are now imported
+(C153); the three farm words are not yet, and are measured zero on England turn
+one until the first season ends.
+
+**The four industry rows each read their own commodity's own record, and this paragraph said
+otherwise.** It said each row reads *"the record above the commodity its row is for, and the
+wood row's `0x2F0` is one whole record past the end of a four-record array"* — an off-by-one in
+the original or a wrong base in `docs/records.json`, unsettled. **It was the base, the row was
+stone's rather than wood's, and there is no off-by-one.** `docs/decisions.md` C153.
+
+The `Industry` array is based at county **`+0x294`**, not `+0x290`: stride `0x18`, four records
+closing exactly on `levySurcharge` at `+0x2F4`. `+0x290` is the standalone `weaponType` byte,
+which Ghidra's struct swallowed into `industry[0]` — and with the base four bytes low, each
+row's field looked like the head of the *next* record. With it right:
+
+| painter | row | `Ui_DrawDelta` operand | county | record, field |
+|---|---|---|---|---|
+| `FUN_0041062E` | wood | `*(int*)(industry + 1)` | `+0x2A8` | `[0] +0x14` |
+| `FUN_00410502` | iron | `*(int*)(industry + 2)` | `+0x2C0` | `[1] +0x14` |
+| `FUN_004106C4` | weapons | `*(int*)(industry + 3)` | `+0x2D8` | `[2] +0x14` |
+| `FUN_00410598` | stone | `*(int*)&field_0x2f0` | `+0x2F0` | `[3] +0x14` |
+
+The operands are Ghidra's, under its `+0x290` base; the county column is the address.
+`Industry_LabourEstimate` (`0x0044F318`) writes the same word —
+`*(int *)(county * 0x300 + 0x53fc58 + industry * 0x18)` — with the commodity index, so the
+painter side and the producer side agree with no residue. Three readings make it **[V]** rather
+than arithmetic: every raw county address the decompilation uses with a `*0x18` stride lies in
+`+0x294 … +0x2AB`, which is **exactly one stride**; `+0x294` ends the array on the next named
+field where `+0x290` leaves a four-byte hole that is precisely the stone row's word; and every
+fixture save on this machine stores, at `+0x2A8 + c*0x18`, the forecast its own record `c`'s
+workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import.rs`).
 
 ### 5.6 Three widgets are drawn over the map from `Battle_Frame` and are in no document
 

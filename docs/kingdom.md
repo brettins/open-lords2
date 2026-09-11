@@ -187,8 +187,8 @@ the battle debug overlay.
 | `+0x224` | i32 | **grain** | [V] | sacks in store. |
 | `+0x240` `+0x244` `+0x248` | i32 | crop | [D] | the growing crop at its three stages. |
 | `+0x250` | i32 | **herd** | [V] | head of livestock. |
-| `+0x290 + c*0x18` | — | industry | [D] | per-commodity production records. `+0x294` efficiency (`i8`), `+0x295` the county has this resource, `+0x296` a disablement countdown, `+0x297` the industry is switched on, `+0x29C` last season's efficiency, `+0x29E` (`i16`) the worker capacity the ramp scales against, `+0x2A0` a running output total and `+0x2A4` its snapshot. §7.4. |
-| `+0x290` | u8 | **weaponType** | [D] | which weapon the blacksmith makes, indexing `g_weaponCost`. It shares its address with industry record 0's first byte, which is odd and is what the code does. |
+| `+0x290` | u8 | **weaponType** | [D] | which weapon the blacksmith makes, indexing `g_weaponCost`. A byte of its own, just below the industry array. *This row said it shared its address with industry record 0's first byte — that was the array's base being four bytes low.* `docs/decisions.md` C153. |
+| `+0x294 + c*0x18` | — | industry | [D] | per-commodity production records, stride `0x18`, closing exactly on `+0x2F4`; **the base is [V]** (C153, which moved it from `+0x290`). `+0x294` efficiency (`i8`), `+0x295` the county has this resource, `+0x296` a disablement countdown, `+0x297` the industry is switched on, `+0x29C` last season's efficiency, `+0x29E` (`i16`) the worker capacity the ramp scales against, `+0x2A0` a running output total, `+0x2A4` its snapshot, and `+0x2A8` (`i32`) the forecast the sidebar's industry row draws. §7.4. |
 | `+0x1A7` | u8 | sowShortfall | [D] | set when `Grain_Sow` could not afford one sack a field and fell back. §7.1. |
 | `+0x1A8` | u8 | **taxRobbed** | [V] | non-zero after the *"Stop thief!"* event; `Tax_CollectAll` then takes nothing. §4.1, §8.1. |
 | `+0x1AA` | i16 | **eventId** | [V] | the id of the random event that fired, which is also its `L2.eng` group. §8.1. |
