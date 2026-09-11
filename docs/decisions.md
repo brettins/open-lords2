@@ -7195,3 +7195,56 @@ Two smaller corrections fell out of reading the arm:
   `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
   call sites in a half this change does not touch — but recorded, because it is
   the kind of thing that reads as a font choice rather than as a divergence.
+
+**CNEW-shields-are-the-turn-clock — The menu bar's shield row is a turn clock, and
+we drew half its guard.**
+
+**Recorded from an investigation that was interrupted before the fix was written.**
+The reading below is `[V]` against the decompilation; nothing in the tree has been
+changed yet. `HANDOFF.md` on branch `worktree-agent-ad8d67ce0011058fe` carries the
+designed fix.
+
+A player: *"I think in the original game the shield icons at the top meant that
+players hadn't ended their turn."* He was right, and his recollections of *what the
+game did* remain unreversed.
+
+`Screen_DrawMenuBar` (`0x00419C78`) draws one `Misc_cty` banner per realm under a
+guard with **two** clauses:
+
+```c
+if ((g_realms[i].strength != 0) && (g_realms[i].aiStep < 999)) {
+    Pl8_DrawFrame(g_miscCtySheet, g_realms[i].shieldIndex + 0x55, slot * 0x10 + 0x10e, 4);
+    slot++;                          /* only when drawn: the row compacts left */
+}
+```
+
+`draw_menu_bar` in `crates/l2-game/src/screens/map.rs` tests `Realm::in_play`, which
+*is* `strength != 0`, and nothing else. So no shield ever vanishes.
+
+**`aiStep == 999` is "this realm's turn is over"**, from four sites: `Turn_End`
+(`0x0043AC23`) writes it the instant the button is clicked; `Turn_BeginPlayersTurn`
+(`0x0049B6D3`) clears every realm to 0 at the top of phase 4; `Turn_AllRealmsDone`
+(`0x0049B762`) is phase 4's exit condition; and `FUN_004479E9` writes it for a
+**remote** seat. The detail that settles intent rather than inferring it: `Turn_End`
+also raises `DAT_0056D6A0`, and that flag is half of `Screen_DrawMenuBar`'s own
+repaint guard — **the only reason the button touches it is to make the shield go.**
+
+**What is worth carrying is that this gap was already written down, in the file, in
+the right place, and it did not cause the work to happen.** `map.rs` carried, twenty
+lines from the loop: *"Two other things read the same flag and we reproduce neither
+… `Screen_DrawMenuBar`'s banner loop is `strength != 0 && aiStep < 999`, so each
+realm's banner vanishes from the menu bar as that realm finishes its turn."* That is
+a third instance of `docs/agents.md`'s *a correct explanation sitting directly above
+the omission it describes* — and the first where the prose names the **guard clause**
+it then does not write. The two siblings are `Screen_DrawEndTurn`'s missing caption
+(which we do reproduce) and `FUN_0041A639`'s turn timer (which we do not).
+
+**And the fix is not the literal clause**, which is the part a careful reader gets
+wrong. Our turn model inverts the original's: its phase 4 *is* the interactive phase,
+with the human parked at `aiStep == 1` while the AI steps behind him; ours parks the
+player on the map with the machine at phase 1 and runs 1→7 inside one End Turn press,
+so between turns **every** realm's counter is already ≥ 999. A literal `ai_step < 999`
+draws no shields at all while the player is playing — the defect inverted. The exact
+mapping is the one `map.rs` already found for the End Turn caption:
+`turn::turn_in_flight` **is** the human's `aiStep >= 999`. `Realm::turn_done()` is the
+wrong instrument here for a different reason — it short-circuits on `is_human`.
