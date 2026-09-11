@@ -596,6 +596,11 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         ("shown_health", |c| c.shown_health as i64),
         ("shown_events", |c| c.shown_events as i64),
         ("d_hap_ration", |c| c.d_hap_ration as i64),
+        // `+0x0F` and `+0x10`: the save carries the season's answers — `+0x0F`
+        // is `5 - taxRate`, so 5 in all fourteen at rate 0 — and the map path
+        // has not run a season yet. `docs/decisions.md` CNEW-panel-fields-on-load.
+        ("d_hap_health", |c| c.d_hap_health as i64),
+        ("d_hap_tax_local", |c| c.d_hap_tax_local as i64),
     ] {
         judge(field, f, season);
     }
@@ -653,6 +658,13 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     judge("tax_rate", |c| c.tax_rate as i64, "nothing sets a tax rate at new game: the county \
          record is zeroed by FUN_0046EA28 and County_Reset does not write one");
     judge("tax_collected", |c| c.tax_collected as i64, "no tax has been collected at rate 0");
+    judge(
+        "tax_shown",
+        |c| c.tax_shown as i64,
+        "`Pct(Pct(population, castleBase), 0)` is zero however large the county: the \
+         preview is only non-zero once somebody sets a rate, and the turn-pair and siege \
+         saves — which do carry rates 2, 3, 6 and 8 — are where it is checked instead",
+    );
     judge("grain_eaten", |c| c.grain_eaten as i64, "the save's own byte is 0 in all fourteen");
     judge("emigrants", |c| c.emigrants as i64, "nobody has moved by turn one");
     judge("immigrants", |c| c.immigrants as i64, "nobody has moved by turn one");
@@ -699,6 +711,7 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             "industry",
             "tax_collected",
             "tax_rate",
+            "tax_shown",
             "unrest",
         ],
         "the set of fields neither constructor writes has changed"
@@ -719,6 +732,9 @@ const JUDGED: &[&str] = &[
     "shown_health",
     "shown_events",
     "d_hap_ration",
+    "d_hap_health",
+    "d_hap_tax_local",
+    "tax_shown",
     "health_meter",
     "health_band",
     "unrest",

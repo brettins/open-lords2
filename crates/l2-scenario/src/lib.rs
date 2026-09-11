@@ -97,6 +97,40 @@ const INDUSTRY_SHARE: u32 = 0x08;
 /// `Labour_Allocate` gates castle building on.
 const CASTLE_SWITCH: u32 = 0x1B0;
 
+/// **`+0x0F`, `+0x10` and `+0xC0` — the three numbers the county panels read
+/// out of the county record and nothing here imported.** `docs/decisions.md`
+/// CNEW-panel-fields-on-load.
+///
+/// `Tax_RecomputePreview` (`0x0044B80B`) writes `+0x0F` (`dHapTaxLocal`) and
+/// `+0xC0` (`taxShown`); `Health_Apply`'s pass writes `+0x10`
+/// (`dHapHealth`). `Panel_Tax` (`0x0041152F`) draws `realm+0x28 + county+0x0F`
+/// on its *This county* line and `Ui_DrawCount(county+0xC0, …)` on *People
+/// pay*; `Panel_Ration` (`0x00411B72`) draws `+0x10` beside the health band.
+/// Every one of them was `County::new()`'s zero on a loaded game, so a freshly
+/// opened tax panel said *"People pay 0 crowns"* whatever the rate, and both
+/// happiness lines read `( 0 ☺ )`.
+///
+/// **`[V]` against the original's own bytes, in twelve saves.** `+0x0F` is
+/// `5 - taxRate` in every owned county of every save on this machine — 5 at
+/// rate 0, 2 at rate 3, −1 at rate 6, −3 at rate 8 — which is
+/// `Tax_RecomputePreview`'s second statement exactly. And `+0xC0` is
+/// `Pct(Pct(population, castleBase), taxRate)` to the unit in eight of the
+/// nine counties that carry a rate above zero: `sieging.sav` county 1 stores
+/// **147** for 767 people at rate 6 with no castle, `safeturn.sav` county 2
+/// stores **283** for 738 at rate 8 behind a wooden castle. The ninth is
+/// `incombat.sav`, whose population fell while the battle was open and whose
+/// stored 245 is the *pre-battle* population's answer — which is the point of
+/// reading the byte rather than recomputing it on load.
+///
+/// **These are also the project's first oracle for a non-zero tax rate.**
+/// `docs/plan.md` §2.5 says every county in every fixture sits at rate 0; that
+/// is true of the England fixture and false of the turn pair and the six siege
+/// saves, which carry rates 2, 3, 6 and 8. It is still true of anything above
+/// 19, where `g_taxHappinessOther` starts to bite.
+const D_HAP_TAX_LOCAL: u32 = 0x0F;
+const D_HAP_HEALTH: u32 = 0x10;
+const TAX_SHOWN: u32 = 0xC0;
+
 /// `+0x1FE` — the county's farming style, which is
 /// [`l2_kingdom::county::County::farm_style`].
 ///
@@ -195,6 +229,16 @@ fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
     }
     Ok(CampaignMap::from_planes(&terrain, &flags, &county)
         .expect("three planes of MAP_TILES bytes each"))
+}
+
+/// One signed byte out of a county record, by offset.
+fn county_i8(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError> {
+    Ok(save.i8_at(COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + offset)? as i32)
+}
+
+/// One `i32` out of a county record, by offset.
+fn county_i32(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError> {
+    save.i32_at(COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + offset)
 }
 
 /// One county's four industry records, reduced to the three bytes that decide
@@ -354,6 +398,20 @@ pub struct CountyState {
     pub shown_health: i32,
     pub shown_events: i32,
     pub d_hap_ration: i32,
+    /// `+0x10` — the health term of this season's happiness, which the ration
+    /// panel draws beside the band name. See [`D_HAP_TAX_LOCAL`].
+    pub d_hap_health: i32,
+    /// `+0x0F` — `5 - taxRate`, the *local* half of the tax panel's
+    /// *This county* line. **Not `+0x0E`**, which is that plus the realm's
+    /// empire term and is what the happiness pass banks. See
+    /// [`D_HAP_TAX_LOCAL`].
+    pub d_hap_tax_local: i32,
+    /// `+0xC0` — what the tax panel's *People pay* line says, which is a
+    /// preview and not [`tax_collected`](Self::tax_collected): it is
+    /// recomputed at the current population with no suppression test, so a
+    /// suppressed county goes on saying what its people *would* pay while the
+    /// treasury banks nothing. See [`D_HAP_TAX_LOCAL`].
+    pub tax_shown: i32,
     pub health_meter: i32,
     pub health_band: u8,
     pub unrest: u8,
@@ -715,6 +773,11 @@ impl Scenario {
                 shown_health: c.shown_health as i32,
                 shown_events: c.shown_events as i32,
                 d_hap_ration: c.d_hap_ration as i32,
+                // Read off the record here rather than through
+                // `l2_formats::save::County`, which does not carry them.
+                d_hap_health: county_i8(save, c.index, D_HAP_HEALTH)?,
+                d_hap_tax_local: county_i8(save, c.index, D_HAP_TAX_LOCAL)?,
+                tax_shown: county_i32(save, c.index, TAX_SHOWN)?,
                 health_meter: c.health_meter as i32,
                 health_band: c.health_band.max(0) as u8,
                 unrest: c.unrest,
@@ -933,6 +996,9 @@ impl Scenario {
                 shown_health,
                 shown_events,
                 d_hap_ration,
+                d_hap_health,
+                d_hap_tax_local,
+                tax_shown,
                 health_meter,
                 health_band,
                 unrest,
@@ -993,6 +1059,15 @@ impl Scenario {
             c.shown_health = *shown_health;
             c.shown_events = *shown_events;
             c.d_hap_ration = *d_hap_ration;
+            // **The three the county panels draw and nothing carried.** Not
+            // recomputed on load: the original restores a memory image, and
+            // `incombat.sav` proves the difference — its stored `+0xC0` is the
+            // answer for the population the county had before the battle ate
+            // it, which no recompute could reproduce. See [`D_HAP_TAX_LOCAL`]
+            // and `docs/decisions.md` CNEW-panel-fields-on-load.
+            c.d_hap_health = *d_hap_health;
+            c.d_hap_tax_local = *d_hap_tax_local;
+            c.tax_shown = *tax_shown;
             c.health_meter = *health_meter;
             c.health_band = *health_band;
             c.unrest = *unrest;

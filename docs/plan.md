@@ -524,10 +524,21 @@ The largest of the eight and the least visible, because it is an absence.
 C23 established that the five starting counties are always 1, 4, 8, 11 and 13 and that realms
 1 to 5 take one each. So **every rule that fires only when a realm holds more than one county
 has no oracle at all**: the "other counties" tax happiness term (`TAX_HAPPINESS_OTHER` is flat
-zero from rate 0 to 19, and every county in every fixture is at rate 0 — C26); empire
+zero from rate 0 to 19 — C26); empire
 happiness and the realm-wide sums; secession and territorial contiguity, whose invariant
 `docs/mechanics.md` says is *trivially true in all six saves*; bankruptcy's six seasons;
 revolt; alliances; every AI ladder at an interesting treasury.
+
+> **This paragraph said *"every county in every fixture is at rate 0"* and that was measured
+> on one fixture.** True of England turn one; false of the turn pair and the six siege saves,
+> which carry rates 2, 3, 6 and 8. That mattered, because the sentence was the reason nobody
+> looked: county `+0xC0` in those saves is the original's own answer to
+> `Pct(Pct(population, castleBase), taxRate)`, which is the **first oracle this project has
+> had for a non-zero tax rate**, and it had been sitting in the fixture directory the whole
+> time. What survives the correction is the part about `TAX_HAPPINESS_OTHER`, which is flat
+> below rate 20 and so genuinely untested at every rate any save carries. `docs/decisions.md`
+> CNEW-panel-fields-on-load, and `docs/agents.md`'s *name the branch* applied to a corpus
+> rather than to a call site.
 
 **The project has no evidence about the game it is now trying to finish.** C26 measured this
 failure mode at turn one and found two wrong rules in an afternoon. The late game is a much
@@ -908,7 +919,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,158<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,162<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

@@ -729,3 +729,147 @@ fn only_wood_is_switched_on_at_the_start_and_only_in_an_owned_county() {
     );
     assert_eq!(on.len(), 5, "five counties start owned and each has its forestry running");
 }
+
+// ------------------------------- the three numbers the county panels read back
+
+/// `Pct` — `Tax_RecomputePreview`'s own rounding, which is truncation.
+fn pct(v: i32, p: i32) -> i32 {
+    v * p / 100
+}
+
+/// **`g_castleTaxBase`, written out rather than imported.** The multiplier for
+/// castle types 0 … 5, immediates in `Tax_CollectAll`'s instruction stream
+/// (`docs/kingdom.md` §10). Spelled here so that the assertion below does not
+/// compute its expected value from the table it is checking — the trap
+/// `docs/agents.md` records as *ablating a constant while computing your probe
+/// from that same constant*.
+const CASTLE_TAX_BASE: [i32; 6] = [320, 480, 560, 640, 720, 800];
+
+/// The one moment on this machine where `+0xC0` is **not** the current
+/// population's answer, named with its reason rather than filtered out.
+///
+/// It is the middle save of the battle triple, and the fixture's own name is
+/// the explanation: `battle-during.sav` (the install calls the same game
+/// `incombat.sav`) is taken with a battle open. County 2's population has
+/// already fallen to 588 and the stored preview is still **245**, which is
+/// `Pct(Pct(638, 480), 8)` — the answer for the population the county had
+/// before the fighting. `battle-after.sav` stores **225** for the same county,
+/// which *is* `Pct(Pct(588, 480), 8)`.
+///
+/// **That single disagreement is the argument for reading the byte instead of
+/// recomputing it on load.** No recompute can produce 245; the original
+/// restores a memory image, and `Tax_RecomputePreview` runs on a control or at
+/// the end of a season, not on a load.
+const PREVIEW_NOT_YET_REFRESHED: &[&str] = &["battle-during.sav", "incombat.sav"];
+
+/// **`+0x0F` is `5 - taxRate` in every owned county of every save**, which is
+/// `Tax_RecomputePreview` (`0x0044B80B`)'s second statement and is what says
+/// the offset is the right one. It is a different field from `+0x0E`, which
+/// carries the realm's empire term as well.
+#[test]
+fn the_local_tax_happiness_byte_is_five_minus_the_rate_in_every_save() {
+    let mut checked = 0usize;
+    for f in l2_testkit::saves!() {
+        let s = &f.save;
+        for id in 1..17usize {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            let Ok(owner) = s.u8_at(base + 0x05) else { continue };
+            if owner == 0 {
+                continue;
+            }
+            let rate = s.u8_at(base + 0xB9).unwrap() as i32;
+            let local = s.i8_at(base + 0x0F).unwrap() as i32;
+            assert_eq!(
+                local,
+                5 - rate,
+                "{}: county {id} stores +0x0F = {local} at rate {rate}",
+                f.label()
+            );
+            checked += 1;
+        }
+    }
+    assert!(checked >= 5, "only {checked} counties were reached");
+}
+
+/// **The tax panel's *People pay* line, against the original's own answer.**
+///
+/// `+0xC0` is `Pct(Pct(population, castleBase), taxRate)` — the third statement
+/// of `Tax_RecomputePreview` — and the saves on this machine carry rates 2, 3,
+/// 6 and 8, so the arithmetic can be checked against a number the original
+/// wrote rather than against ourselves. `docs/plan.md` §2.5 says every county in
+/// every fixture sits at rate 0; that is true of the England fixture and false
+/// of the turn pair and the six siege saves.
+///
+/// It is still true of any rate above 19, where `g_taxHappinessOther` starts to
+/// bite — so this promotes the *preview*, not the empire term.
+#[test]
+fn the_tax_preview_byte_is_the_arithmetic_we_implement() {
+    let mut agreed = 0usize;
+    for f in l2_testkit::saves!() {
+        if PREVIEW_NOT_YET_REFRESHED.contains(&f.name.as_str()) {
+            continue;
+        }
+        let s = &f.save;
+        for id in 1..17usize {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            let Ok(owner) = s.u8_at(base + 0x05) else { continue };
+            if owner == 0 {
+                continue;
+            }
+            let rate = s.u8_at(base + 0xB9).unwrap() as i32;
+            if rate == 0 {
+                continue;
+            }
+            let pop = s.i32_at(base + 0x24).unwrap();
+            let castle = s.u8_at(base + 0x1C0).unwrap() as usize;
+            let shown = s.i32_at(base + 0xC0).unwrap();
+            let base_mult = CASTLE_TAX_BASE[castle.min(5)];
+            assert_eq!(
+                pct(pct(pop, base_mult), rate),
+                shown,
+                "{}: county {id}, {pop} people at rate {rate} behind castle {castle}",
+                f.label()
+            );
+            agreed += 1;
+        }
+    }
+    if agreed == 0 {
+        l2_testkit::skip!(
+            "no reachable save carries a county at a non-zero tax rate, so there is \
+             nothing to check the preview against"
+        );
+    }
+}
+
+/// **The three fields the county panels draw and the importer dropped.**
+///
+/// `+0x0F` and `+0xC0` are the tax panel's *This county* and *People pay*;
+/// `+0x10` is the health term the ration panel draws beside the band. All three
+/// arrived as `County::new()`'s zero on every loaded game, so a player opening
+/// the tax panel was told *"People pay 0 crowns"* whatever the rate and read
+/// `( 0 ☺ )` where the original shows `( +5 ☺ )` at rate 0.
+///
+/// **Ablation, run:** delete `c.tax_shown = *tax_shown;` from
+/// `Scenario::apply_counties` and the third clause fails on every save; delete
+/// `c.d_hap_tax_local = *d_hap_tax_local;` and the first fails on England,
+/// where every county stores 5.
+#[test]
+fn the_county_panels_three_numbers_survive_the_import() {
+    let mut checked = 0usize;
+    for f in l2_testkit::saves!() {
+        let Ok(s) = Scenario::from_save(&f.save) else { continue };
+        let k = s.kingdom(1);
+        for id in s.county_ids() {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            let want_local = f.save.i8_at(base + 0x0F).unwrap() as i32;
+            let want_health = f.save.i8_at(base + 0x10).unwrap() as i32;
+            let want_shown = f.save.i32_at(base + 0xC0).unwrap();
+            let c = &k.counties[id];
+            assert_eq!(c.d_hap_tax_local, want_local, "{}: county {id} +0x0F", f.label());
+            assert_eq!(c.d_hap_health, want_health, "{}: county {id} +0x10", f.label());
+            assert_eq!(c.tax_shown, want_shown, "{}: county {id} +0xC0", f.label());
+            checked += 1;
+        }
+    }
+    assert!(checked >= 5, "only {checked} counties were reached");
+}

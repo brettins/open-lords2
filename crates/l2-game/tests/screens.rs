@@ -1830,6 +1830,121 @@ fn stepping_the_tax_rate_changes_the_panel_in_the_same_frame() {
     );
 }
 
+/// **The same panel read off the canvas instead of diffed**, because the test
+/// above cannot tell a live number from a constant.
+///
+/// `stepping_the_tax_rate_changes_the_panel_in_the_same_frame` asserts that
+/// *something* outside the arrows moved and that the field is non-zero. Both
+/// survive a painter that draws a literal `0` on the *People pay* row, because
+/// the two happiness lines move on their own and the field it checks is not the
+/// one the pixels came from. The player's report was about the screen, so the
+/// assertion has to be about the screen.
+///
+/// Three claims, one panel:
+///
+/// * **The words are the player's own `L2.eng`.** `Panel_Tax` (`0x0041152F`)
+///   fetches group 86 four times — indices 1, 2, 3 and 4 — and index 0,
+///   *"Tax in"*, is drawn by nothing. The install's strings are mixed case and
+///   [`county::…::g86`]'s fallbacks are upper case, so *"People pay"* on the
+///   canvas and *"PEOPLE PAY"* absent is the whole of `CLAUDE.md` rule 6 for
+///   this screen, stated as an equality rather than a promise.
+/// * **The *This county* line is right on the frame the game is loaded**, not
+///   only after an arrow is pressed. `Tax_RecomputePreview` writes county
+///   `+0x0F = 5 - taxRate` and the original's own saves store exactly that, so
+///   a county at rate 0 reads `( +5 ☺ )`. Nothing imported `+0x0F`, so ours
+///   read `( 0 ☺ )` until the player touched a control.
+/// * **The *People pay* number is the arithmetic**, at a rate the fixture does
+///   not start at: `Pct(Pct(435, 640), 20)` is **556**, and 640 is
+///   `g_castleTaxBase[3]` written out rather than fetched from our own table.
+///
+/// **Ablation, run:** delete `c.d_hap_tax_local = *d_hap_tax_local;` from
+/// `l2_scenario::Scenario::apply_counties` and the `+5` clause fails; replace
+/// `line_text(ctx, g86::PEOPLE_PAY)` with `g86::PEOPLE_PAY.ours` and the
+/// *"People pay"* clause fails; drop the `tax_shown` line from
+/// `l2_kingdom::tax::recompute_preview` and the `556` clause fails.
+#[test]
+fn the_tax_panel_draws_the_originals_numbers_in_the_originals_words() {
+    let (mut game, assets) = world!();
+    let county = 8usize;
+    // The fixture's own numbers, so the expected crown count below is a
+    // statement about the arithmetic and not about the save.
+    assert_eq!(game.kingdom.counties[county].owner, game.player);
+    assert_eq!(game.kingdom.counties[county].population, 435);
+    assert_eq!(game.kingdom.counties[county].castle_type, 3);
+    assert_eq!(game.kingdom.counties[county].tax_rate, 0, "the fixture starts at nothing");
+
+    let mut m = over_the_map(ScreenId::County(county as u8, Panel::Tax));
+    let before = draw_stack(&mut m, &mut game, &assets);
+
+    // --- the words, from the install rather than from us
+    assert_eq!(assets.shell.text(86, 2), "People pay", "the install's own string");
+    assert_eq!(
+        find_body(&before, &assets, "People pay", font::TEXT).map(|p| p.0),
+        Some(96),
+        "Eng_DrawString(86, 2, 0x60, 0xC8, body)"
+    );
+    assert!(
+        find_body(&before, &assets, "PEOPLE PAY", font::TEXT).is_none(),
+        "our transcription is the fallback for an install with no L2.eng, not the panel"
+    );
+    assert!(
+        find_body(&before, &assets, "Tax in", font::TEXT).is_none(),
+        "86/0 has no call site in the whole corpus"
+    );
+
+    // --- This county, on the frame the game was loaded, before any control.
+    // The canvas first and the field second, so the assertion that fails is the
+    // one about the screen: the field is how it got there, not the claim.
+    assert_eq!(
+        find_body(&before, &assets, "+5", font::TEXT).map(|p| p.1),
+        Some(232),
+        "Ui_DrawHappinessDelta(realm+0x28 + county+0x0F) on the This county row. \
+         county +0x0F is 5 - taxRate, the save stores 5 in all fourteen, and it \
+         reached the county as {}",
+        game.kingdom.counties[county].d_hap_tax_local
+    );
+    assert_eq!(game.kingdom.counties[county].d_hap_tax_local, 5);
+    assert!(
+        find_body(&before, &assets, "+4", font::TEXT).is_none(),
+        "a near miss: the delta is five, not four"
+    );
+
+    // --- People pay, at a rate the fixture does not start at
+    let up = Panel::Tax.increase_button().expect("the tax panel has arrows");
+    for _ in 0..20 {
+        send_stack(&mut m, &mut game, &assets, Event::Click { x: up.centre_x(), y: up.y + 4 });
+    }
+    assert_eq!(game.kingdom.counties[county].tax_rate, 20);
+    let after = draw_stack(&mut m, &mut game, &assets);
+
+    // `Pct(Pct(population, g_castleTaxBase[castleType]), taxRate)`, with the
+    // multiplier written out: nothing in this expression is read from the table
+    // the assertion is about.
+    let expected = 435 * 640 / 100 * 20 / 100;
+    assert_eq!(expected, 556);
+    assert_eq!(
+        find_body(&after, &assets, &expected.to_string(), font::TEXT).map(|p| p.1),
+        Some(200),
+        "Ui_DrawCount(county+0xC0, …) on the People pay row"
+    );
+    assert!(
+        find_body(&after, &assets, "557", font::TEXT).is_none(),
+        "a near miss, so 556 cannot have been found in some other number"
+    );
+
+    // …and the happiness line followed it down. 5 - 20 is -15, and county 8's
+    // realm holds one county, so the empire term is g_taxHappinessOther[20].
+    assert!(
+        find_body(&after, &assets, "+5", font::TEXT).is_none(),
+        "the This county line did not stay where it was"
+    );
+    assert_eq!(
+        find_body(&after, &assets, "-16", font::HIGHLIGHT).map(|p| p.1),
+        Some(232),
+        "-15 local and -1 empire, and a negative delta is drawn in the highlight pen"
+    );
+}
+
 /// County 1 belongs to realm 5. The strip says so, all four panels still open,
 /// and every order is refused — by the mouse as well as by the keyboard.
 #[test]
