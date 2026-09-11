@@ -485,7 +485,7 @@ docs/battle.md	C100	93e373d699d8	c490b4875689
 docs/battle.md	C101	7ad2fa9d6ebe	fb385b3247be
 docs/battle.md	C102	5cefb2d1c9a0	e01ce233d22a
 docs/battle.md	C103	df841d2b59bb	7f535dce1087
-docs/battle.md	C105	18933a87afcb	c2e0145299b3
+docs/battle.md	C105	ab6c82446dfc	c2e0145299b3
 docs/battle.md	C12	c0753f7ef8f6	bb0dd488f9d2
 docs/battle.md	C3	4a58ff6915b0	35bf3a86555f
 docs/battle.md	C3	d55c548092ec	35bf3a86555f
@@ -590,6 +590,7 @@ docs/decisions.md	C140	3bb1bdf69c75	e3a1ede42a95
 docs/decisions.md	C140	911585df7be9	e3a1ede42a95
 docs/decisions.md	C140	a6467caca8ac	e3a1ede42a95
 docs/decisions.md	C140	b7b4a7e7ec56	e3a1ede42a95
+docs/decisions.md	C140	edb2c294fe70	e3a1ede42a95
 docs/decisions.md	C142	0800e9b335b3	d13324698105
 docs/decisions.md	C142	0ff030d3046f	d13324698105
 docs/decisions.md	C142	19b387060801	d13324698105
@@ -620,6 +621,7 @@ docs/decisions.md	C161	6e968c63f3ee	8b6af36909ef
 docs/decisions.md	C161	bd94546675a8	8b6af36909ef
 docs/decisions.md	C163	2510e92d9958	d043a04534f8
 docs/decisions.md	C163	2ae950ef80e9	d043a04534f8
+docs/decisions.md	C166	ae62eb67898f	e426c5b6c94a
 docs/decisions.md	C17	f0ab9c80c1a8	b9aaae4e270c
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff

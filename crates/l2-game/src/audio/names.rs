@@ -237,6 +237,10 @@ pub mod battle {
     /// `Sound_PlayFile("bathit2.wav", 0, 0)`: the effects flag, the one-shot
     /// buffer. `[V]`
     pub const WALL_SMASH: &str = "bathit2.wav";
+    /// `FUN_0048551D` — a bridge catching fire — opens with
+    /// `Sound_PlayFile("dest_ind.wav", 0, 0)`, the one-shot buffer: the same
+    /// file the campaign's destroyed-industry sites ask for by name.
+    pub const BRIDGE_FIRE: &str = "dest_ind.wav";
 }
 
 /// Which bank a slot number is being read against — the two are not

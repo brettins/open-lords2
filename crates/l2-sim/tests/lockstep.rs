@@ -725,7 +725,18 @@ impl Simulation for RunnerNetBattle {
             // walking men through different castles a few hundred frames later.
             out.u32(f.moat_cell.unwrap_or(u32::MAX));
             out.u8(f.moat_load);
+            // **The orthogonal a tower faces**, which is where its search for
+            // a wall to dock with starts: two peers that disagreed would dock
+            // the same tower against different walls.
+            out.u8(f.polar);
         }
+        out.end_section();
+
+        // **Fire.** Whether a wood is spreading decides which cells catch next
+        // frame, and the size class decides how fast a man in it dies.
+        out.section("fire");
+        out.bool(self.runner.wood_fire);
+        out.u8(self.runner.battle_size_class());
         out.end_section();
 
         // **The castle.** `SiegeState`'s doc comment has claimed since it was
@@ -810,6 +821,10 @@ impl Simulation for RunnerNetBattle {
             out.bool(m.blocked);
             out.i32(m.ttl as i32);
             out.u16(m.power);
+            // A fire's remembered surface is what the cell becomes when it
+            // goes out; a fire arrow is a wood that is about to burn.
+            out.u8(m.saved_surface);
+            out.bool(m.fire_arrow);
         }
         out.end_section();
 

@@ -153,7 +153,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x184` | i8 | exchange | [D] | ticks left holding the attacker role in a duel. |
 | `+0x185` | u8 | role | [D] | 1 = attacker this exchange, 2 = defender. |
 | `+0x18C` | u8 | blowUsed | [D] | set once the heavy-blow bonus has been spent. |
-| `+0x194` | u8 | isSiegeEngine | [D] | 1 for troop types 7, 8, 9. |
+| `+0x194` | u8 | isSiegeEngine | [V] | 1 for troop types 7, 8, 9 — **not 10**. `BattleUnit_Create` writes it as `6 < troopType && troopType < 10`, beside the call that stamps `0x80` on the engine's 3 × 3. So a pot of oil burns at a man's threshold, §17.4. |
 | `+0x197` | u8 | band | [V] | strength band 0 … 3 from the men left (§5.3). Scales melee attack and missile damage. |
 | `+0x198` | i16 | heavyBlow | [V] | extra hits landed **once per melee exchange**: maceman 300, knight 200, swordsman 100, everyone else 0. |
 | `+0x19A` | i16 | **hits** | [V] | accumulated damage. **100 hits kills one man** (160 for a siege engine). |
@@ -202,7 +202,7 @@ own side: both callers of the isometric grid renderer pass
 | `+4` | [V] | **elevation**. Governs missile damage (§6.2) and blocks movement between cells more than 1 apart (§7). |
 | `+5` | [V] | index of the figure standing here, 0 for none. |
 | `+6` | [V] | head of the linked list of missiles in this cell. |
-| `+7` | [V] | surface type. **Every value is now traced from its writers — §3.2.** In one line: 1 the open field, 2 the moat, 3 ground beside the castle, **4 the rampart walk**, **5 the bailey and what a smashed wall joins**, 6 the keep, 7 the bridge, **8 an intact wall**, **9 a wall a catapult brought down**, 0x0B a raised drawbridge, 10 and 17 burning, 15 woodland. |
+| `+7` | [V] | surface type. **Every value is now traced from its writers — §3.2.** In one line: 1 the open field, 2 the moat, 3 ground beside the castle, **4 the rampart walk**, **5 the bailey and what a smashed wall joins**, 6 the keep, 7 the bridge, **8 an intact wall**, **9 a wall a catapult brought down**, 0x0B a raised drawbridge, **10 burning**, 15 woodland, **0x10 a wood catching and 0x11 a wood burning** — this row said *"10 and 17"*, and 17 is 0x11 — and **0 what a burnt wood leaves** (§17). |
 
 **[V] `Battlefield_BuildFromSkr` never writes byte `+4`.** On a `.skr` battlefield every
 cell is at elevation 0, so the elevation rules in §6.2 and §7 are inert there. Elevation
@@ -308,7 +308,8 @@ So the surfaces are **concentric zones**, numbered inward, and the table in §3 
 | **9** | **a wall cell a catapult brought down** — `Wall_Collapse`, flags 2, elevation 0 |
 | 0x0B | a **raised** drawbridge — the cell that carries flag `0x40` |
 | 0x0E | the classifier's placeholder; nothing survives pass 2 |
-| 10, 17 | burning (§6.3) |
+| 10 | burning — boiling oil and a bridge (§17.1) |
+| 0x10, 0x11 | a wood catching, and a wood burning (§17.5) |
 
 Three readings are decisive and each is a single unambiguous site:
 
@@ -717,11 +718,17 @@ finding that is easy to over-narrate.
 
 ### 6.3 Fire
 
-**[V]** A figure standing on a cell whose byte `+7` is 10 or 17 takes `BattleMan_BurnTick`
+**[V]** A figure standing on a cell whose byte `+7` is 10 or 0x11 takes `BattleMan_BurnTick`
 damage every frame: 3, 6, 9 or 12 hits by battlefield size class (1, 3, 5, 7 for a siege
 engine), plus 1 (or 2) if the owner is human. Same 100/160 threshold, one man per
-crossing. Those surface values are written by `0x00485675` and `0x00485861`, the boiling-oil
-and burning-cell effects.
+crossing.
+
+**Corrected.** This paragraph ended *"those surface values are written by `0x00485675` and
+`0x00485861`"*. Three routines write them, not two, and the second does not write either
+value: `0x00485675` writes **10** (oil, a bridge), `0x00485861` writes **0x10** — a wood in the
+frame it caught, which burns **nobody** — and `FUN_004859E5` turns 0x10 into **0x11** a frame
+later. And the 160 is for troop types 7 to 9 only: a pot of oil burns at 100. §17 has the whole
+of it, and it is built.
 
 ### 6.4 What is *not* in the model
 
@@ -1556,10 +1563,12 @@ The same document settles two more readings in this chapter:
   other side — a ram cannot stand on a rampart, so the only counter it can ever
   feed is the gate's.
 * *Siege Towers*: **"Once siege towers reach a wall and 'dock' with it, they can
-  not be moved again."** Nothing found in `UnitOrder_SiegeAttTower` or in the
-  mover enforces that, and it is recorded here as **unlocated** rather than
-  implemented: the handler stops advancing its script on the wall-found path,
-  which is not the same rule.
+  not be moved again."** **Located, §17.6.** This bullet called the rule
+  unlocated, having looked in `UnitOrder_SiegeAttTower` and in the mover's
+  obvious arms. It is `FUN_00491492`, which the mover calls when an engine's step
+  is refused: a tower that docks is handed to `BattleMan_Destroy` and a ramp is
+  written where it stood. It cannot be moved again because it is no longer a
+  figure.
 
 ### 14.3c `_DAT_0055307C` counts gaps in the wall, and it is seeded per castle  **[V]**
 
@@ -2281,3 +2290,155 @@ binary, and its only caller is `Wall_Collapse`. So a castle nobody has bombarded
 posts at all, `Siege_ClaimDefencePost` returns 0 for every unit, and the garrison's handlers take
 their `cellOffset == 0` arm — the wall slots — for the whole of that siege. The posts are the holes,
 and they arrive when the holes do. `docs/decisions.md` `C105`.
+
+**A second caller, found with §17.6:** `FUN_00491492` files the wall cell a siege tower docks
+against. So the posts are the holes *and the ramps*. And the appender is not what the sentence
+above implies about a full table: it scans nineteen slots, and when all nineteen are taken it
+**overwrites the twentieth**, every time, with no test for a cell already filed. `[V]`.
+
+---
+
+## 17. Fire, boiling oil, and the siege tower
+
+Five mechanics a siege has and `crates/l2-sim` did not, each read end to end and each now
+built: `crates/l2-sim/src/fire.rs` for fire and oil, the tower half of `siege.rs`, and their
+places in `runner.rs`. `crates/l2-sim/src/proving.rs` is a constructed siege on which all of them
+must happen, and `runner_fire_tests.rs` asserts each against it. `[V]` throughout unless a line
+says otherwise. `docs/decisions.md` `CNEW-siege-fire`.
+
+### 17.1 A fire is a missile that does not move
+
+`FUN_00485675(x, y, param)` has no table of its own. It calls `Missile_Spawn(1, x, y, x, y)` —
+**one of the same hundred records the arrows use** — and writes class **5**, no sub-steps, a
+range of 20,000, a life `+0x3C = 0x280 − param`, `+0x2F = 6`, the cell's surface into `+0x3E`,
+and **10** onto the cell. A **bridge** (surface 7) is flattened on the spot: flags 0, elevation 0,
+frame 0.
+
+`Missile_UpdateAll`'s class-5 arm writes the remembered surface back on the frame the count reads
+**2** — except that a bridge becomes **surface 5 at elevation 0 with no flags** and a wood becomes
+**surface 0**. So what burns away is exactly a bridge and a wood; everything else comes back.
+
+**A fire never spreads by itself.** Three things spread fire and each is a different routine
+with a different rule: §17.2's stream, §17.3's bridge, §17.5's wood. And `FUN_00485675` **does
+not test `Missile_Spawn`'s result** — with the array full the cell burns for good. `docs/bugs.md`
+`BNEW-fire-slot`.
+
+### 17.2 Boiling oil — `FUN_0047A814`
+
+Two callers, and `docs/audio.json` named one.
+
+* **`Melee_Tick` (`0x00494908`)**, whose first statement is `if (troopType == 10)
+  FUN_0047A814(me, opponent.mapX, opponent.mapY)`. A pot reaches melee only through
+  `BattleMan_Step`'s 999 arm — somebody **steps at it** — and that happens because
+  `Melee_AdjacentEnemyDir` (`0x004972F9`), which picks the direction a walker turns towards,
+  **does not skip siege engines**, where `Melee_FindAdjacentEnemy` does. A walker that is itself
+  oil returns before engaging.
+* **`BattleUnit_Order` (`0x00479E90`)**'s oil loop: a pot of the ordered unit standing on surface
+  **6** ordered to a destination below 6, on **4** below 4, or on **5** below 4. **An order
+  downhill is a pour**, not a walk to somewhere to pour from.
+
+What it does: a class-**7** record from the pot toward the cell — 16 sub-steps a frame, a range of
+16, power 0, `+0x2F = 4` — four `Missile_Step`s on the spot, the pot to state 2, the pot turned to
+the longer axis (x wins a tie), and `FUN_004262CF(3)`. **The pot is spent by its own pour.**
+
+`Missile_UpdateAll`'s class-7 arm, every frame the stream flies, sets **the cell under it and its
+four orthogonal neighbours** burning — each unless it is already 7 or 10 — with argument
+`(ticksFlown − 1) × 32 + bias`, the bias `0x28` for the centre and the north, **0** for the south,
+`0x19` east, 10 west. Half a cell a frame for sixteen frames is a strip about eight cells long and
+three wide, the head burning longest (≈ 470 frames) and the tail shortest (≈ 120). **Oil kills
+only by that fire**: nothing in `Missile_Step` can hurt a man with class 7. Why the south arm's
+bias differs is not established.
+
+`[D]`, not reproduced: `BattleUnit_Order`'s loop tests a figure's owner, not its state, and a pot
+that has poured is a corpse with an owner for eighty frames — so a unit re-ordered downhill in that
+window pours again. `crates/l2-sim` has no corpse lifetime.
+
+### 17.3 A bridge goes up — `FUN_0048551D`
+
+Two callers: **`Missile_Step`**, when any missile with `+0x3C == 0` enters a surface-7 cell — the
+missile's count becomes 8 and it is spent — and **`Cell_TryEnter` (`0x00490A44`)**, whose first
+statement sets alight a surface-7 cell a **side-4** figure tries, before the step is decided.
+
+It plays `dest_ind.wav`, sets the cell burning with `0x78` (520 frames), and then walks rings 1 to
+5 round it, rows top to bottom: a cell with a burning orthogonal neighbour
+(`Cell_NeighbourHasSurface`, `0x00496F72`) catches if it is a bridge — argument `0x78 − c`,
+`c += 7`, capped at `0x78` — and is scorched, its frame masked by `FUN_00485B47`, if it is surface
+5. So **a bridge fire walks five cells along the bridge**, each later cell burning seven frames
+longer than the last. `docs/audio.json` had it as *"that cell and its neighbours"*.
+
+### 17.4 A man burns — `BattleMan_BurnTick`
+
+`Battle_UpdateAllMen` (`0x004822ED`) calls it for a figure on surface 10 or 0x11, before the troop
+tick: 3, 6, 9, 12 hits by size class (0–1, 2, 3, 4+), 1, 3, 5, 7 for an engine, one or two more for
+a human's; thresholds **100** and **160** as literals, so a ruleset's `hits_per_casualty` does not
+reach them; one man a frame, remainder carried; the dying figure's side picks `0xB` or `0xC`.
+**An engine is `+0x194`, troop types 7–9**, so a pot of oil burns as a man.
+
+### 17.5 A wood goes up — fire arrows
+
+`BattleMan_FireMissile` writes `+0x44 = 1` on an arrow when the shooter's unit is an AI's, of side
+0, and `DAT_005530E8 > 3` — a human's figures on surface 0x0F, counted during `Battle_UpdateAllMen`'s
+own sweep. `Missile_Step`'s **first** test: a missile with `+0x44` over woodland — for an AI's arrow
+anywhere, for a human's only on the cell `+0x44` names — calls `FUN_00485861`, raises
+`DAT_0053E9D0`, and frees the arrow. `FUN_00485861` checks its slot, writes **0x10**, and gives the
+fire a life of `0x280 − 10 × ((x + y) & 0x1F)`.
+
+`FUN_004859E5`, after the unit sweep, while `DAT_0053E9D0`: every 0x10 becomes 0x11, then every
+0x0F beside a 0x11 catches. **One ring a frame through a connected wood**, until a frame turns
+nothing from catching to burning. The garrison burns out an army hidden in a wood.
+
+**And this answers §15.12's *"why surface 15 specifically"*.** A human's `+0x44` is not 1: it is
+the unit's `targetCell`, copied by `BattleMan_StateCloseToAttack`, and `BattleUnit_Order` writes
+`targetCell` only under its fifth argument — `DAT_0053E874`, *the hovered cell is surface 15* — for
+a missile unit of side 0. So a player's order onto a wood with missile men is **an order to set that
+wood alight**. `[V]` on each write; `[I]` on how often a player's unit is in state 17 to shoot it,
+which is not built here.
+
+### 17.6 A siege tower docks — `FUN_00491492`
+
+`BattleMan_Step` (`0x0048F1DD`) calls it when a siege engine's step is refused. An engine tests a
+**leading edge**, not a cell — `Cell_TryEnterEngine` (`0x00490C59`) over the three cells of
+`g_engineEdgeOrtho` or the five of `g_engineEdgeDiag`, decoded from the executable as two cells
+ahead — so a tower's centre stops **two cells short** of a wall, and **any figure in that edge
+stops it**, friend or foe.
+
+For troop type 8 only: from its polar facing (`+0x168`, which `FUN_00488436` keeps on the nearest
+orthogonal with hysteresis on a diagonal) through the four orthogonals clockwise, the first where
+the cell two ahead is **exactly 2 high** and the cell one ahead is **not exactly 1**. Then: that
+wall cell's flags cleared; **`BattleMan_Destroy` (`0x0046EBE4`)**; `FUN_004921E5` writes a ramp —
+the tower's cell and the far step at 1, the flanks and diagonals `|= 0x10`; the 3 × 3's flags
+`|= 1` and frames from `DAT_004D9DD0[k + d × 9]`; the wall cell's frame 1 or 2; the near step at
+**2**; the pathfinding planes rebuilt; `FUN_0048EE46` files the wall cell as a defence post; breach
+score **+3**, approach **+4**; `FUN_004262CF(0x11)`.
+
+A staircase from the field to the wall top, one level a step, walled on both sides — and the
+Readme's *"can not be moved again"*, because the tower is gone. **A tower docks only at height
+exactly 2, and every wall of `siege::our_castle` is 1 high**, so a tower in our own castle never
+docks: that is our invented layout, not the rule, and it is why `proving.rs` exists.
+
+When the edge is refused and nothing docks, the original tries `FUN_004912EC` — a side-step through
+three rotations each way — then gives up within three cells of its destination or waits a hundred
+frames. The side-step is not built.
+
+### 17.7 A rampart too high to shoot down — `Missile_Step#2`
+
+The class-3 arm is gated `elevation != 0 && surface == 4 && frame > 2`. Below elevation 4 the hit
+is counted in the cell's terrain byte, the cell collapses after sixteen, and `FUN_004262CF(0xF)`
+plays; **at 4 and above nothing is counted**, the catapult is marked engaged — which its fire state
+reads as *withdraw and try again* — and `Sound_PlaySlot(0x10)` plays. Either way the shot becomes
+debris.
+
+**Our gate is the wall flag `0x20`, not surface 4 with frame > 2**, and that is older than this
+chapter and not changed by it: our castle has no frames, and its rampart walk is surface 4 at frame
+0, where the original's gate would never open. The elevation split is the original's.
+
+### 17.8 Found here and not built
+
+* **Men attack siege engines in the original.** The 999 arm engages *any* enemy figure a walker
+  steps at — tower, ram, catapult — and `Melee_Tick` then damages it. `melee::engage` refuses every
+  engine. Only the oil half of that is reproduced.
+* **Rams and catapults still step as one cell**; only towers test the leading edge. No engine stamps
+  `0x80` over its 3 × 3, so men walk under ours.
+* The player's fire arrow (state 17), the engine side-step, a corpse's eighty frames, and
+  `g_battleSizeClass`'s `scale × siegeEngines` term — `size_class` is fed the two armies' total
+  alone, and the missile hit still passes size class 0.

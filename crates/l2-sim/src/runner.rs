@@ -51,9 +51,15 @@
 //!   Bresenham line four sub-steps a tick, and it hits whoever is standing in
 //!   the cell it enters rather than whoever it was aimed at. [`crate::missile`]
 //!   is the model and its header is the evidence. What is **not** modelled:
-//!   fire, boiling oil, and the state that decides *when* a figure is in the
-//!   original's firing state — here it is "standing at its destination and out
+//!   the state that decides *when* a figure is in the original's firing state — here it is "standing at its destination and out
 //!   of melee", which is `[I]`.
+//! * **Fire, oil and the siege tower** are [`crate::fire`]'s and
+//!   [`crate::siege`]'s rules, run from here in the original's places: a man
+//!   burns at the head of his own frame (`Battle_UpdateAllMen`), a fire goes out
+//!   and a stream of oil paints its cross between a missile's step and its
+//!   countdown (`Missile_UpdateAll`), a wood spreads after the sweep
+//!   (`FUN_004859E5`), and a tower docks when its step is refused
+//!   (`BattleMan_Step`).
 //! * **A figure already locked in a melee is not re-tasked by a reform.** The
 //!   original re-tasks it and lets its next tick tear the duel down; we do not
 //!   model that teardown, so pulling one side out here would leave a
@@ -63,6 +69,7 @@
 
 use crate::ai::{self, Ai, AiField};
 use crate::facing::{facing_from_delta, FACING_DELTA};
+use crate::fire;
 use crate::formation::{self, FOOTPRINT, MAX_FIGURES_PER_UNIT, ROW_MAX, TYPE_PRIORITY, WEAPON_CLASS};
 use crate::missile::{self, WeaponClass};
 use crate::movement::Progress;
@@ -125,6 +132,16 @@ pub struct Fighter {
     /// Figure record `+0x18E` — frames since the last load went in, against
     /// [`crate::siege::MOAT_TICKS_PER_LOAD_HUMAN`] or its AI twin.
     pub moat_load: u8,
+    /// Figure record `+0x168`, the debug panel's **`polar dirc`** — an
+    /// orthogonal facing, 0, 2, 4 or 6.
+    ///
+    /// Two writers matter here. A **siege tower** walking keeps it on the
+    /// orthogonal nearest its `dirc`, with hysteresis on the diagonals
+    /// (`FUN_00488436`, [`crate::siege::tower_polar`]), and `FUN_00491492`
+    /// starts its search for a wall to dock with from it. A **pot of oil** has
+    /// it set to the axis it pours along (`FUN_0047A814`). Zero, as the zeroed
+    /// record has it, until one of them writes.
+    pub polar: u8,
 }
 
 impl Fighter {
@@ -334,6 +351,20 @@ pub struct BattleRunner {
     /// `docs/battle.md` §5.1. Four for a skirmish; the campaign's ladder picks
     /// it in [`Self::deploy_muster`], and each side may differ.
     men_per_figure: [u16; 2],
+    /// `g_battleSizeClass` — the rung of `g_sizeClassLadder` the two armies'
+    /// total reached, before either side's scale was halved. Zero for a
+    /// skirmish. `BattleMan_BurnTick` reads it; see [`Self::battle_size_class`].
+    size_class: u8,
+    /// **`DAT_0053E9D0` — a wood is burning.** Raised by a fire arrow setting
+    /// woodland alight and kept up by [`fire::spread_woodland`] for as long as
+    /// a frame turns something from catching to burning.
+    pub wood_fire: bool,
+    /// **`DAT_005530E8`** — a human's figures standing in woodland, counted
+    /// **during** the man sweep and zeroed at its head, so a figure early in
+    /// the sweep sees only the figures before it. Over three of them and an AI
+    /// garrison looses fire arrows. Recomputed every frame before it is read,
+    /// so it carries nothing from one frame to the next.
+    humans_in_woods: u32,
     pub tick: u32,
 }
 
@@ -439,6 +470,11 @@ impl BattleRunner {
         let mpf_b = side_scale(army_b.men(), class);
         let mut runner = BattleRunner::empty(field, seed);
         runner.men_per_figure = [mpf_b as u16, mpf_a as u16];
+        // `g_battleSizeClass`. The original's ladder is fed the total **plus
+        // `scale × siegeEngines`**; `size_class` is fed the total alone, as it
+        // was before this read it, and that difference is noted rather than
+        // closed here.
+        runner.size_class = size_class(total) as u8;
         if let Some(level) = castle_level {
             runner.siege = crate::siege::SiegeState::castle(level);
             runner.ai.is_siege = true;
@@ -491,6 +527,9 @@ impl BattleRunner {
             men_per_figure: [MEN_PER_FIGURE, MEN_PER_FIGURE],
             siege: crate::siege::SiegeState::field(),
             wall_missile_latch: 0,
+            size_class: 0,
+            wood_fire: false,
+            humans_in_woods: 0,
             tick: 0,
         }
     }
@@ -544,6 +583,7 @@ impl BattleRunner {
                 u.order_lock = crate::unit::ORDER_LOCK;
             }
         }
+        self.pour_on_order(unit, x as i16, y as i16);
         self.reform_unit(unit);
     }
 
@@ -713,6 +753,7 @@ impl BattleRunner {
                         reroutes: 0,
                         moat_cell: None,
                         moat_load: 0,
+                        polar: 0,
                     });
                 }
                 left -= unit_men;
@@ -955,6 +996,9 @@ impl BattleRunner {
             .map(|(u, _)| u)
             .collect();
         for u in ordered {
+            // `BattleUnit_Order`'s oil loop runs before it re-issues anybody.
+            let (tx, ty) = (self.units.get(u).target_x, self.units.get(u).target_y);
+            self.pour_on_order(u, tx, ty);
             self.reform_unit(u);
         }
         for u in reform {
@@ -967,7 +1011,9 @@ impl BattleRunner {
             f.targeted = f.targeted.saturating_sub(1);
         }
 
+        self.humans_in_woods = 0;
         for i in 0..self.fighters.len() {
+            self.update_man(i);
             self.step_one(i);
         }
         // `Missile_UpdateAll`, immediately after `Battle_UpdateAllMen` and
@@ -976,6 +1022,16 @@ impl BattleRunner {
         // `step_one`, and every arrow already in the air moves against the
         // occupancy this tick's movement produced.
         self.update_missiles();
+        // **`FUN_004859E5`, the wood fire.** `Battle_Frame` runs it after the
+        // unit sweep; this runner's unit sweep is at the top of the frame, so
+        // it runs here, after the missiles, which is the nearest place with
+        // the original's neighbours on both sides.
+        if self.wood_fire {
+            let touched = fire::spread_woodland(&mut self.field, &mut self.missiles, &mut self.wood_fire);
+            for c in touched {
+                self.sync_cell(c);
+            }
+        }
         // Damage, casualties and death all happen here, in melee.rs.
         self.sim.step();
         // A figure that died this tick lets go of its cell and starts falling.
@@ -1468,12 +1524,31 @@ impl BattleRunner {
             if let Some(d) = d {
                 f.facing = d;
             }
+            // `FUN_00488436`, every frame a tower walks.
+            if f.troop == Troop::SiegeTowers {
+                f.polar = crate::siege::tower_polar(f.facing, f.polar);
+            }
         }
         // Only a committed sub-step moves the figure. This is where the
         // per-troop speed lives.
         let troop = self.fighters[i].troop;
         if !self.fighters[i].progress.step(troop) {
             return;
+        }
+        // **`Melee_AdjacentEnemyDir`, as far as a pot of oil.** Before a
+        // committed step `BattleMan_Step` looks round all eight neighbours for
+        // an enemy at its own height — and, unlike the melee search, **it does
+        // not skip a siege engine** — and steps at the first one it finds. When
+        // that is a pot of oil the step is the 999 arm, and the pot pours.
+        if troop.index() < 7 {
+            if let Some(pot) = self.adjacent_oil(i) {
+                let (ua, ub) = (self.unit_of(i), self.unit_of(pot));
+                self.join_melee(ua);
+                self.join_melee(ub);
+                let at = (self.fighters[i].x, self.fighters[i].y);
+                self.pour_oil(pot, at);
+                return;
+            }
         }
         self.enter(i, next);
     }
@@ -1609,6 +1684,22 @@ impl BattleRunner {
         // launch steps then hit. Recorded before the steps because a shot that
         // strikes inside them has still been loosed. See [`crate::cue`].
         self.sim.cues.loose(class);
+        // **A fire arrow.** `BattleMan_FireMissile` writes `+0x44 = 1` when the
+        // shooter's unit is an AI's, of side 0, and more than three of a
+        // human's figures are standing in woodland — the garrison sets the
+        // wood alight under a player who has hidden an army in it. Before the
+        // launch steps, so an arrow loosed from inside the wood lights its
+        // own cell. The catapult fires from `BattleMan_StateEngineFire`, which
+        // has no such write.
+        if class != WeaponClass::Catapult && self.humans_in_woods > fire::FIRE_ARROWS_ABOVE {
+            let unit = self.sim.figures[sim].unit as usize;
+            if (1..=MAX_UNITS).contains(&unit)
+                && !self.units.get(unit).human
+                && self.units.get(unit).side == SIDE_A
+            {
+                self.missiles.get_mut(slot).fire_arrow = true;
+            }
+        }
         for _ in 0..missile::LAUNCH_STEPS {
             if !self.step_missile(slot) {
                 return;
@@ -1666,6 +1757,20 @@ impl BattleRunner {
             if !self.step_missile(slot) {
                 continue;
             }
+            // `Missile_UpdateAll`'s per-class arms, between the step and the
+            // countdown: **a fire goes out** on the frame its count reads 2,
+            // and **a stream of oil paints its cross** every frame it flies.
+            match self.missiles.get(slot).class {
+                missile::CLASS_FIRE => {
+                    if self.missiles.get(slot).ttl == fire::FIRE_RESTORE_AT {
+                        let m = *self.missiles.get(slot);
+                        let c = fire::put_out(&mut self.field, &m);
+                        self.sync_cell(c);
+                    }
+                }
+                missile::CLASS_OIL => self.oil_cross(slot),
+                _ => {}
+            }
             // The ttl countdown, and the only thing that retires a missile
             // which has already hit. One hit per arrow falls out of this.
             let m = self.missiles.get_mut(slot);
@@ -1684,6 +1789,30 @@ impl BattleRunner {
     /// Returns false when the missile was retired, so the caller stops touching
     /// the slot.
     fn step_missile(&mut self, slot: usize) -> bool {
+        // **`Missile_Step`'s first test: a fire arrow over woodland.** Once a
+        // frame, on the cell the arrow starts the frame in, before anything
+        // else — `FUN_00485861` lights the wood, `DAT_0053E9D0 = 1` starts the
+        // spread, and the arrow is gone. For a human's arrow the cell would
+        // have to be the one its unit was ordered onto; no human's arrow is a
+        // fire arrow here (see [`crate::missile::Missile::fire_arrow`]).
+        {
+            let m = *self.missiles.get(slot);
+            let cell = m.cell_y as usize * DIM + m.cell_x as usize;
+            let human =
+                self.sim.figures.get(m.shooter as usize).is_some_and(|f| f.owner_is_human);
+            if m.fire_arrow
+                && !human
+                && self.field.cells[cell].surface == fire::SURFACE_WOODLAND
+            {
+                let (x, y) = (m.cell_x as i32, m.cell_y as i32);
+                if let Some(c) = fire::ignite_woodland(&mut self.field, &mut self.missiles, x, y) {
+                    self.sync_cell(c);
+                }
+                self.wood_fire = true;
+                self.missiles.free(slot);
+                return false;
+            }
+        }
         {
             let m = self.missiles.get_mut(slot);
             m.ticks_flown += 1;
@@ -1725,6 +1854,18 @@ impl BattleRunner {
         };
         let elevation = self.field.cells[cell].elevation;
 
+        // **A missile over a bridge sets it alight.** `Missile_Step`, inside
+        // the `+0x3C == 0` gate, for every class: `if (surface == 7) { +0x3C =
+        // 8; FUN_0048551D(cell); }` — an arrow, a bolt, a catapult shot or a
+        // stream of oil. The gate is read once for the sub-step, so the tests
+        // below still run for this one; after it the missile is spent and
+        // retires eight frames later.
+        if self.field.cells[cell].surface == fire::SURFACE_BRIDGE {
+            self.missiles.get_mut(slot).ttl = fire::MISSILE_ON_BRIDGE_TTL;
+            let m = *self.missiles.get(slot);
+            self.bridge_fire_at(m.cell_x as i32, m.cell_y as i32);
+        }
+
         // **High ground stops an arrow.** Ground more than one level above the
         // launch point sets a sticky flag; so does an impassable cell, which is
         // also how the original marks a siege engine's own footprint.
@@ -1755,8 +1896,13 @@ impl BattleRunner {
 
         // **A catapult shot against a wall.** It cannot hurt a man at all, and
         // this is the only thing it can hurt.
+        // The original's gate is `elevation != 0 && surface == 4 && frame > 2`
+        // — the rampart walk, drawn as wall — and ours is the wall flag, which
+        // is what our castle has instead of the frames. The elevation half is
+        // the original's and is kept.
         if self.missiles.get(slot).class == WeaponClass::Catapult.index()
             && self.field.cells[cell].flags & crate::siege::FLAG_WALL != 0
+            && elevation != 0
         {
             self.strike_wall_with_shot(slot, cell);
             return true;
@@ -1829,13 +1975,27 @@ impl BattleRunner {
     /// Either way the missile becomes class 4 debris: it stops testing for
     /// anything and simply counts down.
     fn strike_wall_with_shot(&mut self, slot: usize, cell: usize) {
-        // `Missile_Step`'s counting arm plays `FUN_004262CF(0xF)`. Its other arm —
-        // the rampart at elevation 4 or more, which does **not** count the hit
-        // and plays `Sound_PlaySlot(0x10)` instead — has no equivalent here:
-        // every wall cell this crate knows counts. See [`crate::cue`].
-        self.sim.cues.wall_struck();
-        self.wall_hits[cell] = self.wall_hits[cell].saturating_add(1);
-        if self.wall_hits[cell] >= missile::WALL_HITS_PER_COLLAPSE {
+        // **Two arms, split on the cell's height.** `Missile_Step`:
+        //
+        // ```c
+        // if (cell.elevation < 4) { shooter.engaged = 0; cell.terrain++;
+        //     if (0xF < cell.terrain) Wall_Collapse(cell); FUN_004262CF(0xF); }
+        // else                    { shooter.engaged = 1; Sound_PlaySlot(0x10); }
+        // ```
+        //
+        // **A rampart four or more high cannot be shot down**: the shot is not
+        // counted, the cell never collapses, and the catapult is marked engaged
+        // — which `BattleMan_StateEngineFire` reads as "move to the approach
+        // lane and try again", a state this crate does not model, so that one
+        // write has nothing to land on. Either arm leaves debris. `[V]`.
+        let high = self.field.cells[cell].elevation >= missile::WALL_TOO_HIGH;
+        if high {
+            self.sim.cues.wall_missed();
+        } else {
+            self.sim.cues.wall_struck();
+            self.wall_hits[cell] = self.wall_hits[cell].saturating_add(1);
+        }
+        if !high && self.wall_hits[cell] >= missile::WALL_HITS_PER_COLLAPSE {
             self.wall_hits[cell] = 0;
             // `Wall_Collapse` (`FUN_0047DFE0`) — surface 9, flags 2, elevation
             // 0, and one point of breach score *and* one of wall damage for
@@ -2147,9 +2307,36 @@ impl BattleRunner {
         }
     }
 
-    /// Try to move figure `i` into `next`, reproducing `Cell_TryEnter`'s
-    /// outcomes: free, blocked by a friendly, impassable, or an enemy.
+    /// Try to move figure `i` into `next` — `BattleMan_TryStepDir`, and the two
+    /// things it can set off before a step is decided.
+    ///
+    /// * **A siege tower tests its leading edge**, `Cell_TryEnterEngine`'s three
+    ///   or five cells, and **docks** if that is refused and there is a wall to
+    ///   dock with — [`Self::tower_step`].
+    /// * **A besieger stepping onto a bridge sets it alight.** `Cell_TryEnter`'s
+    ///   first statement is `if (surface == 7 && side == 4) FUN_0048551D(cell)`,
+    ///   before it has decided anything, and it decides on the flags and height
+    ///   it read *before* the fire cleared them. So the fire is lit after the
+    ///   decision here, which is the same answer. Engines use
+    ///   `Cell_TryEnterEngine`, which has no such test.
     fn enter(&mut self, i: usize, next: Pos) {
+        let troop = self.fighters[i].troop;
+        if troop == Troop::SiegeTowers && self.tower_step(i, next) {
+            return;
+        }
+        let dst = next.y as usize * DIM + next.x as usize;
+        let lights = self.fighters[i].side == SIDE_B
+            && !fire::is_engine(troop)
+            && self.field.cells[dst].surface == fire::SURFACE_BRIDGE;
+        self.enter_cell(i, next);
+        if lights {
+            self.bridge_fire_at(next.x as i32, next.y as i32);
+        }
+    }
+
+    /// `Cell_TryEnter`'s outcomes: free, blocked by a friendly, impassable, or
+    /// an enemy.
+    fn enter_cell(&mut self, i: usize, next: Pos) {
         let dst = next.y as usize * DIM + next.x as usize;
         // **The castle, before anything else.** `Cell_TryEnter` tests `0x40`,
         // then `0x20`, then `0x08` before it looks at the occupant, and each of
@@ -2234,6 +2421,21 @@ impl BattleRunner {
                     let (ua, ub) = (self.unit_of(i), self.unit_of(other));
                     self.join_melee(ua);
                     self.join_melee(ub);
+                    // **A man who walks into a pot of oil is poured on.**
+                    // `BattleMan_Step`'s 999 arm locks the pot into state 4
+                    // with him as its opponent — it tests the walker's troop,
+                    // not the pot's — and the pot's next `Melee_Tick` opens
+                    // with `if (troopType == 10) FUN_0047A814(pot,
+                    // opponent.mapX, opponent.mapY)`. Poured here at the
+                    // contact rather than on the pot's own next frame: the
+                    // walker has not moved, so the cell is the same. `[D]` on
+                    // the frame. A walker that is itself oil, or an engine,
+                    // never reaches the 999 arm.
+                    if self.fighters[other].troop == Troop::Oil && self.fighters[i].troop.index() < 7 {
+                        let at = (self.fighters[i].x, self.fighters[i].y);
+                        self.pour_oil(other, at);
+                        return;
+                    }
                     let (a, b) = (self.fighters[i].sim, self.fighters[other].sim);
                     self.sim.engage(a, b);
                     self.fighters[i].anim = Motion::Attacking;
@@ -2527,6 +2729,340 @@ impl BattleRunner {
             }
             Outcome::Unreachable => f.barred = f.barred.saturating_add(1),
         }
+    }
+
+    // -- fire, oil and the tower --------------------------------------------
+
+    /// `g_battleSizeClass` — see [`crate::fire::burn`], its one reader here.
+    pub fn battle_size_class(&self) -> u8 {
+        self.size_class
+    }
+
+    /// Re-derive one cell's copies — the blocked map and the AI's surfaces —
+    /// after a fire, a pour or a dock has written it. The original's order
+    /// handlers read the live array, so ours have to see a burning cell the
+    /// frame it burns.
+    fn sync_cell(&mut self, c: usize) {
+        let cell = self.field.cells[c];
+        self.blocked[c] = cell.impassable();
+        self.ai_field.surface[c] = cell.surface;
+        self.ai_field.elevation[c] = cell.elevation;
+    }
+
+    /// **`Battle_UpdateAllMen`'s head, for one figure** — what the sweep does
+    /// before it dispatches the troop's tick.
+    ///
+    /// ```c
+    /// if (surface == 10)   BattleMan_BurnTick(man);
+    /// if (surface == 0x11) BattleMan_BurnTick(man);
+    /// if (surface == 0x0F && man.ownerIsHuman) DAT_005530E8++;
+    /// ```
+    ///
+    /// The original counts every figure with an owner, a corpse on its eighty
+    /// frames included; ours has no corpse lifetime and counts the living.
+    /// `[D]`.
+    fn update_man(&mut self, i: usize) {
+        let (sim, troop, side, cell) = {
+            let f = &self.fighters[i];
+            (f.sim, f.troop, f.side, f.y as usize * DIM + f.x as usize)
+        };
+        let surface = self.field.cells[cell].surface;
+        if surface == fire::SURFACE_BURNING || surface == fire::SURFACE_WOOD_BURNING {
+            let class = self.size_class;
+            if fire::burn(&mut self.sim.figures[sim], class, fire::is_engine(troop)) {
+                self.sim.cues.burn_death(side);
+            }
+        }
+        if surface == fire::SURFACE_WOODLAND
+            && self.sim.figures[sim].owner_is_human
+            && self.sim.figures[sim].is_alive()
+        {
+            self.humans_in_woods += 1;
+        }
+    }
+
+    /// `Missile_UpdateAll`'s class-7 arm — the cross a stream of oil burns
+    /// under itself. See [`fire::OIL_CROSS`].
+    fn oil_cross(&mut self, slot: usize) {
+        let m = *self.missiles.get(slot);
+        let (x, y) = (m.cell_x as i32, m.cell_y as i32);
+        let base = m.ticks_flown.wrapping_sub(1).wrapping_mul(0x20);
+        for (dx, dy, bias) in fire::OIL_CROSS {
+            let (cx, cy) = (x + dx, y + dy);
+            if !(0..DIM as i32).contains(&cx) || !(0..DIM as i32).contains(&cy) {
+                continue;
+            }
+            let s = self.field.cells[cy as usize * DIM + cx as usize].surface;
+            if s == fire::SURFACE_BRIDGE || s == fire::SURFACE_BURNING {
+                continue;
+            }
+            let c = fire::ignite(&mut self.field, &mut self.missiles, cx, cy, base.wrapping_add(bias));
+            self.sync_cell(c);
+        }
+    }
+
+    /// **Pour a pot of oil at a cell** — `FUN_0047A814` (`0x0047A814`).
+    ///
+    /// ```c
+    /// Missile_Spawn(pot.owner, pot.mapX, pot.mapY, x, y);  …class 7…
+    /// for (i = 0; i < 4; i++) Missile_Step();
+    /// pot.state = 2;
+    /// pot.polarDirc = pot.dirc = the longer axis toward (x, y);
+    /// FUN_004262CF(3);                                     /* pouroil.wav */
+    /// ```
+    ///
+    /// **The pot is spent**: state 2, the corpse state. It pours once and is a
+    /// casualty of its own pour, which is why a garrison's oil is counted in
+    /// pots and not in men. With a hundred records in flight the spawn fails
+    /// and the original runs its four steps on a record past the array; here
+    /// there is no stream, and the pot is spent and the pour heard regardless,
+    /// as those writes are unconditional.
+    ///
+    /// The original's own loop in `BattleUnit_Order` walks figures by owner,
+    /// so a pot that poured less than eighty frames ago — still a corpse with
+    /// an owner — would pour **again** if its unit were re-ordered downhill.
+    /// This crate has no corpse lifetime and only the living pour. `[D]`.
+    fn pour_oil(&mut self, pot: usize, to: (u8, u8)) {
+        let sim = self.fighters[pot].sim;
+        let from = (self.fighters[pot].x, self.fighters[pot].y);
+        let owner = self.sim.figures[sim].owner;
+        if let Some(slot) = self.missiles.alloc() {
+            *self.missiles.get_mut(slot) = fire::oil_record(owner, sim, from, to);
+            for _ in 0..fire::OIL_LAUNCH_STEPS {
+                if !self.step_missile(slot) {
+                    break;
+                }
+            }
+        }
+        {
+            let f = &mut self.sim.figures[sim];
+            f.state = State::Dead;
+            f.opponent = None;
+        }
+        let facing = fire::pour_facing(from, to);
+        self.fighters[pot].polar = facing;
+        self.fighters[pot].facing = facing;
+        self.sim.cues.oil_pour();
+    }
+
+    /// **`BattleUnit_Order`'s oil loop** — every living pot of `unit` pours at
+    /// `(x, y)` when [`fire::order_pours`] says the order is downhill.
+    fn pour_on_order(&mut self, unit: usize, x: i16, y: i16) {
+        if unit == 0 || unit > MAX_UNITS || !self.units.get(unit).is_live() {
+            return;
+        }
+        let at = (x.clamp(0, DIM as i16 - 1) as u8, y.clamp(0, DIM as i16 - 1) as u8);
+        let dest = self.field.at(at.0 as usize, at.1 as usize).surface;
+        for i in 0..self.fighters.len() {
+            let sim = self.fighters[i].sim;
+            if self.fighters[i].troop != Troop::Oil
+                || self.sim.figures[sim].unit as usize != unit
+                || !self.sim.figures[sim].is_alive()
+            {
+                continue;
+            }
+            let here =
+                self.field.cells[self.fighters[i].y as usize * DIM + self.fighters[i].x as usize].surface;
+            if fire::order_pours(here, dest) {
+                self.pour_oil(i, at);
+            }
+        }
+    }
+
+    /// `Melee_AdjacentEnemyDir` (`0x004972F9`) reduced to the question
+    /// [`Self::step_one`] asks of it: **is the first enemy it would step at a
+    /// pot of oil?** Eight neighbours in facing order, an enemy by owner, at
+    /// the figure's own height, and not within a cell of the field's edge.
+    fn adjacent_oil(&self, i: usize) -> Option<usize> {
+        let f = &self.fighters[i];
+        let (x, y) = (f.x as i32, f.y as i32);
+        if x < 1 || y < 1 || x >= DIM as i32 - 1 || y >= DIM as i32 - 1 {
+            return None;
+        }
+        let mine = self.sim.figures[f.sim].owner;
+        let here = self.field.cells[y as usize * DIM + x as usize].elevation;
+        for (dx, dy) in FACING_DELTA {
+            let c = (y + dy) as usize * DIM + (x + dx) as usize;
+            let Some(o) = self.occupant[c] else { continue };
+            let o = o as usize;
+            if self.sim.figures[self.fighters[o].sim].owner == mine
+                || self.field.cells[c].elevation != here
+            {
+                continue;
+            }
+            return (self.fighters[o].troop == Troop::Oil && self.is_alive(o)).then_some(o);
+        }
+        None
+    }
+
+    /// **A siege tower's step** — `Cell_TryEnterEngine`, and `FUN_00491492`
+    /// when it refuses.
+    ///
+    /// Returns `true` when the step was consumed: the tower docked, or it is
+    /// stopped. `false` means the leading edge is clear and the ordinary mover
+    /// takes it from here.
+    ///
+    /// When the edge is refused and there is nowhere to dock, the original
+    /// tries `FUN_004912EC` — a side-step through three rotations each way —
+    /// and gives up on its destination within three cells of it, else waits a
+    /// hundred frames. The side-step is not built; the tower gives up within
+    /// three cells and otherwise stands.
+    fn tower_step(&mut self, i: usize, next: Pos) -> bool {
+        let (x, y) = (self.fighters[i].x, self.fighters[i].y);
+        let Some(dir) = facing_from_delta(next.x as i32 - x as i32, next.y as i32 - y as i32) else {
+            return false;
+        };
+        if self.engine_edge_is_clear(i, dir) {
+            return false;
+        }
+        if self.dock_tower(i) {
+            return true;
+        }
+        let f = &mut self.fighters[i];
+        if chebyshev(f.x as i16, f.y as i16, f.target.0 as i16, f.target.1 as i16) < 3 {
+            f.target = (f.x, f.y);
+            f.path.clear();
+        }
+        f.anim = Motion::Idle;
+        true
+    }
+
+    /// **`Cell_TryEnterEngine` (`0x00490C59`)** for a tower: the leading edge
+    /// of a 3 × 3 footprint, from [`crate::siege::ENGINE_EDGE_ORTHO`] or
+    /// [`crate::siege::ENGINE_EDGE_DIAG`].
+    ///
+    /// ```c
+    /// every edge cell: elevation within 1 of the engine's own, else 2;
+    ///                  flags & 0x90 -> 2;  flags & 0x20 or 0x40 -> 6 for a ram, 2 otherwise;
+    ///                  a figure there -> counted;
+    /// any figure counted -> 2, else 1
+    /// ```
+    ///
+    /// **Any figure in the edge stops an engine**, friend or enemy, which is
+    /// what makes a tower hard to push through its own army. Two cells from the
+    /// field's edge it is stopped outright. **Only a tower is tested this
+    /// way**: our rams and catapults still step as one cell, as they did
+    /// before, and that is a deviation of this crate's, noted rather than
+    /// widened.
+    fn engine_edge_is_clear(&self, i: usize, dir: u8) -> bool {
+        let (x, y) = (self.fighters[i].x as i32, self.fighters[i].y as i32);
+        let (lo, hi) = (2, DIM as i32 - 2);
+        let off_edge = match dir {
+            0 => y < lo,
+            1 => x >= hi || y < lo,
+            2 => x >= hi,
+            3 => x >= hi || y >= hi,
+            4 => y >= hi,
+            5 => x < lo || y >= hi,
+            6 => x < lo,
+            _ => x < lo || y < lo,
+        };
+        if off_edge {
+            return false;
+        }
+        let own = self.field.cells[y as usize * DIM + x as usize].elevation as i32;
+        let edge: &[(i32, i32)] = if dir & 1 == 0 {
+            &crate::siege::ENGINE_EDGE_ORTHO[dir as usize]
+        } else {
+            &crate::siege::ENGINE_EDGE_DIAG[dir as usize]
+        };
+        let mut figures = 0;
+        for &(dx, dy) in edge {
+            let (cx, cy) = (x + dx, y + dy);
+            if !(0..DIM as i32).contains(&cx) || !(0..DIM as i32).contains(&cy) {
+                return false;
+            }
+            let c = cy as usize * DIM + cx as usize;
+            let cell = self.field.cells[c];
+            let e = cell.elevation as i32;
+            if e < own - 1 || e > own + 1 {
+                return false;
+            }
+            let refused = terrain::flag::NO_ENTRY | crate::siege::FLAG_WALL | crate::siege::FLAG_DRAWBRIDGE;
+            if cell.flags & refused != 0 {
+                return false;
+            }
+            if self.occupant[c].is_some() {
+                figures += 1;
+            }
+        }
+        figures == 0
+    }
+
+    /// **A siege tower docks** — `FUN_00491492` (`0x00491492`), the whole of
+    /// its success arm. See [`crate::siege::lay_tower_ramp`] for what it writes.
+    ///
+    /// ```c
+    /// wall.flags = 0;  BattleMan_Destroy(tower);  FUN_004921E5(…);  …frames…
+    /// Path_BuildTerrainTemplate();  Path_BuildElevation();
+    /// FUN_0048EE46(wall);                       /* a defence post */
+    /// g_siegeBreachScore += 3;  g_siegeApproachScore += 4;
+    /// FUN_004262CF(0x11);                       /* siegedoc.wav */
+    /// ```
+    fn dock_tower(&mut self, i: usize) -> bool {
+        let (x, y, polar) = {
+            let f = &self.fighters[i];
+            (f.x as i32, f.y as i32, f.polar)
+        };
+        let Some((dir, wall)) = crate::siege::tower_dock_site(&self.field, x, y, polar) else {
+            return false;
+        };
+        self.destroy_fighter(i);
+        let touched = crate::siege::lay_tower_ramp(&mut self.field, x, y, dir, wall);
+        for c in touched {
+            self.sync_cell(c);
+        }
+        self.file_defence_post(wall);
+        self.ai.breach_score += crate::siege::DOCK_BREACH_SCORE;
+        self.ai.approach_score += crate::siege::DOCK_APPROACH_SCORE;
+        self.sim.cues.tower_dock();
+        true
+    }
+
+    /// `BattleMan_Destroy` (`0x0046EBE4`) — **the figure is gone**, not dead:
+    /// the record is cleared, so there is no corpse, no death and no cry. Here
+    /// the figure keeps its index and is left with no men, dead, off its cell,
+    /// and already at the last frame of falling so nothing is drawn falling.
+    fn destroy_fighter(&mut self, i: usize) {
+        let sim = self.fighters[i].sim;
+        {
+            let f = &mut self.sim.figures[sim];
+            f.men = 0;
+            f.hits = 0;
+            f.state = State::Dead;
+            f.opponent = None;
+            f.target = None;
+        }
+        let cell = self.fighters[i].y as usize * DIM + self.fighters[i].x as usize;
+        if self.occupant[cell] == Some(i as u16) {
+            self.occupant[cell] = None;
+        }
+        let f = &mut self.fighters[i];
+        f.anim = Motion::Dying;
+        f.phase = 95;
+        f.path.clear();
+    }
+
+    /// `FUN_0048EE46` (`0x0048EE46`) — **append a cell to the defence-post
+    /// table**: the first empty of the first nineteen slots, and when all
+    /// nineteen are taken, **the twentieth is overwritten**, every time. No
+    /// test for a cell already there. `[V]`.
+    fn file_defence_post(&mut self, cell: usize) {
+        let posts = &mut self.ai_field.defence_posts;
+        match posts[..19].iter().position(|&p| p == 0) {
+            Some(k) => posts[k] = cell,
+            None => posts[19] = cell,
+        }
+    }
+
+    /// [`fire::bridge_fire`], with the cells it wrote re-derived and the call
+    /// heard — `FUN_0048551D` opens with `Sound_PlayFile("dest_ind.wav")`.
+    fn bridge_fire_at(&mut self, x: i32, y: i32) {
+        let touched = fire::bridge_fire(&mut self.field, &mut self.missiles, x, y);
+        for c in touched {
+            self.sync_cell(c);
+        }
+        self.sim.cues.bridge_fire();
     }
 
     fn opponent_of(&self, i: usize) -> Option<usize> {
@@ -2954,6 +3490,8 @@ impl BattleRunner {
             u.target_y = hy;
         }
         let _ = woodland;
+        let (tx, ty) = (self.units.get(unit).target_x, self.units.get(unit).target_y);
+        self.pour_on_order(unit, tx, ty);
         self.reform_unit(unit);
     }
 
@@ -3064,6 +3602,10 @@ pub fn blank_field() -> Battlefield {
     layer[60 * DIM + 40] = 0x0F;
     terrain::build(&layer, 1)
 }
+
+#[cfg(test)]
+#[path = "runner_fire_tests.rs"]
+mod fire_tests;
 
 #[cfg(test)]
 mod tests {
@@ -3590,6 +4132,7 @@ mod tests {
                 reroutes: 0,
                 moat_cell: None,
                 moat_load: 0,
+                polar: 0,
             });
             r.occupant[40 * DIM + x as usize] = Some((r.fighters.len() - 1) as u16);
         }
@@ -3663,6 +4206,7 @@ mod tests {
             reroutes: 0,
             moat_cell: None,
             moat_load: 0,
+            polar: 0,
         });
         r.occupant[40 * DIM + 24] = Some((r.fighters.len() - 1) as u16);
         let before = r.sim.figures[screen].hits;
@@ -3732,6 +4276,7 @@ mod tests {
             reroutes: 0,
             moat_cell: None,
             moat_load: 0,
+            polar: 0,
         });
         r.occupant[40 * DIM + 22] = Some((r.fighters.len() - 1) as u16);
         r.run(600);

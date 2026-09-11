@@ -52,14 +52,17 @@
 //! cells with no conversion anywhere. That is why [`MissileStats::range_ticks`]
 //! and [`MissileStats::range`] are the same fact twice.
 //!
-//! # What is not here
+//! # The three classes that are not weapons
 //!
 //! Missile classes **4** (catapult debris), **5** (a burning cell) and **7**
-//! (the boiling-oil stream) share the same 100-slot array in the original.
-//! Debris is modelled as a spent shot that counts down; fire and oil are not,
-//! and `l2-sim` has no burning-cell model for them to feed. `docs/battle.md`
-//! §0 calls class 7 *"falling men"*; it is boiling oil, and the only spawner in
-//! the binary is the oil path.
+//! (the boiling-oil stream) share the same 100-slot array in the original, and
+//! so they share it here: a battle full of fire has fewer arrows to loose.
+//! Debris is a spent shot that counts down. Classes 5 and 7 are
+//! [`crate::fire`]'s — a fire is a record that sits on one cell and puts the
+//! cell's surface back when it goes out, and a stream of oil is a record that
+//! flies and sets a cross of cells burning under itself every tick.
+//! `docs/battle.md` §0 once called class 7 *"falling men"*; it is boiling oil,
+//! and the only spawner in the binary is `FUN_0047A814`.
 
 use crate::facing::facing_from_delta;
 use crate::figure::Figure;
@@ -105,6 +108,12 @@ pub const DEBRIS_TTL: i16 = 0x78;
 /// the one that lands.
 pub const WALL_HITS_PER_COLLAPSE: u8 = 16;
 
+/// **A wall this high cannot be shot down.** `Missile_Step`'s class-3 arm
+/// counts a hit only while `cell.elevation < 4`; at 4 and above the shot is
+/// debris with nothing counted and `Sound_PlaySlot(0x10)`, `catmiss.wav`.
+/// `[V]`.
+pub const WALL_TOO_HIGH: u8 = 4;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WeaponClass {
     Bow = 1,
@@ -113,8 +122,13 @@ pub enum WeaponClass {
 }
 
 /// The missile classes that are not weapons — the other three users of the same
-/// array. Only [`CLASS_DEBRIS`] is modelled.
+/// array. Class 6 does not exist: nothing in the binary writes it.
 pub const CLASS_DEBRIS: u8 = 4;
+/// A burning cell — `FUN_00485675` and `FUN_00485861` write it. See
+/// [`crate::fire`].
+pub const CLASS_FIRE: u8 = 5;
+/// A stream of boiling oil — `FUN_0047A814` is its only writer.
+pub const CLASS_OIL: u8 = 7;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MissileStats {
@@ -251,6 +265,17 @@ pub struct Missile {
     /// Damage, band-scaled and frozen at launch. Elevation, armour and the
     /// engine caps are applied at impact by [`resolve_power`].
     pub power: u16,
+    /// Record `+0x3E` — **the surface a fire burnt over**, which a
+    /// [`CLASS_FIRE`] record writes back when its countdown reaches 2.
+    /// `Missile_UpdateAll`'s class-5 arm, `[V]`. Zero on every other class.
+    pub saved_surface: u8,
+    /// Record `+0x44`, non-zero — **a fire arrow**. `BattleMan_FireMissile`
+    /// sets it for an AI unit of side 0 while more than three of a human's
+    /// figures stand in woodland, and `Missile_Step`'s first test then sets the
+    /// wood alight under it. `[V]`. The player's variant, where `+0x44` holds a
+    /// unit's `targetCell` and only that one cell catches, is written by
+    /// `BattleMan_StateCloseToAttack`, whose loose is not built.
+    pub fire_arrow: bool,
 }
 
 impl Missile {
@@ -264,7 +289,7 @@ impl Missile {
     /// The snap moves the *direction* only, never the position: a near-vertical
     /// diagonal is drawn as vertical. It matters here because `dir` is what the
     /// missile coasts along once its line is spent.
-    fn setup_line(&mut self) {
+    pub(crate) fn setup_line(&mut self) {
         let dx = (self.target_x - self.x).unsigned_abs() as i32;
         let dy = (self.target_y - self.y).unsigned_abs() as i32;
         self.dx = dx;

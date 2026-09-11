@@ -77,8 +77,23 @@ pub struct Cues {
     loosed: [u32; 3],
     /// A catapult shot counted against a wall cell.
     walls_struck: u32,
+    /// A catapult shot reached a wall cell standing **four or more high** and
+    /// was not counted — `Missile_Step`'s other class-3 arm, the one that
+    /// plays `Sound_PlaySlot(0x10)`.
+    walls_missed: u32,
     /// `Wall_Smash` (`FUN_0049694F`) opened a stretch of wall.
     walls_smashed: u32,
+    /// A pot of boiling oil was poured — `FUN_0047A814`, from either of its
+    /// two callers, `Melee_Tick` and `BattleUnit_Order`.
+    oil_poured: u32,
+    /// A siege tower docked with a wall — `FUN_00491492`'s success arm.
+    towers_docked: u32,
+    /// A bridge caught fire — `FUN_0048551D`, from `Missile_Step` or from
+    /// `Cell_TryEnter`. Once per call, as the original plays it once per call.
+    bridges_fired: u32,
+    /// A figure standing in fire lost its last man, by **its own** side:
+    /// `[side 0, side 4]` — `BattleMan_BurnTick`'s `men < 1` arm.
+    burn_deaths: [u32; 2],
 }
 
 fn side_index(side: Side) -> usize {
@@ -127,6 +142,21 @@ impl Cues {
     pub fn walls_smashed(&self) -> u32 {
         self.walls_smashed
     }
+    pub fn walls_missed(&self) -> u32 {
+        self.walls_missed
+    }
+    pub fn oil_poured(&self) -> u32 {
+        self.oil_poured
+    }
+    pub fn towers_docked(&self) -> u32 {
+        self.towers_docked
+    }
+    pub fn bridges_fired(&self) -> u32 {
+        self.bridges_fired
+    }
+    pub fn burn_deaths(&self, side: Side) -> u32 {
+        self.burn_deaths[side_index(side)]
+    }
 
     /// **One of every occasion the record can hold** — for a census of what a
     /// listener can be asked to play, not for a battle.
@@ -144,7 +174,12 @@ impl Cues {
             missile_deaths: 1,
             loosed: [1; 3],
             walls_struck: 1,
+            walls_missed: 1,
             walls_smashed: 1,
+            oil_poured: 1,
+            towers_docked: 1,
+            bridges_fired: 1,
+            burn_deaths: [1; 2],
         }
     }
 
@@ -160,10 +195,15 @@ impl Cues {
             .chain(self.missile_hits.iter().zip(&earlier.missile_hits))
             .chain(self.missile_casualties.iter().zip(&earlier.missile_casualties))
             .chain(self.loosed.iter().zip(&earlier.loosed))
+            .chain(self.burn_deaths.iter().zip(&earlier.burn_deaths))
             .chain([
                 (&self.missile_deaths, &earlier.missile_deaths),
                 (&self.walls_struck, &earlier.walls_struck),
+                (&self.walls_missed, &earlier.walls_missed),
                 (&self.walls_smashed, &earlier.walls_smashed),
+                (&self.oil_poured, &earlier.oil_poured),
+                (&self.towers_docked, &earlier.towers_docked),
+                (&self.bridges_fired, &earlier.bridges_fired),
             ]);
         for (now, was) in pairs {
             if now < was {
@@ -204,5 +244,20 @@ impl Cues {
     }
     pub(crate) fn wall_smashed(&mut self) {
         bump(&mut self.walls_smashed);
+    }
+    pub(crate) fn wall_missed(&mut self) {
+        bump(&mut self.walls_missed);
+    }
+    pub(crate) fn oil_pour(&mut self) {
+        bump(&mut self.oil_poured);
+    }
+    pub(crate) fn tower_dock(&mut self) {
+        bump(&mut self.towers_docked);
+    }
+    pub(crate) fn bridge_fire(&mut self) {
+        bump(&mut self.bridges_fired);
+    }
+    pub(crate) fn burn_death(&mut self, side: Side) {
+        bump(&mut self.burn_deaths[side_index(side)]);
     }
 }
