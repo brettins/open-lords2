@@ -33,7 +33,7 @@ subagent, so it stays short. Read the linked document before working in that are
    a player met a panel of unlabelled numbers and reported *"no information about feeding
    peasants is available."* **A group with one consumer *is* that screen's vocabulary;
    reading the painter without reading the group is reading half the function.**
-   `docs/decisions.md` CNEW-strings-are-the-spec.
+   `docs/decisions.md` C133.
 
 ## Where to look
 

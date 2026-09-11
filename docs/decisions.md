@@ -5809,7 +5809,7 @@ one in all four or `docs/records.json`'s `Industry` base is wrong; nothing settl
 confidently wrong numbers on screen would be worse than four blanks, so they stay blank and the
 record layout is the prerequisite.
 
-**CNEW-strings-are-the-spec — we read these panels' numbers out of the binary and wrote their
+**C133 — we read these panels' numbers out of the binary and wrote their
 words ourselves, and the words are where the game explains itself.**
 
 A player: *"Also sorely missing: 'All your people are fed by dairy.'"*
@@ -6125,7 +6125,7 @@ derived rather than named, because the field markers under `brush` are drawn for
 selected county when the player owns it and are the visible half of a *different*
 invention that is deliberately kept.
 
-**CNEW-subtile — Half of `Unit_StepOnce` was missing, and the tests that
+**C134 — Half of `Unit_StepOnce` was missing, and the tests that
 noticed were read as fixtures.**
 
 A player, on build `3F9C11E`: *"The merchants don't move right when you click End Turn, and

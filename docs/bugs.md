@@ -1602,7 +1602,7 @@ emptiness test does not consult, in a slot the next write replaces wholesale. Re
 because the *next* reader of that function will see the mismatched indices and have to work
 out whether it matters, and this is the answer.
 
-### BNEW-group-87-dead-strings — five of the ration panel's twelve strings are drawn by nothing
+### B96 — five of the ration panel's twelve strings are drawn by nothing
 
 `L2.eng` group 87 is the ration panel's vocabulary and has **exactly one consumer in the whole
 binary**: `Panel_Ration` (`0x00411B72`). Every access was enumerated — seven `Eng_DrawString`

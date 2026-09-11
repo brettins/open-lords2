@@ -511,7 +511,7 @@ fn a_hundred_turns_of_england() {
 ///
 /// # It has gone red once, and this is the reading it asked for
 ///
-/// `Unit_StepOnce`'s sub-tile counter (`docs/decisions.md` **CNEW-subtile**)
+/// `Unit_StepOnce`'s sub-tile counter (`docs/decisions.md` **C134**)
 /// made a unit take 8 ticks to cross a road tile and 32 to cross open ground,
 /// where every earlier build crossed one a tick. Tiles a *season* did not
 /// change — the move allowance is the budget and it is untouched — but the

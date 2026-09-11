@@ -584,7 +584,7 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         // part-way through a tile carries that progress on disk and would get
         // it back; here it starts the next order from the near edge instead —
         // at worst fifteen-sixteenths of one tile's crossing, once, on the
-        // first leg after a load. `docs/decisions.md` **CNEW-subtile**.
+        // first leg after a load. `docs/decisions.md` **C134**.
         //
         // The latch defaults **set**, which is `Unit_Spawn`'s own value
         // (`0x0046E1B0`: `field_0x14b |= 1`) and the state the original leaves

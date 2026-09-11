@@ -320,7 +320,7 @@ pub struct Unit {
     /// and only the tiles after it cost the full crossing. Started clear
     /// instead, every unit in the game spends its first eight (or thirty-two)
     /// ticks standing still, and six unit tests of the driver read that as a
-    /// stalled sweep. `docs/decisions.md` **CNEW-subtile**.
+    /// stalled sweep. `docs/decisions.md` **C134**.
     pub at_tile_edge: bool,
     /// `+0x14F` *sh* — index into `L2.eng` group `93 + owner`, 0…23. For a
     /// merchant the same byte is the route number.

@@ -336,7 +336,7 @@ pub enum Pass {
     /// break an alliance, and an alliance with a realm that had just been
     /// eliminated was never taken down. `tests/long_game.rs` catches exactly
     /// that as a broken invariant, and it caught it only once
-    /// `docs/decisions.md` **CNEW-subtile** slowed the world down enough for
+    /// `docs/decisions.md` **C134** slowed the world down enough for
     /// realm 2 to die while realm 5 was still allied to it.
     ///
     /// A producer that is complete and a consumer that is absent look identical

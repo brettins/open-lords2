@@ -397,7 +397,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   this version nothing in the workspace had them: a unit entered a tile on
 ///   **every** tick instead of every eighth (road) or thirty-second (open
 ///   ground). A player: *"the merchants don't move right when you click End
-///   Turn, and then… move insanely fast."* `docs/decisions.md` **CNEW-subtile**.
+///   Turn, and then… move insanely fast."* `docs/decisions.md` **C134**.
 ///
 ///   **Refusal rather than default, and this one is squarely inside the rule
 ///   entry 16 sharpened**: a defaulted load feeds the simulation directly. A

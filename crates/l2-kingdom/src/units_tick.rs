@@ -782,7 +782,7 @@ pub fn refresh_allowances(units: &mut Units) {
 /// takes eighty ticks rather than ten. Without this function it took ten — one
 /// tile every tick, which at our 16 ms tick is sixty-two tiles a second, and
 /// what a player described as *"they move insanely fast"*. `docs/decisions.md`
-/// **CNEW-subtile**.
+/// **C134**.
 ///
 /// **It is not a display value and it must not be moved above this crate.**
 /// The tick a unit arrives on decides which tick a battle starts on, which
@@ -866,7 +866,7 @@ mod tests {
     /// asserted the defect**, in its name, its doc comment and its numbers:
     /// *"fifteen points on a road is fifteen tiles, and it takes fifteen
     /// ticks."* Fifteen tiles is right and fifteen ticks was the whole of
-    /// `docs/decisions.md` **CNEW-subtile** — the missing half of
+    /// `docs/decisions.md` **C134** — the missing half of
     /// `Unit_StepOnce` (`0x0046634D`), which admits every tick on a road and
     /// needs **eight** admissions to cross a sixteen-wide tile. It is left
     /// here rather than deleted because a test that has to be rewritten to

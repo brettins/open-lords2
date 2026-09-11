@@ -247,7 +247,7 @@ fn with_a_map() -> Game {
 /// `Units_Tick` runs on ordinary frames as well as inside a turn —
 /// [`turn::tick_units_only`], `docs/decisions.md` C115 — and since
 /// `Unit_StepOnce`'s sub-tile counter landed (`docs/decisions.md`
-/// **CNEW-subtile**) a unit takes 8 ticks to cross a road tile and 32 to cross
+/// **C134**) a unit takes 8 ticks to cross a road tile and 32 to cross
 /// anything else. **Nothing in the seven phases waits on the human's armies**:
 /// phase 2 is sieges and phase 4 is the AI's. So a test that ends the turn on
 /// the same call as the order is asserting a race between the phases and the
@@ -295,7 +295,7 @@ fn an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended() {
 
     // **It moved, and it did not arrive — and the second half is the rule, not
     // a shortfall.** Fifteen road tiles is 113 ticks since `Unit_StepOnce`'s
-    // sub-tile counter landed (`docs/decisions.md` **CNEW-subtile**), and
+    // sub-tile counter landed (`docs/decisions.md` **C134**), and
     // *nothing in the seven phases waits on the human's armies* — phase 2 is
     // sieges, phase 4 is the AI's. So how far it gets is how long the phases
     // happen to take, and the claim this test exists for is the one above it:

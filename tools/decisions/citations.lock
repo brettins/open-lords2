@@ -15,6 +15,7 @@
 # Generated. Do not hand-edit except to accept a single deliberate change.
 .github/workflows/ci.yml	C26	8ee8f43c4642	e8179d1f76a8
 CLAUDE.md	C124	9cf9ee1c286d	38723617b085
+CLAUDE.md	C133	ea1ee3c1202e	91fcca97cc98
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
 CLAUDE.md	C61	d769a5178b2d	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
@@ -119,12 +120,16 @@ crates/l2-game/tests/audio_install.rs	C116	6b5e72a469c5	1c49feddd496
 crates/l2-game/tests/audio_wiring.rs	C116	148cce61a825	1c49feddd496
 crates/l2-game/tests/audio_wiring.rs	C116	72ff009b041a	1c49feddd496
 crates/l2-game/tests/audio_wiring.rs	C116	f98ddc5b0bad	1c49feddd496
+crates/l2-game/tests/castles.rs	C115	8abcbf2c939a	085c9b771281
+crates/l2-game/tests/castles.rs	C115	f291bedec323	085c9b771281
 crates/l2-game/tests/diplomacy.rs	C26	287743d8f84c	e8179d1f76a8
 crates/l2-game/tests/diplomacy.rs	C62	bcbec6054c4e	ebb6a7ec3711
 crates/l2-game/tests/ground.rs	C61	297b0f233ba7	60611046b40d
+crates/l2-game/tests/long_game.rs	C134	7b2b965b84f1	d12cd2f96f79
 crates/l2-game/tests/long_game.rs	C26	8f66e1f9a1a8	e8179d1f76a8
 crates/l2-game/tests/long_game.rs	C26	b81c294dcd29	e8179d1f76a8
-crates/l2-game/tests/long_game.rs	C27	5e967af981b8	1db64332cb22
+crates/l2-game/tests/long_game.rs	C27	7ceabf7fa8c1	1db64332cb22
+crates/l2-game/tests/long_game.rs	C27	b651893267c8	1db64332cb22
 crates/l2-game/tests/long_game.rs	C27	c0900980b820	1db64332cb22
 crates/l2-game/tests/merchant.rs	C50	444a9e4940bc	85416be0b69b
 crates/l2-game/tests/merchant.rs	C53	7cd616c516aa	cad36ab11dbf
@@ -149,6 +154,9 @@ crates/l2-game/tests/screens.rs	C48	a3f70d784d36	9e81512f4c0d
 crates/l2-game/tests/screens.rs	C61	0666dfecda29	60611046b40d
 crates/l2-game/tests/shell.rs	C22	df2346f350a7	0364b53a921d
 crates/l2-game/tests/siege_battle.rs	C35	7b2f7bc2325e	193a1920e229
+crates/l2-game/tests/turn.rs	C115	e1e6a0456501	085c9b771281
+crates/l2-game/tests/turn.rs	C134	e56871c4814a	d12cd2f96f79
+crates/l2-game/tests/turn.rs	C134	f5c6ceb24b23	d12cd2f96f79
 crates/l2-game/tests/turn.rs	C19	2b27ff0ebcc9	ce538fe9a9e8
 crates/l2-kingdom/src/ai.rs	C13	b6951068455b	006e7d0b71a7
 crates/l2-kingdom/src/ai_farm.rs	C3	5a9c96365a5c	35bf3a86555f
@@ -177,11 +185,13 @@ crates/l2-kingdom/src/map.rs	C25	28b0c4932b46	5d466f0cb89c
 crates/l2-kingdom/src/mercenary.rs	C3	5338c04f3210	35bf3a86555f
 crates/l2-kingdom/src/movement.rs	C25	c507242adac1	5d466f0cb89c
 crates/l2-kingdom/src/movement.rs	C40	87816e7f9e43	d344563abef8
+crates/l2-kingdom/src/phase.rs	C134	37e077970852	d12cd2f96f79
 crates/l2-kingdom/src/phase.rs	C35	234e7ea17154	193a1920e229
 crates/l2-kingdom/src/population.rs	C20	11223ff82fe2	0ec8eeb4f874
 crates/l2-kingdom/src/ration.rs	C3	316be8511779	35bf3a86555f
 crates/l2-kingdom/src/realm.rs	C3	806d5d4cf93c	35bf3a86555f
 crates/l2-kingdom/src/save.rs	C123	763bc3ea2e6d	3a5cc2fec37d
+crates/l2-kingdom/src/save.rs	C134	8c3c2ccdc448	d12cd2f96f79
 crates/l2-kingdom/src/save.rs	C62	e48a60b5604b	ebb6a7ec3711
 crates/l2-kingdom/src/siege.rs	C27	582945d2a444	1db64332cb22
 crates/l2-kingdom/src/supply.rs	C47	9cf40849a6d8	ed7ea7df1f23
@@ -194,6 +204,9 @@ crates/l2-kingdom/src/tables.rs	C3	5cab149d2244	35bf3a86555f
 crates/l2-kingdom/src/tax.rs	C26	03649751764a	e8179d1f76a8
 crates/l2-kingdom/src/tax.rs	C26	2b481fbbd074	e8179d1f76a8
 crates/l2-kingdom/src/territory.rs	C34	9a3dae26c192	be3b535841d7
+crates/l2-kingdom/src/unit.rs	C134	fd68bb3094c3	d12cd2f96f79
+crates/l2-kingdom/src/units_tick.rs	C134	2125e205a9f4	d12cd2f96f79
+crates/l2-kingdom/src/units_tick.rs	C134	a2026c60465b	d12cd2f96f79
 crates/l2-kingdom/src/units_tick.rs	C35	37946754ead6	193a1920e229
 crates/l2-kingdom/src/units_tick.rs	C40	127ebcf1fbc7	d344563abef8
 crates/l2-kingdom/src/units_tick.rs	C40	c5db1b114558	d344563abef8
@@ -237,6 +250,7 @@ crates/l2-net/src/quirks.rs	C26	3666e846a6ab	e8179d1f76a8
 crates/l2-net/src/quirks.rs	C26	e75f82770f0b	e8179d1f76a8
 crates/l2-net/src/quirks.rs	C62	e187f3a3e544	ebb6a7ec3711
 crates/l2-net/tests/lobby.rs	C62	e3882440edf8	ebb6a7ec3711
+crates/l2-scenario/src/lib.rs	C134	55ce9f5adbe9	d12cd2f96f79
 crates/l2-scenario/src/lib.rs	C57	14b498ed2873	3b42b65157bf
 crates/l2-scenario/src/lib.rs	C62	578b7d16171a	ebb6a7ec3711
 crates/l2-scenario/src/lib.rs	C62	94a85e9708ab	ebb6a7ec3711
