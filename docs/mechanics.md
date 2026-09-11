@@ -325,6 +325,10 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   for themselves, and therefore do not eat from county stores. When foraging is on, building
   large castles and keeping your army inside is an effective way of avoiding starvation
   problems."* The garrison exemption is modelled — `l2_kingdom::unit`, `l2_kingdom::ration`.
+  **Switching it mid-game takes effect at once**: `Opt_ToggleArmyForaging` re-runs the ration
+  pass and the forecasts over every county on the flip, so the ration panel already counts
+  the armies when the options panel closes. Ours flipped the flag and left every county
+  describing the old rule until the season turned; `Kingdom::toggle_army_foraging` is the fix.
 - 🕳 **Exploration — wired end to end, and the fog itself is not built.** The game states the
   rule itself, in `L2.eng` group 218 index 3: *"When Exploration is turned on, the world
   outside your county is blacked out. It is gradually revealed as your armies move through
@@ -336,6 +340,19 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   says so. **The behaviour is not implemented**: no rule and no painter reads the flag, and
   the setup page prints `NOT IMPLEMENTED: EXPLORATION` under its grid while it is on
   (`docs/decisions.md` C21). The switch is honest rather than finished.
+
+**Every switch on the four options panels waits before it acts.** Tick a box and it goes
+down at once, and the setting changes twenty frames later — the same delay as the yes/no
+gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`.
+
+- 🕳 **Animations** (Display options) — **flips, and nothing in our engine reads it.** In the
+  original it chooses the battle-result box with the animated inset, the castle-building
+  videos, the message scroll's animation and the battle-outcome animation.
+- 🕳 **Tool tips** (Help options) — **flips, and nothing reads it**: the tooltip layer it
+  switches is not built.
+- ✅ **Full screen** — on any desktop that is not 256 colours the original closes the panel and
+  says *"Cannot change display."*, and so does ours. ❌ **Start game help** opens a Windows 3.1
+  help file and does nothing here.
 
   **What building it would take is now known and is smaller than it looks.** The original's
   seen bit is **`Tile.bank` bit `0x20`** (`docs/records.json`) — a run-time bit the map file

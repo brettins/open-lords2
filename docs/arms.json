@@ -116,9 +116,13 @@
     "",
     "So a percentage taken over this file is a percentage of what has been ENUMERATED, and the",
     "enumeration is still shaped by where somebody looked. Say so wherever the number is quoted.",
-    "AND WHAT ELSE IT EXCLUDES, measured rather than guessed. NINE of the twenty-seven modules in",
-    "crates/l2-game/src/screens/ carry NO `// arm:` marker and no record here at all: armoury.rs,",
-    "castle.rs, conquest.rs, index.rs, menu.rs, merchant.rs, options.rs, shells.rs and siege.rs.",
+    "AND WHAT ELSE IT EXCLUDES, measured rather than guessed. When this was first written NINE of the",
+    "twenty-seven modules in crates/l2-game/src/screens/ carried NO `// arm:` marker and no record",
+    "here at all: armoury.rs, castle.rs, conquest.rs, index.rs, menu.rs, merchant.rs, options.rs,",
+    "shells.rs and siege.rs. Re-measured on the options-panels branch it is SEVEN of twenty-nine --",
+    "conquest.rs, index.rs, menu.rs, merchant.rs, shells.rs, siege.rs and tip.rs -- because options.rs",
+    "is now enumerated whole and armoury.rs and castle.rs have gained a marker each without being",
+    "enumerated. A marker in a module is not a module enumerated; the `groups` flags say which are.",
     "Two of those are ours (index, menu) and shells.rs is a table. The rest are BUILT SCREENS with",
     "input handlers nobody has enumerated, so 0x08, 0x0A, 0x0C, 0x0D, 0x1B, 0x1D and 0x21 score zero",
     "the same way Screen_HandleInput did -- without ever appearing as a miss. divide.rs (0x11) was",
@@ -231,6 +235,11 @@
       "what": "g_screenId 0x00 and 0x10 -- Map_Click (0x0043CE1A), the campaign map's left-click dispatcher, and the four-clause 0x10 arm that is move-order mode.",
       "complete": false,
       "note": "THIS GROUP DID NOT EXIST, AND THE THREE DEFECTS THAT PRODUCED IT ALL LIVED IN IT. A player reported three things about selection on the campaign map -- an army that could not be deselected, a yellow outline round the selected county, and a click on grass opening the tax window. All three were fixed (C61 and C132) and NOT ONE of the arms involved was in this file: `right-column` covers x >= 478 and stops there, so Map_Click -- 1,263 bytes, the only writer of g_screenId = 2 in the binary, and the whole of what a left click on the map does -- scored zero WITHOUT EVER APPEARING AS A MISS. That is the _note's own \"the denominator is a PLACE, not a category\" happening to the campaign map, which is the screen the game opens on. `complete: false` because the enumeration here is Map_Click's own ladder, the 0x10 arm and the two screen-0 clauses either side of the Map_Click call; the rest of the screen-0 ladder is the `right-column` group's and the message scroll's. docs/decisions.md C139."
+    },
+    "options-panels": {
+      "what": "g_screenId 0x39, 0x42, 0x43 and 0x31 -- the four options panels, both places their input lives, and the fifth page that is ours",
+      "complete": true,
+      "note": "Enumerated from both sides. Screen_HandleInput's four Widget_Test calls name g_advancedOptWidgets, g_soundOptWidgets, g_displayOptWidgets and g_helpOptWidgets: twelve records, EVERY ONE KIND 5 and frame 25, and ours acted on the click on every row -- the yes/no gauntlets' defect on a screen nobody had inventoried, found while wiring Opt_ToggleTipScreens. Screen_FrameInput's four arms are the right release and Ui_OkButtonClicked on all four (ours closed on the press), and 0x39 alone has the sync latch. options.rs was one of the modules the file's own note named as carrying no marker. Reading the twelve handlers against what reads their flags in this engine found three rows that flip a field nothing reads (Exploration, Animations, Tool tips), one that was missing its whole second half (Army foraging's re-run of the ration pass), and one that did nothing where the original closes the panel and posts a message (Full screen). Also here: our Escape, our quirks page, and the orphaned kind-4 table beside the four tables that no call site tests."
     }
   },
   "arms": [
@@ -539,6 +548,18 @@
       "addr": "0x0040E7E4",
       "what": "Ui_OkButtonClicked -- the corner picture Ui_OkButton(0x1AC, 0x1B4, 0) stashed, and the third of this screen's three exits. It writes g_screenId = 0x04 like the other two and splits nothing.",
       "ours": "crates/l2-game/src/screens/divide.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0040E7E4/options-ok",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x31, 0x39, 0x42, 0x43",
+      "gesture": "left-release",
+      "addr": "0x0040E7E4",
+      "what": "Ui_OkButtonClicked() -- the corner picture at (404, 262) on 0x31, (392, 256) on 0x39 and 0x43, (392, 240) on 0x42 -- closes the panel to g_menuPrevScreen, ON THE RELEASE.",
+      "note": "Ours closed on the press. One record for four screens, because it is one implementation.",
+      "ours": "crates/l2-game/src/screens/options.rs",
       "evidence": "V"
     },
     {
@@ -978,6 +999,28 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/options-advanced-turn-lost",
+      "status": "missing",
+      "group": "options-panels",
+      "screen": "0x39",
+      "gesture": "none",
+      "addr": "0x0042FF10",
+      "what": "A state test, not a gesture, and on 0x39 ALONE: `if ((DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0)) && g_battlePhase == 0)` force-closes to g_menuPrevScreen. The sound, display and help panels have no such arm.",
+      "note": "Missing for 0x0042FF10/force-close-on-turn-end's reason: our End Turn resolves synchronously, so the latch cannot be set while this panel is up. The g_battlePhase == 0 clause is this arm's own -- in a battle the latch does not close it.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/options-right-close",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x31, 0x39, 0x42, 0x43",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "g_mouseRightReleased closes the panel to g_menuPrevScreen: the first test on 0x31, 0x42 and 0x43, the second on 0x39.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/panel-right-closes",
       "status": "reproduced",
       "group": "county-panels",
@@ -1194,6 +1237,160 @@
       "note": "THE DAT_0057D320 WRITE IS THE ONE THAT HAD NO COUNTERPART HERE, and without it page 4's Continue started the map list's slot -- which is 0, England, when nobody has touched the list. So the original campaign opened on its FIFTH map. docs/decisions.md C117.",
       "ours": "crates/l2-game/src/screens/setup.rs",
       "evidence": "V"
+    },
+    {
+      "id": "0x00434556/opt-advanced-farming",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x39",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434556",
+      "what": "Advanced options row 1: g_advancedOptWidgets record 0 (0x004DDC10), frame 25 at (280, 156), Widget_Test kind 5. The press puts frame 26 up and plays click3.wav; Opt_ToggleAdvancedFarming runs TWENTY FRAMES LATER, out of Widget_Test's countdown, and flips g_optAdvancedFarming.",
+      "note": "Ours acted on the click. Read by l2_kingdom: fertility, weather, the harvest and the AI's planting ladder. The g_multiplayer branch -- Net_SendCommand(0x32, 0) in place of the flip, then g_screenId = g_menuPrevScreen -- is not reproduced, for docs/netcode.md's reason. docs/symbols.json and docs/screens-county.md called that branch 'tip 0x32'; it is net opcode 0x32, whose writer sends g_uiHotspotId (the row, 1..4), per tools/oracle/netcmds.js.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004345D0/opt-army-foraging",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x39",
+      "gesture": "left-press-delayed",
+      "addr": "0x004345D0",
+      "what": "Advanced options row 2: record 1 (0x004DDC28) at (280, 188), kind 5. Flips g_optArmiesEat and THEN runs Ration_Apply(county, g_season) and County_RefreshEstimates(county, g_seasonNext) for every county 1 .. g_countyCount, because the rule changes who a county feeds this season.",
+      "note": "Ours flipped the flag and re-ran nothing, so every county's ration fields described the old rule until the season turned. Kingdom::toggle_army_foraging is the loop, with Ration_Apply as ration::preview for the reason Kingdom::set_ration_wanted gives. Same multiplayer branch as row 1, not reproduced.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434693/opt-exploration",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x39",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434693",
+      "what": "Advanced options row 3: record 2 (0x004DDC40) at (280, 220), kind 5. Flips g_optExploration.",
+      "note": "THE FLIP IS REPRODUCED AND IT CHANGES NOTHING. Options::exploration is carried, saved and imported, and no rule or painter in this engine reads it. The original's readers are the map painters -- Map_RenderIso, Map_RenderAlignedRow, Map_DrawTile, Map_DrawTileApex, Map_DrawArmies and more -- each testing tile flag 0x20, which is the fog. docs/mechanics.md: the fog is not built.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043470D/opt-fight-humans-only",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x39",
+      "gesture": "left-press-delayed",
+      "addr": "0x0043470D",
+      "what": "Advanced options row 4: record 3 (0x004DDC58) at (280, 252), kind 5. Flips g_optFightHumansOnly, which is stored inverted: the painter shows Yes when it is 0.",
+      "note": "Read by l2_kingdom::battle::settlement, byte and sense kept. Same multiplayer branch as row 1, not reproduced.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434787/opt-tip-screens",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x31",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434787",
+      "what": "Help options row 1: g_helpOptWidgets record 0 (0x004DDCE8) at (240, 188), kind 5. Flips g_optTipScreens and calls FUN_00476A5D -- every tip unshown and the twenty-frame re-arm, on the flip off as well as on.",
+      "note": "Read by tip::Tips. The kind was found while wiring this row.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004347C7/opt-tool-tips",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x31",
+      "gesture": "left-press-delayed",
+      "addr": "0x004347C7",
+      "what": "Help options row 2: record 1 (0x004DDD00) at (240, 220), kind 5. Flips g_optToolTips and zeroes DAT_004EA830.",
+      "note": "THE FLIP IS REPRODUCED AND IT CHANGES NOTHING. Prefs::tool_tips has no reader in this engine. The original's one reader is FUN_00476E95, the tooltip layer, which is not built (crates/l2-game/src/screens/map.rs names it); DAT_004EA830 belongs to the same layer.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434942/opt-game-help-contents",
+      "status": "missing",
+      "group": "options-panels",
+      "screen": "0x31",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434942",
+      "what": "Help options row 3, 'Start game help': record 2 (0x004DDD18) at (288, 252), kind 5. Twenty frames after the press, WinHelpA(hwnd, 'l2help.hlp', HELP_CONTENTS, 1).",
+      "note": "Missing, and knowingly: a Windows 3.1 help file through an API that has not shipped since Vista. Ours draws the row dimmed; its widget still goes down, clicks and counts the twenty ticks, and then nothing happens.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004349A4/opt-music",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x42",
+      "gesture": "left-press-delayed",
+      "addr": "0x004349A4",
+      "what": "Sound options row 1: g_soundOptWidgets record 0 (0x004DDC70) at (280, 156), kind 5. Flips g_optMusic, then Music_Stop and Sound_StopOneShot when it goes off, or Music_StartCampaign / Music_StartBattle by g_battlePhase when it comes on.",
+      "note": "Reached through Prefs::music: audio::Director::listen pushes the flag every tick and Audio::follow re-derives the bed, which docs/audio.json already records as Opt_ToggleMusic's two sound sites.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434A29/opt-sound-effects",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x42",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434A29",
+      "what": "Sound options row 2: record 1 (0x004DDC88) at (280, 188), kind 5. Flips g_optSoundEffects and, when it comes on, reloads the kingdom or the battle sample bank by g_battlePhase.",
+      "note": "The flag gates every effect in audio::Director. The bank reload has no counterpart because nothing in this engine unloads a bank.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434A9A/opt-speech",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x42",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434A9A",
+      "what": "Sound options row 3: record 2 (0x004DDCA0) at (280, 220), kind 5. Flips g_optSpeech, which Sound_PlayFile tests before playing a speech file.",
+      "note": "Opt_ToggleSpeech is ALSO the handler of a kind-4 record in the orphaned table no call site tests (0x00434CA2/orphaned-options-widgets), so its address alone is in tables of two kinds. This record names its own record base, and the exe-gated check in crates/l2-game/tests/arms.rs settles the kind from that.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434AD5/opt-animations",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x43",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434AD5",
+      "what": "Display options row 1: g_displayOptWidgets record 0 (0x004DDCB8) at (280, 204), kind 5. Flips g_optAnimations.",
+      "note": "THE FLIP IS REPRODUCED AND IT CHANGES NOTHING. Prefs::animations has no reader in this engine. The original has five, in four functions: Screen_BattleOutcome (the taller box with the inset animation), CastleBuild_Confirm (Castle1 .. Castle5.smk), Msg_DrawWindow twice (its animation once g_messageTimer passes 0x7C6) and Battle_CheckOutcome. Also reused in the orphaned kind-4 table; see opt-speech.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434B10/opt-full-screen",
+      "status": "reproduced",
+      "group": "options-panels",
+      "screen": "0x43",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434B10",
+      "what": "Display options row 2: record 1 (0x004DDCD0) at (280, 236), kind 5. Opt_ToggleFullScreen leaves the panel FIRST (g_screenId = 0 on the campaign, 0x29 in a battle), then: g_optFullScreen == 1 on a desktop that is not 8bpp -> Msg_Enqueue(0, g_localPlayer, 0x104), L2.eng group 260, 'Cannot change display.'. The low-resolution warning and the mode switch are the other two branches.",
+      "note": "Reproduced for the desktop this engine runs on, which is every modern one: Display_Init forces g_optFullScreen to 1 on any desktop that is not 8bpp, so the original takes this same branch there. Ours did nothing -- not even close the panel. The row is still drawn dimmed, which is our presentation and not this arm.",
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434CA2/orphaned-options-widgets",
+      "status": "dead",
+      "group": "options-panels",
+      "screen": "none",
+      "gesture": "left-press-repeat",
+      "addr": "0x00434CA2",
+      "what": "Ten kind-4 widget records from 0x004DDE08 to 0x004DDEE0, all at x 224 and frame 33, over ten handlers: seven are empty `return;` stubs (FUN_00434C34 and its neighbours), two are Opt_ToggleSpeech and Opt_ToggleAnimations reused, and FUN_00434CA2 flips DAT_0053F254 and calls Screen_SoundLevels_Dead(3).",
+      "why": "No Widget_Test or Widget_Draw call site names any of the ten. A search of the whole decompilation for their addresses finds one comment and no code, while every table the image does test is named literally at its call site. Screen_SoundLevels_Dead is itself the dead sound-levels page, whose only caller passes the mode that draws nothing. Recorded here because two of the live panels' handlers sit in it at a different kind, and without this record that looks like an ambiguity rather than an orphan.",
+      "evidence": "D"
     },
     {
       "id": "0x00434E1F/confirm-no",
@@ -2712,6 +2909,30 @@
       "what": "Escape or Enter closes the message scroll.",
       "why": "Msg_HandleInput tests no key, and the window procedure (0x004B29BE) has no arm that reaches the message system either -- its WM_KEYDOWN cases are the seven editing keys and the control-group digits. KEPT rather than removed, on the same argument as the front end's keyboard: a modal window a person cannot leave without a mouse is worse, not more faithful. Counted here so the number of inventions stays honest.",
       "ours": "crates/l2-game/src/screens/message.rs"
+    },
+    {
+      "id": "ours/options-keyboard-close",
+      "status": "invention",
+      "group": "options-panels",
+      "screen": "0x31, 0x39, 0x42, 0x43, ours",
+      "gesture": "key",
+      "what": "Escape closes all five pages.",
+      "note": "KEPT. No key reaches 0x31, 0x39, 0x42 or 0x43 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Enter and Space do nothing, as they do nothing in the original.",
+      "removed": false,
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "ours/options-quirks-page",
+      "status": "invention",
+      "group": "options-panels",
+      "screen": "ours",
+      "gesture": "left-press",
+      "what": "The fifth page: a tri-state parent check box and one box per switchable defect across both homes, answered on the press, with a hover highlight.",
+      "note": "KEPT. The original has no such page and could not -- to it these are not settings. docs/decisions.md C62. Counted so that the markers in options.rs describe the whole module.",
+      "removed": false,
+      "ours": "crates/l2-game/src/screens/options.rs",
+      "evidence": "V"
     },
     {
       "id": "ours/prompt-bystander-any-click",

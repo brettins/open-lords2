@@ -7354,3 +7354,45 @@ to hide tips from a machine rooted on the campaign.
 Counts: arms, two frame arms `reproduced` (`0x00476AA7/tip-screen-ladder`,
 `0x00476E21/tip-restores-its-screen`); sound triggers **51 → 53 of 143**; files
 **560 → 595 of 771** — forty by name, thirty-five that can sound.
+
+**CNEW-options-kind — The options panels acted on the click on all twelve rows, and three of
+the rows change nothing.**
+
+The tip-screens branch found it while wiring `Opt_ToggleTipScreens`: every `Opt_Toggle*`
+record is `Widget_Test` **kind 5**, and our options screen toggled on the press. That is the
+yes/no gauntlets' defect (C148) on a screen C148 could not reach, because `options.rs` was
+one of the modules `docs/arms.json`'s own note named as carrying no marker — so `arms.rs`,
+which checks markers against records, had nothing to check.
+
+**Enumerated from both sides**, as the `army-division` group was: `Screen_HandleInput`'s four
+`Widget_Test` calls (twelve records, kind 5, frame 25) and `Screen_FrameInput`'s four arms (a
+right release and `Ui_OkButtonClicked` on each, and 0x39's sync latch). **Eighteen records**
+in a new group `options-panels`: twelve rows (eleven `reproduced`, *Start game help*
+`missing`), the OK corner and the right release (`reproduced`), the latch (`missing`), our
+Escape and our quirks page (`invention`, kept), and the orphaned kind-4 table at
+`0x004DDE08` (`dead`).
+
+**What reading the twelve handlers against their readers found**, which is the part a kind
+fix alone would have missed:
+
+| row | what was wrong |
+|---|---|
+| all twelve | acted on the press; now kind 5 through `press::Press`, pressed frame `25 + 1` |
+| the OK corner | closed on the press; `Ui_OkButtonClicked` is the release |
+| widget picture | drew `Ui_OkButton` mode 1 (frame `0x10`), which is no record's frame; the records say 25 |
+| Army foraging | flipped the flag and **re-ran nothing**; `Opt_ToggleArmyForaging` re-runs `Ration_Apply` and `County_RefreshEstimates` over every county |
+| Full screen | did nothing, not even close; on any non-8bpp desktop the original closes the panel and posts message `0x104`, *"Cannot change display."* |
+| Exploration, Animations, Tool tips | **flip a field nothing in this engine reads** — the fog, five animation readers in four functions, and the tooltip layer `FUN_00476E95` are all unbuilt |
+
+**And one documented claim was false**: `docs/symbols.json` and `docs/screens-county.md`
+§10.2 said the four advanced handlers *"show tip 0x32"* in a network game. It is
+`Net_SendCommand(0x32, 0)` — net opcode `0x32`, whose writer sends the row number. Corrected
+in `screens-county.md`; `symbols.json` is the lead's.
+
+**A limit of the check, measured by ablation**: declaring every row `Kind::Press` leaves
+`arms.rs` green. It compares the marker's word with the record's and the record's with the
+exe, and never reads the `Kind` the code declares — the marker is text. What went red was
+`tests/options.rs`. The exe-gated check also had to learn one thing: `Opt_ToggleSpeech` and
+`Opt_ToggleAnimations` are each kind 5 in their panel and kind 4 in the orphaned table, so
+their address alone is ambiguous; a record whose prose names one record base calling that
+handler is now judged by that record. Coverage 37 → 54 by handler, 12 → 31 by prose.

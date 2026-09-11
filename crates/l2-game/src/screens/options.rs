@@ -197,15 +197,30 @@
 //!   ([`Transition::Stay`]), never [`Transition::Pass`]. A player has already
 //!   reported that *"clicking anywhere inside a window used to close it"*, and
 //!   the fall-through version of that fault is worse: it acts on the map behind;
-//! * closing is the close button, `Escape`, or a right-click — the original's
-//!   own three (`Screen_FrameInput` tests `g_mouseRightReleased` before
-//!   `Ui_OkButtonClicked()` on all five ids, and `L2.eng` group 12 index 0 is
-//!   *"Click Right to Exit"*).
+//! * closing is the close button **on the release**, or a right release — the
+//!   original's own two (`Screen_FrameInput` tests `g_mouseRightReleased`
+//!   before `Ui_OkButtonClicked()` on all four ids, and `L2.eng` group 12 index
+//!   0 is *"Click Right to Exit"*) — and `Escape`, which is ours.
+//!
+//! # Every row is a delayed press
+//!
+//! **All twelve widget records carry kind 5** at `+0x0F`, so a row's picture
+//! goes down on the press and its `Opt_Toggle*` runs **twenty frames later**,
+//! out of `Widget_Test`'s countdown. Ours acted on the click, which is the
+//! gauntlets' defect on a screen that had no `docs/arms.json` record to catch
+//! it. [`Row::kind`] declares it and [`Press`] does the rest; the handlers are
+//! in [`toggle`] and `OptionsScreen::fire`.
+//!
+//! **What does the flip change?** Three rows reach nothing in this engine —
+//! *Exploration*, *Animations* and *Tool tips* flip a field no rule and no
+//! painter reads — and the table on [`toggle`] says which is which, so that a
+//! row that looks honoured and is not can be found by reading one place.
 
 use l2_view::Canvas;
 
 use crate::game::PRESENTATION;
 use crate::input::{Event, Key, Rect};
+use crate::press::{Kind, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 
@@ -252,6 +267,11 @@ pub const GROUP_YES_NO: usize = 18;
 /// `L2.eng` group 19 — **`On` / `Off` / `Cancel`**, three strings, and again
 /// index 2 is unused here.
 pub const GROUP_ON_OFF: usize = 19;
+
+/// `L2.eng` group 260 — message `0x104`, *"Cannot change display."* — which
+/// `Opt_ToggleFullScreen` enqueues when the flag is 1 and the desktop is not
+/// 8bpp. `docs/formats/eng.md` §5 names that function as its consumer.
+pub const FULL_SCREEN_REFUSAL: u16 = 0x104;
 
 /// Group 52 index 3, the windowed-mode hint, and the one row of these four
 /// panels that is drawn conditionally.
@@ -336,6 +356,17 @@ pub struct Row {
     pub state_x: i32,
     /// The 24 × 24 widget's top-left, from the widget table in `.data`.
     pub widget_at: (i32, i32),
+    /// **The kind byte at `+0x0F` of the row's widget record**, and every one
+    /// of the twelve is **5**: `Widget_Test` shows the pressed picture on the
+    /// press and runs the `Opt_Toggle*` handler **twenty frames later**, out
+    /// of its countdown loop. `node tools/oracle/kinds.js` lists all twelve
+    /// under `widget 5`, and `crates/l2-game/tests/arms.rs` reads the byte out
+    /// of the player's own `Lords2.exe`.
+    ///
+    /// Ours acted on the click until this field existed — the same defect a
+    /// player reported of the yes/no gauntlets (*"clicking yes/no is instant
+    /// whereas the game waited"*), on a screen nobody had inventoried.
+    pub kind: Kind,
     pub words: Words,
     pub setting: Setting,
 }
@@ -345,6 +376,11 @@ impl Row {
     /// hot rectangle on the row**.
     pub fn hit(&self) -> Rect {
         Rect::new(self.widget_at.0, self.widget_at.1, WIDGET, WIDGET)
+    }
+
+    /// The row as a record of the table [`Press::event`] walks.
+    pub fn widget(&self) -> Widget {
+        Widget::new(self.hit(), self.kind)
     }
 
     /// Whether this engine can honour the row.
@@ -367,6 +403,15 @@ impl Row {
 /// `Ui_OkButton`'s corner picture, and every options widget, is 24 × 24.
 const WIDGET: i32 = 24;
 
+/// **`System.pl8` frame 25**, the `+0x04` base frame of all twelve widget
+/// records (`node tools/oracle/kinds.js`: `f25` on every `Opt_*` row), and
+/// `Widget_Draw` (`0x0040CFD2`) draws `base + 1` while the press timer runs.
+///
+/// Ours drew `Ui_OkButton`'s mode-1 picture, frame `0x10`, which is no record's
+/// frame: it was chosen to look like a button rather than read out of the
+/// table.
+pub const WIDGET_FRAME: usize = 25;
+
 /// Screen `0x39` — `Screen_AdvancedOptions` (`0x00414F68`), `L2.eng` group 50.
 ///
 /// **Four rows, not three.** `docs/bugs.md` §6.4 says *"the original ships three
@@ -382,6 +427,7 @@ const ADVANCED: &[Row] = &[
         label_at: (0x60, 0xA0),
         state_x: 0x140,
         widget_at: (280, 156),
+        kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::AdvancedFarming,
     },
@@ -390,6 +436,7 @@ const ADVANCED: &[Row] = &[
         label_at: (0x60, 0xC0),
         state_x: 0x140,
         widget_at: (280, 188),
+        kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::ArmyForaging,
     },
@@ -398,6 +445,7 @@ const ADVANCED: &[Row] = &[
         label_at: (0x60, 0xE0),
         state_x: 0x140,
         widget_at: (280, 220),
+        kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::Exploration,
     },
@@ -406,6 +454,7 @@ const ADVANCED: &[Row] = &[
         label_at: (0x60, 0x100),
         state_x: 0x140,
         widget_at: (280, 252),
+        kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::FightHumansOnly,
     },
@@ -427,6 +476,7 @@ const SOUND: &[Row] = &[
         label_at: (0x60, 0xA0),
         state_x: 0x140,
         widget_at: (280, 156),
+        kind: Kind::Delayed,
         words: Words::OnOff,
         setting: Setting::Music,
     },
@@ -435,6 +485,7 @@ const SOUND: &[Row] = &[
         label_at: (0x60, 0xC0),
         state_x: 0x140,
         widget_at: (280, 188),
+        kind: Kind::Delayed,
         words: Words::OnOff,
         setting: Setting::SoundEffects,
     },
@@ -443,6 +494,7 @@ const SOUND: &[Row] = &[
         label_at: (0x60, 0xE0),
         state_x: 0x140,
         widget_at: (280, 220),
+        kind: Kind::Delayed,
         words: Words::OnOff,
         setting: Setting::Speech,
     },
@@ -460,6 +512,7 @@ const DISPLAY: &[Row] = &[
         label_at: (0x60, 0xD0),
         state_x: 0x140,
         widget_at: (280, 204),
+        kind: Kind::Delayed,
         words: Words::OnOff,
         setting: Setting::Animations,
     },
@@ -468,6 +521,7 @@ const DISPLAY: &[Row] = &[
         label_at: (0x60, 0xF0),
         state_x: 0x140,
         widget_at: (280, 236),
+        kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::FullScreen,
     },
@@ -484,6 +538,7 @@ const HELP: &[Row] = &[
         label_at: (0x80, 0xC0),
         state_x: 0x120,
         widget_at: (240, 188),
+        kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::TipScreens,
     },
@@ -492,6 +547,7 @@ const HELP: &[Row] = &[
         label_at: (0x80, 0xE0),
         state_x: 0x120,
         widget_at: (240, 220),
+        kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::ToolTips,
     },
@@ -500,6 +556,7 @@ const HELP: &[Row] = &[
         label_at: (0x80, 0x100),
         state_x: 0x120,
         widget_at: (288, 252),
+        kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::StartGameHelp,
     },
@@ -592,6 +649,12 @@ impl Page {
         }
     }
 
+    /// The page's widget table — `g_advancedOptWidgets` and its three siblings —
+    /// in record order, which is the order [`Page::rows`] is in.
+    pub fn widgets(self) -> Vec<Widget> {
+        self.rows().iter().map(Row::widget).collect()
+    }
+
     /// Whether this page is the original's or ours.
     pub fn is_ours(self) -> bool {
         self == Page::Quirks
@@ -638,6 +701,25 @@ pub fn value(setting: Setting, ctx: &Ctx) -> bool {
 }
 
 /// Flip a row, the way its `Opt_Toggle*` does: `x = (x != 1)`.
+///
+/// **What the flip reaches, row by row**, because a switch that is drawn and
+/// flips a field nothing reads is a switch that does nothing, and the panel
+/// cannot show the difference:
+///
+/// | row | read by, in this engine |
+/// |---|---|
+/// | Advanced farming | `l2_kingdom` — fertility, weather, the harvest, the AI's planting |
+/// | Army foraging | `l2_kingdom::ration`, `unit::starve`, the county panel's OK corner |
+/// | Exploration | **nothing**. Carried and saved; the fog is not built (`docs/mechanics.md`) |
+/// | Fight humans only? | `l2_kingdom::battle::settlement` |
+/// | Music, Sound effects, Speech | `audio::Director::listen`, every tick |
+/// | Animations | **nothing**. Five readers in the original, none built |
+/// | Tip screens | `tip::Tips` |
+/// | Tool tips | **nothing**. The tooltip layer, `FUN_00476E95`, is not built |
+///
+/// The multiplayer branch of the first four — `Net_SendCommand(0x32, 0)` in
+/// place of the flip, then `g_screenId = g_menuPrevScreen` — is not here, for
+/// `docs/netcode.md`'s reason: the original's sync is not the authority.
 pub fn toggle(setting: Setting, ctx: &mut Ctx) {
     let on = {
         let read = Ctx { game: ctx.game, assets: ctx.assets };
@@ -645,21 +727,38 @@ pub fn toggle(setting: Setting, ctx: &mut Ctx) {
     };
     let o = &mut ctx.game.kingdom.options;
     match setting {
+        // arm: 0x00434556/opt-advanced-farming left-press-delayed
         Setting::AdvancedFarming => o.advanced_farming = !on,
-        Setting::ArmyForaging => o.armies_eat = !on,
+        // **Not a flip alone**: the ration pass and the forecasts are re-run
+        // over every county. See `Kingdom::toggle_army_foraging`.
+        // arm: 0x004345D0/opt-army-foraging left-press-delayed
+        Setting::ArmyForaging => ctx.game.kingdom.toggle_army_foraging(),
+        // arm: 0x00434693/opt-exploration left-press-delayed
         Setting::Exploration => o.exploration = !on,
+        // arm: 0x0043470D/opt-fight-humans-only left-press-delayed
         Setting::FightHumansOnly => o.fight_humans_only_byte = u8::from(on),
+        // `Music_Stop` or the phase's bed follows from the flag on the next
+        // tick: `audio::Director::listen` pushes it and `Audio::follow`
+        // re-derives the bed, which is `Opt_ToggleMusic`'s two sound sites.
+        // arm: 0x004349A4/opt-music left-press-delayed
         Setting::Music => ctx.game.prefs.music = !on,
+        // arm: 0x00434A29/opt-sound-effects left-press-delayed
         Setting::SoundEffects => ctx.game.prefs.effects = !on,
+        // arm: 0x00434A9A/opt-speech left-press-delayed
         Setting::Speech => ctx.game.prefs.speech = !on,
+        // arm: 0x00434AD5/opt-animations left-press-delayed
         Setting::Animations => ctx.game.prefs.animations = !on,
         // `Opt_ToggleTipScreens` (`0x00434787`) is two statements, and the
         // second is `FUN_00476A5D()`: every tip unshown and twenty frames of
         // quiet, on the flip OFF as well as on.
+        // arm: 0x00434787/opt-tip-screens left-press-delayed
         Setting::TipScreens => {
             ctx.game.prefs.tip_screens = !on;
             ctx.game.tips.reset();
         }
+        // Its second statement, `_DAT_004EA830 = 0`, belongs to the tooltip
+        // layer this engine does not have.
+        // arm: 0x004347C7/opt-tool-tips left-press-delayed
         Setting::ToolTips => ctx.game.prefs.tool_tips = !on,
         Setting::FullScreen | Setting::StartGameHelp => {}
     }
@@ -804,15 +903,71 @@ pub struct OptionsScreen {
     hover: Option<usize>,
     /// Whether the pointer is over the parent check box.
     hover_parent: bool,
+    /// **`Widget_Test`'s per-record state for the page's table** — the press
+    /// timer at `+0x0D` that holds the pressed frame up and fires the handler
+    /// when it runs out. See [`Row::kind`].
+    press: Press,
 }
 
 impl OptionsScreen {
     pub fn new(page: Page) -> OptionsScreen {
-        OptionsScreen { page, hover: None, hover_parent: false }
+        OptionsScreen { page, hover: None, hover_parent: false, press: Press::new() }
     }
 
     pub fn page(&self) -> Page {
         self.page
+    }
+
+    /// **Which row is drawn pressed**, as an index into [`Page::rows`].
+    ///
+    /// `Widget_Draw` adds one to the record's frame while `+0x0D` is non-zero,
+    /// which for a kind-5 row is the whole twenty frames between the press and
+    /// the toggle.
+    pub fn pressed(&self) -> Option<usize> {
+        self.press.pressed()
+    }
+
+    /// **One row's handler, twenty ticks after its press.**
+    fn fire(&mut self, row: usize, ctx: &mut Ctx) -> Transition {
+        let Some(row) = self.page.rows().get(row).copied() else { return Transition::Stay };
+        match row.setting {
+            // **`Opt_ToggleFullScreen` (`0x00434B10`) on the only desktop this
+            // engine runs on.** It leaves the panel before anything else —
+            // `g_screenId = 0` on the campaign, `0x29` in a battle, which is
+            // whatever the panel was opened over — and then, because
+            // `Display_Init` has already forced `g_optFullScreen = 1` on any
+            // desktop that is not 8bpp, takes its first branch:
+            // `Msg_Enqueue(0, g_localPlayer, 0x104, …)`, *"Cannot change
+            // display."*. The mode switch in its third branch is not reachable
+            // from a 32bpp desktop in the original either.
+            // arm: 0x00434B10/opt-full-screen left-press-delayed
+            Setting::FullScreen => {
+                let player = ctx.game.player;
+                ctx.game.messages.enqueue(
+                    crate::message::Record {
+                        to: player,
+                        from: 0,
+                        group: FULL_SCREEN_REFUSAL,
+                        variant: 0,
+                        category: crate::message::category::NOTICE,
+                        county: 0,
+                        spare: 0,
+                        payload: 0,
+                    },
+                    player,
+                );
+                Transition::Pop
+            }
+            // `WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1)`. The press and
+            // its twenty frames are the original's; what they open is not
+            // anything this engine can open. `docs/arms.json` files the arm
+            // `missing`.
+            Setting::StartGameHelp => Transition::Stay,
+            other => {
+                toggle(other, ctx);
+                Transition::Stay
+            }
+        }
     }
 
     /// The parent check box's hit box.
@@ -853,13 +1008,33 @@ impl Screen for OptionsScreen {
         true
     }
 
+    /// `Widget_Test`'s `Sound_RestartSlot(1)` on a row's press, carried up to
+    /// the audio layer. See [`Screen::take_clicks`].
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
+    /// **The countdown loop at the top of `Widget_Test`.** A row's handler runs
+    /// here, on the twentieth tick after its press, and never from `handle`.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        match self.press.tick() {
+            Some(row) => self.fire(row, ctx),
+            None => Transition::Stay,
+        }
+    }
+
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
-            // The original's ways out, and no fourth. `Screen_FrameInput` tests
-            // `g_mouseRightReleased` before `Ui_OkButtonClicked()` on all five
-            // of these ids, and `L2.eng` group 12 index 0 says it in English:
-            // *"Click Right to Exit"*.
-            Event::KeyDown(Key::Escape) | Event::RightClick { .. } => Transition::Pop,
+            // `Screen_FrameInput` (`0x0042FF10`) tests `g_mouseRightReleased`
+            // first on all four of these ids, and `L2.eng` group 12 index 0
+            // says it in English: *"Click Right to Exit"*.
+            // arm: 0x0042FF10/options-right-close right-release
+            Event::RightClick { .. } => Transition::Pop,
+            // **Ours, and counted.** No key reaches `0x31`, `0x39`, `0x42` or
+            // `0x43` in the original: the window procedure's Escape arm is
+            // `Menu_Quit` or the main-loop exit flag.
+            // arm: ours/options-keyboard-close key
+            Event::KeyDown(Key::Escape) => Transition::Pop,
 
             Event::Pointer { x, y } => {
                 if self.page.is_ours() {
@@ -869,46 +1044,63 @@ impl Screen for OptionsScreen {
                 } else {
                     self.hover = None;
                     self.hover_parent = false;
+                    self.press.event(&self.page.widgets(), event);
+                }
+                Transition::Stay
+            }
+            Event::PointerLeft => {
+                self.press.event(&self.page.widgets(), event);
+                Transition::Stay
+            }
+
+            // **`Ui_OkButtonClicked` (`0x0040E7E4`), on the RELEASE**, which is
+            // the second test of all four arms: `if (g_mouseLeftReleased == 0)
+            // return 0;` and then the 24 × 24 box. Ours closed on the press.
+            // The quirks page is ours and closes the same way, so that one
+            // corner picture does not mean two gestures.
+            // arm: 0x0040E7E4/options-ok left-release
+            Event::Release { x, y } => {
+                self.press.event(&self.page.widgets(), event);
+                if self.page.close_hit().contains(x, y) {
+                    return Transition::Pop;
                 }
                 Transition::Stay
             }
 
+            // **A row is `Widget_Test` kind 5**, and a press only puts its
+            // picture down and starts the twenty frames; [`Screen::update`] is
+            // where the toggle happens. `g_mouseLeftDoubleClick` is a press for
+            // kind 5 as well, which [`Press::event`] keeps.
+            Event::Click { .. } | Event::DoubleClick { .. } if !self.page.is_ours() => {
+                let fired = self.press.event(&self.page.widgets(), event);
+                debug_assert!(fired.is_none(), "every options row is kind 5");
+                // **Consumed, never passed.** A press that missed every box
+                // does nothing at all; letting it fall through would land it on
+                // the map underneath, which is the exact fault `map.rs`'s header
+                // records three of.
+                Transition::Stay
+            }
+
+            // **Ours**: the quirks page answers the press, as its own check
+            // boxes always have. The original has no such page.
+            // arm: ours/options-quirks-page left-press
             Event::Click { x, y } => {
-                if self.page.close_hit().contains(x, y) {
-                    return Transition::Pop;
-                }
-                if self.page.is_ours() {
-                    if OptionsScreen::parent_hit().contains(x, y) {
-                        // The parent is tri-state to *read* and two-state to
-                        // *click*: it is meaningless to click a control into
-                        // "mixed", so a click from Mixed goes to all-fixed —
-                        // the direction the player asked for by name, *"turn
-                        // off original game's bugs"*.
-                        let reproduced =
-                            quirk_group(ctx.game) == l2_net::Group::AllFixed;
-                        set_all_quirks(reproduced, ctx.game);
-                        return Transition::Stay;
-                    }
-                    let rows = quirk_rows();
-                    if let Some(i) = OptionsScreen::quirk_at(rows.len(), x, y) {
-                        let now = quirk_reproduced(rows[i], ctx.game);
-                        set_quirk(rows[i], !now, ctx.game);
-                    }
+                if OptionsScreen::parent_hit().contains(x, y) {
+                    // The parent is tri-state to *read* and two-state to
+                    // *click*: it is meaningless to click a control into
+                    // "mixed", so a click from Mixed goes to all-fixed — the
+                    // direction the player asked for by name, *"turn off
+                    // original game's bugs"*.
+                    let reproduced = quirk_group(ctx.game) == l2_net::Group::AllFixed;
+                    set_all_quirks(reproduced, ctx.game);
                     return Transition::Stay;
                 }
-                for row in self.page.rows() {
-                    if row.hit().contains(x, y) {
-                        if row.supported() {
-                            toggle(row.setting, ctx);
-                        }
-                        return Transition::Stay;
-                    }
+                let rows = quirk_rows();
+                if let Some(i) = OptionsScreen::quirk_at(rows.len(), x, y) {
+                    let now = quirk_reproduced(rows[i], ctx.game);
+                    set_quirk(rows[i], !now, ctx.game);
                 }
-                // **Consumed, never passed.** A click that missed every box does
-                // nothing at all; letting it fall through would land it on the
-                // map underneath, which is the exact fault `map.rs`'s header
-                // records three of — and a player has separately reported that
-                // clicking anywhere inside a window used to close it.
+                // Consumed, never passed — the same rule as the four panels.
                 Transition::Stay
             }
 
@@ -961,7 +1153,7 @@ impl OptionsScreen {
         pen.heading(canvas, hx, hy, &heading, font::TEXT);
 
         let mut unsupported = false;
-        for row in self.page.rows() {
+        for (i, row) in self.page.rows().iter().enumerate() {
             let label = a.text(group, row.label).to_string();
             let colour = if row.supported() { font::TEXT } else { font::DISABLED };
             pen.body(canvas, row.label_at.0, row.label_at.1, &label, colour);
@@ -974,13 +1166,10 @@ impl OptionsScreen {
                 pen.body(canvas, row.state_x, row.label_at.1, &word, colour);
             }
 
+            // `Widget_Draw`: the record's frame, plus one while `+0x0D` runs.
             let (wx, wy) = row.widget_at;
-            let drawn = ctx
-                .assets
-                .chrome
-                .as_ref()
-                .is_some_and(|c| c.draw_system(canvas, l2_view::chrome::system::OK_ALT, wx, wy));
-            if !drawn {
+            let frame = WIDGET_FRAME + usize::from(self.press.pressed() == Some(i));
+            if !pen.system_frame(canvas, frame, wx, wy) {
                 shell::button_recess(canvas, wx, wy, WIDGET, WIDGET);
             }
             unsupported |= !row.supported();

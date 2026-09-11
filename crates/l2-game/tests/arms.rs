@@ -619,6 +619,9 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
     // the prose check below reach the four arms whose `addr` is a dispatcher.
     // See `docs/input.md` §7a.
     let mut at_record: BTreeMap<u32, &'static str> = BTreeMap::new();
+    // And which handler each record calls, so that a handler reachable at two
+    // kinds can be settled by the one record an arm's own prose names.
+    let mut handler_at: BTreeMap<u32, u32> = BTreeMap::new();
     for (widget, (lo, hi)) in [(false, HOTSPOTS), (true, WIDGETS)] {
         let mut va = lo;
         while va < hi {
@@ -629,6 +632,7 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
                 if let Some(g) = gesture_of_kind(widget, kind) {
                     kinds.entry(handler).or_default().insert(g);
                     at_record.insert(va, g);
+                    handler_at.insert(va, handler);
                 }
             }
             va += 24;
@@ -691,6 +695,20 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
     for r in records(&repo_root()) {
         let Some(addr) = r.addr else { continue };
         let Some(found) = kinds.get(&addr) else { continue };
+        // **A handler in two tables at two kinds is settled by the record the
+        // arm names**, when it names one and that record calls this handler.
+        // `Opt_ToggleSpeech` and `Opt_ToggleAnimations` are each kind 5 in
+        // their options table and kind 4 in the orphaned table at 0x004DDE08
+        // that no call site tests; their records name the kind-5 record base,
+        // and nothing about the address alone could have said which was meant.
+        let named: BTreeSet<&'static str> = r
+            .prose
+            .iter()
+            .filter(|va| handler_at.get(va) == Some(&addr))
+            .filter_map(|va| at_record.get(va).copied())
+            .collect();
+        let found: BTreeSet<&'static str> =
+            if found.len() > 1 && named.len() == 1 { named } else { found.clone() };
         if found.len() > 1 {
             ambiguous.insert(format!(
                 "{addr:#010X} is in tables of kinds {:?}",
@@ -720,17 +738,20 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
     // set the check is exhaustive over.** If this number falls, the check went
     // quiet rather than green, and a quiet check reads exactly like a passing
     // one.
+    // 37 until the options panels' twelve rows and the orphaned table beside
+    // them were recorded; two of those twelve are only classifiable at all
+    // because the resolution above reads the record base their prose names.
     assert!(
-        checked >= 37,
-        "only {checked} arms have a `addr` this check can classify; it was 37. \
+        checked >= 54,
+        "only {checked} arms have a `addr` this check can classify; it was 54. \
          Either records lost their `addr`, or the table regions moved.",
     );
     // The prose half's coverage, asserted for the same reason: it reaches the
     // four arms whose `addr` is `Screen_HandleInput`, and if it fell silent it
     // would read exactly like passing. `docs/input.md` §7a.
     assert!(
-        by_prose >= 12,
-        "only {by_prose} arms name a widget record in their prose; it was 12. \
+        by_prose >= 31,
+        "only {by_prose} arms name a widget record in their prose; it was 31. \
          A record that stops naming its table stops being classifiable.",
     );
     // **One handler is reachable at two different kinds**, and it is named

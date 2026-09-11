@@ -1842,10 +1842,19 @@ Five of these have a second, independent anchor, which is why the block is **[V]
 * **`Opt_GameHelpContents`** calls `WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1)` — an
   import, which is not a matter of opinion.
 
-**The four advanced rules are frozen in a network game.** Each of their four handlers is
-`if (g_multiplayer == 0) { flip } else { tip 0x32; g_screenId = g_menuPrevScreen; }`.
-`Opt_ToggleArmyForaging` additionally re-runs `Ration_Apply` and `County_RefreshEstimates`
-over every county, because the rule changes this turn's food.
+**The four advanced rules go over the network in a network game.** Each of their four
+handlers is `if (g_multiplayer == 0) { flip } else { Net_SendCommand(0x32, 0); g_screenId =
+g_menuPrevScreen; }`. **This said `tip 0x32` and it is not a tip**: `0x32` is a net opcode,
+whose writer `FUN_00444346` sends `g_uiHotspotId` — the row, 1 … 4, which each handler writes
+first — and whose handler `FUN_004443AA` passes it to `FUN_00447136(0x17, …)`. What that
+applies was not read (`node tools/oracle/netcmds.js 0x32`). `Opt_ToggleArmyForaging`
+additionally re-runs `Ration_Apply` and `County_RefreshEstimates` over every county, because
+the rule changes this turn's food.
+
+**Every one of the twelve rows is `Widget_Test` kind 5** (`node tools/oracle/kinds.js`, frame
+25 on all twelve): the picture goes down on the press and the handler runs twenty frames
+later. The two ways out are `g_mouseRightReleased` and `Ui_OkButtonClicked`, **the release**;
+0x39 alone also has the sync latch. `docs/arms.json` group `options-panels`.
 
 `g_optFightHumansOnly` is **stored inverted**: the painter shows *"Yes"* when it is 0, and
 when it is 0 — and the local player is not a participant — the battle resolver skips the

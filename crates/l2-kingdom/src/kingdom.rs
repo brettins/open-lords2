@@ -1368,6 +1368,36 @@ impl Kingdom {
         moved
     }
 
+    /// **`Opt_ToggleArmyForaging` (`0x004345D0`), and it is not a setter.**
+    ///
+    /// ```c
+    /// g_optArmiesEat = (g_optArmiesEat != 1);
+    /// for (i = 1; i <= g_countyCount; i++) {
+    ///     Ration_Apply(i, g_season);
+    ///     County_RefreshEstimates(i, g_seasonNext);
+    /// }
+    /// ```
+    ///
+    /// The switch changes who a county feeds — [`crate::ration::people_to_feed`]
+    /// adds the armies standing in it — so the original re-runs the ration
+    /// pass and the forecasts over every county *on the flip*, and the ration
+    /// panel is right the moment the options panel closes. Ours flipped the
+    /// flag and left every county's ration fields describing the old rule until
+    /// the next season. `Ration_Apply` is [`crate::ration::preview`] here for the
+    /// reason [`Kingdom::set_ration_wanted`] gives: it records and does not
+    /// spend. `[V]` against the decompilation.
+    ///
+    /// The multiplayer branch — `Net_SendCommand(0x32, 0)` instead of the flip —
+    /// is not here: `docs/netcode.md`, the original is not the authority there.
+    pub fn toggle_army_foraging(&mut self) {
+        self.options.armies_eat = !self.options.armies_eat;
+        let armies_eat = self.options.armies_eat;
+        for id in 1..=self.county_count {
+            crate::ration::preview(&self.tables, &mut self.counties[id], armies_eat);
+            self.refresh_estimates(id);
+        }
+    }
+
     /// **The tax rate, and it is not a setter either.**
     /// `Tax_IncreaseCounty` (`0x0043AA83`) and its twin, whole:
     ///
