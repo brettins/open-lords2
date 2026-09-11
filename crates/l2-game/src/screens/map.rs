@@ -1072,6 +1072,53 @@ impl MapScreen {
         Self::tiles_with(ctx, county, l2_kingdom::map::flags::CASTLE)
     }
 
+    /// **One quadrant of the town block, named by the number `Sprite_TopIt`
+    /// tests** — `tile.part & 0xf`, plane 3, which `l2-formats` calls
+    /// [`l2_formats::maps::Plane::ObjectPart`] and documents as `dx + W * dy`
+    /// from the block's north-west tile.
+    ///
+    /// **This exists because `town()[n]` and `part == n` are not the same
+    /// thing**, and a `town.get(1)` that meant `part == 2` is what a player saw
+    /// as *"I haven't seen any mercenary icons on the town square yet."* For a
+    /// 2 × 2 block with `W = 2`:
+    ///
+    /// | `part` | offset from the origin | index order |
+    /// |---:|---|---:|
+    /// | 0 | `(x, y)` | 0 |
+    /// | 1 | `(x + 1, y)` | 1 |
+    /// | 2 | `(x, y + 1)` | **2** |
+    /// | 3 | `(x + 1, y + 1)` | 3 |
+    ///
+    /// so `part == 2` is the **third** tile in index order, one map row south of
+    /// the origin — not the second. Three independent sources agree, and the
+    /// third is the one that settles it:
+    ///
+    /// * the `dx + W * dy` rule, `[V]` 10,971/10,971 in `l2-formats`;
+    /// * every town block of all 44 shipped maps, swept: `part` runs 0, 1, 2, 3
+    ///   over `(x, y)`, `(x+1, y)`, `(x, y+1)`, `(x+1, y+1)`;
+    /// * **`County_FindTownTile` (`0x00467FD1`), which never reads `part` at
+    ///   all.** It sweeps the grid in index order — `for y { for x { … } }`, the
+    ///   same order [`MapScreen::tiles_with`] produces — counting the county's
+    ///   `flags & 0x40` tiles, and sets **bank bit `0x80` on the 0th and the
+    ///   2nd**. Bank `0x80` is the *only* gate on `Sprite_TopIt` being called at
+    ///   all (`FUN_00405EB5`: `if (tile.bank & 0x80) Sprite_TopIt(…)`), so the
+    ///   original does not even *visit* the tile we were drawing on.
+    ///
+    /// `None` when the county has no town block, or a block that is not four
+    /// tiles — which no shipped map has, and which is a refusal rather than a
+    /// guess.
+    fn town_quadrant(ctx: &Ctx, county: u8, part: usize) -> Option<usize> {
+        let town = Self::town(ctx, county);
+        if town.len() != 4 || part > 3 {
+            return None;
+        }
+        let origin = *town.first()?;
+        let tile = origin + part % 2 + (part / 2) * l2_kingdom::map::MAP_DIM;
+        // The arithmetic has to land back inside the block it came from; a town
+        // that straddles the right edge of the 64-wide grid would wrap.
+        town.contains(&tile).then_some(tile)
+    }
+
     /// The rectangle of one brush button, `i` counting from the left of the
     /// menu that is open.
     // arm: 0x00438990/tile-panel-hotspots left-release
@@ -3283,7 +3330,10 @@ fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
 fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let k = &ctx.game.kingdom;
     let phase = screen.flag_phase;
-    let mut flag = |tile: usize, frame: usize| {
+    // A free function rather than a closure: the mercenary arm below needs the
+    // canvas too, and a closure that captured it would hold the borrow for the
+    // whole loop.
+    fn flag(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip, tile: usize, frame: usize) {
         let (x, y) = l2_kingdom::map::coords(tile);
         campaign::draw_flag(
             canvas,
@@ -3294,22 +3344,38 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
             frame,
             clip,
         );
-    };
+    }
     for id in k.county_ids() {
         let county = &k.counties[id];
         // The town's 2 x 2 block. Plane-3 quadrant 0 is its north-west tile —
-        // the lowest tile index, and the top of the diamond — and quadrant 2 is
-        // the north-east one.
-        let town = MapScreen::town(ctx, id as u8);
+        // the lowest tile index, and the top of the diamond.
         let shield = k.realms.get(county.owner as usize).map_or(0, |r| r.shield_index);
-        if let (Some(&nw), Some(frame)) = (town.first(), campaign::flag_frame(shield, phase)) {
-            flag(nw, frame);
+        if let (Some(nw), Some(frame)) =
+            (MapScreen::town_quadrant(ctx, id as u8, 0), campaign::flag_frame(shield, phase))
+        {
+            flag(screen, canvas, ctx, clip, nw, frame);
         }
-        // `county.mercenaryOffer != 0` puts frame 0x81 on the north-east
-        // quadrant — a standing band, advertised on the map.
+        // **`county.mercenaryOffer != 0` puts frame `0x81` on quadrant 2**, the
+        // tile one map row south of the origin — a standing band, advertised on
+        // the map. See [`MapScreen::town_quadrant`] for why that is `town()[2]`
+        // and not `town()[1]`, which is what this drew and which is a tile the
+        // original's overlay pass never runs on at all.
+        //
+        // **It goes through its own painter**, because its offset is not the
+        // banner's: `(+0x10, −0x12)` at the near zoom against the banner's
+        // `(+0x1A, −0x1C)`. Sharing [`campaign::draw_flag`] is how it came to be
+        // ten pixels out.
         if county.mercenary_offer != 0 {
-            if let Some(&ne) = town.get(1) {
-                flag(ne, campaign::MERCENARY_MARKER_FRAME);
+            if let Some(tile) = MapScreen::town_quadrant(ctx, id as u8, 2) {
+                let (x, y) = l2_kingdom::map::coords(tile);
+                campaign::draw_mercenary_marker(
+                    canvas,
+                    &ctx.assets.map,
+                    screen.view,
+                    &screen.zoom,
+                    (x as usize, y as usize),
+                    clip,
+                );
             }
         }
         // The castle: built, and holding a garrison.
@@ -3324,7 +3390,7 @@ fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
             .find(|&t| industry::map_toggle_for_graphic(k.campaign.map.terrain[t])
                 == Some(industry::MapToggle::Castle));
         if let Some(tile) = castle {
-            flag(tile, frame);
+            flag(screen, canvas, ctx, clip, tile, frame);
         }
     }
 }

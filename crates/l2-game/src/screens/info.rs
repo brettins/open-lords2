@@ -233,10 +233,20 @@ pub const VIEW_THESE_TROOPS: usize = 0x0E;
 pub const HEADING_X: i32 = 0x28;
 pub const HEADING_DY: i32 = 0x40;
 pub const ICON_AT: (i32, i32) = (0x28, 0x60);
-/// The wrapped description: `FUN_0040328E(group, i, 0x68, row*16 + 100, 0x120, …)`.
+/// The wrapped description: `FUN_0040328E(group, i, 0x68, row*16 + 100, W, …)`.
+///
+/// **The width is not one number, and this line used to say it was.** The two
+/// halves wrap differently and every call in each half agrees with its own:
+/// `UnitPanel_Draw`'s five calls all pass `0x120` and `TileInfo_Draw`'s three
+/// all pass `0x130` — plus `0x150` for the village variant and `0x140` for the
+/// mercenary line. The constant was read off a group-31 call site and then used
+/// as though it belonged to both. [`TILE_BODY_WRAP`] is the tile half's.
 pub const BODY_X: i32 = 0x68;
 pub const BODY_DY: i32 = 100;
+/// `UnitPanel_Draw`'s, group 31.
 pub const BODY_WRAP: i32 = 0x120;
+/// `TileInfo_Draw`'s, group 30 — sixteen pixels wider.
+pub const TILE_BODY_WRAP: i32 = 0x130;
 
 /// `Icon_tmp.pl8` — **57 raw frames**, re-read from disk by both painters on
 /// every repaint. `crate::shell::ShellAssets` already loads it and, until this
@@ -288,6 +298,46 @@ pub const SUPPLY0: usize = 0x17;
 pub const HEALTH0: usize = 0x1B;
 /// 16/0 *"No mercenaries in the army."*, 16/1…12 the nationalities.
 pub const MERC_GROUP: usize = 16;
+
+/// **The county-town arm of the tile half**, and the only part of the group-30
+/// ladder this module draws.
+///
+/// `TileInfo_Draw`'s `(flags & 0x40)` branch is four literals:
+///
+/// ```c
+/// else { local_20 = 7; local_1c = 0x1b; local_8 = 0x1b; local_c = 0; }
+/// ```
+///
+/// — heading 30/7 *"County town."*, body 30/27 *"Your troops may capture a
+/// castleless county by attacking its county town."*, and `Icon_tmp.pl8` frame
+/// `0x1B` through `Sprite_WGenSprite(local_8, 0x28, row * 0x10 + 0x60)`.
+pub const COUNTY_TOWN_HEADING: usize = 7;
+pub const COUNTY_TOWN_BODY: usize = 0x1B;
+pub const COUNTY_TOWN_ICON: usize = 0x1B;
+
+/// **The mercenary tail — the words the marker on the map does not carry.**
+///
+/// `TileInfo_Draw`'s last block before the icon, and the *only* place in the
+/// binary that says in English why there is a figure standing in the town:
+///
+/// ```c
+/// if ((g_pickedTileFlags & 0x80) == 0) {
+///   if ((g_pickedTileFlags & 0x40) != 0 && county.mercenaryOffer != 0) {
+///     Pl8_DrawFrameClipped(g_flagsSheet, 0x81, 0x32, DAT_00553d2c * 0x10 + 0x9c);
+///     FUN_0040328e(0x1e, 0x3b, 0x68, DAT_00553d2c * 0x10 + 0xa0, 0x140, …);
+///   }
+/// }
+/// ```
+///
+/// `0x1e` is [`TILE_GROUP`] and `0x3b` is 59 — *"Mercenaries are available for
+/// hire in the county."* — read out of the player's own `L2.eng` like every
+/// other string here. The frame is `g_flagsSheet` `0x81`, the **same index the
+/// map's marker uses** ([`l2_view::campaign::MERCENARY_MARKER_FRAME`]); two
+/// unrelated painters passing one constant is what makes it `[V]`.
+pub const MERCENARIES_AVAILABLE: usize = 0x3B;
+/// `(0x32, row * 0x10 + 0x9C)` and `(0x68, row * 0x10 + 0xA0)`, wrap `0x140`.
+pub const MERC_MARKER_AT: (i32, i32) = (0x32, 0x9C);
+pub const MERC_TEXT_AT: (i32, i32, i32) = (0x68, 0xA0, 0x140);
 
 /// `local_c = max(0, 15 - movesUsed)` — the moves-left line, drawn **only when
 /// the army is not garrisoned**.
@@ -392,6 +442,37 @@ impl InfoScreen {
         (unit != 0).then_some(unit)
     }
 
+    /// **The county whose town this tile is**, or `None`.
+    ///
+    /// Plane-0 bit `0x40` is the county town — `docs/decisions.md` C25 is why
+    /// `l2-kingdom` still spells the constant `CASTLE` — and it is reached only
+    /// after `FUN_0041BEFE` and `TileInfo_Draw` have both failed `0x20`
+    /// (farmland), `0x04` (no county) and `0x10` (a dwelling plot), which is the
+    /// order kept here. A tile can carry more than one of those bits and the
+    /// ladder, not the bit, decides which panel you get.
+    pub fn county_town(&self, ctx: &Ctx) -> Option<u8> {
+        use l2_kingdom::map::flags;
+        let Target::Tile(tile) = self.target else { return None };
+        let map = &ctx.game.kingdom.campaign.map;
+        let f = map.flags[tile];
+        if f & (flags::FARMLAND | flags::NO_COUNTY | 0x10) != 0 || f & flags::CASTLE == 0 {
+            return None;
+        }
+        Some(map.county[tile])
+    }
+
+    /// Whether this town's county has a band standing in it — the condition on
+    /// both halves of the mercenary tail, and the same byte
+    /// [`crate::screens::map`]'s marker reads.
+    pub fn mercenary_offer(&self, ctx: &Ctx) -> bool {
+        let Some(county) = self.county_town(ctx) else { return false };
+        ctx.game
+            .kingdom
+            .counties
+            .get(county as usize)
+            .is_some_and(|c| c.mercenary_offer != 0)
+    }
+
     /// The three army buttons, and which of the two tables they come from.
     ///
     /// `FUN_00437002` picks between `g_infoUnitButtons` (`0x004DC560`) and the
@@ -437,6 +518,29 @@ impl InfoScreen {
                     .counties
                     .get(county as usize)
                     .is_some_and(|c| c.owner == ctx.game.player);
+                // **The county town, which is the one arm of the ladder that
+                // moves for a reason other than terrain.** `FUN_0041BEFE`:
+                //
+                // ```c
+                // else {                                     /* flags & 0x40 */
+                //   if (county.mercenaryOffer == 0) DAT_00553d2c = 0x11;
+                //   else                            DAT_00553d2c = 0xf;
+                //   DAT_005651c8 = 2;
+                // }
+                // ```
+                //
+                // Two extra rows of panel, granted so that the marker and its
+                // one line of text have somewhere to go. **No ownership gate**:
+                // the offer is advertised on anybody's town.
+                if self.county_town(ctx).is_some() {
+                    let offer = ctx
+                        .game
+                        .kingdom
+                        .counties
+                        .get(county as usize)
+                        .is_some_and(|c| c.mercenary_offer != 0);
+                    return Layout { row: if offer { 0x0F } else { 0x11 }, headroom: 2 };
+                }
                 if map.flags[tile] & l2_kingdom::map::flags::FARMLAND != 0 && mine {
                     let t = map.terrain[tile];
                     if t == 0 || t > 0x18 {
@@ -845,13 +949,58 @@ impl Screen for InfoScreen {
                         crate::widget::frame(canvas, GARRISON_WIDGET, ink.highlight);
                     }
                 }
-                l2_view::text::draw(
-                    canvas,
-                    4,
-                    470,
-                    "TILE HALF: THE GROUP 30 LADDER IS NOT ALL DRAWN YET",
-                    ink.dim,
-                );
+                // **The county-town arm, and the one line of English the
+                // mercenary has anywhere in the game.** The map's marker
+                // (`screens/map.rs`'s `draw_flags`) is a picture with no words
+                // on it; this is where the original says what it means, and a
+                // player who had looked straight at the marker still reported
+                // never having seen a mercenary. Rule 6: the strings are the
+                // specification, and they come out of the player's `L2.eng`.
+                if self.county_town(ctx).is_some() {
+                    icon(COUNTY_TOWN_ICON, canvas);
+                    // **`&g_fontHeading`, not the body face.** `TileInfo_Draw`
+                    // passes `&g_fontHeading` to both of its `Eng_DrawString`
+                    // headings. The unit half above uses `Pen::eng`, which is
+                    // the *body* font, for the same slot — a divergence that
+                    // predates this arm and is not fixed here, because it is
+                    // five call sites in a half this change does not touch.
+                    let s = a.text(TILE_GROUP, COUNTY_TOWN_HEADING).to_string();
+                    pen.heading(canvas, HEADING_X, l.y(HEADING_DY), &s, font::TEXT);
+                    let s = a.text(TILE_GROUP, COUNTY_TOWN_BODY).to_string();
+                    pen.body_wrapped(canvas, BODY_X, l.y(BODY_DY), TILE_BODY_WRAP, &s, font::TEXT);
+                    if self.mercenary_offer(ctx) {
+                        // `g_flagsSheet` frame `0x81` — the *map's* sheet, at
+                        // whichever zoom is loaded, because that is the global
+                        // the original blits from. `Pl8_DrawFrameClipped` takes
+                        // an absolute position and does no centring.
+                        let zoom = &l2_view::campaign::ZOOMS[usize::from(ctx.game.map_zoom_far)];
+                        let marker = ctx
+                            .assets
+                            .map
+                            .flag_sheet(zoom)
+                            .and_then(|s| s.frame(l2_view::campaign::MERCENARY_MARKER_FRAME));
+                        if let Some(f) = marker {
+                            canvas.blit(&f, MERC_MARKER_AT.0, l.y(MERC_MARKER_AT.1));
+                        }
+                        let s = a.text(TILE_GROUP, MERCENARIES_AVAILABLE).to_string();
+                        pen.body_wrapped(
+                            canvas,
+                            MERC_TEXT_AT.0,
+                            l.y(MERC_TEXT_AT.1),
+                            MERC_TEXT_AT.2,
+                            &s,
+                            font::TEXT,
+                        );
+                    }
+                } else {
+                    l2_view::text::draw(
+                        canvas,
+                        4,
+                        470,
+                        "TILE HALF: THE GROUP 30 LADDER IS NOT ALL DRAWN YET",
+                        ink.dim,
+                    );
+                }
             }
         }
         // **Ours.** The original answers a refused disband with message `0x91`

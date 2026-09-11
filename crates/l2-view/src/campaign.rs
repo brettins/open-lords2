@@ -163,6 +163,24 @@ pub struct Zoom {
     /// centring: the frame's `cx`/`cy` fields are atlas coordinates and the
     /// function never reads them.
     pub flag_at: (i32, i32),
+    /// **Where the mercenary marker goes, which is not where the flag goes.**
+    ///
+    /// `Sprite_TopIt`'s two town arms are the same shape and set *different*
+    /// offsets, and reading one and reusing it for the other is the mistake this
+    /// field exists to make impossible:
+    ///
+    /// ```c
+    /// if (part == 0) { ... if (zoom == 0) { dx = 0x1A; dy = -0x1C; }   /* the banner    */
+    ///                      else if (zoom == 2) { dx = 6; dy = -0x15; } local_c = 2; }
+    /// if (part == 2) { ... if (zoom == 0) { dx = 0x10; dy = -0x12; }   /* the mercenary */
+    ///                      else if (zoom == 2) { dx = 6; dy = -0x15; } local_c = 0; }
+    /// ```
+    ///
+    /// Ten pixels left and ten up of the banner at the near zoom, identical at
+    /// the far one. `local_c` differs too — the banner marks a 48-pixel dirty
+    /// square through `Gfx_MarkTile48` and the mercenary marks **nothing**,
+    /// which is a repaint economy we do not have and do not need. **[V]**
+    pub mercenary_at: (i32, i32),
 }
 
 /// Zoom 0: 58 × 30 tiles, eight lattice columns on screen.
@@ -188,6 +206,7 @@ pub const NEAR: Zoom = Zoom {
     sprites: ["Sprite1a.pl8", "Sprite1b.pl8"],
     flags: "Flags1a.pl8",
     flag_at: (0x1A, -0x1C),
+    mercenary_at: (0x10, -0x12),
 };
 
 /// Zoom 2: 10 × 6 tiles, forty lattice columns on screen. The original pins the
@@ -237,6 +256,7 @@ pub const FAR: Zoom = Zoom {
     sprites: ["Sprite2a.pl8", "Sprite2b.pl8"],
     flags: "Flags2a.pl8",
     flag_at: (6, -0x15),
+    mercenary_at: (6, -0x15),
 };
 
 /// The two zooms the campaign screen actually has, near first.
@@ -654,11 +674,58 @@ pub fn draw_flag(
     frame: usize,
     clip: Clip,
 ) -> bool {
+    blit_over_tile(canvas, assets, view, zoom, tile, frame, zoom.flag_at, clip)
+}
+
+/// **`Sprite_TopIt`'s second town arm — the mercenary marker.**
+///
+/// `(tile.flags & 0x40) != 0` and `(tile.part & 0xf) == 2`:
+///
+/// ```c
+/// else if (bVar4 == 2) {
+///   if (g_counties[uVar5].mercenaryOffer == 0) return;
+///   local_c = 0;
+///   if (g_mapZoom == 0)      { local_30 = 0x10; local_34 = -0x12; }
+///   else if (g_mapZoom == 2) { local_30 = 6;    local_34 = -0x15; }
+///   DAT_005c9288 = 0x81;
+/// }
+/// ```
+///
+/// It is [`draw_flag`] with a different offset and a constant frame, and it is a
+/// separate function rather than a `frame` argument because sharing the entry
+/// point is exactly how it came to be drawn at the banner's
+/// [`Zoom::flag_at`] — ten pixels out, in a screen full of ten-pixel things.
+/// See [`MERCENARY_MARKER_FRAME`] for the second, independent source of the
+/// frame index.
+pub fn draw_mercenary_marker(
+    canvas: &mut Canvas,
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    clip: Clip,
+) -> bool {
+    let at = zoom.mercenary_at;
+    blit_over_tile(canvas, assets, view, zoom, tile, MERCENARY_MARKER_FRAME, at, clip)
+}
+
+/// The body both town arms share: `g_flagsSheet`, a frame, and an offset added
+/// to the tile origin with no centring.
+fn blit_over_tile(
+    canvas: &mut Canvas,
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    frame: usize,
+    at: (i32, i32),
+    clip: Clip,
+) -> bool {
     let Some(sheet) = assets.flag_sheet(zoom) else { return false };
     let Some(decoded) = sheet.frame(frame) else { return false };
     let (row, col) = tile_to_cell(tile.0, tile.1);
     let (sx, sy) = cell_to_screen(view, zoom, row, col);
-    canvas.blit_clipped(&decoded, sx + zoom.flag_at.0, sy + zoom.flag_at.1, clip);
+    canvas.blit_clipped(&decoded, sx + at.0, sy + at.1, clip);
     true
 }
 
@@ -763,8 +830,19 @@ pub fn flag_frame(shield: u8, phase: u8) -> Option<usize> {
     })
 }
 
-/// `Flags1a.pl8` frame `0x81`, the mercenary-offer marker, drawn on the town
-/// block's north-east quadrant when the county has a band standing.
+/// `Flags1a.pl8` frame `0x81`, the mercenary-offer marker — drawn on the town
+/// block's **`part == 2`** quadrant, which is the tile one row *south* of the
+/// block's origin and **not** the north-east one this line used to name.
+///
+/// **Two unrelated painters pass this one index**, which is what makes it `[V]`
+/// rather than a reading of one function:
+///
+/// * `Sprite_TopIt` (`0x004071A0`) — [`draw_mercenary_marker`], on the map;
+/// * `TileInfo_Draw` (`0x0041C208`) — `Pl8_DrawFrameClipped(g_flagsSheet, 0x81,
+///   0x32, row * 0x10 + 0x9C)` on the tile information panel, immediately above
+///   `L2.eng` 30/59 *"Mercenaries are available for hire in the county."*
+///
+/// The frame is 25 × 45 in the player's own `Flags1a.pl8`.
 pub const MERCENARY_MARKER_FRAME: usize = 0x81;
 
 // ------------------------------------------------------------- the cattle

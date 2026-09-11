@@ -171,6 +171,37 @@ if ((tile.flags & 0xF0) == 0)                          return;   /* nothing here
 Six arms, four of which have sub-arms, and **fourteen of the eighteen frame selections are
 not drawn by us.**
 
+### 3.0a Arm 2 was in the count and on the wrong tile, and the table above is why
+
+A player: *"I haven't seen any mercenary icons on the town square yet."* Arm 2 was one of
+the four we drew — it is `campaign::MERCENARY_MARKER_FRAME`, it has been in `draw_flags`
+since C49, and it was gated correctly on `county.mercenaryOffer`. **It went to the wrong
+tile at the wrong offset**, and this table has both numbers in it:
+
+* **`part == 2` is not `town()[1]`.** `Plane::ObjectPart` is `dx + W * dy` from the block's
+  north-west corner, so for a 2 × 2 town quadrant 2 is `(x, y + 1)` — the **third** tile in
+  tile-index order. `MapScreen::town` returns index order, and element 1 is `(x + 1, y)`,
+  which is the row this table marks **silent**. Swept over the ObjectPart plane of all 434
+  town blocks in the 44 shipped maps: `part` is 0, 1, 2, 3 over `(x, y)`, `(x+1, y)`,
+  `(x, y+1)`, `(x+1, y+1)`, with no exception —
+  `l2-formats/tests/maps.rs::town_quadrant_two_is_the_tile_one_row_south_of_the_blocks_corner`.
+* **`(+0x10, −0x12)` is not `(+0x1A, −0x1C)`.** The marker went through `Zoom::flag_at`,
+  arm 1's offset, and landed ten pixels right and ten up. `Zoom::mercenary_at` is arm 2's.
+
+**A third source settles the quadrant without reading `part` at all**, and it is the one
+that makes the reading `[V]` rather than an inference from a format document:
+`County_FindTownTile` (`0x00467FD1`) sweeps in index order and sets **bank bit `0x80` on
+the 0th and the 2nd** town tile it meets. `FUN_00405EB5` is
+`if (tile.bank & 0x80) Sprite_TopIt(…)`, so bank `0x80` is the only gate on this pass
+running at all — the original never *visits* the tile we were painting on. That is also
+what the *"two of the town's four quadrants are silent"* row above means at the caller.
+
+The general shape, because it will recur on any multi-tile object: **a quadrant number and
+a list index are the same integer with different arithmetic behind them.** Nothing in a
+type says which you hold. `MapScreen::town_quadrant(ctx, county, part)` takes the
+*quadrant* and derives the tile, so the list index never appears in a caller.
+`docs/decisions.md` C150.
+
 ### 3.1 Arm 5b is a rule, and the rule is the animation's *speed*
 
 An industry site that is *working* does not get an overlay. It steps its own terrain frame:
