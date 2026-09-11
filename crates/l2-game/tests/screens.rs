@@ -2681,38 +2681,80 @@ fn a_double_click_cancels_the_pending_single_click() {
 /// `FUN_00439EDB`'s cluster-6 branch: every job sheds its surplus first, and
 /// only then does every job draw from the pool. One pass would let whichever
 /// job came first take people the later ones needed.
+///
+/// # The ceilings are the county's own, and they have to be
+///
+/// This test used to write the ceilings by hand — cattle useful 100, grain
+/// wanted 100 — and it passed only because our `Labour_Move` recomputed nothing.
+/// Each `Village_BalanceJob` is a `Labour_Move` (`0x00439B52`), and that runs
+/// `County_RefreshEstimates` twice, so **the first job to shed rewrites every
+/// ceiling from the county itself** before the fill pass reads one. In the
+/// original a hand-written floor would not survive the first move either; on
+/// England turn one, which holds no grain at all, grain's real floor is −1 and
+/// the fill pass has nothing to fill. `docs/decisions.md` CNEW-labour-move.
+///
+/// **So the county is given a real floor, and that is staged:** 2,000 sacks,
+/// and its fallow fields painted wheat through `Kingdom::paint_field`, the
+/// brush's own road, which computes the ceilings. Only the *assignment* is then
+/// written by hand — everybody on the cattle, nobody idle — because that is the
+/// thing the gesture acts on, and no estimate reads it.
+///
+/// **Ablation, run:** swap `[false, true]` for `[true, false]` in
+/// `Game::balance_all_labour`, so every job fills before any sheds, and grain
+/// gets nobody — red at the grain assertion.
 #[test]
 fn a_double_click_on_the_idle_cluster_balances_every_job_at_once() {
     let (mut game, assets) = world!();
     let county = (1..=game.kingdom.county_count as u8)
         .find(|&id| game.is_players(id))
         .expect("the player holds a county");
-    let slots = VillageScreen::slots(&game.kingdom.counties[county as usize]);
+    let id = county as usize;
+    game.kingdom.counties[id].grain = 2000;
+    let fallow: Vec<usize> = game
+        .kingdom
+        .field_tiles(id)
+        .into_iter()
+        .filter(|&(_, t)| t == l2_kingdom::field::FieldType::Fallow)
+        .map(|(t, _)| t)
+        .collect();
+    assert!(!fallow.is_empty(), "the person's county has fallow fields to sow");
+    for t in fallow {
+        game.kingdom
+            .paint_field(id, t, l2_kingdom::field::FieldType::Grain)
+            .expect("a fallow field takes wheat");
+    }
+
+    let slots = VillageScreen::slots(&game.kingdom.counties[id]);
     let (cattle, grain) = (slots[2], slots[1]);
     let idle = l2_kingdom::tables::JOB_IDLE_TOWNSFOLK;
-    {
-        let c = &mut game.kingdom.counties[county as usize];
+    let population = game.kingdom.counties[id].population;
+    let (ceiling, floor) = {
+        let c = &mut game.kingdom.counties[id];
         c.labour = [0; l2_kingdom::tables::JOB_COUNT];
-        // Cattle is over its ceiling by 200; grain is a hundred short. The pool
-        // is empty, so grain can only be filled *after* cattle has shed.
-        c.labour[cattle] = 300;
-        c.labour_useful[cattle] = 100;
-        c.labour_wanted[cattle] = -1;
-        c.labour[grain] = 0;
-        c.labour_wanted[grain] = 100;
-        c.labour_useful[grain] = 100;
-        c.population = 300;
-    }
+        c.labour[cattle] = population;
+        (c.labour_useful[cattle], c.labour_wanted[grain])
+    };
+    let shed = population - ceiling;
+    // The premise, from the county's own estimates: cattle is over its ceiling,
+    // grain is short by more than cattle can give, and the pool is empty — so
+    // grain can only be filled *after* cattle has shed.
+    assert!(shed > 0, "cattle is over its ceiling of {ceiling} with all {population} on it");
+    assert!(floor > shed, "grain wants {floor}, more than the {shed} cattle will shed");
 
     let mut screen = VillageScreen::new(county);
     let (ox, oy) = village::cluster_origin(village::IDLE_CLUSTER, village::SCENE_Y);
     send(&mut screen, &mut game, &assets, Event::DoubleClick { x: ox + 36, y: oy + 24 });
 
-    let c = &game.kingdom.counties[county as usize];
-    assert_eq!(c.labour[cattle], 100, "cattle shed its surplus");
-    assert_eq!(c.labour[grain], 100, "and grain was filled out of what it shed");
-    assert_eq!(c.labour[idle], 100, "the hundred nobody wanted stay idle");
-    assert_eq!(c.labour.iter().sum::<i32>(), 300);
+    let c = &game.kingdom.counties[id];
+    assert_eq!(
+        (c.labour_useful[cattle], c.labour_wanted[grain]),
+        (ceiling, floor),
+        "the refresh inside each move recomputed the same ceilings from the county"
+    );
+    assert_eq!(c.labour[cattle], ceiling, "cattle shed its surplus");
+    assert_eq!(c.labour[grain], shed, "and grain was filled out of what it shed");
+    assert_eq!(c.labour[idle], 0, "nobody is left idle: grain wanted more than there was");
+    assert_eq!(c.labour.iter().sum::<i32>(), population);
 }
 
 // ---------------------------------------------------------------------------

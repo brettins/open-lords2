@@ -210,12 +210,13 @@ crates/l2-kingdom/src/county.rs	C53	e8fb6191353a	cad36ab11dbf
 crates/l2-kingdom/src/diplomacy.rs	C62	8f8a093f4110	ebb6a7ec3711
 crates/l2-kingdom/src/event.rs	C13	27ac5e0f4db2	006e7d0b71a7
 crates/l2-kingdom/src/field.rs	C123	9757bf8fd453	3a5cc2fec37d
-crates/l2-kingdom/src/field.rs	C123	cbfd8f35645e	3a5cc2fec37d
+crates/l2-kingdom/src/field.rs	C123	c6fe02d09956	3a5cc2fec37d
 crates/l2-kingdom/src/field.rs	C128	0a9b768f788b	3a8c5dae41c2
 crates/l2-kingdom/src/field.rs	C129	d23917b734a0	d7820532a89c
-crates/l2-kingdom/src/field.rs	C136	0350cebe39a1	724c11b1e475
+crates/l2-kingdom/src/field.rs	C136	4dae011b6cb6	724c11b1e475
 crates/l2-kingdom/src/industry.rs	C123	37f6e80213ab	3a5cc2fec37d
 crates/l2-kingdom/src/industry.rs	C136	4fca8a2eb88c	724c11b1e475
+crates/l2-kingdom/src/kingdom.rs	C121	cdcff25710df	865148ccac2a
 crates/l2-kingdom/src/kingdom.rs	C26	952c32e6e678	e8179d1f76a8
 crates/l2-kingdom/src/kingdom.rs	C62	24c0c9697884	ebb6a7ec3711
 crates/l2-kingdom/src/land.rs	C10	d3054e34b992	68e4eb2d2a1f
@@ -535,6 +536,7 @@ docs/decisions.md	C12	729dde396cc4	bb0dd488f9d2
 docs/decisions.md	C12	a388b50da6e9	bb0dd488f9d2
 docs/decisions.md	C120	7c9b703bcdc3	e96a6897511c
 docs/decisions.md	C120	e3304840f5e5	e96a6897511c
+docs/decisions.md	C121	ed5cd895601c	865148ccac2a
 docs/decisions.md	C123	1262cc0f058c	3a5cc2fec37d
 docs/decisions.md	C123	59a89116ad95	3a5cc2fec37d
 docs/decisions.md	C124	1168fcc7f029	38723617b085
@@ -574,6 +576,7 @@ docs/decisions.md	C136	6d12b0ebe9a1	724c11b1e475
 docs/decisions.md	C136	8e1c5d41f14b	724c11b1e475
 docs/decisions.md	C136	c97ecd206460	724c11b1e475
 docs/decisions.md	C136	db50393ede17	724c11b1e475
+docs/decisions.md	C136	fd1014b864a4	724c11b1e475
 docs/decisions.md	C137	08301a5d821f	eaaf586c5da0
 docs/decisions.md	C137	1a60c980d49c	eaaf586c5da0
 docs/decisions.md	C137	26bac2a2aa3b	eaaf586c5da0
@@ -625,6 +628,7 @@ docs/decisions.md	C161	6e968c63f3ee	8b6af36909ef
 docs/decisions.md	C161	bd94546675a8	8b6af36909ef
 docs/decisions.md	C163	2510e92d9958	d043a04534f8
 docs/decisions.md	C163	2ae950ef80e9	d043a04534f8
+docs/decisions.md	C168	96ecaa834d59	981eac4d9b1d
 docs/decisions.md	C17	f0ab9c80c1a8	b9aaae4e270c
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
@@ -726,6 +730,7 @@ docs/decisions.md	C52	20de3ea3d5cb	7a3a7676c6b5
 docs/decisions.md	C52	5e26cd0befa4	7a3a7676c6b5
 docs/decisions.md	C52	7927c7868f8b	7a3a7676c6b5
 docs/decisions.md	C57	2abd57a143c3	3b42b65157bf
+docs/decisions.md	C57	7da8965e18df	3b42b65157bf
 docs/decisions.md	C57	9ed753446c7a	3b42b65157bf
 docs/decisions.md	C57	a01e03e89d00	3b42b65157bf
 docs/decisions.md	C58	117a0bc239b7	2a1ff4d5966d
