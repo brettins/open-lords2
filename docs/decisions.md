@@ -6452,6 +6452,21 @@ Purse − 200 + that turn's tax lands on the after-save's purse **exactly**, bot
 one turn earlier in the very same fixture. That is the difference between a fix that
 generalises and one that fits.
 
+**And it was checked somewhere else, because two fixtures agreeing about 50 would not have
+settled it.** Sixty turns driven from `england-turn1.sav` — a different map, a different
+game, counties this work never looked at — produce eight neutral purchases, and they are
+**not all fifty**: county 3 takes the 50-sack lot out of 297 crowns, county 10 takes 100 out
+of 497 (with the arable style's `+100` top-up in front of it), and county 7 takes the top
+**400-sack** lot out of 2,003. Three different rungs of the same ladder, each the largest
+its purse covers. A constant would have produced 50 in all three.
+
+They are also *rare* — eight purchases in sixty turns, against 178 county-turns where a
+neutral county had a stall at all — because the cascade needs `grain < 100` **and** a
+merchant standing in the county on that turn. A neutral county's purse therefore climbs a
+long way between visits; the sixty-turn run tops out at 22,535 crowns. That is the
+original's behaviour and not a leak: nothing in the binary ever spends a county purse except
+`Merchant_Trade`, and `County::purse`'s only other writer is the style-0 top-up.
+
 **What it took to build, all of it in the binary's own order.**
 `County_RecountMerchants` (`0x00451061`), season pass 22, which was not in the pipeline at
 all — it writes the stall; `Tax_CollectAll`'s realm-0 limb; the four county bytes carried
