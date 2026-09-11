@@ -432,13 +432,55 @@ impl Kingdom {
     /// **A new game starts in Winter 1268.** The shipped `lastturn.sav` reads
     /// back `g_season = 4`, `g_year = 1268`, `g_turnCount = 1`, and this is the
     /// arithmetic that produces them.
+    ///
+    /// **Every pass but the mercenary walk.** `Game_NewGame` (`0x00497CED`)
+    /// runs `Mercenary_Init(); … Season_Advance();` and never
+    /// `Mercenary_AdvanceAll`, which is `Turn_Tick`'s phase-7 call and not
+    /// `Season_Advance`'s. It did not matter while no new game had bands in
+    /// play; now that `Scenario::from_map` seeds them, running the walk here
+    /// would have the Saxon band offering itself in county 14 on turn one. The
+    /// save settles it `[V]`: in `england-turn1.sav` every one of the twelve
+    /// bands still has its countdown equal to its reload and its walk on its
+    /// start county, which is `Mercenary_Init`'s state with no walk after it.
     pub fn start_new_game(&mut self) -> SeasonReport {
         self.season = 3;
         self.season_next = 4;
         self.year = 1267;
         self.year_next = 1268;
         self.turn_count = 0;
-        self.advance_season()
+        let mut report = SeasonReport::new();
+        for pass in SEASON_PIPELINE {
+            if pass == Pass::MercenaryAdvance {
+                continue;
+            }
+            self.run_pass(pass, &mut report);
+            report.passes.push(pass);
+        }
+        report
+    }
+
+    /// **`FUN_0044BA35`** — realm `+0x15C`, the court's *"Tax revenues
+    /// expected"* (`L2.eng` 70/8): the sum of [`County::tax_shown`] over the
+    /// counties a realm owns.
+    ///
+    /// The original caches it in the realm record at the tail of
+    /// `Tax_RecomputePreview`; this recomputes it, and `docs/stored-fields.json`
+    /// holds the recomputation to the cached bytes in every realm of every save
+    /// (twenty-three of them non-zero). **One window where the two can differ**,
+    /// `[D]`: `County_ChangeOwner` does not re-run the preview, so after a
+    /// mid-turn capture the original's court goes on showing the old sum until
+    /// the season's refresh, and this shows the new one at once.
+    ///
+    /// The original skips a county with owner 0; this asks for a match on
+    /// `realm`, and realm 0 is not a realm.
+    pub fn tax_expected(&self, realm: u8) -> i32 {
+        if realm == 0 {
+            return 0;
+        }
+        self.county_ids()
+            .filter(|&id| self.counties[id].owner == realm)
+            .map(|id| self.counties[id].tax_shown)
+            .sum()
     }
 
     /// How many counties this kingdom has, bounded by the array.

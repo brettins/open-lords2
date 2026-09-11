@@ -381,11 +381,12 @@ pub fn labour_estimate(
 ///   numbers on every path in the game, which is a simulation change needing
 ///   its own validation and not the sidebar's business. Named here rather than
 ///   left silent: `docs/decisions.md` C136.
-/// * **County `+0x280` / `+0x284`** — for weapons only, the wood and iron the
-///   forecast would cost (`weaponCost[type] * made`). Nothing in this workspace
-///   reads them and no draw call in `docs/draws-map.md` does either.
-/// * **County `+0x288` / `+0x28C`** — copies of the castle's outstanding wood
-///   and stone, written by the wood and stone passes. Same reason.
+/// * **County `+0x280` … `+0x28C`.** This said *"nothing reads them and no draw
+///   call does either"*, and the second half was false: `Panel_JobIndustry`
+///   (`0x00412E6B`) draws all four under `L2.eng` group 76. They are not stored
+///   here because they are pure functions of fields the county already holds —
+///   [`panel_figures`] is them, and `docs/stored-fields.json` holds it to the
+///   file's bytes in every county of every save.
 pub fn preview(
     t: &Tables,
     county: &mut County,
@@ -993,6 +994,45 @@ pub fn castle_labour_estimate(_t: &Tables, county: &County) -> (i32, i32) {
         return (crate::county::LABOUR_NO_FLOOR, 0);
     }
     (crate::county::LABOUR_NO_FLOOR, county.castle_work_left.max(0))
+}
+
+/// County `+0x280`, `+0x284`, `+0x288` and `+0x28C` — **the four figures
+/// `Panel_JobIndustry` (`0x00412E6B`) prints beside an industry's forecast**,
+/// in that order: the wood and the iron next season's weapons will use (76/2
+/// *"will be used by the blacksmiths."* on the wood and iron rows), and the wood
+/// and stone the castle builders still need (76/3 *"needed by castle
+/// builders."* on the wood and stone rows).
+///
+/// `Industry_LabourEstimate` (`0x0044F318`) writes them as it goes: every call
+/// zeroes the first two and the weapons call fills them, inside its guard, from
+/// `g_weaponCost[weaponType]` times the weapons forecast it has just made; the
+/// wood and stone calls copy the castle's outstanding wood and stone when a
+/// build is in progress, and zero otherwise. Since the weapons forecast is zero
+/// whenever that guard fails, the four are a **pure function** of
+/// [`Industry::next_season`], [`County::weapon_type`] and the castle record —
+/// which is why this is a function and not four more fields.
+///
+/// **`[V]` for the first two**: `weaponCost[type] × made` is the stored value in
+/// every county of every save, sixteen of them non-zero for the wood and seven
+/// for the iron. The castle pair is zero in every save, because no save on this
+/// machine was taken mid-build.
+///
+/// **Nothing draws them yet.** The job popup's body is a stub in `l2-game`, so
+/// this is what that painter will call rather than what one calls today.
+pub fn panel_figures(t: &Tables, county: &County) -> [i32; 4] {
+    let weapon = county.weapon_type.min(WEAPON_TYPE_COUNT - 1);
+    let made = county.industry[Commodity::Weapons.index()].next_season;
+    let (wood_owed, stone_owed) = if county.castle_degraded != 0 {
+        (county.castle_wood_owed, county.castle_stone_owed)
+    } else {
+        (0, 0)
+    };
+    [
+        t.weapon[weapon].wood.saturating_mul(made),
+        t.weapon[weapon].iron.saturating_mul(made),
+        wood_owed,
+        stone_owed,
+    ]
 }
 
 /// County `+0x1A6` — the seasons the castle panel says the work will take.

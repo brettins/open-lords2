@@ -510,6 +510,12 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x15D", |k, i, _| k.counties[i].ration_achieved as i64),
         at("County+0x15E", |k, i, _| k.counties[i].ration_wanted as i64),
         at("County+0x15F", |k, i, _| k.counties[i].ration_split as i64),
+        // `Ration_Apply`'s *Fed* row, in the file's order dairy, grain, meat;
+        // `people_fed` returns grain, meat, dairy.
+        at("County+0x16C", |k, i, e| {
+            let (grain, meat, dairy) = l2_kingdom::ration::people_fed(&k.tables, &k.counties[i]);
+            [dairy, grain, meat][e] as i64
+        }),
         at("County+0x178", |k, i, _| k.counties[i].grain_eaten as i64),
         at("County+0x17C", |k, i, _| k.counties[i].herd_eaten as i64),
         at("County+0x180", |k, i, _| k.counties[i].grain_available as i64),
@@ -520,9 +526,14 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x1A0", |k, i, _| k.counties[i].merchant_visits as i64),
         at("County+0x1A4", |k, i, _| k.counties[i].merchant_count as i64),
         at("County+0x1A5", |k, i, _| k.counties[i].merchant_unit as i64),
+        // A `char` in the original: the byte, not the whole quotient.
+        at("County+0x1A6", |k, i, _| {
+            l2_kingdom::industry::castle_seasons_left(&k.tables, &k.counties[i]) as u8 as i64
+        }),
         at("County+0x1A7", |k, i, _| k.counties[i].sow_shortfall as i64),
         at("County+0x1A8", |k, i, _| k.counties[i].tax_suppressed as i64),
         at("County+0x1AA", |k, i, _| k.counties[i].event_id as i64),
+        at("County+0x1AD", |k, i, _| k.counties[i].mercenary_offer as i64),
         at("County+0x1B0", |k, i, _| k.counties[i].castle_switch as i64),
         at("County+0x1BC", |k, i, _| k.counties[i].garrison_unit as i64),
         at("County+0x1C0", |k, i, _| k.counties[i].castle_type as i64),
@@ -569,6 +580,11 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x25C", |k, i, _| k.counties[i].herd_crowding as i64),
         at("County+0x268", |k, i, _| k.counties[i].herd_births_expected as i64),
         at("County+0x26C", |k, i, _| k.counties[i].herd_deaths_expected as i64),
+        at("County+0x24C", |k, i, _| k.counties[i].grain_weather_change as i64),
+        at("County+0x270", |k, i, _| k.counties[i].herd_weather_change as i64),
+        at("County+0x274", |k, i, _| k.counties[i].herd_event_change as i64),
+        at("County+0x278", |k, i, _| k.counties[i].grain_event_change as i64),
+        at("County+0x280", |k, i, e| l2_kingdom::industry::panel_figures(&k.tables, &k.counties[i])[e] as i64),
         at("County+0x290", |k, i, _| k.counties[i].weapon_type as i64),
         at("County+0x294", |k, i, e| k.counties[i].industry[e].efficiency as i64),
         at("County+0x295", |k, i, e| k.counties[i].industry[e].has_resource as i64),
@@ -599,6 +615,7 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("Realm+0x029", |k, i, _| k.realms[i].county_count as i64),
         at("Realm+0x02B", |k, i, _| k.realms[i].rank as i64),
         at("Realm+0x02C", |k, i, _| k.realms[i].army_count as i64),
+        at("Realm+0x02D", |k, i, e| k.campaign.names.counters(i as u8)[e] as i64),
         at("Realm+0x045", |k, i, _| k.realms[i].muster_timer as i64),
         at("Realm+0x048", |k, i, _| k.realms[i].threat_realm as i64),
         at("Realm+0x04B", |k, i, _| k.realms[i].attack_county as i64),
@@ -644,6 +661,7 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("Realm+0x158", |k, i, _| k.realms[i].bankrupt_stage as i64),
         at("Realm+0x159", |k, i, _| k.realms[i].voice_rotation as i64),
         at("Realm+0x15A", |k, i, _| k.realms[i].raid_timer as i64),
+        at("Realm+0x15C", |k, i, _| k.tax_expected(i as u8) as i64),
     ]
 }
 

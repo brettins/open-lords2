@@ -465,6 +465,8 @@ pub fn sow(t: &Tables, county: &mut County, advanced_farming: bool) {
     let store = county.grain;
     let sown = sow_sacks(t, county, store, labour, advanced_farming);
     county.crop[0] = sow_factor(county.weather).apply(sown);
+    // `field_0x24c = crop[0] - iVar1`: the band's effect, after less before.
+    county.grain_weather_change = county.crop[0] - sown;
     county.crop[1] = county.crop[0] * t.grain.yield_per_sack;
     // What the crop is measured against for the rest of the year. A county
     // that fell back to a token handful records **one** field, not its real
@@ -480,6 +482,7 @@ pub fn grow(t: &Tables, county: &mut County, advanced_farming: bool) {
     let labour = grain_labour(t, county);
     let grown = grow_step(t, county, labour, county.crop[1], advanced_farming);
     county.crop[1] = grow_factor(county.weather).apply(grown);
+    county.grain_weather_change = county.crop[1] - grown;
 }
 
 /// Harvest: what the reapers bring in lands in the store.
@@ -512,6 +515,10 @@ pub fn harvest(t: &Tables, county: &mut County, advanced_farming: bool, quirks: 
         reaped
     };
     county.crop[2] = if factor == Factor::NONE { reaped } else { factor.apply(base) };
+    // After the band less what `Grain_Harvest` returned — which under the
+    // reproduced quirk is a difference of two different bases, and is what the
+    // original prints as weather's gain or loss.
+    county.grain_weather_change = county.crop[2] - reaped;
     county.grain += county.crop[2];
 }
 
@@ -533,7 +540,13 @@ pub fn grain_season_tick(
     quirks: Quirks,
 ) {
     county.crop[2] = 0;
+    // `field_0x278 = 0`, then `Pct(grain, |p|)` in either arm. The store moves
+    // by the same number with the event's sign; `pct` truncates toward zero, so
+    // `pct(grain, p)` is exactly that signed amount and the arithmetic below is
+    // unchanged by storing the figure.
+    county.grain_event_change = 0;
     if county.event_grain_pct != 0 {
+        county.grain_event_change = pct(county.grain, county.event_grain_pct.abs());
         county.grain += pct(county.grain, county.event_grain_pct);
         county.event_grain_pct = 0;
     }
@@ -1108,15 +1121,21 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
     let mut deaths = growth.deaths;
 
     let mut weather_change = pct(county.herd, t.weather[county.weather.index() as usize].herd_pct);
+    // `field_0x274 = 0`, then the event's magnitude in the two signed arms and
+    // nothing for No Bull; `field_0x270 = local_c` after the No Bull override.
+    county.herd_event_change = 0;
     if county.event_herd_pct == crate::event::HERD_NO_GROWTH {
         weather_change = 0;
         births = 0;
     } else if county.event_herd_pct < 0 {
-        deaths += pct(county.herd, -county.event_herd_pct);
+        county.herd_event_change = pct(county.herd, -county.event_herd_pct);
+        deaths += county.herd_event_change;
     } else if county.event_herd_pct > 0 {
-        births += pct(county.herd, county.event_herd_pct);
+        county.herd_event_change = pct(county.herd, county.event_herd_pct);
+        births += county.herd_event_change;
     }
     county.event_herd_pct = 0;
+    county.herd_weather_change = weather_change;
 
     if weather_change < 0 {
         deaths -= weather_change;
@@ -1647,6 +1666,39 @@ mod tests {
         assert!(stormy > flooded, "{stormy} vs {flooded}");
     }
 
+    /// `Grain_SeasonTick`'s two panel figures: the event's **magnitude** whatever
+    /// its sign, zeroed on a season with no event, and the weather band's effect
+    /// as the stage after the band less before it.
+    #[test]
+    fn the_grain_tick_records_what_the_event_and_the_weather_did() {
+        let mut c = County::new();
+        c.grain = 1000;
+        c.weather = Weather::Cloudy;
+        c.event_grain_pct = -30; // rats
+        grain_season_tick(T, &mut c, Season::Winter, true, Q);
+        assert_eq!(c.grain_event_change, 300, "a magnitude, not -300");
+        c.event_grain_pct = 20; // found as surplus
+        grain_season_tick(T, &mut c, Season::Winter, true, Q);
+        assert_eq!(c.grain_event_change, pct(700, 20));
+        grain_season_tick(T, &mut c, Season::Winter, true, Q);
+        assert_eq!(c.grain_event_change, 0, "zeroed by the tick that has no event");
+
+        // Sunny growing is `* 3 / 2`: the figure is the half the sun added.
+        let mut c = County::new();
+        c.fields_grain = 6;
+        c.fields_grain_sown = 6;
+        c.labour[T.job.grain_farming] = 10_000;
+        c.crop[1] = 400;
+        c.weather = Weather::Sunny;
+        grain_season_tick(T, &mut c, Season::Summer, true, Q);
+        let before = c.crop[1] - c.grain_weather_change;
+        assert!(c.grain_weather_change > 0, "sunshine gains");
+        assert_eq!(c.crop[1], before * 3 / 2, "after less before is the band's own effect");
+        c.weather = Weather::Cloudy;
+        grain_season_tick(T, &mut c, Season::Summer, true, Q);
+        assert_eq!(c.grain_weather_change, 0, "Cloudy has no band");
+    }
+
     #[test]
     fn the_grain_event_modifier_is_applied_and_consumed() {
         let mut c = County::new();
@@ -1718,6 +1770,31 @@ mod tests {
         };
         assert!(after(Weather::Sunny) > after(Weather::Cloudy));
         assert!(after(Weather::Cloudy) > after(Weather::Frost));
+    }
+
+    /// `Herd_SeasonTick`'s two panel figures: the weather's signed swing, which
+    /// No Bull forces to zero, and the event's magnitude, which No Bull does not
+    /// have.
+    #[test]
+    fn the_herd_tick_records_what_the_event_and_the_weather_did() {
+        for w in Weather::ALL {
+            let mut c = grazing(1000, 100, 3000);
+            c.weather = w;
+            herd_season_tick(T, &mut c, SUMMER, AUTUMN);
+            assert_eq!(c.herd_weather_change, pct(1000, T.weather[w.index() as usize].herd_pct), "{}", w.name());
+            assert_eq!(c.herd_event_change, 0, "{}: no event", w.name());
+        }
+        let mut c = grazing(200, 20, 600);
+        c.event_herd_pct = -25; // wolves
+        herd_season_tick(T, &mut c, SUMMER, AUTUMN);
+        assert_eq!(c.herd_event_change, 50, "a magnitude, not -50");
+
+        let mut c = grazing(1000, 100, 3000);
+        c.weather = Weather::Sunny;
+        c.event_herd_pct = crate::event::HERD_NO_GROWTH;
+        herd_season_tick(T, &mut c, SUMMER, AUTUMN);
+        assert_eq!(c.herd_weather_change, 0, "No Bull cancels the sun, and the figure says so");
+        assert_eq!(c.herd_event_change, 0, "and has no figure of its own");
     }
 
     #[test]

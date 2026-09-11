@@ -434,7 +434,11 @@ fn the_pipeline_reaches_the_files_clock() {
     assert_eq!(k.season_next, s.clock.season_next);
     assert_eq!(k.year, s.clock.year);
     assert_eq!(k.turn_count, s.clock.turn_count);
-    assert_eq!(report.passes, SEASON_PIPELINE.to_vec(), "in the documented order");
+    // Every pass but `Mercenary_AdvanceAll`, which `Game_NewGame` does not call:
+    // the file's twelve bands are still at `Mercenary_Init`'s state.
+    let expected: Vec<_> =
+        SEASON_PIPELINE.iter().copied().filter(|p| *p != l2_kingdom::phase::Pass::MercenaryAdvance).collect();
+    assert_eq!(report.passes, expected, "in the documented order");
     assert!(report.messages.is_empty(), "a happy kingdom raises no messages");
     assert!(report.revolts.is_empty());
 }

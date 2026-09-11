@@ -279,6 +279,32 @@ fn england_pair(save: &l2_formats::save::Save, maps: &[u8]) -> (Scenario, Scenar
     (from_save, from_map)
 }
 
+/// **A new game's mercenary bands, after its opening season, are England turn
+/// one's, band for band.**
+///
+/// `Game_NewGame` is `Mercenary_Init(); … Season_Advance();` with no
+/// `Mercenary_AdvanceAll` between them, and the save written after it still
+/// holds every band at its start county with its countdown full. Our
+/// `Kingdom::start_new_game` walks the same pipeline `Season_Advance` does, which
+/// carries the phase-7 walk; this is the test that says it must not run there.
+///
+/// **Ablation, run:** take the `MercenaryAdvance` skip out of `start_new_game`
+/// and the Saxon band, period 1, has already offered itself in county 14.
+#[test]
+fn a_new_games_bands_after_its_opening_season_are_england_turn_ones() {
+    let save = l2_testkit::england!();
+    let maps = maps!();
+    let (from_save, from_map) = england_pair(&save, &maps);
+    let mut k = from_map.kingdom(SEED);
+    k.start_new_game();
+    let saved = from_save.kingdom(SEED);
+    assert_eq!(k.campaign.mercenaries.in_play(), 12);
+    assert_eq!(k.campaign.mercenaries, saved.campaign.mercenaries, "the bands after the opening season");
+    for id in 1..=k.county_count {
+        assert_eq!(k.counties[id].mercenary_offer, saved.counties[id].mercenary_offer, "county {id}'s offer");
+    }
+}
+
 /// **England out of `L2_maps.dat` and England out of `lastturn.sav`, field by
 /// field.**
 ///
@@ -453,6 +479,16 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     assert_eq!(merchants(&b), merchants(&a), "the merchant count");
     assert_eq!(merchants(&b), 6, "England seats six merchants");
     assert_eq!(a.units.len(), b.units.len(), "England turn one has nothing but merchants");
+
+    // **The mercenary bands, exactly.** `Game_NewGame` runs `Mercenary_Init` and
+    // then `Season_Advance`, which does not walk them, so the save written after
+    // it holds `Mercenary_Init`'s table untouched: twelve bands on a
+    // fourteen-county map, each at its start county with its countdown equal to
+    // its reload — including the Spanish and Angevin bands, whose start
+    // counties 16 and 17 are not on this map at all. One reading of the file
+    // and one of the roster, and they agree on all sixty fields.
+    assert_eq!(b.mercenaries.in_play(), 12, "England gets all twelve bands");
+    assert_eq!(a.mercenaries, b.mercenaries, "the band table is Mercenary_Init's");
 
     // ------------------------------- the five derived counts, on the kingdoms
 
@@ -707,6 +743,16 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     ] {
         judge(field, f, forecast);
     }
+    let figures = "what last season's weather and event did to the grain and the herd; a new game \
+                   has had no season, and England turn one's first stood in Cloudy with no event";
+    for (field, f) in [
+        ("grain_weather_change", (|c: &CountyState| c.grain_weather_change as i64) as fn(&CountyState) -> i64),
+        ("grain_event_change", |c| c.grain_event_change as i64),
+        ("herd_weather_change", |c| c.herd_weather_change as i64),
+        ("herd_event_change", |c| c.herd_event_change as i64),
+    ] {
+        judge(field, f, figures);
+    }
     let mood = "the happiness pass's and the tax preview's outputs, which the save's season wrote \
                 and a new game's has not; the army, ale, other-counties and warning terms are \
                 zero in the save too, because nothing raised, bought or taxed past 19% by turn one";
@@ -782,6 +828,11 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         |c| c.weapon_type as i64,
         "the save's counties each carry the weapon their blacksmith makes; a new game opens at \
          County::new's 0, and which pass first chooses it is not traced here",
+    );
+    judge(
+        "mercenary_offer",
+        |c| c.mercenary_offer as i64,
+        "Mercenary_AdvanceAll is turn phase 7's, so a band cannot be on offer before turn one ends",
     );
 
     let mut silent = Vec::new();
@@ -872,6 +923,13 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             "tax_hap_other",
             "tax_suppressed",
             "unrest_warned",
+            // No band has walked by turn one, and no weather or event has
+            // touched a crop or a herd in England turn one's first season.
+            "mercenary_offer",
+            "grain_weather_change",
+            "grain_event_change",
+            "herd_weather_change",
+            "herd_event_change",
         ]
         .into_iter()
         .collect::<std::collections::BTreeSet<_>>()
@@ -987,6 +1045,11 @@ const JUDGED: &[&str] = &[
     "fields_grain_sown",
     "sow_shortfall",
     "weapon_type",
+    "mercenary_offer",
+    "grain_weather_change",
+    "grain_event_change",
+    "herd_weather_change",
+    "herd_event_change",
 ];
 
 /// **Enumerate the fields; do not spot-check them.**

@@ -61,6 +61,7 @@ use l2_formats::maps::{MapSlot, Plane, PLANE_DIM};
 use l2_kingdom::county::{MAX_COUNTIES, MAX_COUNTY_ID, MAX_FIELDS, MAX_NEIGHBOURS};
 use l2_kingdom::map::{CampaignMap, MAP_TILES};
 use l2_kingdom::merchant::{self, MerchantRoutes, ROUTES, ROUTE_SLOTS};
+use l2_kingdom::mercenary::MercenaryBands;
 use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::{Weather, JOB_COUNT};
 use l2_kingdom::unit::{Unit, UnitKind, Units};
@@ -1260,6 +1261,10 @@ fn county_reset(id: usize) -> CountyState {
         herd_change_expected: 0,
         herd_births_expected: 0,
         herd_deaths_expected: 0,
+        grain_weather_change: 0,
+        grain_event_change: 0,
+        herd_weather_change: 0,
+        herd_event_change: 0,
         grain_change_expected: 0,
         grain_sown_expected: 0,
         grain_grown_expected: 0,
@@ -1307,6 +1312,10 @@ fn county_reset(id: usize) -> CountyState {
         fields_grain_sown: 0,
         sow_shortfall: false,
         weapon_type: 0,
+        // `County_Reset` zeroes the record, and `Mercenary_AdvanceAll` — the
+        // cache's only writer besides a hire — is turn phase 7's, which a new
+        // game has not reached.
+        mercenary_offer: 0,
     }
 }
 
@@ -1477,6 +1486,10 @@ impl Scenario {
             counties,
             realms,
             map,
+            // `Mercenary_Init` (`0x004AC904`), which `Game_NewGame` calls
+            // straight after `Merchant_SpawnAll`. Nothing on the new-game path
+            // ran it, so a new campaign had no mercenaries either.
+            mercenaries: MercenaryBands::init(w.county_count),
             units,
             routes: w.routes.clone(),
             merchant_start: w.merchant_start,
@@ -1507,6 +1520,9 @@ impl Default for RealmState {
             stone: 0,
             wood: 0,
             weapons: [0; l2_kingdom::tables::WEAPON_TYPE_COUNT],
+            // `Game_SetupRealmsAndCounties` zeroes the name counters; no army
+            // has been named yet.
+            army_names: [0; l2_kingdom::unit::ARMY_NAME_SLOTS],
             // CNEW-stored-fields: `Realm::new()`'s values, all zero, which is
             // what a new game had before the save path carried them.
             ai_step: 0,
