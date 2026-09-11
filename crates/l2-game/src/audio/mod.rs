@@ -98,7 +98,7 @@
 //!
 //! What is left, in the order a player notices it:
 //!
-//! * **Nine battlefield sites, each on a mechanic rather than a channel.** This
+//! * **Seven battlefield sites, six on a mechanic and one dead.** This
 //!   bullet used to say the whole battlefield — 25 sites — was *"a limit of the
 //!   design rather than a to-do"*, because a sword swing is an event inside a
 //!   tick and [`Director`] derives sound from the world after it. The premise
@@ -106,10 +106,11 @@
 //!   the event. `l2_sim::cue` is that record — monotone counts the battle writes
 //!   and never reads — and because every battlefield call is drop-if-busy, a
 //!   count that moved since the last tick is exactly what the original's calls
-//!   could make audible. Sixteen of the 25 sound now. The nine that do not are
-//!   fire, boiling oil, a tower docking, state 17's own loose, the high-rampart
-//!   catapult miss and a realm eliminated mid-battle — each named in
-//!   `docs/audio.json`, and each a mechanic `l2-sim` does not have.
+//!   could make audible. Eighteen of the 25 sound now. Six that do not are
+//!   fire, boiling oil, a tower docking and the high-rampart catapult miss —
+//!   each named in `docs/audio.json`, and each a mechanic `l2-sim` does not
+//!   have. The seventh, a realm eliminated mid-battle, is `dead`: no
+//!   single-player path reaches it (`docs/bugs.md` `DNEW-midbattle`).
 //! * **The two sample banks elsewhere.** [`names::KINGDOM_BANK`] and
 //!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
 //!   their 29 slots ship. The campaign half of the kingdom bank now sounds —
@@ -1384,18 +1385,20 @@ pub enum Request {
 /// `l2-sim`; which *slot* that event plays is decided here, because it is the
 /// original's ladder and not a rule of the battle.
 ///
-/// Nine of the twenty-five sites are not here, and each is `blocked` in
+/// Seven of the twenty-five sites are not here. Six are `blocked` in
 /// `docs/audio.json` on a mechanic this engine does not model: fire
 /// (`BattleMan_BurnTick` ×2, `FUN_0048551D`), boiling oil (`FUN_0047A814`),
-/// a siege tower docking (`FUN_00491492`), state 17's own loose
-/// (`BattleMan_StateCloseToAttack` ×2), a catapult shot on a rampart four high
-/// (`Missile_Step#2`), and a realm eliminated mid-battle (`FUN_0047FE0B`).
+/// a siege tower docking (`FUN_00491492`), and a catapult shot on a rampart
+/// four high (`Missile_Step#2`). The seventh, a realm eliminated mid-battle
+/// (`FUN_0047FE0B`), is `dead` in single player: its one caller is reached only
+/// from the network session and from a function nothing references.
 pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
     use l2_sim::{Troop, WeaponClass, ALL_TROOPS, SIDE_A, SIDE_B};
     let struck = |t: Troop| now.melee_casualties(t) != was.melee_casualties(t);
     let hit = |w: WeaponClass| now.missile_hits(w) != was.missile_hits(w);
     let felled = |w: WeaponClass| now.missile_casualties(w) != was.missile_casualties(w);
     let loosed = |w: WeaponClass| now.loosed(w) != was.loosed(w);
+    let closed = |w: WeaponClass| now.closing_loosed(w) != was.closing_loosed(w);
     let mut out = Vec::new();
     let mut ask = |moved: bool, request: Request| {
         if moved {
@@ -1455,6 +1458,14 @@ pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
     ask(loosed(WeaponClass::Bow), Request::Slot(7));
     // sfx: BattleMan_StateEngineFire#1
     ask(loosed(WeaponClass::Catapult), Request::Slot(0xe));
+
+    // **`BattleMan_StateCloseToAttack` (`0x00484BF9`), state 17's own loose.**
+    // A second call site with the same two slots — `class == 2 ? 9 : class ==
+    // 1 ? 7`, read back out of the missile record after its launch steps. `[V]`
+    // sfx: BattleMan_StateCloseToAttack#1
+    ask(closed(WeaponClass::Crossbow), Request::Slot(9));
+    // sfx: BattleMan_StateCloseToAttack#2
+    ask(closed(WeaponClass::Bow), Request::Slot(7));
 
     // **`Wall_Smash` (`FUN_0049694F`)**, whose first statement is
     // `Sound_PlayFile("bathit2.wav", 0, 0)`. `[V]`

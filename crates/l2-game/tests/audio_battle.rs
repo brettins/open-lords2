@@ -314,13 +314,16 @@ fn an_order_onto_the_moat_is_the_fourth_cry() {
 
 // ---------------------------------------------------------------- the fighting
 
-/// **Every call the battlefield's ladder can make, pinned.** Sixteen sites,
+/// **Every call the battlefield's ladder can make, pinned.** Eighteen sites,
 /// thirteen files, and the verb each one uses: every bank slot is
 /// drop-if-busy on its own buffer and the wall is the one-shot buffer.
 ///
+/// State 17's two sites add two calls and no file — the bow and crossbow
+/// already sounded from `BattleMan_FireMissile`.
+///
 /// A new arm makes this red with the request it added.
 #[test]
-fn the_battle_ladder_is_sixteen_calls_and_thirteen_files() {
+fn the_battle_ladder_is_eighteen_calls_and_thirteen_files() {
     let every = Cues::of_every_occasion();
     let asked = audio::battle_requests(&Cues::default(), &every);
     assert_eq!(
@@ -341,6 +344,8 @@ fn the_battle_ladder_is_sixteen_calls_and_thirteen_files() {
             Request::Slot(9),
             Request::Slot(7),
             Request::Slot(0xe),
+            Request::Slot(9),
+            Request::Slot(7),
             Request::File("bathit2.wav"),
         ]
     );
@@ -365,6 +370,43 @@ fn the_battle_ladder_is_sixteen_calls_and_thirteen_files() {
     );
     // And a tick in which nothing happened asks for nothing.
     assert!(audio::battle_requests(&every, &every).is_empty());
+}
+
+/// **State 17 is heard.** A human's archer sent onto the AI's peasant closes,
+/// looses its own arrow, and the ladder asks for `bowmen1.wav` on that tick —
+/// from `closing_loosed`, while `BattleMan_FireMissile`'s count never moves.
+///
+/// Ablation: delete `ask(closed(WeaponClass::Bow), Request::Slot(7))` and the
+/// first assertion goes red on the tick the arrow leaves.
+#[test]
+fn an_archer_sent_onto_an_enemy_is_heard_loosing_its_own_arrow() {
+    use l2_sim::WeaponClass;
+    let mut live = battle(&[(Troop::Archers, 1)], &[(Troop::Peasants, 1)]);
+    let fighters = &live.runner.fighters;
+    let archer = fighters.iter().position(|f| f.troop == Troop::Archers).expect("an archer");
+    let peasant = fighters.iter().position(|f| f.troop == Troop::Peasants).expect("a peasant");
+    let at = (fighters[peasant].x, fighters[peasant].y);
+    let unit = live.runner.unit_of(archer);
+    live.runner.order_unit(unit, at.0, at.1);
+
+    let mut heard = false;
+    for _ in 0..2_000 {
+        let was = live.runner.sim.cues;
+        live.tick();
+        let now = live.runner.sim.cues;
+        if now.closing_loosed(WeaponClass::Bow) != was.closing_loosed(WeaponClass::Bow) {
+            let asked = audio::battle_requests(&was, &now);
+            assert!(asked.contains(&Request::Slot(7)), "state 17 loosed and nothing was asked: {asked:?}");
+            assert_eq!(file_of(Request::Slot(7)), "bowmen1.wav");
+            heard = true;
+            break;
+        }
+        if live.conclusion.is_some() {
+            break;
+        }
+    }
+    assert!(heard, "the archer never loosed from state 17");
+    assert_eq!(live.runner.sim.cues.loosed(WeaponClass::Bow), 0, "and BattleMan_FireMissile never did");
 }
 
 /// **The sword is the striker's**: knights and swordsmen `sword2.wav`, macemen

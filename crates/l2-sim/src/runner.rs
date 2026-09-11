@@ -54,6 +54,12 @@
 //!   fire, boiling oil, and the state that decides *when* a figure is in the
 //!   original's firing state — here it is "standing at its destination and out
 //!   of melee", which is `[I]`.
+//! * **State 17 closes and shoots.** A bow or crossbow figure whose unit is
+//!   sent onto an enemy runs [`Self::close_to_attack_tick`], which is
+//!   `BattleMan_StateCloseToAttack`: walk until the target is inside its range
+//!   less two cells, loose its own arrow on its own reload, then hold its
+//!   ground. `[V]` throughout; the one arm not built is the aimed-at-a-cell
+//!   shot, which exists to set woodland alight and waits on fire.
 //! * **A figure already locked in a melee is not re-tasked by a reform.** The
 //!   original re-tasks it and lets its next tick tear the duel down; we do not
 //!   model that teardown, so pulling one side out here would leave a
@@ -272,6 +278,21 @@ pub struct Conclusion {
 /// timing rather than a rule; it is here because the write-back is on the far
 /// side of it, and a caller reproducing the original's pacing needs the number.
 pub const SETTLE_TICKS: u32 = 5000;
+
+/// **What state 17 holds an AI unit's reform countdown at** while one of its
+/// figures stands shooting — `reTarg = 0x32` in `BattleMan_StateCloseToAttack`.
+///
+/// It is written every frame the figure is closing and not `engaged`, and
+/// `Battle_UpdateAllUnits` has already counted the countdown down by then, so
+/// it never reaches zero while the unit is shooting: the reform is *held*, and
+/// runs out fifty frames after the last figure stops. `[V]` on the write and
+/// on the order of the two sweeps.
+pub const CLOSING_REFORM: i16 = 0x32;
+
+/// `firing = 0x78` — what state 17 writes on the figure and its unit as it
+/// looses. The unit's copy is the one this crate models: the rebuild counts it
+/// down and two order handlers refuse to run while it is non-zero.
+pub const FIRING_FRAMES: u8 = 0x78;
 
 /// The other of the two sides.
 pub fn other_side(side: Side) -> Side {
@@ -544,7 +565,19 @@ impl BattleRunner {
                 u.order_lock = crate::unit::ORDER_LOCK;
             }
         }
+        self.clear_straff(unit);
         self.reform_unit(unit);
+    }
+
+    /// `BattleUnit_Order`'s first loop: `movStraff = 0` for every figure of
+    /// the unit — the only writer of zero in the binary. An order is what lets
+    /// an archer that has shot once walk after its target again.
+    fn clear_straff(&mut self, unit: usize) {
+        for f in self.sim.figures.iter_mut() {
+            if f.unit as usize == unit {
+                f.straffed = false;
+            }
+        }
     }
 
     /// Order every unit of a side at a cell. What a player would do with a
@@ -955,6 +988,9 @@ impl BattleRunner {
             .map(|(u, _)| u)
             .collect();
         for u in ordered {
+            // The AI's action routines reach the figures through
+            // `BattleUnit_Order`, which clears `movStraff` before it reforms.
+            self.clear_straff(u);
             self.reform_unit(u);
         }
         for u in reform {
@@ -1310,9 +1346,19 @@ impl BattleRunner {
         let troop = self.fighters[fighter].troop;
         let owner = self.sim.figures[sim].owner;
 
-        // The occupant of the destination, unless it is one of ours —
-        // `g_otherBattleMan` is zeroed when the owners match.
-        let enemy_there = self.occupant[y as usize * DIM + x as usize].and_then(|o| {
+        // The occupant of the **unit's** destination, unless it is one of ours
+        // — `g_otherBattleMan` is zeroed when the owners match.
+        //
+        // **Corrected: this read the figure's own slot.** The original's is
+        // `DAT_005681FC`, and its one writer is `Formation_RectIsClear`
+        // (`0x00489F9D`), which caches `g_battlefield[targY*80 + targX].figure`
+        // off the unit's `targX`/`targY` before any slot is assigned — the same
+        // cache, and the same mistake, as `DAT_00553FE4` below. A slot is by
+        // construction a cell a figure can walk to, so reading the slot's
+        // occupant put almost nobody into state 17: an order onto an enemy
+        // made every archer walk at him instead of shooting.
+        let (ux, uy) = self.unit_dest(unit);
+        let enemy_there = self.occupant[uy as usize * DIM + ux as usize].and_then(|o| {
             let o = o as usize;
             (self.sim.figures[self.fighters[o].sim].owner != owner).then_some(o)
         });
@@ -1340,6 +1386,13 @@ impl BattleRunner {
         if (1..3).contains(&weapon) && enemy_there.is_some() {
             // A bow or a crossbow with somebody on the destination closes to
             // shoot instead of walking on: its destination becomes its own cell.
+            //
+            // The original's condition is `other != 0 || unit.targetCell != 0`.
+            // The second half is the shot at a **cell**: `BattleUnit_Order`
+            // writes `targetCell` only on its woodland arm, parks figure 0 on
+            // the cell as a stand-in target, and `Missile_Step` sets surface 15
+            // alight from it. Nothing here writes `targetCell` — `order_full`
+            // does not yet carry `woodland` — so that arm waits on fire.
             self.sim.figures[sim].target = enemy_there.map(|o| self.fighters[o].sim);
             new_state = State::Shooting;
             dest = (self.fighters[fighter].x, self.fighters[fighter].y);
@@ -1364,6 +1417,10 @@ impl BattleRunner {
 
     fn step_one(&mut self, i: usize) {
         if !self.is_alive(i) {
+            // `BattleMan_StateDead`'s counter, which is what frees the slot —
+            // and a freed slot is what state 17 reads as "the target is gone".
+            let sim = self.fighters[i].sim;
+            self.sim.figures[sim].count_corpse();
             // Dying plays once and then holds on its last frame.
             let f = &mut self.fighters[i];
             if f.phase < 95 {
@@ -1448,7 +1505,18 @@ impl BattleRunner {
             return;
         }
 
-        if self.fighters[i].at_target() {
+        if self.sim.figures[self.fighters[i].sim].state == State::Shooting {
+            // **State 17 is its own handler.** It never reaches
+            // `BattleMan_FireMissile`; it decides for itself whether to walk.
+            if !self.close_to_attack_tick(i) {
+                return;
+            }
+            if self.fighters[i].at_target() {
+                self.fighters[i].anim = Motion::Idle;
+                self.fighters[i].progress = Progress::default();
+                return;
+            }
+        } else if self.fighters[i].at_target() {
             self.fighters[i].anim = Motion::Idle;
             self.fighters[i].progress = Progress::default();
             // **A standing armed man shoots.** See [`Self::fire_tick`] for why
@@ -1500,18 +1568,8 @@ impl BattleRunner {
                     self.fighters[i].target = (tx, ty);
                 }
             }
-            State::Shooting => {
-                // Nothing fires yet, so a shooter whose target dies would stand
-                // for the rest of the battle. Returning it to idle lets its
-                // unit order it again.
-                let alive = self.sim.figures[sim]
-                    .target
-                    .is_some_and(|t| self.sim.figures[t].is_alive());
-                if !alive {
-                    self.sim.figures[sim].state = State::Idle;
-                    self.sim.figures[sim].target = None;
-                }
-            }
+            // State 17 follows its target inside its own handler,
+            // [`Self::close_to_attack_tick`], and lets go of it there too.
             _ => {}
         }
     }
@@ -1616,6 +1674,162 @@ impl BattleRunner {
         }
     }
 
+    /// **`BattleMan_StateCloseToAttack` (`0x00484BF9`)** — state 17, one tick.
+    ///
+    /// Returns `true` when the figure walks this tick, which is every arm of
+    /// the original that calls `BattleMan_Step(1)`, and `false` when it stands.
+    ///
+    /// ```text
+    /// AI unit, reform > 0, figure not engaged  ->  reform = 50
+    /// target's slot freed, no target cell      ->  walk to own cell; there: state 5
+    /// between cells (stepFlags & 1 clear)      ->  keep walking
+    /// range/8 < chebyshev + 2                  ->  walk at the target (stand if
+    ///                                              straffed); engaged
+    /// otherwise                                ->  face; reload++; past it: loose
+    /// ```
+    ///
+    /// **Three things differ from `BattleMan_FireMissile`, and all three are
+    /// visible.** It never *acquires*: the target was handed to it, and it
+    /// follows that one figure. It shoots from its range **less two** cells —
+    /// 13 for a bow, 6 for a crossbow — because this is how far it will walk,
+    /// not how far it will look. And after its first shot it **holds its
+    /// ground**: `movStraff` stops it following a target that steps back, until
+    /// the unit is ordered again.
+    ///
+    /// Mapping onto this crate's mover: the original moves a figure into its
+    /// next cell at the start of a step and animates the arrival; ours
+    /// accumulates [`Progress`] and moves at the end. So `stepFlags & 1` clear —
+    /// "between cells" — is read as progress being non-zero. **[D]**
+    ///
+    /// Not built: the cell arm (`unit.targetCell != 0`), which only the
+    /// woodland order writes and which exists to light surface 15. See
+    /// [`Self::send_figure`].
+    pub(crate) fn close_to_attack_tick(&mut self, i: usize) -> bool {
+        let sim = self.fighters[i].sim;
+        let unit = self.sim.figures[sim].unit as usize;
+        let has_unit = unit != 0 && unit <= MAX_UNITS;
+
+        if has_unit {
+            let engaged = self.sim.figures[sim].engaged;
+            let u = self.units.get_mut(unit);
+            if u.reform > 0 && !u.human && !engaged {
+                u.reform = CLOSING_REFORM;
+            }
+        }
+
+        let mid_step = self.fighters[i].progress != Progress::default();
+        // `g_battleMen[target].owner != 0`: alive, or a body whose slot has not
+        // been freed yet.
+        let target = self.sim.figures[sim]
+            .target
+            .filter(|&t| self.sim.figures.get(t).is_some_and(|f| f.slot_held()))
+            .and_then(|t| self.fighters.iter().find(|f| f.sim == t))
+            .map(|f| (f.x, f.y));
+
+        let Some((tx, ty)) = target else {
+            if mid_step {
+                return true;
+            }
+            // At its own cell with nothing to shoot: `stepFlags & 2`, state 5.
+            let f = &mut self.fighters[i];
+            f.target = (f.x, f.y);
+            f.anim = Motion::Idle;
+            self.sim.figures[sim].state = State::Idle;
+            return false;
+        };
+        if mid_step {
+            return true;
+        }
+
+        let (sx, sy) = (self.fighters[i].x, self.fighters[i].y);
+        // `Dist_Chebyshev`.
+        let distance = (tx as i32 - sx as i32).abs().max((ty as i32 - sy as i32).abs());
+        let class = WeaponClass::for_troop(self.fighters[i].troop);
+        // `range >> 3`, in cells. A figure with no weapon has range 0, so it
+        // walks at its target for ever and never looses.
+        let range = class.map_or(0, |c| c.stats().range as i32);
+        if range < distance + 2 {
+            let straffed = self.sim.figures[sim].straffed;
+            self.fighters[i].target = if straffed { (sx, sy) } else { (tx, ty) };
+            self.sim.figures[sim].engaged = true;
+            return true;
+        }
+
+        {
+            let f = &mut self.fighters[i];
+            if let Some(fc) = facing_from_delta(tx as i32 - sx as i32, ty as i32 - sy as i32) {
+                f.facing = fc;
+            }
+            f.anim = Motion::Idle;
+            f.progress = Progress::default();
+        }
+        let reload = class.map_or(0, |c| c.stats().reload);
+        let counter = {
+            let f = &mut self.sim.figures[sim];
+            f.reload_counter = f.reload_counter.saturating_add(1);
+            f.reload_counter
+        };
+        if counter <= reload {
+            return false;
+        }
+        {
+            let f = &mut self.sim.figures[sim];
+            f.engaged = false;
+            f.reload_counter = 0;
+            f.straffed = true;
+        }
+        if has_unit {
+            // The unit's destination becomes the shooter's own cell, so its next
+            // reform forms it up where it last shot from.
+            let u = self.units.get_mut(unit);
+            u.firing = FIRING_FRAMES;
+            u.target_x = sx as i16;
+            u.target_y = sy as i16;
+        }
+        if let Some(class) = class {
+            self.loose_closing(i, class, (tx, ty));
+        }
+        false
+    }
+
+    /// State 17's own copy of the launch: `Missile_Spawn`, the band-scaled
+    /// power, the eight launch steps and the sound.
+    ///
+    /// Two details differ from [`Self::loose`], and both are the original's.
+    /// The blocked counter is seeded `((Gtime + figure) & 0x10) + 4` rather
+    /// than `(figure & 0x10) + 4`, where `Gtime` is `DAT_0057C998` — the
+    /// debug panel's own label for it. Ours is the battle's tick; the
+    /// original's counter is advanced every frame and zeroed at turn phase 7,
+    /// not at the start of a battle. **[D]** on that stand-in; the only effect
+    /// is whether a blocked volley gives up after 4 or 20 frames.
+    ///
+    /// And the sound is decided **after** the launch steps, from the record's
+    /// class byte: a shot the steps retired has been zeroed by `FUN_0046EB78`
+    /// and plays nothing.
+    fn loose_closing(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
+        let sim = self.fighters[shooter].sim;
+        let (owner, band) = {
+            let f = &self.sim.figures[sim];
+            (f.owner, f.strength_band())
+        };
+        let here = (self.fighters[shooter].x, self.fighters[shooter].y);
+        let elevation = self.field.cells[here.1 as usize * DIM + here.0 as usize].elevation;
+        let power = missile::band_scaled(class.stats().damage, band);
+        let Some(slot) =
+            missile::spawn(&mut self.missiles, owner, class, sim, here, at, power, elevation)
+        else {
+            return;
+        };
+        self.missiles.get_mut(slot).blocked_ticks =
+            ((self.tick as u8).wrapping_add(sim as u8) & 0x10) + 4;
+        for _ in 0..missile::LAUNCH_STEPS {
+            if !self.step_missile(slot) {
+                return;
+            }
+        }
+        self.sim.cues.closing_loose(class);
+    }
+
     /// `Missile_FindTarget` (`0x004956CC`) as the firing path uses it.
     ///
     /// Ascending figure index, so ties break to the lowest index; a **square**
@@ -1691,7 +1905,13 @@ impl BattleRunner {
             // a tick is an eighth of a cell, so this counter and the distance
             // are the same number.
             if m.ticks_flown > m.range_ticks {
+                let shooter = m.shooter as usize;
                 self.missiles.free(slot);
+                // `g_battleMen[shooter].engaged = 1` beside the free — a shot
+                // that ran out of range tells its shooter so. State 17 reads it.
+                if let Some(f) = self.sim.figures.get_mut(shooter) {
+                    f.engaged = true;
+                }
                 return false;
             }
         }
@@ -1747,7 +1967,13 @@ impl BattleRunner {
                 if m.blocked_ticks > missile::BLOCKED_LIMIT
                     || m.launch_elevation == elevation
                 {
+                    let shooter = m.shooter as usize;
                     self.missiles.free(slot);
+                    // Both give-up arms mark the shooter `engaged`, as the
+                    // out-of-range arm does.
+                    if let Some(f) = self.sim.figures.get_mut(shooter) {
+                        f.engaged = true;
+                    }
                     return false;
                 }
             }
@@ -2932,6 +3158,7 @@ impl BattleRunner {
             }
             u.reform = crate::unit::REFORM_ON_ORDER;
         }
+        self.clear_straff(unit);
         // `unit.orderedTarget`, `+0x2C`: the enemy figure the player pointed at.
         // Carried on the figures rather than the unit here, because that is
         // where this crate's handlers already look for a chased man.
@@ -3891,5 +4118,278 @@ mod tests {
         let hurt = crate::missile::band_scaled(WeaponClass::Bow.stats().damage, 3);
         assert_eq!(full, 50);
         assert_eq!(hurt, 25, "half at the bottom band");
+    }
+
+    // --- state 17 -----------------------------------------------------------
+
+    /// Move a fighter to a cell, carrying its occupancy with it.
+    fn place(r: &mut BattleRunner, i: usize, x: u8, y: u8) {
+        let old = r.fighters[i].y as usize * DIM + r.fighters[i].x as usize;
+        if r.occupant[old] == Some(i as u16) {
+            r.occupant[old] = None;
+        }
+        let f = &mut r.fighters[i];
+        f.x = x;
+        f.y = y;
+        f.target = (x, y);
+        f.path.clear();
+        f.progress = Progress::default();
+        r.occupant[y as usize * DIM + x as usize] = Some(i as u16);
+    }
+
+    fn cells_apart(r: &BattleRunner, a: usize, b: usize) -> i32 {
+        let (fa, fb) = (&r.fighters[a], &r.fighters[b]);
+        (fa.x as i32 - fb.x as i32).abs().max((fa.y as i32 - fb.y as i32).abs())
+    }
+
+    /// One `troop` figure at (20, 40) and one peasant at (40, 40) — twenty
+    /// cells, outside any bow — each a unit of its own. The peasants are a
+    /// human's, so nothing moves them; the shooter is an AI's only if asked.
+    fn closing_line(troop: Troop, ai_shooter: bool) -> (BattleRunner, usize, usize) {
+        let mut r = BattleRunner::deploy_armies(
+            blank_field(),
+            DEFAULT_SEED,
+            Army { troops: &[(Troop::Peasants, 1)], owner: 2, human: true },
+            Army { troops: &[(troop, 1)], owner: 1, human: !ai_shooter },
+        );
+        let s = r.fighters.iter().position(|f| f.troop == troop).expect("the shooter");
+        let t = r.fighters.iter().position(|f| f.troop == Troop::Peasants).expect("the peasant");
+        place(&mut r, s, 20, 40);
+        place(&mut r, t, 40, 40);
+        r.settle();
+        (r, s, t)
+    }
+
+    /// **State 17, end to end: sent onto an enemy, a shooter walks until its
+    /// target is inside its range less two cells, and looses its own shot.**
+    ///
+    /// The two distances are literals, `g_missileStats`' 120 and 64 eighths
+    /// less `BattleMan_StateCloseToAttack`'s `+ 2`, and no expression here
+    /// computes them. Ablations, each red here and nowhere else in this file:
+    /// read the slot's occupant again in [`BattleRunner::send_figure`] and the
+    /// first assertion fails; drop the `+ 2` and it looses from 15 and 8;
+    /// delete `self.sim.cues.closing_loose(class)` and `first` is `None`.
+    #[test]
+    fn a_shooter_sent_onto_an_enemy_closes_to_its_range_less_two_and_looses_its_own_shot() {
+        for (troop, class, from) in
+            [(Troop::Archers, WeaponClass::Bow, 13), (Troop::Crossbowmen, WeaponClass::Crossbow, 6)]
+        {
+            let (mut r, s, t) = closing_line(troop, false);
+            let (ssim, tsim) = (r.fighters[s].sim, r.fighters[t].sim);
+            let unit = r.unit_of(s);
+            r.order_unit(unit, 40, 40);
+            assert_eq!(r.sim.figures[ssim].state, State::Shooting, "{troop:?}: an order onto an enemy is state 17");
+            assert_eq!(r.sim.figures[ssim].target, Some(tsim), "{troop:?}: aimed at the man on the unit's destination");
+
+            let mut first = None;
+            for _ in 0..2_000 {
+                let was = r.sim.cues;
+                r.step();
+                if r.sim.cues.closing_loosed(class) != was.closing_loosed(class) {
+                    first = Some(cells_apart(&r, s, t));
+                    break;
+                }
+            }
+            assert_eq!(first, Some(from), "{troop:?} loosed from the wrong distance");
+            assert!(r.missiles.live() > 0, "{troop:?}: a shot is in the air");
+            assert_eq!(r.sim.cues.loosed(class), 0, "{troop:?}: BattleMan_FireMissile never ran");
+
+            // What the loose writes besides the missile.
+            let f = &r.sim.figures[ssim];
+            assert!(f.straffed && !f.engaged, "{troop:?}: movStraff set, engaged cleared");
+            let u = r.units.get(unit);
+            assert_eq!(u.firing, 0x78, "{troop:?}: the unit's firing");
+            assert_eq!(
+                (u.target_x, u.target_y),
+                (r.fighters[s].x as i16, r.fighters[s].y as i16),
+                "{troop:?}: the unit's destination moves to where it shot from"
+            );
+
+            // And the shot is a real one.
+            for _ in 0..3_000 {
+                r.step();
+                if r.sim.figures[tsim].men < 4 {
+                    break;
+                }
+            }
+            assert!(r.sim.figures[tsim].men < 4, "{troop:?}: nothing it loosed ever landed");
+            assert!(r.sim.cues.missile_hits(class) > 0);
+            assert_eq!(r.sim.cues.loosed(class), 0, "{troop:?}: every shot was state 17's");
+        }
+    }
+
+    /// **Every bow of a unit sent onto an enemy takes that one man** — not only
+    /// the figure whose slot happens to be his cell.
+    ///
+    /// `DAT_005681FC` is cached off the *unit's* destination by
+    /// `Formation_RectIsClear`. The single-archer test above cannot see the
+    /// difference, and ablation proved it: a one-figure unit's first searched
+    /// slot **is** the destination, so reading the slot's occupant passed there
+    /// too. Four archers get four slots and only one of them is his cell.
+    /// Ablation: read the slot's occupant in [`BattleRunner::send_figure`] and
+    /// three of the four stay out of state 17.
+    #[test]
+    fn every_bow_of_a_unit_sent_onto_an_enemy_closes_on_the_same_man() {
+        let mut r = BattleRunner::deploy_armies(
+            blank_field(),
+            DEFAULT_SEED,
+            Army { troops: &[(Troop::Peasants, 1)], owner: 2, human: true },
+            Army { troops: &[(Troop::Archers, 4)], owner: 1, human: true },
+        );
+        let archers: Vec<usize> =
+            (0..r.fighters.len()).filter(|&i| r.fighters[i].troop == Troop::Archers).collect();
+        assert_eq!(archers.len(), 4);
+        let unit = r.unit_of(archers[0]);
+        assert!(archers.iter().all(|&a| r.unit_of(a) == unit), "the four are one unit");
+        let t = r.fighters.iter().position(|f| f.troop == Troop::Peasants).expect("the peasant");
+        place(&mut r, t, 40, 40);
+        for (k, &a) in archers.iter().enumerate() {
+            place(&mut r, a, 20, 36 + 2 * k as u8);
+        }
+        r.settle();
+        r.order_unit(unit, 40, 40);
+        let tsim = r.fighters[t].sim;
+        let got: Vec<(usize, (u8, u8), State, Option<usize>)> = archers
+            .iter()
+            .map(|&a| {
+                let f = &r.sim.figures[r.fighters[a].sim];
+                (a, (r.fighters[a].x, r.fighters[a].y), f.state, f.target)
+            })
+            .collect();
+        let want: Vec<(usize, (u8, u8), State, Option<usize>)> = archers
+            .iter()
+            .map(|&a| (a, (r.fighters[a].x, r.fighters[a].y), State::Shooting, Some(tsim)))
+            .collect();
+        assert_eq!(got, want, "every archer of the unit, in state 17 on the one man");
+    }
+
+    /// **After its first shot, a closing archer holds its ground** — until the
+    /// unit is ordered again, which is the one thing that clears `movStraff`.
+    ///
+    /// Ablation: make the out-of-range arm ignore `straffed` and the archer
+    /// walks after the peasant, so the first assertion goes red; delete
+    /// `clear_straff` from [`BattleRunner::order_unit`] and the last one does.
+    #[test]
+    fn a_closing_archer_that_has_shot_holds_its_ground_until_it_is_ordered_again() {
+        let (mut r, s, t) = closing_line(Troop::Archers, false);
+        let ssim = r.fighters[s].sim;
+        let unit = r.unit_of(s);
+        r.order_unit(unit, 40, 40);
+        for _ in 0..2_000 {
+            let was = r.sim.cues.closing_loosed(WeaponClass::Bow);
+            r.step();
+            if r.sim.cues.closing_loosed(WeaponClass::Bow) != was {
+                break;
+            }
+        }
+        assert!(r.sim.figures[ssim].straffed, "it shot");
+        let stood = r.fighters[s].x;
+
+        // The peasant steps back out of range.
+        place(&mut r, t, stood + 20, 40);
+        r.run(400);
+        assert_eq!(r.fighters[s].x, stood, "a straffed archer does not follow");
+        assert!(r.sim.figures[ssim].engaged, "and it is out of range, which is engaged");
+        assert_eq!(r.sim.figures[ssim].state, State::Shooting);
+
+        r.order_unit(unit, stood + 20, 40);
+        assert!(!r.sim.figures[ssim].straffed, "BattleUnit_Order clears movStraff");
+        r.run(400);
+        assert!(r.fighters[s].x > stood, "and ordered again, it closes");
+    }
+
+    /// **A shooter keeps aiming at a body until its slot is freed**: 80 frames
+    /// in `BattleMan_StateDead`, and `owner == 0` is the only thing state 17
+    /// lets go on. It even shoots at it.
+    ///
+    /// 81 and 82 rather than 80 and 81 because the body's counter is advanced
+    /// by the body's own handler, and the shooter's lower index runs first in
+    /// the sweep — so the shooter reads each value a frame before it moves,
+    /// which is the original's order too. Ablation: test `is_alive` instead of
+    /// [`Figure::slot_held`] and it lets go on the first frame.
+    #[test]
+    fn a_closing_shooter_keeps_aiming_at_a_body_until_its_slot_is_freed() {
+        let mut r = firing_line(Troop::Archers, Troop::Peasants, 13);
+        let (s, t) = (r.fighters[0].sim, r.fighters[1].sim);
+        r.sim.figures[s].state = State::Shooting;
+        r.sim.figures[s].target = Some(t);
+        r.sim.figures[t].men = 0;
+        r.sim.figures[t].state = State::Dead;
+        r.run(81);
+        assert_eq!(r.sim.figures[s].state, State::Shooting, "the body's slot is still held");
+        assert_eq!(r.sim.cues.closing_loosed(WeaponClass::Bow), 1, "and it shot at the body");
+        r.step();
+        assert_eq!(r.sim.figures[s].state, State::Idle, "freed: back to state 5");
+    }
+
+    /// **A shooting AI unit's reform is held at fifty** while its closing
+    /// figure is not engaged, and not otherwise. Ablation: delete the
+    /// `u.reform = CLOSING_REFORM` write and the first assertion fails.
+    #[test]
+    fn a_shooting_ai_unit_has_its_reform_held_at_fifty() {
+        let (mut r, s, t) = closing_line(Troop::Archers, true);
+        let (ssim, tsim) = (r.fighters[s].sim, r.fighters[t].sim);
+        let unit = r.unit_of(s);
+        r.sim.figures[ssim].state = State::Shooting;
+        r.sim.figures[ssim].target = Some(tsim);
+
+        r.units.get_mut(unit).reform = 400;
+        assert!(r.close_to_attack_tick(s), "twenty cells out, it walks");
+        assert_eq!(r.units.get(unit).reform, 50, "not engaged when it looked");
+        assert!(r.sim.figures[ssim].engaged, "and walking out of range engages it");
+
+        r.units.get_mut(unit).reform = 400;
+        r.close_to_attack_tick(s);
+        assert_eq!(r.units.get(unit).reform, 400, "an engaged figure does not hold it");
+
+        r.sim.figures[ssim].engaged = false;
+        r.units.get_mut(unit).human = true;
+        r.close_to_attack_tick(s);
+        assert_eq!(r.units.get(unit).reform, 400, "nor does a human's");
+    }
+
+    /// **`Missile_Step` tells a shooter its shot ran out of range.**
+    ///
+    /// Ablation: delete the `engaged = true` beside the out-of-range free and
+    /// the last assertion fails.
+    #[test]
+    fn a_shot_that_runs_out_of_range_marks_its_shooter_engaged() {
+        let mut r = firing_line(Troop::Archers, Troop::Peasants, 10);
+        r.run(WeaponClass::Bow.stats().reload as u32 + 1);
+        assert_eq!(r.missiles.live(), 1, "one arrow in the air");
+        assert!(!r.sim.figures[r.fighters[0].sim].engaged);
+        // Its target leaves, so the arrow flies on to the end of its range.
+        place(&mut r, 1, 70, 40);
+        for _ in 0..200 {
+            if r.missiles.live() == 0 {
+                break;
+            }
+            r.step();
+        }
+        assert_eq!(r.missiles.live(), 0, "the arrow expired");
+        assert!(r.sim.figures[r.fighters[0].sim].engaged, "and its shooter was told");
+    }
+
+    /// **C166's proof, over state 17.** The closing battle with its record
+    /// wiped every tick is the same battle, and the record it wiped had state
+    /// 17's loose in it.
+    #[test]
+    fn a_closing_battle_whose_cues_are_wiped_every_tick_is_the_same_battle() {
+        let build = || {
+            let (mut r, s, _) = closing_line(Troop::Crossbowmen, false);
+            let unit = r.unit_of(s);
+            r.order_unit(unit, 40, 40);
+            r
+        };
+        let (mut heard, mut wiped) = (build(), build());
+        for _ in 0..1_500u32 {
+            wiped.sim.cues = crate::cue::Cues::default();
+            heard.step();
+            wiped.step();
+            let mut same = wiped.clone();
+            same.sim.cues = heard.sim.cues;
+            assert_eq!(heard, same, "the cues changed the battle at tick {}", heard.tick);
+        }
+        assert!(heard.sim.cues.closing_loosed(WeaponClass::Crossbow) > 0, "state 17 loosed");
     }
 }

@@ -30,8 +30,14 @@ pub enum State {
     /// puts a whole unit into. `docs/battle-ai.md` §4.1 — *a charged unit stops
     /// being a formation*.
     Chasing,
-    /// Closing to shoot a chosen figure. The original's **state 17**, set by
-    /// `Order_ShootAtUnit`.
+    /// Closing to shoot a chosen figure. The original's **state 17**,
+    /// `BattleMan_StateCloseToAttack` (`0x00484BF9`), and it looses its own
+    /// arrows — see `crate::runner`'s `close_to_attack_tick`.
+    ///
+    /// Two writers, both `[V]`: `Formation_SendFigure` (`0x00489B8D`) gives it
+    /// to a bow or crossbow figure when an enemy stands on its **unit's**
+    /// destination, and `Order_ShootAtUnit` (`0x0048C974`) gives it to every
+    /// figure of an AI unit that found a target.
     Shooting,
     /// Filling in the moat. The original's **state 9**, tracked here only
     /// because the unit rebuild reads it; nothing in this crate drives it.
@@ -148,6 +154,35 @@ pub struct Figure {
     /// acquires a target; when it passes the interval it looses a missile and
     /// resets. A figure with no missile weapon never touches it.
     pub reload_counter: u16,
+    /// Figure record `+0x183`, **`engaged`**.
+    ///
+    /// Written by two functions and read by one that this crate models. State
+    /// 17 (`BattleMan_StateCloseToAttack`) sets it while it walks to close the
+    /// range and clears it on the tick it looses; `Missile_Step` (`0x00492C8B`)
+    /// sets it on the *shooter* when a blocked shot is given up and when a shot
+    /// runs out of range. State 17 reads it back: an AI unit whose closing
+    /// figure is not engaged has its reform countdown held at
+    /// [`CLOSING_REFORM`](crate::runner::CLOSING_REFORM). `[V]` on every write
+    /// named here. The catapult's wall arm in `Missile_Step` writes it too, and
+    /// its reader, `BattleMan_StateEngineFire`, is not modelled.
+    pub engaged: bool,
+    /// Figure record field the developers' debug panel labels **`mov straff`**
+    /// (`00420000.c:1521`).
+    ///
+    /// Set by state 17 on the tick it looses; cleared for every figure of a
+    /// unit by `BattleUnit_Order` (`0x00479E90`), and by nothing else `[V]`.
+    /// While it is set a closing figure whose target has walked out of range
+    /// **stands where it is** instead of following — so an archer that has
+    /// shot once holds its ground until it is ordered again.
+    pub straffed: bool,
+    /// Figure record `+0x173`: frames this figure has lain dead.
+    ///
+    /// `BattleMan_StateDead` (`0x004830E9`) counts it and frees the slot past
+    /// 80; `BattleMan_StateEngineDead` (`0x00484B89`) past 120. A freed slot
+    /// has owner 0, and **owner 0 is what state 17 tests** to decide its
+    /// target is gone — so a shooter keeps aiming at a body for 80 frames.
+    /// See [`Figure::slot_held`].
+    pub corpse: u8,
     /// **The full complement one figure of this battle stands for** — the
     /// men-per-figure scale, not this figure's own men.
     ///
@@ -211,6 +246,9 @@ impl Figure {
             stats,
             hits_per_casualty: table.hits_per_casualty(troop),
             reload_counter: 0,
+            engaged: false,
+            straffed: false,
+            corpse: 0,
             full_men: men,
             selected: 0,
         }
@@ -260,6 +298,35 @@ impl Figure {
 
     pub fn is_alive(&self) -> bool {
         self.state != State::Dead && self.men > 0
+    }
+
+    /// Frames a body lies before its slot is freed: 80 for a man, 120 for a
+    /// siege engine. `[V]` — the `> 'P'` and `> 'x'` tests in
+    /// `BattleMan_StateDead` (`0x004830E9`) and `BattleMan_StateEngineDead`
+    /// (`0x00484B89`).
+    pub fn corpse_frames(&self) -> u8 {
+        if self.troop.is_siege() {
+            120
+        } else {
+            80
+        }
+    }
+
+    /// **The original's `owner != 0` for a figure that has been on the field**
+    /// — alive, or dead for no more than [`Figure::corpse_frames`].
+    ///
+    /// This crate never frees a figure, so the slot being free is derived from
+    /// the corpse counter rather than read off an owner byte.
+    pub fn slot_held(&self) -> bool {
+        self.is_alive() || self.corpse <= self.corpse_frames()
+    }
+
+    /// One frame of `BattleMan_StateDead`'s counter, which stops one past the
+    /// limit — the frame the original frees the slot.
+    pub fn count_corpse(&mut self) {
+        if !self.is_alive() && self.corpse <= self.corpse_frames() {
+            self.corpse += 1;
+        }
     }
 
     /// Missile defence. The one place `armour` is used, and the one place the

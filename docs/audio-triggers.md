@@ -109,19 +109,20 @@ the verdicts a reader wants:
 
 | status | sites | means |
 |---|---:|---|
-| `reproduced` | **73** | we fire it; a `// sfx:` marker is on the line |
-| `blocked` | **36** | the mechanic behind it is not built, and `note` **names** it |
+| `reproduced` | **75** | we fire it; a `// sfx:` marker is on the line |
+| `blocked` | **33** | the mechanic behind it is not built, and `note` **names** it |
 | `missing` | **31** | reachable and unwired — no excuse, just not done |
-| `dead` | **3** | the shipped game cannot reach it; `note` is the evidence and `docs/bugs.md` has the entry |
+| `dead` | **4** | the shipped game cannot reach it; `note` is the evidence and `docs/bugs.md` has the entry |
 
-**Three are dead, and this section used to say none were.** `tests/sfx.rs` asserted
+**Four are dead, and this section used to say none were.** `tests/sfx.rs` asserted
 the `dead` list empty *so that the first entry costs a decision*, and these are that
-decision — it now pins the three by name, so the fourth costs the same:
+decision — it now pins the four by name, so the fifth costs the same:
 
 | id | why it cannot run | `docs/bugs.md` |
 |---|---|---|
 | `FUN_0040d6ad#1`, `FUN_0040d7b8#1` | the arrows of a slider widget whose hit-tester `FUN_0040D3F5` has **no caller** — zero rel32 calls, zero jumps, zero absolute references in the image, against 36 rel32 callers for `Widget_Test` as the control | `D39` |
 | `Battle_PauseButton#1` | guarded `== 1` on a word that alternates between 0 and −1; the one writer that could make it 1, `FUN_00434E68`, is unreferenced too | D38 |
+| `FUN_0047fe0b#1` | **in single player.** `Realm_Eliminate`, its one caller, has three call sites: two behind `g_multiplayer != 0`, and one in `FUN_0049CEBE`, which nothing references. A network game reaches it when a peer leaves mid-battle — the session layer our netcode replaces | `DNEW-midbattle` |
 
 **The third was already on the bug list, and this file had it as `missing`.** The
 assertion of emptiness is what kept it there: the inventory could not say what the
@@ -141,11 +142,9 @@ with no path.
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
 | the two delegated message painters (categories `0x0C`, `0x14`) | 2 | 0 — both `ff_msg.wav` |
 | battlefield fire — `BattleMan_BurnTick` ×2, the bridge fire `FUN_0048551D` | 3 | 1 — `dest_ind.wav`; the two death cries already sound |
-| state 17's own loose — `BattleMan_StateCloseToAttack` ×2 | 2 | 0 — the bow and crossbow already sound from state 5 |
 | boiling oil — `FUN_0047A814` | 1 | 1 — `pouroil.wav` |
 | a siege tower docking — `FUN_00491492` | 1 | 1 — `siegedoc.wav` |
 | a catapult shot on a rampart four high — `Missile_Step#2` | 1 | 1 — `catmiss.wav` |
-| a realm eliminated mid-battle — `FUN_0047FE0B` | 1 | 0 — `deadguy4.wav` already sounds |
 
 **Read the second column before the first.**
 

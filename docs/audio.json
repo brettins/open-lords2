@@ -237,10 +237,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "9",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "State 17’s own loose. BattleMan_StateCloseToAttack plays Sound_PlaySlot(9) when a crossbowman closing on a chosen target fires; l2-sim’s State::Shooting never fires (runner::retarget says so), and our only loose is BattleMan_FireMissile’s, which is reproduced. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "crossbow.wav",
+      "note": "State 17’s own loose: BattleMan_StateCloseToAttack plays Sound_PlaySlot(9) when a crossbowman closing on the figure it was sent at looses, after the spawn and its eight launch steps, reading the class byte back out of the record. The mechanic is l2-sim’s runner::close_to_attack_tick, the occasion Cues::closing_loosed, and the slot chosen by audio::battle_requests."
     },
     {
       "id": "BattleMan_StateCloseToAttack#2",
@@ -248,10 +248,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "7",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "State 17’s own loose, the bow: Sound_PlaySlot(7). Not built for the same reason as #1. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "bowmen1.wav",
+      "note": "State 17’s own loose, the bow: Sound_PlaySlot(7), on the same occasion as #1. The mechanic is l2-sim’s runner::close_to_attack_tick, the occasion Cues::closing_loosed, and the slot chosen by audio::battle_requests."
     },
     {
       "id": "BattleMan_StateEngineFire#1",
@@ -512,10 +512,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xd",
-      "status": "blocked",
+      "status": "dead",
       "ours": null,
       "sound": null,
-      "note": "A realm eliminated mid-battle. FUN_0047FE0B’s only caller is Realm_Eliminate (0x0049CF20), when g_battlePhase == 2: it zeroes every figure of that realm and plays FUN_004262cf(0xD), deadguy4.wav. Nothing in this engine eliminates a realm while a battle is on screen. [I] on reachability in single player: Realm_Eliminate’s three callers were not traced. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "note": "Dead in single player. FUN_0047FE0B’s only caller is Realm_Eliminate (0x0049CF20), when g_battlePhase == 2: it zeroes every figure of that realm and plays FUN_004262cf(0xD), deadguy4.wav. Realm_Eliminate has exactly three call sites in the image: 0x0043E726 in Net_OnSessionEvent, reached only from Net_PumpReceive, whose whole body is inside if (g_multiplayer != 0); 0x0049B331 in Mp_DropDepartedPlayers, whose body is inside the same test; and 0x0049CF09 in FUN_0049CEBE, which has zero rel32 calls, zero jumps and zero absolute references. g_multiplayer’s one writer of 1 is Net_JoinGame, after Net_ConnectWizard succeeds. A network game does reach it, when a peer leaves during a battle, and that is the session layer our netcode replaces. docs/bugs.md DNEW-midbattle."
     },
     {
       "id": "FUN_0048551d#1",

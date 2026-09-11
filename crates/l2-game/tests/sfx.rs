@@ -278,13 +278,14 @@ fn every_record_carries_the_verdict_it_claims() {
 ///
 /// This asserted the `dead` list **empty** — *"a category that quietly acquires
 /// members stops being a finding and becomes a bucket; the first entry should
-/// cost a decision"* — and that was right. These three are that decision, and
+/// cost a decision"* — and that was right. These four are that decision, and
 /// each one is on `docs/bugs.md`'s dead-code list with its evidence:
 ///
 /// | id | why it cannot run | bugs.md |
 /// |---|---|---|
 /// | `FUN_0040d6ad#1`, `FUN_0040d7b8#1` | the two arrows of a slider widget whose hit-tester `FUN_0040D3F5` has **no caller**: zero rel32 calls, zero jumps and zero absolute references in the image, against 36 rel32 callers for `Widget_Test` as the control | `D39` |
 /// | `Battle_PauseButton#1` | guarded on a word that alternates between 0 and −1; the only writer that could make it 1, `FUN_00434E68`, has no reference either | D38 |
+/// | `FUN_0047fe0b#1` | **dead in single player, and scoped so.** Its one caller `Realm_Eliminate` has three call sites: two behind `g_multiplayer != 0`, whose only writer of 1 is `Net_JoinGame` after a connection succeeds, and one in `FUN_0049CEBE`, which has no reference in the image. A network game reaches it when a peer leaves mid-battle, through the session layer our netcode replaces | `DNEW-midbattle` |
 ///
 /// **The third was already on the bug list and was filed `missing` here**, which
 /// is the inventory contradicting the document it should agree with — and it is
@@ -295,10 +296,10 @@ fn every_record_carries_the_verdict_it_claims() {
 /// the first did: say in `note` which guard can never hold and why, add it to
 /// `docs/bugs.md`, and add its id here.
 const DEAD_IN_THE_SHIPPED_GAME: &[&str] =
-    &["Battle_PauseButton#1", "FUN_0040d6ad#1", "FUN_0040d7b8#1"];
+    &["Battle_PauseButton#1", "FUN_0040d6ad#1", "FUN_0040d7b8#1", "FUN_0047fe0b#1"];
 
 #[test]
-fn the_dead_triggers_are_the_three_on_the_bug_list() {
+fn the_dead_triggers_are_the_four_on_the_bug_list() {
     let root = repo_root();
     let dead: BTreeSet<String> =
         sites(&root).into_iter().filter(|s| s.status == "dead").map(|s| s.id).collect();
@@ -313,9 +314,11 @@ fn the_dead_triggers_are_the_three_on_the_bug_list() {
          a path the evidence missed, and bugs.md is wrong too.",
     );
     let text = std::fs::read_to_string(root.join("docs/bugs.md")).expect("docs/bugs.md");
-    for (id, entry) in
-        [("slider arrows", "D39"), ("Battle_PauseButton#1", "**D38**")]
-    {
+    for (id, entry) in [
+        ("slider arrows", "D39"),
+        ("Battle_PauseButton#1", "**D38**"),
+        ("FUN_0047fe0b#1", "**DNEW-midbattle**"),
+    ] {
         assert!(text.contains(entry), "{id} is dead here and {entry} is gone from docs/bugs.md");
     }
 }

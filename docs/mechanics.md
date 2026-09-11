@@ -681,16 +681,18 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   and the other primitives are mostly constants — and six more, the troop cries, carry 66.
   A site count weights every trigger equally and a player does not.
 
-  **The battlefield sounds**, 22 of its 31 sites. This row used to call its 25 per-man
+  **The battlefield sounds**, 24 of its 31 sites. This row used to call its 25 per-man
   sites *"a limit of the design rather than a to-do"*: a sword swing is an event inside a
   tick and the director derives sound from the world after it. The world kept no record of
   the event, and that was the whole gap — `l2_sim::cue` records it, the battle never reads
   it, and because every battlefield call drops while its buffer is sounding, a count that
   moved since the last tick is exactly what the original could have made audible. The
   troop cries are a round robin per troop and order, **not random**, so they draw on no
-  generator at all. `docs/audio-triggers.md` has both. The nine left each wait on a
-  mechanic `l2-sim` does not model: fire, boiling oil, a tower docking, state 17's loose,
-  the high-rampart catapult miss, and a realm eliminated mid-battle.
+  generator at all. `docs/audio-triggers.md` has both. State 17 — an archer sent onto an
+  enemy closes to its range less two cells and looses its own arrows — is built and
+  sounds. Six left wait on a mechanic `l2-sim` does not model: fire, boiling oil, a tower
+  docking and the high-rampart catapult miss. The seventh, a realm eliminated
+  mid-battle, **cannot happen in a single-player game** (`docs/bugs.md` `DNEW-midbattle`).
 
   **The pointer click is fired**, and it was two sites rather than four. `click3.wav`
   is `Sound_RestartSlot(1)` inside `Widget_Test` (`0x0040DA1E`), at its kind-4 and kind-5
