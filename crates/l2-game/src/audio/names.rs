@@ -82,6 +82,17 @@ pub const MUSIC_BATTLE: [&str; 5] = [
     "battle5.wav",
 ];
 
+/// **The front end's bed** — `Music_Play("setup.wav", 0, 1)`, a literal rather
+/// than a table entry, which is why no table here had it.
+///
+/// Two siblings ship and are not reached from our engine: `setup2.wav`, which
+/// `Screen_DrawConquest` (`0x0041E1DD`) plays **unlooped** once the campaign is
+/// past its eighth map, and `SETUP3.WAV`, which four sites play over the
+/// credits and the ending. See [`super::track::Music::Setup`].
+pub const MUSIC_SETUP: &str = "setup.wav";
+pub const MUSIC_SETUP2: &str = "setup2.wav";
+pub const MUSIC_SETUP3: &str = "setup3.wav";
+
 /// The five campaign tracks, `0x004DC034`, in table order. `[V]`
 pub const MUSIC_SCROLL: [&str; 5] = [
     "scroll1.wav",
@@ -161,6 +172,117 @@ pub fn slot(bank: Bank, slot: usize) -> Option<&'static str> {
         Some(&"null.wav") | None => None,
         Some(name) => Some(name),
     }
+}
+
+/// **`g_jobSound` (`0x004D2950`)** — the bank slot the village's job popup
+/// plays as it opens, indexed by the original's **1-based** job number.
+///
+/// `Panel_JobDetail` (`0x00412B33`) is
+/// `if (g_jobSound[job] != 0) Sound_RestartSlot(g_jobSound[job])`, so a zero is
+/// a job with no sound rather than slot 0 — jobs **4** (building) and **9**
+/// (idle) are silent, and job **8** never reaches the lookup at all because the
+/// blacksmith takes a branch of its own above it.
+///
+/// `[V]`, the twelve `i32` at `0x004D2950` read out of the executable:
+/// `0 7 4 6 0 10 8 9 0 0`. Those six live slots are the second, independent
+/// confirmation that slots are 1-based — see the module note — because
+/// 1-based they land on wheat, cattle, fallow, iron, stone and wood for the six
+/// jobs that do exactly that work, and 0-based they land on nothing that fits.
+pub const JOB_SOUND: [usize; 10] = [0, 7, 4, 6, 0, 10, 8, 9, 0, 0];
+
+/// **`Panel_JobDetail`'s blacksmith branch**, `job == 8`, which is the one job
+/// that does not go through [`JOB_SOUND`]:
+///
+/// ```c
+/// Sound_PlayFile("fire.wav", 0, 0);
+/// Sound_RestartSlot(8);
+/// ```
+///
+/// Two sounds at once — the forge and the quarry's hammering — and it is the
+/// only place in the game that plays a bank slot and a file together. `[V]`
+pub mod blacksmith {
+    pub const FIRE: &str = "fire.wav";
+    /// Slot 8 is `stonecut.wav`. The bank has no smithy sound, so the original
+    /// borrows the quarry's.
+    pub const SLOT: usize = 8;
+}
+
+/// **`TileInfo_Draw` (`0x0041C208`) — the bank slot a resource site plays when
+/// the information panel opens on it.**
+///
+/// The ladder is on `g_pickedTileGraphic` behind `flags & 0x80`, and it is the
+/// *same* four ranges [`l2_kingdom::industry::map_toggle_for_graphic`] uses to
+/// decide which industry a click on that tile switches — so the two agree by
+/// construction rather than by two transcriptions of one table. `[V]`
+///
+/// | graphic | site | slot | file |
+/// |---|---|---:|---|
+/// | 0…3 | mine | 10 | `iron.wav` |
+/// | 4…6 | quarry | 8 | `stonecut.wav` |
+/// | 7…9 | **blacksmith** | 8 | `stonecut.wav` |
+/// | 10…12 | lumber mill | 9 | `woodcut.wav` |
+///
+/// **The blacksmith plays the quarry's sound**, exactly as `Panel_JobDetail`'s
+/// job 8 does. `[V]` at both sites; `[I]` that it is because the kingdom bank
+/// has no forge in it.
+///
+/// 13 and above is the castle, which is silent.
+pub fn resource_site_slot(graphic: u8) -> Option<usize> {
+    Some(match graphic {
+        0..=3 => 10,
+        4..=6 => 8,
+        7..=9 => 8,
+        10..=12 => 9,
+        _ => return None,
+    })
+}
+
+/// **The narrator's interface commentary** — `Sound_PlayFile("S0nn_mm.wav", 1,
+/// 0)`, the *speech* flag, played by name from a screen's own handler.
+///
+/// A band of the voice class that `Msg_PlayVoice` never reaches: these are not
+/// indexed by an `L2.eng` group, they are literals in the function that opens
+/// the screen. That is why [`super::names::message_voice`] cannot produce one
+/// and why they were missing while 543 files were reachable.
+///
+/// **`RATION_ON_DAIRY` is the line a player asked for.** He remembered *"All
+/// your people are fed by dairy"* and `docs/decisions.md` C133 established that
+/// **no such string exists** in any of `L2.eng`'s 317 groups — which was right,
+/// and looked for it in the wrong medium. `Panel_OpenRation` (`0x0043A846`):
+///
+/// ```c
+/// g_screenId = 0x19; Panel_Ration();
+/// if (rationAchieved == 0)                              Sound_PlayFile("S021_02.wav", 1, 0);
+/// else if (herd != 0 && herdEaten == 0 && grainEaten == 0) Sound_PlayFile("S021_01.wav", 1, 0);
+/// ```
+///
+/// The second condition **is** *"all your people are fed by dairy"*: the county
+/// has a standing herd, and opening the larder took neither a cow nor a sack.
+/// The game says it by **speaking**, on the frame the panel opens, and not in
+/// text at all. `[V]` on the condition and the file; `[I]` that the words are
+/// the ones he remembered, which needs somebody to listen —
+/// `docs/oracle-requests.md`.
+pub mod speech {
+    /// `Panel_OpenRation` (`0x0043A846`), `rationAchieved == 0` — the county is
+    /// not fed at all.
+    pub const RATION_NOT_MET: &str = "S021_02.wav";
+    /// `Panel_OpenRation`, a standing herd and nothing eaten.
+    pub const RATION_ON_DAIRY: &str = "S021_01.wav";
+    /// `Sidebar_Button` (`0x0043AE30`) hotspot 3 — send supplies, `g_screenId`
+    /// `0x18`. Played only when the county is the local player's; the other
+    /// branch raises message `0x70` instead.
+    pub const SUPPLIES: &str = "S033_01.wav";
+    /// `Map_ZoomOut` (`0x00434FD5`) — the whole-kingdom zoom.
+    pub const ZOOM_OUT: &str = "S033_02.wav";
+    /// Setup page 4 — *"Choose your title and your shield."* Four handlers
+    /// reach that page and all four play this: `FUN_00432CC8` twice,
+    /// `Setup_ChooseCampaign` (`0x00433461`), and `FUN_00432B05` after a
+    /// successful `Net_JoinGame`.
+    pub const CHOOSE_YOUR_SHIELD: &str = "S011_02.wav";
+    /// `Panel_SplitButton` (`0x004378B3`), on the branch that opens the
+    /// division screen. The refusal branch — an army that has already moved —
+    /// is silent and raises message `0x95` instead.
+    pub const SPLIT_ARMY: &str = "S017_01.wav";
 }
 
 /// The fanfares, which are played by name rather than out of a bank —

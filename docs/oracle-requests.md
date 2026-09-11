@@ -102,7 +102,7 @@ a process:
 | recalled | what the binary says |
 |---|---|
 | *"it does let you drop peasants off in a turned-off industry, IIRC"* | right — but he then corrected himself to *"it boots those people and reassigns them"*, which is wrong; the drop is accepted and **switches the industry on** |
-| *"'All your people are fed by dairy.'"* | no such string in any of `L2.eng`'s 317 groups; the nearest is group 62, a **cut** ration screen |
+| *"'All your people are fed by dairy.'"* | no such string in any of `L2.eng`'s 317 groups — **and the readout exists anyway, as a voice line.** `Panel_OpenRation` (`0x0043A846`) speaks `S021_01.wav` when the county has a standing herd and ate neither a cow nor a sack. §11 |
 | the tower and ram costs | reversed, and the arithmetic closed either way |
 
 The practical rule, and it costs nothing: **act on the behaviour, check the string.** A
@@ -333,3 +333,24 @@ retail, and that guess is unverified.
 **One sentence from you settles it and saves a large phase of work.** Same for: have you
 ever seen an AI lord's county taken by peasants, and have you ever seen *"Your lands
 divide."*?
+
+## 11. Six sounds to listen to, which needs no save either
+
+We now play these and **we do not know what any of them says.** Each is a `.wav` played by
+name from one function, so the *occasion* is `[V]` from the decompilation and the *words* are
+`[I]` from the occasion. Open the game, do the thing in the middle column, and write down
+what the narrator actually says.
+
+| file | do this | what we think it says |
+|---|---|---|
+| `S021_01.wav` | open the ration panel of a county with cattle that ate nothing this season | **"All your people are fed by dairy"** — the line you remembered. `Panel_OpenRation` plays it on exactly that condition |
+| `S021_02.wav` | open the ration panel of a starving county | the complaint, whatever it is |
+| `S033_01.wav` | click **Send supplies** on the sidebar | something about supply |
+| `S033_02.wav` | zoom the map all the way out | something about the kingdom view |
+| `S017_01.wav` | click **Split** on an army that has not moved | something about dividing an army |
+| `S011_02.wav` | reach *"Choose your title and your shield"* in setup | the page's own prompt |
+
+**`S021_01.wav` is the one that matters**, because it closes a thread three sessions old:
+`docs/decisions.md` C133 searched all 317 `L2.eng` groups for *"all your people are fed by
+dairy"*, correctly found nothing, and concluded the readout did not exist. It exists, and it
+is spoken. If the clip says something else entirely, that is a finding too — and a cheap one.

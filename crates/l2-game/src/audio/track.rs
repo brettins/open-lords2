@@ -65,13 +65,31 @@
 //! install those branches are dead**. They are the fallback for a minimal
 //! install, and they are not reproduced here. `[V]`
 
-/// A music track: which of the two sets, and which of its five.
+/// A music track: which of the two sets, and which of its five — or the front
+/// end's, which belongs to neither.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Music {
     /// `Scroll1‑5` — the campaign map and the county screens.
     Scroll(u8),
     /// `Battle1‑5`.
     Battle(u8),
+    /// **`setup.wav` — the front end's bed**, and the track that was missing
+    /// for the least interesting possible reason: it is not started by either
+    /// music picker, so the eight-primitive audit could not see it.
+    ///
+    /// `Music_Play` (`0x004263AD`) is a **ninth** way to start a sound and
+    /// `docs/audio-triggers.md`'s enumeration had eight. Nine call sites use it
+    /// and every one of them is the front end — `App_WinMain` (`0x0040E9AB`)
+    /// at start-up, `FUN_00497A34` on the way back to the title,
+    /// `Screen_DrawConquest` over the interstitial, `Smk_OnFinished` when the
+    /// intro films end, and two screens of `Screen_FrameInput`'s own ladder.
+    ///
+    /// This module's own note used to say *"the title screen's only sound is
+    /// `setup.wav`"* and [`super::Scene::FrontEnd`] answered `None`. Both
+    /// sentences are true and together they lost the track: `setup.wav` **is**
+    /// the music, played with `Music_Play(name, 0, 1)` — channel 0, loop 1 —
+    /// which is the same call `Music_StartCampaign` ends in.
+    Setup,
 }
 
 impl Music {
@@ -80,6 +98,7 @@ impl Music {
         match self {
             Music::Scroll(n) => super::names::MUSIC_SCROLL[(n.max(1).min(5) - 1) as usize],
             Music::Battle(n) => super::names::MUSIC_BATTLE[(n.max(1).min(5) - 1) as usize],
+            Music::Setup => super::names::MUSIC_SETUP,
         }
     }
 }
