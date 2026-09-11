@@ -3263,7 +3263,11 @@ already empty and drives it to −1. Established by walking population 0…400 �
 `population == 0` going in. Both faces are switched by the same flag and both are asserted, and
 the survey is in the test rather than in a sentence here, because *"we could not make it go
 negative"* and *"it cannot go negative"* are different claims — the first draft of that test
-made the first claim, from a search too narrow, and was wrong.
+made the first claim, from a search too narrow, and was wrong. *(**Retracted in part by
+CNEW-factored-rate.** The survey was exhaustive and its answer was true — of our
+`update_one`, which compared the unscaled birth rate where `Population_UpdateAll` compares the
+scaled one. With the original's comparison a county of one at no happiness records −2 on the
+season it dies, so B16's own sentence was right. The test and the `Quirk` doc now assert that.)*
 
 **One thing the architecture would not allow, and what it cost.** A screen is handed
 `Ctx { game: &mut Game, assets: &Assets }`, and that asymmetry is load-bearing: it is what
@@ -8356,3 +8360,57 @@ season there and not here. *Our message screen draws no figure*: `screens/messag
 category `0x0F` to `draw_notice`, and `Msg_DrawWindow`'s event arms draw a number under the body
 for eight of the twenty-four — `+0x278` for *Rats* and *Grain found*, `+0x274` for the four herd
 events, `+0x2F8` for these two — each followed by its group 77 words. A rule-6 gap.
+
+---
+
+**CNEW-factored-rate — The season's extra person follows the birth rate after happiness has
+scaled it; we compared the rate before, and the differential's one-person gap was that.**
+
+Found while porting CNEW-plague-swing, eight lines above it in the same function.
+`Population_UpdateAll` (`0x00449EF3`):
+
+```c
+iVar2   = Table_Lookup(pop, &g_birthRateLadder, 20, 1);       /* base            */
+iVar3   = g_deathRateByHealth[band] + g_deathRateBySeason[season];
+local_c = Pct(iVar2, factor);                                 /* the SCALED rate */
+births  = Pct(pop, local_c);
+if (births == 0 && local_c != 0) births = 1;
+if (local_c < iVar3) deaths += 1; else births += 1;
+```
+
+`l2_kingdom::population::update_one` tested `base` in both places. `docs/kingdom.md` §5's
+`[V]` pseudocode wrote `birthRate` — a name it never defined, one line below `births = Pct(pop,
+Pct(base, factor))` — and `base` was the nearest thing called a birth rate. **[V]**: the
+decompiled body, and `crates/l2-game/tests/differential.rs`, which had been printing the
+consequence since it was written.
+
+**What it was, in the original's own saves.** *"The population arithmetic comes out within one or
+two of the original's — births 79 against 80, deaths 96 against 95"* was the differential's good
+news, and it was a rule. `siege-lastturn.sav` county 1: 799 people, factor 75, ladder rate 14, so
+the scaled rate is 10; Spring in band 2 is a death rate of 12. `10 < 12` puts the person in the
+deaths, **79 and 96, which is the file**; `14 ≥ 12` put it in the births, 80 and 95, which was
+ours. `siege-old_turn.sav` county 3 is the same at 11%. Both are now a unit test with the file's
+numbers typed in.
+
+**Moved, and ablated.** `differential.rs`: **agree 900 → 907, moved-and-agree 258 → 264** of 279;
+seven rows gone — `births`, `deaths` and `population` on both siege pairs and `pop_band` on
+12->13 — and none arrived. Putting `base < death` back restores all seven, and turns four tests
+red: the new unit test, both B16 tests and `realm_fives_county_diverges_…`.
+
+**It retracts part of C69, and the retraction is the reason to read this.** C69 found by an
+exhaustive survey that a county's death count cannot go negative on the season it dies, only on
+the season after, and the B16 test and `Quirk::ExtinctCountyRecordsNegativeDeaths`'s doc said
+the same. The survey was exhaustive and correct **about our function**. A county of one sits on
+the ladder's 100% rung, which beats every death rate, so our comparison always gave it the extra
+birth and it landed on zero. The original scales that 100% by happiness first — 25% at no
+happiness, below a Diseased Winter's 43% — so the extra person dies and the county records −2.
+`docs/bugs.md` B16's plain sentence had been right all along. **A survey over our own
+implementation is a statement about our implementation**, and it overturned a correct catalogue
+entry — the same shape as C61 overturning C58, with a test to make it look settled. C69's
+paragraph carries a pointer; `crates/l2-kingdom/tests/quirks.rs` now asserts the survey turned
+round (a living county does go negative, and the fixed path never does).
+
+**Also changed.** `realm_fives_county_diverges_…` in `tests/reproduction.rs` pinned our divergent
+chain at 66 deaths and 414 people; it is 67 and 412 now, and its *"births match either way"* line
+was the same error — band 2's 16% sends the person to the deaths and the file's band 3 to the
+births, 62 against 63.

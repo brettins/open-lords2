@@ -137,12 +137,13 @@ pub enum Quirk {
     /// **B16** — a county that dies out records a wrong death count. `deaths =
     /// pop` after `pop` has been driven below one.
     ///
-    /// **Two faces, and `docs/bugs.md` describes the second.** On the season a
-    /// county loses its last person the arithmetic lands on exactly 0, so the
-    /// figure recorded is 0 — wrong, but not negative. The negative number
-    /// appears the *next* season, when the pass runs again over a county that is
-    /// already empty and drives it to −1. Both are switched here; both are
-    /// asserted in `crates/l2-kingdom/tests/quirks.rs`.
+    /// **Negative on the season it dies, as `docs/bugs.md` says**: a county of
+    /// one at no happiness in the worst band records −2, and an empty county goes
+    /// on recording a negative number every season after. This note used to say
+    /// the season of death lands on exactly 0 and only the next season goes
+    /// negative; that was our own comparison of the *unscaled* birth rate against
+    /// the death rate, not the original's (CNEW-factored-rate). Both cases are
+    /// switched here and asserted in `crates/l2-kingdom/tests/quirks.rs`.
     ExtinctCountyRecordsNegativeDeaths = 8,
 
     /// **B17** — the AI unrest ladder has a dead band from happiness 1 to 10.

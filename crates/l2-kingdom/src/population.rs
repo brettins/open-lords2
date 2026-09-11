@@ -9,12 +9,13 @@
 //! death   = g_deathRateByHealth[healthBand] + g_deathRateBySeason[g_season];
 //! factor  = happiness < 26 ? 25 : happiness < 51 ? 50
 //!         : happiness < 76 ? 75 : happiness < 100 ? 100 : 120;
-//! births  = Pct(pop, Pct(base, factor));
+//! rate    = Pct(base, factor);             /* local_c: the SCALED rate */
+//! births  = Pct(pop, rate);
 //! deaths  = Pct(pop, death);
-//! if (births == 0 && base  != 0) births = 1;
+//! if (births == 0 && rate  != 0) births = 1;
 //! if (deaths == 0 && death != 0) deaths = 1;
 //! if (healthBand == 0)   deaths += 2;
-//! if (base < death)      deaths += 1; else births += 1;
+//! if (rate < death)      deaths += 1; else births += 1;
 //! swing   = pct < 0 ? Pct(deaths, -pct) + 10 : pct > 0 ? Pct(births, pct) + 10 : 0;
 //! if (swing > cap) swing = cap;               /* county +0x2F8, the letter's figure */
 //! if (pct < 0) deaths += swing; else if (pct > 0) births += swing;
@@ -173,11 +174,17 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
     let death = t.health[(county.health_band as usize).min(t.health.len() - 1)].death_rate
         + t.season[season.index() as usize].death_rate;
     let factor = t.happiness_birth_factor(county.happiness);
+    // `local_c` in the decompilation: the ladder's rate **already scaled by
+    // happiness**. It is this, not the ladder's own `base`, that both tests
+    // below compare — `if ((births == 0) && (local_c != 0))` and
+    // `if (local_c < iVar3)` — and CNEW-factored-rate is the season of births
+    // and deaths we got one wrong in either direction by comparing `base`.
+    let rate = pct(base, factor);
 
-    let mut births = pct(county.population, pct(base, factor));
+    let mut births = pct(county.population, rate);
     let mut deaths = pct(county.population, death);
 
-    if births == 0 && base != 0 {
+    if births == 0 && rate != 0 {
         births = 1;
     }
     if deaths == 0 && death != 0 {
@@ -186,7 +193,7 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
     if county.health_band == 0 {
         deaths += 2;
     }
-    if base < death {
+    if rate < death {
         deaths += 1;
     } else {
         births += 1;
@@ -365,6 +372,50 @@ mod tests {
         assert_eq!(unowned.pop_band, 19);
     }
 
+    /// **CNEW-factored-rate: the `+1` and the one-person floor compare the rate
+    /// after happiness has scaled it.** `Population_UpdateAll` tests `local_c`,
+    /// which is `Pct(base, factor)`, where this crate tested the ladder's `base`.
+    ///
+    /// The two counties are the original's own after-saves, typed from the file
+    /// rather than computed: `siege-lastturn.sav` county 1 and
+    /// `siege-old_turn.sav` county 3, which `crates/l2-game/tests/differential.rs`
+    /// had each one person out in births and one in deaths. Both are at factor
+    /// 75 on a ladder rate of 14, so the scaled rate is 10 — below the death rate,
+    /// where 14 is above it.
+    #[test]
+    fn the_extra_person_goes_where_the_scaled_birth_rate_sends_it() {
+        // (population last season, happiness, health band, season, births, deaths)
+        let saved = [
+            // siege-lastturn county 1: Spring, band 2 — deaths 8 + 4 = 12%.
+            (799, 72, 2, Season::Spring, 79, 96),
+            // siege-old_turn county 3: Winter, band 3 — deaths 3 + 8 = 11%.
+            (756, 63, 3, Season::Winter, 75, 84),
+        ];
+        for (pop, happiness, band, season, births, deaths) in saved {
+            let mut c = County::new();
+            c.population = pop;
+            c.happiness = happiness;
+            c.health_band = band;
+            update_one(T, &mut c, season, Q);
+            assert_eq!(
+                (c.births, c.deaths),
+                (births, deaths),
+                "{pop} people in {season:?}: the file stores {births} births and {deaths} deaths"
+            );
+        }
+
+        // The floor's half, and **[D]** only — no save has a county this size.
+        // Above 2,000 people the ladder gives 1%, and at happiness 50 that
+        // scales to Pct(1, 50) = 0: no births, and no one-person floor for them.
+        let mut c = County::new();
+        c.population = 2500;
+        c.happiness = 50;
+        c.health_band = 4;
+        update_one(T, &mut c, Season::Winter, Q);
+        assert_eq!(c.births, 0, "a scaled rate of zero earns no floor");
+        assert_eq!(c.deaths, 200 + 1, "Pct(2500, 8), and 0 < 8 sends the +1 to the deaths");
+    }
+
     /// The happiness factor bands, at every boundary.
     #[test]
     fn the_birth_factor_steps_at_twenty_six_fifty_one_seventy_six_and_a_hundred() {
@@ -388,7 +439,8 @@ mod tests {
         c.happiness = 50;
         c.health_band = 0;
         update_one(T, &mut c, Season::Winter, Q);
-        // 35 + 8 = 43%, +2 for Diseased, +1 because base (12) < death (43).
+        // 35 + 8 = 43%, +2 for Diseased, +1 because the scaled birth rate
+        // Pct(12, 50) = 6 is below the death rate of 43.
         assert_eq!(c.deaths, 430 + 2 + 1);
     }
 

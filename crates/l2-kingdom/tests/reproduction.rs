@@ -478,7 +478,11 @@ fn every_county_the_save_can_feed_reproduces_every_stored_field() {
 /// (`shownRation = +1`), so it must have had grain to eat. Started from the
 /// stored zero it drops to Half, and the whole five-stage chain follows the
 /// drop: −2 instead of +1 on happiness, a health delta that leaves the meter in
-/// band 2 instead of band 3, and a death rate that costs it twenty-one people.
+/// band 2 instead of band 3, and a death rate that costs it twenty-three people
+/// — twenty-two more deaths, and one fewer birth, because band 2's 16% is above
+/// the scaled birth rate of `Pct(20, 75) = 15` and sends the season's extra
+/// person to the deaths (CNEW-factored-rate). Band 3's 11% sends it to the
+/// births, which is the file's 63.
 ///
 /// Pinned to the exact numbers, so a change to any stage of the chain moves this
 /// test rather than passing quietly — but pinned to the county the *file* says
@@ -510,12 +514,16 @@ fn realm_fives_county_diverges_because_the_save_does_not_record_what_it_ate() {
         (68, 72),
         "65 + 5 + 0 - 2 against 65 + 5 + 1 + 1"
     );
-    assert_eq!((ours.deaths, theirs.deaths), (66, 45), "band 2 dies faster than band 3");
-    assert_eq!((ours.population, theirs.population), (414, 435));
+    assert_eq!((ours.deaths, theirs.deaths), (67, 45), "band 2 dies faster than band 3");
+    assert_eq!(
+        (ours.births, theirs.births),
+        (62, 63),
+        "Pct(417, 15) either way; the extra person follows the death rate past 15"
+    );
+    assert_eq!((ours.population, theirs.population), (412, 435));
 
     // Everything upstream of the ration term still lands.
     assert_eq!(ours.pop_last, theirs.pop_last);
-    assert_eq!(ours.births, theirs.births, "the birth factor band is the same either way");
     assert_eq!(ours.shown_tax, theirs.shown_tax);
     assert_eq!(ours.tax_collected, theirs.tax_collected);
 }

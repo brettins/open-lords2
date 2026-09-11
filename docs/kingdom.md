@@ -799,12 +799,13 @@ base    = Table_Lookup(pop, g_birthRateLadder, 20, 1);      /* percent */
 death   = g_deathRateByHealth[healthBand] + g_deathRateBySeason[g_season];
 factor  = happiness < 26 ? 25 : happiness < 51 ? 50
         : happiness < 76 ? 75 : happiness < 100 ? 100 : 120;
-births  = Pct(pop, Pct(base, factor));
+rate    = Pct(base, factor);        /* the SCALED rate, local_c; not base */
+births  = Pct(pop, rate);
 deaths  = Pct(pop, death);
-if (births == 0 && birthRate != 0) births = 1;
-if (deaths == 0 && death     != 0) deaths = 1;
+if (births == 0 && rate  != 0) births = 1;
+if (deaths == 0 && death != 0) deaths = 1;
 if (healthBand == 0)        deaths += 2;                    /* Diseased */
-if (birthRate < death)      deaths += 1; else births += 1;
+if (rate < death)           deaths += 1; else births += 1;
 /* random-event swing, county +0x2F8: of the deaths or births, not of the county */
 swing   = 0;
 if (eventPct < 0) swing = Pct(deaths, -eventPct) + 10;

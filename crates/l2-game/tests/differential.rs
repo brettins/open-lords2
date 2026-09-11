@@ -235,10 +235,14 @@
 //!    with. [V] — `grep -rn ai_lords crates/` puts it in `l2-formats`, in
 //!    `l2_game::setup` (which *starts* a game) and nowhere on the load path.
 //!
-//! The population arithmetic, by contrast, comes out within one or two of the
+//! The population arithmetic, by contrast, came out within one or two of the
 //! original's on every county that moved — births 79 against 80, deaths 96
-//! against 95, population 767 against 769 — which is the half of this report
-//! that is good news and which nothing had ever measured either.
+//! against 95, population 767 against 769 — which was the half of this report
+//! that was good news and which nothing had ever measured either. **The one
+//! was a rule, and it is exact now**: `Population_UpdateAll` gives the season's
+//! extra person to the deaths when the *happiness-scaled* birth rate is below
+//! the death rate, and we compared the ladder's unscaled rate
+//! (`docs/decisions.md` CNEW-factored-rate).
 
 use l2_formats::save::{
     County as SavedCounty, DiploPair, Globals, Realm as SavedRealm, Save,
@@ -673,6 +677,15 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 /// and from the unrest warning latch — all of which a loaded game used to start
 /// at `County::new()`'s values. Which import removed which divergence was not
 /// ablated one at a time; the attribution is inferred from what each pass reads.
+///
+/// **Moved up again by CNEW-factored-rate, from the numbers the test printed,
+/// and this time ablated.** Seven divergences went away and none arrived: every
+/// county row left on the list — `births`, `deaths` and `population` on siege
+/// 12->13's county 3 and 13->14's county 1, and 12->13's `pop_band`. Each was one
+/// person: `Population_UpdateAll` hands the season's extra person to the deaths
+/// when the **happiness-scaled** birth rate is below the death rate, and we
+/// compared the unscaled one. Putting `base < death` back restores all seven.
+/// The swing change that came before it (CNEW-plague-swing) moved nothing.
 #[rustfmt::skip]
 const BASELINE: &[(&str, &str, usize)] = &[
     ("battle 3->4", "global.ai_lords", 1),
@@ -680,10 +693,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("battle 3->4", "realm.weapons.4", 1),
     ("battle 3->4", "realm.wood", 1),
     ("battle 4->5", "global.ai_lords", 1),
-    ("siege 12->13", "county.births", 1),
-    ("siege 12->13", "county.deaths", 1),
-    ("siege 12->13", "county.pop_band", 1),
-    ("siege 12->13", "county.population", 1),
     ("siege 12->13", "global.ai_lords", 1),
     ("siege 12->13", "realm.gold", 2),
     ("siege 12->13", "realm.iron", 1),
@@ -692,9 +701,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 12->13", "realm.wages", 2),
     ("siege 12->13", "realm.weapons.1", 1),
     ("siege 12->13", "realm.wood", 1),
-    ("siege 13->14", "county.births", 1),
-    ("siege 13->14", "county.deaths", 1),
-    ("siege 13->14", "county.population", 1),
     ("siege 13->14", "global.ai_lords", 1),
     ("siege 13->14", "realm.gold", 2),
     ("siege 13->14", "realm.score", 2),
@@ -714,14 +720,14 @@ const COMPARED_TOTAL: usize = 932;
 /// one**: most of a county record is inert across a season, so a field neither
 /// side touched agrees for free and this number is mostly a measure of how much
 /// of the record the import carried unchanged.
-const AGREE_TOTAL: usize = 900;
+const AGREE_TOTAL: usize = 907;
 
 /// How many comparisons are of a field **the original's own End Turn moved**.
 const MOVED_TOTAL: usize = 279;
 
 /// How many of *those* agree. This is the number that means something, and it
 /// is the one to quote.
-const MOVED_AGREE_TOTAL: usize = 258;
+const MOVED_AGREE_TOTAL: usize = 264;
 
 // --- the tests --------------------------------------------------------------
 
