@@ -287,6 +287,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // and AI_ChooseIndustry switching iron off is the only way anything
     // finishes. Switching it would change the game rather than fix it.
     ("B68", Unswitchable("the rule, not a defect: see docs/rules.md")),
+    ("B99", Unwired("crates/l2-game/src/turn_clock.rs")),
     ("B69", Unwired("l2_kingdom::siege, the repair bill material")),
     // The six the AI branch reproduced. All are behavioural and none is wired
     // to a switch yet: each is a defect of the original the AI now reproduces,

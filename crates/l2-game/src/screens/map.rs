@@ -3003,6 +3003,16 @@ impl Screen for MapScreen {
         if self.fading.is_some() {
             return self.tick_fade();
         }
+        // **The turn timer ran out.** `Turn_Tick`'s phase-4 arm called
+        // `Turn_End` — this screen's End Turn handler — and the frame driver has
+        // closed what the turn-ended guard closes; the request waits here because
+        // only this screen can start a turn. It goes through the button's own
+        // door, and like the button's frame it is one tick of the turn and no
+        // more. `crate::turn_clock`, `Machine::run_turn_clock`.
+        if ctx.game.turn_clock.end_turn_pending() && !turn::turn_in_flight(ctx.game) {
+            ctx.game.turn_clock.take_end_turn();
+            return self.end_turn(ctx);
+        }
         let resumed = self.resume_turn(ctx);
         if resumed != Transition::Stay {
             return resumed;
@@ -3889,13 +3899,16 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // loop is `strength != 0 && aiStep < 999`, so each realm's banner vanishes
     // from the menu bar as that realm finishes its turn and the bar refills as
     // the new one begins — reproduced in `draw_menu_bar`, through
-    // `turn::realm_turn_ended`. And `FUN_0041A639`'s turn timer is gated on
-    // `aiStep == 999`, which is **not** reproduced: we have no turn timer.
-    // Together the three are the original's whole "the turn is being
-    // processed" feedback. This paragraph used to say we reproduced neither of
-    // the two, and it sat twenty lines from the loop that omitted the clause it
-    // quoted. `docs/draws-map.md` §5.11, `docs/decisions.md`
-    // C152.
+    // `turn::realm_turn_ended`. And `FUN_0041A639`'s turn timer reads it too —
+    // as one half of `DAT_0055403C < 1 || aiStep == 999`, which keeps the
+    // timer up through the person's own turn *and* after he ends it. That one
+    // is drawn by `Machine::draw`, not here, because the original calls it from
+    // the frame loop rather than from this screen's painter; see
+    // `crate::turn_clock`. This paragraph used to say we had no turn timer, and
+    // before that that we reproduced neither of the other two, and both times it
+    // sat twenty lines from the draw it described as missing.
+    // `docs/draws-map.md` §5.11, `docs/decisions.md`
+    // C152 and C158.
     if !turn::turn_in_flight(&ctx.game) {
         let end = if screen.focus == Focus::EndTurn {
             ink.highlight

@@ -354,3 +354,26 @@ what the narrator actually says.
 `docs/decisions.md` C133 searched all 317 `L2.eng` groups for *"all your people are fed by
 dairy"*, correctly found nothing, and concluded the readout did not exist. It exists, and it
 is spoken. If the clip says something else entirely, that is a finding too — and a cheap one.
+
+## 12. The turn timer, which needs a stopwatch and no save
+
+Start a **custom game** — one player is enough — with **Time limit: 30 secs**. Then, on the
+campaign map:
+
+1. **Is there a number in a small plate just left of the right-hand panel, near the bottom,
+   while it is your turn?** We read it as counting down from 30 while you play. Another
+   reading of the same code, which two of our documents had written down, would show it only
+   *after* you press End Turn.
+2. **Let it run out without touching anything.** We think the turn ends when the number has
+   been gone for about a second — 31 seconds, not 30 — and that any village or county panel
+   you had open closes.
+3. **The one that matters.** Play a turn for about **twenty-five seconds**, press End Turn,
+   and watch the next turn begin. **Does the End Turn caption vanish again straight away, with
+   no click, so that turn is over before you have done anything?** We think it does whenever
+   your twenty-five seconds and the time the turn took to run add up to more than 31 — more
+   likely with armies or merchants on the move — and that the turn after it is normal again.
+   `docs/bugs.md` B99.
+
+Question 3 is the difference between a defect we copy on purpose and a misreading we have
+built into the engine. Nothing we have can answer it: it depends on how long a real turn takes
+on a real machine.

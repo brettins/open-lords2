@@ -68,6 +68,15 @@
   "imageBase": "0x00400000",
   "functions": [
     {
+      "addr": "0x0041A639",
+      "name": "Screen_DrawTurnTimer",
+      "section": "ui",
+      "confidence": "subject",
+      "comment": "The per-turn countdown, drawn from the frame loop: Misc_cty frame 0x60 at (404, 430), then the seconds left centred in 50 px at (424, 442), trailing space from DAT_004D41D0. docs/decisions.md C158.",
+      "basis": "crates/l2-game/src/turn_clock.rs quotes the draw: guard g_battlePhase == 0 && 2 < g_appPhase && 0 < DAT_005440C8 plus the screen table at DAT_004D2E80, then Ui_DrawNumberRight(DAT_005440C8, ' ', &DAT_004D41D0, 0x1A8, 0x1BA, 0x32, &g_fontBody, 0x3F).",
+      "caveat": "Name suggested by the coordinator at merge, not used or verified by the branch, which calls it by its address throughout. The address and the behaviour are the branch's; the name is a hypothesis."
+    },
+    {
       "addr": "0x0041AEA2",
       "name": "SendSupplies_DrawPanel",
       "section": "ui",
@@ -321,6 +330,14 @@
   ],
   "globals": [
     {
+      "addr": "0x004D2E80",
+      "name": "g_turnTimerScreens",
+      "section": "ui",
+      "confidence": "subject",
+      "basis": "A 70-byte per-screen table deciding which screens show the turn timer, with one reader in the binary (the timer draw). The table and the draw address are read from the exe. docs/decisions.md C158.",
+      "caveat": "Name suggested by the coordinator at merge, not used or verified by the branch, which calls it by its address throughout. The address and the behaviour are the branch's; the name is a hypothesis."
+    },
+    {
       "addr": "0x004EA1A0",
       "name": "g_fileListTop",
       "section": "ui",
@@ -371,6 +388,14 @@
       "comment": "Whatever NetCmd_WriteMoveOrder passes to Net_ResolveDest to make the packet's second field.",
       "basis": "One call site. Nothing else traced reads it.",
       "promotion": "Read Net_ResolveDest."
+    },
+    {
+      "addr": "0x005440C8",
+      "name": "g_turnSecondsLeft",
+      "section": "ui",
+      "confidence": "subject",
+      "basis": "Turn_Tick (0x0049A010) writes g_optTimeLimit - elapsed / 1000 into it during the person's turn and -1 once it runs out; Setup_StartGame seeds it from g_optTimeLimit; Screen_DrawTurnTimer draws it. docs/decisions.md C158, docs/bugs.md B99.",
+      "caveat": "Name suggested by the coordinator at merge, not used or verified by the branch, which calls it by its address throughout. The address and the behaviour are the branch's; the name is a hypothesis."
     },
     {
       "addr": "0x00553D50",

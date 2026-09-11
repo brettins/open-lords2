@@ -495,6 +495,10 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // `MapScreen::new` does, and this is that projection's starting value.
         begin_move_order: None,
         map_zoom_far: false,
+        // And a seventh: `Setup_StartGame` sets `DAT_005440C8 = g_optTimeLimit`
+        // for a loaded game as for a new one, so the turn timer starts from the
+        // full limit on its first tick. See `crate::turn_clock`.
+        turn_clock: crate::turn_clock::TurnClock::default(),
         map_slot: map_slot as usize,
         realm_colour,
         player_names,

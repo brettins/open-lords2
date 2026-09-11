@@ -752,7 +752,7 @@
       "gesture": "timer",
       "addr": "0x0042FF10",
       "what": "TWENTY-NINE arms open with `if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))` and force-close. DAT_0055403C is what Turn_End writes, DAT_00553FC8 is the multiplayer sync-wait latch and DAT_00553018 is the F12 debug override. A THIRD OF THIS FUNCTION'S JOB is tearing every open panel down when the turn ends or the network blocks, with no user input involved at all.",
-      "note": "Not a gesture, and it is in this file because it is the guard that runs before every gesture in the group. Missing because our End Turn resolves the turn synchronously, so no panel can be open while it runs; it becomes reachable the moment turns are asynchronous, which is the whole of docs/netcode.md.",
+      "note": "Not a gesture, and it is in this file because it is the guard that runs before every gesture in the group. Missing because our End Turn resolves the turn synchronously, so no panel can be open while it runs; it becomes reachable the moment turns are asynchronous, which is the whole of docs/netcode.md. COUNTED AGAIN while building the turn timer: 27 sites of this guard in Screen_FrameInput's body, not 29, and every one but 0x00's closes -- nine test the guard and close at once (0x02, 0x04, 0x05, 0x06, 0x10, 0x11, 0x1D, 0x26, 0x39), eighteen test its negation around the arm's input and close in the else (read for 0x09, 0x13, 0x14 and 0x35/0x36; the other thirteen share the shape). IT IS NOW REACHABLE IN SINGLE PLAYER: the turn timer calls Turn_End while any panel may be open. Machine::run_turn_clock pops the closing screens for as long as the timer's Turn_End request stands, under 0x0049A010/turn-time-limit's marker; the guard itself -- during the turn that follows, and for the network sync latch -- is still not built, which is why this stays missing.",
       "evidence": "V"
     },
     {
@@ -2273,6 +2273,18 @@
       "note": "Sets exactly the globals the twenty-thousandth ram hit sets, so the garrison opening its own gate is indistinguishable to the besieger's AI from the besieger breaking it -- which is why the Readme says a drawbridge cannot be closed again. The 28 frame indices were read out of Lords2.exe at file offset 0xD8018, not out of a listing. The original's scan is missing a break on its outer loop; the answer is unaffected but g_foundTileX/Y are left at (0, 0x50). The patch's flags2 write is not reproduced: no BattleCell field in this engine carries byte +2.",
       "ours": "crates/l2-sim/src/runner.rs",
       "evidence": "V"
+    },
+    {
+      "id": "0x0049A010/turn-time-limit",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "every",
+      "gesture": "timer",
+      "addr": "0x0049A010",
+      "what": "Turn_Tick's phase-4 arm counts DAT_005440C8 = g_optTimeLimit - (timeGetTime() - _DAT_00568D9C) / 1000 and, below zero, writes -1 and calls Turn_End (0x0043AC23) -- the End Turn button's handler, ending the LOCAL player's turn with nobody pressing anything. Then 1 < DAT_0055403C && aiStep != 999 restarts the count for the next turn. The limit is the custom game's Time limit drop-down, single-player page included; the campaign forces it to 0.",
+      "note": "Not a gesture: a timer, counted in Turn_Tick from Battle_Frame's loop on whatever screen is up, which is why ours is in Machine::update rather than in a screen. Its consequences are reproduced with it -- Turn_End's Msg_Dismiss, and the 0x0042FF10 guard's screens closed until the map is on top to start the turn. The draw, FUN_0041A639, is docs/draws-map.md's. The countdown running before the restart in one frame is docs/bugs.md B99 and is reproduced. crates/l2-game/src/turn_clock.rs has what is not.",
+      "evidence": "D",
+      "ours": "crates/l2-game/src/screen.rs"
     },
     {
       "id": "0x0049BAE9/name-to-playernames",

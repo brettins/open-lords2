@@ -67,6 +67,7 @@ pub mod setup;
 pub mod shell;
 pub mod text;
 pub mod turn;
+pub mod turn_clock;
 pub mod victory;
 pub mod widget;
 

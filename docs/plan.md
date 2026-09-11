@@ -129,9 +129,10 @@ misaligned.** Five were wrong anyway — `Panel_Ration` is the only painter in t
 passes an **empty** suffix, we passed a space, and the suffix is inside what the centring tail
 measures, so all five columns sat two pixels left.
 
-**What is still open from it** is the count rather than the placement: six `Ui_DrawNumberRight`
-sites have no draw of ours (the besieger's siege-seasons mark, the turn timer, the battle HUD's
-two men counters, and two on a skirmish panel), and `Ui_DrawNumber`'s **191** call sites have
+**What is still open from it** is the count rather than the placement: five `Ui_DrawNumberRight`
+sites have no draw of ours (the besieger's siege-seasons mark, the battle HUD's two men
+counters, and two on a skirmish panel — the turn timer was a sixth, and is drawn now,
+`docs/decisions.md` C158), and `Ui_DrawNumber`'s **191** call sites have
 had their *lead* swept (C127). The *suffix* pass followed for `Pen::number`: C157 read all 25
 of its sites against their call sites and deleted the method, which had built a trailing space
 for every caller.
@@ -155,8 +156,8 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->168<!--/fig--> of
-   <!--fig:arms-live-->194<!--/fig--> live arms (<!--fig:arms-pct-->87<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->169<!--/fig--> of
+   <!--fig:arms-live-->195<!--/fig--> live arms (<!--fig:arms-pct-->87<!--/fig-->%)** — so
    **<!--fig:arms-missing-->26<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->6<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
@@ -168,8 +169,8 @@ the goal is not met — not "mostly met".
 
    **The campaign map**, the screen a player spends most of a session looking at, makes
    **<!--fig:map-draws-->139<!--/fig--> draw calls, of which <!--fig:map-draws-live-->121<!--/fig-->
-   are live. We make <!--fig:map-draws-ours-->59<!--/fig--> of them:
-   <!--fig:map-draws-pct-->49<!--/fig-->%.** `docs/draws-map.md`, via `tools/draws/mapdraws.js`.
+   are live. We make <!--fig:map-draws-ours-->61<!--/fig--> of them:
+   <!--fig:map-draws-pct-->50<!--/fig-->%.** `docs/draws-map.md`, via `tools/draws/mapdraws.js`.
 
    **The other <!--fig:draws-screens-->51<!--/fig--> screens** make
    <!--fig:draws-original-->1,012<!--/fig--> draw calls and we make
@@ -936,7 +937,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,229<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,240<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
