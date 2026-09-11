@@ -26,6 +26,8 @@ crates/l2-formats/src/save.rs	C83	69ef8566a965	88ac11ea6de0
 crates/l2-formats/tests/battle_fixtures.rs	C23	24f9d69c852a	6ac2f322c3bd
 crates/l2-formats/tests/save.rs	C1	93f2edca7e60	6b7e8edb019e
 crates/l2-formats/tests/save_england_turn1.rs	C12	28688b3c5609	bb0dd488f9d2
+crates/l2-game/build.rs	C154	344919686118	4f820bfd08c8
+crates/l2-game/build.rs	C154	f9de42bc3129	4f820bfd08c8
 crates/l2-game/src/audio/mod.rs	C133	15d1b1c19eb7	91fcca97cc98
 crates/l2-game/src/audio/names.rs	C133	cdef544c10db	91fcca97cc98
 crates/l2-game/src/battlefield.rs	C60	ba6ce8d9adf0	2f31848557d2
@@ -701,6 +703,7 @@ docs/draws-map.md	C153	ee15a56549e1	c724d7afe0dd
 docs/draws-map.md	C30	40a6a7104696	50fdf5e17ba0
 docs/draws-map.md	C72	230aae5fabd7	e2bb936cf01c
 docs/draws-map.md	C77	cfea9c21de5f	94789f222b99
+docs/environment.md	C154	80c321c1ed21	4f820bfd08c8
 docs/formats/eng.md	C3	f56e526bf0e2	35bf3a86555f
 docs/formats/eng.md	C61	4cbf794a0efc	60611046b40d
 docs/formats/maps-layers.md	C124	4e7d57a30bb2	38723617b085
@@ -1015,3 +1018,4 @@ tools/oracle/widgets.js	C3	31c16884e2e7	35bf3a86555f
 tools/oracle/widgets.js	C61	ef2b1baaad8a	60611046b40d
 tools/oracle/xref.js	C21	56cb3a0cadde	f7bf296341ff
 tools/oracle/xref.js	C3	dbc82d5dfc52	35bf3a86555f
+tools/run/play.ps1	C154	4b1c5f1d7ddc	4f820bfd08c8
