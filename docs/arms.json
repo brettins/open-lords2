@@ -2258,7 +2258,7 @@
       "gesture": "hover",
       "addr": "0x0047ED9B",
       "what": "Battle_UpdateHover recomputes the five hover globals every frame: on-field, the cell, its surface, whether it is woodland, and whether the occupant is a friend, a picked friend or an enemy. Two of the three order arms read nothing else.",
-      "note": "One clause is reproduced CORRECTED rather than as found -- see docs/bugs.md B69, the stale figure index.",
+      "note": "One clause is reproduced CORRECTED rather than as found -- see docs/bugs.md B100, the stale figure index.",
       "ours": "crates/l2-game/src/battlefield.rs",
       "evidence": "V"
     },

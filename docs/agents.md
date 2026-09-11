@@ -548,15 +548,19 @@ and cites it the same way in its own prose — `docs/decisions.md` CNEW-hover �
 branch lives. The suffix is the agent's own word, needs to be unique only within its branch, and
 exists so that one branch can add several corrections.
 
-At merge, `node tools/decisions/corrections.js --assign` walks the branch's headings in the order
-they appear in `decisions.md`, maps each distinct placeholder to the next free number, rewrites
-**every occurrence across the whole tree** — headings, prose, `symbols.json` comments, Rust doc
-comments, test names — and relocks the citations. One command, no chasing.
+At merge, `node tools/decisions/corrections.js --assign <TAG>` numbers **one** placeholder: it
+takes the next free number in that placeholder's own series, rewrites **every occurrence across
+the whole tree** — headings, prose, `symbols.json` comments, Rust doc comments, test names — and
+relocks the citations. One command per tag, run in the order `--check` lists them. *(This
+paragraph described a tag-less `--assign` that walked every heading at once for a long time
+before any `--assign` existed; the integrator did the job with `git grep -l | perl -pi`. What
+exists now is described under* The tool as it is *below.)*
 
-**And the check that makes it structural rather than a habit: `--check` fails if any `CNEW`
-survives anywhere on `main`.** That is what stops the placeholder from being merged unassigned,
-and it is the whole enforcement. It goes red on ordinary work, in CI, on the commit that would
-have introduced the problem — which is the property *"read the highest number first"* never had.
+**And the check that makes it structural rather than a habit: `--check` fails if any
+placeholder, of any family, survives anywhere on `main`.** That is what stops the placeholder
+from being merged unassigned, and it is the whole enforcement. It goes red on ordinary work, in
+CI, on the commit that would have introduced the problem — which is the property *"read the
+highest number first"* never had.
 
 What it costs: an agent's own branch reads `CNEW-hover` instead of `C61` while the work is in
 flight. That is a branch, and it is correct that a number which has not been allocated does not
@@ -579,6 +583,65 @@ What it does not fix, said plainly: **two agents writing corrections about the s
 is a content collision, not a numbering one, and no tool resolves it — it is the coordinator
 knowing what is in flight. Today's three were three genuinely different subjects that happened to
 want the same integer, which is the case this removes entirely.
+
+### The tool as it is
+
+`tools/decisions/corrections.js`, with `crates/l2-testkit/tests/corrections_tool.rs` building
+small trees to break it. Built after a merge of six branches where the integrator closed three
+gaps by judgement, each of which is now a rule:
+
+**It knows six series, not one letter each.** A series is a *(log, letter)* pair:
+
+| log | letter | what | entry forms |
+|---|---|---|---|
+| `docs/decisions.md` | `D` | decisions | `**D<n> — title**` |
+| | `C` | corrections | `**C<n> — title**` |
+| `docs/bugs.md` | `B` | §2, reproduced | `### B<n> — title` or `\| **B<n>** \|` (`~~` for retracted) |
+| | `N` | §3, not reproduced | the same two |
+| | `S` | §4, surprising and not a bug | the same two |
+| | `D` | §5, dead code | the same two |
+
+**The D-series exists twice and the two are unrelated**, so a `D` placeholder is numbered in the
+log its entry is written in — by letter alone, the first dead-code placeholder would have become
+decision D12. The tool once scanned for `C` and `B` placeholders only, and a `D` one reached a
+merge with nothing reporting it. Every one of the six is duplicate-checked now, and **the first
+run of that found two `B69`s on `main`** — a §2.5 table row and a §2.10 heading, merged fifty
+minutes apart — which the quirks catalogue, holding one disposition for both, had passed. The
+later arrival is B100 — B99 had been taken by the turn timer's row by the time this merged.
+
+**A line that looks like an entry and is not in the log's form is an error naming the line**,
+not a skip: a Markdown heading in `decisions.md`, a hyphen, en-dash or colon where the em-dash
+belongs, a double-encoded em-dash, the wrong heading level, a cell closed tight. Two branches
+wrote `## <placeholder>` headings the tool could not see, and C146's double-encoded em-dash made
+its correction vanish the same way (C147). An invisible entry is worse than a missing one,
+because the next free number is computed without it. Prose that opens with a bold id —
+`**C12's failure mode…`, `**B4** the empire tax`, `| **D1 →** |` — stays quiet; the tests pin
+those shapes too.
+
+**`--check` reports placeholders last**, after every other rule has run, grouped by tag, with the
+entry that defines each, the command that assigns it and the number it would take — and a letter
+no log numbers, or a tag nothing defines, is reported as such. On a branch, which carries its own
+placeholders by design, that means the placeholder list is the *only* failure when everything
+else is right; on `main` it is fatal. `--relock` works with placeholders present.
+
+**`--assign <TAG>`** refuses, changing nothing, when the tag is not in the tree, is not a
+placeholder, is defined by no entry, or when **any** entry-shaped line in either log is
+malformed — the refusal that stops it computing a number from a log it cannot fully read. It
+also refuses when the tree already holds a dragged or left-behind citation, because it relocks
+and a relock is how a drag gets accepted. Otherwise it **reads and writes bytes**: a tag is
+ASCII, so it is replaced inside the file's bytes without decoding the rest, and a BOM, a CRLF or
+a byte that is not UTF-8 goes back out as it came in. It checks that the byte replacement found
+exactly what the scan found before writing anything, and it will not take `<tag>` out of the
+middle of `<tag>-longer`.
+
+    node tools/decisions/corrections.js --check              # lists each placeholder and its command
+    node tools/decisions/corrections.js --assign CNEW-hover  # the next free C-number, tree-wide, relocked
+
+**The quirks catalogue sees placeholder rows.** `quirks_catalogue.rs` accepted digits only, so a
+branch's new `docs/bugs.md` §2 row was invisible to it: the branch was green, and two tests went
+red at merge once the row had a number. A placeholder is an entry now, so the branch goes red
+until `DISPOSITIONS` carries the placeholder, and `--assign` renames that line in the same pass
+as the document.
 
 ### Why this is written here and not just done
 
