@@ -6901,3 +6901,81 @@ assertion failed, correctly, on its first run.
 
 Ablated: restoring the mangled heading fails with `docs/decisions.md:6781 em dash
 should be '—'`, and removing it passes again.
+
+**C148 — `docs/arms.json` marked nineteen arms `reproduced` under a kind
+none of them had, and the thing that caught it was a field written for another purpose.**
+
+C131 added a `gesture` field to `docs/arms.json` and a second word to the `// arm:` marker,
+because an arm could be marked `reproduced`, be genuinely present, and be answered with the
+wrong *kind* of gesture in every case. It also built the mechanism — `press::Press`, the
+48-byte ramp, the twenty-frame countdown — and wired it on one screen.
+
+**What it did not do was change any other screen's behaviour, and the check could not tell.**
+`arms.rs` compares the marker's word with the record's word. Both are edited by one person in
+one sitting, which is the shape `docs/agents.md` names as *"two artefacts that must agree and
+are maintained by the same person, at the same time, for the same reason"* — the pattern that
+lies. So nineteen arms acquired the word `left-press-repeat` or `left-press-delayed`, the code
+under them went on firing once on the press, and every test in the tree passed. `supplies.rs`
+said it out loud in a constant's doc comment — *"**Kind 5**, so the original fires them twenty
+frames after the press; we fire at once and record the difference"* — which is the
+*correct-explanation-above-the-omission* shape from three other places in `docs/agents.md`.
+
+**Three defects a player reported are this one gap, and a fourth was already fixed.**
+
+| the report | the kind | where it was |
+|---|---|---|
+| *"clicking yes/no is instant, whereas the game waited on mouse-up, and the gauntlet would go down slightly"* | `Widget_Test` **5** | `g_confirmWidgets`, and there was **no record and no marker for it at all** |
+| *"holding on a button doesn't make it go up faster"* | `Widget_Test` **4** | `0x004BA9C8/tax-and-ration-arrows`, filed `left-press` |
+| *"the original has the army steps on hover"* | `hover` | built by C61 and **in no inventory**, so this one did not still reproduce |
+
+### The finding: the address that would have answered it was already in the record
+
+`0x004BA9C8/tax-and-ration-arrows` has `addr` = `Screen_HandleInput`, a 3,832-byte dispatcher
+that is nobody's handler — so the exe-gated kind-byte check skipped it. And its `what` reads:
+
+> *"`g_taxWidgets` (`0x004DD790`) and `g_rationWidgets` (`0x004DD7C0`), two 24-byte records
+> each, up then down"*
+
+**Both of those are kind 4.** The record named the tables, in prose, months before the gesture
+field existed, written by somebody not thinking about kinds — and the check that was supposed
+to read the kind byte was looking at the wrong field of the same record. Extending it to scan
+`what`/`note` for addresses that land on a **record base** inside the two table regions found
+four wrong gestures, three of them marked `reproduced`, and ablating the fix makes it name the
+player's bug in its own failure message.
+
+That generalises past this file: **before adding a second artefact to check against, look for
+one that is already there and was written for another purpose.** A cross-reference in prose is
+independent of the field you are checking in exactly the way a freshly written duplicate is not.
+
+**It also took three wrong versions to get right, and each wrong one was a false positive
+rather than a miss** — which is the safe direction and worth recording as the reason to build
+it this way round. Reading the `id`'s address said kind 5 about `supplies-sheep-row`, whose id
+is a **table base** whose record 0 is a thumb. Reading every line said kind 5 about
+`enter-confirms`, a keyboard arm, because the `groups` prose at the top of the file names
+`g_splitWidgets`. Reading the line that opens a record attached the *next* record's id to the
+*previous* record. Each was a wrong answer that argued for itself, and each was found by
+opening the row rather than by reading the count — `docs/agents.md`, *read the first three
+findings of every new tool's first run*.
+
+### Three smaller things worth keeping
+
+* **A family resemblance is not a kind.** The battle prompt's thumb-up and thumb-down are the
+  *same two pictures* as the yes/no box's and a *different kind* — `Battle_PromptAnswered`'s
+  records are 4, `Ui_ConfirmClicked`'s are 5. Ours had been filed `left-press`, moved to
+  `left-release` by the branch that found `Ui_OkButtonClicked` waits for the release, and is
+  neither.
+* **A two-sided check has a blind spot exactly between its sides.** `arms.rs` asserts every
+  record has a marker and every marker has a record. `Map_HoverUnitTarget` had **neither**, so
+  the arm a player reported, which C61 then built, was invisible to both directions of the
+  check written to count it.
+* **`docs/input.md` said kind 2 was *"one pair, a setup-page scroll"*. It is 23 records over
+  seven handlers** — a true statement about one table promoted to a statement about a kind,
+  which is the `[V]` failure `CLAUDE.md` warns about, in the document that was itself the
+  remedy for the last one. The cure is `tools/oracle/kinds.js`: the counts in that table are
+  now generated from the exe, and the script refuses to print anything until two spot checks
+  against handlers named from call sites pass.
+
+**What this branch did not do**, said at the loop rather than left silent: our screens declare
+a kind for about forty of the original's 332 input records. All five kinds are built and
+`Kind::Held` reaches nothing, because all seven of its handlers are skirmish and multiplayer
+setup pages this engine does not have.

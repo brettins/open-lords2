@@ -121,7 +121,34 @@ fn records(root: &Path) -> Vec<Record> {
     };
     let mut out: Vec<Record> = Vec::new();
     let mut id: Option<String> = None;
+    // **Addresses seen since the last `"status"` line**, held rather than
+    // attached at once. A record is created on its `"status"` line, so its
+    // `"id"` line arrives while the *previous* record is still `out.last_mut()`
+    // — and attaching there silently gave `tax-and-ration-arrows` the supplies
+    // thumb's address and a kind it does not have.
+    let mut pending: BTreeSet<u32> = BTreeSet::new();
     for line in text.lines() {
+        // **Only the prose fields**, and the exclusions are each a case that
+        // went wrong before the list existed:
+        //
+        // * `id` — an id's address is sometimes a **table base** rather than a
+        //   record. `0x004DD538/supplies-sheep-row` is `g_sendSuppliesWidgets`,
+        //   whose record 0 is a kind-5 thumb and whose sixth and seventh
+        //   records are the kind-4 pair the arm is about. Reading the id as a
+        //   record said kind 5 about a spinner.
+        // * `addr` — the `addr`-keyed half of this check already reads it, as a
+        //   handler.
+        // * everything outside a record — the `groups` prose at the top of the
+        //   file names `g_splitWidgets`, and it would have landed on whichever
+        //   record happened to be first.
+        if field(line, "id").is_some() {
+            pending.clear();
+        }
+        if PROSE_FIELDS.iter().any(|f| field(line, f).is_some()) {
+            for a in addresses_in(line) {
+                pending.insert(a);
+            }
+        }
         if let Some(v) = field(line, "id") {
             assert!(id.is_none(), "two \"id\" lines with no \"status\" between them: {v}");
             id = Some(v);
@@ -134,6 +161,7 @@ fn records(root: &Path) -> Vec<Record> {
                 addr: None,
                 ours: None,
                 removed: false,
+                prose: std::mem::take(&mut pending),
             });
         } else if let Some(v) = field(line, "gesture") {
             if let Some(last) = out.last_mut() {
@@ -152,9 +180,56 @@ fn records(root: &Path) -> Vec<Record> {
                 last.removed = v == "true";
             }
         }
+        // Everything after the `"status"` line belongs to the record it made.
+        // Deliberately not restricted to `what` and `note`: a table named in a
+        // `merged` field is still a table this record is about, and the region
+        // filter at the use site is what makes the net safe rather than the
+        // field name.
+        // `id` is `Some` exactly between a record's `"id"` line and its
+        // `"status"` line, which is the window in which the *previous* record
+        // is still `out.last_mut()`. Appending there is how
+        // `tax-and-ration-arrows` picked up the supplies thumb's address out of
+        // the next record's id and acquired a kind it does not have.
+        if id.is_none() {
+            if let Some(last) = out.last_mut() {
+                last.prose.append(&mut pending);
+            }
+        }
     }
     assert!(id.is_none(), "the last record has an \"id\" and no \"status\"");
     assert!(out.len() > 20, "only {} records parsed — the scanner lost the file", out.len());
+    out
+}
+
+/// **The fields whose text is prose about the original**, and therefore the
+/// only ones the address scan reads. See `records` for why each of the others
+/// is excluded.
+const PROSE_FIELDS: &[&str] = &["what", "note", "why", "merged"];
+
+/// Every `0x00xxxxxx` in one line of text, however it is spelled.
+///
+/// `DAT_004DD790`, `0x004DD790` and `&DAT_004DD790` are the three forms this
+/// file's prose uses, and they differ only in what precedes the eight hex
+/// digits — so the scan is for the digits and the prefix is ignored.
+fn addresses_in(line: &str) -> Vec<u32> {
+    let b: Vec<char> = line.chars().collect();
+    let mut out = Vec::new();
+    for i in 0..b.len() {
+        if b[i] != '0' || i + 8 > b.len() || b[i + 1] != '0' {
+            continue;
+        }
+        // A run of exactly eight hex digits starting `00`, not part of a longer
+        // one.
+        if !b[i..i + 8].iter().all(|c| c.is_ascii_hexdigit()) {
+            continue;
+        }
+        if b.get(i + 8).is_some_and(|c| c.is_ascii_hexdigit()) {
+            continue;
+        }
+        if let Ok(v) = u32::from_str_radix(&b[i..i + 8].iter().collect::<String>(), 16) {
+            out.push(v);
+        }
+    }
     out
 }
 
@@ -171,6 +246,17 @@ struct Record {
     ours: Option<String>,
     /// `invention` only: whether the code has since been taken out.
     removed: bool,
+    /// **Every address the record's prose names**, which is how the exe-gated
+    /// check reaches the four arms whose `addr` is a dispatcher.
+    ///
+    /// `0x004BA9C8` is `Screen_HandleInput`, 3,832 bytes and nobody's handler,
+    /// so a record filed under it has no kind byte to read — and then names its
+    /// widget table in its own `what`: *"g_taxWidgets (0x004DD790) and
+    /// g_rationWidgets (0x004DD7C0)"*. That address is the thing the check
+    /// wanted, written months before the gesture field existed and by somebody
+    /// not thinking about kinds, which is the property `docs/agents.md` says a
+    /// second artefact needs and usually does not have.
+    prose: BTreeSet<u32>,
 }
 
 impl Record {
@@ -529,6 +615,10 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
     const WIDGETS: (u32, u32) = (0x004D_D310, 0x004D_E400);
 
     let mut kinds: BTreeMap<u32, BTreeSet<&'static str>> = BTreeMap::new();
+    // **And the same thing keyed by the RECORD's address**, which is what lets
+    // the prose check below reach the four arms whose `addr` is a dispatcher.
+    // See `docs/input.md` §7a.
+    let mut at_record: BTreeMap<u32, &'static str> = BTreeMap::new();
     for (widget, (lo, hi)) in [(false, HOTSPOTS), (true, WIDGETS)] {
         let mut va = lo;
         while va < hi {
@@ -538,6 +628,7 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
             if (0x0040_1000..0x004D_0000).contains(&handler) {
                 if let Some(g) = gesture_of_kind(widget, kind) {
                     kinds.entry(handler).or_default().insert(g);
+                    at_record.insert(va, g);
                 }
             }
             va += 24;
@@ -567,6 +658,35 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
     // classified from its address alone. There is one, and it is named rather
     // than skipped silently.
     let mut ambiguous: BTreeSet<String> = BTreeSet::new();
+
+    // **The prose half**, which is half the blind spot closed. See
+    // `docs/input.md` §7a for why it is record bases only and why an ambiguity
+    // is reported rather than resolved.
+    let mut by_prose = 0usize;
+    for r in records(&repo_root()) {
+        let named: BTreeSet<&'static str> =
+            r.prose.iter().filter_map(|a| at_record.get(a).copied()).collect();
+        if named.is_empty() {
+            continue;
+        }
+        if named.len() > 1 {
+            ambiguous.insert(format!(
+                "{} names tables of kinds {:?} in its prose",
+                r.id,
+                named.iter().copied().collect::<Vec<_>>(),
+            ));
+            continue;
+        }
+        by_prose += 1;
+        let want = *named.iter().next().unwrap();
+        if r.gesture != want {
+            wrong.push(format!(
+                "{}\n      docs/arms.json says `{}`\n      the kind byte at +0x0F of the \
+                 widget record its own prose names says `{want}`",
+                r.id, r.gesture,
+            ));
+        }
+    }
 
     for r in records(&repo_root()) {
         let Some(addr) = r.addr else { continue };
@@ -604,6 +724,14 @@ fn the_gesture_of_every_table_handler_is_the_exes_own_kind_byte() {
         checked >= 37,
         "only {checked} arms have a `addr` this check can classify; it was 37. \
          Either records lost their `addr`, or the table regions moved.",
+    );
+    // The prose half's coverage, asserted for the same reason: it reaches the
+    // four arms whose `addr` is `Screen_HandleInput`, and if it fell silent it
+    // would read exactly like passing. `docs/input.md` §7a.
+    assert!(
+        by_prose >= 12,
+        "only {by_prose} arms name a widget record in their prose; it was 12. \
+         A record that stops naming its table stops being classifiable.",
     );
     // **One handler is reachable at two different kinds**, and it is named
     // rather than skipped, because a growing list of things a check declines to

@@ -135,6 +135,7 @@
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Kind, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
 
@@ -346,11 +347,27 @@ pub struct InfoScreen {
     /// original answers a refused disband with a message scroll we have not
     /// built.
     status: String,
+    /// [`GARRISON_WIDGET`]'s press timer. It is the only `Widget_Test` record
+    /// on this screen — everything else here is a `Hotspot_Test` box, which
+    /// draws nothing and has no timer.
+    press: Press,
+}
+
+/// **`DAT_004DD640` as a table, with the kind byte its one record carries.**
+///
+/// `Widget_Test` kind **4**, read out of `+0x0F` of `0x004DD640`.
+/// `docs/arms.json` filed it `left-press`, which is the right *edge* and the
+/// wrong *kind*: kind 4 also shows the pressed picture and accepts a double
+/// click as a press. The repeat is inert — `FUN_00438ACC` assigns the same
+/// garrison every time — and that is a property of the handler, not of the
+/// record.
+fn garrison_widgets() -> [Widget; 1] {
+    [Widget::new(GARRISON_WIDGET, Kind::Repeat)]
 }
 
 impl InfoScreen {
     pub fn new(target: Target) -> InfoScreen {
-        InfoScreen { target, status: String::new() }
+        InfoScreen { target, status: String::new(), press: Press::new() }
     }
 
     pub fn target(&self) -> Target {
@@ -476,6 +493,13 @@ impl Screen for InfoScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        // The release ends the garrison widget's hold, and the pointer leaving
+        // it is the hit test ceasing to match. Before the ladder, because the
+        // pointer arm below is the edge scroll and it must still run.
+        if matches!(event, Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft) {
+            let fired = self.press.event(&garrison_widgets(), event);
+            debug_assert!(fired.is_none(), "the garrison widget is kind 4, not kind 3");
+        }
         let Event::Click { x, y } = event else {
             return match event {
                 // The same button opens and closes it.
@@ -566,8 +590,8 @@ impl Screen for InfoScreen {
         //
         // `FUN_00438ACC` opens `if (g_mapZoom != 2)` and does nothing at the far
         // zoom, which is [`crate::game::Game::map_zoom_far`] here.
-        // arm: 0x00438A91/info-garrison-widget left-press
-        if GARRISON_WIDGET.contains(x, y) && !ctx.game.map_zoom_far {
+        // arm: 0x00438A91/info-garrison-widget left-press-repeat
+        if self.press.event(&garrison_widgets(), event).is_some() && !ctx.game.map_zoom_far {
             if let Some(unit) = self.garrison(&Ctx { game: ctx.game, assets: ctx.assets }) {
                 self.target = Target::Unit(unit);
                 return Transition::Stay;
@@ -814,8 +838,10 @@ impl Screen for InfoScreen {
                     );
                     // `System.pl8` frame 25 is the tick, which is what the
                     // record's `+4` carries; our own button is the fallback for
-                    // an install with no artwork.
-                    if !pen.system_frame(canvas, 25, GARRISON_WIDGET.x, GARRISON_WIDGET.y) {
+                    // an install with no artwork. `Widget_Draw` adds one to it
+                    // while the press timer at `+0x0D` runs.
+                    let frame = if self.press.pressed().is_some() { 26 } else { 25 };
+                    if !pen.system_frame(canvas, frame, GARRISON_WIDGET.x, GARRISON_WIDGET.y) {
                         crate::widget::frame(canvas, GARRISON_WIDGET, ink.highlight);
                     }
                 }

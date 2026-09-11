@@ -174,6 +174,28 @@ fn on(r: l2_game::input::Rect) -> (i32, i32) {
     (r.centre_x(), r.y + r.h / 2)
 }
 
+/// **Press a kind-5 widget and let its countdown run out.**
+///
+/// `Widget_Test`'s kind-5 branch sets `rec[0x0D] = 0x14` and returns *without*
+/// calling the handler; the handler runs from the countdown at the top of the
+/// next call, on the frame the timer reaches zero. So a test that clicks a
+/// gauntlet and asserts on the next line is asserting about a press the game
+/// has not answered yet.
+///
+/// It asserts the delay as it goes — the screen must **not** have moved on any
+/// tick before the last — which is what makes this a test of the gesture rather
+/// than a way of getting past it.
+fn press_and_wait(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
+    let before = m.top_id();
+    click(m, g, a, at);
+    assert_eq!(m.top_id(), before, "a kind-5 press must not act on the press");
+    for i in 1..l2_game::press::DELAYED_FRAMES as u32 {
+        tick(m, g, a);
+        assert_eq!(m.top_id(), before, "nor on tick {i} of {}", l2_game::press::DELAYED_FRAMES);
+    }
+    tick(m, g, a);
+}
+
 /// Where a map tile is on the campaign screen at its opening viewport, or
 /// `None` when it is not in view. See the module note on why a second screen is
 /// a valid ruler for the machine's.
@@ -801,7 +823,7 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
     for _ in 0..12 {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
-    click(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
+    press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
 
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the screen closed");
     assert_eq!(g.kingdom.campaign.units.len(), 2, "two armies now");
@@ -837,7 +859,7 @@ fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
     for _ in 0..3 {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
-    click(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
+    press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
     assert_eq!(m.top_id(), Some(ScreenId::Divide(id)), "the screen stays up");
     assert_eq!(g.kingdom.campaign.units.len(), 1, "and nothing was split");
 }
@@ -962,7 +984,7 @@ fn the_division_screen_returns_to_the_information_panel_and_not_to_the_map() {
     click(&mut m, &mut g, &a, info_button(2));
     assert_eq!(m.top_id(), Some(ScreenId::Divide(id)));
     // The cross — `Army_SplitConfirm` with `g_uiHotspotId == 0`.
-    click(&mut m, &mut g, &a, on(divide::SPLIT_CROSS));
+    press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_CROSS));
     assert_eq!(
         m.top_id(),
         Some(ScreenId::Info(l2_game::screens::info::Target::Unit(id))),

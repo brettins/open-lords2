@@ -114,9 +114,33 @@ function fromArms() {
   const missing = by('missing');
   const live = reproduced + missing;
   const groups = Object.values(j.groups || {});
+  // **The gesture-kind dimension, which is a different unit from the arm
+  // count and has to be reported beside it rather than folded into it.**
+  //
+  // An arm is *which* control a screen answers; a kind is *how* the original
+  // decides the control was used at all. Nineteen arms were once marked
+  // `reproduced` under a kind none of them had — the count was right and the
+  // meaning was not — so `arms-reproduced` alone is a number whose standard
+  // moved on the branch that fixed them. These two say what changed:
+  // `kinds-reproduced` is the five mouse kinds our shared input layer builds,
+  // and `arms-kinded` is how many live arms are filed under one of them at all
+  // (the rest are keys, hovers, drags and the four things that are not
+  // gestures). docs/input.md section 6 is the prose.
+  const MOUSE_KINDS = [
+    'left-press',
+    'left-press-held',
+    'left-release',
+    'left-press-repeat',
+    'left-press-delayed',
+  ];
+  const kinded = j.arms.filter(
+    a => (a.status === 'reproduced' || a.status === 'missing') && MOUSE_KINDS.includes(a.gesture),
+  ).length;
   return {
     reproduced,
     missing,
+    kinds: MOUSE_KINDS.length,
+    kinded,
     dead: by('dead'),
     inventions: by('invention'),
     live,
@@ -227,6 +251,8 @@ function figures() {
     'arms-pct': String(arms.pct),
     'arms-groups': group(arms.groups),
     'arms-groups-done': group(arms.groupsDone),
+    'gesture-kinds': group(arms.kinds),
+    'arms-kinded': group(arms.kinded),
     shells: group(shells),
     'map-draws': group(mapDraws.total),
     'map-draws-live': group(mapDraws.live),

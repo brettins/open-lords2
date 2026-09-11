@@ -61,6 +61,30 @@ fn middle(r: l2_game::input::Rect) -> Event {
     Event::Click { x: r.x + r.w / 2, y: r.y + r.h / 2 }
 }
 
+/// **Press a kind-5 widget and let its countdown run out.**
+///
+/// Every widget on these two screens that changes what is on screen — the six
+/// verb buttons, the send, the cancel — is `Widget_Test` kind 5: the press puts
+/// the picture down and sets `rec[0x0D] = 0x14`, and the handler runs from the
+/// countdown at the top of the next call. So a test that clicks one and asserts
+/// on the next line is asserting about a press the game has not answered yet.
+///
+/// It asserts the delay as it goes, which is what makes it a test of the
+/// gesture rather than a way round it: the screen stack must not move on any
+/// tick before the last. `docs/input.md` §4.
+fn press_and_wait(machine: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
+    let before = machine.depth();
+    send(machine, game, assets, event);
+    assert_eq!(machine.depth(), before, "a kind-5 press must not act on the press");
+    for i in 1..l2_game::press::DELAYED_FRAMES as u32 {
+        let mut ctx = Ctx { game, assets };
+        machine.update(&mut ctx);
+        assert_eq!(machine.depth(), before, "nor on tick {i}");
+    }
+    let mut ctx = Ctx { game, assets };
+    machine.update(&mut ctx);
+}
+
 /// **The whole player's side, click by click: pick a rival, open the gift
 /// dialog, step the amount up, send it, and find the gold gone and the letter
 /// in the AI's inbox.**
@@ -88,7 +112,7 @@ fn a_gift_travels_from_a_click_to_the_rivals_inbox() {
 
     // The no-ally menu's first row is *"Dispatch a gift."*
     assert_eq!(Menu::NoAlly.rows()[0], 2);
-    send(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
     assert_eq!(machine.depth(), 2, "the compose dialog is on top");
     assert_eq!(machine.top_id(), Some(ScreenId::DiploCompose(3, Kind::Gift.byte())));
 
@@ -99,7 +123,7 @@ fn a_gift_travels_from_a_click_to_the_rivals_inbox() {
     send(&mut machine, &mut game, &assets, middle(diplomacy::GIFT_LESS));
 
     let purse = game.kingdom.realms[1].gold;
-    send(&mut machine, &mut game, &assets, middle(diplomacy::GIFT_SEND));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::GIFT_SEND));
     assert_eq!(machine.depth(), 1, "and it goes back to the lord cards");
 
     assert_eq!(game.kingdom.realms[1].gold, purse - 110, "spent when posted, not when answered");
@@ -119,11 +143,11 @@ fn the_gift_amount_is_clamped_to_the_purse_on_every_click() {
     let (mut game, assets) = world();
     game.kingdom.realms[1].gold = 35;
     let mut machine = Machine::new(ScreenId::Diplomacy);
-    send(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
     for _ in 0..10 {
         send(&mut machine, &mut game, &assets, middle(diplomacy::GIFT_MORE));
     }
-    send(&mut machine, &mut game, &assets, middle(diplomacy::GIFT_SEND));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::GIFT_SEND));
     assert_eq!(game.kingdom.realms[1].gold, 0, "35, not 100");
     assert_eq!(game.kingdom.diplomacy.pending(2).next().unwrap().gold, 35);
 }
@@ -151,7 +175,7 @@ fn asking_for_help_is_only_on_the_menu_of_an_ally() {
     // Row 3 of the allied menu is *"Terminate alliance."*, kind 4 — the same
     // widget that offers one when you have none.
     let mut machine = Machine::new(ScreenId::Diplomacy);
-    send(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(3)));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(3)));
     assert_eq!(machine.top_id(), Some(ScreenId::DiploCompose(2, Kind::EndAlliance.byte())));
 }
 
@@ -171,7 +195,7 @@ fn one_letter_per_rival_per_turn_and_the_menu_says_so() {
     // A click where the first menu row would be does nothing, because the
     // dispatched layout sets `g_diploWidgetCount = 0`.
     let mut machine = Machine::new(ScreenId::Diplomacy);
-    send(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
     assert_eq!(machine.depth(), 1, "there is nothing to click");
 }
 
@@ -236,15 +260,15 @@ fn only_a_human_rivals_existing_treaty_stops_the_offer_being_sent() {
 fn the_right_button_leaves_and_the_cross_goes_back() {
     let (mut game, assets) = world();
     let mut machine = Machine::new(ScreenId::Diplomacy);
-    send(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
     assert_eq!(machine.depth(), 2);
     // The cross: back to 0x0B.
-    send(&mut machine, &mut game, &assets, middle(diplomacy::GIFT_CANCEL));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::GIFT_CANCEL));
     assert_eq!(machine.top_id(), Some(ScreenId::Diplomacy));
     assert_eq!(machine.depth(), 1);
 
     // The right button on the compose dialog: straight to the map.
-    send(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
+    press_and_wait(&mut machine, &mut game, &assets, middle(diplomacy::menu_widget(0)));
     send(&mut machine, &mut game, &assets, Event::RightClick { x: 300, y: 300 });
     assert_eq!(machine.top_id(), Some(ScreenId::Campaign));
 

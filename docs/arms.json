@@ -225,7 +225,7 @@
     "widget-kinds": {
       "what": "The GESTURE KINDS themselves -- Widget_Test (0x0040DA1E) and Hotspot_Test (0x0040E3EE), the two hit-testers the whole interface is built out of, and the five kind bytes they read. Not a screen: a LAYER, and every screen's buttons are in it.",
       "complete": false,
-      "note": "Deliberately incomplete, and the flag is the finding. Of the five kinds, ONE is built: kind 4's accelerating auto-repeat, in crates/l2-game/src/press.rs, wired on the army-division steppers. Kind 5's twenty-frame delayed fire is implemented and wired nowhere; the pressed frame (base+1 while the press timer runs, Widget_Draw 0x0040CFD2) is drawn nowhere; Hotspot_Test's kind-2 320 ms pulse is a constant and no code. Those are why this group cannot be claimed complete, and docs/input.md section 6 lists the tables each one owns."
+      "note": "Deliberately incomplete, and the flag is the finding. ALL FIVE KINDS ARE NOW BUILT -- crates/l2-game/src/press.rs carries Kind, Widget and Press::event, so a screen DECLARES a kind instead of hand-rolling press/release bookkeeping -- and the pressed picture (base + 1 while +0x0D runs, Widget_Draw 0x0040CFD2) is drawn on eight screens. Fourteen kind-4 arms and nine kind-5 arms are now answered with the kind they are filed under, where before this branch two were. What keeps this group open is the WIRING, which is countable rather than remembered: the exe holds 139 kind-4 records over 53 handlers, 42 kind-5 over 29, 121 kind-1 over 38, 23 kind-2 over 7 and 7 kind-3 over 2, and this file names a small fraction of them. Kind 2 in particular is built and reaches nothing: all seven of its handlers are skirmish and multiplayer setup pages we do not have. Run `node tools/oracle/kinds.js` for the enumeration; docs/input.md section 6 is the prose."
     },
     "campaign-map": {
       "what": "g_screenId 0x00 and 0x10 -- Map_Click (0x0043CE1A), the campaign map's left-click dispatcher, and the four-clause 0x10 arm that is move-order mode.",
@@ -1196,6 +1196,30 @@
       "evidence": "V"
     },
     {
+      "id": "0x00434E1F/confirm-no",
+      "status": "reproduced",
+      "group": "widget-kinds",
+      "screen": "0x1E",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434E1F",
+      "what": "g_confirmWidgets record 1 (0x004DD328) -- THE YES/NO BOX'S THUMB-DOWN, at (g_confirmX + 112, g_confirmY + 50), System.pl8 frame 31, hotspot id 0. Ui_ConfirmClicked is `g_confirmAnswer = g_uiHotspotId; (*g_confirmCallback)();`, so the answer IS the hotspot id. Kind 5: the press puts the gauntlet down and sets rec[0x0D] = 0x14, and the handler runs twenty frames later out of Widget_Test's countdown loop.",
+      "note": "THE ARM A PLAYER REPORTED, and it was in no inventory at all -- neither this file nor a marker. 'Clicking yes/no (gauntlet thumbs up and down) is instant, whereas the game waited on mouse-up, and the gauntlet would go down slightly when clicked.' Both halves of that sentence are kind 5: the twenty-frame delay reads as waiting for the release, and 'goes down slightly' is Widget_Draw's base + 1. There is ONE confirm box in the game -- Ui_OpenConfirm (0x0040E6F2) is screen 0x1E with thirteen literal call sites over L2.eng group 10 -- and ours is drawn by the battlefield screen rather than by a screen of its own, which is recorded in that module's header. docs/decisions.md C148.",
+      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434E1F/confirm-yes",
+      "status": "reproduced",
+      "group": "widget-kinds",
+      "screen": "0x1E",
+      "gesture": "left-press-delayed",
+      "addr": "0x00434E1F",
+      "what": "g_confirmWidgets record 0 (0x004DD310) -- the thumb-UP, at (g_confirmX + 64, g_confirmY + 46), System.pl8 frame 29, hotspot id 1. Same handler, same kind; the id is the whole difference and it is what g_confirmAnswer becomes.",
+      "note": "0x004DD310 is also the first record of the widget region, which is why the exe-gated check in crates/l2-game/tests/arms.rs uses this handler as its spot check on the scan's base: a wrong base decodes plausible rubbish rather than nothing.",
+      "ours": "crates/l2-game/src/screens/battlefield.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x004351C4/court-greatest-nobles",
       "status": "missing",
       "group": "panels",
@@ -1478,9 +1502,9 @@
       "status": "reproduced",
       "group": "panels",
       "screen": "0x04",
-      "gesture": "left-press",
+      "gesture": "left-press-repeat",
       "addr": "0x00438A91",
-      "what": "Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) - the \"View these troops?\" button at (344, 414) on a castle tile - runs FUN_00438ACC, which sets g_pickedTileUnit = county.garrisonUnit and repaints. It flips the panel from the tile half to the unit half WITHOUT leaving screen 0x04.",
+      "what": "Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) - the \"View these troops?\" button at (344, 414) on a castle tile - runs FUN_00438ACC, which sets g_pickedTileUnit = county.garrisonUnit and repaints. It flips the panel from the tile half to the unit half WITHOUT leaving screen 0x04. The record's kind byte at +0x0F of 0x004DD640 is 4: the right EDGE and, until the gesture-kind audit, the wrong KIND -- it also shows the pressed picture and takes a double click as a press. Its repeat is inert because the handler assigns the same garrison every time, which is a property of the handler and not of the record.",
       "evidence": "V",
       "merged": "0x00438A91/tile-panel-widgets (management-screens) was a second record for this arm and was folded in here. Its text: Widget_Test(8, 0x20, &DAT_004DD640, DAT_00568474) -- a widget table whose COUNT is a runtime global the painter writes, so how many widgets the panel has depends on what was picked. Record 0 is FUN_00438ACC at (336, 382), frame 25, which is the tick.",
       "ours": "crates/l2-game/src/screens/info.rs",
@@ -2263,6 +2287,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x004A8E0B/hover-march-target",
+      "status": "reproduced",
+      "group": "right-column",
+      "screen": "0x10",
+      "gesture": "hover",
+      "addr": "0x004A8E0B",
+      "what": "Map_HoverUnitTarget -- THE MARCH ROUTE FOLLOWS THE POINTER. Run once a frame from Screen_DrawWidgets' 0x10 arm, where every other screen draws its widget table: it calls Path_MarkPreviewTiles (the only writer of tile bank bit 0x40 in the binary, so the gold balls exist in move-order mode and nowhere else), and then, ONLY IF the hovered tile changed (`if (DAT_005691E0 != g_hoverTileOffset)`), reads the step count out of g_moveDistLocal, refuses it under 2, collects the six 'what would a click here do' globals -- village, field, county town, merge unit, garrison, siege -- and ZEROES all six when moveAllowance - movesUsed is less than the distance, leaving g_moveOrderAvailable set. The flood fill is not re-run: it was done once when the army was picked.",
+      "note": "IT HAD NO RECORD AND NO MARKER. The arm was built by the branch that found it (docs/decisions.md C61 -- 'the original has the army steps on hover, yours just populate on click') and then counted by nothing, because arms.rs checks records against markers in both directions and an arm with NEITHER is invisible to both. That is the blind spot between the two halves of a two-sided check, and it is the reason this record exists. It has no kind byte -- it is not a widget record at all -- so the exe-gated check cannot classify it either.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x004A8E0B/hover-unit-target",
       "status": "reproduced",
       "group": "campaign-map",
@@ -2407,9 +2443,10 @@
       "status": "reproduced",
       "group": "seam",
       "screen": "0x12",
-      "gesture": "left-release",
+      "gesture": "left-press-repeat",
       "addr": "0x004BA9C8",
       "what": "DAT_004DDBB0[1], the thumb down at (372, 116), hotspot id 0 -> Battle_Decline, which is Battle_AutoResolve and the report. The table holds exactly these two records: g_sliderWidgets begins 48 bytes on at 0x004DDBE0, and the count DAT_00554408 is 2 when g_battleChoiceOwner == 1 and 0 otherwise.",
+      "note": "GESTURE CORRECTED, and it had been wrong in BOTH directions. It was filed left-press, moved to left-release by the branch that found Ui_OkButtonClicked waits for the release, and the kind byte at +0x0F of 0x004DDBC8 says 4 -- the PRESS, with the pressed picture. The pair of pictures is the yes/no box's and the KIND is not: g_confirmWidgets' two records are kind 5 and these are kind 4. A family resemblance is not a kind. docs/decisions.md C148.",
       "ours": "crates/l2-game/src/screens/battle.rs",
       "evidence": "V"
     },
@@ -2418,9 +2455,10 @@
       "status": "reproduced",
       "group": "seam",
       "screen": "0x12",
-      "gesture": "left-release",
+      "gesture": "left-press-repeat",
       "addr": "0x004BA9C8",
       "what": "DAT_004DDBB0[0], the thumb up at (332, 116), hotspot id 1 -> FUN_0043B593 -> Battle_Start. It RAISES THE BATTLEFIELD; it does not settle the battle.",
+      "note": "GESTURE CORRECTED: the kind byte at +0x0F of 0x004DDBB0 is 4, the press. The auto-repeat that comes with kind 4 is unreachable -- Battle_PromptAnswered leaves screen 0x12 on the first fire and a table nobody walks cannot repeat -- so what the kind buys a player here is the pressed picture and the press edge. See the sibling record.",
       "ours": "crates/l2-game/src/screens/battle.rs",
       "evidence": "V"
     },
@@ -2464,10 +2502,10 @@
       "status": "reproduced",
       "group": "county-panels",
       "screen": "0x15, 0x19",
-      "gesture": "left-press",
+      "gesture": "left-press-repeat",
       "addr": "0x004BA9C8",
-      "what": "Screen_HandleInput's widget tables rather than Screen_FrameInput's arms: g_taxWidgets (0x004DD790) and g_rationWidgets (0x004DD7C0), two 24-byte records each, up then down, with the UP arrow to the LEFT of the pair.",
-      "note": "Screen_HandleInput is the LEFT BUTTON ONLY -- it names no right-button global anywhere in 3,832 bytes -- which is why every right-button behaviour in the game is copy-pasted forty times into Screen_FrameInput instead.",
+      "what": "Screen_HandleInput's widget tables rather than Screen_FrameInput's arms: g_taxWidgets (0x004DD790) and g_rationWidgets (0x004DD7C0), two 24-byte records each, up then down, with the UP arrow to the LEFT of the pair. ALL FOUR RECORDS ARE KIND 4, so all four auto-repeat on the ramp at 0x004D2748.",
+      "note": "GESTURE CORRECTED, and this is the one a player reported: 'holding on a button doesn't seem to make it go up faster. I recall you could click an up arrow and after a few seconds the number would go up fast.' The record named both tables and nobody read their kind byte -- which is exactly the hole the gesture field was added to close, in the record that was already carrying the address that would have answered it. Screen_HandleInput is the LEFT BUTTON ONLY -- it names no right-button global anywhere in 3,832 bytes -- which is why every right-button behaviour in the game is copy-pasted forty times into Screen_FrameInput instead. docs/decisions.md C148.",
       "ours": "crates/l2-game/src/screens/county.rs",
       "evidence": "V"
     },
