@@ -151,6 +151,12 @@ impl Mixer {
         self.effects.iter().any(|v| v.name == name)
     }
 
+    /// Stop that effect wherever it is in the mix — the `Stop` half of
+    /// `Sound_StopOneShot` (`0x00427D19`). Nothing when it is not sounding.
+    pub fn stop_effect(&mut self, name: &str) {
+        self.effects.retain(|v| v.name != name);
+    }
+
     /// Fire a one-shot, restarting it if it is already sounding —
     /// `Sound_RestartSlot` (`0x00426216`), which does `SetCurrentPosition(0)`
     /// then `Play` unconditionally. This is what a click uses.

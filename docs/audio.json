@@ -108,7 +108,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/battlefield.rs",
       "sound": "g_troopSounds[troop][1][take], 66 files",
-      "note": "H or V, before our pause and no-unit guards - the original cries unconditionally. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
+      "note": "H or V, paused or not, and before our no-unit check - the original cries unconditionally. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
     {
       "id": "Battle_OrderSelection#1",

@@ -266,6 +266,33 @@ fn the_formation_key_cries_with_nothing_held_and_the_battle_paused() {
     assert_eq!(live(&g).cries, [Cry { troop: 0, class: cry::ORDERED }]);
 }
 
+/// **`H` and `V` turn the unit while the battle is paused**, because nothing
+/// between the key and the order asks about the pause. The window procedure's
+/// `WM_CHAR` arm tests `g_battlePhase == 2 && DAT_0057A0CC == 0`, and
+/// `FUN_0043C77A` tests `DAT_00553C6C == 0 && g_appPhase == 3`; the pause word is
+/// `DAT_0053F238`, which `Battle_OrderClicked` tests and these do not. So a
+/// player can put a paused battle's men in a column before a blow is struck.
+/// `[V]`
+///
+/// Ablation: put `self.paused ||` back in front of `key_formation`'s unit check
+/// and the unit is still a line after `V`.
+#[test]
+fn the_formation_key_turns_the_unit_while_the_battle_is_paused() {
+    let a = Assets::placeholder();
+    let (mut g, mut m) = staged(&[(Troop::Swordsmen, 4)], &[(Troop::Knights, 1)]);
+    box_the_army(&mut m, &mut g, &a);
+    let unit = live(&g).current_unit;
+    assert_ne!(unit, 0, "the box made no unit to turn");
+    assert_eq!(live(&g).runner.units.get(unit).orientation, 0, "a line to start with");
+
+    g.battle.as_deref_mut().unwrap().paused = true;
+    send(&mut m, &mut g, &a, Event::KeyDown(Key::letter('v')));
+    assert_eq!(live(&g).runner.units.get(unit).orientation, 1, "V did not form a column while paused");
+    assert!(live(&g).paused, "and the key is not an unpause");
+    send(&mut m, &mut g, &a, Event::KeyDown(Key::letter('h')));
+    assert_eq!(live(&g).runner.units.get(unit).orientation, 0, "H did not form a line while paused");
+}
+
 /// **An order onto the moat is class 3**, from a real castle's surface 2 under
 /// the pointer.
 #[test]
@@ -588,7 +615,9 @@ fn the_battlefield_is_seventy_nine_more_files() {
         for class in 0..4u8 {
             for _ in 0..4 {
                 if let Some(n) = cries.cry(troop, class) {
-                    sound.play_speech(n);
+                    // The same, for the cries: `play_file` would drop all but
+                    // the first, since nothing here mixes.
+                    sound.play_effect(n);
                 }
             }
         }
@@ -657,6 +686,6 @@ fn a_cry_over_a_cry_is_dropped_and_its_take_is_spent() {
 
     // And the narrator holds the same buffer.
     drain(&mut sound, "peas_p4.wav");
-    sound.play_speech("S021_01.wav");
+    assert!(sound.play_file("S021_01.wav", true), "the narrator, into an idle buffer");
     assert!(!sound.play_file("Knig_E2.wav", true), "a cry played over the narrator");
 }

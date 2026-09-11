@@ -1100,17 +1100,26 @@ impl LiveBattle {
     /// the selection last became, which may no longer be the whole selection.
     /// Reproduced, including the missing regroup.
     ///
+    /// **It acts while the battle is paused.** `[V]`, from both of its guards:
+    /// the window procedure's `WM_CHAR` arm asks `g_battlePhase == 2 &&
+    /// DAT_0057A0CC == 0`, and `FUN_0043C77A` itself asks `DAT_00553C6C == 0 &&
+    /// g_appPhase == 3`. Neither is the pause word, `DAT_0053F238`, which
+    /// `Battle_OrderClicked` and `BattleMap_Click` do test — so a click cannot
+    /// order a paused battle and `H` can, and a player can set a line or a
+    /// column before the fighting starts. This used to refuse while paused, a
+    /// guard of ours copied from the click.
+    ///
     /// // arm: 0x0043C77A/formation key
     pub fn key_formation(&mut self, formation: Formation) -> bool {
-        // **The cry comes before either of our guards.** `FUN_0043C77A` tests
-        // only `DAT_00553C6C == 0 && g_appPhase == 3` and then calls
-        // `Sound_PlayTroopCry(1)` unconditionally — with no unit to turn, and
-        // while paused. `[V]`. The pause guard below is ours and predates this;
-        // the original orders while paused too, which is an arm's question and
-        // not a sound's.
+        // **The cry comes first**, with no unit to turn and while paused:
+        // `Sound_PlayTroopCry(1)` is the first statement under the two guards.
+        // `[V]`.
         // sfx: Battle_FormationKey#1
         self.cry(cry::ORDERED);
-        if self.paused || self.current_unit == 0 {
+        // Not a guard of the original's: it orders `DAT_0053E984` whatever it
+        // holds. Unit 0 is no unit, and `BattleRunner::order_formation` refuses
+        // it too; this only keeps "nothing was turned" out of the redraw.
+        if self.current_unit == 0 {
             return false;
         }
         self.runner.order_formation(self.current_unit, formation);

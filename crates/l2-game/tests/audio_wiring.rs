@@ -389,6 +389,79 @@ fn the_speech_switch_silences_the_narrator_and_leaves_the_music_alone() {
     assert!(audio.heard().contains(&"s131_01.wav"), "heard {:?}", audio.heard());
 }
 
+/// **A letter's fanfare takes the one-shot buffer, and the lord cuts it off.**
+///
+/// `Msg_DrawWindow` opens a letter with `Sound_PlayFile("ff_msg.wav", 1, 0)` —
+/// nothing in front of it, and the *speech* flag — and speaks 200 ticks later
+/// through `Msg_PlayVoice`, which puts `Sound_StopOneShot()` in front of its own
+/// `Sound_PlayFile`. So the fanfare is the buffer's occupant, the lord talks
+/// over a trumpet that is still going by stopping it, and the switch that
+/// silences the trumpet is Speech, not Sound Effects. `[V]`
+///
+/// Nothing is mixed, so the fanfare is still sounding when the lord is asked
+/// for — the case that tells the two verbs apart.
+///
+/// Ablations: speak through `play_file` rather than `stop_and_play_file` and
+/// the lord is dropped; play the fanfare with `false` and Speech: Off no
+/// longer silences it.
+#[test]
+fn a_letters_fanfare_holds_the_buffer_and_the_lord_cuts_it_off() {
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+    let fanfare = l2_game::audio::names::fanfare::MESSAGE;
+    let lord = l2_game::audio::names::message_voice(170, 0).expect("group 170 has a voice");
+    let letter = |game: &Game| {
+        let mut rec = message::Record::default();
+        rec.group = 170;
+        rec.category = message::category::LETTER;
+        rec.to = game.player;
+        rec
+    };
+
+    let mut game = world();
+    game.prefs.tip_screens = false;
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    let mut audio = Audio::headless(&platform.vfs);
+    let mut director = audio::Director::new();
+    assert!(game.messages.enqueue(letter(&game), game.player), "the letter was accepted");
+    let mut held = None;
+    for _ in 0..240 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+        director.listen(&mut audio, &machine, &game);
+        if held.is_none() && audio.heard().contains(&fanfare) {
+            held = Some(audio.is_playing(fanfare) && audio.one_shot_busy());
+        }
+        if audio.is_playing(&lord) {
+            break;
+        }
+    }
+    assert_eq!(held, Some(true), "the fanfare did not take the buffer - heard {:?}", audio.heard());
+    assert!(audio.is_playing(&lord), "the lord was dropped over his fanfare - heard {:?}", audio.heard());
+    assert!(!audio.is_playing(fanfare), "and the fanfare was cut off rather than left under him");
+
+    // Speech: Off, Sound Effects: On — and the trumpet is silent.
+    let mut game = world();
+    game.prefs.tip_screens = false;
+    game.prefs.speech = false;
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+    let mut audio = Audio::headless(&platform.vfs);
+    let mut director = audio::Director::new();
+    game.messages.enqueue(letter(&game), game.player);
+    for _ in 0..20 {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+        director.listen(&mut audio, &machine, &game);
+    }
+    assert!(machine.ids().contains(&ScreenId::Message), "the letter never opened");
+    assert!(!audio.heard().contains(&fanfare), "Speech: Off left the letter's fanfare - heard {:?}", audio.heard());
+}
+
 /// **The ten industry lines a player asked for by name.**
 ///
 /// `Industry_ToggleFromMap` (`0x0043D309`) ends with
@@ -416,7 +489,9 @@ fn the_industry_toggle_groups_all_have_a_voice_that_ships() {
         let name = l2_game::audio::names::message_voice(group, 0)
             .unwrap_or_else(|| panic!("group {group} ({label}) has no voice"));
         assert_eq!(name, format!("S{group}_01.wav"));
-        audio.play_speech(&name);
+        // `Msg_PlayVoice`'s own verb, which stops the buffer first and so never
+        // drops the next group's clip over this one's.
+        audio.stop_and_play_file(&name, true);
         assert!(
             audio.heard().contains(&name.to_ascii_lowercase().as_str()),
             "group {group} ({label}) -> {name} did not decode"
@@ -447,8 +522,9 @@ fn the_voice_class_is_84_percent_of_the_games_audio() {
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let mut audio = Audio::headless(&platform.vfs);
 
-    // Every name `Msg_PlayVoice` can produce, asked for through the real
-    // `play_speech`. The three bands are the original's tables: 170..=197 have
+    // Every name `Msg_PlayVoice` can produce, asked for through its own verb,
+    // `stop_and_play_file` — `Sound_StopOneShot(); Sound_PlayFile(name, 1, 0)`,
+    // which never drops, so nothing here needs mixing. The three bands are the original's tables: 170..=197 have
     // a lord and sixteen takes, 100..=169 and 200..=284 have one clip each.
     //
     // **Except the tip groups, 200..=218**, which this count used to include
@@ -470,7 +546,7 @@ fn the_voice_class_is_84_percent_of_the_games_audio() {
     for group in (100..=300u16).filter(|g| !TIP_GROUPS.contains(g)) {
         for variant in 0..16u8 {
             if let Some(name) = l2_game::audio::names::message_voice(group, variant) {
-                audio.play_speech(&name);
+                audio.stop_and_play_file(&name, true);
             }
         }
     }
@@ -559,7 +635,9 @@ fn the_music_fanfares_screens_and_the_click_are_thirty_more() {
         l2_game::audio::names::speech::SPLIT_ARMY,
         l2_game::audio::names::speech::CHOOSE_YOUR_SHIELD,
     ] {
-        audio.play_speech(line);
+        // `play_effect`, not the director's `play_file`: nothing here mixes, so
+        // the dropping verb would open the first line and drop the other five.
+        audio.play_effect(line);
     }
     // The four movement sounds `Director::hear_the_march` asks for.
     for slot in [5usize, 11, 12] {

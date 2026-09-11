@@ -2200,7 +2200,7 @@
       "gesture": "key",
       "addr": "0x0043C77A",
       "what": "H and V re-issue the player's current unit an order AT ITS OWN POSITION with BattleUnit_Order's sixth argument set to 1 or 2, which stores 0 or 1 in unit +0x09. Formation_ComputeRect (0x0048A1C9) reads that byte in one line -- `if (field_0x9 == 1) g_formationCols = 2` -- so the two keys are LINE and COLUMN and nothing else touches the byte.",
-      "note": "Settles docs/battle.md section 1's 'unnamed and untraced' for unit +0x09.",
+      "note": "Settles docs/battle.md section 1's 'unnamed and untraced' for unit +0x09. IT ACTS WHILE PAUSED: its two guards are the window procedure's WM_CHAR arm (g_battlePhase == 2 && DAT_0057A0CC == 0) and its own (DAT_00553C6C == 0 && g_appPhase == 3), and neither is the pause word DAT_0053F238 that Battle_OrderClicked and BattleMap_Click test. Ours refused while paused, a guard copied from the click; it no longer does.",
       "ours": "crates/l2-game/src/battlefield.rs",
       "evidence": "V"
     },

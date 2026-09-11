@@ -92,7 +92,7 @@
 //! |---|---|---:|---:|
 //! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **13** — [`voice_tick`]; two need video and one needs the tip screens |
 //! | **Music** | `Music_StartCampaign`, `Music_StartBattle`, `Music_Play` | 23 | **11** — [`scene`]; the twelve left restart a bed a film stopped |
-//! | **By name** | `Sound_PlayFile` | 49 | **16** — [`names::speech`], the fanfares and `Wall_Smash` |
+//! | **By name** | `Sound_PlayFile` | 49 | **17** — [`names::speech`], the fanfares, the forge, the tips' chain and `Wall_Smash`; every one through [`Audio::play_file`] or, where the original stops the buffer first, [`Audio::stop_and_play_file`] |
 //! | **The two sample banks** | `Sound_PlaySlot`, `Sound_RestartSlot`, `FUN_004262CF` | 49 | **27** — the march, the sites, the village's work, the click, and fifteen on the battlefield |
 //! | **Troop cries** | `Sound_PlayTroopCry` `0x00499CB1` | 6 | **6** — [`TroopCries`] |
 //!
@@ -252,9 +252,10 @@ pub struct Audio {
     /// into. The original has one, so "is the one-shot busy" is a question about
     /// whatever was put there last; ours are many voices, so the name is kept
     /// and the mixer is asked about it. `Sound_OneShotBusy` (`0x00427C9B`) and
-    /// `Sound_PlayFile`'s drop ask the same buffer, so [`Audio::play_speech`] and
-    /// [`Audio::play_file`] both set it, and [`Audio::one_shot_busy`] and
-    /// [`Audio::play_file`] both read it.
+    /// `Sound_PlayFile`'s drop ask the same buffer, so [`Audio::play_file`] is
+    /// the only thing that sets it — [`Audio::stop_and_play_file`] through it —
+    /// [`Audio::stop_one_shot`] is the only thing that clears it, and
+    /// [`Audio::one_shot_busy`] is the only thing that reads it.
     one_shot: Option<String>,
 }
 
@@ -375,10 +376,9 @@ impl Audio {
     ///
     /// The original has one one-shot buffer and every `Sound_PlayFile` goes into
     /// it, so the question has one answer. Here it is asked of the last clip
-    /// [`Audio::play_speech`] or [`Audio::play_file`] put there, which is that
-    /// buffer's occupant for every voice line and every troop cry. `[D]`: `Msg_DrawWindow`'s four `ff_msg.wav` fanfares also go
-    /// through `Sound_PlayFile` and are played as effects here, so a fanfare
-    /// does not count as busy — none of the categories that ask play one.
+    /// [`Audio::play_file`] put there — every voice line, every troop cry, every
+    /// fanfare, `fire.wav` and `bathit2.wav`, since every one of those sites now
+    /// goes through it. A request that was dropped never becomes the occupant.
     pub fn one_shot_busy(&self) -> bool {
         self.one_shot.as_deref().is_some_and(|n| self.is_playing(n))
     }
@@ -512,23 +512,20 @@ impl Audio {
         }
     }
 
-    /// Fire a speech clip — `FUN_00427990(name, 1, 0)`. Gated by the *speech*
-    /// switch rather than the effects one, as the original gates it.
-    pub fn play_speech(&mut self, name: &str) {
-        if !self.options.speech {
-            return;
+    /// **`Sound_StopOneShot` (`0x00427D19`)** — stop and release the one-shot
+    /// buffer, whatever it holds. `[V]`: `Stop`, `Release`, and `DAT_00522AEC`
+    /// zeroed, so `Sound_OneShotBusy` answers 0 until something is put there
+    /// again.
+    pub fn stop_one_shot(&mut self) {
+        if let Some(name) = self.one_shot.take() {
+            if let Ok(mut m) = self.mixer.lock() {
+                m.stop_effect(&name);
+            }
         }
-        let Some(sound) = self.load(name) else { return };
-        if let Ok(mut m) = self.mixer.lock() {
-            m.play_effect(name.to_ascii_lowercase(), sound);
-        }
-        // It is `Sound_PlayFile` too, so it occupies the one buffer, and a troop
-        // cry asked for over the narrator is dropped — see [`Audio::play_file`].
-        self.one_shot = Some(name.to_ascii_lowercase());
     }
 
-    /// **`Sound_PlayFile` (`0x00427990`), drop included** — the verb a troop
-    /// cry and `Wall_Smash` use.
+    /// **`Sound_PlayFile` (`0x00427990`), drop included** — every file the
+    /// original plays by name, with the flag it passes.
     ///
     /// ```c
     /// if (Sound_OneShotBusy()) return 0;         /* first, before either flag */
@@ -539,23 +536,28 @@ impl Audio {
     /// ```
     ///
     /// `[V]`. There is **one** one-shot buffer, so a file asked for while any
-    /// other is still sounding is not played at all: a cry over a cry, a cry
-    /// over the narrator, a cry over a wall coming down. That is the whole of
-    /// the original's limit on how often the men answer, and it is why a player
-    /// clicking ten orders a second hears one voice rather than ten. Answers
-    /// whether it started.
+    /// other is still sounding is not played at all, **and does not take the
+    /// buffer**: the clip that was there stays the one `Sound_OneShotBusy`
+    /// asks about. A cry over a cry, a cry over the narrator, a fanfare over a
+    /// cry, the narrator's *"supplies"* over a wall coming down — every one is
+    /// dropped. That is the whole of the original's limit on how often the men
+    /// answer, and it is why a player clicking ten orders a second hears one
+    /// voice rather than ten. Answers whether it started.
     ///
-    /// **Two older verbs here do not honour it, and are recorded rather than
-    /// changed by the change that found it**: [`Audio::play_speech`] never drops
-    /// — though it does occupy the buffer, so a cry is dropped over it — and the
-    /// fanfares go through [`Audio::play_effect`], which neither drops nor
-    /// occupies. Both are `Sound_PlayFile` in the original.
+    /// `speech` is the call's own `isSpeech`, read at each site rather than
+    /// implied by what the file is: **the message fanfares pass 1**, so it is
+    /// the Speech switch that silences `ff_msg.wav` and `ff_capt.wav`, and
+    /// `ff_batl.wav`, `fire.wav` and `bathit2.wav` pass 0.
+    ///
+    /// Where the original **interrupts** instead — `Sound_StopOneShot` in front
+    /// of the call — the verb is [`Audio::stop_and_play_file`].
     pub fn play_file(&mut self, name: &str, speech: bool) -> bool {
-        if let Some(last) = self.one_shot.as_deref() {
-            if self.is_playing(last) {
-                return false;
-            }
+        if self.one_shot_busy() {
+            return false;
         }
+        // The buffer is idle, so this releases a clip that has finished and
+        // stops nothing audible.
+        self.stop_one_shot();
         let on = if speech { self.options.speech } else { self.options.effects };
         if !on {
             return false;
@@ -567,6 +569,24 @@ impl Audio {
         }
         self.one_shot = Some(key);
         true
+    }
+
+    /// **`Sound_StopOneShot(); Sound_PlayFile(name, …)`** — the sites that
+    /// *cut in* over whatever the buffer holds rather than wait for it. `[V]`,
+    /// and there are exactly two functions' worth among what we play:
+    ///
+    /// * **`Msg_PlayVoice` (`0x004B35C1`)**, in all three of its bands — which
+    ///   is why *"a lord cuts off the previous lord"*, and why a message's
+    ///   narration talks over its own fanfare if the trumpet is still going;
+    /// * **setup page 4's handlers**, `FUN_00432CC8` twice and
+    ///   `Setup_ChooseCampaign` (`0x00433461`), each `S011_02.wav`.
+    ///
+    /// Every other `Sound_PlayFile` we reproduce has no stop in front of it and
+    /// is [`Audio::play_file`]. The drop inside `Sound_PlayFile` cannot fire
+    /// here, because the stop has just emptied the buffer.
+    pub fn stop_and_play_file(&mut self, name: &str, speech: bool) -> bool {
+        self.stop_one_shot();
+        self.play_file(name, speech)
     }
 
     /// Decode a file, caching the small ones.
@@ -945,15 +965,26 @@ impl Director {
         // and takes no other sound with it, so this is the whole of that call
         // site. Our prompt appears on exactly that branch, so the screen
         // arriving *is* the event.
+        //
+        // `Sound_PlayFile("ff_batl.wav", 0, 0)`, with no stop in front: the
+        // one-shot buffer, the Effects switch, and dropped while the buffer
+        // sounds. `[V]`.
         // sfx: Battle_ChooseSettlement#1
         if opened(&|id| matches!(id, ScreenId::BattlePrompt)) {
-            audio.play_effect(names::fanfare::BATTLE);
+            audio.play_file(names::fanfare::BATTLE, false);
         }
 
         // **The narrator's interface commentary**, five screens' worth. Every
         // one of these is `Sound_PlayFile(name, 1, 0)` — the *speech* flag — in
         // the function that sets `g_screenId`, so the screen arriving is the
         // trigger and not a stand-in for it. See [`names::speech`].
+        //
+        // **Which of them wait and which cut in is the binary's, site by site.**
+        // `Panel_OpenRation`, `Sidebar_Button` and `Panel_SplitButton` call
+        // `Sound_PlayFile` bare, so a line asked for while the buffer sounds is
+        // dropped: [`Audio::play_file`]. Setup page 4's handlers put
+        // `Sound_StopOneShot()` in front of it and interrupt:
+        // [`Audio::stop_and_play_file`]. `[V]`, the statement before each call.
         //
         // **`Panel_OpenRation` is the one a player asked for**, and it is the
         // answer to *"sorely missing: 'All your people are fed by dairy'"*.
@@ -975,9 +1006,9 @@ impl Director {
             });
             if let Some(c) = county.and_then(|c| game.kingdom.counties.get(c)) {
                 if c.ration_achieved == 0 {
-                    audio.play_speech(names::speech::RATION_NOT_MET);
+                    audio.play_file(names::speech::RATION_NOT_MET, true);
                 } else if c.herd != 0 && c.herd_eaten == 0 && c.grain_eaten == 0 {
-                    audio.play_speech(names::speech::RATION_ON_DAIRY);
+                    audio.play_file(names::speech::RATION_ON_DAIRY, true);
                 }
             }
         }
@@ -987,25 +1018,28 @@ impl Director {
         // four are one sound. `FUN_00432B05`'s is the fourth and is **not**
         // claimed: it is the arm that runs after `Net_JoinGame` succeeds, and
         // we have no network join to arrive by.
+        //
+        // All four are `Sound_StopOneShot(); Sound_PlayFile(…, 1, 0)`, so the
+        // page cuts the narrator off rather than waiting for him. `[V]`.
         // sfx: FUN_00432cc8#1,FUN_00432cc8#2,Setup_ChooseCampaign#1
         if opened(&|id| {
             matches!(id, ScreenId::Setup(crate::screens::setup::SetupPage::Shield))
         }) {
-            audio.play_speech(names::speech::CHOOSE_YOUR_SHIELD);
+            audio.stop_and_play_file(names::speech::CHOOSE_YOUR_SHIELD, true);
         }
         // `Sidebar_Button` (`0x0043AE30`) hotspot 3. The ownership gate is
         // already ours: the sidebar refuses to open supplies on somebody
         // else's county, so reaching this screen *is* the guarded branch.
         // sfx: Sidebar_Button#1
         if opened(&|id| matches!(id, ScreenId::Supplies(_))) {
-            audio.play_speech(names::speech::SUPPLIES);
+            audio.play_file(names::speech::SUPPLIES, true);
         }
         // `Panel_SplitButton` (`0x004378B3`), and `FUN_004376BB` is the same
         // sound from the move-order confirm's split-into-a-castle path, which
         // we do not have. Both open `g_screenId` `0x11`.
         // sfx: Panel_SplitButton#1
         if opened(&|id| matches!(id, ScreenId::Divide(_))) {
-            audio.play_speech(names::speech::SPLIT_ARMY);
+            audio.play_file(names::speech::SPLIT_ARMY, true);
         }
         // **`Panel_JobDetail` (`0x00412B33`) — the village's work.** The job
         // popup opens with the sound of the job being done:
@@ -1022,7 +1056,9 @@ impl Director {
                 _ => None,
             }) {
                 if job == 8 {
-                    audio.play_effect(names::blacksmith::FIRE);
+                    // `Sound_PlayFile("fire.wav", 0, 0)` — the one-shot buffer,
+                    // dropped while it sounds — and then the hammer's slot. `[V]`
+                    audio.play_file(names::blacksmith::FIRE, false);
                     if let Some(n) = names::slot(names::Bank::Kingdom, names::blacksmith::SLOT) {
                         audio.play_effect(n);
                     }
@@ -1073,7 +1109,8 @@ impl Director {
         // no matching sound on the way back in: `Map_ZoomIn` is silent.
         // sfx: Map_ZoomOut#1
         if game.map_zoom_far && self.zoom_far == Some(false) {
-            audio.play_speech(names::speech::ZOOM_OUT);
+            // Bare `Sound_PlayFile`, so dropped over anything still sounding.
+            audio.play_file(names::speech::ZOOM_OUT, true);
         }
         self.zoom_far = Some(game.map_zoom_far);
 
@@ -1111,9 +1148,13 @@ impl Director {
             // one `ff_capt.wav` and the four `ff_msg.wav`, which are four
             // categories of one fanfare rather than four sounds.
             // sfx: Msg_DrawWindow#1,Msg_DrawWindow#6,Msg_DrawWindow#11,Msg_DrawWindow#13,Msg_DrawWindow#17
+            //
+            // Each is `Sound_PlayFile(name, 1, 0)` with nothing in front: the
+            // one buffer, dropped while it sounds, and — **the `1`** — the
+            // Speech switch rather than Sound Effects. `[V]`, all five.
             if timer == crate::message::TIMER_START {
                 if let Some(fanfare) = open_fanfare(record.category, record.group) {
-                    audio.play_effect(fanfare);
+                    audio.play_file(fanfare, true);
                 }
             }
             // **Thirteen of `Msg_PlayVoice`'s sixteen sites.** One ladder, one
@@ -1136,8 +1177,13 @@ impl Director {
                 // `Msg_PlayVoice(g_messageGroup, g_messageVariant)`. A group
                 // outside the three bands has no clip, and that is a message
                 // the narrator does not read rather than a failure.
+                //
+                // All three of its bands are `Sound_StopOneShot();
+                // Sound_PlayFile(name, 1, 0)`, so this cuts off whatever the
+                // buffer holds — the window's own fanfare included — rather
+                // than waiting for it. `[V]`
                 if let Some(name) = names::message_voice(record.group, record.variant) {
-                    audio.play_speech(&name);
+                    audio.stop_and_play_file(&name, true);
                 }
             } else if crate::tip::is_tip_window(record) && timer < 0x780 {
                 // `else if (g_messageTimer < 0x780) FUN_004B3ACD(g_messageGroup);`
@@ -1184,7 +1230,9 @@ impl Director {
         if quiet_for > 999 {
             self.take_cursor += 1;
             if let Some(name) = names::take_name(n) {
-                audio.play_speech(name);
+                // Bare `Sound_PlayFile`. Its own drop cannot fire here — the
+                // busy test above has just answered no — but it is the same call.
+                audio.play_file(name, true);
             }
         }
     }
@@ -1664,7 +1712,10 @@ mod tests {
         a.play_music(Music::Scroll(3));
         a.play_effect(names::fanfare::MESSAGE);
         a.play_effect_if_idle("army.wav");
-        a.play_speech("kt170_1.wav");
+        assert!(!a.play_file(names::fanfare::BATTLE, false), "nothing plays with no device");
+        assert!(!a.stop_and_play_file("kt170_1.wav", true));
+        assert!(!a.one_shot_busy());
+        a.stop_one_shot();
         a.stop_music();
         a.set_options(Options { music: false, effects: false, speech: false });
         assert_eq!(a.music_name(), None, "nothing plays with no device");

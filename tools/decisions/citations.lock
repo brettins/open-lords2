@@ -188,6 +188,7 @@ crates/l2-game/tests/screens.rs	C48	a3f70d784d36	9e81512f4c0d
 crates/l2-game/tests/screens.rs	C61	0666dfecda29	60611046b40d
 crates/l2-game/tests/shell.rs	C22	df2346f350a7	0364b53a921d
 crates/l2-game/tests/siege_battle.rs	C35	7b2f7bc2325e	193a1920e229
+crates/l2-game/tests/tips.rs	C166	594d57b2ba61	e426c5b6c94a
 crates/l2-game/tests/turn.rs	C115	e1e6a0456501	085c9b771281
 crates/l2-game/tests/turn.rs	C134	e56871c4814a	d12cd2f96f79
 crates/l2-game/tests/turn.rs	C134	f5c6ceb24b23	d12cd2f96f79
