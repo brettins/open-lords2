@@ -23,7 +23,8 @@
 //! [`DIR_VAR`] overrides all of it. That is not only for tests: a player who
 //! keeps a game on a second drive, and a machine with a roaming profile it
 //! would rather not fill, both want it, and the alternative is a settings file
-//! whose own location has the same problem.
+//! whose own location has the same problem. [`scoped_dir`] overrides *that*,
+//! for one thread, and **is** only for tests — it says why.
 //!
 //! The directory is created on the first *write* and never on a read or a
 //! listing, so merely opening the load screen leaves the disk alone.
@@ -98,16 +99,64 @@ pub struct Entry {
 
 /// The save directory, or `None` when this machine has nowhere to put one.
 ///
-/// Read from the environment on every call rather than cached: a cached answer
-/// would be a second source of truth for a value the user can change, and this
-/// is called once per screen open.
+/// In order: this thread's [`scoped_dir`], then [`DIR_VAR`], then the profile.
+///
+/// Read on every call rather than cached: a cached answer would be a second
+/// source of truth for a value the user can change, and this is called once
+/// per screen open.
 pub fn dir() -> Option<PathBuf> {
+    if let Some(d) = SCOPED.with(|s| s.borrow().clone()) {
+        return Some(d);
+    }
     if let Ok(v) = std::env::var(DIR_VAR) {
         if !v.is_empty() {
             return Some(PathBuf::from(v));
         }
     }
     Some(data_home()?.join(APP_DIR).join("saves"))
+}
+
+thread_local! {
+    static SCOPED: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
+}
+
+/// **Every save operation on this thread uses `path` until the guard drops** —
+/// [`list`], [`write`], [`read`], [`remove`] and the save screen, which reaches
+/// the directory through [`dir`] and nothing else.
+///
+/// Nothing in the game calls it. It exists for the same reason [`remove`] does:
+/// the test harness runs every test as a **thread of one process**, and
+/// [`DIR_VAR`] is process-global, so an environment variable can give a test
+/// binary one directory and never one per test. With one directory shared,
+/// `tests/save.rs` raced itself: its load-screen test opened the screen, took a
+/// *second* listing to decide which row to click, and another test writing or
+/// deleting a save between those two statements moved the row under it — 23
+/// runs of the test binary in 2,000, measured. A lock round the
+/// listing was tried first and it only protected the tests that remembered to
+/// take it, and four did not.
+///
+/// A directory per thread is the shape in which that race cannot be written:
+/// no test can see another's files, whatever it names them and whenever it
+/// lists. The guard restores whatever was scoped before it, so scopes nest,
+/// and it is not `Send`, so it cannot be dropped on a thread whose slot it
+/// never set.
+pub fn scoped_dir(path: impl Into<PathBuf>) -> ScopedDir {
+    let previous = SCOPED.with(|s| s.borrow_mut().replace(path.into()));
+    ScopedDir { previous, _not_send: core::marker::PhantomData }
+}
+
+/// The guard [`scoped_dir`] returns. See there.
+#[must_use = "the directory is scoped only while the guard is alive"]
+pub struct ScopedDir {
+    previous: Option<PathBuf>,
+    _not_send: core::marker::PhantomData<*const ()>,
+}
+
+impl Drop for ScopedDir {
+    fn drop(&mut self) {
+        let previous = self.previous.take();
+        SCOPED.with(|s| *s.borrow_mut() = previous);
+    }
 }
 
 /// `%APPDATA%` on Windows, `$XDG_DATA_HOME` or `$HOME/.local/share` elsewhere.
