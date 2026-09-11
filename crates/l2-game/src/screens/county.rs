@@ -1315,6 +1315,10 @@ fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: 
 /// `lead` is `'\0'` for a caller that wants no column — which the original
 /// treats as *terminate immediately*, since index 0 is the NUL the buffer was
 /// cleared to, so no shipped call site passes it.
+/// `Ui_DrawNumber(value, lead, suffix, x, y, &g_fontSmall, colour)` — the
+/// numeric block's population, happiness and tax rate, which are flat
+/// (`DAT_005AEA40 = 1`). The jobs plate's numbers are [`ten_number`].
+#[allow(clippy::too_many_arguments)]
 fn strip_number(
     ctx: &Ctx,
     canvas: &mut Canvas,
@@ -1326,6 +1330,65 @@ fn strip_number(
     colour: u8,
 ) {
     strip_text(ctx, canvas, x, y, &format!("{lead}{value}{suffix}"), colour);
+}
+
+/// **`Ui_DrawText(s, x, y, &g_font10, colour)` with `g_dropShadow` set** — how
+/// every number on the jobs plate is drawn. **[V]**
+///
+/// All nine `&g_font10` call sites in the image are inside the eight row
+/// painters, and every one of those sets `g_dropShadow = 1` on entry with
+/// `DAT_005AEA40` already clear, so the face and the shadow always travel
+/// together; see [`font::DROP_SHADOW_COLOUR`](crate::shell::font::DROP_SHADOW_COLOUR).
+///
+/// **Only a number may be drawn here.** `Font_10.pl8` holds digits and
+/// punctuation and a 2 × 2 stub where every letter goes ([`font::TEN`](crate::shell::font::TEN)),
+/// so a word drawn in it paints nothing and still advances — the failure a
+/// whole-canvas comparison passes straight over. The original never builds such
+/// a string; the assertion is so that we cannot either.
+fn ten_text(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) {
+    debug_assert!(
+        !s.chars().any(|c| c.is_ascii_alphabetic()),
+        "{s:?} drawn in Font_10.pl8, whose letters are 2x2 stubs: words on the strip are g_fontSmall"
+    );
+    match ctx.assets.shell.ten.as_ref() {
+        Some(f) => {
+            f.draw_dropped(canvas, x, y, s, colour);
+        }
+        None => {
+            text::draw(canvas, x, y, s, colour);
+        }
+    }
+}
+
+/// `Ui_DrawNumber(value, lead, suffix, x, y, &g_font10, colour)` (`0x00402F64`):
+/// lead in slot 0, digits, suffix, one [`ten_text`].
+#[allow(clippy::too_many_arguments)]
+fn ten_number(
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    value: i32,
+    lead: char,
+    suffix: &str,
+    x: i32,
+    y: i32,
+    colour: u8,
+) {
+    ten_text(ctx, canvas, x, y, &format!("{lead}{value}{suffix}"), colour);
+}
+
+/// **`&g_fontSmall` with `g_dropShadow` set** — the castle cell's two captions,
+/// `Ui_DrawUnitNoun`'s *"Season(s)"* and `L2.eng` 71/18 *"Needed"*, which
+/// `CountyStrip_DrawCastleIcon` draws inside the same `g_dropShadow = 1` as its
+/// number. The rest of the strip's `&g_fontSmall` text is flat ([`strip_text`]).
+fn small_dropped(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) {
+    match ctx.assets.shell.small.as_ref() {
+        Some(f) => {
+            f.draw_dropped(canvas, x, y, s, colour);
+        }
+        None => {
+            text::draw(canvas, x, y, s, colour);
+        }
+    }
 }
 
 /// **`Ui_DrawNumberRight` (`0x004030C6`) — the same buffer, laid out in a
@@ -1369,25 +1432,29 @@ fn body_number_centred(
 ///   no separate glyph to place or to lose.
 /// * **A positive value carries an explicit `'+'`.** Only the *sign* tells the
 ///   player which way a forecast runs; the row has no other cue.
-/// * **`mode == 0` and a value of zero draw nothing whatever.** All eight
-///   produce rows pass mode 0. That is why an absent delta has read as a quiet
-///   row rather than as an obvious hole — a county with nothing happening looks
-///   the same either way.
+/// * **`mode == 0` and a value of zero draw nothing whatever.** All seven
+///   produce-row calls pass mode 0. That is why an absent delta has read as a
+///   quiet row rather than as an obvious hole — a county with nothing happening
+///   looks the same either way.
 /// * **The colour is the sign too**: `0xFA` positive, `0xF9` negative, at every
-///   one of the eight call sites.
+///   one of the seven call sites.
 ///
-/// The prefix and the suffix are a single space at all eight — read out of
-/// `Lords2.exe` at `0x004D3D40 … 0x004D3D84`, where the only one that is not
-/// `" "` is the tax rate's `"%"`. They are drawn as two separate strings, so
+/// **Seven, not eight** — three farm rows and four industry rows; the castle
+/// painter has no delta. This comment said eight, and so does
+/// `docs/draws-map.md` §5.5.
+///
+/// The prefix and the suffix are a single space at all seven — read out of
+/// `Lords2.exe` at `0x004D3D40 … 0x004D3D84`, eighteen pointers that all hold
+/// `" "`. They are drawn as two separate strings, so
 /// [`TRAILING`](crate::shell::TRAILING)'s four pixels fall between
 /// the prefix and the number and **not** between the number and its suffix.
 /// Concatenating the three into one string would lose those four pixels, which
 /// is the whole reason this is not a `format!`.
 ///
-/// **Ours:** the font. The original uses `g_font10` — preload entry 5,
-/// `font_10` — and this workspace loads `fntl2_9`, `fntl2_14` and `fntl2_22`
-/// and not that one. The 9-pixel font is the closest we have and the row is a
-/// pixel short because of it; loading `font_10` is its own job.
+/// **The face is `&g_font10`, the seventh argument at all seven**, drawn with
+/// the drop shadow its painters set ([`ten_text`]). This used to be
+/// `Fntl2_9.pl8` under a comment calling it ours, because `Font_10.pl8` was not
+/// loaded.
 fn strip_delta(ctx: &Ctx, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
     // `if ((value != 0) || (mode != 0))` — every produce row passes mode 0.
     if value == 0 {
@@ -1399,16 +1466,17 @@ fn strip_delta(ctx: &Ctx, canvas: &mut Canvas, value: i32, x: i32, y: i32) {
     // `x + g_penAdvance` — which is the prefix's width plus `Ui_DrawText`'s own
     // four trailing pixels, not the prefix's width alone.
     let prefix = " ";
-    let advance = match ctx.assets.shell.small.as_ref() {
+    let advance = match ctx.assets.shell.ten.as_ref() {
         Some(f) => f.width(prefix),
         None => text::width(prefix),
     } + crate::shell::TRAILING;
-    strip_text(ctx, canvas, x, y, prefix, colour);
-    // `Ui_DrawNumber(|value|, lead, suffix, …)` — one string, lead in slot 0.
-    strip_text(ctx, canvas, x + advance, y, &format!("{lead}{} ", value.abs()), colour);
+    ten_text(ctx, canvas, x, y, prefix, colour);
+    // `Ui_DrawNumber(|value|, lead, suffix, …, &g_font10, …)` — one string,
+    // lead in slot 0.
+    ten_number(ctx, canvas, value.abs(), lead, " ", x + advance, y, colour);
 }
 
-/// `Ui_DrawDelta`'s `colourPos`, the eighth argument at all eight produce-row
+/// `Ui_DrawDelta`'s `colourPos`, the eighth argument at all seven produce-row
 /// call sites.
 const DELTA_POS: u8 = 0xFA;
 
@@ -1841,7 +1909,7 @@ pub fn draw_strip(ctx: &Ctx, canvas: &mut Canvas, county: u8, focus: Option<Pane
 /// column-aligned. The minus is **not a separate mark** — it overwrites
 /// `g_numberBuffer[0]`, the slot `Ui_NumberToBuffer(value, 1, 0)` leaves free
 /// for a sign, and the whole string goes out in one `Ui_DrawText`. With
-/// `mode == 0`, which is what all eight rows pass, a value of zero draws
+/// `mode == 0`, which is what all seven calls pass, a value of zero draws
 /// **nothing at all**.
 ///
 /// **It is not "the change since last season".** The tooltip layer says so in
@@ -1965,16 +2033,8 @@ fn draw_produce_rows(
         // the nearest-to-finished field is done*, rounded up, from the full
         // reclamation staffing.
         if slot == 2 && c.reclaim_seasons_to_next != 0 {
-            strip_number(
-                ctx,
-                canvas,
-                c.reclaim_seasons_to_next,
-                ' ',
-                " ",
-                0x20A,
-                y + 0x143,
-                DELTA_POS,
-            );
+            // `&DAT_004D3D60` is `" "`, read out of the image.
+            ten_number(ctx, canvas, c.reclaim_seasons_to_next, ' ', " ", 0x20A, y + 0x143, DELTA_POS);
         }
         // `Ui_DrawNumberRight(store, ' ', …, 0x1E0, y + 0x14D, 0x3C,
         // &g_fontBody, 0x3F)` — the store itself.
@@ -2189,13 +2249,19 @@ fn draw_castle_row(
         // own `if (value != 0)`.
         let seasons = l2_kingdom::industry::castle_seasons_left(&ctx.game.kingdom.tables, c);
         if seasons != 0 {
-            strip_text(ctx, canvas, 0x23C, y + 0x13A, &format!("{seasons} "), DELTA_POS);
-            // `Ui_DrawUnitNoun(seasons, 0x42, …)` — `L2.eng` group 8 index
-            // `0x42`/`0x43`, which are *"Season"* and *"Seasons"*, singular at
-            // exactly 1.
-            let index = crate::shell::count_noun(seasons, 0x42);
+            // `Ui_DrawNumber(value, ' ', &DAT_004D3D84, 0x23C, …+0x13A,
+            // &g_font10, 0xFA)` — and `&DAT_004D3D84` is `" "`. This used to be
+            // `"{seasons} "` with no lead, in `Fntl2_9.pl8`, so the digits sat
+            // four pixels left of the original's in the wrong face.
+            ten_number(ctx, canvas, seasons, ' ', " ", 0x23C, y + 0x13A, DELTA_POS);
+            // `Ui_DrawUnitNoun(seasons, 0x42, 0x234, …+0x146, &g_fontSmall,
+            // 0xFA)` (`0x0041AC3E`) — `L2.eng` group 8 index `0x42`/`0x43`,
+            // *"Season"* and *"Seasons"*. Its rule is `value == 1`, not
+            // `Ui_DrawCount`'s `|value| == 1`; a castle's seasons are never
+            // negative, so the two agree here, and this is the one it calls.
+            let index = if seasons == 1 { 0x42 } else { 0x43 };
             let noun = eng(ctx, 8, index, if index == 0x42 { "SEASON" } else { "SEASONS" });
-            strip_text(ctx, canvas, 0x234, y + 0x146, &noun, DELTA_POS);
+            small_dropped(ctx, canvas, 0x234, y + 0x146, &noun, DELTA_POS);
         }
         return;
     }
@@ -2206,7 +2272,7 @@ fn draw_castle_row(
     };
     draw_strip_icon(ctx, canvas, needs, 0x23C, y + ndy, "NEEDS");
     // `Eng_DrawString(0x47, 0x12, …)` — group 71 index 18, *"Needed"*.
-    strip_text(ctx, canvas, 0x234, y + 0x146, &eng(ctx, 71, 18, "NEEDED"), DELTA_POS);
+    small_dropped(ctx, canvas, 0x234, y + 0x146, &eng(ctx, 71, 18, "NEEDED"), DELTA_POS);
 }
 
 impl CountyScreen {

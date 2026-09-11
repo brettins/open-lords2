@@ -168,8 +168,9 @@ two scales.
 
 **Verified from the binary — direction and meaning.** `FUN_00402A14`, the glyph
 blitter (it indexes `DAT_004D71F0`, the 224-entry `char − 0x20 → glyph slot` table,
-and is called nine times per character by the string drawer `FUN_00402637` for the
-drop shadow), loads the record exactly like `Pl8_DrawFrame` and then does:
+and is called from nine places in the string drawer `FUN_00402637` — once, twice or
+three times per character, flat, drop-shadowed or embossed; *"nine times per character"*
+was a misreading of that and is corrected in `docs/formats/pl8.md` *The five faces*), loads the record exactly like `Pl8_DrawFrame` and then does:
 
 ```
 DAT_00591528 = DAT_00591528 + DAT_005BB478;   // destY += record[0x0D]

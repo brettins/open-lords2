@@ -160,12 +160,26 @@ pub const SHADOW_GATEWAY: (u8, u8) = (0x36, 0x2C);
 /// [`crate::screens::county::draw_strip`] and `docs/bugs.md`.
 pub const SHADOW_GREY: (u8, u8) = (0x3F, 0x26);
 
-/// The fourth mode, recorded rather than implemented: when `DAT_005AEB90` is
-/// non-zero `Ui_DrawText` draws a **drop shadow** rather than an emboss — one
-/// pass at `(x + 1, y + 1)` in `0x3F` and then the glyph — and the county
-/// strip's seven produce rows and its castle icon are all drawn inside it.
-/// Nothing here uses it yet; it is the next thing anybody re-reading that
-/// function will find.
+/// **The fourth mode: a drop shadow**, and [`Font::draw_dropped`] draws it. **[V]**
+///
+/// When `g_dropShadow` (`DAT_005AEB90`) is non-zero — and `DAT_005AEA40` and
+/// `g_embossGrey` are both zero, which `Ui_DrawText` tests first — each glyph is
+/// drawn twice rather than three times:
+///
+/// ```c
+/// g_drawY = y + 1; g_drawX = g_drawX + 1; DAT_0057d3bc = 0x3f; Glyph_Draw(font, c);
+/// g_drawX = g_drawX - 1; g_drawY = y;     DAT_0057d3bc = colour; Glyph_Draw(font, c);
+/// ```
+///
+/// **Eight painters set it, and they are the county strip's eight rows**:
+/// `FUN_004100AF`, `FUN_0041023A`, `FUN_004103C5`, `FUN_00410502`,
+/// `FUN_00410598`, `FUN_0041062E`, `FUN_004106C4` and
+/// `CountyStrip_DrawCastleIcon`, each `g_dropShadow = 1` on entry and `0` on the
+/// way out. `CountyStrip_Draw` clears `DAT_005AEA40` before it calls any of
+/// them, so every `&g_font10` draw in the image is a dropped one — and so are
+/// the castle cell's two `&g_fontSmall` captions. The two farm rows that set
+/// `DAT_005AEA40 = 1` do so *after* their delta, around the store, which is why
+/// the store is flat and the forecast above it is not.
 pub const DROP_SHADOW_COLOUR: u8 = 0x3F;
 
 /// The colour the setup and conquest painters pass for ordinary text.
@@ -220,8 +234,38 @@ pub struct Font {
 /// The file names of the two fonts the management screens use.
 pub const BODY: &str = "Fntl2_14.pl8";
 pub const HEADING: &str = "Fntl2_22.pl8";
-/// `Fntl2_9.pl8`, used by the county strip and nothing else.
+/// `Fntl2_9.pl8` — `g_fontSmall` (`0x005C9A90`). **[V]** Nine `.text`
+/// references: the loader, six in `CountyStrip_Draw`, two in
+/// `CountyStrip_DrawCastleIcon` — and one outside the strip,
+/// `Screen_DrawEndTurn`'s `Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall,
+/// 0x16)`. Our build stamp is drawn in it too, and that is ours.
 pub const SMALL: &str = "Fntl2_9.pl8";
+/// **`Font_10.pl8` — `g_font10` (`0x005AEBA0`), the fifth face, and the one a
+/// player looks at every turn.** **[V]**
+///
+/// `Res_LoadStatic`'s record 5. Its nine `.text` references outside the loader
+/// are all on the county strip's jobs plate: the seven `Ui_DrawDelta` forecasts
+/// and the reclamation figure in `FUN_004100AF` … `FUN_004106C4`, and the
+/// castle's seasons in `CountyStrip_DrawCastleIcon`.
+///
+/// **It is a numeral face wearing the full layout.** The file has 108 frame
+/// records, exactly as `Fntl2_9.pl8` and `Fntl2_14.pl8` do, and
+/// [`GLYPH_MAP`] sends no character past the end of it — so it is read through
+/// the same table, at the same base, as the other four, and
+/// `Glyph_Draw` (`0x00402A14`) has no other table to read it through. What is
+/// different is the frames: `1`…`9`, `0` (frames 52…61) and the punctuation
+/// strip (62…78, `! " % * ( ) - + = : ; ' ? / , .`) are real ten-pixel glyphs,
+/// and **all 52 letters and the accented tail are 2 × 2 stubs** — 81 of them,
+/// most wholly transparent. `Glyph_Draw` draws a stub like any frame and
+/// advances three.
+///
+/// So a letter "drawn" in this face paints nothing, or a speck (`'e'` is a
+/// solid 2 × 2 block of `0x10`), and moves the pen three. That is the original's
+/// behaviour too, and it never meets it: every string the nine call sites build
+/// is a lead (`' '`, `'@'`, `'+'` or `'-'`), digits, and a suffix that is one
+/// space — `0x004D3D40` … `0x004D3D84`, read out of the image. The words beside
+/// those numbers (*"Seasons"*, *"Needed"*) are `&g_fontSmall`.
+pub const TEN: &str = "Font_10.pl8";
 /// **`Fnt_8.pl8` — `g_font8` (`0x005CBFB0`), the fourth face.** **[V]**
 ///
 /// `Res_LoadStatic` (`0x00499859`) walks thirteen `{char name[16]; u32 size}`
@@ -229,7 +273,7 @@ pub const SMALL: &str = "Fntl2_9.pl8";
 /// `File_ReadChunk` with a buffer chosen by `n`; record **3**, at `0x004D9F84`,
 /// is `"fnt_8.pl8"` with a size of 5,200, and `n == 3` selects `&g_font8`
 /// (`mov [ebp-4], 0x005CBFB0` at `0x004998ED`). Records 4…7 are `SMALL`,
-/// `Font_10.pl8`, `BODY` and `HEADING` in that order.
+/// `TEN`, `BODY` and `HEADING` in that order.
 ///
 /// **No screen of ours draws with it, and that is the finding rather than a
 /// gap.** All 86 references to `0x005CBFB0` in `.text` were enumerated from
@@ -343,6 +387,29 @@ impl Font {
                 Font::blit_mask(canvas, &frame, pen, y + 1, down);
             }
             Font::blit_mask(canvas, &frame, pen, y, style.colour_of(c));
+            pen += frame.width as i32 + 1;
+        }
+        pen - x
+    }
+
+    /// Draw `s` the way `Ui_DrawText` does under `g_dropShadow` — each glyph
+    /// once at `(x + 1, y + 1)` in [`DROP_SHADOW_COLOUR`], then once at `(x, y)`
+    /// in `colour`. Returns the pen advance, like [`Font::draw`]. **[V]**, see
+    /// [`DROP_SHADOW_COLOUR`] for the arm and the eight painters that take it.
+    ///
+    /// Glyph by glyph rather than a whole shadow pass and then a whole text
+    /// pass, because that is the order `Ui_DrawText` loops in. With a one-pixel
+    /// gap between glyphs the two orders paint the same pixels; the loop is
+    /// kept anyway so that a face with touching glyphs would not be a question.
+    pub fn draw_dropped(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
+        let mut pen = x;
+        for c in s.chars() {
+            let Some(frame) = self.glyph(c) else {
+                pen += SPACE_ADVANCE;
+                continue;
+            };
+            Font::blit_mask(canvas, &frame, pen + 1, y + 1, DROP_SHADOW_COLOUR);
+            Font::blit_mask(canvas, &frame, pen, y, colour);
             pen += frame.width as i32 + 1;
         }
         pen - x

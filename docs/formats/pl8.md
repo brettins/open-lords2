@@ -133,6 +133,77 @@ apply `Glyph_Draw`'s `y += rows` correctly for both, and every `rows = 3` letter
 of the body font drew three pixels low. A player caught it by opening the original
 next to our demo. `crates/l2-formats/tests/corpus.rs` now pins the contract.
 
+## The five faces: one character map, and `Font_10.pl8` is not an alphabet
+
+A font is a shape-0 PL8 read through **one** table in the executable. **[V]** from the
+decompilation of `Glyph_Draw` (`0x00402A14`) and `Ui_DrawText` (`0x00402637`):
+
+```text
+Ui_DrawText:  c -= 0x20;  if (g_glyphWidths[c] == 0) advance = 4;   /* no Glyph_Draw */
+                          else advance = Glyph_Draw(font, c);       /* 1, 2 or 3 calls */
+Glyph_Draw:   frame = g_glyphWidths[c] - 1;  record = font + frame * 0x10 + 8;
+              y += record[0x0D];  blit;  return record.width + 1;
+```
+
+* **There is no per-face table.** `g_glyphWidths` (`0x004D71F0`) is indexed the same way
+  whichever `font` pointer is passed. The only per-face special case in `Glyph_Draw` is a
+  one-pixel raise when `font == &g_fontBody` and the **index** (`c - 0x20`, which is what
+  `Ui_DrawText` passes) is in `0x61…0x6D`, `0x73…0x77` or `0x80…0x84` — characters
+  `0x81…0x8D`, `0x93…0x97` and `0xA0…0xA4`, the accented range. **Not reproduced** by
+  `shell::font`, which has no per-face branch; no English `L2.eng` string has been checked
+  for those bytes.
+* **Nothing checks the frame index against the file's count**, so a face is safe only if
+  every non-zero entry lands inside it. Measured against the shipped files, all five do:
+
+  | face | global | frames | highest frame the table asks for |
+  |---|---|---:|---:|
+  | `Fnt_8.pl8` | `g_font8` | 150 | 104 |
+  | `Fntl2_9.pl8` | `g_fontSmall` | 108 | 104 |
+  | `Font_10.pl8` | `g_font10` | 108 | 104 |
+  | `Fntl2_14.pl8` | `g_fontBody` | 108 | 104 |
+  | `Fntl2_22.pl8` | `g_fontHeading` | 106 | 104 |
+
+  (The table's largest entry is 105, frame 104.)
+* **A gap is a zero entry, and only `Ui_DrawText` handles it**: four pixels of advance, no
+  blit. `Glyph_Draw` itself returns 0 for one. There is no substitution and no fallback
+  face.
+* **The blit is a mask.** `0x004B41B7` writes the caller's colour (`DAT_0057D3BC`) wherever
+  the source byte is non-zero, unless `DAT_005CD40C == 1`, when it copies the byte.
+* **`Ui_DrawText` calls `Glyph_Draw` once, twice or three times per character** — flat
+  (`DAT_005AEA40`), drop shadow (`g_dropShadow`: `+1,+1` in `0x3F`, then the glyph) or one
+  of the two embosses — from nine call sites. `pl8-failures.md` §4's *"nine times per
+  character"* read the call sites as calls.
+
+### `Font_10.pl8`: the full layout, with the letters cut out **[V]**
+
+`Font_10.pl8` has the same 108-frame layout as `Fntl2_9.pl8` and `Fntl2_14.pl8`, so the
+shared table reads it correctly — same base, same indices. What differs is the frames:
+
+| frames | characters | what is stored |
+|---|---|---|
+| 0 … 25 | `a` … `z` | **2 × 2 stubs** — 25 wholly transparent; `e` (frame 4) a solid block of `0x10` |
+| 26 … 51 | `A` … `Z` | **2 × 2 stubs** — 17 transparent, 9 with one or two pixels of `0x10` |
+| 52 … 61 | `1` … `9`, `0` | ten-row digits, 6 × 10 (`4` is 7 × 10) |
+| 62 … 78 | `! " % * ( ) - + = : ; ' ?`, frame 75, `/ , .` | real glyphs; `-` `+` `=` `:` `;` `,` `.` are the 7 frames with stored, transparent overhang rows. Frame 75 is a backslash stroke no table entry reaches, and `.` is a genuine 2 × 2 |
+| 79 … 107 | the accented tail | **2 × 2 stubs** — 19 transparent, 10 with one to three pixels of `0x0D` |
+
+The real glyphs use one ink value, `0x0D`; the stubs' stray pixels are `0x10` and `0x0D`,
+and through the mask blitter those draw in the caller's colour like any other ink.
+
+Each frame record keeps an atlas position that matches a full alphabet's (`a` at 0,5, `b`
+at 11,3 …), so **[I]** the export was cut from a sheet whose letter cells were cropped to
+2 × 2 rather than from a sheet that never had letters.
+
+**What it means for a string.** A letter drawn in `Font_10.pl8` blits its stub and advances
+three: *"Seasons"* paints four pixels (its `e`) and moves the pen 21. That is what the
+original would do too, and it never does it: every one of `g_font10`'s nine call sites
+builds a lead (`' '`, `'@'`, `'+'` or `'-'`), digits, and a suffix of one space — the
+suffix and prefix pointers `0x004D3D40` … `0x004D3D84` all hold `" "`, read out of the
+image. The words beside those numbers — `Ui_DrawUnitNoun`'s *"Season(s)"* and 71/18
+*"Needed"* — are `&g_fontSmall`. `crates/l2-game/tests/shell.rs`
+`font_10_is_a_numeral_face_read_through_the_shared_table` asserts the layout, the stubs and
+the digits' baseline against the user's own file.
+
 ## Encodings
 
 ### Raw

@@ -5664,8 +5664,8 @@ sign, and `Ui_DrawNumber` fills it from its `lead` argument before drawing the w
 `x`. So the string at `0x1FC` is `" 435 "` and the **digits** start at `0x1FC + 4`. We drew the
 bare digits at `0x1FC`.
 
-**The column is deliberate and the binary says so 62 times.** Across `Ui_DrawNumber`'s 191 call
-sites the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each; never
+**The column is deliberate and the binary says so 62 times.** Across `Ui_DrawNumber`'s 190 call
+sites (191 as first written, which counted the definition line; C163) the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each; never
 `'\0'`, which the function treats as *terminate immediately*. `'@'` is a glyph with no picture —
 an invisible sign column that still holds its place — and asking for one 62 times is only
 meaningful if numbers are meant to align on it. `crate::shell::font::SPACE_ADVANCE`'s doc
@@ -6514,7 +6514,7 @@ own. Two of the three wrappers are `Ui_DrawCentred` and `Ui_DrawNumberRight`. Th
 a box, `Ui_NumberToBuffer(v, 1, 1)` and the same tail. It has zero call sites.** The one
 live sibling, `FUN_00403015` (`0x00403015`), is a **byte-identical duplicate of
 `Ui_DrawNumber`** calling a duplicate `Ui_NumberToBuffer` (`FUN_00402447`), six call sites,
-no width. So the alignment question closes here: `Ui_DrawNumber` (191 sites), `Ui_DrawCount`
+no width. So the alignment question closes here: `Ui_DrawNumber` (190 sites; this said 191, counting the definition line, C163), `Ui_DrawCount`
 (81), `Ui_DrawDelta` (59), `Ui_DrawHappinessDelta` (2) and `FUN_00403015` (6) take **no
 anchoring argument at all**, and the only routine in the image that can be got wrong this
 way is the one C119 already named.
@@ -8341,3 +8341,115 @@ directory.
 one that passes. A flaky test was the only thing that made anybody read this file closely enough
 to find them. "It fails one run in ninety" was the visible symptom of a directory shared by tests
 that were not all testing what they said.
+
+---
+
+**C163 — `Font_10.pl8` is loaded, it has no letters, and the nine numbers a player reads every turn are in it.**
+
+C157 left `g_font10` unloaded because pointing a test at it made a lowercase
+letter draw nothing, and read that as **[I]** *"not an alphabet under the shared
+table"*. Half of that was right. **[V]** throughout, from the decompilation and
+the user's own files.
+
+### `Glyph_Draw` has one table and no gap handling of its own
+
+* `Glyph_Draw` (`0x00402A14`) reads `g_glyphWidths[c - 0x20] - 1` and the record
+  at `font + frame * 0x10 + 8` for **every** face. It has no per-face table and
+  no check against the file's frame count. Its only per-face branch is a
+  one-pixel raise for `&g_fontBody` on characters `0x81…0x8D`, `0x93…0x97` and
+  `0xA0…0xA4`, which `shell::font` does **not** reproduce.
+* A gap is a zero entry. `Ui_DrawText` (`0x00402637`) advances 4 and does not
+  call `Glyph_Draw` at all. Nothing substitutes a character or falls back to
+  another face.
+* The blit, `0x004B41B7`, is a mask in the caller's colour.
+* Every table entry lands inside all five shipped faces. The highest frame
+  asked for is 104, and the faces hold 150, 108, 108, 108 and 106.
+
+So `Font_10.pl8` is read exactly as the other four are: same base, same indices.
+
+### What the file holds
+
+108 frames, the same layout as `Fntl2_9.pl8` and `Fntl2_14.pl8`.
+
+* Frames 52…61 are the digits and 62…78 the punctuation strip. These are real
+  ten-row glyphs.
+* **All 52 letters and the 29-frame accented tail are 2 × 2 stubs.** Of the 81,
+  61 are wholly transparent and 20 carry one to four stray pixels (`'e'` is a
+  solid block).
+* A letter blits its stub and advances 3. *"Seasons"* paints four pixels and
+  moves the pen 21. That is the "renders nothing" of C157's panic.
+* **[I]** The atlas positions in the stubs' records match a full alphabet's, so
+  the letters were cropped out of a sheet that had them.
+
+**Every string the nine call sites build is a lead, digits and one space.** The
+leads are `' '`, `'@'`, `'+'` and `'-'`. The prefix and suffix pointers
+`0x004D3D40…0x004D3D84` are all `" "`, read out of the image. The original
+never asks this face for a letter. The words beside its numbers are
+`&g_fontSmall`.
+
+### All nine are drawn under `g_dropShadow`
+
+Each of the eight row painters sets `g_dropShadow = 1` on entry. By then
+`CountyStrip_Draw` has already cleared `DAT_005AEA40`. So `Ui_DrawText` takes
+its drop-shadow arm: `(x + 1, y + 1)` in `0x3F`, then the glyph.
+`font::DROP_SHADOW_COLOUR` had recorded that arm as unimplemented.
+`Font::draw_dropped` now draws it. The castle cell's two `&g_fontSmall` captions
+are inside the same flag and are dropped too.
+
+### What changed
+
+| draw | was | is |
+|---|---|---|
+| 7 × `Ui_DrawDelta` forecasts (`strip_delta`) — three farm rows, four industry rows | `Fntl2_9.pl8`, flat | `Font_10.pl8`, dropped |
+| reclamation figure, `FUN_004103C5` | `Fntl2_9.pl8`, flat | `Font_10.pl8`, dropped |
+| castle seasons, `CountyStrip_DrawCastleIcon` | `"{n} "`, **no lead**, `Fntl2_9.pl8`, flat | `' '`, `" "`: **digits +4**, `Font_10.pl8`, dropped |
+| castle *"Season(s)"* / *"Needed"* | `Fntl2_9.pl8`, flat | `Fntl2_9.pl8`, dropped; plural rule is `Ui_DrawUnitNoun`'s `value == 1` |
+
+`ten_text` carries a `debug_assert!` against letters, so a word routed to the
+numeral face panics in tests. That assertion has **not** been observed firing.
+`ShellAssets::ten` is new, and `missing_fonts` names all five faces.
+
+**The strip has seven `Ui_DrawDelta` calls, not eight.** The seven are
+`00410000.c` lines 22, 52, 78, 98, 114, 130 and 154: three farm rows and four
+industry rows. The castle painter has none, and 7 + 2 `Ui_DrawNumber` = the
+nine `&g_font10` references. `strip_delta`'s doc, `DELTA_POS`,
+`draw_produce_rows` and the cattle test said eight, and are corrected.
+`docs/draws-map.md` §5.5 (*"the eight `Ui_DrawDelta` calls"*, *"all eight rows
+pass `mode = 0`"*) is not edited here.
+
+### Tests, each ablated
+
+| test | ablation | red with |
+|---|---|---|
+| `shell::font_10_is_a_numeral_face_read_through_the_shared_table` | file → `font::SMALL` | `'a'` 8 rows, expected 2 |
+| 〃 | file → `font::EIGHT` | 150 frames, expected 108 |
+| `screens::the_castle_cell_puts_its_number_in_font_10_and_its_word_in_fntl2_9` | no `' '` lead | digits at (572, 320), expected (576, 320) |
+| 〃 | `small_dropped` → `shell.ten` | *"Seasons" is not on the castle cell* |
+| 〃, `screens::the_industry_forecast_is_a_dropped_font_10_number` | shadow blit deleted | both shadow claims |
+| the two above, plus `the_cattle_row…`, `the_grain_row…`, `the_reclamation_row…` and `a_loaded_game_draws_each_industry_rows_own_forecast…` | `ten_text` → `shell.small` | all six, at their `Font_10.pl8` search |
+
+**Not separately observed red:**
+
+* the castle word's ink count, which its glyph search implies;
+* the word's shadow claim, which sits behind the number's;
+* the *"Seasons"* ink bound in the shell test.
+
+### `Ui_DrawNumber` has 190 call sites, not 191
+
+`docs/plan.md` said 191. That was a text count: 191 lines of the decompilation
+match `Ui_DrawNumber(`, and one of them is the definition,
+`void __cdecl Ui_DrawNumber(`. The `====` header does not match. So there are
+190 calls, which agrees with C157's 190 live and 211 in the exe.
+
+`docs/plan.md` is corrected. The same 191 is still quoted in:
+
+* `docs/draws-map.md` §5a (twice, and in its 351 total);
+* C127 and C140 above;
+* `Ui_DrawNumberRight`'s `symbols.json` comment.
+
+Those are not edited here. §5a's lead breakdown, 115 + 62 + 1 + 1 = 179, does
+not sum to either figure, and that is not explained here.
+
+**Corrected at merge.** All four quotes above now say 190 and cite this entry: `docs/draws-map.md`
+§5a (where the four routines' total becomes 350), C127, C140 and `Ui_DrawNumberRight`'s
+`symbols.json` comment.
