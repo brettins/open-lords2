@@ -1114,3 +1114,62 @@ lives in a brief is one context window from gone.
   it goes in `Start` beside the seed, **not** in `Hello` — a per-seat value that is
   legitimately different on every peer needs host *arbitration*, not a mismatch refusal.
   Writing the field is small; the reasoning is the part that took the work.
+
+---
+
+## 0.0b Written immediately before a machine restart, with seven agents in flight
+
+**Everything below is the coordinator's state, which lived only in a session.** The rule this
+section exists to obey is `docs/agents.md`'s own: *a finding that lives in a message is a
+finding one context window from gone.* A restart is that, without warning.
+
+### Where `main` is
+
+`5338fe7`, clean, **2,203 tests passing**, C1..C150, 970 citations resolving, `GATED_TOTAL`
+381. Eleven merges landed in one evening, every one of them from a player's own report or
+from the instrument those reports justified.
+
+### Branches that are NOT merged and must not be lost
+
+| branch | what | state |
+|---|---|---|
+| `worktree-agent-a3c3b0fefb778ef88` | the three sidebar forecasts, and the cattle mechanics answered from the binary | **complete, 2,172 green, reviewed, not merged** — merge this first |
+| `wip/build-unlock` | build while the game is open | **unverified draft**, saved ahead of the restart; read its commit message before trusting a line |
+| seven `worktree-agent-*` branches | shields and the menu scroll, the gold/season font, the UI click sounds, the siege army divergence, the industry row deltas, the draw-placement audit, the build launcher | each told to commit WIP and write `HANDOFF.md` at its worktree root |
+
+**Read each `HANDOFF.md` before touching the branch it sits on.** They were written under time
+pressure by agents that knew they were about to be killed, so they carry what could not be
+re-derived cheaply — addresses, ruled-out branches, things believed but unchecked — rather
+than a summary of the work.
+
+### The one that needs no rediscovery
+
+`worktree-agent-a3c3b0fefb778ef88` found that **all three of the sidebar numbers the player
+reported already worked**, and that what was broken was the comments: `draw_produce_rows`
+carried *"Only the cattle row draws one … neither row can draw one yet"* **ten lines above a
+`match` reading all three fields**. All three comments were true when written. The grain
+number had no test at either layer, so nothing contradicted them.
+
+That is the sharpest form of a pattern this evening produced six times: **the measurements
+were wrong more often than the code was.** Two branches held for reasons that had gone stale;
+an assertion that compared two off-screen counties and could never fail (C138); an inventory
+with no record for the biggest input function in the binary (C139); *"eighteen are
+unaudited"* that was five, none of them defective (C140); *"every fixture is at rate 0"* that
+was measured on one save (C142); a `NoMarket` comment whose stated reason was false (C149);
+and a documented bug **of the game's** that was ours, with careful reasoning built on top of
+it (B11a, under C149).
+
+### What the player is owed next
+
+He asked for two properties and the code does not yet have the first: **a build must succeed
+while the game is running always — not only when `build.rs` happens to rerun after a commit —
+and the desktop icon must always launch the newest build.** `tools/run/play.cmd` satisfies
+both by running a *copy*, at no cost to build times; `L2_ALWAYS_UNLOCK=1` satisfies them at
+2.7-7s of recompile on every build, measured. Neither is verified end to end. He must be
+given the exact shortcut line, and **nothing on his desktop may be touched for him.**
+
+### Standing oracle ask, unchanged and cheap
+
+No save on this machine carries a tax rate of 20 or more, so `g_taxHappinessOther` is flat
+across every fixture and county `+0x16` and realm `+0x28` are zero everywhere. **One save at
+rate 20+ closes the tax panel.** `docs/oracle-requests.md` carries it.
