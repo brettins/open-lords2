@@ -1,0 +1,2258 @@
+{
+  "sources": [
+    {
+      "file": "520aaf56-9d6c-4ef0-a08e-8ee29b0ba504.jsonl",
+      "player_messages": 1
+    },
+    {
+      "file": "808c4c7d-116a-4f19-ac9b-e699ad4eff74.jsonl",
+      "player_messages": 0
+    },
+    {
+      "file": "814bf809-4908-495e-971f-128196fb6b5f.jsonl",
+      "player_messages": 3
+    },
+    {
+      "file": "cdef0af4-5905-4ae2-9528-9280d137d389.jsonl",
+      "player_messages": 317
+    },
+    {
+      "file": "d5d2a3a4-8626-40be-9855-fb419bcbd2fc.jsonl",
+      "player_messages": 0
+    },
+    {
+      "file": "f3d0790c-154e-4083-9264-4d12fadd40cd.jsonl",
+      "player_messages": 0
+    }
+  ],
+  "items": [
+    {
+      "summary": "Log every report instead of relying on the context window",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "no sound on clickin the yes/no on save, and it is still on mousedown instead of mouseup, I remember mentioning this before so I think you aren't logging all the things i'ms aying and trying to use context window still"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "The placeholder squares and field thing is old as time, so I think you're missing lots of my input"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "report-history-sweep",
+      "evidence": "Ledger row report-history-sweep (open) quotes both messages; this file is its output.",
+      "area": "tooling"
+    },
+    {
+      "summary": "The lead is a project manager, not a worker",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "Context window will not be good for this amount of project"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "I guesss that means not an agent. You're the PM, so your focus hsould be how we can do this correctly and efficiently"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "i like the adversairal audit thing. Just come up with plans to proceed, send agents to do the work, have an agent evaluate your plan and come up with alternatives and poke holes in it, evaluate, proceed, etc."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "whath, no, you are a project manager. You don't do work, wtf taht will fill up your context window"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "likeke... how do I only see onee agent runnning? Do wee hahhve eparrity with eevery feature? weve nameed eevery function? Why aree yyou hhalf assing this/"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "I don't see any agents dfixing game stuff? Are we done? Who is project managing that we have work to do and noone sending agents off?"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "so like...can your entie job be maintaining project management here? like keeping track of the project plan and knowing whats' left? you said a buch of stuff is stale which implies you're trying to just hear agents and then...use context window to make decisions? You should be an interface for whatever project management setup you're running, your context window is not a good project management understanding"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "pm-ledger-view",
+      "evidence": "Ledger row pm-ledger-view (queued-merge), source \"user: the lead's context window is not a project management system\".",
+      "area": "tooling"
+    },
+    {
+      "summary": "Shared technical docs, with CLAUDE.md as an index",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "Do we need some sort of technical docs that agents are writing to and sharing about htis project? it feels like stuff living in memory is going to be rough. again, this is big enough that coordinated project management between agents is prudent."
+        },
+        {
+          "date": "2026-09-07",
+          "text": "I mean ... let's also be clear that dumping all tehcnicalal stuff  into claude.md is a bit crazy. It should be an index I think? Unless you think this game is simple enough for claude.md"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "a811676 \"Add cross-session knowledge base: CLAUDE.md index plus docs\" (2026-09-07); CLAUDE.md now opens \"This file is an index, not a manual.\"",
+      "area": "tooling"
+    },
+    {
+      "summary": "A readable project page: checkpoints, features, tasks",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "I guess for now give me an assumed list of checkpoints and then get going on them, please open an artifcat so I don't have to keep track of it in this chat. Try to keep the artifact updated (determine when that happens). Maybe even a bit of project management in a file or artifact or whatever."
+        },
+        {
+          "date": "2026-09-07",
+          "text": "Where we at with the whole artifact logging thing and updating I asked you for?"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "How's our project management and plan setup going? Do we have phases and systems with their state I can see?"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "The artifact seems blabby rather than like a clear feature or project task list to me. If it works for you and your agents that'ss fine but I find it a bit illegible"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "player-status-page",
+      "evidence": "Ledger row player-status-page (in-flight), depends on pm-ledger-view.",
+      "area": "tooling"
+    },
+    {
+      "summary": "Plain-language mechanics documentation",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "I was trying to read the doocs but they seem muc morore \"coding reference docs\" rather than mechanics docs. Is there something I coould look at easily like \"this is how county stuff is caluclated between seasons\"? or \"this is how the score screen is calculated\"?"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "if  not  that's OK, i  would just expect a simpler plain lanugage laying out of hte game mechanics for reference puporses for you and agents."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "e9b603d \"Add docs/rules.md: the game's mechanics in plain language, plus MIT LICENSE\" (2026-09-08).",
+      "area": "other"
+    },
+    {
+      "summary": "A list of which mechanics are mapped, so he can spot gaps",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "I guess if i know what game mechanics we have mapped to functioons then I can tell you what game mechanics you haven't mapped if youu don't know all of htem?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "154f272 \"An inventory of game mechanics, written to be read by a player\" (docs/mechanics.md).",
+      "area": "other"
+    },
+    {
+      "summary": "Block \"git add -A\" with a hook",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "gross. puut in a hook so git add -A just gets stopped"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "git addiing a whole dir seems like a prettyy bad idea"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "4331307 \"Make git add -A impossible instead of discouraged\" (C9, C18); the hook .claude/hooks/block-git-add.js is live (it blocked a command during this sweep).",
+      "area": "tooling"
+    },
+    {
+      "summary": "Repository on GitHub with a licence",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "is this up on my github btw? MD files are easier to read on gh"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "ok how do we get this up onto git? also what license do we have? also should the repoo be public?"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "brettins/open-lords2.git is up  on github, do we have github ssh even if we don't have gh cli? Should this be public with a license?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "e9b603d adds the MIT LICENSE (2026-09-08). Whether the GitHub repository is public cannot be read from git.",
+      "area": "tooling"
+    },
+    {
+      "summary": "Every feature must be traced to a function in the binary",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "I don't see how y ou could have gotten here by decompiling the game and seeiing how it works. This looks like you've seen a few files and guessed then implemented some...vague version of it."
+        },
+        {
+          "date": "2026-09-08",
+          "text": "You should be finding ouut how the game divides the screen by where it puts images and generates thiings and whatever?"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "Whenever I say these things you're verifying by finding and naming functions in the original code right?"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "I guess the questiion is hohw diid thee agent make a decisiion lie taht without finding the fuunction that opened the screen and all the functions thaht surround it which would clearly sohw thaht beahviour?"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "I thhin were missing thee conneection to the originals functions if were emissingg basic shit lie that. If we implement a feeaturee we MUST find its equivalent in the old binary functions"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "What's the comparable function for turning mining off in the Hex/binary?"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "once again, all of these things, have we compared our functioanity to the binary? These things seeem maybe obvious if we find them in the binary"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "CLAUDE.md rule 5 (\"If we implement a feature, find its equivalent in the binary's functions\"); C61 and docs/arms.json count reproduced input arms.",
+      "area": "tooling"
+    },
+    {
+      "summary": "Name the unnamed functions by guessing and testing",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "So yes....couuldn't you like....make plausible guesses at what fuunctions are for and categorize them and then start \"putting it all together\" with soome assumptiioons?"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "1760 unnamed functions...any we can have a guess at? have we hhad an agent categorize them as shohrt, easy, long, or anything like thaht to help? guesses at waht they do?"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "wait...I thoughht we agreed an agent sould go and try to nname and guuess the functions and you game bac with 23 out of 1700?"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "it is insane to me taht thihs is an option and we ahvent' done it? Isn't thihs juust...naming functions? or whhat is going on herhe?"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "unnamed-functions",
+      "evidence": "Ledger row unnamed-functions (open). Naming waves landed (e.g. c4a8357 \"776 of 2,452 functions named\", 66554b2) but the row is still open.",
+      "area": "tooling"
+    },
+    {
+      "summary": "Game strings mapped to mechanics and functions",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "so do we hahve all theh english labels mappped to game mechanics and functioins figured out?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "2d29bc8 \"Merge the L2.eng group map\" (docs/formats/eng.md section 5 maps all 317 groups).",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Tests that run our code and the original and compare",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "please continue, just wanting to mention that to make sure your testing frameowrk is robust, taht every time you make a function you can run it on the new stuff or hte old stuff and get the same output, IDK if that's possible but I figure it is, feel free to send an agent off on th at"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "can you tell me if there's a sort of \"auomated completion list\" where functions we create are mapped to original functions, and the tests run on \"both\""
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "Partly: C137 (fecb23b \"the first test that compares the original's behaviour with ours\") and C146; docs/arms.json and docs/audio.json are two-sided checked inventories. No per-function list with tests on both sides exists; draw calls are still hand-marked (ledger row draw-inventory-check, open).",
+      "area": "tooling"
+    },
+    {
+      "summary": "Agents must not take over the screen, mouse or focus",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "IDK if htere's a screen location for click or some sort of MCP you can make for the game while you're working."
+        },
+        {
+          "date": "2026-09-07",
+          "text": "also if this can be some sort of windowed mode so it doesn't hijack my screen while we play around with things that'd be great"
+        },
+        {
+          "date": "2026-09-07",
+          "text": "game opened, it just took my screen :) not a big deal and dont interrupt your testing, you fixing this takes priority over my window managemnet, but just FYI."
+        },
+        {
+          "date": "2026-09-07",
+          "text": "do y ou know wh ich one of you opened the game fullscreen? it's fine but I've alt tabbed ou t and I can't see when it's \"done\" so if an agent does that I'd like it to exit when it's done"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "one of o ur agentis testnig clilcks which is greate, any chance that can be siimulated mouse positioons instead oof actual mouse and taknig screen focuus?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "0c829e4 \"Agents test our engine through Event values, never the real mouse\" (2026-09-09 05:22 UTC, two minutes after the last report); 36b84f1 windowed viewer. The ledger notes \"agents may not open windows or take focus\". Closing the original game after an agent opens it has no record.",
+      "area": "tooling"
+    },
+    {
+      "summary": "A mod framework like OpenXcom, on top of an install",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "also I'd like to considerr something like openxcom, a framework mods and stuff can be installed and used for this game"
+        },
+        {
+          "date": "2026-09-07",
+          "text": "I mean I've said I want the openxcom  in the end. I think a rewrite from the ground up makes sense, and it sounds like you can do that peacemeal."
+        },
+        {
+          "date": "2026-09-08",
+          "text": "Mods shoudl probably come after menus and you know playing the game, but don't need to revert worko just don't put it in front unless you're missing doing the framework."
+        },
+        {
+          "date": "2026-09-08",
+          "text": "oh ok so this can just work \"on top of an install\" like open xcom does?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "d4a2cfc \"Add the modding platform, .skr support, and a video remaster pipeline\" (docs/modding.md, crates/l2-mods).",
+      "area": "tooling"
+    },
+    {
+      "summary": "Pause multiplayer; the original netcode is not a model",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "can you elaborate on why we keep opening lrods2? it looks like it's a networking thing, and I don't think we need any informationa bout the previous game's networking. It was awful and should be basically abandoned."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "we  can probably pauuse on replicating muulutiiplayer, thaht's the main reason were doing thihs rewriite is because the hmultiiplayer syn cis terrible"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/plan.md section 0.1 \"Multiplayer is excluded, deliberately and not by omission\"; CLAUDE.md \"Networking is the one place the original is not the authority\". Ledger row lobby-player-shield is deferred for that reason.",
+      "area": "other"
+    },
+    {
+      "summary": "Record the original's bugs, with switches to turn them off",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "definitely keep track of bugs though we will likely fix them in a menu option to have them on or off, or make a call later"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "and a grooup chhheeck boox for turn off original games bugs whichh togges them alll at once wwhilel lett ing people still chhehc uncheckk inndividuals"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "efdb1bd \"Merge docs/bugs.md: which defects are the original's, and which are ours\"; 4a8e9b3 \"Build the options panels, and a group switch that spans both quirk homes\" (C69); crates/l2-game/src/screens/options.rs walks both quirk lists.",
+      "area": "options"
+    },
+    {
+      "summary": "Build while the game is open; icon opens the newest build",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "can I have a desktoop icono to double click to open this in wathever state it is in?"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "ggame is closed. You cant rebuild with it open?"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "can we make it so you can build while I have it open? like appending a version number to the exe or something?"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "IDk how big the files are, if we need a cleanup after every 5 builds and keep in in 10 or soetmhing"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "also just make sure the desktop icon still works"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "what I meant by my desktop icon working, is that we should be able to build new versions while I have it open, and that the desktop icon should always open the newest version."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C154, f48a407 \"Merge building while the game is open, as C154 — the launcher had never launched the game\"; C154 quotes the last message and describes the sweep that removes old copies. Ledger row build-unlock-wip is the abandoned draft.",
+      "area": "tooling"
+    },
+    {
+      "summary": "Version stamp on the start screen, and a legible one",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "maybe worth a debug version number or something ono the start screen."
+        },
+        {
+          "date": "2026-09-10",
+          "text": "builid stammp iis onn the screen now, but illegiilbe siince its thheh all caps versiionn of theh font and thhehe all caps arree iinteentioinally rridiciulosly stylistic, not really legiblee, just old tiimey over thhehe toop"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "602321d \"Draw the build stamp in the game's only plain face — blackletter is an ornament, not an identifier\" (after the second report); 3acb6c0 \"The build stamp was off the bottom of the screen\".",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Toggle or hotkey for debug drawing",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "I also see oragne lilnes around couonties so I thhin therree aree somee othehr debug thihngs left in .I dont mind debug but have a toggle"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "also debug text everywhere, i'd like a toggle or hotkey, not surei f that was made"
+        }
+      ],
+      "class": "open",
+      "ledger_row": null,
+      "evidence": "No toggle found. crates/l2-game/src/game.rs:73 says only \"A debug overlay toggle belongs here too\". Ledger rows map-debug-squares and sidebar-icon-debug-outlines remove specific markers; neither is a toggle.",
+      "area": "options"
+    },
+    {
+      "summary": "Use a cheaper model for grunt work",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "Also should we find a cheap open source model that can do the grunt work? I mean I'm fine if it's haiku but I imagine that there is a lot of code that needs to be rewritten and it'd be expensive for a frontier model to just \"copy functions\" and that you'd better server preparping a logic frameowkr for a gemma or something."
+        }
+      ],
+      "class": "open",
+      "ledger_row": null,
+      "evidence": "A suggestion; no ledger row, commit or document found.",
+      "area": "tooling"
+    },
+    {
+      "summary": "AI upscaling for the videos (nice to have)",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "I wouldn't mind an ai upscaler on the videos anyways, there's scanlines and frame drops throughout. Very much a \"nice to have\" but if there's an easy way to do that workflow then let's do it"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "d4a2cfc adds \"a video remaster pipeline\" (its body mentions upscaling). Nothing says upscaled films were produced or are used.",
+      "area": "other"
+    },
+    {
+      "summary": "Play the game's films",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "I mean we can probably just re-encode the videos ourselves somehwere that's compatible with video players? \"needs a decoder\" - I mean, there's gotta be some free video decoder?"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "smacker-video",
+      "evidence": "Ledger row smacker-video (queued-merge): own decoder for all 45 films.",
+      "area": "other"
+    },
+    {
+      "summary": "Agents stop cleanly before usage runs out or a restart",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "we're about to run out of usage credit so we need to get our agents to pause in a sensible fashion, which might just mean I close this window and it starts up again tomorr when the usage credit is back, but IDK how you and your agents work and what stopping or pausing them does"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "gonna restart the system, get all teh agents to write to dump their brains"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "96cb0b9 \"Write the coordinator's state into plan.md before a restart\" (docs/plan.md section 0.0b); ledger rows siege-army-divergence and draw-placement-audit keep HANDOFF.md on their branches.",
+      "area": "tooling"
+    },
+    {
+      "summary": "Run the original in DOSBox in a window",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "can we run this lords2.exe windows thing usiing dosbox in a window?"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "No mention of DOSBox in docs, code or git. The answer may only have been given in chat.",
+      "area": "tooling"
+    },
+    {
+      "summary": "Original game error: SNWValid.dll not found",
+      "quotes": [
+        {
+          "date": "2026-09-07",
+          "text": "File load error\n---------------------------\nSNWValid.dll not found in Windows system folder.\nPlease check your installation before continuing."
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "Pasted with no comment, apparently from launching the original. No record found; it may not concern our engine.",
+      "area": "other"
+    },
+    {
+      "summary": "The map looks nothing like the original",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "Just to say the obvious this out loud, the map looks nothing like the original game"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "No single fix. Several corrections address parts: C41 (towns drawn as quarries), C48 (scroll origin), C63 (seasons and crops), C124 (wheat). On 2026-09-08 (23:52 UTC) he wrote \"oh wow. it makes a map\".",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Map can't be scrolled; mouse at the edge scrolls",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "saw your comment about a picutre of the game and what's the beahvioour on the minimap - it is mousue too the side to scroll iirc, and bottom l eft is the map, top right is minimpa, bottom right is the country interface, top middle is hte map"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "ii can't scrolll tehe  map"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C48 (map opened at the scroll origin and stopped there); C60, 41ae448 \"Merge the paced turn and the scroll\".",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Game doesn't fill the window",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "for some reason teh game dooesn't tae upp theh edges of theh window i make, neitehr hehigth or wiidth, so I can't scroll easilly if iit wored"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "ah, didn't know we were integer  scaling"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "Deliberate: crates/l2-game/src/main.rs:190 \"Integer scaling stays\" (letterbox border). His reply suggests he accepted it. No ledger row.",
+      "area": "other"
+    },
+    {
+      "summary": "Mouse scroll is too fast",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "moouse scroll needs to obe like...half thhat speed, ,noot sure if its a game default or some cycle thing"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C60 quotes this report; 41ae448 \"Merge the paced turn and the scroll\".",
+      "area": "input"
+    },
+    {
+      "summary": "Town square opens as a dialog over the map",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "i just opened a game, clicked my town squuare and it opened up a \"dialog\" or however you deescribe stilil being able to see thhe map around it and the rest of the screen."
+        },
+        {
+          "date": "2026-09-08",
+          "text": "i would figure we have figured out thhe \"open a window\" logic?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "6bf93b3 \"The village is an inset over the map, not a page - a player was right\"; 65ad4ff \"Merge C22: the village is an inset\".",
+      "area": "county panels"
+    },
+    {
+      "summary": "No town square in my county, just 4 quarries",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "if I opeen thee game there is no townn squaree in my county, just 4 quarriies whherre it should be and II can't bring uup theh town square to odo anything."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C41 quotes it; caab9fb \"Put the county towns back, and wire the sidebar a player could not reach\" (05e9dea).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Sidebar buttons dead: can't assign peasants or raise army",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "County panel iis jusut tax rate. I can't assiign peasants oor create an army or clic anyy oof the optiions in theh bottom rigth, just county panel and end turn atm"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C43 \"The campaign sidebar's five buttons were one button of ours, drawn over\" (05e9dea).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Sidebar population, tax, happiness and health meter",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "the pop and tax rate and happiness and health thermometer seem like easy wins"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "His 2026-09-10 report on where the happiness and population numbers sit (C127) shows they were drawn by then. No commit found for the tax rate or the health thermometer on the sidebar.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Panel corner is a close button: arrow into a black hole",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "Thhe corner is a hotspot, iit's a picture of a poiinter iicon, not a mouse. ike its an arrow pointing to a little black hoole. its a cloose button...a weird one."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "Those panels hhave a lttle mouse icon around a black holle as well iin the bottom right ofo them"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "IDK it's bad design but iit's part of hte game"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C46, 9fece16 \"Merge the panel corner and Screen_FrameInput\"; C108 (the arrow picture replaces the word OK).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Merchants not on the map and can't be clicked",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "merchants move on the mpa along the roads and thhey move at the ned of each turn."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "I doon't see te mercants on te map and of course I can't click them or see tem movoe on end turn"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "098895e \"Merge the units, flags and merchants\" (2026-09-09 07:17 UTC, after the report); ea52eda merchant routes; C58 (merchant picked by its tile).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "End turn: merchants teleport and the screen doesn't fade",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "te screen woudl go...dark? maybe it would go slighhtly darker durinig end turn, sounds woould play"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "the mmerchant seems too just teleport on end turn and the scren doesnt go dark"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "coorrection about ending trun, thheh merchhants move and thhen it fades out then in whihch hhides thhe season chhange visuals just asbruplty chhanging"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C60 \"A turn had no duration\" quotes these; 41ae448.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Can't move my army; raised army doesn't appear",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "II raiseed an army and nothing apepared on the map so we miight be missing \"uuniits\" oon the map"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "cant see to move my army"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C48 (\"nothing appeared on the map\"), C60 (half of the immobile army), 098895e units.",
+      "area": "armies"
+    },
+    {
+      "summary": "Merchants stand still, then move insanely fast",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "The merchants don't move right when you click end tun and then..move insanely fast, that's a bit odd."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "3860f03 \"Give a unit the original's speed: Unit_StepOnce's sub-tile counter\" quotes it; merged in 47b014a / f42d7a6. No correction number.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Merchant window closes on any click; no hover tooltip",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "Clicking anywhhere within the merchhant closes thhe merchhant window, it doeosnt' show thhe moouseover tooltip thaht the origginal showed."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "The merchhant window is just an image withh some weird illegible text and if I clic on anything it closes it,, thheres no mouseover withh goods or else their hhti box is too omsall or I dont nkow it"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "merchhant stil ldoesnt  wor, clickking  on anything in theh merchahnt screeen clsoes the window."
+        },
+        {
+          "date": "2026-09-10",
+          "text": "The merchant now corrcectly uses the \"scroll\" bg for the popup text when I mouse over a good"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "0ce3ae3 \"Merge the merchant: a player can trade\" landed 2026-09-09 18:53 UTC, before the third report (20:39 UTC) said it still did not work. No later commit found that claims the close-on-click fix; his 2026-09-10 message says hovering a good now shows its popup.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Clicking a merchant or grass opens the tax window",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "Thhere seems to be some weird thihng whehre a certain coounty is \"selected\" and if I clic a merchant whhile thhe map is hhas a different county selected it will open up theh tax window?"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "Theeres a weird bug where if my county is selected thheen I click on the mmerchant it opens thheh tax winndow, ,theres some wweird thhingg wheree if yoou clic kanywhere on grass it opens up theh tax windoww tooo"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C58 (f9958b6 \"Pick a unit by its tile\"), C61; C139 (b4dcff0) re-checked by ablation that a click on open ground selects nothing.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Can't deselect an army",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "i also cant deseelct an army"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C61 (037d61d \"the right button deselects\"); C139 verified by ablation.",
+      "area": "input"
+    },
+    {
+      "summary": "March path should preview on hover, gold and grey balls",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "The walking path was a series of gold balls alng the steps and greyed out balls where it was too far to walk."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "the ooriginal hhas the army steeps on hohoverr ,yoours just spopulatee on click."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C61, 037d61d \"The march preview is a hover\"; C148 files it as a hover arm.",
+      "area": "input"
+    },
+    {
+      "summary": "Army path dots use the game's coloured dot images",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "Thhere arer colored dot images for the army walkjing dots"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C60 quotes it: Map_DrawPathMarker draws Flags1a.pl8 frames 0x38+cost; docs/armies.md section 2.3.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Yellow outline around the selected county",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "still a weird yellow outline around the county that is selected on the real map (not the minimap)"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C132 quotes it (cb4de1e); C139 verified by ablation.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Orange lines around counties",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "I also see oragne lilnes around couonties so I thhin therree aree somee othehr debug thihngs left in"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "No document or commit mentions orange lines. It may be the selected-county outline C132 removed (reported as yellow on 2026-09-10), but that is not established.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Minimap ignores owners; no waving flags on towns",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "The minimap I remember is just \"green\" for grss that is hte shape of each county but the changes to the color of the lord that owns them."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "also each couunty's toown square woould hahve a coloored flag waviing on it, and castles withh armies in them ahve a flag"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "I noticed the minimap had default colors, it didnt'a ctually identify who owned a county, and I didnt see the colorful waving flagg over my county"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C59 quotes it and measured both drawing at main (flags 098895e, minimap tint c67d0e8); C88 (every army carries a banner).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Minimap food, happiness and population modes",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "most of the minimap options arent working those shhouodl be quite easy to implement, its just the same minimap with different colors based on foood,  hhappiness and population (or sickness, not sure)"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "d82e28e \"Merge the garrison join, the minimap modes and Transition::Pass, as C59\".",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Iron mine missing from town; can't toggle industry on map",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "The county's resources almost certainly come from the map. You'll see an iron mine, forest tiles, quarry tile a nd I think armies can make  thhem inactive or soomething"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "you can click on the forest or mine on the main map to turn them off for that county. \"Forestry off\". Forestry On."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "a county thaht clearly has iron ahsh no iron mine in theh toown center and I cant clic thhe iron mine on the world map to enable//disable thhaht"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "i doo see thheh mine on the map"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "just not in my town square"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C57 quotes it (8cd357c); c852198 \"A player confirmed the industry toggle\".",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Fields and seasons need their proper graphics",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "there are seasons to the game whiich you probably know, and the map tiiles reflect that."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "Also i assume fields hahving thehir proper visuals is an easy win"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "also seasons graphhics chhange, also likely an easy win"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C63, 43f8d0a \"Draw the seasons, the crops and the village's animations\" (5632b55).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Wheat fields don't show wheat growing",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "The wheat fields don't show the what growing for some reason"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C124 quotes it; bde2423 \"The grain forecast and the wheat that never grew\" (4ee7315).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Pastures have no cows",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "why doo thee pasturese noot hahve coowos in thheem?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C77 \"The picture on a pasture is the herd count\" (1a0f75b).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Placeholder graphics everywhere",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "I seeee paceholder shhit everywhhere?"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "No single fix. C107-C111 (8f3d0e9) found whole screens drawn only in placeholder, and c06b13b replaced some. Placeholders were still reported on 2026-09-11 (ledger rows field-left-click, map-debug-squares).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Left-clicking a field opens a placeholder",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "There's a bunch of placeholders for clkables it seems like on fields, and the left click function opens up a placeholder instead of what seems to be what is already in place when you right click minus all the vital information."
+        },
+        {
+          "date": "2026-09-11",
+          "text": "Clicking on a field still brings up placeholder"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "field-left-click",
+      "evidence": "Ledger row field-left-click (in-flight). The first report (2026-09-10) predates the row, which cites only the 2026-09-11 build.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Field screen text is empty",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "Right clicking fields brings up the screen tht left clicking should bring (which is also correct 0 right click adn left click on fields does the same thing in the real game), but the text for that field isn't filled in."
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "field-screen-text",
+      "evidence": "Ledger row field-screen-text (in-flight).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Debug squares on the town square and fields",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "we have these debug squares still on the town square on map and the fields."
+        },
+        {
+          "date": "2026-09-11",
+          "text": "The placeholder squares and field thing is old as time, so I think you're missing lots of my input"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "map-debug-squares",
+      "evidence": "Ledger row map-debug-squares (in-flight).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Debug outlines and labels on the bottom-right icons",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "Still seeing debug outlines and text for the 4 icons at the bottom right. There's not bad ideas, but it's not in the OG. Mouseover icon text migth be a later feature"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "sidebar-icon-debug-outlines",
+      "evidence": "Ledger rows sidebar-icon-debug-outlines (in-flight) and icon-hover-labels-idea (deferred). \"Still\": C43 recorded a report of text over those icons in 2026-09.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Industry on the map looks off and isn't animated",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "also the industry tiles on the map always seem to be in teh off position atm"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "not in terms of being off mechanically, just they aren't animated"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "Industyr map things are still not animated when ative"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "be3dfc4 \"Merge the industry sites: the wheels turn, the rows have numbers, and mining says so\"; 9cead95.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "No \"Mining off\" message or voice when toggling",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "but our current iteration doesn't do the obvious \"Mining off\" with VO and the message on teh screen when you click"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "there's no message saying or visually showing mining on / mining off."
+        },
+        {
+          "date": "2026-09-10",
+          "text": "i still haven't heard mining off or seen the little scroll popup message for it"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "ebf8dd5 \"Draw the five industry rows, turn the wheels, and say Mining on\"; be3dfc4 \"... and mining says so\" (merged after the last report).",
+      "area": "sound"
+    },
+    {
+      "summary": "Peasants on a switched-off industry show idle",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "when Ii pput peeaesnats iinto a quuarry theey shoow as idlle, whichih shhould be iimpossiblee"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "Ah, the quarry was turned off."
+        },
+        {
+          "date": "2026-09-10",
+          "text": "no, my bad, in the game if you drag people onto a turned off industry it boots those people and reassigns them"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "So \"mining off\" doesn't have some sort of hard switch (or maybe it does) but it just boots people off it, and if you dragp eople back on it turns it on (or was just a mechanism for booting peasants from teh mine). Shoudl be dsicverable"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "Can confirm that when I clikc \"mining off\" in the game, and then rigth click on the mine, it says it is not operational, but if I add people back in, it says it's operational, so there is an actual off state but it's basically the same as not having anyone on the mining area of town square"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "dragging men onto the mining thing shows them idle instead of reenabling the mining"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C121 \"dropping peasants on a switched-off industry turns it on\" (d823643, 2026-09-10 04:48 UTC). The last quote came at 05:48 UTC, an hour after that merge; which build he was on is not recorded.",
+      "area": "county panels"
+    },
+    {
+      "summary": "Industry values don't update",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "industry values don't seem to update"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "industry-values-stuck",
+      "evidence": "Ledger row industry-values-stuck (in-flight).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Mining starts switched off",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "for some reason mining started as off."
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "mining-starts-off",
+      "evidence": "Ledger row mining-starts-off (in-flight).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Sidebar industry icons are \"Industry not drawn\"",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "Is there a reason the industry icons in the sidebar aren't done? Another easy win"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "The industry icons and values are still Industry ot drawn\" maybe just hidden behind that message?"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "and the \"industry not drawn\" is still in flight?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "be3dfc4 (\"the rows have numbers\"); C153 (95278ea \"a loaded game drew no industry forecast\"). His 2026-09-11 \"industry values don't seem to update\" is tracked separately.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Sidebar doesn't show grain being planted as negative",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "siidebarr dooesnt shhoww grraini beinig palnted as a negatiive numberr"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C123; C151 (9e4f5f3) re-verified all three sidebar forecasts.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Sidebar cattle stays at -11 when feeding changes",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "I right now have -11 cattle, if I move it so the people are eating cattle, it still says -11 cattle in the sidebar."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C128 (Herd_LabourEstimate); C151 quotes it.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Sidebar missing +1 for a field being reclaimed",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "field reclaim time?"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "yes I meant the figure is missing sidebar, it draws the serf reclaiming but not the +1I'm used to"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C129 (Field_ReclaimEstimate); C151 quotes it.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Only +1 cow with idle milkmaids and low crowding",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "But I also had lots of milk maids with low field usage a few turns back and we were only getting 1 cow, and if I added more milk maids they were idle. Are cow births based on season as well?"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "no I mean low crowding and lots of milkmaid and only +1 cow with idle dairy hands if I assigned more"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "I'll see if I canr eplicate"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "He was going to try to reproduce it. No ledger row or correction found on herd growth with idle dairy hands.",
+      "area": "county panels"
+    },
+    {
+      "summary": "Sidebar happiness and population numbers sit too far left",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "Happiness # and popultiong # in the sidebar are slightly left of where they should be, not sure if we've compared that to the draw in the original or what makes it off."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C127 quotes it (4f815cc \"every number reserves a leading column\").",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "\"End turn\" label should vanish until the next turn",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "The end turn button would \"disappear\" when you click it."
+        },
+        {
+          "date": "2026-09-10",
+          "text": "No as in, in the original, the text \"end turn\" would disappear when you click it until the new turn was ready."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "b65b063 \"The End Turn label goes away while the turn runs, and its flag drives two more draws\" (quotes it; no correction number).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Merchant and messages belong on the parchment dialog",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "Also the merchant and many message are on \"parchment paper\" which is the main dialogue."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "96286d2 \"Put four windows back on the game's own ground, and classify the rest\" (quotes it).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Shields at the top show who hasn't ended their turn",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "And I thin in the original game the shield icons at the top meant that players hadn't ended their turn."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C152 quotes it (c584119).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Placeholder font for gold and season, top right",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "Still placeholder font in the top right for gold and summer"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "36abe2b \"The fonts load. The chrome never asked for them.\" (menu bar face, year and season order, Crowns), merged c06b13b; C163 (Font_10 numerals).",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Menu drop-down text sits too high on the scroll",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "The text in the menus at the top when I open the menu is slightly high - its clipping into the \"fold\" of the scroll at the top and there's a bit of empty space from the last bit of text to the bottom \"fold\" of the scroll"
+        }
+      ],
+      "class": "open",
+      "ledger_row": null,
+      "evidence": "No correction, commit or row found. Ledger row draw-placement-audit (awaiting-user, stopped) is the general placement check and does not name it.",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Town name emboss: keep the original's bug, offer grey",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "Theres a bug in the original wherhe thhe towns names embossing against theh cloudy bacgrouond eg when you dont own it ,still hhahs the emboss coollor of thhe parchhment thhat you see on a tonw youo own that blends it in with the parchment, but the OG corrrectly  has theh \"sovereign land of theh baron is properly tinged in grey, so thehres somethhing to just reusee. Aggain, file th town name as a bug from the OG"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "i cant follow what yyoure saying but town namee in og game is parrchment eemboss coolorr soveereign text is greyey or whihte emboss against thhe cloud bg. keep that and add an options meenu to change it to greey lik eeeverery othhher keep thheh oold bug stuff"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/bugs.md B64 (reproduced and switchable); Quirks::grey_county_name added in 43f8d0a; shown on the options panels through PRESENTATION (crates/l2-game/src/screens/options.rs).",
+      "area": "options"
+    },
+    {
+      "summary": "Sovereign-land lines use parchment emboss, not grey",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "buut our version currently hhas the soverreign land withh theh parrchhment color emboss instead of thhe grery//white emboss"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/bugs.md B64: test the_county_name_keeps_the_parchment_emboss_and_the_sovereign_lines_do_not; 43f8d0a.",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Unclaimed land shouldn't say \"sovereign land of\"",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "unclaimed lands have no \"sovereeign alnd of\""
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "43f8d0a; crates/l2-game/src/screens/county.rs:1687 quotes the report, test in crates/l2-game/tests/screens.rs:4206.",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Sovereign-land text colours don't match the lords",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "the soverreignn land text hahs theh wrrong coloorrs, wwhhenn Ii start -- theh countnies seem to ahhve thhe riighht colorsr wwiithh bisshhoopp beinng magenta, the knighhth being yelloww, countess being blue, barrono iis black (at least because I piced rred)_  but thhe tetxt dosennnt match thaht"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "da904df \"Colour the sovereign-land text from the realm's shield, not its id\"; C112 (8800ec0).",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Each lord's default colour, moved if the player takes it",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "the knight iis the yellow shield, the bishops purple..."
+        },
+        {
+          "date": "2026-09-10",
+          "text": "just so we're clear, the game will always try to give the knight yellow, the coutness blue, the bishop purple/pink, I can't remember for Baron, and it'll move a noble's color around if you pick it"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C112, 8800ec0 \"Merge the realm colours — the colour picks the lord, not the other way round\".",
+      "area": "setup"
+    },
+    {
+      "summary": "Picked colour not honoured in the game",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "I picked a color and it didn't get honored once the game oepned."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C130 quotes it (fb1bbdb \"Merge the shield picker\").",
+      "area": "setup"
+    },
+    {
+      "summary": "Title screen illegible and cut off at the bottom",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "tiitle scrreen iis iilleggible.. all caps of thhat fonnt iis riidiiculouos and its hahlf oobscurerd by thhe botto mof thhe screen"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "3acb6c0 quotes it (the build stamp was clipped off the bottom) and 602321d moved the stamp to the plain face; C155 fixes an upper-cased blackletter line it names as this illegibility.",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Lowercase letters raised in the wrong places",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "the font iissues I told thhe othher agennt aree stilil thhere"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "whhere l  d t f lower case are all raiised"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "i have a new story to tell, as I opened thhe origiinal and took a picture. Those letters were correct, the RESTE of theh lowercase weren't properly raised"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "h and ? are in the correect\" raised position\" as well btw.  just saw thehm in the siege is on, wihch is wwhyy I wanted to seee a quick brown fox in caps and not caps"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "the font looks fine. I wanted it renderred in wahtever menu thhing or however we rendered it whehre I saw them in teh wrong positions"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "107e925 \"Merge the glyph-drop fix: the overhang rows were always real, the decoder was not\" (2026-09-09 00:26 UTC); he wrote \"looks great, nice work\" at 00:29 UTC.",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Can't type my name on the start menu",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "ii  cant typee my nanme  iinn thehe start meenu?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C74, 55a6066 \"Let a player type their name\" (109dfe4).",
+      "area": "setup"
+    },
+    {
+      "summary": "A click-through of every screen, even non-functional",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "where we at with crafting the pieces of each screen? opening screen, choosing campaign, overworld, sub menu screens and dialogs, etc, even if they aren't  functional?"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "go aheead and take a 4th agent slot on building a functional \"click through each screen\" part of hthe demo"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "3140053 \"Merge the front end, the setup pages, and eighteen screen shells\"; 52c7fd4.",
+      "area": "setup"
+    },
+    {
+      "summary": "Original campaign no longer starts on the first map",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "also oorigiinal campaign no olongerr puts me in thhe fiirrst starrtiing map for soome reaesonn"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C117 quotes it (2220e4d).",
+      "area": "setup"
+    },
+    {
+      "summary": "No sound at all",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "allso...auudio....."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "thhat can't be thhat hahrd to pop in. it m ustu hhave tiirggerse aloong withh strings and bg music"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "noot hhhearring any souonnd"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C116 quotes it (2987a03 \"no music has ever played, in any build\"); C126 (dcde777, 543 of 771 sound files).",
+      "area": "sound"
+    },
+    {
+      "summary": "Map music: the scroll tracks, changing with progress",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "the scroll wavs are the bg music for the map/county management screen."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "I beliieve msuic changed based on hhoow far you were in the game, possibly army sizes or number of counties owned? but the simple scroll1 almost alwayys played in thhe first map right awayy"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "but I don't hear music"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "b863d3a \"Merge audio: music plays, and it turns out to be a progress bar\"; C116 then found that music had never actually played; docs/audio-triggers.md says the front end is fixed too.",
+      "area": "sound"
+    },
+    {
+      "summary": "No click sounds",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "or the click sounds"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C156, 9cbd3af \"Merge the click sounds\".",
+      "area": "sound"
+    },
+    {
+      "summary": "No industry sounds when right-clicking them on the map",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "or industry sounds when you right click them on the map"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/audio-triggers.md \"A player's three reports\": TileInfo_Draw plays iron.wav / stonecut.wav / woodcut.wav, marked fired.",
+      "area": "sound"
+    },
+    {
+      "summary": "No clip-clop of merchants on end turn",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "I don't hear the clipclop of the mercants on end turn that I'm used to"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/audio-triggers.md: Unit_MoveInFacing, Director::hear_the_march, marked fired (docs/audio.json).",
+      "area": "sound"
+    },
+    {
+      "summary": "Missing \"All your people are fed by dairy\"",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "also sorely missing \"All your people are fed by dairy\""
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C144: a voice line (S021_01.wav) played when the ration panel opens, now fired; docs/oracle-requests.md section 11 asks someone to confirm the words.",
+      "area": "sound"
+    },
+    {
+      "summary": "Industry peasant slider isn't draggable",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "The  peasant slider of induustry yisnt draggable, sould be"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C52 quotes it; 0294fe0 \"Five interface defects a player reported\" (ba5fa8c).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Double-click idle peasants to take them off a task",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "ii cant double click iddle peasants ini a task to remove tehm from teh task"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C52; 0294fe0.",
+      "area": "county panels"
+    },
+    {
+      "summary": "Blue outline when a job has surplus/idle peasants",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "there's a blue ooutline if you more peasants than you can use in a town square, I thiink that's never true for cows though."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "thehres' no \"bllue ooutline\" for ididle peasants (eg too many oon dairy)."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "theh peasant slider I tiink ahd a blue outline fi there were idle peasants as well."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C52 \"The blue outline is real, it is a frame\" (0294fe0).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Text over happiness should be black, not white",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "The text shoouuld be black noot white over teh ahppiness"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C52; 0294fe0.",
+      "area": "fonts and text"
+    },
+    {
+      "summary": "Rations slider does nothing; no feeding information",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "rations slider moves but is inoperable, no informationa bout feeding peasants is available."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C118-C121 (d823643 \"Merge the rations slider\"); C133 draws the panel's words from L2.eng group 87 (f42d7a6).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Tax panel: \"people pay 0 crowns\"; happiness change stuck",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "\"people pay 0 crowns\" on the tax thing always says 0 crowns. and the happines bonus / minus on tax screen is also stuck and not adjusting."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C125 (5765b8c \"Merge the tax panel\"); C142 (689838f \"the tax panel's three unimported fields\").",
+      "area": "county panels"
+    },
+    {
+      "summary": "Sidebar slider works while the town square is open",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "Teh slider on the right is diabled when the town square window is open, i remember thhat being clickable I think,, i'll check"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "The slider does indeed still wor with town square open and causes no issues"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C59 \"The sidebar being dead under the village was [broken]\" (2285006).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Closing a dialog also closes the town square (log it)",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "opened the game, can confirm everything is stilll cllickable with the town square open, things that open a dialog will open it and when yoou close thhat dialogue it will close town square and thaht dialogue,, probably something to fix so it only closes thhe dialog yoou opened, but list that in future bug fixes thhat diverge froom teh game."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "Recorded as he asked: docs/bugs.md B63 \"Closing a screen opened over the village closes the village with it\" (original behaviour, not changed).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Town square mouse pointer (question mark) missing",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "Thheres also an alternatve moouse icon in the toown square its like a question mark of some sort"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "only when y ooure not selecting"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "missing the mouse icon change in town square"
+        }
+      ],
+      "class": "open",
+      "ledger_row": null,
+      "evidence": "docs/mechanics.md lists it as not built (\"we draw the OS arrow everywhere\"; g_cursorByScreen, Cursor_Set 0x004B1CF3). No cursor code outside the battlefield; no ledger row. Reported again 2026-09-11.",
+      "area": "input"
+    },
+    {
+      "summary": "Town square ring of peasant jobs",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "I think the town square where you assingn peasants is a  dialogue popup type thing and each peasant getse \"assigned\"  to an activiity, where the middle is idle, and around in a circle it's like... pastures, wheat fields, blacksmith, quarry / iron / forest ...  I think  it's 9 but  I can't remember now."
+        },
+        {
+          "date": "2026-09-08",
+          "text": "The ring shows the same  number of slots its just it'll be  like an empty field I think?"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "8f382eb \"Build the village, which is the order a player gives every turn\" (ef32eab).",
+      "area": "county panels"
+    },
+    {
+      "summary": "Farming rules: fallow, cattle, wheat seed cost, dairy",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "for fields, they can be fallow, they can be cows, oor they can be wheat. A wheat fiield in planting seasoon costs wheat so ti wouuld subtract from that store, cows requuires more peasants to tend them dependiing on how many cows there are, some cows die froom being eaten, some peopole get fed by dairy, some cows die by being unattended."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/rules.md (e9b603d); e83ee4f field brush (C27); C77 and C128 herd rules. Not checked clause by clause.",
+      "area": "county panels"
+    },
+    {
+      "summary": "Herd crowding in four bands",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "cows also affected by how crowded hte fields are, which I think is like ....empty, a few, some, and crowded"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "1025123 \"Herd crowding: four bands, named by the game, found by a player\".",
+      "area": "county panels"
+    },
+    {
+      "summary": "One peasant icon stands for more people as towns grow",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "And one \"person\" represents different numbers of people depending on how poopulated yoour town is."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/rules.md:393 \"One icon on screen stands for ceil(population / 25) people\"; docs/kingdom.md popBand. Documented; drawing not checked.",
+      "area": "county panels"
+    },
+    {
+      "summary": "Population follows happiness and health; sickness",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "And populatioin grows based on happiness and health, you can have sick people and yoou lose pop each season."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/rules.md pass 7 Health and the health bands (e9b603d); crates/l2-kingdom (5ea5c01).",
+      "area": "county panels"
+    },
+    {
+      "summary": "County events: plague, grain found, mad cow",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "Events can be like the black plaguue where it just sets youur county health to sick, or graiin found in a silo, mad cow disease kills many cows"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "crates/l2-kingdom/src/event.rs (5ea5c01); docs/mechanics.md \"Random events: a 256-slot deck, 24 distinct\". Details still open in ledger rows event-swing-rule, event-flags-not-cleared, message-event-numbers.",
+      "area": "county panels"
+    },
+    {
+      "summary": "Ale and sheep may not be in the shipped game",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "I am unfamiliar with ale, I don't think that was used in the final game, unless it was the expansion"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "i also don't remember sheep."
+        },
+        {
+          "date": "2026-09-08",
+          "text": "I mean may as well just keep all the stuff in that's in the original code, once  we get to parity it'll be obvious that you can't buy them"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "ee660ff \"Record the sheep/wool cut-subsystem evidence\": ale ships, sheep and wool are cut (filed as inference); C53 on ale.",
+      "area": "county panels"
+    },
+    {
+      "summary": "Hire-an-army screen is a placeholder popup",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "The hire an army is prettyy bootched at thhe moment instad of theh blackksmith wiithh a listing of their toools its just a weirrd poopup with a lot of placehholderr stuff .Some  easy wins t here for sure"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C66 quotes it (4f8c6f0 \"Merge the armoury\").",
+      "area": "armies"
+    },
+    {
+      "summary": "Recruitment slider can't be dragged",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "Slider bar in army recruitment cant be dragged"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "recruit-slider-drag",
+      "evidence": "Ledger row recruit-slider-drag (in-flight).",
+      "area": "armies"
+    },
+    {
+      "summary": "Colours inverted behind the tutorial dialog",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "There's a weird graphical glitch like reverse colors when you first open the army creation."
+        },
+        {
+          "date": "2026-09-11",
+          "text": "had the reverse graphic color thing happen on the castle building. Seems to be with the tutorial dialog when it comes up, the screen behind it is color reversed. Immediately fixes after dismissing the tutorial screen and doesn't return"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "army-screen-inverted-colours",
+      "evidence": "Ledger row army-screen-inverted-colours (in-flight) names only the army creation screen; the second message puts it behind the tutorial dialog, and on castle building too.",
+      "area": "armies"
+    },
+    {
+      "summary": "Weapon walker: first pick, trigger and speed",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "The aniimattiionns whheenn yoou pick a weapon to assign during an army doesn't happen, usually a dude comes and grabs a weapon."
+        },
+        {
+          "date": "2026-09-11",
+          "text": "animation didn't play of the dude coming and getting his weapon in the army recuirtment screen"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "wait...he did."
+        },
+        {
+          "date": "2026-09-11",
+          "text": "after I picked something else?"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "also his animation speed was faster than the regular game. not bad, but not the OG"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "Seems like the people pick up their weapons after you click on another weapon type rather than after you add more weapons, can't quite remember how that's supposed to happen in the OG"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "walker-first-pick",
+      "evidence": "Ledger row walker-first-pick (in-flight). 8dc4e5d \"Merge the armoury walker and the rack\" came after the 2026-09-10 report.",
+      "area": "armies"
+    },
+    {
+      "summary": "No mercenary icons on the town square",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "I haven't seen any mercenary icons on the town square yet."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C150 quotes it (5338fe7, marker one tile wrong); C164 (835b734, no game had a mercenary band).",
+      "area": "armies"
+    },
+    {
+      "summary": "Mercenary bands and their sizes",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "or you can get bands of mercenaries. Angevin knights you get like 50 knights, saxon macemen are lik 150 or 200 or 250 macemen, that kinid of thing."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C164 (835b734); docs/armies.md band table ([V]: Angevin 100 knights, Spanish 50, Saxon 150 macemen).",
+      "area": "armies"
+    },
+    {
+      "summary": "Army marching jumps from tile to tile",
+      "quotes": [
+        {
+          "date": "2026-09-11",
+          "text": "The army marching animation is jumping from square to square, I remember there being an animation and some interpolation between walking squares"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "army-march-interpolation",
+      "evidence": "Ledger row army-march-interpolation (in-flight).",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Raising an army costs happiness",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "Forming an army causes unhappiness"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "Levy happiness cost in crates/l2-game/src/game.rs (g_levyHappinessCost), docs/armies.md; 7e70493 \"Merge the military verbs: a player can raise an army\".",
+      "area": "armies"
+    },
+    {
+      "summary": "Unarmed recruits get pitchforks; recruit plain numbers",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "you assign weapoons on the blacksmith screen whne yoou form an army, and if you  doon't assign  a weapon yu get peasants with  piitchforks for unassigned army people."
+        },
+        {
+          "date": "2026-09-08",
+          "text": "recruitment - it is just men, straight numbers, you  just recruit a certain # of men,a nd then give them weapons from your weapon stores."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/armies.md:1346 and crates/l2-game/tests/military.rs \"the pitchfork default\"; C66 armoury.",
+      "area": "armies"
+    },
+    {
+      "summary": "Armies trample fields they walk over",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "Armies when  walking around when they walk over a field  wiill destroy the field, I think yo ucan desetory your own."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/mechanics.md \"the stepper with its trampling\"; C67. Ledger row lost-rule-inputs (open) still lists trample not resetting the industry ramp.",
+      "area": "armies"
+    },
+    {
+      "summary": "Border-crossing letter: \"an outrage... bully boy tactics\"",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "When you walk into an unownkned coounty youo get a message from the county \"your violatiion of our borders is an outrage, you will pay for these bully boy tactiics\"."
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "docs/armies.md verifies the letters (L2.eng groups 130-134 by army size). crates/l2-kingdom/src/units_tick.rs detects the incursion (test an_army_crossing_into_a_county_its_owner_does_not_hold_is_an_incursion), but no code posting those letters was found. No ledger row.",
+      "area": "armies"
+    },
+    {
+      "summary": "Combine armies by clicking one onto the other",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "Armies can be combined by clicking one onto the other."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C85 (\"An army was allowed to reinforce itself\"); Army_Combine in crates/l2-kingdom/src/conquest.rs.",
+      "area": "armies"
+    },
+    {
+      "summary": "Movement set by terrain and roads, not army size",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "Armies seem oto have the same # of movement points, but travel faster or slower based on terrain type, eg raod or not road.   Size of army does not change that"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C12 (terrain cost); docs/armies.md Army_Tick moveAllowance = 15; 3860f03 sub-tile counter.",
+      "area": "armies"
+    },
+    {
+      "summary": "Armies drawn as 1, 2 or 3 figures by size",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "it just shows 3 differenet visuuals - 1 guy, 2 guuys, or 3 guys depending oon armyr size."
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "The size classes are built (301/601 men), but crates/l2-game/src/screens/map.rs:3234 says \"The square is ours: Sprite1a.pl8 holds the actual figures and we do not place them\". Possibly covered by ledger rows map-debug-squares or army-march-interpolation; neither says so.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Maximum army size is 1500",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "i think max army size is 1500."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "crates/l2-kingdom/src/tables.rs ARMY_MAX_MEN = 1500; docs/armies.md [V] (Army_Combine literal 0x5DD).",
+      "area": "armies"
+    },
+    {
+      "summary": "Noble relationships, messages and alliances",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "I'm not seeing noble relatioonships and messages anywhere. You can message nobles and forma lliances, send them gold and they respondd with various messages (which have voice actiing sound files)."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C84, 290ffc2 \"Merge diplomacy\"; 2bbc147 narrator voice (C126).",
+      "area": "other"
+    },
+    {
+      "summary": "AI lord personalities",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "The bishopo always try to buuild really big castles, II think the baron makes peasant armies, that kind of thing?"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "IIRC the bishop always tries to build royal castles. He miight cheats"
+        },
+        {
+          "date": "2026-09-08",
+          "text": "The knigth likes fighting and boasting, the baron is arrogant, the countess is conniving and scheming woman"
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "docs/rules.md tabulates each lord's castle choice, conscription and alliance frequency; AI merges 2e7eacb and 46e3a35. Not checked whether each column is built.",
+      "area": "other"
+    },
+    {
+      "summary": "Standings screen: swords and flags, with voice-over",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "There's also a screen  where you see the stats  of the  differnt nobles where  it's swords and flags that are a certain height. And voice over when youo click oone ach: \"most crowns\" \"happiest people\" \"greatest noble\""
+        }
+      ],
+      "class": "open",
+      "ledger_row": null,
+      "evidence": "crates/l2-game/src/screens/court.rs:396 draws \"0x20 THE STANDINGS IS NOT BUILT\"; docs/draws.md lists screen 0x20 at 11 original draws, 0 ours. No ledger row.",
+      "area": "other"
+    },
+    {
+      "summary": "Cut-off counties secede",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "II believee cutoff countries secede if hteey are removed from you yes."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C34, b97bc6f \"Merge the labour allocator and secession\".",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Armies forage from the county's food; the Foraging option",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "armiies can forage for foood if they're in a county, I believe it takes from the counties food budget as a straiight minus."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "i recall foraging, exploration and advanced farmiing to be options I saw and tried."
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "docs/bugs.md:1412 (g_optArmiesEat decides whether armies eat county stores) and docs/mechanics.md \"The game's own three rule switches\" document it. Not checked whether ours reads the switch.",
+      "area": "options"
+    },
+    {
+      "summary": "Advanced Farming option (fallow fields)",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "Fallow fields on advanced farming"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "docs/mechanics.md marks Advanced Farming built; C69 options (ed93802).",
+      "area": "options"
+    },
+    {
+      "summary": "Fog of war (Exploration option)",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "a fog of war of some soorrt"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "exploration-fog-of-war",
+      "evidence": "Ledger row exploration-fog-of-war (queued-merge); follow-ups fog-arrival-timing, fog-function-names.",
+      "area": "campaign map"
+    },
+    {
+      "summary": "Battles auto-resolve with no message",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "battles are auto-calcing and showing no message, is that expected?"
+        },
+        {
+          "date": "2026-09-10",
+          "text": "it was me attacking a town and it just immediately resolve"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C115, 9675173 \"Merge the watched battle — a door with no prompt in it\"; 8630330 \"Ask before a battle the player marched into\".",
+      "area": "battle"
+    },
+    {
+      "summary": "Battle men grouped into units of figures",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "and yeah it think units get  grouped as a certain number of units, like if you have 500 macement you'll have like...50 macement  with 10 in each \"unit\" kind of thing"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "crates/l2-sim/src/runner.rs (\"Men one figure stands for\", g_menPerFigure by size class); battle simulation f27b1b9.",
+      "area": "battle"
+    },
+    {
+      "summary": "Macemen: high damage, not a special heavy blow",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "IDK what heavy blow is! interesting."
+        },
+        {
+          "date": "2026-09-08",
+          "text": "I don't remember macement deliveriing a parcituarlly heavy blow as you've  described, just that macement have high ddamage output."
+        }
+      ],
+      "class": "unclear",
+      "ledger_row": null,
+      "evidence": "docs/battle.md:567-611 still describes a once-per-figure heavy blow with macemen highest (300). That is read from the binary against his memory, and no correction revisits it.",
+      "area": "battle"
+    },
+    {
+      "summary": "Siege engines take seasons to build; rams take double",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "You oconstruct siege engines when yoou start a siege, and it takes X days to buuild it all, your  armyr is locked  (I  dono't knoow if you can cacncel)? next to  the castle as  it builds."
+        },
+        {
+          "date": "2026-09-09",
+          "text": "castle was a wooden palisade, I think I made a catapult? took 5 seasons for the smaller army, I know siege equipment is faster foor bigger armies. Also the siege tower was 10 seasonns the other siege things were 5"
+        },
+        {
+          "date": "2026-09-09",
+          "text": "rams are double, siege tower and catappults are alf of rams. I iwas wrong"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "crates/l2-kingdom/src/siege.rs ENGINE_WORK = [200, 200, 400] man-seasons (g_siegeEngineWork, verified); C64 (66d88a5 \"Merge castles and sieges\"). Whether the army is locked or can cancel was not checked.",
+      "area": "sieges"
+    },
+    {
+      "summary": "Boiling oil sets the ground on fire",
+      "quotes": [
+        {
+          "date": "2026-09-08",
+          "text": "Boiling oil is a defense of cuorse and yoou click oon it and it fals and just puts fire on the grouond there, kills uunits very quickly."
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "siege-defences-oil-towers",
+      "evidence": "Ledger row siege-defences-oil-towers (in-flight); battle-burning (in-flight).",
+      "area": "sieges"
+    },
+    {
+      "summary": "Castle designer (expansion)",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "castlle  designer was  expansiion, buut I think we have the expansionn in all of thihs."
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "castle-designer",
+      "evidence": "Ledger row castle-designer (deferred).",
+      "area": "sieges"
+    },
+    {
+      "summary": "Yes/no buttons act on press; no click sound on save",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "clicking yes / no (gauntlet thumbs up and down) is instant whereas the game waited on mouseup and the gauntlet would go down slightly whe clicked"
+        },
+        {
+          "date": "2026-09-11",
+          "text": "no sound on clickin the yes/no on save, and it is still on mousedown instead of mouseup"
+        }
+      ],
+      "class": "tracked",
+      "ledger_row": "save-yesno-sound-and-release",
+      "evidence": "Ledger row save-yesno-sound-and-release (in-flight). C131 and C148 (99d6ae9) claimed the gesture fixed before the 2026-09-11 report.",
+      "area": "input"
+    },
+    {
+      "summary": "Holding an arrow button should speed up",
+      "quotes": [
+        {
+          "date": "2026-09-10",
+          "text": "Hodling on a button doesn't seem to make it go up faster, I recall you could click an up arrow and after a few seconds the number would go up fast."
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C131 and C148 quote it (Widget_Test kind 4; 99d6ae9 \"Merge the five gesture kinds\").",
+      "area": "input"
+    },
+    {
+      "summary": "Right-click closes popups",
+      "quotes": [
+        {
+          "date": "2026-09-09",
+          "text": "FYI rigth cllick wouuld cloose a bunch of popups in the game"
+        }
+      ],
+      "class": "claimed-fixed",
+      "ledger_row": null,
+      "evidence": "C96 (the raise-army screen's right release reproduced); docs/bugs.md B63 shows the right-release close arms; C76.",
+      "area": "input"
+    }
+  ]
+}
