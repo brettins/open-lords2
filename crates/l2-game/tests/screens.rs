@@ -4983,13 +4983,16 @@ fn the_sovereign_lines_take_the_realms_shield_colour_and_follow_it() {
 ///    `if ((value != 0) || (mode != 0))`.
 ///
 /// The search is [`find_font_text`], so it is the **glyphs of the user's own
-/// `Fntl2_9.pl8`** being matched at a colour, not a description of them — and
-/// claim 3 is the one that cannot pass by accident, because it requires the
-/// *absence* of a pattern the same run has just proved the renderer can draw.
+/// `Font_10.pl8`** — `FUN_004100AF`'s `&g_font10` — being matched at a colour,
+/// not a description of them. It used to be `Fntl2_9.pl8`, because that face was
+/// what we drew in. Claim 3 is the one that cannot pass by accident, because it
+/// requires the *absence* of a pattern the same run has just proved the
+/// renderer can draw.
 ///
 /// Ablations, all three run: making the lead always `'+'` fails claim 1;
 /// dropping the `value == 0` early return fails claim 3 (a `+0` appears);
-/// swapping `DELTA_POS` and `DELTA_NEG` fails 1 and 2 together.
+/// swapping `DELTA_POS` and `DELTA_NEG` fails 1 and 2 together. And drawing
+/// the delta in `ShellAssets::small` again fails claim 1 on the face.
 #[test]
 fn the_cattle_row_draws_its_forecast_with_a_sign() {
     let (mut game, assets) = world!();
@@ -5008,7 +5011,7 @@ fn the_cattle_row_draws_its_forecast_with_a_sign() {
     let mut screen = MapScreen::new();
     let shown = |game: &mut Game, s: &str, colour: u8| -> Option<(i32, i32)> {
         let canvas = draw(&mut MapScreen::new(), game, &assets);
-        let f = assets.shell.small.as_ref().expect("Fntl2_9.pl8");
+        let f = assets.shell.ten.as_ref().expect("Font_10.pl8");
         find_font_text(&canvas, f, s, colour)
     };
     let _ = &mut screen;
@@ -5016,11 +5019,11 @@ fn the_cattle_row_draws_its_forecast_with_a_sign() {
     // 1 — the herd is shrinking. This is the player's complaint, on the row
     // whose data path is complete.
     game.kingdom.counties[county].herd_change_expected = -7;
-    let neg = shown(&mut game, "-7 ", NEG).expect("a shrinking herd shows -7");
-    assert!(
-        neg.0 >= 478 && neg.1 >= 302,
-        "the delta belongs on the produce plate at (478, 302), not at {neg:?}",
-    );
+    let neg = shown(&mut game, "-7 ", NEG).expect("a shrinking herd shows -7, in Font_10.pl8");
+    // Pinned from the call site, not from `strip_delta`: `Ui_DrawDelta(…, 0x204,
+    // pitch*0 + 0x139, &g_font10, …)`, the lead at x + g_penAdvance, which is
+    // the prefix `" "`'s blank four and `Ui_DrawText`'s trailing four.
+    assert_eq!(neg, (0x204 + 8, 0x139), "the cattle row is row 0 of the farm column");
     // And it is not drawn in the positive colour, which is the half that would
     // survive a swapped pair.
     assert!(shown(&mut game, "-7 ", POS).is_none(), "a negative delta is 0xF9, not 0xFA");
@@ -5043,6 +5046,7 @@ fn the_cattle_row_draws_its_forecast_with_a_sign() {
     }
 }
 
+<<<<<<< HEAD
 /// **The four industry rows draw on a loaded game's first frame, and each draws
 /// its own commodity's number.**
 ///
@@ -5084,7 +5088,8 @@ fn a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame() {
     let pitch = |rows: usize| if rows < 3 { 0x3C } else if rows < 4 { 0x2D } else { 0x1E };
     let found = |game: &mut Game, s: &str| -> Option<(i32, i32)> {
         let canvas = draw(&mut MapScreen::new(), game, &assets);
-        let f = assets.shell.small.as_ref().expect("Fntl2_9.pl8");
+        // `&g_font10`, the seventh argument at all four call sites.
+        let f = assets.shell.ten.as_ref().expect("Font_10.pl8");
         find_font_text(&canvas, f, s, POS)
     };
     let in_row = |at: (i32, i32), row: i32, pitch: i32| {
@@ -5129,6 +5134,152 @@ fn a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame() {
             "+{value} belongs on row {row} of four and is drawn at {at:?}"
         );
     }
+}
+
+/// Whether the string found at `at` carries `Ui_DrawText`'s **drop shadow**:
+/// every pixel one right and one down of a glyph pixel that is not itself a
+/// glyph pixel is `0x3F`. Typed here rather than read from
+/// `font::DROP_SHADOW_COLOUR`, so ablating the constant cannot move the probe.
+fn is_dropped(canvas: &Canvas, f: &font::Font, s: &str, at: (i32, i32)) -> bool {
+    const SHADOW: u8 = 0x3F;
+    let (w, h) = (f.width(s).max(1), f.height(s).max(1));
+    let mut probe = Canvas::new(w as usize + 1, h as usize + 1);
+    f.draw(&mut probe, 0, 0, s, &font::Style { colour: 1, shadow: None, caps: None });
+    let ink = |x: i32, y: i32| {
+        x < probe.width as i32 && y < probe.height as i32 && probe.at(x as usize, y as usize) == 1
+    };
+    let mut checked = 0;
+    for y in 0..h {
+        for x in 0..w {
+            if ink(x, y) && !ink(x + 1, y + 1) {
+                checked += 1;
+                if canvas.at((at.0 + x + 1) as usize, (at.1 + y + 1) as usize) != SHADOW {
+                    return false;
+                }
+            }
+        }
+    }
+    checked > 0
+}
+
+/// Pixels of `colour` inside a box — the "renders something" half of a string
+/// that [`find_font_text`] could otherwise only find or not find.
+fn ink_in(canvas: &Canvas, x: i32, y: i32, w: i32, h: i32, colour: u8) -> usize {
+    (y..y + h)
+        .flat_map(|py| (x..x + w).map(move |px| (px, py)))
+        .filter(|&(px, py)| canvas.at(px as usize, py as usize) == colour)
+        .count()
+}
+
+/// **The industry column's forecast is a `Font_10.pl8` number with the drop
+/// shadow, at its own call site.**
+///
+/// `FUN_0041062E` (wood): `Ui_DrawDelta(next, 0, " ", " ", 0x22C, pitch*row +
+/// 0x139, &g_font10, 0xFA, 0xF9)` inside `g_dropShadow = 1`. The coordinate is
+/// typed from that line, and wood is made the column's only row, so `row` is 0.
+/// [`a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame`]
+/// already places the four rows in their bands; this pins the one pixel and
+/// asks the two things that test does not — the face and the shadow.
+///
+/// Ablations: `draw_dropped` → `draw` in `ten_text` fails the shadow claim;
+/// `ctx.assets.shell.ten` → `small` in `ten_text` fails the `Font_10.pl8`
+/// search.
+#[test]
+fn the_industry_forecast_is_a_dropped_font_10_number() {
+    let (mut game, assets) = world!();
+    const POS: u8 = 0xFA;
+    let ten = assets.shell.ten.as_ref().expect("Font_10.pl8");
+    let small = assets.shell.small.as_ref().expect("Fntl2_9.pl8");
+
+    let county = 8;
+    game.select(county as u8);
+    {
+        let c = &mut game.kingdom.counties[county];
+        for i in &mut c.industry {
+            i.enabled = false;
+        }
+        c.castle_degraded = 0;
+        c.industry[l2_kingdom::tables::Commodity::Wood.index()].enabled = true;
+        c.industry[l2_kingdom::tables::Commodity::Wood.index()].next_season = 5;
+    }
+    let canvas = draw(&mut MapScreen::new(), &mut game, &assets);
+
+    let wood = find_font_text(&canvas, ten, "+5 ", POS).expect("the wood forecast, in Font_10.pl8");
+    assert_eq!(wood, (0x22C + 8, 0x139), "FUN_0041062E's delta, row 0");
+    assert!(is_dropped(&canvas, ten, "+5 ", wood), "g_dropShadow is set around the wood row");
+    assert!(find_font_text(&canvas, small, "+5 ", POS).is_none(), "and not in Fntl2_9.pl8");
+}
+
+/// **The castle cell draws its number in `Font_10.pl8` and its word in
+/// `Fntl2_9.pl8` — and the word renders something.**
+///
+/// `CountyStrip_DrawCastleIcon` (`0x004107D1`), with the materials paid:
+///
+/// ```c
+/// Ui_DrawNumber  (value, ' ', " ", 0x23C, pitch*row + nudge + 0x13A, &g_font10,   0xFA);
+/// Ui_DrawUnitNoun(value, 0x42,     0x234, pitch*row + nudge + 0x146, &g_fontSmall, 0xFA);
+/// ```
+///
+/// The number and the word are in **different faces**, and that is the point of
+/// this test. `Font_10.pl8` has a 2 × 2 stub for every letter, so the obvious
+/// mistake — one helper for the whole cell — draws *"Seasons"* as next to
+/// nothing, and a comparison of two whole canvases is exactly the check that
+/// lets an absence through. So the word is asserted **found in its own box, in
+/// its own face, with ink**, as well as the number.
+///
+/// The castle is the column's only row, so `row` is 0 and `nudge` is 6 (the
+/// function's `DAT_0056D68C < 2`). Coordinates are typed from the lines above.
+///
+/// Ablations: dropping the number's `' '` lead finds the digits at `0x23C`;
+/// drawing the noun through `ShellAssets::ten` loses it and its ink (with the
+/// `ten_text` assertion bypassed); `draw_dropped` → `draw` fails both shadow
+/// claims.
+#[test]
+fn the_castle_cell_puts_its_number_in_font_10_and_its_word_in_fntl2_9() {
+    let (mut game, assets) = world!();
+    const POS: u8 = 0xFA;
+    let ten = assets.shell.ten.as_ref().expect("Font_10.pl8");
+    let small = assets.shell.small.as_ref().expect("Fntl2_9.pl8");
+
+    let county = 8;
+    game.select(county as u8);
+    {
+        let c = &mut game.kingdom.counties[county];
+        for i in &mut c.industry {
+            i.enabled = false;
+        }
+        c.castle_degraded = 1;
+        c.castle_switch = true;
+        c.castle_stone_owed = 0;
+        c.castle_wood_owed = 0;
+        // No builders, so `castle_seasons_left` says a hundred.
+        c.labour[l2_kingdom::tables::JOB_CASTLE_BUILDING] = 0;
+    }
+    let seasons = l2_kingdom::industry::castle_seasons_left(
+        &game.kingdom.tables,
+        &game.kingdom.counties[county],
+    );
+    assert_eq!(seasons, 100, "setup: an unstaffed castle is a hundred seasons off");
+    let canvas = draw(&mut MapScreen::new(), &mut game, &assets);
+
+    // The number.
+    let number = find_font_text(&canvas, ten, "100 ", POS).expect("the seasons, in Font_10.pl8");
+    assert_eq!(number, (0x23C + 4, 0x13A + 6), "lead ' ' at 0x23C, digits after; nudge 6");
+    assert!(is_dropped(&canvas, ten, "100 ", number), "g_dropShadow is set around the castle cell");
+
+    // The word: group 8 index 0x43, plural because the value is not 1.
+    let noun = assets.shell.text(8, 0x43).to_string();
+    assert!(
+        noun.chars().any(|c| c.is_ascii_lowercase()),
+        "setup: L2.eng 8/0x43 should be a lowercase-bearing word, got {noun:?}"
+    );
+    let at = find_font_text(&canvas, small, &noun, POS)
+        .unwrap_or_else(|| panic!("{noun:?} is not on the castle cell in Fntl2_9.pl8"));
+    assert_eq!(at, (0x234, 0x146 + 6), "Ui_DrawUnitNoun's x and y");
+    let (w, h) = (small.width(&noun), small.height(&noun));
+    let drawn = ink_in(&canvas, at.0, at.1, w, h, POS);
+    assert!(drawn >= 20, "{noun:?} must render something in its box: {drawn} pixels of 0xFA");
+    assert!(is_dropped(&canvas, small, &noun, at), "and the word is dropped too");
 }
 
 /// **The End Turn label goes away while the turn runs, and comes back.**
@@ -5398,8 +5549,9 @@ fn the_foraging_label_starts_one_trailing_gap_after_its_number() {
 #[test]
 fn the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel() {
     let (mut game, assets) = world!();
-    let Some(f) = assets.shell.small.as_ref() else {
-        l2_testkit::skip!("no Fntl2_9.pl8, so the strip has no pen");
+    // `&g_font10` — the face every number on the jobs plate is drawn in.
+    let Some(f) = assets.shell.ten.as_ref() else {
+        l2_testkit::skip!("no Font_10.pl8, so the jobs plate has no numbers");
     };
     // `colourNeg` and `colourPos`, typed from `FUN_0041023A`'s call site rather
     // than imported from the constants under test.
@@ -5491,14 +5643,15 @@ fn the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel() {
 /// asserted rather than assumed: a wrong pitch would move both figures
 /// together and claim 1 would still hold.
 ///
-/// Ablation, run: deleting the `strip_number` call fails claim 1's second half
+/// Ablation, run: deleting the `ten_number` call (then `strip_number`) fails claim 1's second half
 /// while the delta stays exactly where it is, which is the pair the two-routine
 /// claim needs.
 #[test]
 fn the_reclamation_row_draws_both_of_its_figures_where_the_call_sites_put_them() {
     let (mut game, assets) = world!();
-    let Some(f) = assets.shell.small.as_ref() else {
-        l2_testkit::skip!("no Fntl2_9.pl8, so the strip has no pen");
+    // `&g_font10` — the face every number on the jobs plate is drawn in.
+    let Some(f) = assets.shell.ten.as_ref() else {
+        l2_testkit::skip!("no Font_10.pl8, so the jobs plate has no numbers");
     };
     const POS: u8 = 0xFA;
 
