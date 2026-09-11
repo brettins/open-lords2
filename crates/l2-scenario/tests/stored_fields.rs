@@ -552,6 +552,7 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x200", |k, i, _| k.counties[i].fields_cattle as i64),
         at("County+0x201", |k, i, _| k.counties[i].fields_grain as i64),
         at("County+0x202", |k, i, _| k.counties[i].fields_grain_sown as i64),
+        at("County+0x206", |k, i, _| k.counties[i].fields_grain_standing as i64),
         at("County+0x203", |k, i, _| k.counties[i].fields_waste as i64),
         at("County+0x204", |k, i, _| k.counties[i].fields_reclaiming as i64),
         at("County+0x208", |k, i, _| k.counties[i].fertility as i64),

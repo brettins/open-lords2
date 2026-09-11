@@ -751,6 +751,7 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             as fn(&CountyState) -> i64),
         ("crop", |c| c.crop.iter().map(|&n| n as i64).sum()),
         ("fields_grain_sown", |c| c.fields_grain_sown as i64),
+        ("fields_grain_standing", |c| c.fields_grain_standing as i64),
         ("sow_shortfall", |c| c.sow_shortfall as i64),
     ] {
         judge(field, f, "nobody has reclaimed a field or sown grain by turn one");
@@ -855,6 +856,7 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             "event_population_pct",
             "field_progress",
             "fields_grain_sown",
+            "fields_grain_standing",
             "friendly_troops",
             "grain_change_expected",
             "grain_grown_expected",
@@ -985,6 +987,7 @@ const JUDGED: &[&str] = &[
     "siege_scars",
     "crop",
     "fields_grain_sown",
+    "fields_grain_standing",
     "sow_shortfall",
     "weapon_type",
 ];

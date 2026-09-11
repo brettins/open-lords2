@@ -468,7 +468,24 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   *Written as 20 with `VERSION` at 19 on `main` — and a queued branch was
 ///   already known to take 20. Per the standing hazard above, this entry is the
 ///   one that renumbers, to 21, at whichever merge comes second.*
-pub const VERSION: u32 = 20;
+/// * 21 — **the sown grain fields still standing**,
+///   [`crate::county::County::fields_grain_standing`] (`+0x206`): four bytes a
+///   county over 17 slots, **+68**.
+///
+///   The divisor of the wheat picture. `Grain_SeasonTick` bands the crop by
+///   this byte to choose which of four frames every grain tile draws, and
+///   `County_DestroyField` steps it down; it is not `+0x202` and is not
+///   derivable from it. `docs/decisions.md` CNEW-wheat-season.
+///
+///   **Refusal rather than default**, under entry 16's rule: a defaulted load
+///   feeds the simulation. A zero here makes the next trampled grain field
+///   take no crop and repaint nothing different, and makes every grain tile of
+///   the county draw the bare-crop picture until the next sowing.
+///
+///   *Written as 21 on the fog branch, whose own entry 20 already expects to
+///   move to 21 at merge. Per the standing hazard above, assume both numbers
+///   have moved, and renumber this one to follow whatever lands first.*
+pub const VERSION: u32 = 21;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1211,6 +1228,7 @@ impl Encode for County {
             out.i32(*stage);
         }
         out.i32(self.fields_grain_sown);
+        out.i32(self.fields_grain_standing);
         out.bool(self.sow_shortfall);
         out.i32(self.herd);
         out.i32(self.herd_crowding);
@@ -1362,6 +1380,7 @@ impl Decode for County {
             c.crop[stage] = input.i32()?;
         }
         c.fields_grain_sown = input.i32()?;
+        c.fields_grain_standing = input.i32()?;
         c.sow_shortfall = input.bool()?;
         c.herd = input.i32()?;
         c.herd_crowding = input.i32()?;

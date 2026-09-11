@@ -1305,6 +1305,7 @@ fn county_reset(id: usize) -> CountyState {
         siege_scars: l2_kingdom::siege::SiegeScars::default(),
         crop: [0; 3],
         fields_grain_sown: 0,
+        fields_grain_standing: 0,
         sow_shortfall: false,
         weapon_type: 0,
     }
