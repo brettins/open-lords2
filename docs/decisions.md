@@ -6338,3 +6338,44 @@ not."*
 county `+0x108`, whose meaning was not traced"* — it is the worker count, and it is the
 divisor of the efficiency ramp's overstaffing term. Same class of change, same reason for not
 making it now.
+**C137 — The first behavioural comparison with the original, and the two
+saves it could not have been built on.**
+
+Everything this project checked was a set of **names** (`docs/arms.json` against the `//
+arm:` markers) or a block of **static data** (`crates/l2-sim/tests/oracle.rs`, three battle
+tables read out of `Lords2.exe`). **Nothing compared behaviour**: no test started the
+original's state and ours from the same point, advanced both, and looked at the difference.
+`crates/l2-game/tests/differential.rs` is that test — import the before save, run
+`l2_game::turn::end_turn`, and compare the result against the after save's own bytes
+through `l2_formats::save::{County, Realm, DiploPair, Globals}`.
+
+**The pair it was briefed to use is not a pair.** `battle-before.sav`, `battle-during.sav`
+and `battle-after.sav` all read `g_turnCount = 5`, `g_season = 4`, `g_year = 1269`: they are
+one battle caught at three moments inside **one** turn, which is exactly what
+`crates/l2-game/tests/seam.rs` uses them for. `siege-lastturn` / `siege-sieging` /
+`siege-aftersie` are the same, all turn 14. A differential built on the filenames would have
+run a season into a kingdom and compared it against *the same turn*, and every number it
+produced would have been wrong in a direction nobody could have guessed from the output.
+
+What *is* a turn apart is the autosave rotation — `Save_RotateAndWrite` does
+`safeturn.sav <- old_turn.sav <- lastturn.sav` — so a fixture directory copied in one go
+holds three consecutive turn openings. There are **four** one-End-Turn pairs on disk and
+none of them is the pair the names advertise. `the_pairs_are_one_end_turn_apart` asserts the
+gap from `g_turnCount` rather than believing a filename, which is the same lesson as
+`l2_testkit::england_turn1`'s fingerprint: **a name is not an identity.**
+
+**And the number the instrument would have flattered us with.** The raw agreement is 877 of
+932 fields, 94 %. Ablating the `end_turn` call — comparing the imported before-state against
+the after-save with **no turn run into it at all** — still scores **623 of 932, 66 %**,
+because most of a county record is inert across a season and an inert field agrees for free.
+So the report counts twice, and the second count is the one that means anything: of the 279
+comparisons where **the original's own value moved**, we agree on 243 (87 %), and under
+ablation that number is **0**. A differential that quoted only the first column would have
+reported two thirds agreement for an engine that did nothing whatever.
+
+Its first run found three things, reported rather than fixed: the human realm's `strength`,
+`score` and `rank` are never recomputed, because `Realm::sync_score_inputs` is reachable only
+through AI step 14 and `l2_kingdom::ai::begin_turn` marks a human realm done before step 0
+[V]; neutral counties buy 50 sacks of grain a season that ours cannot, which is
+`ai_farm::NoMarket`'s own documented gap finally measured [I]; and `g_optAiLords` is read by
+the save reader and dropped by the importer [V].
