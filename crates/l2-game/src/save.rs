@@ -519,6 +519,9 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // are in `l2_kingdom::save` where they belong.
         prefs: crate::game::Prefs::default(),
         presentation_quirks: crate::game::Quirks::default(),
+        // Per run, not per game, and so not in the file: `screens::saveload`
+        // puts the running session's tips back over this. `crate::tip`.
+        tips: crate::tip::Tips::new(),
     })
 }
 

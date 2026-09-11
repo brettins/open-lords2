@@ -61,6 +61,7 @@ use l2_formats::maps::{MapSlot, Plane, PLANE_DIM};
 use l2_kingdom::county::{MAX_COUNTIES, MAX_COUNTY_ID, MAX_FIELDS, MAX_NEIGHBOURS};
 use l2_kingdom::map::{CampaignMap, MAP_TILES};
 use l2_kingdom::merchant::{self, MerchantRoutes, ROUTES, ROUTE_SLOTS};
+use l2_kingdom::mercenary::MercenaryBands;
 use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::{Weather, JOB_COUNT};
 use l2_kingdom::unit::{Unit, UnitKind, Units};
@@ -1221,7 +1222,7 @@ fn county_reset(id: usize) -> CountyState {
         castle_type: 0,
         castle_building: 0,
         castle_switch: false,
-        industry: [IndustryState::default(); 4],
+        industry: industry_reset(),
         fields_fallow: 0,
         fields_cattle: 0,
         fields_grain: 0,
@@ -1252,7 +1253,89 @@ fn county_reset(id: usize) -> CountyState {
         merchant_count: 0,
         merchant_unit: 0,
         merchant_visits: 0,
+        // **C161.** Every one of these is `County::new()`'s value,
+        // which is what a new game got before the save path learned to carry
+        // them — so this constructor's world is unchanged. Zero is also what
+        // `County_Reset`'s zeroing of the record gives, except the industry
+        // ramp, which `industry` above carries at `Industry::new`'s base.
+        herd_change_expected: 0,
+        herd_births_expected: 0,
+        herd_deaths_expected: 0,
+        grain_weather_change: 0,
+        grain_event_change: 0,
+        herd_weather_change: 0,
+        herd_event_change: 0,
+        grain_change_expected: 0,
+        grain_sown_expected: 0,
+        grain_grown_expected: 0,
+        reclaim_fields_finishing: 0,
+        reclaim_seasons_to_next: 0,
+        // `County_Reset` opens both on zero, which `l2_game::scenario` used to
+        // have to write back over the save path's invented value.
+        happiness_avg: 0,
+        happiness_sum: 0,
+        d_hap_tax: 0,
+        shown_army: 0,
+        tax_hap_other: 0,
+        shown_ale: 0,
+        ale_happiness_given: 0,
+        unrest_warned: false,
+        pop_change_pct: 0,
+        army: 0,
+        largest_inflow: 0,
+        inflow_sources: [0; l2_kingdom::county::MAX_INFLOW_SOURCES],
+        emigrant_destination: 0,
+        largest_inflow_source: 0,
+        change_reason: 0,
+        event_fired: false,
+        event_id: 0,
+        event_population_pct: 0,
+        event_grain_pct: 0,
+        event_herd_pct: 0,
+        tax_suppressed: false,
+        field_progress: [0; MAX_FIELDS],
+        friendly_troops: 0,
+        enemy_troops: 0,
+        levy_surcharge: 0,
+        castle_degraded: 0,
+        castle_ruined: false,
+        castle_level_left: 0,
+        castle_percent: 0,
+        castle_work_left: 0,
+        castle_work_total: 0,
+        castle_stone_owed: 0,
+        castle_stone_total: 0,
+        castle_wood_owed: 0,
+        castle_wood_total: 0,
+        siege_scars: l2_kingdom::siege::SiegeScars::default(),
+        crop: [0; 3],
+        fields_grain_sown: 0,
+        sow_shortfall: false,
+        weapon_type: 0,
+        // `County_Reset` zeroes the record, and `Mercenary_AdvanceAll` — the
+        // cache's only writer besides a hire — is turn phase 7's, which a new
+        // game has not reached.
+        mercenary_offer: 0,
     }
+}
+
+/// The four industry records a fresh county opens with: `Industry::new`'s
+/// ramp base and nothing produced. The switches and the resource bytes are
+/// filled from the map afterwards.
+fn industry_reset() -> [IndustryState; 4] {
+    let mut out = [IndustryState::default(); 4];
+    for (slot, commodity) in [
+        l2_kingdom::tables::Commodity::Wood,
+        l2_kingdom::tables::Commodity::Iron,
+        l2_kingdom::tables::Commodity::Weapons,
+        l2_kingdom::tables::Commodity::Stone,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        out[slot].efficiency = l2_kingdom::county::Industry::new(commodity).efficiency;
+    }
+    out
 }
 
 // ---------------------------------------------------------------- the merchants
@@ -1403,6 +1486,10 @@ impl Scenario {
             counties,
             realms,
             map,
+            // `Mercenary_Init` (`0x004AC904`), which `Game_NewGame` calls
+            // straight after `Merchant_SpawnAll`. Nothing on the new-game path
+            // ran it, so a new campaign had no mercenaries either.
+            mercenaries: MercenaryBands::init(w.county_count),
             units,
             routes: w.routes.clone(),
             merchant_start: w.merchant_start,
@@ -1433,6 +1520,45 @@ impl Default for RealmState {
             stone: 0,
             wood: 0,
             weapons: [0; l2_kingdom::tables::WEAPON_TYPE_COUNT],
+            // `Game_SetupRealmsAndCounties` zeroes the name counters; no army
+            // has been named yet.
+            army_names: [0; l2_kingdom::unit::ARMY_NAME_SLOTS],
+            // C161: `Realm::new()`'s values, all zero, which is
+            // what a new game had before the save path carried them.
+            ai_step: 0,
+            tax_hap_empire: 0,
+            population_total: 0,
+            population_mean: 0,
+            population_last: 0,
+            mean_happiness: 0,
+            mean_health: 0,
+            share_of_map_pct: 0,
+            army_count: 0,
+            total_men: 0,
+            castle_count: 0,
+            offer_pending: false,
+            ally_candidate: 0,
+            ally: 0,
+            target_county: 0,
+            taunt_timer: 0,
+            taunt_stage: 0,
+            war_target: 0,
+            offer_timer: 0,
+            crowned_once: false,
+            weapon_rota: 0,
+            voice_rotation: 0,
+            muster_county: 0,
+            raid_county: 0,
+            muster_timer: 0,
+            threat_realm: 0,
+            attack_county: 0,
+            raid_timer: 0,
+            want: [0; 4],
+            bankrupt_stage: 0,
+            trade_spent_a: 0,
+            trade_spent_b: 0,
+            trade_received_a: 0,
+            trade_received_b: 0,
         }
     }
 }

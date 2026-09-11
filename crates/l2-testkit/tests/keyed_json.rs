@@ -59,6 +59,7 @@ const KEYED: &[&str] = &[
     "docs/records.json",
     "docs/arms.json",
     "docs/audio.json",
+    "docs/stored-fields.json",
     "docs/work.json",
 ];
 

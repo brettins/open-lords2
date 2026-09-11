@@ -183,6 +183,16 @@ pub enum ScreenId {
     /// original it is in the data segment: the window is opened by the frame
     /// driver and not by anything the player did.
     Message,
+    /// **`g_screenId` `0x27` — the screen a tip is shown on.**
+    ///
+    /// `Tip_Show` (`0x00476DA9`) does not open a window: it writes
+    /// `g_screenId = 0x27` and posts a message, and the window follows because
+    /// `Msg_Pump` runs on `0x27`. So the screen the player was on stops answering
+    /// input while the tip is up, and comes back when `FUN_00476E21` restores the
+    /// byte on the dismissal. [`Machine`] keeps this on the stack exactly while
+    /// [`crate::tip::Tips::hosting`] is true — see [`Machine::update`] — and
+    /// nothing else pushes it. See [`crate::tip`] and [`crate::screens::tip`].
+    Tip,
     /// **Ours.** The demo's index of every screen; see [`crate::screens::index`].
     Index,
 }
@@ -304,6 +314,19 @@ pub trait Screen {
     /// approximation: the original's other tester plays no sound.
     fn take_clicks(&mut self) -> u8 {
         0
+    }
+
+    /// **The original's `g_screenId`, where it is not a function of
+    /// [`Screen::id`].**
+    ///
+    /// Almost every screen's byte follows from its [`ScreenId`], and
+    /// [`crate::tip::screen_byte`] writes those down. One does not: the
+    /// campaign map is `0x00`, and *in move-order mode* it is `0x10` —
+    /// `Map_BeginMoveSelection` writes it and is the only writer of that value —
+    /// while ours keeps the mode inside `MapScreen`. `Tip_Update`'s *"Army
+    /// Movement:"* arm tests exactly that byte, so the mode has to be askable.
+    fn mode_screen_id(&self) -> Option<u8> {
+        None
     }
 
     /// The `.256` this screen runs under, if it is not the campaign palette.
@@ -437,6 +460,7 @@ impl ScreenId {
             ScreenId::Ratings => Box::new(crate::screens::ratings::RatingsScreen::new()),
             ScreenId::Info(target) => Box::new(crate::screens::info::InfoScreen::new(target)),
             ScreenId::Message => Box::new(crate::screens::message::MessageScreen::new()),
+            ScreenId::Tip => Box::new(crate::screens::tip::TipScreen::new()),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
         }
     }
@@ -493,6 +517,20 @@ impl Machine {
 
     pub fn top_id(&self) -> Option<ScreenId> {
         self.stack.last().map(|s| s.id())
+    }
+
+    /// **The screen `g_screenId` names** — the top of the stack, looking
+    /// through the message scroll, which in the original is painted over a
+    /// screen and never changes the byte.
+    pub fn top_screen_id(&self) -> Option<ScreenId> {
+        self.stack.iter().rev().map(|s| s.id()).find(|id| *id != ScreenId::Message)
+    }
+
+    /// **`g_screenId` itself**, for the screens [`crate::tip`] asks about. See
+    /// [`Screen::mode_screen_id`] and [`crate::tip::screen_byte`].
+    pub fn top_screen_byte(&self, game: &Game) -> Option<u8> {
+        let s = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message)?;
+        s.mode_screen_id().or_else(|| crate::tip::screen_byte(s.id(), game))
     }
 
     pub fn take_dirty(&mut self) -> bool {
@@ -567,6 +605,7 @@ impl Machine {
     /// test inside it is a test of `g_screenId` rather than of anything the
     /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
+        self.run_tips(ctx);
         self.pump_messages(ctx);
         self.run_turn_clock(ctx);
         let Some(top) = self.stack.last_mut() else { return };
@@ -626,6 +665,10 @@ impl Machine {
             // The countdown half. When it expires the window closes and the
             // screen's own `update` pops itself on its first line.
             if ctx.game.messages.advance(ctx.game.multiplayer) == crate::message::Tick::TimedOut {
+                // `Msg_Pump`'s two timeouts call `Msg_Dismiss`, and so reach
+                // `FUN_00476E21`: a network game's tip that expires restores
+                // its screen exactly as a clicked one does.
+                ctx.game.tips.restore();
                 self.dirty = true;
             }
             return;
@@ -633,6 +676,9 @@ impl Machine {
         let pumps = match self.top_id() {
             Some(ScreenId::Campaign) => true,
             Some(ScreenId::Battlefield) => true,
+            // `g_screenId == 0x27`, the tip's own screen — the reason a tip
+            // shown in the village gets a window at all.
+            Some(ScreenId::Tip) => true,
             Some(ScreenId::Job(_, job)) => job + 1 == crate::message::PUMP_JOB,
             _ => false,
         };
@@ -706,6 +752,50 @@ impl Machine {
         // The number is whole seconds, so this is a repaint a second and not a
         // repaint a tick.
         if crate::turn_clock::shown(ctx.game) != before {
+            self.dirty = true;
+        }
+    }
+
+    /// **`Tip_Update` (`0x00476AA7`), and `g_screenId = 0x27` made a stack.**
+    ///
+    /// `Battle_Frame` calls `Tip_Update` immediately before `Msg_Pump`, which is
+    /// the order here. The ladder is [`crate::tip::update`]; what this adds is
+    /// the one thing the ladder cannot do, which is put screen `0x27` on the
+    /// stack and take it off again:
+    ///
+    /// * **on** when `Tip_Show` posts — *under* the message scroll if one is up,
+    ///   because a message open on the campaign map is painted over `g_screenId
+    ///   0` and stays painted over `0x27` when the byte changes beneath it;
+    /// * **off** when `FUN_00476E21` has restored the byte, which any
+    ///   `Msg_Dismiss` does — including the dismissal of a message that was
+    ///   already queued ahead of the tip, so the tip's own record can outlive
+    ///   its screen and open later on the campaign map. That is the original.
+    ///
+    /// Seating is done at the *start* of the tick as well as after the ladder,
+    /// because a dismissal happens in [`Machine::handle`] between two ticks.
+    // arm: 0x00476AA7/tip-screen-ladder frame
+    fn run_tips(&mut self, ctx: &mut Ctx) {
+        self.seat_tip_host(ctx.game);
+        let view = crate::tip::View::of(self, ctx.game);
+        if crate::tip::tick(ctx.game, &view).is_some() {
+            self.seat_tip_host(ctx.game);
+        }
+    }
+
+    /// Keep [`ScreenId::Tip`] on the stack exactly while
+    /// [`crate::tip::Tips::hosting`] says `g_screenId` is `0x27`.
+    // arm: 0x00476E21/tip-restores-its-screen frame
+    fn seat_tip_host(&mut self, game: &Game) {
+        let seated = self.stack.iter().any(|s| s.id() == ScreenId::Tip);
+        if game.tips.hosting() && !seated {
+            let at = match self.top_id() {
+                Some(ScreenId::Message) => self.stack.len() - 1,
+                _ => self.stack.len(),
+            };
+            self.stack.insert(at, ScreenId::Tip.build());
+            self.dirty = true;
+        } else if !game.tips.hosting() && seated {
+            self.stack.retain(|s| s.id() != ScreenId::Tip);
             self.dirty = true;
         }
     }

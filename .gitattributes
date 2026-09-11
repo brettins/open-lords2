@@ -93,3 +93,8 @@ docs/audio.json      merge=l2json
 # what keeps a text merge honest when the driver is not registered: a misaligned
 # hunk can only pair whole rows, never one row's field under another row's id.
 docs/work.json       merge=l2json
+#
+# `docs/stored-fields.json`, registered in the commit that creates it for the
+# same reason. Keyed by `id` (`County+0x0C0`): an offset is unique per record, and
+# the file's whole purpose is that no row may silently disappear.
+docs/stored-fields.json merge=l2json

@@ -220,6 +220,16 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B48", Unwired("crates/l2-sim/src/runner.rs")),
     ("B49", Unwired("crates/l2-sim/src/terrain.rs")),
     ("B50", Unwired("crates/l2-view/src/scene.rs")),
+    // Numbered B69 until `corrections.js` learned to read `docs/bugs.md`: it
+    // shared that number with the siege repair bill below, and this list held
+    // one row for the two, so nothing here could see the collision.
+    (
+        "B100",
+        Unswitchable(
+            "not reproduced, deliberately: the original reads a byte one record past the figure \
+             array, which we do not model — reproducing it would copy the address, not the behaviour",
+        ),
+    ),
     // 2.6 — victory, defeat and the score
     ("B51", Switchable(Behavioural)),
     ("B52", Switchable(Behavioural)),
@@ -312,6 +322,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // not state the rules read. Unwired rather than presentation: a switch for
     // either would change what the field CONTAINS, not which pixels show it.
     ("B79", Unwired("crates/l2-game/src/text.rs, the overwrite branch")),
+    ("B101", Unswitchable("it changes which advice a player sees and when, never a number in the world")),
     ("B80", Unwired("crates/l2-game/src/text.rs, the End-key arm")),
     // Both from the siege battle, both reproduced and neither wired: a repeat
     // assault billing the same repair twice is a rule the original has, and
@@ -364,8 +375,22 @@ fn read(root: &Path, rel: &str) -> String {
 /// **Scoped to §2 on purpose.** §6.2 quotes B1, B2 and B4 again in a table of
 /// what the ruleset can express, and an unscoped scan counts them twice — which
 /// it did, on the first run of this function.
+///
+/// **A placeholder is an entry.** A branch cannot know the number its new row
+/// will get, so it writes `B` + `NEW-` + a slug and the integrator assigns the
+/// number at merge with `node tools/decisions/corrections.js --assign`. This
+/// parser used to accept digits only, so a placeholder row was invisible here:
+/// the branch's own suite was green, and the two tests below went red only once
+/// the row was numbered, on `main`, in the integrator's hands. Now the row is
+/// seen on the branch, `DISPOSITIONS` has to carry the placeholder, and
+/// `--assign` renames it here in the same pass that renames the document.
 fn catalogue(root: &Path) -> Vec<String> {
-    let doc = read(root, "docs/bugs.md");
+    catalogue_of(&read(root, "docs/bugs.md"))
+}
+
+/// [`catalogue`] over a document's text, so the parser can be asked about a
+/// document built to test it.
+fn catalogue_of(doc: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut inside = false;
     for line in doc.lines() {
@@ -395,9 +420,18 @@ fn catalogue(root: &Path) -> Vec<String> {
     out
 }
 
-/// `B` then digits then an optional lower-case suffix: `B1`, `B11a`, `B63a`.
+/// `B` then digits then an optional lower-case suffix: `B1`, `B11a`, `B63a` —
+/// or `B` + `NEW-` + a slug, the placeholder a branch writes (see
+/// [`catalogue`]). The slug is the one `corrections.js` recognises: word
+/// characters in hyphen-separated runs, so a trailing or doubled hyphen is not
+/// part of it.
 fn is_entry_id(s: &str) -> bool {
     let Some(rest) = s.strip_prefix('B') else { return false };
+    if let Some(slug) = rest.strip_prefix("NEW-") {
+        return slug
+            .split('-')
+            .all(|run| !run.is_empty() && run.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'));
+    }
     let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
     if digits.is_empty() {
         return false;
@@ -647,6 +681,54 @@ fn every_bug_has_a_disposition_every_switch_has_a_bug_and_every_switch_is_in_its
             lines
         );
     }
+}
+
+/// **A placeholder row is a catalogue entry**, so a branch that adds a bug and
+/// does not say what its switch is goes red on its own branch.
+///
+/// The failure this exists for: a branch added a row as a placeholder, its
+/// suite was green because the parser read digits only, and two tests went red
+/// at merge the moment the row was numbered — so the branch's green was a false
+/// signal, and every branch that adds a row would have hit it.
+///
+/// Ablated: restoring the digits-only `is_entry_id` fails this test, because
+/// the three placeholder entries vanish from the parse; and with the real
+/// catalogue, adding a placeholder heading to `docs/bugs.md` §2 makes
+/// `every_bug_has_a_disposition…` fail with *"docs/bugs.md has BNEW-… and
+/// DISPOSITIONS does not"*, where before this change it passed.
+///
+/// The placeholders are assembled at run time so this file does not itself
+/// carry one — `corrections.js --check` would report it as unassigned.
+#[test]
+fn a_placeholder_row_is_an_entry_so_an_unwired_one_fails_on_its_own_branch() {
+    let tag = |slug: &str| format!("{}NEW-{slug}", 'B');
+    let doc = format!(
+        "# 1. Before the catalogue\n\n### {early} — not in §2\n\n\
+         # 2. The catalogue — the original's bugs, reproduced\n\n\
+         ### B1 — a numbered heading\n\n\
+         ### {heading} — a placeholder heading\n\n\
+         | **B10** | a numbered row | — | here |\n\
+         | **{row}** | a placeholder row | — | here |\n\
+         | ~~**{struck}**~~ | a retracted placeholder row | — | here |\n\n\
+         # 3. The original's bugs we do not reproduce\n\n### {late} — not in §2 either\n",
+        early = tag("early"),
+        heading = tag("heading"),
+        row = tag("row"),
+        struck = tag("struck"),
+        late = tag("late"),
+    );
+    assert_eq!(
+        catalogue_of(&doc),
+        vec!["B1".to_string(), tag("heading"), "B10".to_string(), tag("row"), tag("struck")],
+        "the catalogue parser does not see placeholder entries, so a branch's new bug row is \
+         invisible to every test in this file until the integrator numbers it"
+    );
+
+    // The slug is corrections.js's: what it would not assign, this does not accept.
+    for bad in ["NEW-", "NEW-trailing-", "NEW--lead", "NEW-two--hyphens", "NEW-sp ace"] {
+        assert!(!is_entry_id(&format!("B{bad}")), "B{bad} is not a placeholder corrections.js recognises");
+    }
+    assert!(is_entry_id(&tag("herd-four")) && is_entry_id(&tag("group_87")));
 }
 
 /// Rule 3: **a switch that nothing reads is worse than no switch.**

@@ -435,7 +435,10 @@ impl SaveLoadScreen {
                     // that turns out to be unreadable halfway through cannot
                     // leave the player holding half of one.
                     Ok(game) => {
+                        // Nor does a load clear `g_tipShown`. `crate::tip`.
+                        let tips = ctx.game.tips;
                         *ctx.game = game;
+                        ctx.game.tips = tips;
                         Transition::Pop
                     }
                     Err(e) => {
@@ -674,14 +677,39 @@ impl Screen for SaveLoadScreen {
             Some(d) => d.display().to_string().to_uppercase(),
             None => "NO SAVE DIRECTORY ON THIS MACHINE".into(),
         };
-        text::draw(canvas, BOX_X + 4, BOX_Y + BOX_ROWS * 16 - 12, &ours(&where_), ink.dim);
+        text::draw(canvas, DIR_LINE.0, DIR_LINE.1, &directory_line(&where_), ink.dim);
     }
 }
+
+/// Where the save directory is written: inside the box's bottom edge.
+const DIR_LINE: (i32, i32) = (BOX_X + 4, BOX_Y + BOX_ROWS * 16 - 12);
 
 /// Everything we put on this screen that the original does not say is prefixed,
 /// so a screenshot cannot be mistaken for the game's own wording.
 fn ours(detail: &str) -> String {
     format!("OURS: {detail}")
+}
+
+/// The directory line, **cut from the left** when it is wider than the box.
+///
+/// Ours, like the line itself — the original has no directory to show. It was
+/// drawn whole, and a directory longer than about 67 characters ran straight
+/// out of the side of the box: a `LORDS2_SAVES` on a deep path, or the default
+/// under a profile whose user name is longer than 24. Nobody saw it because
+/// the only test of the box's edges ran with a short temporary directory, and
+/// it went red the day that directory got longer. The left is what goes
+/// because the right is the part that says which directory this is.
+fn directory_line(dir: &str) -> String {
+    let room = BOX_X + BOX_COLS * 16 - 4 - DIR_LINE.0;
+    let whole = ours(dir);
+    if text::width(&whole) <= room {
+        return whole;
+    }
+    let chars: Vec<char> = dir.chars().collect();
+    let fixed = ours("...").chars().count() as i32;
+    let keep = ((room + 1) / text::ADVANCE - fixed).max(0) as usize;
+    let tail: String = chars[chars.len().saturating_sub(keep)..].iter().collect();
+    ours(&format!("...{tail}"))
 }
 
 /// **`FUN_00403CF4(x, y, w, h, colour)`** — four `FUN_00403A8F` lines, **all in

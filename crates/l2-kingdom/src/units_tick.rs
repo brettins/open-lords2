@@ -169,6 +169,32 @@ pub enum Garrison {
     TooMany,
 }
 
+/// **An army crossed into a county its owner does not own** — the comparison
+/// `Unit_EnterCounty` (`0x004ABB36`) makes on every border crossing:
+///
+/// ```c
+/// if (g_counties[county].owner != unit.owner) {
+///     if (unit.owner == g_localPlayer) DAT_00553210 = 1;      /* the invasion tip */
+///     …the taunt, when the county is owned and is the destination…
+/// }
+/// ```
+///
+/// A neutral county counts: its owner is 0 and no army's is. `Army_Tick`
+/// (`0x0046521F`) is the only caller, so only armies cross this way — a
+/// merchant, a cart or a mob never does. `County_GreetArmy` runs first and
+/// only enqueues a reply, so the owner compared is the owner at the crossing.
+///
+/// **Reported, not stored.** The flag is `g_localPlayer`'s, which is a peer's
+/// and not the world's, so the local-player test and the flag itself are
+/// `l2_game::tip`'s; this carries the half that is the same on every peer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Incursion {
+    pub unit: usize,
+    /// The army's owner at the crossing.
+    pub owner: u8,
+    pub county: u8,
+}
+
 /// What one call to [`Kingdom::tick_units`] did.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct UnitsTick {
@@ -179,6 +205,8 @@ pub struct UnitsTick {
     /// Diplomatic hits earned by trampling, for a caller with a diplomacy
     /// layer. See [`crate::movement::Offence`].
     pub offences: Vec<Offence>,
+    /// Armies that crossed into somebody else's county. See [`Incursion`].
+    pub incursions: Vec<Incursion>,
 }
 
 impl UnitsTick {
@@ -366,6 +394,14 @@ impl Kingdom {
             && self.campaign.units.get(id).is_some_and(|u| u.kind.is_combatant())
         {
             self.campaign.units.recount_county_troops(&mut self.counties, &self.realms);
+        }
+        // `Unit_EnterCounty`'s owner test, from `Army_Tick` and nothing else.
+        if let (Some(county), Some(u)) = (step.entered_county, self.campaign.units.get(id)) {
+            if u.kind == crate::UnitKind::Army
+                && self.counties.get(county as usize).is_some_and(|c| c.owner != u.owner)
+            {
+                out.incursions.push(Incursion { unit: id, owner: u.owner, county });
+            }
         }
 
         // **Two branches implemented this rule and the other one is kept.**
@@ -914,6 +950,47 @@ mod tests {
             "eight ticks a road tile, and the first one free"
         );
         assert_eq!(k.campaign.units.get(id).unwrap().moves_used, 15);
+    }
+
+    /// **`Unit_EnterCounty`'s owner test**, as the report carries it: an army
+    /// leaving its own county for a neutral one is an incursion, the same army
+    /// walking home is not, and a merchant — whose tick never calls
+    /// `Unit_EnterCounty` — crossing the same border is not either.
+    ///
+    /// Ablation: delete the `u.kind == UnitKind::Army` test and the merchant
+    /// line goes red; flip `!=` and all three do.
+    #[test]
+    fn an_army_crossing_into_a_county_its_owner_does_not_hold_is_an_incursion() {
+        let mut k = kingdom();
+        let out = army(&mut k, 1, 30, 10);
+        movement::order_move(&k.campaign.map, &mut k.campaign.units, out, (34, 10), movement::Routing::Direct)
+            .unwrap();
+        let mut seen = Vec::new();
+        for _ in 0..200 {
+            seen.extend(k.tick_units().incursions);
+        }
+        assert_eq!(seen, vec![Incursion { unit: out, owner: 1, county: 2 }]);
+
+        movement::order_move(&k.campaign.map, &mut k.campaign.units, out, (30, 10), movement::Routing::Direct)
+            .unwrap();
+        let mut home = Vec::new();
+        for _ in 0..200 {
+            home.extend(k.tick_units().incursions);
+        }
+        assert_eq!(k.campaign.units.get(out).unwrap().county, 1, "it walked home");
+        assert!(home.is_empty(), "county 1 is realm 1's: {home:?}");
+
+        let mut trader = Unit::new(UnitKind::Merchant, 6, 30, 12);
+        trader.county = 1;
+        let t = k.campaign.units.spawn(trader).unwrap();
+        movement::order_move(&k.campaign.map, &mut k.campaign.units, t, (34, 12), movement::Routing::Direct)
+            .unwrap();
+        let mut carts = Vec::new();
+        for _ in 0..400 {
+            carts.extend(k.tick_units().incursions);
+        }
+        assert_eq!(k.campaign.units.get(t).unwrap().county, 2, "the merchant crossed");
+        assert!(carts.is_empty(), "only Army_Tick calls Unit_EnterCounty: {carts:?}");
     }
 
     /// The phase wait is answered by the unit array, and it goes false exactly

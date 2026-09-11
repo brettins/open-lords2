@@ -517,26 +517,8 @@ fn the_fonts_send_descenders_to_the_frames_that_have_them() {
 /// make this test lie about which font is wrong.
 const ON_THE_BASELINE: &str = "abcdefiklmnorstuvwxz";
 
-/// Every lowercase letter in a font must land on one baseline once drawn.
-///
-/// This is the test that would have caught the bug a player found by opening
-/// the original next to our demo: `a c e m n o s u x z` sat three pixels below
-/// `b d f h i k l t`, and the split was exactly frame record byte `0x0D`.
-/// `Font::draw` added that byte to `y` while the decoder had already reserved
-/// the same rows at the top of the canvas, so the offset was applied twice —
-/// but only for the frames whose rows were *stored*, which is why the two
-/// halves of one alphabet disagreed.
-///
-/// It draws through `Font::draw` rather than reading frame records, because the
-/// records were never wrong. The whole bug lived between the decoder and the
-/// blitter, and only an end-to-end render can see that seam.
-///
-/// The tolerance is one pixel and it is earned, not slack: `r v w` in
-/// `Fntl2_14.pl8` and `s` in `Fntl2_22.pl8` end in a single-pixel terminal one
-/// row below the stroke. A misapplied `0x0D` is three pixels, or four in the
-/// heading font — far outside it.
-/// **`Res_LoadStatic` (`0x00499859`) preloads five faces, and record 3 is the
-/// one this workspace did not load.** **[V]**
+/// **`Res_LoadStatic` (`0x00499859`) preloads five faces, and records 3 and 5
+/// are the two this workspace did not load.** **[V]**
 ///
 /// `g_preloadTable` (`0x004D9F48`) is thirteen `{char name[16]; u32 size}`
 /// records, and the loader hands record `n` to `File_ReadChunk` with a buffer
@@ -545,10 +527,11 @@ const ON_THE_BASELINE: &str = "abcdefiklmnorstuvwxz";
 /// because an address in a comment is a claim and these are the bytes.
 ///
 /// Ablated: `font::EIGHT` → `"Font_10.pl8"` — record 3 reads `"fnt_8.pl8"` and
-/// the constant does not. (The same ablation also makes
+/// the constant does not. (The same ablation also made
 /// [`every_font_puts_its_lowercase_on_one_baseline`] panic with a lowercase
-/// letter that draws nothing through `GLYPH_MAP` in `Font_10.pl8` — which is the
-/// measured reason that face is not loaded blindly beside this one.)
+/// letter that draws nothing — which was the reason `Font_10.pl8` was not loaded
+/// blindly, and is now explained by
+/// [`font_10_is_a_numeral_face_read_through_the_shared_table`].)
 #[test]
 fn the_preload_table_names_every_face_and_record_3_is_g_font8() {
     let exe = l2_testkit::executable!();
@@ -560,7 +543,7 @@ fn the_preload_table_names_every_face_and_record_3_is_g_font8() {
     };
     assert_eq!(record(3), font::EIGHT.to_ascii_lowercase(), "g_font8");
     assert_eq!(record(4), font::SMALL.to_ascii_lowercase(), "g_fontSmall");
-    assert_eq!(record(5), "font_10.pl8", "g_font10 — which nothing here loads");
+    assert_eq!(record(5), font::TEN.to_ascii_lowercase(), "g_font10");
     assert_eq!(record(6), font::BODY.to_ascii_lowercase(), "g_fontBody");
     assert_eq!(record(7), font::HEADING.to_ascii_lowercase(), "g_fontHeading");
 
@@ -596,6 +579,28 @@ fn the_measure_charges_the_blank_sign_column_nothing_and_the_draw_charges_four()
     assert_eq!(drawn("@1000"), drawn(" 1000"), "Ui_DrawText advances both four");
 }
 
+/// Every lowercase letter in a font must land on one baseline once drawn.
+///
+/// This is the test that would have caught the bug a player found by opening
+/// the original next to our demo: `a c e m n o s u x z` sat three pixels below
+/// `b d f h i k l t`, and the split was exactly frame record byte `0x0D`.
+/// `Font::draw` added that byte to `y` while the decoder had already reserved
+/// the same rows at the top of the canvas, so the offset was applied twice —
+/// but only for the frames whose rows were *stored*, which is why the two
+/// halves of one alphabet disagreed.
+///
+/// It draws through `Font::draw` rather than reading frame records, because the
+/// records were never wrong. The whole bug lived between the decoder and the
+/// blitter, and only an end-to-end render can see that seam.
+///
+/// The tolerance is one pixel and it is earned, not slack: `r v w` in
+/// `Fntl2_14.pl8` and `s` in `Fntl2_22.pl8` end in a single-pixel terminal one
+/// row below the stroke. A misapplied `0x0D` is three pixels, or four in the
+/// heading font — far outside it.
+///
+/// **Four of the five faces.** `Font_10.pl8` has no lowercase to put on a
+/// baseline; its digits are checked in
+/// [`font_10_is_a_numeral_face_read_through_the_shared_table`].
 #[test]
 fn every_font_puts_its_lowercase_on_one_baseline() {
     let Some(dir) = install() else {
@@ -659,6 +664,86 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
         if name != font::HEADING && name != font::EIGHT {
             assert!(groups.len() >= 2, "{name}: expected both 0x0D = 0 and 0x0D > 0 letters");
         }
+    }
+}
+
+/// **`Font_10.pl8` is a numeral face in a full font's layout, read through the
+/// same table as the other four.** **[V]**
+///
+/// `Glyph_Draw` (`0x00402A14`) has one character map, `g_glyphWidths`, and no
+/// per-face anything: `frame = g_glyphWidths[c - 0x20] - 1`, the record at
+/// `font + frame * 0x10 + 8`, no check against the file's frame count. So the
+/// only ways a face could be "partial" are a table that reaches past its end or
+/// frames that are not glyphs, and this asserts which it is:
+///
+/// 1. **108 frames, and nothing in the table reaches past them** — not a
+///    different index base, not a short file;
+/// 2. **every letter is a 2 × 2 stub** that advances three, and a lowercase
+///    word drawn in it has next to no ink — *"Seasons"* is one `'e'`, four
+///    pixels, where `Fntl2_9.pl8` draws it in dozens. That is the "renders
+///    nothing" a canvas diff passes over;
+/// 3. **everything the nine call sites build is a glyph or a blank** — `'+'`,
+///    `'-'` and the ten digits have ink, `' '` and `'@'` are table zeros — and
+///    the digits sit on one baseline.
+///
+/// Ablated, both run: pointing the test at `font::SMALL` turns claim 2 red on
+/// `'a'`, a frame 8 rows tall rather than 2; pointing it at `font::EIGHT` turns
+/// claim 1 red, 150 frames rather than 108. The *"Seasons"* ink bound was not
+/// separately observed red — the stub check ahead of it fires first.
+#[test]
+fn font_10_is_a_numeral_face_read_through_the_shared_table() {
+    let Some(dir) = install() else {
+        eprintln!("skipping: no game install");
+        return;
+    };
+    let name = font::TEN;
+    let bytes = std::fs::read(dir.join(name)).expect("Font_10.pl8");
+    let pl8 = l2_formats::Pl8::parse(&bytes).expect("Font_10.pl8 parses");
+    // 1
+    assert_eq!(pl8.frames.len(), 108, "{name}: the full 108-frame layout");
+    let furthest = font::GLYPH_MAP.iter().copied().max().expect("a table") as usize;
+    assert!(
+        furthest <= pl8.frames.len(),
+        "{name}: g_glyphWidths reaches frame {furthest} and the file has {}",
+        pl8.frames.len()
+    );
+
+    let f = font::Font::new(bytes.clone(), 12).expect("the font loads");
+    let flat = font::Style { colour: font::TEXT, shadow: None, caps: None };
+    let ink = |s: &str| -> (usize, Canvas) {
+        let mut canvas = Canvas::new(160, 32);
+        f.draw(&mut canvas, 2, 2, s, &flat);
+        let n = canvas.pixels.iter().filter(|&&p| p != 0).count();
+        (n, canvas)
+    };
+
+    // 2
+    for c in ('a'..='z').chain('A'..='Z') {
+        let frame = &pl8.frames[font::GLYPH_MAP[c as usize - 0x20] as usize - 1];
+        assert_eq!(frame.height, 2, "{name}: '{c}' should be a 2x2 stub");
+        let advance = f.draw(&mut Canvas::new(16, 16), 0, 0, &c.to_string(), &flat);
+        assert_eq!(advance, 3, "{name}: '{c}' advances its stub's width plus one");
+    }
+    let (word, _) = ink("Seasons");
+    assert!(word <= 4, "{name}: \"Seasons\" should draw at most its 'e' - it drew {word} pixels");
+
+    // 3
+    for c in "0123456789+-".chars() {
+        let (n, _) = ink(&c.to_string());
+        assert!(n >= 8, "{name}: '{c}' is a real glyph and drew only {n} pixels");
+    }
+    for c in [' ', '@'] {
+        assert_eq!(font::GLYPH_MAP[c as usize - 0x20], 0, "'{c}' is a blank, not a glyph");
+    }
+    let bottom = |c: char| -> usize {
+        let (_, canvas) = ink(&c.to_string());
+        (0..canvas.height)
+            .rfind(|&y| (0..canvas.width).any(|x| canvas.at(x, y) != 0))
+            .unwrap_or_else(|| panic!("{name}: '{c}' drew nothing"))
+    };
+    let base = bottom('0');
+    for c in "123456789".chars() {
+        assert_eq!(bottom(c), base, "{name}: '{c}' is off the digits' baseline");
     }
 }
 

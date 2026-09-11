@@ -965,6 +965,182 @@ fn the_tax_preview_byte_is_the_arithmetic_we_implement() {
     }
 }
 
+// ------------------------------------ what docs/stored-fields.json found dropped
+
+/// **`+0x258` is `+0x268 − +0x26C − herdEaten` in every county of every save** —
+/// the cattle row's *"Overall change"*, calf births expected, cow deaths expected,
+/// and what the people ate (`docs/decisions.md` C128 for why the eating is in it).
+///
+/// Three fields that were dropped together by the importer, and one relation
+/// that pins all three offsets at once: a wrong offset for any of them would have
+/// to land on a word that happens to close this sum in every county of every
+/// save. It is not vacuous — the England turn-one fixture's ten neutral counties
+/// eat thirteen head each, so the eating term is exercised, and births differ
+/// from deaths almost everywhere.
+///
+/// `tests/stored_fields.rs` is what holds the kingdom to these bytes; this is
+/// what says the bytes are the fields.
+#[test]
+fn every_saved_cattle_forecast_is_births_less_deaths_less_what_was_eaten() {
+    let (mut checked, mut eaten_counted) = (0usize, 0usize);
+    for f in l2_testkit::saves!() {
+        let s = &f.save;
+        for id in 1..17usize {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            if s.i32_at(base + 0x24).unwrap() == 0 {
+                continue;
+            }
+            let change = s.i32_at(base + 0x258).unwrap();
+            let births = s.i32_at(base + 0x268).unwrap();
+            let deaths = s.i32_at(base + 0x26C).unwrap();
+            let eaten = s.i32_at(base + 0x17C).unwrap();
+            assert_eq!(
+                change,
+                births - deaths - eaten,
+                "{}: county {id} stores +0x258 {change}, and +0x268 {births} − +0x26C {deaths} − \
+                 +0x17C {eaten} is {}",
+                f.label(),
+                births - deaths - eaten
+            );
+            checked += 1;
+            eaten_counted += usize::from(eaten != 0);
+        }
+    }
+    assert!(checked >= 14, "only {checked} counties reached");
+    assert!(eaten_counted > 0, "no county anywhere ate cattle, so the eating term was never tested");
+}
+
+/// **`+0x22C` is `Grain_LabourEstimate`'s tail in every county of every save**:
+/// `−sown − eaten` when the season is Spring, `harvest − eaten` in Winter,
+/// `−eaten` otherwise, with `+0x230` the sowing and `crop[2]` the harvest.
+///
+/// **What the corpus can and cannot settle, said beside the assertion.** Every
+/// save on this machine stores `+0x230 == 0` and `crop[2] == 0` in every county,
+/// so the sowing and harvest arms are only checked at zero, and the tail's
+/// `season` argument — `l2_kingdom::land::grain_preview` reads it as next season
+/// — cannot be told from this season here. What *is* settled is that `+0x22C`
+/// is minus the county's grain eaten wherever those arms are empty, in five
+/// counties where that is not zero (`old_turn.sav` county 2 stores −73).
+#[test]
+fn every_saved_grain_forecast_is_its_seasons_tail() {
+    let (mut checked, mut non_zero, mut arms) = (0usize, 0usize, 0usize);
+    for f in l2_testkit::saves!() {
+        let s = &f.save;
+        let season_next = s.globals().unwrap().season_next;
+        for id in 1..17usize {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            if s.i32_at(base + 0x24).unwrap() == 0 {
+                continue;
+            }
+            let change = s.i32_at(base + 0x22C).unwrap();
+            let sown = s.i32_at(base + 0x230).unwrap();
+            let harvest = s.i32_at(base + 0x248).unwrap();
+            let eaten = s.i32_at(base + 0x178).unwrap();
+            let tail = match season_next {
+                1 => -sown - eaten,
+                4 => harvest - eaten,
+                _ => -eaten,
+            };
+            assert_eq!(
+                change,
+                tail,
+                "{}: county {id} stores +0x22C {change}; next season {season_next}, sown {sown}, \
+                 harvest {harvest}, eaten {eaten}",
+                f.label()
+            );
+            checked += 1;
+            non_zero += usize::from(change != 0);
+            arms += usize::from(sown != 0 || harvest != 0);
+        }
+    }
+    assert!(checked >= 14, "only {checked} counties reached");
+    assert!(non_zero > 0, "every stored grain forecast is zero, so nothing was compared");
+    eprintln!("{checked} grain forecasts, {non_zero} non-zero, {arms} with a sowing or a harvest");
+}
+
+/// **`+0x18` is `+0x1C / g_turnCount` in every county of every save** —
+/// `Happiness_UpdateAll` (`0x0044BAEA`) banks the season's happiness into the sum
+/// and divides by the turn count, into a signed byte.
+///
+/// The importer used to set both to this season's happiness, which this test
+/// measures the cost of: it counts the counties where the stored average is not
+/// the current happiness, which is every county past turn one whose mood has
+/// moved — `siege-aftersie.sav` county 2 stores 54 and is at 95 today.
+#[test]
+fn the_happiness_average_is_the_running_sum_over_the_turn_count_in_every_save() {
+    let (mut checked, mut differs) = (0usize, 0usize);
+    for f in l2_testkit::saves!() {
+        let s = &f.save;
+        let turns = s.globals().unwrap().turn_count;
+        assert!(turns > 0, "{}: turn count {turns}", f.label());
+        for id in 1..17usize {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            if s.i32_at(base + 0x24).unwrap() == 0 {
+                continue;
+            }
+            let avg = s.i8_at(base + 0x18).unwrap() as i32;
+            let sum = s.i32_at(base + 0x1C).unwrap();
+            assert_eq!(avg, (sum / turns) as i8 as i32, "{}: county {id}, sum {sum} over {turns} turns", f.label());
+            checked += 1;
+            differs += usize::from(avg != s.i8_at(base + 0x0C).unwrap() as i32);
+        }
+    }
+    assert!(checked >= 14, "only {checked} counties reached");
+    assert!(differs > 0, "the average equals the current happiness everywhere, so the old import passed too");
+}
+
+/// **`+0x5B` is set exactly where `+0x2C` reaches 6** — `Population_UpdateAll`
+/// writes the change percentage and then attributes it only when it is at least
+/// six (`docs/kingdom.md` §1.2). Both bytes are written in the same pass, so the
+/// relation holds whatever happened to the population afterwards, which is why
+/// this does not also check the percentage against the population.
+///
+/// The six is written as a literal rather than read from
+/// `l2_kingdom::county::CHANGE_REASON_MIN_PCT`: a probe computed from the constant
+/// under test is `docs/agents.md`'s first way to ablate wrongly.
+#[test]
+fn a_population_change_reason_is_recorded_exactly_where_the_change_reaches_six_percent() {
+    let (mut checked, mut reasons) = (0usize, 0usize);
+    for f in l2_testkit::saves!() {
+        let s = &f.save;
+        for id in 1..17usize {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            if s.i32_at(base + 0x24).unwrap() == 0 {
+                continue;
+            }
+            let pct = s.i32_at(base + 0x2C).unwrap();
+            let reason = s.u8_at(base + 0x5B).unwrap();
+            assert_eq!(reason != 0, pct >= 6, "{}: county {id}, change {pct}%, reason {reason}", f.label());
+            assert!(reason <= 4, "{}: county {id}, reason {reason} names no L2.eng group 65 string", f.label());
+            checked += 1;
+            reasons += usize::from(reason != 0);
+        }
+    }
+    assert!(checked >= 14 && reasons > 0, "{checked} counties, {reasons} with a reason");
+}
+
+/// **`+0x21` is set only in a county below thirty happiness**, which is what
+/// identifies it as `Unrest_UpdateAll`'s warning latch (`0x0044AA41`: set when
+/// happiness is under `0x1E` and the byte is clear) — the flag
+/// `l2_kingdom::county::County::unrest_warned` described without an offset.
+#[test]
+fn the_unrest_warning_latch_is_set_only_in_a_county_below_thirty_happiness() {
+    let mut set = 0usize;
+    for f in l2_testkit::saves!() {
+        let s = &f.save;
+        for id in 1..17usize {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            if s.u8_at(base + 0x21).unwrap() == 0 {
+                continue;
+            }
+            let happiness = s.i8_at(base + 0x0C).unwrap();
+            assert!(happiness < 30, "{}: county {id} is warned at happiness {happiness}", f.label());
+            set += 1;
+        }
+    }
+    assert!(set > 0, "no save carries the latch, so nothing identified it");
+}
+
 /// **The three fields the county panels draw and the importer dropped.**
 ///
 /// `+0x0F` and `+0xC0` are the tax panel's *This county* and *People pay*;
@@ -996,4 +1172,216 @@ fn the_county_panels_three_numbers_survive_the_import() {
         }
     }
     assert!(checked >= 5, "only {checked} counties were reached");
+}
+
+// ------------------------------------------------------------ the mercenaries
+
+/// `g_mercBands` (`0x00568DC0`), stride `0x14`, and `g_mercBandsInPlay`.
+const MERC_BANDS: u32 = 0x0056_8DC0;
+const MERC_STRIDE: u32 = 0x14;
+const MERC_IN_PLAY: u32 = 0x0055_4030;
+
+/// **Every mercenary band in every save reaches the kingdom holding the file's
+/// walk, and every county's offer is `Mercenary_OfferInCounty` over it.**
+///
+/// A loaded game used to have no bands in play at all, so the raise-army screen
+/// never offered one and the town square never showed one. The comparison is
+/// the kingdom against the **bytes**, band by band, and two of the assertions
+/// are the table checking itself rather than the importer:
+///
+/// * a band that offered itself this season has **just reloaded its countdown
+///   and stepped one past the county it stands in**, with no wrap — the tail of
+///   `Mercenary_AdvanceAll`'s offer branch — which ties `+0x03`, `+0x04`,
+///   `+0x06` and `+0x07` together on every offering band on disk;
+/// * county `+0x1AD` is the **lowest-numbered** unhired band offered there, and
+///   `siege-old_turn.sav` puts bands 2 and 3 in county 1 at once.
+///
+/// **Ablation, run:** delete `k.campaign.mercenaries = self.mercenaries.clone()`
+/// from `Scenario::skeleton` and the in-play assertion fails on the first save.
+#[test]
+fn every_mercenary_band_reaches_the_kingdom_and_every_offer_is_its_cache() {
+    let saves = saves!();
+    let (mut offers, mut offering, mut bands_seen) = (0usize, 0usize, 0usize);
+    for s in &saves {
+        let save = &s.save;
+        let scenario = Scenario::from_save(save).unwrap_or_else(|e| panic!("{}: {e}", s.label()));
+        let k = scenario.kingdom(1);
+        let bands = &k.campaign.mercenaries;
+        let in_play = save.i32_at(MERC_IN_PLAY).unwrap();
+        assert_eq!(bands.in_play() as i32, in_play, "{}: g_mercBandsInPlay", s.label());
+        assert_eq!(
+            bands.in_play(),
+            l2_kingdom::mercenary::bands_in_play(scenario.county_count),
+            "{}: g_mercBandCount[g_countyCount]",
+            s.label()
+        );
+        for slot in 0..l2_kingdom::mercenary::BAND_SLOTS {
+            let at = MERC_BANDS + slot as u32 * MERC_STRIDE;
+            if slot == 0 || slot as i32 > in_play {
+                for off in 0..MERC_STRIDE {
+                    assert_eq!(
+                        save.u8_at(at + off).unwrap(),
+                        0,
+                        "{}: slot {slot} is not a band in play and holds a byte at +{off:#x}",
+                        s.label()
+                    );
+                }
+                continue;
+            }
+            bands_seen += 1;
+            let b = bands.get(slot as u8).expect("in play");
+            let what = |field: &str| format!("{}: band {slot} {field}", s.label());
+            assert_eq!(b.hired_by as i16, save.i16_at(at).unwrap(), "{}", what("+0x00 hired by"));
+            assert_eq!(b.offered_in, save.u8_at(at + 3).unwrap(), "{}", what("+0x03 offered in"));
+            assert_eq!(b.next_county, save.u8_at(at + 4).unwrap(), "{}", what("+0x04 next county"));
+            assert_eq!(b.countdown, save.i8_at(at + 6).unwrap(), "{}", what("+0x06 countdown"));
+            assert_eq!(b.reload, save.i8_at(at + 7).unwrap(), "{}", what("+0x07 reload"));
+            assert!((1..=b.reload).contains(&b.countdown), "{}", what("countdown outside 1..=reload"));
+            if b.offered_in != 0 {
+                offering += 1;
+                assert_eq!(b.countdown, b.reload, "{}", what("offered, so the countdown just reloaded"));
+                assert_eq!(b.next_county, b.offered_in + 1, "{}", what("offered, so the walk stepped past"));
+            }
+        }
+        for id in scenario.county_ids() {
+            let cached = k.counties[id].mercenary_offer;
+            assert_eq!(
+                cached,
+                bands.offer_in(id as u8),
+                "{}: county {id}'s +0x1AD is not Mercenary_OfferInCounty over the table",
+                s.label()
+            );
+            offers += usize::from(cached != 0);
+        }
+    }
+    eprintln!(
+        "{} saves: {bands_seen} bands compared, {offering} of them offering, {offers} county offers",
+        saves.len()
+    );
+}
+
+/// The four one-End-Turn pairs on disk — `crates/l2-game/tests/differential.rs`
+/// establishes which files are a turn apart, and it is not the pairs their names
+/// suggest.
+const TURN_PAIRS: [(&str, &str); 4] = [
+    ("safeturn.sav", "old_turn.sav"),
+    ("old_turn.sav", "battle-before.sav"),
+    ("siege-safeturn.sav", "siege-old_turn.sav"),
+    ("siege-old_turn.sav", "siege-lastturn.sav"),
+];
+
+/// **One season of `Mercenary_AdvanceAll` over a save lands on the next save's
+/// band table and county offers, exactly.**
+///
+/// The strongest check the band import has, because nothing in it is ours
+/// agreeing with ours: the *after* table was written by the original a turn
+/// later. It covers all three walk branches on data — a band that only counts
+/// down, one that wraps past the last county, and one that offers itself (four
+/// offers across the pairs, including the two-band collision in county 1).
+#[test]
+fn one_season_of_the_mercenary_walk_lands_on_the_next_saves_table() {
+    for (before, after) in TURN_PAIRS {
+        let b = l2_testkit::fixture!(before);
+        let a = l2_testkit::fixture!(after);
+        let sb = Scenario::from_save(&b).expect("imports");
+        let sa = Scenario::from_save(&a).expect("imports");
+        assert_eq!(sa.clock.turn_count, sb.clock.turn_count + 1, "{before} -> {after} is one turn");
+        let mut k = sb.kingdom(1);
+        let (count, quirks) = (k.county_count, k.options.quirks);
+        let l2_kingdom::Kingdom { counties, campaign, .. } = &mut k;
+        campaign.mercenaries.advance(counties, count, quirks);
+        let ka = sa.kingdom(1);
+        assert_eq!(k.campaign.mercenaries, ka.campaign.mercenaries, "{before} -> {after}: the bands");
+        for id in sa.county_ids() {
+            assert_eq!(
+                k.counties[id].mercenary_offer, ka.counties[id].mercenary_offer,
+                "{before} -> {after}: county {id}'s offer"
+            );
+        }
+    }
+}
+
+/// A band whose constant fields disagree with the roster is refused: the kingdom
+/// keeps those in the roster, so importing the rest would price the band at a
+/// number the file does not hold.
+#[test]
+fn a_mercenary_band_that_disagrees_with_the_roster_is_refused() {
+    // Band 1's price, 1800 = 0x708: its low byte, one higher.
+    refusal_over_every_save(
+        |_| MERC_BANDS + MERC_STRIDE + 0x0C,
+        0x09,
+        |_| ImportError::MercenaryRoster { band: 1, field: "price", file: 1801, roster: 1800 },
+    );
+}
+
+#[test]
+fn a_mercenary_band_offered_off_the_map_is_refused() {
+    refusal_over_every_save(
+        |_| MERC_BANDS + MERC_STRIDE + 0x03,
+        99,
+        |_| ImportError::MercenaryState { band: 1, field: "offered county", value: 99 },
+    );
+}
+
+/// Slot 1 is a merchant in every save on the machine — the merchants take the
+/// low slots — and a merchant cannot carry a band.
+#[test]
+fn a_mercenary_band_hired_by_something_that_does_not_carry_it_is_refused() {
+    refusal_over_every_save(
+        |_| MERC_BANDS + MERC_STRIDE,
+        1,
+        |_| ImportError::MercenaryState { band: 1, field: "hiring unit", value: 1 },
+    );
+}
+
+#[test]
+fn a_band_count_past_twelve_is_refused() {
+    refusal_over_every_save(|_| MERC_IN_PLAY, 13, |_| ImportError::MercenaryBandCount(13));
+}
+
+/// The raise-army screen indexes the roster with the county's byte.
+#[test]
+fn a_county_offering_a_band_that_is_not_in_play_is_refused() {
+    refusal_over_every_save(
+        |_| COUNTY_BASE + COUNTY_STRIDE as u32 + 0x1AD,
+        13,
+        |_| ImportError::MercenaryOffer { county: 1, band: 13 },
+    );
+}
+
+/// **A hired band arrives hired, on the army that carries it** — the one half of
+/// the band table no save on this machine exercises, because `+0x00` is zero in
+/// every band of every save. So this writes a consistent hire into a copy of the
+/// first save with an army in it: the army's `+0x195…+0x197` and the band's
+/// hirer, and nothing else.
+#[test]
+fn a_hired_band_arrives_hired_on_the_army_that_carries_it() {
+    let exe = l2_testkit::executable!();
+    let saves = saves!();
+    let Some((s, slot)) = saves.iter().find_map(|s| {
+        s.save.units().ok()?.iter().find(|u| u.is_live() && u.kind == 1).map(|u| (s, u.index))
+    }) else {
+        l2_testkit::skip!("no save on this machine holds an army");
+    };
+    let unit = l2_formats::save::UNIT_BASE + (slot * l2_formats::save::UNIT_STRIDE) as u32;
+    let bytes = std::fs::read(&s.path).expect("re-read");
+    let mut poked = poke(&exe, &bytes, unit + 0x195, 4); // pikemen
+    poked = poke(&exe, &poked, unit + 0x196, 100);
+    poked = poke(&exe, &poked, unit + 0x197, 1); // the Scottish band
+    poked = poke(&exe, &poked, MERC_BANDS + MERC_STRIDE, slot as u8);
+    let save = Save::open(&exe, &poked).expect("still the right length");
+    let scenario = Scenario::from_save(&save).unwrap_or_else(|e| panic!("{}: {e}", s.label()));
+    let k = scenario.kingdom(1);
+    let band = k.campaign.mercenaries.get(1).expect("in play");
+    assert_eq!(band.hired_by as usize, slot, "{}", s.label());
+    assert!(!band.is_available());
+    assert_eq!(
+        k.campaign.units.get(slot).and_then(|u| u.mercenaries).map(|m| (m.band, m.men)),
+        Some((1, 100)),
+        "{}: slot {slot} carries the band",
+        s.label()
+    );
+    for id in scenario.county_ids() {
+        assert_ne!(k.campaign.mercenaries.offer_in(id as u8), 1, "a hired band is offered nowhere");
+    }
 }

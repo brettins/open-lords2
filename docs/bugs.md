@@ -312,7 +312,7 @@ is a real behaviour."*
 | **B48** | **A battle that wipes both sides out on the same frame is won by B**, because the original tests A first. | — | `runner.rs:672` |
 | **B49** | **The terrain variant LFSR is stepped once per cell whether or not the result is used**, which is what keeps the sequence aligned. | — | `terrain.rs:56` |
 | **B50** | **Figures are drawn centred using the sprite *width* for both axes**, so a 48-pixel man sits eight pixels left of and sixteen above his cell's corner. | — | `l2-view/src/scene.rs:191` — *"reproduced rather than corrected"* |
-| **B69** | **Whether you can order an attack depends on a figure index left over from another sweep.** `Battle_UpdateHover` (`0x0047ED9B`) counts the local player's selected non-siege figures into `DAT_00565404`, which gates `g_battleHoverEnemy` and so gates the attack cursor and the attack order. Its loop tests `g_battleMen[local_8].owner` and `.selected` — and then `g_battleMen[**g_curBattleMan**].troopType`, a *different global*, for the third clause. `g_curBattleMan` is the shared sweep index 74 functions share and every one of them leaves it at `0x51`, one record past the end of the 80-record array. | **[V] at instruction level**: `a1 f8 e8 53 00` (`mov eax,[g_curBattleMan]`) where the two clauses either side use `mov eax,[ebp-4]`. **[I]** on the effect: `0x554480 + 81 × 0x1B0` is `0x562000`, past `.data`'s raw extent and so in zeroed BSS, where `troopType` reads 0 and the clause is true — so the count is probably right in play and the bug invisible. | **Not reproduced**, deliberately: `battlefield.rs`'s `update_hover` uses the loop variable, and says so. Reproducing an out-of-bounds read of a byte we do not model would be reproducing the *address*, not the behaviour. |
+| **B100** | **Whether you can order an attack depends on a figure index left over from another sweep.** `Battle_UpdateHover` (`0x0047ED9B`) counts the local player's selected non-siege figures into `DAT_00565404`, which gates `g_battleHoverEnemy` and so gates the attack cursor and the attack order. Its loop tests `g_battleMen[local_8].owner` and `.selected` — and then `g_battleMen[**g_curBattleMan**].troopType`, a *different global*, for the third clause. `g_curBattleMan` is the shared sweep index 74 functions share and every one of them leaves it at `0x51`, one record past the end of the 80-record array. | **[V] at instruction level**: `a1 f8 e8 53 00` (`mov eax,[g_curBattleMan]`) where the two clauses either side use `mov eax,[ebp-4]`. **[I]** on the effect: `0x554480 + 81 × 0x1B0` is `0x562000`, past `.data`'s raw extent and so in zeroed BSS, where `troopType` reads 0 and the clause is true — so the count is probably right in play and the bug invisible. | **Not reproduced**, deliberately: `battlefield.rs`'s `update_hover` uses the loop variable, and says so. Reproducing an out-of-bounds read of a byte we do not model would be reproducing the *address*, not the behaviour. |
 
 ### B76 — Leaving a battle early throws the battle away, and only in single player
 
@@ -569,6 +569,37 @@ that is fine: a quirk needs a switch only when somebody wants it switched.
 
 **Where:** `crates/l2-game/src/text.rs`, `TextField::put`; `docs/arms.json`
 `0x00401D26/overwrite-default`; tested in `crates/l2-game/tests/text.rs`.
+
+### B101 — The invasion tip is lost if its crossing is noticed while another tip is up
+
+**[D]** on what the code does, **[I]** on calling it a mistake.
+
+`Tip_Update` (`0x00476AA7`) ends its ladder with the only arm that has no screen test:
+
+```c
+else if ((DAT_00553210 != 0) && (DAT_00553210 = 0, g_tipShown[211] == 0)) Tip_Show(211);
+```
+
+The flag — set by `Unit_EnterCounty` (`0x004ABB36`) when one of your armies crosses into a
+county you do not own — is **cleared before** anything else is asked. Two ways that loses the
+tip, and both are ordinary:
+
+* **on screen `0x27`.** No other arm matches `0x27`, so a frame with a tip already up reaches
+  this one, clears the flag, and calls `Tip_Show`, which refuses because `g_screenId` is `0x27`.
+  `g_tipShown[211]` stays clear and the flag is gone: the *"Invasions:"* tip waits for the next
+  crossing.
+* **after it has been shown.** Harmless, but the same shape: every later crossing sets the flag
+  and the next frame that reaches the arm throws it away.
+
+An army marching during the turn is exactly when the campaign map's own three tips are likely
+to be on screen, so the first case is not exotic. It was presumably meant to be *"test, then
+clear on show"*.
+
+**Reproduced.** Not switchable — it changes which advice a player sees and when, never a number
+in the world.
+
+**Where:** `crates/l2-game/src/tip.rs`, `update`; `docs/arms.json`
+`0x00476AA7/tip-screen-ladder`; tested in `crates/l2-game/tests/tips.rs`.
 
 ### B80 — The End key cancels a save you have just confirmed
 

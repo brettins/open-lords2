@@ -70,7 +70,12 @@ const GIVE_UP: u32 = 1_500;
 macro_rules! england {
     () => {{
         let save = l2_testkit::england!();
-        scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads")
+        let mut game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+        // **Tip screens: No.** This file watches the map for a whole turn, and
+        // a new game's tips come up over it and hold its input on screen
+        // `0x27`, which is right and is `tests/tips.rs`'s subject.
+        game.prefs.tip_screens = false;
+        game
     }};
 }
 

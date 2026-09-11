@@ -279,6 +279,32 @@ fn england_pair(save: &l2_formats::save::Save, maps: &[u8]) -> (Scenario, Scenar
     (from_save, from_map)
 }
 
+/// **A new game's mercenary bands, after its opening season, are England turn
+/// one's, band for band.**
+///
+/// `Game_NewGame` is `Mercenary_Init(); … Season_Advance();` with no
+/// `Mercenary_AdvanceAll` between them, and the save written after it still
+/// holds every band at its start county with its countdown full. Our
+/// `Kingdom::start_new_game` walks the same pipeline `Season_Advance` does, which
+/// carries the phase-7 walk; this is the test that says it must not run there.
+///
+/// **Ablation, run:** take the `MercenaryAdvance` skip out of `start_new_game`
+/// and the Saxon band, period 1, has already offered itself in county 14.
+#[test]
+fn a_new_games_bands_after_its_opening_season_are_england_turn_ones() {
+    let save = l2_testkit::england!();
+    let maps = maps!();
+    let (from_save, from_map) = england_pair(&save, &maps);
+    let mut k = from_map.kingdom(SEED);
+    k.start_new_game();
+    let saved = from_save.kingdom(SEED);
+    assert_eq!(k.campaign.mercenaries.in_play(), 12);
+    assert_eq!(k.campaign.mercenaries, saved.campaign.mercenaries, "the bands after the opening season");
+    for id in 1..=k.county_count {
+        assert_eq!(k.counties[id].mercenary_offer, saved.counties[id].mercenary_offer, "county {id}'s offer");
+    }
+}
+
 /// **England out of `L2_maps.dat` and England out of `lastturn.sav`, field by
 /// field.**
 ///
@@ -453,6 +479,16 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     assert_eq!(merchants(&b), merchants(&a), "the merchant count");
     assert_eq!(merchants(&b), 6, "England seats six merchants");
     assert_eq!(a.units.len(), b.units.len(), "England turn one has nothing but merchants");
+
+    // **The mercenary bands, exactly.** `Game_NewGame` runs `Mercenary_Init` and
+    // then `Season_Advance`, which does not walk them, so the save written after
+    // it holds `Mercenary_Init`'s table untouched: twelve bands on a
+    // fourteen-county map, each at its start county with its countdown equal to
+    // its reload — including the Spanish and Angevin bands, whose start
+    // counties 16 and 17 are not on this map at all. One reading of the file
+    // and one of the roster, and they agree on all sixty fields.
+    assert_eq!(b.mercenaries.in_play(), 12, "England gets all twelve bands");
+    assert_eq!(a.mercenaries, b.mercenaries, "the band table is Mercenary_Init's");
 
     // ------------------------------- the five derived counts, on the kingdoms
 
@@ -689,6 +725,116 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         "no industry has been wrecked",
     );
 
+    // **C161**: what the save path now carries and a new game opens
+    // at `County::new()`'s value. Grouped by the pass that writes them, because
+    // that is the whole of why the two sides differ where they do.
+    let forecast = "a forecast the estimate round writes at a season's end, which the save has \
+                    had and a new game has not; the grain and reclamation rows are zero in the \
+                    save as well, because nobody has sown or reclaimed by turn one";
+    for (field, f) in [
+        ("herd_change_expected", (|c: &CountyState| c.herd_change_expected as i64) as fn(&CountyState) -> i64),
+        ("herd_births_expected", |c| c.herd_births_expected as i64),
+        ("herd_deaths_expected", |c| c.herd_deaths_expected as i64),
+        ("grain_change_expected", |c| c.grain_change_expected as i64),
+        ("grain_sown_expected", |c| c.grain_sown_expected as i64),
+        ("grain_grown_expected", |c| c.grain_grown_expected as i64),
+        ("reclaim_fields_finishing", |c| c.reclaim_fields_finishing as i64),
+        ("reclaim_seasons_to_next", |c| c.reclaim_seasons_to_next as i64),
+    ] {
+        judge(field, f, forecast);
+    }
+    let figures = "what last season's weather and event did to the grain and the herd; a new game \
+                   has had no season, and England turn one's first stood in Cloudy with no event";
+    for (field, f) in [
+        ("grain_weather_change", (|c: &CountyState| c.grain_weather_change as i64) as fn(&CountyState) -> i64),
+        ("grain_event_change", |c| c.grain_event_change as i64),
+        ("herd_weather_change", |c| c.herd_weather_change as i64),
+        ("herd_event_change", |c| c.herd_event_change as i64),
+    ] {
+        judge(field, f, figures);
+    }
+    let mood = "the happiness pass's and the tax preview's outputs, which the save's season wrote \
+                and a new game's has not; the army, ale, other-counties and warning terms are \
+                zero in the save too, because nothing raised, bought or taxed past 19% by turn one";
+    for (field, f) in [
+        ("happiness_avg", (|c: &CountyState| c.happiness_avg as i64) as fn(&CountyState) -> i64),
+        ("happiness_sum", |c| c.happiness_sum as i64),
+        ("d_hap_tax", |c| c.d_hap_tax as i64),
+        ("shown_army", |c| c.shown_army as i64),
+        ("tax_hap_other", |c| c.tax_hap_other as i64),
+        ("shown_ale", |c| c.shown_ale as i64),
+        ("ale_happiness_given", |c| c.ale_happiness_given as i64),
+        ("unrest_warned", |c| c.unrest_warned as i64),
+    ] {
+        judge(field, f, mood);
+    }
+    let people = "Population_UpdateAll's and Migration_UpdateAll's outputs, which the save's \
+                  season wrote; nobody has moved or been levied by turn one, so the migration \
+                  and army bytes are zero on both sides";
+    for (field, f) in [
+        ("pop_change_pct", (|c: &CountyState| c.pop_change_pct as i64) as fn(&CountyState) -> i64),
+        ("change_reason", |c| c.change_reason as i64),
+        ("army", |c| c.army as i64),
+        ("largest_inflow", |c| c.largest_inflow as i64),
+        ("inflow_sources", |c| c.inflow_sources.iter().map(|&n| n as i64).sum()),
+        ("emigrant_destination", |c| c.emigrant_destination as i64),
+        ("largest_inflow_source", |c| c.largest_inflow_source as i64),
+    ] {
+        judge(field, f, people);
+    }
+    for (field, f) in [
+        ("event_fired", (|c: &CountyState| c.event_fired as i64) as fn(&CountyState) -> i64),
+        ("event_id", |c| c.event_id as i64),
+        ("event_population_pct", |c| c.event_population_pct as i64),
+        ("event_grain_pct", |c| c.event_grain_pct as i64),
+        ("event_herd_pct", |c| c.event_herd_pct as i64),
+        ("tax_suppressed", |c| c.tax_suppressed as i64),
+    ] {
+        judge(field, f, "no random event has fired by turn one");
+    }
+    for (field, f) in [
+        ("field_progress", (|c: &CountyState| c.field_progress.iter().map(|&n| n as i64).sum())
+            as fn(&CountyState) -> i64),
+        ("crop", |c| c.crop.iter().map(|&n| n as i64).sum()),
+        ("fields_grain_sown", |c| c.fields_grain_sown as i64),
+        ("sow_shortfall", |c| c.sow_shortfall as i64),
+    ] {
+        judge(field, f, "nobody has reclaimed a field or sown grain by turn one");
+    }
+    judge("friendly_troops", |c| c.friendly_troops as i64, "no army stands in a county at turn one");
+    judge("enemy_troops", |c| c.enemy_troops as i64, "no army stands in a county at turn one");
+    judge("levy_surcharge", |c| c.levy_surcharge as i64, "no levy has been raised by turn one");
+    for (field, f) in [
+        ("castle_degraded", (|c: &CountyState| c.castle_degraded as i64) as fn(&CountyState) -> i64),
+        ("castle_ruined", |c| c.castle_ruined as i64),
+        ("castle_level_left", |c| c.castle_level_left as i64),
+        ("castle_percent", |c| c.castle_percent as i64),
+        ("castle_work_left", |c| c.castle_work_left as i64),
+        ("castle_work_total", |c| c.castle_work_total as i64),
+        ("castle_stone_owed", |c| c.castle_stone_owed as i64),
+        ("castle_stone_total", |c| c.castle_stone_total as i64),
+        ("castle_wood_owed", |c| c.castle_wood_owed as i64),
+        ("castle_wood_total", |c| c.castle_wood_total as i64),
+        ("siege_scars", |c| {
+            let s = &c.siege_scars;
+            s.moat_filled as i64 + s.wall_damage as i64 + s.breach_score as i64
+                + s.approach_score as i64 + s.ramparts_breached as i64 + s.gate_open as i64
+        }),
+    ] {
+        judge(field, f, "no castle is being built, repaired or besieged at turn one");
+    }
+    judge(
+        "weapon_type",
+        |c| c.weapon_type as i64,
+        "the save's counties each carry the weapon their blacksmith makes; a new game opens at \
+         County::new's 0, and which pass first chooses it is not traced here",
+    );
+    judge(
+        "mercenary_offer",
+        |c| c.mercenary_offer as i64,
+        "Mercenary_AdvanceAll is turn phase 7's, so a band cannot be on offer before turn one ends",
+    );
+
     let mut silent = Vec::new();
     let mut unexplained = Vec::new();
     for (field, v) in &verdicts {
@@ -734,7 +880,61 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             "tax_rate",
             "tax_shown",
             "unrest",
-        ],
+            // **C161**, and these are the rows
+            // `tests/stored_fields.rs` also names as measured only against
+            // zero: nothing in England turn one has built, besieged, sown,
+            // reclaimed, levied, bought ale, drawn an event or moved house.
+            "ale_happiness_given",
+            "army",
+            "castle_degraded",
+            "castle_level_left",
+            "castle_percent",
+            "castle_ruined",
+            "castle_stone_owed",
+            "castle_stone_total",
+            "castle_wood_owed",
+            "castle_wood_total",
+            "castle_work_left",
+            "castle_work_total",
+            "crop",
+            "emigrant_destination",
+            "enemy_troops",
+            "event_fired",
+            "event_grain_pct",
+            "event_herd_pct",
+            "event_id",
+            "event_population_pct",
+            "field_progress",
+            "fields_grain_sown",
+            "friendly_troops",
+            "grain_change_expected",
+            "grain_grown_expected",
+            "grain_sown_expected",
+            "inflow_sources",
+            "largest_inflow",
+            "largest_inflow_source",
+            "levy_surcharge",
+            "reclaim_fields_finishing",
+            "reclaim_seasons_to_next",
+            "shown_ale",
+            "shown_army",
+            "siege_scars",
+            "sow_shortfall",
+            "tax_hap_other",
+            "tax_suppressed",
+            "unrest_warned",
+            // No band has walked by turn one, and no weather or event has
+            // touched a crop or a herd in England turn one's first season.
+            "mercenary_offer",
+            "grain_weather_change",
+            "grain_event_change",
+            "herd_weather_change",
+            "herd_event_change",
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>(),
         "the set of fields neither constructor writes has changed"
     );
 }
@@ -796,6 +996,60 @@ const JUDGED: &[&str] = &[
     "merchant_count",
     "merchant_unit",
     "merchant_visits",
+    // C161.
+    "herd_change_expected",
+    "herd_births_expected",
+    "herd_deaths_expected",
+    "grain_change_expected",
+    "grain_sown_expected",
+    "grain_grown_expected",
+    "reclaim_fields_finishing",
+    "reclaim_seasons_to_next",
+    "happiness_avg",
+    "happiness_sum",
+    "d_hap_tax",
+    "shown_army",
+    "tax_hap_other",
+    "shown_ale",
+    "ale_happiness_given",
+    "unrest_warned",
+    "pop_change_pct",
+    "army",
+    "largest_inflow",
+    "inflow_sources",
+    "emigrant_destination",
+    "largest_inflow_source",
+    "change_reason",
+    "event_fired",
+    "event_id",
+    "event_population_pct",
+    "event_grain_pct",
+    "event_herd_pct",
+    "tax_suppressed",
+    "field_progress",
+    "friendly_troops",
+    "enemy_troops",
+    "levy_surcharge",
+    "castle_degraded",
+    "castle_ruined",
+    "castle_level_left",
+    "castle_percent",
+    "castle_work_left",
+    "castle_work_total",
+    "castle_stone_owed",
+    "castle_stone_total",
+    "castle_wood_owed",
+    "castle_wood_total",
+    "siege_scars",
+    "crop",
+    "fields_grain_sown",
+    "sow_shortfall",
+    "weapon_type",
+    "mercenary_offer",
+    "grain_weather_change",
+    "grain_event_change",
+    "herd_weather_change",
+    "herd_event_change",
 ];
 
 /// **Enumerate the fields; do not spot-check them.**

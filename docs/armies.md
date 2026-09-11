@@ -1149,7 +1149,18 @@ for each county:
 Each band **walks one county a season** and stops to offer itself every `period` seasons —
 Saxon every season, Norman and Danish every other, Swedish and Angevin every seventh. County
 `+0x1AD` is a cache and holds only one offer; if two bands land on the same county the
-lower-numbered one wins. [D]
+lower-numbered one wins. **[V]** — `siege-old_turn.sav` stands bands 2 and 3 in county 1
+and the cache holds 2.
+
+**The table is imported now, and it checks itself.** `crates/l2-scenario` reads
+`g_mercBands` and `g_mercBandsInPlay` (`0x00554030`) out of a save: the block is
+exactly 260 bytes, `13 × 0x14`; the six constant fields equal §5.1's roster in all 72
+bands of the 18 saves on this machine; `+0x1AD` is `Mercenary_OfferInCounty` over the
+table in every county; and one season of `Mercenary_AdvanceAll` over each of the four
+one-turn pairs on disk lands on the next save's table exactly. `england-turn1.sav` is
+`Mercenary_Init(14)`'s table untouched, which is also what says `Game_NewGame` does not
+walk the bands in its opening season. The hirer word, `+0x00`, is zero in every band
+of every save. `docs/decisions.md` C164.
 
 ### 5.3 Hiring
 

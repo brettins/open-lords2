@@ -531,7 +531,7 @@ honours `g_optExploration`, so it post-dates the fog. `[I]` a scrapped
 instead of explaining one afterwards**, and it is worth stating plainly because the whole
 argument for building this inventory was that nothing we had could see a wrong picture.
 
-§5.5 counted the eight `Ui_DrawDelta` calls as missing on 9 September. Later the same day,
+§5.5 counted the `Ui_DrawDelta` calls as missing on 9 September — seven of them, though it then said eight. Later the same day,
 mid-session and without having seen any of this:
 
 > *"Sidebar doesn't show grain being planted as a negative number."*
@@ -709,8 +709,8 @@ the same four pixels** — which is what the tests now assert, and what ablating
 reverses. These two are `Ui_DrawNumber` anyway, which has no anchoring argument;
 `Ui_DrawNumberRight` is the one that centres (§5.10) and it is a different call.
 
-**The column is deliberate, and the binary says so 62 times.** Over the 191 `Ui_DrawNumber`
-call sites the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each.
+**The column is deliberate, and the binary says so 62 times.** Over the 190 `Ui_DrawNumber`
+call sites (this said 191, which counted the function's own definition line; `docs/decisions.md` C163) the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each.
 Never `'\0'` — which the function treats as *terminate immediately*, because index 0 is the NUL
 the buffer was cleared to. `'@'` is a glyph with no picture and no advance beyond the space, so
 those 62 sites are asking for **an invisible sign column that still holds its place**, which is
@@ -718,7 +718,7 @@ only meaningful if the column is there to be aligned on. `SPACE_ADVANCE`'s own d
 `crate::shell::font` had already worked that out one level down; the strip's call sites simply
 did not use it.
 
-**Scope.** 351 call sites across the four number routines — `Ui_DrawNumber` 191,
+**Scope.** 350 call sites across the four number routines — `Ui_DrawNumber` 190 (not 191, C163),
 `Ui_DrawCount` **80**, `Ui_DrawDelta` 59, `Ui_DrawNumberRight` 21. Every one has a lead. Fixed here
 are the campaign sidebar's five; the rest of the tree is a sweep somebody should run with
 `strip_number` / `body_number_centred` as the shape. **C127.**

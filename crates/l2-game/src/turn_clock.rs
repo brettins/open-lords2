@@ -203,6 +203,11 @@ pub fn screen_byte(id: ScreenId) -> Option<u8> {
         ScreenId::Siege(_) => 0x1D,
         ScreenId::Setup(_) => 0x1F,
         ScreenId::About => 0x25,
+        // The tip's own screen: `Tip_Show` writes `g_screenId = 0x27` (see
+        // `crate::tip::screen_byte`). `SCREENS[0x27]` is 2, so the timer is not
+        // drawn while a tip is up, and `0x27` is not in `CLOSED_BY_TURN_END`, so
+        // a turn end does not close it. Both follow from the tables above.
+        ScreenId::Tip => 0x27,
         ScreenId::Battlefield => 0x29,
         ScreenId::Ratings => 0x2E,
         ScreenId::Options(Page::Help) => 0x31,

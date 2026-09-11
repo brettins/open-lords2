@@ -292,9 +292,14 @@ pub struct County {
     pub ale_happiness_given: i32,
     /// `+0x20` — 0..=4. At 4 the county revolts (§6).
     pub unrest: u8,
-    /// **Engine state.** The "warned" flag `Unrest_UpdateAll` clears at
-    /// happiness >= 30, so message `0x92` fires once rather than every season.
-    /// `docs/kingdom.md` §6 describes the flag without giving its offset.
+    /// `+0x21` — the "warned" flag `Unrest_UpdateAll` clears at happiness
+    /// >= 30, so message `0x92` fires once rather than every season.
+    /// `docs/kingdom.md` §6 describes the flag without giving its offset, and
+    /// this said *engine state* for that reason: `Unrest_UpdateAll`
+    /// (`0x0044AA41`) is the only reader and writer of `+0x21`, sets it under
+    /// `0x1E`, and every save on this machine carries it set only in counties
+    /// below thirty. `[V]`, `crates/l2-scenario/tests/import.rs`;
+    /// `docs/decisions.md` C161.
     pub unrest_warned: bool,
 
     // --- population (docs/kingdom.md §1.2) ---------------------------------
@@ -744,6 +749,46 @@ pub struct County {
     pub herd_births_expected: i32,
     pub herd_deaths_expected: i32,
     pub herd_change_expected: i32,
+    /// `+0x24C` and `+0x278` — **what last season's weather and last season's
+    /// random event did to the grain**: the two figures `Panel_JobGrain`
+    /// (`0x00413590`) and `TileInfo_DrawGrain` (`0x0041CB3A`) print under
+    /// `L2.eng` group 77.
+    ///
+    /// `grain_weather_change` is the season's stage **after** its weather band
+    /// less **before** it — `crop[0]` at sowing, `crop[1]` while growing,
+    /// `crop[2]` at harvest — signed, and drawn (advanced farming only) as 77/16
+    /// *"gained last season, due to weather."*, 77/17 *"lost …"* or 77/18
+    /// *"Weather had no effect last season."*
+    ///
+    /// `grain_event_change` is the **magnitude** of the event's percentage of the
+    /// store. The painter chooses 77/25 *"eaten by rats."* or 77/26 *"found as
+    /// surplus."* from the event id rather than from a sign, and
+    /// `Msg_DrawWindow` (`0x0047309E`) prints the same number in the *Rats!!*
+    /// and *Grain found.* letters.
+    ///
+    /// Both written by [`crate::land::grain_season_tick`], which is
+    /// `Grain_SeasonTick` (`0x0044C8AE`): the event figure zeroed at the top of
+    /// every county's tick, the weather figure in whichever season branch runs.
+    /// **Nothing reads either back**, so neither can move the simulation; they
+    /// are carried because without them a loaded game prints *"no effect"* for a
+    /// season the original prints a number for. **Zero in every county of every
+    /// save on this machine** — all eighteen stand in *Cloudy* weather with no
+    /// grain event live — so the import is compared only against zero.
+    pub grain_weather_change: i32,
+    pub grain_event_change: i32,
+    /// `+0x270` and `+0x274` — **the same pair for the herd**, printed by
+    /// `Panel_JobCattle` (`0x00413B30`) and `TileInfo_DrawHerd` (`0x0041D299`).
+    ///
+    /// `herd_weather_change` is `Pct(herd, g_herdWeatherPct[weather])`, signed,
+    /// and **forced to 0 by the No Bull event** — it is stored after that
+    /// override. `herd_event_change` is the magnitude of the event's percentage
+    /// of the herd, which the painter words as 77/20 *"died of disease."*, 77/21
+    /// *"taken by wolves."*, 77/22 *"had to be put down."* or 77/23 *"born, over
+    /// expectations."* by the event id; zero for No Bull, which has no figure.
+    /// Written by [`crate::land::herd_season_tick`], which is `Herd_SeasonTick`
+    /// (`0x0044D60D`). Zero in every save on this machine, for the same reason.
+    pub herd_weather_change: i32,
+    pub herd_event_change: i32,
     /// `+0x230`, `+0x2FC` and `+0x22C` — **the grain row's three forecasts**,
     /// and `crop[2]` is the fourth.
     ///
@@ -954,6 +999,10 @@ impl County {
             herd_births_expected: 0,
             herd_deaths_expected: 0,
             herd_change_expected: 0,
+            grain_weather_change: 0,
+            grain_event_change: 0,
+            herd_weather_change: 0,
+            herd_event_change: 0,
             grain_sown_expected: 0,
             grain_grown_expected: 0,
             grain_change_expected: 0,

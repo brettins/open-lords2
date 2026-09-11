@@ -24,6 +24,9 @@ use l2_view::Canvas;
 /// unreal. `crates/l2-game/tests/ending.rs` is where a game is *meant* to end.
 fn world() -> (Game, Assets) {
     let mut g = Game::new(5);
+    // **Tip screens: No.** A new game's tips hold the campaign map's input on
+    // screen `0x27`; that is `tests/tips.rs`'s subject, not this file's.
+    g.prefs.tip_screens = false;
     g.kingdom.set_county_count(3);
     g.kingdom.realms[1].in_play = true;
     g.kingdom.realms[1].strength = 3;

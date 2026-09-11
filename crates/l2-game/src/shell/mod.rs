@@ -169,6 +169,9 @@ pub struct ShellAssets {
     /// `Fnt_8.pl8`, `g_font8` — see [`font::EIGHT`] for where the original
     /// loads it and why nothing here draws with it yet.
     pub eight: Option<Font>,
+    /// `Font_10.pl8`, `g_font10` — the county strip's numbers. A numeral face:
+    /// see [`font::TEN`] for why nothing but a number may be drawn in it.
+    pub ten: Option<Font>,
     sheets: BTreeMap<String, Sheet>,
     palettes: BTreeMap<String, Palette>,
     /// `mercgrid.pl8`'s 80 x 60 byte map, with its 24-byte header stripped.
@@ -222,6 +225,10 @@ impl ShellAssets {
             // apart — `BattleDebug_Panel`'s `0x2C, 0x38, 0x44 …` and
             // `Net_DrawDebugOverlay`'s `y + 4, y + 0x10, y + 0x1C …`.
             eight: read(font::EIGHT).and_then(|b| Font::new(b, 12).ok()),
+            // No painter steps a line in `g_font10`: each of its nine call
+            // sites is one number at an absolute `y`. Twelve is the digits'
+            // ten rows and the drop shadow's one, rounded up the way `eight`'s is.
+            ten: read(font::TEN).and_then(|b| Font::new(b, 12).ok()),
             sheets,
             palettes,
             merchant_grid: read_grid(&read, "mercgrid.pl8"),
@@ -268,8 +275,8 @@ impl ShellAssets {
         );
     }
 
-    /// **Which of the game's four faces did not load** — the file names, or
-    /// empty.
+    /// **Which of the game's five faces did not load** — the file names, or
+    /// empty. Five because `Res_LoadStatic` preloads five; see [`Face`].
     ///
     /// It exists so that the *painter* and the *complaint* ask the same
     /// question. They used to be two lists: `complain_about_what_is_missing`
@@ -296,6 +303,9 @@ impl ShellAssets {
         if self.eight.is_none() {
             missing.push(font::EIGHT);
         }
+        if self.ten.is_none() {
+            missing.push(font::TEN);
+        }
         missing
     }
 
@@ -308,6 +318,7 @@ impl ShellAssets {
             heading: None,
             small: None,
             eight: None,
+            ten: None,
             sheets: BTreeMap::new(),
             palettes: BTreeMap::new(),
             merchant_grid: Vec::new(),
@@ -568,14 +579,13 @@ pub const COUNT_NOUN_GROUP: usize = 8;
 /// face is a helper that draws some screen in the wrong one.
 ///
 /// **The original preloads five faces, not three or four** — `Res_LoadStatic`'s
-/// records 3…7 are `fnt_8`, `fntl2_9`, `font_10`, `fntl2_14`, `fntl2_22`. Two
-/// have no variant here. `&g_fontSmall` is drawn through `ShellAssets::small`
-/// directly (its nine `.text` references are `CountyStrip_Draw`,
-/// `CountyStrip_DrawCastleIcon` and one in `Screen_DrawEndTurn`, plus the
-/// loader). `&g_font10` is **not loaded at all**: its nine references are the
-/// county strip's produce-row painters (`FUN_004100AF` … `FUN_004106C4`) and
-/// `CountyStrip_DrawCastleIcon`, which `screens::county` draws in
-/// `Fntl2_9.pl8` and says so. Counted from the bytes, not the decompilation.
+/// records 3…7 are `fnt_8`, `fntl2_9`, `font_10`, `fntl2_14`, `fntl2_22` — and
+/// all five are loaded. Two have no variant here, because no `Pen` caller names
+/// them: `&g_fontSmall` and `&g_font10` are drawn only on the county strip (and
+/// `&g_fontSmall` once more, in `Screen_DrawEndTurn`), which draws through
+/// `ShellAssets::small` and `ShellAssets::ten` directly. See [`font::TEN`] for
+/// why the fifth face is a numeral face. Counted from the bytes, not the
+/// decompilation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Face {
     Body,
@@ -1206,9 +1216,10 @@ mod tests {
         assert_eq!(c.count(0), 640 * 480, "and it drew nothing at all");
     }
 
-    /// **All four faces are announced, and `Fntl2_9.pl8` was the one that was
+    /// **All five faces are announced, and `Fntl2_9.pl8` was the one that was
     /// not.** The complaint checked `body` and `heading`; `small` draws the
-    /// build stamp and the county strip, and its absence was silent.
+    /// build stamp and the county strip, and its absence was silent. `ten`
+    /// draws every number on the jobs plate, and joins the list with it.
     ///
     /// Ablated by deleting the `small` arm of `missing_fonts`: the list comes
     /// back with two names and this goes red naming the third. Verified.
@@ -1217,7 +1228,7 @@ mod tests {
         let missing = ShellAssets::empty().missing_fonts();
         assert_eq!(
             missing,
-            vec![font::BODY, font::HEADING, font::SMALL, font::EIGHT],
+            vec![font::BODY, font::HEADING, font::SMALL, font::EIGHT, font::TEN],
             "every face a Pen or a painter falls back from has to be in this list"
         );
     }

@@ -5664,8 +5664,8 @@ sign, and `Ui_DrawNumber` fills it from its `lead` argument before drawing the w
 `x`. So the string at `0x1FC` is `" 435 "` and the **digits** start at `0x1FC + 4`. We drew the
 bare digits at `0x1FC`.
 
-**The column is deliberate and the binary says so 62 times.** Across `Ui_DrawNumber`'s 191 call
-sites the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each; never
+**The column is deliberate and the binary says so 62 times.** Across `Ui_DrawNumber`'s 190 call
+sites (191 as first written, which counted the definition line; C163) the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each; never
 `'\0'`, which the function treats as *terminate immediately*. `'@'` is a glyph with no picture —
 an invisible sign column that still holds its place — and asking for one 62 times is only
 meaningful if numbers are meant to align on it. `crate::shell::font::SPACE_ADVANCE`'s doc
@@ -6514,7 +6514,7 @@ own. Two of the three wrappers are `Ui_DrawCentred` and `Ui_DrawNumberRight`. Th
 a box, `Ui_NumberToBuffer(v, 1, 1)` and the same tail. It has zero call sites.** The one
 live sibling, `FUN_00403015` (`0x00403015`), is a **byte-identical duplicate of
 `Ui_DrawNumber`** calling a duplicate `Ui_NumberToBuffer` (`FUN_00402447`), six call sites,
-no width. So the alignment question closes here: `Ui_DrawNumber` (191 sites), `Ui_DrawCount`
+no width. So the alignment question closes here: `Ui_DrawNumber` (190 sites; this said 191, counting the definition line, C163), `Ui_DrawCount`
 (81), `Ui_DrawDelta` (59), `Ui_DrawHappinessDelta` (2) and `FUN_00403015` (6) take **no
 anchoring argument at all**, and the only routine in the image that can be got wrong this
 way is the one C119 already named.
@@ -8035,3 +8035,498 @@ the map); `0x13` closed by the guard (ours would push it straight back);
 ablations, each observed red: the guard as documented; the suffix emptied; the request
 deleted; the person's turn read off his `ai_step`; the pop loop deleted; `0x0B`'s byte
 zeroed; the restart moved above the count — which turns only the defect's own test red.
+
+---
+
+**C159 — the numbering tool skipped what it could not read, and its
+first run over `docs/bugs.md` found a duplicate on `main` that nothing had.**
+
+Merging six branches, the integrator closed three gaps in
+`tools/decisions/corrections.js` by judgement. Two branches had written their
+correction as a bare Markdown heading over its placeholder, which the tool did not
+recognise as an entry, and both were rewritten by hand. A branch had written a
+dead-code entry in `docs/bugs.md` with a `D` placeholder; the tool scanned for `C`
+and `B` placeholders only, so nothing reported it, and it became D39 by hand. And a
+branch's bug row, written as a placeholder, was invisible to `quirks_catalogue.rs`,
+whose parser accepted digits only: the branch was green, and two tests went red at
+merge the moment the row had a number. Assignment itself was `git grep -l | perl
+-pi`, while the tool's own failure message said it was *"one command per tag"*.
+**[V]**, all four, by reading the tool and the catalogue as they stood at `9cbd3af`.
+
+**The three are one mistake.** Each check matched the good shape and passed over
+everything else in silence, so a wrong shape was not a failure — it was an absence,
+and an absence passes. C146 vanished the same way (C147). And for a numbered log an
+invisible entry is worse than a missing one: the next free number is computed
+without it, so the next assignment collides with it.
+
+**What changed.** `docs/agents.md`, *The tool as it is*, describes the result; in
+short:
+
+* **Six series, each a *(log, letter)* pair** — D and C in `decisions.md`; B, N, S
+  and D in `bugs.md`. The D-series exists twice and the two are unrelated, so a `D`
+  placeholder takes its number from the log its entry is in. Every series is
+  duplicate-checked, and a placeholder of a letter neither log numbers is reported.
+* **A line shaped like an entry and not in its log's form is an error naming the
+  line**: a Markdown heading in `decisions.md`, the wrong heading level, a hyphen,
+  en-dash or colon for the em-dash, the em-dash double-encoded, a cell closed tight.
+  Prose that opens with a bold id — both logs have plenty — stays quiet.
+* **`--assign <TAG>`** takes the next free number in the tag's own series, replaces
+  it in the tree's bytes rather than its decoded text, and relocks. It refuses and
+  writes nothing when the tag is absent or undefined, when the tree holds a drag the
+  relock would accept, or when either log has a malformed entry line — so it never
+  numbers from a log it cannot fully read.
+* **`--check` reports placeholders last**, each with its defining line, its command
+  and the number it would take. The old order exited on a placeholder before the
+  lockfile rules ran, and before `--relock` could run at all, so a branch carrying
+  its own placeholder could neither verify nor regenerate its lock. **[V]**, from
+  the order of the old source.
+* **`quirks_catalogue.rs` accepts a placeholder as an entry**, so an unwired row
+  fails on its own branch, and `--assign` renames the `DISPOSITIONS` line in the
+  same pass as the document.
+
+**The duplicate.** Generalising rule 1 to every series failed on its first run:
+`docs/bugs.md` had two `B69`s — a §2.5 table row, *"whether you can order an attack
+depends on a figure index left over from another sweep"*, and the §2.10 heading on
+the siege repair bill. The catalogue read both and held one disposition for the
+pair, so it passed. **[V]** by `git log -S`: the heading arrived in `66d88a5`, the
+row about an hour later in `dd1918c`. The later arrival is now **B100** (B99 was taken by the turn timer's row by the time this merged), with its two
+citations, `battlefield.rs::update_hover` and the `Battle_UpdateHover` arm's note in
+`docs/arms.json`, and its own `DISPOSITIONS` row. The other nine `B69` citations
+name the repair bill and stay — eight by what they say, and `runner.rs`'s
+wall-collapse comment **[I]** by its subject, the wall-damage count that entry bills.
+`docs/agents.md` records the B-numbers as caught by the quirks catalogue; this one
+was not, because a join on ids cannot see two entries sharing one.
+
+**Ablated, every test**, by editing the tool or parser and running the file, and
+every ablation went red where its test says it will. Two results were not what the
+first draft of the tests' comments claimed, and the comments now say what happened:
+keying duplicates by id without the log fails all eleven tool tests rather than one,
+because every test tree carries D1 in both logs; and narrowing the placeholder scan
+to `C` and `B` still lists defined `D`, `N` and `S` entries, which come from the log
+parse, so only the stray-letter assertion and the dead-code assignment carry it. The
+one that matters most for the catalogue: with a placeholder row added to the real
+`docs/bugs.md` §2, the current parser fails, naming the probe's tag as a row
+*"DISPOSITIONS does not"* have, and the old digits-only parser passes.
+
+**What this does not do.** Citations are checked for C-numbers only; a `B69` that
+points at the wrong bug is still found by reading. The entry-shape check covers the
+two logs, so an entry written into some other document is caught only if it carries
+a placeholder. `--assign` numbers one tag per call. And the catalogue reads §2
+only, so a placeholder row in §3–§5 has no test to fail — there is no switch list
+for those sections to join.
+
+---
+
+**C160 — The tip screens are built — `crates/l2-game/src/tip.rs` — and four things on file
+about them were wrong.** Each was a sentence a careful person would have built from.
+
+**One: the twenty frames are not "after a screen is first opened".** `docs/symbols.md`
+(`Tip_Update`) and `docs/formats/eng.md` §5.3 both said so. `DAT_004F0358` has exactly
+two writers, `FUN_00476A5D` and `FUN_00476E21`, so the delay is a **re-arm** — after
+start-up, after the toggle, and after every dismissal while `g_screenId` is `0x27` —
+and a screen opened with the counter at zero gets its tip on that frame. `[V]`
+`tests/tips.rs` counts the 21 ticks, typed.
+
+**Two: "once per game" is once per run.** `FUN_00476A5D`'s only callers are
+`App_WinMain` and `Opt_ToggleTipScreens`; `Game_NewGame` does not clear `g_tipShown`
+and neither does a load. So `Game::tips` is carried across the two places this engine
+replaces a whole `Game`. `[V]`
+
+**Three: a tip is not a window, it is a screen.** `Tip_Show` writes `g_screenId =
+0x27` and posts; the window follows only because `Msg_Pump` runs on `0x27`, and the
+screen underneath stops answering because `Screen_FrameInput` dispatches on the byte.
+`ScreenId::Tip` is that screen. The decompilation compares `g_screenId` with `0x27`
+only in `Msg_Pump`, `Tip_Show` and `FUN_00476E21` `[V]`, so it has no arm and no
+painter a comparison shows `[I]`.
+
+**Four: the OK button has no widget record.** The brief for this work said its
+gesture would come from one. `node tools/oracle/kinds.js` lists no record for
+`Msg_HandleInput` or `Ui_OkButton`, because the message scroll's corner is
+`Rect_Contains` round the last drawn `Ui_OkButton` on `g_mouseLeftPressed` — a
+**left press**, already `0x0047685D/message-ok-dismiss`. What was missing was the
+frame: `message::frame_of` has no row for categories `0x05`…`0x09`, so before this a
+tip window could not have been closed with the left button at all. Its corner is
+computed from the wrapped text — `message::paragraph_layout`, with
+`FUN_0040328E`'s own line breaking, `message::break_lines`.
+
+**The two arms the ladder could not see, resolved rather than approximated.**
+*Army movement* is `g_screenId 0x10`, written only by `Map_BeginMoveSelection`; ours
+is `MapScreen::move_order`, now askable as `Screen::mode_screen_id`. *Invasions* is
+`DAT_00553210`, set by `Unit_EnterCounty` — whose only caller is `Army_Tick` — when
+the county's owner is not the army's and the army's owner is `g_localPlayer`. The
+world half is reported by `l2-kingdom` as `units_tick::Incursion` at the crossing;
+the local-player half and the flag are `l2-game`'s. Nothing new is saved.
+
+**Three of fourteen tips cannot be posted, in the original either `[I]`.** 212, 214
+and 215 need `g_screenId == 0 && g_battlePhase == 2`; every `g_battlePhase = 2` write
+found sets `0x29` beside it, and `Msg_Pump` dismisses any message in phase 2. Built as
+written, and unreachable here too. Five shipped tip clips therefore stay silent.
+
+**And one defect of the game's**, reproduced: the invasion arm clears its flag before
+asking whether the tip was shown, so a crossing noticed on screen `0x27` loses the tip.
+`docs/bugs.md` B101.
+
+**Found and not this branch's to fix.** Every `Opt_Toggle*` row is a `Widget_Test`
+**kind 5** record in `kinds.js` (`0x004DDC10`…`0x004DDD18`, left-press-delayed), our
+options screen acts on the click, and none of the rows is in `docs/arms.json` — so
+the gesture is wrong and nothing counts it. And `0x00472E46/battle-phase-swallows-messages`
+is still `missing`.
+
+**What it cost the suite**, which is the finding about the suite rather than the
+tips: sixteen existing tests went red, in six files, because a new game now opens
+with three tips that hold the campaign map's input — faithfully — and every one of
+those tests ended a turn or ticked the map past frame 21. Each fixture now sets
+*Tip screens: No* explicitly and says why, rather than the phase mapping being bent
+to hide tips from a machine rooted on the campaign.
+
+Counts: arms, two frame arms `reproduced` (`0x00476AA7/tip-screen-ladder`,
+`0x00476E21/tip-restores-its-screen`); sound triggers **51 → 53 of 143**; files
+**560 → 595 of 771** — forty by name, thirty-five that can sound.
+
+---
+
+**C161 — "a stored field our importer drops" is now a red test,
+and the inventory that makes it one found 153 of 241 undecided.**
+
+C142 and C153 were one defect found twice by a player, with the
+farm-row forecasts measured as the third. Each field was stored by `Lords2.exe`,
+modelled by `l2_kingdom`, carried by our own save format, drawn by our painter —
+and never read out of a `.sav`. C142 named why the existing defence could not see
+them: **the exhaustive destructure guards `CountyState`, and a field never added
+to `CountyState` is not in the list it enumerates.** So the fix is not a fourth
+field. It is a denominator that belongs to the original.
+
+**The inventory.** `docs/stored-fields.json`, one row per field of the county and
+realm records: `imported`, `derived`, or `excluded` with a one-line `why`, and no
+fourth status. Its rows come from three places, and each is checked:
+
+* **The original's side** — `node tools/oracle/fields.js`, new, reads every
+  `g_counties[i].x`, `.field_0xNNN`, `i * 0x300 + 0x53fXXX` and absolute `DAT_`
+  access in the decompilation, and the same four shapes for `g_realms`, and lists
+  each offset with the functions that write and read it. **318 accessed offsets,
+  221 county and 97 realm**, plus three member names typed over the wrong array
+  that it reports and does not count. `--check` fails on an offset no row covers
+  and on a row no instruction touches.
+* **The layout** — every field `docs/records.json` names must have a row of that
+  name, width and array shape (146 fields once the nested arrays expand).
+* **The saves** — `crates/l2-scenario/tests/stored_fields.rs` holds every
+  `imported` and `derived` row to the file's own value after `Scenario::kingdom`,
+  in every county and realm of every save on the machine: **30,600 values over
+  18 saves, and all agree.** That is the check that cannot be typed into
+  agreement, and it is the one that would have caught all three instances.
+
+**Before and after, in rows.** At `d2344f3`: **76 imported, 10 derived, 2 excluded
+with a reason** (C142's county `+0x16` and realm `+0x28`, left open in prose), and
+**153 decided by nothing**. After: **167 imported, 10 derived, 64 excluded, 0
+undecided.** Two of the 153 were worse than dropped — the importer set
+`happinessAvg` and `happinessSum` to this season's happiness, which is right on turn
+one and wrong on every later turn (`siege-aftersie.sav` county 2 draws 95 where the
+original draws 54).
+
+**What a player could see, now carried.** The three farm rows' forecasts (county
+`+0x258`/`+0x268`/`+0x26C`, `+0x22C`/`+0x230`/`+0x2FC`, `+0x20C`/`+0x214`); the
+happiness panel's average, army, ale and other-counties terms; the population
+panel's *Army* line and emigrant destination; the ration panel's troop counts
+(`+0x198`, `+0x19C` — 178 and 360 on the battle saves, 0 on load); the weapon the
+blacksmith row draws (`+0x290`); the industry ramp (`+0x294` — **80 in every owned
+county of every save, and a loaded game ran its mines at `Industry::new()`'s 20 and
+15**); the levy surcharge; the castle build record and siege scars; the standing
+crop; and on the realm, the ally byte the diplomacy screen draws, the score
+screen's totals and the AI's standing orders.
+
+**Self-verifying invariants, all `[V]` across every save** and each asserted in
+`crates/l2-scenario/tests/import.rs`:
+
+* `+0x258 == +0x268 − +0x26C − herdEaten` — one relation pinning three offsets.
+* `+0x22C` is `Grain_LabourEstimate`'s tail. **Corpus limit, stated:** `+0x230`
+  and `crop[2]` are zero in every county of every save, so the sowing and harvest
+  arms are checked only at zero, and whether the tail's `season` is this season or
+  the next cannot be told here. Five counties carry a non-zero change.
+* `happinessAvg == (i8)(happinessSum / g_turnCount)`.
+* `+0x5B` is non-zero exactly where `+0x2C ≥ 6`.
+* `+0x21` is set only below happiness 30 — which identifies it as
+  `Unrest_UpdateAll`'s warning latch, the flag `County::unrest_warned` said had no
+  known offset.
+
+**And what a green run did not measure.** 58 of the 177 claimed rows are zero in
+every save — no castle under construction, no crop in the ground, no random event,
+no alliance anywhere in the corpus — so for those the value check compared an
+offset only with zero, and a wrong offset landing on another zero passes. The test
+prints them by name every run rather than letting *30,600 agree* imply more.
+
+**Excluded, and a player can see it: features, not imports.** Nine rows are drawn by
+a painter in the original and have no field in `l2_kingdom` to carry them into:
+`Panel_Ration`'s three requirement figures (`+0x16C`), `Panel_JobGrain`'s `+0x24C`
+and `+0x278`, `Panel_JobCattle`'s `+0x270` pair, `Panel_JobIndustry`'s four
+(`+0x280`), `Castle_BuildEstimate`'s `+0x1A6`, `Court_Draw`'s realm `+0x15C`, and
+`Army_PickName`'s counters at realm `+0x2D`. **`+0x1AD`, the mercenary offer, is
+excluded for a different reason and it is a finding:** it is a cache of
+`g_mercenaryBands`, which no importer reads at all, so carrying the byte alone would
+mark a band nobody can hire. A loaded game has no mercenary bands.
+
+**Three things the tool found about our own documents.** `docs/records.json` typed
+the three event swing bytes `u8`; `Event_RollAll` writes `0xD8` and `0xE2`, −40 and
+−30, and they are now `i8`. The decompiled corpus still prints the pre-C153
+`Industry` layout, so `fields.js` detects which layout a corpus was decompiled under
+(only the new one names `nextSeason`) — without that, the county's `weaponType` byte,
+read as `*(byte *)g_counties[x].industry`, resolved onto `efficiency` and +0x290 looked
+untouched. And the first `--check` reported all 320 offsets uncovered because the rows
+carry a `type` and the scanner read a `width` — the tool's own first bug, caught by its
+own implausible number.
+
+**Not moved into `l2-formats`.** The brief allowed it; the check does not need it,
+because it decodes raw offsets itself, so `l2_formats::save::{County, Realm}` are
+unchanged and the new reads sit in `l2-scenario` beside the ones C142 and C149 added.
+
+---
+
+**C162 — a save test failed one run in ninety, and the shared directory
+it raced over was also hiding a real defect and three assertions that could not fail.**
+
+`crates/l2-game/tests/save.rs`'s `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
+failed at merge twice in one evening and passed every time it was run alone. It was recorded as a
+pre-existing flake in the merge of C151 and left there. This entry is what measuring it found.
+
+**The flake, measured.** It failed **23 times in 2,000 runs** of the unfixed test binary, with
+8 parallel workers — about 1.15 % — and always on *"the loaded game is the saved one"*. It was
+then forced deterministically before anything was fixed. Barriers held two real tests at the
+interleaving:
+1. `a_failed_write_cannot_destroy_the_save_it_was_replacing` writes its file;
+2. the load screen opens;
+3. the file is removed;
+4. the test takes its second listing.
+
+Under that interleaving it failed 5 of 5 unfixed and passed 5 of 5 fixed, and the fixed binary
+failed 0 of 2,000. **[V]**
+
+**Two causes, both fixed.**
+
+* **The test derived the row it clicked from a second `saves::list()`**, not from the list the
+  screen opened with. Anything written or removed between the two reads moved the click one row,
+  onto a different game. It now clicks a literal row, pinned by the files its own directory is
+  asserted to hold.
+* **Every file test shared one `LORDS2_SAVES` directory.** Two took a listing lock and four wrote
+  or deleted without it. `saves::scoped_dir()` now gives each test a directory of its own, ahead
+  of `LORDS2_SAVES`, and **the lock is deleted**. The result is a shape that cannot race, rather
+  than a lock that the next test must remember to take. Making the scope process-global again
+  turns the isolation test red on its own, and 8 of the file's 18 tests red.
+
+**The near miss.** Before this, **a test that forgot to set up its directory would have written
+straight into the player's real `%APPDATA%` saves.** `LORDS2_SAVES` now points underneath a
+regular file. A test with no directory of its own therefore fails on its first write, naming the
+path, whatever order the tests run in. Removing the directory from the screen test and running it
+alone does exactly that, and leaves `%APPDATA%` untouched.
+
+**What the shared directory was hiding.** Each item below was ablated red.
+
+* **A real defect.** The save screen drew its directory path uncut, so a path over 67 characters
+  overflowed the box, 398 pixels outside it. That takes a deep `LORDS2_SAVES`, or a profile user
+  name over 24 characters. The test that it paints inside its window had passed only because its
+  temp path was short. The line is now cut from the left.
+* **Three tests that could never fail**, each shown green with the behaviour it claimed deleted:
+  * **The overwrite test** looked for a `.part` file through `saves::list()`, which only shows
+    `.l2sav`, so it could never see `x.l2sav.part`. It stayed green with the rename swapped for a
+    copy.
+  * **The cancel test** typed with key-down events the name field ignores, and searched for
+    `"CANCELLED"`, which the field lower-cases. It stayed green with the cross wired to confirm.
+  * **The sort test's** three lower-case names were already in order as NTFS returns them. It
+    stayed green with the sort deleted; one capital letter now makes the two orders disagree.
+
+**Production does not race.** The load screen reads the directory once, and both its drawing and
+its click resolution use that one read. That is now pinned by a test: a save arriving after the
+screen opens does not move the clicked row. The test goes red when the click arm re-reads the
+directory.
+
+**That is C138's shape three times in one file:** an assertion that cannot fail looks exactly like
+one that passes. A flaky test was the only thing that made anybody read this file closely enough
+to find them. "It fails one run in ninety" was the visible symptom of a directory shared by tests
+that were not all testing what they said.
+
+---
+
+**C163 — `Font_10.pl8` is loaded, it has no letters, and the nine numbers a player reads every turn are in it.**
+
+C157 left `g_font10` unloaded because pointing a test at it made a lowercase
+letter draw nothing, and read that as **[I]** *"not an alphabet under the shared
+table"*. Half of that was right. **[V]** throughout, from the decompilation and
+the user's own files.
+
+### `Glyph_Draw` has one table and no gap handling of its own
+
+* `Glyph_Draw` (`0x00402A14`) reads `g_glyphWidths[c - 0x20] - 1` and the record
+  at `font + frame * 0x10 + 8` for **every** face. It has no per-face table and
+  no check against the file's frame count. Its only per-face branch is a
+  one-pixel raise for `&g_fontBody` on characters `0x81…0x8D`, `0x93…0x97` and
+  `0xA0…0xA4`, which `shell::font` does **not** reproduce.
+* A gap is a zero entry. `Ui_DrawText` (`0x00402637`) advances 4 and does not
+  call `Glyph_Draw` at all. Nothing substitutes a character or falls back to
+  another face.
+* The blit, `0x004B41B7`, is a mask in the caller's colour.
+* Every table entry lands inside all five shipped faces. The highest frame
+  asked for is 104, and the faces hold 150, 108, 108, 108 and 106.
+
+So `Font_10.pl8` is read exactly as the other four are: same base, same indices.
+
+### What the file holds
+
+108 frames, the same layout as `Fntl2_9.pl8` and `Fntl2_14.pl8`.
+
+* Frames 52…61 are the digits and 62…78 the punctuation strip. These are real
+  ten-row glyphs.
+* **All 52 letters and the 29-frame accented tail are 2 × 2 stubs.** Of the 81,
+  61 are wholly transparent and 20 carry one to four stray pixels (`'e'` is a
+  solid block).
+* A letter blits its stub and advances 3. *"Seasons"* paints four pixels and
+  moves the pen 21. That is the "renders nothing" of C157's panic.
+* **[I]** The atlas positions in the stubs' records match a full alphabet's, so
+  the letters were cropped out of a sheet that had them.
+
+**Every string the nine call sites build is a lead, digits and one space.** The
+leads are `' '`, `'@'`, `'+'` and `'-'`. The prefix and suffix pointers
+`0x004D3D40…0x004D3D84` are all `" "`, read out of the image. The original
+never asks this face for a letter. The words beside its numbers are
+`&g_fontSmall`.
+
+### All nine are drawn under `g_dropShadow`
+
+Each of the eight row painters sets `g_dropShadow = 1` on entry. By then
+`CountyStrip_Draw` has already cleared `DAT_005AEA40`. So `Ui_DrawText` takes
+its drop-shadow arm: `(x + 1, y + 1)` in `0x3F`, then the glyph.
+`font::DROP_SHADOW_COLOUR` had recorded that arm as unimplemented.
+`Font::draw_dropped` now draws it. The castle cell's two `&g_fontSmall` captions
+are inside the same flag and are dropped too.
+
+### What changed
+
+| draw | was | is |
+|---|---|---|
+| 7 × `Ui_DrawDelta` forecasts (`strip_delta`) — three farm rows, four industry rows | `Fntl2_9.pl8`, flat | `Font_10.pl8`, dropped |
+| reclamation figure, `FUN_004103C5` | `Fntl2_9.pl8`, flat | `Font_10.pl8`, dropped |
+| castle seasons, `CountyStrip_DrawCastleIcon` | `"{n} "`, **no lead**, `Fntl2_9.pl8`, flat | `' '`, `" "`: **digits +4**, `Font_10.pl8`, dropped |
+| castle *"Season(s)"* / *"Needed"* | `Fntl2_9.pl8`, flat | `Fntl2_9.pl8`, dropped; plural rule is `Ui_DrawUnitNoun`'s `value == 1` |
+
+`ten_text` carries a `debug_assert!` against letters, so a word routed to the
+numeral face panics in tests. That assertion has **not** been observed firing.
+`ShellAssets::ten` is new, and `missing_fonts` names all five faces.
+
+**The strip has seven `Ui_DrawDelta` calls, not eight.** The seven are
+`00410000.c` lines 22, 52, 78, 98, 114, 130 and 154: three farm rows and four
+industry rows. The castle painter has none, and 7 + 2 `Ui_DrawNumber` = the
+nine `&g_font10` references. `strip_delta`'s doc, `DELTA_POS`,
+`draw_produce_rows` and the cattle test said eight, and are corrected.
+`docs/draws-map.md` §5.5 (*"the eight `Ui_DrawDelta` calls"*, *"all eight rows
+pass `mode = 0`"*) is not edited here.
+
+### Tests, each ablated
+
+| test | ablation | red with |
+|---|---|---|
+| `shell::font_10_is_a_numeral_face_read_through_the_shared_table` | file → `font::SMALL` | `'a'` 8 rows, expected 2 |
+| 〃 | file → `font::EIGHT` | 150 frames, expected 108 |
+| `screens::the_castle_cell_puts_its_number_in_font_10_and_its_word_in_fntl2_9` | no `' '` lead | digits at (572, 320), expected (576, 320) |
+| 〃 | `small_dropped` → `shell.ten` | *"Seasons" is not on the castle cell* |
+| 〃, `screens::the_industry_forecast_is_a_dropped_font_10_number` | shadow blit deleted | both shadow claims |
+| the two above, plus `the_cattle_row…`, `the_grain_row…`, `the_reclamation_row…` and `a_loaded_game_draws_each_industry_rows_own_forecast…` | `ten_text` → `shell.small` | all six, at their `Font_10.pl8` search |
+
+**Not separately observed red:**
+
+* the castle word's ink count, which its glyph search implies;
+* the word's shadow claim, which sits behind the number's;
+* the *"Seasons"* ink bound in the shell test.
+
+### `Ui_DrawNumber` has 190 call sites, not 191
+
+`docs/plan.md` said 191. That was a text count: 191 lines of the decompilation
+match `Ui_DrawNumber(`, and one of them is the definition,
+`void __cdecl Ui_DrawNumber(`. The `====` header does not match. So there are
+190 calls, which agrees with C157's 190 live and 211 in the exe.
+
+`docs/plan.md` is corrected. The same 191 is still quoted in:
+
+* `docs/draws-map.md` §5a (twice, and in its 351 total);
+* C127 and C140 above;
+* `Ui_DrawNumberRight`'s `symbols.json` comment.
+
+Those are not edited here. §5a's lead breakdown, 115 + 62 + 1 + 1 = 179, does
+not sum to either figure, and that is not explained here.
+
+**Corrected at merge.** All four quotes above now say 190 and cite this entry: `docs/draws-map.md`
+§5a (where the four routines' total becomes 350), C127, C140 and `Ui_DrawNumberRight`'s
+`symbols.json` comment.
+
+---
+
+**C164 — no loaded game and no new game had a single mercenary
+band, and thirteen of C161' 64 exclusions are things a player can
+see.**
+
+C161 left county `+0x1AD` excluded as *"a cache of
+`g_mercenaryBands`, which no importer reads"*. Following it went further than an
+import gap: **`MercenaryBands::init` was called by nothing but tests**, so a new
+campaign had no bands either. `Game_NewGame` runs `Mercenary_Init` between
+`Merchant_SpawnAll` and `PlayerStart_Shuffle`; our new-game path had no line for
+it. On every game, loaded or new, the raise-army screen never offered a band and
+C150's marker on the town tile never had one to mark.
+
+**The table, `[V]` three ways, none of them resemblance to the roster.**
+`g_mercBands` (`0x00568DC0`) is saved as a block of exactly **260** bytes, 13 ×
+`0x14`: slot 0 and twelve bands. The six constant fields `Mercenary_Init` copies
+equal the roster in all **72 bands over 18 saves**, and every slot past
+`g_mercBandsInPlay` (`0x00554030`, also saved) is zero. And the walk checks
+itself on data the original wrote: county `+0x1AD` is `Mercenary_OfferInCounty`
+over the table in every county of every save — `siege-old_turn.sav` stands bands 2
+and 3 in county 1 and the byte is **2** — every offering band has just reloaded its
+countdown and stepped one past its county, and **one season of
+`Mercenary_AdvanceAll` over each of the four one-turn pairs lands on the next
+save's table exactly.** `england-turn1.sav` is `Mercenary_Init(14)` band for band.
+The hirer word is zero in every band of every save; its check is exercised only by
+a test that writes one.
+
+**A second defect behind the first.** `Kingdom::start_new_game` walks the whole
+pipeline, which carries the phase-7 walk; `Game_NewGame` is `Mercenary_Init(); …
+Season_Advance();` with no `Mercenary_AdvanceAll`. Harmless while no new game had
+bands, it would have had the Saxon band offering itself on turn one. It skips that
+pass now, and a test compares a map-built England after its opening season with
+the save. `Units_ResetMoves` and `Diplo_ReconcileAlliances` also run there and are
+not in `Game_NewGame` either `[D]`; both look like no-ops on a new game and were
+left alone.
+
+**The 64, classified against the decompilation rather than their reasons.**
+33 ignorable as stated. 13 ignorable with a wrong or incomplete reason, each
+rewritten — among them realm `+0x13C`, whose "armoury wall and levy" readers index
+`+0x13C + t*4` from `t = 1` and so read `+0x140` onward, a scanner artefact of
+`fields.js`; and `+0x18C`/`+0x190`, which are not copies of `+0x178`/`+0x17C` and
+differ from them in twelve and eighteen counties. **Five are rule inputs a loaded
+game loses, and each needs a mechanic we have not built:** `+0x15A`
+(`County_EnsurePasture` when cattle are bought), `+0x15B` (the field drought and
+flooding ruin), `+0x206` (`County_DestroyField`'s separate sown count), `+0x29C`
+(a trample does not reset the efficiency ramp's memory), realm `+0x2A` (the
+conquest letters). **Thirteen are player-visible.**
+
+**What moved.** Imported: `+0x1AD`; realm `+0x2D`, `Army_PickName`'s counters,
+modelled and encoded all along and never read, so a loaded game named its next
+army from a clean slate; and four new county fields at our `VERSION` 20 — what
+last season's weather and event did to the grain (`+0x24C`, `+0x278`) and the herd
+(`+0x270`, `+0x274`). Derived, each a function the code already had or now has:
+the ration panel's *Fed* row (`+0x16C`), the castle estimate (`+0x1A6`), the four
+industry figures (`+0x280`, `industry::panel_figures` — whose module docs said
+*"no draw call reads them"*, and `Panel_JobIndustry` draws all four) and the
+court's expected tax (realm `+0x15C`, now `Kingdom::tax_expected`). **242 rows:
+173 imported, 14 derived, 55 excluded.**
+
+**What a green run does not measure here.** Of the new claims, `+0x1A6`, `+0x24C`,
+`+0x270`, `+0x274` and `+0x278` are zero in every save — every county on this
+machine stands in *Cloudy* with no event live and no castle mid-build — so 63 of
+the 187 claimed rows are now compared only with zero, five of them these. The
+blacksmith pair of `+0x280` (sixteen and seven non-zero), realm `+0x15C` (23) and
+realm `+0x2D` are measured against real numbers.
+
+**Carried and still not drawn.** The grain, cattle and industry job popups' bodies
+are stubs; `Castle_DrawStatusBlock` has no painter; the eight county-event letters
+print no count. The figures are now there for those painters to read. County
+`+0x2F8`, the Plague and Wedding letters' figure, stays excluded for a stronger
+reason than a missing painter: `Population_UpdateAll` computes the event swing as
+`Pct(deaths or births, |p|) + 10`, capped at a fifth of the population, and
+`l2_kingdom::population` computes `Pct(population, p)` — a rule that differs from
+the original's `[D]`, and carrying the byte would print a number the rule did not
+apply.
