@@ -7791,3 +7791,80 @@ the 530 has not been re-audited against what actually posts.
 Two smaller corrections from the same reading: the chain was said to be *"why
 `S010_13.wav` exists"*, and that clip is `g_msgVoiceS010`'s; and the lord sting's
 table at `0x004E2470` holds four clips and a sentinel, not five lords.
+
+**CNEW-numbering-tool — the numbering tool skipped what it could not read, and its
+first run over `docs/bugs.md` found a duplicate on `main` that nothing had.**
+
+Merging six branches, the integrator closed three gaps in
+`tools/decisions/corrections.js` by judgement. Two branches had written their
+correction as a bare Markdown heading over its placeholder, which the tool did not
+recognise as an entry, and both were rewritten by hand. A branch had written a
+dead-code entry in `docs/bugs.md` with a `D` placeholder; the tool scanned for `C`
+and `B` placeholders only, so nothing reported it, and it became D39 by hand. And a
+branch's bug row, written as a placeholder, was invisible to `quirks_catalogue.rs`,
+whose parser accepted digits only: the branch was green, and two tests went red at
+merge the moment the row had a number. Assignment itself was `git grep -l | perl
+-pi`, while the tool's own failure message said it was *"one command per tag"*.
+**[V]**, all four, by reading the tool and the catalogue as they stood at `9cbd3af`.
+
+**The three are one mistake.** Each check matched the good shape and passed over
+everything else in silence, so a wrong shape was not a failure — it was an absence,
+and an absence passes. C146 vanished the same way (C147). And for a numbered log an
+invisible entry is worse than a missing one: the next free number is computed
+without it, so the next assignment collides with it.
+
+**What changed.** `docs/agents.md`, *The tool as it is*, describes the result; in
+short:
+
+* **Six series, each a *(log, letter)* pair** — D and C in `decisions.md`; B, N, S
+  and D in `bugs.md`. The D-series exists twice and the two are unrelated, so a `D`
+  placeholder takes its number from the log its entry is in. Every series is
+  duplicate-checked, and a placeholder of a letter neither log numbers is reported.
+* **A line shaped like an entry and not in its log's form is an error naming the
+  line**: a Markdown heading in `decisions.md`, the wrong heading level, a hyphen,
+  en-dash or colon for the em-dash, the em-dash double-encoded, a cell closed tight.
+  Prose that opens with a bold id — both logs have plenty — stays quiet.
+* **`--assign <TAG>`** takes the next free number in the tag's own series, replaces
+  it in the tree's bytes rather than its decoded text, and relocks. It refuses and
+  writes nothing when the tag is absent or undefined, when the tree holds a drag the
+  relock would accept, or when either log has a malformed entry line — so it never
+  numbers from a log it cannot fully read.
+* **`--check` reports placeholders last**, each with its defining line, its command
+  and the number it would take. The old order exited on a placeholder before the
+  lockfile rules ran, and before `--relock` could run at all, so a branch carrying
+  its own placeholder could neither verify nor regenerate its lock. **[V]**, from
+  the order of the old source.
+* **`quirks_catalogue.rs` accepts a placeholder as an entry**, so an unwired row
+  fails on its own branch, and `--assign` renames the `DISPOSITIONS` line in the
+  same pass as the document.
+
+**The duplicate.** Generalising rule 1 to every series failed on its first run:
+`docs/bugs.md` had two `B69`s — a §2.5 table row, *"whether you can order an attack
+depends on a figure index left over from another sweep"*, and the §2.10 heading on
+the siege repair bill. The catalogue read both and held one disposition for the
+pair, so it passed. **[V]** by `git log -S`: the heading arrived in `66d88a5`, the
+row about an hour later in `dd1918c`. The later arrival is now **B99**, with its two
+citations, `battlefield.rs::update_hover` and the `Battle_UpdateHover` arm's note in
+`docs/arms.json`, and its own `DISPOSITIONS` row. The other nine `B69` citations
+name the repair bill and stay — eight by what they say, and `runner.rs`'s
+wall-collapse comment **[I]** by its subject, the wall-damage count that entry bills.
+`docs/agents.md` records the B-numbers as caught by the quirks catalogue; this one
+was not, because a join on ids cannot see two entries sharing one.
+
+**Ablated, every test**, by editing the tool or parser and running the file, and
+every ablation went red where its test says it will. Two results were not what the
+first draft of the tests' comments claimed, and the comments now say what happened:
+keying duplicates by id without the log fails all eleven tool tests rather than one,
+because every test tree carries D1 in both logs; and narrowing the placeholder scan
+to `C` and `B` still lists defined `D`, `N` and `S` entries, which come from the log
+parse, so only the stray-letter assertion and the dead-code assignment carry it. The
+one that matters most for the catalogue: with a placeholder row added to the real
+`docs/bugs.md` §2, the current parser fails, naming the probe's tag as a row
+*"DISPOSITIONS does not"* have, and the old digits-only parser passes.
+
+**What this does not do.** Citations are checked for C-numbers only; a `B69` that
+points at the wrong bug is still found by reading. The entry-shape check covers the
+two logs, so an entry written into some other document is caught only if it carries
+a placeholder. `--assign` numbers one tag per call. And the catalogue reads §2
+only, so a placeholder row in §3–§5 has no test to fail — there is no switch list
+for those sections to join.

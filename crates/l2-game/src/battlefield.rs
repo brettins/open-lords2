@@ -459,7 +459,7 @@ impl LiveBattle {
     /// from whatever sweep ran last and normally sitting one record past the end
     /// of the array — instead of by its own loop variable. Verified at the
     /// instruction level (`a1 f8 e8 53 00` = `mov eax,[g_curBattleMan]` where
-    /// the two clauses either side use `mov eax,[ebp-4]`). `docs/bugs.md` B69
+    /// the two clauses either side use `mov eax,[ebp-4]`). `docs/bugs.md` B99
     /// records it; the byte it reads is in zeroed BSS, so the clause is true in
     /// practice and the corrected reading is the one that matches play.
     ///
