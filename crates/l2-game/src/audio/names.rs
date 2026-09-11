@@ -392,6 +392,77 @@ pub fn message_voice(group: u16, variant: u8) -> Option<String> {
     lord_voice(group, variant).or_else(|| system_voice(group))
 }
 
+/// **The tip screens' chained takes** — `FUN_004B3ACD`'s five-byte rows at
+/// `0x004E1E40 + group * 5`, for the ten groups whose row is not all zero.
+/// `[V]` read out of the executable; every other row in 200…219 is zero.
+///
+/// A byte is a 1-based index into [`TAKE_POOL`], and the first zero ends the
+/// group. Rows below 200 are the ASCII of the name pool and are never reached,
+/// because only a tip window calls the function.
+pub const TIP_TAKES: [(u16, [u8; 5]); 10] = [
+    (200, [26, 27, 0, 0, 0]),
+    (201, [1, 2, 3, 0, 0]),
+    (202, [4, 5, 6, 0, 0]),
+    (207, [7, 8, 9, 0, 0]),
+    (209, [10, 11, 12, 13, 0]),
+    (210, [14, 15, 16, 0, 0]),
+    (212, [17, 0, 0, 0, 0]),
+    (214, [18, 19, 0, 0, 0]),
+    (217, [20, 21, 22, 23, 0]),
+    (218, [24, 25, 0, 0, 0]),
+];
+
+/// `s_S201_02_wav_004E2290`, sixteen bytes a name: the pool the takes index.
+/// `[V]` from the executable; entries 28…30 are the sentinel `S000_00.wav`
+/// and the `n < 0x1F` guard lets no row reach them.
+pub const TAKE_POOL: [&str; 27] = [
+    "S201_02.wav",
+    "S201_03.wav",
+    "S201_04.wav",
+    "S202_02.wav",
+    "S202_03.wav",
+    "S202_04.wav",
+    "S207_02.wav",
+    "S207_03.wav",
+    "S207_04.wav",
+    "S209_02.wav",
+    "S209_03.wav",
+    "S209_04.wav",
+    "S209_05.wav",
+    "S210_02.wav",
+    "S210_03.wav",
+    "S210_04.wav",
+    "S212_02.wav",
+    "S214_02.wav",
+    "S214_03.wav",
+    "S217_02.wav",
+    "S217_03.wav",
+    "S217_04.wav",
+    "S217_05.wav",
+    "S218_02.wav",
+    "S218_03.wav",
+    "S200_02.wav",
+    "S200_03.wav",
+];
+
+/// `table[group * 5 + cursor]`, or 0 — the end of the group.
+pub fn tip_take(group: u16, cursor: usize) -> u8 {
+    TIP_TAKES
+        .iter()
+        .find(|(g, _)| *g == group)
+        .and_then(|(_, row)| row.get(cursor))
+        .copied()
+        .unwrap_or(0)
+}
+
+/// `"S201_02.wav" + (n - 1) * 0x10`, behind the `n < 0x1F` guard.
+pub fn take_name(n: u8) -> Option<&'static str> {
+    if !(1..0x1F).contains(&n) {
+        return None;
+    }
+    TAKE_POOL.get(n as usize - 1).copied()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

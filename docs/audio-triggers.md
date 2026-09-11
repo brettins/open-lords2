@@ -1,7 +1,10 @@
 # Every place the original asks for a sound
 
-**143 trigger sites across 70 functions. We fire 51 of them, and they carry 560
+**143 trigger sites across 70 functions. We fire 53 of them, and they carry 595
 of the install's 771 sounds**, because the classes are wildly unequal in weight.
+(The last two sites are the tip screens' first line and chained takes: forty files
+by name, thirty-five that anything can ask for — see *What `blocked` is blocked
+on*.)
 **Three are dead in the shipped game**, and they are named below.
 
     node tools/oracle/sounds.js            # the table, by primitive
@@ -138,12 +141,17 @@ with no path.
 | a channel from a click to the audio layer (the field brush) | 5 | 3 |
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
 | the two delegated message painters (categories `0x0C`, `0x14`) | 2 | 0 — both `ff_msg.wav` |
-| **the tip screens** — `Tip_Update`, `Tip_Show` and the categories `0x05`…`0x09` window | 2 | **40** `[V]` — 27 chained takes and 13 first lines; the largest files-per-site ratio in the inventory |
 
-**Read the second column before the first.** By sites the tip screens are the
-second-smallest row; by what a player would hear they are the second largest. The
-**66 troop-cry files are not here at all**: the six `Sound_PlayTroopCry` sites are
-`missing`, not `blocked`.
+**Read the second column before the first.** The **66 troop-cry files are not here
+at all**: the six `Sound_PlayTroopCry` sites are `missing`, not `blocked`.
+
+**The tip screens left this table**, and they were the row a player would have heard
+most of: two sites and forty files by name — 13 first lines and 27 chained takes, the
+largest files-per-site ratio in the inventory. They are fired now
+(`crates/l2-game/src/tip.rs`), and **35 of the 40 can actually sound**: tips 212, 214
+and 215 are guarded on `g_screenId == 0` during a battle, which no path was found to
+hold, so `S212_01`, `S212_02`, `S214_01`, `S214_02` and `S214_03` ship silent in the
+original as well as here. `[I]` on *"no path"*.
 
 **The battlefield's 25 is a limit of the design and not a to-do.**
 `docs/netcode.md` D-3 says a sound may never affect the simulation, which is
@@ -231,32 +239,30 @@ and `#21` — are the **animated** capture and ending branches, which save the
 group and variant, dismiss the message, play `cap_cty*.smk` and speak
 *afterwards*. The trigger there is a film ending.
 
-**The third is `#24`, and it was counted as fired until it was read.** It is the
-branch for categories `0x05`…`0x09`, and the only function in the original that
-posts one is `Tip_Show` (`0x00476DA9`), from `g_tipCategory` — those categories
-*are* the tip screens. Nothing in our engine posts a tip, so the arm could not
-sound, and the thirteen tip clips it would play were in the file count because
-their names resolved.
+**The third is `#24`, and it was counted as fired twice: once before it could
+sound, and now.** It is the branch for categories `0x05`…`0x09`, and the only
+function in the original that posts one is `Tip_Show` (`0x00476DA9`), from
+`g_tipCategory` — those categories *are* the tip screens. It was reverted when that
+was read, because nothing posted a tip. `crate::tip` posts them now, and
+`crates/l2-game/tests/tips.rs` hears `S200_01.wav` by name on the tick
+`Msg_DrawWindow` tests.
+
+**And the chained takes are fired with it.** `[V]`: `FUN_004B3ACD(group)` has one
+caller, `Msg_DrawWindow`'s categories `0x05`…`0x09` branch, `else if
+(g_messageTimer < 0x780)` — so from 81 ticks in, every frame. It reads
+`n = table[group × 5 + cursor]` at `0x004E1E40`; if `Sound_OneShotBusy()` it stamps
+the time, otherwise once **more than 999 ms** have passed since the last busy stamp
+it advances the cursor and plays `S201_02.wav + (n − 1) × 0x10`. The cursor
+`DAT_0052F004` is reset in exactly one place, **`Tip_Show`**, and the table's only
+live rows are groups 200…218: 200 → 26, 27 · 201 → 1, 2, 3 · 202 → 4, 5, 6 ·
+207 → 7, 8, 9 · 209 → 10…13 · 210 → 14, 15, 16 · 212 → 17 · 214 → 18, 19 ·
+217 → 20…23 · 218 → 24, 25 — 27 takes, all shipping, read out of the executable into
+`audio::names::TIP_TAKES`. `Director::chain_takes` is the function, and the one
+divergence is stated there: `timeGetTime()` becomes the director's own tick count, so
+*"more than 999 ms"* is 63 ticks at 16 ms. The test asserts the tick each take starts
+on against when the mixer last had the narrator sounding.
 
 ### What is still missing inside the voice class
-
-* **The chained takes — and they are the tip screens, not a cursor.** `[V]`:
-  `FUN_004B3ACD(group)` has one caller, `Msg_DrawWindow`'s categories
-  `0x05`…`0x09` branch, `else if (g_messageTimer < 0x780)` — so from 80 ticks in,
-  every frame. It reads `n = table[group × 5 + cursor]` at `0x004E1E40`; if
-  `Sound_OneShotBusy()` it stamps the time, otherwise once a full **1,000 ms** has
-  passed since the last busy stamp it advances the cursor and plays
-  `S201_02.wav + (n − 1) × 0x10`. The cursor `DAT_0052F004` is reset in exactly
-  one place, **`Tip_Show`**, and the table's only live rows are groups 200…218:
-  200 → 26, 27 · 201 → 1, 2, 3 · 202 → 4, 5, 6 · 207 → 7, 8, 9 · 209 → 10…13 ·
-  210 → 14, 15, 16 · 212 → 17 · 214 → 18, 19 · 217 → 20…23 · 218 → 24, 25 — 27
-  takes, all shipping. (Lower group numbers index the name pool, whose ASCII bytes
-  the `n < 0x1F` guard rejects.) **This note used to blame the chain for
-  `S010_13.wav`**, which belongs to `g_msgVoiceS010` below. The cursor and the
-  gate are cheap; the blocker is that no tip window is ever posted —
-  `Tip_Update` (`0x00476AA7`), `Tip_Show`, the paragraph window with its wrapped
-  height and computed OK corner, and the 20-frame delay `FUN_00476E21` re-arms on
-  every dismissal.
 * **`FUN_004B3B92(lord − 1)`** — the sting a letter plays 90 ticks in,
   `S246_02.wav + lord × 0x10`. The function accepts indices 0…4 and the table
   holds **four** clips — `S246_02`, `_04`, `_03`, `_01` — and then `S000_00.wav`, a

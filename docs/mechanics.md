@@ -611,12 +611,15 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   `Audio` is not in `Ctx`, so no screen can reach it, and the event loop derives what
   should be audible from what already happened.
 
-  **The number that keeps this row honest is 560 of 771**, and it is measured rather
-  than typed — `crates/l2-game/tests/audio_wiring.rs` drives the real paths and reads
-  back what was actually opened. **530 of those 560 are the narrator**, 448 lord takes
-  and 82 system clips, because 646 of the install's 771 files — **84 %** — are somebody
-  speaking. A player: *"that guy's voice acting is half the personality of the game."*
-  By file count he understates it.
+  **The number that keeps this row honest is 595 of 771.** 560 of them are measured
+  rather than typed — `crates/l2-game/tests/audio_wiring.rs` drives the real paths and
+  reads back what was actually opened — and the other **35 are the tip screens**, of
+  which `crates/l2-game/tests/tips.rs` drives one tip's three clips end to end and the
+  rest are counted from the take table and the install's listing, not driven. **565 of
+  those 595 are the narrator** — 448 lord takes, 93 system clips and 24 tip takes —
+  because 646 of the install's 771 files, **84 %**, are somebody speaking. A player:
+  *"that guy's voice acting is half the personality of the game."* By file count he
+  understates it.
 
   It was **0 of 771** from the day the layer landed until a player said he heard
   nothing — `audio::scene` derived the music from the *bottom* of the screen stack, and
@@ -625,23 +628,28 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   window arrived and the voice class came with it, then 572 when the screens that speak
   as they open were wired, then 573 with the pointer click — and then **560**, when thirteen tip clips
   turned out to be counted because their names resolved, not because anything in the
-  game could ask for them. Everything below this paragraph is about the original and was
-  never in doubt; what was in doubt was whether anything called it, which is the question
-  this row now answers with a fraction instead of a tick.
+  game could ask for them — and then **595**, when the tip screens were built
+  (`crates/l2-game/src/tip.rs`) and 35 of their 40 files could be asked for. Everything
+  below this paragraph is about the original and was never in doubt; what was in doubt
+  was whether anything called it, which is the question this row now answers with a
+  fraction instead of a tick.
 
   Two things the fraction hides. **`Battle5` is unreachable**: it ships, it decodes, and
   the counter that selects it is `DAT_0057A0F0`, the unidentified third battle mode, so
-  nothing can ask for it. And **the tip screens are not built**, which silences two things: every tip's
-  first line and `FUN_004B3ACD`'s chain of further takes, one starting a second after
-  the last finishes — 40 files. The chain was filed as *"a per-message take cursor"*
-  and blamed for `S010_13.wav`; the cursor is two globals and a table, and
-  `S010_13.wav` is not in the chain at all.
+  nothing can ask for it. And **the three battle tips cannot be posted**, so five tip
+  files ship and stay silent — `S212_01`, `S212_02`, `S214_01`, `S214_02`, `S214_03`
+  (215 has no clip). `Tip_Update` guards them on `g_screenId == 0` *during* a battle,
+  every writer of `g_battlePhase = 2` writes `0x29` beside it, and `Msg_Pump` closes
+  any message while the phase is 2. `[I]` — no path was found, not every path was
+  searched. The chain of takes was once filed as *"a per-message take cursor"* and
+  blamed for `S010_13.wav`; the cursor is two globals and a table, and `S010_13.wav` is
+  not in the chain at all.
 
-  **And the count that says what to do next is 51 of 143**, in `docs/audio.json` — the
+  **And the count that says what to do next is 53 of 143**, in `docs/audio.json` — the
   audio equivalent of the input-arm audit, and it now has the same two checks behind it
   that `docs/arms.json` has: `node tools/oracle/sounds.js --check` compares it with the
   decompilation, and `crates/l2-game/tests/sfx.rs` compares it with the `// sfx:` markers
-  in `crates/`. Every site is `reproduced` (51), `blocked` (52), `missing` (37) or `dead` (3), and a
+  in `crates/`. Every site is `reproduced` (53), `blocked` (50), `missing` (37) or `dead` (3), and a
   `blocked` record is required by the test to **name the mechanic** it is waiting for.
 
   **The denominator moved from 134 to 143 and that is the interesting part.** The audit

@@ -51,11 +51,12 @@
 //! counts here are **measured by `tests/audio_wiring.rs`, not typed**, and a
 //! new call site moves them by itself.
 //!
-//! Of the install's **771** `.wav` files, this layer can reach **560**:
+//! Of the install's **771** `.wav` files, this layer can reach **595**:
 //!
 //! | | files | how |
 //! |---|---:|---|
-//! | the narrator | **530** | 448 lord takes + 82 system clips, via [`Director`] and [`voice_tick`] |
+//! | the narrator | **541** | 448 lord takes + 93 system clips, via [`Director`] and [`voice_tick`] — eleven of the 93 are tips' first lines, since `crate::tip` posts tips |
+//! | the tips' chained takes | 24 | [`Director::chain_takes`] — 27 in the table, three behind battle tips nothing can post |
 //! | music | 10 | `scroll1`…`scroll5`, `battle1`…`battle4`, `setup` |
 //! | fanfares | 3 | `ff_msg`, `ff_batl`, `ff_capt` |
 //! | the screen class | 16 | six spoken lines and ten bank slots, by [`Director::listen`]'s screen edges |
@@ -239,6 +240,12 @@ pub struct Audio {
     /// `DAT_0057A0F0` — the third battle mode [`BattleKind`] deliberately does
     /// not name. A set collected by driving beats a set assembled by reading.
     heard: std::collections::BTreeSet<String>,
+    /// **The one-shot buffer's occupant** — the last clip
+    /// [`Audio::play_speech`] started. `Sound_PlayFile` (`0x00427990`) plays
+    /// into one buffer and `Sound_OneShotBusy` (`0x00427C9B`) asks that buffer
+    /// whether it is playing; ours are many buffers, so the question becomes
+    /// *"is the last one still sounding"*. See [`Audio::one_shot_busy`].
+    last_speech: Option<String>,
 }
 
 impl Audio {
@@ -256,6 +263,7 @@ impl Audio {
             options: Options::default(),
             decodes: false,
             heard: std::collections::BTreeSet::new(),
+            last_speech: None,
         }
     }
 
@@ -351,6 +359,18 @@ impl Audio {
     /// is also only audio; a screen cannot reach [`Audio`] and so cannot.
     pub fn is_playing(&self, name: &str) -> bool {
         self.mixer.lock().is_ok_and(|m| m.is_playing(&name.to_ascii_lowercase()))
+    }
+
+    /// **`Sound_OneShotBusy` (`0x00427C9B`)** — is the narrator still talking?
+    ///
+    /// The original has one one-shot buffer and every `Sound_PlayFile` goes into
+    /// it, so the question has one answer. Here it is asked of the last clip
+    /// [`Audio::play_speech`] started, which is that buffer's occupant for every
+    /// voice line. `[D]`: `Msg_DrawWindow`'s four `ff_msg.wav` fanfares also go
+    /// through `Sound_PlayFile` and are played as effects here, so a fanfare
+    /// does not count as busy — none of the categories that ask play one.
+    pub fn one_shot_busy(&self) -> bool {
+        self.last_speech.as_deref().is_some_and(|n| self.is_playing(n))
     }
 
     /// Apply the three switches. Turning music off stops it; turning it back on
@@ -492,6 +512,7 @@ impl Audio {
         if let Ok(mut m) = self.mixer.lock() {
             m.play_effect(name.to_ascii_lowercase(), sound);
         }
+        self.last_speech = Some(name.to_ascii_lowercase());
     }
 
     /// Decode a file, caching the small ones.
@@ -779,6 +800,17 @@ pub struct Director {
     /// [`crate::screen::Machine::clicks`] at the previous tick — the widget
     /// click's edge. See [`Director::hear_the_click`].
     clicks: u32,
+    /// Ticks this director has listened to — the clock `FUN_004B3ACD`'s
+    /// `timeGetTime()` becomes. See [`Director::chain_takes`].
+    ticks: u64,
+    /// **`DAT_0052F004`, the chained takes' cursor**, and
+    /// [`crate::tip::Tips::shows`] when it was last zeroed.
+    take_cursor: usize,
+    tip_shows: u32,
+    /// `_DAT_004E59FC` — the tick the one-shot buffer was last seen busy.
+    /// `None` until it has been, which is the original's zero against a
+    /// `timeGetTime()` that has been running since the machine booted.
+    take_busy_at: Option<u64>,
 }
 
 impl Director {
@@ -795,6 +827,12 @@ impl Director {
         game: &crate::Game,
     ) {
         use crate::screen::ScreenId;
+        self.ticks += 1;
+        // `Tip_Show`'s `DAT_0052F004 = 0`, carried across the seam as a count.
+        if game.tips.shows() != self.tip_shows {
+            self.tip_shows = game.tips.shows();
+            self.take_cursor = 0;
+        }
 
         // **The three switches on the Sounds page**, which had no effect on
         // anything audible until this line: `screens::options` writes
@@ -1022,16 +1060,13 @@ impl Director {
             // dismiss the message, play a Smacker film and speak afterwards
             // from `DAT_004F0374`/`DAT_004F0354`. They need video, not a tick.
             //
-            // **The third is `#24`, and it was claimed here until it was read.**
-            // It is the categories `0x05`…`0x09` branch, and `Tip_Show`
-            // (`0x00476DA9`) is the only function in the original that posts
-            // one of those categories — they are the tip screens, from
-            // `g_tipCategory`. Nothing in this engine posts a tip, so the arm of
-            // [`voice_tick`] that answers them can never be reached in play, and
-            // a `reproduced` that cannot sound is the rot `docs/audio.json`
-            // exists to prevent. The arm stays: it is the original's schedule,
-            // and the tip screens will need it.
-            // sfx: Msg_DrawWindow#2,Msg_DrawWindow#3,Msg_DrawWindow#4,Msg_DrawWindow#5,Msg_DrawWindow#7,Msg_DrawWindow#8,Msg_DrawWindow#9,Msg_DrawWindow#10,Msg_DrawWindow#12,Msg_DrawWindow#14,Msg_DrawWindow#18,Msg_DrawWindow#22,Msg_DrawWindow#23
+            // **`#24` is the tip window's first line**, and it was claimed here
+            // once before it could sound: it is the categories `0x05`…`0x09`
+            // branch, and `Tip_Show` (`0x00476DA9`) is the only function in the
+            // original that posts one. It sounds now because `crate::tip` posts
+            // tips — `S200_01.wav` ten ticks after *"Game Objectives:"* opens,
+            // asserted by name in `tests/tips.rs`.
+            // sfx: Msg_DrawWindow#2,Msg_DrawWindow#3,Msg_DrawWindow#4,Msg_DrawWindow#5,Msg_DrawWindow#7,Msg_DrawWindow#8,Msg_DrawWindow#9,Msg_DrawWindow#10,Msg_DrawWindow#12,Msg_DrawWindow#14,Msg_DrawWindow#18,Msg_DrawWindow#22,Msg_DrawWindow#23,Msg_DrawWindow#24
             if voice_tick(record.category) == Some(timer) {
                 // `Msg_PlayVoice(g_messageGroup, g_messageVariant)`. A group
                 // outside the three bands has no clip, and that is a message
@@ -1039,6 +1074,52 @@ impl Director {
                 if let Some(name) = names::message_voice(record.group, record.variant) {
                     audio.play_speech(&name);
                 }
+            } else if crate::tip::is_tip_window(record) && timer < 0x780 {
+                // `else if (g_messageTimer < 0x780) FUN_004B3ACD(g_messageGroup);`
+                self.chain_takes(audio, record.group);
+            }
+        }
+    }
+
+    /// **`FUN_004B3ACD` (`0x004B3ACD`) — the rest of a tip, read aloud.** `[V]`:
+    ///
+    /// ```c
+    /// n = table[group * 5 + DAT_0052F004];                 /* 0x004E1E40 */
+    /// if (n != 0) {
+    ///     if (Sound_OneShotBusy()) _DAT_004E59FC = timeGetTime();
+    ///     else if (timeGetTime() - _DAT_004E59FC > 999
+    ///              && (DAT_0052F004++, n != 0) && n < 0x1F)
+    ///         Sound_PlayFile("S201_02.wav" + (n - 1) * 0x10, 1, 0);
+    /// }
+    /// ```
+    ///
+    /// Called every frame of a tip window from eighty ticks in. So after the
+    /// first line, each take waits for the narrator to fall silent and then a
+    /// further **full second** — measured from the last frame he was heard, not
+    /// from when he started — and the cursor stops on the first zero in the
+    /// group's row. [`names::tip_take`] is the table.
+    ///
+    /// **The one divergence is the clock**, and it is stated: the original
+    /// reads `timeGetTime()`, and this counts the director's own ticks at
+    /// [`crate::TICK_MS`] each, so *"more than 999 ms"* is 63 ticks. A stall
+    /// that drops frames stretches ours and not theirs. The stamp starts
+    /// unset, where the original's starts at zero against a clock that has been
+    /// running since boot — both mean *"long ago"*.
+    // sfx: FUN_004b3acd#1
+    fn chain_takes(&mut self, audio: &mut Audio, group: u16) {
+        let n = names::tip_take(group, self.take_cursor);
+        if n == 0 {
+            return;
+        }
+        if audio.one_shot_busy() {
+            self.take_busy_at = Some(self.ticks);
+            return;
+        }
+        let quiet_for = self.take_busy_at.map_or(u64::MAX, |t| (self.ticks - t) * crate::TICK_MS as u64);
+        if quiet_for > 999 {
+            self.take_cursor += 1;
+            if let Some(name) = names::take_name(n) {
+                audio.play_speech(name);
             }
         }
     }
@@ -1194,6 +1275,9 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         // arm exists because the exhaustive match made somebody answer the
         // question, which is the whole point of it having no wildcard.
         | S::Message
+        // Screen `0x27`, a tip's. `g_appPhase == 3` gates `Tip_Update`, so it
+        // is only ever raised over a running game.
+        | S::Tip
         | S::Options(_)
         | S::Battlefield
         | S::MenuBar(_)

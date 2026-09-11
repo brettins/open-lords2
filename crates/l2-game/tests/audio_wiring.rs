@@ -51,6 +51,10 @@ fn send(machine: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
 /// England start is and what `Scroll1` is the answer to.
 fn world() -> Game {
     let mut g = Game::new(5);
+    // **Tip screens: No.** A tip posted twenty frames in queues ahead of the
+    // messages these tests post and speaks first, which is right; the tips'
+    // own narration is asserted in `tests/tips.rs`.
+    g.prefs.tip_screens = false;
     g.kingdom.set_county_count(14);
     g.kingdom.realms[1].in_play = true;
     g.kingdom.counties[1].owner = 1;

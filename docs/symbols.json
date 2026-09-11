@@ -6646,7 +6646,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void Tip_Update(void)",
-      "comment": "Per-frame tip-screen driver, gated on g_optTipScreens. [V] Twenty frames after a screen is first opened it calls Tip_Show with the group for that g_screenId, once per game. The screen ids it tests - 0x02 town centre, 0x0F job popup with g_jobPanelJob 8, 0x10 army movement, 0x17 armoury, 0x1B castle building, 0x39 advanced options - agree one for one with the L2.eng labels of the groups it passes."
+      "comment": "Per-frame tip-screen driver, gated on g_optTipScreens. [V] It calls Tip_Show with the group for the current g_screenId once a twenty-frame counter has run down, and that counter is a re-arm, not a delay after a screen opens: DAT_004F0358 has two writers, FUN_00476A5D and FUN_00476E21, so it restarts after start-up, after the Tip Screens toggle and after every dismissal on 0x27. Each tip is shown once per run, not once per game: FUN_00476A5D, which clears g_tipShown, is called only by App_WinMain and Opt_ToggleTipScreens. docs/decisions.md C160. The screen ids it tests - 0x02 town centre, 0x0F job popup with g_jobPanelJob 8, 0x10 army movement, 0x17 armoury, 0x1B castle building, 0x39 advanced options - agree one for one with the L2.eng labels of the groups it passes."
     },
     {
       "addr": "0x00476DA9",
@@ -11371,7 +11371,7 @@
       "name": "g_tipShown",
       "section": "ui",
       "confidence": "verified",
-      "comment": "One 'already shown this game' byte per L2.eng group, set by Tip_Show and tested by Tip_Update. [V] FUN_00476A5D clears exactly 20 bytes from g_tipShown + 200, which fixes the tip-screen range at groups 200..219."
+      "comment": "One 'already shown this run' byte per L2.eng group, set by Tip_Show and tested by Tip_Update; cleared only by FUN_00476A5D, from App_WinMain and Opt_ToggleTipScreens, so it survives a new game and a load (docs/decisions.md C160). [V] FUN_00476A5D clears exactly 20 bytes from g_tipShown + 200, which fixes the tip-screen range at groups 200..219."
     },
     {
       "addr": "0x004F037C",

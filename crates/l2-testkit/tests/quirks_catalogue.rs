@@ -322,6 +322,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     // not state the rules read. Unwired rather than presentation: a switch for
     // either would change what the field CONTAINS, not which pixels show it.
     ("B79", Unwired("crates/l2-game/src/text.rs, the overwrite branch")),
+    ("B101", Unswitchable("it changes which advice a player sees and when, never a number in the world")),
     ("B80", Unwired("crates/l2-game/src/text.rs, the End-key arm")),
     // Both from the siege battle, both reproduced and neither wired: a repeat
     // assault billing the same repair twice is a rule the original has, and

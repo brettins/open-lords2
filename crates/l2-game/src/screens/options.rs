@@ -653,7 +653,13 @@ pub fn toggle(setting: Setting, ctx: &mut Ctx) {
         Setting::SoundEffects => ctx.game.prefs.effects = !on,
         Setting::Speech => ctx.game.prefs.speech = !on,
         Setting::Animations => ctx.game.prefs.animations = !on,
-        Setting::TipScreens => ctx.game.prefs.tip_screens = !on,
+        // `Opt_ToggleTipScreens` (`0x00434787`) is two statements, and the
+        // second is `FUN_00476A5D()`: every tip unshown and twenty frames of
+        // quiet, on the flip OFF as well as on.
+        Setting::TipScreens => {
+            ctx.game.prefs.tip_screens = !on;
+            ctx.game.tips.reset();
+        }
         Setting::ToolTips => ctx.game.prefs.tool_tips = !on,
         Setting::FullScreen | Setting::StartGameHelp => {}
     }

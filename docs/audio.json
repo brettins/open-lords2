@@ -743,10 +743,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S201_02_wav_004e2290 + (uVar3 - 1",
-      "status": "blocked",
-      "ours": null,
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "27 takes, S200_02 ... S218_03",
-      "note": "The tip screens, not a take cursor. [V]: one caller, Msg_DrawWindow's categories 0x05..0x09 branch, from timer < 0x780. It reads n = table[group*5 + cursor] at 0x004E1E40; while Sound_OneShotBusy() it stamps the time, and once 1,000 ms have passed since the last busy stamp it advances the cursor and plays S201_02.wav + (n-1)*0x10. The cursor DAT_0052F004 is reset only in Tip_Show, and the only live rows are groups 200..218 (27 takes, all shipping). Tip_Show is the only poster of those categories and nothing in this engine posts a tip. This note used to blame the chain for S010_13.wav, which is g_msgVoiceS010's."
+      "note": "Director::chain_takes, reached from a tip window crate::tip posts. [V]: one caller, Msg_DrawWindow's categories 0x05..0x09 branch, from timer < 0x780. It reads n = table[group*5 + cursor] at 0x004E1E40 (names::TIP_TAKES, read out of the exe); while Sound_OneShotBusy() it stamps the time, and once more than 999 ms have passed since the last busy stamp it advances the cursor and plays S201_02.wav + (n-1)*0x10 (names::TAKE_POOL). The cursor DAT_0052F004 is reset only in Tip_Show, carried here as Tips::shows. One stated divergence: timeGetTime() becomes the director's tick count at TICK_MS, so 'more than 999 ms' is 63 ticks. This note used to blame the chain for S010_13.wav, which is g_msgVoiceS010's."
     },
     {
       "id": "FUN_004b3b92#1",
@@ -966,7 +966,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#11",
@@ -988,7 +988,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#13",
@@ -1010,7 +1010,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#15",
@@ -1054,7 +1054,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#19",
@@ -1076,7 +1076,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#20",
@@ -1109,7 +1109,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#23",
@@ -1120,7 +1120,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#24",
@@ -1128,10 +1128,10 @@
       "prim": "Msg_PlayVoice",
       "class": "voice",
       "arg": "g_messageGroup,g_messageVariant",
-      "status": "blocked",
-      "ours": null,
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "13 tip first lines, S200_01 ... S218_01",
-      "note": "The tip screens. This is Msg_DrawWindow's categories 0x05..0x09 branch, and Tip_Show (0x00476DA9) is the only function in the original that posts one of those categories (from g_tipCategory; the one other computed category is a network relay). Nothing in this engine posts a tip, so audio::voice_tick's paragraphs arm cannot be reached in play. It was filed reproduced until this was read. Needs Tip_Update (0x00476AA7), Tip_Show, the paragraph window and FUN_00476E21's restore."
+      "note": "The tip window's first line: Msg_DrawWindow's categories 0x05..0x09 branch at timer 0x7C6, and Tip_Show (0x00476DA9) is the only function in the original that posts one of those categories. Filed reproduced once before anything could post a tip, then reverted; it is reproduced now because crate::tip builds Tip_Update, Tip_Show and FUN_00476E21, and tests/tips.rs hears S200_01.wav by name on the tick the original tests."
     },
     {
       "id": "Msg_DrawWindow#3",
@@ -1142,7 +1142,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#4",
@@ -1153,7 +1153,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#5",
@@ -1164,7 +1164,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#6",
@@ -1186,7 +1186,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#8",
@@ -1197,7 +1197,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Msg_DrawWindow#9",
@@ -1208,7 +1208,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "530 files by group and variant",
-      "note": "audio::voice_tick is the whole countdown ladder; one call answers thirteen of the sixteen. #16 and #21 wait on video and #24 on the tip screens."
+      "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
       "id": "Opt_ToggleMusic#1",

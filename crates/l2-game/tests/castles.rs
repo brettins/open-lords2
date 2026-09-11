@@ -142,6 +142,10 @@ fn plot(g: &mut Game, county: u8, at: (u8, u8)) -> (u8, u8) {
 /// hard way and it is the same trap here.
 fn world() -> (Game, Assets) {
     let mut g = Game::new(11);
+    // **Tip screens: No**, the player's own switch. A new game's three tips
+    // open on the campaign map and hold its input on screen `0x27`, which is
+    // right and is `tests/tips.rs`'s subject, not this file's.
+    g.prefs.tip_screens = false;
     g.kingdom.set_county_count(3);
     for id in 1..=3usize {
         let c = &mut g.kingdom.counties[id];

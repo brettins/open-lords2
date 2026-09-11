@@ -1122,9 +1122,10 @@ Three separate mechanisms could have owned a question-mark pointer, and none of 
 
 * the **help screen** is `g_screenId 0x31` (`Screen_HelpOptions`, `L2.eng` group 45). Its row
   in `g_cursorByScreen` is **0** — the plain arrow;
-* the **tip screens** (`L2.eng` groups 200–219, one per screen, once per game, gated on
-  `g_optTipScreens`) run through `Tip_Update`, a 20-frame timer that switches `g_screenId` to
-  `0x27`. `0x27`'s row is **0** as well, and the tip driver never touches a cursor;
+* the **tip screens** (`L2.eng` groups 200–219, one per screen, once per *run*, gated on
+  `g_optTipScreens`) run through `Tip_Update`, whose 20-frame delay is re-armed after each
+  dismissal, and `Tip_Show`, which switches `g_screenId` to `0x27`. `0x27`'s row is **0** as
+  well, and the tip driver never touches a cursor. Built: `crates/l2-game/src/tip.rs`;
 * **`Ui_OpenConfirm`, the message scroll and the drop-down menus** likewise leave the row at 0.
 
 The question mark is a **static property of the village screen**, evaluated fresh every frame

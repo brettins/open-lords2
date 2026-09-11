@@ -18,7 +18,7 @@ CLAUDE.md	C124	9cf9ee1c286d	38723617b085
 CLAUDE.md	C133	ea1ee3c1202e	91fcca97cc98
 CLAUDE.md	C143	d2376fb46498	2035c02750d9
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
-CLAUDE.md	C61	e36e5b5fc47a	60611046b40d
+CLAUDE.md	C61	f3bd696b6aa9	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
 README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
@@ -922,6 +922,8 @@ docs/symbols.json	C140	f2ff304436de	e3a1ede42a95
 docs/symbols.json	C146	bc00d8997585	97ed604f7efd
 docs/symbols.json	C157	53019147b729	c5258d1ad957
 docs/symbols.json	C157	9a9483baa5fc	c5258d1ad957
+docs/symbols.json	C160	20f63ddc5dd5	4c76a005bc3e
+docs/symbols.json	C160	e260d9da717b	4c76a005bc3e
 docs/symbols.json	C20	01f6f924103e	0ec8eeb4f874
 docs/symbols.json	C20	7ddb8e5c217a	0ec8eeb4f874
 docs/symbols.json	C22	936f7d5bda76	0364b53a921d
@@ -994,6 +996,8 @@ docs/symbols.md	C140	f2ff304436de	e3a1ede42a95
 docs/symbols.md	C146	9483c54bec4b	97ed604f7efd
 docs/symbols.md	C157	497ef1b3ce17	c5258d1ad957
 docs/symbols.md	C157	ecbecf998653	c5258d1ad957
+docs/symbols.md	C160	20f63ddc5dd5	4c76a005bc3e
+docs/symbols.md	C160	e260d9da717b	4c76a005bc3e
 docs/symbols.md	C20	d50fe7b21adc	0ec8eeb4f874
 docs/symbols.md	C20	f78855d335cd	0ec8eeb4f874
 docs/symbols.md	C22	76e2e999ec4b	0364b53a921d

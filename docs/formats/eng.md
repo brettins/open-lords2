@@ -505,10 +505,15 @@ its "Hit Numpad 7 to re-sync" hotkey is not wired up anywhere in this build.
 Groups **200–219** are the first-time hint pop-ups, gated by `g_optTipScreens` (the
 "Tip screens" toggle on the help-options panel, group 45 index 1).
 
-`Tip_Update` (`0x00476AA7`) watches `g_screenId` and, twenty frames after a screen is
-first opened, calls `Tip_Show(group)` (`0x00476DA9`), which sets a per-group "already
-shown" byte in `g_tipShown` (`0x004F0298`, indexed by group id) and posts the group as a
-message. Fourteen groups are wired: 200, 201, 202 (campaign map), 206 (zoomed-out view),
+`Tip_Update` (`0x00476AA7`) runs once a frame and, while its delay `DAT_004F0358` is
+zero, calls `Tip_Show(group)` (`0x00476DA9`) for the first unshown tip the current
+`g_screenId` names; `Tip_Show` sets a per-group "already shown" byte in `g_tipShown`
+(`0x004F0298`, indexed by group id), switches `g_screenId` to `0x27` and posts the group
+as a message. **Corrected:** this paragraph said *"twenty frames after a screen is first
+opened"*. `DAT_004F0358` has two writers — `FUN_00476A5D` and `FUN_00476E21` — so the
+twenty frames are a re-arm after start-up, after the toggle and after every dismissal on
+`0x27`, and a screen opened with the counter at zero gets its tip on the same frame.
+**Built:** `crates/l2-game/src/tip.rs`. Fourteen groups are wired: 200, 201, 202 (campaign map), 206 (zoomed-out view),
 207 (town centre, screen 0x02), 208 (blacksmith popup), 209 (armoury, 0x17), 210 (army
 movement, 0x10), 211 (invasions), 212 (field battle), 214 and 215 (siege), 217 (castle
 building, 0x1B), 218 (advanced options, 0x39).
@@ -521,7 +526,16 @@ disagree; none does. Categories 5–9 are therefore "tip window with 1–5 parag
 `Msg_DrawWindow`'s layout ladder.
 
 `FUN_00476A5D` clears exactly 20 bytes from `g_tipShown + 200`, which fixes
-the tip range as groups **200–219** inclusive.
+the tip range as groups **200–219** inclusive. Its only callers are `App_WinMain` and
+`Opt_ToggleTipScreens`, so a tip is shown **once per run**, not once per game: neither
+`Game_NewGame` nor a load clears it.
+
+**Three of the fourteen cannot be posted `[I]`.** 212, 214 and 215 are guarded on
+`g_screenId == 0 && g_battlePhase == 2`; every writer of `g_battlePhase = 2` writes
+`g_screenId = 0x29` beside it, and `Msg_Pump` dismisses any message while the phase is
+2. No path was found on which the guard holds across a frame. And 215 has nothing to
+say if it were: `g_tipCategory[215]` is one paragraph and the group is only its label,
+*"Sieges2"*.
 
 ### 5.4 The indirect routes
 

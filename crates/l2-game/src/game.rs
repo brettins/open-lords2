@@ -638,6 +638,15 @@ pub struct Game {
     /// map with `Msg_Pump` running, so a save is written between messages and
     /// never during one.
     pub messages: crate::message::MessageQueue,
+    /// **The tip screens** — `g_tipShown`, the twenty-frame re-arm, whether
+    /// `g_screenId` is the tip's `0x27`, and the invasion flag. See
+    /// [`crate::tip`].
+    ///
+    /// not-encoded: per-peer display state, and per *run* rather than per game.
+    /// The original clears it at start-up and on the toggle and never on a new
+    /// game or a load, so `screens::setup` and `screens::saveload` carry it
+    /// across the two places a whole `Game` is replaced.
+    pub tips: crate::tip::Tips,
     /// **`g_multiplayer`** (`0x00553D18`). False in every game this workspace
     /// can start; it is here because two rules branch on it and neither is
     /// reachable without it — `Msg_Pump`'s 399-tick message timeout, and the
@@ -742,6 +751,7 @@ impl Game {
             begin_move_order: None,
             map_zoom_far: false,
             messages: crate::message::MessageQueue::new(),
+            tips: crate::tip::Tips::new(),
             multiplayer: false,
             turn_clock: crate::turn_clock::TurnClock::default(),
         }

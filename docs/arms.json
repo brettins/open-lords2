@@ -2176,7 +2176,7 @@
       "gesture": "draw",
       "addr": "0x0047309E",
       "what": "Msg_DrawWindow's category-0x04 arm ends `if (999 < g_messageTimer) g_messageTimer = 100;` -- the floating tip is the only message whose life is set by the DRAW rather than by Msg_Pump, and it is the only one with no Ui_OkButton, so it is the only message a player cannot close.",
-      "note": "The clamp is in the draw and not in the pull, which has a visible consequence: a tip enqueued on a screen Msg_Pump does not run on keeps its full 2000 and is dismissed by the screen ladder instead. Reproduced; nothing in this workspace enqueues a category-4 message yet, because Tip_Update (0x00476AA7) and g_optTipScreens are a separate subsystem.",
+      "note": "The clamp is in the draw and not in the pull, which has a visible consequence: a tip enqueued on a screen Msg_Pump does not run on keeps its full 2000 and is dismissed by the screen ladder instead. Reproduced; nothing in this workspace enqueues a category-4 message yet. This note used to blame that on Tip_Update (0x00476AA7) not being built; it is built now, and it posts categories 0x05..0x09 from g_tipCategory, never 0x04 -- the floating tip is somebody else's.",
       "evidence": "V",
       "ours": "crates/l2-game/src/message.rs"
     },
@@ -2238,6 +2238,30 @@
       "note": "Not the battlefield's own arm -- it is every screen's, and is recorded under this group because a battle is where it was noticed. CORRECTED WHEN IT WAS BUILT: this record used to say `a right release INSIDE A 48x48 BOX round the message scroll`. There is no box on this arm. Msg_HandleInput's right-button branch is `else { Msg_Dismiss(); return 1; }` with no rectangle and no category test in front of it -- the 48x48 box belongs to the LEFT press, and is 0x0047685D/message-ok-dismiss. The consequence is a behaviour the wrong reading hides: a right click ANYWHERE closes an unanswered alliance offer, and closing it is neither yes nor no.",
       "evidence": "V",
       "ours": "crates/l2-game/src/screens/message.rs"
+    },
+    {
+      "id": "0x00476AA7/tip-screen-ladder",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "every",
+      "gesture": "frame",
+      "addr": "0x00476AA7",
+      "what": "Tip_Update, once a frame immediately before Msg_Pump, gated on g_optTipScreens and g_appPhase == 3. With the DAT_004F0358 delay at zero it hands Tip_Show one group: on the campaign map 206 (zoomed out), then 200, 201, 202; with a battle live and g_screenId still 0, 212 or 214 then 215, skipped in a skirmish; then an else-if chain -- 0x17 raise army 209, 0x0F with job 8 the blacksmith 208, 0x02 the village 207, 0x39 advanced options 218, 0x1B castle building 217, 0x10 move-order mode 210 -- and last the invasion flag DAT_00553210, cleared before 211's shown byte is tested. Tip_Show saves g_screenId, writes 0x27, marks g_tipShown and posts the group with g_tipCategory's category.",
+      "note": "A frame arm, not a gesture: it is what turns a screen opening into a tip window. Two corrections to the symbol's comment: the twenty frames are a re-arm after start-up, the toggle and every dismissal on 0x27 (DAT_004F0358 has exactly two writers), not a delay after a screen opens; and 'once per game' is once per run, because FUN_00476A5D's only callers are App_WinMain and Opt_ToggleTipScreens. The battle arms' guard g_screenId == 0 && g_battlePhase == 2 was not found to hold across any frame (every phase-2 write sets 0x29 beside it, and Msg_Pump dismisses any message in phase 2) -- built as written and unreachable here too. The invasion arm's clear-before-test loses the tip on screen 0x27: docs/bugs.md B101.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screen.rs"
+    },
+    {
+      "id": "0x00476E21/tip-restores-its-screen",
+      "status": "reproduced",
+      "group": "messages",
+      "screen": "0x27",
+      "gesture": "frame",
+      "addr": "0x00476E21",
+      "what": "Msg_Dismiss calls FUN_00476E21 on every dismissal: if g_screenId is 0x27 it writes back the screen Tip_Show saved (0 if that was 0x27) and re-arms DAT_004F0358 = 0x14. So the screen under a tip comes back when ANY message is dismissed on 0x27 -- including one that was queued ahead of the tip, which leaves the tip's own record in the ring to open later on the campaign map -- and a tip window dismissed after its screen was already restored re-arms nothing.",
+      "note": "Screen 0x27 has no input arm and no painter that a comparison shows (the decompilation compares g_screenId with 0x27 only in Msg_Pump, Tip_Show and here), so while it is up the screen underneath is drawn and does not answer. Ours is ScreenId::Tip, seated and unseated by Machine::seat_tip_host from Tips::hosting; Msg_Pump's timeout reaches the restore too. Not offered on 0x27 and not driven against the original: Screen_HandleInput's widget pass and Screen_FrameInput's minimap epilogue, which would drop the byte to 0 without the re-arm.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screen.rs"
     },
     {
       "id": "0x00477DFC/outcome-timer",

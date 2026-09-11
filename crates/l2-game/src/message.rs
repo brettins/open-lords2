@@ -492,6 +492,146 @@ pub fn frame_of(record: &Record) -> Option<Frame> {
     Some(f)
 }
 
+/// The wrap width of a tip paragraph: `DAT_00553024 - 0x20`, with the window
+/// `0x1C0` wide.
+pub const PARAGRAPH_WIDTH: i32 = 0x1A0;
+
+/// **Where a tip window's parts go** — `Msg_DrawWindow`'s categories
+/// `0x05`…`0x09`, the one layout whose size is computed from its text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Paragraphs {
+    /// The box, and so the OK button: [`Frame::ok_button`].
+    pub frame: Frame,
+    /// `Eng_DrawString(group, 0, x + 0x10, y + 0x14, heading)`.
+    pub heading: (i32, i32),
+    /// The top of each paragraph, drawn at `x + 0x10`.
+    pub tops: Vec<i32>,
+}
+
+/// **The layout, from how many lines each paragraph wrapped to.** `[V]`:
+///
+/// ```c
+/// x = 0x10; y = 0x40; w = 0x1C0; h = 0x20;            /* DAT_005CD4F8 */
+/// for (i = 0; i <= category - 5; i++) {
+///     FUN_0040328E(group, i + 1, x + 0x10, y + 0x40, w - 0x20, …);  /* h += 0x10 a line */
+///     h += 0x10;
+/// }
+/// if (h < 0x61) y += 0x40;
+/// height = h + y;                                     /* DAT_00552FF8 */
+/// FUN_004093E0(x, y, w / 16, height / 16);
+/// Eng_DrawString(group, 0, x + 0x10, y + 0x14, heading);
+/// h = 0x40;
+/// for (…) { FUN_0040328E(group, i + 1, x + 0x10, y + h, …); h += 0x10; }
+/// Ui_OkButton(x + w - 0x30, height + y - 0x30, 0);
+/// ```
+///
+/// Three things in it are not what a reader would write:
+///
+/// * **the text is measured by drawing it.** The first loop paints every
+///   paragraph at one fixed height before the box exists, and only the running
+///   total survives; the box then paints over the lot. It is not reproduced as
+///   paint, because nothing of it is visible.
+/// * **the box's height includes its own top.** `height = h + y`, so a window
+///   moved down by the short-text rule also grows by the same 64 pixels.
+/// * **a short tip is pushed down 64 pixels** when the measured height is below
+///   `0x61`, which is one paragraph of one line — *"Kingdom overview:"* and the
+///   one-sentence tips.
+pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
+    const X: i32 = 0x10;
+    const W: i32 = 0x1C0;
+    let mut measured = 0x20;
+    for &n in lines {
+        measured += 0x10 * n as i32 + 0x10;
+    }
+    let mut y = 0x40;
+    if measured < 0x61 {
+        y += 0x40;
+    }
+    let mut tops = Vec::with_capacity(lines.len());
+    let mut at = 0x40;
+    for &n in lines {
+        tops.push(y + at);
+        at += 0x10 * n as i32 + 0x10;
+    }
+    Paragraphs { frame: Frame { x: X, y, w: W, h: measured + y }, heading: (X + 0x10, y + 0x14), tops }
+}
+
+/// **`FUN_0040328E`'s line breaking** (`0x0040328E`), with `FUN_004036F9`
+/// (`0x004036F9`) as the word measure. `glyph` is `FUN_004015B9`'s width of one
+/// non-space character in the font the text is drawn in.
+///
+/// Not [`crate::shell::Pen::wrap`], and the difference is the OK button:
+///
+/// * **a space is four pixels, whatever the font**, and it is measured as part
+///   of the word *after* it — so a word fits only if it fits with its leading
+///   space, even at the start of a line where that space is then not drawn;
+/// * **the test is strict**: a line that would come out exactly `width` wide
+///   breaks;
+/// * **`$` separates words and has no width**; a character below `0x20` has no
+///   width and does not separate;
+/// * a word wider than a whole line is never placed, and the function draws
+///   empty lines until its own guard of 99 gives out.
+///
+/// Always at least one line, because the draw is inside the loop.
+pub fn break_lines(text: &str, width: i32, glyph: impl Fn(char) -> i32) -> Vec<String> {
+    let chars: Vec<char> = text.chars().skip_while(|c| (*c as u32) < 0x20).collect();
+    let mut at = 0;
+    let mut lines = Vec::new();
+    let mut more = true;
+    let mut drawn = 0;
+    while more {
+        drawn += 1;
+        if drawn >= 100 {
+            break;
+        }
+        let mut used = 0;
+        let mut line = String::new();
+        let mut line_start = true;
+        while more && used < width {
+            let (w, n) = measure_word(&chars[at..], &glyph);
+            used += w;
+            if used < width {
+                for _ in 0..n {
+                    let c = chars[at];
+                    at += 1;
+                    if !line_start || c != ' ' {
+                        line.push(c);
+                        line_start = false;
+                    }
+                }
+                if at >= chars.len() {
+                    more = false;
+                }
+            } else if used == 0 {
+                more = false;
+            }
+        }
+        lines.push(line);
+    }
+    lines
+}
+
+/// `FUN_004036F9`: the width of the next word *including the spaces before it*,
+/// and how many characters that is.
+fn measure_word(rest: &[char], glyph: &impl Fn(char) -> i32) -> (i32, usize) {
+    let (mut w, mut n, mut in_word) = (0, 0, false);
+    for &c in rest.iter().take(1999) {
+        match c {
+            ' ' if in_word => return (w, n),
+            ' ' => w += 4,
+            '$' if in_word => return (w, n),
+            '$' => {}
+            c if (c as u32) > 0x1F => {
+                w += glyph(c);
+                in_word = true;
+            }
+            _ => {}
+        }
+        n += 1;
+    }
+    (w, n)
+}
+
 /// What [`MessageQueue::advance`] did to the timer this tick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tick {
@@ -813,6 +953,10 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
         return Dismissal::Nothing;
     }
     game.messages.close();
+    // `FUN_00476E21()`, between the redraw and the timer: if this closed while
+    // `g_screenId` was the tip's `0x27`, the screen comes back and the tips wait
+    // twenty frames. It acts on *any* dismissal on `0x27`, not only a tip's.
+    game.tips.restore();
     let outcome = game.campaign.outcome;
     if outcome.is_over() {
         // `Campaign_EnterConquest` (`0x00497879`), then `g_screenId = 0x1C`.

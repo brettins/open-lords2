@@ -70,6 +70,10 @@ const BORDER_2_3: usize = 48;
 ///   rule is right and the fixture was unreal.
 fn world() -> (Game, Assets) {
     let mut g = Game::new(11);
+    // **Tip screens: No.** A new game's tips hold the campaign map's input on
+    // screen `0x27` — and the first time an army is picked up, *"Army
+    // Movement:"* does too. Right, and `tests/tips.rs`'s subject, not this file's.
+    g.prefs.tip_screens = false;
     g.kingdom.set_county_count(3);
     for id in 1..=3usize {
         let c = &mut g.kingdom.counties[id];

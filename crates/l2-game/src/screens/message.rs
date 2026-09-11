@@ -211,7 +211,12 @@ impl Screen for MessageScreen {
                 }
                 let shape = record.shape();
                 if shape.has_ok_button() {
-                    if let Some(frame) = message::frame_of(&record) {
+                    // A tip window's corner is wherever its wrapped text put it,
+                    // so the hit box is computed from the same text the draw
+                    // wraps. Before the tips existed this was `frame_of`, which
+                    // has no row for `0x05`…`0x09` — a tip could not be closed
+                    // with the left button at all.
+                    if let Some(frame) = window_frame(ctx, &record) {
                         if frame.ok_hitbox().contains(x, y) {
                             // `FUN_004B18E3()` consumes the click so the screen
                             // underneath cannot also act on it, then dismisses.
@@ -291,6 +296,10 @@ impl Screen for MessageScreen {
             shadow: Some(font::SHADOW),
             caps: None,
         };
+        if let Shape::Paragraphs(n) = record.shape() {
+            draw_paragraphs(&pen, ctx, canvas, &record, n);
+            return;
+        }
         let Some(frame) = message::frame_of(&record) else {
             // A category with no constant geometry — the tip, the help window
             // and the two letter categories — or one `Msg_DrawWindow` has no arm
@@ -588,11 +597,75 @@ pub fn repaint_clickables(ctx: &Ctx, canvas: &mut Canvas, record: &Record) {
         draw_prompt(&pen, canvas, prompt, None);
     }
     if record.shape().has_ok_button() {
-        if let Some(frame) = message::frame_of(record) {
+        if let Some(frame) = window_frame(ctx, record) {
             let (x, y) = frame.ok_button();
             pen.ok_button(canvas, x, y, 0);
         }
     }
+}
+
+// ------------------------------------------------------------ the tip window
+
+/// The window a record is drawn in: the constant geometry of
+/// [`message::frame_of`], or for a tip window the geometry its text computes.
+pub fn window_frame(ctx: &Ctx, record: &Record) -> Option<message::Frame> {
+    match record.shape() {
+        Shape::Paragraphs(n) => Some(tip_layout(ctx, record, n).0.frame),
+        _ => message::frame_of(record),
+    }
+}
+
+/// **The tip window's paragraphs, broken into lines the way `FUN_0040328E`
+/// breaks them**, and the layout those line counts give.
+///
+/// The words are [`crate::tip::words`] — the player's `L2.eng`, and our
+/// transcription only where the file is silent — and they are measured in the
+/// body font the paragraphs are drawn in, which is `&g_fontBody` in both of
+/// `Msg_DrawWindow`'s loops.
+pub fn tip_layout(ctx: &Ctx, record: &Record, n: usize) -> (message::Paragraphs, Vec<Vec<String>>) {
+    let texts: Vec<Vec<String>> = (1..=n)
+        .map(|i| {
+            let words = crate::tip::words(&ctx.assets.shell, record.group, i);
+            message::break_lines(&words, message::PARAGRAPH_WIDTH, |c| glyph_width(ctx, c))
+        })
+        .collect();
+    let lines: Vec<usize> = texts.iter().map(Vec::len).collect();
+    (message::paragraph_layout(&lines), texts)
+}
+
+/// `FUN_004015B9(c, &g_fontBody)` — one glyph's advance. `[I]` for a character
+/// the font has no frame for: the original answers 0 and
+/// [`crate::shell::font::Font::width`] answers a space's advance; no tip string
+/// has been found to contain one.
+fn glyph_width(ctx: &Ctx, c: char) -> i32 {
+    let s = c.to_string();
+    match &ctx.assets.shell.body {
+        Some(f) => f.width(&s),
+        None => l2_view::text::width(&s),
+    }
+}
+
+/// **Categories `0x05`…`0x09` — the tip window.** `Msg_DrawWindow`'s last
+/// arm, drawn to [`message::paragraph_layout`]: the box, the group's label in
+/// the heading font, `category − 4` paragraphs in the body font, and the OK
+/// button in the corner the text decided.
+///
+/// The first of the arm's two loops paints every paragraph at one height
+/// before the box exists, to measure them; the box then covers it, so it is
+/// not reproduced as paint.
+fn draw_paragraphs(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, n: usize) {
+    let (layout, texts) = tip_layout(ctx, record, n);
+    let f = layout.frame;
+    pen.window(canvas, f.x, f.y, f.w / 16, f.h / 16, BOX_SET);
+    let heading = crate::tip::words(&ctx.assets.shell, record.group, 0);
+    pen.heading(canvas, layout.heading.0, layout.heading.1, &heading, font::TEXT);
+    for (lines, top) in texts.iter().zip(&layout.tops) {
+        for (k, line) in lines.iter().enumerate() {
+            pen.body(canvas, f.x + 0x10, top + 0x10 * k as i32, line, font::TEXT);
+        }
+    }
+    let (x, y) = f.ok_button();
+    pen.ok_button(canvas, x, y, 0);
 }
 
 /// `Widget_Draw(0, 0, table, 2)` — the two mailed hands, `System.pl8` frames 29
