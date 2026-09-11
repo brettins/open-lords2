@@ -1576,7 +1576,7 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x00591550` | `g_uiHotspotArg` | verified | Widget record +0x14, published for the callback alongside g_uiHotspotId. |
 | `0x00591580` | `g_engText` | verified | l2.eng, whole. Eng_GroupBase indexes the group table from here. |
 | `0x005AEB74` | `g_sliderFormat` | verified | How the value is printed: 1 divides by ten, 2 prints it plainly, anything else appends a per cent sign. |
-| `0x005AEBA0` | `g_font10` | verified | Font_10.pl8. |
+| `0x005AEBA0` | `g_font10` | verified | Font_10.pl8 - a numeral face: every number on the county strip's jobs plate, and nothing else. Nine .text references besides the loader, all inside the eight row painters FUN_004100AF..FUN_004106C4 and CountyStrip_DrawCastleIcon, all under g_dropShadow. 108 frames like Fntl2_9/Fntl2_14 and read through the same g_glyphWidths, but frames 0..51 (every letter) and 79..107 are 2x2 stubs; only the digits and the punctuation strip 52..78 are glyphs. Every string its call sites build is a lead (' ', '@', '+', '-'), digits and a one-space suffix. |
 | `0x005AF8F0` | `g_fontBody` | verified | Fntl2_14.pl8 - every panel body line. |
 | `0x005B2FA0` | `g_fontHeading` | verified | Fntl2_22.pl8 - every panel heading. |
 | `0x005BB540` | `g_systemSheet` | verified | System2.pl8 or System.pl8, entry 9 of the preload table; swapped by name from the pair of strings at 0x004DBBD0. |

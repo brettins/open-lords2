@@ -13856,7 +13856,7 @@
       "name": "g_font10",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Font_10.pl8."
+      "comment": "Font_10.pl8 - a numeral face: every number on the county strip's jobs plate, and nothing else. Nine .text references besides the loader, all inside the eight row painters FUN_004100AF..FUN_004106C4 and CountyStrip_DrawCastleIcon, all under g_dropShadow. 108 frames like Fntl2_9/Fntl2_14 and read through the same g_glyphWidths, but frames 0..51 (every letter) and 79..107 are 2x2 stubs; only the digits and the punctuation strip 52..78 are glyphs. Every string its call sites build is a lead (' ', '@', '+', '-'), digits and a one-space suffix."
     },
     {
       "addr": "0x005AF8F0",

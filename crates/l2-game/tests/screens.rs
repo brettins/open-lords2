@@ -5046,7 +5046,6 @@ fn the_cattle_row_draws_its_forecast_with_a_sign() {
     }
 }
 
-<<<<<<< HEAD
 /// **The four industry rows draw on a loaded game's first frame, and each draws
 /// its own commodity's number.**
 ///

@@ -1216,9 +1216,10 @@ mod tests {
         assert_eq!(c.count(0), 640 * 480, "and it drew nothing at all");
     }
 
-    /// **All four faces are announced, and `Fntl2_9.pl8` was the one that was
+    /// **All five faces are announced, and `Fntl2_9.pl8` was the one that was
     /// not.** The complaint checked `body` and `heading`; `small` draws the
-    /// build stamp and the county strip, and its absence was silent.
+    /// build stamp and the county strip, and its absence was silent. `ten`
+    /// draws every number on the jobs plate, and joins the list with it.
     ///
     /// Ablated by deleting the `small` arm of `missing_fonts`: the list comes
     /// back with two names and this goes red naming the third. Verified.
@@ -1227,7 +1228,7 @@ mod tests {
         let missing = ShellAssets::empty().missing_fonts();
         assert_eq!(
             missing,
-            vec![font::BODY, font::HEADING, font::SMALL, font::EIGHT],
+            vec![font::BODY, font::HEADING, font::SMALL, font::EIGHT, font::TEN],
             "every face a Pen or a painter falls back from has to be in this list"
         );
     }

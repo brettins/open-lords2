@@ -131,8 +131,12 @@ measures, so all five columns sat two pixels left.
 
 **What is still open from it** is the count rather than the placement: six `Ui_DrawNumberRight`
 sites have no draw of ours (the besieger's siege-seasons mark, the turn timer, the battle HUD's
-two men counters, and two on a skirmish panel), and `Ui_DrawNumber`'s **191** call sites have
-had their *lead* swept (C127). The *suffix* pass followed for `Pen::number`: C157 read all 25
+two men counters, and two on a skirmish panel), and `Ui_DrawNumber`'s **190** live call sites have
+had their *lead* swept (C127). *(This said 191, and the 191 was a text count: 191 lines of the
+decompilation match `Ui_DrawNumber(`, and one of them is the function's own definition,
+`void __cdecl Ui_DrawNumber(`. 190 calls; the exe's 211 `CALL 0x00402F64` add 21 in unreachable
+code, C157. The same 191 is quoted in `docs/draws-map.md` §5a, `docs/decisions.md` C127/C140
+and `Ui_DrawNumberRight`'s `symbols.json` comment.)* The *suffix* pass followed for `Pen::number`: C157 read all 25
 of its sites against their call sites and deleted the method, which had built a trailing space
 for every caller.
 

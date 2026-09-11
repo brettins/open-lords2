@@ -1315,6 +1315,23 @@ fn strip_centred(ctx: &Ctx, canvas: &mut Canvas, x: i32, y: i32, width: i32, s: 
 /// `lead` is `'\0'` for a caller that wants no column — which the original
 /// treats as *terminate immediately*, since index 0 is the NUL the buffer was
 /// cleared to, so no shipped call site passes it.
+/// `Ui_DrawNumber(value, lead, suffix, x, y, &g_fontSmall, colour)` — the
+/// numeric block's population, happiness and tax rate, which are flat
+/// (`DAT_005AEA40 = 1`). The jobs plate's numbers are [`ten_number`].
+#[allow(clippy::too_many_arguments)]
+fn strip_number(
+    ctx: &Ctx,
+    canvas: &mut Canvas,
+    value: i32,
+    lead: char,
+    suffix: &str,
+    x: i32,
+    y: i32,
+    colour: u8,
+) {
+    strip_text(ctx, canvas, x, y, &format!("{lead}{value}{suffix}"), colour);
+}
+
 /// **`Ui_DrawText(s, x, y, &g_font10, colour)` with `g_dropShadow` set** — how
 /// every number on the jobs plate is drawn. **[V]**
 ///

@@ -707,7 +707,7 @@ fn font_10_is_a_numeral_face_read_through_the_shared_table() {
         pl8.frames.len()
     );
 
-    let f = font::Font::new(bytes, 12).expect("the font loads");
+    let f = font::Font::new(bytes.clone(), 12).expect("the font loads");
     let flat = font::Style { colour: font::TEXT, shadow: None, caps: None };
     let ink = |s: &str| -> (usize, Canvas) {
         let mut canvas = Canvas::new(160, 32);
