@@ -2290,6 +2290,14 @@ impl Screen for MapScreen {
         ScreenId::Campaign
     }
 
+    /// **`g_screenId` `0x10` while an army is picked up.** `Panel_MoveButton`
+    /// and `Map_Click` reach `Map_BeginMoveSelection`, which writes it, and the
+    /// three ways out write `0` — which is [`MapScreen::move_order`] being
+    /// `Some` and `None`. `Tip_Update`'s *"Army Movement:"* arm is the reader.
+    fn mode_screen_id(&self) -> Option<u8> {
+        self.move_order.is_some().then_some(0x10)
+    }
+
     fn title(&self, ctx: &Ctx) -> String {
         format!(
             "Lords of the Realm II - {} {}",
@@ -4323,5 +4331,30 @@ mod tests {
         assert_eq!(s.viewport(), Viewport::new(60, 30), "back where it was");
         assert!(s.scroll(Dir::E), "and the near view scrolls again");
         assert_eq!(s.viewport(), Viewport::new(60, 31));
+    }
+
+    /// **Picking up an army is `g_screenId` `0x10`**, and putting it down is
+    /// the map's own `0` again — `Map_BeginMoveSelection` and the three writes
+    /// of `0` that leave it. `Tip_Update`'s *"Army Movement:"* arm reads it.
+    ///
+    /// Ablation: make `mode_screen_id` answer `None` and the middle assertion
+    /// goes red.
+    #[test]
+    fn picking_up_an_army_is_screen_0x10_and_putting_it_down_is_not() {
+        let assets = crate::game::Assets::placeholder();
+        let mut game = crate::Game::new(1);
+        let unit = game
+            .kingdom
+            .campaign
+            .units
+            .spawn(l2_kingdom::unit::Unit::new(l2_kingdom::UnitKind::Army, 1, 10, 10))
+            .expect("a free slot");
+        let mut s = MapScreen::new();
+        assert_eq!(s.mode_screen_id(), None, "the map is 0, which its ScreenId already says");
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        s.begin_move_selection(&ctx, unit);
+        assert_eq!(s.mode_screen_id(), Some(0x10));
+        s.cancel_move_selection();
+        assert_eq!(s.mode_screen_id(), None);
     }
 }

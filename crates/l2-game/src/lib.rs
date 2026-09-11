@@ -66,6 +66,7 @@ pub mod screens;
 pub mod setup;
 pub mod shell;
 pub mod text;
+pub mod tip;
 pub mod turn;
 pub mod victory;
 pub mod widget;

@@ -435,7 +435,10 @@ impl SaveLoadScreen {
                     // that turns out to be unreadable halfway through cannot
                     // leave the player holding half of one.
                     Ok(game) => {
+                        // Nor does a load clear `g_tipShown`. `crate::tip`.
+                        let tips = ctx.game.tips;
                         *ctx.game = game;
+                        ctx.game.tips = tips;
                         Transition::Pop
                     }
                     Err(e) => {

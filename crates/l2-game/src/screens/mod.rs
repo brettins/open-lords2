@@ -132,4 +132,5 @@ pub mod supplies;
 pub mod setup;
 pub mod shells;
 pub mod siege;
+pub mod tip;
 pub mod village;

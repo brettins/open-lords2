@@ -1301,7 +1301,11 @@ impl SetupScreen {
             tables,
         ) {
             Ok(game) => {
+                // `Game_NewGame` does not call `FUN_00476A5D`: a tip seen in
+                // the last game stays seen. `crate::tip`.
+                let tips = ctx.game.tips;
                 *ctx.game = game;
+                ctx.game.tips = tips;
                 self.failure = None;
             }
             Err(e) => {

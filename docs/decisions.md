@@ -7286,3 +7286,71 @@ the 530 has not been re-audited against what actually posts.
 Two smaller corrections from the same reading: the chain was said to be *"why
 `S010_13.wav` exists"*, and that clip is `g_msgVoiceS010`'s; and the lord sting's
 table at `0x004E2470` holds four clips and a sentinel, not five lords.
+
+## CNEW-a-tip-is-a-screen-id
+
+**The tip screens are built — `crates/l2-game/src/tip.rs` — and four things on file
+about them were wrong.** Each was a sentence a careful person would have built from.
+
+**One: the twenty frames are not "after a screen is first opened".** `docs/symbols.md`
+(`Tip_Update`) and `docs/formats/eng.md` §5.3 both said so. `DAT_004F0358` has exactly
+two writers, `FUN_00476A5D` and `FUN_00476E21`, so the delay is a **re-arm** — after
+start-up, after the toggle, and after every dismissal while `g_screenId` is `0x27` —
+and a screen opened with the counter at zero gets its tip on that frame. `[V]`
+`tests/tips.rs` counts the 21 ticks, typed.
+
+**Two: "once per game" is once per run.** `FUN_00476A5D`'s only callers are
+`App_WinMain` and `Opt_ToggleTipScreens`; `Game_NewGame` does not clear `g_tipShown`
+and neither does a load. So `Game::tips` is carried across the two places this engine
+replaces a whole `Game`. `[V]`
+
+**Three: a tip is not a window, it is a screen.** `Tip_Show` writes `g_screenId =
+0x27` and posts; the window follows only because `Msg_Pump` runs on `0x27`, and the
+screen underneath stops answering because `Screen_FrameInput` dispatches on the byte.
+`ScreenId::Tip` is that screen. The decompilation compares `g_screenId` with `0x27`
+only in `Msg_Pump`, `Tip_Show` and `FUN_00476E21` `[V]`, so it has no arm and no
+painter a comparison shows `[I]`.
+
+**Four: the OK button has no widget record.** The brief for this work said its
+gesture would come from one. `node tools/oracle/kinds.js` lists no record for
+`Msg_HandleInput` or `Ui_OkButton`, because the message scroll's corner is
+`Rect_Contains` round the last drawn `Ui_OkButton` on `g_mouseLeftPressed` — a
+**left press**, already `0x0047685D/message-ok-dismiss`. What was missing was the
+frame: `message::frame_of` has no row for categories `0x05`…`0x09`, so before this a
+tip window could not have been closed with the left button at all. Its corner is
+computed from the wrapped text — `message::paragraph_layout`, with
+`FUN_0040328E`'s own line breaking, `message::break_lines`.
+
+**The two arms the ladder could not see, resolved rather than approximated.**
+*Army movement* is `g_screenId 0x10`, written only by `Map_BeginMoveSelection`; ours
+is `MapScreen::move_order`, now askable as `Screen::mode_screen_id`. *Invasions* is
+`DAT_00553210`, set by `Unit_EnterCounty` — whose only caller is `Army_Tick` — when
+the county's owner is not the army's and the army's owner is `g_localPlayer`. The
+world half is reported by `l2-kingdom` as `units_tick::Incursion` at the crossing;
+the local-player half and the flag are `l2-game`'s. Nothing new is saved.
+
+**Three of fourteen tips cannot be posted, in the original either `[I]`.** 212, 214
+and 215 need `g_screenId == 0 && g_battlePhase == 2`; every `g_battlePhase = 2` write
+found sets `0x29` beside it, and `Msg_Pump` dismisses any message in phase 2. Built as
+written, and unreachable here too. Five shipped tip clips therefore stay silent.
+
+**And one defect of the game's**, reproduced: the invasion arm clears its flag before
+asking whether the tip was shown, so a crossing noticed on screen `0x27` loses the tip.
+`docs/bugs.md` BNEW-invasion-tip-swallowed.
+
+**Found and not this branch's to fix.** Every `Opt_Toggle*` row is a `Widget_Test`
+**kind 5** record in `kinds.js` (`0x004DDC10`…`0x004DDD18`, left-press-delayed), our
+options screen acts on the click, and none of the rows is in `docs/arms.json` — so
+the gesture is wrong and nothing counts it. And `0x00472E46/battle-phase-swallows-messages`
+is still `missing`.
+
+**What it cost the suite**, which is the finding about the suite rather than the
+tips: sixteen existing tests went red, in six files, because a new game now opens
+with three tips that hold the campaign map's input — faithfully — and every one of
+those tests ended a turn or ticked the map past frame 21. Each fixture now sets
+*Tip screens: No* explicitly and says why, rather than the phase mapping being bent
+to hide tips from a machine rooted on the campaign.
+
+Counts: arms, two frame arms `reproduced` (`0x00476AA7/tip-screen-ladder`,
+`0x00476E21/tip-restores-its-screen`); sound triggers **51 → 53 of 143**; files
+**560 → 595 of 771** — forty by name, thirty-five that can sound.

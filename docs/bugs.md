@@ -569,6 +569,37 @@ that is fine: a quirk needs a switch only when somebody wants it switched.
 **Where:** `crates/l2-game/src/text.rs`, `TextField::put`; `docs/arms.json`
 `0x00401D26/overwrite-default`; tested in `crates/l2-game/tests/text.rs`.
 
+### BNEW-invasion-tip-swallowed — The invasion tip is lost if its crossing is noticed while another tip is up
+
+**[D]** on what the code does, **[I]** on calling it a mistake.
+
+`Tip_Update` (`0x00476AA7`) ends its ladder with the only arm that has no screen test:
+
+```c
+else if ((DAT_00553210 != 0) && (DAT_00553210 = 0, g_tipShown[211] == 0)) Tip_Show(211);
+```
+
+The flag — set by `Unit_EnterCounty` (`0x004ABB36`) when one of your armies crosses into a
+county you do not own — is **cleared before** anything else is asked. Two ways that loses the
+tip, and both are ordinary:
+
+* **on screen `0x27`.** No other arm matches `0x27`, so a frame with a tip already up reaches
+  this one, clears the flag, and calls `Tip_Show`, which refuses because `g_screenId` is `0x27`.
+  `g_tipShown[211]` stays clear and the flag is gone: the *"Invasions:"* tip waits for the next
+  crossing.
+* **after it has been shown.** Harmless, but the same shape: every later crossing sets the flag
+  and the next frame that reaches the arm throws it away.
+
+An army marching during the turn is exactly when the campaign map's own three tips are likely
+to be on screen, so the first case is not exotic. It was presumably meant to be *"test, then
+clear on show"*.
+
+**Reproduced.** Not switchable — it changes which advice a player sees and when, never a number
+in the world.
+
+**Where:** `crates/l2-game/src/tip.rs`, `update`; `docs/arms.json`
+`0x00476AA7/tip-screen-ladder`; tested in `crates/l2-game/tests/tips.rs`.
+
 ### B80 — The End key cancels a save you have just confirmed
 
 **[V]**, single player, and nobody would find it by playing carefully.

@@ -51,7 +51,11 @@ macro_rules! world {
         // number below - fourteen counties, the treasury, the selected county -
         // is the England turn-one position's rather than any save's.
         let save = l2_testkit::england!();
-        let game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+        let mut game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+        // **Tip screens: No.** A new game's tips come up over the campaign map
+        // and hold its input on screen `0x27`; that is `tests/tips.rs`'s
+        // subject, and every screen here is drawn and driven without them.
+        game.prefs.tip_screens = false;
         (game, assets)
     }};
 }
