@@ -5,8 +5,10 @@
 //   node tools/pm/work.js --check             schema, then agreement with git
 //   node tools/pm/work.js --check --schema    schema only -- what the test runs
 //   node tools/pm/work.js --status            the derived view, as text
-//   node tools/pm/work.js --html <path>       the same view as one page
+//   node tools/pm/work.js --html <path>       the player's page: the game's features, then the work
+//   node tools/pm/work.js --html-detail <path>  every row with its git facts, for agents
 //   ...                        --file <path>  read another ledger file
+//   ...                        --features <path>  read another feature list
 //   ...                        --ref <ref>    compare and count against <ref> (default main)
 //
 // # Why this exists
@@ -24,6 +26,44 @@
 // intent -- and everything git knows is computed here, on every run, and never
 // written anywhere. A stored "merged: false" is a claim with no timestamp; a
 // derived one cannot be stale.
+//
+// # Two pages, for two readers
+//
+// The first page printed every row's prose in tables, and its systems section
+// was gauges with commentary. The player: *"blabby rather than like a clear
+// feature or project task list ... a bit illegible."* And it had no feature
+// list at all, so nothing on it said how close the game is to the original,
+// which is the whole goal. So `--html` is the player's page -- the game's
+// features from `docs/features.json`, one line each, then what is in flight,
+// what is waiting on him, and the rest folded away -- and `--html-detail` is
+// the earlier page, for agents. **No source, note or next text reaches the
+// player's page**; there a ledger row is its title and nothing else.
+//
+// # The feature list is a claim, so it is checked against evidence
+//
+// `docs/features.json` grades each feature of the original game done, partial,
+// missing, not-assessed or out-of-scope. A feature marked done that is not is
+// the failure this project keeps writing corrections about, so --check has
+// three halves for it, and one report:
+//
+// * *schema*, which runs everywhere and in CI: every feature has every field;
+//   a done feature cites at least one thing, and every citation is a form
+//   somebody can check -- a correction `C123`, a path under crates/, docs/ or
+//   tools/, or `arms:<id or group>` / `audio:<id or class>`; a partial feature
+//   says in a few words what is missing;
+// * *references*, full --check only: every ledger row a feature names is in
+//   the ledger. A row leaves the ledger when its work merges, so a feature
+//   still citing one has to be re-graded;
+// * *evidence*, full --check where the ref resolves: every citation exists in
+//   the ref -- the correction in its decisions.md, the path in its tree, the
+//   arm or sound site in its inventory;
+// * and a missing or partial feature that cites no ledger row is **reported
+//   and not failed**. It is work nobody has written down, which is the lead's
+//   to decide, not a check's to refuse.
+//
+// The page reads the list from the ref it names, `git show main:docs/features.json`,
+// like every other figure; `--features <path>` reads a file instead, and the
+// page says which file.
 //
 // # Every figure comes from the ref the view names, never from a working tree
 //
@@ -89,6 +129,11 @@ const opt = (flag) => {
 
 const LEDGER = opt('--file') ? path.resolve(opt('--file')) : path.join(repo, 'docs', 'work.json');
 const REF = opt('--ref') || 'main';
+// The feature list: a file when named, otherwise the working tree's for
+// --check and the ref's for the page.
+const FEATURES_FLAG = opt('--features');
+const FEATURES = FEATURES_FLAG ? path.resolve(FEATURES_FLAG) : path.join(repo, 'docs', 'features.json');
+const FEATURES_IN_REF = 'docs/features.json';
 
 // The row schema. Every field is required: an empty string, [] or null says
 // "nothing to say" explicitly, which an absent field cannot.
@@ -123,14 +168,15 @@ function resolveBase() {
   return sha ? { name: REF, sha, short: sha.slice(0, 7) } : null;
 }
 
-// Where the ledger file itself came from: its own checkout, branch, and the
-// last commit that touched it -- or plainly that no commit holds what was read.
-function ledgerSource() {
-  const top = git(['rev-parse', '--show-toplevel'], path.dirname(LEDGER));
+// Where a file itself came from: its own checkout, branch, and the last commit
+// that touched it -- or plainly that no commit holds what was read.
+const ledgerSource = () => fileSource(LEDGER);
+function fileSource(file) {
+  const top = git(['rev-parse', '--show-toplevel'], path.dirname(file));
   if (top === null) {
-    return { path: LEDGER, checkout: null, branch: null, commit: null, state: 'outside', label: `${LEDGER}, a file outside any git checkout` };
+    return { path: file, checkout: null, branch: null, commit: null, state: 'outside', label: `${file}, a file outside any git checkout` };
   }
-  const p = path.relative(top, LEDGER).replace(/\\/g, '/');
+  const p = path.relative(top, file).replace(/\\/g, '/');
   const head = git(['rev-parse', '--abbrev-ref', 'HEAD'], top);
   const branch = !head || head === 'HEAD' ? 'a detached HEAD' : head;
   const tracked = git(['ls-files', '--error-unmatch', '--', p], top) !== null;
@@ -145,19 +191,20 @@ function ledgerSource() {
 
 // ---- schema ---------------------------------------------------------------
 
-function load() {
+function loadJson(file) {
   let text;
   try {
-    text = fs.readFileSync(LEDGER, 'utf8');
+    text = fs.readFileSync(file, 'utf8');
   } catch (e) {
-    return { problems: [{ id: '(file)', msg: `cannot read ${LEDGER}: ${e.message}` }] };
+    return { problems: [{ id: '(file)', msg: `cannot read ${file}: ${e.message}` }] };
   }
   try {
     return { j: JSON.parse(text), problems: [] };
   } catch (e) {
-    return { problems: [{ id: '(file)', msg: `${LEDGER} is not valid JSON: ${e.message}` }] };
+    return { problems: [{ id: '(file)', msg: `${file} is not valid JSON: ${e.message}` }] };
   }
 }
+const load = () => loadJson(LEDGER);
 
 function schema(j) {
   const P = [];
@@ -258,6 +305,251 @@ function schema(j) {
   };
   for (const r of rows) if (!colour.has(r.id)) visit(r.id, []);
   return P;
+}
+
+// ---- the feature list -----------------------------------------------------
+
+const FEATURE_FIELDS = ['id', 'area', 'name', 'status', 'evidence', 'gap', 'rows'];
+// The page draws a mark for each of these and for nothing else.
+const FEATURE_STATUSES = ['done', 'partial', 'missing', 'not-assessed', 'out-of-scope'];
+// A feature is one line on the player's page, so its words are few; the
+// ledger row carries the rest.
+const NAME_MAX = 48;
+const GAP_MAX = 40;
+
+// What a citation is, or null when it is not one anybody can check.
+function evidenceKind(e) {
+  if (typeof e !== 'string') return null;
+  let m;
+  if ((m = /^C(\d+)$/.exec(e))) return { kind: 'correction', n: m[1] };
+  if ((m = /^(arms|audio):(\S+)$/.exec(e))) return { kind: m[1], key: m[2] };
+  if (/^(crates|docs|tools)\/[\w./#-]+$/.test(e) && !e.split('/').includes('..')) return { kind: 'path', path: e };
+  return null;
+}
+
+const featureList = (j) => (j && Array.isArray(j.features) ? j.features.filter((f) => f && typeof f.id === 'string') : []);
+const knownStatus = (s) => (FEATURE_STATUSES.includes(s) ? s : 'not-assessed');
+
+function featureSchema(j) {
+  const P = [];
+  const bad = (id, msg) => P.push({ id, msg });
+  if (!j || typeof j !== 'object' || Array.isArray(j)) {
+    bad('(file)', 'the feature list must be a JSON object');
+    return P;
+  }
+  if (typeof j.about !== 'string' || !j.about.trim()) bad('(file)', 'top-level "about" must say what the file is and how a feature is graded');
+  if (!j.statuses || typeof j.statuses !== 'object' || Array.isArray(j.statuses)) {
+    bad('(file)', `top-level "statuses" must be an object of status -> meaning, declaring exactly: ${FEATURE_STATUSES.join(', ')}`);
+  } else {
+    const keys = Object.keys(j.statuses);
+    const extra = keys.filter((k) => !FEATURE_STATUSES.includes(k));
+    const lacking = FEATURE_STATUSES.filter((k) => !keys.includes(k));
+    if (extra.length || lacking.length) {
+      bad('(file)', `"statuses" must declare exactly ${FEATURE_STATUSES.join(', ')} -- the page draws a mark for each of those and no other${extra.length ? `; not drawable: ${extra.join(', ')}` : ''}${lacking.length ? `; undeclared: ${lacking.join(', ')}` : ''}`);
+    }
+  }
+  const areasOk = j.areas && typeof j.areas === 'object' && !Array.isArray(j.areas) && Object.keys(j.areas).length;
+  if (!areasOk) bad('(file)', 'top-level "areas" must be an object of area id -> the name a player sees, in page order');
+  else for (const [k, v] of Object.entries(j.areas)) if (typeof v !== 'string' || !v.trim()) bad('(file)', `area "${k}" must have a name`);
+  if (!Array.isArray(j.features)) {
+    bad('(file)', 'top-level "features" must be an array');
+    return P;
+  }
+
+  const seen = new Map();
+  j.features.forEach((f, i) => {
+    const id = f && typeof f.id === 'string' && f.id.trim() ? f.id : `(feature ${i + 1})`;
+    if (!f || typeof f !== 'object' || Array.isArray(f)) {
+      bad(id, 'is not an object');
+      return;
+    }
+    for (const k of FEATURE_FIELDS) {
+      if (!hasOwn(f, k)) bad(id, `missing field "${k}" -- every feature carries all of: ${FEATURE_FIELDS.join(', ')} ("" or [] where there is nothing to say)`);
+    }
+    for (const k of Object.keys(f)) if (!FEATURE_FIELDS.includes(k)) bad(id, `unknown field "${k}" -- the feature schema is: ${FEATURE_FIELDS.join(', ')}`);
+    if (typeof f.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(f.id)) bad(id, '"id" must be lower-case words joined by hyphens');
+    else if (seen.has(f.id)) bad(id, `duplicate id: features ${seen.get(f.id) + 1} and ${i + 1} both claim it`);
+    else seen.set(f.id, i);
+    if (hasOwn(f, 'area') && !(areasOk && hasOwn(j.areas, f.area))) {
+      bad(id, `unknown area ${JSON.stringify(f.area)} -- declared: ${areasOk ? Object.keys(j.areas).join(', ') : 'none'}`);
+    }
+    if (hasOwn(f, 'name')) {
+      if (typeof f.name !== 'string' || !f.name.trim()) bad(id, '"name" must be a non-empty string');
+      else if (f.name.length > NAME_MAX) bad(id, `"name" is ${f.name.length} characters, and a feature gets one line on the player's page -- name it in a few words (${NAME_MAX} at most)`);
+    }
+    if (hasOwn(f, 'status') && !FEATURE_STATUSES.includes(f.status)) {
+      bad(id, `unknown status ${JSON.stringify(f.status)} -- one of: ${FEATURE_STATUSES.join(', ')}`);
+    }
+    if (hasOwn(f, 'gap')) {
+      if (typeof f.gap !== 'string') bad(id, '"gap" must be a string');
+      else if (f.gap.length > GAP_MAX) bad(id, `"gap" is ${f.gap.length} characters -- say what is missing in a few words (${GAP_MAX} at most); the ledger row carries the rest`);
+      else if (f.status === 'partial' && !f.gap.trim()) bad(id, 'is partial and does not say what is missing -- put it in "gap", in a few words');
+    }
+    if (hasOwn(f, 'evidence')) {
+      if (!Array.isArray(f.evidence)) bad(id, '"evidence" must be an array of citations');
+      else {
+        for (const e of f.evidence) {
+          if (!evidenceKind(e)) {
+            bad(id, `evidence ${JSON.stringify(e)} is not a citation anybody can check -- use a correction (C123), a path under crates/, docs/ or tools/, or arms:<id or group> / audio:<id or class>`);
+          }
+        }
+        if (f.status === 'done' && !f.evidence.length) {
+          bad(id, 'is done and cites nothing -- a done feature names the correction, test or inventory entry that shows it, because a feature marked done that is not is the failure this file exists to prevent');
+        }
+      }
+    }
+    if (hasOwn(f, 'rows') && (!Array.isArray(f.rows) || f.rows.some((r) => typeof r !== 'string'))) {
+      bad(id, '"rows" must be an array of docs/work.json row ids');
+    }
+  });
+  return P;
+}
+
+// Every ledger row a feature names is in the ledger.
+function featureReferences(j, rows, ledgerLabel) {
+  const ids = new Set(rows.map((r) => r.id));
+  const P = [];
+  for (const f of featureList(j)) {
+    for (const r of Array.isArray(f.rows) ? f.rows : []) {
+      if (typeof r === 'string' && !ids.has(r)) {
+        P.push({
+          id: f.id,
+          msg: `cites ledger row "${r}", which is not in ${ledgerLabel}. If it merged, its work landed: re-grade this feature and cite the correction that landed it; if the row was renamed, follow it`,
+        });
+      }
+    }
+  }
+  return P;
+}
+
+// Every citation exists in the ref: the correction in its decisions.md, the
+// path in its tree, the arm or sound site in its inventory.
+function featureEvidence(j, base) {
+  const src = at(base);
+  const problems = [];
+  let citations = 0;
+  let files = null;
+  let corrections = null;
+  let arms = null;
+  let audio = null;
+  const keysOf = (p, list, fields) => {
+    if (!src.exists(p)) return new Set();
+    const got = src.json(p)[list];
+    return new Set((Array.isArray(got) ? got : []).flatMap((r) => fields.map((k) => r && r[k]).filter((v) => typeof v === 'string')));
+  };
+  for (const f of featureList(j)) {
+    for (const e of Array.isArray(f.evidence) ? f.evidence : []) {
+      const k = evidenceKind(e);
+      if (!k) continue; // the schema names it
+      citations++;
+      let why = null;
+      if (k.kind === 'path') {
+        files = files || new Set((git(['ls-tree', '-r', '--name-only', base.sha]) || '').split('\n'));
+        if (!files.has(k.path)) why = `is not a file in ${src.where}`;
+      } else if (k.kind === 'correction') {
+        const log = src.exists('docs/decisions.md') ? src.read('docs/decisions.md') : '';
+        corrections = corrections || new Set([...log.matchAll(/^\*\*C(\d+)\b/gm)].map((x) => x[1]));
+        if (!corrections.has(k.n)) why = `is not a correction in docs/decisions.md at ${src.where}`;
+      } else if (k.kind === 'arms') {
+        arms = arms || keysOf('docs/arms.json', 'arms', ['id', 'group']);
+        if (!arms.has(k.key)) why = `is neither an arm id nor a group in docs/arms.json at ${src.where}`;
+      } else {
+        audio = audio || keysOf('docs/audio.json', 'sites', ['id', 'class']);
+        if (!audio.has(k.key)) why = `is neither a site id nor a class in docs/audio.json at ${src.where}`;
+      }
+      if (why) problems.push({ id: f.id, msg: `evidence "${e}" ${why} -- cite something the ref holds, or re-grade the feature` });
+    }
+  }
+  return { problems, citations };
+}
+
+// Missing or partial, and no ledger row covers it: work nobody has written down.
+const unrecorded = (list) => list.filter((f) => (f.status === 'missing' || f.status === 'partial') && !(Array.isArray(f.rows) && f.rows.length));
+
+// "N of M done", where M leaves out what is deliberately out of scope.
+function featureCounts(list) {
+  const c = { total: 0 };
+  for (const s of FEATURE_STATUSES) c[s] = 0;
+  for (const f of list) {
+    c[knownStatus(f.status)]++;
+    c.total++;
+  }
+  c.graded = c.total - c['out-of-scope'];
+  return c;
+}
+
+// The list the page draws: the ref's copy, or the file --features names.
+function featuresForView(base, rows, ledgerLabel) {
+  let text;
+  let label;
+  if (FEATURES_FLAG) {
+    label = fileSource(FEATURES).label;
+    try {
+      text = fs.readFileSync(FEATURES, 'utf8');
+    } catch (e) {
+      return { error: `cannot read ${FEATURES}: ${e.message}`, label };
+    }
+  } else {
+    const src = at(base);
+    label = `${FEATURES_IN_REF} at ${src.where}`;
+    if (!src.exists(FEATURES_IN_REF)) return { absent: `${FEATURES_IN_REF} is not in ${src.where}`, label };
+    text = src.read(FEATURES_IN_REF);
+  }
+  let j;
+  try {
+    j = JSON.parse(text);
+  } catch (e) {
+    return { error: `${label} is not valid JSON: ${e.message}`, label };
+  }
+  const problems = [...featureSchema(j), ...featureReferences(j, rows, ledgerLabel)];
+  try {
+    problems.push(...featureEvidence(j, base).problems);
+  } catch (e) {
+    problems.push({ id: '(file)', msg: `the evidence could not be checked: ${e.message}` });
+  }
+  const list = featureList(j);
+  const declared = j.areas && typeof j.areas === 'object' && !Array.isArray(j.areas) ? j.areas : {};
+  const areaIds = Object.keys(declared);
+  for (const f of list) if (!areaIds.includes(f.area)) areaIds.push(f.area);
+  const areas = areaIds
+    .map((a) => ({ id: a, name: typeof declared[a] === 'string' && declared[a] ? declared[a] : String(a), features: list.filter((f) => f.area === a) }))
+    .filter((a) => a.features.length);
+  return { label, problems, list, areas, counts: featureCounts(list), unrecorded: unrecorded(list) };
+}
+
+// --check's half for the feature list. Prints what it did and what it
+// skipped, and returns the problems.
+function checkFeatures(rows) {
+  const { j, problems } = loadJson(FEATURES);
+  if (!j) return problems;
+  const list = featureList(j);
+  const found = featureSchema(j);
+  const areaCount = j.areas && typeof j.areas === 'object' ? Object.keys(j.areas).length : 0;
+  console.log(`work: features: schema: ${list.length} features in ${areaCount} areas, ${found.length} problem(s)`);
+  if (has('--schema')) {
+    console.log(`work: SKIP feature references and evidence: --schema was given; ${list.length} features were not compared with the ledger or with ${REF}`);
+  } else {
+    const refs = featureReferences(j, rows, ledgerSource().label);
+    const cited = list.reduce((n, f) => n + (Array.isArray(f.rows) ? f.rows.length : 0), 0);
+    console.log(`work: features: references: ${cited} ledger row citation(s) checked against the ledger, ${refs.length} problem(s)`);
+    found.push(...refs);
+    const base = resolveBase();
+    if (!base) {
+      console.log(`work: SKIP feature evidence: ${REF} does not resolve here, so no citation was checked`);
+    } else {
+      try {
+        const ev = featureEvidence(j, base);
+        console.log(`work: features: evidence: ${ev.citations} citation(s) checked against ${base.name} ${base.short}, ${ev.problems.length} problem(s)`);
+        found.push(...ev.problems);
+      } catch (e) {
+        found.push({ id: '(file)', msg: `the evidence could not be checked against ${base.name} ${base.short}: ${e.message}` });
+      }
+    }
+  }
+  const un = unrecorded(list);
+  console.log(`work: features: ${un.length} missing or partial feature(s) cite no ledger row -- work nobody has written down; reported, not failed${un.length ? ':' : ''}`);
+  for (const f of un) console.log(`work:   ${f.id} (${f.status}) ${f.name}${f.gap ? ` -- ${f.gap}` : ''}`);
+  return found;
 }
 
 // ---- git ------------------------------------------------------------------
@@ -605,6 +897,8 @@ function derive() {
     .map((r) => ({ row: r, on: r.depends_on.filter((d) => byId.has(d)).map((d) => byId.get(d)) }));
 
   const inv = inventories(base);
+  const ledger = ledgerSource();
+  const features = featuresForView(base, rows, ledger.label);
 
   // Tracks in the ledger's own order; systems alphabetical within each.
   const trackNames = [...Object.keys(j.tracks || {})];
@@ -625,7 +919,8 @@ function derive() {
   return {
     generated: new Date().toISOString(),
     base,
-    ledger: ledgerSource(),
+    ledger,
+    features,
     stateOrder: Object.keys(j.states || {}),
     states: j.states || {},
     git: g ? { branches: g.branches, agentBranches: g.agentBranches, orphans: g.orphans.length } : null,
@@ -787,7 +1082,336 @@ const table = (head, body, cls = '') =>
   `<div class="scroll"><table class="${cls}"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
 const empty = (s) => `<p class="empty">${esc(s)}</p>`;
 
+// ---- the player's page ----------------------------------------------------
+//
+// One screen of reading for the player, who is not an agent: the game's
+// features as a checklist, what is in flight, what waits on him, and
+// everything else folded away. A ledger row is its title and nothing else, and
+// every row whose branch has not merged appears exactly once -- a merged one
+// is stale, and the disagreement line already counts it. `work_ledger.rs`
+// counts both.
+
+const FEATURE_LABEL = { done: 'done', partial: 'partial', missing: 'missing', 'not-assessed': 'not assessed', 'out-of-scope': 'out of scope' };
+const PLAYER_TRACKS = ['play', 'screens', 'presentation'];
+const TRACK_NAME = {
+  play: 'Playing the game',
+  screens: 'Screens and controls',
+  presentation: 'Sound, films and animation',
+  instruments: 'Checks that prove parity',
+  process: 'How the project runs',
+};
+const PARKED = ['open', 'deferred', 'abandoned'];
+
+function placeRow(m, r) {
+  const f = m.facts(r);
+  if (f && f.merged) return null;
+  if (r.state === 'in-flight') return 'now';
+  if (r.state === 'queued-merge') return 'next';
+  if (r.state === 'awaiting-user') return 'asks';
+  return PLAYER_TRACKS.includes(r.track) && PARKED.includes(r.state) ? 'backlog' : 'behind';
+}
+
+// Five marks that differ in shape, not only in colour: a filled disc with a
+// tick, a half-filled ring, a crossed ring, a dashed ring, and a bar.
+const statusMark = (s) => `<svg class="mark" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#mark-${esc(knownStatus(s))}"></use></svg>`;
+const MARK_DEFS = `<svg class="defs" aria-hidden="true" focusable="false"><defs>
+<symbol id="mark-done" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M4.7 8.2l2.2 2.3 4.4-4.8" fill="none" style="stroke:var(--raised)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="mark-partial" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.8a6.2 6.2 0 0 0 0 12.4z" fill="currentColor"/></symbol>
+<symbol id="mark-missing" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.8 5.8l4.4 4.4m0-4.4l-4.4 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+<symbol id="mark-not-assessed" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.2 2.1"/></symbol>
+<symbol id="mark-out-of-scope" viewBox="0 0 16 16"><path d="M3.5 8h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</defs></svg>`;
+
+function meter(c, cls = '') {
+  const parts = ['done', 'partial', 'missing', 'not-assessed'].filter((s) => c[s]);
+  if (!parts.length) return '';
+  const said = parts.map((s) => `${c[s]} ${FEATURE_LABEL[s]}`).join(', ');
+  return `<div class="meter ${cls}" role="img" aria-label="${esc(said)}">${parts.map((s) => `<i class="${s}" style="flex-grow:${c[s]}"></i>`).join('')}</div>`;
+}
+
+const featureLine = (f) => {
+  const s = knownStatus(f.status);
+  const gap = s === 'partial' && f.gap ? `<span class="gap">${esc(f.gap)}</span>` : '';
+  return `<li data-feature="${esc(f.id)}" data-status="${esc(f.status)}" class="${s}">${statusMark(s)}<span class="label"><span class="sr">${esc(FEATURE_LABEL[s])}: </span><span class="fname">${esc(f.name)}</span>${gap}</span></li>`;
+};
+
+const PLAYER_CSS = `
+  /* The tokens are docs/status.html's and the detailed page's, so the pages
+     read as one project. Colour is never the only signal: every status mark
+     and every line marker also has a shape. */
+  :root {
+    --ground: #E7E6E1; --surface: #F2F1ED; --raised: #FBFAF8;
+    --ink: #1A1C1F; --ink-dim: #575C63; --ink-faint: #80858C;
+    --rule: #CECCC4; --rule-soft: #DEDCD5;
+    --gules: #A32C33; --or: #8A6512; --azure: #2E5C8A; --vert: #3B6B45;
+    --shadow: 0 1px 2px rgba(26,28,31,.06), 0 3px 10px rgba(26,28,31,.04);
+    --sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #15171B; --surface: #1D2026; --raised: #23272E;
+      --ink: #E4E6E9; --ink-dim: #9AA1AA; --ink-faint: #737A83;
+      --rule: #333842; --rule-soft: #2A2F37;
+      --gules: #E0666D; --or: #D8AA4E; --azure: #6C9FD6; --vert: #79B183;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.22);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #15171B; --surface: #1D2026; --raised: #23272E;
+    --ink: #E4E6E9; --ink-dim: #9AA1AA; --ink-faint: #737A83;
+    --rule: #333842; --rule-soft: #2A2F37;
+    --gules: #E0666D; --or: #D8AA4E; --azure: #6C9FD6; --vert: #79B183;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.22);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-block: 28px 64px; padding-inline: clamp(16px, 4vw, 32px); }
+  .defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  a { color: var(--azure); }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--azure); outline-offset: 3px; }
+
+  /* ---- the header: one line, then one sentence ---- */
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+  h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
+  h1 span { font-weight: 500; color: var(--ink-dim); }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; margin: 0; font: 12px/1.5 var(--mono); color: var(--ink-faint); }
+  .meta b { color: var(--ink); font-weight: 500; }
+  .check { --c: var(--ink-faint); display: inline-flex; align-items: center; gap: 7px; color: var(--c); text-decoration: none; }
+  .check::before { content: ""; width: 7px; height: 7px; background: currentColor; flex: none; }
+  .check.good { --c: var(--vert); }
+  .check.good::before { border-radius: 50%; }
+  .check.warn { --c: var(--or); }
+  .check.warn::before { transform: rotate(45deg); }
+  .check.bad { --c: var(--gules); }
+  .check.bad::before { width: 2px; height: 10px; }
+  .lede { margin: 10px 0 0; max-width: 70ch; color: var(--ink-dim); text-wrap: pretty; }
+
+  .alert { margin-top: 16px; padding: 8px 14px; border: 1px solid var(--gules); border-radius: 3px; font-size: 13.5px; color: var(--ink-dim); }
+  .alert summary { cursor: pointer; color: var(--gules); font-weight: 600; }
+  .alert ul { margin: 8px 0 4px; padding-left: 18px; display: grid; gap: 6px; overflow-wrap: anywhere; }
+  .alert b { color: var(--ink); font: 500 12px var(--mono); }
+
+  /* ---- sections ---- */
+  .block { margin-top: 36px; }
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+  h2 { margin: 0; font: 600 12px/1.3 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+  .aside, .n { font: 400 12px/1.3 var(--mono); letter-spacing: 0; text-transform: none; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+  /* ---- the checklist ---- */
+  .tally-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 28px; margin-top: 18px; }
+  .tally { margin: 0; font-size: 17px; color: var(--ink-dim); }
+  .tally b { margin-right: 4px; font: 600 36px/1 var(--mono); letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-dim); }
+  .legend li { display: inline-flex; align-items: center; gap: 6px; }
+  .legend b { font: 600 12.5px var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  .mark { width: 15px; height: 15px; flex: none; color: var(--ink-faint); }
+  li.done .mark { color: var(--vert); }
+  li.partial .mark { color: var(--or); }
+  li.missing .mark { color: var(--gules); }
+
+  .meter { display: flex; gap: 2px; height: 4px; margin: 7px 0 9px; }
+  .meter.wide { height: 10px; margin: 14px 0 0; }
+  .meter i { flex: 1 1 0; min-width: 2px; border-radius: 1px; }
+  .meter i.done { background: var(--vert); }
+  .meter i.partial { background: var(--or); }
+  .meter i.missing { background: var(--gules); }
+  .meter i.not-assessed { background: repeating-linear-gradient(135deg, var(--ink-faint) 0 1.5px, transparent 1.5px 4px); }
+
+  .areas { columns: 3 290px; column-gap: 44px; margin-top: 28px; }
+  .area { break-inside: avoid; padding-bottom: 24px; }
+  .area h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0; font-size: 15px; font-weight: 600; text-wrap: balance; }
+  .checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.35; }
+  .checklist .mark { margin-top: 1px; }
+  .checklist .label { min-width: 0; }
+  .checklist .gap { margin-left: 7px; font-size: 12.5px; color: var(--ink-faint); }
+  .checklist li.not-assessed .fname, .checklist li.out-of-scope .fname { color: var(--ink-dim); }
+
+  /* ---- the work ---- */
+  .work { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0 48px; align-items: start; margin-top: 12px; }
+  .work > section { margin-top: 24px; }
+  .work h3, .track h3 { display: flex; align-items: baseline; gap: 10px; margin: 16px 0 8px; font: 600 11.5px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
+  .asks { padding: 14px 18px 18px; background: var(--raised); border: 1px solid var(--rule-soft); border-radius: 3px; box-shadow: var(--shadow); }
+  .asks .lines, .asks .none { margin-top: 12px; }
+  @media (max-width: 760px) { .work { grid-template-columns: minmax(0, 1fr); } }
+
+  .lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; line-height: 1.4; }
+  .lines li { position: relative; padding-left: 20px; text-wrap: pretty; }
+  .lines li::before { content: ""; position: absolute; left: 3px; top: .45em; width: 7px; height: 7px; background: var(--ink-faint); }
+  .lines.flight li::before { border-radius: 50%; background: var(--or); }
+  .lines.ask li::before { background: var(--gules); transform: rotate(45deg) scale(.95); }
+  .lines.queue { counter-reset: q; }
+  .lines.queue li { counter-increment: q; padding-left: 26px; }
+  .lines.queue li::before { content: counter(q); top: 0; left: 0; width: auto; height: auto; background: none; font: 600 12.5px/1.55 var(--mono); color: var(--azure); }
+  .lines.parked li::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-faint); border-radius: 50%; }
+  .lines.parked li.st-deferred::before, .lines.parked li.st-abandoned::before { top: .7em; height: 2px; background: var(--ink-faint); box-shadow: none; border-radius: 0; }
+  .lines.figures li::before { top: .7em; width: 9px; height: 2px; }
+  .lines li.bad { color: var(--gules); }
+  .lines b { font: 600 13.5px var(--mono); font-variant-numeric: tabular-nums; }
+  .tag { margin-left: 6px; padding: 1px 5px; border: 1px solid var(--rule); border-radius: 2px; font: 600 10px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); white-space: nowrap; }
+  .tag.deferred { border-style: dashed; }
+  .tag.abandoned { text-decoration: line-through; }
+  .none { margin: 0; font-size: 13.5px; color: var(--ink-faint); }
+  .note { margin: 16px 0 0; padding: 12px 14px; border: 1px dashed var(--rule); border-radius: 3px; font-size: 13.5px; color: var(--ink-dim); }
+  .note.bad { border-color: var(--gules); color: var(--gules); }
+
+  /* ---- folded ---- */
+  .fold { margin-top: 32px; border-top: 1px solid var(--rule); }
+  .fold + .fold { margin-top: 0; }
+  .fold > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 14px 0; cursor: pointer; list-style: none; }
+  .fold > summary::-webkit-details-marker { display: none; }
+  .fold > summary::before { content: ""; align-self: center; width: 0; height: 0; border-style: solid; border-width: 5px 0 5px 7px; border-color: transparent transparent transparent var(--ink-dim); transition: transform .15s; }
+  .fold[open] > summary::before { transform: rotate(90deg); }
+  .fold-title { font: 600 12px/1.3 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); }
+  .fold-meta { font-size: 13px; color: var(--ink-faint); }
+  .fold-body { padding: 0 0 18px 21px; }
+  .tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 4px 44px; }
+  .track h3 { margin-top: 6px; }
+  .sources { margin: 20px 0 0; font: 12px/1.6 var(--mono); color: var(--ink-faint); overflow-wrap: anywhere; }
+  @media (max-width: 520px) { .fold-body { padding-left: 0; } }
+  @media (prefers-reduced-motion: reduce) { .fold > summary::before { transition: none; } }
+`;
+
 function html(m) {
+  const inPlace = (p) => m.rows.filter((r) => placeRow(m, r) === p);
+  const now = inPlace('now');
+  const next = m.queue.filter((r) => placeRow(m, r) === 'next');
+  const asks = inPlace('asks');
+  const backlog = inPlace('backlog');
+  const behind = inPlace('behind');
+  const refName = `${m.base.name} ${m.base.short}`;
+  const F = m.features;
+
+  const problems = [...m.problems, ...(F.problems || []).map((p) => ({ id: p.id === '(file)' ? 'features.json' : `feature ${p.id}`, msg: p.msg }))];
+  const check = problems.length
+    ? `<a class="check bad" href="#disagreements">${problems.length} disagreement${problems.length === 1 ? '' : 's'}</a>`
+    : m.skip
+      ? `<span class="check warn" title="${esc(m.skip)}">git not compared</span>`
+      : '<span class="check good">ledger agrees with git</span>';
+
+  const title = (r) => `<li data-row="${esc(r.id)}">${esc(r.title)}</li>`;
+  const lines = (list, cls, none) => {
+    const tag = cls === 'queue' ? 'ol' : 'ul';
+    return list.length ? `<${tag} class="lines ${cls}">${list.map(title).join('')}</${tag}>` : `<p class="none">${esc(none)}</p>`;
+  };
+  const parked = (r) =>
+    `<li data-row="${esc(r.id)}" class="st-${esc(r.state)}">${esc(r.title)}${r.state === 'open' ? '' : ` <span class="tag ${esc(r.state)}">${esc(STATE_LABEL[r.state] || r.state)}</span>`}</li>`;
+  const trackOrder = [...new Set([...m.tracks.map((t) => t.name), ...m.rows.map((r) => r.track)])];
+  const byTrack = (list) => trackOrder.map((t) => ({ t, rows: list.filter((r) => r.track === t) })).filter((g) => g.rows.length);
+  const trackName = (t) => TRACK_NAME[t] || String(t);
+  const trackBlocks = (list) =>
+    byTrack(list)
+      .map((g) => `<section class="track"><h3>${esc(trackName(g.t))} <span class="n">${g.rows.length}</span></h3><ul class="lines parked">${g.rows.map(parked).join('')}</ul></section>`)
+      .join('');
+
+  let featureBody;
+  if (F.absent) featureBody = `<p class="note">There is no feature checklist to show: ${esc(F.absent)}.</p>`;
+  else if (F.error) featureBody = `<p class="note bad">The feature checklist could not be read: ${esc(F.error)}</p>`;
+  else {
+    const c = F.counts;
+    const legend = FEATURE_STATUSES.map((s) => `<li class="${s}">${statusMark(s)}${esc(FEATURE_LABEL[s])} <b>${c[s]}</b></li>`).join('');
+    const areas = F.areas
+      .map((a) => {
+        const ac = featureCounts(a.features);
+        return `<section class="area"><h3><span>${esc(a.name)}</span><span class="n">${ac.done} of ${ac.graded}</span></h3>${meter(ac)}<ul class="checklist">${a.features.map(featureLine).join('')}</ul></section>`;
+      })
+      .join('');
+    featureBody = `<div class="tally-row"><p class="tally" data-done="${c.done}" data-of="${c.graded}"><b>${c.done}</b> of ${c.graded} features done</p><ul class="legend">${legend}</ul></div>
+    ${meter(c, 'wide')}
+    <div class="areas">${areas}</div>`;
+  }
+
+  const figures = m.inv
+    .filter((x) => x.system !== 'tests')
+    .map((x) =>
+      x.error
+        ? `<li class="bad">${esc(x.name)}: could not be read</li>`
+        : x.absent
+          ? `<li>${esc(x.name)}: not on ${esc(refName)}</li>`
+          : `<li>${esc(x.name)}: <b>${esc(x.head)}</b> ${esc(x.unit)}</li>`,
+    )
+    .join('');
+  const unrec = F.unrecorded || [];
+  const backlogMeta = byTrack(backlog)
+    .map((g) => ` &middot; ${g.rows.length} ${esc(trackName(g.t).toLowerCase())}`)
+    .join('');
+
+  return `<title>lords2 Status</title>
+<meta name="generator" content="tools/pm/work.js --html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>${PLAYER_CSS}</style>
+${MARK_DEFS}
+<div class="wrap">
+  <header class="top">
+    <h1>lords2 <span>status</span></h1>
+    <p class="meta"><span>${esc(m.base.name)} <b>${esc(m.base.short)}</b></span><span>generated <b>${esc(stamp(m.generated))} UTC</b></span>${check}</p>
+  </header>
+  <p class="lede">How close this rebuild of Lords of the Realm II is to the original game, feature by feature, and what is being worked on.</p>
+  ${
+    problems.length
+      ? `<details class="alert" id="disagreements"><summary>${problems.length} place${problems.length === 1 ? '' : 's'} where the ledger, the checklist and git disagree</summary><ul>${problems.map((p) => `<li><b>${esc(p.id)}</b> ${esc(p.msg)}</li>`).join('')}</ul></details>`
+      : ''
+  }
+
+  <section class="block" aria-labelledby="h-features">
+    <div class="section-head"><h2 id="h-features">Game features</h2><span class="aside">graded against the original</span></div>
+    ${featureBody}
+  </section>
+
+  <div class="work">
+    <section aria-labelledby="h-now">
+      <div class="section-head"><h2 id="h-now">Now</h2></div>
+      <h3>In progress <span class="n">${now.length}</span></h3>
+      ${lines(now, 'flight', 'No agent is working on anything.')}
+      <h3>Up next <span class="n">merging in this order</span></h3>
+      ${lines(next, 'queue', 'Nothing is waiting to merge.')}
+    </section>
+    <section class="asks" aria-labelledby="h-asks">
+      <div class="section-head"><h2 id="h-asks">Waiting on you</h2><span class="n">${asks.length}</span></div>
+      ${lines(asks, 'ask', 'Nothing is waiting on you.')}
+    </section>
+  </div>
+
+  <details class="fold">
+    <summary><span class="fold-title">Backlog</span><span class="fold-meta">${backlog.length} known, not started${backlogMeta}</span></summary>
+    <div class="fold-body tracks">${backlog.length ? trackBlocks(backlog) : '<p class="none">The backlog is empty.</p>'}</div>
+  </details>
+
+  <details class="fold">
+    <summary><span class="fold-title">Behind the scenes</span><span class="fold-meta">the numbers, the checks and the tooling</span></summary>
+    <div class="fold-body">
+      <div class="tracks">
+        <section class="track"><h3>The numbers <span class="n">${esc(refName)}</span></h3><ul class="lines figures">${figures}</ul></section>
+        <section class="track"><h3>Gaps with no ledger row <span class="n">${unrec.length}</span></h3>${
+          unrec.length
+            ? `<ul class="lines parked">${unrec.map((f) => `<li>${esc(f.name)} <span class="tag">${esc(FEATURE_LABEL[knownStatus(f.status)])}</span></li>`).join('')}</ul>`
+            : '<p class="none">Every gap has a ledger row.</p>'
+        }</section>
+        ${trackBlocks(behind)}
+      </div>
+      <p class="sources">Ledger: ${esc(m.ledger.label)}. Checklist: ${esc(F.label || FEATURES_IN_REF)}. Figures: ${esc(m.base.name)} ${esc(m.base.sha)}.${m.skip ? ` Git not compared: ${esc(m.skip)}.` : ''} Regenerate with node tools/pm/work.js --html; every row in full is --html-detail.</p>
+    </div>
+  </details>
+</div>
+`;
+}
+
+// ---- the detailed page, for agents ----------------------------------------
+
+function htmlDetail(m) {
   const inflight = m.inState('in-flight');
   const waiting = m.inState('awaiting-user');
   const open = m.inState('open');
@@ -1045,7 +1669,7 @@ function html(m) {
   <h2 id="disagreements">Where the ledger disagrees <span class="n">${m.problems.length}</span></h2>
   ${m.problems.length ? table(['Row or branch', 'What the schema or git says'], m.problems.map((p) => `<tr><td>${esc(p.id)}</td><td class="prose">${esc(p.msg)}</td></tr>`).join(''), 'problems') : empty(m.skip ? `The schema is clean. Git was not compared: ${m.skip}.` : 'The ledger agrees with its schema and with git.')}
 
-  <footer>Generated by <code>node tools/pm/work.js --html</code>. Ledger: ${esc(led.label)}${led.checkout ? ` (checkout ${esc(led.checkout)})` : ''}. Figures and git facts: ${esc(m.base.name)} ${esc(m.base.sha)}. Regenerate rather than edit: nothing on this page is stored anywhere.</footer>
+  <footer>Generated by <code>node tools/pm/work.js --html-detail</code>. Ledger: ${esc(led.label)}${led.checkout ? ` (checkout ${esc(led.checkout)})` : ''}. Figures and git facts: ${esc(m.base.name)} ${esc(m.base.sha)}. Regenerate rather than edit: nothing on this page is stored anywhere.</footer>
 </div>
 `;
 }
@@ -1053,13 +1677,16 @@ function html(m) {
 // ---- main -----------------------------------------------------------------
 
 function main() {
-  if (!has('--check') && !has('--status') && !has('--html')) {
-    console.error('usage: node tools/pm/work.js --check [--schema] | --status | --html <path>   [--file <ledger>] [--ref <ref>]');
+  const pages = ['--html', '--html-detail'];
+  if (!has('--check') && !has('--status') && !pages.some(has)) {
+    console.error('usage: node tools/pm/work.js --check [--schema] | --status | --html <path> | --html-detail <path>   [--file <ledger>] [--features <list>] [--ref <ref>]');
     process.exit(2);
   }
-  if (has('--html') && !opt('--html')) {
-    console.error('work: --html needs a path to write, outside the tree or gitignored -- generated HTML is never committed');
-    process.exit(2);
+  for (const p of pages) {
+    if (has(p) && !opt(p)) {
+      console.error(`work: ${p} needs a path to write, outside the tree or gitignored -- generated HTML is never committed`);
+      process.exit(2);
+    }
   }
 
   if (has('--check')) {
@@ -1083,8 +1710,10 @@ function main() {
         problems.push(...found);
       }
     }
+    const featureProblems = checkFeatures(rows);
     for (const p of problems) console.error(`work: ${p.id}: ${p.msg}`);
-    process.exit(problems.length ? 1 : 0);
+    for (const p of featureProblems) console.error(`work: ${p.id === '(file)' ? 'features' : `feature ${p.id}`}: ${p.msg}`);
+    process.exit(problems.length || featureProblems.length ? 1 : 0);
   }
 
   const m = derive();
@@ -1094,14 +1723,20 @@ function main() {
   }
   const unreadable = m.inv.filter((x) => x.error);
   if (has('--status')) process.stdout.write(text(m));
-  if (has('--html')) {
-    const out = path.resolve(opt('--html'));
+  const write = (flag, render, what) => {
+    if (!has(flag)) return;
+    const out = path.resolve(opt(flag));
     fs.mkdirSync(path.dirname(out), { recursive: true });
-    fs.writeFileSync(out, html(m));
-    console.error(`work: wrote ${out} (${m.base.name} ${m.base.short}, ${m.rows.length} rows, ${m.problems.length} disagreement(s))`);
-  }
+    fs.writeFileSync(out, render(m));
+    console.error(`work: wrote ${out} (${m.base.name} ${m.base.short}, ${m.rows.length} rows, ${m.problems.length} disagreement(s)${what})`);
+  };
+  const F = m.features;
+  write('--html', html, F.list ? `, ${F.list.length} features, ${F.problems.length} feature problem(s)` : `, no features: ${F.absent || F.error}`);
+  write('--html-detail', htmlDetail, '');
   for (const x of unreadable) console.error(`work: rollup: ${x.name} could not be read: ${x.error}`);
-  process.exit(unreadable.length ? 1 : 0);
+  const featuresBroken = has('--html') && F.error;
+  if (featuresBroken) console.error(`work: features: ${F.error}`);
+  process.exit(unreadable.length || featuresBroken ? 1 : 0);
 }
 
 main();
