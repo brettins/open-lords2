@@ -7195,3 +7195,71 @@ Two smaller corrections fell out of reading the arm:
   `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
   call sites in a half this change does not touch — but recorded, because it is
   the kind of thing that reads as a font choice rather than as a divergence.
+
+
+**CNEW-industry-base — the `Industry` record base is county `+0x294`, and four
+bytes of Ghidra's guess invented an off-by-one that four places repeated.**
+
+`docs/draws-map.md` §5.5 says the four sidebar industry forecasts each read
+*"the record above the commodity its row is for"*, and that the wood row's
+`0x2F0` is *"one whole record past the end of a four-record array"* — either an
+off-by-one in the original or a wrong base in `docs/records.json`, unsettled, and
+named there as a prerequisite that is *"its own job"*. It is the second, the row
+in question is stone rather than wood, and there is no off-by-one anywhere.
+
+**The base is `+0x294`, stride `0x18`, four records closing exactly on `+0x2F4`.**
+`docs/records.json` says `+0x290` and is four bytes low. Its *absolute* offsets are
+all correct, because its field offsets are compensatingly `+4` — which is why the
+error never fired anywhere but here, where a fifth field exists that the short base
+cannot hold.
+
+Three readings settle it and none is a document's:
+
+* **The span.** Every raw county address in the decompilation used with a `*0x18`
+  stride is one of ten, `0x53fc44 … 0x53fc58`; against `g_counties = 0x0053F9B0`
+  those are county `+0x294 … +0x2A8`, and the last is four bytes wide. `0x2AC −
+  0x294 = 0x18` — **the observed field set spans exactly one stride, with no slack
+  at either end.** A base of `0x290` cannot hold `+0x2A8 + c*0x18` at all. This is
+  a self-verifying invariant in the instruction stream and needs no save to run.
+* **The array's end.** `levySurcharge` is at `+0x2F4`. Base `0x294` ends the array
+  exactly there; base `0x290` ends it at `0x2F0` and leaves a four-byte unnamed hole
+  which is **precisely the word the stone row reads**. The hole was the evidence for
+  the overrun, and the hole was the wrong base's own footprint.
+* **`records.json`'s own comment refutes itself.** It reads *"The 0x18 stride is
+  confirmed by the byte quad at `+0x04..+0x07` repeating at county `0x294`,
+  `0x2AC`, `0x2C4` and `0x2DC`."* Those four addresses **are the four record
+  bases.** The measurement was right and was written down against the wrong base.
+
+The two ends agree with no residue. **Painter side:** the four `Ui_DrawDelta`
+operands are county `0x2A8`, `0x2C0`, `0x2D8`, `0x2F0` — an exact arithmetic
+progression of `0x18`, one per commodity, each `record[c] + 0x14`, drawn by
+`FUN_0041062E` wood, `FUN_00410502` iron, `FUN_004106C4` weapons, `FUN_00410598`
+stone. **Producer side:** `Industry_LabourEstimate`'s tail writes
+`*(int *)(county * 0x300 + 0x53fc58 + industry * 0x18)` — the same expression — and
+`County_RefreshEstimates` passes the commodity index. So every row reads **its own
+commodity's own record**, and `Industry::next_season` is the record's last field at
+`+0x14` rather than, as C136 put it, *"the head word of record `c + 1`"*. C136's
+arithmetic was right; its sentence about the layout was not.
+
+**County `+0x290` is not in the array.** It is the standalone `weapon_type` byte —
+C136 established that from `&g_weaponCost + county[+0x290]*8` and `FUN_004106C4`'s
+frame — and Ghidra swallowed it into `industry[0]`. That one absorbed byte is the
+entire origin of the "record above" story, which then propagated into
+`docs/records.json`, `docs/draws-map.md` §5.5,
+`l2_kingdom::county::Industry::next_season`'s doc table and
+`l2_game::screens::county`'s header, none of which had looked at it again.
+
+This is `CLAUDE.md`'s `[V]`-is-a-claim warning arriving for the **third time this
+week in `docs/draws-map.md`** — after C135 (three painters named in the wrong order)
+and §5.13 (a row right and stale). C124's lesson was aimed at `docs/formats/`; the
+campaign-map audit has now earned the same warning, and the pattern is that a
+document assembled from decompiler output inherits the decompiler's struct guesses
+without ever saying that is what they are. **A Ghidra field name is not evidence.
+The instruction's operand is.**
+
+Nothing needs undrawing. `ebf8dd5` already draws all four rows from
+`c.industry[commodity.index()].next_season`, and because our `Industry` is a plain
+struct indexed by commodity rather than by offset, the bad base could not reach the
+value. The correction is to four documents, not to a pixel. **The corrections
+themselves are not made** — this entry and `HANDOFF.md` are the record; see
+`HANDOFF.md` §4 for the four places and the exact edits.
