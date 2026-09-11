@@ -475,6 +475,115 @@ fn the_county_town_flies_its_owners_flag_and_it_waves() {
     let _ = county;
 }
 
+/// **The mercenary band standing in the town square** — `Sprite_TopIt`'s second
+/// town arm, which we drew on the wrong tile at the wrong offset.
+///
+/// A player: *"I haven't seen any mercenary icons on the town square yet."*
+/// Both halves of why were geometry:
+///
+/// * **The tile.** The arm fires on `(tile.part & 0xf) == 2`, and plane 3 is
+///   `dx + W * dy` from the block's north-west corner, so for a 2 × 2 town that
+///   is `(x, y + 1)` — the **third** tile in index order. We drew on the second,
+///   `(x + 1, y)`, which is `part == 1` — and `County_FindTownTile` sets bank
+///   bit `0x80`, the only gate on the overlay pass running at all, on the **0th
+///   and the 2nd** tiles it meets in index order. The original never so much as
+///   visits the tile we painted.
+/// * **The offset.** `(+0x10, −0x12)` at the near zoom, not the banner's
+///   `(+0x1A, −0x1C)`. Both literals below are read out of the decompilation and
+///   **no expression in this test mentions `Zoom::mercenary_at`**, which is
+///   `docs/agents.md`'s first way to ablate wrongly.
+///
+/// The assertion is a **set**: hand one county a band, diff the two renders, and
+/// require every moved pixel to be one the marker itself would have written had
+/// it been blitted alone at the place the two literals name.
+#[test]
+fn a_mercenary_band_stands_on_the_town_blocks_third_tile_and_nowhere_else() {
+    let (mut game, assets) = world!();
+    // `Mercenary_AdvanceAll` refreshes the offers once a season and the England
+    // fixture is turn one, so nothing here has a band yet. That is also the
+    // likeliest reason nobody had seen the marker in a short session, and is
+    // why this test writes the byte rather than waiting for one.
+    for c in game.kingdom.counties.iter_mut() {
+        c.mercenary_offer = 0;
+    }
+    let county = (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the player holds a county");
+    let mut screen = MapScreen::new();
+    draw(&mut screen, &mut game, &assets);
+    let town: Vec<usize> = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        MapScreen::town(&ctx, county)
+    };
+    assert_eq!(town.len(), 4, "a county town is a 2 x 2 block");
+    let (ox, oy) = l2_kingdom::map::coords(town[0]);
+    // Put the whole block in shot rather than trusting the opening viewport to
+    // hold it.
+    screen.centre_on_tile(ox as usize, oy as usize);
+    draw(&mut screen, &mut game, &assets);
+    let without = draw(&mut screen, &mut game, &assets);
+    assert_eq!(
+        l2_kingdom::map::coords(town[2]),
+        (ox, oy + 1),
+        "index order puts part 2 - (x, y + 1) - third",
+    );
+
+    game.kingdom.counties[county as usize].mercenary_offer = 3;
+    let with = draw(&mut screen, &mut game, &assets);
+
+    // Where the two literals say the marker goes.
+    let (row, col) = campaign::tile_to_cell(ox as usize, oy as usize + 1);
+    let (sx, sy) = campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
+    let mut reference = without.clone();
+    let frame = assets
+        .map
+        .flag_sheet(screen.zoom())
+        .and_then(|s| s.frame(campaign::MERCENARY_MARKER_FRAME))
+        .expect("Flags1a.pl8 frame 0x81");
+    reference.blit_clipped(&frame, sx + 0x10, sy - 0x12, screen.map_clip());
+
+    let moved = |a: &Canvas, b: &Canvas| -> Vec<usize> {
+        a.pixels
+            .iter()
+            .zip(b.pixels.iter())
+            .enumerate()
+            .filter(|(_, (p, q))| p != q)
+            .map(|(i, _)| i)
+            .collect()
+    };
+    // A set of 640 x 480 indices is unreadable in a failure; its bounding box
+    // and its size say where the marker went and are what a reader needs.
+    let corner = |v: &[usize]| -> (usize, usize, usize, usize, usize) {
+        let xs = v.iter().map(|i| i % with.width);
+        let ys = v.iter().map(|i| i / with.width);
+        (
+            xs.clone().min().unwrap_or(0),
+            ys.clone().min().unwrap_or(0),
+            xs.max().unwrap_or(0),
+            ys.max().unwrap_or(0),
+            v.len(),
+        )
+    };
+    let drawn = moved(&with, &without);
+    let expected = moved(&reference, &without);
+    assert!(!expected.is_empty(), "frame 0x81 writes nothing at the place the literals name");
+    assert_eq!(
+        corner(&drawn),
+        corner(&expected),
+        "the marker's ink (x0, y0, x1, y1, count) is not the 25 x 45 band frame 0x81 writes at \
+         ({}, {}) — the tile is town()[2] and the offset is (+0x10, -0x12)",
+        sx + 0x10,
+        sy - 0x12,
+    );
+    assert_eq!(drawn, expected, "the marker's ink is the right size in the right place and is not the same pixels");
+
+    // And it is gone again when the offer is.
+    game.kingdom.counties[county as usize].mercenary_offer = 0;
+    let gone = draw(&mut screen, &mut game, &assets);
+    assert_eq!(gone.diff_count(&without), 0, "no offer, no band");
+}
+
+
 /// **A merchant is drawn, and clicking one opens the merchant.** C50.
 ///
 /// The player: *"I don't see the merchants on the map and of course I can't

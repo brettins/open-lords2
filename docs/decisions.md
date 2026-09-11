@@ -6045,3 +6045,98 @@ gone*, because any future selection paint fails it. The two counties it compares
 derived rather than named, because the field markers under `brush` are drawn for the
 selected county when the player owns it and are the visible half of a *different*
 invention that is deliberately kept.
+
+---
+
+**CNEW-mercenary-quadrant — A list index and a plane-3 number that both read `2`
+were two and one, and the mercenary was painted on the one tile of the town the
+original's overlay pass never visits.**
+
+A player: *"I haven't seen any mercenary icons on the town square yet."* The
+feature was **not missing.** `crates/l2-view/src/campaign.rs` had
+`MERCENARY_MARKER_FRAME = 0x81` and `screens/map.rs`'s `draw_flags` blitted it,
+gated on `county.mercenary_offer`, with a comment that named the right quadrant:
+
+```rust
+// `county.mercenaryOffer != 0` puts frame 0x81 on the north-east
+// quadrant — a standing band, advertised on the map.
+if let Some(&ne) = town.get(1) {
+```
+
+**Everything in that comment is true and the line under it is wrong.** The
+quadrant `Sprite_TopIt` (`0x004071A0`) tests is `tile.part & 0xf`, plane 3,
+which `l2-formats` documents as `dx + W * dy` from the block's north-west corner
+— `[V]`, 10,971/10,971. For a 2 × 2 town that makes quadrant **2** the tile at
+`(x, y + 1)`, which is the **third** tile in index order. `town()` returns tiles
+in index order. `town.get(1)` is quadrant **1**, `(x + 1, y)`.
+
+The offset was wrong in the same line. The two town arms are the same shape and
+set different offsets, and only one had been read:
+
+```c
+part == 0:  zoom 0 (+0x1A, -0x1C)   zoom 2 (+6, -0x15)   local_c = 2
+part == 2:  zoom 0 (+0x10, -0x12)   zoom 2 (+6, -0x15)   local_c = 0
+```
+
+so the marker went through `Zoom::flag_at` and landed ten pixels right and ten
+pixels up of where it belongs. `Zoom::mercenary_at` exists so that the two
+cannot be confused again, and `campaign::draw_mercenary_marker` is its own entry
+point for the same reason.
+
+**The third source is the one that settles it, and it never reads `part` at
+all.** `County_FindTownTile` (`0x00467FD1`) sweeps the grid in index order,
+counts the county's `flags & 0x40` tiles, and sets **bank bit `0x80` on the 0th
+and the 2nd**. `FUN_00405EB5` is `if (tile.bank & 0x80) Sprite_TopIt(...)`, so
+bank `0x80` is the only gate on the pass running at all: the original does not
+*visit* the tile we were painting. Two of the town's four quadrants are silent
+and we had chosen one of them.
+
+Three things worth carrying:
+
+* **A number that indexes a list and a number that names a position are the same
+  integer with different arithmetic behind them**, and nothing in the type system
+  tells them apart. `MapScreen::town_quadrant(ctx, county, part)` now computes
+  the tile from the `dx + W * dy` rule, so the *quadrant* is the argument and the
+  list index never appears.
+* **The comment was right.** This is the shape `docs/agents.md` records under
+  *a correct explanation sitting directly above the omission it describes* — the
+  prose named the north-east quadrant, a reviewer would nod at it, and the code
+  under it did something else. What caught it was not reading the comment harder;
+  it was sweeping all 44 shipped maps and asking the bytes.
+* **Absence of a report is not absence of the feature.** The handoff on
+  `armoury-walker-village-merc` had already established, by reading
+  `Village_Draw` and `Village_Animate` in full, that **there is no mercenary in
+  the village at all** — the "town square" the player means is the county town on
+  the campaign map. A brief written from the player's words alone would have had
+  somebody adding a figure to `screens/village.rs`, where the original has none.
+
+**And the words, which were the other half.** `CLAUDE.md` rule 6: the map's
+marker is a picture with no text on it, and the only place in `Lords2.exe` that
+says what it *is* is `TileInfo_Draw`'s tail —
+
+```c
+if ((g_pickedTileFlags & 0x80) == 0) {
+  if ((g_pickedTileFlags & 0x40) != 0 && county.mercenaryOffer != 0) {
+    Pl8_DrawFrameClipped(g_flagsSheet, 0x81, 0x32, R * 0x10 + 0x9c);
+    FUN_0040328e(0x1e, 0x3b, 0x68, R * 0x10 + 0xa0, 0x140, ...);
+  }
+}
+```
+
+`L2.eng` 30/59 is *"Mercenaries are available for hire in the county."* and
+`TileInfo_Draw` is its **only** consumer. The tile half of `screens/info.rs` drew
+none of the group-30 ladder; it now draws the county-town arm — 30/7 *"County
+town."*, 30/27, `Icon_tmp.pl8` frame `0x1B` — and that tail. A player who has now
+*seen* the figure has somewhere to go and read what it means.
+
+Two smaller corrections fell out of reading the arm:
+
+* **`BODY_WRAP` was one number where the binary has two.** `UnitPanel_Draw`'s
+  five wrapped draws pass `0x120` and `TileInfo_Draw`'s three pass `0x130`. The
+  constant had been read off a group-31 call site, documented with that call site,
+  and used as though it belonged to both halves. `TILE_BODY_WRAP` is the tile
+  half's.
+* **The tile half's headings are `&g_fontHeading`.** The unit half's use
+  `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
+  call sites in a half this change does not touch — but recorded, because it is
+  the kind of thing that reads as a font choice rather than as a divergence.
