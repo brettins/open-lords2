@@ -295,7 +295,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "A shared hit-tester. The original plays click3.wav INSIDE the three functions that walk the widget tables, so every press on every widget in the game is these four sites. Ours are 26 screen modules each matching Event::Click against their own rectangles, and nothing above them can tell a press that landed on a widget from one that landed on grass. Screen::handle would have to say whether it consumed the event at a widget; then this is one call."
+      "note": "DEAD IN THE SHIPPED GAME, and this record should become status dead --- see docs/decisions.md CNEW-the-click-is-two-sites-not-four. These are the decrement and increment arrows of a slider widget whose only caller is FUN_0040D3F5, and NOTHING in Lords2.exe calls FUN_0040D3F5 or its painter FUN_0040D271: zero E8 rel32 calls, zero jumps and zero absolute references over the whole image, against 36 rel32 callers for Widget_Test as the control. Left as blocked only because tests/sfx.rs asserts the dead list is empty and its first entry must cost a deliberate change to that assertion plus an entry in docs/bugs.md."
     },
     {
       "id": "FUN_0040d7b8#1",
@@ -306,7 +306,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "A shared hit-tester. The original plays click3.wav INSIDE the three functions that walk the widget tables, so every press on every widget in the game is these four sites. Ours are 26 screen modules each matching Event::Click against their own rectangles, and nothing above them can tell a press that landed on a widget from one that landed on grass. Screen::handle would have to say whether it consumed the event at a widget; then this is one call."
+      "note": "DEAD IN THE SHIPPED GAME, and this record should become status dead --- see docs/decisions.md CNEW-the-click-is-two-sites-not-four. These are the decrement and increment arrows of a slider widget whose only caller is FUN_0040D3F5, and NOTHING in Lords2.exe calls FUN_0040D3F5 or its painter FUN_0040D271: zero E8 rel32 calls, zero jumps and zero absolute references over the whole image, against 36 rel32 callers for Widget_Test as the control. Left as blocked only because tests/sfx.rs asserts the dead list is empty and its first entry must cost a deliberate change to that assertion plus an entry in docs/bugs.md."
     },
     {
       "id": "FUN_00432b05#1",
@@ -1579,10 +1579,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "1",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A shared hit-tester. The original plays click3.wav INSIDE the three functions that walk the widget tables, so every press on every widget in the game is these four sites. Ours are 26 screen modules each matching Event::Click against their own rectangles, and nothing above them can tell a press that landed on a widget from one that landed on grass. Screen::handle would have to say whether it consumed the event at a widget; then this is one call."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/press.rs",
+      "sound": "click3.wav",
+      "note": "The kind-4 arm: Sound_RestartSlot(1) inside the hit test, guarded by g_mouseLeftPressed || g_mouseLeftDoubleClick, on the INITIAL press only --- not on the auto-repeat's later pulses. Press::press / Press::press_delayed is that line; Screen::take_clicks and Machine::clicks carry it to Director without letting a screen reach Audio (netcode D-3). UNVERIFIED: written on a branch that was cut short before it compiled."
     },
     {
       "id": "Widget_Test#2",
@@ -1590,10 +1590,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "1",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A shared hit-tester. The original plays click3.wav INSIDE the three functions that walk the widget tables, so every press on every widget in the game is these four sites. Ours are 26 screen modules each matching Event::Click against their own rectangles, and nothing above them can tell a press that landed on a widget from one that landed on grass. Screen::handle would have to say whether it consumed the event at a widget; then this is one call."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/press.rs",
+      "sound": "click3.wav",
+      "note": "The kind-5 arm: Sound_RestartSlot(1) inside the hit test, guarded by g_mouseLeftPressed || g_mouseLeftDoubleClick, on the INITIAL press only --- not on the auto-repeat's later pulses. Press::press / Press::press_delayed is that line; Screen::take_clicks and Machine::clicks carry it to Director without letting a screen reach Audio (netcode D-3). UNVERIFIED: written on a branch that was cut short before it compiled."
     }
   ]
 }

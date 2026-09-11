@@ -7195,3 +7195,72 @@ Two smaller corrections fell out of reading the arm:
   `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
   call sites in a half this change does not touch — but recorded, because it is
   the kind of thing that reads as a font choice rather than as a divergence.
+
+## CNEW-the-click-is-two-sites-not-four
+
+**Status: unverified — written from a session that was cut short.** The evidence
+below is `[V]` and stands on its own; the code it was written for was never
+compiled. See `HANDOFF.md` at the root of the branch.
+
+`docs/audio-triggers.md` closes with a correction it is proud of:
+
+> *"The pointer click is not one call site behind one hit-tester. It is four,
+> behind three … whoever builds the shared widget layer has **three** functions
+> to reconcile, not one."*
+
+**It is two, behind one.** `FUN_0040D6AD` and `FUN_0040D7B8` — the other two
+sites — are the decrement and increment arrows of a **slider widget that the
+shipped game never instantiates**. Their only caller is `FUN_0040D3F5`, the
+slider's hit-tester, whose sibling `FUN_0040D271` is its painter
+(`g_systemSheet` frames `0x4A`, `0x4B`, `0x4C` — two arrows and a thumb).
+**Nothing in `Lords2.exe` calls either.** `[V]`, from the player's own
+executable:
+
+| scan over the image | `FUN_0040D3F5` | `FUN_0040D271` | control: `Widget_Test` |
+|---|---:|---:|---:|
+| `E8` rel32 CALL, all of `.text` | 0 | 0 | **36** |
+| `E9`/`EB`/`0F 8x` jumps, all of `.text` | 0 | 0 | — |
+| absolute dword, whole image | 0 | 0 | 0 |
+
+**The control is the point.** `Widget_Test` has 36 callers and scores zero on the
+absolute scan, because this binary calls with `E8` rel32 — so a bare
+absolute-address scan finding nothing is not evidence of anything. Run the
+control, every time.
+
+Two lessons, and the second is the one worth carrying:
+
+* **A correction is a claim and inherits every obligation a claim has.** This one
+  replaced a true sentence — *"one call site, because the whole game shares one
+  hit-tester"* — with a false one, and it was more confident than what it
+  replaced. `CLAUDE.md` rule 4 does not exempt the correction log.
+* **Counting call sites is not counting reachable call sites**, and
+  `docs/audio.json` had no way to say so, because its `dead` column was asserted
+  empty. That assertion is right to exist — a bucket that fills quietly stops
+  being a finding — and these are the first two entries it should cost a decision
+  to add.
+
+A detail worth keeping even though the widget is dead: inside `FUN_0040D3F5` the
+**two arrows click and the thumb drag does not** (`FUN_0040D5A0` is gated on
+`g_mouseLeftDown` and plays nothing), which is the same rule `docs/input.md` §5
+already records for drags.
+
+**And what the click actually is**, which `docs/input.md` §5 had right all along
+and `docs/audio-triggers.md` did not: `Sound_RestartSlot(1)` — `click3.wav`, slot
+1 of *both* banks — from `Widget_Test`'s **kind-4** and **kind-5** arms, both
+guarded by `g_mouseLeftPressed || g_mouseLeftDoubleClick`, **on the initial press
+only**. The auto-repeat's later pulses are silent, kind 2's toggle is silent, and
+`Hotspot_Test` and `Ui_OkButtonClicked` — the majority of the interface — are
+silent. `[V]`, `0x0040DA1E`. Getting that wrong is audible in a way the trigger
+count cannot see: a spinner that clicks thirty-three times a second is the same
+"one reproduced trigger" as one that clicks once.
+
+**The blocked 55, with the second column**, because it is the part that dies
+otherwise. Weights are distinct install `.wav` files each group can reach:
+battlefield 25 sites / ≤17 files (the 66 troop-cry files are filed `missing`, not
+blocked); Smacker 8 / ≈0 new; sibling voice tables 6 / ≈32; the field brush 5 / 3;
+**the hit-tester 4 / 1, of which 2 are dead**; the battle verdict 2 / 1; the two
+delegated painters 2 / 0 new; **the chained takes 1 / 27**; the mercenary offer
+1 / 12; the lord sting 1 / 4. The group to take next is the **chained takes** —
+one site, 27 files, the largest files-per-site ratio in the inventory, and both
+halves of what it needs already exist in shape (`Mixer::is_playing`, and a
+`Director` that already keeps per-tick memory).

@@ -248,6 +248,12 @@ impl Screen for BattlefieldScreen {
         ScreenId::Battlefield
     }
 
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
+    /// layer. See [`Screen::take_clicks`].
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
     fn title(&self, ctx: &Ctx) -> String {
         match ctx.game.battle.as_ref().map(|b| b.mode) {
             Some(Mode::Outcome) => "The battle is over".into(),

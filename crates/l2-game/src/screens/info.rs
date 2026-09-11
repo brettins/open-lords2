@@ -585,6 +585,12 @@ impl Screen for InfoScreen {
         ScreenId::Info(self.target)
     }
 
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
+    /// layer. See [`Screen::take_clicks`].
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
     fn title(&self, _ctx: &Ctx) -> String {
         match self.target {
             Target::Unit(id) => format!("Unit {id} — screen 0x04"),

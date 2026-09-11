@@ -295,6 +295,22 @@ pub struct Press {
     /// down for three frames **after** the release, which is the whole reason
     /// `rec[0x0D]` is set to 3 rather than to 1.
     showing: Option<usize>,
+    /// **How many times this table has played the click**, drained by
+    /// [`Press::take_clicks`].
+    ///
+    /// `Widget_Test` (`0x0040DA1E`) calls `Sound_RestartSlot(1)` — `click3.wav`
+    /// — from inside the hit test, at two sites: the kind-4 arm and the kind-5
+    /// arm. This module *is* that hit test, so the count belongs here and
+    /// nowhere else; what it must not do is reach the audio layer, because
+    /// `docs/netcode.md` D-3 makes [`crate::audio::Audio`] unreachable from a
+    /// screen on purpose. So this is an **outbox**: write-only from here,
+    /// drained upward by [`crate::screen::Machine::handle`], and nothing that
+    /// happens to it can be read back by the thing that filled it.
+    ///
+    /// A `u8` and not a `u32` because it is emptied on every event; it saturates
+    /// rather than wraps so that "some clicks happened" can never round to
+    /// "none".
+    clicks: u8,
 }
 
 impl Default for Press {
@@ -313,7 +329,30 @@ impl Press {
             frames: 0,
             pending: None,
             showing: None,
+            clicks: 0,
         }
+    }
+
+    /// **Take the clicks this table owes the audio layer**, and forget them.
+    ///
+    /// The shape of [`crate::screen::Screen::take_redraw`], and for the same
+    /// reason: the thing that produced it must not be able to observe what was
+    /// done with it. See the field.
+    pub fn take_clicks(&mut self) -> u8 {
+        core::mem::take(&mut self.clicks)
+    }
+
+    /// **`Sound_RestartSlot(1)`, inside the hit test.**
+    ///
+    /// The two sites are `Widget_Test`'s kind-4 arm and its kind-5 arm, and
+    /// both are guarded by `g_mouseLeftPressed || g_mouseLeftDoubleClick` — the
+    /// *initial press*. Neither the auto-repeat's later pulses nor kind 5's
+    /// delayed fire go past this line, and `Hotspot_Test` has no such line at
+    /// all, which is why this is called from [`Press::press`] and
+    /// [`Press::press_delayed`] and **not** from [`Press::press_held`] or
+    /// [`Press::tick`].
+    fn click(&mut self) {
+        self.clicks = self.clicks.saturating_add(1);
     }
 
     /// **Answer one event against a screen's table**, with each widget's own
@@ -399,6 +438,8 @@ impl Press {
     /// **A kind-4 press.** Fires immediately — the return is *"run the handler
     /// now"* — and starts the hold.
     pub fn press(&mut self, widget: usize) -> bool {
+        // sfx: Widget_Test#1
+        self.click();
         self.held = Some(widget);
         self.held_kind = Kind::Repeat;
         self.step = 0;
@@ -432,6 +473,8 @@ impl Press {
     /// arms the handler for [`DELAYED_FRAMES`] ticks' time; [`Press::tick`]
     /// returns the widget on the tick it expires.
     pub fn press_delayed(&mut self, widget: usize) {
+        // sfx: Widget_Test#2
+        self.click();
         self.held = None;
         self.held_kind = Kind::Repeat;
         self.step = 0;

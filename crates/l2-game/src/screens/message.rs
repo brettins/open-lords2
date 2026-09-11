@@ -159,6 +159,12 @@ impl Screen for MessageScreen {
         ScreenId::Message
     }
 
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
+    /// layer. See [`Screen::take_clicks`].
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
     fn title(&self, ctx: &Ctx) -> String {
         match MessageScreen::record(ctx) {
             Some(r) => format!("Message {} — category {:#04x}", r.group, r.category),

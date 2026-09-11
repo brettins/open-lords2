@@ -424,6 +424,12 @@ impl Screen for DivideScreen {
         ScreenId::Divide(self.unit)
     }
 
+    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
+    /// layer. See [`Screen::take_clicks`].
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
+    }
+
     fn title(&self, _ctx: &Ctx) -> String {
         "Army division".to_string()
     }
