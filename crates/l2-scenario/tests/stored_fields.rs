@@ -613,6 +613,7 @@ fn accessors() -> Vec<(&'static str, Get)> {
         at("Realm+0x01C", |k, i, _| k.realms[i].offer_pending as i64),
         at("Realm+0x028", |k, i, _| k.realms[i].tax_hap_empire as i64),
         at("Realm+0x029", |k, i, _| k.realms[i].county_count as i64),
+        at("Realm+0x02A", |k, i, _| k.realms[i].peak_counties as i64),
         at("Realm+0x02B", |k, i, _| k.realms[i].rank as i64),
         at("Realm+0x02C", |k, i, _| k.realms[i].army_count as i64),
         at("Realm+0x02D", |k, i, e| k.campaign.names.counters(i as u8)[e] as i64),

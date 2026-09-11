@@ -187,6 +187,18 @@ pub struct Realm {
     pub tax_hap_empire: i8,
     /// `+0x29` — owned counties; selects between the two AI gold-grant tables.
     pub county_count: u8,
+    /// `+0x2A` — **the most counties this realm has ever held.**
+    ///
+    /// `Game_SetupRealmsAndCounties` writes it 1 beside `+0x29`, and
+    /// `County_ChangeOwner` (`0x004A72FE`) is its only other writer and its only
+    /// reader: it raises it to the taker's new count, and before that it reads it
+    /// to choose the local player's capture letter — `L2.eng` 117 *"Bravo!!"*
+    /// for the first county past the peak, 118 for the second, the share-of-map
+    /// ladder after that, and 126 *"The county is yours. May you rule it
+    /// wisely."* for a county that only wins back ground already held once. It
+    /// equals `+0x29` in every save on file, because no fixture has lost a
+    /// county. See [`crate::conquest::Capture`].
+    pub peak_counties: u8,
     /// `+0x2B` — 1..=5 from `Score_RankRealms`.
     pub rank: u8,
     /// `+0x50` — recomputed every turn.
@@ -425,6 +437,7 @@ impl Realm {
             shield_index: 0,
             tax_hap_empire: 0,
             county_count: 0,
+            peak_counties: 0,
             rank: 0,
             score: 0,
             wages: 0,

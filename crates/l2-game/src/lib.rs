@@ -50,6 +50,7 @@
 /// of a tick, not the time.
 pub const TICK_MS: u32 = 16;
 
+pub mod arrival;
 pub mod audio;
 pub mod battlefield;
 pub mod build_id;

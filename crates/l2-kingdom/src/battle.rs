@@ -403,6 +403,12 @@ pub struct Aftermath {
     /// made here because [`crate::victory::recount_strength`] needs the county
     /// count and the local player, and neither is a battle rule.
     pub loser_owner: u8,
+    /// **What each `County_ChangeOwner` call knew**, in call order, for the
+    /// letters it posts. Two slots because the attacker-wins branch calls it
+    /// once for a beaten garrison and once for a defence mark — and, when a
+    /// loser was both, really does call it twice and post two letters. See
+    /// [`crate::conquest::Capture`].
+    pub captures: [Option<crate::conquest::Capture>; 2],
 }
 
 /// The diplomatic hit the loser's realm takes against the winner's.
@@ -512,19 +518,21 @@ pub fn return_to_campaign(
             if let Some(c) = counties.get_mut(county as usize) {
                 c.garrison_unit = 0;
             }
-            crate::conquest::change_owner(
+            out.captures[0] = Some(crate::conquest::change_owner(
                 counties, realms, units, winner_unit.owner, county, difficulty,
-            );
+            ));
             out.county_taken_by = Some(winner_unit.owner);
         }
         // …or it was raised to defend the county, which is the same conclusion
         // by the other route. The original really does call `County_ChangeOwner`
-        // twice when both hold; the second is a no-op on an already-flipped
-        // county, and so is this.
+        // twice when both hold. The second is **not** a no-op: the owner is
+        // already the winner, so nothing changes hands, but the penalty is
+        // taken again, the recount-plus-one counts the county twice into the
+        // peak, and a second letter is posted.
         if loser_unit.defence_mark != 0 {
-            crate::conquest::change_owner(
+            out.captures[1] = Some(crate::conquest::change_owner(
                 counties, realms, units, winner_unit.owner, county, difficulty,
-            );
+            ));
             out.county_taken_by = Some(winner_unit.owner);
         }
     } else if loser_unit.garrison_county != 0 {

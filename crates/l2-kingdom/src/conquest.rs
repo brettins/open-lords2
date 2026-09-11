@@ -83,8 +83,10 @@ pub enum Attack {
     /// the county, or the county has a castle *and* a garrison that is not the
     /// attacker's. The last is the siege case.
     Refused(Refusal),
-    /// Nobody defended it. The county has changed hands.
-    Captured,
+    /// Nobody defended it. The county has changed hands, and this is what
+    /// `County_ChangeOwner` knew when it did — the facts its letter is chosen
+    /// from.
+    Captured(Capture),
     /// A defence was raised or found, and a battle is due between these two
     /// units. **This crate does not fight it** — the caller hands the pair to
     /// `l2-sim` and brings the result back.
@@ -225,10 +227,7 @@ pub fn attack_county(
     };
 
     match defender {
-        None => {
-            change_owner(counties, realms, units, owner, county, difficulty);
-            Attack::Captured
-        }
+        None => Attack::Captured(change_owner(counties, realms, units, owner, county, difficulty)),
         Some(defender) => {
             if let Some(d) = units.get_mut(defender) {
                 d.defence_mark = mark;
@@ -402,11 +401,50 @@ pub fn find_defender(units: &Units, counties: &[County; MAX_COUNTIES], county: u
 /// a fire would show. And the same clamp shape as the levy: the panel is
 /// debited what was actually taken.
 ///
-/// The nine messages, `0x72`…`0x7E`, are the *"we have taken"* / *"we have
-/// lost"* letters; this crate has no message layer for them yet and they are
-/// left to the caller.
+/// # The letter, and why it is reported rather than posted
 ///
-/// Returns the happiness the county lost.
+/// Between the recount and the owner write the original posts one of thirteen
+/// letters, and **which one depends on `g_localPlayer`** — the taker is told
+/// *"Bravo!!"*, the loser *"Our county is lost!"*, everybody else *"This enemy
+/// shire has a new ruler"*. `g_localPlayer` is a peer's and not the world's, so
+/// this returns a [`Capture`] — the same on every peer — and `l2_game::arrival`
+/// picks the letter for its own player. The whole ladder, `[V]`:
+///
+/// ```c
+/// FUN_0049d1e0(newOwner);                        /* Realm_UpdateTotals: recount, share */
+/// if (realm[new].countyCount == 0 || County_BordersRealm(new, county)) {
+///     realm[new].countyCount++;
+///     if (new == g_localPlayer) {                /* category 0x0D, from 0, spare = old owner */
+///         if (countyCount == g_countyCount - 1)  Msg(0x7B);   /* 123 "one more county" */
+///         else if (peak < countyCount) {
+///             if (peak < 2)       Msg(0x75);                  /* 117 "Bravo!!" */
+///             else if (peak < 3)  Msg(0x76);                  /* 118 "a solid base" */
+///             else if (share < 26) Msg(0x77); else if (share < 41) Msg(0x78);
+///             else if (share < 61) Msg(0x79); else if (share < 81) Msg(0x7A);
+///             else                 Msg(0x7D);                 /* 125 */
+///         } else                  Msg(0x7E);                  /* 126 "may you rule it wisely" */
+///     }
+///     else if (county.owner == g_localPlayer) Msg(new, local, 0x73, category 0);  /* 115 */
+///     else if (county.owner == 0)             Msg(new, local, 0x74, category 0);  /* 116 */
+///     else                                    Msg(new, local, 0x72, category 0, spare = old); /* 114 */
+///     …the write, the penalty, the shield, peak = max(peak, countyCount)…
+/// } else {
+///     if (new == g_localPlayer) Msg(0, local, 0x81, category 0);  /* 129 "too far … cannot govern it" */
+///     County_MakeIndependent(county);
+/// }
+/// ```
+///
+/// # NOT PORTED: the `else` branch
+///
+/// **A county that borders none of the taker's lands, taken by a realm that
+/// already holds one, is not given to the taker at all** — it is posted 129 and
+/// made independent. This function still gives it to the taker, as it did
+/// before the letters were read; the rule changes the simulation and was out of
+/// the letters' scope. [`Capture::governable`] carries the test, so the letter
+/// layer posts nothing for such a county rather than a letter the world
+/// contradicts, and the peak is not raised, exactly as the original does not.
+///
+/// Returns what the letter is chosen from, the penalty included.
 pub fn change_owner(
     counties: &mut [County; MAX_COUNTIES],
     realms: &mut [Realm; MAX_REALMS],
@@ -414,9 +452,30 @@ pub fn change_owner(
     new_owner: u8,
     county: u8,
     difficulty: u8,
-) -> i32 {
+) -> Capture {
     let is_human = realms.get(new_owner as usize).is_some_and(|r| r.is_human);
-    let Some(c) = counties.get_mut(county as usize) else { return 0 };
+    // `Realm_UpdateTotals(newOwner)`, the function's second statement: the
+    // taker's holding as the map stands **before** this county is written.
+    // Records above `g_countyCount` are zero, so owner 0, so never counted.
+    let held_before = counties
+        .iter()
+        .skip(1)
+        .filter(|c| c.owner == new_owner)
+        .count()
+        .min(u8::MAX as usize) as u8;
+    let governable = held_before == 0 || crate::ai_army::county_borders_realm(counties, county, new_owner);
+    let peak_before = realms.get(new_owner as usize).map_or(0, |r| r.peak_counties);
+    let mut capture = Capture {
+        new_owner,
+        old_owner: 0,
+        county,
+        held_before,
+        peak_before,
+        governable,
+        penalty: 0,
+    };
+    let Some(c) = counties.get_mut(county as usize) else { return capture };
+    capture.old_owner = c.owner;
 
     c.owner = new_owner;
     let penalty = capture_happiness_penalty(is_human, difficulty);
@@ -442,8 +501,57 @@ pub fn change_owner(
         counties[county as usize].garrison_unit = 0;
     }
 
+    // `if (peak < countyCount) peak = countyCount` — the function's last
+    // statement, inside the governable branch, with `countyCount` the recount
+    // plus one. **Plus one, not the true count**: a second call on a county the
+    // taker already holds counts it twice, and `Battle_ReturnToCampaign` makes
+    // that second call when a beaten garrison also carried a defence mark.
+    if governable {
+        if let Some(r) = realms.get_mut(new_owner as usize) {
+            let after = capture.held_after();
+            if r.peak_counties < after {
+                r.peak_counties = after;
+            }
+        }
+    }
+
     recount_realm_counties(counties, realms);
-    penalty
+    capture.penalty = penalty;
+    capture
+}
+
+/// **What `County_ChangeOwner` (`0x004A72FE`) knew when it chose its letter**,
+/// as a value the same on every peer.
+///
+/// Every field is read before the owner is written, in the original's order.
+/// `l2_game::arrival::capture_record` turns it into the letter for one peer's
+/// player; see [`change_owner`] for the ladder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Capture {
+    /// The realm taking the county.
+    pub new_owner: u8,
+    /// `g_counties[county].owner` before the write — 0 for a neutral county.
+    pub old_owner: u8,
+    pub county: u8,
+    /// `Realm_UpdateTotals(newOwner)`'s recount of the taker's counties before
+    /// this one is added. `0` is the rule's own escape: a realm with nothing may
+    /// take anything.
+    pub held_before: u8,
+    /// Realm `+0x2A` before this capture raised it —
+    /// [`crate::realm::Realm::peak_counties`].
+    pub peak_before: u8,
+    /// `countyCount == 0 || County_BordersRealm(newOwner, county)` — whether the
+    /// original lets the taker keep it. See [`change_owner`]'s NOT PORTED.
+    pub governable: bool,
+    /// The happiness the county lost.
+    pub penalty: i32,
+}
+
+impl Capture {
+    /// `++g_realms[newOwner].countyCount` — what the ladder and the peak read.
+    pub fn held_after(&self) -> u8 {
+        self.held_before.wrapping_add(1)
+    }
 }
 
 /// Realm `+0x29` — how many counties each realm holds, and `+0x2A`, the most it
@@ -733,7 +841,7 @@ mod tests {
         let a = attacker(&mut units, 1, 2);
 
         let out = attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268);
-        assert_eq!(out, Attack::Captured);
+        assert!(matches!(out, Attack::Captured(_)), "got {out:?}");
         assert_eq!(counties[2].owner, 1);
         assert_eq!(units.get(a).unwrap().moves_used, ATTACK_MOVE_COST);
 
@@ -776,10 +884,10 @@ mod tests {
         let mut units = Units::new();
         let mut names = ArmyNames::new();
         let a = attacker(&mut units, 1, 2);
-        assert_eq!(
+        assert!(matches!(
             attack_county(T, &m, &mut counties, &mut realms, &mut units, &mut names, a, 2, 0, 1268),
-            Attack::Captured
-        );
+            Attack::Captured(_)
+        ));
         assert_eq!(counties[2].owner, 1);
     }
 
@@ -960,7 +1068,7 @@ mod tests {
         let (mut counties, mut realms) = world();
         let units = Units::new();
         counties[2].happiness = 77;
-        let lost = change_owner(&mut counties, &mut realms, &units, 1, 2, 0);
+        let lost = change_owner(&mut counties, &mut realms, &units, 1, 2, 0).penalty;
         assert_eq!(lost, 10, "a human at difficulty 0");
         assert_eq!(counties[2].happiness, 67);
         assert_eq!(counties[2].shown_events, -10);
@@ -984,7 +1092,7 @@ mod tests {
         let (mut counties, mut realms) = world();
         let units = Units::new();
         counties[2].happiness = 4;
-        assert_eq!(change_owner(&mut counties, &mut realms, &units, 1, 2, 2), 50);
+        assert_eq!(change_owner(&mut counties, &mut realms, &units, 1, 2, 2).penalty, 50);
         assert_eq!(counties[2].happiness, 0);
         assert_eq!(counties[2].shown_events, -4, "what was taken, not the fifty");
     }
@@ -1060,10 +1168,97 @@ mod tests {
             campaign.units.reset_moves();
         };
 
-        assert_eq!(outcome, Attack::Captured);
+        assert!(matches!(outcome, Attack::Captured(_)), "got {outcome:?}");
         assert_eq!(counties[2].owner, 1, "county 2 has changed hands");
         assert_eq!(realms[1].county_count, 2);
         assert_eq!(campaign.units.get(army).unwrap().county, 2, "and the army is standing in it");
+    }
+
+    /// Counties 1 and 2 border each other; 3 borders nothing.
+    fn bordering(counties: &mut [County; MAX_COUNTIES]) {
+        counties[1].neighbour_count = 1;
+        counties[1].neighbours[0] = 2;
+        counties[2].neighbour_count = 1;
+        counties[2].neighbours[0] = 1;
+    }
+
+    /// **What `County_ChangeOwner` reads before it writes**, which is what its
+    /// letter is chosen from: the taker's holding without the county, the peak
+    /// as it stood, and the loser.
+    ///
+    /// Ablation: count `held_before` after the owner write and it reads 2.
+    #[test]
+    fn a_capture_reports_the_takers_holding_and_peak_from_before_the_write() {
+        let (mut counties, mut realms) = world();
+        bordering(&mut counties);
+        let units = Units::new();
+        counties[2].owner = 2;
+        realms[1].peak_counties = 1;
+
+        let c = change_owner(&mut counties, &mut realms, &units, 1, 2, 0);
+        assert_eq!((c.new_owner, c.old_owner, c.county), (1, 2, 2));
+        assert_eq!(c.held_before, 1, "county 1, and not the county being taken");
+        assert_eq!(c.held_after(), 2);
+        assert_eq!(c.peak_before, 1);
+        assert!(c.governable, "county 2 borders county 1");
+        assert_eq!(realms[1].peak_counties, 2, "the peak rises to the new holding");
+    }
+
+    /// **Losing a county does not lower the peak**, so winning it back is not a
+    /// new high — the difference between *"Bravo!!"* and *"The county is yours.
+    /// May you rule it wisely."*
+    ///
+    /// Ablation: write `peak = held_after` unconditionally and the retaking
+    /// lowers nothing but the loss does.
+    #[test]
+    fn the_peak_remembers_ground_lost_and_retaking_it_is_not_a_new_high() {
+        let (mut counties, mut realms) = world();
+        bordering(&mut counties);
+        let units = Units::new();
+        counties[2].owner = 1;
+        realms[1].peak_counties = 2;
+
+        let lost = change_owner(&mut counties, &mut realms, &units, 2, 2, 0);
+        assert_eq!(lost.held_before, 0, "realm 2 held nothing, so it may take anything");
+        assert!(lost.governable);
+        assert_eq!(realms[1].peak_counties, 2, "the loser's peak stands");
+
+        let back = change_owner(&mut counties, &mut realms, &units, 1, 2, 0);
+        assert_eq!((back.held_after(), back.peak_before), (2, 2), "back to the peak, not past it");
+        assert_eq!(realms[1].peak_counties, 2);
+    }
+
+    /// **A county touching none of the taker's lands is ungovernable** — the
+    /// original's `else` branch, which posts 129 and makes the county
+    /// independent. Reported and, per `change_owner`'s NOT PORTED, not acted on;
+    /// the peak is not raised, as the original does not raise it.
+    #[test]
+    fn a_county_far_from_the_takers_lands_is_reported_ungovernable_and_the_peak_stays() {
+        let (mut counties, mut realms) = world();
+        bordering(&mut counties);
+        let units = Units::new();
+        realms[1].peak_counties = 1;
+        let far = change_owner(&mut counties, &mut realms, &units, 1, 3, 0);
+        assert!(!far.governable, "county 3 has no neighbours at all");
+        assert_eq!(realms[1].peak_counties, 1);
+    }
+
+    /// **A second call on a county already held counts it twice**, which is the
+    /// original's `countyCount + 1` after a recount that already includes it.
+    /// `Battle_ReturnToCampaign` makes that call when a beaten garrison also
+    /// carried a defence mark.
+    #[test]
+    fn a_second_change_owner_on_a_county_already_held_counts_it_twice() {
+        let (mut counties, mut realms) = world();
+        bordering(&mut counties);
+        let units = Units::new();
+        realms[1].peak_counties = 1;
+        change_owner(&mut counties, &mut realms, &units, 1, 2, 0);
+        let again = change_owner(&mut counties, &mut realms, &units, 1, 2, 0);
+        assert_eq!(again.old_owner, 1, "nothing changes hands the second time");
+        assert_eq!(again.held_before, 2, "the county is counted as already held");
+        assert_eq!(realms[1].peak_counties, 3, "and the peak is one past the truth");
+        assert_eq!(realms[1].county_count, 2, "while the recount is not");
     }
 
     #[test]

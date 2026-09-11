@@ -155,6 +155,8 @@ fn furnished(seed: u64) -> Kingdom {
         r.offer_timer = -(n as i8) - 1;
         r.crowned_once = id % 3 == 0;
         r.voice_rotation = (id % 4 + 1) as u8;
+        // Realm `+0x2A`, `VERSION` 22 — what `County_ChangeOwner`'s letter reads.
+        r.peak_counties = (id + 12) as u8;
 
         // The war plan — `l2_kingdom::ai_army`, `VERSION` 14. Standing orders
         // that persist between turns, so a save that dropped them would forget
@@ -678,7 +680,10 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +48 at version 21 for realm `+0xF4`/`+0xF8`, `Realm::tax_ledger` — two
     // `i32` a realm over 6 realm slots. `Tax_CollectAll` credits both beside the
     // treasury and no rule reads either.
-    assert_eq!(c.finish().len, 58_794, "the state encoding changed - bump VERSION?");
+    // +6 at version 22 for realm `+0x2A`, `Realm::peak_counties` — one byte a
+    // realm over 6 realm slots. `County_ChangeOwner` reads it to choose the
+    // capture letter and raises it.
+    assert_eq!(c.finish().len, 58_800, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

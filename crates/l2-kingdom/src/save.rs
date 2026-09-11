@@ -492,7 +492,17 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   branch known to be taking 20. Per the standing hazard above, assume the
 ///   number has moved: a merge that finds 20 taken renumbers this entry and the
 ///   constant together.* It merged as 21, after the mercenaries' 20.
-pub const VERSION: u32 = 21;
+///
+/// * 22 — **realm `+0x2A`**, [`crate::realm::Realm::peak_counties`]: the most
+///   counties a realm has ever held. One byte a realm over six slots: **+6**.
+///   `County_ChangeOwner` (`0x004A72FE`) reads it to choose which of its capture
+///   letters the local player is sent and then raises it; nothing else reads
+///   it. Refused rather than defaulted: a defaulted peak of 0 sends *"Bravo!!
+///   … an excellent start"* for a county won back in the fortieth season.
+///
+///   *Written as 22 with `VERSION` at 21 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 22;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1513,6 +1523,10 @@ impl Encode for Realm {
         for want in &self.want {
             out.i32(*want);
         }
+
+        // Realm `+0x2A` (`VERSION` 22) — the most counties ever held, which
+        // `County_ChangeOwner` reads to choose the capture letter.
+        out.u8(self.peak_counties);
     }
 }
 
@@ -1609,6 +1623,7 @@ impl Decode for Realm {
         for slot in 0..r.want.len() {
             r.want[slot] = input.i32()?;
         }
+        r.peak_counties = input.u8()?;
         Ok(r)
     }
 }

@@ -314,6 +314,7 @@ impl Screen for MessageScreen {
             Shape::CountyPortrait => draw_county_portrait(&pen, ctx, canvas, &record, frame),
             Shape::Ending => draw_ending(&pen, ctx, canvas, &record, frame),
             Shape::Garrison => draw_garrison(&pen, ctx, canvas, &record, frame),
+            Shape::Capture => draw_capture(&pen, ctx, canvas, &record, frame),
             _ => draw_notice(&pen, ctx, canvas, &record, frame),
         }
 
@@ -361,17 +362,21 @@ fn lord_name(ctx: &Ctx, realm: u8) -> String {
 /// The group's own label, index 0 — *"Index 0 of a group is a label the game
 /// wrote about itself"*, and here it is drawn as the heading of the window.
 fn label(ctx: &Ctx, group: u16) -> String {
-    let s = ctx.assets.shell.text(group as usize, 0);
+    let s = crate::arrival::words(&ctx.assets.shell, group, 0);
     if s.is_empty() {
         format!("MESSAGE {group}")
     } else {
-        s.to_string()
+        s
     }
 }
 
 /// The body — `FUN_0040328E(group, variant + 1, …)`, one wrapped paragraph.
-fn body(ctx: &Ctx, record: &Record) -> String {
-    ctx.assets.shell.text(record.group as usize, record.body_index()).to_string()
+///
+/// The player's own `L2.eng`, and our transcription only where the file gave
+/// nothing and [`crate::arrival::TEXT`] has the string. Public so a test can
+/// ask what a window says without reading pixels.
+pub fn body(ctx: &Ctx, record: &Record) -> String {
+    crate::arrival::words(&ctx.assets.shell, record.group, record.body_index())
 }
 
 // ---------------------------------------------------------------- the layouts
@@ -402,6 +407,27 @@ fn draw_notice(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: me
         pen.heading_centred(canvas, f.x + 0x10, f.y + 0x20, f.w - 0x20, &heading, font::TEXT);
     }
     pen.body_wrapped(canvas, f.x + 0x20, f.y + 0x50, f.w - 0x40, &body(ctx, record), font::TEXT);
+}
+
+/// **Category `0x0D`, a county taken, with animations off** — `Msg_DrawWindow`'s
+/// unanimated capture branch, which is not category 0's layout. `[V]`:
+///
+/// ```c
+/// FUN_004093e0(0x20, 0xa0, 0x1a, 0xc);
+/// Ui_OkButton(x + w - 0x30, h + y - 0x30, 0);
+/// Ui_DrawCentred(100, g_scenarioIndex * 0x14 + county, x + 0x10, y + 0x20, w - 0x20, heading);
+/// FUN_0040328e(g_messageGroup, 1, x + 0x20, y + 0x40, w - 0x40, 400, 0, 0, body);
+/// ```
+///
+/// The heading is the county **always** — there is no label or lord branch —
+/// and the body is sixteen pixels higher than a notice's, under a window
+/// sixteen shorter. The string is index **1**, not `variant + 1`; every
+/// capture letter is posted with variant 0, so the two agree.
+fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+    let heading = county_name(ctx, record.county);
+    pen.heading_centred(canvas, f.x + 0x10, f.y + 0x20, f.w - 0x20, &heading, font::TEXT);
+    let words = crate::arrival::words(&ctx.assets.shell, record.group, 1);
+    pen.body_wrapped(canvas, f.x + 0x20, f.y + 0x40, f.w - 0x40, &words, font::TEXT);
 }
 
 /// **Categories `0x01`, `0x0A` and `0x0B`** — a lord's letter. All three draw
