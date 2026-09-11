@@ -407,14 +407,14 @@ impl Screen for SiegeScreen {
         // *"Siege will take"* / N Season(s) / *"to make ready."* — three draws
         // on two lines, and the third starts where the count ended.
         // `Ui_DrawCount` is itself two draws (a number then the group 8 noun),
-        // written out here rather than through [`Pen::count`] because the
-        // original's own `g_penAdvance` is what places the tail of the
-        // sentence.
+        // and [`Pen::count`] returns where the noun ended, which is what places
+        // the tail of the sentence. It used to be written out here with
+        // `Pen::number(…, false)`, whose invented trailing space put the noun
+        // four pixels right of `Ui_DrawCount`'s — the lead was right and the
+        // suffix was not.
         p.eng(canvas, GROUP, WILL_TAKE, WILL_TAKE_AT.0, WILL_TAKE_AT.1, font::TEXT);
         let seasons = unit.siege_seasons_left;
-        let end = p.number(canvas, SEASONS_AT.0, SEASONS_AT.1, seasons as i32, false, font::TEXT);
-        let noun = crate::shell::count_noun(seasons as i32, SEASON_NOUN);
-        let end = p.eng(canvas, crate::shell::COUNT_NOUN_GROUP, noun, end, SEASONS_AT.1, font::TEXT);
+        let end = p.count(canvas, SEASONS_AT.0, SEASONS_AT.1, seasons as i32, SEASON_NOUN, font::TEXT);
         p.eng(canvas, GROUP, TO_MAKE_READY, end, SEASONS_AT.1, font::TEXT);
 
         for (row, engine) in ENGINES.iter().enumerate() {

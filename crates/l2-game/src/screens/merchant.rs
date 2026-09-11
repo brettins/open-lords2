@@ -971,13 +971,13 @@ impl Screen for TradeScreen {
             let (idx, price) =
                 if self.qty < 1 { (SELLING_PRICE, q.sell) } else { (BUYING_PRICE, q.buy) };
             let x = caps.eng(canvas, GROUP, idx, PRICE_AT.0, PRICE_AT.1, font::TEXT);
-            caps.count(canvas, x, PRICE_AT.1, price, CROWN_NOUN, true, font::TEXT);
+            caps.count(canvas, x, PRICE_AT.1, price, CROWN_NOUN, font::TEXT);
         }
 
         // "You have." <gold Crowns.> ["and" <stock> <icon>] "my Lord."
         let gold = ctx.game.gold();
         let mut x = caps.eng(canvas, GROUP, YOU_HAVE, HAVE_AT.0, HAVE_AT.1, font::TEXT);
-        x = caps.count(canvas, x, HAVE_AT.1, gold, CROWN_NOUN, true, font::TEXT);
+        x = caps.count(canvas, x, HAVE_AT.1, gold, CROWN_NOUN, font::TEXT);
         let icon = stall_row(self.good).icon;
         if icon != 0 {
             x = caps.eng(canvas, GROUP, AND, x, HAVE_AT.1, font::TEXT);
@@ -1021,7 +1021,7 @@ impl Screen for TradeScreen {
             // then `Ui_DrawCount(g_tradeCrowns, 0, …)` — "N Crowns."
             let idx = if self.qty < 1 { WE_RECEIVE } else { TOTAL_COST_OF };
             let x = pen.eng(canvas, GROUP, idx, TOTAL_AT.0, TOTAL_AT.1, font::TEXT);
-            pen.count(canvas, x, TOTAL_AT.1, self.crowns(ctx), CROWN_NOUN, true, font::TEXT);
+            pen.count(canvas, x, TOTAL_AT.1, self.crowns(ctx), CROWN_NOUN, font::TEXT);
         }
 
         // `Widget_Draw(0x30, 0x50, &DAT_004DD838, DAT_00553F58)` — four records

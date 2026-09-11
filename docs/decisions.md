@@ -7226,26 +7226,129 @@ distinguishes them: it adds 4 for `0x20` alone and **nothing** for any other zer
 entry. A string containing `'@'` therefore draws four pixels wider than it
 measures, which matters only where the original centres.
 
-Two things follow, and neither is fixed here.
+### `Ui_DrawCount` has no lead argument, and `Pen::count` had one
 
-* **`Ui_DrawCount` (`0x0041AB67`) hard-codes `'@'` and an empty suffix** —
-  `Ui_DrawNumber(value, '@', &DAT_004D41F4, x, y, font, colour)`, and
-  `0x004D41F4` is a NUL read out of the shipped `Lords2.exe` at file offset
-  `0xD23F4` (the run from `0x004D41F0` is `20 00 00 00 00 00 00 00`, so
-  `Ui_DrawYear` style 3's suffix is one space and `Ui_DrawCount`'s is empty).
-  `Pen::count`'s `blank_lead: bool` models a choice the original does not have.
-* **The campaign menu bar's treasury draws its digits four pixels left of the
-  original's**, at `x = 500` where `Ui_DrawCount` puts them at 504.
-  `Pen::number` maps `blank_lead: true` to the *empty string* and hard-codes a
-  trailing `" "`; the lost lead and the invented suffix cancel at the **noun**,
-  which is why nothing looked wrong, and do not cancel at the digits. This is
-  C127 — *every number in the game reserves a sign column, and we were dropping
-  it* — still unfixed at the one call site a player looks at every turn.
+**`Ui_DrawCount` (`0x0041AB67`) hard-codes `'@'` and an empty suffix** —
+`Ui_DrawNumber(value, '@', &DAT_004D41F4, x, y, font, colour)`, and `0x004D41F4`
+is a NUL read out of the shipped `Lords2.exe` at file offset `0xD23F4` (the run
+from `0x004D41F0` is `20 00 00 00 00 00 00 00`, so `Ui_DrawYear` style 3's suffix
+is one space and `Ui_DrawCount`'s is empty). **[V]**
 
-And a trap for whoever fixes it: `crates/l2-view/src/text.rs` gives `'@'` a real
-at-sign bitmap, so passing `"@"` through a `Pen` would print a literal `@` on an
-install with no `Fntl2_*.pl8`. The fallback font has to learn that `'@'` is blank
-first.
+`Pen::count` took a `blank_lead: bool` and passed it to `Pen::number`, which maps
+`true` to *no lead* and `false` to a space, and hard-codes a trailing `" "` either
+way. Both answers were wrong, in opposite halves:
+
+| our flag | sites | what it drew | where it was wrong |
+|---|---:|---|---|
+| `true` | 11 | `"1000 "` — no lead, invented space | **the digits four pixels left**; the noun right by coincidence |
+| `false` | 6 | `" 1000 "` — lead, invented space | the digits right; **the noun four pixels right** |
+
+The eleven include **the campaign menu bar's treasury**, which drew its digits at
+`x = 500` where `Screen_DrawMenuBar` (`0x00419C78`) and `Ui_DrawCount` put them at
+504 — C127's defect, unfixed at the one number a player looks at every turn. The
+lost lead and the invented suffix cancel at the **noun**, which is why nothing
+looked wrong.
+
+**Fixed.** `Pen::count` no longer takes a lead: `shell::COUNT_LEAD` and
+`shell::COUNT_SUFFIX` carry `Ui_DrawCount`'s own, and `Pen::count_with_noun`
+takes a noun already chosen, for callers that keep an English fallback. All 17
+`Pen::count` sites, and five more that had built `Ui_DrawCount`'s two draws by
+hand, now go through it:
+
+* `army.rs`'s treasury (`0x00417A80` area) and `job.rs`'s worker count — digits
+  four left, as `true` was;
+* `siege.rs`'s *N Seasons* (`Screen_SiegePrep`, `00420000.c:674`) — noun four
+  right, as `false` was. The sentence's tail still lands at `0x50` plus the
+  count's width, because the original saves `g_penAdvance = 0x30` across the call;
+* `armoury.rs`'s troop count, `&g_fontHeading` — digits **and** noun four left,
+  built as `"{held} {noun}"`;
+* `battle.rs`'s two totals, `FUN_004224E7`'s `Ui_DrawCount(menTotal, 0x48, …)` —
+  **upper-cased** the group 8 noun, so *"Total men"* was a line of `Fntl2_14.pl8`
+  blackletter capitals, the illegibility a player reported of the title screen.
+
+And one `Ui_DrawNumber` beside them: `UnitPanel_Draw`'s moves left,
+`Ui_DrawNumber(left, '@', &DAT_004D4228, 0xF8, …)` with `DAT_004D4228` a NUL
+**[V]**, now `Pen::number_in` with its own lead and suffix.
+
+**The fallback font had to learn `'@'` first.** `crates/l2-view/src/text.rs` drew
+a real at-sign for it, so a `Pen` passing the original's lead would have printed
+`@1000 Crowns.` on an install with no `Fntl2_*.pl8`. It is now `BLANK` and still
+advances its cell.
+
+### The court was drawn in the wrong face
+
+`Court_Draw` (`0x00416925`) passes **`&g_fontHeading`** to all four store values —
+`Ui_DrawCount(gold, 0, 0xE0, 0x72, …)` and `Ui_DrawNumber(iron|stone|wood, ' ',
+" ", 0xE0, y, …)` — beside labels that are also heading. We drew the values in
+body, and the three materials with no lead. The suffixes are `&DAT_004D3F8C`,
+`…90`, `…94`, each one space **[V]**. `shell::Face` exists so that a count can say
+which face its call site names; `Pen::count_in(Face::Heading, …)` and
+`Pen::number_in` carry it.
+
+### Tests, each ablated
+
+* `chrome_text::the_treasury_s_digits_start_one_sign_column_right_of_ui_drawcount_s_x`
+  — the digits found **on row 6** in `Fntl2_14.pl8` at **504**, and *"Crowns."* at
+  `504 + width + 4` = **547**. Every expected number is a literal from the three
+  functions, not a constant of ours. Ablated: the old `"{value} "` string → digits
+  found at **500**; `COUNT_SUFFIX` → `" "` → noun found at **551**.
+* `chrome_text::the_court_s_stores_are_drawn_in_the_heading_face_at_court_draw_s_x`
+  — gold and iron found in `Fntl2_22.pl8` on rows `0x72` and `0x90` at `0xE4`.
+  Ablated: `Face::Body` → **not found**.
+* `l2_view::text::tests::the_at_sign_holds_a_column_and_paints_nothing` — `"@1"`
+  equals `"1"` drawn one cell right. Ablated: the bitmap restored → the first
+  cell paints.
+
+The row-pinned search is deliberate: a whole-canvas search returns the first
+match in raster order, and a short number is usually a digit inside some other
+number higher up.
+
+### Measured and not fixed
+
+**`Ui_DrawCount`: 80 call sites, not 81.** 80 `CALL 0x0041AB67` in the shipped exe
+and 80 call lines in the decompilation. `docs/draws-map.md` §5.12 said 81 and a
+brief quoted it. **Faces: 78 body, 2 heading** — 70 name `&g_fontBody` at the
+call, 8 are inside `FUN_004224E7` whose three callers all pass `&g_fontBody`, and
+the two heading ones are the court and the armoury above. Our 22 reproductions
+account for about 26 of the 80 original calls; the other ~54 — the county job
+and farm panels (`00410000.c:1092–1420`), the tile panel's rows (`4649–4982`), the
+message scrolls (`00470000.c:2087–2300`) — were **not traced** to a draw of ours
+in this pass. **[I]** that they share the defect wherever we draw them by hand.
+
+**`Ui_DrawNumber`'s suffixes, which C127 swept the leads of and not these.**
+Every suffix pointer resolved to its bytes in the exe:
+
+| lead | suffix | calls |
+|---|---|---:|
+| `' '` | `" "` | 76 |
+| `'@'` | `""` | **37** |
+| `'@'` | `" "` | 20 |
+| `' '` | `" %"` / `"%"` | 6 / 5 |
+| `'@'` | `"%"` | 5 |
+| `' '` | `"- "` | 5 |
+| `'('` | `")"` | 3 |
+| computed | computed | 4 |
+| `' '` | debug captions — `" h1"`, `" Dchk"`, `" divergances"`, … | 29 |
+
+190 parsed, against **211** `CALL 0x00402F64` in the exe — 21 the corpus parse did
+not reach, unexplained. Faces: 117 `&g_fontBody`, **44 `&g_font8`**, 13
+`&g_fontHeading`, 3 `&g_fontSmall`, 2 `&g_font10`, 11 passed through. **`g_font8`
+is a fourth face at 44 sites and this workspace loads three**; which file it is,
+and which screens, is not established.
+
+**Our `Pen::number` is unchanged: 25 sites, 19 `true` and 6 `false`,** still
+dropping `'@'` and still inventing `" "`. By the census, `'@'` is the lead at 62 of
+190 and the empty string is the suffix at 38. Each needs its call site read,
+because a caller that chains a sentence off the return moves when either changes.
+`Pen::number_in` is the shape.
+
+* **`Font::width` charges 4 for `'@'` where `FUN_004014F0` charges 0.** Only
+  visible under centring; no centred draw of ours passes `'@'` — by search, not by
+  test.
+* **`UnitPanel_Draw`'s year formed is `Ui_DrawYear(…, style 0)`**, which appends
+  `L2.eng` group 26's *"AD"*; `info.rs` draws the bare number. Rule 6.
+* **`battle.rs`'s roster rows still upper-case their troop nouns** — the same
+  blackletter capitals the totals had.
 
 **The reports that started this were stale.** *"Still placeholder font in the top
 right for gold and summer"*, the illegible build stamp and the illegible title

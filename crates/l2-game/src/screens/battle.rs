@@ -408,13 +408,17 @@ fn draw_roster(
         }
     }
     let total = |r: &Roster| r.iter().sum::<i32>();
-    let plural = |n: i32| ctx.assets.shell.text(8, NOUN_TOTAL + usize::from(n != 1)).to_string();
     for (x, r) in [(TOTAL_A_X, a.0), (TOTAL_B_X, b.0)] {
         let n = total(r);
-        let noun = plural(n);
-        let line =
-            if noun.is_empty() { format!("{n} TOTAL MEN") } else { format!("{n} {}", noun.to_uppercase()) };
-        p.body(canvas, x, TOTAL_Y, &line, font::TEXT);
+        // `FUN_004224E7`: `Ui_DrawCount(unit.menTotal, 0x48, x + 0x14, …, font)`
+        // — group 8's *"Total man"* / *"Total men"* **as the file spells it**,
+        // singular at ±1. We upper-cased it, which in `Fntl2_14.pl8` is a line of
+        // blackletter capitals — the illegibility a player reported of the title
+        // screen, here on the battle result — and built it as `"{n} {noun}"`,
+        // with no `'@'` lead, so the whole line sat four pixels left.
+        let noun = ctx.assets.shell.text(8, crate::shell::count_noun(n, NOUN_TOTAL)).to_string();
+        let noun = if noun.is_empty() { "Total men".to_string() } else { noun };
+        p.count_with_noun(crate::shell::Face::Body, canvas, x, TOTAL_Y, n, &noun, font::TEXT);
     }
     let _ = ink;
 }

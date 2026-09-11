@@ -99,7 +99,15 @@ const GLYPHS: &[(char, Glyph)] = &[
     ('=', [0b00000, 0b00000, 0b11111, 0b00000, 0b11111, 0b00000, 0b00000]),
     ('>', [0b01000, 0b00100, 0b00010, 0b00001, 0b00010, 0b00100, 0b01000]),
     ('?', [0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b00000, 0b00100]),
-    ('@', [0b01110, 0b10001, 0b10111, 0b10101, 0b10111, 0b10000, 0b01110]),
+    // **`'@'` is blank, and that is the game's rule, not a missing glyph.**
+    // The original's fonts map it to nothing (`g_glyphWidths[0x20] == 0`) and
+    // `Ui_DrawText` (`0x00402637`) advances four pixels over it and paints
+    // nothing, so `Ui_DrawCount` (`0x0041AB67`) opens every count with one to
+    // hold a sign column. This font used to draw a real at-sign here, which
+    // meant a `Pen` could not pass the original's own lead without printing
+    // `@1000 Crowns.` on an install with no `Fntl2_*.pl8`. It keeps its
+    // column — `width` and `draw` still advance it — and loses its picture.
+    ('@', BLANK),
     ('A', [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001]),
     ('B', [0b11110, 0b10001, 0b11110, 0b10001, 0b10001, 0b10001, 0b11110]),
     ('C', [0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110]),
@@ -225,6 +233,29 @@ mod tests {
         assert_eq!(c.count(9), expected);
         assert_eq!(c.at(1, 1), 0, "the glyph's top-left corner is blank for 'I'");
         assert_eq!(c.at(3, 1), 9, "and its crossbar is not");
+    }
+
+    /// **`'@'` is the game's blank sign column: it holds one cell and paints
+    /// nothing.** `Ui_DrawCount` (`0x0041AB67`) opens every count with it, so a
+    /// `Pen` that passes the original's lead must not print an at-sign on an
+    /// install with no `Fntl2_*.pl8`.
+    ///
+    /// Asserted as an equality against the same string drawn one cell to the
+    /// right without the lead, so it pins both halves at once: nothing in the
+    /// first cell, and the digit exactly one [`ADVANCE`] along.
+    ///
+    /// Ablated by restoring the at-sign bitmap to `GLYPHS`: the first cell
+    /// paints and the two canvases differ.
+    #[test]
+    fn the_at_sign_holds_a_column_and_paints_nothing() {
+        assert_eq!(glyph('@'), BLANK);
+        let mut with_lead = Canvas::new(40, 10);
+        let end = draw(&mut with_lead, 0, 0, "@1", 5);
+        assert_eq!(end, 2 * ADVANCE, "the lead still advances one cell");
+        let mut shifted = Canvas::new(40, 10);
+        draw(&mut shifted, ADVANCE, 0, "1", 5);
+        assert!(shifted.count(5) > 0, "the probe digit draws something");
+        assert_eq!(with_lead.pixels, shifted.pixels, "'@' painted, or moved the digit");
     }
 
     #[test]

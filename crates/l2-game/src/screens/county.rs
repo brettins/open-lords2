@@ -2259,7 +2259,7 @@ impl CountyScreen {
                 let x = pen.body(canvas, 96, 200, &line_text(ctx, g86::PEOPLE_PAY), font::TEXT);
                 // `Ui_DrawCount(taxShown, 0, …)` — the number and then group 8's
                 // *"Crown."* / *"Crowns."*. We used to write "CROWNS" ourselves.
-                pen.count(canvas, x, 200, c.tax_shown, CROWN_NOUN, true, font::TEXT);
+                pen.count(canvas, x, 200, c.tax_shown, CROWN_NOUN, font::TEXT);
 
                 pen.body(canvas, 96, 232, &line_text(ctx, g86::THIS_COUNTY), font::TEXT);
                 let empire = ctx

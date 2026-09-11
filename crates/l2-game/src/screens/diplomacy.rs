@@ -1156,9 +1156,9 @@ impl Screen for ComposeScreen {
                 // `Ui_DrawCount` is a number *and* a group 8 noun, and the
                 // noun was missing: the line read "Last gift was 40" where the
                 // original reads "Last gift was 40 Crowns."
-                pen.count(canvas, w, 0xD8, best, CROWN_NOUN, true, font::TEXT);
+                pen.count(canvas, w, 0xD8, best, CROWN_NOUN, font::TEXT);
                 pen.eng(canvas, GROUP, GIFT_OF, 0x60, 0xF8, font::TEXT);
-                pen.count(canvas, 0x100, 0xF8, self.gold, CROWN_NOUN, true, font::TEXT);
+                pen.count(canvas, 0x100, 0xF8, self.gold, CROWN_NOUN, font::TEXT);
                 pen.eng(canvas, GROUP, DISPATCH, 0xA0, 0x120, font::TEXT);
                 self.widget(&pen, canvas, PLUS_FRAME, GIFT_MORE, 2);
                 self.widget(&pen, canvas, MINUS_FRAME, GIFT_LESS, 3);

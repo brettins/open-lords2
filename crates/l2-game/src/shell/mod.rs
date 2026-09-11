@@ -546,6 +546,29 @@ pub const TRAILING: i32 = 4;
 /// types, 68 *"Grain"*, 70/71 *"Cow."*, 72/73 *"Total men"*.
 pub const COUNT_NOUN_GROUP: usize = 8;
 
+/// **Which of the game's two panel faces a call site names** — the `font`
+/// argument `Ui_DrawText` and everything above it take: `&g_fontBody`
+/// (`Fntl2_14.pl8`) or `&g_fontHeading` (`Fntl2_22.pl8`).
+///
+/// They are not interchangeable, and the choice is the call site's, not the
+/// helper's: `Ui_DrawCount` is body at 78 of its 80 call sites and heading at
+/// the other two, and `Court_Draw` puts every store value in heading beside a
+/// heading label where we had drawn them in body. A helper that hard-codes one
+/// face is a helper that draws some screen in the wrong one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Face {
+    Body,
+    Heading,
+}
+
+/// `Ui_DrawCount`'s lead, which it does not take from its caller: always
+/// `'@'`, the blank sign column. `0x0041AB67`. **[V]**
+pub const COUNT_LEAD: char = '@';
+
+/// `Ui_DrawCount`'s suffix: `&DAT_004D41F4`, a NUL, so the empty string. Read
+/// out of the shipped `Lords2.exe` at file offset `0xD23F4`. **[V]**
+pub const COUNT_SUFFIX: &str = "";
+
 /// Which of `Ui_DrawCount`'s singular/plural pair a value takes.
 ///
 /// **`|value| == 1`, not `value == 1`**, and this is a free function so that
@@ -857,13 +880,34 @@ impl<'a> Pen<'a> {
         canvas.fill_rect(x + w - 1, y, 1, h, colour);
     }
 
-    /// `Ui_DrawNumber(value, lead, suffix, x, y, font, colour)`.
+    /// One line in `face`, with [`Pen::body`]'s return.
+    pub fn text_in(
+        &self,
+        face: Face,
+        canvas: &mut Canvas,
+        x: i32,
+        y: i32,
+        s: &str,
+        colour: u8,
+    ) -> i32 {
+        match face {
+            Face::Body => self.body(canvas, x, y, s, colour),
+            Face::Heading => self.heading(canvas, x, y, s, colour),
+        }
+    }
+
+    /// `Ui_DrawNumber(value, lead, suffix, x, y, font, colour)`, with the
+    /// **old, lossy** lead: `blank_lead: true` draws no lead at all.
     ///
-    /// `lead` is either a space or `'@'`, **the blank alignment glyph** — a
-    /// character the fonts draw as nothing but advance over, which is how the
-    /// original right-aligns a column without measuring it. `blank_lead` picks
-    /// between them. The suffix in every call this crate reproduces is a single
-    /// space, which is why a number and the word after it do not touch.
+    /// **That is four pixels short wherever the original passes `'@'`**, because
+    /// `'@'` is not "no lead" — `Ui_DrawText` (`0x00402637`) advances four over it
+    /// ([`font::SPACE_ADVANCE`]). And the suffix is hard-coded to one space where
+    /// the call site's own suffix is often the empty string. Both errors are the
+    /// remainder of `docs/decisions.md` C127's sweep over `Ui_DrawNumber`'s 191
+    /// call sites; they are left in place here, not fixed, because a caller that
+    /// chains a sentence off the return moves the moment either one changes, and
+    /// each of those needs its own call site read. New code takes
+    /// [`Pen::number_in`], which carries the call site's literals.
     pub fn number(
         &self,
         canvas: &mut Canvas,
@@ -877,15 +921,47 @@ impl<'a> Pen<'a> {
         self.body(canvas, x, y, &format!("{lead}{value} "), colour)
     }
 
-    /// `Ui_DrawCount(value, nounIndex, x, y, font, colour)` — a number and then
-    /// the `L2.eng` **group 8** noun that goes with it.
+    /// `Ui_DrawNumber(value, lead, suffix, x, y, font, colour)` **as the call
+    /// site wrote it** — its own lead character, its own suffix string, its own
+    /// face.
+    ///
+    /// `Ui_DrawNumber` (`0x00402F64`) writes the digits from index 1 of
+    /// `g_numberBuffer`, puts `lead` at index 0, appends `suffix` and makes one
+    /// `Ui_DrawText` of the lot. So `x` is where the *lead* goes and the digits
+    /// start one lead-advance to its right: four pixels for `' '` and for `'@'`
+    /// alike, since neither has a glyph.
+    #[allow(clippy::too_many_arguments)]
+    pub fn number_in(
+        &self,
+        face: Face,
+        canvas: &mut Canvas,
+        x: i32,
+        y: i32,
+        value: i32,
+        lead: char,
+        suffix: &str,
+        colour: u8,
+    ) -> i32 {
+        self.text_in(face, canvas, x, y, &format!("{lead}{value}{suffix}"), colour)
+    }
+
+    /// `Ui_DrawCount(value, nounIndex, x, y, &g_fontBody, colour)` — a number and
+    /// then the `L2.eng` **group 8** noun that goes with it.
     ///
     /// Group 8 holds its nouns in pairs, singular then plural, and the original
     /// picks `nounIndex` for one and `nounIndex + 1` for anything else —
     /// including **zero**, which takes the plural. That is worth stating
     /// because the obvious implementation gets it wrong: *"0 Crowns."*, not
     /// *"0 Crown."*
-    #[allow(clippy::too_many_arguments)]
+    ///
+    /// The body font is the face 78 of the 80 call sites draw in: **70** name
+    /// `&g_fontBody` at the call, and **8** are inside `FUN_004224E7`, which
+    /// takes its font as `param_5` — and all three of its callers
+    /// (`UnitPanel_Draw` and two in the battle roster) pass `&g_fontBody`. The
+    /// other two name `&g_fontHeading` — `Court_Draw`'s treasury and the
+    /// armoury's troop count — and are [`Pen::count_in`] with
+    /// [`Face::Heading`]. Counted over the decompilation and checked against
+    /// the 80 `CALL 0x0041AB67` in the shipped exe. **[V]**
     pub fn count(
         &self,
         canvas: &mut Canvas,
@@ -893,25 +969,70 @@ impl<'a> Pen<'a> {
         y: i32,
         value: i32,
         noun: usize,
-        blank_lead: bool,
         colour: u8,
     ) -> i32 {
-        // **`next`, not `x + next`.** Every pen method returns the *absolute*
-        // x the following glyph occupies — `body` is literally
-        // `x + f.draw(..) + TRAILING` — and this line added `x` to it a second
-        // time, so the noun landed `x` pixels right of the number instead of
-        // beside it. Measured: `number(x = 100, 5)` returns 116 and
-        // `count(x = 100, 5)` put its noun at **216**.
-        //
-        // It survived because the two live callers — the court's treasury line
-        // and three lines of the map information panel — draw a number and a
-        // noun and nothing after them, so there was nothing for the noun to
-        // collide with and nothing to compare it against. That is
-        // `docs/agents.md`'s *a test that drives the picture from the wrong
-        // field passes for ever*, in a place with no test at all.
-        let next = self.number(canvas, x, y, value, blank_lead, colour);
+        self.count_in(Face::Body, canvas, x, y, value, noun, colour)
+    }
+
+    /// [`Pen::count`] in the face the call site names.
+    #[allow(clippy::too_many_arguments)]
+    pub fn count_in(
+        &self,
+        face: Face,
+        canvas: &mut Canvas,
+        x: i32,
+        y: i32,
+        value: i32,
+        noun: usize,
+        colour: u8,
+    ) -> i32 {
         let s = self.assets.text(COUNT_NOUN_GROUP, count_noun(value, noun)).to_string();
-        self.body(canvas, next, y, &s, colour)
+        self.count_with_noun(face, canvas, x, y, value, &s, colour)
+    }
+
+    /// `Ui_DrawCount`'s two draws with the noun already chosen — for a caller
+    /// that keeps an English fallback for an install with no `L2.eng`.
+    ///
+    /// **The lead and the suffix are not the caller's to pick.**
+    /// `Ui_DrawCount` (`0x0041AB67`) is
+    ///
+    /// ```c
+    /// Ui_DrawNumber(value, '@', &DAT_004D41F4, x, y, font, colour);
+    /// Eng_DrawString(8, noun, x + g_penAdvance, y, font, colour);
+    /// ```
+    ///
+    /// for all 80 of its call sites, and `DAT_004D41F4` is a NUL — read out of
+    /// the shipped `Lords2.exe` at file offset `0xD23F4`. So the string is always
+    /// `"@1000"`: the digits start [`font::SPACE_ADVANCE`] right of `x`, and the
+    /// noun starts one [`TRAILING`] after the last digit. **[V]**
+    ///
+    /// This method used to take a `blank_lead: bool` and hand it to
+    /// [`Pen::number`], a choice the original does not have. Both answers were
+    /// wrong, in opposite halves: `true` (eleven sites, the menu bar's treasury
+    /// among them) drew no lead and invented a trailing space, so the digits sat
+    /// four pixels left and the noun landed right by coincidence; `false` (six
+    /// sites) drew the lead and the invented space, so the digits were right and
+    /// the noun four pixels too far. `docs/decisions.md`
+    /// CNEW-at-sign-advances-when-drawn-and-not-when-measured.
+    ///
+    /// **`next`, not `x + next`.** Every pen method returns the *absolute* x the
+    /// following glyph occupies, and this line once added `x` a second time, so
+    /// the noun landed `x` pixels right of the number. Measured then:
+    /// `number(x = 100, 5)` returned 116 and `count(x = 100, 5)` put its noun at
+    /// **216**.
+    #[allow(clippy::too_many_arguments)]
+    pub fn count_with_noun(
+        &self,
+        face: Face,
+        canvas: &mut Canvas,
+        x: i32,
+        y: i32,
+        value: i32,
+        noun: &str,
+        colour: u8,
+    ) -> i32 {
+        let next = self.number_in(face, canvas, x, y, value, COUNT_LEAD, COUNT_SUFFIX, colour);
+        self.text_in(face, canvas, next, y, noun, colour)
     }
 
     /// `Ui_DrawNumberRight(value, lead, suffix, x, y, width, font, colour)` —

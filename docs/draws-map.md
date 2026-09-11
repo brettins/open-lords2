@@ -657,10 +657,18 @@ only meaningful if the column is there to be aligned on. `SPACE_ADVANCE`'s own d
 `crate::shell::font` had already worked that out one level down; the strip's call sites simply
 did not use it.
 
-**Scope.** 352 call sites across the four number routines — `Ui_DrawNumber` 191,
-`Ui_DrawCount` 81, `Ui_DrawDelta` 59, `Ui_DrawNumberRight` 21. Every one has a lead. Fixed here
+**Scope.** 351 call sites across the four number routines — `Ui_DrawNumber` 191,
+`Ui_DrawCount` **80**, `Ui_DrawDelta` 59, `Ui_DrawNumberRight` 21. Every one has a lead. Fixed here
 are the campaign sidebar's five; the rest of the tree is a sweep somebody should run with
 `strip_number` / `body_number_centred` as the shape. **C127.**
+
+*`Ui_DrawCount` was written 81 here and is 80*: 80 `CALL 0x0041AB67` in the shipped exe, 80 call
+lines in the decompilation. **Its share of the sweep is done**, as one change rather than 80:
+`Ui_DrawCount` has no lead argument — it always passes `'@'` and an empty suffix — so `Pen::count`
+stopped taking one, and all 22 of our reproductions draw the original's string. The menu bar's
+treasury moved from x 500 to 504. `Ui_DrawNumber`'s share is still open, and its **suffixes** are
+now counted as well as its leads: `docs/decisions.md`
+CNEW-at-sign-advances-when-drawn-and-not-when-measured.
 
 ---
 

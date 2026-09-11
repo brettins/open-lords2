@@ -768,10 +768,13 @@ impl Screen for RaiseArmyScreen {
                 // the player was asked to buy without being told what he had.
                 let x = pen.eng(canvas, GROUP, YOU_HAVE, 0x72, b + 0x92, font::TEXT);
                 let gold = ctx.game.gold();
-                let x = pen.number(canvas, x, b + 0x92, gold, true, font::TEXT);
-                // `Ui_DrawCount` takes the singular at **±1**, not just at 1.
-                let noun = shell::count_noun(gold, CROWN_NOUN);
-                pen.eng(canvas, NOUN_GROUP, noun, x, b + 0x92, font::TEXT);
+                // `Ui_DrawCount(gold, 0, g_penAdvance + 0x72, base + 0x92, body)`
+                // at `0x00417A80`'s neighbourhood — through `Pen::count`, which
+                // carries its `'@'` lead and empty suffix. This line used to build
+                // the pair by hand from `Pen::number(…, true)`, which drew the
+                // digits four pixels left of the original's. It also takes the
+                // singular at **±1**, not just at 1.
+                pen.count(canvas, x, b + 0x92, gold, CROWN_NOUN, font::TEXT);
 
                 pen.eng(canvas, GROUP, HIRE_QUESTION, 0x92, b + 0xA4, font::TEXT);
                 // The word is a read-out; the tick and the cross are the
