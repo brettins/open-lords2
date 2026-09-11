@@ -1,5 +1,6 @@
 //! A battle: a fixed set of figures, advanced one tick at a time.
 
+use crate::cue::Cues;
 use crate::figure::{Figure, Side, State, SIDE_A, SIDE_B};
 use crate::melee;
 use crate::troop::{Troop, TroopTable};
@@ -19,6 +20,11 @@ pub struct Battle {
     /// added. That is on purpose — rules that could change mid-battle are
     /// rules two lockstep peers can disagree about.
     pub troops: TroopTable,
+    /// **What a listener could hear of the ticks run so far** — see
+    /// [`crate::cue`]. Written by the melee sweep below and by
+    /// [`crate::runner`]'s missiles and walls; **read by nothing in this
+    /// crate**, and deliberately outside the lockstep checksum.
+    pub cues: Cues,
 }
 
 impl Battle {
@@ -38,7 +44,7 @@ impl Battle {
     /// assert_eq!(battle.figures[a].stats.melee_attack[0], 9);
     /// ```
     pub fn with_troops(troops: TroopTable) -> Self {
-        Battle { figures: Vec::new(), tick: 0, troops }
+        Battle { figures: Vec::new(), tick: 0, troops, cues: Cues::default() }
     }
 
     /// Add a figure. Returns its index, or `None` once the original's ceiling is
@@ -60,10 +66,55 @@ impl Battle {
     pub fn step(&mut self) {
         for i in 0..self.figures.len() {
             if self.figures[i].state == State::Melee {
+                let pair = self.figures[i].opponent.filter(|&o| o != i && o < self.figures.len());
+                let before = self.duel_snapshot(i, pair);
                 melee::tick(&mut self.figures, i);
+                self.hear_the_duel(i, pair, before);
             }
         }
         self.tick += 1;
+    }
+
+    /// Men and life of both halves of a duel, for [`Self::hear_the_duel`].
+    fn duel_snapshot(&self, i: usize, pair: Option<usize>) -> [(u16, bool); 2] {
+        let of = |f: &Figure| (f.men, f.is_alive());
+        [of(&self.figures[i]), pair.map_or((0, false), |o| of(&self.figures[o]))]
+    }
+
+    /// **`Melee_Tick` (`0x00494908`)'s two sounding arms, as occasions.**
+    ///
+    /// ```c
+    /// if (99 < me.hits) { me.hits -= 100; me.men -= 1;
+    ///     FUN_004262cf(other.troopType == 2 ? 4 : other.troopType == 3 ? 5
+    ///                : other.troopType == 6 ? 5 : 6); }
+    /// if (me.men < 1) { FUN_004262cf(me.side == 0 ? 0xb : 0xc); me.state = 2; }
+    /// ```
+    ///
+    /// `[V]`. The casualty is keyed by the troop that **struck** and the death
+    /// by the side that **died**, which is exactly what the two ladders branch
+    /// on. Found by comparing the pair before and after [`melee::tick`] rather
+    /// than by threading a report through it, so the rules module is untouched
+    /// and cannot be told a listener exists.
+    ///
+    /// One divergence that is the rules' and not this record's: [`melee::tick`]
+    /// resolves a heavy blow's casualties at once, in the striker's tick, where
+    /// the original adds the hits and lets the victim's own tick count them. The
+    /// striker is the same figure either way, so the sword chosen is the same.
+    /// `[D]`.
+    fn hear_the_duel(&mut self, i: usize, pair: Option<usize>, before: [(u16, bool); 2]) {
+        let Some(o) = pair else { return };
+        for (me, other, (men, alive)) in [(i, o, before[0]), (o, i, before[1])] {
+            let f = &self.figures[me];
+            if f.men < men {
+                let striker = self.figures[other].troop;
+                self.cues.melee_casualty(striker);
+            }
+            let f = &self.figures[me];
+            if alive && !f.is_alive() {
+                let side = f.side;
+                self.cues.melee_death(side);
+            }
+        }
     }
 
     pub fn run(&mut self, ticks: u32) {
@@ -291,6 +342,58 @@ mod tests {
             b.step();
             assert_eq!(a, b, "diverged at tick {}", a.tick);
         }
+    }
+
+    /// **A man felled in a duel is cued by the troop that struck him, and a
+    /// figure that dies by its own side** — `Melee_Tick`'s two ladders.
+    ///
+    /// Checked tick by tick against the men, both halves of the duel, so the
+    /// assertion is about each occasion rather than a total. Macemen against
+    /// knights, because both land heavy blows and the two troops pick
+    /// *different* swords (slot 4 against slot 5). Ablation: delete
+    /// `self.cues.melee_casualty(striker)` and the first assertion names the
+    /// tick; swap `other` for `me` in the striker and the second does.
+    #[test]
+    fn a_man_felled_in_melee_is_cued_by_the_troop_that_struck_him() {
+        let mut bt = duel(Troop::Macemen, Troop::Knights, 8);
+        let mut fell = [0u32; 2];
+        for _ in 0..20_000 {
+            let was = bt.cues;
+            let men = [bt.figures[0].men, bt.figures[1].men];
+            let alive = [bt.figures[0].is_alive(), bt.figures[1].is_alive()];
+            bt.step();
+            let now = bt.cues;
+            // Figure 0 is the maceman (side A), 1 the knight (side B).
+            if bt.figures[0].men < men[0] {
+                assert!(
+                    now.melee_casualties(Troop::Knights) > was.melee_casualties(Troop::Knights),
+                    "a maceman fell at tick {} and no knight was cued",
+                    bt.tick
+                );
+                fell[0] += 1;
+            }
+            if bt.figures[1].men < men[1] {
+                assert!(
+                    now.melee_casualties(Troop::Macemen) > was.melee_casualties(Troop::Macemen),
+                    "a knight fell at tick {} and no maceman was cued",
+                    bt.tick
+                );
+                fell[1] += 1;
+            }
+            if alive[0] && !bt.figures[0].is_alive() {
+                assert_eq!(now.melee_deaths(SIDE_A), was.melee_deaths(SIDE_A) + 1);
+            }
+            if alive[1] && !bt.figures[1].is_alive() {
+                assert_eq!(now.melee_deaths(SIDE_B), was.melee_deaths(SIDE_B) + 1);
+            }
+            if bt.is_decided() {
+                break;
+            }
+        }
+        assert!(bt.is_decided(), "the duel should end");
+        assert!(fell[0] > 0 && fell[1] > 0, "both sides lost men: {fell:?}");
+        assert_eq!(bt.cues.melee_deaths(SIDE_A) + bt.cues.melee_deaths(SIDE_B), 1, "one figure died");
+        assert_eq!(bt.cues.melee_casualties(Troop::Peasants), 0, "and nobody else struck");
     }
 
     #[test]

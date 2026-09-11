@@ -83,10 +83,10 @@
       "prim": "Sound_PlayTroopCry",
       "class": "cry",
       "arg": "0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The troop cries. All six arms exist in screens/battlefield.rs; what is missing is Sound_PlayTroopCry’s 11 x 4 x 4 table (TROOP_VOICES at 0x004DB0D0, recovered and untested) and the selected men’s troop type reaching the Director."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "sound": "g_troopSounds[troop][0][take], 66 files",
+      "note": "The box commit, guarded on something being held. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
     {
       "id": "Battle_DragSelect#2",
@@ -94,10 +94,10 @@
       "prim": "Sound_PlayTroopCry",
       "class": "cry",
       "arg": "0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The troop cries. All six arms exist in screens/battlefield.rs; what is missing is Sound_PlayTroopCry’s 11 x 4 x 4 table (TROOP_VOICES at 0x004DB0D0, recovered and untested) and the selected men’s troop type reaching the Director."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "sound": "g_troopSounds[troop][0][take], 66 files",
+      "note": "The pick commit, unguarded. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
     {
       "id": "Battle_FormationKey#1",
@@ -105,10 +105,10 @@
       "prim": "Sound_PlayTroopCry",
       "class": "cry",
       "arg": "1",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The troop cries. All six arms exist in screens/battlefield.rs; what is missing is Sound_PlayTroopCry’s 11 x 4 x 4 table (TROOP_VOICES at 0x004DB0D0, recovered and untested) and the selected men’s troop type reaching the Director."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "sound": "g_troopSounds[troop][1][take], 66 files",
+      "note": "H or V, before our pause and no-unit guards - the original cries unconditionally. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
     {
       "id": "Battle_OrderSelection#1",
@@ -116,10 +116,10 @@
       "prim": "Sound_PlayTroopCry",
       "class": "cry",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The troop cries. All six arms exist in screens/battlefield.rs; what is missing is Sound_PlayTroopCry’s 11 x 4 x 4 table (TROOP_VOICES at 0x004DB0D0, recovered and untested) and the selected men’s troop type reaching the Director."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "sound": "g_troopSounds[troop][3][take], 66 files",
+      "note": "An order with g_battleHoverSurface == 2, the moat. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
     {
       "id": "Battle_OrderSelection#2",
@@ -127,10 +127,10 @@
       "prim": "Sound_PlayTroopCry",
       "class": "cry",
       "arg": "1",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The troop cries. All six arms exist in screens/battlefield.rs; what is missing is Sound_PlayTroopCry’s 11 x 4 x 4 table (TROOP_VOICES at 0x004DB0D0, recovered and untested) and the selected men’s troop type reaching the Director."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "sound": "g_troopSounds[troop][1][take], 66 files",
+      "note": "An order onto anything else. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
     {
       "id": "Battle_OrderSelection#3",
@@ -138,10 +138,10 @@
       "prim": "Sound_PlayTroopCry",
       "class": "cry",
       "arg": "2",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The troop cries. All six arms exist in screens/battlefield.rs; what is missing is Sound_PlayTroopCry’s 11 x 4 x 4 table (TROOP_VOICES at 0x004DB0D0, recovered and untested) and the selected men’s troop type reaching the Director."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/battlefield.rs",
+      "sound": "g_troopSounds[troop][2][take], 66 files",
+      "note": "An order with an enemy under the pointer. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
     {
       "id": "Battle_PauseButton#1",
@@ -196,7 +196,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "Fire. BattleMan_BurnTick plays FUN_004262cf(0xB), deadguy2.wav, when a side-0 figure standing on a burning cell (surface 10 or 17) loses its last man. l2-sim has no burning cells: the effects that write those surfaces, FUN_00485675 and FUN_00485861, are not built. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "BattleMan_BurnTick#2",
@@ -207,7 +207,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "Fire. The side-4 twin of #1: FUN_004262cf(0xC), deadguy3.wav. Not built for the same reason. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "BattleMan_FireMissile#1",
@@ -215,10 +215,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "9",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "crossbow.wav",
+      "note": "A crossbowman looses: Sound_PlaySlot(9), after the spawn and its eight launch steps. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "BattleMan_FireMissile#2",
@@ -226,10 +226,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "7",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "bowmen1.wav",
+      "note": "An archer looses: Sound_PlaySlot(7). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "BattleMan_StateCloseToAttack#1",
@@ -240,7 +240,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "State 17’s own loose. BattleMan_StateCloseToAttack plays Sound_PlaySlot(9) when a crossbowman closing on a chosen target fires; l2-sim’s State::Shooting never fires (runner::retarget says so), and our only loose is BattleMan_FireMissile’s, which is reproduced. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "BattleMan_StateCloseToAttack#2",
@@ -251,7 +251,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "State 17’s own loose, the bow: Sound_PlaySlot(7). Not built for the same reason as #1. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "BattleMan_StateEngineFire#1",
@@ -259,10 +259,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "0xe",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "catfire.wav",
+      "note": "A catapult fires: Sound_PlaySlot(0xE). [D] that our catapult’s loose is the same occasion - ours fires through the shared reload path, not the engine state’s 100-of-180 cadence. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "CastleBuild_Confirm#1",
@@ -504,7 +504,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "Boiling oil. FUN_0047A814 is Melee_Tick’s troopType == 10 arm: it spawns a class-7 missile, kills the pot and plays FUN_004262cf(3), pouroil.wav. l2-sim’s melee::engage refuses every siege engine, oil included, so the pot never reaches it. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "FUN_0047fe0b#1",
@@ -515,7 +515,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "A realm eliminated mid-battle. FUN_0047FE0B’s only caller is Realm_Eliminate (0x0049CF20), when g_battlePhase == 2: it zeroes every figure of that realm and plays FUN_004262cf(0xD), deadguy4.wav. Nothing in this engine eliminates a realm while a battle is on screen. [I] on reachability in single player: Realm_Eliminate’s three callers were not traced. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "FUN_0048551d#1",
@@ -526,7 +526,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "The bridge fire. Missile_Step calls FUN_0048551D whenever any missile enters a surface-7 cell: Sound_PlayFile(dest_ind.wav, 0, 0), then FUN_00485675 sets that cell and its neighbours burning. l2-sim models no fire and no ignition. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "FUN_00491492#1",
@@ -537,7 +537,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "A siege tower docking. FUN_00491492 is troopType 8 finding an elevation-2 cell round its polar facing: it destroys the tower, lays a 3x3 ramp and plays FUN_004262cf(0x11), siegedoc.wav. l2-sim’s towers are stopped by a wall; docking is not built. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "FUN_0049694f#1",
@@ -545,10 +545,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_bathit2_wav_004d9f38,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "bathit2.wav",
+      "note": "Wall_Smash opens with Sound_PlayFile(bathit2.wav, 0, 0), at both of BattleMan_StateAttackWall’s and BattleMan_StateRamGate’s thresholds - BattleRunner::strike_castle’s two breach arms. Through Audio::play_file, the one-shot buffer. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "FUN_004976a1#1",
@@ -787,10 +787,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "4",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "sword5.wav",
+      "note": "A man falls to a blow struck by a maceman: FUN_004262cf(4). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Melee_Tick#2",
@@ -798,10 +798,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "5",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "sword2.wav",
+      "note": "A man falls to a blow struck by a swordsman: FUN_004262cf(5). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Melee_Tick#3",
@@ -809,10 +809,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "5",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "sword2.wav",
+      "note": "A man falls to a blow struck by a knight: FUN_004262cf(5), the swordsman’s slot. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Melee_Tick#4",
@@ -820,10 +820,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "6",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "sword3.wav",
+      "note": "A man falls to a blow struck by anybody else: FUN_004262cf(6). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Melee_Tick#5",
@@ -831,10 +831,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xb",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "deadguy2.wav",
+      "note": "A side-0 figure loses its last man in melee: FUN_004262cf(0xB). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Melee_Tick#6",
@@ -842,10 +842,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xc",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "deadguy3.wav",
+      "note": "A side-4 figure loses its last man in melee: FUN_004262cf(0xC). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Missile_Step#1",
@@ -853,10 +853,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xf",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "cathit.wav",
+      "note": "A catapult shot counted against a wall cell: FUN_004262cf(0xF). Our strike_wall_with_shot counts every wall cell; the elevation-4 arm that does not count is #2, blocked. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Missile_Step#2",
@@ -867,7 +867,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "note": "A catapult shot on a rampart four high. Missile_Step’s class-3 arm counts the hit and plays FUN_004262cf(0xF) (#1, reproduced) when the cell’s elevation is 1..3, and plays Sound_PlaySlot(0x10), catmiss.wav, without counting when it is 4 or more. l2-sim’s strike_wall_with_shot counts every wall cell and has no elevation arm. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
     },
     {
       "id": "Missile_Step#3",
@@ -875,10 +875,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "10",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "cros_hit.wav",
+      "note": "A crossbow bolt strikes a man: Sound_PlaySlot(10). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Missile_Step#4",
@@ -886,10 +886,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "8",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "bow_hit.wav",
+      "note": "An arrow strikes a man: Sound_PlaySlot(8). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Missile_Step#5",
@@ -897,10 +897,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "10",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "cros_hit.wav",
+      "note": "The bolt crosses the casualty threshold: Sound_PlaySlot(10) again, which the original always drops because #3 started that buffer a statement earlier. Reproduced as the same drop. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Missile_Step#6",
@@ -908,10 +908,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "8",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "bow_hit.wav",
+      "note": "The arrow crosses the casualty threshold: Sound_PlaySlot(8) again, always dropped for the same reason as #5. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Missile_Step#7",
@@ -919,10 +919,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xd",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battlefield’s per-man state machine. A sword swing, an arrow leaving a bow and a man dying are EVENTS inside one tick of BattleMan_Tick, and Director derives sound from the world after the tick - it can see where a man is and not that he struck. This is the one class the \"derive it, do not report it\" design does not reach, and it is 25 of the 143 sites."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "deadguy4.wav",
+      "note": "A missile kills a figure’s last man: FUN_004262cf(0xD). The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Msg_DrawBeyondLetter#1",

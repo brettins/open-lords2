@@ -51,14 +51,16 @@
 //! counts here are **measured by `tests/audio_wiring.rs`, not typed**, and a
 //! new call site moves them by itself.
 //!
-//! Of the install's **771** `.wav` files, this layer can reach **560**:
+//! Of the install's **771** `.wav` files, this layer can reach **639**:
 //!
 //! | | files | how |
 //! |---|---:|---|
 //! | the narrator | **530** | 448 lord takes + 82 system clips, via [`Director`] and [`voice_tick`] |
+//! | **the troop cries** | **66** | [`TroopCries`], from the six cry arms on [`crate::battlefield::LiveBattle`] |
 //! | music | 10 | `scroll1`…`scroll5`, `battle1`…`battle4`, `setup` |
 //! | fanfares | 3 | `ff_msg`, `ff_batl`, `ff_capt` |
 //! | the screen class | 16 | six spoken lines and ten bank slots, by [`Director::listen`]'s screen edges |
+//! | **the fighting** | **13** | twelve battle-bank slots and `bathit2.wav`, by [`battle_requests`] |
 //! | the pointer click | 1 | `click3.wav`, by [`Director::hear_the_click`] — `Widget_Test`'s two live sites |
 //!
 //! **The narrator is 84 % of the game's audio by file count** — 646 of the 771
@@ -81,7 +83,7 @@
 //! here at all — the previous version of this table was prose, was hand-marked,
 //! and was wrong in both directions.
 //!
-//! **51 of 143, and 3 of the 143 are dead in the shipped game.** The
+//! **73 of 143, and 3 of the 143 are dead in the shipped game.** The
 //! denominator moved because the enumeration was one primitive short: see
 //! [`track::Music::Setup`].
 //!
@@ -89,19 +91,24 @@
 //! |---|---|---:|---:|
 //! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **13** — [`voice_tick`]; two need video and one needs the tip screens |
 //! | **Music** | `Music_StartCampaign`, `Music_StartBattle`, `Music_Play` | 23 | **11** — [`scene`]; the twelve left restart a bed a film stopped |
-//! | **By name** | `Sound_PlayFile` | 49 | **15** — [`names::speech`] and the fanfares |
-//! | **The two sample banks** | `Sound_PlaySlot`, `Sound_RestartSlot`, `FUN_004262CF` | 49 | **12** — the march, the sites, the village's work, the click |
-//! | **Troop cries** | `Sound_PlayTroopCry` `0x00499CB1` | 6 | 0 — needs the cry table and the battlefield's selection |
+//! | **By name** | `Sound_PlayFile` | 49 | **16** — [`names::speech`], the fanfares and `Wall_Smash` |
+//! | **The two sample banks** | `Sound_PlaySlot`, `Sound_RestartSlot`, `FUN_004262CF` | 49 | **27** — the march, the sites, the village's work, the click, and fifteen on the battlefield |
+//! | **Troop cries** | `Sound_PlayTroopCry` `0x00499CB1` | 6 | **6** — [`TroopCries`] |
 //!
 //! What is left, in the order a player notices it:
 //!
-//! * **The battlefield — 25 of the 143 sites, and the largest single thing
-//!   missing.** Every sword swing, every arrow leaving a bow and every man
-//!   dying is an *event inside one tick* of `BattleMan_Tick`, and [`Director`]
-//!   derives sound from the world **after** the tick: it can see where a man is
-//!   and not that he struck. That is the one class the *derive it, do not report
-//!   it* design (`docs/netcode.md` D-3) does not reach, and it is worth stating
-//!   as a limit of the design rather than as a to-do.
+//! * **Nine battlefield sites, each on a mechanic rather than a channel.** This
+//!   bullet used to say the whole battlefield — 25 sites — was *"a limit of the
+//!   design rather than a to-do"*, because a sword swing is an event inside a
+//!   tick and [`Director`] derives sound from the world after it. The premise
+//!   was right and the conclusion was not: the world simply did not *record*
+//!   the event. `l2_sim::cue` is that record — monotone counts the battle writes
+//!   and never reads — and because every battlefield call is drop-if-busy, a
+//!   count that moved since the last tick is exactly what the original's calls
+//!   could make audible. Sixteen of the 25 sound now. The nine that do not are
+//!   fire, boiling oil, a tower docking, state 17's own loose, the high-rampart
+//!   catapult miss and a realm eliminated mid-battle — each named in
+//!   `docs/audio.json`, and each a mechanic `l2-sim` does not have.
 //! * **The two sample banks elsewhere.** [`names::KINGDOM_BANK`] and
 //!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
 //!   their 29 slots ship. The campaign half of the kingdom bank now sounds —
@@ -239,6 +246,12 @@ pub struct Audio {
     /// `DAT_0057A0F0` — the third battle mode [`BattleKind`] deliberately does
     /// not name. A set collected by driving beats a set assembled by reading.
     heard: std::collections::BTreeSet<String>,
+    /// **What the one-shot buffer holds** — `DAT_00522AEC`, the single
+    /// DirectSound buffer `Sound_PlayFile` (`0x00427990`) builds every file
+    /// into. The original has one, so "is the one-shot busy" is a question about
+    /// whatever was put there last; ours are many voices, so the name is kept
+    /// and the mixer is asked about it. See [`Audio::play_file`].
+    one_shot: Option<String>,
 }
 
 impl Audio {
@@ -256,6 +269,7 @@ impl Audio {
             options: Options::default(),
             decodes: false,
             heard: std::collections::BTreeSet::new(),
+            one_shot: None,
         }
     }
 
@@ -492,6 +506,51 @@ impl Audio {
         if let Ok(mut m) = self.mixer.lock() {
             m.play_effect(name.to_ascii_lowercase(), sound);
         }
+        // It is `Sound_PlayFile` too, so it occupies the one buffer, and a troop
+        // cry asked for over the narrator is dropped — see [`Audio::play_file`].
+        self.one_shot = Some(name.to_ascii_lowercase());
+    }
+
+    /// **`Sound_PlayFile` (`0x00427990`), drop included** — the verb a troop
+    /// cry and `Wall_Smash` use.
+    ///
+    /// ```c
+    /// if (Sound_OneShotBusy()) return 0;         /* first, before either flag */
+    /// Sound_StopOneShot();
+    /// if (isSpeech == 1 && g_optSpeech == 0) return 0;
+    /// if (isSpeech == 0 && g_optSoundEffects == 0) return 0;
+    /// /* load the file into the one buffer and Play it */
+    /// ```
+    ///
+    /// `[V]`. There is **one** one-shot buffer, so a file asked for while any
+    /// other is still sounding is not played at all: a cry over a cry, a cry
+    /// over the narrator, a cry over a wall coming down. That is the whole of
+    /// the original's limit on how often the men answer, and it is why a player
+    /// clicking ten orders a second hears one voice rather than ten. Answers
+    /// whether it started.
+    ///
+    /// **Two older verbs here do not honour it, and are recorded rather than
+    /// changed by the change that found it**: [`Audio::play_speech`] never drops
+    /// — though it does occupy the buffer, so a cry is dropped over it — and the
+    /// fanfares go through [`Audio::play_effect`], which neither drops nor
+    /// occupies. Both are `Sound_PlayFile` in the original.
+    pub fn play_file(&mut self, name: &str, speech: bool) -> bool {
+        if let Some(last) = self.one_shot.as_deref() {
+            if self.is_playing(last) {
+                return false;
+            }
+        }
+        let on = if speech { self.options.speech } else { self.options.effects };
+        if !on {
+            return false;
+        }
+        let Some(sound) = self.load(name) else { return false };
+        let key = name.to_ascii_lowercase();
+        if let Ok(mut m) = self.mixer.lock() {
+            m.play_effect(key.clone(), sound);
+        }
+        self.one_shot = Some(key);
+        true
     }
 
     /// Decode a file, caching the small ones.
@@ -779,6 +838,15 @@ pub struct Director {
     /// [`crate::screen::Machine::clicks`] at the previous tick — the widget
     /// click's edge. See [`Director::hear_the_click`].
     clicks: u32,
+    /// **The live battle's [`l2_sim::Cues`] at the previous tick**, so that an
+    /// event inside the tick since is an edge this can see. `None` while no
+    /// battle is up. See [`Director::hear_the_battle`].
+    cues: Option<l2_sim::Cues>,
+    /// How many of the live battle's [`crate::battlefield::Cry`]s have been
+    /// played or dropped already.
+    cries_heard: usize,
+    /// `g_troopCryCounter` — process-lifetime, as the original's is.
+    troop_cries: TroopCries,
 }
 
 impl Director {
@@ -978,6 +1046,8 @@ impl Director {
 
         self.hear_the_march(audio, game);
 
+        self.hear_the_battle(audio, game);
+
         // **The message window, which is where nearly all of the game's audio
         // lives.** 646 of the install's 771 files are somebody speaking, and
         // every one of them is played from `Msg_DrawWindow` (`0x0047309E`) or a
@@ -1147,6 +1217,224 @@ impl Director {
             }
         }
         self.tiles = now;
+    }
+
+    /// **The battlefield: the men's cries, and the fighting.**
+    ///
+    /// Two sources, one per kind of occasion, and neither is a report the
+    /// simulation hands over:
+    ///
+    /// * **the cries** are [`crate::battlefield::LiveBattle::cries`], a list the
+    ///   six cry arms append to as a player selects and orders — `Battle_DragSelect`,
+    ///   `Battle_OrderSelection` and `Battle_FormationKey`. Each is played through
+    ///   [`TroopCries`], which is `Sound_PlayTroopCry`'s body;
+    /// * **the fighting** is [`l2_sim::Cues`], the per-man record the battle
+    ///   keeps (`crate::cue` in `l2-sim` is why counters are exact rather than an
+    ///   approximation). [`battle_requests`] turns the counts that moved since the
+    ///   last tick into the original's calls.
+    ///
+    /// Cries first, because they are input and our machine handles input before
+    /// the tick that follows it. The two can only meet on the one-shot buffer,
+    /// which a wall coming down and a cry share.
+    ///
+    /// **Why this cannot change the battle**: it holds `&Game`. A test that plays
+    /// one battle with this listening and one without, and requires the two to
+    /// agree at every tick, is `tests/audio_battle.rs`.
+    fn hear_the_battle(&mut self, audio: &mut Audio, game: &crate::Game) {
+        let Some(live) = game.battle.as_deref() else {
+            self.cues = None;
+            self.cries_heard = 0;
+            return;
+        };
+
+        // A list shorter than what was heard is a different battle.
+        let from = if live.cries.len() < self.cries_heard { 0 } else { self.cries_heard };
+        for cry in &live.cries[from..] {
+            // **The take advances whether or not the cry is heard** —
+            // `Sound_PlayTroopCry` steps its counter and only then calls
+            // `Sound_PlayFile`, which may drop it. So `cry` runs first and
+            // unconditionally.
+            if let Some(name) = self.troop_cries.cry(cry.troop, cry.class) {
+                audio.play_file(name, true);
+            }
+        }
+        self.cries_heard = live.cries.len();
+
+        let now = live.runner.sim.cues;
+        let was = match self.cues {
+            Some(c) if !now.is_behind(&c) => c,
+            // The first tick of a battle, or a new battle: everything since zero.
+            _ => l2_sim::Cues::default(),
+        };
+        for request in battle_requests(&was, &now) {
+            match request {
+                Request::Slot(slot) => {
+                    if let Some(name) = names::slot(names::Bank::Battle, slot) {
+                        audio.play_effect_if_idle(name);
+                    }
+                }
+                Request::File(name) => {
+                    audio.play_file(name, false);
+                }
+            }
+        }
+        self.cues = Some(now);
+    }
+}
+
+/// One call the original makes from inside the battlefield's per-man state
+/// machine, in the form the audio layer can act on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Request {
+    /// `Sound_PlaySlot(n)`, or its 28-byte thunk `FUN_004262CF(n)` — a
+    /// **1-based** slot of [`names::BATTLE_BANK`], dropped if that buffer is
+    /// still sounding. [`Audio::play_effect_if_idle`].
+    Slot(usize),
+    /// `Sound_PlayFile(name, 0, 0)` — the one-shot buffer, dropped if it is
+    /// still sounding. [`Audio::play_file`].
+    File(&'static str),
+}
+
+/// **The battlefield's sounding call sites, as a function of what happened.**
+///
+/// `was` and `now` are one battle's [`l2_sim::Cues`] at two ticks; the answer
+/// is every call the original would have made in between, **once per kind**.
+/// That "once" is not a throttle of ours — every call below is drop-if-busy on
+/// its own buffer, so a second request for the same slot inside one tick is
+/// dropped by the original too. `l2-sim`'s `crate::cue` has the argument.
+///
+/// Each arm is the original's branch, beside the id of the site it reproduces.
+/// Which *event* each counter records is decided where it is written, in
+/// `l2-sim`; which *slot* that event plays is decided here, because it is the
+/// original's ladder and not a rule of the battle.
+///
+/// Nine of the twenty-five sites are not here, and each is `blocked` in
+/// `docs/audio.json` on a mechanic this engine does not model: fire
+/// (`BattleMan_BurnTick` ×2, `FUN_0048551D`), boiling oil (`FUN_0047A814`),
+/// a siege tower docking (`FUN_00491492`), state 17's own loose
+/// (`BattleMan_StateCloseToAttack` ×2), a catapult shot on a rampart four high
+/// (`Missile_Step#2`), and a realm eliminated mid-battle (`FUN_0047FE0B`).
+pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
+    use l2_sim::{Troop, WeaponClass, ALL_TROOPS, SIDE_A, SIDE_B};
+    let struck = |t: Troop| now.melee_casualties(t) != was.melee_casualties(t);
+    let hit = |w: WeaponClass| now.missile_hits(w) != was.missile_hits(w);
+    let felled = |w: WeaponClass| now.missile_casualties(w) != was.missile_casualties(w);
+    let loosed = |w: WeaponClass| now.loosed(w) != was.loosed(w);
+    let mut out = Vec::new();
+    let mut ask = |moved: bool, request: Request| {
+        if moved {
+            out.push(request);
+        }
+    };
+
+    // **`Melee_Tick` (`0x00494908`), a man falling to a blow.** The sword is
+    // chosen by the troop that **struck** him: `other.troopType == 2 ? 4 : == 3
+    // ? 5 : == 6 ? 5 : 6`. `[V]`
+    // sfx: Melee_Tick#1
+    ask(struck(Troop::Macemen), Request::Slot(4));
+    // sfx: Melee_Tick#2
+    ask(struck(Troop::Swordsmen), Request::Slot(5));
+    // sfx: Melee_Tick#3
+    ask(struck(Troop::Knights), Request::Slot(5));
+    // sfx: Melee_Tick#4
+    ask(
+        ALL_TROOPS
+            .iter()
+            .filter(|t| !matches!(t, Troop::Macemen | Troop::Swordsmen | Troop::Knights))
+            .any(|&t| struck(t)),
+        Request::Slot(6),
+    );
+    // **`Melee_Tick`, the last man of a figure**, by the dying figure's side:
+    // `me.side == 0 ? 0xB : me.side == 4 ? 0xC`. `[V]`
+    // sfx: Melee_Tick#5
+    ask(now.melee_deaths(SIDE_A) != was.melee_deaths(SIDE_A), Request::Slot(0xb));
+    // sfx: Melee_Tick#6
+    ask(now.melee_deaths(SIDE_B) != was.melee_deaths(SIDE_B), Request::Slot(0xc));
+
+    // **`Missile_Step` (`0x00492C8B`).** A catapult shot counted against a
+    // wall; a shot striking a man, crossbow 10 and bow 8; the same slot again
+    // on a casualty, which is always dropped because that buffer started a
+    // statement earlier; and `0xD` for the last man. `[V]`
+    // sfx: Missile_Step#1
+    ask(now.walls_struck() != was.walls_struck(), Request::Slot(0xf));
+    // sfx: Missile_Step#3
+    ask(hit(WeaponClass::Crossbow), Request::Slot(10));
+    // sfx: Missile_Step#4
+    ask(hit(WeaponClass::Bow), Request::Slot(8));
+    // sfx: Missile_Step#5
+    ask(felled(WeaponClass::Crossbow), Request::Slot(10));
+    // sfx: Missile_Step#6
+    ask(felled(WeaponClass::Bow), Request::Slot(8));
+    // sfx: Missile_Step#7
+    ask(now.missile_deaths() != was.missile_deaths(), Request::Slot(0xd));
+
+    // **The shot leaving.** `BattleMan_FireMissile` (`0x00483337`): crossbow 9,
+    // bow 7. `BattleMan_StateEngineFire` (`0x004843BC`): the catapult, `0xE`.
+    // `[V]` for the slots; `[D]` that our catapult's loose is the same occasion,
+    // because ours fires through the shared reload path rather than the
+    // engine's own 100-of-180 cadence.
+    // sfx: BattleMan_FireMissile#1
+    ask(loosed(WeaponClass::Crossbow), Request::Slot(9));
+    // sfx: BattleMan_FireMissile#2
+    ask(loosed(WeaponClass::Bow), Request::Slot(7));
+    // sfx: BattleMan_StateEngineFire#1
+    ask(loosed(WeaponClass::Catapult), Request::Slot(0xe));
+
+    // **`Wall_Smash` (`FUN_0049694F`)**, whose first statement is
+    // `Sound_PlayFile("bathit2.wav", 0, 0)`. `[V]`
+    // sfx: FUN_0049694f#1
+    ask(now.walls_smashed() != was.walls_smashed(), Request::File(names::battle::WALL_SMASH));
+
+    out
+}
+
+/// **`Sound_PlayTroopCry` (`0x00499CB1`)'s body, and `g_troopCryCounter`
+/// (`0x0053EF60`) with it.**
+///
+/// ```c
+/// counter[unit][class] += 1;
+/// if (3 < counter[unit][class]) counter[unit][class] = 0;
+/// take = counter[unit][class];
+/// if (class == 3) take = 0;
+/// Sound_PlayFile(g_troopSounds + class*0x40 + take*0x10 + unit*0x100, 1, 0);
+/// ```
+///
+/// `[V]`, and **no random number anywhere in it**: the take is a round robin
+/// per (troop, class), stepped *before* it is read, so the first cry of each
+/// pair is take **1**, not take 0, and the cycle is 1, 2, 3, 0. The counter is
+/// in `.bss` and this function is its only writer — an exhaustive reference
+/// search — so it starts at zero with the process and is never reset between
+/// battles. Ours lives on the [`Director`], which lives as long as the process.
+///
+/// That settles the determinism question the brief raised before it could
+/// arise: **a cry draws on no generator at all**, so there is nothing to keep
+/// away from the simulation's `Pcg32`. If a future site does need presentation
+/// randomness, it needs a generator of its own on the audio side, never the
+/// battle's.
+///
+/// The counter steps **even when the cry is dropped**, because the drop is
+/// inside `Sound_PlayFile`. So two orders in quick succession sound take 1 and
+/// then, when the next is heard, take 3 — the dropped take 2 was spent.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct TroopCries {
+    /// `[troop][class]`, 0…3.
+    counter: [[u8; 4]; 11],
+}
+
+impl TroopCries {
+    /// Step the counter for one cry and name the file it plays — `None` for a
+    /// cell holding `null.wav` (a siege engine told anything but to move) and
+    /// for anything out of range. The counter steps in the `None` case too, as
+    /// the original's does.
+    pub fn cry(&mut self, troop: u8, class: u8) -> Option<&'static str> {
+        let (t, c) = (troop as usize, class as usize);
+        let n = self.counter.get_mut(t)?.get_mut(c)?;
+        *n += 1;
+        if *n > 3 {
+            *n = 0;
+        }
+        let take = if c == 3 { 0 } else { *n as usize };
+        names::troop_cry(t, c, take)
     }
 }
 
