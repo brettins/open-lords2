@@ -413,6 +413,14 @@ fn furnish_campaign(k: &mut Kingdom) {
         u.path = (0..n * 3 + 1).map(|s| (s as u8, (s * 2) as u8)).collect();
         u.moving = n % 2 == 0;
         u.on_road = n % 2 == 1;
+        // The sub-tile counter — `Unit_StepOnce`'s `+0x149`, `+0x14A` and
+        // `+0x14B` bit 0. `at_tile_edge` is furnished **false** on two of the
+        // four because `Unit::new` leaves it *set* (`Unit_Spawn`), so a `true`
+        // here would be indistinguishable from the default and the round trip
+        // could drop the byte unnoticed.
+        u.sub_tile = (n as u8 + 1) * 2;
+        u.sub_frame = n as u8 % 4 + 1;
+        u.at_tile_edge = n % 2 == 0;
         u.name_index = n as u8 + 3;
         u.needs_destination = n % 2 == 1;
         u.dest_county = n as u8 + 4;

@@ -101,14 +101,18 @@
 //! * **The two sample banks — 49 of the original's 134 trigger sites, and the
 //!   largest single thing missing.** [`names::KINGDOM_BANK`] and
 //!   [`names::BATTLE_BANK`] are recovered and tested against the install; 27 of
-//!   their 29 slots ship, and **nothing calls [`Audio::play_effect_if_idle`]**.
-//!   The village's work sounds, the marching army, the merchant's cart, the
-//!   peasant mob, every sword and every arrow are in there. The clip-clop a
-//!   player asked for is `Unit_MoveInFacing` (`0x00466D84`) calling
-//!   `Sound_PlaySlot(0xb)` **on every step of every moving unit** — a rate, not
-//!   a trigger, and it works only because `Sound_PlaySlot` drops the request
-//!   when that buffer is still playing, which is exactly what
-//!   [`Audio::play_effect_if_idle`] is. See `docs/audio-triggers.md`.
+//!   their 29 slots ship. The village's work sounds, the peasant mob, every
+//!   sword and every arrow are still silent.
+//!
+//!   > This used to end *"and **nothing calls
+//!   > [`Audio::play_effect_if_idle`]**"*, and that is no longer true. The
+//!   > clip-clop a player asked for is `Unit_MoveInFacing` (`0x00466D84`)
+//!   > calling `Sound_PlaySlot(0xb)` **on every step of every moving unit** —
+//!   > a rate, not a trigger, and it works only because `Sound_PlaySlot` drops
+//!   > the request when that buffer is still playing, which is exactly what
+//!   > [`Audio::play_effect_if_idle`] is. [`Director::hear_the_march`] is that
+//!   > call site, one hoofbeat per tile per unit, and it is the first caller
+//!   > the drop-if-busy verb has had. See `docs/audio-triggers.md`.
 //! * **The narrator's *chained* takes**, which is the part of the voice class
 //!   that is still missing. `FUN_004B3ACD(group)` walks a five-wide table at
 //!   `0x004E1E40` and plays `S201_02.wav + (n - 1) * 0x10` **one clip at a time
@@ -719,6 +723,13 @@ pub struct Director {
     /// `ff_batl.wav` sounds once when the battle is announced rather than sixty
     /// times a second while the player decides.
     prompt_heard: bool,
+    /// **Where every unit stood at the last tick**, so that a unit *entering a
+    /// tile* can be noticed without the simulation reporting it. See
+    /// [`Director::hear_the_march`].
+    ///
+    /// Empty until the first tick, which is what makes the first tick silent:
+    /// there is nothing to have moved from.
+    tiles: Vec<Option<(l2_kingdom::UnitKind, (u8, u8))>>,
 }
 
 impl Director {
@@ -773,6 +784,8 @@ impl Director {
         }
         self.prompt_heard = prompt_up;
 
+        self.hear_the_march(audio, game);
+
         // **The message window, which is where nearly all of the game's audio
         // lives.** 646 of the install's 771 files are somebody speaking, and
         // every one of them is played from `Msg_DrawWindow` (`0x0047309E`) or a
@@ -813,6 +826,79 @@ impl Director {
                 }
             }
         }
+    }
+
+    /// **The clip-clop.** `Unit_MoveInFacing` (`0x00466D84`) plays a sound as
+    /// its first statement after unlinking the unit from the tile it is
+    /// leaving. `[V]`:
+    ///
+    /// ```c
+    /// if (kind == 3 || kind == 4) Sound_PlaySlot(0xb);   /* merchant.wav */
+    /// else if (kind == 2)         Sound_PlaySlot(5);     /* rioters.wav  */
+    /// else if (kind == 1)         Sound_PlaySlot(0xc);   /* army.wav     */
+    /// ```
+    ///
+    /// # It is a rate, not an event
+    ///
+    /// There is **no guard on owner and none on visibility**: every step of
+    /// every moving unit sounds, including an AI's on the far side of the map.
+    /// So this is not "an army set off", it is the tempo of the campaign map,
+    /// and it is the same number as `tests/pacing.rs`'s — one hoofbeat per tile
+    /// per unit, eight ticks apart on a road and thirty-two off one. A player
+    /// asked for *"the clip-clop of the merchants on end turn"* and it is
+    /// audible pacing: before `Unit_StepOnce`'s sub-tile counter landed this
+    /// would have been a single 180 ms gallop at the end of every turn.
+    ///
+    /// # Why it does not become a roar
+    ///
+    /// `Sound_PlaySlot` is the **drop-if-busy** verb, so twelve units marching
+    /// cost one voice per distinct sound rather than twelve.
+    /// [`Audio::play_effect_if_idle`] is exactly that verb and there is
+    /// deliberately no throttle of our own on top of it: if this ever needs
+    /// one, the mixer is wrong rather than the call site.
+    ///
+    /// # Why the movement is *found* rather than reported
+    ///
+    /// Nothing in the simulation hands the audio layer an event, and that is
+    /// the property the whole module rests on: [`Director::listen`] takes
+    /// `&Game`, so a sound cannot change what the simulation does in either
+    /// value or timing (`docs/netcode.md` D-3). Threading a "who stepped"
+    /// report out of `l2_kingdom::units_tick` and along to here would have put
+    /// it on the [`crate::Game`], which is to say in the save and in the
+    /// lockstep digest, for a sound. Diffing 150 tiles a tick is cheaper than
+    /// that in every sense that matters.
+    ///
+    /// **The one thing it cannot tell apart** is a step from a teleport: an
+    /// army garrisoning a castle is put on the keep's tile by
+    /// `Army_GarrisonApply` and sounds here as though it walked there. `[D]` —
+    /// one extra hoofbeat, dropped if the sound is already playing, and the
+    /// alternative was the report above.
+    fn hear_the_march(&mut self, audio: &mut Audio, game: &crate::Game) {
+        use l2_kingdom::UnitKind;
+
+        let mut now = vec![None; l2_kingdom::unit::MAX_UNITS];
+        for (id, u) in game.kingdom.campaign.units.iter() {
+            now[id] = Some((u.kind, u.tile()));
+        }
+        for (id, entry) in now.iter().enumerate() {
+            let (Some((kind, at)), Some(Some((was, from)))) = (entry, self.tiles.get(id)) else {
+                continue;
+            };
+            // A slot that has been reused is a different unit standing
+            // somewhere else, not a march.
+            if kind != was || at == from {
+                continue;
+            }
+            let slot = match kind {
+                UnitKind::Army => 0xc,
+                UnitKind::PeasantMob => 5,
+                UnitKind::Merchant | UnitKind::Transport => 0xb,
+            };
+            if let Some(name) = names::slot(names::Bank::Kingdom, slot) {
+                audio.play_effect_if_idle(name);
+            }
+        }
+        self.tiles = now;
     }
 }
 

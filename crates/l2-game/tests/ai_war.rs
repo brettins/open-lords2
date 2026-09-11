@@ -278,8 +278,33 @@ fn a_played_game_writes_the_four_fields_the_war_handlers_read() {
     assert_eq!(game.kingdom.realms[2].pair(1).standing, 5);
     assert_eq!(game.kingdom.realms[2].pair(2).standing, 5);
 
-    for _turn in 1..=TURNS {
+    // **An alliance is counted while it stands, not only at the end.**
+    //
+    // This used to read the board once, after the last turn, and assert that
+    // somebody was allied *then*. It went red the day units started taking the
+    // original's thirty-two ticks to cross a tile — and the diagnosis it
+    // printed, *"so step 2 is not being dispatched"*, was wrong: step 2 runs,
+    // the realms **do** ally, and this world's first alliance forms on turn 11.
+    // It had been broken again by turn 40.
+    //
+    // So the assertion was never about the courtship. It was about the state of
+    // one instant, and it held because on the old, faster world the last
+    // alliance to form happened to still be standing when the loop stopped. A
+    // pacing change moved the trajectory by a few turns and it fell over —
+    // `docs/agents.md`, *a test that passes for an accidental reason*, and the
+    // reason here was the arithmetic of which turn the run ends on.
+    //
+    // What `AI_Diplomacy` being dispatched actually implies is that an alliance
+    // is reachable at all, so that is what is watched for.
+    let mut ever_allied = 0;
+    let mut first_alliance = None;
+    for turn in 1..=TURNS {
         l2_game::turn::end_turn(&mut game).expect("the machine comes round");
+        let standing = (1..=5).filter(|&r| game.kingdom.realms[r].ally != 0).count();
+        if standing > ever_allied {
+            ever_allied = standing;
+            first_alliance.get_or_insert(turn);
+        }
     }
 
     let mut opinions = 0;
@@ -357,10 +382,15 @@ fn a_played_game_writes_the_four_fields_the_war_handlers_read() {
          heal is the only thing that can raise one without a letter, so step 2 is \
          not being dispatched"
     );
+    eprintln!(
+        "  {allies} realms allied at the end; the most ever standing at once was \
+         {ever_allied}, first on turn {first_alliance:?}"
+    );
     assert!(
-        allies > 0,
-        "forty turns and not one alliance — `AI_Diplomacy`'s courtship is the only \
-         way two AI realms can reach one, so step 2 is not being dispatched"
+        ever_allied > 0,
+        "forty turns and not one alliance ever formed — `AI_Diplomacy`'s courtship \
+         is the only way two AI realms can reach one, so step 2 is not being \
+         dispatched"
     );
     // And the war half, which is the offence hook rather than step 2: it is
     // asserted separately so that a failure says which of the two broke.

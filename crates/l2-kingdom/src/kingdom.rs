@@ -539,6 +539,7 @@ impl Kingdom {
             Pass::RefreshEstimates => self.refresh_estimates_all(),
             Pass::MercenaryAdvance => self.mercenary_advance(),
             Pass::UnitsResetMoves => self.units_reset_moves(),
+            Pass::ReconcileAlliances => self.reconcile_alliances(),
         }
     }
 

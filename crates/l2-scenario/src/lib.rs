@@ -572,6 +572,29 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         path: u.path(),
         moving: u.move_state != 0,
         on_road: u.on_road,
+        // **`+0x149 … +0x14B` are not read**, and this is a default rather than
+        // an import. `l2_formats::save::Unit` stops at `+0x14C`; adding the
+        // three bytes is `l2-formats`' business and `docs/agents.md` reserves
+        // that crate for the lead session.
+        //
+        // What it costs is bounded and is stated rather than assumed: the
+        // original writes its save from phase 7, **after** `Units_ResetMoves`,
+        // so nothing in a legitimately saved position is walking and the
+        // counter is not being consulted. A unit whose last march ended
+        // part-way through a tile carries that progress on disk and would get
+        // it back; here it starts the next order from the near edge instead —
+        // at worst fifteen-sixteenths of one tile's crossing, once, on the
+        // first leg after a load. `docs/decisions.md` **CNEW-subtile**.
+        //
+        // The latch defaults **set**, which is `Unit_Spawn`'s own value
+        // (`0x0046E1B0`: `field_0x14b |= 1`) and the state the original leaves
+        // a unit in when it stops for want of moves — `Unit_Step`'s budget
+        // test is inside the latched arm, so a unit that ran out is standing
+        // on a tile edge by construction. Defaulting it clear would make every
+        // imported unit stand still for its first crossing.
+        sub_tile: 0,
+        sub_frame: 0,
+        at_tile_edge: true,
         name_index: u.name_index,
         needs_destination: u.needs_destination,
         dest_county: u.dest_county,

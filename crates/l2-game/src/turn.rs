@@ -83,7 +83,28 @@ use crate::game::Game;
 /// A real turn takes far fewer — `tests/turn.rs` pins the actual number — and
 /// this exists only so a bug in a wait condition is a diagnosable stop rather
 /// than a hang in the event loop.
-pub const MAX_TICKS: u32 = 512;
+///
+/// # Why it is 2048 and was 512
+///
+/// **512 was set when a unit crossed a tile per tick**, which it no longer
+/// does: `Unit_StepOnce`'s sub-tile counter costs 8 ticks a road tile and 32
+/// an open one ([`l2_kingdom::units_tick`]). Three of the seven phases wait for
+/// a whole class of unit to stop walking, one after another, and the AI's phase
+/// keeps taking steps while any of its armies is still moving —
+/// `docs/armies.md` §3.2. So the bound is four consecutive waits, each as long
+/// as the slowest possible leg.
+///
+/// The slowest leg is 15 move points spent entirely off road: 3 a tile buys 5
+/// tiles, 32 ticks each, **160 ticks**. Spending them on roads is *cheaper* in
+/// ticks, not dearer — 15 tiles at 8 — so 160 is the maximum and
+/// `4 × 160 + the fixed phases ≈ 680`. 2048 is threefold headroom on that.
+///
+/// **The cost of raising it is real and is the reason for the arithmetic**: a
+/// genuinely wedged turn now takes 33 seconds of wall clock to report itself
+/// instead of 8. That is the trade — a bound that a legitimate turn can cross
+/// is worse than a slow diagnosis, because it stops the turn *and* looks like
+/// the bug it is not.
+pub const MAX_TICKS: u32 = 2048;
 
 /// What one end-of-turn did.
 #[derive(Debug, Clone, PartialEq, Eq)]

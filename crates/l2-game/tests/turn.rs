@@ -241,6 +241,30 @@ fn with_a_map() -> Game {
     g
 }
 
+/// **Let the orders on the map finish walking**, which is the thing a player
+/// does between giving one and pressing End Turn.
+///
+/// `Units_Tick` runs on ordinary frames as well as inside a turn —
+/// [`turn::tick_units_only`], `docs/decisions.md` C115 — and since
+/// `Unit_StepOnce`'s sub-tile counter landed (`docs/decisions.md`
+/// **CNEW-subtile**) a unit takes 8 ticks to cross a road tile and 32 to cross
+/// anything else. **Nothing in the seven phases waits on the human's armies**:
+/// phase 2 is sieges and phase 4 is the AI's. So a test that ends the turn on
+/// the same call as the order is asserting a race between the phases and the
+/// march, and the assertion it wants is about the march.
+///
+/// Returns the number of ticks it took, so a caller can assert the pace rather
+/// than only the destination.
+fn march(g: &mut Game) -> u32 {
+    for ticks in 1..=turn::MAX_TICKS {
+        turn::tick_units_only(g);
+        if !g.kingdom.campaign.units.iter().any(|(_, u)| u.moving) {
+            return ticks;
+        }
+    }
+    panic!("the march never finished");
+}
+
 fn army(g: &mut Game, owner: u8, x: u8, y: u8) -> usize {
     let mut u = Unit::new(UnitKind::Army, owner, x, y);
     u.men = 120;
@@ -269,11 +293,41 @@ fn an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended() {
 
     let outcome = turn::end_turn(&mut g).expect("the machine comes round");
 
-    let to = g.kingdom.campaign.units.get(id).unwrap().tile();
-    assert_ne!(to, from, "the army did not move at all");
-    assert_eq!(to, (20, 10), "and it arrived");
-    assert!(outcome.steps >= 15, "{} tiles entered over the turn", outcome.steps);
+    // **It moved, and it did not arrive — and the second half is the rule, not
+    // a shortfall.** Fifteen road tiles is 113 ticks since `Unit_StepOnce`'s
+    // sub-tile counter landed (`docs/decisions.md` **CNEW-subtile**), and
+    // *nothing in the seven phases waits on the human's armies* — phase 2 is
+    // sieges, phase 4 is the AI's. So how far it gets is how long the phases
+    // happen to take, and the claim this test exists for is the one above it:
+    // the turn machine ticks the unit sweep at all. It used to answer every
+    // unit wait `true` and the army finished the turn where it started.
+    //
+    // `mid.0 < 20` is the pacing assertion and it is the one to ablate: make
+    // `cross_sub_tile` return `true` unconditionally and the army arrives
+    // inside the turn, exactly as this test used to require.
+    let mid = g.kingdom.campaign.units.get(id).unwrap().tile();
+    assert_ne!(mid, from, "the army did not move at all");
+    assert_eq!(mid.1, 10, "along the road it was given");
+    assert!(mid.0 > from.0 && mid.0 < 20, "part-way, not arrived: {mid:?}");
+    assert!(outcome.steps >= 1, "{} tiles entered over the turn", outcome.steps);
     assert!(outcome.pending_battles.is_empty(), "nobody was in the way");
+
+    // **And the turn stopped it where it stood.** `Units_ResetMoves`
+    // (`0x004651B9`) is phase 7 and its loop is unconditional —
+    // `g_units[i].moving = 0; g_units[i].movesUsed = 0;` over all 150 slots —
+    // so an unfinished march is **dropped at the season boundary, not carried
+    // across it**. `[V]`, and it is the reason the fixture below is the shape
+    // it is: a player watches his army walk during his own turn (phase 4 has
+    // no clock but the turn timer) and presses End Turn after it has arrived.
+    // A test that presses End Turn in the same breath as the order is not a
+    // shortcut, it is a different scenario.
+    assert!(!g.kingdom.campaign.units.get(id).unwrap().moving, "phase 7 stopped it");
+
+    // Ordered again and given the frames a player gives it, it arrives.
+    g.order_unit_move(id, (20, 10)).expect("still on the road");
+    march(&mut g);
+    let to = g.kingdom.campaign.units.get(id).unwrap().tile();
+    assert_eq!(to, (20, 10), "and it arrived");
 }
 
 /// A unit the player does not own takes no orders, and the refusal changes
@@ -464,6 +518,12 @@ fn a_unit_loaded_with_no_allowance_still_walks() {
     let id = army(&mut g, 1, 5, 10);
     g.order_unit_move(id, (12, 10)).unwrap();
     g.kingdom.campaign.units.get_mut(id).unwrap().move_allowance = 0;
+
+    // Seven road tiles is 49 ticks and no phase waits on it — see [`march`].
+    // The allowance is rebuilt inside the unit sweep, so `march` exercises the
+    // subject just as `end_turn` did; what it no longer does is race it.
+    let ticks = march(&mut g);
+    assert_eq!(ticks, 49, "seven road tiles: the first free and eight for each of the six");
 
     turn::end_turn(&mut g).unwrap();
 

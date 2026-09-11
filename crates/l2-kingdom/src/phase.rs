@@ -326,6 +326,23 @@ pub enum Pass {
     /// `Units_ResetMoves` — every unit's move counter back to zero. Turn phase
     /// 7, immediately after the mercenary walk.
     UnitsResetMoves,
+    /// `Diplo_ReconcileAlliances` (`0x004A1847`) — turn phase 7, and **the last
+    /// thing it does before `Turn_AdvancePhase`**.
+    ///
+    /// **It was implemented and never called.** `crate::diplomacy` has it,
+    /// `Kingdom::reconcile_alliances` wraps it, and until this pass existed
+    /// nothing in the workspace invoked either — so the `allied` matrix and the
+    /// `ally` bytes were only ever written by the two functions that form and
+    /// break an alliance, and an alliance with a realm that had just been
+    /// eliminated was never taken down. `tests/long_game.rs` catches exactly
+    /// that as a broken invariant, and it caught it only once
+    /// `docs/decisions.md` **CNEW-subtile** slowed the world down enough for
+    /// realm 2 to die while realm 5 was still allied to it.
+    ///
+    /// A producer that is complete and a consumer that is absent look identical
+    /// from the producer's end (`docs/agents.md`), and this is that shape with
+    /// the consumer being *the game itself*.
+    ReconcileAlliances,
 }
 
 /// The end-of-season pipeline, in order.
@@ -376,7 +393,7 @@ pub enum Pass {
 ///
 ///    **`docs/armies.md` §2.1 has these two the wrong way round**, giving
 ///    `Units_ResetMoves` first. Corrected there.
-pub const SEASON_PIPELINE: [Pass; 30] = [
+pub const SEASON_PIPELINE: [Pass; 31] = [
     Pass::Clock,
     Pass::EventRoll,
     Pass::Weather,
@@ -407,16 +424,30 @@ pub const SEASON_PIPELINE: [Pass; 30] = [
     Pass::RefreshEstimates,
     Pass::MercenaryAdvance,
     Pass::UnitsResetMoves,
+    // **Appended, and the position is the original's own.** `Turn_Tick`'s
+    // phase-7 arm is `Season_Advance(); Mercenary_AdvanceAll();
+    // Units_ResetMoves(); Move_BuildCostMap(); Score_RankRealms();
+    // Diplo_ReconcileAlliances(); Turn_AdvancePhase();` — so this really is
+    // the last work of the phase. Appending also leaves every existing pass
+    // index unmoved, which matters because `l2_game::save` writes a pass as
+    // its position in this array.
+    Pass::ReconcileAlliances,
 ];
 
 /// The passes that are in `Season_Advance`'s call list, as against the ones
 /// this crate runs there for want of anywhere better.
 ///
-/// Three are in the second group: [`Pass::ScoreRank`], which has five callers
-/// and none of them is `Season_Advance`, and the two campaign passes, which
+/// Four are in the second group: [`Pass::ScoreRank`], which has five callers
+/// and none of them is `Season_Advance`, and the three campaign passes, which
 /// belong to `Turn_Tick`'s seventh phase alongside it. See [`SEASON_PIPELINE`].
 pub fn is_in_season_advance(pass: Pass) -> bool {
-    !matches!(pass, Pass::ScoreRank | Pass::MercenaryAdvance | Pass::UnitsResetMoves)
+    !matches!(
+        pass,
+        Pass::ScoreRank
+            | Pass::MercenaryAdvance
+            | Pass::UnitsResetMoves
+            | Pass::ReconcileAlliances
+    )
 }
 
 impl Pass {
@@ -553,17 +584,25 @@ mod tests {
         assert!(order(Commodity::Weapons) < order(Commodity::Wood));
     }
 
-    /// **Three passes here are not `Season_Advance`'s calls**, whatever
+    /// **Four passes here are not `Season_Advance`'s calls**, whatever
     /// `docs/kingdom.md` §3.4 says of the first: `Score_RankRealms` has five
-    /// callers and none of them is the season, and the two campaign passes
-    /// belong to `Turn_Tick`'s seventh phase alongside it. All three are kept
+    /// callers and none of them is the season, and the three campaign passes
+    /// belong to `Turn_Tick`'s seventh phase alongside it. All four are kept
     /// in the pipeline because the work has to happen somewhere, and flagged so
     /// nobody reads the array as a transcription.
     #[test]
-    fn three_passes_here_are_not_things_season_advance_calls() {
+    fn four_passes_here_are_not_things_season_advance_calls() {
         let extra: Vec<Pass> =
             SEASON_PIPELINE.into_iter().filter(|p| !is_in_season_advance(*p)).collect();
-        assert_eq!(extra, vec![Pass::ScoreRank, Pass::MercenaryAdvance, Pass::UnitsResetMoves]);
+        assert_eq!(
+            extra,
+            vec![
+                Pass::ScoreRank,
+                Pass::MercenaryAdvance,
+                Pass::UnitsResetMoves,
+                Pass::ReconcileAlliances
+            ]
+        );
         assert!(is_in_season_advance(Pass::History), "the ring is the real second-to-last");
         assert!(is_in_season_advance(Pass::RationPreview), "and the preview really is last");
     }
