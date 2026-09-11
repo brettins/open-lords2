@@ -258,13 +258,14 @@ pub const SIDEBAR_BUTTONS: [SidebarButton; 5] = [
 ///
 /// **`L2.eng` does have words for them, and this comment said it did not.** The
 /// original's tooltip layer (`FUN_00476E95`, gated on `g_optToolTips`) resolves
-/// the three mode buttons through `FUN_00477320` to hotspot ids 2, 3 and 4 and
+/// the three mode buttons through `FUN_00477320` to tip ids 2, 3 and 4 and
 /// draws group **220** at those indices: *"Labour, red if needed, purple if
 /// idle."*, *"Ration status"* and *"Overall happiness"* — with *"Overview map"*
 /// on the fourth button and *"Return census map to empire mode"* (index 31) once
-/// an overlay is up. `docs/draws-map.md` §5.1, **C86**. Ours are still
-/// ours, because a status line is not a tooltip; the point is that the wording
-/// exists to be used when the tooltip layer is built.
+/// an overlay is up. `docs/draws-map.md` §5.1, **C86**. The status line stays
+/// ours, because a status line is not a tooltip; the tips themselves are drawn
+/// from the player's own group 220 by [`crate::tooltip`], which reads
+/// [`MapScreen::minimap_mode`] through [`Screen::minimap_mode`].
 fn minimap_mode_name(mode: MinimapMode) -> &'static str {
     match mode {
         MinimapMode::Owner => "OWNERS",
@@ -2296,6 +2297,11 @@ impl Screen for MapScreen {
     /// `Some` and `None`. `Tip_Update`'s *"Army Movement:"* arm is the reader.
     fn mode_screen_id(&self) -> Option<u8> {
         self.move_order.is_some().then_some(0x10)
+    }
+
+    /// `g_minimapMode`, 0 owners … 3 happiness, for the tool tips.
+    fn minimap_mode(&self) -> Option<u8> {
+        Some(self.minimap_mode as u8)
     }
 
     fn title(&self, ctx: &Ctx) -> String {

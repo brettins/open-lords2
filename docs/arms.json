@@ -2461,6 +2461,54 @@
       "ours": "crates/l2-game/src/screen.rs"
     },
     {
+      "id": "0x00476E95/tool-tip-rest",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "every",
+      "gesture": "hover",
+      "addr": "0x00476E95",
+      "what": "The tool tip, once a frame from Battle_Frame after the turn timer, gated on g_optToolTips. With no tip up, FUN_00477131: if g_mouseInputChanged is clear and 999 < timeGetTime() - _DAT_004EA830, stamp now, resolve an id through FUN_004772B6 and place the box at pointer + (0x1E, 0x1E), or - 0xDC / - 0x1E past x 0x141 / y 0xF1, clamped to 0 .. 0x1B8 by FUN_00477249; on a changed frame, stamp now. With a tip up, FUN_004770B8 hides it on any changed frame WITHOUT stamping. The draw: L2.eng group 220 at the id, flat, wrapped at 0xB4, then a 0x20 fill of (0xC - (0xB0 - widest)/16) * 16 by 0x16 (one line) or 0x28, the text again wrapped at 0xB0, and a 0x3F outline through FUN_00403CF4.",
+      "note": "Not a record and not a kind byte: g_mouseInputChanged is set by FUN_004B191E for a move or either button changing, never by a key. One second is 63 of our 16 ms ticks. Because the hide does not stamp, a tip up for a second and nudged for one frame returns on the next still frame. Opt_ToggleToolTips (0x004347C7) and Map_InitMode (0x00498270) both write the stamp to 0, so the next still frame shows a tip at once; ours sees the first as a flip of g_optToolTips and the second as the campaign map arriving on the stack.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/tooltip.rs"
+    },
+    {
+      "id": "0x0047703A/tip-dropped-by-a-repaint",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "every",
+      "gesture": "frame",
+      "addr": "0x0047703A",
+      "what": "FUN_0047703A: if a tip is up, clear it and restore its backdrop, leaving the stamp alone. Called first by Screen_Draw, and by Screen_SiegePrep, Screen_BattlePrompt, Screen_BattleResult, Screen_BattleOutcome's animated arm and Smk_PlayThenClose. So opening a screen takes the tip away, and it returns by the ordinary rule - at once if its stamp is already a second old.",
+      "note": "Ours drops the tip when the screens on the stack change, looking through the message scroll, which is not a screen id. A repaint that changes no screen is not modelled; every one found follows a click, which has already hidden the tip. Inferred.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screen.rs"
+    },
+    {
+      "id": "0x00477320/campaign-sidebar-tips",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00 and the 34 other screens DAT_004D6FB8 marks 1",
+      "gesture": "hover",
+      "addr": "0x00477320",
+      "what": "FUN_00477320, the tip under the pointer on the campaign sidebar, x >= 0x1DE and y >= 0x18: the minimap 1; the four mode buttons 2..5 in owner mode, or the mode that is on (2, 3, 4) and 31 on the fourth; the county strip's two picture buttons 6/7 and 8/9 with the heart 34 between them at x 0x223..0x23A; the labour slider 10; the produce rows 15..17 from DAT_0053F690 and 18..22 from DAT_00553FD0 at (y - 0x130) / pitch; the five sidebar buttons 11, 12, 13, 32, 33; End Turn 14. Everything from the strip down answers 0 unless g_counties[g_selectedCounty].owner == g_localPlayer. Twenty-six ids.",
+      "note": "DAT_004D6FB8 (0x004D6FB8) gives this ladder to 35 screen ids - 0x00..0x07, 0x09, 0x0E..0x16, 0x18, 0x19, 0x1D, 0x1E, 0x21, 0x25, 0x31..0x39, 0x42, 0x43 - so the sidebar tips go on showing over the county panels, the village, the job popup, the court, supplies, the battle prompt and result, the options pages, save/load and an open menu. The produce-row lists are FUN_0040FEC1's, filled when the strip is painted; that they are the selected county's at resolve time is inferred.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/tooltip.rs"
+    },
+    {
+      "id": "0x004777AA/battle-hud-tips",
+      "status": "reproduced",
+      "group": "battlefield",
+      "screen": "0x29",
+      "gesture": "hover",
+      "addr": "0x004777AA",
+      "what": "FUN_004777AA, the battlefield's tip under the pointer, x >= 0x1DE and y >= 0x18: the overview 23 above y 0xB8, the selected troops 24 above 0x19C, the troop levels 25 above 0x1C1, then the five buttons at x splits 0x200, 0x220, 0x240, 0x260: pause 26, retreat 27, drawbridge 28, mop up 29, autocalc 30.",
+      "note": "DAT_004D6FB8[0x29] is 2, and it is the only 2 in the table: the selection drag (0x2A) and the outcome banner (0x2B) are 0, so a tip never shows while a box is being dragged.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/tooltip.rs"
+    },
+    {
       "id": "0x00477DFC/outcome-timer",
       "status": "reproduced",
       "group": "battlefield",

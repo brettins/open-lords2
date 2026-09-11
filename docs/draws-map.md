@@ -15,7 +15,7 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 ## 0. The headline
 
 > **The campaign map makes 139 draw calls. 121 of them are live, 10 are behind debug
-> switches and 8 are dead code. We reproduce 61 of the 121, and we make about 29 draws the
+> switches and 8 are dead code. We reproduce 65 of the 121, and we make about 29 draws the
 > original does not.**
 
 **Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
@@ -23,7 +23,7 @@ draw*, not *at the original's coordinates*. §5a has the measurement that forced
 distinction: of the eighteen draws read back line-by-line against their call sites, **three
 were four pixels wrong** and every test in the tree passed.
 
-That is **50 %**. `docs/arms.json` holds **25** input arms for the same two screen ids
+That is **54 %**. `docs/arms.json` holds **25** input arms for the same two screen ids
 (`0x00` and `0x10`) and marks **20** of them reproduced — **80 %**. So on the screen a player
 spends most of the game looking at:
 
@@ -34,14 +34,14 @@ side, it is not visible from any test, and it is the shape both of the player's 
 *"I see placeholder shit everywhere"* and *"why do the pastures not have cows in them?"* —
 were about. Neither of those is an arm.
 
-The misses are not evenly spread. Three areas hold 46 of the 60, and each is one of
+The misses are not evenly spread. Three areas hold 42 of the 56, and each is one of
 `docs/draws.md` §3's three hiding places:
 
 | area | live | ours | missing | which hiding place |
 |---|---:|---:|---:|---|
 | `Sprite_TopIt`'s tile overlays | 18 | 4 | **14** | a ladder whose arms nobody enumerated |
 | the sidebar's produce and industry rows | 31 | 10 | **21** | a variable widget count |
-| drawn from `Battle_Frame`, not from a painter | 16 | 5 | **11** | outside the painter |
+| drawn from `Battle_Frame`, not from a painter | 16 | 9 | **7** | outside the painter |
 | everything else | 56 | 42 | 14 | — |
 
 ---
@@ -108,7 +108,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_0042476B` | `0x0042476B` | the network-wait glyph | live | 1 | 0 |
 | `FUN_0041A639` | `0x0041A639` | the turn timer | live | 2 | 2 |
 | `FUN_0041A844` | `0x0041A844` | the multiplayer heartbeat | live | 2 | 0 |
-| **`FUN_00476E95`** | `0x00476E95` | **the tooltip** | live | 4 | 0 |
+| **`FUN_00476E95`** | `0x00476E95` | **the tooltip** | live | 4 | 4 |
 | `FUN_00408C50` | `0x00408C50` | two per-tile debug numbers | debug | 2 | 0 |
 | `FUN_004248A3` | `0x004248A3` | a four-number debug box | debug | 5 | 0 |
 | `FUN_004247F5` | `0x004247F5` | `DUMB VIEW ON` | debug | 3 | 0 |
@@ -299,11 +299,15 @@ above:
 ### 5.1 The original has a generic tooltip layer, and it covers this sidebar
 
 `FUN_00476E95` runs every frame from `Battle_Frame`, gated on `g_optToolTips`. It saves the backdrop it will cover, waits **one second** of `timeGetTime` with the mouse still, resolves a
-hotspot id through a per-screen table `DAT_004D6FB8[g_screenId]`, and draws `L2.eng` group
+tip id through one of two pointer ladders chosen by a per-screen table `DAT_004D6FB8[g_screenId]`, and draws `L2.eng` group
 220 index *id* in a box beside the cursor, flipping side at x 321 and y 241.
 
+**Built**, `crates/l2-game/src/tooltip.rs`: all four of its draws — both text passes, the
+`0x20` fill and the `0x3F` outline — on every screen the table names.
+
 `FUN_00477320` is the campaign map's resolver — **1,082 bytes**, and it partitions the whole
-sidebar. Twenty-four of group 220's thirty-five strings are reachable from it, and they are
+sidebar. **Twenty-six** of group 220's thirty-five strings are reachable from it (this said
+twenty-four, over a table that lists twenty-six), and they are
 a **self-written description of a screen we have been reverse-engineering by hand**:
 
 ```

@@ -8637,3 +8637,38 @@ the one-shot buffer, `DAT_00522AEC`: the tips' `last_speech` for `Sound_OneShotB
 branch's `one_shot` for `Sound_PlayFile`'s drop. The original has one buffer and both ask it,
 so they are one field, set by `play_speech` and `play_file` and read by both checks. A troop
 cry now keeps the tips' chained takes waiting, as it would in the original.
+
+---
+
+**C167 — the tool tips are built, and the sentence that found them
+counted twenty-six as twenty-four and called a ladder's answer a hotspot id.**
+
+The Help Options panel's *"Tool tips"* row flipped `g_optToolTips` and nothing here
+read it. `FUN_00476E95` is now `crates/l2-game/src/tooltip.rs`, and reading all seven
+of its functions — not the one C86 summarised — corrected two things on file and
+found three that were not.
+
+**Corrected.** C86, `docs/screens.md` §7 and `docs/draws-map.md` §5.1 said *"twenty-four
+of the thirty-five strings are the campaign sidebar"*. `FUN_00477320` returns 1…22 and
+31…34: **twenty-six**, and the listing printed directly under the sentence in
+`draws-map.md` has all twenty-six in it. And `docs/formats/eng.md` §5 said *"index =
+hotspot id"*, which reads as `g_uiHotspotId`, the widget record's `+0x10`. Neither
+resolver reads a widget record: the id is a pointer ladder's own answer, and the ladder
+reads live state — the minimap mode, whether the selected county is the player's, and
+`FUN_0040FEC1`'s two produce-row lists.
+
+**Not on file.** `[V]`, each asserted in `crates/l2-game/tests/tooltips.rs`:
+
+* **The lookup is a table of screens, not of controls.** `DAT_004D6FB8[g_screenId]`
+  gives the sidebar's ladder to **thirty-five** screen ids and the battlefield's
+  (`FUN_004777AA`, eight ids) to `0x29` alone. So the sidebar's tips go on showing over
+  the county panels, the village, the job popup, the options pages and an open menu, and
+  never over the merchant, the armoury, the other lords or a tip screen (`0x27`).
+* **The rest is wall clock, not frames**: `999 < timeGetTime() - stamp`, which is 63 of
+  our ticks. The briefs that asked for *"the frame count"* were reasonable — the tip
+  screens and the options both turned on twenty-frame countdowns — and this one is not
+  one.
+* **The frame that hides a tip writes no stamp.** A tip up for a second and nudged for
+  one frame is back on the next still frame; a nudge of a fresh tip waits a second from
+  the tip's own resolve, not from the nudge. `Opt_ToggleToolTips` and `Map_InitMode`
+  both zero the stamp, so turning the option on shows a tip with no rest at all.
