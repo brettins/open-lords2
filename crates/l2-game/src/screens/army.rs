@@ -679,8 +679,10 @@ impl Screen for RaiseArmyScreen {
         // aligned**, in the body font. This module drew the second of them
         // right-aligned to `0x145 + 40`, which is 40 pixels of drift on the
         // number a player reads to decide how many men to take.
-        pen.number(canvas, 0x80, b + 0x44, population - levy.men, true, font::TEXT);
-        pen.number(canvas, 0x145, b + 0x44, levy.men, true, font::TEXT);
+        // `Ui_DrawNumber(…, '@', &DAT_004D40B0 | &DAT_004D40B4, …)`, both NUL. **[V]**
+        let body = shell::Face::Body;
+        pen.number_in(body, canvas, 0x80, b + 0x44, population - levy.men, '@', "", font::TEXT);
+        pen.number_in(body, canvas, 0x145, b + 0x44, levy.men, '@', "", font::TEXT);
 
         // The six weapon stocks: `arm_it_<colour>.pl8` frames 15..20 with the
         // realm's stock printed 0x20 to the right of each.
@@ -709,9 +711,11 @@ impl Screen for RaiseArmyScreen {
                     text::draw(canvas, x, y - 18, &n[..4.min(n.len())], ink.dim);
                 }
             }
-            // `Ui_DrawNumber(stock, ' ', …)` — a **space** lead here, not the
-            // '@' the rest of the screen uses.
-            pen.number(canvas, x + RACK_NUMBER_DX, y, stock, false, font::TEXT);
+            // `Ui_DrawNumber(stock, ' ', &DAT_004D40B8, …)` — a **space** lead
+            // here, not the '@' the rest of the screen uses, and the only
+            // suffix on this screen that is one space rather than a NUL. **[V]**
+            let dx = x + RACK_NUMBER_DX;
+            pen.number_in(shell::Face::Body, canvas, dx, y, stock, ' ', " ", font::TEXT);
         }
 
         // The happiness pair. The painter picks 69/10 + 69/11 when the levy
@@ -726,7 +730,11 @@ impl Screen for RaiseArmyScreen {
         };
         pen.eng(canvas, GROUP, a, 0x188, b + 0x18, font::TEXT);
         let x = pen.eng(canvas, GROUP, c, 0x188, b + 0x30, font::TEXT);
-        let x = pen.number(canvas, x, b + 0x30, value, true, font::TEXT);
+        // `Ui_DrawNumber(…, '@', &DAT_004D40C0 | &DAT_004D40BC, g_penAdvance +
+        // 0x188, …)`, both NUL, then the face at `g_penAdvance + 0x188`. The old
+        // no-lead-plus-space put the digits four left and the face exactly
+        // where it belongs, which is why nobody saw it. **[V]**
+        let x = pen.number_in(shell::Face::Body, canvas, x, b + 0x30, value, '@', "", font::TEXT);
         pen.system_frame(canvas, HAPPINESS_ICON, x, b + 0x30);
 
         // The mercenary block.
@@ -738,7 +746,12 @@ impl Screen for RaiseArmyScreen {
             // it: the count, `L2.eng` 16/band, and the group 8 troop noun that
             // `Ui_DrawUnitNoun` picks. This module drew the whole line in the
             // body font with our own troop name in place of the noun.
-            let x = pen.heading(canvas, 0x70, b + 0x60, &format!("{} ", rules.men), font::TEXT);
+            // `Ui_DrawNumber(men, '@', &DAT_004D40C4, 0x70, base + 0x60,
+            // &g_fontHeading)` — a NUL suffix. This was built by hand as
+            // `"{men} "`: no lead and an invented space, the same pair
+            // `Pen::number(…, true)` drew. **[V]**
+            let heading = shell::Face::Heading;
+            let x = pen.number_in(heading, canvas, 0x70, b + 0x60, rules.men, '@', "", font::TEXT);
             let s = ctx.assets.shell.text(GROUP_NATIONALITY, band as usize).to_string();
             let s = if s.is_empty() { rules.nationality.to_string() } else { s };
             let x = pen.heading(canvas, x, b + 0x60, &s, font::TEXT);
@@ -750,10 +763,14 @@ impl Screen for RaiseArmyScreen {
             pen.heading(canvas, x, b + 0x60, &s, font::TEXT);
 
             // 69/0 "crowns to hire." and 69/1 "crowns seasonal wages.", with
-            // `men / 2` for the second — this screen's own number.
-            let x = pen.number(canvas, 0x70, b + 0x7C, rules.price, true, font::TEXT);
+            // `men / 2` for the second — this screen's own number. Both
+            // numbers are `'@'` with `&DAT_004D40C8` / `&DAT_004D40CC`, NULs;
+            // each noun lands where it did before, and each number four pixels
+            // right of where it was. **[V]**
+            let body = shell::Face::Body;
+            let x = pen.number_in(body, canvas, 0x70, b + 0x7C, rules.price, '@', "", font::TEXT);
             let x = pen.eng(canvas, GROUP, CROWNS_TO_HIRE, x, b + 0x7C, font::TEXT);
-            let x = pen.number(canvas, x, b + 0x7C, rules.men / 2, true, font::TEXT);
+            let x = pen.number_in(body, canvas, x, b + 0x7C, rules.men / 2, '@', "", font::TEXT);
             pen.eng(canvas, GROUP, CROWNS_WAGES, x, b + 0x7C, font::TEXT);
 
             if !self.affordable(ctx) {
@@ -769,11 +786,11 @@ impl Screen for RaiseArmyScreen {
                 let x = pen.eng(canvas, GROUP, YOU_HAVE, 0x72, b + 0x92, font::TEXT);
                 let gold = ctx.game.gold();
                 // `Ui_DrawCount(gold, 0, g_penAdvance + 0x72, base + 0x92, body)`
-                // at `0x00417A80`'s neighbourhood — through `Pen::count`, which
-                // carries its `'@'` lead and empty suffix. This line used to build
-                // the pair by hand from `Pen::number(…, true)`, which drew the
-                // digits four pixels left of the original's. It also takes the
-                // singular at **±1**, not just at 1.
+                // in `Screen_RaiseArmy` — through `Pen::count`, which carries its
+                // `'@'` lead and empty suffix. This line used to build the pair by
+                // hand from the old `Pen::number(…, true)`, which drew the digits
+                // four pixels left of the original's. It also takes the singular
+                // at **±1**, not just at 1.
                 pen.count(canvas, x, b + 0x92, gold, CROWN_NOUN, font::TEXT);
 
                 pen.eng(canvas, GROUP, HIRE_QUESTION, 0x92, b + 0xA4, font::TEXT);
@@ -810,7 +827,8 @@ impl Screen for RaiseArmyScreen {
         // beside the button that leaves for the armoury.
         let fy = footer_row(on);
         let total: i32 = realm.weapons.iter().sum();
-        let x = pen.number(canvas, RACK_X, fy, total, true, font::TEXT);
+        // `Ui_DrawNumber(total, '@', &DAT_004D40D0, 0x70, …)`, a NUL. **[V]**
+        let x = pen.number_in(shell::Face::Body, canvas, RACK_X, fy, total, '@', "", font::TEXT);
         pen.eng(canvas, GROUP, TOTAL_WEAPONS, x, fy, font::TEXT);
         pen.eng(canvas, GROUP, CONTINUE, CONTINUE_LABEL_X, fy, font::TEXT);
         let cont = continue_button(on);

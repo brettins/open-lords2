@@ -67,7 +67,7 @@ use crate::input::{Event, Key, Rect};
 use crate::press::{Kind, Press, Widget};
 use crate::message::{self, category, Prompt, Record, Shape};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Pen};
+use crate::shell::{self, font, Pen};
 
 /// `FUN_004093E0(…, …, …, …)`'s border set. Every one of `Msg_DrawWindow`'s
 /// arms passes the four-argument form, which is border set 1.
@@ -483,7 +483,12 @@ fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: 
     let capacity =
         county.map_or(0, |c| l2_kingdom::industry::garrison_cap(&ctx.game.kingdom.tables, c.castle_type));
     let room = capacity - garrison;
-    let x = pen.number(canvas, f.x + 0x20, f.y + 0x70, room, true, font::TEXT);
+    // `Msg_DrawWindow`: `Ui_DrawNumber(room, '@', &DAT_004D700C, x + 0x20,
+    // y + 0x70)` and then the noun at `x + g_penAdvance + 0x20`. The suffix is
+    // **one space**, so the old no-lead-plus-space had the digits and the noun
+    // both four pixels left. **[V]**
+    let body = shell::Face::Body;
+    let x = pen.number_in(body, canvas, f.x + 0x20, f.y + 0x70, room, '@', " ", font::TEXT);
     pen.eng(canvas, record.group as usize, 2, x, f.y + 0x70, font::TEXT);
 
     let x = pen.eng(canvas, record.group as usize, 3, f.x + 0x20, f.y + 0x80, font::TEXT);
@@ -494,7 +499,8 @@ fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: 
         .units
         .get(record.variant as usize)
         .map_or(0, |u| u.men) as i32;
-    pen.number(canvas, x, f.y + 0x80, men, true, font::TEXT);
+    // `Ui_DrawNumber(menTotal, '@', &DAT_004D7010, …)`, one space. **[V]**
+    pen.number_in(body, canvas, x, f.y + 0x80, men, '@', " ", font::TEXT);
     pen.eng(canvas, record.group as usize, 4, f.x + 0x20, f.y + 0xB0, font::TEXT);
 }
 

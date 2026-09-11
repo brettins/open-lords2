@@ -515,10 +515,13 @@ impl Screen for CastleScreen {
         // **`71/6` and `71/7` are not drawn here** — see the module docs.
         let t = &ctx.game.kingdom.tables;
         let (wood, stone) = self.materials(ctx);
+        // `Ui_DrawNumber(…, '@', &DAT_004D4154 | &DAT_004D4158, 0x230, …)` in
+        // `Screen_CastleBuildPanel`, both NUL. **[V]**
+        let body = shell::Face::Body;
         bits(canvas, STONE_CAPTION, CAPTION_X, STONE_CAPTION_Y);
-        pen.number(canvas, MATERIAL_NUM_X, STONE_NUM_Y, stone, true, font::TEXT);
+        pen.number_in(body, canvas, MATERIAL_NUM_X, STONE_NUM_Y, stone, '@', "", font::TEXT);
         bits(canvas, WOOD_CAPTION, CAPTION_X, WOOD_CAPTION_Y);
-        pen.number(canvas, MATERIAL_NUM_X, WOOD_NUM_Y, wood, true, font::TEXT);
+        pen.number_in(body, canvas, MATERIAL_NUM_X, WOOD_NUM_Y, wood, '@', "", font::TEXT);
 
         // `if (castleType != 0) Pl8_DrawFrame(cas_bits, 0x0C, x[type] - 10, 0x110)`
         if standing != 0 {
@@ -555,7 +558,13 @@ impl Screen for CastleScreen {
         );
         let cap = industry::garrison_cap(t, castle_type);
         pen.eng(canvas, GROUP, BARRACKS_FOR, BARRACKS_AT.0, BARRACKS_AT.1, font::TEXT);
-        let x = pen.number(canvas, GARRISON_AT.0, GARRISON_AT.1, cap, true, font::TEXT);
+        // `Ui_DrawNumber(cap, '@', &DAT_004D4160, 0xC, 0xE2, …)` — and that
+        // suffix is **one space**, not a NUL, so the string is `"@40 "`. The old
+        // `number(…, true)` drew `"40 "`: the space was right by accident and
+        // the lead was missing, so the digits **and** *"troops."* both sat four
+        // pixels left. **[V]**
+        let (gx, gy) = GARRISON_AT;
+        let x = pen.number_in(shell::Face::Body, canvas, gx, gy, cap, '@', " ", font::TEXT);
         // `Eng_DrawString(71, 0xC, g_penAdvance + 0xE, 0xE2, …)` — **`0xE`, two
         // pixels right of the number's own column**, the same nudge the court's
         // player name has.

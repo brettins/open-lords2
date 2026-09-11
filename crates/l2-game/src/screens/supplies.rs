@@ -143,7 +143,7 @@ use crate::press::{Kind, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use l2_kingdom::Kingdom;
 
-use crate::shell::{font, Pen};
+use crate::shell::{font, Face, Pen};
 
 /// `L2.eng` group 33 — eight strings.
 pub const GROUP: usize = 33;
@@ -632,9 +632,12 @@ impl Screen for SuppliesScreen {
         for (n, row) in ROWS.iter().enumerate() {
             let (left, cart) = self.cart.get(row.id);
             pen.eng(canvas, GROUP, row.label, row.label_at.0, row.label_at.1, font::TEXT);
-            pen.number(canvas, row.left_x, row.label_at.1, left, false, font::TEXT);
+            // `FUN_0041AEA2`: `Ui_DrawNumber(…, ' ', &DAT_004D4208 … &DAT_004D4214,
+            // …)`, four suffixes of one space each. **[V]**
+            let y = row.label_at.1;
+            pen.number_in(Face::Body, canvas, row.left_x, y, left, ' ', " ", font::TEXT);
             pen.misc_frame(canvas, row.icon, row.icon_at.0, row.icon_at.1);
-            pen.number(canvas, row.cart_x, row.label_at.1, cart, false, font::TEXT);
+            pen.number_in(Face::Body, canvas, row.cart_x, y, cart, ' ', " ", font::TEXT);
             pen.system_frame(canvas, frame(n * 2, MINUS_FRAME), row.minus.x, row.minus.y);
             pen.system_frame(canvas, frame(n * 2 + 1, PLUS_FRAME), row.plus.x, row.plus.y);
         }

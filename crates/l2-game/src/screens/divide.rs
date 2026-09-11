@@ -68,7 +68,7 @@ use l2_view::{text, Canvas};
 use crate::press::{Kind, Press, Widget};
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Pen};
+use crate::shell::{font, Face, Pen};
 use crate::widget;
 
 /// `L2.eng` group 17 — *"Army Division."* and *"Split the army?"*.
@@ -567,8 +567,11 @@ impl Screen for DivideScreen {
                 canvas.fill_rect(NOUN_X - 4, y, 2, 14, ink.highlight);
             }
             arrows(&pen, canvas, row, self.press.pressed());
-            pen.number(canvas, PARENT_NUMBER_X, y, left, true, font::TEXT);
-            pen.number(canvas, DAUGHTER_NUMBER_X, y, right, true, font::TEXT);
+            // `Ui_DrawNumber(…, '@', &DAT_004D40E8 | &DAT_004D40EC, 0xD8 | 0x188,
+            // …)`: every number on this screen is `'@'` with a NUL suffix —
+            // eight call sites, eight NULs, read out of the image. **[V]**
+            pen.number_in(Face::Body, canvas, PARENT_NUMBER_X, y, left, '@', "", font::TEXT);
+            pen.number_in(Face::Body, canvas, DAUGHTER_NUMBER_X, y, right, '@', "", font::TEXT);
         }
 
         // Row 7 — the band, drawn only when there is one, exactly as the
@@ -601,8 +604,8 @@ impl Screen for DivideScreen {
                 (m.men(), 0)
             };
             arrows(&pen, canvas, MERC_ROW, self.press.pressed());
-            pen.number(canvas, PARENT_NUMBER_X, y, left, true, font::TEXT);
-            pen.number(canvas, DAUGHTER_NUMBER_X, y, right, true, font::TEXT);
+            pen.number_in(Face::Body, canvas, PARENT_NUMBER_X, y, left, '@', "", font::TEXT);
+            pen.number_in(Face::Body, canvas, DAUGHTER_NUMBER_X, y, right, '@', "", font::TEXT);
         }
 
         // The two "Total men" lines, on the row the painter picks.
@@ -610,21 +613,15 @@ impl Screen for DivideScreen {
         let total = ctx.assets.shell.text(NOUN_GROUP, TOTAL_MEN_NOUN).to_string();
         let total = if total.is_empty() { "Total men".to_string() } else { total };
         pen.body(canvas, NOUN_X, ty, &total, font::TEXT);
-        pen.number(canvas, PARENT_NUMBER_X, ty, self.basket.parent_total(), true, font::TEXT);
-        text::draw_right(
-            canvas,
-            DAUGHTER_NUMBER_X + 32,
-            ty,
-            &format!("{}", self.basket.daughter_total()),
-            ink.highlight,
-        );
-        text::draw_right(
-            canvas,
-            DAUGHTER_NUMBER_X + 32,
-            ty,
-            &format!("{}", self.basket.daughter_total()),
-            ink.highlight,
-        );
+        // `Ui_DrawNumber(DAT_00554468, '@', …, 0xD8, y)` and
+        // `Ui_DrawNumber(DAT_00554040, '@', …, 0x188, y)` — both in the body
+        // face at colour `0x3F`. **The daughter's total used to be two
+        // identical `text::draw_right` calls in our 5 × 7 debug font**, in the
+        // highlight ink and right-aligned to a column of ours; nothing in
+        // `Screen_SplitArmyRows` draws it that way.
+        let (parent, daughter) = (self.basket.parent_total(), self.basket.daughter_total());
+        pen.number_in(Face::Body, canvas, PARENT_NUMBER_X, ty, parent, '@', "", font::TEXT);
+        pen.number_in(Face::Body, canvas, DAUGHTER_NUMBER_X, ty, daughter, '@', "", font::TEXT);
 
         // `Ui_OkButton(0x1AC, 0x1B4, 0)` — frame 0x33, an arrow into a hole.
         if !pen.system_frame(canvas, OK_FRAME, OK.x, OK.y) {

@@ -335,9 +335,17 @@ const OURS = new Map(Object.entries({
   eng: 'Eng_DrawString',
   eng_centred: 'Ui_DrawCentred',
   eng_heading_centred: 'Ui_DrawCentred, heading font',
-  number: 'Ui_DrawNumber',
+  // `Pen::number(…, blank_lead: bool)` was deleted when its 25 call sites were
+  // read against their originals; `number_in` carries the call site's lead,
+  // suffix and face. The `_in`/`_with_noun` forms are the same leaves with the
+  // face named, and were invisible to this map until then.
+  number_in: 'Ui_DrawNumber',
   number_centred: 'Ui_DrawNumberRight  (which centres)',
   count: 'Ui_DrawCount',
+  count_in: 'Ui_DrawCount',
+  count_with_noun: 'Ui_DrawCount',
+  text_in: 'Ui_DrawText',
+  year: 'Ui_DrawYear',
   misc_frame: 'Pl8_DrawFrame, Misc_cty.pl8',
   system_frame: 'Pl8_DrawFrame, System.pl8',
   frame: 'Pl8_DrawFrame',

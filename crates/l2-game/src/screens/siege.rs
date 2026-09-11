@@ -100,7 +100,7 @@ use l2_view::{text, Canvas};
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Pen};
+use crate::shell::{font, Face, Pen};
 use crate::widget;
 
 /// **`L2.eng` group 83.** Verified against the *words*, not against the indices
@@ -408,8 +408,8 @@ impl Screen for SiegeScreen {
         // on two lines, and the third starts where the count ended.
         // `Ui_DrawCount` is itself two draws (a number then the group 8 noun),
         // and [`Pen::count`] returns where the noun ended, which is what places
-        // the tail of the sentence. It used to be written out here with
-        // `Pen::number(…, false)`, whose invented trailing space put the noun
+        // the tail of the sentence. It used to be written out here with the
+        // old `Pen::number(…, false)`, whose invented trailing space put the noun
         // four pixels right of `Ui_DrawCount`'s — the lead was right and the
         // suffix was not.
         p.eng(canvas, GROUP, WILL_TAKE, WILL_TAKE_AT.0, WILL_TAKE_AT.1, font::TEXT);
@@ -432,16 +432,13 @@ impl Screen for SiegeScreen {
             if fill > 0 {
                 canvas.fill_rect(TROUGH.0, y + TROUGH.1, fill, TROUGH.3, TROUGH_FULL);
             }
-            // `Ui_DrawNumber(percent, '@', "%", 0x90, y + 0x19)`. The `'@'`
-            // lead is the blank alignment glyph, which [`Pen::number`] does not
-            // model and which no `Pen` method can carry a `%` suffix through.
-            p.body(
-                canvas,
-                PERCENT_X,
-                y + PERCENT_DY,
-                &format!("{}%", record.percent),
-                font::TEXT,
-            );
+            // `Ui_DrawNumber(percent, '@', &DAT_004D4404 | …08 | …0C, 0x90,
+            // y + 0x19)`, each suffix `"%"`. This comment used to say no `Pen`
+            // method could carry the lead and the suffix, and so the line was
+            // built as `"{percent}%"` — **no lead, digits four pixels left**.
+            // `Pen::number_in` carries both. **[V]**
+            let percent = record.percent as i32;
+            p.number_in(Face::Body, canvas, PERCENT_X, y + PERCENT_DY, percent, '@', "%", font::TEXT);
 
             if record.ordered == 0 {
                 // `Eng_DrawString(83, 8, 0xF0, y + 0x10)`.

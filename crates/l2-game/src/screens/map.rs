@@ -3676,12 +3676,12 @@ fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
     };
 
     // `Ui_DrawYear(g_year, 0x168, 6, 3)` — style 3 is
-    // `Ui_DrawNumber(year, ' ', " ", x, y, &g_fontBody, 0x3F)`, the bare number
-    // with a leading and a trailing space and no BC/AD.
-    let after_year = pen.number(canvas, CLOCK_X, CLOCK_Y, k.year, false, font::TEXT);
+    // `Ui_DrawNumber(year, ' ', &DAT_004D41F0, x, y, &g_fontBody, 0x3F)`, the
+    // bare number with a leading and a trailing space and no BC/AD.
+    let after_year = pen.year(canvas, CLOCK_X, CLOCK_Y, k.year, 3, font::TEXT);
     // `Eng_DrawString(0x1D, g_season, g_penAdvance + 0x16C, 6, &g_fontBody, 0x3F)`.
     //
-    // **`g_penAdvance` is a width and `Pen::number` returns an absolute x** —
+    // **`g_penAdvance` is a width and `Pen::year` returns an absolute x** —
     // the confusion `docs/decisions.md` C61 records four agents making seven
     // times. The subtraction is written out rather than folded away so the line
     // reads the way the decompilation does.

@@ -535,6 +535,63 @@ const ON_THE_BASELINE: &str = "abcdefiklmnorstuvwxz";
 /// `Fntl2_14.pl8` and `s` in `Fntl2_22.pl8` end in a single-pixel terminal one
 /// row below the stroke. A misapplied `0x0D` is three pixels, or four in the
 /// heading font — far outside it.
+/// **`Res_LoadStatic` (`0x00499859`) preloads five faces, and record 3 is the
+/// one this workspace did not load.** **[V]**
+///
+/// `g_preloadTable` (`0x004D9F48`) is thirteen `{char name[16]; u32 size}`
+/// records, and the loader hands record `n` to `File_ReadChunk` with a buffer
+/// picked by `n`. The instruction that picks `&g_font8` for `n == 3` is
+/// `mov dword [ebp-4], 0x005CBFB0` at `0x004998ED` — seven bytes, asserted here,
+/// because an address in a comment is a claim and these are the bytes.
+///
+/// Ablated: `font::EIGHT` → `"Font_10.pl8"` — record 3 no longer matches.
+#[test]
+fn the_preload_table_names_every_face_and_record_3_is_g_font8() {
+    let exe = l2_testkit::executable!();
+    let record = |n: u32| -> String {
+        let off = l2_testkit::pe::va_to_offset(&exe, 0x004D_9F48 + n * 0x14).expect("in .data");
+        let name = &exe[off..off + 16];
+        let end = name.iter().position(|&b| b == 0).unwrap_or(16);
+        String::from_utf8_lossy(&name[..end]).to_ascii_lowercase()
+    };
+    assert_eq!(record(3), font::EIGHT.to_ascii_lowercase(), "g_font8");
+    assert_eq!(record(4), font::SMALL.to_ascii_lowercase(), "g_fontSmall");
+    assert_eq!(record(5), "font_10.pl8", "g_font10 — which nothing here loads");
+    assert_eq!(record(6), font::BODY.to_ascii_lowercase(), "g_fontBody");
+    assert_eq!(record(7), font::HEADING.to_ascii_lowercase(), "g_fontHeading");
+
+    let at = l2_testkit::pe::va_to_offset(&exe, 0x0049_98ED).expect("in .text");
+    assert_eq!(
+        &exe[at..at + 7],
+        &[0xC7, 0x45, 0xFC, 0xB0, 0xBF, 0x5C, 0x00],
+        "Res_LoadStatic's record-3 arm is mov [ebp-4], &g_font8"
+    );
+}
+
+/// **The measure and the draw disagree about `'@'`, as the original's do.**
+///
+/// `FUN_004014F0` (`0x004014F0`) charges 4 for `0x20` and nothing for any other
+/// empty `g_glyphWidths` entry; `Ui_DrawText` (`0x00402637`) advances
+/// `local_14 = 4` for all of them. `Font::width` charged 4 for `'@'`.
+///
+/// Ablated: `Font::width`'s `None => 0` arm → `SPACE_ADVANCE` — the first
+/// assertion goes red by exactly four.
+#[test]
+fn the_measure_charges_the_blank_sign_column_nothing_and_the_draw_charges_four() {
+    let Some(dir) = install() else {
+        eprintln!("skipping: no game install");
+        return;
+    };
+    let bytes = std::fs::read(dir.join(font::BODY)).expect("Fntl2_14.pl8");
+    let f = font::Font::new(bytes, 16).expect("the font loads");
+    assert_eq!(f.width("@1000"), f.width("1000"), "FUN_004014F0 charges '@' nothing");
+    assert_eq!(f.width(" 1000"), f.width("1000") + 4, "and a space four");
+
+    let flat = font::Style { colour: font::TEXT, shadow: None, caps: None };
+    let drawn = |s: &str| f.draw(&mut Canvas::new(120, 40), 0, 2, s, &flat);
+    assert_eq!(drawn("@1000"), drawn(" 1000"), "Ui_DrawText advances both four");
+}
+
 #[test]
 fn every_font_puts_its_lowercase_on_one_baseline() {
     let Some(dir) = install() else {
@@ -542,7 +599,7 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
         return;
     };
 
-    for (name, line) in [(font::SMALL, 12), (font::BODY, 16), (font::HEADING, 24)] {
+    for (name, line) in [(font::EIGHT, 12), (font::SMALL, 12), (font::BODY, 16), (font::HEADING, 24)] {
         let bytes = std::fs::read(dir.join(name)).unwrap_or_else(|_| panic!("{name}"));
         let records: Vec<u8> = l2_formats::Pl8::parse(&bytes)
             .expect("the font parses")
@@ -592,8 +649,10 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
                 *b as i32 - base as i32,
             );
         }
-        // Not vacuous in the fonts that have both kinds.
-        if name != font::HEADING {
+        // Not vacuous in the fonts that have both kinds. `Fnt_8.pl8` has
+        // `0x0D == 0` on all 150 frames (`docs/formats/pl8-failures.md` §4), so
+        // for it only the one-baseline half above is a claim — and it holds.
+        if name != font::HEADING && name != font::EIGHT {
             assert!(groups.len() >= 2, "{name}: expected both 0x0D = 0 and 0x0D > 0 letters");
         }
     }

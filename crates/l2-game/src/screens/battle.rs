@@ -394,17 +394,31 @@ fn draw_roster(
         }
         // Always the plural: `Ui_DrawUnitNoun`'s count argument is the literal
         // 2, so the singular at `0x34 + t*2` can never be reached from here.
+        // **As the file spells it.** This was upper-cased, which in
+        // `Fntl2_14.pl8` is a row of blackletter capitals — the defect the
+        // totals below had and lost. The fallback keeps our own name, in the
+        // debug font's own case.
         let noun = ctx.assets.shell.text(8, NOUN_BASE + row * 2 + 1).to_string();
-        let label = if noun.is_empty() { troop.name().to_uppercase() } else { noun.to_uppercase() };
+        let label = if noun.is_empty() { troop.name().to_string() } else { noun };
         p.body(canvas, COL_NOUN, y, &label, font::TEXT);
 
-        p.body(canvas, COL_A_AFTER, y, &a.0[row].to_string(), font::TEXT);
-        p.body(canvas, COL_B_AFTER, y, &b.0[row].to_string(), font::TEXT);
+        // `Ui_DrawNumber(n, ' ', &DAT_004D4410 | …14 | …1C | …20, x, y, font,
+        // 0x3F)` — a **space lead and a one-space suffix** at every column.
+        // These were `n.to_string()` with no lead, so both columns sat four
+        // pixels left of `param_3 + 0x28` and `param_3 + 0x118`. **[V]**
+        let face = shell::Face::Body;
+        p.number_in(face, canvas, COL_A_AFTER, y, a.0[row], ' ', " ", font::TEXT);
+        p.number_in(face, canvas, COL_B_AFTER, y, b.0[row], ' ', " ", font::TEXT);
+        // Mode 1's recorded counts: `Ui_DrawNumber(was, '(', &DAT_004D4418 |
+        // …24, …, 0x3F)`, whose suffix is `")"`. The string is the one this
+        // drew before; **the colour is not** — the original passes `0x3F`, the
+        // same as every other number in the roster, where this passed
+        // `font::DISABLED`. **[V]**
         if let Some(was) = a.1 {
-            p.body(canvas, COL_A_BEFORE, y, &format!("({})", was[row]), font::DISABLED);
+            p.number_in(face, canvas, COL_A_BEFORE, y, was[row], '(', ")", font::TEXT);
         }
         if let Some(was) = b.1 {
-            p.body(canvas, COL_B_BEFORE, y, &format!("({})", was[row]), font::DISABLED);
+            p.number_in(face, canvas, COL_B_BEFORE, y, was[row], '(', ")", font::TEXT);
         }
     }
     let total = |r: &Roster| r.iter().sum::<i32>();

@@ -664,6 +664,257 @@ fn the_tile_panel_says_why_there_is_a_band_in_the_town_square() {
     );
 }
 
+// ------------------------------------- Ui_DrawNumber, read call site by call site
+//
+// `Pen::number(…, blank_lead: bool)` had 25 call sites and was deleted once
+// every one had been read against its original. These four are the cases that
+// differ in what moves: the digits and the text after them (a one-space
+// suffix), the digits alone while the text stays put (an empty suffix — the
+// lost lead and the invented space cancelled), a year that gained its era, and
+// a number that was in the wrong face.
+//
+// **Every expected x is built from literals out of the painters and out of
+// `Ui_DrawText`** — the lead's 4, the suffix's 4, the trailer's 4 and the call
+// site's own `x` — and from the widths of the strings being drawn, measured in
+// the face the call site names. No constant of ours is in an expectation, so
+// ablating `Pen`'s arithmetic cannot move the expectation with the code.
+
+/// `Ui_DrawText`: a glyph-less lead character advances `local_14 = 4`.
+const LEAD: i32 = 4;
+/// `" "` as a suffix, the same advance.
+const SPACE: i32 = 4;
+/// `Ui_DrawText`'s last line, `g_penAdvance + 4`.
+const TRAILER: i32 = 4;
+
+fn own_county(game: &Game) -> u8 {
+    (1..=game.kingdom.county_count as u8)
+        .find(|&id| game.is_players(id))
+        .expect("the local player holds a county")
+}
+
+/// [`find_on_row`], but only at or right of `from` — for a number that could
+/// otherwise be found as the prefix of a longer number earlier on its row.
+fn find_on_row_from(
+    canvas: &Canvas,
+    f: &Font,
+    s: &str,
+    colour: u8,
+    y: i32,
+    from: i32,
+) -> Option<i32> {
+    let mut probe = Canvas::new(canvas.width - from as usize, canvas.height);
+    for py in 0..canvas.height {
+        for px in from as usize..canvas.width {
+            probe.set(px - from as usize, py, canvas.at(px, py));
+        }
+    }
+    find_on_row(&probe, f, s, colour, y).map(|x| x + from)
+}
+
+/// **The castle's garrison is `"@40 "`, and *"troops."* is chained off it, so
+/// both moved.**
+///
+/// ```c
+/// /* Screen_CastleBuildPanel, 0x004198AA */
+/// Ui_DrawNumber(g_castleGarrisonCap[sel], '@', &DAT_004D4160, 0xC, 0xE2, &g_fontBody, 0x3F);
+/// Eng_DrawString(0x47, 0xC, g_penAdvance + 0xE, 0xE2, &g_fontBody, 0x3F);
+/// ```
+///
+/// `DAT_004D4160` is one space. The old `Pen::number(…, true)` drew `"40 "`: the
+/// space right by accident, the lead missing — digits **and** noun four left.
+///
+/// Ablated twice, each red on its own assertion:
+/// * lead `'@'` → `' '`-less `""`-style `format!("{cap} ")` restored at the call
+///   site: the digits are found at `0x0C` and the noun at `0x0E + w + 8`;
+/// * suffix `" "` → `""`: the digits stay at `0x10` and the noun is found four
+///   pixels left of its expectation.
+#[test]
+fn the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right() {
+    use l2_game::screens::castle::CastleScreen;
+    let (mut game, assets) = world!();
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
+    let county = own_county(&game);
+    let mut screen = CastleScreen::new(county);
+    let cap = {
+        let ctx = Ctx { game: &mut game, assets: &assets };
+        l2_kingdom::industry::garrison_cap(&ctx.game.kingdom.tables, screen.castle_type(&ctx))
+    };
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    const X: i32 = 0x0C; // Ui_DrawNumber(cap, '@', " ", 0xC, 0xE2, …)
+    const Y: i32 = 0xE2;
+    const NOUN_X: i32 = 0x0E; // Eng_DrawString(71, 0xC, g_penAdvance + 0xE, …)
+
+    let digits = cap.to_string();
+    assert_eq!(
+        find_on_row(&canvas, body, &digits, font::TEXT, Y),
+        Some(X + LEAD),
+        "the garrison's digits are not one sign column right of 0x0C"
+    );
+    let noun = assets.shell.text(71, 0x0C).to_string();
+    assert!(!noun.is_empty(), "L2.eng 71/12 is the garrison's noun");
+    assert_eq!(
+        find_on_row(&canvas, body, &noun, font::TEXT, Y),
+        Some(NOUN_X + LEAD + body.width(&digits) + SPACE + TRAILER),
+        "{noun:?} is not at g_penAdvance + 0xE after \"@{digits} \""
+    );
+}
+
+/// **The mercenary's price line: both numbers moved and neither noun did.**
+///
+/// ```c
+/// /* Screen_RaiseArmy, 0x00418653 */
+/// g_penAdvance = 0;
+/// Ui_DrawNumber(price, '@', &DAT_004D40C8, 0x70, base + 0x7C, &g_fontBody, 0x3F);
+/// Eng_DrawString(0x45, 0, g_penAdvance + 0x70, base + 0x7C, &g_fontBody, 0x3F);
+/// Ui_DrawNumber(men / 2, '@', &DAT_004D40CC, g_penAdvance + 0x70, …);
+/// Eng_DrawString(0x45, 1, g_penAdvance + 0x70, …);
+/// ```
+///
+/// Both suffixes are NUL. The old `"{n} "` lost four at the front and added four
+/// at the back, so the nouns landed right and the digits did not — which is why
+/// the nouns are asserted as well: a fix that adds the lead and keeps the
+/// invented space moves them.
+///
+/// Ablated: the two calls put back to `'@'`-less `""` leads — the price is found
+/// at `0x70` and the wages four left; suffix `""` → `" "` — both nouns are found
+/// four right of their expectations.
+#[test]
+fn the_mercenary_price_line_moves_its_numbers_and_not_its_nouns() {
+    use l2_game::screens::army::{self, RaiseArmyScreen};
+    let (mut game, assets) = world!();
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
+    let county = own_county(&game);
+    const BAND: u8 = 3;
+    game.kingdom.counties[county as usize].mercenary_offer = BAND;
+    let rules = &l2_kingdom::mercenary::ROSTER[BAND as usize];
+    let mut screen = RaiseArmyScreen::new(county);
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    const X: i32 = 0x70;
+    let y = army::base(true) + 0x7C;
+
+    let price = rules.price.to_string();
+    assert_eq!(
+        find_on_row(&canvas, body, &price, font::TEXT, y),
+        Some(X + LEAD),
+        "the price is not one sign column right of 0x70"
+    );
+    let hire = assets.shell.text(0x45, 0).to_string();
+    let hire_x = X + LEAD + body.width(&price) + TRAILER;
+    assert_eq!(
+        find_on_row_from(&canvas, body, &hire, font::TEXT, y, X),
+        Some(hire_x),
+        "{hire:?} is not at g_penAdvance + 0x70 after \"@{price}\""
+    );
+    let wages = (rules.men / 2).to_string();
+    let wages_x = hire_x + body.width(&hire) + TRAILER + LEAD;
+    assert_eq!(
+        find_on_row_from(&canvas, body, &wages, font::TEXT, y, hire_x),
+        Some(wages_x),
+        "the wages are not one sign column after {hire:?}"
+    );
+    let seasonal = assets.shell.text(0x45, 1).to_string();
+    assert_eq!(
+        find_on_row_from(&canvas, body, &seasonal, font::TEXT, y, wages_x),
+        Some(wages_x + body.width(&wages) + TRAILER),
+        "{seasonal:?} is not at g_penAdvance + 0x70 after \"@{wages}\""
+    );
+}
+
+/// **The unit panel's *"Formed"* line is `Ui_DrawYear(…, style 0)`, which ends
+/// in `L2.eng` 26/1 *"AD"* — and we drew the bare number.**
+///
+/// ```c
+/// /* UnitPanel_Draw */
+/// g_penAdvance = 0;
+/// Eng_DrawString(0x1F, 0x14, 0x28, row * 0x10 + 0xA0, &g_fontBody, 0x3F);
+/// Ui_DrawYear(unit.yearFormed, g_penAdvance + 0x28, row * 0x10 + 0xA0, 0);
+/// /* Ui_DrawYear, 0x0041A900, style 0, year >= 0: */
+/// Ui_DrawNumber(year, ' ', &DAT_004D41D8, x, y, &g_fontBody, 0x3F);
+/// Eng_DrawString(0x1A, 1, x + g_penAdvance, y, &g_fontBody, 0x3F);
+/// ```
+///
+/// `DAT_004D41D8` is one space, and the row is 2 for an army of the local
+/// player's (`FUN_0041BEFE`). `CLAUDE.md` rule 6.
+///
+/// Ablated: `Pen::year`'s style-0 arm deleted (falling through to style 3's bare
+/// number) — *"AD"* is not found on the row.
+#[test]
+fn the_unit_panel_says_the_year_an_army_was_formed_in_ad() {
+    use l2_game::screens::info::{InfoScreen, Target};
+    use l2_kingdom::unit::{Unit, UnitKind};
+    let (mut game, assets) = world!();
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
+    let county = own_county(&game);
+    const FORMED: i32 = 1271;
+    let mut u = Unit::new(UnitKind::Army, game.player, 10, 10);
+    u.men = 100;
+    u.county = county;
+    u.home_county = county;
+    u.owner_is_human = true;
+    u.year_formed = FORMED as _;
+    let id = game.kingdom.campaign.units.spawn(u).expect("a free slot");
+    let mut panel = InfoScreen::new(Target::Unit(id));
+    let canvas = draw(&mut panel, &mut game, &assets);
+
+    const ROW: i32 = 2;
+    let y = ROW * 0x10 + 0xA0;
+    let formed = assets.shell.text(0x1F, 0x14).to_string();
+    let ad = assets.shell.text(0x1A, 1).to_string();
+    assert_eq!(ad, "AD", "L2.eng 26/1");
+
+    let year_x = 0x28 + body.width(&formed) + TRAILER;
+    let digits = FORMED.to_string();
+    assert_eq!(
+        find_on_row(&canvas, body, &digits, font::TEXT, y),
+        Some(year_x + LEAD),
+        "the year is not one space right of g_penAdvance + 0x28"
+    );
+    assert_eq!(
+        find_on_row_from(&canvas, body, &ad, font::TEXT, y, year_x),
+        Some(year_x + LEAD + body.width(&digits) + SPACE + TRAILER),
+        "{ad:?} is not after \" {digits} \" on the Formed line"
+    );
+}
+
+/// **`Screen_BattleMasterRatings` (`0x00421707`) draws each score in
+/// `&g_fontHeading`** — the one heading-face figure on the page — and we drew it
+/// in body. The lead and suffix, `' '` and one space, were already right.
+///
+/// ```c
+/// Ui_DrawText(&g_playerNames[p], 0xD8, 0x6E, &g_fontBody, 0x3F);
+/// Eng_DrawString(0x25, 4, g_penAdvance + 0xD8, 0x6E, &g_fontBody, 0x3F);
+/// Ui_DrawNumber(score, ' ', &DAT_004D43B4, g_penAdvance + 0xEC, 0x69, &g_fontHeading, 0x3F);
+/// ```
+///
+/// The name is ours (`"PLAYER 1"` — the lord names are not in this tree), and it
+/// is measured, not assumed.
+///
+/// Ablated: `Face::Heading` → `Face::Body` at the call site — the score is not
+/// found on row `0x69` in the heading face.
+#[test]
+fn the_battle_master_score_is_in_the_heading_face() {
+    use l2_game::screens::ratings::{self, Ratings};
+    let (mut game, assets) = world!();
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
+    let heading = assets.shell.heading.as_ref().expect("Fntl2_22.pl8");
+    let mut screen = ratings::RatingsScreen::new();
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    const NAME_X: i32 = 0xD8;
+    const SCORE_X: i32 = 0xEC;
+    const SCORE_Y: i32 = 0x69;
+    let (mine, _) = ratings::score(&Ratings::default());
+    let scored = assets.shell.text(0x25, 4).to_string();
+    let advance = body.width("PLAYER 1") + TRAILER + body.width(&scored) + TRAILER;
+    assert_eq!(
+        find_on_row_from(&canvas, heading, &mine.to_string(), font::TEXT, SCORE_Y, NAME_X),
+        Some(SCORE_X + advance + LEAD),
+        "the score is not in the heading face at g_penAdvance + 0xEC, 0x69"
+    );
+}
+
 #[test]
 #[ignore]
 fn shoot() {

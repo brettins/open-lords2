@@ -166,6 +166,9 @@ pub struct ShellAssets {
     pub body: Option<Font>,
     pub heading: Option<Font>,
     pub small: Option<Font>,
+    /// `Fnt_8.pl8`, `g_font8` — see [`font::EIGHT`] for where the original
+    /// loads it and why nothing here draws with it yet.
+    pub eight: Option<Font>,
     sheets: BTreeMap<String, Sheet>,
     palettes: BTreeMap<String, Palette>,
     /// `mercgrid.pl8`'s 80 x 60 byte map, with its 24-byte header stripped.
@@ -215,6 +218,10 @@ impl ShellAssets {
             body: read(font::BODY).and_then(|b| Font::new(b, 16).ok()),
             heading: read(font::HEADING).and_then(|b| Font::new(b, 24).ok()),
             small: read(font::SMALL).and_then(|b| Font::new(b, 12).ok()),
+            // Twelve: every painter that uses `g_font8` steps its rows `0x0C`
+            // apart — `BattleDebug_Panel`'s `0x2C, 0x38, 0x44 …` and
+            // `Net_DrawDebugOverlay`'s `y + 4, y + 0x10, y + 0x1C …`.
+            eight: read(font::EIGHT).and_then(|b| Font::new(b, 12).ok()),
             sheets,
             palettes,
             merchant_grid: read_grid(&read, "mercgrid.pl8"),
@@ -261,7 +268,7 @@ impl ShellAssets {
         );
     }
 
-    /// **Which of the game's three faces did not load** — the file names, or
+    /// **Which of the game's four faces did not load** — the file names, or
     /// empty.
     ///
     /// It exists so that the *painter* and the *complaint* ask the same
@@ -286,6 +293,9 @@ impl ShellAssets {
         if self.small.is_none() {
             missing.push(font::SMALL);
         }
+        if self.eight.is_none() {
+            missing.push(font::EIGHT);
+        }
         missing
     }
 
@@ -297,6 +307,7 @@ impl ShellAssets {
             body: None,
             heading: None,
             small: None,
+            eight: None,
             sheets: BTreeMap::new(),
             palettes: BTreeMap::new(),
             merchant_grid: Vec::new(),
@@ -546,20 +557,38 @@ pub const TRAILING: i32 = 4;
 /// types, 68 *"Grain"*, 70/71 *"Cow."*, 72/73 *"Total men"*.
 pub const COUNT_NOUN_GROUP: usize = 8;
 
-/// **Which of the game's two panel faces a call site names** — the `font`
-/// argument `Ui_DrawText` and everything above it take: `&g_fontBody`
-/// (`Fntl2_14.pl8`) or `&g_fontHeading` (`Fntl2_22.pl8`).
+/// **Which face a call site names** — the `font` argument `Ui_DrawText` and
+/// everything above it take: `&g_fontBody` (`Fntl2_14.pl8`), `&g_fontHeading`
+/// (`Fntl2_22.pl8`) or `&g_font8` (`Fnt_8.pl8`).
 ///
 /// They are not interchangeable, and the choice is the call site's, not the
 /// helper's: `Ui_DrawCount` is body at 78 of its 80 call sites and heading at
 /// the other two, and `Court_Draw` puts every store value in heading beside a
 /// heading label where we had drawn them in body. A helper that hard-codes one
 /// face is a helper that draws some screen in the wrong one.
+///
+/// **The original preloads five faces, not three or four** — `Res_LoadStatic`'s
+/// records 3…7 are `fnt_8`, `fntl2_9`, `font_10`, `fntl2_14`, `fntl2_22`. Two
+/// have no variant here. `&g_fontSmall` is drawn through `ShellAssets::small`
+/// directly (its nine `.text` references are `CountyStrip_Draw`,
+/// `CountyStrip_DrawCastleIcon` and one in `Screen_DrawEndTurn`, plus the
+/// loader). `&g_font10` is **not loaded at all**: its nine references are the
+/// county strip's produce-row painters (`FUN_004100AF` … `FUN_004106C4`) and
+/// `CountyStrip_DrawCastleIcon`, which `screens::county` draws in
+/// `Fntl2_9.pl8` and says so. Counted from the bytes, not the decompilation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Face {
     Body,
     Heading,
+    /// `g_font8`. **No screen of ours names it**: every call site in the
+    /// original is one of six developer read-outs — [`font::EIGHT`].
+    Eight,
 }
+
+/// `L2.eng` group 26, `Ui_DrawYear`'s era: index 0 *"BC"*, index 1 *"AD"*.
+pub const YEAR_GROUP: usize = 26;
+pub const YEAR_BC: usize = 0;
+pub const YEAR_AD: usize = 1;
 
 /// `Ui_DrawCount`'s lead, which it does not take from its caller: always
 /// `'@'`, the blank sign column. `0x0041AB67`. **[V]**
@@ -893,43 +922,30 @@ impl<'a> Pen<'a> {
         match face {
             Face::Body => self.body(canvas, x, y, s, colour),
             Face::Heading => self.heading(canvas, x, y, s, colour),
+            Face::Eight => match &self.assets.eight {
+                Some(f) => x + f.draw(canvas, x, y, s, &self.style(colour)) + TRAILING,
+                None => l2_view::text::draw(canvas, x, y, s, self.fallback(colour)) + TRAILING,
+            },
         }
-    }
-
-    /// `Ui_DrawNumber(value, lead, suffix, x, y, font, colour)`, with the
-    /// **old, lossy** lead: `blank_lead: true` draws no lead at all.
-    ///
-    /// **That is four pixels short wherever the original passes `'@'`**, because
-    /// `'@'` is not "no lead" — `Ui_DrawText` (`0x00402637`) advances four over it
-    /// ([`font::SPACE_ADVANCE`]). And the suffix is hard-coded to one space where
-    /// the call site's own suffix is often the empty string. Both errors are the
-    /// remainder of `docs/decisions.md` C127's sweep over `Ui_DrawNumber`'s 191
-    /// call sites; they are left in place here, not fixed, because a caller that
-    /// chains a sentence off the return moves the moment either one changes, and
-    /// each of those needs its own call site read. New code takes
-    /// [`Pen::number_in`], which carries the call site's literals.
-    pub fn number(
-        &self,
-        canvas: &mut Canvas,
-        x: i32,
-        y: i32,
-        value: i32,
-        blank_lead: bool,
-        colour: u8,
-    ) -> i32 {
-        let lead = if blank_lead { "" } else { " " };
-        self.body(canvas, x, y, &format!("{lead}{value} "), colour)
     }
 
     /// `Ui_DrawNumber(value, lead, suffix, x, y, font, colour)` **as the call
     /// site wrote it** — its own lead character, its own suffix string, its own
-    /// face.
+    /// face. **The only way this crate draws one.**
     ///
     /// `Ui_DrawNumber` (`0x00402F64`) writes the digits from index 1 of
     /// `g_numberBuffer`, puts `lead` at index 0, appends `suffix` and makes one
     /// `Ui_DrawText` of the lot. So `x` is where the *lead* goes and the digits
     /// start one lead-advance to its right: four pixels for `' '` and for `'@'`
     /// alike, since neither has a glyph.
+    ///
+    /// **There used to be a `Pen::number(…, blank_lead: bool)` beside this**,
+    /// which mapped `true` to *no lead* and `false` to `' '` and hard-coded a
+    /// `" "` suffix. It had 25 call sites and every one was read against its
+    /// original: all 19 `true` sites pass `'@'` (16 with an empty suffix, 3
+    /// with one space) and all six `false` sites pass `' '` and `" "`. A choice
+    /// the original does not offer cannot be made correctly, so it is gone.
+    /// `docs/decisions.md` CNEW-at-sign-advances-when-drawn-and-not-when-measured.
     #[allow(clippy::too_many_arguments)]
     pub fn number_in(
         &self,
@@ -943,6 +959,43 @@ impl<'a> Pen<'a> {
         colour: u8,
     ) -> i32 {
         self.text_in(face, canvas, x, y, &format!("{lead}{value}{suffix}"), colour)
+    }
+
+    /// `Ui_DrawYear(year, x, y, style)` (`0x0041A900`) — a year, and for three
+    /// of its four styles the `L2.eng` group 26 era after or before it. **[V]**
+    ///
+    /// ```c
+    /// style 0, 2: Ui_DrawNumber(|year|, ' ', " ", x, y, body);
+    ///             Eng_DrawString(26, year < 0 ? 0 : 1, x + g_penAdvance, y, body);
+    /// style 1:    Eng_DrawString(26, year < 0 ? 0 : 1, x, y, heading);
+    ///             Ui_DrawNumber(|year|, ' ', " ", x + g_penAdvance,
+    ///                           year < 0 ? y : y - 1, heading);
+    /// style 3:    Ui_DrawNumber(|year|, ' ', " ", x, y, body);
+    /// ```
+    ///
+    /// Group 26 is *"BC"*, *"AD"*. All eight suffixes, `&DAT_004D41D4` …
+    /// `&DAT_004D41F0`, are one space, read out of the image. The function
+    /// zeroes `g_penAdvance` first and the era is placed from it, which is why
+    /// the number's own lead, digits, suffix and trailer all come before it.
+    ///
+    /// Returns where the next glyph goes, like every `Pen` method.
+    #[allow(clippy::too_many_arguments)]
+    pub fn year(&self, canvas: &mut Canvas, x: i32, y: i32, year: i32, style: u8, colour: u8) -> i32 {
+        let era = if year < 0 { YEAR_BC } else { YEAR_AD };
+        let digits = year.abs();
+        match style {
+            1 => {
+                let era = self.assets.text(YEAR_GROUP, era).to_string();
+                let next = self.heading(canvas, x, y, &era, colour);
+                let dy = if year < 0 { 0 } else { -1 };
+                self.number_in(Face::Heading, canvas, next, y + dy, digits, ' ', " ", colour)
+            }
+            3 => self.number_in(Face::Body, canvas, x, y, digits, ' ', " ", colour),
+            _ => {
+                let next = self.number_in(Face::Body, canvas, x, y, digits, ' ', " ", colour);
+                self.eng(canvas, YEAR_GROUP, era, next, y, colour)
+            }
+        }
     }
 
     /// `Ui_DrawCount(value, nounIndex, x, y, &g_fontBody, colour)` — a number and
@@ -1007,7 +1060,7 @@ impl<'a> Pen<'a> {
     /// noun starts one [`TRAILING`] after the last digit. **[V]**
     ///
     /// This method used to take a `blank_lead: bool` and hand it to
-    /// [`Pen::number`], a choice the original does not have. Both answers were
+    /// `Pen::number`, a choice the original does not have. Both answers were
     /// wrong, in opposite halves: `true` (eleven sites, the menu bar's treasury
     /// among them) drew no lead and invented a trailing space, so the digits sat
     /// four pixels left and the noun landed right by coincidence; `false` (six
@@ -1153,7 +1206,7 @@ mod tests {
         assert_eq!(c.count(0), 640 * 480, "and it drew nothing at all");
     }
 
-    /// **All three faces are announced, and `Fntl2_9.pl8` was the one that was
+    /// **All four faces are announced, and `Fntl2_9.pl8` was the one that was
     /// not.** The complaint checked `body` and `heading`; `small` draws the
     /// build stamp and the county strip, and its absence was silent.
     ///
@@ -1164,7 +1217,7 @@ mod tests {
         let missing = ShellAssets::empty().missing_fonts();
         assert_eq!(
             missing,
-            vec![font::BODY, font::HEADING, font::SMALL],
+            vec![font::BODY, font::HEADING, font::SMALL, font::EIGHT],
             "every face a Pen or a painter falls back from has to be in this list"
         );
     }
