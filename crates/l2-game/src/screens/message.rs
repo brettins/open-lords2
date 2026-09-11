@@ -55,11 +55,12 @@
 //!   doc comment. They live beside `voice_tick` now, with the category each one
 //!   belongs to, which was the half nobody had recorded. `docs/decisions.md`
 //!   C126.
-//! * **The Smacker.** Categories `0x0D` and `0x0E` play `cap_cty<n>.smk` and
-//!   `0x004F0340` when `g_optAnimations` is on, and *dismiss themselves from
-//!   inside the draw* to do it. We have no video player; the unanimated branch
-//!   of both is what is built, which is the branch the original takes with
-//!   animations off. `docs/arms.json` records the animated half as `missing`.
+//! * **The film.** Categories `0x0D` and `0x0E` play `cap_cty<n>.smk` and
+//!   `FUN_00475B41`'s choice when `g_optAnimations` is on, and *dismiss
+//!   themselves from inside the draw* to do it. This screen only notices and
+//!   hands over — [`crate::message::animate`] decides, and
+//!   [`crate::screens::movie`] draws the taller window and plays the film in
+//!   it. With animations off the ordinary window below is the whole of it.
 
 use l2_view::Canvas;
 
@@ -284,6 +285,12 @@ impl Screen for MessageScreen {
             }
             return Transition::Pop;
         }
+        // The animated capture and ending: the window closes itself and a film
+        // plays where it was. See `message::animate`.
+        // arm: 0x0047309E/capture-smacker draw
+        if let Some(film) = message::animate(ctx.game) {
+            return Transition::Replace(ScreenId::Movie(film));
+        }
         Transition::Stay
     }
 
@@ -332,7 +339,7 @@ impl Screen for MessageScreen {
 /// The county's name — `Eng_DrawString(100, g_scenarioIndex * 0x14 + county)`.
 /// **Twenty per map slot**, not sixteen; the stride is the table's, not the
 /// county count's.
-fn county_name(ctx: &Ctx, id: u8) -> String {
+pub(crate) fn county_name(ctx: &Ctx, id: u8) -> String {
     let name = ctx.assets.shell.text(message::GROUP_COUNTY, ctx.game.map_slot * 20 + id as usize);
     if name.is_empty() {
         format!("COUNTY {id}")
@@ -344,7 +351,7 @@ fn county_name(ctx: &Ctx, id: u8) -> String {
 /// `g_playerNames[realm]`, with `L2.eng` group 7 standing in for a realm whose
 /// name was never set — which is what `Game_NewGame` copies in in the first
 /// place.
-fn lord_name(ctx: &Ctx, realm: u8) -> String {
+pub(crate) fn lord_name(ctx: &Ctx, realm: u8) -> String {
     let named = ctx.game.player_names.get(realm as usize).map(|n| n.as_str()).unwrap_or_default();
     if !named.is_empty() {
         return named;
@@ -360,7 +367,7 @@ fn lord_name(ctx: &Ctx, realm: u8) -> String {
 
 /// The group's own label, index 0 — *"Index 0 of a group is a label the game
 /// wrote about itself"*, and here it is drawn as the heading of the window.
-fn label(ctx: &Ctx, group: u16) -> String {
+pub(crate) fn label(ctx: &Ctx, group: u16) -> String {
     let s = ctx.assets.shell.text(group as usize, 0);
     if s.is_empty() {
         format!("MESSAGE {group}")

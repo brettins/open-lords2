@@ -1,0 +1,308 @@
+//! **Screen `0x22` — a film is playing.**
+//!
+//! `Smk_Play` (`0x0042D91B`) opens the film and parks `g_screenId` here;
+//! `Battle_Frame` then calls `Smk_PlayLoop` (`0x0042DBC7`) once a frame, and
+//! `Smk_OnFinished` (`0x0042E060`) puts the screen back when the last frame
+//! comes due or the player skips. Screen `0x22` has **no painter**:
+//! `SmackToBuffer` writes the film straight into the back buffer at its
+//! position, and whatever else was there — the castle chooser, a dimmed map
+//! with a message window drawn over it once, the battlefield under its banner —
+//! is simply never repainted. So this screen is an overlay for the films raised
+//! over another screen and a page for the four the front end plays on black.
+//!
+//! # The four ways out, and which of them are a gesture
+//!
+//! `Screen_FrameInput`'s `0x22` arm is four `if`s, each calling `Smk_Skip`
+//! (`0x0042DF30`) — whose log line is the game's own word for it, *"OK :SMK user
+//! ends"*:
+//!
+//! ```c
+//! if (DAT_00553FC8 != 0)      Smk_Skip();   /* the multiplayer sync latch   */
+//! if (g_mouseRightReleased)   Smk_Skip();
+//! if (g_mouseLeftReleased)    Smk_Skip();
+//! if (DAT_004EABB4 != 0)      Smk_Skip();   /* WM_KEYDOWN, any key at all   */
+//! ```
+//!
+//! **A release, not a press, and either button**; and **any key**, because
+//! `App_WndProc` sets `DAT_004EABB4` on every `WM_KEYDOWN` before it looks at
+//! which key it was, and `Screen_FrameInput` clears it on its way out. The
+//! first `if` is a network state, not input, and there is no network game here.
+//!
+//! A skip is `Smk_OnFinished`, exactly as the natural end is — so a skip during
+//! the start-up sequence moves on to the next film rather than out of it. Two
+//! other callers skip without the player: `FUN_0043AD25`, which `Turn_Tick`'s
+//! end-of-season phase runs, and `Net_LeaveGame`. Ours cannot reach either
+//! state — a film pauses our turn, because only the top screen is stepped — and
+//! `docs/arms.json` records both as missing.
+
+use l2_view::canvas::shade_table;
+use l2_view::Canvas;
+
+use crate::input::Event;
+use crate::movie::{self, Film, Player, Step};
+use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::shell::{self, font, Pen};
+
+/// `L2.eng` group 300 — the language tag `FUN_0041A166` compares.
+const GROUP_LANGUAGE: usize = 300;
+/// `L2.eng` group 301 — the intro's eleven subtitle lines.
+const GROUP_SUBTITLES: usize = 301;
+/// `Ui_DrawCentred(0x12D, n, 0, 400, 0x280, &g_fontBody, 0xF5)` and the second
+/// line's `0x1A0`.
+const SUBTITLE_Y: [i32; 2] = [400, 0x1A0];
+const SUBTITLE_COLOUR: u8 = 0xF5;
+
+/// `FUN_004093E0`'s border set for every window drawn here.
+const BOX_SET: usize = 1;
+
+enum State {
+    /// Pushed, not yet stepped: `Smk_Open` runs on the first update.
+    Unopened,
+    /// `SmackOpen` returned null. Held for one tick so that the audio layer —
+    /// which only ever sees the stack between ticks — sees the film was asked
+    /// for, which is what makes the callers' fail arms audible: every one of
+    /// them stopped the music before `Smk_Play` and restarts it after.
+    Failed,
+    Playing(Box<Player>),
+}
+
+/// One film on screen.
+pub struct MovieScreen {
+    film: Film,
+    state: State,
+    /// Whether the next left release belongs to the click that started the
+    /// film. See [`MovieScreen::new`].
+    swallow_release: bool,
+    redraw: bool,
+}
+
+impl MovieScreen {
+    /// **`Smk_Play`.**
+    ///
+    /// **One compensation, and it is for a divergence elsewhere.** The castle
+    /// chooser's tick is a kind-5 widget in the original — `Widget_Test` shows
+    /// it pressed and runs `CastleBuild_Confirm` **twenty frames after the
+    /// press**, by which time the button has normally been let go, and
+    /// `CastleBuild_Confirm`'s own first call (`FUN_004B18E3`) throws the click
+    /// away. `crates/l2-game/src/screens/castle.rs` confirms on the press
+    /// itself, so the release of that same click would arrive here and skip the
+    /// film it had just started. The castle film therefore ignores one left
+    /// release. `FUN_00432B05` shows the original guarding the same thing by
+    /// hand for the Lords of Magic trailer — `g_mouseLeftReleased = 0` on the
+    /// line before its `Smk_Play` — and ours needs no such guard there, because
+    /// the setup page fires that item on the release as the original does.
+    pub fn new(film: Film) -> MovieScreen {
+        MovieScreen {
+            film,
+            state: State::Unopened,
+            swallow_release: matches!(film, Film::Castle(_)),
+            redraw: true,
+        }
+    }
+
+    pub fn film(&self) -> Film {
+        self.film
+    }
+
+    /// The frame on screen, or `None` before it opens or when it failed to.
+    pub fn frame(&self) -> Option<usize> {
+        match &self.state {
+            State::Playing(p) => Some(p.frame()),
+            _ => None,
+        }
+    }
+
+    /// `Smk_OnFinished`, reached by the end or by a skip — never by a failure
+    /// to open, which is the distinction [`movie::Reel::finished`] carries.
+    fn finish(&mut self, ctx: &mut Ctx) -> Transition {
+        ctx.game.films.finished = Some(self.film);
+        self.film.then()
+    }
+
+    /// **`Smk_Skip`** — which begins `if (g_smkPlaying != 0)`.
+    fn skip(&mut self, ctx: &mut Ctx) -> Transition {
+        match self.state {
+            State::Playing(_) => self.finish(ctx),
+            _ => Transition::Stay,
+        }
+    }
+
+    /// **`Smk_Open`, if it has not run.** The original's `Smk_Play` opens the
+    /// film *inside the call*, so there is never a frame on which a film has
+    /// been asked for and is not yet up; ours is built without a [`Ctx`] and
+    /// opens on whichever of `handle` or `update` reaches it first. So a
+    /// release that arrives straight after the trigger meets a playing film,
+    /// as it would have in the original.
+    fn open(&mut self, ctx: &Ctx) {
+        if !matches!(self.state, State::Unopened) {
+            return;
+        }
+        // `FUN_0041A166`'s language test, made once: the cues are `intro.smk`'s
+        // alone, and only a translated `L2.eng` has them.
+        let cued = self.film == Film::Intro
+            && !movie::is_english(ctx.assets.shell.text(GROUP_LANGUAGE, 0));
+        self.state = match ctx
+            .assets
+            .films
+            .open(self.film.file())
+            .and_then(|smk| Player::open(smk, cued).ok())
+        {
+            Some(p) => State::Playing(Box::new(p)),
+            None => State::Failed,
+        };
+        self.redraw = true;
+    }
+}
+
+impl Screen for MovieScreen {
+    fn id(&self) -> ScreenId {
+        ScreenId::Movie(self.film)
+    }
+
+    fn title(&self, _ctx: &Ctx) -> String {
+        self.film.title().to_string()
+    }
+
+    fn is_overlay(&self) -> bool {
+        self.film.is_over_a_screen()
+    }
+
+    fn live_palette(&self) -> Option<l2_formats::Palette> {
+        match &self.state {
+            State::Playing(p) => Some(l2_formats::Palette::from_entries(*p.decoder().palette())),
+            _ => None,
+        }
+    }
+
+    fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        self.open(ctx);
+        // **A film that did not open is not there.** `Smk_Play` failing sets
+        // `g_screenId` straight back, so the input of that frame belongs to the
+        // screen underneath; ours holds the film's screen one tick for the
+        // audio layer's sake (see [`State::Failed`]), and must not eat a click
+        // while it does.
+        if matches!(self.state, State::Failed) {
+            return Transition::Pass;
+        }
+        match event {
+            // arm: 0x0042FF10/film-skip-right-release right-release
+            Event::RightClick { .. } => self.skip(ctx),
+            Event::Release { .. } => {
+                if std::mem::take(&mut self.swallow_release) {
+                    return Transition::Stay;
+                }
+                // arm: 0x0042FF10/film-skip-left-release left-release
+                self.skip(ctx)
+            }
+            // `DAT_004EABB4` is set on every `WM_KEYDOWN`, whichever key.
+            // arm: 0x0042FF10/film-skip-key key
+            Event::KeyDown(_) => self.skip(ctx),
+            _ => Transition::Stay,
+        }
+    }
+
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        match &mut self.state {
+            State::Unopened => {
+                self.open(ctx);
+                Transition::Stay
+            }
+            State::Failed => self.film.on_failure(),
+            State::Playing(player) => {
+                let before = player.frame();
+                match player.tick() {
+                    Ok(Step::Playing) => {
+                        self.redraw |= player.frame() != before;
+                        Transition::Stay
+                    }
+                    // A frame that will not decode ends the film the way the
+                    // last frame does; `smackw32` has no other outcome to offer.
+                    Ok(Step::Finished) | Err(_) => self.finish(ctx),
+                }
+            }
+        }
+    }
+
+    fn take_redraw(&mut self) -> bool {
+        std::mem::take(&mut self.redraw)
+    }
+
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        if !self.film.is_over_a_screen() {
+            // `FUN_004B11CE` → `FUN_004B1867`: the back buffer cleared.
+            canvas.clear(0);
+        }
+        let pen = Pen {
+            assets: &ctx.assets.shell,
+            ink: &ctx.assets.ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            shadow: Some(font::SHADOW),
+            caps: None,
+        };
+        match self.film {
+            Film::Capture { record, .. } => draw_capture_window(&pen, ctx, canvas, &record),
+            Film::Ending { record, .. } => draw_ending_window(&pen, ctx, canvas, &record),
+            _ => {}
+        }
+        let State::Playing(player) = &self.state else { return };
+        let (w, _) = player.decoder().size();
+        let (x, y) = self.film.at();
+        let scale = player.smk().header().y_scale() as usize;
+        canvas.blit_raster(player.decoder().pixels(), w, x, y, scale);
+        for (line, at) in player.subtitles.lines.iter().zip(SUBTITLE_Y) {
+            if let Some(i) = line {
+                let s = ctx.assets.shell.text(GROUP_SUBTITLES, *i).to_string();
+                pen.body_centred(canvas, 0, at, 0x280, &s, SUBTITLE_COLOUR);
+            }
+        }
+    }
+}
+
+/// **`Msg_DrawWindow`'s category-`0x0D` arm with animations on**, drawn once
+/// before `Msg_Dismiss` and left on screen under the film:
+///
+/// ```c
+/// FUN_004B1310();                                    /* the screen dimmed  */
+/// FUN_004093E0(0x10, 0x30, 0x1C, 0x17);
+/// Ui_DrawInsetRect(0x27, 0x68, 0x192, 0xC2);         /* the film's well    */
+/// Ui_OkButton(0x1A0, 0x170, 0);
+/// Ui_DrawCentred(100, scenario * 0x14 + county, 0x10, 0x46, 0x1C0, heading);
+/// FUN_0040328E(group, 1, 0x30, 0x142, 0x180, 400, 0, 0, body);
+/// ```
+///
+/// The dimming reads the campaign palette, which is the one on screen when a
+/// capture is announced; `[I]` for a capture announced over anything else.
+fn draw_capture_window(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &crate::message::Record) {
+    canvas.remap(&shade_table(&ctx.assets.palette));
+    pen.window(canvas, 0x10, 0x30, 0x1C, 0x17, BOX_SET);
+    shell::inset_rect(canvas, 0x27, 0x68, 0x192, 0xC2);
+    pen.ok_button(canvas, 0x1A0, 0x170, 0);
+    let county = super::message::county_name(ctx, record.county);
+    pen.heading_centred(canvas, 0x10, 0x46, 0x1C0, &county, font::TEXT);
+    let body = ctx.assets.shell.text(record.group as usize, 1).to_string();
+    pen.body_wrapped(canvas, 0x30, 0x142, 0x180, &body, font::TEXT);
+}
+
+/// **Category `0x0E` with animations on**, the slow-media layout — see
+/// [`crate::movie`] for why that is the one:
+///
+/// ```c
+/// FUN_004B1310();
+/// FUN_004093E0(0x10, 0x30, 0x1C, 0x18);
+/// Ui_DrawInsetRect(0x58, 0x68, 0x12A, 0xBA);
+/// Ui_OkButton(0x1A0, 0x180, 0);
+/// FUN_004025D7(g_playerNames + (group == 0xE1 ? local : from) * 0x2C, 0x10, 0x46, 0x1C0, heading);
+/// Ui_DrawCentred(group, 0, 0x10, 0x132, 0x1C0, heading);
+/// FUN_0040328E(group, variant + 1, 0x30, 0x152, 0x180, 400, 0, 0, body);
+/// ```
+fn draw_ending_window(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &crate::message::Record) {
+    canvas.remap(&shade_table(&ctx.assets.palette));
+    pen.window(canvas, 0x10, 0x30, 0x1C, 0x18, BOX_SET);
+    shell::inset_rect(canvas, 0x58, 0x68, 0x12A, 0xBA);
+    pen.ok_button(canvas, 0x1A0, 0x180, 0);
+    let who = if record.group == l2_kingdom::victory::MSG_VICTORY { ctx.game.player } else { record.from };
+    pen.heading_centred(canvas, 0x10, 0x46, 0x1C0, &super::message::lord_name(ctx, who), font::TEXT);
+    pen.heading_centred(canvas, 0x10, 0x132, 0x1C0, &super::message::label(ctx, record.group), font::TEXT);
+    let body = ctx.assets.shell.text(record.group as usize, record.body_index()).to_string();
+    pen.body_wrapped(canvas, 0x30, 0x152, 0x180, &body, font::TEXT);
+}

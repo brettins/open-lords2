@@ -395,6 +395,24 @@ impl CastleScreen {
         l2_kingdom::map::stamp_castle_terrain(&mut campaign.map, self.county, want);
         self.choice = CastleChoice::Ordered(want);
         self.message = Some("CONSTRUCTION BEGINS");
+        // `CastleBuild_Confirm`'s tail, after the order:
+        //
+        // ```c
+        // if (g_optAnimations == 0) { g_screenId = 0; Gfx_LoadCountyMode(); … }
+        // else { Music_Stop(0);
+        //        if (!Smk_Play(castle1.smk + g_castleSelection * 0x10, 0x9E, 0x14, 0, 0))
+        //            { g_screenId = 0; Gfx_LoadCountyMode(); …; Music_StartCampaign(); } }
+        // ```
+        //
+        // **Only an order plays it** — both refusals and the cross have already
+        // returned. The film goes at (158, 20), which is exactly the chooser's
+        // 320 × 200 preview well, so it plays over the picture of the castle
+        // being built with the rest of the chooser round it; screen `0x22` has
+        // no painter to clear it. The return screen is `0`, the map, and this
+        // screen leaves the moment the film does — see `update`.
+        if ctx.game.prefs.animations {
+            return Transition::Push(ScreenId::Movie(crate::movie::Film::Castle(want - 1)));
+        }
         Transition::Pop
     }
 }
@@ -412,6 +430,18 @@ impl Screen for CastleScreen {
     /// six screens with a palette of its own.
     fn palette(&self) -> Option<&'static str> {
         Some("cas_back.256")
+    }
+
+    /// **The film is over, and so is this screen.** `CastleBuild_Confirm`
+    /// passes `Smk_Play` a return screen of `0`, so the chooser the film played
+    /// over does not come back; it is only still on our stack because it is
+    /// what the film is drawn over. An update reaches it again only once the
+    /// film has gone, and an order is the one choice that leaves it up.
+    fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+        match self.choice {
+            CastleChoice::Ordered(_) => Transition::Pop,
+            _ => Transition::Stay,
+        }
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {

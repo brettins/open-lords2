@@ -202,6 +202,10 @@ pub fn screen_byte(id: ScreenId) -> Option<u8> {
         ScreenId::Conquest => 0x1C,
         ScreenId::Siege(_) => 0x1D,
         ScreenId::Setup(_) => 0x1F,
+        // A film: `Smk_Play` parks `g_screenId` at `0x22`. `SCREENS[0x22]` is 2, so
+        // the timer is not drawn over a film, and `0x22` is not in
+        // `CLOSED_BY_TURN_END`. Both follow from the tables above.
+        ScreenId::Movie(_) => 0x22,
         ScreenId::About => 0x25,
         // The tip's own screen: `Tip_Show` writes `g_screenId = 0x27` (see
         // `crate::tip::screen_byte`). `SCREENS[0x27]` is 2, so the timer is not

@@ -106,6 +106,14 @@ pub struct Mixer {
     /// idempotent.
     music_name: Option<String>,
     effects: Vec<Voice>,
+    /// **A film's own sound track**, which is neither music nor an effect.
+    ///
+    /// `Smk_Open` asks `SmackOpen` for track 0 (flag `0x2000`, `[I]` from RAD's
+    /// published SDK constants) whenever DirectSound is up, and plays it
+    /// through `smackw32`'s own buffer — not through `Music_Play` and not
+    /// through the effect slots, so **none of the three sound switches touches
+    /// it**. Its own voice here for the same reason, mixed at unity.
+    film: Option<Voice>,
     pub music_on: bool,
     pub effects_on: bool,
 }
@@ -117,9 +125,25 @@ impl Mixer {
             music: None,
             music_name: None,
             effects: Vec::new(),
+            film: None,
             music_on: true,
             effects_on: true,
         }
+    }
+
+    /// Start a film's track from its first sample, replacing any other.
+    pub fn set_film(&mut self, name: String, sound: Arc<Sound>) {
+        self.film = Some(Voice::new(name, sound, self.out_rate, false, 256));
+    }
+
+    /// `SmackClose` — the track stops with the film, wherever it had got to.
+    pub fn stop_film(&mut self) {
+        self.film = None;
+    }
+
+    /// The film whose track is sounding, if one is.
+    pub fn film_name(&self) -> Option<&str> {
+        self.film.as_ref().map(|v| v.name.as_str())
     }
 
     pub fn out_rate(&self) -> u32 {
@@ -198,6 +222,15 @@ impl Mixer {
                         l += a;
                         r += b;
                     }
+                }
+            }
+            if let Some(v) = self.film.as_mut() {
+                match v.next() {
+                    Some((a, b)) => {
+                        l += a;
+                        r += b;
+                    }
+                    None => self.film = None,
                 }
             }
             if self.effects_on {

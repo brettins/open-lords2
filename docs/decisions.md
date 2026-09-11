@@ -8888,3 +8888,64 @@ round (a living county does go negative, and the fixed path never does).
 chain at 66 deaths and 414 people; it is 67 and 412 now, and its *"births match either way"* line
 was the same error — band 2's 16% sends the person to the deaths and the file's band 3 to the
 births, 62 against 63.
+
+---
+
+**C171 — The game's films play, from a decoder of ours; and five things the inventories said about them were wrong.**
+
+`crates/l2-smk` decodes all 45 `.smk` files and `crates/l2-game` plays each where one of
+`Smk_Play`'s seven callers does. `docs/formats/smk.md` is the whole of it; this entry is the
+part that corrects something already on file.
+
+### The premise of D5a is overtaken, not settled
+
+D5a asked which LGPL decoder to link, on the finding that no permissive one exists. None is
+linked: the decoder is ours, MIT, written from the format description. **What makes that safe
+to believe is the method, and it is worth reusing:** the LGPL `smk` crate was built in the
+scratchpad and run as a **black box** — its API read off generated rustdoc, its source never
+opened, nothing committed — and its per-film hashes of every frame's pixels, palette and
+samples are pinned as literals in `crates/l2-smk/tests/corpus.rs`. A copyleft implementation
+can be an oracle without being a source. D5a itself is left for the lead to close.
+
+### `Msg_DrawWindow#16` and `#21` do not speak after the film
+
+`docs/audio.json` and `docs/audio-triggers.md` both said the animated capture and ending
+branches *"speak AFTERWARDS … the trigger is the film ending"*. `Smk_Play` returns as soon as
+`Smk_Open` has decoded the first frame and run `Smk_PlayLoop` once, so the
+`Msg_PlayVoice(DAT_004F0374, DAT_004F0354)` on the next line runs **with the film's opening**.
+**[V]** from `Smk_Open`'s body. Built the other way it would have been a voice nobody hears
+until a film is over.
+
+### The capture film cannot be reached, and two sound sites stay `blocked` for it
+
+`County_ChangeOwner` (`0x004A72FE`) posts the nine *"we have taken"* letters, groups
+`0x75`…`0x7E`, with **category `0x0D`** — the animated capture branch's category. Nothing in
+this workspace posts one: `l2_kingdom::conquest::change_owner` says the letters are left to a
+caller, and there is none. So the capture film, its window and its voice are built and tested
+with a hand-posted record, and `Msg_DrawWindow#15` / `#16` are **not** marked reproduced — the
+same call `#24` got for the tip screens. The name of the gap is the letters, not the film.
+
+### Setup page 1's ids were never contradictory
+
+`crates/l2-game/src/screens/setup.rs` recorded as unresolved that `FUN_00432B05`'s hotspot 4
+plays `lom.smk` while the painter draws *"Lords of Magic?"* third. `node tools/oracle/widgets.js
+widgets 4dcb48 4` answers it: the table's records are in drawing order and carry ids 1, 2, **4**,
+3 — and the third is the page's only **kind 3** record, so the trailer fires on the release
+while its neighbours fire on the press. The item had been wired to page 10.
+
+### The outcome banner read four siege outcomes as two
+
+`outcome_pair` mapped a siege to pair 2 when the player won and 3 when he lost.
+`Battle_SelectOutcomeBanner` (`0x00478419`) has four: took the castle 2, **held it 4**, driven
+off 3, **lost it 5** — so a player who held his castle was told he had taken one. `outcome_banner`
+replaces it for both banner arms and picks the battle film's row. **[V]** from the body; the four
+arms read as four different `L2.eng` group 82 sentences, which is the check on the mapping.
+
+### Screen `0x44` has no writer
+
+An image-wide scan for `C6 05 50 AC 4E 00 xx` — `mov byte ptr [g_screenId], imm8` — finds 52
+distinct immediates and no `0x44`; the other 48 stores to `g_screenId` are `mov [g_screenId], al`
+restoring a remembered screen. So the Smacker test page, `Smk_ReplayIntro` and the forty-name
+table behind it are unreachable, and `docs/arms.json` files its two widget handlers `dead`.
+**[D]**: exhaustive over immediates, and relies on the register stores only ever copying ids
+that were written first.

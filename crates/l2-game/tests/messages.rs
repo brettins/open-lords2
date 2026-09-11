@@ -65,6 +65,11 @@ fn world() -> (Game, Assets, Machine) {
     }
     g.kingdom.realms[1].is_human = true;
     g.kingdom.realms[1].lord = 1;
+    // **Animations off**, so a capture or an ending shows the window these tests
+    // read. With them on — the default — `Msg_DrawWindow` closes both on the
+    // frame they open and plays a film instead; that branch is
+    // `tests/movies.rs`'s.
+    g.prefs.animations = false;
     (g, Assets::placeholder(), Machine::new(ScreenId::Campaign))
 }
 

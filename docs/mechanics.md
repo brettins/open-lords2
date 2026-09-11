@@ -662,11 +662,11 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   blamed for `S010_13.wav`; the cursor is two globals and a table, and `S010_13.wav` is
   not in the chain at all.
 
-  **And the count that says what to do next is 75 of 143**, in `docs/audio.json` — the
+  **And the count that says what to do next is 80 of 143**, in `docs/audio.json` — the
   audio equivalent of the input-arm audit, and it now has the same two checks behind it
   that `docs/arms.json` has: `node tools/oracle/sounds.js --check` compares it with the
   decompilation, and `crates/l2-game/tests/sfx.rs` compares it with the `// sfx:` markers
-  in `crates/`. Every site is `reproduced` (75), `blocked` (34), `missing` (31) or `dead` (3), and a
+  in `crates/`. Every site is `reproduced` (80), `blocked` (29), `missing` (31) or `dead` (3), and a
   `blocked` record is required by the test to **name the mechanic** it is waiting for.
 
   **The denominator moved from 134 to 143 and that is the interesting part.** The audit
@@ -842,7 +842,15 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
   three readers ask `(flag < 1) || (2 < flag)`, which cannot be true. So **81% of this game's
   audio exists to satisfy a test whose answer is already fixed.** The flag is persisted in
   saves, so one could in principle carry a failing value; nothing writes one.
-- ❓ Video: 45 `.smk` files, no decoder, blocked on a licence decision (D5a)
+- ✅ **Video.** All 45 `.smk` files decode (`crates/l2-smk`, MIT, written from the format
+  description; every frame's pixels, palette and samples match an independent decoder), and
+  the game plays them where the original does: the intro, the Impressions logo and the
+  credits at start-up, the *Lords of Magic?* trailer, a castle going up, a lord falling
+  (cart, pillory, jail, gallows or axe, by how long the game has run) and the end of a
+  battle the player fought — each with its own sound track, over the music bed it stops.
+  Two gaps: **a captured county's film is built and never plays**, because nothing posts
+  the capture letters `County_ChangeOwner` raises; and the CD's fast-media ending layout is
+  not. `crate::movie` has the table of all seven `Smk_Play` callers.
 
 ---
 

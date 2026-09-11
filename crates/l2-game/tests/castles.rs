@@ -185,6 +185,11 @@ fn world() -> (Game, Assets) {
     g.kingdom.campaign.mercenaries = MercenaryBands::init(2);
     g.player = 1;
     g.selected = 1;
+    // **Animations off.** With them on — the original's default and ours —
+    // `CastleBuild_Confirm` plays `castle<n>.smk` over the chooser before the map
+    // comes back, and these tests are about the order, not the film. The film
+    // is `tests/movies.rs`'s.
+    g.prefs.animations = false;
     (g, Assets::placeholder())
 }
 

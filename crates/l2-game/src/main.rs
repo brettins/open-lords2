@@ -113,11 +113,15 @@ impl App {
         // the merchant, the armoury, castle building and the ratings each read
         // a `.256` of their own, and a canvas of indices means nothing without
         // knowing which one. The top screen names it.
-        let palette = self
-            .machine
-            .palette_name()
-            .and_then(|n| self.assets.shell.palette(n))
-            .unwrap_or(&self.assets.palette);
+        // A film's palette is not a file and changes as it plays; while one is
+        // up it is the whole screen's (`Smk_ApplyPalette`).
+        let live = self.machine.live_palette();
+        let palette = live.as_ref().unwrap_or_else(|| {
+            self.machine
+                .palette_name()
+                .and_then(|n| self.assets.shell.palette(n))
+                .unwrap_or(&self.assets.palette)
+        });
         // **The end-of-turn fade, and it is the whole of the effect.**
         // `FUN_004B0CB4` never touches the framebuffer — it rewrites the
         // display palette and lets the unchanged plane of indices resolve
@@ -489,16 +493,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         audio.file_count()
     );
 
+    // The front end, as the original has it: `g_screenId` 0x1F, page 1.
+    // `screens::menu` is the two-item placeholder it replaces; it is still
+    // there, and `tests/machine.rs` still drives it, but the application no
+    // longer starts on it.
+    let mut machine = Machine::new(ScreenId::Setup(SetupPage::Title));
+    // **And over it, the intro** — `App_WinMain`'s `FUN_004B3571(0)`, which
+    // chains to the Impressions logo and the credits before the title page is
+    // seen. A missing film goes straight to the title page.
+    l2_game::movie::start_up(&mut machine);
+
     let mut app = App {
         game,
         assets,
         audio,
         director: l2_game::audio::Director::new(),
-        // The front end, as the original has it: `g_screenId` 0x1F, page 1.
-        // `screens::menu` is the two-item placeholder it replaces; it is still
-        // there, and `tests/machine.rs` still drives it, but the application
-        // no longer starts on it.
-        machine: Machine::new(ScreenId::Setup(SetupPage::Title)),
+        machine,
         canvas: Canvas::screen(),
         window: None,
         pixels: None,

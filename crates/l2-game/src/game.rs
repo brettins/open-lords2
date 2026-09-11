@@ -330,6 +330,10 @@ pub struct Assets {
     /// the per-screen artwork the front end and the management screens load.
     /// See [`crate::shell`].
     pub shell: ShellAssets,
+    /// The install's 45 films, indexed and not read — see
+    /// [`crate::movie::FilmFiles`]. Empty on an install without them, which is
+    /// every DOS install: `Smk_Open` then fails and each caller's fail arm runs.
+    pub films: crate::movie::FilmFiles,
     /// `L2_maps.dat` whole. A `MapSlot` borrows its file, so the bytes are kept
     /// and the slot is re-parsed on demand — which is bounds arithmetic, not
     /// decoding, and costs nothing.
@@ -376,6 +380,7 @@ impl Assets {
             village,
             battle,
             shell: ShellAssets::load(vfs),
+            films: crate::movie::FilmFiles::index(vfs),
             maps,
             minimap_files,
         })
@@ -429,6 +434,7 @@ impl Assets {
             village: None,
             battle: None,
             shell: ShellAssets::empty(),
+            films: crate::movie::FilmFiles::default(),
             maps: vec![0u8; l2_formats::maps::SLOT_LEN],
             minimap_files: vec![None; 16],
         }
@@ -667,6 +673,13 @@ pub struct Game {
     /// the original throws away; and it is not the world's — the only thing it
     /// can do to the world is press End Turn.
     pub turn_clock: crate::turn_clock::TurnClock,
+    /// **`DAT_00553ED4` and `DAT_0053F084`** — which capture film and which of a
+    /// battle row's four films come next — and the latch `Smk_OnFinished`'s
+    /// return to the battle banner reads. See [`crate::movie::Reel`].
+    ///
+    /// not-encoded: presentation. Neither counter is in any of the original's
+    /// save blocks and neither changes anything but which picture is shown.
+    pub films: crate::movie::Reel,
 }
 
 /// `g_levyPercent`, `g_levyMen`, `g_levyHappinessCost`, `g_levyBasket` and
@@ -754,6 +767,7 @@ impl Game {
             tips: crate::tip::Tips::new(),
             multiplayer: false,
             turn_clock: crate::turn_clock::TurnClock::default(),
+            films: crate::movie::Reel::default(),
         }
     }
 

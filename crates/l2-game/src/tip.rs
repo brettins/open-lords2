@@ -318,6 +318,8 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         S::Job(..) => Some(0x0F),
         S::RaiseArmy(_) => Some(0x17),
         S::Castle(_) => Some(0x1B),
+        // A film is `g_screenId` `0x22`; no rung of the ladder tests it.
+        S::Movie(_) => Some(0x22),
         S::Tip => Some(0x27),
         S::Options(page) => page.screen_id(),
         S::SaveLoad(mode) => Some(mode.screen_id()),

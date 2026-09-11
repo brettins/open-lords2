@@ -1036,6 +1036,56 @@ pub fn show(game: &mut Game) -> bool {
     true
 }
 
+/// **`Msg_DrawWindow`'s two animated branches** — categories `0x0D` (a county
+/// taken) and `0x0E` (a lord fallen) when `g_optAnimations == 1` and
+/// `g_messageTimer > 0x7C6`, which on the frame the window opens it always is.
+///
+/// Neither shows the window a player would recognise. Each draws a taller one
+/// **once**, dismisses the message **from inside the draw**, stops the music
+/// and plays a film in the well it drew:
+///
+/// ```c
+/// /* 0x0D */ …; Msg_Dismiss(); Music_Stop(0);
+///            if (2 < ++DAT_00553ED4) DAT_00553ED4 = 0;
+///            if (!Smk_Play(cap_cty1.smk + DAT_00553ED4 * 0x10, 0x28, 0x69, 0, g_screenId))
+///                { g_redrawRequest = 1; Music_StartCampaign(); }
+///            Msg_PlayVoice(DAT_004F0374, DAT_004F0354);
+/// /* 0x0E */ …the outcome ladder…; FUN_00475B41(g_messageFrom, g_messageGroup);
+///            Msg_Dismiss(); Music_Stop(0); Smk_Play(&DAT_004F0340, 0x59, 0x69, …); …
+/// ```
+///
+/// The outcome ladder is [`show`]'s, which has already run on this frame —
+/// the animated branch carries its own copy of the same eleven lines. So what
+/// is left here is the film: which one, the dismissal, and — because
+/// `Msg_Dismiss` can enter the conquest screen, and `Smk_Play` is told to
+/// return to whatever `g_screenId` is by then — whether the game is over.
+///
+/// Returns the film to play, or `None` when this message is not one of the two
+/// or animations are off; the unanimated branches are [`show`] and the
+/// ordinary window, unchanged.
+pub fn animate(game: &mut Game) -> Option<crate::movie::Film> {
+    use crate::movie::Film;
+    let record = game.messages.open().copied()?;
+    if !game.prefs.animations || game.messages.timer() <= 0x7C6 {
+        return None;
+    }
+    match record.category {
+        category::CAPTURE => {
+            dismiss(game);
+            let take = game.films.next_capture();
+            Some(Film::Capture { take, record })
+        }
+        category::ENDING => {
+            // `FUN_00475B41` reads the year and the lord before `Msg_Dismiss`
+            // runs, though nothing it reads is something the dismissal writes.
+            let file = crate::movie::ending_film(game, record.from, record.group);
+            let game_over = matches!(dismiss(game), Dismissal::GameOver(_));
+            Some(Film::Ending { file, record, game_over })
+        }
+        _ => None,
+    }
+}
+
 /// **Show and dismiss every queued message at once**, and return the outcome.
 ///
 /// This is what a *headless* turn does in place of the frame loop: it is

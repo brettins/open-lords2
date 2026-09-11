@@ -117,6 +117,10 @@ fn world() -> (Game, Assets) {
     g.kingdom.campaign.mercenaries = MercenaryBands::init(2);
     g.player = 1;
     g.selected = 1;
+    // **Animations off**: with them on — the default — a decided battle plays
+    // `Battle_CheckOutcome`'s film over the banner, and these tests are about
+    // the battle. The film is `tests/movies.rs`'s.
+    g.prefs.animations = false;
     (g, Assets::placeholder())
 }
 

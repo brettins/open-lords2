@@ -1,12 +1,16 @@
 # Smacker video (`.smk`)
 
-Status: **45 / 45 files container-validated byte-exactly, and 45 / 45 fully decoded —
-7,652 frames — by a candidate Rust decoder.** No decoder is in `crates/` yet. This
-document is the input to that decision, not a record of one already taken.
+Status: **45 / 45 files decoded by our own MIT decoder, `crates/l2-smk` — 7,652 frames,
+8,798,274 bytes of PCM — and every one played by the game where `Lords2.exe` plays it.**
+Every frame's pixels, every frame's palette and every sample of 44 films hash identically
+to an independent decoder's output; the 45th, `Pill_brn.smk`, matches to as far as that
+decoder can go. The integration question this document was first written to settle is
+closed: **no third-party decoder is linked**, so `docs/decisions.md` D5a's licence choice
+does not arise.
 
-Smacker is RAD Game Tools' 1994 video middleware. It is not our format and it is not
-worth reverse-engineering: it is publicly documented and there are three working open
-implementations. The whole question here is *which one to integrate, and at what cost*.
+Smacker is RAD Game Tools' 1994 video middleware. It is not our format and it was not
+reverse-engineered here: its container, trees, block codes, palette opcodes and audio
+coding are publicly described, and those facts are what `crates/l2-smk` is written from.
 
 Analysis scripts:
 
@@ -15,6 +19,7 @@ node tools/media/smkinfo.js "F:/games/Lords of the Realm II"          # summary 
 node tools/media/smkinfo.js "F:/games/Lords of the Realm II" --csv    # per-file fields
 node tools/media/smkapi.js  "F:/games/Lords of the Realm II/Lords2.exe" \
                             "F:/games/Lords of the Realm II/Smackw32.dll" smack
+LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-smk --test corpus
 ```
 
 ## The corpus (verified)
@@ -32,16 +37,17 @@ none is `SMK4`.
 | Ring frame | never set |
 | Keyframes | **none** — all 7,652 frame-size entries have the low two bits clear |
 
-Geometry, and what each group is (sizes verified; the "what" is inferred from filenames):
+Geometry, and what each group is — the sizes verified, and the "what" now verified too,
+from the call site that plays each (§ *Every film the game plays*):
 
-| Size | Files | Apparently |
+| Size | Files | What plays it |
 |---|---|---|
-| 400×192 | 25 | battle / siege / castle win-lose stingers (`Bat_*`, `Cas_*`, `Sge_*`, `Cap_cty*`) |
-| 296×184 | 11 | character vignettes (`Axemen`, `Cart_*`, `Pill_*`, `Hang`, `Jail`, `Win_game`) |
-| 320×200 | 5 | castle construction (`Castle1`–`Castle5`) |
+| 400×192 | 25 | `Battle_CheckOutcome` (`Bat_*`, `Cas_*`, `Sge_*`) and the animated capture message (`Cap_cty*`) |
+| 296×184 | 11 | the animated ending message (`Axmen`, `Cart_*`, `Pill_*`, `Hang`, `Jail`, `Win_game`) |
+| 320×200 | 5 | `CastleBuild_Confirm` (`Castle1`–`Castle5`), in the chooser's 320×200 preview well |
 | 640×240 | 1 | `Credits.smk`, Y-doubled → 640×480, exactly the game's screen |
 | 560×144 | 1 | `Intro.smk`, Y-doubled → 560×288, 1,578 frames, 131 s |
-| 500×144 | 1 | `LOM.SMK`, Y-doubled → 500×288, 1,449 frames, the largest file at 22.7 MB |
+| 500×144 | 1 | `LOM.SMK`, Y-doubled → 500×288, 1,449 frames — **Sierra's *Lords of Magic* trailer** |
 | 500×292 | 1 | `Imptitle.smk`, the Impressions logo |
 
 The three Y-doubled files are the only ones with a non-zero header flags word (`0x02`).
@@ -61,21 +67,20 @@ against the directory:
   the 45 files: **`axemen.smk` is the only shipped file never referenced**.
 * Seven referenced names have no file: `cap_cnty.smk`, `cart_cts.smk`, `cart_hmn.smk`,
   `pill_bsp.smk` and `pill_hmn.smk`, which look like cut content; the placeholder
-  `null.smk`; and `292822k.smk`, a literal with no file and no obvious meaning.
+  `null.smk`; and `292822k.smk`, a literal with no file and no obvious meaning. **All seven
+  are in the debug viewer's table only** (below), and the game's own ending table gives the
+  Countess her pillory twice and the Bishop his cart twice rather than name them.
 
-So our loader must be **case-insensitive and tolerant of missing videos** — the original
-plainly is. It must not assume the name in the exe matches the name on disk in case.
+So our loader is **case-insensitive and tolerant of missing videos**, as the original is.
 
 ### The DOS install has no videos at all
 
 `F:\games\LORDS2` contains zero `.smk` files. The exe's string table holds the
 subdirectory names `PL8`, `256`, `WAV`, `SMK`, and the DOS install has `PL8\` and `WAV\`
-but no `SMK\` — the videos lived on the CD. Verified.
+but no `SMK\` — the videos lived on the CD. Verified. On such an install every `Smk_Open`
+fails and every caller takes its fail arm, which ours reproduces.
 
 ## Container layout
-
-Everything below is the publicly documented Smacker container. Our reader implements it
-independently in `tools/media/smkinfo.js`; nothing is copied from any implementation.
 
 Header, 104 bytes, all little-endian:
 
@@ -116,32 +121,78 @@ unambiguous.
 carries data for audio track 0–6. 58 frames across the corpus update the palette; 7,108
 of 7,652 frames carry audio.
 
+**Inside a frame**, in order: the palette chunk (one length byte in units of four, counting
+itself), then each flagged audio chunk (a u32 length counting itself), then the video
+bitstream to the end of the frame.
+
 ### The self-verifying invariant
 
 ```
 104 + frames*4 + frames + treesSize + Σ frameSizes  ==  filesize
 ```
 
-All 45 files satisfy this **exactly**, on the first run, with zero slack. As with PL8,
-that is the property that makes automated validation meaningful: a wrong reading of any
-field drifts and the sum misses. `smkinfo.js` reports the slack per file.
+All 45 files satisfy this **exactly**, on the first run, with zero slack. `smkinfo.js`
+reports the slack per file and `l2_smk::Smk::slack` returns it.
 
-### Palette
+## The codec, as `crates/l2-smk` implements it
 
-Palette updates are delta-encoded against the previous palette with three opcodes —
-skip, copy-from-old-at-offset, and set-three-6-bit-values. The stored values are **6-bit
-(0–63)** and are expanded to 8-bit by **bit replication**, `(v << 2) | (v >> 4)`.
+Every bitstream is read **least significant bit first**, within bytes in order.
 
-That is *not* the same expansion as our `.256` palettes, which `docs/formats/pl8.md`
-documents as `v * 255 / 63`. The two agree at the ends and differ by one in the middle
-(6-bit 16 → 0x41 by replication, 0x40 by the ratio). Worth remembering when our video
-output is compared against the original pixel-for-pixel.
+**Trees.** The tree block holds four 16-bit trees — MMap, MClr, Full, Type. Each is a
+presence bit; a low-byte and a high-byte 8-bit tree; three 16-bit *escape* values; the tree
+itself, depth-first (`1` a branch, `0` a leaf spelled as a low-tree code then a high-tree
+code); and a closing `0`. An 8-bit tree is a presence bit, the tree depth-first with 8-bit
+leaves, and a closing `0`. A leaf equal to escape *n* stands for the *n*-th most recent value
+that tree produced; after each decode a value that is not already the most recent is pushed
+to the front of the three, which reset to zero at the start of every frame.
 
-## What the original engine actually does
+**Blocks.** The picture is 4 × 4 blocks in reading order. A Type code gives a block type in
+its low two bits, a run length index in the next six (1…59, then 128, 256, 512, 1024, 2048)
+and a colour in its high byte. *Mono*: a MClr code (two colours) and a MMap code (sixteen
+bits, top row first, least significant first; set picks the high colour). *Full* (`SMK2`):
+per row two Full codes, the first filling columns 2 and 3, the second columns 0 and 1, low
+byte first. *Skip*: last frame's pixels stand. *Solid*: the run's colour.
+
+**Palette.** Against the palette as it stood before the frame: `1nnnnnnn` keeps `n + 1`
+entries; `01nnnnnn s` copies `n + 1` entries from the **old** palette at `s`; `00rrrrrr gg bb`
+sets one entry. Components are 6-bit, widened by replicating their top bits,
+`(v << 2) | (v >> 4)` — **not** the `.256` files' `v * 255 / 63`, which differs by one in the
+middle of the range. Because copies read the snapshot, a copy whose source overlaps what the
+frame has already written is harmless; `Pill_brn.smk` frame 104 is the one film that does it.
+
+**Audio.** A u32 unpacked length; then a *data present* bit, a stereo bit and a 16-bit bit;
+one 8-bit delta tree per channel; the first sample of each channel as 8 raw bits, **right
+before left**; then one signed delta per sample, channels interleaved from the left.
+
+**Refused rather than guessed:** `SMK4`'s extra full-block modes and 16-bit audio. Neither
+occurs here.
+
+### How it was checked
+
+1. **The container closes** for all 45.
+2. **Every bitstream is consumed to its padding.** Across 7,652 video frames and 7,108 audio
+   chunks the decoder leaves 0–31 bits unread — chunks are padded to four bytes — and every
+   audio chunk decodes to exactly the length its header promises.
+3. **An independent decoder agrees.** A throwaway program in the scratchpad ran the LGPL
+   `smk` crate **as a black box** — its public API only, read off its generated rustdoc; its
+   source never opened; nothing of it committed — over all 45 films and printed FNV-1a hashes
+   of every frame's pixels, every frame's palette, every track-0 sample and frame 10 alone.
+   **All four agree for 44 films.** `Pill_brn.smk`'s frame-10 and audio hashes agree; that
+   crate stops at the file's frame 104 on its overlap guard, so its whole-film hashes are ours
+   alone. The hashes are pinned in `crates/l2-smk/tests/corpus.rs` as literals.
+
+Ablated: swapping the two Full codes of a row turns the independent-decoder test red on the
+first film at frame 10 while the padding test stays green; dropping the recency cache update
+overruns a chunk on the first film.
+
+**What none of that is**: `smackw32.dll` drawing a frame. Two decoders agreeing is strong
+evidence about the bitstream and no evidence about presentation — see *Open*.
+
+## What the original engine does with them
 
 `Lords2.exe` imports `smackw32.DLL` **entirely by ordinal** — 10 symbols, no names. The
-DLL does export names, so `tools/media/smkapi.js` joins the two and counts call sites.
-This is the whole API surface our engine has to reproduce (verified):
+DLL does export names, so `tools/media/smkapi.js` joins the two and counts call sites
+(verified):
 
 | Ord | Export | Sites | Call sites |
 |-----|--------|-------|------------|
@@ -156,162 +207,116 @@ This is the whole API surface our engine has to reproduce (verified):
 | 32 | `_SmackWait@4` | 1 | `0x0042DBF7` |
 | 37 | `_SetDirectSoundHWND@4` | 1 | `0x0042E343` |
 
-The other 29 exports are never imported. In particular **`SmackToScreen` is not used** —
-the game always decodes into its own buffer and does its own presentation, which is
-exactly the shape our `pixels` framebuffer wants.
+**`SmackToScreen` is not used** — the game always decodes into its own 640 × 480 buffer.
 
 ### The playback path (verified by decompilation)
 
 | Address | Name | What it does |
 |---------|------|--------------|
-| `0x0042DA18` | `Smk_Open(name, x, y, mode)` | Logs `OK :SMK starting smack`, copies the filename into a **16-byte** buffer at `0x005169D0`, runs the CD-directory dance, `SmackOpen`, then decodes frame 0 immediately. |
-| `0x0042DBC7` | `Smk_ServiceFrame()` | One pump of the playback loop. Returns 0 when finished. |
-| `0x0042DFE2` | `Smk_Stop()` | `SmackClose`, restore working directory. |
-| `0x0042E320` | `Smk_InitSound()` | `SetDirectSoundHWND(hwnd)`, once per process. |
-| `0x0042E3BA` | `Smk_OnPaint(hwnd)` | `WM_PAINT`: `SmackSoundOnOff(0)`, `SmackGoto(savedFrame)`, `SmackSoundOnOff(1)`. |
-| `0x0042E298` | `Smk_CopyPalette()` | Copies 256 × 3 bytes from the Smack handle to the game palette. |
+| `0x0042D91B` | `Smk_Play(path, x, y, mode, returnScreen)` | `Smk_Open`; on success `g_smkReturnScreen = returnScreen; g_screenId = 0x22`, on failure `g_screenId = returnScreen`. |
+| `0x0042DA18` | `Smk_Open(path, x, y, mode)` | Copies the name into a 16-byte buffer, the CD/hard-disk path dance, `SmackOpen(path, flags, -1)`, then `SmackToBuffer` and one `Smk_PlayLoop` — **the first frame is up before `Smk_Play` returns**. |
+| `0x0042DBC7` | `Smk_PlayLoop()` | Called once a frame from `Battle_Frame`. `SmackWait`; palette if changed; `FUN_0041A166(frame)` for `intro.smk` only; `SmackDoFrame`; `SmackToBuffer` **only while `frame < frames - 1`**, so the last frame is decoded and never drawn; `SmackNextFrame`, or close and `Smk_OnFinished`. |
+| `0x0042DF30` | `Smk_Skip()` | *"OK :SMK user ends"* — close and `Smk_OnFinished`. |
+| `0x0042DFE2` | `Smk_CloseQuiet()` | Close without `Smk_OnFinished`; `WM_DESTROY` only. |
+| `0x0042E060` | `Smk_OnFinished()` | The start-up chain (below) while `g_appPhase == 1`; otherwise restore the screen, `Music_Play("setup.wav")` back on setup page 1, and `Music_StartCampaign()` if `g_battlePhase == 0`; over the battle banner, `DAT_00568470 = 5001`. |
+| `0x0042E320` | `Smk_BindDirectSound()` | `SetDirectSoundHWND(g_directSound)`, once. |
+| `0x0042E362` | `Smk_ApplyPalette()` | The film's 768 bytes become the whole screen's palette. |
+| `0x0042E3BA` | `Smk_OnPaint(hwnd)` | `WM_PAINT`: black the film's rectangle and re-seek to the current frame. |
+| `0x0042D96E` | `Smk_PlayThenClose` | **No caller.** |
 
-`Smk_ServiceFrame` per iteration:
+`SmackOpen`'s flags are `0`, `0x2000` when DirectSound is up, and `0x2400` for `mode == 1`
+(no caller passes 1). `[I]` from RAD's published SDK constants: `0x2000` is `SMACKTRACK1`,
+play audio track 0, and `0x400` is `SMACKNOSKIP`.
 
-1. `SmackWait` — RAD's own frame pacing; the loop stalls until the frame is due.
-2. If the handle's field at `+0x68` is non-zero, copy its 768-byte palette (at `+0x6C`)
-   into the game palette at `0x004EA1B0` and upload it. Verified: the copy is a plain
-   256×3 byte loop with **no scaling**, and the DirectDraw upload at `0x0042F306` is also
-   a plain byte copy into `PALETTEENTRY`. Two consequences: `smackw32` hands back **8-bit**
-   values, and palette entries **0 and 255 are pinned** to fixed engine colours with
-   `peFlags = 0`, while entries 1–254 come from the movie with `PC_NOCOLLAPSE`.
-3. If the movie is `intro.smk`, call `0x0041A166` with the current frame number — the
-   intro alone drives frame-cued events (subtitles, most likely; inferred).
-4. `SmackDoFrame`, then `SmackToBuffer(handle, x, y, 640, 480, backbuffer, 0)` into the
-   game's 8-bit 640×480 buffer at `0x004EA1A8`, then mark the region dirty via
-   `0x004527A6`. A second path, taken when `0x004DF28C` is set, locks a DirectDraw
-   surface instead and uses the surface pitch and `SmackToBufferRect` to blit only the
-   changed rectangle.
-5. `SmackNextFrame` while `currentFrame < frames - 1`; otherwise `SmackClose` and log
-   `OK :SMK natural end of`. `OK :SMK user ends` is the abort path.
+## Every film the game plays
 
-Handle fields used, by offset (verified by use, and consistent with the published
-`Smack` structure): `+0x04` width, `+0x08` height, `+0x0C` frame count, `+0x68` palette-
-changed flag, `+0x6C` 768-byte palette, `+0x374` current frame, `+0x378`/`+0x37C`/`+0x380`
-/`+0x384` the last dirty rectangle.
+`Smk_Play` has **seven callers**, and they are the whole of the game's video. `[V]` on every
+address, coordinate and file name — the names dumped out of `.rdata` at the address each call
+site indexes. `crates/l2-game/src/movie.rs` carries the same table beside the code.
 
-`SmackOpen`'s flags argument is `0`, `0x2000`, or `0x2400` depending on whether a window
-handle exists and on the mode argument. The meaning of those bits is **not established** —
-they are RAD's, undocumented publicly, and nothing we have decodes them.
+| caller | trigger | film | at | after |
+|---|---|---|---|---|
+| `FUN_004B3571(0)`, from `App_WinMain` | start-up | `intro.smk` | (40, 80) | the chain |
+| `Smk_OnFinished`, `g_appPhase == 1` | `intro.smk` ended or was skipped | `imptitle.smk` | (80, 80) | the chain |
+| 〃 | `imptitle.smk` ended or was skipped | `credits.smk` | (0, 0) | the title page |
+| `FUN_00432B05`, hotspot 4 | *"Lords of Magic?"* — the third record of the title page's table, **kind 3, on the release** | `lom.smk` | (70, 80) | setup page 1, `setup.wav` from the top |
+| `CastleBuild_Confirm` | a castle ordered, animations on | `castle1`…`5.smk` by level | (158, 20) | the map; bed restarts |
+| `Msg_DrawWindow`, category `0x0D` | a capture letter opens, animations on | `cap_cty1`…`3.smk`, rotating, **first shown is `cap_cty2`** | (40, 105) | the map; bed restarts; narrator reads over the film |
+| `Msg_DrawWindow`, category `0x0E` | an ending letter opens, animations on | `FUN_00475B41`: `win_game.smk` for 0xE1; else by lord and years since 1267 — cart <6, pillory <12, jail <18, gallows <24, axe; a human jail <12, gallows <32, axe | (89, 105) slow media, (25, 81) fast | the map or, if `Msg_Dismiss` ended the game, screen 0x1C; narrator reads over the film |
+| `Battle_CheckOutcome` | the banner raised, animations on and the local player a side | `bat_win1.smk + (outcome * 4 + DAT_0053F084) * 0x10` — six rows of four; a second table under `DAT_0057A0F0` | (39, 73) | the banner, which leaves with it |
+| `Smk_ReplayIntro` | screen `0x44`'s replay thumb | any of 40 names at `0x004D4D60` | (39, 73) | **unreachable**: no `mov byte ptr [g_screenId], 0x44` anywhere in the image |
 
-## Integration options
+**Which films no reachable path plays.** `axemen.smk` (never named), and the six films of
+the third battle mode's table — `bat_win5`, `bat_win6`, `bat_los5`, `bat_los6`, `cas_win3`,
+`cas_los3`, the six dated 1997 — which play only under `DAT_0057A0F0`, a mode this engine
+does not have. `crates/l2-game/tests/movies.rs` pins that list against the install.
 
-Weighed on licence, on Windows build friction (this project has deliberately had no
-native build dependencies — see `docs/decisions.md`, D4), and on the hard requirement
-that the **original `.smk` files must play directly**, because users bring their own copy
-of the game and we may not ship converted video.
+**Ending a film early** is `Smk_Skip`, and it has three callers: `Screen_FrameInput`'s `0x22`
+arm (the multiplayer sync latch; a **right release**; a **left release**; `DAT_004EABB4`, set
+on **any `WM_KEYDOWN`**), `FUN_0043AD25` from `Turn_Tick`'s end-of-season phase, and
+`Net_LeaveGame`. A skip is `Smk_OnFinished`, so a skip during start-up moves one film on.
+**Escape** is also a key, and during the front end the window procedure additionally sets
+`g_quitRequest = 1` — so Escape during the original's intro quits the program. Ours skips.
 
-| Option | Licence | Native deps on Windows | Verdict |
-|---|---|---|---|
-| **`smk` 0.1.0** — pure Rust, a declared port of libsmacker 1.2.0 | LGPL-2.1-or-later | **none** (one dep: `log`) | **Recommended** |
-| `libsmacker` + `libsmacker-sys` 0.1 | LGPL-2.1 | vendored C, needs `cc` and a C toolchain | Same licence, strictly more friction |
-| `ffmpeg-next` 9 / `ffmpeg-sys-next` | crate WTFPL, **FFmpeg itself LGPL-2.1+** | LLVM/libclang, a prebuilt shared FFmpeg, `FFMPEG_DIR`, DLLs on `PATH` | Reject |
-| Transcode at install time | n/a | n/a | Reject — see below |
-| Write our own SMK2 decoder | MIT, ours | none | The only licence-clean route; not now |
+**The intro's frame cues**, `FUN_0041A166`, draw `L2.eng` group 301's eleven lines — *"1268
+AD"* onward — centred at y 400 in colour `0xF5`, **only when group 300's first seven
+characters are not `"English"`**. On this install they are, so the intro carries no text.
 
-**The task brief's premise needs correcting: libsmacker is not permissively licensed.**
-It has been **LGPL v2.1 since January 2020**. Every working Smacker implementation is
-copyleft — libsmacker (LGPL-2.1), FFmpeg's `libavcodec/smacker.c` (LGPL-2.1+), ScummVM's
-(GPL). The one public-domain implementation, `mewspring/smk` (Go, Unlicense), is
-**8 KB of header parsing only** — it parses exactly what `smkinfo.js` already parses and
-contains no codec. There is no permissive decoder to adopt.
+## What ours does, and does not
 
-**Transcoding is not an escape hatch.** We cannot ship converted video, so conversion
-would have to run on the user's machine — which needs a Smacker decoder anyway. It only
-adds an install step, disk use, and a fidelity question (these are 8-bit palettized
-frames driving the same palette the rest of the screen uses). Decoding to a local cache
-is a reasonable *optimisation* once a decoder exists; it is not a substitute for one.
+Built (`crates/l2-game`): screen `0x22` as `ScreenId::Movie(Film)`, every trigger above but
+the debug viewer, the four skips that are input, the start-up chain, the whole screen under
+the film's palette, the film's sound track through the mixer ungated by the three sound
+switches, the music bed stopping for the film and **restarting from its first sample** after
+it or after a film that would not open, the narrator over the capture and ending films, the
+dimmed and taller windows the animated message and banner branches draw once, and
+`FUN_0041A166`'s cues for a translated `L2.eng`. `crates/l2-game/tests/movies.rs` drives all
+of it through `Machine::handle` / `update` and `Director::listen`.
 
-### Verification of the recommendation
+Not built, each recorded in `docs/arms.json` or `docs/audio.json`:
 
-The recommendation is not on reputation — the `smk` crate has one release, no stars and
-no external users worth speaking of. It was measured. A throwaway harness in the
-scratchpad decoded **every frame of all 45 files**:
-
-* 44 / 45 decode cleanly. Frame counts match `smkinfo.js` exactly (7,652), geometry
-  matches, audio track configuration matches, and 8,798,274 bytes of PCM come out.
-* Whole corpus in **1.7 s** — about 4,500 frames/second, against a 12 fps requirement.
-* Builds with zero native dependencies, one transitive crate (`log`).
-* Reports the three Y-doubled files correctly and hands back stored-size frames, so the
-  caller does the line doubling.
-
-**One real bug, found and diagnosed.** `Pill_brn.smk` fails at frame 104 with
-`InvalidData("palette copy overlaps destination")`. The crate rejects a palette
-copy-block whose source range straddles the write cursor — a guard that is meaningful in
-an implementation that copies in place, but this implementation copies out of a snapshot
-of the previous palette taken at entry, so overlap is harmless. Verified: with that guard
-removed in a local copy, **45 / 45 decode fully, 7,652 frames**, matching the container
-totals exactly. FFmpeg reads from a saved palette too and would decode this file. The
-file is not corrupt.
-
-That is a one-line upstream fix. Until it lands, this file is a hard failure, so a
-decision to adopt the crate carries a decision to patch or vendor it.
-
-### What adopting it costs us
-
-* **The MIT story gets a footnote.** Our source stays MIT; a *binary* that links an
-  LGPL-2.1 library is a combined work and must let its recipients relink against a
-  modified library. A public source tree plus normal `cargo build` instructions satisfies
-  that in practice, and LGPL does not reach our own code. But `docs/decisions.md` D5
-  currently reads "this project is MIT" without qualification, and that stops being the
-  whole truth the day this lands.
-* **We must isolate it.** `crates/l2-formats` is deliberately dependency-free; the video
-  decoder must not go there. Put it in its own leaf crate behind our own small trait
-  (open, next frame, indexed pixels + palette + PCM), so the LGPL boundary is one
-  directory and swapping in our own decoder later is a one-crate change.
-* **We inherit an unmaintained dependency.** One release, April 2026, no visible
-  community. Vendoring is the realistic fallback, and vendoring LGPL source means keeping
-  its licence and marking our modifications.
-* **We are trusting a port we have partly checked.** Frame counts and clean decodes prove
-  the container walk and the bitstreams are being consumed correctly; they do not prove
-  the pixels are right. That check is the same one PL8 will get: render a frame and diff
-  it against the original engine's framebuffer.
-
-The escape hatch stays open. The corpus is narrow — SMK2 only, 8-bit, one packed audio
-track, no ring frames, no keyframes — so a from-scratch MIT decoder is a bounded job
-(the crate is ~1,455 lines including audio) if the licence footnote ever becomes
-unacceptable. It is not worth doing before there is a renderer to point it at.
+* **The capture film cannot be reached.** Nothing in this engine posts a category-`0x0D`
+  letter: `County_ChangeOwner` (`0x004A72FE`) raises groups `0x75`…`0x7E` with it and
+  `l2_kingdom::conquest::change_owner` leaves the nine letters to a caller that does not
+  exist. Film, window and voice are built and tested with a posted record.
+* **The fast-media ending layout** and the CD's `smk_high` films.
+* **The sync latch, the end-of-season skip and `Net_LeaveGame`'s skip.** The second cannot
+  arise here: only the top screen is stepped, so a film pauses our turn — where the
+  original's turn runs on under a capture film.
+* **Escape quitting the front end** (`App_WndProc`).
+* **The third battle mode's table.**
 
 ## Verified, inferred, and open
 
 **Verified**: signature, geometry, frame counts, frame rates, audio configuration and
 footprint of all 45 files; the size invariant; the absence of ring frames and keyframes;
-the duplicate `Axemen`/`AXMEN` pair and the exe's `axmen.smk` reference; the ten imported
-ordinals and their call sites; the playback loop, the 640×480 destination buffer, and the
-unscaled palette copy with entries 0 and 255 pinned.
+every film's decoded pixels, palettes and samples against an independent decoder; the
+duplicate `Axemen`/`AXMEN` pair; the ten imported ordinals and their call sites; the playback
+loop; all seven `Smk_Play` callers, their files, positions and returns; `Smk_Skip`'s three
+callers; the start-up chain.
 
-**Inferred**: what each geometry group is used for (from filenames); that `0x0041A166`
-on `intro.smk` drives subtitles; that `smackw32` returns an 8-bit palette (it follows from
-the upload doing no scaling, given `.256` palettes are 6-bit and must be scaled somewhere).
+**Inferred**: the meaning of `SmackOpen`'s `0x2000` / `0x400` bits (RAD's SDK constants);
+that a hard-disk install takes the slow-media ending layout (no `sierra.ini`, so
+`g_fastMedia` stays 0); `FUN_004B1867` clearing the back buffer before the front-end films;
+`FUN_004B1310`'s dimming reading 6-bit palette values.
 
 **Open:**
 
-* **Y-scaling is ambiguous, and the two references disagree.** libsmacker treats flag bit
-  `0x02` as **Y-double** and `0x04` as **Y-interlace**; FFmpeg's demuxer names them the
-  other way round and implements neither, merely halving the aspect ratio. Our three
-  affected files set `0x02`. Both readings double the display height — 640×240 → 640×480
-  is certainly right for `Credits.smk` — but whether the extra rows are duplicates of
-  their neighbours or blank interleave is not settled by anything in the data. Resolve it
-  against the running original.
-* `SmackOpen`'s `0x2000` / `0x2400` flag bits.
-* `0x004527A6(x, y, 0x14, 10, 1)` marks a dirty region in 16-pixel units, which works out
-  to 320×160 — smaller than any of the movies. The unit or the argument meaning is not
-  fully understood.
-* Seeking. No file flags a keyframe, so `SmackGoto` must be re-decoding from frame 0. Our
-  implementation will have to do the same, or cache.
-* Nothing here has been rendered. Correct-looking totals are not correct-looking pixels.
+* **Y-scaling.** libsmacker calls flag `0x02` Y-double and `0x04` interlace; FFmpeg names
+  them the other way round. Both make the picture twice as tall, which is certain from
+  `Credits.smk` (640 × 240 on a 640 × 480 screen). Whether the second row of each pair is a
+  copy or black is not in the file; ours copies. **One captured frame of the running intro
+  settles it.**
+* `0x004527A6(x, y, 0x14, 10, 1)` marks a dirty region in 16-pixel units — 320 × 160, smaller
+  than any film. The unit or the argument meaning is not understood.
+* Seeking (`Smk_OnPaint`'s `SmackGoto`). No file flags a keyframe, so a re-seek re-decodes
+  from frame 0; ours never seeks, because nothing here repaints a window from outside.
+* **Pixels against `smackw32` itself.** Correct bitstreams are not a correct presentation.
 
 ## Sources
 
 * [libsmacker](https://libsmacker.sourceforge.net/) — format reference and licence
-  (LGPL-2.1 since January 2020)
-* [`smk` crate](https://crates.io/crates/smk) / [source](https://github.com/roarc0/smk)
-* [`libsmacker-sys`](https://crates.io/crates/libsmacker-sys)
+  (LGPL-2.1 since January 2020). Consulted for the format description only.
+* [`smk` crate](https://crates.io/crates/smk) — run as a black-box oracle; not read, not linked.
 * [FFmpeg `libavformat/smacker.c`](https://github.com/FFmpeg/FFmpeg/blob/master/libavformat/smacker.c)
 * [`mewspring/smk`](https://github.com/mewspring/smk) — Unlicense, header parsing only
-* [rust-ffmpeg build notes](https://github.com/zmwangx/rust-ffmpeg/wiki/Notes-on-building)

@@ -57,6 +57,8 @@ pub mod engagement;
 pub mod game;
 pub mod input;
 pub mod message;
+/// The films — `Smk_Play`'s seven callers. See also [`screens::movie`].
+pub mod movie;
 pub mod press;
 pub mod save;
 pub mod saves;

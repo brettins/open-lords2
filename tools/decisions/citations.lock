@@ -18,7 +18,7 @@ CLAUDE.md	C124	9cf9ee1c286d	38723617b085
 CLAUDE.md	C133	ea1ee3c1202e	91fcca97cc98
 CLAUDE.md	C143	d2376fb46498	2035c02750d9
 CLAUDE.md	C5	b0903798b42f	5751c743a83c
-CLAUDE.md	C61	5f2544794aa3	60611046b40d
+CLAUDE.md	C61	972e7ced8a45	60611046b40d
 README.md	C23	05c1d7fce551	6ac2f322c3bd
 README.md	C26	9648f42b9cac	e8179d1f76a8
 crates/l2-formats/src/maps.rs	C25	795dd2e31c53	5d466f0cb89c
@@ -91,7 +91,7 @@ crates/l2-game/src/screens/map.rs	C61	389149e668fc	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	4ec0e911ae60	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	56e0155cb915	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	e23b83e06409	60611046b40d
-crates/l2-game/src/screens/message.rs	C126	9a44222a16e1	1b2c97c7731a
+crates/l2-game/src/screens/message.rs	C126	15170181ab5e	1b2c97c7731a
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28	37ab8ac1a2fc
@@ -749,6 +749,7 @@ docs/decisions.md	C59	8d056fe8fc64	37ab8ac1a2fc
 docs/decisions.md	C59	d158413c5a3c	37ab8ac1a2fc
 docs/decisions.md	C59	d88243f2b8df	37ab8ac1a2fc
 docs/decisions.md	C59	f8f78fa7b192	37ab8ac1a2fc
+docs/decisions.md	C6	6af905f28c2d	a00215d4f4b1
 docs/decisions.md	C60	5f4562a8144d	2f31848557d2
 docs/decisions.md	C61	072b0a786f93	60611046b40d
 docs/decisions.md	C61	1c9ef25a9ccd	60611046b40d

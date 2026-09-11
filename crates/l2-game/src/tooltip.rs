@@ -192,6 +192,8 @@ pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
         // The front end's menu is `0x1F` page 1 (`screens::menu`).
         S::Menu | S::Setup(_) => Some(0x1F),
         S::About => Some(0x25),
+        // A film: `Smk_Play` parks `g_screenId` at `0x22`.
+        S::Movie(_) => Some(0x22),
         S::Tip => Some(0x27),
         S::Battlefield => Some(game.battle.as_ref().map_or(0x29, |b| b.screen_id())),
         S::Ratings => Some(0x2E),

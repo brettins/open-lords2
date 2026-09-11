@@ -522,6 +522,10 @@ fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<Game, LoadE
         // Per run, not per game, and so not in the file: `screens::saveload`
         // puts the running session's tips back over this. `crate::tip`.
         tips: crate::tip::Tips::new(),
+        // Which capture and battle film come next. Presentation, and not in
+        // any of the original's save blocks either; a loaded game starts both
+        // rotations over, as the original's start-up does.
+        films: crate::movie::Reel::default(),
     })
 }
 

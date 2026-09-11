@@ -115,6 +115,28 @@ impl Tags {
     }
 }
 
+/// **`FUN_004B1310`'s table** — every colour to one of eight dark shades,
+/// `0x3F - (((r + g + b) / 3) >> 3)`.
+///
+/// The original runs it over the whole back buffer immediately before it
+/// paints an *animated* message window or battle banner, so the screen behind
+/// a film goes dim: the capture and ending branches of `Msg_DrawWindow` and the
+/// animated arm of `Screen_BattleOutcome` are its three callers that matter
+/// here. **`[I]` on the scale**: the formula is read off the decompilation, and
+/// it reads `g_paletteRgb`, which holds a `.256` file's **6-bit** values — so
+/// this converts our 8-bit palette back before it averages. Read as 8-bit the
+/// same line would spread the result over 32 shades instead of 8.
+pub fn shade_table(palette: &l2_formats::Palette) -> [u8; 256] {
+    let mut t = [0u8; 256];
+    for (i, slot) in t.iter_mut().enumerate() {
+        let [r, g, b] = palette.rgb(i as u8);
+        let six = |v: u8| v as u32 * 63 / 255;
+        let lum = (six(r) + six(g) + six(b)) / 3;
+        *slot = 0x3F - (lum >> 3) as u8;
+    }
+    t
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Canvas {
     pub width: usize,
@@ -217,6 +239,49 @@ impl Canvas {
             px[1] = g;
             px[2] = b;
             px[3] = 0xff;
+        }
+    }
+
+    /// **`SmackToBuffer`** — one film frame, `width` stored pixels a row,
+    /// copied opaque into the screen at (`ox`, `oy`) with each stored row drawn
+    /// `y_scale` times, clipped to the canvas.
+    ///
+    /// `Smk_Open` (`0x0042DA18`) and `Smk_PlayLoop` (`0x0042DBC7`) hand the
+    /// original's `SmackToBuffer` the game's own 640 × 480 back buffer and the
+    /// film's position, and nothing else: no transparency, no clip rectangle of
+    /// its own. The raster is a plain `&[u8]` so that this crate never learns a
+    /// film decoder exists. Doubling a row rather than leaving its twin black is
+    /// `[I]` — see `l2_smk::Header::y_scale`.
+    pub fn blit_raster(&mut self, pixels: &[u8], width: usize, ox: i32, oy: i32, y_scale: usize) {
+        if width == 0 || y_scale == 0 {
+            return;
+        }
+        let rows = pixels.len() / width;
+        for row in 0..rows {
+            let src = &pixels[row * width..(row + 1) * width];
+            for rep in 0..y_scale {
+                let cy = oy + (row * y_scale + rep) as i32;
+                if cy < 0 || cy >= self.height as i32 {
+                    continue;
+                }
+                let x0 = ox.max(0);
+                let x1 = (ox + width as i32).min(self.width as i32);
+                if x0 >= x1 {
+                    continue;
+                }
+                let dst = cy as usize * self.width;
+                let from = (x0 - ox) as usize;
+                self.pixels[dst + x0 as usize..dst + x1 as usize]
+                    .copy_from_slice(&src[from..from + (x1 - x0) as usize]);
+            }
+        }
+    }
+
+    /// Every pixel through a 256-entry table. `FUN_004B1310`'s second loop;
+    /// [`shade_table`] is its first.
+    pub fn remap(&mut self, table: &[u8; 256]) {
+        for p in self.pixels.iter_mut() {
+            *p = table[*p as usize];
         }
     }
 

@@ -1,6 +1,6 @@
 # Every place the original asks for a sound
 
-**143 trigger sites across 70 functions. We fire 75 of them, and they carry 674
+**143 trigger sites across 70 functions. We fire 80 of them, and they carry 674
 of the install's 771 sounds**, because the classes are wildly unequal in weight.
 (Two of the sites are the tip screens' first line and chained takes: forty files
 by name, thirty-five that anything can ask for — see *What `blocked` is blocked
@@ -54,7 +54,7 @@ and every one of them is the front end:
 | `App_WinMain#1` | `setup.wav` | the process opening |
 | `FUN_00497a34#2` | `setup.wav`, looped | every return to the title |
 | `Screen_DrawConquest#1` / `#2` | `setup.wav` / `setup2.wav` | the campaign interstitial, by map number |
-| `Smk_OnFinished#1` | `setup.wav` | the intro films ending |
+| `Smk_OnFinished#1` | `setup.wav` | a film ending over setup page 1 — the *Lords of Magic?* trailer; the start-up chain's end is `FUN_00497A34` |
 | `FUN_00497a34#1`, `FUN_00433155#1`, `Screen_FrameInput#1` / `#2` | `SETUP3.WAV` | the credits and the ending |
 
 `Music_StartCampaign` and `Music_StartBattle` are *themselves* ladders that end
@@ -135,7 +135,7 @@ with no path.
 
 | mechanic | sites | files it would add |
 |---|---:|---:|
-| Smacker playback | 8 | ≈0 — every one restarts a bed or a voice already reachable |
+| ~~Smacker playback~~ **built** (`crates/l2-smk`, `crate::movie`): 5 of its 8 now sound. What still blocks the other 3: `County_ChangeOwner`'s capture letters, which nothing posts (`#15`, `#16`), and the CD's fast-media branch (`#19`) | 3 | 0 — a bed and a voice already reachable |
 | the sibling voice tables' callers | 8 | ≈48 — `S010` 13, `S020` 5, `S035` 8, `S071` 6, the mercenary's `S016` 12, the lord sting's `S246` 4 `[I]` on the callers' index ranges |
 | a channel from a click to the audio layer (the field brush) | 5 | 3 |
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
@@ -314,10 +314,14 @@ the window opened*. The three larger delays belong to the categories that play a
 **fanfare** on the opening frame — the voice waits for the trumpet instead of
 talking over it.
 
-**Thirteen of the sixteen are fired.** Two that are not — `Msg_DrawWindow#16`
-and `#21` — are the **animated** capture and ending branches, which save the
-group and variant, dismiss the message, play `cap_cty*.smk` and speak
-*afterwards*. The trigger there is a film ending.
+**Fourteen of the sixteen are fired.** `Msg_DrawWindow#16` and `#21` are the
+**animated** capture and ending branches, which save the group and variant,
+dismiss the message, play a film and speak. **This paragraph used to say they
+speak *afterwards*, with the film's end as the trigger. They do not:** `Smk_Play`
+returns as soon as `Smk_Open` has put the first frame up, so `Msg_PlayVoice` runs
+with the film's opening and the narrator reads over it. `#21`, the ending, now
+fires on the film's screen arriving; `#16`, the capture, is the same code and is
+still not fired, because nothing in our engine posts a capture letter.
 
 **The third is `#24`, and it was counted as fired twice: once before it could
 sound, and now.** It is the branch for categories `0x05`…`0x09`, and the only
