@@ -1217,9 +1217,9 @@ mod tests {
 
     /// **A palette a screen names is a palette something loads.** The
     /// battlefield named `T32_bat1.256` for as long as it existed and this list
-    /// never carried it, so `Assets::palette_named` fell through to
-    /// `base01.256` and a player saw the battle in the campaign's colours. It
-    /// needs no install: both halves are names.
+    /// never carried it, so the presenter's `shell.palette(name)` found nothing,
+    /// fell through to `base01.256`, and a player saw the battle in the
+    /// campaign's colours. It needs no install: both halves are names.
     ///
     /// Ablation: delete the `"T32_bat1.256"` line above — red.
     #[test]

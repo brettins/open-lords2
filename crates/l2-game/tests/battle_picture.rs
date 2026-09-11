@@ -170,16 +170,23 @@ fn install() -> Option<(Assets, l2_mods::Platform)> {
 /// the buffer `Res_LoadStatic` (`0x00499859`) fills from record 2 of
 /// `g_preloadTable`. The expected colour of each pixel is read out of the
 /// install's own `.256`, independently of every table in this tree; the
-/// applied colour is what `Assets::palette_named` hands the presenter for the
-/// name the top screen gives, which is the call `main.rs` makes.
+/// applied colour is the shell palette the name the stack gives resolves to —
+/// the map the presenter reads, and **the only one**: a name it does not hold
+/// falls through to `base01.256`, which is what the player saw.
+///
+/// It stops at the resolved palette rather than at presented bytes because the
+/// presenter is being moved into the library by the concurrent overlay-palette
+/// branch, as `Machine::present`; once that has landed, the loop below belongs
+/// on `m.present(…)`'s bytes, and the answer must not change.
 ///
 /// The discrimination half is what keeps it from passing on a palette that
 /// merely agrees: the same pixels through `base01.256` must differ, and on the
 /// shipped files they differ at most of them.
 ///
-/// Ablation: delete `"T32_bat1.256"` from `shell::PALETTES` — red, at the
-/// first pixel, because the lookup falls through to `base01.256` exactly as it
-/// did on the player's build.
+/// Ablation: delete `"T32_bat1.256"` from `shell::PALETTES` — red, on the
+/// lookup. Run with `main.rs`'s presenter line as the probe instead, before it
+/// was moved, the same ablation showed the first field pixel, index 77, as
+/// `(0, 97, 190)` where `T32_bat1.256` has `(64, 85, 12)`.
 #[test]
 fn the_battlefield_is_shown_in_the_palette_screen_drawbattlefield_sets() {
     let Some((assets, platform)) = install() else {
@@ -198,7 +205,13 @@ fn the_battlefield_is_shown_in_the_palette_screen_drawbattlefield_sets() {
     paint(&mut m, &mut g, &assets, &mut canvas);
     assert_eq!(m.top_id(), Some(ScreenId::Battlefield));
 
-    let applied = assets.palette_named(m.palette_name());
+    let name = m.palette_name().expect("the battlefield names a palette of its own");
+    let applied = assets.shell.palette(name).unwrap_or_else(|| {
+        panic!(
+            "{name}, which the battlefield names, is in no palette the presenter reads — every \
+             battle frame would be shown through base01.256"
+        )
+    });
     let (mut seen, mut differs) = (0usize, 0usize);
     let (mut sum_applied, mut sum_base) = ([0u64; 3], [0u64; 3]);
     for y in FIELD_Y0..FIELD_Y1 {

@@ -30,7 +30,8 @@
 //!   unclipped into the menu bar, the right column and the strip under the
 //!   field, where nothing repaints them: the *"ghosting"*.
 //! * **The palette** is not here: this crate draws indices, and which `.256`
-//!   they mean is the presenter's (`l2_game::game::Assets::palette_named`).
+//!   they mean is the presenter's, which resolves [`TILE_PALETTE`] through
+//!   `l2_game::shell::PALETTES` like every other page's name.
 
 use l2_formats::Palette;
 use l2_sim::runner::{BattleRunner, Fighter};
