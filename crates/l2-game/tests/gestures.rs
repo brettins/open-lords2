@@ -343,3 +343,36 @@ fn the_two_order_panels_declare_kind_four_and_the_other_two_have_no_table() {
     let down = county::Panel::Tax.decrease_button().unwrap();
     assert!(up.x < down.x);
 }
+
+/// **Either supplies thumb survives its twentieth tick.** `g_sendSuppliesWidgets`,
+/// as [`l2_game::screens::supplies::widgets`] builds it, holds each of the two
+/// [`l2_game::screens::supplies::ROWS`]' minus and plus and then the two thumbs,
+/// so the thumbs are records 4 and 5. `THUMB_UP_INDEX` was 6: a thumb's
+/// countdown reached `SuppliesScreen::fire` below it, took the spinner arm and
+/// indexed `ROWS[2]`, and the game panicked twenty ticks after either thumb was
+/// pressed. Found by the input branch (`worktree-agent-aec40493a34ed1508`).
+///
+/// **Ablation, run:** put `THUMB_UP_INDEX` back to `6` and this panics with an
+/// index out of bounds in `SuppliesScreen::fire`.
+#[test]
+fn either_supplies_thumb_fires_on_its_twentieth_tick_without_panicking() {
+    use l2_game::screens::supplies::{THUMB_DOWN, THUMB_UP};
+    for (thumb, name, cancels) in [(THUMB_DOWN, "the thumb down", true), (THUMB_UP, "the thumb up", false)] {
+        let (mut g, a) = world();
+        g.prefs.tip_screens = false;
+        let mut m = Machine::new(ScreenId::Campaign);
+        m.push(ScreenId::Supplies(1));
+        let at = on(thumb);
+        send(&mut m, &mut g, &a, Event::Click { x: at.0, y: at.1 });
+        for t in 1..press::DELAYED_FRAMES as u32 {
+            tick(&mut m, &mut g, &a);
+            assert_eq!(m.top_id(), Some(ScreenId::Supplies(1)), "{name} acted on tick {t}, before its twentieth");
+        }
+        for _ in press::DELAYED_FRAMES as u32..=25 {
+            tick(&mut m, &mut g, &a);
+        }
+        if cancels {
+            assert_eq!(m.top_id(), Some(ScreenId::Campaign), "FUN_0043B04C's cancel, on the twentieth tick");
+        }
+    }
+}

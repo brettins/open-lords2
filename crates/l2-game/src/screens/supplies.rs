@@ -377,7 +377,7 @@ pub fn widgets() -> Vec<Widget> {
 }
 
 /// [`widgets`]' index of the thumb-up; the thumb-down is the one after it.
-const THUMB_UP_INDEX: usize = 6;
+const THUMB_UP_INDEX: usize = ROWS.len() * 2;
 
 impl SuppliesScreen {
     pub fn new(to: u8) -> SuppliesScreen {
