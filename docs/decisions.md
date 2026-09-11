@@ -7195,3 +7195,60 @@ Two smaller corrections fell out of reading the arm:
   `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
   call sites in a half this change does not touch — but recorded, because it is
   the kind of thing that reads as a font choice rather than as a divergence.
+
+---
+
+## CNEW-at-sign-advances-when-drawn-and-not-when-measured
+
+**The blank sign column is four pixels wide in `Ui_DrawText` and zero pixels wide
+in the measure, and the tree documents the wrong function for both.** **[V]**
+
+`crates/l2-game/src/shell/font.rs`'s `SPACE_ADVANCE` doc says *"`FUN_004014F0`
+special-cases `' '` before the table lookup and adds 4; `Glyph_Draw` adds nothing
+at all for a zero entry, which is what makes `'@'` an invisible sign column that
+still occupies its place in a column of numbers."* The conclusion is right and
+the mechanism is not, and the two halves of that sentence contradict each other.
+
+`Ui_DrawText` (`0x00402637`) **never calls `Glyph_Draw`** for a glyph-less
+character:
+
+```c
+local_c = local_c - 0x20;
+if ((&g_glyphWidths)[local_c] == '\0') { local_14 = 4; }   /* not Glyph_Draw */
+...
+g_drawX = g_drawX + local_14;  g_penAdvance = g_penAdvance + local_14;
+```
+
+So **every** zero entry — `' '`, `'@'`, `'$'` — advances four when drawn.
+`Glyph_Draw` (`0x00402A14`) does return 0 for a zero entry; it is simply not on
+the path. The **measure**, `FUN_004014F0` (`0x004014F0`), is the one that
+distinguishes them: it adds 4 for `0x20` alone and **nothing** for any other zero
+entry. A string containing `'@'` therefore draws four pixels wider than it
+measures, which matters only where the original centres.
+
+Two things follow, and neither is fixed here.
+
+* **`Ui_DrawCount` (`0x0041AB67`) hard-codes `'@'` and an empty suffix** —
+  `Ui_DrawNumber(value, '@', &DAT_004D41F4, x, y, font, colour)`, and
+  `0x004D41F4` is a NUL read out of the shipped `Lords2.exe` at file offset
+  `0xD23F4` (the run from `0x004D41F0` is `20 00 00 00 00 00 00 00`, so
+  `Ui_DrawYear` style 3's suffix is one space and `Ui_DrawCount`'s is empty).
+  `Pen::count`'s `blank_lead: bool` models a choice the original does not have.
+* **The campaign menu bar's treasury draws its digits four pixels left of the
+  original's**, at `x = 500` where `Ui_DrawCount` puts them at 504.
+  `Pen::number` maps `blank_lead: true` to the *empty string* and hard-codes a
+  trailing `" "`; the lost lead and the invented suffix cancel at the **noun**,
+  which is why nothing looked wrong, and do not cancel at the digits. This is
+  C127 — *every number in the game reserves a sign column, and we were dropping
+  it* — still unfixed at the one call site a player looks at every turn.
+
+And a trap for whoever fixes it: `crates/l2-view/src/text.rs` gives `'@'` a real
+at-sign bitmap, so passing `"@"` through a `Pen` would print a literal `@` on an
+install with no `Fntl2_*.pl8`. The fallback font has to learn that `'@'` is blank
+first.
+
+**The reports that started this were stale.** *"Still placeholder font in the top
+right for gold and summer"*, the illegible build stamp and the illegible title
+were all fixed by `c06b13b`; all four render correctly at `5338fe7` and were
+looked at. `build_id.rs` exists to make that checkable from a screenshot — read
+the stamp off the report before writing the brief.
