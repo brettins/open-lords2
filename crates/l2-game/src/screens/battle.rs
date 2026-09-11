@@ -171,6 +171,7 @@ use l2_view::{text, Canvas};
 
 use crate::engagement::{Answer, Roster};
 use crate::input::{Event, Rect};
+use crate::press::{Kind, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 use crate::turn::{self, Question, TurnStep};
@@ -420,13 +421,36 @@ fn draw_roster(
 
 // ---------------------------------------------------------------- the prompt
 
-/// Screen `0x12`. It has no state of its own: the question lives on the
-/// suspended turn, which is where the answer has to go back to.
-pub struct BattlePromptScreen;
+/// Screen `0x12`. The question lives on the suspended turn, which is where the
+/// answer has to go back to; the only state here is the two widgets' press
+/// timer.
+pub struct BattlePromptScreen {
+    press: Press,
+}
+
+/// **`DAT_004DDBB0` as a table, with the kind byte its two records carry.**
+///
+/// Both are `Widget_Test` kind **4**, read out of `+0x0F` of `0x004DDBB0` and
+/// `0x004DDBC8`. `docs/arms.json` filed this pair as `left-release` — inferred
+/// from the shape of the buttons rather than read off the record — and the exe
+/// says the press. It is the same pair of pictures as the yes/no box and a
+/// *different kind*, which is exactly the case that makes the kind a fact to be
+/// read rather than a family resemblance to be assumed.
+///
+/// The repeat that comes with kind 4 never runs: `Battle_PromptAnswered`
+/// (`0x0043B593`) leaves screen `0x12` on the first fire, and a table that is no
+/// longer being walked cannot repeat. What the kind buys a player here is the
+/// **pressed picture** and the press edge.
+fn prompt_widgets() -> [Widget; 2] {
+    [
+        Widget::new(widget_rect(TAKE_THE_FIELD), Kind::Repeat),
+        Widget::new(widget_rect(DECLINE), Kind::Repeat),
+    ]
+}
 
 impl BattlePromptScreen {
     pub fn new() -> BattlePromptScreen {
-        BattlePromptScreen
+        BattlePromptScreen { press: Press::new() }
     }
 
     /// The question this screen is about, or `None` if the turn is no longer
@@ -518,13 +542,24 @@ impl Screen for BattlePromptScreen {
         if q.choice_owner != 1 {
             return Transition::Stay;
         }
-        match event {
+        let fired = self.press.event(&prompt_widgets(), event);
+        if fired.is_some() {
+            // **End the hold on the fire.** In the original the repeat is
+            // unreachable because `Battle_PromptAnswered` leaves screen `0x12`
+            // and a table nobody walks cannot repeat. Ours can stay — the
+            // muster below can fail — so the hold is ended explicitly rather
+            // than left to be unreachable for a reason that is true elsewhere.
+            // The press timer keeps running, which is what `rec[0x0D] = 3` is
+            // for.
+            self.press.release();
+        }
+        match fired {
             // `DAT_004DDBB0[0]`, hotspot id 1 → `FUN_0043B593` →
             // `Battle_Start` (`0x004778A0`). It raises the battlefield; it does
             // **not** settle the battle.
             //
-            // arm: 0x004BA9C8/prompt-fight left-release
-            Event::Click { x, y } if widget_rect(TAKE_THE_FIELD).contains(x, y) => {
+            // arm: 0x004BA9C8/prompt-fight left-press-repeat
+            Some(0) => {
                 if turn::take_the_field(ctx.game) {
                     Transition::Replace(ScreenId::Battlefield)
                 } else {
@@ -537,12 +572,17 @@ impl Screen for BattlePromptScreen {
             // `DAT_004DDBB0[1]`, hotspot id 0 → `Battle_Decline`
             // (`0x0043B622`), which is `Battle_AutoResolve` and the report.
             //
-            // arm: 0x004BA9C8/prompt-decline left-release
-            Event::Click { x, y } if widget_rect(DECLINE).contains(x, y) => {
-                BattlePromptScreen::answer(ctx, Answer::Decline)
-            }
-            _ => Transition::Stay,
+            // arm: 0x004BA9C8/prompt-decline left-press-repeat
+            Some(_) => BattlePromptScreen::answer(ctx, Answer::Decline),
+            None => Transition::Stay,
         }
+    }
+
+    /// The countdown at the top of `Widget_Test`, which runs the press timer
+    /// down whether or not anything is under the pointer.
+    fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+        self.press.tick();
+        Transition::Stay
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
@@ -587,12 +627,16 @@ impl Screen for BattlePromptScreen {
 
         // The two thumbs, and only when the choice is the local player's.
         if q.choice_owner == 1 {
-            for w in [TAKE_THE_FIELD, DECLINE] {
+            // `Widget_Draw`'s `base + 1` while `+0x0D` runs — the thumb goes
+            // down when it is pressed.
+            let down = self.press.pressed();
+            for (i, w) in [TAKE_THE_FIELD, DECLINE].into_iter().enumerate() {
+                let frame = if down == Some(i) { w.2 + 1 } else { w.2 };
                 let drawn = ctx
                     .assets
                     .chrome
                     .as_ref()
-                    .is_some_and(|c| c.draw_system(canvas, w.2, w.0, w.1));
+                    .is_some_and(|c| c.draw_system(canvas, frame, w.0, w.1));
                 if !drawn {
                     shell::button_recess(canvas, w.0, w.1, w.3, w.3);
                 }

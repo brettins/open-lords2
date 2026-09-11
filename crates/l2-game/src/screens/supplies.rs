@@ -139,6 +139,7 @@
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Kind, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use l2_kingdom::Kingdom;
 
@@ -234,8 +235,8 @@ pub const ROWS: [Row; 2] = [
 /// draws or tests it, and a test asserts that.
 pub const SHEEP_ROW: [(i32, i32); 2] = [(216, 296), (296, 296)];
 
-/// The two thumbs. **Kind 5**, so the original fires them twenty frames after
-/// the press; we fire at once and record the difference.
+/// The two thumbs. **Kind 5**: the press puts the gauntlet down and the handler
+/// runs [`crate::press::DELAYED_FRAMES`] frames later.
 pub const THUMB_UP: Rect = Rect::new(320, 342, 32, 32);
 pub const THUMB_DOWN: Rect = Rect::new(360, 346, 32, 32);
 pub const THUMB_UP_FRAME: usize = 29;
@@ -351,11 +352,68 @@ pub struct SuppliesScreen {
     /// reading the kingdom.
     pub outcome: Dispatch,
     opened: bool,
+    /// `g_sendSuppliesWidgets`' press timer and repeat counter. See
+    /// [`WIDGETS`].
+    press: Press,
 }
+
+/// **`g_sendSuppliesWidgets` (`0x004DD568`) as a table, with the kind byte each
+/// record carries**, in the order `Screen_DrawWidgets` walks it.
+///
+/// Six kind-**4** spinners — the three rows' minus and plus, which therefore
+/// auto-repeat — then the two kind-**5** thumbs at `0x004DD538`. Both kinds were
+/// already the words `docs/arms.json` filed these four arms under; what was
+/// missing was any code that behaved like them. `docs/decisions.md`
+/// CNEW-gesture-kinds.
+pub fn widgets() -> Vec<Widget> {
+    let mut out = Vec::with_capacity(8);
+    for row in &ROWS {
+        out.push(Widget::new(row.minus, Kind::Repeat));
+        out.push(Widget::new(row.plus, Kind::Repeat));
+    }
+    out.push(Widget::new(THUMB_UP, Kind::Delayed));
+    out.push(Widget::new(THUMB_DOWN, Kind::Delayed));
+    out
+}
+
+/// [`widgets`]' index of the thumb-up; the thumb-down is the one after it.
+const THUMB_UP_INDEX: usize = 6;
 
 impl SuppliesScreen {
     pub fn new(to: u8) -> SuppliesScreen {
-        SuppliesScreen { from: to, to, cart: Cart::default(), outcome: Dispatch::None, opened: false }
+        SuppliesScreen {
+            from: to,
+            to,
+            cart: Cart::default(),
+            outcome: Dispatch::None,
+            opened: false,
+            press: Press::new(),
+        }
+    }
+
+    /// One widget's handler, whether it was reached from the press
+    /// ([`Kind::Repeat`]) or from the countdown ([`Kind::Delayed`]).
+    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+        match widget {
+            // The two spinners' own arms are marked on [`Cart::minus`] and
+            // [`Cart::plus`], which is where their rule lives.
+            i if i < THUMB_UP_INDEX => {
+                let row = &ROWS[i / 2];
+                if i % 2 == 0 {
+                    self.cart.minus(row.id);
+                } else {
+                    self.cart.plus(row.id);
+                }
+                Transition::Stay
+            }
+            // arm: 0x0043B04C/supplies-dispatch left-press-delayed
+            THUMB_UP_INDEX => self.dispatch(ctx),
+            // arm: 0x0043B04C/supplies-cancel left-press-delayed
+            _ => {
+                self.outcome = Dispatch::Cancelled;
+                Transition::Pop
+            }
+        }
     }
 
     pub fn cart(&self) -> Cart {
@@ -458,6 +516,14 @@ impl Screen for SuppliesScreen {
                 // **Ours.**
                 // arm: ours/supplies-keyboard-close key
                 Event::KeyDown(Key::Escape) => Transition::Pop,
+                // The release ends a hold and the pointer leaving a spinner
+                // stops it repeating. No widget here is a release widget, so
+                // nothing can fire.
+                Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
+                    let fired = self.press.event(&widgets(), event);
+                    debug_assert!(fired.is_none(), "no supplies widget is a release widget");
+                    Transition::Stay
+                }
                 _ => Transition::Stay,
             };
         };
@@ -470,24 +536,17 @@ impl Screen for SuppliesScreen {
                 return Transition::Stay;
             }
         }
-        for row in &ROWS {
-            if row.minus.contains(x, y) {
-                self.cart.minus(row.id);
-                return Transition::Stay;
-            }
-            if row.plus.contains(x, y) {
-                self.cart.plus(row.id);
-                return Transition::Stay;
-            }
+        // The six spinners and the two thumbs, each with its own kind: the
+        // spinners fire here and go on firing while held, the thumbs fire from
+        // [`Screen::update`] twenty ticks later.
+        let table = widgets();
+        if let Some(i) = self.press.event(&table, event) {
+            return self.fire(ctx, i);
         }
-        if THUMB_UP.contains(x, y) {
-            // arm: 0x0043B04C/supplies-dispatch left-press-delayed
-            return self.dispatch(ctx);
-        }
-        if THUMB_DOWN.contains(x, y) {
-            // arm: 0x0043B04C/supplies-cancel left-press-delayed
-            self.outcome = Dispatch::Cancelled;
-            return Transition::Pop;
+        if table.iter().any(|w| w.rect.contains(x, y)) {
+            // A thumb was pressed and is counting down. It has consumed the
+            // click; nothing below may also answer it.
+            return Transition::Stay;
         }
         // `FUN_0043B412(0x60, 0x68)` — the minimap pick, which is the only
         // way the destination ever moves.
@@ -508,6 +567,15 @@ impl Screen for SuppliesScreen {
             }
         }
         Transition::Stay
+    }
+
+    /// `Widget_Test`'s per-frame pass: the spinners' ramp and the thumbs'
+    /// twenty-frame countdown.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        match self.press.tick() {
+            Some(i) => self.fire(ctx, i),
+            None => Transition::Stay,
+        }
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
@@ -557,17 +625,26 @@ impl Screen for SuppliesScreen {
         // The per-frame half.
         pen.box_interior(canvas, WELL.x, WELL.y, 0x14, 5);
         pen.inset(canvas, WELL);
-        for row in &ROWS {
+        // `Widget_Draw`'s `base + 1` while `+0x0D` runs. The index is
+        // [`widgets`]', which is why the loop counts.
+        let down = self.press.pressed();
+        let frame = |i: usize, base: usize| if down == Some(i) { base + 1 } else { base };
+        for (n, row) in ROWS.iter().enumerate() {
             let (left, cart) = self.cart.get(row.id);
             pen.eng(canvas, GROUP, row.label, row.label_at.0, row.label_at.1, font::TEXT);
             pen.number(canvas, row.left_x, row.label_at.1, left, false, font::TEXT);
             pen.misc_frame(canvas, row.icon, row.icon_at.0, row.icon_at.1);
             pen.number(canvas, row.cart_x, row.label_at.1, cart, false, font::TEXT);
-            pen.system_frame(canvas, MINUS_FRAME, row.minus.x, row.minus.y);
-            pen.system_frame(canvas, PLUS_FRAME, row.plus.x, row.plus.y);
+            pen.system_frame(canvas, frame(n * 2, MINUS_FRAME), row.minus.x, row.minus.y);
+            pen.system_frame(canvas, frame(n * 2 + 1, PLUS_FRAME), row.plus.x, row.plus.y);
         }
-        pen.system_frame(canvas, THUMB_UP_FRAME, THUMB_UP.x, THUMB_UP.y);
-        pen.system_frame(canvas, THUMB_DOWN_FRAME, THUMB_DOWN.x, THUMB_DOWN.y);
+        pen.system_frame(canvas, frame(THUMB_UP_INDEX, THUMB_UP_FRAME), THUMB_UP.x, THUMB_UP.y);
+        pen.system_frame(
+            canvas,
+            frame(THUMB_UP_INDEX + 1, THUMB_DOWN_FRAME),
+            THUMB_DOWN.x,
+            THUMB_DOWN.y,
+        );
 
         if self.outcome == Dispatch::NoDestination {
             // `L2.eng` group 10 index 14 — the original's own words for it.

@@ -104,6 +104,7 @@ use l2_kingdom::realm::MAX_REALMS;
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Kind as Kind5, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
 use crate::widget;
@@ -317,11 +318,18 @@ pub struct DiplomacyScreen {
     /// `Diplo_DefaultTarget` needs the realm array and a screen is built
     /// without one — the same resolve-on-first-use `castle.rs` uses.
     target: Option<u8>,
+    /// `g_diploWidgets`' press timer. The six verb buttons are **kind 5**, read
+    /// out of `+0x0F` of `0x004DD940` … `0x004DD9B8`: the button goes down and
+    /// the dialog opens twenty frames later.
+    press: Press,
+    /// Which menu row the delayed press is for, since the table is built per
+    /// frame from the menu the target's state selects.
+    pending_row: Option<usize>,
 }
 
 impl DiplomacyScreen {
     pub fn new() -> DiplomacyScreen {
-        DiplomacyScreen { target: None }
+        DiplomacyScreen { target: None, press: Press::new(), pending_row: None }
     }
 
     /// `Diplo_DrawScreen`'s first two lines: **a target that has been knocked
@@ -367,6 +375,17 @@ impl Screen for DiplomacyScreen {
     /// The painter draws over whatever was underneath and clears nothing.
     fn is_overlay(&self) -> bool {
         true
+    }
+
+    /// `Widget_Test`'s countdown over `g_diploWidgets`: the verb button the
+    /// player pressed opens its dialog when its twenty frames run out.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        let Some(_) = self.press.tick() else { return Transition::Stay };
+        let Some(row) = self.pending_row.take() else { return Transition::Stay };
+        let Some(kind) = Menu::kind_of_row(row) else { return Transition::Stay };
+        let read = Ctx { game: ctx.game, assets: ctx.assets };
+        let target = self.target(&read);
+        Transition::Push(ScreenId::DiploCompose(target, kind.byte()))
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
@@ -417,8 +436,15 @@ impl Screen for DiplomacyScreen {
             // in which draft buffer they clear. `Diplo_OpenAlliance` is the one
             // with a decision in it, and [`Menu::kind_of_row`] is that
             // decision: row 6 is only drawn when the target is already my ally.
-            let Some(kind) = Menu::kind_of_row(*row) else { break };
-            return Transition::Push(ScreenId::DiploCompose(target, kind.byte()));
+            //
+            // **Kind 5**, so this does not open the dialog: it puts the button
+            // down and [`Screen::update`] opens it twenty ticks later.
+            if Menu::kind_of_row(*row).is_none() {
+                break;
+            }
+            self.press.press_delayed(slot);
+            self.pending_row = Some(*row);
+            return Transition::Stay;
         }
         for (slot, realm) in DiplomacyScreen::cards(ctx).iter().enumerate() {
             if card_rect(slot).contains(x, y) {
@@ -506,7 +532,11 @@ impl Screen for DiplomacyScreen {
             // Our own outline is the picture-is-missing fallback, not the
             // picture — it used to be a filled panel standing in for it.
             let w = menu_widget(slot);
-            if !pen.system_frame(canvas, MENU_FRAME, w.x, w.y) {
+            // Kind 5, so `Widget_Draw` shows `base + 1` for the twenty frames
+            // between the press and the dialog opening.
+            let frame =
+                if self.press.pressed() == Some(slot) { MENU_FRAME + 1 } else { MENU_FRAME };
+            if !pen.system_frame(canvas, frame, w.x, w.y) {
                 widget::frame(canvas, w, ink.border);
             }
             // `FUN_0040328E(72, row, 0xE0, y, 0xA0, 100, …)` — **wrapped** at
@@ -875,6 +905,8 @@ pub struct ComposeScreen {
     pub draft: String,
     /// What the tick did, for the caller.
     pub sent: Option<Result<Kind, Refusal>>,
+    /// The dialog's press timer and repeat counter. See [`ComposeScreen::widgets`].
+    press: Press,
 }
 
 impl ComposeScreen {
@@ -886,6 +918,47 @@ impl ComposeScreen {
             county: 0,
             draft: String::new(),
             sent: None,
+            press: Press::new(),
+        }
+    }
+
+    /// **The dialog's widget table, with the kind byte each record carries.**
+    ///
+    /// The send and cancel pair is `Diplo_SendClicked`'s — six records across
+    /// three layouts at `0x004DDA00`, all **kind 5**, so the gauntlet goes down
+    /// and the letter goes twenty frames later. The gift dialog's two extra
+    /// records are `FUN_00436372`'s at `0x004DD9D0`, **kind 4**, so holding
+    /// `+` walks the gold up on the ramp.
+    ///
+    /// Index 0 is send, 1 is cancel, 2 is `+` and 3 is `−`.
+    fn widgets(&self) -> Vec<Widget> {
+        let (send, cancel) = self.buttons();
+        let mut out =
+            vec![Widget::new(send, Kind5::Delayed), Widget::new(cancel, Kind5::Delayed)];
+        if self.kind == Kind::Gift {
+            out.push(Widget::new(GIFT_MORE, Kind5::Repeat));
+            out.push(Widget::new(GIFT_LESS, Kind5::Repeat));
+        }
+        out
+    }
+
+    /// One widget's handler, whichever way it was reached.
+    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+        match widget {
+            // arm: 0x00436408/diplo-send left-press-delayed
+            0 => self.send(ctx),
+            // arm: 0x00436408/diplo-cancel left-press-delayed
+            //
+            // Hotspot 0 of the same handler, and it is the whole of the
+            // function's first statement: `g_screenId = 0xB`, back to the lord
+            // cards.
+            1 => Transition::Pop,
+            // arm: 0x00436372/diplo-gift-step left-press-repeat
+            i => {
+                let read: &Ctx = ctx;
+                self.step_gift(read, if i == 2 { GIFT_STEP } else { -GIFT_STEP });
+                Transition::Stay
+            }
         }
     }
 
@@ -906,7 +979,11 @@ impl ComposeScreen {
     /// `tools/audit/draws-F.json`. Our own recess stands in when the sheet is
     /// missing, so the button is still a button on a bare install and is
     /// visibly not the original's.
-    fn widget(&self, pen: &Pen, canvas: &mut Canvas, frame: usize, r: Rect) {
+    /// `frame` is the record`s `+0x04`; `Widget_Draw` adds one to it while the
+    /// press timer at `+0x0D` runs, and `index` says which record this is in
+    /// [`ComposeScreen::widgets`].
+    fn widget(&self, pen: &Pen, canvas: &mut Canvas, frame: usize, r: Rect, index: usize) {
+        let frame = if self.press.pressed() == Some(index) { frame + 1 } else { frame };
         if !pen.system_frame(canvas, frame, r.x, r.y) {
             crate::shell::button_recess(canvas, r.x, r.y, WIDGET_DIM, WIDGET_DIM);
         }
@@ -982,6 +1059,13 @@ impl Screen for ComposeScreen {
                 Event::RightClick { .. } => Transition::Replace(ScreenId::Campaign),
                 Event::KeyDown(Key::Escape) => Transition::Pop,
                 Event::KeyDown(Key::Enter) => self.send(ctx),
+                // The release ends a gift stepper's hold; nothing here is a
+                // release widget, so nothing can fire.
+                Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
+                    let fired = self.press.event(&self.widgets(), event);
+                    debug_assert!(fired.is_none(), "no compose widget is kind 3");
+                    Transition::Stay
+                }
                 _ => Transition::Stay,
             };
         };
@@ -999,32 +1083,22 @@ impl Screen for ComposeScreen {
                 return Transition::Stay;
             }
         }
-        let (send, cancel) = self.buttons();
-        // arm: 0x00436408/diplo-send left-press-delayed
-        if send.contains(x, y) {
-            return self.send(ctx);
-        }
-        // arm: 0x00436408/diplo-cancel left-press-delayed
-        //
-        // Hotspot 0 of the same handler, and it is the whole of the function's
-        // first statement: `g_screenId = 0xB`, back to the lord cards.
-        if cancel.contains(x, y) {
-            return Transition::Pop;
-        }
-        if self.kind == Kind::Gift {
-            // arm: 0x00436372/diplo-gift-step left-press-repeat
-            if GIFT_MORE.contains(x, y) {
-                let ctx: &Ctx = ctx;
-                self.step_gift(ctx, GIFT_STEP);
-                return Transition::Stay;
-            }
-            if GIFT_LESS.contains(x, y) {
-                let ctx: &Ctx = ctx;
-                self.step_gift(ctx, -GIFT_STEP);
-                return Transition::Stay;
-            }
+        // Four widgets of two kinds; [`ComposeScreen::widgets`] says which is
+        // which and [`ComposeScreen::fire`] is what each one does.
+        let table = self.widgets();
+        if let Some(i) = self.press.event(&table, event) {
+            return self.fire(ctx, i);
         }
         Transition::Stay
+    }
+
+    /// `Widget_Test`'s per-frame pass: the gauntlets' countdown and the gift
+    /// stepper's ramp.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        match self.press.tick() {
+            Some(i) => self.fire(ctx, i),
+            None => Transition::Stay,
+        }
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
@@ -1086,8 +1160,8 @@ impl Screen for ComposeScreen {
                 pen.eng(canvas, GROUP, GIFT_OF, 0x60, 0xF8, font::TEXT);
                 pen.count(canvas, 0x100, 0xF8, self.gold, CROWN_NOUN, true, font::TEXT);
                 pen.eng(canvas, GROUP, DISPATCH, 0xA0, 0x120, font::TEXT);
-                self.widget(&pen, canvas, PLUS_FRAME, GIFT_MORE);
-                self.widget(&pen, canvas, MINUS_FRAME, GIFT_LESS);
+                self.widget(&pen, canvas, PLUS_FRAME, GIFT_MORE, 2);
+                self.widget(&pen, canvas, MINUS_FRAME, GIFT_LESS, 3);
             }
             // ------------------------------------ Diplo_DrawCountyRequest
             Kind::AskHelp | Kind::AskAttack => {
@@ -1156,8 +1230,8 @@ impl Screen for ComposeScreen {
             }
         }
         let (send, cancel) = self.buttons();
-        self.widget(&pen, canvas, THUMB_UP_FRAME, send);
-        self.widget(&pen, canvas, THUMB_DOWN_FRAME, cancel);
+        self.widget(&pen, canvas, THUMB_UP_FRAME, send, 0);
+        self.widget(&pen, canvas, THUMB_DOWN_FRAME, cancel, 1);
     }
 }
 

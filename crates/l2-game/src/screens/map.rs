@@ -1699,6 +1699,16 @@ impl MapScreen {
     /// The sprite sheet was read and the behaviour was not. `docs/decisions.md`
     /// C61.
     ///
+    /// **It had no marker and no record until the gesture-kind audit.** The arm
+    /// was built by C61's branch and then counted by nothing: `arms.rs` checks
+    /// that every record has a marker and every marker has a record, and an arm
+    /// with neither is invisible to both directions of that check. It is a
+    /// `hover` — the original runs it from `Screen_DrawWidgets`' `0x10` arm once
+    /// a frame, where every other screen draws its widget table — so it has no
+    /// kind byte and the exe-gated check cannot classify it either.
+    ///
+    /// // arm: 0x004A8E0B/hover-march-target hover
+    ///
     /// Two economies of the original are kept because they are behaviour, not
     /// speed: the descent runs **only when the hovered tile changed**
     /// (`if (DAT_005691E0 != g_hoverTileOffset)`), and the flood fill is not

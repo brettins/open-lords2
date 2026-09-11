@@ -50,17 +50,33 @@ the question: `Hotspot_Test`'s 3 is a release; `Widget_Test` has no 3 that fires
 
 ## 2. The five kinds
 
-| kind | tester | fires on | pressed frame | repeat |
-|---|---|---|---|---|
-| 1 | `Hotspot_Test` | `g_mouseLeftPressed` — the **down edge** | none | none |
-| 2 | `Hotspot_Test` | down edge, **then every 320 ms while held** | none | flat |
-| 3 | `Hotspot_Test` | `g_mouseLeftReleased` — the **up edge** | none | none |
-| 4 | `Widget_Test` | down edge | `base + 1` for 3 frames, refreshed while held | **accelerating** |
-| 5 | `Widget_Test` | **20 frames after the down edge** | `base + 1` for all 20 | none |
+| kind | tester | fires on | pressed frame | repeat | records | handlers |
+|---|---|---|---|---|---|---|
+| 1 | `Hotspot_Test` | `g_mouseLeftPressed` — the **down edge** | none | none | 121 | 38 |
+| 2 | `Hotspot_Test` | down edge, **then every 320 ms while held** | none | flat | **23** | **7** |
+| 3 | `Hotspot_Test` | `g_mouseLeftReleased` — the **up edge** | none | none | 7 | 2 |
+| 4 | `Widget_Test` | down edge | `base + 1` for 3 frames, refreshed while held | **accelerating** | 139 | 53 |
+| 5 | `Widget_Test` | **20 frames after the down edge** | `base + 1` for all 20 | none | 42 | 29 |
 
 These are `docs/arms.json`'s gesture vocabulary — `left-press`, `left-press-held`,
 `left-release`, `left-press-repeat`, `left-press-delayed` — and they are the original's
 own, not a taxonomy of ours.
+
+**The two right-hand columns are generated, not counted by hand.**
+`node tools/oracle/kinds.js` walks both regions at a 24-byte stride, groups by `+0x0F`
+and prints every handler; `--counts` prints just this table's numbers. It totals **332
+records with a handler and not one whose kind byte is outside the five**, which is the
+closure claim: there is no sixth kind in the tables. The script spot-checks two records
+against handlers named from call sites before it will print anything, because a wrong
+region bound decodes plausible rubbish rather than nothing.
+
+> **Kind 2 is 23 records over 7 handlers, and this document said *"one pair, a
+> setup-page scroll"*.** That was written from one call site and was wrong by a factor
+> of eleven. It matters less than it looks — all seven handlers are skirmish and
+> multiplayer setup pages, and §6's verdict on our side is unchanged — but it is the
+> exact shape `CLAUDE.md`'s note about `[V]` warns of: a true statement about one table,
+> promoted to a statement about a kind. The cure is the same one that found it, which is
+> to make the count come out of the exe rather than out of a sentence.
 
 ### Answering the player, item by item
 
@@ -202,23 +218,33 @@ rather than hidden: nothing below the renderer may read a clock (`docs/netcode.m
 
 ## 6. What we reproduce, by kind
 
-The honest denominator, and it is not 151 of 211. That number counts **arms**; this
-counts **kinds**, and every arm has both.
+The honest denominator. The arm count in `CLAUDE.md` counts **arms**; this counts
+**kinds**, and every arm has both — which is the whole reason a screen could answer 154
+arms and still feel wrong in every one of them.
 
 | kind | in the original | ours |
 |---|---|---|
-| `left-press` (hotspot 1) | the majority of the interface | reproduced — `Event::Click` is the down edge |
-| `left-release` (hotspot 3, `Ui_OkButtonClicked`) | 26 `Ui_OkButtonClicked` call sites plus 7 kind-3 records | **four arms enumerated, and all four answered on the press until this branch.** Now on `Event::Release` |
-| `left-press-repeat` (widget 4) | ~139 records — every spinner in the game | mechanism built (`press::Press`), **wired on one screen** (army division) |
-| `left-press-delayed` (widget 5) | ~40 records, including every yes/no gauntlet | mechanism built, **wired nowhere** |
-| `left-press-held` (hotspot 2) | one pair, a setup-page scroll | **not built** — the 320 ms constant is written down and nothing uses it |
-| the pressed frame (`base + 1`) | every kind-4 and kind-5 widget | **drawn nowhere** |
+| `left-press` (hotspot 1) | 121 records, 38 handlers | reproduced — `Event::Click` is the down edge, and `Kind::Press` is it |
+| `left-release` (hotspot 3, `Ui_OkButtonClicked`) | 26 `Ui_OkButtonClicked` call sites plus 7 kind-3 records | reproduced — `Event::Release`, and `Kind::Release` in the shared table |
+| `left-press-repeat` (widget 4) | 139 records, 53 handlers | **built and wired on seven screens**: county tax and rations, supplies, army division, the battle prompt, the message scroll's five prompts, the diplomacy gift stepper, the info panel's garrison widget |
+| `left-press-delayed` (widget 5) | 42 records, 29 handlers | **built and wired on four**: the yes/no box, army division, supplies, diplomacy's six verb buttons and its send/cancel |
+| `left-press-held` (hotspot 2) | 23 records, 7 handlers | **built and reaches nothing.** All seven handlers are skirmish and multiplayer setup pages this engine does not have; `Kind::Held` exists so the day one arrives it is a declaration and not a rewrite |
+| the pressed frame (`base + 1`) | every kind-4 and kind-5 widget | **drawn on eight screens** — `Press::pressed` is `+0x0D`, and the painter adds one |
 
-> **Say the boundary in the same sentence as the number.** *"151 of 211 arms"* is a count
-> of things that exist, over the arms somebody has enumerated. Of the **five gesture
-> kinds**, we reproduce two outright, have two implemented and barely wired, and have not
-> built one. `docs/arms.json`'s new gesture field is what makes that sentence checkable
-> instead of an impression.
+**What is built is the layer; what is not is the wiring, and the two are different
+claims.** `crates/l2-game/src/press.rs` carries `Kind`, `Widget` and `Press::event`, so a
+screen **declares** the kind of each rectangle and stops keeping press/release state of
+its own — that is the same shape as the original, where the kind is a byte in the record
+and the tester does the rest. What remains is that our screens name a small fraction of
+the original's 332 records. That is countable rather than remembered:
+`node tools/oracle/kinds.js` is the original's side and `docs/arms.json` is ours.
+
+> **Say the boundary in the same sentence as the number.** Of the **five gesture kinds**,
+> all five are now built and one of them is wired to nothing. Of the original's 332
+> input records, `docs/arms.json` names a fraction. The gesture field is what makes both
+> of those sentences checkable instead of an impression — and it earned that on this
+> branch, which found **four records filed under a kind the exe contradicts**, three of
+> them marked `reproduced`.
 
 ## 7. What checks this
 
@@ -240,3 +266,33 @@ Three, in rising order of what they can catch:
 are in that blind spot, which is exactly where all four wrong ones were. The coverage
 count is asserted so it cannot fall to zero quietly, but a bigger blind spot than that is
 not something an instrument inside it can report.
+
+### 7a. The blind spot had four arms in it, and closing half of it is one predicate
+
+Check 3 asks *"is this record's `addr` a table handler?"* — and the four arms it could not
+judge all have `addr` = `0x004BA9C8`, `Screen_HandleInput`, a 3,832-byte dispatcher that
+is nobody's handler. They name their table **in their own prose** instead:
+
+> *"`g_taxWidgets` (`0x004DD790`) and `g_rationWidgets` (`0x004DD7C0`), two 24-byte
+> records each"*
+
+That address is the thing the check wanted and could not find, sitting in the record, in
+a field written for a different purpose by somebody who was not thinking about kinds. So
+the check now scans `what` and `note` for addresses that land **exactly on a record base
+inside the two regions** — not on a handler, which is the false-positive that made the
+first version of this useless — and cross-checks those too.
+
+Three things make it safe rather than clever, and they are worth copying:
+
+* **Record bases only.** A record whose prose mentions a *function* mentions it for a
+  hundred reasons; a record whose prose names an address in `0x004DC4D0 … 0x004DE400` is
+  naming a widget table and nothing else lives there.
+* **Ambiguity is reported, not resolved.** Prose that names two tables of different kinds
+  produces a listed `ambiguous`, the same way a handler reachable at two kinds already
+  did. A check that guesses is worse than one that declines.
+* **The two artefacts have different authors in time.** The prose was written months
+  before the gesture field existed, which is exactly the property `docs/agents.md` says a
+  duplicated check needs and usually does not have.
+
+It found `tax-and-ration-arrows`, `prompt-fight`, `prompt-decline` and
+`info-garrison-widget` — the first of which is a player's bug report.

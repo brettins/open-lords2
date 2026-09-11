@@ -138,8 +138,8 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
    countable rather than rhetorical: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->154<!--/fig--> of
-   <!--fig:arms-live-->178<!--/fig--> live arms (<!--fig:arms-pct-->87<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->157<!--/fig--> of
+   <!--fig:arms-live-->181<!--/fig--> live arms (<!--fig:arms-pct-->87<!--/fig-->%)** — so
    **<!--fig:arms-missing-->24<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->6<!--/fig-->** more arms that are in the binary and cannot run.
 2. **We do something the original does not.** The other direction, and the half nobody was
@@ -908,7 +908,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,158<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,168<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

@@ -65,7 +65,7 @@ use l2_kingdom::divide::{SplitBasket, SplitInto, SplitRefusal};
 use l2_kingdom::unit::{ALL_TROOP_TYPES, TroopType};
 use l2_view::{text, Canvas};
 
-use crate::press::Press;
+use crate::press::{Kind, Press, Widget};
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
@@ -213,6 +213,28 @@ pub const SPLIT_TICK: Rect = Rect::new(288, 420, 32, 32);
 /// goes back to the information panel and splits nothing.
 pub const SPLIT_CROSS: Rect = Rect::new(336, 424, 32, 32);
 
+/// [`widgets`]' index of the tick; the cross is the one after it.
+pub const TICK_INDEX: usize = (MERC_ROW + 1) * 2;
+
+/// **`g_splitWidgets` (`0x004DD388`) as a table, with the kind byte each record
+/// carries.**
+///
+/// Eighteen records: two kind-**5** — the tick and the cross, which is why they
+/// are first in the table and last here — and sixteen kind-**4** steppers, one
+/// pair per row. The order below is `row * 2` for a parent button and
+/// `row * 2 + 1` for a daughter one, which is the order the table itself is in
+/// past its first two records.
+pub fn widgets() -> Vec<Widget> {
+    let mut out = Vec::with_capacity(18);
+    for row in 0..=MERC_ROW {
+        out.push(Widget::new(parent_button(row), Kind::Repeat));
+        out.push(Widget::new(daughter_button(row), Kind::Repeat));
+    }
+    out.push(Widget::new(SPLIT_TICK, Kind::Delayed));
+    out.push(Widget::new(SPLIT_CROSS, Kind::Delayed));
+    out
+}
+
 /// How many men a click moves. **Ours**: `SplitScreen_ToParent` moves exactly
 /// one — `slot.available -= 1; slot.chosen += 1` — which is unusable for an
 /// army of 800 without the key-repeat its widget table's kind 4 supplies and
@@ -285,6 +307,33 @@ impl DivideScreen {
         self.unit
     }
 
+    /// **One widget's handler**, whichever way it was reached — a kind-4 press
+    /// or repeat, or a kind-5 countdown expiring twenty ticks after the press.
+    ///
+    /// The index is [`widgets`]'.
+    fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
+        match widget {
+            // **`SplitScreen_ToParent` (`0x00437D65`) and
+            // `SplitScreen_ToDaughter` (`0x00437E9E`)** — sixteen widgets in
+            // eight rows, `g_uiHotspotId` carrying the slot. Row 7 is the
+            // mercenary band and swaps whole rather than by one, in the
+            // function itself.
+            // arm: 0x00437D65/divide-to-parent left-press-repeat
+            // arm: 0x00437E9E/divide-to-daughter left-press-repeat
+            i if i < TICK_INDEX => {
+                self.row = i / 2;
+                self.move_men(i / 2, i % 2 == 0, CLICK_MEN);
+                Transition::Stay
+            }
+            // arm: 0x00437AFB/divide-confirm left-press-delayed
+            TICK_INDEX => self.split(ctx),
+            // The cross is the same handler reading `g_uiHotspotId == 0`, and
+            // it lands on `0x04` rather than on the map.
+            // arm: 0x00437AFB/divide-cancel left-press-delayed
+            _ => Transition::Pop,
+        }
+    }
+
     pub fn basket(&self) -> &SplitBasket {
         &self.basket
     }
@@ -355,10 +404,15 @@ impl DivideScreen {
 /// One row's pair of arrow records — `System.pl8` frames 27 and 25 at the
 /// geometry `g_splitWidgets` gives them. Falls back to our own outline when
 /// the sheet is not loaded, rather than to a letter in the debug font.
-fn arrows(pen: &Pen, canvas: &mut Canvas, row: usize) {
-    for (rect, frame) in
+fn arrows(pen: &Pen, canvas: &mut Canvas, row: usize, down: Option<usize>) {
+    // `Widget_Draw` adds one to the frame while the press timer at `+0x0D`
+    // runs. The index is [`widgets`]`: `row * 2` parent, `+ 1` daughter.
+    for (half, (rect, frame)) in
         [(parent_button(row), TO_PARENT_FRAME), (daughter_button(row), TO_DAUGHTER_FRAME)]
+            .into_iter()
+            .enumerate()
     {
+        let frame = if down == Some(row * 2 + half) { frame + 1 } else { frame };
         if !pen.system_frame(canvas, frame, rect.x, rect.y) {
             crate::widget::frame(canvas, rect, pen.ink.border);
         }
@@ -385,9 +439,7 @@ impl Screen for DivideScreen {
         }
         // arm: 0x0040DA1E/widget-auto-repeat left-press-repeat
         if let Some(widget) = self.press.tick() {
-            let (row, to_parent) = (widget / 2, widget % 2 == 0);
-            self.row = row;
-            self.move_men(row, to_parent, CLICK_MEN);
+            return self.fire(ctx, widget);
         }
         Transition::Stay
     }
@@ -438,40 +490,13 @@ impl Screen for DivideScreen {
                 Transition::Stay
             }
             Event::KeyDown(Key::Enter) => self.split(ctx),
-            Event::Click { x, y } => {
-                // **`SplitScreen_ToParent` (`0x00437D65`) and
-                // `SplitScreen_ToDaughter` (`0x00437E9E`)** — sixteen widgets in
-                // eight rows, `g_uiHotspotId` carrying the slot. Row 7 is the
-                // mercenary band and swaps whole rather than by one, in the
-                // function itself.
-                // arm: 0x00437D65/divide-to-parent left-press-repeat
-                // arm: 0x00437E9E/divide-to-daughter left-press-repeat
-                for row in 0..=MERC_ROW {
-                    if parent_button(row).contains(x, y) {
-                        self.row = row;
-                        self.press.press(row * 2);
-                        self.move_men(row, true, CLICK_MEN);
-                        return Transition::Stay;
-                    }
-                    if daughter_button(row).contains(x, y) {
-                        self.row = row;
-                        self.press.press(row * 2 + 1);
-                        self.move_men(row, false, CLICK_MEN);
-                        return Transition::Stay;
-                    }
-                }
-                // arm: 0x00437AFB/divide-confirm left-press-delayed
-                if SPLIT_TICK.contains(x, y) {
-                    return self.split(ctx);
-                }
-                // The cross is the same handler reading `g_uiHotspotId == 0`,
-                // and it lands on `0x04` rather than on the map.
-                // arm: 0x00437AFB/divide-cancel left-press-delayed
-                if SPLIT_CROSS.contains(x, y) {
-                    return Transition::Pop;
-                }
-                Transition::Stay
-            }
+            // Eighteen widgets of two kinds; [`widgets`] says which is which and
+            // [`DivideScreen::fire`] is what each one does.
+            Event::Click { .. } => match self.press.event(&widgets(), event) {
+                Some(i) => self.fire(ctx, i),
+                // A kind-5 press consumed the click and is counting down.
+                None => Transition::Stay,
+            },
             // The hold ends when the button comes up, and it also ends when the
             // pointer slides off the widget — the original never says so
             // because it re-runs the hit test every frame and simply stops
@@ -492,17 +517,9 @@ impl Screen for DivideScreen {
                 }
                 Transition::Stay
             }
-            Event::Pointer { x, y } => {
-                let over = (0..=MERC_ROW).find_map(|row| {
-                    if parent_button(row).contains(x, y) {
-                        Some(row * 2)
-                    } else if daughter_button(row).contains(x, y) {
-                        Some(row * 2 + 1)
-                    } else {
-                        None
-                    }
-                });
-                self.press.pointer(over);
+            Event::Pointer { .. } | Event::PointerLeft => {
+                let fired = self.press.event(&widgets(), event);
+                debug_assert!(fired.is_none(), "no divide widget is a release widget");
                 Transition::Stay
             }
             _ => Transition::Stay,
@@ -549,7 +566,7 @@ impl Screen for DivideScreen {
             if row == self.row {
                 canvas.fill_rect(NOUN_X - 4, y, 2, 14, ink.highlight);
             }
-            arrows(&pen, canvas, row);
+            arrows(&pen, canvas, row, self.press.pressed());
             pen.number(canvas, PARENT_NUMBER_X, y, left, true, font::TEXT);
             pen.number(canvas, DAUGHTER_NUMBER_X, y, right, true, font::TEXT);
         }
@@ -583,7 +600,7 @@ impl Screen for DivideScreen {
             } else {
                 (m.men(), 0)
             };
-            arrows(&pen, canvas, MERC_ROW);
+            arrows(&pen, canvas, MERC_ROW, self.press.pressed());
             pen.number(canvas, PARENT_NUMBER_X, y, left, true, font::TEXT);
             pen.number(canvas, DAUGHTER_NUMBER_X, y, right, true, font::TEXT);
         }
@@ -619,10 +636,13 @@ impl Screen for DivideScreen {
         // and they replace three buttons of ours** that stood where the painter
         // draws nothing: SPLIT, DISBAND and CANCEL in our own font at y 446,
         // one of which overlapped this tick.
-        if !pen.system_frame(canvas, 29, SPLIT_TICK.x, SPLIT_TICK.y) {
+        let down = self.press.pressed();
+        let tick = if down == Some(TICK_INDEX) { 30 } else { 29 };
+        let cross = if down == Some(TICK_INDEX + 1) { 32 } else { 31 };
+        if !pen.system_frame(canvas, tick, SPLIT_TICK.x, SPLIT_TICK.y) {
             widget::frame(canvas, SPLIT_TICK, ink.highlight);
         }
-        if !pen.system_frame(canvas, 31, SPLIT_CROSS.x, SPLIT_CROSS.y) {
+        if !pen.system_frame(canvas, cross, SPLIT_CROSS.x, SPLIT_CROSS.y) {
             widget::frame(canvas, SPLIT_CROSS, ink.border);
         }
         // **Ours**: the original answers a refusal with a message scroll.

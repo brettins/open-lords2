@@ -64,6 +64,7 @@
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
+use crate::press::{Kind, Press, Widget};
 use crate::message::{self, category, Prompt, Record, Shape};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
@@ -113,11 +114,31 @@ pub struct MessageScreen {
     /// position in the save. It starts at the middle of the screen, which is
     /// where the tip's own clamp puts it anyway if the pointer has not moved.
     pointer: (i32, i32),
+    /// The open prompt's press timer.
+    ///
+    /// **All five prompt tables are `Widget_Test` kind 4**, read out of `+0x0F`
+    /// of `0x004DDA90`, `0x004DDAC0`, `0x004DDAF0`, `0x004DDB20` and
+    /// `0x004DDB50` — the same pair of mailed hands as the yes/no box and a
+    /// *different kind*, which is why the kind has to be read rather than
+    /// inferred from the picture. The repeat is unreachable: every one of the
+    /// five handlers calls `Msg_Dismiss` first, so the table is gone before a
+    /// second fire could come. What kind 4 buys is the pressed picture.
+    press: Press,
+}
+
+/// The open prompt's two widgets as a table. Index 0 is **yes**, hotspot id 1.
+fn prompt_widgets(prompt: Prompt) -> [Widget; 2] {
+    let [yes, no] = prompt.widgets();
+    let side = Prompt::SIDE;
+    [
+        Widget::new(Rect::new(yes.0, yes.1, side, side), Kind::Repeat),
+        Widget::new(Rect::new(no.0, no.1, side, side), Kind::Repeat),
+    ]
 }
 
 impl MessageScreen {
     pub fn new() -> MessageScreen {
-        MessageScreen { pointer: (320, 240) }
+        MessageScreen { pointer: (320, 240), press: Press::new() }
     }
 
     /// The record on screen, or `None` for the one frame the machine may still
@@ -175,8 +196,8 @@ impl Screen for MessageScreen {
                 // category 0x0C. Each returns 1 whether or not the click was on
                 // a button, so a miss inside a prompt does NOT fall through.
                 if let Some(prompt) = record.answer_widgets() {
-                    if let Some(yes) = prompt.hit(x, y) {
-                        return answer(ctx, prompt, yes);
+                    if let Some(i) = self.press.event(&prompt_widgets(prompt), event) {
+                        return answer(ctx, prompt, i == 0);
                     }
                     // `Widget_Test` returning 0 falls on through to the corner
                     // button below, which is why a prompt can still be closed
@@ -207,6 +228,13 @@ impl Screen for MessageScreen {
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => leave(ctx),
             Event::Pointer { x, y } => {
                 self.pointer = (x, y);
+                if let Some(prompt) = record.answer_widgets() {
+                    self.press.event(&prompt_widgets(prompt), event);
+                }
+                Transition::Pass
+            }
+            Event::Release { .. } => {
+                self.press.release();
                 Transition::Pass
             }
             _ => Transition::Pass,
@@ -227,6 +255,10 @@ impl Screen for MessageScreen {
     /// frame in a fixed order, so moving these three arms into `update` changes
     /// nothing about when they fire; it is recorded because it is a difference.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        // `Widget_Test`'s countdown, which runs the pressed picture down. It
+        // cannot fire: the prompts are kind 4, whose fire is on the press, and
+        // the handler dismisses before a repeat could arrive.
+        self.press.tick();
         if !ctx.game.messages.is_open() {
             return Transition::Pop;
         }
@@ -271,7 +303,7 @@ impl Screen for MessageScreen {
         }
 
         if let Some(prompt) = record.answer_widgets() {
-            draw_prompt(&pen, canvas, prompt);
+            draw_prompt(&pen, canvas, prompt, self.press.pressed());
         }
         if record.shape().has_ok_button() {
             let (x, y) = frame.ok_button();
@@ -537,8 +569,11 @@ pub fn repaint_clickables(ctx: &Ctx, canvas: &mut Canvas, record: &Record) {
         shadow: Some(font::SHADOW),
         caps: None,
     };
+    // `None`: this repaints what a FRESH frame would draw, and a press timer is
+    // per-screen state the caller does not have. The test that uses it compares
+    // an untouched draw with a second one, so both sides are up.
     if let Some(prompt) = record.answer_widgets() {
-        draw_prompt(&pen, canvas, prompt);
+        draw_prompt(&pen, canvas, prompt, None);
     }
     if record.shape().has_ok_button() {
         if let Some(frame) = message::frame_of(record) {
@@ -550,9 +585,11 @@ pub fn repaint_clickables(ctx: &Ctx, canvas: &mut Canvas, record: &Record) {
 
 /// `Widget_Draw(0, 0, table, 2)` — the two mailed hands, `System.pl8` frames 29
 /// and 31.
-fn draw_prompt(pen: &Pen, canvas: &mut Canvas, prompt: Prompt) {
+fn draw_prompt(pen: &Pen, canvas: &mut Canvas, prompt: Prompt, down: Option<usize>) {
     let [yes, no] = prompt.widgets();
-    for (at, frame) in [(yes, Prompt::FRAME_YES), (no, Prompt::FRAME_NO)] {
+    // `Widget_Draw` adds one to the frame while `+0x0D` runs.
+    for (i, (at, frame)) in [(yes, Prompt::FRAME_YES), (no, Prompt::FRAME_NO)].into_iter().enumerate() {
+        let frame = if down == Some(i) { frame + 1 } else { frame };
         if !pen.system_frame(canvas, frame, at.0, at.1) {
             crate::shell::button_recess(canvas, at.0, at.1, Prompt::SIDE, Prompt::SIDE);
         }

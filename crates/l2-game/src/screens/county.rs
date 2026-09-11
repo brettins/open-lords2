@@ -269,6 +269,7 @@ use l2_view::{text, Canvas};
 
 use crate::game::{MAX_RATION_SPLIT, MAX_TAX_RATE};
 use crate::input::{Event, Key, Rect};
+use crate::press::{Kind, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen, TRAILING};
 use crate::widget;
@@ -800,13 +801,40 @@ pub struct CountyScreen {
     /// g_mouseInputChanged`, which is a held button and a moved pointer, so a
     /// screen driven by discrete events needs to remember the first half.
     slider_held: bool,
+    /// The two arrows' press timer and auto-repeat counter — `+0x0D` and
+    /// `+0x0E` of `g_taxWidgets` / `g_rationWidgets`. See [`CountyScreen::arrows`].
+    press: Press,
 }
 
 impl CountyScreen {
     /// Opens on the panel the strip quadrant that was clicked names, which is
     /// the only way the original opens any of them ([`panel_at`]).
     pub fn new(county: u8, panel: Panel) -> CountyScreen {
-        CountyScreen { county, panel, slider_held: false }
+        CountyScreen { county, panel, slider_held: false, press: Press::new() }
+    }
+
+    /// **The panel's own widget table**, with the kind byte its records carry.
+    ///
+    /// `g_taxWidgets` (`0x004DD790`) and `g_rationWidgets` (`0x004DD7C0`) are
+    /// two 24-byte records each and **both are `Widget_Test` kind 4** — read out
+    /// of `+0x0F` of all four records. That is auto-repeat: the press steps
+    /// once, and holding steps again on [`crate::press::REPEAT_GATE`]'s ramp,
+    /// 240 ms later and then faster until it is running flat out at 1.44 s.
+    ///
+    /// `docs/arms.json` filed this arm as `left-press` and it was wrong — the
+    /// record named the two tables and nobody read their kind byte. A player
+    /// reported the consequence: *"Holding on a button doesn't seem to make it
+    /// go up faster. I recall you could click an up arrow and after a few
+    /// seconds the number would go up fast."*
+    ///
+    /// Index 0 is **up** and index 1 is **down**, which is the tables' own order
+    /// and puts the up arrow to the *left* of the pair.
+    fn arrows(&self) -> Vec<Widget> {
+        [self.panel.increase_button(), self.panel.decrease_button()]
+            .into_iter()
+            .flatten()
+            .map(|r| Widget::new(r, Kind::Repeat))
+            .collect()
     }
 
     pub fn county(&self) -> u8 {
@@ -950,6 +978,16 @@ impl Screen for CountyScreen {
         if crate::screens::belongs_to_the_right_column(event) {
             return Transition::Pass;
         }
+        // **The arrows' bookkeeping, for the events that only end the hold.**
+        // The table holds nothing of [`Kind::Release`], so this can never fire a
+        // handler; it is the release that stops the repeat, and the pointer
+        // walking off the button, which in the original is simply the hit test
+        // failing to match on the next frame. The press itself is answered in
+        // the `Event::Click` arm below, where the ladder's order matters.
+        if matches!(event, Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft) {
+            let fired = self.press.event(&self.arrows(), event);
+            debug_assert!(fired.is_none(), "no arrow is a release widget");
+        }
         match event {
             // **The slider is dragged.** `Ration_SliderClick` returns 0 on the
             // release and fires on `g_mouseLeftDown && g_mouseInputChanged` —
@@ -1046,14 +1084,23 @@ impl Screen for CountyScreen {
                 // `Screen_HandleInput`'s widget tables: `g_taxWidgets`
                 // (`0x004DD790`) and `g_rationWidgets` (`0x004DD7C0`), two
                 // records each, up then down.
-                // arm: 0x004BA9C8/tax-and-ration-arrows left-press
-                if self.panel.increase_button().is_some_and(|r| r.contains(x, y)) {
-                    self.adjust(ctx, 1);
-                } else if self.panel.decrease_button().is_some_and(|r| r.contains(x, y)) {
-                    self.adjust(ctx, -1);
+                // **Kind 4**, so the press steps once and the hold keeps
+                // stepping: see [`CountyScreen::arrows`].
+                // arm: 0x004BA9C8/tax-and-ration-arrows left-press-repeat
+                if let Some(i) = self.press.event(&self.arrows(), event) {
+                    self.adjust(ctx, if i == 0 { 1 } else { -1 });
                 }
             }
             _ => {}
+        }
+        Transition::Stay
+    }
+
+    /// `Widget_Test`'s per-frame pass over `g_taxWidgets` / `g_rationWidgets`:
+    /// the press timer counts down and the repeat counter walks the ramp.
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        if let Some(i) = self.press.tick() {
+            self.adjust(ctx, if i == 0 { 1 } else { -1 });
         }
         Transition::Stay
     }
@@ -2301,15 +2348,20 @@ impl CountyScreen {
         let ok = self.panel.ok_button_for(armies_eat);
         pen.ok_button(canvas, ok.x, ok.y, 0);
         let live = ctx.game.is_players(self.county);
-        for (rect, frame, label) in [
+        // `Widget_Draw` (`0x0040CFD2`) picks record `+0x04` **plus one** while
+        // the press timer at `+0x0D` runs, so each arrow has a pressed picture —
+        // frames `0x16` and `0x18`. `Press::pressed` is that timer, and the
+        // index is the table's: 0 up, 1 down.
+        let down = self.press.pressed();
+        for (i, (rect, frame, label)) in [
             (self.panel.increase_button(), system::ARROW_UP, "+"),
             (self.panel.decrease_button(), system::ARROW_DOWN, "-"),
-        ] {
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let Some(r) = rect else { continue };
-            // `Widget_Draw` picks record `+0x04` **plus one** while the press
-            // timer at `+0x0D` runs, so each arrow has a pressed picture — frames
-            // 0x16 and 0x18 — that we never show. Recorded, not built: nothing
-            // in this engine carries a widget press timer.
+            let frame = if down == Some(i) { frame + 1 } else { frame };
             if !pen.system_frame(canvas, frame, r.x, r.y) {
                 widget::button(canvas, ink, r, label, live);
             }

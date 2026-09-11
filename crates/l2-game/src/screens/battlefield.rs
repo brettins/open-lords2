@@ -90,6 +90,7 @@ use crate::battlefield::{
     VIEW_ROWS,
 };
 use crate::input::{Event, Key, Rect};
+use crate::press::{Kind, Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
 use crate::turn::{self, TurnStep};
@@ -122,6 +123,21 @@ pub const CONFIRM_NO: Rect = Rect::new(0xA0 + 112, 0xA0 + 50, 32, 32);
 pub const CONFIRM_YES_FRAME: usize = 29;
 pub const CONFIRM_NO_FRAME: usize = 31;
 
+/// **`g_confirmWidgets` as a table, with the kind byte its two records carry.**
+///
+/// Both are `Widget_Test` kind **5**, read out of `0x004DD310` and `0x004DD328`:
+/// the press puts the gauntlet down and the handler runs
+/// [`crate::press::DELAYED_FRAMES`] frames later. That delay, with the picture
+/// visibly held down through it, is what a player read as *"the game waited on
+/// mouse-up, and the gauntlet would go down slightly when clicked."*
+///
+/// Order matters: index 0 is hotspot id **1**, the tick, and index 1 is id
+/// **0**, the cross. `Ui_ConfirmClicked` (`0x00434E1F`) is
+/// `g_confirmAnswer = g_uiHotspotId; (*g_confirmCallback)();` — the answer *is*
+/// the hotspot id.
+pub const CONFIRM_WIDGETS: [Widget; 2] =
+    [Widget::new(CONFIRM_YES, Kind::Delayed), Widget::new(CONFIRM_NO, Kind::Delayed)];
+
 /// `Screen_BattleOutcome` (`0x00423241`)'s short window —
 /// `FUN_004093E0(0x10, 0x90, 0x1C, 0x0A)` — and the three things inside it.
 pub const OUTCOME_BOX: Rect = Rect::new(0x10, 0x90, 0x1C * 16, 0x0A * 16);
@@ -141,12 +157,15 @@ pub const OUTCOME_BODY: (i32, i32, i32) = (0x30, 0xE0, 0x180);
 pub struct BattlefieldScreen {
     /// The open yes/no box's `L2.eng` group 10 prompt index, if one is up.
     confirm: Option<usize>,
+    /// [`CONFIRM_WIDGETS`]' press timer — the twenty frames between the
+    /// gauntlet going down and the answer being given.
+    press: Press,
     redraw: bool,
 }
 
 impl BattlefieldScreen {
     pub fn new() -> BattlefieldScreen {
-        BattlefieldScreen { confirm: None, redraw: true }
+        BattlefieldScreen { confirm: None, press: Press::new(), redraw: true }
     }
 
     fn live<'a>(ctx: &'a mut Ctx) -> Option<&'a mut LiveBattle> {
@@ -248,16 +267,20 @@ impl Screen for BattlefieldScreen {
         }
         // The yes/no box is modal in the original too: `Ui_OpenConfirm` sets
         // `g_screenId = 0x1E`, so none of the battlefield's arms run under it.
-        if let Some(_prompt) = self.confirm {
-            return match event {
-                Event::Click { x, y } if CONFIRM_YES.contains(x, y) => {
-                    self.answer_confirm(ctx, true)
-                }
-                Event::Click { x, y } if CONFIRM_NO.contains(x, y) => {
-                    self.answer_confirm(ctx, false)
-                }
-                _ => Transition::Stay,
-            };
+        if self.confirm.is_some() {
+            // **Kind 5, and the press does not answer.** `Widget_Test`'s
+            // kind-5 branch sets `rec[0x0D] = 0x14` and returns *without*
+            // calling the handler; the handler runs from the countdown at the
+            // top of the next call, on the frame the timer reaches zero. So
+            // this returns nothing and [`Screen::update`] gives the answer.
+            //
+            // arm: 0x00434E1F/confirm-yes left-press-delayed
+            // arm: 0x00434E1F/confirm-no left-press-delayed
+            let fired = self.press.event(&CONFIRM_WIDGETS, event);
+            if fired.is_some() || self.press.busy() {
+                self.redraw = true;
+            }
+            return Transition::Stay;
         }
 
         let mode = ctx.game.battle.as_ref().map(|b| b.mode).unwrap_or(Mode::Field);
@@ -384,6 +407,15 @@ impl Screen for BattlefieldScreen {
     }
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        // `Widget_Test`'s countdown loop, which runs whether or not anything is
+        // under the pointer. Index 0 is the tick, index 1 the cross.
+        if let Some(widget) = self.press.tick() {
+            return self.answer_confirm(ctx, widget == 0);
+        }
+        if self.confirm.is_some() && self.press.pressed().is_some() {
+            // The gauntlet is down; the picture has to move while it is.
+            self.redraw = true;
+        }
         let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
         live.edge_scroll();
         live.tick();
@@ -512,9 +544,22 @@ impl Screen for BattlefieldScreen {
             // `system::OK + 2`, which are the close corner and its neighbour:
             // the right sheet, the wrong frames, and a canvas diff would have
             // passed on either.
-            for (r, frame, label) in
+            //
+            // **And the pressed picture is `base + 1`.** `Widget_Draw`
+            // (`0x0040CFD2`) is
+            // `if (kind == 4 || kind == 5) { frame = rec[0x04]; if (rec[0x0D])
+            // frame = rec[0x04] + 1; }` — a *sprite index*, not a colour
+            // effect — and it then marks the rectangle with
+            // `Gfx_MarkWidgetUrgent` rather than `Gfx_MarkSpriteDirty` so the
+            // depressed picture appears on the same frame as the press. This is
+            // the only place in this engine that draws one.
+            let down = self.press.pressed();
+            for (i, (r, frame, label)) in
                 [(CONFIRM_YES, CONFIRM_YES_FRAME, "YES"), (CONFIRM_NO, CONFIRM_NO_FRAME, "NO")]
+                    .into_iter()
+                    .enumerate()
             {
+                let frame = if down == Some(i) { frame + 1 } else { frame };
                 let drawn = ctx
                     .assets
                     .chrome
