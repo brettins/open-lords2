@@ -8277,3 +8277,67 @@ own implausible number.
 **Not moved into `l2-formats`.** The brief allowed it; the check does not need it,
 because it decodes raw offsets itself, so `l2_formats::save::{County, Realm}` are
 unchanged and the new reads sit in `l2-scenario` beside the ones C142 and C149 added.
+
+---
+
+**C162 — a save test failed one run in ninety, and the shared directory
+it raced over was also hiding a real defect and three assertions that could not fail.**
+
+`crates/l2-game/tests/save.rs`'s `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
+failed at merge twice in one evening and passed every time it was run alone. It was recorded as a
+pre-existing flake in the merge of C151 and left there. This entry is what measuring it found.
+
+**The flake, measured.** It failed **23 times in 2,000 runs** of the unfixed test binary, with
+8 parallel workers — about 1.15 % — and always on *"the loaded game is the saved one"*. It was
+then forced deterministically before anything was fixed. Barriers held two real tests at the
+interleaving:
+1. `a_failed_write_cannot_destroy_the_save_it_was_replacing` writes its file;
+2. the load screen opens;
+3. the file is removed;
+4. the test takes its second listing.
+
+Under that interleaving it failed 5 of 5 unfixed and passed 5 of 5 fixed, and the fixed binary
+failed 0 of 2,000. **[V]**
+
+**Two causes, both fixed.**
+
+* **The test derived the row it clicked from a second `saves::list()`**, not from the list the
+  screen opened with. Anything written or removed between the two reads moved the click one row,
+  onto a different game. It now clicks a literal row, pinned by the files its own directory is
+  asserted to hold.
+* **Every file test shared one `LORDS2_SAVES` directory.** Two took a listing lock and four wrote
+  or deleted without it. `saves::scoped_dir()` now gives each test a directory of its own, ahead
+  of `LORDS2_SAVES`, and **the lock is deleted**. The result is a shape that cannot race, rather
+  than a lock that the next test must remember to take. Making the scope process-global again
+  turns the isolation test red on its own, and 8 of the file's 18 tests red.
+
+**The near miss.** Before this, **a test that forgot to set up its directory would have written
+straight into the player's real `%APPDATA%` saves.** `LORDS2_SAVES` now points underneath a
+regular file. A test with no directory of its own therefore fails on its first write, naming the
+path, whatever order the tests run in. Removing the directory from the screen test and running it
+alone does exactly that, and leaves `%APPDATA%` untouched.
+
+**What the shared directory was hiding.** Each item below was ablated red.
+
+* **A real defect.** The save screen drew its directory path uncut, so a path over 67 characters
+  overflowed the box, 398 pixels outside it. That takes a deep `LORDS2_SAVES`, or a profile user
+  name over 24 characters. The test that it paints inside its window had passed only because its
+  temp path was short. The line is now cut from the left.
+* **Three tests that could never fail**, each shown green with the behaviour it claimed deleted:
+  * **The overwrite test** looked for a `.part` file through `saves::list()`, which only shows
+    `.l2sav`, so it could never see `x.l2sav.part`. It stayed green with the rename swapped for a
+    copy.
+  * **The cancel test** typed with key-down events the name field ignores, and searched for
+    `"CANCELLED"`, which the field lower-cases. It stayed green with the cross wired to confirm.
+  * **The sort test's** three lower-case names were already in order as NTFS returns them. It
+    stayed green with the sort deleted; one capital letter now makes the two orders disagree.
+
+**Production does not race.** The load screen reads the directory once, and both its drawing and
+its click resolution use that one read. That is now pinned by a test: a save arriving after the
+screen opens does not move the clicked row. The test goes red when the click arm re-reads the
+directory.
+
+**That is C138's shape three times in one file:** an assertion that cannot fail looks exactly like
+one that passes. A flaky test was the only thing that made anybody read this file closely enough
+to find them. "It fails one run in ninety" was the visible symptom of a directory shared by tests
+that were not all testing what they said.

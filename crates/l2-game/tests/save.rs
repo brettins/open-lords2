@@ -27,10 +27,12 @@
 //!
 //! # And the files
 //!
-//! [`crate::saves`] is exercised against a **temporary directory**, never the
-//! default one: a test that wrote into `%APPDATA%` would destroy the player's
-//! own saves on the machine it ran on. `LORDS2_SAVES` is set for the process,
-//! which is also the proof that the override works.
+//! **Every test that touches a save has a directory of its own**, and [`Saves`]
+//! is the only way this file gets one. It is never the default directory — a
+//! test that wrote into `%APPDATA%` would destroy the player's own saves on the
+//! machine it ran on — and it is never *shared*, because a shared one is what
+//! made `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back` fail
+//! about one run in a hundred. See [`Saves`].
 //!
 //! Nothing here writes a `.sav` anywhere near the repository, and the extension
 //! is `.l2sav` in any case — `l2_game::save::EXTENSION` says why.
@@ -53,7 +55,13 @@ use l2_kingdom::{Kingdom, Options};
 ///
 /// Deliberately not `Game::new`: a save format tested only on zeros is a save
 /// format tested only on zeros.
+///
+/// **Also where the save-directory safety net goes up.** Nothing can be saved
+/// without a `Game`, and every game in this file starts here, so a test that
+/// forgot its [`Saves`] meets [`an_unscoped_save_is_refused`] before it can
+/// write — whatever order the harness happens to run the tests in.
 fn furnished(seed: u64) -> Game {
+    an_unscoped_save_is_refused();
     let mut game = Game::new(seed);
     let k = &mut game.kingdom;
     k.options = Options {
@@ -247,83 +255,181 @@ fn the_originals_own_save_is_not_mistaken_for_ours() {
 
 // --- the files -------------------------------------------------------------
 
-/// A directory of this test process's own, and `LORDS2_SAVES` pointed at it.
+/// **A save directory belonging to one test**, and every save operation on the
+/// test's thread pointed at it until this drops — the listing, the writes, and
+/// the save screen, which reaches the directory through `saves::dir` like
+/// everything else. The directory is deleted on drop.
 ///
-/// Set once for the whole process — `std::env::set_var` is process-global, so
-/// two tests setting *different* directories would race. They all share this
-/// one and use distinct names instead.
-/// **The lock every test that reads the whole listing must hold.**
+/// # Why one each, and not one lock
 ///
-/// `LORDS2_SAVES` is process-global, so all these tests share one directory and
-/// use distinct names — which is enough for *"is my file there?"* and not enough
-/// for anything that depends on the listing's SHAPE. `saves::list()` is sorted,
-/// so a test that finds its own row and then clicks that row is reading an index
-/// another test can move by writing a file between the two statements.
+/// These tests used to share one directory, named by `LORDS2_SAVES` for the
+/// whole process, and use distinct file names. Distinct names are enough for
+/// *"is my file there?"* and not for anything that depends on the listing's
+/// **shape**: the listing is sorted, so a file another test writes or deletes
+/// moves every row after it. The load-screen test opened the screen, then took
+/// a *second* listing to work out which row to click, and when another test
+/// wrote or removed a save between those two statements the click landed on
+/// somebody else's game: 23 runs of this binary in 2,000, and 5 in 5 with
+/// barriers forcing that order.
 ///
-/// That is what made `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
-/// fail roughly one run in ten under `cargo test --workspace` and pass every
-/// time in isolation. It cost two merges' worth of "is this real?" before it was
-/// worth fixing: **a test that fails once in a while is one people learn to
-/// re-run, and the signal is gone long before the test is.**
+/// A mutex round the listing came first. It protected the two tests that took
+/// it, and four tests wrote or deleted saves without it. A lock is a rule each
+/// new test has to remember; a directory of one's own is a shape in which the
+/// race cannot be written, because no test can see another test's files at
+/// all. So the lock is gone, not kept alongside — there is nothing left for it
+/// to guard.
 ///
-/// A mutex rather than a directory each, because the directory is chosen by a
-/// process-global environment variable and two tests setting different ones
-/// would race harder than the thing being fixed.
-fn listing_lock() -> std::sync::MutexGuard<'static, ()> {
-    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    // A poisoned lock means another test panicked while holding it; the
-    // directory is still usable and the panic is that test's own failure.
-    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+/// And forgetting this is loud rather than a race: see
+/// [`an_unscoped_save_is_refused`].
+struct Saves {
+    path: PathBuf,
+    _scope: saves::ScopedDir,
 }
 
-fn temp_saves() -> PathBuf {
+impl Saves {
+    fn new(tag: &str) -> Saves {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static N: AtomicU32 = AtomicU32::new(0);
+        an_unscoped_save_is_refused();
+        let n = N.fetch_add(1, Ordering::Relaxed);
+        let path = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+            .join(format!("saves-{}-{tag}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).expect("a directory of the test's own");
+        let scope = saves::scoped_dir(&path);
+        Saves { path, _scope: scope }
+    }
+
+    /// Every file in the directory, sorted — **read from the directory, not
+    /// through `saves::list`**, which shows only `.l2sav` files and so cannot
+    /// see a `.part` left behind or a file written under another name.
+    fn files(&self) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(&self.path)
+            .expect("the test's own directory")
+            .map(|e| e.expect("an entry").file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+}
+
+impl Drop for Saves {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
+
+fn file(name: &str) -> String {
+    format!("{name}.{}", save::EXTENSION)
+}
+
+/// Where `LORDS2_SAVES` points for this whole process: **a path under a regular
+/// file**, so no directory can ever be created there and every write to it
+/// fails, naming the path. A test that touches saves without a [`Saves`] of its
+/// own therefore fails on its first write, every time, instead of sharing a
+/// directory with every other forgetful test and failing one run in a hundred.
+///
+/// Set once and never changed, which is the only safe way to use a
+/// process-global: no test ever needs a *different* value.
+fn an_unscoped_save_is_refused() -> PathBuf {
     use std::sync::Once;
     static ONCE: Once = Once::new();
-    let dir = std::env::temp_dir().join(format!("l2-game-saves-{}", std::process::id()));
+    let plug = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("a-save-test-without-a-Saves-of-its-own-cannot-write");
+    let dir = plug.join("saves");
     ONCE.call_once(|| {
-        std::fs::create_dir_all(&dir).expect("a temporary directory");
+        // Shared by every run of this binary and only ever written with the
+        // same bytes, so two processes at once are harmless.
+        let _ = std::fs::write(&plug, b"see crates/l2-game/tests/save.rs, `Saves`\n");
+        assert!(plug.is_file(), "{} must be a file, so nothing can be saved under it", plug.display());
         std::env::set_var(saves::DIR_VAR, &dir);
     });
     dir
 }
 
+/// The safety net above, observed: `LORDS2_SAVES` decides when nothing is
+/// scoped, a write there is refused and says where, a scoped directory outranks
+/// it, and the scope ends with its guard.
+#[test]
+fn a_test_without_a_save_directory_of_its_own_cannot_write_a_save() {
+    let refused = an_unscoped_save_is_refused();
+    assert_eq!(saves::dir(), Some(refused.clone()), "LORDS2_SAVES decides when nothing is scoped");
+    let err = saves::write("unscoped", &furnished(1)).expect_err("nowhere to write");
+    assert!(err.to_string().contains("without-a-Saves-of-its-own"), "{err}");
+
+    let own = Saves::new("outranks");
+    assert_eq!(saves::dir().as_deref(), Some(own.path.as_path()), "a scoped directory outranks it");
+    saves::write("scoped", &furnished(1)).expect("and a scoped write succeeds");
+    drop(own);
+    assert_eq!(saves::dir(), Some(refused), "the scope ends with its guard");
+}
+
+/// **No test can see another test's saves** — which is what makes it safe for
+/// a test to depend on the listing's shape, and what the lock never gave.
+///
+/// The other thread writes a save that sorts first, and holds its directory
+/// open while this thread lists and opens the load screen. Make the scope
+/// process-global instead of per-thread and both of those see it.
+#[test]
+fn a_save_written_by_another_test_is_in_neither_this_listing_nor_this_load_screen() {
+    let _own = Saves::new("isolation-here");
+    std::thread::scope(|s| {
+        let (written_tx, written) = std::sync::mpsc::channel::<()>();
+        let (release, release_rx) = std::sync::mpsc::channel::<()>();
+        s.spawn(move || {
+            let _theirs = Saves::new("isolation-there");
+            saves::write("aaa another test's save", &furnished(1)).expect("write");
+            written_tx.send(()).expect("the listing thread is waiting");
+            // Held until this thread has looked. A panic over there drops
+            // `release`, and this returns rather than hanging.
+            let _ = release_rx.recv();
+        });
+        written.recv().expect("the other thread wrote its save");
+        assert_eq!(saves::list(), Vec::new(), "another test's save is in this test's listing");
+        let screen = SaveLoadScreen::new(Mode::Load);
+        assert!(
+            screen.entries().is_empty(),
+            "another test's save is on this test's load screen: {:?}",
+            screen.entries()
+        );
+        drop(release);
+    });
+}
+
 #[test]
 fn a_save_written_to_disk_reads_back_as_the_same_game() {
-    let dir = temp_saves();
-    assert_eq!(saves::dir().as_deref(), Some(dir.as_path()), "the override is what decides");
+    let own = Saves::new("round-trip");
+    assert_eq!(saves::dir().as_deref(), Some(own.path.as_path()), "the scoped directory is what decides");
 
     let game = played(2);
     let name = "round trip";
     let path = saves::write(name, &game).expect("write");
     assert_eq!(path.extension().unwrap(), save::EXTENSION, "ours, and never .sav");
-    assert!(path.starts_with(&dir), "a save must land in the save directory: {path:?}");
+    assert!(path.starts_with(&own.path), "a save must land in the save directory: {path:?}");
 
     let back = saves::read(name, Tables::DEFAULT).expect("read");
     assert_eq!(back, game);
 
     assert!(saves::list().iter().any(|e| e.name == name), "and it is in the listing");
-    saves::remove(name).expect("clean up");
-    assert!(!saves::list().iter().any(|e| e.name == name));
+    saves::remove(name).expect("remove");
+    assert_eq!(own.files(), Vec::<String>::new(), "and removing it removes it");
 }
 
+/// **One capital letter, and it is load-bearing.** NTFS already returns names
+/// in case-insensitive order, so three lower-case names come back sorted with
+/// the sort deleted and this test would pass on the file system's say-so.
+/// `M` sorts before `a` by byte and after it on NTFS, so here the two orders
+/// disagree and only `list`'s own sort can produce the answer.
 #[test]
 fn the_listing_is_sorted_by_name_and_not_by_whatever_the_file_system_says() {
-    temp_saves();
-    let _listing = listing_lock();
+    let _own = Saves::new("sorted");
     let game = furnished(3);
-    let names = ["zzz sorted", "aaa sorted", "mmm sorted"];
-    for n in names {
+    for n in ["zzz sorted", "aaa sorted", "Mmm sorted"] {
         saves::write(n, &game).expect("write");
     }
-    let listed: Vec<String> = saves::list()
-        .into_iter()
-        .map(|e| e.name)
-        .filter(|n| n.ends_with("sorted"))
-        .collect();
-    assert_eq!(listed, vec!["aaa sorted", "mmm sorted", "zzz sorted"]);
-    for n in names {
-        saves::remove(n).expect("clean up");
-    }
+    let listed: Vec<String> = saves::list().into_iter().map(|e| e.name).collect();
+    // The whole listing, not a filtered one: the directory is this test's alone.
+    assert_eq!(listed, vec!["Mmm sorted", "aaa sorted", "zzz sorted"]);
 }
 
 #[test]
@@ -332,7 +438,11 @@ fn a_failed_write_cannot_destroy_the_save_it_was_replacing() {
     // only way the target changes is a rename that succeeded. What is asserted
     // here is the visible consequence: after a successful overwrite there is no
     // `.part` left behind, and the file is the *new* game.
-    temp_saves();
+    //
+    // **Against the directory, not the listing.** This used to ask `saves::list`
+    // whether any name ended in `.part` — and `list` keeps only `.l2sav` files,
+    // so `overwritten.l2sav.part` could never have been in it.
+    let own = Saves::new("overwrite");
     let name = "overwritten";
     let first = furnished(1);
     let second = played(1);
@@ -340,11 +450,7 @@ fn a_failed_write_cannot_destroy_the_save_it_was_replacing() {
     saves::write(name, &second).expect("overwrite");
     let back = saves::read(name, Tables::DEFAULT).expect("read");
     assert_eq!(back, second);
-    assert!(
-        !saves::list().iter().any(|e| e.name.ends_with(".part")),
-        "a temporary file was left in the save directory"
-    );
-    saves::remove(name).expect("clean up");
+    assert_eq!(own.files(), vec![file(name)], "a temporary file was left in the save directory");
 }
 
 // --- the two screens -------------------------------------------------------
@@ -370,20 +476,28 @@ fn click_widget(w: (i32, i32, usize, i32)) -> Event {
 fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     use l2_game::screens::saveload::{CONFIRM, LIST};
 
-    temp_saves();
+    let own = Saves::new("screens");
+    // Four saves that sort before the one this test makes, all of a different
+    // game, so a click on any row but the right one loads the wrong world and
+    // the digest says so.
+    let decoy = furnished(0xDEC0);
+    let decoys = ["a decoy", "b decoy", "c decoy", "d decoy"];
+    for n in decoys {
+        saves::write(n, &decoy).expect("write");
+    }
+
     // **What is typed and what is saved are different strings now**, and the
     // difference is the point. The save box is `Edit_Begin(&DAT_004EA130, 8,
     // 0xA0, 1)` — **kind 1**, a DOS file name — so `Edit_TypeChar` runs
     // `A`–`Z` through `0x004011B0` and lower-cases them. Typing `SCREENTEST`
     // gives `screentest`, which is what the original's own file box does and
     // what its file list shows.
-    let _listing = listing_lock();
     let typed_name = "SCREEN TEST";
     let name = "screen test";
-    let _ = saves::remove(name);
 
     let (mut game, assets) = bare();
     let before = digest(&game.kingdom);
+    assert_ne!(digest(&decoy.kingdom), before);
 
     // Save: type a name, then press the tick. Nothing here reaches into the
     // screen's fields; it is clicks and keys.
@@ -401,17 +515,25 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     typed.push(click_widget(CONFIRM));
     drive(&mut m, &mut game, &assets, &typed);
     assert!(m.should_quit() || m.depth() == 0, "the save screen closes when it has saved");
-    assert!(saves::list().iter().any(|e| e.name == name), "the file is on disk");
+    let mut expected: Vec<String> = decoys.iter().map(|n| file(n)).collect();
+    expected.push(file(name));
+    assert_eq!(own.files(), expected, "the file is on disk, and nothing else was written");
 
     // Now change the world, and load it back.
     let mut game2 = furnished(0xDEAD);
     assert_ne!(digest(&game2.kingdom), before);
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Load));
-    // The list is sorted, so the row this save is in is found by name rather
-    // than assumed to be row 0.
-    let row = saves::list().iter().position(|e| e.name == name).expect("listed");
-    assert!(row < 30, "the test's own save must be on the first page");
-    let r = SaveLoadScreen::row_rect(row);
+    // **Row 4, and it is a literal.** The directory holds exactly the five
+    // files asserted above, the list is sorted, and the four decoys sort first,
+    // so the list this screen opened on has `screen test` fifth — the middle
+    // column of the second line, which exercises both halves of the geometry.
+    //
+    // It used to be found by taking a *second* `saves::list()` after the
+    // screen had opened. That answered for the directory as it stood at that
+    // statement, not as the screen had read it, and in a directory shared with
+    // other tests those were sometimes different lists.
+    const ROW: usize = 4;
+    let r = SaveLoadScreen::row_rect(ROW);
     drive(
         &mut m,
         &mut game2,
@@ -419,9 +541,45 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
         &[Event::Click { x: r.x + 2, y: r.y + 2 }, click_widget(CONFIRM)],
     );
     assert_eq!(digest(&game2.kingdom), before, "the loaded game is the saved one");
-    assert_eq!(LIST.1, r.y - (row / 3) as i32 * 16, "the row geometry is the painter's");
+    assert_eq!(LIST.1, r.y - (ROW / 3) as i32 * 16, "the row geometry is the painter's");
+}
 
-    saves::remove(name).expect("clean up");
+/// **A click means the row that was drawn, whatever the directory holds now.**
+///
+/// The screen reads the directory once, when it opens, and both what it paints
+/// and what a click resolves against are that one read. So a save that appears
+/// while the screen is up — a second copy of the game saving, a file copied in
+/// by hand — cannot move a row out from under the pointer. The test above used
+/// to get this wrong in its own code, by resolving a click against a second
+/// read; this is the property that kept the screen itself from ever doing so.
+///
+/// Make the click arm re-read the directory and this loads the save that
+/// arrived rather than the one on screen.
+#[test]
+fn a_click_on_the_load_screen_means_the_row_it_drew_even_if_a_save_arrived_since() {
+    let _own = Saves::new("arrived");
+    let (mut game, assets) = bare();
+    let shown = furnished(0x5409);
+    saves::write("b on screen", &shown).expect("write");
+    let mut screen = SaveLoadScreen::new(Mode::Load);
+
+    // One that sorts first, written after the screen opened.
+    let arrived = furnished(0xA441);
+    saves::write("a arrived later", &arrived).expect("write");
+    assert_ne!(digest(&arrived.kingdom), digest(&shown.kingdom));
+    assert_ne!(digest(&game.kingdom), digest(&shown.kingdom));
+
+    // Row 0: the screen opened on a directory with one save in it.
+    let r = SaveLoadScreen::row_rect(0);
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    l2_game::Screen::handle(&mut screen, Event::Click { x: r.x + 2, y: r.y + 2 }, &mut ctx);
+    let t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    assert_eq!(t, l2_game::Transition::Pop, "the load went through");
+    assert_eq!(
+        digest(&game.kingdom),
+        digest(&shown.kingdom),
+        "the click loaded a save that was not the row it landed on"
+    );
 }
 
 /// **The words on these two screens are the game's**, and this is what makes
@@ -450,12 +608,18 @@ fn the_headings_and_the_status_line_are_l2_engs_own_words() {
 /// It paints inside the window the painter opens and **nowhere else**, on a
 /// machine with no artwork at all — which is what proves the layout does not
 /// depend on the install being present.
+///
+/// **With a save directory too long to fit**, on every machine. The screen
+/// writes its directory along the bottom of the box, and this test used to run
+/// with a short temporary one — so it passed while a long directory ran out of
+/// the side, and went red only when its own directory happened to get longer.
 #[test]
 fn the_screen_paints_inside_its_own_window_and_nothing_outside_it() {
     use l2_game::screens::saveload::{BOX_COLS, BOX_ROWS, BOX_X, BOX_Y};
     use l2_view::Canvas;
 
-    temp_saves();
+    let _own = Saves::new(&"a-save-directory-far-too-long-to-fit-in-the-box".repeat(2));
+    assert!(saves::dir().unwrap().display().to_string().len() > 100, "long enough to overflow");
     let (mut game, assets) = bare();
     let mut screen = SaveLoadScreen::new(Mode::Save);
     let mut canvas = Canvas::screen();
@@ -483,26 +647,24 @@ fn the_screen_paints_inside_its_own_window_and_nothing_outside_it() {
 fn the_cancel_cross_closes_without_writing_anything() {
     use l2_game::screens::saveload::CANCEL;
 
-    temp_saves();
+    let own = Saves::new("cancel");
     let (mut game, assets) = bare();
-    // A name nothing else in this file uses, so the assertion cannot be
-    // answered by another test writing concurrently into the same directory.
-    let name = "CANCELLED";
-    let _ = saves::remove(name);
+    // **A name that would be written if the cross confirmed**, typed the way
+    // the field reads it. This used to type through `Event::KeyDown`, which the
+    // field ignores, and then look for `CANCELLED` — a name the file-name field
+    // would have lower-cased — so a cross that saved could not have turned it
+    // red twice over. An empty directory of its own is the whole assertion now.
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
-    let mut events: Vec<Event> =
-        name.chars().map(|c| Event::KeyDown(Key::letter(c))).collect();
+    let mut events: Vec<Event> = "CANCELLED".chars().map(Event::Text).collect();
     events.push(click_widget(CANCEL));
     drive(&mut m, &mut game, &assets, &events);
-    assert!(
-        !saves::list().iter().any(|e| e.name == name),
-        "cancelling must not write a file"
-    );
+    assert!(m.should_quit() || m.depth() == 0, "the cross closes the screen");
+    assert_eq!(own.files(), Vec::<String>::new(), "cancelling must not write a file");
 }
 
 #[test]
 fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
-    temp_saves();
+    let own = Saves::new("refused-name");
     let (mut game, assets) = bare();
     let mut screen = SaveLoadScreen::new(Mode::Save);
     let mut ctx = Ctx { game: &mut game, assets: &assets };
@@ -511,18 +673,19 @@ fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
     let t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
     assert_eq!(t, l2_game::Transition::Stay, "a refused save leaves the screen open");
     assert!(matches!(screen.status(), Status::Failed(_)), "and it says so");
+    assert_eq!(own.files(), Vec::<String>::new(), "and nothing was written");
 }
 
 #[test]
 fn the_load_screen_refuses_a_file_it_cannot_read_and_stays_open() {
-    let dir = temp_saves();
+    let own = Saves::new("corrupted");
     let name = "CORRUPTED";
     let (mut game, assets) = bare();
 
     // A file with our magic and a version from the future.
     let mut bytes = save::encode(&game);
     bytes[8..12].copy_from_slice(&(save::VERSION + 1).to_le_bytes());
-    std::fs::write(dir.join(format!("{name}.{}", save::EXTENSION)), &bytes).expect("write");
+    std::fs::write(own.path.join(file(name)), &bytes).expect("write");
 
     let before = digest(&game.kingdom);
     let mut screen = SaveLoadScreen::new(Mode::Load);
@@ -536,6 +699,4 @@ fn the_load_screen_refuses_a_file_it_cannot_read_and_stays_open() {
     assert_eq!(t, l2_game::Transition::Stay, "a refused load leaves the screen open");
     assert!(matches!(screen.status(), Status::Failed(_)));
     assert_eq!(digest(&game.kingdom), before, "and the world it refused to replace is untouched");
-
-    saves::remove(name).expect("clean up");
 }
