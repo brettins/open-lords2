@@ -5035,6 +5035,94 @@ fn the_cattle_row_draws_its_forecast_with_a_sign() {
     }
 }
 
+/// **The four industry rows draw on a loaded game's first frame, and each draws
+/// its own commodity's number.**
+///
+/// `ebf8dd5` drew the rows from `Industry::next_season`, and the field was
+/// right — county `+0x2A8 + c*0x18`, the last word of commodity `c`'s own
+/// record, `docs/decisions.md` CNEW-industry-base. **Nothing put a number in
+/// it on load.** The importer did not read the word, and the estimate round
+/// that writes it runs at the end of a season, so a loaded game held all four
+/// at zero in every county and `Ui_DrawDelta` with `mode == 0` draws a zero as
+/// nothing. Measured on England turn one before the fix: fourteen counties,
+/// fifty-six forecasts, all zero.
+///
+/// Two claims, each the glyph searched for in its own row's band — never "the
+/// canvas changed", which would pass if the number landed on the wrong row:
+///
+/// 1. **the file's own forecast is drawn, untouched**, in the wood row, which
+///    `FUN_0040FEC1` always lists first when it is switched on;
+/// 2. **four distinct numbers land on four rows in `FUN_0040FEC1`'s order** —
+///    wood, iron, stone, weapons, the labour slots 6, 4, 5, 7 — at
+///    `Ui_DrawDelta(…, 0x22C, pitch*row + 0x139, …)` in `colourPos`. A reading
+///    one record along, which is what the old base implied, would put 22 on
+///    the wood row.
+///
+/// Ablations, both run: dropping `c.industry[slot].next_season =
+/// s.next_season` from `Scenario::kingdom` fails claim 1 before it reaches the
+/// canvas — no county the player holds carries a forecast at all, which is the
+/// defect itself; swapping `Commodity::Iron` and `Commodity::Stone` in
+/// `draw_industry_rows`' flat arms fails claim 2.
+#[test]
+fn a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame() {
+    let (mut game, assets) = world!();
+    // `colourPos`, typed from the four call sites rather than imported.
+    const POS: u8 = 0xFA;
+    // `Ui_DrawDelta`'s x and the row's own y, from `FUN_00410502` and its three
+    // siblings.
+    const DELTA_X: i32 = 0x22C;
+    const ICON_DY: i32 = 0x133;
+    // `DAT_0053F04C`: four rows close up to 0x1E.
+    let pitch = |rows: usize| if rows < 3 { 0x3C } else if rows < 4 { 0x2D } else { 0x1E };
+    let found = |game: &mut Game, s: &str| -> Option<(i32, i32)> {
+        let canvas = draw(&mut MapScreen::new(), game, &assets);
+        let f = assets.shell.small.as_ref().expect("Fntl2_9.pl8");
+        find_font_text(&canvas, f, s, POS)
+    };
+    let in_row = |at: (i32, i32), row: i32, pitch: i32| {
+        at.0 >= DELTA_X
+            && at.0 < 640
+            && at.1 >= pitch * row + ICON_DY
+            && at.1 < pitch * row + ICON_DY + pitch
+    };
+
+    // 1 — the file's own number, nothing doctored. The jobs plate is drawn only
+    // for a county that is the player's — `CountyStrip_Draw`'s else-arm draws
+    // the cloudy plate and an owner line instead — so the county is his.
+    let county = (1..=game.kingdom.county_count)
+        .find(|&id| game.is_players(id as u8) && game.kingdom.counties[id].industry[0].next_season > 0)
+        .expect("some county the player holds in England turn one stores a wood forecast");
+    let wood = game.kingdom.counties[county].industry[0].next_season;
+    game.select(county as u8);
+    let rows = (0..4).filter(|&c| game.kingdom.counties[county].industry[c].enabled).count()
+        + usize::from(game.kingdom.counties[county].castle_degraded != 0);
+    let at = found(&mut game, &format!("+{wood} "))
+        .unwrap_or_else(|| panic!("county {county} stores a wood forecast of {wood} and no +{wood} is drawn"));
+    assert!(
+        in_row(at, 0, pitch(rows)),
+        "county {county}'s +{wood} is drawn at {at:?}, not in the wood row at x >= {DELTA_X}"
+    );
+
+    // 2 — four records, four numbers, four rows.
+    {
+        let c = &mut game.kingdom.counties[county];
+        for (i, v) in [11, 22, 33, 44].into_iter().enumerate() {
+            c.industry[i].enabled = true;
+            c.industry[i].next_season = v;
+        }
+        c.castle_degraded = 0;
+    }
+    // Wood, iron, stone, weapons: commodity records 0, 1, 3, 2.
+    for (row, value) in [(0, 11), (1, 22), (2, 44), (3, 33)] {
+        let at = found(&mut game, &format!("+{value} "))
+            .unwrap_or_else(|| panic!("+{value} is not drawn at all"));
+        assert!(
+            in_row(at, row, pitch(4)),
+            "+{value} belongs on row {row} of four and is drawn at {at:?}"
+        );
+    }
+}
+
 /// **The End Turn label goes away while the turn runs, and comes back.**
 ///
 /// A player: *"in the original, the text 'END TURN' would disappear when you

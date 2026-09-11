@@ -7257,9 +7257,38 @@ document assembled from decompiler output inherits the decompiler's struct guess
 without ever saying that is what they are. **A Ghidra field name is not evidence.
 The instruction's operand is.**
 
-Nothing needs undrawing. `ebf8dd5` already draws all four rows from
-`c.industry[commodity.index()].next_season`, and because our `Industry` is a plain
-struct indexed by commodity rather than by offset, the bad base could not reach the
-value. The correction is to four documents, not to a pixel. **The corrections
-themselves are not made** — this entry and `HANDOFF.md` are the record; see
-`HANDOFF.md` §4 for the four places and the exact edits.
+**A fourth reading is the original's own saves, and it is the one that runs.**
+`crates/l2-scenario/tests/import.rs` computes, for every county of every save on
+this machine, the number `Industry_LabourEstimate` writes from **record `c`'s**
+guards and workers, and requires county `+0x2A8 + c*0x18` to hold exactly it:
+**1,152 forecasts, 81 non-zero, and 343 where record `c + 1` would have given a
+different number** — siege-lastturn county 4 stores 74, which is 93 woodcutters at
+80%, not iron's 92 at 80% = 73. Stone is switched off in every save, so its word is
+only checked at zero; that is the corpus's limit, not the reading's. Putting the
+importer's base back to `0x290` turns it and two older tests red.
+
+**The rows were drawn from the right field and a loaded game drew none of
+them.** `ebf8dd5` draws all four from `c.industry[commodity.index()].next_season`,
+and because our `Industry` is a plain struct indexed by commodity, the bad base
+could not reach the value — *that* part of the hand-off's worry was unfounded. But
+nothing filled the field on load: the importer did not read the word, and the
+estimate round that writes it runs at the end of a season. Measured on England
+turn one before the fix: fourteen counties, fifty-six forecasts, **all zero**,
+which `Ui_DrawDelta` with `mode == 0` draws as nothing. This is C142's defect
+exactly — fixed at the producer, never at the load — and it is fixed the same way:
+`l2-scenario` now reads `+0x2A8 + c*0x18` into `Industry::next_season`, for C142's
+reason that the original restores a memory image and does not recompute on load.
+`a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame` asserts
+the file's own number in the wood row's own band, and four distinct numbers each in
+its own row. No save-format change: `next_season` is already carried.
+
+**Not fixed, and the same shape:** the three farm rows' forecasts —
+`herd_change_expected`, `grain_change_expected`, `reclaim_fields_finishing`, county
+`+0x258`, `+0x22C` and `+0x20C` — are also zero on England's first frame, measured
+in the same probe. Each needs its own invariant against the saves before it is
+imported, and none was written here.
+
+**And the Ghidra database still carries the old layout.** `ApplyRecords.java` has
+not been re-run, so `tools/oracle/decomp/` will go on printing `industry + 1` for
+wood's forecast until somebody does; the decompilation is where this error started
+and it is the one place the correction has not reached.

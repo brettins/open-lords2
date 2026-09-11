@@ -791,6 +791,130 @@ fn the_local_tax_happiness_byte_is_five_minus_the_rate_in_every_save() {
     assert!(checked >= 5, "only {checked} counties were reached");
 }
 
+/// **The industry row's forecast is its own record's `+0x14`, in every save** —
+/// and that is what says the `Industry` array starts at county `+0x294`.
+///
+/// `docs/records.json` had the array at `+0x290`. Under that base the word the
+/// sidebar draws for commodity `c`, county `+0x2A8 + c*0x18`, is the head of
+/// record `c + 1`, and stone's `+0x2F0` is past the end. Under `+0x294` it is
+/// the last field of record `c` itself. **The two readings predict different
+/// numbers**, and the original's own saves can say which:
+///
+/// `Industry_LabourEstimate` (`0x0044F318`) writes the word as
+/// `min(limit, Pct(workers / divisor, ramp))`, zeroed first, and only when the
+/// county is owned, has a `popBand`, and its resource limit is positive — which
+/// for wood, iron and stone is the switch, the seam and a zero countdown. With
+/// *Advanced Farming* off the ramp is a flat 80 and the limit is 999. So this
+/// computes, from bytes of **record `c`** and the job record `c` draws on, the
+/// number the word must hold, and requires the file to hold exactly it.
+///
+/// **It is not vacuous between the two bases.** Where record `c + 1`'s guards
+/// and workers would give a different number, the file sides with record `c` —
+/// siege-lastturn county 4 stores 74 at `+0x2A8`, which is 93 woodcutters × 80%,
+/// not iron's 92 × 80% = 73 — and the test counts those cases and requires
+/// some. Stone is switched off in every save on this machine, so its word is
+/// only ever checked at zero; that is a limit of the corpus and is said here.
+///
+/// Weapons is excluded from the equality, as in
+/// `crates/l2-kingdom/tests/industry_forecast.rs`: its limit is a realm-wide
+/// share of wood and iron. It is still checked to be zero when a guard fails
+/// and never above the unlimited figure.
+///
+/// Every offset and constant below is a literal, so ablating one in the
+/// importer cannot move this expectation with it. **Ablations, both run:**
+/// putting `INDUSTRY_BASE` back to `0x290` (offsets unchanged) turns this red
+/// at the import half and `every_industrys_resource_byte_agrees…` red with it;
+/// dropping the `next_season` line from `Scenario::kingdom` turns the
+/// import-reaches-the-kingdom half red.
+#[test]
+fn every_saved_industry_forecast_is_what_its_own_records_workers_make() {
+    // Wood, iron, weapons, stone: the job slot each draws on and
+    // `Industry_Produce`'s divisor. `County_RefreshEstimates`' four calls.
+    const JOB: [u32; 4] = [6, 4, 7, 5];
+    const DIVISOR: [i32; 4] = [1, 1, 4, 2];
+    const WEAPONS: u32 = 2;
+
+    let mut checked = 0usize;
+    let mut non_zero = 0usize;
+    let mut discriminating = 0usize;
+    for f in l2_testkit::saves!() {
+        let s = &f.save;
+        assert_eq!(
+            s.globals().unwrap().opt_advanced_farming,
+            0,
+            "{}: Advanced Farming is on, so the flat 80 below is not the rule",
+            f.label()
+        );
+        let scenario = Scenario::from_save(s).expect("import");
+        let kingdom = scenario.kingdom(1);
+        for id in 1..17usize {
+            let base = COUNTY_BASE + (id * COUNTY_STRIDE) as u32;
+            let Ok(owner) = s.u8_at(base + 0x05) else { continue };
+            let band = s.u8_at(base + 0xB8).unwrap();
+            // What `Industry_LabourEstimate` writes for record `r`, from record
+            // `r`'s bytes. `None` for a record that does not exist.
+            let made = |r: u32| -> Option<i32> {
+                if r > 3 {
+                    return None;
+                }
+                let rec = base + 0x294 + r * 0x18;
+                let has = s.u8_at(rec + 0x01).unwrap() != 0;
+                let countdown = s.u8_at(rec + 0x02).unwrap();
+                let on = s.u8_at(rec + 0x03).unwrap() != 0;
+                let workers = s.i32_at(base + 0xC4 + JOB[r as usize] * 0x0C).unwrap();
+                Some(if owner == 0 || band == 0 || !has || !on || countdown != 0 {
+                    0
+                } else {
+                    ((workers / DIVISOR[r as usize]) * 80 / 100).min(999)
+                })
+            };
+            for c in 0..4u32 {
+                let stored = s.i32_at(base + 0x2A8 + c * 0x18).unwrap();
+                let own = made(c).unwrap();
+                if c == WEAPONS {
+                    assert!(
+                        (own == 0 && stored == 0) || (own != 0 && (0..=own).contains(&stored)),
+                        "{}: county {id} weapons stores {stored}, its own record allows {own}",
+                        f.label()
+                    );
+                } else {
+                    assert_eq!(
+                        stored,
+                        own,
+                        "{}: county {id} commodity {c} stores {stored} at +{:#X}, and record \
+                         {c}'s own workers make {own}",
+                        f.label(),
+                        0x2A8 + c * 0x18
+                    );
+                    if made(c + 1) != Some(own) {
+                        discriminating += 1;
+                    }
+                }
+                // The importer carries it, and the kingdom a loaded game runs on
+                // receives it — rather than `Industry::new()`'s zero.
+                if let Some(state) = &scenario.counties[id] {
+                    assert_eq!(state.industry[c as usize].next_season, stored, "{}", f.label());
+                    assert_eq!(
+                        kingdom.counties[id].industry[c as usize].next_season,
+                        stored,
+                        "{}: county {id} commodity {c} was imported and did not reach the kingdom",
+                        f.label()
+                    );
+                }
+                checked += 1;
+                non_zero += usize::from(stored != 0);
+            }
+        }
+    }
+    assert!(checked >= 4 * 14, "only {checked} forecasts were reached");
+    assert!(non_zero > 0, "every stored forecast is zero, so nothing was compared");
+    assert!(
+        discriminating > 0,
+        "no county anywhere tells record c from record c + 1, so this cannot tell the bases apart"
+    );
+    eprintln!("{checked} forecasts, {non_zero} non-zero, {discriminating} discriminating");
+}
+
 /// **The tax panel's *People pay* line, against the original's own answer.**
 ///
 /// `+0xC0` is `Pct(Pct(population, castleBase), taxRate)` — the third statement
