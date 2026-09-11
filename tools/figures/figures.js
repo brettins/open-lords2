@@ -301,6 +301,16 @@ const TARGETS = [
 ];
 const MARKER = /<!--fig:([a-z0-9-]+)-->([\s\S]*?)<!--\/fig-->/g;
 
+// **Required rather than run.** `tools/pm/work.js` quotes the arms inventory in
+// its systems rollup, and a second copy of this counting rule there would be
+// the duplicate-rule failure `docs/agents.md` records twice. Node allows a
+// top-level `return` in a CommonJS module, so everything below -- which runs
+// the whole suite -- only runs when this file is the program.
+if (require.main !== module) {
+  module.exports = { fromArms };
+  return;
+}
+
 const values = figures();
 let stale = [];
 let counted = 0;

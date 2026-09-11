@@ -81,3 +81,15 @@ docs/arms.json       merge=l2json
 # function holds several trigger sites -- `Msg_DrawWindow` holds twenty-four --
 # so an `addr` key would collapse 143 records into 70 and discard 73 in silence.
 docs/audio.json      merge=l2json
+#
+# `docs/work.json` is the work ledger, and the first keyed file whose records are
+# not the whole file: they sit under `items`, beside `about`, `states` and
+# `tracks`, which merge as members. Keyed by `id`. Two things differ from every
+# file above, and both are stated in FILE_POLICY in merge-json.js rather than
+# inferred from the entries: the rows keep THE FILE'S order instead of being
+# sorted, because the order is intent -- the merge queue reads top to bottom, and
+# sorting by id would destroy it -- and each row stays on one line, so the driver
+# writes the file back in the shape the lead wrote it. One record per line is also
+# what keeps a text merge honest when the driver is not registered: a misaligned
+# hunk can only pair whole rows, never one row's field under another row's id.
+docs/work.json       merge=l2json

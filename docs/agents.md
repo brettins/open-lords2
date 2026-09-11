@@ -12,9 +12,70 @@ ownership is how they stay out of each other's way.
 | `CLAUDE.md`, `docs/decisions.md`, `docs/symbols.md` | lead session only |
 | A format doc under `docs/formats/` | whichever agent is working that format |
 | A tool subdirectory under `tools/` | whichever agent created it |
+| `docs/work.json` | lead session only, on branch `pm/ledger` — see *The work ledger* below |
 
 Give every agent its own output files. Two agents editing one document will clobber each
 other, and neither will notice.
+
+## The work ledger: what is in flight lives in a file, not in a conversation
+
+`docs/plan.md`'s in-flight lists read as current long after they were not. Two "held for
+cause" verdicts were wrong by the time anybody acted on them, and a machine restart needed an
+emergency dump of state that existed only in the lead's session. The player put the fix in
+one sentence: *"your context window is not a good project management understanding — you
+should be an interface for whatever project management setup you're running."*
+
+That setup is **`docs/work.json`**: one row per piece of live work. **The failure it exists
+to prevent is the one `plan.md` suffered — a status that looks current and is not.**
+
+### The protocol, which binds the lead
+
+1. **Write or update the row before dispatching an agent, and before replying to an agent's
+   report.** A row written afterwards is a memory. Written before, it is what the next session
+   starts from if this one ends mid-sentence.
+2. **Rows store intent only**: what, why, where it came from, what it depends on, the next
+   step. **Anything git can answer** — merged or not, commits ahead of `main`, `HANDOFF.md`
+   present, the last commit — **is derived** by `node tools/pm/work.js --status` on every run
+   and is never typed in. `--check` refuses a row carrying such a field, by name. A stored
+   "not merged" is a claim with no timestamp; a derived one cannot go stale.
+3. **Merged rows leave the file**, and every `depends_on` that named them goes with them.
+   `git log` is the record of what landed. A ledger that keeps finished rows becomes a second,
+   drifting copy of it.
+4. **The lead is the only writer of `docs/work.json`, on branch `pm/ledger`.** Agents report;
+   they do not edit it. The file merges by `id` through the keyed driver, keeping its row
+   order (the merge queue is read top to bottom) and its one-row-per-line shape, so a merge
+   between `pm/ledger` and `main` cannot misalign rows. One writer is what keeps it from
+   needing to.
+
+### What `--check` enforces, and where each half runs
+
+* **Schema**, which needs only the file, runs everywhere, and runs on every push through
+  `crates/l2-testkit/tests/work_ledger.rs`: every row has every field and no other; state
+  and track are declared at the top; ids are unique; `depends_on` names rows that exist and
+  has no cycles; an `in-flight` or `queued-merge` row names a branch.
+* **Agreement with git**, which needs the clone the work happens in: every branch a row
+  names exists; no `in-flight` or `queued-merge` row names a branch already merged into
+  `main`; no unmerged `worktree-agent-*` or `wip/*` branch with commits ahead of `main` goes
+  without a row; no `queued-merge` branch carries `HANDOFF.md`. A fresh clone or a CI runner
+  has no agent branches, so this half **prints `SKIP` with the reason and the number of rows
+  it did not compare** rather than reporting every branch missing.
+
+`--status` is the derived view as text and `--html <path>` writes the same view as one page
+for the player — generated, **never committed**, with the time and the `main` SHA on it so
+its own staleness is visible.
+
+### Limits, stated rather than discovered
+
+* **"Merged" means the branch tip is reachable from `main` and is not on `main`'s own
+  first-parent line.** The second clause is what tells a merged branch from one cut a minute
+  ago: both are zero commits ahead. Every merge here is a merge commit, which the rule reads
+  correctly. A **fast-forward** would read as "no commits yet", and a **squash or
+  cherry-pick** as unmerged. If the integrator ever merges that way, the rule changes with it.
+* **An unmerged agent branch is flagged whether it is live or long dead.** The check cannot
+  tell a stopped agent from an abandoned one, and neither can anybody else without a row.
+  Deleting a dead branch is the fix, and it costs one command.
+* **The facts are this clone's.** A branch on another machine that was never fetched does not
+  exist as far as `--status` knows.
 
 ## Ghidra
 

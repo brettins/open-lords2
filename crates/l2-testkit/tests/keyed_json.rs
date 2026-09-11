@@ -47,12 +47,19 @@ fn root() -> PathBuf {
 /// an `addr` key would discard 73 records in silence. It was registered in the
 /// same commit that created it, which is the half `docs/agents.md`'s worked
 /// example records as the one nobody checks.
+/// `docs/work.json` is the first whose records are not the whole file: they
+/// sit under `items` beside `about`, `states` and `tracks`, their **order is
+/// intent** (the merge queue reads top to bottom), and each row is one line.
+/// So the driver keeps the file's order and shape instead of sorting and
+/// re-indenting it — `FILE_POLICY` in `merge-json.js` — and
+/// [`the_ledger_merges_by_id_and_keeps_its_order_and_its_shape`] is the proof.
 const KEYED: &[&str] = &[
     "docs/symbols.json",
     "docs/hypotheses.json",
     "docs/records.json",
     "docs/arms.json",
     "docs/audio.json",
+    "docs/work.json",
 ];
 
 /// Every file `.gitattributes` hands to the driver is in [`KEYED`], and every
@@ -128,6 +135,97 @@ fn every_keyed_arrays_key_is_unique() {
         out.status.success(),
         "a keyed array has a non-unique key, so merging it would delete entries:\n{}",
         String::from_utf8_lossy(&out.stderr),
+    );
+}
+
+/// **The ledger merges by id, and keeps its order and its shape.**
+///
+/// `docs/work.json` is the one keyed file whose array order is intent and whose
+/// rows are one line each, and the driver's default would destroy both: it
+/// sorts by key and pretty-prints. So this runs the real driver on a three-way
+/// merge in which each side does something a text merge would find adjacent:
+///
+/// * ours changes one row's state and adds a row after the first;
+/// * theirs deletes a row, adds a different row further down, and rewrites
+///   `about` — a sibling member, not a row.
+///
+/// The rows are deliberately **not** in id order, so a sorting merge cannot
+/// pass by accident. And the result is compared **byte for byte** with the
+/// expected file, which is the claim exactly: every change kept, in the file's
+/// order, in the file's shape. A synthetic ledger rather than the real one,
+/// because the real one's rows leave as their work merges and a test must not
+/// depend on which work is live.
+#[test]
+fn the_ledger_merges_by_id_and_keeps_its_order_and_its_shape() {
+    fn row(id: &str, state: &str) -> String {
+        format!(
+            r#"    {{"id": "{id}", "title": "t {id}", "track": "play", "system": "s", "state": "{state}", "branch": null, "depends_on": [], "source": "", "next": "", "note": ""}}"#
+        )
+    }
+    fn ledger(about: &str, rows: &[String]) -> String {
+        format!(
+            "{{\n  \"about\": \"{about}\",\n  \"states\": {{\n    \"open\": \"known\",\n    \"deferred\": \"not now\"\n  }},\n  \"tracks\": {{\n    \"play\": \"a game plays\"\n  }},\n  \"items\": [\n{}\n  ]\n}}\n",
+            rows.join(",\n")
+        )
+    }
+    let base = ledger(
+        "before",
+        &[row("queue-3", "open"), row("queue-1", "open"), row("zeta", "open"), row("alpha", "open"), row("middle", "open")],
+    );
+    let ours = ledger(
+        "before",
+        &[
+            row("queue-3", "open"),
+            row("ours-new", "open"),
+            row("queue-1", "deferred"),
+            row("zeta", "open"),
+            row("alpha", "open"),
+            row("middle", "open"),
+        ],
+    );
+    let theirs = ledger(
+        "after",
+        &[row("queue-3", "open"), row("queue-1", "open"), row("alpha", "open"), row("theirs-new", "open"), row("middle", "open")],
+    );
+    let expected = ledger(
+        "after",
+        &[
+            row("queue-3", "open"),
+            row("ours-new", "open"),
+            row("queue-1", "deferred"),
+            row("alpha", "open"),
+            row("theirs-new", "open"),
+            row("middle", "open"),
+        ],
+    );
+
+    let dir = std::env::temp_dir().join(format!("l2-ledger-merge-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let (b, o, t) = (dir.join("base.json"), dir.join("ours.json"), dir.join("theirs.json"));
+    std::fs::write(&b, &base).unwrap();
+    std::fs::write(&o, &ours).unwrap();
+    std::fs::write(&t, &theirs).unwrap();
+    let out = Command::new("node")
+        .arg("tools/symbols/merge-json.js")
+        .args([&b, &o, &t])
+        .arg("docs/work.json")
+        .current_dir(root())
+        .output();
+    let merged = std::fs::read_to_string(&o).unwrap_or_default();
+    let _ = std::fs::remove_dir_all(&dir);
+    let Ok(out) = out else {
+        return; // no node on this machine; the CI job has one
+    };
+    assert!(
+        out.status.success(),
+        "the driver refused a merge with no row changed on both sides:\n{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        merged, expected,
+        "the merged ledger is not the expected file. If the rows came out sorted, \
+         FILE_POLICY's order is not being honoured; if they came out one field per \
+         line, its rows shape is not; if a change is missing, the merge itself is wrong."
     );
 }
 

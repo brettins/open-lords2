@@ -29,13 +29,17 @@ landed twenty merges.** It is not a summary of that evening; it is where the nex
 starts. It goes stale the moment the queue moves, so **check it against `git log` and
 `git branch` before trusting a line of it.**
 
-### The queue is empty, and both holds turned out to be stale
+### Both holds on the queue turned out to be stale
 
-**Every branch has landed.** At `be3dfc4` there is nothing waiting: `village-idle`'s tail (the
-ration control and the strings finding), `merchant-pacing` (the sub-tile counter) and
-`industry-sites` (the five sidebar rows, the wheels, the toggle narration) are all on `main`,
-and `git branch` shows no branch ahead of it. The three-row table that stood here is gone
-because it is no longer true — check `git log` before trusting the paragraph that replaced it.
+> **Superseded: the merge queue is no longer written here.** This subsection used to state
+> what was waiting to merge. The last version, *"Every branch has landed. At `be3dfc4` there
+> is nothing waiting,"* was true for about an evening, and it replaced a three-row table that
+> had gone stale the same way. A list of live work in a document is accurate when written and
+> read as current long after. **What is in flight, queued, or waiting is now rows in
+> `docs/work.json`**, and `node tools/pm/work.js --status` derives what git knows about each
+> row (merged, commits ahead of `main`, `HANDOFF.md`) on every run. `--check` goes red when a
+> row disagrees with git. `docs/agents.md`, *The work ledger*. The lesson below is kept
+> because it is why the ledger stores intent and derives everything else.
 
 **Both of the two "held for cause" verdicts were wrong by the time anybody acted on them**, and
 that is the part worth keeping:
@@ -724,24 +728,27 @@ several branches touch the same files, and the integrator is the only serial act
 month's corrections are about that alone (`docs/decisions.md` C61's numbering collisions, and the
 merge-by-key driver).
 
-In flight: **keyboard text entry**, **diplomacy**, **the siege battle screen**, **battle casualty
-write-back**, **the naming campaign**, **the remaining input arms on the county, village and
-sidebar screens**, and **the last seven shells plus the pasture cattle**.
+> **Superseded: the in-flight list and the diagram's in-flight column (A to G) that stood here
+> are gone.** They named what seven agents were doing on one evening. A list of live work in a
+> plan reads as current long after it is not, and §0.0 and §0.0b went stale the same way. What
+> is in flight is now rows in `docs/work.json`, with `node tools/pm/work.js --status` deriving
+> from git whether each has merged. What stays here is the order, which is a claim about
+> priorities rather than about which branches exist.
 
 ```text
-  DONE ─┬─ victory & defeat            in flight ─┬─ A  keyboard text entry
-        ├─ the battle's end                       ├─ B  diplomacy  ← built, see below
-        ├─ a turn moves things                    ├─ C  the siege battle screen
-        ├─ raise army                             ├─ D  battle casualty write-back
-        ├─ the merchant                           ├─ E  the naming campaign
-        ├─ sieges (campaign side)                 ├─ F  the remaining input arms
-        ├─ save & load  ← confirmed in play       └─ G  the last shells & the cattle
-        ├─ a world from any of the 44 maps                     │
-        ├─ the AI at war                                       ▼
-        ├─ castles, garrisons and being besieged     H  the draw-call audit (§2.10)
-        ├─ the seasons, crops and village clock                │
-        ├─ the armoury and the levy                            ▼
-        └─ the battlefield's orders                  I  the long game, with a witness (§2.5)
+  DONE ─┬─ victory & defeat                    THEN, in this order
+        ├─ the battle's end
+        ├─ a turn moves things                 H  the draw-call audit (§2.10)
+        ├─ raise army                                     │
+        ├─ the merchant                                   ▼
+        ├─ sieges (campaign side)              I  the long game, with a witness (§2.5)
+        ├─ save & load  ← confirmed in play
+        ├─ a world from any of the 44 maps
+        ├─ the AI at war
+        ├─ castles, garrisons and being besieged
+        ├─ the seasons, crops and village clock
+        ├─ the armoury and the levy
+        └─ the battlefield's orders
 ```
 
 **Save and load comes off the preconditions list.** Every plan for months has listed it as a
@@ -937,7 +944,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,240<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,243<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -1131,13 +1138,15 @@ finding one context window from gone.* A restart is that, without warning.
 381. Eleven merges landed in one evening, every one of them from a player's own report or
 from the instrument those reports justified.
 
-### Branches that are NOT merged and must not be lost
+### Branches that were not merged
 
-| branch | what | state |
-|---|---|---|
-| `worktree-agent-a3c3b0fefb778ef88` | the three sidebar forecasts, and the cattle mechanics answered from the binary | **complete, 2,172 green, reviewed, not merged** — merge this first |
-| `wip/build-unlock` | build while the game is open | **unverified draft**, saved ahead of the restart; read its commit message before trusting a line |
-| seven `worktree-agent-*` branches | shields and the menu scroll, the gold/season font, the UI click sounds, the siege army divergence, the industry row deltas, the draw-placement audit, the build launcher | each told to commit WIP and write `HANDOFF.md` at its worktree root |
+> **Superseded: the table of unmerged branches that stood here is gone.** It was the
+> coordinator's state, written in a hurry before a restart. That was the right thing to do
+> once and the wrong place to keep it: its first row, *"merge this first"*, merged the same
+> night as C151, and the table went on saying it. Unmerged work is now rows in
+> `docs/work.json`. `node tools/pm/work.js --check` fails on an unmerged `worktree-agent-*`
+> or `wip/*` branch that has no row, and `--status` shows which branches carry a
+> `HANDOFF.md`. `docs/agents.md`, *The work ledger*.
 
 **Read each `HANDOFF.md` before touching the branch it sits on.** They were written under time
 pressure by agents that knew they were about to be killed, so they carry what could not be
