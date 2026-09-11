@@ -241,7 +241,7 @@ arms and still feel wrong in every one of them.
 | `left-press` (hotspot 1) | 121 records, 38 handlers | reproduced — `Event::Click` is the down edge, and `Kind::Press` is it |
 | `left-release` (hotspot 3, `Ui_OkButtonClicked`) | 26 `Ui_OkButtonClicked` call sites plus 7 kind-3 records | reproduced — `Event::Release`, and `Kind::Release` in the shared table |
 | `left-press-repeat` (widget 4) | 139 records, 53 handlers | **built and wired on seven screens**: county tax and rations, supplies, army division, the battle prompt, the message scroll's five prompts, the diplomacy gift stepper, the info panel's garrison widget |
-| `left-press-delayed` (widget 5) | 42 records, 29 handlers | **built and wired on four**: the yes/no box, army division, supplies, diplomacy's six verb buttons and its send/cancel |
+| `left-press-delayed` (widget 5) | 42 records, 29 handlers | **built and wired on five**: the yes/no box, army division, supplies, diplomacy's six verb buttons and its send/cancel, and the **twelve rows of the four options panels** — which acted on the click and had no `docs/arms.json` record until the tip-screens branch noticed |
 | `left-press-held` (hotspot 2) | 23 records, 7 handlers | **built and reaches nothing.** All seven handlers are skirmish and multiplayer setup pages this engine does not have; `Kind::Held` exists so the day one arrives it is a declaration and not a rewrite |
 | the pressed frame (`base + 1`) | every kind-4 and kind-5 widget | **drawn on eight screens** — `Press::pressed` is `+0x0D`, and the painter adds one |
 

@@ -1918,7 +1918,7 @@
       "name": "Opt_ToggleAdvancedFarming",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Row 1 of the advanced options, \"Advanced farming\": flips the already-named g_optAdvancedFarming. In a network game it refuses, shows tip 0x32 and drops back to g_menuPrevScreen - all four advanced rules are frozen once play is deterministic."
+      "comment": "Row 1 of the advanced options, \"Advanced farming\": flips the already-named g_optAdvancedFarming. In a network game it refuses, sends network command 0x32 (Net_SendCommand, not a tip) and drops back to g_menuPrevScreen - all four advanced rules are frozen once play is deterministic."
     },
     {
       "addr": "0x004345D0",

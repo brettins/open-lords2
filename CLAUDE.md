@@ -21,14 +21,14 @@ subagent, so it stays short. Read the linked document before working in that are
    function the behaviour reproduces, in the code, beside it — not just the screen's painter.
    *"We could not find it"* is a finding to report, not a licence to invent. Measured, and
    the number is generated rather than typed: we reproduce
-   **<!--fig:arms-reproduced-->171<!--/fig--> of <!--fig:arms-live-->197<!--/fig-->** live
+   **<!--fig:arms-reproduced-->184<!--/fig--> of <!--fig:arms-live-->212<!--/fig-->** live
    input arms, and every miss was a behaviour nobody had looked for.
    `docs/decisions.md` C61, `docs/arms.json` for the inventory.
 
    **That number counts *which* controls a screen answers, not *how*, and the two are
    independent.** The original's input model is one kind byte at `+0x0F` of a 24-byte
    record: five gesture kinds, all <!--fig:gesture-kinds-->5<!--/fig--> of which we now
-   build, over the <!--fig:arms-kinded-->116<!--/fig--> live arms filed under one of them.
+   build, over the <!--fig:arms-kinded-->129<!--/fig--> live arms filed under one of them.
    Nineteen arms were once `reproduced` under a kind none of them had — the count was right
    and every one of them felt wrong to a player. `docs/input.md` is the model and
    `node tools/oracle/kinds.js` is the original's side of it; **say which of the two
