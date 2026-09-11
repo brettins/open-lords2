@@ -15,7 +15,7 @@
 //! | `explored.reveal_square(..)` at the end of `levy::create_army` | `raising_an_army_…` (0 tiles, not 169) |
 //! | the reveal at the top of `Kingdom::tick_units`' loop | `an_army_walking_…` (169, not 299) |
 //! | the arrival reveal in `step_one` | `an_army_walking_…` (286, not 299) |
-//! | `u.kind == UnitKind::Army` in either reveal | `a_merchant_walking_…` |
+//! | `u.kind == UnitKind::Army` in both reveals at once | `a_merchant_walking_…` |
 //! | `explored.reveal_county(..)` in `conquest::change_owner` | `taking_a_county_…` |
 //! | the `explored` section in `save::encode_campaign` | `the_seen_plane_…` (decode fails) |
 

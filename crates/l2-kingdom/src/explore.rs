@@ -29,8 +29,8 @@
 //! **None of the writers tests `g_optExploration`.** The bits are kept whether
 //! the option is on or off, and the England turn-one fixture is the proof from
 //! the data rather than the code: it was saved with the option off, and its
-//! seen bits are exactly the local player's county and its garrison's square
-//! (`crates/l2-scenario/tests/explored.rs`). So turning the option on in the
+//! seen bits are exactly the local player's county and its one-tile border, bit
+//! for bit (`crates/l2-scenario/tests/explored.rs`). So turning the option on in the
 //! middle of a game blacks out what the armies have *not* seen, not the whole
 //! world.
 //!

@@ -5940,7 +5940,13 @@ fn the_turn_timers_screen_table_and_suffix_are_the_images_own() {
 // | `.filter(lit)` on the mercenary marker (arm 2) | `a_county_in_the_dark_…` |
 // | the `hides_tile` test in `draw_herds` (arm 4) | `a_county_in_the_dark_…` |
 // | the `hides_tile` test on our owner marker | `a_county_in_the_dark_…` |
-// | `exploration &&` in `l2_kingdom::explore::hides` | `a_county_in_the_dark_…` (the control) |
+// | `exploration &&` in `l2_kingdom::explore::hides` | `a_county_in_the_dark_…` (the control), and `explore::tests::the_painters_test_…` |
+//
+// **Two of those rows were green the first time they were run, and the test
+// was wrong both times, not the gate.** The herd gate: the field chosen already
+// had a herd, so the herd was in both renders. The option test: the control
+// also repainted a field's terrain, which moves the fog-off render whatever the
+// option test says. The comments at `pasture` and `give_away` say what changed.
 //
 // **Not covered, and said so:** the castle's garrison banner (England at turn
 // one has no garrison), the industry wheel's pause in the dark (a clock drives
@@ -6135,17 +6141,30 @@ fn a_county_in_the_dark_gives_nothing_away_on_the_map() {
         *MapScreen::town(&ctx, county).first().expect("the county has a town")
     };
     let (tx, ty) = l2_kingdom::map::coords(town);
+    // A field of the county's that has **no herd on it yet**, so that making
+    // it a crowded pasture is an appearance and not a change of picture. The
+    // first version took any field, found one already at `0x16`, and the herd
+    // gate's ablation stayed green: the herd was in both renders.
     let pasture = (0..MAP_TILES).find(|&t| {
-        game.kingdom.campaign.map.county[t] == county
-            && game.kingdom.campaign.map.flags[t] & flags::FARMLAND != 0
+        let m = &game.kingdom.campaign.map;
+        m.county[t] == county
+            && m.flags[t] & flags::FARMLAND != 0
+            && campaign::herd_sprite(m.terrain[t], 0).is_none()
     });
+    assert!(pasture.is_some(), "county {county} has a field with no herd on it");
 
-    let give_away = |g: &mut Game| {
+    // `with_herd` is false for the control below, and that is not a
+    // convenience: turning a field into a pasture also repaints the field's own
+    // terrain, which the fog-off render shows whatever `hides_tile` says. With
+    // it in, the control moved on the terrain alone, and deleting
+    // `exploration &&` from `l2_kingdom::explore::hides` — which hides every
+    // overlay on an unseen tile *with the option off* — stayed green.
+    let give_away = |g: &mut Game, with_herd: bool| {
         let owner = g.kingdom.counties[county as usize].owner as usize;
         g.kingdom.realms[owner].shield_index = 0; // arm 1: the banner goes
         g.kingdom.counties[county as usize].owner = 0; // our owner marker's colour
         g.kingdom.counties[county as usize].mercenary_offer = 1; // arm 2: a band appears
-        if let Some(t) = pasture {
+        if let Some(t) = pasture.filter(|_| with_herd) {
             g.kingdom.campaign.map.terrain[t] = 0x16; // arm 4: a crowded herd
         }
         g.kingdom
@@ -6159,7 +6178,7 @@ fn a_county_in_the_dark_gives_nothing_away_on_the_map() {
     lit.kingdom.options.exploration = false;
 
     let (screen, before) = paint_at(&mut game, &assets, tx, ty);
-    give_away(&mut game);
+    give_away(&mut game, true);
     let (_, after) = paint_at(&mut game, &assets, tx, ty);
     assert_eq!(
         map_pixels_differ(&before, &after, screen.map_clip()),
@@ -6168,7 +6187,7 @@ fn a_county_in_the_dark_gives_nothing_away_on_the_map() {
     );
 
     let (screen, before) = paint_at(&mut lit, &assets, tx, ty);
-    give_away(&mut lit);
+    give_away(&mut lit, false);
     let (_, after) = paint_at(&mut lit, &assets, tx, ty);
     assert!(
         map_pixels_differ(&before, &after, screen.map_clip()) > 0,
