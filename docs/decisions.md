@@ -7195,3 +7195,107 @@ Two smaller corrections fell out of reading the arm:
   `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
   call sites in a half this change does not touch — but recorded, because it is
   the kind of thing that reads as a font choice rather than as a divergence.
+
+---
+
+**CNEW-launcher-never-launched — Building while the game is open: the launcher had
+never launched the game, and the free fix protected only builds that follow a commit.**
+
+The player, twice: *"game is closed. You cant rebuild with it open?"* Then the
+requirement, once it was put plainly: *"we should be able to build new versions while
+I have it open, and that the desktop icon should always open the newest version."* Two
+promises, and both of them say *always*.
+
+**What Windows refuses is not the link [V].** rustc links into `deps/` without
+complaint. Cargo's last step removes `target\debug\l2-game.exe` to put the new one in
+its place, and a running image cannot be removed: *"error: failed to remove file
+`…\target\debug\l2-game.exe`"*, then *"Access is denied. (os error 5)"*, exit 101. It **can**
+be renamed, and a fresh exe then lands on the original path while the old process runs
+on from the renamed image. Every lock below is a hidden `PING.EXE` copied onto the path
+under test, which locks the file exactly as a running game does and opens no window.
+
+**Three mechanisms, measured, and they are not substitutes for one another:**
+
+| mechanism | which builds survive a running game | always the newest? | cost |
+|---|---|---|---|
+| **`tools/run/play.cmd`** — build, then run a *copy* | every one, because nothing it starts ever locks the build output | **yes**: it builds first, and a failed build launches nothing | one 19 MB copy per launch |
+| `build.rs` moves a locked exe aside (the default) | only a build that follows a commit, checkout, rebase or `git add` | — | nothing |
+| `L2_ALWAYS_UNLOCK=1` — that move before every link | every one, even with the exe run directly | — | **every** build recompiles `l2-game`: 2.6–3.2s against 0.17–0.21s for a no-op |
+
+**The middle row is the trap.** `build.rs` watches only the git directory's `HEAD` and
+`index`, and emitting any `rerun-if-changed` replaces cargo's default, so an ordinary
+edit relinks the binary without rerunning the script. Measured on a clean fingerprint:
+locked exe, one touched source file, plain `cargo build -p l2-game`, **exit 101**. The
+same lock with the switch: moved aside, exit 0, and the stand-in still running from the
+renamed file. So the default is a safety net rather than an answer, and the switch is
+a tax paid by every agent and every `cargo test --workspace` for good, to cover the
+minutes somebody has the game open. **The launcher is the primary mechanism** —
+`docs/environment.md`, *Building while the game is open*.
+
+**What was wrong in what had been written, every item of it stated confidently:**
+
+1. `build.rs` said *"This is cheap and it is not a rebuild … Measured, not assumed"*,
+   six lines below the paragraph that refuted it. It was deleted on `wip/build-unlock`,
+   whose commit message records how the first deletion had silently failed.
+2. *"5 to 7 seconds against 0.19"*, in two files. No repeated build reached 3.2s.
+   **7.03s does reproduce — as the first build after an edit to `build.rs`, which
+   recompiles the script too.** One early observation of a different event had been
+   quoted as the price of every build.
+3. *"every build sweeps every `l2-game.old-*.exe` … collected on the next build after
+   the player quits."* A sweep runs when the script runs, which is the middle row of
+   the table: not every build.
+4. **The launcher could not pass an argument.** `play.ps1` declared `[CmdletBinding()]`
+   and ended in `& $copy @args`, and an advanced script has no `$args`. Every argument
+   was a binding error before the build even started: *"A positional parameter cannot
+   be found that accepts argument 'F:\games\Lords of the Realm II'"*. `l2-game`
+   requires a game directory, so **the launcher had never launched the game** — and it
+   was one message from being handed to the player as a desktop-shortcut line.
+   `docs/plan.md` §3.1 already says it: *a development tool that is quietly broken is
+   worse than one that is absent.* This one would have failed at the exact moment it
+   was meant to prove itself.
+5. And one of this branch's own, caught before it landed: *"the link fails"*, written
+   into both files before the error had been read. The error names cargo's remove step.
+
+**A measurement trap worth keeping [V].** A build with `L2_ALWAYS_UNLOCK=1` leaves its
+non-existent `rerun-if-changed` path in the unit's stored output, and cargo goes on
+rerunning the script until a build *without* the switch re-emits a clean set. The first
+"default" measurement on this branch was taken straight after a switched build: it
+reran the script, moved the exe aside, succeeded — and was a measurement of the switch.
+**The fingerprint is whatever the last run of the script emitted.** Flush it with a
+plain build before measuring the default.
+
+**The whole loop, end to end, through `play.cmd` [V].** The game was only ever run
+with `--help` (usage, exit 2, no window), pointed at a directory that does not exist
+(which `Vfs::push_layer` rejects before any window), or replaced by the hidden stand-in.
+Hashes are SHA-256 prefixes, from the code as committed.
+
+| step | result |
+|---|---|
+| edit, then `play.cmd --help` | exit 2, *"playing l2-game-live.exe"*; the copy is the fresh build (`2DE219…`), not the one before it (`DB8C56…`) |
+| the same in a hidden real console, no redirection — how a shortcut runs it | exit 2 |
+| a game held open *by the launcher*: `play.cmd -NoBuild -t 127.0.0.1` over the stand-in | `l2-game-live.exe` locked; `target\debug\l2-game.exe` **not** locked |
+| while it runs: edit, `cargo build -p l2-game`, `cargo test -p l2-game --test press` | both exit 0, and no `l2-game.old-*` appeared — the rename played no part |
+| edit, `play.cmd --help` again, the first game still running | exit 2, *"playing l2-game-live-1.exe"*; that copy is the build the launcher just made (`89C434…`), not the previous output (`509F4B…`) |
+| a compile error, then `play.cmd --help` | exit 101, *"build failed - not launching."*; no copy made and every file's hash unchanged |
+| stop the first game, then `play.cmd --help` | the launcher exited with its game; the next launch swept both old copies and ran a fresh `l2-game-live.exe`, identical to the build output |
+| a `.lnk` holding the shortcut line, run exactly as stored, with a game directory that does not exist and has spaces in it | built, launched the copy, and the game's own error named the whole path intact — run from the repository and from `C:\Windows\Temp` alike, so *Start in* carries nothing |
+
+**Why the stale file is renamed rather than the new one versioned.** Linking
+`l2-game-<hash>.exe` would work, and it would break every shortcut already aimed at
+`target\debug\l2-game.exe`. Renaming the *stale* copy leaves that path — and every
+shortcut on it — exactly as it was.
+
+**No test for either sweep; a shape instead.** Each sweep was two literals that had to
+agree: the name `make_room_for_the_link` gives an exe it moves and the prefix its sweep
+deletes; the names `play.ps1` copies to and the filter its sweep removes. The way
+either goes wrong is those two drifting apart, and **that failure is silent on both
+sides** — `build.rs`'s warning counts files it *failed to delete*, and a drifted pattern
+fails to *match*, so the count stays at zero while the copies pile up. Each side now
+derives both from one constant, so the drift cannot be written (`docs/agents.md`,
+*Prefer a shape that cannot be wrong to a check that notices when it is*). The
+behaviour that is left was observed rather than tested: in `build.rs` a moved copy was
+collected on the first rerun after its process exited; in the launcher a copy still in
+use survived its sweep, the next launch took `-1`, and once the game had exited the
+launch after that swept both. **[I]:** a test would have had
+to fake a Windows image lock inside a build script under cargo, and could have caught
+only the drift the constant removes — reasoned, not tried.

@@ -133,6 +133,82 @@ the number of gated tests is written down in
 `crates/l2-testkit/tests/census.rs` and a new gate fails the build until it is
 added there.
 
+### Building while the game is open
+
+**Launch the game with `tools\run\play.cmd`, not with `target\debug\l2-game.exe`.**
+Windows will not let a build replace a running executable, so a game started from the
+build output turns every build in the workspace red — `cargo test --workspace` included,
+because it builds the same binary. It is cargo's last step that fails, not the linker:
+
+```
+error: failed to remove file `…\target\debug\l2-game.exe`
+  Access is denied. (os error 5)
+```
+
+```powershell
+tools\run\play.cmd "F:\games\Lords of the Realm II"              # debug build, then play
+tools\run\play.cmd -Release "F:\games\Lords of the Realm II"     # release build, then play
+tools\run\play.cmd -NoBuild "F:\games\Lords of the Realm II"     # play what is there, no build
+tools\run\play.cmd "F:\games\Lords of the Realm II" --no-sound   # any l2-game flag passes through
+```
+
+It makes two promises, and both were driven end to end rather than read off the script
+(`docs/decisions.md` CNEW-launcher-never-launched):
+
+* **A build succeeds while the game is open.** It runs a *copy* — `l2-game-live.exe`, or
+  `l2-game-live-1.exe` and so on for a second instance — so the build output is never
+  locked. With a game held open by it, `cargo build -p l2-game` and
+  `cargo test -p l2-game` both went through.
+* **It always runs the newest build.** It builds first, and **a failed build launches
+  nothing**: it prints `build failed - not launching.` and exits with cargo's code, rather
+  than falling back to the last binary that compiled. `-NoBuild` is the only way to run
+  something older, and you have to ask for it.
+
+A copy still in use survives the sweep; the rest are deleted on the next launch. One
+PowerShell trap: a single-dash game flag that is a prefix of `-Release` or `-NoBuild` is
+taken by the launcher (`-n` becomes `-NoBuild`). None of `l2-game`'s own flags is.
+
+**Pointing a desktop shortcut at it.** Change two fields in the shortcut's Properties:
+
+| field | value |
+|---|---|
+| Target | `E:\dev\lords2\tools\run\play.cmd "F:\games\Lords of the Realm II"` |
+| Start in | `E:\dev\lords2` |
+
+A console window shows the build, then the game opens. `Start in` is not load-bearing —
+the script finds the repository from its own location, and the same shortcut run from
+`C:\Windows\Temp` did the same thing — but it costs nothing. Verified by building a
+`.lnk` outside the desktop and running exactly the Target, arguments and Start in it
+stored, with a game directory containing spaces; the game's own error named the whole
+path intact. **Not verified:** a double-click, because that opens a window.
+
+**A shortcut already aimed at `target\debug\l2-game.exe` is unaffected.** The binary is
+still built at that path, under that name, by the same command — which is the reason
+`build.rs` renames the *stale* file rather than versioning the new one. It keeps working;
+it just locks the build output again, so builds collide with a game started from it as
+they always did.
+
+**The two fallbacks, for somebody who runs the exe directly.**
+
+* `crates/l2-game/build.rs` moves a locked `l2-game.exe` aside to
+  `l2-game.old-<ms>.exe` and lets the build through — **but only on a build that follows a
+  commit, checkout, rebase or `git add`**, because the script watches only git's `HEAD`
+  and `index`. An ordinary edit does not rerun it, and that build still fails. Measured,
+  on a clean fingerprint. Moved copies are deleted on a later rerun, once nothing is
+  running them.
+* `L2_ALWAYS_UNLOCK=1` makes that move happen before every build, **and every build then
+  recompiles `l2-game`: 2.6–3.2s against 0.17–0.21s for a no-op**, measured. That is
+  paid by every build in the workspace while the variable is set, which is why it is
+  opt-in.
+
+```bash
+L2_ALWAYS_UNLOCK=1 cargo build -p l2-game
+```
+
+**Measuring the default straight after using the switch measures the switch.** A
+switched build leaves cargo rerunning the script until one plain build re-emits a clean
+fingerprint.
+
 Ghidra headless. The `lords2` project is **already imported and analysed** — reuse it,
 don't re-import:
 
