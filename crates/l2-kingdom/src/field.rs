@@ -471,31 +471,13 @@ pub fn refresh_estimates(
     crate::land::herd_preview(tables, county, season_next.index());
 
     for c in crate::tables::INDUSTRY_ESTIMATE_ORDER {
-        let job = tables.commodity[c.index()].job;
-        let (wanted, useful) = crate::industry::labour_estimate(
-            tables,
-            county,
-            c,
-            realm,
-            weapon_share,
-            advanced_farming,
-        );
-        county.labour_wanted[job] = wanted;
-        county.labour_useful[job] = useful;
-        // **`Industry_LabourEstimate`'s tail**, which is one function in the
-        // original and two here for the same reason `grain_preview` is: the
-        // search loop answers a question and the tail *writes* four things,
-        // and the four were carried by nothing. This is the one of them the
-        // sidebar draws. `docs/decisions.md` C123 is the grain case;
-        // C136 is this one.
-        crate::industry::preview(
-            tables,
-            county,
-            c,
-            realm,
-            weapon_share,
-            advanced_farming,
-        );
+        // **`Industry_LabourEstimate`, loop and tail.** The tail is one
+        // function in the original and a second half here for the same reason
+        // `grain_preview` is: the search loop answers a question and the tail
+        // *writes* four things, and the four were carried by nothing. The
+        // forecast is the one the sidebar draws. `docs/decisions.md` C123 is
+        // the grain case; C136 is this one.
+        crate::industry::refresh(tables, county, c, realm, weapon_share, advanced_farming);
     }
 
     let (wanted, useful) = crate::industry::castle_labour_estimate(tables, county);

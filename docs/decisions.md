@@ -9315,3 +9315,103 @@ re-seed left a walk on the floor. No tip can swallow the pick — `Tip_Update` h
 `pressed || doubleClick` and the track on the **level** `g_mouseLeftDown`, every frame; and
 `WM_LBUTTONDBLCLK` sets no down bit. It had no `docs/arms.json` record, which is why the
 inventory said nothing was missing.
+
+---
+
+**C180 — Five player reports were one unported function, and the lead that would have explained them all was measured and was not it.**
+
+The reports, from builds `a5b112c` and `73df349`: *"industry values don't seem to update, and
+for some reason mining started as off"*; *"the labor slider seems to reset each turn so that I
+have to reassign peasants to wheat each turn"*; *"wheat does not show the +value when it is about
+to be harvested, I'm noticing generally the industry numbers in the sidebar are inaccurate."*
+
+**The lead first, because it was plausible and it was refuted by measurement.** C168 put
+`Ai_ManageFarmsAll` at the head of the season, and an AI pass re-planning the person's county
+would have produced every one of these at once. The original's gate (`0x0049A990`) is
+`strength != 0 && isHuman == 0`, and ours tests the same two things. On England turn one and on a
+new England, realm 1 has `is_human` set, and running the pass leaves the person's county's
+labour, shares, industry share and fields byte-identical. `[V]`, measured on both paths.
+
+**What it was: `Labour_Move` (`0x00439B52`) was ported as its first two lines.** The village's
+drag and its double click (`Village_BalanceJob` → `Labour_Move`) moved the workers and stopped.
+The function goes on:
+
+```c
+FUN_00439CC2(county, from, to);             /* men on a site switch it on */
+Ration_Apply; County_RefreshEstimates; FUN_00448648(owner);
+Labour_RecomputeIndustryShare; Labour_RecomputeShares;
+Ration_Apply; County_RefreshEstimates; FUN_00448648(owner);
+```
+
+Each missing line is one of the reports, measured on England turn one's county 8 before the fix:
+
+* **No refresh:** moving 36 foresters out left the wood row at `+86`, where the original shows
+  `+57`. *"Industry values don't update."*
+* **No `FUN_00439CC2`:** 36 men dropped on the mine left it switched off, its ceiling 0, its site
+  idle, no iron row on the sidebar, and the season sent them home. C121 read the function a
+  month ago and nothing built it. *"Mining started as off"* — see below for why it starts off.
+* **No `Labour_RecomputeShares`:** the season's `Labour_Allocate` deals a county out from its
+  eight shares and never writes one, so it dealt the old split back every season. *"I have to
+  reassign peasants to wheat each turn."*
+* **The missing harvest `+`** is the same shape: the grain tail (`0x0044D374`) matches ours arm
+  for arm, and it was forecasting from a staffing the season had already undone. With the fix, a
+  sown county forecasts `+432` on the turn before harvest.
+
+`Kingdom::move_labour` is the whole function now, and `Industry_ToggleFromMap` gains the
+`Ration_Apply` and the `FUN_00448648` it lacked. That last is the Readme's *"turning a blacksmith
+on will reduce the resources available to other blacksmiths"*: on `siege-lastturn.sav` the second
+smithy's ceiling halves from 180 to 90 on the click, where ours kept 180 until the season.
+
+**Mining starts off, and that is the original.** `Game_SetupRealmsAndCounties` (`0x0049BD99`)
+switches on one industry per start county: `for (i = 0; i < 4; i++) if (i != 2 && hasResource[i])
+{ enabled[i] = 1; break; }`. Wood is record 0, so a county with a forest never starts with its
+mine. `england-turn1.sav` agrees: five switches on, all forests, all in owned counties. Both our
+paths agree with it — the importer (C57, not regressed) and `Scenario::from_map`. What was ours
+was that the one road the original gives a player to turn that mine on without the map, putting
+men on it, did nothing.
+
+**And a new game had a second defect behind the first.** A new England opened with **no foresters,
+155 idle and all four forecasts zero** in every start county. Nothing had computed an industry
+ceiling before the opening season's `Labour_AllocateAll`, for two reasons, both `[V]` by call order:
+
+* `Industry_ProduceAll` (`0x0044E852`) calls `Industry_LabourEstimate` after every production
+  pass, and ours did not. A loaded game hid this, because the importer carries the last season's
+  ceilings.
+* `Game_SetupRealmsAndCounties` runs `Labour_Allocate; Ration_Apply; County_RefreshEstimates` twice
+  per start county *before* switching the forest on, and ours did not run them at all. Every AI
+  county is allocated again at the season's head by `Ai_ManageFarmsAll`; the person's is not. So
+  his herd went through the opening season unminded: 47 head and −10 forecast. The save shows why
+  the switch has to be off during those rounds: `Industry_ProduceAll`'s `symbols.json` note gives
+  the realms' opening wood as *(0, 66, 66, 132, 166)*, and the 0 is the person's.
+
+With both, **a new England's four AI start counties match `england-turn1.sav` exactly** for the
+same realm, and the person's county matches the save's person's county job for job, ceiling for
+ceiling and forecast for forecast, on a different seat. The four tests in
+`crates/l2-game/tests/labour_move.rs` drive all of this through the village, End Turn, the setup
+page and the map. Six ablations were run and each was red at its own assertion.
+
+**One order is not the original's, `[D]`:** our industry passes run iron and stone over every
+county before wood runs over any, where the original goes county by county. So the weapons
+estimate made in the wood pass sees the whole realm's iron. It moves a smithy's ceiling for that
+season's two allocations only, and `Panels_RefreshAll` recomputes it before anything is drawn.
+Folding the passes would move `l2_game::save`'s pass indices.
+
+**Open, and the reason each is open:**
+
+* **"Generally inaccurate" may have a second cause we cannot measure.** `Industry_LabourEstimate`
+  writes `efficiency = ramp(workers)` on every call, and C136 left that unported. With *Advanced
+  Farming* off the ramp is a flat 80 and the write changes nothing. **All eleven saves on this
+  machine have it off.** If the player plays with it on, the original's efficiency climbs several
+  times a season (two refreshes per drag, three per switch, two more per season) and ours climbs
+  once, so ours would under-forecast and under-produce. What would settle it: **two autosaves one
+  End Turn apart from a game with Advanced Farming on**, and whether his game has it on.
+* **The person's herd on a new England is 109 against the save's 101**, on county 11 against
+  county 8. Every other figure of that county agrees. Not explained.
+* **`docs/bugs.md` B12 looks wrong, `[D]`, not acted on.** It reads `Industry_ToggleFromMap` as
+  toggling the castle share with the stale switch value. The decompilation's castle arm does that
+  (`0x0043D309`, the call inside the arm) and then **toggles it again** with the new value
+  (the shared call after the first refresh), so the share should end following the switch. A quirk
+  default rests on B12, and this correction does not change it.
+* **`Industry_ProduceAll` repaints every county's site tile, with no owner test, `[D]`.** Ours
+  skips unowned counties. So a county that secedes keeps a working mine or forest on the map after
+  `County_MakeIndependent` has switched it off: the picture and the switch disagree.

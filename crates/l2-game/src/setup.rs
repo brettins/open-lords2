@@ -467,6 +467,17 @@ impl Settings {
             }
         }
 
+        // **`FUN_0049BD99`'s two `Labour_Allocate / Ration_Apply /
+        // County_RefreshEstimates` rounds, per start county** — after the
+        // county-status row has given it people, and with its switches off as
+        // the original has them at that line. The only allocation a person's
+        // county gets before the opening season. `Kingdom::settle_start_county`.
+        for id in game.kingdom.county_ids() {
+            if game.kingdom.counties[id].owner != 0 {
+                game.kingdom.settle_start_county(id);
+            }
+        }
+
         // `Diplo_Init` (`0x004A1C53`), and **it has to be here rather than in
         // the world builder**: the opening standing it writes is 5 for an
         // in-play AI realm and 0 for a person or a dropped one, so it has to

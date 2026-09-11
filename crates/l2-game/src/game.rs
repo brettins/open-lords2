@@ -1228,12 +1228,13 @@ impl Game {
     /// takes every worker out of it even when `icons * popBand` overshoots.
     /// Returns how many people actually moved.
     ///
-    /// **What this does not do**, and the original does: `Labour_Move` re-runs
-    /// the county's food pass, its industry estimates and its labour-share
-    /// recompute *twice* before returning, so the whole panel is live the
-    /// instant you let go. Ours runs those at end of turn, so the numbers a
-    /// drag changes are the worker counts and nothing else. That is the same
-    /// choice [`Game::set_ration_split`] already documents.
+    /// Everything after the arithmetic is `Labour_Move`'s and lives in
+    /// [`l2_kingdom::Kingdom::move_labour`]: the drop switches the destination
+    /// industry on, the forecasts are recomputed, and the county's shares are
+    /// rewritten from where people ended up — which is what keeps the drag
+    /// from being undone by the season's `Labour_Allocate`. This used to say
+    /// *"ours runs those at end of turn"*; it ran none of them, and three
+    /// player reports were that sentence (`docs/decisions.md` C180).
     pub fn move_labour(&mut self, id: u8, from: usize, to: usize, icons: i32) -> i32 {
         let band = self.kingdom.counties.get(id as usize).map_or(0, |c| c.pop_band);
         self.move_workers(id, from, to, icons.saturating_mul(band))
@@ -1251,14 +1252,14 @@ impl Game {
         if !self.is_players(id) || from == to || workers <= 0 {
             return 0;
         }
-        let c = &mut self.kingdom.counties[id as usize];
+        let c = &self.kingdom.counties[id as usize];
         let (Some(&held), true) = (c.labour.get(from), to < c.labour.len()) else {
             return 0;
         };
+        // `Village_Drop`'s clamp, and `Village_BalanceJob`'s arithmetic never
+        // needs it — both are the caller's, not `Labour_Move`'s.
         let workers = workers.min(held).max(0);
-        c.labour[to] += workers;
-        c.labour[from] -= workers;
-        workers
+        self.kingdom.move_labour(id as usize, from, to, workers)
     }
 
     /// **The double click on the village: balance one job against the idle

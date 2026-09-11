@@ -472,7 +472,9 @@ pub fn disband_county(counties: &[County; MAX_COUNTIES], units: &Units, army: us
 /// Returns the county the men joined and how many joined it. The three
 /// re-runs of the labour and ration passes are the original keeping its panel
 /// live; ours run at end of turn, the same choice
-/// [`crate::levy::create_army`] and `Game::move_labour` already document.
+/// [`crate::levy::create_army`] documents. `Game::move_labour` used to be
+/// cited here as a third, and that choice turned out to be three player reports
+/// — see [`crate::Kingdom::move_labour`] before copying it again.
 #[allow(clippy::too_many_arguments)]
 pub fn disband(
     t: &Tables,

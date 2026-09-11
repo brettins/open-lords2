@@ -427,6 +427,30 @@ pub fn preview(
     county.industry[index].next_season = pct(workers / row.divisor, loop_efficiency).min(limit);
 }
 
+/// **`Industry_LabourEstimate` (`0x0044F318`), whole** — the search loop's two
+/// words into the job's labour record, and the tail's forecast.
+///
+/// [`labour_estimate`] and [`preview`] are the function's two halves, and they
+/// have more than one caller in the original — `County_RefreshEstimates`
+/// (`0x004485A5`) four times, `Industry_ProduceAll` (`0x0044E852`) after every
+/// production pass, and `FUN_00448648` (the realm's blacksmiths, after a drop
+/// or a switch) — so the pair is named once here rather than re-assembled at
+/// each of them. The efficiency write-back is still not here; see [`preview`].
+pub fn refresh(
+    t: &Tables,
+    county: &mut County,
+    c: Commodity,
+    realm: &Realm,
+    weapon_share: WeaponShare,
+    advanced_farming: bool,
+) {
+    let job = t.commodity[c.index()].job;
+    let (wanted, useful) = labour_estimate(t, county, c, realm, weapon_share, advanced_farming);
+    county.labour_wanted[job] = wanted;
+    county.labour_useful[job] = useful;
+    preview(t, county, c, realm, weapon_share, advanced_farming);
+}
+
 /// One `Industry_Produce` pass: ramp the efficiency, produce, credit the realm,
 /// and add to the county's running total.
 ///
