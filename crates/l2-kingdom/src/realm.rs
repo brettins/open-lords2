@@ -256,12 +256,17 @@ pub struct Realm {
     /// The six score inputs in the order [`crate::tables::SCORE_WEIGHTS`]
     /// applies: realm `+0x60, +0x10, +0x0C, +0x58, +0x54, +0x4C`.
     ///
-    /// **Five of the six are identified now** — see
-    /// [`crate::tables::SCORE_INPUT_OFFSETS`] — and
-    /// [`Realm::sync_score_inputs`] copies them out of the named fields above.
-    /// Index 5, `+0x4C`, is still unknown and is left for a caller to set;
-    /// naming it would be exactly the failure mode `docs/decisions.md` C3
-    /// records.
+    /// **All six are identified** — see [`crate::tables::SCORE_INPUT_OFFSETS`].
+    /// [`Realm::sync_score_inputs`] copies the first five out of the named
+    /// fields above, because in the original those five are exactly
+    /// `Realm_UpdateTotals`' writes.
+    ///
+    /// **Index 5, `+0x4C`, is the realm's castle count and is deliberately not
+    /// one of them**: `Castle_BuildTick` (`0x004508DE`) is its only writer, once
+    /// a season, and `Kingdom::castle_build_tick` is where we write it. See
+    /// [`crate::tables::SCORE_INPUT_CASTLES`] for why the difference between
+    /// "written by a season pass" and "derived when scoring" is behaviour rather
+    /// than style.
     pub score_inputs: [i32; 6],
 
     // --- diplomacy: `docs/diplomacy.md` §1.2 -------------------------------
@@ -496,9 +501,14 @@ impl Realm {
         !self.in_play || self.is_human || self.ai_step >= AI_STEP_DONE
     }
 
-    /// Copy the five identified score inputs out of the fields
-    /// [`crate::ai::update_realm_totals`] rebuilds. Index 5 (`+0x4C`) is left
-    /// alone, because nothing here knows what it is.
+    /// Copy the five score inputs `Realm_UpdateTotals` (`0x0049D1E0`) rebuilds
+    /// out of the fields it writes.
+    ///
+    /// **Index 5 (`+0x4C`) is left alone on purpose**, and the reason has
+    /// changed: it used to be *"nothing here knows what it is"* and it is now
+    /// *"that one has a different owner"*. It is the castle count and
+    /// `Castle_BuildTick` is the only thing in `Lords2.exe` that writes it —
+    /// [`crate::tables::SCORE_INPUT_CASTLES`].
     pub fn sync_score_inputs(&mut self) {
         self.score_inputs[0] = self.share_of_map_pct;
         self.score_inputs[1] = self.population_total;

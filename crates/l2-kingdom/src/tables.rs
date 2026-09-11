@@ -1537,6 +1537,25 @@ pub const SCORE_WEIGHTS: [(i32, i32); 6] = [(10, 1), (1, 10), (2, 1), (2, 1), (1
 /// is.
 pub const SCORE_INPUT_OFFSETS: [u16; 6] = [0x60, 0x10, 0x0C, 0x58, 0x54, 0x4C];
 
+/// The slot of [`SCORE_INPUT_OFFSETS`] that holds `+0x4C`, the castle count.
+///
+/// **It is the one slot [`crate::realm::Realm::sync_score_inputs`] must not
+/// touch**, because in the original it is not one of `Realm_UpdateTotals`'
+/// writes: `Castle_BuildTick` (`0x004508DE`) owns it, alone. Verified
+/// exhaustively rather than by reading — every instruction in `Lords2.exe` whose
+/// operand mentions `g_realms + 0x4C` is one of seven, and they are
+/// `Castle_BuildTick` twice (`0x0045090E` clears, `0x00450CB1` increments),
+/// `Game_SetupRealmsAndCounties` once (`0x0049C14C`, the initial clear),
+/// `Score_RankRealms` three times and one painter.
+///
+/// The timing that difference buys is real and is why this is stored rather than
+/// derived at scoring time. `Castle_BuildTick` is a *season* pass; nothing
+/// between one season and the next rewrites the count, so a castle knocked down
+/// by a siege in phase 2, or a county that changes hands, still scores its 50
+/// until the next `Castle_BuildTick`. A count derived inside `compute_score`
+/// would drop it immediately, which is a different game.
+pub const SCORE_INPUT_CASTLES: usize = 5;
+
 /// Names for the six score inputs, in the order [`SCORE_WEIGHTS`] applies.
 pub const SCORE_INPUT_NAMES: [&str; 6] = [
     "share of the map, percent",

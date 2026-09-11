@@ -294,6 +294,34 @@ pub fn all_realms_done(realms: &[Realm]) -> bool {
 }
 
 /// Reset every realm's program counter at the start of phase 4.
+///
+/// # This is `Turn_BeginPlayersTurn` (`0x0049B6D3`) with one deliberate difference
+///
+/// ```c
+/// for (r = 1; r < 6; r++) {
+///     g_realms[r].aiStep = 0;
+///     if (g_realms[r].strength == 0) g_realms[r].aiStep = 999;
+///     else g_realmsActive++;
+/// }
+/// ```
+///
+/// **The original resets a human realm's counter to 0 like any other**, because
+/// `AI_RunTurnStep`'s step-0 prologue runs for every realm; the human then parks
+/// at 1 — the counter's increment is inside the `isHuman == 0` guard — until
+/// `Turn_End` (`0x0043AC23`) writes 999 when the person presses the button.
+///
+/// We write [`AI_STEP_DONE`] straight away instead, because `end_turn` **is** the
+/// button: a headless turn has no person to wait for, so the human's counter is
+/// 999 the moment phase 4 opens.
+///
+/// **What that used to cost, and no longer does.** This was read as the reason
+/// the human's score never moved — a human takes no AI step, so step 14's
+/// `Realm_UpdateTotals` never runs on one. It is not: the prologue is not a
+/// *step*, it is the initialisation above the dispatch, and
+/// `l2_game::turn::step_zero` runs it for every realm regardless of this
+/// counter. `realm.ai_step` is the only field this divergence touches, and
+/// `crates/l2-game/tests/differential.rs` excludes it for an unrelated reason
+/// (the original's autosave samples it mid-phase).
 pub fn begin_turn(realms: &mut [Realm]) {
     for realm in realms.iter_mut() {
         realm.ai_step = if realm.in_play && !realm.is_human { 0 } else { AI_STEP_DONE };
@@ -303,10 +331,19 @@ pub fn begin_turn(realms: &mut [Realm]) {
 /// Step 0 — `FUN_0049B42B`, the initialisation above the dispatch.
 ///
 /// ```c
-/// strength = 3 * ownedCounties + 1 * armies;      /* realm +0x04 */
-/// if (strength == 0) the realm is eliminated and everyone is told;
-/// Score_RankRealms();
+/// Realm_RecountStrength(r);      /* 0x0049B42B: strength = 3*counties + armies,
+///                                   elimination, then Score_RankRealms() */
+/// Realm_UpdateTotals(r);         /* 0x0049D1E0: the six score inputs */
+/// g_realms[r].offerPending = 0;  /* +0x1C */
+/// g_realms[r].aiStep = 1;
 /// ```
+///
+/// **This function is only the first of those four lines**, and the omission was
+/// player-visible: the second line is the only thing in the original that fills
+/// the score inputs, so a human — who never reaches step 14, the other caller —
+/// scored 50 for ever. The whole prologue, at the call site the original puts it,
+/// is `l2_game::turn::step_zero`; this has no production caller and is the
+/// crate's own statement of the strength half.
 ///
 /// **This corrects `docs/kingdom.md` §2's `+0x04`.** The document calls it
 /// `inPlay` and marks it `[V]`; it is a *weighted strength count*, three per
@@ -459,7 +496,13 @@ pub fn update_realm_totals(
 /// compounds rather than rescues.
 ///
 /// The realm's `county_count` must be current: [`update_realm_totals`] is what
-/// sets it, and it is step 14 of the *previous* turn.
+/// sets it.
+///
+/// > This used to end *"and it is step 14 of the **previous** turn"*. It is not.
+/// > `AI_RunTurnStep`'s step-0 prologue calls `Realm_UpdateTotals`
+/// > (`0x0049D1E0`) for **every** realm at the top of phase 4, before any
+/// > handler runs, so the count step 3 reads is this turn's. See
+/// > `l2_game::turn::step_zero`.
 pub fn grant_resources(
     t: &Tables,
     counties: &mut [County],

@@ -1136,10 +1136,9 @@ fn battle_seed(kingdom: &Kingdom, e: Encounter) -> u64 {
 ///   **0** is how the original addresses them: `AI_SetTaxRates(0)` then
 ///   `AI_ManageFields(0)` — which is `0x0049DFC6`, the *unowned* counties' pass,
 ///   and not the AI realms' step 5. See `l2_kingdom::ai_farm`.
-/// * **Phase 4** — `AI_RunTurnStep`'s **step 0** for every realm: recount its
-///   strength, eliminate it if that comes out zero, and rank. See
-///   [`Game::recount_realm`](crate::game::Game::recount_realm), and note that it
-///   runs for the human too.
+/// * **Phase 4** — `AI_RunTurnStep`'s **step 0** for every realm. See
+///   [`step_zero`], which is the prologue in full and which runs for the human
+///   too.
 /// * **Phases 3, 5 and 6** originate the game's own move orders, and that is
 ///   `l2-kingdom`'s to do because it is a rule about units:
 ///   [`Kingdom::begin_unit_phase`] is the transport re-target, the peasant-mob
@@ -1204,11 +1203,64 @@ fn begin_phase(game: &mut Game, phase: Phase) {
         }
         Phase::PlayersTurn => {
             for id in 1..l2_kingdom::realm::MAX_REALMS {
-                game.recount_realm(id as u8);
+                step_zero(game, id as u8);
             }
         }
         _ => {}
     }
+}
+
+/// **`AI_RunTurnStep`'s step-0 prologue (`0x0049A581`), for one realm.**
+///
+/// ```c
+/// if (g_realms[r].strength != 0) {          /* the outer guard, read BEFORE the recount */
+///     if (g_realms[r].aiStep == 0) {
+///         Realm_RecountStrength(r);         /* 0x0049B42B, and Score_RankRealms inside it */
+///         Realm_UpdateTotals(r);            /* 0x0049D1E0 — FUN_0049d1e0 */
+///         g_realms[r].offerPending = 0;     /* +0x1C */
+///         g_realms[r].aiStep = 1;
+///     }
+///     if ((g_realms[r].isHuman == 0) && (aiStep < 999)) { ...the fourteen handlers... }
+/// }
+/// ```
+///
+/// **The `isHuman` test guards the handlers and the counter's increment, not
+/// this.** `Turn_BeginPlayersTurn` (`0x0049B6D3`) writes `aiStep = 0` into every
+/// realm — 999 only for a realm at zero strength — so a human realm reaches step
+/// 0 exactly like an AI one and then stops, its counter parked at 1 until
+/// `Turn_End` (`0x0043AC23`) writes 999.
+///
+/// # What this fixes, and the differential is what found it
+///
+/// This used to be `game.recount_realm(id)` alone — the first of the prologue's
+/// three writes. `Realm_UpdateTotals` is **the only thing in the original that
+/// fills the six score inputs**, and its other production caller here is AI step
+/// 14, which a human realm never reaches ([`l2_kingdom::ai::begin_turn`] marks a
+/// human done before step 0). So the human's `share_of_map_pct`,
+/// `population_total`, `mean_happiness`, `mean_health` and `total_men` all stayed
+/// at zero for the whole game and `Score_RankRealms` scored the human on the gold
+/// bracket alone: a flat **50** against the original's 576, 590, 1333 and 1334
+/// across `crates/l2-game/tests/differential.rs`' four pairs, with `rank`
+/// inverted for both realms out of the same hole.
+///
+/// **`offer_pending` was set by [`l2_kingdom::diplomacy`] and cleared by nothing**
+/// — `grep -rn offer_pending crates/` found one writer and no reset — so a realm
+/// that once courted somebody was refused as a candidate by
+/// `pick_ally_candidate` for the rest of the game. This is the clear the original
+/// does, at the line the original does it.
+///
+/// [`l2_kingdom::ai::begin_realm_turn`] is this prologue's `l2-kingdom` half and
+/// has never had a production caller; it is left as the crate's own statement of
+/// the rule, and this is the call site.
+fn step_zero(game: &mut Game, realm: u8) {
+    // The original reads the guard before the recount, which is why a realm the
+    // recount *eliminates* still gets its totals rebuilt and its offer cleared.
+    if game.kingdom.realms[realm as usize].strength == 0 {
+        return;
+    }
+    game.recount_realm(realm);
+    update_totals(&mut game.kingdom, realm);
+    game.kingdom.realms[realm as usize].offer_pending = false;
 }
 
 /// One step of every AI realm that has not finished its turn.

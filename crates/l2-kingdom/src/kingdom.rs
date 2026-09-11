@@ -1007,8 +1007,41 @@ impl Kingdom {
     /// it does that [`industry::build_tick`] cannot reach: the free garrison a
     /// finished castle comes with, and the tile the castle is drawn on.
     fn castle_build_tick(&mut self, report: &mut SeasonReport) {
+        // **`Castle_BuildTick`'s first loop, and the sixth score input.**
+        // `for (r = 1; r < 6; r++) { realm[r][0x4C] = 0; realm[r][0x4D] = 0; }`
+        // — realms 1..=5 only, so realm 0's counters are cleared by
+        // `Game_SetupRealmsAndCounties` and never again.
+        //
+        // `crate::tables::SCORE_INPUT_OFFSETS` has read `+0x4C` as *castles
+        // held* for as long as it has existed, with the C for it in the doc
+        // comment — and **nothing in this workspace ever wrote it**, so
+        // `score_inputs[5]` was zero for every realm for the whole game and the
+        // heaviest-weighted of the six terms (x50, more than the other five
+        // combined) contributed nothing to anybody's score. That is
+        // `docs/agents.md`'s *a correct explanation sitting directly above the
+        // omission it describes*, and `crates/l2-game/tests/differential.rs` is
+        // what found it: with the score's other five inputs repaired, every
+        // realm came in exactly 50 short, once per castle.
+        for realm in self.realms.iter_mut().take(MAX_REALMS).skip(1) {
+            realm.score_inputs[crate::tables::SCORE_INPUT_CASTLES] = 0;
+        }
         for id in 1..=self.county_count {
             let owner = self.counties[id].owner as usize;
+            // **Counted before the work, not after**, which is the original's
+            // order and decides a real case: the season a castle tops out, the
+            // county is still `castle_degraded != 0` here, so it is counted into
+            // `+0x4D` (the concurrency count, derived in `ai::build_castles`)
+            // and does not score its 50 until the *next* season.
+            //
+            // The increment is not guarded on the owner, so an unowned county
+            // holding a castle increments realm 0's counter — which nothing
+            // clears and nothing reads. Reproduced as the original writes it;
+            // `Score_RankRealms` loops 1..=5, so the slot is inert either way.
+            if self.counties[id].castle_degraded == 0 && self.counties[id].castle_type != 0 {
+                if let Some(r) = self.realms.get_mut(owner) {
+                    r.score_inputs[crate::tables::SCORE_INPUT_CASTLES] += 1;
+                }
+            }
             let mut messages = Vec::new();
             let (mut realm, has_realm) = match self.realms.get(owner) {
                 Some(r) => (r.clone(), true),

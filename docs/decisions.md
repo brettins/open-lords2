@@ -6379,3 +6379,76 @@ through AI step 14 and `l2_kingdom::ai::begin_turn` marks a human realm done bef
 [V]; neutral counties buy 50 sacks of grain a season that ours cannot, which is
 `ai_farm::NoMarket`'s own documented gap finally measured [I]; and `g_optAiLords` is read by
 the save reader and dropped by the importer [V].
+
+**CNEW-step-zero â€” The differential's first finding, answered: the human's score
+was missing a call site and a field, and the field had been documented for weeks.**
+
+C137 reported that the human realm's `score` and `rank` never move â€” a flat **50**, which is
+`score_gold_bracket` alone, against the original's 576, 590, 1333 and 1334 â€” and marked the
+mechanism `[V]` in our tree but **`[I]` for what the original does instead**, because nobody
+had found the function. Rule 5 says that is a finding to report, not a licence to invent.
+This is the reading.
+
+**There are two call sites, and both rank every realm.**
+
+1. `Turn_BeginPlayersTurn` (`0x0049B6D3`) writes `aiStep = 0` into **every** realm â€” 999 only
+   for a realm at zero strength â€” and `AI_RunTurnStep`'s (`0x0049A581`) `isHuman` test guards
+   the fourteen handlers *and the counter's increment*, **not the initialisation above them**:
+
+   ```c
+   if (g_realms[r].strength != 0) {
+       if (g_realms[r].aiStep == 0) {
+           Realm_RecountStrength(r);      /* 0x0049B42B, Score_RankRealms inside it */
+           Realm_UpdateTotals(r);         /* 0x0049D1E0 */
+           g_realms[r].offerPending = 0;
+           g_realms[r].aiStep = 1;
+       }
+       if ((g_realms[r].isHuman == 0) && (aiStep < 999)) { ...the fourteen... }
+   }
+   ```
+
+2. `Turn_Tick` (`0x0049A010`) phase 7 calls `Score_RankRealms()` a second time, after
+   `Season_Advance()`. We already had that one, as `finish_tick`'s `game.rank_realms()`.
+
+So C137's diagnosis was **half right and pointed at the wrong line**. It named
+`l2_kingdom::ai::begin_turn`'s `AI_STEP_DONE` for a human as the hole. It is not: the
+prologue is not a *step*, and `l2_game::turn::begin_phase` already ran `Game::recount_realm`
+for every realm including the human, counter or no counter. What it did **not** run is the
+prologue's second line â€” and `Realm_UpdateTotals` is the only thing in `Lords2.exe` that fills
+the six score inputs. One missing call, not a missing ladder. `l2_game::turn::step_zero` is
+now the prologue in full, and it clears `offer_pending` too: `l2_kingdom::diplomacy` set that
+flag and **nothing anywhere cleared it**, so a realm that once courted somebody was refused as
+an ally candidate for the rest of the game.
+
+**And then every realm came in exactly 50 short, once per castle.** `score_inputs[5]` is realm
+`+0x4C`, which `l2_kingdom::tables::SCORE_INPUT_OFFSETS` identifies as *castles held* â€” with
+the decompiled C for it sitting in the doc comment â€” and which **nothing in the workspace ever
+wrote**. It carries `x50`, more than the other five inputs combined, so the heaviest term of
+the score was structurally zero for every realm in every game. That is `docs/agents.md`'s *a
+correct explanation sitting directly above the omission it describes*, and the reason it
+survived is the shape that entry names: `Realm::sync_score_inputs` deliberately skips slot 5
+and said why, and the skip read as *complete* rather than as *a write owed to somebody else*.
+Its writer is `Castle_BuildTick` (`0x004508DE`), verified **exhaustively rather than by
+reading**: every instruction in the binary whose operand mentions `g_realms + 0x4C` is one of
+seven, and they are that function's clear and increment, `Game_SetupRealmsAndCounties`'
+initial clear, `Score_RankRealms` three times, and one painter.
+
+**What it moved.** `realm.rank` agrees on all four pairs now and `realm.score` on both battle
+pairs exactly; 877 of 932 fields become **885**, and the number that means something â€” the
+fields the original's own turn moved â€” goes 243 to **247 of 279**.
+
+**What is left, and it is not a scoring defect.** The siege pairs still diverge on
+`realm.strength` (9 against 10) and `realm.score` (âˆ’8). Both are one thing, measured: realm
+1's 43-man army sits at (46,41) in all three siege saves, untouched across three turns, and
+**our** turn has realm 2's 149-man army destroy it every time â€” `loser_owner: 1,
+loser_destroyed: true`. 43 men is `43 / 5 = 8`, which is the whole of the score gap. It is an
+AI army-movement or siege divergence and it is left diverging, because a differential that is
+tuned is a differential that has stopped measuring.
+
+**The netcode reading, since it changes nothing here.** Ranking *is* a deferred network action
+in the original â€” `NetCmd_WriteRankRealms` (`0x004449A0`) schedules action `0x31`, whose body
+`NetAct_RankRealms` (`0x00448422`) is `Score_RankRealms(); for (r = 1; r < 6; r++)
+Realm_UpdateTotals(r);`. That is the **same pair of calls** as the step-0 prologue, broadcast
+to every peer rather than hung off one realm's ladder, and it is also the ratings screen's
+refresh path. It confirms the pairing rather than contradicting the turn ordering: the two
+always travel together, and the one we were missing is the one that is never named on its own.

@@ -144,8 +144,8 @@
 //!
 //! | | with our End Turn | with it deleted |
 //! |---|---:|---:|
-//! | agree, all fields | 877 of 932 (94 %) | 623 of 932 (**66 %**) |
-//! | agree, fields the original moved | 243 of 279 (87 %) | **0 of 279 (0 %)** |
+//! | agree, all fields | 885 of 932 (94 %) | 623 of 932 (**66 %**) |
+//! | agree, fields the original moved | 247 of 279 (88 %) | **0 of 279 (0 %)** |
 //!
 //! **The raw percentage falls by 28 points and the moved-field percentage falls
 //! to zero.** That is the whole argument for the second column in one table: a
@@ -162,21 +162,46 @@
 //! reported rather than fixed: this is an instrument, and tuning the simulation
 //! in the same change that builds the ruler is how a ruler stops measuring.
 //!
-//! 1. **The human realm's `strength`, `score` and therefore `rank` are never
-//!    recomputed.** `realm.score` for realm 1 reads 576, 590, 1333 and 1334 in
-//!    the four after-saves and **50** in ours, every time — 50 is
-//!    `Tables::score_gold_bracket` alone, with all six weighted inputs at zero.
-//!    `Realm::sync_score_inputs` has exactly one caller,
-//!    `l2_kingdom::ai::update_realm_totals`, which is AI step 14; and
-//!    `l2_kingdom::ai::begin_turn` sets `ai_step = AI_STEP_DONE` for a human
-//!    realm, so **the human takes no AI step at all.** Step 0's
-//!    `strength = 3 * counties + 1 * armies` is lost the same way, which is the
-//!    `realm.strength` 10-against-9 row: realm 1 holds three counties (9) and
-//!    has an army in the field (+1), and we never add either. [V] for the
-//!    mechanism in our tree; **[I] for what the original does instead** — the
-//!    binary plainly keeps a human's score current and we have not found the
-//!    function that does it. Rule 5: that is a finding to report, not a licence
-//!    to invent one.
+//! 1. **The human realm's `score` and `rank` were never recomputed** — 50 in
+//!    ours against 576, 590, 1333 and 1334, every pair, 50 being
+//!    `Tables::score_gold_bracket` alone with all six weighted inputs at zero.
+//!    **Fixed, and the first entry's *"we have not found the function that does
+//!    it"* is answered.** Two call sites, both read out of `Lords2.exe`:
+//!
+//!    * `Turn_BeginPlayersTurn` (`0x0049B6D3`) writes `aiStep = 0` into **every**
+//!      realm — 999 only for one at zero strength — and `AI_RunTurnStep`'s
+//!      (`0x0049A581`) `isHuman` test guards the fourteen handlers and the
+//!      counter's increment, **not the step-0 prologue above them**. That
+//!      prologue is `Realm_RecountStrength(r); Realm_UpdateTotals(r);
+//!      offerPending = 0; aiStep = 1;` and it runs for the human. We ran only
+//!      the first of the four, and `Realm_UpdateTotals` (`0x0049D1E0`) is the
+//!      only thing in the binary that fills the score inputs.
+//!      `l2_game::turn::step_zero` is the prologue in full. [V]
+//!    * `Turn_Tick` (`0x0049A010`) phase 7 calls `Score_RankRealms()` a second
+//!      time, after `Season_Advance()`, which we already had at
+//!      `finish_tick`'s `game.rank_realms()`. [V]
+//!
+//!    With the five inputs carried, every realm came in **exactly 50 short**,
+//!    once per castle: `score_inputs[5]`, realm `+0x4C`, which
+//!    `l2_kingdom::tables::SCORE_INPUT_OFFSETS` has documented as *castles held*
+//!    — with the C for it — and which **nothing in the workspace wrote**. Its
+//!    only writer in the original is `Castle_BuildTick` (`0x004508DE`), verified
+//!    exhaustively: seven instructions in the whole binary mention
+//!    `g_realms + 0x4C` and they are that function's clear and increment, the
+//!    setup clear, `Score_RankRealms` three times, and one painter. It is the
+//!    heaviest-weighted of the six (×50, more than the other five combined), so
+//!    a documented-and-unwritten field was silently deleting most of the score.
+//!    [V] `l2_kingdom::Kingdom::castle_build_tick` writes it now.
+//!
+//!    **`realm.strength` 10-against-9 on the siege pairs is not this**, and it
+//!    survives: realm 1's 43-man army at (46,41) is intact in all three siege
+//!    saves, and **our** turn has realm 2's 149-man army destroy it
+//!    (`loser_owner: 1, loser_destroyed: true`) on every one of the three. The
+//!    original leaves the two standing adjacent for three consecutive turns. So
+//!    it is an AI army-movement or siege divergence, not a scoring one — and it
+//!    is also the whole of the residual score gap, since 43 men is `43 / 5 = 8`
+//!    and realm 1's score is short by exactly 8 in both siege pairs. [V] Left
+//!    diverging and reported, which is what this file is for.
 //! 2. **Neutral counties buy grain and ours cannot.** In `battle 4->5`,
 //!    unowned counties 1 and 3 go 71 → 121 and 57 → 103 while ours go 71 → 71
 //!    and 57 → 53. Both gain **50 sacks** over what the season ate. Phase 1
@@ -624,7 +649,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("battle 3->4", "county.unrest", 1),
     ("battle 3->4", "global.ai_lords", 1),
     ("battle 3->4", "realm.iron", 1),
-    ("battle 3->4", "realm.score", 2),
     ("battle 3->4", "realm.weapons.3", 1),
     ("battle 3->4", "realm.weapons.4", 1),
     ("battle 3->4", "realm.wood", 1),
@@ -632,7 +656,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("battle 4->5", "county.grain_available", 2),
     ("battle 4->5", "global.ai_lords", 1),
     ("battle 4->5", "realm.iron", 1),
-    ("battle 4->5", "realm.score", 2),
     ("battle 4->5", "realm.weapons.3", 1),
     ("battle 4->5", "realm.weapons.4", 1),
     ("battle 4->5", "realm.wood", 1),
@@ -643,7 +666,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 12->13", "global.ai_lords", 1),
     ("siege 12->13", "realm.gold", 2),
     ("siege 12->13", "realm.iron", 1),
-    ("siege 12->13", "realm.rank", 2),
     ("siege 12->13", "realm.score", 2),
     ("siege 12->13", "realm.strength", 1),
     ("siege 12->13", "realm.wages", 2),
@@ -656,7 +678,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 13->14", "global.ai_lords", 1),
     ("siege 13->14", "realm.gold", 2),
     ("siege 13->14", "realm.iron", 1),
-    ("siege 13->14", "realm.rank", 2),
     ("siege 13->14", "realm.score", 2),
     ("siege 13->14", "realm.strength", 1),
     ("siege 13->14", "realm.wages", 2),
@@ -677,14 +698,14 @@ const COMPARED_TOTAL: usize = 932;
 /// one**: most of a county record is inert across a season, so a field neither
 /// side touched agrees for free and this number is mostly a measure of how much
 /// of the record the import carried unchanged.
-const AGREE_TOTAL: usize = 877;
+const AGREE_TOTAL: usize = 885;
 
 /// How many comparisons are of a field **the original's own End Turn moved**.
 const MOVED_TOTAL: usize = 279;
 
 /// How many of *those* agree. This is the number that means something, and it
 /// is the one to quote.
-const MOVED_AGREE_TOTAL: usize = 243;
+const MOVED_AGREE_TOTAL: usize = 247;
 
 // --- the tests --------------------------------------------------------------
 

@@ -2128,6 +2128,14 @@
       "comment": "Zooms in centred on the last picked tile, using the same col-4 / (row & ~1)-12 centring as Map_CentreOnTile."
     },
     {
+      "addr": "0x00435211",
+      "name": "Score_RankAndRefreshAll",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Score_RankAndRefreshAll(void)",
+      "comment": "Score_RankRealms() then Realm_UpdateTotals(r) for r in 1..5 - the whole standings recount for every realm at once. [V] Two callers: NetAct_RankRealms (0x00448422), the deferred action opcode 0x3B schedules, which calls it and then sets g_redrawRequest = 2; and one UI path. It is the same PAIR of calls as AI_RunTurnStep's step-0 prologue, which is the evidence that the two always travel together: nothing in the binary ranks without first rebuilding the totals the score reads."
+    },
+    {
       "addr": "0x00435673",
       "name": "Ale_PreviewGain",
       "section": "kingdom",
@@ -5291,7 +5299,7 @@
       "name": "Castle_BuildTick",
       "section": "kingdom",
       "confidence": "verified",
-      "comment": "Season pass 3.4, over every county. castleDegraded == 0 just refreshes the estimate; otherwise, for an owned county: Castle_DeliverMaterials, then percent = 100 - Pct(workLeft, workTotal), and if Castle_MaterialsPercent > 99 spend min(labour[3], workLeft) off +0x1CC and recompute - clamping the percentage to 99 whenever work remains, so rounding can never finish a castle. Above 99 it zeroes +0x1E4..+0x1F1, raises Castle_RaiseFreeGarrison into Army_GarrisonApply unless castleDegraded == 2 or castleBuilding >= castleType, sends message 0xA3 (variant 1 for a repair, L2.eng 163/7), clears castleDegraded and switches the castle job share off. It does NOT promote castleType - Castle_Order already did. Ends with Castle_StampTile(county, castleType - 1) and Castle_BuildEstimate."
+      "comment": "Season pass 3.4, over every county. castleDegraded == 0 just refreshes the estimate; otherwise, for an owned county: Castle_DeliverMaterials, then percent = 100 - Pct(workLeft, workTotal), and if Castle_MaterialsPercent > 99 spend min(labour[3], workLeft) off +0x1CC and recompute - clamping the percentage to 99 whenever work remains, so rounding can never finish a castle. Above 99 it zeroes +0x1E4..+0x1F1, raises Castle_RaiseFreeGarrison into Army_GarrisonApply unless castleDegraded == 2 or castleBuilding >= castleType, sends message 0xA3 (variant 1 for a repair, L2.eng 163/7), clears castleDegraded and switches the castle job share off. It does NOT promote castleType - Castle_Order already did. Ends with Castle_StampTile(county, castleType - 1) and Castle_BuildEstimate. [V] It also owns realm +0x4C and +0x4D, and is their only writer: a first loop clears both for realms 1..5 (not realm 0), then each county increments the owner's +0x4C when castleType != 0 and castleDegraded == 0, and the owner's +0x4D otherwise. +0x4C is the sixth score input, weighted x50 - more than the other five combined. Verified exhaustively: the whole binary holds seven instructions whose operand mentions g_realms + 0x4C, and they are the clear at 0x0045090E, the increment at 0x00450CB1, Game_SetupRealmsAndCounties at 0x0049C14C, Score_RankRealms three times and one painter. The count is taken BEFORE the season's work, so the season a castle tops out it still counts as building."
     },
     {
       "addr": "0x00450CCD",
@@ -8212,7 +8220,7 @@
       "name": "Score_RankRealms",
       "section": "kingdom",
       "confidence": "verified",
-      "comment": "Recomputes each realm's score at +0x50 from counties, population, castles, armies and treasury, bubble-sorts realms 1..5 into the ranking table at 0x00565410 and writes the rank back to realm +0x2B."
+      "comment": "Recomputes each realm's score at +0x50 from counties, population, castles, armies and treasury, bubble-sorts realms 1..5 into the ranking table at 0x00565410 and writes the rank back to realm +0x2B. [V] The six weighted inputs are +0x60 x10, +0x10 /10, +0x0C x2, +0x58 x2, +0x54 /5 and +0x4C x50, plus a gold bracket paying 50 over 2,000 (the 100 and 200 arms are unreachable - docs/decisions.md C33). Realm_UpdateTotals writes the first five and Castle_BuildTick writes +0x4C, the finished-castle count; this function writes none of them and only reads."
     },
     {
       "addr": "0x0049B2A3",
@@ -8291,6 +8299,14 @@
       "confidence": "verified",
       "signature": "void Realm_Eliminate(uint realm)",
       "comment": "Removes a realm from the game: every county it holds goes to County_MakeIndependent, every army it has is destroyed, strength and shieldIndex are zeroed and its connection slot is cleared. [V] It picks its message on whether the realm still had anything - 3 per county plus 1 per army - and the two L2.eng groups say which case is which: 224 \"Defeat!\" for a realm that had nothing left, 258 \"This player has left the game. All their lands are forfeit\" for one that still did."
+    },
+    {
+      "addr": "0x0049D1E0",
+      "name": "Realm_UpdateTotals",
+      "section": "kingdom",
+      "confidence": "verified",
+      "signature": "void Realm_UpdateTotals(uint realm)",
+      "comment": "Rebuilds the realm-wide totals every other pass reads: +0x29 countyCount, +0x10 populationTotal (with +0x18 snapshotting the previous value first), +0x14 populationMean, +0x60 shareOfMapPct = PctOf(countyCount, g_countyCount), +0x0C meanHappiness, +0x58 meanHealth, then +0x2C armyCount and +0x54 totalMen over g_units slots 1..150 of type 1. Every division is guarded on countyCount != 0. [V] It is FIVE of the six score inputs and the ONLY thing in the binary that writes them - the sixth, +0x4C, belongs to Castle_BuildTick. Four callers: AI_RunTurnStep twice (step 0's prologue, which runs for EVERY realm including the human, and step 14, which does not), County_ChangeOwner, and FUN_00435211 - the Score_RankRealms + per-realm refresh that NetAct_RankRealms executes. Missing the step-0 call is why a human player's score stayed at score_gold_bracket alone; docs/decisions.md CNEW-step-zero."
     },
     {
       "addr": "0x0049D638",
