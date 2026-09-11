@@ -664,19 +664,22 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 /// this field today*. Fix a rule and this goes red; break one and it goes red
 /// the same way. The failure message prints the replacement block, so updating
 /// it is a one-line diff that puts the change in the history.
+///
+/// **Moved up by C161, from the numbers the test printed.** Eleven
+/// divergences went away and none arrived: iron, wood and the weapons counters
+/// on the battle pairs and both siege pairs, `realm.weapons.0` on both siege
+/// pairs, and battle 3->4's `county.unrest`. Those are the fields a season
+/// computes from the industry ramp, the running totals and the weapon type,
+/// and from the unrest warning latch — all of which a loaded game used to start
+/// at `County::new()`'s values. Which import removed which divergence was not
+/// ablated one at a time; the attribution is inferred from what each pass reads.
 #[rustfmt::skip]
 const BASELINE: &[(&str, &str, usize)] = &[
-    ("battle 3->4", "county.unrest", 1),
     ("battle 3->4", "global.ai_lords", 1),
     ("battle 3->4", "realm.iron", 1),
-    ("battle 3->4", "realm.weapons.3", 1),
     ("battle 3->4", "realm.weapons.4", 1),
     ("battle 3->4", "realm.wood", 1),
     ("battle 4->5", "global.ai_lords", 1),
-    ("battle 4->5", "realm.iron", 1),
-    ("battle 4->5", "realm.weapons.3", 1),
-    ("battle 4->5", "realm.weapons.4", 1),
-    ("battle 4->5", "realm.wood", 1),
     ("siege 12->13", "county.births", 1),
     ("siege 12->13", "county.deaths", 1),
     ("siege 12->13", "county.pop_band", 1),
@@ -687,7 +690,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 12->13", "realm.score", 2),
     ("siege 12->13", "realm.strength", 1),
     ("siege 12->13", "realm.wages", 2),
-    ("siege 12->13", "realm.weapons.0", 1),
     ("siege 12->13", "realm.weapons.1", 1),
     ("siege 12->13", "realm.wood", 1),
     ("siege 13->14", "county.births", 1),
@@ -695,14 +697,10 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 13->14", "county.population", 1),
     ("siege 13->14", "global.ai_lords", 1),
     ("siege 13->14", "realm.gold", 2),
-    ("siege 13->14", "realm.iron", 1),
     ("siege 13->14", "realm.score", 2),
     ("siege 13->14", "realm.strength", 1),
     ("siege 13->14", "realm.wages", 2),
-    ("siege 13->14", "realm.weapons.0", 1),
     ("siege 13->14", "realm.weapons.1", 1),
-    ("siege 13->14", "realm.weapons.4", 1),
-    ("siege 13->14", "realm.wood", 1),
 ];
 
 /// How many field comparisons the four pairs make between them, stated
@@ -716,14 +714,14 @@ const COMPARED_TOTAL: usize = 932;
 /// one**: most of a county record is inert across a season, so a field neither
 /// side touched agrees for free and this number is mostly a measure of how much
 /// of the record the import carried unchanged.
-const AGREE_TOTAL: usize = 889;
+const AGREE_TOTAL: usize = 900;
 
 /// How many comparisons are of a field **the original's own End Turn moved**.
 const MOVED_TOTAL: usize = 279;
 
 /// How many of *those* agree. This is the number that means something, and it
 /// is the one to quote.
-const MOVED_AGREE_TOTAL: usize = 251;
+const MOVED_AGREE_TOTAL: usize = 258;
 
 // --- the tests --------------------------------------------------------------
 

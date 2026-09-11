@@ -8182,3 +8182,98 @@ to hide tips from a machine rooted on the campaign.
 Counts: arms, two frame arms `reproduced` (`0x00476AA7/tip-screen-ladder`,
 `0x00476E21/tip-restores-its-screen`); sound triggers **51 → 53 of 143**; files
 **560 → 595 of 771** — forty by name, thirty-five that can sound.
+
+---
+
+**C161 — "a stored field our importer drops" is now a red test,
+and the inventory that makes it one found 153 of 241 undecided.**
+
+C142 and C153 were one defect found twice by a player, with the
+farm-row forecasts measured as the third. Each field was stored by `Lords2.exe`,
+modelled by `l2_kingdom`, carried by our own save format, drawn by our painter —
+and never read out of a `.sav`. C142 named why the existing defence could not see
+them: **the exhaustive destructure guards `CountyState`, and a field never added
+to `CountyState` is not in the list it enumerates.** So the fix is not a fourth
+field. It is a denominator that belongs to the original.
+
+**The inventory.** `docs/stored-fields.json`, one row per field of the county and
+realm records: `imported`, `derived`, or `excluded` with a one-line `why`, and no
+fourth status. Its rows come from three places, and each is checked:
+
+* **The original's side** — `node tools/oracle/fields.js`, new, reads every
+  `g_counties[i].x`, `.field_0xNNN`, `i * 0x300 + 0x53fXXX` and absolute `DAT_`
+  access in the decompilation, and the same four shapes for `g_realms`, and lists
+  each offset with the functions that write and read it. **318 accessed offsets,
+  221 county and 97 realm**, plus three member names typed over the wrong array
+  that it reports and does not count. `--check` fails on an offset no row covers
+  and on a row no instruction touches.
+* **The layout** — every field `docs/records.json` names must have a row of that
+  name, width and array shape (146 fields once the nested arrays expand).
+* **The saves** — `crates/l2-scenario/tests/stored_fields.rs` holds every
+  `imported` and `derived` row to the file's own value after `Scenario::kingdom`,
+  in every county and realm of every save on the machine: **30,600 values over
+  18 saves, and all agree.** That is the check that cannot be typed into
+  agreement, and it is the one that would have caught all three instances.
+
+**Before and after, in rows.** At `d2344f3`: **76 imported, 10 derived, 2 excluded
+with a reason** (C142's county `+0x16` and realm `+0x28`, left open in prose), and
+**153 decided by nothing**. After: **167 imported, 10 derived, 64 excluded, 0
+undecided.** Two of the 153 were worse than dropped — the importer set
+`happinessAvg` and `happinessSum` to this season's happiness, which is right on turn
+one and wrong on every later turn (`siege-aftersie.sav` county 2 draws 95 where the
+original draws 54).
+
+**What a player could see, now carried.** The three farm rows' forecasts (county
+`+0x258`/`+0x268`/`+0x26C`, `+0x22C`/`+0x230`/`+0x2FC`, `+0x20C`/`+0x214`); the
+happiness panel's average, army, ale and other-counties terms; the population
+panel's *Army* line and emigrant destination; the ration panel's troop counts
+(`+0x198`, `+0x19C` — 178 and 360 on the battle saves, 0 on load); the weapon the
+blacksmith row draws (`+0x290`); the industry ramp (`+0x294` — **80 in every owned
+county of every save, and a loaded game ran its mines at `Industry::new()`'s 20 and
+15**); the levy surcharge; the castle build record and siege scars; the standing
+crop; and on the realm, the ally byte the diplomacy screen draws, the score
+screen's totals and the AI's standing orders.
+
+**Self-verifying invariants, all `[V]` across every save** and each asserted in
+`crates/l2-scenario/tests/import.rs`:
+
+* `+0x258 == +0x268 − +0x26C − herdEaten` — one relation pinning three offsets.
+* `+0x22C` is `Grain_LabourEstimate`'s tail. **Corpus limit, stated:** `+0x230`
+  and `crop[2]` are zero in every county of every save, so the sowing and harvest
+  arms are checked only at zero, and whether the tail's `season` is this season or
+  the next cannot be told here. Five counties carry a non-zero change.
+* `happinessAvg == (i8)(happinessSum / g_turnCount)`.
+* `+0x5B` is non-zero exactly where `+0x2C ≥ 6`.
+* `+0x21` is set only below happiness 30 — which identifies it as
+  `Unrest_UpdateAll`'s warning latch, the flag `County::unrest_warned` said had no
+  known offset.
+
+**And what a green run did not measure.** 58 of the 177 claimed rows are zero in
+every save — no castle under construction, no crop in the ground, no random event,
+no alliance anywhere in the corpus — so for those the value check compared an
+offset only with zero, and a wrong offset landing on another zero passes. The test
+prints them by name every run rather than letting *30,600 agree* imply more.
+
+**Excluded, and a player can see it: features, not imports.** Nine rows are drawn by
+a painter in the original and have no field in `l2_kingdom` to carry them into:
+`Panel_Ration`'s three requirement figures (`+0x16C`), `Panel_JobGrain`'s `+0x24C`
+and `+0x278`, `Panel_JobCattle`'s `+0x270` pair, `Panel_JobIndustry`'s four
+(`+0x280`), `Castle_BuildEstimate`'s `+0x1A6`, `Court_Draw`'s realm `+0x15C`, and
+`Army_PickName`'s counters at realm `+0x2D`. **`+0x1AD`, the mercenary offer, is
+excluded for a different reason and it is a finding:** it is a cache of
+`g_mercenaryBands`, which no importer reads at all, so carrying the byte alone would
+mark a band nobody can hire. A loaded game has no mercenary bands.
+
+**Three things the tool found about our own documents.** `docs/records.json` typed
+the three event swing bytes `u8`; `Event_RollAll` writes `0xD8` and `0xE2`, −40 and
+−30, and they are now `i8`. The decompiled corpus still prints the pre-C153
+`Industry` layout, so `fields.js` detects which layout a corpus was decompiled under
+(only the new one names `nextSeason`) — without that, the county's `weaponType` byte,
+read as `*(byte *)g_counties[x].industry`, resolved onto `efficiency` and +0x290 looked
+untouched. And the first `--check` reported all 320 offsets uncovered because the rows
+carry a `type` and the scanner read a `width` — the tool's own first bug, caught by its
+own implausible number.
+
+**Not moved into `l2-formats`.** The brief allowed it; the check does not need it,
+because it decodes raw offsets itself, so `l2_formats::save::{County, Realm}` are
+unchanged and the new reads sit in `l2-scenario` beside the ones C142 and C149 added.
