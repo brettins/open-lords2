@@ -81,6 +81,127 @@ fn every_ai_realm_finishes_its_turn_and_the_human_realm_never_starts_one() {
     }
 }
 
+/// **`AI_RunTurnStep`'s step-0 prologue runs for the human too**, so the human's
+/// score inputs are rebuilt on the human's own turn.
+///
+/// `Turn_BeginPlayersTurn` (`0x0049B6D3`) zeroes every realm's counter and
+/// `AI_RunTurnStep`'s (`0x0049A581`) `isHuman` test guards the fourteen handlers
+/// and the increment, not the prologue above them:
+/// `Realm_RecountStrength(r); Realm_UpdateTotals(r); offerPending = 0;`.
+///
+/// `Realm_UpdateTotals` (`0x0049D1E0`) is the **only** thing in the binary that
+/// fills the score inputs, and its other caller here is AI step 14, which a human
+/// realm never reaches. Before `l2_game::turn::step_zero` ran the whole prologue,
+/// a human's six inputs stayed at zero for the life of the game and
+/// `Score_RankRealms` scored the person on `score_gold_bracket` alone — a flat
+/// **50** against the original's 576, 590, 1333 and 1334 across the four pairs of
+/// `tests/differential.rs`, with the rank inverted out of the same hole.
+///
+/// **Ablation** — delete the `update_totals(&mut game.kingdom, realm)` line from
+/// `turn::step_zero` and this goes red on the first assertion: every input drops
+/// to zero and the score falls back to the bracket.
+#[test]
+fn the_human_realms_score_inputs_are_rebuilt_on_the_humans_own_turn() {
+    let mut g = five_realms();
+    assert_eq!(g.kingdom.realms[1].score_inputs, [0; 6], "nothing has scored yet");
+    assert!(g.kingdom.realms[1].is_human);
+
+    turn::end_turn(&mut g).unwrap();
+
+    let r = &g.kingdom.realms[1];
+    // The five `Realm_UpdateTotals` writes, each against the named field it is
+    // copied from rather than against a number chosen by watching the test pass.
+    assert_eq!(r.county_count, 1, "the human holds county 1");
+    assert_eq!(r.score_inputs[0], r.share_of_map_pct, "+0x60, one county of fourteen");
+    assert_eq!(r.score_inputs[1], r.population_total, "+0x10");
+    assert_eq!(r.score_inputs[2], r.mean_happiness, "+0x0C");
+    assert_eq!(r.score_inputs[3], r.mean_health, "+0x58");
+    assert_eq!(r.score_inputs[4], r.total_men, "+0x54");
+    assert_ne!(r.share_of_map_pct, 0, "a realm holding a county holds some of the map");
+    assert_ne!(r.population_total, 0, "and some people");
+
+    // And the whole point: the score is no longer the gold bracket by itself.
+    let bracket = Tables::DEFAULT.score_gold_bracket(r.gold);
+    assert!(
+        r.score > bracket,
+        "the human scored {} where the gold bracket alone pays {bracket} - the five weighted \
+         inputs are still not reaching Score_RankRealms",
+        r.score
+    );
+    assert_eq!(r.score, r.compute_score(&Tables::DEFAULT), "and it is that expression");
+}
+
+/// The prologue's third line, `g_realms[r].offerPending = 0` (realm `+0x1C`).
+///
+/// **Nothing in this workspace cleared it.** `l2_kingdom::diplomacy` sets it when
+/// an AI puts an alliance to a person and `pick_ally_candidate` refuses a realm
+/// that carries it, so before `turn::step_zero` a realm that had once made an
+/// offer was refused as a candidate for the rest of the game.
+///
+/// **Ablation** — delete the `offer_pending = false` line from `turn::step_zero`.
+#[test]
+fn a_realms_outstanding_alliance_offer_is_cleared_at_the_top_of_its_own_turn() {
+    let mut g = five_realms();
+    g.kingdom.realms[2].offer_pending = true;
+    g.kingdom.realms[1].offer_pending = true;
+    turn::end_turn(&mut g).unwrap();
+    assert!(!g.kingdom.realms[2].offer_pending, "the AI's offer was never cleared");
+    assert!(!g.kingdom.realms[1].offer_pending, "nor the human's - the prologue is not gated");
+}
+
+/// **Realm `+0x4C` is the castle count, and it is the sixth score input.**
+///
+/// `Castle_BuildTick` (`0x004508DE`) is its only writer — clears realms 1..=5 and
+/// increments the owner's for each county with `castleType != 0` and
+/// `castleDegraded == 0`. Verified exhaustively rather than by reading: every
+/// instruction in `Lords2.exe` whose operand mentions `g_realms + 0x4C` is one of
+/// seven, and they are that clear, that increment,
+/// `Game_SetupRealmsAndCounties`' initial clear, `Score_RankRealms` three times
+/// and one painter.
+///
+/// It carries `x50` — more weight than the other five inputs combined — and
+/// `l2_kingdom::tables::SCORE_INPUT_OFFSETS` has said so, with the C for it, for
+/// longer than anything has written the field.
+///
+/// **Two ablations, and they fail differently on purpose.** Delete the increment
+/// in `Kingdom::castle_build_tick` and the first assertion goes red. Delete the
+/// *clear* above it and only the second does, because a count that is only ever
+/// added to is right the first season and wrong every season after.
+#[test]
+fn a_realms_finished_castles_are_counted_every_season_and_not_accumulated() {
+    let mut g = five_realms();
+    // Two finished castles and one county mid-build, all the human's.
+    g.kingdom.counties[6].owner = 1;
+    g.kingdom.counties[7].owner = 1;
+    g.kingdom.counties[1].castle_type = 1;
+    g.kingdom.counties[6].castle_type = 2;
+    g.kingdom.counties[7].castle_type = 3;
+    g.kingdom.counties[7].castle_degraded = 1;
+    g.kingdom.counties[7].castle_work_left = 100_000;
+    g.kingdom.counties[7].castle_work_total = 100_000;
+
+    turn::end_turn(&mut g).unwrap();
+    assert_eq!(
+        g.kingdom.realms[1].score_inputs[l2_kingdom::tables::SCORE_INPUT_CASTLES],
+        2,
+        "two finished castles; county 7 is still building and belongs to +0x4D"
+    );
+
+    // Idempotence, which is the stronger assertion: a second season must land on
+    // the same number, and does so only if the pass clears before it counts.
+    turn::end_turn(&mut g).unwrap();
+    assert_eq!(
+        g.kingdom.realms[1].score_inputs[l2_kingdom::tables::SCORE_INPUT_CASTLES],
+        2,
+        "the count is rebuilt each season, not accumulated"
+    );
+    assert_eq!(
+        g.kingdom.realms[2].score_inputs[l2_kingdom::tables::SCORE_INPUT_CASTLES],
+        0,
+        "realm 2 has no castle"
+    );
+}
+
 /// `docs/kingdom.md` §3.1: phase 1 sets the *unowned* counties' tax rates on
 /// the neutral ladder, which `AI_SetTaxRates(0)` reads out of a chain of
 /// comparisons — `< 20 -> 0`, `< 40 -> 1`, `< 50 -> 2`, `< 60 -> 3`,

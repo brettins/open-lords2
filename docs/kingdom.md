@@ -233,15 +233,16 @@ this array's `+0x05` without naming the array.
 | `+0x04` | u8 | **strength** | [V] | **not a flag.** `3 × ownedCounties + 1 × armies`, rebuilt by AI step 0; the realm is eliminated when it is zero, and every other site only tests it against zero. §8.3. |
 | `+0x05` | u8 | **isHuman** | [V] | when set, the AI turn machine is skipped entirely. This is the same byte `battle.md` §6.2 could not explain the meaning of; it means "a person is driving this realm". |
 | `+0x07` | u8 | **lord** | [V] | 0 for the human and **1 … 4 for the four AI lords — the Knight, the Baron, the Countess and the Bishop**, which is `L2.eng` group 7 exactly; **6 when eliminated**. Indexes `g_aiPersonality` (four records) and `g_aiGoldGrant` (five rows, row 0 being the human). **This is not the realm index**: setup draws the lord from `g_lordChoice` and the realm's colour from `+0x0A` separately. [`diplomacy.md`](diplomacy.md) §0. |
-| `+0x0C` | i32 | meanHappiness | [V] | mean over the realm's counties, rebuilt by AI step 14. Score input ×2. |
-| `+0x10` `+0x14` `+0x18` | i32 | population total, mean, previous total | [V] | rebuilt by AI step 14. `+0x10` is a score input ÷10. |
+| `+0x0C` | i32 | meanHappiness | [V] | mean over the realm's counties, rebuilt by `Realm_UpdateTotals`, which is AI step **0 and** step 14 - step 0 runs for every realm, the human included. Score input ×2. |
+| `+0x10` `+0x14` `+0x18` | i32 | population total, mean, previous total | [V] | rebuilt by `Realm_UpdateTotals`, which is AI step **0 and** step 14 - step 0 runs for every realm, the human included. `+0x10` is a score input ÷10. |
 | `+0x28` | i8 | taxHapEmpire | [V] | sum of every owned county's `+0x16`; added to every county's tax happiness term. **A signed byte summed over up to 16 counties — it can overflow.** |
-| `+0x29` | u8 | countyCount | [V] | owned counties, rebuilt by AI step 14. Selects between the two AI gold-grant tables **and** the goods-grant tier. §8.2. |
+| `+0x29` | u8 | countyCount | [V] | owned counties, rebuilt by `Realm_UpdateTotals`, which is AI step **0 and** step 14 - step 0 runs for every realm, the human included. Selects between the two AI gold-grant tables **and** the goods-grant tier. §8.2. |
 | `+0x2B` | u8 | rank | [V] | 1 … 5 from `Score_RankRealms`. |
-| `+0x2C` | u8 | armyCount | [V] | rebuilt by AI step 14. |
-| `+0x4C` | i32 | — | — | the sixth score input, **unidentified**, and the heaviest weighted. §8.3. |
+| `+0x2C` | u8 | armyCount | [V] | rebuilt by `Realm_UpdateTotals`, which is AI step **0 and** step 14 - step 0 runs for every realm, the human included. |
+| `+0x4C` | u8 | castleCount | [V] | the realm's counties holding a **finished** castle, rebuilt by `Castle_BuildTick` every season. The sixth score input and the heaviest weighted, ×50. §8.3. |
+| `+0x4D` | u8 | castlesBuilding | [V] | its twin, from the same loop: counties with `castleDegraded != 0`. The AI's castle-concurrency limit. §8.2. |
 | `+0x50` | i32 | score | [V] | recomputed every turn. §8.3. |
-| `+0x54` | i32 | totalMen | [V] | over the realm's armies, rebuilt by AI step 14. Score input ÷5. |
+| `+0x54` | i32 | totalMen | [V] | over the realm's armies, rebuilt by `Realm_UpdateTotals`, which is AI step **0 and** step 14 - step 0 runs for every realm, the human included. Score input ÷5. |
 | `+0x58` | i32 | meanHealth | [V] | mean health meter over the realm's counties. Score input ×2. |
 | `+0x60` | i32 | shareOfMapPct | [V] | `PctOf(ownedCounties, g_countyCount)`. Score input ×10 — the heaviest identified term. |
 | `+0xFC` | i32 | wages | [V] | this season's army bill. §7.4. |
@@ -1972,22 +1973,31 @@ first and last entries of the sorted table that were not struck out for being el
 `g_opponentsRemaining` (`0x0056D5D8`), the number of in-play realms that are not the local
 player. Those three are the victory condition — see §8.4.
 
-**Five of the six contributing fields are identified**, from `FUN_0049D1E0`, the AI turn's
-fourteenth step, which recomputes exactly these once a turn:
+**All six contributing fields are identified.** Five come from `Realm_UpdateTotals`
+(`FUN_0049D1E0`), which recomputes exactly these; the sixth has a different owner, and that
+difference is the whole reason it went unwritten for so long:
 
-| offset | weight | what step 14 writes there |
-|---|---|---|
-| `+0x60` | ×10 | `PctOf(ownedCounties, g_countyCount)` — the **share of the map**, 0 … 100 |
-| `+0x10` | ÷10 | total population over the realm's counties |
-| `+0x0C` | ×2 | mean happiness over the realm's counties |
-| `+0x58` | ×2 | mean health meter over the realm's counties |
-| `+0x54` | ÷5 | total men over the realm's armies |
-| `+0x4C` | ×50 | **still unidentified** |
+| offset | weight | written by | what it holds |
+|---|---|---|---|
+| `+0x60` | ×10 | `Realm_UpdateTotals` | `PctOf(ownedCounties, g_countyCount)` — the **share of the map**, 0 … 100 |
+| `+0x10` | ÷10 | `Realm_UpdateTotals` | total population over the realm's counties |
+| `+0x0C` | ×2 | `Realm_UpdateTotals` | mean happiness over the realm's counties |
+| `+0x58` | ×2 | `Realm_UpdateTotals` | mean health meter over the realm's counties |
+| `+0x54` | ÷5 | `Realm_UpdateTotals` | total men over the realm's armies |
+| `+0x4C` | ×50 | **`Castle_BuildTick`** | the realm's counties holding a **finished** castle |
 
-**[V]** on the five. The score reads, in order of weight, as *territory, then people, then
-how well they are doing, then the army*. `+0x4C` carries the heaviest weight of the six and
-is not written by that pass; it is left unnamed rather than guessed at (`decisions.md` C3).
-The same step also writes `+0x14` (mean population per county), `+0x18` (last turn's
+**[V]** on all six. `+0x4C` was verified exhaustively rather than by reading: every
+instruction in `Lords2.exe` whose operand mentions `g_realms + 0x4C` is one of **seven**, and
+they are `Castle_BuildTick`'s clear (`0x0045090E`) and increment (`0x00450CB1`),
+`Game_SetupRealmsAndCounties`' initial clear (`0x0049C14C`), `Score_RankRealms` three times,
+and one painter. The count is taken *before* the season's work, so the season a castle tops
+out it is still counted as building and does not score its 50 until the next one.
+
+The score reads, in order of weight, as **castles above everything else**, then territory,
+then people, then how well they are doing, then the army — `+0x4C` carries more than the
+other five combined, which is a real statement about what this game thinks winning is.
+
+`Realm_UpdateTotals` also writes `+0x14` (mean population per county), `+0x18` (last turn's
 total), `+0x29` (the county count the grant tiers turn on) and `+0x2C` (the army count),
 and every division is guarded on the county count being non-zero.
 
@@ -2318,8 +2328,9 @@ Each of those is now written out in the section it belongs to.
   would be and what is there fits no pattern. **[I]**, and now held by the oracle: it reads
   those six ints and expects `17, 0, 5000, 1, 1, 1`, so if the reading is ever wrong the
   check is where it shows.
-* **The sixth score input**, realm `+0x4C` (§8.3), which carries the heaviest weight of the
-  six and is not written by the pass that writes the other five.
+* ~~**The sixth score input**, realm `+0x4C`.~~ **Closed.** It is the realm's **finished
+  castle count**, and the reason it looked like a seventh mystery is that it is written by
+  `Castle_BuildTick` (`0x004508DE`) rather than by the pass that writes the other five. §8.3.
 * **The two denominators the weapons `resourceLimit` divides by** — `0x0057C904` and
   `0x0056D628`, written by `FUN_0044F15B` (§7.4).
 * **The second column of `g_castleWorkforce`** (§7.5). Both columns hold the same number in

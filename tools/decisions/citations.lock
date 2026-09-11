@@ -210,7 +210,6 @@ crates/l2-kingdom/src/phase.rs	C134	37e077970852	d12cd2f96f79
 crates/l2-kingdom/src/phase.rs	C35	234e7ea17154	193a1920e229
 crates/l2-kingdom/src/population.rs	C20	11223ff82fe2	0ec8eeb4f874
 crates/l2-kingdom/src/ration.rs	C3	316be8511779	35bf3a86555f
-crates/l2-kingdom/src/realm.rs	C3	806d5d4cf93c	35bf3a86555f
 crates/l2-kingdom/src/save.rs	C123	763bc3ea2e6d	3a5cc2fec37d
 crates/l2-kingdom/src/save.rs	C134	8c3c2ccdc448	d12cd2f96f79
 crates/l2-kingdom/src/save.rs	C136	78341762a0c9	724c11b1e475
@@ -317,6 +316,7 @@ crates/l2-testkit/tests/encoding.rs	C65	5ad0593919a3	6a3e10c23ada
 crates/l2-testkit/tests/encoding.rs	C65	6485e961d057	6a3e10c23ada
 crates/l2-testkit/tests/encoding.rs	C65	8f3915e3cbfa	6a3e10c23ada
 crates/l2-testkit/tests/encoding.rs	C65	d4a0d532e933	6a3e10c23ada
+crates/l2-testkit/tests/mojibake.rs	C146	ffa8f44828ac	97ed604f7efd
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	0139b3d61739	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	158971b86058	ebb6a7ec3711
 crates/l2-testkit/tests/quirks_catalogue.rs	C62	6e16796702fc	ebb6a7ec3711
@@ -443,6 +443,7 @@ docs/decisions.md	C116	c507a4e50138	1c49feddd496
 docs/decisions.md	C118	7cc36ed680a5	cd0e7b0adc57
 docs/decisions.md	C118	c29564560940	cd0e7b0adc57
 docs/decisions.md	C119	122e4ab11ef5	306c4c740506
+docs/decisions.md	C119	9ebd8ae75e0d	306c4c740506
 docs/decisions.md	C119	a513b578b18d	306c4c740506
 docs/decisions.md	C119	b878d200974c	306c4c740506
 docs/decisions.md	C12	2fd0874b7e4b	bb0dd488f9d2
@@ -475,6 +476,9 @@ docs/decisions.md	C133	d0f6772c2a0f	91fcca97cc98
 docs/decisions.md	C133	d1b998eebb52	91fcca97cc98
 docs/decisions.md	C133	edf25f8ff042	91fcca97cc98
 docs/decisions.md	C137	08301a5d821f	eaaf586c5da0
+docs/decisions.md	C137	1a60c980d49c	eaaf586c5da0
+docs/decisions.md	C137	26bac2a2aa3b	eaaf586c5da0
+docs/decisions.md	C138	fed28cd17a8f	7724e6665b90
 docs/decisions.md	C14	19873f4c7f74	687f69afd1c6
 docs/decisions.md	C14	9228b35094b8	687f69afd1c6
 docs/decisions.md	C14	c38454e0c7d3	687f69afd1c6
@@ -664,7 +668,6 @@ docs/kingdom.md	C12	ea411ce7f8a2	bb0dd488f9d2
 docs/kingdom.md	C142	95890825b7a9	d13324698105
 docs/kingdom.md	C16	b5ee9c5eb7a2	2e6270fa32a9
 docs/kingdom.md	C29	2c4e4b24a052	405b63debb8e
-docs/kingdom.md	C3	840abeb8509b	35bf3a86555f
 docs/kingdom.md	C3	95fbb7f03470	35bf3a86555f
 docs/kingdom.md	C33	b9ec6f2c7beb	564cc48dd837
 docs/kingdom.md	C34	940ba0c98a5a	be3b535841d7
@@ -791,6 +794,7 @@ docs/symbols.json	C130	3a2ba51373ac	055c6c022450
 docs/symbols.json	C130	9be57797da98	055c6c022450
 docs/symbols.json	C140	94aa6083fb83	e3a1ede42a95
 docs/symbols.json	C140	f2ff304436de	e3a1ede42a95
+docs/symbols.json	C146	bc00d8997585	97ed604f7efd
 docs/symbols.json	C20	01f6f924103e	0ec8eeb4f874
 docs/symbols.json	C20	7ddb8e5c217a	0ec8eeb4f874
 docs/symbols.json	C22	936f7d5bda76	0364b53a921d
@@ -802,6 +806,7 @@ docs/symbols.json	C25	fb17ea799a4b	5d466f0cb89c
 docs/symbols.json	C29	ccf1e9716f8e	405b63debb8e
 docs/symbols.json	C30	f0d7b84c3c9e	50fdf5e17ba0
 docs/symbols.json	C31	89d00424c627	1d151b02cb56
+docs/symbols.json	C33	fabd06554d8b	564cc48dd837
 docs/symbols.json	C34	1d2ee3676454	be3b535841d7
 docs/symbols.json	C49	7626b709d45a	4ce32e6c42e0
 docs/symbols.json	C51	8a9048b61f48	01a74fef0862
@@ -859,6 +864,7 @@ docs/symbols.md	C130	14ddbe8d366a	055c6c022450
 docs/symbols.md	C130	74cfc64ea960	055c6c022450
 docs/symbols.md	C140	248d028a0864	e3a1ede42a95
 docs/symbols.md	C140	f2ff304436de	e3a1ede42a95
+docs/symbols.md	C146	9483c54bec4b	97ed604f7efd
 docs/symbols.md	C20	d50fe7b21adc	0ec8eeb4f874
 docs/symbols.md	C20	f78855d335cd	0ec8eeb4f874
 docs/symbols.md	C22	76e2e999ec4b	0364b53a921d
@@ -872,6 +878,7 @@ docs/symbols.md	C3	5ea09ce2b14d	35bf3a86555f
 docs/symbols.md	C3	d1cc366232e8	35bf3a86555f
 docs/symbols.md	C30	045b912580de	50fdf5e17ba0
 docs/symbols.md	C31	6f4208f93455	1d151b02cb56
+docs/symbols.md	C33	fabd06554d8b	564cc48dd837
 docs/symbols.md	C34	1d2ee3676454	be3b535841d7
 docs/symbols.md	C49	797eb3ccc5a7	4ce32e6c42e0
 docs/symbols.md	C51	0786b01a4165	01a74fef0862
