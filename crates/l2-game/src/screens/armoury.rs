@@ -896,9 +896,11 @@ pub fn page(ctx: &Ctx, canvas: &mut Canvas, buttons: bool) {
             let name = TroopType::from_index(slot).map_or("", |t| t.name());
             text::draw(canvas, sx, sy + 40, &name.to_uppercase(), ink.dim);
         }
-        // `Ui_DrawNumber(v, '@', &DAT_004D403C, x, y, &g_fontBody, 0x3F)` —
-        // the game's own body font, not our 5 × 7 one.
-        pen.number(canvas, nx, ny, basket.slots[slot].chosen + extra, true, font::TEXT);
+        // `Armoury_DrawRacks`: `Ui_DrawNumber(v, '@', &DAT_004D403C, x, y,
+        // &g_fontBody, 0x3F)` (and `&DAT_004D4040` on the other arm) — both
+        // suffixes a NUL, read out of the image. **[V]**
+        let v = basket.slots[slot].chosen + extra;
+        pen.number_in(shell::Face::Body, canvas, nx, ny, v, '@', "", font::TEXT);
     }
 
     // The three labels, in their own hundred-pixel column.

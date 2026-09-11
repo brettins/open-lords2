@@ -116,9 +116,9 @@ pub const GLYPH_MAP_BASE: u8 = 0x20;
 /// **The measure disagrees with the draw.** `FUN_004014F0` (`0x004014F0`)
 /// charges 4 for `0x20` alone and **nothing** for any other empty entry, so a
 /// string holding `'@'` draws four pixels wider than it measures. [`Font::width`]
-/// charges 4 for both. That is only visible under centring, and no centred draw
-/// in this crate passes `'@'` — established by searching the call sites, not by
-/// a test. `docs/decisions.md` C155.
+/// used to charge 4 for both; it now charges what the measure charges. That is
+/// only visible under centring, and no centred draw in this crate passes `'@'`
+/// today. `docs/decisions.md` C155.
 pub const SPACE_ADVANCE: i32 = 4;
 
 /// The two shadow colours `Ui_DrawText` embosses with, on every screen but two.
@@ -202,6 +202,12 @@ impl Style {
     }
 }
 
+/// Whether `c` has an entry in [`GLYPH_MAP`] at all, zero or not.
+fn in_table(c: char) -> bool {
+    let code = c as u32;
+    code >= GLYPH_MAP_BASE as u32 && ((code - GLYPH_MAP_BASE as u32) as usize) < GLYPH_MAP.len()
+}
+
 /// One of the original's fonts.
 pub struct Font {
     sheet: Sheet,
@@ -216,6 +222,25 @@ pub const BODY: &str = "Fntl2_14.pl8";
 pub const HEADING: &str = "Fntl2_22.pl8";
 /// `Fntl2_9.pl8`, used by the county strip and nothing else.
 pub const SMALL: &str = "Fntl2_9.pl8";
+/// **`Fnt_8.pl8` — `g_font8` (`0x005CBFB0`), the fourth face.** **[V]**
+///
+/// `Res_LoadStatic` (`0x00499859`) walks thirteen `{char name[16]; u32 size}`
+/// records at `g_preloadTable` (`0x004D9F48`) and hands record `n` to
+/// `File_ReadChunk` with a buffer chosen by `n`; record **3**, at `0x004D9F84`,
+/// is `"fnt_8.pl8"` with a size of 5,200, and `n == 3` selects `&g_font8`
+/// (`mov [ebp-4], 0x005CBFB0` at `0x004998ED`). Records 4…7 are `SMALL`,
+/// `Font_10.pl8`, `BODY` and `HEADING` in that order.
+///
+/// **No screen of ours draws with it, and that is the finding rather than a
+/// gap.** All 86 references to `0x005CBFB0` in `.text` were enumerated from
+/// the bytes: one is that loader line and the other 85 are inside six
+/// functions — `Net_DrawDebugOverlay` (`0x00423BA4`), `BattleDebug_Panel`
+/// (`0x00424992`), `FUN_00425314`, `FUN_00425487`, `FUN_0042563C` and
+/// `FUN_00425799` — every one a developer read-out (`" divergances"`,
+/// `" Dchk"`, `"FIGURE"`, `"GROUP"`, `" p1 rank"`). It is loaded so that the
+/// face exists when one of those is reproduced, and so the complaint about a
+/// broken install names every file the original preloads.
+pub const EIGHT: &str = "Fnt_8.pl8";
 
 impl Font {
     pub fn new(bytes: Vec<u8>, line: i32) -> Result<Font, String> {
@@ -249,15 +274,25 @@ impl Font {
         self.sheet.frame(entry as usize - 1)
     }
 
-    /// How wide a string draws. `FUN_004014F0`: four for a space, else the
-    /// glyph's frame width plus one, and **no trailing space** — the four
-    /// pixels `Ui_DrawText` adds go into `g_penAdvance`, not into the measure
-    /// that centring uses.
+    /// How wide a string **measures** — `FUN_004014F0`, which is what
+    /// centring uses, and not what drawing advances. **[V]**
+    ///
+    /// Four for a space, the glyph's frame width plus one for a glyph, and
+    /// **nothing for any other character whose table entry is zero** — `'@'`
+    /// above all, the blank sign column. [`Font::draw`] advances four over
+    /// `'@'` (`Ui_DrawText`, `0x00402637`) and this charges it nothing, so the
+    /// two disagree by four per `'@'` exactly as the original's pair does. No
+    /// trailing space either: the four pixels `Ui_DrawText` adds at the end go
+    /// into `g_penAdvance`, not into the measure.
+    ///
+    /// A character past the end of the 128-byte table is not something either
+    /// function was read for; it keeps the four it always had here.
     pub fn width(&self, s: &str) -> i32 {
         s.chars()
             .map(|c| match self.glyph(c) {
                 Some(f) => f.width as i32 + 1,
-                None => SPACE_ADVANCE,
+                None if c == ' ' || !in_table(c) => SPACE_ADVANCE,
+                None => 0,
             })
             .sum()
     }

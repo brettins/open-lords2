@@ -840,9 +840,9 @@ records at `g_preloadTable` (`0x004D9F48`), each into a fixed `.data` buffer. Th
 | # | file | buffer | what it is |
 |---:|---|---|---|
 | 0–2 | `base01.256`, `t32_stn1.256`, `t32_bat1.256` | | palettes |
-| 3 | `Fnt_8.pl8` | `0x005CBFB0` | 8 px font, the battle overlay |
-| 4 | `Fntl2_9.pl8` | `0x005C9A90` | **9 px font — the county strip, and only that** |
-| 5 | `Font_10.pl8` | `0x005AEBA0` | 10 px font |
+| 3 | `Fnt_8.pl8` | `0x005CBFB0` | 8 px font — **developer read-outs only**: all 85 non-loader `.text` references are in `Net_DrawDebugOverlay`, `BattleDebug_Panel` and `FUN_00425314`/`…487`/`…63C`/`…799`. No screen a player sees. **[V]**, from the bytes |
+| 4 | `Fntl2_9.pl8` | `0x005C9A90` | **9 px font — the county strip**, and one `Ui_DrawCentred` in `Screen_DrawEndTurn`. Nine `.text` references: six in `CountyStrip_Draw`, two in `CountyStrip_DrawCastleIcon`, one there. **[V]** |
+| 5 | `Font_10.pl8` | `0x005AEBA0` | 10 px font — **the county strip's produce rows**: nine references in `FUN_004100AF` … `FUN_004106C4` and `CountyStrip_DrawCastleIcon`. **Not loaded by this workspace**; `screens::county` draws those rows in `Fntl2_9.pl8` and says so. **[V]** |
 | 6 | `Fntl2_14.pl8` | `0x005AF8F0` | **14 px font — every panel body line** |
 | 7 | `Fntl2_22.pl8` | `0x005B2FA0` | **22 px font — every panel heading** |
 | 8 | `mouse.pl8` | `0x0058FEC0` | the pointer |

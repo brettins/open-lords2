@@ -7699,6 +7699,9 @@ were all fixed by `c06b13b`; all four render correctly at `5338fe7` and were
 looked at. `build_id.rs` exists to make that checkable from a screenshot — read
 the stamp off the report before writing the brief.
 
+**Superseded by C157, below:** *"Our `Pen::number` is unchanged"* was true when written.
+The method is now deleted, and each of its 25 sites has been read against its original.
+
 ---
 
 **C156 — The click is two sites, not four.**
@@ -7791,3 +7794,157 @@ the 530 has not been re-audited against what actually posts.
 Two smaller corrections from the same reading: the chain was said to be *"why
 `S010_13.wav` exists"*, and that clip is `g_msgVoiceS010`'s; and the lord sting's
 table at `0x004E2470` holds four clips and a sentinel, not five lords.
+
+---
+
+**C157 — The original preloads five faces, and the fourth draws nothing a player sees.**
+
+**`g_font8` is `Fnt_8.pl8`, and every use of it in the binary is a developer
+read-out.** So no draw of ours was switched to it. **[V]**, from the bytes.
+
+* **The loader.** `Res_LoadStatic` (`0x00499859`) hands record `n` of
+  `g_preloadTable` (`0x004D9F48`, twenty-byte `{name[16]; size}`) to
+  `File_ReadChunk`. Record 3, at `0x004D9F84`, is `"fnt_8.pl8"` with a size of 5,200.
+  The arm that selects `&g_font8` for `n == 3` is `C7 45 FC B0 BF 5C 00`,
+  `mov [ebp-4], 0x005CBFB0`, at `0x004998ED`.
+  `tests/shell.rs::the_preload_table_names_every_face_and_record_3_is_g_font8`
+  asserts both.
+* **The uses.** `.text` holds 86 four-byte references to `0x005CBFB0`. One is
+  that loader line. The other 85 are all `push` operands, inside six functions:
+  `Net_DrawDebugOverlay` (`0x00423BA4`), `BattleDebug_Panel` (`0x00424992`),
+  `FUN_00425314`, `FUN_00425487`, `FUN_0042563C` and `FUN_00425799`. Their
+  captions are `" divergances"`, `" Dchk"`, `"FIGURE"`, `"GROUP"` and
+  `" p1 rank"`. The decompilation agrees: 85 lines in `00420000.c`, one in
+  `00490000.c`. `symbols.json`'s *"the battle overlay"* is half of it; the
+  network overlay is the other half.
+* **Loaded anyway.** `ShellAssets::eight` and `shell::Face::Eight` exist, and
+  `missing_fonts` names `Fnt_8.pl8`. The one-baseline test runs over it, and it
+  holds (all 150 frames have `0x0D == 0`, so the test's overhang-split half does
+  not apply).
+
+### The brief said four faces. The preload table has five.
+
+Records 3…7 are `fnt_8`, `fntl2_9`, `font_10`, `fntl2_14`, `fntl2_22`.
+**`Font_10.pl8` (`g_font10`, `0x005AEBA0`) is still not loaded**, and unlike
+`g_font8` a player sees it. Its nine `.text` references are
+`FUN_004100AF`, `FUN_0041023A`, `FUN_004103C5` (two), `FUN_00410502`,
+`FUN_00410598`, `FUN_0041062E`, `FUN_004106C4` and
+`CountyStrip_DrawCastleIcon`: the county strip's produce rows and castle cell.
+`screens::county::strip_delta` draws them in `Fntl2_9.pl8` and says so.
+
+It was not loaded here for a measured reason. Pointing `font::EIGHT` at
+`Font_10.pl8` made the baseline test panic: a lowercase letter drew nothing
+through `GLYPH_MAP`. The file is 3,342 bytes, and `pl8.md` counts 7 of its
+frames as declaring rows. **[I]** It is not an alphabet under the shared table,
+so loading it starts with reading `Glyph_Draw` against that file.
+
+`g_fontSmall`'s nine references include one outside the strip:
+`Screen_DrawEndTurn`'s `Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall,
+0x16)`. So `symbols.json`'s *"the county strip, and nothing else"* is wrong by
+one. It is not edited here, and `docs/screens-county.md` §4 now carries all three
+rows with their reference counts.
+
+### `Ui_DrawNumber`'s 21 unexplained call sites are unreachable code **[V]**
+
+There are 211 `CALL 0x00402F64` in the shipped exe and 190 parsed calls in the
+corpus. The 21 missing calls come in two groups.
+
+* **10 are in `Diplo_DrawLordCard`, past where Ghidra ends it.** Ghidra's body
+  stops at `0x004175F2`. The code at `0x004175ED…0x00417896` follows an
+  unconditional `jmp 0x00417896` at `0x004175E8`, which is the function's own
+  epilogue.
+  * Every call has lead `' '`, `&g_fontBody` and colour `0x20`.
+  * Suffixes: `"t"`, `"p"`, `"m"`, `"r"`, `"s"`, `"a"`, `"o"`, `" ranked"`,
+    `" strength"`, `" ally"`.
+* **11 are in `Screen_DrawMenuBar` (`0x00419C78`), in three blocks.** The
+  entry path skips all three: `jmp 0x00419D88` → `jmp 0x00419E22` →
+  `jmp 0x00419ED4`.
+  * Every call has lead `' '`, `&g_fontBody` and colour `0x3F`, at y 1 to `0x22`.
+  * Suffixes: `" b phys"`, `" free"`, `" b page"`, `" free"`, `" mb virt"`,
+    `" mb free"`, `" time"`, `" crc"`, `"end"`, `"test"`, `"max players"`.
+
+No `rel32`, `jcc32` or `rel8` branch anywhere in `.text` targets `0x004175ED`,
+`0x00419C86`, `0x00419D8D` or `0x00419E27`. No absolute copy of any of those
+four addresses exists anywhere in the file. So the corpus's 190 is the whole
+live population, and the decompiler was right to leave the 21 out.
+
+### `Pen::number`'s 25 sites, each read — and the method deleted **[V]**
+
+Every suffix pointer was resolved to its bytes in the image.
+
+| site | original | lead, suffix | what was wrong → what moved |
+|---|---|---|---|
+| `armoury.rs` rack count | `Armoury_DrawRacks` | `'@'`, `""` | no lead: digits +4 |
+| `army.rs` population, levy | `Screen_RaiseArmy` | `'@'`, `""` ×2 | digits +4 |
+| `army.rs` happiness | 〃 | `'@'`, `""` | digits +4; **face icon unchanged** |
+| `army.rs` price, wages | 〃 | `'@'`, `""` ×2 | digits +4; **both nouns unchanged** |
+| `army.rs` weapon total | 〃 | `'@'`, `""` | digits +4; **noun unchanged** |
+| `castle.rs` stone, wood | `Screen_CastleBuildPanel` | `'@'`, `""` ×2 | digits +4 |
+| `castle.rs` garrison | 〃 | `'@'`, `" "` | digits +4 **and** *"troops."* +4 |
+| `divide.rs` rows, band, parent total | `Screen_SplitArmyRows` | `'@'`, `""` ×5 | digits +4 |
+| `message.rs` room | `Msg_DrawWindow` | `'@'`, `" "` | digits +4 **and** noun +4 |
+| `message.rs` men | 〃 | `'@'`, `" "` | digits +4 |
+| `merchant.rs` stock | `Trade_DrawPanel` | `'@'`, `""` | digits +4; **icon unchanged** |
+| `merchant.rs` quantity | 〃 | `'@'`, `""` | digits +4 |
+| `army.rs` rack stock | `Screen_RaiseArmy` | `' '`, `" "` | already right |
+| `map.rs` year | `Ui_DrawYear` style 3 | `' '`, `" "` | already right |
+| `supplies.rs` ×2 | `FUN_0041AEA2` | `' '`, `" "` | already right |
+| `ratings.rs` score | `Screen_BattleMasterRatings` | `' '`, `" "` | **face**: heading, not body |
+| `info.rs` formed | `Ui_DrawYear` style **0** | `' '`, `" "` | **missing 26/1 *"AD"*** (rule 6) |
+
+**Counts: 21 fixed, 4 already right, and none of the 25 unexplained.** The
+fixes are 19 leads, 1 face and 1 era.
+
+**The pattern that hid it:** wherever the suffix is empty and text follows, the
+lost `'@'` and the invented `" "` cancel at the text. So the words sat right and
+only the digits were four pixels off. The two sites whose suffix really is
+`" "` moved their words too.
+
+`Pen::year` reproduces `Ui_DrawYear`'s four styles; all eight of its suffixes are
+one space. `Pen::number` is gone. A choice the original does not offer cannot be
+made correctly.
+
+**Found on the same screens while reading them, and fixed**, because they are
+the same defect built by hand:
+
+* `army.rs`'s band count was `"{men} "` in the heading face. It is `'@'`, `""`.
+* `siege.rs`'s engine percentage was `"{p}%"`, and its comment said no `Pen`
+  could carry the lead. It is `'@'`, `"%"`.
+* `divide.rs`'s daughter total was **two identical `text::draw_right` calls in
+  our 5 × 7 font**, in highlight ink. It is `'@'`, `""` in body.
+* `battle.rs`'s roster:
+  * The rows were `n.to_string()` with no lead. `FUN_004224E7` passes `' '`,
+    `" "`, so both columns move +4.
+  * The `"(was)"` column was drawn in `font::DISABLED`, where the original passes
+    `0x3F`.
+  * The nouns are no longer upper-cased.
+
+**`Font::width` charges `'@'` nothing** now, as `FUN_004014F0` does.
+
+The draw audit's `OURS` map loses `number` and gains `number_in`, `count_in`,
+`count_with_noun`, `text_in` and `year`. The old `number` key had also been
+counting `page.number()` in `setup.rs` and `index.rs`, which draw nothing.
+`draws-ours` goes 418 → 411.
+
+### Tests, each ablated
+
+| test | ablation | red with |
+|---|---|---|
+| `chrome_text::the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right` | old `"{cap} "` | digits at 12, expected 16 |
+| 〃 | suffix `" "` → `""` | noun at 51, expected 55 |
+| `chrome_text::the_mercenary_price_line_moves_its_numbers_and_not_its_nouns` | old `"{price} "` | price at 112, expected 116 |
+| 〃 | suffix `""` → `" "` | *"crowns to hire."* at 164, expected 160 |
+| `chrome_text::the_unit_panel_says_the_year_an_army_was_formed_in_ad` | style 0 → 3 | *"AD"* not found |
+| `chrome_text::the_battle_master_score_is_in_the_heading_face` | `Face::Body` | not found in heading |
+| `shell::the_measure_charges_the_blank_sign_column_nothing_and_the_draw_charges_four` | `None => SPACE_ADVANCE` | 43, expected 39 |
+| `shell::the_preload_table_names_every_face_and_record_3_is_g_font8` | `EIGHT = "Font_10.pl8"` | record 3 is `fnt_8.pl8` |
+
+**Not tested on a canvas, and changed by reading alone:** `message.rs`,
+`divide.rs`, `merchant.rs`, `siege.rs`, `supplies.rs`, `armoury.rs` and
+`battle.rs`'s roster. The roster needs a pending battle report, and none of the
+fixture-gated suites builds one with fonts loaded.
+
+**Stale prose deliberately not edited:**
+
+* `docs/plan.md:135` still describes `Pen::number`.
+* `symbols.json`'s `g_font8` and `g_fontSmall` comments are incomplete, as above.

@@ -132,8 +132,9 @@ measures, so all five columns sat two pixels left.
 **What is still open from it** is the count rather than the placement: six `Ui_DrawNumberRight`
 sites have no draw of ours (the besieger's siege-seasons mark, the turn timer, the battle HUD's
 two men counters, and two on a skirmish panel), and `Ui_DrawNumber`'s **191** call sites have
-had their *lead* swept (C127) and not their *suffix* — `Pen::number` still builds a trailing
-space for every caller. That is the next pass of the same shape.
+had their *lead* swept (C127). The *suffix* pass followed for `Pen::number`: C157 read all 25
+of its sites against their call sites and deleted the method, which had built a trailing space
+for every caller.
 
 ### What is recorded and what is not
 
@@ -172,7 +173,7 @@ the goal is not met — not "mostly met".
 
    **The other <!--fig:draws-screens-->51<!--/fig--> screens** make
    <!--fig:draws-original-->1,012<!--/fig--> draw calls and we make
-   <!--fig:draws-ours-->409<!--/fig-->: <!--fig:draws-pct-->40<!--/fig-->%.
+   <!--fig:draws-ours-->411<!--/fig-->: <!--fig:draws-pct-->41<!--/fig-->%.
    <!--fig:draws-missing-->56<!--/fig--> things the original draws are enumerated as missing,
    and **<!--fig:draws-inventions-->38<!--/fig--> things we draw that it does not** — the
    figure that answers row 2 for pictures rather than gestures, and the one nobody had.
@@ -188,9 +189,9 @@ the goal is not met — not "mostly met".
    them?"*, *"the title screen is illegible"* — **none of which is an arm.**
 
    **And the half a call count cannot see.** Of our marks on those 51 screens,
-   <!--fig:draws-real-->434<!--/fig--> go through the game's own artwork and
-   <!--fig:draws-placeholder-->74<!--/fig--> are our 5 × 7 debug font and our own rectangles
-   — <!--fig:draws-real-pct-->85<!--/fig-->% real — with
+   <!--fig:draws-real-->436<!--/fig--> go through the game's own artwork and
+   <!--fig:draws-placeholder-->72<!--/fig--> are our 5 × 7 debug font and our own rectangles
+   — <!--fig:draws-real-pct-->86<!--/fig-->% real — with
    <!--fig:draws-literals-->20<!--/fig--> English captions written in our own source where the
    original fetches an `L2.eng` string. Six modules drew **nothing at all** through the game's
    fonts or artwork. **A screen can reproduce every draw call and still be entirely
@@ -935,7 +936,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,223<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,229<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

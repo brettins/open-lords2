@@ -1583,8 +1583,8 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x005C9260` | `g_sliderMax` | verified | Upper bound; the up arrow does nothing at or above it. |
 | `0x005C9278` | `g_sliderPrevScreen` | verified | The screen the slider dialog returns to. |
 | `0x005C927C` | `g_sliderMin` | verified | Lower bound; the down arrow does nothing at or below it. |
-| `0x005C9A90` | `g_fontSmall` | verified | Fntl2_9.pl8 - the county strip, and nothing else. |
-| `0x005CBFB0` | `g_font8` | verified | Fnt_8.pl8 - the battle overlay. |
+| `0x005C9A90` | `g_fontSmall` | verified | Fntl2_9.pl8 - the county strip, and one use outside it: Screen_DrawEndTurn's Ui_DrawCentred. docs/decisions.md C157. |
+| `0x005CBFB0` | `g_font8` | verified | Fnt_8.pl8, preload record 3 of Res_LoadStatic. Every use is a developer read-out - BattleDebug_Panel and Net_DrawDebugOverlay among six - and nothing a player sees draws in it. docs/decisions.md C157. |
 | `0x005CD404` | `g_penAdvance` | verified | Width of the text drawn since the last reset, in pixels. Every panel zeroes it, draws a label, and adds it to the x of the value - which is how a label and its value are laid out without either knowing the other's width. |
 | `0x005CD410` | `g_sliderValue` | verified | Pointer to the int the slider dialog is editing. |
 

@@ -13926,14 +13926,14 @@
       "name": "g_fontSmall",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Fntl2_9.pl8 - the county strip, and nothing else."
+      "comment": "Fntl2_9.pl8 - the county strip, and one use outside it: Screen_DrawEndTurn's Ui_DrawCentred. docs/decisions.md C157."
     },
     {
       "addr": "0x005CBFB0",
       "name": "g_font8",
       "section": "ui",
       "confidence": "verified",
-      "comment": "Fnt_8.pl8 - the battle overlay."
+      "comment": "Fnt_8.pl8, preload record 3 of Res_LoadStatic. Every use is a developer read-out - BattleDebug_Panel and Net_DrawDebugOverlay among six - and nothing a player sees draws in it. docs/decisions.md C157."
     },
     {
       "addr": "0x005CD400",

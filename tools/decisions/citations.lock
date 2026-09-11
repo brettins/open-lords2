@@ -88,7 +88,7 @@ crates/l2-game/src/screens/map.rs	C61	20e7a22dc8b9	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	389149e668fc	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	4ec0e911ae60	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	56e0155cb915	60611046b40d
-crates/l2-game/src/screens/map.rs	C61	dff9cc319bb0	60611046b40d
+crates/l2-game/src/screens/map.rs	C61	e23b83e06409	60611046b40d
 crates/l2-game/src/screens/message.rs	C126	9a44222a16e1	1b2c97c7731a
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
@@ -110,10 +110,10 @@ crates/l2-game/src/screens/village.rs	C22	81b65db0836a	0364b53a921d
 crates/l2-game/src/screens/village.rs	C76	cddc3e0e2856	53e207ae069e
 crates/l2-game/src/setup.rs	C21	1a85f7a2d857	f7bf296341ff
 crates/l2-game/src/setup.rs	C62	a935365ea2c1	ebb6a7ec3711
-crates/l2-game/src/shell/font.rs	C155	41ab7151f457	03caee7e7f69
-crates/l2-game/src/shell/mod.rs	C127	10bdaf3bab25	537ace9eca06
+crates/l2-game/src/shell/font.rs	C155	b2daf0637f13	03caee7e7f69
 crates/l2-game/src/shell/mod.rs	C140	ac3b5990aa16	e3a1ede42a95
 crates/l2-game/src/shell/mod.rs	C155	c841635f22d7	03caee7e7f69
+crates/l2-game/src/shell/mod.rs	C155	d741267a7948	03caee7e7f69
 crates/l2-game/src/shell/mod.rs	C61	4852635e7bff	60611046b40d
 crates/l2-game/src/shell/mod.rs	C61	bf7c15012e16	60611046b40d
 crates/l2-game/src/turn.rs	C115	42714a7de34c	085c9b771281
@@ -538,6 +538,7 @@ docs/decisions.md	C140	911585df7be9	e3a1ede42a95
 docs/decisions.md	C142	0ff030d3046f	d13324698105
 docs/decisions.md	C142	82f683a0d3e1	d13324698105
 docs/decisions.md	C15	e567688e5a9b	2a3830f6d22a
+docs/decisions.md	C157	a35667c0ef98	c5258d1ad957
 docs/decisions.md	C16	78633c7375ce	2e6270fa32a9
 docs/decisions.md	C16	97dfcbde7cc9	2e6270fa32a9
 docs/decisions.md	C16	f21ffbab1965	2e6270fa32a9
@@ -690,6 +691,7 @@ docs/decisions.md	C68	5ae933e2d6e4	31b47bd04305
 docs/decisions.md	C68	9851f67b9928	31b47bd04305
 docs/decisions.md	C68	b9a8c332de66	31b47bd04305
 docs/decisions.md	C7	3c72ce757143	dbcb4cc95939
+docs/decisions.md	C7	5c32cd8501ef	dbcb4cc95939
 docs/decisions.md	C71	1db7f31a4fc0	3d674af30522
 docs/decisions.md	C8	490a0a7ca7d4	bf400476a6df
 docs/decisions.md	C8	553fa7149d4e	bf400476a6df
@@ -864,6 +866,8 @@ docs/symbols.json	C130	9be57797da98	055c6c022450
 docs/symbols.json	C140	94aa6083fb83	e3a1ede42a95
 docs/symbols.json	C140	f2ff304436de	e3a1ede42a95
 docs/symbols.json	C146	bc00d8997585	97ed604f7efd
+docs/symbols.json	C157	53019147b729	c5258d1ad957
+docs/symbols.json	C157	9a9483baa5fc	c5258d1ad957
 docs/symbols.json	C20	01f6f924103e	0ec8eeb4f874
 docs/symbols.json	C20	7ddb8e5c217a	0ec8eeb4f874
 docs/symbols.json	C22	936f7d5bda76	0364b53a921d
@@ -934,6 +938,8 @@ docs/symbols.md	C130	74cfc64ea960	055c6c022450
 docs/symbols.md	C140	248d028a0864	e3a1ede42a95
 docs/symbols.md	C140	f2ff304436de	e3a1ede42a95
 docs/symbols.md	C146	9483c54bec4b	97ed604f7efd
+docs/symbols.md	C157	497ef1b3ce17	c5258d1ad957
+docs/symbols.md	C157	ecbecf998653	c5258d1ad957
 docs/symbols.md	C20	d50fe7b21adc	0ec8eeb4f874
 docs/symbols.md	C20	f78855d335cd	0ec8eeb4f874
 docs/symbols.md	C22	76e2e999ec4b	0364b53a921d

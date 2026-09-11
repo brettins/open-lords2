@@ -207,7 +207,7 @@ use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Pen};
+use crate::shell::{font, Face, Pen};
 
 /// `L2.eng` group 37.
 pub const GROUP: usize = 37;
@@ -238,8 +238,8 @@ pub const NAME_AT: (i32, i32) = (0xD8, 10);
 /// against the name's own `g_penAdvance + 0xD8`, so the score starts **20
 /// pixels past** where *"Scored"* ended and five pixels higher.
 ///
-/// It is the one figure on this screen in the **heading** font, which
-/// [`Pen::number`] cannot ask for; ours is body.
+/// It is the one figure on this screen in the **heading** font. Ours was body,
+/// through a `Pen::number` that could not ask for any other face.
 pub const SCORE_DX: i32 = 0xEC - 0xD8;
 pub const SCORE_DY: i32 = 5;
 /// The label column, and the three row offsets from the block's top.
@@ -480,12 +480,17 @@ impl Screen for RatingsScreen {
             // loaded put *"Scored"* and the score off the right of the block.
             let x = pen.body(canvas, NAME_AT.0, top + NAME_AT.1, &name, font::TEXT);
             let x = pen.eng(canvas, GROUP, SCORED, x, top + NAME_AT.1, font::TEXT);
-            pen.number(
+            // `Ui_DrawNumber(score, ' ', &DAT_004D43B4 | &DAT_004D43C4, …,
+            // &g_fontHeading, 0x3F)`, one space each. The lead and suffix were
+            // already right; the **face** was not. **[V]**
+            pen.number_in(
+                Face::Heading,
                 canvas,
                 x + SCORE_DX,
                 top + NAME_AT.1 - SCORE_DY,
                 points,
-                false,
+                ' ',
+                " ",
                 font::TEXT,
             );
 

@@ -861,7 +861,11 @@ impl Screen for InfoScreen {
                 }
                 if u.kind == UnitKind::Army && u.owner == ctx.game.player {
                     let w = pen.eng(canvas, UNIT_GROUP, FORMED, HEADING_X, l.y(0xA0), font::TEXT);
-                    pen.number(canvas, w, l.y(0xA0), u.year_formed, false, font::TEXT);
+                    // `Ui_DrawYear(yearFormed, g_penAdvance + 0x28, …, 0)` —
+                    // **style 0, which appends `L2.eng` 26/1 "AD"**. We drew the
+                    // bare number, which is style 3's, and the word the file
+                    // holds for this line was missing. `CLAUDE.md` rule 6.
+                    pen.year(canvas, w, l.y(0xA0), u.year_formed, 0, font::TEXT);
                     let w = pen.eng(canvas, UNIT_GROUP, WAGES, 0xF8, l.y(0xA0), font::TEXT);
                     pen.count(canvas, w, l.y(0xA0), u.wages, 0, font::TEXT);
                     if u.garrison_county == 0 {

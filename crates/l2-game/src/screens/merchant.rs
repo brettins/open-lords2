@@ -984,7 +984,11 @@ impl Screen for TradeScreen {
             // `Ui_DrawNumber(-DAT_0053E9E4, …)` and `DAT_0053E9E4` is **minus**
             // what the seller holds, so this prints the stock. `floor` is the
             // same number with the same sign as the original's.
-            x = caps.number(canvas, x, HAVE_AT.1, -floor, true, font::TEXT);
+            // `'@'` and `&DAT_004D3F80`, a NUL: the digits sat four left, and
+            // the icon at `g_penAdvance + 0x58` landed right by the same
+            // cancellation as everywhere else. **[V]**
+            let body = shell::Face::Body;
+            x = caps.number_in(body, canvas, x, HAVE_AT.1, -floor, '@', "", font::TEXT);
             // `Sprite_WGenSprite(STALL[good].icon, g_penAdvance + 0x58, 0xAA)`
             // — the good's own picture, **six pixels above the text baseline**,
             // then a flat `g_penAdvance += 0x24` regardless of its width.
@@ -1015,8 +1019,10 @@ impl Screen for TradeScreen {
             };
             pen.eng(canvas, GROUP, ask, x, ASK_AT.1, colour);
             // `Ui_DrawNumber(|qty|, '@', "", 0x60, 0xE0)` — **the number alone.**
-            // The good's name is not repeated here; ours used to add it.
-            pen.number(canvas, QTY_AT.0, QTY_AT.1, self.qty.abs(), true, font::TEXT);
+            // The good's name is not repeated here; ours used to add it. The
+            // two suffixes are `&DAT_004D3F84` / `…88`, both NUL. **[V]**
+            let (qx, qy) = QTY_AT;
+            pen.number_in(shell::Face::Body, canvas, qx, qy, self.qty.abs(), '@', "", font::TEXT);
             // 68/1 "We receive" when selling, 68/8 "Total cost of" when buying,
             // then `Ui_DrawCount(g_tradeCrowns, 0, …)` — "N Crowns."
             let idx = if self.qty < 1 { WE_RECEIVE } else { TOTAL_COST_OF };
