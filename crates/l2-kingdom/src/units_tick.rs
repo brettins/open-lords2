@@ -396,22 +396,6 @@ impl Kingdom {
 
         if step.moved {
             out.stepped += 1;
-            // **The last tile's sight.** The original's walker does not stop
-            // on the commit that empties the path: it crosses into the last
-            // tile, reaches its centre, reveals round it at the top of
-            // `Unit_Step`'s loop, and only then finds `field_0x1c == 0` and
-            // writes `moving = 0`. [`movement::step`] writes `moving = false`
-            // on the commit itself, so the reveal above never runs on the
-            // destination — and an army would stop one column short of the
-            // square the original gives it. The tiles seen are the original's;
-            // the tick they are seen on is the commit's, which is the tick this
-            // crate already calls the arrival.
-            if let Some(u) = self.campaign.units.get(id) {
-                if u.kind == crate::UnitKind::Army && !u.moving {
-                    let (owner, x, y) = (u.owner, u.x as i32, u.y as i32);
-                    self.campaign.explored.reveal_square(owner, x, y, crate::explore::ARMY_SIGHT);
-                }
-            }
         }
         if let Some(o) = step.offence {
             // `Unit_CrossField` (`0x0046673C`) and `Unit_BurnDwelling`
@@ -1050,14 +1034,25 @@ mod tests {
         // enough asserts nothing about *when* the wait drops, and the count is
         // what rots the next time the pacing moves. 5 → 8 is three road tiles
         // — the first on the tick the order is walked, eight for each of the
-        // two after it.
+        // two after it — **and then eight more to cross the last one.**
+        //
+        // **This was 17, and 17 was the tick the last tile was *entered*.**
+        // `Unit_Step` (`0x00465D28`) does not stop a unit on the commit that
+        // empties its path: the commit returns 1, `moving` stays 2, the unit
+        // crosses into the tile over the next eight admissions, and only at
+        // that tile's edge does the latched arm find `field_0x1c == 0` and
+        // write `moving = 0`. Ours stopped it on the commit, which left every
+        // finished march parked at `+0x149 = 1` — one whole tile back from
+        // where it stood, the moment the walk tables drew it. Typed, not
+        // computed: 1 + 8 + 8 + 8.
         let mut ticks = 0usize;
         while k.units_moving(UnitKind::Army) && ticks < 500 {
             k.tick_units();
             ticks += 1;
         }
         assert!(!k.units_moving(UnitKind::Army));
-        assert_eq!(ticks, 17, "the wait drops on the tick the march ends, not later");
+        assert_eq!(ticks, 25, "the wait drops on the tick the last tile is crossed, not the tick it is entered");
+        assert_eq!(k.campaign.units.get(id).unwrap().sub_tile, 0, "and the army stands at rest, not a tile back");
         assert_eq!(k.campaign.units.get(id).unwrap().tile(), (8, 10));
     }
 
