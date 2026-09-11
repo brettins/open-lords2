@@ -216,6 +216,20 @@ rather than hidden: nothing below the renderer may read a clock (`docs/netcode.m
   original does not have one either — it has one *hit-tester* that happens to own the
   visible buttons.
 
+  **This paragraph was right and `docs/audio-triggers.md` was not.** That file corrected
+  it to *"four sites behind three hit-testers"*; the other two sites are the arrows of a
+  slider widget nothing instantiates (`docs/bugs.md` `D39`). Reproduced
+  now, in `Press::press` and `Press::press_delayed` — the kinds 4 and 5, the press only —
+  and carried to the audio layer by `Screen::take_clicks` → `Machine::clicks` →
+  `Director::hear_the_click`. `tests/click.rs` asserts the silent cases.
+
+  **And the double click, which the click's own guard names**: of the eight screens that
+  own a `Press`, **only the battlefield and the county panel answer
+  `Event::DoubleClick`** — the county panel since `tests/click.rs` caught it. The other
+  six (battle prompt, diplomacy, divide, info, message, supplies) drop it, so a fast
+  second press on their spinners steps once where the original steps twice. Counted
+  here rather than fixed there.
+
 ## 6. What we reproduce, by kind
 
 The honest denominator. The arm count in `CLAUDE.md` counts **arms**; this counts

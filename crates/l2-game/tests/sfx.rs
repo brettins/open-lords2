@@ -274,30 +274,48 @@ fn every_record_carries_the_verdict_it_claims() {
     }
 }
 
-/// **No trigger is dead, and that is asserted rather than assumed.**
+/// **The triggers that are dead in the shipped game, by name.**
 ///
-/// The task this inventory answers offered three verdicts and *"dead in the
-/// original"* was one of them. All 134 sites were classified and **none of them
-/// took it**: every trigger in the table is on a path the shipped game can
-/// reach, and the unreachable audio in `Lords2.exe` is on the other side of the
-/// question — `Ff_win.wav` ships and **no call site names it**
-/// (`audio::names`), which is a file with no trigger rather than a trigger with
-/// no path.
+/// This asserted the `dead` list **empty** — *"a category that quietly acquires
+/// members stops being a finding and becomes a bucket; the first entry should
+/// cost a decision"* — and that was right. These three are that decision, and
+/// each one is on `docs/bugs.md`'s dead-code list with its evidence:
 ///
-/// So this is asserted empty, the way `docs/arms.json`'s `dead-reproduced` is
-/// and for the same reason: a category that quietly acquires members stops
-/// being a finding and becomes a bucket. The first entry should cost a
-/// decision.
+/// | id | why it cannot run | bugs.md |
+/// |---|---|---|
+/// | `FUN_0040d6ad#1`, `FUN_0040d7b8#1` | the two arrows of a slider widget whose hit-tester `FUN_0040D3F5` has **no caller**: zero rel32 calls, zero jumps and zero absolute references in the image, against 36 rel32 callers for `Widget_Test` as the control | `D39` |
+/// | `Battle_PauseButton#1` | guarded on a word that alternates between 0 and −1; the only writer that could make it 1, `FUN_00434E68`, has no reference either | D38 |
+///
+/// **The third was already on the bug list and was filed `missing` here**, which
+/// is the inventory contradicting the document it should agree with — and it is
+/// what an assertion of emptiness does to a real finding: the one person who
+/// could have filed it `dead` was told not to.
+///
+/// **A pinned set, not a relaxed check.** The fourth entry costs exactly what
+/// the first did: say in `note` which guard can never hold and why, add it to
+/// `docs/bugs.md`, and add its id here.
+const DEAD_IN_THE_SHIPPED_GAME: &[&str] =
+    &["Battle_PauseButton#1", "FUN_0040d6ad#1", "FUN_0040d7b8#1"];
+
 #[test]
-fn no_trigger_is_dead_in_the_shipped_game() {
+fn the_dead_triggers_are_the_three_on_the_bug_list() {
     let root = repo_root();
-    let dead: Vec<String> =
+    let dead: BTreeSet<String> =
         sites(&root).into_iter().filter(|s| s.status == "dead").map(|s| s.id).collect();
-    assert!(
-        dead.is_empty(),
-        "{dead:?} are filed as unreachable in the shipped game. That is a finding about \
-         `Lords2.exe` and not a status to live with: say in `note` which guard can never \
-         hold and why, add it to `docs/bugs.md`'s dead-code list, and then change this \
-         assertion deliberately.",
+    let pinned: BTreeSet<String> =
+        DEAD_IN_THE_SHIPPED_GAME.iter().map(|s| s.to_string()).collect();
+    assert_eq!(
+        dead, pinned,
+        "docs/audio.json's `dead` triggers are not the pinned set. A NEW one is a finding \
+         about `Lords2.exe` and not a status to live with: say in `note` which guard can \
+         never hold and why, add it to `docs/bugs.md`'s dead-code list, and then add its id \
+         to DEAD_IN_THE_SHIPPED_GAME deliberately. A pinned one that LEFT means somebody found \
+         a path the evidence missed, and bugs.md is wrong too.",
     );
+    let text = std::fs::read_to_string(root.join("docs/bugs.md")).expect("docs/bugs.md");
+    for (id, entry) in
+        [("slider arrows", "D39"), ("Battle_PauseButton#1", "**D38**")]
+    {
+        assert!(text.contains(entry), "{id} is dead here and {entry} is gone from docs/bugs.md");
+    }
 }

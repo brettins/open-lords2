@@ -284,6 +284,28 @@ pub trait Screen {
         false
     }
 
+    /// **How many widget clicks this screen owes the audio layer**, taken and
+    /// forgotten — `Widget_Test`'s (`0x0040DA1E`) `Sound_RestartSlot(1)`.
+    ///
+    /// The original plays `click3.wav` *inside* the hit test, so the sound is
+    /// not a decision any caller makes: pressing a kind-4 or kind-5 widget
+    /// sounds, and nothing else in the interface does — not a hotspot, not the
+    /// OK button, not the auto-repeat's later pulses. Ours hit-test through
+    /// [`crate::press::Press`], which is the same function in the same place,
+    /// and this is the one wire out of it.
+    ///
+    /// **It goes up, never down.** `docs/netcode.md` D-3 keeps
+    /// [`crate::audio::Audio`] out of [`Ctx`] so that a screen cannot branch on
+    /// a sound; a screen that can only *report* a press it has already acted on
+    /// keeps that property exactly. Nothing here is on [`crate::Game`], so it
+    /// is not in the save and not in the lockstep digest.
+    ///
+    /// A screen with no [`crate::press::Press`] answers zero, which is not an
+    /// approximation: the original's other tester plays no sound.
+    fn take_clicks(&mut self) -> u8 {
+        0
+    }
+
     /// The `.256` this screen runs under, if it is not the campaign palette.
     ///
     /// A [`Canvas`] is a plane of palette *indices* and means nothing without
@@ -429,11 +451,30 @@ pub struct Machine {
     /// difference between a still menu costing nothing and costing a GPU
     /// submission sixty times a second.
     dirty: bool,
+    /// **Every widget click the stack has made since the process started.**
+    ///
+    /// Monotone on purpose. [`crate::audio::Director`] keeps the previous
+    /// tick's value and plays `click3.wav` when this has moved, which is the
+    /// same diffing it already does for the screen stack and for where every
+    /// unit stood — and it is the only shape that survives the thing that makes
+    /// a per-screen counter useless: **the click that opens a screen is
+    /// counted by the screen that is then popped.** A sum over the live stack
+    /// would lose exactly the presses a player notices most.
+    ///
+    /// Drained out of the screens by [`Machine::handle`] rather than read from
+    /// them, so a screen cannot see the total and cannot be told what was done
+    /// with it. See [`Screen::take_clicks`].
+    clicks: u32,
 }
 
 impl Machine {
     pub fn new(root: ScreenId) -> Machine {
-        Machine { stack: vec![root.build()], quit: false, dirty: true }
+        Machine { stack: vec![root.build()], quit: false, dirty: true, clicks: 0 }
+    }
+
+    /// Every widget click the stack has made, ever. See the field.
+    pub fn clicks(&self) -> u32 {
+        self.clicks
     }
 
     pub fn depth(&self) -> usize {
@@ -502,6 +543,13 @@ impl Machine {
     pub fn handle(&mut self, event: Event, ctx: &mut Ctx) {
         for depth in (0..self.stack.len()).rev() {
             let t = self.stack[depth].handle(event, ctx);
+            // **Before the transition, because the transition may drop the
+            // screen that clicked.** `Widget_Test` plays the sound inside the
+            // hit test and before it calls the handler; taking the count here
+            // is that ordering, and it is why a press that opens a screen is
+            // still heard. See [`Screen::take_clicks`].
+            let clicked = self.stack[depth].take_clicks();
+            self.clicks = self.clicks.wrapping_add(clicked as u32);
             if t == Transition::Pass {
                 continue;
             }
@@ -525,6 +573,14 @@ impl Machine {
         if top.take_redraw() {
             self.dirty = true;
         }
+        // **Nothing on this path clicks today**, and it is drained anyway.
+        // `Widget_Test`'s auto-repeat and its delayed fire are both silent, so
+        // `Screen::update` never counts one — but if a screen ever did, the
+        // count would sit in its `Press` until the *next event* drained it in
+        // [`Machine::handle`], and a click from a tick would be heard on the
+        // release. The ablation that added a click to `Press::tick` stayed
+        // green until this line existed.
+        self.clicks = self.clicks.wrapping_add(top.take_clicks() as u32);
         if t != Transition::Stay {
             self.apply(t);
             self.dirty = true;

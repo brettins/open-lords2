@@ -51,14 +51,15 @@
 //! counts here are **measured by `tests/audio_wiring.rs`, not typed**, and a
 //! new call site moves them by itself.
 //!
-//! Of the install's **771** `.wav` files, this layer can reach **572**:
+//! Of the install's **771** `.wav` files, this layer can reach **560**:
 //!
 //! | | files | how |
 //! |---|---:|---|
-//! | the narrator | **543** | 448 lord takes + 95 system clips, via [`Director`] and [`voice_tick`] |
+//! | the narrator | **530** | 448 lord takes + 82 system clips, via [`Director`] and [`voice_tick`] |
 //! | music | 10 | `scroll1`…`scroll5`, `battle1`…`battle4`, `setup` |
 //! | fanfares | 3 | `ff_msg`, `ff_batl`, `ff_capt` |
 //! | the screen class | 16 | six spoken lines and ten bank slots, by [`Director::listen`]'s screen edges |
+//! | the pointer click | 1 | `click3.wav`, by [`Director::hear_the_click`] — `Widget_Test`'s two live sites |
 //!
 //! **The narrator is 84 % of the game's audio by file count** — 646 of the 771
 //! files are somebody speaking — which is why a player calls the voice acting
@@ -80,31 +81,20 @@
 //! here at all — the previous version of this table was prose, was hand-marked,
 //! and was wrong in both directions.
 //!
-//! **50 of 143**, and the denominator moved because the enumeration was one
-//! primitive short: see [`track::Music::Setup`].
+//! **51 of 143, and 3 of the 143 are dead in the shipped game.** The
+//! denominator moved because the enumeration was one primitive short: see
+//! [`track::Music::Setup`].
 //!
 //! | class | the original's call site | sites | ours |
 //! |---|---|---:|---:|
-//! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **14** — [`voice_tick`]; the two left need video |
+//! | **Message narration** | `Msg_PlayVoice` `0x004B35C1` | 16 | **13** — [`voice_tick`]; two need video and one needs the tip screens |
 //! | **Music** | `Music_StartCampaign`, `Music_StartBattle`, `Music_Play` | 23 | **11** — [`scene`]; the twelve left restart a bed a film stopped |
 //! | **By name** | `Sound_PlayFile` | 49 | **15** — [`names::speech`] and the fanfares |
-//! | **The two sample banks** | `Sound_PlaySlot`, `Sound_RestartSlot`, `FUN_004262CF` | 49 | **10** — the march, the sites, the village's work |
+//! | **The two sample banks** | `Sound_PlaySlot`, `Sound_RestartSlot`, `FUN_004262CF` | 49 | **12** — the march, the sites, the village's work, the click |
 //! | **Troop cries** | `Sound_PlayTroopCry` `0x00499CB1` | 6 | 0 — needs the cry table and the battlefield's selection |
 //!
 //! What is left, in the order a player notices it:
 //!
-//! * **The pointer click.** `Sound_RestartSlot(1)` — `click3.wav` — on every
-//!   widget press, from **four sites behind three hit-testers**: `Widget_Test`
-//!   (`0x0040DA1E`) twice, and `FUN_0040D6AD` and `FUN_0040D7B8`, which open
-//!   with the same two lines. (An earlier draft of this note said *one* site
-//!   behind one hit-tester; `docs/audio-triggers.md` records the correction,
-//!   and it matters to whoever reconciles them.) Ours are 26 screen modules
-//!   each matching `Event::Click` against their own rectangles, so there is no
-//!   single place to put it and nothing above them can tell a press that landed
-//!   on a widget from one that landed on grass. Playing it on every click would
-//!   be an invention and a worse one than silence. **The enabling change is in
-//!   the screen layer, not here**: `Screen::handle` would have to say whether
-//!   it consumed the event at a widget, and then this is one call.
 //! * **The battlefield — 25 of the 143 sites, and the largest single thing
 //!   missing.** Every sword swing, every arrow leaving a bow and every man
 //!   dying is an *event inside one tick* of `BattleMan_Tick`, and [`Director`]
@@ -127,16 +117,20 @@
 //!   > [`Audio::play_effect_if_idle`] is. [`Director::hear_the_march`] is that
 //!   > call site, one hoofbeat per tile per unit, and it is the first caller
 //!   > the drop-if-busy verb has had. See `docs/audio-triggers.md`.
-//! * **The narrator's *chained* takes**, which is the part of the voice class
-//!   that is still missing. `FUN_004B3ACD(group)` walks a five-wide table at
-//!   `0x004E1E40` and plays `S201_02.wav + (n - 1) * 0x10` **one clip at a time
-//!   as each finishes**, gated on `Sound_OneShotBusy()` and a 1,000 ms gap — so
-//!   a notice is read as a *sequence* of takes rather than one. That is why
-//!   `S010_13.wav` exists. Wiring it needs the mixer to answer *"is a one-shot
-//!   still playing?"*, which [`mixer::Mixer::is_playing`] can, and a per-message
-//!   cursor, which nothing keeps. Two more siblings play from tables of their
-//!   own: `FUN_004B3B92(lord - 1)` is the sting a letter plays 90 ticks in,
-//!   `S246_02.wav + lord * 0x10`, and `FUN_004B36C0` reads `g_msgVoiceS010`.
+//! * **The tip screens**, which silence two things at once: every tip's first
+//!   line (`Msg_DrawWindow#24`) and `FUN_004B3ACD`'s chain of further takes —
+//!   40 files. The chain has one caller, `Msg_DrawWindow`'s categories
+//!   `0x05`…`0x09` branch; it plays `S201_02.wav + (n - 1) * 0x10` one clip at a
+//!   time, a full second after `Sound_OneShotBusy()` last saw one playing, and
+//!   its cursor is reset only in `Tip_Show` (`0x00476DA9`) — the only function in
+//!   the original that posts those categories. **This bullet used to say the
+//!   blocker was a per-message cursor and that the chain was *"why
+//!   `S010_13.wav` exists"*.** The cursor is two globals and a table, and
+//!   [`Audio::is_playing`] now answers the gate; what is missing is a screen —
+//!   `Tip_Update`, `Tip_Show`, the paragraph window and its computed OK corner.
+//!   `S010_13.wav` is `g_msgVoiceS010`'s, which `FUN_004B36C0` reads. The
+//!   letter's sting, `FUN_004B3B92(lord - 1)`, is `S246_02.wav + lord * 0x10`
+//!   over four clips and a sentinel.
 //! * **`ff_lose.wav`** needs a gate rather than a call site — see
 //!   [`names::fanfare::AFTER_BATTLE`]. It is the only fanfare left.
 
@@ -347,6 +341,16 @@ impl Audio {
 
     pub fn options(&self) -> Options {
         self.options
+    }
+
+    /// **Is this one-shot still sounding?** — the `GetStatus` bit test
+    /// `Sound_OneShotBusy` (`0x00427C9B`) makes, asked by name because ours are
+    /// many buffers rather than one.
+    ///
+    /// Audio-side only. [`Director`] may branch on it, because what it decides
+    /// is also only audio; a screen cannot reach [`Audio`] and so cannot.
+    pub fn is_playing(&self, name: &str) -> bool {
+        self.mixer.lock().is_ok_and(|m| m.is_playing(&name.to_ascii_lowercase()))
     }
 
     /// Apply the three switches. Turning music off stops it; turning it back on
@@ -772,6 +776,9 @@ pub struct Director {
     /// Empty until the first tick, which is what makes the first tick silent:
     /// there is nothing to have moved from.
     tiles: Vec<Option<(l2_kingdom::UnitKind, (u8, u8))>>,
+    /// [`crate::screen::Machine::clicks`] at the previous tick — the widget
+    /// click's edge. See [`Director::hear_the_click`].
+    clicks: u32,
 }
 
 impl Director {
@@ -957,6 +964,8 @@ impl Director {
         }
         self.stack = now;
 
+        self.hear_the_click(audio, machine);
+
         // **`Map_ZoomOut` (`0x00434FD5`)**, whose last statement is
         // `Sound_PlayFile("S033_02.wav", 1, 0)`. It is a zoom *level*, not a
         // screen, so it is the one edge here that is not on the stack. There is
@@ -1004,15 +1013,25 @@ impl Director {
                     audio.play_effect(fanfare);
                 }
             }
-            // **Fourteen of `Msg_PlayVoice`'s sixteen sites.** One ladder, one
+            // **Thirteen of `Msg_PlayVoice`'s sixteen sites.** One ladder, one
             // condition each, and [`voice_tick`] is that ladder — so one call
-            // answers all fourteen and it would be a fiction to write fourteen.
+            // answers all thirteen and it would be a fiction to write thirteen.
             //
-            // The two it does not answer are `#16` and `#21`, the **animated**
+            // Two it does not answer are `#16` and `#21`, the **animated**
             // capture and ending branches: those save the group and variant,
             // dismiss the message, play a Smacker film and speak afterwards
             // from `DAT_004F0374`/`DAT_004F0354`. They need video, not a tick.
-            // sfx: Msg_DrawWindow#2,Msg_DrawWindow#3,Msg_DrawWindow#4,Msg_DrawWindow#5,Msg_DrawWindow#7,Msg_DrawWindow#8,Msg_DrawWindow#9,Msg_DrawWindow#10,Msg_DrawWindow#12,Msg_DrawWindow#14,Msg_DrawWindow#18,Msg_DrawWindow#22,Msg_DrawWindow#23,Msg_DrawWindow#24
+            //
+            // **The third is `#24`, and it was claimed here until it was read.**
+            // It is the categories `0x05`…`0x09` branch, and `Tip_Show`
+            // (`0x00476DA9`) is the only function in the original that posts
+            // one of those categories — they are the tip screens, from
+            // `g_tipCategory`. Nothing in this engine posts a tip, so the arm of
+            // [`voice_tick`] that answers them can never be reached in play, and
+            // a `reproduced` that cannot sound is the rot `docs/audio.json`
+            // exists to prevent. The arm stays: it is the original's schedule,
+            // and the tip screens will need it.
+            // sfx: Msg_DrawWindow#2,Msg_DrawWindow#3,Msg_DrawWindow#4,Msg_DrawWindow#5,Msg_DrawWindow#7,Msg_DrawWindow#8,Msg_DrawWindow#9,Msg_DrawWindow#10,Msg_DrawWindow#12,Msg_DrawWindow#14,Msg_DrawWindow#18,Msg_DrawWindow#22,Msg_DrawWindow#23
             if voice_tick(record.category) == Some(timer) {
                 // `Msg_PlayVoice(g_messageGroup, g_messageVariant)`. A group
                 // outside the three bands has no clip, and that is a message
@@ -1022,6 +1041,38 @@ impl Director {
                 }
             }
         }
+    }
+
+    /// **The pointer click** — `Sound_RestartSlot(1)`, `click3.wav`, from
+    /// inside `Widget_Test` (`0x0040DA1E`).
+    ///
+    /// The trigger is not here: it is in [`crate::press::Press::press`] and
+    /// [`crate::press::Press::press_delayed`], which are `Widget_Test`'s kind-4
+    /// and kind-5 arms, and the `// sfx:` markers are on those lines. This is
+    /// only the far end of the wire — [`crate::screen::Machine::clicks`] is
+    /// monotone, so *"it moved since the last tick"* is *"a widget was pressed"*
+    /// and nothing a screen does can read it back (`docs/netcode.md` D-3).
+    ///
+    /// **What is silent is the half that is easy to get wrong**, and it is
+    /// silent because nothing on those paths counts: the kind-4 auto-repeat's
+    /// later pulses ([`crate::press::Press::tick`]), kind 5's delayed fire
+    /// (also `tick`), `Hotspot_Test`'s three kinds, and `Ui_OkButtonClicked`.
+    ///
+    /// **Slot 1 is `click3.wav` in both banks** ([`names::KINGDOM_BANK`] and
+    /// [`names::BATTLE_BANK`] both open with it), so which bank the original has
+    /// loaded does not change the sound and the battlefield's confirm box clicks
+    /// like the county's tax arrows. `Sound_RestartSlot` rewinds a sounding
+    /// buffer, which is [`Audio::play_effect`] — and is also why two presses
+    /// inside one tick are one sound here and would have been one in the
+    /// original.
+    fn hear_the_click(&mut self, audio: &mut Audio, machine: &crate::screen::Machine) {
+        let now = machine.clicks();
+        if now != self.clicks {
+            if let Some(name) = names::slot(names::Bank::Kingdom, 1) {
+                audio.play_effect(name);
+            }
+        }
+        self.clicks = now;
     }
 
     /// **The clip-clop.** `Unit_MoveInFacing` (`0x00466D84`) plays a sound as
