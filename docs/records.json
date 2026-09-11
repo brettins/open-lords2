@@ -1112,9 +1112,9 @@
         },
         {
           "off": "0x1FB",
-          "type": "u8",
+          "type": "i8",
           "name": "eventPopulationPct",
-          "comment": "Percentage swing to population from a random event."
+          "comment": "Percentage swing to population from a random event. SIGNED: the three swing bytes were typed u8 here, and Event_RollAll's blights write 0xD8 and 0xE2 into eventGrainPct, which are -40 and -30. docs/decisions.md CNEW-stored-fields."
         },
         {
           "off": "0x1F4",
@@ -1124,12 +1124,12 @@
         },
         {
           "off": "0x1FC",
-          "type": "u8",
+          "type": "i8",
           "name": "eventGrainPct"
         },
         {
           "off": "0x1FD",
-          "type": "u8",
+          "type": "i8",
           "name": "eventHerdPct"
         },
         {

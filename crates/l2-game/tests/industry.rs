@@ -120,6 +120,17 @@ fn turns_of_each_wheel(
 /// `step_industry` makes, but written out from `Industry_UpdateSiteTile`'s
 /// `content = base + (enabled != 0)` rather than borrowed from
 /// `l2_kingdom::map::industry_state`.
+/// The first working site whose **record says its season was idle** —
+/// `total == totalSnapshot`, so `output` is 0 — read from what the importer
+/// carried rather than assumed. The rate tests need a wheel on the slow rung,
+/// and until CNEW-stored-fields they took the first site and got one only
+/// because the load had thrown every running total away.
+fn idle_site(game: &l2_game::Game) -> Option<(usize, usize, usize)> {
+    working_sites(game)
+        .into_iter()
+        .find(|&(_, id, c)| game.kingdom.counties[id].industry[c].output == 0)
+}
+
 fn working_sites(game: &l2_game::Game) -> Vec<(usize, usize, usize)> {
     // `Industry_UpdateSiteTile`'s four bases, in commodity order: wood 10,
     // iron 1, weapons 7, stone 4.
@@ -141,10 +152,16 @@ fn working_sites(game: &l2_game::Game) -> Vec<(usize, usize, usize)> {
 ///
 /// Two halves, and the first is the road.
 ///
-/// * **From the simulation.** The England position's five forests are switched
-///   on and have produced nothing, so `total - totalSnapshot` is 0 and every
-///   wheel is on the 640 ms rung. End one season with the game's own pass and
-///   county 1 has cut 173 wood, which is past `0x32`: the same wheel is now on
+/// * **From the save.** England turn one's own records put its forests on
+///   different rungs: county 1's running total is 166 against a snapshot of 0,
+///   which is past `0x32`, and at least one other working forest records an idle
+///   season. So a loaded game draws one wheel turning eight times as fast as
+///   another **from its first frame**. This used to say *"the England position's
+///   five forests have produced nothing, so every wheel is on the 640 ms
+///   rung"* — true of `Industry::new()`, which is what the importer gave every
+///   county until `docs/decisions.md` CNEW-stored-fields, and false of the file.
+/// * **From the simulation.** End one season on the idle site with the game's
+///   own pass, and its output reaches the top band: the same wheel is now on
 ///   the 80 ms rung and turns **eight times as often**. Nothing here writes
 ///   `Industry::output`.
 /// * **From the table.** Then one output either side of each of the three band
@@ -181,11 +198,12 @@ fn a_busy_site_turns_its_wheel_eight_times_as_often_as_an_idle_one() {
         !sites.is_empty(),
         "England turn one has no working industry site, so this test cannot see a wheel"
     );
-    let (tile, county, commodity) = sites[0];
-    assert_eq!(
-        game.kingdom.counties[county].industry[commodity].output, 0,
-        "county {county} has produced nothing yet, which is the bottom band"
-    );
+    let (tile, county, commodity) = idle_site(&game)
+        .expect("no working site on England turn one records an idle season, so the slow rung is unseen");
+    let &(busy_tile, busy_county, busy_commodity) = sites
+        .iter()
+        .find(|&&(_, id, c)| game.kingdom.counties[id].industry[c].output >= 0x32)
+        .expect("no working site on England turn one records a busy season");
 
     let mut screen = MapScreen::new();
     let slow = turns_of_each_wheel(&mut screen, &mut game, &assets, TICKS);
@@ -194,6 +212,16 @@ fn a_busy_site_turns_its_wheel_eight_times_as_often_as_an_idle_one() {
         TICKS / EVERY[0],
         "an on-but-unproductive site is on the 640 ms rung: {} turns in {TICKS} ticks",
         TICKS / EVERY[0]
+    );
+    // **The first frame of a loaded game, from the file's own record.** Before
+    // the importer carried `+0x2A0`/`+0x2A4`, this wheel sat on the slow rung
+    // with every other until a season ended.
+    assert_eq!(
+        slow[&busy_tile],
+        TICKS / EVERY[3],
+        "county {busy_county}'s commodity {busy_commodity} records {} this season, so the loaded \
+         game should turn its wheel on the 80 ms rung from the first frame",
+        game.kingdom.counties[busy_county].industry[busy_commodity].output
     );
 
     // The season, by the game's own road — `Industry_ProduceAll` is what writes
@@ -344,7 +372,9 @@ fn differences(a: &l2_view::Canvas, b: &l2_view::Canvas) -> Vec<(i32, i32)> {
 fn a_turning_wheel_changes_the_screen_and_a_stopped_one_changes_nothing() {
     let (mut game, assets) = world!();
     let sites = working_sites(&game);
-    let (tile, county, commodity) = *sites.first().expect("a working site on the fixture");
+    // An idle one, because `CYCLE` is chosen against the slow rung's period — see
+    // [`idle_site`] for why the first site no longer is.
+    let (tile, county, commodity) = idle_site(&game).expect("an idle working site on the fixture");
 
     // Every other site switched off, so anything that moves in the frame is this
     // one. `Industry_ToggleFromMap`'s own road, not a flag.

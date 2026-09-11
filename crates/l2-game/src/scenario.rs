@@ -256,15 +256,11 @@ pub fn new_game(
     game.player = scenario.local_player;
     game.map_slot = slot;
 
-    // **`Scenario::kingdom` opens the happiness average on this season's
-    // happiness and `County_Reset` opens it on zero.** The difference is one
-    // extra sample in the empire-happiness average, and it belongs to the
-    // save's constructor rather than to this one: a loaded game is mid-year and
-    // a new game is not.
-    for id in game.kingdom.county_ids() {
-        game.kingdom.counties[id].happiness_sum = 0;
-        game.kingdom.counties[id].happiness_avg = 0;
-    }
+    // The happiness average and its running sum open on zero, which is
+    // `County_Reset`'s value, because the map constructor now says so itself.
+    // This used to zero them here, over a save-path import that set both to
+    // this season's happiness — wrong on every turn but the first.
+    // `docs/decisions.md` CNEW-stored-fields.
 
     // **The colour a realm flies is the one `Realms_AssignLords` gave it**, and
     // this used to say it was the realm id: *"`Game_SetupRealms` seeds

@@ -56,7 +56,7 @@
 
 pub mod newgame;
 
-use l2_formats::save::{Save, SaveError, COUNTY_BASE, COUNTY_STRIDE};
+use l2_formats::save::{Save, SaveError, COUNTY_BASE, COUNTY_STRIDE, REALM_BASE, REALM_STRIDE};
 use l2_kingdom::county::{County, MAX_COUNTY_ID, MAX_FIELDS};
 use l2_kingdom::map::MAP_TILES;
 use l2_kingdom::merchant::{MerchantRoutes, ROUTES, ROUTE_SLOTS};
@@ -295,6 +295,19 @@ pub struct IndustryState {
     /// every one of the four at `Industry::new()`'s zero, which `Ui_DrawDelta`
     /// with `mode == 0` draws as nothing at all.
     pub next_season: i32,
+    /// Record `+0x00`, `+0x0A`, `+0x0C` and `+0x10` — the efficiency the ramp
+    /// has reached, the workers it absorbs at full value, and the running total
+    /// with its last snapshot, whose difference is the season's output.
+    ///
+    /// **Dropped until CNEW-stored-fields**, and not quietly: every owned county
+    /// in every save stores an efficiency of **80**, and a loaded game arrived at
+    /// `Industry::new()`'s 20 for wood and 15 for the rest — so the production
+    /// pass ran a mid-game county's mines as if they had just opened.
+    /// `docs/stored-fields.json`.
+    pub efficiency: i32,
+    pub capacity: i32,
+    pub total: i32,
+    pub total_snapshot: i32,
 }
 
 fn read_industry(save: &Save, county: usize) -> Result<[IndustryState; 4], SaveError> {
@@ -307,9 +320,76 @@ fn read_industry(save: &Save, county: usize) -> Result<[IndustryState; 4], SaveE
             disabled_seasons: save.u8_at(record + INDUSTRY_DISABLED_SEASONS)? as i32,
             enabled: save.u8_at(record + INDUSTRY_ENABLED)? != 0,
             next_season: save.i32_at(record + INDUSTRY_NEXT_SEASON)?,
+            efficiency: save.u8_at(record)? as i32,
+            capacity: save.i16_at(record + 0x0A)? as i32,
+            total: save.i32_at(record + 0x0C)?,
+            total_snapshot: save.i32_at(record + 0x10)?,
         };
     }
     Ok(out)
+}
+
+/// **The offsets CNEW-stored-fields imports**, one constant each, and nothing
+/// else. Every one is a row of `docs/stored-fields.json` with status
+/// `imported`, and `crates/l2-scenario/tests/stored_fields.rs` holds each to the
+/// file's own bytes after [`Scenario::kingdom`] in every save on the machine —
+/// so the prose for each lives in that inventory and in the kingdom field's own
+/// doc comment, not a third time here.
+mod stored {
+    pub const EVENT_FIRED: u32 = 0x000;
+    pub const D_HAP_TAX: u32 = 0x00E;
+    pub const SHOWN_ARMY: u32 = 0x015;
+    pub const TAX_HAP_OTHER: u32 = 0x016;
+    pub const HAPPINESS_AVG: u32 = 0x018;
+    pub const HAPPINESS_SUM: u32 = 0x01C;
+    pub const UNREST_WARNED: u32 = 0x021;
+    pub const POP_CHANGE_PCT: u32 = 0x02C;
+    pub const POP_ARMY: u32 = 0x038;
+    pub const LARGEST_INFLOW: u32 = 0x044;
+    pub const INFLOW_SOURCES: u32 = 0x048;
+    pub const EMIGRANT_DESTINATION: u32 = 0x058;
+    pub const LARGEST_INFLOW_SOURCE: u32 = 0x059;
+    pub const CHANGE_REASON: u32 = 0x05B;
+    pub const FIELD_PROGRESS: u32 = 0x090;
+    pub const SHOWN_ALE: u32 = 0x194;
+    pub const FRIENDLY_TROOPS: u32 = 0x198;
+    pub const ENEMY_TROOPS: u32 = 0x19C;
+    pub const SOW_SHORTFALL: u32 = 0x1A7;
+    pub const TAX_SUPPRESSED: u32 = 0x1A8;
+    pub const EVENT_ID: u32 = 0x1AA;
+    pub const CASTLE_RUINED: u32 = 0x1C2;
+    pub const CASTLE_DEGRADED: u32 = 0x1C3;
+    pub const CASTLE_PERCENT: u32 = 0x1C4;
+    pub const CASTLE_WORK_LEFT: u32 = 0x1CC;
+    pub const CASTLE_STONE_OWED: u32 = 0x1D0;
+    pub const CASTLE_WOOD_OWED: u32 = 0x1D4;
+    pub const CASTLE_WORK_TOTAL: u32 = 0x1D8;
+    pub const CASTLE_STONE_TOTAL: u32 = 0x1DC;
+    pub const CASTLE_WOOD_TOTAL: u32 = 0x1E0;
+    pub const SIEGE_MOAT_FILLED: u32 = 0x1E4;
+    pub const SIEGE_WALL_DAMAGE: u32 = 0x1E6;
+    pub const SIEGE_BREACH_SCORE: u32 = 0x1E8;
+    pub const SIEGE_APPROACH_SCORE: u32 = 0x1EC;
+    pub const SIEGE_RAMPARTS_BREACHED: u32 = 0x1F0;
+    pub const SIEGE_GATE_OPEN: u32 = 0x1F1;
+    pub const CASTLE_LEVEL_LEFT: u32 = 0x1F9;
+    /// Signed: `Event_RollAll`'s blights write `0xD8` and `0xE2`, −40 and −30.
+    pub const EVENT_POPULATION_PCT: u32 = 0x1FB;
+    pub const EVENT_GRAIN_PCT: u32 = 0x1FC;
+    pub const EVENT_HERD_PCT: u32 = 0x1FD;
+    pub const FIELDS_GRAIN_SOWN: u32 = 0x202;
+    pub const RECLAIM_FIELDS_FINISHING: u32 = 0x20C;
+    pub const RECLAIM_SEASONS_TO_NEXT: u32 = 0x214;
+    pub const ALE_HAPPINESS_GIVEN: u32 = 0x219;
+    pub const GRAIN_CHANGE_EXPECTED: u32 = 0x22C;
+    pub const GRAIN_SOWN_EXPECTED: u32 = 0x230;
+    pub const CROP: u32 = 0x240;
+    pub const HERD_CHANGE_EXPECTED: u32 = 0x258;
+    pub const HERD_BIRTHS_EXPECTED: u32 = 0x268;
+    pub const HERD_DEATHS_EXPECTED: u32 = 0x26C;
+    pub const WEAPON_TYPE: u32 = 0x290;
+    pub const LEVY_SURCHARGE: u32 = 0x2F4;
+    pub const GRAIN_GROWN_EXPECTED: u32 = 0x2FC;
 }
 
 /// One word out of each of a county's nine labour records.
@@ -543,6 +623,80 @@ pub struct CountyState {
     pub merchant_count: i32,
     pub merchant_unit: u8,
     pub merchant_visits: i32,
+
+    // --- CNEW-stored-fields ------------------------------------------------
+    // Every field below was stored by the original, modelled by
+    // `l2_kingdom::county::County`, carried by our own save format — and read
+    // out of a `.sav` by nothing, so a loaded game showed `County::new()`'s
+    // value until a season rewrote it. `docs/stored-fields.json` is the
+    // inventory that found them and the offsets are in [`stored`]; each
+    // kingdom field's doc comment says what it is.
+    /// `+0x258`, `+0x268`, `+0x26C` — the cattle row's forecast: overall
+    /// change, calf births, cow deaths.
+    pub herd_change_expected: i32,
+    pub herd_births_expected: i32,
+    pub herd_deaths_expected: i32,
+    /// `+0x22C`, `+0x230`, `+0x2FC` — the grain row's forecast: the change the
+    /// sidebar draws, the sowing, the growth.
+    pub grain_change_expected: i32,
+    pub grain_sown_expected: i32,
+    pub grain_grown_expected: i32,
+    /// `+0x20C`, `+0x214` — the reclamation row's two figures.
+    pub reclaim_fields_finishing: i32,
+    pub reclaim_seasons_to_next: i32,
+    /// `+0x18`, `+0x1C` — *"Average happiness"* and the running sum it is
+    /// taken from. **These were not merely dropped, they were invented:** the
+    /// importer set both to this season's happiness, which is wrong in every
+    /// save past turn one — `siege-aftersie.sav` county 2 draws 95 where the
+    /// original draws 54.
+    pub happiness_avg: i32,
+    pub happiness_sum: i32,
+    pub d_hap_tax: i32,
+    pub shown_army: i32,
+    pub tax_hap_other: i32,
+    pub shown_ale: i32,
+    pub ale_happiness_given: i32,
+    /// `+0x21` — `Unrest_UpdateAll`'s once-only warning latch, which
+    /// `County::unrest_warned` said had no known offset. Set only in counties
+    /// below 30 happiness, in every save.
+    pub unrest_warned: bool,
+    pub pop_change_pct: i32,
+    /// `+0x38` — the *Army* line of the population panel.
+    pub army: i32,
+    pub largest_inflow: i32,
+    pub inflow_sources: [u8; l2_kingdom::county::MAX_INFLOW_SOURCES],
+    pub emigrant_destination: u8,
+    pub largest_inflow_source: u8,
+    pub change_reason: u8,
+    pub event_fired: bool,
+    pub event_id: u16,
+    pub event_population_pct: i32,
+    pub event_grain_pct: i32,
+    pub event_herd_pct: i32,
+    pub tax_suppressed: bool,
+    pub field_progress: [u16; MAX_FIELDS],
+    /// `+0x198`, `+0x19C` — the troops standing in the county, which the ration
+    /// panel adds to the food bill.
+    pub friendly_troops: i32,
+    pub enemy_troops: i32,
+    pub levy_surcharge: i32,
+    pub castle_degraded: u8,
+    pub castle_ruined: bool,
+    pub castle_level_left: u8,
+    pub castle_percent: u8,
+    pub castle_work_left: i32,
+    pub castle_work_total: i32,
+    pub castle_stone_owed: i32,
+    pub castle_stone_total: i32,
+    pub castle_wood_owed: i32,
+    pub castle_wood_total: i32,
+    pub siege_scars: l2_kingdom::siege::SiegeScars,
+    pub crop: [i32; 3],
+    pub fields_grain_sown: i32,
+    pub sow_shortfall: bool,
+    /// `+0x290` — which weapon the blacksmith makes, and the frame the weapons
+    /// row draws.
+    pub weapon_type: usize,
 }
 
 /// One realm's imported state.
@@ -571,6 +725,48 @@ pub struct RealmState {
     /// back with the diplomatic matrix reset — every alliance and every grudge
     /// gone. `docs/decisions.md` C83.
     pub pairs: [l2_kingdom::realm::Pair; l2_kingdom::realm::MAX_REALMS],
+
+    // --- CNEW-stored-fields ------------------------------------------------
+    // Modelled by `l2_kingdom::realm::Realm`, stored by the original, read by
+    // nobody. The ally byte is the one a player sees soonest: the diplomacy
+    // screen draws `Realm::ally`, and an allied realm loaded from a save showed
+    // no alliance. The rest are the score screen's totals and the AI's
+    // standing orders. `docs/stored-fields.json`.
+    pub ai_step: i32,
+    pub tax_hap_empire: i8,
+    pub population_total: i32,
+    pub population_mean: i32,
+    pub population_last: i32,
+    pub mean_happiness: i32,
+    pub mean_health: i32,
+    pub share_of_map_pct: i32,
+    pub army_count: u8,
+    pub total_men: i32,
+    /// `+0x4C` — the castle count, [`l2_kingdom::tables::SCORE_INPUT_CASTLES`].
+    pub castle_count: i32,
+    pub offer_pending: bool,
+    pub ally_candidate: u8,
+    pub ally: u8,
+    pub target_county: u8,
+    pub taunt_timer: u8,
+    pub taunt_stage: u8,
+    pub war_target: u8,
+    pub offer_timer: i8,
+    pub crowned_once: bool,
+    pub weapon_rota: i32,
+    pub voice_rotation: u8,
+    pub muster_county: u8,
+    pub raid_county: u8,
+    pub muster_timer: u8,
+    pub threat_realm: u8,
+    pub attack_county: u8,
+    pub raid_timer: u8,
+    pub want: [i32; 4],
+    pub bankrupt_stage: u8,
+    pub trade_spent_a: i32,
+    pub trade_spent_b: i32,
+    pub trade_received_a: i32,
+    pub trade_received_b: i32,
 }
 
 /// A whole starting position, as plain data.
@@ -818,6 +1014,7 @@ impl Scenario {
                 }
                 neighbours.push(id);
             }
+            let at = |offset: u32| COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + offset;
             counties[c.index] = Some(CountyState {
                 owner: c.owner,
                 population: c.population,
@@ -890,13 +1087,129 @@ impl Scenario {
                     .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + MERCHANT_UNIT)?,
                 merchant_visits: save
                     .i32_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + MERCHANT_VISITS)?,
+
+                // CNEW-stored-fields. `docs/stored-fields.json` says what each is.
+                herd_change_expected: save.i32_at(at(stored::HERD_CHANGE_EXPECTED))?,
+                herd_births_expected: save.i32_at(at(stored::HERD_BIRTHS_EXPECTED))?,
+                herd_deaths_expected: save.i32_at(at(stored::HERD_DEATHS_EXPECTED))?,
+                grain_change_expected: save.i32_at(at(stored::GRAIN_CHANGE_EXPECTED))?,
+                grain_sown_expected: save.i32_at(at(stored::GRAIN_SOWN_EXPECTED))?,
+                grain_grown_expected: save.i32_at(at(stored::GRAIN_GROWN_EXPECTED))?,
+                reclaim_fields_finishing: save.i32_at(at(stored::RECLAIM_FIELDS_FINISHING))?,
+                reclaim_seasons_to_next: save.i32_at(at(stored::RECLAIM_SEASONS_TO_NEXT))?,
+                happiness_avg: save.i8_at(at(stored::HAPPINESS_AVG))? as i32,
+                happiness_sum: save.i32_at(at(stored::HAPPINESS_SUM))?,
+                d_hap_tax: save.i8_at(at(stored::D_HAP_TAX))? as i32,
+                shown_army: save.i8_at(at(stored::SHOWN_ARMY))? as i32,
+                tax_hap_other: save.i8_at(at(stored::TAX_HAP_OTHER))? as i32,
+                shown_ale: save.i32_at(at(stored::SHOWN_ALE))?,
+                ale_happiness_given: save.u8_at(at(stored::ALE_HAPPINESS_GIVEN))? as i32,
+                unrest_warned: save.u8_at(at(stored::UNREST_WARNED))? != 0,
+                pop_change_pct: save.i32_at(at(stored::POP_CHANGE_PCT))?,
+                army: save.i32_at(at(stored::POP_ARMY))?,
+                largest_inflow: save.i32_at(at(stored::LARGEST_INFLOW))?,
+                inflow_sources: {
+                    let mut ids = [0u8; l2_kingdom::county::MAX_INFLOW_SOURCES];
+                    for (slot, id) in ids.iter_mut().enumerate() {
+                        *id = save.u8_at(at(stored::INFLOW_SOURCES + slot as u32))?;
+                    }
+                    ids
+                },
+                emigrant_destination: save.u8_at(at(stored::EMIGRANT_DESTINATION))?,
+                largest_inflow_source: save.u8_at(at(stored::LARGEST_INFLOW_SOURCE))?,
+                change_reason: save.u8_at(at(stored::CHANGE_REASON))?,
+                event_fired: save.u8_at(at(stored::EVENT_FIRED))? != 0,
+                event_id: save.u16_at(at(stored::EVENT_ID))?,
+                event_population_pct: save.i8_at(at(stored::EVENT_POPULATION_PCT))? as i32,
+                event_grain_pct: save.i8_at(at(stored::EVENT_GRAIN_PCT))? as i32,
+                event_herd_pct: save.i8_at(at(stored::EVENT_HERD_PCT))? as i32,
+                tax_suppressed: save.u8_at(at(stored::TAX_SUPPRESSED))? != 0,
+                field_progress: {
+                    let mut progress = [0u16; MAX_FIELDS];
+                    for (slot, p) in progress.iter_mut().enumerate() {
+                        *p = save.u16_at(at(stored::FIELD_PROGRESS + slot as u32 * 2))?;
+                    }
+                    progress
+                },
+                friendly_troops: save.i32_at(at(stored::FRIENDLY_TROOPS))?,
+                enemy_troops: save.i32_at(at(stored::ENEMY_TROOPS))?,
+                levy_surcharge: save.i32_at(at(stored::LEVY_SURCHARGE))?,
+                castle_degraded: save.u8_at(at(stored::CASTLE_DEGRADED))?,
+                castle_ruined: save.u8_at(at(stored::CASTLE_RUINED))? != 0,
+                castle_level_left: save.u8_at(at(stored::CASTLE_LEVEL_LEFT))?,
+                castle_percent: save.u8_at(at(stored::CASTLE_PERCENT))?,
+                castle_work_left: save.i32_at(at(stored::CASTLE_WORK_LEFT))?,
+                castle_work_total: save.i32_at(at(stored::CASTLE_WORK_TOTAL))?,
+                castle_stone_owed: save.i32_at(at(stored::CASTLE_STONE_OWED))?,
+                castle_stone_total: save.i32_at(at(stored::CASTLE_STONE_TOTAL))?,
+                castle_wood_owed: save.i32_at(at(stored::CASTLE_WOOD_OWED))?,
+                castle_wood_total: save.i32_at(at(stored::CASTLE_WOOD_TOTAL))?,
+                siege_scars: l2_kingdom::siege::SiegeScars {
+                    moat_filled: save.u16_at(at(stored::SIEGE_MOAT_FILLED))?,
+                    wall_damage: save.u16_at(at(stored::SIEGE_WALL_DAMAGE))?,
+                    breach_score: save.i32_at(at(stored::SIEGE_BREACH_SCORE))?,
+                    approach_score: save.i32_at(at(stored::SIEGE_APPROACH_SCORE))?,
+                    ramparts_breached: save.u8_at(at(stored::SIEGE_RAMPARTS_BREACHED))?,
+                    gate_open: save.u8_at(at(stored::SIEGE_GATE_OPEN))? != 0,
+                },
+                crop: [
+                    save.i32_at(at(stored::CROP))?,
+                    save.i32_at(at(stored::CROP + 4))?,
+                    save.i32_at(at(stored::CROP + 8))?,
+                ],
+                fields_grain_sown: save.u8_at(at(stored::FIELDS_GRAIN_SOWN))? as i32,
+                sow_shortfall: save.u8_at(at(stored::SOW_SHORTFALL))? != 0,
+                weapon_type: save.u8_at(at(stored::WEAPON_TYPE))? as usize,
             });
         }
 
-        let realms = save
-            .realms()?
-            .iter()
-            .map(|r| RealmState {
+        let mut realms = Vec::with_capacity(MAX_REALMS);
+        for r in save.realms()?.iter() {
+            // Realm `+offset`, for the fields `l2_formats::save::Realm` does not
+            // carry. Read here rather than added there, because the check that
+            // found them (`tests/stored_fields.rs`) decodes raw offsets itself and
+            // does not need them in `l2-formats`, which is the lead's.
+            let at = |offset: u32| REALM_BASE + (r.index * REALM_STRIDE) as u32 + offset;
+            realms.push(RealmState {
+                ai_step: save.i32_at(at(0x000))?,
+                tax_hap_empire: save.i8_at(at(0x028))?,
+                population_total: save.i32_at(at(0x010))?,
+                population_mean: save.i32_at(at(0x014))?,
+                population_last: save.i32_at(at(0x018))?,
+                mean_happiness: save.u8_at(at(0x00C))? as i32,
+                mean_health: save.u8_at(at(0x058))? as i32,
+                share_of_map_pct: save.u8_at(at(0x060))? as i32,
+                army_count: save.u8_at(at(0x02C))?,
+                total_men: save.i32_at(at(0x054))?,
+                castle_count: save.u8_at(at(0x04C))? as i32,
+                offer_pending: save.u8_at(at(0x01C))? != 0,
+                ally_candidate: save.u8_at(at(0x080))?,
+                ally: save.u8_at(at(0x081))?,
+                target_county: save.u8_at(at(0x0E8))?,
+                taunt_timer: save.u8_at(at(0x0E9))?,
+                taunt_stage: save.u8_at(at(0x0EA))?,
+                war_target: save.u8_at(at(0x0EB))?,
+                offer_timer: save.i8_at(at(0x0EC))?,
+                crowned_once: save.u8_at(at(0x0ED))? != 0,
+                weapon_rota: save.i32_at(at(0x06C))?,
+                voice_rotation: save.u8_at(at(0x159))?,
+                muster_county: save.u8_at(at(0x0E5))?,
+                raid_county: save.u8_at(at(0x0E6))?,
+                muster_timer: save.u8_at(at(0x045))?,
+                threat_realm: save.u8_at(at(0x048))?,
+                attack_county: save.u8_at(at(0x04B))?,
+                raid_timer: save.u8_at(at(0x15A))?,
+                want: [
+                    save.i32_at(at(0x070))?,
+                    save.i32_at(at(0x074))?,
+                    save.i32_at(at(0x078))?,
+                    save.i32_at(at(0x07C))?,
+                ],
+                bankrupt_stage: save.u8_at(at(0x158))?,
+                trade_spent_a: save.i32_at(at(0x104))?,
+                trade_spent_b: save.i32_at(at(0x108))?,
+                trade_received_a: save.i32_at(at(0x10C))?,
+                trade_received_b: save.i32_at(at(0x110))?,
                 // The 96 bytes at `+0x84` that nothing read until C83.
                 pairs: {
                     let mut p = [l2_kingdom::realm::Pair::default(); l2_kingdom::realm::MAX_REALMS];
@@ -935,8 +1248,8 @@ impl Scenario {
                     w[..n].copy_from_slice(&r.weapons[..n]);
                     w
                 },
-            })
-            .collect();
+            });
+        }
 
         Ok(Scenario {
             county_count,
@@ -1091,7 +1404,9 @@ impl Scenario {
                 castle_type: _,
                 castle_building: _,
                 castle_switch: _,
-                industry: _,
+                // The switch, the resource, the countdown and the forecast are
+                // `skeleton`'s; the ramp and the running total are below.
+                industry,
                 fertility: _,
                 weather: _,
                 dryness: _,
@@ -1114,14 +1429,139 @@ impl Scenario {
                 fields_fallow: _,
                 fields_cattle: _,
                 fields_grain: _,
+                // --- CNEW-stored-fields: carried here ---------------------
+                herd_change_expected,
+                herd_births_expected,
+                herd_deaths_expected,
+                grain_change_expected,
+                grain_sown_expected,
+                grain_grown_expected,
+                reclaim_fields_finishing,
+                reclaim_seasons_to_next,
+                happiness_avg,
+                happiness_sum,
+                d_hap_tax,
+                shown_army,
+                tax_hap_other,
+                shown_ale,
+                ale_happiness_given,
+                unrest_warned,
+                pop_change_pct,
+                army,
+                largest_inflow,
+                inflow_sources,
+                emigrant_destination,
+                largest_inflow_source,
+                change_reason,
+                event_fired,
+                event_id,
+                event_population_pct,
+                event_grain_pct,
+                event_herd_pct,
+                tax_suppressed,
+                field_progress,
+                friendly_troops,
+                enemy_troops,
+                levy_surcharge,
+                castle_degraded,
+                castle_ruined,
+                castle_level_left,
+                castle_percent,
+                castle_work_left,
+                castle_work_total,
+                castle_stone_owed,
+                castle_stone_total,
+                castle_wood_owed,
+                castle_wood_total,
+                siege_scars,
+                crop,
+                fields_grain_sown,
+                sow_shortfall,
+                weapon_type,
             } = s;
 
             c.population = *population;
             c.pop_last = *population_last;
             c.happiness = *happiness;
             c.happiness_last = *happiness_last;
-            c.happiness_sum = *happiness;
-            c.happiness_avg = *happiness;
+            // **Read, where they used to be made up.** Both were set to
+            // `*happiness`, which is the right answer on turn one and on no other
+            // turn: `Happiness_UpdateAll` banks every season into the sum and
+            // divides by `g_turnCount`, and a loaded game then carried a lifetime
+            // average of one sample into every later season.
+            c.happiness_sum = *happiness_sum;
+            c.happiness_avg = *happiness_avg;
+            // **The three farm rows' forecasts, and the rest of what the county
+            // panels draw.** Each was `County::new()`'s zero on a loaded game,
+            // which `Ui_DrawDelta` draws as nothing — C142's defect, a fourth
+            // and fifth time, found this time by `docs/stored-fields.json`
+            // rather than by a player. Not recomputed on load, for C142's reason:
+            // the original restores a memory image.
+            c.herd_change_expected = *herd_change_expected;
+            c.herd_births_expected = *herd_births_expected;
+            c.herd_deaths_expected = *herd_deaths_expected;
+            c.grain_change_expected = *grain_change_expected;
+            c.grain_sown_expected = *grain_sown_expected;
+            c.grain_grown_expected = *grain_grown_expected;
+            c.reclaim_fields_finishing = *reclaim_fields_finishing;
+            c.reclaim_seasons_to_next = *reclaim_seasons_to_next;
+            c.d_hap_tax = *d_hap_tax;
+            c.shown_army = *shown_army;
+            c.tax_hap_other = *tax_hap_other;
+            c.shown_ale = *shown_ale;
+            c.ale_happiness_given = *ale_happiness_given;
+            c.unrest_warned = *unrest_warned;
+            c.pop_change_pct = *pop_change_pct;
+            c.army = *army;
+            c.largest_inflow = *largest_inflow;
+            c.inflow_sources = *inflow_sources;
+            c.emigrant_destination = *emigrant_destination;
+            c.largest_inflow_source = *largest_inflow_source;
+            c.change_reason = match *change_reason {
+                1 => l2_kingdom::county::ChangeReason::Births,
+                2 => l2_kingdom::county::ChangeReason::Deaths,
+                3 => l2_kingdom::county::ChangeReason::Emigration,
+                4 => l2_kingdom::county::ChangeReason::Immigration,
+                // A byte past 4 is a misread, and `tests/stored_fields.rs`
+                // would say so: it compares the kingdom's value to the byte.
+                _ => l2_kingdom::county::ChangeReason::None,
+            };
+            c.event_fired = *event_fired;
+            c.event_id = *event_id;
+            c.event_population_pct = *event_population_pct;
+            c.event_grain_pct = *event_grain_pct;
+            c.event_herd_pct = *event_herd_pct;
+            c.tax_suppressed = *tax_suppressed;
+            c.field_progress = *field_progress;
+            c.friendly_troops = *friendly_troops;
+            c.enemy_troops = *enemy_troops;
+            c.levy_surcharge = *levy_surcharge;
+            // **The castle's build record and what the last siege left.** Every
+            // save on this machine stores zero here, so these are read on the
+            // offsets `Castle_Order`, `Castle_BuildTick` and
+            // `Siege_RecordCastleDamage` write rather than confirmed against a
+            // non-zero value; a save taken mid-build is the oracle that settles it.
+            c.castle_degraded = *castle_degraded;
+            c.castle_ruined = *castle_ruined;
+            c.castle_level_left = *castle_level_left;
+            c.castle_percent = *castle_percent;
+            c.castle_work_left = *castle_work_left;
+            c.castle_work_total = *castle_work_total;
+            c.castle_stone_owed = *castle_stone_owed;
+            c.castle_stone_total = *castle_stone_total;
+            c.castle_wood_owed = *castle_wood_owed;
+            c.castle_wood_total = *castle_wood_total;
+            c.siege_scars = *siege_scars;
+            c.crop = *crop;
+            c.fields_grain_sown = *fields_grain_sown;
+            c.sow_shortfall = *sow_shortfall;
+            c.weapon_type = *weapon_type;
+            for (slot, s) in industry.iter().enumerate() {
+                c.industry[slot].efficiency = s.efficiency;
+                c.industry[slot].capacity = s.capacity;
+                c.industry[slot].total = s.total;
+                c.industry[slot].output = s.total - s.total_snapshot;
+            }
             c.shown_tax = *shown_tax;
             c.shown_ration = *shown_ration;
             c.shown_health = *shown_health;
@@ -1157,6 +1597,88 @@ impl Scenario {
             c.herd_eaten = *herd_eaten;
             c.grain_available = *grain;
             c.herd_available = *herd;
+        }
+
+        // **The realm fields `skeleton` deliberately leaves to a load.** Its
+        // destructure names every one of them, so this `..` cannot hide a new
+        // field: adding one to `RealmState` stops that destructure compiling.
+        for (id, r) in self.realms.iter().enumerate().take(MAX_REALMS).skip(1) {
+            let RealmState {
+                ai_step,
+                tax_hap_empire,
+                population_total,
+                population_mean,
+                population_last,
+                mean_happiness,
+                mean_health,
+                share_of_map_pct,
+                army_count,
+                total_men,
+                castle_count,
+                offer_pending,
+                ally_candidate,
+                ally,
+                target_county,
+                taunt_timer,
+                taunt_stage,
+                war_target,
+                offer_timer,
+                crowned_once,
+                weapon_rota,
+                voice_rotation,
+                muster_county,
+                raid_county,
+                muster_timer,
+                threat_realm,
+                attack_county,
+                raid_timer,
+                want,
+                bankrupt_stage,
+                trade_spent_a,
+                trade_spent_b,
+                trade_received_a,
+                trade_received_b,
+                ..
+            } = r;
+            let realm = &mut k.realms[id];
+            realm.ai_step = *ai_step;
+            realm.tax_hap_empire = *tax_hap_empire;
+            realm.population_total = *population_total;
+            realm.population_mean = *population_mean;
+            realm.population_last = *population_last;
+            realm.mean_happiness = *mean_happiness;
+            realm.mean_health = *mean_health;
+            realm.share_of_map_pct = *share_of_map_pct;
+            realm.army_count = *army_count;
+            realm.total_men = *total_men;
+            // The five named score inputs are copies; `+0x4C` is the sixth and
+            // the only one with no named field of its own.
+            realm.sync_score_inputs();
+            realm.score_inputs[l2_kingdom::tables::SCORE_INPUT_CASTLES] = *castle_count;
+            realm.offer_pending = *offer_pending;
+            realm.ally_candidate = *ally_candidate;
+            // The one a player sees first: the diplomacy screen draws it.
+            realm.ally = *ally;
+            realm.target_county = *target_county;
+            realm.taunt_timer = *taunt_timer;
+            realm.taunt_stage = *taunt_stage;
+            realm.war_target = *war_target;
+            realm.offer_timer = *offer_timer;
+            realm.crowned_once = *crowned_once;
+            realm.weapon_rota = *weapon_rota;
+            realm.voice_rotation = *voice_rotation;
+            realm.muster_county = *muster_county;
+            realm.raid_county = *raid_county;
+            realm.muster_timer = *muster_timer;
+            realm.threat_realm = *threat_realm;
+            realm.attack_county = *attack_county;
+            realm.raid_timer = *raid_timer;
+            realm.want = *want;
+            realm.bankrupt_stage = *bankrupt_stage;
+            realm.trade_spent_a = *trade_spent_a;
+            realm.trade_spent_b = *trade_spent_b;
+            realm.trade_received_a = *trade_received_a;
+            realm.trade_received_b = *trade_received_b;
         }
         k
     }
@@ -1235,6 +1757,42 @@ impl Scenario {
                 wood,
                 weapons,
                 pairs,
+                // --- carried by `Scenario::kingdom`, not here -----------------
+                // Per-turn state a rewound starting position must not inherit.
+                ai_step: _,
+                tax_hap_empire: _,
+                population_total: _,
+                population_mean: _,
+                population_last: _,
+                mean_happiness: _,
+                mean_health: _,
+                share_of_map_pct: _,
+                army_count: _,
+                total_men: _,
+                castle_count: _,
+                offer_pending: _,
+                ally_candidate: _,
+                ally: _,
+                target_county: _,
+                taunt_timer: _,
+                taunt_stage: _,
+                war_target: _,
+                offer_timer: _,
+                crowned_once: _,
+                weapon_rota: _,
+                voice_rotation: _,
+                muster_county: _,
+                raid_county: _,
+                muster_timer: _,
+                threat_realm: _,
+                attack_county: _,
+                raid_timer: _,
+                want: _,
+                bankrupt_stage: _,
+                trade_spent_a: _,
+                trade_spent_b: _,
+                trade_received_a: _,
+                trade_received_b: _,
             } = r;
             let realm = &mut k.realms[id];
             realm.in_play = *in_play;

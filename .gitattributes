@@ -81,3 +81,8 @@ docs/arms.json       merge=l2json
 # function holds several trigger sites -- `Msg_DrawWindow` holds twenty-four --
 # so an `addr` key would collapse 143 records into 70 and discard 73 in silence.
 docs/audio.json      merge=l2json
+#
+# `docs/stored-fields.json`, registered in the commit that creates it for the
+# same reason. Keyed by `id` (`County+0x0C0`): an offset is unique per record, and
+# the file's whole purpose is that no row may silently disappear.
+docs/stored-fields.json merge=l2json

@@ -292,9 +292,14 @@ pub struct County {
     pub ale_happiness_given: i32,
     /// `+0x20` — 0..=4. At 4 the county revolts (§6).
     pub unrest: u8,
-    /// **Engine state.** The "warned" flag `Unrest_UpdateAll` clears at
-    /// happiness >= 30, so message `0x92` fires once rather than every season.
-    /// `docs/kingdom.md` §6 describes the flag without giving its offset.
+    /// `+0x21` — the "warned" flag `Unrest_UpdateAll` clears at happiness
+    /// >= 30, so message `0x92` fires once rather than every season.
+    /// `docs/kingdom.md` §6 describes the flag without giving its offset, and
+    /// this said *engine state* for that reason: `Unrest_UpdateAll`
+    /// (`0x0044AA41`) is the only reader and writer of `+0x21`, sets it under
+    /// `0x1E`, and every save on this machine carries it set only in counties
+    /// below thirty. `[V]`, `crates/l2-scenario/tests/import.rs`;
+    /// `docs/decisions.md` CNEW-stored-fields.
     pub unrest_warned: bool,
 
     // --- population (docs/kingdom.md §1.2) ---------------------------------
