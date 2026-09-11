@@ -3647,18 +3647,29 @@ fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx) {
     match &ctx.assets.chrome {
         Some(c) => {
             c.draw_menu_bar_background(canvas);
-            // `Screen_DrawMenuBar`: realms 1..=5 that are in play, banner at
-            // 270 + 16i.
+            // `Screen_DrawMenuBar` (`0x00419C78`): realms 1..=5 under
+            // `strength != 0 && aiStep < 999`, banner at 270 + 16 * slot.
+            //
+            // **The shield row is the turn clock.** A realm's banner is up
+            // while it has a turn still to play and goes the moment it ends
+            // one — the person's own on the click, each AI's as it finishes —
+            // and all of them come back when the next turn begins.
+            // `turn::realm_turn_ended` is the second clause, and says why it
+            // is not a literal `ai_step < 999`.
+            //
+            // `slot` is `local_c`, which the original advances after every
+            // `Pl8_DrawFrame` it calls — so the row closes up leftwards over a
+            // realm that is out, and a frame that fails to load still holds
+            // its place rather than shifting its neighbours onto it.
             let mut slot = 0;
             for id in 1..k.realms.len() {
-                if !k.realms[id].in_play {
+                if !k.realms[id].in_play || turn::realm_turn_ended(game, id) {
                     continue;
                 }
                 let raw = game.realm_colour.get(id).copied().unwrap_or(0);
                 let colour = chrome::realm_colour(raw);
-                if c.draw_banner(canvas, slot, colour) {
-                    slot += 1;
-                }
+                c.draw_banner(canvas, slot, colour);
+                slot += 1;
             }
         }
         None => widget::panel(canvas, ink, Rect::new(0, 0, canvas.width as i32, TOP_BAR)),
@@ -3871,14 +3882,17 @@ fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
     // turn started being paced over frames** — before that there was no
     // interval to be inside.
     //
-    // **Two other things read the same flag and we reproduce neither**, which is
-    // why this is not one small item: `Screen_DrawMenuBar`'s banner loop is
-    // `strength != 0 && aiStep < 999`, so **each realm's banner vanishes from
-    // the menu bar as that realm finishes its turn** and the bar refills as the
-    // new one begins; and `FUN_0041A639`'s turn timer is gated on
-    // `aiStep == 999`. Together they are the original's whole "the turn is being
-    // processed" feedback, and ours is the End Turn label alone.
-    // `docs/draws-map.md` §5.11.
+    // **Two other things read the same flag.** `Screen_DrawMenuBar`'s banner
+    // loop is `strength != 0 && aiStep < 999`, so each realm's banner vanishes
+    // from the menu bar as that realm finishes its turn and the bar refills as
+    // the new one begins — reproduced in `draw_menu_bar`, through
+    // `turn::realm_turn_ended`. And `FUN_0041A639`'s turn timer is gated on
+    // `aiStep == 999`, which is **not** reproduced: we have no turn timer.
+    // Together the three are the original's whole "the turn is being
+    // processed" feedback. This paragraph used to say we reproduced neither of
+    // the two, and it sat twenty lines from the loop that omitted the clause it
+    // quoted. `docs/draws-map.md` §5.11, `docs/decisions.md`
+    // CNEW-shields-are-the-turn-clock.
     if !turn::turn_in_flight(&ctx.game) {
         let end = if screen.focus == Focus::EndTurn {
             ink.highlight

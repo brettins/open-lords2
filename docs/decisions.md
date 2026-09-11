@@ -7199,11 +7199,6 @@ Two smaller corrections fell out of reading the arm:
 **CNEW-shields-are-the-turn-clock — The menu bar's shield row is a turn clock, and
 we drew half its guard.**
 
-**Recorded from an investigation that was interrupted before the fix was written.**
-The reading below is `[V]` against the decompilation; nothing in the tree has been
-changed yet. `HANDOFF.md` on branch `worktree-agent-ad8d67ce0011058fe` carries the
-designed fix.
-
 A player: *"I think in the original game the shield icons at the top meant that
 players hadn't ended their turn."* He was right, and his recollections of *what the
 game did* remain unreversed.
@@ -7248,3 +7243,16 @@ draws no shields at all while the player is playing — the defect inverted. The
 mapping is the one `map.rs` already found for the End Turn caption:
 `turn::turn_in_flight` **is** the human's `aiStep >= 999`. `Realm::turn_done()` is the
 wrong instrument here for a different reason — it short-circuits on `is_human`.
+
+**What was built.** `l2_game::turn::realm_turn_ended` carries that mapping —
+between turns nobody has ended; inside one the person has, and each AI realm has
+when its own `ai_step` says so — and `draw_menu_bar` skips a realm on it. The slot
+now advances on every banner the loop *draws*, as `local_c` does, rather than on
+every frame that happened to load. The test that holds it
+(`screens.rs::the_menu_bar_shields_are_the_realms_still_to_move`) opens on the
+trap: every living realm's shield **must** be up during the person's own turn with
+every counter at or past 999, so the literal port goes red on its first assertion.
+Its expected pixels are built from `Screen_DrawMenuBar`'s own literals — frame
+`0x55 + shield`, `x = 0x10E + 0x10 * slot` — and never through the function under
+test. `FUN_0041A639`'s turn timer, the third reader of the flag, is still not
+reproduced.

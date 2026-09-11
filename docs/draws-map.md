@@ -474,7 +474,9 @@ if (<screen is one of the map-like ids> && (g_realms[local].gold != DAT_004E59C4
 so the bar — banners, titles, year, season and gold — is repainted only when the local
 realm's gold changes or a flag is set. It is why the year can be a frame late after a season
 turn. And the banner loop's test is `strength != 0 && aiStep < 999`, so a **defeated** realm
-loses its banner mid-game.
+loses its banner mid-game — and so does every realm that has **finished its turn**, which is
+the half of that test §5.11 is about. `Turn_End` raises `DAT_0056D6A0` for exactly that
+reason: it is the flag in the guard above, and the button sets it so the shield goes.
 
 ### 5.9 A whole tile pass is dead
 
@@ -605,14 +607,27 @@ feedback:
 | draw | condition | ours |
 |---|---|---|
 | the End Turn label | `aiStep < 999` | **now reproduced** |
-| **each realm's menu-bar banner** | `strength != 0 && aiStep < 999` | no — we test `in_play` |
+| **each realm's menu-bar banner** | `strength != 0 && aiStep < 999` | **now reproduced** — `turn::realm_turn_ended` |
 | the turn timer (§5.6) | `g_optTimeLimit > 0` and `aiStep == 999` | no |
 
-The middle row is new and is worth more than the label: **a realm's banner vanishes from the
-menu bar as that realm finishes its turn, and the bar refills as the new turn begins** — a live
-five-realm progress indicator across the top of the screen. `docs/screens.md` §4.2 describes
-that loop as *"each realm 1…5 that is alive"*, which is half of its test. Reproducing it needs a
-per-realm turn counter this workspace does not keep, so it is reported rather than built.
+The middle row is worth more than the label: **a realm's banner vanishes from the menu bar as
+that realm finishes its turn, and the bar refills as the new turn begins** — a live five-realm
+progress indicator across the top of the screen. A player remembered it before anybody had
+read it: *"the shield icons at the top meant that players hadn't ended their turn."*
+
+**Correction: this paragraph used to end *"reproducing it needs a per-realm turn counter this
+workspace does not keep, so it is reported rather than built."*** The workspace has kept one
+the whole time — `l2_kingdom::Realm::ai_step`, written by `ai::begin_turn` and `ai::run_step`
+and read by `drive_ai` on every tick of phase 4. The sentence reported a gap in the *model*
+where the gap was in the *painter*, and it was the reason nobody built a twelve-character
+clause.
+
+**And the port is not the literal clause.** Our player sits on the map *between* turns with
+the phase machine at phase 1, where every counter is already at or past 999; the original's
+sits *inside* phase 4 with his parked at 1. So `aiStep < 999` read literally draws no shields
+at all while the person is playing. `turn::realm_turn_ended` maps the person's counter to
+`turn_in_flight` — the same mapping the End Turn label above uses — and an AI realm's to its
+own `ai_step`, inside a turn only. `docs/decisions.md` CNEW-shields-are-the-turn-clock.
 
 **One thing about this draw is worth recording beyond the map.** It could not have been
 reproduced two days ago: the turn only recently began to be *paced over frames*, so until then
