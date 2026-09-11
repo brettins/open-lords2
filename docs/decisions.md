@@ -6338,3 +6338,95 @@ not."*
 county `+0x108`, whose meaning was not traced"* — it is the worker count, and it is the
 divisor of the efficiency ramp's overstaffing term. Same class of change, same reason for not
 making it now.
+
+**CNEW-selection-offscreen — C132's replacement assertion compared two counties
+that were both off the edge of the screen, and passed with the outline put back.**
+
+C132 removed the yellow outline round the selected county and wrote the assertion that
+could not exist while it was there: `the_selection_is_not_drawn_on_the_map` requires the
+whole 480 × 480 map area to be **byte-identical** under two different selections. Its own
+entry says why that is the right shape — *"a stronger claim than the outline is gone,
+because any future selection paint fails it"* — and it is the right shape. The claim was
+still false, for a reason that has nothing to do with the shape.
+
+The test took the **first two** counties the player does not own. On the England fixture
+those are 1 and 2. The viewport the map opens on shows counties **8 and 9** and nothing
+else. So the two canvases were identical because neither county had a pixel on screen in
+either of them, and the assertion was measuring an empty set.
+
+**Measured, not argued: the outline was put back — nineteen lines walking the pick plane and
+writing `ink.highlight` on every boundary pixel of `game.selected` — and the whole suite went
+green.** 2,158 passing, nothing red, the defect a player had reported four merges earlier
+back on the screen. The three defects this branch was sent to check were all genuinely
+fixed; the one that was supposed to *keep* the third fixed was not holding anything.
+
+This is `docs/agents.md`'s *"a check that passes for an accidental reason is
+indistinguishable from one that passes for the right reason"*, and it is the fourth
+instance. What makes it worth its own entry is **where the accident was**: not in the
+comparison, which is exact, and not in the threshold, because there is no threshold — it is
+in the **selection of what to compare**, one line above, chosen by an ordering that has no
+relationship to what the painter can see. C132 deliberately *derived* the two counties
+rather than naming them, for a good reason it states, and derived them by the wrong
+property.
+
+> **A byte-exact comparison over the wrong two inputs is as vacuous as a threshold chosen by
+> observation, and it does not look like it, because nothing in it is approximate.**
+
+The repair has the guard in it rather than beside it. The sweep is now every foreign county
+the pick plane says is **on screen**, each against a baseline selection that is off screen,
+and an `assert!` that the visible set is non-empty is what stops it going vacuous again.
+Ablated: the outline back turns it red with *"county 9 fills 40,286 pixels of the viewport,
+and selecting it instead of the off-screen county 1 changed 864 of them."*
+
+**And the general form, which is the part to carry.** Every ablation this project has run
+asks *"does deleting the line turn it red?"* The line here was already deleted; the question
+that finds this class is the other one — **does the test still pass if you put the defect
+back?** For an assertion whose subject is an *absence*, that is the only ablation there is,
+and C132 did not have it available, because the outline had been deleted in the same commit
+that wrote the test. A test written against a tree where the defect is already gone has
+never been observed failing, exactly like a test written against a passing tree.
+
+**CNEW-campaign-map-group — three defects a player reported on the campaign map, and not one
+of the arms they lived in was in the arms inventory.**
+
+A player reported three things about selection on the campaign map: an army that could not be
+deselected, a yellow outline round the selected county, and a click on grass opening the tax
+window. All three were already fixed when this branch went to look — C61 for the first and
+third, C132 for the second — and the fixes are real. They were verified by ablation rather
+than by reading: removing the deselect turns
+`the_right_button_deselects_an_army_and_does_not_open_the_information_panel` red, and putting
+a county-selection arm back at the tail of `Map_Click` turns
+`a_click_on_a_countys_open_ground_selects_nothing` red.
+
+**What was not there is the bookkeeping.** `docs/arms.json` had **no record for `Map_Click`
+(`0x0043CE1A`) at all**, and none for `Screen_FrameInput`'s `0x10` arm. That is 1,263 bytes
+holding the whole of what a left click on the campaign map does — the only writer of
+`g_screenId = 2` in the binary — plus the four-clause arm that *is* move-order mode, and both
+were outside the set rule 5 is measured over. The right-column group covers `x >= 478` and
+stops; nothing covered the 480 pixels to the left of it.
+
+So the count CLAUDE.md quotes had been taken over a denominator that excluded the screen the
+game opens on. Thirteen records now exist under a new `campaign-map` group — eleven
+reproduced, with markers, and two missing — and the reproduced figure moves from 154 of 178
+to 165 of 191. **The percentage went down**, which is the correct direction for a change that
+only adds things we already do: it was measuring a smaller world.
+
+This is the file's own warning about itself arriving in practice —
+*"C61 counted the arms of `Screen_FrameInput`. That is a PLACE, not a category, so every
+input the game dispatches from anywhere else scored zero WITHOUT EVER APPEARING AS A MISS"* —
+and the new case is sharper than the three already listed there, because `Map_Click` **is**
+dispatched from `Screen_FrameInput`. It was not missed for being in the wrong place. It was
+missed because the group that owns the campaign map was scoped by a *coordinate* and the
+arms are on the other side of it.
+
+Two things fell out of reading the function that are worth having:
+
+* **The gestures differ by one screen id.** `Map_Click` is reached on
+  `g_mouseLeftReleased`, so every arm in it is a `left-release`; the confirm one screen away
+  on `0x10` is `g_mouseLeftPressed`. Two edges of the same button, and until now neither was
+  recorded.
+* **`Msg_Enqueue(…, 0x70, …)` fires in exactly two places and not four.** A settlement or a
+  merchant in a county that is not yours gets the message; that county's *town* and its
+  *farmland* fall out silently, because their owner tests are inside the flag branch rather
+  than beside it. We answer both with a status line of ours and enqueue nothing, which is
+  filed as `0x0043CE1A/foreign-county-refusal`, missing.

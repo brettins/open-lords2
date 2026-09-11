@@ -226,6 +226,11 @@
       "what": "The GESTURE KINDS themselves -- Widget_Test (0x0040DA1E) and Hotspot_Test (0x0040E3EE), the two hit-testers the whole interface is built out of, and the five kind bytes they read. Not a screen: a LAYER, and every screen's buttons are in it.",
       "complete": false,
       "note": "Deliberately incomplete, and the flag is the finding. Of the five kinds, ONE is built: kind 4's accelerating auto-repeat, in crates/l2-game/src/press.rs, wired on the army-division steppers. Kind 5's twenty-frame delayed fire is implemented and wired nowhere; the pressed frame (base+1 while the press timer runs, Widget_Draw 0x0040CFD2) is drawn nowhere; Hotspot_Test's kind-2 320 ms pulse is a constant and no code. Those are why this group cannot be claimed complete, and docs/input.md section 6 lists the tables each one owns."
+    },
+    "campaign-map": {
+      "what": "g_screenId 0x00 and 0x10 -- Map_Click (0x0043CE1A), the campaign map's left-click dispatcher, and the four-clause 0x10 arm that is move-order mode.",
+      "complete": false,
+      "note": "THIS GROUP DID NOT EXIST, AND THE THREE DEFECTS THAT PRODUCED IT ALL LIVED IN IT. A player reported three things about selection on the campaign map -- an army that could not be deselected, a yellow outline round the selected county, and a click on grass opening the tax window. All three were fixed (C61 and C132) and NOT ONE of the arms involved was in this file: `right-column` covers x >= 478 and stops there, so Map_Click -- 1,263 bytes, the only writer of g_screenId = 2 in the binary, and the whole of what a left click on the map does -- scored zero WITHOUT EVER APPEARING AS A MISS. That is the _note's own \"the denominator is a PLACE, not a category\" happening to the campaign map, which is the screen the game opens on. `complete: false` because the enumeration here is Map_Click's own ladder, the 0x10 arm and the two screen-0 clauses either side of the Map_Click call; the rest of the screen-0 ladder is the `right-column` group's and the message scroll's. docs/decisions.md CNEW-campaign-map-group."
     }
   },
   "arms": [
@@ -844,6 +849,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/map-right-opens-info",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "The clause immediately after the Map_Click call in the screen-0 ladder: `if (DAT_005533B0 != 0 && g_mouseRightReleased) { g_screenId = 4; FUN_0043CAF4(); }` -- a right release over a picked tile opens the information panel. It is screen 0's arm and ONLY screen 0's, which is the whole of why the deselect below was missing.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/map-zoom-in-at-tile",
       "status": "reproduced",
       "group": "right-column",
@@ -925,6 +941,41 @@
       "why": "Screen_FrameInput epilogue runs Minimap_Click on every screen but 0x12: a press inside the raster selects that county, recentres the map and sets g_screenId = 0. The shell wrapper reproduced it once for all seven shells; graduating them lost it, so it is per screen now because the screens are. Only the raster is passed, not the whole column -- see screens/job.rs at the same arm.",
       "evidence": "V",
       "ours": "crates/l2-game/src/screens/ratings.rs"
+    },
+    {
+      "id": "0x0042FF10/move-order-confirm",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x10",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "The third clause of the 0x10 arm: `if (g_mouseLeftPressed != 0 && g_moveOrderClickGuard < 1) { g_screenId = 0; DAT_0056D64C = 1; Map_ConfirmMoveOrder(); }`. Map_ConfirmMoveOrder (0x004A9252) opens `if (g_moveOrderAvailable != 1) return;`, the gate Map_HoverUnitTarget lit or cleared for the tile under the cursor.",
+      "note": "A left PRESS, where Map_Click one screen id away is a left RELEASE. g_moveOrderClickGuard (0x00553ECC, 40 frames) is absent from ours and that is a difference of model rather than an omission: Screen_FrameInput polls the button's LEVEL every frame, so one physical press reads as a click on every frame it is held, and our Event::Click is already an edge. C61.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/move-order-right-cancels",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x10",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "THE DESELECT, and the whole of it: `if (g_mouseRightReleased != 0) { g_screenId = 0; g_redrawRequest = 2; }`. Leave move-order mode, redraw, and nothing else -- no information panel, no confirmation, and no order placed.",
+      "note": "A player: \"i also cant deselect an army.\" Ours had the right button bound to screen 0's arm -- 0x0042FF10/map-right-opens-info above -- with no test of the mode, so it opened a panel where the original cancels. NOTE WHAT IS NOT HERE: a click on empty ground does NOT deselect. That click is Map_ConfirmMoveOrder and it either places an order or returns; a second click on the army itself is the same thing aimed at the tile it stands on, which Map_HoverUnitTarget has already cleared the gate for. The right release is the only cancel the shipped game has -- FUN_00437107's on-screen CANCEL button is cut, and is on file as 0x00437107/dead-move-order-strip. C61.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/move-order-turn-ends",
+      "status": "missing",
+      "group": "campaign-map",
+      "screen": "0x10",
+      "gesture": "frame",
+      "addr": "0x0042FF10",
+      "what": "The FIRST clause of the 0x10 arm, and it is not a gesture: `if (syncWait || (turnEnded && !debugOverride)) { g_screenId = 0; g_redrawRequest = 2; }` -- the mode drops itself the frame the turn stops being yours, without the player touching anything. The same latch opens the 0x1D and 0x11 arms.",
+      "note": "Ours freezes input while a turn is in flight (MapScreen::handle's turn_in_flight gate) but never CLEARS the selection, so an army picked just before End Turn is still picked when the season lands. Close to the arm and not it.",
+      "evidence": "V"
     },
     {
       "id": "0x0042FF10/panel-right-closes",
@@ -1013,6 +1064,18 @@
       "addr": "0x00432221",
       "what": "Screen_FrameInput's 0x28 arm opens with Map_EdgeScroll().",
       "why": "Screen 0x28 is unreachable. Every immediate write of g_screenId in Lords2.exe was enumerated -- 212 `mov byte ptr [0x004EAC50], imm8` sites, values 0x00..0x45 -- and 0x28 is absent while 0x29, 0x2A and 0x2B are present; no decompiled function assigns it, and the indirect writes (g_screenIdSaved, g_menuPrevScreen) can only restore a value g_screenId already held.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432221/map-edge-scroll",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00, 0x10",
+      "gesture": "hover-at-edge",
+      "addr": "0x00432221",
+      "what": "Map_EdgeScroll, the FIRST guard of both the screen-0 and the screen-0x10 arms, and it returns non-zero to swallow the frame. Two rows and one column of the desktop against the battlefield's single outermost pixel, throttled by Map_ScrollThrottle (0x004BBBE3) rather than running every frame.",
+      "note": "A separate record from 0x00432221/battle-edge-scroll and 0x00432221/dead-0x28-edge-scroll because this file counts PER IMPLEMENTATION and MapScreen::update is a different one from the battlefield's. The four arrow keys beside it are ours -- the original scrolls by pushing the pointer into the edge of the DESKTOP, which a windowed player today cannot do.",
+      "ours": "crates/l2-game/src/screens/map.rs",
       "evidence": "V"
     },
     {
@@ -1943,6 +2006,87 @@
       "evidence": "V"
     },
     {
+      "id": "0x0043CE1A/field-brush",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "left-release",
+      "addr": "0x0043CE1A",
+      "what": "Plane-0 flag 0x20 (farmland), county owned by g_localPlayer: _DAT_005681CC = 3 and g_screenId = 4, then FUN_0041B032. The mode byte is what makes the information panel draw the crop table instead of the tile panel.",
+      "note": "The ROUTE is the original's and the DESTINATION is not: we answer this click with a popup on the map rather than screen 0x04, which is recorded separately and deliberately kept as ours/brush-popup-on-the-map. Marked reproduced because the arm -- this click, on this tile, offering this menu -- is answered; the divergence is in the invention record, where it can be counted.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043CE1A/foreign-county-refusal",
+      "status": "missing",
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "left-release",
+      "addr": "0x0043CE1A",
+      "what": "Msg_Enqueue(0, g_localPlayer, 0x70, 0, 0, 0, 0, 0) -- a message, in exactly TWO places and not in the others: clicking a SETTLEMENT (flag 0x80) in a county that is not yours, and clicking a MERCHANT standing in a county that is not yours. A foreign county's town (0x40) and farmland (0x20) fall out silently, because their arms carry the owner test INSIDE the flag branch rather than beside it.",
+      "note": "We answer both cases with a status line of ours (\"NOT YOUR UNIT\", \"THAT MERCHANT IS NOT IN ONE OF YOUR COUNTIES\") and enqueue nothing, so the player gets our words where the original draws L2.eng group 0x70 -- CLAUDE.md rule 6's shape. Filed missing rather than reproduced because the thing the original does here is put a message in the ring, which is observable state and not a caption.",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043CE1A/industry-toggle",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "left-release",
+      "addr": "0x0043CE1A",
+      "what": "No unit, plane-0 flag 0x80 (a settlement), county owned by g_localPlayer: if the county is not the selected one it is selected and the map recentred on its town -- and a county with NO town returns outright, before the toggle. Then a ladder on g_pickedTileGraphic picks the industry (0..3 iron, 4..6 stone, 7..9 weapons, 10..12 wood, 13..20 nothing, 21+ castle) and Industry_ToggleFromMap runs, ending in a floating-tip Msg_Enqueue.",
+      "note": "THE PROLOGUE OF THIS ARM IS THE CODE C61 ONCE QUOTED AS A FREE-STANDING COUNTY-SELECTION ARM. It is not one: it is guarded by flag 0x80 and by the county being yours, and the three writes to g_selectedCounty in Map_Click are all inside branches that open something. Selection from the map is a side effect of arriving somewhere, never a verb of its own.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043CE1A/merchant",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "left-release",
+      "addr": "0x0043CE1A",
+      "what": "A picked unit of kind 3 in a county whose OWNER is g_localPlayer: DAT_00553C64 = unit, and then only if the county has a town -- g_selectedCounty = county, Map_CentreOnTile(townTile), g_screenId = 8. The guard is the COUNTY's owner and the merchant's own owner byte is never read in the whole 1,263-byte function, which is why \"your merchant\" is not a thing that exists: every merchant carries owner 6. C50.",
+      "note": "This is one half of the player report that produced C58 -- \"if I click a merchant while the map has a different county selected it will open up the tax window\". The selection was innocent; the hit test was a nine-pixel marker box under a 40 x 32 figure, so most clicks missed this arm and fell through to a county-selection arm of ours that no longer exists. crates/l2-game/tests/screens.rs a_merchant_is_clickable_over_its_whole_tile_whichever_county_is_selected.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043CE1A/siege-preparation",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "left-release",
+      "addr": "0x0043CE1A",
+      "what": "The same unit with besiegingCounty != 0 takes the other leg: Siege_ValidateLink(unit) first -- which can CLEAR the link and drop the click into the move-order leg above -- then g_siegeScreenUnit = unit, g_screenId = 0x1D, g_redrawRequest = 2.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043CE1A/unit-orders",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "left-release",
+      "addr": "0x0043CE1A",
+      "what": "Map_Click's FIRST test, before any tile flag: a picked unit of kind 1 whose owner is g_localPlayer and whose besiegingCounty is 0 runs Panel_MoveButton(), which is g_screenId = 0 then Map_BeginMoveSelection() -- the map stays up and the next click is the order. The unit test comes first, so an army standing on your own farmland is an army and not a field.",
+      "note": "Reached on g_mouseLeftReleased, not the press: Screen_FrameInput's screen-0 ladder calls Map_Click() under `if (DAT_005533B0 != 0 && g_mouseLeftReleased != 0)`. Every Map_Click arm in this group therefore has gesture left-release, and the 0x10 arm that follows a selection is a left-PRESS -- one screen apart, two different edges of the same button.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0043CE1A/village",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "left-release",
+      "addr": "0x0043CE1A",
+      "what": "Plane-0 flag 0x40 (the county town), county owned by g_localPlayer: `if (townTile != 0) { g_selectedCounty = county; Map_CentreOnTile(townTile); ... }` and then g_screenId = 2, Village_Draw(1) OUTSIDE that guard -- so a town-less county still opens the village. The only writer of g_screenId = 2 in the binary.",
+      "ours": "crates/l2-game/src/screens/map.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x00472E46/battle-phase-swallows-messages",
       "status": "missing",
       "group": "messages",
@@ -2116,6 +2260,18 @@
       "what": "Player_SetHuman -- where a typed name stops being a keystroke: `g_realms[p].isHuman = 1; g_playerNames[p].occupied = 1; Str_Copy(0x53F1E0, &g_playerNames + p * 0x2C, 0x1F);`. THIRTY-ONE bytes out of the settings block into the name array, and the player index IS the realm index -- the same argument selects both.\n\nThe AI half of the same array is a different width and a different source: Eng_Seek(7, realm.lord) and SIXTEEN bytes copied. L2.eng group 7 is 'The Knight, The Baron, The Countess, The Bishop, No player', and the index is the LORD, not the realm and not the colour.",
       "note": "g_playerNames is a save block of its own (g_saveBlocks[2] = {0x00553D50, 264} = 6 x 0x2C), which is why ours is on Game beside realm_colour rather than on Kingdom: the lockstep digest is hash_of(kingdom) and a name cannot change a number.",
       "ours": "crates/l2-game/src/screens/setup.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004A8E0B/hover-unit-target",
+      "status": "reproduced",
+      "group": "campaign-map",
+      "screen": "0x10",
+      "gesture": "hover",
+      "addr": "0x004A8E0B",
+      "what": "Screen_DrawWidgets' 0x10 arm is Map_HoverUnitTarget() and NOTHING ELSE -- where every other screen draws a widget table, this one recomputes the route under the cursor. It decrements g_moveOrderClickGuard, sets or clears g_moveOrderAvailable, marks the route through Path_MarkPreviewTiles (0x004A91BA) and re-runs the descent only when the hovered tile changed. It also collects a castle under the cursor as g_hoverGarrisonCounty or g_hoverSiegeCounty, and a second army as g_hoverMergeUnit.",
+      "note": "Path_MarkPreviewTiles is the ONLY writer of tile bank bit 0x40 in the binary and runs only from here, which runs only on 0x10; Map_DrawPathMarker (0x004081A6) draws a ball on every marked tile and CLEARS the mark as it draws it, which is why the trail does not accumulate as the cursor sweeps. A player: \"the original has the army steps on hover, ours just populate on click.\" C61.",
+      "ours": "crates/l2-game/src/screens/map.rs",
       "evidence": "V"
     },
     {
