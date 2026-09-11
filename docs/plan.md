@@ -119,11 +119,21 @@ All three say the same thing: **quote the second column, not only the count.**
 At `dcde777`: **2,104 tests**, C1..C126, 826 citations, 1,290 functions and 573 globals named,
 53 generated figures, `GATED_TOTAL` 324. Five checks green.
 
-**One live debt with a player report attached.** `Ui_DrawNumberRight` **centres** — the name is a
-false claim and the `[V]` comment asserted the opposite of the body (C119). Two panels are fixed.
-**Eighteen call sites beyond them are unaudited**, and a player has reported the sidebar's
-happiness and population numbers sitting left, which is exactly that fingerprint. That sweep
-wants an owner and is the cheapest player-visible win on this list.
+**That debt is now paid, and it did not pay out where it was expected to.** `Ui_DrawNumberRight`
+**centres** — the name is a false claim and the `[V]` comment asserted the opposite of the body
+(C119) — and the sweep of the remaining call sites has run: `docs/decisions.md`
+CNEW-number-right-sweep. Twenty sites, **fourteen drawn by us and six not drawn at all**; the
+sidebar report was already fixed, by C127, and by a different cause, since `CountyStrip_Draw`
+uses `Ui_DrawNumber`, which has no anchoring argument. **Not one of the fourteen was
+misaligned.** Five were wrong anyway — `Panel_Ration` is the only painter in the image that
+passes an **empty** suffix, we passed a space, and the suffix is inside what the centring tail
+measures, so all five columns sat two pixels left.
+
+**What is still open from it** is the count rather than the placement: six `Ui_DrawNumberRight`
+sites have no draw of ours (the besieger's siege-seasons mark, the turn timer, the battle HUD's
+two men counters, and two on a skirmish panel), and `Ui_DrawNumber`'s **191** call sites have
+had their *lead* swept (C127) and not their *suffix* — `Pen::number` still builds a trailing
+space for every caller. That is the next pass of the same shape.
 
 ### What is recorded and what is not
 
@@ -914,7 +924,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->2,145<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->2,147<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

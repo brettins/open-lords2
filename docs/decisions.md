@@ -6045,3 +6045,81 @@ gone*, because any future selection paint fails it. The two counties it compares
 derived rather than named, because the field markers under `brush` are drawn for the
 selected county when the player owns it and are the visible half of a *different*
 invention that is deliberately kept.
+
+**CNEW-number-right-sweep — the eighteen unaudited call sites, counted: fourteen
+of the twenty are drawn by us, five of those fourteen were wrong, and the thing
+that was wrong was not the alignment.**
+
+C119 found that `Ui_DrawNumberRight` (`0x004030C6`) **centres**, fixed two panels, and left
+`docs/symbols.md` saying *"Twenty call sites in the image inherit it; two are on the county
+ration panel and **eighteen are unaudited**."* This is that sweep. Three things came out of
+it and only the third is the defect.
+
+**One — the sidebar report that motivated the sweep was already fixed, by C127, and by a
+different cause.** *"Happiness # and population # in the sidebar are slightly left of where
+they should be"* is `Ui_DrawNumber`'s missing lead column, not this function's anchoring;
+`CountyStrip_Draw` (`0x0040F7D3`) draws all three through `Ui_DrawNumber`, which has no
+width argument. Re-checked against the binary rather than against C127: the three call sites
+are `(pop, ' ', " ", 0x1FC, 0xBD)`, `(happiness, ' ', " ", 0x25A, 0xBD)` and
+`(taxRate, ' ', "%", 0x1FA, 0xE2)` — `&DAT_004D3D34`, `…38` and `…3C` hold `" "`, `" "` and
+`"%"` — and `screens/county.rs` now passes exactly those. **The sweep is still the job; the
+sidebar was one instance of a different thing.**
+
+**Two — the count was wrong in the direction that flatters, and the siblings are the reason
+to have looked.** Not eighteen unaudited: `Panel_Ration` holds **five** of the twenty, not
+two, and the produce rows, the court and the battle-master ratings had already been moved to
+a centring helper. The live tally is **fourteen call sites drawn by us and six not drawn at
+all** —
+
+| painter | sites | `x`, `y`, `width` | ours |
+|---|---|---|---|
+| `FUN_004100AF` / `FUN_0041023A` | 2 | `0x1E0`, row, `0x3C` | `body_number_centred` — **placed** |
+| `Panel_Ration` `0x00411B72` | 5 | `0xD0`/`0x10A`/`0x144`, `0x11E`/`0x134`, `0x40` | **two pixels left** — see below |
+| `Court_Draw` `0x00416925` | 1 | `i*0x38 + 0x54`, `0x10A`, `0x38` | `Pen::number_centred` — **placed** |
+| `Screen_BattleMasterRatings` `0x00421707` | 6 | `c*0x32 + 0xAD`, six rows, `0x3C` | `Pen::number_centred` — **placed** |
+| `FUN_00407F82` `0x00407F82` | 1 | under `Flags1a` frame `0x82`, width = **that frame's own width** | **no draw** — the besieger's `unit +0x19C`, siege seasons left, over a besieged castle; `map.rs` draws a dot and says so |
+| `FUN_0041A639` `0x0041A639` | 1 | `0x1A8`, `0x1BA`, `0x32` | **no draw** — the turn timer, `g_optTimeLimit > 0 && aiStep == 999`, already listed as absent in `docs/draws-map.md` §5.11 |
+| `FUN_0042130F` `0x0042130F` | 2 | `0xA6` and `0x37`, `i*0x1E + 0x6C`, `0x14` | **no draw** — the skirmish army panel; group 11, and we have no skirmish mode |
+| `FUN_00423530` `0x00423530` | 2 | `0x1FA` and `0x24A`, `0x1A6`, `0x38` | **no draw** — `g_battleMenA` and `g_battleMenB` on the battle HUD, the two numbers `Battle_CheckOutcome` ends the battle on |
+
+**And the siblings, because the brief was right that a misleading name usually has one.**
+`FUN_004025D7` — the centring tail — has three wrappers and twenty direct call sites of its
+own. Two of the three wrappers are `Ui_DrawCentred` and `Ui_DrawNumberRight`. The third is
+**`FUN_00403190` (`0x00403190`): `Ui_DrawDelta` with a `width`, a signed forecast centred in
+a box, `Ui_NumberToBuffer(v, 1, 1)` and the same tail. It has zero call sites.** The one
+live sibling, `FUN_00403015` (`0x00403015`), is a **byte-identical duplicate of
+`Ui_DrawNumber`** calling a duplicate `Ui_NumberToBuffer` (`FUN_00402447`), six call sites,
+no width. So the alignment question closes here: `Ui_DrawNumber` (191 sites), `Ui_DrawCount`
+(81), `Ui_DrawDelta` (59), `Ui_DrawHappinessDelta` (2) and `FUN_00403015` (6) take **no
+anchoring argument at all**, and the only routine in the image that can be got wrong this
+way is the one C119 already named.
+
+**Three — the defect, and it is the same mistake one argument to the left.** Our
+`Pen::number_centred` built `" {value} "` for every caller. The suffix is *inside what gets
+measured*: `FUN_004025D7` is `x + max(0, (width − FUN_004014F0(buffer)) / 2)` and
+`FUN_004014F0` charges four pixels for a space wherever it sits and trims nothing. So an
+invented trailing space widens the measure by four and moves the digits **two pixels left**.
+
+Read out of the image, all twenty suffix pointers: **fifteen hold a single space and the
+five on `Panel_Ration` hold a NUL** — `&DAT_004D3E04`, `…08`, `…0C`, `…10`, `…14`, five
+addresses inside a run of zero bytes in `.data` ending where `"villani1.pl8"` begins. Every
+lead is `' '`. Measured on the England fixture: county 8's dairy column draws 505 at x
+**343**, and it was drawing it at **341**.
+
+`Panel_Ration`'s *sixth* number has the same suffix and the same mistake in a different
+shape. The `Armies Eat` tail is `g_penAdvance = 0; Ui_DrawNumber(men, ' ', "", 0x88, 0x150);
+Eng_DrawString(87, 8, g_penAdvance + 0x88, 0x150)`, and `Ui_DrawText` ends with
+`g_penAdvance += 4` — which is `shell::TRAILING`, which `Pen::body` already adds. The
+`" {men} "` we built charged that gap twice and put *"are foraging"* four pixels right.
+**The comment directly above that line transcribed the arguments correctly, `' ', ""`, and
+the line below it did not use them** — `docs/agents.md`'s *a correct explanation sitting
+directly above the omission it describes*, for the fourth time.
+
+**What generalises.** C119 is *a name is a claim*; this is one level in. Having established
+that the function centres, we then handed it a string the original never builds — so the
+anchoring was right, the coordinates were right, the width was right, and the picture was
+still wrong, because **the argument that decides where a centred string lands is not only
+the box, it is also the string**. A sweep prompted by an alignment bug found no remaining
+alignment bug and five string bugs. The check that would have caught it is the one this
+sweep actually ran: *read every argument at every call site out of the image, including the
+ones that look like punctuation.*

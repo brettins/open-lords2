@@ -498,13 +498,29 @@ impl Screen for RatingsScreen {
                 // The inverted highlight: a wiped-out troop type takes the
                 // *ordinary* colour and a surviving one takes `0x20`.
                 let hue = if after.troops[c] == 0 { font::TEXT } else { 0x20 };
-                pen.number_centred(canvas, x, top + ROW_DY[0], COL_W, before.troops[c], hue);
+                // Lead `' '`, suffix `&DAT_004D43B8` … `&DAT_004D43D0` — six
+                // addresses, each holding a single space. Read out of the image
+                // rather than assumed: the suffix is inside what `FUN_004025D7`
+                // measures, and `Panel_Ration`'s five sites pass an *empty* one.
+                // `docs/decisions.md` CNEW-number-right-sweep. **[V]**
+                pen.number_centred(
+                    canvas,
+                    x,
+                    top + ROW_DY[0],
+                    COL_W,
+                    before.troops[c],
+                    ' ',
+                    " ",
+                    hue,
+                );
                 pen.number_centred(
                     canvas,
                     x,
                     top + ROW_DY[1],
                     COL_W,
                     before.troops[c] - after.troops[c],
+                    ' ',
+                    " ",
                     hue,
                 );
                 pen.number_centred(
@@ -513,6 +529,8 @@ impl Screen for RatingsScreen {
                     top + ROW_DY[2],
                     COL_W,
                     their_before.troops[c] - their_after.troops[c],
+                    ' ',
+                    " ",
                     0xF9,
                 );
             }

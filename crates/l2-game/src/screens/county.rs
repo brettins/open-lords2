@@ -374,6 +374,22 @@ const VALUE_LEFT: i32 = 336;
 const FOOD_COL_X: [i32; 3] = [0xD0, 0x10A, 0x144];
 const FOOD_COL_W: i32 = 0x40;
 
+/// **`Panel_Ration`'s number arguments, which are not the same as everybody
+/// else's.** Every `Ui_DrawNumberRight` and `Ui_DrawNumber` call in this
+/// painter passes `' '` as the lead and a pointer into the run of zero bytes at
+/// `0x004D3E00` … `0x004D3E1B` as the suffix, so **the suffix is the empty
+/// string** — six call sites, six distinct addresses, every one of them a NUL.
+/// Fifteen of the image's other `Ui_DrawNumberRight` sites pass a one-space
+/// suffix instead, which is what this panel was borrowing.
+///
+/// It matters because the suffix is inside what gets **measured**: the centring
+/// tail `FUN_004025D7` is `x + max(0, (width − FUN_004014F0(buffer)) / 2)` and
+/// `FUN_004014F0` charges four pixels for a space at any position. A trailing
+/// space we invent therefore moves the digits two pixels left, on all five
+/// columns at once. `docs/decisions.md` CNEW-number-right-sweep. **[V]**
+const RATION_LEAD: char = ' ';
+const RATION_SUFFIX: &str = "";
+
 impl Panel {
     /// The panel's window in pixels — the rectangle `Ui_DrawBox` covers.
     pub fn window(self) -> Rect {
@@ -2004,22 +2020,56 @@ impl CountyScreen {
                 // Drawn through [`Pen`] rather than the 5 x 7 font, and centred
                 // rather than right-aligned: `Ui_DrawNumberRight` **centres**
                 // (C110's neighbour, and the symbol's name is a false claim).
+                //
+                // **These five are the only `Ui_DrawNumberRight` sites in the
+                // image whose suffix is empty.** `Panel_Ration` passes
+                // `&DAT_004D3E04`, `…08`, `…0C`, `…10` and `…14`, and all five
+                // of those addresses hold a NUL — a run of zero bytes in `.data`
+                // ending where `"villani1.pl8"` begins. The other fifteen live
+                // sites pass a single space. Since `FUN_004025D7` centres the
+                // *whole* buffer and `FUN_004014F0` charges four pixels for a
+                // trailing space without trimming it, the `" {value} "` this
+                // used to build put every one of these five two pixels left.
+                // `docs/decisions.md` CNEW-number-right-sweep. **[V]**
                 let (by_grain, by_meat, by_dairy) =
                     l2_kingdom::ration::people_fed(&ctx.game.kingdom.tables, c);
-                let w = FOOD_COL_W;
-                pen.body(canvas, 160, 286, &line_text(ctx, g87::FED), font::TEXT);
-                pen.number_centred(canvas, FOOD_COL_X[0], 286, w, by_grain, font::TEXT);
-                pen.number_centred(canvas, FOOD_COL_X[1], 286, w, by_meat, font::TEXT);
-                pen.number_centred(canvas, FOOD_COL_X[2], 286, w, by_dairy, font::TEXT);
-                pen.body(canvas, 144, 308, &line_text(ctx, g87::EATEN), font::TEXT);
-                pen.number_centred(canvas, FOOD_COL_X[0], 308, w, c.grain_eaten, font::TEXT);
-                pen.number_centred(canvas, FOOD_COL_X[1], 308, w, c.herd_eaten, font::TEXT);
+                // Both labels before any number, which is `Panel_Ration`'s own
+                // order: `Eng_DrawString(87, 5, 0xA0, 0x11E)`,
+                // `Eng_DrawString(87, 4, 0x90, 0x134)`, then the five columns.
+                pen.body(canvas, 160, 0x11E, &line_text(ctx, g87::FED), font::TEXT);
+                pen.body(canvas, 144, 0x134, &line_text(ctx, g87::EATEN), font::TEXT);
+                {
+                    // `Ui_DrawNumberRight(value, ' ', "", x, y, 0x40, body, 0x3F)`,
+                    // five times, in the painter's order.
+                    let mut col = |x: i32, y: i32, v: i32| {
+                        let (lead, suffix) = (RATION_LEAD, RATION_SUFFIX);
+                        pen.number_centred(canvas, x, y, FOOD_COL_W, v, lead, suffix, font::TEXT);
+                    };
+                    col(FOOD_COL_X[0], 0x134, c.grain_eaten);
+                    col(FOOD_COL_X[0], 0x11E, by_grain);
+                    col(FOOD_COL_X[1], 0x134, c.herd_eaten);
+                    col(FOOD_COL_X[1], 0x11E, by_meat);
+                    col(FOOD_COL_X[2], 0x11E, by_dairy);
+                }
 
                 if armies_eat {
-                    // `Ui_DrawNumber(+0x19C + +0x198, ' ', "", 0x88, 0x150)`
-                    // then 87/8.
+                    // `g_penAdvance = 0;`
+                    // `Ui_DrawNumber(+0x19C + +0x198, ' ', "", 0x88, 0x150, body, 0x3F);`
+                    // `Eng_DrawString(87, 8, g_penAdvance + 0x88, 0x150, body, 0x3F);`
+                    //
+                    // **The suffix in that transcription was right and the line
+                    // below it did not use it.** `Ui_DrawText` ends with
+                    // `g_penAdvance += 4` — which is [`crate::shell::TRAILING`],
+                    // and which [`Pen::body`] already adds — so the `" {men} "`
+                    // this built charged the gap *twice* and put the group 87
+                    // label four pixels right of where `Eng_DrawString` lands
+                    // it. Same mistake as the five centred columns above, on a
+                    // routine with no width argument, where it displaces the
+                    // *next* string rather than this one.
+                    // `docs/decisions.md` CNEW-number-right-sweep. **[V]**
                     let men = c.friendly_troops + c.enemy_troops;
-                    let x = pen.body(canvas, 136, 336, &format!(" {men} "), font::TEXT);
+                    let s = format!("{RATION_LEAD}{men}{RATION_SUFFIX}");
+                    let x = pen.body(canvas, 136, 336, &s, font::TEXT);
                     pen.body(canvas, x, 336, &line_text(ctx, g87::FORAGING), font::TEXT);
                 }
             }
