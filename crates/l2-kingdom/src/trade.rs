@@ -475,18 +475,60 @@ fn settle(kingdom: &mut Kingdom, county: usize) {
     let t = kingdom.tables;
     let armies_eat = kingdom.options.armies_eat;
     let season_next = kingdom.season_next;
+    // Split off `kingdom` before the county is borrowed, because the repaint
+    // needs the map and the rest of the tail needs the county.
+    let Kingdom { counties, campaign, .. } = kingdom;
+    settle_county(&t, &mut counties[county], &mut campaign.map, armies_eat, season_next);
+}
+
+/// `Merchant_Trade`'s tail, against one county and the map.
+///
+/// Split out of [`settle`] because [`crate::ai_farm::CountyStall`] reaches this
+/// path with no `Kingdom` in hand: the neutral farming pass already holds
+/// `&mut counties[id]` and `&mut map` when the cascade fires, so the tail has
+/// to be expressible in those two. **One body, two callers** — the alternative
+/// was a second copy of the seven calls in `ai_farm`, which is the two-artefacts
+/// failure `docs/agents.md` warns about, maintained by the same person in the
+/// same commit.
+///
+/// `season_next` is `g_seasonNext`, which is what `County_RefreshEstimates` is
+/// passed here rather than `g_season`.
+pub fn settle_county(
+    t: &Tables,
+    county: &mut County,
+    map: &mut crate::map::CampaignMap,
+    armies_eat: bool,
+    season_next: u8,
+) {
     // `Merchant_Trade`'s own `Herd_UpdateCrowding` — buying or selling cattle
     // moves the herd, so the animals on the county's pasture move with it.
-    // Split off `kingdom` before the county is borrowed, because the repaint
-    // needs the map and the rest of `settle` needs the county.
-    let Kingdom { counties, campaign, .. } = kingdom;
-    crate::field::herd_update_crowding(&t, &mut counties[county], &mut campaign.map);
-    let c = &mut kingdom.counties[county];
-    crate::ration::apply(&t, c, armies_eat);
-    crate::land::herd_preview(&t, c, season_next);
-    crate::labour::allocate(c);
-    crate::ration::apply(&t, c, armies_eat);
-    crate::land::herd_preview(&t, c, season_next);
+    crate::field::herd_update_crowding(t, county, map);
+    // **[`crate::ration::preview`], not [`crate::ration::apply`]** — the tail
+    // recomputes the ration, it does not serve it.
+    //
+    // > This was `apply` on both lines, and `apply` **debits the store**. So
+    // > every trade at the merchant made the county eat two extra meals on the
+    // > spot, and the more you bought the more of it vanished before the season
+    // > began. It went unmeasured for as long as it did because the only caller
+    // > was a human clicking a stall, which no test drives against a fixture —
+    // > `docs/agents.md`, *a field is only tested if something a test reads was
+    // > written by something the game runs*. Wiring the neutral counties'
+    // > cascade through here gave it a caller the behavioural differential
+    // > watches, and it showed up the same hour as **eight sacks** on county 3
+    // > of `old_turn.sav → battle-before.sav`: exactly two helpings of four.
+    // >
+    // > `[V]`. `Ration_Apply` (`0x0044DF5F`) reads `grain` and `herd` and
+    // > writes `grainAvailable`, `herdAvailable`, `rationAchieved`,
+    // > `grainEaten`, `herdEaten` and `dHapRation`. **It contains no store
+    // > `-=` of any kind**, on either of its two passes over the ladder. The
+    // > food is taken out of the county later in the season, and
+    // > `docs/decisions.md` CNEW-neutral-purse records that our own
+    // > `ration::apply` is therefore a pass the original splits in two.
+    crate::ration::preview(t, county, armies_eat);
+    crate::land::herd_preview(t, county, season_next);
+    crate::labour::allocate(county);
+    crate::ration::preview(t, county, armies_eat);
+    crate::land::herd_preview(t, county, season_next);
 }
 
 /// The `±1` / `±10` the trade panel's arrows step by.
@@ -679,8 +721,6 @@ mod tests {
         let mut k = kingdom();
         k.counties[1].owner = 0;
         k.counties[1].purse = 5;
-        // Nobody left to eat, so the tail's `Ration_Apply` cannot reach into
-        // the store and hide what the missing guard did to it.
         k.counties[1].population = 0;
         let q = quote(T, Good::Grain, 100);
         // Far more than the purse holds, and it goes through.
@@ -694,12 +734,22 @@ mod tests {
         let r = trade(&mut k, Order::sell(Good::Grain, 10, q, 0, 1)).unwrap();
         assert_eq!(r.moved, -10);
         assert_eq!(k.counties[1].purse, purse + 10 * q.sell);
-        // The store went to -10 and the tail's `Ration_Apply` then pulled it
-        // back to 0 — `sacks = min(wanted, grain)` is negative against a
-        // negative store, so subtracting it *adds*. The missing guard is
-        // therefore worth free crowns rather than a visible negative number,
-        // which is why nothing has ever noticed it.
-        assert_eq!(k.counties[1].grain, 0);
+        // **The store is left at −10**, and the county has been paid for ten
+        // sacks that were never there.
+        //
+        // > This line read `assert_eq!(grain, 0)`, with a comment explaining
+        // > that *"the tail's `Ration_Apply` then pulled it back to 0 — `sacks =
+        // > min(wanted, grain)` is negative against a negative store, so
+        // > subtracting it adds. The missing guard is therefore worth free
+        // > crowns rather than a visible negative number, which is why nothing
+        // > has ever noticed it."* Every step of that was true **of our tree**
+        // > and none of it is true of the original: `Ration_Apply`
+        // > (`0x0044DF5F`) contains no store `-=` at all, so nothing in the
+        // > binary ever pulled the number back. The explanation was reasoning
+        // > about a defect of ours as though it were a rule of the game's, and
+        // > the test that held it in place was written from the same reading.
+        // > `docs/decisions.md` CNEW-neutral-purse; `docs/bugs.md` B11a.
+        assert_eq!(k.counties[1].grain, -10, "the store really does go negative");
     }
 
     /// The four realm accumulators, which are the state a trade exists to

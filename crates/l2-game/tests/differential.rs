@@ -144,8 +144,8 @@
 //!
 //! | | with our End Turn | with it deleted |
 //! |---|---:|---:|
-//! | agree, all fields | 877 of 932 (94 %) | 623 of 932 (**66 %**) |
-//! | agree, fields the original moved | 243 of 279 (87 %) | **0 of 279 (0 %)** |
+//! | agree, all fields | 881 of 932 (94 %) | 623 of 932 (**66 %**) |
+//! | agree, fields the original moved | 247 of 279 (88 %) | **0 of 279 (0 %)** |
 //!
 //! **The raw percentage falls by 28 points and the moved-field percentage falls
 //! to zero.** That is the whole argument for the second column in one table: a
@@ -177,14 +177,39 @@
 //!    binary plainly keeps a human's score current and we have not found the
 //!    function that does it. Rule 5: that is a finding to report, not a licence
 //!    to invent one.
-//! 2. **Neutral counties buy grain and ours cannot.** In `battle 4->5`,
-//!    unowned counties 1 and 3 go 71 → 121 and 57 → 103 while ours go 71 → 71
-//!    and 57 → 53. Both gain **50 sacks** over what the season ate. Phase 1
-//!    runs `Kingdom::run_neutral_farms` with `l2_kingdom::ai_farm::NoMarket`,
-//!    whose own comment says it: *"there is no stall yet, so every style's
-//!    opening shopping cascade is refused and the county farms what it
-//!    already has."* The seam was documented and unbuilt; this is the first
-//!    measurement of what it costs, and it is 50 sacks a county a season. [I].
+//! 2. **Neutral counties buy grain and ours could not. FIXED**, and the way it
+//!    went is worth more than the fix. In `battle 4->5`, unowned counties 1 and
+//!    3 went 71 → 121 and 57 → 103 where ours went 71 → 71 and 57 → 53 — each
+//!    **50 sacks** short. Phase 1 ran `Kingdom::run_neutral_farms` with
+//!    `l2_kingdom::ai_farm::NoMarket`, whose own comment gave the reason:
+//!    *"there is no stall yet, so every style's opening shopping cascade is
+//!    refused."*
+//!
+//!    **The stated reason was false.** `Ai_BuyGood`'s stall gate is county
+//!    `+0x1A4` and its money is county `+0x1F4`, and both fixtures carry both:
+//!    `+0x1A4` is non-zero on every county holding a merchant, and `+0x1F4`
+//!    reads 186, 297, 260 on county 1 and 195, 316, 294 on county 3 across
+//!    three consecutive turns. Nothing had ever opened the file to check. That
+//!    is `docs/plan.md`'s `NOT SIMULATED` (C120) and `INDUSTRY / NOT DRAWN`
+//!    (C136) a third time — *a stated reason that nothing checks*.
+//!
+//!    **The 50 is a computation, not a constant.** Grain's base price is 2 and
+//!    every merchant's morale is 100, so `Ai_BuyGood` quotes `2 + Pct(2, 100)`
+//!    = **4 crowns a sack**; the neutral grazing cascade offers 400, 200, 100
+//!    and 50 sacks in that order and takes the first whose whole bill the purse
+//!    covers. At 297 and 316 crowns that is the 50-sack lot at 200 crowns, and
+//!    **at 186 and 195 one turn earlier it is nothing at all** — which is
+//!    exactly what `battle 3->4` shows, and is the control that says the
+//!    number is not a constant anybody added. `docs/decisions.md`
+//!    CNEW-neutral-purse. [V].
+//!
+//!    Fixing it turned up a second defect underneath, which is why this row
+//!    moved four comparisons and not two: `crate::trade`'s port of
+//!    `Merchant_Trade`'s tail called `ration::apply`, which **debits the
+//!    store**, where `Ration_Apply` (`0x0044DF5F`) has no store `-=` in it at
+//!    all. Every trade made the county eat two extra meals on the spot. It had
+//!    no caller a test watched until the neutral cascade gave it one, and it
+//!    surfaced as eight sacks — two helpings of four — on county 3.
 //! 3. **`g_optAiLords` is read by the save reader and dropped by the
 //!    importer**, so a loaded game does not know how many lords it was started
 //!    with. [V] — `grep -rn ai_lords crates/` puts it in `l2-formats`, in
@@ -628,8 +653,6 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("battle 3->4", "realm.weapons.3", 1),
     ("battle 3->4", "realm.weapons.4", 1),
     ("battle 3->4", "realm.wood", 1),
-    ("battle 4->5", "county.grain", 2),
-    ("battle 4->5", "county.grain_available", 2),
     ("battle 4->5", "global.ai_lords", 1),
     ("battle 4->5", "realm.iron", 1),
     ("battle 4->5", "realm.score", 2),
@@ -677,14 +700,14 @@ const COMPARED_TOTAL: usize = 932;
 /// one**: most of a county record is inert across a season, so a field neither
 /// side touched agrees for free and this number is mostly a measure of how much
 /// of the record the import carried unchanged.
-const AGREE_TOTAL: usize = 877;
+const AGREE_TOTAL: usize = 881;
 
 /// How many comparisons are of a field **the original's own End Turn moved**.
 const MOVED_TOTAL: usize = 279;
 
 /// How many of *those* agree. This is the number that means something, and it
 /// is the one to quote.
-const MOVED_AGREE_TOTAL: usize = 243;
+const MOVED_AGREE_TOTAL: usize = 247;
 
 // --- the tests --------------------------------------------------------------
 

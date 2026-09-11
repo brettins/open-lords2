@@ -504,6 +504,21 @@ a collector who is carrying nothing. §8.1.
 **[V] An unowned county banks its own tax** into `+0x1F4` rather than into any treasury,
 which is why the neutral tax ladder in §8.2 exists at all.
 
+> **And that sentence was here, correct, for months while `Kingdom::tax_collect` dropped
+> the take on the floor.** So did `l2_kingdom::ai`'s own comment on the neutral ladder
+> (*"nobody is collecting it, though"*) and `County::purse`'s doc. Three documents said the
+> right thing and no code did it, which is `docs/agents.md`'s *a correct explanation sitting
+> directly above the omission it describes* — the third instance, and the first where the
+> explanation was in three places at once. What it cost is in `docs/decisions.md`
+> CNEW-neutral-purse: the purse is the only money a lordless county has, `Ai_BuyGood`
+> refuses every trade a purse will not cover, and an empty purse is a county that never buys
+> food — **fifty sacks of grain a season, each, measured against the original**.
+> `l2_kingdom::tax::bank` is the branch; both limbs now run.
+>
+> `+0x0F4` and `+0x0F8` are **not** ported and are not `Realm::trade_received_a`/`_b`
+> (those are `+0x10C`/`+0x110`, which `Merchant_Trade` writes). Nothing has been found that
+> reads either; they are named rather than invented. `CLAUDE.md` rule 5.
+
 **[V] The castle multipliers are exactly the published castle tax bonuses.**
 `g_castleTaxBonus` (`0x004D8A28`) holds `50, 75, 100, 125, 150` — and
 `480/320 = 1.50`, `560/320 = 1.75`, `640/320 = 2.00`, `720/320 = 2.25`, `800/320 = 2.50`.

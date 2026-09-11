@@ -533,6 +533,11 @@ impl Kingdom {
             Pass::LabourAllocate | Pass::LabourAllocateAgain => self.labour_allocate_all(),
             Pass::MigrationUpdate => self.migration_update(),
             Pass::PopulationUpdate => self.population_update(),
+            Pass::CountyRecountMerchants => crate::merchant::recount_all(
+                &mut self.counties,
+                self.county_count,
+                &self.campaign.units,
+            ),
             Pass::ScoreRank => ai::rank_realms(&self.tables, &mut self.realms),
             Pass::History => self.history(),
             Pass::RationPreview => self.ration_apply(true),
@@ -625,9 +630,10 @@ impl Kingdom {
                 0
             };
             let take = tax::collect(&self.tables, &mut self.counties[id], empire);
-            if owner != 0 && owner < MAX_REALMS {
-                self.realms[owner].gold += take;
-            }
+            // **Both limbs of the branch**, which is the point: an unowned
+            // county's take is banked in its own purse and is the only money it
+            // ever has to shop with. See [`tax::bank`].
+            tax::bank(&mut self.counties[id], &mut self.realms, take);
         }
     }
 
@@ -1576,6 +1582,35 @@ impl Kingdom {
             &mut self.campaign.map,
             &self.realms,
             market,
+            &env,
+        )
+    }
+
+    /// Turn phase 1, step 2, **with the county's own merchant stall attached**
+    /// — which is what the original runs and what makes a lordless county able
+    /// to feed itself.
+    ///
+    /// [`Kingdom::run_neutral_farms`] takes any [`crate::ai_farm::Market`] and
+    /// stays the seam; this is the one call that supplies the real one, built
+    /// from `County::merchant_count` / `merchant_unit` and the unit array
+    /// exactly as `Ai_BuyGood` reads them. Returns the number of fields
+    /// ordered, as [`Kingdom::run_neutral_farms`] does.
+    pub fn run_neutral_farms_at_the_stall(&mut self) -> i32 {
+        let env = self.farm_env();
+        let mut market = crate::ai_farm::CountyStall::new(
+            &self.tables,
+            &self.counties,
+            &self.campaign.units,
+            env.season_next,
+            env.armies_eat,
+        );
+        crate::ai_farm::manage_neutral_fields(
+            &self.tables,
+            &mut self.counties,
+            self.county_count,
+            &mut self.campaign.map,
+            &self.realms,
+            &mut market,
             &env,
         )
     }

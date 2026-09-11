@@ -1236,6 +1236,13 @@ fn county_reset(id: usize) -> CountyState {
         // until now** and every loaded county farmed as style 0; see
         // `Scenario::from_save`.
         farm_style: (id & 1) as u8,
+        // `County_Reset` zeroes the whole record, and no new-game path writes
+        // any of these four: a fresh county has no money of its own and no
+        // stall until `County_RecountMerchants` runs at the end of turn one.
+        purse: 0,
+        merchant_count: 0,
+        merchant_unit: 0,
+        merchant_visits: 0,
     }
 }
 

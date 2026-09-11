@@ -435,7 +435,20 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   that is *not* a conflict: two branches touching different parts of this
 ///   comment merge clean and leave the repeat, and that is the shape the check
 ///   exists for. It has still never been the thing that caught one.
-pub const VERSION: u32 = 18;
+/// * 19 — **the county's merchant stall**: [`crate::county::County::merchant_count`]
+///   (`+0x1A4`), `merchant_unit` (`+0x1A5`) and `merchant_visits` (`+0x1A0`),
+///   nine bytes a county over 17 slots: **+153**.
+///
+///   `County_RecountMerchants` (`0x00451061`) writes all three once a season
+///   and [`crate::phase::Pass::CountyRecountMerchants`] is the pass. Carried
+///   rather than derived on load for the reason that made this whole change
+///   necessary: **the first thing a loaded game does is turn phase 1**, which
+///   runs the neutral counties' farming pass, which asks `merchant_count`
+///   whether the county may buy food — and the recount does not run again
+///   until the *end* of that turn. A defaulted stall is a season of unowned
+///   counties that cannot shop, which is exactly the defect being fixed.
+///   `docs/decisions.md` CNEW-neutral-purse.
+pub const VERSION: u32 = 19;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
@@ -1094,6 +1107,9 @@ impl Encode for County {
         out.i32(self.tax_collected);
         out.i32(self.tax_shown);
         out.i32(self.purse);
+        out.i32(self.merchant_count);
+        out.u8(self.merchant_unit);
+        out.i32(self.merchant_visits);
         for job in &self.labour {
             out.i32(*job);
         }
@@ -1246,6 +1262,9 @@ impl Decode for County {
         c.tax_collected = input.i32()?;
         c.tax_shown = input.i32()?;
         c.purse = input.i32()?;
+        c.merchant_count = input.i32()?;
+        c.merchant_unit = input.u8()?;
+        c.merchant_visits = input.i32()?;
         for job in 0..JOB_COUNT {
             c.labour[job] = input.i32()?;
         }

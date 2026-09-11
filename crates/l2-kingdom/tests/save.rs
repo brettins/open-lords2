@@ -251,6 +251,9 @@ fn furnished(seed: u64) -> Kingdom {
         c.tax_collected = 25 + n;
         c.tax_shown = 26 + n;
         c.purse = 27 + n;
+        c.merchant_count = id as i32 % 3;
+        c.merchant_unit = (id % 150 + 1) as u8;
+        c.merchant_visits = 28 + n;
         for job in 0..JOB_COUNT {
             c.labour[job] = 500 + n + job as i32;
             c.labour_wanted[job] = 300 + n + job as i32;
@@ -654,7 +657,13 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +272 at version 17 for `Industry::next_season`: four bytes on each of the
     // four industry records, over 17 county slots. It is the number the
     // sidebar's industry rows draw — county `+0x2A8 + c*0x18`.
-    assert_eq!(c.finish().len, 58_321, "the state encoding changed - bump VERSION?");
+    //
+    // +153 at version 19 for the county's merchant stall — `merchant_count`
+    // (4), `merchant_unit` (1) and `merchant_visits` (4), over 17 county slots.
+    // `County_RecountMerchants` writes all three and `Ai_BuyGood` reads the
+    // first two as the gate and the price in front of every purchase an AI or
+    // an unowned county makes.
+    assert_eq!(c.finish().len, 58_474, "the state encoding changed - bump VERSION?");
 }
 
 /// **No record slot is silenced.** Every county, every realm, every unit slot,

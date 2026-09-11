@@ -112,6 +112,34 @@ const CASTLE_SWITCH: u32 = 0x1B0;
 /// right.
 const FARM_STYLE: u32 = 0x1FE;
 
+/// `+0x1F4` — **an unowned county's own treasury**, and `+0x1A4` / `+0x1A5` /
+/// `+0x1A0` — its merchant stall: how many merchants are standing in it, the
+/// slot of the last one counted, and the lifetime visit total.
+///
+/// **`[V]`, and read straight out of the fixtures.** `Tax_CollectAll`
+/// (`0x0044B59B`) banks a lordless county's tax into `+0x1F4`, and `Ai_BuyGood`
+/// (`0x004A4B12`) refuses every purchase unless `+0x1A4` is non-zero and then
+/// prices the goods by `g_units[+0x1A5].morale`. Those four bytes are therefore
+/// the whole of whether a county nobody owns can feed itself.
+///
+/// None of them was imported, and the cost was measured before it was fixed:
+/// **fifty sacks of grain a season, per unowned county, in perpetuity.** The
+/// six one-turn-apart saves carry `+0x1F4` at 186, 297, 260 (county 1), 195,
+/// 316, 294 (county 3) and 436 (siege county 3), and `+0x1A4` non-zero on every
+/// county holding a merchant. `l2_kingdom::county::County::purse`'s own comment
+/// asserted *"it is 0 in every fixture"*, which was true of `england-turn1.sav`
+/// and of nothing else. `docs/decisions.md` CNEW-neutral-purse.
+///
+/// **The stall is imported rather than recomputed from the units**, even though
+/// `l2_kingdom::merchant::recount_all` could derive it, because the first thing
+/// a loaded game runs is turn phase 1 — the neutral farming pass — and the
+/// recount is season pass 22, at the *end* of that same turn. The original
+/// reads these bytes back out of the file; so does this.
+const PURSE: u32 = 0x1F4;
+const MERCHANT_VISITS: u32 = 0x1A0;
+const MERCHANT_COUNT: u32 = 0x1A4;
+const MERCHANT_UNIT: u32 = 0x1A5;
+
 /// `+0x290 + c*0x18` — the four industry records, and the three bytes of each
 /// that say whether it can run: `+5` the resource, `+6` the countdown, `+7` the
 /// switch. Commodity order **wood, iron, weapons, stone**, which is
@@ -429,6 +457,13 @@ pub struct CountyState {
     /// neutral counties' own AI pass and was left at zero on every load until
     /// the map constructor made the omission visible.
     pub farm_style: u8,
+    /// `+0x1F4` — an unowned county's own treasury. See [`PURSE`].
+    pub purse: i32,
+    /// `+0x1A4`, `+0x1A5`, `+0x1A0` — the county's merchant stall. See
+    /// [`MERCHANT_COUNT`].
+    pub merchant_count: i32,
+    pub merchant_unit: u8,
+    pub merchant_visits: i32,
 }
 
 /// One realm's imported state.
@@ -763,6 +798,14 @@ impl Scenario {
                 field_tiles: read_field_tiles(save, c.index)?,
                 farm_style: save
                     .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + FARM_STYLE)?,
+                purse: save.i32_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + PURSE)?,
+                merchant_count: save
+                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + MERCHANT_COUNT)?
+                    as i32,
+                merchant_unit: save
+                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + MERCHANT_UNIT)?,
+                merchant_visits: save
+                    .i32_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + MERCHANT_VISITS)?,
             });
         }
 
@@ -972,6 +1015,10 @@ impl Scenario {
                 industry_share: _,
                 field_tiles: _,
                 farm_style: _,
+                purse,
+                merchant_count,
+                merchant_unit,
+                merchant_visits,
                 // --- derived, not imported --------------------------------
                 // `County_RecountFields` makes these from the twenty field
                 // tiles, so the file's copies are a cache we recompute rather
@@ -1002,6 +1049,13 @@ impl Scenario {
             c.immigrants = *immigrants;
             c.pop_band = *pop_band;
             c.tax_collected = *tax_collected;
+            // **The four that fund and gate a lordless county's shopping.**
+            // `Tax_CollectAll` fills the purse; `Ai_BuyGood` will not spend a
+            // penny of it without a stall. See [`PURSE`].
+            c.purse = *purse;
+            c.merchant_count = *merchant_count;
+            c.merchant_unit = *merchant_unit;
+            c.merchant_visits = *merchant_visits;
             c.ration_achieved = *ration_achieved;
             c.grain_eaten = *grain_eaten;
             c.herd_eaten = *herd_eaten;

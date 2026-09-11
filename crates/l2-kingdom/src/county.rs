@@ -344,14 +344,52 @@ pub struct County {
     /// `+0x1F4` — **an unowned county's own treasury.**
     ///
     /// A county with no lord still farms, still taxes and still trades. Its tax
-    /// is banked here rather than in any realm's gold (`FUN_0044B4F3`), the AI
-    /// grants it 100 crowns a season (`FUN_004A15xx`), and
+    /// is banked here rather than in any realm's gold, the style-0 neutral pass
+    /// tops it up by 100 ([`crate::ai_farm::NEUTRAL_PURSE_TOP_UP`]), and
     /// [`crate::trade::trade`] pays out of it whenever the realm argument is 0 —
     /// which is every trade `Ai_BuyGood` makes on behalf of an unowned county.
     ///
-    /// It is 0 in every fixture, because no fixture has an unowned county that
-    /// has traded yet. `docs/hypotheses.json`.
+    /// **`[V]`, and two things this comment used to get wrong.**
+    ///
+    /// * The banker is **`Tax_CollectAll` itself** (`0x0044B59B`), not
+    ///   `FUN_0044B4F3` — there is no function at that address; it is inside
+    ///   `Territory_BlockContains`. Its last statement is
+    ///   `if (realm == 0) county.purse += county.taxCollected;` against the
+    ///   `else` that credits `realm.gold` and the two realm accumulators.
+    ///   [`crate::tax::bank`] is that branch.
+    /// * *"It is 0 in every fixture"* was **false**, and it is the sentence
+    ///   that kept the neutral counties from shopping. Read out of the six
+    ///   one-turn-apart saves at `+0x1F4`: county 1 carries 186, 297, 260 and
+    ///   county 3 carries 195, 316, 294 across three consecutive turns of the
+    ///   battle game, and siege county 3 carries 436. The claim was true of
+    ///   `england-turn1.sav`, which is turn one — the only save in which no
+    ///   season has ever banked anything here. `docs/decisions.md`
+    ///   CNEW-neutral-purse.
     pub purse: i32,
+    /// `+0x1A4` — **how many merchants are standing in this county**, and
+    /// therefore whether it has a stall to trade at.
+    ///
+    /// `Ai_BuyGood` (`0x004A4B12`) opens `if (county.merchantCount != 0)` and
+    /// does nothing whatever when it is zero, so this byte is the gate in front
+    /// of every purchase the AI and the neutral counties make. Written once a
+    /// season by [`crate::merchant::recount_all`]
+    /// (`County_RecountMerchants`, `0x00451061`) and by nothing else.
+    pub merchant_count: i32,
+    /// `+0x1A5` — **the unit index of the last merchant counted here**, whose
+    /// morale prices the county's stall.
+    ///
+    /// `Ai_BuyGood` reads `g_units[county.merchantUnit].morale` and marks the
+    /// stall price up by it, so this is not a display field: it is half of what
+    /// a sack of grain costs. Two merchants in one county leaves the *higher*
+    /// index, because the recount overwrites rather than keeping the first.
+    pub merchant_unit: u8,
+    /// `+0x1A0` — **the lifetime count of merchant visits** to this county.
+    ///
+    /// The recount deliberately does not clear it: it zeroes `+0x1A4` and
+    /// `+0x1A5` and then adds one here per merchant found, so it rises by that
+    /// season's [`County::merchant_count`] every turn. Nothing in the binary
+    /// reads it; carried because the pass writes it.
+    pub merchant_visits: i32,
     /// `+0xC4 + job*0x0C` — workers assigned to each of nine jobs.
     pub labour: [i32; JOB_COUNT],
     /// `+0xC4 + job*0x0C + 0x04` — **the wanted floor**: how many workers this
@@ -846,6 +884,9 @@ impl County {
             tax_rate: 0,
             tax_collected: 0,
             purse: 0,
+            merchant_count: 0,
+            merchant_unit: 0,
+            merchant_visits: 0,
             tax_shown: 0,
             labour: [0; JOB_COUNT],
             // Zero, not the sentinels: `FUN_00451150` sets up a fresh county

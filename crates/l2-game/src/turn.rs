@@ -1196,11 +1196,25 @@ fn begin_phase(game: &mut Game, phase: Phase) {
         }
         Phase::NeutralCounties => {
             game.kingdom.run_ai_tax_rates(0);
-            // The unowned counties farm too, by whichever lord held them last.
-            // `NoMarket` is the merchant seam: there is no stall yet, so every
-            // style's opening shopping cascade is refused and the county farms
-            // what it already has. See `l2_kingdom::ai_farm`.
-            game.kingdom.run_neutral_farms(&mut l2_kingdom::ai_farm::NoMarket);
+            // The unowned counties farm too, by whichever lord held them last —
+            // **and they shop**, which is `AI_ManageFields(0)`'s first act and
+            // the half of the pass this line used to refuse.
+            //
+            // > It used to pass `l2_kingdom::ai_farm::NoMarket`, with the
+            // > reason written at the type: *"there is no stall yet, so every
+            // > style's opening shopping cascade is refused and the county
+            // > farms what it already has."* **The stated reason was false and
+            // > nothing had checked it.** `Ai_BuyGood`'s stall gate is county
+            // > `+0x1A4`, which every fixture carries non-zero wherever a
+            // > merchant is standing, and its purse is `+0x1F4`, which they
+            // > carry at 186 … 436. The behavioural differential put a number
+            // > on the refusal: **50 sacks of grain, per unowned county, per
+            // > season, for ever.** `docs/decisions.md` CNEW-neutral-purse.
+            //
+            // `Kingdom::run_neutral_farms` builds the stall from the counties'
+            // own merchant fields and the unit array, which is exactly the two
+            // reads `Ai_BuyGood` makes.
+            game.kingdom.run_neutral_farms_at_the_stall();
         }
         Phase::PlayersTurn => {
             for id in 1..l2_kingdom::realm::MAX_REALMS {

@@ -183,8 +183,7 @@ pub fn recompute_preview(t: &Tables, county: &mut County) {
 /// `empire` is the owning realm's `taxHapEmpire`; an unowned county has no
 /// realm and therefore no empire term.
 ///
-/// Returns what the treasury banks, which the caller credits — an unowned
-/// county's take goes nowhere, because realm 0 is not a realm.
+/// Returns what the treasury banks, which the caller hands to [`bank`].
 pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
     let base = if county.tax_suppressed { 0 } else { tax_base(t, effective_castle_type(county)) };
     let take = pct(pct(county.population, base), county.tax_rate);
@@ -196,6 +195,54 @@ pub fn collect(t: &Tables, county: &mut County, empire: i32) -> i32 {
     county.d_hap_tax_local = FREE_TAX_RATE - county.tax_rate;
     county.d_hap_tax = county.d_hap_tax_local + empire;
     take
+}
+
+/// **Where the take goes**, which is `Tax_CollectAll`'s last statement and the
+/// half of the pass this crate used to drop on the floor.
+///
+/// ```c
+/// if (realm == 0) {
+///     g_counties[c].purse += g_counties[c].taxCollected;
+/// } else {
+///     g_realms[realm].gold += take;
+///     g_realms[realm].f0xF4 += take;      /* NOT PORTED — see below */
+///     g_realms[realm].f0xF8 += take;
+/// }
+/// ```
+///
+/// **`+0xF4` and `+0xF8` are not ported, and they are not the trade pair.**
+/// [`Realm::trade_received_a`] and `_b` are `+0x10C` and `+0x110`, which
+/// `Merchant_Trade` writes; these are a third pair at a different offset that
+/// this crate has no field for. They read exactly like the tax half of a
+/// revenue ledger — a `{value, value-as-of-the-snapshot}` interleave of the
+/// kind `Realm_SnapshotLedger` builds across `+0x118 … +0x13C` — but nothing
+/// has been found that reads either, so they are named here rather than
+/// invented. `CLAUDE.md` rule 5.
+///
+/// **`[V]`**, read out of `0x0044B59B` at the moment of writing. `docs/symbols.md`
+/// said only *"credited to the owner realm's gold"* and that sentence is why an
+/// unowned county's tax went nowhere here for months — the `realm == 0` arm is
+/// not an edge case, it is one of the branch's two limbs and it is the one that
+/// funds every trade a lordless county makes.
+///
+/// What it costs when it is missing is measurable and was measured: an unowned
+/// county's purse is the only thing `Ai_BuyGood` tests before buying grain, so a
+/// purse permanently at zero is a county that never shops. On the `old_turn` →
+/// `battle-before` pair the original's counties 1 and 3 each buy the cascade's
+/// 50-sack lot for 200 crowns out of purses of 297 and 316 — and on the
+/// *previous* turn, with 186 and 195 in the same purses, neither can afford it
+/// and neither buys. `docs/decisions.md` CNEW-neutral-purse.
+///
+/// `realm` is the county's owner. `realms[0]` is the scratch realm every
+/// unowned county reads through and must not be credited, which is exactly what
+/// the branch is for.
+pub fn bank(county: &mut County, realms: &mut [Realm], take: i32) {
+    let owner = county.owner as usize;
+    if owner == 0 {
+        county.purse += take;
+    } else if let Some(realm) = realms.get_mut(owner) {
+        realm.gold += take;
+    }
 }
 
 #[cfg(test)]
@@ -459,5 +506,45 @@ mod tests {
         c.castle_degraded = crate::siege::CASTLE_DEGRADED_BUILDING;
         c.castle_building = 0;
         assert_eq!(collect(T, &mut c, 0), pct(pct(1000, 320), 100));
+    }
+
+    /// **An unowned county banks its own tax**, and this is the arithmetic the
+    /// fixtures settle rather than a reading.
+    ///
+    /// County 1 of the battle game is unowned, holds 580 people at rate 6 with
+    /// no castle, and carries a purse of 186 at turn 3 and **297** at turn 4.
+    /// `Pct(Pct(580, 320), 6)` is 111, and `186 + 111 = 297` exactly — which is
+    /// also the `taxCollected` the turn-4 save stores. County 3 does the same
+    /// with 634 people: 121, and `195 + 121 = 316`.
+    ///
+    /// *Ablation*: change [`bank`]'s `owner == 0` arm to do nothing and both
+    /// purse assertions go red while the realm ones stay green.
+    #[test]
+    fn a_lordless_county_banks_its_tax_in_its_own_purse() {
+        let mut realms = vec![Realm::new(); crate::realm::MAX_REALMS];
+        for (pop, was, then) in [(580, 186, 297), (634, 195, 316)] {
+            let mut c = county_with(pop, 6, 0);
+            c.owner = 0;
+            c.purse = was;
+            let take = collect(T, &mut c, 0);
+            bank(&mut c, &mut realms, take);
+            assert_eq!(c.purse, then, "{pop} people at rate 6 bank {take} into {was}");
+            assert_eq!(realms[0].gold, 0, "realm 0 is not a treasury and must not be credited");
+        }
+    }
+
+    /// And an owned one still banks into its realm, which is the other limb of
+    /// the same branch.
+    #[test]
+    fn an_owned_county_banks_its_tax_in_its_realms_gold() {
+        let mut realms = vec![Realm::new(); crate::realm::MAX_REALMS];
+        let mut c = county_with(1000, 10, 0);
+        c.owner = 2;
+        c.purse = 500;
+        let take = collect(T, &mut c, 0);
+        bank(&mut c, &mut realms, take);
+        assert_eq!(take, 320);
+        assert_eq!(realms[2].gold, 320);
+        assert_eq!(c.purse, 500, "the county's own purse is untouched when it has a lord");
     }
 }
