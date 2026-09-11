@@ -160,9 +160,13 @@ fn each_widget_toggles_its_own_row_and_only_its_own() {
 ///   the press; Widget_Test kind 5 waits twenty frames"*;
 /// * declare the rows `Kind::Press` and fire them on the click, and it goes red
 ///   one line earlier, at *"the picture goes down at once"*: kind 1 has no
-///   pressed frame. **`tests/arms.rs` stays green under this one** — it compares
-///   the marker's word with the record's, and never reads the `Kind` the code
-///   declares;
+///   pressed frame. **`tests/arms.rs` used to stay green under this one**,
+///   because it compared the marker's word with the record's and never read the
+///   `Kind` the code declares. The marker is the declaration now — each row's
+///   `crate::arm!` — so declaring a row `Press` there turns `arms.rs` red,
+///   naming the arm and both words, and a bare `Kind::Press` under a
+///   `left-press-delayed` comment is refused as a comment claiming a kind only
+///   `Press` answers. Both run;
 /// * delete the `self.press.tick()` call from `OptionsScreen::update` and it
 ///   goes red at *"up again on the twentieth"*: the row stays down and never
 ///   acts.
@@ -228,8 +232,9 @@ fn every_row_goes_down_on_the_press_and_acts_twenty_ticks_later() {
 /// the second press overwrote the first and *Music* never toggled.
 ///
 /// **Ablation, run:** zero every other record's timer in `Press::press_delayed`
-/// — the one-pending-press model — and the tick-20 assertion goes red: *Music*
-/// has not moved.
+/// — the one-pending-press model — and this goes red on tick 6, at *"both rows
+/// are drawn down"*: the second press put the first row's picture back up, and
+/// its twentieth tick never comes.
 #[test]
 fn two_rows_pressed_five_ticks_apart_both_toggle_each_on_its_own_twentieth_tick() {
     let (mut game, assets) = world();

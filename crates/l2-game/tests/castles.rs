@@ -71,10 +71,11 @@ fn on(r: Rect) -> (i32, i32) {
 /// every tick before the twentieth, and the press clicks exactly once.
 ///
 /// Every castle order in this file goes through here, so all five are tests of
-/// the gesture. **Ablations, run:** give the thumbs `Kind::Press` in
-/// `castle::widgets` and the delay assertion goes red — that is also the kind
-/// `tests/arms.rs` refuses, through the `arm!`; delete `self.click()` from
-/// `Press::press_delayed` and the click count does.
+/// the gesture. **Ablations, run:** declare the thumbs `Press` in their `arm!`s
+/// and all five go red at the screen's own debug assertion that both records
+/// are kind 5 — the press answers at once — and `tests/arms.rs` goes red too;
+/// delete `self.click()` from `Press::press_delayed` and all five go red at the
+/// click count, which reads 0.
 fn press_and_wait(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
     let before = m.top_id();
     let clicks = m.clicks();

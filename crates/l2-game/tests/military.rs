@@ -899,7 +899,9 @@ fn a_selected_army_opens_the_division_screen_and_an_unselected_one_does_not() {
 ///
 /// **Ablations, run:** delete the `Event::DoubleClick` pattern from the divide
 /// screen's `Click` arm and the daughter has fifty; delete `self.release()` from
-/// `Press::event`'s double-click `Repeat` arm and she has far more than sixty.
+/// `Press::event`'s double-click `Repeat` arm and the hold repeats until every
+/// man has moved, so the split is refused and *"the split went through"* goes
+/// red.
 #[test]
 fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
     let (mut g, a, mut m) = on_the_map();

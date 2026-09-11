@@ -499,9 +499,9 @@ fn settle(m: &mut Machine, game: &mut Game, assets: &Assets) {
 /// `DAT_0057D3C4 = 0x96` and writes when that runs out. Ours answered a raw
 /// click and wrote on the spot.
 ///
-/// **Ablations, run:** make the thumb's `fire` arm call `confirm` directly and
-/// *"nothing is written on the press"* goes red; delete `self.click()` from
-/// `Press::press` and the first click count does.
+/// **Ablations, run:** make `SaveLoadScreen::begin` arm a one-frame wait and
+/// *"written on frame 1, before SaveLoad_Tick's 150"* goes red; delete
+/// `self.click()` from `Press::press` and the first click count reads 0.
 #[test]
 fn the_save_thumb_clicks_on_the_press_and_writes_a_hundred_and_fifty_frames_later() {
     use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};

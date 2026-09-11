@@ -117,8 +117,8 @@ fn a_player_can_buy_grain_at_the_merchant_and_sell_it_back() {
     assert_eq!(t, Transition::Pop, "an agreed trade closes the panel");
     // **All six of `DAT_004DD838`'s records are `Widget_Test` kind 4**, so each
     // press is `Sound_RestartSlot(1)`. The panel answered raw clicks and played
-    // nothing. Ablation, run: answer the arrows outside `Press` again and this
-    // reads 1.
+    // nothing. Ablation, run: return 0 from `TradeScreen::take_clicks` and this
+    // reads 0.
     assert_eq!(panel.take_clicks(), 11, "ten presses of the arrow and the thumb up, one click each");
     assert_eq!(panel.qty(), 10, "and the quantity the thumb agreed to was the ten presses");
     assert_eq!(game.gold(), gold - 10 * q.buy, "ten sacks at the buying price");

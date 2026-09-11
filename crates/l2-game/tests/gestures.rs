@@ -383,8 +383,9 @@ fn a_double_click_on_a_prompt_thumb_answers_it() {
 /// the icon hotspots and the minimap pick read `g_mouseLeftPressed` alone.
 /// `[V]` This screen dropped it.
 ///
-/// **Ablation, run:** delete the supplies screen's `Event::DoubleClick` arm and
-/// the screen never leaves.
+/// **Ablation, run:** disable the supplies screen's `Event::DoubleClick` arm and
+/// the click count goes red at 0 — the double click reached nothing, so nothing
+/// went down and nothing will leave.
 #[test]
 fn a_double_click_on_the_supplies_thumb_down_leaves_twenty_ticks_later() {
     use l2_game::screens::supplies::THUMB_DOWN;
