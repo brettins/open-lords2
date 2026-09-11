@@ -230,6 +230,131 @@ fn the_ledger_merges_by_id_and_keeps_its_order_and_its_shape() {
     );
 }
 
+/// A one-row-per-line file as (the lines before the first row, the rows without
+/// their trailing commas, the lines after the last row).
+fn split_rows(text: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
+    let lines: Vec<&str> = text.lines().collect();
+    let is_row = |l: &str| l.trim_start().starts_with("{\"id\": ");
+    let first = lines.iter().position(|l| is_row(l)).expect("a one-line row");
+    let last = lines.iter().rposition(|l| is_row(l)).expect("a one-line row");
+    let own = |s: &[&str]| s.iter().map(|l| l.to_string()).collect::<Vec<_>>();
+    let rows = lines[first..=last].iter().map(|l| l.trim_end_matches(',').to_string()).collect();
+    (own(&lines[..first]), rows, own(&lines[last + 1..]))
+}
+
+fn join_rows(head: &[String], rows: &[String], tail: &[String]) -> String {
+    format!("{}\n{}\n{}\n", head.join("\n"), rows.join(",\n"), tail.join("\n"))
+}
+
+/// Runs the driver on three texts under a registered path, returning whether it
+/// reported success, what it left in the `ours` file, and what it said.
+fn drive(label: &str, base: &str, ours: &str, theirs: &str) -> Option<(bool, String, String)> {
+    let dir = std::env::temp_dir().join(format!(
+        "l2-drive-{}-{}",
+        std::process::id(),
+        label.replace(['/', '.'], "-")
+    ));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let (b, o, t) = (dir.join("base.json"), dir.join("ours.json"), dir.join("theirs.json"));
+    std::fs::write(&b, base).unwrap();
+    std::fs::write(&o, ours).unwrap();
+    std::fs::write(&t, theirs).unwrap();
+    let out = Command::new("node")
+        .arg("tools/symbols/merge-json.js")
+        .args([&b, &o, &t])
+        .arg(label)
+        .current_dir(root())
+        .output();
+    let left = std::fs::read_to_string(&o).unwrap_or_default();
+    let _ = std::fs::remove_dir_all(&dir);
+    let out = out.ok()?;
+    Some((out.status.success(), left, String::from_utf8_lossy(&out.stderr).to_string()))
+}
+
+/// **`docs/stored-fields.json` merges by id and stays one row per line.**
+///
+/// On the mercenaries merge (C164) the driver rewrote this file from 274 lines to
+/// 1,617, pretty-printed, and reported the merge clean. The content was the right
+/// union; the layout broke the file's contract, which is one object per line
+/// because `crates/l2-scenario/tests/stored_fields.rs` scans it by line, and three
+/// of those tests went red.
+///
+/// So this merges **the real file** three ways — ours rewrites one row and adds a
+/// County row, theirs deletes a row and adds a Realm row — and compares the
+/// result byte for byte with the file those four line edits make. The new ids
+/// sort after every County row and after every Realm row respectively, so the
+/// expected positions follow from the file's own order (County then Realm, each
+/// by offset, which is key order). A driver that pretty-prints, drops a side, or
+/// sorts differently cannot produce these bytes.
+#[test]
+fn stored_fields_merges_by_id_and_stays_one_row_per_line() {
+    let base = std::fs::read_to_string(root().join("docs/stored-fields.json")).expect("docs/stored-fields.json");
+    let (head, rows, tail) = split_rows(&base);
+    assert_eq!(join_rows(&head, &rows, &tail), base, "docs/stored-fields.json is not one row per line to begin with");
+    let id = |row: &str| row.split("\"id\": \"").nth(1).and_then(|s| s.split('"').next()).unwrap_or_default().to_string();
+    let first_realm = rows.iter().position(|r| id(r).starts_with("Realm+")).expect("a Realm row");
+    assert!(first_realm > 3, "this test needs at least four County rows");
+
+    let changed = format!(r#"    {{"id": "{}", "name": "rewrittenByOurs", "type": "u8", "status": "excluded", "why": "ours rewrote this row"}}"#, id(&rows[1]));
+    let ours_new = r#"    {"id": "County+0xZZ1", "name": "addedByOurs", "type": "u8", "status": "excluded", "why": "ours added this row"}"#.to_string();
+    let theirs_new = r#"    {"id": "Realm+0xZZ2", "name": "addedByTheirs", "type": "u8", "status": "excluded", "why": "theirs added this row"}"#.to_string();
+
+    let mut ours = rows.clone();
+    ours[1] = changed.clone();
+    ours.insert(first_realm, ours_new.clone());
+    let mut theirs = rows.clone();
+    theirs.remove(2);
+    theirs.push(theirs_new.clone());
+    let mut expected = rows.clone();
+    expected[1] = changed;
+    expected.insert(first_realm, ours_new);
+    expected.remove(2);
+    expected.push(theirs_new);
+
+    let Some((ok, merged, said)) = drive(
+        "docs/stored-fields.json",
+        &base,
+        &join_rows(&head, &ours, &tail),
+        &join_rows(&head, &theirs, &tail),
+    ) else {
+        return; // no node on this machine; the CI job has one
+    };
+    assert!(ok, "the driver refused a merge with no row changed on both sides:\n{said}");
+    if merged != join_rows(&head, &expected, &tail) {
+        let got = merged.lines().count();
+        panic!(
+            "the merged stored-fields.json is not the expected file ({got} lines, expected {}). \
+             Far more lines than expected means it was pretty-printed, which is the C164 defect; \
+             the same count means a row was lost, kept, or misplaced.",
+            join_rows(&head, &expected, &tail).lines().count()
+        );
+    }
+}
+
+/// **The driver refuses a merge that would change a file's layout.**
+///
+/// The same one-row-per-line rows, merged under a path that has no
+/// `FILE_POLICY`: the driver's default layout for such a path is plain two-space
+/// JSON, so a "clean" merge would rewrite every line. It must refuse — non-zero,
+/// the `ours` file untouched, and `REFUSED` said — so git shows a conflict
+/// instead of a reformatted file with a clean report.
+#[test]
+fn the_driver_refuses_a_merge_that_would_reformat_the_file() {
+    let base = std::fs::read_to_string(root().join("docs/stored-fields.json")).expect("docs/stored-fields.json");
+    let (head, rows, tail) = split_rows(&base);
+    let mut ours = rows.clone();
+    ours.remove(1);
+    let mut theirs = rows.clone();
+    theirs.remove(2);
+    let ours = join_rows(&head, &ours, &tail);
+    let Some((ok, left, said)) = drive("docs/a-file-with-no-layout-policy.json", &base, &ours, &join_rows(&head, &theirs, &tail)) else {
+        return; // no node on this machine; the CI job has one
+    };
+    assert!(!ok, "the driver reported a clean merge for a file it would have reformatted");
+    assert_eq!(left, ours, "the driver refused but still rewrote our side");
+    assert!(said.contains("REFUSED"), "the refusal did not say so:\n{said}");
+}
+
 /// **The `merge=l2json` driver is registered in this clone.**
 ///
 /// `.gitattributes` names it; git refuses to *run* a driver a repository merely

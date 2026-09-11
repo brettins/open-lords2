@@ -39,6 +39,26 @@
 // work ledger's rows are read top to bottom (the merge queue is an order), so
 // sorting them by id would merge the data and destroy the meaning.
 //
+// # It never changes a file's layout, and refuses rather than try
+//
+// On the mercenaries merge (C164) this driver rewrote `docs/stored-fields.json`
+// from 274 lines to 1,617 -- pretty-printed -- and reported the merge clean. The
+// content was the correct union. The layout was not, and that file's contract is
+// one row per line, so three tests that scan it went red and the integrator
+// restored the layout by hand. A clean report on a merge that broke the file is
+// the silent-degradation failure this project keeps logging.
+//
+// So the layout a file is written back in is part of its policy, and two checks
+// hold it:
+//
+// * `--check` fails any registered file whose bytes are not exactly what this
+//   driver would write for it, so a file with a layout the driver does not know
+//   is found by the test suite, before anyone merges it;
+// * a merge whose OUR side is not in that layout is refused, and git is left to
+//   show the conflict, rather than writing a "clean" result in a different
+//   shape. With our side in the driver's layout, the output is in the same
+//   layout by construction, so a clean merge cannot reformat a file.
+//
 // # Wiring
 //
 //     git config merge.l2json.name   "keyed merge for the symbol databases"
@@ -82,27 +102,39 @@ function keyOf(e) {
 
 // **Per-file policy, for what the entries themselves cannot say.**
 //
-// Every file above is one shape: arrays of records that ARE the file, in key
-// order, pretty-printed. `docs/work.json` is not, in three ways, and each is
-// stated here rather than inferred, because an inferred key is exactly how
-// `arms.json` nearly lost 19 records:
+// A file with no entry here is written back as plain two-space JSON, with its
+// keyed arrays sorted by the derived key. `docs/symbols.json`,
+// `docs/hypotheses.json`, `docs/records.json`, `docs/arms.json` and
+// `docs/audio.json` are all exactly that today -- `--check` holds each of them to
+// it byte for byte -- so they need no entry.
 //
-// * **`key`** — its records sit under `items`, beside `about`, `states` and
-//   `tracks` (which merge as members, per key, like any object). They are keyed
-//   by `id` and nothing else; a row without one is refused, not re-keyed.
-// * **`order: 'file'`** — the rows' order is intent. The merge queue is read top
-//   to bottom and `tools/pm/work.js --status` prints it in file order, so a
-//   sorted merge would be a silent reordering of the queue. The merge keeps OUR
-//   order and slots each row only THEIRS added in after the row it followed
-//   there. `--check` does not demand key order for such an array.
+// A file whose shape differs says how, and each part is stated rather than
+// inferred, because an inferred key is exactly how `arms.json` nearly lost 19
+// records:
+//
+// * **`key`** — the fields a row is keyed by, and nothing else; a row without
+//   them is refused, not re-keyed.
+// * **`order`** — `'key'` sorts by that key, like every other file; `'file'`
+//   keeps OUR order and slots each row only THEIRS added in after the row it
+//   followed there, for a file whose order is intent. `--check` demands key
+//   order only of `'key'`.
 // * **`rows: true`** — one record per line. The driver writes the file back in
-//   that shape, and `--check` requires the file to already be in it, so a merge
-//   never rewrites 30 lines into 300. It is also what keeps a text merge honest
-//   when the driver is not registered: a misaligned hunk can only pair whole
-//   rows, never one row's field under another row's id — which was the whole
-//   of the `symbols.json` disaster.
+//   that shape, and `--check` requires the file to already be in it. It is also
+//   what keeps a text merge honest when the driver is not registered: a
+//   misaligned hunk can only pair whole rows, never one row's field under
+//   another row's id -- which was the whole of the `symbols.json` disaster.
 const FILE_POLICY = {
+  // The work ledger. Its rows sit under `items`, beside `about`, `states` and
+  // `tracks`, and their order is the merge queue's, so it is kept.
   'docs/work.json': { items: { key: ['id'], order: 'file', rows: true } },
+  // The stored-fields inventory. **One object per line is its contract**:
+  // `crates/l2-scenario/tests/stored_fields.rs` scans it line by line rather than
+  // take a JSON dependency, and loses every row of a reformatted file -- which is
+  // what the C164 merge did to it. Its order is County then Realm, each by
+  // offset, which the same test requires; for ids of the form `County+0x0C0`
+  // that is key order, so the ordinary sort is the right one and `--check`
+  // keeps asking for it.
+  'docs/stored-fields.json': { fields: { key: ['id'], order: 'key', rows: true } },
 };
 
 function policyFor(file) {
@@ -124,7 +156,7 @@ function keyFnFor(policy, which) {
       : null;
 }
 
-// One value on one line, spaced the way the ledger is written.
+// One value on one line, spaced the way the one-row-per-line files are written.
 function inline(v) {
   if (Array.isArray(v)) return '[' + v.map(inline).join(', ') + ']';
   if (v && typeof v === 'object') {
@@ -133,8 +165,8 @@ function inline(v) {
   return JSON.stringify(v);
 }
 
-// The canonical text of a file under its policy. Without a `rows` member it is
-// the plain two-space form every other keyed file has always been written in.
+// The canonical text of a file under its policy: exactly the bytes this driver
+// writes. Without a `rows` member it is the plain two-space form.
 function serialize(j, policy) {
   if (!Object.values(policy).some((a) => a.rows)) return JSON.stringify(j, null, 2) + '\n';
   const parts = Object.keys(j).map((k) => {
@@ -147,6 +179,15 @@ function serialize(j, policy) {
     return '  ' + JSON.stringify(k) + ': ' + JSON.stringify(v, null, 2).replace(/\n/g, '\n  ');
   });
   return '{\n' + parts.join(',\n') + '\n}\n';
+}
+
+// Where two texts first differ, as a 1-based line number.
+function firstDifference(a, b) {
+  const x = a.split('\n');
+  const y = b.split('\n');
+  let line = 0;
+  while (line < x.length && x[line] === y[line]) line += 1;
+  return line + 1;
 }
 
 // `--check <file>...`: no merging, just the invariants a merge depends on.
@@ -241,19 +282,22 @@ if (process.argv[2] === '--check') {
         );
       }
     }
-    // The shape the driver will write back must be the shape already on disk,
-    // or the first merge rewrites the whole file and buries the real change.
-    if (Object.values(policy).some((a) => a.rows) && serialize(j, policy) !== text) {
+    // **The layout the driver will write back must be the layout already on
+    // disk**, for every registered file and not only the ones with a policy.
+    // That is what makes a file with a layout the driver does not know -- the
+    // way docs/stored-fields.json was, until C164's merge reformatted it -- fail
+    // here, in the suite, instead of at the first merge.
+    const want = serialize(j, policy);
+    if (want !== text) {
       bad += 1;
-      const want = serialize(j, policy).split('\n');
-      const have = text.split('\n');
-      let line = 0;
-      while (line < want.length && want[line] === have[line]) line += 1;
+      const rows = Object.values(policy).some((a) => a.rows);
       console.error(
-        `${f}: not in the shape this driver writes back (first difference at line ${line + 1}).\n` +
-          '  One record per line, two-space indent everywhere else, a final newline. ' +
-          'A merge would rewrite the file into that shape and bury the real change in ' +
-          'the diff, so fix the shape by hand: the line above is where it starts.',
+        `${f}: not in the layout this driver writes back (first difference at line ${firstDifference(want, text)}).\n` +
+          (rows
+            ? '  Its FILE_POLICY says one record per line and two-space indent everywhere else, with a final newline. '
+            : '  It has no FILE_POLICY, so the driver writes plain two-space JSON with a final newline. ') +
+          'A merge of a file in any other layout is refused, so either restore that layout, or -- if this file has a ' +
+          'layout contract of its own -- state it in FILE_POLICY in tools/symbols/merge-json.js.',
       );
     }
   }
@@ -273,19 +317,43 @@ const policy = policyFor(label || oursPath);
 
 function read(p) {
   try {
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
+    const text = fs.readFileSync(p, 'utf8');
+    return { text, json: JSON.parse(text) };
   } catch (e) {
     console.error(`l2json: ${name}: ${p} is not valid JSON (${e.message})`);
     return null;
   }
 }
 
-const base = read(basePath);
-const ours = read(oursPath);
-const theirs = read(theirsPath);
-if (!base || !ours || !theirs) {
+const baseFile = read(basePath);
+const oursFile = read(oursPath);
+const theirsFile = read(theirsPath);
+if (!baseFile || !oursFile || !theirsFile) {
   // Refuse rather than guess: git then leaves the ordinary conflict.
   process.exit(1);
+}
+const base = baseFile.json;
+const ours = oursFile.json;
+const theirs = theirsFile.json;
+
+// **Refuse to reformat.** If our side is not in the layout this driver writes,
+// a "clean" merge would rewrite every line of it. Exiting non-zero without
+// touching %A leaves the path conflicted with our content, and git says so --
+// which is loud, where a reformatted file with a clean report was not.
+{
+  const want = serialize(ours, policy);
+  if (want !== oursFile.text) {
+    console.error(
+      `l2json: ${name}: REFUSED. Our side is not in the layout this driver writes back ` +
+        `(first difference at line ${firstDifference(want, oursFile.text)}), so a merge would reformat the ` +
+        `whole file and report it clean. That is what turned docs/stored-fields.json from 274 lines into ` +
+        `1,617 on the C164 merge.\n` +
+        `  If this file has a layout contract, state it in FILE_POLICY in tools/symbols/merge-json.js; ` +
+        `if it has drifted, restore the layout on our side. Then merge again. ` +
+        `\`node tools/symbols/merge-json.js --check ${name}\` says which.`,
+    );
+    process.exit(1);
+  }
 }
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);

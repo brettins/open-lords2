@@ -96,5 +96,9 @@ docs/work.json       merge=l2json
 #
 # `docs/stored-fields.json`, registered in the commit that creates it for the
 # same reason. Keyed by `id` (`County+0x0C0`): an offset is unique per record, and
-# the file's whole purpose is that no row may silently disappear.
+# the file's whole purpose is that no row may silently disappear. It is one row
+# per line, because `stored_fields.rs` scans it by line -- and on the C164 merge
+# the driver pretty-printed it from 274 lines to 1,617 and called the merge clean.
+# FILE_POLICY in merge-json.js now states that layout, `--check` holds the file to
+# it, and the driver refuses any merge that would change it.
 docs/stored-fields.json merge=l2json
