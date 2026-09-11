@@ -1,0 +1,750 @@
+//! **The job popup's five bodies and the county-event letter, drawn with the
+//! game's own fonts and words.**
+//!
+//! ```text
+//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-game --test job_bodies
+//! ```
+//!
+//! C164 carried the figures these painters draw and left the painters as stubs.
+//! Every assertion below is **one figure or one word, in its own box, at the
+//! painter's own coordinates** — never a whole-canvas diff, which can pass when a
+//! panel's height changes too. Every coordinate that starts a line is a literal
+//! out of the decompilation; a piece chained after it is placed by the font's
+//! own measure and `Ui_DrawText`'s two rules (C155): a character with no glyph
+//! advances four, and every call adds a four-pixel trailer. Nothing here is
+//! computed from a constant in `screens/job.rs` or `screens/message.rs`.
+//!
+//! **What the fixtures hold, and so what is weak.** Advanced farming is off in
+//! every save on this machine, and the grain sown, grown and harvested, field
+//! reclamation, every castle under construction and all four event and weather
+//! figures are zero in every save. Where a figure is zero on disk the test takes
+//! the road the game takes to make it non-zero — painting fields and advancing
+//! seasons, ordering a castle, firing an event and running the season's tick —
+//! and the few that stay zero say so beside the assertion.
+
+use l2_game::game::Assets;
+use l2_game::message::{category, Record};
+use l2_game::screen::{Ctx, Machine, Screen, ScreenId};
+use l2_game::screens::job::JobScreen;
+use l2_game::shell::font::{Font, Style};
+use l2_game::{scenario, Game};
+use l2_kingdom::event::{EventKind, RealmPurse};
+use l2_kingdom::field::FieldType;
+use l2_kingdom::kingdom::Kingdom;
+use l2_kingdom::tables::{
+    Commodity, Season, Tables, Weather, JOB_CASTLE_BUILDING, JOB_CATTLE_FARMING,
+    JOB_FIELD_RECLAMATION, JOB_GRAIN_FARMING, JOB_IRON_MINING, JOB_STONE_QUARRYING,
+    JOB_WOOD_CUTTING,
+};
+use l2_mods::Platform;
+use l2_view::Canvas;
+
+// ---------------------------------------------------------------------- setup
+
+macro_rules! install_assets {
+    () => {{
+        let Some(dir) = l2_testkit::install_dir() else {
+            l2_testkit::skip!("no game install, so there are no fonts and no L2.eng");
+        };
+        let platform = Platform::builder().base(&dir).build().expect("the install mounts");
+        Assets::load(&platform.vfs).expect("assets load")
+    }};
+}
+
+macro_rules! england_world {
+    () => {{
+        let assets = install_assets!();
+        let save = l2_testkit::england!();
+        let mut game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+        game.prefs.tip_screens = false;
+        (game, assets)
+    }};
+}
+
+macro_rules! fixture_world {
+    ($name:expr) => {{
+        let assets = install_assets!();
+        let save = l2_testkit::fixture!($name);
+        let mut game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
+        game.prefs.tip_screens = false;
+        (game, assets)
+    }};
+}
+
+/// The popup for one job of one county, drawn on its own.
+fn draw_job(game: &mut Game, assets: &Assets, county: usize, job: usize) -> Canvas {
+    let mut screen = JobScreen::new(county as u8, job);
+    let mut canvas = Canvas::screen();
+    let ctx = Ctx { game, assets };
+    screen.draw(&ctx, &mut canvas);
+    canvas
+}
+
+/// The painters' ink, `0x3F`, and `Ui_DrawDelta`'s `colourNeg`, `0xF9`.
+const INK: u8 = 0x3F;
+const NEG: u8 = 0xF9;
+
+fn body(a: &Assets) -> &Font {
+    a.shell.body.as_ref().expect("Fntl2_14.pl8 is in the install")
+}
+
+fn heading(a: &Assets) -> &Font {
+    a.shell.heading.as_ref().expect("Fntl2_22.pl8 is in the install")
+}
+
+/// One `L2.eng` string out of the install, which must be there.
+#[track_caller]
+fn eng(a: &Assets, group: usize, index: usize) -> String {
+    let s = a.shell.text(group, index).to_string();
+    assert!(!s.is_empty(), "setup: L2.eng {group}/{index} is empty");
+    s
+}
+
+/// Whether `s`, drawn in `f`, sits on the canvas with its origin at exactly
+/// `(x, y)`: every set pixel of a probe rendered in the same face is `colour`.
+fn is_at(canvas: &Canvas, f: &Font, s: &str, colour: u8, x: i32, y: i32) -> bool {
+    let (w, h) = (f.width(s).max(1), f.height(s).max(1));
+    let mut probe = Canvas::new(w as usize, h as usize);
+    f.draw(&mut probe, 0, 0, s, &Style { colour: 1, shadow: None, caps: None });
+    let mut any = false;
+    for py in 0..h {
+        for px in 0..w {
+            if probe.at(px as usize, py as usize) != 1 {
+                continue;
+            }
+            any = true;
+            let (cx, cy) = (x + px, y + py);
+            if cx < 0 || cy < 0 || cx >= canvas.width as i32 || cy >= canvas.height as i32 {
+                return false;
+            }
+            if canvas.at(cx as usize, cy as usize) != colour {
+                return false;
+            }
+        }
+    }
+    any
+}
+
+/// Every x on row `y` where `s` sits — the failure message's answer to *then
+/// where is it?*
+fn xs_on_row(canvas: &Canvas, f: &Font, s: &str, colour: u8, y: i32) -> Vec<i32> {
+    (0..canvas.width as i32).filter(|&x| is_at(canvas, f, s, colour, x, y)).collect()
+}
+
+#[track_caller]
+fn expect_at(canvas: &Canvas, f: &Font, s: &str, colour: u8, x: i32, y: i32) {
+    assert!(
+        is_at(canvas, f, s, colour, x, y),
+        "{s:?} in {colour:#04x} is not at ({x:#x}, {y:#x}); on that row it is at {:?}",
+        xs_on_row(canvas, f, s, colour, y)
+    );
+}
+
+/// `Ui_DrawText`'s advance over `s`: four for a character with no glyph, the
+/// measure for the rest, and the call's four-pixel trailer. C155.
+fn advance(f: &Font, s: &str) -> i32 {
+    s.chars()
+        .map(|ch| match f.width(&ch.to_string()) {
+            0 => 4,
+            w => w,
+        })
+        .sum::<i32>()
+        + 4
+}
+
+/// `Eng_DrawString(group, index, x, y)`: the word at `x`. Returns where the
+/// next piece starts.
+#[track_caller]
+fn word_at(canvas: &Canvas, a: &Assets, group: usize, index: usize, x: i32, y: i32) -> i32 {
+    let s = eng(a, group, index);
+    expect_at(canvas, body(a), &s, INK, x, y);
+    x + advance(body(a), &s)
+}
+
+/// `Ui_DrawCount(value, noun, x, y)`: the digits one blank sign column right of
+/// `x`, and group 8's singular or plural one trailer after them. Returns where
+/// the next piece starts.
+#[track_caller]
+fn count_at(canvas: &Canvas, a: &Assets, value: i32, noun: usize, x: i32, y: i32) -> i32 {
+    let f = body(a);
+    let digits = value.to_string();
+    expect_at(canvas, f, &digits, INK, x + 4, y);
+    let noun = eng(a, 8, if value.abs() == 1 { noun } else { noun + 1 });
+    let noun_x = x + 4 + advance(f, &digits);
+    expect_at(canvas, f, &noun, INK, noun_x, y);
+    noun_x + advance(f, &noun)
+}
+
+/// A signed row's value: `Ui_DrawDelta(v, 0, " ", " ", 0x128, y)` puts the sign
+/// and digits at `0x130`, in `0xF9` when negative; a zero row is
+/// `Ui_DrawNumber(0, '@', " ", 0x130, y)`, whose digit is one column further.
+#[track_caller]
+fn signed_at(canvas: &Canvas, a: &Assets, value: i32, y: i32) {
+    let f = body(a);
+    match value {
+        0 => expect_at(canvas, f, "0", INK, 0x130 + 4, y),
+        v if v < 0 => expect_at(canvas, f, &format!("-{}", -v), NEG, 0x130, y),
+        v => expect_at(canvas, f, &format!("+{v}"), INK, 0x130, y),
+    }
+}
+
+/// The first county a predicate picks, or a setup failure naming what was
+/// wanted. The fixtures' realm assignment is rolled per game, so a test names
+/// the property it needs rather than a county number.
+#[track_caller]
+fn county_where(k: &Kingdom, what: &str, pick: impl Fn(&l2_kingdom::county::County) -> bool) -> usize {
+    (1..=k.county_count)
+        .find(|&id| pick(&k.counties[id]))
+        .unwrap_or_else(|| panic!("setup: no county in this fixture is {what}"))
+}
+
+/// Paint every fallow field of one county to grain, one brush stroke a tile —
+/// `Field_SetType`, which is the only way a player makes a county sow.
+fn paint_all_fallow_to_grain(k: &mut Kingdom, county: usize) -> i32 {
+    let tiles: Vec<usize> = k
+        .field_tiles(county)
+        .into_iter()
+        .filter(|&(_, kind)| kind == FieldType::Fallow)
+        .map(|(tile, _)| tile)
+        .collect();
+    for &tile in &tiles {
+        k.paint_field(county, tile, FieldType::Grain).expect("a fallow field takes the grain brush");
+    }
+    tiles.len() as i32
+}
+
+// ------------------------------------------------------------------- grain
+
+/// **`Panel_JobGrain`'s two signed rows and its growing branch, on stored
+/// numbers.** `safeturn.sav` faces Autumn, so the painter takes the `else` arm:
+/// `Ui_DrawCount(+0x2FC, 2, 0x40, 0xD8)` + 77/3 + `Ui_DrawCount(2, 0x42, …)`,
+/// then 77/0 + `crop[0]` + 77/4 on `0xE8`.
+///
+/// Non-zero on disk: the store, grain eaten, the overall change, and the season
+/// count (Autumn next gives 2). **Only ever zero here:** `+0x2FC` and `crop[0]`
+/// (zero in every save; the rule-driven test below makes them move) and
+/// `+0x278` (the no-event line is what is asserted).
+///
+/// Ablations, run: the `delta(…grain_eaten…)` line deleted → `"-135"` not at
+/// `(0x130, 0x108)`; the season mapping's `3 => 2` → `3 => 3` → `"2"` not at
+/// `(0xF5, 0xD8)`.
+#[test]
+fn the_grain_popup_draws_the_store_the_eating_and_the_overall_change() {
+    let (mut game, assets) = fixture_world!("safeturn.sav");
+    let k = &game.kingdom;
+    assert_eq!(k.season_next, 3, "setup: safeturn.sav faces Autumn");
+    assert!(!k.options.advanced_farming, "setup: advanced farming is off in this save");
+    let id = county_where(k, "eating grain with a store", |c| c.grain > 0 && c.grain_eaten > 0);
+    let c = k.counties[id].clone();
+    assert!(c.grain_change_expected != 0, "setup: county {id}'s overall change is non-zero");
+    assert_eq!(c.grain_event_change, 0, "setup: no event touched the store");
+
+    let canvas = draw_job(&mut game, &assets, id, JOB_GRAIN_FARMING);
+
+    // `Ui_DrawCount(grain, 2, 0x130, 0x88)`.
+    count_at(&canvas, &assets, c.grain, 2, 0x130, 0x88);
+    // `+0x278 == 0`: 77/0x18 at (0x40, 0xB0).
+    word_at(&canvas, &assets, 77, 0x18, 0x40, 0xB0);
+    // Advanced farming off: no fertility line, no weather line.
+    assert!(!is_at(&canvas, body(&assets), &eng(&assets, 22, 3), INK, 0x80, 0x98));
+    assert!(!is_at(&canvas, body(&assets), &eng(&assets, 77, 0x12), INK, 0x40, 0xC0));
+
+    // Facing Autumn: `+0x2FC` harvested in 2 Seasons.
+    let at = count_at(&canvas, &assets, c.grain_grown_expected, 2, 0x40, 0xD8);
+    let at = word_at(&canvas, &assets, 77, 3, at, 0xD8);
+    count_at(&canvas, &assets, 2, 0x42, at, 0xD8);
+    // From `crop[0]` Sacks sown in spring.
+    let at = word_at(&canvas, &assets, 77, 0, 0x40, 0xE8);
+    let at = count_at(&canvas, &assets, c.crop[0], 2, at, 0xE8);
+    word_at(&canvas, &assets, 77, 4, at, 0xE8);
+
+    // The two signed rows.
+    word_at(&canvas, &assets, 77, 0x1B, 0x40, 0x108);
+    signed_at(&canvas, &assets, -c.grain_eaten, 0x108);
+    word_at(&canvas, &assets, 77, 0x1C, 0x40, 0x118);
+    signed_at(&canvas, &assets, c.grain_change_expected, 0x118);
+}
+
+/// **The grain year, as the rule walks it: sown, growing, harvested.**
+///
+/// No save on this machine has grain in the ground, so the fields are painted
+/// with the player's brush and the seasons advanced, exactly as
+/// `crates/l2-kingdom/tests/fields.rs` does. Each stage then has a non-zero
+/// figure in its own box:
+///
+/// * facing Spring, `Ui_DrawCount(+0x230, 2, 0x40, 0xD8)` + 77/1 and
+///   `Ui_DrawCount(+0x230 * g_grainYieldPerSack, 2, 0x40, 0xE8)` + 77/2;
+/// * facing Summer, `+0x2FC` + 77/3 + **3** Seasons, and `crop[0]` after 77/0;
+/// * facing Winter, `crop[2]` + 77/3 + **1** Season, singular.
+///
+/// And last, with advanced farming on and a *Sunny* band, `Grain_Grow`'s own
+/// weather swing on `0xC0`, and the fertility phrase on `0x98`. The band is the
+/// one hand-set input: `Weather_UpdateAll` rolls it, and this names one.
+///
+/// Ablations, run: `wrapping_mul(yield_per_sack)` → `wrapping_mul(1)` → `"240"`
+/// not at `(0x44, 0xE8)`; `weather_line` deleted from `grain` → `"120"` not at
+/// `(0x44, 0xC0)`.
+#[test]
+fn the_grain_popup_follows_the_crop_the_rule_sows_grows_and_harvests() {
+    let (mut game, assets) = england_world!();
+    let player = game.player;
+    let k = &mut game.kingdom;
+    assert_eq!(k.season_next, 1, "setup: the England position faces Spring");
+    let id = county_where(k, "the player's", |c| c.owner == player);
+    k.counties[id].grain = 10_000;
+    assert!(paint_all_fallow_to_grain(k, id) > 0, "setup: county {id} had fields to paint");
+    k.refresh_estimates(id);
+    let sown = k.counties[id].grain_sown_expected;
+    assert!(sown > 0, "setup: painted grain fields forecast a sowing, not {sown}");
+    let yield_per_sack = k.tables.grain.yield_per_sack;
+
+    // Facing Spring.
+    let canvas = draw_job(&mut game, &assets, id, JOB_GRAIN_FARMING);
+    let at = count_at(&canvas, &assets, sown, 2, 0x40, 0xD8);
+    word_at(&canvas, &assets, 77, 1, at, 0xD8);
+    let at = count_at(&canvas, &assets, sown * yield_per_sack, 2, 0x40, 0xE8);
+    word_at(&canvas, &assets, 77, 2, at, 0xE8);
+
+    // Facing Summer: the crop is in the ground.
+    game.kingdom.advance_season();
+    game.kingdom.refresh_estimates(id);
+    assert_eq!(game.kingdom.season_next, 2, "setup: one season on faces Summer");
+    let c = game.kingdom.counties[id].clone();
+    assert!(c.grain_grown_expected > 0 && c.crop[0] > 0, "setup: a crop is growing: {c:?}");
+    let canvas = draw_job(&mut game, &assets, id, JOB_GRAIN_FARMING);
+    let at = count_at(&canvas, &assets, c.grain_grown_expected, 2, 0x40, 0xD8);
+    let at = word_at(&canvas, &assets, 77, 3, at, 0xD8);
+    count_at(&canvas, &assets, 3, 0x42, at, 0xD8);
+    let at = word_at(&canvas, &assets, 77, 0, 0x40, 0xE8);
+    let at = count_at(&canvas, &assets, c.crop[0], 2, at, 0xE8);
+    word_at(&canvas, &assets, 77, 4, at, 0xE8);
+
+    // Facing Winter: the harvest, one Season off.
+    game.kingdom.advance_season();
+    game.kingdom.advance_season();
+    game.kingdom.refresh_estimates(id);
+    assert_eq!(game.kingdom.season_next, 4, "setup: facing Winter");
+    let c = game.kingdom.counties[id].clone();
+    assert!(c.crop[2] > 0, "setup: there is a harvest to forecast: {:?}", c.crop);
+    let canvas = draw_job(&mut game, &assets, id, JOB_GRAIN_FARMING);
+    let at = count_at(&canvas, &assets, c.crop[2], 2, 0x40, 0xD8);
+    let at = word_at(&canvas, &assets, 77, 3, at, 0xD8);
+    count_at(&canvas, &assets, 1, 0x42, at, 0xD8);
+
+    // Advanced farming: the fertility phrase and the weather's swing.
+    game.kingdom.options.advanced_farming = true;
+    {
+        let t = game.kingdom.tables;
+        let c = &mut game.kingdom.counties[id];
+        c.weather = Weather::Sunny;
+        l2_kingdom::land::grow(&t, c, true);
+    }
+    let c = game.kingdom.counties[id].clone();
+    assert!(c.grain_weather_change != 0, "setup: a Sunny season moves the growing crop");
+    let canvas = draw_job(&mut game, &assets, id, JOB_GRAIN_FARMING);
+    let band = ((c.fertility + 100) / 29) as usize;
+    word_at(&canvas, &assets, 22, band, 0x80, 0x98);
+    let (shown, index) = if c.grain_weather_change > 0 {
+        (c.grain_weather_change, 0x10)
+    } else {
+        (-c.grain_weather_change, 0x11)
+    };
+    let at = count_at(&canvas, &assets, shown, 2, 0x40, 0xC0);
+    word_at(&canvas, &assets, 77, index, at, 0xC0);
+}
+
+// ------------------------------------------------------------------ cattle
+
+/// **`Panel_JobCattle`, on the England position's stored herds**, which carry
+/// every row this painter has in both signs: births, deaths, slaughter and the
+/// overall change are all non-zero, a herd eaten by nobody draws the zero, and
+/// the crowding bands 10, 20 and 40 are each some county's.
+///
+/// Only ever zero here: `+0x274` (the no-event line is asserted; the event test
+/// below moves it).
+///
+/// Ablations, run: the crowding arm `20 => 9` → `20 => 11` → *"Average herd
+/// crowding."* not at `(0x40, 0xA0)`; `wrapping_sub` → `wrapping_add` in the
+/// farming row → `"+6"` not at `(0x130, 0xF8)`.
+#[test]
+fn the_cattle_popup_draws_the_herd_its_crowding_and_three_signed_rows() {
+    let (mut game, assets) = england_world!();
+    let k = &game.kingdom;
+    let crowded = county_where(k, "a herd at crowding 20 that no one eats", |c| {
+        c.herd_crowding == 20 && c.herd_eaten == 0 && c.herd_births_expected > c.herd_deaths_expected
+    });
+    let eaten = county_where(k, "a herd being eaten", |c| c.herd_eaten > 0 && c.herd_crowding == 10);
+    let shrinking =
+        county_where(k, "a massively overcrowded herd", |c| c.herd_crowding == 40 && c.herd_change_expected < 0);
+
+    for (id, band) in [(crowded, 9), (eaten, 8), (shrinking, 11)] {
+        let c = game.kingdom.counties[id].clone();
+        let canvas = draw_job(&mut game, &assets, id, JOB_CATTLE_FARMING);
+        count_at(&canvas, &assets, c.herd, 4, 0x130, 0x88);
+        word_at(&canvas, &assets, 77, band, 0x40, 0xA0);
+        word_at(&canvas, &assets, 77, 0x13, 0x40, 0xB0);
+        word_at(&canvas, &assets, 77, 5, 0x40, 0xD8);
+        count_at(&canvas, &assets, c.herd_births_expected, 4, 0x130, 0xD8);
+        word_at(&canvas, &assets, 77, 6, 0x40, 0xE8);
+        count_at(&canvas, &assets, c.herd_deaths_expected, 4, 0x130, 0xE8);
+        word_at(&canvas, &assets, 77, 7, 0x40, 0xF8);
+        signed_at(&canvas, &assets, c.herd_births_expected - c.herd_deaths_expected, 0xF8);
+        word_at(&canvas, &assets, 77, 0x1B, 0x40, 0x108);
+        signed_at(&canvas, &assets, -c.herd_eaten, 0x108);
+        word_at(&canvas, &assets, 77, 0x1C, 0x40, 0x118);
+        signed_at(&canvas, &assets, c.herd_change_expected, 0x118);
+    }
+}
+
+/// **The weather's line, both signs and none**, with advanced farming on and
+/// `Herd_SeasonTick` writing `+0x270` from a *Sunny*, a *Frost* and a *Cloudy*
+/// band. The band is the hand-set input; the figure is the rule's.
+///
+/// Ablation, run: the `v < 0` arm of `weather_line` given `0x10` → 77/0x11 not
+/// at the chained x on `0xC0`.
+#[test]
+fn the_cattle_popup_says_what_the_weather_did_to_the_herd() {
+    let (mut game, assets) = england_world!();
+    let player = game.player;
+    game.kingdom.options.advanced_farming = true;
+    let id = county_where(&game.kingdom, "the player's, with a herd", |c| c.owner == player && c.herd > 40);
+
+    for (weather, index) in [(Weather::Sunny, 0x10), (Weather::Frost, 0x11), (Weather::Cloudy, 0x12)] {
+        {
+            let t = game.kingdom.tables;
+            let c = &mut game.kingdom.counties[id];
+            c.weather = weather;
+            l2_kingdom::land::herd_season_tick(&t, c, 1, 2);
+        }
+        let v = game.kingdom.counties[id].herd_weather_change;
+        let canvas = draw_job(&mut game, &assets, id, JOB_CATTLE_FARMING);
+        match index {
+            0x12 => {
+                assert_eq!(v, 0, "setup: Cloudy leaves the herd alone");
+                word_at(&canvas, &assets, 77, 0x12, 0x40, 0xC0);
+            }
+            _ => {
+                assert!(v != 0, "setup: {weather:?} moves the herd");
+                let at = count_at(&canvas, &assets, v.abs(), 4, 0x40, 0xC0);
+                word_at(&canvas, &assets, 77, index, at, 0xC0);
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ events
+
+/// Run the machine until the message scroll is up.
+fn open_the_scroll(m: &mut Machine, game: &mut Game, assets: &Assets) {
+    for _ in 0..8 {
+        let mut ctx = Ctx { game: &mut *game, assets };
+        m.update(&mut ctx);
+        if m.top_id() == Some(ScreenId::Message) {
+            return;
+        }
+    }
+    panic!("Msg_Pump never raised the window; the screen is {:?}", m.top_id());
+}
+
+/// The letter `FUN_00448D7E` posts: `Msg_Enqueue(0, g_localPlayer,
+/// county.eventId, 0, 0x0F, county, 0, 0)`.
+fn letter(game: &mut Game, assets: &Assets, county: usize) -> Canvas {
+    let group = game.kingdom.counties[county].event_id;
+    let player = game.player;
+    let record =
+        Record { to: 0, group, category: category::EVENT, county: county as u8, ..Record::default() };
+    assert!(game.messages.enqueue(record, player), "setup: the ring kept the letter");
+    let mut m = Machine::new(ScreenId::Campaign);
+    open_the_scroll(&mut m, game, assets);
+    let mut canvas = Canvas::screen();
+    let ctx = Ctx { game, assets };
+    m.draw(&ctx, &mut canvas);
+    canvas
+}
+
+/// **An event's toll is a number and a word, on the popup and in the letter.**
+///
+/// *Rats* on a county with grain and *Mad cows* on one with a herd, each fired
+/// by `l2_kingdom::event::fire` and turned into a figure by the season's own
+/// tick — `Grain_SeasonTick` writes `+0x278` and `Herd_SeasonTick` `+0x274` —
+/// so no figure here is typed. Then, for each:
+///
+/// * the job popup's `0xB0` row: `Ui_DrawCount(figure, noun, 0x40, 0xB0)` and
+///   77/0x19 *"eaten by rats."* or 77/0x14 *"died of disease."*;
+/// * the letter, `Msg_DrawWindow`'s category `0x0F` arm in a window at
+///   `(0x20, 0xA0)`: the group's label centred in `(0x30, 0x180)` on `0xC0`, and
+///   the same count and word at `(0x40, 0x130)`.
+///
+/// Ablations, run: `draw_event`'s `pen.eng(…word…)` deleted → *"eaten by
+/// rats."* not at `(0x94, 0x130)`; the popup's `0x87` word deleted → the same
+/// not at `(0x94, 0xB0)`; `Shape::Event => draw_event` removed, so
+/// `draw_notice` draws the letter → *"Rats!!"* not at `(0xC7, 0xC0)`, because
+/// the notice puts the county's name there.
+#[test]
+fn a_random_event_s_toll_is_drawn_on_the_popup_and_in_its_letter() {
+    let (mut game, assets) = england_world!();
+    let quirks = game.kingdom.options.quirks;
+
+    // Rats.
+    let rats = county_where(&game.kingdom, "holding 50 sacks", |c| c.grain >= 50);
+    {
+        let t = game.kingdom.tables;
+        let c = &mut game.kingdom.counties[rats];
+        let mut purse = RealmPurse::default();
+        assert!(l2_kingdom::event::fire(c, rats, &mut purse, EventKind::Rats, Season::Summer, quirks));
+        l2_kingdom::land::grain_season_tick(&t, c, Season::Summer, false, quirks);
+    }
+    let c = game.kingdom.counties[rats].clone();
+    assert_eq!(c.event_id, 0x87, "setup: the county's event is Rats");
+    assert!(c.grain_event_change > 0, "setup: the rats ate something");
+    let canvas = draw_job(&mut game, &assets, rats, JOB_GRAIN_FARMING);
+    let at = count_at(&canvas, &assets, c.grain_event_change, 2, 0x40, 0xB0);
+    word_at(&canvas, &assets, 77, 0x19, at, 0xB0);
+
+    let canvas = letter(&mut game, &assets, rats);
+    let label = eng(&assets, 0x87, 0);
+    let h = heading(&assets);
+    let x = 0x30 + ((0x180 - h.width(&label)) / 2).max(0);
+    expect_at(&canvas, h, &label, INK, x, 0xC0);
+    let at = count_at(&canvas, &assets, c.grain_event_change, 2, 0x40, 0x130);
+    word_at(&canvas, &assets, 77, 0x19, at, 0x130);
+
+    // Mad cows, on a fresh position so the first letter is not still up.
+    let (mut game, assets) = england_world!();
+    let cows = county_where(&game.kingdom, "grazing 40 head", |c| c.herd >= 40);
+    {
+        let t = game.kingdom.tables;
+        let c = &mut game.kingdom.counties[cows];
+        let mut purse = RealmPurse::default();
+        assert!(l2_kingdom::event::fire(c, cows, &mut purse, EventKind::MadCows, Season::Spring, quirks));
+        l2_kingdom::land::herd_season_tick(&t, c, 1, 2);
+    }
+    let c = game.kingdom.counties[cows].clone();
+    assert_eq!(c.event_id, 0x88, "setup: the county's event is Mad cows");
+    assert!(c.herd_event_change > 0, "setup: the malady killed something");
+    let canvas = draw_job(&mut game, &assets, cows, JOB_CATTLE_FARMING);
+    let at = count_at(&canvas, &assets, c.herd_event_change, 4, 0x40, 0xB0);
+    word_at(&canvas, &assets, 77, 0x14, at, 0xB0);
+
+    let canvas = letter(&mut game, &assets, cows);
+    let at = count_at(&canvas, &assets, c.herd_event_change, 4, 0x40, 0x130);
+    word_at(&canvas, &assets, 77, 0x14, at, 0x130);
+}
+
+/// **Wedding fever's number is not carried, so its line is not drawn.**
+///
+/// `siege-aftersie.sav` holds a county whose stored event is `0x8E`, and the
+/// original's line for it is `Ui_DrawNumber(+0x2F8, '@', " ", 0x40, 0x130)` and
+/// 77/0x1E *"extra births."* after it. `+0x2F8` is excluded
+/// (`docs/stored-fields.json`, C164), and the word's x is the pen after that
+/// number, so neither is drawn — but the heading is.
+///
+/// **The absence cannot be ablated into red**, and says so: it pins that the
+/// painter does not invent a figure, not that it draws one. The heading can:
+/// `Shape::Event => draw_event` removed → *"Wedding fever."* not at
+/// `(0x93, 0xC0)`.
+#[test]
+fn wedding_fever_s_letter_draws_its_heading_and_no_figure_we_do_not_carry() {
+    let (mut game, assets) = fixture_world!("siege-aftersie.sav");
+    let id = county_where(&game.kingdom, "under Wedding fever", |c| c.event_id == 0x8E);
+    let canvas = letter(&mut game, &assets, id);
+    let label = eng(&assets, 0x8E, 0);
+    let h = heading(&assets);
+    expect_at(&canvas, h, &label, INK, 0x30 + ((0x180 - h.width(&label)) / 2).max(0), 0xC0);
+    let births = eng(&assets, 77, 0x1E);
+    assert!(
+        xs_on_row(&canvas, body(&assets), &births, INK, 0x130).is_empty(),
+        "no {births:?} on the number line"
+    );
+}
+
+// ---------------------------------------------------------------- industry
+
+/// **`Panel_JobIndustry` for iron, wood and stone, on a save whose blacksmiths
+/// are working.** `battle-during.sav` has a county making weapons from both
+/// wood and iron, so `+0x280` and `+0x284` — the two figures C164 found drawn
+/// by this painter and read by nothing of ours — are non-zero, and so are the
+/// outputs. Advanced farming is switched on, as a player does from the options
+/// screen, for the efficiency line.
+///
+/// **The county is chosen so the two smiths' figures differ** (42 and 21).
+/// `siege-old_turn.sav`'s county is 56 and 56, where swapping them in the
+/// painter stays green — an ablation that cannot fail is a test that cannot.
+///
+/// Only ever zero here: stone's output and `+0x288`/`+0x28C` (no castle is
+/// being built; the castle test below makes the stone figure move). **And the
+/// output and efficiency cannot tell wood from iron on any save here**: every
+/// county that has both produces the same amount of each at the same 80%.
+///
+/// Ablations, run: `smiths_iron` → `smiths_wood` in the iron arm → `"21"` not at
+/// `(0x44, 0xC0)`; the efficiency's `"%"` → `""` → `"80%"` not at
+/// `(0x137, 0xA0)`. **And one stayed green, which is the finding above:**
+/// `JOB_IRON_MINING => (Commodity::Wood, …)`, the iron popup reading the wood
+/// record, passes — 31 and 31, 80 and 80.
+#[test]
+fn the_industry_popup_counts_output_and_what_the_blacksmiths_will_use() {
+    let (mut game, assets) = fixture_world!("battle-during.sav");
+    let t = game.kingdom.tables;
+    let id = county_where(&game.kingdom, "smithing unequal wood and iron", |c| {
+        let f = l2_kingdom::industry::panel_figures(&t, c);
+        f[0] > 0 && f[1] > 0 && f[0] != f[1] && c.industry[Commodity::Iron.index()].next_season > 0
+    });
+    game.kingdom.options.advanced_farming = true;
+    let c = game.kingdom.counties[id].clone();
+    let [smiths_wood, smiths_iron, castle_wood, castle_stone] =
+        l2_kingdom::industry::panel_figures(&t, &c);
+
+    for (job, record, noun) in [
+        (JOB_IRON_MINING, Commodity::Iron, 0x0C),
+        (JOB_WOOD_CUTTING, Commodity::Wood, 0x10),
+        (JOB_STONE_QUARRYING, Commodity::Stone, 0x0E),
+    ] {
+        let r = c.industry[record.index()];
+        let canvas = draw_job(&mut game, &assets, id, job);
+        // `Eng_DrawString(76, 0, 0x40, 0xA0)` + `Ui_DrawNumber(eff, '@', "%", pen + 0x40)`.
+        let at = word_at(&canvas, &assets, 76, 0, 0x40, 0xA0);
+        expect_at(&canvas, body(&assets), &format!("{}%", r.efficiency), INK, at + 4, 0xA0);
+        let at = count_at(&canvas, &assets, r.next_season, noun, 0x40, 0xB0);
+        word_at(&canvas, &assets, 76, 1, at, 0xB0);
+        match job {
+            JOB_IRON_MINING => {
+                let at = count_at(&canvas, &assets, smiths_iron, noun, 0x40, 0xC0);
+                word_at(&canvas, &assets, 76, 2, at, 0xC0);
+            }
+            JOB_WOOD_CUTTING => {
+                let at = count_at(&canvas, &assets, smiths_wood, noun, 0x40, 0xC0);
+                word_at(&canvas, &assets, 76, 2, at, 0xC0);
+                let at = count_at(&canvas, &assets, castle_wood, noun, 0x40, 0xD0);
+                word_at(&canvas, &assets, 76, 3, at, 0xD0);
+            }
+            _ => {
+                let at = count_at(&canvas, &assets, castle_stone, noun, 0x40, 0xC0);
+                word_at(&canvas, &assets, 76, 3, at, 0xC0);
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ castle
+
+/// **`Castle_DrawStatusBlock` via `FUN_00414220`, for a castle the rule is
+/// building.** A county of the player's orders the next castle up with an empty
+/// store (`industry::order_castle`, the build screen's order), so both materials
+/// are owed and `Castle_BuildEstimate` answers a hundred seasons. Every figure
+/// on the block is then non-zero except one.
+///
+/// The column is `x + 0x60 = 0x40` and the rows `y + 0x68 …` = `0xA8`, `0xB8`,
+/// `0xD0`, `0xE0`, `0xF0`. The stone quarry's popup is checked too while the
+/// stone is owed, because `+0x28C` is that figure.
+///
+/// **Only ever zero here: the builders.** Delivering the materials opens the
+/// castle's ceiling (`labour_useful` 1500) and even an industry split of 100
+/// staffs nobody, because castle building's share at `+0x130 + 3*4` is 0 after
+/// `order_castle` — wood cutting takes all 435. So a finite estimate is not
+/// drawn by any test either. Measured and not chased: whether `Castle_Order`
+/// leaves that share alone too was not read.
+///
+/// Ablations, run: `CASTLE_TAX_BONUS_BASE + type` → `+ 1 + type` → `"125"` not
+/// at `(0x106, 0xA8)`; `seasons == 0` inverted → the builders' `"0"` not at
+/// `(0x44, 0xF0)`.
+#[test]
+fn a_castle_under_construction_reports_materials_builders_and_seasons() {
+    let (mut game, assets) = england_world!();
+    let player = game.player;
+    let k = &mut game.kingdom;
+    let id = county_where(k, "the player's, with a keep", |c| c.owner == player && c.castle_type == 3);
+    let owner = k.counties[id].owner as usize;
+    k.realms[owner].stone = 0;
+    k.realms[owner].wood = 0;
+    let t = k.tables;
+    assert!(
+        l2_kingdom::industry::order_castle(&t, &mut k.counties[id], &mut k.realms[owner], 4),
+        "setup: a stone castle may be ordered over a keep"
+    );
+    let c = k.counties[id].clone();
+    assert!(c.castle_stone_owed > 0 && c.castle_wood_owed > 0, "setup: both owed: {c:?}");
+    assert_eq!(l2_kingdom::industry::castle_seasons_left(&t, &c), 100, "setup: nothing delivered");
+
+    let canvas = draw_job(&mut game, &assets, id, JOB_CASTLE_BUILDING);
+    let f = body(&assets);
+    // 71/0x10 + `Ui_DrawNumber(125, ' ', " %", …)` — a stone castle's bonus.
+    let at = word_at(&canvas, &assets, 71, 0x10, 0x40, 0xA8);
+    expect_at(&canvas, f, "125", INK, at + 4, 0xA8);
+    // 71/0xB + `Ui_DrawNumber(400, ' ', " ", …)` + 71/0xC.
+    let at = word_at(&canvas, &assets, 71, 0x0B, 0x40, 0xB8);
+    expect_at(&canvas, f, "400", INK, at + 4, 0xB8);
+    word_at(&canvas, &assets, 71, 0x0C, at + advance(f, " 400 "), 0xB8);
+    let at = count_at(&canvas, &assets, c.castle_stone_owed, 0x0E, 0x40, 0xD0);
+    word_at(&canvas, &assets, 71, 6, at, 0xD0);
+    let at = count_at(&canvas, &assets, c.castle_wood_owed, 0x10, 0x40, 0xE0);
+    word_at(&canvas, &assets, 71, 7, at, 0xE0);
+    let at = count_at(&canvas, &assets, c.labour[JOB_CASTLE_BUILDING], 0x26, 0x40, 0xF0);
+    let at = word_at(&canvas, &assets, 71, 8, at, 0xF0);
+    count_at(&canvas, &assets, 100, 0x42, at, 0xF0);
+
+    // The quarry popup's second line is the stone still owed.
+    let canvas = draw_job(&mut game, &assets, id, JOB_STONE_QUARRYING);
+    let at = count_at(&canvas, &assets, c.castle_stone_owed, 0x0E, 0x40, 0xC0);
+    word_at(&canvas, &assets, 76, 3, at, 0xC0);
+
+}
+
+/// **A county with no castle reads its barracks from the neighbouring table.**
+///
+/// `siege-aftersie.sav` has a county of the player's with `castleType` 0, which
+/// is stored and not staged. `Castle_DrawStatusBlock` indexes
+/// `&DAT_004D8A0C + type * 4`, so type 0 reads the last word of
+/// `CASTLE_WORKFORCE`, **2500**, and `&DAT_004D8A24 + 0` reads the garrison
+/// table's trailing **0**. `[V]` on the bytes and the painter; `[I]` that a
+/// player sees it — the original was not run for this.
+///
+/// Only ever zero here: both materials, and `+0x1A6` (the no-build line is what
+/// is asserted).
+///
+/// Ablations, run: `CASTLE_BARRACKS_BASE` → `(0x004D_8A10 - 0x004D_89E8) / 4`
+/// → `"2500"` not at `(0xB5, 0xB8)`; `seasons == 0` inverted → *"No castle
+/// building in progress."* not at `(0x40, 0xF0)`.
+#[test]
+fn a_county_with_no_castle_reads_barracks_for_2500_from_the_next_table() {
+    let (mut game, assets) = fixture_world!("siege-aftersie.sav");
+    let player = game.player;
+    let id = county_where(&game.kingdom, "the player's with no castle", |c| {
+        c.owner == player && c.castle_type == 0 && c.castle_degraded == 0
+    });
+    let canvas = draw_job(&mut game, &assets, id, JOB_CASTLE_BUILDING);
+    let f = body(&assets);
+    let at = word_at(&canvas, &assets, 71, 0x10, 0x40, 0xA8);
+    expect_at(&canvas, f, "0", INK, at + 4, 0xA8);
+    let at = word_at(&canvas, &assets, 71, 0x0B, 0x40, 0xB8);
+    expect_at(&canvas, f, "2500", INK, at + 4, 0xB8);
+    word_at(&canvas, &assets, 71, 0x0C, at + advance(f, " 2500 "), 0xB8);
+    let at = count_at(&canvas, &assets, 0, 0x0E, 0x40, 0xD0);
+    word_at(&canvas, &assets, 71, 6, at, 0xD0);
+    let at = count_at(&canvas, &assets, 0, 0x10, 0x40, 0xE0);
+    word_at(&canvas, &assets, 71, 7, at, 0xE0);
+    word_at(&canvas, &assets, 71, 0x11, 0x40, 0xF0);
+}
+
+// ------------------------------------------------------------- reclamation
+
+/// **`Panel_JobReclamation`, on the stored zeros.** Every save on this machine
+/// has no field under reclamation, so this is **only ever zero**: *"0 fields
+/// being reclaimed"* on `0xB8` and 77/0xF on `200`. It pins the two lines'
+/// places and the plural at zero, which is `Ui_DrawNumber` and not
+/// `Ui_DrawCount` here — `(byte) +0x204 == 1` picks 0xC, anything else 0xD.
+///
+/// Ablation, run: the `'@'` lead → `' '` has no effect on the pixels (both are
+/// glyph-less); the `fields == 1` test inverted → 77/0xD not at the chained x.
+#[test]
+fn the_reclamation_popup_draws_its_two_lines_on_a_county_reclaiming_nothing() {
+    let (mut game, assets) = england_world!();
+    let player = game.player;
+    let id = county_where(&game.kingdom, "the player's", |c| c.owner == player);
+    let c = game.kingdom.counties[id].clone();
+    assert_eq!((c.fields_reclaiming, c.reclaim_seasons_to_next), (0, 0), "setup: nothing reclaimed");
+    let canvas = draw_job(&mut game, &assets, id, JOB_FIELD_RECLAMATION);
+    let f = body(&assets);
+    expect_at(&canvas, f, "0", INK, 0x40 + 4, 0xB8);
+    word_at(&canvas, &assets, 77, 0x0D, 0x40 + 4 + advance(f, "0"), 0xB8);
+    word_at(&canvas, &assets, 77, 0x0F, 0x40, 200);
+}

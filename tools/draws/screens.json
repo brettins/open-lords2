@@ -405,27 +405,19 @@
       "Screen_DrawWidgets 0x0F arm: if (g_jobPanelJob == 8) FUN_00413526() — the forge fire, 1 draw call"
     ],
     "original": 114,
-    "ours": 5,
-    "real": 4,
-    "placeholder": 3,
+    "ours": 14,
+    "real": 13,
+    "placeholder": 1,
     "widget_records": 0,
     "missing": [
       "Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69) — the job's picture from iconvill.pl8, which l2-view does not load. Frames 0, 2, 3, 5, 6, 7, 8, 9 and 0x10 for jobs 1..9",
-      "Panel_JobGrain (0x00413590), 27 draw calls — the store, the fertility band, the weather and event effects, and either what will be sown or what is growing",
-      "Panel_JobCattle (0x00413B30), 29 — the herd, the crowding band, calf births and cow deaths expected",
-      "Panel_JobReclamation (0x004140F3), 6 — fields being reclaimed and seasons to the next",
-      "Castle_DrawStatusBlock via FUN_00414220, 13",
-      "Panel_JobIndustry (0x00412E6B), 12 — efficiency, output and consumption for jobs 5, 6 and 7",
       "Panel_JobBlacksmith (0x00413155), 21 — a full-screen page over smithy.pl8 and hearth.pl8 with a 480 x 96 footer",
       "FUN_00413526, 1 — the forge fire, hearth.pl8 frames 0..10 at (88, 157), advanced on g_pulse80"
     ],
     "invented": [
-      "text::draw \"THIS JOB'S OWN REPORT\" / \"NOT SIMULATED\" where the body painter's lines go",
       "text::draw \"THE SMITHY IS A FULL PAGE\", on job 8 only"
     ],
     "literals_ours": [
-      "THIS JOB'S OWN REPORT — an honest diagnostic of ours labelling the 87 draw calls of body painter that are not built",
-      "NOT SIMULATED — an honest diagnostic of ours; the body painters read thirteen county fields docs/kingdom.md §1.3 does not have",
       "THE SMITHY IS A FULL PAGE — an honest diagnostic of ours; job 8 is a different page in the original and we draw the small window for it"
     ],
     "excluded": "Panel_JobDetail does NOT call FUN_004050C0 — it is the one screen in this group that does not repaint the map beneath, so there is nothing excluded on that count. Widget_Draw has no 0x0F arm.",

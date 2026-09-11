@@ -99,7 +99,7 @@ The cases, named from the `L2.eng` groups each painter draws and the PL8 files e
 | 0x0B | `Diplo_DrawScreen` `0x00416CF3` | the other lords, and the menu of what to send one | `faces.pl8`; group 72 |
 | 0x0C | `Screen_TradeGoods` `0x00416308` | trade goods | group 68; `merchant.pl8` **again** as the background, then `icontrad.pl8` |
 | 0x0D | `Armoury_LoadScreen` `0x004184C6` | **one weapon's rack** — its 24-frame picture, its count and the four buttons that move men one at a time. `Screen_Draw` has **no** arm for it: `Armoury_ClickRack` paints it once on the way in, and only the widget and input passes run afterwards. **Nothing here is bought** | `arm_<weapon>.pl8`; `g_armouryBuyWidgets`; group 69 index 5, group 8 nouns |
-| 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output | group 74 |
+| 0x0F | `Panel_JobDetail` `0x00412B33` | **the job popup** — one of nine jobs, its workers and its output; the body is `Panel_JobGrain`, `Panel_JobCattle`, `Panel_JobReclamation`, `Castle_DrawStatusBlock` or `Panel_JobIndustry` (`crates/l2-game/src/screens/job.rs`), and the blacksmith's full page is still not built | groups 74 and 8; the bodies 77, 76, 71 and 22 |
 | 0x11 | `Screen_ArmyDivision` `0x004192B1` | **army division** — the levy basket reused, parent from `slot.chosen` and daughter from `slot.available`, row 7 the mercenary band | group 17; `icon_tmp.pl8` |
 | 0x14 | `Panel_Population` `0x004110B1` | **population** | group 73 |
 | 0x15 | `Panel_Tax` `0x0041152F` | **tax** | group 86 |
@@ -1640,7 +1640,12 @@ Five things, in descending order of how much they matter.
    ration panel next to the sheep, grain and cattle icons, beside the two "Eaten" fields we
    do have (`+0x178`, `+0x17C`). They are how many people each food source fed. **[D]**
 
-5. **`+0x22C`, `+0x230`, `+0x24C`, `+0x278` and `+0x2FC`** are read by the grain job popup
+5. *Drawn now — this entry is kept for the record.* C164 carried the fields and the job
+   popup's five bodies draw them, call for call, from the player's own `L2.eng` groups 77,
+   76, 71 and 22; `crates/l2-game/tests/job_bodies.rs` places each figure and word at its
+   painter's coordinates.
+
+   **`+0x22C`, `+0x230`, `+0x24C`, `+0x278` and `+0x2FC`** are read by the grain job popup
    as an overall change, sacks to be sown, the weather's effect on the store, the random
    event's effect on the store, and next season's harvest estimate. None of them is in
    `docs/kingdom.md` §1.3. **[D]**

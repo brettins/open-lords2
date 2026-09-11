@@ -314,6 +314,7 @@ impl Screen for MessageScreen {
             Shape::CountyPortrait => draw_county_portrait(&pen, ctx, canvas, &record, frame),
             Shape::Ending => draw_ending(&pen, ctx, canvas, &record, frame),
             Shape::Garrison => draw_garrison(&pen, ctx, canvas, &record, frame),
+            Shape::Event => draw_event(&pen, ctx, canvas, &record, frame),
             _ => draw_notice(&pen, ctx, canvas, &record, frame),
         }
 
@@ -518,6 +519,77 @@ fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: 
     pen.number_in(body, canvas, x, f.y + 0x80, men, '@', " ", font::TEXT);
     pen.eng(canvas, record.group as usize, 4, f.x + 0x20, f.y + 0xB0, font::TEXT);
 }
+
+/// **Category `0x0F`, a county's random event** — `Msg_DrawWindow`'s arm at
+/// `00470000.c:2067`, whose record `FUN_00448D7E` posts as
+/// `Msg_Enqueue(0, g_localPlayer, county.eventId, 0, 0x0F, county, 0, 0)`.
+///
+/// ```c
+/// Ui_DrawCentred(group, 0, x + 0x10, y + 0x20, w - 0x20, &g_fontHeading, 0x3F);
+/// FUN_0040328E(group, 1, x + 0x20, y + 0x40, w - 0x40, 400, 0, 0, &g_fontBody, 0x3F);
+/// g_penAdvance = 0;
+/// switch (g_counties[county].eventId) {       /* the county's, not the record's */
+///   0x87 Rats:          Ui_DrawCount(+0x278, 2, x + 0x20, y + 0x90) + 77/0x19
+///   0x8B Grain found:   Ui_DrawCount(+0x278, 2, …)                  + 77/0x1A
+///   0x88 Mad cows:      Ui_DrawCount(+0x274, 4, …)                  + 77/0x14
+///   0x89 Wolves:        Ui_DrawCount(+0x274, 4, …)                  + 77/0x15
+///   0x8C Bad cattle:    Ui_DrawCount(+0x274, 4, …)                  + 77/0x16
+///   0x8D Cow bonanza:   Ui_DrawCount(+0x274, 4, …)                  + 77/0x17
+///   0x8A Plague:        Ui_DrawNumber(+0x2F8, '@', " ", …)          + 77/0x1D
+///   0x8E Wedding fever: Ui_DrawNumber(+0x2F8, '@', " ", …)          + 77/0x1E
+/// }
+/// ```
+///
+/// **The heading is the group's own label, never the county's name** —
+/// [`draw_notice`] would have put the county there, and this arm has no county
+/// name on it at all. The body is index 1 whatever the variant.
+///
+/// **Six of the eight number lines are drawn and two are not.** Plague and
+/// Wedding fever print county `+0x2F8`, `Population_UpdateAll`'s event swing,
+/// which no import or rule of ours carries: our population rule computes that
+/// swing differently (`docs/decisions.md` C164), so a carried byte would print
+/// a number the rule did not apply. Their word starts at the pen after that
+/// number, so it cannot be placed without it and is not drawn either.
+///
+/// **And nothing posts this record yet.** `FUN_00448D7E` runs once a frame
+/// from the loop at `0x004B99C0` for `g_selectedCounty`, and posts when the
+/// county's `eventFired` is set and it is the local player's; no function of
+/// ours does. The painter is here so that the day something does, the letter
+/// says what the original's says.
+fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+    pen.heading_centred(
+        canvas,
+        f.x + 0x10,
+        f.y + 0x20,
+        f.w - 0x20,
+        &label(ctx, record.group),
+        font::TEXT,
+    );
+    let text = ctx.assets.shell.text(record.group as usize, 1).to_string();
+    pen.body_wrapped(canvas, f.x + 0x20, f.y + 0x40, f.w - 0x40, &text, font::TEXT);
+
+    let Some(c) = ctx.game.kingdom.counties.get(record.county as usize) else { return };
+    let (value, noun, word) = match c.event_id {
+        0x87 => (c.grain_event_change, EVENT_NOUN_SACK, 0x19),
+        0x8B => (c.grain_event_change, EVENT_NOUN_SACK, 0x1A),
+        0x88 => (c.herd_event_change, EVENT_NOUN_ANIMAL, 0x14),
+        0x89 => (c.herd_event_change, EVENT_NOUN_ANIMAL, 0x15),
+        0x8C => (c.herd_event_change, EVENT_NOUN_ANIMAL, 0x16),
+        0x8D => (c.herd_event_change, EVENT_NOUN_ANIMAL, 0x17),
+        // 0x8A and 0x8E: `+0x2F8`, not carried — see above.
+        _ => return,
+    };
+    let (x, y) = (f.x + 0x20, f.y + 0x90);
+    let next = pen.count(canvas, x, y, value, noun, font::TEXT);
+    pen.eng(canvas, EVENT_GROUP, word, next, y, font::TEXT);
+}
+
+/// `L2.eng` group 77, whose indices `0x14` … `0x1A` are the event letters'
+/// last words: *"died of disease."*, *"eaten by rats."* and the rest.
+const EVENT_GROUP: usize = 77;
+/// Group 8's *Sack* and *Animal*, the two nouns the event arm counts in.
+const EVENT_NOUN_SACK: usize = 2;
+const EVENT_NOUN_ANIMAL: usize = 4;
 
 /// **Category `0x04`, the floating tip.** Its box follows the cursor, clamped
 /// into `0x50 ..= 0xF0` on both axes — so it never leaves the middle of the

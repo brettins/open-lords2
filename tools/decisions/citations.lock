@@ -92,6 +92,7 @@ crates/l2-game/src/screens/map.rs	C61	4ec0e911ae60	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	56e0155cb915	60611046b40d
 crates/l2-game/src/screens/map.rs	C61	e23b83e06409	60611046b40d
 crates/l2-game/src/screens/message.rs	C126	9a44222a16e1	1b2c97c7731a
+crates/l2-game/src/screens/message.rs	C164	a4ab5ea66a65	68f38e5b4b46
 crates/l2-game/src/screens/mod.rs	C22	614efd7627f9	0364b53a921d
 crates/l2-game/src/screens/mod.rs	C59	554190cefe45	37ab8ac1a2fc
 crates/l2-game/src/screens/mod.rs	C59	6d731ce3ba28	37ab8ac1a2fc
@@ -618,6 +619,8 @@ docs/decisions.md	C161	6e968c63f3ee	8b6af36909ef
 docs/decisions.md	C161	bd94546675a8	8b6af36909ef
 docs/decisions.md	C163	2510e92d9958	d043a04534f8
 docs/decisions.md	C163	2ae950ef80e9	d043a04534f8
+docs/decisions.md	C164	9442c0d65781	68f38e5b4b46
+docs/decisions.md	C164	ac02323ec142	68f38e5b4b46
 docs/decisions.md	C17	f0ab9c80c1a8	b9aaae4e270c
 docs/decisions.md	C20	d72be6cb64ab	0ec8eeb4f874
 docs/decisions.md	C21	7cb6452b0185	f7bf296341ff
